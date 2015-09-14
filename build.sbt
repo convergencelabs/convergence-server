@@ -25,7 +25,7 @@ val akkaVersion = "2.4.0-RC2"
 libraryDependencies += "com.typesafe.akka" % "akka-actor_2.11" % akkaVersion
 libraryDependencies += "com.typesafe.akka" % "akka-testkit_2.11" % akkaVersion
 libraryDependencies += "com.typesafe.akka" % "akka-cluster_2.11" % akkaVersion
-libraryDependencies += "com.typesafe.akka" %% "akka-cluster-sharding_2.11" % akkaVersion
+//libraryDependencies += "com.typesafe.akka" %% "akka-cluster-sharding_2.11" % akkaVersion
 
 libraryDependencies += "io.netty" % "netty-all" % "4.0.31.Final"
 
