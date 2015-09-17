@@ -18,6 +18,7 @@ import scala.util.Success
 import com.convergencelabs.server.domain.HandshakeFailure
 import scala.util.Failure
 import language.postfixOps
+import com.convergencelabs.server.frontend.realtime.proto.ModelMessage
 
 object ClientActor {
   def props(
@@ -47,8 +48,15 @@ class ClientActor(
     context.system.scheduler,
     context.dispatcher,
     handleConnectionEvent)
+  
+  val modelClient = new ModelClient(
+      self,
+      self, // FIXME
+      ec,
+      connection)
 
   def handshaked(): Unit = {
+    // FIXME hardcoded
     implicit val timeout = Timeout(5 seconds)
     val f = domainManager ? HandshakeRequest(domainFqn, sessionId, self)
     f onComplete {
@@ -66,22 +74,23 @@ class ClientActor(
   def receive = receiveWhileHandshaking
 
   private def handleConnectionEvent: PartialFunction[ConnectionEvent, Unit] = {
-    case MessageReceived(message) => onMessageReceived(message)
-    case RequestReceived(message, replyPromise) => onRequestReceived(message, replyPromise)
+    case event: ProtocolMessageEvent => onMessageReceived(event)
     case ConnectionClosed() => onConnectionClosed()
     case ConnectionDropped() => onConnectionDropped()
     case ConnectionError(message) => onConnectionError(message)
   }
 
-  private def onMessageReceived(message: ProtocolMessage): Unit = {
+  private def onMessageReceived(event: ProtocolMessageEvent): Unit = {
+    val message = event.message
     message match {
-      case _ => {}
+      // FIXME we effectively loose the fact that we have already narrowed this.
+      // we are making an assumption in the handleMessage method.  Perhaps
+      // the protocol message event needs to be a generic or something.
+      case modelMessage: ModelMessage => modelClient.handleMessage(event)
+      case _ => 
     }
   }
 
-  private def onRequestReceived(message: ProtocolMessage, replyPromise: Promise[ProtocolMessage]): Unit = {
-
-  }
 
   private def onConnectionClosed(): Unit = {
 

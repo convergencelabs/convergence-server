@@ -26,9 +26,16 @@ object ProtocolConnection {
   }
 }
 
+
 sealed trait ConnectionEvent
-case class MessageReceived(message: ProtocolMessage) extends ConnectionEvent
-case class RequestReceived(messagPe: ProtocolMessage, replyPromise: Promise[ProtocolMessage]) extends ConnectionEvent
+
+sealed trait ProtocolMessageEvent extends ConnectionEvent {
+  def message: ProtocolMessage
+}
+
+case class MessageReceived(message: ProtocolMessage) extends ProtocolMessageEvent
+case class RequestReceived(message: ProtocolMessage, replyPromise: Promise[ProtocolMessage]) extends ProtocolMessageEvent
+
 case class ConnectionClosed() extends ConnectionEvent
 case class ConnectionDropped() extends ConnectionEvent
 case class ConnectionError(message: String) extends ConnectionEvent

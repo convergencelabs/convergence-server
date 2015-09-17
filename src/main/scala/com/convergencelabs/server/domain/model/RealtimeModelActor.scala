@@ -250,6 +250,7 @@ class RealtimeModelActor(
       modelData.metaData.modifiedTime)
 
     val openModelResponse = OpenModelResponse(
+      self,
       modelResourceId,
       modelSessionId,
       metaData,
@@ -383,10 +384,10 @@ class RealtimeModelActor(
    * Determines if a snapshot is required.
    */
   private[this] def snapshotRequired(): Boolean = snapshotConfig.snapshotRequired(
-        latestSnapshot.version, 
-        concurrencyControl.contextVersion, 
-        latestSnapshot.timestamp, 
-        Platform.currentTime)
+    latestSnapshot.version,
+    concurrencyControl.contextVersion,
+    latestSnapshot.timestamp,
+    Platform.currentTime)
 
   /**
    * Asynchronously performs a snapshot of the model.

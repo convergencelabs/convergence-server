@@ -72,7 +72,7 @@ package model {
   //
   // Outgoing Messages
   //
-  case class OpenModelResponse(modelResourceId: String, modelSessionId: String, metaData: OpenMetaData, modelData: JValue)
+  case class OpenModelResponse(realtimeModelActor: ActorRef, modelResourceId: String, modelSessionId: String, metaData: OpenMetaData, modelData: JValue)
 
   case class OpenMetaData(version: Long, createdTime: Long, modifiedTime: Long)
 

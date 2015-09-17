@@ -1,3 +1,7 @@
 project/project
 project/target
 target
+/bin/
+.worksheet
+.cache-main
+.cache-tests
