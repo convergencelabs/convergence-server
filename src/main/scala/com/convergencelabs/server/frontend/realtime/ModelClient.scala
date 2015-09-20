@@ -18,47 +18,48 @@ import com.convergencelabs.server.domain.model.OpenModelResponse
 import com.convergencelabs.server.frontend.realtime.proto.OpenRealtimeModelResponseMessage
 import scala.util.Failure
 import com.convergencelabs.server.frontend.realtime.proto.CloseRealtimeModelRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.ModelMessage
-import com.convergencelabs.server.frontend.realtime.proto.OperationSubmission
+import com.convergencelabs.server.frontend.realtime.proto.OperationSubmissionMessage
+import com.convergencelabs.server.frontend.realtime.proto.IncomingModelMessage
+import com.convergencelabs.server.frontend.realtime.proto.IncomingModelMessage
+import com.convergencelabs.server.frontend.realtime.proto.IncomingModelRequestMessage
+import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolResponseMessage
 
 class ModelClient(
     clientActor: ActorRef,
     modelManager: ActorRef,
     implicit val ec: ExecutionContext,
-    connection: ProtocolConnection) extends AbstractProtocolMessageHandler(clientActor) {
+    connection: ProtocolConnection) {
 
   var openRealtimeModels = Map[String, ActorRef]()
 
   // FIXME hardcoded
   implicit val timeout = Timeout(5 seconds)
 
-  def onRequestReceived(event: RequestReceived): Unit = {
-    val message = event.message
+  def onRequestReceived(message: IncomingModelRequestMessage, replyPromise: Promise[OutgoingProtocolResponseMessage]): Unit = {
     message match {
-      case request: OpenRealtimeModelRequestMessage => onOpenRealtimeModelRequest(request, event.replyPromise)
-      case request: CloseRealtimeModelRequestMessage => onCloseRealtimeModelRequest(request, event.replyPromise)
+      case request: OpenRealtimeModelRequestMessage => onOpenRealtimeModelRequest(request, replyPromise)
+      case request: CloseRealtimeModelRequestMessage => onCloseRealtimeModelRequest(request, replyPromise)
     }
   }
 
-  def onMessageReceived(event: MessageReceived): Unit = {
-    val message = event.message
+  def onMessageReceived(message: IncomingModelMessage): Unit = {
     message match {
-      case submission: OperationSubmission => onOperationSubmission(submission)
+      case submission: OperationSubmissionMessage => onOperationSubmission(submission)
     }
   }
 
-  def onOperationSubmission(opSubmission: OperationSubmission): Unit = {
+  def onOperationSubmission(opSubmission: OperationSubmissionMessage): Unit = {
     val modelActor = openRealtimeModels(opSubmission.resourceId)
     // somehow convert to a com.convergencelabs.server.domain.model.OperationSubmission
     val converted: String ="" // hack just to show what we will do
     modelActor ! converted
   }
   
-  def onCloseRealtimeModelRequest(request: CloseRealtimeModelRequestMessage, reply: Promise[ProtocolMessage]): Unit = {
+  def onCloseRealtimeModelRequest(request: CloseRealtimeModelRequestMessage, reply: Promise[OutgoingProtocolResponseMessage]): Unit = {
 
   }
 
-  def onOpenRealtimeModelRequest(request: OpenRealtimeModelRequestMessage, reply: Promise[ProtocolMessage]): Unit = {
+  def onOpenRealtimeModelRequest(request: OpenRealtimeModelRequestMessage, reply: Promise[OutgoingProtocolResponseMessage]): Unit = {
     val req = OpenRealtimeModelRequest(request.modelFqn, clientActor)
 
     val f = modelManager ? req

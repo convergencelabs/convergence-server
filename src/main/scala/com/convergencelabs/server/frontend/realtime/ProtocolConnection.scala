@@ -19,6 +19,11 @@ import java.util.concurrent.TimeoutException
 import scala.util.Failure
 import scala.util.Success
 import com.convergencelabs.server.frontend.realtime.proto.OpCode
+import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolMessage
+import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolMessage
+import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolRequestMessage
+import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolNormalMessage
+import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolResponseMessage
 
 object ProtocolConnection {
   object State extends Enumeration {
@@ -30,11 +35,11 @@ object ProtocolConnection {
 sealed trait ConnectionEvent
 
 sealed trait ProtocolMessageEvent extends ConnectionEvent {
-  def message: ProtocolMessage
+  def message: IncomingProtocolMessage
 }
 
-case class MessageReceived(message: ProtocolMessage) extends ProtocolMessageEvent
-case class RequestReceived(message: ProtocolMessage, replyPromise: Promise[ProtocolMessage]) extends ProtocolMessageEvent
+case class MessageReceived(message: IncomingProtocolNormalMessage) extends ProtocolMessageEvent
+case class RequestReceived(message: IncomingProtocolRequestMessage, replyPromise: Promise[OutgoingProtocolResponseMessage]) extends ProtocolMessageEvent
 
 case class ConnectionClosed() extends ConnectionEvent
 case class ConnectionDropped() extends ConnectionEvent
@@ -152,7 +157,11 @@ class ProtocolConnection(
   }
 
   private[this] def onNormalMessage(message: ProtocolMessage): Unit = {
-    connectionHandler lift MessageReceived(message)
+    if (!message.isInstanceOf[IncomingProtocolNormalMessage]) {
+      // throw something
+    }
+    
+    connectionHandler lift MessageReceived(message.asInstanceOf[IncomingProtocolNormalMessage])
   }
 
   private[this] def onPing(): Unit = {
@@ -162,14 +171,19 @@ class ProtocolConnection(
   private[this] def onRequest(envelope: MessageEnvelope): Unit = {
     // Verify body. and req id.
     val protocolMessage = envelope.extractBody()
-    val p = Promise[ProtocolMessage]
+    
+    if (!protocolMessage.isInstanceOf[IncomingProtocolRequestMessage]) {
+      // FIXME throw some exception becasue this must be a request message.
+    }
+    
+    val p = Promise[OutgoingProtocolResponseMessage]
 
     p.future.onComplete({
       case Success(message) => sendMessage(OpCode.Reply, Some(envelope.reqId.get), Some(message))
       case Failure(error) => // FIXME reply with error
     })(ec)
 
-    connectionHandler lift RequestReceived(protocolMessage, p)
+    connectionHandler lift RequestReceived(protocolMessage.asInstanceOf[IncomingProtocolRequestMessage], p)
   }
 
   private[this] def onReply(envelope: MessageEnvelope): Unit = {

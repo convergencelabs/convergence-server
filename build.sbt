@@ -29,6 +29,11 @@ libraryDependencies += "com.typesafe.akka" % "akka-cluster_2.11" % akkaVersion
 
 libraryDependencies += "io.netty" % "netty-all" % "4.0.31.Final"
 
+libraryDependencies += "fr.xebia.extras" % "selma-processor" % "0.12"
+libraryDependencies += "fr.xebia.extras" % "selma" % "0.12"
+
+
+
 // Crypto
 libraryDependencies += "org.bitbucket.b_c" % "jose4j" % "0.4.4"
 libraryDependencies += "org.bouncycastle" % "bcpkix-jdk15on" % "1.52"

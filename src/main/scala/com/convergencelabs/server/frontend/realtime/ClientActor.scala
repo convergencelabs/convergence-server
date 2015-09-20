@@ -1,24 +1,32 @@
 package com.convergencelabs.server.frontend.realtime
 
-import akka.actor.ActorLogging
-import akka.actor.Actor
-import akka.actor.Props
-import akka.actor.ActorRef
-import com.convergencelabs.server.domain.DomainFqn
+import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
+import scala.util.Failure
+import scala.util.Success
 import com.convergencelabs.server.ProtocolConfiguration
+import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.HandshakeFailure
+import com.convergencelabs.server.domain.HandshakeRequest
+import com.convergencelabs.server.domain.HandshakeSuccess
+import com.convergencelabs.server.frontend.realtime.proto.IncomingModelMessage
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.ActorRef
+import akka.actor.Props
+import akka.actor.actorRef2Scala
+import akka.pattern.ask
+import akka.util.Timeout
+import com.convergencelabs.server.frontend.realtime.proto.IncomingModelMessage
+import com.convergencelabs.server.frontend.realtime.proto.IncomingModelMessage
 import com.convergencelabs.server.frontend.realtime.proto.ProtocolMessage
 import scala.concurrent.Promise
-import com.convergencelabs.server.domain.HandshakeRequest
-import akka.actor.ActorSelection
-import akka.pattern.{ ask, pipe }
-import akka.util.Timeout
-import scala.concurrent.duration._
-import com.convergencelabs.server.domain.HandshakeSuccess
-import scala.util.Success
-import com.convergencelabs.server.domain.HandshakeFailure
-import scala.util.Failure
-import language.postfixOps
-import com.convergencelabs.server.frontend.realtime.proto.ModelMessage
+import com.convergencelabs.server.frontend.realtime.proto.IncomingModelRequestMessage
+import com.convergencelabs.server.frontend.realtime.proto.IncomingModelMessage
+import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolMessage
+import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolNormalMessage
+import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolRequestMessage
+import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolResponseMessage
 
 object ClientActor {
   def props(
@@ -74,23 +82,30 @@ class ClientActor(
   def receive = receiveWhileHandshaking
 
   private def handleConnectionEvent: PartialFunction[ConnectionEvent, Unit] = {
-    case event: ProtocolMessageEvent => onMessageReceived(event)
+    case MessageReceived(message) => onMessageReceived(message)
+    case RequestReceived(message, replyPromise) => onRequestReceived(message, replyPromise)
     case ConnectionClosed() => onConnectionClosed()
     case ConnectionDropped() => onConnectionDropped()
     case ConnectionError(message) => onConnectionError(message)
   }
 
-  private def onMessageReceived(event: ProtocolMessageEvent): Unit = {
-    val message = event.message
+  private def onMessageReceived(message: IncomingProtocolNormalMessage): Unit = {
     message match {
       // FIXME we effectively loose the fact that we have already narrowed this.
       // we are making an assumption in the handleMessage method.  Perhaps
       // the protocol message event needs to be a generic or something.
-      case modelMessage: ModelMessage => modelClient.handleMessage(event)
+      case modelMessage: IncomingModelMessage => modelClient.onMessageReceived(modelMessage)
       case _ => 
     }
   }
 
+  private def onRequestReceived(message: IncomingProtocolRequestMessage, replyPromise: Promise[OutgoingProtocolResponseMessage]): Unit = {
+    message match {
+      // the protocol message event needs to be a generic or something.
+      case modelMessage: IncomingModelRequestMessage => modelClient.onRequestReceived(modelMessage, replyPromise)
+      case _ => 
+    }
+  }
 
   private def onConnectionClosed(): Unit = {
 
