@@ -32,6 +32,7 @@ import com.convergencelabs.server.domain.auth.AuthManagerActor
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.datastore.ConfigurationStore
 import com.convergencelabs.server.domain.auth.LdapDomainAuthenticationProvider
+import java.util.UUID
 
 // FIXME protocol config is silly.
 object DomainActor {
@@ -48,6 +49,8 @@ object DomainActor {
       domainPersistence,
       configStore,
       protocolConfig))
+      
+  private val MaxSessionId = 2176782335L
 }
 
 /**
@@ -64,8 +67,8 @@ class DomainActor(
   log.debug("Domain startting up: {}", domainConfig.domainFqn)
 
   private[this] implicit val ec = context.dispatcher
-
   private[this] val internalDomainAuthProvider = new LdapDomainAuthenticationProvider(configStore)
+  private[this] var nextSessionId = 0L
 
   private[this] val modelManagerActorRef = context.actorOf(ModelManagerActor.props(
     domainConfig.domainFqn,
@@ -84,15 +87,24 @@ class DomainActor(
   private[this] val connectedClients = mutable.Set[ActorRef]()
 
   def receive = {
-    case message: HandshakeRequest => onClientConnect(message)
+    case message: HandshakeRequest => onHandshakeRequest(message)
     case message: ClientDisconnected => onClientDisconnect(message)
     case message => unhandled(message)
   }
 
-  private[this] def onClientConnect(message: HandshakeRequest): Unit = {
-    log.debug("Client connected to domain: " + message.sessionId)
+  private[this] def onHandshakeRequest(message: HandshakeRequest): Unit = {
     this.connectedClients += message.clientActor
-    sender ! HandshakeSuccess(self)
+    val (sessionId, reconnectToken) = message.reconnect match {
+      case false => {
+        (generateNextSessionId(), generateSessionToken())
+      }
+      case true => {
+        // FIXME
+        ("todo", "todo")
+      }
+    }
+    
+    sender ! HandshakeSuccess(sessionId, reconnectToken, self, modelManagerActorRef)
   }
 
   private[this] def onClientDisconnect(message: ClientDisconnected): Unit = {
@@ -109,5 +121,21 @@ class DomainActor(
   override def postStop(): Unit = {
     log.debug("Domain(${domainConfig.domainFqn}) received shutdown command.  Shutting down.")
     domainPersistence.dispose()
+  }
+
+  def generateNextSessionId(): String = {
+    val sessionId = nextSessionId
+
+    if (nextSessionId <	DomainActor.MaxSessionId) {
+      nextSessionId += 1
+    } else {
+      nextSessionId = 0
+    }
+
+    java.lang.Long.toString(sessionId, 36)
+  }
+
+  def generateSessionToken(): String = {
+    UUID.randomUUID().toString() + UUID.randomUUID().toString()
   }
 }

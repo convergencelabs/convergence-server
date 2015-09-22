@@ -40,13 +40,13 @@ class DomainManagerActorSpec(system: ActorSystem)
     "receiving a handshake request" must {
       "respond with a handshake response" in new TestFixture {
         val client = new TestProbe(system)
-        domainManagerActor.tell(HandshakeRequest(domainFqn, "sessionId", client.ref), client.ref)
+        domainManagerActor.tell(HandshakeRequest(domainFqn, client.ref, false, None), client.ref)
         val response = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeSuccess])
       }
       
       "respond with a handshake failure for a domain that doesn't exist" in new TestFixture {
         val client = new TestProbe(system)
-        domainManagerActor.tell(HandshakeRequest(nonExistingDomain, "sessionId", client.ref), client.ref)
+        domainManagerActor.tell(HandshakeRequest(nonExistingDomain, client.ref, false, None), client.ref)
         val response = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeFailure])
       }
     }

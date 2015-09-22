@@ -57,44 +57,11 @@ class ConnectionManagerActor(
   }
 
   private[this] def onNewSocketEvent(newSocketEvent: NewSocketEvent): Unit = {
-    var initializer = new SocketInitializer(newSocketEvent, context.system.scheduler, context.dispatcher, onHandshakeRequest)
-  }
-
-  private[this] val sesionIdToClientActor = mutable.Map[String, ActorRef]()
-  private[this] val sessionTokenToClientActor = mutable.Map[String, ActorRef]()
-
-  private def onHandshakeRequest(event: NewSocketEvent, handshakeRequest: HandshakeRequestMessage): Unit = {
-    if (!handshakeRequest.reconnect) {
-      val sessionId = generateNextSessionId()
-      val sessionToken = generateSessionToken()
-
       val clientActor = context.system.actorOf(ClientActor.props(
-        domainManagerActor, event.socket, event.domainFqn, sessionId, protocolConfig))
-
-      sesionIdToClientActor.put(sessionId, clientActor)
-      sessionTokenToClientActor.put(sessionToken, clientActor)
-
-      log.info(s"(s:$sessionId) Client handshake completed")
-    }
-  }
-
-  var nextSessionId = 0L
-  val MaxSessionId = 2176782335L
-
-  def generateNextSessionId(): String = {
-    val sessionId = nextSessionId
-
-    if (nextSessionId < MaxSessionId) {
-      nextSessionId += 1
-    } else {
-      nextSessionId = 0
-    }
-
-    java.lang.Long.toString(sessionId, 36)
-  }
-
-  def generateSessionToken(): String = {
-    UUID.randomUUID().toString() + UUID.randomUUID().toString()
+        domainManagerActor, 
+        newSocketEvent.socket, 
+        newSocketEvent.domainFqn, 
+        protocolConfig))
   }
 
   override def preStart(): Unit = {

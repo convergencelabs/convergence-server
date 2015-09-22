@@ -39,10 +39,10 @@ class DomainActorSpec(system: ActorSystem)
 
 
   "A DomainActor" when {
-    "receiving a handshake request" must {
+    "receiving an initial handshake request" must {
       "response with a handshake response" in new TestFixture {
         val client = new TestProbe(system)
-        domainActor.tell(HandshakeRequest(domainFqn, "sessionId", client.ref), client.ref)
+        domainActor.tell(HandshakeRequest(domainFqn, client.ref, false, None), client.ref)
         val response = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeSuccess])
         assert(domainActor == response.domainActor)
       }
@@ -51,7 +51,7 @@ class DomainActorSpec(system: ActorSystem)
     "receiving a client disconnect" must {
       "send a domain shutdown request when the last client disconnects" in new TestFixture {
         val client = new TestProbe(system)
-        domainActor.tell(HandshakeRequest(domainFqn, "sessionId", client.ref), client.ref)
+        domainActor.tell(HandshakeRequest(domainFqn, client.ref, false, None), client.ref)
         val response = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeSuccess])
         
         domainActor.tell(ClientDisconnected("sessionId", client.ref), client.ref)

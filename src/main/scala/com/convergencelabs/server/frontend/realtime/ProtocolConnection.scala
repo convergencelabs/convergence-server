@@ -47,7 +47,6 @@ case class ConnectionError(message: String) extends ConnectionEvent
 
 class ProtocolConnection(
     private[this] var socket: ConvergenceServerSocket,
-    private[this] val sessionId: String,
     private[this] val protocolConfig: ProtocolConfiguration,
     private[this] val scheduler: Scheduler,
     private[this] val ec: ExecutionContext,

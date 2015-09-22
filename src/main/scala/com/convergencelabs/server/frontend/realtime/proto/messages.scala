@@ -12,6 +12,7 @@ import com.convergencelabs.server.domain.model.OpenMetaData
 sealed trait ProtocolMessage
 
 sealed trait IncomingProtocolMessage extends ProtocolMessage
+
 sealed trait IncomingProtocolNormalMessage extends IncomingProtocolMessage
 sealed trait IncomingProtocolRequestMessage extends IncomingProtocolMessage
 sealed trait IncomingProtocolResponseMessage extends IncomingProtocolMessage
@@ -20,13 +21,13 @@ sealed trait IncomingProtocolResponseMessage extends IncomingProtocolMessage
 sealed trait OutgoingProtocolMessage extends ProtocolMessage
 
 sealed trait OutgoingProtocolNormalMessage extends ProtocolMessage
+sealed trait OutgoingProtocolRequestMessage extends ProtocolMessage
 sealed trait OutgoingProtocolResponseMessage extends ProtocolMessage
-
 
 
 // Client Messages
 case class HandshakeRequestMessage(reconnect: scala.Boolean, reconnectToken: Option[String], options: Option[ProtocolOptionsData]) extends IncomingProtocolMessage
-case class HandshakeResponseMessage(success: scala.Boolean, error: Option[ErrorData], sessionId: Option[String], reconnectToken: Option[String]) extends OutgoingProtocolMessage
+case class HandshakeResponseMessage(success: scala.Boolean, error: Option[ErrorData], sessionId: String, reconnectToken: String) extends OutgoingProtocolResponseMessage
 
 case class ProtocolOptionsData()
 case class ErrorData(code: String, message: String)
