@@ -191,20 +191,19 @@ class RealtimeModelActor(
 
     val askingActor = sender()
 
-    future onSuccess {
-      case response: ClientModelDataResponse => self ! response
-      case x =>
-        log.warning("The client responded with an unexpected value:" + x)
-        askingActor ! ErrorMessage("invalid_response", "The client responded with an unexpected value.")
-    }
-
-    future onFailure {
-      case cause: AskTimeoutException =>
-        askingActor ! ErrorMessage(
-          "data_request_timeout",
-          "The client did not correctly respond with data, while initializing a new model.")
-      case e: Exception =>
-        askingActor ! ErrorMessage("unknown", e.getMessage)
+    future.mapTo[ClientModelDataResponse] onComplete {
+      case Success(response) => self ! response
+      case Failure(cause) => cause match {
+        case e:  ClassCastException =>
+          log.warning("The client responded with an unexpected value:" + e.getMessage)
+          askingActor ! ErrorMessage("invalid_response", "The client responded with an unexpected value.")
+        case e: AskTimeoutException =>
+          askingActor ! ErrorMessage(
+            "data_request_timeout",
+            "The client did not correctly respond with data, while initializing a new model.")
+        case e: Exception =>
+          askingActor ! ErrorMessage("unknown", e.getMessage)
+      }
     }
 
     context.become(receiveInitializingFromClients)
@@ -244,7 +243,7 @@ class RealtimeModelActor(
     connectedClients += (modelSessionId -> requestRecord.clientActor)
 
     // Send a message to the client informing them of the successful model open.
-    val metaData = OpenMetaData(
+    val metaData = OpenModelMetaData(
       modelData.metaData.version,
       modelData.metaData.createdTime,
       modelData.metaData.modifiedTime)

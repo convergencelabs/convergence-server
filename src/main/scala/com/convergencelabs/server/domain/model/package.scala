@@ -72,9 +72,9 @@ package model {
   //
   // Outgoing Messages
   //
-  case class OpenModelResponse(realtimeModelActor: ActorRef, modelResourceId: String, modelSessionId: String, metaData: OpenMetaData, modelData: JValue)
+  case class OpenModelResponse(realtimeModelActor: ActorRef, modelResourceId: String, ccId: String, metaData: OpenModelMetaData, modelData: JValue)
 
-  case class OpenMetaData(version: Long, createdTime: Long, modifiedTime: Long)
+  case class OpenModelMetaData(version: Long, createdTime: Long, modifiedTime: Long)
 
   case class ClientModelDataRequest(modelFqn: ModelFqn)
 
@@ -86,7 +86,7 @@ package model {
 
   case class RemoteSessionClosed(modelFqn: ModelFqn, modelSessionId: String)
 
-  case class CloseModelAcknowledgement(modelFqn: ModelFqn, modelResourceId: String, modelSessionId: String)
+  case class CloseModelAcknowledgement(modelFqn: ModelFqn, modelResourceId: String, ccId: String)
 
   case class ModelForceClose(modelFqn: ModelFqn, modelSessionId: String, reason: String)
 }

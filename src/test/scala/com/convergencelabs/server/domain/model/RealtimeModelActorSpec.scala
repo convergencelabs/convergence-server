@@ -137,7 +137,7 @@ class RealtimeModelActorSpec(system: ActorSystem)
         realtimeModelActor.tell(OpenRealtimeModelRequest(modelFqn, client2.ref), client2.ref)
         val open2 = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelResponse])
 
-        assert(open1.modelSessionId != open2.modelSessionId)
+        assert(open1.ccId != open2.ccId)
       }
 
       "provide different session ids, when opened by different clients" in new MockDatabaseWithModel {
@@ -150,22 +150,22 @@ class RealtimeModelActorSpec(system: ActorSystem)
         realtimeModelActor.tell(OpenRealtimeModelRequest(modelFqn, client2.ref), client2.ref)
         val open2 = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelResponse])
 
-        assert(open1.modelSessionId != open2.modelSessionId)
+        assert(open1.ccId != open2.ccId)
       }
     }
 
     "closing a closed a model" must {
       "acknowledge the close" in new MockDatabaseWithModel with OneOpenClient {
-        realtimeModelActor.tell(CloseRealtimeModelRequest(client1OpenResponse.modelSessionId), client1.ref)
+        realtimeModelActor.tell(CloseRealtimeModelRequest(client1OpenResponse.ccId), client1.ref)
         val closeAck = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[CloseModelAcknowledgement])
 
         assert(modelFqn == closeAck.modelFqn)
-        assert(client1OpenResponse.modelSessionId == closeAck.modelSessionId)
+        assert(client1OpenResponse.ccId == closeAck.ccId)
         assert(client1OpenResponse.modelResourceId == closeAck.modelResourceId)
       }
       
-      "respond with an error for an invalid modelSessionId" in new MockDatabaseWithModel with OneOpenClient {
-        realtimeModelActor.tell(CloseRealtimeModelRequest("invalidModelSessionId"), client1.ref)
+      "respond with an error for an invalid ccId" in new MockDatabaseWithModel with OneOpenClient {
+        realtimeModelActor.tell(CloseRealtimeModelRequest("invalidccId"), client1.ref)
         client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ErrorMessage])
       }
       
@@ -179,7 +179,7 @@ class RealtimeModelActorSpec(system: ActorSystem)
         realtimeModelActor.tell(OpenRealtimeModelRequest(modelFqn, client2.ref), client2.ref)
         var client2Response = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelResponse])
 
-        realtimeModelActor.tell(CloseRealtimeModelRequest(client2Response.modelSessionId), client2.ref)
+        realtimeModelActor.tell(CloseRealtimeModelRequest(client2Response.ccId), client2.ref)
         val closeAck = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[CloseModelAcknowledgement])
 
         client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[RemoteSessionClosed])
@@ -190,7 +190,7 @@ class RealtimeModelActorSpec(system: ActorSystem)
 
         realtimeModelActor.tell(OpenRealtimeModelRequest(modelFqn, client1.ref), client1.ref)
         var client1Response = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelResponse])
-        realtimeModelActor.tell(CloseRealtimeModelRequest(client1Response.modelSessionId), client1.ref)
+        realtimeModelActor.tell(CloseRealtimeModelRequest(client1Response.ccId), client1.ref)
         val closeAck = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[CloseModelAcknowledgement])
         modelManagerActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ModelShutdownRequest])
       }
@@ -198,12 +198,12 @@ class RealtimeModelActorSpec(system: ActorSystem)
 
     "receiving an operation" must {
       "send an ack back to the submitting client" in new OneOpenClient {
-        realtimeModelActor.tell(OperationSubmission(client1OpenResponse.modelSessionId, modelData.metaData.version, StringInsertOperation(List(), false, 1, "1")), client1.ref)
+        realtimeModelActor.tell(OperationSubmission(client1OpenResponse.ccId, modelData.metaData.version, StringInsertOperation(List(), false, 1, "1")), client1.ref)
         val opAck = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OperationAcknowledgement])
       }
 
       "send an operation to other connected clients" in new TwoOpenClients {
-        realtimeModelActor.tell(OperationSubmission(client1OpenResponse.modelSessionId, modelData.metaData.version, StringInsertOperation(List(), false, 1, "1")), client1.ref)
+        realtimeModelActor.tell(OperationSubmission(client1OpenResponse.ccId, modelData.metaData.version, StringInsertOperation(List(), false, 1, "1")), client1.ref)
         val opAck = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OperationAcknowledgement])
 
         client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OutgoingOperation])
@@ -216,7 +216,7 @@ class RealtimeModelActorSpec(system: ActorSystem)
             Matchers.any(), Matchers.any(), Matchers.any(), Matchers.any(), Matchers.any())).thenThrow(new IllegalArgumentException("Invalid Operation"))
         
         realtimeModelActor.tell(OperationSubmission(
-            client1OpenResponse.modelSessionId, 
+            client1OpenResponse.ccId, 
             modelData.metaData.version, 
             badOp), client1.ref)
             

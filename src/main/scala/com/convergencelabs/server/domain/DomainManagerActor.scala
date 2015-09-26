@@ -62,7 +62,7 @@ class DomainManagerActor(
   private[this] def onHandshakeRequest(request: HandshakeRequest): Unit = {
     val domainFqn = request.domainFqn
     if (!domainManager.domainExists(domainFqn)) {
-      sender() ! HandshakeFailure("Domain does not exist", false)
+      sender() ! HandshakeFailure("domain_does_not_exists", "The domain does not exist")
       return
     }
 
@@ -90,7 +90,7 @@ class DomainManagerActor(
       openClosedDomain(domainFqn)
       domainFqnToActor(domainFqn) forward request
     } else {
-      sender ! HandshakeFailure("Domain does not exist", false)
+      sender ! HandshakeFailure("domain_does_not_exists", "The domain does not exist")
     }
   }
 

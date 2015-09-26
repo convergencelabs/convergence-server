@@ -49,8 +49,7 @@ class ProtocolConnection(
     private[this] var socket: ConvergenceServerSocket,
     private[this] val protocolConfig: ProtocolConfiguration,
     private[this] val scheduler: Scheduler,
-    private[this] val ec: ExecutionContext,
-    private[this] val connectionHandler: PartialFunction[ConnectionEvent, Unit]) {
+    private[this] val ec: ExecutionContext) {
 
   implicit val formats = Serialization.formats(NoTypeHints)
 
@@ -65,8 +64,8 @@ class ProtocolConnection(
 
   socket.handler = {
     case SocketMessage(message) => onSocketMessage(message)
-    case _: SocketClosed => onSocketClosed()
-    case _: SocketDropped => onSocketDropped()
+    case SocketClosed() => onSocketClosed()
+    case SocketDropped() => onSocketDropped()
     case SocketError(message) => onSocketError(message)
   }
 
@@ -78,6 +77,10 @@ class ProtocolConnection(
   val responseTimeoutTasks = mutable.Map[Long, Cancellable]()
 
   var state = Connected
+  
+  private[realtime] var eventHandler: PartialFunction[ConnectionEvent, Unit] = {
+    case _ => {}
+  }
 
   def send(message: ProtocolMessage): Unit = {
     sendMessage(OpCode.Normal, None, Some(message))
@@ -143,16 +146,16 @@ class ProtocolConnection(
 
   private[this] def onSocketClosed(): Unit = {
     heartbeatHelper.stop()
-    connectionHandler lift ConnectionClosed()
+    eventHandler lift ConnectionClosed()
   }
 
   private[this] def onSocketDropped(): Unit = {
     heartbeatHelper.stop()
-    connectionHandler lift ConnectionDropped()
+    eventHandler lift ConnectionDropped()
   }
 
   private[this] def onSocketError(message: String): Unit = {
-    connectionHandler lift ConnectionError(message)
+    eventHandler lift ConnectionError(message)
   }
 
   private[this] def onNormalMessage(message: ProtocolMessage): Unit = {
@@ -160,7 +163,7 @@ class ProtocolConnection(
       // throw something
     }
     
-    connectionHandler lift MessageReceived(message.asInstanceOf[IncomingProtocolNormalMessage])
+    eventHandler lift MessageReceived(message.asInstanceOf[IncomingProtocolNormalMessage])
   }
 
   private[this] def onPing(): Unit = {
@@ -172,7 +175,7 @@ class ProtocolConnection(
     val protocolMessage = envelope.extractBody()
     
     if (!protocolMessage.isInstanceOf[IncomingProtocolRequestMessage]) {
-      // FIXME throw some exception becasue this must be a request message.
+      // FIXME throw some exception because this must be a request message.
     }
     
     val p = Promise[OutgoingProtocolResponseMessage]
@@ -182,7 +185,7 @@ class ProtocolConnection(
       case Failure(error) => // FIXME reply with error
     })(ec)
 
-    connectionHandler lift RequestReceived(protocolMessage.asInstanceOf[IncomingProtocolRequestMessage], p)
+    eventHandler lift RequestReceived(protocolMessage.asInstanceOf[IncomingProtocolRequestMessage], p)
   }
 
   private[this] def onReply(envelope: MessageEnvelope): Unit = {

@@ -26,7 +26,8 @@ object ConnectionManagerActor {
 }
 
 class ConnectionManagerActor(
-    protocolConfig: ProtocolConfiguration) extends Actor with ActorLogging {
+  protocolConfig: ProtocolConfiguration)
+    extends Actor with ActorLogging {
 
   private[this] val cluster = Cluster(context.system)
   private[this] implicit val ec = context.dispatcher
@@ -57,11 +58,16 @@ class ConnectionManagerActor(
   }
 
   private[this] def onNewSocketEvent(newSocketEvent: NewSocketEvent): Unit = {
-      val clientActor = context.system.actorOf(ClientActor.props(
-        domainManagerActor, 
-        newSocketEvent.socket, 
-        newSocketEvent.domainFqn, 
-        protocolConfig))
+    val connection = new ProtocolConnection(
+      newSocketEvent.socket,
+      protocolConfig,
+      context.system.scheduler,
+      context.dispatcher)
+
+    val clientActor = context.system.actorOf(ClientActor.props(
+      domainManagerActor,
+      connection,
+      newSocketEvent.domainFqn))
   }
 
   override def preStart(): Unit = {

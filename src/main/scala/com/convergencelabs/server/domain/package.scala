@@ -9,7 +9,7 @@ package object domain {
   
   sealed trait HandshakeResponse
   case class HandshakeSuccess(sessionId: String, reconnectToken: String, domainActor: ActorRef, modelManager: ActorRef) extends HandshakeResponse
-  case class HandshakeFailure(reason: String, retry: Boolean) extends HandshakeResponse
+  case class HandshakeFailure(code: String, details: String) extends HandshakeResponse
   
   case class ClientDisconnected(sessionId: String, clientActor: ActorRef)
   case class DomainShutdownRequest(domainFqn: DomainFqn)

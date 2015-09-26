@@ -10,9 +10,6 @@ import org.json4s.jackson.Serialization
 import org.json4s.jackson.Serialization.read
 import org.json4s.jackson.Serialization.write
 
-import com.convergencelabs.server.domain.model.ModelFqn
-import com.convergencelabs.server.domain.model.OpenMetaData
-
 package object proto {
 
   object OpCode extends Enumeration {

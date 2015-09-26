@@ -6,7 +6,7 @@ import org.json4s.JsonAST.JObject
 import org.json4s.JsonAST.JValue
 
 import com.convergencelabs.server.domain.model.ModelFqn
-import com.convergencelabs.server.domain.model.OpenMetaData
+import com.convergencelabs.server.domain.model.OpenModelMetaData
 
 // Main class
 sealed trait ProtocolMessage
@@ -26,8 +26,8 @@ sealed trait OutgoingProtocolResponseMessage extends ProtocolMessage
 
 
 // Client Messages
-case class HandshakeRequestMessage(reconnect: scala.Boolean, reconnectToken: Option[String], options: Option[ProtocolOptionsData]) extends IncomingProtocolMessage
-case class HandshakeResponseMessage(success: scala.Boolean, error: Option[ErrorData], sessionId: String, reconnectToken: String) extends OutgoingProtocolResponseMessage
+case class HandshakeRequestMessage(reconnect: scala.Boolean, reconnectToken: Option[String], options: Option[ProtocolOptionsData]) extends IncomingProtocolRequestMessage
+case class HandshakeResponseMessage(success: scala.Boolean, error: Option[ErrorData], sessionId: Option[String], reconnectToken: Option[String]) extends OutgoingProtocolResponseMessage
 
 case class ProtocolOptionsData()
 case class ErrorData(code: String, message: String)
@@ -42,7 +42,7 @@ case class OpenRealtimeModelRequestMessage(modelFqn: ModelFqn) extends IncomingM
 case class CloseRealtimeModelRequestMessage(resourceId: String) extends IncomingModelRequestMessage
 
 // Outgoing Model Messages
-case class OpenRealtimeModelResponseMessage(resourceId: String, modelSessionId: String, metaData: OpenMetaData, modelData: JValue) extends OutgoingProtocolResponseMessage
+case class OpenRealtimeModelResponseMessage(resourceId: String, ccId: String, metaData: OpenModelMetaData, modelData: JValue) extends OutgoingProtocolResponseMessage
 case class CloseRealtimeModelResponseMessage(resourceId: String) extends OutgoingProtocolResponseMessage
 
 case class RemoteOperationMessage(resourceId: String, modelSessionId: String, operation: OperationData) extends OutgoingProtocolNormalMessage

@@ -31,32 +31,27 @@ import com.convergencelabs.server.frontend.realtime.proto.HandshakeRequestMessag
 import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolResponseMessage
 import com.convergencelabs.server.domain.HandshakeResponse
 import com.convergencelabs.server.frontend.realtime.proto.HandshakeResponseMessage
+import com.convergencelabs.server.frontend.realtime.proto.ErrorData
 
 object ClientActor {
   def props(
     domainManager: ActorRef,
-    socket: ConvergenceServerSocket,
-    domainFqn: DomainFqn,
-    protocolConfig: ProtocolConfiguration): Props = Props(
-    new ClientActor(domainManager, socket, domainFqn, protocolConfig))
+    connection: ProtocolConnection,
+    domainFqn: DomainFqn): Props = Props(
+    new ClientActor(domainManager, connection, domainFqn))
 }
 
 class ClientActor(
-    private[this] val domainManager: ActorRef,
-    private[this] val socket: ConvergenceServerSocket,
-    private[this] val domainFqn: DomainFqn,
-    private[this] val protocolConfig: ProtocolConfiguration) extends Actor with ActorLogging {
+  private[this] val domainManager: ActorRef,
+  private[this] val connection: ProtocolConnection,
+  private[this] val domainFqn: DomainFqn)
+    extends Actor with ActorLogging {
 
   private[this] val connectionManager = context.parent
 
   implicit val ec = context.dispatcher
 
-  val connection = new ProtocolConnection(
-    socket,
-    protocolConfig,
-    context.system.scheduler,
-    context.dispatcher,
-    handleConnectionEvent)
+  connection.eventHandler = { case event => self ! event }
 
   val modelClient = new ModelClient(
     self,
@@ -66,8 +61,6 @@ class ClientActor(
 
   var domainActor: ActorRef = _
 
-  
-  
   def receive = receiveWhileHandshaking
 
   def receiveWhileHandshaking: Receive = {
@@ -76,51 +69,52 @@ class ClientActor(
     }
     case x => unhandled(x)
   }
-  
+
   def handshake(request: HandshakeRequestMessage, reply: Promise[OutgoingProtocolResponseMessage]): Unit = {
     // FIXME hardcoded
     implicit val timeout = Timeout(5 seconds)
     val f = domainManager ? HandshakeRequest(domainFqn, self, request.reconnect, request.reconnectToken)
     f.mapTo[HandshakeResponse] onComplete {
-      case Success(HandshakeSuccess(sessionId, resonnectToken, domainActor, modelManagerActor)) => {
+      case Success(HandshakeSuccess(sessionId, reconnectToken, domainActor, modelManagerActor)) => {
         this.domainActor = domainActor
         context.become(receiveWhileHandshook)
-        reply.success(HandshakeResponseMessage(true, None, sessionId, resonnectToken))
+        reply.success(HandshakeResponseMessage(true, None, Some(sessionId), Some(reconnectToken)))
       }
-      case Success(HandshakeFailure(reason, retry)) => {
-
+      case Success(HandshakeFailure(code, details)) => {
+        reply.success(HandshakeResponseMessage(false, Some(ErrorData(code, details)), None, None))
       }
-      case Failure(cause) => {}
+      case Failure(cause) => {
+        // FIXME handle this better.  Handle timeout vs. class cast vs. whatever?
+        reply.success(HandshakeResponseMessage(false, Some(ErrorData("unknown", "uknown error")), None, None))
+      }
     }
   }
 
   def receiveWhileHandshook: Receive = {
-    case message: OutgoingProtocolNormalMessage => {
-      connection.send(message)
-    }
-    case message: OutgoingProtocolRequestMessage => {
-      val askingActor = sender()
-      val f = connection.request(message)
-      
-      f.mapTo[IncomingProtocolResponseMessage] onComplete { 
-        case Success(response) => {
-          askingActor ! response          
-        }
-        case Failure(cause) => {
-        }
-      }
-    }
-    case x => unhandled(x)
-  }
-
-  
-
-  private def handleConnectionEvent: PartialFunction[ConnectionEvent, Unit] = {
+    case message: OutgoingProtocolNormalMessage => onOutgoingMessage(message)
+    case message: OutgoingProtocolRequestMessage => onOutgoingRequestMessage(message)
     case MessageReceived(message) => onMessageReceived(message)
     case RequestReceived(message, replyPromise) => onRequestReceived(message, replyPromise)
     case ConnectionClosed() => onConnectionClosed()
     case ConnectionDropped() => onConnectionDropped()
     case ConnectionError(message) => onConnectionError(message)
+    case x => unhandled(x)
+  }
+
+  private def onOutgoingMessage(message: OutgoingProtocolNormalMessage): Unit = {
+    connection.send(message)
+  }
+
+  private def onOutgoingRequestMessage(message: OutgoingProtocolRequestMessage): Unit = {
+    val askingActor = sender()
+    val f = connection.request(message)
+    f.mapTo[IncomingProtocolResponseMessage] onComplete {
+      case Success(response) => {
+        askingActor ! response
+      }
+      case Failure(cause) => {
+      }
+    }
   }
 
   private def onMessageReceived(message: IncomingProtocolNormalMessage): Unit = {
@@ -138,14 +132,14 @@ class ClientActor(
   }
 
   private def onConnectionClosed(): Unit = {
-
+    context.stop(self)
   }
 
   private def onConnectionDropped(): Unit = {
-
+    context.stop(self)
   }
 
   private def onConnectionError(message: String): Unit = {
-
+    context.stop(self)
   }
 }
