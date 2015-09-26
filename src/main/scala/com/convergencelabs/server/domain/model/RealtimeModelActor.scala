@@ -138,8 +138,12 @@ class RealtimeModelActor(
   private[this] def requestModelDataFromDatastore(): Unit = {
     val f = Future[DatabaseModelResponse] {
       val snapshotMetaData = modelSnapshotStore.getLatestSnapshotMetaData(modelFqn)
-      val modelData = modelStore.getModelData(modelFqn)
-      DatabaseModelResponse(modelData, snapshotMetaData)
+      
+      //TODO: Handle None
+      modelStore.getModelData(modelFqn) match {
+        case Some(modelData) => DatabaseModelResponse(modelData, snapshotMetaData)
+        case None => ???
+      }
     }
 
     f onComplete {
@@ -229,8 +233,12 @@ class RealtimeModelActor(
    */
   private[this] def onOpenModelWhileInitialized(request: OpenRealtimeModelRequest): Unit = {
     val modelSessionId = nextModelSessionId()
-    val modelData = modelStore.getModelData(modelFqn)
-    respondToClientOpenRequest(modelSessionId, modelData, OpenRequestRecord(request.clientActor, sender()))
+    
+    //TODO: Handle None
+    modelStore.getModelData(modelFqn) match {
+      case Some(modelData) => respondToClientOpenRequest(modelSessionId, modelData, OpenRequestRecord(request.clientActor, sender()))
+      case None => ???
+    }
   }
 
   /**
@@ -397,7 +405,8 @@ class RealtimeModelActor(
     latestSnapshot = SnapshotMetaData(modelFqn, concurrencyControl.contextVersion, Platform.currentTime)
 
     val f = Future[SnapshotMetaData] {
-      val modelData = modelStore.getModelData(this.modelFqn)
+      //TODO: Handle None
+      val modelData = modelStore.getModelData(this.modelFqn).getOrElse(null)
       val snapshot = new SnapshotData(
         SnapshotMetaData(
           modelData.metaData.fqn,

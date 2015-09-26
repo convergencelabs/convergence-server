@@ -93,7 +93,7 @@ class RealtimeModelActorSpec(system: ActorSystem)
         client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientModelDataRequest])
 
         // Now mock that the data is there.
-        Mockito.when(modelStore.getModelData(modelFqn)).thenReturn(modelData)
+        Mockito.when(modelStore.getModelData(modelFqn)).thenReturn(Some(modelData))
         Mockito.when(modelSnapshotStore.getLatestSnapshotMetaData(modelFqn)).thenReturn(modelSnapshotMetaData)
 
         client1.reply(ClientModelDataResponse(modelJsonData))
@@ -258,7 +258,7 @@ class RealtimeModelActorSpec(system: ActorSystem)
 
   trait MockDatabaseWithModel extends TestFixture {
     Mockito.when(modelStore.modelExists(modelFqn)).thenReturn(true)
-    Mockito.when(modelStore.getModelData(modelFqn)).thenReturn(modelData)
+    Mockito.when(modelStore.getModelData(modelFqn)).thenReturn(Some(modelData))
     Mockito.when(modelSnapshotStore.getLatestSnapshotMetaData(modelFqn)).thenReturn(modelSnapshotMetaData)
   }
 

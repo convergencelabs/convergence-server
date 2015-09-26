@@ -2,9 +2,7 @@ package com.convergencelabs.server.datastore.domain
 
 import org.json4s.JsonAST.JValue
 
-trait DomainPersistenceProvider {
-
-  def init(databaseConfig: JValue): Unit
+abstract class DomainPersistenceProvider(databaseConfig: JValue) {
 
   def dispose(): Unit
 

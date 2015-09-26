@@ -12,15 +12,15 @@ trait ModelStore {
 
   def deleteModel(fqn: ModelFqn): Unit
 
-  def getModelMetaData(fqn: ModelFqn): ModelMetaData
+  def getModelMetaData(fqn: ModelFqn): Option[ModelMetaData]
 
-  def getModelData(fqn: ModelFqn): ModelData
+  def getModelData(fqn: ModelFqn): Option[ModelData]
 
-  def getModelJsonData(fqn: ModelFqn): JValue
+  def getModelJsonData(fqn: ModelFqn): Option[JValue]
 
   def applyOperationToModel(fqn: ModelFqn, operation: Operation, version: Long, timestamp: Long, username: String): Unit
 
-  def getModelFieldDataType(fqn: ModelFqn, path: List[Any]): DataType.Value
+  def getModelFieldDataType(fqn: ModelFqn, path: List[Any]): Option[DataType.Value]
 
   def getAllModels(orderBy: String, ascending: Boolean, offset: Int, limit: Int): List[ModelMetaData]
 
