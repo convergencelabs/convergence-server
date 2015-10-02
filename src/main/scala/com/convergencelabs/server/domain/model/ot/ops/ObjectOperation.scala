@@ -1,18 +1,17 @@
 package com.convergencelabs.server.domain.model.ot.ops
 
-import com.fasterxml.jackson.databind.JsonNode
 import com.convergencelabs.server.domain.model.ot.xform.ObjectOperationTransformer
+import org.json4s.JsonAST.JValue
+
+// FIXME xforms handling add.
 
 sealed trait ObjectOperation {
   def transform(other: ObjectOperation): (DiscreteOperation, DiscreteOperation)
 }
 
-//TODO: Handle Undefined Conecept
-case class ObjectSetPropertyOperation(override val path: List[Any], override val noOp: Boolean, property: String, oldValue: JsonNode, newValue: JsonNode) extends DiscreteOperation(path, noOp) with ObjectOperation {
+case class ObjectSetPropertyOperation(override val path: List[Any], override val noOp: Boolean, property: String, newValue: JValue) extends DiscreteOperation(path, noOp) with ObjectOperation {
 
-  def invert(): DiscreteOperation = ObjectSetPropertyOperation(path, noOp, property, newValue, oldValue)
-
-  def copyBuilder(): ObjectSetPropertyOperation.Builder = new ObjectSetPropertyOperation.Builder(path, noOp, property, oldValue, newValue)
+  def copyBuilder(): ObjectSetPropertyOperation.Builder = new ObjectSetPropertyOperation.Builder(path, noOp, property, newValue)
 
   def transform(other: ObjectOperation): (DiscreteOperation, DiscreteOperation) = other match {
     case other: ObjectSetPropertyOperation => ObjectOperationTransformer.transformSetPropertySetProperty(this, other)
@@ -22,16 +21,30 @@ case class ObjectSetPropertyOperation(override val path: List[Any], override val
 }
 
 object ObjectSetPropertyOperation {
-  class Builder(path: List[Any], noOp: scala.Boolean, var property: String, var oldValue: JsonNode, var newValue: JsonNode) extends DiscreteOperation.Builder(path, noOp) {
-    def build(): ObjectSetPropertyOperation = ObjectSetPropertyOperation(path, noOp, property, oldValue, newValue)
+  class Builder(path: List[Any], noOp: scala.Boolean, var property: String, var newValue: JValue) extends DiscreteOperation.Builder(path, noOp) {
+    def build(): ObjectSetPropertyOperation = ObjectSetPropertyOperation(path, noOp, property, newValue)
   }
 }
 
-case class ObjectRemovePropertyOperation(override val path: List[Any], override val noOp: Boolean, property: String, oldValue: JsonNode) extends DiscreteOperation(path, noOp) with ObjectOperation {
 
-  def invert(): DiscreteOperation = ObjectSetPropertyOperation(path, noOp, property, null, oldValue)
+case class ObjectAddPropertyOperation(override val path: List[Any], override val noOp: Boolean, property: String, newValue: JValue) extends DiscreteOperation(path, noOp) with ObjectOperation {
 
-  def copyBuilder(): ObjectRemovePropertyOperation.Builder = new ObjectRemovePropertyOperation.Builder(path, noOp, property, oldValue)
+  def copyBuilder(): ObjectAddPropertyOperation.Builder = new ObjectAddPropertyOperation.Builder(path, noOp, property, newValue)
+
+  def transform(other: ObjectOperation): (DiscreteOperation, DiscreteOperation) = other match {
+    case x => ???
+  }
+}
+
+object ObjectAddPropertyOperation {
+  class Builder(path: List[Any], noOp: scala.Boolean, var property: String, var newValue: JValue) extends DiscreteOperation.Builder(path, noOp) {
+    def build(): ObjectAddPropertyOperation = ObjectAddPropertyOperation(path, noOp, property, newValue)
+  }
+}
+
+case class ObjectRemovePropertyOperation(override val path: List[Any], override val noOp: Boolean, property: String) extends DiscreteOperation(path, noOp) with ObjectOperation {
+
+  def copyBuilder(): ObjectRemovePropertyOperation.Builder = new ObjectRemovePropertyOperation.Builder(path, noOp, property)
 
   def transform(other: ObjectOperation): (DiscreteOperation, DiscreteOperation) = other match {
     case other: ObjectSetPropertyOperation => ObjectOperationTransformer.transformRemovePropertySetProperty(this, other)
@@ -41,16 +54,14 @@ case class ObjectRemovePropertyOperation(override val path: List[Any], override 
 }
 
 object ObjectRemovePropertyOperation {
-  class Builder(path: List[Any], noOp: scala.Boolean, var property: String, var oldValue: JsonNode) extends DiscreteOperation.Builder(path, noOp) {
-    def build(): ObjectRemovePropertyOperation = ObjectRemovePropertyOperation(path, noOp, property, oldValue)
+  class Builder(path: List[Any], noOp: scala.Boolean, var property: String) extends DiscreteOperation.Builder(path, noOp) {
+    def build(): ObjectRemovePropertyOperation = ObjectRemovePropertyOperation(path, noOp, property)
   }
 }
 
-case class ObjectSetOperation(override val path: List[Any], override val noOp: Boolean, oldValue: JsonNode, newValue: JsonNode) extends DiscreteOperation(path, noOp) with ObjectOperation {
+case class ObjectSetOperation(override val path: List[Any], override val noOp: Boolean, newValue: JValue) extends DiscreteOperation(path, noOp) with ObjectOperation {
 
-  def invert(): DiscreteOperation = ObjectSetOperation(path, noOp, newValue, oldValue)
-
-  def copyBuilder(): ObjectSetOperation.Builder = new ObjectSetOperation.Builder(path, noOp, oldValue, newValue)
+  def copyBuilder(): ObjectSetOperation.Builder = new ObjectSetOperation.Builder(path, noOp, newValue)
 
   def transform(other: ObjectOperation): (DiscreteOperation, DiscreteOperation) = other match {
     case other: ObjectSetPropertyOperation => ObjectOperationTransformer.transformSetSetProperty(this, other)
@@ -60,8 +71,8 @@ case class ObjectSetOperation(override val path: List[Any], override val noOp: B
 }
 
 object ObjectSetOperation {
-  class Builder(path: List[Any], noOp: scala.Boolean, var oldValue: JsonNode, var newValue: JsonNode) extends DiscreteOperation.Builder(path, noOp) {
-    def build(): ObjectSetOperation = ObjectSetOperation(path, noOp, oldValue, newValue)
+  class Builder(path: List[Any], noOp: scala.Boolean, var newValue: JValue) extends DiscreteOperation.Builder(path, noOp) {
+    def build(): ObjectSetOperation = ObjectSetOperation(path, noOp, newValue)
   }
 }
 

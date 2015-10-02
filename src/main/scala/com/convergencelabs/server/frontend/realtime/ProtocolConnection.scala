@@ -45,6 +45,12 @@ case class ConnectionClosed() extends ConnectionEvent
 case class ConnectionDropped() extends ConnectionEvent
 case class ConnectionError(message: String) extends ConnectionEvent
 
+class ErrorException(code: String, message: String) extends Exception(message) {
+  def this() = {
+    this("unknown", "An unkown error occured")
+  }
+}
+
 class ProtocolConnection(
     private[this] var socket: ConvergenceServerSocket,
     private[this] val protocolConfig: ProtocolConfiguration,

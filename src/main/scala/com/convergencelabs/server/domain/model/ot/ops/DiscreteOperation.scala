@@ -2,7 +2,6 @@ package com.convergencelabs.server.domain.model.ot.ops
 
 abstract class DiscreteOperation(val path: List[Any], val noOp: Boolean) extends Operation {
 
-  def invert(): DiscreteOperation
   def copyBuilder(): DiscreteOperation.Builder
 
   def isParentOf(other: DiscreteOperation) = PathComparator.isParentOf(path, other.path)

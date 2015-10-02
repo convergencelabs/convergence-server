@@ -8,8 +8,6 @@ sealed trait StringOperation {
 
 case class StringDeleteOperation(override val path: List[Any], override val noOp: Boolean, index: Int, value: String) extends DiscreteOperation(path, noOp) with StringOperation {
 
-  def invert(): DiscreteOperation = StringInsertOperation(path, noOp, index, value)
-
   def copyBuilder(): StringDeleteOperation.Builder = new StringDeleteOperation.Builder(path, noOp, index, value)
 
   def transform(other: StringOperation): (DiscreteOperation, DiscreteOperation) = other match {
@@ -27,8 +25,6 @@ object StringDeleteOperation {
 
 case class StringInsertOperation(override val path: List[Any], override val noOp: Boolean, index: Int, value: String) extends DiscreteOperation(path, noOp) with StringOperation {
 
-  def invert(): DiscreteOperation = StringDeleteOperation(path, noOp, index, value)
-
   def copyBuilder(): StringInsertOperation.Builder = new StringInsertOperation.Builder(path, noOp, index, value)
 
   def transform(other: StringOperation): (DiscreteOperation, DiscreteOperation) = other match {
@@ -44,11 +40,9 @@ object StringInsertOperation {
   }
 }
 
-case class StringSetOperation(override val path: List[Any], override val noOp: Boolean, oldValue: String, newValue: String) extends DiscreteOperation(path, noOp) with StringOperation {
+case class StringSetOperation(override val path: List[Any], override val noOp: Boolean, value: String) extends DiscreteOperation(path, noOp) with StringOperation {
 
-  def invert(): DiscreteOperation = StringSetOperation(path, noOp, newValue, oldValue)
-
-  def copyBuilder(): StringSetOperation.Builder = new StringSetOperation.Builder(path, noOp, oldValue, newValue)
+  def copyBuilder(): StringSetOperation.Builder = new StringSetOperation.Builder(path, noOp, value)
 
   def transform(other: StringOperation): (DiscreteOperation, DiscreteOperation) = other match {
     case other: StringInsertOperation => StringOperationTransformer.transformSetInsert(this, other)
@@ -58,7 +52,7 @@ case class StringSetOperation(override val path: List[Any], override val noOp: B
 }
 
 object StringSetOperation {
-  class Builder(path: List[Any], noOp: scala.Boolean, var oldValue: String, var newValue: String) extends DiscreteOperation.Builder(path, noOp) {
-    def build(): StringSetOperation = StringSetOperation(path, noOp, oldValue, newValue)
+  class Builder(path: List[Any], noOp: scala.Boolean, var value: String) extends DiscreteOperation.Builder(path, noOp) {
+    def build(): StringSetOperation = StringSetOperation(path, noOp, value)
   }
 }

@@ -102,8 +102,8 @@ class RealtimeModelActor(
    * Starts the open process from an uninitialized model.
    */
   private[this] def onOpenModelWhileUninitialized(request: OpenRealtimeModelRequest): Unit = {
-    val modelSessionId = nextModelSessionId()
-    queuedOpeningClients += (modelSessionId -> OpenRequestRecord(request.clientActor, sender()))
+    val clientId = nextclientId()
+    queuedOpeningClients += (clientId -> OpenRequestRecord(request.clientActor, sender()))
 
     if (modelStore.modelExists(modelFqn)) {
       // The model is persistent, load from the store.
@@ -121,8 +121,8 @@ class RealtimeModelActor(
   private[this] def onOpenModelWhileInitializing(request: OpenRealtimeModelRequest): Unit = {
     // We know we are already INITIALIZING.  This means we are at least the second client
     // to open the model before it was fully initialized.
-    val modelSessionId = nextModelSessionId()
-    queuedOpeningClients += (modelSessionId -> OpenRequestRecord(request.clientActor, sender()))
+    val clientId = nextclientId()
+    queuedOpeningClients += (clientId -> OpenRequestRecord(request.clientActor, sender()))
 
     // If we are persistent, then the data is already loading, so there is nothing to do.
     // However, if we are not persistent, we have already asked the previous opening client
@@ -170,8 +170,8 @@ class RealtimeModelActor(
       // TODO Initialize tree reference model
 
       queuedOpeningClients foreach {
-        case (modelSessionId, queuedClientRecord) =>
-          respondToClientOpenRequest(modelSessionId, modelData, queuedClientRecord)
+        case (clientId, queuedClientRecord) =>
+          respondToClientOpenRequest(clientId, modelData, queuedClientRecord)
       }
 
       this.queuedOpeningClients = HashMap[String, OpenRequestRecord]()
@@ -232,11 +232,11 @@ class RealtimeModelActor(
    * Handles a request to open the model, when the model is already initialized.
    */
   private[this] def onOpenModelWhileInitialized(request: OpenRealtimeModelRequest): Unit = {
-    val modelSessionId = nextModelSessionId()
+    val clientId = nextclientId()
     
     //TODO: Handle None
     modelStore.getModelData(modelFqn) match {
-      case Some(modelData) => respondToClientOpenRequest(modelSessionId, modelData, OpenRequestRecord(request.clientActor, sender()))
+      case Some(modelData) => respondToClientOpenRequest(clientId, modelData, OpenRequestRecord(request.clientActor, sender()))
       case None => ???
     }
   }
@@ -244,11 +244,11 @@ class RealtimeModelActor(
   /**
    * Lets a client know that the open process has completed successfully.
    */
-  private[this] def respondToClientOpenRequest(modelSessionId: String, modelData: ModelData, requestRecord: OpenRequestRecord): Unit = {
+  private[this] def respondToClientOpenRequest(clientId: String, modelData: ModelData, requestRecord: OpenRequestRecord): Unit = {
     // Inform the concurrency control that we have a new client.
     val contextVersion = modelData.metaData.version
-    concurrencyControl.trackClient(modelSessionId, contextVersion)
-    connectedClients += (modelSessionId -> requestRecord.clientActor)
+    concurrencyControl.trackClient(clientId, contextVersion)
+    connectedClients += (clientId -> requestRecord.clientActor)
 
     // Send a message to the client informing them of the successful model open.
     val metaData = OpenModelMetaData(
@@ -259,7 +259,7 @@ class RealtimeModelActor(
     val openModelResponse = OpenModelResponse(
       self,
       modelResourceId,
-      modelSessionId,
+      clientId,
       metaData,
       modelData.data)
 
@@ -270,18 +270,18 @@ class RealtimeModelActor(
    * Handles a request to close the model.
    */
   private[this] def onCloseModelRequest(request: CloseRealtimeModelRequest): Unit = {
-    if (!connectedClients.contains(request.modelSessionId)) {
-      sender ! ErrorMessage("invalid_model_session_id", "The supplied modelSessionId does not have the model open")
+    if (!connectedClients.contains(request.clientId)) {
+      sender ! ErrorMessage("invalid_model_session_id", "The supplied clientId does not have the model open")
     } else {
-      connectedClients -= request.modelSessionId
-      concurrencyControl.untrackClient(request.modelSessionId)
+      connectedClients -= request.clientId
+      concurrencyControl.untrackClient(request.clientId)
 
       // TODO handle reference leaving
 
       // Acknowledge the close back to the requester
-      sender ! CloseModelAcknowledgement(modelFqn, modelResourceId, request.modelSessionId)
+      sender ! CloseRealtimeModelSuccess()
 
-      val closedMessage = RemoteSessionClosed(modelFqn, request.modelSessionId)
+      val closedMessage = RemoteSessionClosed(modelFqn, request.clientId)
 
       // If there are other clients, inform them.
       connectedClients.values foreach { client => client ! closedMessage }
@@ -313,7 +313,7 @@ class RealtimeModelActor(
   /**
    * A helper method to get the next model session id.
    */
-  private[this] def nextModelSessionId(): String = {
+  private[this] def nextclientId(): String = {
     val id = "" + nextClientId
     nextClientId += 1
     id
@@ -325,7 +325,7 @@ class RealtimeModelActor(
 
   private[this] def onOperationSubmission(request: OperationSubmission): Unit = {
     val unprocessedOpEvent = UnprocessedOperationEvent(
-      request.modelSessionId,
+      request.clientId,
       request.contextVersion,
       request.operation)
 
@@ -339,7 +339,7 @@ class RealtimeModelActor(
         log.debug("Error applying operation to model, closing client: " + error)
         concurrencyControl.rollback()
         forceClosedModel(
-          request.modelSessionId,
+          request.clientId,
           "Error applying operation to model, closing as a precautionary step: " + error.getMessage,
           true)
 
@@ -444,21 +444,21 @@ class RealtimeModelActor(
    */
   private[this] def forceCloseAllAfterError(reason: String) {
     connectedClients foreach {
-      case (modelSessionId, actor) => forceClosedModel(modelSessionId, reason, false)
+      case (clientId, actor) => forceClosedModel(clientId, reason, false)
     }
   }
 
   /**
    * Kicks a specific clent out of the model.
    */
-  private[this] def forceClosedModel(modelSessionId: String, reason: String, notifyOthers: Boolean) {
-    val closedActor = connectedClients(modelSessionId)
-    connectedClients -= modelSessionId
-    concurrencyControl.untrackClient(modelSessionId)
+  private[this] def forceClosedModel(clientId: String, reason: String, notifyOthers: Boolean) {
+    val closedActor = connectedClients(clientId)
+    connectedClients -= clientId
+    concurrencyControl.untrackClient(clientId)
 
     // TODO handle reference node leaving
 
-    val closedMessage = RemoteSessionClosed(modelFqn, modelSessionId)
+    val closedMessage = RemoteSessionClosed(modelFqn, clientId)
 
     if (notifyOthers) {
       // There are still other clients with this model open so notify them
@@ -466,7 +466,7 @@ class RealtimeModelActor(
       connectedClients.values foreach { client => client ! closedMessage }
     }
 
-    val forceCloseMessage = ModelForceClose(modelFqn, modelSessionId, reason)
+    val forceCloseMessage = ModelForceClose(modelFqn, clientId, reason)
     closedActor ! forceCloseMessage
     checkForConnectionsAndClose()
   }

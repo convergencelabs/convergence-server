@@ -162,10 +162,10 @@ object StringOperationTransformer {
     val op2Builder = op2.copyBuilder();
     op2Builder.noOp = true
 
-    if (op1.newValue == op2.newValue) {
+    if (op1.value == op2.value) {
       op1Builder.noOp = true
     } else {
-      op1Builder.oldValue == op2.newValue
+      op1Builder.value == op2.value
     }
 
     (op1Builder.build(), op2Builder.build())

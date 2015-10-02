@@ -1,15 +1,13 @@
 package com.convergencelabs.server.domain.model.ot.ops
 
-import com.fasterxml.jackson.databind.JsonNode
 import com.convergencelabs.server.domain.model.ot.xform.ArrayOperationTransformer
+import org.json4s.JsonAST.JValue
 
 sealed trait ArrayOperation {
   def transform(other: ArrayOperation): (DiscreteOperation, DiscreteOperation)
 }
 
-case class ArrayInsertOperation(override val path: List[Any], override val noOp: Boolean, index: Int, value: JsonNode) extends DiscreteOperation(path, noOp) with ArrayOperation {
-
-  def invert(): DiscreteOperation = ArrayRemoveOperation(path, noOp, index, value)
+case class ArrayInsertOperation(override val path: List[Any], override val noOp: Boolean, index: Int, value: JValue) extends DiscreteOperation(path, noOp) with ArrayOperation {
 
   def copyBuilder(): ArrayInsertOperation.Builder = new ArrayInsertOperation.Builder(path, noOp, index, value)
 
@@ -23,16 +21,14 @@ case class ArrayInsertOperation(override val path: List[Any], override val noOp:
 }
 
 object ArrayInsertOperation {
-  class Builder(path: List[Any], noOp: scala.Boolean, var index: Int, var value: JsonNode) extends DiscreteOperation.Builder(path, noOp) {
+  class Builder(path: List[Any], noOp: scala.Boolean, var index: Int, var value: JValue) extends DiscreteOperation.Builder(path, noOp) {
     def build(): ArrayInsertOperation = ArrayInsertOperation(path, noOp, index, value)
   }
 }
 
-case class ArrayRemoveOperation(override val path: List[Any], override val noOp: Boolean, index: Int, oldValue: JsonNode) extends DiscreteOperation(path, noOp) with ArrayOperation {
+case class ArrayRemoveOperation(override val path: List[Any], override val noOp: Boolean, index: Int) extends DiscreteOperation(path, noOp) with ArrayOperation {
 
-  def invert(): DiscreteOperation = ArrayInsertOperation(path, noOp, index, oldValue)
-
-  def copyBuilder(): ArrayRemoveOperation.Builder = new ArrayRemoveOperation.Builder(path, noOp, index, oldValue)
+  def copyBuilder(): ArrayRemoveOperation.Builder = new ArrayRemoveOperation.Builder(path, noOp, index)
 
   def transform(other: ArrayOperation): (DiscreteOperation, DiscreteOperation) = other match {
     case other: ArrayInsertOperation  => ArrayOperationTransformer.transformRemoveInsert(this, other)
@@ -44,16 +40,14 @@ case class ArrayRemoveOperation(override val path: List[Any], override val noOp:
 }
 
 object ArrayRemoveOperation {
-  class Builder(path: List[Any], noOp: scala.Boolean, var index: Int, var oldValue: JsonNode) extends DiscreteOperation.Builder(path, noOp) {
-    def build(): ArrayRemoveOperation = ArrayRemoveOperation(path, noOp, index, oldValue)
+  class Builder(path: List[Any], noOp: scala.Boolean, var index: Int) extends DiscreteOperation.Builder(path, noOp) {
+    def build(): ArrayRemoveOperation = ArrayRemoveOperation(path, noOp, index)
   }
 }
 
-case class ArrayReplaceOperation(override val path: List[Any], override val noOp: Boolean, index: Int, oldValue: JsonNode, newValue: JsonNode) extends DiscreteOperation(path, noOp) with ArrayOperation {
+case class ArrayReplaceOperation(override val path: List[Any], override val noOp: Boolean, index: Int, newValue: JValue) extends DiscreteOperation(path, noOp) with ArrayOperation {
 
-  def invert(): DiscreteOperation = ArrayReplaceOperation(path, noOp, index, newValue, oldValue)
-
-  def copyBuilder(): ArrayReplaceOperation.Builder = new ArrayReplaceOperation.Builder(path, noOp, index, oldValue, newValue)
+  def copyBuilder(): ArrayReplaceOperation.Builder = new ArrayReplaceOperation.Builder(path, noOp, index, newValue)
 
   def transform(other: ArrayOperation): (DiscreteOperation, DiscreteOperation) = other match {
     case other: ArrayInsertOperation  => ArrayOperationTransformer.transformReplaceInsert(this, other)
@@ -65,16 +59,14 @@ case class ArrayReplaceOperation(override val path: List[Any], override val noOp
 }
 
 object ArrayReplaceOperation {
-  class Builder(path: List[Any], noOp: scala.Boolean, var index: Int, var oldValue: JsonNode, var newValue: JsonNode) extends DiscreteOperation.Builder(path, noOp) {
-    def build(): ArrayReplaceOperation = ArrayReplaceOperation(path, noOp, index, oldValue, newValue)
+  class Builder(path: List[Any], noOp: scala.Boolean, var index: Int, var newValue: JValue) extends DiscreteOperation.Builder(path, noOp) {
+    def build(): ArrayReplaceOperation = ArrayReplaceOperation(path, noOp, index, newValue)
   }
 }
 
-case class ArrayMoveOperation(override val path: List[Any], override val noOp: Boolean, index: Int, fromIndex: Int, toIndex: Int) extends DiscreteOperation(path, noOp) with ArrayOperation {
+case class ArrayMoveOperation(override val path: List[Any], override val noOp: Boolean, fromIndex: Int, toIndex: Int) extends DiscreteOperation(path, noOp) with ArrayOperation {
 
-  def invert(): DiscreteOperation = ArrayMoveOperation(path, noOp, index, toIndex, fromIndex)
-
-  def copyBuilder(): ArrayMoveOperation.Builder = new ArrayMoveOperation.Builder(path, noOp, index, fromIndex, toIndex)
+  def copyBuilder(): ArrayMoveOperation.Builder = new ArrayMoveOperation.Builder(path, noOp, fromIndex, toIndex)
 
   def transform(other: ArrayOperation): (DiscreteOperation, DiscreteOperation) = other match {
     case other: ArrayInsertOperation  => ArrayOperationTransformer.transformMoveInsert(this, other)
@@ -86,16 +78,14 @@ case class ArrayMoveOperation(override val path: List[Any], override val noOp: B
 }
 
 object ArrayMoveOperation {
-  class Builder(path: List[Any], noOp: scala.Boolean, var index: Int, var fromIndex: Int, var toIndex: Int) extends DiscreteOperation.Builder(path, noOp) {
-    def build(): ArrayMoveOperation = ArrayMoveOperation(path, noOp, index, fromIndex, toIndex)
+  class Builder(path: List[Any], noOp: scala.Boolean, var fromIndex: Int, var toIndex: Int) extends DiscreteOperation.Builder(path, noOp) {
+    def build(): ArrayMoveOperation = ArrayMoveOperation(path, noOp, fromIndex, toIndex)
   }
 }
 
-case class ArraySetOperation(override val path: List[Any], override val noOp: Boolean, oldValue: List[Any], newValue: List[Any]) extends DiscreteOperation(path, noOp) with ArrayOperation {
+case class ArraySetOperation(override val path: List[Any], override val noOp: Boolean, newValue: List[JValue]) extends DiscreteOperation(path, noOp) with ArrayOperation {
 
-  def invert(): DiscreteOperation = ArraySetOperation(path, noOp, newValue, oldValue)
-
-  def copyBuilder(): ArraySetOperation.Builder = new ArraySetOperation.Builder(path, noOp, oldValue, newValue)
+  def copyBuilder(): ArraySetOperation.Builder = new ArraySetOperation.Builder(path, noOp, newValue)
 
   def transform(other: ArrayOperation): (DiscreteOperation, DiscreteOperation) = other match {
     case other: ArrayInsertOperation  => ArrayOperationTransformer.transformSetInsert(this, other)
@@ -107,8 +97,8 @@ case class ArraySetOperation(override val path: List[Any], override val noOp: Bo
 }
 
 object ArraySetOperation {
-  class Builder(path: List[Any], noOp: scala.Boolean, var oldValue: List[Any], var newValue: List[Any]) extends DiscreteOperation.Builder(path, noOp) {
-    def build(): ArraySetOperation = ArraySetOperation(path, noOp, oldValue, newValue)
+  class Builder(path: List[Any], noOp: scala.Boolean, var newValue: List[JValue]) extends DiscreteOperation.Builder(path, noOp) {
+    def build(): ArraySetOperation = ArraySetOperation(path, noOp, newValue)
   }
 }
 

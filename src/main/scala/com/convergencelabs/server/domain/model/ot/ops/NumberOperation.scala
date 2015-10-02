@@ -1,14 +1,13 @@
 package com.convergencelabs.server.domain.model.ot.ops
 
 import com.convergencelabs.server.domain.model.ot.xform.NumberOperationTransformer
+import org.json4s.JsonAST.JNumber
 
 sealed trait NumberOperation {
   def transform(other: NumberOperation): (DiscreteOperation, DiscreteOperation)
 }
 
-case class NumberAddOperation(override val path: List[Any], override val noOp: Boolean, value: BigDecimal) extends DiscreteOperation(path, noOp) with NumberOperation {
-
-  def invert(): DiscreteOperation = NumberAddOperation(path, noOp, -value)
+case class NumberAddOperation(override val path: List[Any], override val noOp: Boolean, value: JNumber) extends DiscreteOperation(path, noOp) with NumberOperation {
 
   def copyBuilder(): NumberAddOperation.Builder = new NumberAddOperation.Builder(path, noOp, value)
 
@@ -19,16 +18,14 @@ case class NumberAddOperation(override val path: List[Any], override val noOp: B
 }
 
 object NumberAddOperation {
-  class Builder(path: List[Any], noOp: scala.Boolean, var value: BigDecimal) extends DiscreteOperation.Builder(path, noOp) {
+  class Builder(path: List[Any], noOp: scala.Boolean, var value: JNumber) extends DiscreteOperation.Builder(path, noOp) {
     def build(): NumberAddOperation = NumberAddOperation(path, noOp, value)
   }
 }
 
-case class NumberSetOperation(override val path: List[Any], override val noOp: Boolean, oldValue: BigDecimal, newValue: BigDecimal) extends DiscreteOperation(path, noOp) with NumberOperation {
+case class NumberSetOperation(override val path: List[Any], override val noOp: Boolean,  newValue: JNumber) extends DiscreteOperation(path, noOp) with NumberOperation {
 
-  def invert(): DiscreteOperation = NumberSetOperation(path, noOp, newValue, oldValue)
-
-  def copyBuilder(): NumberSetOperation.Builder = new NumberSetOperation.Builder(path, noOp, oldValue, newValue)
+  def copyBuilder(): NumberSetOperation.Builder = new NumberSetOperation.Builder(path, noOp, newValue)
 
   def transform(other: NumberOperation): (DiscreteOperation, DiscreteOperation) = other match {
     case other: NumberAddOperation => NumberOperationTransformer.transformSetAdd(this, other)
@@ -37,7 +34,7 @@ case class NumberSetOperation(override val path: List[Any], override val noOp: B
 }
 
 object NumberSetOperation {
-  class Builder(path: List[Any], noOp: scala.Boolean, var oldValue: BigDecimal, newValue: BigDecimal) extends DiscreteOperation.Builder(path, noOp) {
-    def build(): NumberSetOperation = NumberSetOperation(path, noOp, oldValue, newValue)
+  class Builder(path: List[Any], noOp: scala.Boolean, newValue: JNumber) extends DiscreteOperation.Builder(path, noOp) {
+    def build(): NumberSetOperation = NumberSetOperation(path, noOp, newValue)
   }
 }

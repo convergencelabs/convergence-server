@@ -52,9 +52,9 @@ package model {
 
   case class DeleteModelRequest(modelFqn: ModelFqn)
 
-  case class CloseRealtimeModelRequest(modelSessionId: String)
+  case class CloseRealtimeModelRequest(clientId: String)
 
-  case class OperationSubmission(modelSessionId: String, contextVersion: Long, operation: Operation)
+  case class OperationSubmission(clientId: String, contextVersion: Long, operation: Operation)
 
   case class ClientModelDataResponse(modelData: JValue)
 
@@ -86,7 +86,9 @@ package model {
 
   case class RemoteSessionClosed(modelFqn: ModelFqn, modelSessionId: String)
 
-  case class CloseModelAcknowledgement(modelFqn: ModelFqn, modelResourceId: String, ccId: String)
+  case class CloseRealtimeModelSuccess()
 
   case class ModelForceClose(modelFqn: ModelFqn, modelSessionId: String, reason: String)
+  
+  case class Error(code: String, reason: String)
 }
