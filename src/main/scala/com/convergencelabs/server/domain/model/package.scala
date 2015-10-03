@@ -82,7 +82,7 @@ package model {
 
   case class OperationAcknowledgement(modelFqn: ModelFqn, modelSessionId: String, contextVersion: Long)
 
-  case class OutgoingOperation(modelSessionId: String, contextVersion: Long, timestampe: Long, operation: Operation)
+  case class OutgoingOperation(resourceId: String, modelSessionId: String, contextVersion: Long, timestampe: Long, operation: Operation)
 
   case class RemoteSessionClosed(modelFqn: ModelFqn, modelSessionId: String)
 

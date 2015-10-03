@@ -364,6 +364,7 @@ class RealtimeModelActor(
       "")
 
     OutgoingOperation(
+      modelResourceId,
       processedOpEvent.clientId,
       processedOpEvent.contextVersion,
       timestamp,
