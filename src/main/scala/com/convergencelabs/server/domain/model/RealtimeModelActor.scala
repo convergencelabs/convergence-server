@@ -138,7 +138,7 @@ class RealtimeModelActor(
   private[this] def requestModelDataFromDatastore(): Unit = {
     val f = Future[DatabaseModelResponse] {
       val snapshotMetaData = modelSnapshotStore.getLatestSnapshotMetaData(modelFqn)
-      
+
       //TODO: Handle None
       modelStore.getModelData(modelFqn) match {
         case Some(modelData) => DatabaseModelResponse(modelData, snapshotMetaData)
@@ -198,7 +198,7 @@ class RealtimeModelActor(
     future.mapTo[ClientModelDataResponse] onComplete {
       case Success(response) => self ! response
       case Failure(cause) => cause match {
-        case e:  ClassCastException =>
+        case e: ClassCastException =>
           log.warning("The client responded with an unexpected value:" + e.getMessage)
           askingActor ! ErrorMessage("invalid_response", "The client responded with an unexpected value.")
         case e: AskTimeoutException =>
@@ -233,7 +233,7 @@ class RealtimeModelActor(
    */
   private[this] def onOpenModelWhileInitialized(request: OpenRealtimeModelRequest): Unit = {
     val clientId = nextclientId()
-    
+
     //TODO: Handle None
     modelStore.getModelData(modelFqn) match {
       case Some(modelData) => respondToClientOpenRequest(clientId, modelData, OpenRequestRecord(request.clientActor, sender()))
@@ -281,7 +281,7 @@ class RealtimeModelActor(
       // Acknowledge the close back to the requester
       sender ! CloseRealtimeModelSuccess()
 
-      val closedMessage = RemoteSessionClosed(modelFqn, request.clientId)
+      val closedMessage = RemoteClientClosed(modelResourceId, request.clientId)
 
       // If there are other clients, inform them.
       connectedClients.values foreach { client => client ! closedMessage }
@@ -376,11 +376,11 @@ class RealtimeModelActor(
    * to all other connected clients.
    */
   private[this] def broadcastOperation(outgoingOperation: OutgoingOperation) {
-    val originModelSessiond = outgoingOperation.modelSessionId
+    val originModelSessiond = outgoingOperation.clientId
 
     // Ack the sender
     connectedClients(originModelSessiond) ! OperationAcknowledgement(
-      modelFqn, originModelSessiond, outgoingOperation.contextVersion)
+      modelResourceId, originModelSessiond, outgoingOperation.contextVersion)
 
     // Send the message to all others
     connectedClients.filter(p => p._1 != originModelSessiond) foreach {
@@ -459,7 +459,7 @@ class RealtimeModelActor(
 
     // TODO handle reference node leaving
 
-    val closedMessage = RemoteSessionClosed(modelFqn, clientId)
+    val closedMessage = RemoteClientClosed(modelResourceId, clientId)
 
     if (notifyOthers) {
       // There are still other clients with this model open so notify them
@@ -467,7 +467,7 @@ class RealtimeModelActor(
       connectedClients.values foreach { client => client ! closedMessage }
     }
 
-    val forceCloseMessage = ModelForceClose(modelFqn, clientId, reason)
+    val forceCloseMessage = ModelForceClose(modelResourceId, clientId, reason)
     closedActor ! forceCloseMessage
     checkForConnectionsAndClose()
   }

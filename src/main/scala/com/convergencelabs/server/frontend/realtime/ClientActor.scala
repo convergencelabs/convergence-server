@@ -32,6 +32,7 @@ import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolRespon
 import com.convergencelabs.server.domain.HandshakeResponse
 import com.convergencelabs.server.frontend.realtime.proto.HandshakeResponseMessage
 import com.convergencelabs.server.frontend.realtime.proto.ErrorData
+import com.convergencelabs.server.domain.model.RealtimeModelClientMessage
 
 object ClientActor {
   def props(
@@ -54,10 +55,9 @@ class ClientActor(
   connection.eventHandler = { case event => self ! event }
 
   val modelClient = new ModelClient(
-    self,
+    this,
     self, // FIXME
-    ec,
-    connection)
+    ec)
 
   var domainActor: ActorRef = _
 
@@ -91,8 +91,8 @@ class ClientActor(
   }
 
   def receiveWhileHandshook: Receive = {
-    case message: OutgoingProtocolNormalMessage => onOutgoingMessage(message)
-    case message: OutgoingProtocolRequestMessage => onOutgoingRequestMessage(message)
+    case message: RealtimeModelClientMessage => modelClient.onOutgoingModelMessage(message, sender())
+    
     case MessageReceived(message) => onMessageReceived(message)
     case RequestReceived(message, replyPromise) => onRequestReceived(message, replyPromise)
     case ConnectionClosed() => onConnectionClosed()
@@ -101,11 +101,11 @@ class ClientActor(
     case x => unhandled(x)
   }
 
-  private def onOutgoingMessage(message: OutgoingProtocolNormalMessage): Unit = {
+  private[realtime] def send(message: OutgoingProtocolNormalMessage): Unit = {
     connection.send(message)
   }
 
-  private def onOutgoingRequestMessage(message: OutgoingProtocolRequestMessage): Unit = {
+  private[realtime] def request(message: OutgoingProtocolRequestMessage): Unit = {
     val askingActor = sender()
     val f = connection.request(message)
     f.mapTo[IncomingProtocolResponseMessage] onComplete {

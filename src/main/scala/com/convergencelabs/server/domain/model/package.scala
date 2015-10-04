@@ -40,22 +40,17 @@ package model {
   // Data Classes
   //
   case class ModelFqn(collectionId: String, modelId: String)
+  case class OpenModelMetaData(version: Long, createdTime: Long, modifiedTime: Long)
 
   //
   // Incoming Messages From Client
   //
   case class OpenRequestRecord(clientActor: ActorRef, askingActor: ActorRef)
-
   case class OpenRealtimeModelRequest(modelFqn: ModelFqn, clientActor: ActorRef)
-
   case class CreateModelRequest(modelFqn: ModelFqn, modelData: JValue)
-
   case class DeleteModelRequest(modelFqn: ModelFqn)
-
   case class CloseRealtimeModelRequest(clientId: String)
-
   case class OperationSubmission(clientId: String, contextVersion: Long, operation: Operation)
-
   case class ClientModelDataResponse(modelData: JValue)
 
   //
@@ -73,20 +68,14 @@ package model {
   // Outgoing Messages
   //
   case class OpenModelResponse(realtimeModelActor: ActorRef, modelResourceId: String, ccId: String, metaData: OpenModelMetaData, modelData: JValue)
-
-  case class OpenModelMetaData(version: Long, createdTime: Long, modifiedTime: Long)
-
-  case class ClientModelDataRequest(modelFqn: ModelFqn)
-
   case class ModelShutdownRequest(modelFqn: ModelFqn)
-
-  case class OperationAcknowledgement(modelFqn: ModelFqn, modelSessionId: String, contextVersion: Long)
-
-  case class OutgoingOperation(resourceId: String, modelSessionId: String, contextVersion: Long, timestampe: Long, operation: Operation)
-
-  case class RemoteSessionClosed(modelFqn: ModelFqn, modelSessionId: String)
-
   case class CloseRealtimeModelSuccess()
-
-  case class ModelForceClose(modelFqn: ModelFqn, modelSessionId: String, reason: String)
+  
+  trait RealtimeModelClientMessage
+  case class OperationAcknowledgement(resourceId: String, clientId: String, contextVersion: Long) extends RealtimeModelClientMessage
+  case class OutgoingOperation(resourceId: String, clientId: String, contextVersion: Long, timestampe: Long, operation: Operation) extends RealtimeModelClientMessage
+  case class RemoteClientClosed(resourceId: String, clientId: String) extends RealtimeModelClientMessage
+  case class RemoteClientOpened(resourceId: String, clientId: String) extends RealtimeModelClientMessage
+  case class ModelForceClose(resourceId: String, clientId: String, reason: String) extends RealtimeModelClientMessage
+  case class ClientModelDataRequest(modelFqn: ModelFqn) extends RealtimeModelClientMessage
 }

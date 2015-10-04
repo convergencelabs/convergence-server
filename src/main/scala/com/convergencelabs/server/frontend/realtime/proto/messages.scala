@@ -17,13 +17,11 @@ sealed trait IncomingProtocolNormalMessage extends IncomingProtocolMessage
 sealed trait IncomingProtocolRequestMessage extends IncomingProtocolMessage
 sealed trait IncomingProtocolResponseMessage extends IncomingProtocolMessage
 
-
 sealed trait OutgoingProtocolMessage extends ProtocolMessage
 
 sealed trait OutgoingProtocolNormalMessage extends ProtocolMessage
 sealed trait OutgoingProtocolRequestMessage extends ProtocolMessage
 sealed trait OutgoingProtocolResponseMessage extends ProtocolMessage
-
 
 // Client Messages
 case class HandshakeRequestMessage(reconnect: scala.Boolean, reconnectToken: Option[String], options: Option[ProtocolOptionsData]) extends IncomingProtocolRequestMessage
@@ -31,7 +29,6 @@ case class HandshakeResponseMessage(success: scala.Boolean, error: Option[ErrorD
 
 case class ProtocolOptionsData()
 case class ErrorData(code: String, message: String)
-
 
 // Model Messages
 sealed trait IncomingModelMessage extends IncomingProtocolNormalMessage
@@ -45,9 +42,14 @@ case class CloseRealtimeModelRequestMessage(rId: String, cId: String) extends In
 case class OpenRealtimeModelResponseMessage(resourceId: String, ccId: String, metaData: OpenModelMetaData, modelData: JValue) extends OutgoingProtocolResponseMessage
 case class CloseRealtimeModelResponseMessage() extends OutgoingProtocolResponseMessage
 
+case class OperationAcknowledgementMessage(rId: String, cId: String, cv: Long) extends OutgoingProtocolNormalMessage
 case class RemoteOperationMessage(rId: String, cId: String, cv: Long, t: Long, op: OperationData) extends OutgoingProtocolNormalMessage
 
+case class RemoteClientClosedMessage(rId: String, cId: String) extends OutgoingProtocolNormalMessage
+case class RemoteClientOpenedMessage(rId: String, cId: String) extends OutgoingProtocolNormalMessage
+case class ModelForceCloseMessage(rId: String, cId: String, reason: String) extends OutgoingProtocolNormalMessage
 
+case class ModelDataRequestMessage(modelFqn: ModelFqn) extends OutgoingProtocolNormalMessage
 
 //
 // Operations
