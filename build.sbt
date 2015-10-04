@@ -3,8 +3,9 @@ lazy val root = (project in file(".")).
     organization:= "com.convergencelabs",
     name := "convergence-server",
     version := "0.1.0",
-    scalaVersion := "2.11.7"
-
+    scalaVersion := "2.11.7",
+    scalacOptions += "-deprecation",
+    scalacOptions += "-feature"
   )
 
 // Logging

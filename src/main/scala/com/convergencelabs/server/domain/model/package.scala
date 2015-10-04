@@ -89,6 +89,4 @@ package model {
   case class CloseRealtimeModelSuccess()
 
   case class ModelForceClose(modelFqn: ModelFqn, modelSessionId: String, reason: String)
-  
-  case class Error(code: String, reason: String)
 }
