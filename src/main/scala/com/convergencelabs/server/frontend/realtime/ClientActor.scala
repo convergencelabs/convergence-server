@@ -54,10 +54,7 @@ class ClientActor(
 
   connection.eventHandler = { case event => self ! event }
 
-  val modelClient = new ModelClient(
-    this,
-    self, // FIXME
-    ec)
+  val modelClient = ModelClientActor.props(null) // FIXME
 
   var domainActor: ActorRef = _
 
@@ -91,14 +88,22 @@ class ClientActor(
   }
 
   def receiveWhileHandshook: Receive = {
-    case message: RealtimeModelClientMessage => modelClient.onOutgoingModelMessage(message, sender())
-    
+    case message: OutgoingProtocolNormalMessage => onOutgoingMessage(message)
+    case message: OutgoingProtocolRequestMessage => onOutgoingRequest(message)
     case MessageReceived(message) => onMessageReceived(message)
     case RequestReceived(message, replyPromise) => onRequestReceived(message, replyPromise)
     case ConnectionClosed() => onConnectionClosed()
     case ConnectionDropped() => onConnectionDropped()
     case ConnectionError(message) => onConnectionError(message)
     case x => unhandled(x)
+  }
+  
+  def onOutgoingMessage(message: OutgoingProtocolNormalMessage): Unit = {
+    connection.send(message)
+  }
+  
+  def onOutgoingRequest(message: OutgoingProtocolRequestMessage): Unit = {
+    connection.request(message)
   }
 
   private[realtime] def send(message: OutgoingProtocolNormalMessage): Unit = {
@@ -119,14 +124,12 @@ class ClientActor(
 
   private def onMessageReceived(message: IncomingProtocolNormalMessage): Unit = {
     message match {
-      case modelMessage: IncomingModelMessage => modelClient.onMessageReceived(modelMessage)
       case _ => ???
     }
   }
 
   private def onRequestReceived(message: IncomingProtocolRequestMessage, replyPromise: Promise[OutgoingProtocolResponseMessage]): Unit = {
     message match {
-      case modelMessage: IncomingModelRequestMessage => modelClient.onRequestReceived(modelMessage, replyPromise)
       case _ => ???
     }
   }

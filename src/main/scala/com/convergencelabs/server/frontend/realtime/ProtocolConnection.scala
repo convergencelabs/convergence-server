@@ -24,6 +24,8 @@ import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolMessag
 import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolRequestMessage
 import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolNormalMessage
 import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolResponseMessage
+import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolNormalMessage
+import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolRequestMessage
 
 object ProtocolConnection {
   object State extends Enumeration {
@@ -82,11 +84,11 @@ class ProtocolConnection(
     case _ => {}
   }
 
-  def send(message: ProtocolMessage): Unit = {
+  def send(message: OutgoingProtocolNormalMessage): Unit = {
     sendMessage(OpCode.Normal, None, Some(message))
   }
 
-  def request(message: ProtocolMessage)(implicit executor: ExecutionContext): Future[ProtocolMessage] = {
+  def request(message: OutgoingProtocolRequestMessage)(implicit executor: ExecutionContext): Future[ProtocolMessage] = {
     val requestId = nextRequestId
     nextRequestId += 1
 

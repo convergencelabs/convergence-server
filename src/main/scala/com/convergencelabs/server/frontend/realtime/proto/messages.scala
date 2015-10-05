@@ -38,6 +38,8 @@ sealed trait IncomingModelRequestMessage extends IncomingProtocolRequestMessage
 case class OpenRealtimeModelRequestMessage(modelFqn: ModelFqn) extends IncomingModelRequestMessage
 case class CloseRealtimeModelRequestMessage(rId: String, cId: String) extends IncomingModelRequestMessage
 
+case class ModelDataResponseMessage(data: JValue) extends OutgoingProtocolNormalMessage
+
 // Outgoing Model Messages
 case class OpenRealtimeModelResponseMessage(resourceId: String, ccId: String, metaData: OpenModelMetaData, modelData: JValue) extends OutgoingProtocolResponseMessage
 case class CloseRealtimeModelResponseMessage() extends OutgoingProtocolResponseMessage

@@ -4,6 +4,10 @@ import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.pattern.pipe
 import akka.util.Timeout
+import akka.actor.Props
+import akka.actor.ActorLogging
+import akka.pattern._
+import akka.actor.Actor
 import scala.util.Success
 import scala.util.Failure
 import scala.concurrent.ExecutionContext
@@ -12,38 +16,38 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import com.convergencelabs.server.domain.model._
-import com.convergencelabs.server.frontend.realtime.proto.RemoteOperationMessage
-import com.convergencelabs.server.frontend.realtime.proto.IncomingModelRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.OpenRealtimeModelRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.CloseRealtimeModelRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.IncomingModelMessage
-import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolResponseMessage
-import com.convergencelabs.server.frontend.realtime.proto.OperationSubmissionMessage
-import com.convergencelabs.server.frontend.realtime.proto.OperationSubmissionMessage
-import com.convergencelabs.server.frontend.realtime.proto.OperationSubmissionMessage
-import com.convergencelabs.server.frontend.realtime.proto.CloseRealtimeModelResponseMessage
+import com.convergencelabs.server.frontend.realtime.proto._
 import com.convergencelabs.server.frontend.realtime.proto.OpenRealtimeModelResponseMessage
 import com.convergencelabs.server.util.concurrent._
-import com.convergencelabs.server.domain.model.OperationAcknowledgement
-import com.convergencelabs.server.frontend.realtime.proto.OperationAcknowledgementMessage
-import com.convergencelabs.server.frontend.realtime.proto.RemoteClientOpenedMessage
-import com.convergencelabs.server.frontend.realtime.proto.ModelForceCloseMessage
-import com.convergencelabs.server.frontend.realtime.proto.RemoteClientClosedMessage
-import com.convergencelabs.server.frontend.realtime.proto.ModelDataRequestMessage
 
 
-class ModelClient(
-    clientActor: ClientActor,
-    modelManager: ActorRef,
-    implicit val ec: ExecutionContext) {
 
-  implicit val sender = clientActor
+object ModelClientActor {
+  def props(modelManager: ActorRef): Props =
+    Props(new ModelClientActor(modelManager))
+}
+
+class ModelClientActor(
+  modelManager: ActorRef)
+    extends Actor with ActorLogging {
 
   var openRealtimeModels = Map[String, ActorRef]()
 
   // FIXME hardcoded
   implicit val timeout = Timeout(5 seconds)
+  implicit val ec = context.dispatcher
 
+  def receive: Receive = {
+    case MessageReceived(message) if message.isInstanceOf[IncomingModelMessage] => 
+      onMessageReceived(message.asInstanceOf[IncomingModelMessage])
+    case RequestReceived(message, replyPromise) if message.isInstanceOf[IncomingModelRequestMessage] =>
+      onRequestReceived(message.asInstanceOf[IncomingModelRequestMessage], replyPromise)
+    case x => unhandled(x)
+  }
+  
+  //
+  // Outgoing Messages
+  //
   def onOutgoingModelMessage(event: RealtimeModelClientMessage, sender: ActorRef): Unit = {
     event match {
       case op: OutgoingOperation => onOutgoingOperation(op)
@@ -56,39 +60,52 @@ class ModelClient(
   }
 
   def onOutgoingOperation(op: OutgoingOperation): Unit = {
-    var OutgoingOperation(resoruceId, clientId, contextVersion, timestamp, operation) = op
-    clientActor.send(RemoteOperationMessage(
+    val OutgoingOperation(resoruceId, clientId, contextVersion, timestamp, operation) = op
+
+    context.parent ! RemoteOperationMessage(
       resoruceId,
       clientId,
       contextVersion,
       timestamp,
-      OperationMapper.mapOutgoing(operation)))
+      OperationMapper.mapOutgoing(operation))
   }
 
   def onOperationAcknowledgement(opAck: OperationAcknowledgement): Unit = {
     val OperationAcknowledgement(resourceId, clientId, version) = opAck
-    clientActor.send(OperationAcknowledgementMessage(resourceId, clientId, version))
+    context.parent ! OperationAcknowledgementMessage(resourceId, clientId, version)
   }
 
   def onRemoteClientOpened(opened: RemoteClientOpened): Unit = {
     var RemoteClientOpened(resourceId, clientId) = opened
-    clientActor.send(RemoteClientOpenedMessage(resourceId, clientId))
+    context.parent ! RemoteClientOpenedMessage(resourceId, clientId)
   }
 
   def onRemoteClientClosed(closed: RemoteClientClosed): Unit = {
     var RemoteClientClosed(resourceId, clientId) = closed
-    clientActor.send(RemoteClientClosedMessage(resourceId, clientId))
+    context.parent ! RemoteClientClosedMessage(resourceId, clientId)
   }
 
   def onModelForceClose(forceClose: ModelForceClose): Unit = {
     var ModelForceClose(resourceId, clientId, reason) = forceClose
-    clientActor.send(ModelForceCloseMessage(resourceId, clientId, reason))
+    context.parent ! ModelForceCloseMessage(resourceId, clientId, reason)
   }
 
   def onClientModelDataRequest(dataRequest: ClientModelDataRequest): Unit = {
-    var ClientModelDataRequest(modelFqn: ModelFqn) = dataRequest
-    clientActor.send(ModelDataRequestMessage(modelFqn))
+    val ClientModelDataRequest(modelFqn: ModelFqn) = dataRequest
+    val askingActor = sender()
+    val future = context.parent ? ModelDataRequestMessage(modelFqn)
+    future.mapReponse[ModelDataResponseMessage] onComplete {
+      case Success(ModelDataResponseMessage(data)) => {
+        askingActor ! ClientModelDataResponse(data)
+      }
+      case Failure(cause) => // FIXME Send Error back
+    }
+
   }
+
+  //
+  // Incoming Messages
+  //
 
   def onRequestReceived(message: IncomingModelRequestMessage, replyPromise: Promise[OutgoingProtocolResponseMessage]): Unit = {
     message match {
@@ -127,7 +144,7 @@ class ModelClient(
   }
 
   def onOpenRealtimeModelRequest(request: OpenRealtimeModelRequestMessage, reply: Promise[OutgoingProtocolResponseMessage]): Unit = {
-    val future = modelManager ? OpenRealtimeModelRequest(request.modelFqn, clientActor.self)
+    val future = modelManager ? OpenRealtimeModelRequest(request.modelFqn, self)
     future.mapReponse[OpenModelResponse] onComplete {
       case Success(OpenModelResponse(realtimeModelActor, modelResourceId, modelSessionId, metaData, modelData)) => {
         openRealtimeModels += (modelResourceId -> realtimeModelActor)
