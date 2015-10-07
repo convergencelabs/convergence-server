@@ -42,13 +42,15 @@ class ModelClientActor(
       onMessageReceived(message.asInstanceOf[IncomingModelMessage])
     case RequestReceived(message, replyPromise) if message.isInstanceOf[IncomingModelRequestMessage] =>
       onRequestReceived(message.asInstanceOf[IncomingModelRequestMessage], replyPromise)
+    case message: RealtimeModelClientMessage => 
+      onOutgoingModelMessage(message)
     case x => unhandled(x)
   }
   
   //
   // Outgoing Messages
   //
-  def onOutgoingModelMessage(event: RealtimeModelClientMessage, sender: ActorRef): Unit = {
+  def onOutgoingModelMessage(event: RealtimeModelClientMessage): Unit = {
     event match {
       case op: OutgoingOperation => onOutgoingOperation(op)
       case opAck: OperationAcknowledgement => onOperationAcknowledgement(opAck)
@@ -100,7 +102,6 @@ class ModelClientActor(
       }
       case Failure(cause) => // FIXME Send Error back
     }
-
   }
 
   //

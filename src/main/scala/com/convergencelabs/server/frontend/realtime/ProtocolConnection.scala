@@ -33,7 +33,6 @@ object ProtocolConnection {
   }
 }
 
-
 sealed trait ConnectionEvent
 
 sealed trait ProtocolMessageEvent extends ConnectionEvent {
@@ -79,7 +78,7 @@ class ProtocolConnection(
   val responseTimeoutTasks = mutable.Map[Long, Cancellable]()
 
   var state = Connected
-  
+
   private[realtime] var eventHandler: PartialFunction[ConnectionEvent, Unit] = {
     case _ => {}
   }
@@ -136,7 +135,7 @@ class ProtocolConnection(
     heartbeatHelper.messageReceived()
     // FIXME handle error
     val envelope = MessageEnvelope(json).get
-    
+
     envelope.opCode match {
       case OpCode.Normal => onNormalMessage(envelope.extractBody())
       case OpCode.Ping => onPing()
@@ -164,7 +163,7 @@ class ProtocolConnection(
     if (!message.isInstanceOf[IncomingProtocolNormalMessage]) {
       // throw something
     }
-    
+
     eventHandler lift MessageReceived(message.asInstanceOf[IncomingProtocolNormalMessage])
   }
 
@@ -175,11 +174,11 @@ class ProtocolConnection(
   private[this] def onRequest(envelope: MessageEnvelope): Unit = {
     // Verify body. and req id.
     val protocolMessage = envelope.extractBody()
-    
+
     if (!protocolMessage.isInstanceOf[IncomingProtocolRequestMessage]) {
       // FIXME throw some exception because this must be a request message.
     }
-    
+
     val p = Promise[OutgoingProtocolResponseMessage]
 
     p.future.onComplete({
