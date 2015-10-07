@@ -6,14 +6,14 @@ import com.convergencelabs.server.datastore.domain.ModelHistoryStore
 import org.json4s.Extraction
 import org.json4s.JsonAST.JValue
 import org.json4s.NoTypeHints
-import org.json4s.jackson.Serialization
-import org.json4s.jackson.Serialization.read
-import org.json4s.jackson.Serialization.write
 import com.convergencelabs.server.datastore.domain.DomainUserStore
 import com.convergencelabs.server.datastore.domain.ModelSnapshotStore
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import org.json4s._
 import org.json4s.jackson.JsonMethods._
+import org.json4s.jackson.Serialization
+import org.json4s.jackson.Serialization._
+import com.convergencelabs.server.datastore.domain.ModelStore
 
 
 
@@ -29,7 +29,7 @@ class OrientDBDomainPersistenceProvider(databaseConfig: JValue) extends DomainPe
   
   val dbPool: OPartitionedDatabasePool = new OPartitionedDatabasePool(config.uri, config.username, config.password)
 
-  val modelStore: ModelStore = ???
+  val modelStore: ModelStore = new OrientDBModelStore(dbPool)
 
   val modelHistoryStore: ModelHistoryStore = ???
 
