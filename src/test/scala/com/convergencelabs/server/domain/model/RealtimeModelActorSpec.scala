@@ -157,11 +157,7 @@ class RealtimeModelActorSpec(system: ActorSystem)
     "closing a closed a model" must {
       "acknowledge the close" in new MockDatabaseWithModel with OneOpenClient {
         realtimeModelActor.tell(CloseRealtimeModelRequest(client1OpenResponse.ccId), client1.ref)
-        val closeAck = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[CloseModelAcknowledgement])
-
-        assert(modelFqn == closeAck.modelFqn)
-        assert(client1OpenResponse.ccId == closeAck.ccId)
-        assert(client1OpenResponse.modelResourceId == closeAck.modelResourceId)
+        val closeAck = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[CloseRealtimeModelSuccess])
       }
       
       "respond with an error for an invalid ccId" in new MockDatabaseWithModel with OneOpenClient {
@@ -180,9 +176,9 @@ class RealtimeModelActorSpec(system: ActorSystem)
         var client2Response = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelResponse])
 
         realtimeModelActor.tell(CloseRealtimeModelRequest(client2Response.ccId), client2.ref)
-        val closeAck = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[CloseModelAcknowledgement])
+        val closeAck = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[CloseRealtimeModelSuccess])
 
-        client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[RemoteSessionClosed])
+        client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[RemoteClientClosed])
       }
 
       "notify domain when last client disconnects" in new MockDatabaseWithModel {
@@ -191,7 +187,7 @@ class RealtimeModelActorSpec(system: ActorSystem)
         realtimeModelActor.tell(OpenRealtimeModelRequest(modelFqn, client1.ref), client1.ref)
         var client1Response = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelResponse])
         realtimeModelActor.tell(CloseRealtimeModelRequest(client1Response.ccId), client1.ref)
-        val closeAck = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[CloseModelAcknowledgement])
+        val closeAck = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[CloseRealtimeModelSuccess])
         modelManagerActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ModelShutdownRequest])
       }
     }
@@ -221,7 +217,7 @@ class RealtimeModelActorSpec(system: ActorSystem)
             badOp), client1.ref)
             
         client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ModelForceClose])
-        client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[RemoteSessionClosed])
+        client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[RemoteClientClosed])
       }
     }
     

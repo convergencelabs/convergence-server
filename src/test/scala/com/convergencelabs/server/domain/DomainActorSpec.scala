@@ -2,8 +2,13 @@ package com.convergencelabs.server.domain
 
 import java.util.concurrent.TimeUnit
 
+import akka.actor.ActorSystem
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
+
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
+import scala.language.postfixOps
 
 import org.json4s.JsonAST.JObject
 import org.junit.runner.RunWith
@@ -20,9 +25,6 @@ import com.convergencelabs.server.datastore.TokenPublicKey
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.domain.auth.InternalDomainAuthenticationProvider
 
-import akka.actor.ActorSystem
-import akka.testkit.TestKit
-import akka.testkit.TestProbe
 
 @RunWith(classOf[JUnitRunner])
 class DomainActorSpec(system: ActorSystem)

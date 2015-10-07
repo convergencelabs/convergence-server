@@ -17,7 +17,6 @@ import com.convergencelabs.server.frontend.realtime.proto.HandshakeRequestMessag
 import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolMessage
 import scala.concurrent.Promise
 import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolResponseMessage
-import scala.actors.ActorRef
 import akka.actor.ActorRef
 import com.convergencelabs.server.domain.HandshakeRequest
 
