@@ -61,6 +61,7 @@ class ConnectionManagerActor(
     val connection = new ProtocolConnection(
       newSocketEvent.socket,
       protocolConfig,
+      true,
       context.system.scheduler,
       context.dispatcher)
 

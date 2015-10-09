@@ -49,6 +49,7 @@ case class ConnectionError(message: String) extends ConnectionEvent
 class ProtocolConnection(
     private[this] var socket: ConvergenceServerSocket,
     private[this] val protocolConfig: ProtocolConfiguration,
+    private[this] val heartbeatEnabled: scala.Boolean,
     private[this] val scheduler: Scheduler,
     private[this] val ec: ExecutionContext) {
 
@@ -61,7 +62,9 @@ class ProtocolConnection(
     ec,
     handleHeartbeat)
 
-  heartbeatHelper.start()
+  if (heartbeatEnabled) {
+    heartbeatHelper.start()
+  }
 
   socket.handler = {
     case SocketMessage(message) => onSocketMessage(message)
@@ -121,12 +124,19 @@ class ProtocolConnection(
     promise.future
   }
 
-  def reconnect(newSocket: ConvergenceServerSocket): Unit = {
-    socket = newSocket
-    heartbeatHelper.start()
+  def abort(reason: String): Unit = {
+    socket.abort(reason: String)
+    heartbeatHelper.stop()
   }
 
-  private[this] def sendMessage(opCode: String, requestMessageId: Option[Long], message: Option[ProtocolMessage]): Unit = {
+  def close(): Unit = {
+    if (heartbeatHelper.started()) {
+      heartbeatHelper.stop()
+    }
+    socket.close()
+  }
+
+  def sendMessage(opCode: String, requestMessageId: Option[Long], message: Option[ProtocolMessage]): Unit = {
     val envelope = MessageEnvelope(opCode, requestMessageId, message)
     socket.send(envelope.toJson())
   }
@@ -182,7 +192,9 @@ class ProtocolConnection(
     val p = Promise[OutgoingProtocolResponseMessage]
 
     p.future.onComplete({
-      case Success(message) => sendMessage(OpCode.Reply, Some(envelope.reqId.get), Some(message))
+      case Success(message) => {
+        sendMessage(OpCode.Reply, Some(envelope.reqId.get), Some(message))
+      }
       case Failure(error) => // FIXME reply with error
     })(ec)
 

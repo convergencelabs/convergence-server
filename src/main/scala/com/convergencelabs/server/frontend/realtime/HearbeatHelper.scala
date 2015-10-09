@@ -36,7 +36,7 @@ class HearbeatHelper(
 
   def start(): Unit = {
     if (!_started) {
-      logger.debug(s"HeartbeatManager _started with Ping Interval $pingInterval and Pong Timeout $pongTimeout")
+      logger.debug(s"HeartbeatHelper started with Ping Interval $pingInterval and Pong Timeout $pongTimeout")
       this._started = true
       this.messageReceived()
     }
@@ -44,20 +44,15 @@ class HearbeatHelper(
 
   def started(): Boolean = _started
 
-  def stopped: Boolean = !_started
+  def stopped(): Boolean = !_started
 
   def stop(): Unit = {
     if (_started) {
-      logger.debug("HearbeatManager stopped.")
+      logger.debug("HeartbeatHelper stopped.")
       this._started = false
       stopPingTimer()
       cancelPongTimeout()
     }
-  }
-
-  def dispose(): Unit = {
-    logger.trace("HearbeatManager disposed.")
-    stop()
   }
 
   def sendPing(): Unit = {

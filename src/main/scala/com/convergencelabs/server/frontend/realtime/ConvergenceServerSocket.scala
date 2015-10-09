@@ -8,9 +8,9 @@ case class SocketError(errorMessage: String) extends ConvergenceServerSocketEven
 case class SocketClosed() extends ConvergenceServerSocketEvent
 case class SocketDropped() extends ConvergenceServerSocketEvent
 
-abstract class ConvergenceServerSocket {
+trait ConvergenceServerSocket {
 
-  var handler: PartialFunction[ConvergenceServerSocketEvent, Unit] = null
+  var handler: PartialFunction[ConvergenceServerSocketEvent, Unit] = {case _ => }
 
   var sessionId: String = null
 
@@ -25,14 +25,15 @@ abstract class ConvergenceServerSocket {
   def dispose(): Unit
 
   def fireOnError(errorMessage: String): Unit =
-    if (handler != null) handler lift SocketError(errorMessage)
+    handler lift SocketError(errorMessage)
 
-  def fireOnMessage(message: String): Unit =
-    if (handler != null) handler lift SocketMessage(message)
+  def fireOnMessage(message: String): Unit = 
+    handler lift SocketMessage(message)
+    
 
   def fireOnClosed(): Unit =
-    if (handler != null) handler lift SocketClosed()
+    handler lift SocketClosed()
 
   def fireOnDropped(): Unit =
-    if (handler != null) handler lift SocketDropped()
+    handler lift SocketDropped()
 }

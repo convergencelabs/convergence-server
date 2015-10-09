@@ -52,9 +52,11 @@ class ClientActor(
   private[this] val domainFqn: DomainFqn)
     extends Actor with ActorLogging {
 
-  private[this] val connectionManager = context.parent
-
+  // FIXME hard-coded
+  implicit val timeout = Timeout(500 millis)
   implicit val ec = context.dispatcher
+
+  private[this] val connectionManager = context.parent
 
   connection.eventHandler = { case event => self ! event }
 
@@ -67,12 +69,10 @@ class ClientActor(
     case RequestReceived(message, replyPromise) if message.isInstanceOf[HandshakeRequestMessage] => {
       handshake(message.asInstanceOf[HandshakeRequestMessage], replyPromise)
     }
-    case x => unhandled(x)
+    case _ => invalidMessage()
   }
 
   def handshake(request: HandshakeRequestMessage, reply: Promise[OutgoingProtocolResponseMessage]): Unit = {
-    // FIXME hardcoded
-    implicit val timeout = Timeout(5 seconds)
     val future = domainManager ? HandshakeRequest(domainFqn, self, request.reconnect, request.reconnectToken)
     future.mapReponse[HandshakeResponse] onComplete {
       case Success(HandshakeSuccess(sessionId, reconnectToken, domainActor, modelManagerActor)) => {
@@ -83,14 +83,20 @@ class ClientActor(
       }
       case Success(HandshakeFailure(code, details)) => {
         reply.success(HandshakeResponseMessage(false, Some(ErrorData(code, details)), None, None))
+        connection.abort("handshake timeout")
+        context.stop(self)
       }
       case Failure(cause) => {
         reply.success(HandshakeResponseMessage(false, Some(ErrorData("unknown", "uknown error")), None, None))
+        connection.abort("handshake timeout")
+        context.stop(self)
       }
     }
   }
 
   def receiveWhileHandshook: Receive = {
+    case RequestReceived(message, replyPromise) if message.isInstanceOf[HandshakeRequestMessage] => invalidMessage()
+
     case message: OutgoingProtocolNormalMessage => onOutgoingMessage(message)
     case message: OutgoingProtocolRequestMessage => onOutgoingRequest(message)
 
@@ -113,24 +119,8 @@ class ClientActor(
     val f = connection.request(message)
     // FIXME should we allow them to specify what should be coming back.
     f.mapTo[IncomingProtocolResponseMessage] onComplete {
-      case Success(x) => askingActor ! x
+      case Success(response) => askingActor ! response
       case Failure(cause) => ??? // FIXME what do do on failure?
-    }
-  }
-
-  private[realtime] def send(message: OutgoingProtocolNormalMessage): Unit = {
-    connection.send(message)
-  }
-
-  private[realtime] def request(message: OutgoingProtocolRequestMessage): Unit = {
-    val askingActor = sender()
-    val f = connection.request(message)
-    f.mapTo[IncomingProtocolResponseMessage] onComplete {
-      case Success(response) => {
-        askingActor ! response
-      }
-      case Failure(cause) => {
-      }
     }
   }
 
@@ -157,6 +147,11 @@ class ClientActor(
   }
 
   private def onConnectionError(message: String): Unit = {
+    context.stop(self)
+  }
+
+  private[this] def invalidMessage(): Unit = {
+    connection.abort("Invalid message")
     context.stop(self)
   }
 }

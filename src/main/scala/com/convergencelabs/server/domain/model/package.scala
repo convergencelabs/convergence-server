@@ -22,7 +22,7 @@ package model {
       previousVersion: Long,
       currentVersion: Long,
       previousTime: Long,
-      currentTime: Long): Boolean = {
+      currentTime: Long): scala.Boolean = {
 
       val versionInterval = currentVersion - previousVersion
       val allowedByVersion = versionInterval >= minimumVersionInterval
