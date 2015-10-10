@@ -77,23 +77,19 @@ class ProtocolConnectionSpec(system: ActorSystem)
 
     "responding to a request" must {
       "send a correct reply envelope" in new TestFixture(system) {
+        val receiver = new Receiver(connection)
+        val message = HandshakeRequestMessage(false, None, None)
+        val envelope = MessageEnvelope(OpCode.Request, Some(1L), Some(message))
+        val json = envelope.toJson()
+        socket.fireOnMessage(json)
+        val RequestReceived(x, r) = receiver.expectEventClass(10 millis, classOf[RequestReceived])
 
-        try {
-          val receiver = new Receiver(connection)
-          val message = HandshakeRequestMessage(false, None, None)
-          val envelope = MessageEnvelope(OpCode.Request, Some(1L), Some(message))
-          val json = envelope.toJson()
-          socket.fireOnMessage(json)
-          val RequestReceived(x, r) = receiver.expectEventClass(10 millis, classOf[RequestReceived])
-          
-          val response = HandshakeResponseMessage(true, None, Some("foo"), Some("bar"))
-          r.success(response)
-          
-          var responseEnvelop = MessageEnvelope(OpCode.Reply, Some(1L), Some(response))
-          Mockito.verify(socket, times(1)).send(responseEnvelop.toJson())
-        } finally {
-          connection.close()
-        }
+        val response = HandshakeResponseMessage(true, None, Some("foo"), Some("bar"))
+        r.success(response)
+
+        var responseEnvelop = MessageEnvelope(OpCode.Reply, Some(1L), Some(response))
+        Mockito.verify(socket, times(1)).send(responseEnvelop.toJson())
+        connection.close()
       }
     }
   }
