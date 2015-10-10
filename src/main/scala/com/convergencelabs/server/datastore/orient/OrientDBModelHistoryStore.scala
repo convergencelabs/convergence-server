@@ -16,6 +16,8 @@ import org.json4s._
 import org.json4s.jackson.JsonMethods._
 import org.json4s.jackson.Serialization._
 
+import scala.collection.immutable.HashMap
+
 class OrientDBModelHistoryStore(dbPool: OPartitionedDatabasePool) extends ModelHistoryStore {
 
   private[this] implicit val formats = Serialization.formats(NoTypeHints)
@@ -23,7 +25,7 @@ class OrientDBModelHistoryStore(dbPool: OPartitionedDatabasePool) extends ModelH
   def getMaxVersion(fqn: ModelFqn): Long = {
     val db = dbPool.acquire()
     val query = new OSQLSynchQuery[ODocument]("SELECT max(operation.version) FROM modelHistory WHERE collectionId = :collectionId and modelId = :modelId")
-    val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
+    val params: java.util.Map[String, String] = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
     val result: java.util.List[ODocument] = db.command(query).execute(params)
     result.asScala.toList match {
       case doc :: rest => doc.field("max", OType.LONG)
@@ -34,7 +36,7 @@ class OrientDBModelHistoryStore(dbPool: OPartitionedDatabasePool) extends ModelH
   def getVersionAtOrBeforeTime(fqn: ModelFqn, time: Long): Long = {
     val db = dbPool.acquire()
     val query = new OSQLSynchQuery[ODocument]("SELECT max(operation.version) FROM modelHistory WHERE collectionId = :collectionId and modelId = :modelId and operation.time <= :time")
-    val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId, "time" -> time)
+    val params: java.util.Map[String, Any] = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId, "time" -> time)
     val result: java.util.List[ODocument] = db.command(query).execute(params)
     result.asScala.toList match {
       case doc :: rest => doc.field("max", OType.LONG)
@@ -45,7 +47,7 @@ class OrientDBModelHistoryStore(dbPool: OPartitionedDatabasePool) extends ModelH
   def getOperationsAfterVersion(fqn: ModelFqn, version: Long): List[OperationEvent] = {
     val db = dbPool.acquire()
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM modelHistory WHERE collectionId = :collectionId and modelId = :modelId and operation.version >= :version ORDER BY operation.version ASC");
-    val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId, "version" -> version)
+    val params: java.util.Map[String, Any] = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId, "version" -> version)
     val result: java.util.List[ODocument] = db.command(query).execute(params)
     result.asScala.toList map { doc => read[OperationEvent](write(doc.field("operation"))) }
   }
@@ -53,7 +55,7 @@ class OrientDBModelHistoryStore(dbPool: OPartitionedDatabasePool) extends ModelH
   def getOperationsAfterVersion(fqn: ModelFqn, version: Long, limit: Int): List[OperationEvent] = {
     val db = dbPool.acquire()
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM modelHistory WHERE collectionId = :collectionId and modelId = :modelId and operation.version >= :version ORDER BY operation.version ASC LIMIT :limit");
-    val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId, "version" -> version, "limit" -> limit)
+    val params: java.util.Map[String, Any] = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId, "version" -> version, "limit" -> limit)
     val result: java.util.List[ODocument] = db.command(query).execute(params)
     result.asScala.toList map { doc => read[OperationEvent](write(doc.field("operation"))) }
   }

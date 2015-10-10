@@ -15,6 +15,7 @@ import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import com.convergencelabs.server.datastore.domain.DomainUser
 import com.orientechnologies.orient.core.metadata.schema.OType
+import scala.collection.immutable.HashMap
 
 class OrientDBDomainUserStore(dbPool: OPartitionedDatabasePool) extends DomainUserStore {
 
@@ -32,7 +33,7 @@ class OrientDBDomainUserStore(dbPool: OPartitionedDatabasePool) extends DomainUs
   def deleteDomainUser(uid: String): Unit = {
     val db = dbPool.acquire()
     val command = new OCommandSQL("DELETE FROM user WHERE uid = :uid")
-    val params = Map("uid" -> uid)
+    val params: java.util.Map[String, String] = HashMap("uid" -> uid)
     db.command(command).execute(params)
   }
 
@@ -42,7 +43,7 @@ class OrientDBDomainUserStore(dbPool: OPartitionedDatabasePool) extends DomainUs
     updatedDoc.fromJSON(write(domainUser))
 
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM user WHERE uid = :uid")
-    val params = Map("uid" -> domainUser.uid)
+    val params: java.util.Map[String, String] = HashMap("uid" -> domainUser.uid)
     val result: java.util.List[ODocument] = db.command(query).execute(params)
 
     result.asScala.toList match {
@@ -57,7 +58,7 @@ class OrientDBDomainUserStore(dbPool: OPartitionedDatabasePool) extends DomainUs
   def getDomainUserByUid(uid: String): Option[DomainUser] = {
     val db = dbPool.acquire()
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM user WHERE uid = :uid")
-    val params = Map("uid" -> uid)
+    val params: java.util.Map[String, String] = HashMap("uid" -> uid)
     val result: java.util.List[ODocument] = db.command(query).execute(params)
 
     result.asScala.toList match {
@@ -69,7 +70,7 @@ class OrientDBDomainUserStore(dbPool: OPartitionedDatabasePool) extends DomainUs
   def getDomainUsersByUids(uids: List[String]): List[DomainUser] = {
     val db = dbPool.acquire()
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM user WHERE uid in :uids")
-    val params = Map("uids" -> uids)
+    val params: java.util.Map[String, Any] = HashMap("uids" -> uids)
     val result: java.util.List[ODocument] = db.command(query).execute(params)
     result.asScala.toList.map { doc => DomainUser(doc.field("uid"), doc.field("username"), doc.field("firstName"), doc.field("lastName"), doc.field("emails", OType.EMBEDDEDLIST)) }
   }
@@ -77,7 +78,7 @@ class OrientDBDomainUserStore(dbPool: OPartitionedDatabasePool) extends DomainUs
   def getDomainUserByUsername(username: String): Option[DomainUser] = {
     val db = dbPool.acquire()
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM user WHERE username = :username")
-    val params = Map("username" -> username)
+    val params: java.util.Map[String, Any] = HashMap("username" -> username)
     val result: java.util.List[ODocument] = db.command(query).execute(params)
 
     result.asScala.toList match {
@@ -89,7 +90,7 @@ class OrientDBDomainUserStore(dbPool: OPartitionedDatabasePool) extends DomainUs
   def getDomainUsersByUsername(usernames: List[String]): List[DomainUser] = {
     val db = dbPool.acquire()
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM user WHERE username in :usernames")
-    val params = Map("usernames" -> usernames)
+    val params: java.util.Map[String, Any] = HashMap("usernames" -> usernames)
     val result: java.util.List[ODocument] = db.command(query).execute(params)
     result.asScala.toList.map { doc => DomainUser(doc.field("uid"), doc.field("username"), doc.field("firstName"), doc.field("lastName"), doc.field("emails", OType.EMBEDDEDLIST)) }
   }
@@ -97,7 +98,7 @@ class OrientDBDomainUserStore(dbPool: OPartitionedDatabasePool) extends DomainUs
   def getDomainUserByEmail(email: String): Option[DomainUser] = {
     val db = dbPool.acquire()
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM user WHERE email = :email")
-    val params = Map("email" -> email)
+    val params: java.util.Map[String, Any] = HashMap("email" -> email)
     val result: java.util.List[ODocument] = db.command(query).execute(params)
 
     result.asScala.toList match {
@@ -109,7 +110,7 @@ class OrientDBDomainUserStore(dbPool: OPartitionedDatabasePool) extends DomainUs
   def getDomainUsersByEmail(emails: List[String]): List[DomainUser] = {
     val db = dbPool.acquire()
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM user WHERE email in :emails")
-    val params = Map("emails" -> emails)
+    val params: java.util.Map[String, Any] = HashMap("emails" -> emails)
     val result: java.util.List[ODocument] = db.command(query).execute(params)
     result.asScala.toList.map { doc => DomainUser(doc.field("uid"), doc.field("username"), doc.field("firstName"), doc.field("lastName"), doc.field("emails", OType.EMBEDDEDLIST)) }
   }
@@ -117,7 +118,7 @@ class OrientDBDomainUserStore(dbPool: OPartitionedDatabasePool) extends DomainUs
   def domainUserExists(username: String): Boolean = {
     val db = dbPool.acquire()
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM user WHERE username = :username")
-    val params = Map("username" -> username)
+    val params: java.util.Map[String, Any] = HashMap("username" -> username)
     val result: java.util.List[ODocument] = db.command(query).execute(params)
 
     result.asScala.toList match {

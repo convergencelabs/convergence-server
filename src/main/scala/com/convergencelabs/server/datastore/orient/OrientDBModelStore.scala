@@ -25,6 +25,7 @@ import com.convergencelabs.server.datastore.domain.ModelMetaData
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.convergencelabs.server.datastore.domain.ModelMetaData
 import org.json4s.JsonAST.JNumber
+import scala.collection.immutable.HashMap
 
 object OrientDBModelStore {
   def toOrientPath(path: List[Any]): String = {
@@ -39,7 +40,7 @@ class OrientDBModelStore(dbPool: OPartitionedDatabasePool) extends ModelStore {
   def modelExists(fqn: ModelFqn): Boolean = {
     val db = dbPool.acquire()
     val query = new OSQLSynchQuery[ODocument]("SELECT modelId FROM model WHERE collectionId = :collectionId and modelId = :modelId")
-    val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
+    val params: java.util.Map[String, String] = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
     val result: java.util.List[ODocument] = db.command(query).execute(params)
     db.close()
     !result.isEmpty()
@@ -69,7 +70,7 @@ class OrientDBModelStore(dbPool: OPartitionedDatabasePool) extends ModelStore {
   def getModelMetaData(fqn: ModelFqn): Option[ModelMetaData] = {
     val db = dbPool.acquire()
     val query = new OSQLSynchQuery[ODocument]("SELECT modelId, collectionId, version, created, modified FROM model WHERE collectionId = :collectionId AND modelId = :modelId")
-    val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
+    val params: java.util.Map[String, String] = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
 
     val result: java.util.List[ODocument] = db.command(query).execute(params)
     result.asScala.toList match {
@@ -81,7 +82,7 @@ class OrientDBModelStore(dbPool: OPartitionedDatabasePool) extends ModelStore {
   def getModelData(fqn: ModelFqn): Option[ModelData] = {
     val db = dbPool.acquire()
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM model WHERE collectionId = :collectionId and modelId = :modelId")
-    val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
+    val params: java.util.Map[String, String] = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
     val result: java.util.List[ODocument] = db.command(query).execute(params)
     result.asScala.toList match {
       case doc :: rest => Some(ModelData(ModelMetaData(fqn, doc.field("version", OType.LONG), doc.field("created", OType.LONG), doc.field("modified", OType.LONG)), parse(doc.field("data"))))
@@ -92,7 +93,7 @@ class OrientDBModelStore(dbPool: OPartitionedDatabasePool) extends ModelStore {
   def getModelJsonData(fqn: ModelFqn): Option[JValue] = {
     val db = dbPool.acquire()
     val query = new OSQLSynchQuery[ODocument]("SELECT data FROM model WHERE collectionId = :collectionId and modelId = :modelId")
-    val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
+    val params: java.util.Map[String, String] = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
     val result: java.util.List[ODocument] = db.command(query).execute(params)
     result.asScala.toList match {
       case doc :: rest => Some(parse(doc.field("data")))
@@ -111,7 +112,7 @@ class OrientDBModelStore(dbPool: OPartitionedDatabasePool) extends ModelStore {
     val db = dbPool.acquire()
     val pathString = OrientDBModelStore.toOrientPath(path)
     val query = new OSQLSynchQuery[ODocument](s"SELECT pathString FROM model WHERE collectionId = :collectionId and modelId = :modelId")
-    val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
+    val params: java.util.Map[String, String] = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
     val result: java.util.List[ODocument] = db.command(query).execute(params)
     result.asScala.toList match {
       case doc :: rest => {
@@ -138,7 +139,7 @@ class OrientDBModelStore(dbPool: OPartitionedDatabasePool) extends ModelStore {
   def getAllModelsInCollection(collectionId: String, orderBy: String, ascending: Boolean, offset: Int, limit: Int): List[ModelMetaData] = {
     val db = dbPool.acquire()
     val query = new OSQLSynchQuery[ODocument]("SELECT modelId, collectionId, version, created, modified FROM model where collectionId = :collectionId")
-    val params = Map("collectionid" -> collectionId)
+    val params: java.util.Map[String, String] = HashMap("collectionid" -> collectionId)
     val result: java.util.List[ODocument] = db.command(query).execute(params)
     result.asScala.toList map { doc => ModelMetaData(ModelFqn(collectionId, doc.field("modelId")), doc.field("version", OType.LONG), doc.field("created", OType.LONG), doc.field("modified", OType.LONG)) }
   }
