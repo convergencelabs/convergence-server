@@ -20,19 +20,16 @@ import akka.actor.Scheduler
 object DomainManagerActor {
   def props(
     convergencePersistence: PersistenceProvider,
-    domainManager: DomainManager,
     internalAuthProvider: InternalDomainAuthenticationProvider,
     protocolConfig: ProtocolConfiguration): Props = Props(
     new DomainManagerActor(
       convergencePersistence,
-      domainManager,
       internalAuthProvider,
       protocolConfig))
 }
 
 class DomainManagerActor(
   private[this] val convergencePersistence: PersistenceProvider,
-  private[this] val domainManager: DomainManager,
   private[this] val internalAuthProvider: InternalDomainAuthenticationProvider,
   private[this] val protocolConfig: ProtocolConfiguration)
     extends Actor with ActorLogging {
@@ -41,6 +38,8 @@ class DomainManagerActor(
 
   private[this] val cluster = Cluster(context.system)
   private[this] implicit val ec = context.dispatcher
+  
+  private[this] val domainConfigStore = convergencePersistence.domainConfigStore
 
   // FIXME pull from config
   private[this] val domainShutdownDelay = new FiniteDuration(10, TimeUnit.SECONDS)
@@ -61,7 +60,7 @@ class DomainManagerActor(
 
   private[this] def onHandshakeRequest(request: HandshakeRequest): Unit = {
     val domainFqn = request.domainFqn
-    if (!domainManager.domainExists(domainFqn)) {
+    if (!domainConfigStore.domainExists(domainFqn)) {
       sender() ! HandshakeFailure("domain_does_not_exists", "The domain does not exist")
       return
     }
@@ -83,7 +82,7 @@ class DomainManagerActor(
   }
 
   private[this] def handleClientOpeningClosedDomain(domainFqn: DomainFqn, request: HandshakeRequest): Unit = {
-    if (domainManager.domainExists(domainFqn)) {
+    if (domainConfigStore.domainExists(domainFqn)) {
       // This only works because this is synchronous.
 
       // FIXME I don't think it is for sure that the actor will be up and running at this point.

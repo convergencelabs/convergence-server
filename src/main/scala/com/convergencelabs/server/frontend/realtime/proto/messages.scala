@@ -8,29 +8,43 @@ import org.json4s.JsonAST.JValue
 import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.OpenModelMetaData
 
-// Main class
+///////////////////////////////////////////////////////////////////////////////
+// Base Classes
+///////////////////////////////////////////////////////////////////////////////
 sealed trait ProtocolMessage
 
 sealed trait IncomingProtocolMessage extends ProtocolMessage
-
 sealed trait IncomingProtocolNormalMessage extends IncomingProtocolMessage
 sealed trait IncomingProtocolRequestMessage extends IncomingProtocolMessage
 sealed trait IncomingProtocolResponseMessage extends IncomingProtocolMessage
 
 sealed trait OutgoingProtocolMessage extends ProtocolMessage
+sealed trait OutgoingProtocolNormalMessage extends OutgoingProtocolMessage
+sealed trait OutgoingProtocolRequestMessage extends OutgoingProtocolMessage
+sealed trait OutgoingProtocolResponseMessage extends OutgoingProtocolMessage
 
-sealed trait OutgoingProtocolNormalMessage extends ProtocolMessage
-sealed trait OutgoingProtocolRequestMessage extends ProtocolMessage
-sealed trait OutgoingProtocolResponseMessage extends ProtocolMessage
-
+///////////////////////////////////////////////////////////////////////////////
 // Client Messages
+///////////////////////////////////////////////////////////////////////////////
+
+// Handshaking
 case class HandshakeRequestMessage(reconnect: scala.Boolean, reconnectToken: Option[String], options: Option[ProtocolOptionsData]) extends IncomingProtocolRequestMessage
 case class HandshakeResponseMessage(success: scala.Boolean, error: Option[ErrorData], sessionId: Option[String], reconnectToken: Option[String]) extends OutgoingProtocolResponseMessage
 
 case class ProtocolOptionsData()
 case class ErrorData(code: String, message: String)
 
+// Authentication Messages
+sealed trait AuthenticationRequestMessage extends IncomingProtocolRequestMessage
+case class PasswordAuthenticationRequestMessage(username: String, password: String) extends AuthenticationRequestMessage
+case class TokenAuthenticationRequestMessage(token: String) extends AuthenticationRequestMessage
+
+case class AuthenticationResponseMessage(username: String) extends OutgoingProtocolResponseMessage
+
+
+///////////////////////////////////////////////////////////////////////////////
 // Model Messages
+///////////////////////////////////////////////////////////////////////////////
 sealed trait IncomingModelNormalMessage extends IncomingProtocolNormalMessage
 case class OperationSubmissionMessage(rId: String, cId: String, v: Long, op: OperationData) extends IncomingModelNormalMessage
 
@@ -52,6 +66,7 @@ case class RemoteClientOpenedMessage(rId: String, cId: String) extends OutgoingP
 case class ModelForceCloseMessage(rId: String, cId: String, reason: String) extends OutgoingProtocolNormalMessage
 
 case class ModelDataRequestMessage(modelFqn: ModelFqn) extends OutgoingProtocolNormalMessage
+
 
 //
 // Operations
@@ -86,4 +101,3 @@ case class ObjectSetOperationData(path: List[Any], noOp: Boolean, obj: JObject) 
 sealed trait NumberOperaitonData extends DiscreteOperationData
 case class NumberAddOperationData(path: List[Any], noOp: Boolean, delta: JNumber) extends NumberOperaitonData
 case class NumberSetOperationData(path: List[Any], noOp: Boolean, num: JNumber) extends NumberOperaitonData
-

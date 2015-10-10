@@ -68,6 +68,8 @@ class DomainManagerActorSpec()
 
     val configStore = mock[DomainConfigurationStore]
     Mockito.when(configStore.getDomainConfig(domainFqn)).thenReturn(domainConfig)
+    Mockito.when(configStore.domainExists(domainFqn)).thenReturn(true)
+    Mockito.when(configStore.domainExists(nonExistingDomain)).thenReturn(false)
 
     val domainPersistenceProvider = mock[DomainPersistenceProvider]
 
@@ -77,15 +79,10 @@ class DomainManagerActorSpec()
 
     val internalAuthProvider = mock[InternalDomainAuthenticationProvider]
 
-    val domainManager = mock[DomainManager]
-    Mockito.when(domainManager.domainExists(domainFqn)).thenReturn(true)
-    Mockito.when(domainManager.domainExists(nonExistingDomain)).thenReturn(false)
-
     val protocolConfig = ProtocolConfiguration(1000L)
 
     val props = DomainManagerActor.props(
       convergencePersistence,
-      domainManager,
       internalAuthProvider,
       protocolConfig)
 

@@ -22,7 +22,7 @@ object MonoServer {
     val seed1 = startupCluster(2551, "seed")
 
     val domainManagerSystem = startupCluster(2553, "domainManager")
-    domainManagerSystem.actorOf(DomainManagerActor.props(null, null, null, null), "domainManager")
+    domainManagerSystem.actorOf(DomainManagerActor.props(null, null, null), "domainManager")
     
     val realtimeSystem = startupCluster(2554, "realtimeFrontend")
     val realtimeServer = new ConvergenceRealtimeFrontend(realtimeSystem)

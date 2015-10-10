@@ -13,4 +13,5 @@ package object domain {
   
   case class ClientDisconnected(sessionId: String, clientActor: ActorRef)
   case class DomainShutdownRequest(domainFqn: DomainFqn)
+  
 }
