@@ -273,5 +273,4 @@ class RealtimeModelActorSpec(system: ActorSystem)
   trait MockDatabaseWithoutModel extends TestFixture {
     Mockito.when(modelStore.modelExists(modelFqn)).thenReturn(false)
   }
-
 }

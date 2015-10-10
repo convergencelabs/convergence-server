@@ -33,6 +33,9 @@ import akka.testkit.TestProbe
 import scala.concurrent.Await
 import com.convergencelabs.server.frontend.realtime.proto.ErrorData
 import com.convergencelabs.server.domain.HandshakeFailure
+import com.convergencelabs.server.frontend.realtime.proto.OpenRealtimeModelRequestMessage
+import com.convergencelabs.server.domain.model.OpenRealtimeModelRequest
+import com.convergencelabs.server.domain.model.ModelFqn
 
 @RunWith(classOf[JUnitRunner])
 class ClientActorSpec(system: ActorSystem)
@@ -57,20 +60,20 @@ class ClientActorSpec(system: ActorSystem)
         clientActor.tell(event, ActorRef.noSender)
 
         domainManagerActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeRequest])
-        
+
         domainManagerActor.reply(HandshakeSuccess("sessionId", "reconnectToken", new TestProbe(system).ref, new TestProbe(system).ref))
-        
+
         var HandshakeResponseMessage(success, error, sessionId, reconnectToken) = Await.result(reply.future, 100 millis)
         assert(success)
         assert(error == None)
         assert(sessionId == Some("sessionId"))
         assert(reconnectToken == Some("reconnectToken"))
       }
-      
+
       "properly handle a hanshake error form the domain" in new TestFixture(system) {
         val probeWatcher = new TestProbe(system)
         probeWatcher watch clientActor
-        
+
         val handshakeRequestMessage = HandshakeRequestMessage(false, None, None)
         val reply = Promise[OutgoingProtocolResponseMessage]
         val event = RequestReceived(handshakeRequestMessage, reply)
@@ -79,13 +82,13 @@ class ClientActorSpec(system: ActorSystem)
 
         domainManagerActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeRequest])
         domainManagerActor.reply(HandshakeFailure("code", "string"))
-        
+
         var HandshakeResponseMessage(success, error, sessionId, reconnectToken) = Await.result(reply.future, 100 millis)
         assert(!success)
         assert(error == Some(ErrorData("code", "string")))
         assert(sessionId == None)
         assert(reconnectToken == None)
-        
+
         probeWatcher.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Terminated])
       }
 
@@ -96,28 +99,35 @@ class ClientActorSpec(system: ActorSystem)
         val reply = Promise[OutgoingProtocolResponseMessage]
         val event = RequestReceived(CloseRealtimeModelRequestMessage("foo", "bar"), reply)
         clientActor.tell(event, ActorRef.noSender)
-        
+
         probeWatcher.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Terminated])
         Mockito.verify(connection, times(1)).abort(Matchers.any())
       }
-      
+
       "send a handshake failure after a timeout" in new TestFixture(system) {
         val probeWatcher = new TestProbe(system)
         probeWatcher watch clientActor
-        
+
         val handshakeRequestMessage = HandshakeRequestMessage(false, None, None)
         val reply = Promise[OutgoingProtocolResponseMessage]
         val event = RequestReceived(handshakeRequestMessage, reply)
         clientActor.tell(event, ActorRef.noSender)
-        
+
         probeWatcher.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Terminated])
         var Success(HandshakeResponseMessage(success, error, sessionId, reconnectToken)) = reply.future.value.get
         assert(!success)
-        
+
+        Mockito.verify(connection, times(1)).abort(Matchers.any())
+      }
+      
+      "shut down if no handshake is recieved" in new TestFixture(system) {
+        val probeWatcher = new TestProbe(system)
+        probeWatcher watch clientActor
+        probeWatcher.expectMsgClass(FiniteDuration(2, TimeUnit.SECONDS), classOf[Terminated])
         Mockito.verify(connection, times(1)).abort(Matchers.any())
       }
     }
-    
+
     "recieivng a connection event" must {
       "shutdown when a ConnectionClosed event is received" in new TestFixture(system) {
         val probeWatcher = new TestProbe(system)
@@ -125,14 +135,14 @@ class ClientActorSpec(system: ActorSystem)
         clientActor.tell(ConnectionClosed(), ActorRef.noSender)
         probeWatcher.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Terminated])
       }
-      
+
       "shutdown when a ConnectionDropped event is received" in new TestFixture(system) {
         val probeWatcher = new TestProbe(system)
         probeWatcher watch clientActor
         clientActor.tell(ConnectionDropped(), ActorRef.noSender)
         probeWatcher.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Terminated])
       }
-      
+
       "shutdown when a ConnectionError event is received" in new TestFixture(system) {
         val probeWatcher = new TestProbe(system)
         probeWatcher watch clientActor
@@ -140,13 +150,25 @@ class ClientActorSpec(system: ActorSystem)
         probeWatcher.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Terminated])
       }
     }
+    
+    "recieving an open model message" must {
+      "forward to the model manager" in new HandshookClient(system) {
+        val openRequest = OpenRealtimeModelRequestMessage(ModelFqn("collection", "model"))
+        val openReply = Promise[OutgoingProtocolResponseMessage]
+        val openEvent = RequestReceived(openRequest, openReply)
+        clientActor.tell(openEvent, ActorRef.noSender)
+        
+        modelManagerActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenRealtimeModelRequest])
+      }
+    }
   }
 
   class TestFixture(system: ActorSystem) {
     val domainManagerActor = new TestProbe(system)
+    val modelManagerActor = new TestProbe(system)
+
     val domainFqn = DomainFqn("namespace", "domainId")
     val protoConfig = ProtocolConfiguration(2L)
-
     val connection = mock[ProtocolConnection]
 
     val props = ClientActor.props(
@@ -156,11 +178,17 @@ class ClientActorSpec(system: ActorSystem)
 
     val clientActor = system.actorOf(props)
   }
-  
-  "handshook" must {
-      "shutdown if a handshake request is recieved" in new TestFixture(system) {
-        
-      }
-  }
 
+  class HandshookClient(system: ActorSystem) extends TestFixture(system: ActorSystem) {
+    val handshakeRequestMessage = HandshakeRequestMessage(false, None, None)
+    val handshakeReply = Promise[OutgoingProtocolResponseMessage]
+    val handshakeEvent = RequestReceived(handshakeRequestMessage, handshakeReply)
+
+    clientActor.tell(handshakeEvent, ActorRef.noSender)
+
+    domainManagerActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeRequest])
+    domainManagerActor.reply(HandshakeSuccess("sessionId", "reconnectToken", domainManagerActor.ref, modelManagerActor.ref))
+    
+    Await.result(handshakeReply.future, 100 millis)
+  }
 }

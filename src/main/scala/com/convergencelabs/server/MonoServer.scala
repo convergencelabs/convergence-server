@@ -6,7 +6,6 @@ import org.json4s.jackson.Serialization
 import org.json4s.jackson.Serialization.{ read, write }
 import org.json4s.NoTypeHints
 import org.json4s.JsonAST.JString
-import com.convergencelabs.server.frontend.realtime.proto.MessageEnvelope
 import com.convergencelabs.server.frontend.realtime.proto.ProtocolMessage
 import com.convergencelabs.server.frontend.realtime.proto.MessageEnvelope
 import akka.cluster.Cluster
@@ -16,6 +15,7 @@ import akka.actor.Props
 import com.typesafe.config.ConfigFactory
 import com.convergencelabs.server.frontend.realtime.ConvergenceRealtimeFrontend
 import com.convergencelabs.server.domain.DomainManagerActor
+import java.io.File
 
 object MonoServer {
   def main(args: Array[String]): Unit = {
@@ -33,7 +33,7 @@ object MonoServer {
     // Override the configuration of the port
     val config = ConfigFactory.parseString("akka.remote.netty.tcp.port=" + port).
       withFallback(ConfigFactory.parseString(s"akka.cluster.roles = [$role]")).
-      withFallback(ConfigFactory.load())
+      withFallback(ConfigFactory.parseFile(new File("conf/mono-server-application.conf")))
 
     // Create an Akka system
     val system = ActorSystem("Convergence", config)
