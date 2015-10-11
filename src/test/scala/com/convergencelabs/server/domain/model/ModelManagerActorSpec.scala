@@ -25,19 +25,17 @@ import com.convergencelabs.server.ErrorMessage
 import com.convergencelabs.server.ErrorMessage
 
 @RunWith(classOf[JUnitRunner])
-class ModelManagerActorSpec(system: ActorSystem)
-    extends TestKit(system)
+class ModelManagerActorSpec
+    extends TestKit(ActorSystem("ModelManagerActorSpec"))
     with WordSpecLike
     with BeforeAndAfterAll
     with MockitoSugar {
-
-  def this() = this(ActorSystem("ModelManagerActorSpec"))
 
   override def afterAll() {
     TestKit.shutdownActorSystem(system)
   }
 
-  // FIXME we need to test that models actually get created and deteled.  Not sure how to do this.
+  // FIXME we need to test that models actually get created and deleted.  Not sure how to do this.
   
   "A ModelManagerActor" when {
     "opening model" must {

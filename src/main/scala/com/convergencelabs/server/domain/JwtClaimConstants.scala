@@ -1,4 +1,4 @@
-package com.convergencelabs.server.domain.auth
+package com.convergencelabs.server.domain
 
 object JwtClaimConstants {
   val FirstName = "firstName";

@@ -25,19 +25,18 @@ libraryDependencies += "com.orientechnologies" % "orientdb-client" % "2.1.2"
 libraryDependencies += "com.orientechnologies" % "orientdb-enterprise" % "2.1.2"
 
 
-val akkaVersion = "2.4.0-RC2"
-
 // Akka Dependencies
+val akkaVersion = "2.4.0"
 libraryDependencies += "com.typesafe.akka" % "akka-actor_2.11" % akkaVersion
 libraryDependencies += "com.typesafe.akka" % "akka-testkit_2.11" % akkaVersion
 libraryDependencies += "com.typesafe.akka" % "akka-cluster_2.11" % akkaVersion
 //libraryDependencies += "com.typesafe.akka" %% "akka-cluster-sharding_2.11" % akkaVersion
 
+libraryDependencies += "com.typesafe.akka" % "akka-http-experimental_2.11" % "1.0"
+libraryDependencies += "com.typesafe.akka" % "akka-stream-experimental_2.11" % "1.0"
+
+
 libraryDependencies += "io.netty" % "netty-all" % "4.0.31.Final"
-
-libraryDependencies += "fr.xebia.extras" % "selma-processor" % "0.12"
-libraryDependencies += "fr.xebia.extras" % "selma" % "0.12"
-
 
 
 // Crypto

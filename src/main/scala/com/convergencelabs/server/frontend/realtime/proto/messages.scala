@@ -39,7 +39,8 @@ sealed trait AuthenticationRequestMessage extends IncomingProtocolRequestMessage
 case class PasswordAuthenticationRequestMessage(username: String, password: String) extends AuthenticationRequestMessage
 case class TokenAuthenticationRequestMessage(token: String) extends AuthenticationRequestMessage
 
-case class AuthenticationResponseMessage(username: String) extends OutgoingProtocolResponseMessage
+case class AuthenticationSuccessResponseMessage(username: String) extends OutgoingProtocolResponseMessage
+case class AuthenticationFailureResponseMessage() extends OutgoingProtocolResponseMessage
 
 
 ///////////////////////////////////////////////////////////////////////////////

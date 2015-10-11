@@ -28,11 +28,11 @@ import org.bouncycastle.openssl.PEMParser
 import java.security.KeyFactory
 import java.security.NoSuchAlgorithmException
 import java.security.spec.InvalidKeySpecException
-import com.convergencelabs.server.domain.auth.AuthManagerActor
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.datastore.ConfigurationStore
-import com.convergencelabs.server.domain.auth.LdapDomainAuthenticationProvider
 import java.util.UUID
+import scala.util.Success
+import scala.util.Failure
 
 // FIXME protocol config is silly.
 object DomainActor {
@@ -49,7 +49,7 @@ object DomainActor {
       domainPersistence,
       configStore,
       protocolConfig))
-      
+
   private val MaxSessionId = 2176782335L
 }
 
@@ -67,7 +67,6 @@ class DomainActor(
   log.debug("Domain startting up: {}", domainConfig.domainFqn)
 
   private[this] implicit val ec = context.dispatcher
-  private[this] val internalDomainAuthProvider = new LdapDomainAuthenticationProvider(configStore)
   private[this] var nextSessionId = 0L
 
   private[this] val modelManagerActorRef = context.actorOf(ModelManagerActor.props(
@@ -76,11 +75,11 @@ class DomainActor(
     protocolConfig),
     ModelManagerActor.RelativePath)
 
-  private[this] val authActorRef = context.actorOf(AuthManagerActor.props(
+  private[this] val authenticator = new AuthenticationHandler(
     domainConfig,
-    domainPersistence,
-    internalDomainAuthProvider),
-    AuthManagerActor.RelativePath)
+    domainPersistence.userStore,
+    new DomainUserAuthenticator(),
+    context.dispatcher)
 
   log.debug("Domain start up complete: {}", domainConfig.domainFqn)
 
@@ -88,8 +87,19 @@ class DomainActor(
 
   def receive = {
     case message: HandshakeRequest => onHandshakeRequest(message)
+    case message: AuthenticationRequest => onAuthenticationRequest(message)
     case message: ClientDisconnected => onClientDisconnect(message)
     case message => unhandled(message)
+  }
+  
+  private[this] def onAuthenticationRequest(message: AuthenticationRequest): Unit = {
+    val asker = sender
+    authenticator.authenticate(message) onComplete {
+      case Success(x) => asker ! x
+      case Failure(e) => {
+        asker ! AuthenticationFailure
+      }
+    }
   }
 
   private[this] def onHandshakeRequest(message: HandshakeRequest): Unit = {
@@ -103,7 +113,7 @@ class DomainActor(
         ("todo", "todo")
       }
     }
-    
+
     sender ! HandshakeSuccess(sessionId, reconnectToken, self, modelManagerActorRef)
   }
 
@@ -126,7 +136,7 @@ class DomainActor(
   def generateNextSessionId(): String = {
     val sessionId = nextSessionId
 
-    if (nextSessionId <	DomainActor.MaxSessionId) {
+    if (nextSessionId < DomainActor.MaxSessionId) {
       nextSessionId += 1
     } else {
       nextSessionId = 0

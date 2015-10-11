@@ -18,13 +18,11 @@ import com.convergencelabs.server.ErrorMessage
 import com.sun.media.sound.Platform
 
 @RunWith(classOf[JUnitRunner])
-class RealtimeModelActorSpec(system: ActorSystem)
-    extends TestKit(system)
+class RealtimeModelActorSpec
+    extends TestKit(ActorSystem("RealtimeModelActorSpec"))
     with WordSpecLike
     with BeforeAndAfterAll
     with MockitoSugar {
-
-  def this() = this(ActorSystem("RealtimeModelActorSpec"))
 
   override def afterAll() {
     TestKit.shutdownActorSystem(system)
@@ -43,13 +41,13 @@ class RealtimeModelActorSpec(system: ActorSystem)
         assert(message.metaData.createdTime == modelData.metaData.createdTime)
         assert(message.metaData.modifiedTime == modelData.metaData.modifiedTime)
       }
-      
+
       "notify openers of an initialization errror" in new MockDatabaseWithModel {
         val client = new TestProbe(system)
-        
+
         // Set the database up to bomb
         Mockito.when(modelStore.getModelData(Matchers.any())).thenThrow(new IllegalArgumentException("Invalid model"))
-        
+
         realtimeModelActor.tell(OpenRealtimeModelRequest(modelFqn, client.ref), client.ref)
         val message = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ErrorMessage])
       }
@@ -66,14 +64,14 @@ class RealtimeModelActorSpec(system: ActorSystem)
         val dataRequest2 = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientModelDataRequest])
         assert(dataRequest1.modelFqn == modelFqn)
       }
-      
+
       "reject a client that does not respond with data" in new MockDatabaseWithoutModel {
         val client1 = new TestProbe(system)
         realtimeModelActor.tell(OpenRealtimeModelRequest(modelFqn, client1.ref), client1.ref)
         client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientModelDataRequest])
         client1.expectMsgClass(FiniteDuration(200, TimeUnit.MILLISECONDS), classOf[ErrorMessage])
       }
-      
+
       "reject a client that responds with the wrong message in request to data" in new MockDatabaseWithoutModel {
         val client1 = new TestProbe(system)
         realtimeModelActor.tell(OpenRealtimeModelRequest(modelFqn, client1.ref), client1.ref)
@@ -159,12 +157,12 @@ class RealtimeModelActorSpec(system: ActorSystem)
         realtimeModelActor.tell(CloseRealtimeModelRequest(client1OpenResponse.ccId), client1.ref)
         val closeAck = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[CloseRealtimeModelSuccess])
       }
-      
+
       "respond with an error for an invalid ccId" in new MockDatabaseWithModel with OneOpenClient {
         realtimeModelActor.tell(CloseRealtimeModelRequest("invalidccId"), client1.ref)
         client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ErrorMessage])
       }
-      
+
       "notify other connected clients" in new MockDatabaseWithModel {
         val client1 = new TestProbe(system)
         val client2 = new TestProbe(system)
@@ -204,23 +202,23 @@ class RealtimeModelActorSpec(system: ActorSystem)
 
         client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OutgoingOperation])
       }
-      
+
       "close a client that submits an invalid operation" in new TwoOpenClients {
         val badOp = StringInsertOperation(List(), false, 1, "1")
-        
+
         Mockito.when(modelStore.applyOperationToModel(
-            Matchers.any(), Matchers.any(), Matchers.any(), Matchers.any(), Matchers.any())).thenThrow(new IllegalArgumentException("Invalid Operation"))
-        
+          Matchers.any(), Matchers.any(), Matchers.any(), Matchers.any(), Matchers.any())).thenThrow(new IllegalArgumentException("Invalid Operation"))
+
         realtimeModelActor.tell(OperationSubmission(
-            client1OpenResponse.ccId, 
-            modelData.metaData.version, 
-            badOp), client1.ref)
-            
+          client1OpenResponse.ccId,
+          modelData.metaData.version,
+          badOp), client1.ref)
+
         client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ModelForceClose])
         client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[RemoteClientClosed])
       }
     }
-    
+
     "open and a model is deleted" must {
       "force close all clients" in new TwoOpenClients {
         realtimeModelActor.tell(ModelDeleted(), modelManagerActor.ref)

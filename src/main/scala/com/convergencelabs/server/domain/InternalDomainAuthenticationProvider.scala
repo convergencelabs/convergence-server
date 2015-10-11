@@ -1,10 +1,16 @@
-package com.convergencelabs.server.domain.auth
+package com.convergencelabs.server.domain
 
 import scala.concurrent.Future
-import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.datastore.ConfigurationStore
 
-trait InternalDomainAuthenticationProvider {
+// FIXME clean this file up
+class DomainUserAuthenticator {
+  def verfifyCredentials(domainFqn: DomainFqn, username: String, password: String): Future[Boolean] = {
+    Future.successful(true)
+  }
+}
+
+
+trait OldInternalDomainAuthenticationProvider {
     def createNamespace(namespace: String): Future[Unit]
     
     def removeNamespace(namespace: String): Future[Unit]

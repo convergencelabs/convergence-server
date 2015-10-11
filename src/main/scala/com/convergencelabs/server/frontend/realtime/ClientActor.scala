@@ -32,8 +32,18 @@ import com.convergencelabs.server.frontend.realtime.proto.HandshakeResponseMessa
 import com.convergencelabs.server.frontend.realtime.proto.ErrorData
 import com.convergencelabs.server.domain.model.RealtimeModelClientMessage
 import com.convergencelabs.server.domain.HandshakeResponse
+import com.convergencelabs.server.domain.AuthenticationResponse
+import com.convergencelabs.server.domain.AuthenticationSuccess
+import com.convergencelabs.server.domain.AuthenticationFailure
+import com.convergencelabs.server.domain.TokenAuthRequest
+import com.convergencelabs.server.domain.PasswordAuthRequest
 import com.convergencelabs.server.util.concurrent._
 import java.util.concurrent.TimeUnit
+import com.convergencelabs.server.frontend.realtime.proto.AuthenticationRequestMessage
+import com.convergencelabs.server.frontend.realtime.proto.PasswordAuthenticationRequestMessage
+import com.convergencelabs.server.frontend.realtime.proto.TokenAuthenticationRequestMessage
+import com.convergencelabs.server.frontend.realtime.proto.AuthenticationSuccessResponseMessage
+import com.convergencelabs.server.frontend.realtime.proto.AuthenticationFailureResponseMessage
 
 object ClientActor {
   def props(
@@ -73,7 +83,36 @@ class ClientActor(
     }
     case _ => invalidMessage()
   }
+  
+  def receiveWhileAuthenticating: Receive = {
+    case RequestReceived(message, replyPromise) if message.isInstanceOf[AuthenticationRequestMessage] => {
+      authenticate(message.asInstanceOf[AuthenticationRequestMessage], replyPromise)
+    }
+    case _ => invalidMessage()
+  }
 
+  def authenticate(requestMessage: AuthenticationRequestMessage, reply: Promise[OutgoingProtocolResponseMessage]): Unit = {
+    val message = requestMessage match {
+      case PasswordAuthenticationRequestMessage(username, password) => PasswordAuthRequest(username, password)
+      case TokenAuthenticationRequestMessage(token) => TokenAuthRequest(token)
+    }
+    
+    val future = domainManager ? message
+    
+    future.mapReponse[AuthenticationResponse] onComplete {
+      case Success(AuthenticationSuccess(username)) => {
+        reply.success(AuthenticationSuccessResponseMessage(username))
+        context.become(receiveWhileHandshook)
+      }
+      case Success(AuthenticationFailure) => {
+        reply.success(AuthenticationFailureResponseMessage())
+      }
+      case Failure(cause) => {
+        reply.success(AuthenticationFailureResponseMessage())
+      }
+    }
+  }
+  
   def handshake(request: HandshakeRequestMessage, reply: Promise[OutgoingProtocolResponseMessage]): Unit = {
     var canceled = handshakeTimeoutTask.cancel()
     if (!canceled) {

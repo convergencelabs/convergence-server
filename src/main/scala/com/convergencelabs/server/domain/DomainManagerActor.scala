@@ -6,7 +6,6 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration.FiniteDuration
 import com.convergencelabs.server.ProtocolConfiguration
 import com.convergencelabs.server.datastore.PersistenceProvider
-import com.convergencelabs.server.domain.auth.InternalDomainAuthenticationProvider
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
@@ -20,7 +19,7 @@ import akka.actor.Scheduler
 object DomainManagerActor {
   def props(
     convergencePersistence: PersistenceProvider,
-    internalAuthProvider: InternalDomainAuthenticationProvider,
+    internalAuthProvider: DomainUserAuthenticator,
     protocolConfig: ProtocolConfiguration): Props = Props(
     new DomainManagerActor(
       convergencePersistence,
@@ -30,7 +29,7 @@ object DomainManagerActor {
 
 class DomainManagerActor(
   private[this] val convergencePersistence: PersistenceProvider,
-  private[this] val internalAuthProvider: InternalDomainAuthenticationProvider,
+  private[this] val internalAuthProvider: DomainUserAuthenticator,
   private[this] val protocolConfig: ProtocolConfiguration)
     extends Actor with ActorLogging {
 
