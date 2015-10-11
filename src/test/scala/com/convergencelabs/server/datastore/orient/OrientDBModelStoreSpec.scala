@@ -16,35 +16,49 @@ import java.io.FileInputStream
 class OrientDBModelStoreSpec extends WordSpec with BeforeAndAfterAll {
 
   override def beforeAll() {
-    val db = new ODatabaseDocumentTx("memory:test2")
-    db.create()
-    val listener = new OCommandOutputListener() {
-      def onMessage(iText: String) = {
-        println(iText)
-      }
-    }
-    val file = getClass.getResource("/dbfiles/domain-test-db.gz").getFile();
-    val dbImport = new ODatabaseImport(db, file, listener)
-    dbImport.importDatabase()
-    dbImport.close()
-    db.close()
+
   }
-   
-  
+
   "An OrientDBModelStore" when {
     "asked whether a model exists" must {
       "return false if it doesn't exist" in {
-        val dbPool = new OPartitionedDatabasePool("memory:test2", "admin", "admin")
+        val db = new ODatabaseDocumentTx("memory:test1")
+        db.activateOnCurrentThread()
+        db.create()
+        val listener = new OCommandOutputListener() {
+          def onMessage(iText: String) = {
+            println(iText)
+          }
+        }
+        val file = getClass.getResource("/dbfiles/domain-test-db.gz").getFile();
+        val dbImport = new ODatabaseImport(db, file, listener)
+        dbImport.importDatabase()
+        dbImport.close()
+
+        val dbPool = new OPartitionedDatabasePool("memory:test1", "admin", "admin")
         val modelStore = new OrientDBModelStore(dbPool)
         assert(!modelStore.modelExists(ModelFqn("notReal", "notReal")))
       }
-      
+
       "return true if it does exist" in {
+        val db = new ODatabaseDocumentTx("memory:test2")
+        db.activateOnCurrentThread()
+        db.create()
+        val listener = new OCommandOutputListener() {
+          def onMessage(iText: String) = {
+            println(iText)
+          }
+        }
+        val file = getClass.getResource("/dbfiles/domain-test-db.gz").getFile();
+        val dbImport = new ODatabaseImport(db, file, listener)
+        dbImport.importDatabase()
+        dbImport.close()
+
         val dbPool = new OPartitionedDatabasePool("memory:test2", "admin", "admin")
         val modelStore = new OrientDBModelStore(dbPool)
         assert(modelStore.modelExists(ModelFqn("tests", "test")))
       }
-      
+
     }
   }
 }

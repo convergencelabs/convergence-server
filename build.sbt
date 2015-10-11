@@ -5,7 +5,8 @@ lazy val root = (project in file(".")).
     version := "0.1.0",
     scalaVersion := "2.11.7",
     scalacOptions += "-deprecation",
-    scalacOptions += "-feature"
+    scalacOptions += "-feature",
+    fork := true
   )
 
 // Logging
@@ -21,6 +22,7 @@ libraryDependencies += "org.json4s" %% "json4s-jackson" % "3.2.11"
 // Orient DB Dependencies
 libraryDependencies += "com.orientechnologies" % "orientdb-core" % "2.1.2"
 libraryDependencies += "com.orientechnologies" % "orientdb-client" % "2.1.2"
+libraryDependencies += "com.orientechnologies" % "orientdb-enterprise" % "2.1.2"
 
 
 val akkaVersion = "2.4.0-RC2"
