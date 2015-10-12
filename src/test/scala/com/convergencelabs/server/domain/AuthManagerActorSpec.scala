@@ -1,4 +1,4 @@
-package com.convergencelabs.server.domain.auth
+package com.convergencelabs.server.domain
 
 import akka.testkit.TestKit
 import org.scalatest.mock.MockitoSugar
@@ -17,27 +17,25 @@ import akka.testkit.TestProbe
 import com.convergencelabs.server.datastore.domain.ModelStore
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.ProtocolConfiguration
-import com.convergencelabs.server.domain.DomainFqn
 import org.mockito.Mockito
 import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
 import com.convergencelabs.server.ErrorMessage
 import com.convergencelabs.server.ErrorMessage
 import com.convergencelabs.server.datastore.ConfigurationStore
-import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.datastore.DomainConfig
 import com.convergencelabs.server.datastore.TokenPublicKey
 import com.convergencelabs.server.datastore.TokenKeyPair
 import scala.concurrent.Future
+import com.convergencelabs.server.datastore.domain.DomainUserStore
+import scala.concurrent.Await
 
 @RunWith(classOf[JUnitRunner])
-class AuthManagerActorSpec(system: ActorSystem)
-    extends TestKit(system)
+class AuthenticationHandlerSpec()
+    extends TestKit(ActorSystem("AuthManagerActorSpec"))
     with WordSpecLike
     with BeforeAndAfterAll
     with MockitoSugar {
-
-  def this() = this(ActorSystem("AuthManagerActorSpec"))
 
   override def afterAll() {
     TestKit.shutdownActorSystem(system)
@@ -45,24 +43,24 @@ class AuthManagerActorSpec(system: ActorSystem)
 
   // FIXME we need to test that models actually get created and deteled.  Not sure how to do this.
 
-  "A AuthManagerActor" when {
+  "A AuthenticationHandler" when {
     "authenticating a user by password" must {
       "authetnicate successfully for a correct username and password" in new TestFixture {
-        val client = new TestProbe(system)
-        authManagerActor.tell(PasswordAuthRequest(existingUser, existingCorrectPassword), client.ref)
-        val response = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[AuthSuccess])
+        val f = authHandler.authenticate(PasswordAuthRequest(existingUser, existingCorrectPassword))
+        val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
+        assert(result == AuthenticationSuccess(existingUser))
       }
       
       "Fail authetnication for an incorrect username and password" in new TestFixture {
-        val client = new TestProbe(system)
-        authManagerActor.tell(PasswordAuthRequest(existingUser, existingIncorrectPassword), client.ref)
-        val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), AuthFailure)
+        val f = authHandler.authenticate(PasswordAuthRequest(existingUser, existingIncorrectPassword))
+        val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
+        assert(result == AuthenticationFailure)
       }
       
       "fail authenticatoin for a user that does not exist" in new TestFixture {
-        val client = new TestProbe(system)
-        authManagerActor.tell(PasswordAuthRequest(nonExistingUser, ""), client.ref)
-        val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), AuthFailure)
+        val f = authHandler.authenticate(PasswordAuthRequest(nonExistingUser, ""))
+        val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
+        assert(result == AuthenticationFailure)
       }
     }
   }
@@ -85,24 +83,23 @@ class AuthManagerActorSpec(system: ActorSystem)
       keys,
       adminKeyPair)
 
-    val domainPersistence = mock[DomainPersistenceProvider]
-    val internalAuthProvider = mock[InternalDomainAuthenticationProvider]
+    val userStore = mock[DomainUserStore]
+    val userAuthenticator = mock[DomainUserAuthenticator]
 
-    Mockito.when(internalAuthProvider.userExists(domainFqn, existingUser)).thenReturn(Future.successful(true))
-    Mockito.when(internalAuthProvider.userExists(domainFqn, nonExistingUser)).thenReturn(Future.successful(false))
+    Mockito.when(userStore.domainUserExists(existingUser)).thenReturn(true)
+    Mockito.when(userStore.domainUserExists(nonExistingUser)).thenReturn(false)
    
-    Mockito.when(internalAuthProvider.verfifyCredentials(
+    Mockito.when(userAuthenticator.verfifyCredentials(
       domainFqn, existingUser, existingCorrectPassword)).thenReturn(Future.successful(true))
-    Mockito.when(internalAuthProvider.verfifyCredentials(
+    Mockito.when(userAuthenticator.verfifyCredentials(
       domainFqn, existingUser, existingIncorrectPassword)).thenReturn(Future.successful(false))
-    Mockito.when(internalAuthProvider.verfifyCredentials(
+    Mockito.when(userAuthenticator.verfifyCredentials(
       domainFqn, nonExistingUser, "")).thenReturn(Future.successful(false))
 
-    val props = AuthManagerActor.props(
+    val authHandler = new AuthenticationHandler(
       domainConfig,
-      domainPersistence,
-      internalAuthProvider)
-
-    val authManagerActor = system.actorOf(props)
+      userStore,
+      userAuthenticator,
+      system.dispatcher)
   }
 }

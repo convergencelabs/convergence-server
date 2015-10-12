@@ -35,7 +35,7 @@ object AuthenticationHandler {
 class AuthenticationHandler(
   private[this] val domainConfig: DomainConfig,
   private[this] val userStore: DomainUserStore,
-  private[this] val internalAuthProvider: DomainUserAuthenticator,
+  private[this] val domainUserAuthenticator: DomainUserAuthenticator,
   private[this] implicit val ec: ExecutionContext)
     extends Logging {
 
@@ -49,7 +49,7 @@ class AuthenticationHandler(
   private[this] def authenticatePassword(authRequest: PasswordAuthRequest): Future[AuthenticationResponse] = {
     val promise = Promise[AuthenticationResponse]
 
-    val f = internalAuthProvider.verfifyCredentials(
+    val f = domainUserAuthenticator.verfifyCredentials(
       domainConfig.domainFqn,
       authRequest.username,
       authRequest.password)

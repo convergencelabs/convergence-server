@@ -19,17 +19,14 @@ import akka.actor.Scheduler
 object DomainManagerActor {
   def props(
     convergencePersistence: PersistenceProvider,
-    internalAuthProvider: DomainUserAuthenticator,
     protocolConfig: ProtocolConfiguration): Props = Props(
     new DomainManagerActor(
       convergencePersistence,
-      internalAuthProvider,
       protocolConfig))
 }
 
 class DomainManagerActor(
   private[this] val convergencePersistence: PersistenceProvider,
-  private[this] val internalAuthProvider: DomainUserAuthenticator,
   private[this] val protocolConfig: ProtocolConfiguration)
     extends Actor with ActorLogging {
 

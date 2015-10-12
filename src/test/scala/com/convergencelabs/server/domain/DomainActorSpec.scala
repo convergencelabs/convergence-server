@@ -23,7 +23,6 @@ import com.convergencelabs.server.datastore.DomainConfig
 import com.convergencelabs.server.datastore.TokenKeyPair
 import com.convergencelabs.server.datastore.TokenPublicKey
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.server.domain.auth.InternalDomainAuthenticationProvider
 
 
 @RunWith(classOf[JUnitRunner])
@@ -76,7 +75,6 @@ class DomainActorSpec(system: ActorSystem)
       adminKeyPair)
 
     val domainPersistence = mock[DomainPersistenceProvider]
-    val internalAuthProvider = mock[InternalDomainAuthenticationProvider]
     val domainManagerActor = new TestProbe(system)
     val configStore = mock[ConfigurationStore]
     

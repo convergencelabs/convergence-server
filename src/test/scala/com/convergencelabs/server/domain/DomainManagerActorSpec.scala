@@ -16,7 +16,6 @@ import com.convergencelabs.server.datastore.TokenPublicKey
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
-import com.convergencelabs.server.domain.auth.InternalDomainAuthenticationProvider
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.datastore.PersistenceProvider
 import org.mockito.Mockito
@@ -77,14 +76,10 @@ class DomainManagerActorSpec()
     Mockito.when(convergencePersistence.domainConfigStore).thenReturn(configStore)
     Mockito.when(convergencePersistence.getDomainPersitenceProvider(domainFqn)).thenReturn(domainPersistenceProvider)
 
-    val internalAuthProvider = mock[InternalDomainAuthenticationProvider]
 
     val protocolConfig = ProtocolConfiguration(1000L)
 
-    val props = DomainManagerActor.props(
-      convergencePersistence,
-      internalAuthProvider,
-      protocolConfig)
+    val props = DomainManagerActor.props(convergencePersistence, protocolConfig)
 
     val domainManagerActor = system.actorOf(props)
   }
