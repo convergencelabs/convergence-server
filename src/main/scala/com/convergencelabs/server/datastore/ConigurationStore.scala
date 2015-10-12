@@ -1,11 +1,44 @@
 package com.convergencelabs.server.datastore
 
+import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import org.json4s.JsonAST.JValue
 import org.json4s.JsonAST.JObject
+import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
+import scala.collection.immutable.HashMap
+import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
+import com.orientechnologies.orient.core.record.impl.ODocument
+import java.util.Map
+import org.json4s.NoTypeHints
+import org.json4s.jackson.Serialization
+import org.json4s._
+import org.json4s.jackson.JsonMethods._
+import org.json4s.jackson.Serialization.{read, write}
 
-trait ConfigurationStore {
+class ConfigurationStore(dbPool: OPartitionedDatabasePool) {
 
-    def getConfiguration( configKey: String): JObject
+  private[this] implicit val formats = Serialization.formats(NoTypeHints)
+  
+  def getConfiguration(configKey: String): Option[JValue] = {
+    val db = dbPool.acquire()
+    val query = new OSQLSynchQuery[ODocument]("SELECT FROM configuration WHERE configKey = :configKey")
+    val params: java.util.Map[String, String] = HashMap("configKey" -> configKey)
+    val result: java.util.List[ODocument] = db.command(query).execute(params)
+    
+    result.asScala.toList match {
+      case doc :: rest => {
+        val configMap: Map[String, Object] = doc.field("config")
+        Some(parse(write(configMap)))
+      }
+      case Nil         => None
+    }
+  }
 
-    def setConfiguration(configKey: String,  configuration: JObject);
+  def setConfiguration(configKey: String, configuration: JValue) = {
+        val db = dbPool.acquire()
+        val document = new ODocument();
+        document.field("configKey", configKey);
+        document.field("config", render(configuration));
+        db.save(document, "configuration");
+  }
 }
