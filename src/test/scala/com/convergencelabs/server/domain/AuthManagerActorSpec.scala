@@ -29,6 +29,7 @@ import com.convergencelabs.server.datastore.TokenKeyPair
 import scala.concurrent.Future
 import com.convergencelabs.server.datastore.domain.DomainUserStore
 import scala.concurrent.Await
+import com.convergencelabs.server.datastore.DomainDatabaseConfig
 
 @RunWith(classOf[JUnitRunner])
 class AuthenticationHandlerSpec()
@@ -79,7 +80,7 @@ class AuthenticationHandlerSpec()
       "d1",
       domainFqn,
       "Default",
-      JObject(),
+      DomainDatabaseConfig("", "", ""),
       keys,
       adminKeyPair)
 

@@ -23,6 +23,7 @@ import com.convergencelabs.server.datastore.DomainConfigurationStore
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.typesafe.config.ConfigFactory
 import com.typesafe.config.ConfigParseOptions
+import com.convergencelabs.server.datastore.DomainDatabaseConfig
 
 @RunWith(classOf[JUnitRunner])
 class DomainManagerActorSpec()
@@ -61,7 +62,7 @@ class DomainManagerActorSpec()
       "d1",
       domainFqn,
       "Default",
-      JObject(),
+      DomainDatabaseConfig("", "", ""),
       keys,
       adminKeyPair)
 
