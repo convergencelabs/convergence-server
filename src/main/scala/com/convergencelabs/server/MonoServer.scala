@@ -1,28 +1,35 @@
 package com.convergencelabs.server
 
-import akka.actor.ActorSystem
-import akka.actor.Actor
-import org.json4s.jackson.Serialization
-import org.json4s.jackson.Serialization.{ read, write }
-import org.json4s.NoTypeHints
-import org.json4s.JsonAST.JString
-import com.convergencelabs.server.frontend.realtime.proto.ProtocolMessage
-import com.convergencelabs.server.frontend.realtime.proto.MessageEnvelope
-import akka.cluster.Cluster
-import akka.actor.ActorLogging
-import akka.cluster.ClusterEvent._
-import akka.actor.Props
-import com.typesafe.config.ConfigFactory
-import com.convergencelabs.server.frontend.realtime.ConvergenceRealtimeFrontend
-import com.convergencelabs.server.domain.DomainManagerActor
 import java.io.File
+
+import com.convergencelabs.server.datastore.DomainConfigurationStore
+import com.convergencelabs.server.datastore.domain.DomainDatabasePoolManagerActor
+import com.convergencelabs.server.domain.DomainManagerActor
+import com.convergencelabs.server.frontend.realtime.ConvergenceRealtimeFrontend
+import com.typesafe.config.ConfigFactory
+
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.ActorSystem
+import akka.actor.Props
+import akka.cluster.Cluster
+import akka.cluster.ClusterEvent.InitialStateAsEvents
+import akka.cluster.ClusterEvent.MemberEvent
+import akka.cluster.ClusterEvent.MemberRemoved
+import akka.cluster.ClusterEvent.MemberUp
+import akka.cluster.ClusterEvent.UnreachableMember
 
 object MonoServer {
   def main(args: Array[String]): Unit = {
     val seed1 = startupCluster(2551, "seed")
 
+    val configStore: DomainConfigurationStore = null 
+    
     val domainManagerSystem = startupCluster(2553, "domainManager")
+    val dbPoolManager = domainManagerSystem.actorOf(DomainDatabasePoolManagerActor.props(configStore), "DatabasePoolManager")
+    
     domainManagerSystem.actorOf(DomainManagerActor.props(null, null), "domainManager")
+    
     
     val realtimeSystem = startupCluster(2554, "realtimeFrontend")
     val realtimeServer = new ConvergenceRealtimeFrontend(realtimeSystem)

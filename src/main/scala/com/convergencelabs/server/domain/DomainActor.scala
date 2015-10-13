@@ -33,21 +33,27 @@ import com.convergencelabs.server.datastore.ConfigurationStore
 import java.util.UUID
 import scala.util.Success
 import scala.util.Failure
+import com.convergencelabs.server.datastore.domain.DomainDatabasePoolManagerActor
+import akka.pattern.Patterns
+import com.convergencelabs.server.datastore.domain.AcquireDomainPersistence
+import akka.util.Timeout
+import scala.concurrent.Await
+import com.convergencelabs.server.datastore.domain.DomainPersistenceResponse
+import com.convergencelabs.server.datastore.domain.PersistenceProviderReference
+import com.convergencelabs.server.datastore.domain.PersistenceProviderUnavailable
+import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
+import scala.util.Try
 
 // FIXME protocol config is silly.
 object DomainActor {
   def props(
     domainManagerActor: ActorRef,
     domainConfig: DomainConfig,
-    domainPersistence: DomainPersistenceProvider,
-    configStore: ConfigurationStore,
     protocolConfig: ProtocolConfiguration,
     shutdownDelay: FiniteDuration): Props = Props(
     new DomainActor(
       domainManagerActor,
       domainConfig,
-      domainPersistence,
-      configStore,
       protocolConfig))
 
   private val MaxSessionId = 2176782335L
@@ -60,8 +66,6 @@ object DomainActor {
 class DomainActor(
     domainManagerActor: ActorRef,
     domainConfig: DomainConfig,
-    domainPersistence: DomainPersistenceProvider,
-    configStore: ConfigurationStore,
     protocolConfig: ProtocolConfiguration) extends Actor with ActorLogging {
 
   log.debug("Domain startting up: {}", domainConfig.domainFqn)
@@ -71,15 +75,10 @@ class DomainActor(
 
   private[this] val modelManagerActorRef = context.actorOf(ModelManagerActor.props(
     domainConfig.domainFqn,
-    domainPersistence,
     protocolConfig),
     ModelManagerActor.RelativePath)
 
-  private[this] val authenticator = new AuthenticationHandler(
-    domainConfig,
-    domainPersistence.userStore,
-    new DomainUserAuthenticator(),
-    context.dispatcher)
+  private[this] var authenticator: AuthenticationHandler = null
 
   log.debug("Domain start up complete: {}", domainConfig.domainFqn)
 
@@ -91,7 +90,7 @@ class DomainActor(
     case message: ClientDisconnected => onClientDisconnect(message)
     case message => unhandled(message)
   }
-  
+
   private[this] def onAuthenticationRequest(message: AuthenticationRequest): Unit = {
     val asker = sender
     authenticator.authenticate(message) onComplete {
@@ -130,7 +129,6 @@ class DomainActor(
 
   override def postStop(): Unit = {
     log.debug("Domain(${domainConfig.domainFqn}) received shutdown command.  Shutting down.")
-    domainPersistence.dispose()
   }
 
   def generateNextSessionId(): String = {
@@ -147,5 +145,14 @@ class DomainActor(
 
   def generateSessionToken(): String = {
     UUID.randomUUID().toString() + UUID.randomUUID().toString()
+  }
+
+  override def preStart(): Unit = {
+    val persistenceProvider = DomainDatabasePoolManagerActor.getPersistenceProvider(self, context, domainConfig.domainFqn)
+    authenticator = new AuthenticationHandler(
+      domainConfig,
+      persistenceProvider.userStore,
+      new DomainUserAuthenticator(),
+      context.dispatcher)
   }
 }

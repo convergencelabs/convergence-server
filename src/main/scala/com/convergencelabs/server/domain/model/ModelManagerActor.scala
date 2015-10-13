@@ -18,14 +18,17 @@ import java.util.concurrent.TimeUnit
 import akka.actor.Props
 import com.convergencelabs.server.ErrorMessage
 import com.convergencelabs.server.domain.model.ModelManagerActor.ErrorCodes._
+import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 
 class ModelManagerActor(
-    private[this] val domainFqn: DomainFqn,
-    private[this] val persistenceProvider: DomainPersistenceProvider,
-    private[this] val protocolConfig: ProtocolConfiguration) extends Actor with ActorLogging {
+  private[this] val domainFqn: DomainFqn,
+  private[this] val protocolConfig: ProtocolConfiguration)
+    extends Actor with ActorLogging {
 
   private[this] val openRealtimeModels = mutable.Map[ModelFqn, ActorRef]()
   private[this] var nextModelResourceId: Long = 0
+  
+  val persistenceProvider: DomainPersistenceProvider = null
 
   def receive = {
     case message: OpenRealtimeModelRequest => onOpenRealtimeModel(message)
@@ -38,8 +41,8 @@ class ModelManagerActor(
   private[this] def onOpenRealtimeModel(openRequest: OpenRealtimeModelRequest): Unit = {
     if (!persistenceProvider.modelStore.modelExists(openRequest.modelFqn)) {
       sender() ! ErrorMessage(ModelNotFound, "The requested model coult not be opened, because it does not exist.")
-      return;
-    } 
+      return ;
+    }
 
     if (!this.openRealtimeModels.contains(openRequest.modelFqn)) {
       val resourceId = "" + nextModelResourceId
@@ -137,10 +140,8 @@ object ModelManagerActor {
   val RelativePath = "modelManager"
 
   def props(domainFqn: DomainFqn,
-    persistenceProvider: DomainPersistenceProvider,
     protocolConfig: ProtocolConfiguration): Props = Props(
     new ModelManagerActor(
       domainFqn,
-      persistenceProvider,
       protocolConfig))
 }

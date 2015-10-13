@@ -96,8 +96,6 @@ class DomainManagerActor(
     val domainActor = context.actorOf(DomainActor.props(
       self,
       domainConfig,
-      domainPersistence,
-      convergencePersistence.convergenceConfigStore,
       protocolConfig,
       domainShutdownDelay))
 

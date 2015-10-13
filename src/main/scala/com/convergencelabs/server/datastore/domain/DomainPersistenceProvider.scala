@@ -1,16 +1,17 @@
 package com.convergencelabs.server.datastore.domain
 
 import org.json4s.JsonAST.JValue
+import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 
-abstract class DomainPersistenceProvider(databaseConfig: JValue) {
+class DomainPersistenceProvider(private[domain] val dbPool: OPartitionedDatabasePool) {
 
-  def dispose(): Unit
+  val modelStore = new ModelStore(dbPool)
 
-  def modelStore: ModelStore
+  val modelHistoryStore = new ModelHistoryStore(dbPool)
 
-  def modelHistoryStore: ModelHistoryStore
+  val modelSnapshotStore = new ModelSnapshotStore(dbPool)
 
-  def modelSnapshotStore: ModelSnapshotStore
-
-  def userStore: DomainUserStore
+  val userStore = new DomainUserStore(dbPool)
+  
+  val userCredentialStore = new DomainUserCredentialStore(dbPool)
 }
