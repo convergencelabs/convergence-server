@@ -5,3 +5,6 @@ target
 .worksheet
 .cache-main
 .cache-tests
+.settings
+.project
+.classpath
