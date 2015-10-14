@@ -33,7 +33,7 @@ import com.convergencelabs.server.datastore.ConfigurationStore
 import java.util.UUID
 import scala.util.Success
 import scala.util.Failure
-import com.convergencelabs.server.datastore.domain.DomainDatabasePoolManagerActor
+import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 import akka.pattern.Patterns
 import com.convergencelabs.server.datastore.domain.AcquireDomainPersistence
 import akka.util.Timeout
@@ -148,7 +148,7 @@ class DomainActor(
   }
 
   override def preStart(): Unit = {
-    val persistenceProvider = DomainDatabasePoolManagerActor.getPersistenceProvider(self, context, domainConfig.domainFqn)
+    val persistenceProvider = DomainPersistenceManagerActor.getPersistenceProvider(self, context, domainConfig.domainFqn)
     authenticator = new AuthenticationHandler(
       domainConfig,
       persistenceProvider.userStore,

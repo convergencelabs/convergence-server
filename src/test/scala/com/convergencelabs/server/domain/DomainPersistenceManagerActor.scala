@@ -24,6 +24,7 @@ import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.typesafe.config.ConfigFactory
 import com.typesafe.config.ConfigParseOptions
 import com.convergencelabs.server.datastore.DomainDatabaseConfig
+import com.convergencelabs.server.util.MockDomainPersistenceManagerActor
 
 @RunWith(classOf[JUnitRunner])
 class DomainManagerActorSpec()
@@ -31,6 +32,8 @@ class DomainManagerActorSpec()
     with WordSpecLike
     with BeforeAndAfterAll
     with MockitoSugar {
+  
+  val domainPersistence = MockDomainPersistenceManagerActor(system)
 
   override def afterAll() {
     TestKit.shutdownActorSystem(system)
@@ -55,7 +58,7 @@ class DomainManagerActorSpec()
   trait TestFixture {
     val domainFqn = DomainFqn("convergence", "default")
     val nonExistingDomain = DomainFqn("no", "domain")
-
+    
     val keys = Map[String, TokenPublicKey]()
     val adminKeyPair = TokenKeyPair("", "")
     val domainConfig = DomainConfig(
@@ -71,11 +74,10 @@ class DomainManagerActorSpec()
     Mockito.when(configStore.domainExists(domainFqn)).thenReturn(true)
     Mockito.when(configStore.domainExists(nonExistingDomain)).thenReturn(false)
 
-    val domainPersistenceProvider = mock[DomainPersistenceProvider]
+    domainPersistence.underlyingActor.mockProviders = Map(domainFqn -> mock[DomainPersistenceProvider])
 
     val convergencePersistence = mock[PersistenceProvider]
     Mockito.when(convergencePersistence.domainConfigStore).thenReturn(configStore)
-    Mockito.when(convergencePersistence.getDomainPersitenceProvider(domainFqn)).thenReturn(domainPersistenceProvider)
 
 
     val protocolConfig = ProtocolConfiguration(1000L)

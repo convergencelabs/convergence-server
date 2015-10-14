@@ -19,6 +19,7 @@ import akka.actor.Props
 import com.convergencelabs.server.ErrorMessage
 import com.convergencelabs.server.domain.model.ModelManagerActor.ErrorCodes._
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
+import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 
 class ModelManagerActor(
   private[this] val domainFqn: DomainFqn,
@@ -28,7 +29,7 @@ class ModelManagerActor(
   private[this] val openRealtimeModels = mutable.Map[ModelFqn, ActorRef]()
   private[this] var nextModelResourceId: Long = 0
   
-  val persistenceProvider: DomainPersistenceProvider = null
+  var persistenceProvider: DomainPersistenceProvider = null
 
   def receive = {
     case message: OpenRealtimeModelRequest => onOpenRealtimeModel(message)
@@ -127,6 +128,10 @@ class ModelManagerActor(
   override def postStop(): Unit = {
     log.debug("SharedModelManager({}) received shutdown command.  Shutting down all SharedModels.", this.domainFqn);
     openRealtimeModels.clear();
+  }
+  
+  override def preStart(): Unit = {
+    persistenceProvider = DomainPersistenceManagerActor.getPersistenceProvider(self, context, domainFqn)
   }
 }
 

@@ -22,17 +22,19 @@ import scala.concurrent.Await
 import scala.concurrent.duration.FiniteDuration
 import akka.actor.ActorContext
 
-object DomainDatabasePoolManagerActor {
+object DomainPersistenceManagerActor {
+  val RelativePath = "DomainPersistenceManagerActor"
+  
   def props(
     domainConfigStore: DomainConfigurationStore): Props = Props(
-    new DomainDatabasePoolManagerActor(domainConfigStore))
+    new DomainPersistenceManagerActor(domainConfigStore))
     
   def getLocalInstancePath(requestor: ActorPath): ActorPath = {
-    requestor.root.child("user/DomainDatabasePoolManagerActor")
+    requestor.root / "user" / RelativePath
   }
   
   def getPersistenceProvider(requestor: ActorRef, context: ActorContext, domainFqn: DomainFqn): DomainPersistenceProvider = {
-      val path = DomainDatabasePoolManagerActor.getLocalInstancePath(requestor.path)
+      val path = DomainPersistenceManagerActor.getLocalInstancePath(requestor.path)
       val selection = context.actorSelection(path)
 
       val message = AcquireDomainPersistence(domainFqn)
@@ -47,7 +49,7 @@ object DomainDatabasePoolManagerActor {
   }
 }
 
-class DomainDatabasePoolManagerActor(domainConfigStore: DomainConfigurationStore) extends Actor with ActorLogging {
+class DomainPersistenceManagerActor(domainConfigStore: DomainConfigurationStore) extends Actor with ActorLogging {
 
   private[this] var refernceCounts = Map[DomainFqn, Int]()
   private[this] var providers = Map[DomainFqn, DomainPersistenceProvider]()

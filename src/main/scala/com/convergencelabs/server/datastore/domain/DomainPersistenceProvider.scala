@@ -5,13 +5,11 @@ import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 
 class DomainPersistenceProvider(private[domain] val dbPool: OPartitionedDatabasePool) {
 
+  val userStore = new DomainUserStore(dbPool)
+
   val modelStore = new ModelStore(dbPool)
 
   val modelHistoryStore = new ModelHistoryStore(dbPool)
 
   val modelSnapshotStore = new ModelSnapshotStore(dbPool)
-
-  val userStore = new DomainUserStore(dbPool)
-  
-  val userCredentialStore = new DomainUserCredentialStore(dbPool)
 }

@@ -6,5 +6,4 @@ import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 trait PersistenceProvider {
   def convergenceConfigStore: ConfigurationStore
   def domainConfigStore: DomainConfigurationStore
-  def getDomainPersitenceProvider(domainFqn: DomainFqn): DomainPersistenceProvider
 }

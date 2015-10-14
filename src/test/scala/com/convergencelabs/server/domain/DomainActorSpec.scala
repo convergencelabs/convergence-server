@@ -20,21 +20,21 @@ import com.convergencelabs.server.datastore.TokenKeyPair
 import com.convergencelabs.server.datastore.TokenPublicKey
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.datastore.DomainDatabaseConfig
-
+import com.convergencelabs.server.util.MockDomainPersistenceManagerActor
+import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 
 @RunWith(classOf[JUnitRunner])
-class DomainActorSpec(system: ActorSystem)
-    extends TestKit(system)
+class DomainActorSpec
+    extends TestKit(ActorSystem("DomainActorSpec"))
     with WordSpecLike
     with BeforeAndAfterAll
     with MockitoSugar {
-
-  def this() = this(ActorSystem("DomainActorSpec"))
 
   override def afterAll() {
     TestKit.shutdownActorSystem(system)
   }
 
+  val domainPersistence = MockDomainPersistenceManagerActor(system)
 
   "A DomainActor" when {
     "receiving an initial handshake request" must {
@@ -45,13 +45,13 @@ class DomainActorSpec(system: ActorSystem)
         assert(domainActor == response.domainActor)
       }
     }
-    
+
     "receiving a client disconnect" must {
       "send a domain shutdown request when the last client disconnects" in new TestFixture {
         val client = new TestProbe(system)
         domainActor.tell(HandshakeRequest(domainFqn, client.ref, false, None), client.ref)
         val response = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeSuccess])
-        
+
         domainActor.tell(ClientDisconnected("sessionId", client.ref), client.ref)
         var request = domainManagerActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[DomainShutdownRequest])
         assert(domainFqn == request.domainFqn)
@@ -71,20 +71,18 @@ class DomainActorSpec(system: ActorSystem)
       keys,
       adminKeyPair)
 
-    val domainPersistence = mock[DomainPersistenceProvider]
+    domainPersistence.underlyingActor.mockProviders = Map(domainFqn -> mock[DomainPersistenceProvider])
+
     val domainManagerActor = new TestProbe(system)
-    val configStore = mock[ConfigurationStore]
-    
+
     val protocolConfig = ProtocolConfiguration(1000L)
-    
+
     val props = DomainActor.props(
       domainManagerActor.ref,
       domainConfig,
-      domainPersistence,
-      configStore,
       protocolConfig,
       10 seconds)
-      
+
     val domainActor = system.actorOf(props)
   }
 }

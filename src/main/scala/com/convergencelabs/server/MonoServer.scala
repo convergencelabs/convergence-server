@@ -3,7 +3,7 @@ package com.convergencelabs.server
 import java.io.File
 
 import com.convergencelabs.server.datastore.DomainConfigurationStore
-import com.convergencelabs.server.datastore.domain.DomainDatabasePoolManagerActor
+import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 import com.convergencelabs.server.domain.DomainManagerActor
 import com.convergencelabs.server.frontend.realtime.ConvergenceRealtimeFrontend
 import com.typesafe.config.ConfigFactory
@@ -26,7 +26,7 @@ object MonoServer {
     val configStore: DomainConfigurationStore = null 
     
     val domainManagerSystem = startupCluster(2553, "domainManager")
-    val dbPoolManager = domainManagerSystem.actorOf(DomainDatabasePoolManagerActor.props(configStore), "DatabasePoolManager")
+    val dbPoolManager = domainManagerSystem.actorOf(DomainPersistenceManagerActor.props(configStore), "DatabasePoolManager")
     
     domainManagerSystem.actorOf(DomainManagerActor.props(null, null), "domainManager")
     

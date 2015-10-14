@@ -23,6 +23,7 @@ import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
 import com.convergencelabs.server.ErrorMessage
 import com.convergencelabs.server.ErrorMessage
+import com.convergencelabs.server.util.MockDomainPersistenceManagerActor
 
 @RunWith(classOf[JUnitRunner])
 class ModelManagerActorSpec
@@ -35,6 +36,8 @@ class ModelManagerActorSpec
     TestKit.shutdownActorSystem(system)
   }
 
+  val domainPersistenceActor = MockDomainPersistenceManagerActor(system)
+  
   // FIXME we need to test that models actually get created and deleted.  Not sure how to do this.
   
   "A ModelManagerActor" when {
@@ -108,12 +111,15 @@ class ModelManagerActorSpec
     val domainPersistence = mock[DomainPersistenceProvider]
     Mockito.when(domainPersistence.modelStore).thenReturn(modelStore)
     Mockito.when(domainPersistence.modelSnapshotStore).thenReturn(modelSnapshotStore)
+    
+    val domainFqn = DomainFqn("convergence", "default")
+    
+    domainPersistenceActor.underlyingActor.mockProviders = Map(domainFqn -> domainPersistence)
 
     val resourceId = "1" + System.nanoTime()
     val domainActor = new TestProbe(system)
     val props = ModelManagerActor.props(
-      DomainFqn("convergence", "default"),
-      domainPersistence,
+      domainFqn,
       ProtocolConfiguration(100L))
 
     val modelManagerActor = system.actorOf(props, resourceId)
