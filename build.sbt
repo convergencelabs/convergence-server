@@ -37,6 +37,7 @@ libraryDependencies += "com.typesafe.akka" % "akka-stream-experimental_2.11" % "
 
 
 libraryDependencies += "io.netty" % "netty-all" % "4.0.31.Final"
+libraryDependencies += "org.java-websocket" % "Java-WebSocket" % "1.3.0"
 
 
 // Crypto

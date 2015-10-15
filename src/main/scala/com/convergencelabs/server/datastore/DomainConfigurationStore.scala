@@ -1,8 +1,9 @@
 package com.convergencelabs.server.datastore
 
 import com.convergencelabs.server.domain.DomainFqn
+import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 
-class DomainConfigurationStore {
+class DomainConfigurationStore(dbPool: OPartitionedDatabasePool) {
   
   def createDomainConfig(domainConfig: DomainConfig) = ???
   

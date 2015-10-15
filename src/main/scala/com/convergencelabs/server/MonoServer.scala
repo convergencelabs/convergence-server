@@ -1,13 +1,11 @@
 package com.convergencelabs.server
 
 import java.io.File
-
 import com.convergencelabs.server.datastore.DomainConfigurationStore
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 import com.convergencelabs.server.domain.DomainManagerActor
 import com.convergencelabs.server.frontend.realtime.ConvergenceRealtimeFrontend
 import com.typesafe.config.ConfigFactory
-
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorSystem
@@ -18,21 +16,28 @@ import akka.cluster.ClusterEvent.MemberEvent
 import akka.cluster.ClusterEvent.MemberRemoved
 import akka.cluster.ClusterEvent.MemberUp
 import akka.cluster.ClusterEvent.UnreachableMember
+import com.convergencelabs.server.datastore.PersistenceProvider
 
 object MonoServer {
   def main(args: Array[String]): Unit = {
     val seed1 = startupCluster(2551, "seed")
 
-    val configStore: DomainConfigurationStore = null 
-    
+    // FIXME Need Pool
+    val persistenceProvider = new PersistenceProvider(null)
+
+    // FIXME do we get this from the config.  If so do we need to pass it?
+    val protocolConfig = ProtocolConfiguration(5L)
+
     val domainManagerSystem = startupCluster(2553, "domainManager")
-    val dbPoolManager = domainManagerSystem.actorOf(DomainPersistenceManagerActor.props(configStore), "DatabasePoolManager")
-    
-    domainManagerSystem.actorOf(DomainManagerActor.props(null, null), "domainManager")
-    
-    
-    val realtimeSystem = startupCluster(2554, "realtimeFrontend")
-    val realtimeServer = new ConvergenceRealtimeFrontend(realtimeSystem)
+    val dbPoolManager = domainManagerSystem.actorOf(
+      DomainPersistenceManagerActor.props(persistenceProvider.domainConfigStore),
+      "DatabasePoolManager")
+
+    domainManagerSystem.actorOf(DomainManagerActor.props(
+      persistenceProvider, protocolConfig), "domainManager")
+
+    val realtimeFrontEndSystem = startupCluster(2554, "realtimeFrontend")
+    val realtimeServer = new ConvergenceRealtimeFrontend(realtimeFrontEndSystem, 8080)
     realtimeServer.start()
   }
 

@@ -30,21 +30,21 @@ private[ws] class WebSocketServerHandler(maxFrameSize: Int, socketConnectionHand
   private[this] val WEBSOCKET_PATH = "/domain/"
   private[this] var handshaker: WebSocketServerHandshaker = null
   private[this] var convergenceSocket: NettyServerWebSocket = null
-  private[this] var closeFrameReceieve = false;
-  private[this] val textFrameBuffer = new StringBuilder();
+  private[this] var closeFrameReceieve = false
+  private[this] val textFrameBuffer = new StringBuilder()
 
   trace("New Netty connection initiated")
 
   def channelRead0(ctx: ChannelHandlerContext, msg: Object): Unit = {
     if (msg.isInstanceOf[FullHttpRequest]) {
-      handleHttpRequest(ctx, msg.asInstanceOf[FullHttpRequest]);
+      handleHttpRequest(ctx, msg.asInstanceOf[FullHttpRequest])
     } else if (msg.isInstanceOf[WebSocketFrame]) {
-      handleWebSocketFrame(ctx, msg.asInstanceOf[WebSocketFrame]);
+      handleWebSocketFrame(ctx, msg.asInstanceOf[WebSocketFrame])
     }
   }
 
   override def channelReadComplete(ctx: ChannelHandlerContext): Unit = {
-    ctx.flush();
+    ctx.flush()
   }
 
   override def channelInactive(ctx: ChannelHandlerContext): Unit = {
@@ -61,45 +61,44 @@ private[ws] class WebSocketServerHandler(maxFrameSize: Int, socketConnectionHand
   }
 
   override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {
-    cause.printStackTrace();
-    ctx.close();
+    cause.printStackTrace()
+    ctx.close()
   }
 
   private[this] def handleHttpRequest(ctx: ChannelHandlerContext, req: FullHttpRequest): Unit = {
 
     // Handle a bad request.
     if (!req.getDecoderResult().isSuccess()) {
-      sendHttpResponse(ctx, req, new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.BAD_REQUEST));
-      return ;
+      sendHttpResponse(ctx, req, new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.BAD_REQUEST))
+      return
     }
 
     // Allow only GET methods.
     if (req.getMethod() != HttpMethod.GET) {
-      sendHttpResponse(ctx, req, new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.FORBIDDEN));
-      return ;
+      sendHttpResponse(ctx, req, new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.FORBIDDEN))
+      return
     }
 
     // Handshake 
-    val wsFactory = new WebSocketServerHandshakerFactory(getWebSocketLocation(req), null, true, maxFrameSize);
-    handshaker = wsFactory.newHandshaker(req);
+    val wsFactory = new WebSocketServerHandshakerFactory(getWebSocketLocation(req), null, true, maxFrameSize)
+    handshaker = wsFactory.newHandshaker(req)
     if (handshaker == null) {
-      WebSocketServerHandshakerFactory.sendUnsupportedVersionResponse(ctx.channel());
+      WebSocketServerHandshakerFactory.sendUnsupportedVersionResponse(ctx.channel())
     } else {
-      val domainFqn = getDomainFqnForRequest(req);
+      getDomainFqnForRequest(req) match {
+        case None => handshaker.close(ctx.channel(), new CloseWebSocketFrame(1000, "Invalid domain url."))
+        case Some(domainFqn) => {
+          val namespace = domainFqn.namespace
+          val domainId = domainFqn.domainId
+          val channelId = ctx.channel().hashCode()
+          debug(s"Incoming web socket connecting to '$namespace/$domainId': $channelId")
 
-      if (domainFqn == null) {
-        handshaker.close(ctx.channel(), new CloseWebSocketFrame(1000, "Invalid domain url."))
-      } else {
-        val namespace = domainFqn.namespace
-        val domainId = domainFqn.domainId
-        val channelId = ctx.channel().hashCode()
-        debug(s"Incoming web socket connecting to '$namespace/$domainId': $channelId")
+          trace(s"Completing handshake: $channelId")
+          handshaker.handshake(ctx.channel(), req)
+          convergenceSocket = new NettyServerWebSocket(ctx.channel(), maxFrameSize)
 
-        trace(s"Completing handshake: $channelId")
-        handshaker.handshake(ctx.channel(), req);
-        convergenceSocket = new NettyServerWebSocket(ctx.channel(), maxFrameSize)
-
-        socketConnectionHandler.fireOnSocketOpen(domainFqn, convergenceSocket);
+          socketConnectionHandler.fireOnSocketOpen(domainFqn, convergenceSocket)
+        }
       }
     }
   }
@@ -113,7 +112,7 @@ private[ws] class WebSocketServerHandler(maxFrameSize: Int, socketConnectionHand
       case continuation: ContinuationWebSocketFrame => handleContinuationFrame(ctx, continuation)
       case _ => {
         throw new UnsupportedOperationException(String.format("%s frame types not supported", frame.getClass()
-          .getName()));
+          .getName()))
       }
     }
   }
@@ -123,9 +122,9 @@ private[ws] class WebSocketServerHandler(maxFrameSize: Int, socketConnectionHand
     val reason = frame.reasonText()
     val channelId = ctx.channel().hashCode()
 
-    trace(s"Received close frame [code: $code, reason: '$reason']: $channelId");
+    trace(s"Received close frame [code: $code, reason: '$reason']: $channelId")
 
-    closeFrameReceieve = true;
+    closeFrameReceieve = true
     val closeFrame = frame.retain().asInstanceOf[CloseWebSocketFrame]
     handshaker.close(ctx.channel(), closeFrame)
     convergenceSocket.handleClosed(closeFrame.statusCode(), closeFrame.reasonText())
@@ -133,13 +132,13 @@ private[ws] class WebSocketServerHandler(maxFrameSize: Int, socketConnectionHand
 
   private[this] def handlePingFrame(ctx: ChannelHandlerContext, frame: PingWebSocketFrame) {
     val channelId = ctx.channel().hashCode()
-    trace(s"Received ping, sending pong frame: $channelId");
+    trace(s"Received ping, sending pong frame: $channelId")
     ctx.channel().writeAndFlush(new PongWebSocketFrame(frame.content().retain()))
   }
 
   private[this] def handlePongFrame(ctx: ChannelHandlerContext, frame: PongWebSocketFrame) {
     val channelId = ctx.channel().hashCode()
-    trace(s"Received ping frame: $channelId");
+    trace(s"Received ping frame: $channelId")
   }
 
   private[this] def handleTextFrame(ctx: ChannelHandlerContext, frame: TextWebSocketFrame) {
@@ -161,41 +160,46 @@ private[ws] class WebSocketServerHandler(maxFrameSize: Int, socketConnectionHand
   private[this] def sendHttpResponse(
     ctx: ChannelHandlerContext, req: FullHttpRequest, res: FullHttpResponse): Unit = {
     if (res.getStatus().code() != 200) {
-      val buf = Unpooled.copiedBuffer(res.getStatus().toString(), CharsetUtil.UTF_8);
-      res.content().writeBytes(buf);
-      buf.release();
-      HttpHeaders.setContentLength(res, res.content().readableBytes());
+      val buf = Unpooled.copiedBuffer(res.getStatus().toString(), CharsetUtil.UTF_8)
+      res.content().writeBytes(buf)
+      buf.release()
+      HttpHeaders.setContentLength(res, res.content().readableBytes())
     }
 
     // Send the response and close the connection if necessary.
-    val f = ctx.channel().writeAndFlush(res);
+    val f = ctx.channel().writeAndFlush(res)
     if (!HttpHeaders.isKeepAlive(req) || res.getStatus().code() != 200) {
-      f.addListener(ChannelFutureListener.CLOSE);
+      f.addListener(ChannelFutureListener.CLOSE)
     }
   }
 
   private[this] def getWebSocketLocation(req: FullHttpRequest): String = {
-    val location = req.headers().get(HttpHeaders.Names.HOST) + WEBSOCKET_PATH;
+    val location = req.headers().get(HttpHeaders.Names.HOST) + WEBSOCKET_PATH
     if (false) {
-      return "wss://" + location;
+      return "wss://" + location
     } else {
-      return "ws://" + location;
+      return "ws://" + location
     }
   }
 
-  private[this] def getDomainFqnForRequest(req: FullHttpRequest): DomainFqn = {
+  private[this] def getDomainFqnForRequest(req: FullHttpRequest): Option[DomainFqn] = {
     val uri = URI.create(req.getUri())
     val path = uri.getPath()
+
+    if (path.length <= WEBSOCKET_PATH.length) {
+      return None
+    }
+
     val domainPath = path.substring(WEBSOCKET_PATH.length(), path.length())
 
     val components = domainPath.split("/")
 
     if (components.length != 2) {
-      return null
+      return None
     }
 
     val namespace = components(0)
     val domainId = components(1)
-    new DomainFqn(namespace, domainId)
+    Some(DomainFqn(namespace, domainId))
   }
 }

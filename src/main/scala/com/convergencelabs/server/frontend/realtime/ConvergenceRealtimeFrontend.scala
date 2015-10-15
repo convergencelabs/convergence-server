@@ -9,7 +9,12 @@ import com.convergencelabs.server.ProtocolConfiguration
 object ConvergenceRealtimeFrontend extends App {
 }
 
-class ConvergenceRealtimeFrontend(private[this] val system: ActorSystem) {
+class ConvergenceRealtimeFrontend(
+    private[this] val system: ActorSystem,
+    private[this] val websocketPort: Int) {
+  
+  // FIXME this object is nonsensical.  It's all over the place.  I don't know 
+  // if this is the right place for this.
   private val protoConfig = ProtocolConfiguration(5000L)
   
   private[this] val connectionHandler = new SocketConnectionHandler()
@@ -20,7 +25,8 @@ class ConvergenceRealtimeFrontend(private[this] val system: ActorSystem) {
     connectionManager.tell(NewSocketEvent(domainFqn, socket), ActorRef.noSender)
   })
 
-  private[this] val server = new WebSocketServer(8080, 65535, connectionHandler)
+  // FIXME.  Not sure this is the right size.
+  private[this] val server = new WebSocketServer(websocketPort, 65535, connectionHandler)
   
   def start(): Unit = {
     server.start()
