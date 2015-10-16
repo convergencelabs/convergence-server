@@ -5,23 +5,23 @@ import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 
 class DomainConfigurationStore(dbPool: OPartitionedDatabasePool) {
   
-  def createDomainConfig(domainConfig: DomainConfig) = ???
+  def createDomainConfig(domainConfig: DomainConfig) = {}
   
-  def domainExists(domainFqn: DomainFqn): Boolean = ???
+  def domainExists(domainFqn: DomainFqn): Boolean = false
   
-  def getDomainConfig(domainFqn: DomainFqn): DomainConfig = ???
+  def getDomainConfig(domainFqn: DomainFqn): Option[DomainConfig] = None
   
-  def getDomainConfig(id: String): Unit = ???
+  def getDomainConfig(id: String): Option[DomainConfig] = None
   
-  def getDomainConfigsInNamespace(namespace: String): List[DomainConfig] = ???
+  def getDomainConfigsInNamespace(namespace: String): List[DomainConfig] = List()
   
-  def removeDomainConfig(id: String): Unit = ???
+  def removeDomainConfig(id: String): Unit = {}
   
-  def updateDomainConfig(newConfig: DomainConfig): Unit = ???
+  def updateDomainConfig(newConfig: DomainConfig): Unit = {}
   
-  def getDomainKey(fqn: DomainFqn, keyId: String): TokenPublicKey = ???
+  def getDomainKey(fqn: DomainFqn, keyId: String): Option[TokenPublicKey] = None
   
-  def getDomainKeys(fqn: DomainFqn): Map[String, TokenPublicKey] = ???
+  def getDomainKeys(fqn: DomainFqn): Map[String, TokenPublicKey] = Map()
   
-  def addDomainKey(fqn: DomainFqn, key: TokenPublicKey): Boolean = ???
+  def addDomainKey(fqn: DomainFqn, key: TokenPublicKey): Boolean = false 
 }

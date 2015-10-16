@@ -31,7 +31,7 @@ package object concurrent {
 
     def result(atMost: scala.concurrent.duration.Duration)(implicit permit: scala.concurrent.CanAwait): T = future.result(atMost)
 
-    def mapReponse[S](implicit tag: ClassTag[S]): Future[S] = {
+    def mapResponse[S](implicit tag: ClassTag[S]): Future[S] = {
       val c = tag.runtimeClass
 
       val p = Promise[S]

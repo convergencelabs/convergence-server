@@ -70,7 +70,7 @@ class DomainManagerActorSpec()
       adminKeyPair)
 
     val configStore = mock[DomainConfigurationStore]
-    Mockito.when(configStore.getDomainConfig(domainFqn)).thenReturn(domainConfig)
+    Mockito.when(configStore.getDomainConfig(domainFqn)).thenReturn(Some(domainConfig))
     Mockito.when(configStore.domainExists(domainFqn)).thenReturn(true)
     Mockito.when(configStore.domainExists(nonExistingDomain)).thenReturn(false)
 
@@ -78,7 +78,6 @@ class DomainManagerActorSpec()
 
     val convergencePersistence = mock[PersistenceProvider]
     Mockito.when(convergencePersistence.domainConfigStore).thenReturn(configStore)
-
 
     val protocolConfig = ProtocolConfiguration(1000L)
 

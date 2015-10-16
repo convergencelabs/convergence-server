@@ -12,6 +12,7 @@ import scala.util.Failure
 import io.netty.handler.codec.http.websocketx.ContinuationWebSocketFrame
 import com.convergencelabs.server.frontend.realtime.proto.ProtocolMessage
 import com.convergencelabs.server.frontend.realtime.ConvergenceServerSocket
+import io.netty.channel.ChannelFuture
 
 private[ws] object NettyServerWebSocket {
   private var socketId = new AtomicLong(0)
@@ -51,10 +52,11 @@ private[ws] class NettyServerWebSocket(
     val frameCount = Math.ceil(message.length / this.maxFrameSize).toInt
 
     try {
-      if (frameCount == 1) {
+      var f = if (frameCount == 1) {
         channel.writeAndFlush(new TextWebSocketFrame(message))
       } else {
-
+        var future: ChannelFuture = null
+        
         val lastFrame = frameCount - 1
         for (i <- 0 to frameCount) {
           val start = i * maxFrameSize
@@ -62,12 +64,13 @@ private[ws] class NettyServerWebSocket(
           val frameText = message.substring(start, end)
           i match {
             case 0 => channel.writeAndFlush(new TextWebSocketFrame(frameText))
-            case _ => channel.writeAndFlush(
+            case _ => future = channel.writeAndFlush(
                 new ContinuationWebSocketFrame(i == lastFrame, 0, frameText))
           }
-
+          future
         }
       }
+      
     } catch {
       case e: IOException =>
         val message = s"Error sending web socket text message for session($sessionId): textMessage"
@@ -94,10 +97,10 @@ private[ws] class NettyServerWebSocket(
     return channel.isOpen()
   }
 
-  def close(): Unit = {
+  def close(reason: String): Unit = {
     try {
       if (this.isOpen()) {
-        val closeFrame = new CloseWebSocketFrame(1000, "")
+        val closeFrame = new CloseWebSocketFrame(1000, reason)
         channel.writeAndFlush(closeFrame)
       }
     } catch {
@@ -116,10 +119,6 @@ private[ws] class NettyServerWebSocket(
     } catch {
       case e: Exception => debug(s"Error closing session: $sessionId", e)
     }
-  }
-
-  def dispose() {
-    this.close()
   }
 
   private[this] def onError(message: String): Unit = {

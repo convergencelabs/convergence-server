@@ -10,7 +10,6 @@ import com.convergencelabs.server.ProtocolConfiguration
 import akka.actor.PoisonPill
 import scala.compat.Platform
 import java.io.IOException
-import com.convergencelabs.server.Success
 import com.convergencelabs.server.datastore.domain.SnapshotData
 import com.convergencelabs.server.datastore.domain.SnapshotMetaData
 import scala.concurrent.duration.FiniteDuration
@@ -20,6 +19,7 @@ import com.convergencelabs.server.ErrorMessage
 import com.convergencelabs.server.domain.model.ModelManagerActor.ErrorCodes._
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
+import com.convergencelabs.server.SuccessResponse
 
 class ModelManagerActor(
   private[this] val domainFqn: DomainFqn,
@@ -92,7 +92,7 @@ class ModelManagerActor(
           SnapshotData(SnapshotMetaData(createRequest.modelFqn, 0, createTime),
             modelData))
 
-        sender() ! Success();
+        sender() ! SuccessResponse
       } catch {
         case e: IOException =>
           sender() ! ErrorMessage("unknown", "Could not create model: " + e.getMessage)
@@ -111,7 +111,7 @@ class ModelManagerActor(
       persistenceProvider.modelSnapshotStore.removeAllSnapshotsForModel(deleteRequest.modelFqn)
       persistenceProvider.modelHistoryStore.removeHistoryForModel(deleteRequest.modelFqn)
 
-      sender() ! Success()
+      sender() ! SuccessResponse
     } else {
       sender() ! ErrorMessage(ModelNotFound, "The model could not be deleted because a model with the specified collection and modelId does not exist.")
     }

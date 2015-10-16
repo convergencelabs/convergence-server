@@ -82,10 +82,10 @@ class ProtocolConnectionSpec(system: ActorSystem)
         val envelope = MessageEnvelope(OpCode.Request, Some(1L), Some(message))
         val json = envelope.toJson()
         socket.fireOnMessage(json)
-        val RequestReceived(x, r) = receiver.expectEventClass(10 millis, classOf[RequestReceived])
+        val RequestReceived(m, cb) = receiver.expectEventClass(10 millis, classOf[RequestReceived])
 
         val response = HandshakeResponseMessage(true, None, Some("foo"), Some("bar"))
-        r.success(response)
+        cb.reply(response)
 
         var responseEnvelop = MessageEnvelope(OpCode.Reply, Some(1L), Some(response))
         Mockito.verify(socket, times(1)).send(responseEnvelop.toJson())
@@ -139,7 +139,7 @@ class ProtocolConnectionSpec(system: ActorSystem)
 
     var isOpen: Boolean = true
 
-    def close(): Unit = {
+    def close(reason: String): Unit = {
     }
 
     def abort(reason: String): Unit = {

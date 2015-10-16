@@ -92,9 +92,10 @@ class DomainManagerActor(
   private[this] def openClosedDomain(domainFqn: DomainFqn): Unit = {
     val domainConfig = convergencePersistence.domainConfigStore.getDomainConfig(domainFqn)
 
+    // FIXME handle the option.
     val domainActor = context.actorOf(DomainActor.props(
       self,
-      domainConfig,
+      domainConfig.get,
       protocolConfig,
       domainShutdownDelay))
 

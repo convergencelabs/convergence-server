@@ -18,11 +18,11 @@ trait ConvergenceServerSocket {
 
   def isOpen(): Boolean
 
-  def close(): Unit
+  def close(): Unit = this.close("closed normally")
+  
+  def close(reason: String): Unit
 
   def abort(reason: String): Unit
-
-  def dispose(): Unit
 
   def fireOnError(errorMessage: String): Unit =
     handler lift SocketError(errorMessage)

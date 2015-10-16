@@ -36,6 +36,7 @@ import com.convergencelabs.server.domain.HandshakeFailure
 import com.convergencelabs.server.frontend.realtime.proto.OpenRealtimeModelRequestMessage
 import com.convergencelabs.server.domain.model.OpenRealtimeModelRequest
 import com.convergencelabs.server.domain.model.ModelFqn
+import scala.concurrent.Future
 
 @RunWith(classOf[JUnitRunner])
 class ClientActorSpec(system: ActorSystem)
@@ -54,20 +55,15 @@ class ClientActorSpec(system: ActorSystem)
     "handshaking" must {
       "request a handshake with the domain when a handshake message is received" in new TestFixture(system) {
         val handshakeRequestMessage = HandshakeRequestMessage(false, None, None)
-        val reply = Promise[OutgoingProtocolResponseMessage]
-        val event = RequestReceived(handshakeRequestMessage, reply)
+        val cb = new TestReplyCallback()
+        val event = RequestReceived(handshakeRequestMessage, cb)
 
         clientActor.tell(event, ActorRef.noSender)
-
         domainManagerActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeRequest])
-
         domainManagerActor.reply(HandshakeSuccess("sessionId", "reconnectToken", new TestProbe(system).ref, new TestProbe(system).ref))
 
-        var HandshakeResponseMessage(success, error, sessionId, reconnectToken) = Await.result(reply.future, 100 millis)
-        assert(success)
-        assert(error == None)
-        assert(sessionId == Some("sessionId"))
-        assert(reconnectToken == Some("reconnectToken"))
+        val reply = Await.result(cb.result, 50 millis)
+        assert(reply == HandshakeResponseMessage(true, None, Some("sessionId"), Some("reconnectToken")))
       }
 
       "properly handle a hanshake error form the domain" in new TestFixture(system) {
@@ -75,20 +71,16 @@ class ClientActorSpec(system: ActorSystem)
         probeWatcher watch clientActor
 
         val handshakeRequestMessage = HandshakeRequestMessage(false, None, None)
-        val reply = Promise[OutgoingProtocolResponseMessage]
-        val event = RequestReceived(handshakeRequestMessage, reply)
+        val cb = new TestReplyCallback()
+        val event = RequestReceived(handshakeRequestMessage, cb)
 
         clientActor.tell(event, ActorRef.noSender)
 
         domainManagerActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeRequest])
         domainManagerActor.reply(HandshakeFailure("code", "string"))
-
-        var HandshakeResponseMessage(success, error, sessionId, reconnectToken) = Await.result(reply.future, 100 millis)
-        assert(!success)
-        assert(error == Some(ErrorData("code", "string")))
-        assert(sessionId == None)
-        assert(reconnectToken == None)
-
+        
+        val reply = Await.result(cb.result, 50 millis)
+        assert(reply == HandshakeResponseMessage(false, Some(ErrorData("code", "string")), None, None))
         probeWatcher.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Terminated])
       }
 
@@ -96,8 +88,8 @@ class ClientActorSpec(system: ActorSystem)
         val probeWatcher = new TestProbe(system)
         probeWatcher watch clientActor
 
-        val reply = Promise[OutgoingProtocolResponseMessage]
-        val event = RequestReceived(CloseRealtimeModelRequestMessage("foo", "bar"), reply)
+        val cb = mock[ReplyCallback]
+        val event = RequestReceived(CloseRealtimeModelRequestMessage("foo", "bar"), cb)
         clientActor.tell(event, ActorRef.noSender)
 
         probeWatcher.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Terminated])
@@ -109,14 +101,15 @@ class ClientActorSpec(system: ActorSystem)
         probeWatcher watch clientActor
 
         val handshakeRequestMessage = HandshakeRequestMessage(false, None, None)
-        val reply = Promise[OutgoingProtocolResponseMessage]
-        val event = RequestReceived(handshakeRequestMessage, reply)
+        val cb = new TestReplyCallback()
+        val event = RequestReceived(handshakeRequestMessage, cb)
         clientActor.tell(event, ActorRef.noSender)
 
         probeWatcher.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Terminated])
-        var Success(HandshakeResponseMessage(success, error, sessionId, reconnectToken)) = reply.future.value.get
+        val HandshakeResponseMessage(success, error, sessionId, token) = Await.result(cb.result, 50 millis)
+        
         assert(!success)
-
+        
         Mockito.verify(connection, times(1)).abort(Matchers.any())
       }
       
@@ -154,7 +147,7 @@ class ClientActorSpec(system: ActorSystem)
     "recieving an open model message" must {
       "forward to the model manager" in new HandshookClient(system) {
         val openRequest = OpenRealtimeModelRequestMessage(ModelFqn("collection", "model"))
-        val openReply = Promise[OutgoingProtocolResponseMessage]
+        val openReply = mock[ReplyCallback]
         val openEvent = RequestReceived(openRequest, openReply)
         clientActor.tell(openEvent, ActorRef.noSender)
         
@@ -181,14 +174,28 @@ class ClientActorSpec(system: ActorSystem)
 
   class HandshookClient(system: ActorSystem) extends TestFixture(system: ActorSystem) {
     val handshakeRequestMessage = HandshakeRequestMessage(false, None, None)
-    val handshakeReply = Promise[OutgoingProtocolResponseMessage]
-    val handshakeEvent = RequestReceived(handshakeRequestMessage, handshakeReply)
+    val handshakeEvent = RequestReceived(handshakeRequestMessage, mock[ReplyCallback])
 
     clientActor.tell(handshakeEvent, ActorRef.noSender)
 
     domainManagerActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeRequest])
     domainManagerActor.reply(HandshakeSuccess("sessionId", "reconnectToken", domainManagerActor.ref, modelManagerActor.ref))
     
-    Await.result(handshakeReply.future, 100 millis)
+    //Await.result(handshakeReply.future, 100 millis)
+  }
+  
+  class TestReplyCallback() extends ReplyCallback {
+    val p = Promise[OutgoingProtocolResponseMessage]
+    def reply(message: OutgoingProtocolResponseMessage): Unit = {
+      p.success(message)
+    }
+    
+    def error(cause: Throwable): Unit = {
+      p.failure(cause)
+    }
+    
+    def result(): Future[OutgoingProtocolResponseMessage] = {
+      p.future
+    }
   }
 }

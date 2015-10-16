@@ -26,6 +26,7 @@ import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolNormal
 import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolResponseMessage
 import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolNormalMessage
 import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolRequestMessage
+import grizzled.slf4j.Logging
 
 object ProtocolConnection {
   object State extends Enumeration {
@@ -40,18 +41,19 @@ sealed trait ProtocolMessageEvent extends ConnectionEvent {
 }
 
 case class MessageReceived(message: IncomingProtocolNormalMessage) extends ProtocolMessageEvent
-case class RequestReceived(message: IncomingProtocolRequestMessage, replyPromise: Promise[OutgoingProtocolResponseMessage]) extends ProtocolMessageEvent
+case class RequestReceived(message: IncomingProtocolRequestMessage, replyCallback: ReplyCallback) extends ProtocolMessageEvent
 
 case class ConnectionClosed() extends ConnectionEvent
 case class ConnectionDropped() extends ConnectionEvent
 case class ConnectionError(message: String) extends ConnectionEvent
 
 class ProtocolConnection(
-    private[this] var socket: ConvergenceServerSocket,
-    private[this] val protocolConfig: ProtocolConfiguration,
-    private[this] val heartbeatEnabled: scala.Boolean,
-    private[this] val scheduler: Scheduler,
-    private[this] val ec: ExecutionContext) {
+  private[this] var socket: ConvergenceServerSocket,
+  private[this] val protocolConfig: ProtocolConfiguration,
+  private[this] val heartbeatEnabled: scala.Boolean,
+  private[this] val scheduler: Scheduler,
+  private[this] val ec: ExecutionContext)
+    extends Logging {
 
   implicit val formats = Serialization.formats(NoTypeHints)
 
@@ -76,10 +78,7 @@ class ProtocolConnection(
   import com.convergencelabs.server.frontend.realtime.ProtocolConnection.State._
 
   var nextRequestId = 0L
-
-  val requestPromises = mutable.Map[Long, Promise[ProtocolMessage]]()
-  val responseTimeoutTasks = mutable.Map[Long, Cancellable]()
-
+  val requests = mutable.Map[Long, RequestRecord]()
   var state = Connected
 
   private[realtime] var eventHandler: PartialFunction[ConnectionEvent, Unit] = {
@@ -94,57 +93,53 @@ class ProtocolConnection(
     val requestId = nextRequestId
     nextRequestId += 1
 
-    val promise = Promise[ProtocolMessage]
-
-    requestPromises.synchronized({
-      requestPromises(requestId) = promise
-    })
+    val replyPromise = Promise[ProtocolMessage]
 
     val timeout = Duration.create(50, TimeUnit.MILLISECONDS)
-
     val timeoutFuture = scheduler.scheduleOnce(timeout)(() => {
-      requestPromises.synchronized({
-        requestPromises.remove(requestId) match {
-          case Some(p) => p.failure(new TimeoutException("Response timeout"))
+      requests.synchronized({
+        requests.remove(requestId) match {
+          case Some(record) => {
+            record.promise.failure(new TimeoutException("Response timeout"))
+          }
           case _ => {}
         }
       })
-
-      responseTimeoutTasks.synchronized({
-        responseTimeoutTasks.remove(requestId)
-      })
     })
 
-    responseTimeoutTasks.synchronized({
-      responseTimeoutTasks(requestId) = timeoutFuture
-    })
+    requests(requestId) = RequestRecord(requestId, replyPromise, timeoutFuture, "")
 
     sendMessage(OpCode.Request, Some(requestId), Some(message))
 
-    promise.future
+    replyPromise.future
   }
 
   def abort(reason: String): Unit = {
-    socket.abort(reason: String)
+    logger.debug(s"Aborting connection: $reason")
     heartbeatHelper.stop()
+    socket.abort(reason)
   }
 
   def close(): Unit = {
-    if (heartbeatHelper.started()) {
+    logger.debug(s"Closing connection")
+    if (heartbeatHelper.started) {
       heartbeatHelper.stop()
     }
-    socket.close()
+    socket.close("closed normally")
   }
 
   def sendMessage(opCode: String, requestMessageId: Option[Long], message: Option[ProtocolMessage]): Unit = {
     val envelope = MessageEnvelope(opCode, requestMessageId, message)
     socket.send(envelope.toJson())
+    logger.debug(envelope.toJson())
   }
 
   private[this] def onSocketMessage(json: String): Unit = {
     heartbeatHelper.messageReceived()
     // FIXME handle error
     val envelope = MessageEnvelope(json).get
+
+    logger.debug(envelope.toJson())
 
     envelope.opCode match {
       case OpCode.Normal => onNormalMessage(envelope.extractBody())
@@ -156,16 +151,19 @@ class ProtocolConnection(
   }
 
   private[this] def onSocketClosed(): Unit = {
+    logger.debug("Socket closed")
     heartbeatHelper.stop()
     eventHandler lift ConnectionClosed()
   }
 
   private[this] def onSocketDropped(): Unit = {
+    logger.debug("Socket dropped")
     heartbeatHelper.stop()
     eventHandler lift ConnectionDropped()
   }
 
   private[this] def onSocketError(message: String): Unit = {
+    logger.debug("Socket error")
     eventHandler lift ConnectionError(message)
   }
 
@@ -191,14 +189,9 @@ class ProtocolConnection(
 
     val p = Promise[OutgoingProtocolResponseMessage]
 
-    p.future.onComplete({
-      case Success(message) => {
-        sendMessage(OpCode.Reply, Some(envelope.reqId.get), Some(message))
-      }
-      case Failure(error) => // FIXME reply with error
-    })(ec)
-
-    eventHandler lift RequestReceived(protocolMessage.asInstanceOf[IncomingProtocolRequestMessage], p)
+    eventHandler lift RequestReceived(
+        protocolMessage.asInstanceOf[IncomingProtocolRequestMessage], 
+        new ReplyCallbackImpl(envelope.reqId.get))
   }
 
   private[this] def onReply(envelope: MessageEnvelope): Unit = {
@@ -206,16 +199,12 @@ class ProtocolConnection(
     val requestId = envelope.reqId.get
     val message = envelope.body
 
-    responseTimeoutTasks.synchronized({
-      responseTimeoutTasks.remove(requestId) match {
-        case Some(t) => t.cancel()
-        case _ => {}
-      }
-    })
-
-    requestPromises.synchronized({
-      val p = requestPromises.remove(requestId) match {
-        case Some(p) => p.success(envelope.extractBody())
+    requests.synchronized({
+      requests.remove(requestId) match {
+        case Some(record) => {
+          record.future.cancel()
+          record.promise.success(envelope.extractBody())
+        }
         case _ => {}
       }
     })
@@ -229,4 +218,28 @@ class ProtocolConnection(
   private[this] def invalidMessage(): Unit = {
 
   }
+
+  class ReplyCallbackImpl(reqId: Long) extends ReplyCallback {
+    val p = Promise[OutgoingProtocolResponseMessage]
+    def reply(message: OutgoingProtocolResponseMessage): Unit = {
+      sendMessage(OpCode.Reply, Some(reqId), Some(message))
+      p.success(message)
+    }
+    
+    def error(cause: Throwable): Unit = {
+      p.failure(cause)
+    }
+    
+    def result(): Future[OutgoingProtocolResponseMessage] = {
+      p.future
+    }
+  }
 }
+
+trait ReplyCallback {
+  def reply(message: OutgoingProtocolResponseMessage): Unit
+  def error(cause: Throwable): Unit
+  def result(): Future[OutgoingProtocolResponseMessage]
+}
+
+case class RequestRecord(id: Long, promise: Promise[ProtocolMessage], future: Cancellable, requestType: String)

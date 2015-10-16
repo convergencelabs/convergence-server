@@ -135,7 +135,8 @@ class DomainPersistenceManagerActor(domainConfigStore: DomainConfigurationStore)
 
   private[this] def createProvider(domainFqn: DomainFqn): Try[DomainPersistenceProvider] = Try({
     val config = domainConfigStore.getDomainConfig(domainFqn)
-    val DomainDatabaseConfig(uri, username, password) = config.dbConfig
+    // handle the option
+    val DomainDatabaseConfig(uri, username, password) = config.get.dbConfig
     val pool = new OPartitionedDatabasePool(uri, username, password)
     new DomainPersistenceProvider(pool)
   })

@@ -60,10 +60,12 @@ class ClientActor(
     extends Actor with ActorLogging {
 
   // FIXME hard-coded
-  implicit val timeout = Timeout(500 millis)
+  implicit val timeout = Timeout(1 seconds)
   implicit val ec = context.dispatcher
-  
-  val handshakeTimeoutTask = context.system.scheduler.scheduleOnce(1 seconds) {
+
+  // FIXME hardcoded
+  val handshakeTimeoutTask = context.system.scheduler.scheduleOnce(5 seconds) {
+    log.debug("Handshaked timeout")
     connection.abort("Handhsake timeout")
     context.stop(self)
   }
@@ -78,63 +80,63 @@ class ClientActor(
   def receive = receiveWhileHandshaking
 
   def receiveWhileHandshaking: Receive = {
-    case RequestReceived(message, replyPromise) if message.isInstanceOf[HandshakeRequestMessage] => {
-      handshake(message.asInstanceOf[HandshakeRequestMessage], replyPromise)
-    }
-    case _ => invalidMessage()
-  }
-  
-  def receiveWhileAuthenticating: Receive = {
-    case RequestReceived(message, replyPromise) if message.isInstanceOf[AuthenticationRequestMessage] => {
-      authenticate(message.asInstanceOf[AuthenticationRequestMessage], replyPromise)
+    case RequestReceived(message, replyCallback) if message.isInstanceOf[HandshakeRequestMessage] => {
+      handshake(message.asInstanceOf[HandshakeRequestMessage], replyCallback)
     }
     case _ => invalidMessage()
   }
 
-  def authenticate(requestMessage: AuthenticationRequestMessage, reply: Promise[OutgoingProtocolResponseMessage]): Unit = {
+  def receiveWhileAuthenticating: Receive = {
+    case RequestReceived(message, replyCallback) if message.isInstanceOf[AuthenticationRequestMessage] => {
+      authenticate(message.asInstanceOf[AuthenticationRequestMessage], replyCallback)
+    }
+    case _ => invalidMessage()
+  }
+
+  def authenticate(requestMessage: AuthenticationRequestMessage, cb: ReplyCallback): Unit = {
     val message = requestMessage match {
       case PasswordAuthenticationRequestMessage(username, password) => PasswordAuthRequest(username, password)
       case TokenAuthenticationRequestMessage(token) => TokenAuthRequest(token)
     }
-    
+
     val future = domainManager ? message
-    
-    future.mapReponse[AuthenticationResponse] onComplete {
+
+    future.mapResponse[AuthenticationResponse] onComplete {
       case Success(AuthenticationSuccess(username)) => {
-        reply.success(AuthenticationSuccessResponseMessage(username))
+        cb.reply(AuthenticationSuccessResponseMessage(username))
         context.become(receiveWhileHandshook)
       }
       case Success(AuthenticationFailure) => {
-        reply.success(AuthenticationFailureResponseMessage())
+        cb.reply(AuthenticationFailureResponseMessage())
       }
       case Failure(cause) => {
-        reply.success(AuthenticationFailureResponseMessage())
+        cb.reply(AuthenticationFailureResponseMessage())
       }
     }
   }
-  
-  def handshake(request: HandshakeRequestMessage, reply: Promise[OutgoingProtocolResponseMessage]): Unit = {
+
+  def handshake(request: HandshakeRequestMessage, cb: ReplyCallback): Unit = {
     var canceled = handshakeTimeoutTask.cancel()
     if (!canceled) {
       return
     }
-    
+
     val future = domainManager ? HandshakeRequest(domainFqn, self, request.reconnect, request.reconnectToken)
-    future.mapReponse[HandshakeResponse] onComplete {
+    future.mapResponse[HandshakeResponse] onComplete {
       case Success(HandshakeSuccess(sessionId, reconnectToken, domainActor, modelManagerActor)) => {
         this.domainActor = domainActor
         this.modelClient = context.actorOf(ModelClientActor.props(modelManagerActor))
-        reply.success(HandshakeResponseMessage(true, None, Some(sessionId), Some(reconnectToken)))
+        cb.reply(HandshakeResponseMessage(true, None, Some(sessionId), Some(reconnectToken)))
         context.become(receiveWhileHandshook)
       }
       case Success(HandshakeFailure(code, details)) => {
-        reply.success(HandshakeResponseMessage(false, Some(ErrorData(code, details)), None, None))
-        connection.abort("handshake timeout")
+        cb.reply(HandshakeResponseMessage(false, Some(ErrorData(code, details)), None, None))
+        connection.abort("handshake failure")
         context.stop(self)
       }
       case Failure(cause) => {
-        reply.success(HandshakeResponseMessage(false, Some(ErrorData("unknown", "uknown error")), None, None))
-        connection.abort("handshake timeout")
+        cb.reply(HandshakeResponseMessage(false, Some(ErrorData("unknown", "uknown error")), None, None))
+        connection.abort("handshake failure")
         context.stop(self)
       }
     }
@@ -200,7 +202,7 @@ class ClientActor(
     connection.abort("Invalid message")
     context.stop(self)
   }
-  
+
   override def postStop(): Unit = {
     if (!handshakeTimeoutTask.isCancelled) {
       handshakeTimeoutTask.cancel()

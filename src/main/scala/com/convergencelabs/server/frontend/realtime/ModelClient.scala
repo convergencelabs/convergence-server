@@ -96,7 +96,7 @@ class ModelClientActor(
     val ClientModelDataRequest(modelFqn: ModelFqn) = dataRequest
     val askingActor = sender()
     val future = context.parent ? ModelDataRequestMessage(modelFqn)
-    future.mapReponse[ModelDataResponseMessage] onComplete {
+    future.mapResponse[ModelDataResponseMessage] onComplete {
       case Success(ModelDataResponseMessage(data)) => {
         askingActor ! ClientModelDataResponse(data)
       }
@@ -108,10 +108,10 @@ class ModelClientActor(
   // Incoming Messages
   //
 
-  def onRequestReceived(message: IncomingModelRequestMessage, replyPromise: Promise[OutgoingProtocolResponseMessage]): Unit = {
+  def onRequestReceived(message: IncomingModelRequestMessage, replyCallback: ReplyCallback): Unit = {
     message match {
-      case request: OpenRealtimeModelRequestMessage => onOpenRealtimeModelRequest(request, replyPromise)
-      case request: CloseRealtimeModelRequestMessage => onCloseRealtimeModelRequest(request, replyPromise)
+      case request: OpenRealtimeModelRequestMessage => onOpenRealtimeModelRequest(request, replyCallback)
+      case request: CloseRealtimeModelRequestMessage => onCloseRealtimeModelRequest(request, replyCallback)
     }
   }
 
@@ -128,31 +128,31 @@ class ModelClientActor(
     modelActor ! submission
   }
 
-  def onCloseRealtimeModelRequest(request: CloseRealtimeModelRequestMessage, reply: Promise[OutgoingProtocolResponseMessage]): Unit = {
+  def onCloseRealtimeModelRequest(request: CloseRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
     openRealtimeModels.get(request.rId) match {
       case Some(modelActor) => {
         val future = modelActor ? CloseRealtimeModelRequest(request.cId)
-        future.mapReponse[CloseRealtimeModelSuccess] onComplete {
+        future.mapResponse[CloseRealtimeModelSuccess] onComplete {
           case Success(CloseRealtimeModelSuccess()) => {
             openRealtimeModels -= request.rId
-            reply.success(CloseRealtimeModelResponseMessage())
+            cb.reply(CloseRealtimeModelResponseMessage())
           }
-          case Failure(cause) => reply.failure(cause)
+          case Failure(cause) => cb.error(cause)
         }
       }
-      case None => reply.failure(new ErrorException("model_not_opened", "The requested model was not opened"))
+      case None => cb.error(new ErrorException("model_not_opened", "The requested model was not opened"))
     }
   }
 
-  def onOpenRealtimeModelRequest(request: OpenRealtimeModelRequestMessage, reply: Promise[OutgoingProtocolResponseMessage]): Unit = {
+  def onOpenRealtimeModelRequest(request: OpenRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
     val future = modelManager ? OpenRealtimeModelRequest(request.modelFqn, self)
-    future.mapReponse[OpenModelResponse] onComplete {
+    future.mapResponse[OpenModelResponse] onComplete {
       case Success(OpenModelResponse(realtimeModelActor, modelResourceId, modelSessionId, metaData, modelData)) => {
         openRealtimeModels += (modelResourceId -> realtimeModelActor)
-        reply.success(
+        cb.reply(
           OpenRealtimeModelResponseMessage(modelResourceId, modelSessionId, metaData, modelData))
       }
-      case Failure(cause) => reply.failure(cause)
+      case Failure(cause) => cb.error(cause)
     }
   }
 }
