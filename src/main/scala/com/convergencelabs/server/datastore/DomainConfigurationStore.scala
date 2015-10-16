@@ -9,6 +9,7 @@ import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.sql.OCommandSQL
+import com.orientechnologies.orient.core.db.record.OTrackedMap
 
 object DomainConfigurationStore {
   val Domain = "Domain"
@@ -67,8 +68,8 @@ object DomainConfigurationStore {
 
   def documentToDomainConfig(doc: ODocument): DomainConfig = {
     val domainFqn = DomainFqn(doc.field(Namespace), doc.field(DomainId))
-    val keyPairDoc: ODocument = doc.field(AdminKeyPair)
-    val keyPair = TokenKeyPair(keyPairDoc.field(PrivateKey), keyPairDoc.field(PublicKey))
+    val keyPairDoc: OTrackedMap[String] = doc.field(AdminKeyPair)
+    val keyPair = TokenKeyPair(keyPairDoc.get(PrivateKey), keyPairDoc.get(PublicKey))
     val domainConfig = DomainConfig(doc.field(Id), domainFqn, doc.field(DisplayName), doc.field(DBUsername), doc.field(DBPassword), documentToKeys(doc.field(Keys)), keyPair)
     domainConfig
   }
@@ -109,7 +110,7 @@ class DomainConfigurationStore(dbPool: OPartitionedDatabasePool) {
     db.close()
     result.asScala.toList match {
       case doc :: rest => Some(DomainConfigurationStore.documentToDomainConfig(doc))
-      case Nil         => None
+      case Nil => None
     }
   }
 
@@ -121,7 +122,7 @@ class DomainConfigurationStore(dbPool: OPartitionedDatabasePool) {
     db.close()
     result.asScala.toList match {
       case doc :: rest => Some(DomainConfigurationStore.documentToDomainConfig(doc))
-      case Nil         => None
+      case Nil => None
     }
   }
 
@@ -167,7 +168,7 @@ class DomainConfigurationStore(dbPool: OPartitionedDatabasePool) {
     db.close()
     result.asScala.toList match {
       case doc :: rest if (doc.containsField("id")) => Some(DomainConfigurationStore.documentToTokenPublicKey(doc.field("keys")))
-      case _                                        => None
+      case _ => None
     }
   }
 
@@ -179,7 +180,7 @@ class DomainConfigurationStore(dbPool: OPartitionedDatabasePool) {
     db.close()
     result.asScala.toList match {
       case doc :: rest => Some(DomainConfigurationStore.documentToKeys(doc.field(DomainConfigurationStore.Keys)))
-      case Nil           => None
+      case Nil => None
     }
   }
 

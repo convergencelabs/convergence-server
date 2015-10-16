@@ -8,6 +8,9 @@ import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.convergencelabs.server.domain.DomainFqn
 
 class DomainConfigurationStoreSpec extends WordSpec {
+  val defaultCommandListener = new OCommandOutputListener() {
+    def onMessage(iText: String) = {}
+  }
 
   "An DomainConfigurationStore" when {
     "asked whether a domain exists" must {
@@ -15,13 +18,8 @@ class DomainConfigurationStoreSpec extends WordSpec {
         val db = new ODatabaseDocumentTx("memory:dcs1")
         db.activateOnCurrentThread()
         db.create()
-        val listener = new OCommandOutputListener() {
-          def onMessage(iText: String) = {
-            println(iText)
-          }
-        }
         val file = getClass.getResource("/dbfiles/convergence.gz").getFile();
-        val dbImport = new ODatabaseImport(db, file, listener)
+        val dbImport = new ODatabaseImport(db, file, defaultCommandListener)
         dbImport.importDatabase()
         dbImport.close()
 
@@ -34,13 +32,8 @@ class DomainConfigurationStoreSpec extends WordSpec {
         val db = new ODatabaseDocumentTx("memory:dcs2")
         db.activateOnCurrentThread()
         db.create()
-        val listener = new OCommandOutputListener() {
-          def onMessage(iText: String) = {
-            println(iText)
-          }
-        }
         val file = getClass.getResource("/dbfiles/convergence.gz").getFile();
-        val dbImport = new ODatabaseImport(db, file, listener)
+        val dbImport = new ODatabaseImport(db, file, defaultCommandListener)
         dbImport.importDatabase()
         dbImport.close()
 
@@ -48,7 +41,6 @@ class DomainConfigurationStoreSpec extends WordSpec {
         val domainConfigurationStore = new DomainConfigurationStore(dbPool)
         assert(domainConfigurationStore.domainExists(DomainFqn("test", "test1")))
       }
-
     }
   }
 }

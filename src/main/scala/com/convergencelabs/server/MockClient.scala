@@ -15,7 +15,7 @@ import grizzled.slf4j.Logging
 
 object MockClientTest extends Logging {
   def main(args: Array[String]): Unit = {
-    var client = new MockConvergenceClient("ws://localhost:8080/domain/foo/bar")
+    var client = new MockConvergenceClient("ws://localhost:8080/domain/test/test1")
     client.connect()
     
     client.sendRequest(HandshakeRequestMessage(false, None, None))

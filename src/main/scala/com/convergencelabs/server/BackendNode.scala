@@ -1,0 +1,37 @@
+package com.convergencelabs.server
+
+import akka.actor.ActorSystem
+import com.convergencelabs.server.datastore.PersistenceProvider
+import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
+import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
+import com.convergencelabs.server.domain.DomainManagerActor
+
+class BackendNode(system: ActorSystem) {
+
+  def start(): Unit = {
+    // FIXME Need Pool
+    val dbConfig = system.settings.config.getConfig("convergence.database")
+
+    val baseUri = dbConfig.getString("uri")
+    val fullUri = baseUri + "/" + dbConfig.getString("database")
+    val username = dbConfig.getString("username")
+    val password = dbConfig.getString("password")
+
+    val dbPool = new OPartitionedDatabasePool(fullUri, password, password)
+
+    val persistenceProvider = new PersistenceProvider(dbPool)
+
+    // FIXME do we get this from the config.  If so do we need to pass it?
+    val protocolConfig = ProtocolConfiguration(5L)
+
+    val dbPoolManager = system.actorOf(
+      DomainPersistenceManagerActor.props(
+        baseUri,
+        persistenceProvider.domainConfigStore),
+      "DatabasePoolManager")
+
+    system.actorOf(DomainManagerActor.props(
+      persistenceProvider, protocolConfig), "domainManager")
+  }
+
+}

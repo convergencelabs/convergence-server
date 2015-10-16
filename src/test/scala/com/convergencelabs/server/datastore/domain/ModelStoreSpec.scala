@@ -14,19 +14,18 @@ class ModelStoreSpec extends WordSpec with BeforeAndAfterAll {
 
   }
 
+  val defaultCommandListener = new OCommandOutputListener() {
+    def onMessage(iText: String) = {}
+  }
+
   "An OrientDBModelStore" when {
     "asked whether a model exists" must {
       "return false if it doesn't exist" in {
         val db = new ODatabaseDocumentTx("memory:test1")
         db.activateOnCurrentThread()
         db.create()
-        val listener = new OCommandOutputListener() {
-          def onMessage(iText: String) = {
-            println(iText)
-          }
-        }
         val file = getClass.getResource("/dbfiles/domain-test-db.gz").getFile();
-        val dbImport = new ODatabaseImport(db, file, listener)
+        val dbImport = new ODatabaseImport(db, file, defaultCommandListener)
         dbImport.importDatabase()
         dbImport.close()
 
@@ -39,13 +38,8 @@ class ModelStoreSpec extends WordSpec with BeforeAndAfterAll {
         val db = new ODatabaseDocumentTx("memory:test2")
         db.activateOnCurrentThread()
         db.create()
-        val listener = new OCommandOutputListener() {
-          def onMessage(iText: String) = {
-            println(iText)
-          }
-        }
         val file = getClass.getResource("/dbfiles/domain-test-db.gz").getFile();
-        val dbImport = new ODatabaseImport(db, file, listener)
+        val dbImport = new ODatabaseImport(db, file, defaultCommandListener)
         dbImport.importDatabase()
         dbImport.close()
 
@@ -57,4 +51,3 @@ class ModelStoreSpec extends WordSpec with BeforeAndAfterAll {
     }
   }
 }
-
