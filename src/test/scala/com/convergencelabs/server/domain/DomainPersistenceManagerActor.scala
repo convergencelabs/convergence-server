@@ -23,7 +23,6 @@ import com.convergencelabs.server.datastore.DomainConfigurationStore
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.typesafe.config.ConfigFactory
 import com.typesafe.config.ConfigParseOptions
-import com.convergencelabs.server.datastore.DomainDatabaseConfig
 import com.convergencelabs.server.util.MockDomainPersistenceManagerActor
 
 @RunWith(classOf[JUnitRunner])
@@ -65,12 +64,13 @@ class DomainManagerActorSpec()
       "d1",
       domainFqn,
       "Default",
-      DomainDatabaseConfig("", "", ""),
+      "",
+      "",
       keys,
       adminKeyPair)
 
     val configStore = mock[DomainConfigurationStore]
-    Mockito.when(configStore.getDomainConfig(domainFqn)).thenReturn(domainConfig)
+    Mockito.when(configStore.getDomainConfig(domainFqn)).thenReturn(Some(domainConfig))
     Mockito.when(configStore.domainExists(domainFqn)).thenReturn(true)
     Mockito.when(configStore.domainExists(nonExistingDomain)).thenReturn(false)
 

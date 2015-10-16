@@ -5,12 +5,12 @@ import com.convergencelabs.server.domain.DomainFqn
 case class TokenPublicKey(id: String, name: String, description: String, keyDate: Long, key: String, enabled: Boolean)
 case class TokenKeyPair(publicKey: String, privateKey: String)
 
-case class DomainDatabaseConfig(uri: String, username: String, password: String)
 
 case class DomainConfig(
-  systemId: String,
+  id: String,
   domainFqn: DomainFqn,
   displayName: String,
-  dbConfig: DomainDatabaseConfig,
+  dbUsername: String, 
+  dbPassword: String,
   keys: Map[String, TokenPublicKey],
   adminKeyPair: TokenKeyPair)
