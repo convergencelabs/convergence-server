@@ -183,5 +183,6 @@ class DomainConfigurationStore(dbPool: OPartitionedDatabasePool) {
     }
   }
 
-  def addDomainKey(fqn: DomainFqn, key: TokenPublicKey): Boolean = ???
+  //TODO: Add validation for if key exists
+  def addDomainKey(fqn: DomainFqn, key: TokenPublicKey): Unit = ???
 }
