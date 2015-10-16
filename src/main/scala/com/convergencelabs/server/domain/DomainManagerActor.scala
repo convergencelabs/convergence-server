@@ -34,7 +34,7 @@ class DomainManagerActor(
 
   private[this] val cluster = Cluster(context.system)
   private[this] implicit val ec = context.dispatcher
-  
+
   private[this] val domainConfigStore = convergencePersistence.domainConfigStore
 
   // FIXME pull from config
@@ -48,10 +48,10 @@ class DomainManagerActor(
   log.debug("DomainManager started.")
 
   def receive = {
-    case handshake: HandshakeRequest => onHandshakeRequest(handshake)
-    case shutdownRequest: DomainShutdownRequest => onDomainShutdownRequest(shutdownRequest)
+    case handshake: HandshakeRequest              => onHandshakeRequest(handshake)
+    case shutdownRequest: DomainShutdownRequest   => onDomainShutdownRequest(shutdownRequest)
     case shutdownApproval: DomainShutdownApproval => onDomainShutdownApproval(shutdownApproval)
-    case message => unhandled(message)
+    case message                                  => unhandled(message)
   }
 
   private[this] def onHandshakeRequest(request: HandshakeRequest): Unit = {
@@ -91,16 +91,19 @@ class DomainManagerActor(
 
   private[this] def openClosedDomain(domainFqn: DomainFqn): Unit = {
     val domainConfig = convergencePersistence.domainConfigStore.getDomainConfig(domainFqn)
+    domainConfig match {
+      case Some(domainConfig) => {
+        val domainActor = context.actorOf(DomainActor.props(
+          self,
+          domainConfig,
+          protocolConfig,
+          domainShutdownDelay))
 
-    // FIXME handle the option.
-    val domainActor = context.actorOf(DomainActor.props(
-      self,
-      domainConfig.get,
-      protocolConfig,
-      domainShutdownDelay))
-
-    actorsToDomainFqn(domainActor) = domainFqn
-    domainFqnToActor(domainFqn) = domainActor
+        actorsToDomainFqn(domainActor) = domainFqn
+        domainFqnToActor(domainFqn) = domainActor
+      }
+      case None => ??? // FIXME need to respond with a failure.
+    }
   }
 
   private[this] def onDomainShutdownRequest(request: DomainShutdownRequest): Unit = {

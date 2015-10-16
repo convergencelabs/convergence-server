@@ -65,10 +65,13 @@ class ConnectionManagerActor(
       context.system.scheduler,
       context.dispatcher)
 
+    // FIXME hardcoded timeout
+    
     val clientActor = context.system.actorOf(ClientActor.props(
       domainManagerActor,
       connection,
-      newSocketEvent.domainFqn))
+      newSocketEvent.domainFqn,
+      FiniteDuration(5, TimeUnit.SECONDS)))
   }
 
   override def preStart(): Unit = {

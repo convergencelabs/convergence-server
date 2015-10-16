@@ -24,7 +24,7 @@ class ConfigurationStore(dbPool: OPartitionedDatabasePool) {
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM configuration WHERE configKey = :configKey")
     val params: java.util.Map[String, String] = HashMap("configKey" -> configKey)
     val result: java.util.List[ODocument] = db.command(query).execute(params)
-    
+    db.close()
     result.asScala.toList match {
       case doc :: rest => {
         val configMap: Map[String, Object] = doc.field("config")

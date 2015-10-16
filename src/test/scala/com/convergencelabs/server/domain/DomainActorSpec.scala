@@ -19,7 +19,6 @@ import com.convergencelabs.server.datastore.DomainConfig
 import com.convergencelabs.server.datastore.TokenKeyPair
 import com.convergencelabs.server.datastore.TokenPublicKey
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.server.datastore.DomainDatabaseConfig
 import com.convergencelabs.server.util.MockDomainPersistenceManagerActor
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 
@@ -67,7 +66,8 @@ class DomainActorSpec
       "d1",
       domainFqn,
       "Default",
-      DomainDatabaseConfig("", "", ""),
+      "",
+      "",
       keys,
       adminKeyPair)
 

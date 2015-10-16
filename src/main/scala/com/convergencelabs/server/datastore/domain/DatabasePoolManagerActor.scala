@@ -13,7 +13,6 @@ import scala.util.Success
 import scala.util.Failure
 import akka.actor.actorRef2Scala
 import com.convergencelabs.server.datastore.DomainConfigurationStore
-import com.convergencelabs.server.datastore.DomainDatabaseConfig
 import akka.actor.ActorPath
 import akka.util.Timeout
 import java.util.concurrent.TimeUnit
@@ -24,28 +23,28 @@ import akka.actor.ActorContext
 
 object DomainPersistenceManagerActor {
   val RelativePath = "DomainPersistenceManagerActor"
-  
+
   def props(
     domainConfigStore: DomainConfigurationStore): Props = Props(
     new DomainPersistenceManagerActor(domainConfigStore))
-    
+
   def getLocalInstancePath(requestor: ActorPath): ActorPath = {
     requestor.root / "user" / RelativePath
   }
-  
+
   def getPersistenceProvider(requestor: ActorRef, context: ActorContext, domainFqn: DomainFqn): DomainPersistenceProvider = {
-      val path = DomainPersistenceManagerActor.getLocalInstancePath(requestor.path)
-      val selection = context.actorSelection(path)
+    val path = DomainPersistenceManagerActor.getLocalInstancePath(requestor.path)
+    val selection = context.actorSelection(path)
 
-      val message = AcquireDomainPersistence(domainFqn)
-      val timeout = Timeout(2, TimeUnit.SECONDS)
-      val f = Patterns.ask(selection, message, timeout).mapTo[DomainPersistenceResponse]
-      val result = Await.result(f, FiniteDuration(2, TimeUnit.SECONDS))
+    val message = AcquireDomainPersistence(domainFqn)
+    val timeout = Timeout(2, TimeUnit.SECONDS)
+    val f = Patterns.ask(selection, message, timeout).mapTo[DomainPersistenceResponse]
+    val result = Await.result(f, FiniteDuration(2, TimeUnit.SECONDS))
 
-      result match {
-        case PersistenceProviderReference(persistenceProvider) => persistenceProvider
-        case PersistenceProviderUnavailable => throw new RuntimeException()
-      }
+    result match {
+      case PersistenceProviderReference(persistenceProvider) => persistenceProvider
+      case PersistenceProviderUnavailable                    => throw new RuntimeException()
+    }
   }
 }
 
@@ -58,13 +57,13 @@ class DomainPersistenceManagerActor(domainConfigStore: DomainConfigurationStore)
   def receive = {
     case AcquireDomainPersistence(domainFqn) => onAcquire(domainFqn)
     case ReleaseDomainPersistence(domainFqn) => onRelease(domainFqn)
-    case Terminated(actor) => onActorDeath(actor)
+    case Terminated(actor)                   => onActorDeath(actor)
   }
 
   private[this] def onAcquire(domainFqn: DomainFqn): Unit = {
     val p = providers.get(domainFqn) match {
       case Some(provider) => Success(provider)
-      case None => createProvider(domainFqn)
+      case None           => createProvider(domainFqn)
     }
 
     p match {
@@ -135,10 +134,12 @@ class DomainPersistenceManagerActor(domainConfigStore: DomainConfigurationStore)
 
   private[this] def createProvider(domainFqn: DomainFqn): Try[DomainPersistenceProvider] = Try({
     val config = domainConfigStore.getDomainConfig(domainFqn)
-    // handle the option
-    val DomainDatabaseConfig(uri, username, password) = config.get.dbConfig
-    val pool = new OPartitionedDatabasePool(uri, username, password)
-    new DomainPersistenceProvider(pool)
+    config match {
+      //TODO:  Need Uri
+      case Some(domainConfig) => 
+        new DomainPersistenceProvider(new OPartitionedDatabasePool("uri", domainConfig.dbUsername, domainConfig.dbPassword))
+      case None => ??? // FIXME actually throw an exception here. 
+    }
   })
 
   private[this] def shutdownPool(domainFqn: DomainFqn): Unit = {

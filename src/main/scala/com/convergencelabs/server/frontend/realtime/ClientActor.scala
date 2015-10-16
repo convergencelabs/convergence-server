@@ -49,14 +49,16 @@ object ClientActor {
   def props(
     domainManager: ActorRef,
     connection: ProtocolConnection,
-    domainFqn: DomainFqn): Props = Props(
-    new ClientActor(domainManager, connection, domainFqn))
+    domainFqn: DomainFqn,
+    handshakeTimeout: FiniteDuration): Props = Props(
+    new ClientActor(domainManager, connection, domainFqn, handshakeTimeout))
 }
 
 class ClientActor(
   private[this] val domainManager: ActorRef,
   private[this] val connection: ProtocolConnection,
-  private[this] val domainFqn: DomainFqn)
+  private[this] val domainFqn: DomainFqn,
+  private[this] val handshakeTimeout: FiniteDuration)
     extends Actor with ActorLogging {
 
   // FIXME hard-coded
@@ -64,7 +66,7 @@ class ClientActor(
   implicit val ec = context.dispatcher
 
   // FIXME hardcoded
-  val handshakeTimeoutTask = context.system.scheduler.scheduleOnce(5 seconds) {
+  val handshakeTimeoutTask = context.system.scheduler.scheduleOnce(handshakeTimeout) {
     log.debug("Handshaked timeout")
     connection.abort("Handhsake timeout")
     context.stop(self)

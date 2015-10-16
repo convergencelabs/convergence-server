@@ -96,7 +96,7 @@ class ClientActorSpec(system: ActorSystem)
         Mockito.verify(connection, times(1)).abort(Matchers.any())
       }
 
-      "send a handshake failure after a timeout" in new TestFixture(system) {
+      "send a handshake failure after a timeout from the domain" in new TestFixture(system) {
         val probeWatcher = new TestProbe(system)
         probeWatcher watch clientActor
 
@@ -105,7 +105,7 @@ class ClientActorSpec(system: ActorSystem)
         val event = RequestReceived(handshakeRequestMessage, cb)
         clientActor.tell(event, ActorRef.noSender)
 
-        probeWatcher.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Terminated])
+        probeWatcher.expectMsgClass(FiniteDuration(1250, TimeUnit.MILLISECONDS), classOf[Terminated])
         val HandshakeResponseMessage(success, error, sessionId, token) = Await.result(cb.result, 50 millis)
         
         assert(!success)
@@ -113,10 +113,10 @@ class ClientActorSpec(system: ActorSystem)
         Mockito.verify(connection, times(1)).abort(Matchers.any())
       }
       
-      "shut down if no handshake is recieved" in new TestFixture(system) {
+      "shut down if no handshake is recieved from the client" in new TestFixture(system) {
         val probeWatcher = new TestProbe(system)
         probeWatcher watch clientActor
-        probeWatcher.expectMsgClass(FiniteDuration(2, TimeUnit.SECONDS), classOf[Terminated])
+        probeWatcher.expectMsgClass(FiniteDuration(500, TimeUnit.MILLISECONDS), classOf[Terminated])
         Mockito.verify(connection, times(1)).abort(Matchers.any())
       }
     }
@@ -167,7 +167,8 @@ class ClientActorSpec(system: ActorSystem)
     val props = ClientActor.props(
       domainManagerActor.ref,
       connection,
-      domainFqn)
+      domainFqn,
+      new FiniteDuration(250, TimeUnit.MILLISECONDS))
 
     val clientActor = system.actorOf(props)
   }
