@@ -9,6 +9,7 @@ import com.orientechnologies.orient.core.db.tool.ODatabaseImport
 import com.orientechnologies.common.log.OLogManager
 import com.convergencelabs.server.domain.DomainFqn
 import scala.util.Try
+import com.convergencelabs.server.domain.DomainFqn
 
 class DomainConfigurationStoreSpec extends WordSpec {
 
@@ -120,7 +121,7 @@ class DomainConfigurationStoreSpec extends WordSpec {
       }
     }
 
-    "get domains by namespace" must {
+    "getting domains by namespace" must {
       "return all domains for a namespace" in {
         val db = initDB("memory:dcs9")
         val dbPool = new OPartitionedDatabasePool("memory:dcs9", "admin", "admin")
@@ -148,6 +149,57 @@ class DomainConfigurationStoreSpec extends WordSpec {
         val domainConfigurationStore = new DomainConfigurationStore(dbPool)
         val removeTry = Try(domainConfigurationStore.removeDomainConfig("doesn't exist"))
         assert(removeTry.isSuccess)
+        db.activateOnCurrentThread()
+        db.close()
+      }
+    }
+
+    "retrieving a domain key by domainFqn and keyId" must {
+
+      "return None if the domain doesn't exist" in {
+        val db = initDB("memory:dcs12")
+        val dbPool = new OPartitionedDatabasePool("memory:dcs12", "admin", "admin")
+        val domainConfigurationStore = new DomainConfigurationStore(dbPool)
+        assert(domainConfigurationStore.getDomainKey(DomainFqn("doesn't exist", "doesn't exist"), "doesn't exit").isEmpty)
+        db.activateOnCurrentThread()
+        db.close()
+      }
+
+      "return None if the key doesn't exist" in {
+        val db = initDB("memory:dcs13")
+        val dbPool = new OPartitionedDatabasePool("memory:dcs13", "admin", "admin")
+        val domainConfigurationStore = new DomainConfigurationStore(dbPool)
+        assert(domainConfigurationStore.getDomainKey(DomainFqn("test", "test1"), "doesn't exit").isEmpty)
+        db.activateOnCurrentThread()
+        db.close()
+      }
+
+      "return Some if the key exist" in {
+        val db = initDB("memory:dcs14")
+        val dbPool = new OPartitionedDatabasePool("memory:dcs14", "admin", "admin")
+        val domainConfigurationStore = new DomainConfigurationStore(dbPool)
+        assert(!domainConfigurationStore.getDomainKey(DomainFqn("test", "test1"), "test").isEmpty)
+        db.activateOnCurrentThread()
+        db.close()
+      }
+    }
+    
+    "retrieving domain keys by domainFqn" must {
+
+      "return None if the domain doesn't exist" in {
+        val db = initDB("memory:dcs15")
+        val dbPool = new OPartitionedDatabasePool("memory:dcs15", "admin", "admin")
+        val domainConfigurationStore = new DomainConfigurationStore(dbPool)
+        assert(domainConfigurationStore.getDomainKeys(DomainFqn("doesn't exist", "doesn't exist")).isEmpty)
+        db.activateOnCurrentThread()
+        db.close()
+      }
+
+      "return a list of keys if the domain exists" in {
+        val db = initDB("memory:dcs16")
+        val dbPool = new OPartitionedDatabasePool("memory:dcs16", "admin", "admin")
+        val domainConfigurationStore = new DomainConfigurationStore(dbPool)
+        assert(!domainConfigurationStore.getDomainKeys(DomainFqn("test", "test1")).isEmpty)
         db.activateOnCurrentThread()
         db.close()
       }

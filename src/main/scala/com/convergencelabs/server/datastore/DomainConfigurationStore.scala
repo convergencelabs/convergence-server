@@ -14,6 +14,7 @@ import com.orientechnologies.orient.core.db.record.OTrackedSet
 import java.util.Formatter.DateTime
 import scala.collection.mutable.MutableList
 import com.orientechnologies.orient.core.db.record.OTrackedList
+import java.util.HashSet
 
 object DomainConfigurationStore {
   val Domain = "Domain"
@@ -167,7 +168,8 @@ class DomainConfigurationStore(dbPool: OPartitionedDatabasePool) {
     val result: java.util.List[ODocument] = db.command(query).execute(params)
     db.close()
     result.asScala.toList match {
-      case doc :: rest if (doc.containsField("id")) => Some(DomainConfigurationStore.documentToTokenPublicKey(doc.field("keys")))
+      case doc :: rest if (doc.field("keys").isInstanceOf[OTrackedMap[Any]]) => 
+        Some(DomainConfigurationStore.documentToTokenPublicKey(doc.field("keys")))
       case _                                        => None
     }
   }
@@ -179,7 +181,7 @@ class DomainConfigurationStore(dbPool: OPartitionedDatabasePool) {
     val result: java.util.List[ODocument] = db.command(query).execute(params)
     db.close()
     result.asScala.toList match {
-      case doc :: rest => Some(DomainConfigurationStore.documentToKeys(doc.field(DomainConfigurationStore.Keys)))
+      case doc :: rest => Some(DomainConfigurationStore.documentToKeys(doc.field(DomainConfigurationStore.Keys, OType.EMBEDDEDLIST)))
       case Nil           => None
     }
   }
