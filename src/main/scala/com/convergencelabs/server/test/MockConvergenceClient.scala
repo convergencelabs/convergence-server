@@ -1,8 +1,7 @@
-package com.convergencelabs.server
+package com.convergencelabs.server.test
 
 import java.net.URI
 import org.java_websocket.client.WebSocketClient
-import org.java_websocket.drafts.Draft
 import org.java_websocket.handshake.ServerHandshake
 import org.java_websocket.drafts.Draft_76
 import java.util.concurrent.LinkedBlockingDeque
@@ -10,9 +9,7 @@ import com.convergencelabs.server.frontend.realtime.proto.MessageEnvelope
 import scala.util.Failure
 import scala.util.Success
 import scala.concurrent.duration._
-import scala.language.postfixOps
 import com.convergencelabs.server.frontend.realtime.proto.ProtocolMessage
-import com.convergencelabs.server.frontend.realtime.PingRequest
 import com.convergencelabs.server.frontend.realtime.proto.OpCode
 import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolNormalMessage
 import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolRequestMessage

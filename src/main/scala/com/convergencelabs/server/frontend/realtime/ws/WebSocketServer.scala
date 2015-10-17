@@ -43,7 +43,7 @@ private[realtime] class WebSocketServer(
   private[this] val workerGroup = new NioEventLoopGroup(0, new NamedThreadFactory("WebSocket"));
 
   def start() {
-    info(s"Web Socket server starting up on port: $port")
+    debug(s"Web Socket server starting up on port: $port")
 
     val b = new ServerBootstrap();
     b.group(bossGroup, workerGroup)
@@ -53,7 +53,7 @@ private[realtime] class WebSocketServer(
 
     val ch = b.bind(port).sync().channel()
 
-    info("Web Socket server started")
+    debug("Web Socket server started")
   }
 
   def stop() {

@@ -5,10 +5,12 @@ import com.convergencelabs.server.datastore.PersistenceProvider
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 import com.convergencelabs.server.domain.DomainManagerActor
+import grizzled.slf4j.Logging
 
-class BackendNode(system: ActorSystem) {
+class BackendNode(system: ActorSystem) extends Logging {
 
   def start(): Unit = {
+    logger.info("Backend Node starting up.")
     // FIXME Need Pool
     val dbConfig = system.settings.config.getConfig("convergence.database")
 
@@ -32,6 +34,8 @@ class BackendNode(system: ActorSystem) {
 
     system.actorOf(DomainManagerActor.props(
       persistenceProvider, protocolConfig), "domainManager")
+
+    logger.info("Backend Node started up.")
   }
 
 }

@@ -5,13 +5,14 @@ import com.convergencelabs.server.domain.DomainFqn
 import akka.actor.ActorSystem
 import akka.actor.ActorRef
 import com.convergencelabs.server.ProtocolConfiguration
+import grizzled.slf4j.Logging
 
 object ConvergenceRealtimeFrontend extends App {
 }
 
 class ConvergenceRealtimeFrontend(
     private[this] val system: ActorSystem,
-    private[this] val websocketPort: Int) {
+    private[this] val websocketPort: Int) extends Logging {
   
   // FIXME this object is nonsensical.  It's all over the place.  I don't know 
   // if this is the right place for this.
@@ -29,7 +30,9 @@ class ConvergenceRealtimeFrontend(
   private[this] val server = new WebSocketServer(websocketPort, 65535, connectionHandler)
   
   def start(): Unit = {
+    logger.info(s"Realtime Front End starting up on port $websocketPort.")
     server.start()
+    logger.info(s"Realtime Front End started up on port $websocketPort.")
   }
   
   def stop(): Unit = {
