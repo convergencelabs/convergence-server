@@ -25,8 +25,9 @@ object DomainPersistenceManagerActor {
   val RelativePath = "DomainPersistenceManagerActor"
 
   def props(
+      baseDbUri: String,
     domainConfigStore: DomainConfigurationStore): Props = Props(
-    new DomainPersistenceManagerActor(domainConfigStore))
+    new DomainPersistenceManagerActor(baseDbUri, domainConfigStore))
 
   def getLocalInstancePath(requestor: ActorPath): ActorPath = {
     requestor.root / "user" / RelativePath
@@ -48,7 +49,9 @@ object DomainPersistenceManagerActor {
   }
 }
 
-class DomainPersistenceManagerActor(domainConfigStore: DomainConfigurationStore) extends Actor with ActorLogging {
+class DomainPersistenceManagerActor(
+    baseDbUri: String,
+    domainConfigStore: DomainConfigurationStore) extends Actor with ActorLogging {
 
   private[this] var refernceCounts = Map[DomainFqn, Int]()
   private[this] var providers = Map[DomainFqn, DomainPersistenceProvider]()
@@ -135,9 +138,8 @@ class DomainPersistenceManagerActor(domainConfigStore: DomainConfigurationStore)
   private[this] def createProvider(domainFqn: DomainFqn): Try[DomainPersistenceProvider] = Try({
     val config = domainConfigStore.getDomainConfig(domainFqn)
     config match {
-      //TODO:  Need Uri
       case Some(domainConfig) => 
-        new DomainPersistenceProvider(new OPartitionedDatabasePool("uri", domainConfig.dbUsername, domainConfig.dbPassword))
+        new DomainPersistenceProvider(new OPartitionedDatabasePool(baseDbUri, domainConfig.dbUsername, domainConfig.dbPassword))
       case None => ??? // FIXME actually throw an exception here. 
     }
   })

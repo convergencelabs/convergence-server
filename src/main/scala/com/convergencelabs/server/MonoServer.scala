@@ -17,24 +17,34 @@ import akka.cluster.ClusterEvent.MemberRemoved
 import akka.cluster.ClusterEvent.MemberUp
 import akka.cluster.ClusterEvent.UnreachableMember
 import com.convergencelabs.server.datastore.PersistenceProvider
+import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.orientechnologies.orient.core.db.tool.ODatabaseImport
+import com.orientechnologies.orient.core.command.OCommandOutputListener
 
 object MonoServer {
+
   def main(args: Array[String]): Unit = {
-    val seed1 = startupCluster(2551, "seed")
+    val db = new ODatabaseDocumentTx("memory:convergence")
+    db.activateOnCurrentThread()
+    db.create()
 
-    // FIXME Need Pool
-    val persistenceProvider = new PersistenceProvider(null)
+    val file = "./conf/convergence.json"
+    val dbImport = new ODatabaseImport(db, file, new OCommandOutputListener() { def onMessage(foo: String) {} })
+    dbImport.importDatabase()
+    dbImport.close()
 
-    // FIXME do we get this from the config.  If so do we need to pass it?
-    val protocolConfig = ProtocolConfiguration(5L)
+    var server = new MonoServer("foo")
+    server.start()
+  }
+}
 
-    val domainManagerSystem = startupCluster(2553, "domainManager")
-    val dbPoolManager = domainManagerSystem.actorOf(
-      DomainPersistenceManagerActor.props(persistenceProvider.domainConfigStore),
-      "DatabasePoolManager")
+class MonoServer(configFile: String) {
+  def start(): Unit = {
+    val cluserSeed = startupCluster(2551, "seed")
 
-    domainManagerSystem.actorOf(DomainManagerActor.props(
-      persistenceProvider, protocolConfig), "domainManager")
+    val backendNodeSystem = startupCluster(2553, "domainManager")
+    val backend = new BackendNode(backendNodeSystem)
+    backend.start()
 
     val realtimeFrontEndSystem = startupCluster(2554, "realtimeFrontend")
     val realtimeServer = new ConvergenceRealtimeFrontend(realtimeFrontEndSystem, 8080)

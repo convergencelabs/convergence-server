@@ -12,6 +12,8 @@ import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.db.record.OTrackedMap
 import com.orientechnologies.orient.core.db.record.OTrackedSet
 import java.util.Formatter.DateTime
+import scala.collection.mutable.MutableList
+import com.orientechnologies.orient.core.db.record.OTrackedList
 
 object DomainConfigurationStore {
   val Domain = "Domain"
@@ -47,24 +49,13 @@ object DomainConfigurationStore {
     document.field(DBUsername, dbUsername)
     document.field(DBPassword, dbPassword)
 
-    val keyDocs = domainConfig.keys.values map { key =>
-      {
-        val keyDoc = new ODocument()
-        keyDoc.field(KeyId, key.id)
-        keyDoc.field(KeyName, key.name)
-        keyDoc.field(KeyDescription, key.description)
-        keyDoc.field(KeyDate, key.keyDate)
-        keyDoc.field(Key, key.key)
-        keyDoc
-      }
-    }
+    val keyDocs = List()
+    domainConfig.keys.values foreach { key => keyDocs add Map(KeyId -> key.id, KeyName -> key.name, KeyDescription-> key.description, KeyDate-> key.keyDate, Key -> key.key) }
 
-    document.field(DomainConfigurationStore.Keys, keyDocs)
+    document.field(DomainConfigurationStore.Keys, keyDocs.asJava)
 
-    val adminKeyPairDoc = new ODocument()
-    adminKeyPairDoc.field(DomainConfigurationStore.PrivateKey, privateKey)
-    adminKeyPairDoc.field(DomainConfigurationStore.PublicKey, publicKey)
-    document.field(DomainConfigurationStore.AdminKeyPair, adminKeyPairDoc)
+    val adminKeyPairDoc = Map(DomainConfigurationStore.PrivateKey -> privateKey, DomainConfigurationStore.PublicKey -> publicKey)
+    document.field(DomainConfigurationStore.AdminKeyPair, adminKeyPairDoc.asJava)
     document
   }
 
@@ -72,14 +63,20 @@ object DomainConfigurationStore {
     val domainFqn = DomainFqn(doc.field(Namespace), doc.field(DomainId))
     val keyPairDoc: OTrackedMap[String] = doc.field(AdminKeyPair, OType.EMBEDDEDMAP)
     val keyPair = TokenKeyPair(keyPairDoc.get(PrivateKey), keyPairDoc.get(PublicKey))
-    val domainConfig = DomainConfig(doc.field(Id), domainFqn, doc.field(DisplayName), doc.field(DBUsername), doc.field(DBPassword), documentToKeys(doc.field(Keys)), keyPair)
+    val domainConfig = DomainConfig(doc.field(Id), 
+        domainFqn, doc.field(DisplayName), 
+        doc.field(DBUsername), 
+        doc.field(DBPassword), 
+        documentToKeys(
+            doc.field(Keys, OType.EMBEDDEDLIST)
+            ), 
+        keyPair)
     domainConfig
   }
 
-  def documentToKeys(doc: OTrackedSet[OTrackedMap[Any]]): Map[String, TokenPublicKey] = {
+  def documentToKeys(doc: java.util.List[OTrackedMap[Any]]): Map[String, TokenPublicKey] = {
     val keys = new HashMap[String, TokenPublicKey]
-    doc.asScala.toList.foreach { 
-      docKey => keys + docKey.get(KeyId).asInstanceOf[String] -> documentToTokenPublicKey(docKey.asInstanceOf[OTrackedMap[Any]]) }
+    doc.foreach { docKey => keys + docKey.get(KeyId).asInstanceOf[String] -> documentToTokenPublicKey(docKey.asInstanceOf[OTrackedMap[Any]]) }
     keys
   }
 
