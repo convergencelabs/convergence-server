@@ -57,11 +57,11 @@ class MockConvergenceClient(serverUri: String)
 
   def sendMessage(message: MessageEnvelope): Unit = {
     send(message.toJson())
-    logger.info("SEND: " + message.toJson())
+    logger.warn("SEND: " + message.toJson())
   }
 
   override def onMessage(message: String): Unit = {
-    logger.info("RCV : " + message)
+    logger.warn("RCV : " + message)
     MessageEnvelope(message) match {
       case Success(envelope) => {
         envelope.opCode match {

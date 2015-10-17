@@ -211,8 +211,8 @@ class ProtocolConnection(
   }
 
   private[this] def handleHeartbeat: PartialFunction[HeartbeatEvent, Unit] = {
-    case PingRequest =>
-    case PongTimeout =>
+    case PingRequest => this.sendMessage(OpCode.Ping, None, None)
+    case PongTimeout => // NoOp
   }
 
   private[this] def invalidMessage(): Unit = {

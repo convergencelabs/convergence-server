@@ -30,12 +30,11 @@ class BackendNode(system: ActorSystem) extends Logging {
       DomainPersistenceManagerActor.props(
         baseUri,
         persistenceProvider.domainConfigStore),
-      "DatabasePoolManager")
+      DomainPersistenceManagerActor.RelativePath)
 
     system.actorOf(DomainManagerActor.props(
       persistenceProvider, protocolConfig), "domainManager")
 
     logger.info("Backend Node started up.")
   }
-
 }

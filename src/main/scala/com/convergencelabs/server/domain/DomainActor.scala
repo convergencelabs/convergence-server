@@ -148,7 +148,9 @@ class DomainActor(
   }
 
   override def preStart(): Unit = {
-    val persistenceProvider = DomainPersistenceManagerActor.getPersistenceProvider(self, context, domainConfig.domainFqn)
+    val persistenceProvider = DomainPersistenceManagerActor.getPersistenceProvider(
+      self, context, domainConfig.domainFqn)
+      
     authenticator = new AuthenticationHandler(
       domainConfig,
       persistenceProvider.userStore,
