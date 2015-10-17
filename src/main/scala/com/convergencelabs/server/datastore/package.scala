@@ -14,3 +14,14 @@ case class DomainConfig(
   dbPassword: String,
   keys: Map[String, TokenPublicKey],
   adminKeyPair: TokenKeyPair)
+  
+case class ConnectionConfig(
+    minClientPingInterval: Int, 
+    serverPongTimeout: Int, 
+    minClientPongTimeout: Int, 
+    handshakeTimeout: Int, 
+    serverPingInterval: Int,
+    reconnectionTimeout: Int, 
+    defaultRequestTimeout: Int)
+    
+case class RestConfig(tokenDuration: Int, maxTokenDuration: Int)

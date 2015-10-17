@@ -13,12 +13,17 @@ import org.json4s.NoTypeHints
 import org.json4s.jackson.Serialization
 import org.json4s._
 import org.json4s.jackson.JsonMethods._
-import org.json4s.jackson.Serialization.{read, write}
+import org.json4s.jackson.Serialization.{ read, write }
+
+object ConfigurationStore {
+  val ConnectionConfig = "connection"
+  val RestConfig = "rest"
+}
 
 class ConfigurationStore(dbPool: OPartitionedDatabasePool) {
 
   private[this] implicit val formats = Serialization.formats(NoTypeHints)
-  
+
   def getConfiguration(configKey: String): Option[JValue] = {
     val db = dbPool.acquire()
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM configuration WHERE configKey = :configKey")
@@ -27,18 +32,32 @@ class ConfigurationStore(dbPool: OPartitionedDatabasePool) {
     db.close()
     result.asScala.toList match {
       case doc :: rest => {
-        val configMap: Map[String, Object] = doc.field("config")
-        Some(parse(write(configMap)))
+        val config = parse(doc.toJSON())
+        config match {
+          case configObject: JObject => {
+            val config = configObject \ "config"
+            Some(config)
+          }
+          case _ => None
+        }
       }
-      case Nil         => None
+      case Nil => None
     }
   }
 
   def setConfiguration(configKey: String, configuration: JValue) = {
-        val db = dbPool.acquire()
-        val document = new ODocument();
-        document.field("configKey", configKey);
-        document.field("config", render(configuration));
-        db.save(document, "configuration");
+    val db = dbPool.acquire()
+    val document = new ODocument();
+    document.field("configKey", configKey);
+    document.field("config", render(configuration));
+    db.save(document, "configuration");
+  }
+
+  def getConnectionConfig(): Option[ConnectionConfig] = {
+    getConfiguration(ConfigurationStore.ConnectionConfig) map (_.extract[ConnectionConfig])
+  }
+
+  def getRestConfig(): Option[RestConfig] = {
+    getConfiguration(ConfigurationStore.RestConfig) map (_.extract[RestConfig])
   }
 }
