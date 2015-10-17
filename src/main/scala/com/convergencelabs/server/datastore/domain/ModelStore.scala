@@ -1,7 +1,6 @@
 package com.convergencelabs.server.datastore.domain
 
 import com.convergencelabs.server.domain.model.ModelFqn
-
 import com.convergencelabs.server.domain.model.ot.ops.Operation
 import org.json4s.JsonAST.JValue
 import scala.collection.JavaConversions._
@@ -18,12 +17,14 @@ import com.fasterxml.jackson.databind.node.ObjectNode
 import org.json4s.jackson.Serialization
 import org.json4s._
 import org.json4s.jackson.JsonMethods._
+import org.json4s.jackson.Serialization.{ read, write }
 import com.convergencelabs.server.domain.model.ot.ops.StringInsertOperation
 import com.convergencelabs.server.domain.model.ot.ops.CompoundOperation
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.metadata.schema.OType
 import org.json4s.JsonAST.JNumber
 import scala.collection.immutable.HashMap
+import com.orientechnologies.orient.core.db.record.OTrackedMap
 
 object OrientDBModelStore {
   def toOrientPath(path: List[Any]): String = {
@@ -83,7 +84,7 @@ class ModelStore(dbPool: OPartitionedDatabasePool) {
     val params: java.util.Map[String, String] = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
     val result: java.util.List[ODocument] = db.command(query).execute(params)
     result.asScala.toList match {
-      case doc :: rest => Some(ModelData(ModelMetaData(fqn, doc.field("version", OType.LONG), doc.field("created", OType.LONG), doc.field("modified", OType.LONG)), parse(doc.field("data"))))
+      case doc :: rest => Some(ModelData(ModelMetaData(fqn, doc.field("version", OType.LONG), doc.field("created", OType.LONG), doc.field("modified", OType.LONG)), parse(doc.toJSON()) \\ "data"))
       case Nil         => None
     }
   }
@@ -94,7 +95,7 @@ class ModelStore(dbPool: OPartitionedDatabasePool) {
     val params: java.util.Map[String, String] = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
     val result: java.util.List[ODocument] = db.command(query).execute(params)
     result.asScala.toList match {
-      case doc :: rest => Some(parse(doc.field("data")))
+      case doc :: rest => Some(parse(doc.toJSON()) \\ "data")
       case Nil         => None
     }
   }

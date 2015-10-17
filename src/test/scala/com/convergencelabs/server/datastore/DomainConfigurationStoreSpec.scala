@@ -23,7 +23,7 @@ class DomainConfigurationStoreSpec extends WordSpec {
       def onMessage(iText: String) = {
       }
     }
-    val file = getClass.getResource("/dbfiles/convergence.gz").getFile();
+    val file = getClass.getResource("/dbfiles/convergence.gz").getFile()
     val dbImport = new ODatabaseImport(db, file, listener)
     dbImport.importDatabase()
     dbImport.close()

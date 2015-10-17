@@ -9,7 +9,7 @@ import com.orientechnologies.orient.core.command.OCommandOutputListener
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 
 class ConfigurationStoreSpec extends WordSpec {
-    OLogManager.instance().setConsoleLevel("WARNING")
+  OLogManager.instance().setConsoleLevel("WARNING")
 
   def initDB(uri: String): ODatabaseDocumentTx = {
     val db = new ODatabaseDocumentTx(uri)
@@ -19,7 +19,7 @@ class ConfigurationStoreSpec extends WordSpec {
       def onMessage(iText: String) = {
       }
     }
-    val file = getClass.getResource("/dbfiles/convergence.gz").getFile();
+    val file = getClass.getResource("/dbfiles/convergence.gz").getFile()
     val dbImport = new ODatabaseImport(db, file, listener)
     dbImport.importDatabase()
     dbImport.close()
@@ -47,7 +47,7 @@ class ConfigurationStoreSpec extends WordSpec {
         db.activateOnCurrentThread()
         db.close()
       }
-      
+
       "return Some[ConnectionConfig] if asked for Connection Config" in {
         val db = initDB("memory:cs3")
         val dbPool = new OPartitionedDatabasePool("memory:cs3", "admin", "admin")
@@ -57,7 +57,7 @@ class ConfigurationStoreSpec extends WordSpec {
         db.activateOnCurrentThread()
         db.close()
       }
-      
+
       "return Some[RestConfig] if asked for Rest Config" in {
         val db = initDB("memory:cs4")
         val dbPool = new OPartitionedDatabasePool("memory:cs4", "admin", "admin")
@@ -66,7 +66,7 @@ class ConfigurationStoreSpec extends WordSpec {
         db.activateOnCurrentThread()
         db.close()
       }
-      
+
     }
   }
 }
