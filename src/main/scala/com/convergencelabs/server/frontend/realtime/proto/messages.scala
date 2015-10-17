@@ -39,18 +39,19 @@ sealed trait AuthenticationRequestMessage extends IncomingProtocolRequestMessage
 case class PasswordAuthenticationRequestMessage(username: String, password: String) extends AuthenticationRequestMessage
 case class TokenAuthenticationRequestMessage(token: String) extends AuthenticationRequestMessage
 
-case class AuthenticationSuccessResponseMessage(username: String) extends OutgoingProtocolResponseMessage
-case class AuthenticationFailureResponseMessage() extends OutgoingProtocolResponseMessage
+case class AuthenticationResponseMessage(success: Boolean, username: Option[String]) extends OutgoingProtocolResponseMessage
 
 
 ///////////////////////////////////////////////////////////////////////////////
 // Model Messages
 ///////////////////////////////////////////////////////////////////////////////
+case class ModelFqnData(cId: String, mId: String)
+
 sealed trait IncomingModelNormalMessage extends IncomingProtocolNormalMessage
 case class OperationSubmissionMessage(rId: String, cId: String, v: Long, op: OperationData) extends IncomingModelNormalMessage
 
 sealed trait IncomingModelRequestMessage extends IncomingProtocolRequestMessage
-case class OpenRealtimeModelRequestMessage(modelFqn: ModelFqn) extends IncomingModelRequestMessage
+case class OpenRealtimeModelRequestMessage(modelFqn: ModelFqnData) extends IncomingModelRequestMessage
 case class CloseRealtimeModelRequestMessage(rId: String, cId: String) extends IncomingModelRequestMessage
 
 case class ModelDataResponseMessage(data: JValue) extends OutgoingProtocolNormalMessage

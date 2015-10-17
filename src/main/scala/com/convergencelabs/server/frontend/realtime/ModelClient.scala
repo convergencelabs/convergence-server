@@ -145,7 +145,8 @@ class ModelClientActor(
   }
 
   def onOpenRealtimeModelRequest(request: OpenRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
-    val future = modelManager ? OpenRealtimeModelRequest(request.modelFqn, self)
+    val ModelFqnData(collectionId, modelId) = request.modelFqn
+    val future = modelManager ? OpenRealtimeModelRequest(ModelFqn(collectionId, modelId) , self)
     future.mapResponse[OpenModelResponse] onComplete {
       case Success(OpenModelResponse(realtimeModelActor, modelResourceId, modelSessionId, metaData, modelData)) => {
         openRealtimeModels += (modelResourceId -> realtimeModelActor)

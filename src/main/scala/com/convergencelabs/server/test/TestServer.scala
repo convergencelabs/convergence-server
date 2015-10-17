@@ -40,14 +40,10 @@ class TestServer(
   def start(): Unit = {
     logger.info("Test Server starting up")
     OLogManager.instance().setConsoleLevel("WARNING")
+    
     // Set Up OrientDB
-    val db = new ODatabaseDocumentTx(s"memory:$dbName")
-    db.activateOnCurrentThread()
-    db.create()
-
-    val dbImport = new ODatabaseImport(db, dbFile, new OCommandOutputListener() { def onMessage(foo: String) {} })
-    dbImport.importDatabase()
-    dbImport.close()
+    importDatabase(dbName, dbFile)
+    importDatabase("t1", "test-server/domain-test-db.gz")
 
     // This is the cluster seed that all of the other systems will check in to.
     // we don't need to deploy anything to it.  It just needs to be there.
@@ -67,6 +63,16 @@ class TestServer(
     realtimeServer2.start()
     
     logger.info("Test Server started.")
+  }
+  
+  def importDatabase(dbName: String, importFile: String): Unit = {
+    val db = new ODatabaseDocumentTx(s"memory:$dbName")
+    db.activateOnCurrentThread()
+    db.create()
+
+    val dbImport = new ODatabaseImport(db, importFile, new OCommandOutputListener() { def onMessage(message: String) {} })
+    dbImport.importDatabase()
+    dbImport.close()
   }
 
   def startupCluster(port: Int, role: String, configFile: String): ActorSystem = {

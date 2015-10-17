@@ -37,6 +37,7 @@ import com.convergencelabs.server.frontend.realtime.proto.OpenRealtimeModelReque
 import com.convergencelabs.server.domain.model.OpenRealtimeModelRequest
 import com.convergencelabs.server.domain.model.ModelFqn
 import scala.concurrent.Future
+import com.convergencelabs.server.frontend.realtime.proto.ModelFqnData
 
 @RunWith(classOf[JUnitRunner])
 class ClientActorSpec(system: ActorSystem)
@@ -146,7 +147,7 @@ class ClientActorSpec(system: ActorSystem)
     
     "recieving an open model message" must {
       "forward to the model manager" in new HandshookClient(system) {
-        val openRequest = OpenRealtimeModelRequestMessage(ModelFqn("collection", "model"))
+        val openRequest = OpenRealtimeModelRequestMessage(ModelFqnData("collection", "model"))
         val openReply = mock[ReplyCallback]
         val openEvent = RequestReceived(openRequest, openReply)
         clientActor.tell(openEvent, ActorRef.noSender)

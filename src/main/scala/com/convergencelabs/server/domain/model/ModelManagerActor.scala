@@ -131,7 +131,8 @@ class ModelManagerActor(
   }
   
   override def preStart(): Unit = {
-    persistenceProvider = DomainPersistenceManagerActor.getPersistenceProvider(self, context, domainFqn)
+    // FIXME
+    persistenceProvider = DomainPersistenceManagerActor.getPersistenceProvider(self, context, domainFqn).get
   }
 }
 

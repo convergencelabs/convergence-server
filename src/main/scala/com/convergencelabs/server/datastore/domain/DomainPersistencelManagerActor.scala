@@ -33,7 +33,7 @@ object DomainPersistenceManagerActor {
     requestor.root / "user" / RelativePath
   }
 
-  def getPersistenceProvider(requestor: ActorRef, context: ActorContext, domainFqn: DomainFqn): DomainPersistenceProvider = {
+  def getPersistenceProvider(requestor: ActorRef, context: ActorContext, domainFqn: DomainFqn): Try[DomainPersistenceProvider] = Try({
     val path = DomainPersistenceManagerActor.getLocalInstancePath(requestor.path)
     val selection = context.actorSelection(path)
 
@@ -44,9 +44,9 @@ object DomainPersistenceManagerActor {
 
     result match {
       case PersistenceProviderReference(persistenceProvider) => persistenceProvider
-      case PersistenceProviderUnavailable                    => throw new RuntimeException()
+      case PersistenceProviderUnavailable(cause)                    => throw cause
     }
-  }
+  })
 }
 
 class DomainPersistenceManagerActor(
@@ -85,7 +85,7 @@ class DomainPersistenceManagerActor(
         sender ! PersistenceProviderReference(provider)
       }
       case Failure(cause) => {
-        sender ! PersistenceProviderUnavailable
+        sender ! PersistenceProviderUnavailable(cause)
       }
     }
   }
@@ -138,8 +138,13 @@ class DomainPersistenceManagerActor(
   private[this] def createProvider(domainFqn: DomainFqn): Try[DomainPersistenceProvider] = Try({
     val config = domainConfigStore.getDomainConfig(domainFqn)
     config match {
-      case Some(domainConfig) => 
-        new DomainPersistenceProvider(new OPartitionedDatabasePool(baseDbUri, domainConfig.dbUsername, domainConfig.dbPassword))
+      case Some(domainConfig) => {
+        val pool = new OPartitionedDatabasePool(
+            baseDbUri + "/" + domainConfig.id, 
+            domainConfig.dbUsername, 
+            domainConfig.dbPassword)
+        new DomainPersistenceProvider(pool)
+      }
       case None => ??? // FIXME actually throw an exception here. 
     }
   })
@@ -162,4 +167,4 @@ case class ReleaseDomainPersistence(domainFqn: DomainFqn)
 
 sealed trait DomainPersistenceResponse
 case class PersistenceProviderReference(persistenceProvider: DomainPersistenceProvider) extends DomainPersistenceResponse
-case object PersistenceProviderUnavailable extends DomainPersistenceResponse
+case class PersistenceProviderUnavailable(cuase: Throwable) extends DomainPersistenceResponse

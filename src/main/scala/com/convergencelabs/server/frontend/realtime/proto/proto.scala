@@ -45,6 +45,7 @@ package object proto {
 
   private[proto] implicit val formats = Serialization.formats(NoTypeHints)
 
+  // FIXME can we use the message type enum instead for matching?
   case class MessageEnvelope(opCode: String, reqId: Option[Long], `type`: Option[String], body: Option[JValue]) {
 
     def extractResponseBody[T <: ProtocolMessage](implicit c: TypeTag[T]): ProtocolMessage = {
@@ -58,6 +59,12 @@ package object proto {
     def extractBody(): ProtocolMessage = {
       `type`.get match {
         case MessageType.Handshake => Extraction.extract[HandshakeRequestMessage](body.get)
+        
+        case MessageType.AuthPassword => Extraction.extract[PasswordAuthenticationRequestMessage](body.get)
+        case MessageType.AuthToken => Extraction.extract[TokenAuthenticationRequestMessage](body.get)
+        
+        case MessageType.OpenRealtimeModel => Extraction.extract[OpenRealtimeModelRequestMessage](body.get)
+        case MessageType.CloseRealtimeModel => Extraction.extract[CloseRealtimeModelRequestMessage](body.get)
       }
     }
 
@@ -82,6 +89,8 @@ package object proto {
         case _: HandshakeRequestMessage => Some(MessageType.Handshake)
         case _: OpenRealtimeModelRequestMessage => Some(MessageType.OpenRealtimeModel)
         case _: CloseRealtimeModelRequestMessage => Some(MessageType.CloseRealtimeModel)
+        case _: PasswordAuthenticationRequestMessage => Some(MessageType.AuthPassword)
+        case _: TokenAuthenticationRequestMessage => Some(MessageType.AuthToken)
         case _ => None
       }
     }
@@ -91,6 +100,10 @@ package object proto {
   object MessageType extends Enumeration {
     val Error = "error"
     val Handshake = "handshake"
+    
+    val AuthPassword = "authPassword"
+    val AuthToken = "authToken"
+    
     val OpenRealtimeModel = "openRealtimeModel"
     val CloseRealtimeModel = "handshake"
   }

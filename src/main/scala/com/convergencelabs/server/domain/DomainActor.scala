@@ -70,6 +70,7 @@ class DomainActor(
 
   log.debug("Domain startting up: {}", domainConfig.domainFqn)
 
+  private[this] var persistenceProvider: DomainPersistenceProvider = _
   private[this] implicit val ec = context.dispatcher
   private[this] var nextSessionId = 0L
 
@@ -102,18 +103,24 @@ class DomainActor(
   }
 
   private[this] def onHandshakeRequest(message: HandshakeRequest): Unit = {
-    this.connectedClients += message.clientActor
-    val (sessionId, reconnectToken) = message.reconnect match {
-      case false => {
-        (generateNextSessionId(), generateSessionToken())
-      }
+    persistenceProvider.validateConnection() match {
       case true => {
-        // FIXME
-        ("todo", "todo")
+        connectedClients += message.clientActor
+        val (sessionId, reconnectToken) = message.reconnect match {
+          case false => {
+            (generateNextSessionId(), generateSessionToken())
+          }
+          case true => {
+            // FIXME
+            ("todo", "todo")
+          }
+        }
+        sender ! HandshakeSuccess(sessionId, reconnectToken, self, modelManagerActorRef)
+      }
+      case false => {
+        sender ! HandshakeFailure("domain_unavailable", "Could not connect to database.")
       }
     }
-
-    sender ! HandshakeSuccess(sessionId, reconnectToken, self, modelManagerActorRef)
   }
 
   private[this] def onClientDisconnect(message: ClientDisconnected): Unit = {
@@ -148,13 +155,21 @@ class DomainActor(
   }
 
   override def preStart(): Unit = {
-    val persistenceProvider = DomainPersistenceManagerActor.getPersistenceProvider(
+    val p = DomainPersistenceManagerActor.getPersistenceProvider(
       self, context, domainConfig.domainFqn)
-      
-    authenticator = new AuthenticationHandler(
-      domainConfig,
-      persistenceProvider.userStore,
-      new DomainUserAuthenticator(),
-      context.dispatcher)
+
+    p match {
+      case Success(provider) => {
+        this.persistenceProvider = provider
+        authenticator = new AuthenticationHandler(
+          domainConfig,
+          provider.userStore,
+          new DomainUserAuthenticator(),
+          context.dispatcher)
+      }
+      case Failure(cause) => {
+        log.error(cause, "foo")
+      }
+    }
   }
 }

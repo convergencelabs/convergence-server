@@ -42,8 +42,7 @@ import java.util.concurrent.TimeUnit
 import com.convergencelabs.server.frontend.realtime.proto.AuthenticationRequestMessage
 import com.convergencelabs.server.frontend.realtime.proto.PasswordAuthenticationRequestMessage
 import com.convergencelabs.server.frontend.realtime.proto.TokenAuthenticationRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.AuthenticationSuccessResponseMessage
-import com.convergencelabs.server.frontend.realtime.proto.AuthenticationFailureResponseMessage
+import com.convergencelabs.server.frontend.realtime.proto.AuthenticationResponseMessage
 
 object ClientActor {
   def props(
@@ -105,14 +104,14 @@ class ClientActor(
 
     future.mapResponse[AuthenticationResponse] onComplete {
       case Success(AuthenticationSuccess(username)) => {
-        cb.reply(AuthenticationSuccessResponseMessage(username))
+        cb.reply(AuthenticationResponseMessage(true, Some(username)))
         context.become(receiveWhileHandshook)
       }
       case Success(AuthenticationFailure) => {
-        cb.reply(AuthenticationFailureResponseMessage())
+        cb.reply(AuthenticationResponseMessage(false, None))
       }
       case Failure(cause) => {
-        cb.reply(AuthenticationFailureResponseMessage())
+        cb.reply(AuthenticationResponseMessage(false, None))
       }
     }
   }
@@ -129,7 +128,7 @@ class ClientActor(
         this.domainActor = domainActor
         this.modelClient = context.actorOf(ModelClientActor.props(modelManagerActor))
         cb.reply(HandshakeResponseMessage(true, None, Some(sessionId), Some(reconnectToken)))
-        context.become(receiveWhileHandshook)
+        context.become(receiveWhileAuthenticating)
       }
       case Success(HandshakeFailure(code, details)) => {
         cb.reply(HandshakeResponseMessage(false, Some(ErrorData(code, details)), None, None))
