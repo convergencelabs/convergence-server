@@ -9,6 +9,9 @@ import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.sql.OCommandSQL
+import com.orientechnologies.orient.core.db.record.OTrackedMap
+import com.orientechnologies.orient.core.db.record.OTrackedSet
+import java.util.Formatter.DateTime
 
 object DomainConfigurationStore {
   val Domain = "Domain"
@@ -29,7 +32,7 @@ object DomainConfigurationStore {
   val Key = "key"
   val KeyEnabled = "enabled"
 
-  val AdminKeyPair = "adminKeyPair"
+  val AdminKeyPair = "adminUIKeyPair"
   val PrivateKey = "privateKey"
   val PublicKey = "publicKey"
 
@@ -67,20 +70,21 @@ object DomainConfigurationStore {
 
   def documentToDomainConfig(doc: ODocument): DomainConfig = {
     val domainFqn = DomainFqn(doc.field(Namespace), doc.field(DomainId))
-    val keyPairDoc: ODocument = doc.field(AdminKeyPair)
-    val keyPair = TokenKeyPair(keyPairDoc.field(PrivateKey), keyPairDoc.field(PublicKey))
+    val keyPairDoc: OTrackedMap[String] = doc.field(AdminKeyPair, OType.EMBEDDEDMAP)
+    val keyPair = TokenKeyPair(keyPairDoc.get(PrivateKey), keyPairDoc.get(PublicKey))
     val domainConfig = DomainConfig(doc.field(Id), domainFqn, doc.field(DisplayName), doc.field(DBUsername), doc.field(DBPassword), documentToKeys(doc.field(Keys)), keyPair)
     domainConfig
   }
 
-  def documentToKeys(doc: java.util.List[ODocument]): Map[String, TokenPublicKey] = {
+  def documentToKeys(doc: OTrackedSet[OTrackedMap[Any]]): Map[String, TokenPublicKey] = {
     val keys = new HashMap[String, TokenPublicKey]
-    doc.asScala.toList.foreach { docKey => keys add (docKey.field(KeyId, OType.STRING), documentToTokenPublicKey(docKey)) }
+    doc.asScala.toList.foreach { 
+      docKey => keys + docKey.get(KeyId).asInstanceOf[String] -> documentToTokenPublicKey(docKey.asInstanceOf[OTrackedMap[Any]]) }
     keys
   }
 
-  def documentToTokenPublicKey(doc: ODocument): TokenPublicKey = {
-    TokenPublicKey(doc.field(KeyId), doc.field(KeyName), doc.field(KeyDescription), doc.field(KeyDate), doc.field(Key), doc.field(KeyEnabled))
+  def documentToTokenPublicKey(doc: OTrackedMap[Any]): TokenPublicKey = {
+    TokenPublicKey(doc.get(KeyId).asInstanceOf[String], doc.get(KeyName).asInstanceOf[String], doc.get(KeyDescription).asInstanceOf[String], doc.get(KeyDate).asInstanceOf[Long], doc.get(Key).asInstanceOf[String], doc.get(KeyEnabled).asInstanceOf[Boolean])
   }
 }
 
