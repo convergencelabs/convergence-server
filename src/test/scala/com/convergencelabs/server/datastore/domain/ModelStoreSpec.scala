@@ -21,14 +21,14 @@ class ModelStoreSpec extends WordSpec {
       def onMessage(iText: String) = {
       }
     }
-    val file = getClass.getResource("/dbfiles/domain-test-db.gz").getFile()
+    val file = getClass.getResource("/dbfiles/t1.gz").getFile()
     val dbImport = new ODatabaseImport(db, file, listener)
     dbImport.importDatabase()
     dbImport.close()
     db
   }
 
-  "An OrientDBModelStore" when {
+  "An ModelStore" when {
     
     "asked whether a model exists" must {
       
@@ -45,7 +45,7 @@ class ModelStoreSpec extends WordSpec {
         val db = initDB("memory:ms2")
         val dbPool = new OPartitionedDatabasePool("memory:ms2", "admin", "admin")
         val modelStore = new ModelStore(dbPool)
-        assert(modelStore.modelExists(ModelFqn("tests", "test")))
+        assert(modelStore.modelExists(ModelFqn("people", "person1")))
         db.activateOnCurrentThread()
         db.close()
       }
@@ -64,7 +64,7 @@ class ModelStoreSpec extends WordSpec {
         val db = initDB("memory:ms4")
         val dbPool = new OPartitionedDatabasePool("memory:ms4", "admin", "admin")
         val modelStore = new ModelStore(dbPool)
-        assert(!modelStore.getModelData(ModelFqn("tests", "test")).isEmpty)
+        assert(!modelStore.getModelData(ModelFqn("people", "person1")).isEmpty)
         db.activateOnCurrentThread()
         db.close()
       }
