@@ -18,7 +18,11 @@ class DomainUserStore(dbPool: OPartitionedDatabasePool) {
   
 private[this] implicit val formats = Serialization.formats(NoTypeHints)
 
+  
   def createDomainUser(domainUser: DomainUser): Boolean = {
+    // FIXME should take an password: Option[String] for the PW
+    // Should start a tx and create two records.  That password can use
+    // password.getOrElse("") when storing it. 
     val db = dbPool.acquire()
     val doc = db.newInstance("user")
     doc.fromJSON(write(domainUser))
@@ -26,6 +30,14 @@ private[this] implicit val formats = Serialization.formats(NoTypeHints)
     db.close()
     true
   }
+
+  //FIXME need this method  
+  //def setDomainUserPassword(username: String, password: String): Unit = {
+  //}
+
+  //FIXME need this method  
+  //def validateCredentials(username: String, password: String): Boolean = {
+  //}
 
   def deleteDomainUser(uid: String): Unit = {
     val db = dbPool.acquire()
