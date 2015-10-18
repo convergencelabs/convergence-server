@@ -136,10 +136,6 @@ class DomainActor(
     }
   }
 
-  override def postStop(): Unit = {
-    log.debug(s"Domain(${domainConfig.domainFqn}) received shutdown command.  Shutting down.")
-  }
-
   def generateNextSessionId(): String = {
     val sessionId = nextSessionId
 
@@ -157,7 +153,7 @@ class DomainActor(
   }
 
   override def preStart(): Unit = {
-    val p = DomainPersistenceManagerActor.getPersistenceProvider(
+    val p = DomainPersistenceManagerActor.acquirePersistenceProvider(
       self, context, domainConfig.domainFqn)
 
     p match {
@@ -173,5 +169,10 @@ class DomainActor(
         log.error(cause, "foo")
       }
     }
+  }
+  
+  override def postStop(): Unit = {
+    log.debug(s"Domain(${domainConfig.domainFqn}) received shutdown command.  Shutting down.")
+    DomainPersistenceManagerActor.releasePersistenceProvider(self, context, domainConfig.domainFqn)
   }
 }

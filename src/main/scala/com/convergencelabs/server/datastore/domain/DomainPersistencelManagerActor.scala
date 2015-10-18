@@ -33,7 +33,7 @@ object DomainPersistenceManagerActor {
     requestor.root / "user" / RelativePath
   }
 
-  def getPersistenceProvider(requestor: ActorRef, context: ActorContext, domainFqn: DomainFqn): Try[DomainPersistenceProvider] = Try({
+  def acquirePersistenceProvider(requestor: ActorRef, context: ActorContext, domainFqn: DomainFqn): Try[DomainPersistenceProvider] = Try({
     val path = DomainPersistenceManagerActor.getLocalInstancePath(requestor.path)
     val selection = context.actorSelection(path)
 
@@ -47,6 +47,12 @@ object DomainPersistenceManagerActor {
       case PersistenceProviderUnavailable(cause) => throw cause
     }
   })
+  
+  def releasePersistenceProvider(requestor: ActorRef, context: ActorContext, domainFqn: DomainFqn): Unit = {
+    val path = DomainPersistenceManagerActor.getLocalInstancePath(requestor.path)
+    val selection = context.actorSelection(path)
+    selection.tell(ReleaseDomainPersistence(domainFqn), requestor)
+  }
 }
 
 class DomainPersistenceManagerActor(

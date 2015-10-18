@@ -126,13 +126,14 @@ class ModelManagerActor(
   }
 
   override def postStop(): Unit = {
-    log.debug("SharedModelManager({}) received shutdown command.  Shutting down all SharedModels.", this.domainFqn);
-    openRealtimeModels.clear();
+    log.debug("SharedModelManager({}) received shutdown command.  Shutting down all SharedModels.", this.domainFqn)
+    openRealtimeModels.clear()
+    DomainPersistenceManagerActor.releasePersistenceProvider(self, context, domainFqn)
   }
   
   override def preStart(): Unit = {
     // FIXME
-    persistenceProvider = DomainPersistenceManagerActor.getPersistenceProvider(self, context, domainFqn).get
+    persistenceProvider = DomainPersistenceManagerActor.acquirePersistenceProvider(self, context, domainFqn).get
   }
 }
 
