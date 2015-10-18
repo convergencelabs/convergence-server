@@ -64,11 +64,13 @@ object DomainActor {
  * all actor that comprise the services provided by a particular domain.
  */
 class DomainActor(
-    domainManagerActor: ActorRef,
-    domainConfig: DomainConfig,
-    protocolConfig: ProtocolConfiguration) extends Actor with ActorLogging {
+  domainManagerActor: ActorRef,
+  domainConfig: DomainConfig,
+  protocolConfig: ProtocolConfiguration)
+    extends Actor
+    with ActorLogging {
 
-  log.debug("Domain startting up: {}", domainConfig.domainFqn)
+  log.debug(s"Domain startting up: ${domainConfig.domainFqn}")
 
   private[this] var persistenceProvider: DomainPersistenceProvider = _
   private[this] implicit val ec = context.dispatcher
@@ -81,7 +83,7 @@ class DomainActor(
 
   private[this] var authenticator: AuthenticationHandler = null
 
-  log.debug("Domain start up complete: {}", domainConfig.domainFqn)
+  log.debug(s"Domain start up complete: ${domainConfig.domainFqn}")
 
   private[this] val connectedClients = mutable.Set[ActorRef]()
 
@@ -135,7 +137,7 @@ class DomainActor(
   }
 
   override def postStop(): Unit = {
-    log.debug("Domain(${domainConfig.domainFqn}) received shutdown command.  Shutting down.")
+    log.debug(s"Domain(${domainConfig.domainFqn}) received shutdown command.  Shutting down.")
   }
 
   def generateNextSessionId(): String = {
@@ -153,7 +155,7 @@ class DomainActor(
   def generateSessionToken(): String = {
     UUID.randomUUID().toString() + UUID.randomUUID().toString()
   }
-  
+
   override def preStart(): Unit = {
     val p = DomainPersistenceManagerActor.getPersistenceProvider(
       self, context, domainConfig.domainFqn)

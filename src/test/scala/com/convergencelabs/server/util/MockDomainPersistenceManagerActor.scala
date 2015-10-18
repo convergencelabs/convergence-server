@@ -35,7 +35,7 @@ class MockDomainPersistenceManagerActor() extends Actor {
   var mockProviders: Map[DomainFqn, DomainPersistenceProvider] = Map()
   
   def receive = {
-    case AcquireDomainPersistence(domainFqn) => {
+    case AcquireDomainPersistence(domainFqn, requestor) => {
       mockProviders.get(domainFqn) match {
         case Some(provider) => sender ! PersistenceProviderReference(provider)
         case None => sender ! PersistenceProviderUnavailable

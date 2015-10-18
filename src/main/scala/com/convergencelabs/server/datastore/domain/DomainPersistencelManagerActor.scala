@@ -25,7 +25,7 @@ object DomainPersistenceManagerActor {
   val RelativePath = "DomainPersistenceManagerActor"
 
   def props(
-      baseDbUri: String,
+    baseDbUri: String,
     domainConfigStore: DomainConfigurationStore): Props = Props(
     new DomainPersistenceManagerActor(baseDbUri, domainConfigStore))
 
@@ -37,14 +37,14 @@ object DomainPersistenceManagerActor {
     val path = DomainPersistenceManagerActor.getLocalInstancePath(requestor.path)
     val selection = context.actorSelection(path)
 
-    val message = AcquireDomainPersistence(domainFqn)
+    val message = AcquireDomainPersistence(domainFqn, requestor)
     val timeout = Timeout(2, TimeUnit.SECONDS)
     val f = Patterns.ask(selection, message, timeout).mapTo[DomainPersistenceResponse]
     val result = Await.result(f, FiniteDuration(2, TimeUnit.SECONDS))
 
     result match {
       case PersistenceProviderReference(persistenceProvider) => persistenceProvider
-      case PersistenceProviderUnavailable(cause)                    => throw cause
+      case PersistenceProviderUnavailable(cause) => throw cause
     }
   })
 }
@@ -58,15 +58,16 @@ class DomainPersistenceManagerActor(
   private[this] var providersByActor = Map[ActorRef, List[DomainFqn]]()
 
   def receive = {
-    case AcquireDomainPersistence(domainFqn) => onAcquire(domainFqn)
+    case AcquireDomainPersistence(domainFqn, requestor) => onAcquire(domainFqn, requestor)
     case ReleaseDomainPersistence(domainFqn) => onRelease(domainFqn)
-    case Terminated(actor)                   => onActorDeath(actor)
+    case Terminated(actor) => onActorDeath(actor)
   }
 
-  private[this] def onAcquire(domainFqn: DomainFqn): Unit = {
+  private[this] def onAcquire(domainFqn: DomainFqn, requestor: ActorRef): Unit = {
+    log.debug(s"Acquiring domain persistence for ${domainFqn} by ${requestor.path}")
     val p = providers.get(domainFqn) match {
       case Some(provider) => Success(provider)
-      case None           => createProvider(domainFqn)
+      case None => createProvider(domainFqn)
     }
 
     p match {
@@ -75,11 +76,11 @@ class DomainPersistenceManagerActor(
         refernceCounts = refernceCounts + (domainFqn -> newCount)
 
         val newProviders = providersByActor.getOrElse(sender, List()) :+ domainFqn
-        providersByActor = providersByActor + (sender -> newProviders)
+        providersByActor = providersByActor + (requestor -> newProviders)
 
         if (newProviders.length == 1) {
           // First time registered.  Watch this actor.
-          context.watch(sender)
+          context.watch(requestor)
         }
 
         sender ! PersistenceProviderReference(provider)
@@ -91,6 +92,7 @@ class DomainPersistenceManagerActor(
   }
 
   private[this] def onRelease(domainFqn: DomainFqn): Unit = {
+    log.debug(s"Releasing domain persistence: ${domainFqn}")
     decrementCount(domainFqn)
 
     val acquiredProviders = providersByActor.get(sender)
@@ -109,41 +111,41 @@ class DomainPersistenceManagerActor(
   }
 
   private[this] def onActorDeath(actor: ActorRef): Unit = {
-    val acquiredProviders = providersByActor.get(sender)
-    if (acquiredProviders.isDefined) {
-
-      acquiredProviders.get foreach (domainFqn => {
+    log.debug(s"Unregistering persistence providers for died actor: ${actor.path}")
+    providersByActor.get(actor) foreach (acquiredProviders => {
+      acquiredProviders foreach (domainFqn => {
         decrementCount(domainFqn)
       })
 
       providersByActor = providersByActor - sender
-      context.unwatch(sender)
-    }
+      context.unwatch(actor)
+    })
   }
 
   private[this] def decrementCount(domainFqn: DomainFqn): Unit = {
-    val currentCount = refernceCounts.get(domainFqn)
-    if (currentCount.isDefined) {
-      val newCount = currentCount.get - 1
-
+    refernceCounts.get(domainFqn) foreach (currentCount => {
+      val newCount = currentCount - 1
       if (newCount == 0) {
         shutdownPool(domainFqn)
       } else {
         // decrement
         refernceCounts = refernceCounts + (domainFqn -> newCount)
       }
-    }
+    })
   }
 
   private[this] def createProvider(domainFqn: DomainFqn): Try[DomainPersistenceProvider] = Try({
+    log.warning(s"Creating new persistence provider: ${domainFqn}")
     val config = domainConfigStore.getDomainConfig(domainFqn)
     config match {
       case Some(domainConfig) => {
         val pool = new OPartitionedDatabasePool(
-            baseDbUri + "/" + domainConfig.id, 
-            domainConfig.dbUsername, 
-            domainConfig.dbPassword)
-        new DomainPersistenceProvider(pool)
+          baseDbUri + "/" + domainConfig.id,
+          domainConfig.dbUsername,
+          domainConfig.dbPassword)
+        val provider = new DomainPersistenceProvider(pool)
+        providers = providers + (domainFqn -> provider)
+        provider
       }
       case None => ??? // FIXME actually throw an exception here. 
     }
@@ -152,17 +154,19 @@ class DomainPersistenceManagerActor(
   private[this] def shutdownPool(domainFqn: DomainFqn): Unit = {
     providers.get(domainFqn) match {
       case Some(provider) => {
+        log.warning(s"Shutting down persistence provider: ${domainFqn}")
         providers = providers - domainFqn
-        provider.dbPool.close();
+        refernceCounts = refernceCounts - domainFqn
+        provider.dbPool.close()
       }
       case None => {
-        log.warning("Attempted to shutdown a persistence provider that was not open.")
+        log.warning(s"Attempted to shutdown a persistence provider that was not open: ${domainFqn}")
       }
     }
   }
 }
 
-case class AcquireDomainPersistence(domainFqn: DomainFqn)
+case class AcquireDomainPersistence(domainFqn: DomainFqn, requestor: ActorRef)
 case class ReleaseDomainPersistence(domainFqn: DomainFqn)
 
 sealed trait DomainPersistenceResponse

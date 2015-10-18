@@ -51,7 +51,7 @@ class DomainActorSpec
         domainActor.tell(HandshakeRequest(domainFqn, client.ref, false, None), client.ref)
         val response = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeSuccess])
 
-        domainActor.tell(ClientDisconnected("sessionId", client.ref), client.ref)
+        domainActor.tell(ClientDisconnected("sessionId"), client.ref)
         var request = domainManagerActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[DomainShutdownRequest])
         assert(domainFqn == request.domainFqn)
       }

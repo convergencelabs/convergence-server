@@ -107,18 +107,21 @@ class DomainManagerActor(
   }
 
   private[this] def onDomainShutdownRequest(request: DomainShutdownRequest): Unit = {
+    log.debug(s"Shutdown request received for domain: ${request.domainFqn}")
     val shutdownTask = context.system.scheduler.scheduleOnce(
       domainShutdownDelay,
       self,
       DomainShutdownApproval(request.domainFqn))
+      this.shudownRequests(request.domainFqn) = shutdownTask
   }
 
-  private[this] def onDomainShutdownApproval(shutdownApproval: DomainShutdownApproval): Unit = {
+  private[this] def onDomainShutdownApproval(approval: DomainShutdownApproval): Unit = {
     // If the map doesn't contain the request, that means that it was canceled
-    if (shudownRequests.contains(shutdownApproval.domainFqn)) {
-      val domainFqn = shutdownApproval.domainFqn
+    if (shudownRequests.contains(approval.domainFqn)) {
+      log.debug(s"Shutdown request approved for domain: ${approval.domainFqn}")
+      val domainFqn = approval.domainFqn
       log.debug("Shutting down domain '{}'", domainFqn)
-      shudownRequests.remove(shutdownApproval.domainFqn)
+      shudownRequests.remove(approval.domainFqn)
       val domainActor = domainFqnToActor(domainFqn)
       domainFqnToActor.remove(domainFqn)
       actorsToDomainFqn.remove(domainActor)

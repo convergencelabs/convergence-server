@@ -43,6 +43,7 @@ import com.convergencelabs.server.frontend.realtime.proto.AuthenticationRequestM
 import com.convergencelabs.server.frontend.realtime.proto.PasswordAuthenticationRequestMessage
 import com.convergencelabs.server.frontend.realtime.proto.TokenAuthenticationRequestMessage
 import com.convergencelabs.server.frontend.realtime.proto.AuthenticationResponseMessage
+import com.convergencelabs.server.domain.ClientDisconnected
 
 object ClientActor {
   def props(
@@ -77,6 +78,7 @@ class ClientActor(
 
   var modelClient: ActorRef = _
   var domainActor: ActorRef = _
+  var sessionId: String = _
 
   def receive = receiveWhileHandshaking
 
@@ -131,6 +133,7 @@ class ClientActor(
     val future = domainManager ? HandshakeRequest(domainFqn, self, request.reconnect, request.reconnectToken)
     future.mapResponse[HandshakeResponse] onComplete {
       case Success(HandshakeSuccess(sessionId, reconnectToken, domainActor, modelManagerActor)) => {
+        this.sessionId = sessionId
         this.domainActor = domainActor
         this.modelClient = context.actorOf(ModelClientActor.props(modelManagerActor))
         cb.reply(HandshakeResponseMessage(true, None, Some(sessionId), Some(reconnectToken)))
@@ -193,15 +196,22 @@ class ClientActor(
     }
   }
 
+  // FIXME duplicate code.
   private def onConnectionClosed(): Unit = {
+    log.debug("Connection Closed")
+    domainActor ! ClientDisconnected(sessionId)
     context.stop(self)
   }
 
   private def onConnectionDropped(): Unit = {
+    log.debug("Connection Dropped")
+    domainActor ! ClientDisconnected(sessionId)
     context.stop(self)
   }
 
   private def onConnectionError(message: String): Unit = {
+    log.debug("Connection Error")
+    domainActor ! ClientDisconnected(sessionId)
     context.stop(self)
   }
 
