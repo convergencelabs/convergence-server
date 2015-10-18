@@ -31,6 +31,8 @@ libraryDependencies += "com.typesafe.akka" % "akka-actor_2.11" % akkaVersion
 libraryDependencies += "com.typesafe.akka" % "akka-testkit_2.11" % akkaVersion
 libraryDependencies += "com.typesafe.akka" % "akka-cluster_2.11" % akkaVersion
 //libraryDependencies += "com.typesafe.akka" %% "akka-cluster-sharding_2.11" % akkaVersion
+libraryDependencies += "com.typesafe.akka" % "akka-slf4j_2.11" % akkaVersion
+
 
 libraryDependencies += "com.typesafe.akka" % "akka-http-experimental_2.11" % "1.0"
 libraryDependencies += "com.typesafe.akka" % "akka-stream-experimental_2.11" % "1.0"
