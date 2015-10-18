@@ -14,9 +14,10 @@ import com.convergencelabs.server.frontend.realtime.proto.OpCode
 import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolNormalMessage
 import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolRequestMessage
 import grizzled.slf4j.Logging
+import org.java_websocket.drafts.Draft_17
 
 class MockConvergenceClient(serverUri: String)
-    extends WebSocketClient(new URI(serverUri), new Draft_76())
+    extends WebSocketClient(new URI(serverUri), new Draft_17())
     with Logging {
 
   private val queue = new LinkedBlockingDeque[MessageEnvelope]()

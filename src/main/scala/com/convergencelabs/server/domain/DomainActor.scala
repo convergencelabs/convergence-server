@@ -153,7 +153,7 @@ class DomainActor(
   def generateSessionToken(): String = {
     UUID.randomUUID().toString() + UUID.randomUUID().toString()
   }
-
+  
   override def preStart(): Unit = {
     val p = DomainPersistenceManagerActor.getPersistenceProvider(
       self, context, domainConfig.domainFqn)

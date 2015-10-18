@@ -84,6 +84,9 @@ class ClientActor(
     case RequestReceived(message, replyCallback) if message.isInstanceOf[HandshakeRequestMessage] => {
       handshake(message.asInstanceOf[HandshakeRequestMessage], replyCallback)
     }
+    case ConnectionClosed() => onConnectionClosed()
+    case ConnectionDropped() => onConnectionDropped()
+    case ConnectionError(message) => onConnectionError(message)
     case _ => invalidMessage()
   }
 
@@ -91,6 +94,9 @@ class ClientActor(
     case RequestReceived(message, replyCallback) if message.isInstanceOf[AuthenticationRequestMessage] => {
       authenticate(message.asInstanceOf[AuthenticationRequestMessage], replyCallback)
     }
+    case ConnectionClosed() => onConnectionClosed()
+    case ConnectionDropped() => onConnectionDropped()
+    case ConnectionError(message) => onConnectionError(message)
     case _ => invalidMessage()
   }
 
