@@ -32,12 +32,13 @@ private[this] implicit val formats = Serialization.formats(NoTypeHints)
   }
 
   //FIXME need this method  
-  //def setDomainUserPassword(username: String, password: String): Unit = {
-  //}
+  def setDomainUserPassword(username: String, password: String): Unit = {
+  }
 
   //FIXME need this method  
-  //def validateCredentials(username: String, password: String): Boolean = {
-  //}
+  def validateCredentials(username: String, password: String): Boolean = {
+    true
+  }
 
   def deleteDomainUser(uid: String): Unit = {
     val db = dbPool.acquire()

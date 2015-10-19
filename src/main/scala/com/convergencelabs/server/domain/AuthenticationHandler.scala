@@ -35,7 +35,6 @@ object AuthenticationHandler {
 class AuthenticationHandler(
   private[this] val domainConfig: DomainConfig,
   private[this] val userStore: DomainUserStore,
-  private[this] val domainUserAuthenticator: DomainUserAuthenticator,
   private[this] implicit val ec: ExecutionContext)
     extends Logging {
 
@@ -48,19 +47,12 @@ class AuthenticationHandler(
 
   private[this] def authenticatePassword(authRequest: PasswordAuthRequest): Future[AuthenticationResponse] = {
     val promise = Promise[AuthenticationResponse]
-
-    val f = domainUserAuthenticator.verfifyCredentials(
-      domainConfig.domainFqn,
-      authRequest.username,
-      authRequest.password)
-
-    f onComplete {
-      case Success(verified) if verified => promise.success(AuthenticationSuccess(authRequest.username))
-      case Success(verified) if !verified => promise.success(AuthenticationFailure)
-      case Failure(e) => promise.failure(e)
+    val response = userStore.validateCredentials(authRequest.username, authRequest.password) match {
+      case true => AuthenticationSuccess(authRequest.username)
+      case false => AuthenticationFailure
     }
-
-    promise.future
+    
+    Future.successful(response)
   }
 
   private[this] def authenticateToken(authRequest: TokenAuthRequest): Future[AuthenticationResponse] = {

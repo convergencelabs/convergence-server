@@ -21,6 +21,7 @@ import com.convergencelabs.server.datastore.TokenPublicKey
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.util.MockDomainPersistenceManagerActor
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
+import org.mockito.Mockito
 
 @RunWith(classOf[JUnitRunner])
 class DomainActorSpec
@@ -37,7 +38,7 @@ class DomainActorSpec
 
   "A DomainActor" when {
     "receiving an initial handshake request" must {
-      "response with a handshake response" in new TestFixture {
+      "response with a handshake success" in new TestFixture {
         val client = new TestProbe(system)
         domainActor.tell(HandshakeRequest(domainFqn, client.ref, false, None), client.ref)
         val response = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeSuccess])
@@ -71,7 +72,9 @@ class DomainActorSpec
       keys,
       adminKeyPair)
 
-    domainPersistence.underlyingActor.mockProviders = Map(domainFqn -> mock[DomainPersistenceProvider])
+    val provider = mock[DomainPersistenceProvider]
+    Mockito.when(provider.validateConnection()).thenReturn(true)
+    domainPersistence.underlyingActor.mockProviders = Map(domainFqn -> provider)
 
     val domainManagerActor = new TestProbe(system)
 

@@ -40,7 +40,7 @@ class DomainManagerActorSpec()
 
   "A DomainManagerActor" when {
     "receiving a handshake request" must {
-      "respond with a handshake response" in new TestFixture {
+      "respond with a handshake success for a domain that exists" in new TestFixture {
         val client = new TestProbe(system)
         domainManagerActor.tell(HandshakeRequest(domainFqn, client.ref, false, None), client.ref)
         val response = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeSuccess])
@@ -74,15 +74,16 @@ class DomainManagerActorSpec()
     Mockito.when(configStore.domainExists(domainFqn)).thenReturn(true)
     Mockito.when(configStore.domainExists(nonExistingDomain)).thenReturn(false)
 
-    domainPersistence.underlyingActor.mockProviders = Map(domainFqn -> mock[DomainPersistenceProvider])
-
+    val provider = mock[DomainPersistenceProvider]
+    Mockito.when(provider.validateConnection()).thenReturn(true)
+    domainPersistence.underlyingActor.mockProviders = Map(domainFqn -> provider)
+    
     val convergencePersistence = mock[PersistenceProvider]
     Mockito.when(convergencePersistence.domainConfigStore).thenReturn(configStore)
 
     val protocolConfig = ProtocolConfiguration(1000L)
 
-    val props = DomainManagerActor.props(convergencePersistence, protocolConfig)
-
-    val domainManagerActor = system.actorOf(props)
+    val domainManagerActor = system.actorOf(
+        DomainManagerActor.props(convergencePersistence, protocolConfig))
   }
 }

@@ -126,7 +126,7 @@ class ModelManagerActor(
   }
 
   override def postStop(): Unit = {
-    log.debug("SharedModelManager({}) received shutdown command.  Shutting down all SharedModels.", this.domainFqn)
+    log.debug("ModelManagerActor({}) received shutdown command.  Shutting down all Realtime Models.", this.domainFqn)
     openRealtimeModels.clear()
     DomainPersistenceManagerActor.releasePersistenceProvider(self, context, domainFqn)
   }

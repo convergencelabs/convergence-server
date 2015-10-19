@@ -108,12 +108,12 @@ class ClientActor(
       case TokenAuthenticationRequestMessage(token) => TokenAuthRequest(token)
     }
 
-    val future = domainManager ? message
+    val future = domainActor ? message
 
     future.mapResponse[AuthenticationResponse] onComplete {
       case Success(AuthenticationSuccess(username)) => {
         cb.reply(AuthenticationResponseMessage(true, Some(username)))
-        context.become(receiveWhileHandshook)
+        context.become(receiveWhileAuthenticated)
       }
       case Success(AuthenticationFailure) => {
         cb.reply(AuthenticationResponseMessage(false, None))
@@ -152,7 +152,7 @@ class ClientActor(
     }
   }
 
-  def receiveWhileHandshook: Receive = {
+  def receiveWhileAuthenticated: Receive = {
     case RequestReceived(message, replyPromise) if message.isInstanceOf[HandshakeRequestMessage] => invalidMessage()
 
     case message: OutgoingProtocolNormalMessage => onOutgoingMessage(message)
@@ -190,7 +190,8 @@ class ClientActor(
   }
 
   private def onRequestReceived(message: RequestReceived): Unit = {
-    message match {
+    println("\n\n###\n\n")
+      message match {
       case RequestReceived(x, _) if x.isInstanceOf[IncomingModelRequestMessage] => modelClient.forward(message)
       case _ => ???
     }
@@ -199,19 +200,25 @@ class ClientActor(
   // FIXME duplicate code.
   private def onConnectionClosed(): Unit = {
     log.debug("Connection Closed")
-    domainActor ! ClientDisconnected(sessionId)
+    if (domainActor != null) {
+      domainActor ! ClientDisconnected(sessionId)
+    }
     context.stop(self)
   }
 
   private def onConnectionDropped(): Unit = {
     log.debug("Connection Dropped")
-    domainActor ! ClientDisconnected(sessionId)
+    if (domainActor != null) {
+      domainActor ! ClientDisconnected(sessionId)
+    }
     context.stop(self)
   }
 
   private def onConnectionError(message: String): Unit = {
     log.debug("Connection Error")
-    domainActor ! ClientDisconnected(sessionId)
+    if (domainActor != null) {
+      domainActor ! ClientDisconnected(sessionId)
+    }
     context.stop(self)
   }
 

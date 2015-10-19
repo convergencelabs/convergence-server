@@ -38,15 +38,21 @@ import com.convergencelabs.server.domain.model.OpenRealtimeModelRequest
 import com.convergencelabs.server.domain.model.ModelFqn
 import scala.concurrent.Future
 import com.convergencelabs.server.frontend.realtime.proto.ModelFqnData
+import com.convergencelabs.server.domain.AuthenticationRequest
+import com.convergencelabs.server.frontend.realtime.proto.AuthenticationRequestMessage
+import com.convergencelabs.server.frontend.realtime.proto.PasswordAuthenticationRequestMessage
+import java.net.PasswordAuthentication
+import com.convergencelabs.server.domain.AuthenticationSuccess
+import com.convergencelabs.server.domain.PasswordAuthRequest
+import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
+import com.convergencelabs.server.util.MockDomainPersistenceManagerActor
 
 @RunWith(classOf[JUnitRunner])
-class ClientActorSpec(system: ActorSystem)
-    extends TestKit(system)
+class ClientActorSpec
+    extends TestKit(ActorSystem("ClientActorSpec"))
     with WordSpecLike
     with BeforeAndAfterAll
     with MockitoSugar {
-
-  def this() = this(ActorSystem("ClientActorSpec"))
 
   override def afterAll() {
     TestKit.shutdownActorSystem(system)
@@ -79,7 +85,7 @@ class ClientActorSpec(system: ActorSystem)
 
         domainManagerActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeRequest])
         domainManagerActor.reply(HandshakeFailure("code", "string"))
-        
+
         val reply = Await.result(cb.result, 50 millis)
         assert(reply == HandshakeResponseMessage(false, Some(ErrorData("code", "string")), None, None))
         probeWatcher.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Terminated])
@@ -108,12 +114,12 @@ class ClientActorSpec(system: ActorSystem)
 
         probeWatcher.expectMsgClass(FiniteDuration(1250, TimeUnit.MILLISECONDS), classOf[Terminated])
         val HandshakeResponseMessage(success, error, sessionId, token) = Await.result(cb.result, 50 millis)
-        
+
         assert(!success)
-        
+
         Mockito.verify(connection, times(1)).abort(Matchers.any())
       }
-      
+
       "shut down if no handshake is recieved from the client" in new TestFixture(system) {
         val probeWatcher = new TestProbe(system)
         probeWatcher watch clientActor
@@ -144,14 +150,14 @@ class ClientActorSpec(system: ActorSystem)
         probeWatcher.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Terminated])
       }
     }
-    
+
     "recieving an open model message" must {
-      "forward to the model manager" in new HandshookClient(system) {
+      "forward to the model manager" in new AuthenticatedClient(system) {
         val openRequest = OpenRealtimeModelRequestMessage(ModelFqnData("collection", "model"))
         val openReply = mock[ReplyCallback]
         val openEvent = RequestReceived(openRequest, openReply)
         clientActor.tell(openEvent, ActorRef.noSender)
-        
+
         modelManagerActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenRealtimeModelRequest])
       }
     }
@@ -159,7 +165,6 @@ class ClientActorSpec(system: ActorSystem)
 
   class TestFixture(system: ActorSystem) {
     val domainManagerActor = new TestProbe(system)
-    val modelManagerActor = new TestProbe(system)
 
     val domainFqn = DomainFqn("namespace", "domainId")
     val protoConfig = ProtocolConfiguration(2L)
@@ -175,27 +180,38 @@ class ClientActorSpec(system: ActorSystem)
   }
 
   class HandshookClient(system: ActorSystem) extends TestFixture(system: ActorSystem) {
+    val domainActor = new TestProbe(system)
+    val modelManagerActor = new TestProbe(system)
+
     val handshakeRequestMessage = HandshakeRequestMessage(false, None, None)
     val handshakeEvent = RequestReceived(handshakeRequestMessage, mock[ReplyCallback])
 
     clientActor.tell(handshakeEvent, ActorRef.noSender)
 
     domainManagerActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeRequest])
-    domainManagerActor.reply(HandshakeSuccess("sessionId", "reconnectToken", domainManagerActor.ref, modelManagerActor.ref))
-    
-    //Await.result(handshakeReply.future, 100 millis)
+    domainManagerActor.reply(HandshakeSuccess("sessionId", "reconnectToken", domainActor.ref, modelManagerActor.ref))
   }
-  
+
+  class AuthenticatedClient(system: ActorSystem) extends HandshookClient(system: ActorSystem) {
+    val authRequestMessage = PasswordAuthenticationRequestMessage("test", "test")
+    val authEvent = RequestReceived(authRequestMessage, mock[ReplyCallback])
+
+    clientActor.tell(authEvent, ActorRef.noSender)
+
+    domainActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[PasswordAuthRequest])
+    domainActor.reply(AuthenticationSuccess("test"))
+  }
+
   class TestReplyCallback() extends ReplyCallback {
     val p = Promise[OutgoingProtocolResponseMessage]
     def reply(message: OutgoingProtocolResponseMessage): Unit = {
       p.success(message)
     }
-    
+
     def error(cause: Throwable): Unit = {
       p.failure(cause)
     }
-    
+
     def result(): Future[OutgoingProtocolResponseMessage] = {
       p.future
     }

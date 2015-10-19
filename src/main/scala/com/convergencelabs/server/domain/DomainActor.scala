@@ -162,7 +162,6 @@ class DomainActor(
         authenticator = new AuthenticationHandler(
           domainConfig,
           provider.userStore,
-          new DomainUserAuthenticator(),
           context.dispatcher)
       }
       case Failure(cause) => {

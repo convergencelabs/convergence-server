@@ -85,22 +85,12 @@ class AuthenticationHandlerSpec()
       adminKeyPair)
 
     val userStore = mock[DomainUserStore]
-    val userAuthenticator = mock[DomainUserAuthenticator]
-
     Mockito.when(userStore.domainUserExists(existingUser)).thenReturn(true)
     Mockito.when(userStore.domainUserExists(nonExistingUser)).thenReturn(false)
-   
-    Mockito.when(userAuthenticator.verfifyCredentials(
-      domainFqn, existingUser, existingCorrectPassword)).thenReturn(Future.successful(true))
-    Mockito.when(userAuthenticator.verfifyCredentials(
-      domainFqn, existingUser, existingIncorrectPassword)).thenReturn(Future.successful(false))
-    Mockito.when(userAuthenticator.verfifyCredentials(
-      domainFqn, nonExistingUser, "")).thenReturn(Future.successful(false))
-
-    val authHandler = new AuthenticationHandler(
-      domainConfig,
-      userStore,
-      userAuthenticator,
-      system.dispatcher)
+    Mockito.when(userStore.validateCredentials(existingUser, existingCorrectPassword)).thenReturn(true)
+    Mockito.when(userStore.validateCredentials(existingUser, existingIncorrectPassword)).thenReturn(false)
+    Mockito.when(userStore.validateCredentials(nonExistingUser, "")).thenReturn(false)
+    
+    val authHandler = new AuthenticationHandler(domainConfig, userStore, system.dispatcher)
   }
 }
