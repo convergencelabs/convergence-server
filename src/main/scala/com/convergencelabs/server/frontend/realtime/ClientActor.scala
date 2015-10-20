@@ -89,7 +89,7 @@ class ClientActor(
     case ConnectionClosed() => onConnectionClosed()
     case ConnectionDropped() => onConnectionDropped()
     case ConnectionError(message) => onConnectionError(message)
-    case _ => invalidMessage()
+    case x => invalidMessage(x)
   }
 
   def receiveWhileAuthenticating: Receive = {
@@ -99,7 +99,7 @@ class ClientActor(
     case ConnectionClosed() => onConnectionClosed()
     case ConnectionDropped() => onConnectionDropped()
     case ConnectionError(message) => onConnectionError(message)
-    case _ => invalidMessage()
+    case x => invalidMessage(x)
   }
 
   def authenticate(requestMessage: AuthenticationRequestMessage, cb: ReplyCallback): Unit = {
@@ -153,7 +153,7 @@ class ClientActor(
   }
 
   def receiveWhileAuthenticated: Receive = {
-    case RequestReceived(message, replyPromise) if message.isInstanceOf[HandshakeRequestMessage] => invalidMessage()
+    case RequestReceived(message, replyPromise) if message.isInstanceOf[HandshakeRequestMessage] => invalidMessage(message)
 
     case message: OutgoingProtocolNormalMessage => onOutgoingMessage(message)
     case message: OutgoingProtocolRequestMessage => onOutgoingRequest(message)
@@ -221,7 +221,8 @@ class ClientActor(
     context.stop(self)
   }
 
-  private[this] def invalidMessage(): Unit = {
+  private[this] def invalidMessage(message: Any): Unit = {
+    log.error("CRAP: " + message)
     connection.abort("Invalid message")
     context.stop(self)
   }

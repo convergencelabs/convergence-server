@@ -46,6 +46,7 @@ import com.convergencelabs.server.domain.AuthenticationSuccess
 import com.convergencelabs.server.domain.PasswordAuthRequest
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.util.MockDomainPersistenceManagerActor
+import com.convergencelabs.server.frontend.realtime.proto.AuthenticationResponseMessage
 
 @RunWith(classOf[JUnitRunner])
 class ClientActorSpec
@@ -96,7 +97,7 @@ class ClientActorSpec
         probeWatcher watch clientActor
 
         val cb = mock[ReplyCallback]
-        val event = RequestReceived(CloseRealtimeModelRequestMessage("foo", "bar"), cb)
+        val event = RequestReceived(CloseRealtimeModelRequestMessage("invalid", "message"), cb)
         clientActor.tell(event, ActorRef.noSender)
 
         probeWatcher.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Terminated])
@@ -158,7 +159,7 @@ class ClientActorSpec
         val openEvent = RequestReceived(openRequest, openReply)
         clientActor.tell(openEvent, ActorRef.noSender)
 
-        modelManagerActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenRealtimeModelRequest])
+        modelManagerActor.expectMsgClass(FiniteDuration(2, TimeUnit.SECONDS), classOf[OpenRealtimeModelRequest])
       }
     }
   }
@@ -184,22 +185,28 @@ class ClientActorSpec
     val modelManagerActor = new TestProbe(system)
 
     val handshakeRequestMessage = HandshakeRequestMessage(false, None, None)
-    val handshakeEvent = RequestReceived(handshakeRequestMessage, mock[ReplyCallback])
+    val handshakeCallback = new TestReplyCallback()
+    val handshakeEvent = RequestReceived(handshakeRequestMessage, handshakeCallback)
 
     clientActor.tell(handshakeEvent, ActorRef.noSender)
 
     domainManagerActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeRequest])
     domainManagerActor.reply(HandshakeSuccess("sessionId", "reconnectToken", domainActor.ref, modelManagerActor.ref))
+    Await.result(handshakeCallback.result, 250 millis)
   }
 
   class AuthenticatedClient(system: ActorSystem) extends HandshookClient(system: ActorSystem) {
     val authRequestMessage = PasswordAuthenticationRequestMessage("test", "test")
-    val authEvent = RequestReceived(authRequestMessage, mock[ReplyCallback])
+    
+    val authCallback = new TestReplyCallback()
+    val authEvent = RequestReceived(authRequestMessage, authCallback)
 
     clientActor.tell(authEvent, ActorRef.noSender)
 
     domainActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[PasswordAuthRequest])
     domainActor.reply(AuthenticationSuccess("test"))
+    
+    val AuthenticationResponseMessage(rId, cId) = Await.result(authCallback.result, 250 millis)
   }
 
   class TestReplyCallback() extends ReplyCallback {
