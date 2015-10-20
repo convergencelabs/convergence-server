@@ -27,6 +27,8 @@ sealed trait OutgoingProtocolResponseMessage extends OutgoingProtocolMessage
 // Client Messages
 ///////////////////////////////////////////////////////////////////////////////
 
+case class ErrorMessage(code: String, message: String) extends OutgoingProtocolResponseMessage
+
 // Handshaking
 case class HandshakeRequestMessage(reconnect: scala.Boolean, reconnectToken: Option[String], options: Option[ProtocolOptionsData]) extends IncomingProtocolRequestMessage
 case class HandshakeResponseMessage(success: scala.Boolean, error: Option[ErrorData], sessionId: Option[String], reconnectToken: Option[String]) extends OutgoingProtocolResponseMessage

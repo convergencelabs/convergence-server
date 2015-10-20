@@ -41,8 +41,8 @@ class ModelManagerActor(
 
   private[this] def onOpenRealtimeModel(openRequest: OpenRealtimeModelRequest): Unit = {
     if (!persistenceProvider.modelStore.modelExists(openRequest.modelFqn)) {
-      sender() ! ErrorMessage(ModelNotFound, "The requested model coult not be opened, because it does not exist.")
-      return ;
+      sender ! ModelNotFound
+      return
     }
 
     if (!this.openRealtimeModels.contains(openRequest.modelFqn)) {
@@ -78,7 +78,7 @@ class ModelManagerActor(
 
   private[this] def onCreateModelRequest(createRequest: CreateModelRequest): Unit = {
     if (persistenceProvider.modelStore.modelExists(createRequest.modelFqn)) {
-      sender() ! ErrorMessage(ModelExists, "The model can't be created, because a model with specified colleciton and model already exists.")
+      sender ! ErrorMessage(ModelExists, "The model can't be created, because a model with specified colleciton and model already exists.")
     } else {
       val modelData = createRequest.modelData
       val createTime = Platform.currentTime
@@ -113,7 +113,7 @@ class ModelManagerActor(
 
       sender() ! SuccessResponse
     } else {
-      sender() ! ErrorMessage(ModelNotFound, "The model could not be deleted because a model with the specified collection and modelId does not exist.")
+      sender() ! ModelNotFound
     }
   }
 

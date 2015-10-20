@@ -128,6 +128,24 @@ class ModelClientActor(
     modelActor ! submission
   }
 
+  def onOpenRealtimeModelRequest(request: OpenRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
+    val ModelFqnData(collectionId, modelId) = request.modelFqn
+    val future = modelManager ? OpenRealtimeModelRequest(ModelFqn(collectionId, modelId) , self)
+    future.mapResponse[OpenModelResponse] onComplete {
+      case Success(OpenModelSuccess(realtimeModelActor, modelResourceId, modelSessionId, metaData, modelData)) => {
+        openRealtimeModels += (modelResourceId -> realtimeModelActor)
+        cb.reply(
+          OpenRealtimeModelResponseMessage(modelResourceId, modelSessionId, metaData, modelData))
+      }
+      case Success(ModelNotFound) => {
+        cb.reply(ErrorMessage("model_not_found", "Could not be opened."))
+      }
+      case Failure(cause) => {
+        cb.error(cause)
+      }
+    }
+  }
+  
   def onCloseRealtimeModelRequest(request: CloseRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
     openRealtimeModels.get(request.rId) match {
       case Some(modelActor) => {
@@ -141,19 +159,6 @@ class ModelClientActor(
         }
       }
       case None => cb.error(new ErrorException("model_not_opened", "The requested model was not opened"))
-    }
-  }
-
-  def onOpenRealtimeModelRequest(request: OpenRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
-    val ModelFqnData(collectionId, modelId) = request.modelFqn
-    val future = modelManager ? OpenRealtimeModelRequest(ModelFqn(collectionId, modelId) , self)
-    future.mapResponse[OpenModelResponse] onComplete {
-      case Success(OpenModelResponse(realtimeModelActor, modelResourceId, modelSessionId, metaData, modelData)) => {
-        openRealtimeModels += (modelResourceId -> realtimeModelActor)
-        cb.reply(
-          OpenRealtimeModelResponseMessage(modelResourceId, modelSessionId, metaData, modelData))
-      }
-      case Failure(cause) => cb.error(cause)
     }
   }
 }

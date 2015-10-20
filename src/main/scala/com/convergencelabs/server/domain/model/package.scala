@@ -67,7 +67,10 @@ package model {
   //
   // Outgoing Messages
   //
-  case class OpenModelResponse(realtimeModelActor: ActorRef, modelResourceId: String, ccId: String, metaData: OpenModelMetaData, modelData: JValue)
+  sealed trait OpenModelResponse
+  case class OpenModelSuccess(realtimeModelActor: ActorRef, modelResourceId: String, ccId: String, metaData: OpenModelMetaData, modelData: JValue) extends OpenModelResponse
+  case object ModelNotFound extends OpenModelResponse
+  
   case class ModelShutdownRequest(modelFqn: ModelFqn)
   case class CloseRealtimeModelSuccess()
   

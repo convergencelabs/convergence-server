@@ -54,7 +54,7 @@ package object concurrent {
     }
   }
 
-  class ErrorException(code: String, message: String) extends Exception(message) {
+  case class ErrorException(code: String, message: String) extends Exception(message) {
     def this() = {
       this("unknown", "An unkown error occured")
     }

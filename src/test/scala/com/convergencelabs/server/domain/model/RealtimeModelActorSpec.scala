@@ -35,7 +35,7 @@ class RealtimeModelActorSpec
         val client = new TestProbe(system)
         realtimeModelActor.tell(OpenRealtimeModelRequest(modelFqn, client.ref), client.ref)
 
-        val message = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelResponse])
+        val message = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
         assert(message.modelData == modelData.data)
         assert(message.metaData.version == modelData.metaData.version)
         assert(message.metaData.createdTime == modelData.metaData.createdTime)
@@ -98,8 +98,8 @@ class RealtimeModelActorSpec
         client2.reply(ClientModelDataResponse(modelJsonData))
 
         // Verify that both clients got the data.
-        client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelResponse])
-        val openResponse = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelResponse])
+        client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
+        val openResponse = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
 
         assert(openResponse.modelData == modelJsonData)
         assert(openResponse.metaData.version == modelData.metaData.version)
@@ -130,10 +130,10 @@ class RealtimeModelActorSpec
         val client2 = new TestProbe(system)
 
         realtimeModelActor.tell(OpenRealtimeModelRequest(modelFqn, client1.ref), client1.ref)
-        val open1 = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelResponse])
+        val open1 = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
 
         realtimeModelActor.tell(OpenRealtimeModelRequest(modelFqn, client2.ref), client2.ref)
-        val open2 = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelResponse])
+        val open2 = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
 
         assert(open1.ccId != open2.ccId)
       }
@@ -143,10 +143,10 @@ class RealtimeModelActorSpec
         val client2 = new TestProbe(system)
 
         realtimeModelActor.tell(OpenRealtimeModelRequest(modelFqn, client1.ref), client1.ref)
-        val open1 = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelResponse])
+        val open1 = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
 
         realtimeModelActor.tell(OpenRealtimeModelRequest(modelFqn, client2.ref), client2.ref)
-        val open2 = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelResponse])
+        val open2 = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
 
         assert(open1.ccId != open2.ccId)
       }
@@ -168,10 +168,10 @@ class RealtimeModelActorSpec
         val client2 = new TestProbe(system)
 
         realtimeModelActor.tell(OpenRealtimeModelRequest(modelFqn, client1.ref), client1.ref)
-        var client1Response = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelResponse])
+        var client1Response = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
 
         realtimeModelActor.tell(OpenRealtimeModelRequest(modelFqn, client2.ref), client2.ref)
-        var client2Response = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelResponse])
+        var client2Response = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
 
         realtimeModelActor.tell(CloseRealtimeModelRequest(client2Response.ccId), client2.ref)
         val closeAck = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[CloseRealtimeModelSuccess])
@@ -183,7 +183,7 @@ class RealtimeModelActorSpec
         val client1 = new TestProbe(system)
 
         realtimeModelActor.tell(OpenRealtimeModelRequest(modelFqn, client1.ref), client1.ref)
-        var client1Response = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelResponse])
+        var client1Response = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
         realtimeModelActor.tell(CloseRealtimeModelRequest(client1Response.ccId), client1.ref)
         val closeAck = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[CloseRealtimeModelSuccess])
         modelManagerActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ModelShutdownRequest])
@@ -259,13 +259,13 @@ class RealtimeModelActorSpec
   trait OneOpenClient extends MockDatabaseWithModel {
     val client1 = new TestProbe(system)
     realtimeModelActor.tell(OpenRealtimeModelRequest(modelFqn, client1.ref), client1.ref)
-    val client1OpenResponse = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelResponse])
+    val client1OpenResponse = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
   }
 
   trait TwoOpenClients extends OneOpenClient {
     val client2 = new TestProbe(system)
     realtimeModelActor.tell(OpenRealtimeModelRequest(modelFqn, client2.ref), client2.ref)
-    val client2OpenResponse = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelResponse])
+    val client2OpenResponse = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
   }
 
   trait MockDatabaseWithoutModel extends TestFixture {

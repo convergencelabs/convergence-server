@@ -22,7 +22,6 @@ import org.mockito.Mockito
 import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
 import com.convergencelabs.server.ErrorMessage
-import com.convergencelabs.server.ErrorMessage
 import com.convergencelabs.server.util.MockDomainPersistenceManagerActor
 
 @RunWith(classOf[JUnitRunner])
@@ -46,7 +45,7 @@ class ModelManagerActorSpec
         val client = new TestProbe(system)
         modelManagerActor.tell(OpenRealtimeModelRequest(modelFqn, client.ref), client.ref)
         
-        val message = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelResponse])
+        val message = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
         assert(message.modelData == modelData.data)
         assert(message.metaData.version == modelData.metaData.version)
         assert(message.metaData.createdTime == modelData.metaData.createdTime)
@@ -56,11 +55,11 @@ class ModelManagerActorSpec
       "sucessfully load an open model" in new TestFixture {
         val client1 = new TestProbe(system)
         modelManagerActor.tell(OpenRealtimeModelRequest(modelFqn, client1.ref), client1.ref)
-        client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelResponse])
+        client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
         
         val client2 = new TestProbe(system)
         modelManagerActor.tell(OpenRealtimeModelRequest(modelFqn, client2.ref), client2.ref)
-        val response = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelResponse])
+        val response = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
         
         assert(response.modelData == modelData.data)
         assert(response.metaData.version == modelData.metaData.version)
@@ -71,8 +70,7 @@ class ModelManagerActorSpec
       "return an error if the model does not exist" in new TestFixture {
         val client1 = new TestProbe(system)
         modelManagerActor.tell(OpenRealtimeModelRequest(ModelFqn("no", "model"), client1.ref), client1.ref)
-        val response = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ErrorMessage])
-        assert(response.code == ModelManagerActor.ErrorCodes.ModelNotFound)
+        val response = client1.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelNotFound)
       }
     }
     
@@ -89,8 +87,7 @@ class ModelManagerActorSpec
       "return an error if the model does not exist" in new TestFixture {
         val client = new TestProbe(system)
         modelManagerActor.tell(DeleteModelRequest(ModelFqn("collection", "no model")), client.ref)
-        val response = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ErrorMessage])
-        assert(response.code == ModelManagerActor.ErrorCodes.ModelNotFound)
+        val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelNotFound)
       }
     }
   }

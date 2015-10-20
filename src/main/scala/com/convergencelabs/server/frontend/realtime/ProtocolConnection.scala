@@ -27,6 +27,9 @@ import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolRespon
 import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolNormalMessage
 import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolRequestMessage
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.frontend.realtime.proto.ErrorData
+import com.convergencelabs.server.util.concurrent.ErrorException
+import com.convergencelabs.server.frontend.realtime.proto.ErrorMessage
 
 object ProtocolConnection {
   object State extends Enumeration {
@@ -227,6 +230,14 @@ class ProtocolConnection(
     }
     
     def error(cause: Throwable): Unit = {
+      cause match {
+        case ErrorException(code, details) => {
+          sendMessage(OpCode.Reply, Some(reqId), Some(ErrorMessage(code, details)))
+        }
+        case _ => {
+          sendMessage(OpCode.Reply, Some(reqId), Some(ErrorMessage("unknown", "")))
+        }
+      }
       p.failure(cause)
     }
     

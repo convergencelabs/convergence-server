@@ -190,7 +190,6 @@ class ClientActor(
   }
 
   private def onRequestReceived(message: RequestReceived): Unit = {
-    println("\n\n###\n\n")
       message match {
       case RequestReceived(x, _) if x.isInstanceOf[IncomingModelRequestMessage] => modelClient.forward(message)
       case _ => ???

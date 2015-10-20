@@ -256,7 +256,7 @@ class RealtimeModelActor(
       modelData.metaData.createdTime,
       modelData.metaData.modifiedTime)
 
-    val openModelResponse = OpenModelResponse(
+    val openModelResponse = OpenModelSuccess(
       self,
       modelResourceId,
       clientId,

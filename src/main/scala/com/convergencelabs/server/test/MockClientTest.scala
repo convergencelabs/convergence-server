@@ -21,7 +21,10 @@ object MockClientTest {
     client.sendRequest(PasswordAuthenticationRequestMessage("test", "test"))
     val authResponse = client.expectMessageClass(5 seconds, classOf[AuthenticationResponseMessage])
     
-    //client.sendRequest(OpenRealtimeModelRequestMessage(ModelFqnData("collection", "model")))
+    client.sendRequest(OpenRealtimeModelRequestMessage(ModelFqnData("collection", "model")))
+    
+    val openResponse = client.expectMessage(5 seconds)
+    println(openResponse)
 
     client.close()
   }

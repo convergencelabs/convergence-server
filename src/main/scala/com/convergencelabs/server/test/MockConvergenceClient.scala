@@ -83,6 +83,8 @@ class MockConvergenceClient(serverUri: String)
     logger.info("an error occurred:" + ex);
   }
 
+  def expectMessage(max: FiniteDuration): MessageEnvelope = receiveOne(max)
+  
   def expectMessageClass[C <: ProtocolMessage](max: FiniteDuration, c: Class[C]): (MessageEnvelope, C) =
     expectMessageClass_internal(max, c)
 
