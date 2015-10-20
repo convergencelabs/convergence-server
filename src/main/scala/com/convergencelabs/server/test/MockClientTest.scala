@@ -9,6 +9,7 @@ import com.convergencelabs.server.frontend.realtime.proto.OpenRealtimeModelReque
 import com.convergencelabs.server.frontend.realtime.proto.ModelFqnData
 import com.convergencelabs.server.frontend.realtime.proto.PasswordAuthenticationRequestMessage
 import com.convergencelabs.server.frontend.realtime.proto.AuthenticationResponseMessage
+import com.convergencelabs.server.frontend.realtime.proto.ErrorMessage
 
 object MockClientTest {
   def main(args: Array[String]): Unit = {
@@ -23,7 +24,7 @@ object MockClientTest {
     
     client.sendRequest(OpenRealtimeModelRequestMessage(ModelFqnData("collection", "model")))
     
-    val openResponse = client.expectMessage(5 seconds)
+    val (_, openResponse) = client.expectMessageClass(5 seconds, classOf[ErrorMessage])
     println(openResponse)
 
     client.close()
