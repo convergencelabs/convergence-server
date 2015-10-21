@@ -40,10 +40,10 @@ class ModelManagerActor(
   }
 
   private[this] def onOpenRealtimeModel(openRequest: OpenRealtimeModelRequest): Unit = {
-    if (!persistenceProvider.modelStore.modelExists(openRequest.modelFqn)) {
-      sender ! ModelNotFound
-      return
-    }
+//    if (!persistenceProvider.modelStore.modelExists(openRequest.modelFqn)) {
+//      sender ! ModelNotFound
+//      return
+//    }
 
     if (!this.openRealtimeModels.contains(openRequest.modelFqn)) {
       val resourceId = "" + nextModelResourceId
@@ -65,7 +65,7 @@ class ModelManagerActor(
         resourceId,
         persistenceProvider.modelStore,
         persistenceProvider.modelSnapshotStore,
-        protocolConfig.defaultMessageTimeout,
+        5000, // FIXME
         snapshotConfig)
 
       val modelActor = context.actorOf(props, resourceId);

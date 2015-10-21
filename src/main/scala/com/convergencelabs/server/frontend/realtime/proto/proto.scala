@@ -48,8 +48,10 @@ package object proto {
   // FIXME can we use the message type enum instead for matching?
   case class MessageEnvelope(opCode: String, reqId: Option[Long], `type`: Option[String], body: Option[JValue]) {
 
-    def extractResponseBody[T <: ProtocolMessage](implicit c: TypeTag[T]): ProtocolMessage = {
-      Extraction.extract(body.get, Reflector.scalaTypeOf(c.tpe.getClass)).asInstanceOf[T]
+    def extractResponseBody(requestType: String): IncomingProtocolResponseMessage = {
+      requestType match {
+        case MessageType.ModelDataRequest => Extraction.extract[ModelDataResponseMessage](body.get)
+      }
     }
 
     def extractBody[M <: ProtocolMessage](c: Class[M]): ProtocolMessage = {
@@ -91,6 +93,7 @@ package object proto {
         case _: CloseRealtimeModelRequestMessage => Some(MessageType.CloseRealtimeModel)
         case _: PasswordAuthenticationRequestMessage => Some(MessageType.AuthPassword)
         case _: TokenAuthenticationRequestMessage => Some(MessageType.AuthToken)
+        case _: ModelDataRequestMessage => Some(MessageType.ModelDataRequest)
         case _ => None
       }
     }
@@ -106,5 +109,7 @@ package object proto {
     
     val OpenRealtimeModel = "openRealtimeModel"
     val CloseRealtimeModel = "handshake"
+    
+    val ModelDataRequest = "modelData"
   }
 }

@@ -10,6 +10,11 @@ import com.convergencelabs.server.frontend.realtime.proto.ModelFqnData
 import com.convergencelabs.server.frontend.realtime.proto.PasswordAuthenticationRequestMessage
 import com.convergencelabs.server.frontend.realtime.proto.AuthenticationResponseMessage
 import com.convergencelabs.server.frontend.realtime.proto.ErrorMessage
+import com.convergencelabs.server.frontend.realtime.proto.ModelDataRequestMessage
+import com.convergencelabs.server.frontend.realtime.proto.MessageEnvelope
+import com.convergencelabs.server.frontend.realtime.proto.ModelDataResponseMessage
+import org.json4s.JsonAST.JObject
+import com.convergencelabs.server.frontend.realtime.proto.OpenRealtimeModelResponseMessage
 
 object MockClientTest {
   def main(args: Array[String]): Unit = {
@@ -24,8 +29,13 @@ object MockClientTest {
     
     client.sendRequest(OpenRealtimeModelRequestMessage(ModelFqnData("collection", "model")))
     
-    val (_, openResponse) = client.expectMessageClass(5 seconds, classOf[ErrorMessage])
-    println(openResponse)
+    // FIXME we have a problem with the resource id stuff.
+    val (dataRequest, MessageEnvelope(_, Some(reqId), _, _)) = client.expectMessageClass(5 seconds, classOf[ModelDataRequestMessage])
+    println(dataRequest)
+    
+    client.sendResponse(reqId, ModelDataResponseMessage(JObject()))
+    
+    val openResponse = client.expectMessageClass(5 seconds, classOf[OpenRealtimeModelResponseMessage])
 
     client.close()
   }

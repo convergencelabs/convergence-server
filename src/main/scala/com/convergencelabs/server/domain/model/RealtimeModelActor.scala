@@ -75,7 +75,7 @@ class RealtimeModelActor(
   private[this] def receiveInitializingFromDatabase: Receive = {
     case request: OpenRealtimeModelRequest => onOpenModelWhileInitializing(request)
     case dataResponse: DatabaseModelResponse => onDatabaseModelResponse(dataResponse)
-    case DatabaseModelFailure(cause) => handleInitializationFailure("unknown", cause.getMessage)
+    case DatabaseModelFailure(cause) => handleInitializationFailure("unknown", "DB Failure") // FIXME
     case modelDeleted: ModelDeleted => handleInitializationFailure("model_deleted", "The model was deleted while opening.")
     case dataResponse: ClientModelDataResponse =>
     case unknown => unhandled(unknown)
@@ -116,7 +116,7 @@ class RealtimeModelActor(
 
   /**
    * Handles an additional request for opening the model, while the model is
-   * already initializgin.
+   * already initializing.
    */
   private[this] def onOpenModelWhileInitializing(request: OpenRealtimeModelRequest): Unit = {
     // We know we are already INITIALIZING.  This means we are at least the second client
@@ -193,19 +193,23 @@ class RealtimeModelActor(
       ClientModelDataRequest(modelFqn),
       clientDataResponseTimeout)
 
-    val askingActor = sender()
+    val askingActor = sender
 
     future.mapTo[ClientModelDataResponse] onComplete {
-      case Success(response) => self ! response
+      case Success(response) => {
+        self ! response
+      }
       case Failure(cause) => cause match {
         case e: ClassCastException =>
           log.warning("The client responded with an unexpected value:" + e.getMessage)
           askingActor ! ErrorMessage("invalid_response", "The client responded with an unexpected value.")
         case e: AskTimeoutException =>
+          log.error(e, "Timed out!!.")
           askingActor ! ErrorMessage(
             "data_request_timeout",
             "The client did not correctly respond with data, while initializing a new model.")
         case e: Exception =>
+          log.error(e, "Uknnown exception prcessing model data response.")
           askingActor ! ErrorMessage("unknown", e.getMessage)
       }
     }

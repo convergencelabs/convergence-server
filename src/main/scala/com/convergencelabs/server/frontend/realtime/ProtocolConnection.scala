@@ -30,6 +30,8 @@ import grizzled.slf4j.Logging
 import com.convergencelabs.server.frontend.realtime.proto.ErrorData
 import com.convergencelabs.server.util.concurrent.ErrorException
 import com.convergencelabs.server.frontend.realtime.proto.ErrorMessage
+import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolResponseMessage
+import com.convergencelabs.server.util.concurrent.ErrorException
 
 object ProtocolConnection {
   object State extends Enumeration {
@@ -92,11 +94,11 @@ class ProtocolConnection(
     sendMessage(OpCode.Normal, None, Some(message))
   }
 
-  def request(message: OutgoingProtocolRequestMessage)(implicit executor: ExecutionContext): Future[ProtocolMessage] = {
+  def request(message: OutgoingProtocolRequestMessage)(implicit executor: ExecutionContext): Future[IncomingProtocolResponseMessage] = {
     val requestId = nextRequestId
     nextRequestId += 1
 
-    val replyPromise = Promise[ProtocolMessage]
+    val replyPromise = Promise[IncomingProtocolResponseMessage]
 
     val timeout = Duration.create(50, TimeUnit.MILLISECONDS)
     val timeoutFuture = scheduler.scheduleOnce(timeout)(() => {
@@ -109,11 +111,9 @@ class ProtocolConnection(
         }
       })
     })
-
-    requests(requestId) = RequestRecord(requestId, replyPromise, timeoutFuture, "")
-
-    sendMessage(OpCode.Request, Some(requestId), Some(message))
-
+    
+    val sent = sendMessage(OpCode.Request, Some(requestId), Some(message))
+    requests(requestId) = RequestRecord(requestId, replyPromise, timeoutFuture, sent.`type`.get)
     replyPromise.future
   }
 
@@ -131,10 +131,11 @@ class ProtocolConnection(
     socket.close("closed normally")
   }
 
-  def sendMessage(opCode: String, requestMessageId: Option[Long], message: Option[ProtocolMessage]): Unit = {
+  def sendMessage(opCode: String, requestMessageId: Option[Long], message: Option[ProtocolMessage]): MessageEnvelope = {
     val envelope = MessageEnvelope(opCode, requestMessageId, message)
     socket.send(envelope.toJson())
     logger.debug(envelope.toJson())
+    envelope
   }
 
   private[this] def onSocketMessage(json: String): Unit = {
@@ -193,8 +194,8 @@ class ProtocolConnection(
     val p = Promise[OutgoingProtocolResponseMessage]
 
     eventHandler lift RequestReceived(
-        protocolMessage.asInstanceOf[IncomingProtocolRequestMessage], 
-        new ReplyCallbackImpl(envelope.reqId.get))
+      protocolMessage.asInstanceOf[IncomingProtocolRequestMessage],
+      new ReplyCallbackImpl(envelope.reqId.get))
   }
 
   private[this] def onReply(envelope: MessageEnvelope): Unit = {
@@ -206,7 +207,19 @@ class ProtocolConnection(
       requests.remove(requestId) match {
         case Some(record) => {
           record.future.cancel()
-          record.promise.success(envelope.extractBody())
+          envelope.`type` match {
+            case Some("error") => {
+              // FIXME
+//              var errorMessage = envelope.extractResponseBody[ErrorMessage]
+              record.promise.failure(new ErrorException())
+            }
+            case None => {
+              val response = envelope.extractResponseBody(record.requestType)
+              record.promise.success(response)
+            }
+            case Some(x) => ???
+          }
+
         }
         case _ => {}
       }
@@ -228,19 +241,20 @@ class ProtocolConnection(
       sendMessage(OpCode.Reply, Some(reqId), Some(message))
       p.success(message)
     }
-    
+
     def error(cause: Throwable): Unit = {
       cause match {
         case ErrorException(code, details) => {
           sendMessage(OpCode.Reply, Some(reqId), Some(ErrorMessage(code, details)))
         }
-        case _ => {
-          sendMessage(OpCode.Reply, Some(reqId), Some(ErrorMessage("unknown", "")))
+        case x => {
+          x.printStackTrace()
+          sendMessage(OpCode.Reply, Some(reqId), Some(ErrorMessage("unknown", "foo")))
         }
       }
       p.failure(cause)
     }
-    
+
     def result(): Future[OutgoingProtocolResponseMessage] = {
       p.future
     }
@@ -253,4 +267,4 @@ trait ReplyCallback {
   def result(): Future[OutgoingProtocolResponseMessage]
 }
 
-case class RequestRecord(id: Long, promise: Promise[ProtocolMessage], future: Cancellable, requestType: String)
+case class RequestRecord(id: Long, promise: Promise[IncomingProtocolResponseMessage], future: Cancellable, requestType: String)

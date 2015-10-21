@@ -42,8 +42,9 @@ package object concurrent {
         case Success(Error(code, reason)) => {
           p.failure(new ErrorException(code, reason))
         }
-        case Success(_) => {
-          p.failure(new UnexpectedResponseException())
+        case Success(x) => {
+          val message = s"Wanted ${tag.runtimeClass.getName} but got ${x.getClass.getName}"
+          p.failure(new UnexpectedResponseException(message))
         }
         case Failure(cause) => {
           p.failure(cause)
@@ -60,6 +61,6 @@ package object concurrent {
     }
   }
 
-  class UnexpectedResponseException() extends Exception()
+  class UnexpectedResponseException(message: String) extends Exception(message)
 }
 

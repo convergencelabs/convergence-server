@@ -11,7 +11,7 @@ import scala.collection.immutable.HashMap
 
 class ModelSnapshotStore(dbPool: OPartitionedDatabasePool) {
 
-  def addSnapshot(snapshotData: SnapshotData): Unit = ???
+  def addSnapshot(snapshotData: SnapshotData): Unit = {}
 
   def removeSnapshot(fqn: ModelFqn, version: Long): Unit = ???
 

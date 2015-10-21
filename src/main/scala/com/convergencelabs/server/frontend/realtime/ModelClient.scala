@@ -93,14 +93,16 @@ class ModelClientActor(
   }
 
   def onClientModelDataRequest(dataRequest: ClientModelDataRequest): Unit = {
-    val ClientModelDataRequest(modelFqn: ModelFqn) = dataRequest
-    val askingActor = sender()
-    val future = context.parent ? ModelDataRequestMessage(modelFqn)
+    val ClientModelDataRequest(ModelFqn(collectionId, modelId)) = dataRequest
+    val askingActor = sender
+    val future = context.parent ? ModelDataRequestMessage(ModelFqnData(collectionId, modelId))
     future.mapResponse[ModelDataResponseMessage] onComplete {
       case Success(ModelDataResponseMessage(data)) => {
         askingActor ! ClientModelDataResponse(data)
       }
-      case Failure(cause) => // FIXME Send Error back
+      case Failure(cause) => {
+        println(cause)
+      }
     }
   }
 

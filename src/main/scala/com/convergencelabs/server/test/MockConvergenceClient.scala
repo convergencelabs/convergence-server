@@ -15,6 +15,7 @@ import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolNormal
 import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolRequestMessage
 import grizzled.slf4j.Logging
 import org.java_websocket.drafts.Draft_17
+import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolResponseMessage
 
 class MockConvergenceClient(serverUri: String)
     extends WebSocketClient(new URI(serverUri), new Draft_17())
@@ -50,8 +51,8 @@ class MockConvergenceClient(serverUri: String)
     envelope
   }
 
-  def sendResponse(reqId: Int, message: Option[IncomingProtocolNormalMessage]): MessageEnvelope = {
-    val envelope = MessageEnvelope(OpCode.Reply, Some(reqId), message)
+  def sendResponse(reqId: Long, message: IncomingProtocolResponseMessage): MessageEnvelope = {
+    val envelope = MessageEnvelope(OpCode.Reply, Some(reqId), Some(message))
     sendMessage(envelope)
     envelope
   }
@@ -85,17 +86,17 @@ class MockConvergenceClient(serverUri: String)
 
   def expectMessage(max: FiniteDuration): MessageEnvelope = receiveOne(max)
   
-  def expectMessageClass[C <: ProtocolMessage](max: FiniteDuration, c: Class[C]): (MessageEnvelope, C) =
+  def expectMessageClass[C <: ProtocolMessage](max: FiniteDuration, c: Class[C]): (C, MessageEnvelope) =
     expectMessageClass_internal(max, c)
 
-  private def expectMessageClass_internal[C <: ProtocolMessage](max: FiniteDuration, c: Class[C]): (MessageEnvelope, C) = {
+  private def expectMessageClass_internal[C <: ProtocolMessage](max: FiniteDuration, c: Class[C]): (C, MessageEnvelope) = {
     val envelope = receiveOne(max)
     assert(envelope ne null, s"timeout ($max) during expectMsgClass waiting for $c")
 
     val message = envelope.extractBody(c)
     assert(c isInstance message, s"expected $c, found ${message.getClass}")
 
-    (envelope, message.asInstanceOf[C])
+    (message.asInstanceOf[C], envelope)
   }
 
   def receiveOne(max: Duration): MessageEnvelope = {
