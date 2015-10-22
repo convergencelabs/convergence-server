@@ -16,6 +16,7 @@ import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolReques
 import grizzled.slf4j.Logging
 import org.java_websocket.drafts.Draft_17
 import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolResponseMessage
+import com.convergencelabs.server.frontend.realtime.proto.MessageSerializer
 
 class MockConvergenceClient(serverUri: String)
     extends WebSocketClient(new URI(serverUri), new Draft_17())
@@ -93,7 +94,7 @@ class MockConvergenceClient(serverUri: String)
     val envelope = receiveOne(max)
     assert(envelope ne null, s"timeout ($max) during expectMsgClass waiting for $c")
 
-    val message = envelope.extractBody(c)
+    val message = MessageSerializer.extractBody(envelope.body.get, c)
     assert(c isInstance message, s"expected $c, found ${message.getClass}")
 
     (message.asInstanceOf[C], envelope)

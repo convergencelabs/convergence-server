@@ -32,6 +32,7 @@ import com.convergencelabs.server.util.concurrent.ErrorException
 import com.convergencelabs.server.frontend.realtime.proto.ErrorMessage
 import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolResponseMessage
 import com.convergencelabs.server.util.concurrent.ErrorException
+import com.convergencelabs.server.frontend.realtime.proto.MessageSerializer
 
 object ProtocolConnection {
   object State extends Enumeration {
@@ -146,7 +147,7 @@ class ProtocolConnection(
     logger.debug(envelope.toJson())
 
     envelope.opCode match {
-      case OpCode.Normal => onNormalMessage(envelope.extractBody())
+      case OpCode.Normal => onNormalMessage(envelope)
       case OpCode.Ping => onPing()
       case OpCode.Pong => {}
       case OpCode.Request => onRequest(envelope)
@@ -171,7 +172,8 @@ class ProtocolConnection(
     eventHandler lift ConnectionError(message)
   }
 
-  private[this] def onNormalMessage(message: ProtocolMessage): Unit = {
+  private[this] def onNormalMessage(envelope: MessageEnvelope): Unit = {
+    val message = MessageSerializer.extractBody(envelope)
     if (!message.isInstanceOf[IncomingProtocolNormalMessage]) {
       // throw something
     }
@@ -185,7 +187,7 @@ class ProtocolConnection(
 
   private[this] def onRequest(envelope: MessageEnvelope): Unit = {
     // Verify body. and req id.
-    val protocolMessage = envelope.extractBody()
+    val protocolMessage = MessageSerializer.extractBody(envelope)
 
     if (!protocolMessage.isInstanceOf[IncomingProtocolRequestMessage]) {
       // FIXME throw some exception because this must be a request message.
@@ -214,8 +216,9 @@ class ProtocolConnection(
               record.promise.failure(new ErrorException())
             }
             case None => {
-              val response = envelope.extractResponseBody(record.requestType)
-              record.promise.success(response)
+              // FIXME
+              val response = MessageSerializer.extractBody(envelope.body.get, record.requestType)
+              record.promise.success(response.asInstanceOf[IncomingProtocolResponseMessage])
             }
             case Some(x) => ???
           }

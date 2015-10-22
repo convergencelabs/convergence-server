@@ -23,18 +23,60 @@ package object proto {
     val codomain = reverseMap.keys
   }
 
-  object TypeMapper {
-    val requestTypes = new BiMap(
-      "handshake" -> classOf[HandshakeRequestMessage]
-    )
+  object MessageSerializer {
+    object MessageType extends Enumeration {
+      val Error = "error"
+      val Handshake = "handshake"
+
+      val AuthPassword = "authPassword"
+      val AuthToken = "authToken"
+
+      val OpenRealtimeModel = "openRealtimeModel"
+      val CloseRealtimeModel = "handshake"
+
+      val ModelDataRequest = "modelData"
+    }
+
+    def extractBody(envelope: MessageEnvelope): ProtocolMessage = {
+      val t = envelope.`type`.get
+      val body = envelope.body.get
+      val clazz = IncomingMessages.getValue(t)
+      extractBody(body, clazz).asInstanceOf[ProtocolMessage]
+    }
     
-    val outgoingResponseTypes = new BiMap[String, Class[_]](
-      "handshake" -> classOf[HandshakeResponseMessage],
-      "foo" -> classOf[OpenRealtimeModelResponseMessage]
-    )
+    def extractBody(body: JValue, t: String): ProtocolMessage = {
+      val clazz = IncomingMessages.getValue(t)
+      extractBody(body, clazz).asInstanceOf[ProtocolMessage]
+    }
 
+    def extractBody[M <: ProtocolMessage](body: JValue, c: Class[M]): M = {
+      Extraction.extract(body, Reflector.scalaTypeOf(c)).asInstanceOf[M]
+    }
+
+    def decomposeBody(body: Option[ProtocolMessage]): Option[JValue] = {
+      body match {
+        case None => None
+        case Some(b) => Some(Extraction.decompose(b))
+      }
+    }
+
+    val IncomingMessages = new BiMap(
+      MessageType.Handshake -> classOf[HandshakeRequestMessage],
+
+      MessageType.AuthPassword -> classOf[PasswordAuthenticationRequestMessage],
+      MessageType.AuthToken -> classOf[TokenAuthenticationRequestMessage],
+
+      MessageType.OpenRealtimeModel -> classOf[OpenRealtimeModelRequestMessage],
+      MessageType.CloseRealtimeModel -> classOf[CloseRealtimeModelRequestMessage])
+
+    val OutgoingMessages = Map[Class[_], String](
+      classOf[ModelDataRequestMessage] -> MessageType.ModelDataRequest)
+
+    def typeOf(message: Option[ProtocolMessage]): Option[String] = message match {
+      case None => None
+      case Some(x) => OutgoingMessages.get(x.getClass)
+    }
   }
-
   object OpCode extends Enumeration {
     val Ping = "ping"
     val Pong = "pong"
@@ -47,29 +89,6 @@ package object proto {
 
   // FIXME can we use the message type enum instead for matching?
   case class MessageEnvelope(opCode: String, reqId: Option[Long], `type`: Option[String], body: Option[JValue]) {
-
-    def extractResponseBody(requestType: String): IncomingProtocolResponseMessage = {
-      requestType match {
-        case MessageType.ModelDataRequest => Extraction.extract[ModelDataResponseMessage](body.get)
-      }
-    }
-
-    def extractBody[M <: ProtocolMessage](c: Class[M]): ProtocolMessage = {
-      Extraction.extract(body.get, Reflector.scalaTypeOf(c)).asInstanceOf[M]
-    }
-    
-    def extractBody(): ProtocolMessage = {
-      `type`.get match {
-        case MessageType.Handshake => Extraction.extract[HandshakeRequestMessage](body.get)
-        
-        case MessageType.AuthPassword => Extraction.extract[PasswordAuthenticationRequestMessage](body.get)
-        case MessageType.AuthToken => Extraction.extract[TokenAuthenticationRequestMessage](body.get)
-        
-        case MessageType.OpenRealtimeModel => Extraction.extract[OpenRealtimeModelRequestMessage](body.get)
-        case MessageType.CloseRealtimeModel => Extraction.extract[CloseRealtimeModelRequestMessage](body.get)
-      }
-    }
-
     def toJson(): String = write(this)
   }
 
@@ -77,39 +96,9 @@ package object proto {
     def apply(json: String): Try[MessageEnvelope] = Try(read[MessageEnvelope](json))
 
     def apply(opCode: String, reqId: Option[Long], body: Option[ProtocolMessage]): MessageEnvelope = {
-      val t = typeOf(body)
-      val json = body match {
-        case None => None
-        case Some(b) => Some(Extraction.decompose(b))
-      }
-      MessageEnvelope(opCode, reqId, t, json)
+      val t = MessageSerializer.typeOf(body)
+      val jValue = MessageSerializer.decomposeBody(body)
+      MessageEnvelope(opCode, reqId, t, jValue)
     }
-
-    def typeOf(message: Option[ProtocolMessage]): Option[String] = message match {
-      case None => None
-      case Some(x) => x match {
-        case _: HandshakeRequestMessage => Some(MessageType.Handshake)
-        case _: OpenRealtimeModelRequestMessage => Some(MessageType.OpenRealtimeModel)
-        case _: CloseRealtimeModelRequestMessage => Some(MessageType.CloseRealtimeModel)
-        case _: PasswordAuthenticationRequestMessage => Some(MessageType.AuthPassword)
-        case _: TokenAuthenticationRequestMessage => Some(MessageType.AuthToken)
-        case _: ModelDataRequestMessage => Some(MessageType.ModelDataRequest)
-        case _ => None
-      }
-    }
-
-  }
-
-  object MessageType extends Enumeration {
-    val Error = "error"
-    val Handshake = "handshake"
-    
-    val AuthPassword = "authPassword"
-    val AuthToken = "authToken"
-    
-    val OpenRealtimeModel = "openRealtimeModel"
-    val CloseRealtimeModel = "handshake"
-    
-    val ModelDataRequest = "modelData"
   }
 }
