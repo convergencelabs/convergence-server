@@ -67,10 +67,10 @@ class ModelManagerActorSpec
         assert(response.metaData.modifiedTime == modelData.metaData.modifiedTime)
       }
       
-      "return an error if the model does not exist" in new TestFixture {
+      "request data if the model does not exist" in new TestFixture {
         val client1 = new TestProbe(system)
         modelManagerActor.tell(OpenRealtimeModelRequest(ModelFqn("no", "model"), client1.ref), client1.ref)
-        val response = client1.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelNotFound)
+        val response = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientModelDataRequest])
       }
     }
     
@@ -103,7 +103,7 @@ class ModelManagerActorSpec
     Mockito.when(modelStore.getModelData(modelFqn)).thenReturn(Some(modelData))
 
     val modelSnapshotStore = mock[ModelSnapshotStore]
-    Mockito.when(modelSnapshotStore.getLatestSnapshotMetaData(modelFqn)).thenReturn(modelSnapshotMetaData)
+    Mockito.when(modelSnapshotStore.getLatestSnapshotMetaData(modelFqn)).thenReturn(Some(modelSnapshotMetaData))
 
     val domainPersistence = mock[DomainPersistenceProvider]
     Mockito.when(domainPersistence.modelStore).thenReturn(modelStore)

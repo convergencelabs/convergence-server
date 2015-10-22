@@ -16,27 +16,34 @@ import com.convergencelabs.server.frontend.realtime.proto.ModelDataResponseMessa
 import org.json4s.JsonAST.JObject
 import com.convergencelabs.server.frontend.realtime.proto.OpenRealtimeModelResponseMessage
 
+import org.json4s._
+import org.json4s.jackson.JsonMethods._
+
 object MockClientTest {
   def main(args: Array[String]): Unit = {
-    var client = new MockConvergenceClient("ws://localhost:8080/domain/test/test1")
-    client.connect()
-
-    client.sendRequest(HandshakeRequestMessage(false, None, None))
-    val handhsakeResponse = client.expectMessageClass(5 seconds, classOf[HandshakeResponseMessage])
-    
-    client.sendRequest(PasswordAuthenticationRequestMessage("test", "test"))
-    val authResponse = client.expectMessageClass(5 seconds, classOf[AuthenticationResponseMessage])
-    
-    client.sendRequest(OpenRealtimeModelRequestMessage(ModelFqnData("collection", "model")))
-    
-    // FIXME we have a problem with the resource id stuff.
-    val (dataRequest, MessageEnvelope(_, Some(reqId), _, _)) = client.expectMessageClass(5 seconds, classOf[ModelDataRequestMessage])
-    println(dataRequest)
-    
-    client.sendResponse(reqId, ModelDataResponseMessage(JObject()))
-    
-    val openResponse = client.expectMessageClass(5 seconds, classOf[OpenRealtimeModelResponseMessage])
-
-    client.close()
+    implicit val formats = org.json4s.DefaultFormats
+    val json = parse(""" { "name": "joe", "children": [ { "name": "Mary", "age": 5 }, { "name": "Mazy", "age": 3 } ] } """)
+    var foo = json.extract[Map[String, _]]
+    println(foo)
+//    var client = new MockConvergenceClient("ws://localhost:8080/domain/test/test1")
+//    client.connect()
+//
+//    client.sendRequest(HandshakeRequestMessage(false, None, None))
+//    val handhsakeResponse = client.expectMessageClass(5 seconds, classOf[HandshakeResponseMessage])
+//    
+//    client.sendRequest(PasswordAuthenticationRequestMessage("test", "test"))
+//    val authResponse = client.expectMessageClass(5 seconds, classOf[AuthenticationResponseMessage])
+//    
+//    client.sendRequest(OpenRealtimeModelRequestMessage(ModelFqnData("collection", "model")))
+//    
+//    // FIXME we have a problem with the resource id stuff.
+//    val (dataRequest, MessageEnvelope(_, Some(reqId), _, _)) = client.expectMessageClass(5 seconds, classOf[ModelDataRequestMessage])
+//    println(dataRequest)
+//    
+//    client.sendResponse(reqId, ModelDataResponseMessage(JObject()))
+//    
+//    val openResponse = client.expectMessageClass(5 seconds, classOf[OpenRealtimeModelResponseMessage])
+//
+//    client.close()
   }
 }

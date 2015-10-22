@@ -32,7 +32,7 @@ package object proto {
       val AuthToken = "authToken"
 
       val OpenRealtimeModel = "openRealtimeModel"
-      val CloseRealtimeModel = "handshake"
+      val CloseRealtimeModel = "closeRealtimeModel"
 
       val ModelDataRequest = "modelData"
     }
@@ -99,6 +99,11 @@ package object proto {
       val t = MessageSerializer.typeOf(body)
       val jValue = MessageSerializer.decomposeBody(body)
       MessageEnvelope(opCode, reqId, t, jValue)
+    }
+    
+    def apply(opCode: String, reqId: Option[Long], t: String, body: Option[ProtocolMessage]): MessageEnvelope = {
+      val jValue = MessageSerializer.decomposeBody(body)
+      MessageEnvelope(opCode, reqId, Some(t), jValue)
     }
   }
 }

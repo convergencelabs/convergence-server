@@ -92,7 +92,7 @@ class RealtimeModelActorSpec
 
         // Now mock that the data is there.
         Mockito.when(modelStore.getModelData(modelFqn)).thenReturn(Some(modelData))
-        Mockito.when(modelSnapshotStore.getLatestSnapshotMetaData(modelFqn)).thenReturn(modelSnapshotMetaData)
+        Mockito.when(modelSnapshotStore.getLatestSnapshotMetaData(modelFqn)).thenReturn(Some(modelSnapshotMetaData))
 
         client1.reply(ClientModelDataResponse(modelJsonData))
         client2.reply(ClientModelDataResponse(modelJsonData))
@@ -253,7 +253,7 @@ class RealtimeModelActorSpec
   trait MockDatabaseWithModel extends TestFixture {
     Mockito.when(modelStore.modelExists(modelFqn)).thenReturn(true)
     Mockito.when(modelStore.getModelData(modelFqn)).thenReturn(Some(modelData))
-    Mockito.when(modelSnapshotStore.getLatestSnapshotMetaData(modelFqn)).thenReturn(modelSnapshotMetaData)
+    Mockito.when(modelSnapshotStore.getLatestSnapshotMetaData(modelFqn)).thenReturn(Some(modelSnapshotMetaData))
   }
 
   trait OneOpenClient extends MockDatabaseWithModel {

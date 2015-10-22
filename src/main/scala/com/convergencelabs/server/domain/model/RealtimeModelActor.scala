@@ -75,7 +75,7 @@ class RealtimeModelActor(
   private[this] def receiveInitializingFromDatabase: Receive = {
     case request: OpenRealtimeModelRequest => onOpenModelWhileInitializing(request)
     case dataResponse: DatabaseModelResponse => onDatabaseModelResponse(dataResponse)
-    case DatabaseModelFailure(cause) => handleInitializationFailure("unknown", "DB Failure") // FIXME
+    case DatabaseModelFailure(cause) => handleInitializationFailure("unknown", "Unexpected error initializing the model.")
     case modelDeleted: ModelDeleted => handleInitializationFailure("model_deleted", "The model was deleted while opening.")
     case dataResponse: ClientModelDataResponse =>
     case unknown => unhandled(unknown)
@@ -139,16 +139,19 @@ class RealtimeModelActor(
     val f = Future[DatabaseModelResponse] {
       val snapshotMetaData = modelSnapshotStore.getLatestSnapshotMetaData(modelFqn)
 
-      //TODO: Handle None
+      //TODO: Handle None, handle when snapshot doesn't exist.
       modelStore.getModelData(modelFqn) match {
-        case Some(modelData) => DatabaseModelResponse(modelData, snapshotMetaData)
+        case Some(modelData) => DatabaseModelResponse(modelData, snapshotMetaData.get)
         case None => ???
       }
     }
 
     f onComplete {
       case Success(modelDataResponse) => self ! modelDataResponse
-      case Failure(cause) => self ! DatabaseModelFailure(cause)
+      case Failure(cause) => {
+        log.error(cause, "Could not initialize model from the database")
+        self ! DatabaseModelFailure(cause)
+      }
     }
 
     context.become(receiveInitializingFromDatabase)
@@ -175,11 +178,10 @@ class RealtimeModelActor(
       }
 
       this.queuedOpeningClients = HashMap[String, OpenRequestRecord]()
-
       context.become(receiveInitialized)
     } catch {
       case e: Exception =>
-        log.error(e, "Unable to initialize shared model.")
+        log.error(e, "Unable to initialize realtime model from database response")
         handleInitializationFailure("unknown", e.getMessage)
     }
   }
@@ -204,12 +206,12 @@ class RealtimeModelActor(
           log.warning("The client responded with an unexpected value:" + e.getMessage)
           askingActor ! ErrorMessage("invalid_response", "The client responded with an unexpected value.")
         case e: AskTimeoutException =>
-          log.error(e, "Timed out!!.")
+          log.debug("A timeout occured waiting for the client to respond with model data.")
           askingActor ! ErrorMessage(
             "data_request_timeout",
             "The client did not correctly respond with data, while initializing a new model.")
         case e: Exception =>
-          log.error(e, "Uknnown exception prcessing model data response.")
+          log.error(e, "Uknnown exception processing model data response.")
           askingActor ! ErrorMessage("unknown", e.getMessage)
       }
     }
