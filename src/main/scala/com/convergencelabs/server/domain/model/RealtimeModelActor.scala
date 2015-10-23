@@ -492,7 +492,7 @@ class RealtimeModelActor(
   }
 
   override def postStop() {
-    log.debug("Unloading SharedModel({}/{})", domainFqn, modelFqn)
+    log.debug("Unloading Realtime Model({}/{})", domainFqn, modelFqn)
     connectedClients = HashMap()
   }
 }

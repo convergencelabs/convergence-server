@@ -59,7 +59,7 @@ case class CloseRealtimeModelRequestMessage(rId: String, cId: String) extends In
 case class ModelDataResponseMessage(data: JValue) extends IncomingProtocolResponseMessage
 
 // Outgoing Model Messages
-case class OpenRealtimeModelResponseMessage(resourceId: String, ccId: String, metaData: OpenModelMetaData, modelData: JValue) extends OutgoingProtocolResponseMessage
+case class OpenRealtimeModelResponseMessage(rId: String, cId: String, metaData: OpenModelMetaData, modelData: JValue) extends OutgoingProtocolResponseMessage
 case class CloseRealtimeModelResponseMessage() extends OutgoingProtocolResponseMessage
 
 case class OperationAcknowledgementMessage(rId: String, cId: String, cv: Long) extends OutgoingProtocolNormalMessage

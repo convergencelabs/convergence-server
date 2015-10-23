@@ -15,9 +15,10 @@ import com.convergencelabs.server.frontend.realtime.proto.MessageEnvelope
 import com.convergencelabs.server.frontend.realtime.proto.ModelDataResponseMessage
 import org.json4s.JsonAST.JObject
 import com.convergencelabs.server.frontend.realtime.proto.OpenRealtimeModelResponseMessage
-
 import org.json4s._
 import org.json4s.jackson.JsonMethods._
+import com.convergencelabs.server.frontend.realtime.proto.CloseRealtimeModelRequestMessage
+import com.convergencelabs.server.frontend.realtime.proto.CloseRealtimeModelResponseMessage
 
 object MockClientTest {
   def main(args: Array[String]): Unit = {
@@ -34,11 +35,12 @@ object MockClientTest {
     
     // FIXME we have a problem with the resource id stuff.
     val (dataRequest, MessageEnvelope(_, Some(reqId), _, _)) = client.expectMessageClass(5 seconds, classOf[ModelDataRequestMessage])
-    println(dataRequest)
-    
     client.sendResponse(reqId, ModelDataResponseMessage(JObject("key" -> JString("value"))))
+
+    val (openResponse, _) = client.expectMessageClass(5 seconds, classOf[OpenRealtimeModelResponseMessage])
     
-    val openResponse = client.expectMessageClass(5 seconds, classOf[OpenRealtimeModelResponseMessage])
+    client.sendRequest(CloseRealtimeModelRequestMessage(openResponse.rId, openResponse.cId))
+    val closeResponse = client.expectMessageClass(5 seconds, classOf[CloseRealtimeModelResponseMessage])
 
     client.close()
   }
