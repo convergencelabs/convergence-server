@@ -88,7 +88,7 @@ class ModelManagerActor(
           modelData,
           createTime)
 
-        persistenceProvider.modelSnapshotStore.addSnapshot(
+        persistenceProvider.modelSnapshotStore.createSnapshot(
           SnapshotData(SnapshotMetaData(createRequest.modelFqn, 0, createTime),
             modelData))
 

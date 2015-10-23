@@ -136,13 +136,14 @@ class RealtimeModelActor(
    * Asynchronously requests model data from the database.
    */
   private[this] def requestModelDataFromDatastore(): Unit = {
+    // FIXME maybe the databaes should just be async?
     val f = Future[DatabaseModelResponse] {
-      val snapshotMetaData = modelSnapshotStore.getLatestSnapshotMetaData(modelFqn)
-
-      //TODO: Handle None, handle when snapshot doesn't exist.
+      val snapshotMetaData = modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)
+      //FIXME: Handle None, handle when snapshot doesn't exist.
+      
       modelStore.getModelData(modelFqn) match {
         case Some(modelData) => DatabaseModelResponse(modelData, snapshotMetaData.get)
-        case None => ???
+        case None => ??? // FIXME
       }
     }
 
@@ -228,8 +229,8 @@ class RealtimeModelActor(
     val createTime = System.currentTimeMillis()
 
     modelStore.createModel(modelFqn, data, createTime)
-    modelSnapshotStore.addSnapshot(
-      SnapshotData(SnapshotMetaData(modelFqn, 0, createTime), data))
+    modelSnapshotStore.createSnapshot(
+      SnapshotData(SnapshotMetaData(modelFqn, 0L, createTime), data))
 
     requestModelDataFromDatastore()
   }
@@ -421,7 +422,7 @@ class RealtimeModelActor(
           modelData.metaData.modifiedTime),
         modelData.data)
 
-      modelSnapshotStore.addSnapshot(snapshot)
+      modelSnapshotStore.createSnapshot(snapshot)
 
       new SnapshotMetaData(
         modelFqn,

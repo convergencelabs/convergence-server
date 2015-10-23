@@ -103,7 +103,7 @@ class ModelManagerActorSpec
     Mockito.when(modelStore.getModelData(modelFqn)).thenReturn(Some(modelData))
 
     val modelSnapshotStore = mock[ModelSnapshotStore]
-    Mockito.when(modelSnapshotStore.getLatestSnapshotMetaData(modelFqn)).thenReturn(Some(modelSnapshotMetaData))
+    Mockito.when(modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)).thenReturn(Some(modelSnapshotMetaData))
 
     val domainPersistence = mock[DomainPersistenceProvider]
     Mockito.when(domainPersistence.modelStore).thenReturn(modelStore)

@@ -46,7 +46,7 @@ class RealtimeModelActorSpec
         val client = new TestProbe(system)
 
         // Set the database up to bomb
-        Mockito.when(modelStore.getModelData(Matchers.any())).thenThrow(new IllegalArgumentException("Invalid model"))
+        Mockito.when(modelStore.getModelData(Matchers.any())).thenThrow(new IllegalArgumentException("Induced error for test"))
 
         realtimeModelActor.tell(OpenRealtimeModelRequest(modelFqn, client.ref), client.ref)
         val message = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ErrorMessage])
@@ -92,7 +92,7 @@ class RealtimeModelActorSpec
 
         // Now mock that the data is there.
         Mockito.when(modelStore.getModelData(modelFqn)).thenReturn(Some(modelData))
-        Mockito.when(modelSnapshotStore.getLatestSnapshotMetaData(modelFqn)).thenReturn(Some(modelSnapshotMetaData))
+        Mockito.when(modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)).thenReturn(Some(modelSnapshotMetaData))
 
         client1.reply(ClientModelDataResponse(modelJsonData))
         client2.reply(ClientModelDataResponse(modelJsonData))
@@ -114,7 +114,7 @@ class RealtimeModelActorSpec
 
         val snapshotCaptor = ArgumentCaptor.forClass(classOf[SnapshotData])
 
-        verify(modelSnapshotStore, times(1)).addSnapshot(snapshotCaptor.capture())
+        verify(modelSnapshotStore, times(1)).createSnapshot(snapshotCaptor.capture())
         val capturedData = snapshotCaptor.getValue
         assert(capturedData.data == modelJsonData)
         assert(capturedData.metaData.fqn == modelFqn)
@@ -253,7 +253,7 @@ class RealtimeModelActorSpec
   trait MockDatabaseWithModel extends TestFixture {
     Mockito.when(modelStore.modelExists(modelFqn)).thenReturn(true)
     Mockito.when(modelStore.getModelData(modelFqn)).thenReturn(Some(modelData))
-    Mockito.when(modelSnapshotStore.getLatestSnapshotMetaData(modelFqn)).thenReturn(Some(modelSnapshotMetaData))
+    Mockito.when(modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)).thenReturn(Some(modelSnapshotMetaData))
   }
 
   trait OneOpenClient extends MockDatabaseWithModel {

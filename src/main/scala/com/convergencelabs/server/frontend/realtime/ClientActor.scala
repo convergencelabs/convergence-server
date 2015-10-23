@@ -222,7 +222,6 @@ class ClientActor(
   }
 
   private[this] def invalidMessage(message: Any): Unit = {
-    log.error("CRAP: " + message)
     connection.abort("Invalid message")
     context.stop(self)
   }

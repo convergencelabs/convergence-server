@@ -60,14 +60,16 @@ package object proto {
       }
     }
 
-    val IncomingMessages = new BiMap(
+    val IncomingMessages = new BiMap[String, Class[_ <: ProtocolMessage]](
       MessageType.Handshake -> classOf[HandshakeRequestMessage],
 
       MessageType.AuthPassword -> classOf[PasswordAuthenticationRequestMessage],
       MessageType.AuthToken -> classOf[TokenAuthenticationRequestMessage],
 
       MessageType.OpenRealtimeModel -> classOf[OpenRealtimeModelRequestMessage],
-      MessageType.CloseRealtimeModel -> classOf[CloseRealtimeModelRequestMessage])
+      MessageType.CloseRealtimeModel -> classOf[CloseRealtimeModelRequestMessage],
+      
+      MessageType.ModelDataRequest -> classOf[ModelDataResponseMessage])
 
     val OutgoingMessages = Map[Class[_], String](
       classOf[ModelDataRequestMessage] -> MessageType.ModelDataRequest)
@@ -101,9 +103,9 @@ package object proto {
       MessageEnvelope(opCode, reqId, t, jValue)
     }
     
-    def apply(opCode: String, reqId: Option[Long], t: String, body: Option[ProtocolMessage]): MessageEnvelope = {
+    def apply(opCode: String, reqId: Long, t: String, body: Option[ProtocolMessage]): MessageEnvelope = {
       val jValue = MessageSerializer.decomposeBody(body)
-      MessageEnvelope(opCode, reqId, Some(t), jValue)
+      MessageEnvelope(opCode, Some(reqId), Some(t), jValue)
     }
   }
 }

@@ -62,7 +62,7 @@ class ProtocolConnectionSpec(system: ActorSystem)
         try {
           val receiver = new Receiver(connection)
           val message = HandshakeRequestMessage(false, None, None)
-          val envelope = MessageEnvelope(OpCode.Request, Some(1L), "handshake", Some(message))
+          val envelope = MessageEnvelope(OpCode.Request, 1L, "handshake", Some(message))
           val json = envelope.toJson()
           socket.fireOnMessage(json)
 
@@ -79,7 +79,7 @@ class ProtocolConnectionSpec(system: ActorSystem)
       "send a correct reply envelope" in new TestFixture(system) {
         val receiver = new Receiver(connection)
         val message = HandshakeRequestMessage(false, None, None)
-        val envelope = MessageEnvelope(OpCode.Request, Some(1L), "handshake", Some(message))
+        val envelope = MessageEnvelope(OpCode.Request, 1L, "handshake", Some(message))
         val json = envelope.toJson()
         socket.fireOnMessage(json)
         val RequestReceived(m, cb) = receiver.expectEventClass(10 millis, classOf[RequestReceived])
