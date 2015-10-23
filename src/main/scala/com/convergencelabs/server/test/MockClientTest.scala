@@ -36,7 +36,7 @@ object MockClientTest {
     val (dataRequest, MessageEnvelope(_, Some(reqId), _, _)) = client.expectMessageClass(5 seconds, classOf[ModelDataRequestMessage])
     println(dataRequest)
     
-    client.sendResponse(reqId, ModelDataResponseMessage(JObject()))
+    client.sendResponse(reqId, ModelDataResponseMessage(JObject("key" -> JString("value"))))
     
     val openResponse = client.expectMessageClass(5 seconds, classOf[OpenRealtimeModelResponseMessage])
 

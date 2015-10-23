@@ -21,7 +21,7 @@ class ModelSnapshotStore(dbPool: OPartitionedDatabasePool) {
     doc.field("modelId", snapshotData.metaData.fqn.modelId)
     doc.field("collectionId", snapshotData.metaData.fqn.collectionId)
     doc.field("version", snapshotData.metaData.version)
-    doc.field("timestamp", snapshotData.metaData.timestamp)
+    doc.field("timestamp", new java.util.Date(snapshotData.metaData.timestamp))
     // NOTE: Extracting to a map to avoid string serialization
     val data = snapshotData.data.extract[Map[String, _]]
     doc.field("data", data.asJava)
