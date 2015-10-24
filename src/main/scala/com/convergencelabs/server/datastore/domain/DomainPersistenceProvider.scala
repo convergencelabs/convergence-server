@@ -18,8 +18,8 @@ class DomainPersistenceProvider(private[domain] val dbPool: OPartitionedDatabase
   
   def validateConnection(): Boolean = {
     Try[Unit](dbPool.acquire().close()) match {
-      case Success(x) => true
-      case Failure(x) => false
+      case Success(_) => true
+      case Failure(_) => false
     }
   }
 }

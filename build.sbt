@@ -45,6 +45,7 @@ libraryDependencies += "org.java-websocket" % "Java-WebSocket" % "1.3.0"
 // Crypto
 libraryDependencies += "org.bitbucket.b_c" % "jose4j" % "0.4.4"
 libraryDependencies += "org.bouncycastle" % "bcpkix-jdk15on" % "1.52"
+libraryDependencies += "com.lambdaworks" % "scrypt" % "1.4.0"
 
 
 // Testing Dependencies

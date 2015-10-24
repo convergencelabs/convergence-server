@@ -136,7 +136,7 @@ class AuthenticationHandler(
     }
 
     val newUser = DomainUser(null, username, firstName, lastName, emails.toList)
-    userStore.createDomainUser(newUser)
+    userStore.createDomainUser(newUser, None)
   }
 
   private[this] def getJWTPublicKey(keyId: String): Option[PublicKey] = {

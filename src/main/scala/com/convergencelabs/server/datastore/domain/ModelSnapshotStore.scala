@@ -11,8 +11,9 @@ import org.json4s._
 import org.json4s.jackson.JsonMethods._
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import scala.collection.immutable.HashMap
+import com.convergencelabs.server.datastore.QueryUtil
 
-class ModelSnapshotStore(
+class ModelSnapshotStore private[domain] (
     private[this] val dbPool: OPartitionedDatabasePool) {
   
   private[this] implicit val formats = org.json4s.DefaultFormats
@@ -84,7 +85,7 @@ class ModelSnapshotStore(
         |  modelId = :modelId
         |ORDER BY version ASC""".stripMargin
 
-    val query = new OSQLSynchQuery[ODocument](buildPagedQuery(baseQuery, limit, offset))
+    val query = new OSQLSynchQuery[ODocument](QueryUtil.buildPagedQuery(baseQuery, limit, offset))
     val params = HashMap(
       "collectionId" -> fqn.collectionId,
       "modelId" -> fqn.modelId,
@@ -188,18 +189,6 @@ class ModelSnapshotStore(
     val params = HashMap("collectionId" -> collectionId)
     db.command(command).execute(params.asJava)
     db.close()
-  }
-
-  // FIXE abstract this to a utility method
-  def buildPagedQuery(baseQuery: String, limit: Option[Int], offset: Option[Int]): String = {
-    val limitOffsetString = (limit, offset) match {
-      case (None, None) => ""
-      case (Some(_), None) => " LIMIT :limit"
-      case (None, Some(_)) => " SKIP :offset"
-      case (Some(_), Some(_)) => " SKIP :offset LIMIT :limit"
-    }
-
-    baseQuery + limitOffsetString
   }
 
   private def convertDocToSnapshotMetaData(doc: ODocument): SnapshotMetaData = {

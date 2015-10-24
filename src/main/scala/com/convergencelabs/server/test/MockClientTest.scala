@@ -25,7 +25,7 @@ import com.convergencelabs.server.frontend.realtime.proto.OperationAcknowledgeme
 
 object MockClientTest {
   def main(args: Array[String]): Unit = {
-    var client = new MockConvergenceClient("ws://localhost:8080/domain/test/test1")
+    val client = new MockConvergenceClient("ws://localhost:8080/domain/test/test1")
     client.connect()
 
     client.sendRequest(HandshakeRequestMessage(false, None, None))

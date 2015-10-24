@@ -59,4 +59,5 @@ class ModelHistoryStore(dbPool: OPartitionedDatabasePool) {
   def removeHistoryForModel(modelFqn: ModelFqn): Unit = ???
 }
 
+// FIXME This doesn't seem to have what it needs.
 case class OperationEvent()
