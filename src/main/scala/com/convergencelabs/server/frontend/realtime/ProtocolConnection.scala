@@ -112,7 +112,7 @@ class ProtocolConnection(
         }
       })
     })
-    
+
     val sent = sendMessage(OpCode.Request, Some(requestId), Some(message))
     requests(requestId) = RequestRecord(requestId, replyPromise, timeoutFuture, sent.`type`.get)
     replyPromise.future
@@ -135,7 +135,9 @@ class ProtocolConnection(
   def sendMessage(opCode: String, requestMessageId: Option[Long], message: Option[ProtocolMessage]): MessageEnvelope = {
     val envelope = MessageEnvelope(opCode, requestMessageId, message)
     socket.send(envelope.toJson())
-    logger.debug(envelope.toJson())
+    if (envelope.opCode != OpCode.Ping && envelope.opCode != OpCode.Pong) {
+      logger.debug(envelope.toJson())
+    }
     envelope
   }
 
@@ -144,7 +146,9 @@ class ProtocolConnection(
     // FIXME handle error
     val envelope = MessageEnvelope(json).get
 
-    logger.debug(envelope.toJson())
+    if (envelope.opCode != OpCode.Ping && envelope.opCode != OpCode.Pong) {
+      logger.debug(envelope.toJson())
+    }
 
     envelope.opCode match {
       case OpCode.Normal => onNormalMessage(envelope)
@@ -212,7 +216,7 @@ class ProtocolConnection(
           envelope.`type` match {
             case Some("error") => {
               // FIXME
-//              var errorMessage = envelope.extractResponseBody[ErrorMessage]
+              //              var errorMessage = envelope.extractResponseBody[ErrorMessage]
               record.promise.failure(new ErrorException())
             }
             case None => {

@@ -7,16 +7,16 @@ object OperationMapper {
 
   def mapIncoming(op: OperationData): Operation = {
     op match {
-      case operation: CompoundOperationData => mapIncoming(operation)
-      case operation: DiscreteOperationData => mapIncoming(operation)
+      case operation: CompoundOperationData => mapIncomingCompound(operation)
+      case operation: DiscreteOperationData => mapIncomingDiscrete(operation)
     }
   }
 
-  def mapIncoming(op: CompoundOperationData): CompoundOperation = {
+  def mapIncomingCompound(op: CompoundOperationData): CompoundOperation = {
     CompoundOperation(op.ops.map(opData => mapIncoming(opData).asInstanceOf[DiscreteOperation]))
   }
 
-  def mapIncomgin(op: DiscreteOperationData): DiscreteOperation = {
+  def mapIncomingDiscrete(op: DiscreteOperationData): DiscreteOperation = {
     op match {
       case StringInsertOperationData(path, noOp, index, value) => StringInsertOperation(path, noOp, index, value)
       case StringRemoveOperationData(path, noOp, index, value) => StringDeleteOperation(path, noOp, index, value)
@@ -40,16 +40,16 @@ object OperationMapper {
 
   def mapOutgoing(op: Operation): OperationData = {
     op match {
-      case operation: CompoundOperation => mapOutgoing(operation)
-      case operation: DiscreteOperation => mapOutgoing(operation)
+      case operation: CompoundOperation => mapOutgoingCompound(operation)
+      case operation: DiscreteOperation => mapOutgoingDiscrete(operation)
     }
   }
 
-  def mapOutgoing(op: CompoundOperation): CompoundOperationData = {
+  def mapOutgoingCompound(op: CompoundOperation): CompoundOperationData = {
     CompoundOperationData(op.operations.map(opData => mapOutgoing(opData).asInstanceOf[DiscreteOperationData]))
   }
 
-  def mapOutgoing(op: DiscreteOperation): DiscreteOperationData = {
+  def mapOutgoingDiscrete(op: DiscreteOperation): DiscreteOperationData = {
     op match {
       case StringInsertOperation(path, noOp, index, value) => StringInsertOperationData(path, noOp, index, value)
       case StringDeleteOperation(path, noOp, index, value) => StringRemoveOperationData(path, noOp, index, value)

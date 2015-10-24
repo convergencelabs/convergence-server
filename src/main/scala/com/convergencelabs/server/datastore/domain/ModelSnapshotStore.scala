@@ -12,7 +12,9 @@ import org.json4s.jackson.JsonMethods._
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import scala.collection.immutable.HashMap
 
-class ModelSnapshotStore(dbPool: OPartitionedDatabasePool) {
+class ModelSnapshotStore(
+    private[this] val dbPool: OPartitionedDatabasePool) {
+  
   private[this] implicit val formats = org.json4s.DefaultFormats
 
   def createSnapshot(snapshotData: SnapshotData): Unit = {
@@ -133,8 +135,9 @@ class ModelSnapshotStore(dbPool: OPartitionedDatabasePool) {
     val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
     db.close()
     result.asScala.toList match {
-      case doc :: rest => Some(convertDocToSnapshotMetaData(doc))
+      case doc :: Nil => Some(convertDocToSnapshotMetaData(doc))
       case Nil => None
+      case _ => ??? // FIXME
     }
   }
 

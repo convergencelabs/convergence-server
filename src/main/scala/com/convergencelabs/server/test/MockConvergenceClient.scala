@@ -38,7 +38,8 @@ class MockConvergenceClient(serverUri: String)
   }
 
   def sendNormal(message: IncomingProtocolNormalMessage): MessageEnvelope = {
-    val envelope = MessageEnvelope(OpCode.Normal, None, Some(message))
+    val t = MessageSerializer.IncomingMessages.getKey(message.getClass).get
+    val envelope = MessageEnvelope(OpCode.Normal, t, Some(message))
     sendMessage(envelope)
     envelope
   }
@@ -46,7 +47,7 @@ class MockConvergenceClient(serverUri: String)
   var reqId = 0
 
   def sendRequest(message: IncomingProtocolRequestMessage): MessageEnvelope = {
-    val t = MessageSerializer.IncomingMessages.getKey(message.getClass)
+    val t = MessageSerializer.IncomingMessages.getKey(message.getClass).get
     val envelope = MessageEnvelope(OpCode.Request, reqId, t, Some(message))
     sendMessage(envelope)
     reqId = reqId + 1

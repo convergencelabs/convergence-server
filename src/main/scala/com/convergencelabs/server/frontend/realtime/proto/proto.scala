@@ -2,7 +2,7 @@ package com.convergencelabs.server.frontend.realtime
 
 import scala.beans.BeanProperty
 import scala.util.Try
-import org.json4s.Extraction
+import org.json4s._
 import org.json4s.JsonAST.JValue
 import org.json4s.NoTypeHints
 import org.json4s.jackson.Serialization
@@ -10,6 +10,14 @@ import org.json4s.jackson.Serialization.read
 import org.json4s.jackson.Serialization.write
 import org.json4s.reflect.Reflector
 import scala.reflect.runtime.universe._
+import org.json4s.ShortTypeHints
+import org.json4s.TypeHints
+import org.json4s.CustomSerializer
+import org.json4s.JsonAST.JString
+import org.json4s.JsonAST.JObject
+import org.json4s.JsonAST.JField
+import org.json4s.JsonDSL._
+import org.json4s.jackson.JsonMethods._
 
 package object proto {
 
@@ -17,8 +25,8 @@ package object proto {
     def this(tuples: (K, V)*) = this(tuples.toMap)
     private val reverseMap = map map (_.swap)
     require(map.size == reverseMap.size, "no 1 to 1 relation")
-    def getValue(k: K): V = map(k)
-    def getKey(v: V): K = reverseMap(v)
+    def getValue(k: K): Option[V] = map.get(k)
+    def getKey(v: V): Option[K] = reverseMap.get(v)
     val domain = map.keys
     val codomain = reverseMap.keys
   }
@@ -40,12 +48,12 @@ package object proto {
     def extractBody(envelope: MessageEnvelope): ProtocolMessage = {
       val t = envelope.`type`.get
       val body = envelope.body.get
-      val clazz = IncomingMessages.getValue(t)
+      val clazz = IncomingMessages.getValue(t).get
       extractBody(body, clazz).asInstanceOf[ProtocolMessage]
     }
-    
+
     def extractBody(body: JValue, t: String): ProtocolMessage = {
-      val clazz = IncomingMessages.getValue(t)
+      val clazz = IncomingMessages.getValue(t).get
       extractBody(body, clazz).asInstanceOf[ProtocolMessage]
     }
 
@@ -68,17 +76,20 @@ package object proto {
 
       MessageType.OpenRealtimeModel -> classOf[OpenRealtimeModelRequestMessage],
       MessageType.CloseRealtimeModel -> classOf[CloseRealtimeModelRequestMessage],
-      
-      MessageType.ModelDataRequest -> classOf[ModelDataResponseMessage])
+
+      MessageType.ModelDataRequest -> classOf[ModelDataResponseMessage],
+      "opSubmit" -> classOf[OperationSubmissionMessage])
 
     val OutgoingMessages = Map[Class[_], String](
-      classOf[ModelDataRequestMessage] -> MessageType.ModelDataRequest)
+      classOf[ModelDataRequestMessage] -> MessageType.ModelDataRequest,
+      classOf[OperationAcknowledgementMessage] -> "opAck")
 
     def typeOf(message: Option[ProtocolMessage]): Option[String] = message match {
       case None => None
       case Some(x) => OutgoingMessages.get(x.getClass)
     }
   }
+
   object OpCode extends Enumeration {
     val Ping = "ping"
     val Pong = "pong"
@@ -87,7 +98,24 @@ package object proto {
     val Reply = "rply"
   }
 
-  private[proto] implicit val formats = Serialization.formats(NoTypeHints)
+  val operationSerializer = new TypeMapSerializer[OperationData]("t", Map(
+    "SI" -> classOf[StringInsertOperationData],
+    "SR" -> classOf[StringRemoveOperationData],
+    "SS" -> classOf[StringSetOperationData],
+    
+    "AI" -> classOf[ArrayInsertOperationData],
+    "AR" -> classOf[ArrayRemoveOperationData],
+    "AP" -> classOf[ArrayReplaceOperationData],
+    "AM" -> classOf[ArrayMoveOperationData],
+    "AS" -> classOf[ArraySetOperationData],
+    
+    "OA" -> classOf[ObjectAddPropertyOperationData],
+    "OP" -> classOf[ObjectSetPropertyOperationData],
+    "OR" -> classOf[ObjectRemovePropertyOperationData],
+    "OS" -> classOf[ObjectSetOperationData]
+    ))
+
+  private[proto] implicit val formats = DefaultFormats + operationSerializer
 
   // FIXME can we use the message type enum instead for matching?
   case class MessageEnvelope(opCode: String, reqId: Option[Long], `type`: Option[String], body: Option[JValue]) {
@@ -102,10 +130,15 @@ package object proto {
       val jValue = MessageSerializer.decomposeBody(body)
       MessageEnvelope(opCode, reqId, t, jValue)
     }
-    
+
     def apply(opCode: String, reqId: Long, t: String, body: Option[ProtocolMessage]): MessageEnvelope = {
       val jValue = MessageSerializer.decomposeBody(body)
       MessageEnvelope(opCode, Some(reqId), Some(t), jValue)
+    }
+
+    def apply(opCode: String, t: String, body: Option[ProtocolMessage]): MessageEnvelope = {
+      val jValue = MessageSerializer.decomposeBody(body)
+      MessageEnvelope(opCode, None, Some(t), jValue)
     }
   }
 }

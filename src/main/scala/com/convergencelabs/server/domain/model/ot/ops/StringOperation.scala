@@ -2,11 +2,11 @@ package com.convergencelabs.server.domain.model.ot.ops
 
 import com.convergencelabs.server.domain.model.ot.xform.StringOperationTransformer
 
-sealed trait StringOperation {
+sealed trait StringOperation extends DiscreteOperation {
   def transform(other: StringOperation): (DiscreteOperation, DiscreteOperation)
 }
 
-case class StringDeleteOperation(override val path: List[Any], override val noOp: Boolean, index: Int, value: String) extends DiscreteOperation(path, noOp) with StringOperation {
+case class StringDeleteOperation(override val path: List[Any], override val noOp: Boolean, index: Int, value: String) extends StringOperation {
 
   def copyBuilder(): StringDeleteOperation.Builder = new StringDeleteOperation.Builder(path, noOp, index, value)
 
@@ -23,7 +23,7 @@ object StringDeleteOperation {
   }
 }
 
-case class StringInsertOperation(override val path: List[Any], override val noOp: Boolean, index: Int, value: String) extends DiscreteOperation(path, noOp) with StringOperation {
+case class StringInsertOperation(override val path: List[Any], override val noOp: Boolean, index: Int, value: String) extends StringOperation {
 
   def copyBuilder(): StringInsertOperation.Builder = new StringInsertOperation.Builder(path, noOp, index, value)
 
@@ -40,7 +40,7 @@ object StringInsertOperation {
   }
 }
 
-case class StringSetOperation(override val path: List[Any], override val noOp: Boolean, value: String) extends DiscreteOperation(path, noOp) with StringOperation {
+case class StringSetOperation(override val path: List[Any], override val noOp: Boolean, value: String) extends StringOperation {
 
   def copyBuilder(): StringSetOperation.Builder = new StringSetOperation.Builder(path, noOp, value)
 

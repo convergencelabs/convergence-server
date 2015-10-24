@@ -137,7 +137,13 @@ class ModelClientActor(
       case Success(OpenModelSuccess(realtimeModelActor, modelResourceId, modelSessionId, metaData, modelData)) => {
         openRealtimeModels += (modelResourceId -> realtimeModelActor)
         cb.reply(
-          OpenRealtimeModelResponseMessage(modelResourceId, modelSessionId, metaData, modelData))
+          OpenRealtimeModelResponseMessage(
+              modelResourceId, 
+              modelSessionId, 
+              metaData.version,
+              metaData.createdTime,
+              metaData.modifiedTime,
+              modelData))
       }
       case Success(ModelNotFound) => {
         cb.reply(ErrorMessage("model_not_found", "Could not be opened."))

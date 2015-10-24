@@ -1,6 +1,8 @@
 package com.convergencelabs.server.domain.model.ot.ops
 
-abstract class DiscreteOperation(val path: List[Any], val noOp: Boolean) extends Operation {
+trait DiscreteOperation extends Operation {
+  val path: List[Any]
+  val noOp: Boolean
 
   def copyBuilder(): DiscreteOperation.Builder
 
@@ -16,8 +18,3 @@ object DiscreteOperation {
     def build():DiscreteOperation
   }
 }
-
-
-
-
-

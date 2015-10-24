@@ -19,6 +19,9 @@ import org.json4s._
 import org.json4s.jackson.JsonMethods._
 import com.convergencelabs.server.frontend.realtime.proto.CloseRealtimeModelRequestMessage
 import com.convergencelabs.server.frontend.realtime.proto.CloseRealtimeModelResponseMessage
+import com.convergencelabs.server.frontend.realtime.proto.OperationSubmissionMessage
+import com.convergencelabs.server.frontend.realtime.proto.StringInsertOperationData
+import com.convergencelabs.server.frontend.realtime.proto.OperationAcknowledgementMessage
 
 object MockClientTest {
   def main(args: Array[String]): Unit = {
@@ -27,18 +30,22 @@ object MockClientTest {
 
     client.sendRequest(HandshakeRequestMessage(false, None, None))
     val handhsakeResponse = client.expectMessageClass(5 seconds, classOf[HandshakeResponseMessage])
-    
+
     client.sendRequest(PasswordAuthenticationRequestMessage("test", "test"))
     val authResponse = client.expectMessageClass(5 seconds, classOf[AuthenticationResponseMessage])
-    
+
     client.sendRequest(OpenRealtimeModelRequestMessage(ModelFqnData("collection", "model")))
-    
-    // FIXME we have a problem with the resource id stuff.
+
     val (dataRequest, MessageEnvelope(_, Some(reqId), _, _)) = client.expectMessageClass(5 seconds, classOf[ModelDataRequestMessage])
     client.sendResponse(reqId, ModelDataResponseMessage(JObject("key" -> JString("value"))))
 
     val (openResponse, _) = client.expectMessageClass(5 seconds, classOf[OpenRealtimeModelResponseMessage])
-    
+
+    val opMessage = OperationSubmissionMessage(openResponse.rId, openResponse.cId, openResponse.v, StringInsertOperationData(List(), false, 0, "x"))
+    client.sendNormal(opMessage)
+
+    val opAck = client.expectMessageClass(5 seconds, classOf[OperationAcknowledgementMessage])
+
     client.sendRequest(CloseRealtimeModelRequestMessage(openResponse.rId, openResponse.cId))
     val closeResponse = client.expectMessageClass(5 seconds, classOf[CloseRealtimeModelResponseMessage])
 

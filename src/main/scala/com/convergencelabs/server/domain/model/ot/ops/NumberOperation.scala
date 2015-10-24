@@ -3,11 +3,11 @@ package com.convergencelabs.server.domain.model.ot.ops
 import com.convergencelabs.server.domain.model.ot.xform.NumberOperationTransformer
 import org.json4s.JsonAST.JNumber
 
-sealed trait NumberOperation {
+sealed trait NumberOperation extends DiscreteOperation {
   def transform(other: NumberOperation): (DiscreteOperation, DiscreteOperation)
 }
 
-case class NumberAddOperation(override val path: List[Any], override val noOp: Boolean, value: JNumber) extends DiscreteOperation(path, noOp) with NumberOperation {
+case class NumberAddOperation(val path: List[Any], val noOp: Boolean, value: JNumber) extends NumberOperation {
 
   def copyBuilder(): NumberAddOperation.Builder = new NumberAddOperation.Builder(path, noOp, value)
 
@@ -23,7 +23,7 @@ object NumberAddOperation {
   }
 }
 
-case class NumberSetOperation(override val path: List[Any], override val noOp: Boolean,  newValue: JNumber) extends DiscreteOperation(path, noOp) with NumberOperation {
+case class NumberSetOperation(val path: List[Any], val noOp: Boolean,  newValue: JNumber) extends NumberOperation {
 
   def copyBuilder(): NumberSetOperation.Builder = new NumberSetOperation.Builder(path, noOp, newValue)
 
