@@ -6,7 +6,6 @@ import com.convergencelabs.server.datastore.DomainConfig
 import com.convergencelabs.server.datastore.ConfigurationStore
 import scala.util.Success
 import scala.util.Failure
-import com.convergencelabs.server.ErrorMessage
 import akka.actor.ActorRef
 import org.bouncycastle.openssl.PEMParser
 import java.security.spec.X509EncodedKeySpec

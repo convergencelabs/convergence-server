@@ -21,7 +21,6 @@ import com.convergencelabs.server.domain.DomainFqn
 import org.mockito.Mockito
 import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
-import com.convergencelabs.server.ErrorMessage
 import com.convergencelabs.server.util.MockDomainPersistenceManagerActor
 
 @RunWith(classOf[JUnitRunner])
@@ -78,8 +77,7 @@ class ModelManagerActorSpec
       "return an error if the model exists" in new TestFixture {
         val client = new TestProbe(system)
         modelManagerActor.tell(CreateModelRequest(modelFqn, JString("new data")), client.ref)
-        val response = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ErrorMessage])
-        assert(response.code == ModelManagerActor.ErrorCodes.ModelExists)
+        client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelAlreadyExists)
       }
     }
     

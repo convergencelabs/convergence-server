@@ -17,7 +17,7 @@ import com.convergencelabs.server.domain.model.ot.cc.ProcessedOperationEvent
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.duration._
 import scala.compat.Platform
-import com.convergencelabs.server.ErrorMessage
+import com.convergencelabs.server.ErrorResponse
 
 /**
  * An instance of the RealtimeModelActor manages the lifecycle of a single
@@ -205,15 +205,15 @@ class RealtimeModelActor(
       case Failure(cause) => cause match {
         case e: ClassCastException =>
           log.warning("The client responded with an unexpected value:" + e.getMessage)
-          askingActor ! ErrorMessage("invalid_response", "The client responded with an unexpected value.")
+          askingActor ! ErrorResponse("invalid_response", "The client responded with an unexpected value.")
         case e: AskTimeoutException =>
           log.debug("A timeout occured waiting for the client to respond with model data.")
-          askingActor ! ErrorMessage(
+          askingActor ! ErrorResponse(
             "data_request_timeout",
             "The client did not correctly respond with data, while initializing a new model.")
         case e: Exception =>
           log.error(e, "Uknnown exception processing model data response.")
-          askingActor ! ErrorMessage("unknown", e.getMessage)
+          askingActor ! ErrorResponse("unknown", e.getMessage)
       }
     }
 
@@ -278,7 +278,7 @@ class RealtimeModelActor(
    */
   private[this] def onCloseModelRequest(request: CloseRealtimeModelRequest): Unit = {
     if (!connectedClients.contains(request.clientId)) {
-      sender ! ErrorMessage("invalid_model_session_id", "The supplied clientId does not have the model open")
+      sender ! ModelNotOpened
     } else {
       connectedClients -= request.clientId
       concurrencyControl.untrackClient(request.clientId)
@@ -484,7 +484,7 @@ class RealtimeModelActor(
    */
   private[this] def handleInitializationFailure(errorCode: String, errorMessage: String): Unit = {
     queuedOpeningClients.values foreach {
-      openRequest => openRequest.askingActor ! ErrorMessage(errorCode, errorMessage)
+      openRequest => openRequest.askingActor ! ErrorResponse(errorCode, errorMessage)
     }
 
     queuedOpeningClients = HashMap[String, OpenRequestRecord]()

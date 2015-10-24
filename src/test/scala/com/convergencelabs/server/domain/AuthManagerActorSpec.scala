@@ -20,8 +20,6 @@ import com.convergencelabs.server.ProtocolConfiguration
 import org.mockito.Mockito
 import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
-import com.convergencelabs.server.ErrorMessage
-import com.convergencelabs.server.ErrorMessage
 import com.convergencelabs.server.datastore.ConfigurationStore
 import com.convergencelabs.server.datastore.DomainConfig
 import com.convergencelabs.server.datastore.TokenPublicKey

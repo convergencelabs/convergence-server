@@ -14,8 +14,9 @@ import scala.concurrent.duration.FiniteDuration
 import com.convergencelabs.server.domain.DomainFqn
 import org.scalatest.junit.JUnitRunner
 import org.junit.runner.RunWith
-import com.convergencelabs.server.ErrorMessage
 import com.sun.media.sound.Platform
+import com.convergencelabs.server.ErrorResponse
+import com.convergencelabs.server.SuccessResponse
 
 @RunWith(classOf[JUnitRunner])
 class RealtimeModelActorSpec
@@ -49,7 +50,7 @@ class RealtimeModelActorSpec
         Mockito.when(modelStore.getModelData(Matchers.any())).thenThrow(new IllegalArgumentException("Induced error for test"))
 
         realtimeModelActor.tell(OpenRealtimeModelRequest(modelFqn, client.ref), client.ref)
-        val message = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ErrorMessage])
+        val message = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ErrorResponse])
       }
 
       "ask all connecting clients for state if it is not persisted" in new MockDatabaseWithoutModel {
@@ -69,15 +70,15 @@ class RealtimeModelActorSpec
         val client1 = new TestProbe(system)
         realtimeModelActor.tell(OpenRealtimeModelRequest(modelFqn, client1.ref), client1.ref)
         client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientModelDataRequest])
-        client1.expectMsgClass(FiniteDuration(200, TimeUnit.MILLISECONDS), classOf[ErrorMessage])
+        client1.expectMsgClass(FiniteDuration(200, TimeUnit.MILLISECONDS), classOf[ErrorResponse])
       }
 
       "reject a client that responds with the wrong message in request to data" in new MockDatabaseWithoutModel {
         val client1 = new TestProbe(system)
         realtimeModelActor.tell(OpenRealtimeModelRequest(modelFqn, client1.ref), client1.ref)
         client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientModelDataRequest])
-        client1.reply(ErrorMessage)
-        client1.expectMsgClass(FiniteDuration(200, TimeUnit.MILLISECONDS), classOf[ErrorMessage])
+        client1.reply(SuccessResponse) // Any message will do here.
+        client1.expectMsgClass(FiniteDuration(200, TimeUnit.MILLISECONDS), classOf[ErrorResponse])
       }
 
       "notify all queued clients when data is returned by the first client" in new MockDatabaseWithoutModel {
@@ -158,9 +159,9 @@ class RealtimeModelActorSpec
         val closeAck = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[CloseRealtimeModelSuccess])
       }
 
-      "respond with an error for an invalid ccId" in new MockDatabaseWithModel with OneOpenClient {
-        realtimeModelActor.tell(CloseRealtimeModelRequest("invalidccId"), client1.ref)
-        client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ErrorMessage])
+      "respond with an error for an invalid cId" in new MockDatabaseWithModel with OneOpenClient {
+        realtimeModelActor.tell(CloseRealtimeModelRequest("invalidCId"), client1.ref)
+        client1.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelNotOpened)
       }
 
       "notify other connected clients" in new MockDatabaseWithModel {

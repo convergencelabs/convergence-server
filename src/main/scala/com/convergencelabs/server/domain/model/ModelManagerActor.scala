@@ -15,11 +15,10 @@ import com.convergencelabs.server.datastore.domain.SnapshotMetaData
 import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
 import akka.actor.Props
-import com.convergencelabs.server.ErrorMessage
-import com.convergencelabs.server.domain.model.ModelManagerActor.ErrorCodes._
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 import com.convergencelabs.server.SuccessResponse
+import com.convergencelabs.server.ErrorResponse
 
 class ModelManagerActor(
   private[this] val domainFqn: DomainFqn,
@@ -78,7 +77,7 @@ class ModelManagerActor(
 
   private[this] def onCreateModelRequest(createRequest: CreateModelRequest): Unit = {
     if (persistenceProvider.modelStore.modelExists(createRequest.modelFqn)) {
-      sender ! ErrorMessage(ModelExists, "The model can't be created, because a model with specified colleciton and model already exists.")
+      sender ! ModelAlreadyExists
     } else {
       val modelData = createRequest.modelData
       val createTime = Platform.currentTime
@@ -95,7 +94,7 @@ class ModelManagerActor(
         sender() ! SuccessResponse
       } catch {
         case e: IOException =>
-          sender() ! ErrorMessage("unknown", "Could not create model: " + e.getMessage)
+          sender() ! ErrorResponse("unknown", "Could not create model: " + e.getMessage)
       }
     }
   }
@@ -138,11 +137,6 @@ class ModelManagerActor(
 }
 
 object ModelManagerActor {
-
-  object ErrorCodes {
-    val ModelExists = "model_exists"
-    val ModelNotFound = "model_not_found"
-  }
 
   val RelativePath = "modelManager"
 

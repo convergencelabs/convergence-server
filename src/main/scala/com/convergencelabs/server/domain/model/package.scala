@@ -81,4 +81,7 @@ package model {
   case class RemoteClientOpened(resourceId: String, clientId: String) extends RealtimeModelClientMessage
   case class ModelForceClose(resourceId: String, clientId: String, reason: String) extends RealtimeModelClientMessage
   case class ClientModelDataRequest(modelFqn: ModelFqn) extends RealtimeModelClientMessage
+  
+  case object ModelAlreadyExists
+  case object ModelNotOpened
 }

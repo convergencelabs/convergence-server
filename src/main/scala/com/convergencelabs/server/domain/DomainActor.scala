@@ -7,7 +7,6 @@ import akka.actor.ActorRef
 import akka.actor.Props
 import akka.actor.Cancellable
 import com.convergencelabs.server.datastore.DomainConfig
-import com.convergencelabs.server.ErrorMessage
 import com.convergencelabs.server.domain.model.ModelManagerActor
 import com.convergencelabs.server.ProtocolConfiguration
 import java.util.concurrent.TimeUnit
