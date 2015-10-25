@@ -1,7 +1,7 @@
 package com.convergencelabs.server.domain.model.ot.xform
 
 import com.convergencelabs.server.domain.model.ot.ops.DiscreteOperation
-import com.convergencelabs.server.domain.model.ot.ops.StringDeleteOperation
+import com.convergencelabs.server.domain.model.ot.ops.StringRemoveOperation
 import com.convergencelabs.server.domain.model.ot.ops.StringInsertOperation
 import com.convergencelabs.server.domain.model.ot.ops.StringSetOperation
 
@@ -21,7 +21,7 @@ object StringOperationTransformer {
     }
   }
 
-  def transformInsertDelete(op1: StringInsertOperation, op2: StringDeleteOperation): (DiscreteOperation, DiscreteOperation) = {
+  def transformInsertRemove(op1: StringInsertOperation, op2: StringRemoveOperation): (DiscreteOperation, DiscreteOperation) = {
     lazy val op1Builder = op1.copyBuilder()
     lazy val op2Builder = op2.copyBuilder()
 
@@ -45,7 +45,7 @@ object StringOperationTransformer {
     (op1Builder.build(), op2)
   }
 
-  def transformDeleteInsert(op1: StringDeleteOperation, op2: StringInsertOperation): (DiscreteOperation, DiscreteOperation) = {
+  def transformRemoveInsert(op1: StringRemoveOperation, op2: StringInsertOperation): (DiscreteOperation, DiscreteOperation) = {
     if (op2.index <= op1.index) {
       val builder = op1.copyBuilder()
       builder.index = op1.index + op2.value.length()
@@ -68,7 +68,7 @@ object StringOperationTransformer {
     }
   }
 
-  def transformDeleteDelete(op1: StringDeleteOperation, op2: StringDeleteOperation): (DiscreteOperation, DiscreteOperation) = {
+  def transformRemoveRemove(op1: StringRemoveOperation, op2: StringRemoveOperation): (DiscreteOperation, DiscreteOperation) = {
     lazy val op1Builder = op1.copyBuilder()
     lazy val op2Builder = op2.copyBuilder()
 
@@ -139,7 +139,7 @@ object StringOperationTransformer {
     }
   }
 
-  def transformDeleteSet(op1: StringDeleteOperation, op2: StringSetOperation): (DiscreteOperation, DiscreteOperation) = {
+  def transformRemoveSet(op1: StringRemoveOperation, op2: StringSetOperation): (DiscreteOperation, DiscreteOperation) = {
     val op1Builder = op1.copyBuilder();
     op1Builder.noOp = true
     (op1Builder.build(), op2)
@@ -151,7 +151,7 @@ object StringOperationTransformer {
     (op1, op2Builder.build())
   }
 
-  def transformSetDelete(op1: StringSetOperation, op2: StringDeleteOperation): (DiscreteOperation, DiscreteOperation) = {
+  def transformSetRemove(op1: StringSetOperation, op2: StringRemoveOperation): (DiscreteOperation, DiscreteOperation) = {
     val op2Builder = op2.copyBuilder();
     op2Builder.noOp = true
     (op1, op2Builder.build())

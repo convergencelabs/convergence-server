@@ -10,7 +10,7 @@ sealed trait ObjectOperation extends DiscreteOperation {
   def transform(other: ObjectOperation): (DiscreteOperation, DiscreteOperation)
 }
 
-case class ObjectSetPropertyOperation(override val path: List[Any], override val noOp: Boolean, property: String, newValue: JValue) extends ObjectOperation {
+case class ObjectSetPropertyOperation(path: List[Any], noOp: Boolean, property: String, newValue: JValue) extends ObjectOperation {
 
   def copyBuilder(): ObjectSetPropertyOperation.Builder = new ObjectSetPropertyOperation.Builder(path, noOp, property, newValue)
 
@@ -28,7 +28,7 @@ object ObjectSetPropertyOperation {
   }
 }
 
-case class ObjectAddPropertyOperation(override val path: List[Any], override val noOp: Boolean, property: String, newValue: JValue) extends ObjectOperation {
+case class ObjectAddPropertyOperation(path: List[Any], noOp: Boolean, property: String, newValue: JValue) extends ObjectOperation {
 
   def copyBuilder(): ObjectAddPropertyOperation.Builder = new ObjectAddPropertyOperation.Builder(path, noOp, property, newValue)
 
@@ -46,7 +46,7 @@ object ObjectAddPropertyOperation {
   }
 }
 
-case class ObjectRemovePropertyOperation(override val path: List[Any], override val noOp: Boolean, property: String) extends ObjectOperation {
+case class ObjectRemovePropertyOperation(path: List[Any], noOp: Boolean, property: String) extends ObjectOperation {
 
   def copyBuilder(): ObjectRemovePropertyOperation.Builder = new ObjectRemovePropertyOperation.Builder(path, noOp, property)
 
@@ -64,7 +64,7 @@ object ObjectRemovePropertyOperation {
   }
 }
 
-case class ObjectSetOperation(override val path: List[Any], override val noOp: Boolean, newValue: JObject) extends ObjectOperation {
+case class ObjectSetOperation(path: List[Any], noOp: Boolean, newValue: JObject) extends ObjectOperation {
 
   def copyBuilder(): ObjectSetOperation.Builder = new ObjectSetOperation.Builder(path, noOp, newValue)
 
@@ -81,4 +81,3 @@ object ObjectSetOperation {
     def build(): ObjectSetOperation = ObjectSetOperation(path, noOp, newValue)
   }
 }
-

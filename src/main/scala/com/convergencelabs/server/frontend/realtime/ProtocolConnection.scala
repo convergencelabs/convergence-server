@@ -63,7 +63,7 @@ class ProtocolConnection(
 
   implicit val formats = Serialization.formats(NoTypeHints)
 
-  val heartbeatHelper = new HearbeatHelper(
+  val heartbeatHelper = new HeartbeatHelper(
     5,
     10,
     scheduler,

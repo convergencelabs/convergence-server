@@ -14,50 +14,146 @@ import org.json4s._
 import org.json4s.jackson.JsonMethods._
 import org.json4s.jackson.Serialization._
 import scala.collection.immutable.HashMap
+import com.orientechnologies.orient.core.sql.OCommandSQL
+import com.convergencelabs.server.domain.model.ot.ops.Operation
+import com.convergencelabs.server.datastore.domain.ModelHistoryStore.Fields._
+import java.time.Instant
+
+object ModelHistoryStore {
+  val ModelHistory = "ModelHistory"
+  
+  object Fields {
+    val Version = "version"
+    val ModelId = "modelId"
+    val CollectionId = "collectionId"
+    val Timestamp = "collectionId"
+    val Uid = "uid"
+    val Cid = "cid"
+    val Operation = "op"
+  }
+}
 
 class ModelHistoryStore(dbPool: OPartitionedDatabasePool) {
   private[this] implicit val formats = Serialization.formats(NoTypeHints)
 
-  def getMaxVersion(fqn: ModelFqn): Long = {
+  def getMaxVersion(fqn: ModelFqn): Option[Long] = {
     val db = dbPool.acquire()
-    val query = new OSQLSynchQuery[ODocument]("SELECT max(operation.version) FROM modelHistory WHERE collectionId = :collectionId and modelId = :modelId")
-    val params: java.util.Map[String, String] = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
-    val result: java.util.List[ODocument] = db.command(query).execute(params)
+    val queryString =
+      """SELECT max(operation.version) 
+        |FROM ModelHistory 
+        |WHERE 
+        |  collectionId = :collectionId AND 
+        |  modelId = :modelId""".stripMargin
+
+    val query = new OSQLSynchQuery[ODocument](queryString)
+    val params = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
+    val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
+    
+    db.close()
+    
     result.asScala.toList match {
-      case doc :: rest => doc.field("max", OType.LONG)
-      case Nil         => 0 //TODO: should we be using an option for this
+      case doc :: Nil => Some(doc.field("max", OType.LONG))
+      case _ => None
     }
   }
 
-  def getVersionAtOrBeforeTime(fqn: ModelFqn, time: Long): Long = {
+  def getVersionAtOrBeforeTime(fqn: ModelFqn, time: Long): Option[Long] = {
     val db = dbPool.acquire()
-    val query = new OSQLSynchQuery[ODocument]("SELECT max(operation.version) FROM modelHistory WHERE collectionId = :collectionId and modelId = :modelId and operation.time <= :time")
-    val params: java.util.Map[String, Any] = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId, "time" -> time)
-    val result: java.util.List[ODocument] = db.command(query).execute(params)
+    val queryString = 
+      """SELECT max(operation.version) 
+        |FROM ModelHistory 
+        |WHERE 
+        |  collectionId = :collectionId AND 
+        |  modelId = :modelId AND 
+        |  operation.time <= :time""".stripMargin
+    
+    val query = new OSQLSynchQuery[ODocument](queryString)
+    val params = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId, "time" -> time)
+    val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
+    db.close()
     result.asScala.toList match {
-      case doc :: rest => doc.field("max", OType.LONG)
-      case Nil         => 0 //TODO: should we be using an option for this
+      case doc :: rest => Some(doc.field("max", OType.LONG))
+      case Nil => None
     }
   }
 
   def getOperationsAfterVersion(fqn: ModelFqn, version: Long): List[OperationEvent] = {
     val db = dbPool.acquire()
-    val query = new OSQLSynchQuery[ODocument]("SELECT FROM modelHistory WHERE collectionId = :collectionId and modelId = :modelId and operation.version >= :version ORDER BY operation.version ASC");
-    val params: java.util.Map[String, Any] = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId, "version" -> version)
-    val result: java.util.List[ODocument] = db.command(query).execute(params)
-    result.asScala.toList map { doc => read[OperationEvent](write(doc.field("operation"))) }
+    val queryString = 
+      """SELECT * FROM ModelHistory 
+        |WHERE 
+        |  collectionId = :collectionId AND 
+        |  modelId = :modelId AND 
+        |  operation.version >= :version 
+        |ORDER BY operation.version ASC""".stripMargin
+        
+    val query = new OSQLSynchQuery[ODocument](queryString)
+    val params = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId, "version" -> version)
+    val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
+    db.close()
+    result.asScala.toList map { doc => docToOperationEvent(doc) }
   }
 
   def getOperationsAfterVersion(fqn: ModelFqn, version: Long, limit: Int): List[OperationEvent] = {
     val db = dbPool.acquire()
-    val query = new OSQLSynchQuery[ODocument]("SELECT FROM modelHistory WHERE collectionId = :collectionId and modelId = :modelId and operation.version >= :version ORDER BY operation.version ASC LIMIT :limit");
-    val params: java.util.Map[String, Any] = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId, "version" -> version, "limit" -> limit)
-    val result: java.util.List[ODocument] = db.command(query).execute(params)
-    result.asScala.toList map { doc => read[OperationEvent](write(doc.field("operation"))) }
+    val queryStirng = 
+      """SELECT * FROM ModelHistory 
+        |WHERE 
+        |  collectionId = :collectionId AND
+        |  modelId = :modelId AND
+        | operation.version >= :version
+        |ORDER BY operation.version ASC LIMIT :limit""".stripMargin
+        
+    val query = new OSQLSynchQuery[ODocument](queryStirng)
+    val params = HashMap(
+        "collectionId" -> fqn.collectionId, 
+        "modelId" -> fqn.modelId, 
+        "version" -> version, 
+        "limit" -> limit)
+    val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
+    db.close()
+    result.asScala.toList map { doc => docToOperationEvent(doc) }
   }
 
-  def removeHistoryForModel(modelFqn: ModelFqn): Unit = ???
+  def removeHistoryForModel(fqn: ModelFqn): Unit = {
+    val db = dbPool.acquire()
+    val queryStirng = 
+      """DELETE FROM ModelHistory 
+        |WHERE 
+        |  collectionId = :collectionId AND
+        |  modelId = :modelId""".stripMargin
+        
+    val query = new OSQLSynchQuery[ODocument](queryStirng)
+    val params = HashMap(
+        "collectionId" -> fqn.collectionId, 
+        "modelId" -> fqn.modelId)
+    val command = new OCommandSQL("DELETE FROM User WHERE uid = :uid")
+    db.command(command).execute(params.asJava)
+    db.close()
+  }
+  
+  private[this] def docToOperationEvent(doc: ODocument): OperationEvent = {
+    val docDate: java.util.Date = doc.field(Timestamp, OType.DATETIME)
+    val timestamp = Instant.ofEpochMilli(docDate.getTime)
+    val opMap: java.util.Map[String, Object] = doc.field(Operation, OType.EMBEDDEDMAP)
+    
+    //val op: Operation
+    
+    return OperationEvent(
+        ModelFqn(doc.field(CollectionId), doc.field(ModelId)),
+        doc.field(Version),
+        timestamp,
+        doc.field(Uid),
+        doc.field(Cid),
+        null)
+  }
 }
 
 // FIXME This doesn't seem to have what it needs.
-case class OperationEvent()
+case class OperationEvent(
+    modelFqn: ModelFqn, 
+    version: Long, 
+    timestamp: Instant, 
+    uid: String,
+    cid: String,
+    op: Operation)

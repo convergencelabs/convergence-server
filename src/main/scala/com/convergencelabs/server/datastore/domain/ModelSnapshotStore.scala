@@ -12,6 +12,7 @@ import com.orientechnologies.orient.core.sql.OCommandSQL
 import scala.collection.immutable.HashMap
 import com.convergencelabs.server.datastore.QueryUtil
 import scala.compat.Platform
+import com.orientechnologies.orient.core.metadata.schema.OType
 
 /**
  * Manages the persistence of model snapshots.
@@ -272,7 +273,7 @@ class ModelSnapshotStore private[domain] (
     val timestamp: java.util.Date = doc.field("timestamp")
     SnapshotMetaData(
       ModelFqn(doc.field("collectionId"), doc.field("modelId")),
-      doc.field("version"),
+      doc.field("version", OType.LONG),
       timestamp.getTime)
   }
 

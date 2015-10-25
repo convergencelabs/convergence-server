@@ -16,23 +16,55 @@ class ModelSnapshotStoreSpec extends WordSpec {
 
   OLogManager.instance().setConsoleLevel("WARNING")
 
+  val person1ModelFqn = ModelFqn("people", "person1")
+  val person2ModelFqn = ModelFqn("people", "person2")
+  val nonExistingModelFqn = ModelFqn("people", "noPerson")
+  
   "A ModelSnapshotStore" when {
 
     "when creating a snapshot" must {
-
       "be able to get the snapshot that was created" in withModelSnapshotStore { store =>
-        val fqn = ModelFqn("collection", "model")
         val version = 2L
         val timestamp = 4L
 
         val created = SnapshotData(
-          SnapshotMetaData(fqn, version, timestamp),
+          SnapshotMetaData(person1ModelFqn, version, timestamp),
           JObject("key" -> JNull))
           
         store.createSnapshot(created)
 
-        val queried = store.getSnapshot(fqn, version)
+        val queried = store.getSnapshot(person1ModelFqn, version)
         assert(queried.get == created)
+      }
+    }
+    
+    "when getting a specific snapshot" must {
+      "return the correct snapshot when one exists" in withModelSnapshotStore { store =>
+        val queried = store.getSnapshot(person1ModelFqn, 0L)
+        assert(queried.isDefined)
+      }
+      
+      "return None when the specified version does not exist" in withModelSnapshotStore { store =>
+        val queried = store.getSnapshot(person1ModelFqn, 5L)
+        assert(queried.isEmpty)
+      }
+      
+      "return None when the specified model does not exist" in withModelSnapshotStore { store =>
+        val queried = store.getSnapshot(nonExistingModelFqn, 0L)
+        assert(queried.isEmpty)
+      }
+    }
+    
+    "when getting the latest snapshot for a model" must {
+      "return the correct meta data for a model with snapshots" in withModelSnapshotStore { store =>
+        val metaData = store.getLatestSnapshotMetaDataForModel(person1ModelFqn)
+        assert(metaData.isDefined)
+        assert(metaData.get.version == 20L)
+      }
+      
+      "return None when the specified model does not exist" in withModelSnapshotStore { store =>
+        val queried = store.getSnapshot(nonExistingModelFqn, 0L)
+        assert(queried.isEmpty)
       }
     }
   }
@@ -59,6 +91,7 @@ class ModelSnapshotStoreSpec extends WordSpec {
     try {
       testCode(store)
     } finally {
+      dbPool.close()
       db.activateOnCurrentThread()
       db.drop() // Drop will close and drop
     }

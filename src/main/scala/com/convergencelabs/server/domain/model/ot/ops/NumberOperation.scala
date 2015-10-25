@@ -7,7 +7,7 @@ sealed trait NumberOperation extends DiscreteOperation {
   def transform(other: NumberOperation): (DiscreteOperation, DiscreteOperation)
 }
 
-case class NumberAddOperation(val path: List[Any], val noOp: Boolean, value: JNumber) extends NumberOperation {
+case class NumberAddOperation(path: List[Any], noOp: Boolean, value: JNumber) extends NumberOperation {
 
   def copyBuilder(): NumberAddOperation.Builder = new NumberAddOperation.Builder(path, noOp, value)
 
@@ -23,7 +23,7 @@ object NumberAddOperation {
   }
 }
 
-case class NumberSetOperation(val path: List[Any], val noOp: Boolean,  newValue: JNumber) extends NumberOperation {
+case class NumberSetOperation(path: List[Any], noOp: Boolean, newValue: JNumber) extends NumberOperation {
 
   def copyBuilder(): NumberSetOperation.Builder = new NumberSetOperation.Builder(path, noOp, newValue)
 

@@ -12,7 +12,7 @@ sealed trait HeartbeatEvent
 case object PingRequest extends HeartbeatEvent
 case object PongTimeout extends HeartbeatEvent
 
-class HearbeatHelper(
+class HeartbeatHelper(
   private[this] val pingInterval: Int,
   private[this] val pongTimeout: Int,
   private[this] val scheduler: Scheduler,

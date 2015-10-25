@@ -6,20 +6,20 @@ sealed trait StringOperation extends DiscreteOperation {
   def transform(other: StringOperation): (DiscreteOperation, DiscreteOperation)
 }
 
-case class StringDeleteOperation(override val path: List[Any], override val noOp: Boolean, index: Int, value: String) extends StringOperation {
+case class StringRemoveOperation(override val path: List[Any], override val noOp: Boolean, index: Int, value: String) extends StringOperation {
 
-  def copyBuilder(): StringDeleteOperation.Builder = new StringDeleteOperation.Builder(path, noOp, index, value)
+  def copyBuilder(): StringRemoveOperation.Builder = new StringRemoveOperation.Builder(path, noOp, index, value)
 
   def transform(other: StringOperation): (DiscreteOperation, DiscreteOperation) = other match {
-    case other: StringInsertOperation => StringOperationTransformer.transformDeleteInsert(this, other)
-    case other: StringDeleteOperation => StringOperationTransformer.transformDeleteDelete(this, other)
-    case other: StringSetOperation    => StringOperationTransformer.transformDeleteSet(this, other)
+    case other: StringInsertOperation => StringOperationTransformer.transformRemoveInsert(this, other)
+    case other: StringRemoveOperation => StringOperationTransformer.transformRemoveRemove(this, other)
+    case other: StringSetOperation    => StringOperationTransformer.transformRemoveSet(this, other)
   }
 }
 
-object StringDeleteOperation {
+object StringRemoveOperation {
   class Builder(path: List[Any], noOp: scala.Boolean, var index: Int, var value: String) extends DiscreteOperation.Builder(path, noOp) {
-    def build(): StringDeleteOperation = StringDeleteOperation(path, noOp, index, value)
+    def build(): StringRemoveOperation = StringRemoveOperation(path, noOp, index, value)
   }
 }
 
@@ -29,7 +29,7 @@ case class StringInsertOperation(override val path: List[Any], override val noOp
 
   def transform(other: StringOperation): (DiscreteOperation, DiscreteOperation) = other match {
     case other: StringInsertOperation => StringOperationTransformer.transformInsertInsert(this, other)
-    case other: StringDeleteOperation => StringOperationTransformer.transformInsertDelete(this, other)
+    case other: StringRemoveOperation => StringOperationTransformer.transformInsertRemove(this, other)
     case other: StringSetOperation    => StringOperationTransformer.transformInsertSet(this, other)
   }
 }
@@ -46,7 +46,7 @@ case class StringSetOperation(override val path: List[Any], override val noOp: B
 
   def transform(other: StringOperation): (DiscreteOperation, DiscreteOperation) = other match {
     case other: StringInsertOperation => StringOperationTransformer.transformSetInsert(this, other)
-    case other: StringDeleteOperation => StringOperationTransformer.transformSetDelete(this, other)
+    case other: StringRemoveOperation => StringOperationTransformer.transformSetRemove(this, other)
     case other: StringSetOperation    => StringOperationTransformer.transformSetSet(this, other)
   }
 }

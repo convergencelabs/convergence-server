@@ -7,7 +7,7 @@ sealed trait ArrayOperation extends DiscreteOperation {
   def transform(other: ArrayOperation): (DiscreteOperation, DiscreteOperation)
 }
 
-case class ArrayInsertOperation(val path: List[Any], val noOp: Boolean, index: Int, value: JValue) extends ArrayOperation {
+case class ArrayInsertOperation(path: List[Any], noOp: Boolean, index: Int, value: JValue) extends ArrayOperation {
 
   def copyBuilder(): ArrayInsertOperation.Builder = new ArrayInsertOperation.Builder(path, noOp, index, value)
 
@@ -26,7 +26,7 @@ object ArrayInsertOperation {
   }
 }
 
-case class ArrayRemoveOperation(override val path: List[Any], override val noOp: Boolean, index: Int) extends ArrayOperation {
+case class ArrayRemoveOperation(path: List[Any], noOp: Boolean, index: Int) extends ArrayOperation {
 
   def copyBuilder(): ArrayRemoveOperation.Builder = new ArrayRemoveOperation.Builder(path, noOp, index)
 
@@ -45,7 +45,7 @@ object ArrayRemoveOperation {
   }
 }
 
-case class ArrayReplaceOperation(override val path: List[Any], override val noOp: Boolean, index: Int, newValue: JValue) extends ArrayOperation {
+case class ArrayReplaceOperation(path: List[Any], noOp: Boolean, index: Int, newValue: JValue) extends ArrayOperation {
 
   def copyBuilder(): ArrayReplaceOperation.Builder = new ArrayReplaceOperation.Builder(path, noOp, index, newValue)
 
@@ -64,7 +64,7 @@ object ArrayReplaceOperation {
   }
 }
 
-case class ArrayMoveOperation(override val path: List[Any], override val noOp: Boolean, fromIndex: Int, toIndex: Int) extends ArrayOperation {
+case class ArrayMoveOperation(path: List[Any], noOp: Boolean, fromIndex: Int, toIndex: Int) extends ArrayOperation {
 
   def copyBuilder(): ArrayMoveOperation.Builder = new ArrayMoveOperation.Builder(path, noOp, fromIndex, toIndex)
 
@@ -83,7 +83,7 @@ object ArrayMoveOperation {
   }
 }
 
-case class ArraySetOperation(override val path: List[Any], override val noOp: Boolean, newValue: List[JValue]) extends ArrayOperation {
+case class ArraySetOperation(path: List[Any], noOp: Boolean, newValue: List[JValue]) extends ArrayOperation {
 
   def copyBuilder(): ArraySetOperation.Builder = new ArraySetOperation.Builder(path, noOp, newValue)
 

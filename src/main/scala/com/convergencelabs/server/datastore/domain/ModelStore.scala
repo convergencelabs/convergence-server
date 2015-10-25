@@ -30,7 +30,7 @@ import java.time.LocalDateTime
 object ModelStore {
   val CollectionId = "collectionId"
   val ModelId = "modelId"
-  val CreationTime = "creationTime"
+  val CreatedTime = "createdTime"
   val ModifiedTime = "modifiedTime"
   val Version = "version"
   val Data = "data"
@@ -61,7 +61,7 @@ class ModelStore(dbPool: OPartitionedDatabasePool) {
     doc.field(ModelStore.ModelId, fqn.modelId)
     doc.field(ModelStore.CollectionId, fqn.collectionId)
     doc.field(ModelStore.Version, 0)
-    doc.field(ModelStore.CreationTime, creationTime)
+    doc.field(ModelStore.CreatedTime, creationTime)
     doc.field(ModelStore.ModifiedTime, creationTime)
     db.save(doc)
     db.close()
@@ -111,7 +111,7 @@ class ModelStore(dbPool: OPartitionedDatabasePool) {
   def applyOperationToModel(fqn: ModelFqn, operation: Operation, version: Long, timestamp: Long, username: String): Unit = {
     operation match {
       case compoundOp: CompoundOperation => compoundOp.operations foreach { op => applyOperationToModel(fqn, op, version, timestamp, username) }
-      case _                             => ???
+      case _                             => // FIXME
     }
   }
 
@@ -146,7 +146,7 @@ class ModelStore(dbPool: OPartitionedDatabasePool) {
           doc.field(ModelStore.CollectionId),
           doc.field(ModelStore.ModelId)),
         doc.field(ModelStore.Version, OType.LONG),
-        doc.field(ModelStore.CreationTime, OType.LONG),
+        doc.field(ModelStore.CreatedTime, OType.LONG),
         doc.field(ModelStore.ModifiedTime, OType.LONG))
     }
   }

@@ -19,7 +19,7 @@ object OperationMapper {
   def mapIncomingDiscrete(op: DiscreteOperationData): DiscreteOperation = {
     op match {
       case StringInsertOperationData(path, noOp, index, value) => StringInsertOperation(path, noOp, index, value)
-      case StringRemoveOperationData(path, noOp, index, value) => StringDeleteOperation(path, noOp, index, value)
+      case StringRemoveOperationData(path, noOp, index, value) => StringRemoveOperation(path, noOp, index, value)
       case StringSetOperationData(path, noOp, value) => StringSetOperation(path, noOp, value)
 
       case ArrayInsertOperationData(path, noOp, idx, newVal) => ArrayInsertOperation(path, noOp, idx, newVal)
@@ -52,7 +52,7 @@ object OperationMapper {
   def mapOutgoingDiscrete(op: DiscreteOperation): DiscreteOperationData = {
     op match {
       case StringInsertOperation(path, noOp, index, value) => StringInsertOperationData(path, noOp, index, value)
-      case StringDeleteOperation(path, noOp, index, value) => StringRemoveOperationData(path, noOp, index, value)
+      case StringRemoveOperation(path, noOp, index, value) => StringRemoveOperationData(path, noOp, index, value)
       case StringSetOperation(path, noOp, value) => StringSetOperationData(path, noOp, value)
 
       case ArrayInsertOperation(path, noOp, idx, newVal) => ArrayInsertOperationData(path, noOp, idx, newVal)

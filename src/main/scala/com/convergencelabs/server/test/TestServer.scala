@@ -43,7 +43,7 @@ class TestServer(
     
     // Set Up OrientDB
     importDatabase(dbName, dbFile)
-    importDatabase("t1", "test-server/domain-test-db.gz")
+    importDatabase("t1", "test-server/t1.gz")
 
     // This is the cluster seed that all of the other systems will check in to.
     // we don't need to deploy anything to it.  It just needs to be there.

@@ -47,14 +47,13 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     // TODO see if there is a better way.
     doc.fromJSON(write(domainUser))
     db.save(doc)
-    db.close()
 
     val pwDoc = db.newInstance("UserCredential")
-    pwDoc.field("uid", domainUser.uid)
+    pwDoc.field("user", doc)
 
     val hash = password match {
       // TODO abstract encryption
-      case Some(pass) => SCryptUtil.scrypt(pass, 16384, 8, 1)
+      case Some(pass) => PasswordUtil.hashPassword(pass)
       case None => null
     }
 
@@ -259,17 +258,14 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    */
   def setDomainUserPassword(username: String, password: String): Unit = {
     val db = dbPool.acquire()
-    val query = new OSQLSynchQuery[ODocument]("SELECT FROM UserCredential WHERE username = :username")
+    val query = new OSQLSynchQuery[ODocument]("SELECT * FROM UserCredential WHERE user.username = :username")
     val params = HashMap("username" -> username)
     val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
     db.close()
 
     result.asScala.toList match {
       case doc :: Nil => {
-        val updatedDoc = db.newInstance("UserCredential")
-        // TODO abstract encryption
-        updatedDoc.field("password", SCryptUtil.scrypt(password, 16384, 8, 1))
-        doc.merge(updatedDoc, false, false)
+        doc.field("password", SCryptUtil.scrypt(password, 16384, 8, 1))
         db.save(doc)
       }
       case _ => ??? // FIXME
@@ -286,15 +282,15 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    */
   def validateCredentials(username: String, password: String): Boolean = {
     val db = dbPool.acquire()
-    val query = new OSQLSynchQuery[ODocument]("SELECT FROM UserCredential WHERE username = :username")
+    val query = new OSQLSynchQuery[ODocument]("SELECT password FROM UserCredential WHERE user.username = :username")
     val params = HashMap("username" -> username)
     val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
     db.close()
     
     result.asScala.toList match {
       case doc :: Nil => {
-        val pwhash = doc.field("password", OType.STRING)
-        SCryptUtil.check(password, pwhash)
+        val pwhash: String = doc.field("password")
+        PasswordUtil.checkPassword(password, pwhash)
       }
       case _ => false
     }
