@@ -11,6 +11,8 @@ import com.orientechnologies.common.log.OLogManager
 import org.json4s.JsonAST.JObject
 import org.json4s.JsonAST.JNull
 import org.json4s.JsonAST.JInt
+import java.text.SimpleDateFormat
+import java.time.Instant
 
 class ModelSnapshotStoreSpec extends WordSpec {
 
@@ -20,12 +22,17 @@ class ModelSnapshotStoreSpec extends WordSpec {
   val person2ModelFqn = ModelFqn("people", "person2")
   val nonExistingModelFqn = ModelFqn("people", "noPerson")
   
+  val df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+  
+  val p1Snapshot0Date = df.parse("2015-10-20 10:00:00").getTime
+  val p1Snapshot10Date = df.parse("2015-10-20 11:00:00").getTime
+  val p1Snapshot20Date = df.parse("2015-10-20 12:00:00").getTime
+  
   "A ModelSnapshotStore" when {
-
     "when creating a snapshot" must {
       "be able to get the snapshot that was created" in withModelSnapshotStore { store =>
         val version = 2L
-        val timestamp = 4L
+        val timestamp = Instant.now()
 
         val created = SnapshotData(
           SnapshotMetaData(person1ModelFqn, version, timestamp),
@@ -52,6 +59,61 @@ class ModelSnapshotStoreSpec extends WordSpec {
       "return None when the specified model does not exist" in withModelSnapshotStore { store =>
         val queried = store.getSnapshot(nonExistingModelFqn, 0L)
         assert(queried.isEmpty)
+      }
+    }
+    
+    "when getting all snapshot meta data" must {
+      "return all meta data in proper order when no limit or offest is provided" in withModelSnapshotStore { store =>
+        val metaData = store.getSnapshotMetaDataForModel(person1ModelFqn, None, None)
+        assert(metaData.length == 3)
+        assert(metaData(0).version == 0)
+        assert(metaData(1).version == 10)
+        assert(metaData(2).version == 20)
+      }
+      
+      "correctly limit the number of results with no offset" in withModelSnapshotStore { store =>
+        val metaData = store.getSnapshotMetaDataForModel(person1ModelFqn, Some(2), None)
+        assert(metaData.length == 2)
+        assert(metaData(0).version == 0)
+        assert(metaData(1).version == 10)
+      }
+      
+      "correctly limit the number of results with an offset" in withModelSnapshotStore { store =>
+        val metaData = store.getSnapshotMetaDataForModel(person1ModelFqn, Some(2), Some(1))
+        assert(metaData.length == 2)
+        assert(metaData(0).version == 10)
+        assert(metaData(1).version == 20)
+      }
+      
+      "correctly offset the results with no limit" in withModelSnapshotStore { store =>
+        val metaData = store.getSnapshotMetaDataForModel(person1ModelFqn, None, Some(1))
+        assert(metaData.length == 2)
+        assert(metaData(0).version == 10)
+        assert(metaData(1).version == 20)
+      }
+      
+      "return an empty list for a non-existent model" in withModelSnapshotStore { store =>
+        val metaData = store.getSnapshotMetaDataForModel(nonExistingModelFqn, None, None)
+        assert(metaData.isEmpty)
+      }
+    }
+    
+    "when getting snapshots by time" must {
+      "return all snapshots if no time or limit-offset" in withModelSnapshotStore { store =>
+        val metaDataList = store.getSnapshotMetaDataForModelByTime(person1ModelFqn, None, None, None, None)
+        assert(metaDataList.length == 3)
+        assert(metaDataList(0).version == 0)
+        assert(metaDataList(1).version == 10)
+        assert(metaDataList(2).version == 20)
+      }
+      
+      "return all snapshots with all encopmasing time bounds and no limit-offset" in withModelSnapshotStore { store =>
+        val metaDataList = store.getSnapshotMetaDataForModelByTime(
+            person1ModelFqn, Some(p1Snapshot0Date), Some(p1Snapshot20Date), None, None)
+        assert(metaDataList.length == 3)
+        assert(metaDataList(0).version == 0)
+        assert(metaDataList(1).version == 10)
+        assert(metaDataList(2).version == 20)
       }
     }
     

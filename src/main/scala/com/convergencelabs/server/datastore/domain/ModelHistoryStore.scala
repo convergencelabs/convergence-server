@@ -16,11 +16,11 @@ import org.json4s.jackson.Serialization._
 import scala.collection.immutable.HashMap
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.convergencelabs.server.domain.model.ot.ops.Operation
-import com.convergencelabs.server.datastore.domain.ModelHistoryStore.Fields._
+import com.convergencelabs.server.datastore.domain.ModelOperationStore.Fields._
 import java.time.Instant
 
-object ModelHistoryStore {
-  val ModelHistory = "ModelHistory"
+object ModelOperationStore {
+  val ModelOperation = "ModelOperation"
   
   object Fields {
     val Version = "version"
@@ -33,14 +33,14 @@ object ModelHistoryStore {
   }
 }
 
-class ModelHistoryStore(dbPool: OPartitionedDatabasePool) {
+class ModelOperationStore(dbPool: OPartitionedDatabasePool) {
   private[this] implicit val formats = Serialization.formats(NoTypeHints)
 
   def getMaxVersion(fqn: ModelFqn): Option[Long] = {
     val db = dbPool.acquire()
     val queryString =
       """SELECT max(operation.version) 
-        |FROM ModelHistory 
+        |FROM ModelOperation 
         |WHERE 
         |  collectionId = :collectionId AND 
         |  modelId = :modelId""".stripMargin
@@ -61,7 +61,7 @@ class ModelHistoryStore(dbPool: OPartitionedDatabasePool) {
     val db = dbPool.acquire()
     val queryString = 
       """SELECT max(operation.version) 
-        |FROM ModelHistory 
+        |FROM ModelOperation 
         |WHERE 
         |  collectionId = :collectionId AND 
         |  modelId = :modelId AND 
@@ -80,7 +80,7 @@ class ModelHistoryStore(dbPool: OPartitionedDatabasePool) {
   def getOperationsAfterVersion(fqn: ModelFqn, version: Long): List[OperationEvent] = {
     val db = dbPool.acquire()
     val queryString = 
-      """SELECT * FROM ModelHistory 
+      """SELECT * FROM ModelOperation 
         |WHERE 
         |  collectionId = :collectionId AND 
         |  modelId = :modelId AND 
@@ -97,7 +97,7 @@ class ModelHistoryStore(dbPool: OPartitionedDatabasePool) {
   def getOperationsAfterVersion(fqn: ModelFqn, version: Long, limit: Int): List[OperationEvent] = {
     val db = dbPool.acquire()
     val queryStirng = 
-      """SELECT * FROM ModelHistory 
+      """SELECT * FROM ModelOperation 
         |WHERE 
         |  collectionId = :collectionId AND
         |  modelId = :modelId AND
@@ -118,7 +118,7 @@ class ModelHistoryStore(dbPool: OPartitionedDatabasePool) {
   def removeHistoryForModel(fqn: ModelFqn): Unit = {
     val db = dbPool.acquire()
     val queryStirng = 
-      """DELETE FROM ModelHistory 
+      """DELETE FROM ModelOperation 
         |WHERE 
         |  collectionId = :collectionId AND
         |  modelId = :modelId""".stripMargin

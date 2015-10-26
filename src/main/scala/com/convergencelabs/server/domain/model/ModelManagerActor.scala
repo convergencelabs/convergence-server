@@ -19,6 +19,10 @@ import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 import com.convergencelabs.server.SuccessResponse
 import com.convergencelabs.server.ErrorResponse
+import java.time.Instant
+import java.time.Duration
+import java.time.temporal.TemporalUnit
+import java.time.temporal.ChronoUnit
 
 class ModelManagerActor(
   private[this] val domainFqn: DomainFqn,
@@ -54,8 +58,8 @@ class ModelManagerActor(
         250,
         500,
         false,
-        0,
-        0)
+        Duration.of(10, ChronoUnit.MINUTES),
+        Duration.of(20, ChronoUnit.MINUTES))
 
       val props = RealtimeModelActor.props(
         self,
@@ -80,7 +84,7 @@ class ModelManagerActor(
       sender ! ModelAlreadyExists
     } else {
       val modelData = createRequest.modelData
-      val createTime = Platform.currentTime
+      val createTime = Instant.now()
       try {
         persistenceProvider.modelStore.createModel(
           createRequest.modelFqn,
@@ -108,7 +112,7 @@ class ModelManagerActor(
 
       persistenceProvider.modelStore.deleteModel(deleteRequest.modelFqn)
       persistenceProvider.modelSnapshotStore.removeAllSnapshotsForModel(deleteRequest.modelFqn)
-      persistenceProvider.modelHistoryStore.removeHistoryForModel(deleteRequest.modelFqn)
+      persistenceProvider.modelOperationStore.removeHistoryForModel(deleteRequest.modelFqn)
 
       sender() ! SuccessResponse
     } else {

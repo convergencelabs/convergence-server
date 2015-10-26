@@ -17,6 +17,9 @@ import org.junit.runner.RunWith
 import com.sun.media.sound.Platform
 import com.convergencelabs.server.ErrorResponse
 import com.convergencelabs.server.SuccessResponse
+import java.time.Instant
+import java.time.Duration
+import java.time.temporal.ChronoUnit
 
 @RunWith(classOf[JUnitRunner])
 class RealtimeModelActorSpec
@@ -232,8 +235,11 @@ class RealtimeModelActorSpec
   trait TestFixture {
     val modelFqn = ModelFqn("collection", "model" + System.nanoTime())
     val modelJsonData = JObject("key" -> JString("value"))
-    val modelData = ModelData(ModelMetaData(modelFqn, 1L, 2L, 3L), modelJsonData)
-    val modelSnapshotMetaData = SnapshotMetaData(modelFqn, 1L, 2L)
+    val modelCreateTime = Instant.ofEpochMilli(2L)
+    val modelModifiedTime = Instant.ofEpochMilli(3L)
+    val modelData = ModelData(ModelMetaData(modelFqn, 1L, modelCreateTime, modelModifiedTime), modelJsonData)
+    val modelSnapshotTime = Instant.ofEpochMilli(2L)
+    val modelSnapshotMetaData = SnapshotMetaData(modelFqn, 1L, modelSnapshotTime)
     val modelStore = mock[ModelStore]
     val modelSnapshotStore = mock[ModelSnapshotStore]
     val resourceId = "1" + System.nanoTime()
@@ -246,7 +252,7 @@ class RealtimeModelActorSpec
       modelStore,
       modelSnapshotStore,
       100L,
-      SnapshotConfig(true, 3, 3, false, 0, 0))
+      SnapshotConfig(true, 3, 3, false, Duration.of(1, ChronoUnit.SECONDS), Duration.of(1, ChronoUnit.SECONDS)))
 
     val realtimeModelActor = system.actorOf(props, resourceId)
   }

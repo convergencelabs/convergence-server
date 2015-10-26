@@ -141,8 +141,8 @@ class ModelClientActor(
               modelResourceId, 
               modelSessionId, 
               metaData.version,
-              metaData.createdTime,
-              metaData.modifiedTime,
+              metaData.createdTime.toEpochMilli,
+              metaData.modifiedTime.toEpochMilli,
               modelData))
       }
       case Success(ModelNotFound) => {

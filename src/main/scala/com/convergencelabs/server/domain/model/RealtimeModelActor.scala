@@ -18,6 +18,7 @@ import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.duration._
 import scala.compat.Platform
 import com.convergencelabs.server.ErrorResponse
+import java.time.Instant
 
 /**
  * An instance of the RealtimeModelActor manages the lifecycle of a single
@@ -226,7 +227,7 @@ class RealtimeModelActor(
    */
   private[this] def onClientModelDataResponse(response: ClientModelDataResponse): Unit = {
     val data = response.modelData
-    val createTime = System.currentTimeMillis()
+    val createTime = Instant.now()
 
     modelStore.createModel(modelFqn, data, createTime)
     modelSnapshotStore.createSnapshot(
@@ -402,7 +403,7 @@ class RealtimeModelActor(
     latestSnapshot.version,
     concurrencyControl.contextVersion,
     latestSnapshot.timestamp,
-    Platform.currentTime)
+    Instant.now())
 
   /**
    * Asynchronously performs a snapshot of the model.
@@ -410,7 +411,7 @@ class RealtimeModelActor(
   private[this] def executeSnapshot(): Unit = {
     // This might not be the exact version that gets snapshotted
     // but that is OK, this is approximate.
-    latestSnapshot = SnapshotMetaData(modelFqn, concurrencyControl.contextVersion, Platform.currentTime)
+    latestSnapshot = SnapshotMetaData(modelFqn, concurrencyControl.contextVersion, Instant.now())
 
     val f = Future[SnapshotMetaData] {
       //TODO: Handle None

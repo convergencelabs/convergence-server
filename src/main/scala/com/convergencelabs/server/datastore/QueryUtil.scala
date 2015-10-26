@@ -5,9 +5,9 @@ object QueryUtil {
   def buildPagedQuery(baseQuery: String, limit: Option[Int], offset: Option[Int]): String = {
     val limitOffsetString = (limit, offset) match {
       case (None, None) => ""
-      case (Some(_), None) => " LIMIT :limit"
-      case (None, Some(_)) => " SKIP :offset"
-      case (Some(_), Some(_)) => " SKIP :offset LIMIT :limit"
+      case (Some(lim), None) => s" LIMIT $lim"
+      case (None, Some(off)) => s" SKIP $off"
+      case (Some(lim), Some(off)) => s" SKIP $off LIMIT $lim"
     }
 
     baseQuery + limitOffsetString

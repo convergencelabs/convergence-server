@@ -26,6 +26,7 @@ import org.json4s.JsonAST.JNumber
 import scala.collection.immutable.HashMap
 import com.orientechnologies.orient.core.db.record.OTrackedMap
 import java.time.LocalDateTime
+import java.time.Instant
 
 object ModelStore {
   val CollectionId = "collectionId"
@@ -53,7 +54,7 @@ class ModelStore(dbPool: OPartitionedDatabasePool) {
     !result.isEmpty()
   }
 
-  def createModel(fqn: ModelFqn, data: JValue, creationTime: Long): Unit = {
+  def createModel(fqn: ModelFqn, data: JValue, creationTime: Instant): Unit = {
     val db = dbPool.acquire()
     val dataObject = JObject(List((ModelStore.Data, data)))
     val doc = db.newInstance("model")
@@ -61,8 +62,8 @@ class ModelStore(dbPool: OPartitionedDatabasePool) {
     doc.field(ModelStore.ModelId, fqn.modelId)
     doc.field(ModelStore.CollectionId, fqn.collectionId)
     doc.field(ModelStore.Version, 0)
-    doc.field(ModelStore.CreatedTime, creationTime)
-    doc.field(ModelStore.ModifiedTime, creationTime)
+    doc.field(ModelStore.CreatedTime, creationTime.toEpochMilli()) // FIXME Update database to use datetime
+    doc.field(ModelStore.ModifiedTime, creationTime.toEpochMilli()) // FIXME Update database to use datetime
     db.save(doc)
     db.close()
   }
@@ -146,8 +147,8 @@ class ModelStore(dbPool: OPartitionedDatabasePool) {
           doc.field(ModelStore.CollectionId),
           doc.field(ModelStore.ModelId)),
         doc.field(ModelStore.Version, OType.LONG),
-        doc.field(ModelStore.CreatedTime, OType.LONG),
-        doc.field(ModelStore.ModifiedTime, OType.LONG))
+        Instant.ofEpochMilli(doc.field(ModelStore.CreatedTime, OType.LONG)), // FIXME make date in database
+        Instant.ofEpochMilli(doc.field(ModelStore.ModifiedTime, OType.LONG))) // FIXME make date in database
     }
   }
 
@@ -161,7 +162,7 @@ class ModelStore(dbPool: OPartitionedDatabasePool) {
 }
 
 case class ModelData(metaData: ModelMetaData, data: JValue)
-case class ModelMetaData(fqn: ModelFqn, version: Long, createdTime: Long, modifiedTime: Long)
+case class ModelMetaData(fqn: ModelFqn, version: Long, createdTime: Instant, modifiedTime: Instant)
 
 object DataType extends Enumeration {
   val ARRAY, OBJECT, STRING, NUMBER, BOOLEAN, NULL = Value

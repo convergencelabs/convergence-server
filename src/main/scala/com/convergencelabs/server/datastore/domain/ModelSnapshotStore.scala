@@ -13,6 +13,7 @@ import scala.collection.immutable.HashMap
 import com.convergencelabs.server.datastore.QueryUtil
 import scala.compat.Platform
 import com.orientechnologies.orient.core.metadata.schema.OType
+import java.time.Instant
 
 /**
  * Manages the persistence of model snapshots.
@@ -37,7 +38,7 @@ class ModelSnapshotStore private[domain] (
     doc.field("modelId", snapshotData.metaData.fqn.modelId)
     doc.field("collectionId", snapshotData.metaData.fqn.collectionId)
     doc.field("version", snapshotData.metaData.version)
-    doc.field("timestamp", new java.util.Date(snapshotData.metaData.timestamp))
+    doc.field("timestamp", new java.util.Date(snapshotData.metaData.timestamp.toEpochMilli()))
     // NOTE: Extracting to a map to avoid string serialization
     val data = snapshotData.data.extract[Map[String, _]]
     doc.field("data", data.asJava)
@@ -120,9 +121,7 @@ class ModelSnapshotStore private[domain] (
     val query = new OSQLSynchQuery[ODocument](QueryUtil.buildPagedQuery(baseQuery, limit, offset))
     val params = HashMap(
       "collectionId" -> fqn.collectionId,
-      "modelId" -> fqn.modelId,
-      "offset" -> offset.getOrElse(null),
-      "limit" -> limit.getOrElse(null))
+      "modelId" -> fqn.modelId)
 
     val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
     db.close()
@@ -162,8 +161,8 @@ class ModelSnapshotStore private[domain] (
     val params = HashMap(
       "collectionId" -> fqn.collectionId,
       "modelId" -> fqn.modelId,
-      "startTime" -> startTime.getOrElse(0),
-      "endTime" -> endTime.getOrElse(Platform.currentTime))
+      "startTime" -> new java.util.Date(startTime.getOrElse(0L)),
+      "endTime" -> new java.util.Date(endTime.getOrElse(Long.MaxValue)))
 
     val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
     db.close()
@@ -274,7 +273,7 @@ class ModelSnapshotStore private[domain] (
     SnapshotMetaData(
       ModelFqn(doc.field("collectionId"), doc.field("modelId")),
       doc.field("version", OType.LONG),
-      timestamp.getTime)
+      Instant.ofEpochMilli(timestamp.getTime))
   }
 
   /**
@@ -289,10 +288,10 @@ class ModelSnapshotStore private[domain] (
       SnapshotMetaData(
         ModelFqn(doc.field("collectionId"), doc.field("modelId")),
         doc.field("version"),
-        timestamp.getTime),
+        Instant.ofEpochMilli(timestamp.getTime)),
       data)
   }
 }
 
-case class SnapshotMetaData(fqn: ModelFqn, version: Long, timestamp: Long)
+case class SnapshotMetaData(fqn: ModelFqn, version: Long, timestamp: Instant)
 case class SnapshotData(metaData: SnapshotMetaData, data: JValue)

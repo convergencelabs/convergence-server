@@ -6,6 +6,8 @@ import com.convergencelabs.server.datastore.domain.SnapshotMetaData
 import org.json4s.JsonAST.JValue
 import com.convergencelabs.server.domain.model.ot.ops.Operation
 import akka.actor.ActorRef
+import java.time.Instant
+import java.time.Duration
 
 package model {
 
@@ -15,22 +17,22 @@ package model {
       minimumVersionInterval: Long,
       maximumVersionInterval: Long,
       triggerByTime: Boolean,
-      minimumTimeInterval: Long,
-      maximumTimeInterval: Long) {
+      minimumTimeInterval: Duration,
+      maximumTimeInterval: Duration) {
 
     def snapshotRequired(
       previousVersion: Long,
       currentVersion: Long,
-      previousTime: Long,
-      currentTime: Long): scala.Boolean = {
+      previousTime: Instant,
+      currentTime: Instant): scala.Boolean = {
 
       val versionInterval = currentVersion - previousVersion
       val allowedByVersion = versionInterval >= minimumVersionInterval
       val requiredByVersion = versionInterval > maximumVersionInterval && triggerByVersion
 
-      val timeInterval = currentTime - previousTime
-      val allowedByTime = timeInterval >= minimumTimeInterval
-      val requiredByTime = timeInterval > maximumTimeInterval && triggerByTime
+      val timeInterval = Duration.between(previousTime, currentTime) 
+      val allowedByTime = timeInterval.compareTo(minimumTimeInterval) >= 0 
+      val requiredByTime = timeInterval.compareTo(maximumTimeInterval) > 0   && triggerByTime
 
       allowedByVersion && allowedByVersion && (requiredByTime || requiredByVersion)
     }
@@ -40,7 +42,7 @@ package model {
   // Data Classes
   //
   case class ModelFqn(collectionId: String, modelId: String)
-  case class OpenModelMetaData(version: Long, createdTime: Long, modifiedTime: Long)
+  case class OpenModelMetaData(version: Long, createdTime: Instant, modifiedTime: Instant)
 
   //
   // Incoming Messages From Client

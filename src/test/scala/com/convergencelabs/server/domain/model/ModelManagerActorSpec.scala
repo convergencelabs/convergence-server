@@ -22,6 +22,7 @@ import org.mockito.Mockito
 import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
 import com.convergencelabs.server.util.MockDomainPersistenceManagerActor
+import java.time.Instant
 
 @RunWith(classOf[JUnitRunner])
 class ModelManagerActorSpec
@@ -93,8 +94,11 @@ class ModelManagerActorSpec
   trait TestFixture {
     val modelFqn = ModelFqn("collection", "model" + System.nanoTime())
     val modelJsonData = JObject("key" -> JString("value"))
-    val modelData = ModelData(ModelMetaData(modelFqn, 1L, 2L, 3L), modelJsonData)
-    val modelSnapshotMetaData = SnapshotMetaData(modelFqn, 1L, 2L)
+    val modelCreateTime = Instant.ofEpochMilli(2L)
+    val modelModifiedTime = Instant.ofEpochMilli(3L)
+    val modelData = ModelData(ModelMetaData(modelFqn, 1L, modelCreateTime, modelModifiedTime), modelJsonData)
+    val modelSnapshotTime = Instant.ofEpochMilli(2L)
+    val modelSnapshotMetaData = SnapshotMetaData(modelFqn, 1L, modelSnapshotTime)
 
     val modelStore = mock[ModelStore]
     Mockito.when(modelStore.modelExists(modelFqn)).thenReturn(true)
