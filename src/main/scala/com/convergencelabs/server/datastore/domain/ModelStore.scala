@@ -82,8 +82,8 @@ class ModelStore(dbPool: OPartitionedDatabasePool) {
 
     val result: java.util.List[ODocument] = db.command(query).execute(params)
     result.asScala.toList match {
-      case doc :: rest => Some(ModelMetaData(fqn, doc.field("version", OType.LONG), doc.field("created", OType.LONG), doc.field("modified", OType.LONG)))
-      case Nil         => None
+      case doc :: rest => Some(docToModelMetaData(doc))
+      case Nil => None
     }
   }
 
@@ -93,8 +93,9 @@ class ModelStore(dbPool: OPartitionedDatabasePool) {
     val params: java.util.Map[String, String] = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
     val result: java.util.List[ODocument] = db.command(query).execute(params)
     result.asScala.toList match {
-      case doc :: rest => Some(ModelData(ModelMetaData(fqn, doc.field("version", OType.LONG), doc.field("creationTime", OType.LONG), doc.field("modifiedTime", OType.LONG)), parse(doc.toJSON()) \\ ModelStore.Data))
-      case Nil         => None
+      case doc :: Nil => Some(docToModelData(doc))
+      case Nil => None
+      case _ => None // FIXME Log
     }
   }
 
@@ -105,14 +106,14 @@ class ModelStore(dbPool: OPartitionedDatabasePool) {
     val result: java.util.List[ODocument] = db.command(query).execute(params)
     result.asScala.toList match {
       case doc :: rest => Some(parse(doc.toJSON()) \\ ModelStore.Data)
-      case Nil         => None
+      case Nil => None
     }
   }
 
   def applyOperationToModel(fqn: ModelFqn, operation: Operation, version: Long, timestamp: Long, username: String): Unit = {
     operation match {
       case compoundOp: CompoundOperation => compoundOp.operations foreach { op => applyOperationToModel(fqn, op, version, timestamp, username) }
-      case _                             => // FIXME
+      case _ => // FIXME
     }
   }
 
@@ -126,11 +127,11 @@ class ModelStore(dbPool: OPartitionedDatabasePool) {
       case doc :: rest => {
         (parse(doc.toJSON()) \\ ModelStore.Data) match {
           case data: JObject => Some(DataType.OBJECT)
-          case data: JArray  => Some(DataType.ARRAY)
+          case data: JArray => Some(DataType.ARRAY)
           case data: JString => Some(DataType.STRING)
           case data: JNumber => Some(DataType.NUMBER)
-          case data: JBool   => Some(DataType.BOOLEAN)
-          case _             => Some(DataType.NULL)
+          case data: JBool => Some(DataType.BOOLEAN)
+          case _ => Some(DataType.NULL)
         }
       }
       case Nil => None
@@ -141,15 +142,7 @@ class ModelStore(dbPool: OPartitionedDatabasePool) {
     val db = dbPool.acquire()
     val query = new OSQLSynchQuery[ODocument]("SELECT modelId, collectionId, version, created, modified FROM model")
     val result: java.util.List[ODocument] = db.command(query).execute()
-    result.asScala.toList map { doc =>
-      ModelMetaData(
-        ModelFqn(
-          doc.field(ModelStore.CollectionId),
-          doc.field(ModelStore.ModelId)),
-        doc.field(ModelStore.Version, OType.LONG),
-        Instant.ofEpochMilli(doc.field(ModelStore.CreatedTime, OType.LONG)), // FIXME make date in database
-        Instant.ofEpochMilli(doc.field(ModelStore.ModifiedTime, OType.LONG))) // FIXME make date in database
-    }
+    result.asScala.toList map { doc => docToModelMetaData(doc) }
   }
 
   def getAllModelsInCollection(collectionId: String, orderBy: String, ascending: Boolean, offset: Int, limit: Int): List[ModelMetaData] = {
@@ -157,10 +150,29 @@ class ModelStore(dbPool: OPartitionedDatabasePool) {
     val query = new OSQLSynchQuery[ODocument]("SELECT modelId, collectionId, version, created, modified FROM model where collectionId = :collectionId")
     val params: java.util.Map[String, String] = HashMap("collectionid" -> collectionId)
     val result: java.util.List[ODocument] = db.command(query).execute(params)
-    result.asScala.toList map { doc => ModelMetaData(ModelFqn(collectionId, doc.field("modelId")), doc.field("version", OType.LONG), doc.field("created", OType.LONG), doc.field("modified", OType.LONG)) }
+    result.asScala.toList map { doc => docToModelMetaData(doc) }
+  }
+
+  def docToModelData(doc: ODocument): ModelData = {
+    ModelData(
+      ModelMetaData(
+        ModelFqn(doc.field("modelId"), doc.field("collectionId")),
+        doc.field("version", OType.LONG),
+        Instant.ofEpochMilli(doc.field("creationTime", OType.LONG)), // FIXME make a data in the DB
+        Instant.ofEpochMilli(doc.field("modifiedTime", OType.LONG))), // FIXME make a data in the DB
+      parse(doc.toJSON()) \\ ModelStore.Data) // FIXME might be a better way to do this.
+  }
+
+  def docToModelMetaData(doc: ODocument): ModelMetaData = {
+    ModelMetaData(
+      ModelFqn(doc.field("modelId"), doc.field("collectionId")),
+      doc.field("version", OType.LONG),
+      Instant.ofEpochMilli(doc.field("creationTime", OType.LONG)), // FIXME make a data in the DB
+      Instant.ofEpochMilli(doc.field("modifiedTime", OType.LONG))) // FIXME make a data in the DB
   }
 }
 
+// FIXME review these names
 case class ModelData(metaData: ModelMetaData, data: JValue)
 case class ModelMetaData(fqn: ModelFqn, version: Long, createdTime: Instant, modifiedTime: Instant)
 
