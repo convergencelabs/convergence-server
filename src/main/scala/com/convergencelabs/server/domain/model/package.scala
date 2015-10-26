@@ -34,7 +34,7 @@ package model {
       val allowedByTime = timeInterval.compareTo(minimumTimeInterval) >= 0 
       val requiredByTime = timeInterval.compareTo(maximumTimeInterval) > 0   && triggerByTime
 
-      allowedByVersion && allowedByVersion && (requiredByTime || requiredByVersion)
+      allowedByVersion && allowedByTime && (requiredByTime || requiredByVersion)
     }
   }
 
