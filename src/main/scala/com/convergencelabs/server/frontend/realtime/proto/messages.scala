@@ -94,7 +94,7 @@ case class ArrayInsertOperationData(path: List[Any], noOp: Boolean, idx: Int, ne
 case class ArrayRemoveOperationData(path: List[Any], noOp: Boolean, idx: Int) extends ArrayOperaitonData
 case class ArrayReplaceOperationData(path: List[Any], noOp: Boolean, idx: Int, newVal: JValue) extends ArrayOperaitonData
 case class ArrayMoveOperationData(path: List[Any], noOp: Boolean, fromIdx: Int, toIdx: Int) extends ArrayOperaitonData
-case class ArraySetOperationData(path: List[Any], noOp: Boolean, array: List[JValue]) extends ArrayOperaitonData
+case class ArraySetOperationData(path: List[Any], noOp: Boolean, array: JArray) extends ArrayOperaitonData
 
 sealed trait ObjectOperaitonData extends DiscreteOperationData
 case class ObjectAddPropertyOperationData(path: List[Any], noOp: Boolean, prop: String, newVal: JValue) extends ObjectOperaitonData

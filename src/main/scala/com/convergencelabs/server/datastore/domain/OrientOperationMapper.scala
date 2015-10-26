@@ -5,13 +5,17 @@ import scala.collection.JavaConverters._
 import com.convergencelabs.server.domain.model.ot.ops._
 import com.convergencelabs.server.frontend.realtime.proto._
 import java.util.HashMap
-
+import org.json4s.JValue
+import org.json4s.NoTypeHints
+import org.json4s.jackson.Serialization
+import org.json4s._
 import org.json4s.JValue
 import org.json4s.NoTypeHints
 import org.json4s.jackson.Serialization
 import org.json4s._
 import org.json4s.jackson.JsonMethods._
 import org.json4s.jackson.Serialization._
+import org.json4s.JsonAST.JNumber
 
 object OrientOperationMapper {
 
@@ -41,14 +45,18 @@ object OrientOperationMapper {
 
       case "ai" => mapToArrayInsert(opAsMap)
       case "ar" => mapToArrayRemove(opAsMap)
-//      case "am" => mapToArrayMove(opAsMap)
-//      case "ap" => mapToArrayReplace(opAsMap)
-//      case "as" => mapToArraySet(opAsMap)
-//
-//      case "ot" => mapToObjectSet(opAsMap)
-//      case "oa" => mapToObjectAdd(opAsMap)
-//      case "or" => mapToObjectRemove(opAsMap)
-//      case "os" => mapToObjectSet(opAsMap)
+      case "am" => mapToArrayMove(opAsMap)
+      case "ap" => mapToArrayReplace(opAsMap)
+      case "as" => mapToArraySet(opAsMap)
+
+      case "ot" => mapToObjectSetProperty(opAsMap)
+      case "oa" => mapToObjectAddProperty(opAsMap)
+      case "or" => mapToObjectRemoveProperty(opAsMap)
+      case "os" => mapToObjectSet(opAsMap)
+      
+      case "na" => mapToNumberAdd(opAsMap)
+      case "ns" => mapToNumberSet(opAsMap)
+      
     }
   }
   
@@ -91,12 +99,71 @@ object OrientOperationMapper {
     ArrayRemoveOperation(path.asScala.toList, noOp, idx)
   }
   
-//  def mapToArrayRemove(map: JavaMap[String, _]): ArrayRemoveOperation = {
-//    val path = map.get("path").asInstanceOf[JavaList[_]]
-//    val noOp = map.get("noOp").asInstanceOf[Boolean]
-//    val idx = map.get("idx").asInstanceOf[Int]
-//    ArrayRemoveOperation(path.asScala.toList, noOp, idx)
-//  }
+  def mapToArrayMove(map: JavaMap[String, _]): ArrayMoveOperation = {
+    val path = map.get("path").asInstanceOf[JavaList[_]]
+    val noOp = map.get("noOp").asInstanceOf[Boolean]
+    val from = map.get("from").asInstanceOf[Int]
+    val to = map.get("to").asInstanceOf[Int]
+    ArrayMoveOperation(path.asScala.toList, noOp, from, to)
+  }
+  
+  def mapToArrayReplace(map: JavaMap[String, _]): ArrayReplaceOperation = {
+    val path = map.get("path").asInstanceOf[JavaList[_]]
+    val noOp = map.get("noOp").asInstanceOf[Boolean]
+    val idx = map.get("idx").asInstanceOf[Int]
+    ArrayReplaceOperation(path.asScala.toList, noOp, idx, javaToJValue(map.get("val")))
+  }
+  
+  def mapToArraySet(map: JavaMap[String, _]): ArraySetOperation = {
+    val path = map.get("path").asInstanceOf[JavaList[_]]
+    val noOp = map.get("noOp").asInstanceOf[Boolean]
+    val value: JavaList[_] = map.get("val").asInstanceOf[JavaList[_]]
+    ArraySetOperation(path.asScala.toList, noOp, javaToJValue(value).asInstanceOf[JArray])
+  }
+  
+  def mapToObjectSetProperty(map: JavaMap[String, _]): ObjectSetPropertyOperation = {
+    val path = map.get("path").asInstanceOf[JavaList[_]]
+    val noOp = map.get("noOp").asInstanceOf[Boolean]
+    val prop = map.get("prop").asInstanceOf[String]
+    val value =  map.get("val")
+    ObjectSetPropertyOperation(path.asScala.toList, noOp, prop, javaToJValue(value))
+  }
+  
+  def mapToObjectAddProperty(map: JavaMap[String, _]): ObjectAddPropertyOperation = {
+    val path = map.get("path").asInstanceOf[JavaList[_]]
+    val noOp = map.get("noOp").asInstanceOf[Boolean]
+    val prop = map.get("prop").asInstanceOf[String]
+    val value =  map.get("val")
+    ObjectAddPropertyOperation(path.asScala.toList, noOp, prop, javaToJValue(value))
+  }
+  
+  def mapToObjectRemoveProperty(map: JavaMap[String, _]): ObjectRemovePropertyOperation = {
+    val path = map.get("path").asInstanceOf[JavaList[_]]
+    val noOp = map.get("noOp").asInstanceOf[Boolean]
+    val prop = map.get("prop").asInstanceOf[String]
+    ObjectRemovePropertyOperation(path.asScala.toList, noOp, prop)
+  }
+  
+  def mapToObjectSet(map: JavaMap[String, _]): ObjectSetOperation = {
+    val path = map.get("path").asInstanceOf[JavaList[_]]
+    val noOp = map.get("noOp").asInstanceOf[Boolean]
+    val value = map.get("val").asInstanceOf[String]
+    ObjectSetOperation(path.asScala.toList, noOp, javaToJValue(value).asInstanceOf[JObject])
+  }
+  
+  def mapToNumberAdd(map: JavaMap[String, _]): NumberAddOperation = {
+    val path = map.get("path").asInstanceOf[JavaList[_]]
+    val noOp = map.get("noOp").asInstanceOf[Boolean]
+    val delta = map.get("delta").asInstanceOf[String]
+    NumberAddOperation(path.asScala.toList, noOp, javaToJValue(delta).asInstanceOf[JNumber])
+  }
+  
+  def mapToNumberSet(map: JavaMap[String, _]): NumberSetOperation = {
+    val path = map.get("path").asInstanceOf[JavaList[_]]
+    val noOp = map.get("noOp").asInstanceOf[Boolean]
+    val value = map.get("value").asInstanceOf[String]
+    NumberSetOperation(path.asScala.toList, noOp, javaToJValue(value).asInstanceOf[JNumber])
+  }
   
   
   def operationToMap(op: Operation): JavaMap[String, _] = {
@@ -140,8 +207,8 @@ object OrientOperationMapper {
       case ArrayReplaceOperation(path, noOp, idx, value) =>
         Map("type" -> "ap", "path" -> path, "noOp" -> noOp, "idx" -> idx, "val" -> jValueToJava(value)).asJava
 
-//      case ArraySetOperation(path, noOp, value) =>
-//        Map("type" -> "as", "path" -> path, "noOp" -> noOp, "val" -> jValueToJava(value)).asJava
+      case ArraySetOperation(path, noOp, value) =>
+        Map("type" -> "as", "path" -> path, "noOp" -> noOp, "val" -> jValueToJava(value)).asJava
 
       // Object Operations
       case ObjectSetPropertyOperation(path, noOp, prop, value) =>
@@ -160,8 +227,8 @@ object OrientOperationMapper {
       case NumberAddOperation(path, noOp, delta) =>
         Map("type" -> "na", "path" -> path, "noOp" -> noOp, "delta" -> delta).asJava
 
-//      case NumberSetOperation(path, noOp, value) =>
-//        Map("type" -> "ns", "path" -> path, "noOp" -> noOp, "val" -> jValueToJava(value)).asJava
+      case NumberSetOperation(path, noOp, value) =>
+        Map("type" -> "ns", "path" -> path, "noOp" -> noOp, "val" -> jValueToJava(value.asInstanceOf[JValue])).asJava
     }
   }
   

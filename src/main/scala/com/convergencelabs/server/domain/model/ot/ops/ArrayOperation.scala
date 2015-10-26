@@ -2,6 +2,7 @@ package com.convergencelabs.server.domain.model.ot.ops
 
 import com.convergencelabs.server.domain.model.ot.xform.ArrayOperationTransformer
 import org.json4s.JsonAST.JValue
+import org.json4s.JsonAST.JArray
 
 sealed trait ArrayOperation extends DiscreteOperation {
   def transform(other: ArrayOperation): (DiscreteOperation, DiscreteOperation)
@@ -83,7 +84,7 @@ object ArrayMoveOperation {
   }
 }
 
-case class ArraySetOperation(path: List[Any], noOp: Boolean, newValue: List[JValue]) extends ArrayOperation {
+case class ArraySetOperation(path: List[Any], noOp: Boolean, newValue: JArray) extends ArrayOperation {
 
   def copyBuilder(): ArraySetOperation.Builder = new ArraySetOperation.Builder(path, noOp, newValue)
 
@@ -97,7 +98,7 @@ case class ArraySetOperation(path: List[Any], noOp: Boolean, newValue: List[JVal
 }
 
 object ArraySetOperation {
-  class Builder(path: List[Any], noOp: scala.Boolean, var newValue: List[JValue]) extends DiscreteOperation.Builder(path, noOp) {
+  class Builder(path: List[Any], noOp: scala.Boolean, var newValue: JArray) extends DiscreteOperation.Builder(path, noOp) {
     def build(): ArraySetOperation = ArraySetOperation(path, noOp, newValue)
   }
 }
