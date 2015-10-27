@@ -49,15 +49,15 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     db.save(doc)
 
     val pwDoc = db.newInstance("UserCredential")
-    pwDoc.field("user", doc)
+    pwDoc.field("user", doc) // TODO verify this creates a link and now a new doc.
 
     val hash = password match {
-      // TODO abstract encryption
       case Some(pass) => PasswordUtil.hashPassword(pass)
       case None => null
     }
 
     pwDoc.field("password", hash)
+    db.save(pwDoc)
     db.close()
   }
 
@@ -306,7 +306,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
       doc.field("username"),
       doc.field("firstName"),
       doc.field("lastName"),
-      doc.field("emails", OType.EMBEDDEDLIST))
+      doc.field("email"))
   }
 }
 
@@ -317,4 +317,4 @@ object DomainUserOrder extends Enumeration {
   val LastName = Value("lastName")
 }
 
-case class DomainUser(uid: String, username: String, firstName: String, lastName: String, emails: List[String])
+case class DomainUser(uid: String, username: String, firstName: String, lastName: String, email: String)

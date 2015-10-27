@@ -124,17 +124,17 @@ class AuthenticationHandler(
       }
     }
 
-    var emails = ListBuffer[String]()
-    if (jwtClaims.hasClaim(JwtClaimConstants.Emails)) {
-      val emailsClaim = jwtClaims.getClaimValue(JwtClaimConstants.Emails)
-      emailsClaim match {
-        case claim: java.util.List[_] => {
-          claim.toList.filter(email => email.isInstanceOf[String]).foreach(email => emails += email.toString())
-        }
+    val email = if (jwtClaims.hasClaim(JwtClaimConstants.Email)) {
+      val emailClaim = jwtClaims.getClaimValue(JwtClaimConstants.Email)
+      emailClaim match {
+        case claim: String => claim
+        case _ => null
       }
+    } else {
+      null
     }
 
-    val newUser = DomainUser(null, username, firstName, lastName, emails.toList)
+    val newUser = DomainUser(null, username, firstName, lastName, email)
     userStore.createDomainUser(newUser, None)
   }
 
