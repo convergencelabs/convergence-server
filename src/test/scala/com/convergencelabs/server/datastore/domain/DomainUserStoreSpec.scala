@@ -19,6 +19,8 @@ class DomainUserStoreSpec
     extends WordSpec
     with PersistenceStoreSpec[DomainUserStore] {
 
+  def createStore(dbPool: OPartitionedDatabasePool): DomainUserStore = new DomainUserStore(dbPool)
+  
   "A DomainUserStore" when {
     "when creating a user" must {
       "be able to get the user that was created" in withPersistenceStore { store =>
@@ -69,6 +71,4 @@ class DomainUserStoreSpec
       }
     }
   }
-
-  def createStore(dbPool: OPartitionedDatabasePool): DomainUserStore = new DomainUserStore(dbPool)
 }

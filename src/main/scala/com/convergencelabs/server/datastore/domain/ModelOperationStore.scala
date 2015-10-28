@@ -137,7 +137,7 @@ class ModelOperationStore(dbPool: OPartitionedDatabasePool) {
     val timestamp = Instant.ofEpochMilli(docDate.getTime)
     val opMap: java.util.Map[String, Object] = doc.field(Operation, OType.EMBEDDEDMAP)
     
-    //val op: Operation
+    val op = OrientDBOperationMapper.mapToOperation(opMap)
     
     return OperationEvent(
         ModelFqn(doc.field(CollectionId), doc.field(ModelId)),
@@ -145,11 +145,10 @@ class ModelOperationStore(dbPool: OPartitionedDatabasePool) {
         timestamp,
         doc.field(Uid),
         doc.field(Cid),
-        null)
+        op)
   }
 }
 
-// FIXME This doesn't seem to have what it needs.
 case class OperationEvent(
     modelFqn: ModelFqn, 
     version: Long, 
