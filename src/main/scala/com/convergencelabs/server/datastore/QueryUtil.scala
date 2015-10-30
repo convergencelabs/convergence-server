@@ -12,6 +12,10 @@ object QueryUtil {
 
     baseQuery + limitOffsetString
   }
+  
+  def generateMultipleRecordsError(methodName: String): String = {
+    s"$methodName returned more than one element, when only one was expected."
+  }
 }
 
 object SortOrder extends Enumeration {

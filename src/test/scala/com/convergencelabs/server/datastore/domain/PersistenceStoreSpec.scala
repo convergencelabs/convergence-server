@@ -26,6 +26,8 @@ trait PersistenceStoreSpec[S] {
     val dbImport = new ODatabaseImport(db, file, CommandListener)
     dbImport.importDatabase()
     dbImport.close()
+    
+    db.getMetadata.reload()
 
     val dbPool = new OPartitionedDatabasePool(uri, "admin", "admin")
     val store = createStore(dbPool)

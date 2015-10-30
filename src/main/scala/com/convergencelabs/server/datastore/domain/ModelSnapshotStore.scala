@@ -1,19 +1,24 @@
 package com.convergencelabs.server.datastore.domain
 
-import com.convergencelabs.server.domain.model.ModelFqn
-import org.json4s.JsonAST.JValue
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
-import com.orientechnologies.orient.core.record.impl.ODocument
-import scala.collection.JavaConverters._
-import org.json4s._
-import org.json4s.jackson.JsonMethods._
-import com.orientechnologies.orient.core.sql.OCommandSQL
-import scala.collection.immutable.HashMap
-import com.convergencelabs.server.datastore.QueryUtil
-import scala.compat.Platform
-import com.orientechnologies.orient.core.metadata.schema.OType
 import java.time.Instant
+
+import scala.collection.JavaConverters.asScalaBufferConverter
+import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.collection.JavaConverters.mapAsScalaMapConverter
+import scala.collection.immutable.HashMap
+
+import org.json4s.JsonAST.JValue
+
+import com.convergencelabs.server.datastore.QueryUtil
+import com.convergencelabs.server.domain.model.ModelFqn
+import com.convergencelabs.server.util.JValueMapper
+import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
+import com.orientechnologies.orient.core.metadata.schema.OType
+import com.orientechnologies.orient.core.record.impl.ODocument
+import com.orientechnologies.orient.core.sql.OCommandSQL
+import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
+
+import grizzled.slf4j.Logging
 
 /**
  * Manages the persistence of model snapshots.
@@ -22,7 +27,8 @@ import java.time.Instant
  * @param dbPool The database pool to use for connections.
  */
 class ModelSnapshotStore private[domain] (
-    private[this] val dbPool: OPartitionedDatabasePool) {
+  private[this] val dbPool: OPartitionedDatabasePool)
+    extends Logging {
 
   private[this] implicit val formats = org.json4s.DefaultFormats
 
@@ -39,9 +45,7 @@ class ModelSnapshotStore private[domain] (
     doc.field("collectionId", snapshotData.metaData.fqn.collectionId)
     doc.field("version", snapshotData.metaData.version)
     doc.field("timestamp", new java.util.Date(snapshotData.metaData.timestamp.toEpochMilli()))
-    // NOTE: Extracting to a map to avoid string serialization
-    val data = snapshotData.data.extract[Map[String, _]]
-    doc.field("data", data.asJava)
+    doc.field("data", JValueMapper.jValueToJava(snapshotData.data))
     db.save(doc)
     db.close()
   }
@@ -75,22 +79,18 @@ class ModelSnapshotStore private[domain] (
       "modelId" -> fqn.modelId,
       "version" -> version)
 
-    // NOTE: This is where we convert to a java map.
-    // ?? Why don't we just use a java map?
     val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
 
     // NOTE: Calling close?  I don't think  we were doing this.
     db.close()
 
-    // NOTE: Match doc :: Nil to only match a list with one element.  
-    // 1 element is ok, none is ok, more than one element is not ok.
-    // database should enforce this, but I think we should check since
-    // it is so easy.  Or we could not check.  But either way we should
-    // match doc :: Nil since that is what we actually want
     result.asScala.toList match {
       case doc :: Nil => Some(convertDocToSnapshotData(doc))
       case Nil => None
-      case _ => throw new RuntimeException() // FIXME
+      case _ => {
+        logger.error(QueryUtil.generateMultipleRecordsError("ModelSnapshotStore.getSnpashot"))
+        None
+      }
     }
   }
 
@@ -196,11 +196,45 @@ class ModelSnapshotStore private[domain] (
     result.asScala.toList match {
       case doc :: Nil => Some(convertDocToSnapshotMetaData(doc))
       case Nil => None
-      case _ => ??? // FIXME
+      case _ => {
+        logger.error(QueryUtil.generateMultipleRecordsError("ModelSnapshotStore.getLatestSnapshotMetaDataForModel"))
+        None
+      }
     }
   }
 
-  def getClosestSnapshotByVersion(fqn: ModelFqn, version: Long): Option[SnapshotData] = ??? // FIXME
+  def getClosestSnapshotByVersion(fqn: ModelFqn, version: Long): Option[SnapshotData] = {
+    val db = dbPool.acquire()
+    val queryString =
+      s"""SELECT 
+        |  abs(eval('$$current.version - $version')) as abs_delta, 
+        |  eval('$$current.version - $version') as delta, 
+        |  * 
+        |FROM ModelSnapshot 
+        |WHERE 
+        |  collectionId = :collectionId AND 
+        |  modelId = :modelId 
+        |ORDER BY 
+        |  abs_delta ASC, 
+        |  delta DESC 
+        |LIMIT 1""".stripMargin
+
+    val query = new OSQLSynchQuery[ODocument](queryString)
+    val params = HashMap(
+      "collectionId" -> fqn.collectionId,
+      "modelId" -> fqn.modelId,
+      "version" -> version)
+    val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
+    db.close()
+    result.asScala.toList match {
+      case doc :: Nil => Some(convertDocToSnapshotData(doc))
+      case Nil => None
+      case _ => {
+        logger.error(QueryUtil.generateMultipleRecordsError("ModelSnapshotStore.getClosestSnapshotByVersion"))
+        None
+      }
+    }
+  }
 
   /////////////////////////////////////////////////////////////////////////////
   // Removal
@@ -281,7 +315,7 @@ class ModelSnapshotStore private[domain] (
    */
   private[this] def convertDocToSnapshotData(doc: ODocument): SnapshotData = {
     val dataMap: java.util.Map[String, Object] = doc.field("data")
-    val data = Extraction.decompose(dataMap.asScala)
+    val data = JValueMapper.javaToJValue(dataMap)
     val timestamp: java.util.Date = doc.field("timestamp")
 
     SnapshotData(

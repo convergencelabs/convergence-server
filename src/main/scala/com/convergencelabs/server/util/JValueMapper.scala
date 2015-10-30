@@ -67,7 +67,7 @@ object JValueMapper {
 
       case map: JMap[_, _] => mapToJObject(map)
       case list: JList[_] => listToJArray(list)
-      case _ => throw new IllegalArgumentException() // FIXME error message
+      case x => throw new IllegalArgumentException(s"Can not map object of class ${x.getClass.getName}") // FIXME error message
     }
   }
 

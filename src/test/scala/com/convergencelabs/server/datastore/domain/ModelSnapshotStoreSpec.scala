@@ -131,5 +131,25 @@ class ModelSnapshotStoreSpec
         assert(queried.isEmpty)
       }
     }
+    
+    "when getting the closest snapshot to a version for a model" must {
+      "return the higher version when it is the closest" in withPersistenceStore { store =>
+        val snapshotData = store.getClosestSnapshotByVersion(person1ModelFqn, 18)
+        assert(snapshotData.isDefined)
+        assert(snapshotData.get.metaData.version == 20L)
+      }
+      
+      "return the lower version when it is the closest" in withPersistenceStore { store =>
+        val snapshotData = store.getClosestSnapshotByVersion(person1ModelFqn, 14)
+        assert(snapshotData.isDefined)
+        assert(snapshotData.get.metaData.version == 10L)
+      }
+      
+      "return the higher version when the requested version is equidistant from a higerh and lower snapshot" in withPersistenceStore { store =>
+        val snapshotData = store.getClosestSnapshotByVersion(person1ModelFqn, 15)
+        assert(snapshotData.isDefined)
+        assert(snapshotData.get.metaData.version == 20L)
+      }
+    }
   }
 }
