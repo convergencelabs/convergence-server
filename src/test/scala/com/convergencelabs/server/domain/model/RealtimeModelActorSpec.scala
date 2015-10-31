@@ -1,26 +1,42 @@
 package com.convergencelabs.server.domain.model
 
-import java.util.concurrent.TimeUnit
-import akka.actor.ActorSystem
-import akka.testkit.{ TestProbe, TestKit }
-import com.convergencelabs.server.datastore.domain._
-import com.convergencelabs.server.domain.model.ot.ops.StringInsertOperation
-import org.json4s.JsonAST.{ JObject, JString }
-import org.mockito.{ ArgumentCaptor, Mockito, Matchers }
-import org.mockito.Mockito.{ verify, times }
-import org.scalatest.mock.MockitoSugar
-import org.scalatest.{ BeforeAndAfterAll, WordSpecLike }
-import scala.concurrent.duration.FiniteDuration
-import com.convergencelabs.server.domain.DomainFqn
-import org.scalatest.junit.JUnitRunner
-import org.junit.runner.RunWith
-import com.sun.media.sound.Platform
-import com.convergencelabs.server.ErrorResponse
-import java.time.Instant
 import java.time.Duration
+import java.time.Instant
 import java.time.temporal.ChronoUnit
-import com.convergencelabs.server.ErrorResponse
+import java.util.concurrent.TimeUnit
 
+import scala.concurrent.duration.FiniteDuration
+
+import org.json4s.JsonAST.JObject
+import org.json4s.JsonAST.JString
+import org.junit.runner.RunWith
+import org.mockito.ArgumentCaptor
+import org.mockito.Matchers
+import org.mockito.Mockito
+import org.mockito.Mockito.times
+import org.mockito.Mockito.verify
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.Finders
+import org.scalatest.WordSpecLike
+import org.scalatest.junit.JUnitRunner
+import org.scalatest.mock.MockitoSugar
+
+import com.convergencelabs.server.ErrorResponse
+import com.convergencelabs.server.ErrorResponse
+import com.convergencelabs.server.datastore.domain.ModelData
+import com.convergencelabs.server.datastore.domain.ModelMetaData
+import com.convergencelabs.server.datastore.domain.ModelSnapshotStore
+import com.convergencelabs.server.datastore.domain.ModelStore
+import com.convergencelabs.server.datastore.domain.SnapshotData
+import com.convergencelabs.server.datastore.domain.SnapshotMetaData
+import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.model.ot.ops.StringInsertOperation
+
+import akka.actor.ActorSystem
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
+
+// FIXME we really only check message types and not data.
 @RunWith(classOf[JUnitRunner])
 class RealtimeModelActorSpec
     extends TestKit(ActorSystem("RealtimeModelActorSpec"))
