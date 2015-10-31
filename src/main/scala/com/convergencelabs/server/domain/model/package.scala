@@ -55,11 +55,14 @@ package model {
   case class OperationSubmission(seqNo: Long, contextVersion: Long, operation: Operation)
   case class ClientModelDataResponse(modelData: JValue)
 
-  //
-  // Incoming Messages From Domain
-  //
-  case class ModelDeleted()
-
+  sealed trait DeleteModelResponse
+  case object ModelDeleted extends DeleteModelResponse
+  case object ModelNotFound extends DeleteModelResponse
+  
+  sealed trait CreateModelResponse
+  case object ModelCreated extends CreateModelResponse
+  case object ModelAlreadyExists extends CreateModelResponse
+  
   //
   // Incoming Messages From Self
   //
@@ -71,7 +74,6 @@ package model {
   //
   sealed trait OpenModelResponse
   case class OpenModelSuccess(realtimeModelActor: ActorRef, modelResourceId: String, metaData: OpenModelMetaData, modelData: JValue) extends OpenModelResponse
-  case object ModelNotFound extends OpenModelResponse
   case object ModelAlreadyOpen extends OpenModelResponse
 
   case class ModelShutdownRequest(modelFqn: ModelFqn)
@@ -85,6 +87,6 @@ package model {
   case class ModelForceClose(resourceId: String, clientId: String, reason: String) extends RealtimeModelClientMessage
   case class ClientModelDataRequest(modelFqn: ModelFqn) extends RealtimeModelClientMessage
 
-  case object ModelAlreadyExists
+  
   case object ModelNotOpened
 }

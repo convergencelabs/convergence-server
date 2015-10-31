@@ -18,10 +18,10 @@ import com.convergencelabs.server.frontend.realtime.proto.OpenRealtimeModelRespo
 import org.json4s._
 import org.json4s.jackson.JsonMethods._
 import com.convergencelabs.server.frontend.realtime.proto.CloseRealtimeModelRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.CloseRealtimeModelResponseMessage
 import com.convergencelabs.server.frontend.realtime.proto.OperationSubmissionMessage
 import com.convergencelabs.server.frontend.realtime.proto.StringInsertOperationData
 import com.convergencelabs.server.frontend.realtime.proto.OperationAcknowledgementMessage
+import com.convergencelabs.server.frontend.realtime.proto.SuccessMessage
 
 object MockClientTest {
   def main(args: Array[String]): Unit = {
@@ -47,7 +47,7 @@ object MockClientTest {
     val opAck = client.expectMessageClass(5 seconds, classOf[OperationAcknowledgementMessage])
 
     client.sendRequest(CloseRealtimeModelRequestMessage(openResponse.rId))
-    val closeResponse = client.expectMessageClass(5 seconds, classOf[CloseRealtimeModelResponseMessage])
+    val closeResponse = client.expectMessageClass(5 seconds, classOf[SuccessMessage])
 
     client.close()
   }

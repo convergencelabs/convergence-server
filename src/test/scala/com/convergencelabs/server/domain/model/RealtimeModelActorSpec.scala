@@ -16,10 +16,10 @@ import org.scalatest.junit.JUnitRunner
 import org.junit.runner.RunWith
 import com.sun.media.sound.Platform
 import com.convergencelabs.server.ErrorResponse
-import com.convergencelabs.server.SuccessResponse
 import java.time.Instant
 import java.time.Duration
 import java.time.temporal.ChronoUnit
+import com.convergencelabs.server.ErrorResponse
 
 @RunWith(classOf[JUnitRunner])
 class RealtimeModelActorSpec
@@ -80,7 +80,7 @@ class RealtimeModelActorSpec
         val client1 = new TestProbe(system)
         realtimeModelActor.tell(OpenRealtimeModelRequest("s1", modelFqn, client1.ref), client1.ref)
         client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientModelDataRequest])
-        client1.reply(SuccessResponse) // Any message will do here.
+        client1.reply(ErrorResponse("","")) // Any message that is not a ClientModelDataResponse will do here.
         client1.expectMsgClass(FiniteDuration(200, TimeUnit.MILLISECONDS), classOf[ErrorResponse])
       }
 
@@ -208,7 +208,7 @@ class RealtimeModelActorSpec
 
     "open and a model is deleted" must {
       "force close all clients" in new TwoOpenClients {
-        realtimeModelActor.tell(ModelDeleted(), modelManagerActor.ref)
+        realtimeModelActor.tell(ModelDeleted, modelManagerActor.ref)
         client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ModelForceClose])
         client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ModelForceClose])
       }

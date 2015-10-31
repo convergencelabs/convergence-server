@@ -28,6 +28,7 @@ sealed trait OutgoingProtocolResponseMessage extends OutgoingProtocolMessage
 ///////////////////////////////////////////////////////////////////////////////
 
 case class ErrorMessage(code: String, message: String) extends OutgoingProtocolResponseMessage
+case class SuccessMessage() extends OutgoingProtocolResponseMessage
 
 // Handshaking
 case class HandshakeRequestMessage(reconnect: scala.Boolean, reconnectToken: Option[String], options: Option[ProtocolOptionsData]) extends IncomingProtocolRequestMessage
@@ -62,7 +63,6 @@ case class ModelDataResponseMessage(data: JValue) extends IncomingProtocolRespon
 
 // Outgoing Model Messages
 case class OpenRealtimeModelResponseMessage(rId: String, v: Long, created: Long, modified: Long, data: JValue) extends OutgoingProtocolResponseMessage
-case class CloseRealtimeModelResponseMessage() extends OutgoingProtocolResponseMessage
 
 case class OperationAcknowledgementMessage(rId: String, seq: Long, v: Long) extends OutgoingProtocolNormalMessage
 case class RemoteOperationMessage(rId: String, cId: String, v: Long, t: Long, op: OperationData) extends OutgoingProtocolNormalMessage

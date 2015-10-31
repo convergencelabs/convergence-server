@@ -113,10 +113,10 @@ class ModelClientActor(
 
   def onRequestReceived(message: IncomingModelRequestMessage, replyCallback: ReplyCallback): Unit = {
     message match {
-      case request: OpenRealtimeModelRequestMessage => onOpenRealtimeModelRequest(request, replyCallback)
-      case request: CloseRealtimeModelRequestMessage => onCloseRealtimeModelRequest(request, replyCallback)
-      case request: CreateRealtimeModelRequestMessage => ???
-      case request: DeleteRealtimeModelRequestMessage => ???
+      case openRequest: OpenRealtimeModelRequestMessage => onOpenRealtimeModelRequest(openRequest, replyCallback)
+      case closeRequest: CloseRealtimeModelRequestMessage => onCloseRealtimeModelRequest(closeRequest, replyCallback)
+      case createRequest: CreateRealtimeModelRequestMessage => onCreateRealtimeModelRequest(createRequest, replyCallback)
+      case deleteRequest: DeleteRealtimeModelRequestMessage => onDeleteRealtimeModelRequest(deleteRequest, replyCallback)
     }
   }
 
@@ -147,9 +147,6 @@ class ModelClientActor(
             metaData.modifiedTime.toEpochMilli,
             modelData))
       }
-      case Success(ModelNotFound) => {
-        cb.reply(ErrorMessage("model_not_found", "Could not be opened."))
-      }
       case Success(ModelAlreadyOpen) => {
         cb.reply(ErrorMessage("model_already_open", "The requested model is already open by this client."))
       }
@@ -166,12 +163,32 @@ class ModelClientActor(
         future.mapResponse[CloseRealtimeModelSuccess] onComplete {
           case Success(CloseRealtimeModelSuccess()) => {
             openRealtimeModels -= request.rId
-            cb.reply(CloseRealtimeModelResponseMessage())
+            cb.reply(SuccessMessage())
           }
           case Failure(cause) => cb.error(cause)
         }
       }
       case None => cb.error(new ErrorException("model_not_opened", "The requested model was not opened"))
+    }
+  }
+
+  def onCreateRealtimeModelRequest(request: CreateRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
+    val CreateRealtimeModelRequestMessage(ModelFqnData(collectionId, modelId), data) = request
+    val future = modelManager ? CreateModelRequest(ModelFqn(collectionId, modelId), data)
+    future.mapResponse[CreateModelResponse] onComplete {
+      case Success(ModelCreated) => cb.reply(SuccessMessage())
+      case Success(ModelAlreadyExists) => cb.reply(ErrorMessage("model_alread_exists", "A model with the specifieid collection and model id already exists"))
+      case Failure(cause) => cb.error(cause)
+    }
+  }
+
+  def onDeleteRealtimeModelRequest(request: DeleteRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
+    val DeleteRealtimeModelRequestMessage(ModelFqnData(collectionId, modelId)) = request
+    val future = modelManager ? DeleteModelRequest(ModelFqn(collectionId, modelId))
+    future.mapResponse[DeleteModelResponse] onComplete {
+      case Success(ModelDeleted) => cb.reply(SuccessMessage())
+      case Success(ModelNotFound) => cb.reply(ErrorMessage("model_not_found", "A model with the specifieid collection and model id does not exists"))
+      case Failure(cause) => cb.error(cause)
     }
   }
 }

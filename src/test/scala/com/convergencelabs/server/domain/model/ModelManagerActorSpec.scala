@@ -23,6 +23,7 @@ import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
 import com.convergencelabs.server.util.MockDomainPersistenceManagerActor
 import java.time.Instant
+import com.convergencelabs.server.datastore.domain.ModelOperationStore
 
 @RunWith(classOf[JUnitRunner])
 class ModelManagerActorSpec
@@ -75,7 +76,13 @@ class ModelManagerActorSpec
     }
     
     "requested to create a model" must {
-      "return an error if the model exists" in new TestFixture {
+      "return ModelCreated if the model does not exist" in new TestFixture {
+        val client = new TestProbe(system)
+        modelManagerActor.tell(CreateModelRequest(nonExistentModelFqn, JString("new data")), client.ref)
+        client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelCreated)
+      }
+      
+      "return ModelAlreadyExists if the model exists" in new TestFixture {
         val client = new TestProbe(system)
         modelManagerActor.tell(CreateModelRequest(modelFqn, JString("new data")), client.ref)
         client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelAlreadyExists)
@@ -83,15 +90,22 @@ class ModelManagerActorSpec
     }
     
     "requested to delete a model" must {
-      "return an error if the model does not exist" in new TestFixture {
+      "return ModelDeleted if the model exists" in new TestFixture {
         val client = new TestProbe(system)
-        modelManagerActor.tell(DeleteModelRequest(ModelFqn("collection", "no model")), client.ref)
+        modelManagerActor.tell(DeleteModelRequest(modelFqn), client.ref)
+        val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelDeleted)
+      }
+      
+      "return ModelNotFound if the model does not exist" in new TestFixture {
+        val client = new TestProbe(system)
+        modelManagerActor.tell(DeleteModelRequest(nonExistentModelFqn), client.ref)
         val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelNotFound)
       }
     }
   }
 
   trait TestFixture {
+    val nonExistentModelFqn = ModelFqn("collection", "no model")
     val modelFqn = ModelFqn("collection", "model" + System.nanoTime())
     val modelJsonData = JObject("key" -> JString("value"))
     val modelCreateTime = Instant.ofEpochMilli(2L)
@@ -107,9 +121,12 @@ class ModelManagerActorSpec
     val modelSnapshotStore = mock[ModelSnapshotStore]
     Mockito.when(modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)).thenReturn(Some(modelSnapshotMetaData))
 
+    val modelOperationStore = mock[ModelOperationStore]
+    
     val domainPersistence = mock[DomainPersistenceProvider]
     Mockito.when(domainPersistence.modelStore).thenReturn(modelStore)
     Mockito.when(domainPersistence.modelSnapshotStore).thenReturn(modelSnapshotStore)
+    Mockito.when(domainPersistence.modelOperationStore).thenReturn(modelOperationStore)
     
     val domainFqn = DomainFqn("convergence", "default")
     
