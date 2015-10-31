@@ -48,7 +48,15 @@ object ModelStore {
   val Data = "data"
 
   def toOrientPath(path: List[Any]): String = {
-    ???
+    val pathBuilder = new StringBuilder();
+    pathBuilder.append(Data);
+    path.foreach { p =>
+      p match {
+        case p: Int    => pathBuilder.append("[").append(p).append("]")
+        case p: String => pathBuilder.append(".").append(p)
+      }
+    }
+    return pathBuilder.toString();
   }
 }
 
@@ -140,24 +148,11 @@ class ModelStore(dbPool: OPartitionedDatabasePool) {
   def applyArrayInsertOperation(fqn: ModelFqn, operation: ArrayInsertOperation): Unit = {
     val db = dbPool.acquire()
     val pathString = ModelStore.toOrientPath(operation.path)
-    val query = new OSQLSynchQuery[ODocument](s"SELECT $pathString FROM model WHERE collectionId = :collectionId and modelId = :modelId")
 
-    val params: java.util.Map[String, Any] = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
-
-    val result: java.util.List[ODocument] = db.command(query).execute(params)
-
-    result.asScala.toList match {
-      case doc :: Nil => {
-        val arrayDocument: List[Any] = doc.field("data")
-        val newElement = JValueMapper.jValueToJava(operation.value)
-        arrayDocument.add(operation.index, newElement)
-
-        val updateCommand = new OCommandSQL(s"UPDATE model SET $pathString = :value WHERE collectionId = :collectionId and modelId = :modelId")
-        params += ("value" -> arrayDocument)
-        db.command(updateCommand).execute(params);
-      }
-      case _ => ???
-    }
+    val params: java.util.Map[String, Any] = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId, "index" -> operation.index, "value" -> JValueMapper.jValueToJava(operation.value))
+    val value = write(operation.value)
+    val updateCommand = new OCommandSQL(s"UPDATE model SET $pathString = arrayInsert($pathString, :index, $value) WHERE collectionId = :collectionId and modelId = :modelId")
+    db.command(updateCommand).execute(params)
   }
 
   def applyArrayRemoveOperation(fqn: ModelFqn, operation: ArrayRemoveOperation): Unit = {
