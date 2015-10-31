@@ -15,7 +15,7 @@ trait PersistenceStoreSpec[S] {
   def withPersistenceStore(testCode: S => Any) {
     // make sure no accidental collisions
     val dbName = getClass.getSimpleName
-    val uri = "memory:${dbName}${dbCounter}"
+    val uri = s"memory:${dbName}${dbCounter}"
     dbCounter += 1
 
     val db = new ODatabaseDocumentTx(uri)

@@ -66,7 +66,7 @@ class RealtimeModelActor(
     case request: OpenRealtimeModelRequest => onOpenModelWhileInitializing(request)
     case dataResponse: DatabaseModelResponse => onDatabaseModelResponse(dataResponse)
     case dataResponse: ClientModelDataResponse => onClientModelDataResponse(dataResponse)
-    case modelDeleted: ModelDeleted => handleInitializationFailure("model_deleted", "The model was deleted while opening.")
+    case ModelDeleted => handleInitializationFailure("model_deleted", "The model was deleted while opening.")
     case unknown => unhandled(unknown)
   }
 
@@ -77,7 +77,7 @@ class RealtimeModelActor(
     case request: OpenRealtimeModelRequest => onOpenModelWhileInitializing(request)
     case dataResponse: DatabaseModelResponse => onDatabaseModelResponse(dataResponse)
     case DatabaseModelFailure(cause) => handleInitializationFailure("unknown", "Unexpected error initializing the model.")
-    case modelDeleted: ModelDeleted => handleInitializationFailure("model_deleted", "The model was deleted while opening.")
+    case ModelDeleted => handleInitializationFailure("model_deleted", "The model was deleted while opening.")
     case dataResponse: ClientModelDataResponse =>
     case unknown => unhandled(unknown)
   }
@@ -91,7 +91,7 @@ class RealtimeModelActor(
     case operationSubmission: OperationSubmission => onOperationSubmission(operationSubmission)
     case dataResponse: ClientModelDataResponse =>
     case snapshotMetaData: SnapshotMetaData => this.latestSnapshot = snapshotMetaData
-    case modelDeleted: ModelDeleted => handleModelDeletedWhileOpen()
+    case ModelDeleted => handleModelDeletedWhileOpen()
     case unknown => unhandled(unknown)
   }
 

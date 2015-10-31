@@ -17,7 +17,6 @@ import java.util.concurrent.TimeUnit
 import akka.actor.Props
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
-import com.convergencelabs.server.SuccessResponse
 import com.convergencelabs.server.ErrorResponse
 import java.time.Instant
 import java.time.Duration
@@ -43,11 +42,6 @@ class ModelManagerActor(
   }
 
   private[this] def onOpenRealtimeModel(openRequest: OpenRealtimeModelRequest): Unit = {
-//    if (!persistenceProvider.modelStore.modelExists(openRequest.modelFqn)) {
-//      sender ! ModelNotFound
-//      return
-//    }
-
     if (!this.openRealtimeModels.contains(openRequest.modelFqn)) {
       val resourceId = "" + nextModelResourceId
       nextModelResourceId += 1
@@ -68,7 +62,7 @@ class ModelManagerActor(
         resourceId,
         persistenceProvider.modelStore,
         persistenceProvider.modelSnapshotStore,
-        5000, // FIXME
+        5000, // FIXME hard-coded time.  Should this be part of the protocol?
         snapshotConfig)
 
       val modelActor = context.actorOf(props, resourceId);
@@ -95,10 +89,10 @@ class ModelManagerActor(
           SnapshotData(SnapshotMetaData(createRequest.modelFqn, 0, createTime),
             modelData))
 
-        sender() ! SuccessResponse
+        sender ! ModelCreated
       } catch {
         case e: IOException =>
-          sender() ! ErrorResponse("unknown", "Could not create model: " + e.getMessage)
+          sender ! ErrorResponse("unknown", "Could not create model: " + e.getMessage)
       }
     }
   }
@@ -107,16 +101,16 @@ class ModelManagerActor(
     if (persistenceProvider.modelStore.modelExists(deleteRequest.modelFqn)) {
 
       if (openRealtimeModels.contains(deleteRequest.modelFqn)) {
-        openRealtimeModels.remove(deleteRequest.modelFqn).get ! ModelDeleted()
+        openRealtimeModels.remove(deleteRequest.modelFqn).get ! ModelDeleted
       }
 
       persistenceProvider.modelStore.deleteModel(deleteRequest.modelFqn)
       persistenceProvider.modelSnapshotStore.removeAllSnapshotsForModel(deleteRequest.modelFqn)
       persistenceProvider.modelOperationStore.removeHistoryForModel(deleteRequest.modelFqn)
 
-      sender() ! SuccessResponse
+      sender ! ModelDeleted
     } else {
-      sender() ! ModelNotFound
+      sender ! ModelNotFound
     }
   }
 

@@ -6,7 +6,7 @@ sealed trait StringOperation extends DiscreteOperation {
   def transform(other: StringOperation): (DiscreteOperation, DiscreteOperation)
 }
 
-case class StringRemoveOperation(override val path: List[Any], override val noOp: Boolean, index: Int, value: String) extends StringOperation {
+case class StringRemoveOperation(path: List[Any], noOp: Boolean, index: Int, value: String) extends StringOperation {
 
   def copyBuilder(): StringRemoveOperation.Builder = new StringRemoveOperation.Builder(path, noOp, index, value)
 
@@ -23,7 +23,7 @@ object StringRemoveOperation {
   }
 }
 
-case class StringInsertOperation(override val path: List[Any], override val noOp: Boolean, index: Int, value: String) extends StringOperation {
+case class StringInsertOperation(path: List[Any], noOp: Boolean, index: Int, value: String) extends StringOperation {
 
   def copyBuilder(): StringInsertOperation.Builder = new StringInsertOperation.Builder(path, noOp, index, value)
 
@@ -40,7 +40,7 @@ object StringInsertOperation {
   }
 }
 
-case class StringSetOperation(override val path: List[Any], override val noOp: Boolean, value: String) extends StringOperation {
+case class StringSetOperation(path: List[Any], noOp: Boolean, value: String) extends StringOperation {
 
   def copyBuilder(): StringSetOperation.Builder = new StringSetOperation.Builder(path, noOp, value)
 
