@@ -97,7 +97,7 @@ class ClientActorSpec
         probeWatcher watch clientActor
 
         val cb = mock[ReplyCallback]
-        val event = RequestReceived(CloseRealtimeModelRequestMessage("invalid", "message"), cb)
+        val event = RequestReceived(CloseRealtimeModelRequestMessage("invalid message"), cb)
         clientActor.tell(event, ActorRef.noSender)
 
         probeWatcher.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Terminated])

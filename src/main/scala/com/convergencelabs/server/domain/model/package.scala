@@ -30,9 +30,9 @@ package model {
       val allowedByVersion = versionInterval >= minimumVersionInterval
       val requiredByVersion = versionInterval > maximumVersionInterval && triggerByVersion
 
-      val timeInterval = Duration.between(previousTime, currentTime) 
-      val allowedByTime = timeInterval.compareTo(minimumTimeInterval) >= 0 
-      val requiredByTime = timeInterval.compareTo(maximumTimeInterval) > 0   && triggerByTime
+      val timeInterval = Duration.between(previousTime, currentTime)
+      val allowedByTime = timeInterval.compareTo(minimumTimeInterval) >= 0
+      val requiredByTime = timeInterval.compareTo(maximumTimeInterval) > 0 && triggerByTime
 
       allowedByVersion && allowedByTime && (requiredByTime || requiredByVersion)
     }
@@ -48,11 +48,11 @@ package model {
   // Incoming Messages From Client
   //
   case class OpenRequestRecord(clientActor: ActorRef, askingActor: ActorRef)
-  case class OpenRealtimeModelRequest(modelFqn: ModelFqn, clientActor: ActorRef)
+  case class OpenRealtimeModelRequest(sessionId: String, modelFqn: ModelFqn, clientActor: ActorRef)
   case class CreateModelRequest(modelFqn: ModelFqn, modelData: JValue)
   case class DeleteModelRequest(modelFqn: ModelFqn)
-  case class CloseRealtimeModelRequest(clientId: String)
-  case class OperationSubmission(clientId: String, contextVersion: Long, operation: Operation)
+  case class CloseRealtimeModelRequest(sessionId: String)
+  case class OperationSubmission(seqNo: Long, contextVersion: Long, operation: Operation)
   case class ClientModelDataResponse(modelData: JValue)
 
   //
@@ -70,20 +70,21 @@ package model {
   // Outgoing Messages
   //
   sealed trait OpenModelResponse
-  case class OpenModelSuccess(realtimeModelActor: ActorRef, modelResourceId: String, ccId: String, metaData: OpenModelMetaData, modelData: JValue) extends OpenModelResponse
+  case class OpenModelSuccess(realtimeModelActor: ActorRef, modelResourceId: String, metaData: OpenModelMetaData, modelData: JValue) extends OpenModelResponse
   case object ModelNotFound extends OpenModelResponse
-  
+  case object ModelAlreadyOpen extends OpenModelResponse
+
   case class ModelShutdownRequest(modelFqn: ModelFqn)
   case class CloseRealtimeModelSuccess()
-  
+
   trait RealtimeModelClientMessage
-  case class OperationAcknowledgement(resourceId: String, clientId: String, contextVersion: Long) extends RealtimeModelClientMessage
+  case class OperationAcknowledgement(resourceId: String, seqNo: Long, contextVersion: Long) extends RealtimeModelClientMessage
   case class OutgoingOperation(resourceId: String, clientId: String, contextVersion: Long, timestampe: Long, operation: Operation) extends RealtimeModelClientMessage
   case class RemoteClientClosed(resourceId: String, clientId: String) extends RealtimeModelClientMessage
   case class RemoteClientOpened(resourceId: String, clientId: String) extends RealtimeModelClientMessage
   case class ModelForceClose(resourceId: String, clientId: String, reason: String) extends RealtimeModelClientMessage
   case class ClientModelDataRequest(modelFqn: ModelFqn) extends RealtimeModelClientMessage
-  
+
   case object ModelAlreadyExists
   case object ModelNotOpened
 }

@@ -50,19 +50,21 @@ case class AuthenticationResponseMessage(success: Boolean, username: Option[Stri
 case class ModelFqnData(cId: String, mId: String)
 
 sealed trait IncomingModelNormalMessage extends IncomingProtocolNormalMessage
-case class OperationSubmissionMessage(rId: String, cId: String, v: Long, op: OperationData) extends IncomingModelNormalMessage
+case class OperationSubmissionMessage(rId: String, seq: Long, v: Long, op: OperationData) extends IncomingModelNormalMessage
 
 sealed trait IncomingModelRequestMessage extends IncomingProtocolRequestMessage
-case class OpenRealtimeModelRequestMessage(modelFqn: ModelFqnData) extends IncomingModelRequestMessage
-case class CloseRealtimeModelRequestMessage(rId: String, cId: String) extends IncomingModelRequestMessage
+case class OpenRealtimeModelRequestMessage(fqn: ModelFqnData) extends IncomingModelRequestMessage
+case class CloseRealtimeModelRequestMessage(rId: String) extends IncomingModelRequestMessage
+case class CreateRealtimeModelRequestMessage(fqn: ModelFqnData, data: JValue) extends IncomingModelRequestMessage
+case class DeleteRealtimeModelRequestMessage(fqn: ModelFqnData) extends IncomingModelRequestMessage
 
 case class ModelDataResponseMessage(data: JValue) extends IncomingProtocolResponseMessage
 
 // Outgoing Model Messages
-case class OpenRealtimeModelResponseMessage(rId: String, cId: String, v: Long, created: Long, modified: Long, data: JValue) extends OutgoingProtocolResponseMessage
+case class OpenRealtimeModelResponseMessage(rId: String, v: Long, created: Long, modified: Long, data: JValue) extends OutgoingProtocolResponseMessage
 case class CloseRealtimeModelResponseMessage() extends OutgoingProtocolResponseMessage
 
-case class OperationAcknowledgementMessage(rId: String, cId: String, v: Long) extends OutgoingProtocolNormalMessage
+case class OperationAcknowledgementMessage(rId: String, seq: Long, v: Long) extends OutgoingProtocolNormalMessage
 case class RemoteOperationMessage(rId: String, cId: String, v: Long, t: Long, op: OperationData) extends OutgoingProtocolNormalMessage
 
 case class RemoteClientClosedMessage(rId: String, cId: String) extends OutgoingProtocolNormalMessage

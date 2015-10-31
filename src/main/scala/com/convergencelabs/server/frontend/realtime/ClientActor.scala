@@ -135,7 +135,7 @@ class ClientActor(
       case Success(HandshakeSuccess(sessionId, reconnectToken, domainActor, modelManagerActor)) => {
         this.sessionId = sessionId
         this.domainActor = domainActor
-        this.modelClient = context.actorOf(ModelClientActor.props(modelManagerActor))
+        this.modelClient = context.actorOf(ModelClientActor.props(sessionId, modelManagerActor))
         cb.reply(HandshakeResponseMessage(true, None, Some(sessionId), Some(reconnectToken)))
         context.become(receiveWhileAuthenticating)
       }

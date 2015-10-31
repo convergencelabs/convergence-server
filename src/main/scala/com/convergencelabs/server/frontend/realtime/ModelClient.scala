@@ -20,14 +20,15 @@ import com.convergencelabs.server.frontend.realtime.proto._
 import com.convergencelabs.server.frontend.realtime.proto.OpenRealtimeModelResponseMessage
 import com.convergencelabs.server.util.concurrent._
 
-
-
 object ModelClientActor {
-  def props(modelManager: ActorRef): Props =
-    Props(new ModelClientActor(modelManager))
+  def props(
+    sessionId: String,
+    modelManager: ActorRef): Props =
+    Props(new ModelClientActor(sessionId, modelManager))
 }
 
 class ModelClientActor(
+  sessionId: String,
   modelManager: ActorRef)
     extends Actor with ActorLogging {
 
@@ -38,15 +39,15 @@ class ModelClientActor(
   implicit val ec = context.dispatcher
 
   def receive: Receive = {
-    case MessageReceived(message) if message.isInstanceOf[IncomingProtocolNormalMessage] => 
+    case MessageReceived(message) if message.isInstanceOf[IncomingProtocolNormalMessage] =>
       onMessageReceived(message.asInstanceOf[IncomingProtocolNormalMessage])
     case RequestReceived(message, replyPromise) if message.isInstanceOf[IncomingModelRequestMessage] =>
       onRequestReceived(message.asInstanceOf[IncomingModelRequestMessage], replyPromise)
-    case message: RealtimeModelClientMessage => 
+    case message: RealtimeModelClientMessage =>
       onOutgoingModelMessage(message)
     case x => unhandled(x)
   }
-  
+
   //
   // Outgoing Messages
   //
@@ -73,8 +74,8 @@ class ModelClientActor(
   }
 
   def onOperationAcknowledgement(opAck: OperationAcknowledgement): Unit = {
-    val OperationAcknowledgement(resourceId, clientId, version) = opAck
-    context.parent ! OperationAcknowledgementMessage(resourceId, clientId, version)
+    val OperationAcknowledgement(resourceId, seqNo, version) = opAck
+    context.parent ! OperationAcknowledgementMessage(resourceId, seqNo, version)
   }
 
   def onRemoteClientOpened(opened: RemoteClientOpened): Unit = {
@@ -114,6 +115,8 @@ class ModelClientActor(
     message match {
       case request: OpenRealtimeModelRequestMessage => onOpenRealtimeModelRequest(request, replyCallback)
       case request: CloseRealtimeModelRequestMessage => onCloseRealtimeModelRequest(request, replyCallback)
+      case request: CreateRealtimeModelRequestMessage => ???
+      case request: DeleteRealtimeModelRequestMessage => ???
     }
   }
 
@@ -124,40 +127,42 @@ class ModelClientActor(
   }
 
   def onOperationSubmission(message: OperationSubmissionMessage): Unit = {
-    val OperationSubmissionMessage(resourceId, clientId, version, operation) = message
-    val submission = OperationSubmission(clientId, version, OperationMapper.mapIncoming(operation))
+    val OperationSubmissionMessage(resourceId, seqNo, version, operation) = message
+    val submission = OperationSubmission(seqNo, version, OperationMapper.mapIncoming(operation))
     val modelActor = openRealtimeModels(resourceId)
     modelActor ! submission
   }
 
   def onOpenRealtimeModelRequest(request: OpenRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
-    val ModelFqnData(collectionId, modelId) = request.modelFqn
-    val future = modelManager ? OpenRealtimeModelRequest(ModelFqn(collectionId, modelId) , self)
+    val ModelFqnData(collectionId, modelId) = request.fqn
+    val future = modelManager ? OpenRealtimeModelRequest(sessionId, ModelFqn(collectionId, modelId), self)
     future.mapResponse[OpenModelResponse] onComplete {
-      case Success(OpenModelSuccess(realtimeModelActor, modelResourceId, modelSessionId, metaData, modelData)) => {
+      case Success(OpenModelSuccess(realtimeModelActor, modelResourceId, metaData, modelData)) => {
         openRealtimeModels += (modelResourceId -> realtimeModelActor)
         cb.reply(
           OpenRealtimeModelResponseMessage(
-              modelResourceId, 
-              modelSessionId, 
-              metaData.version,
-              metaData.createdTime.toEpochMilli,
-              metaData.modifiedTime.toEpochMilli,
-              modelData))
+            modelResourceId,
+            metaData.version,
+            metaData.createdTime.toEpochMilli,
+            metaData.modifiedTime.toEpochMilli,
+            modelData))
       }
       case Success(ModelNotFound) => {
         cb.reply(ErrorMessage("model_not_found", "Could not be opened."))
+      }
+      case Success(ModelAlreadyOpen) => {
+        cb.reply(ErrorMessage("model_already_open", "The requested model is already open by this client."))
       }
       case Failure(cause) => {
         cb.error(cause)
       }
     }
   }
-  
+
   def onCloseRealtimeModelRequest(request: CloseRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
     openRealtimeModels.get(request.rId) match {
       case Some(modelActor) => {
-        val future = modelActor ? CloseRealtimeModelRequest(request.cId)
+        val future = modelActor ? CloseRealtimeModelRequest(sessionId)
         future.mapResponse[CloseRealtimeModelSuccess] onComplete {
           case Success(CloseRealtimeModelSuccess()) => {
             openRealtimeModels -= request.rId

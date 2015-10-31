@@ -28,7 +28,7 @@ object ModelOperationStore {
     val CollectionId = "collectionId"
     val Timestamp = "collectionId"
     val Uid = "uid"
-    val Cid = "cid"
+    val Sid = "sid"
     val Operation = "op"
   }
 }
@@ -144,7 +144,7 @@ class ModelOperationStore(dbPool: OPartitionedDatabasePool) {
         doc.field(Version),
         timestamp,
         doc.field(Uid),
-        doc.field(Cid),
+        doc.field(Sid),
         op)
   }
 }
@@ -154,5 +154,5 @@ case class OperationEvent(
     version: Long, 
     timestamp: Instant, 
     uid: String,
-    cid: String,
+    sid: String,
     op: Operation)
