@@ -27,6 +27,17 @@ import scala.collection.immutable.HashMap
 import com.orientechnologies.orient.core.db.record.OTrackedMap
 import java.time.LocalDateTime
 import java.time.Instant
+import com.convergencelabs.server.domain.model.ot.ops.ArrayInsertOperation
+import com.convergencelabs.server.domain.model.ot.ops.ArrayRemoveOperation
+import com.convergencelabs.server.domain.model.ot.ops.ArrayReplaceOperation
+import com.convergencelabs.server.domain.model.ot.ops.ArrayMoveOperation
+import com.convergencelabs.server.domain.model.ot.ops.ObjectSetPropertyOperation
+import com.convergencelabs.server.domain.model.ot.ops.ObjectRemovePropertyOperation
+import com.convergencelabs.server.domain.model.ot.ops.ObjectSetOperation
+import com.convergencelabs.server.domain.model.ot.ops.StringRemoveOperation
+import com.convergencelabs.server.domain.model.ot.ops.NumberAddOperation
+import com.convergencelabs.server.util.JValueMapper
+import scala.collection.immutable.StringOps
 
 object ModelStore {
   val CollectionId = "collectionId"
@@ -83,7 +94,7 @@ class ModelStore(dbPool: OPartitionedDatabasePool) {
     val result: java.util.List[ODocument] = db.command(query).execute(params)
     result.asScala.toList match {
       case doc :: rest => Some(docToModelMetaData(doc))
-      case Nil => None
+      case Nil         => None
     }
   }
 
@@ -94,8 +105,8 @@ class ModelStore(dbPool: OPartitionedDatabasePool) {
     val result: java.util.List[ODocument] = db.command(query).execute(params)
     result.asScala.toList match {
       case doc :: Nil => Some(docToModelData(doc))
-      case Nil => None
-      case _ => None // FIXME Log
+      case Nil        => None
+      case _          => None // FIXME Log
     }
   }
 
@@ -106,15 +117,170 @@ class ModelStore(dbPool: OPartitionedDatabasePool) {
     val result: java.util.List[ODocument] = db.command(query).execute(params)
     result.asScala.toList match {
       case doc :: rest => Some(parse(doc.toJSON()) \\ ModelStore.Data)
-      case Nil => None
+      case Nil         => None
     }
   }
 
   def applyOperationToModel(fqn: ModelFqn, operation: Operation, version: Long, timestamp: Long, username: String): Unit = {
     operation match {
-      case compoundOp: CompoundOperation => compoundOp.operations foreach { op => applyOperationToModel(fqn, op, version, timestamp, username) }
-      case _ => // FIXME
+      case compoundOp: CompoundOperation     => compoundOp.operations foreach { op => applyOperationToModel(fqn, op, version, timestamp, username) }
+      case op: ArrayInsertOperation          => applyArrayInsertOperation(fqn, op)
+      case op: ArrayRemoveOperation          => applyArrayRemoveOperation(fqn, op)
+      case op: ArrayReplaceOperation         => applyArrayReplaceOperation(fqn, op)
+      case op: ArrayMoveOperation            => applyArrayMoveOperation(fqn, op)
+      case op: ObjectSetPropertyOperation    => applyObjectSetPropertyOperation(fqn, op)
+      case op: ObjectRemovePropertyOperation => applyObjectRemovePropertyOperation(fqn, op)
+      case op: ObjectSetOperation            => applyObjectSetOperation(fqn, op)
+      case op: StringInsertOperation         => applyStringInsertOperation(fqn, op)
+      case op: StringRemoveOperation         => applyStringRemoveOperation(fqn, op)
+      case op: NumberAddOperation            => applyNumberAddOperation(fqn, op)
     }
+  }
+
+  def applyArrayInsertOperation(fqn: ModelFqn, operation: ArrayInsertOperation): Unit = {
+    val db = dbPool.acquire()
+    val pathString = ModelStore.toOrientPath(operation.path)
+    val query = new OSQLSynchQuery[ODocument](s"SELECT $pathString FROM model WHERE collectionId = :collectionId and modelId = :modelId")
+
+    val params: java.util.Map[String, Any] = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
+
+    val result: java.util.List[ODocument] = db.command(query).execute(params)
+
+    result.asScala.toList match {
+      case doc :: Nil => {
+        val arrayDocument: List[Any] = doc.field("data")
+        val newElement = JValueMapper.jValueToJava(operation.value)
+        arrayDocument.add(operation.index, newElement)
+
+        val updateCommand = new OCommandSQL(s"UPDATE model SET $pathString = :value WHERE collectionId = :collectionId and modelId = :modelId")
+        params += ("value" -> arrayDocument)
+        db.command(updateCommand).execute(params);
+      }
+      case _ => ???
+    }
+  }
+
+  def applyArrayRemoveOperation(fqn: ModelFqn, operation: ArrayRemoveOperation): Unit = {
+    val db = dbPool.acquire()
+    val pathString = ModelStore.toOrientPath(operation.path)
+    val query = new OSQLSynchQuery[ODocument](s"SELECT $pathString FROM model WHERE collectionId = :collectionId and modelId = :modelId")
+
+    val params: java.util.Map[String, Any] = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
+
+    val result: java.util.List[ODocument] = db.command(query).execute(params)
+
+    result.asScala.toList match {
+      case doc :: Nil => {
+        val arrayDocument: List[Any] = doc.field("data")
+        arrayDocument.remove(operation.index);
+
+        val updateCommand = new OCommandSQL(s"UPDATE model SET $pathString = :value WHERE collectionId = :collectionId and modelId = :modelId")
+        params += ("value" -> arrayDocument)
+        db.command(updateCommand).execute(params);
+      }
+      case _ => ???
+    }
+  }
+
+  def applyArrayReplaceOperation(fqn: ModelFqn, operation: ArrayReplaceOperation): Unit = {
+    val db = dbPool.acquire()
+    val pathString = ModelStore.toOrientPath(operation.path)
+    val query = new OSQLSynchQuery[ODocument](s"SELECT $pathString FROM model WHERE collectionId = :collectionId and modelId = :modelId")
+
+    val params: java.util.Map[String, Any] = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
+
+    val result: java.util.List[ODocument] = db.command(query).execute(params)
+
+    result.asScala.toList match {
+      case doc :: Nil => {
+        val arrayDocument: List[Any] = doc.field("data")
+        val newElement = JValueMapper.jValueToJava(operation.newValue);
+        arrayDocument.set(operation.index, newElement);
+
+        val updateCommand = new OCommandSQL(s"UPDATE model SET $pathString = :value WHERE collectionId = :collectionId and modelId = :modelId")
+        params += ("value" -> arrayDocument)
+        db.command(updateCommand).execute(params);
+      }
+      case _ => ???
+    }
+  }
+
+  def applyArrayMoveOperation(fqn: ModelFqn, operation: ArrayMoveOperation): Unit = {
+    val db = dbPool.acquire()
+    val pathString = ModelStore.toOrientPath(operation.path)
+    val query = new OSQLSynchQuery[ODocument](s"SELECT $pathString FROM model WHERE collectionId = :collectionId and modelId = :modelId")
+
+    val params: java.util.Map[String, Any] = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
+
+    val result: java.util.List[ODocument] = db.command(query).execute(params)
+
+    result.asScala.toList match {
+      case doc :: Nil => {
+        val arrayDocument: List[Any] = doc.field("data")
+        arrayDocument.add(operation.toIndex, arrayDocument.remove(operation.fromIndex));
+
+        val updateCommand = new OCommandSQL(s"UPDATE model SET $pathString = :value WHERE collectionId = :collectionId and modelId = :modelId")
+        params += ("value" -> arrayDocument)
+        db.command(updateCommand).execute(params);
+      }
+      case _ => ???
+    }
+  }
+
+  def applyObjectSetPropertyOperation(fqn: ModelFqn, operation: ObjectSetPropertyOperation): Unit = {
+    val db = dbPool.acquire()
+    val pathString = ModelStore.toOrientPath(operation.path)
+    val params: java.util.Map[String, Any] = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
+
+    val updateCommand = new OCommandSQL(s"UPDATE model SET $pathString = :value WHERE collectionId = :collectionId and modelId = :modelId")
+    params += ("value" -> JValueMapper.jValueToJava(operation.newValue))
+    db.command(updateCommand).execute(params)
+  }
+
+  def applyObjectRemovePropertyOperation(fqn: ModelFqn, operation: ObjectRemovePropertyOperation): Unit = {
+    val db = dbPool.acquire()
+    val pathString = ModelStore.toOrientPath(operation.path)
+    val params: java.util.Map[String, Any] = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
+
+    val updateCommand = new OCommandSQL(s"UPDATE model REMOVE $pathString = :property WHERE collectionId = :collectionId and modelId = :modelId")
+    params += ("property" -> operation.property)
+    db.command(updateCommand).execute(params)
+  }
+
+  def applyObjectSetOperation(fqn: ModelFqn, operation: ObjectSetOperation): Unit = {
+    val db = dbPool.acquire()
+    val pathString = ModelStore.toOrientPath(operation.path)
+    val params: java.util.Map[String, Any] = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
+
+    val updateCommand = new OCommandSQL(s"UPDATE model SET $pathString = :value WHERE collectionId = :collectionId and modelId = :modelId")
+    params += ("value" -> JValueMapper.jValueToJava(operation.newValue))
+    db.command(updateCommand).execute(params)
+  }
+
+  def applyStringInsertOperation(fqn: ModelFqn, operation: StringInsertOperation): Unit = {
+    val db = dbPool.acquire()
+    val pathString = ModelStore.toOrientPath(operation.path)
+    val params: java.util.Map[String, Any] = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId, "index" -> operation.index, "value" -> operation.value)
+
+    val updateCommand = new OCommandSQL(s"UPDATE model SET $pathString = stringInsert($pathString, :index, :value) WHERE collectionId = :collectionId and modelId = :modelId")
+    db.command(updateCommand).execute(params)
+  }
+
+  def applyStringRemoveOperation(fqn: ModelFqn, operation: StringRemoveOperation): Unit = {
+    val db = dbPool.acquire()
+    val pathString = ModelStore.toOrientPath(operation.path)
+    val params: java.util.Map[String, Any] = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId, "index" -> operation.index, "length" -> operation.value.length())
+
+    val updateCommand = new OCommandSQL(s"UPDATE model SET $pathString = stringRemove($pathString, :index, :length) WHERE collectionId = :collectionId and modelId = :modelId")
+    db.command(updateCommand).execute(params)
+  }
+
+  def applyNumberAddOperation(fqn: ModelFqn, operation: NumberAddOperation): Unit = {
+    val db = dbPool.acquire()
+    val pathString = ModelStore.toOrientPath(operation.path)
+    val params: java.util.Map[String, Any] = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId, "value" -> operation.value)
+    val updateCommand = new OCommandSQL(s"UPDATE model INCREMENT $pathString = :value WHERE collectionId = :collectionId and modelId = :modelId");
+    db.command(updateCommand).execute(params);
   }
 
   def getModelFieldDataType(fqn: ModelFqn, path: List[Any]): Option[DataType.Value] = {
@@ -127,11 +293,11 @@ class ModelStore(dbPool: OPartitionedDatabasePool) {
       case doc :: rest => {
         (parse(doc.toJSON()) \\ ModelStore.Data) match {
           case data: JObject => Some(DataType.OBJECT)
-          case data: JArray => Some(DataType.ARRAY)
+          case data: JArray  => Some(DataType.ARRAY)
           case data: JString => Some(DataType.STRING)
           case data: JNumber => Some(DataType.NUMBER)
-          case data: JBool => Some(DataType.BOOLEAN)
-          case _ => Some(DataType.NULL)
+          case data: JBool   => Some(DataType.BOOLEAN)
+          case _             => Some(DataType.NULL)
         }
       }
       case Nil => None
