@@ -17,6 +17,8 @@ import com.orientechnologies.orient.core.db.record.OTrackedList
 import java.util.HashSet
 
 object DomainConfigurationStore {
+  // FIXME should all this stuff be private?
+
   val Domain = "Domain"
 
   val Id = "id"
@@ -51,7 +53,7 @@ object DomainConfigurationStore {
     document.field(DBPassword, dbPassword)
 
     val keyDocs = List()
-    domainConfig.keys.values foreach { key => keyDocs add Map(KeyId -> key.id, KeyName -> key.name, KeyDescription-> key.description, KeyDate-> key.keyDate, Key -> key.key) }
+    domainConfig.keys.values foreach { key => keyDocs add Map(KeyId -> key.id, KeyName -> key.name, KeyDescription -> key.description, KeyDate -> key.keyDate, Key -> key.key) }
 
     document.field(DomainConfigurationStore.Keys, keyDocs.asJava)
 
@@ -64,14 +66,13 @@ object DomainConfigurationStore {
     val domainFqn = DomainFqn(doc.field(Namespace), doc.field(DomainId))
     val keyPairDoc: OTrackedMap[String] = doc.field(AdminKeyPair, OType.EMBEDDEDMAP)
     val keyPair = TokenKeyPair(keyPairDoc.get(PrivateKey), keyPairDoc.get(PublicKey))
-    val domainConfig = DomainConfig(doc.field(Id), 
-        domainFqn, doc.field(DisplayName), 
-        doc.field(DBUsername), 
-        doc.field(DBPassword), 
-        documentToKeys(
-            doc.field(Keys, OType.EMBEDDEDLIST)
-            ), 
-        keyPair)
+    val domainConfig = DomainConfig(doc.field(Id),
+      domainFqn, doc.field(DisplayName),
+      doc.field(DBUsername),
+      doc.field(DBPassword),
+      documentToKeys(
+        doc.field(Keys, OType.EMBEDDEDLIST)),
+      keyPair)
     domainConfig
   }
 
@@ -111,7 +112,7 @@ class DomainConfigurationStore(dbPool: OPartitionedDatabasePool) {
     db.close()
     result.asScala.toList match {
       case doc :: rest => Some(DomainConfigurationStore.documentToDomainConfig(doc))
-      case Nil         => None
+      case Nil => None
     }
   }
 
@@ -123,7 +124,7 @@ class DomainConfigurationStore(dbPool: OPartitionedDatabasePool) {
     db.close()
     result.asScala.toList match {
       case doc :: rest => Some(DomainConfigurationStore.documentToDomainConfig(doc))
-      case Nil         => None
+      case Nil => None
     }
   }
 
@@ -168,9 +169,9 @@ class DomainConfigurationStore(dbPool: OPartitionedDatabasePool) {
     val result: java.util.List[ODocument] = db.command(query).execute(params)
     db.close()
     result.asScala.toList match {
-      case doc :: rest if (doc.field("keys").isInstanceOf[OTrackedMap[Any]]) => 
+      case doc :: rest if (doc.field("keys").isInstanceOf[OTrackedMap[Any]]) =>
         Some(DomainConfigurationStore.documentToTokenPublicKey(doc.field("keys")))
-      case _                                        => None
+      case _ => None
     }
   }
 
@@ -182,7 +183,7 @@ class DomainConfigurationStore(dbPool: OPartitionedDatabasePool) {
     db.close()
     result.asScala.toList match {
       case doc :: rest => Some(DomainConfigurationStore.documentToKeys(doc.field(DomainConfigurationStore.Keys, OType.EMBEDDEDLIST)))
-      case Nil           => None
+      case Nil => None
     }
   }
 

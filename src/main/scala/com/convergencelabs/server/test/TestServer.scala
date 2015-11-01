@@ -24,7 +24,7 @@ import grizzled.slf4j.Logging
 
 object TestServer {
   def main(args: Array[String]): Unit = {
-    var server = new TestServer(
+    val server = new TestServer(
       "test-server/mono-server-application.conf",
       "test-server/convergence.json",
       "convergence")

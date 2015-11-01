@@ -1,43 +1,43 @@
 package com.convergencelabs.server.datastore.domain
 
-import com.convergencelabs.server.domain.model.ModelFqn
-import com.convergencelabs.server.domain.model.ot.ops.Operation
-import org.json4s.JsonAST.JValue
+import java.time.Instant
+import java.util.{Map => JMap}
+
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
-import org.json4s.JsonAST.JValue
-import com.convergencelabs.server.domain.model.ModelFqn
-import com.convergencelabs.server.domain.model.ot.ops.Operation
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import com.orientechnologies.orient.core.record.impl.ODocument
-import com.orientechnologies.orient.core.sql.query.OResultSet
-import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
-import org.json4s.NoTypeHints
-import com.fasterxml.jackson.databind.node.ObjectNode
-import org.json4s.jackson.Serialization
-import org.json4s._
-import org.json4s.jackson.JsonMethods._
-import org.json4s.jackson.Serialization.{ read, write }
-import com.convergencelabs.server.domain.model.ot.ops.StringInsertOperation
-import com.convergencelabs.server.domain.model.ot.ops.CompoundOperation
-import com.orientechnologies.orient.core.sql.OCommandSQL
-import com.orientechnologies.orient.core.metadata.schema.OType
-import org.json4s.JsonAST.JNumber
 import scala.collection.immutable.HashMap
-import com.orientechnologies.orient.core.db.record.OTrackedMap
-import java.time.LocalDateTime
-import java.time.Instant
+
+import org.json4s._
+import org.json4s.JsonAST.JNumber
+import org.json4s.JsonAST.JValue
+import org.json4s.JsonAST.JValue
+import org.json4s.NoTypeHints
+import org.json4s.jackson.JsonMethods._
+import org.json4s.jackson.Serialization
+import org.json4s.jackson.Serialization.read
+import org.json4s.jackson.Serialization.write
+
+import com.convergencelabs.server.domain.model.ModelFqn
+import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ot.ops.ArrayInsertOperation
+import com.convergencelabs.server.domain.model.ot.ops.ArrayMoveOperation
 import com.convergencelabs.server.domain.model.ot.ops.ArrayRemoveOperation
 import com.convergencelabs.server.domain.model.ot.ops.ArrayReplaceOperation
-import com.convergencelabs.server.domain.model.ot.ops.ArrayMoveOperation
-import com.convergencelabs.server.domain.model.ot.ops.ObjectSetPropertyOperation
+import com.convergencelabs.server.domain.model.ot.ops.CompoundOperation
+import com.convergencelabs.server.domain.model.ot.ops.NumberAddOperation
 import com.convergencelabs.server.domain.model.ot.ops.ObjectRemovePropertyOperation
 import com.convergencelabs.server.domain.model.ot.ops.ObjectSetOperation
+import com.convergencelabs.server.domain.model.ot.ops.ObjectSetPropertyOperation
+import com.convergencelabs.server.domain.model.ot.ops.Operation
+import com.convergencelabs.server.domain.model.ot.ops.Operation
+import com.convergencelabs.server.domain.model.ot.ops.StringInsertOperation
 import com.convergencelabs.server.domain.model.ot.ops.StringRemoveOperation
-import com.convergencelabs.server.domain.model.ot.ops.NumberAddOperation
 import com.convergencelabs.server.util.JValueMapper
-import scala.collection.immutable.StringOps
+import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
+import com.orientechnologies.orient.core.metadata.schema.OType
+import com.orientechnologies.orient.core.record.impl.ODocument
+import com.orientechnologies.orient.core.sql.OCommandSQL
+import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 
 object ModelStore {
   val CollectionId = "collectionId"
@@ -315,21 +315,22 @@ class ModelStore(dbPool: OPartitionedDatabasePool) {
   }
 
   def docToModelData(doc: ODocument): ModelData = {
+    val modelData: JMap[String, Any] = doc.field("data", OType.EMBEDDEDMAP)
     ModelData(
       ModelMetaData(
         ModelFqn(doc.field("modelId"), doc.field("collectionId")),
         doc.field("version", OType.LONG),
-        Instant.ofEpochMilli(doc.field("creationTime", OType.LONG)), // FIXME make a data in the DB
-        Instant.ofEpochMilli(doc.field("modifiedTime", OType.LONG))), // FIXME make a data in the DB
-      parse(doc.toJSON()) \\ ModelStore.Data) // FIXME might be a better way to do this.
+        Instant.ofEpochMilli(doc.field("creationTime", OType.LONG)), // FIXME make a date in the DB
+        Instant.ofEpochMilli(doc.field("modifiedTime", OType.LONG))), // FIXME make a date in the DB
+      JValueMapper.javaToJValue(modelData)) 
   }
 
   def docToModelMetaData(doc: ODocument): ModelMetaData = {
     ModelMetaData(
       ModelFqn(doc.field("modelId"), doc.field("collectionId")),
       doc.field("version", OType.LONG),
-      Instant.ofEpochMilli(doc.field("creationTime", OType.LONG)), // FIXME make a data in the DB
-      Instant.ofEpochMilli(doc.field("modifiedTime", OType.LONG))) // FIXME make a data in the DB
+      Instant.ofEpochMilli(doc.field("creationTime", OType.LONG)), // FIXME make a date in the DB
+      Instant.ofEpochMilli(doc.field("modifiedTime", OType.LONG))) // FIXME make a date in the DB
   }
 }
 

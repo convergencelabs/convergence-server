@@ -11,7 +11,8 @@ class BackendNode(system: ActorSystem) extends Logging {
 
   def start(): Unit = {
     logger.info("Backend Node starting up.")
-    // FIXME Need Pool
+
+    // FIXME we could pass this in.
     val dbConfig = system.settings.config.getConfig("convergence.database")
 
     val baseUri = dbConfig.getString("uri")
@@ -20,7 +21,6 @@ class BackendNode(system: ActorSystem) extends Logging {
     val password = dbConfig.getString("password")
 
     val dbPool = new OPartitionedDatabasePool(fullUri, password, password)
-
     val persistenceProvider = new PersistenceProvider(dbPool)
 
     // FIXME do we get this from the config.  If so do we need to pass it?
@@ -33,7 +33,9 @@ class BackendNode(system: ActorSystem) extends Logging {
       DomainPersistenceManagerActor.RelativePath)
 
     system.actorOf(DomainManagerActor.props(
-      persistenceProvider, protocolConfig), "domainManager")
+      persistenceProvider, 
+      protocolConfig), 
+      DomainManagerActor.RelativeActorPath)
 
     logger.info("Backend Node started up.")
   }

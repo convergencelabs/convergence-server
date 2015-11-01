@@ -61,11 +61,11 @@ class ClientActor(
   private[this] val handshakeTimeout: FiniteDuration)
     extends Actor with ActorLogging {
 
-  // FIXME hard-coded
-  implicit val timeout = Timeout(1 seconds)
+  // FIXME hard-coded (used for auth and handshake)
+  implicit val requestTimeout = Timeout(1 seconds)
   implicit val ec = context.dispatcher
 
-  // FIXME hardcoded
+  
   val handshakeTimeoutTask = context.system.scheduler.scheduleOnce(handshakeTimeout) {
     log.debug("Handshaked timeout")
     connection.abort("Handhsake timeout")
@@ -125,7 +125,7 @@ class ClientActor(
   }
 
   def handshake(request: HandshakeRequestMessage, cb: ReplyCallback): Unit = {
-    var canceled = handshakeTimeoutTask.cancel()
+    val canceled = handshakeTimeoutTask.cancel()
     if (!canceled) {
       return
     }
@@ -185,14 +185,12 @@ class ClientActor(
   private def onMessageReceived(message: MessageReceived): Unit = {
     message match {
       case MessageReceived(x) if x.isInstanceOf[IncomingModelNormalMessage] => modelClient.forward(message)
-      case _ => ???
     }
   }
 
   private def onRequestReceived(message: RequestReceived): Unit = {
       message match {
       case RequestReceived(x, _) if x.isInstanceOf[IncomingModelRequestMessage] => modelClient.forward(message)
-      case _ => ???
     }
   }
 

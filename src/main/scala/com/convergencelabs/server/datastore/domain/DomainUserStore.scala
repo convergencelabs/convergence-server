@@ -268,7 +268,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
         doc.field("password", SCryptUtil.scrypt(password, 16384, 8, 1))
         db.save(doc)
       }
-      case _ => ??? // FIXME
+      case _ => ??? // FIXME We did not find a user to update.
     }
   }
 

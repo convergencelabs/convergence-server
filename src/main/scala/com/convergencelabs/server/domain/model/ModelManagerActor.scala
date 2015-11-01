@@ -129,7 +129,7 @@ class ModelManagerActor(
   }
   
   override def preStart(): Unit = {
-    // FIXME
+    // FIXME Handle none better with logging.
     persistenceProvider = DomainPersistenceManagerActor.acquirePersistenceProvider(self, context, domainFqn).get
   }
 }

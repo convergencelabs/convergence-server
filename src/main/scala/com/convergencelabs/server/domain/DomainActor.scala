@@ -112,7 +112,7 @@ class DomainActor(
             (generateNextSessionId(), generateSessionToken())
           }
           case true => {
-            // FIXME
+            // FIXME Are we doing anything with reconnection?
             ("todo", "todo")
           }
         }

@@ -142,7 +142,7 @@ class RealtimeModelActor(
 
       modelStore.getModelData(modelFqn) match {
         case Some(modelData) => DatabaseModelResponse(modelData, snapshotMetaData.get)
-        case None => ??? // FIXME
+        case None => ??? // FIXME there is no mode, need to throw an exception.
       }
     }
 

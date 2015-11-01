@@ -79,17 +79,17 @@ class ModelClientActor(
   }
 
   def onRemoteClientOpened(opened: RemoteClientOpened): Unit = {
-    var RemoteClientOpened(resourceId, clientId) = opened
+    val RemoteClientOpened(resourceId, clientId) = opened
     context.parent ! RemoteClientOpenedMessage(resourceId, clientId)
   }
 
   def onRemoteClientClosed(closed: RemoteClientClosed): Unit = {
-    var RemoteClientClosed(resourceId, clientId) = closed
+    val RemoteClientClosed(resourceId, clientId) = closed
     context.parent ! RemoteClientClosedMessage(resourceId, clientId)
   }
 
   def onModelForceClose(forceClose: ModelForceClose): Unit = {
-    var ModelForceClose(resourceId, clientId, reason) = forceClose
+    val ModelForceClose(resourceId, clientId, reason) = forceClose
     context.parent ! ModelForceCloseMessage(resourceId, clientId, reason)
   }
 

@@ -7,9 +7,6 @@ import akka.actor.ActorRef
 import com.convergencelabs.server.ProtocolConfiguration
 import grizzled.slf4j.Logging
 
-object ConvergenceRealtimeFrontend extends App {
-}
-
 class ConvergenceRealtimeFrontend(
     private[this] val system: ActorSystem,
     private[this] val websocketPort: Int) extends Logging {

@@ -17,6 +17,8 @@ import akka.cluster.Cluster
 import akka.actor.Scheduler
 
 object DomainManagerActor {
+  val RelativeActorPath = "domainManager"
+  
   def props(
     convergencePersistence: PersistenceProvider,
     protocolConfig: ProtocolConfiguration): Props = Props(
