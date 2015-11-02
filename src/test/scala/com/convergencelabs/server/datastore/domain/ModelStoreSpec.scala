@@ -98,11 +98,11 @@ class ModelStoreSpec extends WordSpec with PersistenceStoreSpec[ModelStore] {
           case None => fail
         }
       }
-//
-//      "correctly update the model on ArrayMove" in withPersistenceStore { store =>
-//        store.applyOperationToModel(ModelFqn("people", "person1"), ArrayMoveOperation(List("emails"), false, 0, 2), 0, 0, "me")
-//        store.getModelData(ModelFqn("people", "person1"))
-//      }
+
+      "correctly update the model on ArrayMove" in withPersistenceStore { store =>
+        store.applyOperationToModel(ModelFqn("people", "person1"), ArrayMoveOperation(List("emails"), false, 0, 2), 0, 0, "me")
+        store.getModelData(ModelFqn("people", "person1"))
+      }
     }
   }
 }
