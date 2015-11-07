@@ -6,6 +6,7 @@ import com.convergencelabs.server.domain.model.ot.xform.OperationTransformer
 import org.mockito.Mockito.{spy, inOrder, verify, times}
 import org.scalatest.WordSpec
 import org.scalatest.mock.MockitoSugar
+import com.convergencelabs.server.domain.model.ot.xform.TransformationFunctionRegistry
 
 class ServerConcurrencyControlSpec extends WordSpec with MockitoSugar {
 
@@ -370,7 +371,8 @@ class ServerConcurrencyControlSpec extends WordSpec with MockitoSugar {
     }
   }
 
-  class MockOperationTransformer extends OperationTransformer {
+  class MockOperationTransformer extends OperationTransformer(new TransformationFunctionRegistry()) {
+    
     override def transform(op1: Operation, op2: Operation): (Operation, Operation) = {
       (op1, op2)
     }

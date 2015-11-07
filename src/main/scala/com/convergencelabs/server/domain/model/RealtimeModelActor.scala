@@ -19,6 +19,7 @@ import scala.concurrent.duration._
 import scala.compat.Platform
 import com.convergencelabs.server.ErrorResponse
 import java.time.Instant
+import com.convergencelabs.server.domain.model.ot.xform.TransformationFunctionRegistry
 
 /**
  * An instance of the RealtimeModelActor manages the lifecycle of a single
@@ -167,7 +168,7 @@ class RealtimeModelActor(
       val modelData = response.modelData
 
       concurrencyControl = new ServerConcurrencyControl(
-        new OperationTransformer(),
+        new OperationTransformer(new TransformationFunctionRegistry()),
         modelData.metaData.version)
 
       // TODO Initialize tree reference model

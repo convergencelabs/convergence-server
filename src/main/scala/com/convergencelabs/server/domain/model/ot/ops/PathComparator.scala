@@ -2,6 +2,10 @@ package com.convergencelabs.server.domain.model.ot.ops
 
 object PathComparator {
 
+  def areEqual(p1: List[Any], p2: List[Any]): Boolean = {
+    p1.equals(p2)
+  }
+  
   def isChildOf(child: List[Any], parent: List[Any]): Boolean = {
     if (child.length != parent.length + 1) {
       return false
