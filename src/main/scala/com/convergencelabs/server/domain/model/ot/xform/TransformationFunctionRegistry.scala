@@ -84,16 +84,15 @@ class TransformationFunctionRegistry {
   
   def getPathTransformationFunction[A <: DiscreteOperation](a: A): Option[PathTransformationFunction[A]] = {
     val tf: Option[PathTransformationFunction[_]] = a match {
-      case a: ArrayInsertOperation => ???
-      case a: ArrayRemoveOperation => ???
-      case a: ArrayReplaceOperation => ???
-      case a: ArrayMoveOperation => ???
-      case a: ArraySetOperation => ???
+      case a: ArrayInsertOperation => Some(ArrayInsertPTF)
+      case a: ArrayRemoveOperation => Some(ArrayRemovePTF)
+      case a: ArrayReplaceOperation => Some(ArrayReplacePTF)
+      case a: ArrayMoveOperation => Some(ArrayMovePTF)
+      case a: ArraySetOperation => Some(ArraySetPTF)
       
-      case a: ObjectAddPropertyOperation => ???
-      case a: ObjectRemovePropertyOperation => ???
-      case a: ObjectSetPropertyOperation => ???
-      case a: ObjectSetOperation => ???
+      case a: ObjectRemovePropertyOperation => Some(ObjectRemovePropertyPTF)
+      case a: ObjectSetPropertyOperation => Some(ObjectSetPropertyPTF)
+      case a: ObjectSetOperation => Some(ObjectSetPTF)
       case _ => None
     }
     
