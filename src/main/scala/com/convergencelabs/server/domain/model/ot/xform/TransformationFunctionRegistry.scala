@@ -116,7 +116,7 @@ private[xform] class TFMap {
   def register[S <: DiscreteOperation,C <: DiscreteOperation](otf: OperationTransformationFunction[S, C])(implicit s: TypeTag[S], c: TypeTag[C]): Unit ={
     val key = RegistryKey.of(s, c)
     if (otfs.get(key).isDefined) {
-      ???
+      throw new IllegalArgumentException(s"Transformation function already registered for ${key.s.getSimpleName}, ${key.c.getSimpleName}")
     } else {
       otfs = otfs + (key -> otf)
     }

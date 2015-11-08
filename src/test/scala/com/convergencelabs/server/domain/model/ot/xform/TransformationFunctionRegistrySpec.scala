@@ -407,26 +407,26 @@ class TransformationFunctionRegistrySpec extends WordSpec with Matchers {
         val tf = tfr.getTransformationFunction(StringSet, NumberAdd)
         tf shouldBe None
       }
-      
+
       "return None when a ArrayOperation is transformed with a non ArrayOperation" in {
         val tfr = new TransformationFunctionRegistry()
         val tf = tfr.getTransformationFunction(ArraySet, NumberAdd)
         tf shouldBe None
       }
-      
+
       "return None when a ObjectOperation is transformed with a non ObjectOperation" in {
         val tfr = new TransformationFunctionRegistry()
         val tf = tfr.getTransformationFunction(ObjectSet, NumberAdd)
         tf shouldBe None
       }
-      
+
       "return None when a NumberOperation is transformed with a non NumberOperation" in {
         val tfr = new TransformationFunctionRegistry()
         val tf = tfr.getTransformationFunction(NumberSet, StringSet)
         tf shouldBe None
       }
     }
-    
+
     "getting a PathTransformationFunction" must {
       "return the correct function for a valid operation" in {
         val tfr = new TransformationFunctionRegistry()
@@ -435,23 +435,55 @@ class TransformationFunctionRegistrySpec extends WordSpec with Matchers {
         tfr.getPathTransformationFunction(ArrayReplace).value shouldBe ArrayReplacePTF
         tfr.getPathTransformationFunction(ArrayMove).value shouldBe ArrayMovePTF
         tfr.getPathTransformationFunction(ArraySet).value shouldBe ArraySetPTF
-        
+
         tfr.getPathTransformationFunction(ObjectSetProperty).value shouldBe ObjectSetPropertyPTF
         tfr.getPathTransformationFunction(ObjectRemoveProperty).value shouldBe ObjectRemovePropertyPTF
         tfr.getPathTransformationFunction(ObjectSet).value shouldBe ObjectSetPTF
       }
-      
+
       "return None for a invalid operation" in {
         val tfr = new TransformationFunctionRegistry()
-        
+
         tfr.getPathTransformationFunction(ObjectAddProperty) shouldBe None
-        
+
         tfr.getPathTransformationFunction(StringInsert) shouldBe None
         tfr.getPathTransformationFunction(StringRemove) shouldBe None
         tfr.getPathTransformationFunction(StringSet) shouldBe None
-        
+
         tfr.getPathTransformationFunction(NumberAdd) shouldBe None
         tfr.getPathTransformationFunction(NumberSet) shouldBe None
+      }
+    }
+  }
+
+  "A RegistryKey" when {
+    "creating a RegistryKey using of" must {
+      "create the proper instnace" in {
+        RegistryKey.of[StringInsertOperation, StringRemoveOperation] shouldBe
+          RegistryKey(classOf[StringInsertOperation], classOf[StringRemoveOperation])
+      }
+    }
+  }
+
+  "A TFMap" when {
+    "registering a transfomration function" must {
+      "return a registered function" in {
+        val tfMap = new TFMap()
+        tfMap.register[StringInsertOperation, StringRemoveOperation](StringInsertRemoveTF)
+        tfMap.getOperationTransformationFunction(StringInsert, StringRemove).value shouldBe StringInsertRemoveTF
+      }
+
+      "return None for a not registered function" in {
+        val tfMap = new TFMap()
+        tfMap.getOperationTransformationFunction(StringInsert, StringRemove) shouldBe None
+      }
+
+      "disallow a duplicate registration" in {
+        val tfMap = new TFMap()
+        tfMap.register[StringInsertOperation, StringRemoveOperation](StringInsertRemoveTF)
+        intercept[IllegalArgumentException] {
+          tfMap.register[StringInsertOperation, StringRemoveOperation](StringInsertRemoveTF)
+        }
       }
     }
   }
