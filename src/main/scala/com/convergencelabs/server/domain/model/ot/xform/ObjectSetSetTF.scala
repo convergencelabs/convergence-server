@@ -4,6 +4,10 @@ import com.convergencelabs.server.domain.model.ot.ops.ObjectSetOperation
 
 object ObjectSetSetTF extends OperationTransformationFunction[ObjectSetOperation, ObjectSetOperation] {
   def transform(s: ObjectSetOperation, c: ObjectSetOperation): (ObjectSetOperation, ObjectSetOperation) = {
-    (s, c.copy(noOp = true))
+    if (s.newValue == c.newValue) {
+      (s.copy(noOp = true), c.copy(noOp = true))
+    } else {
+      (s, c.copy(noOp = true))
+    }
   }
 }
