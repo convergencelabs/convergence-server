@@ -1,14 +1,9 @@
-package com.convergencelabs.server.domain.model.ot.cc.xform
+package com.convergencelabs.server.domain.model.ot.xform
 
-import scala.math.BigInt.int2bigInt
-import org.json4s.JsonAST.JInt
 import org.scalatest.Finders
 import org.scalatest.WordSpec
+
 import com.convergencelabs.server.domain.model.ot.ops.ArrayRemoveOperation
-import com.convergencelabs.server.domain.model.ot.xform.ArrayRemovePTF
-import com.convergencelabs.server.domain.model.ot.xform.PathUpdated
-import com.convergencelabs.server.domain.model.ot.xform.NoPathTranslation
-import com.convergencelabs.server.domain.model.ot.xform.PathObsoleted
 
 class ArrayRemovePTFSpec extends WordSpec {
 

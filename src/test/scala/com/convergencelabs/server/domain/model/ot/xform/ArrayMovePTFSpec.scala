@@ -1,14 +1,9 @@
-package com.convergencelabs.server.domain.model.ot.cc.xform
+package com.convergencelabs.server.domain.model.ot.xform
 
-
+import org.scalatest.Finders
 import org.scalatest.WordSpec
-import org.json4s.JsonAST.JArray
-import org.json4s.JsonAST.JInt
+
 import com.convergencelabs.server.domain.model.ot.ops.ArrayMoveOperation
-import com.convergencelabs.server.domain.model.ot.xform.ArrayMovePTF
-import com.convergencelabs.server.domain.model.ot.xform.PathObsoleted
-import com.convergencelabs.server.domain.model.ot.xform.PathUpdated
-import com.convergencelabs.server.domain.model.ot.xform.NoPathTranslation
 
 class ArrayMovePTFSpec extends WordSpec {
 

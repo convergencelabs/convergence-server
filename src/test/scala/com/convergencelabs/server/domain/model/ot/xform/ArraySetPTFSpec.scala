@@ -1,12 +1,13 @@
-package com.convergencelabs.server.domain.model.ot.cc.xform
+package com.convergencelabs.server.domain.model.ot.xform
 
+import scala.math.BigInt.int2bigInt
 
-import org.scalatest.WordSpec
 import org.json4s.JsonAST.JArray
 import org.json4s.JsonAST.JInt
+import org.scalatest.Finders
+import org.scalatest.WordSpec
+
 import com.convergencelabs.server.domain.model.ot.ops.ArraySetOperation
-import com.convergencelabs.server.domain.model.ot.xform.ArraySetPTF
-import com.convergencelabs.server.domain.model.ot.xform.PathObsoleted
 
 class ArraySetPTFSpec extends WordSpec {
 

@@ -1,13 +1,10 @@
-package com.convergencelabs.server.domain.model.ot.cc.xform
+package com.convergencelabs.server.domain.model.ot.xform
 
-import scala.math.BigInt.int2bigInt
 import org.json4s.JsonAST.JInt
 import org.scalatest.Finders
 import org.scalatest.WordSpec
+
 import com.convergencelabs.server.domain.model.ot.ops.ArrayInsertOperation
-import com.convergencelabs.server.domain.model.ot.xform.ArrayInsertPTF
-import com.convergencelabs.server.domain.model.ot.xform.PathUpdated
-import com.convergencelabs.server.domain.model.ot.xform.NoPathTranslation
 
 class ArrayInsertPTFSpec extends WordSpec {
 
