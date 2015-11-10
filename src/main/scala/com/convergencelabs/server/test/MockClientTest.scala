@@ -41,7 +41,7 @@ object MockClientTest {
 
     val (openResponse, _) = client.expectMessageClass(5 seconds, classOf[OpenRealtimeModelResponseMessage])
 
-    val opMessage = OperationSubmissionMessage(openResponse.rId, 0L, openResponse.v, StringInsertOperationData(List(), false, 0, "x"))
+    val opMessage = OperationSubmissionMessage(openResponse.rId, 0L, openResponse.v, StringInsertOperationData(List("key"), false, 0, "x"))
     client.sendNormal(opMessage)
 
     val opAck = client.expectMessageClass(5 seconds, classOf[OperationAcknowledgementMessage])

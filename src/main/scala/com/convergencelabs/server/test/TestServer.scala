@@ -73,6 +73,8 @@ class TestServer(
     val dbImport = new ODatabaseImport(db, importFile, new OCommandOutputListener() { def onMessage(message: String) {} })
     dbImport.importDatabase()
     dbImport.close()
+    
+    db.getMetadata.reload()
   }
 
   def startupCluster(port: Int, role: String, configFile: String): ActorSystem = {
