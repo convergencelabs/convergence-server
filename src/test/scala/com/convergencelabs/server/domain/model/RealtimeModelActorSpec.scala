@@ -4,9 +4,7 @@ import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
-
 import scala.concurrent.duration.FiniteDuration
-
 import org.json4s.JsonAST.JObject
 import org.json4s.JsonAST.JString
 import org.junit.runner.RunWith
@@ -20,7 +18,6 @@ import org.scalatest.Finders
 import org.scalatest.WordSpecLike
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.mock.MockitoSugar
-
 import com.convergencelabs.server.ErrorResponse
 import com.convergencelabs.server.ErrorResponse
 import com.convergencelabs.server.datastore.domain.ModelData
@@ -31,10 +28,10 @@ import com.convergencelabs.server.datastore.domain.SnapshotData
 import com.convergencelabs.server.datastore.domain.SnapshotMetaData
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.model.ot.ops.StringInsertOperation
-
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
+import com.convergencelabs.server.datastore.domain.OperationStore
 
 // FIXME we really only check message types and not data.
 @RunWith(classOf[JUnitRunner])
@@ -209,8 +206,8 @@ class RealtimeModelActorSpec
       "close a client that submits an invalid operation" in new TwoOpenClients {
         val badOp = StringInsertOperation(List(), false, 1, "1")
 
-        Mockito.when(modelStore.applyOperationToModel(
-          Matchers.any(), Matchers.any(), Matchers.any(), Matchers.any(), Matchers.any())).thenThrow(new IllegalArgumentException("Invalid Operation"))
+        Mockito.when(operationStore.processOperation(
+          Matchers.any(), Matchers.any(), Matchers.any(), Matchers.any(), Matchers.any(), Matchers.any())).thenThrow(new IllegalArgumentException("Invalid Operation"))
 
         realtimeModelActor.tell(OperationSubmission(
           0L,
@@ -240,6 +237,7 @@ class RealtimeModelActorSpec
     val modelSnapshotTime = Instant.ofEpochMilli(2L)
     val modelSnapshotMetaData = SnapshotMetaData(modelFqn, 1L, modelSnapshotTime)
     val modelStore = mock[ModelStore]
+    val operationStore = mock[OperationStore]
     val modelSnapshotStore = mock[ModelSnapshotStore]
     val resourceId = "1" + System.nanoTime()
     val modelManagerActor = new TestProbe(system)
@@ -249,6 +247,7 @@ class RealtimeModelActorSpec
       modelFqn,
       resourceId,
       modelStore,
+      operationStore,
       modelSnapshotStore,
       100L,
       SnapshotConfig(true, 3, 3, false, Duration.of(1, ChronoUnit.SECONDS), Duration.of(1, ChronoUnit.SECONDS)))

@@ -11,8 +11,10 @@ class DomainPersistenceProvider(private[domain] val dbPool: OPartitionedDatabase
   val userStore = new DomainUserStore(dbPool)
 
   val modelStore = new ModelStore(dbPool)
+  
+  val operationStore = new OperationStore(dbPool)
 
-  val modelOperationStore = new ModelOperationStore(dbPool)
+  val modelOperationStore = new OperationHistoryStore(dbPool)
 
   val modelSnapshotStore = new ModelSnapshotStore(dbPool)
   

@@ -61,6 +61,7 @@ class ModelManagerActor(
         openRequest.modelFqn,
         resourceId,
         persistenceProvider.modelStore,
+        persistenceProvider.operationStore,
         persistenceProvider.modelSnapshotStore,
         5000, // FIXME hard-coded time.  Should this be part of the protocol?
         snapshotConfig)

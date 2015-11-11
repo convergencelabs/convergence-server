@@ -32,6 +32,7 @@ class RealtimeModelActor(
     private[this] val modelFqn: ModelFqn,
     private[this] val modelResourceId: String,
     private[this] val modelStore: ModelStore,
+    private[this] val operationStore: OperationStore,
     private[this] val modelSnapshotStore: ModelSnapshotStore,
     private[this] val clientDataResponseTimeout: Long,
     private[this] val snapshotConfig: SnapshotConfig) extends Actor with ActorLogging {
@@ -356,21 +357,24 @@ class RealtimeModelActor(
   private[this] def transformAndApplyOperation(unprocessedOpEvent: UnprocessedOperationEvent): Try[OutgoingOperation] = Try {
     val processedOpEvent = concurrencyControl.processRemoteOperation(unprocessedOpEvent)
 
-    val timestamp = Platform.currentTime
+    val timestamp = Instant.now()
 
-    // TODO get username.
-    modelStore.applyOperationToModel(
+    // TODO get uid / sid.
+    operationStore.processOperation(
       modelFqn,
       processedOpEvent.operation,
       processedOpEvent.resultingVersion,
       timestamp,
+      "",
       "")
 
+      
+      //TODO: Change this to use Instant?
     OutgoingOperation(
       modelResourceId,
       processedOpEvent.clientId,
       processedOpEvent.contextVersion,
-      timestamp,
+      timestamp.getEpochSecond,
       processedOpEvent.operation)
   }
 
@@ -503,6 +507,7 @@ object RealtimeModelActor {
     modelFqn: ModelFqn,
     resourceId: String,
     modelStore: ModelStore,
+    operationStore: OperationStore,
     modelSnapshotStore: ModelSnapshotStore,
     clientDataResponseTimeout: Long,
     snapshotConfig: SnapshotConfig): Props =
@@ -512,6 +517,7 @@ object RealtimeModelActor {
       modelFqn,
       resourceId,
       modelStore,
+      operationStore,
       modelSnapshotStore,
       clientDataResponseTimeout,
       snapshotConfig))

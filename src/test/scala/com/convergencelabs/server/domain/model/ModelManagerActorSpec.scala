@@ -23,7 +23,7 @@ import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
 import com.convergencelabs.server.util.MockDomainPersistenceManagerActor
 import java.time.Instant
-import com.convergencelabs.server.datastore.domain.ModelOperationStore
+import com.convergencelabs.server.datastore.domain.OperationHistoryStore
 
 @RunWith(classOf[JUnitRunner])
 class ModelManagerActorSpec
@@ -121,7 +121,7 @@ class ModelManagerActorSpec
     val modelSnapshotStore = mock[ModelSnapshotStore]
     Mockito.when(modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)).thenReturn(Some(modelSnapshotMetaData))
 
-    val modelOperationStore = mock[ModelOperationStore]
+    val modelOperationStore = mock[OperationHistoryStore]
     
     val domainPersistence = mock[DomainPersistenceProvider]
     Mockito.when(domainPersistence.modelStore).thenReturn(modelStore)

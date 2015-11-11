@@ -16,24 +16,10 @@ import org.json4s.jackson.Serialization._
 import scala.collection.immutable.HashMap
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.convergencelabs.server.domain.model.ot.ops.Operation
-import com.convergencelabs.server.datastore.domain.ModelOperationStore.Fields._
+import com.convergencelabs.server.datastore.domain.OperationStore.Fields._
 import java.time.Instant
 
-object ModelOperationStore {
-  val ModelOperation = "ModelOperation"
-  
-  object Fields {
-    val Version = "version"
-    val ModelId = "modelId"
-    val CollectionId = "collectionId"
-    val Timestamp = "collectionId"
-    val Uid = "uid"
-    val Sid = "sid"
-    val Operation = "op"
-  }
-}
-
-class ModelOperationStore(dbPool: OPartitionedDatabasePool) {
+class OperationHistoryStore(dbPool: OPartitionedDatabasePool) {
   private[this] implicit val formats = Serialization.formats(NoTypeHints)
 
   def getMaxVersion(fqn: ModelFqn): Option[Long] = {
@@ -147,12 +133,12 @@ class ModelOperationStore(dbPool: OPartitionedDatabasePool) {
         doc.field(Sid),
         op)
   }
-}
-
-case class OperationEvent(
+  
+  case class OperationEvent(
     modelFqn: ModelFqn, 
     version: Long, 
     timestamp: Instant, 
     uid: String,
     sid: String,
     op: Operation)
+}
