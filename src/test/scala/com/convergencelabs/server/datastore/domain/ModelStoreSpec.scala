@@ -22,8 +22,9 @@ import com.convergencelabs.server.domain.model.ot.ops.ArrayReplaceOperation
 import org.json4s.JsonAST.JArray
 import com.convergencelabs.server.domain.model.ot.ops.ArrayMoveOperation
 import org.scalatest.OptionValues
+import org.scalatest.Matchers
 
-class ModelStoreSpec extends WordSpec with PersistenceStoreSpec[ModelStore] with OptionValues {
+class ModelStoreSpec extends WordSpec with PersistenceStoreSpec[ModelStore] with OptionValues with Matchers {
 
   def createStore(dbPool: OPartitionedDatabasePool): ModelStore = new ModelStore(dbPool)
 
@@ -32,7 +33,7 @@ class ModelStoreSpec extends WordSpec with PersistenceStoreSpec[ModelStore] with
     "asked whether a model exists" must {
 
       "return false if it doesn't exist" in withPersistenceStore { store =>
-        assert(!store.modelExists(ModelFqn("notReal", "notReal")))
+        store.modelExists(ModelFqn("notReal", "notReal")) shouldBe false
       }
 
       "return true if it does exist" in withPersistenceStore { store =>

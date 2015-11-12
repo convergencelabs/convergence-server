@@ -59,35 +59,21 @@ object OperationStore {
   }
 
   def toOrientPath(path: List[Any]): String = {
-    val pathBuilder = new StringBuilder();
-    pathBuilder.append(Data);
+    val pathBuilder = new StringBuilder()
+    pathBuilder.append(Data)
     path.foreach { p =>
       p match {
-        case p: Int    => pathBuilder.append("[").append(p).append("]")
-        case p: String => pathBuilder.append(".").append(p)
+        case p: Int    => pathBuilder.append(s"[$p]")
+        case p: String => pathBuilder.append(s".$p")
       }
     }
-    return pathBuilder.toString();
+    return pathBuilder.toString()
   }
 }
 
 class OperationStore(dbPool: OPartitionedDatabasePool) {
 
   private[this] implicit val formats = Serialization.formats(NoTypeHints)
-
-  def createModel(fqn: ModelFqn, data: JValue, creationTime: Instant): Unit = {
-    val db = dbPool.acquire()
-    val dataObject = JObject(List((ModelStore.Data, data)))
-    val doc = db.newInstance("model")
-    doc.fromJSON(compact(render(dataObject)))
-    doc.field(ModelStore.ModelId, fqn.modelId)
-    doc.field(ModelStore.CollectionId, fqn.collectionId)
-    doc.field(ModelStore.Version, 0)
-    doc.field(ModelStore.CreatedTime, creationTime.toEpochMilli()) // FIXME Update database to use datetime
-    doc.field(ModelStore.ModifiedTime, creationTime.toEpochMilli()) // FIXME Update database to use datetime
-    db.save(doc)
-    db.close()
-  }
 
   def processOperation(fqn: ModelFqn, operation: Operation, version: Long, timestamp: Instant, uid: String, sid: String): Unit = {
     val db = dbPool.acquire()
@@ -100,6 +86,7 @@ class OperationStore(dbPool: OPartitionedDatabasePool) {
     doc.field(Uid, uid)
     doc.field(Sid, sid)
     doc.field(Operation, OrientDBOperationMapper.operationToMap(operation))
+    doc.save()
     applyOperationToModel(fqn, operation, db)
     db.commit()
   }
@@ -214,8 +201,8 @@ class OperationStore(dbPool: OPartitionedDatabasePool) {
   private[this] def applyNumberAddOperation(fqn: ModelFqn, operation: NumberAddOperation, db: ODatabaseDocumentTx): Unit = {
     val pathString = ModelStore.toOrientPath(operation.path)
     val params: java.util.Map[String, Any] = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId, "value" -> operation.value)
-    val updateCommand = new OCommandSQL(s"UPDATE model INCREMENT $pathString = :value WHERE collectionId = :collectionId and modelId = :modelId");
-    db.command(updateCommand).execute(params);
+    val updateCommand = new OCommandSQL(s"UPDATE model INCREMENT $pathString = :value WHERE collectionId = :collectionId and modelId = :modelId")
+    db.command(updateCommand).execute(params)
   }
 
   //TODO: Determine strategy for handling numbers correctly
