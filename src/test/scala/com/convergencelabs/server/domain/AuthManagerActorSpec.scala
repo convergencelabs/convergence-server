@@ -27,6 +27,9 @@ import com.convergencelabs.server.datastore.TokenKeyPair
 import scala.concurrent.Future
 import com.convergencelabs.server.datastore.domain.DomainUserStore
 import scala.concurrent.Await
+import com.convergencelabs.server.domain.model.SnapshotConfig
+import java.time.temporal.ChronoUnit
+import java.time.Duration
 
 @RunWith(classOf[JUnitRunner])
 class AuthenticationHandlerSpec()
@@ -48,13 +51,13 @@ class AuthenticationHandlerSpec()
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
         assert(result == AuthenticationSuccess(existingUser))
       }
-      
+
       "Fail authetnication for an incorrect username and password" in new TestFixture {
         val f = authHandler.authenticate(PasswordAuthRequest(existingUser, existingIncorrectPassword))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
         assert(result == AuthenticationFailure)
       }
-      
+
       "fail authenticatoin for a user that does not exist" in new TestFixture {
         val f = authHandler.authenticate(PasswordAuthRequest(nonExistingUser, ""))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
@@ -73,6 +76,18 @@ class AuthenticationHandlerSpec()
     val domainFqn = DomainFqn("convergence", "default")
     val keys = Map[String, TokenPublicKey]()
     val adminKeyPair = TokenKeyPair("", "")
+
+    val snapshotConfig = SnapshotConfig(
+      false,
+      true,
+      true,
+      250,
+      500,
+      false,
+      false,
+      Duration.of(0, ChronoUnit.MINUTES),
+      Duration.of(0, ChronoUnit.MINUTES))
+
     val domainConfig = DomainConfig(
       "d1",
       domainFqn,
@@ -80,7 +95,8 @@ class AuthenticationHandlerSpec()
       "",
       "",
       keys,
-      adminKeyPair)
+      adminKeyPair,
+      snapshotConfig)
 
     val userStore = mock[DomainUserStore]
     Mockito.when(userStore.domainUserExists(existingUser)).thenReturn(true)
@@ -88,7 +104,7 @@ class AuthenticationHandlerSpec()
     Mockito.when(userStore.validateCredentials(existingUser, existingCorrectPassword)).thenReturn(true)
     Mockito.when(userStore.validateCredentials(existingUser, existingIncorrectPassword)).thenReturn(false)
     Mockito.when(userStore.validateCredentials(nonExistingUser, "")).thenReturn(false)
-    
+
     val authHandler = new AuthenticationHandler(domainConfig, userStore, system.dispatcher)
   }
 }

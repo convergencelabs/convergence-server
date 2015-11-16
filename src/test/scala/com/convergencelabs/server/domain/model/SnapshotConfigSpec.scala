@@ -14,12 +14,32 @@ import java.time.temporal.ChronoUnit
 class SnapshotConfigSpec extends WordSpec {
 
   "A SnapshotConfig" when {
+    "snapshots are disabled" must {
+      "not require snapshots" in {
+        val snapshotConfig = SnapshotConfig(
+          false,
+          true,
+          true,
+          250,
+          500,
+          false,
+          false,
+          Duration.of(0, ChronoUnit.MINUTES),
+          Duration.of(0, ChronoUnit.MINUTES))
+
+        assert(!snapshotConfig.snapshotRequired(0L, 501L, Instant.now(), Instant.now()))
+      }
+    }
+    
     "testing if a snapshot is required using versions only" must {
       "not require a snapshot if the version delta is less then the minimum" in {
         val snapshotConfig = SnapshotConfig(
           true,
+          true,
+          true,
           250,
           500,
+          false,
           false,
           Duration.of(0, ChronoUnit.MINUTES),
           Duration.of(0, ChronoUnit.MINUTES))
@@ -30,8 +50,11 @@ class SnapshotConfigSpec extends WordSpec {
       "not require a snapshot if the version delta is equal to the minimum" in {
         val snapshotConfig = SnapshotConfig(
           true,
+          true,
+          true,
           250,
           500,
+          false,
           false,
           Duration.of(0, ChronoUnit.MINUTES),
           Duration.of(0, ChronoUnit.MINUTES))
@@ -42,8 +65,11 @@ class SnapshotConfigSpec extends WordSpec {
       "not require a snapshot if the version delta is greater than the minimum" in {
         val snapshotConfig = SnapshotConfig(
           true,
+          true,
+          true,
           250,
           500,
+          false,
           false,
           Duration.of(0, ChronoUnit.MINUTES),
           Duration.of(0, ChronoUnit.MINUTES))
@@ -54,8 +80,11 @@ class SnapshotConfigSpec extends WordSpec {
       "not require a snapshot if the version delta is equal to the maximum" in {
         val snapshotConfig = SnapshotConfig(
           true,
+          true,
+          true,
           250,
           500,
+          false,
           false,
           Duration.of(0, ChronoUnit.MINUTES),
           Duration.of(0, ChronoUnit.MINUTES))
@@ -66,8 +95,11 @@ class SnapshotConfigSpec extends WordSpec {
       "require a snapshot if the version delta is greater than the maximum" in {
         val snapshotConfig = SnapshotConfig(
           true,
+          true,
+          true,
           250,
           500,
+          false,
           false,
           Duration.of(0, ChronoUnit.MINUTES),
           Duration.of(0, ChronoUnit.MINUTES))
@@ -81,9 +113,12 @@ class SnapshotConfigSpec extends WordSpec {
         val startTime = Instant.now()
         val endTime = startTime.plus(9, ChronoUnit.MINUTES)
         val snapshotConfig = SnapshotConfig(
+          true,
+          false,
           false,
           0,
           0,
+          true,
           true,
           Duration.of(10, ChronoUnit.MINUTES),
           Duration.of(20, ChronoUnit.MINUTES))
@@ -95,9 +130,12 @@ class SnapshotConfigSpec extends WordSpec {
         val startTime = Instant.now()
         val endTime = startTime.plus(10, ChronoUnit.MINUTES)
         val snapshotConfig = SnapshotConfig(
+          true,
+          false,
           false,
           0,
           0,
+          true,
           true,
           Duration.of(10, ChronoUnit.MINUTES),
           Duration.of(20, ChronoUnit.MINUTES))
@@ -109,9 +147,12 @@ class SnapshotConfigSpec extends WordSpec {
         val startTime = Instant.now()
         val endTime = startTime.plus(11, ChronoUnit.MINUTES)
         val snapshotConfig = SnapshotConfig(
+          true,
+          false,
           false,
           0,
           0,
+          true,
           true,
           Duration.of(10, ChronoUnit.MINUTES),
           Duration.of(20, ChronoUnit.MINUTES))
@@ -123,9 +164,12 @@ class SnapshotConfigSpec extends WordSpec {
         val startTime = Instant.now()
         val endTime = startTime.plus(20, ChronoUnit.MINUTES)
         val snapshotConfig = SnapshotConfig(
+          true,
+          false,
           false,
           0,
           0,
+          true,
           true,
           Duration.of(10, ChronoUnit.MINUTES),
           Duration.of(20, ChronoUnit.MINUTES))
@@ -137,9 +181,12 @@ class SnapshotConfigSpec extends WordSpec {
         val startTime = Instant.now()
         val endTime = startTime.plus(21, ChronoUnit.MINUTES)
         val snapshotConfig = SnapshotConfig(
+          true,
+          false,
           false,
           0,
           0,
+          true,
           true,
           Duration.of(10, ChronoUnit.MINUTES),
           Duration.of(20, ChronoUnit.MINUTES))
@@ -148,6 +195,6 @@ class SnapshotConfigSpec extends WordSpec {
       }
     }
   }
-  
+
   // FIXME there are more combinations to test.
 }

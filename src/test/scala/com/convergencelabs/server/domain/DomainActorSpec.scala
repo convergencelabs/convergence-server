@@ -22,6 +22,9 @@ import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.util.MockDomainPersistenceManagerActor
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import org.mockito.Mockito
+import com.convergencelabs.server.domain.model.SnapshotConfig
+import java.time.temporal.ChronoUnit
+import java.time.Duration
 
 @RunWith(classOf[JUnitRunner])
 class DomainActorSpec
@@ -63,6 +66,18 @@ class DomainActorSpec
     val domainFqn = DomainFqn("convergence", "default")
     val keys = Map[String, TokenPublicKey]()
     val adminKeyPair = TokenKeyPair("", "")
+
+    val snapshotConfig = SnapshotConfig(
+      false,
+      true,
+      true,
+      250,
+      500,
+      false,
+      false,
+      Duration.of(0, ChronoUnit.MINUTES),
+      Duration.of(0, ChronoUnit.MINUTES))
+
     val domainConfig = DomainConfig(
       "d1",
       domainFqn,
@@ -70,7 +85,8 @@ class DomainActorSpec
       "",
       "",
       keys,
-      adminKeyPair)
+      adminKeyPair,
+      snapshotConfig)
 
     val provider = mock[DomainPersistenceProvider]
     Mockito.when(provider.validateConnection()).thenReturn(true)

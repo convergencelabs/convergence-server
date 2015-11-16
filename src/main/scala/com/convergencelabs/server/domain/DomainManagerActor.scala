@@ -92,7 +92,7 @@ class DomainManagerActor(
   }
 
   private[this] def openClosedDomain(domainFqn: DomainFqn): Unit = {
-    val domainConfig = convergencePersistence.domainConfigStore.getDomainConfig(domainFqn)
+    val domainConfig = convergencePersistence.domainConfigStore.getDomainConfigByFqn(domainFqn)
     domainConfig match {
       case Some(domainConfig) => {
         val domainActor = context.actorOf(DomainActor.props(

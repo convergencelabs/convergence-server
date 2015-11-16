@@ -1,6 +1,6 @@
 package com.convergencelabs.server.datastore.domain
 
-import org.scalatest.WordSpec
+import org.scalatest.WordSpecLike
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.convergencelabs.server.domain.model.ModelFqn
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
@@ -24,7 +24,11 @@ import com.convergencelabs.server.domain.model.ot.ops.ArrayMoveOperation
 import org.scalatest.OptionValues
 import org.scalatest.Matchers
 
-class ModelStoreSpec extends WordSpec with PersistenceStoreSpec[ModelStore] with OptionValues with Matchers {
+class ModelStoreSpec
+    extends PersistenceStoreSpec[ModelStore]("/dbfiles/t1.gz")
+    with WordSpecLike
+    with OptionValues
+    with Matchers {
 
   def createStore(dbPool: OPartitionedDatabasePool): ModelStore = new ModelStore(dbPool)
 

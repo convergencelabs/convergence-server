@@ -1,23 +1,22 @@
 package com.convergencelabs.server.datastore
 
-import com.convergencelabs.server.domain.DomainFqn
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import com.orientechnologies.orient.core.record.impl.ODocument
-import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
-import scala.collection.immutable.HashMap
+import java.time.Duration
+import java.util.{ List => JavaList }
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
-import com.orientechnologies.orient.core.metadata.schema.OType
-import com.orientechnologies.orient.core.sql.OCommandSQL
+import scala.collection.immutable.HashMap
+import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.model.SnapshotConfig
+import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.db.record.OTrackedMap
-import com.orientechnologies.orient.core.db.record.OTrackedSet
-import java.util.Formatter.DateTime
-import scala.collection.mutable.MutableList
-import com.orientechnologies.orient.core.db.record.OTrackedList
-import java.util.HashSet
+import com.orientechnologies.orient.core.metadata.schema.OType
+import com.orientechnologies.orient.core.record.impl.ODocument
+import com.orientechnologies.orient.core.sql.OCommandSQL
+import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
+import grizzled.slf4j.Logging
+import java.util.ArrayList
 
-object DomainConfigurationStore {
-  // FIXME should all this stuff be private?
+object DomainConfigurationStore extends Logging {
 
   val Domain = "Domain"
 
@@ -41,8 +40,18 @@ object DomainConfigurationStore {
   val PrivateKey = "privateKey"
   val PublicKey = "publicKey"
 
+  val SnapshotConfigField = "snapshotConfig"
+
   def domainConfigToDocument(domainConfig: DomainConfig): ODocument = {
-    val DomainConfig(id, DomainFqn(namespace, domainId), displayName, dbUsername, dbPassword, keys, TokenKeyPair(privateKey, publicKey)) = domainConfig
+    val DomainConfig(
+      id,
+      DomainFqn(namespace, domainId),
+      displayName,
+      dbUsername,
+      dbPassword,
+      keys,
+      TokenKeyPair(privateKey, publicKey),
+      snapshotConfig) = domainConfig
 
     val document = new ODocument()
     document.field(Id, id)
@@ -59,6 +68,20 @@ object DomainConfigurationStore {
 
     val adminKeyPairDoc = Map(DomainConfigurationStore.PrivateKey -> privateKey, DomainConfigurationStore.PublicKey -> publicKey)
     document.field(DomainConfigurationStore.AdminKeyPair, adminKeyPairDoc.asJava)
+
+    val snapshotDoc = new ODocument("SnapshotConfig")
+    snapshotDoc.field("enabled", snapshotConfig.snapshotsEnabled)
+    snapshotDoc.field("triggerByVersion", snapshotConfig.triggerByVersion)
+    snapshotDoc.field("limitedByVersion", snapshotConfig.limitedByVersion)
+    snapshotDoc.field("minVersionInterval", snapshotConfig.minimumVersionInterval)
+    snapshotDoc.field("maxVersionInterval", snapshotConfig.maximumVersionInterval)
+    snapshotDoc.field("triggerByTime", snapshotConfig.triggerByTime)
+    snapshotDoc.field("limitedByTime", snapshotConfig.limitedByTime)
+    snapshotDoc.field("minTimeIntervalMillis", snapshotConfig.minimumTimeInterval.toMillis)
+    snapshotDoc.field("maxTimeIntervalMillis", snapshotConfig.maximumTimeInterval.toMillis)
+
+    document.field(DomainConfigurationStore.SnapshotConfigField, snapshotDoc)
+
     document
   }
 
@@ -66,28 +89,57 @@ object DomainConfigurationStore {
     val domainFqn = DomainFqn(doc.field(Namespace), doc.field(DomainId))
     val keyPairDoc: OTrackedMap[String] = doc.field(AdminKeyPair, OType.EMBEDDEDMAP)
     val keyPair = TokenKeyPair(keyPairDoc.get(PrivateKey), keyPairDoc.get(PublicKey))
-    val domainConfig = DomainConfig(doc.field(Id),
+
+    val snapshotConfigDoc: ODocument = doc.field(SnapshotConfigField)
+    val snapshotConfig: SnapshotConfig = docToSnapshotConfig(snapshotConfigDoc)
+
+    val domainConfig = DomainConfig(
+      doc.field(Id),
       domainFqn, doc.field(DisplayName),
       doc.field(DBUsername),
       doc.field(DBPassword),
-      documentToKeys(
-        doc.field(Keys, OType.EMBEDDEDLIST)),
-      keyPair)
+      listToKeysMap(doc.field(Keys, OType.EMBEDDEDLIST)),
+      keyPair,
+      snapshotConfig)
     domainConfig
   }
 
-  def documentToKeys(doc: java.util.List[OTrackedMap[Any]]): Map[String, TokenPublicKey] = {
+  def listToKeysMap(doc: JavaList[OTrackedMap[Any]]): Map[String, TokenPublicKey] = {
     val keys = new HashMap[String, TokenPublicKey]
-    doc.foreach { docKey => keys + docKey.get(KeyId).asInstanceOf[String] -> documentToTokenPublicKey(docKey.asInstanceOf[OTrackedMap[Any]]) }
+    doc.foreach { docKey =>
+      keys + docKey.get(KeyId).asInstanceOf[String] -> mapToTokenPublicKey(docKey.asInstanceOf[OTrackedMap[Any]])
+    }
     keys
   }
 
-  def documentToTokenPublicKey(doc: OTrackedMap[Any]): TokenPublicKey = {
-    TokenPublicKey(doc.get(KeyId).asInstanceOf[String], doc.get(KeyName).asInstanceOf[String], doc.get(KeyDescription).asInstanceOf[String], doc.get(KeyDate).asInstanceOf[Long], doc.get(Key).asInstanceOf[String], doc.get(KeyEnabled).asInstanceOf[Boolean])
+  def mapToTokenPublicKey(doc: OTrackedMap[Any]): TokenPublicKey = {
+    TokenPublicKey(
+      doc.get(KeyId).asInstanceOf[String],
+      doc.get(KeyName).asInstanceOf[String],
+      doc.get(KeyDescription).asInstanceOf[String],
+      doc.get(KeyDate).asInstanceOf[Long],
+      doc.get(Key).asInstanceOf[String],
+      doc.get(KeyEnabled).asInstanceOf[Boolean])
+  }
+
+  def docToSnapshotConfig(doc: ODocument): SnapshotConfig = {
+    val minTimeIntervalMillis: Long = doc.field("minTimeInterval")
+    val maxTimeIntervalMillis: Long = doc.field("maxTimeInterval")
+
+    SnapshotConfig(
+      doc.field("enabled").asInstanceOf[Boolean],
+      doc.field("triggerByVersion").asInstanceOf[Boolean],
+      doc.field("limitedByVersion").asInstanceOf[Boolean],
+      doc.field("minVersionInterval").asInstanceOf[Long],
+      doc.field("maxVersionInterval").asInstanceOf[Long],
+      doc.field("triggerByTime").asInstanceOf[Boolean],
+      doc.field("limitedByTime").asInstanceOf[Boolean],
+      Duration.ofMillis(minTimeIntervalMillis),
+      Duration.ofMillis(maxTimeIntervalMillis))
   }
 }
 
-class DomainConfigurationStore(dbPool: OPartitionedDatabasePool) {
+class DomainConfigurationStore(dbPool: OPartitionedDatabasePool) extends Logging {
 
   def createDomainConfig(domainConfig: DomainConfig) = {
     val db = dbPool.acquire()
@@ -97,42 +149,65 @@ class DomainConfigurationStore(dbPool: OPartitionedDatabasePool) {
 
   def domainExists(domainFqn: DomainFqn): Boolean = {
     val db = dbPool.acquire()
-    val query = new OSQLSynchQuery[ODocument]("SELECT id FROM Domain WHERE namespace = :namespace and domainId = :domainId")
-    val params: java.util.Map[String, String] = HashMap("namespace" -> domainFqn.namespace, "domainId" -> domainFqn.domainId)
-    val result: java.util.List[ODocument] = db.command(query).execute(params)
-    db.close()
-    !result.isEmpty()
-  }
+    val queryString =
+      """SELECT id 
+        |FROM Domain 
+        |WHERE 
+        |  namespace = :namespace AND 
+        |  domainId = :domainId""".stripMargin
 
-  def getDomainConfig(domainFqn: DomainFqn): Option[DomainConfig] = {
-    val db = dbPool.acquire()
-    val query = new OSQLSynchQuery[ODocument]("SELECT FROM Domain WHERE namespace = :namespace and domainId = :domainId")
-    val params: java.util.Map[String, String] = HashMap("namespace" -> domainFqn.namespace, "domainId" -> domainFqn.domainId)
-    val result: java.util.List[ODocument] = db.command(query).execute(params)
+    val query = new OSQLSynchQuery[ODocument](queryString)
+    val params = Map("namespace" -> domainFqn.namespace, "domainId" -> domainFqn.domainId)
+    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     db.close()
+
     result.asScala.toList match {
-      case doc :: rest => Some(DomainConfigurationStore.documentToDomainConfig(doc))
-      case Nil => None
+      case first :: Nil => true
+      case first :: rest => false // FIXME log
+      case _ => false
     }
   }
 
-  def getDomainConfig(id: String): Option[DomainConfig] = {
+  def getDomainConfigByFqn(domainFqn: DomainFqn): Option[DomainConfig] = {
     val db = dbPool.acquire()
-    val query = new OSQLSynchQuery[ODocument]("SELECT FROM Domain WHERE id = :id")
-    val params: java.util.Map[String, String] = HashMap("id" -> id)
-    val result: java.util.List[ODocument] = db.command(query).execute(params)
-    db.close()
-    result.asScala.toList match {
-      case doc :: rest => Some(DomainConfigurationStore.documentToDomainConfig(doc))
-      case Nil => None
+    try {
+      val queryString = "SELECT FROM Domain WHERE namespace = :namespace AND domainId = :domainId"
+      val query = new OSQLSynchQuery[ODocument](queryString)
+
+      val params = Map(
+        "namespace" -> domainFqn.namespace,
+        "domainId" -> domainFqn.domainId)
+
+      val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
+
+      QueryUtil.mapSingleResult(result) { doc =>
+        DomainConfigurationStore.documentToDomainConfig(doc)
+      }
+    } finally {
+      db.close()
+    }
+  }
+
+  def getDomainConfigById(id: String): Option[DomainConfig] = {
+    val db = dbPool.acquire()
+    try {
+      val query = new OSQLSynchQuery[ODocument]("SELECT * FROM Domain WHERE id = :id")
+      val params = Map("id" -> id)
+      val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
+
+      QueryUtil.mapSingleResult(result) { doc =>
+        DomainConfigurationStore.documentToDomainConfig(doc)
+      }
+    } finally {
+      db.close()
     }
   }
 
   def getDomainConfigsInNamespace(namespace: String): List[DomainConfig] = {
     val db = dbPool.acquire()
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM Domain WHERE namespace = :namespace")
-    val params: java.util.Map[String, String] = HashMap("namespace" -> namespace)
-    val result: java.util.List[ODocument] = db.command(query).execute(params)
+    val params = Map("namespace" -> namespace)
+    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     db.close()
     result.asScala.toList map { doc => DomainConfigurationStore.documentToDomainConfig(doc) }
   }
@@ -141,7 +216,7 @@ class DomainConfigurationStore(dbPool: OPartitionedDatabasePool) {
     val db = dbPool.acquire()
     val command = new OCommandSQL("DELETE FROM Domain WHERE id = :id")
     val params = Map("id" -> id)
-    db.command(command).execute(params)
+    db.command(command).execute(params.asJava)
     db.close()
   }
 
@@ -150,13 +225,13 @@ class DomainConfigurationStore(dbPool: OPartitionedDatabasePool) {
     val updatedDoc = DomainConfigurationStore.domainConfigToDocument(newConfig)
 
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM Domain WHERE id = :id")
-    val params: java.util.Map[String, String] = HashMap("id" -> newConfig.id)
-    val result: java.util.List[ODocument] = db.command(query).execute(params)
+    val params = Map("id" -> newConfig.id)
+    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
     result.asScala.toList match {
-      case doc :: rest => {
-        doc.merge(updatedDoc, false, false)
-        db.save(doc)
+      case first :: rest => {
+        first.merge(updatedDoc, false, false)
+        db.save(first)
       }
       case Nil =>
     }
@@ -164,29 +239,32 @@ class DomainConfigurationStore(dbPool: OPartitionedDatabasePool) {
 
   def getDomainKey(domainFqn: DomainFqn, keyId: String): Option[TokenPublicKey] = {
     val db = dbPool.acquire()
-    val query = new OSQLSynchQuery[ODocument]("SELECT keys[id = :keyId] FROM Domain WHERE namespace = :namespace and domainId = :domainId")
-    val params: java.util.Map[String, String] = HashMap("namespace" -> domainFqn.namespace, "domainId" -> domainFqn.domainId, "keyId" -> keyId)
-    val result: java.util.List[ODocument] = db.command(query).execute(params)
+    val queryString = 
+      "SELECT keys[id = :keyId].asList() FROM Domain WHERE namespace = :namespace AND domainId = :domainId"
+    val query = new OSQLSynchQuery[ODocument](queryString)
+    val params = Map("namespace" -> domainFqn.namespace, "domainId" -> domainFqn.domainId, "keyId" -> keyId)
+    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
+
     db.close()
-    result.asScala.toList match {
-      case doc :: rest if (doc.field("keys").isInstanceOf[OTrackedMap[Any]]) =>
-        Some(DomainConfigurationStore.documentToTokenPublicKey(doc.field("keys")))
-      case _ => None
+
+    QueryUtil.flatMapSingleResult(result) { doc =>
+      val keysList: java.util.List[OTrackedMap[Any]] = doc.field("keys", OType.EMBEDDEDLIST)
+      QueryUtil.mapSingleResult(keysList) { key =>
+        DomainConfigurationStore.mapToTokenPublicKey(key)
+      }
     }
   }
 
   def getDomainKeys(domainFqn: DomainFqn): Option[Map[String, TokenPublicKey]] = {
     val db = dbPool.acquire()
-    val query = new OSQLSynchQuery[ODocument]("SELECT keys FROM Domain WHERE namespace = :namespace and domainId = :domainId")
-    val params: java.util.Map[String, String] = HashMap("namespace" -> domainFqn.namespace, "domainId" -> domainFqn.domainId)
-    val result: java.util.List[ODocument] = db.command(query).execute(params)
+    val sql = "SELECT keys FROM Domain WHERE namespace = :namespace and domainId = :domainId"
+    val query = new OSQLSynchQuery[ODocument](sql)
+    val params = Map("namespace" -> domainFqn.namespace, "domainId" -> domainFqn.domainId)
+    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     db.close()
-    result.asScala.toList match {
-      case doc :: rest => Some(DomainConfigurationStore.documentToKeys(doc.field(DomainConfigurationStore.Keys, OType.EMBEDDEDLIST)))
-      case Nil => None
+
+    QueryUtil.mapSingleResult(result) { doc =>
+      DomainConfigurationStore.listToKeysMap(doc.field(DomainConfigurationStore.Keys, OType.EMBEDDEDLIST))
     }
   }
-
-  //TODO: Add validation for if key exists
-  def addDomainKey(fqn: DomainFqn, key: TokenPublicKey): Unit = ???
 }

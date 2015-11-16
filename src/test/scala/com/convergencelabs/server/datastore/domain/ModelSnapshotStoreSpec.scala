@@ -1,6 +1,5 @@
 package com.convergencelabs.server.datastore.domain
 
-import org.scalatest.WordSpec
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.convergencelabs.server.domain.model.ModelFqn
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
@@ -13,10 +12,11 @@ import org.json4s.JsonAST.JNull
 import org.json4s.JsonAST.JInt
 import java.text.SimpleDateFormat
 import java.time.Instant
+import org.scalatest.WordSpecLike
 
 class ModelSnapshotStoreSpec
-    extends WordSpec
-    with PersistenceStoreSpec[ModelSnapshotStore] {
+    extends PersistenceStoreSpec[ModelSnapshotStore]("/dbfiles/t1.gz")
+    with WordSpecLike {
 
   def createStore(dbPool: OPartitionedDatabasePool) = new ModelSnapshotStore(dbPool)
 
@@ -131,20 +131,20 @@ class ModelSnapshotStoreSpec
         assert(queried.isEmpty)
       }
     }
-    
+
     "when getting the closest snapshot to a version for a model" must {
       "return the higher version when it is the closest" in withPersistenceStore { store =>
         val snapshotData = store.getClosestSnapshotByVersion(person1ModelFqn, 18)
         assert(snapshotData.isDefined)
         assert(snapshotData.get.metaData.version == 20L)
       }
-      
+
       "return the lower version when it is the closest" in withPersistenceStore { store =>
         val snapshotData = store.getClosestSnapshotByVersion(person1ModelFqn, 14)
         assert(snapshotData.isDefined)
         assert(snapshotData.get.metaData.version == 10L)
       }
-      
+
       "return the higher version when the requested version is equidistant from a higerh and lower snapshot" in withPersistenceStore { store =>
         val snapshotData = store.getClosestSnapshotByVersion(person1ModelFqn, 15)
         assert(snapshotData.isDefined)

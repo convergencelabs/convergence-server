@@ -30,7 +30,7 @@ class ModelManagerActor(
 
   private[this] val openRealtimeModels = mutable.Map[ModelFqn, ActorRef]()
   private[this] var nextModelResourceId: Long = 0
-  
+
   var persistenceProvider: DomainPersistenceProvider = null
 
   def receive = {
@@ -49,8 +49,11 @@ class ModelManagerActor(
       // TODO look this up via model,collection default, then system default
       val snapshotConfig = SnapshotConfig(
         true,
+        true,
+        true,
         250,
         500,
+        false,
         false,
         Duration.of(10, ChronoUnit.MINUTES),
         Duration.of(20, ChronoUnit.MINUTES))
@@ -128,7 +131,7 @@ class ModelManagerActor(
     openRealtimeModels.clear()
     DomainPersistenceManagerActor.releasePersistenceProvider(self, context, domainFqn)
   }
-  
+
   override def preStart(): Unit = {
     // FIXME Handle none better with logging.
     persistenceProvider = DomainPersistenceManagerActor.acquirePersistenceProvider(self, context, domainFqn).get

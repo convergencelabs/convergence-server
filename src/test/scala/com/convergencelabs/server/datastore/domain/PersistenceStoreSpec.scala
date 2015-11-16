@@ -6,7 +6,7 @@ import com.orientechnologies.orient.core.db.tool.ODatabaseImport
 import com.orientechnologies.orient.core.command.OCommandOutputListener
 import com.orientechnologies.common.log.OLogManager
 
-trait PersistenceStoreSpec[S] {
+abstract class PersistenceStoreSpec[S](dbFile: String) {
   OLogManager.instance().setConsoleLevel("WARNING")
 
   def createStore(dbPool: OPartitionedDatabasePool): S
@@ -22,7 +22,7 @@ trait PersistenceStoreSpec[S] {
     db.activateOnCurrentThread()
     db.create()
 
-    val file = getClass.getResource("/dbfiles/t1.gz").getFile()
+    val file = getClass.getResource(dbFile).getFile()
     val dbImport = new ODatabaseImport(db, file, CommandListener)
     dbImport.importDatabase()
     dbImport.close()

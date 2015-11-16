@@ -17,6 +17,35 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 
+object DomainUserStore {
+
+  object Fields {
+    val Uid = "uid"
+    val Username = "username"
+    val FirstName = "firstName"
+    val LastName = "lastName"
+    val Email = "email"
+  }
+
+  private def docToDomainUser(doc: ODocument): DomainUser = {
+    DomainUser(
+      doc.field(Fields.Uid),
+      doc.field(Fields.Username),
+      doc.field(Fields.FirstName),
+      doc.field(Fields.LastName),
+      doc.field(Fields.Email))
+  }
+
+  private def domainUserToDoc(o: DomainUser): ODocument = {
+    val doc = new ODocument("User")
+    doc.field(Fields.Uid, o.uid)
+    doc.field(Fields.Username, o.username)
+    doc.field(Fields.FirstName, o.firstName)
+    doc.field(Fields.LastName, o.lastName)
+    doc.field(Fields.Email, o.email)
+  }
+}
+
 /**
  * Manages the persistence of Domain Users.  This class manages both user profile records
  * as well as user credentials for users authenticated by Convergence itself.
@@ -42,14 +71,11 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    */
   def createDomainUser(domainUser: DomainUser, password: Option[String]): Unit = {
     val db = dbPool.acquire()
-    val doc = db.newInstance("User")
-
-    // TODO see if there is a better way.
-    doc.fromJSON(write(domainUser))
-    db.save(doc)
+    val userDoc = DomainUserStore.domainUserToDoc(domainUser)
+    db.save(userDoc)
 
     val pwDoc = db.newInstance("UserCredential")
-    pwDoc.field("user", doc) // TODO verify this creates a link and now a new doc.
+    pwDoc.field("user", userDoc, OType.LINK) // FIXME verify this creates a link and now a new doc.
 
     val hash = password match {
       case Some(pass) => PasswordUtil.hashPassword(pass)
@@ -115,7 +141,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     db.close()
 
     result.asScala.toList match {
-      case doc :: rest => Some(docToDomainUser(doc))
+      case doc :: rest => Some(DomainUserStore.docToDomainUser(doc))
       case Nil => None
     }
   }
@@ -133,7 +159,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     val params = HashMap("uids" -> uids)
     val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
     db.close()
-    result.asScala.toList.map { doc => docToDomainUser(doc) }
+    result.asScala.toList.map { doc => DomainUserStore.docToDomainUser(doc) }
   }
 
   /**
@@ -151,7 +177,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     db.close()
 
     result.asScala.toList match {
-      case doc :: Nil => Some(docToDomainUser(doc))
+      case doc :: Nil => Some(DomainUserStore.docToDomainUser(doc))
       case _ => None
     }
   }
@@ -170,7 +196,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
     db.close()
 
-    result.asScala.toList.map { doc => docToDomainUser(doc) }
+    result.asScala.toList.map { doc => DomainUserStore.docToDomainUser(doc) }
   }
 
   /**
@@ -188,7 +214,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     db.close()
 
     result.asScala.toList match {
-      case doc :: Nil => Some(docToDomainUser(doc))
+      case doc :: Nil => Some(DomainUserStore.docToDomainUser(doc))
       case _ => None
     }
   }
@@ -207,7 +233,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
     db.close()
 
-    result.asScala.toList.map { doc => docToDomainUser(doc) }
+    result.asScala.toList.map { doc => DomainUserStore.docToDomainUser(doc) }
   }
 
   /**
@@ -247,7 +273,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     val result: java.util.List[ODocument] = db.command(query).execute()
     db.close()
 
-    result.asScala.toList.map { doc => docToDomainUser(doc) }
+    result.asScala.toList.map { doc => DomainUserStore.docToDomainUser(doc) }
   }
 
   /**
@@ -286,7 +312,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     val params = HashMap("username" -> username)
     val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
     db.close()
-    
+
     result.asScala.toList match {
       case doc :: Nil => {
         val pwhash: String = doc.field("password")
@@ -296,18 +322,6 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     }
   }
 
-  
-  /**
-   * A helper utility to convert an ODocument to a DomainUser
-   */
-  private[this] def docToDomainUser(doc: ODocument): DomainUser = {
-    DomainUser(
-      doc.field("uid"),
-      doc.field("username"),
-      doc.field("firstName"),
-      doc.field("lastName"),
-      doc.field("email"))
-  }
 }
 
 object DomainUserOrder extends Enumeration {

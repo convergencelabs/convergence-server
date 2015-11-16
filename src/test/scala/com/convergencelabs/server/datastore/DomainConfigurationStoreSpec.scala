@@ -1,6 +1,6 @@
 package com.convergencelabs.server.datastore
 
-import org.scalatest.WordSpec
+import org.scalatest.WordSpecLike
 import com.convergencelabs.server.domain.DomainFqn
 import com.orientechnologies.orient.core.command.OCommandOutputListener
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
@@ -10,200 +10,141 @@ import com.orientechnologies.common.log.OLogManager
 import com.convergencelabs.server.domain.DomainFqn
 import scala.util.Try
 import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.model.SnapshotConfig
+import java.time.temporal.ChronoUnit
+import java.time.Duration
+import com.convergencelabs.server.datastore.domain.PersistenceStoreSpec
+import org.scalatest.Matchers
+import org.scalatest.OptionValues._
 
-class DomainConfigurationStoreSpec extends WordSpec {
+class DomainConfigurationStoreSpec
+    extends PersistenceStoreSpec[DomainConfigurationStore]("/dbfiles/convergence.gz")
+    with WordSpecLike
+    with Matchers {
 
-  OLogManager.instance().setConsoleLevel("WARNING")
+  def createStore(dbPool: OPartitionedDatabasePool): DomainConfigurationStore = new DomainConfigurationStore(dbPool)
 
-  def initDB(uri: String): ODatabaseDocumentTx = {
-    val db = new ODatabaseDocumentTx(uri)
-    db.activateOnCurrentThread()
-    db.create()
-    val listener = new OCommandOutputListener() {
-      def onMessage(iText: String) = {
-      }
-    }
-    val file = getClass.getResource("/dbfiles/convergence.gz").getFile()
-    val dbImport = new ODatabaseImport(db, file, listener)
-    dbImport.importDatabase()
-    dbImport.close()
-    db
-  }
+  val snapshotConfig = SnapshotConfig(
+    false,
+    true,
+    true,
+    250,
+    500,
+    false,
+    false,
+    Duration.of(0, ChronoUnit.MINUTES),
+    Duration.of(0, ChronoUnit.MINUTES))
 
-  "An DomainConfigurationStore" when {
+  "A DomainConfigurationStore" when {
 
     "asked whether a domain exists" must {
 
-      "return false if it doesn't exist" in {
-        val db = initDB("memory:dcs1")
-        val dbPool = new OPartitionedDatabasePool("memory:dcs1", "admin", "admin")
-        val domainConfigurationStore = new DomainConfigurationStore(dbPool)
-        assert(!domainConfigurationStore.domainExists(DomainFqn("notReal", "notReal")))
-        db.activateOnCurrentThread()
-        db.close()
+      "return false if it doesn't exist" in withPersistenceStore { store =>
+        store.domainExists(DomainFqn("notReal", "notReal")) shouldBe false
       }
 
-      "return true if it does exist" in {
-        val db = initDB("memory:dcs2")
-        val dbPool = new OPartitionedDatabasePool("memory:dcs2", "admin", "admin")
-        val domainConfigurationStore = new DomainConfigurationStore(dbPool)
-        assert(domainConfigurationStore.domainExists(DomainFqn("test", "test1")))
-        db.activateOnCurrentThread()
-        db.close()
+      "return true if it does exist" in withPersistenceStore { store =>
+        store.domainExists(DomainFqn("test", "test1")) shouldBe true
       }
     }
 
     "retrieving a domain config by fqn" must {
 
-      "return None if the domain doesn't exist" in {
-        val db = initDB("memory:dcs3")
-        val dbPool = new OPartitionedDatabasePool("memory:dcs3", "admin", "admin")
-        val domainConfigurationStore = new DomainConfigurationStore(dbPool)
-        assert(domainConfigurationStore.getDomainConfig(DomainFqn("notReal", "notReal")).isEmpty)
-        db.activateOnCurrentThread()
-        db.close()
+      "return None if the domain doesn't exist" in withPersistenceStore { store =>
+        store.getDomainConfigByFqn(DomainFqn("notReal", "notReal")) shouldBe None
       }
 
-      "return Some if the domain exist" in {
-        val db = initDB("memory:dcs4")
-        val dbPool = new OPartitionedDatabasePool("memory:dcs4", "admin", "admin")
-        val domainConfigurationStore = new DomainConfigurationStore(dbPool)
-        assert(!domainConfigurationStore.getDomainConfig(DomainFqn("test", "test1")).isEmpty)
-        db.activateOnCurrentThread()
-        db.close()
+      "return Some if the domain exist" in withPersistenceStore { store =>
+        store.getDomainConfigByFqn(DomainFqn("test", "test1")) shouldBe defined
       }
     }
 
     "retrieving a domain config by id" must {
-
-      "return None if the domain doesn't exist" in {
-        val db = initDB("memory:dcs5")
-        val dbPool = new OPartitionedDatabasePool("memory:dcs5", "admin", "admin")
-        val domainConfigurationStore = new DomainConfigurationStore(dbPool)
-        assert(domainConfigurationStore.getDomainConfig("does not exist").isEmpty)
-        db.activateOnCurrentThread()
-        db.close()
+      "return None if the domain doesn't exist" in withPersistenceStore { store =>
+        store.getDomainConfigById("does not exist") shouldBe None
       }
 
-      "return Some if the domain exist" in {
-        val db = initDB("memory:dcs6")
-        val dbPool = new OPartitionedDatabasePool("memory:dcs6", "admin", "admin")
-        val domainConfigurationStore = new DomainConfigurationStore(dbPool)
-        assert(!domainConfigurationStore.getDomainConfig("t1").isEmpty)
-        db.activateOnCurrentThread()
-        db.close()
+      "return Some if the domain exist" in withPersistenceStore { store =>
+        store.getDomainConfigById("t1") shouldBe defined
       }
     }
 
     "creating a domain" must {
-      "insert the domain record into the database" in {
-        val db = initDB("memory:dcs7")
-        val dbPool = new OPartitionedDatabasePool("memory:dcs7", "admin", "admin")
-        val domainConfigurationStore = new DomainConfigurationStore(dbPool)
-
-        val domainConfig = DomainConfig("t4", DomainFqn("test", "test4"), "Test Domain 4", "root", "root", Map(), TokenKeyPair("private", "public"))
-        domainConfigurationStore.createDomainConfig(domainConfig)
-        assert(!domainConfigurationStore.getDomainConfig("t4").isEmpty)
-        db.activateOnCurrentThread()
-        db.close()
+      "insert the domain record into the database" in withPersistenceStore { store =>
+        val domainConfig = DomainConfig(
+          "t4",
+          DomainFqn("test", "test4"),
+          "Test Domain 4",
+          "root",
+          "root",
+          Map(),
+          TokenKeyPair("private", "public"),
+          snapshotConfig)
+          
+        store.createDomainConfig(domainConfig)
+        
+        store.getDomainConfigByFqn(DomainFqn("test", "test4")).value shouldBe domainConfig
       }
 
-      "throw an exception if the domain exists" in {
-        val db = initDB("memory:dcs8")
-        val dbPool = new OPartitionedDatabasePool("memory:dcs8", "admin", "admin")
-        val domainConfigurationStore = new DomainConfigurationStore(dbPool)
+      "throw an exception if the domain exists" in withPersistenceStore { store =>
+        val domainConfig = DomainConfig(
+          "t1",
+          DomainFqn("test", "test1"),
+          "Test Domain 1",
+          "root",
+          "root",
+          Map(),
+          TokenKeyPair("private", "public"),
+          snapshotConfig)
 
-        val domainConfig = DomainConfig("t1", DomainFqn("test", "test1"), "Test Domain 1", "root", "root", Map(), TokenKeyPair("private", "public"))
-        val createTry = Try(domainConfigurationStore.createDomainConfig(domainConfig))
-        assert(createTry.isFailure)
-        db.activateOnCurrentThread()
-        db.close()
+        // FIXME better exception
+        intercept[Throwable] {
+          val createTry = store.createDomainConfig(domainConfig)
+        }
       }
     }
 
     "getting domains by namespace" must {
-      "return all domains for a namespace" in {
-        val db = initDB("memory:dcs9")
-        val dbPool = new OPartitionedDatabasePool("memory:dcs9", "admin", "admin")
-        val domainConfigurationStore = new DomainConfigurationStore(dbPool)
-        assert(domainConfigurationStore.getDomainConfigsInNamespace("test").size == 3)
-        db.activateOnCurrentThread()
-        db.close()
+      "return all domains for a namespace" in withPersistenceStore { store =>
+        store.getDomainConfigsInNamespace("test").length shouldBe 3
       }
     }
 
     "removing a domain" must {
-      "remove the domain record in the database if it exists" in {
-        val db = initDB("memory:dcs10")
-        val dbPool = new OPartitionedDatabasePool("memory:dcs10", "admin", "admin")
-        val domainConfigurationStore = new DomainConfigurationStore(dbPool)
-        domainConfigurationStore.removeDomainConfig("t1")
-        assert(!domainConfigurationStore.getDomainConfig("t1").isEmpty)
-        db.activateOnCurrentThread()
-        db.close()
+      "remove the domain record in the database if it exists" in withPersistenceStore { store =>
+        store.removeDomainConfig("t1")
+        store.getDomainConfigById("t1") shouldBe None
       }
 
-      "not throw an exception if the domain does not exist" in {
-        val db = initDB("memory:dcs11")
-        val dbPool = new OPartitionedDatabasePool("memory:dcs11", "admin", "admin")
-        val domainConfigurationStore = new DomainConfigurationStore(dbPool)
-        val removeTry = Try(domainConfigurationStore.removeDomainConfig("doesn't exist"))
-        assert(removeTry.isSuccess)
-        db.activateOnCurrentThread()
-        db.close()
+      "not throw an exception if the domain does not exist" in withPersistenceStore { store =>
+        store.removeDomainConfig("doesn't exist")
       }
     }
 
     "retrieving a domain key by domainFqn and keyId" must {
 
-      "return None if the domain doesn't exist" in {
-        val db = initDB("memory:dcs12")
-        val dbPool = new OPartitionedDatabasePool("memory:dcs12", "admin", "admin")
-        val domainConfigurationStore = new DomainConfigurationStore(dbPool)
-        assert(domainConfigurationStore.getDomainKey(DomainFqn("doesn't exist", "doesn't exist"), "doesn't exit").isEmpty)
-        db.activateOnCurrentThread()
-        db.close()
+      "return None if the domain doesn't exist" in withPersistenceStore { store =>
+        store.getDomainKey(DomainFqn("doesn't exist", "doesn't exist"), "doesn't exit") shouldBe None
       }
 
-      "return None if the key doesn't exist" in {
-        val db = initDB("memory:dcs13")
-        val dbPool = new OPartitionedDatabasePool("memory:dcs13", "admin", "admin")
-        val domainConfigurationStore = new DomainConfigurationStore(dbPool)
-        assert(domainConfigurationStore.getDomainKey(DomainFqn("test", "test1"), "doesn't exit").isEmpty)
-        db.activateOnCurrentThread()
-        db.close()
+      "return None if the key doesn't exist" in withPersistenceStore { store =>
+        store.getDomainKey(DomainFqn("test", "test1"), "doesn't exit") shouldBe None
       }
 
-      "return Some if the key exist" in {
-        val db = initDB("memory:dcs14")
-        val dbPool = new OPartitionedDatabasePool("memory:dcs14", "admin", "admin")
-        val domainConfigurationStore = new DomainConfigurationStore(dbPool)
-        assert(!domainConfigurationStore.getDomainKey(DomainFqn("test", "test1"), "test").isEmpty)
-        db.activateOnCurrentThread()
-        db.close()
+      "return Some if the key exist" in withPersistenceStore { store =>
+        store.getDomainKey(DomainFqn("test", "test1"), "test") shouldBe defined
       }
     }
-    
+
     "retrieving domain keys by domainFqn" must {
 
-      "return None if the domain doesn't exist" in {
-        val db = initDB("memory:dcs15")
-        val dbPool = new OPartitionedDatabasePool("memory:dcs15", "admin", "admin")
-        val domainConfigurationStore = new DomainConfigurationStore(dbPool)
-        assert(domainConfigurationStore.getDomainKeys(DomainFqn("doesn't exist", "doesn't exist")).isEmpty)
-        db.activateOnCurrentThread()
-        db.close()
+      "return None if the domain doesn't exist" in withPersistenceStore { store =>
+        store.getDomainKeys(DomainFqn("doesn't exist", "doesn't exist")) shouldBe None
       }
 
-      "return a list of keys if the domain exists" in {
-        val db = initDB("memory:dcs16")
-        val dbPool = new OPartitionedDatabasePool("memory:dcs16", "admin", "admin")
-        val domainConfigurationStore = new DomainConfigurationStore(dbPool)
-        assert(!domainConfigurationStore.getDomainKeys(DomainFqn("test", "test1")).isEmpty)
-        db.activateOnCurrentThread()
-        db.close()
+      "return a list of keys if the domain exists" in withPersistenceStore { store =>
+        store.getDomainKeys(DomainFqn("test", "test1")) shouldBe defined
       }
     }
-
   }
 }

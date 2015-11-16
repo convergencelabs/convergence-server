@@ -1,6 +1,5 @@
 package com.convergencelabs.server.datastore.domain
 
-import org.scalatest.WordSpec
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.convergencelabs.server.domain.model.ModelFqn
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
@@ -14,13 +13,14 @@ import org.json4s.JsonAST.JInt
 import java.text.SimpleDateFormat
 import java.time.Instant
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
+import org.scalatest.WordSpecLike
 
 class DomainUserStoreSpec
-    extends WordSpec
-    with PersistenceStoreSpec[DomainUserStore] {
+    extends PersistenceStoreSpec[DomainUserStore]("/dbfiles/t1.gz")
+    with WordSpecLike {
 
   def createStore(dbPool: OPartitionedDatabasePool): DomainUserStore = new DomainUserStore(dbPool)
-  
+
   "A DomainUserStore" when {
     "when creating a user" must {
       "be able to get the user that was created" in withPersistenceStore { store =>
@@ -41,7 +41,7 @@ class DomainUserStoreSpec
           store.createDomainUser(duplicateUid, None)
         }
       }
-      
+
       "not allow duplicate usernames" in withPersistenceStore { store =>
         val original = DomainUser("u10", "newUser", "new", "user", "newUser@example.com")
         store.createDomainUser(original, None)
@@ -51,7 +51,7 @@ class DomainUserStoreSpec
           store.createDomainUser(duplicateUid, None)
         }
       }
-      
+
       "not allow duplicate emails" in withPersistenceStore { store =>
         val original = DomainUser("u10", "newUser", "new", "user", "newUser@example.com")
         store.createDomainUser(original, None)

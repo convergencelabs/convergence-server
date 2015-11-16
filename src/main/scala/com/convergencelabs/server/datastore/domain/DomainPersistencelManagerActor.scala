@@ -142,7 +142,7 @@ class DomainPersistenceManagerActor(
 
   private[this] def createProvider(domainFqn: DomainFqn): Try[DomainPersistenceProvider] = Try({
     log.warning(s"Creating new persistence provider: ${domainFqn}")
-    val config = domainConfigStore.getDomainConfig(domainFqn)
+    val config = domainConfigStore.getDomainConfigByFqn(domainFqn)
     config match {
       case Some(domainConfig) => {
         val pool = new OPartitionedDatabasePool(

@@ -24,14 +24,17 @@ import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.typesafe.config.ConfigFactory
 import com.typesafe.config.ConfigParseOptions
 import com.convergencelabs.server.util.MockDomainPersistenceManagerActor
+import com.convergencelabs.server.domain.model.SnapshotConfig
+import java.time.temporal.ChronoUnit
+import java.time.Duration
 
 @RunWith(classOf[JUnitRunner])
 class DomainManagerActorSpec()
-    extends TestKit(ActorSystem("DomainManagerActorSpec",ConfigFactory.parseResources("cluster-application.conf")))
+    extends TestKit(ActorSystem("DomainManagerActorSpec", ConfigFactory.parseResources("cluster-application.conf")))
     with WordSpecLike
     with BeforeAndAfterAll
     with MockitoSugar {
-  
+
   val domainPersistence = MockDomainPersistenceManagerActor(system)
 
   override def afterAll() {
@@ -57,9 +60,21 @@ class DomainManagerActorSpec()
   trait TestFixture {
     val domainFqn = DomainFqn("convergence", "default")
     val nonExistingDomain = DomainFqn("no", "domain")
-    
+
     val keys = Map[String, TokenPublicKey]()
     val adminKeyPair = TokenKeyPair("", "")
+
+    val snapshotConfig = SnapshotConfig(
+      false,
+      true,
+      true,
+      250,
+      500,
+      false,
+      false,
+      Duration.of(0, ChronoUnit.MINUTES),
+      Duration.of(0, ChronoUnit.MINUTES))
+
     val domainConfig = DomainConfig(
       "d1",
       domainFqn,
@@ -67,23 +82,24 @@ class DomainManagerActorSpec()
       "",
       "",
       keys,
-      adminKeyPair)
+      adminKeyPair,
+      snapshotConfig)
 
     val configStore = mock[DomainConfigurationStore]
-    Mockito.when(configStore.getDomainConfig(domainFqn)).thenReturn(Some(domainConfig))
+    Mockito.when(configStore.getDomainConfigByFqn(domainFqn)).thenReturn(Some(domainConfig))
     Mockito.when(configStore.domainExists(domainFqn)).thenReturn(true)
     Mockito.when(configStore.domainExists(nonExistingDomain)).thenReturn(false)
 
     val provider = mock[DomainPersistenceProvider]
     Mockito.when(provider.validateConnection()).thenReturn(true)
     domainPersistence.underlyingActor.mockProviders = Map(domainFqn -> provider)
-    
+
     val convergencePersistence = mock[PersistenceProvider]
     Mockito.when(convergencePersistence.domainConfigStore).thenReturn(configStore)
 
     val protocolConfig = ProtocolConfiguration(1000L)
 
     val domainManagerActor = system.actorOf(
-        DomainManagerActor.props(convergencePersistence, protocolConfig))
+      DomainManagerActor.props(convergencePersistence, protocolConfig))
   }
 }

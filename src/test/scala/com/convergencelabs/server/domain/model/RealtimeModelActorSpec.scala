@@ -250,7 +250,7 @@ class RealtimeModelActorSpec
       operationStore,
       modelSnapshotStore,
       100L,
-      SnapshotConfig(true, 3, 3, false, Duration.of(1, ChronoUnit.SECONDS), Duration.of(1, ChronoUnit.SECONDS)))
+      SnapshotConfig(true, true, true, 3, 3, false, false, Duration.of(1, ChronoUnit.SECONDS), Duration.of(1, ChronoUnit.SECONDS)))
 
     val realtimeModelActor = system.actorOf(props, resourceId)
   }

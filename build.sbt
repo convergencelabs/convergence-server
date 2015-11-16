@@ -20,9 +20,9 @@ libraryDependencies += "org.apache.commons" % "commons-lang3" % "3.4"
 libraryDependencies += "org.json4s" %% "json4s-jackson" % "3.2.11"
 
 // Orient DB Dependencies
-libraryDependencies += "com.orientechnologies" % "orientdb-core" % "2.1.2"
-libraryDependencies += "com.orientechnologies" % "orientdb-client" % "2.1.2"
-libraryDependencies += "com.orientechnologies" % "orientdb-enterprise" % "2.1.2"
+libraryDependencies += "com.orientechnologies" % "orientdb-core" % "2.1.5"
+libraryDependencies += "com.orientechnologies" % "orientdb-client" % "2.1.5"
+libraryDependencies += "com.orientechnologies" % "orientdb-enterprise" % "2.1.5"
 
 
 // Akka Dependencies

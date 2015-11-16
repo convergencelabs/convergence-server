@@ -13,10 +13,13 @@ package model {
 
   // Config
   case class SnapshotConfig(
+      snapshotsEnabled: Boolean,
       triggerByVersion: Boolean,
+      limitedByVersion: Boolean,
       minimumVersionInterval: Long,
       maximumVersionInterval: Long,
       triggerByTime: Boolean,
+      limitedByTime: Boolean,
       minimumTimeInterval: Duration,
       maximumTimeInterval: Duration) {
 
@@ -26,15 +29,19 @@ package model {
       previousTime: Instant,
       currentTime: Instant): scala.Boolean = {
 
-      val versionInterval = currentVersion - previousVersion
-      val allowedByVersion = versionInterval >= minimumVersionInterval
-      val requiredByVersion = versionInterval > maximumVersionInterval && triggerByVersion
-
-      val timeInterval = Duration.between(previousTime, currentTime)
-      val allowedByTime = timeInterval.compareTo(minimumTimeInterval) >= 0
-      val requiredByTime = timeInterval.compareTo(maximumTimeInterval) > 0 && triggerByTime
-
-      allowedByVersion && allowedByTime && (requiredByTime || requiredByVersion)
+      if (!snapshotsEnabled) {
+        false
+      } else {
+        val versionInterval = currentVersion - previousVersion
+        val allowedByVersion = !limitedByVersion || versionInterval >= minimumVersionInterval
+        val requiredByVersion = versionInterval > maximumVersionInterval && triggerByVersion
+  
+        val timeInterval = Duration.between(previousTime, currentTime)
+        val allowedByTime = !limitedByTime || timeInterval.compareTo(minimumTimeInterval) >= 0
+        val requiredByTime = timeInterval.compareTo(maximumTimeInterval) > 0 && triggerByTime
+  
+        allowedByVersion && allowedByTime && (requiredByTime || requiredByVersion)
+      }
     }
   }
 
