@@ -7,7 +7,7 @@ import scala.util.control.NonFatal
 import scala.util.Failure
 
 class TryWithResource[A <: AutoCloseable](resource: A) {
-  def tryWithResource[B](block: A => B) = {
+  def tryWithResource[B](block: A => B): Try[B] = {
     var result: Try[B] = null
     var t: Throwable = null
     try {
@@ -39,6 +39,6 @@ class TryWithResource[A <: AutoCloseable](resource: A) {
 }
 
 object TryWithResource {
-  def apply[A <: AutoCloseable, T](resource: A)(r: A => T): Try[T] =
+  def apply[A <: AutoCloseable, B](resource: A)(r: A => B): Try[B] =
     new TryWithResource(resource).tryWithResource(r)
 }

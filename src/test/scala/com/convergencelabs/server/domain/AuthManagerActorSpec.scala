@@ -30,6 +30,7 @@ import scala.concurrent.Await
 import com.convergencelabs.server.domain.model.SnapshotConfig
 import java.time.temporal.ChronoUnit
 import java.time.Duration
+import scala.util.Success
 
 @RunWith(classOf[JUnitRunner])
 class AuthenticationHandlerSpec()
@@ -99,11 +100,11 @@ class AuthenticationHandlerSpec()
       snapshotConfig)
 
     val userStore = mock[DomainUserStore]
-    Mockito.when(userStore.domainUserExists(existingUser)).thenReturn(true)
-    Mockito.when(userStore.domainUserExists(nonExistingUser)).thenReturn(false)
-    Mockito.when(userStore.validateCredentials(existingUser, existingCorrectPassword)).thenReturn(true)
-    Mockito.when(userStore.validateCredentials(existingUser, existingIncorrectPassword)).thenReturn(false)
-    Mockito.when(userStore.validateCredentials(nonExistingUser, "")).thenReturn(false)
+    Mockito.when(userStore.domainUserExists(existingUser)).thenReturn(Success(true))
+    Mockito.when(userStore.domainUserExists(nonExistingUser)).thenReturn(Success(false))
+    Mockito.when(userStore.validateCredentials(existingUser, existingCorrectPassword)).thenReturn(Success(true))
+    Mockito.when(userStore.validateCredentials(existingUser, existingIncorrectPassword)).thenReturn(Success(false))
+    Mockito.when(userStore.validateCredentials(nonExistingUser, "")).thenReturn(Success(false))
 
     val authHandler = new AuthenticationHandler(domainConfig, userStore, system.dispatcher)
   }

@@ -47,8 +47,9 @@ class AuthenticationHandler(
   private[this] def authenticatePassword(authRequest: PasswordAuthRequest): Future[AuthenticationResponse] = {
     val promise = Promise[AuthenticationResponse]
     val response = userStore.validateCredentials(authRequest.username, authRequest.password) match {
-      case true => AuthenticationSuccess(authRequest.username)
-      case false => AuthenticationFailure
+      case Success(true) => AuthenticationSuccess(authRequest.username)
+      case Success(false) => AuthenticationFailure
+      case Failure(cause) => ???  //FIXME: Need to handle failed auth do to error  
     }
     
     Future.successful(response)
@@ -86,7 +87,8 @@ class AuthenticationHandler(
 
           val username = jwtClaims.getSubject()
 
-          if (!userStore.domainUserExists(username)) {
+          //FIXME: Handle Failure Case
+          if (!userStore.domainUserExists(username).get) {
             createUserFromJWT(jwtClaims)
           }
 
