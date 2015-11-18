@@ -46,6 +46,8 @@ class RealtimeModelActor(
   private[this] var queuedOpeningClients = HashMap[String, OpenRequestRecord]()
   private[this] var concurrencyControl: ServerConcurrencyControl = null
   private[this] var latestSnapshot: SnapshotMetaData = null
+  
+  private[this] val transformer = new OperationTransformer(new TransformationFunctionRegistry())
 
   //
   // Receive methods
@@ -137,26 +139,28 @@ class RealtimeModelActor(
    * Asynchronously requests model data from the database.
    */
   private[this] def requestModelDataFromDatastore(): Unit = {
-    // FIXME maybe the databaes should just be async?
-    val f = Future[DatabaseModelResponse] {
+    context.become(receiveInitializingFromDatabase)
+
+    val f = Try {
       val snapshotMetaData = modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)
       //FIXME: Handle None, handle when snapshot doesn't exist.
-
       modelStore.getModelData(modelFqn) match {
-        case Some(modelData) => DatabaseModelResponse(modelData, snapshotMetaData.get)
+        case Some(modelData) => {
+          DatabaseModelResponse(modelData, snapshotMetaData.get)
+        }
         case None => ??? // FIXME there is no mode, need to throw an exception.
       }
     }
 
-    f onComplete {
-      case Success(modelDataResponse) => self ! modelDataResponse
+    f match {
+      case Success(modelDataResponse) => {
+        self ! modelDataResponse
+      }
       case Failure(cause) => {
         log.error(cause, "Could not initialize model from the database")
         self ! DatabaseModelFailure(cause)
       }
     }
-
-    context.become(receiveInitializingFromDatabase)
   }
 
   /**
@@ -168,10 +172,12 @@ class RealtimeModelActor(
       latestSnapshot = response.snapshotMetaData
       val modelData = response.modelData
 
+      val startTime = Platform.currentTime
       concurrencyControl = new ServerConcurrencyControl(
-        new OperationTransformer(new TransformationFunctionRegistry()),
+        transformer,
         modelData.metaData.version)
-
+      
+      println("Time to create registry: " + (Platform.currentTime - startTime))
       // TODO Initialize tree reference model
 
       queuedOpeningClients foreach {
@@ -368,8 +374,7 @@ class RealtimeModelActor(
       "",
       "")
 
-      
-      //TODO: Change this to use Instant?
+    //TODO: Change this to use Instant?
     OutgoingOperation(
       modelResourceId,
       processedOpEvent.clientId,

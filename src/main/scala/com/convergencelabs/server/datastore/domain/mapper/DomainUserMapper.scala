@@ -2,6 +2,7 @@ package com.convergencelabs.server.datastore.domain.mapper
 
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.convergencelabs.server.datastore.domain.DomainUser
+import scala.language.implicitConversions
 
 object DomainUserMapper {
   
@@ -9,7 +10,7 @@ object DomainUserMapper {
     def asODocument: ODocument = domainUserToODocument(s)
   }
   
-  def domainUserToODocument(obj: DomainUser): ODocument = {
+  implicit def domainUserToODocument(obj: DomainUser): ODocument = {
     val doc = new ODocument("User")
     doc.field(Fields.Uid, obj.uid)
     doc.field(Fields.Username, obj.username)
@@ -22,7 +23,7 @@ object DomainUserMapper {
     def asDomainUser: DomainUser = oDocumentToDomainUser(d)
   }
   
-  def oDocumentToDomainUser(doc: ODocument): DomainUser = {
+  implicit def oDocumentToDomainUser(doc: ODocument): DomainUser = {
     DomainUser(
       doc.field(Fields.Uid),
       doc.field(Fields.Username),

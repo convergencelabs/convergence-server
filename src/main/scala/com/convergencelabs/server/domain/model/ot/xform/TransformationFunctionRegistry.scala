@@ -1,7 +1,22 @@
 package com.convergencelabs.server.domain.model.ot.xform
 
-import scala.reflect.runtime.universe._
-import com.convergencelabs.server.domain.model.ot.ops._
+import scala.reflect.ClassTag
+
+import com.convergencelabs.server.domain.model.ot.ops.ArrayInsertOperation
+import com.convergencelabs.server.domain.model.ot.ops.ArrayMoveOperation
+import com.convergencelabs.server.domain.model.ot.ops.ArrayRemoveOperation
+import com.convergencelabs.server.domain.model.ot.ops.ArrayReplaceOperation
+import com.convergencelabs.server.domain.model.ot.ops.ArraySetOperation
+import com.convergencelabs.server.domain.model.ot.ops.DiscreteOperation
+import com.convergencelabs.server.domain.model.ot.ops.NumberAddOperation
+import com.convergencelabs.server.domain.model.ot.ops.NumberSetOperation
+import com.convergencelabs.server.domain.model.ot.ops.ObjectAddPropertyOperation
+import com.convergencelabs.server.domain.model.ot.ops.ObjectRemovePropertyOperation
+import com.convergencelabs.server.domain.model.ot.ops.ObjectSetOperation
+import com.convergencelabs.server.domain.model.ot.ops.ObjectSetPropertyOperation
+import com.convergencelabs.server.domain.model.ot.ops.StringInsertOperation
+import com.convergencelabs.server.domain.model.ot.ops.StringRemoveOperation
+import com.convergencelabs.server.domain.model.ot.ops.StringSetOperation
 
 class TransformationFunctionRegistry {
 
@@ -103,9 +118,9 @@ class TransformationFunctionRegistry {
 private[xform] final case class RegistryKey[S,C](s: Class[S], c: Class[C])
 
 private[xform] object RegistryKey {
-  def of[S,C](implicit s: TypeTag[S], c: TypeTag[C]): RegistryKey[S,C] = {
-    val sClass = s.mirror.runtimeClass(s.tpe.typeSymbol.asClass).asInstanceOf[Class[S]]
-    val cClass = c.mirror.runtimeClass(c.tpe.typeSymbol.asClass).asInstanceOf[Class[C]]
+  def of[S,C](implicit s: ClassTag[S], c: ClassTag[C]): RegistryKey[S,C] = {
+    val sClass = s.runtimeClass.asInstanceOf[Class[S]]
+    val cClass = c.runtimeClass.asInstanceOf[Class[C]]
     RegistryKey(sClass, cClass)
   }
 }
@@ -113,7 +128,7 @@ private[xform] object RegistryKey {
 private[xform] class TFMap {
   var otfs = Map[RegistryKey[_,_], OperationTransformationFunction[_,_]]()
   
-  def register[S <: DiscreteOperation,C <: DiscreteOperation](otf: OperationTransformationFunction[S, C])(implicit s: TypeTag[S], c: TypeTag[C]): Unit ={
+  def register[S <: DiscreteOperation,C <: DiscreteOperation](otf: OperationTransformationFunction[S, C])(implicit s: ClassTag[S], c: ClassTag[C]): Unit ={
     val key = RegistryKey.of(s, c)
     if (otfs.get(key).isDefined) {
       throw new IllegalArgumentException(s"Transformation function already registered for ${key.s.getSimpleName}, ${key.c.getSimpleName}")

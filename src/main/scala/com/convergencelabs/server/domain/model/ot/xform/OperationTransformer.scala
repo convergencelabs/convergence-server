@@ -12,8 +12,7 @@ import com.convergencelabs.server.domain.model.ot.ops.ArrayOperation
 import com.convergencelabs.server.domain.model.ot.ops.CompoundOperation
 import com.convergencelabs.server.domain.model.ot.ops.DiscreteOperation
 
-class OperationTransformer(
-    tfr: TransformationFunctionRegistry) {
+class OperationTransformer(tfr: TransformationFunctionRegistry) {
 
   def transform(s: Operation, c: Operation): (Operation, Operation) = {
     (s, c) match {
