@@ -52,7 +52,7 @@ class RealtimeModelActorSpec
         val client = new TestProbe(system)
         realtimeModelActor.tell(OpenRealtimeModelRequest("s1", modelFqn, client.ref), client.ref)
 
-        val message = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
+        val message = client.expectMsgClass(FiniteDuration(2, TimeUnit.SECONDS), classOf[OpenModelSuccess])
         assert(message.modelData == modelData.data)
         assert(message.metaData.version == modelData.metaData.version)
         assert(message.metaData.createdTime == modelData.metaData.createdTime)
