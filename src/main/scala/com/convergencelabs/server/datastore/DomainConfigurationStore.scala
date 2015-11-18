@@ -15,6 +15,7 @@ import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import grizzled.slf4j.Logging
 import java.util.ArrayList
+import com.convergencelabs.server.datastore.mapper.DomainConfigMapper._
 
 object DomainConfigurationStore extends Logging {
 
@@ -42,68 +43,6 @@ object DomainConfigurationStore extends Logging {
 
   val SnapshotConfigField = "snapshotConfig"
 
-  def domainConfigToDocument(domainConfig: DomainConfig): ODocument = {
-    val DomainConfig(
-      id,
-      DomainFqn(namespace, domainId),
-      displayName,
-      dbUsername,
-      dbPassword,
-      keys,
-      TokenKeyPair(privateKey, publicKey),
-      snapshotConfig) = domainConfig
-
-    val document = new ODocument()
-    document.field(Id, id)
-    document.field(Namespace, namespace)
-    document.field(DomainId, domainId)
-    document.field(DisplayName, displayName)
-    document.field(DBUsername, dbUsername)
-    document.field(DBPassword, dbPassword)
-
-    val keyDocs = List()
-    domainConfig.keys.values foreach { key => keyDocs add Map(KeyId -> key.id, KeyName -> key.name, KeyDescription -> key.description, KeyDate -> key.keyDate, Key -> key.key) }
-
-    document.field(DomainConfigurationStore.Keys, keyDocs.asJava)
-
-    val adminKeyPairDoc = Map(DomainConfigurationStore.PrivateKey -> privateKey, DomainConfigurationStore.PublicKey -> publicKey)
-    document.field(DomainConfigurationStore.AdminKeyPair, adminKeyPairDoc.asJava)
-
-    val snapshotDoc = new ODocument("SnapshotConfig")
-    snapshotDoc.field("enabled", snapshotConfig.snapshotsEnabled)
-    snapshotDoc.field("triggerByVersion", snapshotConfig.triggerByVersion)
-    snapshotDoc.field("limitedByVersion", snapshotConfig.limitedByVersion)
-    snapshotDoc.field("minVersionInterval", snapshotConfig.minimumVersionInterval)
-    snapshotDoc.field("maxVersionInterval", snapshotConfig.maximumVersionInterval)
-    snapshotDoc.field("triggerByTime", snapshotConfig.triggerByTime)
-    snapshotDoc.field("limitedByTime", snapshotConfig.limitedByTime)
-    snapshotDoc.field("minTimeIntervalMillis", snapshotConfig.minimumTimeInterval.toMillis)
-    snapshotDoc.field("maxTimeIntervalMillis", snapshotConfig.maximumTimeInterval.toMillis)
-
-    document.field(DomainConfigurationStore.SnapshotConfigField, snapshotDoc)
-
-    document
-  }
-
-  def documentToDomainConfig(doc: ODocument): DomainConfig = {
-    val domainFqn = DomainFqn(doc.field(Namespace), doc.field(DomainId))
-    val keyPairDoc: OTrackedMap[String] = doc.field(AdminKeyPair, OType.EMBEDDEDMAP)
-    val keyPair = TokenKeyPair(keyPairDoc.get(PrivateKey), keyPairDoc.get(PublicKey))
-
-    val snapshotConfigDoc: ODocument = doc.field(SnapshotConfigField)
-    val snapshotConfig: SnapshotConfig = docToSnapshotConfig(snapshotConfigDoc)
-
-    val domainConfig = DomainConfig(
-      doc.field(Id),
-      domainFqn, doc.field(DisplayName),
-      doc.field(DBUsername),
-      doc.field(DBPassword),
-      listToKeysMap(doc.field(Keys, OType.EMBEDDEDLIST)),
-      keyPair,
-      snapshotConfig)
-    domainConfig
-  }
-
   def listToKeysMap(doc: JavaList[OTrackedMap[Any]]): Map[String, TokenPublicKey] = {
     val keys = new HashMap[String, TokenPublicKey]
     doc.foreach { docKey =>
@@ -121,29 +60,13 @@ object DomainConfigurationStore extends Logging {
       doc.get(Key).asInstanceOf[String],
       doc.get(KeyEnabled).asInstanceOf[Boolean])
   }
-
-  def docToSnapshotConfig(doc: ODocument): SnapshotConfig = {
-    val minTimeIntervalMillis: Long = doc.field("minTimeInterval")
-    val maxTimeIntervalMillis: Long = doc.field("maxTimeInterval")
-
-    SnapshotConfig(
-      doc.field("enabled").asInstanceOf[Boolean],
-      doc.field("triggerByVersion").asInstanceOf[Boolean],
-      doc.field("limitedByVersion").asInstanceOf[Boolean],
-      doc.field("minVersionInterval").asInstanceOf[Long],
-      doc.field("maxVersionInterval").asInstanceOf[Long],
-      doc.field("triggerByTime").asInstanceOf[Boolean],
-      doc.field("limitedByTime").asInstanceOf[Boolean],
-      Duration.ofMillis(minTimeIntervalMillis),
-      Duration.ofMillis(maxTimeIntervalMillis))
-  }
 }
 
 class DomainConfigurationStore(dbPool: OPartitionedDatabasePool) extends Logging {
 
   def createDomainConfig(domainConfig: DomainConfig) = {
     val db = dbPool.acquire()
-    db.save(DomainConfigurationStore.domainConfigToDocument(domainConfig), DomainConfigurationStore.Domain)
+    db.save(domainConfig)
     db.close()
   }
 
@@ -162,9 +85,9 @@ class DomainConfigurationStore(dbPool: OPartitionedDatabasePool) extends Logging
     db.close()
 
     result.asScala.toList match {
-      case first :: Nil => true
+      case first :: Nil  => true
       case first :: rest => false // FIXME log
-      case _ => false
+      case _             => false
     }
   }
 
@@ -180,9 +103,8 @@ class DomainConfigurationStore(dbPool: OPartitionedDatabasePool) extends Logging
 
       val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
-      QueryUtil.mapSingleResult(result) { doc =>
-        DomainConfigurationStore.documentToDomainConfig(doc)
-      }
+      QueryUtil.mapSingleResult(result) { doc => doc.asDomainConfig }
+
     } finally {
       db.close()
     }
@@ -195,9 +117,7 @@ class DomainConfigurationStore(dbPool: OPartitionedDatabasePool) extends Logging
       val params = Map("id" -> id)
       val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
-      QueryUtil.mapSingleResult(result) { doc =>
-        DomainConfigurationStore.documentToDomainConfig(doc)
-      }
+      QueryUtil.mapSingleResult(result) { doc => doc.asDomainConfig }
     } finally {
       db.close()
     }
@@ -209,7 +129,7 @@ class DomainConfigurationStore(dbPool: OPartitionedDatabasePool) extends Logging
     val params = Map("namespace" -> namespace)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     db.close()
-    result.asScala.toList map { doc => DomainConfigurationStore.documentToDomainConfig(doc) }
+    result.asScala.toList map { doc => doc.asDomainConfig }
   }
 
   def removeDomainConfig(id: String): Unit = {
@@ -222,7 +142,6 @@ class DomainConfigurationStore(dbPool: OPartitionedDatabasePool) extends Logging
 
   def updateDomainConfig(newConfig: DomainConfig): Unit = {
     val db = dbPool.acquire()
-    val updatedDoc = DomainConfigurationStore.domainConfigToDocument(newConfig)
 
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM Domain WHERE id = :id")
     val params = Map("id" -> newConfig.id)
@@ -230,7 +149,7 @@ class DomainConfigurationStore(dbPool: OPartitionedDatabasePool) extends Logging
 
     result.asScala.toList match {
       case first :: rest => {
-        first.merge(updatedDoc, false, false)
+        first.merge(newConfig, false, false)
         db.save(first)
       }
       case Nil =>
@@ -239,7 +158,7 @@ class DomainConfigurationStore(dbPool: OPartitionedDatabasePool) extends Logging
 
   def getDomainKey(domainFqn: DomainFqn, keyId: String): Option[TokenPublicKey] = {
     val db = dbPool.acquire()
-    val queryString = 
+    val queryString =
       "SELECT keys[id = :keyId].asList() FROM Domain WHERE namespace = :namespace AND domainId = :domainId"
     val query = new OSQLSynchQuery[ODocument](queryString)
     val params = Map("namespace" -> domainFqn.namespace, "domainId" -> domainFqn.domainId, "keyId" -> keyId)

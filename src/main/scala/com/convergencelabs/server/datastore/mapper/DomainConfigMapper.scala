@@ -32,7 +32,7 @@ object DomainConfigMapper {
       TokenKeyPair(privateKey, publicKey),
       snapshotConfig) = domainConfig
 
-    val doc = new ODocument()
+    val doc = new ODocument("Domain")
     doc.field(Fields.Id, id)
     doc.field(Fields.Namespace, namespace)
     doc.field(Fields.DomainId, domainId)
@@ -53,10 +53,10 @@ object DomainConfigMapper {
   }
 
   implicit class ODocumentToDomainConfig(val d: ODocument) {
-    def asDomainUser: DomainConfig = oDocumentToDomainConfig(d)
+    def asDomainConfig: DomainConfig = oDocumentToDomainConfig(d)
   }
 
-  def oDocumentToDomainConfig(doc: ODocument): DomainConfig = {
+  implicit def oDocumentToDomainConfig(doc: ODocument): DomainConfig = {
     val domainFqn = DomainFqn(doc.field(Fields.Namespace), doc.field(Fields.DomainId))
     val keyPairDoc: OTrackedMap[String] = doc.field(Fields.AdminKeyPair, OType.EMBEDDEDMAP)
     val keyPair = TokenKeyPair(keyPairDoc.get(Fields.PrivateKey), keyPairDoc.get(Fields.PublicKey))
