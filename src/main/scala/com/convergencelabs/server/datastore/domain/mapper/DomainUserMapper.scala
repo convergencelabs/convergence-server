@@ -6,12 +6,12 @@ import scala.language.implicitConversions
 
 object DomainUserMapper {
   
-  implicit class DomainUserToODocument(val s: DomainUser) {
+  implicit class DomainUserToODocument(val s: DomainUser) extends AnyVal {
     def asODocument: ODocument = domainUserToODocument(s)
   }
   
   implicit def domainUserToODocument(obj: DomainUser): ODocument = {
-    val doc = new ODocument("User")
+    val doc = new ODocument(ClassName)
     doc.field(Fields.Uid, obj.uid)
     doc.field(Fields.Username, obj.username)
     doc.field(Fields.FirstName, obj.firstName)
@@ -19,11 +19,12 @@ object DomainUserMapper {
     doc.field(Fields.Email, obj.email)
   }
   
-  implicit class ODocumentToDomainUser(val d: ODocument) {
+  implicit class ODocumentToDomainUser(val d: ODocument) extends AnyVal {
     def asDomainUser: DomainUser = oDocumentToDomainUser(d)
   }
   
   implicit def oDocumentToDomainUser(doc: ODocument): DomainUser = {
+    assert(doc.getClassName == ClassName)
     DomainUser(
       doc.field(Fields.Uid),
       doc.field(Fields.Username),
@@ -32,6 +33,8 @@ object DomainUserMapper {
       doc.field(Fields.Email))
 
   }
+  
+  private[this] val ClassName = "User"
   
   private[this] object Fields {
     val Uid = "uid"
