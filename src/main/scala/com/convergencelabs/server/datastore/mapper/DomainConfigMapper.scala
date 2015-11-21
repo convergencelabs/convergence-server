@@ -47,7 +47,7 @@ object DomainConfigMapper {
 
     val adminKeyPairDoc = Map(Fields.PrivateKey -> privateKey, Fields.PublicKey -> publicKey)
     doc.field(Fields.AdminKeyPair, adminKeyPairDoc.asJava)
-    doc.field(Fields.SnapshotConfigField, snapshotConfig.asODocument)
+    doc.field(Fields.SnapshotConfig, snapshotConfig.asODocument)
 
     doc
   }
@@ -61,7 +61,7 @@ object DomainConfigMapper {
     val keyPairDoc: OTrackedMap[String] = doc.field(Fields.AdminKeyPair, OType.EMBEDDEDMAP)
     val keyPair = TokenKeyPair(keyPairDoc.get(Fields.PrivateKey), keyPairDoc.get(Fields.PublicKey))
 
-    val snapshotConfigDoc: ODocument = doc.field(Fields.SnapshotConfigField)
+    val snapshotConfigDoc: ODocument = doc.field(Fields.SnapshotConfig)
 
     DomainConfig(
       doc.field(Fields.Id),
@@ -113,6 +113,6 @@ object DomainConfigMapper {
     val PrivateKey = "privateKey"
     val PublicKey = "publicKey"
 
-    val SnapshotConfigField = "snapshotConfig"
+    val SnapshotConfig = "snapshotConfig"
   }
 }
