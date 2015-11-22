@@ -43,8 +43,8 @@ object ModelStore {
   }
 }
 
-class ModelStore(_dbPool: OPartitionedDatabasePool)
-    extends AbstractDatabasePersistence(_dbPool) {
+class ModelStore(dbPool: OPartitionedDatabasePool)
+    extends AbstractDatabasePersistence(dbPool) {
 
   private[this] implicit val formats = Serialization.formats(NoTypeHints)
 

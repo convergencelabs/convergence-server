@@ -17,6 +17,7 @@ import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.util.TryWithResource
 import scala.util.Try
+import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 
 /**
  * Manages the persistence of model snapshots.
@@ -26,7 +27,8 @@ import scala.util.Try
  */
 class ModelSnapshotStore private[domain] (
   private[this] val dbPool: OPartitionedDatabasePool)
-    extends Logging {
+    extends AbstractDatabasePersistence(dbPool)
+    with Logging {
 
   private[this] implicit val formats = org.json4s.DefaultFormats
 
@@ -36,7 +38,7 @@ class ModelSnapshotStore private[domain] (
    *
    * @param snapshotData The snapshot to create.
    */
-  def createSnapshot(snapshotData: SnapshotData): Try[Unit] = TryWithResource(dbPool.acquire()) { db =>
+  def createSnapshot(snapshotData: SnapshotData): Try[Unit] = tryWithDb { db =>
     val doc = db.newInstance("ModelSnapshot")
     doc.field("modelId", snapshotData.metaData.fqn.modelId)
     doc.field("collectionId", snapshotData.metaData.fqn.collectionId)
@@ -56,7 +58,7 @@ class ModelSnapshotStore private[domain] (
    * @return Some(SnapshotData) if a snapshot corresponding to the model and
    * version if it exists, or None if it does not.
    */
-  def getSnapshot(fqn: ModelFqn, version: Long): Try[Option[SnapshotData]] = TryWithResource(dbPool.acquire()) { db =>
+  def getSnapshot(fqn: ModelFqn, version: Long): Try[Option[SnapshotData]] = tryWithDb { db =>
     // NOTE: Multi-line strings
     val queryString =
       """SELECT *
@@ -103,7 +105,7 @@ class ModelSnapshotStore private[domain] (
   def getSnapshotMetaDataForModel(
     fqn: ModelFqn,
     limit: Option[Int],
-    offset: Option[Int]): Try[List[SnapshotMetaData]] = TryWithResource(dbPool.acquire()) { db =>
+    offset: Option[Int]): Try[List[SnapshotMetaData]] = tryWithDb { db =>
     val baseQuery =
       """SELECT version, timestamp 
         |FROM ModelSnapshot 
@@ -138,7 +140,7 @@ class ModelSnapshotStore private[domain] (
     startTime: Option[Long],
     endTime: Option[Long],
     limit: Option[Int],
-    offset: Option[Int]): Try[List[SnapshotMetaData]] = TryWithResource(dbPool.acquire()) { db =>
+    offset: Option[Int]): Try[List[SnapshotMetaData]] = tryWithDb { db =>
     val baseQuery =
       """SELECT version, timestamp 
         |FROM ModelSnapshot 
@@ -168,7 +170,7 @@ class ModelSnapshotStore private[domain] (
    * if no snapshots for that model exist.
    */
   def getLatestSnapshotMetaDataForModel(fqn: ModelFqn): Try[Option[SnapshotMetaData]] =
-    TryWithResource(dbPool.acquire()) { db =>
+    tryWithDb { db =>
       val queryString =
         """SELECT version, timestamp 
         |FROM ModelSnapshot 
@@ -192,7 +194,7 @@ class ModelSnapshotStore private[domain] (
       }
     }
 
-  def getClosestSnapshotByVersion(fqn: ModelFqn, version: Long): Try[Option[SnapshotData]] = TryWithResource(dbPool.acquire()) { db =>
+  def getClosestSnapshotByVersion(fqn: ModelFqn, version: Long): Try[Option[SnapshotData]] = tryWithDb { db =>
     val queryString =
       s"""SELECT 
         |  abs(eval('$$current.version - $version')) as abs_delta, 
@@ -233,7 +235,7 @@ class ModelSnapshotStore private[domain] (
    * @param fqn The ModelFqn of the model to delete the snapshot for.
    * @param version The version of the snapshot to delete.
    */
-  def removeSnapshot(fqn: ModelFqn, version: Long): Try[Unit] = TryWithResource(dbPool.acquire()) { db =>
+  def removeSnapshot(fqn: ModelFqn, version: Long): Try[Unit] = tryWithDb { db =>
     val query =
       """DELETE FROM ModelSnapshot 
         |WHERE 
@@ -256,7 +258,7 @@ class ModelSnapshotStore private[domain] (
    *
    * @param fqn The ModelFqn of the model to delete all snapshots for.
    */
-  def removeAllSnapshotsForModel(fqn: ModelFqn): Try[Unit] = TryWithResource(dbPool.acquire()) { db =>
+  def removeAllSnapshotsForModel(fqn: ModelFqn): Try[Unit] = tryWithDb { db =>
     val query =
       """DELETE FROM ModelSnapshot 
         |WHERE 
@@ -274,7 +276,7 @@ class ModelSnapshotStore private[domain] (
    *
    * @param collectionId The collection id of the collection to remove snapshots for.
    */
-  def removeAllSnapshotsForCollection(collectionId: String): Try[Unit] = TryWithResource(dbPool.acquire()) { db =>
+  def removeAllSnapshotsForCollection(collectionId: String): Try[Unit] = tryWithDb { db =>
     val query = "DELETE FROM ModelSnapshot WHERE collectionId = :collectionId"
 
     val command = new OCommandSQL(query);

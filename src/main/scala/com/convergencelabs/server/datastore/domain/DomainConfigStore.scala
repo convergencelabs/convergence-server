@@ -24,34 +24,37 @@ import scala.util.Try
 import com.convergencelabs.server.util.TryWithResource
 import com.convergencelabs.server.domain.TokenKeyPair
 import com.convergencelabs.server.domain.TokenKeyPair
+import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 
-class DomainConfigStore(dbPool: OPartitionedDatabasePool) extends Logging {
+class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
+    extends AbstractDatabasePersistence(dbPool)
+    with Logging {
 
-  def getModelSnapshotConfig(): Try[ModelSnapshotConfig] = TryWithResource(dbPool.acquire()) { db =>
+  def getModelSnapshotConfig(): Try[ModelSnapshotConfig] = tryWithDb { db =>
     val queryString = "SELECT modelSnapshotConfig FROM DomainConfig"
     val query = new OSQLSynchQuery[ODocument](queryString)
     val result: JavaList[ODocument] = db.command(query).execute()
     QueryUtil.mapSingleResult(result) { _.asModelSnapshotConfig }.get
   }
 
-  def setModelSnapshotConfig(modelSnapshotConfig: ModelSnapshotConfig): Try[Unit] = TryWithResource(dbPool.acquire()) { db =>
+  def setModelSnapshotConfig(modelSnapshotConfig: ModelSnapshotConfig): Try[Unit] = tryWithDb { db =>
     val queryString = "UPDATE DomainConfig SET modelSnapshotConfig = :modelSnapshotConfig"
     val query = new OSQLSynchQuery[ODocument](queryString)
     val params = Map("modelSnapshotConfig" -> modelSnapshotConfig)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     Unit
   }
-  
-  def getAdminKeyPair(): Try[TokenKeyPair] = TryWithResource(dbPool.acquire()) { db =>
+
+  def getAdminKeyPair(): Try[TokenKeyPair] = tryWithDb { db =>
     val queryString = "SELECT adminKeyPair FROM DomainConfig"
     val query = new OSQLSynchQuery[ODocument](queryString)
     val result: JavaList[ODocument] = db.command(query).execute()
 
     QueryUtil.mapSingleResult(result) { _.asTokenKeyPair }.get
   }
-  
+
   // FIXME we need an add and remove key.
-  def getTokenKey(keyId: String): Try[Option[TokenPublicKey]] = TryWithResource(dbPool.acquire()) { db =>
+  def getTokenKey(keyId: String): Try[Option[TokenPublicKey]] = tryWithDb { db =>
     val queryString = "SELECT keys[id = :keyId].asList() FROM DomainConfig"
     val query = new OSQLSynchQuery[ODocument](queryString)
     val params = Map("keyId" -> keyId)
@@ -63,7 +66,7 @@ class DomainConfigStore(dbPool: OPartitionedDatabasePool) extends Logging {
     }
   }
 
-  def getTokenKeys(): Try[Map[String, TokenPublicKey]] = TryWithResource(dbPool.acquire()) { db =>
+  def getTokenKeys(): Try[Map[String, TokenPublicKey]] = tryWithDb { db =>
     val sql = "SELECT keys FROM DomainConfig"
     val query = new OSQLSynchQuery[ODocument](sql)
     val result: JavaList[ODocument] = db.command(query).execute()

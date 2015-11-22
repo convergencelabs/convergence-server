@@ -1,12 +1,10 @@
-package com.convergencelabs.server.datastore
+package com.convergencelabs.server.datastore.domain
 
 import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
 
-import com.convergencelabs.server.datastore.domain.DomainConfigStore
-import com.convergencelabs.server.datastore.domain.PersistenceStoreSpec
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 
 class DomainConfigStoreSpec
