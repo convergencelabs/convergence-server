@@ -1,8 +1,33 @@
-package com.convergencelabs.server.datastore.domain
+package com.convergencelabs.server.datastore.domain.mapper
 
+import scala.BigDecimal
+import scala.math.BigDecimal.double2bigDecimal
+import scala.math.BigInt.int2bigInt
+
+import org.json4s.JsonAST.JArray
+import org.json4s.JsonAST.JBool
+import org.json4s.JsonAST.JDecimal
+import org.json4s.JsonAST.JDouble
+import org.json4s.JsonAST.JInt
+import org.json4s.JsonAST.JNull
+import org.json4s.JsonAST.JObject
+import org.json4s.JsonAST.JString
+import org.scalatest.Finders
 import org.scalatest.WordSpec
-import com.convergencelabs.server.domain.model.ot.ops._
-import org.json4s.JsonAST._
+
+import com.convergencelabs.server.domain.model.ot.ops.ArrayInsertOperation
+import com.convergencelabs.server.domain.model.ot.ops.ArrayMoveOperation
+import com.convergencelabs.server.domain.model.ot.ops.ArrayRemoveOperation
+import com.convergencelabs.server.domain.model.ot.ops.ArrayReplaceOperation
+import com.convergencelabs.server.domain.model.ot.ops.ArraySetOperation
+import com.convergencelabs.server.domain.model.ot.ops.CompoundOperation
+import com.convergencelabs.server.domain.model.ot.ops.ObjectAddPropertyOperation
+import com.convergencelabs.server.domain.model.ot.ops.ObjectRemovePropertyOperation
+import com.convergencelabs.server.domain.model.ot.ops.ObjectSetOperation
+import com.convergencelabs.server.domain.model.ot.ops.ObjectSetPropertyOperation
+import com.convergencelabs.server.domain.model.ot.ops.StringInsertOperation
+import com.convergencelabs.server.domain.model.ot.ops.StringRemoveOperation
+import com.convergencelabs.server.domain.model.ot.ops.StringSetOperation
 
 class OrientDBOperationMapperSpec extends WordSpec {
 
@@ -35,22 +60,22 @@ class OrientDBOperationMapperSpec extends WordSpec {
     "when converting string operations" must {
       "correctly map and unmap an StringInsertOperation" in {
         val op = StringInsertOperation(path, true, 3, "inserted")
-        val asMap = OrientDBOperationMapper.operationToMap(op)
-        val reverted = OrientDBOperationMapper.mapToOperation(asMap)
+        val asDoc = OrientDBOperationMapper.operationToODocument(op)
+        val reverted = OrientDBOperationMapper.oDocumentToOperation(asDoc)
         assert(op == reverted)
       }
       
       "correctly map and unmap an StringRemoveOperation" in {
         val op = StringRemoveOperation(path, true, 3, "removed")
-        val asMap = OrientDBOperationMapper.operationToMap(op)
-        val reverted = OrientDBOperationMapper.mapToOperation(asMap)
+        val asDoc = OrientDBOperationMapper.operationToODocument(op)
+        val reverted = OrientDBOperationMapper.oDocumentToOperation(asDoc)
         assert(op == reverted)
       }
       
       "correctly map and unmap an StringSetOperation" in {
         val op = StringSetOperation(path, true, "something")
-        val asMap = OrientDBOperationMapper.operationToMap(op)
-        val reverted = OrientDBOperationMapper.mapToOperation(asMap)
+        val asDoc = OrientDBOperationMapper.operationToODocument(op)
+        val reverted = OrientDBOperationMapper.oDocumentToOperation(asDoc)
         assert(op == reverted)
       }
     }
@@ -58,36 +83,36 @@ class OrientDBOperationMapperSpec extends WordSpec {
     "when converting array operations" must {
       "correctly map and unmap an ArrayInsertOperation" in {
         val op = ArrayInsertOperation(path, true, 3, complexJsonObject)
-        val asMap = OrientDBOperationMapper.operationToMap(op)
-        val reverted = OrientDBOperationMapper.mapToOperation(asMap)
+        val asDoc = OrientDBOperationMapper.operationToODocument(op)
+        val reverted = OrientDBOperationMapper.oDocumentToOperation(asDoc)
         assert(op == reverted)
       }
       
       "correctly map and unmap an ArrayRemoveOperation" in {
         val op = ArrayRemoveOperation(path, true, 3)
-        val asMap = OrientDBOperationMapper.operationToMap(op)
-        val reverted = OrientDBOperationMapper.mapToOperation(asMap)
+        val asDoc = OrientDBOperationMapper.operationToODocument(op)
+        val reverted = OrientDBOperationMapper.oDocumentToOperation(asDoc)
         assert(op == reverted)
       }
       
       "correctly map and unmap an ArrayReplaceOperation" in {
         val op = ArrayReplaceOperation(path, true, 3, complexJsonArray)
-        val asMap = OrientDBOperationMapper.operationToMap(op)
-        val reverted = OrientDBOperationMapper.mapToOperation(asMap)
+        val asDoc = OrientDBOperationMapper.operationToODocument(op)
+        val reverted = OrientDBOperationMapper.oDocumentToOperation(asDoc)
         assert(op == reverted)
       }
       
       "correctly map and unmap an ArrayMoveOperation" in {
         val op = ArrayMoveOperation(path, true, 3, 5)
-        val asMap = OrientDBOperationMapper.operationToMap(op)
-        val reverted = OrientDBOperationMapper.mapToOperation(asMap)
+        val asDoc = OrientDBOperationMapper.operationToODocument(op)
+        val reverted = OrientDBOperationMapper.oDocumentToOperation(asDoc)
         assert(op == reverted)
       }
       
       "correctly map and unmap an ArraySetOperation" in {
         val op = ArraySetOperation(path, true, complexJsonArray)
-        val asMap = OrientDBOperationMapper.operationToMap(op)
-        val reverted = OrientDBOperationMapper.mapToOperation(asMap)
+        val asDoc = OrientDBOperationMapper.operationToODocument(op)
+        val reverted = OrientDBOperationMapper.oDocumentToOperation(asDoc)
         assert(op == reverted)
       }
     }
@@ -95,30 +120,30 @@ class OrientDBOperationMapperSpec extends WordSpec {
     "when converting object operations" must {
       "correctly map and unmap an ObjectSetPropertyOperation" in {
         val op = ObjectSetPropertyOperation(path, true, "prop", complexJsonObject)
-        val asMap = OrientDBOperationMapper.operationToMap(op)
-        val reverted = OrientDBOperationMapper.mapToOperation(asMap)
+        val asDoc = OrientDBOperationMapper.operationToODocument(op)
+        val reverted = OrientDBOperationMapper.oDocumentToOperation(asDoc)
         assert(op == reverted)
       }
       
       "correctly map and unmap an ObjectAddPropertyOperation" in {
         val op = ObjectAddPropertyOperation(path, true, "prop", complexJsonObject)
-        val asMap = OrientDBOperationMapper.operationToMap(op)
-        val reverted = OrientDBOperationMapper.mapToOperation(asMap)
+        val asDoc = OrientDBOperationMapper.operationToODocument(op)
+        val reverted = OrientDBOperationMapper.oDocumentToOperation(asDoc)
         assert(op == reverted)
       }
       
       "correctly map and unmap an ObjectRemovePropertyOperation" in {
         val op = ObjectRemovePropertyOperation(path, true, "prop")
-        val asMap = OrientDBOperationMapper.operationToMap(op)
-        val reverted = OrientDBOperationMapper.mapToOperation(asMap)
+        val asDoc = OrientDBOperationMapper.operationToODocument(op)
+        val reverted = OrientDBOperationMapper.oDocumentToOperation(asDoc)
         assert(op == reverted)
       }
       
       
       "correctly map and unmap an ObjectSetOperation" in {
         val op = ObjectSetOperation(path, true, complexJsonObject)
-        val asMap = OrientDBOperationMapper.operationToMap(op)
-        val reverted = OrientDBOperationMapper.mapToOperation(asMap)
+        val asDoc = OrientDBOperationMapper.operationToODocument(op)
+        val reverted = OrientDBOperationMapper.oDocumentToOperation(asDoc)
         assert(op == reverted)
       }
     }
@@ -141,8 +166,8 @@ class OrientDBOperationMapperSpec extends WordSpec {
             ArrayRemoveOperation(path, true, 3))
             
         val op = CompoundOperation(ops)
-        val asMap = OrientDBOperationMapper.operationToMap(op)
-        val reverted = OrientDBOperationMapper.mapToOperation(asMap)
+        val asDoc = OrientDBOperationMapper.operationToODocument(op)
+        val reverted = OrientDBOperationMapper.oDocumentToOperation(asDoc)
         assert(op == reverted)
       }
     }      

@@ -15,7 +15,7 @@ import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import scala.util.Try
 
-class ModelOperationStore(dbPool: OPartitionedDatabasePool) 
+class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool) 
  extends AbstractDatabasePersistence(dbPool) {
   private[this] implicit val formats = Serialization.formats(NoTypeHints)
 

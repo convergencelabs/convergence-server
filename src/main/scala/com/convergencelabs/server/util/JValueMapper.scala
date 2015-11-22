@@ -11,8 +11,17 @@ import java.util.{ Map => JMap }
 import scala.math.BigInt.int2bigInt
 import scala.math.BigInt.javaBigInteger2bigInt
 import scala.math.BigInt.long2bigInt
+import org.json4s.JsonAST.JNumber
 
 object JValueMapper {
+
+  def jNumberToJava(jNumber: JNumber): Any = {
+    jNumber match {
+      case x: JDecimal => jValueToJava(x.asInstanceOf[JValue])
+      case x: JDouble => jValueToJava(x.asInstanceOf[JValue])
+      case x: JInt => jValueToJava(x.asInstanceOf[JValue])
+    }
+  }
 
   def jValueToJava(jValue: JValue): Any = {
     jValue match {

@@ -17,8 +17,8 @@ import scala.collection.mutable
  * @param initialContextVersion The initial context version this object will be set to.
  */
 class ServerConcurrencyControl(
-  private[this] val operationTransformer: OperationTransformer,
-  private[this] var initialContextVersion: Long) extends Logging {
+    private[this] val operationTransformer: OperationTransformer,
+    private[this] var initialContextVersion: Long) extends Logging {
 
   Validate.notNull(operationTransformer, "operationTransformer must not be null")
   Validate.isTrue(initialContextVersion >= 0, "initialContextVersion must be >= 0: ", initialContextVersion)
@@ -144,7 +144,7 @@ class ServerConcurrencyControl(
    * @param clientId The identifier of the client.
    * @return True fi the client is being tracked, false otherwise.
    */
-  def isClientTracked(clientId: String) =  this.clientStates.contains(clientId)
+  def isClientTracked(clientId: String) = this.clientStates.contains(clientId)
 
   /**
    * Determines if an operation has been processed that has yet to be committed or rolled back. If an event is
@@ -229,18 +229,17 @@ class ServerConcurrencyControl(
           s"than the last known context version for that client ($currentContextVersion).")
     }
   }
-
-  /**
-   * The ClientConcurrencyState holds the concurrency state for a specific client.
-   *
-   * @param clientId The identifier of the client.
-   * @param contextVersion The currently known context version of that client.
-   * @param branchedStatePath The set of operations (other than those from the client it self) that move it from
-   *                          the contextVersion back to the servers state path.
-   */
-  case class ClientConcurrencyState(clientId: String, contextVersion: Long, branchedStatePath: List[ProcessedOperationEvent])
-
 }
+
+/**
+ * The ClientConcurrencyState holds the concurrency state for a specific client.
+ *
+ * @param clientId The identifier of the client.
+ * @param contextVersion The currently known context version of that client.
+ * @param branchedStatePath The set of operations (other than those from the client it self) that move it from
+ *                          the contextVersion back to the servers state path.
+ */
+private case class ClientConcurrencyState(clientId: String, contextVersion: Long, branchedStatePath: List[ProcessedOperationEvent])
 
 /**
  * The UnprocessedOperationEvent represents a incoming operation from the a client.  The operation may not be
@@ -264,4 +263,3 @@ case class UnprocessedOperationEvent(clientId: String, contextVersion: Long, ope
 case class ProcessedOperationEvent(clientId: String, contextVersion: Long, operation: Operation) {
   val resultingVersion = contextVersion + 1
 }
-

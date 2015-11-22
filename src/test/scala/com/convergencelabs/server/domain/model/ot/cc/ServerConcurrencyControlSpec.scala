@@ -7,6 +7,8 @@ import org.mockito.Mockito.{spy, inOrder, verify, times}
 import org.scalatest.WordSpec
 import org.scalatest.mock.MockitoSugar
 import com.convergencelabs.server.domain.model.ot.xform.TransformationFunctionRegistry
+import com.convergencelabs.server.domain.model.ot.cc.UnprocessedOperationEvent
+import com.convergencelabs.server.domain.model.ot.cc.ServerConcurrencyControl
 
 class ServerConcurrencyControlSpec extends WordSpec with MockitoSugar {
 
