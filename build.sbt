@@ -47,8 +47,11 @@ libraryDependencies += "org.bitbucket.b_c" % "jose4j" % "0.4.4"
 libraryDependencies += "org.bouncycastle" % "bcpkix-jdk15on" % "1.52"
 libraryDependencies += "com.lambdaworks" % "scrypt" % "1.4.0"
 
+//Command Line Parser
+libraryDependencies += "org.rogach" %% "scallop" % "0.9.5"
 
 // Testing Dependencies
 libraryDependencies += "org.scalatest" % "scalatest_2.11" % "2.2.5" % "test"
 libraryDependencies += "org.mockito" % "mockito-all" % "2.0.2-beta"  % "test"
 libraryDependencies += "junit" % "junit" % "4.12" % "test"
+
