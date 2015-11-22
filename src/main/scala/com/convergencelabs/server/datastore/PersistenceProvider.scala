@@ -9,7 +9,7 @@ import scala.util.Failure
 
 class PersistenceProvider(dbPool: OPartitionedDatabasePool) {
   val convergenceConfigStore = new ConfigurationStore(dbPool)
-  val domainConfigStore = new DomainConfigurationStore(dbPool)
+  val domainStore = new DomainStore(dbPool)
   
   def validateConnection(): Boolean = {
     Try[Unit](dbPool.acquire().close()) match {

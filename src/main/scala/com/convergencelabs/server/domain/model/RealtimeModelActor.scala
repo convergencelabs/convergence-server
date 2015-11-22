@@ -20,6 +20,8 @@ import scala.compat.Platform
 import com.convergencelabs.server.ErrorResponse
 import java.time.Instant
 import com.convergencelabs.server.domain.model.ot.xform.TransformationFunctionRegistry
+import java.time.Duration
+import com.convergencelabs.server.domain.ModelSnapshotConfig
 
 /**
  * An instance of the RealtimeModelActor manages the lifecycle of a single
@@ -35,7 +37,7 @@ class RealtimeModelActor(
     private[this] val operationStore: OperationStore,
     private[this] val modelSnapshotStore: ModelSnapshotStore,
     private[this] val clientDataResponseTimeout: Long,
-    private[this] val snapshotConfig: SnapshotConfig) extends Actor with ActorLogging {
+    private[this] val snapshotConfig: ModelSnapshotConfig) extends Actor with ActorLogging {
 
   // This sets the actor dispatcher as an implicit execution context.  This way we
   // don't have to pass this argument to futures.
@@ -49,6 +51,8 @@ class RealtimeModelActor(
   
   private[this] val transformer = new OperationTransformer(new TransformationFunctionRegistry())
 
+  private[this] val snapshotCalculator = new ModelSnapshotCalculator(snapshotConfig)
+  
   //
   // Receive methods
   //
@@ -356,7 +360,7 @@ class RealtimeModelActor(
       }
     }
   }
-
+  
   /**
    * Attempts to transform the operation and apply it to the data model.
    */
@@ -400,10 +404,7 @@ class RealtimeModelActor(
     }
   }
 
-  /**
-   * Determines if a snapshot is required.
-   */
-  private[this] def snapshotRequired(): Boolean = snapshotConfig.snapshotRequired(
+  private[this] def snapshotRequired(): Boolean = snapshotCalculator.snapshotRequired(
     latestSnapshot.version,
     concurrencyControl.contextVersion,
     latestSnapshot.timestamp,
@@ -515,7 +516,7 @@ object RealtimeModelActor {
     operationStore: OperationStore,
     modelSnapshotStore: ModelSnapshotStore,
     clientDataResponseTimeout: Long,
-    snapshotConfig: SnapshotConfig): Props =
+    snapshotConfig: ModelSnapshotConfig): Props =
     Props(new RealtimeModelActor(
       modelManagerActor,
       domainFqn,

@@ -1,36 +1,24 @@
 package com.convergencelabs.server.domain
 
-import akka.testkit.TestKit
-import org.scalatest.mock.MockitoSugar
-import org.scalatest.BeforeAndAfterAll
-import akka.actor.ActorSystem
-import org.scalatest.WordSpecLike
-import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import org.json4s.JsonAST.JObject
-import com.convergencelabs.server.datastore.domain.ModelData
-import org.json4s.JsonAST.JString
-import com.convergencelabs.server.datastore.domain.ModelMetaData
-import com.convergencelabs.server.datastore.domain.SnapshotMetaData
-import com.convergencelabs.server.datastore.domain.ModelSnapshotStore
-import akka.testkit.TestProbe
-import com.convergencelabs.server.datastore.domain.ModelStore
-import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.server.ProtocolConfiguration
-import org.mockito.Mockito
-import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
-import com.convergencelabs.server.datastore.ConfigurationStore
-import com.convergencelabs.server.datastore.DomainConfig
-import com.convergencelabs.server.datastore.TokenPublicKey
-import com.convergencelabs.server.datastore.TokenKeyPair
-import scala.concurrent.Future
-import com.convergencelabs.server.datastore.domain.DomainUserStore
+
 import scala.concurrent.Await
-import com.convergencelabs.server.domain.model.SnapshotConfig
-import java.time.temporal.ChronoUnit
-import java.time.Duration
+import scala.concurrent.duration.FiniteDuration
 import scala.util.Success
+
+import org.junit.runner.RunWith
+import org.mockito.Mockito
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.Finders
+import org.scalatest.WordSpecLike
+import org.scalatest.junit.JUnitRunner
+import org.scalatest.mock.MockitoSugar
+
+import com.convergencelabs.server.datastore.domain.DomainConfigStore
+import com.convergencelabs.server.datastore.domain.DomainUserStore
+
+import akka.actor.ActorSystem
+import akka.testkit.TestKit
 
 @RunWith(classOf[JUnitRunner])
 class AuthenticationHandlerSpec()
@@ -75,29 +63,6 @@ class AuthenticationHandlerSpec()
     val nonExistingUser = "non-existing"
 
     val domainFqn = DomainFqn("convergence", "default")
-    val keys = Map[String, TokenPublicKey]()
-    val adminKeyPair = TokenKeyPair("", "")
-
-    val snapshotConfig = SnapshotConfig(
-      false,
-      true,
-      true,
-      250,
-      500,
-      false,
-      false,
-      Duration.of(0, ChronoUnit.MINUTES),
-      Duration.of(0, ChronoUnit.MINUTES))
-
-    val domainConfig = DomainConfig(
-      "d1",
-      domainFqn,
-      "Default",
-      "",
-      "",
-      keys,
-      adminKeyPair,
-      snapshotConfig)
 
     val userStore = mock[DomainUserStore]
     Mockito.when(userStore.domainUserExists(existingUser)).thenReturn(Success(true))
@@ -106,6 +71,8 @@ class AuthenticationHandlerSpec()
     Mockito.when(userStore.validateCredentials(existingUser, existingIncorrectPassword)).thenReturn(Success(false))
     Mockito.when(userStore.validateCredentials(nonExistingUser, "")).thenReturn(Success(false))
 
-    val authHandler = new AuthenticationHandler(domainConfig, userStore, system.dispatcher)
+    val domainConfigStore = mock[DomainConfigStore]
+
+    val authHandler = new AuthenticationHandler(domainConfigStore, userStore, system.dispatcher)
   }
 }

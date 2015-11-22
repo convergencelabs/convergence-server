@@ -6,37 +6,39 @@ import scala.language.implicitConversions
 
 object DomainUserMapper {
   
-  implicit class DomainUserToODocument(val s: DomainUser) extends AnyVal {
+  import DomainUserFields._
+  
+  private[domain] implicit class DomainUserToODocument(val s: DomainUser) extends AnyVal {
     def asODocument: ODocument = domainUserToODocument(s)
   }
   
-  implicit def domainUserToODocument(obj: DomainUser): ODocument = {
-    val doc = new ODocument(ClassName)
-    doc.field(Fields.Uid, obj.uid)
-    doc.field(Fields.Username, obj.username)
-    doc.field(Fields.FirstName, obj.firstName)
-    doc.field(Fields.LastName, obj.lastName)
-    doc.field(Fields.Email, obj.email)
+  private[domain] implicit def domainUserToODocument(obj: DomainUser): ODocument = {
+    val doc = new ODocument(DomainUserClassName)
+    doc.field(Uid, obj.uid)
+    doc.field(Username, obj.username)
+    doc.field(FirstName, obj.firstName)
+    doc.field(LastName, obj.lastName)
+    doc.field(Email, obj.email)
   }
   
-  implicit class ODocumentToDomainUser(val d: ODocument) extends AnyVal {
+  private[domain] implicit class ODocumentToDomainUser(val d: ODocument) extends AnyVal {
     def asDomainUser: DomainUser = oDocumentToDomainUser(d)
   }
   
-  implicit def oDocumentToDomainUser(doc: ODocument): DomainUser = {
-    assert(doc.getClassName == ClassName)
+  private[domain] implicit def oDocumentToDomainUser(doc: ODocument): DomainUser = {
+    assert(doc.getClassName == DomainUserClassName)
     DomainUser(
-      doc.field(Fields.Uid),
-      doc.field(Fields.Username),
-      doc.field(Fields.FirstName),
-      doc.field(Fields.LastName),
-      doc.field(Fields.Email))
+      doc.field(Uid),
+      doc.field(Username),
+      doc.field(FirstName),
+      doc.field(LastName),
+      doc.field(Email))
 
   }
   
-  private[this] val ClassName = "User"
+  private[domain] val DomainUserClassName = "User"
   
-  private[this] object Fields {
+  private[domain] object DomainUserFields {
     val Uid = "uid"
     val Username = "username"
     val FirstName = "firstName"

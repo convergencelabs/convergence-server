@@ -9,6 +9,8 @@ import scala.util.Failure
 class DomainPersistenceProvider(private[domain] val dbPool: OPartitionedDatabasePool) {
 
   val userStore = new DomainUserStore(dbPool)
+  
+  val configStore = new DomainConfigStore(dbPool)
 
   val modelStore = new ModelStore(dbPool)
   

@@ -1,30 +1,26 @@
 package com.convergencelabs.server.domain
 
 import java.util.concurrent.TimeUnit
-import akka.actor.ActorSystem
-import akka.testkit.TestKit
-import akka.testkit.TestProbe
+
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
-import org.json4s.JsonAST.JObject
+
 import org.junit.runner.RunWith
+import org.mockito.Mockito
 import org.scalatest.BeforeAndAfterAll
+import org.scalatest.Finders
 import org.scalatest.WordSpecLike
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.mock.MockitoSugar
+
 import com.convergencelabs.server.ProtocolConfiguration
-import com.convergencelabs.server.datastore.ConfigurationStore
-import com.convergencelabs.server.datastore.DomainConfig
-import com.convergencelabs.server.datastore.TokenKeyPair
-import com.convergencelabs.server.datastore.TokenPublicKey
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.util.MockDomainPersistenceManagerActor
-import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
-import org.mockito.Mockito
-import com.convergencelabs.server.domain.model.SnapshotConfig
-import java.time.temporal.ChronoUnit
-import java.time.Duration
+
+import akka.actor.ActorSystem
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
 
 @RunWith(classOf[JUnitRunner])
 class DomainActorSpec
@@ -64,29 +60,6 @@ class DomainActorSpec
 
   trait TestFixture {
     val domainFqn = DomainFqn("convergence", "default")
-    val keys = Map[String, TokenPublicKey]()
-    val adminKeyPair = TokenKeyPair("", "")
-
-    val snapshotConfig = SnapshotConfig(
-      false,
-      true,
-      true,
-      250,
-      500,
-      false,
-      false,
-      Duration.of(0, ChronoUnit.MINUTES),
-      Duration.of(0, ChronoUnit.MINUTES))
-
-    val domainConfig = DomainConfig(
-      "d1",
-      domainFqn,
-      "Default",
-      "",
-      "",
-      keys,
-      adminKeyPair,
-      snapshotConfig)
 
     val provider = mock[DomainPersistenceProvider]
     Mockito.when(provider.validateConnection()).thenReturn(true)
@@ -98,7 +71,7 @@ class DomainActorSpec
 
     val props = DomainActor.props(
       domainManagerActor.ref,
-      domainConfig,
+      domainFqn,
       protocolConfig,
       10 seconds)
 

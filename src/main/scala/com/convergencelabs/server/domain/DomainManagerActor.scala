@@ -15,10 +15,13 @@ import akka.actor.Props
 import akka.cluster.ClusterEvent._
 import akka.cluster.Cluster
 import akka.actor.Scheduler
+import scala.util.Success
+import scala.util.Failure
+import scala.util.Success
 
 object DomainManagerActor {
   val RelativeActorPath = "domainManager"
-  
+
   def props(
     convergencePersistence: PersistenceProvider,
     protocolConfig: ProtocolConfiguration): Props = Props(
@@ -37,7 +40,7 @@ class DomainManagerActor(
   private[this] val cluster = Cluster(context.system)
   private[this] implicit val ec = context.dispatcher
 
-  private[this] val domainConfigStore = convergencePersistence.domainConfigStore
+  private[this] val domainStore = convergencePersistence.domainStore
 
   // FIXME pull from config
   private[this] val domainShutdownDelay = new FiniteDuration(10, TimeUnit.SECONDS)
@@ -50,61 +53,69 @@ class DomainManagerActor(
   log.debug("DomainManager started.")
 
   def receive = {
-    case handshake: HandshakeRequest              => onHandshakeRequest(handshake)
-    case shutdownRequest: DomainShutdownRequest   => onDomainShutdownRequest(shutdownRequest)
+    case handshake: HandshakeRequest => onHandshakeRequest(handshake)
+    case shutdownRequest: DomainShutdownRequest => onDomainShutdownRequest(shutdownRequest)
     case shutdownApproval: DomainShutdownApproval => onDomainShutdownApproval(shutdownApproval)
-    case message                                  => unhandled(message)
+    case message => unhandled(message)
   }
 
   private[this] def onHandshakeRequest(request: HandshakeRequest): Unit = {
     val domainFqn = request.domainFqn
-    if (!domainConfigStore.domainExists(domainFqn)) {
-      sender() ! HandshakeFailure("domain_does_not_exists", "The domain does not exist")
-      return
-    }
-
-    if (!this.domainFqnToActor.contains(domainFqn)) {
-      log.debug("Client connected to unloaded domain '{}', loading it.", domainFqn)
-      handleClientOpeningClosedDomain(domainFqn, request)
-    } else {
-      log.debug("Client connected to loaded domain '{}'.", domainFqn)
-      // If this domain was going to be closing, cancel the close request.
-      if (shudownRequests.contains(domainFqn)) {
-        log.debug(s"Canceling request to close domain: ${domainFqn}", domainFqn)
-        shudownRequests(domainFqn).cancel()
-        shudownRequests.remove(domainFqn)
+    domainStore.domainExists(domainFqn) match {
+      case Success(false) => sender ! HandshakeFailure("domain_does_not_exists", "The domain does not exist")
+      case Success(true) => {
+        if (!this.domainFqnToActor.contains(domainFqn)) {
+          log.debug("Client connected to unloaded domain '{}', loading it.", domainFqn)
+          handleClientOpeningClosedDomain(domainFqn, request)
+        } else {
+          log.debug("Client connected to loaded domain '{}'.", domainFqn)
+          // If this domain was going to be closing, cancel the close request.
+          if (shudownRequests.contains(domainFqn)) {
+            log.debug(s"Canceling request to close domain: ${domainFqn}", domainFqn)
+            shudownRequests(domainFqn).cancel()
+            shudownRequests.remove(domainFqn)
+          }
+          domainFqnToActor(domainFqn) forward request
+        }
       }
-
-      domainFqnToActor(domainFqn) forward request
+      case Failure(cause) => {
+        log.error(cause, "Unknown error handshaking")
+        sender ! HandshakeFailure("unknown", "unknown error handshaking")
+      }
     }
   }
 
   private[this] def handleClientOpeningClosedDomain(domainFqn: DomainFqn, request: HandshakeRequest): Unit = {
-    if (domainConfigStore.domainExists(domainFqn)) {
-      // This only works because this is synchronous.
-
-      // FIXME I don't think it is for sure that the actor will be up and running at this point.
-      openClosedDomain(domainFqn)
-      domainFqnToActor(domainFqn) forward request
-    } else {
-      sender ! HandshakeFailure("domain_does_not_exists", "The domain does not exist")
+    domainStore.domainExists(domainFqn) match {
+      case Success(false) => {
+        // This only works because this is synchronous.
+        // FIXME I don't think it is for sure that the actor will be up and running at this point.
+        openClosedDomain(domainFqn)
+        domainFqnToActor(domainFqn) forward request
+      }
+      case Success(true) => {
+        sender ! HandshakeFailure("domain_does_not_exists", "The domain does not exist")
+      }
+      case Failure(cause) => {
+        ???
+      }
     }
   }
 
   private[this] def openClosedDomain(domainFqn: DomainFqn): Unit = {
-    val domainConfig = convergencePersistence.domainConfigStore.getDomainConfigByFqn(domainFqn)
-    domainConfig match {
-      case Some(domainConfig) => {
+    domainStore.getDomainByFqn(domainFqn) match {
+      case Success(Some(domainConfig)) => {
         val domainActor = context.actorOf(DomainActor.props(
           self,
-          domainConfig,
+          domainConfig.domainFqn,
           protocolConfig,
           domainShutdownDelay))
 
         actorsToDomainFqn(domainActor) = domainFqn
         domainFqnToActor(domainFqn) = domainActor
       }
-      case None => ??? // FIXME need to respond with a failure.
+      case Success(None) => ??? // FIXME need to respond with a failure.
+      case Failure(cause) => ??? // FIXME need to respond with a failure.
     }
   }
 
@@ -114,7 +125,7 @@ class DomainManagerActor(
       domainShutdownDelay,
       self,
       DomainShutdownApproval(request.domainFqn))
-      this.shudownRequests(request.domainFqn) = shutdownTask
+    this.shudownRequests(request.domainFqn) = shutdownTask
   }
 
   private[this] def onDomainShutdownApproval(approval: DomainShutdownApproval): Unit = {

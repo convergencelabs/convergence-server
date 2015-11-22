@@ -22,6 +22,8 @@ import java.time.Instant
 import java.time.Duration
 import java.time.temporal.TemporalUnit
 import java.time.temporal.ChronoUnit
+import com.convergencelabs.server.domain.ModelSnapshotConfig
+import scala.util.Success
 
 class ModelManagerActor(
   private[this] val domainFqn: DomainFqn,
@@ -46,33 +48,27 @@ class ModelManagerActor(
       val resourceId = "" + nextModelResourceId
       nextModelResourceId += 1
 
-      // TODO look this up via model,collection default, then system default
-      val snapshotConfig = SnapshotConfig(
-        true,
-        true,
-        true,
-        250,
-        500,
-        false,
-        false,
-        Duration.of(10, ChronoUnit.MINUTES),
-        Duration.of(20, ChronoUnit.MINUTES))
+      persistenceProvider.configStore.getModelSnapshotConfig() match {
+        case Success(modelSnapshotConfig) => {
+          val props = RealtimeModelActor.props(
+            self,
+            domainFqn,
+            openRequest.modelFqn,
+            resourceId,
+            persistenceProvider.modelStore,
+            persistenceProvider.operationStore,
+            persistenceProvider.modelSnapshotStore,
+            5000, // FIXME hard-coded time.  Should this be part of the protocol?
+            modelSnapshotConfig)
 
-      val props = RealtimeModelActor.props(
-        self,
-        domainFqn,
-        openRequest.modelFqn,
-        resourceId,
-        persistenceProvider.modelStore,
-        persistenceProvider.operationStore,
-        persistenceProvider.modelSnapshotStore,
-        5000, // FIXME hard-coded time.  Should this be part of the protocol?
-        snapshotConfig)
-
-      val modelActor = context.actorOf(props, resourceId);
-      this.openRealtimeModels.put(openRequest.modelFqn, modelActor);
+          val modelActor = context.actorOf(props, resourceId);
+          this.openRealtimeModels.put(openRequest.modelFqn, modelActor);
+        }
+        case _ => ???
+      }
     }
-
+    // FIXME something above could fail.  Here we just throw an exception.
+    // this is not good.
     val modelActor = openRealtimeModels.get(openRequest.modelFqn).get
     modelActor forward openRequest
   }

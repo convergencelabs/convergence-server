@@ -1,32 +1,28 @@
 package com.convergencelabs.server.domain
 
 import java.util.concurrent.TimeUnit
+
 import scala.concurrent.duration.FiniteDuration
-import org.json4s.JsonAST.JObject
+import scala.util.Success
+
 import org.junit.runner.RunWith
+import org.mockito.Mockito
 import org.scalatest.BeforeAndAfterAll
+import org.scalatest.Finders
 import org.scalatest.WordSpecLike
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.mock.MockitoSugar
+
 import com.convergencelabs.server.ProtocolConfiguration
-import com.convergencelabs.server.datastore.ConfigurationStore
-import com.convergencelabs.server.datastore.DomainConfig
-import com.convergencelabs.server.datastore.TokenKeyPair
-import com.convergencelabs.server.datastore.TokenPublicKey
+import com.convergencelabs.server.datastore.DomainStore
+import com.convergencelabs.server.datastore.PersistenceProvider
+import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
+import com.convergencelabs.server.util.MockDomainPersistenceManagerActor
+import com.typesafe.config.ConfigFactory
+
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
-import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.server.datastore.PersistenceProvider
-import org.mockito.Mockito
-import com.convergencelabs.server.datastore.DomainConfigurationStore
-import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
-import com.typesafe.config.ConfigFactory
-import com.typesafe.config.ConfigParseOptions
-import com.convergencelabs.server.util.MockDomainPersistenceManagerActor
-import com.convergencelabs.server.domain.model.SnapshotConfig
-import java.time.temporal.ChronoUnit
-import java.time.Duration
 
 @RunWith(classOf[JUnitRunner])
 class DomainManagerActorSpec()
@@ -64,38 +60,25 @@ class DomainManagerActorSpec()
     val keys = Map[String, TokenPublicKey]()
     val adminKeyPair = TokenKeyPair("", "")
 
-    val snapshotConfig = SnapshotConfig(
-      false,
-      true,
-      true,
-      250,
-      500,
-      false,
-      false,
-      Duration.of(0, ChronoUnit.MINUTES),
-      Duration.of(0, ChronoUnit.MINUTES))
 
-    val domainConfig = DomainConfig(
+    val domain = Domain(
       "d1",
       domainFqn,
       "Default",
       "",
-      "",
-      keys,
-      adminKeyPair,
-      snapshotConfig)
+      "")
 
-    val configStore = mock[DomainConfigurationStore]
-    Mockito.when(configStore.getDomainConfigByFqn(domainFqn)).thenReturn(Some(domainConfig))
-    Mockito.when(configStore.domainExists(domainFqn)).thenReturn(true)
-    Mockito.when(configStore.domainExists(nonExistingDomain)).thenReturn(false)
+    val domainStore = mock[DomainStore]
+    Mockito.when(domainStore.getDomainByFqn(domainFqn)).thenReturn(Success(Some(domain)))
+    Mockito.when(domainStore.domainExists(domainFqn)).thenReturn(Success(true))
+    Mockito.when(domainStore.domainExists(nonExistingDomain)).thenReturn(Success(false))
 
     val provider = mock[DomainPersistenceProvider]
     Mockito.when(provider.validateConnection()).thenReturn(true)
     domainPersistence.underlyingActor.mockProviders = Map(domainFqn -> provider)
 
     val convergencePersistence = mock[PersistenceProvider]
-    Mockito.when(convergencePersistence.domainConfigStore).thenReturn(configStore)
+    Mockito.when(convergencePersistence.domainStore).thenReturn(domainStore)
 
     val protocolConfig = ProtocolConfiguration(1000L)
 

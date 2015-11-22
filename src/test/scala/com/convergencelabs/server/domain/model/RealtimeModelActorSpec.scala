@@ -31,6 +31,7 @@ import com.convergencelabs.server.datastore.domain.OperationStore
 import com.convergencelabs.server.datastore.domain.SnapshotData
 import com.convergencelabs.server.datastore.domain.SnapshotMetaData
 import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.ModelSnapshotConfig
 import com.convergencelabs.server.domain.model.ot.ops.StringInsertOperation
 
 import akka.actor.ActorSystem
@@ -254,7 +255,7 @@ class RealtimeModelActorSpec
       operationStore,
       modelSnapshotStore,
       100L,
-      SnapshotConfig(true, true, true, 3, 3, false, false, Duration.of(1, ChronoUnit.SECONDS), Duration.of(1, ChronoUnit.SECONDS)))
+      ModelSnapshotConfig(true, true, true, 3, 3, false, false, Duration.of(1, ChronoUnit.SECONDS), Duration.of(1, ChronoUnit.SECONDS)))
 
     val realtimeModelActor = system.actorOf(props, resourceId)
   }

@@ -1,30 +1,30 @@
 package com.convergencelabs.server.domain
 
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import com.convergencelabs.server.datastore.DomainConfig
-import com.convergencelabs.server.datastore.ConfigurationStore
-import scala.util.Success
-import scala.util.Failure
-import akka.actor.ActorRef
-import org.bouncycastle.openssl.PEMParser
-import java.security.spec.X509EncodedKeySpec
 import java.io.StringReader
-import org.bouncycastle.jce.provider.BouncyCastleProvider
 import java.security.KeyFactory
-import org.jose4j.jwt.consumer.JwtConsumerBuilder
-import org.jose4j.jwt.consumer.InvalidJwtException
-import org.jose4j.jwt.JwtClaims
-import scala.collection.mutable.ListBuffer
-import com.convergencelabs.server.datastore.domain.DomainUser
 import java.security.PublicKey
-import scala.collection.JavaConversions._
-import akka.actor.Props
-import com.convergencelabs.server.datastore.domain.DomainUserStore
+import java.security.spec.X509EncodedKeySpec
+
+import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
+import scala.util.Failure
+import scala.util.Success
+
+import org.bouncycastle.jce.provider.BouncyCastleProvider
+import org.bouncycastle.openssl.PEMParser
+import org.jose4j.jwt.JwtClaims
+import org.jose4j.jwt.consumer.InvalidJwtException
+import org.jose4j.jwt.consumer.JwtConsumerBuilder
+
+import com.convergencelabs.server.datastore.domain.DomainConfigStore
+import com.convergencelabs.server.datastore.domain.DomainUser
+import com.convergencelabs.server.datastore.domain.DomainUserStore
+import com.convergencelabs.server.util.TryWithResource
+
+import akka.actor.ActorRef
+import akka.actor.actorRef2Scala
 import grizzled.slf4j.Logging
-import scala.concurrent.ExecutionContext
 
 object AuthenticationHandler {
   val RelativePath = "authManager"
@@ -32,7 +32,7 @@ object AuthenticationHandler {
 }
 
 class AuthenticationHandler(
-  private[this] val domainConfig: DomainConfig,
+  private[this] val domainConfigStore: DomainConfigStore,
   private[this] val userStore: DomainUserStore,
   private[this] implicit val ec: ExecutionContext)
     extends Logging {
@@ -49,9 +49,9 @@ class AuthenticationHandler(
     val response = userStore.validateCredentials(authRequest.username, authRequest.password) match {
       case Success(true) => AuthenticationSuccess(authRequest.username)
       case Success(false) => AuthenticationFailure
-      case Failure(cause) => ???  //FIXME: Need to handle failed auth do to error  
+      case Failure(cause) => ??? //FIXME: Need to handle failed auth do to error  
     }
-    
+
     Future.successful(response)
   }
 
@@ -141,33 +141,28 @@ class AuthenticationHandler(
   }
 
   private[this] def getJWTPublicKey(keyId: String): Option[PublicKey] = {
-    var publicKey: Option[PublicKey] = None
-    var keyPem: String = null
-
-    if (!AuthenticationHandler.AdminKeyId.equals(keyId)) {
-      val key = this.domainConfig.keys(keyId)
-      if (key.enabled) {
-        keyPem = key.key
+    val keyPem: Option[String] = if (!AuthenticationHandler.AdminKeyId.equals(keyId)) {
+      domainConfigStore.getTokenKey(keyId) match {
+        case Success(Some(key)) if key.enabled => Some(key.key)
+        case _ => None // FIXME handle error?
       }
     } else {
-      keyPem = this.domainConfig.adminKeyPair.publicKey
-    }
-
-    if (keyPem != null) {
-      val pemReader = new PEMParser(new StringReader(keyPem))
-      val spec = new X509EncodedKeySpec(pemReader.readPemObject().getContent())
-      try {
-        val keyFactory = KeyFactory.getInstance("RSA", new BouncyCastleProvider())
-        publicKey = Some(keyFactory.generatePublic(spec))
-      } catch {
-        case e: Exception =>
-          logger.warn("Unabled to decode jwt public key: " + e.getMessage)
-      } finally {
-        pemReader.close()
+      domainConfigStore.getAdminKeyPair() match {
+        case Success(keyPair) => Some(keyPair.publicKey)
+        case _ => None // FIXME handle error?
       }
     }
-
-    return publicKey
+    
+    keyPem.flatMap { pem =>
+      TryWithResource( new PEMParser(new StringReader(pem))) { pemReader =>
+        val spec = new X509EncodedKeySpec(pemReader.readPemObject().getContent())
+        val keyFactory = KeyFactory.getInstance("RSA", new BouncyCastleProvider())
+        Some(keyFactory.generatePublic(spec))
+      } .recoverWith { case e =>
+         logger.warn("Unabled to decode jwt public key: " + e.getMessage)
+          Success(None)
+      }.get
+    }
   }
 
   private[this] def nofifyAuthSuccess(asker: ActorRef, username: String): Unit = asker ! AuthenticationSuccess(username)

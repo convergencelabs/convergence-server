@@ -29,7 +29,7 @@ class BackendNode(system: ActorSystem) extends Logging {
     val dbPoolManager = system.actorOf(
       DomainPersistenceManagerActor.props(
         baseUri,
-        persistenceProvider.domainConfigStore),
+        persistenceProvider.domainStore),
       DomainPersistenceManagerActor.RelativePath)
 
     system.actorOf(DomainManagerActor.props(

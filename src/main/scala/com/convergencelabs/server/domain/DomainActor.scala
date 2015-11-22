@@ -6,7 +6,6 @@ import akka.actor.ActorLogging
 import akka.actor.ActorRef
 import akka.actor.Props
 import akka.actor.Cancellable
-import com.convergencelabs.server.datastore.DomainConfig
 import com.convergencelabs.server.domain.model.ModelManagerActor
 import com.convergencelabs.server.ProtocolConfiguration
 import java.util.concurrent.TimeUnit
@@ -20,13 +19,6 @@ import scala.collection.mutable.ListBuffer
 import com.convergencelabs.server.datastore.domain.DomainUser
 import org.jose4j.jwt.JwtClaims
 import java.security.PublicKey
-import java.io.StringReader
-import java.security.spec.X509EncodedKeySpec
-import org.bouncycastle.jce.provider.BouncyCastleProvider
-import org.bouncycastle.openssl.PEMParser
-import java.security.KeyFactory
-import java.security.NoSuchAlgorithmException
-import java.security.spec.InvalidKeySpecException
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.datastore.ConfigurationStore
 import java.util.UUID
@@ -47,12 +39,12 @@ import scala.util.Try
 object DomainActor {
   def props(
     domainManagerActor: ActorRef,
-    domainConfig: DomainConfig,
+    domainFqn: DomainFqn,
     protocolConfig: ProtocolConfiguration,
     shutdownDelay: FiniteDuration): Props = Props(
     new DomainActor(
       domainManagerActor,
-      domainConfig,
+      domainFqn,
       protocolConfig))
 
   private val MaxSessionId = 2176782335L
@@ -64,25 +56,25 @@ object DomainActor {
  */
 class DomainActor(
   domainManagerActor: ActorRef,
-  domainConfig: DomainConfig,
+  domainFqn: DomainFqn,
   protocolConfig: ProtocolConfiguration)
     extends Actor
     with ActorLogging {
 
-  log.debug(s"Domain startting up: ${domainConfig.domainFqn}")
+  log.debug(s"Domain startting up: ${domainFqn}")
 
   private[this] var persistenceProvider: DomainPersistenceProvider = _
   private[this] implicit val ec = context.dispatcher
   private[this] var nextSessionId = 0L
 
   private[this] val modelManagerActorRef = context.actorOf(ModelManagerActor.props(
-    domainConfig.domainFqn,
+    domainFqn,
     protocolConfig),
     ModelManagerActor.RelativePath)
 
   private[this] var authenticator: AuthenticationHandler = null
 
-  log.debug(s"Domain start up complete: ${domainConfig.domainFqn}")
+  log.debug(s"Domain start up complete: ${domainFqn}")
 
   private[this] val connectedClients = mutable.Set[ActorRef]()
 
@@ -129,9 +121,9 @@ class DomainActor(
 
     connectedClients.remove(sender())
     if (connectedClients.isEmpty) {
-      log.debug(s"Last client disconnected from domain: ${domainConfig.domainFqn}")
+      log.debug(s"Last client disconnected from domain: ${domainFqn}")
 
-      domainManagerActor ! DomainShutdownRequest(domainConfig.domainFqn)
+      domainManagerActor ! DomainShutdownRequest(domainFqn)
     }
   }
 
@@ -153,13 +145,13 @@ class DomainActor(
 
   override def preStart(): Unit = {
     val p = DomainPersistenceManagerActor.acquirePersistenceProvider(
-      self, context, domainConfig.domainFqn)
+      self, context, domainFqn)
 
     p match {
       case Success(provider) => {
         this.persistenceProvider = provider
         authenticator = new AuthenticationHandler(
-          domainConfig,
+          provider.configStore,
           provider.userStore,
           context.dispatcher)
       }
@@ -170,7 +162,7 @@ class DomainActor(
   }
   
   override def postStop(): Unit = {
-    log.debug(s"Domain(${domainConfig.domainFqn}) received shutdown command.  Shutting down.")
-    DomainPersistenceManagerActor.releasePersistenceProvider(self, context, domainConfig.domainFqn)
+    log.debug(s"Domain(${domainFqn}) received shutdown command.  Shutting down.")
+    DomainPersistenceManagerActor.releasePersistenceProvider(self, context, domainFqn)
   }
 }

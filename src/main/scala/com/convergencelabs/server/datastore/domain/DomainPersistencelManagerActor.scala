@@ -1,33 +1,35 @@
 package com.convergencelabs.server.datastore.domain
 
-import akka.actor.Props
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import akka.actor.ActorRef
-import com.convergencelabs.server.domain.DomainFqn
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import com.convergencelabs.server.domain.DomainFqn
-import akka.actor.Terminated
-import scala.util.Try
-import scala.util.Success
-import scala.util.Failure
-import akka.actor.actorRef2Scala
-import com.convergencelabs.server.datastore.DomainConfigurationStore
-import akka.actor.ActorPath
-import akka.util.Timeout
 import java.util.concurrent.TimeUnit
-import akka.pattern.Patterns
+
 import scala.concurrent.Await
 import scala.concurrent.duration.FiniteDuration
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
+
+import com.convergencelabs.server.datastore.DomainStore
+import com.convergencelabs.server.domain.DomainFqn
+import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
+
+import akka.actor.Actor
 import akka.actor.ActorContext
+import akka.actor.ActorLogging
+import akka.actor.ActorPath
+import akka.actor.ActorRef
+import akka.actor.Props
+import akka.actor.Terminated
+import akka.actor.actorRef2Scala
+import akka.pattern.Patterns
+import akka.util.Timeout
 
 object DomainPersistenceManagerActor {
   val RelativePath = "DomainPersistenceManagerActor"
 
   def props(
     baseDbUri: String,
-    domainConfigStore: DomainConfigurationStore): Props = Props(
-    new DomainPersistenceManagerActor(baseDbUri, domainConfigStore))
+    domainStore: DomainStore): Props = Props(
+    new DomainPersistenceManagerActor(baseDbUri, domainStore))
 
   def getLocalInstancePath(requestor: ActorPath): ActorPath = {
     requestor.root / "user" / RelativePath
@@ -57,7 +59,7 @@ object DomainPersistenceManagerActor {
 
 class DomainPersistenceManagerActor(
     baseDbUri: String,
-    domainConfigStore: DomainConfigurationStore) extends Actor with ActorLogging {
+    domainStore: DomainStore) extends Actor with ActorLogging {
 
   private[this] var refernceCounts = Map[DomainFqn, Int]()
   private[this] var providers = Map[DomainFqn, DomainPersistenceProvider]()
@@ -142,18 +144,18 @@ class DomainPersistenceManagerActor(
 
   private[this] def createProvider(domainFqn: DomainFqn): Try[DomainPersistenceProvider] = Try({
     log.warning(s"Creating new persistence provider: ${domainFqn}")
-    val config = domainConfigStore.getDomainConfigByFqn(domainFqn)
-    config match {
-      case Some(domainConfig) => {
+    domainStore.getDomainByFqn(domainFqn) match {
+      case Success(Some(domainInfo)) => {
         val pool = new OPartitionedDatabasePool(
-          baseDbUri + "/" + domainConfig.id,
-          domainConfig.dbUsername,
-          domainConfig.dbPassword)
+          baseDbUri + "/" + domainInfo.id,
+          domainInfo.dbUsername,
+          domainInfo.dbPassword)
         val provider = new DomainPersistenceProvider(pool)
         providers = providers + (domainFqn -> provider)
         provider
       }
-      case None => ??? // FIXME actually throw an exception here. 
+      case Success(None) => ??? // FIXME actually throw an exception here.
+      case Failure(cause) => ???
     }
   })
 
