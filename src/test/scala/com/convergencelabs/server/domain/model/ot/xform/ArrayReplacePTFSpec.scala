@@ -1,12 +1,9 @@
-package com.convergencelabs.server.domain.model.ot.xform
+package com.convergencelabs.server.domain.model.ot
 
 import scala.math.BigInt.int2bigInt
-
 import org.json4s.JsonAST.JInt
 import org.scalatest.Finders
 import org.scalatest.WordSpec
-
-import com.convergencelabs.server.domain.model.ot.ops.ArrayReplaceOperation
 
 class ArrayReplacePTFSpec extends WordSpec {
 

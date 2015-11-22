@@ -1,9 +1,7 @@
-package com.convergencelabs.server.domain.model.ot.xform
+package com.convergencelabs.server.domain.model.ot
 
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
-import com.convergencelabs.server.domain.model.ot.ops.ArrayMoveOperation
-import com.convergencelabs.server.domain.model.ot.ops.ArraySetOperation
 import org.json4s.JsonAST.JArray
 import org.json4s.JsonAST.JString
 

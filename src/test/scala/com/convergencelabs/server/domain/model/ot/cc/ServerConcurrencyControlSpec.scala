@@ -1,14 +1,12 @@
-package com.convergencelabs.server.domain.model.ot.cc
+package com.convergencelabs.server.domain.model.ot
 
-import com.convergencelabs.server.domain.model.ot.ops.StringInsertOperation
-import com.convergencelabs.server.domain.model.ot.ops.Operation
-import com.convergencelabs.server.domain.model.ot.xform.OperationTransformer
-import org.mockito.Mockito.{spy, inOrder, verify, times}
+import org.mockito.Mockito.inOrder
+import org.mockito.Mockito.spy
+import org.mockito.Mockito.times
+import org.mockito.Mockito.verify
+import org.scalatest.Finders
 import org.scalatest.WordSpec
 import org.scalatest.mock.MockitoSugar
-import com.convergencelabs.server.domain.model.ot.xform.TransformationFunctionRegistry
-import com.convergencelabs.server.domain.model.ot.cc.UnprocessedOperationEvent
-import com.convergencelabs.server.domain.model.ot.cc.ServerConcurrencyControl
 
 class ServerConcurrencyControlSpec extends WordSpec with MockitoSugar {
 

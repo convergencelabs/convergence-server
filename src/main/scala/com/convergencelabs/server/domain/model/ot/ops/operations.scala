@@ -1,7 +1,9 @@
-package com.convergencelabs.server.domain.model.ot.ops
+package com.convergencelabs.server.domain.model.ot
 
-import com.convergencelabs.server.domain.model.ot.xform._
-import org.json4s.JsonAST._
+import org.json4s.JsonAST.JArray
+import org.json4s.JsonAST.JNumber
+import org.json4s.JsonAST.JObject
+import org.json4s.JsonAST.JValue
 
 sealed trait Operation
 

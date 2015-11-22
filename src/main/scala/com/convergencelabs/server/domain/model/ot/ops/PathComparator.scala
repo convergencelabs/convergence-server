@@ -1,4 +1,4 @@
-package com.convergencelabs.server.domain.model.ot.ops
+package com.convergencelabs.server.domain.model.ot
 
 object PathComparator {
 

@@ -4,9 +4,9 @@ import org.json4s.JsonAST.JObject
 import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
-import com.convergencelabs.server.domain.model.ot.ops.ArrayRemoveOperation
-import com.convergencelabs.server.domain.model.ot.ops.CompoundOperation
-import com.convergencelabs.server.domain.model.ot.ops.ObjectSetOperation
+import com.convergencelabs.server.domain.model.ot.ArrayRemoveOperation
+import com.convergencelabs.server.domain.model.ot.CompoundOperation
+import com.convergencelabs.server.domain.model.ot.ObjectSetOperation
 import CompoundOperationMapper.CompoundOperationToODocument
 import CompoundOperationMapper.ODocumentToCompoundOperation
 import com.orientechnologies.orient.core.record.impl.ODocument

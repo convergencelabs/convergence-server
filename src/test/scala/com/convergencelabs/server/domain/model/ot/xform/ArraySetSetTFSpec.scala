@@ -1,10 +1,13 @@
-package com.convergencelabs.server.domain.model.ot.xform
+package com.convergencelabs.server.domain.model.ot
 
+import scala.math.BigInt.int2bigInt
+
+import org.json4s.JsonAST.JArray
+import org.json4s.JsonAST.JInt
+import org.json4s.JsonAST.JString
+import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
-import com.convergencelabs.server.domain.model.ot.ops.ArraySetOperation
-import com.convergencelabs.server.domain.model.ot.ops.ArraySetOperation
-import org.json4s.JsonAST._
 
 class ArraySetSetTFSpec extends WordSpec with Matchers {
 

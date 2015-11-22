@@ -3,9 +3,9 @@ package com.convergencelabs.server.domain.model
 import akka.actor.{ Props, ActorRef, ActorLogging, Actor }
 import akka.pattern.{ AskTimeoutException, Patterns }
 import com.convergencelabs.server.datastore.domain._
-import com.convergencelabs.server.domain.model.ot.cc.{ UnprocessedOperationEvent, ServerConcurrencyControl }
-import com.convergencelabs.server.domain.model.ot.ops.Operation
-import com.convergencelabs.server.domain.model.ot.xform.OperationTransformer
+import com.convergencelabs.server.domain.model.ot.{ UnprocessedOperationEvent, ServerConcurrencyControl }
+import com.convergencelabs.server.domain.model.ot.Operation
+import com.convergencelabs.server.domain.model.ot.OperationTransformer
 import org.json4s.JsonAST.JValue
 import scala.collection.immutable.HashMap
 import scala.concurrent.{ ExecutionContext, Future }
@@ -13,16 +13,17 @@ import com.convergencelabs.server.domain.DomainFqn
 import scala.util.Success
 import scala.util.Failure
 import scala.util.Try
-import com.convergencelabs.server.domain.model.ot.cc.ProcessedOperationEvent
+import com.convergencelabs.server.domain.model.ot.ProcessedOperationEvent
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.duration._
 import scala.compat.Platform
 import com.convergencelabs.server.ErrorResponse
 import java.time.Instant
-import com.convergencelabs.server.domain.model.ot.xform.TransformationFunctionRegistry
+import com.convergencelabs.server.domain.model.ot.TransformationFunctionRegistry
 import java.time.Duration
 import com.convergencelabs.server.domain.ModelSnapshotConfig
 import scala.util.Success
+import com.convergencelabs.server.domain.model.ot.TransformationFunctionRegistry
 
 /**
  * An instance of the RealtimeModelActor manages the lifecycle of a single

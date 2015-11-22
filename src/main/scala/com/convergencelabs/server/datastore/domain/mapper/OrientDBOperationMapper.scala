@@ -2,7 +2,7 @@ package com.convergencelabs.server.datastore.domain.mapper
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
-import com.convergencelabs.server.domain.model.ot.ops._
+import com.convergencelabs.server.domain.model.ot._
 import com.convergencelabs.server.frontend.realtime.proto._
 import org.json4s.JValue
 import org.json4s._

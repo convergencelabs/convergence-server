@@ -4,7 +4,7 @@ import scala.concurrent.duration.FiniteDuration
 import com.convergencelabs.server.datastore.domain.ModelData
 import com.convergencelabs.server.datastore.domain.SnapshotMetaData
 import org.json4s.JsonAST.JValue
-import com.convergencelabs.server.domain.model.ot.ops.Operation
+import com.convergencelabs.server.domain.model.ot.Operation
 import akka.actor.ActorRef
 import java.time.Instant
 import java.time.Duration

@@ -1,8 +1,6 @@
-package com.convergencelabs.server.domain.model.ot.cc
+package com.convergencelabs.server.domain.model.ot
 
-import com.convergencelabs.server.domain.model.ot.xform.OperationTransformer
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.domain.model.ot.ops.Operation
 import org.apache.commons.lang3.Validate
 import scala.collection.mutable
 
@@ -16,7 +14,7 @@ import scala.collection.mutable
  *
  * @param initialContextVersion The initial context version this object will be set to.
  */
-class ServerConcurrencyControl(
+private[model] class ServerConcurrencyControl(
     private[this] val operationTransformer: OperationTransformer,
     private[this] var initialContextVersion: Long) extends Logging {
 

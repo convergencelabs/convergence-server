@@ -1,10 +1,7 @@
-package com.convergencelabs.server.domain.model.ot.xform
+package com.convergencelabs.server.domain.model.ot
 
 import org.json4s.JsonAST.JInt
-import org.scalatest.Finders
 import org.scalatest.WordSpec
-
-import com.convergencelabs.server.domain.model.ot.ops.ArrayInsertOperation
 
 class ArrayInsertPTFSpec extends WordSpec {
 

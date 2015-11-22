@@ -4,7 +4,7 @@ import java.util.{ List => JavaList }
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.language.implicitConversions
-import com.convergencelabs.server.domain.model.ot.ops.ObjectSetOperation
+import com.convergencelabs.server.domain.model.ot.ObjectSetOperation
 import com.convergencelabs.server.util.JValueMapper
 import com.orientechnologies.orient.core.record.impl.ODocument
 import org.json4s.JsonAST.JObject

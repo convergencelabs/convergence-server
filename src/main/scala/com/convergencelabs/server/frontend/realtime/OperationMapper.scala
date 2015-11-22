@@ -1,6 +1,6 @@
 package com.convergencelabs.server.frontend.realtime
 
-import com.convergencelabs.server.domain.model.ot.ops._
+import com.convergencelabs.server.domain.model.ot._
 import com.convergencelabs.server.frontend.realtime.proto._
 
 object OperationMapper {

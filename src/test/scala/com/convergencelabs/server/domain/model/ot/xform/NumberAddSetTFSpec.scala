@@ -1,12 +1,12 @@
-package com.convergencelabs.server.domain.model.ot.xform
+package com.convergencelabs.server.domain.model.ot
 
-import org.scalatest.WordSpec
-import com.convergencelabs.server.domain.model.ot.ops.NumberAddOperation
-import org.json4s.JsonAST._
-import org.scalatest.Matchers
+import scala.math.BigInt.int2bigInt
+
+import org.json4s.JsonAST.JDouble
+import org.json4s.JsonAST.JInt
 import org.scalatest.Finders
-import com.convergencelabs.server.domain.model.ot.ops.ObjectSetPropertyOperation
-import com.convergencelabs.server.domain.model.ot.ops.NumberSetOperation
+import org.scalatest.Matchers
+import org.scalatest.WordSpec
 
 class NumberAddSetTFSpec extends WordSpec with Matchers {
 

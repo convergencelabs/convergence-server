@@ -6,7 +6,7 @@ import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.language.implicitConversions
 
-import com.convergencelabs.server.domain.model.ot.ops.ArrayReplaceOperation
+import com.convergencelabs.server.domain.model.ot.ArrayReplaceOperation
 import com.convergencelabs.server.util.JValueMapper
 import com.orientechnologies.orient.core.record.impl.ODocument
 

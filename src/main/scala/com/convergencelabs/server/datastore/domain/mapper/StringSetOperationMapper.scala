@@ -6,7 +6,7 @@ import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.language.implicitConversions
 
-import com.convergencelabs.server.domain.model.ot.ops.StringSetOperation
+import com.convergencelabs.server.domain.model.ot.StringSetOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
 
 object StringSetOperationMapper {

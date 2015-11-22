@@ -1,18 +1,6 @@
-package com.convergencelabs.server.domain.model.ot.xform
+package com.convergencelabs.server.domain.model.ot
 
-import com.convergencelabs.server.domain.model.ot.ops.Operation
-import com.convergencelabs.server.domain.model.ot.ops.CompoundOperation
-import com.convergencelabs.server.domain.model.ot.ops.PathComparator
-import com.convergencelabs.server.domain.model.ot.ops.DiscreteOperation
-import com.convergencelabs.server.domain.model.ot.ops.CompoundOperation
-import com.convergencelabs.server.domain.model.ot.ops.StringOperation
-import com.convergencelabs.server.domain.model.ot.ops.NumberOperation
-import com.convergencelabs.server.domain.model.ot.ops.ObjectOperation
-import com.convergencelabs.server.domain.model.ot.ops.ArrayOperation
-import com.convergencelabs.server.domain.model.ot.ops.CompoundOperation
-import com.convergencelabs.server.domain.model.ot.ops.DiscreteOperation
-
-class OperationTransformer(tfr: TransformationFunctionRegistry) {
+private[model] class OperationTransformer(tfr: TransformationFunctionRegistry) {
 
   def transform(s: Operation, c: Operation): (Operation, Operation) = {
     (s, c) match {

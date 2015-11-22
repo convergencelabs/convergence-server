@@ -4,11 +4,11 @@ import java.util.{ List => JavaList }
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.language.implicitConversions
-import com.convergencelabs.server.domain.model.ot.ops.CompoundOperation
+import com.convergencelabs.server.domain.model.ot.CompoundOperation
 import com.convergencelabs.server.util.JValueMapper
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.metadata.schema.OType
-import com.convergencelabs.server.domain.model.ot.ops.DiscreteOperation
+import com.convergencelabs.server.domain.model.ot.DiscreteOperation
 
 object CompoundOperationMapper {
 

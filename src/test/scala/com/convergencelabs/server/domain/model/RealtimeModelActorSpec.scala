@@ -29,7 +29,7 @@ import com.convergencelabs.server.datastore.domain.SnapshotData
 import com.convergencelabs.server.datastore.domain.SnapshotMetaData
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.ModelSnapshotConfig
-import com.convergencelabs.server.domain.model.ot.ops.StringInsertOperation
+import com.convergencelabs.server.domain.model.ot.StringInsertOperation
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.testkit.TestProbe

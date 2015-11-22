@@ -1,8 +1,6 @@
-package com.convergencelabs.server.domain.model.ot.xform
+package com.convergencelabs.server.domain.model.ot
 
-import com.convergencelabs.server.domain.model.ot.ops.DiscreteOperation
-
-trait PathTransformationFunction[A <: DiscreteOperation] {
+private[ot] trait PathTransformationFunction[A <: DiscreteOperation] {
   def transformDescendantPath(ancestor: A, descendantPath: List[_]): PathTrasformation
 }
 

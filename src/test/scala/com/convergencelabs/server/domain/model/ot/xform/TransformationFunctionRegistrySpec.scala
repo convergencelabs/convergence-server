@@ -1,12 +1,15 @@
-package com.convergencelabs.server.domain.model.ot.xform
+package com.convergencelabs.server.domain.model.ot
 
-import org.json4s.JsonAST._
+import scala.math.BigInt.int2bigInt
+
+import org.json4s.JsonAST.JArray
+import org.json4s.JsonAST.JInt
+import org.json4s.JsonAST.JObject
+import org.json4s.JsonAST.JString
 import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.WordSpec
-
-import com.convergencelabs.server.domain.model.ot.ops._
 
 class TransformationFunctionRegistrySpec extends WordSpec with Matchers {
 

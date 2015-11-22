@@ -15,19 +15,19 @@ import org.json4s.JsonAST.JString
 import org.scalatest.Finders
 import org.scalatest.WordSpec
 
-import com.convergencelabs.server.domain.model.ot.ops.ArrayInsertOperation
-import com.convergencelabs.server.domain.model.ot.ops.ArrayMoveOperation
-import com.convergencelabs.server.domain.model.ot.ops.ArrayRemoveOperation
-import com.convergencelabs.server.domain.model.ot.ops.ArrayReplaceOperation
-import com.convergencelabs.server.domain.model.ot.ops.ArraySetOperation
-import com.convergencelabs.server.domain.model.ot.ops.CompoundOperation
-import com.convergencelabs.server.domain.model.ot.ops.ObjectAddPropertyOperation
-import com.convergencelabs.server.domain.model.ot.ops.ObjectRemovePropertyOperation
-import com.convergencelabs.server.domain.model.ot.ops.ObjectSetOperation
-import com.convergencelabs.server.domain.model.ot.ops.ObjectSetPropertyOperation
-import com.convergencelabs.server.domain.model.ot.ops.StringInsertOperation
-import com.convergencelabs.server.domain.model.ot.ops.StringRemoveOperation
-import com.convergencelabs.server.domain.model.ot.ops.StringSetOperation
+import com.convergencelabs.server.domain.model.ot.ArrayInsertOperation
+import com.convergencelabs.server.domain.model.ot.ArrayMoveOperation
+import com.convergencelabs.server.domain.model.ot.ArrayRemoveOperation
+import com.convergencelabs.server.domain.model.ot.ArrayReplaceOperation
+import com.convergencelabs.server.domain.model.ot.ArraySetOperation
+import com.convergencelabs.server.domain.model.ot.CompoundOperation
+import com.convergencelabs.server.domain.model.ot.ObjectAddPropertyOperation
+import com.convergencelabs.server.domain.model.ot.ObjectRemovePropertyOperation
+import com.convergencelabs.server.domain.model.ot.ObjectSetOperation
+import com.convergencelabs.server.domain.model.ot.ObjectSetPropertyOperation
+import com.convergencelabs.server.domain.model.ot.StringInsertOperation
+import com.convergencelabs.server.domain.model.ot.StringRemoveOperation
+import com.convergencelabs.server.domain.model.ot.StringSetOperation
 
 class OrientDBOperationMapperSpec extends WordSpec {
 

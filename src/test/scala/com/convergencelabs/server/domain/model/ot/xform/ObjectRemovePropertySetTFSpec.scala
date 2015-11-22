@@ -1,13 +1,10 @@
-package com.convergencelabs.server.domain.model.ot.xform
+package com.convergencelabs.server.domain.model.ot
 
 import org.scalatest.WordSpec
-import com.convergencelabs.server.domain.model.ot.ops.ObjectSetOperation
 import org.json4s.JsonAST.JObject
 import org.scalatest.Matchers
 import org.scalatest.Finders
 import org.json4s.JsonAST.JString
-import com.convergencelabs.server.domain.model.ot.ops.ObjectRemovePropertyOperation
-import com.convergencelabs.server.domain.model.ot.ops.ObjectAddPropertyOperation
 
 class ObjectRemovePropertySetTFSpec extends WordSpec with Matchers {
 
