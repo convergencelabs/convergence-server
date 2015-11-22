@@ -17,6 +17,14 @@ package model {
   case class ModelFqn(collectionId: String, modelId: String)
   case class OpenModelMetaData(version: Long, createdTime: Instant, modifiedTime: Instant)
 
+  case class ModelOperation(
+    modelFqn: ModelFqn, 
+    version: Long, 
+    timestamp: Instant, 
+    uid: String,
+    sid: String,
+    op: Operation)
+  
   //
   // Incoming Messages From Client
   //

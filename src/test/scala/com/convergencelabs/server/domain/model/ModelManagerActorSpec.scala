@@ -25,7 +25,7 @@ import com.convergencelabs.server.datastore.domain.ModelData
 import com.convergencelabs.server.datastore.domain.ModelMetaData
 import com.convergencelabs.server.datastore.domain.ModelSnapshotStore
 import com.convergencelabs.server.datastore.domain.ModelStore
-import com.convergencelabs.server.datastore.domain.OperationHistoryStore
+import com.convergencelabs.server.datastore.domain.ModelOperationStore
 import com.convergencelabs.server.datastore.domain.SnapshotMetaData
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.ModelSnapshotConfig
@@ -132,7 +132,7 @@ class ModelManagerActorSpec
     val modelSnapshotStore = mock[ModelSnapshotStore]
     Mockito.when(modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)).thenReturn(Success(Some(modelSnapshotMetaData)))
 
-    val modelOperationStore = mock[OperationHistoryStore]
+    val modelOperationStore = mock[ModelOperationStore]
 
     val domainConfigStore = mock[DomainConfigStore]
     Mockito.when(domainConfigStore.getModelSnapshotConfig()).thenReturn(Success(ModelSnapshotConfig(

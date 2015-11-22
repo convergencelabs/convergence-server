@@ -1,37 +1,21 @@
 package com.convergencelabs.server.datastore.domain
 
-import org.scalatest.WordSpecLike
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import com.convergencelabs.server.domain.model.ModelFqn
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import org.scalatest.BeforeAndAfterAll
-import com.orientechnologies.orient.core.db.tool.ODatabaseImport
-import com.orientechnologies.orient.core.command.OCommandOutputListener
-import com.orientechnologies.common.log.OLogManager
-import com.convergencelabs.server.domain.model.ot.ops.StringInsertOperation
-import org.json4s.JsonAST.JString
-import org.json4s.JsonAST.JValue
-import com.convergencelabs.server.domain.model.ot.ops.StringRemoveOperation
-import org.json4s.JsonAST.JObject
-import org.json4s.JsonAST.JNumber
-import org.json4s.JsonAST.JInt
-import com.convergencelabs.server.domain.model.ot.ops.ArrayInsertOperation
-import com.convergencelabs.server.domain.model.ot.ops.ArrayRemoveOperation
-import org.json4s.JsonAST.JArray
-import com.convergencelabs.server.domain.model.ot.ops.ArrayReplaceOperation
-import org.json4s.JsonAST.JArray
-import com.convergencelabs.server.domain.model.ot.ops.ArrayMoveOperation
+import org.scalatest.Finders
 import org.scalatest.OptionValues
+import org.scalatest.WordSpecLike
 
-class OperationStoreSpec
-    extends PersistenceStoreSpec[OperationStore]("/dbfiles/t1.gz")
+import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
+
+class ModelOperationProcessorSpec
+    extends PersistenceStoreSpec[ModelOperationProcessor]("/dbfiles/t1.gz")
     with WordSpecLike
     with OptionValues {
 
-  def createStore(dbPool: OPartitionedDatabasePool): OperationStore = new OperationStore(dbPool)
+  def createStore(dbPool: OPartitionedDatabasePool): ModelOperationProcessor = new ModelOperationProcessor(dbPool)
 
-  "An OperationStore" when {
+  "An ModelOperationProcessor" when {
 
+    // FIXME
     //    "applying operations" must {
     //      "correctly update the model on StringInsert" in withPersistenceStore { store =>
     //        store.processOperation(ModelFqn("people", "person1"), StringInsertOperation(List("fname"), false, 0, "abc"), 0, 0, "me")

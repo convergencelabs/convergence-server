@@ -13,11 +13,11 @@ class DomainPersistenceProvider(private[domain] val dbPool: OPartitionedDatabase
   val configStore = new DomainConfigStore(dbPool)
 
   val modelStore = new ModelStore(dbPool)
+
+  val modelOperationStore = new ModelOperationStore(dbPool)
+
+  val modelOperationProcessor = new ModelOperationProcessor(dbPool)
   
-  val operationStore = new OperationStore(dbPool)
-
-  val modelOperationStore = new OperationHistoryStore(dbPool)
-
   val modelSnapshotStore = new ModelSnapshotStore(dbPool)
   
   def validateConnection(): Boolean = {

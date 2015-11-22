@@ -35,7 +35,7 @@ class RealtimeModelActor(
     private[this] val modelFqn: ModelFqn,
     private[this] val modelResourceId: String,
     private[this] val modelStore: ModelStore,
-    private[this] val operationStore: OperationStore,
+    private[this] val modelOperationProcessor: ModelOperationProcessor,
     private[this] val modelSnapshotStore: ModelSnapshotStore,
     private[this] val clientDataResponseTimeout: Long,
     private[this] val snapshotConfig: ModelSnapshotConfig) extends Actor with ActorLogging {
@@ -49,11 +49,11 @@ class RealtimeModelActor(
   private[this] var queuedOpeningClients = HashMap[String, OpenRequestRecord]()
   private[this] var concurrencyControl: ServerConcurrencyControl = null
   private[this] var latestSnapshot: SnapshotMetaData = null
-  
+
   private[this] val transformer = new OperationTransformer(new TransformationFunctionRegistry())
 
   private[this] val snapshotCalculator = new ModelSnapshotCalculator(snapshotConfig)
-  
+
   //
   // Receive methods
   //
@@ -181,7 +181,7 @@ class RealtimeModelActor(
       concurrencyControl = new ServerConcurrencyControl(
         transformer,
         modelData.metaData.version)
-      
+
       println("Time to create registry: " + (Platform.currentTime - startTime))
       // TODO Initialize tree reference model
 
@@ -362,7 +362,7 @@ class RealtimeModelActor(
       }
     }
   }
-  
+
   /**
    * Attempts to transform the operation and apply it to the data model.
    */
@@ -372,13 +372,13 @@ class RealtimeModelActor(
     val timestamp = Instant.now()
 
     // TODO get uid / sid.
-    operationStore.processOperation(
+    modelOperationProcessor.processModelOperation(ModelOperation(
       modelFqn,
-      processedOpEvent.operation,
       processedOpEvent.resultingVersion,
       timestamp,
       "",
-      "")
+      "",
+      processedOpEvent.operation))
 
     //TODO: Change this to use Instant?
     OutgoingOperation(
@@ -515,7 +515,7 @@ object RealtimeModelActor {
     modelFqn: ModelFqn,
     resourceId: String,
     modelStore: ModelStore,
-    operationStore: OperationStore,
+    modelOperationProcessor: ModelOperationProcessor,
     modelSnapshotStore: ModelSnapshotStore,
     clientDataResponseTimeout: Long,
     snapshotConfig: ModelSnapshotConfig): Props =
@@ -525,7 +525,7 @@ object RealtimeModelActor {
       modelFqn,
       resourceId,
       modelStore,
-      operationStore,
+      modelOperationProcessor,
       modelSnapshotStore,
       clientDataResponseTimeout,
       snapshotConfig))

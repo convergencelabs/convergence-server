@@ -24,7 +24,7 @@ import com.convergencelabs.server.datastore.domain.ModelData
 import com.convergencelabs.server.datastore.domain.ModelMetaData
 import com.convergencelabs.server.datastore.domain.ModelSnapshotStore
 import com.convergencelabs.server.datastore.domain.ModelStore
-import com.convergencelabs.server.datastore.domain.OperationStore
+import com.convergencelabs.server.datastore.domain.ModelOperationProcessor
 import com.convergencelabs.server.datastore.domain.SnapshotData
 import com.convergencelabs.server.datastore.domain.SnapshotMetaData
 import com.convergencelabs.server.domain.DomainFqn
@@ -208,8 +208,8 @@ class RealtimeModelActorSpec
       "close a client that submits an invalid operation" in new TwoOpenClients {
         val badOp = StringInsertOperation(List(), false, 1, "1")
 
-        Mockito.when(operationStore.processOperation(
-          Matchers.any(), Matchers.any(), Matchers.any(), Matchers.any(), Matchers.any(), Matchers.any())).thenThrow(new IllegalArgumentException("Invalid Operation"))
+        Mockito.when(modelOperationProcessor.processModelOperation(
+          Matchers.any())).thenThrow(new IllegalArgumentException("Invalid Operation"))
 
         realtimeModelActor.tell(OperationSubmission(
           0L,
@@ -239,7 +239,7 @@ class RealtimeModelActorSpec
     val modelSnapshotTime = Instant.ofEpochMilli(2L)
     val modelSnapshotMetaData = SnapshotMetaData(modelFqn, 1L, modelSnapshotTime)
     val modelStore = mock[ModelStore]
-    val operationStore = mock[OperationStore]
+    val modelOperationProcessor = mock[ModelOperationProcessor]
     val modelSnapshotStore = mock[ModelSnapshotStore]
     val resourceId = "1" + System.nanoTime()
     val modelManagerActor = new TestProbe(system)
@@ -249,7 +249,7 @@ class RealtimeModelActorSpec
       modelFqn,
       resourceId,
       modelStore,
-      operationStore,
+      modelOperationProcessor,
       modelSnapshotStore,
       100L,
       ModelSnapshotConfig(true, true, true, 3, 3, false, false, Duration.of(1, ChronoUnit.SECONDS), Duration.of(1, ChronoUnit.SECONDS)))

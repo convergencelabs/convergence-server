@@ -57,7 +57,7 @@ class ModelManagerActor(
             openRequest.modelFqn,
             resourceId,
             persistenceProvider.modelStore,
-            persistenceProvider.operationStore,
+            persistenceProvider.modelOperationProcessor,
             persistenceProvider.modelSnapshotStore,
             5000, // FIXME hard-coded time.  Should this be part of the protocol?
             modelSnapshotConfig)
@@ -106,9 +106,10 @@ class ModelManagerActor(
           openRealtimeModels.remove(deleteRequest.modelFqn).get ! ModelDeleted
         }
 
+        // FIXME do we need to somehow do these in a transaction?
         persistenceProvider.modelStore.deleteModel(deleteRequest.modelFqn)
         persistenceProvider.modelSnapshotStore.removeAllSnapshotsForModel(deleteRequest.modelFqn)
-        persistenceProvider.modelOperationStore.removeHistoryForModel(deleteRequest.modelFqn)
+        persistenceProvider.modelOperationStore.removeOperationsForModel(deleteRequest.modelFqn)
 
         sender ! ModelDeleted
       case Success(false) => sender ! ModelNotFound
