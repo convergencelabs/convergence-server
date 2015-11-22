@@ -4,9 +4,7 @@ import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
-
 import scala.concurrent.duration.FiniteDuration
-
 import org.json4s.JsonAST.JObject
 import org.json4s.JsonAST.JString
 import org.junit.runner.RunWith
@@ -20,7 +18,6 @@ import org.scalatest.Finders
 import org.scalatest.WordSpecLike
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.mock.MockitoSugar
-
 import com.convergencelabs.server.ErrorResponse
 import com.convergencelabs.server.ErrorResponse
 import com.convergencelabs.server.datastore.domain.ModelData
@@ -33,10 +30,10 @@ import com.convergencelabs.server.datastore.domain.SnapshotMetaData
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.ModelSnapshotConfig
 import com.convergencelabs.server.domain.model.ot.ops.StringInsertOperation
-
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
+import scala.util.Success
 
 // FIXME we really only check message types and not data.
 @RunWith(classOf[JUnitRunner])
@@ -113,8 +110,8 @@ class RealtimeModelActorSpec
         client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientModelDataRequest])
 
         // Now mock that the data is there.
-        Mockito.when(modelStore.getModelData(modelFqn)).thenReturn(Some(modelData))
-        Mockito.when(modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)).thenReturn(Some(modelSnapshotMetaData))
+        Mockito.when(modelStore.getModelData(modelFqn)).thenReturn(Success(Some(modelData)))
+        Mockito.when(modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)).thenReturn(Success(Some(modelSnapshotMetaData)))
 
         client1.reply(ClientModelDataResponse(modelJsonData))
         client2.reply(ClientModelDataResponse(modelJsonData))
@@ -261,9 +258,9 @@ class RealtimeModelActorSpec
   }
 
   trait MockDatabaseWithModel extends TestFixture {
-    Mockito.when(modelStore.modelExists(modelFqn)).thenReturn(true)
-    Mockito.when(modelStore.getModelData(modelFqn)).thenReturn(Some(modelData))
-    Mockito.when(modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)).thenReturn(Some(modelSnapshotMetaData))
+    Mockito.when(modelStore.modelExists(modelFqn)).thenReturn(Success(true))
+    Mockito.when(modelStore.getModelData(modelFqn)).thenReturn(Success(Some(modelData)))
+    Mockito.when(modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)).thenReturn(Success(Some(modelSnapshotMetaData)))
   }
 
   trait OneOpenClient extends MockDatabaseWithModel {
@@ -281,6 +278,6 @@ class RealtimeModelActorSpec
   }
 
   trait MockDatabaseWithoutModel extends TestFixture {
-    Mockito.when(modelStore.modelExists(modelFqn)).thenReturn(false)
+    Mockito.when(modelStore.modelExists(modelFqn)).thenReturn(Success(false))
   }
 }

@@ -1,46 +1,26 @@
 package com.convergencelabs.server.datastore.domain
 
 import java.time.Instant
+import java.util.{ List => JavaList }
 import java.util.{ Map => JMap }
-import scala.collection.JavaConversions._
-import scala.collection.JavaConverters._
-import scala.collection.immutable.HashMap
+import scala.collection.JavaConverters.asScalaBufferConverter
+import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.util.Try
 import org.json4s._
-import org.json4s.JsonAST.JNumber
-import org.json4s.JsonAST.JValue
-import org.json4s.JsonAST.JValue
-import org.json4s.NoTypeHints
-import org.json4s.jackson.JsonMethods._
+import org.json4s.jackson.JsonMethods.compact
+import org.json4s.jackson.JsonMethods.parse
+import org.json4s.jackson.JsonMethods.render
 import org.json4s.jackson.Serialization
-import org.json4s.jackson.Serialization.read
-import org.json4s.jackson.Serialization.write
+import com.convergencelabs.server.datastore.AbstractDatabasePersistence
+import com.convergencelabs.server.datastore.QueryUtil
 import com.convergencelabs.server.domain.model.ModelFqn
-import com.convergencelabs.server.domain.model.ModelFqn
-import com.convergencelabs.server.domain.model.ot.ops.ArrayInsertOperation
-import com.convergencelabs.server.domain.model.ot.ops.ArrayMoveOperation
-import com.convergencelabs.server.domain.model.ot.ops.ArrayRemoveOperation
-import com.convergencelabs.server.domain.model.ot.ops.ArrayReplaceOperation
-import com.convergencelabs.server.domain.model.ot.ops.CompoundOperation
-import com.convergencelabs.server.domain.model.ot.ops.NumberAddOperation
-import com.convergencelabs.server.domain.model.ot.ops.ObjectRemovePropertyOperation
-import com.convergencelabs.server.domain.model.ot.ops.ObjectSetOperation
-import com.convergencelabs.server.domain.model.ot.ops.ObjectSetPropertyOperation
-import com.convergencelabs.server.domain.model.ot.ops.Operation
-import com.convergencelabs.server.domain.model.ot.ops.Operation
-import com.convergencelabs.server.domain.model.ot.ops.StringInsertOperation
-import com.convergencelabs.server.domain.model.ot.ops.StringRemoveOperation
 import com.convergencelabs.server.util.JValueMapper
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
-import com.orientechnologies.orient.core.db.record.OTrackedList
-import com.convergencelabs.server.domain.model.ot.ops.ArraySetOperation
-import com.convergencelabs.server.domain.model.ot.ops.StringSetOperation
-import com.convergencelabs.server.domain.model.ot.ops.NumberSetOperation
-import com.convergencelabs.server.domain.model.ot.ops.ArraySetOperation
-import com.convergencelabs.server.domain.model.ot.ops.ObjectAddPropertyOperation
+import org.json4s.JsonAST.JNumber
 
 object ModelStore {
   val CollectionId = "collectionId"
@@ -55,7 +35,7 @@ object ModelStore {
     pathBuilder.append(Data);
     path.foreach { p =>
       p match {
-        case p: Int    => pathBuilder.append("[").append(p).append("]")
+        case p: Int => pathBuilder.append("[").append(p).append("]")
         case p: String => pathBuilder.append(".").append(p)
       }
     }
@@ -63,21 +43,21 @@ object ModelStore {
   }
 }
 
-class ModelStore(dbPool: OPartitionedDatabasePool) {
+class ModelStore(_dbPool: OPartitionedDatabasePool)
+    extends AbstractDatabasePersistence(_dbPool) {
 
   private[this] implicit val formats = Serialization.formats(NoTypeHints)
 
-  def modelExists(fqn: ModelFqn): Boolean = {
-    val db = dbPool.acquire()
-    val query = new OSQLSynchQuery[ODocument]("SELECT modelId FROM model WHERE collectionId = :collectionId and modelId = :modelId")
-    val params: java.util.Map[String, String] = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
-    val result: java.util.List[ODocument] = db.command(query).execute(params)
-    db.close()
+  def modelExists(fqn: ModelFqn): Try[Boolean] = tryWithDb { db =>
+    val queryString = 
+      "SELECT modelId FROM Model WHERE collectionId = :collectionId AND modelId = :modelId"
+    val query = new OSQLSynchQuery[ODocument](queryString)
+    val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
+    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     !result.isEmpty()
   }
 
-  def createModel(fqn: ModelFqn, data: JValue, creationTime: Instant): Unit = {
-    val db = dbPool.acquire()
+  def createModel(fqn: ModelFqn, data: JValue, creationTime: Instant): Try[Unit] = tryWithDb { db =>
     val dataObject = JObject(List((ModelStore.Data, data)))
     val doc = db.newInstance("model")
     doc.fromJSON(compact(render(dataObject)))
@@ -87,84 +67,90 @@ class ModelStore(dbPool: OPartitionedDatabasePool) {
     doc.field(ModelStore.CreatedTime, creationTime.toEpochMilli()) // FIXME Update database to use datetime
     doc.field(ModelStore.ModifiedTime, creationTime.toEpochMilli()) // FIXME Update database to use datetime
     db.save(doc)
-    db.close()
+    Unit
   }
 
-  def deleteModel(fqn: ModelFqn): Unit = {
-    val db = dbPool.acquire()
+  def deleteModel(fqn: ModelFqn): Try[Unit] = tryWithDb { db =>
     val command = new OCommandSQL("DELETE FROM model WHERE collectionId = :collectionId AND modelId = :modelId")
     val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
-    db.command(command).execute(params);
+    db.command(command).execute(params.asJava)
+    Unit
   }
 
-  def getModelMetaData(fqn: ModelFqn): Option[ModelMetaData] = {
-    val db = dbPool.acquire()
-    val query = new OSQLSynchQuery[ODocument]("SELECT modelId, collectionId, version, created, modified FROM model WHERE collectionId = :collectionId AND modelId = :modelId")
-    val params: java.util.Map[String, String] = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
-
-    val result: java.util.List[ODocument] = db.command(query).execute(params)
-    result.asScala.toList match {
-      case doc :: rest => Some(docToModelMetaData(doc))
-      case Nil         => None
-    }
+  def getModelMetaData(fqn: ModelFqn): Try[Option[ModelMetaData]] = tryWithDb { db =>
+    val queryString =
+      """SELECT modelId, collectionId, version, created, modified 
+        |FROM Model 
+        |WHERE 
+        |  collectionId = :collectionId AND 
+        |  modelId = :modelId""".stripMargin
+    val query = new OSQLSynchQuery[ODocument](queryString)
+    val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
+    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
+    QueryUtil.mapSingleResult(result)(docToModelMetaData(_))
   }
 
-  def getModelData(fqn: ModelFqn): Option[ModelData] = {
-    val db = dbPool.acquire()
-    val query = new OSQLSynchQuery[ODocument]("SELECT FROM model WHERE collectionId = :collectionId and modelId = :modelId")
-    val params: java.util.Map[String, String] = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
-    val result: java.util.List[ODocument] = db.command(query).execute(params)
-    result.asScala.toList match {
-      case doc :: Nil => Some(docToModelData(doc))
-      case Nil        => None
-      case _          => None // FIXME Log
-    }
+  def getModelData(fqn: ModelFqn): Try[Option[ModelData]] = tryWithDb { db =>
+    val queryString =
+      """SELECT * 
+        |FROM Model 
+        |WHERE 
+        |  collectionId = :collectionId AND 
+        |  modelId = :modelId""".stripMargin
+    val query = new OSQLSynchQuery[ODocument](queryString)
+    val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
+    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
+    QueryUtil.mapSingleResult(result)(docToModelData(_))
   }
 
-  def getModelJsonData(fqn: ModelFqn): Option[JValue] = {
-    val db = dbPool.acquire()
+  def getModelJsonData(fqn: ModelFqn): Try[Option[JValue]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT data FROM model WHERE collectionId = :collectionId and modelId = :modelId")
-    val params: java.util.Map[String, String] = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
-    val result: java.util.List[ODocument] = db.command(query).execute(params)
-    result.asScala.toList match {
-      case doc :: rest => Some(parse(doc.toJSON()) \\ ModelStore.Data)
-      case Nil         => None
-    }
+    val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
+    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
+    QueryUtil.mapSingleResult(result)(doc => parse(doc.toJSON()) \\ ModelStore.Data)
   }
 
-  def getModelFieldDataType(fqn: ModelFqn, path: List[Any]): Option[DataType.Value] = {
-    val db = dbPool.acquire()
+  def getModelFieldDataType(fqn: ModelFqn, path: List[Any]): Try[Option[DataType.Value]] = tryWithDb { db =>
     val pathString = ModelStore.toOrientPath(path)
     val query = new OSQLSynchQuery[ODocument](s"SELECT pathString FROM model WHERE collectionId = :collectionId and modelId = :modelId")
-    val params: java.util.Map[String, String] = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
-    val result: java.util.List[ODocument] = db.command(query).execute(params)
-    result.asScala.toList match {
-      case doc :: rest => {
-        (parse(doc.toJSON()) \\ ModelStore.Data) match {
-          case data: JObject => Some(DataType.OBJECT)
-          case data: JArray  => Some(DataType.ARRAY)
-          case data: JString => Some(DataType.STRING)
-          case data: JNumber => Some(DataType.NUMBER)
-          case data: JBool   => Some(DataType.BOOLEAN)
-          case _             => Some(DataType.NULL)
-        }
+    val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
+    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
+    // FIXME I don't think we need to do this, this way. It seems like the ODoc
+    // would have a field that we could just check the type of?
+    // Also this could be fairly expensive.  imagine we are adding a property to
+    // the root level object and this is a big document.  We basically have
+    // to query the whole damn thing, just to figure out the type?
+    QueryUtil.mapSingleResult(result)(doc => {
+      (parse(doc.toJSON()) \\ ModelStore.Data) match {
+        case data: JObject => DataType.OBJECT
+        case data: JArray => DataType.ARRAY
+        case data: JString => DataType.STRING
+        case data: JNumber => DataType.NUMBER
+        case data: JBool => DataType.BOOLEAN
+        case _ => DataType.NULL
       }
-      case Nil => None
-    }
+    })
   }
 
-  def getAllModels(orderBy: String, ascending: Boolean, offset: Int, limit: Int): List[ModelMetaData] = {
-    val db = dbPool.acquire()
+  def getAllModels(
+    orderBy: String,
+    ascending: Boolean,
+    offset: Int,
+    limit: Int): Try[List[ModelMetaData]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT modelId, collectionId, version, created, modified FROM model")
-    val result: java.util.List[ODocument] = db.command(query).execute()
+    val result: JavaList[ODocument] = db.command(query).execute()
     result.asScala.toList map { doc => docToModelMetaData(doc) }
   }
 
-  def getAllModelsInCollection(collectionId: String, orderBy: String, ascending: Boolean, offset: Int, limit: Int): List[ModelMetaData] = {
-    val db = dbPool.acquire()
+  def getAllModelsInCollection(
+    collectionId: String,
+    orderBy: String,
+    ascending: Boolean,
+    offset: Int,
+    limit: Int): Try[List[ModelMetaData]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT modelId, collectionId, version, created, modified FROM model where collectionId = :collectionId")
-    val params: java.util.Map[String, String] = HashMap("collectionid" -> collectionId)
-    val result: java.util.List[ODocument] = db.command(query).execute(params)
+    val params = Map("collectionid" -> collectionId)
+    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     result.asScala.toList map { doc => docToModelMetaData(doc) }
   }
 

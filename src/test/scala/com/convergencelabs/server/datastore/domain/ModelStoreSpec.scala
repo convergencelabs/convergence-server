@@ -21,13 +21,13 @@ import org.json4s.JsonAST.JArray
 import com.convergencelabs.server.domain.model.ot.ops.ArrayReplaceOperation
 import org.json4s.JsonAST.JArray
 import com.convergencelabs.server.domain.model.ot.ops.ArrayMoveOperation
-import org.scalatest.OptionValues
+import org.scalatest.OptionValues._
+import org.scalatest.TryValues._
 import org.scalatest.Matchers
 
 class ModelStoreSpec
     extends PersistenceStoreSpec[ModelStore]("/dbfiles/t1.gz")
     with WordSpecLike
-    with OptionValues
     with Matchers {
 
   def createStore(dbPool: OPartitionedDatabasePool): ModelStore = new ModelStore(dbPool)
@@ -37,20 +37,20 @@ class ModelStoreSpec
     "asked whether a model exists" must {
 
       "return false if it doesn't exist" in withPersistenceStore { store =>
-        store.modelExists(ModelFqn("notReal", "notReal")) shouldBe false
+        store.modelExists(ModelFqn("notReal", "notReal")).success.value shouldBe false
       }
 
       "return true if it does exist" in withPersistenceStore { store =>
-        assert(store.modelExists(ModelFqn("people", "person1")))
+        store.modelExists(ModelFqn("people", "person1")).success.value shouldBe true
       }
     }
     "retrieving model data" must {
       "return None if it doesn't exist" in withPersistenceStore { store =>
-        assert(store.getModelData(ModelFqn("notReal", "notReal")).isEmpty)
+        store.getModelData(ModelFqn("notReal", "notReal")).success.value shouldBe None
       }
 
       "return Some if it does exist" in withPersistenceStore { store =>
-        assert(!store.getModelData(ModelFqn("people", "person1")).isEmpty)
+        store.getModelData(ModelFqn("people", "person1")).success.value shouldBe defined
       }
     }
   }

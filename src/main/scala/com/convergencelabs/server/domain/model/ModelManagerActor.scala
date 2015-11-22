@@ -24,6 +24,7 @@ import java.time.temporal.TemporalUnit
 import java.time.temporal.ChronoUnit
 import com.convergencelabs.server.domain.ModelSnapshotConfig
 import scala.util.Success
+import scala.util.Failure
 
 class ModelManagerActor(
   private[this] val domainFqn: DomainFqn,
@@ -74,43 +75,44 @@ class ModelManagerActor(
   }
 
   private[this] def onCreateModelRequest(createRequest: CreateModelRequest): Unit = {
-    if (persistenceProvider.modelStore.modelExists(createRequest.modelFqn)) {
-      sender ! ModelAlreadyExists
-    } else {
-      val modelData = createRequest.modelData
-      val createTime = Instant.now()
-      try {
-        persistenceProvider.modelStore.createModel(
-          createRequest.modelFqn,
-          modelData,
-          createTime)
+    persistenceProvider.modelStore.modelExists(createRequest.modelFqn) match {
+      case Success(true) => sender ! ModelAlreadyExists
+      case Success(false) =>
+        val modelData = createRequest.modelData
+        val createTime = Instant.now()
+        try {
+          persistenceProvider.modelStore.createModel(
+            createRequest.modelFqn,
+            modelData,
+            createTime)
 
-        persistenceProvider.modelSnapshotStore.createSnapshot(
-          SnapshotData(SnapshotMetaData(createRequest.modelFqn, 0, createTime),
-            modelData))
+          persistenceProvider.modelSnapshotStore.createSnapshot(
+            SnapshotData(SnapshotMetaData(createRequest.modelFqn, 0, createTime),
+              modelData))
 
-        sender ! ModelCreated
-      } catch {
-        case e: IOException =>
-          sender ! ErrorResponse("unknown", "Could not create model: " + e.getMessage)
-      }
+          sender ! ModelCreated
+        } catch {
+          case e: IOException =>
+            sender ! ErrorResponse("unknown", "Could not create model: " + e.getMessage)
+        }
+      case Failure(cause) => ???
     }
   }
 
   private[this] def onDeleteModelRequest(deleteRequest: DeleteModelRequest): Unit = {
-    if (persistenceProvider.modelStore.modelExists(deleteRequest.modelFqn)) {
+    persistenceProvider.modelStore.modelExists(deleteRequest.modelFqn) match {
+      case Success(true) =>
+        if (openRealtimeModels.contains(deleteRequest.modelFqn)) {
+          openRealtimeModels.remove(deleteRequest.modelFqn).get ! ModelDeleted
+        }
 
-      if (openRealtimeModels.contains(deleteRequest.modelFqn)) {
-        openRealtimeModels.remove(deleteRequest.modelFqn).get ! ModelDeleted
-      }
+        persistenceProvider.modelStore.deleteModel(deleteRequest.modelFqn)
+        persistenceProvider.modelSnapshotStore.removeAllSnapshotsForModel(deleteRequest.modelFqn)
+        persistenceProvider.modelOperationStore.removeHistoryForModel(deleteRequest.modelFqn)
 
-      persistenceProvider.modelStore.deleteModel(deleteRequest.modelFqn)
-      persistenceProvider.modelSnapshotStore.removeAllSnapshotsForModel(deleteRequest.modelFqn)
-      persistenceProvider.modelOperationStore.removeHistoryForModel(deleteRequest.modelFqn)
-
-      sender ! ModelDeleted
-    } else {
-      sender ! ModelNotFound
+        sender ! ModelDeleted
+      case Success(false) => sender ! ModelNotFound
+      case Failure(cause) => ??? // FIXME
     }
   }
 

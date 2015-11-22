@@ -22,6 +22,7 @@ import java.time.Instant
 import com.convergencelabs.server.domain.model.ot.xform.TransformationFunctionRegistry
 import java.time.Duration
 import com.convergencelabs.server.domain.ModelSnapshotConfig
+import scala.util.Success
 
 /**
  * An instance of the RealtimeModelActor manages the lifecycle of a single
@@ -112,13 +113,10 @@ class RealtimeModelActor(
    */
   private[this] def onOpenModelWhileUninitialized(request: OpenRealtimeModelRequest): Unit = {
     queuedOpeningClients += (request.sessionId -> OpenRequestRecord(request.clientActor, sender()))
-
-    if (modelStore.modelExists(modelFqn)) {
-      // The model is persistent, load from the store.
-      requestModelDataFromDatastore()
-    } else {
-      // The model is not persistent, ask the client for the data.
-      requestModelDataFromClient(request.clientActor)
+    modelStore.modelExists(modelFqn) match {
+      case Success(true) => requestModelDataFromDatastore()
+      case Success(false) => requestModelDataFromClient(request.clientActor)
+      case Failure(cause) => ??? // FIXME
     }
   }
 
@@ -134,8 +132,10 @@ class RealtimeModelActor(
     // If we are persistent, then the data is already loading, so there is nothing to do.
     // However, if we are not persistent, we have already asked the previous opening client
     // for the data, but we will ask this client too, in case the others fail.
-    if (!modelStore.modelExists(modelFqn)) {
-      requestModelDataFromClient(request.clientActor)
+    modelStore.modelExists(modelFqn) match {
+      case Success(false) => requestModelDataFromClient(request.clientActor)
+      case Success(true) => // No action required
+      case Failure(cause) => ??? // FIXME
     }
   }
 
@@ -149,10 +149,11 @@ class RealtimeModelActor(
       val snapshotMetaData = modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)
       //FIXME: Handle None, handle when snapshot doesn't exist.
       modelStore.getModelData(modelFqn) match {
-        case Some(modelData) => {
-          DatabaseModelResponse(modelData, snapshotMetaData.get)
+        case Success(Some(modelData)) => {
+          DatabaseModelResponse(modelData, snapshotMetaData.get.get)
         }
-        case None => ??? // FIXME there is no mode, need to throw an exception.
+        case Success(None) => ??? // FIXME there is no mode, need to throw an exception.
+        case Failure(cause) => ??? // FIXME there is no mode, need to throw an exception.
       }
     }
 
@@ -255,8 +256,9 @@ class RealtimeModelActor(
     } else {
       //TODO: Handle None
       modelStore.getModelData(modelFqn) match {
-        case Some(modelData) => respondToClientOpenRequest(request.sessionId, modelData, OpenRequestRecord(request.clientActor, sender()))
-        case None => ??? // The model is open but we can't find data.  This is a major issue.
+        case Success(Some(modelData)) => respondToClientOpenRequest(request.sessionId, modelData, OpenRequestRecord(request.clientActor, sender()))
+        case Success(None) => ??? // The model is open but we can't find data.  This is a major issue.
+        case Failure(cause) => ??? // The model is open but we can't find data.  This is a major issue.
       }
     }
   }
@@ -419,8 +421,8 @@ class RealtimeModelActor(
     latestSnapshot = SnapshotMetaData(modelFqn, concurrencyControl.contextVersion, Instant.now())
 
     val f = Future[SnapshotMetaData] {
-      //TODO: Handle None
-      val modelData = modelStore.getModelData(this.modelFqn).getOrElse(null)
+      //FIXME: Handle Failure from try and None from option.
+      val modelData = modelStore.getModelData(this.modelFqn).get.get
       val snapshot = new SnapshotData(
         SnapshotMetaData(
           modelData.metaData.fqn,
