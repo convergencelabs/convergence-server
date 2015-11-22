@@ -13,7 +13,7 @@ object TokenKeyPairMapper {
   }
 
   private[domain] implicit def tokenKeyPairToODocument(tokenKeyPair: TokenKeyPair): ODocument = {
-    val doc = new ODocument("TokenKeyPair")
+    val doc = new ODocument(TokenKeyPairClassName)
     doc.field(PublicKey, tokenKeyPair.publicKey)
     doc.field(PrivateKey, tokenKeyPair.privateKey)
     doc
@@ -24,9 +24,15 @@ object TokenKeyPairMapper {
   }
 
   private[domain] def oDocumentToTokenKeyPair(doc: ODocument): TokenKeyPair = {
+    if (doc.getClassName != TokenKeyPairClassName) {
+      throw new IllegalArgumentException(s"The ODocument class must be '${TokenKeyPairClassName}': ${doc.getClassName}")
+    }
+    
     TokenKeyPair(doc.field(PublicKey), doc.field(PrivateKey))
   }
 
+  private[domain] val TokenKeyPairClassName = "TokenKeyPair"
+  
   private[domain] object TokenKeyPairFields {
     val PublicKey = "publicKey"
     val PrivateKey = "privateKey"

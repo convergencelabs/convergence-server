@@ -38,6 +38,10 @@ object DomainMapper {
   }
 
   private[datastore] implicit def oDocumentToDomain(doc: ODocument): Domain = {
+    if (doc.getClassName != DomainClassName) {
+      throw new IllegalArgumentException(s"The ODocument class must be '${DomainClassName}': ${doc.getClassName}")
+    }
+    
     Domain(
       doc.field(Id),
       DomainFqn(doc.field(Namespace), doc.field(DomainId)),
@@ -53,7 +57,6 @@ object DomainMapper {
     val Namespace = "namespace"
     val DomainId = "domainId"
     val DisplayName = "displayName"
-
     val DBUsername = "dbUsername"
     val DBPassword = "dbPassword"
   }

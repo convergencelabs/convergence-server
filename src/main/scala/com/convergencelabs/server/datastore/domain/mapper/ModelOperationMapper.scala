@@ -1,12 +1,15 @@
 package com.convergencelabs.server.datastore.domain.mapper
 
-import com.orientechnologies.orient.core.record.impl.ODocument
-import scala.language.implicitConversions
-import com.convergencelabs.server.datastore.domain.OrientDBOperationMapper
-import com.convergencelabs.server.domain.model.ModelFqn
 import java.time.Instant
-import com.orientechnologies.orient.core.metadata.schema.OType
+
+import scala.annotation.elidable
+import scala.annotation.elidable.ASSERTION
+import scala.language.implicitConversions
+
+import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelOperation
+import com.orientechnologies.orient.core.metadata.schema.OType
+import com.orientechnologies.orient.core.record.impl.ODocument
 
 object ModelOperationMapper {
 
@@ -24,7 +27,7 @@ object ModelOperationMapper {
     doc.field(Timestamp, opEvent.timestamp)
     doc.field(Uid, opEvent.uid)
     doc.field(Sid, opEvent.sid)
-    doc.field(Operation, OrientDBOperationMapper.operationToMap(opEvent.op))
+    doc.field(Operation, OrientDBOperationMapper.operationToODocument(opEvent.op))
   }
 
   private[domain] implicit class ODocumentToModelOperation(val d: ODocument) extends AnyVal {
@@ -35,8 +38,8 @@ object ModelOperationMapper {
     val docDate: java.util.Date = doc.field(Timestamp, OType.DATETIME)
     assert(doc.getClassName == ModelOperationClassName)
     val timestamp = Instant.ofEpochMilli(docDate.getTime)
-    val opMap: java.util.Map[String, Object] = doc.field(Operation, OType.EMBEDDEDMAP)
-    val op = OrientDBOperationMapper.mapToOperation(opMap)
+    val opDoc: ODocument = doc.field(Operation, OType.EMBEDDED)
+    val op = OrientDBOperationMapper.oDocumentToDiscreteOperation(opDoc)
     ModelOperation(
       ModelFqn(doc.field(CollectionId), doc.field(ModelId)),
       doc.field(Version),
