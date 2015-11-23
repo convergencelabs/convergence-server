@@ -7,13 +7,13 @@ import scala.language.implicitConversions
 object TokenPublicKeyMapper {
 
   import TokenPublicKeyFields._
-  
+
   private[domain] implicit class TokenPublicKeyToODocument(val tokenPublicKey: TokenPublicKey) extends AnyVal {
     def asODocument: ODocument = tokenPublicKeyToODocument(tokenPublicKey)
   }
 
   private[domain] implicit def tokenPublicKeyToODocument(tokenPublicKey: TokenPublicKey): ODocument = {
-    val doc = new ODocument("TokenPublicKey")
+    val doc = new ODocument(TokenPublicKeyClassName)
     doc.field(KeyId, tokenPublicKey.id)
     doc.field(KeyName, tokenPublicKey.name)
     doc.field(KeyDescription, tokenPublicKey.description)
@@ -28,6 +28,9 @@ object TokenPublicKeyMapper {
   }
 
   private[domain] def oDocumentToTokenPublicKey(doc: ODocument): TokenPublicKey = {
+    if (doc.getClassName != TokenPublicKeyClassName) {
+      throw new IllegalArgumentException(s"The ODocument class must be '${TokenPublicKeyClassName}': ${doc.getClassName}")
+    }
     TokenPublicKey(
       doc.field(KeyId),
       doc.field(KeyName),
@@ -35,8 +38,9 @@ object TokenPublicKeyMapper {
       doc.field(KeyDate),
       doc.field(Key),
       doc.field(KeyEnabled))
-
   }
+
+  private[domain] val TokenPublicKeyClassName = "TokenPublicKey"
 
   private[domain] object TokenPublicKeyFields {
     val KeyId = "id"

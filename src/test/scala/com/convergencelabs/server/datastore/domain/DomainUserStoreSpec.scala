@@ -5,9 +5,9 @@ import org.scalatest.Matchers
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
-
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
+import com.convergencelabs.server.domain.DomainUser
 
 class DomainUserStoreSpec
     extends PersistenceStoreSpec[DomainUserStore]("/dbfiles/t1.gz")

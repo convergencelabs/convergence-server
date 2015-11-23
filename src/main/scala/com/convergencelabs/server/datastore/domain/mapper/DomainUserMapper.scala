@@ -1,15 +1,15 @@
 package com.convergencelabs.server.datastore.domain.mapper
 
 import com.orientechnologies.orient.core.record.impl.ODocument
-import com.convergencelabs.server.datastore.domain.DomainUser
+import com.convergencelabs.server.domain.DomainUser
 import scala.language.implicitConversions
 
 object DomainUserMapper {
   
   import DomainUserFields._
   
-  private[domain] implicit class DomainUserToODocument(val s: DomainUser) extends AnyVal {
-    def asODocument: ODocument = domainUserToODocument(s)
+  private[domain] implicit class DomainUserToODocument(val u: DomainUser) extends AnyVal {
+    def asODocument: ODocument = domainUserToODocument(u)
   }
   
   private[domain] implicit def domainUserToODocument(obj: DomainUser): ODocument = {
@@ -26,16 +26,18 @@ object DomainUserMapper {
   }
   
   private[domain] implicit def oDocumentToDomainUser(doc: ODocument): DomainUser = {
-    assert(doc.getClassName == DomainUserClassName)
+    if (doc.getClassName != DomainUserClassName) {
+      throw new IllegalArgumentException(s"The ODocument class must be '${DomainUserClassName}': ${doc.getClassName}")
+    }
     DomainUser(
       doc.field(Uid),
       doc.field(Username),
       doc.field(FirstName),
       doc.field(LastName),
       doc.field(Email))
-
   }
   
+  // Should this be DomainUser?
   private[domain] val DomainUserClassName = "User"
   
   private[domain] object DomainUserFields {

@@ -1,14 +1,11 @@
 package com.convergencelabs.server.datastore.domain
 
 import java.util.{ List => JavaList }
-
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.util.Try
-
 import org.json4s.NoTypeHints
 import org.json4s.jackson.Serialization
-
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.server.datastore.QueryUtil
 import com.convergencelabs.server.datastore.SortOrder
@@ -20,8 +17,8 @@ import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
-
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.domain.DomainUser
 
 /**
  * Manages the persistence of Domain Users.  This class manages both user profile records
@@ -289,5 +286,3 @@ object DomainUserOrder extends Enumeration {
   val FirstName = Value("firstName")
   val LastName = Value("lastName")
 }
-
-case class DomainUser(uid: String, username: String, firstName: String, lastName: String, email: String)

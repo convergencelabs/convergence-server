@@ -28,6 +28,8 @@ package object domain {
       minimumTimeInterval: Duration,
       maximumTimeInterval: Duration) {
   }
+  
+  case class DomainUser(uid: String, username: String, firstName: String, lastName: String, email: String)
 
   case class HandshakeRequest(domainFqn: DomainFqn, clientActor: ActorRef, reconnect: Boolean, reconnectToken: Option[String])
 

@@ -5,6 +5,7 @@ import java.security.KeyFactory
 import java.security.PublicKey
 import java.security.spec.X509EncodedKeySpec
 
+import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
@@ -18,7 +19,6 @@ import org.jose4j.jwt.consumer.InvalidJwtException
 import org.jose4j.jwt.consumer.JwtConsumerBuilder
 
 import com.convergencelabs.server.datastore.domain.DomainConfigStore
-import com.convergencelabs.server.datastore.domain.DomainUser
 import com.convergencelabs.server.datastore.domain.DomainUserStore
 import com.convergencelabs.server.util.TryWithResource
 

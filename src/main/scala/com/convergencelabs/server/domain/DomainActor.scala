@@ -16,7 +16,6 @@ import java.io.IOException
 import org.jose4j.jwt.MalformedClaimException
 import scala.util.control.NonFatal
 import scala.collection.mutable.ListBuffer
-import com.convergencelabs.server.datastore.domain.DomainUser
 import org.jose4j.jwt.JwtClaims
 import java.security.PublicKey
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
