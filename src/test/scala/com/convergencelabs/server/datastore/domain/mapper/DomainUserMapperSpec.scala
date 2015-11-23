@@ -16,17 +16,17 @@ class DomainUserMapperSpec
     "when converting a DomainUser" must {
       "correctly map and unmap a DomainUser" in {
         val domainUser = DomainUser(
-            "uid", 
-            "username" ,
-            "firstName", 
-            "lastName", 
-            "email")
+          "uid",
+          "username",
+          "firstName",
+          "lastName",
+          "email")
 
         val doc = domainUser.asODocument
         val reverted = doc.asDomainUser
         reverted shouldBe domainUser
       }
-      
+
       "not allow an invalid document class name" in {
         val invalid = new ODocument("SomeClass")
         intercept[IllegalArgumentException] {
