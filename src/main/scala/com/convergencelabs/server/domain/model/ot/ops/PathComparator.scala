@@ -1,6 +1,6 @@
 package com.convergencelabs.server.domain.model.ot
 
-object PathComparator {
+private[ot] object PathComparator {
 
   def areEqual(p1: List[Any], p2: List[Any]): Boolean = {
     p1.equals(p2)

@@ -99,9 +99,9 @@ private[model] class TransformationFunctionRegistry {
   }
 }
 
-private[ot] final case class RegistryKey[S,C](s: Class[S], c: Class[C])
+private final case class RegistryKey[S,C](s: Class[S], c: Class[C])
 
-private[ot] object RegistryKey {
+private object RegistryKey {
   def of[S,C](implicit s: ClassTag[S], c: ClassTag[C]): RegistryKey[S,C] = {
     val sClass = s.runtimeClass.asInstanceOf[Class[S]]
     val cClass = c.runtimeClass.asInstanceOf[Class[C]]
@@ -109,7 +109,7 @@ private[ot] object RegistryKey {
   }
 }
 
-private[ot] class TFMap {
+private class TFMap {
   var otfs = Map[RegistryKey[_,_], OperationTransformationFunction[_,_]]()
   
   def register[S <: DiscreteOperation,C <: DiscreteOperation](otf: OperationTransformationFunction[S, C])(implicit s: ClassTag[S], c: ClassTag[C]): Unit ={

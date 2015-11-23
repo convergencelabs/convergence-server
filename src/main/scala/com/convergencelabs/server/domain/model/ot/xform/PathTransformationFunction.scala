@@ -4,7 +4,7 @@ private[ot] trait PathTransformationFunction[A <: DiscreteOperation] {
   def transformDescendantPath(ancestor: A, descendantPath: List[_]): PathTrasformation
 }
 
-sealed trait PathTrasformation
-case class PathUpdated(path: List[_]) extends PathTrasformation
-case object PathObsoleted extends PathTrasformation
-case object NoPathTranslation extends PathTrasformation
+private[ot] sealed trait PathTrasformation
+private[ot] case class PathUpdated(path: List[_]) extends PathTrasformation
+private[ot] case object PathObsoleted extends PathTrasformation
+private[ot] case object NoPathTranslation extends PathTrasformation

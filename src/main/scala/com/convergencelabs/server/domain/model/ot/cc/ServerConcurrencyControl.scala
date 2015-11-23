@@ -21,12 +21,12 @@ private[model] class ServerConcurrencyControl(
   Validate.notNull(operationTransformer, "operationTransformer must not be null")
   Validate.isTrue(initialContextVersion >= 0, "initialContextVersion must be >= 0: ", initialContextVersion)
 
-  private val clientStates = mutable.HashMap[String, ClientConcurrencyState]()
-  private var operationHistoryCache = List[ProcessedOperationEvent]()
-  private var pendingEvent: ProcessedOperationEvent = null
-  private var pendingClientState: ClientConcurrencyState = null
+  private[this] val clientStates = mutable.HashMap[String, ClientConcurrencyState]()
+  private[this] var operationHistoryCache = List[ProcessedOperationEvent]()
+  private[this] var pendingEvent: ProcessedOperationEvent = null
+  private[this] var pendingClientState: ClientConcurrencyState = null
 
-  private var _contextVersion = initialContextVersion
+  private[this] var _contextVersion = initialContextVersion
 
   /**
    * Processes an operation event from a client.  The client must be tracked before operations can be processed from
@@ -185,7 +185,7 @@ private[model] class ServerConcurrencyControl(
     pendingClientState = null
   }
 
-  private def transform(opClientId: String, historyOperationEvents: List[ProcessedOperationEvent], incomingOp: Operation): (Operation, List[ProcessedOperationEvent]) = {
+  private[this] def transform(opClientId: String, historyOperationEvents: List[ProcessedOperationEvent], incomingOp: Operation): (Operation, List[ProcessedOperationEvent]) = {
     var xFormedOp = incomingOp
     val xFormedList = historyOperationEvents.map(event => {
       val pair = operationTransformer.transform(xFormedOp, event.operation)
@@ -196,7 +196,7 @@ private[model] class ServerConcurrencyControl(
     (xFormedOp, xFormedList)
   }
 
-  private def minimumContextVersion(): Long = {
+  private[this] def minimumContextVersion(): Long = {
     var version = Long.MaxValue
     clientStates.values.foreach(state => {
       version = Math.min(state.contextVersion, version)
@@ -205,7 +205,7 @@ private[model] class ServerConcurrencyControl(
     version
   }
 
-  private def validateOperationEvent(incomingOperation: UnprocessedOperationEvent) {
+  private[this] def validateOperationEvent(incomingOperation: UnprocessedOperationEvent) {
     val clientId = incomingOperation.clientId
 
     if (!clientStates.contains(clientId)) {
