@@ -78,17 +78,21 @@ class ModelManagerActor(
     persistenceProvider.modelStore.modelExists(createRequest.modelFqn) match {
       case Success(true) => sender ! ModelAlreadyExists
       case Success(false) =>
-        val modelData = createRequest.modelData
         val createTime = Instant.now()
-        try {
-          persistenceProvider.modelStore.createModel(
+        val model = Model(
+          ModelMetaData(
             createRequest.modelFqn,
-            modelData,
-            createTime)
+            0,
+            createTime,
+            createTime),
+          createRequest.modelData)
 
+        try {
+          // FIXME all of this should work or not, together.
+          persistenceProvider.modelStore.createModel(model)
           persistenceProvider.modelSnapshotStore.createSnapshot(
             SnapshotData(SnapshotMetaData(createRequest.modelFqn, 0, createTime),
-              modelData))
+              createRequest.modelData))
 
           sender ! ModelCreated
         } catch {

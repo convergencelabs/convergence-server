@@ -1,26 +1,35 @@
 package com.convergencelabs.server.datastore.domain
 
-import java.time.Instant
 import java.util.{ List => JavaList }
-import java.util.{ Map => JMap }
+
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.util.Try
-import org.json4s._
-import org.json4s.jackson.JsonMethods.compact
+
+import org.json4s.JArray
+import org.json4s.JBool
+import org.json4s.JObject
+import org.json4s.JString
+import org.json4s.JValue
+import org.json4s.JsonAST.JNumber
+import org.json4s.NoTypeHints
 import org.json4s.jackson.JsonMethods.parse
-import org.json4s.jackson.JsonMethods.render
 import org.json4s.jackson.Serialization
+import org.json4s.jvalue2monadic
+import org.json4s.string2JsonInput
+
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.server.datastore.QueryUtil
+import com.convergencelabs.server.datastore.domain.mapper.ModelMapper.ModelToODocument
+import com.convergencelabs.server.datastore.domain.mapper.ModelMapper.ODocumentToModel
+import com.convergencelabs.server.datastore.domain.mapper.ModelMapper.ODocumentToModelMetaData
+import com.convergencelabs.server.domain.model.Model
 import com.convergencelabs.server.domain.model.ModelFqn
-import com.convergencelabs.server.util.JValueMapper
+import com.convergencelabs.server.domain.model.ModelMetaData
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
-import org.json4s.JsonAST.JNumber
 
 object ModelStore {
   val CollectionId = "collectionId"
@@ -57,21 +66,15 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
     !result.isEmpty()
   }
 
-  def createModel(fqn: ModelFqn, data: JValue, creationTime: Instant): Try[Unit] = tryWithDb { db =>
-    val dataObject = JObject(List((ModelStore.Data, data)))
-    val doc = db.newInstance("model")
-    doc.fromJSON(compact(render(dataObject)))
-    doc.field(ModelStore.ModelId, fqn.modelId)
-    doc.field(ModelStore.CollectionId, fqn.collectionId)
-    doc.field(ModelStore.Version, 0)
-    doc.field(ModelStore.CreatedTime, creationTime.toEpochMilli()) // FIXME Update database to use datetime
-    doc.field(ModelStore.ModifiedTime, creationTime.toEpochMilli()) // FIXME Update database to use datetime
-    db.save(doc)
+  def createModel(model: Model): Try[Unit] = tryWithDb { db =>
+    db.save(model.asODocument)
     Unit
   }
 
   def deleteModel(fqn: ModelFqn): Try[Unit] = tryWithDb { db =>
-    val command = new OCommandSQL("DELETE FROM model WHERE collectionId = :collectionId AND modelId = :modelId")
+    val queryString = 
+      "DELETE FROM model WHERE collectionId = :collectionId AND modelId = :modelId"
+    val command = new OCommandSQL(queryString)
     val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
     db.command(command).execute(params.asJava)
     Unit
@@ -87,10 +90,10 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
     val query = new OSQLSynchQuery[ODocument](queryString)
     val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.mapSingleResult(result)(docToModelMetaData(_))
+    QueryUtil.mapSingleResult(result) {_.asModelMetaData}
   }
 
-  def getModelData(fqn: ModelFqn): Try[Option[ModelData]] = tryWithDb { db =>
+  def getModelData(fqn: ModelFqn): Try[Option[Model]] = tryWithDb { db =>
     val queryString =
       """SELECT * 
         |FROM Model 
@@ -100,7 +103,7 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
     val query = new OSQLSynchQuery[ODocument](queryString)
     val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.mapSingleResult(result)(docToModelData(_))
+    QueryUtil.mapSingleResult(result) {_.asModel}
   }
 
   def getModelJsonData(fqn: ModelFqn): Try[Option[JValue]] = tryWithDb { db =>
@@ -139,7 +142,7 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
     limit: Int): Try[List[ModelMetaData]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT modelId, collectionId, version, created, modified FROM model")
     val result: JavaList[ODocument] = db.command(query).execute()
-    result.asScala.toList map { doc => docToModelMetaData(doc) }
+    result.asScala.toList map { _.asModelMetaData }
   }
 
   def getAllModelsInCollection(
@@ -151,32 +154,9 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
     val query = new OSQLSynchQuery[ODocument]("SELECT modelId, collectionId, version, created, modified FROM model where collectionId = :collectionId")
     val params = Map("collectionid" -> collectionId)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    result.asScala.toList map { doc => docToModelMetaData(doc) }
-  }
-
-  def docToModelData(doc: ODocument): ModelData = {
-    val modelData: JMap[String, Any] = doc.field("data", OType.EMBEDDEDMAP)
-    ModelData(
-      ModelMetaData(
-        ModelFqn(doc.field("modelId"), doc.field("collectionId")),
-        doc.field("version", OType.LONG),
-        Instant.ofEpochMilli(doc.field("creationTime", OType.LONG)), // FIXME make a date in the DB
-        Instant.ofEpochMilli(doc.field("modifiedTime", OType.LONG))), // FIXME make a date in the DB
-      JValueMapper.javaToJValue(modelData))
-  }
-
-  def docToModelMetaData(doc: ODocument): ModelMetaData = {
-    ModelMetaData(
-      ModelFqn(doc.field("modelId"), doc.field("collectionId")),
-      doc.field("version", OType.LONG),
-      Instant.ofEpochMilli(doc.field("creationTime", OType.LONG)), // FIXME make a date in the DB
-      Instant.ofEpochMilli(doc.field("modifiedTime", OType.LONG))) // FIXME make a date in the DB
+    result.asScala.toList map {_.asModelMetaData }
   }
 }
-
-// FIXME review these names
-case class ModelData(metaData: ModelMetaData, data: JValue)
-case class ModelMetaData(fqn: ModelFqn, version: Long, createdTime: Instant, modifiedTime: Instant)
 
 object DataType extends Enumeration {
   val ARRAY, OBJECT, STRING, NUMBER, BOOLEAN, NULL = Value

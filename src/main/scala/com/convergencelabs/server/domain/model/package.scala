@@ -1,7 +1,6 @@
 package com.convergencelabs.server.domain
 
 import scala.concurrent.duration.FiniteDuration
-import com.convergencelabs.server.datastore.domain.ModelData
 import com.convergencelabs.server.datastore.domain.SnapshotMetaData
 import org.json4s.JsonAST.JValue
 import com.convergencelabs.server.domain.model.ot.Operation
@@ -11,6 +10,9 @@ import java.time.Duration
 
 package model {
 
+  case class Model(metaData: ModelMetaData, data: JValue)
+  case class ModelMetaData(fqn: ModelFqn, version: Long, createdTime: Instant, modifiedTime: Instant)
+
   //
   // Data Classes
   //
@@ -18,13 +20,13 @@ package model {
   case class OpenModelMetaData(version: Long, createdTime: Instant, modifiedTime: Instant)
 
   case class ModelOperation(
-    modelFqn: ModelFqn, 
-    version: Long, 
-    timestamp: Instant, 
+    modelFqn: ModelFqn,
+    version: Long,
+    timestamp: Instant,
     uid: String,
     sid: String,
     op: Operation)
-  
+
   //
   // Incoming Messages From Client
   //
@@ -39,15 +41,15 @@ package model {
   sealed trait DeleteModelResponse
   case object ModelDeleted extends DeleteModelResponse
   case object ModelNotFound extends DeleteModelResponse
-  
+
   sealed trait CreateModelResponse
   case object ModelCreated extends CreateModelResponse
   case object ModelAlreadyExists extends CreateModelResponse
-  
+
   //
   // Incoming Messages From Self
   //
-  case class DatabaseModelResponse(modelData: ModelData, snapshotMetaData: SnapshotMetaData)
+  case class DatabaseModelResponse(modelData: Model, snapshotMetaData: SnapshotMetaData)
   case class DatabaseModelFailure(cause: Throwable)
 
   //
@@ -68,6 +70,5 @@ package model {
   case class ModelForceClose(resourceId: String, clientId: String, reason: String) extends RealtimeModelClientMessage
   case class ClientModelDataRequest(modelFqn: ModelFqn) extends RealtimeModelClientMessage
 
-  
   case object ModelNotOpened
 }

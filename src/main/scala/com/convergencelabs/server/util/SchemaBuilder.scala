@@ -17,27 +17,32 @@ object SchemaBuilder {
       val outputFile = opt[String]("o", required = true)
     }
 
-    val db = new ODatabaseDocumentTx("memory:test")
+    val db = new ODatabaseDocumentTx("memory:export" + System.nanoTime())
     db.create()
 
     opts.inputFiles.get.get.foreach { filename =>
       val source = fromFile(filename)
       try {
-        val script = source.getLines().filter { line => (!line.trim().startsWith("#") && line.trim().size > 0) }.mkString("\n")
+        val script = source.getLines().filter { line =>
+          (!line.trim().startsWith("#") && line.trim().size > 0)
+        }.mkString("\n")
+
         db.command(new OCommandScript(script)).execute()
         db.commit()
       } finally {
         source.close()
       }
     }
-    
+
     val listener = new OCommandOutputListener() {
       def onMessage(text: String): Unit = {}
     }
 
-    val export = new ODatabaseExport(db, opts.outputFile.get.getOrElse("database.export"), listener);
-    export.exportDatabase();
-    export.close();
+    val export = new ODatabaseExport(db, opts.outputFile.get.getOrElse("database.export.osql"), listener)
+    export.exportDatabase()
+    export.close()
 
+    db.close()
+    db.drop()
   }
 }

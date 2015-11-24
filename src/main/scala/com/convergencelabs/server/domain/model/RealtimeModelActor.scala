@@ -238,12 +238,19 @@ class RealtimeModelActor(
    * then open the model from the database.
    */
   private[this] def onClientModelDataResponse(response: ClientModelDataResponse): Unit = {
-    val data = response.modelData
     val createTime = Instant.now()
+        val model = Model(
+          ModelMetaData(
+            modelFqn,
+            0,
+            createTime,
+            createTime),
+          response.modelData)
+          
 
-    modelStore.createModel(modelFqn, data, createTime)
+    modelStore.createModel(model)
     modelSnapshotStore.createSnapshot(
-      SnapshotData(SnapshotMetaData(modelFqn, 0L, createTime), data))
+      SnapshotData(SnapshotMetaData(modelFqn, 0L, createTime), response.modelData))
 
     requestModelDataFromDatastore()
   }
@@ -267,7 +274,7 @@ class RealtimeModelActor(
   /**
    * Lets a client know that the open process has completed successfully.
    */
-  private[this] def respondToClientOpenRequest(clientId: String, modelData: ModelData, requestRecord: OpenRequestRecord): Unit = {
+  private[this] def respondToClientOpenRequest(clientId: String, modelData: Model, requestRecord: OpenRequestRecord): Unit = {
     // Inform the concurrency control that we have a new client.
     val contextVersion = modelData.metaData.version
     concurrencyControl.trackClient(clientId, contextVersion)
