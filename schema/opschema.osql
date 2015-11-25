@@ -1,0 +1,196 @@
+###################### Operation ######################
+
+CREATE CLASS Operation ABSTRACT
+
+###################### DiscreteOperation ######################
+
+CREATE CLASS DiscreteOperation ABSTRACT
+
+#DiscreteOperation.path
+CREATE PROPERTY DiscreteOperation.path EMBEDDEDLIST STRING
+ALTER PROPERTY DiscreteOperation.path MANDATORY true
+ALTER PROPERTY DiscreteOperation.path NOTNULL true
+
+#DiscreteOperation.noOp
+CREATE PROPERTY DiscreteOperation.noOp BOOLEAN
+ALTER PROPERTY DiscreteOperation.noOp DEFAULT FALSE
+
+###################### CompoundOperation ######################
+
+CREATE CLUSTER compoundoperation ID 106
+CREATE CLASS CompoundOperation CLUSTER 106
+
+#CompoundOperation.operations
+CREATE PROPERTY CompoundOperation.operations EMBEDDEDLIST DiscreteOperation
+ALTER PROPERTY CompoundOperation.operations MANDATORY true
+ALTER PROPERTY CompoundOperation.operations NOTNULL true
+
+###################### StringInsertOperation ######################
+
+CREATE CLUSTER stringinsertoperation ID 107
+CREATE CLASS StringInsertOperation CLUSTER 107
+
+#StringInsertOperation.index
+CREATE PROPERTY StringInsertOperation.index INTEGER
+ALTER PROPERTY StringInsertOperation.index MANDATORY true
+ALTER PROPERTY StringInsertOperation.index NOTNULL true
+
+#StringInsertOperation.value
+CREATE PROPERTY StringInsertOperation.value STRING
+ALTER PROPERTY StringInsertOperation.value MANDATORY true
+ALTER PROPERTY StringInsertOperation.value NOTNULL true
+
+###################### StringRemoveOperation ######################
+
+CREATE CLUSTER stringremoveoperation ID 108
+CREATE CLASS StringRemoveOperation CLUSTER 108
+
+#StringRemoveOperation.index
+CREATE PROPERTY StringRemoveOperation.index INTEGER
+ALTER PROPERTY StringRemoveOperation.index MANDATORY true
+ALTER PROPERTY StringRemoveOperation.index NOTNULL true
+
+#StringRemoveOperation.value
+CREATE PROPERTY StringRemoveOperation.value STRING
+ALTER PROPERTY StringRemoveOperation.value MANDATORY true
+ALTER PROPERTY StringRemoveOperation.value NOTNULL true
+
+###################### StringSetOperation ######################
+
+CREATE CLUSTER stringsetoperation ID 109
+CREATE CLASS StringSetOperation CLUSTER 109
+
+#StringSetOperation.value
+CREATE PROPERTY StringSetOperation.value STRING
+ALTER PROPERTY StringSetOperation.value MANDATORY true
+
+###################### ObjectSetPropertyOperation ######################
+
+CREATE CLUSTER objectsetpropertyoperation ID 110
+CREATE CLASS ObjectSetPropertyOperation CLUSTER 110
+
+#ObjectSetPropertyOperation.property
+CREATE PROPERTY ObjectSetPropertyOperation.property STRING
+ALTER PROPERTY ObjectSetPropertyOperation.property MANDATORY true
+ALTER PROPERTY ObjectSetPropertyOperation.property NOTNULL true
+
+#ObjectSetPropertyOperation.value
+CREATE PROPERTY ObjectSetPropertyOperation.value EMBEDDED
+ALTER PROPERTY ObjectSetPropertyOperation.value MANDATORY true
+
+###################### ObjectAddPropertyOperation ######################
+
+CREATE CLUSTER objectaddpropertyoperation ID 111
+CREATE CLASS ObjectAddPropertyOperation CLUSTER 111
+
+#ObjectAddPropertyOperation.property
+CREATE PROPERTY ObjectAddPropertyOperation.property STRING
+ALTER PROPERTY ObjectAddPropertyOperation.property MANDATORY true
+ALTER PROPERTY ObjectAddPropertyOperation.property NOTNULL true
+
+#ObjectAddPropertyOperation.value
+CREATE PROPERTY ObjectAddPropertyOperation.value EMBEDDED
+ALTER PROPERTY ObjectAddPropertyOperation.value MANDATORY true
+
+###################### ObjectRemovePropertyOperation ######################
+
+CREATE CLUSTER objectremovepropertyoperation ID 112
+CREATE CLASS ObjectRemovePropertyOperation CLUSTER 112
+
+#ObjectRemovePropertyOperation.property
+CREATE PROPERTY ObjectRemovePropertyOperation.property STRING
+ALTER PROPERTY ObjectRemovePropertyOperation.property MANDATORY true
+ALTER PROPERTY ObjectRemovePropertyOperation.property NOTNULL true
+
+###################### ObjectSetOperation ######################
+
+CREATE CLUSTER objectsetoperation ID 113
+CREATE CLASS ObjectSetOperation CLUSTER 113
+
+#ObjectSetOperation.value
+CREATE PROPERTY ObjectSetOperation.value EMBEDDED
+ALTER PROPERTY ObjectSetOperation.value MANDATORY true
+
+###################### NumberAddOperation ######################
+
+CREATE CLUSTER numberaddoperation ID 114
+CREATE CLASS NumberAddOperation CLUSTER 114
+
+#NumberAddOperation.value
+CREATE PROPERTY NumberAddOperation.value EMBEDDED
+ALTER PROPERTY NumberAddOperation.value MANDATORY true
+
+###################### NumberSetOperation ######################
+
+CREATE CLUSTER numbersetoperation ID 115
+CREATE CLASS NumberSetOperation CLUSTER 115
+
+#NumberSetOperation.value
+CREATE PROPERTY NumberSetOperation.value EMBEDDED
+ALTER PROPERTY NumberSetOperation.value MANDATORY true
+
+###################### ArrayInsertOperation ######################
+
+CREATE CLUSTER arrayinsertoperation ID 116
+CREATE CLASS ArrayInsertOperation CLUSTER 116
+
+#ArrayInsertOperation.index
+CREATE PROPERTY ArrayInsertOperation.index INTEGER
+ALTER PROPERTY ArrayInsertOperation.index MANDATORY true
+ALTER PROPERTY ArrayInsertOperation.index NOTNULL true
+
+#ArrayInsertOperation.value
+CREATE PROPERTY ArrayInsertOperation.value EMBEDDED
+ALTER PROPERTY ArrayInsertOperation.value MANDATORY true
+ALTER PROPERTY ArrayInsertOperation.value NOTNULL true
+
+###################### ArrayRemoveOperation ######################
+
+CREATE CLUSTER arrayremoveoperation ID 117
+CREATE CLASS ArrayRemoveOperation CLUSTER 117
+
+#ArrayRemoveOperation.index
+CREATE PROPERTY ArrayRemoveOperation.index INTEGER
+ALTER PROPERTY ArrayRemoveOperation.index MANDATORY true
+ALTER PROPERTY ArrayRemoveOperation.index NOTNULL true
+
+###################### ArrayReplaceOperation ######################
+
+CREATE CLUSTER arrayreplaceoperation ID 118
+CREATE CLASS ArrayReplaceOperation CLUSTER 118
+
+#ArrayReplaceOperation.index
+CREATE PROPERTY ArrayReplaceOperation.index INTEGER
+ALTER PROPERTY ArrayReplaceOperation.index MANDATORY true
+ALTER PROPERTY ArrayReplaceOperation.index NOTNULL true
+
+#ArrayReplaceOperation.value
+CREATE PROPERTY ArrayReplaceOperation.value EMBEDDED
+ALTER PROPERTY ArrayReplaceOperation.value MANDATORY true
+ALTER PROPERTY ArrayReplaceOperation.value NOTNULL true
+
+###################### ArrayMoveOperation ######################
+
+CREATE CLUSTER arraymoveoperation ID 119
+CREATE CLASS ArrayMoveOperation CLUSTER 119
+
+#ArrayMoveOperation.fromIndex
+CREATE PROPERTY ArrayMoveOperation.fromIndex INTEGER
+ALTER PROPERTY ArrayMoveOperation.fromIndex MANDATORY true
+ALTER PROPERTY ArrayMoveOperation.fromIndex NOTNULL true
+
+#ArrayMoveOperation.toIndex
+CREATE PROPERTY ArrayMoveOperation.toIndex INTEGER
+ALTER PROPERTY ArrayMoveOperation.toIndex MANDATORY true
+ALTER PROPERTY ArrayMoveOperation.toIndex NOTNULL true
+
+###################### ArraySetOperation ######################
+
+CREATE CLUSTER arraysetoperation ID 120
+CREATE CLASS ArraySetOperation CLUSTER 120
+
+#ArraySetOperation.value
+CREATE PROPERTY ArraySetOperation.value EMBEDDED
+ALTER PROPERTY ArraySetOperation.value MANDATORY true
+
+

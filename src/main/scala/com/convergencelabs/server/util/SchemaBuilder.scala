@@ -41,8 +41,5 @@ object SchemaBuilder {
     val export = new ODatabaseExport(db, opts.outputFile.get.getOrElse("database.export.osql"), listener)
     export.exportDatabase()
     export.close()
-
-    db.close()
-    db.drop()
   }
 }
