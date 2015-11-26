@@ -50,7 +50,8 @@ val tools = (project in file("server-tools")).
     libraryDependencies ++= 
     orientDb ++ 
     loggingAll ++
-    Seq(scallop)
+    testingCore ++
+    Seq(scallop, json4s)
   )
 
 val root = (project in file(".")).

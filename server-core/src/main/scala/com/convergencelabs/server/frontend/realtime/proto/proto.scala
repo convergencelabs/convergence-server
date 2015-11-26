@@ -117,7 +117,6 @@ package object proto {
     val Reply = "rply"
   }
 
-
   // FIXME can we use the message type enum instead for matching?
   case class MessageEnvelope(opCode: String, reqId: Option[Long], `type`: Option[String], body: Option[JValue]) {
     def toJson(): String = write(this)

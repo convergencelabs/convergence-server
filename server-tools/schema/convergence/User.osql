@@ -1,0 +1,10 @@
+CREATE CLUSTER user ID 102
+CREATE CLASS User CLUSTER 102
+
+#User.username
+CREATE PROPERTY User.username String
+ALTER PROPERTY User.username MANDATORY true
+ALTER PROPERTY User.username NOTNULL true
+
+#User Indexes
+CREATE INDEX User.username ON User (username) UNIQUE

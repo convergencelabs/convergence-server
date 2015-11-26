@@ -1,0 +1,6 @@
+CREATE CLASS DomainConfig
+
+#DomainConfig.snapshotConfig
+CREATE PROPERTY DomainConfig.snapshotConfig EMBEDDED SnapshotConfig
+ALTER PROPERTY DomainConfig.snapshotConfig MANDATORY true
+ALTER PROPERTY DomainConfig.snapshotConfig NOTNULL true

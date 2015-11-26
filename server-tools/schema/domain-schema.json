@@ -1,0 +1,13 @@
+{
+  "outputFile": "test-export.json.gz",
+  "schemaScripts": [
+    "domain/SnapshotConfig.osql",
+    "domain/DomainConfig.osql",
+    "domain/Model.osql",
+    "domain/ModelSnapshot.osql",
+    "domain/User.osql",
+    "domain/UserCredential.osql"
+  ],
+  "dataScripts": [
+  ]
+}
