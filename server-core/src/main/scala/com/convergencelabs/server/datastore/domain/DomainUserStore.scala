@@ -107,13 +107,8 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
   def getDomainUserByUid(uid: String): Try[Option[DomainUser]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE uid = :uid")
     val params = Map("uid" -> uid)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-
-    result.asScala.toList match {
-      case doc :: Nil => Some(doc.asDomainUser)
-      case _ => None
-      // FIXME handle multiple case
-    }
+    val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
+    QueryUtil.mapSingleResult(results) { _.asDomainUser }
   }
 
   /**
@@ -127,7 +122,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE uid in :uids")
     val params = Map("uids" -> uids)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    result.asScala.toList.map { doc => doc.asDomainUser }
+    result.asScala.toList.map { _.asDomainUser }
   }
 
   /**
@@ -140,13 +135,8 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
   def getDomainUserByUsername(username: String): Try[Option[DomainUser]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username = :username")
     val params = Map("username" -> username)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-
-    result.asScala.toList match {
-      case doc :: Nil => Some(doc.asDomainUser)
-      case _ => None
-      // FIXME handle multiple case
-    }
+    val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
+    QueryUtil.mapSingleResult(results) { _.asDomainUser }
   }
 
   /**
@@ -160,8 +150,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username in :usernames")
     val params = Map("usernames" -> usernames)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-
-    result.asScala.toList.map { doc => doc.asDomainUser }
+    result.asScala.toList.map { _.asDomainUser }
   }
 
   /**
@@ -174,13 +163,8 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
   def getDomainUserByEmail(email: String): Try[Option[DomainUser]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE email = :email")
     val params = Map("email" -> email)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-
-    result.asScala.toList match {
-      case doc :: Nil => Some(doc.asDomainUser)
-      case _ => None
-      // FIXME handle multiple case
-    }
+    val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
+    QueryUtil.mapSingleResult(results) { _.asDomainUser }
   }
 
   /**
@@ -194,7 +178,6 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE email in :emails")
     val params = Map("emails" -> emails)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-
     result.asScala.toList.map { doc => doc.asDomainUser }
   }
 
@@ -209,11 +192,9 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username = :username")
     val params = Map("username" -> username)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-
     result.asScala.toList match {
       case doc :: Nil => true
       case _ => false
-      // FIXME handle multiple case
     }
   }
 
@@ -277,7 +258,6 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
       case _ => false
     }
   }
-
 }
 
 object DomainUserOrder extends Enumeration {

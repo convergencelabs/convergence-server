@@ -32,11 +32,6 @@ import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 
 object ModelStore {
-  val CollectionId = "collectionId"
-  val ModelId = "modelId"
-  val CreatedTime = "createdTime"
-  val ModifiedTime = "modifiedTime"
-  val Version = "version"
   val Data = "data"
 
   def toOrientPath(path: List[Any]): String = {

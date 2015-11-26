@@ -30,6 +30,25 @@ package object proto {
     val domain = map.keys
     val codomain = reverseMap.keys
   }
+  
+  val operationSerializer = new TypeMapSerializer[OperationData]("t", Map(
+    "SI" -> classOf[StringInsertOperationData],
+    "SR" -> classOf[StringRemoveOperationData],
+    "SS" -> classOf[StringSetOperationData],
+    
+    "AI" -> classOf[ArrayInsertOperationData],
+    "AR" -> classOf[ArrayRemoveOperationData],
+    "AP" -> classOf[ArrayReplaceOperationData],
+    "AM" -> classOf[ArrayMoveOperationData],
+    "AS" -> classOf[ArraySetOperationData],
+    
+    "OA" -> classOf[ObjectAddPropertyOperationData],
+    "OP" -> classOf[ObjectSetPropertyOperationData],
+    "OR" -> classOf[ObjectRemovePropertyOperationData],
+    "OS" -> classOf[ObjectSetOperationData]
+    ))
+
+  private[proto] implicit val formats = DefaultFormats + operationSerializer
 
   object MessageSerializer {
     object MessageType extends Enumeration {
@@ -98,24 +117,6 @@ package object proto {
     val Reply = "rply"
   }
 
-  val operationSerializer = new TypeMapSerializer[OperationData]("t", Map(
-    "SI" -> classOf[StringInsertOperationData],
-    "SR" -> classOf[StringRemoveOperationData],
-    "SS" -> classOf[StringSetOperationData],
-    
-    "AI" -> classOf[ArrayInsertOperationData],
-    "AR" -> classOf[ArrayRemoveOperationData],
-    "AP" -> classOf[ArrayReplaceOperationData],
-    "AM" -> classOf[ArrayMoveOperationData],
-    "AS" -> classOf[ArraySetOperationData],
-    
-    "OA" -> classOf[ObjectAddPropertyOperationData],
-    "OP" -> classOf[ObjectSetPropertyOperationData],
-    "OR" -> classOf[ObjectRemovePropertyOperationData],
-    "OS" -> classOf[ObjectSetOperationData]
-    ))
-
-  private[proto] implicit val formats = DefaultFormats + operationSerializer
 
   // FIXME can we use the message type enum instead for matching?
   case class MessageEnvelope(opCode: String, reqId: Option[Long], `type`: Option[String], body: Option[JValue]) {
