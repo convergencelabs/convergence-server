@@ -5,7 +5,7 @@ object Dependencies {
   // Versions
   object Versions {
     val akka      = "2.4.0"
-    val orientDb  = "2.1.5"
+    val orientDb  = "2.1.6"
     val log4j     = "2.4.1"
   }
 
@@ -66,14 +66,4 @@ object Dependencies {
     val testingCore = Seq(scalatest, mockito, junit)
     val testingAkka = testingCore ++ Seq(akkaTestKit)
   }
-
-  import Compile._
-//  val l = libraryDependencies
-//  
-//  val akkaActor = l ++= Seq(akkaActor, akkaCluster, akkaSlf4j)
-//  val akkaHttp = l ++= Seq(akkaHttp, akkaStream)
-//  val orientDb = l ++= Seq(orientDbCore, orientDbClient, orientDbEnterprise)
-//  val logging = l ++= Seq(grizzledSlf4j, log4jApi, log4jApi, log4jCore)
-//  val scalaTest  = l ++= Seq(Test.scalatest, Test.mockito, Test.junit)
-//  val akkaTest  = l ++= scalatest ++ Test.akkaTestKit
 }

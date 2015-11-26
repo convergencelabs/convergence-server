@@ -45,9 +45,9 @@ private class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
     descr = "A manifest to run",
     required = false,
     default = None)
-    
-    conflicts(manifest, List(schemaFiles, outputFile))
-    codependent(schemaFiles, outputFile)
+
+  conflicts(manifest, List(schemaFiles, outputFile))
+  codependent(schemaFiles, outputFile)
 }
 
 object OrientDatabaseBuilder {
@@ -92,7 +92,7 @@ class OrientDatabaseBuilder(
     schemaFiles.foreach { filename =>
       processessScript(filename)
     }
-    
+
     exportDatabase(outputFile)
   }
 
@@ -101,20 +101,25 @@ class OrientDatabaseBuilder(
     val manifestData = fromFile(manifestFile).mkString
     implicit val f = DefaultFormats
     val manifest = read[DatabaseBuilderConfig](manifestData)
-    manifest.schemaScripts match {
+    processManifestScripts(manifest.schemaScripts, manifestFile.getParent)
+    processManifestScripts(manifest.dataScripts, manifestFile.getParent)
+
+    exportDatabase(manifest.outputFile)
+  }
+
+  private[this] def processManifestScripts(scriptFiles: Option[List[String]], basePath: String): Unit = {
+    scriptFiles match {
       case Some(scripts) => scripts.foreach { script =>
         val potentialFile = new File(script)
         val scriptFile = if (potentialFile.isAbsolute()) {
           potentialFile
         } else {
-          new File(manifestFile.getParentFile, script)
+          new File(basePath, script)
         }
         processessScript(scriptFile.getAbsolutePath)
       }
       case None =>
     }
-    
-    exportDatabase(manifest.outputFile)
   }
 
   private[this] def processessScript(filename: String): Unit = {
@@ -122,11 +127,15 @@ class OrientDatabaseBuilder(
 
     val source = fromFile(filename)
     try {
-      val script = source.getLines().filter { line =>
+      val scriptLines = source.getLines().filter { line =>
         (!line.trim().startsWith("#") && line.trim().size > 0)
       }.mkString("\n")
+      
+      val semiLines = scriptLines.split(";").map {
+        line => line.replace('\n', ' ')
+      }
 
-      db.command(new OCommandScript(script)).execute()
+      db.command(new OCommandScript(semiLines.mkString("\n"))).execute()
       db.commit()
     } finally {
       source.close()

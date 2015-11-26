@@ -1,0 +1,8 @@
+INSERT INTO Domain CONTENT {
+  "id": "test-test1",
+  "namespace": "test",
+  "domainId": "test1",
+  "displayName": "test1",
+  "dbUsername": "user",
+  "dbPassword": "domain"
+};

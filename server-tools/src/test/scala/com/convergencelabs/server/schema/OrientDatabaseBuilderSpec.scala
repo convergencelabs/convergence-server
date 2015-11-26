@@ -12,7 +12,7 @@ class DatabaseBuilderSpec
     "building a database" must {
       "work" in {
         val foo = new OrientDatabaseBuilder(
-          Some("schema/domain-schema.json"),
+          Some("schema/convergence-database.json"),
           None,
           None,
           true)
