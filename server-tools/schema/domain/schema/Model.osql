@@ -1,35 +1,35 @@
 CREATE CLASS Model
 
 #Model.collectionId
-CREATE Property Model.collectionId STRING
-ALTER PROPERTY Model.collectionId MANDATORY true
-ALTER PROPERTY Model.collectionId NOTNULL true
+CREATE Property Model.collectionId STRING;
+ALTER PROPERTY Model.collectionId MANDATORY true;
+ALTER PROPERTY Model.collectionId NOTNULL true;
 
 #Model.modelId
-CREATE Property Model.modelId STRING
-ALTER PROPERTY Model.modelId MANDATORY true
-ALTER PROPERTY Model.modelId NOTNULL true
+CREATE Property Model.modelId STRING;
+ALTER PROPERTY Model.modelId MANDATORY true;
+ALTER PROPERTY Model.modelId NOTNULL true;
 
 #Model.version
-CREATE Property Model.version LONG
-ALTER PROPERTY Model.version MANDATORY true
-ALTER PROPERTY Model.version NOTNULL true
-ALTER PROPERTY Model.version MIN 0
+CREATE Property Model.version LONG;
+ALTER PROPERTY Model.version MANDATORY true;
+ALTER PROPERTY Model.version NOTNULL true;
+ALTER PROPERTY Model.version MIN 0;
 
 #Model.createdTime
-CREATE Property Model.createdTime DATETIME
-ALTER PROPERTY Model.createdTime MANDATORY true
-ALTER PROPERTY Model.createdTime NOTNULL true
-ALTER PROPERTY Model.createdTime READONLY true
+CREATE Property Model.createdTime DATETIME;
+ALTER PROPERTY Model.createdTime MANDATORY true;
+ALTER PROPERTY Model.createdTime NOTNULL true;
+ALTER PROPERTY Model.createdTime READONLY true;
 
 #Model.modifiedTime
-CREATE Property Model.modifiedTime DATETIME
-ALTER PROPERTY Model.modifiedTime MANDATORY true
-ALTER PROPERTY Model.modifiedTime NOTNULL true
+CREATE Property Model.modifiedTime DATETIME;
+ALTER PROPERTY Model.modifiedTime MANDATORY true;
+ALTER PROPERTY Model.modifiedTime NOTNULL true;
 
 #Model.data
-CREATE Property Model.data EMBEDDEDMAP
-ALTER PROPERTY Model.data MANDATORY true
+CREATE Property Model.data EMBEDDEDMAP;
+ALTER PROPERTY Model.data MANDATORY true;
 
 #Model Indexes
-CREATE INDEX Model.collectionId_modelId ON Model (collectionId, modelId) UNIQUE_HASH_INDEX
+CREATE INDEX Model.collectionId_modelId ON Model (collectionId, modelId) UNIQUE_HASH_INDEX;

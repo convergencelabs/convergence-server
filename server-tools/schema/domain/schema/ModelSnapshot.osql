@@ -1,26 +1,26 @@
-CREATE CLASS ModelSnapshot
+CREATE CLASS ModelSnapshot;
 
 #ModelSnapshot.collectionId
-CREATE Property ModelSnapshot.collectionId STRING
-ALTER PROPERTY ModelSnapshot.collectionId MANDATORY true
-ALTER PROPERTY ModelSnapshot.collectionId NOTNULL true
+CREATE Property ModelSnapshot.collectionId STRING;
+ALTER PROPERTY ModelSnapshot.collectionId MANDATORY true;
+ALTER PROPERTY ModelSnapshot.collectionId NOTNULL true;
 
 #ModelSnapshot.modelId
-CREATE Property ModelSnapshot.modelId STRING
-ALTER PROPERTY ModelSnapshot.modelId MANDATORY true
-ALTER PROPERTY ModelSnapshot.modelId NOTNULL true
+CREATE Property ModelSnapshot.modelId STRING;
+ALTER PROPERTY ModelSnapshot.modelId MANDATORY true;
+ALTER PROPERTY ModelSnapshot.modelId NOTNULL true;
 
 #ModelSnapshot.version
-CREATE Property ModelSnapshot.version LONG
-ALTER PROPERTY ModelSnapshot.version MANDATORY true
-ALTER PROPERTY ModelSnapshot.version NOTNULL true
-ALTER PROPERTY ModelSnapshot.version MIN 0
+CREATE Property ModelSnapshot.version LONG;
+ALTER PROPERTY ModelSnapshot.version MANDATORY true;
+ALTER PROPERTY ModelSnapshot.version NOTNULL true;
+ALTER PROPERTY ModelSnapshot.version MIN 0;
 
 #ModelSnapshot.timestamp
-CREATE Property ModelSnapshot.timestamp DATETIME
-ALTER PROPERTY ModelSnapshot.timestamp MANDATORY true
-ALTER PROPERTY ModelSnapshot.timestamp NOTNULL true
+CREATE Property ModelSnapshot.timestamp DATETIME;
+ALTER PROPERTY ModelSnapshot.timestamp MANDATORY true;
+ALTER PROPERTY ModelSnapshot.timestamp NOTNULL true;
 
 #ModelSnapshot Indexes
-CREATE INDEX ModelSnapshot.collectionId_modelId_version ON ModelSnapshot (collectionId, modelId, version) UNIQUE
-CREATE INDEX ModelSnapshot.collectionId_modelId ON ModelSnapshot (collectionId, modelId) NOTUNIQUE_HASH_INDEX 
+CREATE INDEX ModelSnapshot.collectionId_modelId_version ON ModelSnapshot (collectionId, modelId, version) UNIQUE;
+CREATE INDEX ModelSnapshot.collectionId_modelId ON ModelSnapshot (collectionId, modelId) NOTUNIQUE_HASH_INDEX; 

@@ -1,7 +1,7 @@
 CREATE CLASS Domain;
 
 #Domain.id
-CREATE Property Domain.id STRING;;
+CREATE Property Domain.id STRING;
 ALTER PROPERTY Domain.id MANDATORY true;
 ALTER PROPERTY Domain.id NOTNULL true;
 
