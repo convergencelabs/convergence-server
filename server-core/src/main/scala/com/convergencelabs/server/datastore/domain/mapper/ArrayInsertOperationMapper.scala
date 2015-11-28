@@ -31,11 +31,13 @@ object ArrayInsertOperationMapper {
   }
 
   private[domain] implicit def oDocumentToArrayInsertOperation(doc: ODocument): ArrayInsertOperation = {
-    assert(doc.getClassName == ArrayInsertOperationClassName)
+    if (doc.getClassName != ArrayInsertOperationClassName) {
+      throw new IllegalArgumentException(s"The ODocument class must be '${ArrayInsertOperationClassName}': ${doc.getClassName}")
+    }
     val path = doc.field(Path).asInstanceOf[JavaList[_]]
     val noOp = doc.field(NoOp).asInstanceOf[Boolean]
     val idx = doc.field(Idx).asInstanceOf[Int]
-    val value = JValueMapper.javaToJValue(doc.field(Val)) 
+    val value = JValueMapper.javaToJValue(doc.field(Val))
     ArrayInsertOperation(path.asScala.toList, noOp, idx, value)
   }
 

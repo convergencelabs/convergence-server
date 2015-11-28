@@ -31,7 +31,9 @@ object ObjectRemovePropertyOperationMapper {
   }
 
   private[domain] implicit def oDocumentToObjectRemovePropertyOperation(doc: ODocument): ObjectRemovePropertyOperation = {
-    assert(doc.getClassName == ObjectRemovePropertyOperationClassName)
+    if (doc.getClassName != ObjectRemovePropertyOperationClassName) {
+      throw new IllegalArgumentException(s"The ODocument class must be '${ObjectRemovePropertyOperationClassName}': ${doc.getClassName}")
+    }
     val path = doc.field(Path).asInstanceOf[JavaList[_]]
     val noOp = doc.field(NoOp).asInstanceOf[Boolean]
     val prop = doc.field(Prop).asInstanceOf[String]

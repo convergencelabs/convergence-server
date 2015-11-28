@@ -32,7 +32,9 @@ object StringInsertOperationMapper {
   }
 
   private[domain] implicit def oDocumentToStringInsertOperation(doc: ODocument): StringInsertOperation = {
-    assert(doc.getClassName == StringInsertOperationClassName)
+    if (doc.getClassName != StringInsertOperationClassName) {
+      throw new IllegalArgumentException(s"The ODocument class must be '${StringInsertOperationClassName}': ${doc.getClassName}")
+    }
     val path = doc.field(Path).asInstanceOf[JavaList[_]]
     val noOp = doc.field(NoOp).asInstanceOf[Boolean]
     val index = doc.field(Idx).asInstanceOf[Int]

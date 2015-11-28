@@ -32,7 +32,9 @@ object ObjectAddPropertyOperationMapper {
   }
 
   private[domain] implicit def oDocumentToObjectAddPropertyOperation(doc: ODocument): ObjectAddPropertyOperation = {
-    assert(doc.getClassName == ObjectAddPropertyOperationClassName)
+    if (doc.getClassName != ObjectAddPropertyOperationClassName) {
+      throw new IllegalArgumentException(s"The ODocument class must be '${ObjectAddPropertyOperationClassName}': ${doc.getClassName}")
+    }
     val path = doc.field(Path).asInstanceOf[JavaList[_]]
     val noOp = doc.field(NoOp).asInstanceOf[Boolean]
     val prop = doc.field(Prop).asInstanceOf[String]

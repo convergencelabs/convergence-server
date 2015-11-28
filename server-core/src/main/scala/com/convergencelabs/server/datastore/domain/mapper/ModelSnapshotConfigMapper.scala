@@ -14,7 +14,7 @@ object ModelSnapshotConfigMapper {
   }
 
   private[domain] implicit def snapshotConfigToODocument(snapshotConfig: ModelSnapshotConfig): ODocument = {
-    val doc = new ODocument("ModelSnapshotConfig")
+    val doc = new ODocument(ModelSnapshotConfigClassName)
     doc.field(Enabled, snapshotConfig.snapshotsEnabled)
     doc.field(TriggerByVersion, snapshotConfig.triggerByVersion)
     doc.field(LimitedByVersion, snapshotConfig.limitedByVersion)
@@ -31,6 +31,9 @@ object ModelSnapshotConfigMapper {
   }
 
   private[domain] implicit def oDocumentToModelSnapshotConfig(doc: ODocument): ModelSnapshotConfig = {
+    if (doc.getClassName != ModelSnapshotConfigClassName) {
+      throw new IllegalArgumentException(s"The ODocument class must be '${ModelSnapshotConfigClassName}': ${doc.getClassName}")
+    }
     val minTimeIntervalMillis: Long = doc.field(MinTimeInterval)
     val maxTimeIntervalMillis: Long = doc.field(MaxTimeInterval)
 
@@ -46,6 +49,8 @@ object ModelSnapshotConfigMapper {
       Duration.ofMillis(maxTimeIntervalMillis))
   }
 
+  val ModelSnapshotConfigClassName = "ModelSnapshotConfig"
+  
   object ModelSnapshotConfigFields {
     val Enabled = "enabled"
     val MinTimeInterval = "minTimeInterval"

@@ -32,7 +32,9 @@ object StringRemoveOperationMapper {
   }
 
   private[domain] implicit def oDocumentToStringRemoveOperation(doc: ODocument): StringRemoveOperation = {
-    assert(doc.getClassName == StringRemoveOperationClassName)
+    if (doc.getClassName != StringRemoveOperationClassName) {
+      throw new IllegalArgumentException(s"The ODocument class must be '${StringRemoveOperationClassName}': ${doc.getClassName}")
+    }
     val path = doc.field(Path).asInstanceOf[JavaList[_]]
     val noOp = doc.field(NoOp).asInstanceOf[Boolean]
     val index = doc.field(Idx).asInstanceOf[Int]

@@ -33,7 +33,9 @@ object ArrayReplaceOperationMapper {
   }
 
   private[domain] implicit def oDocumentToArrayReplaceOperation(doc: ODocument): ArrayReplaceOperation = {
-    assert(doc.getClassName == ArrayReplaceOperationClassName)
+    if (doc.getClassName != ArrayReplaceOperationClassName) {
+      throw new IllegalArgumentException(s"The ODocument class must be '${ArrayReplaceOperationClassName}': ${doc.getClassName}")
+    }
     val path = doc.field(Path).asInstanceOf[JavaList[_]]
     val noOp = doc.field(NoOp).asInstanceOf[Boolean]
     val idx = doc.field(Idx).asInstanceOf[Int]

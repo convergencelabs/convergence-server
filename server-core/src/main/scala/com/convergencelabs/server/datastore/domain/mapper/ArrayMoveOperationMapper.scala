@@ -33,7 +33,9 @@ object ArrayMoveOperationMapper {
   }
 
   private[domain] implicit def oDocumentToArrayMoveOperation(doc: ODocument): ArrayMoveOperation = {
-    assert(doc.getClassName == ArrayMoveOperationClassName)
+    if (doc.getClassName != ArrayMoveOperationClassName) {
+      throw new IllegalArgumentException(s"The ODocument class must be '${ArrayMoveOperationClassName}': ${doc.getClassName}")
+    }
     val path = doc.field(Path).asInstanceOf[JavaList[_]]
     val noOp = doc.field(NoOp).asInstanceOf[Boolean]
     val from = doc.field(From).asInstanceOf[Int]

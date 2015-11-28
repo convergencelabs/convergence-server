@@ -35,7 +35,9 @@ object NumberAddOperationMapper {
   }
 
   private[domain] implicit def oDocumentToNumberAddOperation(doc: ODocument): NumberAddOperation = {
-    assert(doc.getClassName == NumberAddOperationClassName)
+    if (doc.getClassName != NumberAddOperationClassName) {
+      throw new IllegalArgumentException(s"The ODocument class must be '${NumberAddOperationClassName}': ${doc.getClassName}")
+    }
     val path = doc.field(Path).asInstanceOf[JavaList[_]]
     val noOp = doc.field(NoOp).asInstanceOf[Boolean]
     val delta = JValueMapper.javaToJValue(doc.field(Delta)).asInstanceOf[JNumber]

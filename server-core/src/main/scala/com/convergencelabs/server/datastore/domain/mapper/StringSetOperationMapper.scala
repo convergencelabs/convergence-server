@@ -31,7 +31,9 @@ object StringSetOperationMapper {
   }
 
   private[domain] implicit def oDocumentToStringSetOperation(doc: ODocument): StringSetOperation = {
-    assert(doc.getClassName == StringSetOperationClassName)
+    if (doc.getClassName != StringSetOperationClassName) {
+      throw new IllegalArgumentException(s"The ODocument class must be '${StringSetOperationClassName}': ${doc.getClassName}")
+    }
     val path = doc.field(Path).asInstanceOf[JavaList[_]]
     val noOp = doc.field(NoOp).asInstanceOf[Boolean]
     val value = doc.field(Val).asInstanceOf[String]

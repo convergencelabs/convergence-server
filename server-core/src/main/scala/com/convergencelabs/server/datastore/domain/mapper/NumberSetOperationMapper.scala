@@ -32,7 +32,9 @@ object NumberSetOperationMapper {
   }
 
   private[domain] implicit def oDocumentToNumberSetOperation(doc: ODocument): NumberSetOperation = {
-    assert(doc.getClassName == NumberSetOperationClassName)
+    if (doc.getClassName != NumberSetOperationClassName) {
+      throw new IllegalArgumentException(s"The ODocument class must be '${NumberSetOperationClassName}': ${doc.getClassName}")
+    }
     val path = doc.field(Path).asInstanceOf[JavaList[_]]
     val noOp = doc.field(NoOp).asInstanceOf[Boolean]
     val value = JValueMapper.javaToJValue(doc.field(Val)).asInstanceOf[JNumber]

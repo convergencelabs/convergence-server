@@ -31,7 +31,9 @@ object ArraySetOperationMapper {
   }
 
   private[domain] implicit def oDocumentToArraySetOperation(doc: ODocument): ArraySetOperation = {
-    assert(doc.getClassName == ArraySetOperationClassName)
+    if (doc.getClassName != ArraySetOperationClassName) {
+      throw new IllegalArgumentException(s"The ODocument class must be '${ArraySetOperationClassName}': ${doc.getClassName}")
+    }
     val path = doc.field(Path).asInstanceOf[JavaList[_]]
     val noOp = doc.field(NoOp).asInstanceOf[Boolean]
     val value = JValueMapper.javaToJValue(doc.field(Val)).asInstanceOf[JArray] 

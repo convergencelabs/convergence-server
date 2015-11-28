@@ -30,7 +30,9 @@ object ArrayRemoveOperationMapper {
   }
 
   private[domain] implicit def oDocumentToArrayRemoveOperation(doc: ODocument): ArrayRemoveOperation = {
-    assert(doc.getClassName == ArrayRemoveOperationClassName)
+    if (doc.getClassName != ArrayRemoveOperationClassName) {
+      throw new IllegalArgumentException(s"The ODocument class must be '${ArrayRemoveOperationClassName}': ${doc.getClassName}")
+    }
     val path = doc.field(Path).asInstanceOf[JavaList[_]]
     val noOp = doc.field(NoOp).asInstanceOf[Boolean]
     val idx = doc.field(Idx).asInstanceOf[Int]
