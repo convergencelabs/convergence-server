@@ -24,6 +24,7 @@ class DomainStore private[datastore] (dbPool: OPartitionedDatabasePool)
 
   def createDomain(domain: Domain): Try[Unit] = tryWithDb { db =>
     db.save(domain.asODocument)
+    Unit
   }
 
   def domainExists(domainFqn: DomainFqn): Try[Boolean] = tryWithDb { db =>
@@ -72,10 +73,11 @@ class DomainStore private[datastore] (dbPool: OPartitionedDatabasePool)
     result.asScala.toList map { doc => doc.asDomain }
   }
 
-  def removeDomain(id: String): Try[Unit] = tryWithDb { db =>
+  def removeDomain(id: String): Try[Boolean] = tryWithDb { db =>
     val command = new OCommandSQL("DELETE FROM Domain WHERE id = :id")
     val params = Map("id" -> id)
-    db.command(command).execute(params.asJava)
+    val count: Int = db.command(command).execute(params.asJava)
+    count > 0
   }
 
   def updateDomain(newConfig: Domain): Try[Unit] = tryWithDb { db =>

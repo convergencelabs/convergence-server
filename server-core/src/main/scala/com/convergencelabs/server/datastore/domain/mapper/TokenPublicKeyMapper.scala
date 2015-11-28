@@ -14,12 +14,12 @@ object TokenPublicKeyMapper {
 
   private[domain] implicit def tokenPublicKeyToODocument(tokenPublicKey: TokenPublicKey): ODocument = {
     val doc = new ODocument(TokenPublicKeyClassName)
-    doc.field(KeyId, tokenPublicKey.id)
-    doc.field(KeyName, tokenPublicKey.name)
-    doc.field(KeyDescription, tokenPublicKey.description)
-    doc.field(KeyDate, tokenPublicKey.keyDate)
+    doc.field(Id, tokenPublicKey.id)
+    doc.field(Name, tokenPublicKey.name)
+    doc.field(Description, tokenPublicKey.description)
+    doc.field(Created, tokenPublicKey.keyDate)
     doc.field(Key, tokenPublicKey.key)
-    doc.field(KeyEnabled, tokenPublicKey.enabled)
+    doc.field(Enabled, tokenPublicKey.enabled)
     doc
   }
 
@@ -32,22 +32,22 @@ object TokenPublicKeyMapper {
       throw new IllegalArgumentException(s"The ODocument class must be '${TokenPublicKeyClassName}': ${doc.getClassName}")
     }
     TokenPublicKey(
-      doc.field(KeyId),
-      doc.field(KeyName),
-      doc.field(KeyDescription),
-      doc.field(KeyDate),
+      doc.field(Id),
+      doc.field(Name),
+      doc.field(Description),
+      doc.field(Created),
       doc.field(Key),
-      doc.field(KeyEnabled))
+      doc.field(Enabled))
   }
 
   private[domain] val TokenPublicKeyClassName = "TokenPublicKey"
 
   private[domain] object TokenPublicKeyFields {
-    val KeyId = "id"
-    val KeyName = "name"
-    val KeyDescription = "description"
-    val KeyDate = "keyDate"
+    val Id = "id"
+    val Name = "name"
+    val Description = "description"
+    val Created = "keyDate"
     val Key = "key"
-    val KeyEnabled = "enabled"
+    val Enabled = "enabled"
   }
 }

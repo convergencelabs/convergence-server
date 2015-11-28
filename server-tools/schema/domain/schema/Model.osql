@@ -1,4 +1,4 @@
-CREATE CLASS Model
+CREATE CLASS Model;
 
 #Model.collectionId
 CREATE Property Model.collectionId STRING;

@@ -18,7 +18,7 @@ import org.scalatest.OptionValues._
 import org.scalatest.TryValues._
 
 class ModelSnapshotStoreSpec
-    extends PersistenceStoreSpec[ModelSnapshotStore]("/dbfiles/t1.gz")
+    extends PersistenceStoreSpec[ModelSnapshotStore]("/dbfiles/domain.json.gz")
     with WordSpecLike
     with Matchers {
 

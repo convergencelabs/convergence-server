@@ -1,0 +1,18 @@
+INSERT INTO Model SET
+  collectionId = "people",
+  modelId = "person1",
+  version = 0,
+  createdTime = DATE(1439442600000),
+  modifiedTime = DATE(1448092500000),
+  data = {
+    "fname": "john",
+    "lname": "smith",
+    "age": 26,
+    "married": false,
+    "spouse": null,
+    "emails": [
+      "first@email.com",
+      "second@email.com",
+      "third@email.com"
+    ]
+  };

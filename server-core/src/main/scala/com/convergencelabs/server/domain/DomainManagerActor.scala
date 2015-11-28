@@ -86,20 +86,10 @@ class DomainManagerActor(
   }
 
   private[this] def handleClientOpeningClosedDomain(domainFqn: DomainFqn, request: HandshakeRequest): Unit = {
-    domainStore.domainExists(domainFqn) match {
-      case Success(false) => {
-        // This only works because this is synchronous.
-        // FIXME I don't think it is for sure that the actor will be up and running at this point.
-        openClosedDomain(domainFqn)
-        domainFqnToActor(domainFqn) forward request
-      }
-      case Success(true) => {
-        sender ! HandshakeFailure("domain_does_not_exists", "The domain does not exist")
-      }
-      case Failure(cause) => {
-        ???
-      }
-    }
+    // This only works because this is synchronous.
+    // FIXME I don't think it is for sure that the actor will be up and running at this point.
+    openClosedDomain(domainFqn)
+    domainFqnToActor(domainFqn) forward request
   }
 
   private[this] def openClosedDomain(domainFqn: DomainFqn): Unit = {

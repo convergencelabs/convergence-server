@@ -1,0 +1,46 @@
+CREATE CLASS ModelSnapshotConfig;
+
+#ModelSnapshotConfig.enabled
+CREATE PROPERTY ModelSnapshotConfig.enabled Boolean;
+ALTER PROPERTY ModelSnapshotConfig.enabled MANDATORY true;
+ALTER PROPERTY ModelSnapshotConfig.enabled NOTNULL true;
+
+#ModelSnapshotConfig.triggerByVersion
+CREATE PROPERTY ModelSnapshotConfig.triggerByVersion Boolean;
+ALTER PROPERTY ModelSnapshotConfig.triggerByVersion MANDATORY true;
+ALTER PROPERTY ModelSnapshotConfig.triggerByVersion NOTNULL true;
+
+#ModelSnapshotConfig.limitedByVersion
+CREATE PROPERTY ModelSnapshotConfig.limitedByVersion Boolean;
+ALTER PROPERTY ModelSnapshotConfig.limitedByVersion MANDATORY true;
+ALTER PROPERTY ModelSnapshotConfig.limitedByVersion NOTNULL true;
+
+#ModelSnapshotConfig.minVersionInterval
+CREATE PROPERTY ModelSnapshotConfig.minVersionInterval Long;
+ALTER PROPERTY ModelSnapshotConfig.minVersionInterval MANDATORY true;
+ALTER PROPERTY ModelSnapshotConfig.minVersionInterval NOTNULL true;
+
+#ModelSnapshotConfig.maxVersionInterval
+CREATE PROPERTY ModelSnapshotConfig.maxVersionInterval Long;
+ALTER PROPERTY ModelSnapshotConfig.maxVersionInterval MANDATORY true;
+ALTER PROPERTY ModelSnapshotConfig.maxVersionInterval NOTNULL true;
+
+#ModelSnapshotConfig.triggerByTime
+CREATE PROPERTY ModelSnapshotConfig.triggerByTime Boolean;
+ALTER PROPERTY ModelSnapshotConfig.triggerByTime MANDATORY true;
+ALTER PROPERTY ModelSnapshotConfig.triggerByTime NOTNULL true;
+
+#ModelSnapshotConfig.limitedByTime
+CREATE PROPERTY ModelSnapshotConfig.limitedByTime Boolean;
+ALTER PROPERTY ModelSnapshotConfig.limitedByTime MANDATORY true;
+ALTER PROPERTY ModelSnapshotConfig.limitedByTime NOTNULL true;
+
+#ModelSnapshotConfig.minTimeInterval
+CREATE PROPERTY ModelSnapshotConfig.minTimeInterval Long;
+ALTER PROPERTY ModelSnapshotConfig.minTimeInterval MANDATORY true;
+ALTER PROPERTY ModelSnapshotConfig.minTimeInterval NOTNULL true;
+
+#ModelSnapshotConfig.maxTimeInterval
+CREATE PROPERTY ModelSnapshotConfig.maxTimeInterval Long;
+ALTER PROPERTY ModelSnapshotConfig.maxTimeInterval MANDATORY true;
+ALTER PROPERTY ModelSnapshotConfig.maxTimeInterval NOTNULL true;

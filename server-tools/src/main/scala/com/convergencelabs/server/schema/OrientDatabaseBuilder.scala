@@ -27,18 +27,18 @@ private class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
     argName = "schema-files",
     descr = "A comma separated list of osql schema scripts",
     required = false,
-    default = Some(List()))
+    default = None)
 
   val outputFile = opt[String](
     argName = "output",
     descr = "The OrientDB Merge file to output to",
-    required = false)
-
-  val verbose = opt[Boolean](
-    argName = "verbose",
-    descr = "Increase the output verbosity of the tool",
     required = false,
-    default = Some(false))
+    default = None)
+
+  val verbose = toggle(
+    name = "verbose",
+    default = Some(false),
+    descrYes = "Print verbose output")
 
   val manifest = opt[String](
     argName = "manifest",
@@ -47,7 +47,9 @@ private class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
     default = None)
 
   conflicts(manifest, List(schemaFiles, outputFile))
+  requireOne(manifest, schemaFiles)
   codependent(schemaFiles, outputFile)
+  
 }
 
 object OrientDatabaseBuilder {

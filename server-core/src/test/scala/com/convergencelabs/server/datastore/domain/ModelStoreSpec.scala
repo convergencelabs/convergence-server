@@ -26,7 +26,7 @@ import org.scalatest.TryValues._
 import org.scalatest.Matchers
 
 class ModelStoreSpec
-    extends PersistenceStoreSpec[ModelStore]("/dbfiles/t1.gz")
+    extends PersistenceStoreSpec[ModelStore]("/dbfiles/domain.json.gz")
     with WordSpecLike
     with Matchers {
 

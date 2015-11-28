@@ -10,7 +10,7 @@ import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import com.convergencelabs.server.domain.DomainUser
 
 class DomainUserStoreSpec
-    extends PersistenceStoreSpec[DomainUserStore]("/dbfiles/t1.gz")
+    extends PersistenceStoreSpec[DomainUserStore]("/dbfiles/domain.json.gz")
     with WordSpecLike
     with Matchers {
 

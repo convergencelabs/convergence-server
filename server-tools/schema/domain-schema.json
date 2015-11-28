@@ -1,13 +1,33 @@
 {
-  "outputFile": "test-export.json.gz",
+  "outputFile": "domain.json.gz",
   "schemaScripts": [
-    "domain/SnapshotConfig.osql",
-    "domain/DomainConfig.osql",
-    "domain/Model.osql",
-    "domain/ModelSnapshot.osql",
-    "domain/User.osql",
-    "domain/UserCredential.osql"
+    "domain/schema/ModelSnapshotConfig.osql",
+    "domain/schema/TokenPublicKey.osql",
+    "domain/schema/DomainConfig.osql",
+    "domain/schema/Model.osql",
+    "domain/schema/ModelSnapshot.osql",
+    "domain/schema/User.osql",
+    "domain/schema/UserCredential.osql",
+    "domain/schema/OFunctions.osql"
   ],
   "dataScripts": [
+    "domain/data/DomainConfig/domainConfig.osql",
+  
+    "domain/data/Model/people-person1.osql",
+    "domain/data/ModelSnapshot/people-person1-0.osql",
+    "domain/data/ModelSnapshot/people-person1-10.osql",
+    "domain/data/ModelSnapshot/people-person1-20.osql",
+    "domain/data/Model/people-person2.osql",
+    "domain/data/ModelSnapshot/people-person2-0.osql",
+    
+    "domain/data/User/u0.osql",
+    "domain/data/UserCredential/u0.osql",
+    
+    "domain/data/User/u1.osql",
+    "domain/data/UserCredential/u1.osql",
+    
+    "domain/data/User/u2.osql",
+    "domain/data/UserCredential/u2.osql"
+    
   ]
 }

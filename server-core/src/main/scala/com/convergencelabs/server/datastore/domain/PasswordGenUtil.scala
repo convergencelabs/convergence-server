@@ -1,6 +1,6 @@
 package com.convergencelabs.server.datastore.domain
 
-object PasswordGenUtil {
+object PasswordGenUtil extends App {
   val password = "password"
   val hash = PasswordUtil.hashPassword(password)
   println(hash)

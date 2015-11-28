@@ -1,14 +1,14 @@
 CREATE CLASS Configuration;
 
 #Configuration.configKey
-CREATE Property Configuration.configKey STRING;
-ALTER PROPERTY Configuration.configKey MANDATORY true;
-ALTER PROPERTY Configuration.configKey NOTNULL true;
+CREATE Property Configuration.key STRING;
+ALTER PROPERTY Configuration.key MANDATORY true;
+ALTER PROPERTY Configuration.key NOTNULL true;
 
 #Configuration.configValue
-CREATE Property Configuration.configValue EMBEDDED;
-ALTER PROPERTY Configuration.configValue MANDATORY true;
-ALTER PROPERTY Configuration.configValue NOTNULL true;
+CREATE Property Configuration.value EMBEDDED;
+ALTER PROPERTY Configuration.value MANDATORY true;
+ALTER PROPERTY Configuration.value NOTNULL true;
 
 #Configuration Indexes
-CREATE INDEX Configuration.configKey ON Configuration (configKey) UNIQUE;
+CREATE INDEX Configuration.configKey ON Configuration (key) UNIQUE;

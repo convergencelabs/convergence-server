@@ -32,8 +32,8 @@ class ConfigurationStore(dbPool: OPartitionedDatabasePool) extends Logging {
 
   private[datastore] def getConfiguration(configKey: String): Option[JValue] = {
     val db = dbPool.acquire()
-    val query = new OSQLSynchQuery[ODocument]("SELECT FROM configuration WHERE configKey = :configKey")
-    val params = Map("configKey" -> configKey)
+    val query = new OSQLSynchQuery[ODocument]("SELECT FROM configuration WHERE key = :key")
+    val params = Map("key" -> configKey)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     db.close()
 
@@ -42,7 +42,7 @@ class ConfigurationStore(dbPool: OPartitionedDatabasePool) extends Logging {
       val config = parse(doc.toJSON())
       config match {
         case configObject: JObject => {
-          val config = configObject \ "config"
+          val config = configObject \ "value"
           Some(config)
         }
         case _ => None

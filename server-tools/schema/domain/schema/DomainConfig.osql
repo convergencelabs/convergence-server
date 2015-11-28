@@ -1,6 +1,21 @@
 CREATE CLASS DomainConfig;
 
-#DomainConfig.snapshotConfig
-CREATE PROPERTY DomainConfig.snapshotConfig EMBEDDED SnapshotConfig;
-ALTER PROPERTY DomainConfig.snapshotConfig MANDATORY true;
-ALTER PROPERTY DomainConfig.snapshotConfig NOTNULL true;
+#DomainConfig.modelSnapshotConfig
+CREATE PROPERTY DomainConfig.modelSnapshotConfig EMBEDDED ModelSnapshotConfig;
+ALTER PROPERTY DomainConfig.modelSnapshotConfig MANDATORY true;
+ALTER PROPERTY DomainConfig.modelSnapshotConfig NOTNULL true;
+
+#DomainConfig.tokenKeys
+CREATE PROPERTY DomainConfig.tokenKeys EMBEDDEDLIST TokenPublicKey;
+ALTER PROPERTY DomainConfig.tokenKeys MANDATORY true;
+ALTER PROPERTY DomainConfig.tokenKeys NOTNULL true;
+
+#DomainConfig.adminPublicKey
+CREATE PROPERTY DomainConfig.adminPublicKey STRING;
+ALTER PROPERTY DomainConfig.adminPublicKey MANDATORY true;
+ALTER PROPERTY DomainConfig.adminPublicKey NOTNULL true;
+
+#DomainConfig.adminPrivateKey
+CREATE PROPERTY DomainConfig.adminPrivateKey STRING;
+ALTER PROPERTY DomainConfig.adminPrivateKey MANDATORY true;
+ALTER PROPERTY DomainConfig.adminPrivateKey NOTNULL true;

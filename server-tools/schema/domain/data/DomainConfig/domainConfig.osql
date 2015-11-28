@@ -1,0 +1,31 @@
+INSERT INTO DomainConfig SET
+  adminPrivateKey = "",
+  adminPublicKey = "",
+  modelSnapshotConfig = {
+    "@type": "d",
+    "@version": 0,
+    "@class": "ModelSnapshotConfig",
+    "enabled": true,
+    "triggerByVersion": true,
+    "limitedByVersion": true,
+    "minVersionInterval": 250,
+    "maxVersionInterval": 500,
+    "triggerByTime": false,
+    "limitedByTime": false,
+    "minTimeInterval": 0,
+    "maxTimeInterval": 0,
+    "@fieldTypes": "minVersionInterval=l,maxVersionInterval=l,minTimeInterval=l,maxTimeInterval=l"
+  },
+  tokenKeys = [
+    {
+      "@type": "d",
+      "@version": 0,
+      "@class": "TokenPublicKey",
+      "created": "2015-09-21 12:32:43",
+      "id": "test",
+      "name": "Test Key",
+      "description": "A key for testing",
+      "enabled": true,
+      "key": ""
+    }
+  ];

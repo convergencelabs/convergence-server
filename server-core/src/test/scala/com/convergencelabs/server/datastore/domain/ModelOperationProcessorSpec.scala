@@ -7,7 +7,7 @@ import org.scalatest.WordSpecLike
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 
 class ModelOperationProcessorSpec
-    extends PersistenceStoreSpec[ModelOperationProcessor]("/dbfiles/t1.gz")
+    extends PersistenceStoreSpec[ModelOperationProcessor]("/dbfiles/domain.json.gz")
     with WordSpecLike
     with OptionValues {
 

@@ -46,16 +46,20 @@ class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
   }
 
   def getAdminKeyPair(): Try[TokenKeyPair] = tryWithDb { db =>
-    val queryString = "SELECT adminKeyPair FROM DomainConfig"
+    val queryString = "SELECT adminPublicKey, adminPrivateKey FROM DomainConfig"
     val query = new OSQLSynchQuery[ODocument](queryString)
     val result: JavaList[ODocument] = db.command(query).execute()
 
-    QueryUtil.mapSingleResult(result) { _.asTokenKeyPair }.get
+    QueryUtil.mapSingleResult(result) { doc =>
+      TokenKeyPair(
+          doc.field("adminPublicKey", OType.STRING),
+          doc.field("adminPrivateKey", OType.STRING))
+    }.get
   }
 
   // FIXME we need an add and remove key.
   def getTokenKey(keyId: String): Try[Option[TokenPublicKey]] = tryWithDb { db =>
-    val queryString = "SELECT keys[id = :keyId].asList() FROM DomainConfig"
+    val queryString = "SELECT tokenKeys[id = :keyId].asList() FROM DomainConfig"
     val query = new OSQLSynchQuery[ODocument](queryString)
     val params = Map("keyId" -> keyId)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
@@ -67,12 +71,12 @@ class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
   }
 
   def getTokenKeys(): Try[Map[String, TokenPublicKey]] = tryWithDb { db =>
-    val sql = "SELECT keys FROM DomainConfig"
+    val sql = "SELECT tokenKeys FROM DomainConfig"
     val query = new OSQLSynchQuery[ODocument](sql)
     val result: JavaList[ODocument] = db.command(query).execute()
 
     QueryUtil.mapSingleResult(result) { doc =>
-      val docList: JavaList[ODocument] = doc.field("keys", OType.EMBEDDEDLIST)
+      val docList: JavaList[ODocument] = doc.field("tokenKeys", OType.EMBEDDEDLIST)
       docList.map(t => {
         val key = t.asTokenPublicKey
         (key.id -> key)

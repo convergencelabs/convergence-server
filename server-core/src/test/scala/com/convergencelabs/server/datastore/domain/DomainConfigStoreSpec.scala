@@ -8,7 +8,7 @@ import org.scalatest.WordSpecLike
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 
 class DomainConfigStoreSpec
-    extends PersistenceStoreSpec[DomainConfigStore]("/dbfiles/convergence.gz")
+    extends PersistenceStoreSpec[DomainConfigStore]("/dbfiles/domain.json.gz")
     with WordSpecLike
     with Matchers {
 
