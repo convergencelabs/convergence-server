@@ -1,19 +1,18 @@
 package com.convergencelabs.server.schema
 
-import scala.io.Source._
+import java.io.File
+
+import scala.io.Source.fromFile
 import scala.language.reflectiveCalls
+
+import org.json4s.DefaultFormats
 import org.json4s.jackson.Serialization.read
-import org.json4s.jackson.Serialization.write
-import org.rogach.scallop._
+import org.rogach.scallop.ScallopConf
+
 import com.orientechnologies.orient.core.command.OCommandOutputListener
 import com.orientechnologies.orient.core.command.script.OCommandScript
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.orientechnologies.orient.core.db.tool.ODatabaseExport
-import org.json4s.Formats
-import org.json4s.Serialization
-import org.json4s.DefaultFormats
-import java.io.File
-import grizzled.slf4j.Logging
 
 private object Conf {
   def apply(arguments: Seq[String]): Conf = new Conf(arguments)
@@ -49,7 +48,7 @@ private class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   conflicts(manifest, List(schemaFiles, outputFile))
   requireOne(manifest, schemaFiles)
   codependent(schemaFiles, outputFile)
-  
+
 }
 
 object OrientDatabaseBuilder {
@@ -70,24 +69,33 @@ class OrientDatabaseBuilder(
     private[this] val manifestFile: Option[String],
     private[this] val schemaFiles: Option[List[String]],
     private[this] val outputFile: Option[String],
-    private[this] val verbose: Boolean) extends Logging {
+    private[this] val verbose: Boolean) {
 
   private[this] val db = new ODatabaseDocumentTx("memory:export" + System.nanoTime())
 
   def buildSchema(): Unit = {
+    if (verbose) {
+      println("Creating temporary in memory database")
+    }
     db.create()
     val output = (manifestFile, schemaFiles, outputFile) match {
       case (Some(manifest), None, None) => buildFromManifest(manifest)
       case (None, Some(schema), Some(output)) => buildFromInputOutput(schema, output)
       case _ => ???
     }
+    if (verbose) {
+      println("Closeing temporary in memory database.")
+    }
     db.drop()
+    println("Database construction complete.")
   }
 
   private[this] def exportDatabase(outputFile: String): Unit = {
+    println(s"Exporting database to $outputFile.")
     val export = new ODatabaseExport(db, outputFile, new OutputListener(verbose))
     export.exportDatabase()
     export.close()
+    println("Export complete.")
   }
 
   private[this] def buildFromInputOutput(schemaFiles: List[String], outputFile: String): Unit = {
@@ -99,6 +107,7 @@ class OrientDatabaseBuilder(
   }
 
   private[this] def buildFromManifest(manifestFilePath: String): Unit = {
+    println(s"Building database from manifiest file: $manifestFilePath")
     val manifestFile = new File(manifestFilePath)
     val manifestData = fromFile(manifestFile).mkString
     implicit val f = DefaultFormats
@@ -106,6 +115,7 @@ class OrientDatabaseBuilder(
     processManifestScripts(manifest.schemaScripts, manifestFile.getParent)
     processManifestScripts(manifest.dataScripts, manifestFile.getParent)
 
+    println(s"Building database build completed")
     exportDatabase(manifest.outputFile)
   }
 
@@ -125,14 +135,16 @@ class OrientDatabaseBuilder(
   }
 
   private[this] def processessScript(filename: String): Unit = {
-    println(filename)
+    if (verbose) {
+      println(s"Processing script: $filename")
+    }
 
     val source = fromFile(filename)
     try {
       val scriptLines = source.getLines().filter { line =>
         (!line.trim().startsWith("#") && line.trim().size > 0)
       }.mkString("\n")
-      
+
       val semiLines = scriptLines.split(";").map {
         line => line.replace('\n', ' ')
       }
@@ -143,7 +155,6 @@ class OrientDatabaseBuilder(
       source.close()
     }
   }
-
 }
 
 private class OutputListener(verbose: Boolean) extends OCommandOutputListener() {
