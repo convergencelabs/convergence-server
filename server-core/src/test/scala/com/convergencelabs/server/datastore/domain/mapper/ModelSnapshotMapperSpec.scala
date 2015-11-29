@@ -1,0 +1,42 @@
+package com.convergencelabs.server.datastore.domain.mapper
+
+import org.json4s.JsonAST.JString
+import org.scalatest.Finders
+import org.scalatest.Matchers
+import org.scalatest.WordSpec
+import com.orientechnologies.orient.core.record.impl.ODocument
+import ModelSnapshotMapper._
+import org.json4s.JsonAST.JObject
+import com.convergencelabs.server.domain.model.ModelSnapshot
+import com.convergencelabs.server.domain.model.ModelSnapshotMetaData
+import java.time.Instant
+import com.convergencelabs.server.domain.model.ModelFqn
+
+class ModelSnapshotMapperSpec
+    extends WordSpec
+    with Matchers {
+
+  "An ModelSnapshotMapper" when {
+    "when converting Model operations" must {
+      "correctly map and unmap a Model" in {
+        val modelSnapshot = ModelSnapshot(
+          ModelSnapshotMetaData(
+            ModelFqn("collection", "model"),
+            4L,
+            Instant.ofEpochMilli(System.currentTimeMillis())),
+          JObject("foo" -> JString("test")))
+
+        val doc = modelSnapshot.asODocument
+        val reverted = doc.asModelSnapshot
+        reverted shouldBe modelSnapshot
+      }
+
+      "not allow an invalid document class name" in {
+        val invalid = new ODocument("SomeClass")
+        intercept[IllegalArgumentException] {
+          invalid.asModelSnapshot
+        }
+      }
+    }
+  }
+}

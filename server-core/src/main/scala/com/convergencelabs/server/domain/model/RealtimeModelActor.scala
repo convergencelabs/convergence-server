@@ -2,10 +2,10 @@ package com.convergencelabs.server.domain.model
 
 import akka.actor.{ Props, ActorRef, ActorLogging, Actor }
 import akka.pattern.{ AskTimeoutException, Patterns }
-import com.convergencelabs.server.datastore.domain._
-import com.convergencelabs.server.domain.model.ot.{ UnprocessedOperationEvent, ServerConcurrencyControl }
-import com.convergencelabs.server.domain.model.ot.Operation
-import com.convergencelabs.server.domain.model.ot.OperationTransformer
+
+import java.time.Instant
+import java.time.Duration
+
 import org.json4s.JsonAST.JValue
 import scala.collection.immutable.HashMap
 import scala.concurrent.{ ExecutionContext, Future }
@@ -13,17 +13,18 @@ import com.convergencelabs.server.domain.DomainFqn
 import scala.util.Success
 import scala.util.Failure
 import scala.util.Try
-import com.convergencelabs.server.domain.model.ot.ProcessedOperationEvent
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.duration._
 import scala.compat.Platform
-import com.convergencelabs.server.ErrorResponse
-import java.time.Instant
-import com.convergencelabs.server.domain.model.ot.TransformationFunctionRegistry
-import java.time.Duration
-import com.convergencelabs.server.domain.ModelSnapshotConfig
 import scala.util.Success
+
+import com.convergencelabs.server.ErrorResponse
+import com.convergencelabs.server.datastore.domain._
+import com.convergencelabs.server.domain.ModelSnapshotConfig
 import com.convergencelabs.server.domain.model.ot.TransformationFunctionRegistry
+import com.convergencelabs.server.domain.model.ot.{ UnprocessedOperationEvent, ServerConcurrencyControl }
+import com.convergencelabs.server.domain.model.ot.Operation
+import com.convergencelabs.server.domain.model.ot.OperationTransformer
 
 /**
  * An instance of the RealtimeModelActor manages the lifecycle of a single
@@ -49,7 +50,7 @@ class RealtimeModelActor(
   private[this] var clientToSessionId = HashMap[ActorRef, String]()
   private[this] var queuedOpeningClients = HashMap[String, OpenRequestRecord]()
   private[this] var concurrencyControl: ServerConcurrencyControl = null
-  private[this] var latestSnapshot: SnapshotMetaData = null
+  private[this] var latestSnapshot: ModelSnapshotMetaData = null
 
   private[this] val transformer = new OperationTransformer(new TransformationFunctionRegistry())
 
@@ -100,7 +101,7 @@ class RealtimeModelActor(
     case closeRequest: CloseRealtimeModelRequest => onCloseModelRequest(closeRequest)
     case operationSubmission: OperationSubmission => onOperationSubmission(operationSubmission)
     case dataResponse: ClientModelDataResponse =>
-    case snapshotMetaData: SnapshotMetaData => this.latestSnapshot = snapshotMetaData
+    case snapshotMetaData: ModelSnapshotMetaData => this.latestSnapshot = snapshotMetaData
     case ModelDeleted => handleModelDeletedWhileOpen()
     case unknown => unhandled(unknown)
   }
@@ -149,9 +150,9 @@ class RealtimeModelActor(
     val f = Try {
       val snapshotMetaData = modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)
       //FIXME: Handle None, handle when snapshot doesn't exist.
-      modelStore.getModelData(modelFqn) match {
-        case Success(Some(modelData)) => {
-          DatabaseModelResponse(modelData, snapshotMetaData.get.get)
+      modelStore.getModel(modelFqn) match {
+        case Success(Some(model)) => {
+          DatabaseModelResponse(model, snapshotMetaData.get.get)
         }
         case Success(None) => ??? // FIXME there is no mode, need to throw an exception.
         case Failure(cause) => ??? // FIXME there is no mode, need to throw an exception.
@@ -247,10 +248,9 @@ class RealtimeModelActor(
             createTime),
           response.modelData)
           
-
     modelStore.createModel(model)
     modelSnapshotStore.createSnapshot(
-      SnapshotData(SnapshotMetaData(modelFqn, 0L, createTime), response.modelData))
+      ModelSnapshot(ModelSnapshotMetaData(modelFqn, 0L, createTime), response.modelData))
 
     requestModelDataFromDatastore()
   }
@@ -263,7 +263,7 @@ class RealtimeModelActor(
       sender ! ModelAlreadyOpen
     } else {
       //TODO: Handle None
-      modelStore.getModelData(modelFqn) match {
+      modelStore.getModel(modelFqn) match {
         case Success(Some(modelData)) => respondToClientOpenRequest(request.sessionId, modelData, OpenRequestRecord(request.clientActor, sender()))
         case Success(None) => ??? // The model is open but we can't find data.  This is a major issue.
         case Failure(cause) => ??? // The model is open but we can't find data.  This is a major issue.
@@ -426,13 +426,13 @@ class RealtimeModelActor(
   private[this] def executeSnapshot(): Unit = {
     // This might not be the exact version that gets snapshotted
     // but that is OK, this is approximate.
-    latestSnapshot = SnapshotMetaData(modelFqn, concurrencyControl.contextVersion, Instant.now())
+    latestSnapshot = ModelSnapshotMetaData(modelFqn, concurrencyControl.contextVersion, Instant.now())
 
-    val f = Future[SnapshotMetaData] {
+    val f = Future[ModelSnapshotMetaData] {
       //FIXME: Handle Failure from try and None from option.
-      val modelData = modelStore.getModelData(this.modelFqn).get.get
-      val snapshot = new SnapshotData(
-        SnapshotMetaData(
+      val modelData = modelStore.getModel(this.modelFqn).get.get
+      val snapshot = new ModelSnapshot(
+        ModelSnapshotMetaData(
           modelData.metaData.fqn,
           modelData.metaData.version,
           modelData.metaData.modifiedTime),
@@ -440,7 +440,7 @@ class RealtimeModelActor(
 
       modelSnapshotStore.createSnapshot(snapshot)
 
-      new SnapshotMetaData(
+      new ModelSnapshotMetaData(
         modelFqn,
         modelData.metaData.version,
         modelData.metaData.modifiedTime)

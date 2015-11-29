@@ -34,13 +34,16 @@ class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
     val queryString = "SELECT modelSnapshotConfig FROM DomainConfig"
     val query = new OSQLSynchQuery[ODocument](queryString)
     val result: JavaList[ODocument] = db.command(query).execute()
-    QueryUtil.mapSingleResult(result) { _.asModelSnapshotConfig }.get
+    QueryUtil.mapSingleResult(result) { doc =>
+      val modelDoc: ODocument = doc.field("modelSnapshotConfig", OType.EMBEDDED)
+     modelDoc.asModelSnapshotConfig
+    }.get
   }
 
   def setModelSnapshotConfig(modelSnapshotConfig: ModelSnapshotConfig): Try[Unit] = tryWithDb { db =>
     val queryString = "UPDATE DomainConfig SET modelSnapshotConfig = :modelSnapshotConfig"
     val query = new OSQLSynchQuery[ODocument](queryString)
-    val params = Map("modelSnapshotConfig" -> modelSnapshotConfig)
+    val params = Map("modelSnapshotConfig" -> modelSnapshotConfig.asODocument)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     Unit
   }
@@ -52,8 +55,8 @@ class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
 
     QueryUtil.mapSingleResult(result) { doc =>
       TokenKeyPair(
-          doc.field("adminPublicKey", OType.STRING),
-          doc.field("adminPrivateKey", OType.STRING))
+        doc.field("adminPublicKey", OType.STRING),
+        doc.field("adminPrivateKey", OType.STRING))
     }.get
   }
 

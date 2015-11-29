@@ -10,8 +10,6 @@ import com.convergencelabs.server.ProtocolConfiguration
 import akka.actor.PoisonPill
 import scala.compat.Platform
 import java.io.IOException
-import com.convergencelabs.server.datastore.domain.SnapshotData
-import com.convergencelabs.server.datastore.domain.SnapshotMetaData
 import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
 import akka.actor.Props
@@ -65,7 +63,10 @@ class ModelManagerActor(
           val modelActor = context.actorOf(props, resourceId);
           this.openRealtimeModels.put(openRequest.modelFqn, modelActor);
         }
-        case _ => ???
+        case Failure(cause) => {
+          cause.printStackTrace()
+          ??? // FIXME
+        }
       }
     }
     // FIXME something above could fail.  Here we just throw an exception.
@@ -91,7 +92,7 @@ class ModelManagerActor(
           // FIXME all of this should work or not, together.
           persistenceProvider.modelStore.createModel(model)
           persistenceProvider.modelSnapshotStore.createSnapshot(
-            SnapshotData(SnapshotMetaData(createRequest.modelFqn, 0, createTime),
+            ModelSnapshot(ModelSnapshotMetaData(createRequest.modelFqn, 0, createTime),
               createRequest.modelData))
 
           sender ! ModelCreated

@@ -1,4 +1,4 @@
-package com.convergencelabs.server.test
+package com.convergencelabs.server.testkit
 
 import java.net.URI
 import org.java_websocket.client.WebSocketClient

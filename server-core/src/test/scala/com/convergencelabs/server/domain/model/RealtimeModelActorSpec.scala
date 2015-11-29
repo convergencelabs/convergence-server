@@ -4,7 +4,10 @@ import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
+
 import scala.concurrent.duration.FiniteDuration
+import scala.util.Success
+
 import org.json4s.JsonAST.JObject
 import org.json4s.JsonAST.JString
 import org.junit.runner.RunWith
@@ -14,24 +17,22 @@ import org.mockito.Mockito
 import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.Finders
 import org.scalatest.WordSpecLike
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.mock.MockitoSugar
+
 import com.convergencelabs.server.ErrorResponse
 import com.convergencelabs.server.ErrorResponse
+import com.convergencelabs.server.datastore.domain.ModelOperationProcessor
 import com.convergencelabs.server.datastore.domain.ModelSnapshotStore
 import com.convergencelabs.server.datastore.domain.ModelStore
-import com.convergencelabs.server.datastore.domain.ModelOperationProcessor
-import com.convergencelabs.server.datastore.domain.SnapshotData
-import com.convergencelabs.server.datastore.domain.SnapshotMetaData
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.ModelSnapshotConfig
 import com.convergencelabs.server.domain.model.ot.StringInsertOperation
+
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
-import scala.util.Success
 
 // FIXME we really only check message types and not data.
 @RunWith(classOf[JUnitRunner])
@@ -63,7 +64,7 @@ class RealtimeModelActorSpec
         val client = new TestProbe(system)
 
         // Set the database up to bomb
-        Mockito.when(modelStore.getModelData(Matchers.any())).thenThrow(new IllegalArgumentException("Induced error for test"))
+        Mockito.when(modelStore.getModel(Matchers.any())).thenThrow(new IllegalArgumentException("Induced error for test"))
 
         realtimeModelActor.tell(OpenRealtimeModelRequest("s1", modelFqn, client.ref), client.ref)
         val message = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ErrorResponse])
@@ -108,7 +109,7 @@ class RealtimeModelActorSpec
         client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientModelDataRequest])
 
         // Now mock that the data is there.
-        Mockito.when(modelStore.getModelData(modelFqn)).thenReturn(Success(Some(modelData)))
+        Mockito.when(modelStore.getModel(modelFqn)).thenReturn(Success(Some(modelData)))
         Mockito.when(modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)).thenReturn(Success(Some(modelSnapshotMetaData)))
 
         client1.reply(ClientModelDataResponse(modelJsonData))
@@ -127,7 +128,7 @@ class RealtimeModelActorSpec
         // FIXME use arg capture to match it.
         verify(modelStore, times(1)).createModel(Matchers.any())
 
-        val snapshotCaptor = ArgumentCaptor.forClass(classOf[SnapshotData])
+        val snapshotCaptor = ArgumentCaptor.forClass(classOf[ModelSnapshot])
 
         verify(modelSnapshotStore, times(1)).createSnapshot(snapshotCaptor.capture())
         val capturedData = snapshotCaptor.getValue
@@ -233,7 +234,7 @@ class RealtimeModelActorSpec
     val modelModifiedTime = Instant.ofEpochMilli(3L)
     val modelData = Model(ModelMetaData(modelFqn, 1L, modelCreateTime, modelModifiedTime), modelJsonData)
     val modelSnapshotTime = Instant.ofEpochMilli(2L)
-    val modelSnapshotMetaData = SnapshotMetaData(modelFqn, 1L, modelSnapshotTime)
+    val modelSnapshotMetaData = ModelSnapshotMetaData(modelFqn, 1L, modelSnapshotTime)
     val modelStore = mock[ModelStore]
     val modelOperationProcessor = mock[ModelOperationProcessor]
     val modelSnapshotStore = mock[ModelSnapshotStore]
@@ -255,7 +256,7 @@ class RealtimeModelActorSpec
 
   trait MockDatabaseWithModel extends TestFixture {
     Mockito.when(modelStore.modelExists(modelFqn)).thenReturn(Success(true))
-    Mockito.when(modelStore.getModelData(modelFqn)).thenReturn(Success(Some(modelData)))
+    Mockito.when(modelStore.getModel(modelFqn)).thenReturn(Success(Some(modelData)))
     Mockito.when(modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)).thenReturn(Success(Some(modelSnapshotMetaData)))
   }
 

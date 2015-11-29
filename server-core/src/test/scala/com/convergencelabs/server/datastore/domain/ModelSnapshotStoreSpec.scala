@@ -16,6 +16,8 @@ import org.scalatest.WordSpecLike
 import org.scalatest.Matchers
 import org.scalatest.OptionValues._
 import org.scalatest.TryValues._
+import com.convergencelabs.server.domain.model.ModelSnapshot
+import com.convergencelabs.server.domain.model.ModelSnapshotMetaData
 
 class ModelSnapshotStoreSpec
     extends PersistenceStoreSpec[ModelSnapshotStore]("/dbfiles/domain.json.gz")
@@ -37,14 +39,14 @@ class ModelSnapshotStoreSpec
   "A ModelSnapshotStore" when {
     "when creating a snapshot" must {
       "be able to get the snapshot that was created" in withPersistenceStore { store =>
-        val version = 2L
+        val version = 5L
         val timestamp = Instant.now()
 
-        val created = SnapshotData(
-          SnapshotMetaData(person1ModelFqn, version, timestamp),
+        val created = ModelSnapshot(
+          ModelSnapshotMetaData(person1ModelFqn, version, timestamp),
           JObject("key" -> JNull))
 
-        store.createSnapshot(created)
+        store.createSnapshot(created).success
 
         val queried = store.getSnapshot(person1ModelFqn, version)
         queried.success.value.value shouldBe created

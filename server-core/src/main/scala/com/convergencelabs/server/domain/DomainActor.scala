@@ -88,9 +88,7 @@ class DomainActor(
     val asker = sender
     authenticator.authenticate(message) onComplete {
       case Success(x) => asker ! x
-      case Failure(e) => {
-        asker ! AuthenticationFailure
-      }
+      case Failure(e) => asker ! AuthenticationFailure
     }
   }
 
@@ -155,7 +153,7 @@ class DomainActor(
           context.dispatcher)
       }
       case Failure(cause) => {
-        log.error(cause, "foo")
+        log.error(cause, "Unable to obtain a domain persistence provider.")
       }
     }
   }

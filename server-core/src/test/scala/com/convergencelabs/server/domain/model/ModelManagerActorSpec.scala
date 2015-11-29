@@ -24,7 +24,6 @@ import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.datastore.domain.ModelSnapshotStore
 import com.convergencelabs.server.datastore.domain.ModelStore
 import com.convergencelabs.server.datastore.domain.ModelOperationStore
-import com.convergencelabs.server.datastore.domain.SnapshotMetaData
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.ModelSnapshotConfig
 import com.convergencelabs.server.util.MockDomainPersistenceManagerActor
@@ -120,12 +119,12 @@ class ModelManagerActorSpec
     val modelModifiedTime = Instant.ofEpochMilli(3L)
     val modelData = Model(ModelMetaData(modelFqn, 1L, modelCreateTime, modelModifiedTime), modelJsonData)
     val modelSnapshotTime = Instant.ofEpochMilli(2L)
-    val modelSnapshotMetaData = SnapshotMetaData(modelFqn, 1L, modelSnapshotTime)
+    val modelSnapshotMetaData = ModelSnapshotMetaData(modelFqn, 1L, modelSnapshotTime)
 
     val modelStore = mock[ModelStore]
     Mockito.when(modelStore.modelExists(modelFqn)).thenReturn(Success(true))
     Mockito.when(modelStore.modelExists(nonExistentModelFqn)).thenReturn(Success(false))
-    Mockito.when(modelStore.getModelData(modelFqn)).thenReturn(Success(Some(modelData)))
+    Mockito.when(modelStore.getModel(modelFqn)).thenReturn(Success(Some(modelData)))
 
     val modelSnapshotStore = mock[ModelSnapshotStore]
     Mockito.when(modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)).thenReturn(Success(Some(modelSnapshotMetaData)))

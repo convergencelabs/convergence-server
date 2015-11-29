@@ -3,5 +3,5 @@ INSERT INTO Domain SET
   namespace = "namespace1",
   domainId = "domain2",
   displayName = "Test Domain 2",
-  dbUsername = "root",
-  dbPassword = "root";
+  dbUsername = "admin",
+  dbPassword = "admin";

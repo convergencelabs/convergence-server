@@ -39,6 +39,7 @@ val testkit = (project in file("server-testkit")).
     akkaCore ++ 
     orientDb ++ 
     loggingAll ++
+    testingCore ++
     Seq(javaWebsockets)
   )
   .dependsOn(serverCore)

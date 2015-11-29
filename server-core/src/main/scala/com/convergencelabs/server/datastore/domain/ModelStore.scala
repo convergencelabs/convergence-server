@@ -68,7 +68,7 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
 
   def deleteModel(fqn: ModelFqn): Try[Unit] = tryWithDb { db =>
     val queryString = 
-      "DELETE FROM model WHERE collectionId = :collectionId AND modelId = :modelId"
+      "DELETE FROM Model WHERE collectionId = :collectionId AND modelId = :modelId"
     val command = new OCommandSQL(queryString)
     val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
     db.command(command).execute(params.asJava)
@@ -88,7 +88,7 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
     QueryUtil.mapSingleResult(result) {_.asModelMetaData}
   }
 
-  def getModelData(fqn: ModelFqn): Try[Option[Model]] = tryWithDb { db =>
+  def getModel(fqn: ModelFqn): Try[Option[Model]] = tryWithDb { db =>
     val queryString =
       """SELECT * 
         |FROM Model 
@@ -101,8 +101,8 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
     QueryUtil.mapSingleResult(result) {_.asModel}
   }
 
-  def getModelJsonData(fqn: ModelFqn): Try[Option[JValue]] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT data FROM model WHERE collectionId = :collectionId and modelId = :modelId")
+  def getModelData(fqn: ModelFqn): Try[Option[JValue]] = tryWithDb { db =>
+    val query = new OSQLSynchQuery[ODocument]("SELECT data FROM Model WHERE collectionId = :collectionId AND modelId = :modelId")
     val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     QueryUtil.mapSingleResult(result)(doc => parse(doc.toJSON()) \\ ModelStore.Data)
@@ -110,7 +110,7 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
 
   def getModelFieldDataType(fqn: ModelFqn, path: List[Any]): Try[Option[DataType.Value]] = tryWithDb { db =>
     val pathString = ModelStore.toOrientPath(path)
-    val query = new OSQLSynchQuery[ODocument](s"SELECT pathString FROM model WHERE collectionId = :collectionId and modelId = :modelId")
+    val query = new OSQLSynchQuery[ODocument](s"SELECT $pathString FROM Model WHERE collectionId = :collectionId AND modelId = :modelId")
     val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     // FIXME I don't think we need to do this, this way. It seems like the ODoc
@@ -135,7 +135,7 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
     ascending: Boolean,
     offset: Int,
     limit: Int): Try[List[ModelMetaData]] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT modelId, collectionId, version, created, modified FROM model")
+    val query = new OSQLSynchQuery[ODocument]("SELECT modelId, collectionId, version, created, modified FROM Model")
     val result: JavaList[ODocument] = db.command(query).execute()
     result.asScala.toList map { _.asModelMetaData }
   }
@@ -146,7 +146,7 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
     ascending: Boolean,
     offset: Int,
     limit: Int): Try[List[ModelMetaData]] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT modelId, collectionId, version, created, modified FROM model where collectionId = :collectionId")
+    val query = new OSQLSynchQuery[ODocument]("SELECT modelId, collectionId, version, created, modified FROM Model WHERE collectionId = :collectionId")
     val params = Map("collectionid" -> collectionId)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     result.asScala.toList map {_.asModelMetaData }

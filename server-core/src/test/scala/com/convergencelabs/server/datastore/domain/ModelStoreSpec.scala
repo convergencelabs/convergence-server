@@ -46,11 +46,11 @@ class ModelStoreSpec
     }
     "retrieving model data" must {
       "return None if it doesn't exist" in withPersistenceStore { store =>
-        store.getModelData(ModelFqn("notReal", "notReal")).success.value shouldBe None
+        store.getModel(ModelFqn("notReal", "notReal")).success.value shouldBe None
       }
 
       "return Some if it does exist" in withPersistenceStore { store =>
-        store.getModelData(ModelFqn("people", "person1")).success.value shouldBe defined
+        store.getModel(ModelFqn("people", "person1")).success.value shouldBe defined
       }
     }
   }

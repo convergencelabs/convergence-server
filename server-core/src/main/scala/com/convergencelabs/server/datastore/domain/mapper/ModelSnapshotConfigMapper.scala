@@ -24,6 +24,7 @@ object ModelSnapshotConfigMapper {
     doc.field(LimitedByTime, snapshotConfig.limitedByTime)
     doc.field(MinTimeInterval, snapshotConfig.minimumTimeInterval.toMillis)
     doc.field(MaxTimeInterval, snapshotConfig.maximumTimeInterval.toMillis)
+    doc
   }
 
   private[domain] implicit class ODocumentToModelSnapshotConfig(val doc: ODocument) extends AnyVal {

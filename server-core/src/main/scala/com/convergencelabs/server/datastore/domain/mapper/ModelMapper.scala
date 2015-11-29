@@ -31,6 +31,7 @@ object ModelMapper {
     doc.field(CreatedTime, Date.from(metaData.createdTime))
     doc.field(ModifiedTime, Date.from(metaData.modifiedTime))
     doc.field(Data, dataMap)
+    doc
   }
 
   private[domain] implicit class ODocumentToModel(val d: ODocument) extends AnyVal {
@@ -52,10 +53,6 @@ object ModelMapper {
   }
 
   private[domain] implicit def oDocumentToModelMetaData(doc: ODocument): ModelMetaData = {
-    if (doc.getClassName != ModelClassName) {
-      throw new IllegalArgumentException(s"The ODocument class must be '${ModelClassName}': ${doc.getClassName}")
-    }
-
     val createdTime: Date = doc.field(CreatedTime, OType.DATETIME)
     val modifiedTime: Date = doc.field(ModifiedTime, OType.DATETIME)
 
@@ -72,7 +69,7 @@ object ModelMapper {
 
   private[domain] object ModelFields {
     val CollectionId = "collectionId"
-    val ModelId = "modeId"
+    val ModelId = "modelId"
     val Version = "version"
     val CreatedTime = "createdTime"
     val ModifiedTime = "modifiedTime"

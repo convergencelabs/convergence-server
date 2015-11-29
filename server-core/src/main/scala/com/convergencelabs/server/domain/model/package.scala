@@ -1,7 +1,6 @@
 package com.convergencelabs.server.domain
 
 import scala.concurrent.duration.FiniteDuration
-import com.convergencelabs.server.datastore.domain.SnapshotMetaData
 import org.json4s.JsonAST.JValue
 import com.convergencelabs.server.domain.model.ot.Operation
 import akka.actor.ActorRef
@@ -12,6 +11,9 @@ package model {
 
   case class Model(metaData: ModelMetaData, data: JValue)
   case class ModelMetaData(fqn: ModelFqn, version: Long, createdTime: Instant, modifiedTime: Instant)
+
+  case class ModelSnapshotMetaData(fqn: ModelFqn, version: Long, timestamp: Instant)
+  case class ModelSnapshot(metaData: ModelSnapshotMetaData, data: JValue)
 
   //
   // Data Classes
@@ -49,7 +51,7 @@ package model {
   //
   // Incoming Messages From Self
   //
-  case class DatabaseModelResponse(modelData: Model, snapshotMetaData: SnapshotMetaData)
+  case class DatabaseModelResponse(modelData: Model, snapshotMetaData: ModelSnapshotMetaData)
   case class DatabaseModelFailure(cause: Throwable)
 
   //

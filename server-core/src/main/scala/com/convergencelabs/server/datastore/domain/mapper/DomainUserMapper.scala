@@ -19,6 +19,7 @@ object DomainUserMapper {
     doc.field(FirstName, obj.firstName)
     doc.field(LastName, obj.lastName)
     doc.field(Email, obj.email)
+    doc
   }
   
   private[domain] implicit class ODocumentToDomainUser(val d: ODocument) extends AnyVal {

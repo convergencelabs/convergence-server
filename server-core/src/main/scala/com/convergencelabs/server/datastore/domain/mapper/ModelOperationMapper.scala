@@ -27,6 +27,7 @@ object ModelOperationMapper {
     doc.field(Uid, opEvent.uid)
     doc.field(Sid, opEvent.sid)
     doc.field(Operation, OrientDBOperationMapper.operationToODocument(opEvent.op))
+    doc
   }
 
   private[domain] implicit class ODocumentToModelOperation(val d: ODocument) extends AnyVal {

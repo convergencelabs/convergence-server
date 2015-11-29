@@ -94,6 +94,7 @@ class DomainPersistenceManagerActor(
         sender ! PersistenceProviderReference(provider)
       }
       case Failure(cause) => {
+        log.debug("Unable obtain a persistence provider")
         sender ! PersistenceProviderUnavailable(cause)
       }
     }
@@ -103,18 +104,17 @@ class DomainPersistenceManagerActor(
     log.debug(s"Releasing domain persistence: ${domainFqn}")
     decrementCount(domainFqn)
 
-    val acquiredProviders = providersByActor.get(sender)
-    if (acquiredProviders.isDefined) {
-      val pools = acquiredProviders.get
-      val newPools = pools diff List(domainFqn)
-
-      if (newPools.length == 0) {
-        providersByActor = providersByActor - sender
-        // This actor no longer has any connections open.
-        context.unwatch(sender)
-      } else {
-        providersByActor = providersByActor + (sender -> newPools)
-      }
+    providersByActor.get(sender) match {
+      case Some(pools) => 
+        val newPools = pools diff List(domainFqn)
+        if (newPools.length == 0) {
+          providersByActor = providersByActor - sender
+          // This actor no longer has any connections open.
+          context.unwatch(sender)
+        } else {
+          providersByActor = providersByActor + (sender -> newPools)
+        }
+      case None =>
     }
   }
 
@@ -143,19 +143,30 @@ class DomainPersistenceManagerActor(
   }
 
   private[this] def createProvider(domainFqn: DomainFqn): Try[DomainPersistenceProvider] = Try({
-    log.warning(s"Creating new persistence provider: ${domainFqn}")
+    log.debug(s"Creating new persistence provider: ${domainFqn}")
     domainStore.getDomainByFqn(domainFqn) match {
       case Success(Some(domainInfo)) => {
         val pool = new OPartitionedDatabasePool(
-          baseDbUri + "/" + domainInfo.id,
+          baseDbUri + domainInfo.id,
           domainInfo.dbUsername,
           domainInfo.dbPassword)
+        log.debug(s"Creating new connection pool for '${domainFqn}': ${pool.getUrl}")
         val provider = new DomainPersistenceProvider(pool)
+        provider.validateConnection() match {
+          case false => throw new IllegalStateException("unable to connect to the database")
+          case true =>
+        }
         providers = providers + (domainFqn -> provider)
         provider
       }
-      case Success(None) => ??? // FIXME actually throw an exception here.
-      case Failure(cause) => ???
+      case Success(None) => {
+        throw new IllegalStateException(
+            s"Error looking up the domain record for $domainFqn, when initializing a domain persistence provider.")
+      }
+      case Failure(cause) => {
+        log.debug(cause.getMessage)
+        throw cause
+      }
     }
   })
 
