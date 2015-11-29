@@ -21,11 +21,12 @@ import scala.collection.mutable
 import com.convergencelabs.server.domain.HandshakeRequest
 
 object ConnectionManagerActor {
-  def props(protocolConfig: ProtocolConfiguration): Props = Props(
-    new ConnectionManagerActor(protocolConfig))
+  def props(startUpListener: ActorRef, protocolConfig: ProtocolConfiguration): Props = Props(
+    new ConnectionManagerActor(startUpListener, protocolConfig))
 }
 
 class ConnectionManagerActor(
+  startUpListener: ActorRef,
   protocolConfig: ProtocolConfiguration)
     extends Actor with ActorLogging {
 
@@ -39,6 +40,7 @@ class ConnectionManagerActor(
       domainManagerActor = ref
       context.become(receiveWhenInitialized)
       log.info("Domain Manager Registered")
+      startUpListener ! StartUpComplete
     }
     case message => unhandled(message)
   }
@@ -66,7 +68,7 @@ class ConnectionManagerActor(
       context.dispatcher)
 
     // FIXME hardcoded timeout
-    
+
     val clientActor = context.system.actorOf(ClientActor.props(
       domainManagerActor,
       connection,
@@ -84,4 +86,4 @@ class ConnectionManagerActor(
 
 case class DomainManagerRegistration(actor: ActorRef)
 case class NewSocketEvent(domainFqn: DomainFqn, socket: ConvergenceServerSocket)
-
+case object StartUpComplete

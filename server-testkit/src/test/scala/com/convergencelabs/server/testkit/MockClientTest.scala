@@ -35,7 +35,7 @@ class MockClientTest extends FunSuite with BeforeAndAfterAll {
         "namespace1-domain1" -> "test-server/domain.json.gz"))
   
   override def beforeAll(): Unit = {
-    //testServer.start()
+    testServer.start()
   }
   
   test("An empty Set should have size 0") {

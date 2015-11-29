@@ -173,7 +173,7 @@ class ClientActor(
   }
 
   def onOutgoingRequest(message: OutgoingProtocolRequestMessage): Unit = {
-    val askingActor = sender()
+    val askingActor = sender
     val f = connection.request(message)
     // FIXME should we allow them to specify what should be coming back.
     f.mapTo[IncomingProtocolResponseMessage] onComplete {
