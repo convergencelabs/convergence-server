@@ -33,10 +33,10 @@ package model {
   // Incoming Messages From Client
   //
   case class OpenRequestRecord(clientActor: ActorRef, askingActor: ActorRef)
-  case class OpenRealtimeModelRequest(sessionId: String, modelFqn: ModelFqn, clientActor: ActorRef)
+  case class OpenRealtimeModelRequest(userId: String, sessionId: String, modelFqn: ModelFqn, clientActor: ActorRef)
   case class CreateModelRequest(modelFqn: ModelFqn, modelData: JValue)
   case class DeleteModelRequest(modelFqn: ModelFqn)
-  case class CloseRealtimeModelRequest(sessionId: String)
+  case class CloseRealtimeModelRequest(userId: String, sessionId: String)
   case class OperationSubmission(seqNo: Long, contextVersion: Long, operation: Operation)
   case class ClientModelDataResponse(modelData: JValue)
 
@@ -66,10 +66,10 @@ package model {
 
   trait RealtimeModelClientMessage
   case class OperationAcknowledgement(resourceId: String, seqNo: Long, contextVersion: Long) extends RealtimeModelClientMessage
-  case class OutgoingOperation(resourceId: String, clientId: String, contextVersion: Long, timestampe: Long, operation: Operation) extends RealtimeModelClientMessage
-  case class RemoteClientClosed(resourceId: String, clientId: String) extends RealtimeModelClientMessage
-  case class RemoteClientOpened(resourceId: String, clientId: String) extends RealtimeModelClientMessage
-  case class ModelForceClose(resourceId: String, clientId: String, reason: String) extends RealtimeModelClientMessage
+  case class OutgoingOperation(resourceId: String, userId: String, sessionId: String, contextVersion: Long, timestampe: Long, operation: Operation) extends RealtimeModelClientMessage
+  case class RemoteClientClosed(resourceId: String, userId: String, sessionId: String) extends RealtimeModelClientMessage
+  case class RemoteClientOpened(resourceId: String, userId: String, sessionId: String) extends RealtimeModelClientMessage
+  case class ModelForceClose(resourceId: String, reason: String) extends RealtimeModelClientMessage
   case class ClientModelDataRequest(modelFqn: ModelFqn) extends RealtimeModelClientMessage
 
   case object ModelNotOpened

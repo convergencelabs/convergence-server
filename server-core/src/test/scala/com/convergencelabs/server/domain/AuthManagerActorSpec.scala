@@ -38,7 +38,7 @@ class AuthenticationHandlerSpec()
       "authetnicate successfully for a correct username and password" in new TestFixture {
         val f = authHandler.authenticate(PasswordAuthRequest(existingUser, existingCorrectPassword))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
-        assert(result == AuthenticationSuccess(existingUser))
+        assert(result == AuthenticationSuccess(existingUserUid, existingUser))
       }
 
       "Fail authetnication for an incorrect username and password" in new TestFixture {
@@ -57,6 +57,7 @@ class AuthenticationHandlerSpec()
 
   trait TestFixture {
     val existingUser = "existing"
+    val existingUserUid = "uid"
     val existingCorrectPassword = "correct"
     val existingIncorrectPassword = "incorrect"
 
@@ -67,9 +68,9 @@ class AuthenticationHandlerSpec()
     val userStore = mock[DomainUserStore]
     Mockito.when(userStore.domainUserExists(existingUser)).thenReturn(Success(true))
     Mockito.when(userStore.domainUserExists(nonExistingUser)).thenReturn(Success(false))
-    Mockito.when(userStore.validateCredentials(existingUser, existingCorrectPassword)).thenReturn(Success(true))
-    Mockito.when(userStore.validateCredentials(existingUser, existingIncorrectPassword)).thenReturn(Success(false))
-    Mockito.when(userStore.validateCredentials(nonExistingUser, "")).thenReturn(Success(false))
+    Mockito.when(userStore.validateCredentials(existingUser, existingCorrectPassword)).thenReturn(Success(true, Some(existingUserUid)))
+    Mockito.when(userStore.validateCredentials(existingUser, existingIncorrectPassword)).thenReturn(Success(false, None))
+    Mockito.when(userStore.validateCredentials(nonExistingUser, "")).thenReturn(Success(false, None))
 
     val domainConfigStore = mock[DomainConfigStore]
 

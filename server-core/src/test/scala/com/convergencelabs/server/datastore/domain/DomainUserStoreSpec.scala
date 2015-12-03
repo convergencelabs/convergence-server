@@ -56,8 +56,8 @@ class DomainUserStoreSpec
         val created = DomainUser("u10", "newUser", "new", "user", "newUser@example.com")
         store.createDomainUser(created, Some(passwd)).success
 
-        store.validateCredentials("newUser", passwd).success.get shouldBe true
-        store.validateCredentials("newUser", "notCorrect").success.get shouldBe false
+        store.validateCredentials("newUser", passwd).success.get shouldBe (true, Some("u10"))
+        store.validateCredentials("newUser", "notCorrect").success.get shouldBe (false, None)
       }
     }
   }

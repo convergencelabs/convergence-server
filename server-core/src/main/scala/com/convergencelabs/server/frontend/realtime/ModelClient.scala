@@ -22,12 +22,14 @@ import com.convergencelabs.server.util.concurrent._
 
 object ModelClientActor {
   def props(
+    userId: String,
     sessionId: String,
     modelManager: ActorRef): Props =
-    Props(new ModelClientActor(sessionId, modelManager))
+    Props(new ModelClientActor(userId, sessionId, modelManager))
 }
 
 class ModelClientActor(
+  userId: String,
   sessionId: String,
   modelManager: ActorRef)
     extends Actor with ActorLogging {
@@ -63,11 +65,12 @@ class ModelClientActor(
   }
 
   def onOutgoingOperation(op: OutgoingOperation): Unit = {
-    val OutgoingOperation(resoruceId, clientId, contextVersion, timestamp, operation) = op
+    val OutgoingOperation(resoruceId, userId, sessionId, contextVersion, timestamp, operation) = op
 
     context.parent ! RemoteOperationMessage(
       resoruceId,
-      clientId,
+      userId,
+      sessionId,
       contextVersion,
       timestamp,
       OperationMapper.mapOutgoing(operation))
@@ -79,18 +82,18 @@ class ModelClientActor(
   }
 
   def onRemoteClientOpened(opened: RemoteClientOpened): Unit = {
-    val RemoteClientOpened(resourceId, clientId) = opened
-    context.parent ! RemoteClientOpenedMessage(resourceId, clientId)
+    val RemoteClientOpened(resourceId, userId, sessionId) = opened
+    context.parent ! RemoteClientOpenedMessage(resourceId, userId, sessionId)
   }
 
   def onRemoteClientClosed(closed: RemoteClientClosed): Unit = {
-    val RemoteClientClosed(resourceId, clientId) = closed
-    context.parent ! RemoteClientClosedMessage(resourceId, clientId)
+    val RemoteClientClosed(resourceId, userId, sessionId) = closed
+    context.parent ! RemoteClientClosedMessage(resourceId, userId, sessionId)
   }
 
   def onModelForceClose(forceClose: ModelForceClose): Unit = {
-    val ModelForceClose(resourceId, clientId, reason) = forceClose
-    context.parent ! ModelForceCloseMessage(resourceId, clientId, reason)
+    val ModelForceClose(resourceId, reason) = forceClose
+    context.parent ! ModelForceCloseMessage(resourceId, reason)
   }
 
   def onClientModelDataRequest(dataRequest: ClientModelDataRequest): Unit = {
@@ -135,7 +138,7 @@ class ModelClientActor(
 
   def onOpenRealtimeModelRequest(request: OpenRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
     val ModelFqnData(collectionId, modelId) = request.fqn
-    val future = modelManager ? OpenRealtimeModelRequest(sessionId, ModelFqn(collectionId, modelId), self)
+    val future = modelManager ? OpenRealtimeModelRequest(userId, sessionId, ModelFqn(collectionId, modelId), self)
     future.mapResponse[OpenModelResponse] onComplete {
       case Success(OpenModelSuccess(realtimeModelActor, modelResourceId, metaData, modelData)) => {
         openRealtimeModels += (modelResourceId -> realtimeModelActor)
@@ -159,7 +162,7 @@ class ModelClientActor(
   def onCloseRealtimeModelRequest(request: CloseRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
     openRealtimeModels.get(request.rId) match {
       case Some(modelActor) => {
-        val future = modelActor ? CloseRealtimeModelRequest(sessionId)
+        val future = modelActor ? CloseRealtimeModelRequest(userId, sessionId)
         future.mapResponse[CloseRealtimeModelSuccess] onComplete {
           case Success(CloseRealtimeModelSuccess()) => {
             openRealtimeModels -= request.rId

@@ -17,6 +17,7 @@ import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.duration._
 import scala.compat.Platform
 import scala.util.Success
+import scala.language.implicitConversions
 
 import com.convergencelabs.server.ErrorResponse
 import com.convergencelabs.server.datastore.domain._
@@ -46,9 +47,9 @@ class RealtimeModelActor(
   // don't have to pass this argument to futures.
   private[this] implicit val ec: ExecutionContext = context.dispatcher
 
-  private[this] var connectedClients = HashMap[String, ActorRef]()
-  private[this] var clientToSessionId = HashMap[ActorRef, String]()
-  private[this] var queuedOpeningClients = HashMap[String, OpenRequestRecord]()
+  private[this] var connectedClients = HashMap[SessionKey, ActorRef]()
+  private[this] var clientToSessionId = HashMap[ActorRef, SessionKey]()
+  private[this] var queuedOpeningClients = HashMap[SessionKey, OpenRequestRecord]()
   private[this] var concurrencyControl: ServerConcurrencyControl = null
   private[this] var latestSnapshot: ModelSnapshotMetaData = null
 
@@ -114,7 +115,7 @@ class RealtimeModelActor(
    * Starts the open process from an uninitialized model.
    */
   private[this] def onOpenModelWhileUninitialized(request: OpenRealtimeModelRequest): Unit = {
-    queuedOpeningClients += (request.sessionId -> OpenRequestRecord(request.clientActor, sender()))
+    queuedOpeningClients += (SessionKey(request.userId, request.sessionId) -> OpenRequestRecord(request.clientActor, sender()))
     modelStore.modelExists(modelFqn) match {
       case Success(true) => requestModelDataFromDatastore()
       case Success(false) => requestModelDataFromClient(request.clientActor)
@@ -129,7 +130,7 @@ class RealtimeModelActor(
   private[this] def onOpenModelWhileInitializing(request: OpenRealtimeModelRequest): Unit = {
     // We know we are already INITIALIZING.  This means we are at least the second client
     // to open the model before it was fully initialized.
-    queuedOpeningClients += (request.sessionId -> OpenRequestRecord(request.clientActor, sender()))
+    queuedOpeningClients += (SessionKey(request.userId, request.sessionId) -> OpenRequestRecord(request.clientActor, sender()))
 
     // If we are persistent, then the data is already loading, so there is nothing to do.
     // However, if we are not persistent, we have already asked the previous opening client
@@ -188,11 +189,11 @@ class RealtimeModelActor(
       // TODO Initialize tree reference model
 
       queuedOpeningClients foreach {
-        case (clientId, queuedClientRecord) =>
-          respondToClientOpenRequest(clientId, modelData, queuedClientRecord)
+        case (sessionKey, queuedClientRecord) =>
+          respondToClientOpenRequest(sessionKey, modelData, queuedClientRecord)
       }
 
-      this.queuedOpeningClients = HashMap[String, OpenRequestRecord]()
+      this.queuedOpeningClients = HashMap[SessionKey, OpenRequestRecord]()
       context.become(receiveInitialized)
     } catch {
       case e: Exception =>
@@ -240,14 +241,14 @@ class RealtimeModelActor(
    */
   private[this] def onClientModelDataResponse(response: ClientModelDataResponse): Unit = {
     val createTime = Instant.now()
-        val model = Model(
-          ModelMetaData(
-            modelFqn,
-            0,
-            createTime,
-            createTime),
-          response.modelData)
-          
+    val model = Model(
+      ModelMetaData(
+        modelFqn,
+        0,
+        createTime,
+        createTime),
+      response.modelData)
+
     modelStore.createModel(model)
     modelSnapshotStore.createSnapshot(
       ModelSnapshot(ModelSnapshotMetaData(modelFqn, 0L, createTime), response.modelData))
@@ -259,12 +260,13 @@ class RealtimeModelActor(
    * Handles a request to open the model, when the model is already initialized.
    */
   private[this] def onOpenModelWhileInitialized(request: OpenRealtimeModelRequest): Unit = {
-    if (connectedClients.contains(request.sessionId)) {
+    val sk = SessionKey(request.userId, request.sessionId)
+    if (connectedClients.contains(sk)) {
       sender ! ModelAlreadyOpen
     } else {
-      //TODO: Handle None
+      //FIXME: Handle None
       modelStore.getModel(modelFqn) match {
-        case Success(Some(modelData)) => respondToClientOpenRequest(request.sessionId, modelData, OpenRequestRecord(request.clientActor, sender()))
+        case Success(Some(modelData)) => respondToClientOpenRequest(sk, modelData, OpenRequestRecord(request.clientActor, sender()))
         case Success(None) => ??? // The model is open but we can't find data.  This is a major issue.
         case Failure(cause) => ??? // The model is open but we can't find data.  This is a major issue.
       }
@@ -274,12 +276,12 @@ class RealtimeModelActor(
   /**
    * Lets a client know that the open process has completed successfully.
    */
-  private[this] def respondToClientOpenRequest(clientId: String, modelData: Model, requestRecord: OpenRequestRecord): Unit = {
+  private[this] def respondToClientOpenRequest(sk: SessionKey, modelData: Model, requestRecord: OpenRequestRecord): Unit = {
     // Inform the concurrency control that we have a new client.
     val contextVersion = modelData.metaData.version
-    concurrencyControl.trackClient(clientId, contextVersion)
-    connectedClients += (clientId -> requestRecord.clientActor)
-    clientToSessionId += (requestRecord.clientActor -> clientId)
+    concurrencyControl.trackClient(sk, contextVersion)
+    connectedClients += (sk -> requestRecord.clientActor)
+    clientToSessionId += (requestRecord.clientActor -> sk)
 
     // Send a message to the client informing them of the successful model open.
     val metaData = OpenModelMetaData(
@@ -300,20 +302,22 @@ class RealtimeModelActor(
    * Handles a request to close the model.
    */
   private[this] def onCloseModelRequest(request: CloseRealtimeModelRequest): Unit = {
-    if (!connectedClients.contains(request.sessionId)) {
+    val sk = SessionKey(request.userId, request.sessionId)
+
+    if (!connectedClients.contains(sk)) {
       sender ! ModelNotOpened
     } else {
-      val clientActor = connectedClients(request.sessionId)
+      val clientActor = connectedClients(sk)
       clientToSessionId -= clientActor
-      connectedClients -= request.sessionId
-      concurrencyControl.untrackClient(request.sessionId)
+      connectedClients -= sk
+      concurrencyControl.untrackClient(sk)
 
       // TODO handle reference leaving
 
       // Acknowledge the close back to the requester
       sender ! CloseRealtimeModelSuccess()
 
-      val closedMessage = RemoteClientClosed(modelResourceId, request.sessionId)
+      val closedMessage = RemoteClientClosed(modelResourceId, request.userId, request.sessionId)
 
       // If there are other clients, inform them.
       connectedClients.values foreach { client => client ! closedMessage }
@@ -336,7 +340,7 @@ class RealtimeModelActor(
    */
   private[this] def handleModelDeletedWhileOpen() {
     connectedClients.keys foreach {
-      sessionId => forceClosedModel(sessionId, "Model deleted", false)
+      sk => forceClosedModel(sk, "Model deleted", false)
     }
 
     context.stop(self)
@@ -347,23 +351,24 @@ class RealtimeModelActor(
   //
 
   private[this] def onOperationSubmission(request: OperationSubmission): Unit = {
-    val clientId = this.clientToSessionId(sender)
+    val sessionKey = this.clientToSessionId(sender)
+
     val unprocessedOpEvent = UnprocessedOperationEvent(
-      clientId,
+      sessionKey,
       request.contextVersion,
       request.operation)
 
-    transformAndApplyOperation(unprocessedOpEvent) match {
+    transformAndApplyOperation(sessionKey, unprocessedOpEvent) match {
       case Success(outgoinOperation) => {
         concurrencyControl.commit()
-        broadcastOperation(outgoinOperation, request.seqNo)
+        broadcastOperation(sessionKey, outgoinOperation, request.seqNo)
         if (snapshotRequired()) { executeSnapshot() }
       }
       case Failure(error) => {
         log.debug("Error applying operation to model, closing client: " + error)
         concurrencyControl.rollback()
         forceClosedModel(
-          clientId,
+          sessionKey,
           "Error applying operation to model, closing as a precautionary step: " + error.getMessage,
           true)
 
@@ -374,7 +379,7 @@ class RealtimeModelActor(
   /**
    * Attempts to transform the operation and apply it to the data model.
    */
-  private[this] def transformAndApplyOperation(unprocessedOpEvent: UnprocessedOperationEvent): Try[OutgoingOperation] = Try {
+  private[this] def transformAndApplyOperation(sk: SessionKey, unprocessedOpEvent: UnprocessedOperationEvent): Try[OutgoingOperation] = Try {
     val processedOpEvent = concurrencyControl.processRemoteOperation(unprocessedOpEvent)
 
     val timestamp = Instant.now()
@@ -384,14 +389,15 @@ class RealtimeModelActor(
       modelFqn,
       processedOpEvent.resultingVersion,
       timestamp,
-      "",
-      "",
+      sk.uid,
+      sk.sid,
       processedOpEvent.operation))
 
     //TODO: Change this to use Instant?
     OutgoingOperation(
       modelResourceId,
-      processedOpEvent.clientId,
+      sk.uid,
+      sk.sid,
       processedOpEvent.contextVersion,
       timestamp.getEpochSecond,
       processedOpEvent.operation)
@@ -401,16 +407,15 @@ class RealtimeModelActor(
    * Sends an ACK back to the originator of the operation and an operation message
    * to all other connected clients.
    */
-  private[this] def broadcastOperation(outgoingOperation: OutgoingOperation, originSeqNo: Long) {
-    val originModelSessiond = outgoingOperation.clientId
+  private[this] def broadcastOperation(sk: SessionKey, outgoingOperation: OutgoingOperation, originSeqNo: Long) {
 
     // Ack the sender
-    connectedClients(originModelSessiond) ! OperationAcknowledgement(
-      modelResourceId, originSeqNo, outgoingOperation.contextVersion)
+    connectedClients(sk) !
+      OperationAcknowledgement(modelResourceId, originSeqNo, outgoingOperation.contextVersion)
 
     // Send the message to all others
-    connectedClients.filter(p => p._1 != originModelSessiond) foreach {
-      case (sessionId, clientActor) => clientActor ! outgoingOperation
+    connectedClients.filter(p => p._1 != sk) foreach {
+      case (sk, clientActor) => clientActor ! outgoingOperation
     }
   }
 
@@ -475,14 +480,14 @@ class RealtimeModelActor(
   /**
    * Kicks a specific clent out of the model.
    */
-  private[this] def forceClosedModel(clientId: String, reason: String, notifyOthers: Boolean) {
-    val closedActor = connectedClients(clientId)
-    connectedClients -= clientId
-    concurrencyControl.untrackClient(clientId)
+  private[this] def forceClosedModel(sk: SessionKey, reason: String, notifyOthers: Boolean) {
+    val closedActor = connectedClients(sk)
+    connectedClients -= sk
+    concurrencyControl.untrackClient(sk)
 
     // TODO handle reference node leaving
 
-    val closedMessage = RemoteClientClosed(modelResourceId, clientId)
+    val closedMessage = RemoteClientClosed(modelResourceId, sk.uid, sk.sid)
 
     if (notifyOthers) {
       // There are still other clients with this model open so notify them
@@ -490,7 +495,7 @@ class RealtimeModelActor(
       connectedClients.values foreach { client => client ! closedMessage }
     }
 
-    val forceCloseMessage = ModelForceClose(modelResourceId, clientId, reason)
+    val forceCloseMessage = ModelForceClose(modelResourceId, reason)
     closedActor ! forceCloseMessage
     checkForConnectionsAndClose()
   }
@@ -503,7 +508,7 @@ class RealtimeModelActor(
       openRequest => openRequest.askingActor ! ErrorResponse(errorCode, errorMessage)
     }
 
-    queuedOpeningClients = HashMap[String, OpenRequestRecord]()
+    queuedOpeningClients = HashMap[SessionKey, OpenRequestRecord]()
     checkForConnectionsAndClose()
   }
 
@@ -511,6 +516,8 @@ class RealtimeModelActor(
     log.debug("Unloading Realtime Model({}/{})", domainFqn, modelFqn)
     connectedClients = HashMap()
   }
+
+  private[this] implicit def toClientId(sk: SessionKey): String = s"${sk.uid}:${sk.sid}"
 }
 
 /**
@@ -537,4 +544,8 @@ object RealtimeModelActor {
       modelSnapshotStore,
       clientDataResponseTimeout,
       snapshotConfig))
+
+  def sessionKeyToClientId(sk: SessionKey): String = s"${sk.uid}:${sk.sid}"
 }
+
+case class SessionKey(uid: String, sid: String)

@@ -44,11 +44,10 @@ case class TokenAuthenticationRequestMessage(token: String) extends Authenticati
 
 case class AuthenticationResponseMessage(success: Boolean, username: Option[String]) extends OutgoingProtocolResponseMessage
 
-
 ///////////////////////////////////////////////////////////////////////////////
 // Model Messages
 ///////////////////////////////////////////////////////////////////////////////
-case class ModelFqnData(cId: String, mId: String)
+case class ModelFqnData(sId: String, mId: String)
 
 sealed trait IncomingModelNormalMessage extends IncomingProtocolNormalMessage
 case class OperationSubmissionMessage(rId: String, seq: Long, v: Long, op: OperationData) extends IncomingModelNormalMessage
@@ -65,14 +64,13 @@ case class ModelDataResponseMessage(data: JValue) extends IncomingProtocolRespon
 case class OpenRealtimeModelResponseMessage(rId: String, v: Long, created: Long, modified: Long, data: JValue) extends OutgoingProtocolResponseMessage
 
 case class OperationAcknowledgementMessage(rId: String, seq: Long, v: Long) extends OutgoingProtocolNormalMessage
-case class RemoteOperationMessage(rId: String, cId: String, v: Long, t: Long, op: OperationData) extends OutgoingProtocolNormalMessage
+case class RemoteOperationMessage(rId: String, uId: String, sId: String, v: Long, t: Long, op: OperationData) extends OutgoingProtocolNormalMessage
 
-case class RemoteClientClosedMessage(rId: String, cId: String) extends OutgoingProtocolNormalMessage
-case class RemoteClientOpenedMessage(rId: String, cId: String) extends OutgoingProtocolNormalMessage
-case class ModelForceCloseMessage(rId: String, cId: String, reason: String) extends OutgoingProtocolNormalMessage
+case class RemoteClientClosedMessage(rId: String, uId: String, sId: String) extends OutgoingProtocolNormalMessage
+case class RemoteClientOpenedMessage(rId: String, uId: String, sId: String) extends OutgoingProtocolNormalMessage
+case class ModelForceCloseMessage(rId: String, reason: String) extends OutgoingProtocolNormalMessage
 
 case class ModelDataRequestMessage(modelFqn: ModelFqnData) extends OutgoingProtocolRequestMessage
-
 
 //
 // Operations

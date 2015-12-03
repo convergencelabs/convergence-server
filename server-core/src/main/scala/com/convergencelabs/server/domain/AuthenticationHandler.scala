@@ -4,27 +4,24 @@ import java.io.StringReader
 import java.security.KeyFactory
 import java.security.PublicKey
 import java.security.spec.X509EncodedKeySpec
-
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.util.Failure
 import scala.util.Success
-
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.bouncycastle.openssl.PEMParser
 import org.jose4j.jwt.JwtClaims
 import org.jose4j.jwt.consumer.InvalidJwtException
 import org.jose4j.jwt.consumer.JwtConsumerBuilder
-
 import com.convergencelabs.server.datastore.domain.DomainConfigStore
 import com.convergencelabs.server.datastore.domain.DomainUserStore
 import com.convergencelabs.server.util.TryWithResource
-
 import akka.actor.ActorRef
 import akka.actor.actorRef2Scala
 import grizzled.slf4j.Logging
+import scala.util.Try
 
 object AuthenticationHandler {
   val RelativePath = "authManager"
@@ -45,11 +42,17 @@ class AuthenticationHandler(
   }
 
   private[this] def authenticatePassword(authRequest: PasswordAuthRequest): Future[AuthenticationResponse] = {
-    val promise = Promise[AuthenticationResponse]
     val response = userStore.validateCredentials(authRequest.username, authRequest.password) match {
-      case Success(true) => AuthenticationSuccess(authRequest.username)
-      case Success(false) => AuthenticationFailure
-      case Failure(cause) => ??? //FIXME: Need to handle failed auth do to error  
+      case Success((true, Some(uid))) => AuthenticationSuccess(uid, authRequest.username)
+      case Success((false, _)) => AuthenticationFailure
+      case Success((true, None)) => {
+        // We validated the user, but could not get the user id.  This should not happen.
+        AuthenticationError
+      }
+      case Failure(cause) => {
+        logger.error("Unable to authenticate a user", cause)
+        AuthenticationError
+      }
     }
 
     Future.successful(response)
@@ -87,14 +90,20 @@ class AuthenticationHandler(
 
           val username = jwtClaims.getSubject()
 
-          //FIXME: Handle Failure Case
-          if (!userStore.domainUserExists(username).get) {
-            createUserFromJWT(jwtClaims)
-          }
-
           // TODO in theory we should cache the token id for longer than the expiration to make
           // sure a replay attack is not possible.
-          AuthenticationSuccess(username)
+          userStore.getDomainUserByUsername(username) match {
+            case Success(Some(user)) => {
+              AuthenticationSuccess(user.uid, user.username)
+            }
+            case Success(None) => {
+              createUserFromJWT(jwtClaims) match {
+                case Success(uid) => AuthenticationSuccess(uid, username)
+                case Failure(cause) => AuthenticationFailure
+              }
+            }
+            case Failure(cause) => AuthenticationFailure
+          }
         }
       } catch {
         case e: InvalidJwtException =>
@@ -107,7 +116,7 @@ class AuthenticationHandler(
     }
   }
 
-  private[this] def createUserFromJWT(jwtClaims: JwtClaims): Unit = {
+  private[this] def createUserFromJWT(jwtClaims: JwtClaims): Try[String] = {
     val username = jwtClaims.getSubject()
 
     var firstName = ""
@@ -152,19 +161,21 @@ class AuthenticationHandler(
         case _ => None // FIXME handle error?
       }
     }
-    
+
     keyPem.flatMap { pem =>
-      TryWithResource( new PEMParser(new StringReader(pem))) { pemReader =>
+      TryWithResource(new PEMParser(new StringReader(pem))) { pemReader =>
         val spec = new X509EncodedKeySpec(pemReader.readPemObject().getContent())
         val keyFactory = KeyFactory.getInstance("RSA", new BouncyCastleProvider())
         Some(keyFactory.generatePublic(spec))
-      } .recoverWith { case e =>
-         logger.warn("Unabled to decode jwt public key: " + e.getMessage)
+      }.recoverWith {
+        case e =>
+          logger.warn("Unabled to decode jwt public key: " + e.getMessage)
           Success(None)
       }.get
     }
   }
 
-  private[this] def nofifyAuthSuccess(asker: ActorRef, username: String): Unit = asker ! AuthenticationSuccess(username)
+  private[this] def nofifyAuthSuccess(asker: ActorRef, uid: String, username: String): Unit = asker ! AuthenticationSuccess(uid, username)
   private[this] def notifyAuthFailure(asker: ActorRef): Unit = asker ! AuthenticationFailure
+  private[this] def notifyAuthError(asker: ActorRef): Unit = asker ! AuthenticationError
 }

@@ -44,6 +44,7 @@ import com.convergencelabs.server.frontend.realtime.proto.PasswordAuthentication
 import com.convergencelabs.server.frontend.realtime.proto.TokenAuthenticationRequestMessage
 import com.convergencelabs.server.frontend.realtime.proto.AuthenticationResponseMessage
 import com.convergencelabs.server.domain.ClientDisconnected
+import com.convergencelabs.server.domain.AuthenticationError
 
 object ClientActor {
   def props(
@@ -65,7 +66,6 @@ class ClientActor(
   implicit val requestTimeout = Timeout(1 seconds)
   implicit val ec = context.dispatcher
 
-  
   val handshakeTimeoutTask = context.system.scheduler.scheduleOnce(handshakeTimeout) {
     log.debug("Handshaked timeout")
     connection.abort("Handhsake timeout")
@@ -78,6 +78,7 @@ class ClientActor(
 
   var modelClient: ActorRef = _
   var domainActor: ActorRef = _
+  var modelManagerActor: ActorRef = _
   var sessionId: String = _
 
   def receive = receiveWhileHandshaking
@@ -111,12 +112,16 @@ class ClientActor(
     val future = domainActor ? message
 
     future.mapResponse[AuthenticationResponse] onComplete {
-      case Success(AuthenticationSuccess(username)) => {
+      case Success(AuthenticationSuccess(uid, username)) => {
+        this.modelClient = context.actorOf(ModelClientActor.props(uid, sessionId, modelManagerActor))
         cb.reply(AuthenticationResponseMessage(true, Some(username)))
         context.become(receiveWhileAuthenticated)
       }
       case Success(AuthenticationFailure) => {
         cb.reply(AuthenticationResponseMessage(false, None))
+      }
+      case Success(AuthenticationError) => {
+        cb.reply(AuthenticationResponseMessage(false, None)) // TODO do we want this to go back to the client as something else?
       }
       case Failure(cause) => {
         cb.reply(AuthenticationResponseMessage(false, None))
@@ -135,7 +140,7 @@ class ClientActor(
       case Success(HandshakeSuccess(sessionId, reconnectToken, domainActor, modelManagerActor)) => {
         this.sessionId = sessionId
         this.domainActor = domainActor
-        this.modelClient = context.actorOf(ModelClientActor.props(sessionId, modelManagerActor))
+        this.modelManagerActor = modelManagerActor
         cb.reply(HandshakeResponseMessage(true, None, Some(sessionId), Some(reconnectToken)))
         context.become(receiveWhileAuthenticating)
       }

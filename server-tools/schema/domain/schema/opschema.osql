@@ -7,7 +7,7 @@ CREATE CLASS Operation ABSTRACT;
 CREATE CLASS DiscreteOperation ABSTRACT;
 
 #DiscreteOperation.path
-CREATE PROPERTY DiscreteOperation.path EMBEDDED;LIST STRING;
+CREATE PROPERTY DiscreteOperation.path EMBEDDEDLIST STRING;
 ALTER PROPERTY DiscreteOperation.path MANDATORY true;
 ALTER PROPERTY DiscreteOperation.path NOTNULL true;
 
@@ -17,7 +17,7 @@ ALTER PROPERTY DiscreteOperation.noOp DEFAULT FALSE;
 
 ###################### CompoundOperation ######################
 
-CREATE CLASS CompoundOperation
+CREATE CLASS CompoundOperation;
 
 #CompoundOperation.operations
 CREATE PROPERTY CompoundOperation.operations EMBEDDEDLIST DiscreteOperation;
@@ -26,7 +26,7 @@ ALTER PROPERTY CompoundOperation.operations NOTNULL true;
 
 ###################### StringInsertOperation ######################
 
-CREATE CLASS StringInsertOperation
+CREATE CLASS StringInsertOperation;
 
 #StringInsertOperation.index
 CREATE PROPERTY StringInsertOperation.index INTEGER;

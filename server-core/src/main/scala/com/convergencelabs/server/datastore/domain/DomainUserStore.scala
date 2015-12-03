@@ -44,10 +44,13 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    *
    * @param password An optional password if internal authentication is to
    * be used for this user.
+   * 
+   * @return A String representing the created users uid.
    */
-  def createDomainUser(domainUser: DomainUser, password: Option[String]): Try[Unit] = tryWithDb { db =>
+  def createDomainUser(domainUser: DomainUser, password: Option[String]): Try[String] = tryWithDb { db =>
     val userDoc = domainUser.asODocument
     db.save(userDoc)
+    userDoc.reload()
 
     val pwDoc = db.newInstance("UserCredential")
     pwDoc.field("user", userDoc, OType.LINK) // FIXME verify this creates a link and now a new doc.
@@ -59,7 +62,9 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
 
     pwDoc.field("password", hash)
     db.save(pwDoc)
-    Unit
+    
+    val uid: String = userDoc.field("uid", OType.STRING)
+    uid
   }
 
   /**
@@ -245,17 +250,23 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    *
    * @return true if the username and passowrd match, false otherwise.
    */
-  def validateCredentials(username: String, password: String): Try[Boolean] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT password FROM UserCredential WHERE user.username = :username")
+  def validateCredentials(username: String, password: String): Try[Tuple2[Boolean, Option[String]]] = tryWithDb { db =>
+    val query = new OSQLSynchQuery[ODocument]("SELECT password, user.uid AS uid FROM UserCredential WHERE user.username = :username")
     val params = Map("username" -> username)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
     result.asScala.toList match {
       case doc :: Nil => {
         val pwhash: String = doc.field("password")
-        PasswordUtil.checkPassword(password, pwhash)
+        PasswordUtil.checkPassword(password, pwhash) match {
+          case true => {
+            val uid: String = doc.field("uid")
+            (true, Some(uid))
+          }
+          case false => (false, None)
+        }
       }
-      case _ => false
+      case _ => (false, None)
     }
   }
 }
