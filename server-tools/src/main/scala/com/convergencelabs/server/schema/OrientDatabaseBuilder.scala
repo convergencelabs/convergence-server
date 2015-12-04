@@ -2,6 +2,7 @@ package com.convergencelabs.server.schema
 
 import java.io.File
 
+import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.io.Source.fromFile
 import scala.language.reflectiveCalls
 
@@ -13,6 +14,7 @@ import com.orientechnologies.orient.core.command.OCommandOutputListener
 import com.orientechnologies.orient.core.command.script.OCommandScript
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.orientechnologies.orient.core.db.tool.ODatabaseExport
+import com.orientechnologies.orient.core.serialization.serializer.OStringSerializerHelper
 
 private object Conf {
   def apply(arguments: Seq[String]): Conf = new Conf(arguments)
@@ -141,15 +143,16 @@ class OrientDatabaseBuilder(
 
     val source = fromFile(filename)
     try {
-      val scriptLines = source.getLines().filter { line =>
+      val linesAsString = source.getLines().filter { line =>
         (!line.trim().startsWith("#") && line.trim().size > 0)
       }.mkString("\n")
 
-      val semiLines = scriptLines.split(";").map {
+      val smartSplitLines = OStringSerializerHelper.smartSplit(linesAsString, ';', true)
+      val mergedLines = smartSplitLines.asScala.toList.map {
         line => line.replace('\n', ' ')
       }
-
-      db.command(new OCommandScript(semiLines.mkString("\n"))).execute()
+      
+      db.command(new OCommandScript(mergedLines.mkString("\n"))).execute()
       db.commit()
     } finally {
       source.close()

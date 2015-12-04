@@ -1,7 +1,7 @@
 # abs
 INSERT INTO OFunction SET
   idempotent = false,
-  code = "return Math.abs(parseInt(val))",
+  code = "return Math.abs(parseInt(val));",
   name ="abs",
   language = "javascript",
   parameters = [
@@ -11,7 +11,7 @@ INSERT INTO OFunction SET
 # stringInsert
 INSERT INTO OFunction SET
   idempotent = false,
-  code = "var idx = parseInt(index)\nreturn text.slice(0,idx) + value + text.slice(idx)",
+  code = "var idx = parseInt(index);\nreturn text.slice(0,idx) + value + text.slice(idx);",
   name ="stringInsert",
   language = "javascript",
   parameters = [
@@ -23,7 +23,7 @@ INSERT INTO OFunction SET
 # stringRemove
 INSERT INTO OFunction SET
   idempotent = false,
-  code = "var idx = parseInt(index)\nreturn text.slice(0,idx) + text.slice(idx + length)",
+  code = "var idx = parseInt(index);\nreturn text.slice(0,idx) + text.slice(idx + length);",
   name ="stringRemove",
   language = "javascript",
   parameters = [
@@ -36,7 +36,7 @@ INSERT INTO OFunction SET
 # arrayInsert
 INSERT INTO OFunction SET
   idempotent = false,
-  code = "var idx = parseInt(index)\narray.add(idx, value)\nreturn array",
+  code = "var idx = parseInt(index);\narray.add(idx, value);\nreturn array;",
   name ="arrayInsert",
   language = "javascript",
   parameters = [
@@ -47,7 +47,7 @@ INSERT INTO OFunction SET
 # arrayRemove
 INSERT INTO OFunction SET
   idempotent = false,
-  code = "var idx = parseInt(index)\narray.remove(idx)\nreturn array",
+  code = "var idx = parseInt(index);\narray.remove(idx);\nreturn array;",
   name ="arrayRemove",
   language = "javascript",
   parameters = [
@@ -58,7 +58,7 @@ INSERT INTO OFunction SET
 # arrayReplace
 INSERT INTO OFunction SET
   idempotent = false,
-  code = "var idx = parseInt(index)\narray.set(idx, value)\nreturn array",
+  code = "var idx = parseInt(index);\narray.set(idx, value);\nreturn array;",
   name ="arrayReplace",
   language = "javascript",
   parameters = [
@@ -70,7 +70,7 @@ INSERT INTO OFunction SET
 # arrayMove
 INSERT INTO OFunction SET
   idempotent = false,
-  code = "var toIn = parseInt(toIndex)\nvar fromIn = parseInt(fromIndex)\narray.add(toIn, array.remove(fromIn))\nreturn array",
+  code = "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;",
   name ="arrayMove",
   language = "javascript",
   parameters = [
