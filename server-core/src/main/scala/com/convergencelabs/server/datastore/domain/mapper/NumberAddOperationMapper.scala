@@ -22,11 +22,11 @@ object NumberAddOperationMapper {
   }
 
   private[domain] implicit def numberAddOperationToODocument(obj: NumberAddOperation): ODocument = {
-    val NumberAddOperation(path, noOp, delta) = obj
+    val NumberAddOperation(path, noOp, value) = obj
     val doc = new ODocument(NumberAddOperationClassName)
     doc.field(Path, path.asJava)
     doc.field(NoOp, noOp)
-    doc.field(Val, JValueMapper.jNumberToJava(delta))
+    doc.field(Val, JValueMapper.jNumberToJava(value))
     doc
   }
 
@@ -40,8 +40,8 @@ object NumberAddOperationMapper {
     }
     val path = doc.field(Path).asInstanceOf[JavaList[_]]
     val noOp = doc.field(NoOp).asInstanceOf[Boolean]
-    val delta = JValueMapper.javaToJValue(doc.field(Val)).asInstanceOf[JNumber]
-    NumberAddOperation(path.asScala.toList, noOp, delta)
+    val value = JValueMapper.javaToJValue(doc.field(Val)).asInstanceOf[JNumber]
+    NumberAddOperation(path.asScala.toList, noOp, value)
   }
 
   private[domain] val NumberAddOperationClassName = "NumberAddOperation"

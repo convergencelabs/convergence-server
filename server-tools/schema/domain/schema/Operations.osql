@@ -4,10 +4,10 @@ CREATE CLASS Operation ABSTRACT;
 
 ###################### DiscreteOperation ######################
 
-CREATE CLASS DiscreteOperation ABSTRACT;
+CREATE CLASS DiscreteOperation EXTENDS Operation ABSTRACT;
 
 #DiscreteOperation.path
-CREATE PROPERTY DiscreteOperation.path EMBEDDEDLIST STRING;
+CREATE PROPERTY DiscreteOperation.path EMBEDDEDLIST;
 ALTER PROPERTY DiscreteOperation.path MANDATORY true;
 ALTER PROPERTY DiscreteOperation.path NOTNULL true;
 
@@ -17,7 +17,7 @@ ALTER PROPERTY DiscreteOperation.noOp DEFAULT FALSE;
 
 ###################### CompoundOperation ######################
 
-CREATE CLASS CompoundOperation;
+CREATE CLASS CompoundOperation EXTENDS Operation;
 
 #CompoundOperation.operations
 CREATE PROPERTY CompoundOperation.ops EMBEDDEDLIST DiscreteOperation;
@@ -26,7 +26,7 @@ ALTER PROPERTY CompoundOperation.ops NOTNULL true;
 
 ###################### StringInsertOperation ######################
 
-CREATE CLASS StringInsertOperation;
+CREATE CLASS StringInsertOperation EXTENDS DiscreteOperation;
 
 #StringInsertOperation.idx
 CREATE PROPERTY StringInsertOperation.idx INTEGER;
@@ -40,7 +40,7 @@ ALTER PROPERTY StringInsertOperation.val NOTNULL true;
 
 ###################### StringRemoveOperation ######################
 
-CREATE CLASS StringRemoveOperation;
+CREATE CLASS StringRemoveOperation EXTENDS DiscreteOperation;
 
 #StringRemoveOperation.idx
 CREATE PROPERTY StringRemoveOperation.idx INTEGER;
@@ -54,7 +54,7 @@ ALTER PROPERTY StringRemoveOperation.val NOTNULL true;
 
 ###################### StringSetOperation ######################
 
-CREATE CLASS StringSetOperation;
+CREATE CLASS StringSetOperation EXTENDS DiscreteOperation;
 
 #StringSetOperation.val
 CREATE PROPERTY StringSetOperation.val STRING;
@@ -62,7 +62,7 @@ ALTER PROPERTY StringSetOperation.val MANDATORY true;
 
 ###################### ObjectSetPropertyOperation ######################
 
-CREATE CLASS ObjectSetPropertyOperation;
+CREATE CLASS ObjectSetPropertyOperation EXTENDS DiscreteOperation;
 
 #ObjectSetPropertyOperation.prop
 CREATE PROPERTY ObjectSetPropertyOperation.prop STRING;
@@ -75,7 +75,7 @@ ALTER PROPERTY ObjectSetPropertyOperation.val MANDATORY true;
 
 ###################### ObjectAddPropertyOperation ######################
 
-CREATE CLASS ObjectAddPropertyOperation;
+CREATE CLASS ObjectAddPropertyOperation EXTENDS DiscreteOperation;
 
 #ObjectAddPropertyOperation.prop
 CREATE PROPERTY ObjectAddPropertyOperation.prop STRING;
@@ -88,7 +88,7 @@ ALTER PROPERTY ObjectAddPropertyOperation.val MANDATORY true;
 
 ###################### ObjectRemovePropertyOperation ######################
 
-CREATE CLASS ObjectRemovePropertyOperation;
+CREATE CLASS ObjectRemovePropertyOperation EXTENDS DiscreteOperation;
 
 #ObjectRemovePropertyOperation.prop
 CREATE PROPERTY ObjectRemovePropertyOperation.prop STRING;
@@ -97,7 +97,7 @@ ALTER PROPERTY ObjectRemovePropertyOperation.prop NOTNULL true;
 
 ###################### ObjectSetOperation ######################
 
-CREATE CLASS ObjectSetOperation;
+CREATE CLASS ObjectSetOperation EXTENDS DiscreteOperation;
 
 #ObjectSetOperation.val
 CREATE PROPERTY ObjectSetOperation.val EMBEDDED;
@@ -105,7 +105,7 @@ ALTER PROPERTY ObjectSetOperation.val MANDATORY true;
 
 ###################### NumberAddOperation ######################
 
-CREATE CLASS NumberAddOperation;
+CREATE CLASS NumberAddOperation EXTENDS DiscreteOperation;
 
 #NumberAddOperation.val
 CREATE PROPERTY NumberAddOperation.val EMBEDDED;
@@ -113,7 +113,7 @@ ALTER PROPERTY NumberAddOperation.val MANDATORY true;
 
 ###################### NumberSetOperation ######################
 
-CREATE CLASS NumberSetOperation;
+CREATE CLASS NumberSetOperation EXTENDS DiscreteOperation;
 
 #NumberSetOperation.val
 CREATE PROPERTY NumberSetOperation.val EMBEDDED;
@@ -121,7 +121,7 @@ ALTER PROPERTY NumberSetOperation.val MANDATORY true;
 
 ###################### ArrayInsertOperation ######################
 
-CREATE CLASS ArrayInsertOperation;
+CREATE CLASS ArrayInsertOperation EXTENDS DiscreteOperation;
 
 #ArrayInsertOperation.idx
 CREATE PROPERTY ArrayInsertOperation.idx INTEGER;
@@ -135,7 +135,7 @@ ALTER PROPERTY ArrayInsertOperation.val NOTNULL true;
 
 ###################### ArrayRemoveOperation ######################
 
-CREATE CLASS ArrayRemoveOperation;
+CREATE CLASS ArrayRemoveOperation EXTENDS DiscreteOperation;
 
 #ArrayRemoveOperation.idx
 CREATE PROPERTY ArrayRemoveOperation.idx INTEGER;
@@ -144,7 +144,7 @@ ALTER PROPERTY ArrayRemoveOperation.idx NOTNULL true;
 
 ###################### ArrayReplaceOperation ######################
 
-CREATE CLASS ArrayReplaceOperation;
+CREATE CLASS ArrayReplaceOperation EXTENDS DiscreteOperation;
 
 #ArrayReplaceOperation.idx
 CREATE PROPERTY ArrayReplaceOperation.idx INTEGER;
@@ -158,7 +158,7 @@ ALTER PROPERTY ArrayReplaceOperation.val NOTNULL true;
 
 ###################### ArrayMoveOperation ######################
 
-CREATE CLASS ArrayMoveOperation;
+CREATE CLASS ArrayMoveOperation EXTENDS DiscreteOperation;
 
 #ArrayMoveOperation.fromIdx
 CREATE PROPERTY ArrayMoveOperation.fromIdx INTEGER;
@@ -172,7 +172,7 @@ ALTER PROPERTY ArrayMoveOperation.toIdx NOTNULL true;
 
 ###################### ArraySetOperation ######################
 
-CREATE CLASS ArraySetOperation;
+CREATE CLASS ArraySetOperation EXTENDS DiscreteOperation;
 
 #ArraySetOperation.val
 CREATE PROPERTY ArraySetOperation.val EMBEDDED;
