@@ -6,6 +6,8 @@
     "domain/schema/DomainConfig.osql",
     "domain/schema/Model.osql",
     "domain/schema/ModelSnapshot.osql",
+    "domain/schema/Operations.osql",
+    "domain/schema/ModelOperation.osql",
     "domain/schema/User.osql",
     "domain/schema/UserCredential.osql",
     "domain/schema/OFunctions.osql"

@@ -3,7 +3,7 @@ package com.convergencelabs.server.domain.model.ot
 private[ot] object ObjectAddPropertyAddPropertyTF extends OperationTransformationFunction[ObjectAddPropertyOperation, ObjectAddPropertyOperation] {
   def transform(s: ObjectAddPropertyOperation, c: ObjectAddPropertyOperation): (ObjectOperation, ObjectAddPropertyOperation) = {
     if (s.property == c.property) {
-      if (s.newValue == c.newValue) {
+      if (s.value == c.value) {
         // Same property and value, noOp them both.
         (s.copy(noOp = true), c.copy(noOp = true))
       } else {

@@ -44,11 +44,11 @@ case class StringSetOperation(path: List[Any], noOp: Boolean, value: String) ext
 //////////////////////////////////////////////////////////////////////////////
 sealed trait ObjectOperation extends DiscreteOperation
 
-case class ObjectSetPropertyOperation(path: List[Any], noOp: Boolean, property: String, newValue: JValue) extends ObjectOperation {
+case class ObjectSetPropertyOperation(path: List[Any], noOp: Boolean, property: String, value: JValue) extends ObjectOperation {
   def clone(path: List[Any], noOp: scala.Boolean): ObjectSetPropertyOperation = copy(path = path, noOp = noOp)
 }
 
-case class ObjectAddPropertyOperation(path: List[Any], noOp: Boolean, property: String, newValue: JValue) extends ObjectOperation {
+case class ObjectAddPropertyOperation(path: List[Any], noOp: Boolean, property: String, value: JValue) extends ObjectOperation {
   def clone(path: List[Any], noOp: scala.Boolean): ObjectAddPropertyOperation = copy(path = path, noOp = noOp)
 }
 
@@ -56,7 +56,7 @@ case class ObjectRemovePropertyOperation(path: List[Any], noOp: Boolean, propert
   def clone(path: List[Any], noOp: scala.Boolean): ObjectRemovePropertyOperation = copy(path = path, noOp = noOp)
 }
 
-case class ObjectSetOperation(path: List[Any], noOp: Boolean, newValue: JObject) extends ObjectOperation {
+case class ObjectSetOperation(path: List[Any], noOp: Boolean, value: JObject) extends ObjectOperation {
   def clone(path: List[Any], noOp: scala.Boolean): ObjectSetOperation = copy(path = path, noOp = noOp)
 }
 
@@ -69,7 +69,7 @@ case class NumberAddOperation(path: List[Any], noOp: Boolean, value: JNumber) ex
   def clone(path: List[Any], noOp: scala.Boolean): NumberAddOperation = copy(path = path, noOp = noOp)
 }
 
-case class NumberSetOperation(path: List[Any], noOp: Boolean, newValue: JNumber) extends NumberOperation {
+case class NumberSetOperation(path: List[Any], noOp: Boolean, value: JNumber) extends NumberOperation {
   def clone(path: List[Any], noOp: scala.Boolean): NumberSetOperation = copy(path = path, noOp = noOp)
 }
 
@@ -85,7 +85,7 @@ case class ArrayRemoveOperation(path: List[Any], noOp: Boolean, index: Int) exte
   def clone(path: List[Any], noOp: scala.Boolean): ArrayRemoveOperation = copy(path = path, noOp = noOp)
 }
 
-case class ArrayReplaceOperation(path: List[Any], noOp: Boolean, index: Int, newValue: JValue) extends ArrayOperation {
+case class ArrayReplaceOperation(path: List[Any], noOp: Boolean, index: Int, value: JValue) extends ArrayOperation {
   def clone(path: List[Any], noOp: scala.Boolean): ArrayReplaceOperation = copy(path = path, noOp = noOp)
 }
 

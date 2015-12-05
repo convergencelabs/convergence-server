@@ -116,8 +116,8 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
 
   private[this] def applyArrayReplaceOperation(fqn: ModelFqn, operation: ArrayReplaceOperation, db: ODatabaseDocumentTx): Unit = {
     val pathString = ModelStore.toOrientPath(operation.path)
-    val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId, "index" -> operation.index, "value" -> JValueMapper.jValueToJava(operation.newValue))
-    val value = write(operation.newValue)
+    val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId, "index" -> operation.index, "value" -> JValueMapper.jValueToJava(operation.value))
+    val value = write(operation.value)
     val updateCommand = new OCommandSQL(s"UPDATE Model SET $pathString = arrayReplace($pathString, :index, $value) WHERE collectionId = :collectionId and modelId = :modelId")
     db.command(updateCommand).execute(params.asJava)
   }
@@ -139,14 +139,14 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
 
   private[this] def applyObjectAddPropertyOperation(fqn: ModelFqn, operation: ObjectAddPropertyOperation, db: ODatabaseDocumentTx): Unit = {
     val pathString = ModelStore.toOrientPath(operation.path)
-    val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId, "value" -> JValueMapper.jValueToJava(operation.newValue))
+    val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId, "value" -> JValueMapper.jValueToJava(operation.value))
     val updateCommand = new OCommandSQL(s"UPDATE Model SET $pathString = :value WHERE collectionId = :collectionId and modelId = :modelId")
     db.command(updateCommand).execute(params.asJava)
   }
 
   private[this] def applyObjectSetPropertyOperation(fqn: ModelFqn, operation: ObjectSetPropertyOperation, db: ODatabaseDocumentTx): Unit = {
     val pathString = ModelStore.toOrientPath(operation.path)
-    val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId, "value" -> JValueMapper.jValueToJava(operation.newValue))
+    val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId, "value" -> JValueMapper.jValueToJava(operation.value))
     val updateCommand = new OCommandSQL(s"UPDATE Model SET $pathString = :value WHERE collectionId = :collectionId and modelId = :modelId")
     db.command(updateCommand).execute(params.asJava)
   }
@@ -160,7 +160,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
 
   private[this] def applyObjectSetOperation(fqn: ModelFqn, operation: ObjectSetOperation, db: ODatabaseDocumentTx): Unit = {
     val pathString = ModelStore.toOrientPath(operation.path)
-    val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId, "value" -> JValueMapper.jValueToJava(operation.newValue))
+    val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId, "value" -> JValueMapper.jValueToJava(operation.value))
     val updateCommand = new OCommandSQL(s"UPDATE Model SET $pathString = :value WHERE collectionId = :collectionId and modelId = :modelId")
     db.command(updateCommand).execute(params.asJava)
   }
@@ -196,7 +196,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
   //TODO: Determine strategy for handling numbers correctly
   private[this] def applyNumberSetOperation(fqn: ModelFqn, operation: NumberSetOperation, db: ODatabaseDocumentTx): Unit = {
     val pathString = ModelStore.toOrientPath(operation.path)
-    val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId, "value" -> operation.newValue)
+    val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId, "value" -> operation.value)
     val updateCommand = new OCommandSQL(s"UPDATE Model SET $pathString = :value WHERE collectionId = :collectionId and modelId = :modelId")
     db.command(updateCommand).execute(params.asJava)
   }

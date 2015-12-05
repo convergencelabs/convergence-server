@@ -1,0 +1,41 @@
+CREATE CLASS ModelOperation;
+
+#ModelOperation.collectionId
+CREATE Property ModelOperation.collectionId STRING;
+ALTER PROPERTY ModelOperation.collectionId MANDATORY true;
+ALTER PROPERTY ModelOperation.collectionId NOTNULL true;
+
+#ModelOperation.modelId
+CREATE Property ModelOperation.modelId STRING;
+ALTER PROPERTY ModelOperation.modelId MANDATORY true;
+ALTER PROPERTY ModelOperation.modelId NOTNULL true;
+
+#ModelOperation.version
+CREATE Property ModelOperation.version LONG;
+ALTER PROPERTY ModelOperation.version MANDATORY true;
+ALTER PROPERTY ModelOperation.version NOTNULL true;
+ALTER PROPERTY ModelOperation.version MIN 0;
+
+#ModelOperation.timestamp
+CREATE Property ModelOperation.timestamp DATETIME;
+ALTER PROPERTY ModelOperation.timestamp MANDATORY true;
+ALTER PROPERTY ModelOperation.timestamp NOTNULL true;
+
+#ModelOperation.uid
+CREATE Property ModelOperation.uid STRING;
+ALTER PROPERTY ModelOperation.uid MANDATORY true;
+ALTER PROPERTY ModelOperation.uid NOTNULL true;
+
+#ModelOperation.sid
+CREATE Property ModelOperation.sid STRING;
+ALTER PROPERTY ModelOperation.sid MANDATORY true;
+ALTER PROPERTY ModelOperation.sid NOTNULL true;
+
+#ModelOperation.op
+CREATE Property ModelOperation.op EMBEDDED Operation;
+ALTER PROPERTY ModelOperation.op MANDATORY true;
+ALTER PROPERTY ModelOperation.op NOTNULL true;
+
+#ModelOperation Indexes
+CREATE INDEX ModelOperation.collectionId_modelId_version ON ModelOperation (collectionId, modelId, version) UNIQUE;
+CREATE INDEX ModelOperation.collectionId_modelId ON ModelOperation (collectionId, modelId) NOTUNIQUE_HASH_INDEX; 
