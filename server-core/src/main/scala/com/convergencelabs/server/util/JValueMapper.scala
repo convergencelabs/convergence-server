@@ -56,8 +56,7 @@ object JValueMapper {
   private[this] def jObjectToMap(obj: JObject): JMap[String, _] = {
     val result = new HashMap[String, Any]()
     obj.obj foreach {
-      case (key, value) ⇒
-        result.put(key, jValueToJava(value))
+      case (key, value) ⇒ result.put(key, jValueToJava(value))
     }
     result
   }
