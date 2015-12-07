@@ -2,7 +2,7 @@ package com.convergencelabs.server.datastore
 
 import java.util.{ List => JavaList }
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 import org.json4s.JsonAST.JObject
 import org.json4s.JsonAST.JValue
@@ -37,7 +37,7 @@ class ConfigurationStore(dbPool: OPartitionedDatabasePool) extends Logging {
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     db.close()
 
-    QueryUtil.flatMapSingleResult(result) { doc =>
+    QueryUtil.mapSingletonListToOption(result) { doc =>
       // FIXME seems like we can avoid this.
       val config = parse(doc.toJSON())
       config match {

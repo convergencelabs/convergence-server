@@ -1,30 +1,25 @@
 package com.convergencelabs.server.datastore.domain
 
-import java.time.Duration
 import java.util.{ List => JavaList }
-import scala.collection.JavaConversions._
-import scala.collection.JavaConverters._
-import scala.collection.immutable.HashMap
-import com.convergencelabs.server.domain.DomainFqn
+
+import scala.collection.JavaConversions.asScalaBuffer
+import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.util.Try
+
+import com.convergencelabs.server.datastore.AbstractDatabasePersistence
+import com.convergencelabs.server.datastore.QueryUtil
+import com.convergencelabs.server.datastore.domain.mapper.ModelSnapshotConfigMapper.ModelSnapshotConfigToODocument
+import com.convergencelabs.server.datastore.domain.mapper.ModelSnapshotConfigMapper.ODocumentToModelSnapshotConfig
+import com.convergencelabs.server.datastore.domain.mapper.TokenPublicKeyMapper.ODocumentToTokenPublicKey
+import com.convergencelabs.server.domain.ModelSnapshotConfig
+import com.convergencelabs.server.domain.TokenKeyPair
+import com.convergencelabs.server.domain.TokenPublicKey
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import com.orientechnologies.orient.core.db.record.OTrackedMap
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
-import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
+
 import grizzled.slf4j.Logging
-import java.util.ArrayList
-import com.convergencelabs.server.datastore.QueryUtil
-import com.convergencelabs.server.domain.TokenPublicKey
-import com.convergencelabs.server.datastore.domain.mapper.TokenPublicKeyMapper._
-import com.convergencelabs.server.datastore.domain.mapper.TokenKeyPairMapper._
-import com.convergencelabs.server.datastore.domain.mapper.ModelSnapshotConfigMapper._
-import com.convergencelabs.server.domain.ModelSnapshotConfig
-import scala.util.Try
-import com.convergencelabs.server.util.TryWithResource
-import com.convergencelabs.server.domain.TokenKeyPair
-import com.convergencelabs.server.domain.TokenKeyPair
-import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 
 class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
     extends AbstractDatabasePersistence(dbPool)
@@ -34,7 +29,7 @@ class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
     val queryString = "SELECT modelSnapshotConfig FROM DomainConfig"
     val query = new OSQLSynchQuery[ODocument](queryString)
     val result: JavaList[ODocument] = db.command(query).execute()
-    QueryUtil.mapSingleResult(result) { doc =>
+    QueryUtil.mapSingletonList(result) { doc =>
       val modelDoc: ODocument = doc.field("modelSnapshotConfig", OType.EMBEDDED)
      modelDoc.asModelSnapshotConfig
     }.get
@@ -53,7 +48,7 @@ class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
     val query = new OSQLSynchQuery[ODocument](queryString)
     val result: JavaList[ODocument] = db.command(query).execute()
 
-    QueryUtil.mapSingleResult(result) { doc =>
+    QueryUtil.mapSingletonList(result) { doc =>
       TokenKeyPair(
         doc.field("adminPublicKey", OType.STRING),
         doc.field("adminPrivateKey", OType.STRING))
@@ -67,9 +62,9 @@ class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
     val params = Map("keyId" -> keyId)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
-    QueryUtil.flatMapSingleResult(result) { doc =>
+    QueryUtil.mapSingletonListToOption(result) { doc =>
       val keysList: java.util.List[ODocument] = doc.field("keys", OType.EMBEDDEDLIST)
-      QueryUtil.mapSingleResult(keysList) { _.asTokenPublicKey }
+      QueryUtil.mapSingletonList(keysList) { _.asTokenPublicKey }
     }
   }
 
@@ -78,7 +73,7 @@ class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
     val query = new OSQLSynchQuery[ODocument](sql)
     val result: JavaList[ODocument] = db.command(query).execute()
 
-    QueryUtil.mapSingleResult(result) { doc =>
+    QueryUtil.mapSingletonList(result) { doc =>
       val docList: JavaList[ODocument] = doc.field("tokenKeys", OType.EMBEDDEDLIST)
       docList.map(t => {
         val key = t.asTokenPublicKey

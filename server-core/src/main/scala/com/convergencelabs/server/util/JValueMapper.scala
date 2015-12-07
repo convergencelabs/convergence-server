@@ -1,16 +1,28 @@
 package com.convergencelabs.server.util
 
-import java.util.{ HashMap, ArrayList, Map => JMap, List => JList }
-import org.json4s._
-import scala.collection.mutable.ListBuffer
-import scala.collection.JavaConversions._
-import scala.collection.JavaConverters._
 import java.math.BigInteger
+import java.util.ArrayList
+import java.util.HashMap
 import java.util.{ List => JList }
 import java.util.{ Map => JMap }
+
+import scala.collection.JavaConverters.asScalaBufferConverter
+import scala.collection.mutable.ListBuffer
 import scala.math.BigInt.int2bigInt
 import scala.math.BigInt.javaBigInteger2bigInt
 import scala.math.BigInt.long2bigInt
+
+import org.json4s.JArray
+import org.json4s.JBool
+import org.json4s.JDecimal
+import org.json4s.JDouble
+import org.json4s.JField
+import org.json4s.JInt
+import org.json4s.JNothing
+import org.json4s.JNull
+import org.json4s.JObject
+import org.json4s.JString
+import org.json4s.JValue
 import org.json4s.JsonAST.JNumber
 
 object JValueMapper {
@@ -23,6 +35,7 @@ object JValueMapper {
     }
   }
 
+  // scalastyle:off cyclomatic.complexity null
   def jValueToJava(jValue: JValue): Any = {
     jValue match {
       case JString(x) => x
@@ -38,6 +51,7 @@ object JValueMapper {
       case array: JArray => jArrayToList(array)
     }
   }
+  // scalastyle:on cyclomatic.complexity null
 
   private[this] def jObjectToMap(obj: JObject): JMap[String, _] = {
     val result = new HashMap[String, Any]()
@@ -50,13 +64,11 @@ object JValueMapper {
 
   private[this] def jArrayToList(array: JArray): JList[_] = {
     val result = new ArrayList[Any]
-    array.arr foreach {
-      case value ⇒
-        result.add(jValueToJava(value))
-    }
+    array.arr foreach { x ⇒ result.add(jValueToJava(x)) }
     result
   }
 
+  // scalastyle:off cyclomatic.complexity null
   def javaToJValue(value: Any): JValue = {
     value match {
       case string: String => JString(string)
@@ -76,9 +88,10 @@ object JValueMapper {
 
       case map: JMap[_, _] => mapToJObject(map)
       case list: JList[_] => listToJArray(list)
-      case x => throw new IllegalArgumentException(s"Can not map object of class ${x.getClass.getName}") // FIXME error message
+      case x: Any => throw new IllegalArgumentException(s"Can not map object of class ${x.getClass.getName}")
     }
   }
+  // scalastyle:on cyclomatic.complexity null
 
   private[this] def mapToJObject(map: JMap[_, _]): JObject = {
     val fields = ListBuffer[JField]()

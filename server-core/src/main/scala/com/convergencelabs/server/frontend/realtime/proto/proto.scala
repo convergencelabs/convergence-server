@@ -1,47 +1,53 @@
 package com.convergencelabs.server.frontend.realtime
 
-import scala.beans.BeanProperty
 import scala.util.Try
-import org.json4s._
+
+import org.json4s.DefaultFormats
+import org.json4s.Extraction
 import org.json4s.JsonAST.JValue
-import org.json4s.NoTypeHints
-import org.json4s.jackson.Serialization
 import org.json4s.jackson.Serialization.read
 import org.json4s.jackson.Serialization.write
 import org.json4s.reflect.Reflector
-import scala.reflect.runtime.universe._
-import org.json4s.ShortTypeHints
-import org.json4s.TypeHints
-import org.json4s.CustomSerializer
-import org.json4s.JsonAST.JString
-import org.json4s.JsonAST.JObject
-import org.json4s.JsonAST.JField
-import org.json4s.JsonDSL._
-import org.json4s.jackson.JsonMethods._
+
+import com.convergencelabs.server.frontend.realtime.proto.ArrayInsertOperationData
+import com.convergencelabs.server.frontend.realtime.proto.ArrayMoveOperationData
+import com.convergencelabs.server.frontend.realtime.proto.ArrayRemoveOperationData
+import com.convergencelabs.server.frontend.realtime.proto.ArrayReplaceOperationData
+import com.convergencelabs.server.frontend.realtime.proto.ArraySetOperationData
+import com.convergencelabs.server.frontend.realtime.proto.CloseRealtimeModelRequestMessage
+import com.convergencelabs.server.frontend.realtime.proto.HandshakeRequestMessage
+import com.convergencelabs.server.frontend.realtime.proto.ModelDataRequestMessage
+import com.convergencelabs.server.frontend.realtime.proto.ModelDataResponseMessage
+import com.convergencelabs.server.frontend.realtime.proto.ObjectAddPropertyOperationData
+import com.convergencelabs.server.frontend.realtime.proto.ObjectRemovePropertyOperationData
+import com.convergencelabs.server.frontend.realtime.proto.ObjectSetOperationData
+import com.convergencelabs.server.frontend.realtime.proto.ObjectSetPropertyOperationData
+import com.convergencelabs.server.frontend.realtime.proto.OpenRealtimeModelRequestMessage
+import com.convergencelabs.server.frontend.realtime.proto.OperationAcknowledgementMessage
+import com.convergencelabs.server.frontend.realtime.proto.OperationData
+import com.convergencelabs.server.frontend.realtime.proto.OperationSubmissionMessage
+import com.convergencelabs.server.frontend.realtime.proto.PasswordAuthenticationRequestMessage
+import com.convergencelabs.server.frontend.realtime.proto.ProtocolMessage
+import com.convergencelabs.server.frontend.realtime.proto.StringInsertOperationData
+import com.convergencelabs.server.frontend.realtime.proto.StringRemoveOperationData
+import com.convergencelabs.server.frontend.realtime.proto.StringSetOperationData
+import com.convergencelabs.server.frontend.realtime.proto.TokenAuthenticationRequestMessage
+import com.convergencelabs.server.frontend.realtime.proto.TypeMapSerializer
+import com.convergencelabs.server.util.BiMap
 
 package object proto {
 
-  case class BiMap[K, V](map: Map[K, V]) {
-    def this(tuples: (K, V)*) = this(tuples.toMap)
-    private val reverseMap = map map (_.swap)
-    require(map.size == reverseMap.size, "no 1 to 1 relation")
-    def getValue(k: K): Option[V] = map.get(k)
-    def getKey(v: V): Option[K] = reverseMap.get(v)
-    val domain = map.keys
-    val codomain = reverseMap.keys
-  }
-  
   val operationSerializer = new TypeMapSerializer[OperationData]("t", Map(
     "SI" -> classOf[StringInsertOperationData],
     "SR" -> classOf[StringRemoveOperationData],
     "SS" -> classOf[StringSetOperationData],
-    
+
     "AI" -> classOf[ArrayInsertOperationData],
     "AR" -> classOf[ArrayRemoveOperationData],
     "AP" -> classOf[ArrayReplaceOperationData],
     "AM" -> classOf[ArrayMoveOperationData],
     "AS" -> classOf[ArraySetOperationData],
-    
+
     "OA" -> classOf[ObjectAddPropertyOperationData],
     "OP" -> classOf[ObjectSetPropertyOperationData],
     "OR" -> classOf[ObjectRemovePropertyOperationData],

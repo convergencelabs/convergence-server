@@ -171,7 +171,7 @@ class ModelClientActor(
           case Failure(cause) => cb.error(cause)
         }
       }
-      case None => cb.error(new ErrorException("model_not_opened", "The requested model was not opened"))
+      case None => cb.error(new UnexpectedErrorException("model_not_opened", "The requested model was not opened"))
     }
   }
 

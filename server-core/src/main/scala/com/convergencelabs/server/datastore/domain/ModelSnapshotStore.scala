@@ -73,7 +73,7 @@ class ModelSnapshotStore private[domain] (
       "version" -> version)
 
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.mapSingleResult(result) { _.asModelSnapshot }
+    QueryUtil.mapSingletonList(result) { _.asModelSnapshot }
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -171,7 +171,7 @@ class ModelSnapshotStore private[domain] (
       "collectionId" -> fqn.collectionId,
       "modelId" -> fqn.modelId)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.mapSingleResult(result) { _.asModelSnapshotMetaData }
+    QueryUtil.mapSingletonList(result) { _.asModelSnapshotMetaData }
   }
 
   def getClosestSnapshotByVersion(fqn: ModelFqn, version: Long): Try[Option[ModelSnapshot]] = tryWithDb { db =>
@@ -195,7 +195,7 @@ class ModelSnapshotStore private[domain] (
       "modelId" -> fqn.modelId,
       "version" -> version)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.mapSingleResult(result) { _.asModelSnapshot }
+    QueryUtil.mapSingletonList(result) { _.asModelSnapshot }
   }
 
   /////////////////////////////////////////////////////////////////////////////

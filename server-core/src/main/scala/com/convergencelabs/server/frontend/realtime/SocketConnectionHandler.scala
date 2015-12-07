@@ -14,7 +14,7 @@ class SocketConnectionHandler {
     listeners :+= listener
   }
 
-  def removeListener(listener: (DomainFqn, ConvergenceServerSocket) => Unit) {
+  def removeListener(listener: (DomainFqn, ConvergenceServerSocket) => Unit): Unit = {
     listeners = listeners.filter(element => listener != element)
   }
 }

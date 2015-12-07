@@ -22,6 +22,8 @@ class DomainStore private[datastore] (dbPool: OPartitionedDatabasePool)
     extends AbstractDatabasePersistence(dbPool)
     with Logging {
 
+  private[this] val Id = "id"
+
   def createDomain(domain: Domain): Try[Unit] = tryWithDb { db =>
     db.save(domain.asODocument)
     Unit
@@ -29,10 +31,10 @@ class DomainStore private[datastore] (dbPool: OPartitionedDatabasePool)
 
   def domainExists(domainFqn: DomainFqn): Try[Boolean] = tryWithDb { db =>
     val queryString =
-      """SELECT id 
-        |FROM Domain 
-        |WHERE 
-        |  namespace = :namespace AND 
+      """SELECT id
+        |FROM Domain
+        |WHERE
+        |  namespace = :namespace AND
         |  domainId = :domainId""".stripMargin
 
     val query = new OSQLSynchQuery[ODocument](queryString)
@@ -56,14 +58,14 @@ class DomainStore private[datastore] (dbPool: OPartitionedDatabasePool)
 
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
-    QueryUtil.mapSingleResult(result) { doc => doc.asDomain }
+    QueryUtil.mapSingletonList(result) { doc => doc.asDomain }
   }
 
   def getDomainById(id: String): Try[Option[Domain]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT * FROM Domain WHERE id = :id")
-    val params = Map("id" -> id)
+    val params = Map(Id -> id)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.mapSingleResult(result) { doc => doc.asDomain }
+    QueryUtil.mapSingletonList(result) { doc => doc.asDomain }
   }
 
   def getDomainsInNamespace(namespace: String): Try[List[Domain]] = tryWithDb { db =>
@@ -75,14 +77,14 @@ class DomainStore private[datastore] (dbPool: OPartitionedDatabasePool)
 
   def removeDomain(id: String): Try[Boolean] = tryWithDb { db =>
     val command = new OCommandSQL("DELETE FROM Domain WHERE id = :id")
-    val params = Map("id" -> id)
+    val params = Map(Id -> id)
     val count: Int = db.command(command).execute(params.asJava)
     count > 0
   }
 
   def updateDomain(newConfig: Domain): Try[Unit] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM Domain WHERE id = :id")
-    val params = Map("id" -> newConfig.id)
+    val params = Map(Id -> newConfig.id)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
     result.asScala.toList match {

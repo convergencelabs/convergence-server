@@ -8,6 +8,8 @@ import org.json4s.JsonAST.JValue
 import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.OpenModelMetaData
 
+// scalastyle:off number.of.types
+
 ///////////////////////////////////////////////////////////////////////////////
 // Base Classes
 ///////////////////////////////////////////////////////////////////////////////
@@ -31,8 +33,16 @@ case class ErrorMessage(code: String, message: String) extends OutgoingProtocolR
 case class SuccessMessage() extends OutgoingProtocolResponseMessage
 
 // Handshaking
-case class HandshakeRequestMessage(reconnect: scala.Boolean, reconnectToken: Option[String], options: Option[ProtocolOptionsData]) extends IncomingProtocolRequestMessage
-case class HandshakeResponseMessage(success: scala.Boolean, error: Option[ErrorData], sessionId: Option[String], reconnectToken: Option[String]) extends OutgoingProtocolResponseMessage
+case class HandshakeRequestMessage(
+  reconnect: scala.Boolean,
+  reconnectToken: Option[String],
+  options: Option[ProtocolOptionsData]) extends IncomingProtocolRequestMessage
+
+case class HandshakeResponseMessage(
+  success: scala.Boolean,
+  error: Option[ErrorData],
+  sessionId: Option[String],
+  reconnectToken: Option[String]) extends OutgoingProtocolResponseMessage
 
 case class ProtocolOptionsData()
 case class ErrorData(code: String, message: String)

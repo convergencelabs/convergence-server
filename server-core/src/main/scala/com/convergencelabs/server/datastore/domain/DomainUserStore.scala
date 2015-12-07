@@ -113,7 +113,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE uid = :uid")
     val params = Map("uid" -> uid)
     val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.mapSingleResult(results) { _.asDomainUser }
+    QueryUtil.mapSingletonList(results) { _.asDomainUser }
   }
 
   /**
@@ -141,7 +141,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username = :username")
     val params = Map("username" -> username)
     val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.mapSingleResult(results) { _.asDomainUser }
+    QueryUtil.mapSingletonList(results) { _.asDomainUser }
   }
 
   /**
@@ -169,7 +169,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE email = :email")
     val params = Map("email" -> email)
     val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.mapSingleResult(results) { _.asDomainUser }
+    QueryUtil.mapSingletonList(results) { _.asDomainUser }
   }
 
   /**

@@ -14,7 +14,7 @@ class ConfigurationStoreSpec
     extends PersistenceStoreSpec[ConfigurationStore]("/dbfiles/convergence.json.gz")
     with WordSpecLike
     with Matchers {
-  
+
   def createStore(dbPool: OPartitionedDatabasePool): ConfigurationStore = new ConfigurationStore(dbPool)
 
   "An ConfigurationStore" when {

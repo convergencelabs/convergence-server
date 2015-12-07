@@ -1,14 +1,13 @@
 package com.convergencelabs.server.util
 
-import java.io._
-import scala.util.Try
-import scala.util.Success
-import scala.util.control.NonFatal
 import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
+import scala.util.control.NonFatal
 
 /**
- * TryWithResource implements an idiomatic Scala version of the Java 7 
- * try-with-resources control structure.  The apply method takes two 
+ * TryWithResource implements an idiomatic Scala version of the Java 7
+ * try-with-resources control structure.  The apply method takes two
  * argument lists.  The first one is a call-by-name method that produces an
  * object that is an instance of [[java.io.AutoCloseable]].  The second
  * parameter list takes a method that accepts an instance of AutoCloseable
@@ -21,7 +20,8 @@ object TryWithResource {
 }
 
 class TryWithResource[A <: AutoCloseable](r: => A) {
-  
+  // scalastyle:off null
+
   private def tryWithResource[B](block: A => B): Try[B] = {
     // This outer try catches the case where we can't get the resource
     // and returns a Failure with the exception.
@@ -38,7 +38,7 @@ class TryWithResource[A <: AutoCloseable](r: => A) {
   }
 
   /**
-   * This method is called once the resource is resolved and implements the 
+   * This method is called once the resource is resolved and implements the
    * bulk of the try-with-resources logic.
    */
   private[this] def tryWithResolvedResoruce[B](resource: A, block: A => B): Try[B] = {

@@ -1,38 +1,36 @@
 package com.convergencelabs.server.frontend.realtime
 
-import com.convergencelabs.server.frontend.realtime.proto.ProtocolMessage
-import com.convergencelabs.server.ProtocolConfiguration
-import scala.collection.mutable
-import scala.concurrent.Promise
-import akka.actor.Cancellable
-import com.convergencelabs.server.frontend.realtime.proto.MessageEnvelope
-import org.json4s.jackson.Serialization
-import org.json4s.jackson.Serialization.{ read, write }
-import org.json4s.NoTypeHints
-import scala.concurrent.Future
-import scala.concurrent.ExecutionContext
-import akka.actor.Scheduler
-import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.Duration
 import java.util.concurrent.TimeoutException
-import scala.util.Failure
-import scala.util.Success
-import com.convergencelabs.server.frontend.realtime.proto.OpCode
+
+import scala.collection.mutable
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import scala.concurrent.Promise
+import scala.concurrent.duration.Duration
+
+import org.json4s.NoTypeHints
+import org.json4s.jackson.Serialization
+
+import com.convergencelabs.server.ProtocolConfiguration
+import com.convergencelabs.server.frontend.realtime.ProtocolConnection.State
+import com.convergencelabs.server.frontend.realtime.proto.ErrorMessage
 import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolMessage
-import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolMessage
-import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolRequestMessage
 import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolNormalMessage
-import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolResponseMessage
+import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolRequestMessage
+import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolResponseMessage
+import com.convergencelabs.server.frontend.realtime.proto.MessageEnvelope
+import com.convergencelabs.server.frontend.realtime.proto.MessageSerializer
+import com.convergencelabs.server.frontend.realtime.proto.OpCode
 import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolNormalMessage
 import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolRequestMessage
+import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolResponseMessage
+import com.convergencelabs.server.frontend.realtime.proto.ProtocolMessage
+import com.convergencelabs.server.util.concurrent.UnexpectedErrorException
+
+import akka.actor.Cancellable
+import akka.actor.Scheduler
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.frontend.realtime.proto.ErrorData
-import com.convergencelabs.server.util.concurrent.ErrorException
-import com.convergencelabs.server.frontend.realtime.proto.ErrorMessage
-import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolResponseMessage
-import com.convergencelabs.server.util.concurrent.ErrorException
-import com.convergencelabs.server.frontend.realtime.proto.MessageSerializer
 
 object ProtocolConnection {
   object State extends Enumeration {
@@ -216,8 +214,8 @@ class ProtocolConnection(
           envelope.`type` match {
             case Some("error") => {
               // FIXME
-              //              var errorMessage = envelope.extractResponseBody[ErrorMessage]
-              record.promise.failure(new ErrorException())
+              // var errorMessage = envelope.extractResponseBody[ErrorMessage]
+              record.promise.failure(new UnexpectedErrorException())
             }
             case None => {
               // FIXME
@@ -251,10 +249,10 @@ class ProtocolConnection(
 
     def error(cause: Throwable): Unit = {
       cause match {
-        case ErrorException(code, details) => {
+        case UnexpectedErrorException(code, details) => {
           sendMessage(OpCode.Reply, Some(reqId), Some(ErrorMessage(code, details)))
         }
-        case x => {
+        case x: Throwable => {
           x.printStackTrace()
           sendMessage(OpCode.Reply, Some(reqId), Some(ErrorMessage("unknown", "foo")))
         }

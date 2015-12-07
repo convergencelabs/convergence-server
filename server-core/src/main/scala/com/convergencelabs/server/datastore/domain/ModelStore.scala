@@ -85,7 +85,7 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
     val query = new OSQLSynchQuery[ODocument](queryString)
     val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.mapSingleResult(result) {_.asModelMetaData}
+    QueryUtil.mapSingletonList(result) {_.asModelMetaData}
   }
 
   def getModel(fqn: ModelFqn): Try[Option[Model]] = tryWithDb { db =>
@@ -98,14 +98,14 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
     val query = new OSQLSynchQuery[ODocument](queryString)
     val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.mapSingleResult(result) {_.asModel}
+    QueryUtil.mapSingletonList(result) {_.asModel}
   }
 
   def getModelData(fqn: ModelFqn): Try[Option[JValue]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT data FROM Model WHERE collectionId = :collectionId AND modelId = :modelId")
     val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.mapSingleResult(result)(doc => parse(doc.toJSON()) \\ ModelStore.Data)
+    QueryUtil.mapSingletonList(result)(doc => parse(doc.toJSON()) \\ ModelStore.Data)
   }
 
   def getModelFieldDataType(fqn: ModelFqn, path: List[Any]): Try[Option[DataType.Value]] = tryWithDb { db =>
@@ -118,7 +118,7 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
     // Also this could be fairly expensive.  imagine we are adding a property to
     // the root level object and this is a big document.  We basically have
     // to query the whole damn thing, just to figure out the type?
-    QueryUtil.mapSingleResult(result)(doc => {
+    QueryUtil.mapSingletonList(result)(doc => {
       (parse(doc.toJSON()) \\ ModelStore.Data) match {
         case data: JObject => DataType.OBJECT
         case data: JArray => DataType.ARRAY
