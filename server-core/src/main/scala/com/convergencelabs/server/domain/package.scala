@@ -1,8 +1,8 @@
 package com.convergencelabs.server
 
-import akka.actor.ActorRef
-import org.json4s.JsonAST.JValue
 import java.time.Duration
+
+import akka.actor.ActorRef
 
 package object domain {
 
@@ -26,10 +26,9 @@ package object domain {
       triggerByTime: Boolean,
       limitedByTime: Boolean,
       minimumTimeInterval: Duration,
-      maximumTimeInterval: Duration) {
-  }
-  
-  case class DomainUser(uid: String, username: String, firstName: String, lastName: String, email: String)
+      maximumTimeInterval: Duration)
+
+  case class DomainUser(uid: String, username: String, firstName: Option[String], lastName: Option[String], email: Option[String])
 
   case class HandshakeRequest(domainFqn: DomainFqn, clientActor: ActorRef, reconnect: Boolean, reconnectToken: Option[String])
 

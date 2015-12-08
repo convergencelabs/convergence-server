@@ -1,17 +1,14 @@
 package com.convergencelabs.server.datastore.domain.mapper
 
 import java.util.{ List => JavaList }
-
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.language.implicitConversions
-
 import com.convergencelabs.server.domain.model.ot.StringInsertOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
+import com.convergencelabs.server.datastore.mapper.ODocumentMapper
 
-object StringInsertOperationMapper {
-
-  import StringInsertOperationFields._
+object StringInsertOperationMapper extends ODocumentMapper {
 
   private[domain] implicit class StringInsertOperationToODocument(val s: StringInsertOperation) extends AnyVal {
     def asODocument: ODocument = stringInsertOperationToODocument(s)
@@ -19,11 +16,11 @@ object StringInsertOperationMapper {
 
   private[domain] implicit def stringInsertOperationToODocument(obj: StringInsertOperation): ODocument = {
     val StringInsertOperation(path, noOp, index, value) = obj
-    val doc = new ODocument(StringInsertOperationClassName)
-    doc.field(Path, path.asJava)
-    doc.field(NoOp, noOp)
-    doc.field(Idx, index)
-    doc.field(Val, value)
+    val doc = new ODocument(DocumentClassName)
+    doc.field(Fields.Path, path.asJava)
+    doc.field(Fields.NoOp, noOp)
+    doc.field(Fields.Idx, index)
+    doc.field(Fields.Val, value)
     doc
   }
 
@@ -32,19 +29,18 @@ object StringInsertOperationMapper {
   }
 
   private[domain] implicit def oDocumentToStringInsertOperation(doc: ODocument): StringInsertOperation = {
-    if (doc.getClassName != StringInsertOperationClassName) {
-      throw new IllegalArgumentException(s"The ODocument class must be '${StringInsertOperationClassName}': ${doc.getClassName}")
-    }
-    val path = doc.field(Path).asInstanceOf[JavaList[_]]
-    val noOp = doc.field(NoOp).asInstanceOf[Boolean]
-    val index = doc.field(Idx).asInstanceOf[Int]
-    val value = doc.field(Val).asInstanceOf[String]
+    validateDocumentClass(doc, DocumentClassName)
+
+    val path = doc.field(Fields.Path).asInstanceOf[JavaList[_]]
+    val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
+    val index = doc.field(Fields.Idx).asInstanceOf[Int]
+    val value = doc.field(Fields.Val).asInstanceOf[String]
     StringInsertOperation(path.asScala.toList, noOp, index, value)
   }
 
-  private[domain] val StringInsertOperationClassName = "StringInsertOperation"
+  private[domain] val DocumentClassName = "StringInsertOperation"
 
-  private[domain] object StringInsertOperationFields {
+  private[domain] object Fields {
     val Path = "path"
     val NoOp = "noOp"
     val Val = "val"

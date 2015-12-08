@@ -6,8 +6,6 @@ import com.convergencelabs.server.domain.model.ot._
 import com.convergencelabs.server.frontend.realtime.proto._
 import org.json4s.JValue
 import org.json4s._
-import org.json4s.JValue
-import org.json4s._
 import org.json4s.jackson.JsonMethods._
 import org.json4s.jackson.Serialization._
 import org.json4s.JsonAST.JNumber
@@ -17,50 +15,66 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.metadata.schema.OType
 import java.util.{List => JavaList}
 import java.util.{Map => JavaMap}
+import ArrayInsertOperationMapper.{DocumentClassName => ArrayInsertDocName}
 import ArrayInsertOperationMapper._
+import ArrayRemoveOperationMapper.{DocumentClassName => ArrayRemoveDocName}
 import ArrayRemoveOperationMapper._
+import ArrayReplaceOperationMapper.{DocumentClassName => ArrayReplaceDocName}
 import ArrayReplaceOperationMapper._
+import ArrayMoveOperationMapper.{DocumentClassName => ArrayMoveDocName}
 import ArrayMoveOperationMapper._
+import ArraySetOperationMapper.{DocumentClassName => ArraySetDocName}
 import ArraySetOperationMapper._
+import ObjectSetPropertyOperationMapper.{DocumentClassName => ObjectSetPropertyDocName}
 import ObjectSetPropertyOperationMapper._
+import ObjectAddPropertyOperationMapper.{DocumentClassName => ObjectAddPropertyDocName}
 import ObjectAddPropertyOperationMapper._
+import ObjectRemovePropertyOperationMapper.{DocumentClassName => ObjectRemovePropertyDocName}
 import ObjectRemovePropertyOperationMapper._
+import ObjectSetOperationMapper.{DocumentClassName => ObjectSetDocName}
 import ObjectSetOperationMapper._
+import NumberAddOperationMapper.{DocumentClassName => NumberAddDocName}
 import NumberAddOperationMapper._
+import NumberSetOperationMapper.{DocumentClassName => NumberSetDocName}
 import NumberSetOperationMapper._
+import StringInsertOperationMapper.{DocumentClassName => StringInsertDocName}
 import StringInsertOperationMapper._
+import StringRemoveOperationMapper.{DocumentClassName => StringRemoveDocName}
 import StringRemoveOperationMapper._
+import StringSetOperationMapper.{DocumentClassName => StringSetDocName}
 import StringSetOperationMapper._
+import CompoundOperationMapper.{DocumentClassName => CompoundDocName}
 import CompoundOperationMapper._
+import com.convergencelabs.server.domain.model.ot._
 
 object OrientDBOperationMapper {
 
   def oDocumentToOperation(opAsDoc: ODocument): Operation = {
     opAsDoc.getClassName match {
-      case CompoundOperationClassName => opAsDoc.asCompoundOperation
+      case CompoundDocName => opAsDoc.asCompoundOperation
       case _ => oDocumentToDiscreteOperation(opAsDoc)
     }
   }
 
   private[mapper] def oDocumentToDiscreteOperation(doc: ODocument): DiscreteOperation = {
     doc.getClassName match {
-      case StringInsertOperationClassName => doc.asStringInsertOperation
-      case StringRemoveOperationClassName => doc.asStringRemoveOperation
-      case StringSetOperationClassName => doc.asStringSetOperation
+      case StringInsertDocName => doc.asStringInsertOperation
+      case StringRemoveDocName => doc.asStringRemoveOperation
+      case StringSetDocName => doc.asStringSetOperation
 
-      case ArrayInsertOperationClassName => doc.asArrayInsertOperation
-      case ArrayRemoveOperationClassName => doc.asArrayRemoveOperation
-      case ArrayReplaceOperationClassName => doc.asArrayReplaceOperation
-      case ArrayMoveOperationClassName => doc.asArrayMoveOperation
-      case ArraySetOperationClassName => doc.asArraySetOperation
+      case ArrayInsertDocName => doc.asArrayInsertOperation
+      case ArrayRemoveDocName => doc.asArrayRemoveOperation
+      case ArrayReplaceDocName => doc.asArrayReplaceOperation
+      case ArrayMoveDocName => doc.asArrayMoveOperation
+      case ArraySetDocName => doc.asArraySetOperation
 
-      case ObjectAddPropertyOperationClassName => doc.asObjectAddPropertyOperation
-      case ObjectSetPropertyOperationClassName => doc.asObjectSetPropertyOperation
-      case ObjectRemovePropertyOperationClassName => doc.asObjectRemovePropertyOperation
-      case ObjectSetOperationClassName => doc.asObjectSetOperation
+      case ObjectAddPropertyDocName => doc.asObjectAddPropertyOperation
+      case ObjectSetPropertyDocName => doc.asObjectSetPropertyOperation
+      case ObjectRemovePropertyDocName => doc.asObjectRemovePropertyOperation
+      case ObjectSetDocName => doc.asObjectSetOperation
 
-      case NumberAddOperationClassName => doc.asNumberAddOperation
-      case NumberSetOperationClassName => doc.asNumberSetOperation
+      case NumberAddDocName => doc.asNumberAddOperation
+      case NumberSetDocName => doc.asNumberSetOperation
     }
   }
 

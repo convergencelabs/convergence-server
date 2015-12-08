@@ -8,10 +8,9 @@ import com.convergencelabs.server.domain.model.ot.ObjectAddPropertyOperation
 import com.convergencelabs.server.util.JValueMapper
 import com.orientechnologies.orient.core.record.impl.ODocument
 import org.json4s.JsonAST.JObject
+import com.convergencelabs.server.datastore.mapper.ODocumentMapper
 
-object ObjectAddPropertyOperationMapper {
-
-  import ObjectAddPropertyOperationFields._
+object ObjectAddPropertyOperationMapper extends ODocumentMapper {
 
   private[domain] implicit class ObjectAddPropertyOperationToODocument(val s: ObjectAddPropertyOperation) extends AnyVal {
     def asODocument: ODocument = objectAddPropertyOperationToODocument(s)
@@ -19,11 +18,11 @@ object ObjectAddPropertyOperationMapper {
 
   private[domain] implicit def objectAddPropertyOperationToODocument(obj: ObjectAddPropertyOperation): ODocument = {
     val ObjectAddPropertyOperation(path, noOp, prop, value) = obj
-    val doc = new ODocument(ObjectAddPropertyOperationClassName)
-    doc.field(Path, path.asJava)
-    doc.field(NoOp, noOp)
-    doc.field(Prop, prop)
-    doc.field(Val, JValueMapper.jValueToJava(value))
+    val doc = new ODocument(DocumentClassName)
+    doc.field(Fields.Path, path.asJava)
+    doc.field(Fields.NoOp, noOp)
+    doc.field(Fields.Prop, prop)
+    doc.field(Fields.Val, JValueMapper.jValueToJava(value))
     doc
   }
 
@@ -32,19 +31,18 @@ object ObjectAddPropertyOperationMapper {
   }
 
   private[domain] implicit def oDocumentToObjectAddPropertyOperation(doc: ODocument): ObjectAddPropertyOperation = {
-    if (doc.getClassName != ObjectAddPropertyOperationClassName) {
-      throw new IllegalArgumentException(s"The ODocument class must be '${ObjectAddPropertyOperationClassName}': ${doc.getClassName}")
-    }
-    val path = doc.field(Path).asInstanceOf[JavaList[_]]
-    val noOp = doc.field(NoOp).asInstanceOf[Boolean]
-    val prop = doc.field(Prop).asInstanceOf[String]
-    val value = JValueMapper.javaToJValue(doc.field(Val)) 
+    validateDocumentClass(doc, DocumentClassName)
+
+    val path = doc.field(Fields.Path).asInstanceOf[JavaList[_]]
+    val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
+    val prop = doc.field(Fields.Prop).asInstanceOf[String]
+    val value = JValueMapper.javaToJValue(doc.field(Fields.Val))
     ObjectAddPropertyOperation(path.asScala.toList, noOp, prop, value)
   }
 
-  private[domain] val ObjectAddPropertyOperationClassName = "ObjectAddPropertyOperation"
+  private[domain] val DocumentClassName = "ObjectAddPropertyOperation"
 
-  private[domain] object ObjectAddPropertyOperationFields {
+  private[domain] object Fields {
     val Path = "path"
     val NoOp = "noOp"
     val Prop = "prop"

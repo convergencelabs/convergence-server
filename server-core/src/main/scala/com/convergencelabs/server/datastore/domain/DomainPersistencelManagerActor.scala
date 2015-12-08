@@ -49,7 +49,7 @@ object DomainPersistenceManagerActor {
       case PersistenceProviderUnavailable(cause) => throw cause
     }
   })
-  
+
   def releasePersistenceProvider(requestor: ActorRef, context: ActorContext, domainFqn: DomainFqn): Unit = {
     val path = DomainPersistenceManagerActor.getLocalInstancePath(requestor.path)
     val selection = context.actorSelection(path)
@@ -65,7 +65,7 @@ class DomainPersistenceManagerActor(
   private[this] var providers = Map[DomainFqn, DomainPersistenceProvider]()
   private[this] var providersByActor = Map[ActorRef, List[DomainFqn]]()
 
-  def receive = {
+  override def receive: Receive = {
     case AcquireDomainPersistence(domainFqn, requestor) => onAcquire(domainFqn, requestor)
     case ReleaseDomainPersistence(domainFqn) => onRelease(domainFqn)
     case Terminated(actor) => onActorDeath(actor)
@@ -105,7 +105,7 @@ class DomainPersistenceManagerActor(
     decrementCount(domainFqn)
 
     providersByActor.get(sender) match {
-      case Some(pools) => 
+      case Some(pools) =>
         val newPools = pools diff List(domainFqn)
         if (newPools.length == 0) {
           providersByActor = providersByActor - sender
@@ -161,7 +161,7 @@ class DomainPersistenceManagerActor(
       }
       case Success(None) => {
         throw new IllegalStateException(
-            s"Error looking up the domain record for $domainFqn, when initializing a domain persistence provider.")
+          s"Error looking up the domain record for $domainFqn, when initializing a domain persistence provider.")
       }
       case Failure(cause) => {
         log.debug(cause.getMessage)

@@ -9,7 +9,7 @@ import akka.actor.Cancellable
 import com.convergencelabs.server.domain.model.ModelManagerActor
 import com.convergencelabs.server.ProtocolConfiguration
 import java.util.concurrent.TimeUnit
-import scala.concurrent.duration._
+import scala.concurrent.duration.FiniteDuration
 import org.jose4j.jwt.consumer.JwtConsumerBuilder
 import org.jose4j.jwt.consumer.InvalidJwtException
 import java.io.IOException
@@ -47,6 +47,7 @@ object DomainActor {
       protocolConfig))
 
   private val MaxSessionId = 2176782335L
+  private val SessionIdRadix = 36
 }
 
 /**
@@ -71,17 +72,17 @@ class DomainActor(
     protocolConfig),
     ModelManagerActor.RelativePath)
 
-  private[this] var authenticator: AuthenticationHandler = null
+  private[this] var authenticator: AuthenticationHandler = _
 
   log.debug(s"Domain start up complete: ${domainFqn}")
 
   private[this] val connectedClients = mutable.Set[ActorRef]()
 
-  def receive = {
+  def receive: Receive = {
     case message: HandshakeRequest => onHandshakeRequest(message)
     case message: AuthenticationRequest => onAuthenticationRequest(message)
     case message: ClientDisconnected => onClientDisconnect(message)
-    case message => unhandled(message)
+    case message: Any => unhandled(message)
   }
 
   private[this] def onAuthenticationRequest(message: AuthenticationRequest): Unit = {
@@ -133,7 +134,7 @@ class DomainActor(
       nextSessionId = 0
     }
 
-    java.lang.Long.toString(sessionId, 36)
+    java.lang.Long.toString(sessionId, DomainActor.SessionIdRadix)
   }
 
   def generateSessionToken(): String = {
@@ -157,7 +158,7 @@ class DomainActor(
       }
     }
   }
-  
+
   override def postStop(): Unit = {
     log.debug(s"Domain(${domainFqn}) received shutdown command.  Shutting down.")
     DomainPersistenceManagerActor.releasePersistenceProvider(self, context, domainFqn)

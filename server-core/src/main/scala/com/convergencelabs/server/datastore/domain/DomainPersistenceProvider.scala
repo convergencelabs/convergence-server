@@ -9,7 +9,7 @@ import scala.util.Failure
 class DomainPersistenceProvider(private[domain] val dbPool: OPartitionedDatabasePool) {
 
   val userStore = new DomainUserStore(dbPool)
-  
+
   val configStore = new DomainConfigStore(dbPool)
 
   val modelStore = new ModelStore(dbPool)
@@ -17,9 +17,9 @@ class DomainPersistenceProvider(private[domain] val dbPool: OPartitionedDatabase
   val modelOperationStore = new ModelOperationStore(dbPool)
 
   val modelOperationProcessor = new ModelOperationProcessor(dbPool)
-  
+
   val modelSnapshotStore = new ModelSnapshotStore(dbPool)
-  
+
   def validateConnection(): Boolean = {
     Try[Unit](dbPool.acquire().close()) match {
       case Success(_) => true

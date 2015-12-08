@@ -1,17 +1,14 @@
 package com.convergencelabs.server.datastore.domain.mapper
 
 import java.util.{ List => JavaList }
-
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.language.implicitConversions
-
 import com.convergencelabs.server.domain.model.ot.StringRemoveOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
+import com.convergencelabs.server.datastore.mapper.ODocumentMapper
 
-object StringRemoveOperationMapper {
-
-  import StringRemoveOperationFields._
+object StringRemoveOperationMapper extends ODocumentMapper {
 
   private[domain] implicit class StringRemoveOperationToODocument(val s: StringRemoveOperation) extends AnyVal {
     def asODocument: ODocument = stringRemoveOperationToODocument(s)
@@ -19,11 +16,11 @@ object StringRemoveOperationMapper {
 
   private[domain] implicit def stringRemoveOperationToODocument(obj: StringRemoveOperation): ODocument = {
     val StringRemoveOperation(path, noOp, index, value) = obj
-    val doc = new ODocument(StringRemoveOperationClassName)
-    doc.field(Path, path.asJava)
-    doc.field(NoOp, noOp)
-    doc.field(Idx, index)
-    doc.field(Val, value)
+    val doc = new ODocument(DocumentClassName)
+    doc.field(Fields.Path, path.asJava)
+    doc.field(Fields.NoOp, noOp)
+    doc.field(Fields.Idx, index)
+    doc.field(Fields.Val, value)
     doc
   }
 
@@ -32,19 +29,18 @@ object StringRemoveOperationMapper {
   }
 
   private[domain] implicit def oDocumentToStringRemoveOperation(doc: ODocument): StringRemoveOperation = {
-    if (doc.getClassName != StringRemoveOperationClassName) {
-      throw new IllegalArgumentException(s"The ODocument class must be '${StringRemoveOperationClassName}': ${doc.getClassName}")
-    }
-    val path = doc.field(Path).asInstanceOf[JavaList[_]]
-    val noOp = doc.field(NoOp).asInstanceOf[Boolean]
-    val index = doc.field(Idx).asInstanceOf[Int]
-    val value = doc.field(Val).asInstanceOf[String]
+    validateDocumentClass(doc, DocumentClassName)
+
+    val path = doc.field(Fields.Path).asInstanceOf[JavaList[_]]
+    val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
+    val index = doc.field(Fields.Idx).asInstanceOf[Int]
+    val value = doc.field(Fields.Val).asInstanceOf[String]
     StringRemoveOperation(path.asScala.toList, noOp, index, value)
   }
 
-  private[domain] val StringRemoveOperationClassName = "StringRemoveOperation"
+  private[domain] val DocumentClassName = "StringRemoveOperation"
 
-  private[domain] object StringRemoveOperationFields {
+  private[domain] object Fields {
     val Path = "path"
     val NoOp = "noOp"
     val Val = "val"

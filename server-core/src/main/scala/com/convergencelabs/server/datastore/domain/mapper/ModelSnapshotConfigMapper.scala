@@ -4,26 +4,25 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 import java.time.Duration
 import scala.language.implicitConversions
 import com.convergencelabs.server.domain.ModelSnapshotConfig
+import com.convergencelabs.server.datastore.mapper.ODocumentMapper
 
-object ModelSnapshotConfigMapper {
-
-  import ModelSnapshotConfigFields._
+object ModelSnapshotConfigMapper extends ODocumentMapper {
 
   private[domain] implicit class ModelSnapshotConfigToODocument(val snapshotConfig: ModelSnapshotConfig) extends AnyVal {
     def asODocument: ODocument = snapshotConfigToODocument(snapshotConfig)
   }
 
   private[domain] implicit def snapshotConfigToODocument(snapshotConfig: ModelSnapshotConfig): ODocument = {
-    val doc = new ODocument(ModelSnapshotConfigClassName)
-    doc.field(Enabled, snapshotConfig.snapshotsEnabled)
-    doc.field(TriggerByVersion, snapshotConfig.triggerByVersion)
-    doc.field(LimitedByVersion, snapshotConfig.limitedByVersion)
-    doc.field(MinVersionInterval, snapshotConfig.minimumVersionInterval)
-    doc.field(MaxVersionInterval, snapshotConfig.maximumVersionInterval)
-    doc.field(TriggerByTime, snapshotConfig.triggerByTime)
-    doc.field(LimitedByTime, snapshotConfig.limitedByTime)
-    doc.field(MinTimeInterval, snapshotConfig.minimumTimeInterval.toMillis)
-    doc.field(MaxTimeInterval, snapshotConfig.maximumTimeInterval.toMillis)
+    val doc = new ODocument(DocumentClassName)
+    doc.field(Fields.Enabled, snapshotConfig.snapshotsEnabled)
+    doc.field(Fields.TriggerByVersion, snapshotConfig.triggerByVersion)
+    doc.field(Fields.LimitedByVersion, snapshotConfig.limitedByVersion)
+    doc.field(Fields.MinVersionInterval, snapshotConfig.minimumVersionInterval)
+    doc.field(Fields.MaxVersionInterval, snapshotConfig.maximumVersionInterval)
+    doc.field(Fields.TriggerByTime, snapshotConfig.triggerByTime)
+    doc.field(Fields.LimitedByTime, snapshotConfig.limitedByTime)
+    doc.field(Fields.MinTimeInterval, snapshotConfig.minimumTimeInterval.toMillis)
+    doc.field(Fields.MaxTimeInterval, snapshotConfig.maximumTimeInterval.toMillis)
     doc
   }
 
@@ -32,27 +31,26 @@ object ModelSnapshotConfigMapper {
   }
 
   private[domain] implicit def oDocumentToModelSnapshotConfig(doc: ODocument): ModelSnapshotConfig = {
-    if (doc.getClassName != ModelSnapshotConfigClassName) {
-      throw new IllegalArgumentException(s"The ODocument class must be '${ModelSnapshotConfigClassName}': ${doc.getClassName}")
-    }
-    val minTimeIntervalMillis: Long = doc.field(MinTimeInterval)
-    val maxTimeIntervalMillis: Long = doc.field(MaxTimeInterval)
+    validateDocumentClass(doc, DocumentClassName)
+
+    val minTimeIntervalMillis: Long = doc.field(Fields.MinTimeInterval)
+    val maxTimeIntervalMillis: Long = doc.field(Fields.MaxTimeInterval)
 
     ModelSnapshotConfig(
-      doc.field(Enabled).asInstanceOf[Boolean],
-      doc.field(TriggerByVersion).asInstanceOf[Boolean],
-      doc.field(LimitedByVersion).asInstanceOf[Boolean],
-      doc.field(MinVersionInterval).asInstanceOf[Long],
-      doc.field(MaxVersionInterval).asInstanceOf[Long],
-      doc.field(TriggerByTime).asInstanceOf[Boolean],
-      doc.field(LimitedByTime).asInstanceOf[Boolean],
+      doc.field(Fields.Enabled).asInstanceOf[Boolean],
+      doc.field(Fields.TriggerByVersion).asInstanceOf[Boolean],
+      doc.field(Fields.LimitedByVersion).asInstanceOf[Boolean],
+      doc.field(Fields.MinVersionInterval).asInstanceOf[Long],
+      doc.field(Fields.MaxVersionInterval).asInstanceOf[Long],
+      doc.field(Fields.TriggerByTime).asInstanceOf[Boolean],
+      doc.field(Fields.LimitedByTime).asInstanceOf[Boolean],
       Duration.ofMillis(minTimeIntervalMillis),
       Duration.ofMillis(maxTimeIntervalMillis))
   }
 
-  val ModelSnapshotConfigClassName = "ModelSnapshotConfig"
-  
-  object ModelSnapshotConfigFields {
+  val DocumentClassName = "ModelSnapshotConfig"
+
+  object Fields {
     val Enabled = "enabled"
     val MinTimeInterval = "minTimeInterval"
     val MaxTimeInterval = "maxTimeInterval"

@@ -1,25 +1,25 @@
 package com.convergencelabs.server.datastore.domain.mapper
 
-import com.orientechnologies.orient.core.record.impl.ODocument
-import com.convergencelabs.server.domain.TokenPublicKey
 import scala.language.implicitConversions
 
-object TokenPublicKeyMapper {
+import com.convergencelabs.server.datastore.mapper.ODocumentMapper
+import com.convergencelabs.server.domain.TokenPublicKey
+import com.orientechnologies.orient.core.record.impl.ODocument
 
-  import TokenPublicKeyFields._
+object TokenPublicKeyMapper extends ODocumentMapper {
 
   private[domain] implicit class TokenPublicKeyToODocument(val tokenPublicKey: TokenPublicKey) extends AnyVal {
     def asODocument: ODocument = tokenPublicKeyToODocument(tokenPublicKey)
   }
 
   private[domain] implicit def tokenPublicKeyToODocument(tokenPublicKey: TokenPublicKey): ODocument = {
-    val doc = new ODocument(TokenPublicKeyClassName)
-    doc.field(Id, tokenPublicKey.id)
-    doc.field(Name, tokenPublicKey.name)
-    doc.field(Description, tokenPublicKey.description)
-    doc.field(Created, tokenPublicKey.keyDate)
-    doc.field(Key, tokenPublicKey.key)
-    doc.field(Enabled, tokenPublicKey.enabled)
+    val doc = new ODocument(DocumentClassName)
+    doc.field(Fields.Id, tokenPublicKey.id)
+    doc.field(Fields.Name, tokenPublicKey.name)
+    doc.field(Fields.Description, tokenPublicKey.description)
+    doc.field(Fields.Created, tokenPublicKey.keyDate)
+    doc.field(Fields.Key, tokenPublicKey.key)
+    doc.field(Fields.Enabled, tokenPublicKey.enabled)
     doc
   }
 
@@ -28,21 +28,20 @@ object TokenPublicKeyMapper {
   }
 
   private[domain] def oDocumentToTokenPublicKey(doc: ODocument): TokenPublicKey = {
-    if (doc.getClassName != TokenPublicKeyClassName) {
-      throw new IllegalArgumentException(s"The ODocument class must be '${TokenPublicKeyClassName}': ${doc.getClassName}")
-    }
+    validateDocumentClass(doc, DocumentClassName)
+
     TokenPublicKey(
-      doc.field(Id),
-      doc.field(Name),
-      doc.field(Description),
-      doc.field(Created),
-      doc.field(Key),
-      doc.field(Enabled))
+      doc.field(Fields.Id),
+      doc.field(Fields.Name),
+      doc.field(Fields.Description),
+      doc.field(Fields.Created),
+      doc.field(Fields.Key),
+      doc.field(Fields.Enabled))
   }
 
-  private[domain] val TokenPublicKeyClassName = "TokenPublicKey"
+  private[domain] val DocumentClassName = "TokenPublicKey"
 
-  private[domain] object TokenPublicKeyFields {
+  private[domain] object Fields {
     val Id = "id"
     val Name = "name"
     val Description = "description"

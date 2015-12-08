@@ -9,24 +9,23 @@ import com.convergencelabs.server.domain.model.ModelOperation
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 import java.util.Date
+import com.convergencelabs.server.datastore.mapper.ODocumentMapper
 
-object ModelOperationMapper {
-
-  import ModelOperationFields._
+object ModelOperationMapper extends ODocumentMapper {
 
   private[domain] implicit class ModelOperationToODocument(val s: ModelOperation) extends AnyVal {
     def asODocument: ODocument = modelOperationToODocument(s)
   }
 
   private[domain] implicit def modelOperationToODocument(opEvent: ModelOperation): ODocument = {
-    val doc = new ODocument(ModelOperationClassName)
-    doc.field(CollectionId, opEvent.modelFqn.collectionId)
-    doc.field(ModelId, opEvent.modelFqn.modelId)
-    doc.field(Version, opEvent.version)
-    doc.field(Timestamp, Date.from(opEvent.timestamp))
-    doc.field(Uid, opEvent.uid)
-    doc.field(Sid, opEvent.sid)
-    doc.field(Operation, OrientDBOperationMapper.operationToODocument(opEvent.op))
+    val doc = new ODocument(DocumentClassName)
+    doc.field(Fields.CollectionId, opEvent.modelFqn.collectionId)
+    doc.field(Fields.ModelId, opEvent.modelFqn.modelId)
+    doc.field(Fields.Version, opEvent.version)
+    doc.field(Fields.Timestamp, Date.from(opEvent.timestamp))
+    doc.field(Fields.Uid, opEvent.uid)
+    doc.field(Fields.Sid, opEvent.sid)
+    doc.field(Fields.Operation, OrientDBOperationMapper.operationToODocument(opEvent.op))
     doc
   }
 
@@ -35,26 +34,24 @@ object ModelOperationMapper {
   }
 
   private[domain] implicit def oDocumentToModelOperation(doc: ODocument): ModelOperation = {
-    if (doc.getClassName != ModelOperationClassName) {
-      throw new IllegalArgumentException(s"The ODocument class must be '${ModelOperationClassName}': ${doc.getClassName}")
-    }
+    validateDocumentClass(doc, DocumentClassName)
 
-    val docDate: java.util.Date = doc.field(Timestamp, OType.DATETIME)
+    val docDate: java.util.Date = doc.field(Fields.Timestamp, OType.DATETIME)
     val timestamp = Instant.ofEpochMilli(docDate.getTime)
-    val opDoc: ODocument = doc.field(Operation, OType.EMBEDDED)
+    val opDoc: ODocument = doc.field(Fields.Operation, OType.EMBEDDED)
     val op = OrientDBOperationMapper.oDocumentToDiscreteOperation(opDoc)
     ModelOperation(
-      ModelFqn(doc.field(CollectionId), doc.field(ModelId)),
-      doc.field(Version),
+      ModelFqn(doc.field(Fields.CollectionId), doc.field(Fields.ModelId)),
+      doc.field(Fields.Version),
       timestamp,
-      doc.field(Uid),
-      doc.field(Sid),
+      doc.field(Fields.Uid),
+      doc.field(Fields.Sid),
       op)
   }
 
-  private[domain] val ModelOperationClassName = "ModelOperation"
+  private[domain] val DocumentClassName = "ModelOperation"
 
-  private[domain] object ModelOperationFields {
+  private[domain] object Fields {
     val Version = "version"
     val ModelId = "modelId"
     val CollectionId = "collectionId"

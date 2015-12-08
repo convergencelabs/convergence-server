@@ -1,34 +1,33 @@
 package com.convergencelabs.server.datastore.domain
 
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import com.convergencelabs.server.domain.model.ModelFqn
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import org.scalatest.BeforeAndAfterAll
-import com.orientechnologies.orient.core.db.tool.ODatabaseImport
-import com.orientechnologies.orient.core.command.OCommandOutputListener
-import com.orientechnologies.common.log.OLogManager
-import org.json4s.JsonAST.JObject
-import org.json4s.JsonAST.JNull
-import org.json4s.JsonAST.JInt
 import java.text.SimpleDateFormat
 import java.time.Instant
-import org.scalatest.WordSpecLike
+
+import org.json4s.JsonAST.JNull
+import org.json4s.JsonAST.JObject
+import org.scalatest.Finders
 import org.scalatest.Matchers
-import org.scalatest.OptionValues._
-import org.scalatest.TryValues._
+import org.scalatest.OptionValues.convertOptionToValuable
+import org.scalatest.TryValues.convertTryToSuccessOrFailure
+import org.scalatest.WordSpecLike
+
+import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelSnapshot
 import com.convergencelabs.server.domain.model.ModelSnapshotMetaData
+import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 
 class ModelSnapshotStoreSpec
     extends PersistenceStoreSpec[ModelSnapshotStore]("/dbfiles/domain.json.gz")
     with WordSpecLike
     with Matchers {
 
-  def createStore(dbPool: OPartitionedDatabasePool) = new ModelSnapshotStore(dbPool)
+  override def createStore(dbPool: OPartitionedDatabasePool): ModelSnapshotStore =
+    new ModelSnapshotStore(dbPool)
 
-  val person1ModelFqn = ModelFqn("people", "person1")
-  val person2ModelFqn = ModelFqn("people", "person2")
-  val nonExistingModelFqn = ModelFqn("people", "noPerson")
+  val CollectionId = "people"
+  val person1ModelFqn = ModelFqn(CollectionId, "person1")
+  val person2ModelFqn = ModelFqn(CollectionId, "person2")
+  val nonExistingModelFqn = ModelFqn(CollectionId, "noPerson")
 
   val df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
 

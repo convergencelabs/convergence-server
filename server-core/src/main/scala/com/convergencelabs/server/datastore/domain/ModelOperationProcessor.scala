@@ -10,7 +10,7 @@ import org.json4s.jackson.Serialization
 import org.json4s.jackson.Serialization.write
 
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.server.datastore.domain.mapper.ModelOperationMapper.ModelOperationFields
+import com.convergencelabs.server.datastore.domain.mapper.ModelOperationMapper.Fields
 import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelOperation
 import com.convergencelabs.server.domain.model.ot.ArrayInsertOperation
@@ -37,7 +37,7 @@ import com.orientechnologies.orient.core.sql.OCommandSQL
 import mapper.ModelOperationMapper.ModelOperationToODocument
 
 object ModelOperationProcessor {
-  import mapper.ModelOperationMapper.ModelOperationFields._
+  import mapper.ModelOperationMapper.Fields._
 
   def toOrientPath(path: List[Any]): String = {
     val pathBuilder = new StringBuilder()
@@ -48,7 +48,7 @@ object ModelOperationProcessor {
         case p: String => pathBuilder.append(s".$p")
       }
     }
-    return pathBuilder.toString()
+    pathBuilder.toString()
   }
 }
 
@@ -193,7 +193,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     db.command(updateCommand).execute(params.asJava)
   }
 
-  //TODO: Determine strategy for handling numbers correctly
+  // TODO: Determine strategy for handling numbers correctly
   private[this] def applyNumberSetOperation(fqn: ModelFqn, operation: NumberSetOperation, db: ODatabaseDocumentTx): Unit = {
     val pathString = ModelStore.toOrientPath(operation.path)
     val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId, "value" -> operation.value)

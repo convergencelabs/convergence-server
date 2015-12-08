@@ -6,9 +6,7 @@ import com.convergencelabs.server.domain.Domain
 import com.convergencelabs.server.domain.DomainFqn
 import com.orientechnologies.orient.core.record.impl.ODocument
 
-object DomainMapper {
-
-  import DomainFields._
+object DomainMapper extends ODocumentMapper {
 
   private[datastore] implicit class DomainUserToODocument(val domain: Domain) {
     def asODocument: ODocument = domainConfigToODocument(domain)
@@ -23,12 +21,12 @@ object DomainMapper {
       dbPassword) = domainConfig
 
     val doc = new ODocument(DomainClassName)
-    doc.field(Id, id)
-    doc.field(Namespace, namespace)
-    doc.field(DomainId, domainId)
-    doc.field(DisplayName, displayName)
-    doc.field(DBUsername, dbUsername)
-    doc.field(DBPassword, dbPassword)
+    doc.field(Fields.Id, id)
+    doc.field(Fields.Namespace, namespace)
+    doc.field(Fields.DomainId, domainId)
+    doc.field(Fields.DisplayName, displayName)
+    doc.field(Fields.DBUsername, dbUsername)
+    doc.field(Fields.DBPassword, dbPassword)
 
     doc
   }
@@ -38,21 +36,19 @@ object DomainMapper {
   }
 
   private[datastore] implicit def oDocumentToDomain(doc: ODocument): Domain = {
-    if (doc.getClassName != DomainClassName) {
-      throw new IllegalArgumentException(s"The ODocument class must be '${DomainClassName}': ${doc.getClassName}")
-    }
-    
+    validateDocumentClass(doc, DomainClassName)
+
     Domain(
-      doc.field(Id),
-      DomainFqn(doc.field(Namespace), doc.field(DomainId)),
-      doc.field(DisplayName),
-      doc.field(DBUsername),
-      doc.field(DBPassword))
+      doc.field(Fields.Id),
+      DomainFqn(doc.field(Fields.Namespace), doc.field(Fields.DomainId)),
+      doc.field(Fields.DisplayName),
+      doc.field(Fields.DBUsername),
+      doc.field(Fields.DBPassword))
   }
 
   private[datastore] val DomainClassName = "Domain"
-  
-  private[datastore] object DomainFields {
+
+  private[datastore] object Fields {
     val Id = "id"
     val Namespace = "namespace"
     val DomainId = "domainId"

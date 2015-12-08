@@ -6,7 +6,8 @@ import org.scalatest.WordSpec
 import com.convergencelabs.server.domain.DomainUser
 import com.orientechnologies.orient.core.record.impl.ODocument
 
-import DomainUserMapper._
+import DomainUserMapper.DomainUserToODocument
+import DomainUserMapper.ODocumentToDomainUser
 
 class DomainUserMapperSpec
     extends WordSpec
@@ -18,9 +19,9 @@ class DomainUserMapperSpec
         val domainUser = DomainUser(
           "uid",
           "username",
-          "firstName",
-          "lastName",
-          "email")
+          Some("firstName"),
+          Some("lastName"),
+          Some("email"))
 
         val doc = domainUser.asODocument
         val reverted = doc.asDomainUser

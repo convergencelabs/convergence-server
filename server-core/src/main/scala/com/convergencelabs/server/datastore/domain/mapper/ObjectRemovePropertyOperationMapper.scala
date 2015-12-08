@@ -8,10 +8,9 @@ import com.convergencelabs.server.domain.model.ot.ObjectRemovePropertyOperation
 import com.convergencelabs.server.util.JValueMapper
 import com.orientechnologies.orient.core.record.impl.ODocument
 import org.json4s.JsonAST.JObject
+import com.convergencelabs.server.datastore.mapper.ODocumentMapper
 
-object ObjectRemovePropertyOperationMapper {
-
-  import ObjectRemovePropertyOperationFields._
+object ObjectRemovePropertyOperationMapper extends ODocumentMapper {
 
   private[domain] implicit class ObjectRemovePropertyOperationToODocument(val s: ObjectRemovePropertyOperation) extends AnyVal {
     def asODocument: ODocument = objectRemovePropertyOperationToODocument(s)
@@ -19,10 +18,10 @@ object ObjectRemovePropertyOperationMapper {
 
   private[domain] implicit def objectRemovePropertyOperationToODocument(obj: ObjectRemovePropertyOperation): ODocument = {
     val ObjectRemovePropertyOperation(path, noOp, prop) = obj
-    val doc = new ODocument(ObjectRemovePropertyOperationClassName)
-    doc.field(Path, path.asJava)
-    doc.field(NoOp, noOp)
-    doc.field(Prop, prop)
+    val doc = new ODocument(DocumentClassName)
+    doc.field(Fields.Path, path.asJava)
+    doc.field(Fields.NoOp, noOp)
+    doc.field(Fields.Prop, prop)
     doc
   }
 
@@ -31,18 +30,17 @@ object ObjectRemovePropertyOperationMapper {
   }
 
   private[domain] implicit def oDocumentToObjectRemovePropertyOperation(doc: ODocument): ObjectRemovePropertyOperation = {
-    if (doc.getClassName != ObjectRemovePropertyOperationClassName) {
-      throw new IllegalArgumentException(s"The ODocument class must be '${ObjectRemovePropertyOperationClassName}': ${doc.getClassName}")
-    }
-    val path = doc.field(Path).asInstanceOf[JavaList[_]]
-    val noOp = doc.field(NoOp).asInstanceOf[Boolean]
-    val prop = doc.field(Prop).asInstanceOf[String]
+    validateDocumentClass(doc, DocumentClassName)
+
+    val path = doc.field(Fields.Path).asInstanceOf[JavaList[_]]
+    val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
+    val prop = doc.field(Fields.Prop).asInstanceOf[String]
     ObjectRemovePropertyOperation(path.asScala.toList, noOp, prop)
   }
 
-  private[domain] val ObjectRemovePropertyOperationClassName = "ObjectRemovePropertyOperation"
+  private[domain] val DocumentClassName = "ObjectRemovePropertyOperation"
 
-  private[domain] object ObjectRemovePropertyOperationFields {
+  private[domain] object Fields {
     val Path = "path"
     val NoOp = "noOp"
     val Prop = "prop"

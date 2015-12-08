@@ -33,8 +33,8 @@ class BackendNode(system: ActorSystem) extends Logging {
       DomainPersistenceManagerActor.RelativePath)
 
     system.actorOf(DomainManagerActor.props(
-      persistenceProvider, 
-      protocolConfig), 
+      persistenceProvider,
+      protocolConfig),
       DomainManagerActor.RelativeActorPath)
 
     logger.info("Backend Node started up.")

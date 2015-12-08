@@ -7,10 +7,9 @@ import scala.language.implicitConversions
 import com.convergencelabs.server.domain.model.ot.ArrayRemoveOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.convergencelabs.server.util.JValueMapper
+import com.convergencelabs.server.datastore.mapper.ODocumentMapper
 
-object ArrayRemoveOperationMapper {
-
-  import ArrayRemoveOperationFields._
+object ArrayRemoveOperationMapper extends ODocumentMapper {
 
   private[domain] implicit class ArrayRemoveOperationToODocument(val s: ArrayRemoveOperation) extends AnyVal {
     def asODocument: ODocument = arrayRemoveOperationToODocument(s)
@@ -18,10 +17,10 @@ object ArrayRemoveOperationMapper {
 
   private[domain] implicit def arrayRemoveOperationToODocument(obj: ArrayRemoveOperation): ODocument = {
     val ArrayRemoveOperation(path, noOp, index) = obj
-    val doc = new ODocument(ArrayRemoveOperationClassName)
-    doc.field(Path, path.asJava)
-    doc.field(NoOp, noOp)
-    doc.field(Idx, index)
+    val doc = new ODocument(DocumentClassName)
+    doc.field(Fields.Path, path.asJava)
+    doc.field(Fields.NoOp, noOp)
+    doc.field(Fields.Idx, index)
     doc
   }
 
@@ -30,18 +29,17 @@ object ArrayRemoveOperationMapper {
   }
 
   private[domain] implicit def oDocumentToArrayRemoveOperation(doc: ODocument): ArrayRemoveOperation = {
-    if (doc.getClassName != ArrayRemoveOperationClassName) {
-      throw new IllegalArgumentException(s"The ODocument class must be '${ArrayRemoveOperationClassName}': ${doc.getClassName}")
-    }
-    val path = doc.field(Path).asInstanceOf[JavaList[_]]
-    val noOp = doc.field(NoOp).asInstanceOf[Boolean]
-    val idx = doc.field(Idx).asInstanceOf[Int]
+    validateDocumentClass(doc, DocumentClassName)
+
+    val path = doc.field(Fields.Path).asInstanceOf[JavaList[_]]
+    val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
+    val idx = doc.field(Fields.Idx).asInstanceOf[Int]
     ArrayRemoveOperation(path.asScala.toList, noOp, idx)
   }
 
-  private[domain] val ArrayRemoveOperationClassName = "ArrayRemoveOperation"
+  private[domain] val DocumentClassName = "ArrayRemoveOperation"
 
-  private[domain] object ArrayRemoveOperationFields {
+  private[domain] object Fields {
     val Path = "path"
     val NoOp = "noOp"
     val Idx = "idx"

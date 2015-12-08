@@ -8,10 +8,9 @@ import com.convergencelabs.server.domain.model.ot.ObjectSetOperation
 import com.convergencelabs.server.util.JValueMapper
 import com.orientechnologies.orient.core.record.impl.ODocument
 import org.json4s.JsonAST.JObject
+import com.convergencelabs.server.datastore.mapper.ODocumentMapper
 
-object ObjectSetOperationMapper {
-
-  import ObjectSetOperationFields._
+object ObjectSetOperationMapper extends ODocumentMapper {
 
   private[domain] implicit class ObjectSetOperationToODocument(val s: ObjectSetOperation) extends AnyVal {
     def asODocument: ODocument = objectSetOperationToODocument(s)
@@ -19,10 +18,10 @@ object ObjectSetOperationMapper {
 
   private[domain] implicit def objectSetOperationToODocument(obj: ObjectSetOperation): ODocument = {
     val ObjectSetOperation(path, noOp, value) = obj
-    val doc = new ODocument(ObjectSetOperationClassName)
-    doc.field(Path, path.asJava)
-    doc.field(NoOp, noOp)
-    doc.field(Val, JValueMapper.jValueToJava(value))
+    val doc = new ODocument(DocumentClassName)
+    doc.field(Fields.Path, path.asJava)
+    doc.field(Fields.NoOp, noOp)
+    doc.field(Fields.Val, JValueMapper.jValueToJava(value))
     doc
   }
 
@@ -31,18 +30,17 @@ object ObjectSetOperationMapper {
   }
 
   private[domain] implicit def oDocumentToObjectSetOperation(doc: ODocument): ObjectSetOperation = {
-    if (doc.getClassName != ObjectSetOperationClassName) {
-      throw new IllegalArgumentException(s"The ODocument class must be '${ObjectSetOperationClassName}': ${doc.getClassName}")
-    }
-    val path = doc.field(Path).asInstanceOf[JavaList[_]]
-    val noOp = doc.field(NoOp).asInstanceOf[Boolean]
-    val value = JValueMapper.javaToJValue(doc.field(Val)).asInstanceOf[JObject]
+    validateDocumentClass(doc, DocumentClassName)
+
+    val path = doc.field(Fields.Path).asInstanceOf[JavaList[_]]
+    val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
+    val value = JValueMapper.javaToJValue(doc.field(Fields.Val)).asInstanceOf[JObject]
     ObjectSetOperation(path.asScala.toList, noOp, value)
   }
 
-  private[domain] val ObjectSetOperationClassName = "ObjectSetOperation"
+  private[domain] val DocumentClassName = "ObjectSetOperation"
 
-  private[domain] object ObjectSetOperationFields {
+  private[domain] object Fields {
     val Path = "path"
     val NoOp = "noOp"
     val Val = "val"

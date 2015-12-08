@@ -3,45 +3,42 @@ package com.convergencelabs.server.datastore.domain.mapper
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.convergencelabs.server.domain.DomainUser
 import scala.language.implicitConversions
+import com.convergencelabs.server.datastore.mapper.ODocumentMapper
 
-object DomainUserMapper {
-  
-  import DomainUserFields._
-  
+object DomainUserMapper extends ODocumentMapper {
+
   private[domain] implicit class DomainUserToODocument(val u: DomainUser) extends AnyVal {
     def asODocument: ODocument = domainUserToODocument(u)
   }
-  
+
   private[domain] implicit def domainUserToODocument(obj: DomainUser): ODocument = {
-    val doc = new ODocument(DomainUserClassName)
-    doc.field(Uid, obj.uid)
-    doc.field(Username, obj.username)
-    doc.field(FirstName, obj.firstName)
-    doc.field(LastName, obj.lastName)
-    doc.field(Email, obj.email)
+    val doc = new ODocument(DocumentClassName)
+    doc.field(Fields.Uid, obj.uid)
+    doc.field(Fields.Username, obj.username)
+    doc.field(Fields.FirstName, someOrNull(obj.firstName))
+    doc.field(Fields.LastName, someOrNull(obj.lastName))
+    doc.field(Fields.Email, someOrNull(obj.email))
     doc
   }
-  
+
   private[domain] implicit class ODocumentToDomainUser(val d: ODocument) extends AnyVal {
     def asDomainUser: DomainUser = oDocumentToDomainUser(d)
   }
-  
+
   private[domain] implicit def oDocumentToDomainUser(doc: ODocument): DomainUser = {
-    if (doc.getClassName != DomainUserClassName) {
-      throw new IllegalArgumentException(s"The ODocument class must be '${DomainUserClassName}': ${doc.getClassName}")
-    }
+    validateDocumentClass(doc, DocumentClassName)
+
     DomainUser(
-      doc.field(Uid),
-      doc.field(Username),
-      doc.field(FirstName),
-      doc.field(LastName),
-      doc.field(Email))
+      doc.field(Fields.Uid),
+      doc.field(Fields.Username),
+      toOption(doc.field(Fields.FirstName)),
+      toOption(doc.field(Fields.LastName)),
+      toOption(doc.field(Fields.Email)))
   }
-  
-  // Should this be DomainUser?
-  private[domain] val DomainUserClassName = "User"
-  
-  private[domain] object DomainUserFields {
+
+  private[domain] val DocumentClassName = "User"
+
+  private[domain] object Fields {
     val Uid = "uid"
     val Username = "username"
     val FirstName = "firstName"

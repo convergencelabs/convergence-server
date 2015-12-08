@@ -6,6 +6,6 @@ import scala.util.Try
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 
 abstract class AbstractDatabasePersistence(dbPool: OPartitionedDatabasePool) {
-  protected def tryWithDb[B](block: ODatabaseDocumentTx => B): Try[B] = 
+  protected def tryWithDb[B](block: ODatabaseDocumentTx => B): Try[B] =
     TryWithResource(dbPool.acquire())(block)
 }

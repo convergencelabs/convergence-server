@@ -12,10 +12,9 @@ import org.json4s.JsonAST.JNumber
 import com.convergencelabs.server.domain.model.ot.NumberAddOperation
 import com.convergencelabs.server.util.JValueMapper
 import com.orientechnologies.orient.core.record.impl.ODocument
+import com.convergencelabs.server.datastore.mapper.ODocumentMapper
 
-object NumberAddOperationMapper {
-
-  import NumberAddOperationFields._
+object NumberAddOperationMapper extends ODocumentMapper {
 
   private[domain] implicit class NumberAddOperationToODocument(val s: NumberAddOperation) extends AnyVal {
     def asODocument: ODocument = numberAddOperationToODocument(s)
@@ -23,10 +22,10 @@ object NumberAddOperationMapper {
 
   private[domain] implicit def numberAddOperationToODocument(obj: NumberAddOperation): ODocument = {
     val NumberAddOperation(path, noOp, value) = obj
-    val doc = new ODocument(NumberAddOperationClassName)
-    doc.field(Path, path.asJava)
-    doc.field(NoOp, noOp)
-    doc.field(Val, JValueMapper.jNumberToJava(value))
+    val doc = new ODocument(DocumentClassName)
+    doc.field(Fields.Path, path.asJava)
+    doc.field(Fields.NoOp, noOp)
+    doc.field(Fields.Val, JValueMapper.jNumberToJava(value))
     doc
   }
 
@@ -35,18 +34,17 @@ object NumberAddOperationMapper {
   }
 
   private[domain] implicit def oDocumentToNumberAddOperation(doc: ODocument): NumberAddOperation = {
-    if (doc.getClassName != NumberAddOperationClassName) {
-      throw new IllegalArgumentException(s"The ODocument class must be '${NumberAddOperationClassName}': ${doc.getClassName}")
-    }
-    val path = doc.field(Path).asInstanceOf[JavaList[_]]
-    val noOp = doc.field(NoOp).asInstanceOf[Boolean]
-    val value = JValueMapper.javaToJValue(doc.field(Val)).asInstanceOf[JNumber]
+    validateDocumentClass(doc, DocumentClassName)
+
+    val path = doc.field(Fields.Path).asInstanceOf[JavaList[_]]
+    val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
+    val value = JValueMapper.javaToJValue(doc.field(Fields.Val)).asInstanceOf[JNumber]
     NumberAddOperation(path.asScala.toList, noOp, value)
   }
 
-  private[domain] val NumberAddOperationClassName = "NumberAddOperation"
+  private[domain] val DocumentClassName = "NumberAddOperation"
 
-  private[domain] object NumberAddOperationFields {
+  private[domain] object Fields {
     val Path = "path"
     val NoOp = "noOp"
     val Val = "val"

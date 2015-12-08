@@ -3,19 +3,18 @@ package com.convergencelabs.server.datastore.domain.mapper
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.convergencelabs.server.domain.TokenKeyPair
 import scala.language.implicitConversions
+import com.convergencelabs.server.datastore.mapper.ODocumentMapper
 
-object TokenKeyPairMapper {
-
-  import TokenKeyPairFields._
+object TokenKeyPairMapper extends ODocumentMapper {
 
   private[domain] implicit class TokenKeyPairToODocument(val tokenPublicKey: TokenKeyPair) extends AnyVal {
     def asODocument: ODocument = tokenKeyPairToODocument(tokenPublicKey)
   }
 
   private[domain] implicit def tokenKeyPairToODocument(tokenKeyPair: TokenKeyPair): ODocument = {
-    val doc = new ODocument(TokenKeyPairClassName)
-    doc.field(PublicKey, tokenKeyPair.publicKey)
-    doc.field(PrivateKey, tokenKeyPair.privateKey)
+    val doc = new ODocument(DocumentClassName)
+    doc.field(Fields.PublicKey, tokenKeyPair.publicKey)
+    doc.field(Fields.PrivateKey, tokenKeyPair.privateKey)
     doc
   }
 
@@ -24,16 +23,14 @@ object TokenKeyPairMapper {
   }
 
   private[domain] def oDocumentToTokenKeyPair(doc: ODocument): TokenKeyPair = {
-    if (doc.getClassName != TokenKeyPairClassName) {
-      throw new IllegalArgumentException(s"The ODocument class must be '${TokenKeyPairClassName}': ${doc.getClassName}")
-    }
-    
-    TokenKeyPair(doc.field(PublicKey), doc.field(PrivateKey))
+    validateDocumentClass(doc, DocumentClassName)
+
+    TokenKeyPair(doc.field(Fields.PublicKey), doc.field(Fields.PrivateKey))
   }
 
-  private[domain] val TokenKeyPairClassName = "TokenKeyPair"
-  
-  private[domain] object TokenKeyPairFields {
+  private[domain] val DocumentClassName = "TokenKeyPair"
+
+  private[domain] object Fields {
     val PublicKey = "publicKey"
     val PrivateKey = "privateKey"
   }

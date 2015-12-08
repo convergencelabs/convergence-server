@@ -8,10 +8,9 @@ import com.convergencelabs.server.domain.model.ot.ArraySetOperation
 import com.convergencelabs.server.util.JValueMapper
 import com.orientechnologies.orient.core.record.impl.ODocument
 import org.json4s.JsonAST.JArray
+import com.convergencelabs.server.datastore.mapper.ODocumentMapper
 
-object ArraySetOperationMapper {
-
-  import ArraySetOperationFields._
+object ArraySetOperationMapper extends ODocumentMapper {
 
   private[domain] implicit class ArraySetOperationToODocument(val s: ArraySetOperation) extends AnyVal {
     def asODocument: ODocument = arraySetOperationToODocument(s)
@@ -19,10 +18,10 @@ object ArraySetOperationMapper {
 
   private[domain] implicit def arraySetOperationToODocument(obj: ArraySetOperation): ODocument = {
     val ArraySetOperation(path, noOp, value) = obj
-    val doc = new ODocument(ArraySetOperationClassName)
-    doc.field(Path, path.asJava)
-    doc.field(NoOp, noOp)
-    doc.field(Val, JValueMapper.jValueToJava(value))
+    val doc = new ODocument(DocumentClassName)
+    doc.field(Fields.Path, path.asJava)
+    doc.field(Fields.NoOp, noOp)
+    doc.field(Fields.Val, JValueMapper.jValueToJava(value))
     doc
   }
 
@@ -31,18 +30,17 @@ object ArraySetOperationMapper {
   }
 
   private[domain] implicit def oDocumentToArraySetOperation(doc: ODocument): ArraySetOperation = {
-    if (doc.getClassName != ArraySetOperationClassName) {
-      throw new IllegalArgumentException(s"The ODocument class must be '${ArraySetOperationClassName}': ${doc.getClassName}")
-    }
-    val path = doc.field(Path).asInstanceOf[JavaList[_]]
-    val noOp = doc.field(NoOp).asInstanceOf[Boolean]
-    val value = JValueMapper.javaToJValue(doc.field(Val)).asInstanceOf[JArray] 
+    validateDocumentClass(doc, DocumentClassName)
+
+    val path = doc.field(Fields.Path).asInstanceOf[JavaList[_]]
+    val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
+    val value = JValueMapper.javaToJValue(doc.field(Fields.Val)).asInstanceOf[JArray]
     ArraySetOperation(path.asScala.toList, noOp, value)
   }
 
-  private[domain] val ArraySetOperationClassName = "ArraySetOperation"
+  private[domain] val DocumentClassName = "ArraySetOperation"
 
-  private[domain] object ArraySetOperationFields {
+  private[domain] object Fields {
     val Path = "path"
     val NoOp = "noOp"
     val Val = "val"

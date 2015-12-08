@@ -9,10 +9,9 @@ import com.convergencelabs.server.util.JValueMapper
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.convergencelabs.server.domain.model.ot.DiscreteOperation
+import com.convergencelabs.server.datastore.mapper.ODocumentMapper
 
-object CompoundOperationMapper {
-
-  import CompoundOperationFields._
+object CompoundOperationMapper extends ODocumentMapper {
 
   private[domain] implicit class CompoundOperationToODocument(val s: CompoundOperation) extends AnyVal {
     def asODocument: ODocument = arrayReplaceOperationToODocument(s)
@@ -20,9 +19,9 @@ object CompoundOperationMapper {
 
   private[domain] implicit def arrayReplaceOperationToODocument(obj: CompoundOperation): ODocument = {
     val CompoundOperation(ops) = obj
-    val doc = new ODocument(CompoundOperationClassName)
+    val doc = new ODocument(DocumentClassName)
     val opDocs = ops.map { OrientDBOperationMapper.operationToODocument(_) }
-    doc.field(Ops, opDocs.asJava, OType.EMBEDDEDLIST)
+    doc.field(Fields.Ops, opDocs.asJava, OType.EMBEDDEDLIST)
     doc
   }
 
@@ -31,18 +30,16 @@ object CompoundOperationMapper {
   }
 
   private[domain] implicit def oDocumentToCompoundOperation(doc: ODocument): CompoundOperation = {
-    if (doc.getClassName != CompoundOperationClassName) {
-      throw new IllegalArgumentException(s"The ODocument class must be '${CompoundOperationClassName}': ${doc.getClassName}")
-    }
-    
-    val opDocs: JavaList[ODocument] = doc.field(Ops, OType.EMBEDDEDLIST)
-    val ops = opDocs.asScala.toList.map {OrientDBOperationMapper.oDocumentToDiscreteOperation(_)}
+    validateDocumentClass(doc, DocumentClassName)
+
+    val opDocs: JavaList[ODocument] = doc.field(Fields.Ops, OType.EMBEDDEDLIST)
+    val ops = opDocs.asScala.toList.map { OrientDBOperationMapper.oDocumentToDiscreteOperation(_) }
     CompoundOperation(ops)
   }
 
-  private[domain] val CompoundOperationClassName = "CompoundOperation"
+  private[domain] val DocumentClassName = "CompoundOperation"
 
-  private[domain] object CompoundOperationFields {
+  private[domain] object Fields {
     val Ops = "ops"
   }
 }

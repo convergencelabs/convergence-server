@@ -52,11 +52,11 @@ class DomainManagerActor(
 
   log.debug("DomainManager started.")
 
-  def receive = {
+  def receive: Receive = {
     case handshake: HandshakeRequest => onHandshakeRequest(handshake)
     case shutdownRequest: DomainShutdownRequest => onDomainShutdownRequest(shutdownRequest)
     case shutdownApproval: DomainShutdownApproval => onDomainShutdownApproval(shutdownApproval)
-    case message => unhandled(message)
+    case message: Any => unhandled(message)
   }
 
   private[this] def onHandshakeRequest(request: HandshakeRequest): Unit = {
@@ -132,7 +132,7 @@ class DomainManagerActor(
     }
   }
 
-  override def postStop() {
+  override def postStop(): Unit = {
     log.debug("DomainManager shutdown.")
   }
 }

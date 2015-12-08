@@ -9,10 +9,10 @@ import com.orientechnologies.common.log.OLogManager
 abstract class PersistenceStoreSpec[S](dbFile: String) {
   OLogManager.instance().setConsoleLevel("WARNING")
 
-  def createStore(dbPool: OPartitionedDatabasePool): S
+  protected def createStore(dbPool: OPartitionedDatabasePool): S
 
   var dbCounter = 0
-  def withPersistenceStore(testCode: S => Any) {
+  def withPersistenceStore(testCode: S => Any): Unit = {
     // make sure no accidental collisions
     val dbName = getClass.getSimpleName
     val uri = s"memory:${dbName}${dbCounter}"
@@ -26,7 +26,7 @@ abstract class PersistenceStoreSpec[S](dbFile: String) {
     val dbImport = new ODatabaseImport(db, file, CommandListener)
     dbImport.importDatabase()
     dbImport.close()
-    
+
     db.getMetadata.reload()
 
     val dbPool = new OPartitionedDatabasePool(uri, "admin", "admin")
@@ -42,8 +42,7 @@ abstract class PersistenceStoreSpec[S](dbFile: String) {
   }
 
   object CommandListener extends OCommandOutputListener() {
-    def onMessage(iText: String) = {
+    def onMessage(iText: String): Unit = {
     }
   }
-
 }

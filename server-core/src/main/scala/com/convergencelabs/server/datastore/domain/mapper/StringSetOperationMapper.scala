@@ -1,17 +1,14 @@
 package com.convergencelabs.server.datastore.domain.mapper
 
 import java.util.{ List => JavaList }
-
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.language.implicitConversions
-
 import com.convergencelabs.server.domain.model.ot.StringSetOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
+import com.convergencelabs.server.datastore.mapper.ODocumentMapper
 
-object StringSetOperationMapper {
-
-  import StringSetOperationFields._
+object StringSetOperationMapper extends ODocumentMapper {
 
   private[domain] implicit class StringSetOperationToODocument(val s: StringSetOperation) extends AnyVal {
     def asODocument: ODocument = stringSetOperationToODocument(s)
@@ -19,10 +16,10 @@ object StringSetOperationMapper {
 
   private[domain] implicit def stringSetOperationToODocument(obj: StringSetOperation): ODocument = {
     val StringSetOperation(path, noOp, value) = obj
-    val doc = new ODocument(StringSetOperationClassName)
-    doc.field(Path, path.asJava)
-    doc.field(NoOp, noOp)
-    doc.field(Val, value)
+    val doc = new ODocument(DocumentClassName)
+    doc.field(Fields.Path, path.asJava)
+    doc.field(Fields.NoOp, noOp)
+    doc.field(Fields.Val, value)
     doc
   }
 
@@ -31,18 +28,17 @@ object StringSetOperationMapper {
   }
 
   private[domain] implicit def oDocumentToStringSetOperation(doc: ODocument): StringSetOperation = {
-    if (doc.getClassName != StringSetOperationClassName) {
-      throw new IllegalArgumentException(s"The ODocument class must be '${StringSetOperationClassName}': ${doc.getClassName}")
-    }
-    val path = doc.field(Path).asInstanceOf[JavaList[_]]
-    val noOp = doc.field(NoOp).asInstanceOf[Boolean]
-    val value = doc.field(Val).asInstanceOf[String]
+    validateDocumentClass(doc, DocumentClassName)
+
+    val path = doc.field(Fields.Path).asInstanceOf[JavaList[_]]
+    val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
+    val value = doc.field(Fields.Val).asInstanceOf[String]
     StringSetOperation(path.asScala.toList, noOp, value)
   }
 
-  private[domain] val StringSetOperationClassName = "StringSetOperation"
+  private[domain] val DocumentClassName = "StringSetOperation"
 
-  private[domain] object StringSetOperationFields {
+  private[domain] object Fields {
     val Path = "path"
     val NoOp = "noOp"
     val Val = "val"

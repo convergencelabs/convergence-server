@@ -22,10 +22,11 @@ import akka.actor.ActorRef
 import akka.actor.actorRef2Scala
 import grizzled.slf4j.Logging
 import scala.util.Try
+import scala.reflect.ClassTag
 
 object AuthenticationHandler {
-  val RelativePath = "authManager"
   val AdminKeyId = "ConvergenceAdminUIKey"
+  val AllowedClockSkew = 30
 }
 
 class AuthenticationHandler(
@@ -71,39 +72,10 @@ class AuthenticationHandler(
         val jwtContext = firstPassJwtConsumer.process(authRequest.jwt)
         val objects = jwtContext.getJoseObjects()
         val keyId = objects.get(0).getKeyIdHeaderValue()
-        val publicKey = getJWTPublicKey(keyId)
 
-        if (publicKey.isEmpty) {
-          AuthenticationFailure
-        } else {
-
-          val jwtConsumer = new JwtConsumerBuilder()
-            .setRequireExpirationTime()
-            .setAllowedClockSkewInSeconds(30)
-            .setRequireSubject()
-            .setExpectedIssuer("ConvergenceJWTGenerator")
-            .setExpectedAudience("Convergence")
-            .setVerificationKey(publicKey.get)
-            .build()
-
-          val jwtClaims = jwtConsumer.processToClaims(authRequest.jwt)
-
-          val username = jwtClaims.getSubject()
-
-          // TODO in theory we should cache the token id for longer than the expiration to make
-          // sure a replay attack is not possible.
-          userStore.getDomainUserByUsername(username) match {
-            case Success(Some(user)) => {
-              AuthenticationSuccess(user.uid, user.username)
-            }
-            case Success(None) => {
-              createUserFromJWT(jwtClaims) match {
-                case Success(uid) => AuthenticationSuccess(uid, username)
-                case Failure(cause) => AuthenticationFailure
-              }
-            }
-            case Failure(cause) => AuthenticationFailure
-          }
+        getJWTPublicKey(keyId) match {
+          case Some(publicKey) => authenticateTokenWithPublicKey(authRequest, publicKey)
+          case None => AuthenticationFailure
         }
       } catch {
         case e: InvalidJwtException =>
@@ -116,35 +88,41 @@ class AuthenticationHandler(
     }
   }
 
-  private[this] def createUserFromJWT(jwtClaims: JwtClaims): Try[String] = {
+  private[this] def authenticateTokenWithPublicKey(authRequest: TokenAuthRequest, publicKey: PublicKey): AuthenticationResponse = {
+    val jwtConsumer = new JwtConsumerBuilder()
+      .setRequireExpirationTime()
+      .setAllowedClockSkewInSeconds(AuthenticationHandler.AllowedClockSkew)
+      .setRequireSubject()
+      .setExpectedIssuer("ConvergenceJWTGenerator")
+      .setExpectedAudience("Convergence")
+      .setVerificationKey(publicKey)
+      .build()
+
+    val jwtClaims = jwtConsumer.processToClaims(authRequest.jwt)
+
     val username = jwtClaims.getSubject()
 
-    var firstName = ""
-    if (jwtClaims.hasClaim(JwtClaimConstants.FirstName)) {
-      val firstNameClaim = jwtClaims.getClaimValue(JwtClaimConstants.FirstName)
-      if (firstNameClaim != null && firstNameClaim.isInstanceOf[String]) {
-        firstName = firstNameClaim.toString()
+    // TODO in theory we should cache the token id for longer than the expiration to make
+    // sure a replay attack is not possible.
+    userStore.getDomainUserByUsername(username) match {
+      case Success(Some(user)) => {
+        AuthenticationSuccess(user.uid, user.username)
       }
-    }
-
-    var lastName = ""
-    if (jwtClaims.hasClaim(JwtClaimConstants.LastName)) {
-      val lastNameClaim = jwtClaims.getClaimValue(JwtClaimConstants.LastName)
-      if (lastNameClaim != null && lastNameClaim.isInstanceOf[String]) {
-        lastName = lastNameClaim.toString()
+      case Success(None) => {
+        createUserFromJWT(jwtClaims) match {
+          case Success(uid) => AuthenticationSuccess(uid, username)
+          case Failure(cause) => AuthenticationFailure
+        }
       }
+      case Failure(cause) => AuthenticationFailure
     }
+  }
 
-    val email = if (jwtClaims.hasClaim(JwtClaimConstants.Email)) {
-      val emailClaim = jwtClaims.getClaimValue(JwtClaimConstants.Email)
-      emailClaim match {
-        case claim: String => claim
-        case _ => null
-      }
-    } else {
-      null
-    }
-
+  private[this] def createUserFromJWT(jwtClaims: JwtClaims): Try[String] = {
+    val username = jwtClaims.getSubject()
+    val firstName = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.FirstName)
+    val lastName = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.LastName)
+    val email = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.Email)
     val newUser = DomainUser(null, username, firstName, lastName, email)
     userStore.createDomainUser(newUser, None)
   }
@@ -168,7 +146,7 @@ class AuthenticationHandler(
         val keyFactory = KeyFactory.getInstance("RSA", new BouncyCastleProvider())
         Some(keyFactory.generatePublic(spec))
       }.recoverWith {
-        case e =>
+        case e: Throwable =>
           logger.warn("Unabled to decode jwt public key: " + e.getMessage)
           Success(None)
       }.get

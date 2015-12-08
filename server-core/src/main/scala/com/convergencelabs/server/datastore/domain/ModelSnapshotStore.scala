@@ -1,6 +1,5 @@
 package com.convergencelabs.server.datastore.domain
 
-import java.time.Instant
 import java.util.{ List => JavaList }
 
 import scala.collection.JavaConverters.asScalaBufferConverter
@@ -13,16 +12,15 @@ import com.convergencelabs.server.datastore.QueryUtil
 import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelSnapshot
 import com.convergencelabs.server.domain.model.ModelSnapshotMetaData
-import com.convergencelabs.server.util.JValueMapper
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 
-import mapper.ModelSnapshotMapper._
-
 import grizzled.slf4j.Logging
+import mapper.ModelSnapshotMapper.ModelSnapshotToODocument
+import mapper.ModelSnapshotMapper.ODocumentToModelSnapshot
+import mapper.ModelSnapshotMapper.ODocumentToModelSnapshotMetaData
 
 /**
  * Manages the persistence of model snapshots.
@@ -60,9 +58,9 @@ class ModelSnapshotStore private[domain] (
   def getSnapshot(fqn: ModelFqn, version: Long): Try[Option[ModelSnapshot]] = tryWithDb { db =>
     val queryString =
       """SELECT *
-        |FROM ModelSnapshot 
-        |WHERE 
-        |  collectionId = :collectionId AND 
+        |FROM ModelSnapshot
+        |WHERE
+        |  collectionId = :collectionId AND
         |  modelId = :modelId AND
         |  version = :version""".stripMargin
 
@@ -95,10 +93,10 @@ class ModelSnapshotStore private[domain] (
     limit: Option[Int],
     offset: Option[Int]): Try[List[ModelSnapshotMetaData]] = tryWithDb { db =>
     val baseQuery =
-      """SELECT collectionId, modelId, version, timestamp 
-        |FROM ModelSnapshot 
-        |WHERE 
-        |  collectionId = :collectionId AND 
+      """SELECT collectionId, modelId, version, timestamp
+        |FROM ModelSnapshot
+        |WHERE
+        |  collectionId = :collectionId AND
         |  modelId = :modelId
         |ORDER BY version ASC""".stripMargin
 
@@ -130,9 +128,9 @@ class ModelSnapshotStore private[domain] (
     limit: Option[Int],
     offset: Option[Int]): Try[List[ModelSnapshotMetaData]] = tryWithDb { db =>
     val baseQuery =
-      """SELECT version, timestamp 
-        |FROM ModelSnapshot 
-        |WHERE 
+      """SELECT version, timestamp
+        |FROM ModelSnapshot
+        |WHERE
         |  collectionId = :collectionId AND 
         |  modelId = :modelId AND
         |  timestamp BETWEEN :startTime AND :endTime
@@ -159,10 +157,10 @@ class ModelSnapshotStore private[domain] (
    */
   def getLatestSnapshotMetaDataForModel(fqn: ModelFqn): Try[Option[ModelSnapshotMetaData]] = tryWithDb { db =>
     val queryString =
-      """SELECT version, timestamp 
-        |FROM ModelSnapshot 
-        |WHERE 
-        |  collectionId = :collectionId AND 
+      """SELECT version, timestamp
+        |FROM ModelSnapshot
+        |WHERE
+        |  collectionId = :collectionId AND
         |  modelId = :modelId
         |ORDER BY version DESC LIMIT 1""".stripMargin
 
@@ -176,17 +174,17 @@ class ModelSnapshotStore private[domain] (
 
   def getClosestSnapshotByVersion(fqn: ModelFqn, version: Long): Try[Option[ModelSnapshot]] = tryWithDb { db =>
     val queryString =
-      s"""SELECT 
-        |  abs(eval('$$current.version - $version')) as abs_delta, 
-        |  eval('$$current.version - $version') as delta, 
-        |  * 
-        |FROM ModelSnapshot 
-        |WHERE 
-        |  collectionId = :collectionId AND 
-        |  modelId = :modelId 
-        |ORDER BY 
-        |  abs_delta ASC, 
-        |  delta DESC 
+      s"""SELECT
+        |  abs(eval('$$current.version - $version')) as abs_delta,
+        |  eval('$$current.version - $version') as delta,
+        |  *
+        |FROM ModelSnapshot
+        |WHERE
+        |  collectionId = :collectionId AND
+        |  modelId = :modelId
+        |ORDER BY
+        |  abs_delta ASC,
+        |  delta DESC
         |LIMIT 1""".stripMargin
 
     val query = new OSQLSynchQuery[ODocument](queryString)
@@ -210,10 +208,10 @@ class ModelSnapshotStore private[domain] (
    */
   def removeSnapshot(fqn: ModelFqn, version: Long): Try[Unit] = tryWithDb { db =>
     val query =
-      """DELETE FROM ModelSnapshot 
-        |WHERE 
-        |  collectionId = :collectionId AND 
-        |  modelId = :modelId AND 
+      """DELETE FROM ModelSnapshot
+        |WHERE
+        |  collectionId = :collectionId AND
+        |  modelId = :modelId AND
         |  version = :version""".stripMargin
 
     val command = new OCommandSQL(query);
@@ -233,8 +231,8 @@ class ModelSnapshotStore private[domain] (
    */
   def removeAllSnapshotsForModel(fqn: ModelFqn): Try[Unit] = tryWithDb { db =>
     val query =
-      """DELETE FROM ModelSnapshot 
-        |WHERE 
+      """DELETE FROM ModelSnapshot
+        |WHERE
         |  collectionId = :collectionId AND 
         |  modelId = :modelId""".stripMargin
 
