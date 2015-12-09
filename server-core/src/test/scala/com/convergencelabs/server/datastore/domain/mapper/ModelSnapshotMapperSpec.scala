@@ -1,16 +1,20 @@
 package com.convergencelabs.server.datastore.domain.mapper
 
+import java.time.Instant
+
+import org.json4s.JsonAST.JObject
 import org.json4s.JsonAST.JString
 import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
-import com.orientechnologies.orient.core.record.impl.ODocument
-import ModelSnapshotMapper._
-import org.json4s.JsonAST.JObject
+
+import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelSnapshot
 import com.convergencelabs.server.domain.model.ModelSnapshotMetaData
-import java.time.Instant
-import com.convergencelabs.server.domain.model.ModelFqn
+import com.orientechnologies.orient.core.record.impl.ODocument
+
+import ModelSnapshotMapper.ModelSnapshotToODocument
+import ModelSnapshotMapper.ODocumentToModelSnapshot
 
 class ModelSnapshotMapperSpec
     extends WordSpec

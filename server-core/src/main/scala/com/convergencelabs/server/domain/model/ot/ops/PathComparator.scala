@@ -5,65 +5,42 @@ private[ot] object PathComparator {
   def areEqual(p1: List[Any], p2: List[Any]): Boolean = {
     p1.equals(p2)
   }
-  
+
   def isChildOf(child: List[Any], parent: List[Any]): Boolean = {
     if (child.length != parent.length + 1) {
-      return false
+      false
     } else {
-
-      for (i <- parent.indices) {
-        if (parent(i) != child(i)) {
-          return false
-        }
-      }
-
-      return true
+      // parent is shorter by one.
+      parent.indices.forall(i => parent(i) == child(i))
     }
   }
 
   def isParentOf(parent: List[Any], child: List[Any]): Boolean = {
-    return isChildOf(parent, child)
+    isChildOf(child, parent)
   }
 
   def isDescendantOf(descendant: List[Any], ancestor: List[Any]): Boolean = {
     if (descendant.length <= ancestor.length) {
-      return false
+      false
     } else {
       // descendant is longer, so the ancestor length is the potentially common length.
-      for (i <- ancestor.indices) {
-        if (ancestor(i) != descendant(i)) {
-          return false
-        }
-      }
-
-      return true
+      ancestor.indices.forall(i => ancestor(i) == descendant(i))
     }
   }
 
   def isAncestorOf(ancestor: List[Any], descendant: List[Any]): Boolean = {
-    return isDescendantOf(ancestor, descendant)
+     isDescendantOf(descendant, ancestor)
   }
-
 
   def areSiblings(path1: List[Any], path2: List[Any]): Boolean = {
     if (path1.length != path2.length) {
-      return false
+      false
+    } else if (path1.isEmpty) {
+      false
+    } else if (path1.last == path2.last) {
+      false
+    } else {
+      path1.indices.dropRight(1).forall(i => path1(i) == path2(i))
     }
-
-    if (path1.isEmpty) {
-      return false
-    }
-
-    for (i <- 0 until path1.length - 1) {
-      if (path1(i) != path2(i)) {
-        return false
-      }
-    }
-
-    if (path1.last == path2.last) {
-      return false
-    }
-
-    return true
   }
 }
