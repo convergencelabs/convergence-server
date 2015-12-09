@@ -8,11 +8,11 @@ private[ot] object StringInsertRemoveTF extends OperationTransformationFunction[
       (s.copy(index = s.index - c.value.length), c)
     } else {
       val offsetDelta = s.index - c.index
-      (s.copy(noOp = true), 
-          c.copy(
-              value = c.value.substring(0, offsetDelta) + 
-              s.value + 
-              c.value.substring(offsetDelta, c.value.length)))
+      (s.copy(noOp = true),
+        c.copy(
+          value = c.value.substring(0, offsetDelta) +
+            s.value +
+            c.value.substring(offsetDelta, c.value.length)))
     }
   }
 }

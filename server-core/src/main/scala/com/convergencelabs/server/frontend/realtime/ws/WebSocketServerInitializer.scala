@@ -14,11 +14,11 @@ private[ws] class WebSocketServerInitializer(
     extends ChannelInitializer[SocketChannel] {
 
   def initChannel(ch: SocketChannel): Unit = {
-    val corsConfig = CorsConfig.withAnyOrigin().build();
-    val pipeline = ch.pipeline();
-    pipeline.addLast(new HttpServerCodec());
-    pipeline.addLast(new HttpObjectAggregator(65536));
-    pipeline.addLast(new CorsHandler(corsConfig));
-    pipeline.addLast(new WebSocketServerHandler(maxFrameSize, connectionHandler));
+    val corsConfig = CorsConfig.withAnyOrigin().build()
+    val pipeline = ch.pipeline()
+    pipeline.addLast(new HttpServerCodec())
+    pipeline.addLast(new HttpObjectAggregator(65536))
+    pipeline.addLast(new CorsHandler(corsConfig))
+    pipeline.addLast(new WebSocketServerHandler(maxFrameSize, connectionHandler))
   }
 }

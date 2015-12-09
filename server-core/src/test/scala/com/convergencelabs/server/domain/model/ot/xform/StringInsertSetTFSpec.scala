@@ -12,11 +12,11 @@ class StringInsertSetTFSpec extends WordSpec {
   "A StringInsertSetTF" when {
 
     "tranforming a server insert against a client remove " must {
-      
+
       "noOp the server's operation and not transform the client's" in {
         val s = StringInsertOperation(Path, false, 2, ServerVal)
         val c = StringSetOperation(Path, false, ClientVal)
-        
+
         val (s1, c1) = StringInsertSetTF.transform(s, c)
 
         assert(s1 == StringInsertOperation(Path, true, 2, ServerVal))

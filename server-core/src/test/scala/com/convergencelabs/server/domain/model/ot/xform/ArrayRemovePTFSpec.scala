@@ -13,19 +13,19 @@ class ArrayRemovePTFSpec extends WordSpec {
         val result = ArrayRemovePTF.transformDescendantPath(ancestor, path)
         assert(result == PathUpdated(List(1, 1, 0, 1)))
       }
-      
+
       "obsolete the path if the remove is at the common path point." in {
         val ancestor = ArrayRemoveOperation(List(1, 1), false, 1)
         val path = List(1, 1, 1, 1)
         val result = ArrayRemovePTF.transformDescendantPath(ancestor, path)
         assert(result == PathObsoleted)
       }
-      
+
       "no not trasform a path when the insert is after the common path" in {
         val ancestor = ArrayRemoveOperation(List(1, 1), false, 2)
         val path = List(1, 1, 1, 1)
         val result = ArrayRemovePTF.transformDescendantPath(ancestor, path)
-        assert(result == NoPathTranslation)
+        assert(result == NoPathTransformation)
       }
     }
   }

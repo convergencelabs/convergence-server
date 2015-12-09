@@ -17,13 +17,15 @@ class ModelOperationMapperSpec
     extends WordSpec
     with Matchers {
 
+  val OpVersion = 5L
+
   "An ModelOperationMapper" when {
     "when converting ModelOperation operations" must {
       "correctly map and unmap a ModelOperation" in {
 
         val modelOperation = ModelOperation(
           ModelFqn("collection", "model"),
-          5L,
+          OpVersion,
           Instant.ofEpochMilli(System.currentTimeMillis()),
           "uid",
           "sid",

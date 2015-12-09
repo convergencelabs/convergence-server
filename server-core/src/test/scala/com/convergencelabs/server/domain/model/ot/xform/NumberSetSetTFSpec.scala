@@ -15,19 +15,19 @@ class NumberSetSetTFSpec extends WordSpec with Matchers {
       "noOp both operations if they are identical" in {
         val s = NumberSetOperation(List(), false, JInt(3))
         val c = NumberSetOperation(List(), false, JInt(3))
-        
+
         val (s1, c1) = NumberSetSetTF.transform(s, c)
-        
+
         s1 shouldBe NumberSetOperation(List(), true, JInt(3))
         c1 shouldBe NumberSetOperation(List(), true, JInt(3))
       }
-      
+
       "noOp the client's set if the two operations are not identical" in {
         val s = NumberSetOperation(List(), false, JInt(3))
         val c = NumberSetOperation(List(), false, JInt(4))
-        
+
         val (s1, c1) = NumberSetSetTF.transform(s, c)
-        
+
         s1 shouldBe NumberSetOperation(List(), false, JInt(3))
         c1 shouldBe NumberSetOperation(List(), true, JInt(4))
       }

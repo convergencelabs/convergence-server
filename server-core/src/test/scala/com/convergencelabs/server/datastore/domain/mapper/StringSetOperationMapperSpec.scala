@@ -14,7 +14,7 @@ class StringSetOperationMapperSpec
     extends WordSpec
     with Matchers {
 
-  val path = List(3, "foo", 4)
+  val path = List(3, "foo", 4) // scalastyle:off magic.number
 
   "An StringSetOperationMapper" when {
     "when converting StringSetOperation operations" must {
@@ -24,7 +24,7 @@ class StringSetOperationMapperSpec
         val reverted = opDoc.asStringSetOperation
         op shouldBe reverted
       }
-      
+
       "not allow an invalid document class name" in {
         val invalid = new ODocument("SomeClass")
         intercept[IllegalArgumentException] {

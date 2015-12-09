@@ -34,13 +34,13 @@ private[ot] object ArrayMoveMoveTF extends OperationTransformationFunction[Array
       ArrayMoveRangeHelper.metBy(s, c)) {
       (s.copy(fromIndex = s.fromIndex + 1), c.copy(toIndex = c.toIndex + 1))
     } else {
-      ??? // FIXME Unanticipated case
+      throw invalidCase(s, c)
     }
   }
 
   def transofrmBackwardMoveWithForwardMove(s: ArrayMoveOperation, c: ArrayMoveOperation): (ArrayMoveOperation, ArrayMoveOperation) = {
     if (ArrayMoveRangeHelper.precedes(s, c) || ArrayMoveRangeHelper.precededBy(s, c)) {
-      (s, c) 
+      (s, c)
     } else if (ArrayMoveRangeHelper.meets(s, c)) {
       (s.copy(fromIndex = c.toIndex), c.copy(noOp = true))
     } else if (ArrayMoveRangeHelper.overlaps(s, c) ||
@@ -58,7 +58,7 @@ private[ot] object ArrayMoveMoveTF extends OperationTransformationFunction[Array
       ArrayMoveRangeHelper.metBy(s, c)) {
       (s.copy(toIndex = s.toIndex + 1), c.copy(toIndex = c.toIndex - 1))
     } else {
-      ??? // FIXME unanticipated case
+      throw invalidCase(s, c)
     }
   }
 
@@ -69,7 +69,7 @@ private[ot] object ArrayMoveMoveTF extends OperationTransformationFunction[Array
       (s.copy(toIndex = s.toIndex - 1), c.copy(toIndex = c.toIndex + 1))
     } else if (ArrayMoveRangeHelper.finishedBy(s, c) ||
       ArrayMoveRangeHelper.contains(s, c)) {
-      (s.copy(fromIndex = s.fromIndex -1, toIndex = s.toIndex - 1), c)
+      (s.copy(fromIndex = s.fromIndex - 1, toIndex = s.toIndex - 1), c)
     } else if (ArrayMoveRangeHelper.starts(s, c) ||
       ArrayMoveRangeHelper.containedBy(s, c)) {
       (s, c.copy(fromIndex = c.fromIndex + 1, toIndex = c.toIndex + 1))
@@ -81,7 +81,7 @@ private[ot] object ArrayMoveMoveTF extends OperationTransformationFunction[Array
     } else if (ArrayMoveRangeHelper.metBy(s, c)) {
       (s.copy(fromIndex = c.toIndex), c.copy(noOp = true))
     } else {
-      ??? // FIXME Unanticipated case
+      throw invalidCase(s, c)
     }
   }
 
@@ -106,7 +106,11 @@ private[ot] object ArrayMoveMoveTF extends OperationTransformationFunction[Array
       ArrayMoveRangeHelper.metBy(s, c)) {
       (s.copy(toIndex = s.toIndex - 1), c.copy(fromIndex = c.fromIndex - 1))
     } else {
-      ??? // FIXME Unanticipated case
+      throw invalidCase(s, c)
     }
+  }
+
+  private[this] def invalidCase(s: ArrayMoveOperation, c: ArrayMoveOperation): Throwable = {
+    new UnsupportedOperationException(s"An unanticipated Move-Move case was detected ($s, $c).")
   }
 }

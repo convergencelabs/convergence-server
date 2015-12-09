@@ -22,19 +22,18 @@ object MockDomainPersistenceManagerActor {
     val f = system.actorSelection("user").resolveOne(FiniteDuration(1, TimeUnit.SECONDS))
     val ref = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
     new TestActorRef[MockDomainPersistenceManagerActor](
-        system,
-        Props(new MockDomainPersistenceManagerActor()),
-        ref,
-        DomainPersistenceManagerActor.RelativePath
-        )
+      system,
+      Props(new MockDomainPersistenceManagerActor()),
+      ref,
+      DomainPersistenceManagerActor.RelativePath)
   }
 }
 
 class MockDomainPersistenceManagerActor() extends Actor {
-  
+
   var mockProviders: Map[DomainFqn, DomainPersistenceProvider] = Map()
-  
-  def receive = {
+
+  def receive: Receive = {
     case AcquireDomainPersistence(domainFqn, requestor) => {
       mockProviders.get(domainFqn) match {
         case Some(provider) => sender ! PersistenceProviderReference(provider)

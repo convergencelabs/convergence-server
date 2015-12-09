@@ -16,7 +16,7 @@ class StringRemoveRemoveTFSpec
 
       /**
        * Identical removes.
-       * 
+       *
        * Indices         : 0123456789
        * Original String : ABCDEFGHIJ
        *
@@ -25,10 +25,10 @@ class StringRemoveRemoveTFSpec
        *
        * Client State    : ABCDGHIJ
        * Server' OP      :     ^^          Remove(4,"EF") - NoOp
-       * 
+       *
        * Server  State   : ABCDGHIJ
        * Client' Op      :     ^^          Remove(4,"EF") - NoOp
-       * 
+       *
        *
        * Converged State: ABCDGHIJ
        */
@@ -41,10 +41,10 @@ class StringRemoveRemoveTFSpec
         s1 shouldBe StringRemoveOperation(Path, true, 4, "EF")
         c1 shouldBe StringRemoveOperation(Path, true, 4, "EF")
       }
-      
+
       /**
        * The client delete starts the server delete.
-       * 
+       *
        * Indices         : 0123456789
        * Original String : ABCDEFGHIJ
        *
@@ -53,10 +53,10 @@ class StringRemoveRemoveTFSpec
        *
        * Client State    : ABCEFGHIJ
        * Server' OP      :    ^            Remove(3,"F")
-       * 
+       *
        * Server  State   : ABCDGHIJ
        * Client' Op      :     ^^          Remove(3,"DE") - NoOp
-       * 
+       *
        *
        * Converged State: ABCGHIJ
        */
@@ -69,10 +69,10 @@ class StringRemoveRemoveTFSpec
         s1 shouldBe StringRemoveOperation(Path, false, 3, "F")
         c1 shouldBe StringRemoveOperation(Path, true, 3, "DE")
       }
-      
+
       /**
        * The client delete starts the server delete.
-       * 
+       *
        * Indices         : 0123456789
        * Original String : ABCDEFGHIJ
        *
@@ -81,10 +81,10 @@ class StringRemoveRemoveTFSpec
        *
        * Client State    : ABCEFGHIJ
        * Server' OP      :    ^            Remove(3,"DE") - NoOp
-       * 
+       *
        * Server  State   : ABCDGHIJ
        * Client' Op      :     ^^          Remove(3,"F")
-       * 
+       *
        *
        * Converged State: ABCGHIJ
        */
@@ -97,10 +97,10 @@ class StringRemoveRemoveTFSpec
         s1 shouldBe StringRemoveOperation(Path, true, 3, "DE")
         c1 shouldBe StringRemoveOperation(Path, false, 3, "F")
       }
-      
+
       /**
        * The client remove is before the servers
-       * 
+       *
        * Indices         : 0123456789
        * Original String : ABCDEFGHIJ
        *
@@ -109,10 +109,10 @@ class StringRemoveRemoveTFSpec
        *
        * Client State    : AEFGHIJ
        * Server' OP      :    ^_^          Remove(3,"GHI")
-       * 
+       *
        * Server  State   : ABCDEFJ
        * Client' Op      :  ^_^            Remove(1,"BCD")
-       * 
+       *
        * Converged State: AEFJ
        */
       "decrease the server op index and not transform the client op if the client is before the server" in {
@@ -124,10 +124,10 @@ class StringRemoveRemoveTFSpec
         s1 shouldBe StringRemoveOperation(Path, false, 3, "GHI")
         c1 shouldBe StringRemoveOperation(Path, false, 1, "BCD")
       }
-      
+
       /**
        * The server remove is before the client
-       * 
+       *
        * Indices         : 0123456789
        * Original String : ABCDEFGHIJ
        *
@@ -136,10 +136,10 @@ class StringRemoveRemoveTFSpec
        *
        * Client State    : ABCDEFJ
        * Server' OP      :  ^_^            Remove(1,"BCD")
-       * 
+       *
        * Server  State   : AEFGHIJ
        * Client' Op      :    ^_^          Remove(3,"GHI")
-       * 
+       *
        * Converged State: AEFJ
        */
       "decrease the client op index and not transform the server op if the server is before the client" in {
@@ -151,10 +151,10 @@ class StringRemoveRemoveTFSpec
         s1 shouldBe StringRemoveOperation(Path, false, 1, "BCD")
         c1 shouldBe StringRemoveOperation(Path, false, 3, "GHI")
       }
-      
+
       /**
        * The server remove is before the client
-       * 
+       *
        * Indices         : 0123456789
        * Original String : ABCDEFGHIJ
        *
@@ -163,10 +163,10 @@ class StringRemoveRemoveTFSpec
        *
        * Client State    : ABCDGHIJ
        * Server' OP      :    ^            Remove(3,"D")
-       * 
+       *
        * Server  State   : ABCGHIJ
        * Client' Op      :     ^^          Remove(4,"EF") - NoOp
-       * 
+       *
        * Converged State: AEFJ
        */
       "noOp the client operation and shorten the server op when the client op finishes the server op" in {
@@ -178,10 +178,10 @@ class StringRemoveRemoveTFSpec
         s1 shouldBe StringRemoveOperation(Path, false, 3, "D")
         c1 shouldBe StringRemoveOperation(Path, true, 4, "EF")
       }
-      
+
       /**
        * The server remove is before the client
-       * 
+       *
        * Indices         : 0123456789
        * Original String : ABCDEFGHIJ
        *
@@ -190,10 +190,10 @@ class StringRemoveRemoveTFSpec
        *
        * Client State    : ABCGHIJ
        * Server' OP      :    ^            Remove(4,"EF") - NoOp
-       * 
+       *
        * Server  State   : ABCDGHIJ
        * Client' Op      :    ^            Remove(3,"D")
-       * 
+       *
        * Converged State: AEFJ
        */
       "noOp the server operation and shorten the client op when the server op finishes the client op" in {
@@ -205,10 +205,10 @@ class StringRemoveRemoveTFSpec
         s1 shouldBe StringRemoveOperation(Path, true, 4, "EF")
         c1 shouldBe StringRemoveOperation(Path, false, 3, "D")
       }
-      
+
       /**
        * The client spans the server operation
-       * 
+       *
        * Indices         : 0123456789
        * Original String : ABCDEFGHIJ
        *
@@ -217,10 +217,10 @@ class StringRemoveRemoveTFSpec
        *
        * Client State    : ABCHIJ
        * Server' OP      :     ^^          Remove(4,"EF") - NoOp
-       * 
+       *
        * Server  State   : ABCDGHIJ
        * Client' Op      :    ^^           Remove(3,"DG")
-       * 
+       *
        * Converged State: ABCHIJ
        */
       "noOp the server op and shorten the client op if the client op spans the servers op" in {
@@ -232,10 +232,10 @@ class StringRemoveRemoveTFSpec
         s1 shouldBe StringRemoveOperation(Path, true, 4, "EF")
         c1 shouldBe StringRemoveOperation(Path, false, 3, "DG")
       }
-      
+
       /**
        * The server spans the client operation
-       * 
+       *
        * Indices         : 0123456789
        * Original String : ABCDEFGHIJ
        *
@@ -244,10 +244,10 @@ class StringRemoveRemoveTFSpec
        *
        * Client State    : ABCDGHIJ
        * Server' OP      :    ^^           Remove(3,"DG")
-       * 
+       *
        * Server  State   : ABCHIJ
        * Client' Op      :     ^^          Remove(4,"EF") - NoOp
-       * 
+       *
        * Converged State: ABCHIJ
        */
       "noOp the client op and shorten the server op if the server op spans the client op" in {
@@ -259,10 +259,10 @@ class StringRemoveRemoveTFSpec
         s1 shouldBe StringRemoveOperation(Path, false, 3, "DG")
         c1 shouldBe StringRemoveOperation(Path, true, 4, "EF")
       }
-      
+
       /**
        * The server overlaps into the client op
-       * 
+       *
        * Indices         : 0123456789
        * Original String : ABCDEFGHIJ
        *
@@ -271,10 +271,10 @@ class StringRemoveRemoveTFSpec
        *
        * Client State    : ABCDIJ
        * Server' OP      :   ^^            Remove(2,"CD")
-       * 
+       *
        * Server  State   : ABGHIJ
        * Client' Op      :   ^^            Remove(2,"GH")
-       * 
+       *
        * Converged State: ABIJ
        */
       "trim the end of the server op and the begining of the client op if the server op overlaps into the client op" in {
@@ -286,10 +286,10 @@ class StringRemoveRemoveTFSpec
         s1 shouldBe StringRemoveOperation(Path, false, 2, "CD")
         c1 shouldBe StringRemoveOperation(Path, false, 2, "GH")
       }
-      
+
       /**
        * The server overlaps into the client op
-       * 
+       *
        * Indices         : 0123456789
        * Original String : ABCDEFGHIJ
        *
@@ -298,10 +298,10 @@ class StringRemoveRemoveTFSpec
        *
        * Client State    : ABGHIJ
        * Server' OP      :   ^^            Remove(2,"GH")
-       * 
+       *
        * Server  State   : ABCDIJ
        * Client' Op      :   ^^            Remove(2,"CD")
-       * 
+       *
        * Converged State: ABIJ
        */
       "trim the end of the client op and the begining of the server op if the client op overlaps into the server op" in {

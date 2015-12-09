@@ -27,7 +27,7 @@ class AuthenticationHandlerSpec()
     with BeforeAndAfterAll
     with MockitoSugar {
 
-  override def afterAll() {
+  override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
   }
 

@@ -16,9 +16,9 @@ class NumberAddAddTFSpec extends WordSpec with Matchers {
       "do not transform two number add operations" in {
         val s = NumberAddOperation(List(), false, JInt(3))
         val c = NumberAddOperation(List(), false, JDouble(3D))
-        
+
         val (s1, c1) = NumberAddAddTF.transform(s, c)
-        
+
         s1 shouldBe s
         c1 shouldBe c
       }

@@ -15,12 +15,12 @@ class ArrayReplacePTFSpec extends WordSpec {
         val result = ArrayReplacePTF.transformDescendantPath(ancestor, path)
         assert(result == PathObsoleted)
       }
-      
+
       "no not trasform a path when the replace is not equal to the common path point" in {
         val ancestor = ArrayReplaceOperation(List(1, 1), false, 2, JInt(1))
         val path = List(1, 1, 1, 1)
         val result = ArrayReplacePTF.transformDescendantPath(ancestor, path)
-        assert(result == NoPathTranslation)
+        assert(result == NoPathTransformation)
       }
     }
   }

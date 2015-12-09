@@ -8,7 +8,7 @@ private[ot] object ObjectSetPropertyPTF extends PathTransformationFunction[Objec
     if (ancestor.property == commonProperty) {
       PathObsoleted
     } else {
-      NoPathTranslation
+      NoPathTransformation
     }
   }
 }

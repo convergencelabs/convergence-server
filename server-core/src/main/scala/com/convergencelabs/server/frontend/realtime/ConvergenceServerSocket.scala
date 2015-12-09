@@ -10,7 +10,7 @@ case class SocketDropped() extends ConvergenceServerSocketEvent
 
 trait ConvergenceServerSocket {
 
-  var handler: PartialFunction[ConvergenceServerSocketEvent, Unit] = {case _ => }
+  var handler: PartialFunction[ConvergenceServerSocketEvent, Unit] = { case _ => }
 
   var sessionId: String = null
 
@@ -19,7 +19,7 @@ trait ConvergenceServerSocket {
   def isOpen(): Boolean
 
   def close(): Unit = this.close("closed normally")
-  
+
   def close(reason: String): Unit
 
   def abort(reason: String): Unit
@@ -27,9 +27,8 @@ trait ConvergenceServerSocket {
   def fireOnError(errorMessage: String): Unit =
     handler lift SocketError(errorMessage)
 
-  def fireOnMessage(message: String): Unit = 
+  def fireOnMessage(message: String): Unit =
     handler lift SocketMessage(message)
-    
 
   def fireOnClosed(): Unit =
     handler lift SocketClosed()

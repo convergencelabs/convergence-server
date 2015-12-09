@@ -14,7 +14,7 @@ class StringInsertOperationMapperSpec
     extends WordSpec
     with Matchers {
 
-  val path = List(3, "foo", 4)
+  val path = List(3, "foo", 4) // scalastyle:off magic.number
 
   "An StringInsertOperationMapper" when {
     "when converting StringInsertOperation operations" must {
@@ -24,7 +24,7 @@ class StringInsertOperationMapperSpec
         val reverted = opDoc.asStringInsertOperation
         op shouldBe reverted
       }
-      
+
       "not allow an invalid document class name" in {
         val invalid = new ODocument("SomeClass")
         intercept[IllegalArgumentException] {

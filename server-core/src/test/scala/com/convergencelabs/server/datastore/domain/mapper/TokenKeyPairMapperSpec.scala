@@ -19,14 +19,13 @@ class TokenKeyPairMapperSpec
       "correctly map and unmap a TokenKeyPair" in {
         val pair = TokenKeyPair(
           "public",
-          "private"
-        )
+          "private")
 
         val doc = pair.asODocument
         val reverted = doc.asTokenKeyPair
         reverted shouldBe pair
       }
-      
+
       "not allow an invalid document class name" in {
         val invalid = new ODocument("SomeClass")
         intercept[IllegalArgumentException] {

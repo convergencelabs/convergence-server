@@ -7,4 +7,4 @@ private[ot] trait PathTransformationFunction[A <: DiscreteOperation] {
 private[ot] sealed trait PathTrasformation
 private[ot] case class PathUpdated(path: List[_]) extends PathTrasformation
 private[ot] case object PathObsoleted extends PathTrasformation
-private[ot] case object NoPathTranslation extends PathTrasformation
+private[ot] case object NoPathTransformation extends PathTrasformation

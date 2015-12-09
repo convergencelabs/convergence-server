@@ -44,7 +44,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    *
    * @param password An optional password if internal authentication is to
    * be used for this user.
-   * 
+   *
    * @return A String representing the created users uid.
    */
   def createDomainUser(domainUser: DomainUser, password: Option[String]): Try[String] = tryWithDb { db =>
@@ -55,14 +55,13 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     val pwDoc = db.newInstance("UserCredential")
     pwDoc.field("user", userDoc, OType.LINK) // FIXME verify this creates a link and now a new doc.
 
-    val hash = password match {
-      case Some(pass) => PasswordUtil.hashPassword(pass)
-      case None => null
+   password match {
+      case Some(pass) => pwDoc.field("password", PasswordUtil.hashPassword(pass))
+      case None =>  pwDoc.field("password", null, OType.STRING)
     }
-
-    pwDoc.field("password", hash)
-    db.save(pwDoc)
     
+    db.save(pwDoc)
+
     val uid: String = userDoc.field("uid", OType.STRING)
     uid
   }
@@ -97,7 +96,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
         doc.merge(updatedDoc, false, false)
         db.save(doc)
       }
-      case _ => ??? // FIXME
+      case _ => throw new IllegalArgumentException("User not found")
     }
     Unit
   }
@@ -211,7 +210,12 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    * @param limit maximum number of users to return.  Defaults to unlimited.
    * @param offset The offset into the ordering to start returning entries.  Defaults to 0.
    */
-  def getAllDomainUsers(orderBy: Option[DomainUserOrder.Order], sortOrder: Option[SortOrder.Value], limit: Option[Int], offset: Option[Int]): Try[List[DomainUser]] = tryWithDb { db =>
+  def getAllDomainUsers(
+    orderBy: Option[DomainUserOrder.Order],
+    sortOrder: Option[SortOrder.Value],
+    limit: Option[Int],
+    offset: Option[Int]): Try[List[DomainUser]] = tryWithDb { db =>
+
     val order = orderBy.getOrElse(DomainUserOrder.Username)
     val sort = sortOrder.getOrElse(SortOrder.Descending)
     val baseQuery = s"SELECT * FROM User ORDER BY $order $sort"
@@ -234,10 +238,10 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
 
     result.asScala.toList match {
       case doc :: Nil => {
-        doc.field("password", SCryptUtil.scrypt(password, 16384, 8, 1))
+        doc.field("password", PasswordUtil.hashPassword(password))
         db.save(doc)
       }
-      case _ => ??? // FIXME We did not find a user to update.
+      case _ => throw new IllegalArgumentException("User not found when setting password.")
     }
     Unit
   }

@@ -37,11 +37,9 @@ import com.orientechnologies.orient.core.sql.OCommandSQL
 import mapper.ModelOperationMapper.ModelOperationToODocument
 
 object ModelOperationProcessor {
-  import mapper.ModelOperationMapper.Fields._
-
   def toOrientPath(path: List[Any]): String = {
     val pathBuilder = new StringBuilder()
-    pathBuilder.append(Data)
+    pathBuilder.append(mapper.ModelOperationMapper.Fields.Data)
     path.foreach { p =>
       p match {
         case p: Int => pathBuilder.append(s"[$p]")

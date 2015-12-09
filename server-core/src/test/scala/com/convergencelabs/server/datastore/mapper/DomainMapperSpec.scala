@@ -23,14 +23,13 @@ class DomainMapperSpec
           DomainFqn("ns", "dId"),
           "My Domain",
           "user",
-          "pass"
-        )
+          "pass")
 
         val doc = domain.asODocument
         val reverted = doc.asDomain
         reverted shouldBe domain
       }
-      
+
       "not allow an invalid document class name" in {
         val invalid = new ODocument("SomeClass")
         intercept[IllegalArgumentException] {

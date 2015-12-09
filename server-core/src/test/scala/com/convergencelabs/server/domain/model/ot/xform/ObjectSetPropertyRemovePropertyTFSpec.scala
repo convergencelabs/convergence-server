@@ -15,17 +15,17 @@ class ObjectSetPropertyRemovePropertyTFSpec extends WordSpec with Matchers {
         val c = ObjectRemovePropertyOperation(List(), false, "prop2")
 
         val (s1, c1) = ObjectSetPropertyRemovePropertyTF.transform(s, c)
-        
+
         s1 shouldBe s
         c1 shouldBe c
       }
-      
+
       "transform a set into an add if the set and the remove are the same property, noOp the remove" in {
         val s = ObjectSetPropertyOperation(List(), false, "prop", JObject())
         val c = ObjectRemovePropertyOperation(List(), false, "prop")
 
         val (s1, c1) = ObjectSetPropertyRemovePropertyTF.transform(s, c)
-        
+
         s1 shouldBe ObjectAddPropertyOperation(List(), false, "prop", JObject())
         c1 shouldBe ObjectRemovePropertyOperation(List(), true, "prop")
       }

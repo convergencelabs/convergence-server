@@ -13,7 +13,7 @@ class ObjectSetPropertySetTFSpec extends WordSpec with Matchers {
       "noOp the set property and not transform the set" in {
         val s = ObjectSetPropertyOperation(List(), false, "prop", JObject())
         val c = ObjectSetOperation(List(), false, JObject())
-        
+
         val (s1, c1) = ObjectSetPropertySetTF.transform(s, c)
 
         s1 shouldBe ObjectSetPropertyOperation(List(), true, "prop", JObject())

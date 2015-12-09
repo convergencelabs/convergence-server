@@ -46,7 +46,7 @@ class ModelOperationProcessorSpec
     //        val replaceVal = JObject("field1" -> JString("someValue"), "field2" -> JInt(5))
     //        store.applyOperationToModel(ModelFqn("people", "person1"), ArrayReplaceOperation(List("emails"), false, 0, replaceVal), 0, 0, "me")
     //        val modelData = store.getModelData(ModelFqn("people", "person1")).value
-    //        
+    //
     //        (modelData.data \ "emails") match {
     //          case JArray(array) => {
     //            assert(array(0) == replaceVal)

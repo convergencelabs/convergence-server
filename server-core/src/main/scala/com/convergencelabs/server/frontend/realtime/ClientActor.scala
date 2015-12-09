@@ -1,10 +1,37 @@
 package com.convergencelabs.server.frontend.realtime
 
-import scala.concurrent.duration._
-import scala.concurrent.Promise
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
+
+import com.convergencelabs.server.domain.AuthenticationError
+import com.convergencelabs.server.domain.AuthenticationFailure
+import com.convergencelabs.server.domain.AuthenticationResponse
+import com.convergencelabs.server.domain.AuthenticationSuccess
+import com.convergencelabs.server.domain.ClientDisconnected
+import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.HandshakeFailure
+import com.convergencelabs.server.domain.HandshakeRequest
+import com.convergencelabs.server.domain.HandshakeResponse
+import com.convergencelabs.server.domain.HandshakeSuccess
+import com.convergencelabs.server.domain.PasswordAuthRequest
+import com.convergencelabs.server.domain.TokenAuthRequest
+import com.convergencelabs.server.frontend.realtime.proto.AuthenticationRequestMessage
+import com.convergencelabs.server.frontend.realtime.proto.AuthenticationResponseMessage
+import com.convergencelabs.server.frontend.realtime.proto.ErrorData
+import com.convergencelabs.server.frontend.realtime.proto.HandshakeRequestMessage
+import com.convergencelabs.server.frontend.realtime.proto.HandshakeResponseMessage
+import com.convergencelabs.server.frontend.realtime.proto.IncomingModelNormalMessage
+import com.convergencelabs.server.frontend.realtime.proto.IncomingModelRequestMessage
+import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolResponseMessage
+import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolNormalMessage
+import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolRequestMessage
+import com.convergencelabs.server.frontend.realtime.proto.PasswordAuthenticationRequestMessage
+import com.convergencelabs.server.frontend.realtime.proto.TokenAuthenticationRequestMessage
+import com.convergencelabs.server.util.concurrent.AskFuture
+
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
@@ -12,39 +39,6 @@ import akka.actor.Props
 import akka.actor.actorRef2Scala
 import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.server.ProtocolConfiguration
-import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.HandshakeFailure
-import com.convergencelabs.server.domain.HandshakeRequest
-import com.convergencelabs.server.domain.HandshakeSuccess
-import com.convergencelabs.server.frontend.realtime.proto.IncomingModelRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.IncomingModelNormalMessage
-import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolNormalMessage
-import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolResponseMessage
-import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolResponseMessage
-import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolNormalMessage
-import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.HandshakeRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.HandshakeRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolResponseMessage
-import com.convergencelabs.server.frontend.realtime.proto.HandshakeResponseMessage
-import com.convergencelabs.server.frontend.realtime.proto.ErrorData
-import com.convergencelabs.server.domain.model.RealtimeModelClientMessage
-import com.convergencelabs.server.domain.HandshakeResponse
-import com.convergencelabs.server.domain.AuthenticationResponse
-import com.convergencelabs.server.domain.AuthenticationSuccess
-import com.convergencelabs.server.domain.AuthenticationFailure
-import com.convergencelabs.server.domain.TokenAuthRequest
-import com.convergencelabs.server.domain.PasswordAuthRequest
-import com.convergencelabs.server.util.concurrent._
-import java.util.concurrent.TimeUnit
-import com.convergencelabs.server.frontend.realtime.proto.AuthenticationRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.PasswordAuthenticationRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.TokenAuthenticationRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.AuthenticationResponseMessage
-import com.convergencelabs.server.domain.ClientDisconnected
-import com.convergencelabs.server.domain.AuthenticationError
 
 object ClientActor {
   def props(
@@ -170,7 +164,7 @@ class ClientActor(
     case ConnectionDropped() => onConnectionDropped()
     case ConnectionError(message) => onConnectionError(message)
 
-    case x => unhandled(x)
+    case x: Any => unhandled(x)
   }
 
   def onOutgoingMessage(message: OutgoingProtocolNormalMessage): Unit = {
@@ -194,7 +188,7 @@ class ClientActor(
   }
 
   private def onRequestReceived(message: RequestReceived): Unit = {
-      message match {
+    message match {
       case RequestReceived(x, _) if x.isInstanceOf[IncomingModelRequestMessage] => modelClient.forward(message)
     }
   }

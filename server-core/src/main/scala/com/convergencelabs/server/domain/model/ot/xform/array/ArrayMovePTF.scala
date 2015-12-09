@@ -14,7 +14,7 @@ private[ot] object ArrayMovePTF extends PathTransformationFunction[ArrayMoveOper
       // The descendant path is being moved.
       PathUpdated(descendantPath.updated(ancestorPathLength, ancestor.toIndex))
     } else {
-      return NoPathTranslation
+      NoPathTransformation
     }
   }
 }

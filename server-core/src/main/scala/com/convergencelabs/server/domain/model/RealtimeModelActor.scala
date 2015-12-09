@@ -50,8 +50,8 @@ class RealtimeModelActor(
   private[this] var connectedClients = HashMap[SessionKey, ActorRef]()
   private[this] var clientToSessionId = HashMap[ActorRef, SessionKey]()
   private[this] var queuedOpeningClients = HashMap[SessionKey, OpenRequestRecord]()
-  private[this] var concurrencyControl: ServerConcurrencyControl = null
-  private[this] var latestSnapshot: ModelSnapshotMetaData = null
+  private[this] var concurrencyControl: ServerConcurrencyControl = _
+  private[this] var latestSnapshot: ModelSnapshotMetaData = _
 
   private[this] val transformer = new OperationTransformer(new TransformationFunctionRegistry())
 
@@ -61,14 +61,14 @@ class RealtimeModelActor(
   // Receive methods
   //
 
-  def receive = receiveUninitialized
+  def receive: Receive = receiveUninitialized
 
   /**
    * Handles messages when the realtime model has not been initialized yet.
    */
   private[this] def receiveUninitialized: Receive = {
     case request: OpenRealtimeModelRequest => onOpenModelWhileUninitialized(request)
-    case unknown => unhandled(unknown)
+    case unknown: Any => unhandled(unknown)
   }
 
   /**
@@ -79,7 +79,7 @@ class RealtimeModelActor(
     case dataResponse: DatabaseModelResponse => onDatabaseModelResponse(dataResponse)
     case dataResponse: ClientModelDataResponse => onClientModelDataResponse(dataResponse)
     case ModelDeleted => handleInitializationFailure("model_deleted", "The model was deleted while opening.")
-    case unknown => unhandled(unknown)
+    case unknown: Any => unhandled(unknown)
   }
 
   /**
@@ -91,7 +91,7 @@ class RealtimeModelActor(
     case DatabaseModelFailure(cause) => handleInitializationFailure("unknown", "Unexpected error initializing the model.")
     case ModelDeleted => handleInitializationFailure("model_deleted", "The model was deleted while opening.")
     case dataResponse: ClientModelDataResponse =>
-    case unknown => unhandled(unknown)
+    case unknown: Any => unhandled(unknown)
   }
 
   /**
@@ -104,7 +104,7 @@ class RealtimeModelActor(
     case dataResponse: ClientModelDataResponse =>
     case snapshotMetaData: ModelSnapshotMetaData => this.latestSnapshot = snapshotMetaData
     case ModelDeleted => handleModelDeletedWhileOpen()
-    case unknown => unhandled(unknown)
+    case unknown: Any => unhandled(unknown)
   }
 
   //
@@ -185,7 +185,6 @@ class RealtimeModelActor(
         transformer,
         modelData.metaData.version)
 
-      println("Time to create registry: " + (Platform.currentTime - startTime))
       // TODO Initialize tree reference model
 
       queuedOpeningClients foreach {
@@ -264,7 +263,6 @@ class RealtimeModelActor(
     if (connectedClients.contains(sk)) {
       sender ! ModelAlreadyOpen
     } else {
-      //FIXME: Handle None
       modelStore.getModel(modelFqn) match {
         case Success(Some(modelData)) => respondToClientOpenRequest(sk, modelData, OpenRequestRecord(request.clientActor, sender()))
         case Success(None) => ??? // The model is open but we can't find data.  This is a major issue.
@@ -338,7 +336,7 @@ class RealtimeModelActor(
   /**
    * Handles the notification of a deleted model, while open.
    */
-  private[this] def handleModelDeletedWhileOpen() {
+  private[this] def handleModelDeletedWhileOpen(): Unit = {
     connectedClients.keys foreach {
       sk => forceClosedModel(sk, "Model deleted", false)
     }
@@ -371,7 +369,6 @@ class RealtimeModelActor(
           sessionKey,
           "Error applying operation to model, closing as a precautionary step: " + error.getMessage,
           true)
-
       }
     }
   }
@@ -384,7 +381,6 @@ class RealtimeModelActor(
 
     val timestamp = Instant.now()
 
-    // TODO get uid / sid.
     modelOperationProcessor.processModelOperation(ModelOperation(
       modelFqn,
       processedOpEvent.resultingVersion,
@@ -393,13 +389,12 @@ class RealtimeModelActor(
       sk.sid,
       processedOpEvent.operation))
 
-    //TODO: Change this to use Instant?
     OutgoingOperation(
       modelResourceId,
       sk.uid,
       sk.sid,
       processedOpEvent.contextVersion,
-      timestamp.getEpochSecond,
+      timestamp.toEpochMilli(),
       processedOpEvent.operation)
   }
 
@@ -407,7 +402,7 @@ class RealtimeModelActor(
    * Sends an ACK back to the originator of the operation and an operation message
    * to all other connected clients.
    */
-  private[this] def broadcastOperation(sk: SessionKey, outgoingOperation: OutgoingOperation, originSeqNo: Long) {
+  private[this] def broadcastOperation(sk: SessionKey, outgoingOperation: OutgoingOperation, originSeqNo: Long): Unit = {
 
     // Ack the sender
     connectedClients(sk) !
@@ -452,7 +447,7 @@ class RealtimeModelActor(
     }
 
     f onSuccess {
-      case snapshotMetaData =>
+      case snapshotMetaData: ModelSnapshotMetaData =>
         // Send the snapshot back to the model so it knows when the snapshot was actually taken.
         self ! snapshotMetaData
         log.debug(s"Snapshot successfully taken for '${modelFqn.collectionId}/${modelFqn.modelId}' " +
@@ -460,7 +455,7 @@ class RealtimeModelActor(
     }
 
     f onFailure {
-      case cause => log.error(cause, s"Error taking snapshot of model (${modelFqn.collectionId}/${modelFqn.modelId})")
+      case cause: Throwable => log.error(cause, s"Error taking snapshot of model (${modelFqn.collectionId}/${modelFqn.modelId})")
     }
   }
 
@@ -471,7 +466,7 @@ class RealtimeModelActor(
   /**
    * Kicks all clients out of the model.
    */
-  private[this] def forceCloseAllAfterError(reason: String) {
+  private[this] def forceCloseAllAfterError(reason: String): Unit = {
     connectedClients foreach {
       case (clientId, actor) => forceClosedModel(clientId, reason, false)
     }
@@ -480,7 +475,7 @@ class RealtimeModelActor(
   /**
    * Kicks a specific clent out of the model.
    */
-  private[this] def forceClosedModel(sk: SessionKey, reason: String, notifyOthers: Boolean) {
+  private[this] def forceClosedModel(sk: SessionKey, reason: String, notifyOthers: Boolean): Unit = {
     val closedActor = connectedClients(sk)
     connectedClients -= sk
     concurrencyControl.untrackClient(sk)
@@ -512,7 +507,7 @@ class RealtimeModelActor(
     checkForConnectionsAndClose()
   }
 
-  override def postStop() {
+  override def postStop(): Unit = {
     log.debug("Unloading Realtime Model({}/{})", domainFqn, modelFqn)
     connectedClients = HashMap()
   }

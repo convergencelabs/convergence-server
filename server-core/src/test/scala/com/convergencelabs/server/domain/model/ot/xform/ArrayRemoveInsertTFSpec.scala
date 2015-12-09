@@ -12,7 +12,7 @@ class ArrayRemoveInsertTFSpec extends WordSpec {
 
   "A ArrayRemoveInsertTF" when {
     "tranforming a remove against an insert" must {
-      
+
       /**
        * <pre>
        *
@@ -24,7 +24,7 @@ class ArrayRemoveInsertTFSpec extends WordSpec {
        *
        * Server State    : [A, B, D, E, F, G, H, I, J]
        * Client Op'      :        ^                              Insert(2, X)
-       * 
+       *
        * Client State    : [A, B, C, D, X, E, F, G, H, I, J]
        * Server Op'      :        ^                              Remove(2, C)
        *
@@ -35,13 +35,13 @@ class ArrayRemoveInsertTFSpec extends WordSpec {
       "decrement the client's index if the server's index is less than the client's index" in {
         val s = ArrayRemoveOperation(Path, false, 2)
         val c = ArrayInsertOperation(Path, false, 3, ClientVal)
-        
+
         val (s1, c1) = ArrayRemoveInsertTF.transform(s, c)
 
         assert(s1 == s)
         assert(c1 == ArrayInsertOperation(Path, false, 2, ClientVal))
       }
-      
+
       /**
        * <pre>
        *
@@ -53,10 +53,10 @@ class ArrayRemoveInsertTFSpec extends WordSpec {
        *
        * Server State    : [A, B, D, E, F, G, H, I, J]
        * Client Op'      :        ^                              Insert(2, X)
-       * 
+       *
        * Client State    : [A, B, X, C, D, E, F, G, H, I, J]
        * Server Op'      :           ^                           Remove(3, C)
-       * 
+       *
        * Converged State : [A, B, X, D, E, F, G, H, I, J]
        *
        * </pre>
@@ -64,13 +64,13 @@ class ArrayRemoveInsertTFSpec extends WordSpec {
       "decrement the client's index if the server's index is equal to the client's index" in {
         val s = ArrayRemoveOperation(Path, false, 4)
         val c = ArrayInsertOperation(Path, false, 4, ClientVal)
-        
+
         val (s1, c1) = ArrayRemoveInsertTF.transform(s, c)
 
         assert(s1 == s)
         assert(c1 == ArrayInsertOperation(Path, false, 3, ClientVal))
       }
-      
+
       /**
        * <pre>
        *
@@ -82,10 +82,10 @@ class ArrayRemoveInsertTFSpec extends WordSpec {
        *
        * Server State    : [A, B, C, D, F, G, H, I, J]
        * Client Op'      :        ^                              Insert(2, X)
-       * 
+       *
        * Client State    : [A, B, X, C, D, E, F, G, H, I, J]
        * Server Op'      :                 ^                     Remove(5, E)
-       * 
+       *
        * Converged State : [A, B, X, C, D, F, G, H, I, J]
        *
        * </pre>
@@ -93,7 +93,7 @@ class ArrayRemoveInsertTFSpec extends WordSpec {
       "increment the server's index if the server's index is greater than the client's index" in {
         val s = ArrayRemoveOperation(Path, false, 4)
         val c = ArrayInsertOperation(Path, false, 2, ClientVal)
-        
+
         val (s1, c1) = ArrayRemoveInsertTF.transform(s, c)
 
         assert(s1 == ArrayRemoveOperation(Path, false, 5))

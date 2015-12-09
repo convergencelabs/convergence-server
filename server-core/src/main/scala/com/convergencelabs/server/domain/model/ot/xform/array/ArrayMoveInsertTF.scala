@@ -13,7 +13,7 @@ private[ot] object ArrayMoveInsertTF extends OperationTransformationFunction[Arr
     } else if (ArrayMoveRangeHelper.isBackwardMoveMove(s)) {
       transformAgainstBackwardMove(s, c)
     } else {
-      ??? // FIXME Exception, this should not happen
+      throw new UnsupportedOperationException(s"An unanticipated Move-Insert case was detected ($s, $c)")
     }
   }
 

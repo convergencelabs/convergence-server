@@ -15,22 +15,22 @@ import scala.concurrent.duration.FiniteDuration
 class ConvergenceRealtimeFrontend(
     private[this] val system: ActorSystem,
     private[this] val websocketPort: Int) extends Logging {
-  
+
   // FIXME this object is nonsensical.  It's all over the place.  I don't know 
   // if this is the right place for this.
   private val protoConfig = ProtocolConfiguration(5000L)
-  
+
   private[this] val connectionHandler = new SocketConnectionHandler()
   private[this] val inbox = Inbox.create(system)
   private[this] val connectionManager = system.actorOf(ConnectionManagerActor.props(inbox.getRef(), protoConfig), "connectionManager")
-  
+
   connectionHandler.addListener((domainFqn: DomainFqn, socket: ConvergenceServerSocket) => {
     connectionManager.tell(NewSocketEvent(domainFqn, socket), ActorRef.noSender)
   })
 
   // FIXME.  Not sure this is the right size.
   private[this] val server = new WebSocketServer(websocketPort, 65535, connectionHandler)
-  
+
   def start(): Unit = {
     logger.info(s"Realtime Front End starting up on port $websocketPort.")
     val timeout = FiniteDuration(5, TimeUnit.SECONDS)
@@ -41,7 +41,7 @@ class ConvergenceRealtimeFrontend(
       }
     }
   }
-  
+
   def stop(): Unit = {
     server.stop()
   }

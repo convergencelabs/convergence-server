@@ -15,7 +15,7 @@ class StringRemoveInsertTFSpec extends WordSpec {
 
       /**
        * Insert at the start of the remove.
-       * 
+       *
        * Indices         : 0123456789
        * Original String : ABCDEFGHIJ
        *
@@ -24,10 +24,10 @@ class StringRemoveInsertTFSpec extends WordSpec {
        *
        * Client State    : ABCDxxEFGHIJ
        * Server' OP      :       ^^        Remove(6,"EF")
-       * 
+       *
        * Server  State   : ABCDGHIJ
        * Client' Op      :     ^           Insert(4,"xx")
-       * 
+       *
        *
        * Converged State: ABCDxxGHIJ
        *
@@ -42,10 +42,10 @@ class StringRemoveInsertTFSpec extends WordSpec {
         assert(s1 == StringRemoveOperation(Path, false, 6, ServerVal))
         assert(c1 == c)
       }
-      
+
       /**
        * Insert at the beginning of the delete
-       * 
+       *
        * Indices         : 0123456789
        * Original String : ABCDEFGHIJ
        *
@@ -54,10 +54,10 @@ class StringRemoveInsertTFSpec extends WordSpec {
        *
        * Client State    : ABCDxxEFGHIJ
        * Server' OP      :       ^^        Remove(6,"EF")
-       * 
+       *
        * Server  State   : ABCDGHIJ
        * Client' Op      :     ^           Insert(4,"xx")
-       * 
+       *
        *
        * Converged State: ABCDxxGHIJ
        *
@@ -75,7 +75,7 @@ class StringRemoveInsertTFSpec extends WordSpec {
 
       /**
        * Client insert in the middle of the server remove
-       * 
+       *
        * Indices         : 0123456789
        * Original String : ABCDEFGHIJ
        *
@@ -84,10 +84,10 @@ class StringRemoveInsertTFSpec extends WordSpec {
        *
        * Client State    : ABCDxxEFGHIJ
        * Server' OP      :    ^---^        Remove(3,"DxxEF")
-       * 
+       *
        * Server  State   : ABCDGHIJ
        * Client' Op      :    ^            Insert(4,"xx") - NoOp
-       * 
+       *
        *
        * Converged State: ABCGHIJ
        *
@@ -102,10 +102,10 @@ class StringRemoveInsertTFSpec extends WordSpec {
         assert(s1 == StringRemoveOperation(Path, false, 3, "DxxEF"))
         assert(c1 == StringInsertOperation(Path, true, 4, "xx"))
       }
-      
+
       /**
        * Client insert at the end of the server's remove.
-       * 
+       *
        * Indices         : 0123456789
        * Original String : ABCDEFGHIJ
        *
@@ -114,10 +114,10 @@ class StringRemoveInsertTFSpec extends WordSpec {
        *
        * Client State    : ABCDExxFGHIJ
        * Server' OP      :    ^---^        Remove(3,"DExxF")
-       * 
+       *
        * Server  State   : ABCDGHIJ
        * Client' Op      :     ^            Insert(5,"xx") - NoOp
-       * 
+       *
        *
        * Converged State: ABCGHIJ
        *
@@ -132,10 +132,10 @@ class StringRemoveInsertTFSpec extends WordSpec {
         assert(s1 == StringRemoveOperation(Path, false, 3, "DExxF"))
         assert(c1 == StringInsertOperation(Path, true, 5, "xx"))
       }
-      
+
       /**
        * Client insert at the end of the server's remove.
-       * 
+       *
        * Indices         : 0123456789
        * Original String : ABCDEFGHIJ
        *
@@ -144,10 +144,10 @@ class StringRemoveInsertTFSpec extends WordSpec {
        *
        * Client State    : ABCDEFxxGHIJ
        * Server' OP      :    ^-^         Remove(3,"DEF")
-       * 
+       *
        * Server  State   : ABCDGHIJ
        * Client' Op      :    ^            Insert(3,"xx")
-       * 
+       *
        *
        * Converged State: ABCxxGHIJ
        *

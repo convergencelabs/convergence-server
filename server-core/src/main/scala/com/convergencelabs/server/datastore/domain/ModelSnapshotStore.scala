@@ -131,7 +131,7 @@ class ModelSnapshotStore private[domain] (
       """SELECT version, timestamp
         |FROM ModelSnapshot
         |WHERE
-        |  collectionId = :collectionId AND 
+        |  collectionId = :collectionId AND
         |  modelId = :modelId AND
         |  timestamp BETWEEN :startTime AND :endTime
         |ORDER BY version ASC""".stripMargin
@@ -233,7 +233,7 @@ class ModelSnapshotStore private[domain] (
     val query =
       """DELETE FROM ModelSnapshot
         |WHERE
-        |  collectionId = :collectionId AND 
+        |  collectionId = :collectionId AND
         |  modelId = :modelId""".stripMargin
 
     val command = new OCommandSQL(query);

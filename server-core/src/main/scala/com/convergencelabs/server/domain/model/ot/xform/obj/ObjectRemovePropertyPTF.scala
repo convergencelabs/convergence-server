@@ -8,7 +8,7 @@ private[ot] object ObjectRemovePropertyPTF extends PathTransformationFunction[Ob
     if (ancestor.property == commonProperty) {
       PathObsoleted
     } else {
-      NoPathTranslation
+      NoPathTransformation
     }
   }
 }

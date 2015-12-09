@@ -20,13 +20,15 @@ class ModelSnapshotMapperSpec
     extends WordSpec
     with Matchers {
 
+  val SnapshotVersion = 4L
+  
   "An ModelSnapshotMapper" when {
     "when converting Model operations" must {
       "correctly map and unmap a Model" in {
         val modelSnapshot = ModelSnapshot(
           ModelSnapshotMetaData(
             ModelFqn("collection", "model"),
-            4L,
+            SnapshotVersion,
             Instant.ofEpochMilli(System.currentTimeMillis())),
           JObject("foo" -> JString("test")))
 

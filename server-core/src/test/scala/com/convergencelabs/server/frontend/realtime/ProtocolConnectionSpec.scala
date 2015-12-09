@@ -1,43 +1,32 @@
 package com.convergencelabs.server.frontend.realtime
 
-import scala.concurrent._
-import scala.concurrent.duration._
-import scala.language.postfixOps
-import java.util.concurrent.TimeUnit
-import akka.actor.ActorSystem
-import akka.testkit.{ TestProbe, TestKit }
-import org.json4s.JsonAST.{ JObject, JString }
-import org.json4s.jackson.Serialization
-import org.json4s.jackson.Serialization.{ read, write }
-import org.json4s.NoTypeHints
-import org.mockito.{ ArgumentCaptor, Mockito, Matchers }
-import org.mockito.Mockito.{ verify, times }
-import org.scalatest.mock.MockitoSugar
-import org.scalatest.{ BeforeAndAfterAll, WordSpecLike }
+import java.util.concurrent.LinkedBlockingDeque
+
+import scala.concurrent.duration.Duration
+import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
-import org.scalatest.junit.JUnitRunner
+import scala.language.postfixOps
+
+import org.json4s.NoTypeHints
+import org.json4s.jackson.Serialization
 import org.junit.runner.RunWith
-import com.convergencelabs.server.domain.DomainFqn
+import org.mockito.Mockito
+import org.mockito.Mockito.times
+import org.scalatest.Assertions
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.Finders
+import org.scalatest.WordSpecLike
+import org.scalatest.junit.JUnitRunner
+import org.scalatest.mock.MockitoSugar
+
 import com.convergencelabs.server.ProtocolConfiguration
 import com.convergencelabs.server.frontend.realtime.proto.HandshakeRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolMessage
-import scala.concurrent.Promise
-import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolResponseMessage
-import akka.actor.ActorRef
-import com.convergencelabs.server.domain.HandshakeRequest
-import com.convergencelabs.server.domain.model.CloseRealtimeModelSuccess
-import com.convergencelabs.server.domain.model.CloseRealtimeModelRequest
-import com.convergencelabs.server.frontend.realtime.proto.CloseRealtimeModelRequestMessage
-import akka.actor.Terminated
-import com.convergencelabs.server.frontend.realtime.proto.HandshakeRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.OpCode
-import com.convergencelabs.server.frontend.realtime.proto.MessageEnvelope
-import scala.concurrent.Await
-import scala.util.Success
-import org.scalatest.Assertions
-import java.util.concurrent.LinkedBlockingDeque
-import scala.PartialFunction
 import com.convergencelabs.server.frontend.realtime.proto.HandshakeResponseMessage
+import com.convergencelabs.server.frontend.realtime.proto.MessageEnvelope
+import com.convergencelabs.server.frontend.realtime.proto.OpCode
+
+import akka.actor.ActorSystem
+import akka.testkit.TestKit
 
 @RunWith(classOf[JUnitRunner])
 class ProtocolConnectionSpec(system: ActorSystem)
@@ -51,7 +40,7 @@ class ProtocolConnectionSpec(system: ActorSystem)
 
   implicit val formats = Serialization.formats(NoTypeHints)
 
-  override def afterAll() {
+  override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
   }
 

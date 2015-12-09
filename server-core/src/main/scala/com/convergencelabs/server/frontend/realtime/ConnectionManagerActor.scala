@@ -1,24 +1,26 @@
 package com.convergencelabs.server.frontend.realtime
 
-import akka.actor.ActorLogging
-import akka.actor.Actor
-import akka.actor.Props
-import akka.cluster.Cluster
-import akka.cluster.ClusterEvent._
-import com.convergencelabs.server.domain.DomainFqn
-import akka.cluster.Member
-import akka.actor.RootActorPath
-import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
-import scala.util.Success
+
+import scala.concurrent.duration.FiniteDuration
 import scala.util.Failure
-import akka.actor.ActorRef
-import com.convergencelabs.server.domain.HandshakeRequest
-import com.convergencelabs.server.frontend.realtime.proto.HandshakeRequestMessage
-import java.util.UUID
+import scala.util.Success
+
 import com.convergencelabs.server.ProtocolConfiguration
-import scala.collection.mutable
-import com.convergencelabs.server.domain.HandshakeRequest
+import com.convergencelabs.server.domain.DomainFqn
+
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.ActorRef
+import akka.actor.Props
+import akka.actor.RootActorPath
+import akka.actor.actorRef2Scala
+import akka.cluster.Cluster
+import akka.cluster.ClusterEvent.InitialStateAsEvents
+import akka.cluster.ClusterEvent.MemberEvent
+import akka.cluster.ClusterEvent.MemberUp
+import akka.cluster.ClusterEvent.UnreachableMember
+import akka.cluster.Member
 
 object ConnectionManagerActor {
   def props(startUpListener: ActorRef, protocolConfig: ProtocolConfiguration): Props = Props(
@@ -32,9 +34,9 @@ class ConnectionManagerActor(
 
   private[this] val cluster = Cluster(context.system)
   private[this] implicit val ec = context.dispatcher
-  var domainManagerActor: ActorRef = null
+  var domainManagerActor: ActorRef = _
 
-  def receive = {
+  def receive: Receive = {
     case MemberUp(member) if member.hasRole("domainManager") => registerDomainManager(member)
     case DomainManagerRegistration(ref) => {
       domainManagerActor = ref
@@ -42,12 +44,12 @@ class ConnectionManagerActor(
       log.info("Domain Manager Registered")
       startUpListener ! StartUpComplete
     }
-    case message => unhandled(message)
+    case message: Any => unhandled(message)
   }
 
   def receiveWhenInitialized: Receive = {
     case newSocketEvent: NewSocketEvent => onNewSocketEvent(newSocketEvent)
-    case message => unhandled(message)
+    case message: Any => unhandled(message)
   }
 
   private[this] def registerDomainManager(member: Member): Unit = {

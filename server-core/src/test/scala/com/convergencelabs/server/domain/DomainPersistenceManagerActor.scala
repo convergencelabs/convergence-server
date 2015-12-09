@@ -33,7 +33,7 @@ class DomainManagerActorSpec()
 
   val domainPersistence = MockDomainPersistenceManagerActor(system)
 
-  override def afterAll() {
+  override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
   }
 

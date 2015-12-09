@@ -14,7 +14,7 @@ class ArrayInsertInsertTFSpec extends WordSpec with Matchers {
   "A ArrayInsertInsertTF" when {
 
     "tranforming two insert operations " must {
-      
+
       /**
        * <pre>
        *
@@ -26,10 +26,10 @@ class ArrayInsertInsertTFSpec extends WordSpec with Matchers {
        *
        * Server State    : [A, B, X, C, D, E, F, G, H, I, J]
        * Client Op'      :           ^                           Insert(3, Y)
-       * 
+       *
        * Client State    : [A, B, Y, C, D, E, F, G, H, I, J]
        * Server Op'      :        ^                              Insert(2, X)
-       * 
+       *
        * Converged State : [A, B, X, Y, C, D, E, F, G, H, I, J]
        *
        * </pre>
@@ -37,17 +37,17 @@ class ArrayInsertInsertTFSpec extends WordSpec with Matchers {
       "increment the client's index if both operations target the same index" in {
         val s = ArrayInsertOperation(Path, false, 2, ServerVal)
         val c = ArrayInsertOperation(Path, false, 2, ClientVal)
-        
+
         val (s1, c1) = ArrayInsertInsertTF.transform(s, c)
 
         s1 shouldBe s
         c1 shouldBe ArrayInsertOperation(Path, false, 3, ClientVal)
       }
-      
+
       "increment the client's index if the server's index is before the client's" in {
         val s = ArrayInsertOperation(Path, false, 2, ServerVal)
         val c = ArrayInsertOperation(Path, false, 3, ClientVal)
-        
+
         val (s1, c1) = ArrayInsertInsertTF.transform(s, c)
 
         assert(s1 == s)
@@ -57,7 +57,7 @@ class ArrayInsertInsertTFSpec extends WordSpec with Matchers {
       "increment the server's index if the server's index is after the client's" in {
         val s = ArrayInsertOperation(Path, false, 3, ServerVal)
         val c = ArrayInsertOperation(Path, false, 2, ClientVal)
-        
+
         val (s1, c1) = ArrayInsertInsertTF.transform(s, c)
 
         assert(s1 == ArrayInsertOperation(Path, false, 4, ServerVal))

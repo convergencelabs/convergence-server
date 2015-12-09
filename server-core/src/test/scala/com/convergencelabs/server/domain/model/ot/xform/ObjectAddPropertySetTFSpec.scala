@@ -14,7 +14,7 @@ class ObjectAddPropertySetTFSpec extends WordSpec with Matchers {
       "throw an exception if the property names are equal" in {
         val s = ObjectAddPropertyOperation(List(), false, "prop", JObject())
         val c = ObjectSetOperation(List(), false, JObject())
-        
+
         val (s1, c1) = ObjectAddPropertySetTF.transform(s, c)
 
         s1 shouldBe ObjectAddPropertyOperation(List(), true, "prop", JObject())

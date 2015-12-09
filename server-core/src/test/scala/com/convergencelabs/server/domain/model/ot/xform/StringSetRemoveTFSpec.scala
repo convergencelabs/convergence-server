@@ -12,11 +12,11 @@ class StringSetRemoveTFSpec extends WordSpec {
   "A StringSetRemoveTF" when {
 
     "tranforming a server set against a client insert " must {
-      
+
       "noOp the client's sinert operation and not transform the server's set" in {
         val s = StringSetOperation(Path, false, ServerVal)
         val c = StringRemoveOperation(Path, false, 2, ClientVal)
-        
+
         val (s1, c1) = StringSetRemoveTF.transform(s, c)
 
         assert(s1 == s)

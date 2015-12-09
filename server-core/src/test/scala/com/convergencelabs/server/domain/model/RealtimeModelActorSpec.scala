@@ -42,7 +42,7 @@ class RealtimeModelActorSpec
     with BeforeAndAfterAll
     with MockitoSugar {
 
-  override def afterAll() {
+  override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
   }
 
@@ -53,7 +53,7 @@ class RealtimeModelActorSpec
         realtimeModelActor.tell(OpenRealtimeModelRequest(uid1, session1, modelFqn, client.ref), client.ref)
 
         val message = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
-        
+
         assert(message.modelData == modelData.data)
         assert(message.metaData.version == modelData.metaData.version)
         assert(message.metaData.createdTime == modelData.metaData.createdTime)
@@ -94,7 +94,7 @@ class RealtimeModelActorSpec
         val client1 = new TestProbe(system)
         realtimeModelActor.tell(OpenRealtimeModelRequest(uid1, session1, modelFqn, client1.ref), client1.ref)
         client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientModelDataRequest])
-        client1.reply(ErrorResponse("","")) // Any message that is not a ClientModelDataResponse will do here.
+        client1.reply(ErrorResponse("", "")) // Any message that is not a ClientModelDataResponse will do here.
         client1.expectMsgClass(FiniteDuration(200, TimeUnit.MILLISECONDS), classOf[ErrorResponse])
       }
 
@@ -150,7 +150,7 @@ class RealtimeModelActorSpec
         val open2 = client1.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelAlreadyOpen)
       }
     }
-    
+
     "closing a closed a model" must {
       "acknowledge the close" in new MockDatabaseWithModel with OneOpenClient {
         realtimeModelActor.tell(CloseRealtimeModelRequest(uid1, session1), client1.ref)
@@ -230,10 +230,10 @@ class RealtimeModelActorSpec
   trait TestFixture {
     val uid1 = "1"
     val uid2 = "2"
-    
+
     val session1 = "1"
     val session2 = "2"
-    
+
     val modelFqn = ModelFqn("collection", "model" + System.nanoTime())
     val modelJsonData = JObject("key" -> JString("value"))
     val modelCreateTime = Instant.ofEpochMilli(2L)
@@ -268,13 +268,13 @@ class RealtimeModelActorSpec
 
   trait OneOpenClient extends MockDatabaseWithModel {
     val client1 = new TestProbe(system)
-    realtimeModelActor.tell(OpenRealtimeModelRequest(uid1, session1 ,modelFqn, client1.ref), client1.ref)
+    realtimeModelActor.tell(OpenRealtimeModelRequest(uid1, session1, modelFqn, client1.ref), client1.ref)
     val client1OpenResponse = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
   }
 
   trait TwoOpenClients extends OneOpenClient {
     val client2 = new TestProbe(system)
-    realtimeModelActor.tell(OpenRealtimeModelRequest(uid2, session1 ,modelFqn, client2.ref), client2.ref)
+    realtimeModelActor.tell(OpenRealtimeModelRequest(uid2, session1, modelFqn, client2.ref), client2.ref)
     val client2OpenResponse = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
   }
 

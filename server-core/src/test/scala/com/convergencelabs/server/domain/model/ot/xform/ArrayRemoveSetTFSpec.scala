@@ -15,11 +15,11 @@ class ArrayRemoveSetTFSpec extends WordSpec with Matchers {
   "A ArrayRemoveSetTF" when {
 
     "transforming a server's remove against a client's set" must {
-      
+
       "noOp the server's operation and not transform the client's" in {
         val s = ArrayRemoveOperation(Path, false, 2)
         val c = ArraySetOperation(Path, false, ClientVal)
-        
+
         val (s1, c1) = ArrayRemoveSetTF.transform(s, c)
 
         s1 shouldBe ArrayRemoveOperation(Path, true, 2)

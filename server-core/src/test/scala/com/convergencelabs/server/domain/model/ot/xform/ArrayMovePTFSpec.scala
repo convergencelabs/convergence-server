@@ -13,40 +13,40 @@ class ArrayMovePTFSpec extends WordSpec {
         val result = ArrayMovePTF.transformDescendantPath(ancestor, path)
         assert(result == PathUpdated(List(1, 1, 0, 1)))
       }
-      
+
       "increment the common path index when moving from after to before the index" in {
         val ancestor = ArrayMoveOperation(List(1, 1), false, 3, 0)
         val path = List(1, 1, 1, 1)
         val result = ArrayMovePTF.transformDescendantPath(ancestor, path)
         assert(result == PathUpdated(List(1, 1, 2, 1)))
       }
-      
+
       "increment the common path index when moving from after to the index" in {
         val ancestor = ArrayMoveOperation(List(1, 1), false, 3, 0)
         val path = List(1, 1, 1, 1)
         val result = ArrayMovePTF.transformDescendantPath(ancestor, path)
         assert(result == PathUpdated(List(1, 1, 2, 1)))
       }
-      
+
       "move the index to the to of the move when the from of the move is the index" in {
         val ancestor = ArrayMoveOperation(List(1, 1), false, 1, 4)
         val path = List(1, 1, 1, 1)
         val result = ArrayMovePTF.transformDescendantPath(ancestor, path)
         assert(result == PathUpdated(List(1, 1, 4, 1)))
       }
-      
+
       "no transform if the index is entirely before the range" in {
         val ancestor = ArrayMoveOperation(List(1, 1), false, 2, 4)
         val path = List(1, 1, 1, 1)
         val result = ArrayMovePTF.transformDescendantPath(ancestor, path)
-        assert(result == NoPathTranslation)
+        assert(result == NoPathTransformation)
       }
-      
+
       "no transform if the index is entirely after the range" in {
         val ancestor = ArrayMoveOperation(List(1, 1), false, 0, 2)
         val path = List(1, 1, 3, 1)
         val result = ArrayMovePTF.transformDescendantPath(ancestor, path)
-        assert(result == NoPathTranslation)
+        assert(result == NoPathTransformation)
       }
     }
   }

@@ -14,7 +14,7 @@ class ArraySetOperationMapperSpec
     extends WordSpec
     with Matchers {
 
-  val path = List(3, "foo", 4)
+  val path = List(3, "foo", 4) // scalastyle:off magic.number
 
   "An ArraySetOperationMapper" when {
     "when converting ArraySetOperation operations" must {
@@ -24,7 +24,7 @@ class ArraySetOperationMapperSpec
         val reverted = opDoc.asArraySetOperation
         op shouldBe reverted
       }
-      
+
       "not allow an invalid document class name" in {
         val invalid = new ODocument("SomeClass")
         intercept[IllegalArgumentException] {

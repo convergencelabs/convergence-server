@@ -17,13 +17,15 @@ class ModelMapperSpec
     extends WordSpec
     with Matchers {
 
+  val ModelVersion = 4L
+  
   "An ModelMapper" when {
     "when converting Model operations" must {
       "correctly map and unmap a Model" in {
         val model = Model(
           ModelMetaData(
             ModelFqn("collection", "model"),
-            4L,
+            ModelVersion,
             Instant.ofEpochMilli(System.currentTimeMillis()),
             Instant.ofEpochMilli(System.currentTimeMillis())),
           JObject("foo" -> JString("test")))

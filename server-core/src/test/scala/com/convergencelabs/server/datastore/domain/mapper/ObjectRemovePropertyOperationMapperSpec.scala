@@ -14,7 +14,7 @@ class ObjectRemovePropertyOperationMapperSpec
     extends WordSpec
     with Matchers {
 
-  val path = List(3, "foo", 4)
+  val path = List(3, "foo", 4) // scalastyle:off magic.number
 
   "An ObjectRemovePropertyOperationMapper" when {
     "when converting ObjectRemovePropertyOperation operations" must {
@@ -24,7 +24,7 @@ class ObjectRemovePropertyOperationMapperSpec
         val reverted = opDoc.asObjectRemovePropertyOperation
         op shouldBe reverted
       }
-      
+
       "not allow an invalid document class name" in {
         val invalid = new ODocument("SomeClass")
         intercept[IllegalArgumentException] {

@@ -14,11 +14,11 @@ class ArrayInsertSetTFSpec extends WordSpec {
   "A ArrayInsertSetTF" when {
 
     "tranforming a server insert against a client remove " must {
-      
+
       "noOp the server's operation and not transform the client's" in {
         val s = ArrayInsertOperation(Path, false, 2, ServerVal)
         val c = ArraySetOperation(Path, false, ClientVal)
-        
+
         val (s1, c1) = ArrayInsertSetTF.transform(s, c)
 
         assert(s1 == ArrayInsertOperation(Path, true, 2, ServerVal))

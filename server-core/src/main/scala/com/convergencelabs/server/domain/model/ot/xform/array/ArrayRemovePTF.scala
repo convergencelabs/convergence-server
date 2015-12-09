@@ -10,7 +10,7 @@ private[ot] object ArrayRemovePTF extends PathTransformationFunction[ArrayRemove
     } else if (ancestor.index == descendantArrayIndex) {
       PathObsoleted
     } else {
-      NoPathTranslation
+      NoPathTransformation
     }
   }
 }

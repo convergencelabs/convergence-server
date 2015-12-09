@@ -372,11 +372,10 @@ class ServerConcurrencyControlSpec extends WordSpec with MockitoSugar {
   }
 
   class MockOperationTransformer extends OperationTransformer(new TransformationFunctionRegistry()) {
-    
+
     override def transform(op1: Operation, op2: Operation): (Operation, Operation) = {
       (op1, op2)
     }
   }
 
 }
-

@@ -13,7 +13,7 @@ private[ot] object ArrayMoveRemoveTF extends OperationTransformationFunction[Arr
     } else if (ArrayMoveRangeHelper.isBackwardMoveMove(s)) {
       transformAgainstBackwardMove(s, c)
     } else {
-      ??? // FIXME real exception
+      throw new UnsupportedOperationException(s"An unanticipated Move-Remove case was detected ($s, $c)")
     }
   }
 

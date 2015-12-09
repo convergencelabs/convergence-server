@@ -23,8 +23,8 @@ private[model] class ServerConcurrencyControl(
 
   private[this] val clientStates = mutable.HashMap[String, ClientConcurrencyState]()
   private[this] var operationHistoryCache = List[ProcessedOperationEvent]()
-  private[this] var pendingEvent: ProcessedOperationEvent = null
-  private[this] var pendingClientState: ClientConcurrencyState = null
+  private[this] var pendingEvent: Option[ProcessedOperationEvent] = None
+  private[this] var pendingClientState: Option[ClientConcurrencyState] = None
 
   private[this] var _contextVersion = initialContextVersion
 
@@ -37,8 +37,9 @@ private[model] class ServerConcurrencyControl(
    * @param remoteOpEvent The remote event to process.
    * @return A ProcessedOperationEvent which contains a transformed version of the operation.
    */
+  // scalastyle:off method.length
   def processRemoteOperation(remoteOpEvent: UnprocessedOperationEvent): ProcessedOperationEvent = {
-    if (pendingEvent != null) {
+    if (pendingEvent.isDefined) {
       throw new IllegalStateException("The previous operation must be committed or rolled back " +
         "before a new operation can before the next operation can be processed.")
     }
@@ -83,24 +84,25 @@ private[model] class ServerConcurrencyControl(
     val (xFormedOp, xFormedStatePath) = transform(remoteClientId, newStatePath, remoteOperation)
 
     // The results are stored as a pending event, waiting for a commit.
-    pendingEvent = new ProcessedOperationEvent(
+    pendingEvent = Some(new ProcessedOperationEvent(
       remoteClientId,
       _contextVersion,
-      xFormedOp)
+      xFormedOp))
 
     // If committed this will become the new state for the client.
-    pendingClientState = clientState.copy(
+    pendingClientState = Some(clientState.copy(
       contextVersion = clientContextVersion,
-      branchedStatePath = xFormedStatePath)
+      branchedStatePath = xFormedStatePath))
 
-    pendingEvent
+    pendingEvent.get
   }
+  // scalastyle:on method.length
 
   /**
    * Gets the current context version of the server.
    * @return The current context version.
    */
-  def contextVersion = _contextVersion
+  def contextVersion: Long = _contextVersion
 
   /**
    * Makes the concurrency control aware of a new client.  The client must have a unique identifier within the system.
@@ -110,7 +112,7 @@ private[model] class ServerConcurrencyControl(
    * @param clientId The unique identifier for this client.
    * @param contextVersion The clients initial context version when it was added.
    */
-  def trackClient(clientId: String, contextVersion: Long) {
+  def trackClient(clientId: String, contextVersion: Long): Unit =  {
     if (clientStates.contains(clientId)) {
       throw new IllegalArgumentException(s"A client with id '$clientId' has already been added.")
     }
@@ -129,7 +131,7 @@ private[model] class ServerConcurrencyControl(
    *
    * @param clientId The client to untrack.
    */
-  def untrackClient(clientId: String) {
+  def untrackClient(clientId: String): Unit = {
     if (!clientStates.contains(clientId)) {
       throw new IllegalArgumentException(s"A client with id '$clientId' is not being tracked.")
     }
@@ -140,9 +142,9 @@ private[model] class ServerConcurrencyControl(
   /**
    * Determines is a specific client is being tracked, and ready to process operations.
    * @param clientId The identifier of the client.
-   * @return True fi the client is being tracked, false otherwise.
+   * @return True if the client is being tracked, false otherwise.
    */
-  def isClientTracked(clientId: String) = this.clientStates.contains(clientId)
+  def isClientTracked(clientId: String): Boolean = this.clientStates.contains(clientId)
 
   /**
    * Determines if an operation has been processed that has yet to be committed or rolled back. If an event is
@@ -150,39 +152,39 @@ private[model] class ServerConcurrencyControl(
    *
    * @return True if there is an outstanding operation to commit, false otherwise.
    */
-  def hasPendingEvent: Boolean = pendingEvent != null
+  def hasPendingEvent: Boolean = pendingEvent.isDefined
 
   /**
    * Commits the pending event.  May only be called when hasPendingEvent returns true.
    */
-  def commit() {
-    if (pendingEvent == null) {
+  def commit(): Unit = {
+    if (pendingEvent.isEmpty) {
       throw new IllegalStateException("Can't call commit when there is no pending operation event.")
     }
 
     this._contextVersion += 1
-    clientStates(this.pendingClientState.clientId) = pendingClientState
+    clientStates(this.pendingClientState.get.clientId) = pendingClientState.get
     val minContextVersion = minimumContextVersion()
 
     operationHistoryCache.filter(event => {
       event.contextVersion >= minContextVersion
     })
-    operationHistoryCache = operationHistoryCache :+ pendingEvent
+    operationHistoryCache = operationHistoryCache :+ pendingEvent.get
 
-    pendingEvent = null
-    pendingClientState = null
+    pendingEvent = None
+    pendingClientState = None
   }
 
   /**
    * Rolls back the pending operation, removing its effects.  May only be called when hasPendingEvent returns true.
    */
-  def rollback() {
-    if (pendingEvent == null) {
+  def rollback(): Unit = {
+    if (pendingEvent.isEmpty) {
       throw new IllegalStateException("Can't call rollback when there is no pending operation event.")
     }
 
-    pendingEvent = null
-    pendingClientState = null
+    pendingEvent = None
+    pendingClientState = None
   }
 
   private[this] def transform(opClientId: String, historyOperationEvents: List[ProcessedOperationEvent], incomingOp: Operation): (Operation, List[ProcessedOperationEvent]) = {
@@ -205,7 +207,7 @@ private[model] class ServerConcurrencyControl(
     version
   }
 
-  private[this] def validateOperationEvent(incomingOperation: UnprocessedOperationEvent) {
+  private[this] def validateOperationEvent(incomingOperation: UnprocessedOperationEvent): Unit = {
     val clientId = incomingOperation.clientId
 
     if (!clientStates.contains(clientId)) {

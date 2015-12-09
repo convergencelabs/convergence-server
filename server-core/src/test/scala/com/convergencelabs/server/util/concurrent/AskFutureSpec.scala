@@ -1,22 +1,20 @@
 package com.convergencelabs.server.util.concurrent
 
-import org.scalatest.WordSpec
-import org.json4s._
-import scala.concurrent.Future
-import scala.concurrent.ExecutionContext
-import scala.util.Success
-import scala.util.Failure
-import org.scalatest.concurrent.Futures
-import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.Matchers
 import scala.concurrent.Await
-import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
-import org.scalatest.TryValues._
-import org.scalatest.OptionValues._
-import com.convergencelabs.server.util.UnexpectedError
-import akka.pattern.AskTimeoutException
 
+import org.scalatest.Finders
+import org.scalatest.Matchers
+import org.scalatest.OptionValues.convertOptionToValuable
+import org.scalatest.WordSpec
+import org.scalatest.concurrent.ScalaFutures
+
+import com.convergencelabs.server.util.UnexpectedError
+
+import akka.pattern.AskTimeoutException
 
 class AskFutureSpec
     extends WordSpec
@@ -34,11 +32,11 @@ class AskFutureSpec
         val response = f.mapResponse[Integer]
 
         whenReady(response) { v =>
-          v shouldBe 3  
+          v shouldBe 3
         }
       }
     }
-    
+
     "resolved with the wrong type" must {
       "must fail with an UnexpectedResponseException if the wrong type is returned" in {
         implicit val ec = ExecutionContext.global
@@ -52,7 +50,7 @@ class AskFutureSpec
         futureResult.failed.get shouldBe a[UnexpectedResponseException]
       }
     }
-    
+
     "handling an unexpected error response" must {
       "must fail with an UnexpectedErrorException if the wrong type is returned" in {
         implicit val ec = ExecutionContext.global
@@ -69,7 +67,7 @@ class AskFutureSpec
         ex.message shouldBe "reason"
       }
     }
-    
+
     "handling an failure" must {
       "must fail with the same cause" in {
         implicit val ec = ExecutionContext.global

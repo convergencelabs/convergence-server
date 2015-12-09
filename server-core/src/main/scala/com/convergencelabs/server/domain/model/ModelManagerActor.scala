@@ -32,14 +32,14 @@ class ModelManagerActor(
   private[this] val openRealtimeModels = mutable.Map[ModelFqn, ActorRef]()
   private[this] var nextModelResourceId: Long = 0
 
-  var persistenceProvider: DomainPersistenceProvider = null
+  var persistenceProvider: DomainPersistenceProvider = _
 
-  def receive = {
+  def receive: Receive = {
     case message: OpenRealtimeModelRequest => onOpenRealtimeModel(message)
     case message: CreateModelRequest => onCreateModelRequest(message)
     case message: DeleteModelRequest => onDeleteModelRequest(message)
     case message: ModelShutdownRequest => onModelShutdownRequest(message)
-    case message => unhandled(message)
+    case message: Any => unhandled(message)
   }
 
   private[this] def onOpenRealtimeModel(openRequest: OpenRealtimeModelRequest): Unit = {
@@ -122,7 +122,7 @@ class ModelManagerActor(
     }
   }
 
-  private[this] def onModelShutdownRequest(shutdownRequest: ModelShutdownRequest) {
+  private[this] def onModelShutdownRequest(shutdownRequest: ModelShutdownRequest): Unit = {
     val fqn = shutdownRequest.modelFqn
     val modelActor = openRealtimeModels.remove(fqn)
     if (!modelActor.isEmpty) {

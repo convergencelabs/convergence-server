@@ -55,7 +55,7 @@ class ClientActorSpec
     with BeforeAndAfterAll
     with MockitoSugar {
 
-  override def afterAll() {
+  override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
   }
 
@@ -197,7 +197,7 @@ class ClientActorSpec
 
   class AuthenticatedClient(system: ActorSystem) extends HandshookClient(system: ActorSystem) {
     val authRequestMessage = PasswordAuthenticationRequestMessage("test", "test")
-    
+
     val authCallback = new TestReplyCallback()
     val authEvent = RequestReceived(authRequestMessage, authCallback)
 
@@ -205,7 +205,7 @@ class ClientActorSpec
 
     domainActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[PasswordAuthRequest])
     domainActor.reply(AuthenticationSuccess("u1", "test"))
-    
+
     val AuthenticationResponseMessage(rId, cId) = Await.result(authCallback.result, 250 millis)
   }
 

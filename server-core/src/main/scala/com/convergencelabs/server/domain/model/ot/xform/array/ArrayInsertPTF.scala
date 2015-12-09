@@ -7,7 +7,7 @@ private[ot] object ArrayInsertPTF extends PathTransformationFunction[ArrayInsert
     if (ancestor.index <= descendantPathIndex) {
       PathUpdated(descendantPath.updated(ancestorPathLength, descendantPathIndex + 1))
     } else {
-      NoPathTranslation
+      NoPathTransformation
     }
   }
 }

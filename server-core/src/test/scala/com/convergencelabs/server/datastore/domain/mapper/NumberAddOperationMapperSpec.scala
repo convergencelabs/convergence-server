@@ -16,7 +16,7 @@ class NumberAddOperationMapperSpec
     extends WordSpec
     with Matchers {
 
-  val path = List(3, "foo", 4)
+  val path = List(3, "foo", 4) // scalastyle:off magic.number
 
   "An NumberAddOperationMapper" when {
     "when converting NumberAddOperation operations" must {

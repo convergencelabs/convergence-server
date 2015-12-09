@@ -15,9 +15,9 @@ object DomainUserMapper extends ODocumentMapper {
     val doc = new ODocument(DocumentClassName)
     doc.field(Fields.Uid, obj.uid)
     doc.field(Fields.Username, obj.username)
-    doc.field(Fields.FirstName, someOrNull(obj.firstName))
-    doc.field(Fields.LastName, someOrNull(obj.lastName))
-    doc.field(Fields.Email, someOrNull(obj.email))
+    doc.field(Fields.FirstName, valueOrNull(obj.firstName))
+    doc.field(Fields.LastName, valueOrNull(obj.lastName))
+    doc.field(Fields.Email, valueOrNull(obj.email))
     doc
   }
 

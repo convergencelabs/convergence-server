@@ -142,7 +142,7 @@
  <check class="org.scalastyle.scalariform.MultipleStringLiteralsChecker" level="warning" enabled="true">
   <parameters>
    <parameter name="allowed"><![CDATA[2]]></parameter>
-   <parameter name="ignoreRegex"><![CDATA[^""$]]></parameter>
+   <parameter name="ignoreRegex"><![CDATA[^""?$]]></parameter>
   </parameters>
  </check>
  <check class="org.scalastyle.scalariform.ImportGroupingChecker" level="warning" enabled="true"></check>

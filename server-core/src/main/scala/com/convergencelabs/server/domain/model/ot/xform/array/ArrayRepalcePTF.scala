@@ -8,7 +8,7 @@ private[ot] object ArrayReplacePTF extends PathTransformationFunction[ArrayRepla
     if (ancestor.index == descendantArrayIndex) {
       PathObsoleted
     } else {
-      NoPathTranslation
+      NoPathTransformation
     }
   }
 }

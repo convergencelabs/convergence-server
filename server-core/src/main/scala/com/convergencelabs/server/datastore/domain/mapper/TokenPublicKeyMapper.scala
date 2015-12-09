@@ -1,10 +1,12 @@
 package com.convergencelabs.server.datastore.domain.mapper
 
 import scala.language.implicitConversions
-
 import com.convergencelabs.server.datastore.mapper.ODocumentMapper
 import com.convergencelabs.server.domain.TokenPublicKey
 import com.orientechnologies.orient.core.record.impl.ODocument
+import java.util.Date
+import com.orientechnologies.orient.core.metadata.schema.OType
+import java.time.Instant
 
 object TokenPublicKeyMapper extends ODocumentMapper {
 
@@ -17,7 +19,7 @@ object TokenPublicKeyMapper extends ODocumentMapper {
     doc.field(Fields.Id, tokenPublicKey.id)
     doc.field(Fields.Name, tokenPublicKey.name)
     doc.field(Fields.Description, tokenPublicKey.description)
-    doc.field(Fields.Created, tokenPublicKey.keyDate)
+    doc.field(Fields.Created, new Date(tokenPublicKey.keyDate.toEpochMilli()))
     doc.field(Fields.Key, tokenPublicKey.key)
     doc.field(Fields.Enabled, tokenPublicKey.enabled)
     doc
@@ -30,11 +32,13 @@ object TokenPublicKeyMapper extends ODocumentMapper {
   private[domain] def oDocumentToTokenPublicKey(doc: ODocument): TokenPublicKey = {
     validateDocumentClass(doc, DocumentClassName)
 
+    val createdDate: Date = doc.field(Fields.Created, OType.DATETIME)
+
     TokenPublicKey(
       doc.field(Fields.Id),
       doc.field(Fields.Name),
       doc.field(Fields.Description),
-      doc.field(Fields.Created),
+      Instant.ofEpochMilli(createdDate.getTime),
       doc.field(Fields.Key),
       doc.field(Fields.Enabled))
   }
@@ -45,7 +49,7 @@ object TokenPublicKeyMapper extends ODocumentMapper {
     val Id = "id"
     val Name = "name"
     val Description = "description"
-    val Created = "keyDate"
+    val Created = "created"
     val Key = "key"
     val Enabled = "enabled"
   }

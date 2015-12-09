@@ -22,8 +22,8 @@ class HeartbeatHelper(
 
   // VALIDATES
 
-  private[this] var pingFuture: Cancellable = null
-  private[this] var timeoutFuture: Cancellable = null
+  private[this] var pingFuture: Option[Cancellable] = None
+  private[this] var timeoutFuture: Option[Cancellable] = None
   private[this] var _started: Boolean = false
 
   def messageReceived(): Unit = {
@@ -68,34 +68,34 @@ class HeartbeatHelper(
   }
 
   def schedulePongTimeout(): Unit = {
-    if (this.timeoutFuture != null) {
+    if (this.timeoutFuture.isDefined) {
       throw new IllegalStateException("Pong timeout already started.")
     }
 
     logger.trace("Scheduling the pong timeout.")
-    this.timeoutFuture = scheduler.scheduleOnce(
-      Duration.create(pongTimeout, TimeUnit.SECONDS))(onTimeout())(ec)
+    this.timeoutFuture = Some(scheduler.scheduleOnce(
+      Duration.create(pongTimeout, TimeUnit.SECONDS))(onTimeout())(ec))
   }
 
   def cancelPongTimeout(): Unit = {
-    if (timeoutFuture != null && !timeoutFuture.isCancelled) {
-      timeoutFuture.cancel()
-      timeoutFuture = null
+    if (timeoutFuture.isDefined && !timeoutFuture.get.isCancelled) {
+      timeoutFuture.get.cancel()
+      timeoutFuture = None
     }
   }
 
   def stopPingTimer(): Unit = {
-    if (pingFuture != null && !pingFuture.isCancelled) {
-      pingFuture.cancel()
-      pingFuture = null
+    if (pingFuture.isDefined && !pingFuture.get.isCancelled) {
+      pingFuture.get.cancel()
+      pingFuture = None
     }
   }
 
   def restartPingTimeout(): Unit = {
     stopPingTimer()
     if (pingInterval > 0) {
-      pingFuture = scheduler.scheduleOnce(
-        Duration.create(pingInterval, TimeUnit.SECONDS))(sendPing())(ec)
+      pingFuture = Some(scheduler.scheduleOnce(
+        Duration.create(pingInterval, TimeUnit.SECONDS))(sendPing())(ec))
     }
   }
 }

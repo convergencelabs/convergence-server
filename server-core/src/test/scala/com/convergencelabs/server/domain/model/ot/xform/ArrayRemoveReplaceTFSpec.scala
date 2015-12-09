@@ -12,7 +12,7 @@ class ArrayRemoveReplaceTFSpec extends WordSpec {
 
   "A ArrayRemoveReplaceTF" when {
     "tranforming a remove against a remove" must {
-      
+
       /**
        * <pre>
        *
@@ -24,7 +24,7 @@ class ArrayRemoveReplaceTFSpec extends WordSpec {
        *
        * Server State    : [A, B, D, E, F, G, H, I, J]
        * Client Op'      :        ^                              Replace(2, D, X)
-       * 
+       *
        * Client State    : [A, B, C, X, E, F, G, H, I, J]
        * Server Op'      :        ^                              Remove(2, C)
        *
@@ -35,13 +35,13 @@ class ArrayRemoveReplaceTFSpec extends WordSpec {
       "decrement the client's index if the server's index is less than the client's index" in {
         val s = ArrayRemoveOperation(Path, false, 2)
         val c = ArrayReplaceOperation(Path, false, 3, ClientVal)
-        
+
         val (s1, c1) = ArrayRemoveReplaceTF.transform(s, c)
 
         assert(s1 == s)
         assert(c1 == ArrayReplaceOperation(Path, false, 2, ClientVal))
       }
-      
+
       /**
        * <pre>
        *
@@ -53,10 +53,10 @@ class ArrayRemoveReplaceTFSpec extends WordSpec {
        *
        * Server State    : [A, B, D, E, F, G, H, I, J]
        * Client Op'      :        ^                              Insert(2, X)
-       * 
+       *
        * Client State    : [A, B, X, D, E, F, G, H, I, J]
        * Server Op'      :        ^                              Remove(2, C) - NoOp
-       * 
+       *
        * Converged State : [A, B, X, D, E, F, G, H, I, J]
        *
        * </pre>
@@ -64,13 +64,13 @@ class ArrayRemoveReplaceTFSpec extends WordSpec {
       "noOp ther server's remove and convert the client's replace to an insert if the server's index is equal to the client's index" in {
         val s = ArrayRemoveOperation(Path, false, 2)
         val c = ArrayReplaceOperation(Path, false, 2, ClientVal)
-        
+
         val (s1, c1) = ArrayRemoveReplaceTF.transform(s, c)
 
         assert(s1 == ArrayRemoveOperation(Path, true, 2))
         assert(c1 == ArrayInsertOperation(Path, false, 2, ClientVal))
       }
-      
+
       /**
        * <pre>
        *
@@ -82,10 +82,10 @@ class ArrayRemoveReplaceTFSpec extends WordSpec {
        *
        * Server State    : [A, B, C, D, F, G, H, I, J]
        * Client Op'      :           ^                           Replace(3, D, X)
-       * 
+       *
        * Client State    : [A, B, C, X, E, F, G, H, I, J]
        * Server Op'      :              ^                        Remove(4, E)
-       * 
+       *
        * Converged State : [A, B, X, C, D, F, G, H, I, J]
        *
        * </pre>
@@ -93,7 +93,7 @@ class ArrayRemoveReplaceTFSpec extends WordSpec {
       "transform neither operation if the server's remove index is greater than the client's replace index" in {
         val s = ArrayRemoveOperation(Path, false, 4)
         val c = ArrayReplaceOperation(Path, false, 3, ClientVal)
-        
+
         val (s1, c1) = ArrayRemoveReplaceTF.transform(s, c)
 
         assert(s1 == s)

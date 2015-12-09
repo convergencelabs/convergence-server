@@ -1,8 +1,8 @@
 package com.convergencelabs.server
 
 import java.time.Duration
-
 import akka.actor.ActorRef
+import java.time.Instant
 
 package object domain {
 
@@ -14,7 +14,7 @@ package object domain {
     dbPassword: String)
 
   case class DomainFqn(namespace: String, domainId: String)
-  case class TokenPublicKey(id: String, name: String, description: String, keyDate: Long, key: String, enabled: Boolean)
+  case class TokenPublicKey(id: String, name: String, description: String, keyDate: Instant, key: String, enabled: Boolean)
   case class TokenKeyPair(publicKey: String, privateKey: String)
 
   case class ModelSnapshotConfig(

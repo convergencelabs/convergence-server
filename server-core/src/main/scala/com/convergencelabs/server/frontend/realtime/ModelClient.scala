@@ -1,24 +1,62 @@
 package com.convergencelabs.server.frontend.realtime
 
-import akka.actor.ActorRef
-import akka.pattern.ask
-import akka.pattern.pipe
-import akka.util.Timeout
-import akka.actor.Props
-import akka.actor.ActorLogging
-import akka.pattern._
-import akka.actor.Actor
-import scala.util.Success
-import scala.util.Failure
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Promise
-import scala.concurrent.Future
-import scala.concurrent.duration._
+import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
-import com.convergencelabs.server.domain.model._
-import com.convergencelabs.server.frontend.realtime.proto._
+import scala.util.Failure
+import scala.util.Success
+
+import com.convergencelabs.server.domain.model.ClientModelDataRequest
+import com.convergencelabs.server.domain.model.ClientModelDataResponse
+import com.convergencelabs.server.domain.model.CloseRealtimeModelRequest
+import com.convergencelabs.server.domain.model.CloseRealtimeModelSuccess
+import com.convergencelabs.server.domain.model.CreateModelRequest
+import com.convergencelabs.server.domain.model.CreateModelResponse
+import com.convergencelabs.server.domain.model.DeleteModelRequest
+import com.convergencelabs.server.domain.model.DeleteModelResponse
+import com.convergencelabs.server.domain.model.ModelAlreadyExists
+import com.convergencelabs.server.domain.model.ModelAlreadyOpen
+import com.convergencelabs.server.domain.model.ModelCreated
+import com.convergencelabs.server.domain.model.ModelDeleted
+import com.convergencelabs.server.domain.model.ModelForceClose
+import com.convergencelabs.server.domain.model.ModelFqn
+import com.convergencelabs.server.domain.model.ModelNotFound
+import com.convergencelabs.server.domain.model.OpenModelResponse
+import com.convergencelabs.server.domain.model.OpenModelSuccess
+import com.convergencelabs.server.domain.model.OpenRealtimeModelRequest
+import com.convergencelabs.server.domain.model.OperationAcknowledgement
+import com.convergencelabs.server.domain.model.OperationSubmission
+import com.convergencelabs.server.domain.model.OutgoingOperation
+import com.convergencelabs.server.domain.model.RealtimeModelClientMessage
+import com.convergencelabs.server.domain.model.RemoteClientClosed
+import com.convergencelabs.server.domain.model.RemoteClientOpened
+import com.convergencelabs.server.frontend.realtime.proto.CloseRealtimeModelRequestMessage
+import com.convergencelabs.server.frontend.realtime.proto.CreateRealtimeModelRequestMessage
+import com.convergencelabs.server.frontend.realtime.proto.DeleteRealtimeModelRequestMessage
+import com.convergencelabs.server.frontend.realtime.proto.ErrorMessage
+import com.convergencelabs.server.frontend.realtime.proto.IncomingModelRequestMessage
+import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolNormalMessage
+import com.convergencelabs.server.frontend.realtime.proto.ModelDataRequestMessage
+import com.convergencelabs.server.frontend.realtime.proto.ModelDataResponseMessage
+import com.convergencelabs.server.frontend.realtime.proto.ModelForceCloseMessage
+import com.convergencelabs.server.frontend.realtime.proto.ModelFqnData
+import com.convergencelabs.server.frontend.realtime.proto.OpenRealtimeModelRequestMessage
 import com.convergencelabs.server.frontend.realtime.proto.OpenRealtimeModelResponseMessage
-import com.convergencelabs.server.util.concurrent._
+import com.convergencelabs.server.frontend.realtime.proto.OperationAcknowledgementMessage
+import com.convergencelabs.server.frontend.realtime.proto.OperationSubmissionMessage
+import com.convergencelabs.server.frontend.realtime.proto.RemoteClientClosedMessage
+import com.convergencelabs.server.frontend.realtime.proto.RemoteClientOpenedMessage
+import com.convergencelabs.server.frontend.realtime.proto.RemoteOperationMessage
+import com.convergencelabs.server.frontend.realtime.proto.SuccessMessage
+import com.convergencelabs.server.util.concurrent.AskFuture
+import com.convergencelabs.server.util.concurrent.UnexpectedErrorException
+
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.ActorRef
+import akka.actor.Props
+import akka.actor.actorRef2Scala
+import akka.pattern.ask
+import akka.util.Timeout
 
 object ModelClientActor {
   def props(
@@ -105,7 +143,7 @@ class ModelClientActor(
         askingActor ! ClientModelDataResponse(data)
       }
       case Failure(cause) => {
-        println(cause)
+        ??? // FIXME what to do?
       }
     }
   }

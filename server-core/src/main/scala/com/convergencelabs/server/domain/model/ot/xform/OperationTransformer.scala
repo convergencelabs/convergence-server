@@ -10,17 +10,13 @@ private[model] class OperationTransformer(tfr: TransformationFunctionRegistry) {
         transformClientCompoundOperation(o1, o2)
       case (o1: DiscreteOperation, o2: DiscreteOperation) =>
         transformTwoDiscreteOps(o1, o2)
-      case _ => {
-        val message = s"Unexpected operation types ${s.getClass.getName} and ${c.getClass.getName}."
-        throw new IllegalArgumentException(message)
-      }
     }
   }
 
   private[this] def transformClientCompoundOperation(s: Operation, c: CompoundOperation): (Operation, Operation) = {
     var xFormedS = s
     val newOps = c.operations.map { o =>
-      val (o1, o2) = transform(s, o)
+      val (o1, o2) = transform(xFormedS, o)
       xFormedS = o1
       o2.asInstanceOf[DiscreteOperation]
     }
@@ -30,11 +26,11 @@ private[model] class OperationTransformer(tfr: TransformationFunctionRegistry) {
   private[this] def transformServerCompoundOperation(s: CompoundOperation, c: Operation) = {
     var xFormedC = c
     val newOps = s.operations.map { o =>
-      val (o1, o2) = transform(s, o)
+      val (o1, o2) = transform(o, xFormedC)
       xFormedC = o2
       o1.asInstanceOf[DiscreteOperation]
     }
-    (xFormedC, CompoundOperation(newOps))
+    (CompoundOperation(newOps), xFormedC)
   }
 
   private[this] def transformTwoDiscreteOps(s: DiscreteOperation, c: DiscreteOperation): (Operation, Operation) = {
@@ -44,8 +40,10 @@ private[model] class OperationTransformer(tfr: TransformationFunctionRegistry) {
       transformIdenticalPathOperations(s, c)
     } else if (s.isAncestorOf(c)) {
       transformHierarchicalOperations(s, c)
+    } else if (c.isAncestorOf(s)) {
+      transformHierarchicalOperations(c, s).swap
     } else {
-      transformHierarchicalOperations(c, s)
+      (s, c)
     }
   }
 
@@ -53,8 +51,8 @@ private[model] class OperationTransformer(tfr: TransformationFunctionRegistry) {
     val tf = tfr.getTransformationFunction(s, c)
     tf match {
       case Some(tf) => tf.transform(s, c)
-      case None => ??? // FIXME put in real exception
-
+      case None => throw new IllegalArgumentException(
+          s"No operation transformation function found for operation pair (${s.getClass.getName},${s.getClass.getName})")
     }
   }
 
@@ -62,12 +60,11 @@ private[model] class OperationTransformer(tfr: TransformationFunctionRegistry) {
     val ptf = tfr.getPathTransformationFunction(a)
     val result = ptf match {
       case Some(ptf) => ptf.transformDescendantPath(a, d.path)
-      case None => ??? // FIXME put in real exception
-
+      case None => throw new IllegalArgumentException(s"No path transformation function found for ancestor operation: ${a.getClass.getName}")
     }
 
     result match {
-      case NoPathTranslation => (a, d)
+      case NoPathTransformation => (a, d)
       case PathObsoleted => (a, d.clone(noOp = true))
       case PathUpdated(path) => (a, d.clone(path = path))
     }

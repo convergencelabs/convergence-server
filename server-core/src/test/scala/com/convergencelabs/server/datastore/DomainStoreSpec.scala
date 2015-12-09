@@ -1,10 +1,8 @@
 package com.convergencelabs.server.datastore
 
-import scala.util.Try
-
 import org.scalatest.Matchers
-import org.scalatest.OptionValues._
-import org.scalatest.TryValues._
+import org.scalatest.OptionValues.convertOptionToValuable
+import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
 
 import com.convergencelabs.server.datastore.domain.PersistenceStoreSpec
@@ -21,13 +19,16 @@ class DomainStoreSpec
   def createStore(dbPool: OPartitionedDatabasePool): DomainStore = new DomainStore(dbPool)
 
   val ns1d1 = DomainFqn("namespace1", "domain1")
-  
+  val ns1d1Id = "namespace1-domain1"
+  val ns1d2Id = "namespace1-domain2"
+  val root = "root"
+
   "A DomainStore" when {
 
     "asked whether a domain exists" must {
 
       "return false if it doesn't exist" in withPersistenceStore { store =>
-        store.domainExists(DomainFqn("notReal", "notReal")).success.get shouldBe false
+        store.domainExists(DomainFqn("notRealNs", "notRealId")).success.get shouldBe false
       }
 
       "return true if it does exist" in withPersistenceStore { store =>
@@ -52,7 +53,7 @@ class DomainStoreSpec
       }
 
       "return Some if the domain exist" in withPersistenceStore { store =>
-        store.getDomainById("namespace1-domain1").success.get shouldBe defined
+        store.getDomainById(ns1d1Id).success.get shouldBe defined
       }
     }
 
@@ -63,8 +64,8 @@ class DomainStoreSpec
           "t4",
           fqn,
           "Test Domain 4",
-          "root",
-          "root")
+          root,
+          root)
 
         store.createDomain(domainConfig).success
         store.getDomainByFqn(fqn).success.get.value shouldBe domainConfig
@@ -75,27 +76,26 @@ class DomainStoreSpec
           "t1",
           ns1d1,
           "Test Domain 1",
-          "root",
-          "root")
+          root,
+          root)
 
-          store.createDomain(domainConfig).failed.get shouldBe a[ORecordDuplicatedException]
+        store.createDomain(domainConfig).failed.get shouldBe a[ORecordDuplicatedException]
       }
     }
 
     "getting domains by namespace" must {
       "return all domains for a namespace" in withPersistenceStore { store =>
-        val domains = store.getDomainsInNamespace("namespace1").success.get 
+        val domains = store.getDomainsInNamespace("namespace1").success.get
         domains.length shouldBe 2
-        domains(0).id shouldBe "namespace1-domain1"
-        domains(1).id shouldBe "namespace1-domain2"
-        
+        domains(0).id shouldBe ns1d1Id
+        domains(1).id shouldBe ns1d2Id
       }
     }
 
     "removing a domain" must {
       "remove the domain record in the database if it exists" in withPersistenceStore { store =>
-        store.removeDomain("namespace1-domain1").success
-        store.getDomainById("namespace1-domain1").success.get shouldBe None
+        store.removeDomain(ns1d1Id).success
+        store.getDomainById(ns1d1Id).success.get shouldBe None
       }
 
       "not throw an exception if the domain does not exist" in withPersistenceStore { store =>

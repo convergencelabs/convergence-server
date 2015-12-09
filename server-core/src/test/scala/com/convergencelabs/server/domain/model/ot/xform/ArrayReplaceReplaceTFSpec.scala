@@ -10,7 +10,6 @@ class ArrayReplaceReplaceTFSpec extends WordSpec with Matchers {
   val Path = List(1, 2)
   val X = JString("X")
   val Y = JString("Y")
-  
 
   "A ArrayReplaceReplaceTF" when {
     "tranforming an array replace against an array insert" must {

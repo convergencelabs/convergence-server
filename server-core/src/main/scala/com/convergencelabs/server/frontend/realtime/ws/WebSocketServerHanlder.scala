@@ -25,11 +25,13 @@ import com.convergencelabs.server.domain.DomainFqn
 import io.netty.handler.codec.http.websocketx.ContinuationWebSocketFrame
 import com.convergencelabs.server.frontend.realtime.SocketConnectionHandler
 
-private[ws] class WebSocketServerHandler(maxFrameSize: Int, socketConnectionHandler: SocketConnectionHandler) extends SimpleChannelInboundHandler[Object] with Logging {
+private[ws] class WebSocketServerHandler(maxFrameSize: Int, socketConnectionHandler: SocketConnectionHandler)
+    extends SimpleChannelInboundHandler[Object]
+    with Logging {
 
   private[this] val WEBSOCKET_PATH = "/domain/"
-  private[this] var handshaker: WebSocketServerHandshaker = null
-  private[this] var convergenceSocket: NettyServerWebSocket = null
+  private[this] var handshaker: Option[WebSocketServerHandshaker] = None
+  private[this] var convergenceSocket: Option[NettyServerWebSocket] = None
   private[this] var closeFrameReceieve = false
   private[this] val textFrameBuffer = new StringBuilder()
 
@@ -52,15 +54,15 @@ private[ws] class WebSocketServerHandler(maxFrameSize: Int, socketConnectionHand
 
     if (!closeFrameReceieve) {
       trace("Channel closed unexpectedly")
-      if (convergenceSocket != null) {
-        convergenceSocket.handleClosed(4006, "Unexpectedly closed by peer")
+      if (convergenceSocket.isDefined) {
+        convergenceSocket.get.handleClosed(4006, "Unexpectedly closed by peer")
       }
     } else {
       trace("Channel closed after close frame recieved")
     }
   }
 
-  override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {
+  override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable): Unit = {
     cause.printStackTrace()
     ctx.close()
   }
@@ -79,14 +81,14 @@ private[ws] class WebSocketServerHandler(maxFrameSize: Int, socketConnectionHand
       return
     }
 
-    // Handshake 
+    // Handshake
     val wsFactory = new WebSocketServerHandshakerFactory(getWebSocketLocation(req), null, true, maxFrameSize)
-    handshaker = wsFactory.newHandshaker(req)
-    if (handshaker == null) {
+    handshaker = Some(wsFactory.newHandshaker(req))
+    if (handshaker.isEmpty) {
       WebSocketServerHandshakerFactory.sendUnsupportedVersionResponse(ctx.channel())
     } else {
       getDomainFqnForRequest(req) match {
-        case None => handshaker.close(ctx.channel(), new CloseWebSocketFrame(1000, "Invalid domain url."))
+        case None => handshaker.get.close(ctx.channel(), new CloseWebSocketFrame(1000, "Invalid domain url."))
         case Some(domainFqn) => {
           val namespace = domainFqn.namespace
           val domainId = domainFqn.domainId
@@ -94,10 +96,10 @@ private[ws] class WebSocketServerHandler(maxFrameSize: Int, socketConnectionHand
           debug(s"Incoming web socket connecting to '$namespace/$domainId': $channelId")
 
           trace(s"Completing handshake: $channelId")
-          handshaker.handshake(ctx.channel(), req)
-          convergenceSocket = new NettyServerWebSocket(ctx.channel(), maxFrameSize)
+          handshaker.get.handshake(ctx.channel(), req)
+          convergenceSocket = Some(new NettyServerWebSocket(ctx.channel(), maxFrameSize))
 
-          socketConnectionHandler.fireOnSocketOpen(domainFqn, convergenceSocket)
+          socketConnectionHandler.fireOnSocketOpen(domainFqn, convergenceSocket.get)
         }
       }
     }
@@ -117,7 +119,7 @@ private[ws] class WebSocketServerHandler(maxFrameSize: Int, socketConnectionHand
     }
   }
 
-  private[this] def handleCloseFrame(ctx: ChannelHandlerContext, frame: CloseWebSocketFrame) {
+  private[this] def handleCloseFrame(ctx: ChannelHandlerContext, frame: CloseWebSocketFrame): Unit = {
     val code = frame.statusCode()
     val reason = frame.reasonText()
     val channelId = ctx.channel().hashCode()
@@ -126,24 +128,24 @@ private[ws] class WebSocketServerHandler(maxFrameSize: Int, socketConnectionHand
 
     closeFrameReceieve = true
     val closeFrame = frame.retain().asInstanceOf[CloseWebSocketFrame]
-    handshaker.close(ctx.channel(), closeFrame)
-    convergenceSocket.handleClosed(closeFrame.statusCode(), closeFrame.reasonText())
+    handshaker.get.close(ctx.channel(), closeFrame)
+    convergenceSocket.get.handleClosed(closeFrame.statusCode(), closeFrame.reasonText())
   }
 
-  private[this] def handlePingFrame(ctx: ChannelHandlerContext, frame: PingWebSocketFrame) {
+  private[this] def handlePingFrame(ctx: ChannelHandlerContext, frame: PingWebSocketFrame): Unit =  {
     val channelId = ctx.channel().hashCode()
     trace(s"Received ping, sending pong frame: $channelId")
     ctx.channel().writeAndFlush(new PongWebSocketFrame(frame.content().retain()))
   }
 
-  private[this] def handlePongFrame(ctx: ChannelHandlerContext, frame: PongWebSocketFrame) {
+  private[this] def handlePongFrame(ctx: ChannelHandlerContext, frame: PongWebSocketFrame): Unit =  {
     val channelId = ctx.channel().hashCode()
     trace(s"Received ping frame: $channelId")
   }
 
-  private[this] def handleTextFrame(ctx: ChannelHandlerContext, frame: TextWebSocketFrame) {
+  private[this] def handleTextFrame(ctx: ChannelHandlerContext, frame: TextWebSocketFrame): Unit =  {
     if (frame.isFinalFragment()) {
-      convergenceSocket.onMessageReceived(frame.text())
+      convergenceSocket.get.onMessageReceived(frame.text())
     } else {
       textFrameBuffer ++= frame.text()
     }
@@ -152,7 +154,7 @@ private[ws] class WebSocketServerHandler(maxFrameSize: Int, socketConnectionHand
   private[this] def handleContinuationFrame(ctx: ChannelHandlerContext, frame: ContinuationWebSocketFrame): Unit = {
     textFrameBuffer ++= frame.text()
     if (frame.isFinalFragment()) {
-      convergenceSocket.onMessageReceived(textFrameBuffer.toString())
+      convergenceSocket.get.onMessageReceived(textFrameBuffer.toString())
       textFrameBuffer.clear()
     }
   }
@@ -176,9 +178,9 @@ private[ws] class WebSocketServerHandler(maxFrameSize: Int, socketConnectionHand
   private[this] def getWebSocketLocation(req: FullHttpRequest): String = {
     val location = req.headers().get(HttpHeaders.Names.HOST) + WEBSOCKET_PATH
     if (false) {
-      return "wss://" + location
+      "wss://" + location
     } else {
-      return "ws://" + location
+      "ws://" + location
     }
   }
 
