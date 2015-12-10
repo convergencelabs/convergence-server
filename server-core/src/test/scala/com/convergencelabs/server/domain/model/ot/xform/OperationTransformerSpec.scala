@@ -12,6 +12,7 @@ import org.mockito.Matchers.any
 import org.mockito.Matchers.anyObject
 import org.scalatest.mock.MockitoSugar
 
+// scalastyle:off multiple.string.literals
 class OperationTransformerSpec
     extends WordSpec
     with Matchers

@@ -7,6 +7,7 @@ import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
 
+// scalastyle:off magic.number
 class NumberSetSetTFSpec extends WordSpec with Matchers {
 
   "A NumberSetSetTF" when {

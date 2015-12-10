@@ -18,7 +18,7 @@ class ModelMapperSpec
     with Matchers {
 
   val ModelVersion = 4L
-  
+
   "An ModelMapper" when {
     "when converting Model operations" must {
       "correctly map and unmap a Model" in {

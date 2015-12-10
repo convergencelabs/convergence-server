@@ -5,6 +5,7 @@ import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
 
+// scalastyle:off magic.number
 class ArrayInsertInsertTFSpec extends WordSpec with Matchers {
 
   val Path = List(1, 2)
@@ -50,8 +51,8 @@ class ArrayInsertInsertTFSpec extends WordSpec with Matchers {
 
         val (s1, c1) = ArrayInsertInsertTF.transform(s, c)
 
-        assert(s1 == s)
-        assert(c1 == ArrayInsertOperation(Path, false, 4, ClientVal))
+        s1 shouldBe s
+        c1 shouldBe ArrayInsertOperation(Path, false, 4, ClientVal)
       }
 
       "increment the server's index if the server's index is after the client's" in {
@@ -60,8 +61,8 @@ class ArrayInsertInsertTFSpec extends WordSpec with Matchers {
 
         val (s1, c1) = ArrayInsertInsertTF.transform(s, c)
 
-        assert(s1 == ArrayInsertOperation(Path, false, 4, ServerVal))
-        assert(c1 == c)
+        s1 shouldBe ArrayInsertOperation(Path, false, 4, ServerVal)
+        c1 shouldBe c
       }
     }
   }

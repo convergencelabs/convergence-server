@@ -2,12 +2,14 @@ package com.convergencelabs.server.domain.model.ot
 
 import org.scalatest.Finders
 import org.scalatest.WordSpec
+import org.scalatest.Matchers
 
-class StringRemoveInsertTFSpec extends WordSpec {
+// scalastyle:off magic.number multiple.string.literals
+class StringRemoveInsertTFSpec
+    extends WordSpec
+    with Matchers {
 
   val Path = List(1, 2)
-  val ClientVal = "EF"
-  val ServerVal = "yy"
 
   "A StringRemoveInsertTF" when {
 
@@ -19,11 +21,40 @@ class StringRemoveInsertTFSpec extends WordSpec {
        * Indices         : 0123456789
        * Original String : ABCDEFGHIJ
        *
+       * Server OP       :     ^_^         Remove(4,"EFG")
+       * Client Op       :    ^            Insert(3,"xx")
+       *
+       * Client State    : ABCxxCEFGHIJ
+       * Server' OP      :       ^_^       Remove(6,"EFG")
+       *
+       * Server  State   : ABCDGHIJ
+       * Client' Op      :    ^            Insert(4,"xx")
+       *
+       *
+       * Converged State: ABCDxxGHIJ
+       *
+       */
+      "increment the server's remove if the client's insert before the start of the remove" in {
+        val s = StringRemoveOperation(Path, false, 4, "EFG")
+        val c = StringInsertOperation(Path, false, 3, "xx")
+
+        val (s1, c1) = StringRemoveInsertTF.transform(s, c)
+
+        s1 shouldBe StringRemoveOperation(Path, false, 6, "EFG")
+        c1 shouldBe c
+      }
+
+      /**
+       * Insert at the start of the remove.
+       *
+       * Indices         : 0123456789
+       * Original String : ABCDEFGHIJ
+       *
+       * Server OP       :     ^_^         Remove(4,"EFG")
        * Client Op       :     ^           Insert(4,"xx")
-       * Server OP       :     ^^          Remove(4,"EF")
        *
        * Client State    : ABCDxxEFGHIJ
-       * Server' OP      :       ^^        Remove(6,"EF")
+       * Server' OP      :       ^^        Remove(6,"EFG")
        *
        * Server  State   : ABCDGHIJ
        * Client' Op      :     ^           Insert(4,"xx")
@@ -34,43 +65,13 @@ class StringRemoveInsertTFSpec extends WordSpec {
        * </pre>
        */
       "increment the server's remove if the client's insert is at the start of the remove" in {
-        val s = StringRemoveOperation(Path, false, 4, ServerVal)
-        val c = StringInsertOperation(Path, false, 4, ClientVal)
+        val s = StringRemoveOperation(Path, false, 4, "EFG")
+        val c = StringInsertOperation(Path, false, 4, "xx")
 
         val (s1, c1) = StringRemoveInsertTF.transform(s, c)
 
-        assert(s1 == StringRemoveOperation(Path, false, 6, ServerVal))
-        assert(c1 == c)
-      }
-
-      /**
-       * Insert at the beginning of the delete
-       *
-       * Indices         : 0123456789
-       * Original String : ABCDEFGHIJ
-       *
-       * Client Op       :     ^           Insert(4,"xx")
-       * Server OP       :     ^^          Remove(4,"EF")
-       *
-       * Client State    : ABCDxxEFGHIJ
-       * Server' OP      :       ^^        Remove(6,"EF")
-       *
-       * Server  State   : ABCDGHIJ
-       * Client' Op      :     ^           Insert(4,"xx")
-       *
-       *
-       * Converged State: ABCDxxGHIJ
-       *
-       * </pre>
-       */
-      "increment the client remove index if both operations target the same index" in {
-        val s = StringRemoveOperation(Path, false, 4, ServerVal)
-        val c = StringInsertOperation(Path, false, 4, ClientVal)
-
-        val (s1, c1) = StringRemoveInsertTF.transform(s, c)
-
-        assert(s1 == StringRemoveOperation(Path, false, 6, ServerVal))
-        assert(c1 == c)
+        s1 shouldBe StringRemoveOperation(Path, false, 6, "EFG")
+        c1 shouldBe c
       }
 
       /**
@@ -79,8 +80,8 @@ class StringRemoveInsertTFSpec extends WordSpec {
        * Indices         : 0123456789
        * Original String : ABCDEFGHIJ
        *
-       * Client Op       :     ^           Insert(4,"xx")
        * Server OP       :    ^-^          Remove(3,"DEF")
+       * Client Op       :     ^           Insert(4,"xx")
        *
        * Client State    : ABCDxxEFGHIJ
        * Server' OP      :    ^---^        Remove(3,"DxxEF")
@@ -99,8 +100,8 @@ class StringRemoveInsertTFSpec extends WordSpec {
 
         val (s1, c1) = StringRemoveInsertTF.transform(s, c)
 
-        assert(s1 == StringRemoveOperation(Path, false, 3, "DxxEF"))
-        assert(c1 == StringInsertOperation(Path, true, 4, "xx"))
+        s1 shouldBe StringRemoveOperation(Path, false, 3, "DxxEF")
+        c1 shouldBe StringInsertOperation(Path, true, 4, "xx")
       }
 
       /**
@@ -109,8 +110,8 @@ class StringRemoveInsertTFSpec extends WordSpec {
        * Indices         : 0123456789
        * Original String : ABCDEFGHIJ
        *
-       * Client Op       :      ^          Insert(5,"xx")
        * Server OP       :    ^-^          Remove(3,"DEF")
+       * Client Op       :      ^          Insert(5,"xx")
        *
        * Client State    : ABCDExxFGHIJ
        * Server' OP      :    ^---^        Remove(3,"DExxF")
@@ -129,8 +130,8 @@ class StringRemoveInsertTFSpec extends WordSpec {
 
         val (s1, c1) = StringRemoveInsertTF.transform(s, c)
 
-        assert(s1 == StringRemoveOperation(Path, false, 3, "DExxF"))
-        assert(c1 == StringInsertOperation(Path, true, 5, "xx"))
+        s1 shouldBe StringRemoveOperation(Path, false, 3, "DExxF")
+        c1 shouldBe StringInsertOperation(Path, true, 5, "xx")
       }
 
       /**
@@ -139,8 +140,8 @@ class StringRemoveInsertTFSpec extends WordSpec {
        * Indices         : 0123456789
        * Original String : ABCDEFGHIJ
        *
-       * Client Op       :       ^         Insert(6,"xx")
        * Server OP       :    ^-^          Remove(3,"DEF")
+       * Client Op       :       ^         Insert(6,"xx")
        *
        * Client State    : ABCDEFxxGHIJ
        * Server' OP      :    ^-^         Remove(3,"DEF")
@@ -159,8 +160,8 @@ class StringRemoveInsertTFSpec extends WordSpec {
 
         val (s1, c1) = StringRemoveInsertTF.transform(s, c)
 
-        assert(s1 == StringRemoveOperation(Path, false, 3, "DExxF"))
-        assert(c1 == StringInsertOperation(Path, true, 5, "xx"))
+        s1 shouldBe StringRemoveOperation(Path, false, 3, "DExxF")
+        c1 shouldBe StringInsertOperation(Path, true, 5, "xx")
       }
     }
   }

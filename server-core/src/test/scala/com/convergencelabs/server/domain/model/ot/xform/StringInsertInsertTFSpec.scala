@@ -2,8 +2,10 @@ package com.convergencelabs.server.domain.model.ot
 
 import org.scalatest.Finders
 import org.scalatest.WordSpec
+import org.scalatest.Matchers
 
-class StringInsertInsertTFSpec extends WordSpec {
+// scalastyle:off magic.number
+class StringInsertInsertTFSpec extends WordSpec with Matchers {
 
   val Path = List(1, 2)
   val ClientVal = "x"
@@ -19,8 +21,8 @@ class StringInsertInsertTFSpec extends WordSpec {
 
         val (s1, c1) = StringInsertInsertTF.transform(s, c)
 
-        assert(s1 == s)
-        assert(c1 == StringInsertOperation(Path, false, 3, ClientVal))
+        s1 shouldBe s
+        c1 shouldBe StringInsertOperation(Path, false, 3, ClientVal)
       }
 
       "increment the client's index if the server's index is before the client's" in {
@@ -29,8 +31,8 @@ class StringInsertInsertTFSpec extends WordSpec {
 
         val (s1, c1) = StringInsertInsertTF.transform(s, c)
 
-        assert(s1 == s)
-        assert(c1 == StringInsertOperation(Path, false, 4, ClientVal))
+        s1 shouldBe s
+        c1 shouldBe StringInsertOperation(Path, false, 4, ClientVal)
       }
 
       "increment the server's index if the server's index is after the client's" in {
@@ -39,8 +41,8 @@ class StringInsertInsertTFSpec extends WordSpec {
 
         val (s1, c1) = StringInsertInsertTF.transform(s, c)
 
-        assert(s1 == StringInsertOperation(Path, false, 4, ServerVal))
-        assert(c1 == c)
+        s1 shouldBe StringInsertOperation(Path, false, 4, ServerVal)
+        c1 shouldBe c
       }
     }
   }

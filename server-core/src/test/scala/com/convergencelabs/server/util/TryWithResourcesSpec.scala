@@ -6,6 +6,7 @@ import org.scalatest.Matchers
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpec
 
+// scalastyle:off magic.number
 class TryWithResourcesSpec
     extends WordSpec
     with Matchers {

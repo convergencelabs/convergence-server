@@ -18,7 +18,6 @@ private[model] class ServerConcurrencyControl(
     private[this] val operationTransformer: OperationTransformer,
     private[this] var initialContextVersion: Long) extends Logging {
 
-  Validate.notNull(operationTransformer, "operationTransformer must not be null")
   Validate.isTrue(initialContextVersion >= 0, "initialContextVersion must be >= 0: ", initialContextVersion)
 
   private[this] val clientStates = mutable.HashMap[String, ClientConcurrencyState]()
@@ -112,7 +111,7 @@ private[model] class ServerConcurrencyControl(
    * @param clientId The unique identifier for this client.
    * @param contextVersion The clients initial context version when it was added.
    */
-  def trackClient(clientId: String, contextVersion: Long): Unit =  {
+  def trackClient(clientId: String, contextVersion: Long): Unit = {
     if (clientStates.contains(clientId)) {
       throw new IllegalArgumentException(s"A client with id '$clientId' has already been added.")
     }
@@ -187,7 +186,11 @@ private[model] class ServerConcurrencyControl(
     pendingClientState = None
   }
 
-  private[this] def transform(opClientId: String, historyOperationEvents: List[ProcessedOperationEvent], incomingOp: Operation): (Operation, List[ProcessedOperationEvent]) = {
+  private[this] def transform(
+    opClientId: String,
+    historyOperationEvents: List[ProcessedOperationEvent],
+    incomingOp: Operation): (Operation, List[ProcessedOperationEvent]) = {
+
     var xFormedOp = incomingOp
     val xFormedList = historyOperationEvents.map(event => {
       val pair = operationTransformer.transform(xFormedOp, event.operation)

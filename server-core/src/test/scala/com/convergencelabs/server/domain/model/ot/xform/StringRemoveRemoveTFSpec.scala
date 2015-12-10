@@ -4,6 +4,7 @@ import org.scalatest.Finders
 import org.scalatest.WordSpec
 import org.scalatest.Matchers
 
+// scalastyle:off magic.number multiple.string.literals
 class StringRemoveRemoveTFSpec
     extends WordSpec
     with Matchers {

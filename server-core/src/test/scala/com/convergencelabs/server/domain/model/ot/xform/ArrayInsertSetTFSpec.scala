@@ -3,9 +3,13 @@ package com.convergencelabs.server.domain.model.ot
 import org.json4s.JsonAST.JArray
 import org.json4s.JsonAST.JString
 import org.scalatest.Finders
+import org.scalatest.Matchers
 import org.scalatest.WordSpec
 
-class ArrayInsertSetTFSpec extends WordSpec {
+// scalastyle:off magic.number
+class ArrayInsertSetTFSpec
+    extends WordSpec
+    with Matchers {
 
   val Path = List(1, 2)
   val ClientVal = JArray(List(JString("x")))
@@ -21,8 +25,8 @@ class ArrayInsertSetTFSpec extends WordSpec {
 
         val (s1, c1) = ArrayInsertSetTF.transform(s, c)
 
-        assert(s1 == ArrayInsertOperation(Path, true, 2, ServerVal))
-        assert(c1 == c)
+        s1 shouldBe ArrayInsertOperation(Path, true, 2, ServerVal)
+        c1 shouldBe c
       }
     }
   }

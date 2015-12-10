@@ -21,7 +21,7 @@ import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
 
-// scalastyle:off null
+// scalastyle:off null magic.number
 class JValueMapperSpec
     extends WordSpec
     with Matchers {

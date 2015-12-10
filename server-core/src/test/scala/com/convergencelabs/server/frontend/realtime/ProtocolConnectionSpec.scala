@@ -94,19 +94,21 @@ class ProtocolConnectionSpec(system: ActorSystem)
     connection.eventHandler = receive
 
     private def receive: PartialFunction[ConnectionEvent, Unit] = {
-      case x => queue.add(x)
+      case x: Any => queue.add(x)
     }
 
     private val queue = new LinkedBlockingDeque[ConnectionEvent]()
 
-    def expectEventClass[C](max: FiniteDuration, c: Class[C]): C = expectEventClass_internal(max, c)
+    def expectEventClass[C](max: FiniteDuration, c: Class[C]): C = expectEventClassInternal(max, c)
 
-    private def expectEventClass_internal[C](max: FiniteDuration, c: Class[C]): C = {
+    // scalastyle:off null
+    private def expectEventClassInternal[C](max: FiniteDuration, c: Class[C]): C = {
       val o = receiveOne(max)
       assert(o ne null, s"timeout ($max) during expectMsgClass waiting for $c")
       assert(c isInstance o, s"expected $c, found ${o.getClass}")
       o.asInstanceOf[C]
     }
+    // scalastyle:on null
 
     def receiveOne(max: Duration): AnyRef = {
       val message =

@@ -2,9 +2,13 @@ package com.convergencelabs.server.domain.model.ot
 
 import org.json4s.JsonAST.JString
 import org.scalatest.Finders
+import org.scalatest.Matchers
 import org.scalatest.WordSpec
 
-class ArrayRemoveInsertTFSpec extends WordSpec {
+// scalastyle:off magic.number
+class ArrayRemoveInsertTFSpec
+    extends WordSpec
+    with Matchers {
 
   val Path = List(1, 2)
   val ClientVal = JString("x")
@@ -38,8 +42,8 @@ class ArrayRemoveInsertTFSpec extends WordSpec {
 
         val (s1, c1) = ArrayRemoveInsertTF.transform(s, c)
 
-        assert(s1 == s)
-        assert(c1 == ArrayInsertOperation(Path, false, 2, ClientVal))
+        s1 shouldBe s
+        c1 shouldBe ArrayInsertOperation(Path, false, 2, ClientVal)
       }
 
       /**
@@ -67,8 +71,8 @@ class ArrayRemoveInsertTFSpec extends WordSpec {
 
         val (s1, c1) = ArrayRemoveInsertTF.transform(s, c)
 
-        assert(s1 == s)
-        assert(c1 == ArrayInsertOperation(Path, false, 3, ClientVal))
+        s1 shouldBe s
+        c1 shouldBe ArrayInsertOperation(Path, false, 3, ClientVal)
       }
 
       /**
@@ -96,8 +100,8 @@ class ArrayRemoveInsertTFSpec extends WordSpec {
 
         val (s1, c1) = ArrayRemoveInsertTF.transform(s, c)
 
-        assert(s1 == ArrayRemoveOperation(Path, false, 5))
-        assert(c1 == c)
+        s1 shouldBe ArrayRemoveOperation(Path, false, 5)
+        c1 shouldBe c
       }
     }
   }

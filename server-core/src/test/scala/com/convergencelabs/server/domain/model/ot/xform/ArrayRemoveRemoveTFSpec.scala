@@ -3,8 +3,10 @@ package com.convergencelabs.server.domain.model.ot
 import org.json4s.JsonAST.JString
 import org.scalatest.Finders
 import org.scalatest.WordSpec
+import org.scalatest.Matchers
 
-class ArrayRemoveRemoveTFSpec extends WordSpec {
+// scalastyle:off magic.number
+class ArrayRemoveRemoveTFSpec extends WordSpec with Matchers {
 
   val Path = List(1, 2)
   val ClientVal = JString("x")
@@ -38,8 +40,8 @@ class ArrayRemoveRemoveTFSpec extends WordSpec {
 
         val (s1, c1) = ArrayRemoveRemoveTF.transform(s, c)
 
-        assert(s1 == s)
-        assert(c1 == ArrayRemoveOperation(Path, false, 2))
+        s1 shouldBe s
+        c1 shouldBe ArrayRemoveOperation(Path, false, 2)
       }
 
       /**
@@ -67,8 +69,8 @@ class ArrayRemoveRemoveTFSpec extends WordSpec {
 
         val (s1, c1) = ArrayRemoveRemoveTF.transform(s, c)
 
-        assert(s1 == ArrayRemoveOperation(Path, true, 2))
-        assert(c1 == ArrayRemoveOperation(Path, true, 2))
+        s1 shouldBe ArrayRemoveOperation(Path, true, 2)
+        c1 shouldBe ArrayRemoveOperation(Path, true, 2)
       }
 
       /**
@@ -96,8 +98,8 @@ class ArrayRemoveRemoveTFSpec extends WordSpec {
 
         val (s1, c1) = ArrayRemoveRemoveTF.transform(s, c)
 
-        assert(s1 == ArrayRemoveOperation(Path, false, 3))
-        assert(c1 == c)
+        s1 shouldBe ArrayRemoveOperation(Path, false, 3)
+        c1 shouldBe c
       }
     }
   }

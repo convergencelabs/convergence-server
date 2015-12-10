@@ -5,6 +5,7 @@ import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
 
+// scalastyle:off multiple.string.literals
 class ObjectSetPropertyRemovePropertyTFSpec extends WordSpec with Matchers {
 
   "A ObjectSetPropertyRemovePropertyTF" when {

@@ -4,8 +4,9 @@ import scala.math.BigInt.int2bigInt
 import org.json4s.JsonAST.JInt
 import org.scalatest.Finders
 import org.scalatest.WordSpec
+import org.scalatest.Matchers
 
-class ArrayReplacePTFSpec extends WordSpec {
+class ArrayReplacePTFSpec extends WordSpec with Matchers {
 
   "A ArrayReplacePTF" when {
     "tranforming a descendant path" must {
@@ -13,14 +14,14 @@ class ArrayReplacePTFSpec extends WordSpec {
         val ancestor = ArrayReplaceOperation(List(1, 1), false, 1, JInt(1))
         val path = List(1, 1, 1, 1)
         val result = ArrayReplacePTF.transformDescendantPath(ancestor, path)
-        assert(result == PathObsoleted)
+        result shouldBe PathObsoleted
       }
 
       "no not trasform a path when the replace is not equal to the common path point" in {
         val ancestor = ArrayReplaceOperation(List(1, 1), false, 2, JInt(1))
         val path = List(1, 1, 1, 1)
         val result = ArrayReplacePTF.transformDescendantPath(ancestor, path)
-        assert(result == NoPathTransformation)
+        result shouldBe NoPathTransformation
       }
     }
   }

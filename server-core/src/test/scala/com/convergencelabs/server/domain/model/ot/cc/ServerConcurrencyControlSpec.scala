@@ -8,17 +8,16 @@ import org.scalatest.Finders
 import org.scalatest.WordSpec
 import org.scalatest.mock.MockitoSugar
 
+// scalastyle:off magic.number multiple.string.literals
 class ServerConcurrencyControlSpec extends WordSpec with MockitoSugar {
+
+  val Client1 = "client1"
+  val Client2 = "client2"
+  val Val = "val"
 
   "A ServerConcurrencyControl" when {
     "constructed" must {
-      "not allow a null transformer" in {
-        intercept[NullPointerException] {
-          new ServerConcurrencyControl(null, 0)
-        }
-      }
-
-      "not allow a negative context version transformer" in {
+      "not allow a negative context version" in {
         val xFormer = mock[OperationTransformer]
         intercept[IllegalArgumentException] {
           new ServerConcurrencyControl(xFormer, -1)
@@ -46,25 +45,25 @@ class ServerConcurrencyControlSpec extends WordSpec with MockitoSugar {
       "not allow a duplicate clientIds" in {
         val xFormer = mock[OperationTransformer]
         val scc = new ServerConcurrencyControl(xFormer, 0)
-        scc.trackClient("client1", 0)
+        scc.trackClient(Client1, 0)
 
         intercept[IllegalArgumentException] {
-          scc.trackClient("client1", 0)
+          scc.trackClient(Client1, 0)
         }
       }
 
       "indicate it has a client after it has been added" in {
         val xFormer = mock[OperationTransformer]
         val scc = new ServerConcurrencyControl(xFormer, 0)
-        scc.trackClient("client1", 0)
-        assert(scc.isClientTracked("client1"))
+        scc.trackClient(Client1, 0)
+        assert(scc.isClientTracked(Client1))
       }
 
       "throw an exception if a client is added with a contextVersion greater than the servers" in {
         val xFormer = mock[OperationTransformer]
         val scc = new ServerConcurrencyControl(xFormer, 10)
         intercept[IllegalArgumentException] {
-          scc.trackClient("client1", 11)
+          scc.trackClient(Client1, 11)
         }
       }
     }
@@ -73,19 +72,19 @@ class ServerConcurrencyControlSpec extends WordSpec with MockitoSugar {
       "not allow an unknown clientId to be removed" in {
         val xFormer = mock[OperationTransformer]
         val scc = new ServerConcurrencyControl(xFormer, 0)
-        scc.trackClient("client1", 0)
+        scc.trackClient(Client1, 0)
 
         intercept[IllegalArgumentException] {
-          scc.untrackClient("client2")
+          scc.untrackClient(Client2)
         }
       }
 
       "indicate it does not have a client after it has been removed" in {
         val xFormer = mock[OperationTransformer]
         val scc = new ServerConcurrencyControl(xFormer, 0)
-        scc.trackClient("client1", 0)
-        scc.untrackClient("client1")
-        assert(!scc.isClientTracked("client1"))
+        scc.trackClient(Client1, 0)
+        scc.untrackClient(Client1)
+        assert(!scc.isClientTracked(Client1))
       }
     }
 
@@ -97,11 +96,11 @@ class ServerConcurrencyControlSpec extends WordSpec with MockitoSugar {
         val xFormer = spy(new MockOperationTransformer())
 
         val scc = new ServerConcurrencyControl(xFormer, 0)
-        scc.trackClient("client1", 0)
-        scc.trackClient("client2", 0)
+        scc.trackClient(Client1, 0)
+        scc.trackClient(Client2, 0)
 
-        val op1 = new StringInsertOperation(List(), false, 1, "val")
-        val event1 = UnprocessedOperationEvent("client1", 0, op1)
+        val op1 = new StringInsertOperation(List(), false, 1, Val)
+        val event1 = UnprocessedOperationEvent(Client1, 0, op1)
 
         scc.processRemoteOperation(event1)
         assert(scc.hasPendingEvent)
@@ -111,14 +110,14 @@ class ServerConcurrencyControlSpec extends WordSpec with MockitoSugar {
         val xFormer = spy(new MockOperationTransformer())
 
         val scc = new ServerConcurrencyControl(xFormer, 0)
-        scc.trackClient("client1", 0)
-        scc.trackClient("client2", 0)
+        scc.trackClient(Client1, 0)
+        scc.trackClient(Client2, 0)
 
-        val op1 = new StringInsertOperation(List(), false, 1, "val")
-        val event1 = UnprocessedOperationEvent("client1", 0, op1)
+        val op1 = new StringInsertOperation(List(), false, 1, Val)
+        val event1 = UnprocessedOperationEvent(Client1, 0, op1)
 
-        val op2 = new StringInsertOperation(List(), false, 1, "val")
-        val event2 = UnprocessedOperationEvent("client2", 0, op2)
+        val op2 = new StringInsertOperation(List(), false, 1, Val)
+        val event2 = UnprocessedOperationEvent(Client2, 0, op2)
 
         scc.processRemoteOperation(event1)
         scc.commit()
@@ -134,35 +133,35 @@ class ServerConcurrencyControlSpec extends WordSpec with MockitoSugar {
         val xFormer = spy(new MockOperationTransformer())
 
         val scc = new ServerConcurrencyControl(xFormer, 0)
-        scc.trackClient("client1", 0)
-        scc.trackClient("client2", 0)
+        scc.trackClient(Client1, 0)
+        scc.trackClient(Client2, 0)
 
         val client1Op1 = new StringInsertOperation(List(), false, 1, "c1o1")
-        scc.processRemoteOperation(UnprocessedOperationEvent("client1", 0, client1Op1))
+        scc.processRemoteOperation(UnprocessedOperationEvent(Client1, 0, client1Op1))
         scc.commit()
 
         val client1Op2 = new StringInsertOperation(List(), false, 2, "c1o2")
-        scc.processRemoteOperation(UnprocessedOperationEvent("client1", 1, client1Op2))
+        scc.processRemoteOperation(UnprocessedOperationEvent(Client1, 1, client1Op2))
         scc.commit()
 
         val client1Op3 = new StringInsertOperation(List(), false, 3, "c1o3")
-        scc.processRemoteOperation(UnprocessedOperationEvent("client1", 2, client1Op3))
+        scc.processRemoteOperation(UnprocessedOperationEvent(Client1, 2, client1Op3))
         scc.commit()
 
         val client2Op1 = new StringInsertOperation(List(), false, 1, "c2o1")
-        scc.processRemoteOperation(UnprocessedOperationEvent("client2", 0, client2Op1))
+        scc.processRemoteOperation(UnprocessedOperationEvent(Client2, 0, client2Op1))
         scc.commit()
 
         val client1Op4 = new StringInsertOperation(List(), false, 4, "c1o4")
-        scc.processRemoteOperation(UnprocessedOperationEvent("client1", 4, client1Op4))
+        scc.processRemoteOperation(UnprocessedOperationEvent(Client1, 4, client1Op4))
         scc.commit()
 
         val client1Op5 = new StringInsertOperation(List(), false, 5, "c1o5")
-        scc.processRemoteOperation(UnprocessedOperationEvent("client1", 5, client1Op5))
+        scc.processRemoteOperation(UnprocessedOperationEvent(Client1, 5, client1Op5))
         scc.commit()
 
         val client2Op2 = new StringInsertOperation(List(), false, 2, "c202")
-        scc.processRemoteOperation(UnprocessedOperationEvent("client2", 2, client2Op2))
+        scc.processRemoteOperation(UnprocessedOperationEvent(Client2, 2, client2Op2))
         scc.commit()
 
         val order = inOrder(xFormer)
@@ -188,21 +187,21 @@ class ServerConcurrencyControlSpec extends WordSpec with MockitoSugar {
         val xFormer = spy(new MockOperationTransformer())
 
         val scc = new ServerConcurrencyControl(xFormer, 0)
-        scc.trackClient("client1", 0)
-        scc.trackClient("client2", 0)
+        scc.trackClient(Client1, 0)
+        scc.trackClient(Client2, 0)
 
         val client1Op1 = new StringInsertOperation(List(), false, 0, "A")
-        val client1Event1 = UnprocessedOperationEvent("client1", 0, client1Op1)
+        val client1Event1 = UnprocessedOperationEvent(Client1, 0, client1Op1)
         scc.processRemoteOperation(client1Event1)
         scc.commit()
 
         val client2Op1 = new StringInsertOperation(List(), false, 0, "B")
-        val client2Event1 = UnprocessedOperationEvent("client2", 0, client2Op1)
+        val client2Event1 = UnprocessedOperationEvent(Client2, 0, client2Op1)
         scc.processRemoteOperation(client2Event1)
         scc.commit()
 
         val client1Op2 = new StringInsertOperation(List(), false, 0, "C")
-        val client1Event2 = UnprocessedOperationEvent("client1", 0, client1Op2)
+        val client1Event2 = UnprocessedOperationEvent(Client1, 0, client1Op2)
         scc.processRemoteOperation(client1Event2)
         scc.commit()
 
@@ -217,15 +216,15 @@ class ServerConcurrencyControlSpec extends WordSpec with MockitoSugar {
         val xFormer = spy(new MockOperationTransformer())
 
         val scc = new ServerConcurrencyControl(xFormer, 0)
-        scc.trackClient("client1", 0)
-        scc.trackClient("client2", 0)
+        scc.trackClient(Client1, 0)
+        scc.trackClient(Client2, 0)
 
-        val op1 = new StringInsertOperation(List(), false, 1, "val")
-        val event1 = UnprocessedOperationEvent("client1", 0, op1)
+        val op1 = new StringInsertOperation(List(), false, 1, Val)
+        val event1 = UnprocessedOperationEvent(Client1, 0, op1)
         scc.processRemoteOperation(event1)
 
-        val op2 = new StringInsertOperation(List(), false, 1, "val")
-        val event2 = UnprocessedOperationEvent("client2", 0, op2)
+        val op2 = new StringInsertOperation(List(), false, 1, Val)
+        val event2 = UnprocessedOperationEvent(Client2, 0, op2)
 
         intercept[IllegalStateException] {
           scc.processRemoteOperation(event2)
@@ -236,7 +235,7 @@ class ServerConcurrencyControlSpec extends WordSpec with MockitoSugar {
         val xFormer = spy(new MockOperationTransformer())
 
         val scc = new ServerConcurrencyControl(xFormer, 0)
-        scc.trackClient("client1", 0)
+        scc.trackClient(Client1, 0)
 
         val client1Op1 = new StringInsertOperation(List(), false, 0, "A")
         val client1Event1 = UnprocessedOperationEvent("client3", 0, client1Op1)
@@ -249,16 +248,16 @@ class ServerConcurrencyControlSpec extends WordSpec with MockitoSugar {
         val xFormer = spy(new MockOperationTransformer())
 
         val scc = new ServerConcurrencyControl(xFormer, 10)
-        scc.trackClient("client1", 0)
+        scc.trackClient(Client1, 0)
 
         val c1o1 = new StringInsertOperation(List(), false, 1, "c1o1")
-        scc.processRemoteOperation(UnprocessedOperationEvent("client1", 10, c1o1))
+        scc.processRemoteOperation(UnprocessedOperationEvent(Client1, 10, c1o1))
         scc.commit()
 
         val c1o2 = new StringInsertOperation(List(), false, 12, "c1o1")
 
         intercept[IllegalArgumentException] {
-          scc.processRemoteOperation(UnprocessedOperationEvent("client1", 9, c1o2))
+          scc.processRemoteOperation(UnprocessedOperationEvent(Client1, 9, c1o2))
         }
       }
 
@@ -266,11 +265,11 @@ class ServerConcurrencyControlSpec extends WordSpec with MockitoSugar {
         val xFormer = spy(new MockOperationTransformer())
 
         val scc = new ServerConcurrencyControl(xFormer, 10)
-        scc.trackClient("client1", 10)
+        scc.trackClient(Client1, 10)
 
         val c1o2 = new StringInsertOperation(List(), false, 1, "c1o1")
         intercept[IllegalArgumentException] {
-          scc.processRemoteOperation(UnprocessedOperationEvent("client1", 11, c1o2))
+          scc.processRemoteOperation(UnprocessedOperationEvent(Client1, 11, c1o2))
         }
       }
     }
@@ -281,10 +280,10 @@ class ServerConcurrencyControlSpec extends WordSpec with MockitoSugar {
         val xFormer = spy(new MockOperationTransformer())
 
         val scc = new ServerConcurrencyControl(xFormer, 0)
-        scc.trackClient("client1", 0)
+        scc.trackClient(Client1, 0)
 
         val client1Op1 = new StringInsertOperation(List(), false, 0, "A")
-        val client1Event1 = UnprocessedOperationEvent("client1", 0, client1Op1)
+        val client1Event1 = UnprocessedOperationEvent(Client1, 0, client1Op1)
         scc.processRemoteOperation(client1Event1)
 
         assert(scc.contextVersion == 0)
@@ -296,10 +295,10 @@ class ServerConcurrencyControlSpec extends WordSpec with MockitoSugar {
         val xFormer = spy(new MockOperationTransformer())
 
         val scc = new ServerConcurrencyControl(xFormer, 0)
-        scc.trackClient("client1", 0)
+        scc.trackClient(Client1, 0)
 
         val client1Op1 = new StringInsertOperation(List(), false, 0, "A")
-        val client1Event1 = UnprocessedOperationEvent("client1", 0, client1Op1)
+        val client1Event1 = UnprocessedOperationEvent(Client1, 0, client1Op1)
         scc.processRemoteOperation(client1Event1)
 
         scc.commit()
@@ -310,10 +309,10 @@ class ServerConcurrencyControlSpec extends WordSpec with MockitoSugar {
         val xFormer = spy(new MockOperationTransformer())
 
         val scc = new ServerConcurrencyControl(xFormer, 0)
-        scc.trackClient("client1", 0)
+        scc.trackClient(Client1, 0)
 
         val client1Op1 = new StringInsertOperation(List(), false, 0, "A")
-        val client1Event1 = UnprocessedOperationEvent("client1", 0, client1Op1)
+        val client1Event1 = UnprocessedOperationEvent(Client1, 0, client1Op1)
         scc.processRemoteOperation(client1Event1)
 
         scc.commit()
@@ -328,10 +327,10 @@ class ServerConcurrencyControlSpec extends WordSpec with MockitoSugar {
         val xFormer = spy(new MockOperationTransformer())
 
         val scc = new ServerConcurrencyControl(xFormer, 0)
-        scc.trackClient("client1", 0)
+        scc.trackClient(Client1, 0)
 
         val client1Op1 = new StringInsertOperation(List(), false, 0, "A")
-        val client1Event1 = UnprocessedOperationEvent("client1", 0, client1Op1)
+        val client1Event1 = UnprocessedOperationEvent(Client1, 0, client1Op1)
         scc.processRemoteOperation(client1Event1)
 
         assert(scc.contextVersion == 0)
@@ -343,10 +342,10 @@ class ServerConcurrencyControlSpec extends WordSpec with MockitoSugar {
         val xFormer = spy(new MockOperationTransformer())
 
         val scc = new ServerConcurrencyControl(xFormer, 0)
-        scc.trackClient("client1", 0)
+        scc.trackClient(Client1, 0)
 
         val client1Op1 = new StringInsertOperation(List(), false, 0, "A")
-        val client1Event1 = UnprocessedOperationEvent("client1", 0, client1Op1)
+        val client1Event1 = UnprocessedOperationEvent(Client1, 0, client1Op1)
         scc.processRemoteOperation(client1Event1)
 
         scc.rollback()
@@ -357,10 +356,10 @@ class ServerConcurrencyControlSpec extends WordSpec with MockitoSugar {
         val xFormer = spy(new MockOperationTransformer())
 
         val scc = new ServerConcurrencyControl(xFormer, 0)
-        scc.trackClient("client1", 0)
+        scc.trackClient(Client1, 0)
 
         val client1Op1 = new StringInsertOperation(List(), false, 0, "A")
-        val client1Event1 = UnprocessedOperationEvent("client1", 0, client1Op1)
+        val client1Event1 = UnprocessedOperationEvent(Client1, 0, client1Op1)
         scc.processRemoteOperation(client1Event1)
 
         scc.rollback()

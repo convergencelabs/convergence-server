@@ -6,6 +6,7 @@ import org.scalatest.Matchers
 import org.scalatest.Finders
 import org.json4s.JsonAST.JString
 
+// scalastyle:off multiple.string.literals
 class ObjectRemovePropertyRemovePropertyTFSpec extends WordSpec with Matchers {
 
   "A ObjectRemovePropertyRemovePropertyTF" when {

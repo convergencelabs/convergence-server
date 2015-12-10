@@ -115,7 +115,7 @@ class ModelManagerActorSpec
     val userId1 = "u1";
     val userId2 = "u2";
     val sessionId1 = "1";
-    
+
     val nonExistentModelFqn = ModelFqn("collection", "no model")
     val modelFqn = ModelFqn("collection", "model" + System.nanoTime())
     val modelJsonData = JObject("key" -> JString("value"))

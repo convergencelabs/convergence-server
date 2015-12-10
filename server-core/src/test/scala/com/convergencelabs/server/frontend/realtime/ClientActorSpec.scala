@@ -1,59 +1,58 @@
 package com.convergencelabs.server.frontend.realtime
 
 import java.util.concurrent.TimeUnit
-import scala.concurrent.duration._
-import scala.language.postfixOps
-import akka.actor.ActorSystem
-import akka.testkit.{ TestProbe, TestKit }
-import org.json4s.JsonAST.{ JObject, JString }
-import org.mockito.{ ArgumentCaptor, Mockito, Matchers }
-import org.mockito.Mockito.{ verify, times }
-import org.scalatest.mock.MockitoSugar
-import org.scalatest.{ BeforeAndAfterAll, WordSpecLike }
-import scala.concurrent.duration.FiniteDuration
-import org.scalatest.junit.JUnitRunner
-import org.junit.runner.RunWith
-import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.ProtocolConfiguration
-import com.convergencelabs.server.frontend.realtime.proto.HandshakeRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolMessage
-import scala.concurrent.Promise
-import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolResponseMessage
-import akka.actor.ActorRef
-import com.convergencelabs.server.domain.HandshakeRequest
-import com.convergencelabs.server.domain.model.CloseRealtimeModelSuccess
-import com.convergencelabs.server.domain.model.CloseRealtimeModelRequest
-import com.convergencelabs.server.frontend.realtime.proto.CloseRealtimeModelRequestMessage
-import akka.actor.Terminated
-import com.convergencelabs.server.frontend.realtime.proto.OpCode
-import com.convergencelabs.server.frontend.realtime.proto.HandshakeResponseMessage
-import scala.util.Success
-import com.convergencelabs.server.domain.HandshakeSuccess
-import akka.testkit.TestProbe
-import scala.concurrent.Await
-import com.convergencelabs.server.frontend.realtime.proto.ErrorData
-import com.convergencelabs.server.domain.HandshakeFailure
-import com.convergencelabs.server.frontend.realtime.proto.OpenRealtimeModelRequestMessage
-import com.convergencelabs.server.domain.model.OpenRealtimeModelRequest
-import com.convergencelabs.server.domain.model.ModelFqn
-import scala.concurrent.Future
-import com.convergencelabs.server.frontend.realtime.proto.ModelFqnData
-import com.convergencelabs.server.domain.AuthenticationRequest
-import com.convergencelabs.server.frontend.realtime.proto.AuthenticationRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.PasswordAuthenticationRequestMessage
-import java.net.PasswordAuthentication
-import com.convergencelabs.server.domain.AuthenticationSuccess
-import com.convergencelabs.server.domain.PasswordAuthRequest
-import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.server.util.MockDomainPersistenceManagerActor
-import com.convergencelabs.server.frontend.realtime.proto.AuthenticationResponseMessage
 
+import scala.concurrent.Await
+import scala.concurrent.Future
+import scala.concurrent.Promise
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.FiniteDuration
+import scala.language.postfixOps
+
+import org.junit.runner.RunWith
+import org.mockito.Matchers
+import org.mockito.Mockito
+import org.mockito.Mockito.times
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.Finders
+import org.scalatest.WordSpecLike
+import org.scalatest.junit.JUnitRunner
+import org.scalatest.mock.MockitoSugar
+
+import com.convergencelabs.server.ProtocolConfiguration
+import com.convergencelabs.server.domain.AuthenticationSuccess
+import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.HandshakeFailure
+import com.convergencelabs.server.domain.HandshakeRequest
+import com.convergencelabs.server.domain.HandshakeSuccess
+import com.convergencelabs.server.domain.PasswordAuthRequest
+import com.convergencelabs.server.domain.model.OpenRealtimeModelRequest
+import com.convergencelabs.server.frontend.realtime.proto.AuthenticationResponseMessage
+import com.convergencelabs.server.frontend.realtime.proto.CloseRealtimeModelRequestMessage
+import com.convergencelabs.server.frontend.realtime.proto.ErrorData
+import com.convergencelabs.server.frontend.realtime.proto.HandshakeRequestMessage
+import com.convergencelabs.server.frontend.realtime.proto.HandshakeResponseMessage
+import com.convergencelabs.server.frontend.realtime.proto.ModelFqnData
+import com.convergencelabs.server.frontend.realtime.proto.OpenRealtimeModelRequestMessage
+import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolResponseMessage
+import com.convergencelabs.server.frontend.realtime.proto.PasswordAuthenticationRequestMessage
+
+import akka.actor.ActorRef
+import akka.actor.ActorSystem
+import akka.actor.Terminated
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
+
+// scalastyle:off magic.number
 @RunWith(classOf[JUnitRunner])
 class ClientActorSpec
     extends TestKit(ActorSystem("ClientActorSpec"))
     with WordSpecLike
     with BeforeAndAfterAll
     with MockitoSugar {
+
+  val SessionId = "sessionId"
+  val RecconnectToken = "secconnectToken"
 
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
@@ -68,10 +67,10 @@ class ClientActorSpec
 
         clientActor.tell(event, ActorRef.noSender)
         domainManagerActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeRequest])
-        domainManagerActor.reply(HandshakeSuccess("sessionId", "reconnectToken", new TestProbe(system).ref, new TestProbe(system).ref))
+        domainManagerActor.reply(HandshakeSuccess(SessionId, RecconnectToken, new TestProbe(system).ref, new TestProbe(system).ref))
 
         val reply = Await.result(cb.result, 50 millis)
-        assert(reply == HandshakeResponseMessage(true, None, Some("sessionId"), Some("reconnectToken")))
+        assert(reply == HandshakeResponseMessage(true, None, Some(SessionId), Some(RecconnectToken)))
       }
 
       "properly handle a hanshake error form the domain" in new TestFixture(system) {
@@ -191,12 +190,12 @@ class ClientActorSpec
     clientActor.tell(handshakeEvent, ActorRef.noSender)
 
     domainManagerActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeRequest])
-    domainManagerActor.reply(HandshakeSuccess("sessionId", "reconnectToken", domainActor.ref, modelManagerActor.ref))
+    domainManagerActor.reply(HandshakeSuccess(SessionId, RecconnectToken, domainActor.ref, modelManagerActor.ref))
     Await.result(handshakeCallback.result, 250 millis)
   }
 
   class AuthenticatedClient(system: ActorSystem) extends HandshookClient(system: ActorSystem) {
-    val authRequestMessage = PasswordAuthenticationRequestMessage("test", "test")
+    val authRequestMessage = PasswordAuthenticationRequestMessage("testuser", "testpass")
 
     val authCallback = new TestReplyCallback()
     val authEvent = RequestReceived(authRequestMessage, authCallback)

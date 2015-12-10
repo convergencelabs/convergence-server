@@ -5,6 +5,7 @@ import org.scalatest.Matchers
 import java.util.ArrayList
 import com.orientechnologies.orient.core.record.impl.ODocument
 
+// scalastyle:off multiple.string.literals
 class QueryUtilSpec
     extends WordSpec
     with Matchers {
@@ -53,7 +54,7 @@ class QueryUtilSpec
 
     "mapping a singleton result list from an option" must {
 
-      "return a mapped object for a singleton list" in {
+      "return a mapped option object for a singleton list" in {
         val list = new ArrayList[ODocument]()
         list.add(SampleDoc)
         val mappedValue = QueryUtil.mapSingletonListToOption(list) { doc =>

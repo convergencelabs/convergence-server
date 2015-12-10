@@ -26,7 +26,7 @@ class NumberSetOperationMapperSpec
         val reverted = opDoc.asNumberSetOperation
         op shouldBe reverted
       }
-      
+
       "not allow an invalid document class name" in {
         val invalid = new ODocument("SomeClass")
         intercept[IllegalArgumentException] {

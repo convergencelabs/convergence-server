@@ -5,6 +5,7 @@ import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
 
+// scalastyle:off magic.number
 class ArrayReplaceInsertTFSpec extends WordSpec with Matchers {
 
   val Path = List(1, 2)

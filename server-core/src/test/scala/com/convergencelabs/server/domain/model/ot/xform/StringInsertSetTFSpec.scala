@@ -2,8 +2,9 @@ package com.convergencelabs.server.domain.model.ot
 
 import org.scalatest.Finders
 import org.scalatest.WordSpec
+import org.scalatest.Matchers
 
-class StringInsertSetTFSpec extends WordSpec {
+class StringInsertSetTFSpec extends WordSpec with Matchers {
 
   val Path = List(1, 2)
   val ClientVal = "x"
@@ -19,8 +20,8 @@ class StringInsertSetTFSpec extends WordSpec {
 
         val (s1, c1) = StringInsertSetTF.transform(s, c)
 
-        assert(s1 == StringInsertOperation(Path, true, 2, ServerVal))
-        assert(c1 == c)
+        s1 shouldBe StringInsertOperation(Path, true, 2, ServerVal)
+        c1 shouldBe c
       }
     }
   }

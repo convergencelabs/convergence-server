@@ -6,6 +6,7 @@ import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
 
+// scalastyle:off multiple.string.literals
 class ObjectAddPropertyAddPropertyTFSpec extends WordSpec with Matchers {
 
   "A ObjectAddPropertyAddPropertyTF" when {

@@ -3,8 +3,12 @@ package com.convergencelabs.server.domain.model.ot
 import org.json4s.JsonAST.JString
 import org.scalatest.Finders
 import org.scalatest.WordSpec
+import org.scalatest.Matchers
 
-class ArrayInsertRemoveTFSpec extends WordSpec {
+// scalastyle:off magic.number
+class ArrayInsertRemoveTFSpec
+    extends WordSpec
+    with Matchers {
 
   val Path = List(1, 2)
   val ClientVal = JString("x")
@@ -20,8 +24,8 @@ class ArrayInsertRemoveTFSpec extends WordSpec {
 
         val (s1, c1) = ArrayInsertRemoveTF.transform(s, c)
 
-        assert(s1 == s)
-        assert(c1 == ArrayRemoveOperation(Path, false, 4))
+        s1 shouldBe s
+        c1 shouldBe ArrayRemoveOperation(Path, false, 4)
       }
 
       /**
@@ -49,8 +53,8 @@ class ArrayInsertRemoveTFSpec extends WordSpec {
 
         val (s1, c1) = ArrayInsertRemoveTF.transform(s, c)
 
-        assert(s1 == s)
-        assert(c1 == ArrayRemoveOperation(Path, false, 3))
+        s1 shouldBe s
+        c1 shouldBe ArrayRemoveOperation(Path, false, 3)
       }
 
       "decrement the server index if the server's index is after the client's" in {
@@ -59,8 +63,8 @@ class ArrayInsertRemoveTFSpec extends WordSpec {
 
         val (s1, c1) = ArrayInsertRemoveTF.transform(s, c)
 
-        assert(s1 == ArrayInsertOperation(Path, false, 2, ServerVal))
-        assert(c1 == c)
+        s1 shouldBe ArrayInsertOperation(Path, false, 2, ServerVal)
+        c1 shouldBe c
       }
     }
   }

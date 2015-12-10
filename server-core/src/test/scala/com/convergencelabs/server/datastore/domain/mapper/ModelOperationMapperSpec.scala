@@ -29,7 +29,7 @@ class ModelOperationMapperSpec
           Instant.ofEpochMilli(System.currentTimeMillis()),
           "uid",
           "sid",
-          StringInsertOperation(List(4), true, 5, "test"))
+          StringInsertOperation(List(4), true, 5, "test")) // scalastyle:off magic.number
 
         val opDoc = modelOperation.asODocument
         val reverted = opDoc.asModelOperation

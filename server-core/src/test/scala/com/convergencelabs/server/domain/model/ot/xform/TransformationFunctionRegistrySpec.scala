@@ -11,6 +11,7 @@ import org.scalatest.Matchers
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.WordSpec
 
+// scalastyle:off multiple.string.literals
 class TransformationFunctionRegistrySpec extends WordSpec with Matchers {
 
   val StringInsert = StringInsertOperation(List(), false, 1, "")

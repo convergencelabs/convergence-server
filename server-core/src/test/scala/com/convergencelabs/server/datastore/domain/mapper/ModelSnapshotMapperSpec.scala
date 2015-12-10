@@ -21,7 +21,7 @@ class ModelSnapshotMapperSpec
     with Matchers {
 
   val SnapshotVersion = 4L
-  
+
   "An ModelSnapshotMapper" when {
     "when converting Model operations" must {
       "correctly map and unmap a Model" in {
