@@ -2,6 +2,8 @@ import sbt._
 
 object Dependencies {
   
+  val TestSpecifier = "test,it,e2e"
+  
   // Versions
   object Versions {
     val akka      = "2.4.0"
@@ -52,17 +54,17 @@ object Dependencies {
   
   object Test {
     // metrics, measurements, perf testing
-    val metrics            = "com.codahale.metrics"     % "metrics-core"                  % "3.0.2"            % "test" // ApacheV2
-    val metricsJvm         = "com.codahale.metrics"     % "metrics-jvm"                   % "3.0.2"            % "test" // ApacheV2
-    val latencyUtils       = "org.latencyutils"         % "LatencyUtils"                  % "1.0.3"            % "test" // Free BSD
-    val hdrHistogram      = "org.hdrhistogram"          % "HdrHistogram"                  % "1.1.4"            % "test" // CC0
+    val metrics            = "com.codahale.metrics"     % "metrics-core"                  % "3.0.2"            % "test,it,e2e" // ApacheV2
+    val metricsJvm         = "com.codahale.metrics"     % "metrics-jvm"                   % "3.0.2"            % "test,it,e2e" // ApacheV2
+    val latencyUtils       = "org.latencyutils"         % "LatencyUtils"                  % "1.0.3"            % "test,it,e2e" // Free BSD
+    val hdrHistogram      = "org.hdrhistogram"          % "HdrHistogram"                  % "1.1.4"            % "test,it,e2e" // CC0
     val metricsAll        = Seq(metrics, metricsJvm, latencyUtils, hdrHistogram)
       
     // Testing Dependencies
-    val akkaTestKit     = "com.typesafe.akka"           % "akka-testkit_2.11"            % Versions.akka       % "test" // Apache 2.0
-    val scalatest       = "org.scalatest"               % "scalatest_2.11"               % "2.2.5"             % "test" // Apaceh 2.0
-    val mockito         = "org.mockito"                 % "mockito-all"                  % "2.0.2-beta"        % "test" // MIT
-    val junit           = "junit"                       % "junit"                        % "4.12"              % "test" //EPL 1.0
+    val akkaTestKit     = "com.typesafe.akka"           % "akka-testkit_2.11"            % Versions.akka       % TestSpecifier // Apache 2.0
+    val scalatest       = "org.scalatest"               % "scalatest_2.11"               % "2.2.5"             % TestSpecifier // Apaceh 2.0
+    val mockito         = "org.mockito"                 % "mockito-all"                  % "2.0.2-beta"        % TestSpecifier // MIT
+    val junit           = "junit"                       % "junit"                        % "4.12"              % TestSpecifier //EPL 1.0
     val testingCore = Seq(scalatest, mockito, junit)
     val testingAkka = testingCore ++ Seq(akkaTestKit)
   }
