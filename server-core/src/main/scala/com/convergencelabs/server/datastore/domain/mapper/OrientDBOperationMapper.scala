@@ -1,51 +1,69 @@
 package com.convergencelabs.server.datastore.domain.mapper
 
-import scala.collection.JavaConversions._
-import scala.collection.JavaConverters._
-import com.convergencelabs.server.domain.model.ot._
-import com.convergencelabs.server.frontend.realtime.proto._
-import org.json4s.JValue
-import org.json4s._
-import org.json4s.jackson.JsonMethods._
-import org.json4s.jackson.Serialization._
-import org.json4s.JsonAST.JNumber
-import java.util.{ HashMap, Map => JavaMap, List => JavaList }
-import com.convergencelabs.server.util.JValueMapper
+import com.convergencelabs.server.domain.model.ot.ArrayInsertOperation
+import com.convergencelabs.server.domain.model.ot.ArrayMoveOperation
+import com.convergencelabs.server.domain.model.ot.ArrayRemoveOperation
+import com.convergencelabs.server.domain.model.ot.ArrayReplaceOperation
+import com.convergencelabs.server.domain.model.ot.ArraySetOperation
+import com.convergencelabs.server.domain.model.ot.CompoundOperation
+import com.convergencelabs.server.domain.model.ot.DiscreteOperation
+import com.convergencelabs.server.domain.model.ot.NumberAddOperation
+import com.convergencelabs.server.domain.model.ot.NumberSetOperation
+import com.convergencelabs.server.domain.model.ot.ObjectAddPropertyOperation
+import com.convergencelabs.server.domain.model.ot.ObjectRemovePropertyOperation
+import com.convergencelabs.server.domain.model.ot.ObjectSetOperation
+import com.convergencelabs.server.domain.model.ot.ObjectSetPropertyOperation
+import com.convergencelabs.server.domain.model.ot.Operation
+import com.convergencelabs.server.domain.model.ot.StringInsertOperation
+import com.convergencelabs.server.domain.model.ot.StringRemoveOperation
+import com.convergencelabs.server.domain.model.ot.StringSetOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
-import com.orientechnologies.orient.core.metadata.schema.OType
-import java.util.{List => JavaList}
-import java.util.{Map => JavaMap}
-import ArrayInsertOperationMapper.{DocumentClassName => ArrayInsertDocName}
-import ArrayInsertOperationMapper._
-import ArrayRemoveOperationMapper.{DocumentClassName => ArrayRemoveDocName}
-import ArrayRemoveOperationMapper._
-import ArrayReplaceOperationMapper.{DocumentClassName => ArrayReplaceDocName}
-import ArrayReplaceOperationMapper._
-import ArrayMoveOperationMapper.{DocumentClassName => ArrayMoveDocName}
-import ArrayMoveOperationMapper._
-import ArraySetOperationMapper.{DocumentClassName => ArraySetDocName}
-import ArraySetOperationMapper._
-import ObjectSetPropertyOperationMapper.{DocumentClassName => ObjectSetPropertyDocName}
-import ObjectSetPropertyOperationMapper._
-import ObjectAddPropertyOperationMapper.{DocumentClassName => ObjectAddPropertyDocName}
-import ObjectAddPropertyOperationMapper._
-import ObjectRemovePropertyOperationMapper.{DocumentClassName => ObjectRemovePropertyDocName}
-import ObjectRemovePropertyOperationMapper._
-import ObjectSetOperationMapper.{DocumentClassName => ObjectSetDocName}
-import ObjectSetOperationMapper._
-import NumberAddOperationMapper.{DocumentClassName => NumberAddDocName}
-import NumberAddOperationMapper._
-import NumberSetOperationMapper.{DocumentClassName => NumberSetDocName}
-import NumberSetOperationMapper._
-import StringInsertOperationMapper.{DocumentClassName => StringInsertDocName}
-import StringInsertOperationMapper._
-import StringRemoveOperationMapper.{DocumentClassName => StringRemoveDocName}
-import StringRemoveOperationMapper._
-import StringSetOperationMapper.{DocumentClassName => StringSetDocName}
-import StringSetOperationMapper._
-import CompoundOperationMapper.{DocumentClassName => CompoundDocName}
-import CompoundOperationMapper._
-import com.convergencelabs.server.domain.model.ot._
+
+import ArrayInsertOperationMapper.ArrayInsertOperationToODocument
+import ArrayInsertOperationMapper.{ DocumentClassName => ArrayInsertDocName }
+import ArrayInsertOperationMapper.ODocumentToArrayInsertOperation
+import ArrayMoveOperationMapper.ArrayMoveOperationToODocument
+import ArrayMoveOperationMapper.{ DocumentClassName => ArrayMoveDocName }
+import ArrayMoveOperationMapper.ODocumentToArrayMoveOperation
+import ArrayRemoveOperationMapper.ArrayRemoveOperationToODocument
+import ArrayRemoveOperationMapper.{ DocumentClassName => ArrayRemoveDocName }
+import ArrayRemoveOperationMapper.ODocumentToArrayRemoveOperation
+import ArrayReplaceOperationMapper.ArrayReplaceOperationToODocument
+import ArrayReplaceOperationMapper.{ DocumentClassName => ArrayReplaceDocName }
+import ArrayReplaceOperationMapper.ODocumentToArrayReplaceOperation
+import ArraySetOperationMapper.ArraySetOperationToODocument
+import ArraySetOperationMapper.{ DocumentClassName => ArraySetDocName }
+import ArraySetOperationMapper.ODocumentToArraySetOperation
+import CompoundOperationMapper.CompoundOperationToODocument
+import CompoundOperationMapper.{ DocumentClassName => CompoundDocName }
+import CompoundOperationMapper.ODocumentToCompoundOperation
+import NumberAddOperationMapper.{ DocumentClassName => NumberAddDocName }
+import NumberAddOperationMapper.NumberAddOperationToODocument
+import NumberAddOperationMapper.ODocumentToNumberAddOperation
+import NumberSetOperationMapper.{ DocumentClassName => NumberSetDocName }
+import NumberSetOperationMapper.NumberSetOperationToODocument
+import NumberSetOperationMapper.ODocumentToNumberSetOperation
+import ObjectAddPropertyOperationMapper.{ DocumentClassName => ObjectAddPropertyDocName }
+import ObjectAddPropertyOperationMapper.ODocumentToObjectAddPropertyOperation
+import ObjectAddPropertyOperationMapper.ObjectAddPropertyOperationToODocument
+import ObjectRemovePropertyOperationMapper.{ DocumentClassName => ObjectRemovePropertyDocName }
+import ObjectRemovePropertyOperationMapper.ODocumentToObjectRemovePropertyOperation
+import ObjectRemovePropertyOperationMapper.ObjectRemovePropertyOperationToODocument
+import ObjectSetOperationMapper.{ DocumentClassName => ObjectSetDocName }
+import ObjectSetOperationMapper.ODocumentToObjectSetOperation
+import ObjectSetOperationMapper.ObjectSetOperationToODocument
+import ObjectSetPropertyOperationMapper.{ DocumentClassName => ObjectSetPropertyDocName }
+import ObjectSetPropertyOperationMapper.ODocumentToObjectSetPropertyOperation
+import ObjectSetPropertyOperationMapper.ObjectSetPropertyOperationToODocument
+import StringInsertOperationMapper.{ DocumentClassName => StringInsertDocName }
+import StringInsertOperationMapper.ODocumentToStringInsertOperation
+import StringInsertOperationMapper.StringInsertOperationToODocument
+import StringRemoveOperationMapper.{ DocumentClassName => StringRemoveDocName }
+import StringRemoveOperationMapper.ODocumentToStringRemoveOperation
+import StringRemoveOperationMapper.StringRemoveOperationToODocument
+import StringSetOperationMapper.{ DocumentClassName => StringSetDocName }
+import StringSetOperationMapper.ODocumentToStringSetOperation
+import StringSetOperationMapper.StringSetOperationToODocument
 
 object OrientDBOperationMapper {
 
@@ -56,6 +74,7 @@ object OrientDBOperationMapper {
     }
   }
 
+  // scalastyle:off cyclomatic.complexity
   private[mapper] def oDocumentToDiscreteOperation(doc: ODocument): DiscreteOperation = {
     doc.getClassName match {
       case StringInsertDocName => doc.asStringInsertOperation
@@ -77,6 +96,7 @@ object OrientDBOperationMapper {
       case NumberSetDocName => doc.asNumberSetOperation
     }
   }
+  // scalastyle:on cyclomatic.complexity
 
   def operationToODocument(op: Operation): ODocument = {
     op match {
@@ -85,6 +105,7 @@ object OrientDBOperationMapper {
     }
   }
 
+  // scalastyle:off cyclomatic.complexity
   private[this] def discreteOperationToODocument(op: DiscreteOperation): ODocument = {
     op match {
       // String Operations
@@ -110,4 +131,5 @@ object OrientDBOperationMapper {
       case op: NumberSetOperation => op.asODocument
     }
   }
+  // scalastyle:on cyclomatic.complexity
 }

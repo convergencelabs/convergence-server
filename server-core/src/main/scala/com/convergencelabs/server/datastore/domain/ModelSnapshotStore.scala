@@ -35,6 +35,10 @@ class ModelSnapshotStore private[domain] (
 
   private[this] implicit val formats = org.json4s.DefaultFormats
 
+  val CollectionId = "collectionId"
+  val ModelId = "modelId"
+  val Version = "version"
+
   /**
    * Creates a new snapshot in the database.  The combination of ModelFqn and
    * version must be unique in the database.
@@ -66,9 +70,9 @@ class ModelSnapshotStore private[domain] (
 
     val query = new OSQLSynchQuery[ODocument](queryString)
     val params = HashMap(
-      "collectionId" -> fqn.collectionId,
-      "modelId" -> fqn.modelId,
-      "version" -> version)
+      CollectionId -> fqn.collectionId,
+      ModelId -> fqn.modelId,
+      Version -> version)
 
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     QueryUtil.mapSingletonList(result) { _.asModelSnapshot }
@@ -102,8 +106,8 @@ class ModelSnapshotStore private[domain] (
 
     val query = new OSQLSynchQuery[ODocument](QueryUtil.buildPagedQuery(baseQuery, limit, offset))
     val params = HashMap(
-      "collectionId" -> fqn.collectionId,
-      "modelId" -> fqn.modelId)
+      CollectionId -> fqn.collectionId,
+      ModelId -> fqn.modelId)
 
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     result.asScala.toList.map { _.asModelSnapshotMetaData }
@@ -138,8 +142,8 @@ class ModelSnapshotStore private[domain] (
 
     val query = new OSQLSynchQuery[ODocument](QueryUtil.buildPagedQuery(baseQuery, limit, offset))
     val params = HashMap(
-      "collectionId" -> fqn.collectionId,
-      "modelId" -> fqn.modelId,
+      CollectionId -> fqn.collectionId,
+      ModelId -> fqn.modelId,
       "startTime" -> new java.util.Date(startTime.getOrElse(0L)),
       "endTime" -> new java.util.Date(endTime.getOrElse(Long.MaxValue)))
 
@@ -166,8 +170,8 @@ class ModelSnapshotStore private[domain] (
 
     val query = new OSQLSynchQuery[ODocument](queryString)
     val params = HashMap(
-      "collectionId" -> fqn.collectionId,
-      "modelId" -> fqn.modelId)
+      CollectionId -> fqn.collectionId,
+      ModelId -> fqn.modelId)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     QueryUtil.mapSingletonList(result) { _.asModelSnapshotMetaData }
   }
@@ -189,9 +193,9 @@ class ModelSnapshotStore private[domain] (
 
     val query = new OSQLSynchQuery[ODocument](queryString)
     val params = HashMap(
-      "collectionId" -> fqn.collectionId,
-      "modelId" -> fqn.modelId,
-      "version" -> version)
+      CollectionId -> fqn.collectionId,
+      ModelId -> fqn.modelId,
+      Version -> version)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     QueryUtil.mapSingletonList(result) { _.asModelSnapshot }
   }
@@ -216,9 +220,9 @@ class ModelSnapshotStore private[domain] (
 
     val command = new OCommandSQL(query);
     val params = HashMap(
-      "collectionId" -> fqn.collectionId,
-      "modelId" -> fqn.modelId,
-      "version" -> version)
+      CollectionId -> fqn.collectionId,
+      ModelId -> fqn.modelId,
+      Version -> version)
 
     db.command(command).execute(params.asJava)
     Unit
@@ -237,7 +241,7 @@ class ModelSnapshotStore private[domain] (
         |  modelId = :modelId""".stripMargin
 
     val command = new OCommandSQL(query);
-    val params = HashMap("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
+    val params = HashMap(CollectionId -> fqn.collectionId, ModelId -> fqn.modelId)
     db.command(command).execute(params.asJava)
     Unit
   }
@@ -251,7 +255,7 @@ class ModelSnapshotStore private[domain] (
     val query = "DELETE FROM ModelSnapshot WHERE collectionId = :collectionId"
 
     val command = new OCommandSQL(query);
-    val params = HashMap("collectionId" -> collectionId)
+    val params = HashMap(CollectionId -> collectionId)
     db.command(command).execute(params.asJava)
     Unit
   }

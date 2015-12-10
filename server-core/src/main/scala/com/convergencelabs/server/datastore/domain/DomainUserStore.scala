@@ -35,6 +35,10 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
 
   private[this] implicit val formats = Serialization.formats(NoTypeHints)
 
+  val Uid = "uid"
+  val Username = "username"
+  val Password = "password"
+
   /**
    * Creates a new domain user in the system, and optionally set a password.
    * Note the uid as well as the username of the user must be unique among all
@@ -55,14 +59,14 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     val pwDoc = db.newInstance("UserCredential")
     pwDoc.field("user", userDoc, OType.LINK) // FIXME verify this creates a link and now a new doc.
 
-   password match {
-      case Some(pass) => pwDoc.field("password", PasswordUtil.hashPassword(pass))
-      case None =>  pwDoc.field("password", null, OType.STRING)
+    password match {
+      case Some(pass) => pwDoc.field(Password, PasswordUtil.hashPassword(pass))
+      case None => pwDoc.field(Password, null, OType.STRING) // scalastyle:off null
     }
-    
+
     db.save(pwDoc)
 
-    val uid: String = userDoc.field("uid", OType.STRING)
+    val uid: String = userDoc.field(Uid, OType.STRING)
     uid
   }
 
@@ -73,7 +77,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    */
   def deleteDomainUser(uid: String): Try[Unit] = tryWithDb { db =>
     val command = new OCommandSQL("DELETE FROM User WHERE uid = :uid")
-    val params = Map("uid" -> uid)
+    val params = Map(Uid -> uid)
     db.command(command).execute(params.asJava)
     Unit
   }
@@ -88,7 +92,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     val updatedDoc = domainUser.asODocument
 
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE uid = :uid")
-    val params = Map("uid" -> domainUser.uid)
+    val params = Map(Uid -> domainUser.uid)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
     result.asScala.toList match {
@@ -110,7 +114,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    */
   def getDomainUserByUid(uid: String): Try[Option[DomainUser]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE uid = :uid")
-    val params = Map("uid" -> uid)
+    val params = Map(Uid -> uid)
     val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
     QueryUtil.mapSingletonList(results) { _.asDomainUser }
   }
@@ -138,7 +142,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    */
   def getDomainUserByUsername(username: String): Try[Option[DomainUser]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username = :username")
-    val params = Map("username" -> username)
+    val params = Map(Username -> username)
     val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
     QueryUtil.mapSingletonList(results) { _.asDomainUser }
   }
@@ -194,7 +198,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    */
   def domainUserExists(username: String): Try[Boolean] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username = :username")
-    val params = Map("username" -> username)
+    val params = Map(Username -> username)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     result.asScala.toList match {
       case doc :: Nil => true
@@ -233,12 +237,12 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    */
   def setDomainUserPassword(username: String, password: String): Try[Unit] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT * FROM UserCredential WHERE user.username = :username")
-    val params = Map("username" -> username)
+    val params = Map(Username -> username)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
     result.asScala.toList match {
       case doc :: Nil => {
-        doc.field("password", PasswordUtil.hashPassword(password))
+        doc.field(Password, PasswordUtil.hashPassword(password))
         db.save(doc)
       }
       case _ => throw new IllegalArgumentException("User not found when setting password.")
@@ -256,15 +260,15 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    */
   def validateCredentials(username: String, password: String): Try[Tuple2[Boolean, Option[String]]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT password, user.uid AS uid FROM UserCredential WHERE user.username = :username")
-    val params = Map("username" -> username)
+    val params = Map(Username -> username)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
     result.asScala.toList match {
       case doc :: Nil => {
-        val pwhash: String = doc.field("password")
+        val pwhash: String = doc.field(Password)
         PasswordUtil.checkPassword(password, pwhash) match {
           case true => {
-            val uid: String = doc.field("uid")
+            val uid: String = doc.field(Uid)
             (true, Some(uid))
           }
           case false => (false, None)

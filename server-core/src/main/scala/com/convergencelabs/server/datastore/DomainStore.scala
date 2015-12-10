@@ -23,6 +23,8 @@ class DomainStore private[datastore] (dbPool: OPartitionedDatabasePool)
     with Logging {
 
   private[this] val Id = "id"
+  private[this] val Namespace = "namespace"
+  private[this] val DomainId = "domainId"
 
   def createDomain(domain: Domain): Try[Unit] = tryWithDb { db =>
     db.save(domain.asODocument)
@@ -38,7 +40,7 @@ class DomainStore private[datastore] (dbPool: OPartitionedDatabasePool)
         |  domainId = :domainId""".stripMargin
 
     val query = new OSQLSynchQuery[ODocument](queryString)
-    val params = Map("namespace" -> domainFqn.namespace, "domainId" -> domainFqn.domainId)
+    val params = Map(Namespace -> domainFqn.namespace, DomainId -> domainFqn.domainId)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
     result.asScala.toList match {
@@ -53,8 +55,8 @@ class DomainStore private[datastore] (dbPool: OPartitionedDatabasePool)
     val query = new OSQLSynchQuery[ODocument](queryString)
 
     val params = Map(
-      "namespace" -> domainFqn.namespace,
-      "domainId" -> domainFqn.domainId)
+      Namespace -> domainFqn.namespace,
+      DomainId -> domainFqn.domainId)
 
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
@@ -70,7 +72,7 @@ class DomainStore private[datastore] (dbPool: OPartitionedDatabasePool)
 
   def getDomainsInNamespace(namespace: String): Try[List[Domain]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM Domain WHERE namespace = :namespace")
-    val params = Map("namespace" -> namespace)
+    val params = Map(Namespace -> namespace)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     result.asScala.toList map { doc => doc.asDomain }
   }

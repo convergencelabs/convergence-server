@@ -17,6 +17,10 @@ import scala.util.Try
 
 class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
     extends AbstractDatabasePersistence(dbPool) {
+
+  val CollectionId = "collectionId"
+  val ModelId = "modelId"
+
   private[this] implicit val formats = Serialization.formats(NoTypeHints)
 
   def getMaxVersion(fqn: ModelFqn): Try[Option[Long]] = tryWithDb { db =>
@@ -29,7 +33,7 @@ class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
         |  modelId = :modelId""".stripMargin
 
     val query = new OSQLSynchQuery[ODocument](queryString)
-    val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId)
+    val params = Map(CollectionId -> fqn.collectionId, ModelId -> fqn.modelId)
     val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
 
     db.close()
@@ -51,7 +55,7 @@ class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
         |  operation.time <= :time""".stripMargin
 
     val query = new OSQLSynchQuery[ODocument](queryString)
-    val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId, "time" -> time)
+    val params = Map(CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, "time" -> time)
     val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
     db.close()
     result.asScala.toList match {
@@ -71,7 +75,7 @@ class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
         |ORDER BY operation.version ASC""".stripMargin
 
     val query = new OSQLSynchQuery[ODocument](queryString)
-    val params = Map("collectionId" -> fqn.collectionId, "modelId" -> fqn.modelId, "version" -> version)
+    val params = Map(CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, "version" -> version)
     val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
     db.close()
     result.asScala.toList map { _.asModelOperation }
@@ -89,8 +93,8 @@ class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
 
     val query = new OSQLSynchQuery[ODocument](queryStirng)
     val params = Map(
-      "collectionId" -> fqn.collectionId,
-      "modelId" -> fqn.modelId,
+      CollectionId -> fqn.collectionId,
+      ModelId -> fqn.modelId,
       "version" -> version,
       "limit" -> limit)
     val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
@@ -108,8 +112,8 @@ class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
 
     val query = new OSQLSynchQuery[ODocument](queryStirng)
     val params = Map(
-      "collectionId" -> fqn.collectionId,
-      "modelId" -> fqn.modelId)
+      CollectionId -> fqn.collectionId,
+      ModelId -> fqn.modelId)
     val command = new OCommandSQL("DELETE FROM User WHERE uid = :uid")
     db.command(command).execute(params.asJava)
     db.close()
