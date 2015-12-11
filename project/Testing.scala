@@ -20,13 +20,17 @@ object Testing {
   private lazy val e2eSettings = inConfig(EndToEndTest)(Defaults.testSettings) ++ Seq(
     fork in EndToEndTest := true,
     parallelExecution in EndToEndTest := false,
-    scalaSource in EndToEndTest := baseDirectory.value / "src/e2e/scala"
+    scalaSource in EndToEndTest := baseDirectory.value / "src/e2e/scala",
+    libraryDependencies ++= Seq(
+      "org.scoverage" % ("scalac-scoverage-runtime" + "_" + scalaBinaryVersion.value) % "1.1.1" % "provided" intransitive(),
+      "org.scoverage" % ("scalac-scoverage-plugin" + "_" + scalaBinaryVersion.value) % "1.1.1" % "provided" intransitive()
+    )
   )
 
   lazy val settings = testSettings ++ itSettings ++ e2eSettings ++ Seq(
     testAll := (),
-    testAll <<= testAll.dependsOn(test in EndToEndTest),
+    testAll <<= testAll.dependsOn(test in Test),
     testAll <<= testAll.dependsOn(test in IntegrationTest),
-    testAll <<= testAll.dependsOn(test in Test)
+    testAll <<= testAll.dependsOn(test in EndToEndTest)
   )
 }

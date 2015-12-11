@@ -11,8 +11,8 @@ val commonSettings = Seq(
 
 val serverCore = (project in file("server-core")).
   configs(Configs.all: _*).
-  settings(Testing.settings: _*).
   settings(commonSettings: _*).
+  settings(Testing.settings: _*).
   settings(
     name := "convergence-server-core",
     libraryDependencies ++= 
@@ -50,8 +50,8 @@ val testkit = (project in file("server-testkit")).
 
 val tools = (project in file("server-tools")).
   configs(Configs.all: _*).
-  settings(Testing.settings: _*).
   settings(commonSettings: _*).
+  settings(Testing.settings: _*).
   settings(
     name := "convergence-server-tools",
     libraryDependencies ++= 
@@ -63,8 +63,8 @@ val tools = (project in file("server-tools")).
 
 val root = (project in file(".")).
   configs(Configs.all: _*).
-  settings(Testing.settings: _*).
   settings(commonSettings: _*).
+  settings(Testing.settings: _*).
   settings(
     name := "convergence-server"
   ).

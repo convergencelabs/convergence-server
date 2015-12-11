@@ -57,8 +57,8 @@ object Dependencies {
     val metrics            = "com.codahale.metrics"     % "metrics-core"                  % "3.0.2"            % "test,it,e2e" // ApacheV2
     val metricsJvm         = "com.codahale.metrics"     % "metrics-jvm"                   % "3.0.2"            % "test,it,e2e" // ApacheV2
     val latencyUtils       = "org.latencyutils"         % "LatencyUtils"                  % "1.0.3"            % "test,it,e2e" // Free BSD
-    val hdrHistogram      = "org.hdrhistogram"          % "HdrHistogram"                  % "1.1.4"            % "test,it,e2e" // CC0
-    val metricsAll        = Seq(metrics, metricsJvm, latencyUtils, hdrHistogram)
+    val hdrHistogram       = "org.hdrhistogram"          % "HdrHistogram"                  % "1.1.4"            % "test,it,e2e" // CC0
+    val metricsAll         = Seq(metrics, metricsJvm, latencyUtils, hdrHistogram)
       
     // Testing Dependencies
     val akkaTestKit     = "com.typesafe.akka"           % "akka-testkit_2.11"            % Versions.akka       % TestSpecifier // Apache 2.0

@@ -1,4 +1,3 @@
-resolvers += Resolver.url("scoverage-bintray", url("https://dl.bintray.com/sksamuel/sbt-plugins/"))(Resolver.ivyStylePatterns)
 resolvers += "sonatype-releases" at "https://oss.sonatype.org/content/repositories/releases/"
 
 addSbtPlugin("org.scalastyle" %% "scalastyle-sbt-plugin" % "0.8.0")

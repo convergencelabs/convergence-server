@@ -19,8 +19,8 @@ private[ws] object NettyServerWebSocket {
 }
 
 private[ws] class NettyServerWebSocket(
-    private[this] val channel: Channel, 
-    private[this] val maxFrameSize: Int) 
+  private[this] val channel: Channel,
+  private[this] val maxFrameSize: Int)
     extends ConvergenceServerSocket with Logging {
 
   Validate.notNull(channel, "channel must not be null.")
@@ -29,9 +29,9 @@ private[ws] class NettyServerWebSocket(
 
   debug(s"(ws-$socketId) New socket created")
 
-  private[ws] def onMessageReceived(message: String) {
+  private[ws] def onMessageReceived(message: String): Unit = {
     try {
-        fireOnMessage(message)
+      fireOnMessage(message)
     } catch {
       case e: Exception => {
         val errorMessage = s"Error receiving web socket message for session($sessionId): $message"
@@ -56,7 +56,6 @@ private[ws] class NettyServerWebSocket(
         channel.writeAndFlush(new TextWebSocketFrame(message))
       } else {
         var future: ChannelFuture = null
-        
         val lastFrame = frameCount - 1
         for (i <- 0 to frameCount) {
           val start = i * maxFrameSize
@@ -65,12 +64,11 @@ private[ws] class NettyServerWebSocket(
           i match {
             case 0 => channel.writeAndFlush(new TextWebSocketFrame(frameText))
             case _ => future = channel.writeAndFlush(
-                new ContinuationWebSocketFrame(i == lastFrame, 0, frameText))
+              new ContinuationWebSocketFrame(i == lastFrame, 0, frameText))
           }
-          future
         }
+        future
       }
-      
     } catch {
       case e: IOException =>
         val message = s"Error sending web socket text message for session($sessionId): textMessage"
@@ -94,13 +92,13 @@ private[ws] class NettyServerWebSocket(
   }
 
   def isOpen(): Boolean = {
-    return channel.isOpen()
+    channel.isOpen()
   }
 
   def close(reason: String): Unit = {
     try {
       if (this.isOpen()) {
-        val closeFrame = new CloseWebSocketFrame(1000, reason)
+        val closeFrame = new CloseWebSocketFrame(CloseCodes.Normal, reason)
         channel.writeAndFlush(closeFrame)
       }
     } catch {
@@ -113,7 +111,7 @@ private[ws] class NettyServerWebSocket(
   def abort(reason: String): Unit = {
     try {
       if (this.isOpen()) {
-        val closeFrame = new CloseWebSocketFrame(4006, reason)
+        val closeFrame = new CloseWebSocketFrame(CloseCodes.ConvergenceAbnormal, reason)
         channel.writeAndFlush(closeFrame)
       }
     } catch {
@@ -125,7 +123,7 @@ private[ws] class NettyServerWebSocket(
     fireOnError(message)
     try {
       if (channel.isOpen()) {
-        val closeFrame = new CloseWebSocketFrame(4006, message)
+        val closeFrame = new CloseWebSocketFrame(CloseCodes.ConvergenceAbnormal, message)
         channel.writeAndFlush(closeFrame)
       }
     } catch {

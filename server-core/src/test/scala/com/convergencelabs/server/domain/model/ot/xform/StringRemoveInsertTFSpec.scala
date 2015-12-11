@@ -144,9 +144,9 @@ class StringRemoveInsertTFSpec
        * Client Op       :       ^         Insert(6,"xx")
        *
        * Client State    : ABCDEFxxGHIJ
-       * Server' OP      :    ^-^         Remove(3,"DEF")
+       * Server' OP      :    ^-^          Remove(3,"DEF")
        *
-       * Server  State   : ABCDGHIJ
+       * Server  State   : ABCDxxGHIJ
        * Client' Op      :    ^            Insert(3,"xx")
        *
        *
@@ -156,12 +156,12 @@ class StringRemoveInsertTFSpec
        */
       "decrement the index of the insert by the length of the removed string when the insert is after the remove" in {
         val s = StringRemoveOperation(Path, false, 3, "DEF")
-        val c = StringInsertOperation(Path, false, 5, "xx")
+        val c = StringInsertOperation(Path, false, 6, "xx")
 
         val (s1, c1) = StringRemoveInsertTF.transform(s, c)
 
-        s1 shouldBe StringRemoveOperation(Path, false, 3, "DExxF")
-        c1 shouldBe StringInsertOperation(Path, true, 5, "xx")
+        s1 shouldBe StringRemoveOperation(Path, false, 3, "DEF")
+        c1 shouldBe StringInsertOperation(Path, false, 3, "xx")
       }
     }
   }

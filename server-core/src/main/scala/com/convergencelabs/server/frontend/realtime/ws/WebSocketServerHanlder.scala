@@ -68,38 +68,33 @@ private[ws] class WebSocketServerHandler(maxFrameSize: Int, socketConnectionHand
   }
 
   private[this] def handleHttpRequest(ctx: ChannelHandlerContext, req: FullHttpRequest): Unit = {
-
-    // Handle a bad request.
     if (!req.getDecoderResult().isSuccess()) {
+      // Handle a bad request.
       sendHttpResponse(ctx, req, new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.BAD_REQUEST))
-      return
-    }
-
-    // Allow only GET methods.
-    if (req.getMethod() != HttpMethod.GET) {
+    } else if (req.getMethod() != HttpMethod.GET) {
+      // Allow only GET methods.
       sendHttpResponse(ctx, req, new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.FORBIDDEN))
-      return
-    }
-
-    // Handshake
-    val wsFactory = new WebSocketServerHandshakerFactory(getWebSocketLocation(req), null, true, maxFrameSize)
-    handshaker = Some(wsFactory.newHandshaker(req))
-    if (handshaker.isEmpty) {
-      WebSocketServerHandshakerFactory.sendUnsupportedVersionResponse(ctx.channel())
     } else {
-      getDomainFqnForRequest(req) match {
-        case None => handshaker.get.close(ctx.channel(), new CloseWebSocketFrame(1000, "Invalid domain url."))
-        case Some(domainFqn) => {
-          val namespace = domainFqn.namespace
-          val domainId = domainFqn.domainId
-          val channelId = ctx.channel().hashCode()
-          debug(s"Incoming web socket connecting to '$namespace/$domainId': $channelId")
+      // Handshake
+      val wsFactory = new WebSocketServerHandshakerFactory(getWebSocketLocation(req), null, true, maxFrameSize)
+      handshaker = Some(wsFactory.newHandshaker(req))
+      if (handshaker.isEmpty) {
+        WebSocketServerHandshakerFactory.sendUnsupportedVersionResponse(ctx.channel())
+      } else {
+        getDomainFqnForRequest(req) match {
+          case None => handshaker.get.close(ctx.channel(), new CloseWebSocketFrame(1000, "Invalid domain url."))
+          case Some(domainFqn) => {
+            val namespace = domainFqn.namespace
+            val domainId = domainFqn.domainId
+            val channelId = ctx.channel().hashCode()
+            debug(s"Incoming web socket connecting to '$namespace/$domainId': $channelId")
 
-          trace(s"Completing handshake: $channelId")
-          handshaker.get.handshake(ctx.channel(), req)
-          convergenceSocket = Some(new NettyServerWebSocket(ctx.channel(), maxFrameSize))
+            trace(s"Completing handshake: $channelId")
+            handshaker.get.handshake(ctx.channel(), req)
+            convergenceSocket = Some(new NettyServerWebSocket(ctx.channel(), maxFrameSize))
 
-          socketConnectionHandler.fireOnSocketOpen(domainFqn, convergenceSocket.get)
+            socketConnectionHandler.fireOnSocketOpen(domainFqn, convergenceSocket.get)
+          }
         }
       }
     }
@@ -132,18 +127,18 @@ private[ws] class WebSocketServerHandler(maxFrameSize: Int, socketConnectionHand
     convergenceSocket.get.handleClosed(closeFrame.statusCode(), closeFrame.reasonText())
   }
 
-  private[this] def handlePingFrame(ctx: ChannelHandlerContext, frame: PingWebSocketFrame): Unit =  {
+  private[this] def handlePingFrame(ctx: ChannelHandlerContext, frame: PingWebSocketFrame): Unit = {
     val channelId = ctx.channel().hashCode()
     trace(s"Received ping, sending pong frame: $channelId")
     ctx.channel().writeAndFlush(new PongWebSocketFrame(frame.content().retain()))
   }
 
-  private[this] def handlePongFrame(ctx: ChannelHandlerContext, frame: PongWebSocketFrame): Unit =  {
+  private[this] def handlePongFrame(ctx: ChannelHandlerContext, frame: PongWebSocketFrame): Unit = {
     val channelId = ctx.channel().hashCode()
     trace(s"Received ping frame: $channelId")
   }
 
-  private[this] def handleTextFrame(ctx: ChannelHandlerContext, frame: TextWebSocketFrame): Unit =  {
+  private[this] def handleTextFrame(ctx: ChannelHandlerContext, frame: TextWebSocketFrame): Unit = {
     if (frame.isFinalFragment()) {
       convergenceSocket.get.onMessageReceived(frame.text())
     } else {
