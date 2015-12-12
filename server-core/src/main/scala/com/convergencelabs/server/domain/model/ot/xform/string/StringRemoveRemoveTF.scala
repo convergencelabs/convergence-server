@@ -27,7 +27,7 @@ private[ot] object StringRemoveRemoveTF extends OperationTransformationFunction[
         (s.copy(noOp = true), c.copy(value = c.value.substring(0, overlapStart) + c.value.substring(overlapEnd, c.value.length)))
       } else {
         val offsetDelta = s.index - c.index
-        (s.copy(index = c.index, value = s.value.substring(c.value.length() - offsetDelta, s.value.length)), 
+        (s.copy(index = c.index, value = s.value.substring(c.value.length() - offsetDelta, s.value.length)),
             c.copy(value = c.value.substring(0, offsetDelta)))
       }
     } else {

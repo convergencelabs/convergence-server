@@ -13,7 +13,6 @@ import org.json4s.NoTypeHints
 import org.json4s.jackson.Serialization
 
 import com.convergencelabs.server.ProtocolConfiguration
-import com.convergencelabs.server.frontend.realtime.ProtocolConnection.State
 import com.convergencelabs.server.frontend.realtime.proto.ErrorMessage
 import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolMessage
 import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolNormalMessage
@@ -32,11 +31,6 @@ import akka.actor.Cancellable
 import akka.actor.Scheduler
 import grizzled.slf4j.Logging
 
-object ProtocolConnection {
-  object State extends Enumeration {
-    val Connected, Connecting, Disconnected, Disconnecting, Interrupted = Value
-  }
-}
 
 sealed trait ConnectionEvent
 
@@ -79,11 +73,8 @@ class ProtocolConnection(
     case SocketError(message) => onSocketError(message)
   }
 
-  import com.convergencelabs.server.frontend.realtime.ProtocolConnection.State._
-
   var nextRequestId = 0L
   val requests = mutable.Map[Long, RequestRecord]()
-  var state = Connected
 
   private[realtime] var eventHandler: PartialFunction[ConnectionEvent, Unit] = {
     case _ => {}
@@ -237,7 +228,7 @@ class ProtocolConnection(
   }
 
   private[this] def invalidMessage(): Unit = {
-
+     ???
   }
 
   class ReplyCallbackImpl(reqId: Long) extends ReplyCallback {

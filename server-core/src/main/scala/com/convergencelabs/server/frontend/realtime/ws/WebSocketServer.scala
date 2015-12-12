@@ -30,8 +30,8 @@ import io.netty.channel.socket.nio.NioServerSocketChannel
  * @param maxFrameSize The maximum size, in bytes, that a text message should
  *                     be in order to send it as a single frame.  Messages
  *                     larger than this size will be fragmented.
- * @param connectionHandler The object that will respond to new socket 
- *                          connections.                
+ * @param connectionHandler The object that will respond to new socket
+ *                          connections.
  */
 private[realtime] class WebSocketServer(
   port: Int,
@@ -42,7 +42,7 @@ private[realtime] class WebSocketServer(
   private[this] val bossGroup = new NioEventLoopGroup(1);
   private[this] val workerGroup = new NioEventLoopGroup(0, new NamedThreadFactory("WebSocket"));
 
-  def start() {
+  def start(): Unit = {
     debug(s"Web Socket server starting up on port: $port")
 
     val b = new ServerBootstrap();
@@ -56,7 +56,7 @@ private[realtime] class WebSocketServer(
     debug("Web Socket server started")
   }
 
-  def stop() {
+  def stop(): Unit = {
     info("Web Socket server stopping")
     bossGroup.shutdownGracefully()
     workerGroup.shutdownGracefully()

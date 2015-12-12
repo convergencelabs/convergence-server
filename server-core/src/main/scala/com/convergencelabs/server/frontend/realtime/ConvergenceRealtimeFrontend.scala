@@ -16,7 +16,7 @@ class ConvergenceRealtimeFrontend(
     private[this] val system: ActorSystem,
     private[this] val websocketPort: Int) extends Logging {
 
-  // FIXME this object is nonsensical.  It's all over the place.  I don't know 
+  // FIXME this object is nonsensical.  It's all over the place.  I don't know
   // if this is the right place for this.
   private val protoConfig = ProtocolConfiguration(5000L)
 

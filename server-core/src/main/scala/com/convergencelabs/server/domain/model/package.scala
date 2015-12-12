@@ -66,7 +66,13 @@ package model {
 
   trait RealtimeModelClientMessage
   case class OperationAcknowledgement(resourceId: String, seqNo: Long, contextVersion: Long) extends RealtimeModelClientMessage
-  case class OutgoingOperation(resourceId: String, userId: String, sessionId: String, contextVersion: Long, timestampe: Long, operation: Operation) extends RealtimeModelClientMessage
+  case class OutgoingOperation(
+    resourceId: String,
+    userId: String,
+    sessionId: String,
+    contextVersion: Long,
+    timestampe: Long,
+    operation: Operation) extends RealtimeModelClientMessage
   case class RemoteClientClosed(resourceId: String, userId: String, sessionId: String) extends RealtimeModelClientMessage
   case class RemoteClientOpened(resourceId: String, userId: String, sessionId: String) extends RealtimeModelClientMessage
   case class ModelForceClose(resourceId: String, reason: String) extends RealtimeModelClientMessage

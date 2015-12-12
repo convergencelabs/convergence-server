@@ -2,10 +2,8 @@ package com.convergencelabs.server.domain.model
 
 import akka.actor.{ Props, ActorRef, ActorLogging, Actor }
 import akka.pattern.{ AskTimeoutException, Patterns }
-
 import java.time.Instant
 import java.time.Duration
-
 import org.json4s.JsonAST.JValue
 import scala.collection.immutable.HashMap
 import scala.concurrent.{ ExecutionContext, Future }
@@ -14,18 +12,18 @@ import scala.util.Success
 import scala.util.Failure
 import scala.util.Try
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.duration._
 import scala.compat.Platform
 import scala.util.Success
 import scala.language.implicitConversions
-
 import com.convergencelabs.server.ErrorResponse
-import com.convergencelabs.server.datastore.domain._
 import com.convergencelabs.server.domain.ModelSnapshotConfig
 import com.convergencelabs.server.domain.model.ot.TransformationFunctionRegistry
 import com.convergencelabs.server.domain.model.ot.{ UnprocessedOperationEvent, ServerConcurrencyControl }
 import com.convergencelabs.server.domain.model.ot.Operation
 import com.convergencelabs.server.domain.model.ot.OperationTransformer
+import com.convergencelabs.server.datastore.domain.ModelStore
+import com.convergencelabs.server.datastore.domain.ModelSnapshotStore
+import com.convergencelabs.server.datastore.domain.ModelOperationProcessor
 
 /**
  * An instance of the RealtimeModelActor manages the lifecycle of a single
@@ -150,7 +148,7 @@ class RealtimeModelActor(
 
     val f = Try {
       val snapshotMetaData = modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)
-      //FIXME: Handle None, handle when snapshot doesn't exist.
+      // FIXME: Handle None, handle when snapshot doesn't exist.
       modelStore.getModel(modelFqn) match {
         case Success(Some(model)) => {
           DatabaseModelResponse(model, snapshotMetaData.get.get)
@@ -429,7 +427,7 @@ class RealtimeModelActor(
     latestSnapshot = ModelSnapshotMetaData(modelFqn, concurrencyControl.contextVersion, Instant.now())
 
     val f = Future[ModelSnapshotMetaData] {
-      //FIXME: Handle Failure from try and None from option.
+      // FIXME: Handle Failure from try and None from option.
       val modelData = modelStore.getModel(this.modelFqn).get.get
       val snapshot = new ModelSnapshot(
         ModelSnapshotMetaData(

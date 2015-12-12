@@ -55,7 +55,7 @@ private[ws] class WebSocketServerHandler(maxFrameSize: Int, socketConnectionHand
     if (!closeFrameReceieve) {
       trace("Channel closed unexpectedly")
       if (convergenceSocket.isDefined) {
-        convergenceSocket.get.handleClosed(4006, "Unexpectedly closed by peer")
+        convergenceSocket.get.handleClosed(CloseCodes.ConvergenceAbnormal, "Unexpectedly closed by peer")
       }
     } else {
       trace("Channel closed after close frame recieved")
@@ -76,13 +76,15 @@ private[ws] class WebSocketServerHandler(maxFrameSize: Int, socketConnectionHand
       sendHttpResponse(ctx, req, new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.FORBIDDEN))
     } else {
       // Handshake
+      // scalastyle:off null
       val wsFactory = new WebSocketServerHandshakerFactory(getWebSocketLocation(req), null, true, maxFrameSize)
+      // scalastyle:on null
       handshaker = Some(wsFactory.newHandshaker(req))
       if (handshaker.isEmpty) {
         WebSocketServerHandshakerFactory.sendUnsupportedVersionResponse(ctx.channel())
       } else {
         getDomainFqnForRequest(req) match {
-          case None => handshaker.get.close(ctx.channel(), new CloseWebSocketFrame(1000, "Invalid domain url."))
+          case None => handshaker.get.close(ctx.channel(), new CloseWebSocketFrame(CloseCodes.Normal, "Invalid domain url."))
           case Some(domainFqn) => {
             val namespace = domainFqn.namespace
             val domainId = domainFqn.domainId
@@ -182,21 +184,18 @@ private[ws] class WebSocketServerHandler(maxFrameSize: Int, socketConnectionHand
   private[this] def getDomainFqnForRequest(req: FullHttpRequest): Option[DomainFqn] = {
     val uri = URI.create(req.getUri())
     val path = uri.getPath()
-
     if (path.length <= WEBSOCKET_PATH.length) {
-      return None
+      None
+    } else {
+      val domainPath = path.substring(WEBSOCKET_PATH.length(), path.length())
+      val components = domainPath.split("/")
+      if (components.length != 2) {
+        None
+      } else {
+        val namespace = components(0)
+        val domainId = components(1)
+        Some(DomainFqn(namespace, domainId))
+      }
     }
-
-    val domainPath = path.substring(WEBSOCKET_PATH.length(), path.length())
-
-    val components = domainPath.split("/")
-
-    if (components.length != 2) {
-      return None
-    }
-
-    val namespace = components(0)
-    val domainId = components(1)
-    Some(DomainFqn(namespace, domainId))
   }
 }

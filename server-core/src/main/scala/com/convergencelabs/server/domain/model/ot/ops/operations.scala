@@ -13,11 +13,11 @@ sealed trait DiscreteOperation extends Operation {
   def path: List[Any]
   def noOp: Boolean
 
-  def isParentOf(other: DiscreteOperation) = PathComparator.isParentOf(path, other.path)
-  def isAncestorOf(other: DiscreteOperation) = PathComparator.isAncestorOf(path, other.path)
-  def isChildOf(other: DiscreteOperation) = PathComparator.isChildOf(path, other.path)
-  def isDescendantOf(other: DiscreteOperation) = PathComparator.isDescendantOf(path, other.path)
-  def isSiblingOf(other: DiscreteOperation) = PathComparator.areSiblings(path, other.path)
+  def isParentOf(other: DiscreteOperation): Boolean = PathComparator.isParentOf(path, other.path)
+  def isAncestorOf(other: DiscreteOperation): Boolean = PathComparator.isAncestorOf(path, other.path)
+  def isChildOf(other: DiscreteOperation): Boolean = PathComparator.isChildOf(path, other.path)
+  def isDescendantOf(other: DiscreteOperation): Boolean = PathComparator.isDescendantOf(path, other.path)
+  def isSiblingOf(other: DiscreteOperation): Boolean = PathComparator.areSiblings(path, other.path)
 
   def clone(path: List[Any] = path, noOp: scala.Boolean = noOp): DiscreteOperation
 }

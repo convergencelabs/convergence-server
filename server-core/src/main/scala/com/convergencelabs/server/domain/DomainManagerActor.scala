@@ -12,7 +12,6 @@ import akka.actor.ActorRef
 import akka.actor.Cancellable
 import akka.actor.PoisonPill
 import akka.actor.Props
-import akka.cluster.ClusterEvent._
 import akka.cluster.Cluster
 import akka.actor.Scheduler
 import scala.util.Success

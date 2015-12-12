@@ -1,7 +1,39 @@
 package com.convergencelabs.server.frontend.realtime
 
-import com.convergencelabs.server.domain.model.ot._
-import com.convergencelabs.server.frontend.realtime.proto._
+import com.convergencelabs.server.domain.model.ot.ArrayInsertOperation
+import com.convergencelabs.server.domain.model.ot.ArrayMoveOperation
+import com.convergencelabs.server.domain.model.ot.ArrayRemoveOperation
+import com.convergencelabs.server.domain.model.ot.ArrayReplaceOperation
+import com.convergencelabs.server.domain.model.ot.ArraySetOperation
+import com.convergencelabs.server.domain.model.ot.CompoundOperation
+import com.convergencelabs.server.domain.model.ot.DiscreteOperation
+import com.convergencelabs.server.domain.model.ot.NumberAddOperation
+import com.convergencelabs.server.domain.model.ot.NumberSetOperation
+import com.convergencelabs.server.domain.model.ot.ObjectAddPropertyOperation
+import com.convergencelabs.server.domain.model.ot.ObjectRemovePropertyOperation
+import com.convergencelabs.server.domain.model.ot.ObjectSetOperation
+import com.convergencelabs.server.domain.model.ot.ObjectSetPropertyOperation
+import com.convergencelabs.server.domain.model.ot.Operation
+import com.convergencelabs.server.domain.model.ot.StringInsertOperation
+import com.convergencelabs.server.domain.model.ot.StringRemoveOperation
+import com.convergencelabs.server.domain.model.ot.StringSetOperation
+import com.convergencelabs.server.frontend.realtime.proto.ArrayInsertOperationData
+import com.convergencelabs.server.frontend.realtime.proto.ArrayMoveOperationData
+import com.convergencelabs.server.frontend.realtime.proto.ArrayRemoveOperationData
+import com.convergencelabs.server.frontend.realtime.proto.ArrayReplaceOperationData
+import com.convergencelabs.server.frontend.realtime.proto.ArraySetOperationData
+import com.convergencelabs.server.frontend.realtime.proto.CompoundOperationData
+import com.convergencelabs.server.frontend.realtime.proto.DiscreteOperationData
+import com.convergencelabs.server.frontend.realtime.proto.NumberAddOperationData
+import com.convergencelabs.server.frontend.realtime.proto.NumberSetOperationData
+import com.convergencelabs.server.frontend.realtime.proto.ObjectAddPropertyOperationData
+import com.convergencelabs.server.frontend.realtime.proto.ObjectRemovePropertyOperationData
+import com.convergencelabs.server.frontend.realtime.proto.ObjectSetOperationData
+import com.convergencelabs.server.frontend.realtime.proto.ObjectSetPropertyOperationData
+import com.convergencelabs.server.frontend.realtime.proto.OperationData
+import com.convergencelabs.server.frontend.realtime.proto.StringInsertOperationData
+import com.convergencelabs.server.frontend.realtime.proto.StringRemoveOperationData
+import com.convergencelabs.server.frontend.realtime.proto.StringSetOperationData
 
 object OperationMapper {
 
@@ -16,6 +48,7 @@ object OperationMapper {
     CompoundOperation(op.ops.map(opData => mapIncoming(opData).asInstanceOf[DiscreteOperation]))
   }
 
+  // scalastyle:off cyclomatic.complexity
   def mapIncomingDiscrete(op: DiscreteOperationData): DiscreteOperation = {
     op match {
       case StringInsertOperationData(path, noOp, index, value) => StringInsertOperation(path, noOp, index, value)
@@ -37,6 +70,7 @@ object OperationMapper {
       case NumberSetOperationData(path, noOp, number) => NumberSetOperation(path, noOp, number)
     }
   }
+  // scalastyle:on cyclomatic.complexity
 
   def mapOutgoing(op: Operation): OperationData = {
     op match {
@@ -49,6 +83,7 @@ object OperationMapper {
     CompoundOperationData(op.operations.map(opData => mapOutgoing(opData).asInstanceOf[DiscreteOperationData]))
   }
 
+  // scalastyle:off cyclomatic.complexity
   def mapOutgoingDiscrete(op: DiscreteOperation): DiscreteOperationData = {
     op match {
       case StringInsertOperation(path, noOp, index, value) => StringInsertOperationData(path, noOp, index, value)
@@ -70,4 +105,5 @@ object OperationMapper {
       case NumberSetOperation(path, noOp, number) => NumberSetOperationData(path, noOp, number)
     }
   }
+  // scalastyle:on cyclomatic.complexity
 }

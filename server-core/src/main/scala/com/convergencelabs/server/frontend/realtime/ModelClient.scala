@@ -85,7 +85,7 @@ class ModelClientActor(
       onRequestReceived(message.asInstanceOf[IncomingModelRequestMessage], replyPromise)
     case message: RealtimeModelClientMessage =>
       onOutgoingModelMessage(message)
-    case x => unhandled(x)
+    case x:Any => unhandled(x)
   }
 
   //

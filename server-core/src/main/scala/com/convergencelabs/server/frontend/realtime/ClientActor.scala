@@ -68,14 +68,14 @@ class ClientActor(
 
   private[this] val connectionManager = context.parent
 
-  connection.eventHandler = { case event => self ! event }
+  connection.eventHandler = { case event:ConnectionEvent => self ! event }
 
   var modelClient: ActorRef = _
   var domainActor: ActorRef = _
   var modelManagerActor: ActorRef = _
   var sessionId: String = _
 
-  def receive = receiveWhileHandshaking
+  def receive:Receive = receiveWhileHandshaking
 
   def receiveWhileHandshaking: Receive = {
     case RequestReceived(message, replyCallback) if message.isInstanceOf[HandshakeRequestMessage] => {
@@ -84,7 +84,7 @@ class ClientActor(
     case ConnectionClosed() => onConnectionClosed()
     case ConnectionDropped() => onConnectionDropped()
     case ConnectionError(message) => onConnectionError(message)
-    case x => invalidMessage(x)
+    case x:Any => invalidMessage(x)
   }
 
   def receiveWhileAuthenticating: Receive = {
@@ -94,7 +94,7 @@ class ClientActor(
     case ConnectionClosed() => onConnectionClosed()
     case ConnectionDropped() => onConnectionDropped()
     case ConnectionError(message) => onConnectionError(message)
-    case x => invalidMessage(x)
+    case x:Any => invalidMessage(x)
   }
 
   def authenticate(requestMessage: AuthenticationRequestMessage, cb: ReplyCallback): Unit = {
@@ -125,32 +125,31 @@ class ClientActor(
 
   def handshake(request: HandshakeRequestMessage, cb: ReplyCallback): Unit = {
     val canceled = handshakeTimeoutTask.cancel()
-    if (!canceled) {
-      return
-    }
-
-    val future = domainManager ? HandshakeRequest(domainFqn, self, request.reconnect, request.reconnectToken)
-    future.mapResponse[HandshakeResponse] onComplete {
-      case Success(HandshakeSuccess(sessionId, reconnectToken, domainActor, modelManagerActor)) => {
-        this.sessionId = sessionId
-        this.domainActor = domainActor
-        this.modelManagerActor = modelManagerActor
-        cb.reply(HandshakeResponseMessage(true, None, Some(sessionId), Some(reconnectToken)))
-        context.become(receiveWhileAuthenticating)
-      }
-      case Success(HandshakeFailure(code, details)) => {
-        cb.reply(HandshakeResponseMessage(false, Some(ErrorData(code, details)), None, None))
-        connection.abort("handshake failure")
-        context.stop(self)
-      }
-      case Failure(cause) => {
-        cb.reply(HandshakeResponseMessage(false, Some(ErrorData("unknown", "uknown error")), None, None))
-        connection.abort("handshake failure")
-        context.stop(self)
+    if (canceled) {
+      val future = domainManager ? HandshakeRequest(domainFqn, self, request.reconnect, request.reconnectToken)
+      future.mapResponse[HandshakeResponse] onComplete {
+        case Success(HandshakeSuccess(sessionId, reconnectToken, domainActor, modelManagerActor)) => {
+          this.sessionId = sessionId
+          this.domainActor = domainActor
+          this.modelManagerActor = modelManagerActor
+          cb.reply(HandshakeResponseMessage(true, None, Some(sessionId), Some(reconnectToken)))
+          context.become(receiveWhileAuthenticating)
+        }
+        case Success(HandshakeFailure(code, details)) => {
+          cb.reply(HandshakeResponseMessage(false, Some(ErrorData(code, details)), None, None))
+          connection.abort("handshake failure")
+          context.stop(self)
+        }
+        case Failure(cause) => {
+          cb.reply(HandshakeResponseMessage(false, Some(ErrorData("unknown", "uknown error")), None, None))
+          connection.abort("handshake failure")
+          context.stop(self)
+        }
       }
     }
   }
 
+  // scalastyle:off cyclomatic.complexity
   def receiveWhileAuthenticated: Receive = {
     case RequestReceived(message, replyPromise) if message.isInstanceOf[HandshakeRequestMessage] => invalidMessage(message)
 
@@ -166,6 +165,7 @@ class ClientActor(
 
     case x: Any => unhandled(x)
   }
+  // scalastyle:on cyclomatic.complexity
 
   def onOutgoingMessage(message: OutgoingProtocolNormalMessage): Unit = {
     connection.send(message)
