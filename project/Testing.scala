@@ -22,8 +22,8 @@ object Testing {
     parallelExecution in EndToEndTest := false,
     scalaSource in EndToEndTest := baseDirectory.value / "src/e2e/scala",
     libraryDependencies ++= Seq(
-      "org.scoverage" % ("scalac-scoverage-runtime" + "_" + scalaBinaryVersion.value) % "1.1.1" % "provided" intransitive(),
-      "org.scoverage" % ("scalac-scoverage-plugin" + "_" + scalaBinaryVersion.value) % "1.1.1" % "provided" intransitive()
+      "org.scoverage" % ("scalac-scoverage-runtime" + "_" + scalaBinaryVersion.value) % "1.1.1" % "test" intransitive(),
+      "org.scoverage" % ("scalac-scoverage-plugin" + "_" + scalaBinaryVersion.value) % "1.1.1" % "test" intransitive()
     )
   )
 
