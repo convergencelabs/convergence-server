@@ -78,7 +78,7 @@ class DomainUserStoreSpec
         queried.success.get shouldBe None
       }
 
-      "does not throw exception if user does not exist" in withPersistenceStore { store =>
+      "not throw exception if user does not exist" in withPersistenceStore { store =>
         store.deleteDomainUser("DoesNotExit").success
       }
     }
@@ -140,8 +140,8 @@ class DomainUserStoreSpec
     "retreiving all users" must {
       "order correctly by username" in withPersistenceStore { store =>
         val allUsers = store.getAllDomainUsers(None, None, None, None).success.value
-        val orderedDescending = store.getAllDomainUsers(Some(DomainUserOrder.Username), Some(SortOrder.Descending), None, None).success.value
-        val orderedAscending = store.getAllDomainUsers(Some(DomainUserOrder.Username), Some(SortOrder.Ascending), None, None).success.value
+        val orderedDescending = store.getAllDomainUsers(Some(DomainUserOrder.Username), Some(SortOrder.Descending), None, None).success.get
+        val orderedAscending = store.getAllDomainUsers(Some(DomainUserOrder.Username), Some(SortOrder.Ascending), None, None).success.get
 
         orderedDescending shouldBe allUsers.sortWith(_.username > _.username)
         orderedAscending shouldBe orderedDescending.reverse
@@ -149,9 +149,28 @@ class DomainUserStoreSpec
 
       "limit results to the correct number" in withPersistenceStore { store =>
         val allUser = store.getAllDomainUsers(None, None, None, None).success.value
-        store.getAllDomainUsers(None, None, Some(2), None).success.value shouldBe allUser.slice(0, 2)
+        store.getAllDomainUsers(None, None, Some(2), None).success.get shouldBe allUser.slice(0, 2)
       }
     }
 
+    "checking whether a user exists" must {
+      "return true if the user exist" in withPersistenceStore { store =>
+        store.domainUserExists(User1.username).success.get shouldBe true
+      }
+
+      "return false if the user does not exist" in withPersistenceStore { store =>
+        store.domainUserExists("DoesNotExist").success.get shouldBe false
+      }
+    }
+    "setting a users password" must {
+      "correctly set the password" in withPersistenceStore { store =>
+        store.setDomainUserPassword(User1.username, "somePassword").success
+        store.validateCredentials(User1.username, "somePassword").success.get shouldBe true
+      }
+
+      "throw exception if user does not exist" in withPersistenceStore { store =>
+        store.setDomainUserPassword("DoesNotExist", "somePassword").failed.get shouldBe a[IllegalArgumentException]
+      }
+    }
   }
 }
