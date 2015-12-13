@@ -248,10 +248,10 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
       case doc :: Nil => {
         doc.field(Password, PasswordUtil.hashPassword(password))
         db.save(doc)
+        Unit
       }
       case _ => throw new IllegalArgumentException("User not found when setting password.")
     }
-    Unit
   }
 
   /**
