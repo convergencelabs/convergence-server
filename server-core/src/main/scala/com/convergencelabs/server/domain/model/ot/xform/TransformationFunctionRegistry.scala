@@ -71,11 +71,15 @@ private[model] class TransformationFunctionRegistry {
   otfs.register[ArraySetOperation, ArrayMoveOperation](ArraySetMoveTF)
   otfs.register[ArraySetOperation, ArraySetOperation](ArraySetSetTF)
 
+  // Number Functions
   otfs.register[NumberAddOperation, NumberAddOperation](NumberAddAddTF)
   otfs.register[NumberAddOperation, NumberSetOperation](NumberAddSetTF)
 
   otfs.register[NumberSetOperation, NumberAddOperation](NumberSetAddTF)
   otfs.register[NumberSetOperation, NumberSetOperation](NumberSetSetTF)
+
+  // Boolean Functions
+  otfs.register[BooleanSetOperation, BooleanSetOperation](BooleanSetSetTF)
 
   def getTransformationFunction[S <: DiscreteOperation, C <: DiscreteOperation](s: S, c: C): Option[OperationTransformationFunction[S, C]] = {
     otfs.getOperationTransformationFunction(s, c)

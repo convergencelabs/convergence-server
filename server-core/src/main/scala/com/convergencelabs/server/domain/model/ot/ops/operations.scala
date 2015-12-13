@@ -12,13 +12,6 @@ case class CompoundOperation(operations: List[DiscreteOperation]) extends Operat
 sealed trait DiscreteOperation extends Operation {
   def path: List[Any]
   def noOp: Boolean
-
-  def isParentOf(other: DiscreteOperation): Boolean = PathComparator.isParentOf(path, other.path)
-  def isAncestorOf(other: DiscreteOperation): Boolean = PathComparator.isAncestorOf(path, other.path)
-  def isChildOf(other: DiscreteOperation): Boolean = PathComparator.isChildOf(path, other.path)
-  def isDescendantOf(other: DiscreteOperation): Boolean = PathComparator.isDescendantOf(path, other.path)
-  def isSiblingOf(other: DiscreteOperation): Boolean = PathComparator.areSiblings(path, other.path)
-
   def clone(path: List[Any] = path, noOp: scala.Boolean = noOp): DiscreteOperation
 }
 
@@ -28,15 +21,15 @@ sealed trait DiscreteOperation extends Operation {
 
 sealed trait StringOperation extends DiscreteOperation
 case class StringRemoveOperation(path: List[Any], noOp: Boolean, index: Int, value: String) extends StringOperation {
-  def clone(path: List[Any], noOp: scala.Boolean): StringRemoveOperation = copy(path = path, noOp = noOp)
+  def clone(path: List[Any] = path, noOp: scala.Boolean = noOp): StringRemoveOperation = copy(path = path, noOp = noOp)
 }
 
 case class StringInsertOperation(path: List[Any], noOp: Boolean, index: Int, value: String) extends StringOperation {
-  def clone(path: List[Any], noOp: scala.Boolean): StringInsertOperation = copy(path = path, noOp = noOp)
+  def clone(path: List[Any] = path, noOp: scala.Boolean = noOp): StringInsertOperation = copy(path = path, noOp = noOp)
 }
 
 case class StringSetOperation(path: List[Any], noOp: Boolean, value: String) extends StringOperation {
-  def clone(path: List[Any], noOp: scala.Boolean): StringSetOperation = copy(path = path, noOp = noOp)
+  def clone(path: List[Any] = path, noOp: scala.Boolean = noOp): StringSetOperation = copy(path = path, noOp = noOp)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -45,19 +38,19 @@ case class StringSetOperation(path: List[Any], noOp: Boolean, value: String) ext
 sealed trait ObjectOperation extends DiscreteOperation
 
 case class ObjectSetPropertyOperation(path: List[Any], noOp: Boolean, property: String, value: JValue) extends ObjectOperation {
-  def clone(path: List[Any], noOp: scala.Boolean): ObjectSetPropertyOperation = copy(path = path, noOp = noOp)
+  def clone(path: List[Any] = path, noOp: scala.Boolean = noOp): ObjectSetPropertyOperation = copy(path = path, noOp = noOp)
 }
 
 case class ObjectAddPropertyOperation(path: List[Any], noOp: Boolean, property: String, value: JValue) extends ObjectOperation {
-  def clone(path: List[Any], noOp: scala.Boolean): ObjectAddPropertyOperation = copy(path = path, noOp = noOp)
+  def clone(path: List[Any] = path, noOp: scala.Boolean = noOp): ObjectAddPropertyOperation = copy(path = path, noOp = noOp)
 }
 
 case class ObjectRemovePropertyOperation(path: List[Any], noOp: Boolean, property: String) extends ObjectOperation {
-  def clone(path: List[Any], noOp: scala.Boolean): ObjectRemovePropertyOperation = copy(path = path, noOp = noOp)
+  def clone(path: List[Any] = path, noOp: scala.Boolean = noOp): ObjectRemovePropertyOperation = copy(path = path, noOp = noOp)
 }
 
 case class ObjectSetOperation(path: List[Any], noOp: Boolean, value: JObject) extends ObjectOperation {
-  def clone(path: List[Any], noOp: scala.Boolean): ObjectSetOperation = copy(path = path, noOp = noOp)
+  def clone(path: List[Any] = path, noOp: scala.Boolean = noOp): ObjectSetOperation = copy(path = path, noOp = noOp)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -66,11 +59,20 @@ case class ObjectSetOperation(path: List[Any], noOp: Boolean, value: JObject) ex
 sealed trait NumberOperation extends DiscreteOperation
 
 case class NumberAddOperation(path: List[Any], noOp: Boolean, value: JNumber) extends NumberOperation {
-  def clone(path: List[Any], noOp: scala.Boolean): NumberAddOperation = copy(path = path, noOp = noOp)
+  def clone(path: List[Any] = path, noOp: scala.Boolean = noOp): NumberAddOperation = copy(path = path, noOp = noOp)
 }
 
 case class NumberSetOperation(path: List[Any], noOp: Boolean, value: JNumber) extends NumberOperation {
-  def clone(path: List[Any], noOp: scala.Boolean): NumberSetOperation = copy(path = path, noOp = noOp)
+  def clone(path: List[Any] = path, noOp: scala.Boolean = noOp): NumberSetOperation = copy(path = path, noOp = noOp)
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Boolean Operations
+//////////////////////////////////////////////////////////////////////////////
+sealed trait BooleanOperation extends DiscreteOperation
+
+case class BooleanSetOperation(path: List[Any], noOp: Boolean, value: Boolean) extends BooleanOperation {
+  def clone(path: List[Any] = path, noOp: scala.Boolean = noOp): BooleanSetOperation = copy(path = path, noOp = noOp)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -78,21 +80,21 @@ case class NumberSetOperation(path: List[Any], noOp: Boolean, value: JNumber) ex
 //////////////////////////////////////////////////////////////////////////////
 sealed trait ArrayOperation extends DiscreteOperation
 case class ArrayInsertOperation(path: List[Any], noOp: Boolean, index: Int, value: JValue) extends ArrayOperation {
-  def clone(path: List[Any], noOp: scala.Boolean): ArrayInsertOperation = copy(path = path, noOp = noOp)
+  def clone(path: List[Any] = path, noOp: scala.Boolean = noOp): ArrayInsertOperation = copy(path = path, noOp = noOp)
 }
 
 case class ArrayRemoveOperation(path: List[Any], noOp: Boolean, index: Int) extends ArrayOperation {
-  def clone(path: List[Any], noOp: scala.Boolean): ArrayRemoveOperation = copy(path = path, noOp = noOp)
+  def clone(path: List[Any] = path, noOp: scala.Boolean = noOp): ArrayRemoveOperation = copy(path = path, noOp = noOp)
 }
 
 case class ArrayReplaceOperation(path: List[Any], noOp: Boolean, index: Int, value: JValue) extends ArrayOperation {
-  def clone(path: List[Any], noOp: scala.Boolean): ArrayReplaceOperation = copy(path = path, noOp = noOp)
+  def clone(path: List[Any] = path, noOp: scala.Boolean = noOp): ArrayReplaceOperation = copy(path = path, noOp = noOp)
 }
 
 case class ArrayMoveOperation(path: List[Any], noOp: Boolean, fromIndex: Int, toIndex: Int) extends ArrayOperation {
-  def clone(path: List[Any], noOp: scala.Boolean): ArrayMoveOperation = copy(path = path, noOp = noOp)
+  def clone(path: List[Any] = path, noOp: scala.Boolean = noOp): ArrayMoveOperation = copy(path = path, noOp = noOp)
 }
 
 case class ArraySetOperation(path: List[Any], noOp: Boolean, newValue: JArray) extends ArrayOperation {
-  def clone(path: List[Any], noOp: scala.Boolean): ArraySetOperation = copy(path = path, noOp = noOp)
+  def clone(path: List[Any] = path, noOp: scala.Boolean = noOp): ArraySetOperation = copy(path = path, noOp = noOp)
 }

@@ -32,6 +32,8 @@ class TransformationFunctionRegistrySpec extends WordSpec with Matchers {
   val NumberAdd = NumberAddOperation(List(), false, JInt(1))
   val NumberSet = NumberSetOperation(List(), false, JInt(1))
 
+  val BooleanSet = BooleanSetOperation(List(), false, true)
+
   "A TransformationFunctionRegistry" when {
 
     ///////////////////////////////////////////////////////////////////////////
@@ -399,6 +401,18 @@ class TransformationFunctionRegistrySpec extends WordSpec with Matchers {
         val tfr = new TransformationFunctionRegistry()
         val tf = tfr.getTransformationFunction(NumberSet, NumberSet)
         tf.value shouldBe NumberSetSetTF
+      }
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Boolean Operations
+    ///////////////////////////////////////////////////////////////////////////
+
+    "getting a TransformationFunction for an BooleanSetOperation and anoter BooleanOperation" must {
+      "return the BooleanSetSetTF when a BooleanSetOperation and a BooleanSetOperation are passed in" in {
+        val tfr = new TransformationFunctionRegistry()
+        val tf = tfr.getTransformationFunction(BooleanSet, BooleanSet)
+        tf.value shouldBe BooleanSetSetTF
       }
     }
 

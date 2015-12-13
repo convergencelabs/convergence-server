@@ -115,3 +115,6 @@ case class ObjectSetOperationData(path: List[Any], noOp: Boolean, obj: JObject) 
 sealed trait NumberOperaitonData extends DiscreteOperationData
 case class NumberAddOperationData(path: List[Any], noOp: Boolean, delta: JNumber) extends NumberOperaitonData
 case class NumberSetOperationData(path: List[Any], noOp: Boolean, num: JNumber) extends NumberOperaitonData
+
+sealed trait BooleanOperaitonData extends DiscreteOperationData
+case class BooleanSetOperationData(path: List[Any], noOp: Boolean, value: Boolean) extends BooleanOperaitonData

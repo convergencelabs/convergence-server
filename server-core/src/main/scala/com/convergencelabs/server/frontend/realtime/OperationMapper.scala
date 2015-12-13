@@ -34,8 +34,10 @@ import com.convergencelabs.server.frontend.realtime.proto.OperationData
 import com.convergencelabs.server.frontend.realtime.proto.StringInsertOperationData
 import com.convergencelabs.server.frontend.realtime.proto.StringRemoveOperationData
 import com.convergencelabs.server.frontend.realtime.proto.StringSetOperationData
+import com.convergencelabs.server.frontend.realtime.proto.BooleanSetOperationData
+import com.convergencelabs.server.domain.model.ot.BooleanSetOperation
 
-object OperationMapper {
+private[realtime] object OperationMapper {
 
   def mapIncoming(op: OperationData): Operation = {
     op match {
@@ -68,6 +70,8 @@ object OperationMapper {
 
       case NumberAddOperationData(path, noOp, delta) => NumberAddOperation(path, noOp, delta)
       case NumberSetOperationData(path, noOp, number) => NumberSetOperation(path, noOp, number)
+      
+      case BooleanSetOperationData(path, noOp, value) => BooleanSetOperation(path, noOp, value)
     }
   }
   // scalastyle:on cyclomatic.complexity
@@ -103,6 +107,8 @@ object OperationMapper {
 
       case NumberAddOperation(path, noOp, delta) => NumberAddOperationData(path, noOp, delta)
       case NumberSetOperation(path, noOp, number) => NumberSetOperationData(path, noOp, number)
+      
+      case BooleanSetOperation(path, noOp, value) => BooleanSetOperationData(path, noOp, value)
     }
   }
   // scalastyle:on cyclomatic.complexity

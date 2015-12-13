@@ -38,9 +38,9 @@ private[model] class OperationTransformer(tfr: TransformationFunctionRegistry) {
       (s, c)
     } else if (PathComparator.areEqual(s.path, c.path)) {
       transformIdenticalPathOperations(s, c)
-    } else if (s.isAncestorOf(c)) {
+    } else if (PathComparator.isAncestorOf(s.path, c.path)) {
       transformHierarchicalOperations(s, c)
-    } else if (c.isAncestorOf(s)) {
+    } else if (PathComparator.isAncestorOf(c.path, s.path)) {
       transformHierarchicalOperations(c, s).swap
     } else {
       (s, c)

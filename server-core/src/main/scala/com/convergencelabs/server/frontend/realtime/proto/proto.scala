@@ -51,7 +51,12 @@ package object proto {
     "OA" -> classOf[ObjectAddPropertyOperationData],
     "OP" -> classOf[ObjectSetPropertyOperationData],
     "OR" -> classOf[ObjectRemovePropertyOperationData],
-    "OS" -> classOf[ObjectSetOperationData]
+    "OS" -> classOf[ObjectSetOperationData],
+    
+    "NA" -> classOf[NumberAddOperationData],
+    "NS" -> classOf[NumberSetOperationData],
+    
+    "BS" -> classOf[BooleanSetOperationData]
     ))
 
   private[proto] implicit val formats = DefaultFormats + operationSerializer
