@@ -67,12 +67,10 @@ val e2eTests = (project in file("server-e2e-tests")).
   settings(Testing.settings: _*).
   settings(
     name := "convergence-server-e2e-tests",
-    unmanagedSourceDirectories in Compile += baseDirectory.value / "src/e2e/scala",
+    //unmanagedSourceDirectories in Compile += baseDirectory.value / "src/e2e/scala",
     libraryDependencies ++= 
-    orientDb ++ 
-    loggingAll ++
-    testingCore ++
-    Seq(scallop, json4s)
+      loggingAll ++
+      testingCore
   ).
   dependsOn(testkit)
 
