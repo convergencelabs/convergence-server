@@ -22,7 +22,7 @@ class ArrayRemovePTFSpec extends WordSpec with Matchers {
         result shouldBe PathObsoleted
       }
 
-      "no not trasform a path when the insert is after the common path" in {
+      "not trasform a path when the insert is after the common path" in {
         val ancestor = ArrayRemoveOperation(List(1, 1), false, 2)
         val path = List(1, 1, 1, 1)
         val result = ArrayRemovePTF.transformDescendantPath(ancestor, path)
