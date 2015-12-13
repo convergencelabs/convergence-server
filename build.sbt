@@ -60,6 +60,21 @@ val tools = (project in file("server-tools")).
     testingCore ++
     Seq(scallop, json4s)
   )
+  
+val e2eTests = (project in file("server-e2e-tests")).
+  configs(Configs.all: _*).
+  settings(commonSettings: _*).
+  settings(Testing.settings: _*).
+  settings(
+    name := "convergence-server-e2e-tests",
+    unmanagedSourceDirectories in Compile += baseDirectory.value / "src/e2e/scala",
+    libraryDependencies ++= 
+    orientDb ++ 
+    loggingAll ++
+    testingCore ++
+    Seq(scallop, json4s)
+  ).
+  dependsOn(testkit)
 
 val root = (project in file(".")).
   configs(Configs.all: _*).
@@ -68,7 +83,7 @@ val root = (project in file(".")).
   settings(
     name := "convergence-server"
   ).
-  aggregate(tools, serverCore, testkit)
+  aggregate(tools, serverCore, testkit, e2eTests)
   
 
   

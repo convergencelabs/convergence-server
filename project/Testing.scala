@@ -14,7 +14,11 @@ object Testing {
   private lazy val itSettings = inConfig(IntegrationTest)(Defaults.testSettings) ++ Seq(
     fork in IntegrationTest := true,
     parallelExecution in IntegrationTest := false,
-    scalaSource in IntegrationTest := baseDirectory.value / "src/it/scala"
+    scalaSource in IntegrationTest := baseDirectory.value / "src/it/scala",
+    libraryDependencies ++= Seq(
+      "org.scoverage" % ("scalac-scoverage-runtime" + "_" + scalaBinaryVersion.value) % "1.1.1" % "test" intransitive(),
+      "org.scoverage" % ("scalac-scoverage-plugin" + "_" + scalaBinaryVersion.value) % "1.1.1" % "test" intransitive()
+    )
   )
 
   private lazy val e2eSettings = inConfig(EndToEndTest)(Defaults.testSettings) ++ Seq(

@@ -40,6 +40,15 @@ class TestServer(
   databases: Map[String, String])
     extends Logging {
 
+  var backend: BackendNode = _
+  var backendSystem: ActorSystem = _
+  
+  var frontEnd1: ConvergenceRealtimeFrontend = _
+  var frontEndSystem1: ActorSystem = _
+  
+  var frontEnd2: ConvergenceRealtimeFrontend = _
+  var frontEndSystem2: ActorSystem = _
+  
   def start(): Unit = {
     logger.info("Test Server starting up")
     OLogManager.instance().setConsoleLevel("WARNING")
@@ -52,19 +61,30 @@ class TestServer(
     val cluserSeed = startupCluster(2551, "seed", configFile)
 
     // We have a single backend system.
-    val backendNodeSystem = startupCluster(2553, "domainManager", configFile)
-    val backend = new BackendNode(backendNodeSystem)
+    backendSystem = startupCluster(2553, "domainManager", configFile)
+    backend = new BackendNode(backendSystem)
     backend.start()
 
-    val realtimeFrontEndSystem1 = startupCluster(2554, "realtimeFrontend1", configFile)
-    val realtimeServer1 = new ConvergenceRealtimeFrontend(realtimeFrontEndSystem1, 8080)
-    realtimeServer1.start()
+    frontEndSystem1 = startupCluster(2554, "realtimeFrontend1", configFile)
+    frontEnd1 = new ConvergenceRealtimeFrontend(frontEndSystem1, 8080)
+    frontEnd1.start()
 
-    val realtimeFrontEndSystem2 = startupCluster(2555, "realtimeFrontend2", configFile)
-    val realtimeServer2 = new ConvergenceRealtimeFrontend(realtimeFrontEndSystem2, 8081)
-    realtimeServer2.start()
+    frontEndSystem2 = startupCluster(2555, "realtimeFrontend2", configFile)
+    frontEnd2 = new ConvergenceRealtimeFrontend(frontEndSystem2, 8081)
+    frontEnd2.start()
 
     logger.info("Test Server started.")
+  }
+  
+  def stop(): Unit = {
+    backendSystem.terminate()
+    backend.stop()
+    
+    frontEndSystem1.terminate()
+    frontEnd1.stop()
+    
+    frontEndSystem2.terminate()
+    frontEnd2.stop()
   }
 
   def importDatabase(dbName: String, importFile: String): Unit = {

@@ -38,6 +38,10 @@ class MockClientTest extends FunSuite with BeforeAndAfterAll {
     testServer.start()
   }
   
+  override def afterAll(): Unit = {
+    testServer.stop()
+  }
+  
   test("Basic model test") {
     val client = new MockConvergenceClient("ws://localhost:8080/domain/namespace1/domain1")
     client.connect()

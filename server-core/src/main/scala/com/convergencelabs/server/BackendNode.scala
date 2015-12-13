@@ -39,4 +39,8 @@ class BackendNode(system: ActorSystem) extends Logging {
 
     logger.info("Backend Node started up.")
   }
+  
+  def stop(): Unit = {
+    
+  }
 }
