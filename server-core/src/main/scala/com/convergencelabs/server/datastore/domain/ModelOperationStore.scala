@@ -14,6 +14,7 @@ import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import scala.util.Try
+import java.time.Instant
 
 class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
     extends AbstractDatabasePersistence(dbPool) {
@@ -26,7 +27,7 @@ class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
   def getMaxVersion(fqn: ModelFqn): Try[Option[Long]] = tryWithDb { db =>
     val db = dbPool.acquire()
     val queryString =
-      """SELECT max(operation.version)
+      """SELECT max(version)
         |FROM ModelOperation
         |WHERE
         |  collectionId = :collectionId AND
@@ -40,27 +41,27 @@ class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
 
     result.asScala.toList match {
       case doc :: Nil => Some(doc.field("max", OType.LONG))
-      case _ => None
+      case _          => None
     }
   }
 
-  def getVersionAtOrBeforeTime(fqn: ModelFqn, time: Long): Try[Option[Long]] = tryWithDb { db =>
+  def getVersionAtOrBeforeTime(fqn: ModelFqn, time: Instant): Try[Option[Long]] = tryWithDb { db =>
     val db = dbPool.acquire()
     val queryString =
-      """SELECT max(operation.version)
+      """SELECT max(version)
         |FROM ModelOperation
         |WHERE
         |  collectionId = :collectionId AND
         |  modelId = :modelId AND
-        |  operation.time <= :time""".stripMargin
+        |  timestamp <= :time""".stripMargin
 
     val query = new OSQLSynchQuery[ODocument](queryString)
-    val params = Map(CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, "time" -> time)
+    val params = Map(CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, "time" -> new java.util.Date(time.toEpochMilli()))
     val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
     db.close()
     result.asScala.toList match {
       case doc :: rest => Some(doc.field("max", OType.LONG))
-      case Nil => None
+      case Nil         => None
     }
   }
 
@@ -71,8 +72,8 @@ class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
         |WHERE
         |  collectionId = :collectionId AND
         |  modelId = :modelId AND
-        |  operation.version >= :version
-        |ORDER BY operation.version ASC""".stripMargin
+        |  version >= :version
+        |ORDER BY version ASC""".stripMargin
 
     val query = new OSQLSynchQuery[ODocument](queryString)
     val params = Map(CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, "version" -> version)
@@ -88,8 +89,8 @@ class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
         |WHERE
         |  collectionId = :collectionId AND
         |  modelId = :modelId AND
-        | operation.version >= :version
-        |ORDER BY operation.version ASC LIMIT :limit""".stripMargin
+        | version >= :version
+        |ORDER BY version ASC LIMIT :limit""".stripMargin
 
     val query = new OSQLSynchQuery[ODocument](queryStirng)
     val params = Map(
@@ -104,17 +105,16 @@ class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
 
   def removeOperationsForModel(fqn: ModelFqn): Try[Unit] = tryWithDb { db =>
     val db = dbPool.acquire()
-    val queryStirng =
+    val commandString =
       """DELETE FROM ModelOperation
         |WHERE
         |  collectionId = :collectionId AND
         |  modelId = :modelId""".stripMargin
 
-    val query = new OSQLSynchQuery[ODocument](queryStirng)
     val params = Map(
       CollectionId -> fqn.collectionId,
       ModelId -> fqn.modelId)
-    val command = new OCommandSQL("DELETE FROM User WHERE uid = :uid")
+    val command = new OCommandSQL(commandString)
     db.command(command).execute(params.asJava)
     db.close()
   }

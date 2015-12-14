@@ -39,7 +39,7 @@ object ModelOperationMapper extends ODocumentMapper {
     val docDate: java.util.Date = doc.field(Fields.Timestamp, OType.DATETIME)
     val timestamp = Instant.ofEpochMilli(docDate.getTime)
     val opDoc: ODocument = doc.field(Fields.Operation, OType.EMBEDDED)
-    val op = OrientDBOperationMapper.oDocumentToDiscreteOperation(opDoc)
+    val op = OrientDBOperationMapper.oDocumentToOperation(opDoc)
     ModelOperation(
       ModelFqn(doc.field(Fields.CollectionId), doc.field(Fields.ModelId)),
       doc.field(Fields.Version),
