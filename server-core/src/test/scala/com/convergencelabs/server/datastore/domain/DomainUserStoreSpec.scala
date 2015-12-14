@@ -164,12 +164,13 @@ class DomainUserStoreSpec
     }
     "setting a users password" must {
       "correctly set the password" in withPersistenceStore { store =>
-        store.setDomainUserPassword(User1.username, "somePassword").success
-        store.validateCredentials(User1.username, "somePassword").success.get shouldBe (true, Some("u1"))
+        val password = "somePassword"
+        store.setDomainUserPassword(User1.username, password).success
+        store.validateCredentials(User1.username, password).success.get shouldBe (true, Some("u1"))
       }
 
       "throw exception if user does not exist" in withPersistenceStore { store =>
-        store.setDomainUserPassword("DoesNotExist", "somePassword").failed.get shouldBe a[IllegalArgumentException]
+        store.setDomainUserPassword("DoesNotExist", "doesn't matter").failed.get shouldBe a[IllegalArgumentException]
       }
     }
   }

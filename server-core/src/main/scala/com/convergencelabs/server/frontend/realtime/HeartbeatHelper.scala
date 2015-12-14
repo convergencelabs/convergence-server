@@ -5,22 +5,20 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import akka.actor.Scheduler
 import akka.actor.Cancellable
-import scala.concurrent.duration.Duration
 import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.FiniteDuration
 
 sealed trait HeartbeatEvent
 case object PingRequest extends HeartbeatEvent
 case object PongTimeout extends HeartbeatEvent
 
 class HeartbeatHelper(
-  private[this] val pingInterval: Int,
-  private[this] val pongTimeout: Int,
+  private[this] val pingInterval: FiniteDuration,
+  private[this] val pongTimeout: FiniteDuration,
   private[this] val scheduler: Scheduler,
   private[this] val ec: ExecutionContext,
   private[this] val handler: PartialFunction[HeartbeatEvent, Unit])
     extends Logging {
-
-  // VALIDATES
 
   private[this] var pingFuture: Option[Cancellable] = None
   private[this] var timeoutFuture: Option[Cancellable] = None
@@ -31,6 +29,8 @@ class HeartbeatHelper(
       logger.trace("Message recieved, resetting timeouts.")
       cancelPongTimeout()
       restartPingTimeout()
+    } else {
+      throw new IllegalStateException("not started")
     }
   }
 
@@ -39,6 +39,8 @@ class HeartbeatHelper(
       logger.debug(s"HeartbeatHelper started with Ping Interval $pingInterval and Pong Timeout $pongTimeout")
       this._started = true
       this.messageReceived()
+    } else {
+      throw new IllegalStateException("already started")
     }
   }
 
@@ -52,50 +54,40 @@ class HeartbeatHelper(
       this._started = false
       stopPingTimer()
       cancelPongTimeout()
+    } else {
+      throw new IllegalStateException("not started")
     }
   }
 
-  def sendPing(): Unit = {
+  private[this] def sendPing(): Unit = {
     handler lift PingRequest
-    schedulePongTimeout()
+    logger.trace("Requesting pint, scheduling the pong timeout.")
+    this.timeoutFuture = Some(scheduler.scheduleOnce(pongTimeout)(onTimeout())(ec))
   }
 
-  def onTimeout(): Unit = {
+  private[this] def onTimeout(): Unit = {
     logger.debug("PONG Timeout Exceeded")
     if (_started) {
       handler lift PongTimeout
     }
   }
 
-  def schedulePongTimeout(): Unit = {
-    if (this.timeoutFuture.isDefined) {
-      throw new IllegalStateException("Pong timeout already started.")
-    }
-
-    logger.trace("Scheduling the pong timeout.")
-    this.timeoutFuture = Some(scheduler.scheduleOnce(
-      Duration.create(pongTimeout, TimeUnit.SECONDS))(onTimeout())(ec))
-  }
-
-  def cancelPongTimeout(): Unit = {
+  private[this] def cancelPongTimeout(): Unit = {
     if (timeoutFuture.isDefined && !timeoutFuture.get.isCancelled) {
       timeoutFuture.get.cancel()
       timeoutFuture = None
     }
   }
 
-  def stopPingTimer(): Unit = {
+  private[this] def stopPingTimer(): Unit = {
     if (pingFuture.isDefined && !pingFuture.get.isCancelled) {
       pingFuture.get.cancel()
       pingFuture = None
     }
   }
 
-  def restartPingTimeout(): Unit = {
+  private[this] def restartPingTimeout(): Unit = {
     stopPingTimer()
-    if (pingInterval > 0) {
-      pingFuture = Some(scheduler.scheduleOnce(
-        Duration.create(pingInterval, TimeUnit.SECONDS))(sendPing())(ec))
-    }
+    pingFuture = Some(scheduler.scheduleOnce(pingInterval)(sendPing())(ec))
   }
 }

@@ -2,16 +2,13 @@ package com.convergencelabs.server.frontend.realtime
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
-
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.duration.Duration
-
 import org.json4s.NoTypeHints
 import org.json4s.jackson.Serialization
-
 import com.convergencelabs.server.ProtocolConfiguration
 import com.convergencelabs.server.frontend.realtime.proto.ErrorMessage
 import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolMessage
@@ -26,11 +23,10 @@ import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolReques
 import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolResponseMessage
 import com.convergencelabs.server.frontend.realtime.proto.ProtocolMessage
 import com.convergencelabs.server.util.concurrent.UnexpectedErrorException
-
 import akka.actor.Cancellable
 import akka.actor.Scheduler
 import grizzled.slf4j.Logging
-
+import scala.concurrent.duration.FiniteDuration
 
 sealed trait ConnectionEvent
 
@@ -56,8 +52,8 @@ class ProtocolConnection(
   implicit val formats = Serialization.formats(NoTypeHints)
 
   val heartbeatHelper = new HeartbeatHelper(
-    5,
-    10,
+    FiniteDuration(5, TimeUnit.SECONDS),
+    FiniteDuration(10, TimeUnit.SECONDS),
     scheduler,
     ec,
     handleHeartbeat)
@@ -131,7 +127,10 @@ class ProtocolConnection(
   }
 
   private[this] def onSocketMessage(json: String): Unit = {
-    heartbeatHelper.messageReceived()
+    if (heartbeatEnabled) {
+      heartbeatHelper.messageReceived()
+    }
+    
     // FIXME handle error
     val envelope = MessageEnvelope(json).get
 
@@ -228,7 +227,7 @@ class ProtocolConnection(
   }
 
   private[this] def invalidMessage(): Unit = {
-     ???
+    ???
   }
 
   class ReplyCallbackImpl(reqId: Long) extends ReplyCallback {
