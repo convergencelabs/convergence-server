@@ -16,6 +16,23 @@
     "domain/data/DomainConfig/domainConfig.osql",
   
     "domain/data/Model/people-person1.osql",
+    
+    "domain/data/ModelOperation/people-person1-01.osql",
+    "domain/data/ModelOperation/people-person1-02.osql",
+    "domain/data/ModelOperation/people-person1-03.osql",
+    "domain/data/ModelOperation/people-person1-04.osql",
+    "domain/data/ModelOperation/people-person1-05.osql",
+    "domain/data/ModelOperation/people-person1-06.osql",
+    "domain/data/ModelOperation/people-person1-07.osql",
+    "domain/data/ModelOperation/people-person1-08.osql",
+    "domain/data/ModelOperation/people-person1-09.osql",
+    "domain/data/ModelOperation/people-person1-10.osql",
+    "domain/data/ModelOperation/people-person1-11.osql",
+    "domain/data/ModelOperation/people-person1-12.osql",
+    "domain/data/ModelOperation/people-person1-13.osql",
+    "domain/data/ModelOperation/people-person1-14.osql",
+    "domain/data/ModelOperation/people-person1-15.osql",
+    
     "domain/data/ModelSnapshot/people-person1-0.osql",
     "domain/data/ModelSnapshot/people-person1-10.osql",
     "domain/data/ModelSnapshot/people-person1-20.osql",

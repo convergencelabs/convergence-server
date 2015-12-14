@@ -103,10 +103,10 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
       case doc :: Nil => {
         doc.merge(updatedDoc, false, false)
         db.save(doc)
+        Unit
       }
       case _ => throw new IllegalArgumentException("User not found")
     }
-    Unit
   }
 
   /**

@@ -13,6 +13,6 @@ INSERT INTO Model SET
     "emails": [
       "first@email.com",
       "second@email.com",
-      "third@email.com"
+      "another@email.com"
     ]
   };

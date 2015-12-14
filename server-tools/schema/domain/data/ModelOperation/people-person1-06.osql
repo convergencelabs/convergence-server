@@ -1,0 +1,43 @@
+INSERT INTO ModelOperation SET
+  collectionId = "people",
+  modelId = "person1",
+  timestamp = DATE("2015-10-20 06:00:00"),
+  uid = "u0",
+  sid = "u0-1",
+  version = 6,
+  op = {
+	"@class": "CompoundOperation",
+    "ops": [
+      {
+       "@type":"d",
+	   "@class": "ArrayReplaceOperation",
+	   "idx": 0,
+       "noOp": false,
+       "path": ["emails"],
+       "val": "first@email.com"
+      },
+      {
+       "@type":"d",
+	   "@class": "ArrayReplaceOperation",
+	   "idx": 1,
+       "noOp": false,
+       "path": ["emails"],
+       "val": "second@email.com"
+      },      
+      {
+       "@type":"d",
+	   "@class": "ArrayReplaceOperation",
+	   "idx": 2,
+       "noOp": false,
+       "path": ["emails"],
+       "val": "third@email.com"
+      },
+      {
+       "@type":"d",
+	   "@class": "ArrayRemoveOperation",
+	   "idx": 3,
+       "noOp": false,
+       "path": ["emails"]
+      }
+    ]
+  };
