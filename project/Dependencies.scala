@@ -62,7 +62,7 @@ object Dependencies {
       
     // Testing Dependencies
     val akkaTestKit       = "com.typesafe.akka"           % "akka-testkit_2.11"            % Versions.akka       % TestSpecifier // Apache 2.0
-    val akkaMockScheduler = "com.miguno.akka"             % "akka-mock-scheduler_2.11"     % "0.3.1"             % TestSpecifier // Apache 2.0
+    val akkaMockScheduler = "com.miguno.akka"             % "akka-mock-scheduler_2.11"     % "0.4.0"             % TestSpecifier // Apache 2.0
     val scalatest         = "org.scalatest"               % "scalatest_2.11"               % "2.2.5"             % TestSpecifier // Apaceh 2.0
     val mockito           = "org.mockito"                 % "mockito-all"                  % "2.0.2-beta"        % TestSpecifier // MIT
     val junit             = "junit"                       % "junit"                        % "4.12"              % TestSpecifier //EPL 1.0

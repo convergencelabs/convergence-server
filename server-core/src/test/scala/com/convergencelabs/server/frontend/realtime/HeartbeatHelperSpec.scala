@@ -11,7 +11,7 @@ import org.scalatest.concurrent.Futures
 import org.scalatest.time.{ Millis, Seconds, Span }
 import akka.util.Timeout
 import scala.concurrent.Await
-import com.convergencelabs.akka.testing.VirtualTime
+import com.miguno.akka.testing.VirtualTime
 
 class HeartbeatHelperSpec extends WordSpec with Matchers with ScalaFutures {
 
