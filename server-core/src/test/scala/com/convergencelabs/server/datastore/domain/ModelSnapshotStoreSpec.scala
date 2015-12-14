@@ -33,12 +33,12 @@ class ModelSnapshotStoreSpec
   val df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
 
   val p1Snapshot0Version = 0L
-  val p1Snapshot0Date = df.parse("2015-10-20 10:00:00").getTime
+  val p1Snapshot0Date = df.parse("2015-10-20 01:00:00").getTime
 
   val inbetweenVersion = 5L
 
   val p1Snapshot10Version = 10L
-  val p1Snapshot10Date = df.parse("2015-10-20 11:00:00").getTime
+  val p1Snapshot10Date = df.parse("2015-10-20 10:00:00").getTime
 
   val p1Snapshot20Version = 20L
   val p1Snapshot20Date = df.parse("2015-10-20 12:00:00").getTime
