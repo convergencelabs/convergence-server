@@ -1,14 +1,11 @@
 package com.convergencelabs.server.datastore.domain
 
 import java.time.Instant
-
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.util.Try
-
 import org.json4s.NoTypeHints
 import org.json4s.jackson.Serialization
 import org.json4s.jackson.Serialization.write
-
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.server.datastore.domain.mapper.ModelOperationMapper.Fields
 import com.convergencelabs.server.domain.model.ModelFqn
@@ -33,8 +30,8 @@ import com.convergencelabs.server.util.JValueMapper
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.orientechnologies.orient.core.sql.OCommandSQL
-
 import mapper.ModelOperationMapper.ModelOperationToODocument
+import com.convergencelabs.server.domain.model.ot.BooleanSetOperation
 
 object ModelOperationProcessor {
   def toOrientPath(path: List[Any]): String = {
@@ -91,15 +88,20 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
       case op: ArrayReplaceOperation => applyArrayReplaceOperation(fqn, op, db)
       case op: ArrayMoveOperation => applyArrayMoveOperation(fqn, op, db)
       case op: ArraySetOperation => applyArraySetOperation(fqn, op, db)
+      
       case op: ObjectAddPropertyOperation => applyObjectAddPropertyOperation(fqn, op, db)
       case op: ObjectSetPropertyOperation => applyObjectSetPropertyOperation(fqn, op, db)
       case op: ObjectRemovePropertyOperation => applyObjectRemovePropertyOperation(fqn, op, db)
       case op: ObjectSetOperation => applyObjectSetOperation(fqn, op, db)
+      
       case op: StringInsertOperation => applyStringInsertOperation(fqn, op, db)
       case op: StringRemoveOperation => applyStringRemoveOperation(fqn, op, db)
       case op: StringSetOperation => applyStringSetOperation(fqn, op, db)
+      
       case op: NumberAddOperation => applyNumberAddOperation(fqn, op, db)
       case op: NumberSetOperation => applyNumberSetOperation(fqn, op, db)
+      
+      case op: BooleanSetOperation => ??? // FIXME BooleanSetOperation not implemented yet
     }
   }
   // scalastyle:on cyclomatic.complexity
