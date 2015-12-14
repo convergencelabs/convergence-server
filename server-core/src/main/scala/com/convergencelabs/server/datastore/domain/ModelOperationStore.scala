@@ -15,6 +15,7 @@ import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import scala.util.Try
 import java.time.Instant
+import com.convergencelabs.server.datastore.QueryUtil
 
 class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
     extends AbstractDatabasePersistence(dbPool) {
@@ -84,15 +85,15 @@ class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
 
   def getOperationsAfterVersion(fqn: ModelFqn, version: Long, limit: Int): Try[List[ModelOperation]] = tryWithDb { db =>
     val db = dbPool.acquire()
-    val queryStirng =
+    val queryString =
       """SELECT * FROM ModelOperation
         |WHERE
         |  collectionId = :collectionId AND
         |  modelId = :modelId AND
         | version >= :version
-        |ORDER BY version ASC LIMIT :limit""".stripMargin
+        |ORDER BY version ASC""".stripMargin
 
-    val query = new OSQLSynchQuery[ODocument](queryStirng)
+    val query = new OSQLSynchQuery[ODocument](QueryUtil.buildPagedQuery(queryString, Some(limit), None))
     val params = Map(
       CollectionId -> fqn.collectionId,
       ModelId -> fqn.modelId,
@@ -111,9 +112,7 @@ class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
         |  collectionId = :collectionId AND
         |  modelId = :modelId""".stripMargin
 
-    val params = Map(
-      CollectionId -> fqn.collectionId,
-      ModelId -> fqn.modelId)
+    val params = Map(CollectionId -> fqn.collectionId, ModelId -> fqn.modelId)
     val command = new OCommandSQL(commandString)
     db.command(command).execute(params.asJava)
     db.close()
