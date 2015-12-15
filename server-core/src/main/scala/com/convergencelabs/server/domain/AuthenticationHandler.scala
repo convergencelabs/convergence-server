@@ -48,6 +48,7 @@ class AuthenticationHandler(
       case Success((false, _)) => AuthenticationFailure
       case Success((true, None)) => {
         // We validated the user, but could not get the user id.  This should not happen.
+        logger.error(s"user with username '${authRequest.username}' had valid credentials, but a valid uid was not returned")
         AuthenticationError
       }
       case Failure(cause) => {
@@ -102,7 +103,7 @@ class AuthenticationHandler(
 
     val username = jwtClaims.getSubject()
 
-    // TODO in theory we should cache the token id for longer than the expiration to make
+    // FIXME in theory we should cache the token id for longer than the expiration to make
     // sure a replay attack is not possible.
     userStore.getDomainUserByUsername(username) match {
       case Success(Some(user)) => {
