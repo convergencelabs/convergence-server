@@ -4,12 +4,13 @@ import org.scalatest.Matchers
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
-
 import com.convergencelabs.server.datastore.domain.PersistenceStoreSpec
 import com.convergencelabs.server.domain.Domain
 import com.convergencelabs.server.domain.DomainFqn
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
+import com.convergencelabs.server.domain.Domain
+import com.convergencelabs.server.domain.DomainFqn
 
 class DomainStoreSpec
     extends PersistenceStoreSpec[DomainStore]("/dbfiles/convergence.json.gz")
@@ -100,6 +101,33 @@ class DomainStoreSpec
 
       "not throw an exception if the domain does not exist" in withPersistenceStore { store =>
         store.removeDomain("doesn't exist").success
+      }
+    }
+
+    "updating a domain" must {
+      "sucessfully update an existing domain" in withPersistenceStore { store =>
+        val toUpdate = Domain(
+          "namespace1-domain1",
+          DomainFqn("namespace1", "domain1"),
+          "Test Domain 1 Updated",
+          "admin updated",
+          "password")
+
+        store.updateDomain(toUpdate).success
+        val queried = store.getDomainByFqn(ns1d1).success.get.value
+        
+        queried shouldBe toUpdate
+      }
+      
+      "fail to update an non-existing domain" in withPersistenceStore { store =>
+        val toUpdate = Domain(
+          "namespace1-domain-none",
+          DomainFqn("namespace1", "domain1"),
+          "Test Domain 1 Updated",
+          "admin updated",
+          "password")
+
+        store.updateDomain(toUpdate).failure
       }
     }
   }

@@ -84,17 +84,19 @@ class DomainStore private[datastore] (dbPool: OPartitionedDatabasePool)
     count > 0
   }
 
-  def updateDomain(newConfig: Domain): Try[Unit] = tryWithDb { db =>
+  def updateDomain(domain: Domain): Try[Unit] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM Domain WHERE id = :id")
-    val params = Map(Id -> newConfig.id)
+    val params = Map(Id -> domain.id)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
     result.asScala.toList match {
-      case first :: rest => {
-        first.merge(newConfig, false, false)
+      case first :: Nil => {
+        first.merge(domain, false, false)
         db.save(first)
+        Unit
       }
-      case Nil =>
+      case _ => throw new IllegalArgumentException(
+          s"Domain to update could not be found: ${domain.domainFqn.namespace}/${domain.domainFqn.domainId}")
     }
   }
 }
