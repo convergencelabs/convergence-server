@@ -43,10 +43,9 @@ class DomainStore private[datastore] (dbPool: OPartitionedDatabasePool)
     val params = Map(Namespace -> domainFqn.namespace, DomainId -> domainFqn.domainId)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
-    result.asScala.toList match {
-      case first :: Nil => true
-      case first :: rest => false // FIXME log
-      case _ => false
+    QueryUtil.enforceSingletonResultList(result) match {
+      case Some(_) => true
+      case None => false
     }
   }
 
@@ -89,13 +88,13 @@ class DomainStore private[datastore] (dbPool: OPartitionedDatabasePool)
     val params = Map(Id -> domain.id)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
-    result.asScala.toList match {
-      case first :: Nil => {
-        first.merge(domain, false, false)
-        db.save(first)
+    QueryUtil.enforceSingletonResultList(result) match {
+      case Some(doc) => {
+        doc.merge(domain, false, false)
+        db.save(doc)
         Unit
       }
-      case _ => throw new IllegalArgumentException(
+      case None => throw new IllegalArgumentException(
           s"Domain to update could not be found: ${domain.domainFqn.namespace}/${domain.domainFqn.domainId}")
     }
   }
