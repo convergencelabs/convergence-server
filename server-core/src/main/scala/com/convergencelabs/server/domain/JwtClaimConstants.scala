@@ -5,3 +5,8 @@ object JwtClaimConstants {
   val LastName = "lastName";
   val Email = "email";
 }
+
+object JwtConstants {
+  val Issuer = "ConvergenceJWTGenerator"
+  val Audiance = "Convergence"
+}

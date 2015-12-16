@@ -62,29 +62,20 @@ class AuthenticationHandler(
 
   private[this] def authenticateToken(authRequest: TokenAuthRequest): Future[AuthenticationResponse] = {
     Future[AuthenticationResponse] {
-      try {
-        // This implements a two pass approach to be able to get the key id.
-        val firstPassJwtConsumer = new JwtConsumerBuilder()
-          .setSkipAllValidators()
-          .setDisableRequireSignature()
-          .setSkipSignatureVerification()
-          .build()
+      // This implements a two pass approach to be able to get the key id.
+      val firstPassJwtConsumer = new JwtConsumerBuilder()
+        .setSkipAllValidators()
+        .setDisableRequireSignature()
+        .setSkipSignatureVerification()
+        .build()
 
-        val jwtContext = firstPassJwtConsumer.process(authRequest.jwt)
-        val objects = jwtContext.getJoseObjects()
-        val keyId = objects.get(0).getKeyIdHeaderValue()
+      val jwtContext = firstPassJwtConsumer.process(authRequest.jwt)
+      val objects = jwtContext.getJoseObjects()
+      val keyId = objects.get(0).getKeyIdHeaderValue()
 
-        getJWTPublicKey(keyId) match {
-          case Some(publicKey) => authenticateTokenWithPublicKey(authRequest, publicKey)
-          case None => AuthenticationFailure
-        }
-      } catch {
-        case e: InvalidJwtException =>
-          logger.debug("Authentication failed due to an invalid token.", e)
-          AuthenticationFailure
-        case e: Exception =>
-          logger.error("Error handling token based authentication request.", e)
-          AuthenticationFailure
+      getJWTPublicKey(keyId) match {
+        case Some(publicKey) => authenticateTokenWithPublicKey(authRequest, publicKey)
+        case None => AuthenticationFailure
       }
     }
   }
@@ -94,8 +85,8 @@ class AuthenticationHandler(
       .setRequireExpirationTime()
       .setAllowedClockSkewInSeconds(AuthenticationHandler.AllowedClockSkew)
       .setRequireSubject()
-      .setExpectedIssuer("ConvergenceJWTGenerator")
-      .setExpectedAudience("Convergence")
+      .setExpectedIssuer(JwtConstants.Issuer)
+      .setExpectedAudience(JwtConstants.Audiance)
       .setVerificationKey(publicKey)
       .build()
 
@@ -132,12 +123,14 @@ class AuthenticationHandler(
     val keyPem: Option[String] = if (!AuthenticationHandler.AdminKeyId.equals(keyId)) {
       domainConfigStore.getTokenKey(keyId) match {
         case Success(Some(key)) if key.enabled => Some(key.key)
-        case _ => None // FIXME handle error?
+        case _ => None
       }
     } else {
       domainConfigStore.getAdminKeyPair() match {
         case Success(keyPair) => Some(keyPair.publicKey)
-        case _ => None // FIXME handle error?
+        case _ =>
+          logger.error("Unabled to load admin key for domain")
+          None
       }
     }
 
@@ -153,8 +146,4 @@ class AuthenticationHandler(
       }.get
     }
   }
-
-  private[this] def nofifyAuthSuccess(asker: ActorRef, uid: String, username: String): Unit = asker ! AuthenticationSuccess(uid, username)
-  private[this] def notifyAuthFailure(asker: ActorRef): Unit = asker ! AuthenticationFailure
-  private[this] def notifyAuthError(asker: ActorRef): Unit = asker ! AuthenticationError
 }
