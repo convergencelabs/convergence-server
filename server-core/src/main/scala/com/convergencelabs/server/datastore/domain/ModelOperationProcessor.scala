@@ -209,7 +209,15 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
   private[this] def applyNumberAddOperation(fqn: ModelFqn, operation: NumberAddOperation, db: ODatabaseDocumentTx): Unit = {
     val pathString = toOrientPath(operation.path)
     val params = Map(CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, Value -> JValueMapper.jNumberToJava(operation.value))
-    val updateCommand = new OCommandSQL(s"UPDATE model INCREMENT $pathString = :value WHERE collectionId = :collectionId and modelId = :modelId")
+    val queryString =
+      s"""UPDATE Model 
+         |SET 
+         |  $pathString = eval("$pathString + $$value") 
+         |WHERE 
+         |  collectionId = :collectionId AND 
+         |  modelId = :modelId""".stripMargin
+    val updateCommand = new OCommandSQL(queryString)
+    updateCommand.getContext().setVariable( "value", JValueMapper.jNumberToJava(operation.value));
     db.command(updateCommand).execute(params.asJava)
   }
 
