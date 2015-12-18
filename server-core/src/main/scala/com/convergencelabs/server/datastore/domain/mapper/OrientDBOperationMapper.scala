@@ -5,6 +5,7 @@ import com.convergencelabs.server.domain.model.ot.ArrayMoveOperation
 import com.convergencelabs.server.domain.model.ot.ArrayRemoveOperation
 import com.convergencelabs.server.domain.model.ot.ArrayReplaceOperation
 import com.convergencelabs.server.domain.model.ot.ArraySetOperation
+import com.convergencelabs.server.domain.model.ot.BooleanSetOperation
 import com.convergencelabs.server.domain.model.ot.CompoundOperation
 import com.convergencelabs.server.domain.model.ot.DiscreteOperation
 import com.convergencelabs.server.domain.model.ot.NumberAddOperation
@@ -18,7 +19,6 @@ import com.convergencelabs.server.domain.model.ot.StringInsertOperation
 import com.convergencelabs.server.domain.model.ot.StringRemoveOperation
 import com.convergencelabs.server.domain.model.ot.StringSetOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
-
 import ArrayInsertOperationMapper.ArrayInsertOperationToODocument
 import ArrayInsertOperationMapper.{ DocumentClassName => ArrayInsertDocName }
 import ArrayInsertOperationMapper.ODocumentToArrayInsertOperation
@@ -34,6 +34,9 @@ import ArrayReplaceOperationMapper.ODocumentToArrayReplaceOperation
 import ArraySetOperationMapper.ArraySetOperationToODocument
 import ArraySetOperationMapper.{ DocumentClassName => ArraySetDocName }
 import ArraySetOperationMapper.ODocumentToArraySetOperation
+import BooleanSetOperationMapper.BooleanSetOperationToODocument
+import BooleanSetOperationMapper.{ DocumentClassName => BooleanSetDocName }
+import BooleanSetOperationMapper.ODocumentToBooleanSetOperation
 import CompoundOperationMapper.CompoundOperationToODocument
 import CompoundOperationMapper.{ DocumentClassName => CompoundDocName }
 import CompoundOperationMapper.ODocumentToCompoundOperation
@@ -64,6 +67,7 @@ import StringRemoveOperationMapper.StringRemoveOperationToODocument
 import StringSetOperationMapper.{ DocumentClassName => StringSetDocName }
 import StringSetOperationMapper.ODocumentToStringSetOperation
 import StringSetOperationMapper.StringSetOperationToODocument
+import com.convergencelabs.server.domain.model.ot.BooleanSetOperation
 
 object OrientDBOperationMapper {
 
@@ -94,6 +98,8 @@ object OrientDBOperationMapper {
 
       case NumberAddDocName => doc.asNumberAddOperation
       case NumberSetDocName => doc.asNumberSetOperation
+      
+      case BooleanSetDocName => doc.asBooleanSetOperation
     }
   }
   // scalastyle:on cyclomatic.complexity
@@ -129,6 +135,8 @@ object OrientDBOperationMapper {
       // Number Operations
       case op: NumberAddOperation => op.asODocument
       case op: NumberSetOperation => op.asODocument
+      
+      case op: BooleanSetOperation => op.asODocument
     }
   }
   // scalastyle:on cyclomatic.complexity
