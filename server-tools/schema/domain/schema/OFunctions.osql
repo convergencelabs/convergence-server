@@ -41,7 +41,8 @@ INSERT INTO OFunction SET
   language = "javascript",
   parameters = [
     "array",
-    "index"
+    "index",
+    "value"
   ];
   
 # arrayRemove

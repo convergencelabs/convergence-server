@@ -47,7 +47,7 @@ object ModelOperationProcessor {
     }
     pathBuilder.toString()
   }
-  
+
   def appendToPath(path: String, property: String): String = {
     s"$path.$property"
   }
@@ -79,9 +79,9 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
   }
 
   private[this] def updateModelMetaData(fqn: ModelFqn, timestamp: Instant, db: ODatabaseDocumentTx): Unit = {
-    val queryString = "UPDATE Model SET version = eval(version + 1), timestamp = :timestamp"
+    val queryString = "UPDATE Model SET version = eval('version + 1'), modifiedTime = :timestamp  WHERE collectionId = :collectionId and modelId = :modelId"
     val updateCommand = new OCommandSQL(queryString)
-    val params = Map("timestamp" -> timestamp.toEpochMilli())
+    val params = Map(CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, "timestamp" -> timestamp.toEpochMilli())
     db.command(updateCommand).execute(params.asJava)
   }
 
@@ -89,25 +89,25 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
   private[this] def applyOperationToModel(fqn: ModelFqn, operation: Operation, db: ODatabaseDocumentTx): Unit = {
     operation match {
       case compoundOp: CompoundOperation     => compoundOp.operations foreach { op => applyOperationToModel(fqn, op, db) }
-      case op: ArrayInsertOperation          => applyArrayInsertOperation(fqn, op, db)
-      case op: ArrayRemoveOperation          => applyArrayRemoveOperation(fqn, op, db)
-      case op: ArrayReplaceOperation         => applyArrayReplaceOperation(fqn, op, db)
-      case op: ArrayMoveOperation            => applyArrayMoveOperation(fqn, op, db)
-      case op: ArraySetOperation             => applyArraySetOperation(fqn, op, db)
+      case op: ArrayInsertOperation          => if (!op.noOp) applyArrayInsertOperation(fqn, op, db)
+      case op: ArrayRemoveOperation          => if (!op.noOp) applyArrayRemoveOperation(fqn, op, db)
+      case op: ArrayReplaceOperation         => if (!op.noOp) applyArrayReplaceOperation(fqn, op, db)
+      case op: ArrayMoveOperation            => if (!op.noOp) applyArrayMoveOperation(fqn, op, db)
+      case op: ArraySetOperation             => if (!op.noOp) applyArraySetOperation(fqn, op, db)
 
-      case op: ObjectAddPropertyOperation    => applyObjectAddPropertyOperation(fqn, op, db)
-      case op: ObjectSetPropertyOperation    => applyObjectSetPropertyOperation(fqn, op, db)
-      case op: ObjectRemovePropertyOperation => applyObjectRemovePropertyOperation(fqn, op, db)
-      case op: ObjectSetOperation            => applyObjectSetOperation(fqn, op, db)
+      case op: ObjectAddPropertyOperation    => if (!op.noOp) applyObjectAddPropertyOperation(fqn, op, db)
+      case op: ObjectSetPropertyOperation    => if (!op.noOp) applyObjectSetPropertyOperation(fqn, op, db)
+      case op: ObjectRemovePropertyOperation => if (!op.noOp) applyObjectRemovePropertyOperation(fqn, op, db)
+      case op: ObjectSetOperation            => if (!op.noOp) applyObjectSetOperation(fqn, op, db)
 
-      case op: StringInsertOperation         => applyStringInsertOperation(fqn, op, db)
-      case op: StringRemoveOperation         => applyStringRemoveOperation(fqn, op, db)
-      case op: StringSetOperation            => applyStringSetOperation(fqn, op, db)
+      case op: StringInsertOperation         => if (!op.noOp) applyStringInsertOperation(fqn, op, db)
+      case op: StringRemoveOperation         => if (!op.noOp) applyStringRemoveOperation(fqn, op, db)
+      case op: StringSetOperation            => if (!op.noOp) applyStringSetOperation(fqn, op, db)
 
-      case op: NumberAddOperation            => applyNumberAddOperation(fqn, op, db)
-      case op: NumberSetOperation            => applyNumberSetOperation(fqn, op, db)
+      case op: NumberAddOperation            => if (!op.noOp) applyNumberAddOperation(fqn, op, db)
+      case op: NumberSetOperation            => if (!op.noOp) applyNumberSetOperation(fqn, op, db)
 
-      case op: BooleanSetOperation           => applyBooleanSetOperation(fqn, op, db)
+      case op: BooleanSetOperation           => if (!op.noOp) applyBooleanSetOperation(fqn, op, db)
     }
   }
   // scalastyle:on cyclomatic.complexity
@@ -209,15 +209,8 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
   private[this] def applyNumberAddOperation(fqn: ModelFqn, operation: NumberAddOperation, db: ODatabaseDocumentTx): Unit = {
     val pathString = toOrientPath(operation.path)
     val params = Map(CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, Value -> JValueMapper.jNumberToJava(operation.value))
-    val queryString =
-      s"""UPDATE Model 
-         |SET 
-         |  $pathString = eval("$pathString + $$value") 
-         |WHERE 
-         |  collectionId = :collectionId AND 
-         |  modelId = :modelId""".stripMargin
-    val updateCommand = new OCommandSQL(queryString)
-    updateCommand.getContext().setVariable( "value", JValueMapper.jNumberToJava(operation.value));
+    val value = JValueMapper.jNumberToJava(operation.value)
+    val updateCommand = new OCommandSQL(s"UPDATE model SET $pathString = eval('$pathString + $value') WHERE collectionId = :collectionId and modelId = :modelId")
     db.command(updateCommand).execute(params.asJava)
   }
 
@@ -228,7 +221,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     val updateCommand = new OCommandSQL(s"UPDATE Model SET $pathString = :value WHERE collectionId = :collectionId and modelId = :modelId")
     db.command(updateCommand).execute(params.asJava)
   }
-  
+
   private[this] def applyBooleanSetOperation(fqn: ModelFqn, operation: BooleanSetOperation, db: ODatabaseDocumentTx): Unit = {
     val pathString = toOrientPath(operation.path)
     val params = Map(CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, Value -> operation.value)
