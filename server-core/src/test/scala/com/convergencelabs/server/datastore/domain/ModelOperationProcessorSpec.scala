@@ -64,7 +64,7 @@ class ModelOperationProcessorSpec
 
         val op = StringInsertOperation(List(fnameField), false, 0, "abc")
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
-        processor.processModelOperation(modelOp)
+        val response = processor.processModelOperation(modelOp).success
 
         val modelData = modelStore.getModelData(modelFqn).success.value.value
         modelData \ fnameField shouldBe JString("abcjohn")
@@ -75,7 +75,7 @@ class ModelOperationProcessorSpec
 
         val op = StringRemoveOperation(List(fnameField), false, 1, "oh")
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
-        processor.processModelOperation(modelOp)
+        processor.processModelOperation(modelOp).success
 
         val modelData = modelStore.getModelData(modelFqn).success.value.value
         modelData \ fnameField shouldBe JString("jn")
@@ -86,7 +86,7 @@ class ModelOperationProcessorSpec
 
         val op = StringSetOperation(List(fnameField), false, "new string")
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
-        processor.processModelOperation(modelOp)
+        processor.processModelOperation(modelOp).success
 
         val modelData = modelStore.getModelData(modelFqn).success.value.value
         modelData \ fnameField shouldBe JString("new string")
@@ -99,7 +99,7 @@ class ModelOperationProcessorSpec
         val insertVal = JObject("field1" -> JString("someValue"), "field2" -> JInt(5))
         val op = ArrayInsertOperation(List(emailsField), false, 0, insertVal)
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
-        processor.processModelOperation(modelOp)
+        processor.processModelOperation(modelOp).success
 
         val modelData = modelStore.getModelData(modelFqn).success.value.value
         (modelData \ emailsField) match {
@@ -115,7 +115,7 @@ class ModelOperationProcessorSpec
 
         val op = ArrayRemoveOperation(List(emailsField), false, 0)
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
-        processor.processModelOperation(modelOp)
+        processor.processModelOperation(modelOp).success
 
         val modelData = modelStore.getModelData(modelFqn).success.value.value
         (modelData \ emailsField) match {
@@ -132,7 +132,7 @@ class ModelOperationProcessorSpec
         val replaceVal = JObject("field1" -> JString("someValue"), "field2" -> JInt(5))
         val op = ArrayReplaceOperation(List(emailsField), false, 0, replaceVal)
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
-        processor.processModelOperation(modelOp)
+        processor.processModelOperation(modelOp).success
 
         val modelData = modelStore.getModelData(modelFqn).success.value.value
         (modelData \ emailsField) match {
@@ -159,7 +159,7 @@ class ModelOperationProcessorSpec
 
         val op = ObjectAddPropertyOperation(List(), false, "addedProperty", new JString("value"))
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
-        processor.processModelOperation(modelOp)
+        processor.processModelOperation(modelOp).success
 
         val modelData = modelStore.getModelData(modelFqn).success.value.value
         modelData \ "addedProperty" shouldBe JString("value")
@@ -170,7 +170,7 @@ class ModelOperationProcessorSpec
 
         val op = ObjectSetPropertyOperation(List(), false, fnameField, new JString("bob"))
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
-        processor.processModelOperation(modelOp)
+        processor.processModelOperation(modelOp).success
 
         val modelData = modelStore.getModelData(modelFqn).success.value.value
         modelData \ fnameField shouldBe JString("bob")
@@ -181,7 +181,7 @@ class ModelOperationProcessorSpec
 
         val op = ObjectRemovePropertyOperation(List(), false, fnameField)
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
-        processor.processModelOperation(modelOp)
+        processor.processModelOperation(modelOp).success
 
         val modelData = modelStore.getModelData(modelFqn).success.value.value
         modelData \ fnameField shouldBe JNothing
@@ -193,7 +193,7 @@ class ModelOperationProcessorSpec
         val replacePerson = JObject("fname" -> JString("bob"), "lname" -> JString("smith"))
         val op = ObjectSetOperation(List(), false, replacePerson)
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
-        processor.processModelOperation(modelOp)
+        processor.processModelOperation(modelOp).success
 
         val modelData = modelStore.getModelData(modelFqn).success.value.value
         modelData shouldBe replacePerson
@@ -206,7 +206,7 @@ class ModelOperationProcessorSpec
 
         val op = NumberAddOperation(List(ageField), false, JInt(5))
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
-        processor.processModelOperation(modelOp)
+        val response = processor.processModelOperation(modelOp)
 
         val modelData = modelStore.getModelData(modelFqn).success.value.value
         modelData \ ageField shouldBe JInt(31)
@@ -226,11 +226,11 @@ class ModelOperationProcessorSpec
 
     "applying boolean operations" must {
       "correctly update the model on BooleanSet" in withPersistenceStore { stores =>
-       val (processor, opStore, modelStore) = stores
+        val (processor, opStore, modelStore) = stores
 
         val op = BooleanSetOperation(List(marriedField), false, true)
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
-        processor.processModelOperation(modelOp)
+        val response = processor.processModelOperation(modelOp)
 
         val modelData = modelStore.getModelData(modelFqn).success.value.value
         modelData \ marriedField shouldBe JBool(true)
