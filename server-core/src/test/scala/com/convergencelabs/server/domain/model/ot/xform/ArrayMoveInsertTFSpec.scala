@@ -33,7 +33,7 @@ class ArrayMoveInsertTFSpec
        *
        * </pre>
        */
-      "increment the from and to indeces of the move and not transform the insert if the insert is before the move." in {
+      "increment the from and to indices of the move and not transform the insert if the insert is before the move." in {
         val s = ArrayMoveOperation(Path, false, 3, 5)
         val c = ArrayInsertOperation(Path, false, 1, JString("X"))
 
@@ -62,7 +62,7 @@ class ArrayMoveInsertTFSpec
        *
        * </pre>
        */
-      "increment the from and to indeces of the move and not transform the insert, if the insert is at the start of the move" in {
+      "increment the from and to indices of the move and not transform the insert, if the insert is at the start of the move" in {
         val s = ArrayMoveOperation(Path, false, 3, 5)
         val c = ArrayInsertOperation(Path, false, 3, JString("X"))
 
@@ -181,7 +181,7 @@ class ArrayMoveInsertTFSpec
        *
        * </pre>
        */
-      "increment the from and to indeces of the move and not transform the insert if the insert is before the move." in {
+      "increment the from and to indices of the move and not transform the insert if the insert is before the move." in {
         val s = ArrayMoveOperation(Path, false, 5, 3)
         val c = ArrayInsertOperation(Path, false, 1, JString("X"))
 
@@ -329,7 +329,7 @@ class ArrayMoveInsertTFSpec
        *
        * </pre>
        */
-      "increment the from and to indeces of the move and not transform the insert if the insert is before the move." in {
+      "increment the from and to indices of the move and not transform the insert if the insert is before the move." in {
         val s = ArrayMoveOperation(Path, false, 3, 3)
         val c = ArrayInsertOperation(Path, false, 1, JString("X"))
 
@@ -358,7 +358,7 @@ class ArrayMoveInsertTFSpec
        *
        * </pre>
        */
-      "increment the from and to indeces of the move and not transform the insert, if the insert is at the start of the move" in {
+      "increment the from and to indices of the move and not transform the insert, if the insert is at the start of the move" in {
         val s = ArrayMoveOperation(Path, false, 3, 3)
         val c = ArrayInsertOperation(Path, false, 3, JString("X"))
 

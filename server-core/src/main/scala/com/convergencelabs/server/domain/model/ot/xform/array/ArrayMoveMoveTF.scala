@@ -1,5 +1,6 @@
 package com.convergencelabs.server.domain.model.ot
 
+// scalastyle:off cyclomatic.complexity
 private[ot] object ArrayMoveMoveTF extends OperationTransformationFunction[ArrayMoveOperation, ArrayMoveOperation] {
   def transform(s: ArrayMoveOperation, c: ArrayMoveOperation): (ArrayMoveOperation, ArrayMoveOperation) = {
 
