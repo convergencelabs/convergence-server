@@ -34,6 +34,7 @@ import mapper.ModelOperationMapper.ModelOperationToODocument
 import com.convergencelabs.server.domain.model.ot.BooleanSetOperation
 import com.convergencelabs.server.datastore.domain.ModelOperationProcessor.toOrientPath
 import com.convergencelabs.server.datastore.domain.ModelOperationProcessor.appendToPath
+import com.convergencelabs.server.domain.model.ot.DiscreteOperation
 
 object ModelOperationProcessor {
   def toOrientPath(path: List[Any]): String = {
@@ -88,26 +89,28 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
   // scalastyle:off cyclomatic.complexity
   private[this] def applyOperationToModel(fqn: ModelFqn, operation: Operation, db: ODatabaseDocumentTx): Unit = {
     operation match {
-      case compoundOp: CompoundOperation     => compoundOp.operations foreach { op => applyOperationToModel(fqn, op, db) }
-      case op: ArrayInsertOperation          => if (!op.noOp) applyArrayInsertOperation(fqn, op, db)
-      case op: ArrayRemoveOperation          => if (!op.noOp) applyArrayRemoveOperation(fqn, op, db)
-      case op: ArrayReplaceOperation         => if (!op.noOp) applyArrayReplaceOperation(fqn, op, db)
-      case op: ArrayMoveOperation            => if (!op.noOp) applyArrayMoveOperation(fqn, op, db)
-      case op: ArraySetOperation             => if (!op.noOp) applyArraySetOperation(fqn, op, db)
+      case op: CompoundOperation             => op.operations foreach { o => applyOperationToModel(fqn, o, db) }
+      case op: DiscreteOperation if op.noOp  => // Do nothing since this is a noOp
+        
+      case op: ArrayInsertOperation          => applyArrayInsertOperation(fqn, op, db)
+      case op: ArrayRemoveOperation          => applyArrayRemoveOperation(fqn, op, db)
+      case op: ArrayReplaceOperation         => applyArrayReplaceOperation(fqn, op, db)
+      case op: ArrayMoveOperation            => applyArrayMoveOperation(fqn, op, db)
+      case op: ArraySetOperation             => applyArraySetOperation(fqn, op, db)
 
-      case op: ObjectAddPropertyOperation    => if (!op.noOp) applyObjectAddPropertyOperation(fqn, op, db)
-      case op: ObjectSetPropertyOperation    => if (!op.noOp) applyObjectSetPropertyOperation(fqn, op, db)
-      case op: ObjectRemovePropertyOperation => if (!op.noOp) applyObjectRemovePropertyOperation(fqn, op, db)
-      case op: ObjectSetOperation            => if (!op.noOp) applyObjectSetOperation(fqn, op, db)
+      case op: ObjectAddPropertyOperation    => applyObjectAddPropertyOperation(fqn, op, db)
+      case op: ObjectSetPropertyOperation    => applyObjectSetPropertyOperation(fqn, op, db)
+      case op: ObjectRemovePropertyOperation => applyObjectRemovePropertyOperation(fqn, op, db)
+      case op: ObjectSetOperation            => applyObjectSetOperation(fqn, op, db)
 
-      case op: StringInsertOperation         => if (!op.noOp) applyStringInsertOperation(fqn, op, db)
-      case op: StringRemoveOperation         => if (!op.noOp) applyStringRemoveOperation(fqn, op, db)
-      case op: StringSetOperation            => if (!op.noOp) applyStringSetOperation(fqn, op, db)
+      case op: StringInsertOperation         => applyStringInsertOperation(fqn, op, db)
+      case op: StringRemoveOperation         => applyStringRemoveOperation(fqn, op, db)
+      case op: StringSetOperation            => applyStringSetOperation(fqn, op, db)
 
-      case op: NumberAddOperation            => if (!op.noOp) applyNumberAddOperation(fqn, op, db)
-      case op: NumberSetOperation            => if (!op.noOp) applyNumberSetOperation(fqn, op, db)
+      case op: NumberAddOperation            => applyNumberAddOperation(fqn, op, db)
+      case op: NumberSetOperation            => applyNumberSetOperation(fqn, op, db)
 
-      case op: BooleanSetOperation           => if (!op.noOp) applyBooleanSetOperation(fqn, op, db)
+      case op: BooleanSetOperation           => applyBooleanSetOperation(fqn, op, db)
     }
   }
   // scalastyle:on cyclomatic.complexity
