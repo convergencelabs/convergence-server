@@ -169,21 +169,21 @@ class ArrayMoveInsertTFSpec
        * Original Array  : [A, B, C, D, E, F, G, H, I, J]
        *
        * Server Op       :           ^--<--^                     Move(5, 3)
-       * Client Op       :     ^                                 Insert(1, X)
+       * Client Op       :        ^                              Insert(2, X)
        *
        * Server State    : [A, B, C, F, D, E, G, H, I, J]
-       * Client Op'      :     ^                                 Insert(1, X)
+       * Client Op'      :        ^                              Insert(2, X)
        *
-       * Client State    : [A, X, B, C, D, E, F, G, H, I, J]
+       * Client State    : [A, B, X, C, D, E, F, G, H, I, J]
        * Server Op'      :              ^--<--^                  Move(6, 4)
        *
-       * Converged State : [A, X, B, C, F, D, E, G, H, I, J]
+       * Converged State : [A, B, X, C, F, D, E, G, H, I, J]
        *
        * </pre>
        */
       "increment the from and to indices of the move and not transform the insert if the insert is before the move." in {
         val s = ArrayMoveOperation(Path, false, 5, 3)
-        val c = ArrayInsertOperation(Path, false, 1, JString("X"))
+        val c = ArrayInsertOperation(Path, false, 2, JString("X"))
 
         val (s1, c1) = ArrayMoveInsertTF.transform(s, c)
 
@@ -235,7 +235,7 @@ class ArrayMoveInsertTFSpec
        * Client State    : [A, B, C, D, X, E, F, G, H, I, J]
        * Server Op'      :           ^---<----^                  Move(6, 3)
        *
-       * Converged State : [A, B, C, X, E, F, D, G, H, I, J]
+       * Converged State : [A, B, C, F, D, X, E, G, H, I, J]
        *
        * </pre>
        */
@@ -255,7 +255,7 @@ class ArrayMoveInsertTFSpec
        * Indices         : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
        * Original Array  : [A, B, C, D, E, F, G, H, I, J]
        *
-       * Server Op       :           ^-->--^                     Move(5, 3)
+       * Server Op       :           ^--<--^                     Move(5, 3)
        * Client Op       :                 ^                     Insert(5, X)
        *
        * Server State    : [A, B, C, F, D, E, G, H, I, J]
@@ -317,21 +317,21 @@ class ArrayMoveInsertTFSpec
        * Original Array  : [A, B, C, D, E, F, G, H, I, J]
        *
        * Server Op       :           ^                           Move(3, 3)
-       * Client Op       :     ^                                 Insert(1, X)
+       * Client Op       :        ^                              Insert(2, X)
        *
        * Server State    : [A, B, C, D, E, F, G, H, I, J]
-       * Client Op'      :     ^                                 Insert(1, X)
+       * Client Op'      :        ^                              Insert(2, X)
        *
-       * Client State    : [A, X, B, C, D, E, F, G, H, I, J]
+       * Client State    : [A, B, X, C, D, E, F, G, H, I, J]
        * Server Op'      :              ^                        Move(4, 4)
        *
-       * Converged State : [A, X, B, C, D, E, F, G, H, I, J]
+       * Converged State : [A, B, X, C, D, E, F, G, H, I, J]
        *
        * </pre>
        */
       "increment the from and to indices of the move and not transform the insert if the insert is before the move." in {
         val s = ArrayMoveOperation(Path, false, 3, 3)
-        val c = ArrayInsertOperation(Path, false, 1, JString("X"))
+        val c = ArrayInsertOperation(Path, false, 2, JString("X"))
 
         val (s1, c1) = ArrayMoveInsertTF.transform(s, c)
 
