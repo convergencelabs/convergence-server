@@ -21,21 +21,21 @@ class ArrayMoveInsertTFSpec
        * Original Array  : [A, B, C, D, E, F, G, H, I, J]
        *
        * Server Op       :           ^-->--^                     Move(3, 5)
-       * Client Op       :     ^                                 Insert(1, X)
+       * Client Op       :        ^                              Insert(2, X)
        *
        * Server State    : [A, B, C, E, F, D, G, H, I, J]
-       * Client Op'      :     ^                                 Insert(1, X)
+       * Client Op'      :        ^                              Insert(2, X)
        *
-       * Client State    : [A, X, B, C, D, E, F, G, H, I, J]
+       * Client State    : [A, B, X, C, D, E, F, G, H, I, J]
        * Server Op'      :              ^-->--^                  Move(4, 6)
        *
-       * Converged State : [A, X, B, C, E, F, D, G, H, I, J]
+       * Converged State : [A, B, X, C, E, F, D, G, H, I, J]
        *
        * </pre>
        */
       "increment the from and to indices of the move and not transform the insert if the insert is before the move." in {
         val s = ArrayMoveOperation(Path, false, 3, 5)
-        val c = ArrayInsertOperation(Path, false, 1, JString("X"))
+        val c = ArrayInsertOperation(Path, false, 2, JString("X"))
 
         val (s1, c1) = ArrayMoveInsertTF.transform(s, c)
 
@@ -262,7 +262,7 @@ class ArrayMoveInsertTFSpec
        * Client Op'      :                    ^                  Insert(6, X)
        *
        * Client State    : [A, B, C, D, E, X, F, G, H, I, J]
-       * Server Op'      :           ^---<----^                  Move(3, 6)
+       * Server Op'      :           ^---<----^                  Move(6, 3)
        *
        * Converged State : [A, B, C, E, X, F, D, G, H, I, J]
        *
@@ -383,7 +383,7 @@ class ArrayMoveInsertTFSpec
        * Client State    : [A, B, C, D, X, E, F, G, H, I, J]
        * Server Op'      :           ^                           Move(3, 3)
        *
-       * Converged State : [A, B, C, X, D, E, F, G, H, I, J]
+       * Converged State : [A, B, C, D, X, E, F, G, H, I, J]
        *
        * </pre>
        */

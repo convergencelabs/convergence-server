@@ -2,9 +2,7 @@ package com.convergencelabs.server.domain.model.ot
 
 private[ot] object ArrayRemoveMoveTF extends OperationTransformationFunction[ArrayRemoveOperation, ArrayMoveOperation] {
   def transform(s: ArrayRemoveOperation, c: ArrayMoveOperation): (ArrayRemoveOperation, ArrayMoveOperation) = {
-    if (ArrayMoveRangeHelper.isIdentityMove(c)) {
-      (s, c)
-    } else if (ArrayMoveRangeHelper.indexBeforeRange(c, s.index)) {
+    if (ArrayMoveRangeHelper.indexBeforeRange(c, s.index)) {
       (s, c.copy(fromIndex = c.fromIndex - 1, toIndex = c.toIndex - 1))
     } else if (ArrayMoveRangeHelper.indexAfterRange(c, s.index)) {
       (s, c)
@@ -13,27 +11,33 @@ private[ot] object ArrayRemoveMoveTF extends OperationTransformationFunction[Arr
     } else if (ArrayMoveRangeHelper.isBackwardMoveMove(c)) {
       transformAgainstBackwardMove(s, c)
     } else {
-      throw new UnsupportedOperationException(s"An unanticipated Remove-Move case was detected ($s, $c)")
+      transformAgainstIdentityMove(s, c)
     }
   }
 
   def transformAgainstForwardMove(s: ArrayRemoveOperation, c: ArrayMoveOperation): (ArrayRemoveOperation, ArrayMoveOperation) = {
+    // There are only three cases here.  Either the remove is at the start, the end, or in the middle.
     if (c.fromIndex == s.index) {
+      // At the start.
       (s.copy(index = c.toIndex), c.copy(noOp = true))
-    } else if (ArrayMoveRangeHelper.indexWithinRange(c, s.index) || c.toIndex == s.index) {
-      (s.copy(index = s.index - 1), c.copy(toIndex = c.toIndex - 1))
     } else {
-      (s, c)
+      // At the end or in the middle.
+      (s.copy(index = s.index - 1), c.copy(toIndex = c.toIndex - 1))
     }
   }
 
   def transformAgainstBackwardMove(s: ArrayRemoveOperation, c: ArrayMoveOperation): (ArrayRemoveOperation, ArrayMoveOperation) = {
+    // There are only three cases here.  Either the remove is at the start, the end, or in the middle.
     if (c.fromIndex == s.index) {
+      // At the start.
       (s.copy(index = c.toIndex), c.copy(noOp = true))
-    } else if (ArrayMoveRangeHelper.indexWithinRange(c, s.index) || c.toIndex == s.index) {
-      (s.copy(index = s.index + 1), c.copy(fromIndex = c.fromIndex - 1))
     } else {
-      (s, c)
-    }
+      // At the end or in the middle.
+      (s.copy(index = s.index + 1), c.copy(fromIndex = c.fromIndex - 1))
+    } 
+  }
+
+  def transformAgainstIdentityMove(s: ArrayRemoveOperation, c: ArrayMoveOperation): (ArrayRemoveOperation, ArrayMoveOperation) = {
+    (s, c.copy(noOp = true))
   }
 }
