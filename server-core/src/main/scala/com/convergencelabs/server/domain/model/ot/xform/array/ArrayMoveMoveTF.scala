@@ -1,117 +1,105 @@
 package com.convergencelabs.server.domain.model.ot
 
+import RangeRelationship._
+import MoveDirection._
+
 // scalastyle:off cyclomatic.complexity
 private[ot] object ArrayMoveMoveTF extends OperationTransformationFunction[ArrayMoveOperation, ArrayMoveOperation] {
   def transform(s: ArrayMoveOperation, c: ArrayMoveOperation): (ArrayMoveOperation, ArrayMoveOperation) = {
+    val sMoveType = ArrayMoveRangeHelper.getMoveDirection(s)
+    val cMoveType = ArrayMoveRangeHelper.getMoveDirection(c)
 
-    if (ArrayMoveRangeHelper.isForwardMove(s) && ArrayMoveRangeHelper.isForwardMove(c)) {
-      transformTwoForwardMoves(s, c)
-    } else if (ArrayMoveRangeHelper.isForwardMove(s) && ArrayMoveRangeHelper.isBackwardMoveMove(c)) {
-      transofrmForwardMoveWithBackwardMove(s, c)
-    } else if (ArrayMoveRangeHelper.isBackwardMoveMove(s) && ArrayMoveRangeHelper.isForwardMove(c)) {
-      transofrmBackwardMoveWithForwardMove(s, c)
-    } else if (ArrayMoveRangeHelper.isBackwardMoveMove(s) && ArrayMoveRangeHelper.isBackwardMoveMove(c)) {
-      transofrmBackwardMoveWithBackwardMove(s, c)
-    } else {
-      (s, c)
-    }
-  }
-
-  def transofrmBackwardMoveWithBackwardMove(s: ArrayMoveOperation, c: ArrayMoveOperation): (ArrayMoveOperation, ArrayMoveOperation) = {
-    if (ArrayMoveRangeHelper.precedes(s, c) || ArrayMoveRangeHelper.precededBy(s, c)) {
-      (s, c)
-    } else if (ArrayMoveRangeHelper.meets(s, c) || ArrayMoveRangeHelper.overlaps(s, c)) {
-      (s.copy(toIndex = s.toIndex + 1), c.copy(fromIndex = c.fromIndex + 1))
-    } else if (ArrayMoveRangeHelper.finishedBy(s, c) || ArrayMoveRangeHelper.finishes(s, c)) {
-      (s.copy(fromIndex = c.toIndex), c.copy(noOp = true))
-    } else if (ArrayMoveRangeHelper.contains(s, c)) {
-      (s.copy(fromIndex = s.fromIndex + 1, toIndex = s.toIndex + 1), c)
-    } else if (ArrayMoveRangeHelper.starts(s, c) || ArrayMoveRangeHelper.containedBy(s, c)) {
-      (s, c.copy(fromIndex = c.fromIndex + 1, toIndex = c.toIndex + 1))
-    } else if (ArrayMoveRangeHelper.equalTo(s, c)) {
-      (s.copy(noOp = true), c.copy(noOp = true))
-    } else if (ArrayMoveRangeHelper.startedBy(s, c) ||
-      ArrayMoveRangeHelper.overlappedBy(s, c) ||
-      ArrayMoveRangeHelper.metBy(s, c)) {
-      (s.copy(fromIndex = s.fromIndex + 1), c.copy(toIndex = c.toIndex + 1))
-    } else {
-      throw invalidCase(s, c)
-    }
-  }
-
-  def transofrmBackwardMoveWithForwardMove(s: ArrayMoveOperation, c: ArrayMoveOperation): (ArrayMoveOperation, ArrayMoveOperation) = {
-    if (ArrayMoveRangeHelper.precedes(s, c) || ArrayMoveRangeHelper.precededBy(s, c)) {
-      (s, c)
-    } else if (ArrayMoveRangeHelper.meets(s, c)) {
-      (s.copy(fromIndex = c.toIndex), c.copy(noOp = true))
-    } else if (ArrayMoveRangeHelper.overlaps(s, c) ||
-      ArrayMoveRangeHelper.finishedBy(s, c) ||
-      ArrayMoveRangeHelper.starts(s, c) ||
-      ArrayMoveRangeHelper.equalTo(s, c)) {
-      (s.copy(fromIndex = s.fromIndex + 1), c.copy(fromIndex = c.fromIndex - 1))
-    } else if (ArrayMoveRangeHelper.contains(s, c) ||
-      ArrayMoveRangeHelper.startedBy(s, c)) {
-      (s.copy(fromIndex = s.fromIndex + 1, toIndex = s.toIndex + 1), c)
-    } else if (ArrayMoveRangeHelper.containedBy(s, c) ||
-      ArrayMoveRangeHelper.finishes(s, c)) {
-      (s, c.copy(fromIndex = c.fromIndex + 1, toIndex = c.toIndex + 1))
-    } else if (ArrayMoveRangeHelper.overlappedBy(s, c) ||
-      ArrayMoveRangeHelper.metBy(s, c)) {
-      (s.copy(toIndex = s.toIndex + 1), c.copy(toIndex = c.toIndex - 1))
-    } else {
-      throw invalidCase(s, c)
-    }
-  }
-
-  def transofrmForwardMoveWithBackwardMove(s: ArrayMoveOperation, c: ArrayMoveOperation): (ArrayMoveOperation, ArrayMoveOperation) = {
-    if (ArrayMoveRangeHelper.precedes(s, c) || ArrayMoveRangeHelper.precededBy(s, c)) {
-      (s, c)
-    } else if (ArrayMoveRangeHelper.meets(s, c) || ArrayMoveRangeHelper.overlaps(s, c)) {
-      (s.copy(toIndex = s.toIndex - 1), c.copy(toIndex = c.toIndex + 1))
-    } else if (ArrayMoveRangeHelper.finishedBy(s, c) ||
-      ArrayMoveRangeHelper.contains(s, c)) {
-      (s.copy(fromIndex = s.fromIndex - 1, toIndex = s.toIndex - 1), c)
-    } else if (ArrayMoveRangeHelper.starts(s, c) ||
-      ArrayMoveRangeHelper.containedBy(s, c)) {
-      (s, c.copy(fromIndex = c.fromIndex + 1, toIndex = c.toIndex + 1))
-    } else if (ArrayMoveRangeHelper.equalTo(s, c) ||
-      ArrayMoveRangeHelper.finishes(s, c) ||
-      ArrayMoveRangeHelper.startedBy(s, c) ||
-      ArrayMoveRangeHelper.overlappedBy(s, c)) {
-      (s.copy(fromIndex = s.fromIndex - 1), c.copy(fromIndex = c.fromIndex + 1))
-    } else if (ArrayMoveRangeHelper.metBy(s, c)) {
-      (s.copy(fromIndex = c.toIndex), c.copy(noOp = true))
-    } else {
-      throw invalidCase(s, c)
+    (sMoveType, cMoveType) match {
+      case (Forward, Forward) => transformTwoForwardMoves(s, c)
+      case (Forward, Backward) => transofrmServerForwardMoveWithClientBackwardMove(s, c)
+      case (Backward, Forward) => transofrmBackwardMoveWithForwardMove(s, c)
+      case (Backward, Backward) => transofrmBackwardMoveWithBackwardMove(s, c)
+      case (Identity, _) => (s, c)
+      case (_, Identity) => (s, c)
     }
   }
 
   def transformTwoForwardMoves(s: ArrayMoveOperation, c: ArrayMoveOperation): (ArrayMoveOperation, ArrayMoveOperation) = {
-    if (ArrayMoveRangeHelper.precedes(s, c) || ArrayMoveRangeHelper.precededBy(s, c)) {
-      (s, c)
-    } else if (ArrayMoveRangeHelper.meets(s, c) ||
-      ArrayMoveRangeHelper.overlaps(s, c) ||
-      ArrayMoveRangeHelper.finishedBy(s, c)) {
-      (s.copy(fromIndex = s.fromIndex - 1), c.copy(toIndex = c.toIndex - 1))
-    } else if (ArrayMoveRangeHelper.contains(s, c)) {
-      (s.copy(fromIndex = s.fromIndex - 1, toIndex = s.toIndex - 1), c)
-    } else if (ArrayMoveRangeHelper.starts(s, c) ||
-      ArrayMoveRangeHelper.startedBy(s, c)) {
-      (s.copy(fromIndex = c.toIndex), c.copy(noOp = true))
-    } else if (ArrayMoveRangeHelper.equalTo(s, c)) {
-      (s.copy(noOp = true), c.copy(noOp = true))
-    } else if (ArrayMoveRangeHelper.containedBy(s, c) ||
-      ArrayMoveRangeHelper.finishes(s, c)) {
-      (s, c.copy(fromIndex = c.fromIndex - 1, toIndex = c.toIndex - 1))
-    } else if (ArrayMoveRangeHelper.overlappedBy(s, c) ||
-      ArrayMoveRangeHelper.metBy(s, c)) {
-      (s.copy(toIndex = s.toIndex - 1), c.copy(fromIndex = c.fromIndex - 1))
-    } else {
-      throw invalidCase(s, c)
+    ArrayMoveRangeHelper.getRangeRelationship(s, c) match {
+      case Precedes | PrecededBy =>
+        (s, c)
+      case MetBy | OverlappedBy | Finishes =>
+        (s.copy(fromIndex = s.fromIndex - 1), c.copy(toIndex = c.toIndex - 1))
+      case ContainedBy =>
+        (s.copy(fromIndex = s.fromIndex - 1, toIndex = s.toIndex - 1), c)
+      case Starts | StartedBy =>
+        (s.copy(fromIndex = c.toIndex), c.copy(noOp = true))
+      case Contains | FinishedBy =>
+        (s, c.copy(fromIndex = c.fromIndex - 1, toIndex = c.toIndex - 1))
+      case Overlaps | Meets =>
+        (s.copy(toIndex = s.toIndex - 1), c.copy(fromIndex = c.fromIndex - 1))
+      case EqualTo =>
+        (s.copy(noOp = true), c.copy(noOp = true))
     }
   }
 
-  private[this] def invalidCase(s: ArrayMoveOperation, c: ArrayMoveOperation): Throwable = {
-    new UnsupportedOperationException(s"An unanticipated Move-Move case was detected ($s, $c).")
+  def transofrmBackwardMoveWithBackwardMove(s: ArrayMoveOperation, c: ArrayMoveOperation): (ArrayMoveOperation, ArrayMoveOperation) = {
+    ArrayMoveRangeHelper.getRangeRelationship(s, c) match {
+      case Precedes | PrecededBy =>
+        (s, c)
+      case Meets | Overlaps =>
+        (s.copy(toIndex = s.toIndex + 1), c.copy(fromIndex = c.fromIndex + 1))
+      case FinishedBy | Finishes =>
+        (s.copy(fromIndex = c.toIndex), c.copy(noOp = true))
+      case Contains =>
+        (s.copy(fromIndex = s.fromIndex + 1, toIndex = s.toIndex + 1), c)
+      case Starts | ContainedBy =>
+        (s, c.copy(fromIndex = c.fromIndex + 1, toIndex = c.toIndex + 1))
+      case EqualTo =>
+        (s.copy(noOp = true), c.copy(noOp = true))
+      case StartedBy | OverlappedBy | MetBy =>
+        (s.copy(fromIndex = s.fromIndex + 1), c.copy(toIndex = c.toIndex + 1))
+    }
+  }
+
+  def transofrmBackwardMoveWithForwardMove(s: ArrayMoveOperation, c: ArrayMoveOperation): (ArrayMoveOperation, ArrayMoveOperation) = {
+    ArrayMoveRangeHelper.getRangeRelationship(s, c) match {
+      case Precedes | PrecededBy =>
+        (s, c)
+      case Meets =>
+        (s.copy(fromIndex = c.toIndex), c.copy(noOp = true))
+      case FinishedBy | Starts | EqualTo =>
+        (s.copy(fromIndex = s.fromIndex + 1), c.copy(fromIndex = c.fromIndex - 1))
+      case Contains | StartedBy =>
+        (s.copy(fromIndex = s.fromIndex + 1, toIndex = s.toIndex + 1), c)
+      case ContainedBy | Finishes =>
+        (s, c.copy(fromIndex = c.fromIndex + 1, toIndex = c.toIndex + 1))
+      case OverlappedBy =>
+        (s.copy(toIndex = s.toIndex + 1), c.copy(toIndex = c.toIndex - 1))
+    }
+  }
+
+  def transofrmServerForwardMoveWithClientBackwardMove(s: ArrayMoveOperation, c: ArrayMoveOperation): (ArrayMoveOperation, ArrayMoveOperation) = {
+    ArrayMoveRangeHelper.getRangeRelationship(s, c) match {
+      case Precedes | PrecededBy =>
+        (s, c)
+      case Meets => //Broken
+        (s.copy(toIndex = s.toIndex - 1), c.copy(toIndex = c.toIndex + 1))
+      case MetBy =>
+        (s.copy(fromIndex = c.toIndex), c.copy(noOp = true))
+      case Overlaps =>
+        (s.copy(toIndex = s.toIndex + 1), c.copy(toIndex = c.toIndex - 1))
+      case OverlappedBy =>
+        (s.copy(fromIndex = s.fromIndex + 1), c.copy(fromIndex = c.fromIndex - 1))
+      case Starts =>
+        (s.copy(fromIndex = s.fromIndex + 1, toIndex = s.toIndex + 1), c)
+      case StartedBy =>
+        (s.copy(fromIndex = s.fromIndex + 1), c.copy(fromIndex = c.fromIndex - 1))
+      case Contains =>
+        (s, c.copy(fromIndex = c.fromIndex - 1, toIndex = c.toIndex - 1))
+      case ContainedBy =>
+        (s.copy(fromIndex = s.fromIndex + 1, toIndex = s.toIndex + 1), c)
+      case Finishes =>
+        (s.copy(fromIndex = s.fromIndex + 1), c.copy(fromIndex = c.fromIndex - 1))
+      case FinishedBy =>
+        (s, c.copy(fromIndex = c.fromIndex - 1, toIndex = c.toIndex - 1))
+      case EqualTo =>
+        (s.copy(fromIndex = s.fromIndex + 1), c.copy(fromIndex = c.fromIndex - 1))
+    }
   }
 }

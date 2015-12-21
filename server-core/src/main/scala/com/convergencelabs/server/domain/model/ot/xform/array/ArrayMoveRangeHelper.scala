@@ -40,6 +40,25 @@ private[ot] object ArrayMoveRangeHelper {
   def isIdentityMove(op: ArrayMoveOperation): Boolean = {
     op.fromIndex == op.toIndex
   }
+  
+  /**
+   * Determines the direction of the move.
+   * 
+   * @param op The operation to evaluate.
+   * 
+   * @return The direction of the move.
+   */
+  def getMoveDirection(op: ArrayMoveOperation): MoveDirection.Value = {
+    if (isForwardMove(op)) {
+      MoveDirection.Forward
+    } else if (isBackwardMoveMove(op)) {
+      MoveDirection.Backward
+    } else {
+      MoveDirection.Identity
+    }
+  }
+  
+  
 
   /**
    * Determines if an index is entirely before a range.
@@ -79,6 +98,46 @@ private[ot] object ArrayMoveRangeHelper {
    */
   def indexWithinRange(op: ArrayMoveOperation, index: Long): Boolean = {
     index > getRangeMin(op) && index < getRangeMax(op)
+  }
+  
+  /**
+   * Gets the range relationship of two array move operations.  The evaluation
+   * will be in the form of op1 <verb> op2. For example if op1 <precedes> op2
+   * the Precedes will be returned.
+   * 
+   * @param op1 The first array move operation
+   * @param op2 The second array move operation
+   * 
+   * @return The interval that matched op1 <verb> op2
+   */
+  def getRangeRelationship(op1: ArrayMoveOperation, op2: ArrayMoveOperation): RangeRelationship.Value = {
+    if (precedes(op1, op2)) {
+      RangeRelationship.Precedes
+    } else if(precededBy(op1, op2)) {
+      RangeRelationship.PrecededBy
+    } else if(meets(op1, op2)) {
+      RangeRelationship.Meets
+    } else if(metBy(op1, op2)) {
+      RangeRelationship.MetBy
+    } else if(overlaps(op1, op2)) {
+      RangeRelationship.Overlaps
+    } else if(overlappedBy(op1, op2)) {
+      RangeRelationship.OverlappedBy
+    } else if(starts(op1, op2)) {
+      RangeRelationship.Starts
+    } else if(startedBy(op1, op2)) {
+      RangeRelationship.StartedBy
+    } else if(contains(op1, op2)) {
+      RangeRelationship.Contains
+    } else if(containedBy(op1, op2)) {
+      RangeRelationship.ContainedBy
+    } else if(finishes(op1, op2)) {
+      RangeRelationship.Finishes
+    } else if(finishedBy(op1, op2)) {
+      RangeRelationship.FinishedBy
+    } else {
+      RangeRelationship.EqualTo
+    }
   }
 
   /**
@@ -347,4 +406,24 @@ private[ot] object ArrayMoveRangeHelper {
   def getRangeMax(op: ArrayMoveOperation): Long = {
     Math.max(op.fromIndex, op.toIndex)
   }
+}
+
+object MoveDirection extends Enumeration {
+  val Forward, Backward, Identity = Value
+}
+
+object RangeRelationship extends Enumeration {
+  val Precedes, 
+  PrecededBy, 
+  Meets, 
+  MetBy, 
+  Overlaps, 
+  OverlappedBy, 
+  Starts, 
+  StartedBy, 
+  Contains, 
+  ContainedBy, 
+  Finishes, 
+  FinishedBy, 
+  EqualTo = Value
 }
