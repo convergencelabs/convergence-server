@@ -220,8 +220,8 @@ class ArrayMoveMoveTFSpec
 
         val (s1, c1) = ArrayMoveMoveTF.transform(s, c)
 
-        s1 shouldBe ArrayMoveOperation(Path, false, 3, 4)
-        c1 shouldBe ArrayMoveOperation(Path, false, 4, 7)
+        s1 shouldBe ArrayMoveOperation(Path, false, 3, 6)
+        c1 shouldBe ArrayMoveOperation(Path, false, 7, 4)
       }
 
       /**
@@ -399,14 +399,13 @@ class ArrayMoveMoveTFSpec
        * A-MM-BF-4 - Server Backward Move Met By Client Forward Move
        */
       "set the server move's fromIndex to the client move's toIndex and noOp the client move, when the server move is met by the client move" in {
-        // FIXME this is a broken case.
         val s = ArrayMoveOperation(Path, false, 7, 5)
         val c = ArrayMoveOperation(Path, false, 3, 5)
 
         val (s1, c1) = ArrayMoveMoveTF.transform(s, c)
 
-        s1 shouldBe ArrayMoveOperation(Path, false, 3, 7)
-        c1 shouldBe ArrayMoveOperation(Path, true, 5, 3)
+        s1 shouldBe ArrayMoveOperation(Path, false, 7, 4)
+        c1 shouldBe ArrayMoveOperation(Path, false, 3, 6)
       }
 
       /**

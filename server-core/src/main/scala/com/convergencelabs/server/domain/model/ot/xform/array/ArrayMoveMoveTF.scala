@@ -10,7 +10,7 @@ private[ot] object ArrayMoveMoveTF extends OperationTransformationFunction[Array
     val cMoveType = ArrayMoveRangeHelper.getMoveDirection(c)
 
     (sMoveType, cMoveType) match {
-      case (Forward, Forward) => transformTwoForwardMoves(s, c)
+      case (Forward, Forward) => transformServerForwardMoveWithClientForwardMove(s, c)
       case (Forward, Backward) => transofrmServerForwardMoveWithClientBackwardMove(s, c)
       case (Backward, Forward) => transformServerBackwardMoveWithClientForwardMove(s, c)
       case (Backward, Backward) => transformServerBackwardMoveWithClientBackwardMove(s, c)
@@ -19,7 +19,7 @@ private[ot] object ArrayMoveMoveTF extends OperationTransformationFunction[Array
     }
   }
 
-  def transformTwoForwardMoves(s: ArrayMoveOperation, c: ArrayMoveOperation): (ArrayMoveOperation, ArrayMoveOperation) = {
+  def transformServerForwardMoveWithClientForwardMove(s: ArrayMoveOperation, c: ArrayMoveOperation): (ArrayMoveOperation, ArrayMoveOperation) = {
     ArrayMoveRangeHelper.getRangeRelationship(s, c) match {
       case Precedes =>
         // A-MM-FF-1
@@ -73,8 +73,7 @@ private[ot] object ArrayMoveMoveTF extends OperationTransformationFunction[Array
         (s, c)
       case Meets =>
         // A-MM-FB-3
-        // FIXME Broken
-        (s.copy(toIndex = s.toIndex - 1), c.copy(toIndex = c.toIndex + 1))
+        (s.copy(toIndex = s.toIndex + 1), c.copy(toIndex = c.toIndex - 1))
       case MetBy =>
         // A-MM-FB-4
         (s.copy(fromIndex = c.toIndex), c.copy(noOp = true))
@@ -121,8 +120,7 @@ private[ot] object ArrayMoveMoveTF extends OperationTransformationFunction[Array
         (s.copy(fromIndex = c.toIndex), c.copy(noOp = true))
       case MetBy =>
         // A-MM-BF-4
-        // FIXME Broken
-        (s, c)
+        (s.copy(toIndex  = s.toIndex - 1), c.copy(toIndex = c.toIndex + 1))
       case Overlaps =>
         // A-MM-BF-5
         (s.copy(fromIndex = s.fromIndex - 1), c.copy(fromIndex = c.fromIndex + 1))
