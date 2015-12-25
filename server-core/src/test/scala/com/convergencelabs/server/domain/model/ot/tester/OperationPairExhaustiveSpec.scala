@@ -3,9 +3,9 @@ package com.convergencelabs.server.domain.model.ot
 import scala.collection.mutable.ListBuffer
 import scala.util.Failure
 import scala.util.Success
-import org.scalatest.FunSuite
-import org.scalatest.FunSpec
 import scala.util.Try
+
+import org.scalatest.FunSpec
 
 trait OperationPairExhaustiveSpec[M <: MockModel, S <: DiscreteOperation, C <: DiscreteOperation] extends FunSpec {
 
