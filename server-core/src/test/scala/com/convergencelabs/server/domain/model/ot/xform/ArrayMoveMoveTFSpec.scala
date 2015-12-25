@@ -43,7 +43,7 @@ class ArrayMoveMoveTFSpec
       /**
        * A-MM-FF-3
        */
-      "decrement the server move's toIndex and decrement the client move's fromIndex when the server move meets the client move" in {
+      "decrement the server move's toIndex and decrement the client move's fromIndex, when the server move meets the client move" in {
         val s = ArrayMoveOperation(Path, false, 3, 5)
         val c = ArrayMoveOperation(Path, false, 5, 7)
 
@@ -56,7 +56,7 @@ class ArrayMoveMoveTFSpec
       /**
        * A-MM-FF-4
        */
-      "decrement the server move's fromIndex and decrement the client move's toIndex when the server move is met by the client move" in {
+      "decrement the server move's fromIndex and decrement the client move's toIndex, when the server move is met by the client move" in {
         val s = ArrayMoveOperation(Path, false, 5, 7)
         val c = ArrayMoveOperation(Path, false, 3, 5)
 
@@ -69,7 +69,7 @@ class ArrayMoveMoveTFSpec
       /**
        * A-MM-FF-5
        */
-      "decrement the server move's fromIndex and decrement the client move's toIndex when the server move overlaps the client move" in {
+      "decrement the server move's toIndex and decrement the client move's fromIndex, when the server move overlaps the client move" in {
         val s = ArrayMoveOperation(Path, false, 3, 5)
         val c = ArrayMoveOperation(Path, false, 4, 6)
 
