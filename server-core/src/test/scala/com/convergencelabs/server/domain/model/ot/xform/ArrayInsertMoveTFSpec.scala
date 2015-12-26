@@ -91,7 +91,7 @@ class ArrayInsertMoveTFSpec
        *
        * </pre>
        */
-      "increment the to index of the move and decrement the insert index, if the insert in the middle of the move" in {
+      "increment the toIndex of the move and decrement the insert index, if the insert in the middle of the move" in {
         val s = ArrayInsertOperation(Path, false, 4, JString("X"))
         val c = ArrayMoveOperation(Path, false, 3, 5)
 
@@ -255,7 +255,7 @@ class ArrayInsertMoveTFSpec
        * Original Array  : [A, B, C, D, E, F, G, H, I, J]
        *
        * Server Op       :                 ^                     Insert(5, X)
-       * Client Op       :           ^-->--^                     Move(5, 3)
+       * Client Op       :           ^--<--^                     Move(5, 3)
        *
        * Server State    : [A, B, C, D, E, X, F, G, H, I, J]
        * Client Op'      :           ^---<----^                  Move(3, 6)

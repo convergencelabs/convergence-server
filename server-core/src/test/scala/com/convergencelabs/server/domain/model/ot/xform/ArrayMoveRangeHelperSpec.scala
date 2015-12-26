@@ -10,111 +10,57 @@ class ArrayMoveRangeHelperSpec extends WordSpec with Matchers {
     "determining the range relationship of two move operations" must {
       "return Precedes when the server move precedes the client move" in {
         val c = MoveMoveCase.Precedes
-        ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRelationship.Precedes
+        ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRangeRelationship.Precedes
       }
 
       "return PrecededBy when the server move is preceded by the client move" in {
         val c = MoveMoveCase.PrecededBy
-        ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRelationship.PrecededBy
+        ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRangeRelationship.PrecededBy
       }
 
       "return Meets when the server move meets the client move" in {
         val c = MoveMoveCase.Meets
-        ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRelationship.Meets
+        ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRangeRelationship.Meets
       }
 
       "return MetBy when the server move is met  by the client move" in {
         val c = MoveMoveCase.MetBy
-        ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRelationship.MetBy
+        ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRangeRelationship.MetBy
       }
 
       "return Overlaps when the server move overlaps the client move" in {
         val c = MoveMoveCase.Overlaps
-        ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRelationship.Overlaps
+        ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRangeRelationship.Overlaps
       }
 
       "return OverlappedBy when the server move is overlapped by the client move" in {
         val c = MoveMoveCase.OverlappedBy
-        ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRelationship.OverlappedBy
+        ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRangeRelationship.OverlappedBy
       }
 
       "return Contains when the server move contains the client move" in {
         val c = MoveMoveCase.Contains
-        ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRelationship.Contains
+        ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRangeRelationship.Contains
       }
 
       "return ContainedBy when the server move is contained by the client move" in {
         val c = MoveMoveCase.ContainedBy
-        ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRelationship.ContainedBy
+        ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRangeRelationship.ContainedBy
       }
 
       "return Finishes when the server move finishes the client move" in {
         val c = MoveMoveCase.Finishes
-        ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRelationship.Finishes
+        ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRangeRelationship.Finishes
       }
 
       "return FinishedBy when the server move is finished by the client move" in {
         val c = MoveMoveCase.FinishedBy
-        ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRelationship.FinishedBy
+        ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRangeRelationship.FinishedBy
       }
 
       "return EqualTo when the server move is equal to the client move" in {
         val c = MoveMoveCase.EqualTo
-        ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRelationship.EqualTo
-      }
-    }
-
-    "determining if a range relationship is of a particular type for two move operations" must {
-      "only return true for precedes when the first range precedes the second" in {
-        validateMoveMoveFunction(MoveMoveCase.Precedes, ArrayMoveRangeHelper.precedes, "precedes")
-      }
-
-      "only return true for precededBy when the first range is preceded by the second" in {
-        validateMoveMoveFunction(MoveMoveCase.PrecededBy, ArrayMoveRangeHelper.precededBy, "precededBy")
-      }
-
-      "only return true for meets when the first range meets the second" in {
-        validateMoveMoveFunction(MoveMoveCase.Meets, ArrayMoveRangeHelper.meets, "meets")
-      }
-
-      "only return true for metBy when the first range is met by the second" in {
-        validateMoveMoveFunction(MoveMoveCase.MetBy, ArrayMoveRangeHelper.metBy, "metBy")
-      }
-
-      "only return true for overlaps when the first range overlaps the second" in {
-        validateMoveMoveFunction(MoveMoveCase.Overlaps, ArrayMoveRangeHelper.overlaps, "overlaps")
-      }
-
-      "only return true for overlappedBy when the first range is overlapped by the second" in {
-        validateMoveMoveFunction(MoveMoveCase.OverlappedBy, ArrayMoveRangeHelper.overlappedBy, "overlappedBy")
-      }
-
-      "only return true for contains when the first range contains the second" in {
-        validateMoveMoveFunction(MoveMoveCase.Contains, ArrayMoveRangeHelper.contains, "contains")
-      }
-
-      "only return true for containedBy when the first range is contained by the second" in {
-        validateMoveMoveFunction(MoveMoveCase.ContainedBy, ArrayMoveRangeHelper.containedBy, "containedBy")
-      }
-
-      "only return true for starts when the first range starts the second" in {
-        validateMoveMoveFunction(MoveMoveCase.Starts, ArrayMoveRangeHelper.starts, "starts")
-      }
-
-      "only return true for startedBy when the first range is started by the second" in {
-        validateMoveMoveFunction(MoveMoveCase.StartedBy, ArrayMoveRangeHelper.startedBy, "startedBy")
-      }
-
-      "only return true for finishes when the first range finishes the second" in {
-        validateMoveMoveFunction(MoveMoveCase.Finishes, ArrayMoveRangeHelper.finishes, "finishes")
-      }
-
-      "only return true for finishedBy when the first range is started by the second" in {
-        validateMoveMoveFunction(MoveMoveCase.FinishedBy, ArrayMoveRangeHelper.finishedBy, "finishedBy")
-      }
-
-      "only return true for equalTo when the first range is equal to the second" in {
-        validateMoveMoveFunction(MoveMoveCase.EqualTo, ArrayMoveRangeHelper.equalTo, "equalTo")
+        ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRangeRelationship.EqualTo
       }
     }
 
@@ -229,20 +175,7 @@ class ArrayMoveRangeHelperSpec extends WordSpec with Matchers {
     }
   }
 
-  type MoveMoveFunction = Function2[ArrayMoveOperation, ArrayMoveOperation, Boolean]
-
-  def validateMoveMoveFunction(expected: Case, f: MoveMoveFunction, fName: String): Unit = {
-    MoveMoveCase.cases.foreach {
-      case (n, c) =>
-        if (c == expected && !f(c.op1, c.op2)) {
-          fail(s"Case ${n} should return true for function $fName, but returned false")
-        } else if (c != expected && f(c.op1, c.op2)) {
-          fail(s"Case ${n} should return false for function $fName, but returned true")
-        }
-    }
-  }
-
-  def validateRangeRelationshipType(c: Case, expected: RangeRelationship.Value) {
+  def validateRangeRelationshipType(c: Case, expected: RangeRangeRelationship.Value) {
     ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe expected
   }
 }

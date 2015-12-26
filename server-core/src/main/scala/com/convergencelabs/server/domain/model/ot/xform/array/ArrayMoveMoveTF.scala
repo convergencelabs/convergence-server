@@ -1,6 +1,6 @@
 package com.convergencelabs.server.domain.model.ot
 
-import RangeRelationship._
+import RangeRangeRelationship._
 import MoveDirection._
 
 // scalastyle:off cyclomatic.complexity

@@ -97,6 +97,10 @@ private[ot] object ArrayMoveRangeHelper {
   def indexWithinRange(op: ArrayMoveOperation, index: Long): Boolean = {
     index > getRangeMin(op) && index < getRangeMax(op)
   }
+  
+  def getRangeIndexRelationship(op: ArrayMoveOperation, index: Int): RangeIndexRelationship.Value = {
+    RangeRelationshipUtil.getRangeIndexRelationship(getRangeMin(op), getRangeMax(op), index)
+  }
 
   /**
    * Gets the range relationship of two array move operations.  The evaluation
@@ -108,283 +112,10 @@ private[ot] object ArrayMoveRangeHelper {
    *
    * @return The interval that matched op1 <verb> op2
    */
-  def getRangeRelationship(op1: ArrayMoveOperation, op2: ArrayMoveOperation): RangeRelationship.Value = {
-    if (precedes(op1, op2)) {
-      RangeRelationship.Precedes
-    } else if (precededBy(op1, op2)) {
-      RangeRelationship.PrecededBy
-    } else if (meets(op1, op2)) {
-      RangeRelationship.Meets
-    } else if (metBy(op1, op2)) {
-      RangeRelationship.MetBy
-    } else if (overlaps(op1, op2)) {
-      RangeRelationship.Overlaps
-    } else if (overlappedBy(op1, op2)) {
-      RangeRelationship.OverlappedBy
-    } else if (starts(op1, op2)) {
-      RangeRelationship.Starts
-    } else if (startedBy(op1, op2)) {
-      RangeRelationship.StartedBy
-    } else if (contains(op1, op2)) {
-      RangeRelationship.Contains
-    } else if (containedBy(op1, op2)) {
-      RangeRelationship.ContainedBy
-    } else if (finishes(op1, op2)) {
-      RangeRelationship.Finishes
-    } else if (finishedBy(op1, op2)) {
-      RangeRelationship.FinishedBy
-    } else if (equalTo(op1, op2)) {
-      RangeRelationship.EqualTo
-    } else {
-      throw new IllegalArgumentException("invalid range")
-    }
+  def getRangeRelationship(op1: ArrayMoveOperation, op2: ArrayMoveOperation): RangeRangeRelationship.Value = {
+    RangeRelationshipUtil.getRangeRangeRelationship(getRangeMin(op1), getRangeMax(op1), getRangeMin(op2), getRangeMax(op2))
   }
-
-  /**
-   * Determines if one op 'precedes' another. Note that if either range is an empty range
-   * this method will false. The precedes relationship is depicted below.
-   *
-   * <pre>
-   * op1 ..|..|.......
-   * op2 .......|..|..
-   * </pre>
-   *
-   * @param op1
-   *            The op that is the subject of the verb.
-   * @param op2
-   *            The op that is the object of the verb
-   * @return True if op1 precedes op2, false otherwise.
-   */
-  def precedes(op1: ArrayMoveOperation, op2: ArrayMoveOperation): Boolean = {
-    getRangeMax(op1) < getRangeMin(op2)
-  }
-
-  /**
-   * Determines if one op is 'preceded by' another. Note that if either range is an empty
-   * range this method will false. The preceded by relationship is depicted below.
-   *
-   * <pre>
-   * op1 .......|..|..
-   * op2 ..|..|.......
-   * </pre>
-   *
-   * @param op1
-   *            The op that is the subject of the verb.
-   * @param op2
-   *            The op that is the object of the verb
-   * @return True if op1 is preceded by op2, false otherwise.
-   */
-  def precededBy(op1: ArrayMoveOperation, op2: ArrayMoveOperation): Boolean = {
-    getRangeMax(op2) < getRangeMin(op1)
-  }
-
-  /**
-   * Determines if one op 'meets' another. Note that if either range is an empty range this
-   * method will false. The meets relationship is depicted below.
-   *
-   * <pre>
-   * op1 ..|...|......
-   * op2 ......|...|..
-   * </pre>
-   *
-   * @param op1
-   *            The op that is the subject of the verb.
-   * @param op2
-   *            The op that is the object of the verb
-   * @return True if op1 meets op2, false otherwise.
-   */
-  def meets(op1: ArrayMoveOperation, op2: ArrayMoveOperation): Boolean = {
-    getRangeMax(op1) == getRangeMin(op2)
-  }
-
-  /**
-   * Determines if one op is 'met by' another. Note that if either range is an empty range
-   * this method will false. The met by relationship is depicted below.
-   *
-   * <pre>
-   * op1 ......|...|..
-   * op2 ..|...|......
-   * </pre>
-   *
-   * @param op1
-   *            The op that is the subject of the verb.
-   * @param op2
-   *            The op that is the object of the verb
-   * @return True if op1 is met by op2, false otherwise.
-   */
-  def metBy(op1: ArrayMoveOperation, op2: ArrayMoveOperation): Boolean = {
-    getRangeMin(op1) == getRangeMax(op2)
-  }
-
-  /**
-   * Determines if one op 'overlaps' another. Note that if either range is an empty range
-   * this method will false. The overlaps relationship is depicted below.
-   *
-   * <pre>
-   * op1 ..|...|......
-   * op2 ....|...|....
-   * </pre>
-   *
-   * @param op1
-   *            The op that is the subject of the verb.
-   * @param op2
-   *            The op that is the object of the verb
-   * @return True if op1 is overlaps op2, false otherwise.
-   */
-  def overlaps(op1: ArrayMoveOperation, op2: ArrayMoveOperation): Boolean = {
-    indexBeforeRange(op2, getRangeMin(op1)) && indexWithinRange(op2, getRangeMax(op1))
-  }
-
-  /**
-   * Determines if one op is 'overlapped by' another. Note that if either range is an empty
-   * range this method will false. The overlapped by relationship is depicted below.
-   *
-   * <pre>
-   * op1 ....|...|....
-   * op2 ..|...|......
-   * </pre>
-   *
-   * @param op1
-   *            The op that is the subject of the verb.
-   * @param op2
-   *            The op that is the object of the verb
-   * @return True if op1 is overlapped by op2, false otherwise.
-   */
-  def overlappedBy(op1: ArrayMoveOperation, op2: ArrayMoveOperation): Boolean = {
-    indexBeforeRange(op1, getRangeMin(op2)) && indexWithinRange(op1, getRangeMax(op2))
-  }
-
-  /**
-   * Determines if one op 'starts' another. Note that if either range is an empty range
-   * this method will false. The starts by relationship is depicted below.
-   *
-   * <pre>
-   * op1 ..|..|......
-   * op2 ..|....|....
-   * </pre>
-   *
-   * @param op1
-   *            The op that is the subject of the verb.
-   * @param op2
-   *            The op that is the object of the verb
-   * @return True if op1 starts op2, false otherwise.
-   */
-  def starts(op1: ArrayMoveOperation, op2: ArrayMoveOperation): Boolean = {
-    getRangeMin(op1) == getRangeMin(op2) && getRangeMax(op2) > getRangeMax(op1)
-  }
-
-  /**
-   * Determines if one op is 'started by' another. Note that if either range is an empty
-   * range this method will false. The overlaps by relationship is depicted below.
-   *
-   * <pre>
-   * op1 ..|....|....
-   * op2 ..|..|......
-   * </pre>
-   *
-   * @param op1
-   *            The op that is the subject of the verb.
-   * @param op2
-   *            The op that is the object of the verb
-   * @return True if op1 is started by op2, false otherwise.
-   */
-  def startedBy(op1: ArrayMoveOperation, op2: ArrayMoveOperation): Boolean = {
-    getRangeMin(op1) == getRangeMin(op2) && getRangeMax(op1) > getRangeMax(op2)
-  }
-
-  /**
-   * Determines if one op 'equals' another. The equals relationship is depicted below.
-   *
-   * <pre>
-   * op1 ..|...|....
-   * op2 ..|...|....
-   * </pre>
-   *
-   * @param op1
-   *            The op that is the subject of the verb.
-   * @param op2
-   *            The op that is the object of the verb
-   * @return True if op1 is started by op2.
-   */
-  def equalTo(op1: ArrayMoveOperation, op2: ArrayMoveOperation): Boolean = {
-    getRangeMin(op1) == getRangeMin(op2) && getRangeMax(op1) == getRangeMax(op2)
-  }
-
-  /**
-   * Determines if one op 'contains' another. The contains relationship is depicted below.
-   *
-   * <pre>
-   * op1 ...|....|....
-   * op2 ....|..|.....
-   * </pre>
-   *
-   * @param op1
-   *            The op that is the subject of the verb.
-   * @param op2
-   *            The op that is the object of the verb
-   * @return True if op1 contains op2.
-   */
-  def contains(op1: ArrayMoveOperation, op2: ArrayMoveOperation): Boolean = {
-    indexWithinRange(op1, getRangeMin(op2)) && indexWithinRange(op1, getRangeMax(op2))
-  }
-
-  /**
-   * Determines if one op is 'contained by' another. The contained by relationship is
-   * depicted below.
-   *
-   * <pre>
-   * op1 ....|..|......
-   * op2 ...|....|.....
-   * </pre>
-   *
-   * @param op1
-   *            The op that is the subject of the verb.
-   * @param op2
-   *            The op that is the object of the verb
-   * @return True if op1 is contained by op2, false otherwise.
-   */
-  def containedBy(op1: ArrayMoveOperation, op2: ArrayMoveOperation): Boolean = {
-    indexWithinRange(op2, getRangeMin(op1)) && indexWithinRange(op2, getRangeMax(op1))
-  }
-
-  /**
-   * Determines if one op 'finishes' another. Note that if either range is an empty range
-   * this method will false. The starts by relationship is depicted below.
-   *
-   * <pre>
-   * op1 ....|..|....
-   * op2 ..|....|....
-   * </pre>
-   *
-   * @param op1
-   *            The op that is the subject of the verb.
-   * @param op2
-   *            The op that is the object of the verb
-   * @return True if op1 finishes op2, false otherwise.
-   */
-  def finishes(op1: ArrayMoveOperation, op2: ArrayMoveOperation): Boolean = {
-    getRangeMax(op1) == getRangeMax(op2) && getRangeMin(op2) < getRangeMin(op1)
-  }
-
-  /**
-   * Determines if one op is 'finished by' another. Note that if either range is an empty
-   * range this method will false. The starts by relationship is depicted below.
-   *
-   * <pre>
-   * op1 ..|....|....
-   * op2 ....|..|....
-   * </pre>
-   *
-   * @param op1
-   *            The op that is the subject of the verb.
-   * @param op2
-   *            The op that is the object of the verb
-   * @return True if op1 finished by op2, false otherwise.
-   */
-  def finishedBy(op1: ArrayMoveOperation, op2: ArrayMoveOperation): Boolean = {
-    getRangeMax(op1) == getRangeMax(op2) && getRangeMin(op1) < getRangeMin(op2)
-  }
-
+  
   /**
    * Returns the lesser of the fromIndex and the toIndex of the ArrayMoveOperation
    *
@@ -392,7 +123,7 @@ private[ot] object ArrayMoveRangeHelper {
    *            The op to get the minimum index for
    * @return min(fromIndex, toIndex)
    */
-  def getRangeMin(op: ArrayMoveOperation): Long = {
+  def getRangeMin(op: ArrayMoveOperation): Int = {
     Math.min(op.fromIndex, op.toIndex)
   }
 
@@ -403,15 +134,11 @@ private[ot] object ArrayMoveRangeHelper {
    *            The op to get the minimum index for
    * @return max(fromIndex, toIndex)
    */
-  def getRangeMax(op: ArrayMoveOperation): Long = {
+  def getRangeMax(op: ArrayMoveOperation): Int = {
     Math.max(op.fromIndex, op.toIndex)
   }
 }
 
 object MoveDirection extends Enumeration {
   val Forward, Backward, Identity = Value
-}
-
-object RangeRelationship extends Enumeration {
-  val Precedes, PrecededBy, Meets, MetBy, Overlaps, OverlappedBy, Starts, StartedBy, Contains, ContainedBy, Finishes, FinishedBy, EqualTo = Value
 }
