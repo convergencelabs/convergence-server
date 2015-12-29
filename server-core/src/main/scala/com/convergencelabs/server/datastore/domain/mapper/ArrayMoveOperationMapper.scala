@@ -44,7 +44,7 @@ object ArrayMoveOperationMapper extends ODocumentMapper {
   private[domain] object Fields {
     val Path = "path"
     val NoOp = "noOp"
-    val From = "from"
-    val To = "to"
+    val From = "fromIdx"
+    val To = "toIdx"
   }
 }

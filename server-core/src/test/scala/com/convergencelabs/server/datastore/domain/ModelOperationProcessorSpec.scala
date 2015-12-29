@@ -3,11 +3,12 @@ package com.convergencelabs.server.datastore.domain
 import java.time.Instant
 import scala.math.BigInt.int2bigInt
 import org.json4s.JsonAST.JArray
+import org.json4s.JsonAST.JBool
 import org.json4s.JsonAST.JInt
+import org.json4s.JsonAST.JNothing
 import org.json4s.JsonAST.JObject
 import org.json4s.JsonAST.JString
 import org.json4s.jvalue2monadic
-import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.OptionValues
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
@@ -15,23 +16,22 @@ import org.scalatest.WordSpecLike
 import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelOperation
 import com.convergencelabs.server.domain.model.ot.ArrayInsertOperation
+import com.convergencelabs.server.domain.model.ot.ArrayMoveOperation
 import com.convergencelabs.server.domain.model.ot.ArrayRemoveOperation
 import com.convergencelabs.server.domain.model.ot.ArrayReplaceOperation
+import com.convergencelabs.server.domain.model.ot.ArraySetOperation
+import com.convergencelabs.server.domain.model.ot.BooleanSetOperation
+import com.convergencelabs.server.domain.model.ot.NumberAddOperation
+import com.convergencelabs.server.domain.model.ot.NumberSetOperation
+import com.convergencelabs.server.domain.model.ot.ObjectAddPropertyOperation
+import com.convergencelabs.server.domain.model.ot.ObjectRemovePropertyOperation
+import com.convergencelabs.server.domain.model.ot.ObjectSetOperation
+import com.convergencelabs.server.domain.model.ot.ObjectSetPropertyOperation
 import com.convergencelabs.server.domain.model.ot.StringInsertOperation
 import com.convergencelabs.server.domain.model.ot.StringRemoveOperation
 import com.convergencelabs.server.domain.model.ot.StringSetOperation
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import com.convergencelabs.server.domain.model.ot.ObjectAddPropertyOperation
-import org.json4s.JsonAST.JString
-import com.convergencelabs.server.domain.model.ot.ObjectSetPropertyOperation
-import com.convergencelabs.server.domain.model.ot.ObjectRemovePropertyOperation
-import com.convergencelabs.server.domain.model.ot.ObjectSetOperation
-import com.convergencelabs.server.domain.model.ot.NumberAddOperation
-import org.json4s.JsonAST.JInt
-import org.json4s.JsonAST.JNothing
-import com.convergencelabs.server.domain.model.ot.NumberSetOperation
-import org.json4s.JsonAST.JBool
-import com.convergencelabs.server.domain.model.ot.BooleanSetOperation
+import com.convergencelabs.server.domain.model.ot.CompoundOperation
 
 class ModelOperationProcessorSpec
     extends PersistenceStoreSpec[(ModelOperationProcessor, ModelOperationStore, ModelStore)]("/dbfiles/domain.json.gz")
@@ -57,7 +57,55 @@ class ModelOperationProcessorSpec
       new ModelStore(dbPool))
 
   "A ModelOperationProcessor" when {
+    "calculating the orient path" must {
+      "prepend 'data' and properly add all fields" in {
+        val path = ModelOperationProcessor.toOrientPath(List(1, "foo", 2, "bar"))
+        path shouldBe "data[1].foo[2].bar"
+      }
+    }
+    
+    "applying a noOp'ed discrete operation" must {
+      "not apply the operation" in withPersistenceStore { stores =>
+        val (processor, opStore, modelStore) = stores
 
+        val op = StringInsertOperation(List(fnameField), true, 0, "abc")
+        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
+        val response = processor.processModelOperation(modelOp).success
+        val modelData = modelStore.getModelData(modelFqn).success.value.value
+        modelData \ fnameField shouldBe JString("john")
+      }
+    }
+    
+    "applying a compound operation" must {
+      "apply all operations in the compound operation" in withPersistenceStore { stores =>
+        val (processor, opStore, modelStore) = stores
+
+        val op1 = StringInsertOperation(List(fnameField), false, 0, "x")
+        val op2 = StringInsertOperation(List(fnameField), false, 1, "y")
+        
+        val compound = CompoundOperation(List(op1, op2))
+        
+        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, compound)
+        val response = processor.processModelOperation(modelOp).success
+        val modelData = modelStore.getModelData(modelFqn).success.value.value
+        modelData \ fnameField shouldBe JString("xyjohn")
+      }
+      
+      "not apply noOp'ed operations in the compound operation" in withPersistenceStore { stores =>
+        val (processor, opStore, modelStore) = stores
+
+        val op1 = StringInsertOperation(List(fnameField), false, 0, "x")
+        val op2 = StringInsertOperation(List(fnameField), true, 1, "y")
+        
+        val compound = CompoundOperation(List(op1, op2))
+        
+        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, compound)
+        val response = processor.processModelOperation(modelOp).success
+        val modelData = modelStore.getModelData(modelFqn).success.value.value
+        modelData \ fnameField shouldBe JString("xjohn")
+      }
+    }
+    
     "applying string operations" must {
       "correctly update the model on StringInsert" in withPersistenceStore { stores =>
         val (processor, opStore, modelStore) = stores
@@ -92,6 +140,7 @@ class ModelOperationProcessorSpec
         modelData \ fnameField shouldBe JString("new string")
       }
     }
+
     "applying array operations" must {
       "correctly update the model on ArrayInsert" in withPersistenceStore { stores =>
         val (processor, opStore, modelStore) = stores
@@ -145,11 +194,30 @@ class ModelOperationProcessorSpec
       }
 
       "correctly update the model on ArrayMove" in withPersistenceStore { stores =>
+        val (processor, opStore, modelStore) = stores
 
+        val op = ArrayMoveOperation(List(emailsField), false, 0, 2)
+        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
+        processor.processModelOperation(modelOp).success
+
+        val modelData = modelStore.getModelData(modelFqn).success.value.value
+        (modelData \ emailsField) shouldBe JArray(List(
+            JString("second@email.com"),
+            JString("another@email.com"),
+            JString("first@email.com")
+            ))
       }
 
       "correctly update the model on ArraySet" in withPersistenceStore { stores =>
+        val (processor, opStore, modelStore) = stores
 
+        val setValue = JArray(List(JString("someValue"), JString("someOtherVale")))
+        val op = ArraySetOperation(List(emailsField), false, setValue)
+        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
+        processor.processModelOperation(modelOp).success
+
+        val modelData = modelStore.getModelData(modelFqn).success.value.value
+        (modelData \ emailsField) shouldBe setValue
       }
     }
 

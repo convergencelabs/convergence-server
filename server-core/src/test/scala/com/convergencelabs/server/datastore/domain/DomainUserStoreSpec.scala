@@ -172,7 +172,7 @@ class DomainUserStoreSpec
     
     "setting a users password" must {
       "correctly set the password" in withPersistenceStore { store =>
-        val password = "somePassword"
+        val password = "newPasswordToSet"
         store.setDomainUserPassword(User1.username, password).success
         store.validateCredentials(User1.username, password).success.get shouldBe (true, Some("u1"))
       }
