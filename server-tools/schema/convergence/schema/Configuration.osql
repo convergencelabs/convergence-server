@@ -1,12 +1,12 @@
 CREATE CLASS Configuration;
 
-#Configuration.configKey
+#Configuration.key
 CREATE Property Configuration.key STRING;
 ALTER PROPERTY Configuration.key MANDATORY true;
 ALTER PROPERTY Configuration.key NOTNULL true;
 
-#Configuration.configValue
-CREATE Property Configuration.value EMBEDDED;
+#Configuration.value
+CREATE Property Configuration.value ANY;
 ALTER PROPERTY Configuration.value MANDATORY true;
 ALTER PROPERTY Configuration.value NOTNULL true;
 

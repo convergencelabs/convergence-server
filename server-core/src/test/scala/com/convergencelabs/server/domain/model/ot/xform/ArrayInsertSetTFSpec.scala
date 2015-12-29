@@ -26,7 +26,7 @@ class ArrayInsertSetTFSpec
 
         val (s1, c1) = ArrayInsertSetTF.transform(s, c)
 
-        s1 shouldBe ArrayInsertOperation(Path, true, 2, JString("X"))
+        s1 shouldBe ArrayInsertOperation(Path, true, 4, JString("X"))
         c1 shouldBe c
       }
     }

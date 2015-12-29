@@ -46,6 +46,11 @@ class OperationsSpec extends FunSuite with Matchers {
     val original = ArraySetOperation(List(), false, JArray(List(JInt(1))))
     original.clone(List(2), true) shouldBe ArraySetOperation(List(2), true, JArray(List(JInt(1))))
   }
+  
+  test("ArrayMoveOperation must preserve other fields when setting noOp and path") {
+    val original = ArrayMoveOperation(List(), false, 1, 2)
+    original.clone(List(2), true) shouldBe ArrayMoveOperation(List(2), true, 1, 2)
+  }
 
   // Object Operations
 
