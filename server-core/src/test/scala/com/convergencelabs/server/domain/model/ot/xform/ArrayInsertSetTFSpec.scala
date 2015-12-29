@@ -12,20 +12,21 @@ class ArrayInsertSetTFSpec
     with Matchers {
 
   val Path = List(1, 2)
-  val ClientVal = JArray(List(JString("x")))
-  val ServerVal = JString("y")
 
   "A ArrayInsertSetTF" when {
 
-    "tranforming a server insert against a client remove " must {
+    "tranforming a server insert against a client set " must {
 
-      "noOp the server's operation and not transform the client's" in {
-        val s = ArrayInsertOperation(Path, false, 2, ServerVal)
-        val c = ArraySetOperation(Path, false, ClientVal)
+      /**
+       * A-IS-1
+       */
+      "noOp the server's insert and not transform the client's set" in {
+        val s = ArrayInsertOperation(Path, false, 4, JString("X"))
+        val c = ArraySetOperation(Path, false, JArray(List(JString("Y"))))
 
         val (s1, c1) = ArrayInsertSetTF.transform(s, c)
 
-        s1 shouldBe ArrayInsertOperation(Path, true, 2, ServerVal)
+        s1 shouldBe ArrayInsertOperation(Path, true, 2, JString("X"))
         c1 shouldBe c
       }
     }
