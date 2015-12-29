@@ -135,6 +135,13 @@ class DomainUserStoreSpec
       "throw exception if user does not exist" in withPersistenceStore { store =>
         store.updateDomainUser(User10).failed.get shouldBe a[IllegalArgumentException]
       }
+      
+      "currectly update an existing user, if unique properties are not violoated" in withPersistenceStore { store =>
+        val updated = DomainUser(User1.uid, User1.username, Some("f"), Some("l"), Some("e"))
+        store.updateDomainUser(updated).success
+        val queried = store.getDomainUserByUsername(User1.username).success.value.get
+        queried shouldBe updated
+      }
     }
 
     "retreiving all users" must {
@@ -162,6 +169,7 @@ class DomainUserStoreSpec
         store.domainUserExists("DoesNotExist").success.get shouldBe false
       }
     }
+    
     "setting a users password" must {
       "correctly set the password" in withPersistenceStore { store =>
         val password = "somePassword"
@@ -171,6 +179,20 @@ class DomainUserStoreSpec
 
       "throw exception if user does not exist" in withPersistenceStore { store =>
         store.setDomainUserPassword("DoesNotExist", "doesn't matter").failed.get shouldBe a[IllegalArgumentException]
+      }
+    }
+    
+    "validating credentials" must {
+      "return true and a uid for a vaid usename and passwordr" in withPersistenceStore { store =>
+        store.validateCredentials(User1.username, "password").success.value shouldBe (true, Some("u1"))
+      }
+      
+      "return false and None for an valid username and invalid password" in withPersistenceStore { store =>
+        store.validateCredentials(User1.username, "wrong").success.value shouldBe (false, None)
+      }
+      
+       "return false and None for an invalid username" in withPersistenceStore { store =>
+        store.validateCredentials("no one", "p").success.value shouldBe (false, None)
       }
     }
   }

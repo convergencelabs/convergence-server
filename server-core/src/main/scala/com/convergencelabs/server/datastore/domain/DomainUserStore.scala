@@ -99,13 +99,13 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     val params = Map(Uid -> domainUser.uid)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
-    result.asScala.toList match {
-      case doc :: Nil => {
+    QueryUtil.enforceSingletonResultList(result) match {
+      case Some(doc) =>
         doc.merge(updatedDoc, false, false)
         db.save(doc)
         Unit
-      }
-      case _ => throw new IllegalArgumentException("User not found")
+      case None =>
+        throw new IllegalArgumentException("User not found")
     }
   }
 
@@ -244,13 +244,12 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     val params = Map(Username -> username)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
-    result.asScala.toList match {
-      case doc :: Nil => {
+    QueryUtil.enforceSingletonResultList(result) match {
+      case Some(doc) =>
         doc.field(Password, PasswordUtil.hashPassword(password))
         db.save(doc)
         Unit
-      }
-      case _ => throw new IllegalArgumentException("User not found when setting password.")
+      case None => throw new IllegalArgumentException("User not found when setting password.")
     }
   }
 
@@ -267,8 +266,8 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     val params = Map(Username -> username)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
-    result.asScala.toList match {
-      case doc :: Nil => {
+    QueryUtil.enforceSingletonResultList(result) match {
+      case Some(doc) =>
         val pwhash: String = doc.field(Password)
         PasswordUtil.checkPassword(password, pwhash) match {
           case true => {
@@ -277,8 +276,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
           }
           case false => (false, None)
         }
-      }
-      case _ => (false, None)
+      case None => (false, None)
     }
   }
 }
