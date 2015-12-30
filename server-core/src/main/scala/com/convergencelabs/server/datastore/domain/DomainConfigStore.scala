@@ -1,5 +1,6 @@
 package com.convergencelabs.server.datastore.domain
 
+import java.util.Collections
 import java.util.{ List => JavaList }
 
 import scala.collection.JavaConversions.asScalaBuffer
@@ -17,6 +18,7 @@ import com.convergencelabs.server.domain.TokenPublicKey
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
+import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 
 import grizzled.slf4j.Logging
@@ -30,17 +32,31 @@ class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
     val query = new OSQLSynchQuery[ODocument](queryString)
     val result: JavaList[ODocument] = db.command(query).execute()
     QueryUtil.mapSingletonList(result) { doc =>
-      val modelDoc: ODocument = doc.field("modelSnapshotConfig", OType.EMBEDDED)
-     modelDoc.asModelSnapshotConfig
+      val configDoc: ODocument = doc.field("modelSnapshotConfig", OType.EMBEDDED)
+      configDoc.asModelSnapshotConfig
     }.get
   }
 
   def setModelSnapshotConfig(modelSnapshotConfig: ModelSnapshotConfig): Try[Unit] = tryWithDb { db =>
-    val queryString = "UPDATE DomainConfig SET modelSnapshotConfig = :modelSnapshotConfig"
+    // TODO why doesn't this work??
+    //    val updateString = "UPDATE DomainConfig SET modelSnapshotConfig = :modelSnapshotConfig"
+    //    val query = new OCommandSQL(updateString)
+    //    val params = Map("modelSnapshotConfig" -> modelSnapshotConfig.asODocument)
+    //    val updated: Int = db.command(query).execute(params.asJava)
+    //    require(updated == 1)
+    //    Unit
+    val queryString = "SELECT FROM DomainConfig"
     val query = new OSQLSynchQuery[ODocument](queryString)
-    val params = Map("modelSnapshotConfig" -> modelSnapshotConfig.asODocument)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    Unit
+    val result: JavaList[ODocument] = db.command(query).execute()
+    QueryUtil.enforceSingletonResultList(result) match {
+      case Some(doc) =>
+        val configDoc = modelSnapshotConfig.asODocument
+        doc.field("modelSnapshotConfig", configDoc)
+        doc.save()
+        Unit
+      case None =>
+        throw new IllegalStateException("DomainConfig not found")
+    }
   }
 
   def getAdminKeyPair(): Try[TokenKeyPair] = tryWithDb { db =>
@@ -55,16 +71,17 @@ class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
     }.get
   }
 
-  // FIXME we need an add and remove key.
+  // FIXME we need an add and remove tokenKey.
+
   def getTokenKey(keyId: String): Try[Option[TokenPublicKey]] = tryWithDb { db =>
-    val queryString = "SELECT tokenKeys[id = :keyId].asList() FROM DomainConfig"
+    val queryString = "SELECT tokenKeys[id = :keyId] FROM DomainConfig"
     val query = new OSQLSynchQuery[ODocument](queryString)
     val params = Map("keyId" -> keyId)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
     QueryUtil.mapSingletonListToOption(result) { doc =>
-      val keysList: java.util.List[ODocument] = doc.field("keys", OType.EMBEDDEDLIST)
-      QueryUtil.mapSingletonList(keysList) { _.asTokenPublicKey }
+      val keys: JavaList[ODocument] = Collections.singletonList(doc.field("tokenKeys"))
+      QueryUtil.mapSingletonList(keys) { _.asTokenPublicKey }
     }
   }
 
