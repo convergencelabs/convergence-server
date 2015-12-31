@@ -42,7 +42,7 @@ object ModelMapper extends ODocumentMapper {
     val modelData: JavaMap[String, Any] = doc.field("data", OType.EMBEDDEDMAP)
     Model(oDocumentToModelMetaData(doc), JValueMapper.javaToJValue(modelData))
   }
-
+  
   private[domain] implicit class ODocumentToModelMetaData(val d: ODocument) extends AnyVal {
     def asModelMetaData: ModelMetaData = oDocumentToModelMetaData(d)
   }
@@ -59,6 +59,7 @@ object ModelMapper extends ODocumentMapper {
       createdTime.toInstant(),
       modifiedTime.toInstant())
   }
+  
 
   private[domain] val DocumentClassName = "Model"
 

@@ -57,12 +57,6 @@ class ModelOperationProcessorSpec
       new ModelStore(dbPool))
 
   "A ModelOperationProcessor" when {
-    "calculating the orient path" must {
-      "prepend 'data' and properly add all fields" in {
-        val path = ModelOperationProcessor.toOrientPath(List(1, "foo", 2, "bar"))
-        path shouldBe "data[1].foo[2].bar"
-      }
-    }
     
     "applying a noOp'ed discrete operation" must {
       "not apply the operation" in withPersistenceStore { stores =>

@@ -161,5 +161,48 @@ class ModelSnapshotStoreSpec
         snapshotData.value.metaData.version shouldBe p1Snapshot20Version
       }
     }
+    
+    "when removing a single snapshot by model and version" must {
+      "remove the specified snapshot and no others" in withPersistenceStore { store =>
+        store.getSnapshot(person1ModelFqn, 0L).success.value shouldBe defined
+        store.removeSnapshot(person1ModelFqn, 0L)
+        store.getSnapshot(person1ModelFqn, 0L).success.value shouldBe None
+        
+        // Ensure no others were deleted from the desired model
+        val person1MetaData = store.getSnapshotMetaDataForModel(person1ModelFqn, None, None).success.value
+        person1MetaData.length shouldBe 2
+        
+        person1MetaData(0).version shouldBe p1Snapshot10Version
+        person1MetaData(1).version shouldBe p1Snapshot20Version
+        
+        // Ensure no others were deleted from the other model
+        val person2MetaData = store.getSnapshotMetaDataForModel(person2ModelFqn, None, None).success.value
+        person2MetaData.length shouldBe 1
+      }
+    }
+    
+    "when removing all snapshots by model and version" must {
+      "remove the snapshots for the specified model and no others" in withPersistenceStore { store =>
+        store.getSnapshotMetaDataForModel(person1ModelFqn, None, None).success.value.length shouldBe 3
+        store.removeAllSnapshotsForModel(person1ModelFqn)
+        store.getSnapshotMetaDataForModel(person1ModelFqn, None, None).success.value.length shouldBe 0
+        
+        // Ensure no others were deleted from the other model
+        store.getSnapshotMetaDataForModel(person2ModelFqn, None, None).success.value.length shouldBe 1
+      }
+    }
+    
+    "when removing all snapshots" must {
+      "remove all snapshots for all models in a collection" in withPersistenceStore { store =>
+        store.getSnapshotMetaDataForModel(person1ModelFqn, None, None).success.value.length shouldBe 3
+        store.getSnapshotMetaDataForModel(person2ModelFqn, None, None).success.value.length shouldBe 1
+        
+        store.removeAllSnapshotsForCollection(person1ModelFqn.collectionId)
+   
+        store.getSnapshotMetaDataForModel(person1ModelFqn, None, None).success.value.length shouldBe 0
+        store.getSnapshotMetaDataForModel(person2ModelFqn, None, None).success.value.length shouldBe 0
+        
+      }
+    }
   }
 }

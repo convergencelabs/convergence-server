@@ -32,23 +32,10 @@ import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 
 object ModelStore {
-
   private val Data = "data"
   private val CollectionId = "collectionId"
   private val ModelId = "modelId"
   private val Version = "version"
-
-  private[domain] def toOrientPath(path: List[Any]): String = {
-    val pathBuilder = new StringBuilder();
-    pathBuilder.append(Data);
-    path.foreach { p =>
-      p match {
-        case p: Int => pathBuilder.append("[").append(p).append("]")
-        case p: String => pathBuilder.append(".").append(p)
-      }
-    }
-    pathBuilder.toString();
-  }
 }
 
 class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
@@ -151,7 +138,7 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
   }
 
   def getModelFieldDataType(fqn: ModelFqn, path: List[Any]): Try[Option[DataType.Value]] = tryWithDb { db =>
-    val pathString = ModelStore.toOrientPath(path)
+    val pathString = OrientPathUtil.toOrientPath(path)
     val query = new OSQLSynchQuery[ODocument](s"SELECT $pathString FROM Model WHERE collectionId = :collectionId AND modelId = :modelId")
     val params = Map(ModelStore.CollectionId -> fqn.collectionId, ModelStore.ModelId -> fqn.modelId)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)

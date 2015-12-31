@@ -23,6 +23,7 @@ class OperationMapperSpec extends WordSpec with Matchers {
      ArrayInsertOperation(Path, NoOp, 1, JVal),
      ArrayRemoveOperation(Path, NoOp, 1),
      ArrayReplaceOperation(Path, NoOp, 1, JVal),
+     ArrayMoveOperation(Path, NoOp, 1, 2),
      ArraySetOperation(Path, NoOp, JArray(List(JVal))),
      
      StringInsertOperation(Path, NoOp, 1, "x"),
@@ -32,7 +33,9 @@ class OperationMapperSpec extends WordSpec with Matchers {
      NumberSetOperation(Path, NoOp, JVal),
      NumberAddOperation(Path, NoOp, JVal),
      
-     BooleanSetOperation(Path, NoOp, true)
+     BooleanSetOperation(Path, NoOp, true),
+     
+     CompoundOperation(List(NumberSetOperation(Path, NoOp, JVal)))
   )
   
   "An OperationMapper" when { 

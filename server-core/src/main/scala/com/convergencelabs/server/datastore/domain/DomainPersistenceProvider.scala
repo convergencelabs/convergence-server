@@ -5,8 +5,9 @@ import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import scala.util.Try
 import scala.util.Success
 import scala.util.Failure
+import com.convergencelabs.server.datastore.AbstractPersistenceProvider
 
-class DomainPersistenceProvider(private[domain] val dbPool: OPartitionedDatabasePool) {
+class DomainPersistenceProvider(private[this] val dbPool: OPartitionedDatabasePool) extends AbstractPersistenceProvider(dbPool)  {
 
   val userStore = new DomainUserStore(dbPool)
 
@@ -19,11 +20,4 @@ class DomainPersistenceProvider(private[domain] val dbPool: OPartitionedDatabase
   val modelOperationProcessor = new ModelOperationProcessor(dbPool)
 
   val modelSnapshotStore = new ModelSnapshotStore(dbPool)
-
-  def validateConnection(): Boolean = {
-    Try[Unit](dbPool.acquire().close()) match {
-      case Success(_) => true
-      case Failure(_) => false
-    }
-  }
 }

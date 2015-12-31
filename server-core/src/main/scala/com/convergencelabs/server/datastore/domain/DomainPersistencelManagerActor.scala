@@ -176,7 +176,7 @@ class DomainPersistenceManagerActor(
         log.warning(s"Shutting down persistence provider: ${domainFqn}")
         providers = providers - domainFqn
         refernceCounts = refernceCounts - domainFqn
-        provider.dbPool.close()
+        provider.shutdown()
       }
       case None => {
         log.warning(s"Attempted to shutdown a persistence provider that was not open: ${domainFqn}")

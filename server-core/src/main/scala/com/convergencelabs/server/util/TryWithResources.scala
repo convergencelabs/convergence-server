@@ -25,16 +25,14 @@ class TryWithResource[A <: AutoCloseable](r: => A) {
   private def tryWithResource[B](block: A => B): Try[B] = {
     // This outer try catches the case where we can't get the resource
     // and returns a Failure with the exception.
-    var result: Try[B] = null
     try {
       val resource: A = r
       // Once the resource is resolved, then actually try
       // the code block that was passed in.
-      result = tryWithResolvedResoruce(resource, block)
+      tryWithResolvedResoruce(resource, block)
     } catch {
-      case NonFatal(e) => result = Failure(e)
+      case NonFatal(e) => Failure(e)
     }
-    result
   }
 
   /**

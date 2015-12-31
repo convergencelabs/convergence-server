@@ -32,27 +32,9 @@ import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import mapper.ModelOperationMapper.ModelOperationToODocument
 import com.convergencelabs.server.domain.model.ot.BooleanSetOperation
-import com.convergencelabs.server.datastore.domain.ModelOperationProcessor.toOrientPath
-import com.convergencelabs.server.datastore.domain.ModelOperationProcessor.appendToPath
+import com.convergencelabs.server.datastore.domain.OrientPathUtil.toOrientPath
+import com.convergencelabs.server.datastore.domain.OrientPathUtil.appendToPath
 import com.convergencelabs.server.domain.model.ot.DiscreteOperation
-
-object ModelOperationProcessor {
-  def toOrientPath(path: List[Any]): String = {
-    val pathBuilder = new StringBuilder()
-    pathBuilder.append(mapper.ModelOperationMapper.Fields.Data)
-    path.foreach { p =>
-      p match {
-        case p: Int    => pathBuilder.append(s"[$p]")
-        case p: String => pathBuilder.append(s".$p")
-      }
-    }
-    pathBuilder.toString()
-  }
-
-  def appendToPath(path: String, property: String): String = {
-    s"$path.$property"
-  }
-}
 
 class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     extends AbstractDatabasePersistence(dbPool) {
