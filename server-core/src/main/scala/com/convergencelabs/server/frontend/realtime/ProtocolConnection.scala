@@ -2,31 +2,25 @@ package com.convergencelabs.server.frontend.realtime
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+
+import scala.annotation.implicitNotFound
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.FiniteDuration
+import scala.util.Failure
+import scala.util.Success
+
 import org.json4s.NoTypeHints
 import org.json4s.jackson.Serialization
+
 import com.convergencelabs.server.ProtocolConfiguration
-import com.convergencelabs.server.frontend.realtime.proto.ErrorMessage
-import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolMessage
-import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolNormalMessage
-import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolResponseMessage
-import com.convergencelabs.server.frontend.realtime.proto.MessageEnvelope
-import com.convergencelabs.server.frontend.realtime.proto.MessageSerializer
-import com.convergencelabs.server.frontend.realtime.proto.OpCode
-import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolNormalMessage
-import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolResponseMessage
-import com.convergencelabs.server.frontend.realtime.proto.ProtocolMessage
 import com.convergencelabs.server.util.concurrent.UnexpectedErrorException
+
 import akka.actor.Cancellable
 import akka.actor.Scheduler
 import grizzled.slf4j.Logging
-import scala.concurrent.duration.FiniteDuration
 
 sealed trait ConnectionEvent
 
@@ -77,7 +71,7 @@ class ProtocolConnection(
   }
 
   def send(message: OutgoingProtocolNormalMessage): Unit = {
-    sendMessage(OpCode.Normal, None, Some(message))
+    sendMessage(MessageEnvelope(message))
   }
 
   def request(message: OutgoingProtocolRequestMessage)(implicit executor: ExecutionContext): Future[IncomingProtocolResponseMessage] = {
@@ -86,7 +80,7 @@ class ProtocolConnection(
 
     val replyPromise = Promise[IncomingProtocolResponseMessage]
 
-    val timeout = Duration.create(50, TimeUnit.MILLISECONDS)
+    val timeout = protocolConfig.defaultRequestTimeout
     val timeoutFuture = scheduler.scheduleOnce(timeout)(() => {
       requests.synchronized({
         requests.remove(requestId) match {
@@ -98,7 +92,9 @@ class ProtocolConnection(
       })
     })
 
-    val sent = sendMessage(OpCode.Request, Some(requestId), Some(message))
+    val sent = MessageEnvelope(requestId, message)
+    sendMessage(sent)
+
     requests(requestId) = RequestRecord(requestId, replyPromise, timeoutFuture, sent.`type`.get)
     replyPromise.future
   }
@@ -117,13 +113,11 @@ class ProtocolConnection(
     socket.close("closed normally")
   }
 
-  def sendMessage(opCode: String, requestMessageId: Option[Long], message: Option[ProtocolMessage]): MessageEnvelope = {
-    val envelope = MessageEnvelope(opCode, requestMessageId, message)
+  def sendMessage(envelope: MessageEnvelope): Unit = {
     socket.send(envelope.toJson())
     if (envelope.opCode != OpCode.Ping && envelope.opCode != OpCode.Pong) {
       logger.debug(envelope.toJson())
     }
-    envelope
   }
 
   private[this] def onSocketMessage(json: String): Unit = {
@@ -131,19 +125,21 @@ class ProtocolConnection(
       heartbeatHelper.messageReceived()
     }
     
-    // FIXME handle error
-    val envelope = MessageEnvelope(json).get
+    MessageEnvelope(json) match {
+      case Success(envelope) =>
+        if (envelope.opCode != OpCode.Ping && envelope.opCode != OpCode.Pong) {
+          logger.debug(envelope.toJson())
+        }
 
-    if (envelope.opCode != OpCode.Ping && envelope.opCode != OpCode.Pong) {
-      logger.debug(envelope.toJson())
-    }
-
-    envelope.opCode match {
-      case OpCode.Normal => onNormalMessage(envelope)
-      case OpCode.Ping => onPing()
-      case OpCode.Pong => {}
-      case OpCode.Request => onRequest(envelope)
-      case OpCode.Reply => onReply(envelope)
+        envelope.opCode match {
+          case OpCode.Normal => onNormalMessage(envelope)
+          case OpCode.Ping => onPing()
+          case OpCode.Pong => {}
+          case OpCode.Request => onRequest(envelope)
+          case OpCode.Reply => onReply(envelope)
+        }
+      case Failure(cause) =>
+        ???// FIXME handle error
     }
   }
 
@@ -174,7 +170,7 @@ class ProtocolConnection(
   }
 
   private[this] def onPing(): Unit = {
-    sendMessage(OpCode.Pong, None, None)
+    sendMessage(MessageEnvelope(OpCode.Pong, None, None, None))
   }
 
   private[this] def onRequest(envelope: MessageEnvelope): Unit = {
@@ -216,14 +212,14 @@ class ProtocolConnection(
           }
 
         }
-        case _ => {}
+        case _ => ???
       }
     })
   }
 
   private[this] def handleHeartbeat: PartialFunction[HeartbeatEvent, Unit] = {
-    case PingRequest => this.sendMessage(OpCode.Ping, None, None)
-    case PongTimeout => // NoOp
+    case PingRequest => sendMessage(MessageEnvelope(OpCode.Ping, None, None, None))
+    case PongTimeout => // FIXME what do we do here?
   }
 
   private[this] def invalidMessage(): Unit = {
@@ -233,18 +229,18 @@ class ProtocolConnection(
   class ReplyCallbackImpl(reqId: Long) extends ReplyCallback {
     val p = Promise[OutgoingProtocolResponseMessage]
     def reply(message: OutgoingProtocolResponseMessage): Unit = {
-      sendMessage(OpCode.Reply, Some(reqId), Some(message))
+      sendMessage(MessageEnvelope(reqId, message))
       p.success(message)
     }
 
     def error(cause: Throwable): Unit = {
       cause match {
         case UnexpectedErrorException(code, details) => {
-          sendMessage(OpCode.Reply, Some(reqId), Some(ErrorMessage(code, details)))
+          sendMessage(MessageEnvelope(reqId, ErrorMessage(code, details)))
         }
         case x: Throwable => {
           x.printStackTrace()
-          sendMessage(OpCode.Reply, Some(reqId), Some(ErrorMessage("unknown", "foo")))
+          sendMessage(MessageEnvelope(reqId, ErrorMessage("unknown", "foo")))
         }
       }
       p.failure(cause)

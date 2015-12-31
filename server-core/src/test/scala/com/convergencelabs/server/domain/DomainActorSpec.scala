@@ -2,6 +2,7 @@ package com.convergencelabs.server.domain
 
 import java.util.concurrent.TimeUnit
 
+import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
@@ -67,7 +68,7 @@ class DomainActorSpec
 
     val domainManagerActor = new TestProbe(system)
 
-    val protocolConfig = ProtocolConfiguration(1000L)
+    val protocolConfig = ProtocolConfiguration(Duration.create(1, TimeUnit.SECONDS))
 
     val props = DomainActor.props(
       domainManagerActor.ref,

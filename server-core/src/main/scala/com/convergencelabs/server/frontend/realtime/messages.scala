@@ -1,4 +1,4 @@
-package com.convergencelabs.server.frontend.realtime.proto
+package com.convergencelabs.server.frontend.realtime
 
 import org.json4s.JsonAST.JArray
 import org.json4s.JsonAST.JNumber

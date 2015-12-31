@@ -18,18 +18,6 @@ import com.convergencelabs.server.domain.HandshakeResponse
 import com.convergencelabs.server.domain.HandshakeSuccess
 import com.convergencelabs.server.domain.PasswordAuthRequest
 import com.convergencelabs.server.domain.TokenAuthRequest
-import com.convergencelabs.server.frontend.realtime.proto.AuthenticationRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.AuthenticationResponseMessage
-import com.convergencelabs.server.frontend.realtime.proto.ErrorData
-import com.convergencelabs.server.frontend.realtime.proto.HandshakeRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.HandshakeResponseMessage
-import com.convergencelabs.server.frontend.realtime.proto.IncomingModelNormalMessage
-import com.convergencelabs.server.frontend.realtime.proto.IncomingModelRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolResponseMessage
-import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolNormalMessage
-import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.PasswordAuthenticationRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.TokenAuthenticationRequestMessage
 import com.convergencelabs.server.util.concurrent.AskFuture
 
 import akka.actor.Actor

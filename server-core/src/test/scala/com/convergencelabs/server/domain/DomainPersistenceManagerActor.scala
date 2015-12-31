@@ -1,10 +1,8 @@
 package com.convergencelabs.server.domain
 
 import java.util.concurrent.TimeUnit
-
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Success
-
 import org.junit.runner.RunWith
 import org.mockito.Mockito
 import org.scalatest.BeforeAndAfterAll
@@ -12,17 +10,16 @@ import org.scalatest.Finders
 import org.scalatest.WordSpecLike
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.mock.MockitoSugar
-
 import com.convergencelabs.server.ProtocolConfiguration
 import com.convergencelabs.server.datastore.DomainStore
 import com.convergencelabs.server.datastore.PersistenceProvider
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.util.MockDomainPersistenceManagerActor
 import com.typesafe.config.ConfigFactory
-
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
+import scala.concurrent.duration.Duration
 
 @RunWith(classOf[JUnitRunner])
 class DomainManagerActorSpec()
@@ -80,7 +77,7 @@ class DomainManagerActorSpec()
     val convergencePersistence = mock[PersistenceProvider]
     Mockito.when(convergencePersistence.domainStore).thenReturn(domainStore)
 
-    val protocolConfig = ProtocolConfiguration(1000L)
+    val protocolConfig = ProtocolConfiguration(Duration.create(1, TimeUnit.SECONDS))
 
     val domainManagerActor = system.actorOf(
       DomainManagerActor.props(convergencePersistence, protocolConfig))

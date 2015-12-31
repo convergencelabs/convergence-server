@@ -1,22 +1,27 @@
 package com.convergencelabs.server.testkit
 
 import java.net.URI
-import org.java_websocket.client.WebSocketClient
-import org.java_websocket.handshake.ServerHandshake
-import org.java_websocket.drafts.Draft_76
 import java.util.concurrent.LinkedBlockingDeque
-import com.convergencelabs.server.frontend.realtime.proto.MessageEnvelope
+
+import scala.concurrent.duration.Duration
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.FiniteDuration
 import scala.util.Failure
 import scala.util.Success
-import scala.concurrent.duration._
-import com.convergencelabs.server.frontend.realtime.proto.ProtocolMessage
-import com.convergencelabs.server.frontend.realtime.proto.OpCode
-import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolNormalMessage
-import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolRequestMessage
-import grizzled.slf4j.Logging
+
+import org.java_websocket.client.WebSocketClient
 import org.java_websocket.drafts.Draft_17
-import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolResponseMessage
-import com.convergencelabs.server.frontend.realtime.proto.MessageSerializer
+import org.java_websocket.handshake.ServerHandshake
+
+import com.convergencelabs.server.frontend.realtime.IncomingProtocolNormalMessage
+import com.convergencelabs.server.frontend.realtime.IncomingProtocolRequestMessage
+import com.convergencelabs.server.frontend.realtime.IncomingProtocolResponseMessage
+import com.convergencelabs.server.frontend.realtime.MessageEnvelope
+import com.convergencelabs.server.frontend.realtime.MessageSerializer
+import com.convergencelabs.server.frontend.realtime.OpCode
+import com.convergencelabs.server.frontend.realtime.ProtocolMessage
+
+import grizzled.slf4j.Logging
 
 class MockConvergenceClient(serverUri: String)
     extends WebSocketClient(new URI(serverUri), new Draft_17())
@@ -39,23 +44,26 @@ class MockConvergenceClient(serverUri: String)
 
   def sendNormal(message: IncomingProtocolNormalMessage): MessageEnvelope = {
     val t = MessageSerializer.IncomingMessages.getKey(message.getClass).get
-    val envelope = MessageEnvelope(OpCode.Normal, t, Some(message))
+    val msg = MessageSerializer.decomposeBody(Some(message))
+    val envelope = MessageEnvelope(OpCode.Normal, None, Some(t), msg)
     sendMessage(envelope)
     envelope
   }
 
-  var reqId = 0
+  var reqId = 0L
 
   def sendRequest(message: IncomingProtocolRequestMessage): MessageEnvelope = {
     val t = MessageSerializer.IncomingMessages.getKey(message.getClass).get
-    val envelope = MessageEnvelope(OpCode.Request, reqId, t, Some(message))
+    val msg = MessageSerializer.decomposeBody(Some(message))
+    val envelope = MessageEnvelope(OpCode.Request, Some(reqId), Some(t), msg)
     sendMessage(envelope)
     reqId = reqId + 1
     envelope
   }
 
   def sendResponse(reqId: Long, message: IncomingProtocolResponseMessage): MessageEnvelope = {
-    val envelope = MessageEnvelope(OpCode.Reply, Some(reqId), Some(message))
+    val msg = MessageSerializer.decomposeBody(Some(message))
+    val envelope = MessageEnvelope(OpCode.Reply, Some(reqId), None, msg)
     sendMessage(envelope)
     envelope
   }
@@ -80,7 +88,7 @@ class MockConvergenceClient(serverUri: String)
   }
 
   def onPing(): Unit = {
-    sendMessage(MessageEnvelope(OpCode.Pong, None, None))
+    sendMessage(MessageEnvelope(OpCode.Pong, None, None, None))
   }
 
   override def onError(ex: Exception): Unit = {

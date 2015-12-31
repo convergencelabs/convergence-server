@@ -1,16 +1,18 @@
 package com.convergencelabs.server.frontend.realtime
 
-import com.convergencelabs.server.frontend.realtime.ws.WebSocketServer
-import com.convergencelabs.server.domain.DomainFqn
-import akka.actor.ActorSystem
-import akka.actor.ActorRef
-import akka.pattern.ask
-import com.convergencelabs.server.ProtocolConfiguration
-import grizzled.slf4j.Logging
-import akka.util.Timeout
 import java.util.concurrent.TimeUnit
-import akka.actor.Inbox
+
+import scala.concurrent.duration.Duration
 import scala.concurrent.duration.FiniteDuration
+
+import com.convergencelabs.server.ProtocolConfiguration
+import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.frontend.realtime.ws.WebSocketServer
+
+import akka.actor.ActorRef
+import akka.actor.ActorSystem
+import akka.actor.Inbox
+import grizzled.slf4j.Logging
 
 class ConvergenceRealtimeFrontend(
     private[this] val system: ActorSystem,
@@ -18,7 +20,7 @@ class ConvergenceRealtimeFrontend(
 
   // FIXME this object is nonsensical.  It's all over the place.  I don't know
   // if this is the right place for this.
-  private val protoConfig = ProtocolConfiguration(5000L)
+  private val protoConfig = ProtocolConfiguration(Duration.create(5, TimeUnit.SECONDS))
 
   private[this] val connectionHandler = new SocketConnectionHandler()
   private[this] val inbox = Inbox.create(system)

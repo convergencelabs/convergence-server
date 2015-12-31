@@ -5,6 +5,7 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.Promise
+import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
@@ -27,15 +28,6 @@ import com.convergencelabs.server.domain.HandshakeRequest
 import com.convergencelabs.server.domain.HandshakeSuccess
 import com.convergencelabs.server.domain.PasswordAuthRequest
 import com.convergencelabs.server.domain.model.OpenRealtimeModelRequest
-import com.convergencelabs.server.frontend.realtime.proto.AuthenticationResponseMessage
-import com.convergencelabs.server.frontend.realtime.proto.CloseRealtimeModelRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.ErrorData
-import com.convergencelabs.server.frontend.realtime.proto.HandshakeRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.HandshakeResponseMessage
-import com.convergencelabs.server.frontend.realtime.proto.ModelFqnData
-import com.convergencelabs.server.frontend.realtime.proto.OpenRealtimeModelRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.OutgoingProtocolResponseMessage
-import com.convergencelabs.server.frontend.realtime.proto.PasswordAuthenticationRequestMessage
 
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
@@ -167,7 +159,7 @@ class ClientActorSpec
     val domainManagerActor = new TestProbe(system)
 
     val domainFqn = DomainFqn("namespace", "domainId")
-    val protoConfig = ProtocolConfiguration(2L)
+    val protoConfig = ProtocolConfiguration(Duration.create(2, TimeUnit.SECONDS))
     val connection = mock[ProtocolConnection]
 
     val props = ClientActor.props(

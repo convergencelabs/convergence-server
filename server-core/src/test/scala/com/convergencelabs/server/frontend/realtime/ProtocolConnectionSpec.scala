@@ -1,6 +1,7 @@
 package com.convergencelabs.server.frontend.realtime
 
 import java.util.concurrent.LinkedBlockingDeque
+import java.util.concurrent.TimeUnit
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
@@ -20,23 +21,18 @@ import org.scalatest.junit.JUnitRunner
 import org.scalatest.mock.MockitoSugar
 
 import com.convergencelabs.server.ProtocolConfiguration
-import com.convergencelabs.server.frontend.realtime.proto.HandshakeRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.HandshakeResponseMessage
-import com.convergencelabs.server.frontend.realtime.proto.MessageEnvelope
-import com.convergencelabs.server.frontend.realtime.proto.OpCode
 
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 
 @RunWith(classOf[JUnitRunner])
-class ProtocolConnectionSpec(system: ActorSystem)
-    extends TestKit(system)
+class ProtocolConnectionSpec
+    extends TestKit(ActorSystem("ProtocolConnectionSpec"))
     with WordSpecLike
     with BeforeAndAfterAll
     with MockitoSugar
     with Assertions {
 
-  def this() = this(ActorSystem("ProtocolConnectionSpec"))
 
   implicit val formats = Serialization.formats(NoTypeHints)
 
@@ -51,7 +47,11 @@ class ProtocolConnectionSpec(system: ActorSystem)
         try {
           val receiver = new Receiver(connection)
           val message = HandshakeRequestMessage(false, None, None)
-          val envelope = MessageEnvelope(OpCode.Request, 1L, "handshake", Some(message))
+          val envelope = MessageEnvelope(
+              OpCode.Request, 
+              Some(1L), 
+              Some(MessageType.Handshake), 
+              MessageSerializer.decomposeBody(Some(message)))
           val json = envelope.toJson()
           socket.fireOnMessage(json)
 
@@ -68,7 +68,12 @@ class ProtocolConnectionSpec(system: ActorSystem)
       "send a correct reply envelope" in new TestFixture(system) {
         val receiver = new Receiver(connection)
         val message = HandshakeRequestMessage(false, None, None)
-        val envelope = MessageEnvelope(OpCode.Request, 1L, "handshake", Some(message))
+        val envelope = MessageEnvelope(
+            OpCode.Request, 
+            Some(1L), 
+            Some(MessageType.Handshake),
+            MessageSerializer.decomposeBody(Some(message)))
+            
         val json = envelope.toJson()
         socket.fireOnMessage(json)
         val RequestReceived(m, cb) = receiver.expectEventClass(10 millis, classOf[RequestReceived])
@@ -76,7 +81,7 @@ class ProtocolConnectionSpec(system: ActorSystem)
         val response = HandshakeResponseMessage(true, None, Some("foo"), Some("bar"))
         cb.reply(response)
 
-        val responseEnvelop = MessageEnvelope(OpCode.Reply, Some(1L), Some(response))
+        val responseEnvelop = MessageEnvelope(1L, response)
         Mockito.verify(socket, times(1)).send(responseEnvelop.toJson())
         connection.close()
       }
@@ -84,7 +89,7 @@ class ProtocolConnectionSpec(system: ActorSystem)
   }
 
   class TestFixture(system: ActorSystem) {
-    val protoConfig = ProtocolConfiguration(2L)
+    val protoConfig = ProtocolConfiguration(Duration.create(1, TimeUnit.SECONDS))
     val socket = Mockito.spy(new TestSocket())
     val connection = new ProtocolConnection(socket, protoConfig, false, system.scheduler, system.dispatcher)
   }

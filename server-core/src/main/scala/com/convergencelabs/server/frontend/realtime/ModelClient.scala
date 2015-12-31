@@ -29,24 +29,6 @@ import com.convergencelabs.server.domain.model.OutgoingOperation
 import com.convergencelabs.server.domain.model.RealtimeModelClientMessage
 import com.convergencelabs.server.domain.model.RemoteClientClosed
 import com.convergencelabs.server.domain.model.RemoteClientOpened
-import com.convergencelabs.server.frontend.realtime.proto.CloseRealtimeModelRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.CreateRealtimeModelRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.DeleteRealtimeModelRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.ErrorMessage
-import com.convergencelabs.server.frontend.realtime.proto.IncomingModelRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.IncomingProtocolNormalMessage
-import com.convergencelabs.server.frontend.realtime.proto.ModelDataRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.ModelDataResponseMessage
-import com.convergencelabs.server.frontend.realtime.proto.ModelForceCloseMessage
-import com.convergencelabs.server.frontend.realtime.proto.ModelFqnData
-import com.convergencelabs.server.frontend.realtime.proto.OpenRealtimeModelRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.OpenRealtimeModelResponseMessage
-import com.convergencelabs.server.frontend.realtime.proto.OperationAcknowledgementMessage
-import com.convergencelabs.server.frontend.realtime.proto.OperationSubmissionMessage
-import com.convergencelabs.server.frontend.realtime.proto.RemoteClientClosedMessage
-import com.convergencelabs.server.frontend.realtime.proto.RemoteClientOpenedMessage
-import com.convergencelabs.server.frontend.realtime.proto.RemoteOperationMessage
-import com.convergencelabs.server.frontend.realtime.proto.SuccessMessage
 import com.convergencelabs.server.util.concurrent.AskFuture
 import com.convergencelabs.server.util.concurrent.UnexpectedErrorException
 

@@ -5,6 +5,7 @@ import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
 
+import scala.concurrent.duration.{ Duration => ScalaDuration }
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Success
 
@@ -21,9 +22,9 @@ import org.scalatest.mock.MockitoSugar
 import com.convergencelabs.server.ProtocolConfiguration
 import com.convergencelabs.server.datastore.domain.DomainConfigStore
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
+import com.convergencelabs.server.datastore.domain.ModelOperationStore
 import com.convergencelabs.server.datastore.domain.ModelSnapshotStore
 import com.convergencelabs.server.datastore.domain.ModelStore
-import com.convergencelabs.server.datastore.domain.ModelOperationStore
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.ModelSnapshotConfig
 import com.convergencelabs.server.util.MockDomainPersistenceManagerActor
@@ -161,7 +162,7 @@ class ModelManagerActorSpec
     val domainActor = new TestProbe(system)
     val props = ModelManagerActor.props(
       domainFqn,
-      ProtocolConfiguration(100L))
+      ProtocolConfiguration(ScalaDuration.create(100, TimeUnit.MILLISECONDS)))
 
     val modelManagerActor = system.actorOf(props, resourceId)
   }

@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicLong
 import scala.util.Success
 import scala.util.Failure
 import io.netty.handler.codec.http.websocketx.ContinuationWebSocketFrame
-import com.convergencelabs.server.frontend.realtime.proto.ProtocolMessage
+import com.convergencelabs.server.frontend.realtime.ProtocolMessage
 import com.convergencelabs.server.frontend.realtime.ConvergenceServerSocket
 import io.netty.channel.ChannelFuture
 

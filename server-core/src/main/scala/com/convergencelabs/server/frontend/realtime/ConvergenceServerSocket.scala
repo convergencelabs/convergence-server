@@ -1,7 +1,5 @@
 package com.convergencelabs.server.frontend.realtime
 
-import com.convergencelabs.server.frontend.realtime.proto.ProtocolMessage
-
 sealed trait ConvergenceServerSocketEvent
 case class SocketMessage(message: String) extends ConvergenceServerSocketEvent
 case class SocketError(errorMessage: String) extends ConvergenceServerSocketEvent

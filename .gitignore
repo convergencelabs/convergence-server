@@ -9,3 +9,5 @@ target
 .project
 .classpath
 .history
+server-tools/convergence.json.gz
+server-tools/domain.json.gz

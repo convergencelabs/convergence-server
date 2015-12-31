@@ -1,4 +1,6 @@
-package com.convergencelabs.server.frontend.realtime.proto
+package com.convergencelabs.server.frontend.realtime
+
+import scala.annotation.implicitNotFound
 
 import org.json4s.DefaultFormats
 import org.json4s.Extraction

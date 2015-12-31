@@ -17,24 +17,6 @@ import com.convergencelabs.server.domain.model.ot.Operation
 import com.convergencelabs.server.domain.model.ot.StringInsertOperation
 import com.convergencelabs.server.domain.model.ot.StringRemoveOperation
 import com.convergencelabs.server.domain.model.ot.StringSetOperation
-import com.convergencelabs.server.frontend.realtime.proto.ArrayInsertOperationData
-import com.convergencelabs.server.frontend.realtime.proto.ArrayMoveOperationData
-import com.convergencelabs.server.frontend.realtime.proto.ArrayRemoveOperationData
-import com.convergencelabs.server.frontend.realtime.proto.ArrayReplaceOperationData
-import com.convergencelabs.server.frontend.realtime.proto.ArraySetOperationData
-import com.convergencelabs.server.frontend.realtime.proto.CompoundOperationData
-import com.convergencelabs.server.frontend.realtime.proto.DiscreteOperationData
-import com.convergencelabs.server.frontend.realtime.proto.NumberAddOperationData
-import com.convergencelabs.server.frontend.realtime.proto.NumberSetOperationData
-import com.convergencelabs.server.frontend.realtime.proto.ObjectAddPropertyOperationData
-import com.convergencelabs.server.frontend.realtime.proto.ObjectRemovePropertyOperationData
-import com.convergencelabs.server.frontend.realtime.proto.ObjectSetOperationData
-import com.convergencelabs.server.frontend.realtime.proto.ObjectSetPropertyOperationData
-import com.convergencelabs.server.frontend.realtime.proto.OperationData
-import com.convergencelabs.server.frontend.realtime.proto.StringInsertOperationData
-import com.convergencelabs.server.frontend.realtime.proto.StringRemoveOperationData
-import com.convergencelabs.server.frontend.realtime.proto.StringSetOperationData
-import com.convergencelabs.server.frontend.realtime.proto.BooleanSetOperationData
 import com.convergencelabs.server.domain.model.ot.BooleanSetOperation
 
 private[realtime] object OperationMapper {
