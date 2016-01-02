@@ -192,6 +192,6 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
 //  }
 }
 
-object DataType extends Enumeration {
-  val ARRAY, OBJECT, STRING, NUMBER, BOOLEAN, NULL = Value
-}
+//object DataType extends Enumeration {
+//  val ARRAY, OBJECT, STRING, NUMBER, BOOLEAN, NULL = Value
+//}

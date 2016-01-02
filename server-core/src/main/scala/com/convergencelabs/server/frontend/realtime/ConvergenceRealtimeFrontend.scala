@@ -2,9 +2,11 @@ package com.convergencelabs.server.frontend.realtime
 
 import java.util.concurrent.TimeUnit
 
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
+import scala.language.postfixOps
 
+import com.convergencelabs.server.HeartbeatConfiguration
 import com.convergencelabs.server.ProtocolConfiguration
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.frontend.realtime.ws.WebSocketServer
@@ -20,7 +22,12 @@ class ConvergenceRealtimeFrontend(
 
   // FIXME this object is nonsensical.  It's all over the place.  I don't know
   // if this is the right place for this.
-  private val protoConfig = ProtocolConfiguration(Duration.create(5, TimeUnit.SECONDS))
+  private val protoConfig = ProtocolConfiguration(
+    5 seconds,
+    HeartbeatConfiguration(
+      true,
+      5 seconds,
+      10 seconds))
 
   private[this] val connectionHandler = new SocketConnectionHandler()
   private[this] val inbox = Inbox.create(system)

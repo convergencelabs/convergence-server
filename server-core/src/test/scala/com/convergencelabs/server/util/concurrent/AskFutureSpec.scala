@@ -64,7 +64,7 @@ class AskFutureSpec
         futureResult.failed.get shouldBe a[UnexpectedErrorException]
         val ex = futureResult.failed.get.asInstanceOf[UnexpectedErrorException]
         ex.code shouldBe "code"
-        ex.message shouldBe "reason"
+        ex.details shouldBe "reason"
       }
     }
 

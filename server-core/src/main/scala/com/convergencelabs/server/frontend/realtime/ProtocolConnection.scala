@@ -1,6 +1,5 @@
 package com.convergencelabs.server.frontend.realtime
 
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
 import scala.collection.mutable
@@ -30,28 +29,25 @@ sealed trait ProtocolMessageEvent extends ConnectionEvent {
 case class MessageReceived(message: IncomingProtocolNormalMessage) extends ProtocolMessageEvent
 case class RequestReceived(message: IncomingProtocolRequestMessage, replyCallback: ReplyCallback) extends ProtocolMessageEvent
 
-case class ConnectionClosed() extends ConnectionEvent
-case class ConnectionDropped() extends ConnectionEvent
+case object ConnectionClosed extends ConnectionEvent
+case object ConnectionDropped extends ConnectionEvent
 case class ConnectionError(message: String) extends ConnectionEvent
 
 class ProtocolConnection(
   private[this] var socket: ConvergenceServerSocket,
   private[this] val protocolConfig: ProtocolConfiguration,
-  private[this] val heartbeatEnabled: scala.Boolean,
   private[this] val scheduler: Scheduler,
   private[this] val ec: ExecutionContext)
     extends Logging {
 
-  implicit val formats = Serialization.formats(NoTypeHints)
-
   val heartbeatHelper = new HeartbeatHelper(
-    FiniteDuration(5, TimeUnit.SECONDS),
-    FiniteDuration(10, TimeUnit.SECONDS),
+    protocolConfig.heartbeatConfig.pingInterval,
+    protocolConfig.heartbeatConfig.pongTimeout,
     scheduler,
     ec,
     handleHeartbeat)
 
-  if (heartbeatEnabled) {
+  if (protocolConfig.heartbeatConfig.enabled) {
     heartbeatHelper.start()
   }
 
@@ -86,7 +82,9 @@ class ProtocolConnection(
           case Some(record) => {
             record.promise.failure(new TimeoutException("Response timeout"))
           }
-          case _ => {}
+          case _ =>
+          // Race condition where the reply just came in under the wire.
+          // no action requried.
         }
       })
     })
@@ -100,7 +98,9 @@ class ProtocolConnection(
 
   def abort(reason: String): Unit = {
     logger.debug(s"Aborting connection: $reason")
-    heartbeatHelper.stop()
+    if (heartbeatHelper.started) {
+      heartbeatHelper.stop()
+    }
     socket.abort(reason)
   }
 
@@ -121,38 +121,49 @@ class ProtocolConnection(
   }
 
   private[this] def onSocketMessage(json: String): Unit = {
-    if (heartbeatEnabled) {
+    if (protocolConfig.heartbeatConfig.enabled) {
       heartbeatHelper.messageReceived()
     }
-    
+
     MessageEnvelope(json) match {
       case Success(envelope) =>
-        if (envelope.opCode != OpCode.Ping && envelope.opCode != OpCode.Pong) {
-          logger.debug(MessageSerializer.writeJson(envelope))
-        }
-
-        envelope.opCode match {
-          case OpCode.Normal => onNormalMessage(envelope)
-          case OpCode.Ping => onPing()
-          case OpCode.Pong => {}
-          case OpCode.Request => onRequest(envelope)
-          case OpCode.Reply => onReply(envelope)
+        MessageSerializer.validateMessageEnvelope(envelope) match {
+          case true => handleValidMessage(envelope)
+          case false => handleInvalidMessage(s"The message envelope was not valid: $envelope")
         }
       case Failure(cause) =>
-        ???// FIXME handle error
+        handleInvalidMessage(s"Could not parse JSON message $json")
+    }
+  }
+
+  private def handleValidMessage(envelope: MessageEnvelope): Unit = {
+    if (envelope.opCode != OpCode.Ping && envelope.opCode != OpCode.Pong) {
+      logger.debug(MessageSerializer.writeJson(envelope))
+    }
+
+    envelope.opCode match {
+      case OpCode.Normal => onNormalMessage(envelope)
+      case OpCode.Ping => onPing()
+      case OpCode.Pong => {}
+      case OpCode.Request => onRequest(envelope)
+      case OpCode.Reply => onReply(envelope)
     }
   }
 
   private[this] def onSocketClosed(): Unit = {
     logger.debug("Socket closed")
-    heartbeatHelper.stop()
-    eventHandler lift ConnectionClosed()
+    if (heartbeatHelper.started) {
+      heartbeatHelper.stop()
+    }
+    eventHandler lift ConnectionClosed
   }
 
   private[this] def onSocketDropped(): Unit = {
     logger.debug("Socket dropped")
-    heartbeatHelper.stop()
-    eventHandler lift ConnectionDropped()
+    if (heartbeatHelper.started) {
+      heartbeatHelper.stop()
+    }
+    eventHandler lift ConnectionDropped
   }
 
   private[this] def onSocketError(message: String): Unit = {
@@ -163,67 +174,67 @@ class ProtocolConnection(
   private[this] def onNormalMessage(envelope: MessageEnvelope): Unit = {
     val message = MessageSerializer.extractBody(envelope)
     if (!message.isInstanceOf[IncomingProtocolNormalMessage]) {
-      // throw something
+      handleInvalidMessage("a normal message was received, but the deserialized message was not a normal message")
+    } else {
+      eventHandler lift MessageReceived(message.asInstanceOf[IncomingProtocolNormalMessage])
     }
+  }
 
-    eventHandler lift MessageReceived(message.asInstanceOf[IncomingProtocolNormalMessage])
+  private[this] def onRequest(envelope: MessageEnvelope): Unit = {
+    val protocolMessage = MessageSerializer.extractBody(envelope)
+    if (!protocolMessage.isInstanceOf[IncomingProtocolRequestMessage]) {
+      handleInvalidMessage("a request message was received, but the deserialized message was not a request message")
+    } else {
+      val p = Promise[OutgoingProtocolResponseMessage]
+      eventHandler lift RequestReceived(
+        protocolMessage.asInstanceOf[IncomingProtocolRequestMessage],
+        new ReplyCallbackImpl(envelope.reqId.get))
+    }
+  }
+
+  private[this] def onReply(envelope: MessageEnvelope): Unit = {
+
+    val requestId = envelope.reqId.get
+    val message = envelope.body
+    requests.synchronized({
+      requests.remove(requestId) match {
+        case Some(record) => {
+          record.future.cancel()
+          envelope.`type` match {
+            case Some(MessageType.Error) =>
+              // If there is a type, it should only be "error"
+              val errorMessage = MessageSerializer.extractBody(envelope.body.get, classOf[ErrorMessage])
+              record.promise.failure(new UnexpectedErrorException(errorMessage.code, errorMessage.details))
+            case _ =>
+              // There should be no type on a reply message if it is a successful
+              // response.
+              val response = MessageSerializer.extractBody(envelope.body.get, record.requestType)
+              record.promise.success(response.asInstanceOf[IncomingProtocolResponseMessage])
+          }
+        }
+        case None =>
+        // This can happen when a reply came for a timed out response.
+        // TODO should we log this?
+      }
+    })
   }
 
   private[this] def onPing(): Unit = {
     sendMessage(MessageEnvelope(OpCode.Pong, None, None, None))
   }
 
-  private[this] def onRequest(envelope: MessageEnvelope): Unit = {
-    // Verify body. and req id.
-    val protocolMessage = MessageSerializer.extractBody(envelope)
-
-    if (!protocolMessage.isInstanceOf[IncomingProtocolRequestMessage]) {
-      // FIXME throw some exception because this must be a request message.
-    }
-
-    val p = Promise[OutgoingProtocolResponseMessage]
-
-    eventHandler lift RequestReceived(
-      protocolMessage.asInstanceOf[IncomingProtocolRequestMessage],
-      new ReplyCallbackImpl(envelope.reqId.get))
-  }
-
-  private[this] def onReply(envelope: MessageEnvelope): Unit = {
-    // TODO need to validate that this is here.
-    val requestId = envelope.reqId.get
-    val message = envelope.body
-
-    requests.synchronized({
-      requests.remove(requestId) match {
-        case Some(record) => {
-          record.future.cancel()
-          envelope.`type` match {
-            case Some("error") => {
-              // FIXME
-              // var errorMessage = envelope.extractResponseBody[ErrorMessage]
-              record.promise.failure(new UnexpectedErrorException())
-            }
-            case None => {
-              // FIXME
-              val response = MessageSerializer.extractBody(envelope.body.get, record.requestType)
-              record.promise.success(response.asInstanceOf[IncomingProtocolResponseMessage])
-            }
-            case Some(x) => ???
-          }
-
-        }
-        case _ => ???
-      }
-    })
-  }
-
   private[this] def handleHeartbeat: PartialFunction[HeartbeatEvent, Unit] = {
-    case PingRequest => sendMessage(MessageEnvelope(OpCode.Ping, None, None, None))
-    case PongTimeout => // FIXME what do we do here?
+    case PingRequest =>
+      sendMessage(MessageEnvelope(OpCode.Ping, None, None, None))
+    case PongTimeout =>
+      abort("pong timeout")
+      eventHandler lift ConnectionDropped
   }
 
-  private[this] def invalidMessage(): Unit = {
-    ???
+  private[this] def handleInvalidMessage(error: String): Unit = {
+    logger.error(error)
+    this.abort(error)
+    eventHandler lift ConnectionError(error)
   }
 
   class ReplyCallbackImpl(reqId: Long) extends ReplyCallback {
@@ -234,15 +245,24 @@ class ProtocolConnection(
     }
 
     def error(cause: Throwable): Unit = {
-      cause match {
+      val errorMessage = cause match {
         case UnexpectedErrorException(code, details) => {
-          sendMessage(MessageEnvelope(reqId, ErrorMessage(code, details)))
+          ErrorMessage(code, details)
         }
-        case x: Throwable => {
-          x.printStackTrace()
-          sendMessage(MessageEnvelope(reqId, ErrorMessage("unknown", "foo")))
+        case cause: Throwable => {
+          ErrorMessage("unknown", cause.getMessage)
         }
       }
+
+      val serializedErrorMessage = MessageSerializer.decomposeBody(Some(errorMessage))
+
+      val envelope = MessageEnvelope(
+        OpCode.Reply,
+        Some(reqId),
+        Some(MessageType.Error),
+        serializedErrorMessage)
+        
+      sendMessage(envelope)
       p.failure(cause)
     }
 

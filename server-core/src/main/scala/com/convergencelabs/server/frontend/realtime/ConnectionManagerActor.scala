@@ -3,6 +3,7 @@ package com.convergencelabs.server.frontend.realtime
 import java.util.concurrent.TimeUnit
 
 import scala.concurrent.duration.FiniteDuration
+import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 
@@ -65,7 +66,6 @@ class ConnectionManagerActor(
     val connection = new ProtocolConnection(
       newSocketEvent.socket,
       protocolConfig,
-      true,
       context.system.scheduler,
       context.dispatcher)
 

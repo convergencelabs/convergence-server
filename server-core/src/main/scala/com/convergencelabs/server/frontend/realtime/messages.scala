@@ -29,7 +29,7 @@ sealed trait OutgoingProtocolResponseMessage extends OutgoingProtocolMessage
 // Client Messages
 ///////////////////////////////////////////////////////////////////////////////
 
-case class ErrorMessage(code: String, message: String) extends OutgoingProtocolResponseMessage
+case class ErrorMessage(code: String, details: String) extends OutgoingProtocolResponseMessage
 case class SuccessMessage() extends OutgoingProtocolResponseMessage
 
 // Handshaking

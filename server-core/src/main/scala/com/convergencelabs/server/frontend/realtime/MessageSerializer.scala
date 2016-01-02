@@ -52,6 +52,22 @@ object MessageSerializer {
     case Some(x) => IncomingMessages.getKey(x.getClass)
   }
 
+  def validateMessageEnvelope(envelope: MessageEnvelope): Boolean = {
+    envelope match {
+      case MessageEnvelope(OpCode.Ping, None, None, None) => true
+      case MessageEnvelope(OpCode.Pong, None, None, None) => true
+      
+      case MessageEnvelope(OpCode.Request, Some(reqId), Some(tpe), Some(msg)) => true
+      
+      case MessageEnvelope(OpCode.Reply, Some(reqId), None, Some(msg)) => true 
+      case MessageEnvelope(OpCode.Reply, Some(reqId), Some(MessageType.Error), Some(msg)) => true
+      
+      case MessageEnvelope(OpCode.Normal, None, Some(tpe), Some(msg)) => true
+      
+      case _ => false
+    }
+  }
+
   private[this] val operationSerializer = new TypeMapSerializer[OperationData]("t", Map(
     "C" -> classOf[CompoundOperationData],
     "SI" -> classOf[StringInsertOperationData],

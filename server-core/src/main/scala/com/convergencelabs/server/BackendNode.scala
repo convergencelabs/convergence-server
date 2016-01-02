@@ -9,6 +9,9 @@ import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 import com.convergencelabs.server.domain.DomainManagerActor
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 
+import scala.language.postfixOps
+import scala.concurrent.duration.DurationInt
+
 import akka.actor.ActorSystem
 import grizzled.slf4j.Logging
 
@@ -29,7 +32,12 @@ class BackendNode(system: ActorSystem) extends Logging {
     val persistenceProvider = new PersistenceProvider(dbPool)
 
     // FIXME do we get this from the config.  If so do we need to pass it?
-    val protocolConfig = ProtocolConfiguration(Duration.create(5L, TimeUnit.SECONDS))
+    val protocolConfig = ProtocolConfiguration(
+      5 seconds,
+      HeartbeatConfiguration(
+          true,
+          5 seconds,
+          10 seconds))
 
     val dbPoolManager = system.actorOf(
       DomainPersistenceManagerActor.props(

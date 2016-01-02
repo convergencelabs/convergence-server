@@ -5,8 +5,9 @@ import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
 
-import scala.concurrent.duration.{ Duration => ScalaDuration }
+import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
+import scala.language.postfixOps
 import scala.util.Success
 
 import org.json4s.JsonAST.JObject
@@ -19,6 +20,7 @@ import org.scalatest.WordSpecLike
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.mock.MockitoSugar
 
+import com.convergencelabs.server.HeartbeatConfiguration
 import com.convergencelabs.server.ProtocolConfiguration
 import com.convergencelabs.server.datastore.domain.DomainConfigStore
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
@@ -160,9 +162,14 @@ class ModelManagerActorSpec
 
     val resourceId = "1" + System.nanoTime()
     val domainActor = new TestProbe(system)
-    val props = ModelManagerActor.props(
-      domainFqn,
-      ProtocolConfiguration(ScalaDuration.create(100, TimeUnit.MILLISECONDS)))
+    val protocolConfig = ProtocolConfiguration(
+      100 millis,
+      HeartbeatConfiguration(
+          true,
+          5 seconds,
+          10 seconds))
+          
+    val props = ModelManagerActor.props(domainFqn, protocolConfig)
 
     val modelManagerActor = system.actorOf(props, resourceId)
   }

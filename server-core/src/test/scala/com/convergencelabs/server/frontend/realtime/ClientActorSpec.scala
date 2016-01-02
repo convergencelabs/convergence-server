@@ -5,7 +5,6 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.Promise
-import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
@@ -20,6 +19,7 @@ import org.scalatest.WordSpecLike
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.mock.MockitoSugar
 
+import com.convergencelabs.server.HeartbeatConfiguration
 import com.convergencelabs.server.ProtocolConfiguration
 import com.convergencelabs.server.domain.AuthenticationSuccess
 import com.convergencelabs.server.domain.DomainFqn
@@ -124,14 +124,14 @@ class ClientActorSpec
       "shutdown when a ConnectionClosed event is received" in new TestFixture(system) {
         val probeWatcher = new TestProbe(system)
         probeWatcher watch clientActor
-        clientActor.tell(ConnectionClosed(), ActorRef.noSender)
+        clientActor.tell(ConnectionClosed, ActorRef.noSender)
         probeWatcher.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Terminated])
       }
 
       "shutdown when a ConnectionDropped event is received" in new TestFixture(system) {
         val probeWatcher = new TestProbe(system)
         probeWatcher watch clientActor
-        clientActor.tell(ConnectionDropped(), ActorRef.noSender)
+        clientActor.tell(ConnectionDropped, ActorRef.noSender)
         probeWatcher.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Terminated])
       }
 
@@ -159,7 +159,12 @@ class ClientActorSpec
     val domainManagerActor = new TestProbe(system)
 
     val domainFqn = DomainFqn("namespace", "domainId")
-    val protoConfig = ProtocolConfiguration(Duration.create(2, TimeUnit.SECONDS))
+    val protoConfig = ProtocolConfiguration(2 seconds,
+        HeartbeatConfiguration(
+            false,
+            0 seconds,
+            0 seconds))
+            
     val connection = mock[ProtocolConnection]
 
     val props = ClientActor.props(

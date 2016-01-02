@@ -2,7 +2,6 @@ package com.convergencelabs.server.domain
 
 import java.util.concurrent.TimeUnit
 
-import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
@@ -15,6 +14,7 @@ import org.scalatest.WordSpecLike
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.mock.MockitoSugar
 
+import com.convergencelabs.server.HeartbeatConfiguration
 import com.convergencelabs.server.ProtocolConfiguration
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.util.MockDomainPersistenceManagerActor
@@ -68,7 +68,11 @@ class DomainActorSpec
 
     val domainManagerActor = new TestProbe(system)
 
-    val protocolConfig = ProtocolConfiguration(Duration.create(1, TimeUnit.SECONDS))
+    val protocolConfig = ProtocolConfiguration(2 seconds,
+        HeartbeatConfiguration(
+            false,
+            0 seconds,
+            0 seconds))
 
     val props = DomainActor.props(
       domainManagerActor.ref,
