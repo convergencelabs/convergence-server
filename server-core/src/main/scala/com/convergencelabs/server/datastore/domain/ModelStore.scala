@@ -45,11 +45,17 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
 
   def modelExists(fqn: ModelFqn): Try[Boolean] = tryWithDb { db =>
     val queryString =
-      "SELECT modelId FROM Model WHERE collectionId = :collectionId AND modelId = :modelId"
+      """SELECT modelId 
+        |FROM Model 
+        |WHERE 
+        |  collectionId = :collectionId AND 
+        |  modelId = :modelId""".stripMargin
+        
     val query = new OSQLSynchQuery[ODocument](queryString)
     val params = Map(
       ModelStore.CollectionId -> fqn.collectionId,
       ModelStore.ModelId -> fqn.modelId)
+      
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     !result.isEmpty()
   }
@@ -66,6 +72,18 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
     val params = Map(
       ModelStore.CollectionId -> fqn.collectionId,
       ModelStore.ModelId -> fqn.modelId)
+    val deleted: Int = db.command(command).execute(params.asJava)
+    deleted match {
+      case 1 => Unit
+      case _ => ??? // FIXME need real excpetion
+    }
+  }
+  
+  def deleteAllModelsInCollection(collectionId: String): Try[Unit] = tryWithDb { db =>
+    val queryString =
+      "DELETE FROM Model WHERE collectionId = :collectionId"
+    val command = new OCommandSQL(queryString)
+    val params = Map(ModelStore.CollectionId -> collectionId)
     db.command(command).execute(params.asJava)
     Unit
   }
@@ -78,14 +96,16 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
         |  collectionId = :collectionId AND
         |  modelId = :modelId""".stripMargin
     val query = new OSQLSynchQuery[ODocument](queryString)
-    val params = Map(ModelStore.CollectionId -> fqn.collectionId, ModelStore.ModelId -> fqn.modelId)
+    val params = Map(
+        ModelStore.CollectionId -> fqn.collectionId, 
+        ModelStore.ModelId -> fqn.modelId)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     QueryUtil.mapSingletonList(result) { _.asModel }
   }
 
   def getModelMetaData(fqn: ModelFqn): Try[Option[ModelMetaData]] = tryWithDb { db =>
     val queryString =
-      """SELECT modelId, collectionId, version, created, modified
+      """SELECT modelId, collectionId, version, createdTime, modifiedTime
         |FROM Model
         |WHERE
         |  collectionId = :collectionId AND
@@ -96,37 +116,49 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
     QueryUtil.mapSingletonList(result) { _.asModelMetaData }
   }
 
-  def getAllModelMetaData(
-    orderBy: String,
-    ascending: Boolean,
-    offset: Option[Int],
-    limit: Option[Int]): Try[List[ModelMetaData]] = tryWithDb { db =>
-
-    val queryString = QueryUtil.buildPagedQuery(
-      "SELECT modelId, collectionId, version, created, modified FROM Model",
-      limit,
-      offset)
-
-    val query = new OSQLSynchQuery[ODocument](queryString)
-    val result: JavaList[ODocument] = db.command(query).execute()
-    result.asScala.toList map { _.asModelMetaData }
-  }
-
   def getAllModelMetaDataInCollection(
     collectionId: String,
-    orderBy: String,
-    ascending: Boolean,
     offset: Option[Int],
     limit: Option[Int]): Try[List[ModelMetaData]] = tryWithDb { db =>
 
-    val queryString = QueryUtil.buildPagedQuery(
-      "SELECT modelId, collectionId, version, created, modified FROM Model WHERE collectionId = :collectionId",
+    val queryString =
+      """SELECT modelId, collectionId, version, createdTime, modifiedTime 
+         |FROM Model 
+         |WHERE 
+         |  collectionId = :collectionId
+         |ORDER BY
+         |  modelId ASC""".stripMargin
+      
+    val pagedQuery = QueryUtil.buildPagedQuery(
+      queryString,
       limit,
       offset)
 
-    val query = new OSQLSynchQuery[ODocument](queryString)
-    val params = Map("collectionid" -> collectionId)
+    val query = new OSQLSynchQuery[ODocument](pagedQuery)
+    val params = Map(ModelStore.CollectionId -> collectionId)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
+    result.asScala.toList map { _.asModelMetaData }
+  }
+  
+  // TODO implement orderBy and ascending / descending
+  def getAllModelMetaData(
+    offset: Option[Int],
+    limit: Option[Int]): Try[List[ModelMetaData]] = tryWithDb { db =>
+
+    val queryString = 
+      """SELECT modelId, collectionId, version, createdTime, modifiedTime 
+        |FROM Model
+        |ORDER BY
+        |  collectionId ASC,
+        |  modelId ASC""".stripMargin
+        
+    val pageQuery = QueryUtil.buildPagedQuery(
+      queryString,
+      limit,
+      offset)
+
+    val query = new OSQLSynchQuery[ODocument](pageQuery)
+    val result: JavaList[ODocument] = db.command(query).execute()
     result.asScala.toList map { _.asModelMetaData }
   }
 
@@ -137,27 +169,27 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
     QueryUtil.mapSingletonList(result)(doc => parse(doc.toJSON()) \\ ModelStore.Data)
   }
 
-  def getModelFieldDataType(fqn: ModelFqn, path: List[Any]): Try[Option[DataType.Value]] = tryWithDb { db =>
-    val pathString = OrientPathUtil.toOrientPath(path)
-    val query = new OSQLSynchQuery[ODocument](s"SELECT $pathString FROM Model WHERE collectionId = :collectionId AND modelId = :modelId")
-    val params = Map(ModelStore.CollectionId -> fqn.collectionId, ModelStore.ModelId -> fqn.modelId)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    // FIXME I don't think we need to do this, this way. It seems like the ODoc
-    // would have a field that we could just check the type of?
-    // Also this could be fairly expensive.  imagine we are adding a property to
-    // the root level object and this is a big document.  We basically have
-    // to query the whole damn thing, just to figure out the type?
-    QueryUtil.mapSingletonList(result)(doc => {
-      (parse(doc.toJSON()) \\ ModelStore.Data) match {
-        case data: JObject => DataType.OBJECT
-        case data: JArray => DataType.ARRAY
-        case data: JString => DataType.STRING
-        case data: JNumber => DataType.NUMBER
-        case data: JBool => DataType.BOOLEAN
-        case _ => DataType.NULL
-      }
-    })
-  }
+//  def getModelFieldDataType(fqn: ModelFqn, path: List[Any]): Try[Option[DataType.Value]] = tryWithDb { db =>
+//    val pathString = OrientPathUtil.toOrientPath(path)
+//    val query = new OSQLSynchQuery[ODocument](s"SELECT $pathString FROM Model WHERE collectionId = :collectionId AND modelId = :modelId")
+//    val params = Map(ModelStore.CollectionId -> fqn.collectionId, ModelStore.ModelId -> fqn.modelId)
+//    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
+//    // FIXME I don't think we need to do this, this way. It seems like the ODoc
+//    // would have a field that we could just check the type of?
+//    // Also this could be fairly expensive.  imagine we are adding a property to
+//    // the root level object and this is a big document.  We basically have
+//    // to query the whole damn thing, just to figure out the type?
+//    QueryUtil.mapSingletonList(result)(doc => {
+//      (parse(doc.toJSON()) \\ ModelStore.Data) match {
+//        case data: JObject => DataType.OBJECT
+//        case data: JArray => DataType.ARRAY
+//        case data: JString => DataType.STRING
+//        case data: JNumber => DataType.NUMBER
+//        case data: JBool => DataType.BOOLEAN
+//        case _ => DataType.NULL
+//      }
+//    })
+//  }
 }
 
 object DataType extends Enumeration {

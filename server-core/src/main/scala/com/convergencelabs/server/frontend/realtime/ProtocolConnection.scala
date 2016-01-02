@@ -3,7 +3,6 @@ package com.convergencelabs.server.frontend.realtime
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
-import scala.annotation.implicitNotFound
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
@@ -114,9 +113,10 @@ class ProtocolConnection(
   }
 
   def sendMessage(envelope: MessageEnvelope): Unit = {
-    socket.send(envelope.toJson())
+    val json = MessageSerializer.writeJson(envelope)
+    socket.send(json)
     if (envelope.opCode != OpCode.Ping && envelope.opCode != OpCode.Pong) {
-      logger.debug(envelope.toJson())
+      logger.debug(json)
     }
   }
 
@@ -128,7 +128,7 @@ class ProtocolConnection(
     MessageEnvelope(json) match {
       case Success(envelope) =>
         if (envelope.opCode != OpCode.Ping && envelope.opCode != OpCode.Pong) {
-          logger.debug(envelope.toJson())
+          logger.debug(MessageSerializer.writeJson(envelope))
         }
 
         envelope.opCode match {

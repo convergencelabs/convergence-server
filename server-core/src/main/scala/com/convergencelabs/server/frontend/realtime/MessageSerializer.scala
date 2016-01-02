@@ -10,31 +10,8 @@ import org.json4s.reflect.Reflector
 import com.convergencelabs.server.util.BiMap
 
 object MessageSerializer {
-  private[this] val operationSerializer = new TypeMapSerializer[OperationData]("t", Map(
-    "C" -> classOf[CompoundOperationData],
-    "SI" -> classOf[StringInsertOperationData],
-    "SR" -> classOf[StringRemoveOperationData],
-    "SS" -> classOf[StringSetOperationData],
 
-    "AI" -> classOf[ArrayInsertOperationData],
-    "AR" -> classOf[ArrayRemoveOperationData],
-    "AP" -> classOf[ArrayReplaceOperationData],
-    "AM" -> classOf[ArrayMoveOperationData],
-    "AS" -> classOf[ArraySetOperationData],
-
-    "OA" -> classOf[ObjectAddPropertyOperationData],
-    "OP" -> classOf[ObjectSetPropertyOperationData],
-    "OR" -> classOf[ObjectRemovePropertyOperationData],
-    "OS" -> classOf[ObjectSetOperationData],
-
-    "NA" -> classOf[NumberAddOperationData],
-    "NS" -> classOf[NumberSetOperationData],
-
-    "BS" -> classOf[BooleanSetOperationData]))
-
-  private[this] implicit val formats = DefaultFormats + operationSerializer
-
-  def writeJson[A <: AnyRef](a: A): String = {
+  def writeJson(a: MessageEnvelope): String = {
     write(a)
   }
 
@@ -65,6 +42,40 @@ object MessageSerializer {
     }
   }
 
+  def typeOfOutgoingMessage(message: Option[OutgoingProtocolMessage]): Option[String] = message match {
+    case None => None
+    case Some(x) => OutgoingMessages.get(x.getClass)
+  }
+
+  def typeOfIncomingMessage(message: Option[IncomingProtocolMessage]): Option[String] = message match {
+    case None => None
+    case Some(x) => IncomingMessages.getKey(x.getClass)
+  }
+
+  private[this] val operationSerializer = new TypeMapSerializer[OperationData]("t", Map(
+    "C" -> classOf[CompoundOperationData],
+    "SI" -> classOf[StringInsertOperationData],
+    "SR" -> classOf[StringRemoveOperationData],
+    "SS" -> classOf[StringSetOperationData],
+
+    "AI" -> classOf[ArrayInsertOperationData],
+    "AR" -> classOf[ArrayRemoveOperationData],
+    "AP" -> classOf[ArrayReplaceOperationData],
+    "AM" -> classOf[ArrayMoveOperationData],
+    "AS" -> classOf[ArraySetOperationData],
+
+    "OA" -> classOf[ObjectAddPropertyOperationData],
+    "OP" -> classOf[ObjectSetPropertyOperationData],
+    "OR" -> classOf[ObjectRemovePropertyOperationData],
+    "OS" -> classOf[ObjectSetOperationData],
+
+    "NA" -> classOf[NumberAddOperationData],
+    "NS" -> classOf[NumberSetOperationData],
+
+    "BS" -> classOf[BooleanSetOperationData]))
+
+  private[this] implicit val formats = DefaultFormats + operationSerializer
+
   private[this] val IncomingMessages = new BiMap[String, Class[_ <: ProtocolMessage]](
     MessageType.Handshake -> classOf[HandshakeRequestMessage],
 
@@ -80,9 +91,4 @@ object MessageSerializer {
   private[this] val OutgoingMessages = Map[Class[_], String](
     classOf[ModelDataRequestMessage] -> MessageType.ModelDataRequest,
     classOf[OperationAcknowledgementMessage] -> MessageType.OperationAck)
-
-  def typeOfOutgoingMessage(message: Option[OutgoingProtocolMessage]): Option[String] = message match {
-    case None => None
-    case Some(x) => OutgoingMessages.get(x.getClass)
-  }
 }

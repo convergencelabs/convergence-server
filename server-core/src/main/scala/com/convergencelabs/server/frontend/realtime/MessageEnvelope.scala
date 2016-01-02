@@ -3,9 +3,7 @@ package com.convergencelabs.server.frontend.realtime
 import scala.util.Try
 import org.json4s.JsonAST.JValue
 
-case class MessageEnvelope(opCode: String, reqId: Option[Long], `type`: Option[String], body: Option[JValue]) {
-  def toJson(): String = MessageSerializer.writeJson(this)
-}
+case class MessageEnvelope(opCode: String, reqId: Option[Long], `type`: Option[String], body: Option[JValue])
 
 object MessageEnvelope {
   def apply(json: String): Try[MessageEnvelope] = Try(MessageSerializer.readJson[MessageEnvelope](json))

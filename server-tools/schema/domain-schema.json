@@ -15,6 +15,9 @@
   "dataScripts": [
     "domain/data/DomainConfig/domainConfig.osql",
   
+    "domain/data/Model/company-company1.osql",
+    "domain/data/ModelSnapshot/company-company1-0.osql",
+  
     "domain/data/Model/people-person1.osql",
     
     "domain/data/ModelOperation/people-person1-01.osql",
@@ -36,8 +39,12 @@
     "domain/data/ModelSnapshot/people-person1-0.osql",
     "domain/data/ModelSnapshot/people-person1-10.osql",
     "domain/data/ModelSnapshot/people-person1-20.osql",
+    
     "domain/data/Model/people-person2.osql",
     "domain/data/ModelSnapshot/people-person2-0.osql",
+    
+    "domain/data/Model/people-person3.osql",
+    "domain/data/ModelSnapshot/people-person3-0.osql",
     
     "domain/data/User/u0.osql",
     "domain/data/UserCredential/u0.osql",

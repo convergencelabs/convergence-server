@@ -43,7 +43,7 @@ class MockConvergenceClient(serverUri: String)
   }
 
   def sendNormal(message: IncomingProtocolNormalMessage): MessageEnvelope = {
-    val t = MessageSerializer.IncomingMessages.getKey(message.getClass).get
+    val t = MessageSerializer.typeOfIncomingMessage(Some(message)).get
     val msg = MessageSerializer.decomposeBody(Some(message))
     val envelope = MessageEnvelope(OpCode.Normal, None, Some(t), msg)
     sendMessage(envelope)
@@ -53,7 +53,7 @@ class MockConvergenceClient(serverUri: String)
   var reqId = 0L
 
   def sendRequest(message: IncomingProtocolRequestMessage): MessageEnvelope = {
-    val t = MessageSerializer.IncomingMessages.getKey(message.getClass).get
+    val t = MessageSerializer.typeOfIncomingMessage(Some(message)).get
     val msg = MessageSerializer.decomposeBody(Some(message))
     val envelope = MessageEnvelope(OpCode.Request, Some(reqId), Some(t), msg)
     sendMessage(envelope)
@@ -69,8 +69,9 @@ class MockConvergenceClient(serverUri: String)
   }
 
   def sendMessage(message: MessageEnvelope): Unit = {
-    send(message.toJson())
-    logger.warn("SEND: " + message.toJson())
+    val json = MessageSerializer.writeJson(message)
+    send(json)
+    logger.warn("SEND: " + json)
   }
 
   override def onMessage(message: String): Unit = {

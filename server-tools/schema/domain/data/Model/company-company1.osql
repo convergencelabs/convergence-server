@@ -1,0 +1,15 @@
+INSERT INTO Model SET
+  collectionId = "company",
+  modelId = "company1",
+  version = 0,
+  createdTime = DATE("2015-10-20 04:00:00"),
+  modifiedTime = DATE("2015-10-20 04:00:00"),
+  data = {
+    "name": "Company1",
+    "address": {
+      "street": "124 Elm St",
+      "city": "Somehwereville",
+      "state": "CA",
+      "zip": "92110"
+    }
+  };

@@ -1,9 +1,9 @@
 INSERT INTO Model SET
   collectionId = "people",
   modelId = "person1",
-  version = 0,
-  createdTime = DATE(1439442600000),
-  modifiedTime = DATE(1448092500000),
+  version = 20,
+  createdTime = DATE("2015-10-20 01:00:00"),
+  modifiedTime = DATE("2015-10-20 12:00:00"),
   data = {
     "fname": "john",
     "lname": "smith",

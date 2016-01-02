@@ -28,7 +28,7 @@ ALTER PROPERTY Model.modifiedTime MANDATORY true;
 ALTER PROPERTY Model.modifiedTime NOTNULL true;
 
 #Model.data
-CREATE Property Model.data EMBEDDEDMAP;
+CREATE Property Model.data ANY;
 ALTER PROPERTY Model.data MANDATORY true;
 
 #Model Indexes

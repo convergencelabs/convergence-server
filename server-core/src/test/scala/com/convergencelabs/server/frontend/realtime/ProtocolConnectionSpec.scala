@@ -52,7 +52,7 @@ class ProtocolConnectionSpec
               Some(1L), 
               Some(MessageType.Handshake), 
               MessageSerializer.decomposeBody(Some(message)))
-          val json = envelope.toJson()
+          val json = MessageSerializer.writeJson(envelope)
           socket.fireOnMessage(json)
 
           val RequestReceived(x, r) = receiver.expectEventClass(10 millis, classOf[RequestReceived])
@@ -74,7 +74,7 @@ class ProtocolConnectionSpec
             Some(MessageType.Handshake),
             MessageSerializer.decomposeBody(Some(message)))
             
-        val json = envelope.toJson()
+        val json = MessageSerializer.writeJson(envelope)
         socket.fireOnMessage(json)
         val RequestReceived(m, cb) = receiver.expectEventClass(10 millis, classOf[RequestReceived])
 
@@ -82,7 +82,7 @@ class ProtocolConnectionSpec
         cb.reply(response)
 
         val responseEnvelop = MessageEnvelope(1L, response)
-        Mockito.verify(socket, times(1)).send(responseEnvelop.toJson())
+        Mockito.verify(socket, times(1)).send(MessageSerializer.writeJson(responseEnvelop))
         connection.close()
       }
     }
