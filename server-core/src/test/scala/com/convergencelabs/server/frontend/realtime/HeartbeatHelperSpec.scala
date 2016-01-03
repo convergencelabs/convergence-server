@@ -13,6 +13,7 @@ import akka.util.Timeout
 import scala.concurrent.Await
 import com.miguno.akka.testing.VirtualTime
 
+// scalastyle:off magic.number
 class HeartbeatHelperSpec extends WordSpec with Matchers with ScalaFutures {
 
   implicit val ec = ExecutionContext.Implicits.global
@@ -142,7 +143,7 @@ class HeartbeatHelperSpec extends WordSpec with Matchers with ScalaFutures {
         hbh.started() shouldBe false
         hbh.stopped() shouldBe true
       }
-      
+
       "throw an exception if stop is called" in {
         val time = new VirtualTime
 
@@ -155,7 +156,7 @@ class HeartbeatHelperSpec extends WordSpec with Matchers with ScalaFutures {
           hbh.stop()
         }
       }
-      
+
       "throw an exception if message received is called" in {
         val time = new VirtualTime
 

@@ -16,7 +16,7 @@ class AbstractPersistenceProviderSpec extends WordSpec with MockitoSugar with Ma
         val provider = new AbstractPersistenceProvider(pool) {}
         provider.validateConnection() shouldBe true
       }
-      
+
       "return false if a connection can not be aquired and closed" in {
         val pool = mock[OPartitionedDatabasePool]
         Mockito.when(pool.acquire()).thenThrow(new IllegalStateException())
@@ -24,7 +24,7 @@ class AbstractPersistenceProviderSpec extends WordSpec with MockitoSugar with Ma
         provider.validateConnection() shouldBe false
       }
     }
-    
+
     "shutting down" must {
       "close the pool when shutting down the provider" in {
         val pool = mock[OPartitionedDatabasePool]

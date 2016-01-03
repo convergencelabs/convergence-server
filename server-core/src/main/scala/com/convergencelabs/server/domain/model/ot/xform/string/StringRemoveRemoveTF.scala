@@ -1,10 +1,22 @@
 package com.convergencelabs.server.domain.model.ot
 
-import RangeRangeRelationship._
+import RangeRangeRelationship.ContainedBy
+import RangeRangeRelationship.Contains
+import RangeRangeRelationship.EqualTo
+import RangeRangeRelationship.FinishedBy
+import RangeRangeRelationship.Finishes
+import RangeRangeRelationship.Meets
+import RangeRangeRelationship.MetBy
+import RangeRangeRelationship.OverlappedBy
+import RangeRangeRelationship.Overlaps
+import RangeRangeRelationship.PrecededBy
+import RangeRangeRelationship.Precedes
+import RangeRangeRelationship.StartedBy
+import RangeRangeRelationship.Starts
 
 /**
- * This transformation function handles a concurrent server 
- * StringRemoveOperation and a client StringRemoveOperation. 
+ * This transformation function handles a concurrent server
+ * StringRemoveOperation and a client StringRemoveOperation.
  */
 private[ot] object StringRemoveRemoveTF extends OperationTransformationFunction[StringRemoveOperation, StringRemoveOperation] {
   // scalastyle:off cyclomatic.complexity

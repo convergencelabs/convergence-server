@@ -1,10 +1,12 @@
 package com.convergencelabs.server.domain.model.ot
 
+import scala.math.BigInt.int2bigInt
+
+import org.json4s.JsonAST.JArray
+import org.json4s.JsonAST.JInt
+import org.json4s.JsonAST.JObject
 import org.scalatest.FunSuite
 import org.scalatest.Matchers
-import org.json4s.JsonAST.JInt
-import org.json4s.JsonAST.JArray
-import org.json4s.JsonAST.JObject
 
 class OperationsSpec extends FunSuite with Matchers {
 
@@ -46,7 +48,7 @@ class OperationsSpec extends FunSuite with Matchers {
     val original = ArraySetOperation(List(), false, JArray(List(JInt(1))))
     original.clone(List(2), true) shouldBe ArraySetOperation(List(2), true, JArray(List(JInt(1))))
   }
-  
+
   test("ArrayMoveOperation must preserve other fields when setting noOp and path") {
     val original = ArrayMoveOperation(List(), false, 1, 2)
     original.clone(List(2), true) shouldBe ArrayMoveOperation(List(2), true, 1, 2)
@@ -73,21 +75,21 @@ class OperationsSpec extends FunSuite with Matchers {
     val original = ObjectSetOperation(List(), false, JObject())
     original.clone(List(2), true) shouldBe ObjectSetOperation(List(2), true, JObject())
   }
-  
+
   // Number Operations
-  
+
   test("NumberSetOperation must preserve other fields when setting noOp and path") {
     val original = NumberSetOperation(List(), false, JInt(1))
     original.clone(List(2), true) shouldBe NumberSetOperation(List(2), true, JInt(1))
   }
-  
+
   test("NumberAddOperation must preserve other fields when setting noOp and path") {
     val original = NumberAddOperation(List(), false, JInt(1))
     original.clone(List(2), true) shouldBe NumberAddOperation(List(2), true, JInt(1))
   }
-  
+
   // Boolean Operations
-  
+
   test("BooleanSetOperation must preserve other fields when setting noOp and path") {
     val original = BooleanSetOperation(List(), false, true)
     original.clone(List(2), true) shouldBe BooleanSetOperation(List(2), true, true)

@@ -5,6 +5,7 @@ import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
 
+// scalastyle:off magic.number
 class ArrayRemoveMoveTFSpec
     extends WordSpec
     with Matchers {
@@ -25,7 +26,7 @@ class ArrayRemoveMoveTFSpec
        *
        * Server State    : [A, B, D, E, F, G, H, I, J]
        * Client Op'      :        ^-->--^                      Move(2, 4)
-       *  
+       *
        * Client State    : [A, B, C, E, F, D, G, H, I, J]
        * Server Op'      :        ^                            Remove(2, C)
        *
@@ -54,7 +55,7 @@ class ArrayRemoveMoveTFSpec
        *
        * Server State    : [A, B, C, E, F, G, H, I, J]
        * Client Op'      :           ^-->--^                   Move(3, 5) - NoOp
-       * 
+       *
        * Client State    : [A, B, C, E, F, D, G, H, I, J]
        * Server Op'      :                 ^                   Remove(3, D)
        *
@@ -80,10 +81,10 @@ class ArrayRemoveMoveTFSpec
        *
        * Client Op       :              ^                      Remove(4, E)
        * Server Op       :           ^-->--^                   Move(3, 5)
-       * 
+       *
        * Server State    : [A, B, C, D, F, G, H, I, J]
        * Client Op'      :           ^->^                      Move(3, 4)
-       * 
+       *
        * Client State    : [A, B, C, E, F, D, G, H, I, J]
        * Server Op'      :           ^                         Remove(3, E)
        *
@@ -112,7 +113,7 @@ class ArrayRemoveMoveTFSpec
        *
        * Server State    : [A, B, C, D, E, G, H, I, J]
        * Client Op'      :           ^->^                      Move(3, 4)
-       * 
+       *
        * Client State    : [A, B, C, E, F, D, G, H, I, J]
        * Server Op'      :              ^                      Remove(4, F)
        *
@@ -141,7 +142,7 @@ class ArrayRemoveMoveTFSpec
        *
        * Server State    : [A, B, C, E, F, D, H, I, J]
        * Client Op'      :           ^-->--^                     Move(3, 5)
-       * 
+       *
        * Client State    : [A, B, C, E, F, D, G, H, I, J]
        * Server Op'      :                    ^                  Remove(6, G)
        *
@@ -159,7 +160,7 @@ class ArrayRemoveMoveTFSpec
         c1 shouldBe c
       }
     }
-    
+
     "tranforming a backward move against a remove" must {
 
       /**
@@ -173,7 +174,7 @@ class ArrayRemoveMoveTFSpec
        *
        * Server State    : [A, B, D, E, F, G, H, I, J]
        * Client Op'      :        ^--<--^                      Move(4, 2)
-       * 
+       *
        * Client State    : [A, B, C, F, D, E, G, H, I, J]
        * Server Op'      :        ^                            Remove(1, C)
        *
@@ -202,7 +203,7 @@ class ArrayRemoveMoveTFSpec
        *
        * Server State    : [A, B, C, E, F, G, H, I, J]
        * Client Op'      :           ^<-^                      Move(4, 3)
-       * 
+       *
        * Client State    : [A, B, C, F, D, E, G, H, I, J]
        * Server Op'      :              ^                      Remove(4, D)
        *
@@ -231,7 +232,7 @@ class ArrayRemoveMoveTFSpec
        *
        * Server State    : [A, B, C, D, F, G, H, I, J]
        * Client Op'      :           ^<-^                      Move(4, 3)
-       * 
+       *
        * Client State    : [A, B, C, F, D, E, G, H, I, J]
        * Server Op'      :                 ^                   Remove(5, E)
        *
@@ -260,7 +261,7 @@ class ArrayRemoveMoveTFSpec
        *
        * Server State    : [A, B, C, D, E, G, H, I, J]
        * Client Op'      :           ^<-^                      Move(5, 3) - NoOp
-       * 
+       *
        * Client State    : [A, B, C, F, D, E, G, H, I, J]
        * Server Op'      :           ^                         Remove(3, F)
        *
@@ -289,7 +290,7 @@ class ArrayRemoveMoveTFSpec
        *
        * Server State    : [A, B, C, D, E, F, H, I, J]
        * Client Op'      :           ^--<--^                   Move(5, 3)
-       * 
+       *
        * Client State    : [A, B, C, F, D, E, G, H, I, J]
        * Server Op'      :                    ^                Remove(6, G)
        *
@@ -307,7 +308,7 @@ class ArrayRemoveMoveTFSpec
         c1 shouldBe c
       }
     }
-    
+
     "tranforming a identity move against a remove" must {
 
       /**
@@ -321,7 +322,7 @@ class ArrayRemoveMoveTFSpec
        *
        * Server State    : [A, C, D, E, F, G, H, I, J]
        * Client Op'      :        ^                            Move(2, 2)
-       * 
+       *
        * Client State    : [A, B, C, D, E, F, G, H, I, J]
        * Server Op'      :     ^                               Remove(2, C)
        *
@@ -350,7 +351,7 @@ class ArrayRemoveMoveTFSpec
        *
        * Server State    : [A, B, C, E, F, G, H, I, J]
        * Client Op'      :           ^                         Move(3, 3)
-       * 
+       *
        * Client State    : [A, B, C, D, E, F, G, H, I, J]
        * Server Op'      :           ^                         Remove(3, D)
        *
@@ -376,7 +377,7 @@ class ArrayRemoveMoveTFSpec
        *
        * Server Op       :              ^                        Remove(4, E)
        * Client Op       :           ^                           Move(3, 3)
-       * 
+       *
        * Server State    : [A, B, C, D, F, G, H, I, J]
        * Client Op'      :           ^                           Move(3, 3)
        *

@@ -1,16 +1,12 @@
 package com.convergencelabs.server
 
-import java.util.concurrent.TimeUnit
-
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
 
 import com.convergencelabs.server.datastore.PersistenceProvider
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 import com.convergencelabs.server.domain.DomainManagerActor
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-
-import scala.language.postfixOps
-import scala.concurrent.duration.DurationInt
 
 import akka.actor.ActorSystem
 import grizzled.slf4j.Logging
@@ -35,9 +31,9 @@ class BackendNode(system: ActorSystem) extends Logging {
     val protocolConfig = ProtocolConfiguration(
       5 seconds,
       HeartbeatConfiguration(
-          true,
-          5 seconds,
-          10 seconds))
+        true,
+        5 seconds,
+        10 seconds))
 
     val dbPoolManager = system.actorOf(
       DomainPersistenceManagerActor.props(
@@ -52,8 +48,8 @@ class BackendNode(system: ActorSystem) extends Logging {
 
     logger.info("Backend Node started up.")
   }
-  
+
   def stop(): Unit = {
-    
+
   }
 }

@@ -5,6 +5,7 @@ import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
 
+// scalastyle:off magic.number
 class ArrayMoveMoveTFSpec
     extends WordSpec
     with Matchers {

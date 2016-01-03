@@ -1,20 +1,22 @@
 package com.convergencelabs.server.datastore.domain
 
+import java.text.SimpleDateFormat
 import java.time.Instant
+
 import org.json4s.JsonAST.JObject
 import org.json4s.JsonAST.JString
-import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.OptionValues.convertOptionToValuable
-import org.scalatest.TryValues._
+import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
+
 import com.convergencelabs.server.domain.model.Model
 import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelMetaData
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
-import java.text.SimpleDateFormat
 
+// scalastyle:off magic.number
 class ModelStoreSpec
     extends PersistenceStoreSpec[ModelStore]("/dbfiles/domain.json.gz")
     with WordSpecLike
@@ -24,21 +26,23 @@ class ModelStoreSpec
 
   def createStore(dbPool: OPartitionedDatabasePool): ModelStore = new ModelStore(dbPool)
 
-  val person1 = ModelFqn("people", "person1")
+  val peopleCollectionId = "people"
+
+  val person1 = ModelFqn(peopleCollectionId, "person1")
   val person1MetaData = ModelMetaData(
     person1,
     20,
     Instant.ofEpochMilli(df.parse("2015-10-20 01:00:00").getTime),
     Instant.ofEpochMilli(df.parse("2015-10-20 12:00:00").getTime))
 
-  val person2 = ModelFqn("people", "person2")
+  val person2 = ModelFqn(peopleCollectionId, "person2")
   val person2MetaData = ModelMetaData(
     person2,
     0,
     Instant.ofEpochMilli(df.parse("2015-10-20 02:00:00").getTime),
     Instant.ofEpochMilli(df.parse("2015-10-20 02:00:00").getTime))
 
-  val person3 = ModelFqn("people", "person3")
+  val person3 = ModelFqn(peopleCollectionId, "person3")
   val person3MetaData = ModelMetaData(
     person3,
     0,
@@ -69,7 +73,7 @@ class ModelStoreSpec
 
     "creating a model" must {
       "create a model that is not a duplicate model fqn" in withPersistenceStore { store =>
-        val modelFqn = ModelFqn("people", "person4")
+        val modelFqn = ModelFqn(peopleCollectionId, "person4")
         val time = Instant.now()
         val model = Model(
           ModelMetaData(
@@ -119,7 +123,7 @@ class ModelStoreSpec
 
     "getting all model meta data for a specific collection" must {
       "return all meta data when no limit or offset are provided" in withPersistenceStore { store =>
-        val list = store.getAllModelMetaDataInCollection("people", None, None).success.value
+        val list = store.getAllModelMetaDataInCollection(peopleCollectionId, None, None).success.value
         list shouldBe List(
           person1MetaData,
           person2MetaData,
@@ -127,19 +131,19 @@ class ModelStoreSpec
       }
 
       "return only the limited number of meta data when limit provided" in withPersistenceStore { store =>
-        val list = store.getAllModelMetaDataInCollection("people", None, Some(1)).success.value
+        val list = store.getAllModelMetaDataInCollection(peopleCollectionId, None, Some(1)).success.value
         list shouldBe List(person1MetaData)
       }
 
       "return only the limited number of meta data when offset provided" in withPersistenceStore { store =>
-        val list = store.getAllModelMetaDataInCollection("people", Some(1), None).success.value
+        val list = store.getAllModelMetaDataInCollection(peopleCollectionId, Some(1), None).success.value
         list.length shouldBe 2
         list(0) shouldBe person2MetaData
         list(1) shouldBe person3MetaData
       }
 
       "return only the limited number of meta data when limit and offset provided" in withPersistenceStore { store =>
-        val list = store.getAllModelMetaDataInCollection("people", Some(1), Some(1)).success.value
+        val list = store.getAllModelMetaDataInCollection(peopleCollectionId, Some(1), Some(1)).success.value
         list shouldBe List(person2MetaData)
       }
 
@@ -195,7 +199,7 @@ class ModelStoreSpec
         store.deleteModel(nonExsitingFqn).failure
       }
     }
-    
+
     "deleting all models in collection" must {
       "delete the models in the specified and no others" in withPersistenceStore { store =>
         store.getModel(person1).success.value shouldBe defined

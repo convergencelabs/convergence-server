@@ -9,6 +9,7 @@ import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.convergencelabs.server.domain.model.ModelFqn
 import java.time.Instant
 
+// scalastyle:off magic.number
 class ModelOperationStoreSpec
     extends PersistenceStoreSpec[ModelOperationStore]("/dbfiles/domain.json.gz")
     with WordSpecLike

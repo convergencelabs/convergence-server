@@ -5,6 +5,7 @@ import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
 
+// scalastyle:off magic.number
 class ArrayReplaceMoveTFSpec
     extends WordSpec
     with Matchers {
@@ -25,7 +26,7 @@ class ArrayReplaceMoveTFSpec
        *
        * Server State    : [A, B, C, D, E, F, G, H, I, J]
        * Client Op'      :           ^-->--^                 Move(3, 5)
-       * 
+       *
        * Client State    : [A, B, C, E, F, D, G, H, I, J]
        * Server Op'      :        ^                          Replace(2, X)
        *
@@ -54,7 +55,7 @@ class ArrayReplaceMoveTFSpec
        *
        * Server State    : [A, B, C, D, E, F, G, H, I, J]
        * Client Op'      :           ^-->--^                   Move(3, 5)
-       * 
+       *
        * Client State    : [A, B, C, E, F, D, G, H, I, J]
        * Server Op'      :                 ^                   Replace(5, X)
        *
@@ -83,7 +84,7 @@ class ArrayReplaceMoveTFSpec
        *
        * Server State    : [A, B, C, D, X, F, G, H, I, J]
        * Client Op'      :           ^-->--^                   Move(3, 5)
-       * 
+       *
        * Client State    : [A, B, C, E, F, D, G, H, I, J]
        * Server Op'      :           ^                         Replace(3, X)
        *
@@ -109,10 +110,10 @@ class ArrayReplaceMoveTFSpec
        *
        * Server Op       :                 ^                   Replace(5, X)
        * Client Op       :           ^-->--^                   Move(3, 5)
-       * 
+       *
        * Server State    : [A, B, C, D, E, X, G, H, I, J]
        * Client Op'      :           ^-->--^                   Move(3, 5)
-       * 
+       *
        * Client State    : [A, B, C, E, F, D, G, H, I, J]
        * Server Op'      :              ^                      Replace(4, X)
        *
@@ -138,7 +139,7 @@ class ArrayReplaceMoveTFSpec
        *
        * Server Op       :                    ^                  Replace(6, X)
        * Client Op       :           ^-->--^                     Move(3, 5)
-       * 
+       *
        * Server State    : [A, B, C, D, E, F, X, H, I, J]
        * Client Op'      :           ^-->--^                     Move(3, 5)
        *
@@ -159,7 +160,7 @@ class ArrayReplaceMoveTFSpec
         c1 shouldBe c
       }
     }
-    
+
     "tranforming a backward move against an replace" must {
 
       /**
@@ -170,7 +171,7 @@ class ArrayReplaceMoveTFSpec
        *
        * Server Op       :        ^                            Replace(2, X)
        * Client Op       :           ^--<--^                   Move(5, 3)
-       * 
+       *
        * Server State    : [A, B, X, D, E, F, G, H, I, J]
        * Client Op'      :           ^--<--^                   Move(5, 3)
        *
@@ -199,7 +200,7 @@ class ArrayReplaceMoveTFSpec
        *
        * Server Op       :           ^                         Replace(3, X)
        * Client Op       :           ^--<--^                   Move(5, 3)
-       * 
+       *
        * Server State    : [A, B, C, X, E, F, G, H, I, J]
        * Client Op'      :           ^--<--^                   Move(5, 3)
        *
@@ -231,7 +232,7 @@ class ArrayReplaceMoveTFSpec
        *
        * Server State    : [A, B, C, D, X, F, G, H, I, J]
        * Client Op'      :           ^--<--^                     Move(5, 3)
-       * 
+       *
        * Client State    : [A, B, C, F, D, E, G, H, I, J]
        * Server Op'      :                 ^                     Replace(5, X)
        *
@@ -260,7 +261,7 @@ class ArrayReplaceMoveTFSpec
        *
        * Server State    : [A, B, C, D, E, X, G, H, I, J]
        * Client Op'      :           ^--<--^                   Move(5, 3)
-       * 
+       *
        * Client State    : [A, B, C, F, D, E, G, H, I, J]
        * Server Op'      :           ^                         Replace(3, X)
        *
@@ -286,7 +287,7 @@ class ArrayReplaceMoveTFSpec
        *
        * Server Op       :                    ^                  Replace(6, X)
        * Client Op       :           ^--<--^                     Move(5, 3)
-       * 
+       *
        * Server State    : [A, B, C, D, E, F, X, H, I, J]
        * Client Op'      :           ^--<--^                     Move(5, 3)
        *
@@ -307,7 +308,7 @@ class ArrayReplaceMoveTFSpec
         c1 shouldBe c
       }
     }
-    
+
     "tranforming a identity move against an replace" must {
 
       /**
@@ -318,10 +319,10 @@ class ArrayReplaceMoveTFSpec
        *
        * Server Op       :        ^                              Replace(2, X)
        * Client Op       :           ^                           Move(3, 3)
-       * 
+       *
        * Server State    : [A, B, C, D, E, F, G, H, I, J]
        * Client Op'      :           ^                           Move(3, 3)
-       * 
+       *
        * Client State    : [A, B, C, D, E, F, G, H, I, J]
        * Server Op'      :        ^                              Replace(2, X)
        *
@@ -350,7 +351,7 @@ class ArrayReplaceMoveTFSpec
        *
        * Server State    : [A, B, C, X, E, F, G, H, I, J]
        * Client Op'      :           ^                         Move(3, 3)
-       * 
+       *
        * Client State    : [A, B, C, D, E, F, G, H, I, J]
        * Server Op'      :           ^                         Replace(3, X)
        *
@@ -378,7 +379,7 @@ class ArrayReplaceMoveTFSpec
        * Client Op       :           ^                           Move(3, 3)
        *
        * Server State    : [A, B, C, D, X, F, G, H, I, J]
-       * Client Op'      :           ^                           Move(3, 3) 
+       * Client Op'      :           ^                           Move(3, 3)
        *
        * Client State    : [A, B, C, D, E, F, G, H, I, J]
        * Server Op'      :              ^                        Replace(4, X)

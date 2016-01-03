@@ -1,32 +1,24 @@
 package com.convergencelabs.server.frontend.realtime
 
-import java.util.concurrent.LinkedBlockingDeque
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.DurationInt
-import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
-import org.json4s.NoTypeHints
-import org.json4s.jackson.Serialization
+
+import org.json4s.JsonAST.JBool
+import org.json4s.JsonAST.JObject
+import org.json4s.JsonDSL.int2jvalue
+import org.json4s.JsonDSL.jobject2assoc
+import org.json4s.JsonDSL.pair2Assoc
+import org.json4s.JsonDSL.pair2jvalue
+import org.json4s.JsonDSL.string2jvalue
+import org.json4s.JsonDSL.boolean2jvalue
+import org.json4s.jackson.JsonMethods.compact
+import org.json4s.jackson.JsonMethods.render
 import org.junit.runner.RunWith
-import org.mockito.Mockito
-import org.mockito.Mockito.times
-import org.scalatest.Assertions
-import org.scalatest.BeforeAndAfterAll
 import org.scalatest.Finders
+import org.scalatest.Matchers
+import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
 import org.scalatest.junit.JUnitRunner
-import org.scalatest.mock.MockitoSugar
-import com.convergencelabs.server.ProtocolConfiguration
-import akka.actor.ActorSystem
-import akka.testkit.TestKit
-import org.scalatest.Matchers
-import org.scalatest.TryValues._
-import org.json4s._
-import org.json4s.JsonDSL._
-import org.json4s.jackson.JsonMethods._
-import org.json4s.JsonAST.JObject
 
-@RunWith(classOf[JUnitRunner])
 class MessageEnvelopeSpec
     extends WordSpecLike
     with Matchers {
@@ -63,14 +55,14 @@ class MessageEnvelopeSpec
           MessageEnvelope(OpCode.Reply, Some(1L), None, asJosn)
 
       }
-      
+
       "correctly greate a normal message" in {
         val normal = OperationAcknowledgementMessage("foo", 1L, 2L)
         val asJosn = MessageSerializer.decomposeBody(Some(normal))
         MessageEnvelope(normal) shouldBe
           MessageEnvelope(OpCode.Normal, None, Some(MessageType.OperationAck), asJosn)
       }
-      
+
       "correctly greate a request message" in {
         val request = ModelDataRequestMessage(ModelFqnData("foo", "bar"))
         val asJosn = MessageSerializer.decomposeBody(Some(request))

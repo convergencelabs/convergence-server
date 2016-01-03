@@ -97,7 +97,7 @@ private[ot] object ArrayMoveRangeHelper {
   def indexWithinRange(op: ArrayMoveOperation, index: Long): Boolean = {
     index > getRangeMin(op) && index < getRangeMax(op)
   }
-  
+
   def getRangeIndexRelationship(op: ArrayMoveOperation, index: Int): RangeIndexRelationship.Value = {
     RangeRelationshipUtil.getRangeIndexRelationship(getRangeMin(op), getRangeMax(op), index)
   }
@@ -115,7 +115,7 @@ private[ot] object ArrayMoveRangeHelper {
   def getRangeRelationship(op1: ArrayMoveOperation, op2: ArrayMoveOperation): RangeRangeRelationship.Value = {
     RangeRelationshipUtil.getRangeRangeRelationship(getRangeMin(op1), getRangeMax(op1), getRangeMin(op2), getRangeMax(op2))
   }
-  
+
   /**
    * Returns the lesser of the fromIndex and the toIndex of the ArrayMoveOperation
    *

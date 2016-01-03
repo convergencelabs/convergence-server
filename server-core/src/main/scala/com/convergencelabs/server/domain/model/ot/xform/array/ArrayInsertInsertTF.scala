@@ -1,7 +1,7 @@
 package com.convergencelabs.server.domain.model.ot
 
 /**
- * This transformation function handles the case where a server 
+ * This transformation function handles the case where a server
  * [[ArrayInsertOperation]] is concurrent with a client ArrayInsertOperation.
  * The main criteria for the transformation rules depend in the relative
  * position of the two operations.

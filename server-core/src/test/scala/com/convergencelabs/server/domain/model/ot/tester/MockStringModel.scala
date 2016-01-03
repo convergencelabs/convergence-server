@@ -1,7 +1,5 @@
 package com.convergencelabs.server.domain.model.ot
 
-import scala.collection.JavaConverters._
-
 class MockStringModel(private var state: String) extends MockModel {
 
   def updateModel(op: DiscreteOperation): Unit = {
@@ -9,19 +7,18 @@ class MockStringModel(private var state: String) extends MockModel {
       case insert: StringInsertOperation => handleInsert(insert)
       case remove: StringRemoveOperation => handleRemove(remove)
       case set: StringSetOperation => handleSet(set)
-      case x => throw new IllegalArgumentException()
+      case x: Any => throw new IllegalArgumentException()
     }
   }
-  
+
   private def handleInsert(op: StringInsertOperation): Unit = {
     state = state.patch(op.index, op.value, 0)
   }
-  
+
   private def handleRemove(op: StringRemoveOperation): Unit = {
     state = state.patch(op.index, Nil, op.value.length)
   }
-  
-  
+
   private def handleSet(op: StringSetOperation): Unit = {
     state = op.value
   }

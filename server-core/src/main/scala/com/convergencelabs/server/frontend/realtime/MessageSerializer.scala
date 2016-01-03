@@ -56,14 +56,14 @@ object MessageSerializer {
     envelope match {
       case MessageEnvelope(OpCode.Ping, None, None, None) => true
       case MessageEnvelope(OpCode.Pong, None, None, None) => true
-      
+
       case MessageEnvelope(OpCode.Request, Some(reqId), Some(tpe), Some(msg)) => true
-      
-      case MessageEnvelope(OpCode.Reply, Some(reqId), None, Some(msg)) => true 
+
+      case MessageEnvelope(OpCode.Reply, Some(reqId), None, Some(msg)) => true
       case MessageEnvelope(OpCode.Reply, Some(reqId), Some(MessageType.Error), Some(msg)) => true
-      
+
       case MessageEnvelope(OpCode.Normal, None, Some(tpe), Some(msg)) => true
-      
+
       case _ => false
     }
   }

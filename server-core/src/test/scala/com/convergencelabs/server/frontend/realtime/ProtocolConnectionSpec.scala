@@ -1,36 +1,38 @@
 package com.convergencelabs.server.frontend.realtime
 
 import java.util.concurrent.LinkedBlockingDeque
-import java.util.concurrent.TimeUnit
+
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
+
 import org.json4s.JsonAST.JString
 import org.json4s.NoTypeHints
 import org.json4s.jackson.Serialization
 import org.junit.runner.RunWith
-import org.mockito.ArgumentCaptor
 import org.mockito.{ Matchers => MockitoMatchers }
 import org.mockito.Mockito
 import org.mockito.Mockito.times
 import org.scalatest.Assertions
 import org.scalatest.BeforeAndAfterAll
+import org.scalatest.Finders
 import org.scalatest.Matchers
-import org.scalatest.OptionValues._
-import org.scalatest.TryValues._
+import org.scalatest.OptionValues.convertOptionToValuable
+import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.mock.MockitoSugar
+
 import com.convergencelabs.server.HeartbeatConfiguration
 import com.convergencelabs.server.ProtocolConfiguration
 import com.convergencelabs.server.util.concurrent.UnexpectedErrorException
+
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
-import com.convergencelabs.server.util.concurrent.UnexpectedErrorException
 
-@RunWith(classOf[JUnitRunner])
+// scalastyle:off magic.number
 class ProtocolConnectionSpec
     extends TestKit(ActorSystem("ProtocolConnectionSpec"))
     with WordSpecLike
@@ -122,7 +124,7 @@ class ProtocolConnectionSpec
         Mockito.verify(socket, times(1)).abort(MockitoMatchers.anyString())
       }
     }
-    
+
     "receiving a request" must {
       "emit a request received event" in new TestFixture {
         val message = HandshakeRequestMessage(false, None, None)

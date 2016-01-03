@@ -1,7 +1,13 @@
 package com.convergencelabs.server.domain.model.ot
 
-import MoveDirection._
-import RangeIndexRelationship._
+import MoveDirection.Backward
+import MoveDirection.Forward
+import MoveDirection.Identity
+import RangeIndexRelationship.After
+import RangeIndexRelationship.Before
+import RangeIndexRelationship.End
+import RangeIndexRelationship.Start
+import RangeIndexRelationship.Within
 
 private[ot] object ArrayInsertMoveTF extends OperationTransformationFunction[ArrayInsertOperation, ArrayMoveOperation] {
   def transform(s: ArrayInsertOperation, c: ArrayMoveOperation): (ArrayInsertOperation, ArrayMoveOperation) = {

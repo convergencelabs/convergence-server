@@ -34,7 +34,7 @@ private[ot] object ArrayRemoveMoveTF extends OperationTransformationFunction[Arr
     } else {
       // At the end or in the middle.
       (s.copy(index = s.index + 1), c.copy(fromIndex = c.fromIndex - 1))
-    } 
+    }
   }
 
   def transformAgainstIdentityMove(s: ArrayRemoveOperation, c: ArrayMoveOperation): (ArrayRemoveOperation, ArrayMoveOperation) = {

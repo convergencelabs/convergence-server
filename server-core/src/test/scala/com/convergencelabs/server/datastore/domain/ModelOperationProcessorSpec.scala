@@ -33,6 +33,7 @@ import com.convergencelabs.server.domain.model.ot.StringSetOperation
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.convergencelabs.server.domain.model.ot.CompoundOperation
 
+// scalastyle:off magic.number
 class ModelOperationProcessorSpec
     extends PersistenceStoreSpec[(ModelOperationProcessor, ModelOperationStore, ModelStore)]("/dbfiles/domain.json.gz")
     with WordSpecLike
@@ -57,7 +58,7 @@ class ModelOperationProcessorSpec
       new ModelStore(dbPool))
 
   "A ModelOperationProcessor" when {
-    
+
     "applying a noOp'ed discrete operation" must {
       "not apply the operation" in withPersistenceStore { stores =>
         val (processor, opStore, modelStore) = stores
@@ -69,37 +70,37 @@ class ModelOperationProcessorSpec
         modelData \ fnameField shouldBe JString("john")
       }
     }
-    
+
     "applying a compound operation" must {
       "apply all operations in the compound operation" in withPersistenceStore { stores =>
         val (processor, opStore, modelStore) = stores
 
         val op1 = StringInsertOperation(List(fnameField), false, 0, "x")
         val op2 = StringInsertOperation(List(fnameField), false, 1, "y")
-        
+
         val compound = CompoundOperation(List(op1, op2))
-        
+
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, compound)
         val response = processor.processModelOperation(modelOp).success
         val modelData = modelStore.getModelData(modelFqn).success.value.value
         modelData \ fnameField shouldBe JString("xyjohn")
       }
-      
+
       "not apply noOp'ed operations in the compound operation" in withPersistenceStore { stores =>
         val (processor, opStore, modelStore) = stores
 
         val op1 = StringInsertOperation(List(fnameField), false, 0, "x")
         val op2 = StringInsertOperation(List(fnameField), true, 1, "y")
-        
+
         val compound = CompoundOperation(List(op1, op2))
-        
+
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, compound)
         val response = processor.processModelOperation(modelOp).success
         val modelData = modelStore.getModelData(modelFqn).success.value.value
         modelData \ fnameField shouldBe JString("xjohn")
       }
     }
-    
+
     "applying string operations" must {
       "correctly update the model on StringInsert" in withPersistenceStore { stores =>
         val (processor, opStore, modelStore) = stores
@@ -196,10 +197,9 @@ class ModelOperationProcessorSpec
 
         val modelData = modelStore.getModelData(modelFqn).success.value.value
         (modelData \ emailsField) shouldBe JArray(List(
-            JString("second@email.com"),
-            JString("another@email.com"),
-            JString("first@email.com")
-            ))
+          JString("second@email.com"),
+          JString("another@email.com"),
+          JString("first@email.com")))
       }
 
       "correctly update the model on ArraySet" in withPersistenceStore { stores =>

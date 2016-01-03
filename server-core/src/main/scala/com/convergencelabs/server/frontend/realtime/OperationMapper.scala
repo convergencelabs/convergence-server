@@ -5,6 +5,7 @@ import com.convergencelabs.server.domain.model.ot.ArrayMoveOperation
 import com.convergencelabs.server.domain.model.ot.ArrayRemoveOperation
 import com.convergencelabs.server.domain.model.ot.ArrayReplaceOperation
 import com.convergencelabs.server.domain.model.ot.ArraySetOperation
+import com.convergencelabs.server.domain.model.ot.BooleanSetOperation
 import com.convergencelabs.server.domain.model.ot.CompoundOperation
 import com.convergencelabs.server.domain.model.ot.DiscreteOperation
 import com.convergencelabs.server.domain.model.ot.NumberAddOperation
@@ -17,7 +18,6 @@ import com.convergencelabs.server.domain.model.ot.Operation
 import com.convergencelabs.server.domain.model.ot.StringInsertOperation
 import com.convergencelabs.server.domain.model.ot.StringRemoveOperation
 import com.convergencelabs.server.domain.model.ot.StringSetOperation
-import com.convergencelabs.server.domain.model.ot.BooleanSetOperation
 
 private[realtime] object OperationMapper {
 
@@ -52,7 +52,7 @@ private[realtime] object OperationMapper {
 
       case NumberAddOperationData(path, noOp, delta) => NumberAddOperation(path, noOp, delta)
       case NumberSetOperationData(path, noOp, number) => NumberSetOperation(path, noOp, number)
-      
+
       case BooleanSetOperationData(path, noOp, value) => BooleanSetOperation(path, noOp, value)
     }
   }
@@ -89,7 +89,7 @@ private[realtime] object OperationMapper {
 
       case NumberAddOperation(path, noOp, delta) => NumberAddOperationData(path, noOp, delta)
       case NumberSetOperation(path, noOp, number) => NumberSetOperationData(path, noOp, number)
-      
+
       case BooleanSetOperation(path, noOp, value) => BooleanSetOperationData(path, noOp, value)
     }
   }

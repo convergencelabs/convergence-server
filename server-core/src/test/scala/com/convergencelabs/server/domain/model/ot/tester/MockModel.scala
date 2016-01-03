@@ -7,8 +7,8 @@ trait MockModel {
       case false => updateModel(op)
     }
   }
-  
-  protected def updateModel(op: DiscreteOperation)
+
+  protected def updateModel(op: DiscreteOperation): Unit
 
   def getData(): Any
 }

@@ -3,6 +3,7 @@ package com.convergencelabs.server.domain.model.ot
 import org.scalatest.WordSpec
 import org.scalatest.Matchers
 
+// scalastyle:off magic.number
 class ArrayMoveRangeHelperSpec extends WordSpec with Matchers {
 
   "A ArrayMoveRangeHelper" when {
@@ -69,12 +70,12 @@ class ArrayMoveRangeHelperSpec extends WordSpec with Matchers {
         val op = ArrayMoveOperation(List(), false, 1, 2)
         ArrayMoveRangeHelper.getMoveDirection(op) shouldBe MoveDirection.Forward
       }
-      
+
       "return Backward for a forward move" in {
         val op = ArrayMoveOperation(List(), false, 2, 1)
         ArrayMoveRangeHelper.getMoveDirection(op) shouldBe MoveDirection.Backward
       }
-      
+
       "return Identity for a forward move" in {
         val op = ArrayMoveOperation(List(), false, 2, 2)
         ArrayMoveRangeHelper.getMoveDirection(op) shouldBe MoveDirection.Identity
@@ -175,7 +176,7 @@ class ArrayMoveRangeHelperSpec extends WordSpec with Matchers {
     }
   }
 
-  def validateRangeRelationshipType(c: Case, expected: RangeRangeRelationship.Value) {
+  def validateRangeRelationshipType(c: Case, expected: RangeRangeRelationship.Value): Unit = {
     ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe expected
   }
 }

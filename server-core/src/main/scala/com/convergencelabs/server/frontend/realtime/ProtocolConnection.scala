@@ -6,12 +6,8 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
-import scala.concurrent.duration.FiniteDuration
 import scala.util.Failure
 import scala.util.Success
-
-import org.json4s.NoTypeHints
-import org.json4s.jackson.Serialization
 
 import com.convergencelabs.server.ProtocolConfiguration
 import com.convergencelabs.server.util.concurrent.UnexpectedErrorException
@@ -261,7 +257,7 @@ class ProtocolConnection(
         Some(reqId),
         Some(MessageType.Error),
         serializedErrorMessage)
-        
+
       sendMessage(envelope)
       p.failure(cause)
     }

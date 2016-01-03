@@ -10,7 +10,7 @@ class StringSetInsertExhaustiveSpec extends StringOperationExhaustiveSpec[String
       StringSetOperation(List(), false, "SetString"),
       StringInsertOperation(List(), false, i1, "Y"))
   }
-  
+
   def transform(s: StringSetOperation, c: StringInsertOperation): (DiscreteOperation, DiscreteOperation) = {
     StringSetInsertTF.transform(s, c)
   }

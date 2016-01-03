@@ -1,8 +1,7 @@
 package com.convergencelabs.server.domain.model.ot
 
-
 class StringSetSetExhaustiveSpec extends StringOperationExhaustiveSpec[StringSetOperation, StringSetOperation] {
-  
+
   val serverOperationType: String = "StringSetOperation"
   val clientOperationType: String = "StringSetOperation"
 

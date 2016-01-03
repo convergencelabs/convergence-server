@@ -24,7 +24,7 @@ class TypeMapSerializerSpec
   "A TypeMapSerializer" when {
     "serializing a value" must {
       "serialize the type with the correct type field name and value for a type that has been mapped" in new TestFixture {
-        val t1 = Test1("foo")
+        val t1 = Test1("1")
         val default = Extraction.decompose(t1)(DefaultFormats).asInstanceOf[JObject]
         val expected = default ~ (typeField -> test1Type)
         val jValue = Extraction.decompose(t1)(format)
@@ -39,7 +39,7 @@ class TypeMapSerializerSpec
       }
 
       "throw an excpetion for a value that already contains a property that is the same as the typeField" in new TestFixture {
-        val t4 = Test4("bar", "foo")
+        val t4 = Test4("2", "3")
         intercept[IllegalArgumentException] {
           Extraction.decompose(t4)(format)
         }
@@ -49,14 +49,14 @@ class TypeMapSerializerSpec
     "deserializing a value" must {
       "deserialize a mapped class with a propper mapping" in new TestFixture {
         implicit val f = format
-        val value = JObject(List(("value", JString("foo")), ("t", JString("t1"))))
+        val value = JObject(List((valueField, JString("5")), (typeField, JString(test1Type))))
         val deserialized = Extraction.extract(value, Reflector.scalaTypeOf(classOf[TestData]))
-        deserialized shouldBe Test1("foo")
+        deserialized shouldBe Test1("5")
       }
 
       "throw an excpetion when deserializing a value with a type that is not registered" in new TestFixture {
         implicit val f = format
-        val value = JObject(List(("value", JString("foo")), ("t", JString("t3"))))
+        val value = JObject(List((valueField, JString("6")), (typeField, JString("t3"))))
         intercept[IllegalArgumentException] {
           Extraction.extract(value, Reflector.scalaTypeOf(classOf[TestData]))
         }
@@ -64,15 +64,15 @@ class TypeMapSerializerSpec
 
       "throw an excpetion when deserializing a value without the type field" in new TestFixture {
         implicit val f = format
-        val value = JObject(List(("value", JString("foo"))))
+        val value = JObject(List((valueField, JString("7"))))
         intercept[IllegalArgumentException] {
           Extraction.extract(value, Reflector.scalaTypeOf(classOf[TestData]))
         }
       }
-      
+
       "throw an exception if the mapping fails" in new TestFixture {
         implicit val f = format
-        val value = JObject(List(("wrong", JString("foo")), ("t", JString("t1"))))
+        val value = JObject(List(("wrong", JString("8")), (typeField, JString(test1Type))))
         intercept[MappingException] {
           Extraction.extract(value, Reflector.scalaTypeOf(classOf[TestData]))
         }
@@ -81,6 +81,7 @@ class TypeMapSerializerSpec
   }
 
   trait TestFixture {
+    val valueField = "value"
     val typeField = "t"
     val test1Type = "t1"
     val test2Type = "t2"

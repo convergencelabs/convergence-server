@@ -1,7 +1,7 @@
 package com.convergencelabs.server.domain.model.ot
 
 /**
- * This transformation function handles the case where a server 
+ * This transformation function handles the case where a server
  * StringInsertOperation is concurrent with a client StringInsertOperation.
  * The major consideration in determining what transformation path to take
  * is the relative position of the two operation's positional indices.

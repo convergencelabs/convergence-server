@@ -19,6 +19,7 @@ import com.convergencelabs.server.domain.model.ot.StringInsertOperation
 import com.convergencelabs.server.domain.model.ot.StringRemoveOperation
 import com.convergencelabs.server.domain.model.ot.StringSetOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
+
 import ArrayInsertOperationMapper.ArrayInsertOperationToODocument
 import ArrayInsertOperationMapper.{ DocumentClassName => ArrayInsertDocName }
 import ArrayInsertOperationMapper.ODocumentToArrayInsertOperation
@@ -67,7 +68,6 @@ import StringRemoveOperationMapper.StringRemoveOperationToODocument
 import StringSetOperationMapper.{ DocumentClassName => StringSetDocName }
 import StringSetOperationMapper.ODocumentToStringSetOperation
 import StringSetOperationMapper.StringSetOperationToODocument
-import com.convergencelabs.server.domain.model.ot.BooleanSetOperation
 
 object OrientDBOperationMapper {
 
@@ -98,7 +98,7 @@ object OrientDBOperationMapper {
 
       case NumberAddDocName => doc.asNumberAddOperation
       case NumberSetDocName => doc.asNumberSetOperation
-      
+
       case BooleanSetDocName => doc.asBooleanSetOperation
     }
   }
@@ -135,7 +135,7 @@ object OrientDBOperationMapper {
       // Number Operations
       case op: NumberAddOperation => op.asODocument
       case op: NumberSetOperation => op.asODocument
-      
+
       case op: BooleanSetOperation => op.asODocument
     }
   }

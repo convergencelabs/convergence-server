@@ -15,6 +15,7 @@ import com.convergencelabs.server.domain.TokenKeyPair
 import com.convergencelabs.server.domain.TokenPublicKey
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 
+// scalastyle:off line.size.limit
 class DomainConfigStoreSpec
     extends PersistenceStoreSpec[DomainConfigStore]("/dbfiles/domain.json.gz")
     with WordSpecLike

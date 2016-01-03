@@ -14,6 +14,5 @@ class MessageSerializerSpec
 
   "A MessageSerializer" when {
 
-    
   }
 }

@@ -13,7 +13,7 @@ class ArrayMoveSetExhaustiveSpec extends ArrayOperationExhaustiveSpec[ArrayMoveO
       ArrayMoveOperation(List(), false, r.fromIndex, r.toIndex),
       ArraySetOperation(List(), false, JArray(List(JString("X")))))
   }
-  
+
   def transform(s: ArrayMoveOperation, c: ArraySetOperation): (DiscreteOperation, DiscreteOperation) = {
     ArrayMoveSetTF.transform(s, c)
   }

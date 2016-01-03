@@ -13,6 +13,8 @@ object StringRemoveRangeGenerator {
 
   private[this] def createRangesFromPositionToEnd(start: Int, modelValue: String): List[StringDeleteRange] = {
     val range = (start + 1 until modelValue.length).toList
-    for (r <- range) yield StringDeleteRange(start, modelValue.substring(start, r))
+    for {
+      r <- range
+    } yield StringDeleteRange(start, modelValue.substring(start, r))
   }
 }

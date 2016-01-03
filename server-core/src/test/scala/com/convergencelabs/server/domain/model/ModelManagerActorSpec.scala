@@ -165,10 +165,10 @@ class ModelManagerActorSpec
     val protocolConfig = ProtocolConfiguration(
       100 millis,
       HeartbeatConfiguration(
-          true,
-          5 seconds,
-          10 seconds))
-          
+        true,
+        5 seconds,
+        10 seconds))
+
     val props = ModelManagerActor.props(domainFqn, protocolConfig)
 
     val modelManagerActor = system.actorOf(props, resourceId)

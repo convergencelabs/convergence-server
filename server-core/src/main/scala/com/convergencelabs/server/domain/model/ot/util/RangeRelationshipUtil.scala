@@ -1,7 +1,7 @@
 package com.convergencelabs.server.domain.model.ot
 
 object RangeRelationshipUtil {
-  
+
   def getRangeIndexRelationship(rStart: Int, rEnd: Int, index: Int): RangeIndexRelationship.Value = {
     if (index < rStart) {
       RangeIndexRelationship.Before
@@ -15,7 +15,8 @@ object RangeRelationshipUtil {
       RangeIndexRelationship.Within
     }
   }
-  
+
+  // scalastyle:off cyclomatic.complexity
   def getRangeRangeRelationship(sStart: Int, sEnd: Int, cStart: Int, cEnd: Int): RangeRangeRelationship.Value = {
     if (sStart == cStart) {
       if (sEnd == cEnd) {
@@ -51,4 +52,5 @@ object RangeRelationshipUtil {
       }
     }
   }
+  // scalastyle:on cyclomatic.complexity
 }

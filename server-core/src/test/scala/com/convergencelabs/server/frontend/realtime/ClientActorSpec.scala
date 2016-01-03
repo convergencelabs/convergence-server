@@ -160,11 +160,11 @@ class ClientActorSpec
 
     val domainFqn = DomainFqn("namespace", "domainId")
     val protoConfig = ProtocolConfiguration(2 seconds,
-        HeartbeatConfiguration(
-            false,
-            0 seconds,
-            0 seconds))
-            
+      HeartbeatConfiguration(
+        false,
+        0 seconds,
+        0 seconds))
+
     val connection = mock[ProtocolConnection]
 
     val props = ClientActor.props(

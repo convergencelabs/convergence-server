@@ -1,13 +1,13 @@
 package com.convergencelabs.server.domain.model.ot
 
 import org.scalatest.Finders
-import org.scalatest.WordSpec
 import org.scalatest.Matchers
+import org.scalatest.WordSpec
 
 class ObjectRemovePropertyPTFSpec extends WordSpec with Matchers {
 
-  val property = "prop" 
-  
+  val property = "prop"
+
   "A ObjectRemovePropertyPTF" when {
     "tranforming a descendant path" must {
 

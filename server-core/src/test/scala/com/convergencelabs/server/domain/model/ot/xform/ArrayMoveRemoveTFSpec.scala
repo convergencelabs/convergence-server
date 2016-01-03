@@ -5,6 +5,7 @@ import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
 
+// scalastyle:off magic.number
 class ArrayMoveRemoveTFSpec
     extends WordSpec
     with Matchers {
@@ -159,7 +160,7 @@ class ArrayMoveRemoveTFSpec
         c1 shouldBe c
       }
     }
-    
+
     "tranforming a backward move against a remove" must {
 
       /**
@@ -307,7 +308,7 @@ class ArrayMoveRemoveTFSpec
         c1 shouldBe c
       }
     }
-    
+
     "tranforming a identity move against a remove" must {
 
       /**

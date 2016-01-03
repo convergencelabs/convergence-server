@@ -1,7 +1,7 @@
 package com.convergencelabs.server.domain.model.ot
 
 /**
- * This transformation function handles a concurrent server 
+ * This transformation function handles a concurrent server
  * ArrayInsertOperation and a client ArrayReplaceOperation.
  */
 private[ot] object ArrayInsertReplaceTF extends OperationTransformationFunction[ArrayInsertOperation, ArrayReplaceOperation] {

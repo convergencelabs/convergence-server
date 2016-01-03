@@ -10,7 +10,7 @@ class StringRemoveSetExhaustiveSpec extends StringOperationExhaustiveSpec[String
       StringRemoveOperation(List(), false, i, "Y"),
       StringSetOperation(List(), false, "SetString"))
   }
-  
+
   def transform(s: StringRemoveOperation, c: StringSetOperation): (DiscreteOperation, DiscreteOperation) = {
     StringRemoveSetTF.transform(s, c)
   }

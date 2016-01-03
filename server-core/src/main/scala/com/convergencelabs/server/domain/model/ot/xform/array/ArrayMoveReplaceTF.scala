@@ -23,7 +23,7 @@ private[ot] object ArrayMoveReplaceTF extends OperationTransformationFunction[Ar
     } else {
       // At the end or middle.
       (s, c.copy(index = c.index - 1))
-    } 
+    }
   }
 
   def transformAgainstBackwardMove(s: ArrayMoveOperation, c: ArrayReplaceOperation): (ArrayMoveOperation, ArrayReplaceOperation) = {
@@ -34,6 +34,6 @@ private[ot] object ArrayMoveReplaceTF extends OperationTransformationFunction[Ar
     } else {
       // At the end or middle.
       (s, c.copy(index = c.index + 1))
-    } 
+    }
   }
 }

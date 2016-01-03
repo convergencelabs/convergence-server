@@ -1,16 +1,17 @@
 package com.convergencelabs.server.datastore.domain.mapper
 
-import java.time.Instant
 import java.util.Date
 import java.util.{ Map => JavaMap }
+
 import scala.language.implicitConversions
+
+import com.convergencelabs.server.datastore.mapper.ODocumentMapper
 import com.convergencelabs.server.domain.model.Model
 import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelMetaData
 import com.convergencelabs.server.util.JValueMapper
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
-import com.convergencelabs.server.datastore.mapper.ODocumentMapper
 
 object ModelMapper extends ODocumentMapper {
 
@@ -42,7 +43,7 @@ object ModelMapper extends ODocumentMapper {
     val modelData: JavaMap[String, Any] = doc.field("data", OType.EMBEDDEDMAP)
     Model(oDocumentToModelMetaData(doc), JValueMapper.javaToJValue(modelData))
   }
-  
+
   private[domain] implicit class ODocumentToModelMetaData(val d: ODocument) extends AnyVal {
     def asModelMetaData: ModelMetaData = oDocumentToModelMetaData(d)
   }
@@ -59,7 +60,6 @@ object ModelMapper extends ODocumentMapper {
       createdTime.toInstant(),
       modifiedTime.toInstant())
   }
-  
 
   private[domain] val DocumentClassName = "Model"
 

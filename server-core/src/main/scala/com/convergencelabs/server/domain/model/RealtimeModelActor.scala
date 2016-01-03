@@ -24,6 +24,8 @@ import com.convergencelabs.server.domain.model.ot.OperationTransformer
 import com.convergencelabs.server.datastore.domain.ModelStore
 import com.convergencelabs.server.datastore.domain.ModelSnapshotStore
 import com.convergencelabs.server.datastore.domain.ModelOperationProcessor
+import com.convergencelabs.server.ErrorResponse
+import com.convergencelabs.server.util.concurrent.AskFuture
 
 /**
  * An instance of the RealtimeModelActor manages the lifecycle of a single
@@ -76,7 +78,7 @@ class RealtimeModelActor(
     case request: OpenRealtimeModelRequest => onOpenModelWhileInitializing(request)
     case dataResponse: DatabaseModelResponse => onDatabaseModelResponse(dataResponse)
     case dataResponse: ClientModelDataResponse => onClientModelDataResponse(dataResponse)
-    case ModelDeleted => handleInitializationFailure("model_deleted", "The model was deleted while opening.")
+    case ModelDeleted => handleInitializationFailure(ErrorCodes.ModelDeleted, "The model was deleted while opening.")
     case unknown: Any => unhandled(unknown)
   }
 
@@ -86,8 +88,8 @@ class RealtimeModelActor(
   private[this] def receiveInitializingFromDatabase: Receive = {
     case request: OpenRealtimeModelRequest => onOpenModelWhileInitializing(request)
     case dataResponse: DatabaseModelResponse => onDatabaseModelResponse(dataResponse)
-    case DatabaseModelFailure(cause) => handleInitializationFailure("unknown", "Unexpected error initializing the model.")
-    case ModelDeleted => handleInitializationFailure("model_deleted", "The model was deleted while opening.")
+    case DatabaseModelFailure(cause) => handleInitializationFailure(ErrorCodes.Unknown, "Unexpected error initializing the model.")
+    case ModelDeleted => handleInitializationFailure(ErrorCodes.ModelDeleted, "The model was deleted while opening.")
     case dataResponse: ClientModelDataResponse =>
     case unknown: Any => unhandled(unknown)
   }
@@ -100,6 +102,8 @@ class RealtimeModelActor(
     case closeRequest: CloseRealtimeModelRequest => onCloseModelRequest(closeRequest)
     case operationSubmission: OperationSubmission => onOperationSubmission(operationSubmission)
     case dataResponse: ClientModelDataResponse =>
+    // This can happen if we asked several clients for the data.  The first
+    // one will be handled, but the rest will come in an simply be ignored.
     case snapshotMetaData: ModelSnapshotMetaData => this.latestSnapshot = snapshotMetaData
     case ModelDeleted => handleModelDeletedWhileOpen()
     case unknown: Any => unhandled(unknown)
@@ -110,14 +114,20 @@ class RealtimeModelActor(
   //
 
   /**
-   * Starts the open process from an uninitialized model.
+   * Starts the open process from an uninitialized model.  This only happens
+   * when the first client it connecting.  Unless there is an error, after this
+   * method is called, the actor will be an in initializing state.
    */
   private[this] def onOpenModelWhileUninitialized(request: OpenRealtimeModelRequest): Unit = {
     queuedOpeningClients += (SessionKey(request.userId, request.sessionId) -> OpenRequestRecord(request.clientActor, sender()))
     modelStore.modelExists(modelFqn) match {
-      case Success(true) => requestModelDataFromDatastore()
-      case Success(false) => requestModelDataFromClient(request.clientActor)
-      case Failure(cause) => ??? // FIXME
+      case Success(true) =>
+        requestModelDataFromDatastore()
+      case Success(false) =>
+        requestModelDataFromClient(request.clientActor)
+      case Failure(cause) =>
+        log.error(cause, "Unable to determine if a model exists.")
+        handleInitializationFailure(ErrorCodes.Unknown, "could not load model")
     }
   }
 
@@ -136,7 +146,10 @@ class RealtimeModelActor(
     modelStore.modelExists(modelFqn) match {
       case Success(false) => requestModelDataFromClient(request.clientActor)
       case Success(true) => // No action required
-      case Failure(cause) => ??? // FIXME
+      case Failure(cause) =>
+        log.error(cause,
+          s"Unable to determine if model exists while handling an open request for an initializing model: $domainFqn/$modelFqn")
+        sender ! ErrorResponse(ErrorCodes.Unknown, "Could not open model")
     }
   }
 
@@ -148,13 +161,10 @@ class RealtimeModelActor(
 
     val f = Try {
       val snapshotMetaData = modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)
-      // FIXME: Handle None, handle when snapshot doesn't exist.
-      modelStore.getModel(modelFqn) match {
-        case Success(Some(model)) => {
-          DatabaseModelResponse(model, snapshotMetaData.get.get)
-        }
-        case Success(None) => ??? // FIXME there is no mode, need to throw an exception.
-        case Failure(cause) => ??? // FIXME there is no mode, need to throw an exception.
+      val model = modelStore.getModel(modelFqn)
+      (model, snapshotMetaData) match {
+        case (Success(Some(m)), Success(Some(s))) => DatabaseModelResponse(m, s)
+        case _ => throw new IllegalStateException("Could not get both the model snapshot and model data")
       }
     }
 
@@ -195,7 +205,7 @@ class RealtimeModelActor(
     } catch {
       case e: Exception =>
         log.error(e, "Unable to initialize realtime model from database response")
-        handleInitializationFailure("unknown", e.getMessage)
+        handleInitializationFailure(ErrorCodes.Unknown, e.getMessage)
     }
   }
 
@@ -263,8 +273,12 @@ class RealtimeModelActor(
     } else {
       modelStore.getModel(modelFqn) match {
         case Success(Some(modelData)) => respondToClientOpenRequest(sk, modelData, OpenRequestRecord(request.clientActor, sender()))
-        case Success(None) => ??? // The model is open but we can't find data.  This is a major issue.
-        case Failure(cause) => ??? // The model is open but we can't find data.  This is a major issue.
+        case Success(None) =>
+          log.error(s"Could not find model data in the database for an open model: ${modelFqn}")
+          sender ! ErrorResponse(ErrorCodes.Unknown, "could not open model")
+        case Failure(cause) =>
+          log.error(cause, s"Could not get model data from the database for model: ${modelFqn}")
+          sender ! ErrorResponse(ErrorCodes.Unknown, "could not open model")
       }
     }
   }
@@ -539,6 +553,11 @@ object RealtimeModelActor {
       snapshotConfig))
 
   def sessionKeyToClientId(sk: SessionKey): String = s"${sk.uid}:${sk.sid}"
+}
+
+private object ErrorCodes extends Enumeration {
+  val Unknown = "unknown"
+  val ModelDeleted = "model_deleted"
 }
 
 case class SessionKey(uid: String, sid: String)

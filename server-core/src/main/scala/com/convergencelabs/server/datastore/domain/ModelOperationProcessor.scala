@@ -1,13 +1,17 @@
 package com.convergencelabs.server.datastore.domain
 
 import java.time.Instant
+
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.util.Try
+
 import org.json4s.NoTypeHints
 import org.json4s.jackson.Serialization
 import org.json4s.jackson.Serialization.write
+
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.server.datastore.domain.mapper.ModelOperationMapper.Fields
+import com.convergencelabs.server.datastore.domain.OrientPathUtil.appendToPath
+import com.convergencelabs.server.datastore.domain.OrientPathUtil.toOrientPath
 import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelOperation
 import com.convergencelabs.server.domain.model.ot.ArrayInsertOperation
@@ -15,7 +19,9 @@ import com.convergencelabs.server.domain.model.ot.ArrayMoveOperation
 import com.convergencelabs.server.domain.model.ot.ArrayRemoveOperation
 import com.convergencelabs.server.domain.model.ot.ArrayReplaceOperation
 import com.convergencelabs.server.domain.model.ot.ArraySetOperation
+import com.convergencelabs.server.domain.model.ot.BooleanSetOperation
 import com.convergencelabs.server.domain.model.ot.CompoundOperation
+import com.convergencelabs.server.domain.model.ot.DiscreteOperation
 import com.convergencelabs.server.domain.model.ot.NumberAddOperation
 import com.convergencelabs.server.domain.model.ot.NumberSetOperation
 import com.convergencelabs.server.domain.model.ot.ObjectAddPropertyOperation
@@ -30,11 +36,8 @@ import com.convergencelabs.server.util.JValueMapper
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.orientechnologies.orient.core.sql.OCommandSQL
+
 import mapper.ModelOperationMapper.ModelOperationToODocument
-import com.convergencelabs.server.domain.model.ot.BooleanSetOperation
-import com.convergencelabs.server.datastore.domain.OrientPathUtil.toOrientPath
-import com.convergencelabs.server.datastore.domain.OrientPathUtil.appendToPath
-import com.convergencelabs.server.domain.model.ot.DiscreteOperation
 
 class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     extends AbstractDatabasePersistence(dbPool) {
@@ -71,28 +74,28 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
   // scalastyle:off cyclomatic.complexity
   private[this] def applyOperationToModel(fqn: ModelFqn, operation: Operation, db: ODatabaseDocumentTx): Unit = {
     operation match {
-      case op: CompoundOperation             => op.operations foreach { o => applyOperationToModel(fqn, o, db) }
-      case op: DiscreteOperation if op.noOp  => // Do nothing since this is a noOp
-        
-      case op: ArrayInsertOperation          => applyArrayInsertOperation(fqn, op, db)
-      case op: ArrayRemoveOperation          => applyArrayRemoveOperation(fqn, op, db)
-      case op: ArrayReplaceOperation         => applyArrayReplaceOperation(fqn, op, db)
-      case op: ArrayMoveOperation            => applyArrayMoveOperation(fqn, op, db)
-      case op: ArraySetOperation             => applyArraySetOperation(fqn, op, db)
+      case op: CompoundOperation => op.operations foreach { o => applyOperationToModel(fqn, o, db) }
+      case op: DiscreteOperation if op.noOp => // Do nothing since this is a noOp
 
-      case op: ObjectAddPropertyOperation    => applyObjectAddPropertyOperation(fqn, op, db)
-      case op: ObjectSetPropertyOperation    => applyObjectSetPropertyOperation(fqn, op, db)
+      case op: ArrayInsertOperation => applyArrayInsertOperation(fqn, op, db)
+      case op: ArrayRemoveOperation => applyArrayRemoveOperation(fqn, op, db)
+      case op: ArrayReplaceOperation => applyArrayReplaceOperation(fqn, op, db)
+      case op: ArrayMoveOperation => applyArrayMoveOperation(fqn, op, db)
+      case op: ArraySetOperation => applyArraySetOperation(fqn, op, db)
+
+      case op: ObjectAddPropertyOperation => applyObjectAddPropertyOperation(fqn, op, db)
+      case op: ObjectSetPropertyOperation => applyObjectSetPropertyOperation(fqn, op, db)
       case op: ObjectRemovePropertyOperation => applyObjectRemovePropertyOperation(fqn, op, db)
-      case op: ObjectSetOperation            => applyObjectSetOperation(fqn, op, db)
+      case op: ObjectSetOperation => applyObjectSetOperation(fqn, op, db)
 
-      case op: StringInsertOperation         => applyStringInsertOperation(fqn, op, db)
-      case op: StringRemoveOperation         => applyStringRemoveOperation(fqn, op, db)
-      case op: StringSetOperation            => applyStringSetOperation(fqn, op, db)
+      case op: StringInsertOperation => applyStringInsertOperation(fqn, op, db)
+      case op: StringRemoveOperation => applyStringRemoveOperation(fqn, op, db)
+      case op: StringSetOperation => applyStringSetOperation(fqn, op, db)
 
-      case op: NumberAddOperation            => applyNumberAddOperation(fqn, op, db)
-      case op: NumberSetOperation            => applyNumberSetOperation(fqn, op, db)
+      case op: NumberAddOperation => applyNumberAddOperation(fqn, op, db)
+      case op: NumberSetOperation => applyNumberSetOperation(fqn, op, db)
 
-      case op: BooleanSetOperation           => applyBooleanSetOperation(fqn, op, db)
+      case op: BooleanSetOperation => applyBooleanSetOperation(fqn, op, db)
     }
   }
   // scalastyle:on cyclomatic.complexity
@@ -195,7 +198,8 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     val pathString = toOrientPath(operation.path)
     val params = Map(CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, Value -> JValueMapper.jNumberToJava(operation.value))
     val value = JValueMapper.jNumberToJava(operation.value)
-    val updateCommand = new OCommandSQL(s"UPDATE model SET $pathString = eval('$pathString + $value') WHERE collectionId = :collectionId and modelId = :modelId")
+    val updateCommand = new OCommandSQL(
+        s"UPDATE model SET $pathString = eval('$pathString + $value') WHERE collectionId = :collectionId and modelId = :modelId")
     db.command(updateCommand).execute(params.asJava)
   }
 

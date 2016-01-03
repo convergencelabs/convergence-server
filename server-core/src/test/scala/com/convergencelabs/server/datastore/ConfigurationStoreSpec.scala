@@ -2,12 +2,13 @@ package com.convergencelabs.server.datastore
 
 import org.scalatest.Finders
 import org.scalatest.Matchers
-import org.scalatest.TryValues._
+import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
 
 import com.convergencelabs.server.datastore.domain.PersistenceStoreSpec
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 
+// scalastyle:off magic.number
 class ConfigurationStoreSpec
     extends PersistenceStoreSpec[ConfigurationStore]("/dbfiles/convergence.json.gz")
     with WordSpecLike

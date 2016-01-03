@@ -1,7 +1,21 @@
 package com.convergencelabs.server.domain.model.ot
 
-import RangeRangeRelationship._
-import MoveDirection._
+import MoveDirection.Backward
+import MoveDirection.Forward
+import MoveDirection.Identity
+import RangeRangeRelationship.ContainedBy
+import RangeRangeRelationship.Contains
+import RangeRangeRelationship.EqualTo
+import RangeRangeRelationship.FinishedBy
+import RangeRangeRelationship.Finishes
+import RangeRangeRelationship.Meets
+import RangeRangeRelationship.MetBy
+import RangeRangeRelationship.OverlappedBy
+import RangeRangeRelationship.Overlaps
+import RangeRangeRelationship.PrecededBy
+import RangeRangeRelationship.Precedes
+import RangeRangeRelationship.StartedBy
+import RangeRangeRelationship.Starts
 
 // scalastyle:off cyclomatic.complexity
 private[ot] object ArrayMoveMoveTF extends OperationTransformationFunction[ArrayMoveOperation, ArrayMoveOperation] {

@@ -1,7 +1,7 @@
 package com.convergencelabs.server.domain.model.ot
 
 private[ot] object ArrayMoveInsertTF extends OperationTransformationFunction[ArrayMoveOperation, ArrayInsertOperation] {
-  
+
   def transform(s: ArrayMoveOperation, c: ArrayInsertOperation): (ArrayMoveOperation, ArrayInsertOperation) = {
     if (ArrayMoveRangeHelper.indexAfterRange(s, c.index)) {
       (s, c)
@@ -38,7 +38,7 @@ private[ot] object ArrayMoveInsertTF extends OperationTransformationFunction[Arr
   }
 
   private[this] def transformAgainstIdentityMove(s: ArrayMoveOperation, c: ArrayInsertOperation): (ArrayMoveOperation, ArrayInsertOperation) = {
-    // Given that from above we know that the insert is neither before nor 
+    // Given that from above we know that the insert is neither before nor
     // after.  So it can only be at the same index.
     (s.copy(fromIndex = s.fromIndex + 1, toIndex = s.toIndex + 1), c)
   }

@@ -5,6 +5,7 @@ import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
 
+// scalastyle:off magic.number
 class ArrayInsertMoveTFSpec
     extends WordSpec
     with Matchers {
@@ -25,7 +26,7 @@ class ArrayInsertMoveTFSpec
        *
        * Server State    : [A, X, B, C, D, E, F, G, H, I, J]
        * Client Op'      :              ^-->--^                  Move(4, 6)
-       * 
+       *
        * Client State    : [A, B, C, E, F, D, G, H, I, J]
        * Server Op'      :     ^                                 Insert(1, X)
        *
@@ -80,10 +81,10 @@ class ArrayInsertMoveTFSpec
        *
        * Server Op       :              ^                        Insert(4, X)
        * Client Op       :           ^-->--^                     Move(3, 5)
-       * 
+       *
        * Server State    : [A, B, C, D, X, E, F, G, H, I, J]
        * Client Op'      :           ^-->-----^                  Move(3, 6)
-       * 
+       *
        * Client State    : [A, B, C, E, F, D, G, H, I, J]
        * Server Op'      :           ^                           Insert(3, X)
        *
@@ -110,10 +111,10 @@ class ArrayInsertMoveTFSpec
        *
        * Server Op       :                 ^                     Insert(5, X)
        * Client Op       :           ^-->--^                     Move(3, 5)
-       * 
+       *
        * Server State    : [A, B, C, D, E, X, F, G, H, I, J]
        * Client Op'      :           ^-->-----^                  Move(3, 6)
-       * 
+       *
        * Client State    : [A, B, C, E, F, D, G, H, I, J]
        * Server Op'      :              ^                        Insert(4, X)
        *
@@ -142,7 +143,7 @@ class ArrayInsertMoveTFSpec
        *
        * Server State    : [A, B, C, D, E, F, X, G, H, I, J]
        * Client Op'      :           ^-->--^                     Move(3, 5)
-       * 
+       *
        * Client State    : [A, B, C, E, F, D, G, H, I, J]
        * Server Op'      :              ^                        Insert(6, X)
        *
@@ -160,7 +161,7 @@ class ArrayInsertMoveTFSpec
         c1 shouldBe c
       }
     }
-    
+
     "tranforming a insert against a backward move" must {
 
       /**
@@ -174,7 +175,7 @@ class ArrayInsertMoveTFSpec
        *
        * Server State    : [A, X, B, C, D, E, F, G, H, I, J]
        * Client Op'      :              ^--<--^                  Move(6, 4)
-       * 
+       *
        * Client State    : [A, B, C, F, D, E, G, H, I, J]
        * Server Op'      :     ^                                 Insert(1, X)
        *
@@ -203,7 +204,7 @@ class ArrayInsertMoveTFSpec
        *
        * Server State    : [A, B, C, X, D, E, F, G, H, I, J]
        * Client Op'      :              ^--<--^                  Move(6, 4)
-       * 
+       *
        * Client State    : [A, B, C, F, D, E, G, H, I, J]
        * Server Op'      :           ^                           Insert(3, X)
        *
@@ -232,7 +233,7 @@ class ArrayInsertMoveTFSpec
        *
        * Server State    : [A, B, C, D, X, E, F, G, H, I, J]
        * Client Op'      :           ^---<----^                  Move(6, 3)
-       * 
+       *
        * Client State    : [A, B, C, F, D, E, G, H, I, J]
        * Server Op'      :                 ^                     Insert(5, X)
        *
@@ -259,7 +260,7 @@ class ArrayInsertMoveTFSpec
        *
        * Server State    : [A, B, C, D, E, X, F, G, H, I, J]
        * Client Op'      :           ^---<----^                  Move(3, 6)
-       * 
+       *
        * Client State    : [A, B, C, F, D, E, G, H, I, J]
        * Server Op'      :                    ^                  Insert(6, X)
        *
@@ -286,7 +287,7 @@ class ArrayInsertMoveTFSpec
        *
        * Server State    : [A, B, C, D, E, F, X, G, H, I, J]
        * Client Op'      :           ^--<--^                     Move(5, 3)
-       * 
+       *
        * Client State    : [A, B, C, F, D, E, G, H, I, J]
        * Server Op'      :                    ^                  Insert(6, X)
        *
@@ -304,7 +305,7 @@ class ArrayInsertMoveTFSpec
         c1 shouldBe c
       }
     }
-    
+
     "tranforming an insert against an identity move" must {
 
       /**
@@ -318,7 +319,7 @@ class ArrayInsertMoveTFSpec
        *
        * Server State    : [A, X, B, C, D, E, F, G, H, I, J]
        * Client Op'      :              ^                        Move(4, 4)
-       * 
+       *
        * Client State    : [A, B, C, D, E, F, G, H, I, J]
        * Server Op'      :     ^                                 Insert(1, X)
        *
@@ -347,7 +348,7 @@ class ArrayInsertMoveTFSpec
        *
        * Server State    : [A, B, C, X, D, E, F, G, H, I, J]
        * Client Op'      :              ^                        Move(4, 4)
-       * 
+       *
        * Client State    : [A, B, C, D, E, F, G, H, I, J]
        * Server Op'      :           ^                           Insert(3, X)
        *
@@ -376,7 +377,7 @@ class ArrayInsertMoveTFSpec
        *
        * Server State    : [A, B, C, D, X, E, F, G, H, I, J]
        * Client Op'      :           ^                           Move(3, 3)
-       * 
+       *
        * Client State    : [A, B, C, D, E, F, G, H, I, J]
        * Server Op'      :              ^                        Insert(4, X)
        *

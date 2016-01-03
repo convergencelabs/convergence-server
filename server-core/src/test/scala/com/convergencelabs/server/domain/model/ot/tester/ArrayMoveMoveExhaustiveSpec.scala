@@ -1,7 +1,7 @@
 package com.convergencelabs.server.domain.model.ot
 
 class ArrayMoveMoveExhaustiveSpec extends ArrayOperationExhaustiveSpec[ArrayMoveOperation, ArrayMoveOperation] {
-  
+
   val serverOperationType: String = "ArrayMoveOperation"
   val clientOperationType: String = "ArrayMoveOperation"
 
@@ -11,7 +11,7 @@ class ArrayMoveMoveExhaustiveSpec extends ArrayOperationExhaustiveSpec[ArrayMove
       ArrayMoveOperation(List(), false, r1.fromIndex, r1.toIndex),
       ArrayMoveOperation(List(), false, r2.fromIndex, r2.toIndex))
   }
-  
+
   def transform(s: ArrayMoveOperation, c: ArrayMoveOperation): (DiscreteOperation, DiscreteOperation) = {
     ArrayMoveMoveTF.transform(s, c)
   }

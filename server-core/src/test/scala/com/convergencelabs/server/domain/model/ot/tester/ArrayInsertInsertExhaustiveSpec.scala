@@ -13,7 +13,7 @@ class ArrayInsertInsertExhaustiveSpec extends ArrayOperationExhaustiveSpec[Array
       ArrayInsertOperation(List(), false, i1, JString("Y")),
       ArrayInsertOperation(List(), false, i2, JString("X")))
   }
-  
+
   def transform(s: ArrayInsertOperation, c: ArrayInsertOperation): (DiscreteOperation, DiscreteOperation) = {
     ArrayInsertInsertTF.transform(s, c)
   }

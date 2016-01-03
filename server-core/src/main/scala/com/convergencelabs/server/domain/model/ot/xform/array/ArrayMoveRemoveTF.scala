@@ -24,7 +24,7 @@ private[ot] object ArrayMoveRemoveTF extends OperationTransformationFunction[Arr
     } else {
       // At the end or in the middle.
       (s.copy(toIndex = s.toIndex - 1), c.copy(index = c.index - 1))
-    } 
+    }
   }
 
   def transformAgainstBackwardMove(s: ArrayMoveOperation, c: ArrayRemoveOperation): (ArrayMoveOperation, ArrayRemoveOperation) = {
@@ -37,10 +37,10 @@ private[ot] object ArrayMoveRemoveTF extends OperationTransformationFunction[Arr
       (s.copy(fromIndex = s.fromIndex - 1), c.copy(index = c.index + 1))
     }
   }
-  
-   def transformAgainstIdentityMove(s: ArrayMoveOperation, c: ArrayRemoveOperation): (ArrayMoveOperation, ArrayRemoveOperation) = {
-     // Since this is an identity move, and we know the remove is not before or after, than
-     // it must be pointed at the start / end. Only one case.
+
+  def transformAgainstIdentityMove(s: ArrayMoveOperation, c: ArrayRemoveOperation): (ArrayMoveOperation, ArrayRemoveOperation) = {
+    // Since this is an identity move, and we know the remove is not before or after, than
+    // it must be pointed at the start / end. Only one case.
     (s.copy(noOp = true), c)
   }
 }

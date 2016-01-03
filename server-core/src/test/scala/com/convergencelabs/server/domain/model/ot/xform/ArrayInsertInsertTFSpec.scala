@@ -18,7 +18,7 @@ class ArrayInsertInsertTFSpec extends WordSpec with Matchers {
   "A ArrayInsertInsertTF" when {
 
     "tranforming two insert operations " must {
-      
+
       /**
        * A-II-1
        */
@@ -31,7 +31,7 @@ class ArrayInsertInsertTFSpec extends WordSpec with Matchers {
         s1 shouldBe s
         c1 shouldBe ArrayInsertOperation(Path, false, 6, ClientVal)
       }
-      
+
       /**
        * A-II-1
        */

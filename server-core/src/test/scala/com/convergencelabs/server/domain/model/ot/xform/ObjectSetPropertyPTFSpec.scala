@@ -7,8 +7,8 @@ import org.json4s.JsonAST.JInt
 
 class ObjectSetPropertyPTFSpec extends WordSpec with Matchers {
 
-  val property = "prop" 
-  
+  val property = "prop"
+
   "A ObjectSetPropertyPTF" when {
     "tranforming a descendant path" must {
 

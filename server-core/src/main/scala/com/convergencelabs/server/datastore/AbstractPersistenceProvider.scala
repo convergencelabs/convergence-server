@@ -12,7 +12,7 @@ abstract class AbstractPersistenceProvider(dbPool: OPartitionedDatabasePool) {
       case Failure(x) => false
     }
   }
-  
+
   def shutdown(): Unit = {
     dbPool.close()
   }
