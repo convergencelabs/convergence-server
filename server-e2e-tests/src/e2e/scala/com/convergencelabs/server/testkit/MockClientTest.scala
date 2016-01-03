@@ -9,22 +9,22 @@ import org.json4s.jackson.JsonMethods._
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FunSuite
 
-import com.convergencelabs.server.frontend.realtime.proto.AuthenticationResponseMessage
-import com.convergencelabs.server.frontend.realtime.proto.CloseRealtimeModelRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.HandshakeRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.HandshakeResponseMessage
-import com.convergencelabs.server.frontend.realtime.proto.HandshakeResponseMessage
-import com.convergencelabs.server.frontend.realtime.proto.MessageEnvelope
-import com.convergencelabs.server.frontend.realtime.proto.ModelDataRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.ModelDataResponseMessage
-import com.convergencelabs.server.frontend.realtime.proto.ModelFqnData
-import com.convergencelabs.server.frontend.realtime.proto.OpenRealtimeModelRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.OpenRealtimeModelResponseMessage
-import com.convergencelabs.server.frontend.realtime.proto.OperationAcknowledgementMessage
-import com.convergencelabs.server.frontend.realtime.proto.OperationSubmissionMessage
-import com.convergencelabs.server.frontend.realtime.proto.PasswordAuthenticationRequestMessage
-import com.convergencelabs.server.frontend.realtime.proto.StringInsertOperationData
-import com.convergencelabs.server.frontend.realtime.proto.SuccessMessage
+import com.convergencelabs.server.frontend.realtime.AuthenticationResponseMessage
+import com.convergencelabs.server.frontend.realtime.CloseRealtimeModelRequestMessage
+import com.convergencelabs.server.frontend.realtime.HandshakeRequestMessage
+import com.convergencelabs.server.frontend.realtime.HandshakeResponseMessage
+import com.convergencelabs.server.frontend.realtime.HandshakeResponseMessage
+import com.convergencelabs.server.frontend.realtime.MessageEnvelope
+import com.convergencelabs.server.frontend.realtime.ModelDataRequestMessage
+import com.convergencelabs.server.frontend.realtime.ModelDataResponseMessage
+import com.convergencelabs.server.frontend.realtime.ModelFqnData
+import com.convergencelabs.server.frontend.realtime.OpenRealtimeModelRequestMessage
+import com.convergencelabs.server.frontend.realtime.OpenRealtimeModelResponseMessage
+import com.convergencelabs.server.frontend.realtime.OperationAcknowledgementMessage
+import com.convergencelabs.server.frontend.realtime.OperationSubmissionMessage
+import com.convergencelabs.server.frontend.realtime.PasswordAuthenticationRequestMessage
+import com.convergencelabs.server.frontend.realtime.StringInsertOperationData
+import com.convergencelabs.server.frontend.realtime.SuccessMessage
 
 class MockClientTest extends FunSuite with BeforeAndAfterAll {
   
