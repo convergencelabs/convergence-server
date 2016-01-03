@@ -5,6 +5,7 @@ import scala.annotation.implicitNotFound
 import org.json4s.DefaultFormats
 import org.json4s.Extraction
 import org.json4s.Formats
+import org.json4s.JNothing
 import org.json4s.JObject
 import org.json4s.JString
 import org.json4s.JValue
@@ -22,16 +23,35 @@ class TypeMapSerializer[A: Manifest](typeField: String, typeMap: Map[String, Cla
 
   def deserialize(implicit format: Formats): PartialFunction[(TypeInfo, JValue), A] = {
     case (TypeInfo(Class, _), json) => {
-      val JString(t) = json \\ typeField
-      Extraction.extract(json, Reflector.scalaTypeOf(typeMap(t)))((DefaultFormats)).asInstanceOf[A]
+      json \ typeField match {
+        case JString(t) =>
+          typeMap.get(t) match {
+            case Some(tpe) =>
+              Extraction.extract(json, Reflector.scalaTypeOf(tpe))((DefaultFormats)).asInstanceOf[A]
+            case _ =>
+              throw new IllegalArgumentException(s"The serializer does not have a mapping for type: $t")
+          }
+        case _ =>
+          throw new IllegalArgumentException(s"The value to deserialize does not have the typeField ${typeField}")
+      }
     }
   }
 
   def serialize(implicit format: Formats): PartialFunction[Any, JValue] = {
-    case op: A => {
-      val t = reverseTypeMap(op.getClass)
-      val json = Extraction.decompose(op)(DefaultFormats).asInstanceOf[JObject]
-      json ~ (typeField -> t)
+    case value: A => {
+      reverseTypeMap.get(value.getClass) match {
+        case Some(tpe) =>
+          val jValue = Extraction.decompose(value)(DefaultFormats).asInstanceOf[JObject]
+          jValue \ typeField match {
+            case JNothing =>
+              jValue ~ (typeField -> tpe)
+            case _ =>
+              throw new IllegalArgumentException(
+                  s"the supplied value to serialize already has the field '$typeField' which conflicts with the type field")
+          }
+        case None =>
+          throw new IllegalArgumentException(s"No type mapping for class: ${value.getClass}")
+      }
     }
   }
 }
