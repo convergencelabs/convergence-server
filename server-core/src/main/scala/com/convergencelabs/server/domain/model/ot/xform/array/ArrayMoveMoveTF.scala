@@ -3,6 +3,11 @@ package com.convergencelabs.server.domain.model.ot
 import MoveDirection.Backward
 import MoveDirection.Forward
 import MoveDirection.Identity
+import RangeIndexRelationship.After
+import RangeIndexRelationship.Before
+import RangeIndexRelationship.End
+import RangeIndexRelationship.Start
+import RangeIndexRelationship.Within
 import RangeRangeRelationship.ContainedBy
 import RangeRangeRelationship.Contains
 import RangeRangeRelationship.EqualTo
@@ -24,12 +29,25 @@ private[ot] object ArrayMoveMoveTF extends OperationTransformationFunction[Array
     val cMoveType = ArrayMoveRangeHelper.getMoveDirection(c)
 
     (sMoveType, cMoveType) match {
-      case (Forward, Forward) => transformServerForwardMoveWithClientForwardMove(s, c)
-      case (Forward, Backward) => transofrmServerForwardMoveWithClientBackwardMove(s, c)
-      case (Backward, Forward) => transformServerBackwardMoveWithClientForwardMove(s, c)
-      case (Backward, Backward) => transformServerBackwardMoveWithClientBackwardMove(s, c)
-      case (Identity, _) => (s, c)
-      case (_, Identity) => (s, c)
+      case (Forward, Forward) =>
+        transformServerForwardMoveWithClientForwardMove(s, c)
+      case (Forward, Backward) =>
+        transofrmServerForwardMoveWithClientBackwardMove(s, c)
+      case (Forward, Identity) =>
+        transofrmServerForwardMoveWithClientIdentityMove(s, c)
+      case (Backward, Forward) =>
+        transformServerBackwardMoveWithClientForwardMove(s, c)
+      case (Backward, Backward) =>
+        transformServerBackwardMoveWithClientBackwardMove(s, c)
+      case (Backward, Identity) =>
+        transofrmServerBackwardMoveWithClientIdentityMove(s, c)
+      case (Identity, Forward) =>
+        transofrmServerIdentityMoveWithClientForwardMove(s, c)
+      case (Identity, Backward) =>
+        transofrmServerIdentityMoveWithClientBackwardMove(s, c)
+      case (Identity, Identity) =>
+        transofrmServerIdentityMoveWithClientIdentityMove(s, c)
+
     }
   }
 
@@ -121,6 +139,20 @@ private[ot] object ArrayMoveMoveTF extends OperationTransformationFunction[Array
     }
   }
 
+  def transofrmServerForwardMoveWithClientIdentityMove(s: ArrayMoveOperation, c: ArrayMoveOperation): (ArrayMoveOperation, ArrayMoveOperation) = {
+    ArrayMoveRangeHelper.getRangeIndexRelationship(s, c.fromIndex) match {
+      case Before | After =>
+        // A-MM-FI-1 and A-MM-FI-5
+        (s, c)
+      case Start =>
+        // A-MM-FI-2
+        (s, c.copy(fromIndex = s.toIndex, toIndex = s.toIndex))
+      case Within | End =>
+        // A-MM-FI-3 and A-MM-FI-4
+        (s, c.copy(fromIndex = c.fromIndex - 1, toIndex = c.toIndex - 1))
+    }
+  }
+
   def transformServerBackwardMoveWithClientForwardMove(s: ArrayMoveOperation, c: ArrayMoveOperation): (ArrayMoveOperation, ArrayMoveOperation) = {
     ArrayMoveRangeHelper.getRangeRelationship(s, c) match {
       case Precedes =>
@@ -134,7 +166,7 @@ private[ot] object ArrayMoveMoveTF extends OperationTransformationFunction[Array
         (s.copy(fromIndex = c.toIndex), c.copy(noOp = true))
       case MetBy =>
         // A-MM-BF-4
-        (s.copy(toIndex  = s.toIndex - 1), c.copy(toIndex = c.toIndex + 1))
+        (s.copy(toIndex = s.toIndex - 1), c.copy(toIndex = c.toIndex + 1))
       case Overlaps =>
         // A-MM-BF-5
         (s.copy(fromIndex = s.fromIndex - 1), c.copy(fromIndex = c.fromIndex + 1))
@@ -207,5 +239,52 @@ private[ot] object ArrayMoveMoveTF extends OperationTransformationFunction[Array
         // A-MM-BB-13
         (s.copy(noOp = true), c.copy(noOp = true))
     }
+  }
+
+  def transofrmServerBackwardMoveWithClientIdentityMove(s: ArrayMoveOperation, c: ArrayMoveOperation): (ArrayMoveOperation, ArrayMoveOperation) = {
+    ArrayMoveRangeHelper.getRangeIndexRelationship(s, c.fromIndex) match {
+      case Before | After =>
+        // A-MM-BI-1 and A-MM-BI-5
+        (s, c)
+      case Start | Within =>
+        // A-MM-BI-2 and A-MM-BI-3
+        (s, c.copy(fromIndex = c.fromIndex + 1, toIndex = c.toIndex + 1))
+      case End =>
+        // A-MM-BI-4
+        (s, c.copy(fromIndex = s.toIndex, toIndex = s.toIndex))
+    }
+  }
+
+  def transofrmServerIdentityMoveWithClientForwardMove(s: ArrayMoveOperation, c: ArrayMoveOperation): (ArrayMoveOperation, ArrayMoveOperation) = {
+    ArrayMoveRangeHelper.getRangeIndexRelationship(c, s.fromIndex) match {
+      case Before | After =>
+        // A-MM-IF-1 and A-MM-IF-5
+        (s, c)
+      case Start =>
+        // A-MM-IF-2
+        (s.copy(fromIndex = c.toIndex, toIndex = c.toIndex), c)
+      case Within | End =>
+        // A-MM-IF-3 and A-MM-IF-4
+        (s.copy(fromIndex = s.fromIndex - 1, toIndex = s.toIndex - 1), c)
+    }
+  }
+
+  def transofrmServerIdentityMoveWithClientBackwardMove(s: ArrayMoveOperation, c: ArrayMoveOperation): (ArrayMoveOperation, ArrayMoveOperation) = {
+    ArrayMoveRangeHelper.getRangeIndexRelationship(c, s.fromIndex) match {
+      case Before | After =>
+        // A-MM-IB-1 and A-MM-IB-5
+        (s, c)
+      case Start | Within =>
+        // A-MM-IB-2 and A-MM-IB-3
+        (s.copy(fromIndex = s.fromIndex + 1, toIndex = s.toIndex + 1), c)
+      case End =>
+        // A-MM-IB-4
+        (s.copy(fromIndex = c.toIndex, toIndex = c.toIndex), c)
+    }
+  }
+
+  def transofrmServerIdentityMoveWithClientIdentityMove(s: ArrayMoveOperation, c: ArrayMoveOperation): (ArrayMoveOperation, ArrayMoveOperation) = {
+    // A-MM-II-1
+    (s, c)
   }
 }

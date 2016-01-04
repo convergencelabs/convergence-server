@@ -5,7 +5,7 @@ import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
 
-// scalastyle:off magic.number
+// scalastyle:off magic.number multiple.string.literals file.size.limit
 class ArrayMoveMoveTFSpec
     extends WordSpec
     with Matchers {
@@ -356,6 +356,74 @@ class ArrayMoveMoveTFSpec
       }
     }
 
+    "tranforming a server forward move against a client identity move" must {
+
+      /**
+       * A-MM-FI-1
+       */
+      "not transform either operation when the server's move is before the client's move" in {
+        val s = ArrayMoveOperation(Path, false, 3, 5)
+        val c = ArrayMoveOperation(Path, false, 2, 2)
+
+        val (s1, c1) = ArrayMoveMoveTF.transform(s, c)
+
+        s1 shouldBe s
+        c1 shouldBe c
+      }
+
+      /**
+       * A-MM-FI-2
+       */
+      "not transform the server operation and move the client's move to the toIndex of the server's move, when the client move is at the start of the server's move" in {
+        val s = ArrayMoveOperation(Path, false, 3, 5)
+        val c = ArrayMoveOperation(Path, false, 3, 3)
+
+        val (s1, c1) = ArrayMoveMoveTF.transform(s, c)
+
+        s1 shouldBe s
+        c1 shouldBe ArrayMoveOperation(Path, false, 5, 5)
+      }
+
+      /**
+       * A-MM-FI-3
+       */
+      "not transform the server operation and shift the client's move one to the left, when the client move is within the server's move" in {
+        val s = ArrayMoveOperation(Path, false, 3, 5)
+        val c = ArrayMoveOperation(Path, false, 4, 4)
+
+        val (s1, c1) = ArrayMoveMoveTF.transform(s, c)
+
+        s1 shouldBe s
+        c1 shouldBe ArrayMoveOperation(Path, false, 3, 3)
+      }
+
+      /**
+       * A-MM-FI-4
+       */
+      "not transform the server operation and shift the client's move one to the left, when the client move is at the end of the server's move" in {
+        val s = ArrayMoveOperation(Path, false, 3, 5)
+        val c = ArrayMoveOperation(Path, false, 5, 5)
+
+        val (s1, c1) = ArrayMoveMoveTF.transform(s, c)
+
+        s1 shouldBe s
+        c1 shouldBe ArrayMoveOperation(Path, false, 4, 4)
+      }
+
+      /**
+       * A-MM-FI-5
+       */
+      "not transform either operation, when the client's move is after the server's move" in {
+        val s = ArrayMoveOperation(Path, false, 3, 5)
+        val c = ArrayMoveOperation(Path, false, 6, 6)
+
+        val (s1, c1) = ArrayMoveMoveTF.transform(s, c)
+
+        s1 shouldBe s
+        c1 shouldBe c
+      }
+    }
+
     "tranforming a server backward move against a client forward move" must {
       /**
        * A-MM-BF-1 - Server Backward Move Precedes Client Forward Move
@@ -695,6 +763,226 @@ class ArrayMoveMoveTFSpec
 
         s1 shouldBe ArrayMoveOperation(Path, true, 6, 2)
         c1 shouldBe ArrayMoveOperation(Path, true, 6, 2)
+      }
+    }
+    
+    "tranforming a server identity move against a client backward move" must {
+
+      /**
+       * A-MM-BI-1
+       */
+      "not transform either operation when the server's move is before the client's move" in {
+        val s = ArrayMoveOperation(Path, false, 5, 3)
+        val c = ArrayMoveOperation(Path, false, 2, 2)
+
+        val (s1, c1) = ArrayMoveMoveTF.transform(s, c)
+
+        s1 shouldBe s
+        c1 shouldBe c
+      }
+
+      /**
+       * A-MM-BI-2
+       */
+      "not transform the server move and shift the client's move one to the right, when the client move is at the start of the server's move" in {
+        val s = ArrayMoveOperation(Path, false, 5, 3)
+        val c = ArrayMoveOperation(Path, false, 3, 3)
+
+        val (s1, c1) = ArrayMoveMoveTF.transform(s, c)
+
+        s1 shouldBe s
+        c1 shouldBe ArrayMoveOperation(Path, false, 4, 4)
+      }
+
+      /**
+       * A-MM-BI-3
+       */
+      "not transform the server move and shift the client's move one to the right, when the client move is within the server's move" in {
+        val s = ArrayMoveOperation(Path, false, 5, 3)
+        val c = ArrayMoveOperation(Path, false, 4, 4)
+
+        val (s1, c1) = ArrayMoveMoveTF.transform(s, c)
+
+        s1 shouldBe s
+        c1 shouldBe ArrayMoveOperation(Path, false, 5, 5)
+      }
+
+      /**
+       * A-MM-BI-4
+       */
+      "not transform the server's move and move the client's move to the to index of the server's move, when the client move is at the end of the server's move" in {
+        val s = ArrayMoveOperation(Path, false, 5, 3)
+        val c = ArrayMoveOperation(Path, false, 5, 5)
+
+        val (s1, c1) = ArrayMoveMoveTF.transform(s, c)
+
+        s1 shouldBe s
+        c1 shouldBe ArrayMoveOperation(Path, false, 3, 3)
+      }
+
+      /**
+       * A-MM-BI-5
+       */
+      "not transform either operation, when the client's move is after the server's move" in {
+        val s = ArrayMoveOperation(Path, false, 5, 3)
+        val c = ArrayMoveOperation(Path, false, 6, 6)
+
+        val (s1, c1) = ArrayMoveMoveTF.transform(s, c)
+
+        s1 shouldBe s
+        c1 shouldBe c
+      }
+    }
+
+    "tranforming a server identity move against a client forward move" must {
+
+      /**
+       * A-MM-IF-1
+       */
+      "not transform either operation when the client's move is before the server's move" in {
+        val s = ArrayMoveOperation(Path, false, 2, 2)
+        val c = ArrayMoveOperation(Path, false, 3, 5)
+
+        val (s1, c1) = ArrayMoveMoveTF.transform(s, c)
+
+        s1 shouldBe s
+        c1 shouldBe c
+      }
+
+      /**
+       * A-MM-IF-2
+       */
+      "not transform the client move and move the server's move to the toIndex of the clients move, when the server move is at the start of the client's move" in {
+        val s = ArrayMoveOperation(Path, false, 3, 3)
+        val c = ArrayMoveOperation(Path, false, 3, 5)
+
+        val (s1, c1) = ArrayMoveMoveTF.transform(s, c)
+
+        s1 shouldBe ArrayMoveOperation(Path, false, 5, 5)
+        c1 shouldBe c
+      }
+
+      /**
+       * A-MM-IF-3
+       */
+      "not transform the client operation and shift the server's move one to the left, when the server move is within the client's move" in {
+        val s = ArrayMoveOperation(Path, false, 4, 4)
+        val c = ArrayMoveOperation(Path, false, 3, 5)
+
+        val (s1, c1) = ArrayMoveMoveTF.transform(s, c)
+
+        s1 shouldBe ArrayMoveOperation(Path, false, 3, 3)
+        c1 shouldBe c
+      }
+
+      /**
+       * A-MM-IF-4
+       */
+      "not transform the client operation and shift the server's move one to the left, when the server move is at the end of the client's move" in {
+        val s = ArrayMoveOperation(Path, false, 5, 5)
+        val c = ArrayMoveOperation(Path, false, 3, 5)
+
+        val (s1, c1) = ArrayMoveMoveTF.transform(s, c)
+
+        s1 shouldBe ArrayMoveOperation(Path, false, 4, 4)
+        c1 shouldBe c
+      }
+
+      /**
+       * A-MM-IF-5
+       */
+      "not transform either operation, when the server's move is after the client's move" in {
+        val s = ArrayMoveOperation(Path, false, 6, 6)
+        val c = ArrayMoveOperation(Path, false, 3, 5)
+
+        val (s1, c1) = ArrayMoveMoveTF.transform(s, c)
+
+        s1 shouldBe s
+        c1 shouldBe c
+      }
+    }
+
+    "tranforming a server identity move against a client backward move" must {
+
+      /**
+       * A-MM-IB-1
+       */
+      "not transform either operation when the client's move is before the server's move" in {
+        val s = ArrayMoveOperation(Path, false, 2, 2)
+        val c = ArrayMoveOperation(Path, false, 5, 3)
+
+        val (s1, c1) = ArrayMoveMoveTF.transform(s, c)
+
+        s1 shouldBe s
+        c1 shouldBe c
+      }
+
+      /**
+       * A-MM-IB-2
+       */
+      "not transform the client move and move the server's shift the server's move one to the right, when the server move is at the start of the client's move" in {
+        val s = ArrayMoveOperation(Path, false, 3, 3)
+        val c = ArrayMoveOperation(Path, false, 5, 3)
+
+        val (s1, c1) = ArrayMoveMoveTF.transform(s, c)
+
+        s1 shouldBe ArrayMoveOperation(Path, false, 4, 4)
+        c1 shouldBe c
+      }
+
+      /**
+       * A-MM-IB-3
+       */
+      "not transform the client move and move the server's shift the server's move one to the right, when the server move is within the client's move" in {
+        val s = ArrayMoveOperation(Path, false, 4, 4)
+        val c = ArrayMoveOperation(Path, false, 5, 3)
+
+        val (s1, c1) = ArrayMoveMoveTF.transform(s, c)
+
+        s1 shouldBe ArrayMoveOperation(Path, false, 5, 5)
+        c1 shouldBe c
+      }
+
+      /**
+       * A-MM-IB-4
+       */
+      "not transform the client operation and move the server's move to the to index of the client's move, when the server move is at the end of the client's move" in {
+        val s = ArrayMoveOperation(Path, false, 5, 5)
+        val c = ArrayMoveOperation(Path, false, 5, 3)
+
+        val (s1, c1) = ArrayMoveMoveTF.transform(s, c)
+
+        s1 shouldBe ArrayMoveOperation(Path, false, 3, 3)
+        c1 shouldBe c
+      }
+
+      /**
+       * A-MM-IB-5
+       */
+      "not transform either operation, when the server's move is after the client's move" in {
+        val s = ArrayMoveOperation(Path, false, 6, 6)
+        val c = ArrayMoveOperation(Path, false, 5, 3)
+
+        val (s1, c1) = ArrayMoveMoveTF.transform(s, c)
+
+        s1 shouldBe s
+        c1 shouldBe c
+      }
+    }
+
+    "tranforming a server identity move against a client identity move" must {
+
+      /**
+       * A-MM-II-1
+       */
+      "not transform either operation" in {
+        val s = ArrayMoveOperation(Path, false, 2, 2)
+        val c = ArrayMoveOperation(Path, false, 3, 3)
+
+        val (s1, c1) = ArrayMoveMoveTF.transform(s, c)
+
+        s1 shouldBe s
+        c1 shouldBe c
       }
     }
   }
