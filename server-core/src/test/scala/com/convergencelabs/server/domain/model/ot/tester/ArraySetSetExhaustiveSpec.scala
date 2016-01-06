@@ -9,9 +9,12 @@ class ArraySetSetExhaustiveSpec extends ArrayOperationExhaustiveSpec[ArraySetOpe
   val clientOperationType: String = "ArraySetOperation"
 
   def generateCases(): List[TransformationCase[ArraySetOperation, ArraySetOperation]] = {
-    List(TransformationCase(
-      ArraySetOperation(List(), false, JArray(List(JString("X")))),
-      ArraySetOperation(List(), false, JArray(List(JString("Y"))))))
+    for {
+      v1 <- generateValues()
+      v2 <- generateValues()
+    } yield TransformationCase(
+      ArraySetOperation(List(), false, JArray(List(v1))),
+      ArraySetOperation(List(), false, JArray(List(v2))))
   }
 
   def transform(s: ArraySetOperation, c: ArraySetOperation): (DiscreteOperation, DiscreteOperation) = {

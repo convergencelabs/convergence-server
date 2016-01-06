@@ -8,16 +8,22 @@ import org.json4s.JsonAST.JString
 
 class ObjectAddPropertySetTFSpec extends WordSpec with Matchers {
 
+  val X = "X"
+
   "A ObjectAddPropertySetTF" when {
 
     "tranforming an add and a set operation " must {
-      "throw an exception if the property names are equal" in {
-        val s = ObjectAddPropertyOperation(List(), false, "prop", JObject())
+
+      /**
+       * O-AS-1
+       */
+      "noOp the add property" in {
+        val s = ObjectAddPropertyOperation(List(), false, X, JObject())
         val c = ObjectSetOperation(List(), false, JObject())
 
         val (s1, c1) = ObjectAddPropertySetTF.transform(s, c)
 
-        s1 shouldBe ObjectAddPropertyOperation(List(), true, "prop", JObject())
+        s1 shouldBe ObjectAddPropertyOperation(List(), true, X, JObject())
         c1 shouldBe c
       }
     }

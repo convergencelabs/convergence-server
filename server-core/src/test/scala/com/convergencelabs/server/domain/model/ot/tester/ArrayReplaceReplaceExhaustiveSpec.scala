@@ -9,9 +9,16 @@ class ArrayReplaceReplaceExhaustiveSpec extends ArrayOperationExhaustiveSpec[Arr
 
   def generateCases(): List[TransformationCase[ArrayReplaceOperation, ArrayReplaceOperation]] = {
     val indices = generateIndices()
-    for { i1 <- indices; i2 <- indices } yield TransformationCase(
-      ArrayReplaceOperation(List(), false, i1, JString("Y")),
-      ArrayReplaceOperation(List(), false, i2, JString("X")))
+    val values = generateValues()
+
+    for {
+      i1 <- indices
+      v1 <- values
+      i2 <- indices
+      v2 <- values
+    } yield TransformationCase(
+      ArrayReplaceOperation(List(), false, i1, v1),
+      ArrayReplaceOperation(List(), false, i2, v2))
   }
 
   def transform(s: ArrayReplaceOperation, c: ArrayReplaceOperation): (DiscreteOperation, DiscreteOperation) = {

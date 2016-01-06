@@ -1,33 +1,42 @@
 package com.convergencelabs.server.domain.model.ot
 
-import org.scalatest.WordSpec
-import org.json4s.JsonAST.JObject
+import org.json4s.JsonDSL.int2jvalue
 import org.scalatest.Matchers
-import org.scalatest.Finders
-import org.json4s.JsonAST.JString
+import org.scalatest.WordSpec
 
+// scalastyle:off magic.number
 class ObjectRemovePropertyAddPropertyTFSpec extends WordSpec with Matchers {
+
+  val X = "X"
+  val B = "B"
 
   "A ObjectRemovePropertyAddPropertyTF" when {
 
     "tranforming a set and an add operation " must {
-      "throw an exception if the property names are equal" in {
-        val s = ObjectRemovePropertyOperation(List(), false, "prop")
-        val c = ObjectAddPropertyOperation(List(), false, "prop", JObject())
 
-        intercept[IllegalArgumentException] {
-          val (s1, c1) = ObjectRemovePropertyAddPropertyTF.transform(s, c)
-        }
-      }
-
+      /**
+       * O-RA-1
+       */
       "do not transform the operations if the properties are unequal" in {
-        val s = ObjectRemovePropertyOperation(List(), false, "prop1")
-        val c = ObjectAddPropertyOperation(List(), false, "prop2", JObject())
+        val s = ObjectRemovePropertyOperation(List(), false, B)
+        val c = ObjectAddPropertyOperation(List(), false, X, 3)
 
         val (s1, c1) = ObjectRemovePropertyAddPropertyTF.transform(s, c)
 
         s1 shouldBe s
         c1 shouldBe c
+      }
+
+      /**
+       * O-RA-2
+       */
+      "throw an exception if the property names are equal" in {
+        val s = ObjectRemovePropertyOperation(List(), false, X)
+        val c = ObjectAddPropertyOperation(List(), false, X, 3)
+
+        intercept[IllegalArgumentException] {
+          val (s1, c1) = ObjectRemovePropertyAddPropertyTF.transform(s, c)
+        }
       }
     }
   }

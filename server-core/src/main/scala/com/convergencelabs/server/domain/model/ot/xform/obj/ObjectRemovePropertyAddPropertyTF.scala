@@ -1,12 +1,13 @@
 package com.convergencelabs.server.domain.model.ot
 
-private[ot] object ObjectRemovePropertySetPropertyTF extends OperationTransformationFunction[ObjectRemovePropertyOperation, ObjectSetPropertyOperation] {
-  def transform(s: ObjectRemovePropertyOperation, c: ObjectSetPropertyOperation): (ObjectRemovePropertyOperation, ObjectOperation) = {
-    if (s.property == c.property) {
-      val ObjectSetPropertyOperation(path, noOp, prop, value) = c
-      (s.copy(noOp = true), ObjectAddPropertyOperation(path, noOp, prop, value))
-    } else {
+private[ot] object ObjectRemovePropertyAddPropertyTF extends OperationTransformationFunction[ObjectRemovePropertyOperation, ObjectAddPropertyOperation] {
+  def transform(s: ObjectRemovePropertyOperation, c: ObjectAddPropertyOperation): (ObjectRemovePropertyOperation, ObjectAddPropertyOperation) = {
+    if (s.property != c.property) {
+      // O-RA-1
       (s, c)
+    } else {
+      // O-RA-2
+      throw new IllegalArgumentException("Remove property and add property can not target the same property")
     }
   }
 }
