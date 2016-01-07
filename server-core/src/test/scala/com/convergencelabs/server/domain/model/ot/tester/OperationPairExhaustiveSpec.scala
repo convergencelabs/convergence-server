@@ -4,16 +4,19 @@ import scala.collection.mutable.ListBuffer
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-
 import org.scalatest.FunSpec
+import grizzled.slf4j.Logging
 
-trait OperationPairExhaustiveSpec[M <: MockModel, S <: DiscreteOperation, C <: DiscreteOperation] extends FunSpec {
+trait OperationPairExhaustiveSpec[M <: MockModel, S <: DiscreteOperation, C <: DiscreteOperation]
+    extends FunSpec
+    with Logging {
 
   protected def serverOperationType: String
   protected def clientOperationType: String
 
   protected def generateCases(): List[TransformationCase[S, C]]
 
+  // scalastyle:off multiple.string.literals
   describe(s"When transforming and applying a server ${serverOperationType} against a client ${clientOperationType}") {
     val cases = generateCases()
     cases.foreach { c =>
@@ -22,20 +25,20 @@ trait OperationPairExhaustiveSpec[M <: MockModel, S <: DiscreteOperation, C <: D
           case Success(Converged(trace)) =>
           case Success(NotConverged(trace)) =>
             fail()
-            println(s"\nFailure: (${trace.serverOp}, ${trace.clientOp})")
-            println(s"  Initial State     : ${trace.initialState}\n")
-            println(s"  Server Original Op: ${trace.serverOp}")
-            println(s"  Server Local State: ${trace.serverLocalState}")
-            println(s"  Client xFormed Op : ${trace.cPrime}")
-            println(s"  Server Final State: ${trace.serverEndState}\n")
+            logger.info(s"\nFailure: (${trace.serverOp}, ${trace.clientOp})")
+            logger.info(s"  Initial State     : ${trace.initialState}\n")
+            logger.info(s"  Server Original Op: ${trace.serverOp}")
+            logger.info(s"  Server Local State: ${trace.serverLocalState}")
+            logger.info(s"  Client xFormed Op : ${trace.cPrime}")
+            logger.info(s"  Server Final State: ${trace.serverEndState}\n")
 
-            println(s"  Client Original Op: ${trace.clientOp}")
-            println(s"  Client Local State: ${trace.clientLocalState}")
-            println(s"  Server xFormed Op : ${trace.sPrime}")
-            println(s"  Client Final State: ${trace.clientEndState}\n")
+            logger.info(s"  Client Original Op: ${trace.clientOp}")
+            logger.info(s"  Client Local State: ${trace.clientLocalState}")
+            logger.info(s"  Server xFormed Op : ${trace.sPrime}")
+            logger.info(s"  Client Final State: ${trace.clientEndState}\n")
 
           case Failure(cause) =>
-            cause.printStackTrace()
+            logger.error(cause)
             fail()
         }
       }

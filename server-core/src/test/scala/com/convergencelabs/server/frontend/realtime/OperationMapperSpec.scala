@@ -29,6 +29,8 @@ import com.convergencelabs.server.domain.model.ot.StringSetOperation
 // scalastyle:off magic.number
 class OperationMapperSpec extends WordSpec with Matchers {
 
+  val X = "X"
+
   val Path = List("1", 2, "3")
   val NoOp = true
   val JVal = JInt(5)
@@ -46,9 +48,9 @@ class OperationMapperSpec extends WordSpec with Matchers {
     ArrayMoveOperation(Path, NoOp, 1, 2),
     ArraySetOperation(Path, NoOp, JArray(List(JVal))),
 
-    StringInsertOperation(Path, NoOp, 1, "x"),
-    StringRemoveOperation(Path, NoOp, 1, "x"),
-    StringSetOperation(Path, NoOp, "x"),
+    StringInsertOperation(Path, NoOp, 1, X),
+    StringRemoveOperation(Path, NoOp, 1, X),
+    StringSetOperation(Path, NoOp, X),
 
     NumberSetOperation(Path, NoOp, JVal),
     NumberAddOperation(Path, NoOp, JVal),

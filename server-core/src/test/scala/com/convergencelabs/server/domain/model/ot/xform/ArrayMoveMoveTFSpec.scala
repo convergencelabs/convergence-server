@@ -765,7 +765,7 @@ class ArrayMoveMoveTFSpec
         c1 shouldBe ArrayMoveOperation(Path, true, 6, 2)
       }
     }
-    
+
     "tranforming a server identity move against a client backward move" must {
 
       /**

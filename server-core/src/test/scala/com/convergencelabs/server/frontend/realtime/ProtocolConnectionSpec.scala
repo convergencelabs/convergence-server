@@ -44,6 +44,12 @@ class ProtocolConnectionSpec
   implicit val formats = Serialization.formats(NoTypeHints)
   implicit val ec = system.dispatcher
 
+  val session = "session"
+  val code = "code"
+  val details = "details"
+  val collectionId = "c"
+  val modelId = "m"
+
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
   }
@@ -69,7 +75,7 @@ class ProtocolConnectionSpec
 
     "sending a request message" must {
       "send the correct message envelope" in new TestFixture {
-        val toSend = ModelDataRequestMessage(ModelFqnData("c", "m"))
+        val toSend = ModelDataRequestMessage(ModelFqnData(collectionId, modelId))
         connection.request(toSend)
 
         val sentMessage = socket.expectSentMessage(10 millis)
@@ -141,7 +147,7 @@ class ProtocolConnectionSpec
       }
 
       "emit a error event and abort the connection if a message was not a request" in new TestFixture {
-        val message = OperationSubmissionMessage("session", 1L, 2L, CompoundOperationData(List()))
+        val message = OperationSubmissionMessage(session, 1L, 2L, CompoundOperationData(List()))
         val envelope = MessageEnvelope(
           OpCode.Request,
           Some(1L),
@@ -157,7 +163,7 @@ class ProtocolConnectionSpec
 
     "receiving a normal message" must {
       "emit a message received event" in new TestFixture {
-        val message = OperationSubmissionMessage("session", 1L, 2L, CompoundOperationData(List()))
+        val message = OperationSubmissionMessage(session, 1L, 2L, CompoundOperationData(List()))
         val envelope = MessageEnvelope(
           OpCode.Normal,
           None,
@@ -185,7 +191,7 @@ class ProtocolConnectionSpec
       }
 
       "emit a error event and abort the connection if a message with a request Id" in new TestFixture {
-        val message = OperationSubmissionMessage("session", 1L, 2L, CompoundOperationData(List()))
+        val message = OperationSubmissionMessage(session, 1L, 2L, CompoundOperationData(List()))
         val envelope = MessageEnvelope(
           OpCode.Normal,
           Some(1L),
@@ -275,7 +281,7 @@ class ProtocolConnectionSpec
         socket.fireOnMessage(json)
         val RequestReceived(m, cb) = receiver.expectEventClass(10 millis, classOf[RequestReceived])
 
-        val excpetion = new UnexpectedErrorException("code", "details")
+        val excpetion = new UnexpectedErrorException(code, details)
         cb.error(excpetion)
 
         val sentMessage = socket.expectSentMessage(20 millis)
@@ -346,7 +352,7 @@ class ProtocolConnectionSpec
       }
 
       "resolve the request future with the proper message" in new TestFixture {
-        val toSend = ModelDataRequestMessage(ModelFqnData("c", "m"))
+        val toSend = ModelDataRequestMessage(ModelFqnData(collectionId, modelId))
         val f = connection.request(toSend)
 
         val sentMessage = socket.expectSentMessage(10 millis)
@@ -368,13 +374,13 @@ class ProtocolConnectionSpec
       }
 
       "resolve the future with a failure if an error is recieved" in new TestFixture {
-        val toSend = ModelDataRequestMessage(ModelFqnData("c", "m"))
+        val toSend = ModelDataRequestMessage(ModelFqnData(collectionId, modelId))
         val f = connection.request(toSend)
 
         val sentMessage = socket.expectSentMessage(10 millis)
         val sentEnvelope = MessageSerializer.readJson[MessageEnvelope](sentMessage)
 
-        val replyMessage = ErrorMessage("code", "details")
+        val replyMessage = ErrorMessage(code, details)
         val replyEnvelope = MessageEnvelope(
           OpCode.Reply,
           sentEnvelope.reqId,
@@ -390,8 +396,8 @@ class ProtocolConnectionSpec
 
         val errorException = cause.asInstanceOf[UnexpectedErrorException]
 
-        errorException.code shouldBe "code"
-        errorException.details shouldBe "details"
+        errorException.code shouldBe code
+        errorException.details shouldBe details
       }
     }
   }
@@ -423,11 +429,13 @@ class ProtocolConnectionSpec
 
     private val queue = new LinkedBlockingDeque[ConnectionEvent]()
 
+    // scalastyle:off null
     def expectEvent(max: FiniteDuration, e: ConnectionEvent): Unit = {
       val o = receiveOne(max)
       assert(o ne null, s"timeout ($max) during expectMsgClass waiting for $e")
       assert(e == o)
     }
+    // scalastyle:on null
 
     def expectEventClass[C](max: FiniteDuration, c: Class[C]): C = expectEventClassInternal(max, c)
 

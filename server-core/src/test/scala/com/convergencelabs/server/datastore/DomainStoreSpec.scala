@@ -19,7 +19,9 @@ class DomainStoreSpec
 
   def createStore(dbPool: OPartitionedDatabasePool): DomainStore = new DomainStore(dbPool)
 
-  val ns1d1 = DomainFqn("namespace1", "domain1")
+  val namespace1 = "namespace1"
+  val domain1 = "domain1"
+  val ns1d1 = DomainFqn(namespace1, domain1)
   val ns1d1Id = "namespace1-domain1"
   val ns1d2Id = "namespace1-domain2"
   val root = "root"
@@ -86,7 +88,7 @@ class DomainStoreSpec
 
     "getting domains by namespace" must {
       "return all domains for a namespace" in withPersistenceStore { store =>
-        val domains = store.getDomainsInNamespace("namespace1").success.get
+        val domains = store.getDomainsInNamespace(namespace1).success.get
         domains.length shouldBe 2
         domains(0).id shouldBe ns1d1Id
         domains(1).id shouldBe ns1d2Id
@@ -108,7 +110,7 @@ class DomainStoreSpec
       "sucessfully update an existing domain" in withPersistenceStore { store =>
         val toUpdate = Domain(
           "namespace1-domain1",
-          DomainFqn("namespace1", "domain1"),
+          DomainFqn(namespace1, domain1),
           "Test Domain 1 Updated",
           "admin updated",
           "password")
@@ -122,7 +124,7 @@ class DomainStoreSpec
       "fail to update an non-existing domain" in withPersistenceStore { store =>
         val toUpdate = Domain(
           "namespace1-domain-none",
-          DomainFqn("namespace1", "domain1"),
+          DomainFqn(namespace1, domain1),
           "Test Domain 1 Updated",
           "admin updated",
           "password")

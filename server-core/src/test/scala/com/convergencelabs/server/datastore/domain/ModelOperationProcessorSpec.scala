@@ -33,7 +33,7 @@ import com.convergencelabs.server.domain.model.ot.StringSetOperation
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.convergencelabs.server.domain.model.ot.CompoundOperation
 
-// scalastyle:off magic.number
+// scalastyle:off magic.number multiple.string.literals
 class ModelOperationProcessorSpec
     extends PersistenceStoreSpec[(ModelOperationProcessor, ModelOperationStore, ModelStore)]("/dbfiles/domain.json.gz")
     with WordSpecLike

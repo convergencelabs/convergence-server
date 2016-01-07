@@ -4,11 +4,9 @@ case class StringDeleteRange(index: Int, value: String)
 
 object StringRemoveRangeGenerator {
   def createDeleteRanges(modelValue: String): List[StringDeleteRange] = {
-    var result = List[StringDeleteRange]()
-    for (r <- 0 until modelValue.length) {
-      result = result ++ createRangesFromPositionToEnd(r, modelValue)
-    }
-    result
+    (for {
+      r <- 0 until modelValue.length
+    } yield createRangesFromPositionToEnd(r, modelValue)).flatten.toList
   }
 
   private[this] def createRangesFromPositionToEnd(start: Int, modelValue: String): List[StringDeleteRange] = {
