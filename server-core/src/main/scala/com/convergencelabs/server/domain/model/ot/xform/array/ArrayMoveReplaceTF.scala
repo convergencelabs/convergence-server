@@ -27,7 +27,7 @@ private[ot] object ArrayMoveReplaceTF extends OperationTransformationFunction[Ar
         // A-MP-2
         (s, c.copy(index = s.toIndex))
       case Within | End =>
-        // A-MP-8 and A-MP-9
+        // A-MP-3 and A-MP-4
         (s, c.copy(index = c.index - 1))
     }
   }
