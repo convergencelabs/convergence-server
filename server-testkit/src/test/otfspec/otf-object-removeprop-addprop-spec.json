@@ -1,0 +1,21 @@
+[
+  {
+    "id": "O-RA-1",
+    "input": {
+      "serverOp": {"type": "ObjectRemoveProperty", "noOp": false, "prop": "B"},
+      "clientOp": {"type": "ObjectAddProperty", "noOp": false, "prop": "X", "value": 3}
+    },
+    "output": {
+      "serverOp": {"type": "ObjectRemoveProperty", "noOp": false, "prop": "B"},
+      "clientOp": {"type": "ObjectAddProperty", "noOp": false, "prop": "X", "value": 3}
+    }
+  },
+  {
+    "id": "O-RA-2",
+    "input": {
+      "serverOp": {"type": "ObjectRemoveProperty", "noOp": false, "prop": "X"},
+      "clientOp": {"type": "ObjectAddProperty", "noOp": false, "prop": "X", "value": 3}
+    },
+    "error": true
+  }
+]

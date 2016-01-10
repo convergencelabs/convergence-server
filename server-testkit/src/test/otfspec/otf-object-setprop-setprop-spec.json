@@ -1,0 +1,35 @@
+[
+  {
+    "id": "O-TT-1",
+    "input": {
+      "serverOp": {"type": "ObjectSetProperty", "noOp": false, "prop": "A", "value": 3},
+      "clientOp": {"type": "ObjectSetProperty", "noOp": false, "prop": "B", "value": 4}
+    },
+    "output": {
+      "serverOp": {"type": "ObjectSetProperty", "noOp": false, "prop": "A", "value": 3},
+      "clientOp": {"type": "ObjectSetProperty", "noOp": false, "prop": "B", "value": 4}
+    }
+  },
+  {
+    "id": "O-TT-2",
+    "input": {
+      "serverOp": {"type": "ObjectSetProperty", "noOp": false, "prop": "A", "value": 3},
+      "clientOp": {"type": "ObjectSetProperty", "noOp": false, "prop": "A", "value": 4}
+    },
+    "output": {
+      "serverOp": {"type": "ObjectSetProperty", "noOp": false, "prop": "A", "value": 3},
+      "clientOp": {"type": "ObjectSetProperty", "noOp": true, "prop": "A", "value": 4}
+    }
+  },
+  {
+    "id": "O-TT-2",
+    "input": {
+      "serverOp": {"type": "ObjectSetProperty", "noOp": false, "prop": "A", "value": 3},
+      "clientOp": {"type": "ObjectSetProperty", "noOp": false, "prop": "A", "value": 3}
+    },
+    "output": {
+      "serverOp": {"type": "ObjectSetProperty", "noOp": true, "prop": "A", "value": 3},
+      "clientOp": {"type": "ObjectSetProperty", "noOp": true, "prop": "A", "value": 3}
+    }
+  }
+]

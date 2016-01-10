@@ -1,0 +1,13 @@
+[
+  {
+    "id": "A-MS-1",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5},
+      "clientOp": {"type": "ArraySet", "noOp": false, "value": ["X"]}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": true, "fromIndex": 3, "toIndex": 5},
+      "clientOp": {"type": "ArraySet", "noOp": false, "value": ["X"]}
+    }
+  }
+]

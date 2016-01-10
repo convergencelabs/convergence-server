@@ -1,0 +1,35 @@
+[
+  {
+    "id": "S-II-1",
+    "input": {
+      "serverOp": {"type": "StringInsert", "noOp": false, "index": 3, "value": "WX"},
+      "clientOp": {"type": "StringInsert", "noOp": false, "index": 4, "value": "YZ"}
+    },
+    "output": {
+      "serverOp": {"type": "StringInsert", "noOp": false, "index": 3, "value": "WX"},
+      "clientOp": {"type": "StringInsert", "noOp": false, "index": 6, "value": "YZ"}
+    }
+  },
+  {
+    "id": "S-II-2",
+    "input": {
+      "serverOp": {"type": "StringInsert", "noOp": false, "index": 3, "value": "WX"},
+      "clientOp": {"type": "StringInsert", "noOp": false, "index": 3, "value": "YZ"}
+    },
+    "output": {
+      "serverOp": {"type": "StringInsert", "noOp": false, "index": 3, "value": "WX"},
+      "clientOp": {"type": "StringInsert", "noOp": false, "index": 5, "value": "YZ"}
+    }
+  },
+  {
+    "id": "S-II-3",
+    "input": {
+      "serverOp": {"type": "StringInsert", "noOp": false, "index": 4, "value": "WX"},
+      "clientOp": {"type": "StringInsert", "noOp": false, "index": 3, "value": "YZ"}
+    },
+    "output": {
+      "serverOp": {"type": "StringInsert", "noOp": false, "index": 6, "value": "WX"},
+      "clientOp": {"type": "StringInsert", "noOp": false, "index": 3, "value": "YZ"}
+    }
+  }
+]

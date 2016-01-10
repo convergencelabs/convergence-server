@@ -1,0 +1,21 @@
+[
+  {
+    "id": "O-AT-1",
+    "input": {
+      "serverOp": {"type": "ObjectAddProperty", "noOp": false, "prop": "X", "value": 3},
+      "clientOp": {"type": "ObjectSetProperty", "noOp": false, "prop": "B", "value": 4}
+    },
+    "output": {
+      "serverOp": {"type": "ObjectAddProperty", "noOp": false, "prop": "X", "value": 3},
+      "clientOp": {"type": "ObjectSetProperty", "noOp": false, "prop": "B", "value": 4}
+    }
+  },
+  {
+    "id": "O-AT-2",
+    "input": {
+      "serverOp": {"type": "ObjectAddProperty", "noOp": false, "prop": "X", "value": 3},
+      "clientOp": {"type": "ObjectSetProperty", "noOp": false, "prop": "X", "value": 4}
+    },
+    "error": true
+  }
+]

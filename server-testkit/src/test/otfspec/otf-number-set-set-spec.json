@@ -1,0 +1,24 @@
+[
+  {
+    "id": "N-SS-1",
+    "input": {
+      "serverOp": {"type": "NumberSet", "noOp": false, "value": 1},
+      "clientOp": {"type": "NumberSet", "noOp": false, "value": 2}
+    },
+    "output": {
+      "serverOp": {"type": "NumberSet", "noOp": false, "value": 1},
+      "clientOp": {"type": "NumberSet", "noOp": true, "value": 2}
+    }
+  },
+  {
+    "id": "N-SS-2",
+    "input": {
+      "serverOp": {"type": "NumberSet", "noOp": false, "value": 1},
+      "clientOp": {"type": "NumberSet", "noOp": false, "value": 1}
+    },
+    "output": {
+      "serverOp": {"type": "NumberSet", "noOp": true, "value": 1},
+      "clientOp": {"type": "NumberSet", "noOp": true, "value": 1}
+    }
+  }
+]

@@ -1,0 +1,13 @@
+[
+  {
+    "id": "N-SA-1",
+    "input": {
+      "serverOp": {"type": "NumberSet", "noOp": false, "value": 2},
+      "clientOp": {"type": "NumberAdd", "noOp": false, "value": 1}
+    },
+    "output": {
+      "serverOp": {"type": "NumberSet", "noOp": false, "value": 2},
+      "clientOp": {"type": "NumberAdd", "noOp": true, "value": 1}
+    }
+  }
+]

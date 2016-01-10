@@ -1,0 +1,24 @@
+[
+  {
+    "id": "B-SS-1",
+    "input": {
+      "serverOp": {"type": "BooleanSet", "noOp": false, "value": true},
+      "clientOp": {"type": "BooleanSet", "noOp": false, "value": false}
+    },
+    "output": {
+      "serverOp": {"type": "BooleanSet", "noOp": false, "value": true},
+      "clientOp": {"type": "BooleanSet", "noOp": true, "value": false}
+    }
+  },
+  {
+    "id": "B-SS-2",
+    "input": {
+      "serverOp": {"type": "BooleanSet", "noOp": false, "value": true},
+      "clientOp": {"type": "BooleanSet", "noOp": false, "value": true}
+    },
+    "output": {
+      "serverOp": {"type": "BooleanSet", "noOp": true, "value": true},
+      "clientOp": {"type": "BooleanSet", "noOp": true, "value": true}
+    }
+  }
+]

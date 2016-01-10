@@ -1,0 +1,148 @@
+[
+  {
+    "id": "A-MI-1",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5},
+      "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 2, "value": "X"}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 6},
+      "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 2, "value": "X"}
+    }
+  },
+  {
+    "id": "A-MI-2",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5},
+      "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 3, "value": "X"}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 6},
+      "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 3, "value": "X"}
+    }
+  },
+  {
+    "id": "A-MI-3",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5},
+      "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "X"}
+      
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 6},
+      "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 3, "value": "X"}
+    }
+  },
+  {
+    "id": "A-MI-4",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5},
+      "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 5, "value": "X"}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 6},
+      "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "X"}
+    }
+  },
+  {
+    "id": "A-MI-5",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5},
+      "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 6, "value": "X"}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5},
+      "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 6, "value": "X"}
+    }
+  },
+  {
+    "id": "A-MI-6",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3},
+      "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 2, "value": "X"}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 4},
+      "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 2, "value": "X"}
+    }
+  },
+  {
+    "id": "A-MI-7",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3},
+      "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 3, "value": "X"}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 4},
+      "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 3, "value": "X"}
+    }
+  },
+  {
+    "id": "A-MI-8",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3},
+      "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "X"}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 3},
+      "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 5, "value": "X"}
+    }
+  },
+  {
+    "id": "A-MI-9",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3},
+      "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 5, "value": "X"}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 3},
+      "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 6, "value": "X"}
+    }
+  },
+  {
+    "id": "A-MI-10",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3},
+      "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 6, "value": "X"}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3},
+      "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 6, "value": "X"}
+    }
+  },
+  {
+    "id": "A-MI-11",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 3},
+      "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 2, "value": "X"}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 4},
+      "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 2, "value": "X"}
+    }
+  },
+  {
+    "id": "A-MI-12",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 3},
+      "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 3, "value": "X"}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 4},
+      "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 3, "value": "X"}
+      
+    }
+  },
+  {
+    "id": "A-MI-13",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 3},
+      "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "X"}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 3},
+      "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "X"}
+    }
+  }
+  
+]

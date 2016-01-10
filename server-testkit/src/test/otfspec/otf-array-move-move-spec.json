@@ -1,0 +1,843 @@
+[
+  {
+    "id": "A-MM-FF-1",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 2, "toIndex": 4},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 7}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 2, "toIndex": 4},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 7}
+    }
+  },
+  {
+    "id": "A-MM-FF-2",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 7},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 2, "toIndex": 4}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 7},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 2, "toIndex": 4}
+    }
+  },
+  {
+    "id": "A-MM-FF-3",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 7}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 4},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 7}
+    }
+  },
+  {
+    "id": "A-MM-FF-4",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 7},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 7},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 4}
+    }
+  },
+  {
+    "id": "A-MM-FF-5",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 6}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 4},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 6}
+    }
+  },
+  {
+    "id": "A-MM-FF-6",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 6},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 6},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 4}
+    }
+  },
+  {
+    "id": "A-MM-FF-7",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 4},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 6}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 4},
+      "clientOp": {"type": "ArrayMove", "noOp": true, "fromIndex": 3, "toIndex": 6}
+    }
+  },
+  {
+    "id": "A-MM-FF-8",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 6},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 4}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 6},
+      "clientOp": {"type": "ArrayMove", "noOp": true, "fromIndex": 3, "toIndex": 4}
+    }
+  },
+  {
+    "id": "A-MM-FF-9",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 6},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 5}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 6},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 4}
+    }
+  },
+  {
+    "id": "A-MM-FF-10",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 5},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 6}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 4},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 6}
+    }
+  },
+  {
+    "id": "A-MM-FF-11",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 6},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 6}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 6},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
+    }
+  },
+  {
+    "id": "A-MM-FF-12",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 6},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 6}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 6},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 5}
+    }
+  },
+  {
+    "id": "A-MM-FF-13",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": true, "fromIndex": 3, "toIndex": 5},
+      "clientOp": {"type": "ArrayMove", "noOp": true, "fromIndex": 3, "toIndex": 5}
+    }
+  },
+  
+  
+  {
+    "id": "A-MM-FB-1",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 2, "toIndex": 4},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 7, "toIndex": 5}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 2, "toIndex": 4},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 7, "toIndex": 5}
+    }
+  },
+  {
+    "id": "A-MM-FB-2",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 7},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 2}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 7},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 2}
+    }
+  },
+  {
+    "id": "A-MM-FB-3",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 7, "toIndex": 5}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 6},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 7, "toIndex": 4}
+    }
+  },
+  {
+    "id": "A-MM-FB-4",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 7},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 7},
+      "clientOp": {"type": "ArrayMove", "noOp": true, "fromIndex": 5, "toIndex": 3}
+    }
+  },
+  {
+    "id": "A-MM-FB-5",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 4}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 6},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 3}
+    }
+  },
+  {
+    "id": "A-MM-FB-6",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 6},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 6},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 3}
+    }
+  },
+  {
+    "id": "A-MM-FB-7",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 3}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 6},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 3}
+    }
+  },
+  {
+    "id": "A-MM-FB-8",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 6},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 6},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 3}
+    }
+  },
+  {
+    "id": "A-MM-FB-9",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 6},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 4}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 6},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 3}
+    }
+  },
+  {
+    "id": "A-MM-FB-10",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 5},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 3}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 6},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 3}
+    }
+  },
+  {
+    "id": "A-MM-FB-11",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 6},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 2}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 6},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 2}
+    }
+  },
+  {
+    "id": "A-MM-FB-12",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 2, "toIndex": 6},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 4}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 2, "toIndex": 6},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
+    }
+  },
+  {
+    "id": "A-MM-FB-13",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 2, "toIndex": 6},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 2}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 6},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 2}
+    }
+  },
+  
+  
+  {
+    "id": "A-MM-FI-1",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 2, "toIndex": 2}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 2, "toIndex": 2}
+    }
+  },
+  {
+    "id": "A-MM-FI-2",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 3}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 5}
+    }
+  },
+  {
+    "id": "A-MM-FI-3",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 4}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 3}
+    }
+  },
+  {
+    "id": "A-MM-FI-4",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 5}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 4}
+    }
+  },
+  {
+    "id": "A-MM-FI-5",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 6}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 6}
+    }
+  },
+  
+  
+  {
+    "id": "A-MM-BF-1",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 2},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 7}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 2},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 7}
+    }
+  },
+  {
+    "id": "A-MM-BF-2",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 7, "toIndex": 5},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 2, "toIndex": 4}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 7, "toIndex": 5},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 2, "toIndex": 4}
+    }
+  },
+  {
+    "id": "A-MM-BF-3",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 7}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 7, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": true, "fromIndex": 5, "toIndex": 7}
+    }
+  },
+  {
+    "id": "A-MM-BF-4",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 7, "toIndex": 5},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 7, "toIndex": 4},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 6}
+    }
+  },
+  {
+    "id": "A-MM-BF-5",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 6}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 6}
+    }
+  },
+  {
+    "id": "A-MM-BF-6",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 4},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 6}
+    }
+  },
+  {
+    "id": "A-MM-BF-7",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 6}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 6}
+    }
+  },
+  {
+    "id": "A-MM-BF-8",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 6}
+    }
+  },
+  {
+    "id": "A-MM-BF-9",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 5}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 6}
+    }
+  },
+  {
+    "id": "A-MM-BF-10",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 4},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 6}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 6}
+    }
+  },
+  {
+    "id": "A-MM-BF-11",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 4},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 2, "toIndex": 6}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 2, "toIndex": 6}
+    }
+  },
+  {
+    "id": "A-MM-BF-12",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 2},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 6}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 2},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 6}
+    }
+  },
+  {
+    "id": "A-MM-BF-13",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 2},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 2, "toIndex": 6}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 2},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 6}
+    }
+  },
+  
+  
+  {
+    "id": "A-MM-BB-1",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 2},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 7, "toIndex": 5}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 2},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 7, "toIndex": 5}
+    }
+  },
+  {
+    "id": "A-MM-BB-2",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 7, "toIndex": 5},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 2}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 7, "toIndex": 5},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 2}
+    }
+  },
+  {
+    "id": "A-MM-BB-3",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 7, "toIndex": 5}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 7, "toIndex": 6}
+    }
+  },
+  {
+    "id": "A-MM-BB-4",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 7, "toIndex": 5},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 7, "toIndex": 6},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 3}
+    }
+  },
+  {
+    "id": "A-MM-BB-5",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 4}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 5}
+    }
+  },
+  {
+    "id": "A-MM-BB-6",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 4},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 5},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 3}
+    }
+  },
+  {
+    "id": "A-MM-BB-7",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 3}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 4},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 3}
+    }
+  },
+  {
+    "id": "A-MM-BB-8",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 4}
+    }
+  },
+  {
+    "id": "A-MM-BB-9",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 4}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 5}
+    }
+  },
+  {
+    "id": "A-MM-BB-10",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 4},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 3}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 5},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 3}
+    }
+  },
+  {
+    "id": "A-MM-BB-11",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 4},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 2}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 2, "toIndex": 4},
+      "clientOp": {"type": "ArrayMove", "noOp": true, "fromIndex": 6, "toIndex": 2}
+    }
+  },
+  {
+    "id": "A-MM-BB-12",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 2},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 4}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 2},
+      "clientOp": {"type": "ArrayMove", "noOp": true, "fromIndex": 6, "toIndex": 4}
+    }
+  },
+  {
+    "id": "A-MM-BB-13",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 2},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 2}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": true, "fromIndex": 6, "toIndex": 2},
+      "clientOp": {"type": "ArrayMove", "noOp": true, "fromIndex": 6, "toIndex": 2}
+    }
+  },
+  
+  
+  {
+    "id": "A-MM-BI-1",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 2, "toIndex": 2}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 2, "toIndex": 2}
+    }
+  },
+  {
+    "id": "A-MM-BI-2",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 3}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 4}
+    }
+  },
+  {
+    "id": "A-MM-BI-3",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 4}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 5}
+    }
+  },
+  {
+    "id": "A-MM-BI-4",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 5}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 3}
+    }
+  },
+  {
+    "id": "A-MM-BI-5",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 6}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 6}
+    }
+  },
+  
+  
+  {
+    "id": "A-MM-IF-1",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 2, "toIndex": 2},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 2, "toIndex": 2},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
+    }
+  },
+  {
+    "id": "A-MM-IF-2",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 5},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
+    }
+  },
+  {
+    "id": "A-MM-IF-3",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 4},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
+    }
+  },
+  {
+    "id": "A-MM-IF-4",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 5},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 4},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
+    }
+  },
+  {
+    "id": "A-MM-IF-5",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 6},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 6},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
+    }
+  },
+  
+  
+  {
+    "id": "A-MM-IB-1",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 2, "toIndex": 2},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 2, "toIndex": 2},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
+    }
+  },
+  {
+    "id": "A-MM-IB-2",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 4},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
+    }
+  },
+  {
+    "id": "A-MM-IB-3",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 4},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 5},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
+    }
+  },
+  {
+    "id": "A-MM-IB-4",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 5},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
+    }
+  },
+  {
+    "id": "A-MM-IB-5",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 6},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 6, "toIndex": 6},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
+    }
+  },
+  
+  
+  {
+    "id": "A-MM-II-1",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 2, "toIndex": 2},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 3}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 2, "toIndex": 2},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 3}
+    }
+  },
+  {
+    "id": "A-MM-II-2",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 3}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 3},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 3}
+    }
+  },
+  {
+    "id": "A-MM-II-3",
+    "input": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 4},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 3}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 4},
+      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 3}
+    }
+  }
+]

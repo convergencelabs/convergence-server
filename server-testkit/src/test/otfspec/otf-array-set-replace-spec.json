@@ -1,0 +1,13 @@
+[
+  {
+    "id": "A-SP-1",
+    "input": {
+      "serverOp": {"type": "ArraySet", "noOp": false, "value": ["Y"]},
+      "clientOp": {"type": "ArrayReplace", "noOp": false, "index": 4, "value": "X"}
+    },
+    "output": {
+      "serverOp": {"type": "ArraySet", "noOp": false, "value": ["Y"]},
+      "clientOp": {"type": "ArrayReplace", "noOp": true, "index": 4, "value": "X"}
+    }
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "id": "O-TR-1",
+    "input": {
+      "serverOp": {"type": "ObjectSetProperty", "noOp": false, "prop": "A", "value": 4},
+      "clientOp": {"type": "ObjectRemoveProperty", "noOp": false, "prop": "B"}
+    },
+    "output": {
+      "serverOp": {"type": "ObjectSetProperty", "noOp": false, "prop": "A", "value": 4},
+      "clientOp": {"type": "ObjectRemoveProperty", "noOp": false, "prop": "B"}
+    }
+  },
+  {
+    "id": "O-TR-2",
+    "input": {
+      "serverOp": {"type": "ObjectSetProperty", "noOp": false, "prop": "B", "value": 4},
+      "clientOp": {"type": "ObjectRemoveProperty", "noOp": false, "prop": "B"}
+    },
+    "output": {
+      "serverOp": {"type": "ObjectAddProperty", "noOp": false, "prop": "B", "value": 4},
+      "clientOp": {"type": "ObjectRemoveProperty", "noOp": true, "prop": "B"}
+    }
+  }
+]

@@ -1,0 +1,13 @@
+[
+  {
+    "id": "O-RS-1",
+    "input": {
+      "serverOp": {"type": "ObjectRemoveProperty", "noOp": false, "prop": "A"},
+      "clientOp": {"type": "ObjectSet", "noOp": false, "value": {"Y": 4}}
+    },
+    "output": {
+      "serverOp": {"type": "ObjectRemoveProperty", "noOp": true, "prop": "A"},
+      "clientOp": {"type": "ObjectSet", "noOp": false, "value": {"Y": 4}}
+    }
+  }
+]

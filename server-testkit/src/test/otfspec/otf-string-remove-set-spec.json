@@ -1,0 +1,13 @@
+[
+  {
+    "id": "S-RS-1",
+    "input": {
+      "clientOp": {"type": "StringRemove", "noOp": false, "index": 1, "value": "BCD"},
+      "serverOp": {"type": "StringSet", "noOp": false, "value": "VALUE"}
+    },
+    "output": {
+      "clientOp": {"type": "StringRemove", "noOp": true, "index": 1, "value": "BCD"},
+      "serverOp": {"type": "StringSet", "noOp": false, "value": "VALUE"}
+    }
+  }
+]

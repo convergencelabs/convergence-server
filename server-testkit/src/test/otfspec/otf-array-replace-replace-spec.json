@@ -1,0 +1,35 @@
+[
+  {
+    "id": "A-PP-1",
+    "input": {
+      "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 4, "value": "X"},
+      "clientOp": {"type": "ArrayReplace", "noOp": false, "index": 5, "value": "Y"}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 4, "value": "X"},
+      "clientOp": {"type": "ArrayReplace", "noOp": false, "index": 5, "value": "Y"}
+    }
+  },
+  {
+    "id": "A-PP-2",
+    "input": {
+      "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 4, "value": "X"},
+      "clientOp": {"type": "ArrayReplace", "noOp": false, "index": 4, "value": "Y"}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 4, "value": "X"},
+      "clientOp": {"type": "ArrayReplace", "noOp": true, "index": 4, "value": "Y"}
+    }
+  },
+  {
+    "id": "A-PP-3",
+    "input": {
+      "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 5, "value": "X"},
+      "clientOp": {"type": "ArrayReplace", "noOp": false, "index": 4, "value": "Y"}
+    },
+    "output": {
+      "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 5, "value": "X"},
+      "clientOp": {"type": "ArrayReplace", "noOp": false, "index": 4, "value": "Y"}
+    }
+  }
+]

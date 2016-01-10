@@ -1,0 +1,13 @@
+[
+  {
+    "id": "O-ST-1",
+    "input": {
+      "serverOp": {"type": "ObjectSet", "noOp": false, "value": {"Y": 4}},
+      "clientOp": {"type": "ObjectSetProperty", "noOp": false, "prop": "A", "value": 3}
+    },
+    "output": {
+      "serverOp": {"type": "ObjectSet", "noOp": false, "value": {"Y": 4}},
+      "clientOp": {"type": "ObjectSetProperty", "noOp": true, "prop": "A", "value": 3}
+    }
+  }
+]

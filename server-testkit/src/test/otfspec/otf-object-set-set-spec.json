@@ -1,0 +1,24 @@
+[
+  {
+    "id": "O-SS-1",
+    "input": {
+      "serverOp": {"type": "ObjectSet", "noOp": false, "value": {"X": 3}},
+      "clientOp": {"type": "ObjectSet", "noOp": false, "value": {"Y": 4}}
+    },
+    "output": {
+      "serverOp": {"type": "ObjectSet", "noOp": false, "value": {"X": 3}},
+      "clientOp": {"type": "ObjectSet", "noOp": true, "value": {"Y": 4}}
+    }
+  },
+  {
+    "id": "O-SS-2",
+    "input": {
+      "serverOp": {"type": "ObjectSet", "noOp": false, "value": {"X": 3}},
+      "clientOp": {"type": "ObjectSet", "noOp": false, "value": {"X": 3}}
+    },
+    "output": {
+      "serverOp": {"type": "ObjectSet", "noOp": true, "value": {"X": 3}},
+      "clientOp": {"type": "ObjectSet", "noOp": true, "value": {"X": 3}}
+    }
+  }
+]
