@@ -1,13 +1,17 @@
-[
-  {
-    "id": "N-AA-1",
-    "input": {
-      "serverOp": {"type": "NumberAdd", "noOp": false, "value": 1},
-      "clientOp": {"type": "NumberAdd", "noOp": false, "value": 2}
-    },
-    "output": {
-      "serverOp": {"type": "NumberAdd", "noOp": false, "value": 1},
-      "clientOp": {"type": "NumberAdd", "noOp": false, "value": 2}
+{
+  "serverOpType": "NumberAdd",
+  "clientOpType": "NumberAdd",
+  "cases": [
+    {
+      "id": "N-AA-1",
+      "input": {
+        "serverOp": {"type": "NumberAdd", "noOp": false, "value": 1},
+        "clientOp": {"type": "NumberAdd", "noOp": false, "value": 2}
+      },
+      "output": {
+        "serverOp": {"type": "NumberAdd", "noOp": false, "value": 1},
+        "clientOp": {"type": "NumberAdd", "noOp": false, "value": 2}
+      }
     }
-  }
-]
+  ]
+}

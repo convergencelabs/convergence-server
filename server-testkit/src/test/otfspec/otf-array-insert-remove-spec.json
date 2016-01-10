@@ -1,35 +1,39 @@
-[
-  {
-    "id": "A-IR-1",
-    "input": {
-      "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "X"},
-      "clientOp": {"type": "ArrayRemove", "noOp": false, "index": 5}
+{
+  "serverOpType": "ArrayInsert",
+  "clientOpType": "ArrayRemove",
+  "cases": [
+    {
+      "id": "A-IR-1",
+      "input": {
+        "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "X"},
+        "clientOp": {"type": "ArrayRemove", "noOp": false, "index": 5}
+      },
+      "output": {
+        "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "X"},
+        "clientOp": {"type": "ArrayRemove", "noOp": false, "index": 6}
+      }
     },
-    "output": {
-      "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "X"},
-      "clientOp": {"type": "ArrayRemove", "noOp": false, "index": 6}
-    }
-  },
-  {
-    "id": "A-IR-2",
-    "input": {
-      "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "X"},
-      "clientOp": {"type": "ArrayRemove", "noOp": false, "index": 4}
+    {
+      "id": "A-IR-2",
+      "input": {
+        "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "X"},
+        "clientOp": {"type": "ArrayRemove", "noOp": false, "index": 4}
+      },
+      "output": {
+        "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "X"},
+        "clientOp": {"type": "ArrayRemove", "noOp": false, "index": 5}
+      }
     },
-    "output": {
-      "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "X"},
-      "clientOp": {"type": "ArrayRemove", "noOp": false, "index": 5}
+    {
+      "id": "A-IR-3",
+      "input": {
+        "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 5, "value": "X"},
+        "clientOp": {"type": "ArrayRemove", "noOp": false, "index": 4}
+      },
+      "output": {
+        "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "X"},
+        "clientOp": {"type": "ArrayRemove", "noOp": false, "index": 4}
+      }
     }
-  },
-  {
-    "id": "A-IR-3",
-    "input": {
-      "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 5, "value": "X"},
-      "clientOp": {"type": "ArrayRemove", "noOp": false, "index": 4}
-    },
-    "output": {
-      "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "X"},
-      "clientOp": {"type": "ArrayRemove", "noOp": false, "index": 4}
-    }
-  }
-]
+  ]
+}

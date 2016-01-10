@@ -1,146 +1,150 @@
-[
-  {
-    "id": "A-PM-1",
-    "input": {
-      "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 2, "value": "X"},
-      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
+{
+  "serverOpType": "ArrayReplace",
+  "clientOpType": "ArrayMove",
+  "cases": [
+    {
+      "id": "A-PM-1",
+      "input": {
+        "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 2, "value": "X"},
+        "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
+      },
+      "output": {
+        "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 2, "value": "X"},
+        "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
+      }
     },
-    "output": {
-      "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 2, "value": "X"},
-      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
-    }
-  },
-  {
-    "id": "A-PM-2",
-    "input": {
-      "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 3, "value": "X"},
-      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
+    {
+      "id": "A-PM-2",
+      "input": {
+        "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 3, "value": "X"},
+        "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
+      },
+      "output": {
+        "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 5, "value": "X"},
+        "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
+      }
     },
-    "output": {
-      "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 5, "value": "X"},
-      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
-    }
-  },
-  {
-    "id": "A-PM-3",
-    "input": {
-      "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 4, "value": "X"},
-      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
+    {
+      "id": "A-PM-3",
+      "input": {
+        "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 4, "value": "X"},
+        "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
       
+      },
+      "output": {
+        "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 3, "value": "X"},
+        "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
+      }
     },
-    "output": {
-      "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 3, "value": "X"},
-      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
-    }
-  },
-  {
-    "id": "A-PM-4",
-    "input": {
-      "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 5, "value": "X"},
-      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
+    {
+      "id": "A-PM-4",
+      "input": {
+        "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 5, "value": "X"},
+        "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
+      },
+      "output": {
+        "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 4, "value": "X"},
+        "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
+      }
     },
-    "output": {
-      "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 4, "value": "X"},
-      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
-    }
-  },
-  {
-    "id": "A-PM-5",
-    "input": {
-      "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 6, "value": "X"},
-      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
+    {
+      "id": "A-PM-5",
+      "input": {
+        "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 6, "value": "X"},
+        "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
+      },
+      "output": {
+        "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 6, "value": "X"},
+        "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
+      }
     },
-    "output": {
-      "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 6, "value": "X"},
-      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 3, "toIndex": 5}
-    }
-  },
-  {
-    "id": "A-PM-6",
-    "input": {
-      "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 2, "value": "X"},
-      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
+    {
+      "id": "A-PM-6",
+      "input": {
+        "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 2, "value": "X"},
+        "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
+      },
+      "output": {
+        "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 2, "value": "X"},
+        "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
+      }
     },
-    "output": {
-      "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 2, "value": "X"},
-      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
-    }
-  },
-  {
-    "id": "A-PM-7",
-    "input": {
-      "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 3, "value": "X"},
-      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
+    {
+      "id": "A-PM-7",
+      "input": {
+        "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 3, "value": "X"},
+        "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
+      },
+      "output": {
+        "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 4, "value": "X"},
+        "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
+      }
     },
-    "output": {
-      "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 4, "value": "X"},
-      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
-    }
-  },
-  {
-    "id": "A-PM-8",
-    "input": {
-      "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 4, "value": "X"},
-      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
+    {
+      "id": "A-PM-8",
+      "input": {
+        "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 4, "value": "X"},
+        "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
+      },
+      "output": {
+        "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 5, "value": "X"},
+        "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
+      }
     },
-    "output": {
-      "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 5, "value": "X"},
-      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
-    }
-  },
-  {
-    "id": "A-PM-9",
-    "input": {
-      "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 5, "value": "X"},
-      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
+    {
+      "id": "A-PM-9",
+      "input": {
+        "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 5, "value": "X"},
+        "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
+      },
+      "output": {
+        "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 3, "value": "X"},
+        "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
+      }
     },
-    "output": {
-      "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 3, "value": "X"},
-      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
-    }
-  },
-  {
-    "id": "A-PM-10",
-    "input": {
-      "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 6, "value": "X"},
-      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
+    {
+      "id": "A-PM-10",
+      "input": {
+        "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 6, "value": "X"},
+        "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
+      },
+      "output": {
+        "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 6, "value": "X"},
+        "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
+      }
     },
-    "output": {
-      "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 6, "value": "X"},
-      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 5, "toIndex": 3}
-    }
-  },
-  {
-    "id": "A-PM-11",
-    "input": {
-      "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 3, "value": "X"},
-      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 4}
+    {
+      "id": "A-PM-11",
+      "input": {
+        "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 3, "value": "X"},
+        "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 4}
+      },
+      "output": {
+        "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 3, "value": "X"},
+        "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 4}
+      }
     },
-    "output": {
-      "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 3, "value": "X"},
-      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 4}
-    }
-  },
-  {
-    "id": "A-PM-12",
-    "input": {
-      "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 4, "value": "X"},
-      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 4}
+    {
+      "id": "A-PM-12",
+      "input": {
+        "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 4, "value": "X"},
+        "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 4}
+      },
+      "output": {
+        "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 4, "value": "X"},
+        "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 4}
+      }
     },
-    "output": {
-      "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 4, "value": "X"},
-      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 4}
+    {
+      "id": "A-PM-13",
+      "input": {
+        "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 5, "value": "X"},
+        "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 4}
+      },
+      "output": {
+        "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 5, "value": "X"},
+        "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 4}
+      }
     }
-  },
-  {
-    "id": "A-PM-13",
-    "input": {
-      "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 5, "value": "X"},
-      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 4}
-    },
-    "output": {
-      "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 5, "value": "X"},
-      "clientOp": {"type": "ArrayMove", "noOp": false, "fromIndex": 4, "toIndex": 4}
-    }
-  }
-]
+  ]
+}

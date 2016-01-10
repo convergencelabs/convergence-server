@@ -1,13 +1,17 @@
-[
-  {
-    "id": "O-TS-1",
-    "input": {
-      "serverOp": {"type": "ObjectSetProperty", "noOp": false, "prop": "A", "value": 3},
-      "clientOp": {"type": "ObjectSet", "noOp": false, "value": {"Y": 4}}
-    },
-    "output": {
-      "serverOp": {"type": "ObjectSetProperty", "noOp": true, "prop": "A", "value": 3},
-      "clientOp": {"type": "ObjectSet", "noOp": false, "value": {"Y": 4}}
+{
+  "serverOpType": "ObjectSetProperty",
+  "clientOpType": "ObjectSet",
+  "cases": [
+    {
+      "id": "O-TS-1",
+      "input": {
+        "serverOp": {"type": "ObjectSetProperty", "noOp": false, "prop": "A", "value": 3},
+        "clientOp": {"type": "ObjectSet", "noOp": false, "value": {"Y": 4}}
+      },
+      "output": {
+        "serverOp": {"type": "ObjectSetProperty", "noOp": true, "prop": "A", "value": 3},
+        "clientOp": {"type": "ObjectSet", "noOp": false, "value": {"Y": 4}}
+      }
     }
-  }
-]
+  ]
+}

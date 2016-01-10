@@ -1,57 +1,61 @@
-[
-  {
-    "id": "S-RI-1",
-    "input": {
-      "serverOp": {"type": "StringRemove", "noOp": false, "index": 4, "value": "EFG"},
-      "clientOp": {"type": "StringInsert", "noOp": false, "index": 3, "value": "WX"}
+{
+  "serverOpType": "StringRemove",
+  "clientOpType": "StringInsert",
+  "cases": [
+    {
+      "id": "S-RI-1",
+      "input": {
+        "serverOp": {"type": "StringRemove", "noOp": false, "index": 4, "value": "EFG"},
+        "clientOp": {"type": "StringInsert", "noOp": false, "index": 3, "value": "WX"}
+      },
+      "output": {
+        "serverOp": {"type": "StringRemove", "noOp": false, "index": 6, "value": "EFG"},
+        "clientOp": {"type": "StringInsert", "noOp": false, "index": 3, "value": "WX"}
+      }
     },
-    "output": {
-      "serverOp": {"type": "StringRemove", "noOp": false, "index": 6, "value": "EFG"},
-      "clientOp": {"type": "StringInsert", "noOp": false, "index": 3, "value": "WX"}
-    }
-  },
-  {
-    "id": "S-RI-2",
-    "input": {
-      "serverOp": {"type": "StringRemove", "noOp": false, "index": 3, "value": "DEF"},
-      "clientOp": {"type": "StringInsert", "noOp": false, "index": 3, "value": "WX"}
+    {
+      "id": "S-RI-2",
+      "input": {
+        "serverOp": {"type": "StringRemove", "noOp": false, "index": 3, "value": "DEF"},
+        "clientOp": {"type": "StringInsert", "noOp": false, "index": 3, "value": "WX"}
+      },
+      "output": {
+        "serverOp": {"type": "StringRemove", "noOp": false, "index": 5, "value": "DEF"},
+        "clientOp": {"type": "StringInsert", "noOp": false, "index": 3, "value": "WX"}
+      }
     },
-    "output": {
-      "serverOp": {"type": "StringRemove", "noOp": false, "index": 5, "value": "DEF"},
-      "clientOp": {"type": "StringInsert", "noOp": false, "index": 3, "value": "WX"}
-    }
-  },
-  {
-    "id": "S-RI-3",
-    "input": {
-      "serverOp": {"type": "StringRemove", "noOp": false, "index": 3, "value": "DEF"},
-      "clientOp": {"type": "StringInsert", "noOp": false, "index": 4, "value": "WX"}
+    {
+      "id": "S-RI-3",
+      "input": {
+        "serverOp": {"type": "StringRemove", "noOp": false, "index": 3, "value": "DEF"},
+        "clientOp": {"type": "StringInsert", "noOp": false, "index": 4, "value": "WX"}
+      },
+      "output": {
+        "serverOp": {"type": "StringRemove", "noOp": false, "index": 3, "value": "DWXEF"},
+        "clientOp": {"type": "StringInsert", "noOp": true, "index": 4, "value": "WX"}
+      }
     },
-    "output": {
-      "serverOp": {"type": "StringRemove", "noOp": false, "index": 3, "value": "DWXEF"},
-      "clientOp": {"type": "StringInsert", "noOp": true, "index": 4, "value": "WX"}
-    }
-  },
-  {
-    "id": "S-RI-4",
-    "input": {
-      "serverOp": {"type": "StringRemove", "noOp": false, "index": 3, "value": "DEF"},
-      "clientOp": {"type": "StringInsert", "noOp": false, "index": 5, "value": "WX"}
+    {
+      "id": "S-RI-4",
+      "input": {
+        "serverOp": {"type": "StringRemove", "noOp": false, "index": 3, "value": "DEF"},
+        "clientOp": {"type": "StringInsert", "noOp": false, "index": 5, "value": "WX"}
+      },
+      "output": {
+        "serverOp": {"type": "StringRemove", "noOp": false, "index": 3, "value": "DEWXF"},
+        "clientOp": {"type": "StringInsert", "noOp": true, "index": 5, "value": "WX"}
+      }
     },
-    "output": {
-      "serverOp": {"type": "StringRemove", "noOp": false, "index": 3, "value": "DEWXF"},
-      "clientOp": {"type": "StringInsert", "noOp": true, "index": 5, "value": "WX"}
+    {
+      "id": "S-RI-5",
+      "input": {
+        "serverOp": {"type": "StringRemove", "noOp": false, "index": 2, "value": "CDE"},
+        "clientOp": {"type": "StringInsert", "noOp": false, "index": 5, "value": "WX"}
+      },
+      "output": {
+        "serverOp": {"type": "StringRemove", "noOp": false, "index": 2, "value": "CDE"},
+        "clientOp": {"type": "StringInsert", "noOp": false, "index": 2, "value": "WX"}
+      }
     }
-  },
-  {
-    "id": "S-RI-5",
-    "input": {
-      "serverOp": {"type": "StringRemove", "noOp": false, "index": 2, "value": "CDE"},
-      "clientOp": {"type": "StringInsert", "noOp": false, "index": 5, "value": "WX"}
-    },
-    "output": {
-      "serverOp": {"type": "StringRemove", "noOp": false, "index": 2, "value": "CDE"},
-      "clientOp": {"type": "StringInsert", "noOp": false, "index": 2, "value": "WX"}
-    }
-  }
-]
+  ]
+}

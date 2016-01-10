@@ -1,24 +1,28 @@
-[
-  {
-    "id": "S-SS-1",
-    "input": {
-      "serverOp": {"type": "StringSet", "noOp": false, "value": "VALUE"},
-      "clientOp": {"type": "StringSet", "noOp": false, "value": "VALUE"}
+{
+  "serverOpType": "StringSet",
+  "clientOpType": "StringSet",
+  "cases": [
+    {
+      "id": "S-SS-1",
+      "input": {
+        "serverOp": {"type": "StringSet", "noOp": false, "value": "VALUE"},
+        "clientOp": {"type": "StringSet", "noOp": false, "value": "VALUE"}
+      },
+      "output": {
+        "serverOp": {"type": "StringSet", "noOp": true, "value": "VALUE"},
+        "clientOp": {"type": "StringSet", "noOp": true, "value": "VALUE"}
+      }
     },
-    "output": {
-      "serverOp": {"type": "StringSet", "noOp": true, "value": "VALUE"},
-      "clientOp": {"type": "StringSet", "noOp": true, "value": "VALUE"}
+    {
+      "id": "S-SS-1",
+      "input": {
+        "serverOp": {"type": "StringSet", "noOp": false, "value": "SERVER"},
+        "clientOp": {"type": "StringSet", "noOp": false, "value": "CLIENT"}
+      },
+      "output": {
+        "serverOp": {"type": "StringSet", "noOp": false, "value": "SERVER"},
+        "clientOp": {"type": "StringSet", "noOp": true, "value": "CLIENT"}
+      }
     }
-  },
-  {
-    "id": "S-SS-1",
-    "input": {
-      "serverOp": {"type": "StringSet", "noOp": false, "value": "SERVER"},
-      "clientOp": {"type": "StringSet", "noOp": false, "value": "CLIENT"}
-    },
-    "output": {
-      "serverOp": {"type": "StringSet", "noOp": false, "value": "SERVER"},
-      "clientOp": {"type": "StringSet", "noOp": true, "value": "CLIENT"}
-    }
-  }
-]
+  ]
+}

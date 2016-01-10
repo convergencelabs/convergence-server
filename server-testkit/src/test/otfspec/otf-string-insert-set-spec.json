@@ -1,13 +1,17 @@
-[
-  {
-    "id": "S-IS-1",
-    "input": {
-      "serverOp": {"type": "StringInsert", "noOp": false, "index": 5, "value": "WX"},
-      "clientOp": {"type": "StringSet", "noOp": false, "value": "VALUE"}
-    },
-    "output": {
-      "serverOp": {"type": "StringInsert", "noOp": true, "index": 5, "value": "WX"},
-      "clientOp": {"type": "StringSet", "noOp": false, "value": "VALUE"}
+{
+  "serverOpType": "StringInsert",
+  "clientOpType": "StringSet",
+  "cases": [
+    {
+      "id": "S-IS-1",
+      "input": {
+        "serverOp": {"type": "StringInsert", "noOp": false, "index": 5, "value": "WX"},
+        "clientOp": {"type": "StringSet", "noOp": false, "value": "VALUE"}
+      },
+      "output": {
+        "serverOp": {"type": "StringInsert", "noOp": true, "index": 5, "value": "WX"},
+        "clientOp": {"type": "StringSet", "noOp": false, "value": "VALUE"}
+      }
     }
-  }
-]
+  ]
+}

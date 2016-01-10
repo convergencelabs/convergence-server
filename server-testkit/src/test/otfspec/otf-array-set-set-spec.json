@@ -1,13 +1,17 @@
-[
-  {
-    "id": "A-SS-1",
-    "input": {
-      "serverOp": {"type": "ArraySet", "noOp": false, "value": ["X"]},
-      "clientOp": {"type": "ArraySet", "noOp": false, "value": ["Y"]}
-    },
-    "output": {
-      "serverOp": {"type": "ArraySet", "noOp": false, "value": ["X"]},
-      "clientOp": {"type": "ArraySet", "noOp": true, "value": ["Y"]}
+{
+  "serverOpType": "ArraySet",
+  "clientOpType": "ArraySet",
+  "cases": [
+    {
+      "id": "A-SS-1",
+      "input": {
+        "serverOp": {"type": "ArraySet", "noOp": false, "value": ["X"]},
+        "clientOp": {"type": "ArraySet", "noOp": false, "value": ["Y"]}
+      },
+      "output": {
+        "serverOp": {"type": "ArraySet", "noOp": false, "value": ["X"]},
+        "clientOp": {"type": "ArraySet", "noOp": true, "value": ["Y"]}
+      }
     }
-  }
-]
+  ]
+}

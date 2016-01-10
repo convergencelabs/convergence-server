@@ -1,35 +1,39 @@
-[
-  {
-    "id": "A-II-1",
-    "input": {
-      "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "X"},
-      "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 5, "value": "Y"}
+{
+  "serverOpType": "ArrayInsert",
+  "clientOpType": "ArrayInsert",
+  "cases": [
+    {
+      "id": "A-II-1",
+      "input": {
+        "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "X"},
+        "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 5, "value": "Y"}
+      },
+      "output": {
+        "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "X"},
+        "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 6, "value": "Y"}
+      }
     },
-    "output": {
-      "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "X"},
-      "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 6, "value": "Y"}
-    }
-  },
-  {
-    "id": "A-II-2",
-    "input": {
-      "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "X"},
-      "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "Y"}
+    {
+      "id": "A-II-2",
+      "input": {
+        "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "X"},
+        "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "Y"}
+      },
+      "output": {
+        "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "X"},
+        "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 5, "value": "Y"}
+      }
     },
-    "output": {
-      "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "X"},
-      "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 5, "value": "Y"}
+    {
+      "id": "A-II-3",
+      "input": {
+        "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 5, "value": "X"},
+        "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "Y"}
+      },
+      "output": {
+        "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 6, "value": "X"},
+        "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "Y"}
+      }
     }
-  },
-  {
-    "id": "A-II-3",
-    "input": {
-      "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 5, "value": "X"},
-      "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "Y"}
-    },
-    "output": {
-      "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 6, "value": "X"},
-      "clientOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "Y"}
-    }
-  }
-]
+  ]
+}

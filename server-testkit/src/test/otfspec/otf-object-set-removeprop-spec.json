@@ -1,13 +1,17 @@
-[
-  {
-    "id": "O-SR-1",
-    "input": {
-      "serverOp": {"type": "ObjectSet", "noOp": false, "value": {"Y": 4}},
-      "clientOp": {"type": "ObjectRemoveProperty", "noOp": false, "prop": "A"}
-    },
-    "output": {
-      "serverOp": {"type": "ObjectSet", "noOp": false, "value": {"Y": 4}},
-      "clientOp": {"type": "ObjectRemoveProperty", "noOp": true, "prop": "A"}
+{
+  "serverOpType": "ObjectSet",
+  "clientOpType": "ObjectRemoveProperty",
+  "cases": [
+    {
+      "id": "O-SR-1",
+      "input": {
+        "serverOp": {"type": "ObjectSet", "noOp": false, "value": {"Y": 4}},
+        "clientOp": {"type": "ObjectRemoveProperty", "noOp": false, "prop": "A"}
+      },
+      "output": {
+        "serverOp": {"type": "ObjectSet", "noOp": false, "value": {"Y": 4}},
+        "clientOp": {"type": "ObjectRemoveProperty", "noOp": true, "prop": "A"}
+      }
     }
-  }
-]
+  ]
+}

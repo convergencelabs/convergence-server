@@ -1,21 +1,25 @@
-[
-  {
-    "id": "O-AR-1",
-    "input": {
-      "serverOp": {"type": "ObjectAddProperty", "noOp": false, "prop": "X", "value": 3},
-      "clientOp": {"type": "ObjectRemoveProperty", "noOp": false, "prop": "B"}
+{
+  "serverOpType": "ObjectAddProperty",
+  "clientOpType": "ObjectRemoveProperty",
+  "cases": [
+    {
+      "id": "O-AR-1",
+      "input": {
+        "serverOp": {"type": "ObjectAddProperty", "noOp": false, "prop": "X", "value": 3},
+        "clientOp": {"type": "ObjectRemoveProperty", "noOp": false, "prop": "B"}
+      },
+      "output": {
+        "serverOp": {"type": "ObjectAddProperty", "noOp": false, "prop": "X", "value": 3},
+        "clientOp": {"type": "ObjectRemoveProperty", "noOp": false, "prop": "B"}
+      }
     },
-    "output": {
-      "serverOp": {"type": "ObjectAddProperty", "noOp": false, "prop": "X", "value": 3},
-      "clientOp": {"type": "ObjectRemoveProperty", "noOp": false, "prop": "B"}
+    {
+      "id": "O-AR-2",
+      "input": {
+        "serverOp": {"type": "ObjectAddProperty", "noOp": false, "prop": "X", "value": 3},
+        "clientOp": {"type": "ObjectRemoveProperty", "noOp": false, "prop": "X"}
+      },
+      "error": true
     }
-  },
-  {
-    "id": "O-AR-2",
-    "input": {
-      "serverOp": {"type": "ObjectAddProperty", "noOp": false, "prop": "X", "value": 3},
-      "clientOp": {"type": "ObjectRemoveProperty", "noOp": false, "prop": "X"}
-    },
-    "error": true
-  }
-]
+  ]
+}

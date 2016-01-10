@@ -1,13 +1,17 @@
-[
-  {
-    "id": "S-SR-1",
-    "input": {
-      "serverOp": {"type": "StringSet", "noOp": false, "value": "VALUE"},
-      "clientOp": {"type": "StringRemove", "noOp": false, "index": 1, "value": "BCD"}
-    },
-    "output": {
-      "serverOp": {"type": "StringSet", "noOp": false, "value": "VALUE"},
-      "clientOp": {"type": "StringRemove", "noOp": true, "index": 1, "value": "BCD"}
+{
+  "serverOpType": "StringSet",
+  "clientOpType": "StringRemove",
+  "cases": [
+    {
+      "id": "S-SR-1",
+      "input": {
+        "serverOp": {"type": "StringSet", "noOp": false, "value": "VALUE"},
+        "clientOp": {"type": "StringRemove", "noOp": false, "index": 1, "value": "BCD"}
+      },
+      "output": {
+        "serverOp": {"type": "StringSet", "noOp": false, "value": "VALUE"},
+        "clientOp": {"type": "StringRemove", "noOp": true, "index": 1, "value": "BCD"}
+      }
     }
-  }
-]
+  ]
+}

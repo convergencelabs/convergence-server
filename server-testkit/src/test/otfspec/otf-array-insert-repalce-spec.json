@@ -1,35 +1,39 @@
-[
-  {
-    "id": "A-IP-1",
-    "input": {
-      "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "X"},
-      "clientOp": {"type": "ArrayReplace", "noOp": false, "index": 5, "value": "Y"}
+{
+  "serverOpType": "ArrayInsert",
+  "clientOpType": "ArrayReplace",
+  "cases": [
+    {
+      "id": "A-IP-1",
+      "input": {
+        "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "X"},
+        "clientOp": {"type": "ArrayReplace", "noOp": false, "index": 5, "value": "Y"}
+      },
+      "output": {
+        "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "X"},
+        "clientOp": {"type": "ArrayReplace", "noOp": false, "index": 6, "value": "Y"}
+      }
     },
-    "output": {
-      "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "X"},
-      "clientOp": {"type": "ArrayReplace", "noOp": false, "index": 6, "value": "Y"}
-    }
-  },
-  {
-    "id": "A-IP-2",
-    "input": {
-      "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "X"},
-      "clientOp": {"type": "ArrayReplace", "noOp": false, "index": 4, "value": "Y"}
+    {
+      "id": "A-IP-2",
+      "input": {
+        "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "X"},
+        "clientOp": {"type": "ArrayReplace", "noOp": false, "index": 4, "value": "Y"}
+      },
+      "output": {
+        "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "X"},
+        "clientOp": {"type": "ArrayReplace", "noOp": false, "index": 5, "value": "Y"}
+      }
     },
-    "output": {
-      "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "X"},
-      "clientOp": {"type": "ArrayReplace", "noOp": false, "index": 5, "value": "Y"}
+    {
+      "id": "A-IP-3",
+      "input": {
+        "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 5, "value": "X"},
+        "clientOp": {"type": "ArrayReplace", "noOp": false, "index": 4, "value": "Y"}
+      },
+      "output": {
+        "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 5, "value": "X"},
+        "clientOp": {"type": "ArrayReplace", "noOp": false, "index": 4, "value": "Y"}
+      }
     }
-  },
-  {
-    "id": "A-IP-3",
-    "input": {
-      "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 5, "value": "X"},
-      "clientOp": {"type": "ArrayReplace", "noOp": false, "index": 4, "value": "Y"}
-    },
-    "output": {
-      "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 5, "value": "X"},
-      "clientOp": {"type": "ArrayReplace", "noOp": false, "index": 4, "value": "Y"}
-    }
-  }
-]
+  ]
+}
