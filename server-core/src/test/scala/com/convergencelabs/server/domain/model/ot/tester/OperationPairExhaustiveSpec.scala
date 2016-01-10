@@ -1,10 +1,12 @@
 package com.convergencelabs.server.domain.model.ot
 
-import scala.collection.mutable.ListBuffer
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
+
+import org.scalatest.Finders
 import org.scalatest.FunSpec
+
 import grizzled.slf4j.Logging
 
 trait OperationPairExhaustiveSpec[M <: MockModel, S <: DiscreteOperation, C <: DiscreteOperation]
@@ -24,7 +26,6 @@ trait OperationPairExhaustiveSpec[M <: MockModel, S <: DiscreteOperation, C <: D
         evaluateTransformationCase(c) match {
           case Success(Converged(trace)) =>
           case Success(NotConverged(trace)) =>
-            fail()
             logger.info(s"\nFailure: (${trace.serverOp}, ${trace.clientOp})")
             logger.info(s"  Initial State     : ${trace.initialState}\n")
             logger.info(s"  Server Original Op: ${trace.serverOp}")
@@ -36,10 +37,9 @@ trait OperationPairExhaustiveSpec[M <: MockModel, S <: DiscreteOperation, C <: D
             logger.info(s"  Client Local State: ${trace.clientLocalState}")
             logger.info(s"  Server xFormed Op : ${trace.sPrime}")
             logger.info(s"  Client Final State: ${trace.clientEndState}\n")
-
+            fail("state did no converge")
           case Failure(cause) =>
-            logger.error(cause)
-            fail()
+            throw cause
         }
       }
     }

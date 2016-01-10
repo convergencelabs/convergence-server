@@ -11,7 +11,9 @@ object MoveRangeGenerator {
 
   private[this] def createRangesFromPositionToEnd(start: Int, length: Int): List[ArrayMoveRange] = {
     var result = List[ArrayMoveRange]()
-    for (r <- start until length) {
+    for {
+      r <- start until length
+    } {
       result = result :+ ArrayMoveRange(start, r)
       if (r != start) {
         result = result :+ ArrayMoveRange(r, start)

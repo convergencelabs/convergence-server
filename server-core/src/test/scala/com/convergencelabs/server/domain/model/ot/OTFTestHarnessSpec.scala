@@ -15,7 +15,22 @@ import org.json4s.JsonAST.JNumber
 import org.json4s.JsonAST.JObject
 import org.json4s.jackson.Serialization.read
 import org.json4s.jvalue2monadic
+import org.scalatest.Finders
 import org.scalatest.FunSpec
+
+import OTFTestHarnessSpec.Index
+import OTFTestHarnessSpec.NoOp
+import OTFTestHarnessSpec.Prop
+import OTFTestHarnessSpec.Type
+import OTFTestHarnessSpec.Value
+
+object OTFTestHarnessSpec {
+  val Type = "type"
+  val NoOp = "noOp"
+  val Value = "value"
+  val Index = "index"
+  val Prop = "prop"
+}
 
 class OTFTestHarnessSpec extends FunSpec {
 
@@ -24,7 +39,9 @@ class OTFTestHarnessSpec extends FunSpec {
   val registry = new TransformationFunctionRegistry()
   implicit val format = DefaultFormats
 
-  for (file <- new File("src/test/otfspec").listFiles.filter { x => x.getName.endsWith("spec.json") }) {
+  for {
+    file <- new File("src/test/otfspec").listFiles.filter { x => x.getName.endsWith("-spec.json") }
+  } {
     processFile(file)
   }
 
@@ -33,9 +50,11 @@ class OTFTestHarnessSpec extends FunSpec {
     val spec = read[OTFSpec](contents)
 
     describe(s"Testing transformation of a server ${spec.serverOpType} and a client ${spec.clientOpType}") {
-      for (testCase <- spec.cases) {
-        val JString(testCaseServerType) = testCase.input.serverOp \\ "type"
-        val JString(testCaseClientType) = testCase.input.clientOp \\ "type"
+      for {
+        testCase <- spec.cases
+      } {
+        val JString(testCaseServerType) = testCase.input.serverOp \\ Type
+        val JString(testCaseClientType) = testCase.input.clientOp \\ Type
 
         if (spec.serverOpType != testCaseServerType || spec.clientOpType != testCaseClientType) {
           throw new IllegalArgumentException(
@@ -70,48 +89,50 @@ class OTFTestHarnessSpec extends FunSpec {
     }
   }
 
+  // scalastyle:off cyclomatic.complexity
   implicit def jObject2Operation(obj: JObject): DiscreteOperation = {
     obj match {
-      case JObject(List(("type", JString("StringInsert")), ("noOp", JBool(noOp)), ("index", JInt(index)), ("value", JString(value)))) =>
+      case JObject(List((Type, JString("StringInsert")), (NoOp, JBool(noOp)), (Index, JInt(index)), (Value, JString(value)))) =>
         StringInsertOperation(commonPath, noOp, index.intValue(), value)
-      case JObject(List(("type", JString("StringRemove")), ("noOp", JBool(noOp)), ("index", JInt(index)), ("value", JString(value)))) =>
+      case JObject(List((Type, JString("StringRemove")), (NoOp, JBool(noOp)), (Index, JInt(index)), (Value, JString(value)))) =>
         StringRemoveOperation(commonPath, noOp, index.intValue(), value)
-      case JObject(List(("type", JString("StringSet")), ("noOp", JBool(noOp)), ("value", JString(value)))) =>
+      case JObject(List((Type, JString("StringSet")), (NoOp, JBool(noOp)), (Value, JString(value)))) =>
         StringSetOperation(commonPath, noOp, value)
 
-      case JObject(List(("type", JString("ArrayInsert")), ("noOp", JBool(noOp)), ("index", JInt(index)), ("value", value))) =>
+      case JObject(List((Type, JString("ArrayInsert")), (NoOp, JBool(noOp)), (Index, JInt(index)), (Value, value))) =>
         ArrayInsertOperation(commonPath, noOp, index.intValue(), value)
-      case JObject(List(("type", JString("ArrayRemove")), ("noOp", JBool(noOp)), ("index", JInt(index)))) =>
+      case JObject(List((Type, JString("ArrayRemove")), (NoOp, JBool(noOp)), (Index, JInt(index)))) =>
         ArrayRemoveOperation(commonPath, noOp, index.intValue())
-      case JObject(List(("type", JString("ArrayReplace")), ("noOp", JBool(noOp)), ("index", JInt(index)), ("value", value))) =>
+      case JObject(List((Type, JString("ArrayReplace")), (NoOp, JBool(noOp)), (Index, JInt(index)), (Value, value))) =>
         ArrayReplaceOperation(commonPath, noOp, index.intValue(), value)
-      case JObject(List(("type", JString("ArrayMove")), ("noOp", JBool(noOp)), ("fromIndex", JInt(fromIndex)), ("toIndex", JInt(toIndex)))) =>
+      case JObject(List((Type, JString("ArrayMove")), (NoOp, JBool(noOp)), ("fromIndex", JInt(fromIndex)), ("toIndex", JInt(toIndex)))) =>
         ArrayMoveOperation(commonPath, noOp, fromIndex.intValue(), toIndex.intValue())
-      case JObject(List(("type", JString("ArraySet")), ("noOp", JBool(noOp)), ("value", value @ JArray(_)))) =>
+      case JObject(List((Type, JString("ArraySet")), (NoOp, JBool(noOp)), (Value, value @ JArray(_)))) =>
         ArraySetOperation(commonPath, noOp, value)
 
-      case JObject(List(("type", JString("ObjectAddProperty")), ("noOp", JBool(noOp)), ("prop", JString(prop)), ("value", value))) =>
+      case JObject(List((Type, JString("ObjectAddProperty")), (NoOp, JBool(noOp)), (Prop, JString(prop)), (Value, value))) =>
         ObjectAddPropertyOperation(commonPath, noOp, prop, value)
-      case JObject(List(("type", JString("ObjectSetProperty")), ("noOp", JBool(noOp)), ("prop", JString(prop)), ("value", value))) =>
+      case JObject(List((Type, JString("ObjectSetProperty")), (NoOp, JBool(noOp)), (Prop, JString(prop)), (Value, value))) =>
         ObjectSetPropertyOperation(commonPath, noOp, prop, value)
-      case JObject(List(("type", JString("ObjectRemoveProperty")), ("noOp", JBool(noOp)), ("prop", JString(prop)))) =>
+      case JObject(List((Type, JString("ObjectRemoveProperty")), (NoOp, JBool(noOp)), (Prop, JString(prop)))) =>
         ObjectRemovePropertyOperation(commonPath, noOp, prop)
-      case JObject(List(("type", JString("ObjectSet")), ("noOp", JBool(noOp)), ("value", value @ JObject(_)))) =>
+      case JObject(List((Type, JString("ObjectSet")), (NoOp, JBool(noOp)), (Value, value @ JObject(_)))) =>
         ObjectSetOperation(commonPath, noOp, value)
 
-      case JObject(List(("type", JString("BooleanSet")), ("noOp", JBool(noOp)), ("value", JBool(value)))) =>
+      case JObject(List((Type, JString("BooleanSet")), (NoOp, JBool(noOp)), (Value, JBool(value)))) =>
         BooleanSetOperation(commonPath, noOp, value)
 
-      case JObject(List(("type", JString("NumberAdd")), ("noOp", JBool(noOp)), ("value", value))) =>
+      case JObject(List((Type, JString("NumberAdd")), (NoOp, JBool(noOp)), (Value, value))) =>
         NumberAddOperation(commonPath, noOp, value.asInstanceOf[JNumber])
 
-      case JObject(List(("type", JString("NumberSet")), ("noOp", JBool(noOp)), ("value", value))) =>
+      case JObject(List((Type, JString("NumberSet")), (NoOp, JBool(noOp)), (Value, value))) =>
         NumberSetOperation(commonPath, noOp, value.asInstanceOf[JNumber])
 
       case _ =>
         throw new IllegalArgumentException(s"Invalid operation definition: $obj")
     }
   }
+  // scalastyle:on cyclomatic.complexity
 }
 
 case class OperationPair(serverOp: JObject, clientOp: JObject)

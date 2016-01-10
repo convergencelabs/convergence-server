@@ -52,12 +52,14 @@ private[ws] class NettyServerWebSocket(
     val frameCount = Math.ceil(message.length / this.maxFrameSize).toInt
 
     try {
-      var f = if (frameCount == 1) {
+      val f = if (frameCount == 1) {
         channel.writeAndFlush(new TextWebSocketFrame(message))
       } else {
         var future: ChannelFuture = null
         val lastFrame = frameCount - 1
-        for (i <- 0 to frameCount) {
+        for {
+          i <- 0 to frameCount
+        } {
           val start = i * maxFrameSize
           val end = Math.min(start + maxFrameSize, message.length())
           val frameText = message.substring(start, end)

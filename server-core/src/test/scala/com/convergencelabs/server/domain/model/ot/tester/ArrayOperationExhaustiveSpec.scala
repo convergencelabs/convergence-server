@@ -1,7 +1,10 @@
 package com.convergencelabs.server.domain.model.ot
 
-import org.json4s.JsonAST.JValue
+import scala.math.BigInt.int2bigInt
+
 import org.json4s.JsonAST.JInt
+import org.json4s.JsonAST.JValue
+import org.scalatest.Finders
 
 object ArrayOperationExhaustiveSpec {
   val ArrayLength: Int = 15
