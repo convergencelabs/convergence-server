@@ -3,13 +3,8 @@ package com.convergencelabs.server.domain.model.ot
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
-import java.time.Duration
-import java.time.Instant
 
 import scala.language.implicitConversions
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
 
 import org.json4s.DefaultFormats
 import org.json4s.JArray
@@ -19,10 +14,10 @@ import org.json4s.JString
 import org.json4s.JsonAST.JNumber
 import org.json4s.JsonAST.JObject
 import org.json4s.jackson.Serialization.read
-import org.scalatest.Finders
+import org.json4s.jvalue2monadic
 import org.scalatest.FunSpec
 
-class OTFTestHarness extends FunSpec {
+class OTFTestHarnessSpec extends FunSpec {
 
   val commonPath = List()
 
@@ -118,3 +113,7 @@ class OTFTestHarness extends FunSpec {
     }
   }
 }
+
+case class OperationPair(serverOp: JObject, clientOp: JObject)
+case class OTFTestCase(id: String, input: OperationPair, output: Option[OperationPair], error: Option[Boolean])
+case class OTFSpec(serverOpType: String, clientOpType: String, cases: List[OTFTestCase])
