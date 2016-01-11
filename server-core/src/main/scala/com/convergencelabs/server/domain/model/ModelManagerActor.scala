@@ -15,7 +15,6 @@ import java.util.concurrent.TimeUnit
 import akka.actor.Props
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
-import com.convergencelabs.server.ErrorResponse
 import java.time.Instant
 import java.time.Duration
 import java.time.temporal.TemporalUnit
@@ -23,6 +22,7 @@ import java.time.temporal.ChronoUnit
 import com.convergencelabs.server.domain.ModelSnapshotConfig
 import scala.util.Success
 import scala.util.Failure
+import com.convergencelabs.server.UnknownErrorResponse
 
 class ModelManagerActor(
   private[this] val domainFqn: DomainFqn,
@@ -98,7 +98,7 @@ class ModelManagerActor(
           sender ! ModelCreated
         } catch {
           case e: IOException =>
-            sender ! ErrorResponse("unknown", "Could not create model: " + e.getMessage)
+            sender ! UnknownErrorResponse("Could not create model: " + e.getMessage)
         }
       case Failure(cause) => ???
     }

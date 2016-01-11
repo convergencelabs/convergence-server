@@ -200,7 +200,7 @@ class ProtocolConnection(
             case Some(MessageType.Error) =>
               // If there is a type, it should only be "error"
               val errorMessage = MessageSerializer.extractBody(envelope.body.get, classOf[ErrorMessage])
-              record.promise.failure(new UnexpectedErrorException(errorMessage.code, errorMessage.details))
+              record.promise.failure(new ClientErrorResponseException(errorMessage.code, errorMessage.details))
             case _ =>
               // There should be no type on a reply message if it is a successful
               // response.
@@ -234,22 +234,20 @@ class ProtocolConnection(
   }
 
   class ReplyCallbackImpl(reqId: Long) extends ReplyCallback {
-    val p = Promise[OutgoingProtocolResponseMessage]
     def reply(message: OutgoingProtocolResponseMessage): Unit = {
       sendMessage(MessageEnvelope(reqId, message))
-      p.success(message)
     }
 
-    def error(cause: Throwable): Unit = {
-      val errorMessage = cause match {
-        case UnexpectedErrorException(code, details) => {
-          ErrorMessage(code, details)
-        }
-        case cause: Throwable => {
-          ErrorMessage("unknown", cause.getMessage)
-        }
-      }
+    def unknownError(): Unit = {
+      unexpectedError("An unkown error has occured")
+    }
 
+    def unexpectedError(details: String): Unit = {
+      expectedError("unknown", details)
+    }
+
+    def expectedError(code: String, details: String): Unit = {
+      val errorMessage = ErrorMessage(code, details)
       val serializedErrorMessage = MessageSerializer.decomposeBody(Some(errorMessage))
 
       val envelope = MessageEnvelope(
@@ -259,19 +257,15 @@ class ProtocolConnection(
         serializedErrorMessage)
 
       sendMessage(envelope)
-      p.failure(cause)
-    }
-
-    def result(): Future[OutgoingProtocolResponseMessage] = {
-      p.future
     }
   }
 }
 
 trait ReplyCallback {
   def reply(message: OutgoingProtocolResponseMessage): Unit
-  def error(cause: Throwable): Unit
-  def result(): Future[OutgoingProtocolResponseMessage]
+  def unknownError(): Unit
+  def unexpectedError(details: String): Unit
+  def expectedError(code: String, details: String): Unit
 }
 
 case class RequestRecord(id: Long, promise: Promise[IncomingProtocolResponseMessage], future: Cancellable, requestType: String)

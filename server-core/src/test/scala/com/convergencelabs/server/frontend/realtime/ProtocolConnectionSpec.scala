@@ -243,7 +243,7 @@ class ProtocolConnectionSpec
         connection.close()
       }
 
-      "send a correct reply envelope for an unreccognized exception error" in new TestFixture {
+      "send a correct reply envelope for an unexpected error" in new TestFixture {
         val message = HandshakeRequestMessage(false, None, None)
         val envelope = MessageEnvelope(
           OpCode.Request,
@@ -255,8 +255,7 @@ class ProtocolConnectionSpec
         socket.fireOnMessage(json)
         val RequestReceived(m, cb) = receiver.expectEventClass(10 millis, classOf[RequestReceived])
 
-        val exception = new IllegalArgumentException("message")
-        cb.error(exception)
+        cb.unexpectedError(details)
 
         val sentMessage = socket.expectSentMessage(20 millis)
         val sentEnvelope = MessageEnvelope(sentMessage).success.value
@@ -266,10 +265,10 @@ class ProtocolConnectionSpec
         val sentBody = MessageSerializer.extractBody(sentEnvelope.body.get, classOf[ErrorMessage])
 
         sentBody.code shouldBe "unknown"
-        sentBody.details shouldBe exception.getMessage
+        sentBody.details shouldBe details
       }
 
-      "send a correct reply envelope for an unexpected exception error" in new TestFixture {
+      "send a correct reply envelope for an expected error" in new TestFixture {
         val message = HandshakeRequestMessage(false, None, None)
         val envelope = MessageEnvelope(
           OpCode.Request,
@@ -281,8 +280,7 @@ class ProtocolConnectionSpec
         socket.fireOnMessage(json)
         val RequestReceived(m, cb) = receiver.expectEventClass(10 millis, classOf[RequestReceived])
 
-        val excpetion = new UnexpectedErrorException(code, details)
-        cb.error(excpetion)
+        cb.expectedError(code, details)
 
         val sentMessage = socket.expectSentMessage(20 millis)
         val sentEnvelope = MessageEnvelope(sentMessage).success.value
@@ -290,8 +288,8 @@ class ProtocolConnectionSpec
         sentEnvelope.`type`.value shouldBe MessageType.Error
 
         val sentBody = MessageSerializer.extractBody(sentEnvelope.body.get, classOf[ErrorMessage])
-        sentBody.code shouldBe excpetion.code
-        sentBody.details shouldBe excpetion.details
+        sentBody.code shouldBe code
+        sentBody.details shouldBe details
       }
     }
 
@@ -392,12 +390,11 @@ class ProtocolConnectionSpec
 
         Await.ready(f, 10 millis)
         val cause = f.value.get.failure.exception
-        cause shouldBe a[UnexpectedErrorException]
+        cause shouldBe a[ClientErrorResponseException]
 
-        val errorException = cause.asInstanceOf[UnexpectedErrorException]
+        val errorException = cause.asInstanceOf[ClientErrorResponseException]
 
-        errorException.code shouldBe code
-        errorException.details shouldBe details
+        errorException.message shouldBe details
       }
     }
   }

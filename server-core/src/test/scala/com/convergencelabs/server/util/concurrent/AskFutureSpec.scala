@@ -6,13 +6,12 @@ import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
-import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.WordSpec
 import org.scalatest.concurrent.ScalaFutures
 
-import com.convergencelabs.server.util.UnexpectedError
+import com.convergencelabs.server.UnknownErrorResponse
 
 import akka.pattern.AskTimeoutException
 
@@ -55,7 +54,7 @@ class AskFutureSpec
       "must fail with an UnexpectedErrorException if the wrong type is returned" in {
         implicit val ec = ExecutionContext.global
         val f = Future[Any] {
-          UnexpectedError("code", "reason")
+          UnknownErrorResponse("reason")
         }
 
         val response = f.mapResponse[String]
@@ -63,7 +62,6 @@ class AskFutureSpec
         val futureResult = response.value.value
         futureResult.failed.get shouldBe a[UnexpectedErrorException]
         val ex = futureResult.failed.get.asInstanceOf[UnexpectedErrorException]
-        ex.code shouldBe "code"
         ex.details shouldBe "reason"
       }
     }

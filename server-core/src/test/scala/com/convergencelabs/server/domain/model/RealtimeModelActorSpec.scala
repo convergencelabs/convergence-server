@@ -4,10 +4,8 @@ import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
-
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Success
-
 import org.json4s.JsonAST.JObject
 import org.json4s.JsonAST.JString
 import org.junit.runner.RunWith
@@ -20,22 +18,19 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.WordSpecLike
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.mock.MockitoSugar
-
-import com.convergencelabs.server.ErrorResponse
-import com.convergencelabs.server.ErrorResponse
 import com.convergencelabs.server.datastore.domain.ModelOperationProcessor
 import com.convergencelabs.server.datastore.domain.ModelSnapshotStore
 import com.convergencelabs.server.datastore.domain.ModelStore
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.ModelSnapshotConfig
 import com.convergencelabs.server.domain.model.ot.StringInsertOperation
-
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
+import com.convergencelabs.server.UnknownErrorResponse
 
 // FIXME we really only check message types and not data.
-@RunWith(classOf[JUnitRunner])
+// scalastyle:off magic.number
 class RealtimeModelActorSpec
     extends TestKit(ActorSystem("RealtimeModelActorSpec"))
     with WordSpecLike
@@ -67,7 +62,7 @@ class RealtimeModelActorSpec
         Mockito.when(modelStore.getModel(Matchers.any())).thenThrow(new IllegalArgumentException("Induced error for test"))
 
         realtimeModelActor.tell(OpenRealtimeModelRequest(uid1, session1, modelFqn, client.ref), client.ref)
-        val message = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ErrorResponse])
+        val message = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[UnknownErrorResponse])
       }
 
       "ask all connecting clients for state if it is not persisted" in new MockDatabaseWithoutModel {
@@ -87,15 +82,15 @@ class RealtimeModelActorSpec
         val client1 = new TestProbe(system)
         realtimeModelActor.tell(OpenRealtimeModelRequest(uid1, session1, modelFqn, client1.ref), client1.ref)
         client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientModelDataRequest])
-        client1.expectMsgClass(FiniteDuration(200, TimeUnit.MILLISECONDS), classOf[ErrorResponse])
+        client1.expectMsgClass(FiniteDuration(200, TimeUnit.MILLISECONDS), classOf[OpenModelFailure])
       }
 
       "reject a client that responds with the wrong message in request to data" in new MockDatabaseWithoutModel {
         val client1 = new TestProbe(system)
         realtimeModelActor.tell(OpenRealtimeModelRequest(uid1, session1, modelFqn, client1.ref), client1.ref)
         client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientModelDataRequest])
-        client1.reply(ErrorResponse("", "")) // Any message that is not a ClientModelDataResponse will do here.
-        client1.expectMsgClass(FiniteDuration(200, TimeUnit.MILLISECONDS), classOf[ErrorResponse])
+        client1.reply("some object") // Any message that is not a ClientModelDataResponse will do here.
+        client1.expectMsgClass(FiniteDuration(200, TimeUnit.MILLISECONDS), classOf[OpenModelFailure])
       }
 
       "notify all queued clients when data is returned by the first client" in new MockDatabaseWithoutModel {

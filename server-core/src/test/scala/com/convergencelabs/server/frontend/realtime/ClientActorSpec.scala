@@ -207,16 +207,25 @@ class ClientActorSpec
 
   class TestReplyCallback() extends ReplyCallback {
     val p = Promise[OutgoingProtocolResponseMessage]
+
+    def result(): Future[OutgoingProtocolResponseMessage] = {
+      p.future
+    }
+
     def reply(message: OutgoingProtocolResponseMessage): Unit = {
       p.success(message)
     }
 
-    def error(cause: Throwable): Unit = {
-      p.failure(cause)
+    def unknownError(): Unit = {
+      p.failure(new IllegalStateException())
     }
 
-    def result(): Future[OutgoingProtocolResponseMessage] = {
-      p.future
+    def unexpectedError(details: String): Unit = {
+      p.failure(new IllegalStateException())
+    }
+
+    def expectedError(code: String, details: String): Unit = {
+      p.failure(new IllegalStateException())
     }
   }
 }

@@ -15,7 +15,6 @@ import scala.concurrent.duration.FiniteDuration
 import scala.compat.Platform
 import scala.util.Success
 import scala.language.implicitConversions
-import com.convergencelabs.server.ErrorResponse
 import com.convergencelabs.server.domain.ModelSnapshotConfig
 import com.convergencelabs.server.domain.model.ot.TransformationFunctionRegistry
 import com.convergencelabs.server.domain.model.ot.{ UnprocessedOperationEvent, ServerConcurrencyControl }
@@ -24,8 +23,8 @@ import com.convergencelabs.server.domain.model.ot.OperationTransformer
 import com.convergencelabs.server.datastore.domain.ModelStore
 import com.convergencelabs.server.datastore.domain.ModelSnapshotStore
 import com.convergencelabs.server.datastore.domain.ModelOperationProcessor
-import com.convergencelabs.server.ErrorResponse
 import com.convergencelabs.server.util.concurrent.AskFuture
+import com.convergencelabs.server.UnknownErrorResponse
 
 /**
  * An instance of the RealtimeModelActor manages the lifecycle of a single
@@ -78,7 +77,7 @@ class RealtimeModelActor(
     case request: OpenRealtimeModelRequest => onOpenModelWhileInitializing(request)
     case dataResponse: DatabaseModelResponse => onDatabaseModelResponse(dataResponse)
     case dataResponse: ClientModelDataResponse => onClientModelDataResponse(dataResponse)
-    case ModelDeleted => handleInitializationFailure(ErrorCodes.ModelDeleted, "The model was deleted while opening.")
+    case ModelDeleted => handleInitializationFailure(ModelDeletedWhileOpening)
     case unknown: Any => unhandled(unknown)
   }
 
@@ -88,8 +87,8 @@ class RealtimeModelActor(
   private[this] def receiveInitializingFromDatabase: Receive = {
     case request: OpenRealtimeModelRequest => onOpenModelWhileInitializing(request)
     case dataResponse: DatabaseModelResponse => onDatabaseModelResponse(dataResponse)
-    case DatabaseModelFailure(cause) => handleInitializationFailure(ErrorCodes.Unknown, "Unexpected error initializing the model.")
-    case ModelDeleted => handleInitializationFailure(ErrorCodes.ModelDeleted, "The model was deleted while opening.")
+    case DatabaseModelFailure(cause) => handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
+    case ModelDeleted => handleInitializationFailure(ModelDeletedWhileOpening)
     case dataResponse: ClientModelDataResponse =>
     case unknown: Any => unhandled(unknown)
   }
@@ -127,7 +126,8 @@ class RealtimeModelActor(
         requestModelDataFromClient(request.clientActor)
       case Failure(cause) =>
         log.error(cause, "Unable to determine if a model exists.")
-        handleInitializationFailure(ErrorCodes.Unknown, "could not load model")
+        handleInitializationFailure(UnknownErrorResponse(
+          "Unexpected error initializing the model."))
     }
   }
 
@@ -149,7 +149,7 @@ class RealtimeModelActor(
       case Failure(cause) =>
         log.error(cause,
           s"Unable to determine if model exists while handling an open request for an initializing model: $domainFqn/$modelFqn")
-        sender ! ErrorResponse(ErrorCodes.Unknown, "Could not open model")
+        sender ! UnknownErrorResponse("Could not open model")
     }
   }
 
@@ -205,7 +205,7 @@ class RealtimeModelActor(
     } catch {
       case e: Exception =>
         log.error(e, "Unable to initialize realtime model from database response")
-        handleInitializationFailure(ErrorCodes.Unknown, e.getMessage)
+        handleInitializationFailure(UnknownErrorResponse("unknown error opening model"))
     }
   }
 
@@ -227,15 +227,14 @@ class RealtimeModelActor(
       case Failure(cause) => cause match {
         case e: ClassCastException =>
           log.warning("The client responded with an unexpected value:" + e.getMessage)
-          askingActor ! ErrorResponse("invalid_response", "The client responded with an unexpected value.")
+          askingActor ! ClientDataRequestFailure("The client responded with an unexpected value.")
         case e: AskTimeoutException =>
           log.debug("A timeout occured waiting for the client to respond with model data.")
-          askingActor ! ErrorResponse(
-            "data_request_timeout",
+          askingActor ! ClientDataRequestFailure(
             "The client did not correctly respond with data, while initializing a new model.")
         case e: Exception =>
           log.error(e, "Uknnown exception processing model data response.")
-          askingActor ! ErrorResponse("unknown", e.getMessage)
+          askingActor ! UnknownErrorResponse(e.getMessage)
       }
     }
 
@@ -275,10 +274,10 @@ class RealtimeModelActor(
         case Success(Some(modelData)) => respondToClientOpenRequest(sk, modelData, OpenRequestRecord(request.clientActor, sender()))
         case Success(None) =>
           log.error(s"Could not find model data in the database for an open model: ${modelFqn}")
-          sender ! ErrorResponse(ErrorCodes.Unknown, "could not open model")
+          sender ! UnknownErrorResponse("could not open model")
         case Failure(cause) =>
           log.error(cause, s"Could not get model data from the database for model: ${modelFqn}")
-          sender ! ErrorResponse(ErrorCodes.Unknown, "could not open model")
+          sender ! UnknownErrorResponse("could not open model")
       }
     }
   }
@@ -510,9 +509,9 @@ class RealtimeModelActor(
   /**
    * Informs all clients that the model could not be initialized.
    */
-  private[this] def handleInitializationFailure(errorCode: String, errorMessage: String): Unit = {
+  private[this] def handleInitializationFailure(response: AnyRef): Unit = {
     queuedOpeningClients.values foreach {
-      openRequest => openRequest.askingActor ! ErrorResponse(errorCode, errorMessage)
+      openRequest => openRequest.askingActor ! response
     }
 
     queuedOpeningClients = HashMap[SessionKey, OpenRequestRecord]()

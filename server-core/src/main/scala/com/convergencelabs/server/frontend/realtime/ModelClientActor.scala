@@ -4,7 +4,6 @@ import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
-
 import com.convergencelabs.server.domain.model.ClientModelDataRequest
 import com.convergencelabs.server.domain.model.ClientModelDataResponse
 import com.convergencelabs.server.domain.model.CloseRealtimeModelRequest
@@ -31,7 +30,6 @@ import com.convergencelabs.server.domain.model.RemoteClientClosed
 import com.convergencelabs.server.domain.model.RemoteClientOpened
 import com.convergencelabs.server.util.concurrent.AskFuture
 import com.convergencelabs.server.util.concurrent.UnexpectedErrorException
-
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
@@ -39,6 +37,8 @@ import akka.actor.Props
 import akka.actor.actorRef2Scala
 import akka.pattern.ask
 import akka.util.Timeout
+import com.convergencelabs.server.domain.model.ModelDeletedWhileOpening
+import com.convergencelabs.server.domain.model.ClientDataRequestFailure
 
 object ModelClientActor {
   def props(
@@ -67,7 +67,7 @@ class ModelClientActor(
       onRequestReceived(message.asInstanceOf[IncomingModelRequestMessage], replyPromise)
     case message: RealtimeModelClientMessage =>
       onOutgoingModelMessage(message)
-    case x:Any => unhandled(x)
+    case x: Any => unhandled(x)
   }
 
   //
@@ -173,25 +173,31 @@ class ModelClientActor(
       case Success(ModelAlreadyOpen) => {
         cb.reply(ErrorMessage("model_already_open", "The requested model is already open by this client."))
       }
+      case Success(ModelDeletedWhileOpening) => {
+        cb.reply(ErrorMessage("model_deleted", "The requested model was deleted while opening."))
+      }
+      case Success(ClientDataRequestFailure(message)) => {
+        cb.reply(ErrorMessage("data_request-Failure", message))
+      }
       case Failure(cause) => {
-        cb.error(cause)
+        cb.unknownError()
       }
     }
   }
 
   def onCloseRealtimeModelRequest(request: CloseRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
     openRealtimeModels.get(request.rId) match {
-      case Some(modelActor) => {
+      case Some(modelActor) =>
         val future = modelActor ? CloseRealtimeModelRequest(userId, sessionId)
         future.mapResponse[CloseRealtimeModelSuccess] onComplete {
-          case Success(CloseRealtimeModelSuccess()) => {
+          case Success(CloseRealtimeModelSuccess()) =>
             openRealtimeModels -= request.rId
             cb.reply(SuccessMessage())
-          }
-          case Failure(cause) => cb.error(cause)
+          case Failure(cause) =>
+            cb.unexpectedError("could not close model")
         }
-      }
-      case None => cb.error(new UnexpectedErrorException("model_not_opened", "The requested model was not opened"))
+      case None =>
+        cb.reply(ErrorMessage("model_not_open", s"the requested model was not open"))
     }
   }
 
@@ -201,7 +207,7 @@ class ModelClientActor(
     future.mapResponse[CreateModelResponse] onComplete {
       case Success(ModelCreated) => cb.reply(SuccessMessage())
       case Success(ModelAlreadyExists) => cb.reply(ErrorMessage("model_alread_exists", "A model with the specifieid collection and model id already exists"))
-      case Failure(cause) => cb.error(cause)
+      case Failure(cause) => cb.unexpectedError("could not create model")
     }
   }
 
@@ -211,7 +217,7 @@ class ModelClientActor(
     future.mapResponse[DeleteModelResponse] onComplete {
       case Success(ModelDeleted) => cb.reply(SuccessMessage())
       case Success(ModelNotFound) => cb.reply(ErrorMessage("model_not_found", "A model with the specifieid collection and model id does not exists"))
-      case Failure(cause) => cb.error(cause)
+      case Failure(cause) => cb.unexpectedError("could not delete model")
     }
   }
 }
