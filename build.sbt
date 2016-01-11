@@ -3,7 +3,6 @@ import Dependencies.Test._
 
 val commonSettings = Seq(
   organization := "com.convergencelabs",
-  version := "1.0.0-M1-SNAPSHOT",
   scalaVersion := "2.11.7",
   scalacOptions := Seq("-deprecation", "-feature"),
   fork := true
