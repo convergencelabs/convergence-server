@@ -1,34 +1,10 @@
 package com.convergencelabs.server
 
-import java.time.Duration
+import com.convergencelabs.server.domain.DomainFqn
+
 import akka.actor.ActorRef
-import java.time.Instant
 
 package object domain {
-
-  case class Domain(
-    id: String,
-    domainFqn: DomainFqn,
-    displayName: String,
-    dbUsername: String,
-    dbPassword: String)
-
-  case class DomainFqn(namespace: String, domainId: String)
-  case class TokenPublicKey(id: String, name: String, description: String, keyDate: Instant, key: String, enabled: Boolean)
-  case class TokenKeyPair(publicKey: String, privateKey: String)
-
-  case class ModelSnapshotConfig(
-      snapshotsEnabled: Boolean,
-      triggerByVersion: Boolean,
-      limitedByVersion: Boolean,
-      minimumVersionInterval: Long,
-      maximumVersionInterval: Long,
-      triggerByTime: Boolean,
-      limitedByTime: Boolean,
-      minimumTimeInterval: Duration,
-      maximumTimeInterval: Duration)
-
-  case class DomainUser(uid: String, username: String, firstName: Option[String], lastName: Option[String], email: Option[String])
 
   case class HandshakeRequest(domainFqn: DomainFqn, clientActor: ActorRef, reconnect: Boolean, reconnectToken: Option[String])
 

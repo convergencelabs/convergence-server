@@ -9,26 +9,6 @@ import java.time.Duration
 
 package model {
 
-  case class Model(metaData: ModelMetaData, data: JValue)
-  case class ModelMetaData(fqn: ModelFqn, version: Long, createdTime: Instant, modifiedTime: Instant)
-
-  case class ModelSnapshotMetaData(fqn: ModelFqn, version: Long, timestamp: Instant)
-  case class ModelSnapshot(metaData: ModelSnapshotMetaData, data: JValue)
-
-  //
-  // Data Classes
-  //
-  case class ModelFqn(collectionId: String, modelId: String)
-  case class OpenModelMetaData(version: Long, createdTime: Instant, modifiedTime: Instant)
-
-  case class ModelOperation(
-    modelFqn: ModelFqn,
-    version: Long,
-    timestamp: Instant,
-    uid: String,
-    sid: String,
-    op: Operation)
-
   //
   // Incoming Messages From Client
   //

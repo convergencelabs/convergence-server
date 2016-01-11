@@ -95,6 +95,6 @@ case class ArrayMoveOperation(path: List[Any], noOp: Boolean, fromIndex: Int, to
   def clone(path: List[Any] = path, noOp: scala.Boolean = noOp): ArrayMoveOperation = copy(path = path, noOp = noOp)
 }
 
-case class ArraySetOperation(path: List[Any], noOp: Boolean, newValue: JArray) extends ArrayOperation {
+case class ArraySetOperation(path: List[Any], noOp: Boolean, value: JArray) extends ArrayOperation {
   def clone(path: List[Any] = path, noOp: scala.Boolean = noOp): ArraySetOperation = copy(path = path, noOp = noOp)
 }

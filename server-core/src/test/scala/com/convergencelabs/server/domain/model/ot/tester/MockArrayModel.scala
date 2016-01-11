@@ -37,7 +37,7 @@ class MockArrayModel(private var state: List[Any]) extends MockModel {
   }
 
   private def handleSet(op: ArraySetOperation): Unit = {
-    state = JValueMapper.jValueToJava(op.newValue).asInstanceOf[java.util.List[Any]].asScala.toList
+    state = JValueMapper.jValueToJava(op.value).asInstanceOf[java.util.List[Any]].asScala.toList
   }
 
   def getData(): List[Any] = {

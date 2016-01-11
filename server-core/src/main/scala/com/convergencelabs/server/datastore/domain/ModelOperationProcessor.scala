@@ -137,7 +137,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
   // TODO: Validate that data being replaced is an array.
   private[this] def applyArraySetOperation(fqn: ModelFqn, operation: ArraySetOperation, db: ODatabaseDocumentTx): Unit = {
     val pathString = toOrientPath(operation.path)
-    val params = Map(CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, Value -> JValueMapper.jValueToJava(operation.newValue))
+    val params = Map(CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, Value -> JValueMapper.jValueToJava(operation.value))
     val queryString = s"UPDATE Model SET $pathString = :value WHERE collectionId = :collectionId and modelId = :modelId"
     val updateCommand = new OCommandSQL(queryString)
     db.command(updateCommand).execute(params.asJava)
