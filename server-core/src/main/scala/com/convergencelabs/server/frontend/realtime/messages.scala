@@ -97,21 +97,21 @@ case class StringRemoveOperationData(path: List[Any], noOp: Boolean, idx: Int, `
 case class StringSetOperationData(path: List[Any], noOp: Boolean, `val`: String) extends StringOperaitonData
 
 sealed trait ArrayOperaitonData extends DiscreteOperationData
-case class ArrayInsertOperationData(path: List[Any], noOp: Boolean, idx: Int, newVal: JValue) extends ArrayOperaitonData
+case class ArrayInsertOperationData(path: List[Any], noOp: Boolean, idx: Int, `val`: JValue) extends ArrayOperaitonData
 case class ArrayRemoveOperationData(path: List[Any], noOp: Boolean, idx: Int) extends ArrayOperaitonData
-case class ArrayReplaceOperationData(path: List[Any], noOp: Boolean, idx: Int, newVal: JValue) extends ArrayOperaitonData
+case class ArrayReplaceOperationData(path: List[Any], noOp: Boolean, idx: Int, `val`: JValue) extends ArrayOperaitonData
 case class ArrayMoveOperationData(path: List[Any], noOp: Boolean, fromIdx: Int, toIdx: Int) extends ArrayOperaitonData
-case class ArraySetOperationData(path: List[Any], noOp: Boolean, array: JArray) extends ArrayOperaitonData
+case class ArraySetOperationData(path: List[Any], noOp: Boolean, `val`: JArray) extends ArrayOperaitonData
 
 sealed trait ObjectOperaitonData extends DiscreteOperationData
-case class ObjectAddPropertyOperationData(path: List[Any], noOp: Boolean, prop: String, newVal: JValue) extends ObjectOperaitonData
-case class ObjectSetPropertyOperationData(path: List[Any], noOp: Boolean, prop: String, newVal: JValue) extends ObjectOperaitonData
+case class ObjectAddPropertyOperationData(path: List[Any], noOp: Boolean, prop: String, `val`: JValue) extends ObjectOperaitonData
+case class ObjectSetPropertyOperationData(path: List[Any], noOp: Boolean, prop: String, `val`: JValue) extends ObjectOperaitonData
 case class ObjectRemovePropertyOperationData(path: List[Any], noOp: Boolean, prop: String) extends ObjectOperaitonData
-case class ObjectSetOperationData(path: List[Any], noOp: Boolean, obj: JObject) extends ObjectOperaitonData
+case class ObjectSetOperationData(path: List[Any], noOp: Boolean, `val`: JObject) extends ObjectOperaitonData
 
 sealed trait NumberOperaitonData extends DiscreteOperationData
-case class NumberAddOperationData(path: List[Any], noOp: Boolean, delta: JNumber) extends NumberOperaitonData
-case class NumberSetOperationData(path: List[Any], noOp: Boolean, num: JNumber) extends NumberOperaitonData
+case class NumberAddOperationData(path: List[Any], noOp: Boolean, `val`: JNumber) extends NumberOperaitonData
+case class NumberSetOperationData(path: List[Any], noOp: Boolean, `val`: JNumber) extends NumberOperaitonData
 
 sealed trait BooleanOperaitonData extends DiscreteOperationData
-case class BooleanSetOperationData(path: List[Any], noOp: Boolean, value: Boolean) extends BooleanOperaitonData
+case class BooleanSetOperationData(path: List[Any], noOp: Boolean, `val`: Boolean) extends BooleanOperaitonData
