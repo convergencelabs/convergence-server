@@ -11,7 +11,7 @@ import RangeIndexRelationship.Within
 
 private[ot] object ArrayMoveReplaceTF extends OperationTransformationFunction[ArrayMoveOperation, ArrayReplaceOperation] {
   def transform(s: ArrayMoveOperation, c: ArrayReplaceOperation): (ArrayMoveOperation, ArrayReplaceOperation) = {
-    ArrayMoveRangeHelper.getMoveDirection(s) match {
+    ArrayMoveHelper.getMoveDirection(s) match {
       case Forward => transformAgainstForwardMove(s, c)
       case Backward => transformAgainstBackwardMove(s, c)
       case Identity => transformAgainstIdentityMove(s, c)
@@ -19,7 +19,7 @@ private[ot] object ArrayMoveReplaceTF extends OperationTransformationFunction[Ar
   }
 
   def transformAgainstForwardMove(s: ArrayMoveOperation, c: ArrayReplaceOperation): (ArrayMoveOperation, ArrayReplaceOperation) = {
-    ArrayMoveRangeHelper.getRangeIndexRelationship(s, c.index) match {
+    ArrayMoveHelper.getRangeIndexRelationship(s, c.index) match {
       case Before | After =>
         // A-MP-1 and A-MP-5
         (s, c)
@@ -33,7 +33,7 @@ private[ot] object ArrayMoveReplaceTF extends OperationTransformationFunction[Ar
   }
 
   def transformAgainstBackwardMove(s: ArrayMoveOperation, c: ArrayReplaceOperation): (ArrayMoveOperation, ArrayReplaceOperation) = {
-    ArrayMoveRangeHelper.getRangeIndexRelationship(s, c.index) match {
+    ArrayMoveHelper.getRangeIndexRelationship(s, c.index) match {
       case Before | After =>
         // A-MP-6 and A-MP-10
         (s, c)

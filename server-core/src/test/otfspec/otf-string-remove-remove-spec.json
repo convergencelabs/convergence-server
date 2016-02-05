@@ -1,0 +1,149 @@
+{
+  "serverOpType": "StringRemove",
+  "clientOpType": "StringRemove",
+  "cases": [
+    {
+      "id": "S-RR-1",
+      "input": {
+        "serverOp": {"type": "StringRemove", "noOp": false, "index": 2, "value": "CDE"},
+        "clientOp": {"type": "StringRemove", "noOp": false, "index": 5, "value": "FGH"}
+      },
+      "output": {
+        "serverOp": {"type": "StringRemove", "noOp": false, "index": 2, "value": "CDE"},
+        "clientOp": {"type": "StringRemove", "noOp": false, "index": 2, "value": "FGH"}
+      }
+    },
+    {
+      "id": "S-RR-2",
+      "input": {
+        "serverOp": {"type": "StringRemove", "noOp": false, "index": 5, "value": "FGH"},
+        "clientOp": {"type": "StringRemove", "noOp": false, "index": 2, "value": "CDE"}
+      },
+      "output": {
+        "serverOp": {"type": "StringRemove", "noOp": false, "index": 2, "value": "FGH"},
+        "clientOp": {"type": "StringRemove", "noOp": false, "index": 2, "value": "CDE"}
+      }
+    },
+    {
+      "id": "S-RR-3",
+      "input": {
+        "serverOp": {"type": "StringRemove", "noOp": false, "index": 3, "value": "DEF"},
+        "clientOp": {"type": "StringRemove", "noOp": false, "index": 5, "value": "FGH"}
+      },
+      "output": {
+        "serverOp": {"type": "StringRemove", "noOp": false, "index": 3, "value": "DE"},
+        "clientOp": {"type": "StringRemove", "noOp": false, "index": 3, "value": "GH"}
+      }
+    },
+    {
+      "id": "S-RR-4",
+      "input": {
+        "serverOp": {"type": "StringRemove", "noOp": false, "index": 5, "value": "FGH"},
+        "clientOp": {"type": "StringRemove", "noOp": false, "index": 3, "value": "DEF"}
+      },
+      "output": {
+        "serverOp": {"type": "StringRemove", "noOp": false, "index": 3, "value": "GH"},
+        "clientOp": {"type": "StringRemove", "noOp": false, "index": 3, "value": "DE"}
+      }
+    },
+    {
+      "id": "S-RR-5",
+      "input": {
+        "serverOp": {"type": "StringRemove", "noOp": false, "index": 2, "value": "CDEFG"},
+        "clientOp": {"type": "StringRemove", "noOp": false, "index": 4, "value": "EFGHI"}
+      },
+      "output": {
+        "serverOp": {"type": "StringRemove", "noOp": false, "index": 2, "value": "CD"},
+        "clientOp": {"type": "StringRemove", "noOp": false, "index": 2, "value": "HI"}
+      }
+    },
+    {
+      "id": "S-RR-6",
+      "input": {
+        "serverOp": {"type": "StringRemove", "noOp": false, "index": 4, "value": "EFGHI"},
+        "clientOp": {"type": "StringRemove", "noOp": false, "index": 2, "value": "CDEFG"}
+      },
+      "output": {
+        "serverOp": {"type": "StringRemove", "noOp": false, "index": 2, "value": "HI"},
+        "clientOp": {"type": "StringRemove", "noOp": false, "index": 2, "value": "CD"}
+      }
+    },
+    {
+      "id": "S-RR-7",
+      "input": {
+        "serverOp": {"type": "StringRemove", "noOp": false, "index": 2, "value": "CDE"},
+        "clientOp": {"type": "StringRemove", "noOp": false, "index": 2, "value": "CDEFG"}
+      },
+      "output": {
+        "serverOp": {"type": "StringRemove", "noOp": true, "index": 2, "value": "CDE"},
+        "clientOp": {"type": "StringRemove", "noOp": false, "index": 2, "value": "FG"}
+      }
+    },
+    {
+      "id": "S-RR-8",
+      "input": {
+        "serverOp": {"type": "StringRemove", "noOp": false, "index": 2, "value": "CDEFG"},
+        "clientOp": {"type": "StringRemove", "noOp": false, "index": 2, "value": "CDE"}
+      },
+      "output": {
+        "serverOp": {"type": "StringRemove", "noOp": false, "index": 2, "value": "FG"},
+        "clientOp": {"type": "StringRemove", "noOp": true, "index": 2, "value": "CDE"}
+      }
+    },
+    {
+      "id": "S-RR-9",
+      "input": {
+        "serverOp": {"type": "StringRemove", "noOp": false, "index": 2, "value": "CDEFG"},
+        "clientOp": {"type": "StringRemove", "noOp": false, "index": 3, "value": "DEF"}
+      },
+      "output": {
+        "serverOp": {"type": "StringRemove", "noOp": false, "index": 2, "value": "CG"},
+        "clientOp": {"type": "StringRemove", "noOp": true, "index": 3, "value": "DEF"}
+      }
+    },
+    {
+      "id": "S-RR-10",
+      "input": {
+        "serverOp": {"type": "StringRemove", "noOp": false, "index": 3, "value": "DEF"},
+        "clientOp": {"type": "StringRemove", "noOp": false, "index": 2, "value": "CDEFG"}
+      },
+      "output": {
+        "serverOp": {"type": "StringRemove", "noOp": true, "index": 3, "value": "DEF"},
+        "clientOp": {"type": "StringRemove", "noOp": false, "index": 2, "value": "CG"}
+      }
+    },
+    {
+      "id": "S-RR-11",
+      "input": {
+        "serverOp": {"type": "StringRemove", "noOp": false, "index": 4, "value": "EFG"},
+        "clientOp": {"type": "StringRemove", "noOp": false, "index": 2, "value": "CDEFG"}
+      },
+      "output": {
+        "serverOp": {"type": "StringRemove", "noOp": true, "index": 4, "value": "EFG"},
+        "clientOp": {"type": "StringRemove", "noOp": false, "index": 2, "value": "CD"}
+      }
+    },
+    {
+      "id": "S-RR-12",
+      "input": {
+        "serverOp": {"type": "StringRemove", "noOp": false, "index": 2, "value": "CDEFG"},
+        "clientOp": {"type": "StringRemove", "noOp": false, "index": 4, "value": "EFG"}
+      },
+      "output": {
+        "serverOp": {"type": "StringRemove", "noOp": false, "index": 2, "value": "CD"},
+        "clientOp": {"type": "StringRemove", "noOp": true, "index": 4, "value": "EFG"}
+      }
+    },
+    {
+      "id": "S-RR-13",
+      "input": {
+        "serverOp": {"type": "StringRemove", "noOp": false, "index": 3, "value": "DEF"},
+        "clientOp": {"type": "StringRemove", "noOp": false, "index": 3, "value": "DEF"}
+      },
+      "output": {
+        "serverOp": {"type": "StringRemove", "noOp": true, "index": 3, "value": "DEF"},
+        "clientOp": {"type": "StringRemove", "noOp": true, "index": 3, "value": "DEF"}
+      }
+    }
+  ]
+}

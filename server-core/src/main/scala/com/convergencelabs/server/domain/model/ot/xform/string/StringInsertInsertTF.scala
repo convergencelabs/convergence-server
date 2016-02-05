@@ -7,13 +7,13 @@ package com.convergencelabs.server.domain.model.ot
  * is the relative position of the two operation's positional indices.
  */
 private[ot] object StringInsertInsertTF extends OperationTransformationFunction[StringInsertOperation, StringInsertOperation] {
-  def transform(s: StringInsertOperation, u: StringInsertOperation): (StringOperation, StringOperation) = {
-    if (s.index <= u.index) {
+  def transform(s: StringInsertOperation, c: StringInsertOperation): (StringOperation, StringOperation) = {
+    if (s.index <= c.index) {
       // S-II-1 and S-II-2
-      (s, u.copy(index = u.index + s.value.length))
+      (s, c.copy(index = c.index + s.value.length))
     } else {
       // S-II-3
-      (s.copy(index = s.index + u.value.length), u)
+      (s.copy(index = s.index + c.value.length), c)
     }
   }
 }

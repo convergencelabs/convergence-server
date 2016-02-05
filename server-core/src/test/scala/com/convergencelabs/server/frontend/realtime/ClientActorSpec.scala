@@ -145,7 +145,7 @@ class ClientActorSpec
 
     "recieving an open model message" must {
       "forward to the model manager" in new AuthenticatedClient(system) {
-        val openRequest = OpenRealtimeModelRequestMessage(ModelFqnData("collection", "model"))
+        val openRequest = OpenRealtimeModelRequestMessage(ModelFqnData("collection", "model"), true)
         val openReply = mock[ReplyCallback]
         val openEvent = RequestReceived(openRequest, openReply)
         clientActor.tell(openEvent, ActorRef.noSender)
@@ -192,7 +192,7 @@ class ClientActorSpec
   }
 
   class AuthenticatedClient(system: ActorSystem) extends HandshookClient(system: ActorSystem) {
-    val authRequestMessage = PasswordAuthenticationRequestMessage("testuser", "testpass")
+    val authRequestMessage = AuthenticationRequestMessage("password", None, Some("testuser"), Some("testpass"))
 
     val authCallback = new TestReplyCallback()
     val authEvent = RequestReceived(authRequestMessage, authCallback)

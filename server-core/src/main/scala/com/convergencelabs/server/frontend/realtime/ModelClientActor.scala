@@ -39,6 +39,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.server.domain.model.ModelDeletedWhileOpening
 import com.convergencelabs.server.domain.model.ClientDataRequestFailure
+import com.convergencelabs.server.domain.model.NoSuchModel
 
 object ModelClientActor {
   def props(
@@ -158,7 +159,8 @@ class ModelClientActor(
 
   def onOpenRealtimeModelRequest(request: OpenRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
     val ModelFqnData(collectionId, modelId) = request.fqn
-    val future = modelManager ? OpenRealtimeModelRequest(userId, sessionId, ModelFqn(collectionId, modelId), self)
+    val future = modelManager ? OpenRealtimeModelRequest(
+        userId, sessionId, ModelFqn(collectionId, modelId), request.init, self)
     future.mapResponse[OpenModelResponse] onComplete {
       case Success(OpenModelSuccess(realtimeModelActor, modelResourceId, metaData, modelData)) => {
         openRealtimeModels += (modelResourceId -> realtimeModelActor)
@@ -171,13 +173,16 @@ class ModelClientActor(
             modelData))
       }
       case Success(ModelAlreadyOpen) => {
-        cb.reply(ErrorMessage("model_already_open", "The requested model is already open by this client."))
+        cb.expectedError("model_already_open", "The requested model is already open by this client.")
+      }
+      case Success(NoSuchModel) => {
+        cb.expectedError("no_such_model", "The requested model does not exists, and no initializer was provided.")
       }
       case Success(ModelDeletedWhileOpening) => {
-        cb.reply(ErrorMessage("model_deleted", "The requested model was deleted while opening."))
+        cb.expectedError("model_deleted", "The requested model was deleted while opening.")
       }
       case Success(ClientDataRequestFailure(message)) => {
-        cb.reply(ErrorMessage("data_request-Failure", message))
+        cb.expectedError("data_request_failure", message)
       }
       case Failure(cause) => {
         cb.unknownError()
@@ -206,7 +211,7 @@ class ModelClientActor(
     val future = modelManager ? CreateModelRequest(ModelFqn(collectionId, modelId), data)
     future.mapResponse[CreateModelResponse] onComplete {
       case Success(ModelCreated) => cb.reply(SuccessMessage())
-      case Success(ModelAlreadyExists) => cb.reply(ErrorMessage("model_alread_exists", "A model with the specifieid collection and model id already exists"))
+      case Success(ModelAlreadyExists) => cb.expectedError("model_alread_exists", "A model with the specifieid collection and model id already exists")
       case Failure(cause) => cb.unexpectedError("could not create model")
     }
   }

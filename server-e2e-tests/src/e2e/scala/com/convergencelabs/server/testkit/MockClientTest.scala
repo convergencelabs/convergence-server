@@ -2,13 +2,11 @@ package com.convergencelabs.server.testkit
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
-
 import org.json4s._
 import org.json4s.JsonAST.JObject
 import org.json4s.jackson.JsonMethods._
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FunSuite
-
 import com.convergencelabs.server.frontend.realtime.AuthenticationResponseMessage
 import com.convergencelabs.server.frontend.realtime.CloseRealtimeModelRequestMessage
 import com.convergencelabs.server.frontend.realtime.HandshakeRequestMessage
@@ -22,9 +20,9 @@ import com.convergencelabs.server.frontend.realtime.OpenRealtimeModelRequestMess
 import com.convergencelabs.server.frontend.realtime.OpenRealtimeModelResponseMessage
 import com.convergencelabs.server.frontend.realtime.OperationAcknowledgementMessage
 import com.convergencelabs.server.frontend.realtime.OperationSubmissionMessage
-import com.convergencelabs.server.frontend.realtime.PasswordAuthenticationRequestMessage
 import com.convergencelabs.server.frontend.realtime.StringInsertOperationData
 import com.convergencelabs.server.frontend.realtime.SuccessMessage
+import com.convergencelabs.server.frontend.realtime.AuthenticationRequestMessage
 
 class MockClientTest extends FunSuite with BeforeAndAfterAll {
   
@@ -49,10 +47,10 @@ class MockClientTest extends FunSuite with BeforeAndAfterAll {
     client.sendRequest(HandshakeRequestMessage(false, None, None))
     val handhsakeResponse = client.expectMessageClass(5 seconds, classOf[HandshakeResponseMessage])
 
-    client.sendRequest(PasswordAuthenticationRequestMessage("test1", "password"))
+    client.sendRequest(AuthenticationRequestMessage("password", None, Some("testuser"), Some("testpass")))
     val authResponse = client.expectMessageClass(5 seconds, classOf[AuthenticationResponseMessage])
 
-    client.sendRequest(OpenRealtimeModelRequestMessage(ModelFqnData("collection", "model")))
+    client.sendRequest(OpenRealtimeModelRequestMessage(ModelFqnData("collection", "model"), true))
 
     val (dataRequest, MessageEnvelope(_, Some(reqId), _, _)) = client.expectMessageClass(5 seconds, classOf[ModelDataRequestMessage])
     client.sendResponse(reqId, ModelDataResponseMessage(JObject("key" -> JString("value"))))

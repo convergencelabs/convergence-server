@@ -11,7 +11,7 @@ import RangeIndexRelationship.Within
 
 private[ot] object ArrayMoveRemoveTF extends OperationTransformationFunction[ArrayMoveOperation, ArrayRemoveOperation] {
   def transform(s: ArrayMoveOperation, c: ArrayRemoveOperation): (ArrayMoveOperation, ArrayRemoveOperation) = {
-    ArrayMoveRangeHelper.getMoveDirection(s) match {
+    ArrayMoveHelper.getMoveDirection(s) match {
       case Forward => transformAgainstForwardMove(s, c)
       case Backward => transformAgainstBackwardMove(s, c)
       case Identity => transformAgainstIdentityMove(s, c)
@@ -19,7 +19,7 @@ private[ot] object ArrayMoveRemoveTF extends OperationTransformationFunction[Arr
   }
 
   def transformAgainstForwardMove(s: ArrayMoveOperation, c: ArrayRemoveOperation): (ArrayMoveOperation, ArrayRemoveOperation) = {
-    ArrayMoveRangeHelper.getRangeIndexRelationship(s, c.index) match {
+    ArrayMoveHelper.getRangeIndexRelationship(s, c.index) match {
       case Before =>
         // A-MR-1
         (s.copy(fromIndex = s.fromIndex - 1, toIndex = s.toIndex - 1), c)
@@ -36,7 +36,7 @@ private[ot] object ArrayMoveRemoveTF extends OperationTransformationFunction[Arr
   }
 
   def transformAgainstBackwardMove(s: ArrayMoveOperation, c: ArrayRemoveOperation): (ArrayMoveOperation, ArrayRemoveOperation) = {
-    ArrayMoveRangeHelper.getRangeIndexRelationship(s, c.index) match {
+    ArrayMoveHelper.getRangeIndexRelationship(s, c.index) match {
       case Before =>
         // A-MR-6
         (s.copy(fromIndex = s.fromIndex - 1, toIndex = s.toIndex - 1), c)
@@ -53,7 +53,7 @@ private[ot] object ArrayMoveRemoveTF extends OperationTransformationFunction[Arr
   }
 
   private[this] def transformAgainstIdentityMove(s: ArrayMoveOperation, c: ArrayRemoveOperation): (ArrayMoveOperation, ArrayRemoveOperation) = {
-    ArrayMoveRangeHelper.getRangeIndexRelationship(s, c.index) match {
+    ArrayMoveHelper.getRangeIndexRelationship(s, c.index) match {
       case Before =>
         // A-MR-11
         (s.copy(fromIndex = s.fromIndex - 1, toIndex = s.toIndex - 1), c)

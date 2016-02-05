@@ -54,7 +54,7 @@ class ModelManagerActorSpec
     "opening model" must {
       "sucessfully load an unopen model" in new TestFixture {
         val client = new TestProbe(system)
-        modelManagerActor.tell(OpenRealtimeModelRequest(userId1, sessionId1, modelFqn, client.ref), client.ref)
+        modelManagerActor.tell(OpenRealtimeModelRequest(userId1, sessionId1, modelFqn, true, client.ref), client.ref)
 
         val message = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
         assert(message.modelData == modelData.data)
@@ -65,11 +65,11 @@ class ModelManagerActorSpec
 
       "sucessfully load an open model" in new TestFixture {
         val client1 = new TestProbe(system)
-        modelManagerActor.tell(OpenRealtimeModelRequest(userId1, sessionId1, modelFqn, client1.ref), client1.ref)
+        modelManagerActor.tell(OpenRealtimeModelRequest(userId1, sessionId1, modelFqn, true, client1.ref), client1.ref)
         client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
 
         val client2 = new TestProbe(system)
-        modelManagerActor.tell(OpenRealtimeModelRequest(userId2, sessionId1, modelFqn, client2.ref), client2.ref)
+        modelManagerActor.tell(OpenRealtimeModelRequest(userId2, sessionId1, modelFqn, true, client2.ref), client2.ref)
         val response = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
 
         assert(response.modelData == modelData.data)
@@ -80,7 +80,7 @@ class ModelManagerActorSpec
 
       "request data if the model does not exist" in new TestFixture {
         val client1 = new TestProbe(system)
-        modelManagerActor.tell(OpenRealtimeModelRequest(userId1, sessionId1, nonExistentModelFqn, client1.ref), client1.ref)
+        modelManagerActor.tell(OpenRealtimeModelRequest(userId1, sessionId1, nonExistentModelFqn, true, client1.ref), client1.ref)
         val response = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientModelDataRequest])
       }
     }

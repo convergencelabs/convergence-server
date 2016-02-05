@@ -45,7 +45,7 @@ class RealtimeModelActorSpec
     "opening a closed model" must {
       "load the model from the database if it is persisted" in new MockDatabaseWithModel {
         val client = new TestProbe(system)
-        realtimeModelActor.tell(OpenRealtimeModelRequest(uid1, session1, modelFqn, client.ref), client.ref)
+        realtimeModelActor.tell(OpenRealtimeModelRequest(uid1, session1, modelFqn, true, client.ref), client.ref)
 
         val message = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
 
@@ -61,7 +61,7 @@ class RealtimeModelActorSpec
         // Set the database up to bomb
         Mockito.when(modelStore.getModel(Matchers.any())).thenThrow(new IllegalArgumentException("Induced error for test"))
 
-        realtimeModelActor.tell(OpenRealtimeModelRequest(uid1, session1, modelFqn, client.ref), client.ref)
+        realtimeModelActor.tell(OpenRealtimeModelRequest(uid1, session1, modelFqn, true, client.ref), client.ref)
         val message = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[UnknownErrorResponse])
       }
 
@@ -69,25 +69,25 @@ class RealtimeModelActorSpec
         val client1 = new TestProbe(system)
         val client2 = new TestProbe(system)
 
-        realtimeModelActor.tell(OpenRealtimeModelRequest(uid1, session1, modelFqn, client1.ref), client1.ref)
+        realtimeModelActor.tell(OpenRealtimeModelRequest(uid1, session1, modelFqn, true, client1.ref), client1.ref)
         val dataRequest1 = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientModelDataRequest])
         assert(dataRequest1.modelFqn == modelFqn)
 
-        realtimeModelActor.tell(OpenRealtimeModelRequest(uid2, session1, modelFqn, client2.ref), client2.ref)
+        realtimeModelActor.tell(OpenRealtimeModelRequest(uid2, session1, modelFqn, true, client2.ref), client2.ref)
         val dataRequest2 = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientModelDataRequest])
         assert(dataRequest1.modelFqn == modelFqn)
       }
 
       "reject a client that does not respond with data" in new MockDatabaseWithoutModel {
         val client1 = new TestProbe(system)
-        realtimeModelActor.tell(OpenRealtimeModelRequest(uid1, session1, modelFqn, client1.ref), client1.ref)
+        realtimeModelActor.tell(OpenRealtimeModelRequest(uid1, session1, modelFqn, true, client1.ref), client1.ref)
         client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientModelDataRequest])
         client1.expectMsgClass(FiniteDuration(200, TimeUnit.MILLISECONDS), classOf[OpenModelFailure])
       }
 
       "reject a client that responds with the wrong message in request to data" in new MockDatabaseWithoutModel {
         val client1 = new TestProbe(system)
-        realtimeModelActor.tell(OpenRealtimeModelRequest(uid1, session1, modelFqn, client1.ref), client1.ref)
+        realtimeModelActor.tell(OpenRealtimeModelRequest(uid1, session1, modelFqn, true, client1.ref), client1.ref)
         client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientModelDataRequest])
         client1.reply("some object") // Any message that is not a ClientModelDataResponse will do here.
         client1.expectMsgClass(FiniteDuration(200, TimeUnit.MILLISECONDS), classOf[OpenModelFailure])
@@ -97,10 +97,10 @@ class RealtimeModelActorSpec
         val client1 = new TestProbe(system)
         val client2 = new TestProbe(system)
 
-        realtimeModelActor.tell(OpenRealtimeModelRequest(uid1, session1, modelFqn, client1.ref), client1.ref)
+        realtimeModelActor.tell(OpenRealtimeModelRequest(uid1, session1, modelFqn, true, client1.ref), client1.ref)
         client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientModelDataRequest])
 
-        realtimeModelActor.tell(OpenRealtimeModelRequest(uid2, session2, modelFqn, client2.ref), client2.ref)
+        realtimeModelActor.tell(OpenRealtimeModelRequest(uid2, session2, modelFqn, true, client2.ref), client2.ref)
         client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientModelDataRequest])
 
         // Now mock that the data is there.
@@ -138,10 +138,10 @@ class RealtimeModelActorSpec
       "not allow the same session to open the same model twice" in new MockDatabaseWithModel {
         val client1 = new TestProbe(system)
 
-        realtimeModelActor.tell(OpenRealtimeModelRequest(uid1, session1, modelFqn, client1.ref), client1.ref)
+        realtimeModelActor.tell(OpenRealtimeModelRequest(uid1, session1, modelFqn, true, client1.ref), client1.ref)
         val open1 = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
 
-        realtimeModelActor.tell(OpenRealtimeModelRequest(uid1, session1, modelFqn, client1.ref), client1.ref)
+        realtimeModelActor.tell(OpenRealtimeModelRequest(uid1, session1, modelFqn, true, client1.ref), client1.ref)
         val open2 = client1.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelAlreadyOpen)
       }
     }
@@ -161,10 +161,10 @@ class RealtimeModelActorSpec
         val client1 = new TestProbe(system)
         val client2 = new TestProbe(system)
 
-        realtimeModelActor.tell(OpenRealtimeModelRequest(uid1, session1, modelFqn, client1.ref), client1.ref)
+        realtimeModelActor.tell(OpenRealtimeModelRequest(uid1, session1, modelFqn, true, client1.ref), client1.ref)
         var client1Response = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
 
-        realtimeModelActor.tell(OpenRealtimeModelRequest(uid2, session1, modelFqn, client2.ref), client2.ref)
+        realtimeModelActor.tell(OpenRealtimeModelRequest(uid2, session1, modelFqn, true, client2.ref), client2.ref)
         var client2Response = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
 
         realtimeModelActor.tell(CloseRealtimeModelRequest(uid2, session1), client2.ref)
@@ -176,7 +176,7 @@ class RealtimeModelActorSpec
       "notify domain when last client disconnects" in new MockDatabaseWithModel {
         val client1 = new TestProbe(system)
 
-        realtimeModelActor.tell(OpenRealtimeModelRequest(uid1, session1, modelFqn, client1.ref), client1.ref)
+        realtimeModelActor.tell(OpenRealtimeModelRequest(uid1, session1, modelFqn, true, client1.ref), client1.ref)
         var client1Response = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
         realtimeModelActor.tell(CloseRealtimeModelRequest(uid1, session1), client1.ref)
         val closeAck = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[CloseRealtimeModelSuccess])
@@ -263,13 +263,13 @@ class RealtimeModelActorSpec
 
   trait OneOpenClient extends MockDatabaseWithModel {
     val client1 = new TestProbe(system)
-    realtimeModelActor.tell(OpenRealtimeModelRequest(uid1, session1, modelFqn, client1.ref), client1.ref)
+    realtimeModelActor.tell(OpenRealtimeModelRequest(uid1, session1, modelFqn, true, client1.ref), client1.ref)
     val client1OpenResponse = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
   }
 
   trait TwoOpenClients extends OneOpenClient {
     val client2 = new TestProbe(system)
-    realtimeModelActor.tell(OpenRealtimeModelRequest(uid2, session1, modelFqn, client2.ref), client2.ref)
+    realtimeModelActor.tell(OpenRealtimeModelRequest(uid2, session1, modelFqn, true, client2.ref), client2.ref)
     val client2OpenResponse = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
   }
 

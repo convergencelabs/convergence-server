@@ -1,7 +1,7 @@
 package com.convergencelabs.server.domain.model.ot
 
 private[ot] object ArrayRemovePTF extends PathTransformationFunction[ArrayRemoveOperation] {
-  def transformDescendantPath(ancestor: ArrayRemoveOperation, descendantPath: List[_]): PathTrasformation = {
+  def transformDescendantPath(ancestor: ArrayRemoveOperation, descendantPath: List[_]): PathTransformation = {
     val ancestorPathLength = ancestor.path.length
     val descendantArrayIndex = descendantPath(ancestorPathLength).asInstanceOf[Int]
 

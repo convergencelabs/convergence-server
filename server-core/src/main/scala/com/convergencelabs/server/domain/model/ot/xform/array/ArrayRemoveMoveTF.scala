@@ -11,7 +11,7 @@ import RangeIndexRelationship.Within
 
 private[ot] object ArrayRemoveMoveTF extends OperationTransformationFunction[ArrayRemoveOperation, ArrayMoveOperation] {
   def transform(s: ArrayRemoveOperation, c: ArrayMoveOperation): (ArrayRemoveOperation, ArrayMoveOperation) = {
-    ArrayMoveRangeHelper.getMoveDirection(c) match {
+    ArrayMoveHelper.getMoveDirection(c) match {
       case Forward => transformAgainstForwardMove(s, c)
       case Backward => transformAgainstBackwardMove(s, c)
       case Identity => transformAgainstIdentityMove(s, c)
@@ -19,7 +19,7 @@ private[ot] object ArrayRemoveMoveTF extends OperationTransformationFunction[Arr
   }
 
   def transformAgainstForwardMove(s: ArrayRemoveOperation, c: ArrayMoveOperation): (ArrayRemoveOperation, ArrayMoveOperation) = {
-    ArrayMoveRangeHelper.getRangeIndexRelationship(c, s.index) match {
+    ArrayMoveHelper.getRangeIndexRelationship(c, s.index) match {
       case Before =>
         // A-RM-1
         (s, c.copy(fromIndex = c.fromIndex - 1, toIndex = c.toIndex - 1))
@@ -36,7 +36,7 @@ private[ot] object ArrayRemoveMoveTF extends OperationTransformationFunction[Arr
   }
 
   def transformAgainstBackwardMove(s: ArrayRemoveOperation, c: ArrayMoveOperation): (ArrayRemoveOperation, ArrayMoveOperation) = {
-    ArrayMoveRangeHelper.getRangeIndexRelationship(c, s.index) match {
+    ArrayMoveHelper.getRangeIndexRelationship(c, s.index) match {
       case Before =>
         // A-RM-6
         (s, c.copy(fromIndex = c.fromIndex - 1, toIndex = c.toIndex - 1))
@@ -53,7 +53,7 @@ private[ot] object ArrayRemoveMoveTF extends OperationTransformationFunction[Arr
   }
 
   private[this] def transformAgainstIdentityMove(s: ArrayRemoveOperation, c: ArrayMoveOperation): (ArrayRemoveOperation, ArrayMoveOperation) = {
-    ArrayMoveRangeHelper.getRangeIndexRelationship(c, s.index) match {
+    ArrayMoveHelper.getRangeIndexRelationship(c, s.index) match {
       case Before =>
         // A-RM-11
         (s, c.copy(fromIndex = c.fromIndex - 1, toIndex = c.toIndex - 1))

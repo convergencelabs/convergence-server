@@ -87,8 +87,9 @@ class ClientActor(
 
   def authenticate(requestMessage: AuthenticationRequestMessage, cb: ReplyCallback): Unit = {
     val message = requestMessage match {
-      case PasswordAuthenticationRequestMessage(username, password) => PasswordAuthRequest(username, password)
-      case TokenAuthenticationRequestMessage(token) => TokenAuthRequest(token)
+      case AuthenticationRequestMessage("password", None, Some(username), Some(password)) => PasswordAuthRequest(username, password)
+      case AuthenticationRequestMessage("token", Some(token), None, None) => TokenAuthRequest(token)
+      case _ => ??? // todo invalid message
     }
 
     val future = domainActor ? message

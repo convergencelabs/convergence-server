@@ -13,7 +13,7 @@ package model {
   // Incoming Messages From Client
   //
   case class OpenRequestRecord(clientActor: ActorRef, askingActor: ActorRef)
-  case class OpenRealtimeModelRequest(userId: String, sessionId: String, modelFqn: ModelFqn, clientActor: ActorRef)
+  case class OpenRealtimeModelRequest(userId: String, sessionId: String, modelFqn: ModelFqn, initializerProvided: Boolean, clientActor: ActorRef)
   case class CreateModelRequest(modelFqn: ModelFqn, modelData: JValue)
   case class DeleteModelRequest(modelFqn: ModelFqn)
   case class CloseRealtimeModelRequest(userId: String, sessionId: String)
@@ -43,6 +43,7 @@ package model {
   sealed trait OpenModelFailure extends OpenModelResponse
   case object ModelAlreadyOpen extends OpenModelFailure
   case object ModelDeletedWhileOpening extends OpenModelFailure
+  case object NoSuchModel extends OpenModelFailure
   case class ClientDataRequestFailure(message: String) extends OpenModelFailure
 
   case class ModelShutdownRequest(modelFqn: ModelFqn)

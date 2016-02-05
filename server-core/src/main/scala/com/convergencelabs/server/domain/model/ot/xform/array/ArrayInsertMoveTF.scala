@@ -15,15 +15,15 @@ import RangeIndexRelationship.Within
  */
 private[ot] object ArrayInsertMoveTF extends OperationTransformationFunction[ArrayInsertOperation, ArrayMoveOperation] {
   def transform(s: ArrayInsertOperation, c: ArrayMoveOperation): (ArrayInsertOperation, ArrayMoveOperation) = {
-    ArrayMoveRangeHelper.getMoveDirection(c) match {
+    ArrayMoveHelper.getMoveDirection(c) match {
       case Forward => transformAgainstForwardMove(s, c)
       case Backward => transformAgainstBackwardMove(s, c)
       case Identity => transformAgainstIdentityMove(s, c)
     }
   }
 
-  def transformAgainstForwardMove(s: ArrayInsertOperation, c: ArrayMoveOperation): (ArrayInsertOperation, ArrayMoveOperation) = {
-    ArrayMoveRangeHelper.getRangeIndexRelationship(c, s.index) match {
+  private[this] def transformAgainstForwardMove(s: ArrayInsertOperation, c: ArrayMoveOperation): (ArrayInsertOperation, ArrayMoveOperation) = {
+    ArrayMoveHelper.getRangeIndexRelationship(c, s.index) match {
       case Before | Start =>
         // A-IM-1 and A-IM-2
         (s, c.copy(fromIndex = c.fromIndex + 1, toIndex = c.toIndex + 1))
@@ -36,8 +36,8 @@ private[ot] object ArrayInsertMoveTF extends OperationTransformationFunction[Arr
     }
   }
 
-  def transformAgainstBackwardMove(s: ArrayInsertOperation, c: ArrayMoveOperation): (ArrayInsertOperation, ArrayMoveOperation) = {
-    ArrayMoveRangeHelper.getRangeIndexRelationship(c, s.index) match {
+  private[this] def transformAgainstBackwardMove(s: ArrayInsertOperation, c: ArrayMoveOperation): (ArrayInsertOperation, ArrayMoveOperation) = {
+    ArrayMoveHelper.getRangeIndexRelationship(c, s.index) match {
       case Before | Start =>
         // A-IM-6 and A-IM-7
         (s, c.copy(fromIndex = c.fromIndex + 1, toIndex = c.toIndex + 1))
@@ -51,7 +51,7 @@ private[ot] object ArrayInsertMoveTF extends OperationTransformationFunction[Arr
   }
 
   private[this] def transformAgainstIdentityMove(s: ArrayInsertOperation, c: ArrayMoveOperation): (ArrayInsertOperation, ArrayMoveOperation) = {
-    ArrayMoveRangeHelper.getRangeIndexRelationship(c, s.index) match {
+    ArrayMoveHelper.getRangeIndexRelationship(c, s.index) match {
       case After =>
         // A-IM-13
         (s, c)

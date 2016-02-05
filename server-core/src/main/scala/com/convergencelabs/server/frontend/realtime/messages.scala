@@ -48,22 +48,19 @@ case class ProtocolOptionsData()
 case class ErrorData(code: String, message: String)
 
 // Authentication Messages
-sealed trait AuthenticationRequestMessage extends IncomingProtocolRequestMessage
-case class PasswordAuthenticationRequestMessage(username: String, password: String) extends AuthenticationRequestMessage
-case class TokenAuthenticationRequestMessage(token: String) extends AuthenticationRequestMessage
-
+case class AuthenticationRequestMessage(method: String, token: Option[String], username: Option[String], password: Option[String]) extends IncomingProtocolRequestMessage
 case class AuthenticationResponseMessage(success: Boolean, username: Option[String]) extends OutgoingProtocolResponseMessage
 
 ///////////////////////////////////////////////////////////////////////////////
 // Model Messages
 ///////////////////////////////////////////////////////////////////////////////
-case class ModelFqnData(sId: String, mId: String)
+case class ModelFqnData(cId: String, mId: String)
 
 sealed trait IncomingModelNormalMessage extends IncomingProtocolNormalMessage
 case class OperationSubmissionMessage(rId: String, seq: Long, v: Long, op: OperationData) extends IncomingModelNormalMessage
 
 sealed trait IncomingModelRequestMessage extends IncomingProtocolRequestMessage
-case class OpenRealtimeModelRequestMessage(fqn: ModelFqnData) extends IncomingModelRequestMessage
+case class OpenRealtimeModelRequestMessage(fqn: ModelFqnData, init: Boolean) extends IncomingModelRequestMessage
 case class CloseRealtimeModelRequestMessage(rId: String) extends IncomingModelRequestMessage
 case class CreateRealtimeModelRequestMessage(fqn: ModelFqnData, data: JValue) extends IncomingModelRequestMessage
 case class DeleteRealtimeModelRequestMessage(fqn: ModelFqnData) extends IncomingModelRequestMessage

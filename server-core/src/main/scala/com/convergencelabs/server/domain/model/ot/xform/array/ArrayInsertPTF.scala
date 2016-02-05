@@ -1,7 +1,7 @@
 package com.convergencelabs.server.domain.model.ot
 
 private[ot] object ArrayInsertPTF extends PathTransformationFunction[ArrayInsertOperation] {
-  def transformDescendantPath(ancestor: ArrayInsertOperation, descendantPath: List[_]): PathTrasformation = {
+  def transformDescendantPath(ancestor: ArrayInsertOperation, descendantPath: List[_]): PathTransformation = {
     val ancestorPathLength = ancestor.path.length
     val descendantPathIndex = descendantPath(ancestorPathLength).asInstanceOf[Int]
     if (ancestor.index <= descendantPathIndex) {

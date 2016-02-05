@@ -95,9 +95,9 @@ object MessageSerializer {
   private[this] val IncomingMessages = new BiMap[String, Class[_ <: ProtocolMessage]](
     MessageType.Handshake -> classOf[HandshakeRequestMessage],
 
-    MessageType.AuthPassword -> classOf[PasswordAuthenticationRequestMessage],
-    MessageType.AuthToken -> classOf[TokenAuthenticationRequestMessage],
+    MessageType.Authentication -> classOf[AuthenticationRequestMessage],
 
+    MessageType.CreateRealtimeModel -> classOf[CreateRealtimeModelRequestMessage],
     MessageType.OpenRealtimeModel -> classOf[OpenRealtimeModelRequestMessage],
     MessageType.CloseRealtimeModel -> classOf[CloseRealtimeModelRequestMessage],
 

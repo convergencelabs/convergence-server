@@ -4,11 +4,11 @@ object MessageType extends Enumeration {
   val Error = "error"
   val Handshake = "handshake"
 
-  val AuthPassword = "authPassword"
-  val AuthToken = "authToken"
+  val Authentication = "authenticate"
 
-  val OpenRealtimeModel = "openRealtimeModel"
-  val CloseRealtimeModel = "closeRealtimeModel"
+  val CreateRealtimeModel = "createRealTimeModel"
+  val OpenRealtimeModel = "openRealTimeModel"
+  val CloseRealtimeModel = "closeRealTimeModel"
 
   val ModelDataRequest = "modelData"
   val OperationSubmission = "opSubmit"

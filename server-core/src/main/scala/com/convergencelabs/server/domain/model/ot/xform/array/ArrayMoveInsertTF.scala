@@ -12,7 +12,7 @@ import RangeIndexRelationship.Within
 private[ot] object ArrayMoveInsertTF extends OperationTransformationFunction[ArrayMoveOperation, ArrayInsertOperation] {
 
   def transform(s: ArrayMoveOperation, c: ArrayInsertOperation): (ArrayMoveOperation, ArrayInsertOperation) = {
-    ArrayMoveRangeHelper.getMoveDirection(s) match {
+    ArrayMoveHelper.getMoveDirection(s) match {
       case Forward => transformAgainstForwardMove(s, c)
       case Backward => transformAgainstBackwardMove(s, c)
       case Identity => transformAgainstIdentityMove(s, c)
@@ -20,7 +20,7 @@ private[ot] object ArrayMoveInsertTF extends OperationTransformationFunction[Arr
   }
 
   private[this] def transformAgainstForwardMove(s: ArrayMoveOperation, c: ArrayInsertOperation): (ArrayMoveOperation, ArrayInsertOperation) = {
-    ArrayMoveRangeHelper.getRangeIndexRelationship(s, c.index) match {
+    ArrayMoveHelper.getRangeIndexRelationship(s, c.index) match {
       case Before | Start =>
         // A-MI-1 and A-MI-2
         (s.copy(fromIndex = s.fromIndex + 1, toIndex = s.toIndex + 1), c)
@@ -34,7 +34,7 @@ private[ot] object ArrayMoveInsertTF extends OperationTransformationFunction[Arr
   }
 
   private[this] def transformAgainstBackwardMove(s: ArrayMoveOperation, c: ArrayInsertOperation): (ArrayMoveOperation, ArrayInsertOperation) = {
-    ArrayMoveRangeHelper.getRangeIndexRelationship(s, c.index) match {
+    ArrayMoveHelper.getRangeIndexRelationship(s, c.index) match {
       case Before | Start =>
         // A-MI-6 and A-MI-7
         (s.copy(fromIndex = s.fromIndex + 1, toIndex = s.toIndex + 1), c)
@@ -48,7 +48,7 @@ private[ot] object ArrayMoveInsertTF extends OperationTransformationFunction[Arr
   }
 
   private[this] def transformAgainstIdentityMove(s: ArrayMoveOperation, c: ArrayInsertOperation): (ArrayMoveOperation, ArrayInsertOperation) = {
-    ArrayMoveRangeHelper.getRangeIndexRelationship(s, c.index) match {
+    ArrayMoveHelper.getRangeIndexRelationship(s, c.index) match {
       case After =>
         // A-MI-13
         (s, c)

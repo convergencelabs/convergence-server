@@ -189,7 +189,6 @@ class ProtocolConnection(
   }
 
   private[this] def onReply(envelope: MessageEnvelope): Unit = {
-
     val requestId = envelope.reqId.get
     val message = envelope.body
     requests.synchronized({

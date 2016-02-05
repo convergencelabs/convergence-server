@@ -11,173 +11,173 @@ class ArrayMoveRangeHelperSpec extends WordSpec with Matchers {
     "determining the range relationship of two move operations" must {
       "return Precedes when the server move precedes the client move" in {
         val c = MoveMoveCase.Precedes
-        ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRangeRelationship.Precedes
+        ArrayMoveHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRangeRelationship.Precedes
       }
 
       "return PrecededBy when the server move is preceded by the client move" in {
         val c = MoveMoveCase.PrecededBy
-        ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRangeRelationship.PrecededBy
+        ArrayMoveHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRangeRelationship.PrecededBy
       }
 
       "return Meets when the server move meets the client move" in {
         val c = MoveMoveCase.Meets
-        ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRangeRelationship.Meets
+        ArrayMoveHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRangeRelationship.Meets
       }
 
       "return MetBy when the server move is met  by the client move" in {
         val c = MoveMoveCase.MetBy
-        ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRangeRelationship.MetBy
+        ArrayMoveHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRangeRelationship.MetBy
       }
 
       "return Overlaps when the server move overlaps the client move" in {
         val c = MoveMoveCase.Overlaps
-        ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRangeRelationship.Overlaps
+        ArrayMoveHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRangeRelationship.Overlaps
       }
 
       "return OverlappedBy when the server move is overlapped by the client move" in {
         val c = MoveMoveCase.OverlappedBy
-        ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRangeRelationship.OverlappedBy
+        ArrayMoveHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRangeRelationship.OverlappedBy
       }
 
       "return Contains when the server move contains the client move" in {
         val c = MoveMoveCase.Contains
-        ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRangeRelationship.Contains
+        ArrayMoveHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRangeRelationship.Contains
       }
 
       "return ContainedBy when the server move is contained by the client move" in {
         val c = MoveMoveCase.ContainedBy
-        ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRangeRelationship.ContainedBy
+        ArrayMoveHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRangeRelationship.ContainedBy
       }
 
       "return Finishes when the server move finishes the client move" in {
         val c = MoveMoveCase.Finishes
-        ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRangeRelationship.Finishes
+        ArrayMoveHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRangeRelationship.Finishes
       }
 
       "return FinishedBy when the server move is finished by the client move" in {
         val c = MoveMoveCase.FinishedBy
-        ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRangeRelationship.FinishedBy
+        ArrayMoveHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRangeRelationship.FinishedBy
       }
 
       "return EqualTo when the server move is equal to the client move" in {
         val c = MoveMoveCase.EqualTo
-        ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRangeRelationship.EqualTo
+        ArrayMoveHelper.getRangeRelationship(c.op1, c.op2) shouldBe RangeRangeRelationship.EqualTo
       }
     }
 
     "evaluating move direction" must {
       "return Forward for a forward move" in {
         val op = ArrayMoveOperation(List(), false, 1, 2)
-        ArrayMoveRangeHelper.getMoveDirection(op) shouldBe MoveDirection.Forward
+        ArrayMoveHelper.getMoveDirection(op) shouldBe MoveDirection.Forward
       }
 
       "return Backward for a forward move" in {
         val op = ArrayMoveOperation(List(), false, 2, 1)
-        ArrayMoveRangeHelper.getMoveDirection(op) shouldBe MoveDirection.Backward
+        ArrayMoveHelper.getMoveDirection(op) shouldBe MoveDirection.Backward
       }
 
       "return Identity for a forward move" in {
         val op = ArrayMoveOperation(List(), false, 2, 2)
-        ArrayMoveRangeHelper.getMoveDirection(op) shouldBe MoveDirection.Identity
+        ArrayMoveHelper.getMoveDirection(op) shouldBe MoveDirection.Identity
       }
     }
 
     "evaluating if a move is of a particular direction" must {
       "identify a forward move as a forward move" in {
         val op = ArrayMoveOperation(List(), false, 1, 2)
-        ArrayMoveRangeHelper.isForwardMove(op) shouldBe true
+        ArrayMoveHelper.isForwardMove(op) shouldBe true
       }
 
       "identify a backward move as not a forward move" in {
         val op = ArrayMoveOperation(List(), false, 2, 1)
-        ArrayMoveRangeHelper.isForwardMove(op) shouldBe false
+        ArrayMoveHelper.isForwardMove(op) shouldBe false
       }
 
       "identify a backward move as a backward move" in {
         val op = ArrayMoveOperation(List(), false, 2, 1)
-        ArrayMoveRangeHelper.isBackwardMoveMove(op) shouldBe true
+        ArrayMoveHelper.isBackwardMoveMove(op) shouldBe true
       }
 
       "identify a forward move as not a backward move" in {
         val op = ArrayMoveOperation(List(), false, 1, 2)
-        ArrayMoveRangeHelper.isBackwardMoveMove(op) shouldBe false
+        ArrayMoveHelper.isBackwardMoveMove(op) shouldBe false
       }
 
       "identify an identity move as an idendity move" in {
         val op = ArrayMoveOperation(List(), false, 1, 1)
-        ArrayMoveRangeHelper.isIdentityMove(op) shouldBe true
+        ArrayMoveHelper.isIdentityMove(op) shouldBe true
       }
 
       "identify a non identity move as not an identity move" in {
         val op = ArrayMoveOperation(List(), false, 2, 1)
-        ArrayMoveRangeHelper.isIdentityMove(op) shouldBe false
+        ArrayMoveHelper.isIdentityMove(op) shouldBe false
       }
     }
 
     "checking if an index is after a range" must {
       "return true if the index is after the range of a forward move" in {
         val op = ArrayMoveOperation(List(), false, 1, 2)
-        ArrayMoveRangeHelper.indexAfterRange(op, 3) shouldBe true
+        ArrayMoveHelper.indexAfterRange(op, 3) shouldBe true
       }
 
       "return true if the index is after the range of a backward move" in {
         val op = ArrayMoveOperation(List(), false, 2, 1)
-        ArrayMoveRangeHelper.indexAfterRange(op, 3) shouldBe true
+        ArrayMoveHelper.indexAfterRange(op, 3) shouldBe true
       }
 
       "return true if the index is after the range of an dentity move" in {
         val op = ArrayMoveOperation(List(), false, 2, 2)
-        ArrayMoveRangeHelper.indexAfterRange(op, 3) shouldBe true
+        ArrayMoveHelper.indexAfterRange(op, 3) shouldBe true
       }
     }
 
     "checking if an index is before a range" must {
       "return true if the index is before the range of a forward move" in {
         val op = ArrayMoveOperation(List(), false, 2, 3)
-        ArrayMoveRangeHelper.indexBeforeRange(op, 1) shouldBe true
+        ArrayMoveHelper.indexBeforeRange(op, 1) shouldBe true
       }
 
       "return true if the index is before the range of a backward move" in {
         val op = ArrayMoveOperation(List(), false, 3, 2)
-        ArrayMoveRangeHelper.indexBeforeRange(op, 1) shouldBe true
+        ArrayMoveHelper.indexBeforeRange(op, 1) shouldBe true
       }
 
       "return true if the index is before the range of an identity move" in {
         val op = ArrayMoveOperation(List(), false, 2, 2)
-        ArrayMoveRangeHelper.indexBeforeRange(op, 1) shouldBe true
+        ArrayMoveHelper.indexBeforeRange(op, 1) shouldBe true
       }
     }
 
     "checking if an index is within a range" must {
       "return true if the index is before the range" in {
         val op = ArrayMoveOperation(List(), false, 2, 4)
-        ArrayMoveRangeHelper.indexWithinRange(op, 1) shouldBe false
+        ArrayMoveHelper.indexWithinRange(op, 1) shouldBe false
       }
 
       "return true if the index is at the lower end of the range" in {
         val op = ArrayMoveOperation(List(), false, 2, 4)
-        ArrayMoveRangeHelper.indexWithinRange(op, 2) shouldBe false
+        ArrayMoveHelper.indexWithinRange(op, 2) shouldBe false
       }
 
       "return true if the index is within the range" in {
         val op = ArrayMoveOperation(List(), false, 2, 4)
-        ArrayMoveRangeHelper.indexWithinRange(op, 3) shouldBe true
+        ArrayMoveHelper.indexWithinRange(op, 3) shouldBe true
       }
 
       "return true if the index is at the upper end of the range" in {
         val op = ArrayMoveOperation(List(), false, 2, 4)
-        ArrayMoveRangeHelper.indexWithinRange(op, 4) shouldBe false
+        ArrayMoveHelper.indexWithinRange(op, 4) shouldBe false
       }
 
       "return true if the index is after the range" in {
         val op = ArrayMoveOperation(List(), false, 2, 4)
-        ArrayMoveRangeHelper.indexWithinRange(op, 5) shouldBe false
+        ArrayMoveHelper.indexWithinRange(op, 5) shouldBe false
       }
     }
   }
 
   def validateRangeRelationshipType(c: Case, expected: RangeRangeRelationship.Value): Unit = {
-    ArrayMoveRangeHelper.getRangeRelationship(c.op1, c.op2) shouldBe expected
+    ArrayMoveHelper.getRangeRelationship(c.op1, c.op2) shouldBe expected
   }
 }
 

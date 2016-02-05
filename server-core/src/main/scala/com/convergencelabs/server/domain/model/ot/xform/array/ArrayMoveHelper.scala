@@ -3,7 +3,7 @@ package com.convergencelabs.server.domain.model.ot
 /**
  * A helper class to evaluate positional relationships with Array Move Operations.
  */
-private[ot] object ArrayMoveRangeHelper {
+private[ot] object ArrayMoveHelper {
 
   /**
    * Determines if a move op is in the forward direction. For this to be true the from
@@ -67,7 +67,7 @@ private[ot] object ArrayMoveRangeHelper {
    *            The index to evaluate
    * @return True if index < min(fromIndex, toIndex), false otherwise.
    */
-  def indexBeforeRange(op: ArrayMoveOperation, index: Long): Boolean = {
+  def indexBeforeRange(op: ArrayMoveOperation, index: Int): Boolean = {
     index < getRangeMin(op)
   }
 
@@ -80,7 +80,7 @@ private[ot] object ArrayMoveRangeHelper {
    *            The index to evaluate
    * @return True if index > max(fromIndex, toIndex), false otherwise.
    */
-  def indexAfterRange(op: ArrayMoveOperation, index: Long): Boolean = {
+  def indexAfterRange(op: ArrayMoveOperation, index: Int): Boolean = {
     index > getRangeMax(op)
   }
 
@@ -94,7 +94,7 @@ private[ot] object ArrayMoveRangeHelper {
    * @return True if index < max(fromIndex, toIndex) && index > min(fromIndex, toIndex), false
    *         otherwise.
    */
-  def indexWithinRange(op: ArrayMoveOperation, index: Long): Boolean = {
+  def indexWithinRange(op: ArrayMoveOperation, index: Int): Boolean = {
     index > getRangeMin(op) && index < getRangeMax(op)
   }
 

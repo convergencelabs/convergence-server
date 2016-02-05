@@ -239,14 +239,14 @@ class OperationTransformerSpec
   }
 
   class ObsoletePathTransform extends PathTransformationFunction[DiscreteOperation] {
-    def transformDescendantPath(a: DiscreteOperation, path: List[_]): PathTrasformation = PathObsoleted
+    def transformDescendantPath(a: DiscreteOperation, path: List[_]): PathTransformation = PathObsoleted
   }
 
   class NoPathTransform extends PathTransformationFunction[DiscreteOperation] {
-    def transformDescendantPath(a: DiscreteOperation, path: List[_]): PathTrasformation = NoPathTransformation
+    def transformDescendantPath(a: DiscreteOperation, path: List[_]): PathTransformation = NoPathTransformation
   }
 
   class PathUpdatedTransform extends PathTransformationFunction[DiscreteOperation] {
-    def transformDescendantPath(a: DiscreteOperation, path: List[_]): PathTrasformation = new PathUpdated(List("updated"))
+    def transformDescendantPath(a: DiscreteOperation, path: List[_]): PathTransformation = new PathUpdated(List("updated"))
   }
 }

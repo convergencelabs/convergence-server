@@ -123,7 +123,11 @@ class RealtimeModelActor(
       case Success(true) =>
         requestModelDataFromDatastore()
       case Success(false) =>
-        requestModelDataFromClient(request.clientActor)
+        if (request.initializerProvided) {
+          requestModelDataFromClient(request.clientActor)
+        } else {
+          sender ! NoSuchModel
+        }
       case Failure(cause) =>
         log.error(cause, "Unable to determine if a model exists.")
         handleInitializationFailure(UnknownErrorResponse(
@@ -144,7 +148,12 @@ class RealtimeModelActor(
     // However, if we are not persistent, we have already asked the previous opening client
     // for the data, but we will ask this client too, in case the others fail.
     modelStore.modelExists(modelFqn) match {
-      case Success(false) => requestModelDataFromClient(request.clientActor)
+      case Success(false) => 
+        if (request.initializerProvided) {
+          // Otherwise this client has nothing for us, but there is at least one 
+          // other client in the mix.
+          requestModelDataFromClient(request.clientActor)
+        }
       case Success(true) => // No action required
       case Failure(cause) =>
         log.error(cause,
