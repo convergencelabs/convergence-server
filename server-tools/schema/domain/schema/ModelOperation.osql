@@ -32,9 +32,9 @@ ALTER PROPERTY ModelOperation.sid MANDATORY true;
 ALTER PROPERTY ModelOperation.sid NOTNULL true;
 
 #ModelOperation.op
-CREATE Property ModelOperation.op EMBEDDED Operation;
-ALTER PROPERTY ModelOperation.op MANDATORY true;
-ALTER PROPERTY ModelOperation.op NOTNULL true;
+#CREATE Property ModelOperation.op ANY;
+#ALTER PROPERTY ModelOperation.op MANDATORY true;
+#ALTER PROPERTY ModelOperation.op NOTNULL true;
 
 #ModelOperation Indexes
 CREATE INDEX ModelOperation.collectionId_modelId_version ON ModelOperation (collectionId, modelId, version) UNIQUE;

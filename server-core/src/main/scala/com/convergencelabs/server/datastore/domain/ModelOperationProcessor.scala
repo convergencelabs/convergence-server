@@ -1,6 +1,7 @@
 package com.convergencelabs.server.datastore.domain
 
 import java.time.Instant
+import java.util.Date
 
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.util.Try
@@ -37,8 +38,6 @@ import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.orientechnologies.orient.core.sql.OCommandSQL
 
-import mapper.ModelOperationMapper.ModelOperationToODocument
-
 class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     extends AbstractDatabasePersistence(dbPool) {
 
@@ -56,7 +55,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     applyOperationToModel(modelOperation.modelFqn, modelOperation.op, db)
 
     // Persist the operation
-    db.save(modelOperation.asODocument)
+    //db.save(modelOperation.asODocument)
 
     // Update the model metadata
     updateModelMetaData(modelOperation.modelFqn, modelOperation.timestamp, db)
@@ -65,10 +64,24 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
   }
 
   private[this] def updateModelMetaData(fqn: ModelFqn, timestamp: Instant, db: ODatabaseDocumentTx): Unit = {
-    val queryString = "UPDATE Model SET version = eval('version + 1'), modifiedTime = :timestamp  WHERE collectionId = :collectionId and modelId = :modelId"
+    val queryString = 
+      """UPDATE Model SET
+        |  version = eval('version + 1'),
+        |  modifiedTime = :timestamp
+        |WHERE
+        |  collectionId = :collectionId AND
+        |  modelId = :modelId""".stripMargin
+    
     val updateCommand = new OCommandSQL(queryString)
-    val params = Map(CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, "timestamp" -> timestamp.toEpochMilli())
-    db.command(updateCommand).execute(params.asJava)
+    
+    val params = Map(
+        CollectionId -> fqn.collectionId, 
+        ModelId -> fqn.modelId, 
+        "timestamp" -> Date.from(timestamp))
+        
+    var result: Object = db.command(updateCommand).execute(params.asJava)
+    println("FOOO" + result);
+    Unit
   }
 
   // scalastyle:off cyclomatic.complexity

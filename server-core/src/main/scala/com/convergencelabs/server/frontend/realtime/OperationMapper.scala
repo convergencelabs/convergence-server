@@ -18,6 +18,8 @@ import com.convergencelabs.server.domain.model.ot.Operation
 import com.convergencelabs.server.domain.model.ot.StringInsertOperation
 import com.convergencelabs.server.domain.model.ot.StringRemoveOperation
 import com.convergencelabs.server.domain.model.ot.StringSetOperation
+import org.json4s.JsonAST.JNumber
+import org.json4s.JsonAST.JValue
 
 private[realtime] object OperationMapper {
 
@@ -50,8 +52,8 @@ private[realtime] object OperationMapper {
       case ObjectRemovePropertyOperationData(path, noOp, prop) => ObjectRemovePropertyOperation(path, noOp, prop)
       case ObjectSetOperationData(path, noOp, objectData) => ObjectSetOperation(path, noOp, objectData)
 
-      case NumberAddOperationData(path, noOp, delta) => NumberAddOperation(path, noOp, delta)
-      case NumberSetOperationData(path, noOp, number) => NumberSetOperation(path, noOp, number)
+      case NumberAddOperationData(path, noOp, delta: JNumber) => NumberAddOperation(path, noOp, delta)
+      case NumberSetOperationData(path, noOp, number: JNumber) => NumberSetOperation(path, noOp, number)
 
       case BooleanSetOperationData(path, noOp, value) => BooleanSetOperation(path, noOp, value)
     }
@@ -87,8 +89,8 @@ private[realtime] object OperationMapper {
       case ObjectRemovePropertyOperation(path, noOp, prop) => ObjectRemovePropertyOperationData(path, noOp, prop)
       case ObjectSetOperation(path, noOp, objectData) => ObjectSetOperationData(path, noOp, objectData)
 
-      case NumberAddOperation(path, noOp, delta) => NumberAddOperationData(path, noOp, delta)
-      case NumberSetOperation(path, noOp, number) => NumberSetOperationData(path, noOp, number)
+      case NumberAddOperation(path, noOp, delta) => NumberAddOperationData(path, noOp, delta.asInstanceOf[JValue])
+      case NumberSetOperation(path, noOp, number) => NumberSetOperationData(path, noOp, number.asInstanceOf[JValue])
 
       case BooleanSetOperation(path, noOp, value) => BooleanSetOperationData(path, noOp, value)
     }

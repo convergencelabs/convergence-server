@@ -148,7 +148,7 @@ class RealtimeModelActor(
     // However, if we are not persistent, we have already asked the previous opening client
     // for the data, but we will ask this client too, in case the others fail.
     modelStore.modelExists(modelFqn) match {
-      case Success(false) => 
+      case Success(false) =>
         if (request.initializerProvided) {
           // Otherwise this client has nothing for us, but there is at least one 
           // other client in the mix.
@@ -396,7 +396,7 @@ class RealtimeModelActor(
   /**
    * Attempts to transform the operation and apply it to the data model.
    */
-  private[this] def transformAndApplyOperation(sk: SessionKey, unprocessedOpEvent: UnprocessedOperationEvent): Try[OutgoingOperation] = Try {
+  private[this] def transformAndApplyOperation(sk: SessionKey, unprocessedOpEvent: UnprocessedOperationEvent): Try[OutgoingOperation] = {
     val processedOpEvent = concurrencyControl.processRemoteOperation(unprocessedOpEvent)
 
     val timestamp = Instant.now()
@@ -407,15 +407,15 @@ class RealtimeModelActor(
       timestamp,
       sk.uid,
       sk.sid,
-      processedOpEvent.operation))
-
-    OutgoingOperation(
-      modelResourceId,
-      sk.uid,
-      sk.sid,
-      processedOpEvent.contextVersion,
-      timestamp.toEpochMilli(),
-      processedOpEvent.operation)
+      processedOpEvent.operation)).map { _ =>
+      OutgoingOperation(
+        modelResourceId,
+        sk.uid,
+        sk.sid,
+        processedOpEvent.contextVersion,
+        timestamp.toEpochMilli(),
+        processedOpEvent.operation)
+    }
   }
 
   /**

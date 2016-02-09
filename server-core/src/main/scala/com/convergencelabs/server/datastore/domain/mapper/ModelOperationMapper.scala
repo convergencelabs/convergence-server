@@ -21,8 +21,8 @@ object ModelOperationMapper extends ODocumentMapper {
     val doc = new ODocument(DocumentClassName)
     doc.field(Fields.CollectionId, opEvent.modelFqn.collectionId)
     doc.field(Fields.ModelId, opEvent.modelFqn.modelId)
-    doc.field(Fields.Version, opEvent.version)
-    doc.field(Fields.Timestamp, Date.from(opEvent.timestamp))
+    doc.field(Fields.Version, opEvent.version, OType.LONG)
+    doc.field(Fields.Timestamp, Date.from(opEvent.timestamp), OType.DATETIME)
     doc.field(Fields.Uid, opEvent.uid)
     doc.field(Fields.Sid, opEvent.sid)
     doc.field(Fields.Operation, OrientDBOperationMapper.operationToODocument(opEvent.op))
@@ -52,13 +52,12 @@ object ModelOperationMapper extends ODocumentMapper {
   private[domain] val DocumentClassName = "ModelOperation"
 
   private[domain] object Fields {
-    val Version = "version"
-    val ModelId = "modelId"
     val CollectionId = "collectionId"
+    val ModelId = "modelId"
+    val Version = "version"
     val Timestamp = "timestamp"
     val Uid = "uid"
     val Sid = "sid"
     val Operation = "op"
-    val Data = "data"
   }
 }

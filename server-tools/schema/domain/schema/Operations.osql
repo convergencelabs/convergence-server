@@ -70,8 +70,8 @@ ALTER PROPERTY ObjectSetPropertyOperation.prop MANDATORY true;
 ALTER PROPERTY ObjectSetPropertyOperation.prop NOTNULL true;
 
 #ObjectSetPropertyOperation.val
-CREATE PROPERTY ObjectSetPropertyOperation.val ANY;
-ALTER PROPERTY ObjectSetPropertyOperation.val MANDATORY true;
+#CREATE PROPERTY ObjectSetPropertyOperation.val ANY;
+#ALTER PROPERTY ObjectSetPropertyOperation.val MANDATORY true;
 
 ###################### ObjectAddPropertyOperation ######################
 
@@ -83,8 +83,8 @@ ALTER PROPERTY ObjectAddPropertyOperation.prop MANDATORY true;
 ALTER PROPERTY ObjectAddPropertyOperation.prop NOTNULL true;
 
 #ObjectAddPropertyOperation.val
-CREATE PROPERTY ObjectAddPropertyOperation.val ANY;
-ALTER PROPERTY ObjectAddPropertyOperation.val MANDATORY true;
+#CREATE PROPERTY ObjectAddPropertyOperation.val ANY;
+#ALTER PROPERTY ObjectAddPropertyOperation.val MANDATORY true;
 
 ###################### ObjectRemovePropertyOperation ######################
 
@@ -109,18 +109,18 @@ ALTER PROPERTY ObjectSetOperation.val NOTNULL true;
 CREATE CLASS NumberAddOperation EXTENDS DiscreteOperation;
 
 #NumberAddOperation.val
-CREATE PROPERTY NumberAddOperation.val ANY;
-ALTER PROPERTY NumberAddOperation.val MANDATORY true;
-ALTER PROPERTY NumberAddOperation.val NOTNULL true;
+#CREATE PROPERTY NumberAddOperation.val ANY;
+#ALTER PROPERTY NumberAddOperation.val MANDATORY true;
+#ALTER PROPERTY NumberAddOperation.val NOTNULL true;
 
 ###################### NumberSetOperation ######################
 
 CREATE CLASS NumberSetOperation EXTENDS DiscreteOperation;
 
 #NumberAddOperation.val
-CREATE PROPERTY NumberSetOperation.val ANY;
-ALTER PROPERTY NumberSetOperation.val MANDATORY true;
-ALTER PROPERTY NumberSetOperation.val NOTNULL true;
+#CREATE PROPERTY NumberSetOperation.val ANY;
+#ALTER PROPERTY NumberSetOperation.val MANDATORY true;
+#ALTER PROPERTY NumberSetOperation.val NOTNULL true;
 
 ###################### ArrayInsertOperation ######################
 
@@ -132,8 +132,8 @@ ALTER PROPERTY ArrayInsertOperation.idx MANDATORY true;
 ALTER PROPERTY ArrayInsertOperation.idx NOTNULL true;
 
 #ArrayInsertOperation.val
-CREATE PROPERTY ArrayInsertOperation.val ANY;
-ALTER PROPERTY ArrayInsertOperation.val MANDATORY true;
+#CREATE PROPERTY ArrayInsertOperation.val ANY;
+#ALTER PROPERTY ArrayInsertOperation.val MANDATORY true;
 
 ###################### ArrayRemoveOperation ######################
 
@@ -154,8 +154,8 @@ ALTER PROPERTY ArrayReplaceOperation.idx MANDATORY true;
 ALTER PROPERTY ArrayReplaceOperation.idx NOTNULL true;
 
 #ArrayReplaceOperation.val
-CREATE PROPERTY ArrayReplaceOperation.val ANY;
-ALTER PROPERTY ArrayReplaceOperation.val MANDATORY true;
+#CREATE PROPERTY ArrayReplaceOperation.val ANY;
+#ALTER PROPERTY ArrayReplaceOperation.val MANDATORY true;
 
 ###################### ArrayMoveOperation ######################
 

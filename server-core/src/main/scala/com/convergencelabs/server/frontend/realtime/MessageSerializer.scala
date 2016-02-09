@@ -100,11 +100,14 @@ object MessageSerializer {
     MessageType.CreateRealtimeModel -> classOf[CreateRealtimeModelRequestMessage],
     MessageType.OpenRealtimeModel -> classOf[OpenRealtimeModelRequestMessage],
     MessageType.CloseRealtimeModel -> classOf[CloseRealtimeModelRequestMessage],
+    MessageType.DeleteRealtimeModel -> classOf[DeleteRealtimeModelRequestMessage],
 
     MessageType.ModelDataRequest -> classOf[ModelDataResponseMessage],
     MessageType.OperationSubmission -> classOf[OperationSubmissionMessage])
 
   private[this] val OutgoingMessages = Map[Class[_], String](
     classOf[ModelDataRequestMessage] -> MessageType.ModelDataRequest,
-    classOf[OperationAcknowledgementMessage] -> MessageType.OperationAck)
+    classOf[OperationAcknowledgementMessage] -> MessageType.OperationAck,
+    classOf[ModelForceCloseMessage] -> MessageType.ModelForceClose,
+    classOf[RemoteOperationMessage] -> MessageType.RemoteOperation)
 }

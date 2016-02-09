@@ -7,10 +7,13 @@ object MessageType extends Enumeration {
   val Authentication = "authenticate"
 
   val CreateRealtimeModel = "createRealTimeModel"
+  val DeleteRealtimeModel = "deleteRealTimeModel"
   val OpenRealtimeModel = "openRealTimeModel"
   val CloseRealtimeModel = "closeRealTimeModel"
+  val ModelForceClose = "forceCloseRealTimeModel"
 
   val ModelDataRequest = "modelData"
   val OperationSubmission = "opSubmit"
   val OperationAck = "opAck"
+  val RemoteOperation = "remoteOp"
 }

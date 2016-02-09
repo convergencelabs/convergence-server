@@ -77,7 +77,7 @@ case class RemoteClientClosedMessage(rId: String, uId: String, sId: String) exte
 case class RemoteClientOpenedMessage(rId: String, uId: String, sId: String) extends OutgoingProtocolNormalMessage
 case class ModelForceCloseMessage(rId: String, reason: String) extends OutgoingProtocolNormalMessage
 
-case class ModelDataRequestMessage(modelFqn: ModelFqnData) extends OutgoingProtocolRequestMessage
+case class ModelDataRequestMessage(fqn: ModelFqnData) extends OutgoingProtocolRequestMessage
 
 //
 // Operations
@@ -110,8 +110,8 @@ case class ObjectRemovePropertyOperationData(path: List[Any], noOp: Boolean, pro
 case class ObjectSetOperationData(path: List[Any], noOp: Boolean, `val`: JObject) extends ObjectOperaitonData
 
 sealed trait NumberOperaitonData extends DiscreteOperationData
-case class NumberAddOperationData(path: List[Any], noOp: Boolean, `val`: JNumber) extends NumberOperaitonData
-case class NumberSetOperationData(path: List[Any], noOp: Boolean, `val`: JNumber) extends NumberOperaitonData
+case class NumberAddOperationData(path: List[Any], noOp: Boolean, `val`: JValue) extends NumberOperaitonData
+case class NumberSetOperationData(path: List[Any], noOp: Boolean, `val`: JValue) extends NumberOperaitonData
 
 sealed trait BooleanOperaitonData extends DiscreteOperationData
 case class BooleanSetOperationData(path: List[Any], noOp: Boolean, `val`: Boolean) extends BooleanOperaitonData
