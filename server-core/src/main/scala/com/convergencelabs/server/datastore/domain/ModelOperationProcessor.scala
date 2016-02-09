@@ -173,7 +173,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
   private[this] def applyObjectRemovePropertyOperation(fqn: ModelFqn, operation: ObjectRemovePropertyOperation, db: ODatabaseDocumentTx): Unit = {
     val pathString = toOrientPath(operation.path)
     val params = Map(CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, "property" -> operation.property)
-    val updateCommand = new OCommandSQL(s"UPDATE model REMOVE $pathString = :property WHERE collectionId = :collectionId and modelId = :modelId")
+    val updateCommand = new OCommandSQL(s"UPDATE Model REMOVE `$pathString` = :property WHERE collectionId = :collectionId and modelId = :modelId")
     db.command(updateCommand).execute(params.asJava)
   }
 
