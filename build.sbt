@@ -1,11 +1,14 @@
 import Dependencies.Compile._
 import Dependencies.Test._
 
-val commonSettings = Seq(
+
+val commonSettings = packSettings ++ Seq(
   organization := "com.convergencelabs",
   scalaVersion := "2.11.7",
   scalacOptions := Seq("-deprecation", "-feature"),
-  fork := true
+  fork := true,
+  packMain := Map("test-server" -> "com.convergencelabs.server.testkit.TestServer"),
+  packResourceDir += (baseDirectory.value / "server-testkit" / "test-server" -> "test-server")
  )
 
 val serverCore = (project in file("server-core")).
@@ -73,32 +76,30 @@ val e2eTests = (project in file("server-e2e-tests")).
   ).
   dependsOn(testkit)
 
+lazy val dockerSettings = Seq(
+  dockerfile in docker := {
+  
+    new Dockerfile {
+      from("java:8")
+      add(new java.io.File("target/pack"), "/opt/convergence")
+      workDir("/opt/convergence/")
+      entryPoint("/opt/convergence/bin/test-server")
+      expose(8080)
+    }
+  }
+)
+
 val root = (project in file(".")).
+  enablePlugins(DockerPlugin).
   configs(Configs.all: _*).
   settings(commonSettings: _*).
   settings(Testing.settings: _*).
+  settings(dockerSettings:_*).
   settings(
-    name := "convergence-server"
+    name := "convergence-server",
+    aggregate in pack := false,
+    aggregate in docker := false
   ).
   aggregate(tools, serverCore, testkit, e2eTests)
   
-
-  
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  docker <<= docker dependsOn pack

@@ -55,6 +55,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     applyOperationToModel(modelOperation.modelFqn, modelOperation.op, db)
 
     // Persist the operation
+    // FIXME this causes an exception
     //db.save(modelOperation.asODocument)
 
     // Update the model metadata
@@ -79,8 +80,8 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
         ModelId -> fqn.modelId, 
         "timestamp" -> Date.from(timestamp))
         
-    var result: Object = db.command(updateCommand).execute(params.asJava)
-    println("FOOO" + result);
+    val result: Object = db.command(updateCommand).execute(params.asJava)
+    
     Unit
   }
 

@@ -52,8 +52,8 @@ private[realtime] object OperationMapper {
       case ObjectRemovePropertyOperationData(path, noOp, prop) => ObjectRemovePropertyOperation(path, noOp, prop)
       case ObjectSetOperationData(path, noOp, objectData) => ObjectSetOperation(path, noOp, objectData)
 
-      case NumberAddOperationData(path, noOp, delta: JNumber) => NumberAddOperation(path, noOp, delta)
-      case NumberSetOperationData(path, noOp, number: JNumber) => NumberSetOperation(path, noOp, number)
+      case NumberAddOperationData(path, noOp, delta) => NumberAddOperation(path, noOp, delta.asInstanceOf[JNumber])
+      case NumberSetOperationData(path, noOp, number) => NumberSetOperation(path, noOp, number.asInstanceOf[JNumber])
 
       case BooleanSetOperationData(path, noOp, value) => BooleanSetOperation(path, noOp, value)
     }
