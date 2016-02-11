@@ -7,6 +7,7 @@ object OrientPathUtil {
     path.foreach { p =>
       p match {
         case p: Int    => pathBuilder.append(s"[$p]")
+        case p: BigInt    => pathBuilder.append(s"[$p]") // FIXME json4 is is giving us BigInts.
         case p: String => pathBuilder.append(s".$p")
       }
     }

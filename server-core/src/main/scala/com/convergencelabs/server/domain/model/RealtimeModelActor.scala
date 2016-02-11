@@ -383,7 +383,7 @@ class RealtimeModelActor(
         if (snapshotRequired()) { executeSnapshot() }
       }
       case Failure(error) => {
-        log.debug("Error applying operation to model, closing client: " + error)
+        log.error(error, "Error applying operation to model, closing client: ");
         concurrencyControl.rollback()
         forceClosedModel(
           sessionKey,
