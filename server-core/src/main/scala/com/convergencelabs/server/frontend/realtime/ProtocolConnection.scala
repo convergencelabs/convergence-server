@@ -125,6 +125,7 @@ class ProtocolConnection(
       case Success(envelope) =>
         handleValidMessage(envelope)
       case Failure(cause) =>
+        logger.error(cause)
         handleInvalidMessage(s"Could not parse JSON message $json")
     }
   }
@@ -134,18 +135,23 @@ class ProtocolConnection(
       logger.debug(MessageSerializer.writeJson(envelope))
     }
 
-    // fixme any performance problem here, refactor?
-    envelope.b match {
-      case m: PingMessage => onPing();
-      case m: PongMessage => onPing();
-      case m: ErrorMessage =>
-        envelope.p match {
-          case Some(_) => onReply(envelope)
-          case _ => onNormalMessage(envelope)
-        }
-      case m: IncomingModelNormalMessage => onNormalMessage(envelope)
-      case m: IncomingProtocolRequestMessage => onRequest(envelope)
-      case m: IncomingProtocolResponseMessage => onReply(envelope)
+    envelope match {
+      case MessageEnvelope(PingMessage(), None, None) => 
+        onPing()
+      case MessageEnvelope(PongMessage(), None, None) => 
+        // No Op
+      case MessageEnvelope(ErrorMessage(_, _), None, Some(_)) => 
+        onReply(envelope)
+      case MessageEnvelope(ErrorMessage(_, _), None, None) => 
+        onNormalMessage(envelope)
+      case MessageEnvelope(msg, None, None) if msg.isInstanceOf[IncomingProtocolNormalMessage] =>
+        onNormalMessage(envelope)
+      case MessageEnvelope(msg, Some(_), None) if msg.isInstanceOf[IncomingProtocolRequestMessage] =>
+        onRequest(envelope)
+      case MessageEnvelope(msg, None, Some(_)) if msg.isInstanceOf[IncomingProtocolResponseMessage] =>
+        onReply(envelope)
+      case _ => 
+        handleInvalidMessage("Invalid messame.")
     }
   }
 
@@ -183,7 +189,7 @@ class ProtocolConnection(
   }
 
   private[this] def onReply(envelope: MessageEnvelope): Unit = {
-    val requestId = envelope.q.get
+    val requestId = envelope.p.get
     val message = envelope.b
     requests.synchronized({
       requests.remove(requestId) match {
@@ -225,7 +231,7 @@ class ProtocolConnection(
 
   class ReplyCallbackImpl(reqId: Long) extends ReplyCallback {
     def reply(message: OutgoingProtocolResponseMessage): Unit = {
-      sendMessage(MessageEnvelope(message, Some(reqId), None))
+      sendMessage(MessageEnvelope(message, None, Some(reqId)))
     }
 
     def unknownError(): Unit = {

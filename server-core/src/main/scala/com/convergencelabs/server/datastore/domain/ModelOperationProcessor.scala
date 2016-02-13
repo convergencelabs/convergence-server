@@ -62,6 +62,8 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     updateModelMetaData(modelOperation.modelFqn, modelOperation.timestamp, db)
 
     db.commit()
+    
+    Unit
   }
 
   private[this] def updateModelMetaData(fqn: ModelFqn, timestamp: Instant, db: ODatabaseDocumentTx): Unit = {

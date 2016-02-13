@@ -68,7 +68,7 @@ case class AuthenticationResponseMessage(s: Boolean, u: Option[String]) extends 
 ///////////////////////////////////////////////////////////////////////////////
 
 sealed trait IncomingModelNormalMessage extends IncomingProtocolNormalMessage
-case class OperationSubmissionMessage(rId: String, seq: Long, v: Long, op: OperationData) extends IncomingModelNormalMessage
+case class OperationSubmissionMessage(r: String, s: Long, v: Long, o: OperationData) extends IncomingModelNormalMessage
 
 sealed trait IncomingModelRequestMessage extends IncomingProtocolRequestMessage
 case class OpenRealtimeModelRequestMessage(c: String, m: String, i: Boolean) extends IncomingModelRequestMessage
@@ -76,7 +76,7 @@ case class CloseRealtimeModelRequestMessage(r: String) extends IncomingModelRequ
 case class CreateRealtimeModelRequestMessage(c: String, m: String, d: JValue) extends IncomingModelRequestMessage
 case class DeleteRealtimeModelRequestMessage(c: String, m: String) extends IncomingModelRequestMessage
 
-case class ModelDataResponseMessage(d: JValue) extends IncomingProtocolResponseMessage
+case class ModelDataResponseMessage(d: JObject) extends IncomingProtocolResponseMessage
 
 // Outgoing Model Messages
 case class OpenRealtimeModelResponseMessage(r: String, v: Long, c: Long, m: Long, d: JValue) extends OutgoingProtocolResponseMessage
@@ -96,7 +96,7 @@ case class ModelDataRequestMessage(c: String, m: String) extends OutgoingProtoco
 //
 sealed trait OperationData
 
-case class CompoundOperationData(ops: List[DiscreteOperationData]) extends OperationData
+case class CompoundOperationData(o: List[DiscreteOperationData]) extends OperationData
 
 sealed trait DiscreteOperationData extends OperationData {
   def path: List[Any]

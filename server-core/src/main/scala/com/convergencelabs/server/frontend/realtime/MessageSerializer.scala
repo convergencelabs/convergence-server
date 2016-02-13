@@ -42,7 +42,13 @@ object MessageSerializer {
     OperationType.BooleanValue -> classOf[BooleanSetOperationData]))
 
   private[this] val incomingMessageSerializer = new TypeMapSerializer[ProtocolMessage]("t", Map(
+    MessageType.Ping -> classOf[PingMessage],
+    MessageType.Pong -> classOf[PongMessage],
+    
+    MessageType.Error -> classOf[ErrorMessage],
+
     MessageType.HandshakeRequest -> classOf[HandshakeRequestMessage],
+    MessageType.HandshakeResponse -> classOf[HandshakeResponseMessage],
 
     MessageType.PasswordAuthRequest -> classOf[PasswordAuthRequestMessage],
     MessageType.TokenAuthRequest -> classOf[TokenAuthRequestMessage],
@@ -58,8 +64,8 @@ object MessageSerializer {
     MessageType.ModelDataRequest -> classOf[ModelDataRequestMessage],
     MessageType.OperationAck -> classOf[OperationAcknowledgementMessage],
     MessageType.ForceCloseRealTimeModel -> classOf[ModelForceCloseMessage],
-    MessageType.RemoteOperation ->classOf[RemoteOperationMessage]
-  ))
+    MessageType.RemoteOperation -> classOf[RemoteOperationMessage]),
+    DefaultFormats + operationSerializer)
 
-  private[this] implicit val formats = DefaultFormats + operationSerializer + incomingMessageSerializer
+  private[this] implicit val formats = DefaultFormats + incomingMessageSerializer
 }

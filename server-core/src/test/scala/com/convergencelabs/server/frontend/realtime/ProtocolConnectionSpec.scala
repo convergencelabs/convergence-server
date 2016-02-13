@@ -27,7 +27,8 @@ import com.convergencelabs.server.ProtocolConfiguration
 import com.convergencelabs.server.util.concurrent.UnexpectedErrorException
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
-import com.convergencelabs.server.frontend.realtime.PingMessage
+import org.json4s.JsonAST.JInt
+import org.json4s.JsonAST.JObject
 
 // scalastyle:off magic.number
 class ProtocolConnectionSpec
@@ -60,7 +61,7 @@ class ProtocolConnectionSpec
 
         val sentMessage = socket.expectSentMessage(10 millis)
         val sentEnvelope = MessageSerializer.readJson[MessageEnvelope](sentMessage)
-        
+
         sentEnvelope.q shouldBe None
         sentEnvelope.b shouldBe toSend
       }
@@ -153,6 +154,7 @@ class ProtocolConnectionSpec
           Some(1L),
           None)
         val json = MessageSerializer.writeJson(envelope)
+        println(json)
         socket.fireOnMessage(json)
 
         val ConnectionError(x) = receiver.expectEventClass(10 millis, classOf[ConnectionError])
@@ -172,7 +174,7 @@ class ProtocolConnectionSpec
         val sentMessage = socket.expectSentMessage(10 millis)
         val sentEnvelope = MessageSerializer.readJson[MessageEnvelope](sentMessage)
 
-        sentEnvelope shouldBe MessageEnvelope(PingMessage(), None, None)
+        sentEnvelope shouldBe MessageEnvelope(PongMessage(), None, None)
       }
     }
 
@@ -223,7 +225,7 @@ class ProtocolConnectionSpec
 
         val sentMessage = socket.expectSentMessage(20 millis)
         val sentEnvelope = MessageEnvelope(sentMessage).success.value
-        
+
         val errorMessage = sentEnvelope.b.asInstanceOf[ErrorMessage]
         errorMessage.c shouldBe code
         errorMessage.d shouldBe details
@@ -275,7 +277,7 @@ class ProtocolConnectionSpec
     "receiving a reply" must {
 
       "ignore when the reply has no request" in new TestFixture {
-        val message = HandshakeResponseMessage(true, None, Some(""), Some(""), None, None)
+        val message = ModelDataResponseMessage(JObject())
         val envelope = MessageEnvelope(message, None, Some(1L))
 
         val json = MessageSerializer.writeJson(envelope)
@@ -289,7 +291,7 @@ class ProtocolConnectionSpec
         val sentMessage = socket.expectSentMessage(10 millis)
         val sentEnvelope = MessageSerializer.readJson[MessageEnvelope](sentMessage)
 
-        val replyMessage = ModelDataResponseMessage(JString(""))
+        val replyMessage = ModelDataResponseMessage(JObject())
         val replyEnvelope = MessageEnvelope(replyMessage, None, sentEnvelope.q)
 
         val replyJson = MessageSerializer.writeJson(replyEnvelope)

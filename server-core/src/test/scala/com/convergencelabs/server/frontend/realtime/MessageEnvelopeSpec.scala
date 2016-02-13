@@ -32,13 +32,9 @@ class MessageEnvelopeSpec
       }
 
       "return a success when applying from valid JSON" in {
-
-        val jValue = ("q" -> 1) ~ ("b" -> ("r" -> false))
-
-        val json = compact(render(jValue))
-
-        MessageEnvelope(json).success.value shouldBe MessageEnvelope(
-          HandshakeRequestMessage(false, None), Some(1L), None)
+        val expected = MessageEnvelope(new ModelDataResponseMessage(JObject()), None, Some(1L))
+        val json = MessageSerializer.writeJson(expected)
+        MessageEnvelope(json).success.value shouldBe expected
       }
     }
   }
