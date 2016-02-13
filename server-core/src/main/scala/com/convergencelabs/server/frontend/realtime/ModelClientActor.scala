@@ -120,7 +120,7 @@ class ModelClientActor(
   def onClientModelDataRequest(dataRequest: ClientModelDataRequest): Unit = {
     val ClientModelDataRequest(ModelFqn(collectionId, modelId)) = dataRequest
     val askingActor = sender
-    val future = context.parent ? ModelDataRequestMessage(ModelFqnData(collectionId, modelId))
+    val future = context.parent ? ModelDataRequestMessage(collectionId, modelId)
     future.mapResponse[ModelDataResponseMessage] onComplete {
       case Success(ModelDataResponseMessage(data)) => {
         askingActor ! ClientModelDataResponse(data)
@@ -158,9 +158,8 @@ class ModelClientActor(
   }
 
   def onOpenRealtimeModelRequest(request: OpenRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
-    val ModelFqnData(collectionId, modelId) = request.fqn
     val future = modelManager ? OpenRealtimeModelRequest(
-        userId, sessionId, ModelFqn(collectionId, modelId), request.init, self)
+        userId, sessionId, ModelFqn(request.c, request.m), request.i, self)
     future.mapResponse[OpenModelResponse] onComplete {
       case Success(OpenModelSuccess(realtimeModelActor, modelResourceId, metaData, modelData)) => {
         openRealtimeModels += (modelResourceId -> realtimeModelActor)
@@ -191,12 +190,12 @@ class ModelClientActor(
   }
 
   def onCloseRealtimeModelRequest(request: CloseRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
-    openRealtimeModels.get(request.rId) match {
+    openRealtimeModels.get(request.r) match {
       case Some(modelActor) =>
         val future = modelActor ? CloseRealtimeModelRequest(userId, sessionId)
         future.mapResponse[CloseRealtimeModelSuccess] onComplete {
           case Success(CloseRealtimeModelSuccess()) =>
-            openRealtimeModels -= request.rId
+            openRealtimeModels -= request.r
             cb.reply(SuccessMessage())
           case Failure(cause) =>
             cb.unexpectedError("could not close model")
@@ -207,7 +206,7 @@ class ModelClientActor(
   }
 
   def onCreateRealtimeModelRequest(request: CreateRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
-    val CreateRealtimeModelRequestMessage(ModelFqnData(collectionId, modelId), data) = request
+    val CreateRealtimeModelRequestMessage(collectionId, modelId, data) = request
     val future = modelManager ? CreateModelRequest(ModelFqn(collectionId, modelId), data)
     future.mapResponse[CreateModelResponse] onComplete {
       case Success(ModelCreated) => cb.reply(SuccessMessage())
@@ -217,7 +216,7 @@ class ModelClientActor(
   }
 
   def onDeleteRealtimeModelRequest(request: DeleteRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
-    val DeleteRealtimeModelRequestMessage(ModelFqnData(collectionId, modelId)) = request
+    val DeleteRealtimeModelRequestMessage(collectionId, modelId) = request
     val future = modelManager ? DeleteModelRequest(ModelFqn(collectionId, modelId))
     future.mapResponse[DeleteModelResponse] onComplete {
       case Success(ModelDeleted) => cb.reply(SuccessMessage())

@@ -6,8 +6,8 @@ import org.json4s.JsonAST.JValue
 import org.json4s.jackson.Serialization.read
 import org.json4s.jackson.Serialization.write
 import org.json4s.reflect.Reflector
-
 import com.convergencelabs.server.util.BiMap
+import com.convergencelabs.server.frontend.realtime.model.OperationType
 
 object MessageSerializer {
 
@@ -19,95 +19,47 @@ object MessageSerializer {
     read(json)
   }
 
-  def extractBody(envelope: MessageEnvelope): ProtocolMessage = {
-    val t = envelope.`type`.get
-    val body = envelope.body.get
-    val clazz = IncomingMessages.getValue(t).get
-    extractBody(body, clazz).asInstanceOf[ProtocolMessage]
-  }
-
-  def extractBody(body: JValue, t: String): ProtocolMessage = {
-    val clazz = IncomingMessages.getValue(t).get
-    extractBody(body, clazz).asInstanceOf[ProtocolMessage]
-  }
-
-  def extractBody[M <: ProtocolMessage](body: JValue, c: Class[M]): M = {
-    Extraction.extract(body, Reflector.scalaTypeOf(c)).asInstanceOf[M]
-  }
-
-  def decomposeBody(body: Option[ProtocolMessage]): Option[JValue] = {
-    body match {
-      case None => None
-      case Some(b) => Some(Extraction.decompose(b))
-    }
-  }
-
-  def typeOfOutgoingMessage(message: Option[OutgoingProtocolMessage]): Option[String] = message match {
-    case None => None
-    case Some(x) => OutgoingMessages.get(x.getClass)
-  }
-
-  def typeOfIncomingMessage(message: Option[IncomingProtocolMessage]): Option[String] = message match {
-    case None => None
-    case Some(x) => IncomingMessages.getKey(x.getClass)
-  }
-
-  def validateMessageEnvelope(envelope: MessageEnvelope): Boolean = {
-    envelope match {
-      case MessageEnvelope(OpCode.Ping, None, None, None) => true
-      case MessageEnvelope(OpCode.Pong, None, None, None) => true
-
-      case MessageEnvelope(OpCode.Request, Some(reqId), Some(tpe), Some(msg)) => true
-
-      case MessageEnvelope(OpCode.Reply, Some(reqId), None, Some(msg)) => true
-      case MessageEnvelope(OpCode.Reply, Some(reqId), Some(MessageType.Error), Some(msg)) => true
-
-      case MessageEnvelope(OpCode.Normal, None, Some(tpe), Some(msg)) => true
-
-      case _ => false
-    }
-  }
-
   private[this] val operationSerializer = new TypeMapSerializer[OperationData]("t", Map(
-    "C" -> classOf[CompoundOperationData],
-    "SI" -> classOf[StringInsertOperationData],
-    "SR" -> classOf[StringRemoveOperationData],
-    "SS" -> classOf[StringSetOperationData],
+    OperationType.Compound -> classOf[CompoundOperationData],
+    OperationType.StringInsert -> classOf[StringInsertOperationData],
+    OperationType.StringRemove -> classOf[StringRemoveOperationData],
+    OperationType.StringValue -> classOf[StringSetOperationData],
 
-    "AI" -> classOf[ArrayInsertOperationData],
-    "AR" -> classOf[ArrayRemoveOperationData],
-    "AP" -> classOf[ArrayReplaceOperationData],
-    "AM" -> classOf[ArrayMoveOperationData],
-    "AS" -> classOf[ArraySetOperationData],
+    OperationType.ArrayInsert -> classOf[ArrayInsertOperationData],
+    OperationType.ArrayRemove -> classOf[ArrayRemoveOperationData],
+    OperationType.ArraySet -> classOf[ArrayReplaceOperationData],
+    OperationType.ArrayReorder -> classOf[ArrayMoveOperationData],
+    OperationType.ArrayValue -> classOf[ArraySetOperationData],
 
-    "OA" -> classOf[ObjectAddPropertyOperationData],
-    "OP" -> classOf[ObjectSetPropertyOperationData],
-    "OR" -> classOf[ObjectRemovePropertyOperationData],
-    "OS" -> classOf[ObjectSetOperationData],
+    OperationType.ObjectAdd -> classOf[ObjectAddPropertyOperationData],
+    OperationType.ObjectSet -> classOf[ObjectSetPropertyOperationData],
+    OperationType.ObjectRemove -> classOf[ObjectRemovePropertyOperationData],
+    OperationType.ObjectValue -> classOf[ObjectSetOperationData],
 
-    "NA" -> classOf[NumberAddOperationData],
-    "NS" -> classOf[NumberSetOperationData],
+    OperationType.NumberAdd -> classOf[NumberAddOperationData],
+    OperationType.NumberValue -> classOf[NumberSetOperationData],
 
-    "BS" -> classOf[BooleanSetOperationData]))
+    OperationType.BooleanValue -> classOf[BooleanSetOperationData]))
 
-  private[this] implicit val formats = DefaultFormats + operationSerializer
+  private[this] val incomingMessageSerializer = new TypeMapSerializer[ProtocolMessage]("t", Map(
+    MessageType.HandshakeRequest -> classOf[HandshakeRequestMessage],
 
-  private[this] val IncomingMessages = new BiMap[String, Class[_ <: ProtocolMessage]](
-    MessageType.Handshake -> classOf[HandshakeRequestMessage],
+    MessageType.PasswordAuthRequest -> classOf[PasswordAuthRequestMessage],
+    MessageType.TokenAuthRequest -> classOf[TokenAuthRequestMessage],
 
-    MessageType.Authentication -> classOf[AuthenticationRequestMessage],
+    MessageType.CreateRealTimeModelRequest -> classOf[CreateRealtimeModelRequestMessage],
+    MessageType.OpenRealTimeModelRequest -> classOf[OpenRealtimeModelRequestMessage],
+    MessageType.CloseRealTimeModelRequest -> classOf[CloseRealtimeModelRequestMessage],
+    MessageType.DeleteRealtimeModelRequest -> classOf[DeleteRealtimeModelRequestMessage],
 
-    MessageType.CreateRealtimeModel -> classOf[CreateRealtimeModelRequestMessage],
-    MessageType.OpenRealtimeModel -> classOf[OpenRealtimeModelRequestMessage],
-    MessageType.CloseRealtimeModel -> classOf[CloseRealtimeModelRequestMessage],
-    MessageType.DeleteRealtimeModel -> classOf[DeleteRealtimeModelRequestMessage],
+    MessageType.ModelDataResponse -> classOf[ModelDataResponseMessage],
+    MessageType.OperationSubmission -> classOf[OperationSubmissionMessage],
 
-    MessageType.ModelDataRequest -> classOf[ModelDataResponseMessage],
-    MessageType.OperationSubmission -> classOf[OperationSubmissionMessage])
+    MessageType.ModelDataRequest -> classOf[ModelDataRequestMessage],
+    MessageType.OperationAck -> classOf[OperationAcknowledgementMessage],
+    MessageType.ForceCloseRealTimeModel -> classOf[ModelForceCloseMessage],
+    MessageType.RemoteOperation ->classOf[RemoteOperationMessage]
+  ))
 
-  private[this] val OutgoingMessages = Map[Class[_], String](
-    classOf[ModelDataRequestMessage] -> MessageType.ModelDataRequest,
-    classOf[OperationAcknowledgementMessage] -> MessageType.OperationAck,
-    classOf[ModelForceCloseMessage] -> MessageType.ModelForceClose,
-    classOf[RemoteOperationMessage] -> MessageType.RemoteOperation)
+  private[this] implicit val formats = DefaultFormats + operationSerializer + incomingMessageSerializer
 }
