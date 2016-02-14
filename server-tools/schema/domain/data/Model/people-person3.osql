@@ -1,0 +1,14 @@
+INSERT INTO Model SET
+  collectionId = "people",
+  modelId = "person3",
+  version = 0,
+  createdTime = DATE("2015-10-20 03:00:00"),
+  modifiedTime = DATE("2015-10-20 3:00:00"),
+  data = {
+    "fname": "jim",
+    "lname": "doe",
+    "married": flase,
+    "age": 24,
+    "spouse": null,
+    "emails": []
+  };

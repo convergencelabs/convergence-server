@@ -1,0 +1,17 @@
+{
+  "serverOpType": "StringRemove",
+  "clientOpType": "StringSet",
+  "cases": [
+    {
+      "id": "S-RS-1",
+      "input": {
+        "serverOp": {"type": "StringRemove", "noOp": false, "index": 1, "value": "BCD"},
+        "clientOp": {"type": "StringSet", "noOp": false, "value": "VALUE"}
+      },
+      "output": {
+        "serverOp": {"type": "StringRemove", "noOp": true, "index": 1, "value": "BCD"},
+        "clientOp": {"type": "StringSet", "noOp": false, "value": "VALUE"}
+      }
+    }
+  ]
+}

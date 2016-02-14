@@ -1,0 +1,59 @@
+{
+  "outputFile": "domain.json.gz",
+  "schemaScripts": [
+    "domain/schema/ModelSnapshotConfig.osql",
+    "domain/schema/TokenPublicKey.osql",
+    "domain/schema/DomainConfig.osql",
+    "domain/schema/Model.osql",
+    "domain/schema/ModelSnapshot.osql",
+    "domain/schema/Operations.osql",
+    "domain/schema/ModelOperation.osql",
+    "domain/schema/User.osql",
+    "domain/schema/UserCredential.osql",
+    "domain/schema/OFunctions.osql"
+  ],
+  "dataScripts": [
+    "domain/data/DomainConfig/domainConfig.osql",
+  
+    "domain/data/Model/company-company1.osql",
+    "domain/data/ModelSnapshot/company-company1-0.osql",
+  
+    "domain/data/Model/people-person1.osql",
+    
+    "domain/data/ModelOperation/people-person1-01.osql",
+    "domain/data/ModelOperation/people-person1-02.osql",
+    "domain/data/ModelOperation/people-person1-03.osql",
+    "domain/data/ModelOperation/people-person1-04.osql",
+    "domain/data/ModelOperation/people-person1-05.osql",
+    "domain/data/ModelOperation/people-person1-06.osql",
+    "domain/data/ModelOperation/people-person1-07.osql",
+    "domain/data/ModelOperation/people-person1-08.osql",
+    "domain/data/ModelOperation/people-person1-09.osql",
+    "domain/data/ModelOperation/people-person1-10.osql",
+    "domain/data/ModelOperation/people-person1-11.osql",
+    "domain/data/ModelOperation/people-person1-12.osql",
+    "domain/data/ModelOperation/people-person1-13.osql",
+    "domain/data/ModelOperation/people-person1-14.osql",
+    "domain/data/ModelOperation/people-person1-15.osql",
+    
+    "domain/data/ModelSnapshot/people-person1-0.osql",
+    "domain/data/ModelSnapshot/people-person1-10.osql",
+    "domain/data/ModelSnapshot/people-person1-20.osql",
+    
+    "domain/data/Model/people-person2.osql",
+    "domain/data/ModelSnapshot/people-person2-0.osql",
+    
+    "domain/data/Model/people-person3.osql",
+    "domain/data/ModelSnapshot/people-person3-0.osql",
+    
+    "domain/data/User/u0.osql",
+    "domain/data/UserCredential/u0.osql",
+    
+    "domain/data/User/u1.osql",
+    "domain/data/UserCredential/u1.osql",
+    
+    "domain/data/User/u2.osql",
+    "domain/data/UserCredential/u2.osql"
+    
+  ]
+}

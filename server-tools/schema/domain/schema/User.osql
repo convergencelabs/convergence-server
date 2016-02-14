@@ -1,0 +1,26 @@
+CREATE CLASS User;
+
+#User.uid
+CREATE Property User.uid STRING;
+ALTER PROPERTY User.uid MANDATORY true;
+ALTER PROPERTY User.uid NOTNULL true;
+
+#User.username
+CREATE Property User.username STRING;
+ALTER PROPERTY User.username MANDATORY true;
+ALTER PROPERTY User.username NOTNULL true;
+
+#User.email
+CREATE Property User.email STRING;
+
+#User.firstName
+CREATE Property User.firstName STRING;
+
+#User.lastName
+CREATE Property User.lastName STRING;
+
+
+#User Indexes
+CREATE INDEX User.uid ON User (uid) UNIQUE;
+CREATE INDEX User.username ON User (username) UNIQUE;
+CREATE INDEX User.email ON User (email) UNIQUE;

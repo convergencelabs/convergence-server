@@ -1,6 +1,9 @@
 # convergence-server
+This is the main repository for the Convergence Backend Server.  The server is developed primarily in Scala and leverages OrientDB and Akka as major frameworks. The project contains the following sub projects:
 
-This is the main repository for the Convergence Backend Server.  The server is developed primarily in Scala and leverages OrientDB and Akka as major frameworks.
+  * **server-core**: The main server code project
+  * **server-tools**: Contains tools used by developers working with the server.
+  * **server-testkit**: Utilities that facilitate testing of the server.
 
 ## Development Requirements
 
@@ -36,5 +39,3 @@ docker run -p 8080:8080 com.convergencelabs/convergence-server
 ```
 
 The -p 8080:8080 links the port on the localhost to the port 8080 in the container.  If you are running on OSX or Windows, you will be running docker in a VM that has an ip address other than local host.  The container will then be running on some other IP.
-
-

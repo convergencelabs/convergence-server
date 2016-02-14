@@ -1,0 +1,14 @@
+CREATE CLASS Configuration;
+
+#Configuration.key
+CREATE Property Configuration.key STRING;
+ALTER PROPERTY Configuration.key MANDATORY true;
+ALTER PROPERTY Configuration.key NOTNULL true;
+
+#Configuration.value
+CREATE Property Configuration.value ANY;
+ALTER PROPERTY Configuration.value MANDATORY true;
+ALTER PROPERTY Configuration.value NOTNULL true;
+
+#Configuration Indexes
+CREATE INDEX Configuration.configKey ON Configuration (key) UNIQUE;

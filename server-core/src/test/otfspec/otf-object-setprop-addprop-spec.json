@@ -1,0 +1,25 @@
+{
+  "serverOpType": "ObjectSetProperty",
+  "clientOpType": "ObjectAddProperty",
+  "cases": [
+    {
+      "id": "O-TA-1",
+      "input": {
+        "serverOp": {"type": "ObjectSetProperty", "noOp": false, "prop": "B", "value": 4},
+        "clientOp": {"type": "ObjectAddProperty", "noOp": false, "prop": "X", "value": 3}
+      },
+      "output": {
+        "serverOp": {"type": "ObjectSetProperty", "noOp": false, "prop": "B", "value": 4},
+        "clientOp": {"type": "ObjectAddProperty", "noOp": false, "prop": "X", "value": 3}
+      }
+    },
+    {
+      "id": "O-TA-2",
+      "input": {
+        "serverOp": {"type": "ObjectSetProperty", "noOp": false, "prop": "X", "value": 4},
+        "clientOp": {"type": "ObjectAddProperty", "noOp": false, "prop": "X", "value": 3}
+      },
+      "error": true
+    }
+  ]
+}

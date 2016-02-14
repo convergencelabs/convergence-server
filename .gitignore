@@ -1,0 +1,13 @@
+project/project
+project/target
+target
+/bin/
+.worksheet
+.cache-main
+.cache-tests
+.settings
+.project
+.classpath
+.history
+server-tools/convergence.json.gz
+server-tools/domain.json.gz

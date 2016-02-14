@@ -1,0 +1,16 @@
+INSERT INTO ModelOperation SET
+  collectionId = "people",
+  modelId = "person1",
+  timestamp = DATE("2015-10-20 11:00:00"),
+  uid = "u0",
+  sid = "u0-1",
+  version = 11,
+  op = {
+	"@class":"ObjectSetOperation",
+    "noOp": false,
+    "path": [spouse],
+    "val": {
+      "fname": jane,
+      "lname": smith
+    }
+  };

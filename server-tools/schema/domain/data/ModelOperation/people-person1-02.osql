@@ -1,0 +1,14 @@
+INSERT INTO ModelOperation SET
+  collectionId = "people",
+  modelId = "person1",
+  timestamp = DATE("2015-10-20 02:00:00"),
+  uid = "u0",
+  sid = "u0-1",
+  version = 2,
+  op = {
+	"@class":"ArrayMoveOperation",
+    "fromIdx": 1, 
+    "toIdx": 2,
+    "noOp": false,
+    "path": ["emails"]
+  };

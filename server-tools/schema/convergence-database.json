@@ -1,0 +1,14 @@
+{
+  "outputFile": "convergence.json.gz",
+  "schemaScripts": [
+    "convergence/schema/Configuration.osql",
+    "convergence/schema/Domain.osql",
+    "convergence/schema/User.osql"
+  ],
+  "dataScripts": [
+    "convergence/data/Configuration/configuration.osql",
+    "convergence/data/Domain/namespace1-domain1.osql",
+    "convergence/data/Domain/namespace1-domain2.osql",
+    "convergence/data/Domain/namespace2-domain1.osql"
+  ]
+}

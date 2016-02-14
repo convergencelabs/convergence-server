@@ -1,0 +1,40 @@
+{
+  "serverOpType": "ArrayRemove",
+  "clientOpType": "ArrayRemove",
+  "cases": [
+    {
+      "id": "A-RR-1",
+      "input": {
+        "serverOp": {"type": "ArrayRemove", "noOp": false, "index": 4},
+        "clientOp": {"type": "ArrayRemove", "noOp": false, "index": 5}
+      
+      },
+      "output": {
+        "serverOp": {"type": "ArrayRemove", "noOp": false, "index": 4},
+        "clientOp": {"type": "ArrayRemove", "noOp": false, "index": 4}
+      }
+    },
+    {
+      "id": "A-RR-2",
+      "input": {
+        "serverOp": {"type": "ArrayRemove", "noOp": false, "index": 4},
+        "clientOp": {"type": "ArrayRemove", "noOp": false, "index": 4}
+      },
+      "output": {
+        "serverOp": {"type": "ArrayRemove", "noOp": true, "index": 4},
+        "clientOp": {"type": "ArrayRemove", "noOp": true, "index": 4}
+      }
+    },
+    {
+      "id": "A-RR-3",
+      "input": {
+        "serverOp": {"type": "ArrayRemove", "noOp": false, "index": 5},
+        "clientOp": {"type": "ArrayRemove", "noOp": false, "index": 4}
+      },
+      "output": {
+        "serverOp": {"type": "ArrayRemove", "noOp": false, "index": 4},
+        "clientOp": {"type": "ArrayRemove", "noOp": false, "index": 4}
+      }
+    }
+  ]
+}

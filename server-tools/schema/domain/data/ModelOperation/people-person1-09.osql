@@ -1,0 +1,14 @@
+INSERT INTO ModelOperation SET
+  collectionId = "people",
+  modelId = "person1",
+  timestamp = DATE("2015-10-20 09:00:00"),
+  uid = "u0",
+  sid = "u0-1",
+  version = 9,
+  op = {
+	"@class":"ObjectAddPropertyOperation",
+    "prop": "cell",
+    "noOp": false,
+    "path": [],
+    "val": "555-555-5555"
+  };

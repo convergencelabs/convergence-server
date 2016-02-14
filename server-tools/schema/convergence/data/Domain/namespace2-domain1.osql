@@ -1,0 +1,7 @@
+INSERT INTO Domain SET 
+  id = "namespace2-domain1",
+  namespace = "namespace2",
+  domainId = "domain1",
+  displayName = "Test Domain 3",
+  dbUsername = "admin",
+  dbPassword = "admin";

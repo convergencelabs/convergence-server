@@ -1,0 +1,81 @@
+# abs
+INSERT INTO OFunction SET
+  idempotent = false,
+  code = "return Math.abs(parseInt(val));",
+  name ="abs",
+  language = "javascript",
+  parameters = [
+    "val"
+  ];
+
+# stringInsert
+INSERT INTO OFunction SET
+  idempotent = false,
+  code = "var idx = parseInt(index);\nreturn text.slice(0,idx) + value + text.slice(idx);",
+  name ="stringInsert",
+  language = "javascript",
+  parameters = [
+    "text",
+    "index",
+    "value"
+  ];
+  
+# stringRemove
+INSERT INTO OFunction SET
+  idempotent = false,
+  code = "var idx = parseInt(index);\nreturn text.slice(0,idx) + text.slice(idx + length);",
+  name ="stringRemove",
+  language = "javascript",
+  parameters = [
+    "text",
+    "index",
+    "value"
+  ];
+  
+
+# arrayInsert
+INSERT INTO OFunction SET
+  idempotent = false,
+  code = "var idx = parseInt(index);\narray.add(idx, value);\nreturn array;",
+  name ="arrayInsert",
+  language = "javascript",
+  parameters = [
+    "array",
+    "index",
+    "value"
+  ];
+  
+# arrayRemove
+INSERT INTO OFunction SET
+  idempotent = false,
+  code = "var idx = parseInt(index);\narray.remove(idx);\nreturn array;",
+  name ="arrayRemove",
+  language = "javascript",
+  parameters = [
+    "array",
+    "index"
+  ];
+  
+# arrayReplace
+INSERT INTO OFunction SET
+  idempotent = false,
+  code = "var idx = parseInt(index);\narray.set(idx, value);\nreturn array;",
+  name ="arrayReplace",
+  language = "javascript",
+  parameters = [
+    "array",
+    "index",
+    "value"
+  ];
+  
+# arrayMove
+INSERT INTO OFunction SET
+  idempotent = false,
+  code = "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;",
+  name ="arrayMove",
+  language = "javascript",
+  parameters = [
+    "array",
+    "fromIndex",
+    "toIndex"
+  ];

@@ -1,0 +1,17 @@
+INSERT INTO ModelSnapshot SET
+  collectionId = "people",
+  modelId = "person1",
+  version = 10,
+  timestamp = DATE("2015-10-20 10:00:00"),
+  data = {
+    "fname": "john",
+    "lname": "smith",
+    "age": 37,
+    "married": false,
+    "spouse": null,
+    "emails": [
+      "first@email.com",
+      "second@email.com",
+      "third@email.com"
+    ]
+  };
