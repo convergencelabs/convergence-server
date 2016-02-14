@@ -28,6 +28,8 @@ import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
 import com.convergencelabs.server.UnknownErrorResponse
+import scala.util.Failure
+import scala.util.Success
 
 // FIXME we really only check message types and not data.
 // scalastyle:off magic.number
@@ -186,30 +188,33 @@ class RealtimeModelActorSpec
 
     "receiving an operation" must {
       "send an ack back to the submitting client" in new OneOpenClient {
+        Mockito.when(modelOperationProcessor.processModelOperation(Matchers.any())).thenReturn(Success(()))
         realtimeModelActor.tell(OperationSubmission(0L, modelData.metaData.version, StringInsertOperation(List(), false, 1, "1")), client1.ref)
         val opAck = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OperationAcknowledgement])
       }
 
       "send an operation to other connected clients" in new TwoOpenClients {
-        realtimeModelActor.tell(OperationSubmission(0L, modelData.metaData.version, StringInsertOperation(List(), false, 1, "1")), client1.ref)
-        val opAck = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OperationAcknowledgement])
+        Mockito.when(modelOperationProcessor.processModelOperation(Matchers.any())).thenReturn(Success(()))
 
-        client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OutgoingOperation])
+        realtimeModelActor.tell(OperationSubmission(0L, modelData.metaData.version, StringInsertOperation(List(), false, 1, "1")), client1.ref)
+        val opAck = client1.expectMsgClass(FiniteDuration(120, TimeUnit.SECONDS), classOf[OperationAcknowledgement])
+
+        client2.expectMsgClass(FiniteDuration(120, TimeUnit.SECONDS), classOf[OutgoingOperation])
       }
 
       "close a client that submits an invalid operation" in new TwoOpenClients {
         val badOp = StringInsertOperation(List(), false, 1, "1")
 
         Mockito.when(modelOperationProcessor.processModelOperation(
-          Matchers.any())).thenThrow(new IllegalArgumentException("Invalid Operation"))
+          Matchers.any())).thenReturn(Failure(new IllegalArgumentException("Induced Exception for test: Invalid Operation")))
 
         realtimeModelActor.tell(OperationSubmission(
           0L,
           modelData.metaData.version,
           badOp), client1.ref)
 
-        client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ModelForceClose])
         client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[RemoteClientClosed])
+        client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ModelForceClose])
       }
     }
 

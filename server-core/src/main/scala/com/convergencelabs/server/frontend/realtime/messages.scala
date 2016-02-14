@@ -4,9 +4,9 @@ import org.json4s.JsonAST.JArray
 import org.json4s.JsonAST.JNumber
 import org.json4s.JsonAST.JObject
 import org.json4s.JsonAST.JValue
-
 import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.OpenModelMetaData
+import com.convergencelabs.server.ProtocolConfiguration
 
 // scalastyle:off number.of.types
 
@@ -25,93 +25,67 @@ sealed trait OutgoingProtocolNormalMessage extends OutgoingProtocolMessage
 sealed trait OutgoingProtocolRequestMessage extends OutgoingProtocolMessage
 sealed trait OutgoingProtocolResponseMessage extends OutgoingProtocolMessage
 
+
+case class PingMessage() extends ProtocolMessage
+case class PongMessage() extends ProtocolMessage
+
+
 ///////////////////////////////////////////////////////////////////////////////
 // Client Messages
 ///////////////////////////////////////////////////////////////////////////////
 
-case class ErrorMessage(code: String, details: String) extends OutgoingProtocolResponseMessage
+case class ErrorMessage(c: String, d: String) extends OutgoingProtocolResponseMessage
 case class SuccessMessage() extends OutgoingProtocolResponseMessage
 
 // Handshaking
-case class HandshakeRequestMessage(
-  reconnect: scala.Boolean,
-  reconnectToken: Option[String],
-  options: Option[ProtocolOptionsData]) extends IncomingProtocolRequestMessage
+case class HandshakeRequestMessage(r: scala.Boolean, k: Option[String]) extends IncomingProtocolRequestMessage
 
 case class HandshakeResponseMessage(
-  success: scala.Boolean,
-  error: Option[ErrorData],
-  sessionId: Option[String],
-  reconnectToken: Option[String]) extends OutgoingProtocolResponseMessage
+  s: scala.Boolean, // success
+  e: Option[ErrorData], // error
+  i: Option[String], // sessionId
+  k: Option[String], // token
+  r: Option[scala.Boolean], // retryOk
+  c: Option[ProtocolConfigData]) extends OutgoingProtocolResponseMessage
 
-case class ProtocolOptionsData()
-case class ErrorData(code: String, message: String)
+case class ProtocolConfigData(
+  h: scala.Boolean // heartbeat enabled
+  )
+
+case class ErrorData(
+  c: String, // code
+  d: String // details
+  )
 
 // Authentication Messages
-case class AuthenticationRequestMessage(method: String, token: Option[String], username: Option[String], password: Option[String]) extends IncomingProtocolRequestMessage
-case class AuthenticationResponseMessage(success: Boolean, username: Option[String]) extends OutgoingProtocolResponseMessage
+sealed trait AuthenticationRequestMessage extends IncomingProtocolRequestMessage
+case class PasswordAuthRequestMessage(u: String, p: String) extends AuthenticationRequestMessage
+case class TokenAuthRequestMessage(t: String)  extends AuthenticationRequestMessage
+case class AuthenticationResponseMessage(s: Boolean, u: Option[String]) extends OutgoingProtocolResponseMessage
 
 ///////////////////////////////////////////////////////////////////////////////
 // Model Messages
 ///////////////////////////////////////////////////////////////////////////////
-case class ModelFqnData(cId: String, mId: String)
 
 sealed trait IncomingModelNormalMessage extends IncomingProtocolNormalMessage
-case class OperationSubmissionMessage(rId: String, seq: Long, v: Long, op: OperationData) extends IncomingModelNormalMessage
+case class OperationSubmissionMessage(r: String, s: Long, v: Long, o: OperationData) extends IncomingModelNormalMessage
 
 sealed trait IncomingModelRequestMessage extends IncomingProtocolRequestMessage
-case class OpenRealtimeModelRequestMessage(fqn: ModelFqnData, init: Boolean) extends IncomingModelRequestMessage
-case class CloseRealtimeModelRequestMessage(rId: String) extends IncomingModelRequestMessage
-case class CreateRealtimeModelRequestMessage(fqn: ModelFqnData, data: JValue) extends IncomingModelRequestMessage
-case class DeleteRealtimeModelRequestMessage(fqn: ModelFqnData) extends IncomingModelRequestMessage
+case class OpenRealtimeModelRequestMessage(c: String, m: String, i: Boolean) extends IncomingModelRequestMessage
+case class CloseRealtimeModelRequestMessage(r: String) extends IncomingModelRequestMessage
+case class CreateRealtimeModelRequestMessage(c: String, m: String, d: JValue) extends IncomingModelRequestMessage
+case class DeleteRealtimeModelRequestMessage(c: String, m: String) extends IncomingModelRequestMessage
 
-case class ModelDataResponseMessage(data: JValue) extends IncomingProtocolResponseMessage
+case class ModelDataResponseMessage(d: JObject) extends IncomingProtocolResponseMessage
 
 // Outgoing Model Messages
-case class OpenRealtimeModelResponseMessage(rId: String, v: Long, created: Long, modified: Long, data: JValue) extends OutgoingProtocolResponseMessage
+case class OpenRealtimeModelResponseMessage(r: String, v: Long, c: Long, m: Long, d: JValue) extends OutgoingProtocolResponseMessage
 
-case class OperationAcknowledgementMessage(rId: String, seq: Long, v: Long) extends OutgoingProtocolNormalMessage
-case class RemoteOperationMessage(rId: String, uId: String, sId: String, v: Long, t: Long, op: OperationData) extends OutgoingProtocolNormalMessage
+case class OperationAcknowledgementMessage(r: String, s: Long, v: Long) extends OutgoingProtocolNormalMessage
+case class RemoteOperationMessage(r: String, u: String, s: String, v: Long, p: Long, o: OperationData) extends OutgoingProtocolNormalMessage
 
-case class RemoteClientClosedMessage(rId: String, uId: String, sId: String) extends OutgoingProtocolNormalMessage
-case class RemoteClientOpenedMessage(rId: String, uId: String, sId: String) extends OutgoingProtocolNormalMessage
-case class ModelForceCloseMessage(rId: String, reason: String) extends OutgoingProtocolNormalMessage
+case class RemoteClientClosedMessage(r: String, u: String, s: String) extends OutgoingProtocolNormalMessage
+case class RemoteClientOpenedMessage(r: String, u: String, s: String) extends OutgoingProtocolNormalMessage
+case class ModelForceCloseMessage(r: String, s: String) extends OutgoingProtocolNormalMessage
 
-case class ModelDataRequestMessage(fqn: ModelFqnData) extends OutgoingProtocolRequestMessage
-
-//
-// Operations
-//
-sealed trait OperationData
-
-case class CompoundOperationData(ops: List[DiscreteOperationData]) extends OperationData
-
-sealed trait DiscreteOperationData extends OperationData {
-  def path: List[Any]
-  def noOp: Boolean
-}
-
-sealed trait StringOperaitonData extends DiscreteOperationData
-case class StringInsertOperationData(path: List[Any], noOp: Boolean, idx: Int, `val`: String) extends StringOperaitonData
-case class StringRemoveOperationData(path: List[Any], noOp: Boolean, idx: Int, `val`: String) extends StringOperaitonData
-case class StringSetOperationData(path: List[Any], noOp: Boolean, `val`: String) extends StringOperaitonData
-
-sealed trait ArrayOperaitonData extends DiscreteOperationData
-case class ArrayInsertOperationData(path: List[Any], noOp: Boolean, idx: Int, `val`: JValue) extends ArrayOperaitonData
-case class ArrayRemoveOperationData(path: List[Any], noOp: Boolean, idx: Int) extends ArrayOperaitonData
-case class ArrayReplaceOperationData(path: List[Any], noOp: Boolean, idx: Int, `val`: JValue) extends ArrayOperaitonData
-case class ArrayMoveOperationData(path: List[Any], noOp: Boolean, fromIdx: Int, toIdx: Int) extends ArrayOperaitonData
-case class ArraySetOperationData(path: List[Any], noOp: Boolean, `val`: JArray) extends ArrayOperaitonData
-
-sealed trait ObjectOperaitonData extends DiscreteOperationData
-case class ObjectAddPropertyOperationData(path: List[Any], noOp: Boolean, prop: String, `val`: JValue) extends ObjectOperaitonData
-case class ObjectSetPropertyOperationData(path: List[Any], noOp: Boolean, prop: String, `val`: JValue) extends ObjectOperaitonData
-case class ObjectRemovePropertyOperationData(path: List[Any], noOp: Boolean, prop: String) extends ObjectOperaitonData
-case class ObjectSetOperationData(path: List[Any], noOp: Boolean, `val`: JObject) extends ObjectOperaitonData
-
-sealed trait NumberOperaitonData extends DiscreteOperationData
-case class NumberAddOperationData(path: List[Any], noOp: Boolean, `val`: JValue) extends NumberOperaitonData
-case class NumberSetOperationData(path: List[Any], noOp: Boolean, `val`: JValue) extends NumberOperaitonData
-
-sealed trait BooleanOperaitonData extends DiscreteOperationData
-case class BooleanSetOperationData(path: List[Any], noOp: Boolean, `val`: Boolean) extends BooleanOperaitonData
+case class ModelDataRequestMessage(c: String, m: String) extends OutgoingProtocolRequestMessage

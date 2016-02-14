@@ -62,7 +62,7 @@ class ProtocolConnection(
   }
 
   def send(message: OutgoingProtocolNormalMessage): Unit = {
-    sendMessage(MessageEnvelope(message))
+    sendMessage(MessageEnvelope(message, None, None))
   }
 
   def request(message: OutgoingProtocolRequestMessage)(implicit executor: ExecutionContext): Future[IncomingProtocolResponseMessage] = {
@@ -85,10 +85,10 @@ class ProtocolConnection(
       })
     })
 
-    val sent = MessageEnvelope(requestId, message)
+    val sent = MessageEnvelope(message, Some(requestId), None)
     sendMessage(sent)
 
-    requests(requestId) = RequestRecord(requestId, replyPromise, timeoutFuture, sent.`type`.get)
+    requests(requestId) = RequestRecord(requestId, replyPromise, timeoutFuture)
     replyPromise.future
   }
 
@@ -111,7 +111,7 @@ class ProtocolConnection(
   def sendMessage(envelope: MessageEnvelope): Unit = {
     val json = MessageSerializer.writeJson(envelope)
     socket.send(json)
-    if (envelope.opCode != OpCode.Ping && envelope.opCode != OpCode.Pong) {
+    if (!envelope.b.isInstanceOf[PingMessage] && !envelope.b.isInstanceOf[PongMessage]) {
       logger.debug(json)
     }
   }
@@ -123,26 +123,35 @@ class ProtocolConnection(
 
     MessageEnvelope(json) match {
       case Success(envelope) =>
-        MessageSerializer.validateMessageEnvelope(envelope) match {
-          case true => handleValidMessage(envelope)
-          case false => handleInvalidMessage(s"The message envelope was not valid: $envelope")
-        }
+        handleValidMessage(envelope)
       case Failure(cause) =>
+        logger.error(cause)
         handleInvalidMessage(s"Could not parse JSON message $json")
     }
   }
 
   private def handleValidMessage(envelope: MessageEnvelope): Unit = {
-    if (envelope.opCode != OpCode.Ping && envelope.opCode != OpCode.Pong) {
+    if (!envelope.b.isInstanceOf[PingMessage] && !envelope.b.isInstanceOf[PongMessage]) {
       logger.debug(MessageSerializer.writeJson(envelope))
     }
 
-    envelope.opCode match {
-      case OpCode.Normal => onNormalMessage(envelope)
-      case OpCode.Ping => onPing()
-      case OpCode.Pong => {}
-      case OpCode.Request => onRequest(envelope)
-      case OpCode.Reply => onReply(envelope)
+    envelope match {
+      case MessageEnvelope(PingMessage(), None, None) => 
+        onPing()
+      case MessageEnvelope(PongMessage(), None, None) => 
+        // No Op
+      case MessageEnvelope(ErrorMessage(_, _), None, Some(_)) => 
+        onReply(envelope)
+      case MessageEnvelope(ErrorMessage(_, _), None, None) => 
+        onNormalMessage(envelope)
+      case MessageEnvelope(msg, None, None) if msg.isInstanceOf[IncomingProtocolNormalMessage] =>
+        onNormalMessage(envelope)
+      case MessageEnvelope(msg, Some(_), None) if msg.isInstanceOf[IncomingProtocolRequestMessage] =>
+        onRequest(envelope)
+      case MessageEnvelope(msg, None, Some(_)) if msg.isInstanceOf[IncomingProtocolResponseMessage] =>
+        onReply(envelope)
+      case _ => 
+        handleInvalidMessage("Invalid messame.")
     }
   }
 
@@ -168,43 +177,31 @@ class ProtocolConnection(
   }
 
   private[this] def onNormalMessage(envelope: MessageEnvelope): Unit = {
-    val message = MessageSerializer.extractBody(envelope)
-    if (!message.isInstanceOf[IncomingProtocolNormalMessage]) {
-      handleInvalidMessage("a normal message was received, but the deserialized message was not a normal message")
-    } else {
-      eventHandler lift MessageReceived(message.asInstanceOf[IncomingProtocolNormalMessage])
-    }
+    eventHandler lift MessageReceived(envelope.b.asInstanceOf[IncomingProtocolNormalMessage])
   }
 
   private[this] def onRequest(envelope: MessageEnvelope): Unit = {
-    val protocolMessage = MessageSerializer.extractBody(envelope)
-    if (!protocolMessage.isInstanceOf[IncomingProtocolRequestMessage]) {
-      handleInvalidMessage("a request message was received, but the deserialized message was not a request message")
-    } else {
-      val p = Promise[OutgoingProtocolResponseMessage]
-      eventHandler lift RequestReceived(
-        protocolMessage.asInstanceOf[IncomingProtocolRequestMessage],
-        new ReplyCallbackImpl(envelope.reqId.get))
-    }
+    val p = Promise[OutgoingProtocolResponseMessage]
+    eventHandler lift RequestReceived(
+      envelope.b.asInstanceOf[IncomingProtocolRequestMessage],
+      new ReplyCallbackImpl(envelope.q.get))
+
   }
 
   private[this] def onReply(envelope: MessageEnvelope): Unit = {
-    val requestId = envelope.reqId.get
-    val message = envelope.body
+    val requestId = envelope.p.get
+    val message = envelope.b
     requests.synchronized({
       requests.remove(requestId) match {
         case Some(record) => {
           record.future.cancel()
-          envelope.`type` match {
-            case Some(MessageType.Error) =>
-              // If there is a type, it should only be "error"
-              val errorMessage = MessageSerializer.extractBody(envelope.body.get, classOf[ErrorMessage])
-              record.promise.failure(new ClientErrorResponseException(errorMessage.code, errorMessage.details))
+          envelope.b match {
+            case ErrorMessage(code, details) =>
+              record.promise.failure(new ClientErrorResponseException(code, details))
             case _ =>
               // There should be no type on a reply message if it is a successful
               // response.
-              val response = MessageSerializer.extractBody(envelope.body.get, record.requestType)
-              record.promise.success(response.asInstanceOf[IncomingProtocolResponseMessage])
+              record.promise.success(message.asInstanceOf[IncomingProtocolResponseMessage])
           }
         }
         case None =>
@@ -215,12 +212,12 @@ class ProtocolConnection(
   }
 
   private[this] def onPing(): Unit = {
-    sendMessage(MessageEnvelope(OpCode.Pong, None, None, None))
+    sendMessage(MessageEnvelope(PongMessage(), None, None))
   }
 
   private[this] def handleHeartbeat: PartialFunction[HeartbeatEvent, Unit] = {
     case PingRequest =>
-      sendMessage(MessageEnvelope(OpCode.Ping, None, None, None))
+      sendMessage(MessageEnvelope(PingMessage(), None, None))
     case PongTimeout =>
       abort("pong timeout")
       eventHandler lift ConnectionDropped
@@ -234,7 +231,7 @@ class ProtocolConnection(
 
   class ReplyCallbackImpl(reqId: Long) extends ReplyCallback {
     def reply(message: OutgoingProtocolResponseMessage): Unit = {
-      sendMessage(MessageEnvelope(reqId, message))
+      sendMessage(MessageEnvelope(message, None, Some(reqId)))
     }
 
     def unknownError(): Unit = {
@@ -247,13 +244,11 @@ class ProtocolConnection(
 
     def expectedError(code: String, details: String): Unit = {
       val errorMessage = ErrorMessage(code, details)
-      val serializedErrorMessage = MessageSerializer.decomposeBody(Some(errorMessage))
 
       val envelope = MessageEnvelope(
-        OpCode.Reply,
-        Some(reqId),
-        Some(MessageType.Error),
-        serializedErrorMessage)
+        errorMessage,
+        None,
+        Some(reqId))
 
       sendMessage(envelope)
     }
@@ -267,4 +262,4 @@ trait ReplyCallback {
   def expectedError(code: String, details: String): Unit
 }
 
-case class RequestRecord(id: Long, promise: Promise[IncomingProtocolResponseMessage], future: Cancellable, requestType: String)
+case class RequestRecord(id: Long, promise: Promise[IncomingProtocolResponseMessage], future: Cancellable)

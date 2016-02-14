@@ -2,17 +2,14 @@ package com.convergencelabs.server.testkit
 
 import java.net.URI
 import java.util.concurrent.LinkedBlockingDeque
-
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Failure
 import scala.util.Success
-
 import org.java_websocket.client.WebSocketClient
 import org.java_websocket.drafts.Draft_17
 import org.java_websocket.handshake.ServerHandshake
-
 import com.convergencelabs.server.frontend.realtime.IncomingProtocolNormalMessage
 import com.convergencelabs.server.frontend.realtime.IncomingProtocolRequestMessage
 import com.convergencelabs.server.frontend.realtime.IncomingProtocolResponseMessage
@@ -20,8 +17,9 @@ import com.convergencelabs.server.frontend.realtime.MessageEnvelope
 import com.convergencelabs.server.frontend.realtime.MessageSerializer
 import com.convergencelabs.server.frontend.realtime.OpCode
 import com.convergencelabs.server.frontend.realtime.ProtocolMessage
-
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.frontend.realtime.PingMessage
+import com.convergencelabs.server.frontend.realtime.PongMessage
 
 class MockConvergenceClient(serverUri: String)
     extends WebSocketClient(new URI(serverUri), new Draft_17())
@@ -43,9 +41,7 @@ class MockConvergenceClient(serverUri: String)
   }
 
   def sendNormal(message: IncomingProtocolNormalMessage): MessageEnvelope = {
-    val t = MessageSerializer.typeOfIncomingMessage(Some(message)).get
-    val msg = MessageSerializer.decomposeBody(Some(message))
-    val envelope = MessageEnvelope(OpCode.Normal, None, Some(t), msg)
+    val envelope = MessageEnvelope(message, None, None)
     sendMessage(envelope)
     envelope
   }
@@ -53,17 +49,14 @@ class MockConvergenceClient(serverUri: String)
   var reqId = 0L
 
   def sendRequest(message: IncomingProtocolRequestMessage): MessageEnvelope = {
-    val t = MessageSerializer.typeOfIncomingMessage(Some(message)).get
-    val msg = MessageSerializer.decomposeBody(Some(message))
-    val envelope = MessageEnvelope(OpCode.Request, Some(reqId), Some(t), msg)
+    val envelope = MessageEnvelope(message, Some(reqId), None)
     sendMessage(envelope)
     reqId = reqId + 1
     envelope
   }
 
   def sendResponse(reqId: Long, message: IncomingProtocolResponseMessage): MessageEnvelope = {
-    val msg = MessageSerializer.decomposeBody(Some(message))
-    val envelope = MessageEnvelope(OpCode.Reply, Some(reqId), None, msg)
+    val envelope = MessageEnvelope(message, None, Some(reqId))
     sendMessage(envelope)
     envelope
   }
@@ -78,9 +71,9 @@ class MockConvergenceClient(serverUri: String)
     logger.warn("RCV : " + message)
     MessageEnvelope(message) match {
       case Success(envelope) => {
-        envelope.opCode match {
-          case OpCode.Ping => onPing()
-          case OpCode.Pong => {}
+        envelope.b match {
+          case p: PingMessage => onPing()
+          case p: PongMessage => {}
           case _ => queue.add(envelope)
         }
       }
@@ -89,7 +82,7 @@ class MockConvergenceClient(serverUri: String)
   }
 
   def onPing(): Unit = {
-    sendMessage(MessageEnvelope(OpCode.Pong, None, None, None))
+    sendMessage(MessageEnvelope(PongMessage(), None, None))
   }
 
   override def onError(ex: Exception): Unit = {
@@ -105,7 +98,7 @@ class MockConvergenceClient(serverUri: String)
     val envelope = receiveOne(max)
     assert(envelope ne null, s"timeout ($max) during expectMsgClass waiting for $c")
 
-    val message = MessageSerializer.extractBody(envelope.body.get, c)
+    val message = envelope.b
     assert(c isInstance message, s"expected $c, found ${message.getClass}")
 
     (message.asInstanceOf[C], envelope)

@@ -49,8 +49,8 @@ class ClientActor(
   implicit val ec = context.dispatcher
 
   val handshakeTimeoutTask = context.system.scheduler.scheduleOnce(handshakeTimeout) {
-    log.debug("Handshaked timeout")
-    connection.abort("Handhsake timeout")
+    log.debug("Client handshaked timeout")
+    connection.abort("The client did not handshake within the specified timeout")
     context.stop(self)
   }
 
@@ -87,8 +87,8 @@ class ClientActor(
 
   def authenticate(requestMessage: AuthenticationRequestMessage, cb: ReplyCallback): Unit = {
     val message = requestMessage match {
-      case AuthenticationRequestMessage("password", None, Some(username), Some(password)) => PasswordAuthRequest(username, password)
-      case AuthenticationRequestMessage("token", Some(token), None, None) => TokenAuthRequest(token)
+      case PasswordAuthRequestMessage(username, password) => PasswordAuthRequest(username, password)
+      case TokenAuthRequestMessage(token) => TokenAuthRequest(token)
       case _ => ??? // todo invalid message
     }
 
@@ -111,26 +111,26 @@ class ClientActor(
       }
     }
   }
-
+  
   def handshake(request: HandshakeRequestMessage, cb: ReplyCallback): Unit = {
     val canceled = handshakeTimeoutTask.cancel()
     if (canceled) {
-      val future = domainManager ? HandshakeRequest(domainFqn, self, request.reconnect, request.reconnectToken)
+      val future = domainManager ? HandshakeRequest(domainFqn, self, request.r, request.k)
       future.mapResponse[HandshakeResponse] onComplete {
         case Success(HandshakeSuccess(sessionId, reconnectToken, domainActor, modelManagerActor)) => {
           this.sessionId = sessionId
           this.domainActor = domainActor
           this.modelManagerActor = modelManagerActor
-          cb.reply(HandshakeResponseMessage(true, None, Some(sessionId), Some(reconnectToken)))
+          cb.reply(HandshakeResponseMessage(true, None, Some(sessionId), Some(reconnectToken), None, Some(ProtocolConfigData(true))))
           context.become(receiveWhileAuthenticating)
         }
         case Success(HandshakeFailure(code, details)) => {
-          cb.reply(HandshakeResponseMessage(false, Some(ErrorData(code, details)), None, None))
+          cb.reply(HandshakeResponseMessage(false, Some(ErrorData(code, details)), None, None, Some(true), None))
           connection.abort("handshake failure")
           context.stop(self)
         }
         case Failure(cause) => {
-          cb.reply(HandshakeResponseMessage(false, Some(ErrorData("unknown", "uknown error")), None, None))
+          cb.reply(HandshakeResponseMessage(false, Some(ErrorData("unknown", "uknown error")), None, None, Some(true), None))
           connection.abort("handshake failure")
           context.stop(self)
         }

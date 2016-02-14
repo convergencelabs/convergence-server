@@ -53,7 +53,7 @@ class ClientActorSpec
   "A ClientActor" when {
     "handshaking" must {
       "request a handshake with the domain when a handshake message is received" in new TestFixture(system) {
-        val handshakeRequestMessage = HandshakeRequestMessage(false, None, None)
+        val handshakeRequestMessage = HandshakeRequestMessage(false, None)
         val cb = new TestReplyCallback()
         val event = RequestReceived(handshakeRequestMessage, cb)
 
@@ -62,14 +62,15 @@ class ClientActorSpec
         domainManagerActor.reply(HandshakeSuccess(SessionId, RecconnectToken, new TestProbe(system).ref, new TestProbe(system).ref))
 
         val reply = Await.result(cb.result, 50 millis)
-        assert(reply == HandshakeResponseMessage(true, None, Some(SessionId), Some(RecconnectToken)))
+        assert(reply == HandshakeResponseMessage(true, None, Some(SessionId), Some(RecconnectToken), None, Some(ProtocolConfigData(true))))
+
       }
 
       "properly handle a hanshake error form the domain" in new TestFixture(system) {
         val probeWatcher = new TestProbe(system)
         probeWatcher watch clientActor
 
-        val handshakeRequestMessage = HandshakeRequestMessage(false, None, None)
+        val handshakeRequestMessage = HandshakeRequestMessage(false, None)
         val cb = new TestReplyCallback()
         val event = RequestReceived(handshakeRequestMessage, cb)
 
@@ -79,7 +80,7 @@ class ClientActorSpec
         domainManagerActor.reply(HandshakeFailure("code", "string"))
 
         val reply = Await.result(cb.result, 50 millis)
-        assert(reply == HandshakeResponseMessage(false, Some(ErrorData("code", "string")), None, None))
+        assert(reply == HandshakeResponseMessage(false, Some(ErrorData("code", "string")), None, None, Some(true), None))
         probeWatcher.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Terminated])
       }
 
@@ -99,13 +100,13 @@ class ClientActorSpec
         val probeWatcher = new TestProbe(system)
         probeWatcher watch clientActor
 
-        val handshakeRequestMessage = HandshakeRequestMessage(false, None, None)
+        val handshakeRequestMessage = HandshakeRequestMessage(false, None)
         val cb = new TestReplyCallback()
         val event = RequestReceived(handshakeRequestMessage, cb)
         clientActor.tell(event, ActorRef.noSender)
 
         probeWatcher.expectMsgClass(FiniteDuration(1250, TimeUnit.MILLISECONDS), classOf[Terminated])
-        val HandshakeResponseMessage(success, error, sessionId, token) = Await.result(cb.result, 50 millis)
+        val HandshakeResponseMessage(success, error, sessionId, token, retryOk, config) = Await.result(cb.result, 50 millis)
 
         assert(!success)
 
@@ -145,7 +146,7 @@ class ClientActorSpec
 
     "recieving an open model message" must {
       "forward to the model manager" in new AuthenticatedClient(system) {
-        val openRequest = OpenRealtimeModelRequestMessage(ModelFqnData("collection", "model"), true)
+        val openRequest = OpenRealtimeModelRequestMessage("collection", "model", true)
         val openReply = mock[ReplyCallback]
         val openEvent = RequestReceived(openRequest, openReply)
         clientActor.tell(openEvent, ActorRef.noSender)
@@ -180,7 +181,7 @@ class ClientActorSpec
     val domainActor = new TestProbe(system)
     val modelManagerActor = new TestProbe(system)
 
-    val handshakeRequestMessage = HandshakeRequestMessage(false, None, None)
+    val handshakeRequestMessage = HandshakeRequestMessage(false, None)
     val handshakeCallback = new TestReplyCallback()
     val handshakeEvent = RequestReceived(handshakeRequestMessage, handshakeCallback)
 
@@ -192,7 +193,7 @@ class ClientActorSpec
   }
 
   class AuthenticatedClient(system: ActorSystem) extends HandshookClient(system: ActorSystem) {
-    val authRequestMessage = AuthenticationRequestMessage("password", None, Some("testuser"), Some("testpass"))
+    val authRequestMessage = PasswordAuthRequestMessage("testuser", "testpass")
 
     val authCallback = new TestReplyCallback()
     val authEvent = RequestReceived(authRequestMessage, authCallback)

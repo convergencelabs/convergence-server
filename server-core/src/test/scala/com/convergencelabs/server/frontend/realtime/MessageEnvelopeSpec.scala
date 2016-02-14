@@ -32,42 +32,9 @@ class MessageEnvelopeSpec
       }
 
       "return a success when applying from valid JSON" in {
-
-        val jValue = ("opCode" -> "rqst") ~
-          ("reqId" -> 1) ~
-          ("type" -> "handshake") ~
-          ("body" ->
-            ("reconnect" -> false))
-
-        val json = compact(render(jValue))
-
-        MessageEnvelope(json).success.value shouldBe MessageEnvelope(
-          OpCode.Request, Some(1L), Some(MessageType.Handshake), Some(JObject("reconnect" -> JBool.False)))
-      }
-    }
-
-    "creating from an outgoing protocol message" must {
-
-      "correctly greate a respose message" in {
-        val response = HandshakeResponseMessage(true, None, None, None)
-        val asJosn = MessageSerializer.decomposeBody(Some(response))
-        MessageEnvelope(1L, response) shouldBe
-          MessageEnvelope(OpCode.Reply, Some(1L), None, asJosn)
-
-      }
-
-      "correctly greate a normal message" in {
-        val normal = OperationAcknowledgementMessage("foo", 1L, 2L)
-        val asJosn = MessageSerializer.decomposeBody(Some(normal))
-        MessageEnvelope(normal) shouldBe
-          MessageEnvelope(OpCode.Normal, None, Some(MessageType.OperationAck), asJosn)
-      }
-
-      "correctly greate a request message" in {
-        val request = ModelDataRequestMessage(ModelFqnData("foo", "bar"))
-        val asJosn = MessageSerializer.decomposeBody(Some(request))
-        MessageEnvelope(1L, request) shouldBe
-          MessageEnvelope(OpCode.Request, Some(1L), Some(MessageType.ModelDataRequest), asJosn)
+        val expected = MessageEnvelope(new ModelDataResponseMessage(JObject()), None, Some(1L))
+        val json = MessageSerializer.writeJson(expected)
+        MessageEnvelope(json).success.value shouldBe expected
       }
     }
   }

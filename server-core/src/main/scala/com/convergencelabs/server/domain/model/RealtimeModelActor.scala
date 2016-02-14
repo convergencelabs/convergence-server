@@ -383,7 +383,7 @@ class RealtimeModelActor(
         if (snapshotRequired()) { executeSnapshot() }
       }
       case Failure(error) => {
-        log.error(error, "Error applying operation to model, closing client: ");
+        log.error(error, "Error applying operation to model, closing client");
         concurrencyControl.rollback()
         forceClosedModel(
           sessionKey,
@@ -401,13 +401,15 @@ class RealtimeModelActor(
 
     val timestamp = Instant.now()
 
-    modelOperationProcessor.processModelOperation(ModelOperation(
+    val result = modelOperationProcessor.processModelOperation(ModelOperation(
       modelFqn,
       processedOpEvent.resultingVersion,
       timestamp,
       sk.uid,
       sk.sid,
-      processedOpEvent.operation)).map { _ =>
+      processedOpEvent.operation))
+      
+      result.map { x =>
       OutgoingOperation(
         modelResourceId,
         sk.uid,
@@ -493,7 +495,7 @@ class RealtimeModelActor(
   }
 
   /**
-   * Kicks a specific clent out of the model.
+   * Kicks a specific client out of the model.
    */
   private[this] def forceClosedModel(sk: SessionKey, reason: String, notifyOthers: Boolean): Unit = {
     val closedActor = connectedClients(sk)
@@ -512,6 +514,7 @@ class RealtimeModelActor(
 
     val forceCloseMessage = ModelForceClose(modelResourceId, reason)
     closedActor ! forceCloseMessage
+
     checkForConnectionsAndClose()
   }
 

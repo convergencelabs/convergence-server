@@ -1,13 +1,11 @@
 package com.convergencelabs.server.frontend.realtime
 
 import java.util.concurrent.LinkedBlockingDeque
-
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
-
 import org.json4s.JsonAST.JString
 import org.json4s.NoTypeHints
 import org.json4s.jackson.Serialization
@@ -24,13 +22,13 @@ import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.mock.MockitoSugar
-
 import com.convergencelabs.server.HeartbeatConfiguration
 import com.convergencelabs.server.ProtocolConfiguration
 import com.convergencelabs.server.util.concurrent.UnexpectedErrorException
-
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
+import org.json4s.JsonAST.JInt
+import org.json4s.JsonAST.JObject
 
 // scalastyle:off magic.number
 class ProtocolConnectionSpec
@@ -64,29 +62,21 @@ class ProtocolConnectionSpec
         val sentMessage = socket.expectSentMessage(10 millis)
         val sentEnvelope = MessageSerializer.readJson[MessageEnvelope](sentMessage)
 
-        sentEnvelope.opCode shouldBe OpCode.Normal
-        sentEnvelope.reqId shouldBe None
-        sentEnvelope.`type` shouldBe MessageSerializer.typeOfOutgoingMessage(Some(toSend))
-
-        val sent = MessageSerializer.extractBody(sentEnvelope.body.get, classOf[OperationAcknowledgementMessage])
-        sent shouldBe toSend
+        sentEnvelope.q shouldBe None
+        sentEnvelope.b shouldBe toSend
       }
     }
 
     "sending a request message" must {
       "send the correct message envelope" in new TestFixture {
-        val toSend = ModelDataRequestMessage(ModelFqnData(collectionId, modelId))
+        val toSend = ModelDataRequestMessage(collectionId, modelId)
         connection.request(toSend)
 
         val sentMessage = socket.expectSentMessage(10 millis)
         val sentEnvelope = MessageSerializer.readJson[MessageEnvelope](sentMessage)
 
-        sentEnvelope.opCode shouldBe OpCode.Request
-        sentEnvelope.reqId shouldBe defined
-        sentEnvelope.`type` shouldBe MessageSerializer.typeOfOutgoingMessage(Some(toSend))
-
-        val sent = MessageSerializer.extractBody(sentEnvelope.body.get, classOf[ModelDataRequestMessage])
-        sent shouldBe toSend
+        sentEnvelope.q shouldBe defined
+        sentEnvelope.b shouldBe toSend
       }
     }
 
@@ -133,31 +123,13 @@ class ProtocolConnectionSpec
 
     "receiving a request" must {
       "emit a request received event" in new TestFixture {
-        val message = HandshakeRequestMessage(false, None, None)
-        val envelope = MessageEnvelope(
-          OpCode.Request,
-          Some(1L),
-          Some(MessageType.Handshake),
-          MessageSerializer.decomposeBody(Some(message)))
+        val message = HandshakeRequestMessage(false, None)
+        val envelope = MessageEnvelope(message, Some(1L), None)
         val json = MessageSerializer.writeJson(envelope)
         socket.fireOnMessage(json)
 
         val RequestReceived(x, r) = receiver.expectEventClass(10 millis, classOf[RequestReceived])
         x shouldBe message
-      }
-
-      "emit a error event and abort the connection if a message was not a request" in new TestFixture {
-        val message = OperationSubmissionMessage(session, 1L, 2L, CompoundOperationData(List()))
-        val envelope = MessageEnvelope(
-          OpCode.Request,
-          Some(1L),
-          Some(MessageType.OperationSubmission),
-          MessageSerializer.decomposeBody(Some(message)))
-        val json = MessageSerializer.writeJson(envelope)
-        socket.fireOnMessage(json)
-
-        val ConnectionError(x) = receiver.expectEventClass(10 millis, classOf[ConnectionError])
-        Mockito.verify(socket, times(1)).abort(MockitoMatchers.anyString())
       }
     }
 
@@ -165,10 +137,9 @@ class ProtocolConnectionSpec
       "emit a message received event" in new TestFixture {
         val message = OperationSubmissionMessage(session, 1L, 2L, CompoundOperationData(List()))
         val envelope = MessageEnvelope(
-          OpCode.Normal,
+          message,
           None,
-          Some(MessageType.OperationSubmission),
-          MessageSerializer.decomposeBody(Some(message)))
+          None)
         val json = MessageSerializer.writeJson(envelope)
         socket.fireOnMessage(json)
 
@@ -176,28 +147,14 @@ class ProtocolConnectionSpec
         x shouldBe message
       }
 
-      "emit a error event and abort the connection if an invalid message body is recieved" in new TestFixture {
-        val message = HandshakeRequestMessage(false, None, None)
-        val envelope = MessageEnvelope(
-          OpCode.Normal,
-          None,
-          Some(MessageType.Handshake),
-          MessageSerializer.decomposeBody(Some(message)))
-        val json = MessageSerializer.writeJson(envelope)
-        socket.fireOnMessage(json)
-
-        val ConnectionError(x) = receiver.expectEventClass(10 millis, classOf[ConnectionError])
-        Mockito.verify(socket, times(1)).abort(MockitoMatchers.anyString())
-      }
-
       "emit a error event and abort the connection if a message with a request Id" in new TestFixture {
         val message = OperationSubmissionMessage(session, 1L, 2L, CompoundOperationData(List()))
         val envelope = MessageEnvelope(
-          OpCode.Normal,
+          message,
           Some(1L),
-          Some(MessageType.OperationSubmission),
-          MessageSerializer.decomposeBody(Some(message)))
+          None)
         val json = MessageSerializer.writeJson(envelope)
+        println(json)
         socket.fireOnMessage(json)
 
         val ConnectionError(x) = receiver.expectEventClass(10 millis, classOf[ConnectionError])
@@ -208,8 +165,7 @@ class ProtocolConnectionSpec
     "receiving a ping message" must {
       "respond with a pong" in new TestFixture {
         val envelope = MessageEnvelope(
-          OpCode.Ping,
-          None,
+          PingMessage(),
           None,
           None)
         val json = MessageSerializer.writeJson(envelope)
@@ -218,38 +174,30 @@ class ProtocolConnectionSpec
         val sentMessage = socket.expectSentMessage(10 millis)
         val sentEnvelope = MessageSerializer.readJson[MessageEnvelope](sentMessage)
 
-        sentEnvelope shouldBe MessageEnvelope(OpCode.Pong, None, None, None)
+        sentEnvelope shouldBe MessageEnvelope(PongMessage(), None, None)
       }
     }
 
     "responding to a request" must {
       "send a correct reply envelope for a success" in new TestFixture {
-        val message = HandshakeRequestMessage(false, None, None)
-        val envelope = MessageEnvelope(
-          OpCode.Request,
-          Some(1L),
-          Some(MessageType.Handshake),
-          MessageSerializer.decomposeBody(Some(message)))
+        val message = HandshakeRequestMessage(false, None)
+        val envelope = MessageEnvelope(message, Some(1L), None)
 
         val json = MessageSerializer.writeJson(envelope)
         socket.fireOnMessage(json)
         val RequestReceived(m, cb) = receiver.expectEventClass(10 millis, classOf[RequestReceived])
 
-        val response = HandshakeResponseMessage(true, None, Some("foo"), Some("bar"))
+        val response = HandshakeResponseMessage(true, None, Some("foo"), Some("bar"), None, None)
         cb.reply(response)
 
-        val responseEnvelop = MessageEnvelope(1L, response)
+        val responseEnvelop = MessageEnvelope(response, None, Some(1L))
         Mockito.verify(socket, times(1)).send(MessageSerializer.writeJson(responseEnvelop))
         connection.close()
       }
 
       "send a correct reply envelope for an unexpected error" in new TestFixture {
-        val message = HandshakeRequestMessage(false, None, None)
-        val envelope = MessageEnvelope(
-          OpCode.Request,
-          Some(1L),
-          Some(MessageType.Handshake),
-          MessageSerializer.decomposeBody(Some(message)))
+        val message = HandshakeRequestMessage(false, None)
+        val envelope = MessageEnvelope(message, Some(1L), None)
 
         val json = MessageSerializer.writeJson(envelope)
         socket.fireOnMessage(json)
@@ -259,22 +207,15 @@ class ProtocolConnectionSpec
 
         val sentMessage = socket.expectSentMessage(20 millis)
         val sentEnvelope = MessageEnvelope(sentMessage).success.value
-        sentEnvelope.opCode shouldBe OpCode.Reply
-        sentEnvelope.`type`.value shouldBe MessageType.Error
+        val errorMessage = sentEnvelope.b.asInstanceOf[ErrorMessage]
 
-        val sentBody = MessageSerializer.extractBody(sentEnvelope.body.get, classOf[ErrorMessage])
-
-        sentBody.code shouldBe "unknown"
-        sentBody.details shouldBe details
+        errorMessage.c shouldBe "unknown"
+        errorMessage.d shouldBe details
       }
 
       "send a correct reply envelope for an expected error" in new TestFixture {
-        val message = HandshakeRequestMessage(false, None, None)
-        val envelope = MessageEnvelope(
-          OpCode.Request,
-          Some(1L),
-          Some(MessageType.Handshake),
-          MessageSerializer.decomposeBody(Some(message)))
+        val message = HandshakeRequestMessage(false, None)
+        val envelope = MessageEnvelope(message, Some(1L), None)
 
         val json = MessageSerializer.writeJson(envelope)
         socket.fireOnMessage(json)
@@ -284,12 +225,10 @@ class ProtocolConnectionSpec
 
         val sentMessage = socket.expectSentMessage(20 millis)
         val sentEnvelope = MessageEnvelope(sentMessage).success.value
-        sentEnvelope.opCode shouldBe OpCode.Reply
-        sentEnvelope.`type`.value shouldBe MessageType.Error
 
-        val sentBody = MessageSerializer.extractBody(sentEnvelope.body.get, classOf[ErrorMessage])
-        sentBody.code shouldBe code
-        sentBody.details shouldBe details
+        val errorMessage = sentEnvelope.b.asInstanceOf[ErrorMessage]
+        errorMessage.c shouldBe code
+        errorMessage.d shouldBe details
       }
     }
 
@@ -312,7 +251,7 @@ class ProtocolConnectionSpec
         val message = socket.expectSentMessage(50 millis)
 
         val sentEnvelope = MessageSerializer.readJson[MessageEnvelope](message)
-        sentEnvelope shouldBe MessageEnvelope(OpCode.Ping, None, None, None)
+        sentEnvelope shouldBe MessageEnvelope(PingMessage(), None, None)
       }
 
       "timeout within the specified interval" in {
@@ -338,30 +277,22 @@ class ProtocolConnectionSpec
     "receiving a reply" must {
 
       "ignore when the reply has no request" in new TestFixture {
-        val message = HandshakeResponseMessage(true, None, Some(""), Some(""))
-        val envelope = MessageEnvelope(
-          OpCode.Reply,
-          Some(1L),
-          None,
-          MessageSerializer.decomposeBody(Some(message)))
+        val message = ModelDataResponseMessage(JObject())
+        val envelope = MessageEnvelope(message, None, Some(1L))
 
         val json = MessageSerializer.writeJson(envelope)
         socket.fireOnMessage(json)
       }
 
       "resolve the request future with the proper message" in new TestFixture {
-        val toSend = ModelDataRequestMessage(ModelFqnData(collectionId, modelId))
+        val toSend = ModelDataRequestMessage(collectionId, modelId)
         val f = connection.request(toSend)
 
         val sentMessage = socket.expectSentMessage(10 millis)
         val sentEnvelope = MessageSerializer.readJson[MessageEnvelope](sentMessage)
 
-        val replyMessage = ModelDataResponseMessage(JString(""))
-        val replyEnvelope = MessageEnvelope(
-          OpCode.Reply,
-          sentEnvelope.reqId,
-          None,
-          MessageSerializer.decomposeBody(Some(replyMessage)))
+        val replyMessage = ModelDataResponseMessage(JObject())
+        val replyEnvelope = MessageEnvelope(replyMessage, None, sentEnvelope.q)
 
         val replyJson = MessageSerializer.writeJson(replyEnvelope)
         socket.fireOnMessage(replyJson)
@@ -372,18 +303,14 @@ class ProtocolConnectionSpec
       }
 
       "resolve the future with a failure if an error is recieved" in new TestFixture {
-        val toSend = ModelDataRequestMessage(ModelFqnData(collectionId, modelId))
+        val toSend = ModelDataRequestMessage(collectionId, modelId)
         val f = connection.request(toSend)
 
         val sentMessage = socket.expectSentMessage(10 millis)
         val sentEnvelope = MessageSerializer.readJson[MessageEnvelope](sentMessage)
 
         val replyMessage = ErrorMessage(code, details)
-        val replyEnvelope = MessageEnvelope(
-          OpCode.Reply,
-          sentEnvelope.reqId,
-          Some(MessageType.Error),
-          MessageSerializer.decomposeBody(Some(replyMessage)))
+        val replyEnvelope = MessageEnvelope(replyMessage, None, sentEnvelope.q)
 
         val replyJson = MessageSerializer.writeJson(replyEnvelope)
         socket.fireOnMessage(replyJson)
