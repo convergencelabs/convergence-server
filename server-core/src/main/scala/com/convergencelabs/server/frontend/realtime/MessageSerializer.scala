@@ -44,7 +44,7 @@ object MessageSerializer {
   private[this] val incomingMessageSerializer = new TypeMapSerializer[ProtocolMessage]("t", Map(
     MessageType.Ping -> classOf[PingMessage],
     MessageType.Pong -> classOf[PongMessage],
-    
+
     MessageType.Error -> classOf[ErrorMessage],
 
     MessageType.HandshakeRequest -> classOf[HandshakeRequestMessage],
@@ -52,19 +52,25 @@ object MessageSerializer {
 
     MessageType.PasswordAuthRequest -> classOf[PasswordAuthRequestMessage],
     MessageType.TokenAuthRequest -> classOf[TokenAuthRequestMessage],
+    MessageType.AuthenticationResponse -> classOf[AuthenticationResponseMessage],
 
     MessageType.CreateRealTimeModelRequest -> classOf[CreateRealtimeModelRequestMessage],
+
     MessageType.OpenRealTimeModelRequest -> classOf[OpenRealtimeModelRequestMessage],
+    MessageType.OpenRealTimeModelResponse -> classOf[OpenRealtimeModelResponseMessage],
+
     MessageType.CloseRealTimeModelRequest -> classOf[CloseRealtimeModelRequestMessage],
     MessageType.DeleteRealtimeModelRequest -> classOf[DeleteRealtimeModelRequestMessage],
 
     MessageType.ModelDataResponse -> classOf[ModelDataResponseMessage],
-    MessageType.OperationSubmission -> classOf[OperationSubmissionMessage],
-
     MessageType.ModelDataRequest -> classOf[ModelDataRequestMessage],
+
+    MessageType.OperationSubmission -> classOf[OperationSubmissionMessage],
     MessageType.OperationAck -> classOf[OperationAcknowledgementMessage],
-    MessageType.ForceCloseRealTimeModel -> classOf[ModelForceCloseMessage],
-    MessageType.RemoteOperation -> classOf[RemoteOperationMessage]),
+    MessageType.RemoteOperation -> classOf[RemoteOperationMessage],
+
+    MessageType.ForceCloseRealTimeModel -> classOf[ModelForceCloseMessage]),
+
     DefaultFormats + operationSerializer)
 
   private[this] implicit val formats = DefaultFormats + incomingMessageSerializer
