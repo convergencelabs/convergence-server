@@ -82,7 +82,7 @@ case class ModelDataResponseMessage(d: JObject) extends IncomingProtocolResponse
 case class OpenRealtimeModelResponseMessage(r: String, v: Long, c: Long, m: Long, d: JValue) extends OutgoingProtocolResponseMessage
 
 case class OperationAcknowledgementMessage(r: String, s: Long, v: Long) extends OutgoingProtocolNormalMessage
-case class RemoteOperationMessage(r: String, u: String, s: String, v: Long, t: Long, o: OperationData) extends OutgoingProtocolNormalMessage
+case class RemoteOperationMessage(r: String, u: String, s: String, v: Long, p: Long, o: OperationData) extends OutgoingProtocolNormalMessage
 
 case class RemoteClientClosedMessage(r: String, u: String, s: String) extends OutgoingProtocolNormalMessage
 case class RemoteClientOpenedMessage(r: String, u: String, s: String) extends OutgoingProtocolNormalMessage

@@ -49,8 +49,8 @@ class ClientActor(
   implicit val ec = context.dispatcher
 
   val handshakeTimeoutTask = context.system.scheduler.scheduleOnce(handshakeTimeout) {
-    log.debug("Handshaked timeout")
-    connection.abort("Handhsake timeout")
+    log.debug("Client handshaked timeout")
+    connection.abort("The client did not handshake within the specified timeout")
     context.stop(self)
   }
 
