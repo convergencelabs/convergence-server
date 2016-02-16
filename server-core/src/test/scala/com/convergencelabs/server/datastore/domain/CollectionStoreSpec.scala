@@ -84,7 +84,7 @@ class CollectionStoreSpec
     }
 
     "updatig a collection" must {
-      "successfully updat an existing collection" in withPersistenceStore { store =>
+      "successfully update an existing collection" in withPersistenceStore { store =>
         val existing = store.getCollection(peopleCollectionId).success.value.value
         val updated = existing.copy(name = "foo", overrideSnapshotConfig = false, snapshotConfig = None)
         store.updateCollection(updated).success.value
@@ -153,6 +153,18 @@ class CollectionStoreSpec
       "does not error for a collection that exists" in withPersistenceStore { store =>
         store.collectionExists(peopleCollectionId).success.value shouldBe true
         store.ensureCollectionExists(peopleCollectionId).success
+      }
+    }
+
+    "getting or creating collection" must {
+      "creates a collection that doesn't exist" in withPersistenceStore { store =>
+        store.collectionExists(carsCollectionId).success.value shouldBe false
+        store.getOrCreateCollection(carsCollectionId).success.value shouldBe defined
+      }
+
+      "gets a collection that exists" in withPersistenceStore { store =>
+        store.collectionExists(peopleCollectionId).success.value shouldBe true
+        store.getOrCreateCollection(peopleCollectionId).success.value.value shouldBe expectedPeopleCollection
       }
     }
   }

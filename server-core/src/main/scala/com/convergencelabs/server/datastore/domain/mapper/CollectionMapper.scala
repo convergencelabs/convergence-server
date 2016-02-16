@@ -1,13 +1,13 @@
 package com.convergencelabs.server.datastore.domain.mapper
 
 import scala.language.implicitConversions
-
 import com.convergencelabs.server.datastore.domain.mapper.ModelSnapshotConfigMapper.ModelSnapshotConfigToODocument
 import com.convergencelabs.server.datastore.domain.mapper.ModelSnapshotConfigMapper.ODocumentToModelSnapshotConfig
 import com.convergencelabs.server.datastore.mapper.ODocumentMapper
 import com.convergencelabs.server.domain.model.Collection
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
+import com.convergencelabs.server.domain.ModelSnapshotConfig
 
 object CollectionMapper extends ODocumentMapper {
 
@@ -20,11 +20,8 @@ object CollectionMapper extends ODocumentMapper {
     doc.field(Fields.CollectionId, collection.id)
     doc.field(Fields.Name, collection.name)
     doc.field(Fields.OverrideSnapshotConfig, collection.overrideSnapshotConfig)
-
-    collection.snapshotConfig match {
-      case Some(config) =>
-        doc.field(Fields.SnapshotConfig, config.asODocument)
-      case None =>
+    if (collection.snapshotConfig.isDefined) {
+      doc.field(Fields.SnapshotConfig, collection.snapshotConfig.get.asODocument)
     }
     doc
   }

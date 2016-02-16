@@ -23,4 +23,11 @@ trait ODocumentMapper {
       throw new IllegalArgumentException(s"The ODocument class must be '${className}': ${doc.getClassName}")
     }
   }
+
+  protected[datastore] def mapOrNull[V >: Null, T](option: Option[T])(m: T => V): V = {
+    option match {
+      case Some(value) => m(value)
+      case None => null
+    }
+  }
 }
