@@ -4,6 +4,7 @@
     "domain/schema/ModelSnapshotConfig.osql",
     "domain/schema/TokenPublicKey.osql",
     "domain/schema/DomainConfig.osql",
+    "domain/schema/Collection.osql",
     "domain/schema/Model.osql",
     "domain/schema/ModelSnapshot.osql",
     "domain/schema/Operations.osql",
@@ -14,6 +15,10 @@
   ],
   "dataScripts": [
     "domain/data/DomainConfig/domainConfig.osql",
+    
+    "domain/data/Collection/company.osql",
+    "domain/data/Collection/people.osql",
+    "domain/data/Collection/team.osql",
   
     "domain/data/Model/company-company1.osql",
     "domain/data/ModelSnapshot/company-company1-0.osql",

@@ -1,0 +1,4 @@
+INSERT INTO Collection SET
+  collectionId = "team",
+  name = "Team",
+  overrideSnapshotConfig = false;

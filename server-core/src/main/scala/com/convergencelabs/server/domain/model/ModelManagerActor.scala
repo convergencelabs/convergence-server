@@ -54,6 +54,7 @@ class ModelManagerActor(
             domainFqn,
             openRequest.modelFqn,
             resourceId,
+            persistenceProvider.collectionStore,
             persistenceProvider.modelStore,
             persistenceProvider.modelOperationProcessor,
             persistenceProvider.modelSnapshotStore,
@@ -90,6 +91,7 @@ class ModelManagerActor(
 
         try {
           // FIXME all of this should work or not, together.
+          persistenceProvider.collectionStore.ensureCollectionExists(createRequest.modelFqn.collectionId)
           persistenceProvider.modelStore.createModel(model)
           persistenceProvider.modelSnapshotStore.createSnapshot(
             ModelSnapshot(ModelSnapshotMetaData(createRequest.modelFqn, 0, createTime),

@@ -25,6 +25,7 @@ import com.convergencelabs.server.datastore.domain.ModelSnapshotStore
 import com.convergencelabs.server.datastore.domain.ModelOperationProcessor
 import com.convergencelabs.server.util.concurrent.AskFuture
 import com.convergencelabs.server.UnknownErrorResponse
+import com.convergencelabs.server.datastore.domain.CollectionStore
 
 /**
  * An instance of the RealtimeModelActor manages the lifecycle of a single
@@ -36,6 +37,7 @@ class RealtimeModelActor(
     private[this] val domainFqn: DomainFqn,
     private[this] val modelFqn: ModelFqn,
     private[this] val modelResourceId: String,
+    private[this] val collectionStore: CollectionStore,
     private[this] val modelStore: ModelStore,
     private[this] val modelOperationProcessor: ModelOperationProcessor,
     private[this] val modelSnapshotStore: ModelSnapshotStore,
@@ -264,6 +266,7 @@ class RealtimeModelActor(
         createTime),
       response.modelData)
 
+    collectionStore.ensureCollectionExists(modelFqn.collectionId)
     modelStore.createModel(model)
     modelSnapshotStore.createSnapshot(
       ModelSnapshot(ModelSnapshotMetaData(modelFqn, 0L, createTime), response.modelData))
@@ -547,6 +550,7 @@ object RealtimeModelActor {
     domainFqn: DomainFqn,
     modelFqn: ModelFqn,
     resourceId: String,
+    collectionStore: CollectionStore,
     modelStore: ModelStore,
     modelOperationProcessor: ModelOperationProcessor,
     modelSnapshotStore: ModelSnapshotStore,
@@ -557,6 +561,7 @@ object RealtimeModelActor {
       domainFqn,
       modelFqn,
       resourceId,
+      collectionStore,
       modelStore,
       modelOperationProcessor,
       modelSnapshotStore,

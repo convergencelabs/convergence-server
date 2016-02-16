@@ -30,6 +30,7 @@ import akka.testkit.TestProbe
 import com.convergencelabs.server.UnknownErrorResponse
 import scala.util.Failure
 import scala.util.Success
+import com.convergencelabs.server.datastore.domain.CollectionStore
 
 // FIXME we really only check message types and not data.
 // scalastyle:off magic.number
@@ -242,6 +243,9 @@ class RealtimeModelActorSpec
     val modelSnapshotTime = Instant.ofEpochMilli(2L)
     val modelSnapshotMetaData = ModelSnapshotMetaData(modelFqn, 1L, modelSnapshotTime)
     val modelStore = mock[ModelStore]
+    val collectionStore = mock[CollectionStore]
+    Mockito.when(collectionStore.collectionExists(Matchers.any())).thenReturn(Success(true))
+    Mockito.when(collectionStore.ensureCollectionExists(Matchers.any())).thenReturn(Success(()))
     val modelOperationProcessor = mock[ModelOperationProcessor]
     val modelSnapshotStore = mock[ModelSnapshotStore]
     val resourceId = "1" + System.nanoTime()
@@ -251,6 +255,7 @@ class RealtimeModelActorSpec
       DomainFqn("convergence", "default"),
       modelFqn,
       resourceId,
+      collectionStore,
       modelStore,
       modelOperationProcessor,
       modelSnapshotStore,

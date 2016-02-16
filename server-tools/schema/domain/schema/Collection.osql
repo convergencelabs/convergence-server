@@ -1,0 +1,24 @@
+CREATE CLASS Collection;
+
+#Collection.collectionId
+CREATE Property Collection.collectionId STRING;
+ALTER PROPERTY Collection.collectionId MANDATORY true;
+ALTER PROPERTY Collection.collectionId NOTNULL true;
+
+#Collection.name
+CREATE Property Collection.name STRING;
+ALTER PROPERTY Collection.name MANDATORY true;
+ALTER PROPERTY Collection.name NOTNULL true;
+
+#Collection.overrideSnapshotConfig
+CREATE Property Collection.overrideSnapshotConfig BOOLEAN;
+ALTER PROPERTY Collection.overrideSnapshotConfig MANDATORY true;
+ALTER PROPERTY Collection.overrideSnapshotConfig NOTNULL true;
+ALTER PROPERTY Collection.overrideSnapshotConfig DEFAULT false;
+
+#Collection.snapshotConfig
+CREATE Property Collection.snapshotConfig EMBEDDED ModelSnapshotConfig;
+ALTER PROPERTY Collection.snapshotConfig NOTNULL true;
+
+#Collection Indexes
+CREATE INDEX Collection.collectionId ON Collection (collectionId) UNIQUE_HASH_INDEX;
