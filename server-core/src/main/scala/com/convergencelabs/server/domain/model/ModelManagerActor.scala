@@ -23,6 +23,7 @@ import com.convergencelabs.server.domain.ModelSnapshotConfig
 import scala.util.Success
 import scala.util.Failure
 import com.convergencelabs.server.UnknownErrorResponse
+import scala.util.Try
 
 class ModelManagerActor(
   private[this] val domainFqn: DomainFqn,
@@ -43,37 +44,44 @@ class ModelManagerActor(
   }
 
   private[this] def onOpenRealtimeModel(openRequest: OpenRealtimeModelRequest): Unit = {
-    if (!this.openRealtimeModels.contains(openRequest.modelFqn)) {
-      val resourceId = "" + nextModelResourceId
-      nextModelResourceId += 1
+    this.openRealtimeModels.get(openRequest.modelFqn) match {
+      case Some(modelActor) =>
+        // Model already open
+        modelActor forward openRequest
+      case None =>
+        // Model not already open, load it
+        val resourceId = "" + nextModelResourceId
+        nextModelResourceId += 1
+        getSnapshotConfigForModel(openRequest.modelFqn.collectionId) match {
+          case Success(snapshotConfig) =>
+            val props = RealtimeModelActor.props(
+              self,
+              domainFqn,
+              openRequest.modelFqn,
+              resourceId,
+              persistenceProvider.modelStore,
+              persistenceProvider.modelOperationProcessor,
+              persistenceProvider.modelSnapshotStore,
+              5000, // FIXME hard-coded time.  Should this be part of the protocol?
+              snapshotConfig)
 
-      persistenceProvider.configStore.getModelSnapshotConfig() match {
-        case Success(modelSnapshotConfig) => {
-          val props = RealtimeModelActor.props(
-            self,
-            domainFqn,
-            openRequest.modelFqn,
-            resourceId,
-            persistenceProvider.collectionStore,
-            persistenceProvider.modelStore,
-            persistenceProvider.modelOperationProcessor,
-            persistenceProvider.modelSnapshotStore,
-            5000, // FIXME hard-coded time.  Should this be part of the protocol?
-            modelSnapshotConfig)
+            val modelActor = context.actorOf(props, resourceId)
+            this.openRealtimeModels.put(openRequest.modelFqn, modelActor)
+            modelActor forward openRequest
+          case Failure(e) =>
+            sender ! UnknownErrorResponse("Could not open model")
+        }
+    }
+  }
 
-          val modelActor = context.actorOf(props, resourceId);
-          this.openRealtimeModels.put(openRequest.modelFqn, modelActor);
-        }
-        case Failure(cause) => {
-          cause.printStackTrace()
-          ??? // FIXME
-        }
+  private[this] def getSnapshotConfigForModel(collectionId: String): Try[ModelSnapshotConfig] = {
+    persistenceProvider.collectionStore.getOrCreateCollection(collectionId).flatMap { c =>
+      if (c.overrideSnapshotConfig) {
+        Success(c.snapshotConfig.get)
+      } else {
+        persistenceProvider.configStore.getModelSnapshotConfig()
       }
     }
-    // FIXME something above could fail.  Here we just throw an exception.
-    // this is not good.
-    val modelActor = openRealtimeModels.get(openRequest.modelFqn).get
-    modelActor forward openRequest
   }
 
   private[this] def onCreateModelRequest(createRequest: CreateModelRequest): Unit = {

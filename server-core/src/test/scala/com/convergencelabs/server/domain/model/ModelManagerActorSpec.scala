@@ -4,12 +4,10 @@ import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
-
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
 import scala.util.Success
-
 import org.json4s.JsonAST.JObject
 import org.json4s.JsonAST.JString
 import org.junit.runner.RunWith
@@ -19,7 +17,6 @@ import org.scalatest.Finders
 import org.scalatest.WordSpecLike
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.mock.MockitoSugar
-
 import com.convergencelabs.server.HeartbeatConfiguration
 import com.convergencelabs.server.ProtocolConfiguration
 import com.convergencelabs.server.datastore.domain.DomainConfigStore
@@ -30,10 +27,10 @@ import com.convergencelabs.server.datastore.domain.ModelStore
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.ModelSnapshotConfig
 import com.convergencelabs.server.util.MockDomainPersistenceManagerActor
-
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
+import com.convergencelabs.server.datastore.domain.CollectionStore
 
 @RunWith(classOf[JUnitRunner])
 class ModelManagerActorSpec
@@ -118,9 +115,10 @@ class ModelManagerActorSpec
     val userId1 = "u1";
     val userId2 = "u2";
     val sessionId1 = "1";
+    val collectionId = "collection"
 
-    val nonExistentModelFqn = ModelFqn("collection", "no model")
-    val modelFqn = ModelFqn("collection", "model" + System.nanoTime())
+    val nonExistentModelFqn = ModelFqn(collectionId, "no model")
+    val modelFqn = ModelFqn(collectionId, "model" + System.nanoTime())
     val modelJsonData = JObject("key" -> JString("value"))
     val modelCreateTime = Instant.ofEpochMilli(2L)
     val modelModifiedTime = Instant.ofEpochMilli(3L)
@@ -150,11 +148,16 @@ class ModelManagerActorSpec
       Duration.of(0, ChronoUnit.MINUTES),
       Duration.of(0, ChronoUnit.MINUTES))))
 
+    val collectionStore = mock[CollectionStore]
+    Mockito.when(collectionStore.getOrCreateCollection(collectionId))
+      .thenReturn(Success(Collection(collectionId, "", false, None)))
+
     val domainPersistence = mock[DomainPersistenceProvider]
     Mockito.when(domainPersistence.modelStore).thenReturn(modelStore)
     Mockito.when(domainPersistence.modelSnapshotStore).thenReturn(modelSnapshotStore)
     Mockito.when(domainPersistence.modelOperationStore).thenReturn(modelOperationStore)
     Mockito.when(domainPersistence.configStore).thenReturn(domainConfigStore)
+    Mockito.when(domainPersistence.collectionStore).thenReturn(collectionStore)
 
     val domainFqn = DomainFqn("convergence", "default")
 

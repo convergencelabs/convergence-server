@@ -94,9 +94,9 @@ class CollectionStore private[domain] (dbPool: OPartitionedDatabasePool)
     QueryUtil.mapSingletonList(result) { _.asCollection }
   }
 
-  def getOrCreateCollection(collectionId: String): Try[Option[Collection]] = {
+  def getOrCreateCollection(collectionId: String): Try[Collection] = {
     this.ensureCollectionExists(collectionId)
-    this.getCollection(collectionId)
+    this.getCollection(collectionId).map { x => x.get}
   }
 
   def getAllCollections(

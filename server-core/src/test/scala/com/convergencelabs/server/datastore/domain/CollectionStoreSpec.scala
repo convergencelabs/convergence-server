@@ -159,12 +159,12 @@ class CollectionStoreSpec
     "getting or creating collection" must {
       "creates a collection that doesn't exist" in withPersistenceStore { store =>
         store.collectionExists(carsCollectionId).success.value shouldBe false
-        store.getOrCreateCollection(carsCollectionId).success.value shouldBe defined
+        store.getOrCreateCollection(carsCollectionId).success
       }
 
       "gets a collection that exists" in withPersistenceStore { store =>
         store.collectionExists(peopleCollectionId).success.value shouldBe true
-        store.getOrCreateCollection(peopleCollectionId).success.value.value shouldBe expectedPeopleCollection
+        store.getOrCreateCollection(peopleCollectionId).success.value shouldBe expectedPeopleCollection
       }
     }
   }
