@@ -37,4 +37,8 @@ object MessageType extends Enumeration {
 
   val OperationSubmission = 22
   val OperationAck = 23
+
+  val UserLookUpRequest = 24
+  val UserSearchRequest = 25
+  val UserListResponse = 26
 }

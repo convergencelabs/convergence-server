@@ -59,7 +59,8 @@ class ClientActorSpec
 
         clientActor.tell(event, ActorRef.noSender)
         domainManagerActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeRequest])
-        domainManagerActor.reply(HandshakeSuccess(SessionId, RecconnectToken, new TestProbe(system).ref, new TestProbe(system).ref))
+        domainManagerActor.reply(
+            HandshakeSuccess(SessionId, RecconnectToken, new TestProbe(system).ref, new TestProbe(system).ref, new TestProbe(system).ref))
 
         val reply = Await.result(cb.result, 50 millis)
         assert(reply == HandshakeResponseMessage(true, None, Some(SessionId), Some(RecconnectToken), None, Some(ProtocolConfigData(true))))
@@ -180,6 +181,7 @@ class ClientActorSpec
   class HandshookClient(system: ActorSystem) extends TestFixture(system: ActorSystem) {
     val domainActor = new TestProbe(system)
     val modelManagerActor = new TestProbe(system)
+    val userServiceActor = new TestProbe(system)
 
     val handshakeRequestMessage = HandshakeRequestMessage(false, None)
     val handshakeCallback = new TestReplyCallback()
@@ -188,7 +190,7 @@ class ClientActorSpec
     clientActor.tell(handshakeEvent, ActorRef.noSender)
 
     domainManagerActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeRequest])
-    domainManagerActor.reply(HandshakeSuccess(SessionId, RecconnectToken, domainActor.ref, modelManagerActor.ref))
+    domainManagerActor.reply(HandshakeSuccess(SessionId, RecconnectToken, domainActor.ref, modelManagerActor.ref, userServiceActor.ref))
     Await.result(handshakeCallback.result, 250 millis)
   }
 

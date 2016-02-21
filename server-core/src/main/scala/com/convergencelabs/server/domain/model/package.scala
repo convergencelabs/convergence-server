@@ -27,6 +27,12 @@ package model {
   sealed trait CreateModelResponse
   case object ModelCreated extends CreateModelResponse
   case object ModelAlreadyExists extends CreateModelResponse
+  
+  case class CreateCollectionRequest(collection: Collection)
+  case class UpdateCollectionRequest(collection: Collection)
+  case class DeleteCollectionRequest(collectionId: String)
+  case class GetCollectionRequest(collectionId: String)
+  case object GetCollectionsRequest
 
   //
   // Incoming Messages From Self

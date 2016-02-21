@@ -69,7 +69,11 @@ object MessageSerializer {
     MessageType.OperationAck -> classOf[OperationAcknowledgementMessage],
     MessageType.RemoteOperation -> classOf[RemoteOperationMessage],
 
-    MessageType.ForceCloseRealTimeModel -> classOf[ModelForceCloseMessage]),
+    MessageType.ForceCloseRealTimeModel -> classOf[ModelForceCloseMessage],
+
+    MessageType.UserLookUpRequest -> classOf[UserLookUpMessage],
+    MessageType.UserSearchRequest -> classOf[UserSearchMessage],
+    MessageType.UserListResponse -> classOf[UserListMessage]),
 
     DefaultFormats + operationSerializer)
 

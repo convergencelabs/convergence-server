@@ -56,14 +56,16 @@ class ClientActor(
 
   private[this] val connectionManager = context.parent
 
-  connection.eventHandler = { case event:ConnectionEvent => self ! event }
+  connection.eventHandler = { case event: ConnectionEvent => self ! event }
 
   var modelClient: ActorRef = _
+  var userClient: ActorRef = _
   var domainActor: ActorRef = _
   var modelManagerActor: ActorRef = _
+  var userServiceActor: ActorRef = _
   var sessionId: String = _
 
-  def receive:Receive = receiveWhileHandshaking
+  def receive: Receive = receiveWhileHandshaking
 
   def receiveWhileHandshaking: Receive = {
     case RequestReceived(message, replyCallback) if message.isInstanceOf[HandshakeRequestMessage] => {
@@ -72,7 +74,7 @@ class ClientActor(
     case ConnectionClosed => onConnectionClosed()
     case ConnectionDropped => onConnectionDropped()
     case ConnectionError(message) => onConnectionError(message)
-    case x:Any => invalidMessage(x)
+    case x: Any => invalidMessage(x)
   }
 
   def receiveWhileAuthenticating: Receive = {
@@ -82,7 +84,7 @@ class ClientActor(
     case ConnectionClosed => onConnectionClosed()
     case ConnectionDropped => onConnectionDropped()
     case ConnectionError(message) => onConnectionError(message)
-    case x:Any => invalidMessage(x)
+    case x: Any => invalidMessage(x)
   }
 
   def authenticate(requestMessage: AuthenticationRequestMessage, cb: ReplyCallback): Unit = {
@@ -97,6 +99,7 @@ class ClientActor(
     future.mapResponse[AuthenticationResponse] onComplete {
       case Success(AuthenticationSuccess(uid, username)) => {
         this.modelClient = context.actorOf(ModelClientActor.props(uid, sessionId, modelManagerActor))
+        this.userClient = context.actorOf(UserClientActor.props(userServiceActor))
         cb.reply(AuthenticationResponseMessage(true, Some(username)))
         context.become(receiveWhileAuthenticated)
       }
@@ -111,16 +114,17 @@ class ClientActor(
       }
     }
   }
-  
+
   def handshake(request: HandshakeRequestMessage, cb: ReplyCallback): Unit = {
     val canceled = handshakeTimeoutTask.cancel()
     if (canceled) {
       val future = domainManager ? HandshakeRequest(domainFqn, self, request.r, request.k)
       future.mapResponse[HandshakeResponse] onComplete {
-        case Success(HandshakeSuccess(sessionId, reconnectToken, domainActor, modelManagerActor)) => {
+        case Success(HandshakeSuccess(sessionId, reconnectToken, domainActor, modelManagerActor, userServiceActor)) => {
           this.sessionId = sessionId
           this.domainActor = domainActor
           this.modelManagerActor = modelManagerActor
+          this.userServiceActor = userServiceActor
           cb.reply(HandshakeResponseMessage(true, None, Some(sessionId), Some(reconnectToken), None, Some(ProtocolConfigData(true))))
           context.become(receiveWhileAuthenticating)
         }
@@ -178,7 +182,10 @@ class ClientActor(
 
   private def onRequestReceived(message: RequestReceived): Unit = {
     message match {
-      case RequestReceived(x, _) if x.isInstanceOf[IncomingModelRequestMessage] => modelClient.forward(message)
+      case RequestReceived(x, _) if x.isInstanceOf[IncomingModelRequestMessage] =>
+        modelClient.forward(message)
+      case RequestReceived(x, _) if x.isInstanceOf[IncomingUserMessage] =>
+        userClient.forward(message)
     }
   }
 

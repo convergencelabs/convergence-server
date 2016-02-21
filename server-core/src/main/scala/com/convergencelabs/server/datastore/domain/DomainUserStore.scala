@@ -1,15 +1,12 @@
 package com.convergencelabs.server.datastore.domain
 
 import java.util.{ List => JavaList }
-
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.util.Try
-
 import org.json4s.NoTypeHints
 import org.json4s.jackson.Serialization
-
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.server.datastore.QueryUtil
 import com.convergencelabs.server.datastore.SortOrder
@@ -21,8 +18,11 @@ import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
-
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.domain.UserLookUpField
+import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.HashTable
+import scala.collection.mutable.HashTable
 
 /**
  * Manages the persistence of Domain Users.  This class manages both user profile records
@@ -130,7 +130,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    *
    * @return A list of users matching the list of supplied uids.
    */
-  def getDomainUsersByUids(uids: List[String]): Try[List[DomainUser]] = tryWithDb { db =>
+  def getDomainUsersByUid(uids: List[String]): Try[List[DomainUser]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE uid in :uids")
     val params = Map("uids" -> uids.asJava)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
@@ -219,16 +219,46 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    * @param offset The offset into the ordering to start returning entries.  Defaults to 0.
    */
   def getAllDomainUsers(
-    orderBy: Option[DomainUserOrder.Order],
+    orderBy: Option[DomainUserField.Field],
     sortOrder: Option[SortOrder.Value],
     limit: Option[Int],
     offset: Option[Int]): Try[List[DomainUser]] = tryWithDb { db =>
 
-    val order = orderBy.getOrElse(DomainUserOrder.Username)
+    val order = orderBy.getOrElse(DomainUserField.Username)
     val sort = sortOrder.getOrElse(SortOrder.Descending)
     val baseQuery = s"SELECT * FROM User ORDER BY $order $sort"
     val query = new OSQLSynchQuery[ODocument](QueryUtil.buildPagedQuery(baseQuery, limit, offset))
     val result: JavaList[ODocument] = db.command(query).execute()
+
+    result.asScala.toList.map { doc => doc.asDomainUser }
+  }
+
+  def searchUsersByFields(
+    fields: List[DomainUserField.Field],
+    searchString: String,
+    orderBy: Option[DomainUserField.Field],
+    sortOrder: Option[SortOrder.Value],
+    limit: Option[Int],
+    offset: Option[Int]): Try[List[DomainUser]] = tryWithDb { db =>
+
+    val baseQuery = "SELECT * FROM User"
+    val whereTerms = ListBuffer[String]()
+
+    fields.foreach { field =>
+      whereTerms += s"$field LIKE :searchString"
+    }
+
+    val whereClause = " WHERE " + whereTerms.mkString(" OR ")
+
+    val order = orderBy.getOrElse(DomainUserField.Username)
+    val sort = sortOrder.getOrElse(SortOrder.Descending)
+    val orderByClause = s" ORDER BY $order $sort"
+
+    val pagedQuery = QueryUtil.buildPagedQuery(baseQuery + whereClause + orderByClause, limit, offset)
+    val query = new OSQLSynchQuery[ODocument](pagedQuery)
+
+    val params = Map("searchString" -> ("%"+ searchString + "%"))
+    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
     result.asScala.toList.map { doc => doc.asDomainUser }
   }
@@ -281,9 +311,11 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
   }
 }
 
-object DomainUserOrder extends Enumeration {
-  type Order = Value
+object DomainUserField extends Enumeration {
+  type Field = Value
+  val UserId = Value("uid")
   val Username = Value("username")
   val FirstName = Value("firstName")
   val LastName = Value("lastName")
+  val Email = Value("email")
 }

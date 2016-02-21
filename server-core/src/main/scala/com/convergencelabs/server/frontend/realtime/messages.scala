@@ -25,10 +25,8 @@ sealed trait OutgoingProtocolNormalMessage extends OutgoingProtocolMessage
 sealed trait OutgoingProtocolRequestMessage extends OutgoingProtocolMessage
 sealed trait OutgoingProtocolResponseMessage extends OutgoingProtocolMessage
 
-
 case class PingMessage() extends ProtocolMessage
 case class PongMessage() extends ProtocolMessage
-
 
 ///////////////////////////////////////////////////////////////////////////////
 // Client Messages
@@ -60,7 +58,7 @@ case class ErrorData(
 // Authentication Messages
 sealed trait AuthenticationRequestMessage extends IncomingProtocolRequestMessage
 case class PasswordAuthRequestMessage(u: String, p: String) extends AuthenticationRequestMessage
-case class TokenAuthRequestMessage(t: String)  extends AuthenticationRequestMessage
+case class TokenAuthRequestMessage(t: String) extends AuthenticationRequestMessage
 case class AuthenticationResponseMessage(s: Boolean, u: Option[String]) extends OutgoingProtocolResponseMessage
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -89,3 +87,15 @@ case class RemoteClientOpenedMessage(r: String, u: String, s: String) extends Ou
 case class ModelForceCloseMessage(r: String, s: String) extends OutgoingProtocolNormalMessage
 
 case class ModelDataRequestMessage(c: String, m: String) extends OutgoingProtocolRequestMessage
+
+///////////////////////////////////////////////////////////////////////////////
+// User Messages
+///////////////////////////////////////////////////////////////////////////////
+
+sealed trait IncomingUserMessage
+case class UserLookUpMessage(f: Int, v: List[String]) extends IncomingProtocolRequestMessage with IncomingUserMessage
+case class UserSearchMessage(f: List[Int], v: String, o: Option[Int], l: Option[Int], r: Option[Int], s: Option[Int])
+  extends IncomingProtocolRequestMessage with IncomingUserMessage
+
+case class UserListMessage(u: List[DomainUserData]) extends OutgoingProtocolResponseMessage
+case class DomainUserData(i: String, n: String, f: Option[String], l: Option[String], e: Option[String])

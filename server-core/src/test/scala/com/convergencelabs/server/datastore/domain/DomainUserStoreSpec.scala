@@ -16,6 +16,7 @@ class DomainUserStoreSpec
     with Matchers {
 
   // Pre-loaded Users
+  val User0 = DomainUser("u0", "admin", Some("admin"), Some("admin"), Some("admin@example.com"))
   val User1 = DomainUser("u1", "test1", Some("Test"), Some("One"), Some("test1@example.com"))
   val User2 = DomainUser("u2", "test2", Some("Test"), Some("Two"), Some("test2@example.com"))
 
@@ -102,7 +103,7 @@ class DomainUserStoreSpec
 
     "querying multiple users" must {
       "correctly retreive users by uid" in withPersistenceStore { store =>
-        val queried = store.getDomainUsersByUids(List(User1.uid, User2.uid))
+        val queried = store.getDomainUsersByUid(List(User1.uid, User2.uid))
         queried.success.value should contain allOf (User1, User2)
       }
 
@@ -147,8 +148,8 @@ class DomainUserStoreSpec
     "retreiving all users" must {
       "order correctly by username" in withPersistenceStore { store =>
         val allUsers = store.getAllDomainUsers(None, None, None, None).success.value
-        val orderedDescending = store.getAllDomainUsers(Some(DomainUserOrder.Username), Some(SortOrder.Descending), None, None).success.get
-        val orderedAscending = store.getAllDomainUsers(Some(DomainUserOrder.Username), Some(SortOrder.Ascending), None, None).success.get
+        val orderedDescending = store.getAllDomainUsers(Some(DomainUserField.Username), Some(SortOrder.Descending), None, None).success.get
+        val orderedAscending = store.getAllDomainUsers(Some(DomainUserField.Username), Some(SortOrder.Ascending), None, None).success.get
 
         orderedDescending shouldBe allUsers.sortWith(_.username > _.username)
         orderedAscending shouldBe orderedDescending.reverse
@@ -157,6 +158,40 @@ class DomainUserStoreSpec
       "limit results to the correct number" in withPersistenceStore { store =>
         val allUser = store.getAllDomainUsers(None, None, None, None).success.value
         store.getAllDomainUsers(None, None, Some(2), None).success.get shouldBe allUser.slice(0, 2)
+      }
+    }
+
+    "searching for users by fields" must {
+      "should return multiple matches if a prefix is supplied" in withPersistenceStore { store =>
+        val fields = List(DomainUserField.UserId)
+        val searchString = "u"
+        val users = store.searchUsersByFields(fields, searchString, None, None, None, None).success.value
+        users.length shouldBe 3
+      }
+
+      "should a single user if only one user matches" in withPersistenceStore { store =>
+        val fields = List(DomainUserField.UserId)
+        val searchString = "u1"
+        val users = store.searchUsersByFields(fields, searchString, None, None, None, None).success.value
+        users.length shouldBe 1
+        users(0) shouldBe User1
+      }
+    }
+
+    "getting users users by fields" must {
+      "should return multiple matches if a prefix is supplied" in withPersistenceStore { store =>
+        val fields = List(DomainUserField.UserId)
+        val searchString = "u"
+        val users = store.searchUsersByFields(fields, searchString, None, None, None, None).success.value
+        users.length shouldBe 3
+      }
+
+      "should a single user if only one user matches" in withPersistenceStore { store =>
+        val fields = List(DomainUserField.UserId)
+        val searchString = "u1"
+        val users = store.searchUsersByFields(fields, searchString, None, None, None, None).success.value
+        users.length shouldBe 1
+        users(0) shouldBe User1
       }
     }
 
