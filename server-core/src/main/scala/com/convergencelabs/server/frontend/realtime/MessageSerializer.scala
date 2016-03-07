@@ -71,6 +71,16 @@ object MessageSerializer {
 
     MessageType.ForceCloseRealTimeModel -> classOf[ModelForceCloseMessage],
 
+    MessageType.PublishReference -> classOf[PublishReferenceMessage],
+    MessageType.UnpublishReference -> classOf[UnpublishReferenceMessage],
+    MessageType.SetReference -> classOf[SetReferenceMessage],
+    MessageType.ClearReference -> classOf[ClearReferenceMessage],
+
+    MessageType.ReferencePublished -> classOf[RemoteReferencePublishedMessage],
+    MessageType.ReferenceUnpublished -> classOf[RemoteReferenceUnpublishedMessage],
+    MessageType.ReferenceSet -> classOf[RemoteReferenceSetMessage],
+    MessageType.ReferenceCleared -> classOf[RemoteReferenceClearedMessage],
+
     MessageType.UserLookUpRequest -> classOf[UserLookUpMessage],
     MessageType.UserSearchRequest -> classOf[UserSearchMessage],
     MessageType.UserListResponse -> classOf[UserListMessage]),

@@ -2,10 +2,10 @@ package com.convergencelabs.server.frontend.realtime
 
 object MessageType extends Enumeration {
   val Error = 0
-  
+
   val Ping = 1
   val Pong = 2
-  
+
   val HandshakeRequest = 3
   val HandshakeResponse = 4
 
@@ -38,7 +38,17 @@ object MessageType extends Enumeration {
   val OperationSubmission = 22
   val OperationAck = 23
 
-  val UserLookUpRequest = 24
-  val UserSearchRequest = 25
-  val UserListResponse = 26
+  val PublishReference = 24
+  val SetReference = 25
+  val ClearReference = 26
+  val UnpublishReference = 27
+
+  val ReferencePublished = 28
+  val ReferenceSet = 29
+  val ReferenceCleared = 30
+  val ReferenceUnpublished = 31
+
+  val UserLookUpRequest = 50
+  val UserSearchRequest = 51
+  val UserListResponse = 52
 }

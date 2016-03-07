@@ -101,6 +101,10 @@ class RealtimeModelActor(
     case openRequest: OpenRealtimeModelRequest => onOpenModelWhileInitialized(openRequest)
     case closeRequest: CloseRealtimeModelRequest => onCloseModelRequest(closeRequest)
     case operationSubmission: OperationSubmission => onOperationSubmission(operationSubmission)
+    case publishReference: PublishReference => onPublishReference(publishReference)
+    case unpublishReference: UnpublishReference => onUnpublishReference(unpublishReference)
+    case setReference: SetReference => onSetReference(setReference)
+    case clearReference: ClearReference => onClearReference(clearReference)
     case dataResponse: ClientModelDataResponse =>
     // This can happen if we asked several clients for the data.  The first
     // one will be handled, but the rest will come in an simply be ignored.
@@ -409,8 +413,8 @@ class RealtimeModelActor(
       sk.uid,
       sk.sid,
       processedOpEvent.operation))
-      
-      result.map { x =>
+
+    result.map { x =>
       OutgoingOperation(
         modelResourceId,
         sk.uid,
@@ -435,6 +439,54 @@ class RealtimeModelActor(
     connectedClients.filter(p => p._1 != sk) foreach {
       case (sk, clientActor) => clientActor ! outgoingOperation
     }
+  }
+
+  //
+  // References
+  //
+  private[this] def onPublishReference(request: PublishReference): Unit = {
+    val PublishReference(path, key, value) = request;
+
+    val sk = this.clientToSessionId(sender)
+    val message = RemoteReferencePublished(this.modelResourceId, sk, path, key, value)
+
+    connectedClients.filter(p => p._1 != sk) foreach {
+      case (sk, clientActor) => clientActor ! message
+    }
+  }
+
+  private[this] def onUnpublishReference(request: UnpublishReference): Unit = {
+    val UnpublishReference(path, key) = request;
+
+    val sk = this.clientToSessionId(sender)
+    val message = RemoteReferenceUnpublished(this.modelResourceId, sk, path, key)
+
+    connectedClients.filter(p => p._1 != sk) foreach {
+      case (sk, clientActor) => clientActor ! message
+    }
+  }
+
+  private[this] def onSetReference(request: SetReference): Unit = {
+    val SetReference(path, key, refType, value) = request;
+
+    val sk = this.clientToSessionId(sender)
+    val message = RemoteReferenceSet(this.modelResourceId, sk, path, key, refType, value)
+
+    connectedClients.filter(p => p._1 != sk) foreach {
+      case (sk, clientActor) => clientActor ! message
+    }
+  }
+
+  private[this] def onClearReference(request: ClearReference): Unit = {
+    val ClearReference(path, key) = request;
+
+    val sk = this.clientToSessionId(sender)
+    val message = RemoteReferenceCleared(this.modelResourceId, sk, path, key)
+
+    connectedClients.filter(p => p._1 != sk) foreach {
+      case (sk, clientActor) => clientActor ! message
+    }
+
   }
 
   private[this] def snapshotRequired(): Boolean = snapshotCalculator.snapshotRequired(

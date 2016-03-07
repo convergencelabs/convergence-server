@@ -80,12 +80,18 @@ lazy val dockerSettings = Seq(
   dockerfile in docker := {
   
     new Dockerfile {
-      from("java:8")
+      from("centos:7")
+      run("yum", "--assumeyes", "install", "java-1.8.0-openjdk-devel")
       add(new java.io.File("target/pack"), "/opt/convergence")
+      env("JAVA_HOME", "/usr/lib/jvm/java-1.8.0")
+      env("PATH", "$JAVA_HOME/bin:$PATH")
       workDir("/opt/convergence/")
-      entryPoint("/opt/convergence/bin/test-server")
       expose(8080)
+      entryPoint("/opt/convergence/bin/test-server")
     }
+  },
+  imageNames in docker := {
+    Seq(ImageName("convergence-server"))
   }
 )
 
