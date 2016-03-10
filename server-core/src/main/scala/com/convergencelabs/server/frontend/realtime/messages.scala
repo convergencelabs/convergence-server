@@ -87,6 +87,8 @@ case class OpenRealtimeModelResponseMessage(r: String, v: Long, c: Long, m: Long
 case class OpenModelData(d: JValue, s: Set[String], r: Map[String, Set[ReferenceData]])
 case class ReferenceData(p: List[Any], k: String, c: Int, v: Option[JValue])
 
+case class CloseRealTimeModelSuccessMessage() extends OutgoingProtocolResponseMessage
+
 case class OperationAcknowledgementMessage(r: String, s: Long, v: Long) extends OutgoingProtocolNormalMessage
 case class RemoteOperationMessage(r: String, u: String, s: String, v: Long, p: Long, o: OperationData) extends OutgoingProtocolNormalMessage
 

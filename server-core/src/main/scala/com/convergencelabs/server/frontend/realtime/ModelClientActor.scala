@@ -272,7 +272,7 @@ class ModelClientActor(
         future.mapResponse[CloseRealtimeModelSuccess] onComplete {
           case Success(CloseRealtimeModelSuccess()) =>
             openRealtimeModels -= request.r
-            cb.reply(SuccessMessage())
+            cb.reply(CloseRealTimeModelSuccessMessage())
           case Failure(cause) =>
             cb.unexpectedError("could not close model")
         }

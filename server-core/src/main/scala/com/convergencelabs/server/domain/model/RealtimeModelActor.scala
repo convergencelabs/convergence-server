@@ -365,6 +365,7 @@ class RealtimeModelActor(
       connectedClients -= sk
       fakeReferenceMap -= sk
       concurrencyControl.untrackClient(sk)
+      context.unwatch(clientActor)
 
       // TODO handle reference leaving
 

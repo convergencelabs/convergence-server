@@ -58,7 +58,12 @@
     "domain/data/UserCredential/u1.osql",
     
     "domain/data/User/u2.osql",
-    "domain/data/UserCredential/u2.osql"
+    "domain/data/UserCredential/u2.osql",
     
+    "domain/data/User/u3.osql",
+    "domain/data/UserCredential/u3.osql",
+    
+    "domain/data/User/u4.osql",
+    "domain/data/UserCredential/u4.osql"
   ]
 }

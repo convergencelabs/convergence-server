@@ -298,5 +298,32 @@ class ModelOperationProcessorSpec
         modelData \ marriedField shouldBe JBool(true)
       }
     }
+
+    "handling non alpha object preoprties" must {
+
+      "correctly handle property names in the path with special chars" in withPersistenceStore { stores =>
+        val (processor, opStore, modelStore) = stores
+
+        val property = "my-prop!"
+        val op = ObjectAddPropertyOperation(List(), false, property, new JString("value"))
+        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
+        processor.processModelOperation(modelOp).success
+
+        val modelData = modelStore.getModelData(modelFqn).success.value.value
+        modelData \ property shouldBe JString("value")
+      }
+
+      "correctly handle property names in the path that are numeric" in withPersistenceStore { stores =>
+        val (processor, opStore, modelStore) = stores
+
+        val property = "4"
+        val op = ObjectAddPropertyOperation(List(), false, property, new JString("value"))
+        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
+        processor.processModelOperation(modelOp).success
+
+        val modelData = modelStore.getModelData(modelFqn).success.value.value
+        modelData \ property shouldBe JString("value")
+      }
+    }
   }
 }

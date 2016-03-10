@@ -60,6 +60,8 @@ object MessageSerializer {
     MessageType.OpenRealTimeModelResponse -> classOf[OpenRealtimeModelResponseMessage],
 
     MessageType.CloseRealTimeModelRequest -> classOf[CloseRealtimeModelRequestMessage],
+    MessageType.CloseRealTimeModelResponse -> classOf[CloseRealTimeModelSuccessMessage],
+    
     MessageType.DeleteRealtimeModelRequest -> classOf[DeleteRealtimeModelRequestMessage],
 
     MessageType.ModelDataResponse -> classOf[ModelDataResponseMessage],
