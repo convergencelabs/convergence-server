@@ -83,13 +83,15 @@ case class ClearReferenceMessage(r: String, p: List[Any], k: String) extends Inc
 
 
 // Outgoing Model Messages
-case class OpenRealtimeModelResponseMessage(r: String, v: Long, c: Long, m: Long, d: JValue) extends OutgoingProtocolResponseMessage
+case class OpenRealtimeModelResponseMessage(r: String, v: Long, c: Long, m: Long, d: OpenModelData) extends OutgoingProtocolResponseMessage
+case class OpenModelData(d: JValue, s: Set[String], r: Map[String, Set[ReferenceData]])
+case class ReferenceData(p: List[Any], k: String, c: Int, v: Option[JValue])
 
 case class OperationAcknowledgementMessage(r: String, s: Long, v: Long) extends OutgoingProtocolNormalMessage
 case class RemoteOperationMessage(r: String, u: String, s: String, v: Long, p: Long, o: OperationData) extends OutgoingProtocolNormalMessage
 
-case class RemoteClientClosedMessage(r: String, u: String, s: String) extends OutgoingProtocolNormalMessage
-case class RemoteClientOpenedMessage(r: String, u: String, s: String) extends OutgoingProtocolNormalMessage
+case class RemoteClientClosedMessage(r: String, s: String) extends OutgoingProtocolNormalMessage
+case class RemoteClientOpenedMessage(r: String, s: String) extends OutgoingProtocolNormalMessage
 case class ModelForceCloseMessage(r: String, s: String) extends OutgoingProtocolNormalMessage
 
 case class ModelDataRequestMessage(c: String, m: String) extends OutgoingProtocolRequestMessage

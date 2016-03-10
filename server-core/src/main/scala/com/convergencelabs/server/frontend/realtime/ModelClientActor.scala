@@ -49,6 +49,7 @@ import com.convergencelabs.server.domain.model.RemoteReferencePublished
 import com.convergencelabs.server.domain.model.RemoteReferenceUnpublished
 import com.convergencelabs.server.domain.model.RemoteReferenceSet
 import com.convergencelabs.server.domain.model.RemoteReferenceCleared
+import com.convergencelabs.server.domain.model.ReferenceState
 
 object ModelClientActor {
   def props(
@@ -116,13 +117,13 @@ class ModelClientActor(
   }
 
   def onRemoteClientOpened(opened: RemoteClientOpened): Unit = {
-    val RemoteClientOpened(resourceId, userId, sessionId) = opened
-    context.parent ! RemoteClientOpenedMessage(resourceId, userId, sessionId)
+    val RemoteClientOpened(resourceId, sk) = opened
+    context.parent ! RemoteClientOpenedMessage(resourceId, sk.serialize())
   }
 
   def onRemoteClientClosed(closed: RemoteClientClosed): Unit = {
-    val RemoteClientClosed(resourceId, userId, sessionId) = closed
-    context.parent ! RemoteClientClosedMessage(resourceId, userId, sessionId)
+    val RemoteClientClosed(resourceId, sk) = closed
+    context.parent ! RemoteClientClosedMessage(resourceId, sk.serialize())
   }
 
   def onModelForceClose(forceClose: ModelForceClose): Unit = {
@@ -226,15 +227,25 @@ class ModelClientActor(
     val future = modelManager ? OpenRealtimeModelRequest(
       userId, sessionId, ModelFqn(request.c, request.m), request.i, self)
     future.mapResponse[OpenModelResponse] onComplete {
-      case Success(OpenModelSuccess(realtimeModelActor, modelResourceId, metaData, modelData)) => {
+      case Success(OpenModelSuccess(realtimeModelActor, modelResourceId, metaData, connectedClients, references, modelData)) => {
         openRealtimeModels += (modelResourceId -> realtimeModelActor)
+        val convertedReferences = references.map({
+          case (sk, refs) =>
+            (sk.serialize(), refs.map(ref => {
+              val ReferenceState(path, key, refType, value) = ref
+              ReferenceData(path, key, ReferenceType.map(refType), value)
+            }))
+        })
         cb.reply(
           OpenRealtimeModelResponseMessage(
             modelResourceId,
             metaData.version,
             metaData.createdTime.toEpochMilli,
             metaData.modifiedTime.toEpochMilli,
-            modelData))
+            OpenModelData(
+              modelData,
+              connectedClients.map({ x => x.serialize() }),
+              convertedReferences)))
       }
       case Success(ModelAlreadyOpen) => {
         cb.expectedError("model_already_open", "The requested model is already open by this client.")

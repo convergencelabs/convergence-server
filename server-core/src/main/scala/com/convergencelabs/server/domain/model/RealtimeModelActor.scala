@@ -26,6 +26,7 @@ import com.convergencelabs.server.datastore.domain.ModelOperationProcessor
 import com.convergencelabs.server.util.concurrent.AskFuture
 import com.convergencelabs.server.UnknownErrorResponse
 import com.convergencelabs.server.datastore.domain.CollectionStore
+import akka.actor.Terminated
 
 /**
  * An instance of the RealtimeModelActor manages the lifecycle of a single
@@ -56,6 +57,8 @@ class RealtimeModelActor(
   private[this] val transformer = new OperationTransformer(new TransformationFunctionRegistry())
 
   private[this] val snapshotCalculator = new ModelSnapshotCalculator(snapshotConfig)
+
+  private[this] var fakeReferenceMap: HashMap[SessionKey, HashMap[String, ReferenceState]] = HashMap();
 
   //
   // Receive methods
@@ -110,6 +113,7 @@ class RealtimeModelActor(
     // one will be handled, but the rest will come in an simply be ignored.
     case snapshotMetaData: ModelSnapshotMetaData => this.latestSnapshot = snapshotMetaData
     case ModelDeleted => handleModelDeletedWhileOpen()
+    case terminated: Terminated => handleTerminated(terminated)
     case unknown: Any => unhandled(unknown)
   }
 
@@ -305,6 +309,11 @@ class RealtimeModelActor(
     concurrencyControl.trackClient(sk, contextVersion)
     connectedClients += (sk -> requestRecord.clientActor)
     clientToSessionId += (requestRecord.clientActor -> sk)
+    fakeReferenceMap += (sk -> HashMap())
+
+    // this is how we are being notified that our client is gone.
+    // TODO is the the best way.
+    context.watch(requestRecord.clientActor)
 
     // Send a message to the client informing them of the successful model open.
     val metaData = OpenModelMetaData(
@@ -312,13 +321,26 @@ class RealtimeModelActor(
       modelData.metaData.createdTime,
       modelData.metaData.modifiedTime)
 
+    val refMap = this.fakeReferenceMap.map({
+      case (k, v) => (k, v.values.toSet)
+    })
+
     val openModelResponse = OpenModelSuccess(
       self,
       modelResourceId,
       metaData,
+      connectedClients.keySet,
+      refMap,
       modelData.data)
 
     requestRecord.askingActor ! openModelResponse
+
+    // Let other client knows
+    val msg = RemoteClientOpened(modelResourceId, sk)
+    connectedClients.filterKeys({ _ != sk }).foreach({
+      case (session, clientActor) =>
+        clientActor ! msg
+    })
   }
 
   /**
@@ -326,13 +348,22 @@ class RealtimeModelActor(
    */
   private[this] def onCloseModelRequest(request: CloseRealtimeModelRequest): Unit = {
     val sk = SessionKey(request.userId, request.sessionId)
+    clientClosed(sk)
+  }
 
+  private[this] def handleTerminated(terminated: Terminated): Unit = {
+    val sk = clientToSessionId(terminated.actor)
+    clientClosed(sk)
+  }
+
+  private[this] def clientClosed(sk: SessionKey): Unit = {
     if (!connectedClients.contains(sk)) {
       sender ! ModelNotOpened
     } else {
       val clientActor = connectedClients(sk)
       clientToSessionId -= clientActor
       connectedClients -= sk
+      fakeReferenceMap -= sk
       concurrencyControl.untrackClient(sk)
 
       // TODO handle reference leaving
@@ -340,7 +371,7 @@ class RealtimeModelActor(
       // Acknowledge the close back to the requester
       sender ! CloseRealtimeModelSuccess()
 
-      val closedMessage = RemoteClientClosed(modelResourceId, request.userId, request.sessionId)
+      val closedMessage = RemoteClientClosed(modelResourceId, sk)
 
       // If there are other clients, inform them.
       connectedClients.values foreach { client => client ! closedMessage }
@@ -445,10 +476,16 @@ class RealtimeModelActor(
   // References
   //
   private[this] def onPublishReference(request: PublishReference): Unit = {
-    val PublishReference(path, key, value) = request;
-
     val sk = this.clientToSessionId(sender)
-    val message = RemoteReferencePublished(this.modelResourceId, sk, path, key, value)
+
+    val PublishReference(path, key, refType) = request;
+
+    // FIXME this is faked
+    val sessionRefs = fakeReferenceMap(sk)
+    val updatedSessionRefs = sessionRefs + ((path.toString() + key) -> ReferenceState(path, key, refType, None))
+    fakeReferenceMap += (sk -> updatedSessionRefs)
+
+    val message = RemoteReferencePublished(this.modelResourceId, sk, path, key, refType)
 
     connectedClients.filter(p => p._1 != sk) foreach {
       case (sk, clientActor) => clientActor ! message
@@ -457,8 +494,12 @@ class RealtimeModelActor(
 
   private[this] def onUnpublishReference(request: UnpublishReference): Unit = {
     val UnpublishReference(path, key) = request;
-
     val sk = this.clientToSessionId(sender)
+
+    // FIXME this is faked
+    val sessionRefs = fakeReferenceMap(sk)
+    fakeReferenceMap += (sk -> (sessionRefs - (path.toString() + request.key)))
+
     val message = RemoteReferenceUnpublished(this.modelResourceId, sk, path, key)
 
     connectedClients.filter(p => p._1 != sk) foreach {
@@ -468,8 +509,13 @@ class RealtimeModelActor(
 
   private[this] def onSetReference(request: SetReference): Unit = {
     val SetReference(path, key, refType, value) = request;
-
     val sk = this.clientToSessionId(sender)
+
+    // FIXME this is faked
+    val sessionRefs = fakeReferenceMap(sk)
+    val refState = sessionRefs(path.toString() + key).copy(value = Some(value))
+    fakeReferenceMap += (sk -> (sessionRefs + ((path.toString() + key) -> refState)))
+
     val message = RemoteReferenceSet(this.modelResourceId, sk, path, key, refType, value)
 
     connectedClients.filter(p => p._1 != sk) foreach {
@@ -479,8 +525,13 @@ class RealtimeModelActor(
 
   private[this] def onClearReference(request: ClearReference): Unit = {
     val ClearReference(path, key) = request;
-
     val sk = this.clientToSessionId(sender)
+
+    // FIXME this is faked
+    val sessionRefs = fakeReferenceMap(sk)
+    val refState = sessionRefs(path.toString() + key).copy(value = None)
+    fakeReferenceMap += (sk -> (sessionRefs + ((path.toString() + key) -> refState)))
+
     val message = RemoteReferenceCleared(this.modelResourceId, sk, path, key)
 
     connectedClients.filter(p => p._1 != sk) foreach {
@@ -557,7 +608,7 @@ class RealtimeModelActor(
 
     // TODO handle reference node leaving
 
-    val closedMessage = RemoteClientClosed(modelResourceId, sk.uid, sk.sid)
+    val closedMessage = RemoteClientClosed(modelResourceId, sk)
 
     if (notifyOthers) {
       // There are still other clients with this model open so notify them
@@ -624,4 +675,6 @@ private object ErrorCodes extends Enumeration {
   val ModelDeleted = "model_deleted"
 }
 
-case class SessionKey(uid: String, sid: String)
+case class SessionKey(uid: String, sid: String) {
+  def serialize(): String = s"${uid}:${sid}"
+}

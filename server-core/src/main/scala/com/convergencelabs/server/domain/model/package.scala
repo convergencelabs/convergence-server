@@ -24,7 +24,7 @@ package model {
   case class SetReference(path: List[Any], key: String, referenceType: ReferenceType.Value, value: JValue)
   case class ClearReference(path: List[Any], key: String)
   case class UnpublishReference(path: List[Any], key: String)
-  
+
   sealed trait DeleteModelResponse
   case object ModelDeleted extends DeleteModelResponse
   case object ModelNotFound extends DeleteModelResponse
@@ -49,7 +49,19 @@ package model {
   // Outgoing Messages
   //
   sealed trait OpenModelResponse
-  case class OpenModelSuccess(realtimeModelActor: ActorRef, modelResourceId: String, metaData: OpenModelMetaData, modelData: JValue) extends OpenModelResponse
+  case class OpenModelSuccess(
+    realtimeModelActor: ActorRef,
+    modelResourceId: String,
+    metaData: OpenModelMetaData,
+    connectedClients: Set[SessionKey],
+    referencesBySession: Map[SessionKey, Set[ReferenceState]],
+    modelData: JValue) extends OpenModelResponse
+
+  case class ReferenceState(
+    path: List[Any],
+    key: String,
+    referenceType: ReferenceType.Value,
+    value: Option[JValue])
 
   sealed trait OpenModelFailure extends OpenModelResponse
   case object ModelAlreadyOpen extends OpenModelFailure
@@ -69,8 +81,8 @@ package model {
     contextVersion: Long,
     timestampe: Long,
     operation: Operation) extends RealtimeModelClientMessage
-  case class RemoteClientClosed(resourceId: String, userId: String, sessionId: String) extends RealtimeModelClientMessage
-  case class RemoteClientOpened(resourceId: String, userId: String, sessionId: String) extends RealtimeModelClientMessage
+  case class RemoteClientClosed(resourceId: String, sk: SessionKey) extends RealtimeModelClientMessage
+  case class RemoteClientOpened(resourceId: String, sk: SessionKey) extends RealtimeModelClientMessage
   case class ModelForceClose(resourceId: String, reason: String) extends RealtimeModelClientMessage
   case class ClientModelDataRequest(modelFqn: ModelFqn) extends RealtimeModelClientMessage
 
@@ -79,6 +91,5 @@ package model {
   case class RemoteReferenceCleared(resourceId: String, sessionId: String, path: List[Any], key: String) extends RealtimeModelClientMessage
   case class RemoteReferenceUnpublished(resourceId: String, sessionId: String, path: List[Any], key: String) extends RealtimeModelClientMessage
 
-  
   case object ModelNotOpened
 }

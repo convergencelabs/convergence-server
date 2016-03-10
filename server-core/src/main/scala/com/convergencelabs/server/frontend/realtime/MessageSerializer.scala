@@ -70,6 +70,9 @@ object MessageSerializer {
     MessageType.RemoteOperation -> classOf[RemoteOperationMessage],
 
     MessageType.ForceCloseRealTimeModel -> classOf[ModelForceCloseMessage],
+    
+    MessageType.RemoteClientOpenedModel -> classOf[RemoteClientOpenedMessage],
+    MessageType.RemoteClientClosedModel -> classOf[RemoteClientClosedMessage],
 
     MessageType.PublishReference -> classOf[PublishReferenceMessage],
     MessageType.UnpublishReference -> classOf[UnpublishReferenceMessage],
