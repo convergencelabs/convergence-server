@@ -140,6 +140,7 @@ class ModelClientActor(
         askingActor ! ClientModelDataResponse(data)
       }
       case Failure(cause) => {
+        cause.printStackTrace()
         ??? // FIXME what to do?
       }
     }

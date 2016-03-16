@@ -65,6 +65,8 @@ class ClientActor(
   var userServiceActor: ActorRef = _
   var sessionId: String = _
 
+  connection.ready()
+  
   def receive: Receive = receiveWhileHandshaking
 
   def receiveWhileHandshaking: Receive = {

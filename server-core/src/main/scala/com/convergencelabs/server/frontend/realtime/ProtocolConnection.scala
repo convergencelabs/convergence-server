@@ -36,7 +36,7 @@ class ProtocolConnection(
   private[this] val ec: ExecutionContext)
     extends Logging {
 
-  val heartbeatHelper = new HeartbeatHelper(
+  private[this] val heartbeatHelper = new HeartbeatHelper(
     protocolConfig.heartbeatConfig.pingInterval,
     protocolConfig.heartbeatConfig.pongTimeout,
     scheduler,
@@ -47,18 +47,24 @@ class ProtocolConnection(
     heartbeatHelper.start()
   }
 
-  socket.handler = {
+  private[this] val socketHandler: PartialFunction[ConvergenceServerSocketEvent, Unit] = {
     case SocketMessage(message) => onSocketMessage(message)
     case SocketClosed() => onSocketClosed()
     case SocketDropped() => onSocketDropped()
     case SocketError(message) => onSocketError(message)
   }
 
+  this.socket.setHandler(socketHandler)
+
   var nextRequestId = 0L
   val requests = mutable.Map[Long, RequestRecord]()
 
   private[realtime] var eventHandler: PartialFunction[ConnectionEvent, Unit] = {
-    case _ => {}
+    case _ => { ??? }
+  }
+
+  def ready(): Unit = {
+    this.socket.ready()
   }
 
   def send(message: OutgoingProtocolNormalMessage): Unit = {
@@ -136,13 +142,13 @@ class ProtocolConnection(
     }
 
     envelope match {
-      case MessageEnvelope(PingMessage(), None, None) => 
+      case MessageEnvelope(PingMessage(), None, None) =>
         onPing()
-      case MessageEnvelope(PongMessage(), None, None) => 
-        // No Op
-      case MessageEnvelope(ErrorMessage(_, _), None, Some(_)) => 
+      case MessageEnvelope(PongMessage(), None, None) =>
+      // No Op
+      case MessageEnvelope(ErrorMessage(_, _), None, Some(_)) =>
         onReply(envelope)
-      case MessageEnvelope(ErrorMessage(_, _), None, None) => 
+      case MessageEnvelope(ErrorMessage(_, _), None, None) =>
         onNormalMessage(envelope)
       case MessageEnvelope(msg, None, None) if msg.isInstanceOf[IncomingProtocolNormalMessage] =>
         onNormalMessage(envelope)
@@ -150,7 +156,7 @@ class ProtocolConnection(
         onRequest(envelope)
       case MessageEnvelope(msg, None, Some(_)) if msg.isInstanceOf[IncomingProtocolResponseMessage] =>
         onReply(envelope)
-      case _ => 
+      case _ =>
         handleInvalidMessage("Invalid messame.")
     }
   }
