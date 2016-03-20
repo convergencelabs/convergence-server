@@ -32,6 +32,7 @@ import com.convergencelabs.server.domain.model.ot.StringRemoveOperation
 import com.convergencelabs.server.domain.model.ot.StringSetOperation
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.convergencelabs.server.domain.model.ot.CompoundOperation
+import org.json4s.JsonAST.JDouble
 
 // scalastyle:off magic.number multiple.string.literals
 class ModelOperationProcessorSpec
@@ -266,23 +267,23 @@ class ModelOperationProcessorSpec
       "correctly update the model on NumberAdd" in withPersistenceStore { stores =>
         val (processor, opStore, modelStore) = stores
 
-        val op = NumberAddOperation(List(ageField), false, JInt(5))
+        val op = NumberAddOperation(List(ageField), false, JDouble(5))
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
         val response = processor.processModelOperation(modelOp)
 
         val modelData = modelStore.getModelData(modelFqn).success.value.value
-        modelData \ ageField shouldBe JInt(31)
+        modelData \ ageField shouldBe JDouble(31)
       }
 
       "correctly update the model on NumberSet" in withPersistenceStore { stores =>
         val (processor, opStore, modelStore) = stores
 
-        val op = NumberSetOperation(List(ageField), false, JInt(33))
+        val op = NumberSetOperation(List(ageField), false, JDouble(33))
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
         processor.processModelOperation(modelOp)
 
         val modelData = modelStore.getModelData(modelFqn).success.value.value
-        modelData \ ageField shouldBe JInt(33)
+        modelData \ ageField shouldBe JDouble(33)
       }
     }
 

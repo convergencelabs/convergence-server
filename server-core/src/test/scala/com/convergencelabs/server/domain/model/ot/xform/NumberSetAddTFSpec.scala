@@ -18,7 +18,7 @@ class NumberSetAddTFSpec extends WordSpec with Matchers {
      */
     "tranforming a set and an add operation " must {
       "noOp the client's add operation and not transform the server's set operation" in {
-        val s = NumberSetOperation(List(), false, JInt(1))
+        val s = NumberSetOperation(List(), false, JDouble(1))
         val c = NumberAddOperation(List(), false, JDouble(2D))
 
         val (s1, c1) = NumberSetAddTF.transform(s, c)

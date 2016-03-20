@@ -166,7 +166,7 @@ class DomainUserStoreSpec
         val fields = List(DomainUserField.UserId)
         val searchString = "u"
         val users = store.searchUsersByFields(fields, searchString, None, None, None, None).success.value
-        users.length shouldBe 3
+        users.length shouldBe 5
       }
 
       "should a single user if only one user matches" in withPersistenceStore { store =>
@@ -183,7 +183,7 @@ class DomainUserStoreSpec
         val fields = List(DomainUserField.UserId)
         val searchString = "u"
         val users = store.searchUsersByFields(fields, searchString, None, None, None, None).success.value
-        users.length shouldBe 3
+        users.length shouldBe 5
       }
 
       "should a single user if only one user matches" in withPersistenceStore { store =>

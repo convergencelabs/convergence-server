@@ -6,7 +6,8 @@ INSERT INTO ModelOperation SET
   sid = "u0-1",
   version = 1,
   op = {
-	"@class":"ArrayInsertOperation",
+    "@type": "d",
+    "@class": "ArrayInsertOperation",
     "idx": 1,
     "noOp": false,
     "path": ["emails"],

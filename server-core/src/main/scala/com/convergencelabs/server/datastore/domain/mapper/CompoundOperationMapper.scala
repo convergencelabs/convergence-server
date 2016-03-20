@@ -14,10 +14,10 @@ import com.convergencelabs.server.datastore.mapper.ODocumentMapper
 object CompoundOperationMapper extends ODocumentMapper {
 
   private[domain] implicit class CompoundOperationToODocument(val s: CompoundOperation) extends AnyVal {
-    def asODocument: ODocument = arrayReplaceOperationToODocument(s)
+    def asODocument: ODocument = compoundOperationToODocument(s)
   }
 
-  private[domain] implicit def arrayReplaceOperationToODocument(obj: CompoundOperation): ODocument = {
+  private[domain] implicit def compoundOperationToODocument(obj: CompoundOperation): ODocument = {
     val CompoundOperation(ops) = obj
     val doc = new ODocument(DocumentClassName)
     val opDocs = ops.map { OrientDBOperationMapper.operationToODocument(_) }

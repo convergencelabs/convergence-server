@@ -1,11 +1,11 @@
 package com.convergencelabs.server.domain.model.ot
 
 import scala.math.BigInt.int2bigInt
-
 import org.json4s.JsonAST.JInt
 import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
+import org.json4s.JsonAST.JDouble
 
 // scalastyle:off magic.number
 class NumberAddAddTFSpec extends WordSpec with Matchers {
@@ -18,8 +18,8 @@ class NumberAddAddTFSpec extends WordSpec with Matchers {
        * N-AA-1
        */
       "do not transform two number add operations" in {
-        val s = NumberAddOperation(List(), false, JInt(1))
-        val c = NumberAddOperation(List(), false, JInt(2))
+        val s = NumberAddOperation(List(), false, JDouble(1))
+        val c = NumberAddOperation(List(), false, JDouble(2))
 
         val (s1, c1) = NumberAddAddTF.transform(s, c)
 

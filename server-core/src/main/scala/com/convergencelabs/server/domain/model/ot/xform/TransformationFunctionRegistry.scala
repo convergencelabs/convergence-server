@@ -115,6 +115,7 @@ private object RegistryKey {
 
 private class TFMap {
   var otfs = Map[RegistryKey[_, _], OperationTransformationFunction[_, _]]()
+  var rtfs = Map[RegistryKey[_, _], OperationTransformationFunction[_, _]]()
 
   def register[S <: DiscreteOperation, C <: DiscreteOperation](otf: OperationTransformationFunction[S, C])(implicit s: ClassTag[S], c: ClassTag[C]): Unit = {
     val key = RegistryKey.of(s, c)

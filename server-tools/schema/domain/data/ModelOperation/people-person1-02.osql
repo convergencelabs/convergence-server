@@ -6,7 +6,8 @@ INSERT INTO ModelOperation SET
   sid = "u0-1",
   version = 2,
   op = {
-	"@class":"ArrayMoveOperation",
+    "@type": "d",
+    "@class":"ArrayMoveOperation",
     "fromIdx": 1, 
     "toIdx": 2,
     "noOp": false,

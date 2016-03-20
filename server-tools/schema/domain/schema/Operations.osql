@@ -100,7 +100,7 @@ ALTER PROPERTY ObjectRemovePropertyOperation.prop NOTNULL true;
 CREATE CLASS ObjectSetOperation EXTENDS DiscreteOperation;
 
 #ObjectSetOperation.val
-CREATE PROPERTY ObjectSetOperation.val EMBEDDEDMAP ANY;
+CREATE PROPERTY ObjectSetOperation.val EMBEDDEDMAP;
 ALTER PROPERTY ObjectSetOperation.val MANDATORY true;
 ALTER PROPERTY ObjectSetOperation.val NOTNULL true;
 

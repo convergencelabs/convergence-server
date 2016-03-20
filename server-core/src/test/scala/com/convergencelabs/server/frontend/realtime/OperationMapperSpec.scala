@@ -1,14 +1,12 @@
 package com.convergencelabs.server.frontend.realtime
 
 import scala.math.BigInt.int2bigInt
-
 import org.json4s.JsonAST.JArray
 import org.json4s.JsonAST.JInt
 import org.json4s.JsonAST.JObject
 import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
-
 import com.convergencelabs.server.domain.model.ot.ArrayInsertOperation
 import com.convergencelabs.server.domain.model.ot.ArrayMoveOperation
 import com.convergencelabs.server.domain.model.ot.ArrayRemoveOperation
@@ -25,6 +23,7 @@ import com.convergencelabs.server.domain.model.ot.ObjectSetPropertyOperation
 import com.convergencelabs.server.domain.model.ot.StringInsertOperation
 import com.convergencelabs.server.domain.model.ot.StringRemoveOperation
 import com.convergencelabs.server.domain.model.ot.StringSetOperation
+import org.json4s.JsonAST.JDouble
 
 // scalastyle:off magic.number
 class OperationMapperSpec extends WordSpec with Matchers {
@@ -33,7 +32,7 @@ class OperationMapperSpec extends WordSpec with Matchers {
 
   val Path = List("1", 2, "3")
   val NoOp = true
-  val JVal = JInt(5)
+  val JVal = JDouble(5)
   val Prop = "prop"
 
   val operations = List(

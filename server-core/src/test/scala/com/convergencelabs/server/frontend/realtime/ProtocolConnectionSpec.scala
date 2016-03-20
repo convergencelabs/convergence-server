@@ -154,7 +154,6 @@ class ProtocolConnectionSpec
           Some(1L),
           None)
         val json = MessageSerializer.writeJson(envelope)
-        println(json)
         socket.fireOnMessage(json)
 
         val ConnectionError(x) = receiver.expectEventClass(10 millis, classOf[ConnectionError])
@@ -247,6 +246,7 @@ class ProtocolConnectionSpec
           protoConfig,
           system.scheduler,
           system.dispatcher)
+        connection.eventHandler = { case _ => }
 
         val message = socket.expectSentMessage(50 millis)
 
@@ -268,6 +268,7 @@ class ProtocolConnectionSpec
           protoConfig,
           system.scheduler,
           system.dispatcher)
+        connection.eventHandler = { case _ => }
 
         val receiver = new Receiver(connection)
         receiver.expectEvent(100 millis, ConnectionDropped)
@@ -346,6 +347,7 @@ class ProtocolConnectionSpec
   class Receiver(connection: ProtocolConnection) {
 
     connection.eventHandler = receive
+    connection.ready()
 
     private def receive: PartialFunction[ConnectionEvent, Unit] = {
       case x: Any => queue.add(x)

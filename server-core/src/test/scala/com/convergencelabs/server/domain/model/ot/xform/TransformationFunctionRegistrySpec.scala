@@ -1,7 +1,6 @@
 package com.convergencelabs.server.domain.model.ot
 
 import scala.math.BigInt.int2bigInt
-
 import org.json4s.JsonAST.JArray
 import org.json4s.JsonAST.JInt
 import org.json4s.JsonAST.JObject
@@ -10,6 +9,7 @@ import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.WordSpec
+import org.json4s.JsonAST.JDouble
 
 // scalastyle:off multiple.string.literals
 class TransformationFunctionRegistrySpec extends WordSpec with Matchers {
@@ -29,8 +29,8 @@ class TransformationFunctionRegistrySpec extends WordSpec with Matchers {
   val ObjectRemoveProperty = ObjectRemovePropertyOperation(List(), false, "prop")
   val ObjectSet = ObjectSetOperation(List(), false, JObject())
 
-  val NumberAdd = NumberAddOperation(List(), false, JInt(1))
-  val NumberSet = NumberSetOperation(List(), false, JInt(1))
+  val NumberAdd = NumberAddOperation(List(), false, JDouble(1))
+  val NumberSet = NumberSetOperation(List(), false, JDouble(1))
 
   val BooleanSet = BooleanSetOperation(List(), false, true)
 

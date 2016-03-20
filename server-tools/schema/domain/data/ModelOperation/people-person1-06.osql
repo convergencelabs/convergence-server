@@ -6,7 +6,8 @@ INSERT INTO ModelOperation SET
   sid = "u0-1",
   version = 6,
   op = {
-	"@class": "CompoundOperation",
+    "@type": "d",
+    "@class": "CompoundOperation",
     "ops": [
       {
        "@type":"d",

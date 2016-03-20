@@ -15,7 +15,7 @@ class RealTimeDouble(
 
   var double: Double = dblVal.values
   
-  def value(): Double = {
+  def data(): Double = {
     this.double
   }
 

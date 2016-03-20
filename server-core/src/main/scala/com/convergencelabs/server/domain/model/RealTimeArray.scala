@@ -20,6 +20,8 @@ import com.convergencelabs.server.domain.model.ot.ArrayInsertOperation
 import com.convergencelabs.server.domain.model.ot.ArraySetOperation
 import org.json4s.JsonAST.JArray
 import scala.util.Try
+import scala.util.Success
+import scala.util.Failure
 
 class RealTimeArray(
   private[this] val model: RealTimeModel,
@@ -33,8 +35,33 @@ class RealTimeArray(
     x => this.model.createValue(Some(this), Some({ i += 1; i }), x)
   }
 
-  def value(): List[_] = {
-    children.map({ v => v.value() })
+  def valueAt(path: List[Any]): Option[RealTimeValue] = {
+    path match {
+      case Nil =>
+        Some(this)
+      case (index: Int) :: Nil  =>
+        this.children.lift(index)
+      case (index: Int) :: rest  =>
+        this.children.lift(index).flatMap { 
+          case child: RealTimeContainerValue => child.valueAt(rest)
+          case _ => None
+        }
+      case _ =>
+        None
+    }
+  }
+  
+  def data(): List[_] = {
+    children.map({ v => v.data() })
+  }
+  
+  protected def child(childPath: Any): Try[Option[RealTimeValue]] = {
+    childPath match {
+      case index: Int => 
+        Success(this.children.lift(index))
+      case _ =>
+        Failure(new IllegalArgumentException("Child path must be a Int for a RealTimeArray"))
+    }
   }
 
   def processOperation(op: DiscreteOperation): Try[Unit] = Try {

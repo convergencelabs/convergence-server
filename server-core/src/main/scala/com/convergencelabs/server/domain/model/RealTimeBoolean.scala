@@ -15,7 +15,7 @@ class RealTimeBoolean(
 
   private[this] var boolean = boolVal.values
   
-  def value(): Boolean = {
+  def data(): Boolean = {
     this.boolean
   }
 

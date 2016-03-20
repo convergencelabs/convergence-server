@@ -27,6 +27,7 @@ import com.convergencelabs.server.util.concurrent.AskFuture
 import com.convergencelabs.server.UnknownErrorResponse
 import com.convergencelabs.server.datastore.domain.CollectionStore
 import akka.actor.Terminated
+import org.json4s.JsonAST.JObject
 
 /**
  * An instance of the RealtimeModelActor manages the lifecycle of a single
@@ -51,7 +52,13 @@ class RealtimeModelActor(
   private[this] var connectedClients = HashMap[SessionKey, ActorRef]()
   private[this] var clientToSessionId = HashMap[ActorRef, SessionKey]()
   private[this] var queuedOpeningClients = HashMap[SessionKey, OpenRequestRecord]()
-  private[this] var concurrencyControl: ServerConcurrencyControl = _
+
+  // FIXME I'd like to move the CC into the model.  We should move a bunch of stuff
+  // into the model actually.  Probably all the handling of the persistence and
+  // concurrency control.  Basically the actor should just handle the messages and
+  // tracking of client actors.
+  private[this] var model: RealTimeModel = _
+
   private[this] var latestSnapshot: ModelSnapshotMetaData = _
 
   private[this] val transformer = new OperationTransformer(new TransformationFunctionRegistry())
@@ -207,9 +214,14 @@ class RealtimeModelActor(
       val modelData = response.modelData
 
       val startTime = Platform.currentTime
-      concurrencyControl = new ServerConcurrencyControl(
+      val concurrencyControl = new ServerConcurrencyControl(
         transformer,
         modelData.metaData.version)
+
+      this.model = new RealTimeModel(
+        modelFqn,
+        concurrencyControl,
+        modelData.data.asInstanceOf[JObject])
 
       // TODO Initialize tree reference model
 
@@ -306,7 +318,7 @@ class RealtimeModelActor(
   private[this] def respondToClientOpenRequest(sk: SessionKey, modelData: Model, requestRecord: OpenRequestRecord): Unit = {
     // Inform the concurrency control that we have a new client.
     val contextVersion = modelData.metaData.version
-    concurrencyControl.trackClient(sk, contextVersion)
+    this.model.clientConnected(sk, contextVersion)
     connectedClients += (sk -> requestRecord.clientActor)
     clientToSessionId += (requestRecord.clientActor -> sk)
     fakeReferenceMap += (sk -> HashMap())
@@ -364,7 +376,7 @@ class RealtimeModelActor(
       clientToSessionId -= clientActor
       connectedClients -= sk
       fakeReferenceMap -= sk
-      concurrencyControl.untrackClient(sk)
+      this.model.clientDisconnected(sk)
       context.unwatch(clientActor)
 
       // TODO handle reference leaving
@@ -415,13 +427,11 @@ class RealtimeModelActor(
 
     transformAndApplyOperation(sessionKey, unprocessedOpEvent) match {
       case Success(outgoinOperation) => {
-        concurrencyControl.commit()
         broadcastOperation(sessionKey, outgoinOperation, request.seqNo)
         if (snapshotRequired()) { executeSnapshot() }
       }
       case Failure(error) => {
         log.error(error, "Error applying operation to model, closing client");
-        concurrencyControl.rollback()
         forceClosedModel(
           sessionKey,
           "Error applying operation to model, closing as a precautionary step: " + error.getMessage,
@@ -434,19 +444,17 @@ class RealtimeModelActor(
    * Attempts to transform the operation and apply it to the data model.
    */
   private[this] def transformAndApplyOperation(sk: SessionKey, unprocessedOpEvent: UnprocessedOperationEvent): Try[OutgoingOperation] = {
-    val processedOpEvent = concurrencyControl.processRemoteOperation(unprocessedOpEvent)
-
     val timestamp = Instant.now()
-
-    val result = modelOperationProcessor.processModelOperation(ModelOperation(
-      modelFqn,
-      processedOpEvent.resultingVersion,
-      timestamp,
-      sk.uid,
-      sk.sid,
-      processedOpEvent.operation))
-
-    result.map { x =>
+    this.model.processOperationEvent(unprocessedOpEvent).map { processedOpEvent =>
+      modelOperationProcessor.processModelOperation(ModelOperation(
+        modelFqn,
+        processedOpEvent.resultingVersion,
+        timestamp,
+        sk.uid,
+        sk.sid,
+        processedOpEvent.operation))
+      processedOpEvent
+    }.map { processedOpEvent =>
       OutgoingOperation(
         modelResourceId,
         sk.uid,
@@ -543,7 +551,7 @@ class RealtimeModelActor(
 
   private[this] def snapshotRequired(): Boolean = snapshotCalculator.snapshotRequired(
     latestSnapshot.version,
-    concurrencyControl.contextVersion,
+    model.contextVersion(),
     latestSnapshot.timestamp,
     Instant.now())
 
@@ -553,7 +561,7 @@ class RealtimeModelActor(
   private[this] def executeSnapshot(): Unit = {
     // This might not be the exact version that gets snapshotted
     // but that is OK, this is approximate.
-    latestSnapshot = ModelSnapshotMetaData(modelFqn, concurrencyControl.contextVersion, Instant.now())
+    latestSnapshot = ModelSnapshotMetaData(modelFqn, model.contextVersion(), Instant.now())
 
     val f = Future[ModelSnapshotMetaData] {
       // FIXME: Handle Failure from try and None from option.
@@ -605,7 +613,7 @@ class RealtimeModelActor(
   private[this] def forceClosedModel(sk: SessionKey, reason: String, notifyOthers: Boolean): Unit = {
     val closedActor = connectedClients(sk)
     connectedClients -= sk
-    concurrencyControl.untrackClient(sk)
+    this.model.clientDisconnected(sk)
 
     // TODO handle reference node leaving
 

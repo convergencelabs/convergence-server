@@ -9,7 +9,7 @@ class RealTimeNull(
   private[this] val parentField: Any)
     extends RealTimeValue(model, parent, parentField) {
 
-  def value(): Null = {
+  def data(): Null = {
     null
   }
 

@@ -6,11 +6,12 @@ INSERT INTO ModelOperation SET
   sid = "u0-1",
   version = 11,
   op = {
-	"@class":"ObjectSetOperation",
+    "@type": "d",
+    "@class":"ObjectSetOperation",
     "noOp": false,
-    "path": [spouse],
+    "path": ["spouse"],
     "val": {
-      "fname": jane,
-      "lname": smith
+      "fname": "jane",
+      "lname": "smith"
     }
   };

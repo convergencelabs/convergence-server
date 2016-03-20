@@ -6,7 +6,9 @@ INSERT INTO ModelOperation SET
   sid = "u0-1",
   version = 7,
   op = {
-	"@class":"NumberAddOperation",
+    "@type": "d",
+    "@class":"NumberAddOperation",
+    "@fieldTypes": "val=d",
     "noOp": false,
     "path": ["age"],
     "val": 1

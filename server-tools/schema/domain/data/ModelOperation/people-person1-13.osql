@@ -6,7 +6,8 @@ INSERT INTO ModelOperation SET
   sid = "u0-1",
   version = 13,
   op = {
-	"@class":"StringInsertOperation",
+    "@type": "d",
+    "@class":"StringInsertOperation",
     "idx": 0,
     "noOp": false,
     "path": ["fname"],

@@ -6,7 +6,8 @@ INSERT INTO ModelOperation SET
   sid = "u0-1",
   version = 9,
   op = {
-	"@class":"ObjectAddPropertyOperation",
+    "@type": "d",
+    "@class":"ObjectAddPropertyOperation",
     "prop": "cell",
     "noOp": false,
     "path": [],

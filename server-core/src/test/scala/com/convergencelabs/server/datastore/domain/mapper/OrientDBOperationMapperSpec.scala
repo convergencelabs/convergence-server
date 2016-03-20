@@ -7,7 +7,7 @@ import org.json4s.JsonAST.JArray
 import org.json4s.JsonAST.JBool
 import org.json4s.JsonAST.JDecimal
 import org.json4s.JsonAST.JDouble
-import org.json4s.JsonAST.JInt
+import org.json4s.JsonAST.JDouble
 import org.json4s.JsonAST.JNull
 import org.json4s.JsonAST.JObject
 import org.json4s.JsonAST.JString
@@ -37,11 +37,11 @@ class OrientDBOperationMapperSpec
   val path = List(3, "foo", 4) // scalastyle:off magic.number
 
   val jsonString = JString("A String")
-  val jsonInt = JInt(4) // scalastyle:off magic.number
+  val jsonInt = JDouble(4) // scalastyle:off magic.number
 
   val complexJsonArray = JArray(List(
     JString("A String"),
-    JInt(2),
+    JDouble(2),
     JBool(true),
     JNull,
     JDecimal(BigDecimal(5D)),
@@ -50,13 +50,13 @@ class OrientDBOperationMapperSpec
 
   val complexJsonObject = JObject(
     "array" -> complexJsonArray,
-    "int" -> JInt(4),
+    "int" -> JDouble(4),
     "decimal" -> JDecimal(6D),
     "double" -> JDouble(10D),
     "string" -> JString("another string"),
     "null" -> JNull,
     "boolean" -> JBool(false),
-    "object" -> JObject("something" -> JInt(2)))
+    "object" -> JObject("something" -> JDouble(2)))
 
   "An OrientDBOperationMapper" when {
     "when converting string operations" must {
@@ -151,14 +151,14 @@ class OrientDBOperationMapperSpec
 
     "when converting number operations" must {
       "correctly map and unmap an NumberAddOperation" in {
-        val op = NumberAddOperation(path, true, JInt(1))
+        val op = NumberAddOperation(path, true, JDouble(1))
         val asDoc = OrientDBOperationMapper.operationToODocument(op)
         val reverted = OrientDBOperationMapper.oDocumentToOperation(asDoc)
         reverted shouldBe op
       }
 
       "correctly map and unmap an NumberSetOperation" in {
-        val op = NumberSetOperation(path, true, JInt(1))
+        val op = NumberSetOperation(path, true, JDouble(1))
         val asDoc = OrientDBOperationMapper.operationToODocument(op)
         val reverted = OrientDBOperationMapper.oDocumentToOperation(asDoc)
         reverted shouldBe op

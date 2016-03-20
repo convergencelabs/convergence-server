@@ -3,9 +3,7 @@ package com.convergencelabs.server.domain.model.ot
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
-
 import scala.language.implicitConversions
-
 import org.json4s.DefaultFormats
 import org.json4s.JArray
 import org.json4s.JBool
@@ -17,12 +15,13 @@ import org.json4s.jackson.Serialization.read
 import org.json4s.jvalue2monadic
 import org.scalatest.Finders
 import org.scalatest.FunSpec
-
 import OTFTestHarnessSpec.Index
 import OTFTestHarnessSpec.NoOp
 import OTFTestHarnessSpec.Prop
 import OTFTestHarnessSpec.Type
 import OTFTestHarnessSpec.Value
+import org.json4s.JsonAST.JDouble
+import org.json4s.JsonAST.JDouble
 
 object OTFTestHarnessSpec {
   val Type = "type"
@@ -123,10 +122,10 @@ class OTFTestHarnessSpec extends FunSpec {
         BooleanSetOperation(commonPath, noOp, value)
 
       case JObject(List((Type, JString("NumberAdd")), (NoOp, JBool(noOp)), (Value, value))) =>
-        NumberAddOperation(commonPath, noOp, value.asInstanceOf[JNumber])
+        NumberAddOperation(commonPath, noOp, JDouble(value.values.toString().toDouble))
 
       case JObject(List((Type, JString("NumberSet")), (NoOp, JBool(noOp)), (Value, value))) =>
-        NumberSetOperation(commonPath, noOp, value.asInstanceOf[JNumber])
+        NumberSetOperation(commonPath, noOp, JDouble(value.values.toString().toDouble))
 
       case _ =>
         throw new IllegalArgumentException(s"Invalid operation definition: $obj")

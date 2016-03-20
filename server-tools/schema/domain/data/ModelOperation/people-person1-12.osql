@@ -6,7 +6,8 @@ INSERT INTO ModelOperation SET
   sid = "u0-1",
   version = 12,
   op = {
-	"@class":"ObjectSetPropertyOperation",
+    "@type": "d",
+    "@class":"ObjectSetPropertyOperation",
     "prop": "married",
     "noOp": false,
     "path": [],

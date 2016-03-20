@@ -31,6 +31,7 @@ import com.convergencelabs.server.UnknownErrorResponse
 import scala.util.Failure
 import scala.util.Success
 import com.convergencelabs.server.datastore.domain.CollectionStore
+import com.convergencelabs.server.domain.model.ot.ObjectAddPropertyOperation
 
 // FIXME we really only check message types and not data.
 // scalastyle:off magic.number
@@ -170,6 +171,8 @@ class RealtimeModelActorSpec
         realtimeModelActor.tell(OpenRealtimeModelRequest(uid2, session1, modelFqn, true, client2.ref), client2.ref)
         var client2Response = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
 
+        client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[RemoteClientOpened])
+        
         realtimeModelActor.tell(CloseRealtimeModelRequest(uid2, session1), client2.ref)
         val closeAck = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[CloseRealtimeModelSuccess])
 
@@ -190,14 +193,14 @@ class RealtimeModelActorSpec
     "receiving an operation" must {
       "send an ack back to the submitting client" in new OneOpenClient {
         Mockito.when(modelOperationProcessor.processModelOperation(Matchers.any())).thenReturn(Success(()))
-        realtimeModelActor.tell(OperationSubmission(0L, modelData.metaData.version, StringInsertOperation(List(), false, 1, "1")), client1.ref)
+        realtimeModelActor.tell(OperationSubmission(0L, modelData.metaData.version, ObjectAddPropertyOperation(List(), false, "foo", JString("bar"))), client1.ref)
         val opAck = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OperationAcknowledgement])
       }
 
       "send an operation to other connected clients" in new TwoOpenClients {
         Mockito.when(modelOperationProcessor.processModelOperation(Matchers.any())).thenReturn(Success(()))
 
-        realtimeModelActor.tell(OperationSubmission(0L, modelData.metaData.version, StringInsertOperation(List(), false, 1, "1")), client1.ref)
+        realtimeModelActor.tell(OperationSubmission(0L, modelData.metaData.version, ObjectAddPropertyOperation(List(), false, "foo", JString("bar"))), client1.ref)
         val opAck = client1.expectMsgClass(FiniteDuration(120, TimeUnit.SECONDS), classOf[OperationAcknowledgement])
 
         client2.expectMsgClass(FiniteDuration(120, TimeUnit.SECONDS), classOf[OutgoingOperation])
@@ -277,6 +280,7 @@ class RealtimeModelActorSpec
     val client2 = new TestProbe(system)
     realtimeModelActor.tell(OpenRealtimeModelRequest(uid2, session1, modelFqn, true, client2.ref), client2.ref)
     val client2OpenResponse = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
+    client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[RemoteClientOpened])
   }
 
   trait MockDatabaseWithoutModel extends TestFixture {

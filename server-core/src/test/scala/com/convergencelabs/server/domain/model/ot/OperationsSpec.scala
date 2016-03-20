@@ -1,12 +1,12 @@
 package com.convergencelabs.server.domain.model.ot
 
 import scala.math.BigInt.int2bigInt
-
 import org.json4s.JsonAST.JArray
 import org.json4s.JsonAST.JInt
 import org.json4s.JsonAST.JObject
 import org.scalatest.FunSuite
 import org.scalatest.Matchers
+import org.json4s.JsonAST.JDouble
 
 class OperationsSpec extends FunSuite with Matchers {
 
@@ -79,13 +79,13 @@ class OperationsSpec extends FunSuite with Matchers {
   // Number Operations
 
   test("NumberSetOperation must preserve other fields when setting noOp and path") {
-    val original = NumberSetOperation(List(), false, JInt(1))
-    original.clone(List(2), true) shouldBe NumberSetOperation(List(2), true, JInt(1))
+    val original = NumberSetOperation(List(), false, JDouble(1))
+    original.clone(List(2), true) shouldBe NumberSetOperation(List(2), true, JDouble(1))
   }
 
   test("NumberAddOperation must preserve other fields when setting noOp and path") {
-    val original = NumberAddOperation(List(), false, JInt(1))
-    original.clone(List(2), true) shouldBe NumberAddOperation(List(2), true, JInt(1))
+    val original = NumberAddOperation(List(), false, JDouble(1))
+    original.clone(List(2), true) shouldBe NumberAddOperation(List(2), true, JDouble(1))
   }
 
   // Boolean Operations

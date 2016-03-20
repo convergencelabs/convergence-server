@@ -16,7 +16,7 @@ class RealTimeString(
 
   var string = value.values
 
-  def value(): String = {
+  def data(): String = {
     this.string
   }
 
