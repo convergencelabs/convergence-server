@@ -121,6 +121,7 @@ class OTFTestHarnessSpec extends FunSpec {
       case JObject(List((Type, JString("BooleanSet")), (NoOp, JBool(noOp)), (Value, JBool(value)))) =>
         BooleanSetOperation(commonPath, noOp, value)
 
+      // FIXME this is a bit of a hack due to number types.
       case JObject(List((Type, JString("NumberAdd")), (NoOp, JBool(noOp)), (Value, value))) =>
         NumberAddOperation(commonPath, noOp, JDouble(value.values.toString().toDouble))
 

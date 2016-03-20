@@ -24,7 +24,7 @@ abstract class RealTimeContainerValue(
           case Success(None) =>
             Failure(new IllegalArgumentException(s"No such child at path: $childPath"))
           case Success(Some(child)) =>
-            child.processOperation(op, path)
+            child.processOperation(op, rest)
         }
     }
   }
