@@ -10,6 +10,7 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 import org.json4s.JsonAST.JObject
 import org.json4s.JsonAST.JNumber
 import com.convergencelabs.server.datastore.mapper.ODocumentMapper
+import org.json4s.JsonAST.JDouble
 
 object NumberSetOperationMapper extends ODocumentMapper {
 
@@ -35,7 +36,7 @@ object NumberSetOperationMapper extends ODocumentMapper {
 
     val path = doc.field(Fields.Path).asInstanceOf[JavaList[_]]
     val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
-    val value = JValueMapper.javaToJValue(doc.field(Fields.Val)).asInstanceOf[JNumber]
+    val value = JValueMapper.javaToJValue(doc.field(Fields.Val)).asInstanceOf[JDouble]
     NumberSetOperation(path.asScala.toList, noOp, value)
   }
 

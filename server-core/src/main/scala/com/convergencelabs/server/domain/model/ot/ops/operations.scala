@@ -4,6 +4,7 @@ import org.json4s.JsonAST.JArray
 import org.json4s.JsonAST.JNumber
 import org.json4s.JsonAST.JObject
 import org.json4s.JsonAST.JValue
+import org.json4s.JsonAST.JDouble
 
 sealed trait Operation
 
@@ -58,11 +59,11 @@ case class ObjectSetOperation(path: List[Any], noOp: Boolean, value: JObject) ex
 //////////////////////////////////////////////////////////////////////////////
 sealed trait NumberOperation extends DiscreteOperation
 
-case class NumberAddOperation(path: List[Any], noOp: Boolean, value: JNumber) extends NumberOperation {
+case class NumberAddOperation(path: List[Any], noOp: Boolean, value: JDouble) extends NumberOperation {
   def clone(path: List[Any] = path, noOp: scala.Boolean = noOp): NumberAddOperation = copy(path = path, noOp = noOp)
 }
 
-case class NumberSetOperation(path: List[Any], noOp: Boolean, value: JNumber) extends NumberOperation {
+case class NumberSetOperation(path: List[Any], noOp: Boolean, value: JDouble) extends NumberOperation {
   def clone(path: List[Any] = path, noOp: scala.Boolean = noOp): NumberSetOperation = copy(path = path, noOp = noOp)
 }
 

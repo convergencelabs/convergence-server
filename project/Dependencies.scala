@@ -6,7 +6,7 @@ object Dependencies {
   
   // Versions
   object Versions {
-    val akka      = "2.4.0"
+    val akka      = "2.4.2"
     val orientDb  = "2.1.7"
     val log4j     = "2.4.1"
   }
@@ -19,8 +19,8 @@ object Dependencies {
     val akkaSlf4j          = "com.typesafe.akka"        % "akka-slf4j_2.11"               % Versions.akka              // Apache 2.0
     val akkaCore = Seq(akkaActor, akkaCluster, akkaSlf4j)
     
-    val akkaHttp           = "com.typesafe.akka"        % "akka-http-experimental_2.11"   % "1.0"                       // Apache 2.0
-    val akkaStream         = "com.typesafe.akka"        % "akka-stream-experimental_2.11" % "1.0"                       // Apache 2.0
+    val akkaHttp           = "com.typesafe.akka"        % "akka-http-experimental_2.11"   % Versions.akka
+    
     
     // Orient DB Dependencies
     val orientDbClient     = "com.orientechnologies"    % "orientdb-client"               % Versions.orientDb           // Apache 2.0

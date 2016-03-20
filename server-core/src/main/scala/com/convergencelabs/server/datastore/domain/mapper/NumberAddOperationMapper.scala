@@ -13,6 +13,7 @@ import com.convergencelabs.server.domain.model.ot.NumberAddOperation
 import com.convergencelabs.server.util.JValueMapper
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.convergencelabs.server.datastore.mapper.ODocumentMapper
+import org.json4s.JsonAST.JDouble
 
 object NumberAddOperationMapper extends ODocumentMapper {
 
@@ -38,7 +39,7 @@ object NumberAddOperationMapper extends ODocumentMapper {
 
     val path = doc.field(Fields.Path).asInstanceOf[JavaList[_]]
     val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
-    val value = JValueMapper.javaToJValue(doc.field(Fields.Val)).asInstanceOf[JNumber]
+    val value = JValueMapper.javaToJValue(doc.field(Fields.Val)).asInstanceOf[JDouble]
     NumberAddOperation(path.asScala.toList, noOp, value)
   }
 

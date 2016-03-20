@@ -20,6 +20,7 @@ import com.convergencelabs.server.domain.model.ot.StringRemoveOperation
 import com.convergencelabs.server.domain.model.ot.StringSetOperation
 import org.json4s.JsonAST.JNumber
 import org.json4s.JsonAST.JValue
+import org.json4s.JsonAST.JDouble
 
 private[realtime] object OperationMapper {
 
@@ -52,8 +53,8 @@ private[realtime] object OperationMapper {
       case ObjectRemovePropertyOperationData(path, noOp, prop) => ObjectRemovePropertyOperation(path, noOp, prop)
       case ObjectSetOperationData(path, noOp, objectData) => ObjectSetOperation(path, noOp, objectData)
 
-      case NumberAddOperationData(path, noOp, delta) => NumberAddOperation(path, noOp, delta.asInstanceOf[JNumber])
-      case NumberSetOperationData(path, noOp, number) => NumberSetOperation(path, noOp, number.asInstanceOf[JNumber])
+      case NumberAddOperationData(path, noOp, delta) => NumberAddOperation(path, noOp, delta.asInstanceOf[JDouble])
+      case NumberSetOperationData(path, noOp, number) => NumberSetOperation(path, noOp, number.asInstanceOf[JDouble])
 
       case BooleanSetOperationData(path, noOp, value) => BooleanSetOperation(path, noOp, value)
     }
