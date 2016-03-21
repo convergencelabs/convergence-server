@@ -20,7 +20,7 @@ package model {
   case class OperationSubmission(seqNo: Long, contextVersion: Long, operation: Operation)
   case class ClientModelDataResponse(modelData: JValue)
 
-  sealed trait ModelReferenceEvent;
+  sealed trait ModelReferenceEvent
   case class PublishReference(path: List[Any], key: String, referenceType: ReferenceType.Value) extends ModelReferenceEvent
   case class SetReference(path: List[Any], key: String, referenceType: ReferenceType.Value, value: JValue) extends ModelReferenceEvent
   case class ClearReference(path: List[Any], key: String) extends ModelReferenceEvent
