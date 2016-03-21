@@ -20,11 +20,14 @@ import java.time.Instant
 import com.convergencelabs.server.datastore.domain.ModelOperationProcessor
 import scala.util.Success
 import scala.collection.immutable.HashMap
+import com.convergencelabs.server.domain.model.ot.CompoundOperation
 
 class RealTimeModel(
     private[this] val fqn: ModelFqn,
     private[this] val cc: ServerConcurrencyControl,
     private val obj: JObject) {
+  
+  val idToValue = collection.mutable.HashMap[String, RealTimeValue]()
   
   val data = this.createValue(None, None, obj)
 
@@ -55,15 +58,32 @@ class RealTimeModel(
     }
   }
 
-  def processOperationEvent(unprocessedOpEvent: UnprocessedOperationEvent): Try[ProcessedOperationEvent] = {
-    val processedOpEvent = cc.processRemoteOperation(unprocessedOpEvent)
-    applyOpperation(processedOpEvent.operation) match {
+  def processOperationEvent(unprocessed: UnprocessedOperationEvent): Try[ProcessedOperationEvent] = {
+    val preprocessed = unprocessed.copy(operation = noOpObsoleteOperations(unprocessed.operation))
+    val processed = cc.processRemoteOperation(preprocessed)
+    applyOpperation(processed.operation) match {
       case Success(_) =>
         cc.commit()
-        Success(processedOpEvent)
+        Success(processed)
       case Failure(f) =>
         cc.rollback()
         Failure(f)
+    }
+  }
+  
+  private[this] def noOpObsoleteOperations(op: Operation): Operation = {
+    op match {
+      case c: CompoundOperation =>
+        val ops = c.operations map { 
+          o => noOpObsoleteOperations(o).asInstanceOf[DiscreteOperation] 
+        }
+        c.copy(operations = ops)
+      case d: DiscreteOperation =>
+        if (this.idToValue.contains(d.id)) {
+          d
+        } else {
+          d.clone(noOp = true)
+        }
     }
   }
 

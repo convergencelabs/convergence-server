@@ -33,40 +33,22 @@ private[model] class OperationTransformer(tfr: TransformationFunctionRegistry) {
     (CompoundOperation(newOps), xFormedC)
   }
 
-  private[this] def transformTwoDiscreteOps(s: DiscreteOperation, c: DiscreteOperation): (Operation, Operation) = {
+  private[this] def transformTwoDiscreteOps(s: DiscreteOperation, c: DiscreteOperation): (DiscreteOperation, DiscreteOperation) = {
     if (s.noOp || c.noOp) {
       (s, c)
-    } else if (PathComparator.areEqual(s.path, c.path)) {
+    } else if (s.id == c.id) {
       transformIdenticalPathOperations(s, c)
-    } else if (PathComparator.isAncestorOf(s.path, c.path)) {
-      transformHierarchicalOperations(s, c)
-    } else if (PathComparator.isAncestorOf(c.path, s.path)) {
-      transformHierarchicalOperations(c, s).swap
     } else {
       (s, c)
     }
   }
 
-  private[this] def transformIdenticalPathOperations(s: DiscreteOperation, c: DiscreteOperation): (Operation, Operation) = {
+  private[this] def transformIdenticalPathOperations(s: DiscreteOperation, c: DiscreteOperation): (DiscreteOperation, DiscreteOperation) = {
     val tf = tfr.getTransformationFunction(s, c)
     tf match {
       case Some(tf) => tf.transform(s, c)
       case None => throw new IllegalArgumentException(
           s"No operation transformation function found for operation pair (${s.getClass.getName},${s.getClass.getName})")
-    }
-  }
-
-  private[this] def transformHierarchicalOperations(a: DiscreteOperation, d: DiscreteOperation): (Operation, Operation) = {
-    val ptf = tfr.getPathTransformationFunction(a)
-    val result = ptf match {
-      case Some(ptf) => ptf.transformDescendantPath(a, d.path)
-      case None => throw new IllegalArgumentException(s"No path transformation function found for ancestor operation: ${a.getClass.getName}")
-    }
-
-    result match {
-      case NoPathTransformation => (a, d)
-      case PathObsoleted => (a, d.clone(noOp = true))
-      case PathUpdated(path) => (a, d.clone(path = path))
     }
   }
 }

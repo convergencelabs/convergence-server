@@ -11,6 +11,7 @@ sealed trait Operation
 case class CompoundOperation(operations: List[DiscreteOperation]) extends Operation
 
 sealed trait DiscreteOperation extends Operation {
+  def id: String
   def path: List[Any]
   def noOp: Boolean
   def clone(path: List[Any] = path, noOp: scala.Boolean = noOp): DiscreteOperation
