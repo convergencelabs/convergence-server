@@ -1,0 +1,60 @@
+###################### DataValue ######################
+
+CREATE CLASS DataValue ABSTRACT;
+
+#DataValue.vid
+CREATE Property DataValue.vid STRING;
+ALTER PROPERTY DataValue.vid MANDATORY true;
+ALTER PROPERTY DataValue.vid NOTNULL true;
+ALTER PROPERTY DataValue.vid READONLY true;
+
+#DataValue.model
+CREATE Property DataValue.model LINK Model;
+ALTER PROPERTY DataValue.model MANDATORY true;
+ALTER PROPERTY DataValue.model NOTNULL true;
+ALTER PROPERTY DataValue.model READONLY true;
+
+###################### ObjectValue ######################
+
+CREATE CLASS ObjectValue EXTENDS DataValue;
+
+#ObjectValue.children
+CREATE PROPERTY ObjectValue.children LINKMAP DataValue;
+ALTER PROPERTY ObjectValue.children MANDATORY true;
+ALTER PROPERTY ObjectValue.children NOTNULL true;
+
+###################### ArrayValue ######################
+
+CREATE CLASS ArrayValue EXTENDS DataValue;
+
+#ArrayValue.children
+CREATE PROPERTY ArrayValue.children LINKLIST DataValue;
+ALTER PROPERTY ArrayValue.children MANDATORY true;
+ALTER PROPERTY ArrayValue.children NOTNULL true;
+
+###################### StringValue ######################
+
+CREATE CLASS StringValue EXTENDS DataValue;
+
+#StringValue.value
+CREATE PROPERTY StringValue.value STRING;
+ALTER PROPERTY StringValue.value MANDATORY true;
+ALTER PROPERTY StringValue.value NOTNULL true;
+
+###################### DoubleValue ######################
+
+CREATE CLASS DoubleValue EXTENDS DataValue;
+
+#DoubleValue.value
+CREATE PROPERTY DoubleValue.value DOUBLE;
+ALTER PROPERTY DoubleValue.value MANDATORY true;
+ALTER PROPERTY DoubleValue.value NOTNULL true;
+
+###################### BooleanValue ######################
+
+CREATE CLASS BooleanValue EXTENDS DataValue;
+
+#BooleanValue.value
+CREATE PROPERTY BooleanValue.value BOOLEAN;
+ALTER PROPERTY BooleanValue.value MANDATORY true;
+ALTER PROPERTY BooleanValue.value NOTNULL true;
