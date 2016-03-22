@@ -20,6 +20,7 @@ import java.time.Instant
 import com.convergencelabs.server.datastore.domain.ModelOperationProcessor
 import scala.util.Success
 import scala.collection.immutable.HashMap
+import org.json4s.JsonAST.JInt
 
 class RealTimeModel(
     private[this] val fqn: ModelFqn,
@@ -47,11 +48,12 @@ class RealTimeModel(
     value match {
       case v: JString => new RealTimeString(this, parent, parentField, v)
       case v: JDouble => new RealTimeDouble(this, parent, parentField, v)
+      case v: JInt => new RealTimeDouble(this, parent, parentField, JDouble(v.values.toDouble))
       case v: JBool => new RealTimeBoolean(this, parent, parentField, v)
       case v: JObject => new RealTimeObject(this, parent, parentField, v)
       case v: JArray => new RealTimeArray(this, parent, parentField, v)
       case JNull => new RealTimeNull(this, parent, parentField)
-      case _ => throw new IllegalArgumentException("Unsupported type")
+      case _ => throw new IllegalArgumentException("Unsupported type: " + value)
     }
   }
 
