@@ -22,20 +22,27 @@ import scala.util.Success
 import scala.collection.immutable.HashMap
 import com.convergencelabs.server.domain.model.ot.CompoundOperation
 import org.json4s.JsonAST.JInt
+import com.convergencelabs.server.domain.model.data.StringValue
+import com.convergencelabs.server.domain.model.data.DataValue
+import com.convergencelabs.server.domain.model.data.DoubleValue
+import com.convergencelabs.server.domain.model.data.BooleanValue
+import com.convergencelabs.server.domain.model.data.ObjectValue
+import com.convergencelabs.server.domain.model.data.ArrayValue
+import com.convergencelabs.server.domain.model.data.NullValue
 
 class RealTimeModel(
     private[this] val fqn: ModelFqn,
     private[this] val cc: ServerConcurrencyControl,
-    private val obj: JObject) {
-  
+    private val obj: ObjectValue) {
+
   val idToValue = collection.mutable.HashMap[String, RealTimeValue]()
-  
-  val data = this.createValue(None, None, obj)
+
+  val data = this.createValue(obj, None, None)
 
   def contextVersion(): Long = {
     this.cc.contextVersion
   }
-  
+
   def clientConnected(sk: String, contextVersion: Long): Unit = {
     this.cc.trackClient(sk, contextVersion)
   }
@@ -44,18 +51,25 @@ class RealTimeModel(
     this.cc.untrackClient(sk)
   }
 
+  def registerValue(realTimeValue: RealTimeValue): Unit = {
+    this.idToValue += (realTimeValue.id -> realTimeValue)
+  }
+
+  def unregisterValue(realTimeValue: RealTimeValue): Unit = {
+    this.idToValue += (realTimeValue.id -> realTimeValue)
+  }
+
   def createValue(
+    value: DataValue,
     parent: Option[RealTimeContainerValue],
-    parentField: Option[Any],
-    value: JValue): RealTimeValue = {
+    parentField: Option[Any]): RealTimeValue = {
     value match {
-      case v: JString => new RealTimeString(this, parent, parentField, v)
-      case v: JDouble => new RealTimeDouble(this, parent, parentField, v)
-      case v: JInt => new RealTimeDouble(this, parent, parentField, JDouble(v.values.toDouble))
-      case v: JBool => new RealTimeBoolean(this, parent, parentField, v)
-      case v: JObject => new RealTimeObject(this, parent, parentField, v)
-      case v: JArray => new RealTimeArray(this, parent, parentField, v)
-      case JNull => new RealTimeNull(this, parent, parentField)
+      case v: StringValue => new RealTimeString(v, this, parent, parentField)
+      case v: DoubleValue => new RealTimeDouble(v, this, parent, parentField)
+      case v: BooleanValue => new RealTimeBoolean(v, this, parent, parentField)
+      case v: ObjectValue => new RealTimeObject(v, this, parent, parentField)
+      case v: ArrayValue => new RealTimeArray(v, this, parent, parentField)
+      case v: NullValue => new RealTimeNull(v, this, parent, parentField)
       case _ => throw new IllegalArgumentException("Unsupported type: " + value)
     }
   }
@@ -72,12 +86,12 @@ class RealTimeModel(
         Failure(f)
     }
   }
-  
+
   private[this] def noOpObsoleteOperations(op: Operation): Operation = {
     op match {
       case c: CompoundOperation =>
-        val ops = c.operations map { 
-          o => noOpObsoleteOperations(o).asInstanceOf[DiscreteOperation] 
+        val ops = c.operations map {
+          o => noOpObsoleteOperations(o).asInstanceOf[DiscreteOperation]
         }
         c.copy(operations = ops)
       case d: DiscreteOperation =>

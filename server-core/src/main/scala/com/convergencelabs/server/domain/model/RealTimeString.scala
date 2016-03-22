@@ -6,15 +6,16 @@ import com.convergencelabs.server.domain.model.ot.StringSetOperation
 import com.convergencelabs.server.domain.model.ot.StringRemoveOperation
 import org.json4s.JsonAST.JString
 import scala.util.Try
+import com.convergencelabs.server.domain.model.data.StringValue
 
 class RealTimeString(
+  private[this] val value: StringValue,
   private[this] val model: RealTimeModel,
   private[this] val parent: Option[RealTimeContainerValue],
-  private[this] val parentField: Option[Any],
-  private[this] val value: JString)
-    extends RealTimeValue(model, parent, parentField) {
+  private[this] val parentField: Option[Any])
+    extends RealTimeValue(value.id, model, parent, parentField) {
 
-  var string = value.values
+  var string = value.value
 
   def data(): String = {
     this.string

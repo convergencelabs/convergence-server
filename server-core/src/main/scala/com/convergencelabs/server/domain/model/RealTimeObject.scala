@@ -9,16 +9,17 @@ import scala.util.Success
 import scala.util.Try
 import org.json4s.JsonAST.JObject
 import com.convergencelabs.server.domain.model.ot.DiscreteOperation
+import com.convergencelabs.server.domain.model.data.ObjectValue
 
 class RealTimeObject(
+  private[this] val value: ObjectValue,
   private[this] val model: RealTimeModel,
   private[this] val parent: Option[RealTimeContainerValue],
-  private[this] val parentField: Option[Any],
-  private[this] val obj: JObject)
-    extends RealTimeContainerValue(model, parent, parentField) {
+  private[this] val parentField: Option[Any])
+    extends RealTimeContainerValue(value.id, model, parent, parentField) {
 
-  var children: Map[String, RealTimeValue] = obj.obj.map {
-    case (k, v) => (k, this.model.createValue(Some(this), Some(k), v))
+  var children: Map[String, RealTimeValue] = value.value.map {
+    case (k, v) => (k, this.model.createValue(v, Some(this), Some(k)))
   }.toMap
 
   def valueAt(path: List[Any]): Option[RealTimeValue] = {
@@ -44,13 +45,13 @@ class RealTimeObject(
 
   protected def child(childPath: Any): Try[Option[RealTimeValue]] = {
     childPath match {
-      case prop: String => 
+      case prop: String =>
         Success(this.children.get(prop))
       case _ =>
         Failure(new IllegalArgumentException("Child path must be a string for a RealTimeObject"))
     }
   }
-  
+
   def processOperation(op: DiscreteOperation): Try[Unit] = Try {
     op match {
       case add: ObjectAddPropertyOperation => processAddPropertyOperation(add)
@@ -65,7 +66,7 @@ class RealTimeObject(
     if (this.children.contains(op.property)) {
       new IllegalArgumentException(s"Object already contains property ${op.property}")
     }
-    val child = this.model.createValue(Some(this), Some(op.property), op.value)
+    val child = this.model.createValue(op.value, Some(this), Some(op.property))
     this.children = this.children + (op.property -> child)
   }
 
@@ -84,13 +85,17 @@ class RealTimeObject(
     }
 
     val oldChild = this.children(op.property)
-    val child = this.model.createValue(Some(this), Some(op.property), op.value)
+    val child = this.model.createValue(op.value, Some(this), Some(op.property))
     this.children = this.children + (op.property -> child)
   }
 
   def processSetValueOperation(op: ObjectSetOperation): Try[Unit] = Try {
-    this.children = op.value.obj.map {
-      case (k, v) => (k, this.model.createValue(Some(this), Some(k), v))
+    this.children = op.value.map {
+      case (k, v) => (k, this.model.createValue(v, Some(this), Some(k)))
     }.toMap
+  }
+  
+  def detachChildren(): Unit = {
+    this.children.values.foreach({child => child.detach()})
   }
 }

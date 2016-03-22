@@ -26,7 +26,7 @@ object NumberAddOperationMapper extends ODocumentMapper {
     val doc = new ODocument(DocumentClassName)
     doc.field(Fields.Id, id)
     doc.field(Fields.NoOp, noOp)
-    doc.field(Fields.Val, JValueMapper.jNumberToJava(value))
+    doc.field(Fields.Val, value)
     doc
   }
 
@@ -39,7 +39,7 @@ object NumberAddOperationMapper extends ODocumentMapper {
 
     val id = doc.field(Fields.Id).asInstanceOf[String]
     val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
-    val value = JValueMapper.javaToJValue(doc.field(Fields.Val)).asInstanceOf[JDouble]
+    val value = JValueMapper.javaToJValue(doc.field(Fields.Val)).asInstanceOf[Double]
     NumberAddOperation(id, noOp, value)
   }
 
