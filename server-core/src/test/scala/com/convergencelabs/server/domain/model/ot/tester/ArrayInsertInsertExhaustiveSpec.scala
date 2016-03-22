@@ -6,12 +6,14 @@ class ArrayInsertInsertExhaustiveSpec extends ArrayOperationExhaustiveSpec[Array
 
   val serverOperationType: String = "ArrayInsertOperation"
   val clientOperationType: String = "ArrayInsertOperation"
+  
+  val valueId = "testId"
 
   def generateCases(): List[TransformationCase[ArrayInsertOperation, ArrayInsertOperation]] = {
     val indices = generateIndices()
     for { i1 <- indices; i2 <- indices } yield TransformationCase(
-      ArrayInsertOperation(List(), false, i1, JString("Y")),
-      ArrayInsertOperation(List(), false, i2, JString("X")))
+      ArrayInsertOperation(valueId, false, i1, JString("Y")),
+      ArrayInsertOperation(valueId, false, i2, JString("X")))
   }
 
   def transform(s: ArrayInsertOperation, c: ArrayInsertOperation): (DiscreteOperation, DiscreteOperation) = {

@@ -7,11 +7,13 @@ class ArrayInsertRemoveExhaustiveSpec extends ArrayOperationExhaustiveSpec[Array
   val serverOperationType: String = "ArrayInsertOperation"
   val clientOperationType: String = "ArrayRemoveOperation"
 
+  val valueId = "testId"
+  
   def generateCases(): List[TransformationCase[ArrayInsertOperation, ArrayRemoveOperation]] = {
     val indices = generateIndices()
     for { i1 <- indices; i2 <- indices } yield TransformationCase(
-      ArrayInsertOperation(List(), false, i1, JString("Y")),
-      ArrayRemoveOperation(List(), false, i2))
+      ArrayInsertOperation(valueId, false, i1, JString("Y")),
+      ArrayRemoveOperation(valueId, false, i2))
   }
 
   def transform(s: ArrayInsertOperation, c: ArrayRemoveOperation): (DiscreteOperation, DiscreteOperation) = {

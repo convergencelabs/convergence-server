@@ -14,25 +14,27 @@ import org.json4s.JsonAST.JDouble
 // scalastyle:off multiple.string.literals
 class TransformationFunctionRegistrySpec extends WordSpec with Matchers {
 
-  val StringInsert = StringInsertOperation(List(), false, 1, "")
-  val StringRemove = StringRemoveOperation(List(), false, 1, "")
-  val StringSet = StringSetOperation(List(), false, "4")
+  val valueId = "testId"
+  
+  val StringInsert = StringInsertOperation(valueId, false, 1, "")
+  val StringRemove = StringRemoveOperation(valueId, false, 1, "")
+  val StringSet = StringSetOperation(valueId, false, "4")
 
-  val ArrayInsert = ArrayInsertOperation(List(), false, 1, JString("4"))
-  val ArrayRemove = ArrayRemoveOperation(List(), false, 1)
-  val ArrayReplace = ArrayReplaceOperation(List(), false, 1, JString("4"))
-  val ArrayMove = ArrayMoveOperation(List(), false, 1, 1)
-  val ArraySet = ArraySetOperation(List(), false, JArray(List(JString("4"))))
+  val ArrayInsert = ArrayInsertOperation(valueId, false, 1, JString("4"))
+  val ArrayRemove = ArrayRemoveOperation(valueId, false, 1)
+  val ArrayReplace = ArrayReplaceOperation(valueId, false, 1, JString("4"))
+  val ArrayMove = ArrayMoveOperation(valueId, false, 1, 1)
+  val ArraySet = ArraySetOperation(valueId, false, JArray(List(JString("4"))))
 
-  val ObjectAddProperty = ObjectAddPropertyOperation(List(), false, "prop", JString("4"))
-  val ObjectSetProperty = ObjectSetPropertyOperation(List(), false, "prop", JString("4"))
-  val ObjectRemoveProperty = ObjectRemovePropertyOperation(List(), false, "prop")
-  val ObjectSet = ObjectSetOperation(List(), false, JObject())
+  val ObjectAddProperty = ObjectAddPropertyOperation(valueId, false, "prop", JString("4"))
+  val ObjectSetProperty = ObjectSetPropertyOperation(valueId, false, "prop", JString("4"))
+  val ObjectRemoveProperty = ObjectRemovePropertyOperation(valueId, false, "prop")
+  val ObjectSet = ObjectSetOperation(valueId, false, JObject())
 
-  val NumberAdd = NumberAddOperation(List(), false, JDouble(1))
-  val NumberSet = NumberSetOperation(List(), false, JDouble(1))
+  val NumberAdd = NumberAddOperation(valueId, false, JDouble(1))
+  val NumberSet = NumberSetOperation(valueId, false, JDouble(1))
 
-  val BooleanSet = BooleanSetOperation(List(), false, true)
+  val BooleanSet = BooleanSetOperation(valueId, false, true)
 
   "A TransformationFunctionRegistry" when {
 
@@ -442,34 +444,6 @@ class TransformationFunctionRegistrySpec extends WordSpec with Matchers {
         val tfr = new TransformationFunctionRegistry()
         val tf = tfr.getTransformationFunction(NumberSet, StringSet)
         tf shouldBe None
-      }
-    }
-
-    "getting a PathTransformationFunction" must {
-      "return the correct function for a valid operation" in {
-        val tfr = new TransformationFunctionRegistry()
-        tfr.getPathTransformationFunction(ArrayInsert).value shouldBe ArrayInsertPTF
-        tfr.getPathTransformationFunction(ArrayRemove).value shouldBe ArrayRemovePTF
-        tfr.getPathTransformationFunction(ArrayReplace).value shouldBe ArrayReplacePTF
-        tfr.getPathTransformationFunction(ArrayMove).value shouldBe ArrayMovePTF
-        tfr.getPathTransformationFunction(ArraySet).value shouldBe ArraySetPTF
-
-        tfr.getPathTransformationFunction(ObjectSetProperty).value shouldBe ObjectSetPropertyPTF
-        tfr.getPathTransformationFunction(ObjectRemoveProperty).value shouldBe ObjectRemovePropertyPTF
-        tfr.getPathTransformationFunction(ObjectSet).value shouldBe ObjectSetPTF
-      }
-
-      "return None for a invalid operation" in {
-        val tfr = new TransformationFunctionRegistry()
-
-        tfr.getPathTransformationFunction(ObjectAddProperty) shouldBe None
-
-        tfr.getPathTransformationFunction(StringInsert) shouldBe None
-        tfr.getPathTransformationFunction(StringRemove) shouldBe None
-        tfr.getPathTransformationFunction(StringSet) shouldBe None
-
-        tfr.getPathTransformationFunction(NumberAdd) shouldBe None
-        tfr.getPathTransformationFunction(NumberSet) shouldBe None
       }
     }
   }

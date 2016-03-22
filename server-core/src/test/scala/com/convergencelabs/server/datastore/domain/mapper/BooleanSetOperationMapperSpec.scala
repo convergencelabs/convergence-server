@@ -16,12 +16,10 @@ class BooleanSetOperationMapperSpec
     extends WordSpec
     with Matchers {
 
-  val path = List(3, "foo", 4) // scalastyle:off magic.number
-
   "An BooleanSetOperationMapper" when {
     "when converting BooleanSetOperation operations" must {
       "correctly map and unmap a BooleanSetOperation" in {
-        val op = BooleanSetOperation(path, true, true)
+        val op = BooleanSetOperation("vid", true, true)
         val opDoc = op.asODocument
         val reverted = opDoc.asBooleanSetOperation
         op shouldBe reverted

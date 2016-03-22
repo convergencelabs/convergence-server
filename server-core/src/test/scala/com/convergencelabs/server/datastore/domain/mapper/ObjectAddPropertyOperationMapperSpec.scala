@@ -14,12 +14,10 @@ class ObjectAddPropertyOperationMapperSpec
     extends WordSpec
     with Matchers {
 
-  val path = List(3, "foo", 4) // scalastyle:off magic.number
-
   "An ObjectAddPropertyOperationMapper" when {
     "when converting ObjectAddPropertyOperation operations" must {
       "correctly map and unmap a ObjectAddPropertyOperation" in {
-        val op = ObjectAddPropertyOperation(path, true, "foo", JString("bar"))
+        val op = ObjectAddPropertyOperation("vid", true, "foo", JString("bar"))
         val opDoc = op.asODocument
         val reverted = opDoc.asObjectAddPropertyOperation
         op shouldBe reverted

@@ -13,12 +13,11 @@ class ArrayRemoveOperationMapperSpec
     extends WordSpec
     with Matchers {
 
-  val path = List(3, "foo", 4) // scalastyle:off magic.number
 
   "An ArrayRemoveOperationMapper" when {
     "when converting ArrayRemoveOperation operations" must {
       "correctly map and unmap a ArrayRemoveOperation" in {
-        val op = ArrayRemoveOperation(path, true, 4)
+        val op = ArrayRemoveOperation("vid", true, 4)
         val opDoc = op.asODocument
         val reverted = opDoc.asArrayRemoveOperation
         op shouldBe reverted

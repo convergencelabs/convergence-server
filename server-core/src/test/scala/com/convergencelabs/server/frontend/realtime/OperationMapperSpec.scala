@@ -30,33 +30,33 @@ class OperationMapperSpec extends WordSpec with Matchers {
 
   val X = "X"
 
-  val Path = List("1", 2, "3")
+  val Id = "testId"
   val NoOp = true
   val JVal = JDouble(5)
   val Prop = "prop"
 
   val operations = List(
-    ObjectSetPropertyOperation(Path, NoOp, Prop, JVal),
-    ObjectAddPropertyOperation(Path, NoOp, Prop, JVal),
-    ObjectRemovePropertyOperation(Path, NoOp, Prop),
-    ObjectSetOperation(Path, NoOp, JObject(List("p" -> JVal))),
+    ObjectSetPropertyOperation(Id, NoOp, Prop, JVal),
+    ObjectAddPropertyOperation(Id, NoOp, Prop, JVal),
+    ObjectRemovePropertyOperation(Id, NoOp, Prop),
+    ObjectSetOperation(Id, NoOp, JObject(List("p" -> JVal))),
 
-    ArrayInsertOperation(Path, NoOp, 1, JVal),
-    ArrayRemoveOperation(Path, NoOp, 1),
-    ArrayReplaceOperation(Path, NoOp, 1, JVal),
-    ArrayMoveOperation(Path, NoOp, 1, 2),
-    ArraySetOperation(Path, NoOp, JArray(List(JVal))),
+    ArrayInsertOperation(Id, NoOp, 1, JVal),
+    ArrayRemoveOperation(Id, NoOp, 1),
+    ArrayReplaceOperation(Id, NoOp, 1, JVal),
+    ArrayMoveOperation(Id, NoOp, 1, 2),
+    ArraySetOperation(Id, NoOp, JArray(List(JVal))),
 
-    StringInsertOperation(Path, NoOp, 1, X),
-    StringRemoveOperation(Path, NoOp, 1, X),
-    StringSetOperation(Path, NoOp, X),
+    StringInsertOperation(Id, NoOp, 1, X),
+    StringRemoveOperation(Id, NoOp, 1, X),
+    StringSetOperation(Id, NoOp, X),
 
-    NumberSetOperation(Path, NoOp, JVal),
-    NumberAddOperation(Path, NoOp, JVal),
+    NumberSetOperation(Id, NoOp, JVal),
+    NumberAddOperation(Id, NoOp, JVal),
 
-    BooleanSetOperation(Path, NoOp, true),
+    BooleanSetOperation(Id, NoOp, true),
 
-    CompoundOperation(List(NumberSetOperation(Path, NoOp, JVal))))
+    CompoundOperation(List(NumberSetOperation(Id, NoOp, JVal))))
 
   "An OperationMapper" when {
     "mapping an unmapping operations" must {

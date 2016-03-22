@@ -5,10 +5,12 @@ class StringRemoveSetExhaustiveSpec extends StringOperationExhaustiveSpec[String
   val serverOperationType: String = "StringRemoveOperation"
   val clientOperationType: String = "StringSetOperation"
 
+  val valueId = "testId"  
+  
   def generateCases(): List[TransformationCase[StringRemoveOperation, StringSetOperation]] = {
     for { i <- generateIndices() } yield TransformationCase(
-      StringRemoveOperation(List(), false, i, "Y"),
-      StringSetOperation(List(), false, "SetString"))
+      StringRemoveOperation(valueId, false, i, "Y"),
+      StringSetOperation(valueId, false, "SetString"))
   }
 
   def transform(s: StringRemoveOperation, c: StringSetOperation): (DiscreteOperation, DiscreteOperation) = {

@@ -5,10 +5,12 @@ class StringSetSetExhaustiveSpec extends StringOperationExhaustiveSpec[StringSet
   val serverOperationType: String = "StringSetOperation"
   val clientOperationType: String = "StringSetOperation"
 
+  val valueId = "testId"
+  
   def generateCases(): List[TransformationCase[StringSetOperation, StringSetOperation]] = {
     List(TransformationCase(
-      StringSetOperation(List(), false, "ServerString"),
-      StringSetOperation(List(), false, "ClientString")))
+      StringSetOperation(valueId, false, "ServerString"),
+      StringSetOperation(valueId, false, "ClientString")))
   }
 
   def transform(s: StringSetOperation, c: StringSetOperation): (DiscreteOperation, DiscreteOperation) = {

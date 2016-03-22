@@ -15,12 +15,10 @@ class ArrayReplaceOperationMapperSpec
     extends WordSpec
     with Matchers {
 
-  val path = List(3, "foo", 4) // scalastyle:off magic.number
-
   "An ArrayReplaceOperationMapper" when {
     "when converting ArrayReplaceOperation operations" must {
       "correctly map and unmap a ArrayReplaceOperation" in {
-        val op = ArrayReplaceOperation(path, true, 4, JString("test"))
+        val op = ArrayReplaceOperation("vid", true, 4, JString("test"))
         val opDoc = op.asODocument
         val reverted = opDoc.asArrayReplaceOperation
         op shouldBe reverted

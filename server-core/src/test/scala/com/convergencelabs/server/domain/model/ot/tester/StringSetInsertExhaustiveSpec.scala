@@ -5,10 +5,12 @@ class StringSetInsertExhaustiveSpec extends StringOperationExhaustiveSpec[String
   val serverOperationType: String = "StringSetOperation"
   val clientOperationType: String = "StringInsertOperation"
 
+  val valueId = "testId"
+  
   def generateCases(): List[TransformationCase[StringSetOperation, StringInsertOperation]] = {
     for { i1 <- generateIndices() } yield TransformationCase(
-      StringSetOperation(List(), false, "SetString"),
-      StringInsertOperation(List(), false, i1, "Y"))
+      StringSetOperation(valueId, false, "SetString"),
+      StringInsertOperation(valueId, false, i1, "Y"))
   }
 
   def transform(s: StringSetOperation, c: StringInsertOperation): (DiscreteOperation, DiscreteOperation) = {
