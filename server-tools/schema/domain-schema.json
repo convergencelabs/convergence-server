@@ -11,7 +11,8 @@
     "domain/schema/ModelOperation.osql",
     "domain/schema/User.osql",
     "domain/schema/UserCredential.osql",
-    "domain/schema/OFunctions.osql"
+    "domain/schema/OFunctions.osql",
+    "domain/schema/DataValue.osql"
   ],
   "dataScripts": [
     "domain/data/DomainConfig/domainConfig.osql",

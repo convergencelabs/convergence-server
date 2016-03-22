@@ -13,3 +13,16 @@ INSERT INTO Model SET
       "zip": "92110"
     }
   };
+  
+begin
+let model = select from Model where collectionId = "company" and modelId = "company1"
+let address = INSERT INTO ObjectValue SET vid = "cc1-address", model = $model[0], children = {} RETURN @rid
+let street = INSERT INTO StringValue SET vid = "cc1-street", model = $model[0], value = "124 Elm St" RETURN @rid
+update $address PUT children = "street", $street
+let city = INSERT INTO StringValue SET vid = "cc1-city", model = $model[0], value = "Somehwereville" RETURN @rid
+update $address PUT children = "city", $city
+let state = INSERT INTO StringValue SET vid = "cc1-state", model = $model[0], value = "CA" RETURN @rid
+update $address PUT children = "state", $state
+let zip = INSERT INTO StringValue SET vid = "cc1-zip", model = $model[0], value = "92110" RETURN @rid
+update $address PUT children = "zip", $zip
+commit retry 100
