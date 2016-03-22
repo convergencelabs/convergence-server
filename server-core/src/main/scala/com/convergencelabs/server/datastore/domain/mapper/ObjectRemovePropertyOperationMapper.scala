@@ -17,9 +17,9 @@ object ObjectRemovePropertyOperationMapper extends ODocumentMapper {
   }
 
   private[domain] implicit def objectRemovePropertyOperationToODocument(obj: ObjectRemovePropertyOperation): ODocument = {
-    val ObjectRemovePropertyOperation(path, noOp, prop) = obj
+    val ObjectRemovePropertyOperation(id, noOp, prop) = obj
     val doc = new ODocument(DocumentClassName)
-    doc.field(Fields.Path, path.asJava)
+    doc.field(Fields.Id, id)
     doc.field(Fields.NoOp, noOp)
     doc.field(Fields.Prop, prop)
     doc
@@ -32,16 +32,16 @@ object ObjectRemovePropertyOperationMapper extends ODocumentMapper {
   private[domain] implicit def oDocumentToObjectRemovePropertyOperation(doc: ODocument): ObjectRemovePropertyOperation = {
     validateDocumentClass(doc, DocumentClassName)
 
-    val path = doc.field(Fields.Path).asInstanceOf[JavaList[_]]
+    val id = doc.field(Fields.Id).asInstanceOf[String]
     val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
     val prop = doc.field(Fields.Prop).asInstanceOf[String]
-    ObjectRemovePropertyOperation(path.asScala.toList, noOp, prop)
+    ObjectRemovePropertyOperation(id, noOp, prop)
   }
 
   private[domain] val DocumentClassName = "ObjectRemovePropertyOperation"
 
   private[domain] object Fields {
-    val Path = "path"
+    val Id = "vid"
     val NoOp = "noOp"
     val Prop = "prop"
     val Val = "val"

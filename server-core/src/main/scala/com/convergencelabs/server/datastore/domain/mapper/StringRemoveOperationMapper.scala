@@ -15,9 +15,9 @@ object StringRemoveOperationMapper extends ODocumentMapper {
   }
 
   private[domain] implicit def stringRemoveOperationToODocument(obj: StringRemoveOperation): ODocument = {
-    val StringRemoveOperation(path, noOp, index, value) = obj
+    val StringRemoveOperation(id, noOp, index, value) = obj
     val doc = new ODocument(DocumentClassName)
-    doc.field(Fields.Path, path.asJava)
+    doc.field(Fields.Id, id)
     doc.field(Fields.NoOp, noOp)
     doc.field(Fields.Idx, index)
     doc.field(Fields.Val, value)
@@ -31,17 +31,17 @@ object StringRemoveOperationMapper extends ODocumentMapper {
   private[domain] implicit def oDocumentToStringRemoveOperation(doc: ODocument): StringRemoveOperation = {
     validateDocumentClass(doc, DocumentClassName)
 
-    val path = doc.field(Fields.Path).asInstanceOf[JavaList[_]]
+    val id = doc.field(Fields.Id).asInstanceOf[String]
     val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
     val index = doc.field(Fields.Idx).asInstanceOf[Int]
     val value = doc.field(Fields.Val).asInstanceOf[String]
-    StringRemoveOperation(path.asScala.toList, noOp, index, value)
+    StringRemoveOperation(id, noOp, index, value)
   }
 
   private[domain] val DocumentClassName = "StringRemoveOperation"
 
   private[domain] object Fields {
-    val Path = "path"
+    val Id = "vid"
     val NoOp = "noOp"
     val Val = "val"
     val Idx = "idx"

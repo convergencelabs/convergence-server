@@ -19,9 +19,9 @@ object NumberSetOperationMapper extends ODocumentMapper {
   }
 
   private[domain] implicit def numberSetOperationToODocument(obj: NumberSetOperation): ODocument = {
-    val NumberSetOperation(path, noOp, value) = obj
+    val NumberSetOperation(id, noOp, value) = obj
     val doc = new ODocument(DocumentClassName)
-    doc.field(Fields.Path, path.asJava)
+    doc.field(Fields.Id, id)
     doc.field(Fields.NoOp, noOp)
     doc.field(Fields.Val, JValueMapper.jNumberToJava(value))
     doc
@@ -34,16 +34,16 @@ object NumberSetOperationMapper extends ODocumentMapper {
   private[domain] implicit def oDocumentToNumberSetOperation(doc: ODocument): NumberSetOperation = {
     validateDocumentClass(doc, DocumentClassName)
 
-    val path = doc.field(Fields.Path).asInstanceOf[JavaList[_]]
+    val id = doc.field(Fields.Id).asInstanceOf[String]
     val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
     val value = JValueMapper.javaToJValue(doc.field(Fields.Val)).asInstanceOf[JDouble]
-    NumberSetOperation(path.asScala.toList, noOp, value)
+    NumberSetOperation(id, noOp, value)
   }
 
   private[domain] val DocumentClassName = "NumberSetOperation"
 
   private[domain] object Fields {
-    val Path = "path"
+    val Id = "vid"
     val NoOp = "noOp"
     val Val = "val"
   }

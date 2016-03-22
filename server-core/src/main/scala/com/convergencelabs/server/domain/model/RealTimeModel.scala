@@ -91,14 +91,14 @@ class RealTimeModel(
     op match {
       case c: CompoundOperation =>
         c.operations foreach { o =>
-          applyOperation(o) match {
+          applyDiscreteOperation(o) match {
             case Failure(f) => throw f
             case _ =>
           }
         }
         Success(())
       case d: DiscreteOperation =>
-        applyOperation(d)
+        applyDiscreteOperation(d)
     }
   }
 
@@ -127,9 +127,10 @@ class RealTimeModel(
     Success(())
   }
 
-  def applyOperation(op: DiscreteOperation): Try[Unit] = {
+  def applyDiscreteOperation(op: DiscreteOperation): Try[Unit] = {
     if (!op.noOp) {
-      this.data.processOperation(op, op.path)
+      val value = this.idToValue(op.id)
+      value.processOperation(op)
     } else {
       Success(())
     }
