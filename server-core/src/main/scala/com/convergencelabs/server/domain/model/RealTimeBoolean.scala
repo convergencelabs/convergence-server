@@ -5,16 +5,17 @@ import com.convergencelabs.server.domain.model.ot.BooleanSetOperation
 import com.convergencelabs.server.domain.model.ot.Operation
 import scala.util.Try
 import com.convergencelabs.server.domain.model.ot.DiscreteOperation
+import com.convergencelabs.server.domain.model.data.BooleanValue
 
 class RealTimeBoolean(
+  private[this] val value: BooleanValue,
   private[this] val model: RealTimeModel,
   private[this] val parent: Option[RealTimeContainerValue],
-  private[this] val parentField: Option[Any],
-  private[this] var boolVal: JBool)
-    extends RealTimeValue(model, parent, parentField) {
+  private[this] val parentField: Option[Any])
+    extends RealTimeValue(value.id, model, parent, parentField) {
 
-  private[this] var boolean = boolVal.values
-  
+  private[this] var boolean = value.value
+
   def data(): Boolean = {
     this.boolean
   }

@@ -5,6 +5,7 @@ import org.json4s.JsonAST.JNumber
 import org.json4s.JsonAST.JObject
 import org.json4s.JsonAST.JValue
 import org.json4s.JsonAST.JDouble
+import com.convergencelabs.server.domain.model.data.DataValue
 
 sealed trait Operation
 
@@ -38,11 +39,11 @@ case class StringSetOperation(id: String, noOp: Boolean, value: String) extends 
 //////////////////////////////////////////////////////////////////////////////
 sealed trait ObjectOperation extends DiscreteOperation
 
-case class ObjectSetPropertyOperation(id: String, noOp: Boolean, property: String, value: JValue) extends ObjectOperation {
+case class ObjectSetPropertyOperation(id: String, noOp: Boolean, property: String, value: DataValue) extends ObjectOperation {
   def clone(noOp: scala.Boolean = noOp): ObjectSetPropertyOperation = copy(noOp = noOp)
 }
 
-case class ObjectAddPropertyOperation(id: String, noOp: Boolean, property: String, value: JValue) extends ObjectOperation {
+case class ObjectAddPropertyOperation(id: String, noOp: Boolean, property: String, value: DataValue) extends ObjectOperation {
   def clone(noOp: scala.Boolean = noOp): ObjectAddPropertyOperation = copy(noOp = noOp)
 }
 
@@ -50,7 +51,7 @@ case class ObjectRemovePropertyOperation(id: String, noOp: Boolean, property: St
   def clone(noOp: scala.Boolean = noOp): ObjectRemovePropertyOperation = copy(noOp = noOp)
 }
 
-case class ObjectSetOperation(id: String, noOp: Boolean, value: JObject) extends ObjectOperation {
+case class ObjectSetOperation(id: String, noOp: Boolean, value: Map[String, DataValue]) extends ObjectOperation {
   def clone(noOp: scala.Boolean = noOp): ObjectSetOperation = copy(noOp = noOp)
 }
 
@@ -59,11 +60,11 @@ case class ObjectSetOperation(id: String, noOp: Boolean, value: JObject) extends
 //////////////////////////////////////////////////////////////////////////////
 sealed trait NumberOperation extends DiscreteOperation
 
-case class NumberAddOperation(id: String, noOp: Boolean, value: JDouble) extends NumberOperation {
+case class NumberAddOperation(id: String, noOp: Boolean, value: Double) extends NumberOperation {
   def clone(noOp: scala.Boolean = noOp): NumberAddOperation = copy(noOp = noOp)
 }
 
-case class NumberSetOperation(id: String, noOp: Boolean, value: JDouble) extends NumberOperation {
+case class NumberSetOperation(id: String, noOp: Boolean, value: Double) extends NumberOperation {
   def clone(noOp: scala.Boolean = noOp): NumberSetOperation = copy(noOp = noOp)
 }
 
@@ -80,7 +81,7 @@ case class BooleanSetOperation(id: String, noOp: Boolean, value: Boolean) extend
 // Array Operations
 //////////////////////////////////////////////////////////////////////////////
 sealed trait ArrayOperation extends DiscreteOperation
-case class ArrayInsertOperation(id: String, noOp: Boolean, index: Int, value: JValue) extends ArrayOperation {
+case class ArrayInsertOperation(id: String, noOp: Boolean, index: Int, value: DataValue) extends ArrayOperation {
   def clone(noOp: scala.Boolean = noOp): ArrayInsertOperation = copy(noOp = noOp)
 }
 
@@ -88,7 +89,7 @@ case class ArrayRemoveOperation(id: String, noOp: Boolean, index: Int) extends A
   def clone(noOp: scala.Boolean = noOp): ArrayRemoveOperation = copy(noOp = noOp)
 }
 
-case class ArrayReplaceOperation(id: String, noOp: Boolean, index: Int, value: JValue) extends ArrayOperation {
+case class ArrayReplaceOperation(id: String, noOp: Boolean, index: Int, value: DataValue) extends ArrayOperation {
   def clone(noOp: scala.Boolean = noOp): ArrayReplaceOperation = copy(noOp = noOp)
 }
 
@@ -96,6 +97,6 @@ case class ArrayMoveOperation(id: String, noOp: Boolean, fromIndex: Int, toIndex
   def clone(noOp: scala.Boolean = noOp): ArrayMoveOperation = copy(noOp = noOp)
 }
 
-case class ArraySetOperation(id: String, noOp: Boolean, value: JArray) extends ArrayOperation {
+case class ArraySetOperation(id: String, noOp: Boolean, value: List[DataValue]) extends ArrayOperation {
   def clone(noOp: scala.Boolean = noOp): ArraySetOperation = copy(noOp = noOp)
 }

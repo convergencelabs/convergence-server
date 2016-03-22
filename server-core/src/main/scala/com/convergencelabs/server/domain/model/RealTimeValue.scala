@@ -6,15 +6,22 @@ import com.convergencelabs.server.domain.model.ot.DiscreteOperation
 import scala.util.Failure
 
 abstract class RealTimeValue(
+    private[model] val id: String,
     private[model] val model: RealTimeModel,
     private[model] var parent: Option[RealTimeContainerValue],
-    private[model] var parentField: Any) {
+    private[model] var parentField: Option[Any]) {
+  
+  model.registerValue(this)
   
   def path(): List[Any] = {
     parent match {
       case None => List()
       case Some(p) => p.path() :+ parentField
     }
+  }
+  
+  def detach(): Unit = {
+    model.unregisterValue(this)
   }
   
   def data(): Any

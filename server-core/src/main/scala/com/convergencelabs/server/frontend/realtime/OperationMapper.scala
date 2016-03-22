@@ -53,8 +53,8 @@ private[realtime] object OperationMapper {
       case ObjectRemovePropertyOperationData(id, noOp, prop) => ObjectRemovePropertyOperation(id, noOp, prop)
       case ObjectSetOperationData(id, noOp, objectData) => ObjectSetOperation(id, noOp, objectData)
 
-      case NumberAddOperationData(id, noOp, delta) => NumberAddOperation(id, noOp, delta.asInstanceOf[JDouble])
-      case NumberSetOperationData(id, noOp, number) => NumberSetOperation(id, noOp, number.asInstanceOf[JDouble])
+      case NumberAddOperationData(id, noOp, delta) => NumberAddOperation(id, noOp, delta)
+      case NumberSetOperationData(id, noOp, number) => NumberSetOperation(id, noOp, number)
 
       case BooleanSetOperationData(id, noOp, value) => BooleanSetOperation(id, noOp, value)
     }
@@ -90,8 +90,8 @@ private[realtime] object OperationMapper {
       case ObjectRemovePropertyOperation(id, noOp, prop) => ObjectRemovePropertyOperationData(id, noOp, prop)
       case ObjectSetOperation(id, noOp, objectData) => ObjectSetOperationData(id, noOp, objectData)
 
-      case NumberAddOperation(id, noOp, delta) => NumberAddOperationData(id, noOp, delta.asInstanceOf[JValue])
-      case NumberSetOperation(id, noOp, number) => NumberSetOperationData(id, noOp, number.asInstanceOf[JValue])
+      case NumberAddOperation(id, noOp, delta) => NumberAddOperationData(id, noOp, delta)
+      case NumberSetOperation(id, noOp, number) => NumberSetOperationData(id, noOp, number)
 
       case BooleanSetOperation(id, noOp, value) => BooleanSetOperationData(id, noOp, value)
     }

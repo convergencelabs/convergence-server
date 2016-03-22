@@ -22,27 +22,28 @@ import org.json4s.JsonAST.JArray
 import scala.util.Try
 import scala.util.Success
 import scala.util.Failure
+import com.convergencelabs.server.domain.model.data.ArrayValue
 
 class RealTimeArray(
+  private[this] val value: ArrayValue,
   private[this] val model: RealTimeModel,
   private[this] val parent: Option[RealTimeContainerValue],
-  private[this] val parentField: Option[Any],
-  private[this] val value: JArray)
-    extends RealTimeContainerValue(model, parent, parentField) {
+  private[this] val parentField: Option[Any])
+    extends RealTimeContainerValue(value.id, model, parent, parentField) {
 
   var i = 0;
-  var children = value.arr.map {
-    x => this.model.createValue(Some(this), Some({ i += 1; i }), x)
+  var children = value.value.map {
+    x => this.model.createValue(value, Some(this), Some({ i += 1; i }))
   }
 
   def valueAt(path: List[Any]): Option[RealTimeValue] = {
     path match {
       case Nil =>
         Some(this)
-      case (index: Int) :: Nil  =>
+      case (index: Int) :: Nil =>
         this.children.lift(index)
-      case (index: Int) :: rest  =>
-        this.children.lift(index).flatMap { 
+      case (index: Int) :: rest =>
+        this.children.lift(index).flatMap {
           case child: RealTimeContainerValue => child.valueAt(rest)
           case _ => None
         }
@@ -50,14 +51,14 @@ class RealTimeArray(
         None
     }
   }
-  
+
   def data(): List[_] = {
     children.map({ v => v.data() })
   }
-  
+
   protected def child(childPath: Any): Try[Option[RealTimeValue]] = {
     childPath match {
-      case index: Int => 
+      case index: Int =>
         Success(this.children.lift(index))
       case _ =>
         Failure(new IllegalArgumentException("Child path must be a Int for a RealTimeArray"))
@@ -76,7 +77,7 @@ class RealTimeArray(
   }
 
   def processInsertOperation(op: ArrayInsertOperation): Unit = {
-    val child = this.model.createValue(Some(this), Some(parentField), op.value)
+    val child = this.model.createValue(op.value, Some(this), Some(parentField))
     this.children = this.children.patch(op.index, List(child), 0)
     this.updateIndices(op.index + 1, this.children.length)
   }
@@ -89,7 +90,7 @@ class RealTimeArray(
 
   def processReplaceOperation(op: ArrayReplaceOperation): Unit = {
     val oldChild = this.children(op.index)
-    val child = this.model.createValue(Some(this), Some(parentField), op.value)
+    val child = this.model.createValue(op.value, Some(this), Some(parentField))
     this.children = this.children.patch(op.index, List(child), 1)
   }
 
@@ -102,14 +103,18 @@ class RealTimeArray(
 
   def processSetValueOperation(op: ArraySetOperation): Unit = {
     var i = 0;
-    this.children = op.value.arr.map {
-      x => this.model.createValue(Some(this), Some({ i += 1; i }), x)
+    this.children = op.value.map {
+      v => this.model.createValue(v, Some(this), Some({ i += 1; i }))
     }
   }
 
   private[this] def updateIndices(fromIndex: Int, toIndex: Int): Unit = {
     for (i <- fromIndex to toIndex) {
-      this.children(i).parentField = i
+      this.children(i).parentField = Some(i)
     }
+  }
+  
+  def detachChildren(): Unit = {
+    this.children.foreach({child => child.detach()})
   }
 }
