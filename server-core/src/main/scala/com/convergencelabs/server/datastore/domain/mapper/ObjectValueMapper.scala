@@ -8,20 +8,21 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 import com.convergencelabs.server.util.JValueMapper
 import com.convergencelabs.server.datastore.mapper.ODocumentMapper
 import com.convergencelabs.server.domain.model.data.ObjectValue
+import DataValueMapper.DataValueToODocument
+import DataValueMapper.ODocumentToDataValue
 
 object ObjectValueMapper extends ODocumentMapper {
 
-  private[domain] implicit class ObjectValueToODocument(val s: ObjectValue) extends AnyVal {
-    def asODocument: ODocument = ObjectValueToODocument(s)
+  private[domain] implicit class ObjectValueToODocument(val obj: ObjectValue) extends AnyVal {
+    def asODocument: ODocument = objectValueToODocument(obj)
   }
 
-  private[domain] implicit def ObjectValueToODocument(obj: ObjectValue): ODocument = {
-    val ObjectValue(path, noOp, index, value) = obj
+  private[domain] implicit def objectValueToODocument(obj: ObjectValue): ODocument = {
+    val ObjectValue(vid, children) = obj
     val doc = new ODocument(DocumentClassName)
-    doc.field(Fields.Path, path.asJava)
-    doc.field(Fields.NoOp, noOp)
-    doc.field(Fields.Idx, index)
-    doc.field(Fields.Val, JValueMapper.jValueToJava(value))
+    doc.field(Fields.VID, vid)
+    val docChildren = children map{case(k, v)=> (k, v.asODocument)}
+    doc.field(Fields.Value, docChildren)
     doc
   }
 
@@ -32,19 +33,14 @@ object ObjectValueMapper extends ODocumentMapper {
   private[domain] implicit def oDocumentToObjectValue(doc: ODocument): ObjectValue = {
     validateDocumentClass(doc, DocumentClassName)
 
-    val path = doc.field(Fields.Path).asInstanceOf[JavaList[_]]
-    val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
-    val idx = doc.field(Fields.Idx).asInstanceOf[Int]
-    val value = JValueMapper.javaToJValue(doc.field(Fields.Val))
-    ObjectValue(path.asScala.toList, noOp, idx, value)
+    val vid = doc.field(Fields.VID).asInstanceOf[String]
+    ObjectValue(vid, ???)
   }
 
   private[domain] val DocumentClassName = "ObjectValue"
 
   private[domain] object Fields {
-    val Path = "path"
-    val NoOp = "noOp"
-    val Val = "val"
-    val Idx = "idx"
+    val VID = "vid"
+    val Value = "children"
   }
 }

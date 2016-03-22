@@ -1,11 +1,9 @@
 package com.convergencelabs.server.datastore.domain
 
 import java.util.{ List => JavaList }
-
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.util.Try
-
 import org.json4s.JArray
 import org.json4s.JBool
 import org.json4s.JObject
@@ -17,7 +15,6 @@ import org.json4s.jackson.JsonMethods.parse
 import org.json4s.jackson.Serialization
 import org.json4s.jvalue2monadic
 import org.json4s.string2JsonInput
-
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.server.datastore.QueryUtil
 import com.convergencelabs.server.datastore.domain.mapper.ModelMapper.ModelToODocument
@@ -30,6 +27,7 @@ import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
+import com.orientechnologies.orient.core.id.ORID
 
 object ModelStore {
   private val Data = "data"
@@ -101,6 +99,25 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
       ModelStore.ModelId -> fqn.modelId)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     QueryUtil.mapSingletonList(result) { _.asModel }
+  }
+  
+ def getModelOrid(fqn: ModelFqn): Try[Option[ORID]] = tryWithDb { db =>
+    val queryString =
+      """SELECT *
+        |FROM Model
+        |WHERE
+        |  collectionId = :collectionId AND
+        |  modelId = :modelId""".stripMargin
+    val query = new OSQLSynchQuery[ODocument](queryString)
+    val params = Map(
+      ModelStore.CollectionId -> fqn.collectionId,
+      ModelStore.ModelId -> fqn.modelId)
+    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
+    result.asScala.toList match {
+      case first :: Nil => Some(first.getRecord().getIdentity())
+      case first :: rest => None
+      case Nil => None
+    }
   }
 
   def getModelMetaData(fqn: ModelFqn): Try[Option[ModelMetaData]] = tryWithDb { db =>
