@@ -11,14 +11,16 @@ class ObjectAddPropertySetExhaustiveSpec extends ObjectOperationExhaustiveSpec[O
   val serverOperationType: String = "ObjectAddPropertyOperation"
   val clientOperationType: String = "ObjectSetOperation"
 
+  val valueId = "testId"
+  
   def generateCases(): List[TransformationCase[ObjectAddPropertyOperation, ObjectSetOperation]] = {
     for {
       prop1 <- NewProperties
       value1 <- NewValues
       newObject <- SetObjects
     } yield TransformationCase(
-      ObjectAddPropertyOperation(List(), false, prop1, value1),
-      ObjectSetOperation(List(), false, newObject))
+      ObjectAddPropertyOperation(valueId, false, prop1, value1),
+      ObjectSetOperation(valueId, false, newObject))
   }
 
   def transform(s: ObjectAddPropertyOperation, c: ObjectSetOperation): (DiscreteOperation, DiscreteOperation) = {

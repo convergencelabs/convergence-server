@@ -8,13 +8,15 @@ class ArraySetSetExhaustiveSpec extends ArrayOperationExhaustiveSpec[ArraySetOpe
   val serverOperationType: String = "ArraySetOperation"
   val clientOperationType: String = "ArraySetOperation"
 
+  val valueId = "testId"
+  
   def generateCases(): List[TransformationCase[ArraySetOperation, ArraySetOperation]] = {
     for {
       v1 <- generateValues()
       v2 <- generateValues()
     } yield TransformationCase(
-      ArraySetOperation(List(), false, JArray(List(v1))),
-      ArraySetOperation(List(), false, JArray(List(v2))))
+      ArraySetOperation(valueId, false, JArray(List(v1))),
+      ArraySetOperation(valueId, false, JArray(List(v2))))
   }
 
   def transform(s: ArraySetOperation, c: ArraySetOperation): (DiscreteOperation, DiscreteOperation) = {

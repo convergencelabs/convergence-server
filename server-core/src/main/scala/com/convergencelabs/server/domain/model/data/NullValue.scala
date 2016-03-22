@@ -1,3 +1,3 @@
 package com.convergencelabs.server.domain.model.data
 
-case class StringValue(id: String)
+case class NullValue(id: String) extends DataValue

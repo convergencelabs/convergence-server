@@ -15,14 +15,12 @@ class CompoundOperationMapperSpec
     extends WordSpec
     with Matchers {
 
-  val path = List(3, "foo", 4) // scalastyle:off magic.number
-
   "An CompoundOperationMapper" when {
     "when converting compound operations" must {
       "correctly map and unmap a CompoundOperation" in {
         val ops = List(
-          ObjectSetOperation(path, true, JObject()),
-          ArrayRemoveOperation(path, true, 3))
+          ObjectSetOperation("vid1", true, JObject()),
+          ArrayRemoveOperation("vid2", true, 3))
 
         val op = CompoundOperation(ops)
         val opDoc = op.asODocument

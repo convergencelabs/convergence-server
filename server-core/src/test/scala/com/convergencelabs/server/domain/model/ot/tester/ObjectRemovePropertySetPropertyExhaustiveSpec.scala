@@ -10,14 +10,16 @@ class ObjectRemovePropertySetPropertyExhaustiveSpec extends ObjectOperationExhau
   val serverOperationType: String = "ObjectRemovePropertyOperation"
   val clientOperationType: String = "ObjectSetPropertyOperation"
 
+  val valueId = "testId"
+  
   def generateCases(): List[TransformationCase[ObjectRemovePropertyOperation, ObjectSetPropertyOperation]] = {
     for {
       setProp <- ExistingProperties
       setValue <- NewValues
       removeProp <- ExistingProperties
     } yield TransformationCase(
-      ObjectRemovePropertyOperation(List(), false, removeProp),
-      ObjectSetPropertyOperation(List(), false, setProp, setValue))
+      ObjectRemovePropertyOperation(valueId, false, removeProp),
+      ObjectSetPropertyOperation(valueId, false, setProp, setValue))
   }
 
   def transform(s: ObjectRemovePropertyOperation, c: ObjectSetPropertyOperation): (DiscreteOperation, DiscreteOperation) = {

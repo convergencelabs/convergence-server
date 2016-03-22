@@ -33,7 +33,7 @@ object OTFTestHarnessSpec {
 
 class OTFTestHarnessSpec extends FunSpec {
 
-  val commonPath = List()
+  val valueId = "vid"
 
   val registry = new TransformationFunctionRegistry()
   implicit val format = DefaultFormats
@@ -92,41 +92,41 @@ class OTFTestHarnessSpec extends FunSpec {
   implicit def jObject2Operation(obj: JObject): DiscreteOperation = {
     obj match {
       case JObject(List((Type, JString("StringInsert")), (NoOp, JBool(noOp)), (Index, JInt(index)), (Value, JString(value)))) =>
-        StringInsertOperation(commonPath, noOp, index.intValue(), value)
+        StringInsertOperation(valueId, noOp, index.intValue(), value)
       case JObject(List((Type, JString("StringRemove")), (NoOp, JBool(noOp)), (Index, JInt(index)), (Value, JString(value)))) =>
-        StringRemoveOperation(commonPath, noOp, index.intValue(), value)
+        StringRemoveOperation(valueId, noOp, index.intValue(), value)
       case JObject(List((Type, JString("StringSet")), (NoOp, JBool(noOp)), (Value, JString(value)))) =>
-        StringSetOperation(commonPath, noOp, value)
+        StringSetOperation(valueId, noOp, value)
 
       case JObject(List((Type, JString("ArrayInsert")), (NoOp, JBool(noOp)), (Index, JInt(index)), (Value, value))) =>
-        ArrayInsertOperation(commonPath, noOp, index.intValue(), value)
+        ArrayInsertOperation(valueId, noOp, index.intValue(), value)
       case JObject(List((Type, JString("ArrayRemove")), (NoOp, JBool(noOp)), (Index, JInt(index)))) =>
-        ArrayRemoveOperation(commonPath, noOp, index.intValue())
+        ArrayRemoveOperation(valueId, noOp, index.intValue())
       case JObject(List((Type, JString("ArrayReplace")), (NoOp, JBool(noOp)), (Index, JInt(index)), (Value, value))) =>
-        ArrayReplaceOperation(commonPath, noOp, index.intValue(), value)
+        ArrayReplaceOperation(valueId, noOp, index.intValue(), value)
       case JObject(List((Type, JString("ArrayMove")), (NoOp, JBool(noOp)), ("fromIndex", JInt(fromIndex)), ("toIndex", JInt(toIndex)))) =>
-        ArrayMoveOperation(commonPath, noOp, fromIndex.intValue(), toIndex.intValue())
+        ArrayMoveOperation(valueId, noOp, fromIndex.intValue(), toIndex.intValue())
       case JObject(List((Type, JString("ArraySet")), (NoOp, JBool(noOp)), (Value, value @ JArray(_)))) =>
-        ArraySetOperation(commonPath, noOp, value)
+        ArraySetOperation(valueId, noOp, value)
 
       case JObject(List((Type, JString("ObjectAddProperty")), (NoOp, JBool(noOp)), (Prop, JString(prop)), (Value, value))) =>
-        ObjectAddPropertyOperation(commonPath, noOp, prop, value)
+        ObjectAddPropertyOperation(valueId, noOp, prop, value)
       case JObject(List((Type, JString("ObjectSetProperty")), (NoOp, JBool(noOp)), (Prop, JString(prop)), (Value, value))) =>
-        ObjectSetPropertyOperation(commonPath, noOp, prop, value)
+        ObjectSetPropertyOperation(valueId, noOp, prop, value)
       case JObject(List((Type, JString("ObjectRemoveProperty")), (NoOp, JBool(noOp)), (Prop, JString(prop)))) =>
-        ObjectRemovePropertyOperation(commonPath, noOp, prop)
+        ObjectRemovePropertyOperation(valueId, noOp, prop)
       case JObject(List((Type, JString("ObjectSet")), (NoOp, JBool(noOp)), (Value, value @ JObject(_)))) =>
-        ObjectSetOperation(commonPath, noOp, value)
+        ObjectSetOperation(valueId, noOp, value)
 
       case JObject(List((Type, JString("BooleanSet")), (NoOp, JBool(noOp)), (Value, JBool(value)))) =>
-        BooleanSetOperation(commonPath, noOp, value)
+        BooleanSetOperation(valueId, noOp, value)
 
       // FIXME this is a bit of a hack due to number types.
       case JObject(List((Type, JString("NumberAdd")), (NoOp, JBool(noOp)), (Value, value))) =>
-        NumberAddOperation(commonPath, noOp, JDouble(value.values.toString().toDouble))
+        NumberAddOperation(valueId, noOp, JDouble(value.values.toString().toDouble))
 
       case JObject(List((Type, JString("NumberSet")), (NoOp, JBool(noOp)), (Value, value))) =>
-        NumberSetOperation(commonPath, noOp, JDouble(value.values.toString().toDouble))
+        NumberSetOperation(valueId, noOp, JDouble(value.values.toString().toDouble))
 
       case _ =>
         throw new IllegalArgumentException(s"Invalid operation definition: $obj")

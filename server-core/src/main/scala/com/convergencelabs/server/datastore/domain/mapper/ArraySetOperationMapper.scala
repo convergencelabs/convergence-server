@@ -17,9 +17,9 @@ object ArraySetOperationMapper extends ODocumentMapper {
   }
 
   private[domain] implicit def arraySetOperationToODocument(obj: ArraySetOperation): ODocument = {
-    val ArraySetOperation(path, noOp, value) = obj
+    val ArraySetOperation(id, noOp, value) = obj
     val doc = new ODocument(DocumentClassName)
-    doc.field(Fields.Path, path.asJava)
+    doc.field(Fields.Id, id)
     doc.field(Fields.NoOp, noOp)
     doc.field(Fields.Val, JValueMapper.jValueToJava(value))
     doc
@@ -32,16 +32,16 @@ object ArraySetOperationMapper extends ODocumentMapper {
   private[domain] implicit def oDocumentToArraySetOperation(doc: ODocument): ArraySetOperation = {
     validateDocumentClass(doc, DocumentClassName)
 
-    val path = doc.field(Fields.Path).asInstanceOf[JavaList[_]]
+    val id = doc.field(Fields.Id).asInstanceOf[String]
     val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
     val value = JValueMapper.javaToJValue(doc.field(Fields.Val)).asInstanceOf[JArray]
-    ArraySetOperation(path.asScala.toList, noOp, value)
+    ArraySetOperation(id, noOp, value)
   }
 
   private[domain] val DocumentClassName = "ArraySetOperation"
 
   private[domain] object Fields {
-    val Path = "path"
+    val Id = "vid"
     val NoOp = "noOp"
     val Val = "val"
   }

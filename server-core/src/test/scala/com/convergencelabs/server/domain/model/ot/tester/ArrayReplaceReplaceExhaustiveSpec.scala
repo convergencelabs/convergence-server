@@ -7,6 +7,8 @@ class ArrayReplaceReplaceExhaustiveSpec extends ArrayOperationExhaustiveSpec[Arr
   val serverOperationType: String = "ArrayReplaceOperation"
   val clientOperationType: String = "ArrayReplaceOperation"
 
+  val valueId = "testId"
+  
   def generateCases(): List[TransformationCase[ArrayReplaceOperation, ArrayReplaceOperation]] = {
     val indices = generateIndices()
     val values = generateValues()
@@ -17,8 +19,8 @@ class ArrayReplaceReplaceExhaustiveSpec extends ArrayOperationExhaustiveSpec[Arr
       i2 <- indices
       v2 <- values
     } yield TransformationCase(
-      ArrayReplaceOperation(List(), false, i1, v1),
-      ArrayReplaceOperation(List(), false, i2, v2))
+      ArrayReplaceOperation(valueId, false, i1, v1),
+      ArrayReplaceOperation(valueId, false, i2, v2))
   }
 
   def transform(s: ArrayReplaceOperation, c: ArrayReplaceOperation): (DiscreteOperation, DiscreteOperation) = {

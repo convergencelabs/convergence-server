@@ -193,21 +193,21 @@ class RealtimeModelActorSpec
     "receiving an operation" must {
       "send an ack back to the submitting client" in new OneOpenClient {
         Mockito.when(modelOperationProcessor.processModelOperation(Matchers.any())).thenReturn(Success(()))
-        realtimeModelActor.tell(OperationSubmission(0L, modelData.metaData.version, ObjectAddPropertyOperation(List(), false, "foo", JString("bar"))), client1.ref)
+        realtimeModelActor.tell(OperationSubmission(0L, modelData.metaData.version, ObjectAddPropertyOperation("", false, "foo", JString("bar"))), client1.ref)
         val opAck = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OperationAcknowledgement])
       }
 
       "send an operation to other connected clients" in new TwoOpenClients {
         Mockito.when(modelOperationProcessor.processModelOperation(Matchers.any())).thenReturn(Success(()))
 
-        realtimeModelActor.tell(OperationSubmission(0L, modelData.metaData.version, ObjectAddPropertyOperation(List(), false, "foo", JString("bar"))), client1.ref)
+        realtimeModelActor.tell(OperationSubmission(0L, modelData.metaData.version, ObjectAddPropertyOperation("", false, "foo", JString("bar"))), client1.ref)
         val opAck = client1.expectMsgClass(FiniteDuration(120, TimeUnit.SECONDS), classOf[OperationAcknowledgement])
 
         client2.expectMsgClass(FiniteDuration(120, TimeUnit.SECONDS), classOf[OutgoingOperation])
       }
 
       "close a client that submits an invalid operation" in new TwoOpenClients {
-        val badOp = StringInsertOperation(List(), false, 1, "1")
+        val badOp = StringInsertOperation("", false, 1, "1")
 
         Mockito.when(modelOperationProcessor.processModelOperation(
           Matchers.any())).thenReturn(Failure(new IllegalArgumentException("Induced Exception for test: Invalid Operation")))

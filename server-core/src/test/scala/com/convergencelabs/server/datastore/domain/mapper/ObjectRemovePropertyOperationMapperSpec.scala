@@ -14,12 +14,10 @@ class ObjectRemovePropertyOperationMapperSpec
     extends WordSpec
     with Matchers {
 
-  val path = List(3, "foo", 4) // scalastyle:off magic.number
-
   "An ObjectRemovePropertyOperationMapper" when {
     "when converting ObjectRemovePropertyOperation operations" must {
       "correctly map and unmap a ObjectRemovePropertyOperation" in {
-        val op = ObjectRemovePropertyOperation(path, true, "foo")
+        val op = ObjectRemovePropertyOperation("vid", true, "foo")
         val opDoc = op.asODocument
         val reverted = opDoc.asObjectRemovePropertyOperation
         op shouldBe reverted

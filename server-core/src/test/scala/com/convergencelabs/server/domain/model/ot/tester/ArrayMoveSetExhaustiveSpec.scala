@@ -8,10 +8,12 @@ class ArrayMoveSetExhaustiveSpec extends ArrayOperationExhaustiveSpec[ArrayMoveO
   val serverOperationType: String = "ArrayMoveOperation"
   val clientOperationType: String = "ArraySetOperation"
 
+  val valueId = "testId"
+  
   def generateCases(): List[TransformationCase[ArrayMoveOperation, ArraySetOperation]] = {
     for { r <- generateMoveRanges() } yield TransformationCase(
-      ArrayMoveOperation(List(), false, r.fromIndex, r.toIndex),
-      ArraySetOperation(List(), false, JArray(List(JString("X")))))
+      ArrayMoveOperation(valueId, false, r.fromIndex, r.toIndex),
+      ArraySetOperation(valueId, false, JArray(List(JString("X")))))
   }
 
   def transform(s: ArrayMoveOperation, c: ArraySetOperation): (DiscreteOperation, DiscreteOperation) = {

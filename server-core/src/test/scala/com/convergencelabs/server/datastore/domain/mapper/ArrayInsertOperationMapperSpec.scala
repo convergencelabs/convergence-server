@@ -14,12 +14,11 @@ class ArrayInsertOperationMapperSpec
     extends WordSpec
     with Matchers {
 
-  val path = List(3, "foo", 4) // scalastyle:off magic.number
 
   "An ArrayInsertOperationMapper" when {
     "when converting ArrayInsertOperation operations" must {
       "correctly map and unmap a ArrayInsertOperation" in {
-        val op = ArrayInsertOperation(path, true, 4, JString("test"))
+        val op = ArrayInsertOperation("vid", true, 4, JString("test"))
         val opDoc = op.asODocument
         val reverted = opDoc.asArrayInsertOperation
         op shouldBe reverted
