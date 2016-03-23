@@ -154,7 +154,9 @@ class OrientDatabaseBuilder(
       if(useTransaction) {
         db.begin()
       }
-      db.command(new OCommandScript(mergedLines.mkString("\n"))).execute()
+      val sql = mergedLines.mkString("\n")
+      println(sql)
+      db.command(new OCommandScript(sql)).execute()
       db.commit()
     } finally {
       source.close()

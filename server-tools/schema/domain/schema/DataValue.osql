@@ -62,3 +62,7 @@ CREATE CLASS BooleanValue EXTENDS DataValue;
 CREATE PROPERTY BooleanValue.value BOOLEAN;
 ALTER PROPERTY BooleanValue.value MANDATORY true;
 ALTER PROPERTY BooleanValue.value NOTNULL true;
+
+###################### NullValue ######################
+
+CREATE CLASS NullValue EXTENDS DataValue;

@@ -8,6 +8,7 @@ let age = INSERT INTO DoubleValue SET vid = "pp3-age", model = $model, value = 2
 update $data PUT children = "age", $age;
 let married = INSERT INTO BooleanValue SET vid = "pp3-married", model = $model, value = false RETURN @rid;
 update $data PUT children = "married", $married;
-update $data PUT children = "spouse", null;
+let spouse = INSERT INTO NullValue SET vid = "pp3-spouse", model = $model RETURN @rid;
+update $data PUT children = "spouse", $spouse;
 let emails = INSERT INTO ArrayValue SET vid = "pp3-emails", model = $model, children = [] RETURN @rid;
 update $data PUT children = "emails", $emails;
