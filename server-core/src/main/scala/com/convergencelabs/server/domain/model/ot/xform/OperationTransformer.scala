@@ -1,6 +1,7 @@
 package com.convergencelabs.server.domain.model.ot
 
-private[model] class OperationTransformer(tfr: TransformationFunctionRegistry) {
+private[model] class OperationTransformer(
+    private[this] val tfr: TransformationFunctionRegistry) {
 
   def transform(s: Operation, c: Operation): (Operation, Operation) = {
     (s, c) match {
@@ -44,7 +45,7 @@ private[model] class OperationTransformer(tfr: TransformationFunctionRegistry) {
   }
 
   private[this] def transformIdenticalPathOperations(s: DiscreteOperation, c: DiscreteOperation): (DiscreteOperation, DiscreteOperation) = {
-    val tf = tfr.getTransformationFunction(s, c)
+    val tf = tfr.getOperationTransformationFunction(s, c)
     tf match {
       case Some(tf) => tf.transform(s, c)
       case None => throw new IllegalArgumentException(

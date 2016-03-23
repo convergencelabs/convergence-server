@@ -50,6 +50,7 @@ import com.convergencelabs.server.domain.model.RemoteReferenceUnpublished
 import com.convergencelabs.server.domain.model.RemoteReferenceSet
 import com.convergencelabs.server.domain.model.RemoteReferenceCleared
 import com.convergencelabs.server.domain.model.ReferenceState
+import com.convergencelabs.server.domain.model.SessionKey
 
 object ModelClientActor {
   def props(
@@ -66,6 +67,8 @@ class ModelClientActor(
     extends Actor with ActorLogging {
 
   var openRealtimeModels = Map[String, ActorRef]()
+  
+  val sessionKey = SessionKey(userId, sessionId)
 
   // FIXME hardcoded
   implicit val timeout = Timeout(5 seconds)
@@ -197,29 +200,29 @@ class ModelClientActor(
   }
 
   def onPublishReference(message: PublishReferenceMessage): Unit = {
-    val PublishReferenceMessage(resourceId, path, key, refType) = message
-    val publishReference = PublishReference(path, key, ReferenceType.map(refType))
+    val PublishReferenceMessage(resourceId, id, key, refType) = message
+    val publishReference = PublishReference(id, key, ReferenceType.map(refType))
     val modelActor = openRealtimeModels(resourceId)
     modelActor ! publishReference
   }
 
   def onUnpublishReference(message: UnpublishReferenceMessage): Unit = {
-    val UnpublishReferenceMessage(resourceId, path, key) = message
-    val unpublishReference = UnpublishReference(path, key)
+    val UnpublishReferenceMessage(resourceId, id, key) = message
+    val unpublishReference = UnpublishReference(id, key)
     val modelActor = openRealtimeModels(resourceId)
     modelActor ! unpublishReference
   }
 
   def onSetReference(message: SetReferenceMessage): Unit = {
-    val SetReferenceMessage(resourceId, path, key, refType, value) = message
-    val setReference = SetReference(path, key, ReferenceType.map(refType), value)
+    val SetReferenceMessage(resourceId, id, key, refType, value, version) = message
+    val setReference = SetReference(id, key, ReferenceType.map(refType), value, version)
     val modelActor = openRealtimeModels(resourceId)
     modelActor ! setReference
   }
 
   def onClearReference(message: ClearReferenceMessage): Unit = {
-    val ClearReferenceMessage(resourceId, path, key) = message
-    val clearReference = ClearReference(path, key)
+    val ClearReferenceMessage(resourceId, id, key) = message
+    val clearReference = ClearReference(id, key)
     val modelActor = openRealtimeModels(resourceId)
     modelActor ! clearReference
   }

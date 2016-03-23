@@ -11,14 +11,6 @@ import com.convergencelabs.server.frontend.realtime.model.OperationType
 
 object MessageSerializer {
 
-  def writeJson(a: MessageEnvelope): String = {
-    write(a)
-  }
-
-  def readJson[A](json: String)(implicit mf: Manifest[A]): A = {
-    read(json)
-  }
-
   private[this] val operationSerializer = new TypeMapSerializer[OperationData]("t", Map(
     OperationType.Compound -> classOf[CompoundOperationData],
     OperationType.StringInsert -> classOf[StringInsertOperationData],
@@ -61,7 +53,7 @@ object MessageSerializer {
 
     MessageType.CloseRealTimeModelRequest -> classOf[CloseRealtimeModelRequestMessage],
     MessageType.CloseRealTimeModelResponse -> classOf[CloseRealTimeModelSuccessMessage],
-    
+
     MessageType.DeleteRealtimeModelRequest -> classOf[DeleteRealtimeModelRequestMessage],
 
     MessageType.ModelDataResponse -> classOf[ModelDataResponseMessage],
@@ -72,7 +64,7 @@ object MessageSerializer {
     MessageType.RemoteOperation -> classOf[RemoteOperationMessage],
 
     MessageType.ForceCloseRealTimeModel -> classOf[ModelForceCloseMessage],
-    
+
     MessageType.RemoteClientOpenedModel -> classOf[RemoteClientOpenedMessage],
     MessageType.RemoteClientClosedModel -> classOf[RemoteClientClosedMessage],
 
@@ -93,4 +85,12 @@ object MessageSerializer {
     DefaultFormats + operationSerializer)
 
   private[this] implicit val formats = DefaultFormats + incomingMessageSerializer
+
+  def writeJson(a: MessageEnvelope): String = {
+    write(a)
+  }
+
+  def readJson[A](json: String)(implicit mf: Manifest[A]): A = {
+    read(json)
+  }
 }

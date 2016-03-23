@@ -26,14 +26,8 @@ abstract class RealTimeValue(
   
   def data(): Any
   
-  def processOperation(op: DiscreteOperation, path: List[Any]): Try[Unit]=  {
-    path match {
-      case Nil =>
-        processOperation(op)
-      case path =>
-        Failure(new IllegalArgumentException("Value type does not have children"))
-    }
-  }
   
   def processOperation(operation: DiscreteOperation): Try[Unit]
+  
+  def processReferenceEvent(event: ModelReferenceEvent): Try[Unit]
 }

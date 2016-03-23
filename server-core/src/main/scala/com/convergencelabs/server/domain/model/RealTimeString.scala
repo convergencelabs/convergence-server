@@ -7,6 +7,7 @@ import com.convergencelabs.server.domain.model.ot.StringRemoveOperation
 import org.json4s.JsonAST.JString
 import scala.util.Try
 import com.convergencelabs.server.domain.model.data.StringValue
+import scala.util.Success
 
 class RealTimeString(
   private[this] val value: StringValue,
@@ -46,5 +47,9 @@ class RealTimeString(
 
   private[this] def processSetOperation(op: StringSetOperation): Unit = {
     this.string = op.value
+  }
+  
+  def processReferenceEvent(event: ModelReferenceEvent): Try[Unit] = {
+    Success(())
   }
 }

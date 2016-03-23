@@ -1,5 +1,7 @@
 package com.convergencelabs.server.domain.model.ot
 
-private[ot] trait ReferenceEventTransformationFunction[S <: DiscreteOperation, C <: DiscreteOperation] {
-  def transform(s: S, c: C): (DiscreteOperation, DiscreteOperation)
+import com.convergencelabs.server.domain.model.SetReference
+
+private[ot] trait ReferenceTransformationFunction[S <: DiscreteOperation] {
+  def transform(s: S, setReferene: SetReference): SetReference
 }

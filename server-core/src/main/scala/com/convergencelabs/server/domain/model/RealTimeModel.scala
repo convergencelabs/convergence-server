@@ -32,6 +32,7 @@ import com.convergencelabs.server.domain.model.data.NullValue
 
 class RealTimeModel(
     private[this] val fqn: ModelFqn,
+    private[this] val resourceId: String,
     private[this] val cc: ServerConcurrencyControl,
     private val obj: ObjectValue) {
 
@@ -56,7 +57,7 @@ class RealTimeModel(
   }
 
   def unregisterValue(realTimeValue: RealTimeValue): Unit = {
-    this.idToValue += (realTimeValue.id -> realTimeValue)
+    this.idToValue -= realTimeValue.id
   }
 
   def createValue(
@@ -118,13 +119,32 @@ class RealTimeModel(
     }
   }
 
-  def processReferenceEvent(event: ModelReferenceEvent): Try[Unit] = {
-    event match {
-      case publishReference: PublishReference => onPublishReference(publishReference)
-      case unpublishReference: UnpublishReference => onUnpublishReference(unpublishReference)
-      case setReference: SetReference => onSetReference(setReference)
-      case clearReference: ClearReference => onClearReference(clearReference)
+  def processReferenceEvent(event: ModelReferenceEvent, sk: String): Try[Option[RemoteReferenceEvent]] = Try {
+    idToValue.get(event.id) match {
+      case Some(realTimeValue) =>
+        event match {
+          case publish: PublishReference => 
+            realTimeValue.processReferenceEvent(publish)
+            val PublishReference(id, key, refType) = publish
+            Some(RemoteReferencePublished(resourceId, sk, id, key, refType))
+          case unpublish: UnpublishReference => 
+            realTimeValue.processReferenceEvent(unpublish)
+            val UnpublishReference(id, key) = unpublish
+            Some(RemoteReferenceUnpublished(resourceId, sk, id, key))
+          case set: SetReference => 
+            val xformed = this.cc.processRemoteReferenceSet(sk, set)
+            realTimeValue.processReferenceEvent(xformed)
+            val SetReference(id, key, refType, value, versio) = xformed
+            Some(RemoteReferenceSet(this.resourceId, sk, id, key, refType, value))
+          case cleared: ClearReference => 
+            realTimeValue.processReferenceEvent(cleared)
+            val ClearReference(id, key) = cleared
+            Some(RemoteReferenceCleared(resourceId, sk, id, key))
+        }
+      case None =>
+        None
     }
+
   }
 
   private[this] def onPublishReference(request: PublishReference): Try[Unit] = {

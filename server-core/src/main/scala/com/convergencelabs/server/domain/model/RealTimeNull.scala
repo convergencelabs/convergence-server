@@ -18,4 +18,8 @@ class RealTimeNull(
   def processOperation(op: DiscreteOperation): Try[Unit] = Try {
     throw new IllegalArgumentException("Invalid operation type in RealTimeDouble");
   }
+  
+  def processReferenceEvent(event: ModelReferenceEvent): Try[Unit] = {
+    throw new IllegalArgumentException("RealTimeNull does not accept references");
+  }
 }
