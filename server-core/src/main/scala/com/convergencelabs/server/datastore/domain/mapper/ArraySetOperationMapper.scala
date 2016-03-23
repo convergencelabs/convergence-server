@@ -21,7 +21,7 @@ object ArraySetOperationMapper extends ODocumentMapper {
     val doc = new ODocument(DocumentClassName)
     doc.field(Fields.Id, id)
     doc.field(Fields.NoOp, noOp)
-    doc.field(Fields.Val, JValueMapper.jValueToJava(value))
+    doc.field(Fields.Val, value map(v => DataValueMapper.dataValueToODocument(v)))
     doc
   }
 
@@ -34,7 +34,7 @@ object ArraySetOperationMapper extends ODocumentMapper {
 
     val id = doc.field(Fields.Id).asInstanceOf[String]
     val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
-    val value = JValueMapper.javaToJValue(doc.field(Fields.Val)).asInstanceOf[JArray]
+    val value = doc.field(Fields.Val).asInstanceOf[JavaList[ODocument]].asScala.toList.map {v => DataValueMapper.oDocumentToDataValue(v)}
     ArraySetOperation(id, noOp, value)
   }
 

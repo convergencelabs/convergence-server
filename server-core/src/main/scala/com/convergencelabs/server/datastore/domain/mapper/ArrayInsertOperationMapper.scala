@@ -21,7 +21,7 @@ object ArrayInsertOperationMapper extends ODocumentMapper {
     doc.field(Fields.Id, id)
     doc.field(Fields.NoOp, noOp)
     doc.field(Fields.Idx, index)
-    doc.field(Fields.Val, JValueMapper.jValueToJava(value))
+    doc.field(Fields.Val, DataValueMapper.DataValueToODocument(value))
     doc
   }
 
@@ -35,7 +35,7 @@ object ArrayInsertOperationMapper extends ODocumentMapper {
     val id = doc.field(Fields.Id).asInstanceOf[String]
     val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
     val idx = doc.field(Fields.Idx).asInstanceOf[Int]
-    val value = JValueMapper.javaToJValue(doc.field(Fields.Val))
+    val value = DataValueMapper.oDocumentToDataValue(doc.field(Fields.Val))
     ArrayInsertOperation(id, noOp, idx, value)
   }
 

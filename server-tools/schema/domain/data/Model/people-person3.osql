@@ -12,3 +12,4 @@ let spouse = INSERT INTO NullValue SET vid = "pp3-spouse", model = $model RETURN
 update $data PUT children = "spouse", $spouse;
 let emails = INSERT INTO ArrayValue SET vid = "pp3-emails", model = $model, children = [] RETURN @rid;
 update $data PUT children = "emails", $emails;
+update $model SET data = $data;

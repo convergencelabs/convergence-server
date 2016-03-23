@@ -22,7 +22,7 @@ object ObjectAddPropertyOperationMapper extends ODocumentMapper {
     doc.field(Fields.Id, id)
     doc.field(Fields.NoOp, noOp)
     doc.field(Fields.Prop, prop)
-    doc.field(Fields.Val, JValueMapper.jValueToJava(value))
+    doc.field(Fields.Val, DataValueMapper.dataValueToODocument(value))
     doc
   }
 
@@ -36,7 +36,7 @@ object ObjectAddPropertyOperationMapper extends ODocumentMapper {
     val id = doc.field(Fields.Id).asInstanceOf[String]
     val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
     val prop = doc.field(Fields.Prop).asInstanceOf[String]
-    val value = JValueMapper.javaToJValue(doc.field(Fields.Val))
+    val value = DataValueMapper.oDocumentToDataValue(doc.field(Fields.Val))
     ObjectAddPropertyOperation(id, noOp, prop, value)
   }
 

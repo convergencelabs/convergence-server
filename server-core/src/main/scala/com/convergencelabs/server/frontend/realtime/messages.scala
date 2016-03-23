@@ -7,6 +7,7 @@ import org.json4s.JsonAST.JValue
 import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.OpenModelMetaData
 import com.convergencelabs.server.ProtocolConfiguration
+import com.convergencelabs.server.domain.model.data.ObjectValue
 
 // scalastyle:off number.of.types
 
@@ -71,10 +72,10 @@ case class OperationSubmissionMessage(r: String, s: Long, v: Long, o: OperationD
 sealed trait IncomingModelRequestMessage extends IncomingProtocolRequestMessage
 case class OpenRealtimeModelRequestMessage(c: String, m: String, i: Boolean) extends IncomingModelRequestMessage
 case class CloseRealtimeModelRequestMessage(r: String) extends IncomingModelRequestMessage
-case class CreateRealtimeModelRequestMessage(c: String, m: String, d: JValue) extends IncomingModelRequestMessage
+case class CreateRealtimeModelRequestMessage(c: String, m: String, d: ObjectValue) extends IncomingModelRequestMessage
 case class DeleteRealtimeModelRequestMessage(c: String, m: String) extends IncomingModelRequestMessage
 
-case class ModelDataResponseMessage(d: JObject) extends IncomingProtocolResponseMessage
+case class ModelDataResponseMessage(d: ObjectValue) extends IncomingProtocolResponseMessage
 
 case class PublishReferenceMessage(r: String, d: String, k: String, c: Int) extends IncomingModelNormalMessage
 case class UnpublishReferenceMessage(r: String, d: String, k: String) extends IncomingModelNormalMessage
@@ -84,7 +85,7 @@ case class ClearReferenceMessage(r: String, d: String, k: String) extends Incomi
 
 // Outgoing Model Messages
 case class OpenRealtimeModelResponseMessage(r: String, v: Long, c: Long, m: Long, d: OpenModelData) extends OutgoingProtocolResponseMessage
-case class OpenModelData(d: JValue, s: Set[String], r: Map[String, Set[ReferenceData]])
+case class OpenModelData(d: ObjectValue, s: Set[String], r: Map[String, Set[ReferenceData]])
 case class ReferenceData(p: List[Any], k: String, c: Int, v: Option[JValue])
 
 case class CloseRealTimeModelSuccessMessage() extends OutgoingProtocolResponseMessage

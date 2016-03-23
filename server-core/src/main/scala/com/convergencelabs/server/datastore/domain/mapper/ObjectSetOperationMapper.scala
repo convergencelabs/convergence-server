@@ -21,7 +21,8 @@ object ObjectSetOperationMapper extends ODocumentMapper {
     val doc = new ODocument(DocumentClassName)
     doc.field(Fields.Id, id)
     doc.field(Fields.NoOp, noOp)
-    doc.field(Fields.Val, JValueMapper.jValueToJava(value))
+    // FIXME: Need to correctly translate this
+    //doc.field(Fields.Val, JValueMapper.jValueToJava(value))
     doc
   }
 
@@ -34,8 +35,9 @@ object ObjectSetOperationMapper extends ODocumentMapper {
 
     val id = doc.field(Fields.Id).asInstanceOf[String]
     val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
-    val value = JValueMapper.javaToJValue(doc.field(Fields.Val)).asInstanceOf[JObject]
-    ObjectSetOperation(id, noOp, value)
+    // FIXME: Need to correctly translate this
+    //val value = JValueMapper.javaToJValue(doc.field(Fields.Val)).asInstanceOf[JObject]
+    ObjectSetOperation(id, noOp, null)
   }
 
   private[domain] val DocumentClassName = "ObjectSetOperation"
