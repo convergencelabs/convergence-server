@@ -1,21 +1,25 @@
-INSERT INTO Model SET
-  collectionId = "people",
-  modelId = "person2",
-  version = 0,
-  createdTime = DATE("2015-10-20 02:00:00"),
-  modifiedTime = DATE("2015-10-20 2:00:00"),
-  data = {
-    "fname": "jane",
-    "lname": "doe",
-    "married": true,
-    "age": 22,
-    "spouse": {
-      "fname": "bob",
-      "lname": "doe"
-    },
-    "emails": [
-      "first@email.com",
-      "second@email.com",
-      "third@email.com"
-    ]
-  };
+let model = INSERT INTO Model SET collectionId = "people", modelId = "person2", version = 0, createdTime = DATE("2015-10-20 02:00:00"), modifiedTime = DATE("2015-10-20 02:00:00"), data = null RETURN @rid;
+let data = INSERT INTO ObjectValue SET vid = "pp2-data", model = $model, children = {} RETURN @rid;
+let fname = INSERT INTO StringValue SET vid = "pp2-fname", model = $model, value = "jane" RETURN @rid;
+update $data PUT children = "fname", $fname;
+let lname = INSERT INTO StringValue SET vid = "pp2-lname", model = $model, value = "doe" RETURN @rid;
+update $data PUT children = "lname", $lname;
+let age = INSERT INTO DoubleValue SET vid = "pp2-age", model = $model, value = 22 RETURN @rid;
+update $data PUT children = "age", $age;
+let married = INSERT INTO BooleanValue SET vid = "pp2-married", model = $model, value = true RETURN @rid;
+update $data PUT children = "married", $married;
+let spouse = INSERT INTO ObjectValue SET vid = "pp2-spouse", model = $model, children = {} RETURN @rid;
+let sfname = INSERT INTO StringValue SET vid = "pp2-sfname", model = $model, value = "bob" RETURN @rid;
+update $data PUT children = "sfname", $sfname;
+let slname = INSERT INTO StringValue SET vid = "pp2-slname", model = $model, value = "doe" RETURN @rid;
+update $data PUT children = "slname", $slname;
+update $data PUT children = "spouse", $spouse;
+let emails = INSERT INTO ArrayValue SET vid = "pp2-emails", model = $model, children = [] RETURN @rid;
+let email1 = INSERT INTO StringValue SET vid = "pp2-email1", model = $model, value = "first@email.com" RETURN @rid;
+update $emails PUT children = "email1", $email1;
+let email2 = INSERT INTO StringValue SET vid = "pp2-email2", model = $model, value = "second@email.com" RETURN @rid;
+update $emails PUT children = "email2", $email2;
+let email3 = INSERT INTO StringValue SET vid = "pp2-email3", model = $model, value = "third@email.com" RETURN @rid;
+update $emails PUT children = "email3", $email3;
+update $data PUT children = "emails", $emails;
+update $model SET data = $data;

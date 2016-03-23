@@ -23,6 +23,10 @@ CREATE PROPERTY ObjectValue.children LINKMAP DataValue;
 ALTER PROPERTY ObjectValue.children MANDATORY true;
 ALTER PROPERTY ObjectValue.children NOTNULL true;
 
+#Model.data
+CREATE Property Model.data LINK ObjectValue;
+ALTER PROPERTY Model.data MANDATORY true;
+
 ###################### ArrayValue ######################
 
 CREATE CLASS ArrayValue EXTENDS DataValue;

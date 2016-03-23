@@ -27,9 +27,5 @@ CREATE Property Model.modifiedTime DATETIME;
 ALTER PROPERTY Model.modifiedTime MANDATORY true;
 ALTER PROPERTY Model.modifiedTime NOTNULL true;
 
-#Model.data
-CREATE Property Model.data ANY;
-ALTER PROPERTY Model.data MANDATORY true;
-
 #Model Indexes
 CREATE INDEX Model.collectionId_modelId ON Model (collectionId, modelId) UNIQUE_HASH_INDEX;
