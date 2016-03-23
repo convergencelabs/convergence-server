@@ -35,4 +35,8 @@ class RealTimeDouble(
   private[this] def processSetOperation(op: NumberSetOperation): Unit = {
     this.double = op.value
   }
+  
+  def processReferenceEvent(event: ModelReferenceEvent): Try[Unit] = {
+    throw new IllegalArgumentException("RealTimeDouble does not accept references");
+  }
 }

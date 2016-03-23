@@ -117,4 +117,8 @@ class RealTimeArray(
   def detachChildren(): Unit = {
     this.children.foreach({child => child.detach()})
   }
+  
+  def processReferenceEvent(event: ModelReferenceEvent): Try[Unit] = {
+    Success(())
+  }
 }

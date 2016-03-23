@@ -6,6 +6,7 @@ import com.convergencelabs.server.domain.model.ot.Operation
 import scala.util.Try
 import com.convergencelabs.server.domain.model.ot.DiscreteOperation
 import com.convergencelabs.server.domain.model.data.BooleanValue
+import scala.util.Failure
 
 class RealTimeBoolean(
   private[this] val value: BooleanValue,
@@ -29,5 +30,9 @@ class RealTimeBoolean(
 
   private[this] def processSetOperation(op: BooleanSetOperation): Unit = {
     this.boolean = op.value
+  }
+  
+  def processReferenceEvent(event: ModelReferenceEvent): Try[Unit] = {
+    Failure(throw new IllegalArgumentException("RealTimeNull does not accept references"))
   }
 }

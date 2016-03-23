@@ -14,22 +14,6 @@ abstract class RealTimeContainerValue(
 
   def valueAt(path: List[Any]): Option[RealTimeValue]
 
-  override def processOperation(op: DiscreteOperation, path: List[Any]): Try[Unit] = {
-    path match {
-      case Nil =>
-        processOperation(op)
-      case (childPath: Any) :: rest =>
-        child(childPath) match {
-          case Failure(f) =>
-            Failure(f)
-          case Success(None) =>
-            Failure(new IllegalArgumentException(s"No such child at path: $childPath"))
-          case Success(Some(child)) =>
-            child.processOperation(op, rest)
-        }
-    }
-  }
-
   protected def child(childPath: Any): Try[Option[RealTimeValue]]
   
   override def detach(): Unit = {

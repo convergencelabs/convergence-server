@@ -98,4 +98,8 @@ class RealTimeObject(
   def detachChildren(): Unit = {
     this.children.values.foreach({child => child.detach()})
   }
+  
+  def processReferenceEvent(event: ModelReferenceEvent): Try[Unit] = {
+    Success(())
+  }
 }
