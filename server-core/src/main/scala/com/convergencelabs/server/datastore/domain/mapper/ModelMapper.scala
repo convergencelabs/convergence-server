@@ -15,33 +15,13 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 
 object ModelMapper extends ODocumentMapper {
 
-  private[domain] implicit class ModelToODocument(val m: Model) extends AnyVal {
-    def asODocument: ODocument = modelToODocument(m)
-  }
-
-  private[domain] implicit def modelToODocument(model: Model): ODocument = {
-    val doc = new ODocument(DocumentClassName)
-    val dataMap = JValueMapper.jValueToJava(model.data)
-    val metaData = model.metaData
-    doc.field(Fields.CollectionId, metaData.fqn.collectionId)
-    doc.field(Fields.ModelId, metaData.fqn.modelId)
-    doc.field(Fields.Version, metaData.version)
-    doc.field(Fields.CreatedTime, Date.from(metaData.createdTime))
-    doc.field(Fields.ModifiedTime, Date.from(metaData.modifiedTime))
-    doc.field(Fields.Data, dataMap)
-    doc
-  }
-
   private[domain] implicit class ODocumentToModel(val d: ODocument) extends AnyVal {
     def asModel: Model = oDocumentToModel(d)
   }
 
   private[domain] implicit def oDocumentToModel(doc: ODocument): Model = {
     validateDocumentClass(doc, DocumentClassName)
-
-    // FIXME this assumes every thing is an object.
-    val modelData: JavaMap[String, Any] = doc.field("data", OType.EMBEDDEDMAP)
-    Model(oDocumentToModelMetaData(doc), JValueMapper.javaToJValue(modelData))
+    Model(oDocumentToModelMetaData(doc), ObjectValueMapper.oDocumentToObjectValue(doc.field("data")))
   }
 
   private[domain] implicit class ODocumentToModelMetaData(val d: ODocument) extends AnyVal {

@@ -22,7 +22,8 @@ object ObjectSetPropertyOperationMapper extends ODocumentMapper {
     doc.field(Fields.Id, id)
     doc.field(Fields.NoOp, noOp)
     doc.field(Fields.Prop, prop)
-    doc.field(Fields.Val, JValueMapper.jValueToJava(value))
+    // FIXME: Need to correctly translate this
+    // doc.field(Fields.Val, JValueMapper.jValueToJava(value))
     doc
   }
 
@@ -36,8 +37,9 @@ object ObjectSetPropertyOperationMapper extends ODocumentMapper {
     val id = doc.field(Fields.Id).asInstanceOf[String]
     val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
     val prop = doc.field(Fields.Prop).asInstanceOf[String]
-    val value = JValueMapper.javaToJValue(doc.field(Fields.Val))
-    ObjectSetPropertyOperation(id, noOp, prop, value)
+    // FIXME: Need to correctly translate this
+    //val value = JValueMapper.javaToJValue(doc.field(Fields.Val))
+    ObjectSetPropertyOperation(id, noOp, prop, null)
   }
 
   private[domain] val DocumentClassName = "ObjectSetPropertyOperation"

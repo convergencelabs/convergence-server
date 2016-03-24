@@ -18,7 +18,7 @@ class RealTimeObject(
   private[this] val parentField: Option[Any])
     extends RealTimeContainerValue(value.id, model, parent, parentField) {
 
-  var children: Map[String, RealTimeValue] = value.value.map {
+  var children: Map[String, RealTimeValue] = value.children.map {
     case (k, v) => (k, this.model.createValue(v, Some(this), Some(k)))
   }.toMap
 

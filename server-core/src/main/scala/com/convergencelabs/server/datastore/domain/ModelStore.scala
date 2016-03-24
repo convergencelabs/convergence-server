@@ -17,7 +17,6 @@ import org.json4s.jvalue2monadic
 import org.json4s.string2JsonInput
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.server.datastore.QueryUtil
-import com.convergencelabs.server.datastore.domain.mapper.ModelMapper.ModelToODocument
 import com.convergencelabs.server.datastore.domain.mapper.ModelMapper.ODocumentToModel
 import com.convergencelabs.server.datastore.domain.mapper.ModelMapper.ODocumentToModelMetaData
 import com.convergencelabs.server.domain.model.Model
@@ -28,12 +27,16 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.orientechnologies.orient.core.id.ORID
+import java.util.Date
 
 object ModelStore {
+  private val ModelClass = "Model"
   private val Data = "data"
   private val CollectionId = "collectionId"
   private val ModelId = "modelId"
   private val Version = "version"
+  private val CreatedTime = "createdTime"
+  private val ModifiedTime = "modifiedTime"
 }
 
 class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
@@ -59,7 +62,19 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
   }
 
   def createModel(model: Model): Try[Unit] = tryWithDb { db =>
-    db.save(model.asODocument)
+    db.begin()
+    val modelDoc = new ODocument(ModelStore.ModelClass)
+
+    val ModelMetaData(ModelFqn(collectionId, modelId), version, createdTime, modifiedTime) = model.metaData
+    modelDoc.field(ModelStore.CollectionId, collectionId)
+    modelDoc.field(ModelStore.ModelId, modelId)
+    modelDoc.field(ModelStore.Version, version)
+    modelDoc.field(ModelStore.CreatedTime, Date.from(createdTime))
+    modelDoc.field(ModelStore.ModifiedTime, Date.from(modifiedTime))
+    modelDoc.save()
+    modelDoc.field(ModelStore.Data, OrientDataValueBuilder.objectValueToODocument(model.data, modelDoc))
+    modelDoc.save()
+    db.commit()
     Unit
   }
 
@@ -99,25 +114,6 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
       ModelStore.ModelId -> fqn.modelId)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     QueryUtil.mapSingletonList(result) { _.asModel }
-  }
-  
- def getModelOrid(fqn: ModelFqn): Try[Option[ORID]] = tryWithDb { db =>
-    val queryString =
-      """SELECT *
-        |FROM Model
-        |WHERE
-        |  collectionId = :collectionId AND
-        |  modelId = :modelId""".stripMargin
-    val query = new OSQLSynchQuery[ODocument](queryString)
-    val params = Map(
-      ModelStore.CollectionId -> fqn.collectionId,
-      ModelStore.ModelId -> fqn.modelId)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    result.asScala.toList match {
-      case first :: Nil => Some(first.getRecord().getIdentity())
-      case first :: rest => None
-      case Nil => None
-    }
   }
 
   def getModelMetaData(fqn: ModelFqn): Try[Option[ModelMetaData]] = tryWithDb { db =>

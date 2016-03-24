@@ -24,7 +24,7 @@ object ModelSnapshotMapper extends ODocumentMapper {
     doc.field(Fields.ModelId, modelSnapshot.metaData.fqn.modelId)
     doc.field(Fields.Version, modelSnapshot.metaData.version)
     doc.field(Fields.Timestamp, new java.util.Date(modelSnapshot.metaData.timestamp.toEpochMilli()))
-    doc.field(Fields.Data, JValueMapper.jValueToJava(modelSnapshot.data))
+    doc.field(Fields.Data, DataValueMapper.dataValueToODocument(modelSnapshot.data))
     doc
   }
 
@@ -36,8 +36,8 @@ object ModelSnapshotMapper extends ODocumentMapper {
     validateDocumentClass(doc, DocumentClassName)
 
     // FIXME this assumes every thing is an object.
-    val dataMap: java.util.Map[String, Any] = doc.field(Fields.Data)
-    val data = JValueMapper.javaToJValue(dataMap)
+    val dataDoc = doc.field(Fields.Data)
+    val data = ObjectValueMapper.oDocumentToObjectValue(dataDoc)
     ModelSnapshot(oDocumentToModelSnapshotMetaData(doc), data)
   }
 

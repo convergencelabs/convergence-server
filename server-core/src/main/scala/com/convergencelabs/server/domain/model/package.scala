@@ -6,6 +6,7 @@ import com.convergencelabs.server.domain.model.ot.Operation
 import akka.actor.ActorRef
 import java.time.Instant
 import java.time.Duration
+import com.convergencelabs.server.domain.model.data.ObjectValue
 
 package model {
 
@@ -14,11 +15,11 @@ package model {
   //
   case class OpenRequestRecord(clientActor: ActorRef, askingActor: ActorRef)
   case class OpenRealtimeModelRequest(userId: String, sessionId: String, modelFqn: ModelFqn, initializerProvided: Boolean, clientActor: ActorRef)
-  case class CreateModelRequest(modelFqn: ModelFqn, modelData: JValue)
+  case class CreateModelRequest(modelFqn: ModelFqn, modelData: ObjectValue)
   case class DeleteModelRequest(modelFqn: ModelFqn)
   case class CloseRealtimeModelRequest(userId: String, sessionId: String)
   case class OperationSubmission(seqNo: Long, contextVersion: Long, operation: Operation)
-  case class ClientModelDataResponse(modelData: JValue)
+  case class ClientModelDataResponse(modelData: ObjectValue)
 
   sealed trait ModelReferenceEvent {
     val id: String
@@ -59,7 +60,7 @@ package model {
     metaData: OpenModelMetaData,
     connectedClients: Set[SessionKey],
     referencesBySession: Map[SessionKey, Set[ReferenceState]],
-    modelData: JValue) extends OpenModelResponse
+    modelData: ObjectValue) extends OpenModelResponse
 
   case class ReferenceState(
     path: List[Any],

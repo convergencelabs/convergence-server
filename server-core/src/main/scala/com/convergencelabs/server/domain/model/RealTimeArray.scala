@@ -32,7 +32,7 @@ class RealTimeArray(
     extends RealTimeContainerValue(value.id, model, parent, parentField) {
 
   var i = 0;
-  var children = value.value.map {
+  var children = value.children.map {
     x => this.model.createValue(value, Some(this), Some({ i += 1; i }))
   }
 

@@ -10,6 +10,8 @@ import com.convergencelabs.server.domain.model.ot.ObjectSetOperation
 import CompoundOperationMapper.CompoundOperationToODocument
 import CompoundOperationMapper.ODocumentToCompoundOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
+import com.convergencelabs.server.domain.model.data.ObjectValue
+import com.convergencelabs.server.domain.model.data.DataValue
 
 class CompoundOperationMapperSpec
     extends WordSpec
@@ -19,7 +21,7 @@ class CompoundOperationMapperSpec
     "when converting compound operations" must {
       "correctly map and unmap a CompoundOperation" in {
         val ops = List(
-          ObjectSetOperation("vid1", true, JObject()),
+          ObjectSetOperation("vid1", true, ObjectValue("com-test", Map().asInstanceOf[Map[String, DataValue]])),
           ArrayRemoveOperation("vid2", true, 3))
 
         val op = CompoundOperation(ops)
