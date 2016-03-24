@@ -130,10 +130,11 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
       case Success(Some(rid)) => {
         val value = OrientDataValueBuilder.dataValueToODocument(operation.value, rid)
         value.save()
-        val params = Map(VID -> operation.id, CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, Index -> operation.index, Value -> value.getIdentity())
+        val params = Map(VID -> operation.id, CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, Index -> operation.index, Value -> value)
         val queryString = s"UPDATE ArrayValue SET children = arrayInsert(children, :index, :value) WHERE vid = :vid and model.collectionId = :collectionId and model.modelId = :modelId"
         val updateCommand = new OCommandSQL(queryString)
         db.command(updateCommand).execute(params.asJava)
+        Unit
       }
       case Success(None) => //TODO: Handle model doesn't exist
       case Failure(error) => //TODO: Handle failure looking up model
@@ -141,20 +142,26 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
   }
 
   private[this] def applyArrayRemoveOperation(fqn: ModelFqn, operation: ArrayRemoveOperation, db: ODatabaseDocumentTx): Unit = {
-//    val pathString = escape(toOrientPath(operation.path))
-//    val params = Map(CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, Index -> operation.index)
-//    val queryString = s"UPDATE Model SET $pathString = arrayRemove($pathString, :index) WHERE collectionId = :collectionId and modelId = :modelId"
-//    val updateCommand = new OCommandSQL(queryString)
-//    db.command(updateCommand).execute(params.asJava)
+    val params = Map(VID -> operation.id, CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, Index -> operation.index)
+    val queryString = s"UPDATE ArrayValue SET children = arrayRemove(children, :index) WHERE vid = :vid, model.collectionId = :collectionId and model.modelId = :modelId"
+    val updateCommand = new OCommandSQL(queryString)
+    db.command(updateCommand).execute(params.asJava)
   }
 
   private[this] def applyArrayReplaceOperation(fqn: ModelFqn, operation: ArrayReplaceOperation, db: ODatabaseDocumentTx): Unit = {
-//    val pathString = escape(toOrientPath(operation.path))
-//    val params = Map(CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, Index -> operation.index, Value -> JValueMapper.jValueToJava(operation.value))
-//    val value = write(operation.value)
-//    val queryString = s"UPDATE Model SET $pathString = arrayReplace($pathString, :index, $value) WHERE collectionId = :collectionId and modelId = :modelId"
-//    val updateCommand = new OCommandSQL(queryString)
-//    db.command(updateCommand).execute(params.asJava)
+    getModelRid(fqn) match {
+      case Success(Some(rid)) => {
+        val value = OrientDataValueBuilder.dataValueToODocument(operation.value, rid)
+        value.save()
+        val params = Map(VID -> operation.id, CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, Index -> operation.index, Value -> value)
+        val queryString = s"UPDATE ArrayValue SET children = arrayReplace(children, :index, :value) WHERE model.collectionId = :collectionId and model.modelId = :modelId"
+        val updateCommand = new OCommandSQL(queryString)
+        db.command(updateCommand).execute(params.asJava)
+        Unit
+      }
+      case Success(None)  => //TODO: Handle model doesn't exist
+      case Failure(error) => //TODO: Handle failure looking up model
+    }
   }
 
   private[this] def applyArrayMoveOperation(fqn: ModelFqn, operation: ArrayMoveOperation, db: ODatabaseDocumentTx): Unit = {

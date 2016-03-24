@@ -23,6 +23,7 @@ import com.convergencelabs.server.domain.model.data.ArrayValue
 import com.convergencelabs.server.domain.model.data.StringValue
 import com.convergencelabs.server.domain.model.data.BooleanValue
 import com.convergencelabs.server.domain.model.data.DoubleValue
+import com.convergencelabs.server.domain.model.data.NullValue
 
 object DataValueMapper extends ODocumentMapper {
 
@@ -37,6 +38,7 @@ object DataValueMapper extends ODocumentMapper {
       case data: StringValue => data.asODocument
       case data: BooleanValue => data.asODocument
       case data: DoubleValue => data.asODocument
+      case data: NullValue => data.asODocument
     }
   }
 
