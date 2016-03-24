@@ -7,6 +7,9 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 import com.convergencelabs.server.domain.model.data.StringValue
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.model.data.ArrayValue
+import com.orientechnologies.orient.core.metadata.schema.OType
+import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.collection.JavaConverters.seqAsJavaListConverter
 
 object OrientDataValueBuilder {
   def dataValueToODocument(value: DataValue, modelDoc: ODocument): ODocument = {
@@ -21,35 +24,42 @@ object OrientDataValueBuilder {
   
   def objectValueToODocument(value: ObjectValue, modelDoc: ODocument): ODocument = {
     val objectDoc = new ODocument("ObjectValue")
-    objectDoc.field("vid", value.id);
-    objectDoc.field("children", value.children map {case (k, v) => (k, dataValueToODocument(v, modelDoc))})
+    objectDoc.field("model", modelDoc)
+    objectDoc.field("vid", value.id)
+    val children = value.children map {case (k, v) => (k, dataValueToODocument(v, modelDoc))}
+    objectDoc.field("children", children.asJava, OType.LINKMAP)
     objectDoc
   }
   
   def arrayValueToODocument(value: ArrayValue, modelDoc: ODocument): ODocument = {
     val arrayDoc = new ODocument("ArrayValue")
-    arrayDoc.field("vid", value.id);
-    arrayDoc.field("children", value.children map {child => dataValueToODocument(child, modelDoc)})
+    arrayDoc.field("model", modelDoc)
+    arrayDoc.field("vid", value.id)
+    var children = value.children map {child => dataValueToODocument(child, modelDoc)}
+    arrayDoc.field("children", children.asJava, OType.LINKLIST)
     arrayDoc
   }
   
   def stringValueToODocument(value: StringValue, modelDoc: ODocument): ODocument = {
     val stringDoc = new ODocument("StringValue")
-    stringDoc.field("vid", value.id);
+    stringDoc.field("model", modelDoc)
+    stringDoc.field("vid", value.id)
     stringDoc.field("value", value.value)
     stringDoc
   }
   
   def booleanValueToODocument(value: BooleanValue, modelDoc: ODocument): ODocument = {
     val booleanValue = new ODocument("BooleanValue")
-    booleanValue.field("vid", value.id);
+    booleanValue.field("model", modelDoc)
+    booleanValue.field("vid", value.id)
     booleanValue.field("value", value.value)
     booleanValue
   }
   
   def doubleValueToODocument(value: DoubleValue, modelDoc: ODocument): ODocument = {
     val doubleValue = new ODocument("DoubleValue")
-    doubleValue.field("vid", value.id);
+    doubleValue.field("model", modelDoc)
+    doubleValue.field("vid", value.id)
     doubleValue.field("value", value.value)
     doubleValue
   }

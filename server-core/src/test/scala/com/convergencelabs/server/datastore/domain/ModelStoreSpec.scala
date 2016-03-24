@@ -217,15 +217,5 @@ class ModelStoreSpec
         store.getModel(company1).success.value shouldBe defined
       }
     }
-    
-    "retreiving the model rid" must {
-      "return the rid when it exists" in withPersistenceStore { store =>
-        store.getModelOrid(person1).success.value shouldBe defined
-      }
-      
-      "return the none when it doesn't exist" in withPersistenceStore { store =>
-        store.getModelOrid(nonExsitingFqn).success.value shouldBe None
-      }
-    }
   }
 }

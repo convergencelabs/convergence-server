@@ -115,25 +115,6 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     QueryUtil.mapSingletonList(result) { _.asModel }
   }
-  
- def getModelOrid(fqn: ModelFqn): Try[Option[ORID]] = tryWithDb { db =>
-    val queryString =
-      """SELECT *
-        |FROM Model
-        |WHERE
-        |  collectionId = :collectionId AND
-        |  modelId = :modelId""".stripMargin
-    val query = new OSQLSynchQuery[ODocument](queryString)
-    val params = Map(
-      ModelStore.CollectionId -> fqn.collectionId,
-      ModelStore.ModelId -> fqn.modelId)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    result.asScala.toList match {
-      case first :: Nil => Some(first.getRecord().getIdentity())
-      case first :: rest => None
-      case Nil => None
-    }
-  }
 
   def getModelMetaData(fqn: ModelFqn): Try[Option[ModelMetaData]] = tryWithDb { db =>
     val queryString =
