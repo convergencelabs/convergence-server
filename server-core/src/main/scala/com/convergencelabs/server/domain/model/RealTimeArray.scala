@@ -29,11 +29,15 @@ class RealTimeArray(
   private[this] val model: RealTimeModel,
   private[this] val parent: Option[RealTimeContainerValue],
   private[this] val parentField: Option[Any])
-    extends RealTimeContainerValue(value.id, model, parent, parentField) {
+    extends RealTimeContainerValue(value.id, model, parent, parentField, List()) {
 
   var i = 0;
-  var children = value.children.map {
+  var childValues = value.children.map {
     x => this.model.createValue(value, Some(this), Some({ i += 1; i }))
+  }
+  
+  def children(): List[RealTimeValue] = {
+    childValues.toList
   }
 
   def valueAt(path: List[Any]): Option[RealTimeValue] = {
@@ -41,9 +45,9 @@ class RealTimeArray(
       case Nil =>
         Some(this)
       case (index: Int) :: Nil =>
-        this.children.lift(index)
+        childValues.lift(index)
       case (index: Int) :: rest =>
-        this.children.lift(index).flatMap {
+        childValues.lift(index).flatMap {
           case child: RealTimeContainerValue => child.valueAt(rest)
           case _ => None
         }
@@ -59,7 +63,7 @@ class RealTimeArray(
   protected def child(childPath: Any): Try[Option[RealTimeValue]] = {
     childPath match {
       case index: Int =>
-        Success(this.children.lift(index))
+        Success(childValues.lift(index))
       case _ =>
         Failure(new IllegalArgumentException("Child path must be a Int for a RealTimeArray"))
     }
@@ -78,47 +82,43 @@ class RealTimeArray(
 
   def processInsertOperation(op: ArrayInsertOperation): Unit = {
     val child = this.model.createValue(op.value, Some(this), Some(parentField))
-    this.children = this.children.patch(op.index, List(child), 0)
-    this.updateIndices(op.index + 1, this.children.length)
+    childValues = childValues.patch(op.index, List(child), 0)
+    this.updateIndices(op.index + 1, childValues.length)
   }
 
   def processRemoveOperation(op: ArrayRemoveOperation): Unit = {
-    val oldChild = this.children(op.index)
-    this.children = this.children.patch(op.index, List(), 1)
-    this.updateIndices(op.index, this.children.length)
+    val oldChild = childValues(op.index)
+    childValues = childValues.patch(op.index, List(), 1)
+    this.updateIndices(op.index, childValues.length)
   }
 
   def processReplaceOperation(op: ArrayReplaceOperation): Unit = {
-    val oldChild = this.children(op.index)
+    val oldChild = childValues(op.index)
     val child = this.model.createValue(op.value, Some(this), Some(parentField))
-    this.children = this.children.patch(op.index, List(child), 1)
+    childValues = childValues.patch(op.index, List(child), 1)
   }
 
   def processReorderOperation(op: ArrayMoveOperation): Unit = {
-    val child = this.children(op.fromIndex)
-    this.children = this.children.patch(op.fromIndex, List(), 1)
-    this.children = this.children.patch(op.toIndex, List(child), 0)
+    val child = childValues(op.fromIndex)
+    childValues = childValues.patch(op.fromIndex, List(), 1)
+    childValues = childValues.patch(op.toIndex, List(child), 0)
     this.updateIndices(op.fromIndex, op.toIndex)
   }
 
   def processSetValueOperation(op: ArraySetOperation): Unit = {
     var i = 0;
-    this.children = op.value.map {
+    childValues = op.value.map {
       v => this.model.createValue(v, Some(this), Some({ i += 1; i }))
     }
   }
 
   private[this] def updateIndices(fromIndex: Int, toIndex: Int): Unit = {
     for (i <- fromIndex to toIndex) {
-      this.children(i).parentField = Some(i)
+      childValues(i).parentField = Some(i)
     }
   }
   
   def detachChildren(): Unit = {
-    this.children.foreach({child => child.detach()})
-  }
-  
-  def processReferenceEvent(event: ModelReferenceEvent): Try[Unit] = {
-    Success(())
-  }
+    childValues.foreach({child => child.detach()})
+  }  
 }

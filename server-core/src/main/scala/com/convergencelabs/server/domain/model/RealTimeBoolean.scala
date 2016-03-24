@@ -13,7 +13,7 @@ class RealTimeBoolean(
   private[this] val model: RealTimeModel,
   private[this] val parent: Option[RealTimeContainerValue],
   private[this] val parentField: Option[Any])
-    extends RealTimeValue(value.id, model, parent, parentField) {
+    extends RealTimeValue(value.id, model, parent, parentField, List()) {
 
   private[this] var boolean = value.value
 
@@ -30,9 +30,5 @@ class RealTimeBoolean(
 
   private[this] def processSetOperation(op: BooleanSetOperation): Unit = {
     this.boolean = op.value
-  }
-  
-  def processReferenceEvent(event: ModelReferenceEvent): Try[Unit] = {
-    Failure(throw new IllegalArgumentException("RealTimeNull does not accept references"))
   }
 }

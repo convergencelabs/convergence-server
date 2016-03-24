@@ -67,7 +67,7 @@ class ModelClientActor(
     extends Actor with ActorLogging {
 
   var openRealtimeModels = Map[String, ActorRef]()
-  
+
   val sessionKey = SessionKey(userId, sessionId)
 
   // FIXME hardcoded
@@ -233,13 +233,10 @@ class ModelClientActor(
     future.mapResponse[OpenModelResponse] onComplete {
       case Success(OpenModelSuccess(realtimeModelActor, modelResourceId, metaData, connectedClients, references, modelData)) => {
         openRealtimeModels += (modelResourceId -> realtimeModelActor)
-        val convertedReferences = references.map({
-          case (sk, refs) =>
-            (sk.serialize(), refs.map(ref => {
-              val ReferenceState(path, key, refType, value) = ref
-              ReferenceData(path, key, ReferenceType.map(refType), value)
-            }))
-        })
+        val convertedReferences = references.map { ref =>
+          val ReferenceState(valueId, sessionId, key, refType, value) = ref
+          ReferenceData(valueId, sessionId, key, ReferenceType.map(refType), value)
+        }.toSet
         cb.reply(
           OpenRealtimeModelResponseMessage(
             modelResourceId,

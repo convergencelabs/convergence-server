@@ -12,7 +12,7 @@ class RealTimeDouble(
   private[this] val model: RealTimeModel,
   private[this] val parent: Option[RealTimeContainerValue],
   private[this] val parentField: Option[Any])
-    extends RealTimeValue(value.id, model, parent, parentField) {
+    extends RealTimeValue(value.id, model, parent, parentField, List()) {
 
   var double: Double = value.value
 
@@ -34,9 +34,5 @@ class RealTimeDouble(
 
   private[this] def processSetOperation(op: NumberSetOperation): Unit = {
     this.double = op.value
-  }
-  
-  def processReferenceEvent(event: ModelReferenceEvent): Try[Unit] = {
-    throw new IllegalArgumentException("RealTimeDouble does not accept references");
   }
 }

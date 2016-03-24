@@ -9,7 +9,7 @@ class RealTimeNull(
   private[this] val model: RealTimeModel,
   private[this] val parent: Option[RealTimeContainerValue],
   private[this] val parentField: Option[Any])
-    extends RealTimeValue(value.id, model, parent, parentField) {
+    extends RealTimeValue(value.id, model, parent, parentField, List()) {
 
   def data(): Null = {
     null
@@ -17,9 +17,5 @@ class RealTimeNull(
 
   def processOperation(op: DiscreteOperation): Try[Unit] = Try {
     throw new IllegalArgumentException("Invalid operation type in RealTimeDouble");
-  }
-  
-  def processReferenceEvent(event: ModelReferenceEvent): Try[Unit] = {
-    throw new IllegalArgumentException("RealTimeNull does not accept references");
   }
 }

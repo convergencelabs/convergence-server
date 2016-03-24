@@ -8,7 +8,7 @@ class ReferenceMap {
   // stored by sessionId first, then key.
   private[this] val references = 
     collection.mutable.Map[String, collection.mutable.Map[String, ModelReference[_]]]()
-
+    
   def put(reference: ModelReference[_]): Unit = {
     val sessionId: String = reference.sessionId
     val key: String = reference.key;
@@ -29,6 +29,17 @@ class ReferenceMap {
 
   def get(sessionId: String, key: String): Option[ModelReference[_]] = {
     this.references.get(sessionId).flatMap { sr => sr.get(key) }
+  }
+  
+  def getAll(): Set[ModelReference[_]] = {
+    val buffer = ListBuffer[ModelReference[_]]()
+    references.foreach { case (_, sessionRefs) => 
+      sessionRefs.foreach { case (_, ref) =>
+        buffer += ref
+      }
+    }
+    
+    buffer.toSet
   }
 
 

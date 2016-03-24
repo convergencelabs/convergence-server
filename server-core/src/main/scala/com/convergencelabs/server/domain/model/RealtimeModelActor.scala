@@ -29,6 +29,7 @@ import com.convergencelabs.server.datastore.domain.CollectionStore
 import akka.actor.Terminated
 import org.json4s.JsonAST.JObject
 import com.convergencelabs.server.domain.model.ot.xform.ReferenceTransformer
+import scala.collection.mutable.ListBuffer
 
 /**
  * An instance of the RealtimeModelActor manages the lifecycle of a single
@@ -66,8 +67,6 @@ class RealtimeModelActor(
   private[this] val referenceTransformer = new ReferenceTransformer(new TransformationFunctionRegistry())
 
   private[this] val snapshotCalculator = new ModelSnapshotCalculator(snapshotConfig)
-
-  private[this] var fakeReferenceMap: HashMap[SessionKey, HashMap[String, ReferenceState]] = HashMap();
 
   //
   // Receive methods
@@ -322,7 +321,6 @@ class RealtimeModelActor(
     this.model.clientConnected(sk, contextVersion)
     connectedClients += (sk -> requestRecord.clientActor)
     clientToSessionId += (requestRecord.clientActor -> sk)
-    fakeReferenceMap += (sk -> HashMap())
 
     // this is how we are being notified that our client is gone.
     // TODO is the the best way.
@@ -334,16 +332,14 @@ class RealtimeModelActor(
       modelData.metaData.createdTime,
       modelData.metaData.modifiedTime)
 
-    val refMap = this.fakeReferenceMap.map({
-      case (k, v) => (k, v.values.toSet)
-    })
+    val referencesBySession = this.model.references()
 
     val openModelResponse = OpenModelSuccess(
       self,
       modelResourceId,
       metaData,
       connectedClients.keySet,
-      refMap,
+      referencesBySession,
       modelData.data)
 
     requestRecord.askingActor ! openModelResponse
@@ -376,7 +372,6 @@ class RealtimeModelActor(
       val clientActor = connectedClients(sk)
       clientToSessionId -= clientActor
       connectedClients -= sk
-      fakeReferenceMap -= sk
       this.model.clientDisconnected(sk)
       context.unwatch(clientActor)
 
@@ -498,23 +493,6 @@ class RealtimeModelActor(
     connectedClients.filter(p => p._1 != origin).foreach {
       case (sk, clientActor) => clientActor ! message
     }
-  }
-
-  private[this] def onClearReference(request: ClearReference): Unit = {
-    val ClearReference(path, key) = request;
-    val sk = this.clientToSessionId(sender)
-
-    // FIXME this is faked
-    val sessionRefs = fakeReferenceMap(sk)
-    val refState = sessionRefs(path.toString() + key).copy(value = None)
-    fakeReferenceMap += (sk -> (sessionRefs + ((path.toString() + key) -> refState)))
-
-    val message = RemoteReferenceCleared(this.modelResourceId, sk, path, key)
-
-    connectedClients.filter(p => p._1 != sk) foreach {
-      case (sk, clientActor) => clientActor ! message
-    }
-
   }
 
   private[this] def snapshotRequired(): Boolean = snapshotCalculator.snapshotRequired(

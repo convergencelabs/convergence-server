@@ -59,14 +59,15 @@ package model {
     modelResourceId: String,
     metaData: OpenModelMetaData,
     connectedClients: Set[SessionKey],
-    referencesBySession: Map[SessionKey, Set[ReferenceState]],
+    referencesBySession: Set[ReferenceState],
     modelData: ObjectValue) extends OpenModelResponse
 
   case class ReferenceState(
-    path: List[Any],
+    sessionId: String,
+    valueId: String,
     key: String,
     referenceType: ReferenceType.Value,
-    value: Option[JValue])
+    value: Option[Any])
 
   sealed trait OpenModelFailure extends OpenModelResponse
   case object ModelAlreadyOpen extends OpenModelFailure

@@ -9,22 +9,26 @@ import com.convergencelabs.server.domain.model.SetReference
 import com.convergencelabs.server.domain.model.UnpublishReference
 
 class ReferenceManager(
-    private val validTypes: List[ReferenceType.Value],
-    private val source: RealTimeValue) {
+    private val source: RealTimeValue,
+    private val validTypes: List[ReferenceType.Value]) {
 
-  val rm = new ReferenceMap()
+  private[this] val rm = new ReferenceMap()
 
   def referenceMap(): ReferenceMap = {
     return this.referenceMap
   }
 
-  def handleRemoteReferenceEvent(event: ModelReferenceEvent, sessionId: String): Unit = {
+  def handleReferenceEvent(event: ModelReferenceEvent, sessionId: String): Unit = {
     event match {
       case publish: PublishReference => this.handleReferencePublished(publish, sessionId)
       case unpublish: UnpublishReference => this.handleReferenceUnpublished(unpublish, sessionId)
       case set: SetReference => this.handleReferenceSet(set, sessionId)
       case cleared: ClearReference => this.handleReferenceCleared(cleared, sessionId)
     }
+  }
+  
+  def sessionDisconnected(sessionId: String): Unit = {
+    this.rm.removeBySession(sessionId)
   }
 
   private[this] def handleReferencePublished(event: PublishReference, sessionId: String): Unit = {

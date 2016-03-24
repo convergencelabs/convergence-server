@@ -29,6 +29,10 @@ import com.convergencelabs.server.domain.model.data.BooleanValue
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.model.data.ArrayValue
 import com.convergencelabs.server.domain.model.data.NullValue
+import com.convergencelabs.server.domain.model.reference.ModelReference
+import com.convergencelabs.server.domain.model.reference.IndexReference
+import com.convergencelabs.server.domain.model.reference.RangeReference
+import com.convergencelabs.server.domain.model.reference.ModelReference
 
 class RealTimeModel(
     private[this] val fqn: ModelFqn,
@@ -38,7 +42,7 @@ class RealTimeModel(
 
   val idToValue = collection.mutable.HashMap[String, RealTimeValue]()
 
-  val data = this.createValue(obj, None, None)
+  val data = this.createValue(obj, None, None).asInstanceOf[RealTimeObject]
 
   def contextVersion(): Long = {
     this.cc.contextVersion
@@ -50,6 +54,7 @@ class RealTimeModel(
 
   def clientDisconnected(sk: String): Unit = {
     this.cc.untrackClient(sk)
+    this.data.sessionDisconnected(sk)
   }
 
   def registerValue(realTimeValue: RealTimeValue): Unit = {
@@ -124,27 +129,26 @@ class RealTimeModel(
       case Some(realTimeValue) =>
         event match {
           case publish: PublishReference => 
-            realTimeValue.processReferenceEvent(publish)
+            realTimeValue.processReferenceEvent(publish, sk)
             val PublishReference(id, key, refType) = publish
             Some(RemoteReferencePublished(resourceId, sk, id, key, refType))
           case unpublish: UnpublishReference => 
-            realTimeValue.processReferenceEvent(unpublish)
+            realTimeValue.processReferenceEvent(unpublish, sk)
             val UnpublishReference(id, key) = unpublish
             Some(RemoteReferenceUnpublished(resourceId, sk, id, key))
           case set: SetReference => 
             val xformed = this.cc.processRemoteReferenceSet(sk, set)
-            realTimeValue.processReferenceEvent(xformed)
+            realTimeValue.processReferenceEvent(xformed, sk)
             val SetReference(id, key, refType, value, versio) = xformed
             Some(RemoteReferenceSet(this.resourceId, sk, id, key, refType, value))
           case cleared: ClearReference => 
-            realTimeValue.processReferenceEvent(cleared)
+            realTimeValue.processReferenceEvent(cleared, sk)
             val ClearReference(id, key) = cleared
             Some(RemoteReferenceCleared(resourceId, sk, id, key))
         }
       case None =>
         None
     }
-
   }
 
   def applyDiscreteOperation(op: DiscreteOperation): Try[Unit] = {
@@ -154,5 +158,37 @@ class RealTimeModel(
     } else {
       Success(())
     }
+  }
+  
+  def references(): Set[ReferenceState] = {
+    this.references(this.data)
+  }
+  
+  def references(value: RealTimeValue): Set[ReferenceState] = {
+    value match {
+      case v: RealTimeContainerValue =>
+       val mine = v.references().map {x => toReferenceState(x)}
+       val childrens = v.children.flatMap { child =>
+         references(child)
+       }.toSet
+       return mine ++ childrens
+      case v =>
+        value.references().map {x => toReferenceState(x)}
+    }
+  }
+  
+  def toReferenceState(r: ModelReference[_]): ReferenceState = {
+    val refType = r match {
+      case ref: IndexReference => ReferenceType.Index
+      case ref: RangeReference => ReferenceType.Range
+      case _ => throw new IllegalArgumentException("Unexpected reference type")
+    }
+    
+    ReferenceState(
+        r.sessionId, 
+        r.modelValue.id,
+        r.key,
+        refType,
+        r.get)
   }
 }

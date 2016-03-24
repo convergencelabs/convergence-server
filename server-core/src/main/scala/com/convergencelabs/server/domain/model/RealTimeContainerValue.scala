@@ -9,17 +9,23 @@ abstract class RealTimeContainerValue(
   private[this] val id: String,
   private[this] val model: RealTimeModel,
   private[this] val parent: Option[RealTimeContainerValue],
-  private[this] val parentField: Option[Any])
-    extends RealTimeValue(id, model, parent, parentField) {
+  private[this] val parentField: Option[Any],
+  private[this] val validReferenceTypes: List[ReferenceType.Value])
+    extends RealTimeValue(id, model, parent, parentField, validReferenceTypes) {
 
   def valueAt(path: List[Any]): Option[RealTimeValue]
 
   protected def child(childPath: Any): Try[Option[RealTimeValue]]
   
   override def detach(): Unit = {
-    detachChildren()
+    this.children.foreach { child => child.detach }
     super.detach()
   }
   
-  def detachChildren(): Unit
+  def children(): List[RealTimeValue]
+  
+  override def sessionDisconnected(sessionId: String): Unit = {
+    this.children.foreach { child => child.sessionDisconnected(sessionId) }
+    super.sessionDisconnected(sessionId)
+  }
 }
