@@ -147,22 +147,6 @@ class RealTimeModel(
 
   }
 
-  private[this] def onPublishReference(request: PublishReference): Try[Unit] = {
-    Success(())
-  }
-
-  private[this] def onUnpublishReference(request: UnpublishReference): Try[Unit] = {
-    Success(())
-  }
-
-  private[this] def onSetReference(request: SetReference): Try[Unit] = {
-    Success(())
-  }
-
-  private[this] def onClearReference(request: ClearReference): Try[Unit] = {
-    Success(())
-  }
-
   def applyDiscreteOperation(op: DiscreteOperation): Try[Unit] = {
     if (!op.noOp) {
       val value = this.idToValue(op.id)
