@@ -7,16 +7,16 @@ class ReferenceMap {
 
   // stored by sessionId first, then key.
   private[this] val references = 
-    collection.mutable.Map[String, collection.mutable.Map[String, ModelReference]]()
+    collection.mutable.Map[String, collection.mutable.Map[String, ModelReference[_]]]()
 
-  def put(reference: ModelReference): Unit = {
+  def put(reference: ModelReference[_]): Unit = {
     val sessionId: String = reference.sessionId
     val key: String = reference.key;
 
     val sessionRefs = this.references.get(sessionId) match {
       case Some(map) => map
       case None =>
-        this.references(sessionId) = collection.mutable.Map[String, ModelReference]()
+        this.references(sessionId) = collection.mutable.Map[String, ModelReference[_]]()
         this.references(sessionId)
     }
 
@@ -27,7 +27,7 @@ class ReferenceMap {
     sessionRefs(key) = reference
   }
 
-  def get(sessionId: String, key: String): Option[ModelReference] = {
+  def get(sessionId: String, key: String): Option[ModelReference[_]] = {
     this.references.get(sessionId).flatMap { sr => sr.get(key) }
   }
 
@@ -36,7 +36,7 @@ class ReferenceMap {
     this.references.clear()
   }
 
-  def remove(sessionId: String, key: String): Option[ModelReference] = {
+  def remove(sessionId: String, key: String): Option[ModelReference[_]] = {
     val result = this.get(sessionId, key)
     if (result.isDefined) {
       references(sessionId) -= key
