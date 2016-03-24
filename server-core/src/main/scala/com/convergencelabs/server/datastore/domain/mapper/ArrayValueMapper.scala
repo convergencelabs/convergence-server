@@ -3,6 +3,7 @@ package com.convergencelabs.server.datastore.domain.mapper
 import java.util.{ List => JavaList }
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.seqAsJavaListConverter
+import scala.collection.JavaConversions._
 import scala.language.implicitConversions
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.convergencelabs.server.util.JValueMapper
@@ -10,6 +11,7 @@ import com.convergencelabs.server.datastore.mapper.ODocumentMapper
 import com.convergencelabs.server.domain.model.data.ArrayValue
 import DataValueMapper.DataValueToODocument
 import DataValueMapper.ODocumentToDataValue
+import com.orientechnologies.orient.core.db.record.ORecordLazyList
 
 object ArrayValueMapper extends ODocumentMapper {
 
@@ -34,7 +36,9 @@ object ArrayValueMapper extends ODocumentMapper {
     validateDocumentClass(doc, DocumentClassName)
 
     val vid = doc.field(Fields.VID).asInstanceOf[String]
-    ArrayValue(vid, ???)
+    val children: ORecordLazyList = doc.field(Fields.Children);
+    val dataValues = children.toList map {v => DataValueMapper.oDocumentToDataValue(v.getRecord())}
+    ArrayValue(vid, dataValues)
   }
 
   private[domain] val DocumentClassName = "ArrayValue"

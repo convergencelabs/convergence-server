@@ -28,6 +28,8 @@ import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.orientechnologies.orient.core.id.ORID
 import java.util.Date
+import com.convergencelabs.server.domain.model.data.ObjectValue
+import com.convergencelabs.server.datastore.domain.mapper.ObjectValueMapper.ODocumentToObjectValue
 
 object ModelStore {
   private val ModelClass = "Model"
@@ -175,10 +177,10 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
     result.asScala.toList map { _.asModelMetaData }
   }
 
-  def getModelData(fqn: ModelFqn): Try[Option[JValue]] = tryWithDb { db =>
+  def getModelData(fqn: ModelFqn): Try[Option[ObjectValue]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT data FROM Model WHERE collectionId = :collectionId AND modelId = :modelId")
     val params = Map(ModelStore.CollectionId -> fqn.collectionId, ModelStore.ModelId -> fqn.modelId)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.mapSingletonList(result)(doc => parse(doc.toJSON()) \\ ModelStore.Data)
+    QueryUtil.mapSingletonList(result)(doc => doc.field(ModelStore.Data).asInstanceOf[ODocument].asObjectValue)
   }
 }
