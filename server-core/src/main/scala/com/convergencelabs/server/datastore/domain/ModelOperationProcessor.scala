@@ -44,6 +44,7 @@ import com.convergencelabs.server.datastore.domain.mapper.DataValueMapper.DataVa
 import scala.util.Success
 import scala.util.Failure
 import com.orientechnologies.orient.core.db.record.OIdentifiable
+import java.lang.Double
 
 class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     extends AbstractDatabasePersistence(dbPool) {
@@ -231,32 +232,28 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
 
   private[this] def applyStringSetOperation(fqn: ModelFqn, operation: StringSetOperation, db: ODatabaseDocumentTx): Unit = {
     val params = Map(VID -> operation.id, CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, Value -> operation.value)
-    val updateCommand = new OCommandSQL(s"UPDATE StringValue SET value = :value WHERE VID = :vid and collectionId = :collectionId and modelId = :modelId")
+    val updateCommand = new OCommandSQL(s"UPDATE StringValue SET value = :value WHERE vid = :vid and model.collectionId = :collectionId and model.modelId = :modelId")
     db.command(updateCommand).execute(params.asJava)
   }
 
   private[this] def applyNumberAddOperation(fqn: ModelFqn, operation: NumberAddOperation, db: ODatabaseDocumentTx): Unit = {
-//    val pathString = escape(toOrientPath(operation.path))
-//    val params = Map(CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, Value -> JValueMapper.jNumberToJava(operation.value))
-//    val value = JValueMapper.jNumberToJava(operation.value)
-//    val updateCommand = new OCommandSQL(
-//        s"UPDATE model SET $pathString = eval('$pathString + $value') WHERE collectionId = :collectionId and modelId = :modelId")
-//    db.command(updateCommand).execute(params.asJava)
+    val params = Map(VID -> operation.id, CollectionId -> fqn.collectionId, ModelId -> fqn.modelId)
+    val value = operation.value
+    val updateCommand = new OCommandSQL(
+        s"UPDATE DoubleValue SET value = eval('value + $value') WHERE vid = :vid and model.collectionId = :collectionId and model.modelId = :modelId")
+    db.command(updateCommand).execute(params.asJava)
   }
 
-  // TODO: Determine strategy for handling numbers correctly
   private[this] def applyNumberSetOperation(fqn: ModelFqn, operation: NumberSetOperation, db: ODatabaseDocumentTx): Unit = {
-//    val pathString = escape(toOrientPath(operation.path))
-//    val params = Map(CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, Value -> JValueMapper.jNumberToJava(operation.value))
-//    val updateCommand = new OCommandSQL(s"UPDATE Model SET $pathString = :value WHERE collectionId = :collectionId and modelId = :modelId")
-//    db.command(updateCommand).execute(params.asJava)
+    val params = Map(VID -> operation.id, CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, Value -> operation.value)
+    val updateCommand = new OCommandSQL(s"UPDATE DoubleValue SET value = :value WHERE vid = :vid and model.collectionId = :collectionId and model.modelId = :modelId")
+    db.command(updateCommand).execute(params.asJava)
   }
 
   private[this] def applyBooleanSetOperation(fqn: ModelFqn, operation: BooleanSetOperation, db: ODatabaseDocumentTx): Unit = {
-//    val pathString = escape(toOrientPath(operation.path))
-//    val params = Map(CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, Value -> operation.value)
-//    val updateCommand = new OCommandSQL(s"UPDATE Model SET $pathString = :value WHERE collectionId = :collectionId and modelId = :modelId")
-//    db.command(updateCommand).execute(params.asJava)
+    val params = Map(VID -> operation.id, CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, Value -> operation.value)
+    val updateCommand = new OCommandSQL(s"UPDATE BooleanValue SET value = :value WHERE vid = :vid and model.collectionId = :collectionId and model.modelId = :modelId")
+    db.command(updateCommand).execute(params.asJava)
   }
   
  private [this]def getModelRid(fqn: ModelFqn): Try[Option[OIdentifiable]] = tryWithDb { db =>

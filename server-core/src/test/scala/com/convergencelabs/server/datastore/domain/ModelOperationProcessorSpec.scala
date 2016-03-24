@@ -38,6 +38,8 @@ import com.convergencelabs.server.domain.model.data.StringValue
 import com.convergencelabs.server.domain.model.data.ArrayValue
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.model.data.DoubleValue
+import com.convergencelabs.server.domain.model.data.DoubleValue
+import com.convergencelabs.server.domain.model.data.BooleanValue
 
 // scalastyle:off magic.number multiple.string.literals
 class ModelOperationProcessorSpec
@@ -52,6 +54,8 @@ class ModelOperationProcessorSpec
 
   val fnameVID = "pp1-fname"
   val emailsVID = "pp1-emails"
+  val ageVID = "pp1-age"
+  val marriedVID = "pp1-married"
   
   val fnameField = "fname"
   val emailsField = "emails"
@@ -273,38 +277,38 @@ class ModelOperationProcessorSpec
 
     "applying number operations" must {
       "correctly update the model on NumberAdd" in withPersistenceStore { stores =>
-//        val (processor, opStore, modelStore) = stores
-//
-//        val op = NumberAddOperation(List(ageField), false, JDouble(5))
-//        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
-//        val response = processor.processModelOperation(modelOp)
-//
-//        val modelData = modelStore.getModelData(modelFqn).success.value.value
-//        modelData \ ageField shouldBe JDouble(31)
+        val (processor, opStore, modelStore) = stores
+
+        val op = NumberAddOperation(ageVID, false, 5)
+        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
+        val response = processor.processModelOperation(modelOp)
+
+        val modelData = modelStore.getModelData(modelFqn).success.value.value
+        modelData.children(ageField) shouldBe DoubleValue(ageVID, 31)
       }
 
       "correctly update the model on NumberSet" in withPersistenceStore { stores =>
-//        val (processor, opStore, modelStore) = stores
-//
-//        val op = NumberSetOperation(List(ageField), false, JDouble(33))
-//        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
-//        processor.processModelOperation(modelOp)
-//
-//        val modelData = modelStore.getModelData(modelFqn).success.value.value
-//        modelData \ ageField shouldBe JDouble(33)
+        val (processor, opStore, modelStore) = stores
+
+        val op = NumberSetOperation(ageVID, false, 33)
+        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
+        processor.processModelOperation(modelOp)
+
+        val modelData = modelStore.getModelData(modelFqn).success.value.value
+        modelData.children(ageField) shouldBe DoubleValue(ageVID, 33)
       }
     }
 
     "applying boolean operations" must {
       "correctly update the model on BooleanSet" in withPersistenceStore { stores =>
-//        val (processor, opStore, modelStore) = stores
-//
-//        val op = BooleanSetOperation(List(marriedField), false, true)
-//        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
-//        val response = processor.processModelOperation(modelOp)
-//
-//        val modelData = modelStore.getModelData(modelFqn).success.value.value
-//        modelData \ marriedField shouldBe JBool(true)
+        val (processor, opStore, modelStore) = stores
+
+        val op = BooleanSetOperation(marriedVID, false, true)
+        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
+        val response = processor.processModelOperation(modelOp)
+
+        val modelData = modelStore.getModelData(modelFqn).success.value.value
+        modelData.children(marriedField) shouldBe BooleanValue(marriedVID, true)
       }
     }
 
