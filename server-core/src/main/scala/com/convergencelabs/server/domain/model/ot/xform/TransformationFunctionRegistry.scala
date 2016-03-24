@@ -6,7 +6,7 @@ import scala.collection.immutable.Map.Map2
 
 private[model] class TransformationFunctionRegistry {
 
-  private[this] val otfs = new PTFMap()
+  private[this] val otfs = new OTFMap()
   private[this] val rtfs = new RTFMap()
 
   // String Functions
@@ -103,7 +103,7 @@ private object RegistryKey {
   }
 }
 
-private class PTFMap {
+private class OTFMap {
   var otfs = Map[RegistryKey[_, _], OperationTransformationFunction[_, _]]()
 
   def register[S <: DiscreteOperation, C <: DiscreteOperation](otf: OperationTransformationFunction[S, C])(implicit s: ClassTag[S], c: ClassTag[C]): Unit = {

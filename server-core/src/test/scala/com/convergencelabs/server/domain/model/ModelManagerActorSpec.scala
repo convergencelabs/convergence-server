@@ -31,6 +31,7 @@ import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
 import com.convergencelabs.server.datastore.domain.CollectionStore
+import com.convergencelabs.server.domain.model.data.ObjectValue
 
 @RunWith(classOf[JUnitRunner])
 class ModelManagerActorSpec
@@ -85,13 +86,13 @@ class ModelManagerActorSpec
     "requested to create a model" must {
       "return ModelCreated if the model does not exist" in new TestFixture {
         val client = new TestProbe(system)
-        modelManagerActor.tell(CreateModelRequest(nonExistentModelFqn, JString("new data")), client.ref)
+        modelManagerActor.tell(CreateModelRequest(nonExistentModelFqn, ObjectValue("", Map())), client.ref)
         client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelCreated)
       }
 
       "return ModelAlreadyExists if the model exists" in new TestFixture {
         val client = new TestProbe(system)
-        modelManagerActor.tell(CreateModelRequest(modelFqn, JString("new data")), client.ref)
+        modelManagerActor.tell(CreateModelRequest(modelFqn, ObjectValue("", Map())), client.ref)
         client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelAlreadyExists)
       }
     }
@@ -122,7 +123,7 @@ class ModelManagerActorSpec
     val modelJsonData = JObject("key" -> JString("value"))
     val modelCreateTime = Instant.ofEpochMilli(2L)
     val modelModifiedTime = Instant.ofEpochMilli(3L)
-    val modelData = Model(ModelMetaData(modelFqn, 1L, modelCreateTime, modelModifiedTime), modelJsonData)
+    val modelData = Model(ModelMetaData(modelFqn, 1L, modelCreateTime, modelModifiedTime), ObjectValue("", Map()))
     val modelSnapshotTime = Instant.ofEpochMilli(2L)
     val modelSnapshotMetaData = ModelSnapshotMetaData(modelFqn, 1L, modelSnapshotTime)
 

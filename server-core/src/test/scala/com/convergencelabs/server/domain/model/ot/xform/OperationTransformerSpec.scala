@@ -122,7 +122,7 @@ class OperationTransformerSpec
 
     "handinling a None from the transformation function registry" must {
       "throw an exception when getting None for an operation transformation function" in new TestFixture {
-        when(tfRegistry.getTransformationFunction(anyObject[DiscreteOperation](), anyObject[DiscreteOperation]())).thenReturn(None)
+        when(tfRegistry.getOperationTransformationFunction(anyObject[DiscreteOperation](), anyObject[DiscreteOperation]())).thenReturn(None)
         intercept[IllegalArgumentException] {
           transformer.transform(
             StringInsertOperation(valueId, false, 1, "s"),
@@ -142,7 +142,7 @@ class OperationTransformerSpec
   }
 
   trait WithIdnetityTransform extends TestFixture {
-    when(tfRegistry.getTransformationFunction(anyObject[DiscreteOperation](), anyObject[DiscreteOperation]())).thenReturn(Some(otfSpy))
+    when(tfRegistry.getOperationTransformationFunction(anyObject[DiscreteOperation](), anyObject[DiscreteOperation]())).thenReturn(Some(otfSpy))
   }
 
   class IdentityTransform extends OperationTransformationFunction[DiscreteOperation, DiscreteOperation] {

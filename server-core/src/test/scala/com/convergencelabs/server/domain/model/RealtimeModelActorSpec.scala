@@ -32,6 +32,9 @@ import scala.util.Failure
 import scala.util.Success
 import com.convergencelabs.server.datastore.domain.CollectionStore
 import com.convergencelabs.server.domain.model.ot.ObjectAddPropertyOperation
+import com.convergencelabs.server.domain.model.data.ObjectValue
+import com.convergencelabs.server.domain.model.data.StringValue
+import com.convergencelabs.server.domain.model.data.NullValue
 
 // FIXME we really only check message types and not data.
 // scalastyle:off magic.number
@@ -193,14 +196,14 @@ class RealtimeModelActorSpec
     "receiving an operation" must {
       "send an ack back to the submitting client" in new OneOpenClient {
         Mockito.when(modelOperationProcessor.processModelOperation(Matchers.any())).thenReturn(Success(()))
-        realtimeModelActor.tell(OperationSubmission(0L, modelData.metaData.version, ObjectAddPropertyOperation("", false, "foo", JString("bar"))), client1.ref)
+        realtimeModelActor.tell(OperationSubmission(0L, modelData.metaData.version, ObjectAddPropertyOperation("", false, "foo", NullValue(""))), client1.ref)
         val opAck = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OperationAcknowledgement])
       }
 
       "send an operation to other connected clients" in new TwoOpenClients {
         Mockito.when(modelOperationProcessor.processModelOperation(Matchers.any())).thenReturn(Success(()))
 
-        realtimeModelActor.tell(OperationSubmission(0L, modelData.metaData.version, ObjectAddPropertyOperation("", false, "foo", JString("bar"))), client1.ref)
+        realtimeModelActor.tell(OperationSubmission(0L, modelData.metaData.version, ObjectAddPropertyOperation("", false, "foo", NullValue(""))), client1.ref)
         val opAck = client1.expectMsgClass(FiniteDuration(120, TimeUnit.SECONDS), classOf[OperationAcknowledgement])
 
         client2.expectMsgClass(FiniteDuration(120, TimeUnit.SECONDS), classOf[OutgoingOperation])
@@ -239,7 +242,7 @@ class RealtimeModelActorSpec
     val session2 = "2"
 
     val modelFqn = ModelFqn("collection", "model" + System.nanoTime())
-    val modelJsonData = JObject("key" -> JString("value"))
+    val modelJsonData = ObjectValue("1", Map("key" -> StringValue("2", "value")))
     val modelCreateTime = Instant.ofEpochMilli(2L)
     val modelModifiedTime = Instant.ofEpochMilli(3L)
     val modelData = Model(ModelMetaData(modelFqn, 1L, modelCreateTime, modelModifiedTime), modelJsonData)

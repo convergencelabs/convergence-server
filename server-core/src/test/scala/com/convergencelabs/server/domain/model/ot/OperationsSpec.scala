@@ -7,10 +7,14 @@ import org.json4s.JsonAST.JObject
 import org.scalatest.FunSuite
 import org.scalatest.Matchers
 import org.json4s.JsonAST.JDouble
+import com.convergencelabs.server.domain.model.data.StringValue
+import com.convergencelabs.server.domain.model.data.NullValue
 
 class OperationsSpec extends FunSuite with Matchers {
 
   val valueId = "vid"
+  
+  val nv = NullValue(valueId)
   
   // String Operations
 
@@ -32,8 +36,8 @@ class OperationsSpec extends FunSuite with Matchers {
   // Array Operations
 
   test("ArrayInsertOperation must preserve other fields when setting noOp and path") {
-    val original = ArrayInsertOperation(valueId, false, 1, JInt(1))
-    original.clone(true) shouldBe ArrayInsertOperation(valueId, true, 1, JInt(1))
+    val original = ArrayInsertOperation(valueId, false, 1, nv)
+    original.clone(true) shouldBe ArrayInsertOperation(valueId, true, 1, nv)
   }
 
   test("ArrayRemoveOperation must preserve other fields when setting noOp and path") {
@@ -42,13 +46,13 @@ class OperationsSpec extends FunSuite with Matchers {
   }
 
   test("ArrayReplaceOperation must preserve other fields when setting noOp and path") {
-    val original = ArrayReplaceOperation(valueId, false, 1, JInt(1))
-    original.clone(true) shouldBe ArrayReplaceOperation(valueId, true, 1, JInt(1))
+    val original = ArrayReplaceOperation(valueId, false, 1, nv)
+    original.clone(true) shouldBe ArrayReplaceOperation(valueId, true, 1, nv)
   }
 
   test("ArraySetOperation must preserve other fields when setting noOp and path") {
-    val original = ArraySetOperation(valueId, false, JArray(List(JInt(1))))
-    original.clone(true) shouldBe ArraySetOperation(valueId, true, JArray(List(JInt(1))))
+    val original = ArraySetOperation(valueId, false, List(nv))
+    original.clone(true) shouldBe ArraySetOperation(valueId, true, List(nv))
   }
 
   test("ArrayMoveOperation must preserve other fields when setting noOp and path") {
@@ -59,13 +63,13 @@ class OperationsSpec extends FunSuite with Matchers {
   // Object Operations
 
   test("ObjectSetPropertyOperation must preserve other fields when setting noOp and path") {
-    val original = ObjectSetPropertyOperation(valueId, false, "setProp", JInt(1))
-    original.clone(true) shouldBe ObjectSetPropertyOperation(valueId, true, "setProp", JInt(1))
+    val original = ObjectSetPropertyOperation(valueId, false, "setProp", nv)
+    original.clone(true) shouldBe ObjectSetPropertyOperation(valueId, true, "setProp", nv)
   }
 
   test("ObjectAddPropertyOperation must preserve other fields when setting noOp and path") {
-    val original = ObjectAddPropertyOperation(valueId, false, "addProp", JInt(1))
-    original.clone(true) shouldBe ObjectAddPropertyOperation(valueId, true, "addProp", JInt(1))
+    val original = ObjectAddPropertyOperation(valueId, false, "addProp", nv)
+    original.clone(true) shouldBe ObjectAddPropertyOperation(valueId, true, "addProp", nv)
   }
 
   test("ObjectRemovePropertyOperation must preserve other fields when setting noOp and path") {
@@ -74,20 +78,20 @@ class OperationsSpec extends FunSuite with Matchers {
   }
 
   test("ObjectSetOperation must preserve other fields when setting noOp and path") {
-    val original = ObjectSetOperation(valueId, false, JObject())
-    original.clone(true) shouldBe ObjectSetOperation(valueId, true, JObject())
+    val original = ObjectSetOperation(valueId, false, Map())
+    original.clone(true) shouldBe ObjectSetOperation(valueId, true, Map())
   }
 
   // Number Operations
 
   test("NumberSetOperation must preserve other fields when setting noOp and path") {
-    val original = NumberSetOperation(valueId, false, JDouble(1))
-    original.clone(true) shouldBe NumberSetOperation(valueId, true, JDouble(1))
+    val original = NumberSetOperation(valueId, false, 1)
+    original.clone(true) shouldBe NumberSetOperation(valueId, true, 1)
   }
 
   test("NumberAddOperation must preserve other fields when setting noOp and path") {
-    val original = NumberAddOperation(valueId, false, JDouble(1))
-    original.clone(true) shouldBe NumberAddOperation(valueId, true, JDouble(1))
+    val original = NumberAddOperation(valueId, false, 1)
+    original.clone(true) shouldBe NumberAddOperation(valueId, true, 1)
   }
 
   // Boolean Operations
