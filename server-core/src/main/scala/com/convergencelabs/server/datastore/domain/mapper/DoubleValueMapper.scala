@@ -37,7 +37,7 @@ object DoubleValueMapper extends ODocumentMapper {
     DoubleValue(vid, value);
   }
 
-  private[domain] val DocumentClassName = "DoubleValue"
+  private[domain] val DocumentClassName = "DoubleOpValue"
 
   private[domain] object Fields {
     val VID = "vid"

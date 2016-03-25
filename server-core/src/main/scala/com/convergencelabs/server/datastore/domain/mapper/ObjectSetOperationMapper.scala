@@ -1,14 +1,16 @@
 package com.convergencelabs.server.datastore.domain.mapper
 
 import java.util.{ List => JavaList }
-import scala.collection.JavaConverters.asScalaBufferConverter
-import scala.collection.JavaConverters.seqAsJavaListConverter
+import java.util.{ Map => JavaMap }
+import scala.collection.JavaConverters._
 import scala.language.implicitConversions
 import com.convergencelabs.server.domain.model.ot.ObjectSetOperation
 import com.convergencelabs.server.util.JValueMapper
 import com.orientechnologies.orient.core.record.impl.ODocument
 import org.json4s.JsonAST.JObject
 import com.convergencelabs.server.datastore.mapper.ODocumentMapper
+import DataValueMapper.DataValueToODocument
+import DataValueMapper.ODocumentToDataValue
 
 object ObjectSetOperationMapper extends ODocumentMapper {
 
@@ -21,8 +23,8 @@ object ObjectSetOperationMapper extends ODocumentMapper {
     val doc = new ODocument(DocumentClassName)
     doc.field(Fields.Id, id)
     doc.field(Fields.NoOp, noOp)
-    // FIXME: Need to correctly translate this
-    //doc.field(Fields.Val, JValueMapper.jValueToJava(value))
+    val valueDoc = obj.value map {case (k, v) => (k, v.asODocument)}
+    doc.field(Fields.Val, valueDoc.asJava)
     doc
   }
 
@@ -35,9 +37,8 @@ object ObjectSetOperationMapper extends ODocumentMapper {
 
     val id = doc.field(Fields.Id).asInstanceOf[String]
     val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
-    // FIXME: Need to correctly translate this
-    //val value = JValueMapper.javaToJValue(doc.field(Fields.Val)).asInstanceOf[JObject]
-    ObjectSetOperation(id, noOp, null)
+    val value = doc.field(Fields.Val).asInstanceOf[JavaMap[String, ODocument]].asScala map {case (k, v) => (k, v.asDataValue)}
+    ObjectSetOperation(id, noOp, value.toMap)
   }
 
   private[domain] val DocumentClassName = "ObjectSetOperation"

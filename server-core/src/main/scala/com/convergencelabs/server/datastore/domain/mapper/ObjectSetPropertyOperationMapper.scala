@@ -8,6 +8,8 @@ import com.convergencelabs.server.domain.model.ot.ObjectSetPropertyOperation
 import com.convergencelabs.server.util.JValueMapper
 import com.orientechnologies.orient.core.record.impl.ODocument
 import org.json4s.JsonAST.JObject
+import DataValueMapper.DataValueToODocument
+import DataValueMapper.ODocumentToDataValue
 import com.convergencelabs.server.datastore.mapper.ODocumentMapper
 
 object ObjectSetPropertyOperationMapper extends ODocumentMapper {
@@ -22,8 +24,7 @@ object ObjectSetPropertyOperationMapper extends ODocumentMapper {
     doc.field(Fields.Id, id)
     doc.field(Fields.NoOp, noOp)
     doc.field(Fields.Prop, prop)
-    // FIXME: Need to correctly translate this
-    // doc.field(Fields.Val, JValueMapper.jValueToJava(value))
+    doc.field(Fields.Val, value.asODocument)
     doc
   }
 
@@ -37,9 +38,8 @@ object ObjectSetPropertyOperationMapper extends ODocumentMapper {
     val id = doc.field(Fields.Id).asInstanceOf[String]
     val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
     val prop = doc.field(Fields.Prop).asInstanceOf[String]
-    // FIXME: Need to correctly translate this
-    //val value = JValueMapper.javaToJValue(doc.field(Fields.Val))
-    ObjectSetPropertyOperation(id, noOp, prop, null)
+    val value = doc.field(Fields.Val).asInstanceOf[ODocument].asDataValue
+    ObjectSetPropertyOperation(id, noOp, prop, value)
   }
 
   private[domain] val DocumentClassName = "ObjectSetPropertyOperation"

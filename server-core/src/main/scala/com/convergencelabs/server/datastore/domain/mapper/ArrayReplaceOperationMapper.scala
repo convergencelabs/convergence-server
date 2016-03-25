@@ -8,6 +8,8 @@ import com.convergencelabs.server.domain.model.ot.ArrayReplaceOperation
 import com.convergencelabs.server.util.JValueMapper
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.convergencelabs.server.datastore.mapper.ODocumentMapper
+import DataValueMapper.DataValueToODocument
+import DataValueMapper.ODocumentToDataValue
 
 object ArrayReplaceOperationMapper extends ODocumentMapper {
 
@@ -21,7 +23,7 @@ object ArrayReplaceOperationMapper extends ODocumentMapper {
     doc.field(Fields.Id, id)
     doc.field(Fields.NoOp, noOp)
     doc.field(Fields.Idx, index)
-    doc.field(Fields.Val, DataValueMapper.dataValueToODocument(value))
+    doc.field(Fields.Val, value.asODocument)
     doc
   }
 
@@ -35,7 +37,7 @@ object ArrayReplaceOperationMapper extends ODocumentMapper {
     val id = doc.field(Fields.Id).asInstanceOf[String]
     val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
     val idx = doc.field(Fields.Idx).asInstanceOf[Int]
-    val value = DataValueMapper.oDocumentToDataValue(doc.field(Fields.Val))
+    val value = doc.field(Fields.Val).asInstanceOf[ODocument].asDataValue
     ArrayReplaceOperation(id, noOp, idx, value)
   }
 

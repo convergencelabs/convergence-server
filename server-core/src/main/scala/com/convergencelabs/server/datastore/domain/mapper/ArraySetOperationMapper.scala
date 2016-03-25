@@ -9,6 +9,8 @@ import com.convergencelabs.server.util.JValueMapper
 import com.orientechnologies.orient.core.record.impl.ODocument
 import org.json4s.JsonAST.JArray
 import com.convergencelabs.server.datastore.mapper.ODocumentMapper
+import DataValueMapper.DataValueToODocument
+import DataValueMapper.ODocumentToDataValue
 
 object ArraySetOperationMapper extends ODocumentMapper {
 
@@ -21,7 +23,8 @@ object ArraySetOperationMapper extends ODocumentMapper {
     val doc = new ODocument(DocumentClassName)
     doc.field(Fields.Id, id)
     doc.field(Fields.NoOp, noOp)
-    doc.field(Fields.Val, value map(v => DataValueMapper.dataValueToODocument(v)))
+    var docValue = value map(v => v.asODocument);
+    doc.field(Fields.Val, docValue.asJava)
     doc
   }
 
@@ -34,7 +37,7 @@ object ArraySetOperationMapper extends ODocumentMapper {
 
     val id = doc.field(Fields.Id).asInstanceOf[String]
     val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
-    val value = doc.field(Fields.Val).asInstanceOf[JavaList[ODocument]].asScala.toList.map {v => DataValueMapper.oDocumentToDataValue(v)}
+    val value = doc.field(Fields.Val).asInstanceOf[JavaList[ODocument]].asScala.toList.map {v => v.asDataValue}
     ArraySetOperation(id, noOp, value)
   }
 

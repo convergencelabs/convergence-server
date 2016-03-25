@@ -13,11 +13,17 @@ import BooleanValueMapper.{ DocumentClassName => BooleanValueDocName }
 import DoubleValueMapper.{ DocumentClassName => DoubleValueDocName }
 import NullValueMapper.{ DocumentClassName => NullValueDocName }
 import ObjectValueMapper.ODocumentToObjectValue
+import ObjectValueMapper.ObjectValueToODocument
 import ArrayValueMapper.ODocumentToArrayValue
+import ArrayValueMapper.ArrayValueToODocument
 import StringValueMapper.ODocumentToStringValue
+import StringValueMapper.StringValueToODocument
 import BooleanValueMapper.ODocumentToBooleanValue
+import BooleanValueMapper.BooleanValueToODocument
 import DoubleValueMapper.ODocumentToDoubleValue
+import DoubleValueMapper.DoubleValueToODocument
 import NullValueMapper.ODocumentToNullValue
+import NullValueMapper.NullValueToODocument
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.model.data.ArrayValue
 import com.convergencelabs.server.domain.model.data.StringValue

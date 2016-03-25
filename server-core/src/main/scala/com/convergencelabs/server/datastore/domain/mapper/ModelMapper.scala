@@ -12,6 +12,7 @@ import com.convergencelabs.server.domain.model.ModelMetaData
 import com.convergencelabs.server.util.JValueMapper
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
+import ObjectValueMapper.ODocumentToObjectValue
 
 object ModelMapper extends ODocumentMapper {
 
@@ -21,7 +22,8 @@ object ModelMapper extends ODocumentMapper {
 
   private[domain] implicit def oDocumentToModel(doc: ODocument): Model = {
     validateDocumentClass(doc, DocumentClassName)
-    Model(oDocumentToModelMetaData(doc), ObjectValueMapper.oDocumentToObjectValue(doc.field("data")))
+    val data: ODocument = doc.field("data");
+    Model(oDocumentToModelMetaData(doc), data.asObjectValue)
   }
 
   private[domain] implicit class ODocumentToModelMetaData(val d: ODocument) extends AnyVal {

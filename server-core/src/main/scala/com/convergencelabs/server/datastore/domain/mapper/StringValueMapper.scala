@@ -37,7 +37,7 @@ object StringValueMapper extends ODocumentMapper {
     StringValue(vid, value);
   }
 
-  private[domain] val DocumentClassName = "StringValue"
+  private[domain] val DocumentClassName = "StringOpValue"
 
   private[domain] object Fields {
     val VID = "vid"

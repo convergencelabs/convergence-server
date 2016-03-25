@@ -24,7 +24,7 @@ object ArrayValueMapper extends ODocumentMapper {
     val doc = new ODocument(DocumentClassName)
     doc.field(Fields.VID, vid)
     val docChildren = children map{v => v.asODocument}
-    doc.field(Fields.Children, docChildren)
+    doc.field(Fields.Children, docChildren.asJava)
     doc
   }
 
@@ -36,12 +36,12 @@ object ArrayValueMapper extends ODocumentMapper {
     validateDocumentClass(doc, DocumentClassName)
 
     val vid = doc.field(Fields.VID).asInstanceOf[String]
-    val children: ORecordLazyList = doc.field(Fields.Children);
-    val dataValues = children.toList map {v => DataValueMapper.oDocumentToDataValue(v.getRecord())}
-    ArrayValue(vid, dataValues)
+    val children: JavaList[ODocument] = doc.field(Fields.Children);
+    val dataValues = children map {v => DataValueMapper.oDocumentToDataValue(v.getRecord())}
+    ArrayValue(vid, dataValues.toList)
   }
 
-  private[domain] val DocumentClassName = "ArrayValue"
+  private[domain] val DocumentClassName = "ArrayOpValue"
 
   private[domain] object Fields {
     val VID = "vid"

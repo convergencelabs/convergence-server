@@ -37,7 +37,7 @@ object BooleanValueMapper extends ODocumentMapper {
     BooleanValue(vid, value);
   }
 
-  private[domain] val DocumentClassName = "BooleanValue"
+  private[domain] val DocumentClassName = "BooleanOpValue"
 
   private[domain] object Fields {
     val VID = "vid"

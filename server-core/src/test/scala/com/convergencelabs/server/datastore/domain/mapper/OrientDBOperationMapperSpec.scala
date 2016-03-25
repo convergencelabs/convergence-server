@@ -58,7 +58,7 @@ class OrientDBOperationMapperSpec
     "object" -> ObjectValue("ov-7", Map("something" -> DoubleValue("ov7-1", 2)))))
 
   "An OrientDBOperationMapper" when {
-    "when converting string operations" must {
+    "converting string operations" must {
       "correctly map and unmap an StringInsertOperation" in {
         val op = StringInsertOperation(valueId, true, 3, "inserted")
         val asDoc = OrientDBOperationMapper.operationToODocument(op)
@@ -81,7 +81,7 @@ class OrientDBOperationMapperSpec
       }
     }
 
-    "when converting array operations" must {
+    "converting array operations" must {
       "correctly map and unmap an ArrayInsertOperation" in {
         val op = ArrayInsertOperation(valueId, true, 3, complexJsonObject)
         val asDoc = OrientDBOperationMapper.operationToODocument(op)
@@ -118,7 +118,7 @@ class OrientDBOperationMapperSpec
       }
     }
 
-    "when converting object operations" must {
+    "converting object operations" must {
       "correctly map and unmap an ObjectSetPropertyOperation" in {
         val op = ObjectSetPropertyOperation(valueId, true, "setProp", complexJsonObject)
         val asDoc = OrientDBOperationMapper.operationToODocument(op)
@@ -148,7 +148,7 @@ class OrientDBOperationMapperSpec
       }
     }
 
-    "when converting number operations" must {
+    "converting number operations" must {
       "correctly map and unmap an NumberAddOperation" in {
         val op = NumberAddOperation(valueId, true, 1)
         val asDoc = OrientDBOperationMapper.operationToODocument(op)
@@ -164,7 +164,7 @@ class OrientDBOperationMapperSpec
       }
     }
 
-    "when converting compound operations" must {
+    "converting compound operations" must {
       "correctly map and unmap a CompoundOperation" in {
         val ops = List(
           ObjectSetOperation(valueId, true, complexJsonObject.children),

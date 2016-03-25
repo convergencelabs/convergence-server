@@ -9,6 +9,8 @@ import com.convergencelabs.server.util.JValueMapper
 import com.orientechnologies.orient.core.record.impl.ODocument
 import org.json4s.JsonAST.JObject
 import com.convergencelabs.server.datastore.mapper.ODocumentMapper
+import DataValueMapper.DataValueToODocument
+import DataValueMapper.ODocumentToDataValue
 
 object ObjectAddPropertyOperationMapper extends ODocumentMapper {
 
@@ -22,7 +24,7 @@ object ObjectAddPropertyOperationMapper extends ODocumentMapper {
     doc.field(Fields.Id, id)
     doc.field(Fields.NoOp, noOp)
     doc.field(Fields.Prop, prop)
-    doc.field(Fields.Val, DataValueMapper.dataValueToODocument(value))
+    doc.field(Fields.Val, value.asODocument)
     doc
   }
 
@@ -36,7 +38,7 @@ object ObjectAddPropertyOperationMapper extends ODocumentMapper {
     val id = doc.field(Fields.Id).asInstanceOf[String]
     val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
     val prop = doc.field(Fields.Prop).asInstanceOf[String]
-    val value = DataValueMapper.oDocumentToDataValue(doc.field(Fields.Val))
+    val value = doc.field(Fields.Val).asInstanceOf[ODocument].asDataValue
     ObjectAddPropertyOperation(id, noOp, prop, value)
   }
 

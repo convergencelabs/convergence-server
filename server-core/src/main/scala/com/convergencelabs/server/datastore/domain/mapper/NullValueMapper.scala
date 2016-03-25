@@ -33,7 +33,7 @@ object NullValueMapper extends ODocumentMapper {
     NullValue(vid);
   }
 
-  private[domain] val DocumentClassName = "NullValue"
+  private[domain] val DocumentClassName = "NullOpValue"
 
   private[domain] object Fields {
     val VID = "vid"
