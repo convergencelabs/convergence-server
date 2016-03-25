@@ -15,8 +15,8 @@ class ArraySetSetExhaustiveSpec extends ArrayOperationExhaustiveSpec[ArraySetOpe
       v1 <- generateValues()
       v2 <- generateValues()
     } yield TransformationCase(
-      ArraySetOperation(valueId, false, JArray(List(v1))),
-      ArraySetOperation(valueId, false, JArray(List(v2))))
+      ArraySetOperation(valueId, false, List(v1)),
+      ArraySetOperation(valueId, false, List(v2)))
   }
 
   def transform(s: ArraySetOperation, c: ArraySetOperation): (DiscreteOperation, DiscreteOperation) = {

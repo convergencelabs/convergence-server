@@ -18,11 +18,11 @@ class RealTimeString(
   private[this] val parent: Option[RealTimeContainerValue],
   private[this] val parentField: Option[Any])
     extends RealTimeValue(
-        value.id, 
-        model, 
-        parent, 
-        parentField, 
-        List(ReferenceType.Index, ReferenceType.Range)) {
+      value.id,
+      model,
+      parent,
+      parentField,
+      List(ReferenceType.Index, ReferenceType.Range)) {
 
   private[this] var string = value.value
   def data(): String = {
@@ -43,7 +43,7 @@ class RealTimeString(
       throw new IllegalArgumentException("Index out of bounds: " + op.index)
     }
     this.string = this.string.slice(0, op.index) + op.value + this.string.slice(op.index, this.string.length)
-    
+
     this.referenceManager.referenceMap.getAll().foreach {
       case x: PositionalInsertAware => x.handlePositionalInsert(op.index, op.value.length)
     }

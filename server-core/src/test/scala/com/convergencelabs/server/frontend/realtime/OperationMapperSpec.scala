@@ -24,6 +24,8 @@ import com.convergencelabs.server.domain.model.ot.StringInsertOperation
 import com.convergencelabs.server.domain.model.ot.StringRemoveOperation
 import com.convergencelabs.server.domain.model.ot.StringSetOperation
 import org.json4s.JsonAST.JDouble
+import apple.laf.JRSUIConstants.DoubleValue
+import com.convergencelabs.server.domain.model.data.DoubleValue
 
 // scalastyle:off magic.number
 class OperationMapperSpec extends WordSpec with Matchers {
@@ -32,31 +34,31 @@ class OperationMapperSpec extends WordSpec with Matchers {
 
   val Id = "testId"
   val NoOp = true
-  val JVal = JDouble(5)
+  val Value = DoubleValue("vid", 2)
   val Prop = "prop"
 
   val operations = List(
-    ObjectSetPropertyOperation(Id, NoOp, Prop, JVal),
-    ObjectAddPropertyOperation(Id, NoOp, Prop, JVal),
+    ObjectSetPropertyOperation(Id, NoOp, Prop, Value),
+    ObjectAddPropertyOperation(Id, NoOp, Prop, Value),
     ObjectRemovePropertyOperation(Id, NoOp, Prop),
-    ObjectSetOperation(Id, NoOp, JObject(List("p" -> JVal))),
+    ObjectSetOperation(Id, NoOp, Map("p" -> Value)),
 
-    ArrayInsertOperation(Id, NoOp, 1, JVal),
+    ArrayInsertOperation(Id, NoOp, 1, Value),
     ArrayRemoveOperation(Id, NoOp, 1),
-    ArrayReplaceOperation(Id, NoOp, 1, JVal),
+    ArrayReplaceOperation(Id, NoOp, 1, Value),
     ArrayMoveOperation(Id, NoOp, 1, 2),
-    ArraySetOperation(Id, NoOp, JArray(List(JVal))),
+    ArraySetOperation(Id, NoOp, List(Value)),
 
     StringInsertOperation(Id, NoOp, 1, X),
     StringRemoveOperation(Id, NoOp, 1, X),
     StringSetOperation(Id, NoOp, X),
 
-    NumberSetOperation(Id, NoOp, JVal),
-    NumberAddOperation(Id, NoOp, JVal),
+    NumberSetOperation(Id, NoOp, 3),
+    NumberAddOperation(Id, NoOp, 4),
 
     BooleanSetOperation(Id, NoOp, true),
 
-    CompoundOperation(List(NumberSetOperation(Id, NoOp, JVal))))
+    CompoundOperation(List(NumberSetOperation(Id, NoOp, 3))))
 
   "An OperationMapper" when {
     "mapping an unmapping operations" must {

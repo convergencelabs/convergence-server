@@ -2,6 +2,7 @@ package com.convergencelabs.server.domain.model.ot
 
 import org.json4s.JsonAST.JArray
 import org.json4s.JsonAST.JString
+import com.convergencelabs.server.domain.model.data.StringValue
 
 class ArraySetMoveExhaustiveSpec extends ArrayOperationExhaustiveSpec[ArraySetOperation, ArrayMoveOperation] {
 
@@ -11,8 +12,9 @@ class ArraySetMoveExhaustiveSpec extends ArrayOperationExhaustiveSpec[ArraySetOp
   val valueId = "testId"
   
   def generateCases(): List[TransformationCase[ArraySetOperation, ArrayMoveOperation]] = {
+    val value = List(StringValue("vid", "value"))
     for { r <- generateMoveRanges() } yield TransformationCase(
-      ArraySetOperation(valueId, false, JArray(List(JString("X")))),
+      ArraySetOperation(valueId, false, value),
       ArrayMoveOperation(valueId, false, r.fromIndex, r.toIndex))
   }
 

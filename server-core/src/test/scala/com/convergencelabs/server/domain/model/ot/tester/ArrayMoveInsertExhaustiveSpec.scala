@@ -1,6 +1,7 @@
 package com.convergencelabs.server.domain.model.ot
 
 import org.json4s.JString
+import com.convergencelabs.server.domain.model.data.StringValue
 
 class ArrayMoveInsertExhaustiveSpec extends ArrayOperationExhaustiveSpec[ArrayMoveOperation, ArrayInsertOperation] {
 
@@ -10,9 +11,10 @@ class ArrayMoveInsertExhaustiveSpec extends ArrayOperationExhaustiveSpec[ArrayMo
   val valueId = "testId"
   
   def generateCases(): List[TransformationCase[ArrayMoveOperation, ArrayInsertOperation]] = {
+    val value = StringValue("vid", "value")
     for { r <- generateMoveRanges(); i <- generateIndices() } yield TransformationCase(
       ArrayMoveOperation(valueId, false, r.fromIndex, r.toIndex),
-      ArrayInsertOperation(valueId, false, i, JString("X")))
+      ArrayInsertOperation(valueId, false, i, value))
   }
 
   def transform(s: ArrayMoveOperation, c: ArrayInsertOperation): (DiscreteOperation, DiscreteOperation) = {
