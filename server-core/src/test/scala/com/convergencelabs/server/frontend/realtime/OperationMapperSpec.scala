@@ -24,7 +24,6 @@ import com.convergencelabs.server.domain.model.ot.StringInsertOperation
 import com.convergencelabs.server.domain.model.ot.StringRemoveOperation
 import com.convergencelabs.server.domain.model.ot.StringSetOperation
 import org.json4s.JsonAST.JDouble
-import apple.laf.JRSUIConstants.DoubleValue
 import com.convergencelabs.server.domain.model.data.DoubleValue
 
 // scalastyle:off magic.number

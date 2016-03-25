@@ -17,7 +17,7 @@ class NumberAddOperationMapperSpec
   "An NumberAddOperationMapper" when {
     "when converting NumberAddOperation operations" must {
       "correctly map and unmap a NumberAddOperation" in {
-        val op = NumberAddOperation("vid", true, JDouble(4))
+        val op = NumberAddOperation("vid", true, 4)
         val opDoc = op.asODocument
         val reverted = opDoc.asNumberAddOperation
         op shouldBe reverted

@@ -21,7 +21,7 @@ class ArraySetOperationMapperSpec
     "when converting ArraySetOperation operations" must {
       "correctly map and unmap a ArraySetOperation" in {
         val children: List[DataValue] = List(StringValue("asom-test", "test"))
-        val op = ArraySetOperation("vid", true, ArrayValue("asom-array", children))
+        val op = ArraySetOperation("vid", true, children)
         val opDoc = op.asODocument
         val reverted = opDoc.asArraySetOperation
         op shouldBe reverted

@@ -21,7 +21,7 @@ class CompoundOperationMapperSpec
     "when converting compound operations" must {
       "correctly map and unmap a CompoundOperation" in {
         val ops = List(
-          ObjectSetOperation("vid1", true, ObjectValue("com-test", Map().asInstanceOf[Map[String, DataValue]])),
+          ObjectSetOperation("vid1", true, Map().asInstanceOf[Map[String, DataValue]]),
           ArrayRemoveOperation("vid2", true, 3))
 
         val op = CompoundOperation(ops)
