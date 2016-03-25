@@ -56,7 +56,7 @@ class ModelOperationProcessorSpec
   val emailsVID = "pp1-emails"
   val ageVID = "pp1-age"
   val marriedVID = "pp1-married"
-  
+
   val fnameField = "fname"
   val emailsField = "emails"
   val ageField = "age"
@@ -168,63 +168,68 @@ class ModelOperationProcessorSpec
       }
 
       "correctly update the model on ArrayRemove" in withPersistenceStore { stores =>
-//        val (processor, opStore, modelStore) = stores
-//
-//        val op = ArrayRemoveOperation(List(emailsField), false, 0)
-//        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
-//        processor.processModelOperation(modelOp).success
-//
-//        val modelData = modelStore.getModelData(modelFqn).success.value.value
-//        (modelData \ emailsField) match {
-//          case JArray(array) => {
-//            array.size shouldBe 2
-//          }
-//          case _ => fail
-//        }
+        val (processor, opStore, modelStore) = stores
+
+        val op = ArrayRemoveOperation(emailsVID, false, 0)
+        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
+        processor.processModelOperation(modelOp).success
+
+        val modelData = modelStore.getModelData(modelFqn).success.value.value
+        modelData.children(emailsField) match {
+          case ArrayValue(vid, children) => {
+            children.size shouldBe 2
+          }
+          case _ => fail
+        }
       }
 
       "correctly update the model on ArrayReplace" in withPersistenceStore { stores =>
-//        val (processor, opStore, modelStore) = stores
-//
-//        val replaceVal = JObject("field1" -> JString("someValue"), "field2" -> JInt(5))
-//        val op = ArrayReplaceOperation(List(emailsField), false, 0, replaceVal)
-//        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
-//        processor.processModelOperation(modelOp).success
-//
-//        val modelData = modelStore.getModelData(modelFqn).success.value.value
-//        (modelData \ emailsField) match {
-//          case JArray(array) => {
-//            array(0) shouldBe replaceVal
-//            array.size shouldBe 3
-//          }
-//          case _ => fail
-//        }
+        val (processor, opStore, modelStore) = stores
+
+        val replaceVal = ObjectValue("art-data", Map("field1" -> StringValue("art-f1", "someValue"), "field2" -> DoubleValue("art-f2", 5)))
+        val op = ArrayReplaceOperation(emailsVID, false, 0, replaceVal)
+        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
+        processor.processModelOperation(modelOp).success
+
+        val modelData = modelStore.getModelData(modelFqn).success.value.value
+        modelData.children(emailsField) match {
+          case ArrayValue(vid, children) => {
+            children(0) shouldBe replaceVal
+            children.size shouldBe 3
+          }
+          case _ => fail
+        }
       }
 
       "correctly update the model on ArrayMove" in withPersistenceStore { stores =>
-//        val (processor, opStore, modelStore) = stores
-//
-//        val op = ArrayMoveOperation(List(emailsField), false, 0, 2)
-//        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
-//        processor.processModelOperation(modelOp).success
-//
-//        val modelData = modelStore.getModelData(modelFqn).success.value.value
-//        (modelData \ emailsField) shouldBe JArray(List(
-//          JString("second@email.com"),
-//          JString("another@email.com"),
-//          JString("first@email.com")))
+        val (processor, opStore, modelStore) = stores
+
+        val op = ArrayMoveOperation(emailsVID, false, 0, 2)
+        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
+        processor.processModelOperation(modelOp).success
+
+        val modelData = modelStore.getModelData(modelFqn).success.value.value
+        modelData.children(emailsField) shouldBe ArrayValue(emailsVID, List(
+          StringValue("pp1-email2", "second@email.com"),
+          StringValue("pp1-email3", "another@email.com"),
+          StringValue("pp1-email1", "first@email.com")))
       }
 
       "correctly update the model on ArraySet" in withPersistenceStore { stores =>
-//        val (processor, opStore, modelStore) = stores
-//
-//        val setValue = JArray(List(JString("someValue"), JString("someOtherVale")))
-//        val op = ArraySetOperation(List(emailsField), false, setValue)
-//        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
-//        processor.processModelOperation(modelOp).success
-//
-//        val modelData = modelStore.getModelData(modelFqn).success.value.value
-//        (modelData \ emailsField) shouldBe setValue
+        val (processor, opStore, modelStore) = stores
+
+        val setValue = List(StringValue("as-sv", "someValue"), StringValue("as-sov", "someOtherValue"))
+        val op = ArraySetOperation(emailsVID, false, setValue)
+        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
+        processor.processModelOperation(modelOp).success
+
+        val modelData = modelStore.getModelData(modelFqn).success.value.value
+        modelData.children(emailsField) match {
+          case ArrayValue(vid, children) => {
+            children shouldEqual setValue
+          }
+          case _ => fail
+        }
       }
     }
 
@@ -241,37 +246,40 @@ class ModelOperationProcessorSpec
       }
 
       "correctly update the model on ObjectSetProperty" in withPersistenceStore { stores =>
-//        val (processor, opStore, modelStore) = stores
-//
-//        val op = ObjectSetPropertyOperation(List(), false, fnameField, new JString("bob"))
-//        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
-//        processor.processModelOperation(modelOp).success
-//
-//        val modelData = modelStore.getModelData(modelFqn).success.value.value
-//        modelData \ fnameField shouldBe JString("bob")
+        val (processor, opStore, modelStore) = stores
+
+        val op = ObjectSetPropertyOperation("pp1-data", false, fnameField, StringValue("pp1-fnbob", "bob"))
+        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
+        processor.processModelOperation(modelOp).success
+
+        val modelData = modelStore.getModelData(modelFqn).success.value.value
+        modelData.children(fnameField) shouldBe StringValue("pp1-fnbob", "bob")
       }
 
       "correctly update the model on ObjectRemoveProperty" in withPersistenceStore { stores =>
-//        val (processor, opStore, modelStore) = stores
-//
-//        val op = ObjectRemovePropertyOperation(List(), false, fnameField)
-//        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
-//        processor.processModelOperation(modelOp).success
-//
-//        val modelData = modelStore.getModelData(modelFqn).success.value.value
-//        modelData \ fnameField shouldBe JNothing
+        val (processor, opStore, modelStore) = stores
+
+        val op = ObjectRemovePropertyOperation("pp1-data", false, fnameField)
+        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
+        processor.processModelOperation(modelOp).success
+
+        val modelData = modelStore.getModelData(modelFqn).success.value.value
+
+        intercept[NoSuchElementException] {
+          modelData.children(fnameField)
+        }
       }
 
       "correctly update the model on ObjectSet" in withPersistenceStore { stores =>
-//        val (processor, opStore, modelStore) = stores
-//
-//        val replacePerson = JObject("fname" -> JString("bob"), "lname" -> JString("smith"))
-//        val op = ObjectSetOperation(List(), false, replacePerson)
-//        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
-//        processor.processModelOperation(modelOp).success
-//
-//        val modelData = modelStore.getModelData(modelFqn).success.value.value
-//        modelData shouldBe replacePerson
+        val (processor, opStore, modelStore) = stores
+
+        val replacePerson = Map("fname" -> StringValue("pp1-fnbob", "bob"), "lname" -> StringValue("pp1-lnsmith", "smith"))
+        val op = ObjectSetOperation("pp1-data", false, replacePerson)
+        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
+        processor.processModelOperation(modelOp).success
+
+        val modelData = modelStore.getModelData(modelFqn).success.value.value
+        modelData.children shouldBe replacePerson
       }
     }
 
@@ -315,27 +323,27 @@ class ModelOperationProcessorSpec
     "handling non alpha object preoprties" must {
 
       "correctly handle property names in the path with special chars" in withPersistenceStore { stores =>
-//        val (processor, opStore, modelStore) = stores
-//
-//        val property = "my-prop!"
-//        val op = ObjectAddPropertyOperation(List(), false, property, new JString("value"))
-//        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
-//        processor.processModelOperation(modelOp).success
-//
-//        val modelData = modelStore.getModelData(modelFqn).success.value.value
-//        modelData \ property shouldBe JString("value")
+        //        val (processor, opStore, modelStore) = stores
+        //
+        //        val property = "my-prop!"
+        //        val op = ObjectAddPropertyOperation(List(), false, property, new JString("value"))
+        //        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
+        //        processor.processModelOperation(modelOp).success
+        //
+        //        val modelData = modelStore.getModelData(modelFqn).success.value.value
+        //        modelData \ property shouldBe JString("value")
       }
 
       "correctly handle property names in the path that are numeric" in withPersistenceStore { stores =>
-//        val (processor, opStore, modelStore) = stores
-//
-//        val property = "4"
-//        val op = ObjectAddPropertyOperation(List(), false, property, new JString("value"))
-//        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
-//        processor.processModelOperation(modelOp).success
-//
-//        val modelData = modelStore.getModelData(modelFqn).success.value.value
-//        modelData \ property shouldBe JString("value")
+        //        val (processor, opStore, modelStore) = stores
+        //
+        //        val property = "4"
+        //        val op = ObjectAddPropertyOperation(List(), false, property, new JString("value"))
+        //        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
+        //        processor.processModelOperation(modelOp).success
+        //
+        //        val modelData = modelStore.getModelData(modelFqn).success.value.value
+        //        modelData \ property shouldBe JString("value")
       }
     }
   }
