@@ -22,6 +22,16 @@ import OTFTestHarnessSpec.Type
 import OTFTestHarnessSpec.Value
 import org.json4s.JsonAST.JDouble
 import org.json4s.JsonAST.JDouble
+import org.json4s.JsonAST.JValue
+import org.json4s.JsonAST.JNull
+import com.convergencelabs.server.domain.model.data.DataValue
+import com.convergencelabs.server.domain.model.data.StringValue
+import apple.laf.JRSUIConstants.DoubleValue
+import com.convergencelabs.server.domain.model.data.DoubleValue
+import com.convergencelabs.server.domain.model.data.BooleanValue
+import com.convergencelabs.server.domain.model.data.NullValue
+import com.convergencelabs.server.domain.model.data.ArrayValue
+import com.convergencelabs.server.domain.model.data.ObjectValue
 
 object OTFTestHarnessSpec {
   val Type = "type"
@@ -70,7 +80,7 @@ class OTFTestHarnessSpec extends FunSpec {
     val originalClientOp: DiscreteOperation = testCase.input.clientOp
 
     it(s"Testing transformation of ${originalServerOp} and a client ${originalClientOp}") {
-      val tf = registry.getTransformationFunction(originalServerOp, originalClientOp).get
+      val tf = registry.getOperationTransformationFunction(originalServerOp, originalClientOp).get
 
       testCase.error match {
         case Some(true) =>
@@ -99,40 +109,51 @@ class OTFTestHarnessSpec extends FunSpec {
         StringSetOperation(valueId, noOp, value)
 
       case JObject(List((Type, JString("ArrayInsert")), (NoOp, JBool(noOp)), (Index, JInt(index)), (Value, value))) =>
-        ArrayInsertOperation(valueId, noOp, index.intValue(), value)
+        ArrayInsertOperation(valueId, noOp, index.intValue(), mapToDataValue(value))
       case JObject(List((Type, JString("ArrayRemove")), (NoOp, JBool(noOp)), (Index, JInt(index)))) =>
         ArrayRemoveOperation(valueId, noOp, index.intValue())
       case JObject(List((Type, JString("ArrayReplace")), (NoOp, JBool(noOp)), (Index, JInt(index)), (Value, value))) =>
-        ArrayReplaceOperation(valueId, noOp, index.intValue(), value)
+        ArrayReplaceOperation(valueId, noOp, index.intValue(), mapToDataValue(value))
       case JObject(List((Type, JString("ArrayMove")), (NoOp, JBool(noOp)), ("fromIndex", JInt(fromIndex)), ("toIndex", JInt(toIndex)))) =>
         ArrayMoveOperation(valueId, noOp, fromIndex.intValue(), toIndex.intValue())
-      case JObject(List((Type, JString("ArraySet")), (NoOp, JBool(noOp)), (Value, value @ JArray(_)))) =>
-        ArraySetOperation(valueId, noOp, value)
+      case JObject(List((Type, JString("ArraySet")), (NoOp, JBool(noOp)), (Value, value @ JArray(values)))) =>
+        ArraySetOperation(valueId, noOp, values.map {v => mapToDataValue(v)})
 
       case JObject(List((Type, JString("ObjectAddProperty")), (NoOp, JBool(noOp)), (Prop, JString(prop)), (Value, value))) =>
-        ObjectAddPropertyOperation(valueId, noOp, prop, value)
+        ObjectAddPropertyOperation(valueId, noOp, prop, mapToDataValue(value))
       case JObject(List((Type, JString("ObjectSetProperty")), (NoOp, JBool(noOp)), (Prop, JString(prop)), (Value, value))) =>
-        ObjectSetPropertyOperation(valueId, noOp, prop, value)
+        ObjectSetPropertyOperation(valueId, noOp, prop, mapToDataValue(value))
       case JObject(List((Type, JString("ObjectRemoveProperty")), (NoOp, JBool(noOp)), (Prop, JString(prop)))) =>
         ObjectRemovePropertyOperation(valueId, noOp, prop)
-      case JObject(List((Type, JString("ObjectSet")), (NoOp, JBool(noOp)), (Value, value @ JObject(_)))) =>
-        ObjectSetOperation(valueId, noOp, value)
+      case JObject(List((Type, JString("ObjectSet")), (NoOp, JBool(noOp)), (Value, value @ JObject(fields)))) =>
+        ObjectSetOperation(valueId, noOp, fields.toMap.mapValues {x => mapToDataValue(x)})
 
       case JObject(List((Type, JString("BooleanSet")), (NoOp, JBool(noOp)), (Value, JBool(value)))) =>
         BooleanSetOperation(valueId, noOp, value)
 
       // FIXME this is a bit of a hack due to number types.
       case JObject(List((Type, JString("NumberAdd")), (NoOp, JBool(noOp)), (Value, value))) =>
-        NumberAddOperation(valueId, noOp, JDouble(value.values.toString().toDouble))
+        NumberAddOperation(valueId, noOp, value.values.toString().toDouble)
 
       case JObject(List((Type, JString("NumberSet")), (NoOp, JBool(noOp)), (Value, value))) =>
-        NumberSetOperation(valueId, noOp, JDouble(value.values.toString().toDouble))
+        NumberSetOperation(valueId, noOp, value.values.toString().toDouble)
 
       case _ =>
         throw new IllegalArgumentException(s"Invalid operation definition: $obj")
     }
   }
   // scalastyle:on cyclomatic.complexity
+  
+  def mapToDataValue(jValue: JValue): DataValue = {
+    jValue match {
+      case JString(value) => StringValue(valueId, value)
+      case JInt(value) => DoubleValue(valueId, value.toDouble)
+      case JBool(value) => BooleanValue(valueId, value)
+      case JNull => NullValue(valueId)
+      case JArray(arr) => ArrayValue( valueId, arr.map { v => mapToDataValue(v) })
+      case JObject(fields) => ObjectValue(valueId, fields.toMap.mapValues{v => mapToDataValue(v)})
+    }
+  }
 }
 
 case class OperationPair(serverOp: JObject, clientOp: JObject)
