@@ -26,7 +26,6 @@ import org.json4s.JsonAST.JValue
 import org.json4s.JsonAST.JNull
 import com.convergencelabs.server.domain.model.data.DataValue
 import com.convergencelabs.server.domain.model.data.StringValue
-import apple.laf.JRSUIConstants.DoubleValue
 import com.convergencelabs.server.domain.model.data.DoubleValue
 import com.convergencelabs.server.domain.model.data.BooleanValue
 import com.convergencelabs.server.domain.model.data.NullValue

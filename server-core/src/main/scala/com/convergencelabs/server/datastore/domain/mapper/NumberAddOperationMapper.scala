@@ -5,15 +5,8 @@ import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.language.implicitConversions
 import com.convergencelabs.server.domain.model.ot.NumberAddOperation
-import com.convergencelabs.server.util.JValueMapper
-import com.orientechnologies.orient.core.record.impl.ODocument
-import org.json4s.JsonAST.JObject
-import org.json4s.JsonAST.JNumber
-import com.convergencelabs.server.domain.model.ot.NumberAddOperation
-import com.convergencelabs.server.util.JValueMapper
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.convergencelabs.server.datastore.mapper.ODocumentMapper
-import org.json4s.JsonAST.JDouble
 
 object NumberAddOperationMapper extends ODocumentMapper {
 
@@ -39,7 +32,7 @@ object NumberAddOperationMapper extends ODocumentMapper {
 
     val id = doc.field(Fields.Id).asInstanceOf[String]
     val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
-    val value = JValueMapper.javaToJValue(doc.field(Fields.Val)).asInstanceOf[Double]
+    val value = doc.field(Fields.Val).asInstanceOf[Double]
     NumberAddOperation(id, noOp, value)
   }
 
