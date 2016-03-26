@@ -21,7 +21,7 @@ object ArrayValueMapper extends ODocumentMapper {
 
   private[domain] implicit def arrayValueToODocument(obj: ArrayValue): ODocument = {
     val ArrayValue(vid, children) = obj
-    val doc = new ODocument(DocumentClassName)
+    val doc = new ODocument(OpDocumentClassName)
     doc.field(Fields.VID, vid)
     val docChildren = children map{v => v.asODocument}
     doc.field(Fields.Children, docChildren.asJava)
@@ -33,7 +33,7 @@ object ArrayValueMapper extends ODocumentMapper {
   }
 
   private[domain] implicit def oDocumentToArrayValue(doc: ODocument): ArrayValue = {
-    validateDocumentClass(doc, DocumentClassName)
+    validateDocumentClass(doc, DocumentClassName, OpDocumentClassName)
 
     val vid = doc.field(Fields.VID).asInstanceOf[String]
     val children: JavaList[ODocument] = doc.field(Fields.Children);
@@ -41,7 +41,9 @@ object ArrayValueMapper extends ODocumentMapper {
     ArrayValue(vid, dataValues.toList)
   }
 
-  private[domain] val DocumentClassName = "ArrayOpValue"
+  private[domain] val DocumentClassName = "ArrayValue"
+  private[domain] val OpDocumentClassName = "ArrayOpValue"
+
 
   private[domain] object Fields {
     val VID = "vid"

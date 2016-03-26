@@ -36,7 +36,7 @@ object ModelSnapshotMapper extends ODocumentMapper {
     validateDocumentClass(doc, DocumentClassName)
 
     // FIXME this assumes every thing is an object.
-    val dataDoc = doc.field(Fields.Data)
+    val dataDoc: ODocument = doc.field(Fields.Data)
     val data = ObjectValueMapper.oDocumentToObjectValue(dataDoc)
     ModelSnapshot(oDocumentToModelSnapshotMetaData(doc), data)
   }

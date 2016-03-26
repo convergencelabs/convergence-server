@@ -19,7 +19,7 @@ object BooleanValueMapper extends ODocumentMapper {
 
   private[domain] implicit def booleanValueToODocument(obj: BooleanValue): ODocument = {
     val BooleanValue(vid, value) = obj
-    val doc = new ODocument(DocumentClassName)
+    val doc = new ODocument(OpDocumentClassName)
     doc.field(Fields.VID, vid)
     doc.field(Fields.Value, value)
     doc
@@ -30,14 +30,15 @@ object BooleanValueMapper extends ODocumentMapper {
   }
 
   private[domain] implicit def oDocumentToBooleanValue(doc: ODocument): BooleanValue = {
-    validateDocumentClass(doc, DocumentClassName)
+    validateDocumentClass(doc, DocumentClassName, OpDocumentClassName)
 
     val vid = doc.field(Fields.VID).asInstanceOf[String]
     val value = doc.field(Fields.Value).asInstanceOf[Boolean]
     BooleanValue(vid, value);
   }
 
-  private[domain] val DocumentClassName = "BooleanOpValue"
+  private[domain] val DocumentClassName = "BooleanValue"
+  private[domain] val OpDocumentClassName = "BooleanOpValue"
 
   private[domain] object Fields {
     val VID = "vid"

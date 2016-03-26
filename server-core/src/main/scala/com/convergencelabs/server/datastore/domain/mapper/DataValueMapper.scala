@@ -6,12 +6,12 @@ import com.convergencelabs.server.datastore.mapper.ODocumentMapper
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.model.data.DataValue
 import ObjectValueMapper.ObjectValueToODocument
-import ObjectValueMapper.{ DocumentClassName => ObjectValueDocName }
-import ArrayValueMapper.{ DocumentClassName => ArrayValueDocName }
-import StringValueMapper.{ DocumentClassName => StringValueDocName }
-import BooleanValueMapper.{ DocumentClassName => BooleanValueDocName }
-import DoubleValueMapper.{ DocumentClassName => DoubleValueDocName }
-import NullValueMapper.{ DocumentClassName => NullValueDocName }
+import ObjectValueMapper.{ DocumentClassName => ObjectValueDocName, OpDocumentClassName => ObjectOpValueDocName }
+import ArrayValueMapper.{ DocumentClassName => ArrayValueDocName, OpDocumentClassName => ArrayOpValueDocName }
+import StringValueMapper.{ DocumentClassName => StringValueDocName, OpDocumentClassName => StringOpValueDocName }
+import BooleanValueMapper.{ DocumentClassName => BooleanValueDocName, OpDocumentClassName => BooleanOpValueDocName }
+import DoubleValueMapper.{ DocumentClassName => DoubleValueDocName, OpDocumentClassName => DoubleOpValueDocName }
+import NullValueMapper.{ DocumentClassName => NullValueDocName, OpDocumentClassName => NullOpValueDocName }
 import ObjectValueMapper.ODocumentToObjectValue
 import ObjectValueMapper.ObjectValueToODocument
 import ArrayValueMapper.ODocumentToArrayValue
@@ -54,12 +54,12 @@ object DataValueMapper extends ODocumentMapper {
 
   private[domain] implicit def oDocumentToDataValue(doc: ODocument): DataValue = {
     doc.getClassName match {
-      case ObjectValueDocName => doc.asObjectValue
-      case ArrayValueDocName => doc.asArrayValue
-      case StringValueDocName => doc.asStringValue
-      case BooleanValueDocName => doc.asBooleanValue
-      case DoubleValueDocName => doc.asDoubleValue
-      case NullValueDocName => doc.asNullValue
+      case ObjectValueDocName | ObjectOpValueDocName => doc.asObjectValue
+      case ArrayValueDocName | ArrayOpValueDocName => doc.asArrayValue
+      case StringValueDocName | StringOpValueDocName => doc.asStringValue
+      case BooleanValueDocName | BooleanOpValueDocName => doc.asBooleanValue
+      case DoubleValueDocName | DoubleOpValueDocName => doc.asDoubleValue
+      case NullValueDocName | NullOpValueDocName => doc.asNullValue
     }
   }
 }

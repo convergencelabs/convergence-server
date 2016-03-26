@@ -25,7 +25,7 @@ object ObjectValueMapper extends ODocumentMapper {
 
   private[domain] implicit def objectValueToODocument(obj: ObjectValue): ODocument = {
     val ObjectValue(vid, children) = obj
-    val doc = new ODocument(DocumentClassName)
+    val doc = new ODocument(OpDocumentClassName)
     doc.field(Fields.VID, vid)
     val docChildren = children map{case(k, v)=> (k, v.asODocument)}
     doc.field(Fields.Children, docChildren.asJava)
@@ -37,7 +37,7 @@ object ObjectValueMapper extends ODocumentMapper {
   }
 
   private[domain] implicit def oDocumentToObjectValue(doc: ODocument): ObjectValue = {
-    validateDocumentClass(doc, DocumentClassName)
+    validateDocumentClass(doc, DocumentClassName, OpDocumentClassName)
 
     val vid = doc.field(Fields.VID).asInstanceOf[String]
     val children: JavaMap[String, ODocument] = doc.field(Fields.Children);
@@ -46,7 +46,8 @@ object ObjectValueMapper extends ODocumentMapper {
     ObjectValue(vid, dataValues.toMap)
   }
 
-  private[domain] val DocumentClassName = "ObjectOpValue"
+  private[domain] val DocumentClassName = "ObjectValue"
+  private[domain] val OpDocumentClassName = "ObjectOpValue"
 
   private[domain] object Fields {
     val VID = "vid"

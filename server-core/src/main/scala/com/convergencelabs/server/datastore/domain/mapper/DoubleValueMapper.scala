@@ -19,7 +19,7 @@ object DoubleValueMapper extends ODocumentMapper {
 
   private[domain] implicit def doubleValueToODocument(obj: DoubleValue): ODocument = {
     val DoubleValue(vid, value) = obj
-    val doc = new ODocument(DocumentClassName)
+    val doc = new ODocument(OpDocumentClassName)
     doc.field(Fields.VID, vid)
     doc.field(Fields.Value, value)
     doc
@@ -30,14 +30,15 @@ object DoubleValueMapper extends ODocumentMapper {
   }
 
   private[domain] implicit def oDocumentToDoubleValue(doc: ODocument): DoubleValue = {
-    validateDocumentClass(doc, DocumentClassName)
+    validateDocumentClass(doc, DocumentClassName, OpDocumentClassName)
 
     val vid = doc.field(Fields.VID).asInstanceOf[String]
     val value = doc.field(Fields.Value).asInstanceOf[Double]
     DoubleValue(vid, value);
   }
 
-  private[domain] val DocumentClassName = "DoubleOpValue"
+  private[domain] val DocumentClassName = "DoubleValue"
+  private[domain] val OpDocumentClassName = "DoubleOpValue"
 
   private[domain] object Fields {
     val VID = "vid"
