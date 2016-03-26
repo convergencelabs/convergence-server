@@ -9,6 +9,6 @@ INSERT INTO ModelOperation SET
     "@type": "d",
     "@class":"StringSetOperation",
     "noOp": false,
-    "path": ["lname"],
+    "vid": "pp1-lname",
     "val": "Smith"
   };

@@ -10,6 +10,6 @@ INSERT INTO ModelOperation SET
     "@class":"NumberAddOperation",
     "@fieldTypes": "val=d",
     "noOp": false,
-    "path": ["age"],
+    "vid": "pp1-age",
     "val": 1
   };

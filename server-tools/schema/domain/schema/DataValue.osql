@@ -66,3 +66,68 @@ ALTER PROPERTY BooleanValue.value NOTNULL true;
 ###################### NullValue ######################
 
 CREATE CLASS NullValue EXTENDS DataValue;
+
+
+###################### OpValue ######################
+
+CREATE CLASS OpValue ABSTRACT;
+
+#OpValue.vid
+CREATE Property OpValue.vid STRING;
+ALTER PROPERTY OpValue.vid MANDATORY true;
+ALTER PROPERTY OpValue.vid NOTNULL true;
+ALTER PROPERTY OpValue.vid READONLY true;
+
+###################### ObjectOpValue ######################
+
+CREATE CLASS ObjectOpValue EXTENDS OpValue;
+
+#ObjectOpValue.children
+CREATE PROPERTY ObjectOpValue.children EMBEDDEDMAP OpValue;
+ALTER PROPERTY ObjectOpValue.children MANDATORY true;
+ALTER PROPERTY ObjectOpValue.children NOTNULL true;
+ALTER PROPERTY ObjectOpValue.children READONLY true;
+
+###################### ArrayOpValue ######################
+
+CREATE CLASS ArrayOpValue EXTENDS OpValue;
+
+#ArrayOpValue.children
+CREATE PROPERTY ArrayOpValue.children EMBEDDEDLIST OpValue;
+ALTER PROPERTY ArrayOpValue.children MANDATORY true;
+ALTER PROPERTY ArrayOpValue.children NOTNULL true;
+ALTER PROPERTY ArrayOpValue.children READONLY true;
+
+###################### StringOpValue ######################
+
+CREATE CLASS StringOpValue EXTENDS OpValue;
+
+#StringOpValue.value
+CREATE PROPERTY StringOpValue.value STRING;
+ALTER PROPERTY StringOpValue.value MANDATORY true;
+ALTER PROPERTY StringOpValue.value NOTNULL true;
+ALTER PROPERTY StringOpValue.value READONLY true;
+
+###################### DoubleOpValue ######################
+
+CREATE CLASS DoubleOpValue EXTENDS OpValue;
+
+#DoubleOpValue.value
+CREATE PROPERTY DoubleOpValue.value DOUBLE;
+ALTER PROPERTY DoubleOpValue.value MANDATORY true;
+ALTER PROPERTY DoubleOpValue.value NOTNULL true;
+ALTER PROPERTY DoubleOpValue.value READONLY true;
+
+###################### BooleanOpValue ######################
+
+CREATE CLASS BooleanOpValue EXTENDS OpValue;
+
+#BooleanOpValue.value
+CREATE PROPERTY BooleanOpValue.value BOOLEAN;
+ALTER PROPERTY BooleanOpValue.value MANDATORY true;
+ALTER PROPERTY BooleanOpValue.value NOTNULL true;
+ALTER PROPERTY BooleanOpValue.value READONLY true;
+
+###################### NullOpValue ######################
+
+CREATE CLASS NullOpValue EXTENDS OpValue;

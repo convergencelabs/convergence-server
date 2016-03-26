@@ -11,5 +11,5 @@ INSERT INTO ModelOperation SET
     "fromIdx": 1, 
     "toIdx": 2,
     "noOp": false,
-    "path": ["emails"]
+    "vid": "pp1-emails"
   };

@@ -10,5 +10,5 @@ INSERT INTO ModelOperation SET
     "@class":"ObjectRemovePropertyOperation",
     "prop": "cell",
     "noOp": false,
-    "path": []
+    "vid": "pp1-data"
   };

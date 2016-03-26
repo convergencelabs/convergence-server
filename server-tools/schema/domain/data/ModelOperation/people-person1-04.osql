@@ -10,6 +10,11 @@ INSERT INTO ModelOperation SET
     "@class":"ArrayReplaceOperation",
     "idx": 2,
     "noOp": false,
-    "path": ["emails"],
-    "val": "third@email.com"
+    "vid": "pp1-emails",
+    "val": {
+    	"@type": "d",
+    	"@class": "StringOpValue",
+    	"vid": "pp1-op4",
+    	"value": "third@email.com"
+    }
   };
