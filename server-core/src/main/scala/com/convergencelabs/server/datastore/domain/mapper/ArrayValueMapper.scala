@@ -12,6 +12,8 @@ import com.convergencelabs.server.domain.model.data.ArrayValue
 import DataValueMapper.DataValueToODocument
 import DataValueMapper.ODocumentToDataValue
 import com.orientechnologies.orient.core.db.record.ORecordLazyList
+import com.orientechnologies.orient.core.metadata.schema.OType
+import com.orientechnologies.orient.core.db.record.OIdentifiable
 
 object ArrayValueMapper extends ODocumentMapper {
 
@@ -36,8 +38,8 @@ object ArrayValueMapper extends ODocumentMapper {
     validateDocumentClass(doc, DocumentClassName, OpDocumentClassName)
 
     val vid = doc.field(Fields.VID).asInstanceOf[String]
-    val children: JavaList[ODocument] = doc.field(Fields.Children);
-    val dataValues = children map {v => DataValueMapper.oDocumentToDataValue(v.getRecord())}
+    val children: JavaList[OIdentifiable] = doc.field(Fields.Children);
+    val dataValues = children map {v => v.getRecord[ODocument].asDataValue}
     ArrayValue(vid, dataValues.toList)
   }
 

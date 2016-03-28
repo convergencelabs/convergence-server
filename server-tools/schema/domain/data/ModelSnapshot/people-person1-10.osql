@@ -4,14 +4,63 @@ INSERT INTO ModelSnapshot SET
   version = 10,
   timestamp = DATE("2015-10-20 10:00:00"),
   data = {
-    "fname": "john",
-    "lname": "smith",
-    "age": 37,
-    "married": false,
-    "spouse": null,
-    "emails": [
-      "first@email.com",
-      "second@email.com",
-      "third@email.com"
-    ]
+    "@type": "d",
+    "@class": "ObjectOpValue",
+    "vid": ms-pp1-0,
+	"children": {
+	    "fname": {
+	        "@type": "d",
+	    	"@class": "StringOpValue",
+	    	"vid": "ms-pp1-10-1",
+	    	"value": "john"
+	    },
+	    "lname": {
+	        "@type": "d",
+	    	"@class": "StringOpValue",
+	    	"vid": "ms-pp1-10-2",
+	    	"value": "smith"
+	    },
+	    "age": {
+	        "@type": "d",
+	    	"@class": "DoubleOpValue",
+	    	"vid": "ms-pp1-10-3",
+	    	"value": 37
+	    },
+	    "married": {
+	        "@type": "d",
+	    	"@class": "BooleanOpValue",
+	    	"vid": "ms-pp1-10-4",
+	    	"value": false
+	    },
+	    "spouse": {
+	        "@type": "d",
+	    	"@class": "NullOpValue",
+	    	"vid": "ms-pp1-10-5"
+	    },
+	    "emails": {
+	        "@type": "d",
+	    	"@class": "ArrayOpValue",
+	    	"vid": "ms-pp1-10-6",
+	    	"children": [
+		      	{
+		        "@type": "d",
+		    	"@class": "StringOpValue",
+		    	"vid": "ms-pp1-10-6-1",
+		    	"value": "first@email.com"
+		    	},
+		      	{
+		        "@type": "d",
+		    	"@class": "StringOpValue",
+		    	"vid": "ms-pp1-10-6-2",
+		    	"value": "second@email.com"
+		    	},
+		      	{
+		        "@type": "d",
+		    	"@class": "StringOpValue",
+		    	"vid": "ms-pp1-10-6-3",
+		    	"value": "third@email.com"
+		    	}
+	    	]
+	    }
+    }
   };

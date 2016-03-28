@@ -88,6 +88,10 @@ ALTER PROPERTY ObjectOpValue.children MANDATORY true;
 ALTER PROPERTY ObjectOpValue.children NOTNULL true;
 ALTER PROPERTY ObjectOpValue.children READONLY true;
 
+#ModelSnapshot.data
+CREATE Property ModelSnapshot.data LINK ObjectOpValue;
+ALTER PROPERTY ModelSnapshot.data MANDATORY true;
+
 ###################### ArrayOpValue ######################
 
 CREATE CLASS ArrayOpValue EXTENDS OpValue;
