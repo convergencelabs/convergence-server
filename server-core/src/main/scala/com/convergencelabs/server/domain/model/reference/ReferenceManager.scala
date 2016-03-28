@@ -15,7 +15,7 @@ class ReferenceManager(
   private[this] val rm = new ReferenceMap()
 
   def referenceMap(): ReferenceMap = {
-    return this.referenceMap
+    return this.rm
   }
 
   def handleReferenceEvent(event: ModelReferenceEvent, sessionId: String): Unit = {
