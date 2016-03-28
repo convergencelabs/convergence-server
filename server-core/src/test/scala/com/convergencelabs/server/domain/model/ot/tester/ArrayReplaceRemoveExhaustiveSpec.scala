@@ -2,20 +2,16 @@ package com.convergencelabs.server.domain.model.ot
 
 import org.json4s.JString
 import com.convergencelabs.server.domain.model.data.StringValue
+import OperationPairExhaustiveSpec.ValueId
+import ArrayOperationExhaustiveSpec.Value1
 
 class ArrayReplaceRemoveExhaustiveSpec extends ArrayOperationExhaustiveSpec[ArrayReplaceOperation, ArrayRemoveOperation] {
 
-  val serverOperationType: String = "ArrayReplaceOperation"
-  val clientOperationType: String = "ArrayRemoveOperation"
-
-  val valueId = "testId"
-  
   def generateCases(): List[TransformationCase[ArrayReplaceOperation, ArrayRemoveOperation]] = {
-    val value = StringValue("vid", "value")
     val indices = generateIndices()
     for { i1 <- indices; i2 <- indices } yield TransformationCase(
-      ArrayReplaceOperation(valueId, false, i1, value),
-      ArrayRemoveOperation(valueId, false, i2))
+      ArrayReplaceOperation(ValueId, false, i1, Value1),
+      ArrayRemoveOperation(ValueId, false, i2))
   }
 
   def transform(s: ArrayReplaceOperation, c: ArrayRemoveOperation): (DiscreteOperation, DiscreteOperation) = {

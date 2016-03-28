@@ -3,18 +3,21 @@ package com.convergencelabs.server.domain.model.ot
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-
 import org.scalatest.Finders
 import org.scalatest.FunSpec
-
 import grizzled.slf4j.Logging
+import scala.reflect.ClassTag
 
-trait OperationPairExhaustiveSpec[M <: MockModel, S <: DiscreteOperation, C <: DiscreteOperation]
+object OperationPairExhaustiveSpec {
+  val ValueId = "testId"
+}
+
+abstract class OperationPairExhaustiveSpec[M <: MockModel, S <: DiscreteOperation, C <: DiscreteOperation](implicit s: ClassTag[S], c: ClassTag[C])
     extends FunSpec
     with Logging {
 
-  protected def serverOperationType: String
-  protected def clientOperationType: String
+  val serverOperationType = s.runtimeClass.getSimpleName
+  val clientOperationType = c.runtimeClass.getSimpleName
 
   protected def generateCases(): List[TransformationCase[S, C]]
 

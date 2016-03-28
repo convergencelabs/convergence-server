@@ -15,4 +15,3 @@ case class DoubleValue(id: String, value: Double) extends DataValue
 case class NullValue(id: String) extends DataValue
 
 case class StringValue(id: String, value: String) extends DataValue
-

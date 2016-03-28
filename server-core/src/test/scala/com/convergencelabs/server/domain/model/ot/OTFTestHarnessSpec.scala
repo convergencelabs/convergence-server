@@ -3,34 +3,35 @@ package com.convergencelabs.server.domain.model.ot
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
+
 import scala.language.implicitConversions
+
 import org.json4s.DefaultFormats
 import org.json4s.JArray
 import org.json4s.JBool
 import org.json4s.JInt
 import org.json4s.JString
-import org.json4s.JsonAST.JNumber
+import org.json4s.JsonAST.JNull
 import org.json4s.JsonAST.JObject
+import org.json4s.JsonAST.JValue
 import org.json4s.jackson.Serialization.read
 import org.json4s.jvalue2monadic
 import org.scalatest.Finders
 import org.scalatest.FunSpec
+
+import com.convergencelabs.server.domain.model.data.ArrayValue
+import com.convergencelabs.server.domain.model.data.BooleanValue
+import com.convergencelabs.server.domain.model.data.DataValue
+import com.convergencelabs.server.domain.model.data.DoubleValue
+import com.convergencelabs.server.domain.model.data.NullValue
+import com.convergencelabs.server.domain.model.data.ObjectValue
+import com.convergencelabs.server.domain.model.data.StringValue
+
 import OTFTestHarnessSpec.Index
 import OTFTestHarnessSpec.NoOp
 import OTFTestHarnessSpec.Prop
 import OTFTestHarnessSpec.Type
 import OTFTestHarnessSpec.Value
-import org.json4s.JsonAST.JDouble
-import org.json4s.JsonAST.JDouble
-import org.json4s.JsonAST.JValue
-import org.json4s.JsonAST.JNull
-import com.convergencelabs.server.domain.model.data.DataValue
-import com.convergencelabs.server.domain.model.data.StringValue
-import com.convergencelabs.server.domain.model.data.DoubleValue
-import com.convergencelabs.server.domain.model.data.BooleanValue
-import com.convergencelabs.server.domain.model.data.NullValue
-import com.convergencelabs.server.domain.model.data.ArrayValue
-import com.convergencelabs.server.domain.model.data.ObjectValue
 
 object OTFTestHarnessSpec {
   val Type = "type"

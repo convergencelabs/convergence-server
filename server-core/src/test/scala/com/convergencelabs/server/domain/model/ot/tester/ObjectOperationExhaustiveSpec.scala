@@ -7,6 +7,7 @@ import org.json4s.JsonDSL.int2jvalue
 import org.json4s.JsonDSL.pair2jvalue
 import ObjectOperationExhaustiveSpec.InitialState
 import com.convergencelabs.server.domain.model.data.DoubleValue
+import scala.reflect.ClassTag
 
 // scalastyle:off magic.number
 object ObjectOperationExhaustiveSpec {
@@ -22,7 +23,7 @@ object ObjectOperationExhaustiveSpec {
   val NewValues = List(DoubleValue("2", 4), DoubleValue("2", 5), DoubleValue("2", 6))
 }
 
-trait ObjectOperationExhaustiveSpec[S <: ObjectOperation, C <: ObjectOperation] extends OperationPairExhaustiveSpec[MockObjectModel, S, C] {
+abstract class ObjectOperationExhaustiveSpec[S <: ObjectOperation, C <: ObjectOperation](implicit s: ClassTag[S], c: ClassTag[C]) extends OperationPairExhaustiveSpec[MockObjectModel, S, C] {
   def createMockModel(): MockObjectModel = {
     new MockObjectModel(InitialState.values)
   }

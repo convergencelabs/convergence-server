@@ -1,16 +1,13 @@
 package com.convergencelabs.server.domain.model.ot
 
+import OperationPairExhaustiveSpec.ValueId
+
 class StringSetSetExhaustiveSpec extends StringOperationExhaustiveSpec[StringSetOperation, StringSetOperation] {
 
-  val serverOperationType: String = "StringSetOperation"
-  val clientOperationType: String = "StringSetOperation"
-
-  val valueId = "testId"
-  
   def generateCases(): List[TransformationCase[StringSetOperation, StringSetOperation]] = {
     List(TransformationCase(
-      StringSetOperation(valueId, false, "ServerString"),
-      StringSetOperation(valueId, false, "ClientString")))
+      StringSetOperation(ValueId, false, "ServerString"),
+      StringSetOperation(ValueId, false, "ClientString")))
   }
 
   def transform(s: StringSetOperation, c: StringSetOperation): (DiscreteOperation, DiscreteOperation) = {

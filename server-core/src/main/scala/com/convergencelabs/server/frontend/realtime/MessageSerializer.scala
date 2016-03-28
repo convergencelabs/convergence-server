@@ -8,6 +8,8 @@ import org.json4s.jackson.Serialization.write
 import org.json4s.reflect.Reflector
 import com.convergencelabs.server.util.BiMap
 import com.convergencelabs.server.frontend.realtime.model.OperationType
+import com.convergencelabs.server.frontend.realtime.data.DataValueSerializer
+import com.convergencelabs.server.frontend.realtime.data.DataValueFieldSerializer
 
 object MessageSerializer {
 
@@ -82,7 +84,7 @@ object MessageSerializer {
     MessageType.UserSearchRequest -> classOf[UserSearchMessage],
     MessageType.UserListResponse -> classOf[UserListMessage]),
 
-    DefaultFormats + operationSerializer)
+    DefaultFormats + operationSerializer + DataValueFieldSerializer + DataValueSerializer)
 
   private[this] implicit val formats = DefaultFormats + incomingMessageSerializer
 

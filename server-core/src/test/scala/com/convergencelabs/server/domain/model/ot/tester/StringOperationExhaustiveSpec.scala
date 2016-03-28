@@ -1,10 +1,12 @@
 package com.convergencelabs.server.domain.model.ot
 
+import scala.reflect.ClassTag
+
 object StringOperationExhaustiveSpec {
   val StringModelInitialState: String = "ABCDEFGHIJKLMNO"
 }
 
-trait StringOperationExhaustiveSpec[S <: StringOperation, C <: StringOperation] extends OperationPairExhaustiveSpec[MockStringModel, S, C] {
+abstract class StringOperationExhaustiveSpec[S <: StringOperation, C <: StringOperation](implicit s: ClassTag[S], c: ClassTag[C]) extends OperationPairExhaustiveSpec[MockStringModel, S, C] {
 
   def generateIndices(): List[Int] = {
     val len = StringOperationExhaustiveSpec.StringModelInitialState.length
