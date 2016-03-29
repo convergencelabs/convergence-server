@@ -33,7 +33,7 @@ class RealTimeArray(
 
   var i = 0;
   var childValues = value.children.map {
-    x => this.model.createValue(value, Some(this), Some({ i += 1; i }))
+    x => this.model.createValue(x, Some(this), Some({ i += 1; i }))
   }
   
   def children(): List[RealTimeValue] = {
