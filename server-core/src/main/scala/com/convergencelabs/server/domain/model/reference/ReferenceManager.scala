@@ -32,7 +32,7 @@ class ReferenceManager(
   }
 
   private[this] def handleReferencePublished(event: PublishReference, sessionId: String): Unit = {
-    if (this.validTypes.contains(event.referenceType)) {
+    if (!this.validTypes.contains(event.referenceType)) {
       throw new IllegalArgumentException(s"Invalid reference type for RealTimeString: ${event.referenceType}")
     }
     

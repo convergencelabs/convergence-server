@@ -38,7 +38,6 @@ class ReferenceMap {
         buffer += ref
       }
     }
-    
     buffer.toSet
   }
 

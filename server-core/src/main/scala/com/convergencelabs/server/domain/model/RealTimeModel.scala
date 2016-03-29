@@ -125,6 +125,11 @@ class RealTimeModel(
   }
 
   def processReferenceEvent(event: ModelReferenceEvent, sk: String): Try[Option[RemoteReferenceEvent]] = Try {
+    // We could do a map here to simplify things, but I am thinking we will want to 
+    // do some sort of check later on to see if this value ever existed.
+    
+    // FIXME the processReferenceEvent method actually returns a try,
+    // we are not checking this value, so if it fails we swallow.
     idToValue.get(event.id) match {
       case Some(realTimeValue) =>
         event match {

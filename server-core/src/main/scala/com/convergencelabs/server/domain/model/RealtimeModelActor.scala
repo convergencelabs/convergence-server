@@ -483,6 +483,7 @@ class RealtimeModelActor(
       case Success(Some(event)) =>
         broacastToAllOthers(event, sk)
       case Success(None) =>
+        // Event's no-op'ed
       case _ =>
         // FIXME
         ???
