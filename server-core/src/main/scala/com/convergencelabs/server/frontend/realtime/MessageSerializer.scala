@@ -32,7 +32,8 @@ object MessageSerializer {
     OperationType.NumberAdd -> classOf[NumberAddOperationData],
     OperationType.NumberValue -> classOf[NumberSetOperationData],
 
-    OperationType.BooleanValue -> classOf[BooleanSetOperationData]))
+    OperationType.BooleanValue -> classOf[BooleanSetOperationData]),
+    DefaultFormats.withTypeHintFieldName("?") + DataValueTypeHints + DataValueFieldSerializer)
 
   private[this] val incomingMessageSerializer = new TypeMapSerializer[ProtocolMessage]("t", Map(
     MessageType.Ping -> classOf[PingMessage],
