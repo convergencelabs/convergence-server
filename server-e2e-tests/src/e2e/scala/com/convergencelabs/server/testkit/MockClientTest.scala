@@ -50,26 +50,26 @@ class MockClientTest extends FunSuite with BeforeAndAfterAll {
     client.connect()
 
     client.sendRequest(HandshakeRequestMessage(false, None))
-    val handhsakeResponse = client.expectMessageClass(15 seconds, classOf[HandshakeResponseMessage])
+    val handhsakeResponse = client.expectMessageClass(5 seconds, classOf[HandshakeResponseMessage])
 
     client.sendRequest(PasswordAuthRequestMessage("test1", "password"))
-    val (authResponse, _) = client.expectMessageClass(15 seconds, classOf[AuthenticationResponseMessage])
+    val (authResponse, _) = client.expectMessageClass(5 seconds, classOf[AuthenticationResponseMessage])
     assert(authResponse.s, s"Unable to authenticate")
 
     client.sendRequest(OpenRealtimeModelRequestMessage("collection", "model", true))
 
-    val (dataRequest, MessageEnvelope(_, Some(reqId), _)) = client.expectMessageClass(150 seconds, classOf[ModelDataRequestMessage])
+    val (dataRequest, MessageEnvelope(_, Some(reqId), _)) = client.expectMessageClass(5 seconds, classOf[ModelDataRequestMessage])
     client.sendResponse(reqId, ModelDataResponseMessage(ObjectValue("data1", Map("key" -> StringValue("value1", "value")))))
 
-    val (openResponse, _) = client.expectMessageClass(15 seconds, classOf[OpenRealtimeModelResponseMessage])
+    val (openResponse, _) = client.expectMessageClass(5 seconds, classOf[OpenRealtimeModelResponseMessage])
 
     val opMessage = OperationSubmissionMessage(openResponse.r, 0L, openResponse.v, StringInsertOperationData("value1", false, 0, "x"))
     client.sendNormal(opMessage)
 
-    val opAck = client.expectMessageClass(15 seconds, classOf[OperationAcknowledgementMessage])
+    val opAck = client.expectMessageClass(5 seconds, classOf[OperationAcknowledgementMessage])
 
     client.sendRequest(CloseRealtimeModelRequestMessage(openResponse.r))
-    val closeResponse = client.expectMessageClass(15 seconds, classOf[CloseRealTimeModelSuccessMessage])
+    val closeResponse = client.expectMessageClass(5 seconds, classOf[CloseRealTimeModelSuccessMessage])
 
     client.close()
   }
