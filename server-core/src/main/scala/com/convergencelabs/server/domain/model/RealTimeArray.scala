@@ -83,13 +83,13 @@ class RealTimeArray(
   def processInsertOperation(op: ArrayInsertOperation): Unit = {
     val child = this.model.createValue(op.value, Some(this), Some(parentField))
     childValues = childValues.patch(op.index, List(child), 0)
-    this.updateIndices(op.index + 1, childValues.length)
+    this.updateIndices(op.index + 1, childValues.length - 1)
   }
 
   def processRemoveOperation(op: ArrayRemoveOperation): Unit = {
     val oldChild = childValues(op.index)
     childValues = childValues.patch(op.index, List(), 1)
-    this.updateIndices(op.index, childValues.length)
+    this.updateIndices(op.index, childValues.length - 1)
   }
 
   def processReplaceOperation(op: ArrayReplaceOperation): Unit = {
