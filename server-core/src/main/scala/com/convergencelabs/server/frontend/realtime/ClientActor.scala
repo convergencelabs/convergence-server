@@ -5,7 +5,6 @@ import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
-
 import com.convergencelabs.server.domain.AuthenticationError
 import com.convergencelabs.server.domain.AuthenticationFailure
 import com.convergencelabs.server.domain.AuthenticationResponse
@@ -19,7 +18,6 @@ import com.convergencelabs.server.domain.HandshakeSuccess
 import com.convergencelabs.server.domain.PasswordAuthRequest
 import com.convergencelabs.server.domain.TokenAuthRequest
 import com.convergencelabs.server.util.concurrent.AskFuture
-
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
@@ -27,6 +25,8 @@ import akka.actor.Props
 import akka.actor.actorRef2Scala
 import akka.pattern.ask
 import akka.util.Timeout
+import com.convergencelabs.server.domain.HandshakeSuccess
+import com.convergencelabs.server.domain.HandshakeSuccess
 
 object ClientActor {
   def props(
@@ -66,13 +66,15 @@ class ClientActor(
   var sessionId: String = _
 
   connection.ready()
-  
+
   def receive: Receive = receiveWhileHandshaking
 
   def receiveWhileHandshaking: Receive = {
     case RequestReceived(message, replyCallback) if message.isInstanceOf[HandshakeRequestMessage] => {
       handshake(message.asInstanceOf[HandshakeRequestMessage], replyCallback)
     }
+    case handshakeSuccess: InternalHandshakeSuccess =>
+      handleHandshakeSuccess(handshakeSuccess)
     case ConnectionClosed => onConnectionClosed()
     case ConnectionDropped => onConnectionDropped()
     case ConnectionError(message) => onConnectionError(message)
@@ -83,6 +85,8 @@ class ClientActor(
     case RequestReceived(message, replyCallback) if message.isInstanceOf[AuthenticationRequestMessage] => {
       authenticate(message.asInstanceOf[AuthenticationRequestMessage], replyCallback)
     }
+    case authSuccess: InternalAuthSuccess =>
+      handleAuthenticationSuccess(authSuccess)
     case ConnectionClosed => onConnectionClosed()
     case ConnectionDropped => onConnectionDropped()
     case ConnectionError(message) => onConnectionError(message)
@@ -98,12 +102,11 @@ class ClientActor(
 
     val future = domainActor ? message
 
+    // FIXME if authentication fails we should probably stop the actor
+    // and or shut down the connection?
     future.mapResponse[AuthenticationResponse] onComplete {
       case Success(AuthenticationSuccess(uid, username)) => {
-        this.modelClient = context.actorOf(ModelClientActor.props(uid, sessionId, modelManagerActor))
-        this.userClient = context.actorOf(UserClientActor.props(userServiceActor))
-        cb.reply(AuthenticationResponseMessage(true, Some(username)))
-        context.become(receiveWhileAuthenticated)
+        self ! InternalAuthSuccess(uid, username, cb)
       }
       case Success(AuthenticationFailure) => {
         cb.reply(AuthenticationResponseMessage(false, None))
@@ -117,18 +120,21 @@ class ClientActor(
     }
   }
 
+  private[this] def handleAuthenticationSuccess(message: InternalAuthSuccess): Unit = {
+    val InternalAuthSuccess(uid, username, cb) = message
+    this.modelClient = context.actorOf(ModelClientActor.props(uid, sessionId, modelManagerActor))
+    this.userClient = context.actorOf(UserClientActor.props(userServiceActor))
+    context.become(receiveWhileAuthenticated)
+    cb.reply(AuthenticationResponseMessage(true, Some(username)))
+  }
+
   def handshake(request: HandshakeRequestMessage, cb: ReplyCallback): Unit = {
     val canceled = handshakeTimeoutTask.cancel()
     if (canceled) {
       val future = domainManager ? HandshakeRequest(domainFqn, self, request.r, request.k)
       future.mapResponse[HandshakeResponse] onComplete {
-        case Success(HandshakeSuccess(sessionId, reconnectToken, domainActor, modelManagerActor, userServiceActor)) => {
-          this.sessionId = sessionId
-          this.domainActor = domainActor
-          this.modelManagerActor = modelManagerActor
-          this.userServiceActor = userServiceActor
-          cb.reply(HandshakeResponseMessage(true, None, Some(sessionId), Some(reconnectToken), None, Some(ProtocolConfigData(true))))
-          context.become(receiveWhileAuthenticating)
+        case Success(success) if success.isInstanceOf[HandshakeSuccess] => {
+          self ! InternalHandshakeSuccess(success.asInstanceOf[HandshakeSuccess], cb)
         }
         case Success(HandshakeFailure(code, details)) => {
           cb.reply(HandshakeResponseMessage(false, Some(ErrorData(code, details)), None, None, Some(true), None))
@@ -144,8 +150,19 @@ class ClientActor(
     }
   }
 
+  def handleHandshakeSuccess(success: InternalHandshakeSuccess): Unit = {
+    val InternalHandshakeSuccess(HandshakeSuccess(sessionId, reconnectToken, domainActor, modelManagerActor, userServiceActor), cb) = success
+    this.sessionId = sessionId
+    this.domainActor = domainActor
+    this.modelManagerActor = modelManagerActor
+    this.userServiceActor = userServiceActor
+    cb.reply(HandshakeResponseMessage(true, None, Some(sessionId), Some(reconnectToken), None, Some(ProtocolConfigData(true))))
+    context.become(receiveWhileAuthenticating)
+  }
+
   // scalastyle:off cyclomatic.complexity
   def receiveWhileAuthenticated: Receive = {
+    // FIXME should we also disallow auth messages?
     case RequestReceived(message, replyPromise) if message.isInstanceOf[HandshakeRequestMessage] => invalidMessage(message)
 
     case message: OutgoingProtocolNormalMessage => onOutgoingMessage(message)
@@ -227,3 +244,6 @@ class ClientActor(
     }
   }
 }
+
+case class InternalAuthSuccess(uid: String, username: String, cb: ReplyCallback)
+case class InternalHandshakeSuccess(handshakeSuccess: HandshakeSuccess, cb: ReplyCallback)

@@ -7,6 +7,7 @@ import org.json4s.JsonAST.JValue
 import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.OpenModelMetaData
 import com.convergencelabs.server.ProtocolConfiguration
+import com.convergencelabs.server.domain.model.data.ObjectValue
 
 // scalastyle:off number.of.types
 
@@ -71,21 +72,21 @@ case class OperationSubmissionMessage(r: String, s: Long, v: Long, o: OperationD
 sealed trait IncomingModelRequestMessage extends IncomingProtocolRequestMessage
 case class OpenRealtimeModelRequestMessage(c: String, m: String, i: Boolean) extends IncomingModelRequestMessage
 case class CloseRealtimeModelRequestMessage(r: String) extends IncomingModelRequestMessage
-case class CreateRealtimeModelRequestMessage(c: String, m: String, d: JValue) extends IncomingModelRequestMessage
+case class CreateRealtimeModelRequestMessage(c: String, m: String, d: ObjectValue) extends IncomingModelRequestMessage
 case class DeleteRealtimeModelRequestMessage(c: String, m: String) extends IncomingModelRequestMessage
 
-case class ModelDataResponseMessage(d: JObject) extends IncomingProtocolResponseMessage
+case class ModelDataResponseMessage(d: ObjectValue) extends IncomingProtocolResponseMessage
 
-case class PublishReferenceMessage(r: String, p: List[Any], k: String, c: Int) extends IncomingModelNormalMessage
-case class UnpublishReferenceMessage(r: String, p: List[Any], k: String) extends IncomingModelNormalMessage
-case class SetReferenceMessage(r: String, p: List[Any], k: String, c: Int, v: JValue) extends IncomingModelNormalMessage
-case class ClearReferenceMessage(r: String, p: List[Any], k: String) extends IncomingModelNormalMessage
+case class PublishReferenceMessage(r: String, d: String, k: String, c: Int) extends IncomingModelNormalMessage
+case class UnpublishReferenceMessage(r: String, d: String, k: String) extends IncomingModelNormalMessage
+case class SetReferenceMessage(r: String, d: String, k: String, c: Int, v: Any, s: Long) extends IncomingModelNormalMessage
+case class ClearReferenceMessage(r: String, d: String, k: String) extends IncomingModelNormalMessage
 
 
 // Outgoing Model Messages
 case class OpenRealtimeModelResponseMessage(r: String, v: Long, c: Long, m: Long, d: OpenModelData) extends OutgoingProtocolResponseMessage
-case class OpenModelData(d: JValue, s: Set[String], r: Map[String, Set[ReferenceData]])
-case class ReferenceData(p: List[Any], k: String, c: Int, v: Option[JValue])
+case class OpenModelData(d: ObjectValue, s: Set[String], r: Set[ReferenceData])
+case class ReferenceData(s: String, d: String, k: String, c: Int, v: Option[Any])
 
 case class CloseRealTimeModelSuccessMessage() extends OutgoingProtocolResponseMessage
 
@@ -98,10 +99,10 @@ case class ModelForceCloseMessage(r: String, s: String) extends OutgoingProtocol
 
 case class ModelDataRequestMessage(c: String, m: String) extends OutgoingProtocolRequestMessage
 
-case class RemoteReferencePublishedMessage(r: String, s: String, p: List[Any], k: String, c: Int) extends OutgoingProtocolNormalMessage
-case class RemoteReferenceUnpublishedMessage(r: String, s: String, p: List[Any], k: String) extends OutgoingProtocolNormalMessage
-case class RemoteReferenceSetMessage(r: String, s: String, p: List[Any], k: String, c: Int, v: JValue) extends OutgoingProtocolNormalMessage
-case class RemoteReferenceClearedMessage(r: String, s: String, p: List[Any], k: String) extends OutgoingProtocolNormalMessage
+case class RemoteReferencePublishedMessage(r: String, s: String, d: String, k: String, c: Int) extends OutgoingProtocolNormalMessage
+case class RemoteReferenceUnpublishedMessage(r: String, s: String, d: String, k: String) extends OutgoingProtocolNormalMessage
+case class RemoteReferenceSetMessage(r: String, s: String, d: String, k: String, c: Int, v: Any) extends OutgoingProtocolNormalMessage
+case class RemoteReferenceClearedMessage(r: String, s: String, d: String, k: String) extends OutgoingProtocolNormalMessage
 
 ///////////////////////////////////////////////////////////////////////////////
 // User Messages

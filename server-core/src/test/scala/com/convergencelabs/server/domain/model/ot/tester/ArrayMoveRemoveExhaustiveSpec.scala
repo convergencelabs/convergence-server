@@ -1,14 +1,13 @@
 package com.convergencelabs.server.domain.model.ot
 
+import OperationPairExhaustiveSpec.ValueId
+
 class ArrayMoveRemoveExhaustiveSpec extends ArrayOperationExhaustiveSpec[ArrayMoveOperation, ArrayRemoveOperation] {
-
-  val serverOperationType: String = "ArrayMoveOperation"
-  val clientOperationType: String = "ArrayRemoveOperation"
-
+  
   def generateCases(): List[TransformationCase[ArrayMoveOperation, ArrayRemoveOperation]] = {
     for { r <- generateMoveRanges(); i <- generateIndices() } yield TransformationCase(
-      ArrayMoveOperation(List(), false, r.fromIndex, r.toIndex),
-      ArrayRemoveOperation(List(), false, i))
+      ArrayMoveOperation(ValueId, false, r.fromIndex, r.toIndex),
+      ArrayRemoveOperation(ValueId, false, i))
   }
 
   def transform(s: ArrayMoveOperation, c: ArrayRemoveOperation): (DiscreteOperation, DiscreteOperation) = {

@@ -2,8 +2,6 @@ package com.convergencelabs.server.domain.model.ot
 
 import scala.collection.JavaConverters.asScalaBufferConverter
 
-import com.convergencelabs.server.util.JValueMapper
-
 class MockArrayModel(private var state: List[Any]) extends MockModel {
 
   def updateModel(op: DiscreteOperation): Unit = {
@@ -37,7 +35,7 @@ class MockArrayModel(private var state: List[Any]) extends MockModel {
   }
 
   private def handleSet(op: ArraySetOperation): Unit = {
-    state = JValueMapper.jValueToJava(op.value).asInstanceOf[java.util.List[Any]].asScala.toList
+    state = op.value
   }
 
   def getData(): List[Any] = {

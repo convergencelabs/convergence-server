@@ -11,6 +11,8 @@ import com.convergencelabs.server.util.JValueMapper
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.convergencelabs.server.datastore.mapper.ODocumentMapper
+import ObjectValueMapper.ODocumentToObjectValue
+import ObjectValueMapper.ObjectValueToODocument
 
 object ModelSnapshotMapper extends ODocumentMapper {
 
@@ -24,7 +26,7 @@ object ModelSnapshotMapper extends ODocumentMapper {
     doc.field(Fields.ModelId, modelSnapshot.metaData.fqn.modelId)
     doc.field(Fields.Version, modelSnapshot.metaData.version)
     doc.field(Fields.Timestamp, new java.util.Date(modelSnapshot.metaData.timestamp.toEpochMilli()))
-    doc.field(Fields.Data, JValueMapper.jValueToJava(modelSnapshot.data))
+    doc.field(Fields.Data, modelSnapshot.data.asODocument)
     doc
   }
 
@@ -36,8 +38,8 @@ object ModelSnapshotMapper extends ODocumentMapper {
     validateDocumentClass(doc, DocumentClassName)
 
     // FIXME this assumes every thing is an object.
-    val dataMap: java.util.Map[String, Any] = doc.field(Fields.Data)
-    val data = JValueMapper.javaToJValue(dataMap)
+    val dataDoc: ODocument = doc.field(Fields.Data)
+    val data = dataDoc.asObjectValue
     ModelSnapshot(oDocumentToModelSnapshotMetaData(doc), data)
   }
 

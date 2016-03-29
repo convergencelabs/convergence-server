@@ -16,9 +16,9 @@ object ArrayRemoveOperationMapper extends ODocumentMapper {
   }
 
   private[domain] implicit def arrayRemoveOperationToODocument(obj: ArrayRemoveOperation): ODocument = {
-    val ArrayRemoveOperation(path, noOp, index) = obj
+    val ArrayRemoveOperation(id, noOp, index) = obj
     val doc = new ODocument(DocumentClassName)
-    doc.field(Fields.Path, path.asJava)
+    doc.field(Fields.Id, id)
     doc.field(Fields.NoOp, noOp)
     doc.field(Fields.Idx, index)
     doc
@@ -31,16 +31,16 @@ object ArrayRemoveOperationMapper extends ODocumentMapper {
   private[domain] implicit def oDocumentToArrayRemoveOperation(doc: ODocument): ArrayRemoveOperation = {
     validateDocumentClass(doc, DocumentClassName)
 
-    val path = doc.field(Fields.Path).asInstanceOf[JavaList[_]]
+    val id = doc.field(Fields.Id).asInstanceOf[String]
     val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
     val idx = doc.field(Fields.Idx).asInstanceOf[Int]
-    ArrayRemoveOperation(path.asScala.toList, noOp, idx)
+    ArrayRemoveOperation(id, noOp, idx)
   }
 
   private[domain] val DocumentClassName = "ArrayRemoveOperation"
 
   private[domain] object Fields {
-    val Path = "path"
+    val Id = "vid"
     val NoOp = "noOp"
     val Idx = "idx"
   }

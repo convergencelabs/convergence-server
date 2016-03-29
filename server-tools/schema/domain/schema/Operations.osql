@@ -6,8 +6,8 @@ CREATE CLASS Operation ABSTRACT;
 
 CREATE CLASS DiscreteOperation EXTENDS Operation ABSTRACT;
 
-#DiscreteOperation.path
-CREATE PROPERTY DiscreteOperation.path EMBEDDEDLIST;
+#DiscreteOperation.vid
+CREATE PROPERTY DiscreteOperation.path STRING;
 ALTER PROPERTY DiscreteOperation.path MANDATORY true;
 ALTER PROPERTY DiscreteOperation.path NOTNULL true;
 
@@ -70,7 +70,7 @@ ALTER PROPERTY ObjectSetPropertyOperation.prop MANDATORY true;
 ALTER PROPERTY ObjectSetPropertyOperation.prop NOTNULL true;
 
 #ObjectSetPropertyOperation.val
-#CREATE PROPERTY ObjectSetPropertyOperation.val ANY;
+#CREATE PROPERTY ObjectSetPropertyOperation.val EMBEDDED OpValue;
 #ALTER PROPERTY ObjectSetPropertyOperation.val MANDATORY true;
 
 ###################### ObjectAddPropertyOperation ######################
@@ -83,7 +83,7 @@ ALTER PROPERTY ObjectAddPropertyOperation.prop MANDATORY true;
 ALTER PROPERTY ObjectAddPropertyOperation.prop NOTNULL true;
 
 #ObjectAddPropertyOperation.val
-#CREATE PROPERTY ObjectAddPropertyOperation.val ANY;
+#CREATE PROPERTY ObjectAddPropertyOperation.val EMBEDDED OpValue;
 #ALTER PROPERTY ObjectAddPropertyOperation.val MANDATORY true;
 
 ###################### ObjectRemovePropertyOperation ######################
@@ -100,7 +100,7 @@ ALTER PROPERTY ObjectRemovePropertyOperation.prop NOTNULL true;
 CREATE CLASS ObjectSetOperation EXTENDS DiscreteOperation;
 
 #ObjectSetOperation.val
-CREATE PROPERTY ObjectSetOperation.val EMBEDDEDMAP;
+CREATE PROPERTY ObjectSetOperation.val EMBEDDEDMAP OpValue;
 ALTER PROPERTY ObjectSetOperation.val MANDATORY true;
 ALTER PROPERTY ObjectSetOperation.val NOTNULL true;
 
@@ -132,7 +132,7 @@ ALTER PROPERTY ArrayInsertOperation.idx MANDATORY true;
 ALTER PROPERTY ArrayInsertOperation.idx NOTNULL true;
 
 #ArrayInsertOperation.val
-#CREATE PROPERTY ArrayInsertOperation.val ANY;
+#CREATE PROPERTY ArrayInsertOperation.val OpValue;
 #ALTER PROPERTY ArrayInsertOperation.val MANDATORY true;
 
 ###################### ArrayRemoveOperation ######################
@@ -154,7 +154,7 @@ ALTER PROPERTY ArrayReplaceOperation.idx MANDATORY true;
 ALTER PROPERTY ArrayReplaceOperation.idx NOTNULL true;
 
 #ArrayReplaceOperation.val
-#CREATE PROPERTY ArrayReplaceOperation.val ANY;
+#CREATE PROPERTY ArrayReplaceOperation.val OpValue;
 #ALTER PROPERTY ArrayReplaceOperation.val MANDATORY true;
 
 ###################### ArrayMoveOperation ######################
@@ -176,6 +176,6 @@ ALTER PROPERTY ArrayMoveOperation.toIdx NOTNULL true;
 CREATE CLASS ArraySetOperation EXTENDS DiscreteOperation;
 
 #ArraySetOperation.val
-CREATE PROPERTY ArraySetOperation.val EMBEDDEDLIST;
+CREATE PROPERTY ArraySetOperation.val EMBEDDEDLIST OpValue;
 ALTER PROPERTY ArraySetOperation.val MANDATORY true;
 ALTER PROPERTY ArraySetOperation.val NOTNULL true;

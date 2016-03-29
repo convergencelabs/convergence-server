@@ -29,6 +29,7 @@ import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import org.json4s.JsonAST.JInt
 import org.json4s.JsonAST.JObject
+import com.convergencelabs.server.domain.model.data.ObjectValue
 
 // scalastyle:off magic.number
 class ProtocolConnectionSpec
@@ -278,7 +279,7 @@ class ProtocolConnectionSpec
     "receiving a reply" must {
 
       "ignore when the reply has no request" in new TestFixture {
-        val message = ModelDataResponseMessage(JObject())
+        val message = ModelDataResponseMessage(ObjectValue("id", Map()))
         val envelope = MessageEnvelope(message, None, Some(1L))
 
         val json = MessageSerializer.writeJson(envelope)
@@ -292,7 +293,7 @@ class ProtocolConnectionSpec
         val sentMessage = socket.expectSentMessage(10 millis)
         val sentEnvelope = MessageSerializer.readJson[MessageEnvelope](sentMessage)
 
-        val replyMessage = ModelDataResponseMessage(JObject())
+        val replyMessage = ModelDataResponseMessage(ObjectValue("id", Map()))
         val replyEnvelope = MessageEnvelope(replyMessage, None, sentEnvelope.q)
 
         val replyJson = MessageSerializer.writeJson(replyEnvelope)

@@ -1,7 +1,6 @@
 package com.convergencelabs.server.frontend.realtime
 
 import scala.language.postfixOps
-
 import org.json4s.JsonAST.JBool
 import org.json4s.JsonAST.JObject
 import org.json4s.JsonDSL.int2jvalue
@@ -18,6 +17,7 @@ import org.scalatest.Matchers
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
 import org.scalatest.junit.JUnitRunner
+import com.convergencelabs.server.domain.model.data.ObjectValue
 
 class MessageEnvelopeSpec
     extends WordSpecLike
@@ -32,7 +32,7 @@ class MessageEnvelopeSpec
       }
 
       "return a success when applying from valid JSON" in {
-        val expected = MessageEnvelope(new ModelDataResponseMessage(JObject()), None, Some(1L))
+        val expected = MessageEnvelope(new ModelDataResponseMessage(ObjectValue("id", Map())), None, Some(1L))
         val json = MessageSerializer.writeJson(expected)
         MessageEnvelope(json).success.value shouldBe expected
       }

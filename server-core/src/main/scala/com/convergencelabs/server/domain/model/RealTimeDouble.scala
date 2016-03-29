@@ -5,16 +5,17 @@ import com.convergencelabs.server.domain.model.ot.NumberAddOperation
 import com.convergencelabs.server.domain.model.ot.NumberSetOperation
 import org.json4s.JsonAST.JDouble
 import scala.util.Try
+import com.convergencelabs.server.domain.model.data.DoubleValue
 
 class RealTimeDouble(
+  private[this] val value: DoubleValue,
   private[this] val model: RealTimeModel,
   private[this] val parent: Option[RealTimeContainerValue],
-  private[this] val parentField: Option[Any],
-  private[this] var dblVal: JDouble)
-    extends RealTimeValue(model, parent, parentField) {
+  private[this] val parentField: Option[Any])
+    extends RealTimeValue(value.id, model, parent, parentField, List()) {
 
-  var double: Double = dblVal.values
-  
+  var double: Double = value.value
+
   def data(): Double = {
     this.double
   }
@@ -28,10 +29,10 @@ class RealTimeDouble(
   }
 
   private[this] def processAddOperation(op: NumberAddOperation): Unit = {
-    this.double = this.double + op.value.values
+    this.double = this.double + op.value
   }
 
   private[this] def processSetOperation(op: NumberSetOperation): Unit = {
-    this.double = op.value.values
+    this.double = op.value
   }
 }

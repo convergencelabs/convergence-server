@@ -30,7 +30,7 @@ class MockObjectModel(private var state: Map[String, Any]) extends MockModel {
   }
 
   private def handleSet(op: ObjectSetOperation): Unit = {
-    state = op.value.values
+    state = op.value
   }
 
   def getData(): Map[String, Any] = {

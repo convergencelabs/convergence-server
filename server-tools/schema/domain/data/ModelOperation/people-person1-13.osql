@@ -10,6 +10,6 @@ INSERT INTO ModelOperation SET
     "@class":"StringInsertOperation",
     "idx": 0,
     "noOp": false,
-    "path": ["fname"],
+    "vid": "pp1-fname",
     "val": "J"
   };

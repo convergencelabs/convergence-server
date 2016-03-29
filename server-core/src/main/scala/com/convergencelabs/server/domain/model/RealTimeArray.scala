@@ -22,27 +22,32 @@ import org.json4s.JsonAST.JArray
 import scala.util.Try
 import scala.util.Success
 import scala.util.Failure
+import com.convergencelabs.server.domain.model.data.ArrayValue
 
 class RealTimeArray(
+  private[this] val value: ArrayValue,
   private[this] val model: RealTimeModel,
   private[this] val parent: Option[RealTimeContainerValue],
-  private[this] val parentField: Option[Any],
-  private[this] val value: JArray)
-    extends RealTimeContainerValue(model, parent, parentField) {
+  private[this] val parentField: Option[Any])
+    extends RealTimeContainerValue(value.id, model, parent, parentField, List()) {
 
   var i = 0;
-  var children = value.arr.map {
-    x => this.model.createValue(Some(this), Some({ i += 1; i }), x)
+  var childValues = value.children.map {
+    x => this.model.createValue(x, Some(this), Some({ i += 1; i }))
+  }
+  
+  def children(): List[RealTimeValue] = {
+    childValues.toList
   }
 
   def valueAt(path: List[Any]): Option[RealTimeValue] = {
     path match {
       case Nil =>
         Some(this)
-      case (index: Int) :: Nil  =>
-        this.children.lift(index)
-      case (index: Int) :: rest  =>
-        this.children.lift(index).flatMap { 
+      case (index: Int) :: Nil =>
+        childValues.lift(index)
+      case (index: Int) :: rest =>
+        childValues.lift(index).flatMap {
           case child: RealTimeContainerValue => child.valueAt(rest)
           case _ => None
         }
@@ -50,15 +55,15 @@ class RealTimeArray(
         None
     }
   }
-  
+
   def data(): List[_] = {
     children.map({ v => v.data() })
   }
-  
+
   protected def child(childPath: Any): Try[Option[RealTimeValue]] = {
     childPath match {
-      case index: Int => 
-        Success(this.children.lift(index))
+      case index: Int =>
+        Success(childValues.lift(index))
       case _ =>
         Failure(new IllegalArgumentException("Child path must be a Int for a RealTimeArray"))
     }
@@ -76,40 +81,44 @@ class RealTimeArray(
   }
 
   def processInsertOperation(op: ArrayInsertOperation): Unit = {
-    val child = this.model.createValue(Some(this), Some(parentField), op.value)
-    this.children = this.children.patch(op.index, List(child), 0)
-    this.updateIndices(op.index + 1, this.children.length)
+    val child = this.model.createValue(op.value, Some(this), Some(parentField))
+    childValues = childValues.patch(op.index, List(child), 0)
+    this.updateIndices(op.index + 1, childValues.length - 1)
   }
 
   def processRemoveOperation(op: ArrayRemoveOperation): Unit = {
-    val oldChild = this.children(op.index)
-    this.children = this.children.patch(op.index, List(), 1)
-    this.updateIndices(op.index, this.children.length)
+    val oldChild = childValues(op.index)
+    childValues = childValues.patch(op.index, List(), 1)
+    this.updateIndices(op.index, childValues.length - 1)
   }
 
   def processReplaceOperation(op: ArrayReplaceOperation): Unit = {
-    val oldChild = this.children(op.index)
-    val child = this.model.createValue(Some(this), Some(parentField), op.value)
-    this.children = this.children.patch(op.index, List(child), 1)
+    val oldChild = childValues(op.index)
+    val child = this.model.createValue(op.value, Some(this), Some(parentField))
+    childValues = childValues.patch(op.index, List(child), 1)
   }
 
   def processReorderOperation(op: ArrayMoveOperation): Unit = {
-    val child = this.children(op.fromIndex)
-    this.children = this.children.patch(op.fromIndex, List(), 1)
-    this.children = this.children.patch(op.toIndex, List(child), 0)
+    val child = childValues(op.fromIndex)
+    childValues = childValues.patch(op.fromIndex, List(), 1)
+    childValues = childValues.patch(op.toIndex, List(child), 0)
     this.updateIndices(op.fromIndex, op.toIndex)
   }
 
   def processSetValueOperation(op: ArraySetOperation): Unit = {
     var i = 0;
-    this.children = op.value.arr.map {
-      x => this.model.createValue(Some(this), Some({ i += 1; i }), x)
+    childValues = op.value.map {
+      v => this.model.createValue(v, Some(this), Some({ i += 1; i }))
     }
   }
 
   private[this] def updateIndices(fromIndex: Int, toIndex: Int): Unit = {
     for (i <- fromIndex to toIndex) {
-      this.children(i).parentField = i
+      childValues(i).parentField = Some(i)
     }
   }
+  
+  def detachChildren(): Unit = {
+    childValues.foreach({child => child.detach()})
+  }  
 }

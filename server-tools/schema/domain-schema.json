@@ -7,6 +7,7 @@
     "domain/schema/Collection.osql",
     "domain/schema/Model.osql",
     "domain/schema/ModelSnapshot.osql",
+    "domain/schema/DataValue.osql",
     "domain/schema/Operations.osql",
     "domain/schema/ModelOperation.osql",
     "domain/schema/User.osql",

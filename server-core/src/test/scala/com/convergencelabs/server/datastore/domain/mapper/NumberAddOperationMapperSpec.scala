@@ -14,12 +14,10 @@ class NumberAddOperationMapperSpec
     extends WordSpec
     with Matchers {
 
-  val path = List(3, "foo", 4) // scalastyle:off magic.number
-
   "An NumberAddOperationMapper" when {
     "when converting NumberAddOperation operations" must {
       "correctly map and unmap a NumberAddOperation" in {
-        val op = NumberAddOperation(path, true, JDouble(4))
+        val op = NumberAddOperation("vid", true, 4)
         val opDoc = op.asODocument
         val reverted = opDoc.asNumberAddOperation
         op shouldBe reverted

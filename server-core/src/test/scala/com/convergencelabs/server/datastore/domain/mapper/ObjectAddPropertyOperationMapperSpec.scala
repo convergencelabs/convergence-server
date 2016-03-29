@@ -9,17 +9,16 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 import ObjectAddPropertyOperationMapper.ObjectAddPropertyOperationToODocument
 import ObjectAddPropertyOperationMapper.ODocumentToObjectAddPropertyOperation
 import org.json4s.JsonAST.JObject
+import com.convergencelabs.server.domain.model.data.StringValue
 
 class ObjectAddPropertyOperationMapperSpec
     extends WordSpec
     with Matchers {
 
-  val path = List(3, "foo", 4) // scalastyle:off magic.number
-
   "An ObjectAddPropertyOperationMapper" when {
     "when converting ObjectAddPropertyOperation operations" must {
       "correctly map and unmap a ObjectAddPropertyOperation" in {
-        val op = ObjectAddPropertyOperation(path, true, "foo", JString("bar"))
+        val op = ObjectAddPropertyOperation("vid", true, "foo", StringValue("vid1", "bar"))
         val opDoc = op.asODocument
         val reverted = opDoc.asObjectAddPropertyOperation
         op shouldBe reverted

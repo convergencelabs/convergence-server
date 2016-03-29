@@ -2,19 +2,19 @@ package com.convergencelabs.server.datastore.domain
 
 import java.text.SimpleDateFormat
 import java.time.Instant
-
 import org.json4s.JsonAST.JObject
 import org.json4s.JsonAST.JString
 import org.scalatest.Matchers
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
-
 import com.convergencelabs.server.domain.model.Model
 import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelMetaData
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
+import com.convergencelabs.server.domain.model.data.StringValue
+import com.convergencelabs.server.domain.model.data.ObjectValue
 
 // scalastyle:off magic.number
 class ModelStoreSpec
@@ -81,7 +81,8 @@ class ModelStoreSpec
             0L,
             time,
             time),
-          JObject("foo" -> JString("bar")))
+            ObjectValue("t1-data", 
+                Map(("foo" -> StringValue("t1-foo", "bar")))))
 
         store.createModel(model).success
         store.getModel(modelFqn).success.value.value shouldBe model
@@ -95,7 +96,8 @@ class ModelStoreSpec
             0L,
             time,
             time),
-          JObject("foo" -> JString("bar")))
+            ObjectValue("t2-data", 
+                Map(("foo" -> StringValue("t2-foo", "bar")))))
 
         store.createModel(model).failure.exception shouldBe a[ORecordDuplicatedException]
       }

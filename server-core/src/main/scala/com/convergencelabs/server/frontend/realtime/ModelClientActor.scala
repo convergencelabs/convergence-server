@@ -50,6 +50,7 @@ import com.convergencelabs.server.domain.model.RemoteReferenceUnpublished
 import com.convergencelabs.server.domain.model.RemoteReferenceSet
 import com.convergencelabs.server.domain.model.RemoteReferenceCleared
 import com.convergencelabs.server.domain.model.ReferenceState
+import com.convergencelabs.server.domain.model.SessionKey
 
 object ModelClientActor {
   def props(
@@ -66,6 +67,8 @@ class ModelClientActor(
     extends Actor with ActorLogging {
 
   var openRealtimeModels = Map[String, ActorRef]()
+
+  val sessionKey = SessionKey(userId, sessionId)
 
   // FIXME hardcoded
   implicit val timeout = Timeout(5 seconds)
@@ -158,7 +161,21 @@ class ModelClientActor(
 
   def onRemoteReferenceSet(refSet: RemoteReferenceSet): Unit = {
     val RemoteReferenceSet(resourceId, sessionId, path, key, refType, value) = refSet
-    context.parent ! RemoteReferenceSetMessage(resourceId, sessionId, path, key, ReferenceType.map(refType), value)
+    val mappedType = ReferenceType.map(refType)
+    val mappedValue = mapOutgoingReferenceValue(refType, value)
+    context.parent ! RemoteReferenceSetMessage(resourceId, sessionId, path, key, mappedType, mappedValue)
+  }
+  
+  def mapOutgoingReferenceValue(refType: ReferenceType.Value, value: Any): Any = {
+    refType match {
+      case ReferenceType.Index =>
+        value
+      case ReferenceType.Range =>
+        val range = value.asInstanceOf[(Int, Int)]
+        List(range._1, range._2)
+      case _ => 
+        ??? // FIXME
+    }
   }
 
   def onRemoteReferenceCleared(refCleared: RemoteReferenceCleared): Unit = {
@@ -197,29 +214,42 @@ class ModelClientActor(
   }
 
   def onPublishReference(message: PublishReferenceMessage): Unit = {
-    val PublishReferenceMessage(resourceId, path, key, refType) = message
-    val publishReference = PublishReference(path, key, ReferenceType.map(refType))
+    val PublishReferenceMessage(resourceId, id, key, refType) = message
+    val publishReference = PublishReference(id, key, ReferenceType.map(refType))
     val modelActor = openRealtimeModels(resourceId)
     modelActor ! publishReference
   }
 
   def onUnpublishReference(message: UnpublishReferenceMessage): Unit = {
-    val UnpublishReferenceMessage(resourceId, path, key) = message
-    val unpublishReference = UnpublishReference(path, key)
+    val UnpublishReferenceMessage(resourceId, id, key) = message
+    val unpublishReference = UnpublishReference(id, key)
     val modelActor = openRealtimeModels(resourceId)
     modelActor ! unpublishReference
   }
 
   def onSetReference(message: SetReferenceMessage): Unit = {
-    val SetReferenceMessage(resourceId, path, key, refType, value) = message
-    val setReference = SetReference(path, key, ReferenceType.map(refType), value)
+    val SetReferenceMessage(resourceId, id, key, refType, value, version) = message
+    val mappedType = ReferenceType.map(refType)
+    val setReference = SetReference(id, key, mappedType, mapIncomingReferenceValue(mappedType, value), version)
     val modelActor = openRealtimeModels(resourceId)
     modelActor ! setReference
   }
 
+  def mapIncomingReferenceValue(refType: ReferenceType.Value, value: Any): Any = {
+    refType match {
+      case ReferenceType.Index =>
+        value.asInstanceOf[BigInt].intValue()
+      case ReferenceType.Range =>
+        val range = value.asInstanceOf[List[BigInt]]
+        (range(0).intValue(), range(1).intValue())
+      case _ => 
+        ??? // FIXME
+    }
+  }
+
   def onClearReference(message: ClearReferenceMessage): Unit = {
-    val ClearReferenceMessage(resourceId, path, key) = message
-    val clearReference = ClearReference(path, key)
+    val ClearReferenceMessage(resourceId, id, key) = message
+    val clearReference = ClearReference(id, key)
     val modelActor = openRealtimeModels(resourceId)
     modelActor ! clearReference
   }
@@ -230,13 +260,12 @@ class ModelClientActor(
     future.mapResponse[OpenModelResponse] onComplete {
       case Success(OpenModelSuccess(realtimeModelActor, modelResourceId, metaData, connectedClients, references, modelData)) => {
         openRealtimeModels += (modelResourceId -> realtimeModelActor)
-        val convertedReferences = references.map({
-          case (sk, refs) =>
-            (sk.serialize(), refs.map(ref => {
-              val ReferenceState(path, key, refType, value) = ref
-              ReferenceData(path, key, ReferenceType.map(refType), value)
-            }))
-        })
+        val convertedReferences = references.map { ref =>
+          val ReferenceState(sessionId, valueId, key, refType, value) = ref
+          val mappedType = ReferenceType.map(refType)
+          val mappedValue = value.map { v => mapOutgoingReferenceValue(refType, v)}
+          ReferenceData(sessionId, valueId, key, mappedType, mappedValue)
+        }.toSet
         cb.reply(
           OpenRealtimeModelResponseMessage(
             modelResourceId,

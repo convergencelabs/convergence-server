@@ -18,9 +18,9 @@ trait ODocumentMapper {
     }
   }
 
-  protected[datastore] def validateDocumentClass(doc: ODocument, className: String): Unit = {
-    if (doc.getClassName != className) {
-      throw new IllegalArgumentException(s"The ODocument class must be '${className}': ${doc.getClassName}")
+  protected[datastore] def validateDocumentClass(doc: ODocument, validClassNames: String*): Unit = {
+    if (!validClassNames.contains(doc.getClassName)) {
+      throw new IllegalArgumentException(s"The ODocument class must be one of '${validClassNames}': ${doc.getClassName}")
     }
   }
 

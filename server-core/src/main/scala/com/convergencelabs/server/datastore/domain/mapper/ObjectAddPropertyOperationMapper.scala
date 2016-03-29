@@ -9,6 +9,8 @@ import com.convergencelabs.server.util.JValueMapper
 import com.orientechnologies.orient.core.record.impl.ODocument
 import org.json4s.JsonAST.JObject
 import com.convergencelabs.server.datastore.mapper.ODocumentMapper
+import DataValueMapper.DataValueToODocument
+import DataValueMapper.ODocumentToDataValue
 
 object ObjectAddPropertyOperationMapper extends ODocumentMapper {
 
@@ -17,12 +19,12 @@ object ObjectAddPropertyOperationMapper extends ODocumentMapper {
   }
 
   private[domain] implicit def objectAddPropertyOperationToODocument(obj: ObjectAddPropertyOperation): ODocument = {
-    val ObjectAddPropertyOperation(path, noOp, prop, value) = obj
+    val ObjectAddPropertyOperation(id, noOp, prop, value) = obj
     val doc = new ODocument(DocumentClassName)
-    doc.field(Fields.Path, path.asJava)
+    doc.field(Fields.Id, id)
     doc.field(Fields.NoOp, noOp)
     doc.field(Fields.Prop, prop)
-    doc.field(Fields.Val, JValueMapper.jValueToJava(value))
+    doc.field(Fields.Val, value.asODocument)
     doc
   }
 
@@ -33,17 +35,17 @@ object ObjectAddPropertyOperationMapper extends ODocumentMapper {
   private[domain] implicit def oDocumentToObjectAddPropertyOperation(doc: ODocument): ObjectAddPropertyOperation = {
     validateDocumentClass(doc, DocumentClassName)
 
-    val path = doc.field(Fields.Path).asInstanceOf[JavaList[_]]
+    val id = doc.field(Fields.Id).asInstanceOf[String]
     val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
     val prop = doc.field(Fields.Prop).asInstanceOf[String]
-    val value = JValueMapper.javaToJValue(doc.field(Fields.Val))
-    ObjectAddPropertyOperation(path.asScala.toList, noOp, prop, value)
+    val value = doc.field(Fields.Val).asInstanceOf[ODocument].asDataValue
+    ObjectAddPropertyOperation(id, noOp, prop, value)
   }
 
   private[domain] val DocumentClassName = "ObjectAddPropertyOperation"
 
   private[domain] object Fields {
-    val Path = "path"
+    val Id = "vid"
     val NoOp = "noOp"
     val Prop = "prop"
     val Val = "val"

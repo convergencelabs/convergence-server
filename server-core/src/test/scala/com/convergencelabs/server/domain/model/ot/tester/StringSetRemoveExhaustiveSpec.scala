@@ -1,14 +1,13 @@
 package com.convergencelabs.server.domain.model.ot
 
-class StringSetRemoveExhaustiveSpec extends StringOperationExhaustiveSpec[StringSetOperation, StringRemoveOperation] {
+import OperationPairExhaustiveSpec.ValueId
 
-  val serverOperationType: String = "StringSetOperation"
-  val clientOperationType: String = "StringRemoveOperation"
+class StringSetRemoveExhaustiveSpec extends StringOperationExhaustiveSpec[StringSetOperation, StringRemoveOperation] {
 
   def generateCases(): List[TransformationCase[StringSetOperation, StringRemoveOperation]] = {
     for { i <- generateIndices() } yield TransformationCase(
-      StringSetOperation(List(), false, "SetString"),
-      StringRemoveOperation(List(), false, i, "Y"))
+      StringSetOperation(ValueId, false, "SetString"),
+      StringRemoveOperation(ValueId, false, i, "Y"))
   }
 
   def transform(s: StringSetOperation, c: StringRemoveOperation): (DiscreteOperation, DiscreteOperation) = {

@@ -10,6 +10,11 @@ INSERT INTO ModelOperation SET
     "@class":"ObjectAddPropertyOperation",
     "prop": "cell",
     "noOp": false,
-    "path": [],
-    "val": "555-555-5555"
+    "vid": "pp1-data",
+    "val": {
+    		"@type": "d",
+    		"@class": "StringOpValue",
+    		"vid": "pp1-op9",
+    		"value": "555-555-5555"
+    	}
   };

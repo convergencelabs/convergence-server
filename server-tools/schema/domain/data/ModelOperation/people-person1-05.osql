@@ -9,6 +9,22 @@ INSERT INTO ModelOperation SET
     "@type": "d",
     "@class":"ArraySetOperation",
     "noOp": false,
-    "path": ["emails"],
-    "val": ["one@email.com", "two@email.com", "three@email.com", "four@email.com"]
+    "vid": "pp1-emails",
+    "val": [
+    	{"@type": "d",
+    	"@class": "StringOpValue",
+    	"vid": "pp1-op5-1",
+    	"value": "one@email.com"}, 
+    	{"@type": "d",
+    	"@class": "StringOpValue",
+    	"vid": "pp1-op5-2",
+    	"value": "two@email.com"}, 
+    	{"@type": "d",
+    	"@class": "StringOpValue",
+    	"vid": "pp1-op5-3",
+    	"value": "three@email.com"}, 
+    	{"@type": "d",
+    	"@class": "StringOpValue",
+    	"vid": "pp1-op5-4",
+    	"value": "four@email.com"}]
   };

@@ -10,6 +10,11 @@ INSERT INTO ModelOperation SET
     "@class":"ObjectSetPropertyOperation",
     "prop": "married",
     "noOp": false,
-    "path": [],
-    "val": true
+    "vid": "pp1-married",
+    "val": {
+		"@type": "d",
+		"@class": "BooleanOpValue",
+		"vid": "pp1-op12",
+		"value": true
+	}
   };

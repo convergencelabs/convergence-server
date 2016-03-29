@@ -102,7 +102,7 @@ class OrientDatabaseBuilder(
 
   private[this] def buildFromInputOutput(schemaFiles: List[String], outputFile: String): Unit = {
     schemaFiles.foreach { filename =>
-      processessScript(filename)
+      processessScript(filename, false)
     }
 
     exportDatabase(outputFile)
@@ -114,14 +114,14 @@ class OrientDatabaseBuilder(
     val manifestData = fromFile(manifestFile).mkString
     implicit val f = DefaultFormats
     val manifest = read[DatabaseBuilderConfig](manifestData)
-    processManifestScripts(manifest.schemaScripts, manifestFile.getParent)
-    processManifestScripts(manifest.dataScripts, manifestFile.getParent)
+    processManifestScripts(manifest.schemaScripts, manifestFile.getParent, false)
+    processManifestScripts(manifest.dataScripts, manifestFile.getParent, true)
 
     println(s"Building database build completed")
     exportDatabase(manifest.outputFile)
   }
 
-  private[this] def processManifestScripts(scriptFiles: Option[List[String]], basePath: String): Unit = {
+  private[this] def processManifestScripts(scriptFiles: Option[List[String]], basePath: String, useTransaction: Boolean): Unit = {
     scriptFiles match {
       case Some(scripts) => scripts.foreach { script =>
         val potentialFile = new File(script)
@@ -130,13 +130,13 @@ class OrientDatabaseBuilder(
         } else {
           new File(basePath, script)
         }
-        processessScript(scriptFile.getAbsolutePath)
+        processessScript(scriptFile.getAbsolutePath, useTransaction)
       }
       case None =>
     }
   }
 
-  private[this] def processessScript(filename: String): Unit = {
+  private[this] def processessScript(filename: String, useTransaction: Boolean): Unit = {
     if (verbose) {
       println(s"Processing script: $filename")
     }
@@ -151,8 +151,12 @@ class OrientDatabaseBuilder(
       val mergedLines = smartSplitLines.asScala.toList.map {
         line => line.replace('\n', ' ')
       }
-      
-      db.command(new OCommandScript(mergedLines.mkString("\n"))).execute()
+      if(useTransaction) {
+        db.begin()
+      }
+      val sql = mergedLines.mkString("\n")
+      println(sql)
+      db.command(new OCommandScript(sql)).execute()
       db.commit()
     } finally {
       source.close()

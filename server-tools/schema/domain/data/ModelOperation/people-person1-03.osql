@@ -10,5 +10,5 @@ INSERT INTO ModelOperation SET
     "@class":"ArrayRemoveOperation",
     "idx": 3,
     "noOp": false,
-    "path": ["emails"]
+    "vid": "pp1-emails"
   };

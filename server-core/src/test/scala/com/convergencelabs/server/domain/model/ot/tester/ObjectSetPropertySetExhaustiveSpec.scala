@@ -1,15 +1,11 @@
 package com.convergencelabs.server.domain.model.ot
 
-import org.json4s.JsonDSL.int2jvalue
-
 import ObjectOperationExhaustiveSpec.NewProperties
 import ObjectOperationExhaustiveSpec.NewValues
 import ObjectOperationExhaustiveSpec.SetObjects
+import OperationPairExhaustiveSpec.ValueId
 
 class ObjectSetPropertySetExhaustiveSpec extends ObjectOperationExhaustiveSpec[ObjectSetPropertyOperation, ObjectSetOperation] {
-
-  val serverOperationType: String = "ObjectSetPropertyOperation"
-  val clientOperationType: String = "ObjectSetOperation"
 
   def generateCases(): List[TransformationCase[ObjectSetPropertyOperation, ObjectSetOperation]] = {
     for {
@@ -17,8 +13,8 @@ class ObjectSetPropertySetExhaustiveSpec extends ObjectOperationExhaustiveSpec[O
       value1 <- NewValues
       newObject <- SetObjects
     } yield TransformationCase(
-      ObjectSetPropertyOperation(List(), false, prop1, value1),
-      ObjectSetOperation(List(), false, newObject))
+      ObjectSetPropertyOperation(ValueId, false, prop1, value1),
+      ObjectSetOperation(ValueId, false, newObject))
   }
 
   def transform(s: ObjectSetPropertyOperation, c: ObjectSetOperation): (DiscreteOperation, DiscreteOperation) = {

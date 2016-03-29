@@ -6,6 +6,7 @@ import com.convergencelabs.server.domain.model.ot.Operation
 import akka.actor.ActorRef
 import java.time.Instant
 import java.time.Duration
+import com.convergencelabs.server.domain.model.data.ObjectValue
 
 package model {
 
@@ -14,17 +15,20 @@ package model {
   //
   case class OpenRequestRecord(clientActor: ActorRef, askingActor: ActorRef)
   case class OpenRealtimeModelRequest(userId: String, sessionId: String, modelFqn: ModelFqn, initializerProvided: Boolean, clientActor: ActorRef)
-  case class CreateModelRequest(modelFqn: ModelFqn, modelData: JValue)
+  case class CreateModelRequest(modelFqn: ModelFqn, modelData: ObjectValue)
   case class DeleteModelRequest(modelFqn: ModelFqn)
   case class CloseRealtimeModelRequest(userId: String, sessionId: String)
   case class OperationSubmission(seqNo: Long, contextVersion: Long, operation: Operation)
-  case class ClientModelDataResponse(modelData: JValue)
+  case class ClientModelDataResponse(modelData: ObjectValue)
 
-  sealed trait ModelReferenceEvent
-  case class PublishReference(path: List[Any], key: String, referenceType: ReferenceType.Value) extends ModelReferenceEvent
-  case class SetReference(path: List[Any], key: String, referenceType: ReferenceType.Value, value: JValue) extends ModelReferenceEvent
-  case class ClearReference(path: List[Any], key: String) extends ModelReferenceEvent
-  case class UnpublishReference(path: List[Any], key: String) extends ModelReferenceEvent
+  sealed trait ModelReferenceEvent {
+    val id: String
+  }
+  
+  case class PublishReference(id: String, key: String, referenceType: ReferenceType.Value) extends ModelReferenceEvent
+  case class SetReference(id: String, key: String, referenceType: ReferenceType.Value, value: Any, contextVersion: Long) extends ModelReferenceEvent
+  case class ClearReference(id: String, key: String) extends ModelReferenceEvent
+  case class UnpublishReference(id: String, key: String) extends ModelReferenceEvent
 
   sealed trait DeleteModelResponse
   case object ModelDeleted extends DeleteModelResponse
@@ -55,14 +59,15 @@ package model {
     modelResourceId: String,
     metaData: OpenModelMetaData,
     connectedClients: Set[SessionKey],
-    referencesBySession: Map[SessionKey, Set[ReferenceState]],
-    modelData: JValue) extends OpenModelResponse
+    referencesBySession: Set[ReferenceState],
+    modelData: ObjectValue) extends OpenModelResponse
 
   case class ReferenceState(
-    path: List[Any],
+    sessionId: String,
+    valueId: String,
     key: String,
     referenceType: ReferenceType.Value,
-    value: Option[JValue])
+    value: Option[Any])
 
   sealed trait OpenModelFailure extends OpenModelResponse
   case object ModelAlreadyOpen extends OpenModelFailure
@@ -87,10 +92,11 @@ package model {
   case class ModelForceClose(resourceId: String, reason: String) extends RealtimeModelClientMessage
   case class ClientModelDataRequest(modelFqn: ModelFqn) extends RealtimeModelClientMessage
 
-  case class RemoteReferencePublished(resourceId: String, sessionId: String, path: List[Any], key: String, referenceType: ReferenceType.Value) extends RealtimeModelClientMessage
-  case class RemoteReferenceSet(resourceId: String, sessionId: String, path: List[Any], key: String, referenceType: ReferenceType.Value, value: JValue) extends RealtimeModelClientMessage
-  case class RemoteReferenceCleared(resourceId: String, sessionId: String, path: List[Any], key: String) extends RealtimeModelClientMessage
-  case class RemoteReferenceUnpublished(resourceId: String, sessionId: String, path: List[Any], key: String) extends RealtimeModelClientMessage
+  sealed trait RemoteReferenceEvent extends RealtimeModelClientMessage
+  case class RemoteReferencePublished(resourceId: String, sessionId: String, id: String, key: String, referenceType: ReferenceType.Value) extends RemoteReferenceEvent
+  case class RemoteReferenceSet(resourceId: String, sessionId: String, id: String, key: String, referenceType: ReferenceType.Value, value: Any) extends RemoteReferenceEvent
+  case class RemoteReferenceCleared(resourceId: String, sessionId: String, id: String, key: String) extends RemoteReferenceEvent
+  case class RemoteReferenceUnpublished(resourceId: String, sessionId: String, id: String, key: String) extends RemoteReferenceEvent
 
   case object ModelNotOpened
 }

@@ -1,17 +1,16 @@
 package com.convergencelabs.server.domain.model.ot
 
-import org.json4s.JString
-import org.json4s.JsonAST.JArray
+import com.convergencelabs.server.domain.model.data.StringValue
+import OperationPairExhaustiveSpec.ValueId
+import ArrayOperationExhaustiveSpec.ArrayValue
+import ArrayOperationExhaustiveSpec.Value1
 
 class ArraySetReplaceExhaustiveSpec extends ArrayOperationExhaustiveSpec[ArraySetOperation, ArrayReplaceOperation] {
 
-  val serverOperationType: String = "ArraySetOperation"
-  val clientOperationType: String = "ArrayReplaceOperation"
-
   def generateCases(): List[TransformationCase[ArraySetOperation, ArrayReplaceOperation]] = {
     for { i <- generateIndices() } yield TransformationCase(
-      ArraySetOperation(List(), false, JArray(List(JString("X")))),
-      ArrayReplaceOperation(List(), false, i, JString("Y")))
+      ArraySetOperation(ValueId, false, ArrayValue),
+      ArrayReplaceOperation(ValueId, false, i, Value1))
   }
 
   def transform(s: ArraySetOperation, c: ArrayReplaceOperation): (DiscreteOperation, DiscreteOperation) = {
