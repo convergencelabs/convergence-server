@@ -8,23 +8,26 @@ class RangeReference(
   modelValue: RealTimeValue,
   sessionId: String,
   key: String)
-    extends ModelReference[(Int, Int)](modelValue, sessionId, key) {
-  
-  def handleInsert(index: Int, length: Int): Unit = {
+    extends ModelReference[(Int, Int)](modelValue, sessionId, key)
+    with PositionalInsertAware
+    with PositionalRemoveAware
+    with PositionalReorderAware {
+
+  def handlePositionalInsert(index: Int, length: Int): Unit = {
     this.value = this.value.map { v =>
       val xFormed = IndexTransformer.handleInsert(List(v._1, v._2), index, length)
       (xFormed(0), xFormed(1))
     }
   }
 
-  def handleRemove(index: Int, length: Int): Unit = {
+  def handlePositionalRemove(index: Int, length: Int): Unit = {
     this.value = this.value.map { v =>
       val xFormed = IndexTransformer.handleRemove(List(v._1, v._2), index, length)
       (xFormed(0), xFormed(1))
     }
   }
 
-  def handleReorder(fromIndex: Int, toIndex: Int): Unit = {
+  def handlePositionalReorder(fromIndex: Int, toIndex: Int): Unit = {
     this.value = this.value.map { v =>
       val xFormed = IndexTransformer.handleReorder(List(v._1, v._2), fromIndex, toIndex)
       (xFormed(0), xFormed(1))
