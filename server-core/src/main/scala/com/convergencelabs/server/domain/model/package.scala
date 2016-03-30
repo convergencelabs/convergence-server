@@ -57,6 +57,7 @@ package model {
   case class OpenModelSuccess(
     realtimeModelActor: ActorRef,
     modelResourceId: String,
+    valuePrefix: String,
     metaData: OpenModelMetaData,
     connectedClients: Set[SessionKey],
     referencesBySession: Set[ReferenceState],

@@ -337,6 +337,7 @@ class RealtimeModelActor(
     val openModelResponse = OpenModelSuccess(
       self,
       modelResourceId,
+      sk.serialize(), // TODO eventually we want to use some other smaller value.
       metaData,
       connectedClients.keySet,
       referencesBySession,

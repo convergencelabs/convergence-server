@@ -258,7 +258,7 @@ class ModelClientActor(
     val future = modelManager ? OpenRealtimeModelRequest(
       userId, sessionId, ModelFqn(request.c, request.m), request.i, self)
     future.mapResponse[OpenModelResponse] onComplete {
-      case Success(OpenModelSuccess(realtimeModelActor, modelResourceId, metaData, connectedClients, references, modelData)) => {
+      case Success(OpenModelSuccess(realtimeModelActor, modelResourceId, valueIdPrefix, metaData, connectedClients, references, modelData)) => {
         openRealtimeModels += (modelResourceId -> realtimeModelActor)
         val convertedReferences = references.map { ref =>
           val ReferenceState(sessionId, valueId, key, refType, value) = ref
@@ -269,6 +269,7 @@ class ModelClientActor(
         cb.reply(
           OpenRealtimeModelResponseMessage(
             modelResourceId,
+            valueIdPrefix,
             metaData.version,
             metaData.createdTime.toEpochMilli,
             metaData.modifiedTime.toEpochMilli,
