@@ -41,6 +41,8 @@ class ReferenceManager(
         new IndexReference(this.source, sessionId, event.key)
       case ReferenceType.Range =>
         new RangeReference(this.source, sessionId, event.key)
+      case ReferenceType.Property =>
+        new PropertyReference(this.source, sessionId, event.key)
     }
 
     this.referenceMap.put(reference)
@@ -69,6 +71,8 @@ class ReferenceManager(
         reference.set(event.value.asInstanceOf[Int])
       case Some(reference: RangeReference) => 
         reference.set(event.value.asInstanceOf[(Int, Int)])
+      case Some(reference: PropertyReference) => 
+        reference.set(event.value.asInstanceOf[String])
       case Some(_) => 
         throw new IllegalArgumentException("Unknown reference type");
       case None => 

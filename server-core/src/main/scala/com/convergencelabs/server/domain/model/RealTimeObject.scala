@@ -10,13 +10,14 @@ import scala.util.Try
 import org.json4s.JsonAST.JObject
 import com.convergencelabs.server.domain.model.ot.DiscreteOperation
 import com.convergencelabs.server.domain.model.data.ObjectValue
+import com.convergencelabs.server.domain.model.reference.PropertyRemoveAware
 
 class RealTimeObject(
   private[this] val value: ObjectValue,
   private[this] val model: RealTimeModel,
   private[this] val parent: Option[RealTimeContainerValue],
   private[this] val parentField: Option[Any])
-    extends RealTimeContainerValue(value.id, model, parent, parentField, List()) {
+    extends RealTimeContainerValue(value.id, model, parent, parentField, List(ReferenceType.Property)) {
 
   var childValues: Map[String, RealTimeValue] = value.children.map {
     case (k, v) => (k, this.model.createValue(v, Some(this), Some(k)))
@@ -81,6 +82,10 @@ class RealTimeObject(
 
     val child = this.childValues(op.property)
     childValues = this.childValues - op.property
+    
+    this.referenceManager.referenceMap.getAll().foreach {
+      case x: PropertyRemoveAware => x.handlePropertyRemove(op.property)
+    }
   }
 
   def processSetPropertyOperation(op: ObjectSetPropertyOperation): Try[Unit] = Try {

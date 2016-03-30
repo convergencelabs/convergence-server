@@ -11,3 +11,7 @@ trait PositionalRemoveAware {
 trait PositionalReorderAware {
   def handlePositionalReorder(fromIndex: Int, toIndex: Int): Unit
 }
+
+trait PropertyRemoveAware {
+  def handlePropertyRemove(property: String): Unit
+}
