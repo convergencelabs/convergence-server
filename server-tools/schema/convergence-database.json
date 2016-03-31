@@ -3,12 +3,15 @@
   "schemaScripts": [
     "convergence/schema/Configuration.osql",
     "convergence/schema/Domain.osql",
-    "convergence/schema/User.osql"
+    "convergence/schema/User.osql",
+    "convergence/schema/UserCredential.osql"
   ],
   "dataScripts": [
     "convergence/data/Configuration/configuration.osql",
     "convergence/data/Domain/namespace1-domain1.osql",
     "convergence/data/Domain/namespace1-domain2.osql",
-    "convergence/data/Domain/namespace2-domain1.osql"
+    "convergence/data/Domain/namespace2-domain1.osql",
+    "convergence/data/User/cu0.osql",
+    "convergence/data/UserCredential/cu0.osql"
   ]
 }
