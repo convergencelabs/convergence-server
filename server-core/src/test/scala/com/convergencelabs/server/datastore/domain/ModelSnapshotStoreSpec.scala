@@ -30,21 +30,21 @@ class ModelSnapshotStoreSpec
   val person2ModelFqn = ModelFqn(CollectionId, "person2")
   val nonExistingModelFqn = ModelFqn(CollectionId, "noPerson")
 
-  val df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+  val df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSz")
 
   val p1Snapshot0Version = 0L
-  val p1Snapshot0Date = df.parse("2015-10-20 01:00:00").getTime
+  val p1Snapshot0Date = df.parse("2015-10-20T01:00:00.000+0000").getTime
 
   val inbetweenVersion = 5L
 
   val p1Snapshot10Version = 10L
-  val p1Snapshot10Date = df.parse("2015-10-20 10:00:00").getTime
+  val p1Snapshot10Date = df.parse("2015-10-20T10:00:00.000+0000").getTime
 
   val p1Snapshot20Version = 20L
-  val p1Snapshot20Date = df.parse("2015-10-20 12:00:00").getTime
+  val p1Snapshot20Date = df.parse("2015-10-20T12:00:00.000+0000").getTime
 
   "A ModelSnapshotStore" when {
-    "when creating a snapshot" must {
+    "creating a snapshot" must {
       "be able to get the snapshot that was created" in withPersistenceStore { store =>
         val version = 5L
         val timestamp = Instant.now()

@@ -22,7 +22,7 @@ class ModelStoreSpec
     with WordSpecLike
     with Matchers {
 
-  val df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+  val df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSz")
 
   def createStore(dbPool: OPartitionedDatabasePool): ModelStore = new ModelStore(dbPool)
 
@@ -32,29 +32,29 @@ class ModelStoreSpec
   val person1MetaData = ModelMetaData(
     person1,
     20,
-    Instant.ofEpochMilli(df.parse("2015-10-20 01:00:00").getTime),
-    Instant.ofEpochMilli(df.parse("2015-10-20 12:00:00").getTime))
+    Instant.ofEpochMilli(df.parse("2015-10-20T01:00:00.000+0000").getTime),
+    Instant.ofEpochMilli(df.parse("2015-10-20T12:00:00.000+0000").getTime))
 
   val person2 = ModelFqn(peopleCollectionId, "person2")
   val person2MetaData = ModelMetaData(
     person2,
     0,
-    Instant.ofEpochMilli(df.parse("2015-10-20 02:00:00").getTime),
-    Instant.ofEpochMilli(df.parse("2015-10-20 02:00:00").getTime))
+    Instant.ofEpochMilli(df.parse("2015-10-20T02:00:00.000+0000").getTime),
+    Instant.ofEpochMilli(df.parse("2015-10-20T02:00:00.000+0000").getTime))
 
   val person3 = ModelFqn(peopleCollectionId, "person3")
   val person3MetaData = ModelMetaData(
     person3,
     0,
-    Instant.ofEpochMilli(df.parse("2015-10-20 03:00:00").getTime),
-    Instant.ofEpochMilli(df.parse("2015-10-20 03:00:00").getTime))
+    Instant.ofEpochMilli(df.parse("2015-10-20T03:00:00.000+0000").getTime),
+    Instant.ofEpochMilli(df.parse("2015-10-20T03:00:00.000+0000").getTime))
 
   val company1 = ModelFqn("company", "company1")
   val company1MetaData = ModelMetaData(
     company1,
     0,
-    Instant.ofEpochMilli(df.parse("2015-10-20 04:00:00").getTime),
-    Instant.ofEpochMilli(df.parse("2015-10-20 04:00:00").getTime))
+    Instant.ofEpochMilli(df.parse("2015-10-20T04:00:00.000+0000").getTime),
+    Instant.ofEpochMilli(df.parse("2015-10-20T04:00:00.000+0000").getTime))
 
   val nonExsitingFqn = ModelFqn("notRealCollection", "notRealModel")
 

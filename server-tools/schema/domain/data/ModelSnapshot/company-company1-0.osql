@@ -2,7 +2,7 @@ INSERT INTO ModelSnapshot SET
   collectionId = "company",
   modelId = "company1",
   version = 0,
-  timestamp = DATE("2015-10-20 04:00:00"),
+  timestamp = DATE("2015-10-20T04:00:00.000+0000"),
   data = {
     "@type": "d",
     "@class": "ObjectOpValue",

@@ -1,4 +1,4 @@
-let model = INSERT INTO Model SET collectionId = "people", modelId = "person1", version = 20, createdTime = DATE("2015-10-20 01:00:000"), modifiedTime = DATE("2015-10-20 12:00:00"), data = null RETURN @rid;
+let model = INSERT INTO Model SET collectionId = "people", modelId = "person1", version = 20, createdTime = DATE("2015-10-20T01:00:000.000+0000"), modifiedTime = DATE("2015-10-20T12:00:00.000+0000"), data = null RETURN @rid;
 let data = INSERT INTO ObjectValue SET vid = "pp1-data", model = $model, children = {} RETURN @rid;
 let fname = INSERT INTO StringValue SET vid = "pp1-fname", model = $model, value = "john" RETURN @rid;
 update $data PUT children = "fname", $fname;

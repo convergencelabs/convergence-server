@@ -21,7 +21,7 @@ INSERT INTO DomainConfig SET
       "@type": "d",
       "@version": 0,
       "@class": "TokenPublicKey",
-      "created": "2015-09-21 12:32:43",
+      "created": "2015-09-21T12:32:43.000+0000",
       "id": "test",
       "name": "Test Key",
       "description": "A key for testing",

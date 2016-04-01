@@ -1,6 +1,7 @@
 {
   "outputFile": "domain.json.gz",
   "schemaScripts": [
+    "domain/schema/OrientConfig.osql",
     "domain/schema/ModelSnapshotConfig.osql",
     "domain/schema/TokenPublicKey.osql",
     "domain/schema/DomainConfig.osql",
