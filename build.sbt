@@ -22,6 +22,7 @@ val serverCore = (project in file("server-core")).
       orientDb ++ 
       loggingAll ++ 
       Seq(
+        akkaHttp,
         json4s, 
         commonsLang,
         jose4j,

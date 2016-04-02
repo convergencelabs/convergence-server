@@ -12,29 +12,6 @@ import com.convergencelabs.server.frontend.realtime.data._
 
 object MessageSerializer {
 
-  private[this] val operationSerializer = new TypeMapSerializer[OperationData]("t", Map(
-    OperationType.Compound -> classOf[CompoundOperationData],
-    OperationType.StringInsert -> classOf[StringInsertOperationData],
-    OperationType.StringRemove -> classOf[StringRemoveOperationData],
-    OperationType.StringValue -> classOf[StringSetOperationData],
-
-    OperationType.ArrayInsert -> classOf[ArrayInsertOperationData],
-    OperationType.ArrayRemove -> classOf[ArrayRemoveOperationData],
-    OperationType.ArraySet -> classOf[ArrayReplaceOperationData],
-    OperationType.ArrayReorder -> classOf[ArrayMoveOperationData],
-    OperationType.ArrayValue -> classOf[ArraySetOperationData],
-
-    OperationType.ObjectAdd -> classOf[ObjectAddPropertyOperationData],
-    OperationType.ObjectSet -> classOf[ObjectSetPropertyOperationData],
-    OperationType.ObjectRemove -> classOf[ObjectRemovePropertyOperationData],
-    OperationType.ObjectValue -> classOf[ObjectSetOperationData],
-
-    OperationType.NumberAdd -> classOf[NumberAddOperationData],
-    OperationType.NumberValue -> classOf[NumberSetOperationData],
-
-    OperationType.BooleanValue -> classOf[BooleanSetOperationData]),
-    DefaultFormats.withTypeHintFieldName("?") + DataValueTypeHints + DataValueFieldSerializer)
-
   private[this] val incomingMessageSerializer = new TypeMapSerializer[ProtocolMessage]("t", Map(
     MessageType.Ping -> classOf[PingMessage],
     MessageType.Pong -> classOf[PongMessage],

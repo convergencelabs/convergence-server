@@ -20,6 +20,8 @@ object Dependencies {
     val akkaCore = Seq(akkaActor, akkaCluster, akkaSlf4j)
     
     val akkaHttp           = "com.typesafe.akka"        % "akka-http-experimental_2.11"   % Versions.akka
+    val akkaHttpTest       = "com.typesafe.akka"        % "akka-http-testkit-experimental_2.11" % Versions.akka
+
     
     
     // Orient DB Dependencies
