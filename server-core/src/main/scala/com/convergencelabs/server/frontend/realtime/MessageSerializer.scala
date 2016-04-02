@@ -84,7 +84,7 @@ object MessageSerializer {
     MessageType.UserSearchRequest -> classOf[UserSearchMessage],
     MessageType.UserListResponse -> classOf[UserListMessage]),
 
-    DefaultFormats.withTypeHintFieldName("?") + operationSerializer + DataValueTypeHints + DataValueFieldSerializer)
+    DefaultFormats.withTypeHintFieldName("?") + new OperationSerializer() + DataValueTypeHints + DataValueFieldSerializer)
 
   private[this] implicit val formats = DefaultFormats + incomingMessageSerializer
 

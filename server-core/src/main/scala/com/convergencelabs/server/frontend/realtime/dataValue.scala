@@ -10,18 +10,8 @@ import com.convergencelabs.server.domain.model.data.NullValue
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.model.data.StringValue
 import org.json4s.DefaultFormats
-import org.json4s.TypeHints
 
 package object data {
-
-  case class MappedTypeHits(private val hintMap: Map[String, Class[_]]) extends TypeHints {
-    private val reverseHintMap = hintMap map (_.swap)
-
-    val hints: List[Class[_]] = hintMap.values.toList
-
-    def hintFor(clazz: Class[_]) = reverseHintMap(clazz)
-    def classFor(hint: String) = hintMap.get(hint)
-  }
 
   val serializer: PartialFunction[(String, Any), Option[(String, Any)]] = {
     case ("id", x) => Some("i", x)

@@ -81,6 +81,7 @@ class RealTimeModel(
   }
 
   def processOperationEvent(unprocessed: UnprocessedOperationEvent): Try[ProcessedOperationEvent] = {
+    // FIXME  We need to validate the operation (id != null for example)
     val preprocessed = unprocessed.copy(operation = noOpObsoleteOperations(unprocessed.operation))
     val processed = cc.processRemoteOperation(preprocessed)
     applyOpperation(processed.operation) match {
