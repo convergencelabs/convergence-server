@@ -10,6 +10,7 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Directives._
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
+import ch.megard.akka.http.cors.CorsDirectives._
 
 object RestFrontEnd {
   def main(args: Array[String]) {
@@ -28,15 +29,15 @@ object RestFrontEnd {
     val domainService = new DomainService(ec, domainActor, defaultRequestTimeout)
     val authService = new AuthService(ec, authActor, defaultRequestTimeout)
 
-    // Set up the route by making everyhing come under "/rest".  Then we concat all
+    // Set up the route by making everything come under "/rest".  Then we concat all
     // of the routes from each of the services.
-    val route =
+    val route = cors() {
       pathPrefix("rest") {
         domainService.route ~
           authService.route
       }
+    }
 
-    
     // Now we start up the server
     val bindingFuture = Http().bindAndHandle(route, "localhost", 8081)
 
