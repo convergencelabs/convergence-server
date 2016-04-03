@@ -13,26 +13,26 @@ import akka.stream.Materializer
 import akka.stream.scaladsl.Flow
 
 class Service(implicit fm: Materializer, system: ActorSystem) extends Directives {
-  val echoFlow = Echo.create(system)
+  val domainFlowFactory = DomainFlowFactory(system)
 
   def route =
     get {
-      path("echo") {
-        handleWebSocketMessages(websocketEchoFlow())
+      path("domain" / Segment / Segment) { (namespace, domain) =>
+        handleWebSocketMessages(realTimeDomainFlow(namespace, domain))
       }
     }
 
-  def websocketEchoFlow(): Flow[Message, Message, Any] =
+  def realTimeDomainFlow(namespace: String, domain: String): Flow[Message, Message, Any] =
     Flow[Message]
       .collect {
-        case TextMessage.Strict(msg) ⇒ msg
+        case TextMessage.Strict(msg) ⇒ IncomingMessage(msg)
         // This will lose (ignore) messages not received in one chunk (which is
         // unlikely because chat messages are small) but absolutely possible
         // FIXME: We need to handle TextMessage.Streamed as well.
       }
-      .via(echoFlow.echoFlow()) // Route to our echo flow
+      .via(domainFlowFactory.createFlowForConnection(namespace, domain)) // Route to our echo flow
       .map {
-        case msg: String ⇒
+        case OutgoingMessage(msg) ⇒
           // We get back strings from our echo flow.  Wrap them in a web socket
           // text message.  This will be the output of the flow.
           TextMessage.Strict(msg)
