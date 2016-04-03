@@ -6,7 +6,7 @@ object Dependencies {
   
   // Versions
   object Versions {
-    val akka      = "2.4.2"
+    val akka      = "2.4.3"
     val orientDb  = "2.1.13"
     val log4j     = "2.4.1"
   }
@@ -22,7 +22,7 @@ object Dependencies {
     val akkaHttp           = "com.typesafe.akka"        % "akka-http-experimental_2.11"   % Versions.akka
     val akkaHttpTest       = "com.typesafe.akka"        % "akka-http-testkit-experimental_2.11" % Versions.akka
 
-    
+    val akkaHttpJson4s     = "de.heikoseeberger"        % "akka-http-json4s_2.11"         % "1.5.3"
     
     // Orient DB Dependencies
     val orientDbClient     = "com.orientechnologies"    % "orientdb-client"               % Versions.orientDb           // Apache 2.0

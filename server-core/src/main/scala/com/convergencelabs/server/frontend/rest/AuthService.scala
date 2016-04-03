@@ -3,22 +3,39 @@ package com.convergencelabs.server.frontend.rest
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.model.HttpEntity
 import akka.http.scaladsl.model.ContentTypes
+import de.heikoseeberger.akkahttpjson4s.Json4sSupport
+import akka.actor.ActorRef
+import akka.pattern.ask
+import akka.util.Timeout
+import scala.concurrent.Future
+import scala.util.Success
+import scala.concurrent.ExecutionContext
+import scala.util.Failure
+import akka.http.scaladsl.model.StatusCodes
 
+case class AuthHttpResponse(ok: Boolean, token: Option[String]) extends ResponseMessage
 
-// Read this to start thinking about how to forward to actors
-// https://github.com/eigengo/activator-akka-spray/blob/master/src/main/scala/api/RegistrationService.scala
-//
-// probably want to use this:
-//  https://github.com/hseeberger/akka-http-json
-// for json4s support as outlined here: http://danielasfregola.com/2015/08/17/spray-how-to-deserialize-entities-with-json4s/
-// and: http://danielasfregola.com/2016/02/07/how-to-build-a-rest-api-with-akka-http/
-//
-class AuthService {
+class AuthService(
+  private[this] val executionContext: ExecutionContext,
+  private[this] val authActor: ActorRef,
+  private[this] val defaultTimeout: Timeout)
+    extends JsonService {
+
+  implicit val ec = executionContext
+  implicit val t = defaultTimeout
+
   val route = pathPrefix("auth") {
-    (get & pathEnd) {
-      complete {
-        HttpEntity(ContentTypes.`text/html(UTF-8)`, "you asked for a token")
+    pathEnd {
+      post {
+        handleWith(authRequest)
       }
-    } 
+    }
+  }
+
+  def authRequest(req: AuthRequest): Future[AuthHttpResponse] = {
+    (authActor ? req).mapTo[AuthResponse].map {
+      case AuthSuccess(token) => AuthHttpResponse(true, Some(token))
+      case AuthFailure => AuthHttpResponse(false, None)
+    }
   }
 }

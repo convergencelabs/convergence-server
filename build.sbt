@@ -24,6 +24,7 @@ val serverCore = (project in file("server-core")).
       Seq(
         akkaHttp,
         json4s, 
+        akkaHttpJson4s,
         commonsLang,
         jose4j,
         bouncyCastle,
