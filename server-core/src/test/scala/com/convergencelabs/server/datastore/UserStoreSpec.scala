@@ -9,6 +9,8 @@ import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import com.convergencelabs.server.User
 import com.convergencelabs.server.datastore.domain.PersistenceStoreSpec
+import java.time.Instant
+import java.util.Date
 
 class UserStoreSpec
     extends PersistenceStoreSpec[UserStore]("/dbfiles/convergence.json.gz")
@@ -56,7 +58,7 @@ class UserStoreSpec
     }
 
     "validating credentials" must {
-      "return true and a uid for a vaid usename and password" in withPersistenceStore { store =>
+      "return true and a uid for a valid usename and password" in withPersistenceStore { store =>
         store.validateCredentials(User0.username, "password").success.value shouldBe (true, Some("cu0"))
       }
 
@@ -66,6 +68,23 @@ class UserStoreSpec
 
       "return false and None for an invalid username" in withPersistenceStore { store =>
         store.validateCredentials("no one", "p").success.value shouldBe (false, None)
+      }
+    }
+    
+    "validating tokens" must {
+      "return true and a uid for a valid token" in withPersistenceStore { store =>
+        store.createToken(User0.uid, "myToken", Date.from(Instant.now().plusSeconds(100))) 
+        store.validateToken("myToken").success.value shouldBe (true, Some("cu0"))
+      }
+
+      "return false and None for an expired token" in withPersistenceStore { store =>
+        val expireTime = Instant.now().minusSeconds(1)
+        store.createToken(User0.uid, "myToken", Date.from(expireTime))
+        store.validateToken("myToken").success.value shouldBe (false, None)
+      }
+
+      "return false and None for an invalid token" in withPersistenceStore { store =>
+        store.validateToken("myToken").success.value shouldBe (false, None)
       }
     }
   }

@@ -4,7 +4,8 @@
     "convergence/schema/Configuration.osql",
     "convergence/schema/Domain.osql",
     "convergence/schema/User.osql",
-    "convergence/schema/UserCredential.osql"
+    "convergence/schema/UserCredential.osql",
+    "convergence/schema/UserAuthToken.osql"
   ],
   "dataScripts": [
     "convergence/data/Configuration/configuration.osql",
