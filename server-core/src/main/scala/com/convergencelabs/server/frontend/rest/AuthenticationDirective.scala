@@ -16,7 +16,7 @@ case class AuthenticationFailed(ok: Boolean, error: String) extends ResponseMess
 
 class Authenticator(userActor: ActorRef, timeout: Timeout, executionContext: ExecutionContext) extends JsonService {
 
-  val authFailed = AuthenticationFailed(false, "Unauthroized")
+  val authFailed = ErrorMessage("Unauthroized")
   
   import BasicDirectives._
   import RouteDirectives._
@@ -34,7 +34,7 @@ class Authenticator(userActor: ActorRef, timeout: Timeout, executionContext: Exe
   }
 
   def rejectAuthentication(): StandardRoute = {
-    complete(StatusCodes.Forbidden, authFailed)
+    complete(StatusCodes.Unauthorized, authFailed)
   }
   
   val requireAuthenticated: Directive1[String] = {
