@@ -12,7 +12,11 @@ import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import ch.megard.akka.http.cors.CorsDirectives._
 
+
+import AuthenticateDirectives._
+
 object RestFrontEnd {
+
   def main(args: Array[String]) {
 
     implicit val system = ActorSystem("my-system")
@@ -33,8 +37,10 @@ object RestFrontEnd {
     // of the routes from each of the services.
     val route = cors() {
       pathPrefix("rest") {
-        domainService.route ~
-          authService.route
+        authService.route ~
+          requireAuthenticated { userId =>
+            domainService.route
+          }
       }
     }
 
