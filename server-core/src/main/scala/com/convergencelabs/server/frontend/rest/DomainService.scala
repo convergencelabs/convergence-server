@@ -41,7 +41,7 @@ class DomainService(
   def domainRequest(domainId: String): Future[DomainResponse] = {
     (domainActor ? DomainRequest(domainId)).mapTo[Option[DomainInfo]].map {
       case Some(d) => DomainResponse(true, Some(d))
-      case None => DomainResponse(true, None)
+      case None    => DomainResponse(true, None)
     }
   }
 }

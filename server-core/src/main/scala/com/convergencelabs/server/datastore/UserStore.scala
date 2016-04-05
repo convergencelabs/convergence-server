@@ -20,6 +20,8 @@ import com.convergencelabs.server.User
 import com.convergencelabs.server.datastore.domain.PasswordUtil
 import com.convergencelabs.server.datastore.mapper.UserMapper.UserToODocument
 import com.convergencelabs.server.datastore.mapper.UserMapper.ODocumentToUser
+import java.util.Date
+import java.time.Instant
 
 /**
  * Manages the persistence of Users.  This class manages both user profile records
@@ -39,6 +41,8 @@ class UserStore private[datastore] (private[this] val dbPool: OPartitionedDataba
   val Uid = "uid"
   val Username = "username"
   val Password = "password"
+  val Token = "token"
+  val ExpireTime = "expireTime"
 
   /**
    * Gets a single user by uid.
@@ -81,10 +85,9 @@ class UserStore private[datastore] (private[this] val dbPool: OPartitionedDataba
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     result.asScala.toList match {
       case doc :: Nil => true
-      case _ => false
+      case _          => false
     }
   }
-
 
   /**
    * Set the password for an existing user by username.
@@ -131,6 +134,37 @@ class UserStore private[datastore] (private[this] val dbPool: OPartitionedDataba
         }
       case None => (false, None)
     }
+  }
+
+  def createToken(uid: String, token: String): Try[Unit] = tryWithDb { db =>
+    val query = new OCommandSQL("INSERT INTO UserCredentials SET user = (SELECT FROM User WHERE uid = :uid), token = :token, expireTime = :expireTime)")
+    val params = Map(Uid -> uid, Token -> token, ExpireTime -> Date.from(Instant.now()))
+    db.command(query).execute(params.asJava)
+  }
+
+  def validateToken(token: String): Try[Tuple2[Boolean, Option[String]]] = tryWithDb { db =>
+    val query = new OSQLSynchQuery[ODocument]("SELECT user.uid AS uid, expireTime FROM UserAuthToken WHERE token = :token")
+    val params = Map(Token -> token)
+    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
+
+    QueryUtil.enforceSingletonResultList(result) match {
+      case Some(doc) =>
+        val expireTime: Date = doc.field(ExpireTime, OType.DATETIME)
+        if (Instant.now().isAfter(expireTime.toInstant())) {
+          val uid: String = doc.field(Uid)
+          updateToken(uid, token)
+          (true, Some(uid))
+        } else {
+          (false, None)
+        }
+      case None => (false, None)
+    }
+  }
+
+  def updateToken(uid: String, token: String): Try[Unit] = tryWithDb { db =>
+    val query = new OCommandSQL("UPDATE UserCredentials SET expireTime = :expireTime WHERE user.uid = :uid AND token = :token")
+    val params = Map(Uid -> uid, Token -> token, ExpireTime -> Date.from(Instant.now()))
+    db.command(query).execute(params.asJava)
   }
 }
 
