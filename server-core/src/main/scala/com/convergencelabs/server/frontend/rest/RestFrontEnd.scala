@@ -12,7 +12,9 @@ import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import ch.megard.akka.http.cors.CorsDirectives._
 
+
 object RestFrontEnd {
+
   def main(args: Array[String]) {
 
     implicit val system = ActorSystem("my-system")
@@ -20,6 +22,8 @@ object RestFrontEnd {
     implicit val ec = system.dispatcher
 
     implicit val defaultRequestTimeout = Timeout(2 seconds)
+    
+    val authenticator = new Authenticator(null, defaultRequestTimeout, ec)
 
     // Here are the actors that do the actual work
     val authActor = system.actorOf(Props[AuthRestActor])
@@ -33,8 +37,10 @@ object RestFrontEnd {
     // of the routes from each of the services.
     val route = cors() {
       pathPrefix("rest") {
-        domainService.route ~
-          authService.route
+        authService.route ~
+          authenticator.requireAuthenticated { userId =>
+            domainService.route(userId)
+          }
       }
     }
 

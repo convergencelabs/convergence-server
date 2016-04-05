@@ -19,20 +19,22 @@ class DomainService(
   implicit val ec = executionContext
   implicit val t = defaultTimeout
 
-  val route = pathPrefix("domains") {
-    pathEnd {
-      get {
-        complete { domainsRequest() }
-      }
-    } ~
-      path(Segment) { domainId =>
+  val route = { userId: String =>
+    pathPrefix("domains") {
+      pathEnd {
         get {
-          complete { domainRequest(domainId) }
+          complete { domainsRequest(userId) }
         }
-      }
+      } ~
+        path(Segment) { domainId =>
+          get {
+            complete { domainRequest(domainId) }
+          }
+        }
+    }
   }
 
-  def domainsRequest(): Future[DomainsResponse] = {
+  def domainsRequest(userId: String): Future[DomainsResponse] = {
     (domainActor ? DomainsRequest).mapTo[List[_]].map {
       case x: List[DomainFqn] => DomainsResponse(true, x)
     }
