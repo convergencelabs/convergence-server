@@ -119,7 +119,7 @@ class UserStore private[datastore] (private[this] val dbPool: OPartitionedDataba
    *
    * @return true if the username and passowrd match, false otherwise.
    */
-  def validateCredentials(username: String, password: String): Try[Tuple2[Boolean, Option[String]]] = tryWithDb { db =>
+  def validateCredentials(username: String, password: String): Try[Option[Tuple2[String, String]]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT password, user.uid AS uid FROM UserCredential WHERE user.username = :username")
     val params = Map(Username -> username)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
@@ -131,15 +131,14 @@ class UserStore private[datastore] (private[this] val dbPool: OPartitionedDataba
           case true => {
             val uid: String = doc.field(Uid)
             //TODO: Determine best way to create this
-            createToken(
-                uid, 
-                UUID.randomUUID().toString(),
-                Date.from(Instant.now().plus(Duration.ofMinutes(5))))
-            (true, Some(uid))
+            val token = UUID.randomUUID().toString()
+            val expireTime = Date.from(Instant.now().plus(Duration.ofMinutes(5)))
+            createToken(uid, token, expireTime)
+            Some((uid, token))
           }
-          case false => (false, None)
+          case false => None
         }
-      case None => (false, None)
+      case None => None
     }
   }
 
@@ -151,7 +150,7 @@ class UserStore private[datastore] (private[this] val dbPool: OPartitionedDataba
     Unit
   }
 
-  def validateToken(token: String): Try[Tuple2[Boolean, Option[String]]] = tryWithDb { db =>
+  def validateToken(token: String): Try[Option[String]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT user.uid AS uid, expireTime FROM UserAuthToken WHERE token = :token")
     val params = Map(Token -> token)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
@@ -161,18 +160,18 @@ class UserStore private[datastore] (private[this] val dbPool: OPartitionedDataba
         val expireTime: Date = doc.field(ExpireTime, OType.DATETIME)
         if (Instant.now().isBefore(expireTime.toInstant())) {
           val uid: String = doc.field(Uid)
-          updateToken(uid, token)
-          (true, Some(uid))
+          updateToken(token)
+          Some(uid)
         } else {
-          (false, None)
+          None
         }
-      case None => (false, None)
+      case None => None
     }
   }
 
-  def updateToken(uid: String, token: String): Try[Unit] = tryWithDb { db =>
-    val query = new OCommandSQL("UPDATE UserAuthToken SET expireTime = :expireTime WHERE user.uid = :uid AND token = :token")
-    val params = Map(Uid -> uid, Token -> token, ExpireTime -> Date.from(Instant.now()))
+  def updateToken(token: String): Try[Unit] = tryWithDb { db =>
+    val query = new OCommandSQL("UPDATE UserAuthToken SET expireTime = :expireTime WHERE token = :token")
+    val params = Map(Token -> token, ExpireTime -> Date.from(Instant.now().plus(Duration.ofMinutes(5))))
     db.command(query).execute(params.asJava)
     Unit
   }

@@ -20,18 +20,31 @@ class AuthStoreActor private[datastore] (private[this] val dbPool: OPartitionedD
   }
 
   def authenticateUser(authRequest: AuthRequest): Try[AuthResponse] = {
-    userStore.validateCredentials(authRequest.username, authRequest.password) flatMap (v => Try(AuthResponse(v._1, v._2)))
+    userStore.validateCredentials(authRequest.username, authRequest.password) map {
+      case Some((uid, token)) => AuthSuccess(uid, token)
+      case None        => AuthFailure
+    }
   }
 
   def validateToken(validateRequest: ValidateRequest): Try[ValidateResponse] = {
-    userStore.validateToken(validateRequest.token) flatMap (v => Try(ValidateResponse(v._1, v._2)))
+    userStore.validateToken(validateRequest.token) map {
+      case Some(userId) => ValidateSuccess(userId)
+      case None         => ValidateFailure
+    }
   }
 }
 
 object AuthStoreActor {
   case class AuthRequest(username: String, password: String)
-  case class AuthResponse(ok: Boolean, token: Option[String])
+
+  sealed trait AuthResponse
+  case class AuthSuccess(uid: String, token: String) extends AuthResponse
+  case object AuthFailure extends AuthResponse
+
   case class ValidateRequest(token: String)
-  case class ValidateResponse(ok: Boolean, uid: Option[String])
+
+  sealed trait ValidateResponse
+  case class ValidateSuccess(uid: String) extends ValidateResponse
+  case object ValidateFailure extends ValidateResponse
 }
 
