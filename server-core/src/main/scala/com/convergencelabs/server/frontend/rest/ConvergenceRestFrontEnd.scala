@@ -12,18 +12,25 @@ import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import ch.megard.akka.http.cors.CorsDirectives._
 
-
-object RestFrontEnd {
-
+object ConvergenceRestFrontEnd {
   def main(args: Array[String]) {
+    val server = new ConvergenceRestFrontEnd("localhost", 8081, ActorSystem("rest-system"))
+    server.start()
+  }
+}
 
-    implicit val system = ActorSystem("my-system")
-    implicit val materializer = ActorMaterializer()
-    implicit val ec = system.dispatcher
+class ConvergenceRestFrontEnd(
+    val interface: String,
+    val port: Int,
+    implicit val system: ActorSystem) {
 
-    implicit val defaultRequestTimeout = Timeout(2 seconds)
-    
-    val authenticator = new Authenticator(null, defaultRequestTimeout, ec)
+  implicit val materializer = ActorMaterializer()
+  implicit val ec = system.dispatcher
+  implicit val defaultRequestTimeout = Timeout(2 seconds)
+  
+  val authenticator = new Authenticator(null, defaultRequestTimeout, ec)
+
+  def start(): Unit = {
 
     // Here are the actors that do the actual work
     val authActor = system.actorOf(Props[AuthRestActor])
@@ -33,11 +40,12 @@ object RestFrontEnd {
     val domainService = new DomainService(ec, domainActor, defaultRequestTimeout)
     val authService = new AuthService(ec, authActor, defaultRequestTimeout)
 
-    // Set up the route by making everything come under "/rest".  Then we concat all
-    // of the routes from each of the services.
     val route = cors() {
+      // All request are under the "rest" path.
       pathPrefix("rest") {
+        // You can call the auth service without being authenticated
         authService.route ~
+          // Everything else must be authenticated
           authenticator.requireAuthenticated { userId =>
             domainService.route(userId)
           }
@@ -45,12 +53,8 @@ object RestFrontEnd {
     }
 
     // Now we start up the server
-    val bindingFuture = Http().bindAndHandle(route, "localhost", 8081)
+    val bindingFuture = Http().bindAndHandle(route, interface, port)
 
-    println(s"Server online at http://localhost:8081/\nPress RETURN to stop...")
-    StdIn.readLine() // let it run until user presses return
-    bindingFuture
-      .flatMap(_.unbind()) // trigger unbinding from the port
-      .onComplete(_ ⇒ system.terminate()) // and shutdown when done
+    println(s"Convergence Rest Front End listening at http://${interface}:${port}/")
   }
 }
