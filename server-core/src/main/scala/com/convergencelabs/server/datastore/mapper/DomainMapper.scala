@@ -18,7 +18,8 @@ object DomainMapper extends ODocumentMapper {
       DomainFqn(namespace, domainId),
       displayName,
       dbUsername,
-      dbPassword) = domainConfig
+      dbPassword,
+      owner) = domainConfig
 
     val doc = new ODocument(DomainClassName)
     doc.field(Fields.Id, id)
@@ -43,7 +44,8 @@ object DomainMapper extends ODocumentMapper {
       DomainFqn(doc.field(Fields.Namespace), doc.field(Fields.DomainId)),
       doc.field(Fields.DisplayName),
       doc.field(Fields.DBUsername),
-      doc.field(Fields.DBPassword))
+      doc.field(Fields.DBPassword),
+      doc.field(Fields.Owner).asInstanceOf[ODocument].field(Fields.Uid))
   }
 
   private[datastore] val DomainClassName = "Domain"
@@ -55,5 +57,7 @@ object DomainMapper extends ODocumentMapper {
     val DisplayName = "displayName"
     val DBUsername = "dbUsername"
     val DBPassword = "dbPassword"
+    val Owner = "owner"
+    val Uid = "uid"
   }
 }

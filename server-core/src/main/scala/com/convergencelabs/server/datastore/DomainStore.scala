@@ -25,10 +25,24 @@ class DomainStore private[datastore] (dbPool: OPartitionedDatabasePool)
   private[this] val Id = "id"
   private[this] val Namespace = "namespace"
   private[this] val DomainId = "domainId"
+  private[this] val Owner = "owner"
+  private[this] val Uid = "uid"
 
   def createDomain(domain: Domain): Try[Unit] = tryWithDb { db =>
-    db.save(domain.asODocument)
-    Unit
+
+    val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE uid = :uid")
+    val params = Map(Uid -> domain.owner)
+    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
+    QueryUtil.enforceSingletonResultList(result) match {
+      case Some(user) => {
+        val doc = domain.asODocument
+        doc.field(Owner, user);
+        db.save(doc)
+        Unit
+      }
+      //TODO: How to handle exception
+      case None => throw new IllegalArgumentException("Invalid Domain Owner")
+    }
   }
 
   def domainExists(domainFqn: DomainFqn): Try[Boolean] = tryWithDb { db =>
@@ -45,7 +59,7 @@ class DomainStore private[datastore] (dbPool: OPartitionedDatabasePool)
 
     QueryUtil.enforceSingletonResultList(result) match {
       case Some(_) => true
-      case None => false
+      case None    => false
     }
   }
 
@@ -60,6 +74,13 @@ class DomainStore private[datastore] (dbPool: OPartitionedDatabasePool)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
     QueryUtil.mapSingletonList(result) { doc => doc.asDomain }
+  }
+
+  def getDomainsByOwner(uid: String): Try[List[Domain]] = tryWithDb { db =>
+    val query = new OSQLSynchQuery[ODocument]("SELECT FROM Domain WHERE owner.uid = :uid")
+    val params = Map("uid" -> uid)
+    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
+    result.asScala.toList map { doc => doc.asDomain }
   }
 
   def getDomainById(id: String): Try[Option[Domain]] = tryWithDb { db =>
@@ -90,12 +111,14 @@ class DomainStore private[datastore] (dbPool: OPartitionedDatabasePool)
 
     QueryUtil.enforceSingletonResultList(result) match {
       case Some(doc) => {
-        doc.merge(domain, false, false)
+        val newDoc = domain.asODocument
+        newDoc.removeField("owner")
+        doc.merge(domain, true, false)
         db.save(doc)
         Unit
       }
       case None => throw new IllegalArgumentException(
-          s"Domain to update could not be found: ${domain.domainFqn.namespace}/${domain.domainFqn.domainId}")
+        s"Domain to update could not be found: ${domain.domainFqn.namespace}/${domain.domainFqn.domainId}")
     }
   }
 }

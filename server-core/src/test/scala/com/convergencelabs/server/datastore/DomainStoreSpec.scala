@@ -25,6 +25,7 @@ class DomainStoreSpec
   val ns1d1Id = "namespace1-domain1"
   val ns1d2Id = "namespace1-domain2"
   val root = "root"
+  val owner = "cu0"
 
   "A DomainStore" when {
 
@@ -68,7 +69,8 @@ class DomainStoreSpec
           fqn,
           "Test Domain 4",
           root,
-          root)
+          root,
+          owner)
 
         store.createDomain(domainConfig).success
         store.getDomainByFqn(fqn).success.get.value shouldBe domainConfig
@@ -80,7 +82,8 @@ class DomainStoreSpec
           ns1d1,
           "Test Domain 1",
           root,
-          root)
+          root,
+          owner)
 
         store.createDomain(domainConfig).failed.get shouldBe a[ORecordDuplicatedException]
       }
@@ -113,7 +116,8 @@ class DomainStoreSpec
           DomainFqn(namespace1, domain1),
           "Test Domain 1 Updated",
           "admin updated",
-          "password")
+          "password",
+          owner)
 
         store.updateDomain(toUpdate).success
         val queried = store.getDomainByFqn(ns1d1).success.get.value
@@ -127,7 +131,8 @@ class DomainStoreSpec
           DomainFqn(namespace1, domain1),
           "Test Domain 1 Updated",
           "admin updated",
-          "password")
+          "password",
+          owner)
 
         store.updateDomain(toUpdate).failure
       }

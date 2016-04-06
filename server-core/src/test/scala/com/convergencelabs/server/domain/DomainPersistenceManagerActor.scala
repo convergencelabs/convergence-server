@@ -68,7 +68,8 @@ class DomainManagerActorSpec()
       domainFqn,
       "Default",
       "",
-      "")
+      "",
+      "cu0")
 
     val domainStore = mock[DomainStore]
     Mockito.when(domainStore.getDomainByFqn(domainFqn)).thenReturn(Success(Some(domain)))

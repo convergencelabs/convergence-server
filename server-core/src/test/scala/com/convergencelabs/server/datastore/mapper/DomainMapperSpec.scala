@@ -23,9 +23,13 @@ class DomainMapperSpec
           DomainFqn("ns", "dId"),
           "My Domain",
           "user",
-          "pass")
+          "pass",
+          "cu0")
 
         val doc = domain.asODocument
+        val owner = new ODocument()
+        owner.field("uid", "cu0")
+        doc.field("owner", owner)
         val reverted = doc.asDomain
         reverted shouldBe domain
       }

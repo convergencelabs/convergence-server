@@ -5,4 +5,5 @@ case class Domain(
   domainFqn: DomainFqn,
   displayName: String,
   dbUsername: String,
-  dbPassword: String)
+  dbPassword: String,
+  owner: String)
