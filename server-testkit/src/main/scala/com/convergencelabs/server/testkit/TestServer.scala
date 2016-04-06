@@ -69,9 +69,9 @@ class TestServer(
     frontEnd1 = new ConvergenceRealtimeFrontend(frontEndSystem1, 8080)
     frontEnd1.start()
 
-    frontEndSystem2 = startupCluster(2555, "realtimeFrontend2", configFile)
-    frontEnd2 = new ConvergenceRealtimeFrontend(frontEndSystem2, 8081)
-    frontEnd2.start()
+//    frontEndSystem2 = startupCluster(2555, "realtimeFrontend2", configFile)
+//    frontEnd2 = new ConvergenceRealtimeFrontend(frontEndSystem2, 8081)
+//    frontEnd2.start()
 
     logger.info("Test Server started.")
   }

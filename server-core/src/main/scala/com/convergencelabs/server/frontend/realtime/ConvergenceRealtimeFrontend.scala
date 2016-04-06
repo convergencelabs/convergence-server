@@ -5,15 +5,17 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
+import scala.util.Failure
+import scala.util.Success
 
 import com.convergencelabs.server.HeartbeatConfiguration
 import com.convergencelabs.server.ProtocolConfiguration
-import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.frontend.realtime.ws.WebSocketServer
 
-import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.actor.Inbox
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.server.RouteResult.route2HandlerFlow
+import akka.stream.ActorMaterializer
 import grizzled.slf4j.Logging
 
 class ConvergenceRealtimeFrontend(
@@ -29,29 +31,42 @@ class ConvergenceRealtimeFrontend(
       5 seconds,
       10 seconds))
 
-  private[this] val connectionHandler = new SocketConnectionHandler()
   private[this] val inbox = Inbox.create(system)
-  private[this] val connectionManager = system.actorOf(ConnectionManagerActor.props(inbox.getRef(), protoConfig), "connectionManager")
+  private[this] val connectionManager = system.actorOf(RealTimeFrontEndActor.props(inbox.getRef(), protoConfig), "connectionManager")
 
-  connectionHandler.addListener((domainFqn: DomainFqn, socket: ConvergenceServerSocket) => {
-    connectionManager.tell(NewSocketEvent(domainFqn, socket), ActorRef.noSender)
-  })
-
-  // FIXME.  Not sure this is the right size.
-  private[this] val server = new WebSocketServer(websocketPort, 65535, connectionHandler)
-
+  import system.dispatcher
+  implicit val s = system
+  
   def start(): Unit = {
     logger.info(s"Realtime Front End starting up on port $websocketPort.")
     val timeout = FiniteDuration(5, TimeUnit.SECONDS)
     inbox.receive(timeout) match {
-      case StartUpComplete => {
-        server.start()
+      case StartUpComplete(domainManager) => {
+        val interface = "localhost"
+        implicit val materializer = ActorMaterializer()
+
+        val service = new WebSocketService(
+            domainManager,
+            protoConfig,
+            FiniteDuration(5, TimeUnit.SECONDS), 
+            materializer,
+            system)
+
+        val binding = Http().bindAndHandle(service.route, interface, websocketPort)
+        binding.onComplete {
+          case Success(binding) ⇒
+            val localAddress = binding.localAddress
+            println(s"Server is listening on ${localAddress.getHostName}:${localAddress.getPort}")
+          case Failure(e) ⇒
+            println(s"Binding failed with ${e.getMessage}")
+            system.terminate()
+        }
         logger.info(s"Realtime Front End started up on port $websocketPort.")
       }
     }
   }
 
   def stop(): Unit = {
-    server.stop()
+    // TODO shutdow
   }
 }

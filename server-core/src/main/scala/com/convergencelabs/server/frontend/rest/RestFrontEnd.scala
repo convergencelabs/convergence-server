@@ -17,7 +17,7 @@ object RestFrontEnd {
 
   def main(args: Array[String]) {
 
-    implicit val system = ActorSystem("my-system")
+    implicit val system = ActorSystem("convergence-rest-front-end")
     implicit val materializer = ActorMaterializer()
     implicit val ec = system.dispatcher
 
@@ -33,11 +33,12 @@ object RestFrontEnd {
     val domainService = new DomainService(ec, domainActor, defaultRequestTimeout)
     val authService = new AuthService(ec, authActor, defaultRequestTimeout)
 
-    // Set up the route by making everything come under "/rest".  Then we concat all
-    // of the routes from each of the services.
     val route = cors() {
+      // All request are under the "rest" path.
       pathPrefix("rest") {
+        // You can call the auth service without being authenticated
         authService.route ~
+          // Everything else must be authenticated
           authenticator.requireAuthenticated { userId =>
             domainService.route(userId)
           }

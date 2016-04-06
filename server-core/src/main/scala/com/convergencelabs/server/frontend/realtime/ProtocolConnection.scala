@@ -8,29 +8,26 @@ import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.util.Failure
 import scala.util.Success
+import scala.util.Try
 
 import com.convergencelabs.server.ProtocolConfiguration
-import com.convergencelabs.server.util.concurrent.UnexpectedErrorException
 
+import akka.actor.ActorRef
 import akka.actor.Cancellable
 import akka.actor.Scheduler
+import akka.actor.actorRef2Scala
 import grizzled.slf4j.Logging
 
-sealed trait ConnectionEvent
-
-sealed trait ProtocolMessageEvent extends ConnectionEvent {
+sealed trait ProtocolMessageEvent {
   def message: IncomingProtocolMessage
 }
 
 case class MessageReceived(message: IncomingProtocolNormalMessage) extends ProtocolMessageEvent
 case class RequestReceived(message: IncomingProtocolRequestMessage, replyCallback: ReplyCallback) extends ProtocolMessageEvent
 
-case object ConnectionClosed extends ConnectionEvent
-case object ConnectionDropped extends ConnectionEvent
-case class ConnectionError(message: String) extends ConnectionEvent
-
 class ProtocolConnection(
-  private[this] var socket: ConvergenceServerSocket,
+  private[this] val clientActor: ActorRef,
+  private[this] val connectionActor: ActorRef,
   private[this] val protocolConfig: ProtocolConfiguration,
   private[this] val scheduler: Scheduler,
   private[this] val ec: ExecutionContext)
@@ -47,25 +44,8 @@ class ProtocolConnection(
     heartbeatHelper.start()
   }
 
-  private[this] val socketHandler: PartialFunction[ConvergenceServerSocketEvent, Unit] = {
-    case SocketMessage(message) => onSocketMessage(message)
-    case SocketClosed() => onSocketClosed()
-    case SocketDropped() => onSocketDropped()
-    case SocketError(message) => onSocketError(message)
-  }
-
-  this.socket.setHandler(socketHandler)
-
   var nextRequestId = 0L
   val requests = mutable.Map[Long, RequestRecord]()
-
-  private[realtime] var eventHandler: PartialFunction[ConnectionEvent, Unit] = {
-    case _ => { ??? }
-  }
-
-  def ready(): Unit = {
-    this.socket.ready()
-  }
 
   def send(message: OutgoingProtocolNormalMessage): Unit = {
     sendMessage(MessageEnvelope(message, None, None))
@@ -98,31 +78,22 @@ class ProtocolConnection(
     replyPromise.future
   }
 
-  def abort(reason: String): Unit = {
-    logger.debug(s"Aborting connection: $reason")
+  def handleClosed(): Unit = {
+    logger.debug(s"protocol connection closed")
     if (heartbeatHelper.started) {
       heartbeatHelper.stop()
     }
-    socket.abort(reason)
-  }
-
-  def close(): Unit = {
-    logger.debug(s"Closing connection")
-    if (heartbeatHelper.started) {
-      heartbeatHelper.stop()
-    }
-    socket.close("closed normally")
   }
 
   def sendMessage(envelope: MessageEnvelope): Unit = {
     val json = MessageSerializer.writeJson(envelope)
-    socket.send(json)
+    connectionActor ! OutgoingTextMessage(json)
     if (!envelope.b.isInstanceOf[PingMessage] && !envelope.b.isInstanceOf[PongMessage]) {
-      logger.debug(json)
+      logger.debug("S: " + envelope)
     }
   }
 
-  private[this] def onSocketMessage(json: String): Unit = {
+  def onIncomingMessage(json: String): Try[Option[ProtocolMessageEvent]] = {
     if (protocolConfig.heartbeatConfig.enabled) {
       heartbeatHelper.messageReceived()
     }
@@ -132,66 +103,40 @@ class ProtocolConnection(
         handleValidMessage(envelope)
       case Failure(cause) =>
         logger.error(cause)
-        handleInvalidMessage(s"Could not parse JSON message $json")
+        Failure(new IllegalArgumentException(s"Could not parse JSON message $json"))
     }
   }
 
-  private def handleValidMessage(envelope: MessageEnvelope): Unit = {
+  private def handleValidMessage(envelope: MessageEnvelope): Try[Option[ProtocolMessageEvent]] = Try {
     if (!envelope.b.isInstanceOf[PingMessage] && !envelope.b.isInstanceOf[PongMessage]) {
-      logger.debug(MessageSerializer.writeJson(envelope))
+      logger.debug("R: " + envelope)
     }
 
     envelope match {
       case MessageEnvelope(PingMessage(), None, None) =>
         onPing()
+        None
       case MessageEnvelope(PongMessage(), None, None) =>
-      // No Op
-      case MessageEnvelope(ErrorMessage(_, _), None, Some(_)) =>
-        onReply(envelope)
-      case MessageEnvelope(ErrorMessage(_, _), None, None) =>
-        onNormalMessage(envelope)
+        // No Opo
+        None
       case MessageEnvelope(msg, None, None) if msg.isInstanceOf[IncomingProtocolNormalMessage] =>
-        onNormalMessage(envelope)
+        Some(MessageReceived(envelope.b.asInstanceOf[IncomingProtocolNormalMessage]))
       case MessageEnvelope(msg, Some(_), None) if msg.isInstanceOf[IncomingProtocolRequestMessage] =>
-        onRequest(envelope)
+        Some(RequestReceived(
+          envelope.b.asInstanceOf[IncomingProtocolRequestMessage],
+          new ReplyCallbackImpl(envelope.q.get)))
       case MessageEnvelope(msg, None, Some(_)) if msg.isInstanceOf[IncomingProtocolResponseMessage] =>
         onReply(envelope)
+        None
       case _ =>
-        handleInvalidMessage("Invalid messame.")
+        throw new IllegalArgumentException("Invalid message.")
     }
   }
 
-  private[this] def onSocketClosed(): Unit = {
-    logger.debug("Socket closed")
+  def dispose(): Unit = {
     if (heartbeatHelper.started) {
       heartbeatHelper.stop()
     }
-    eventHandler lift ConnectionClosed
-  }
-
-  private[this] def onSocketDropped(): Unit = {
-    logger.debug("Socket dropped")
-    if (heartbeatHelper.started) {
-      heartbeatHelper.stop()
-    }
-    eventHandler lift ConnectionDropped
-  }
-
-  private[this] def onSocketError(message: String): Unit = {
-    logger.debug("Socket error")
-    eventHandler lift ConnectionError(message)
-  }
-
-  private[this] def onNormalMessage(envelope: MessageEnvelope): Unit = {
-    eventHandler lift MessageReceived(envelope.b.asInstanceOf[IncomingProtocolNormalMessage])
-  }
-
-  private[this] def onRequest(envelope: MessageEnvelope): Unit = {
-    val p = Promise[OutgoingProtocolResponseMessage]
-    eventHandler lift RequestReceived(
-      envelope.b.asInstanceOf[IncomingProtocolRequestMessage],
-      new ReplyCallbackImpl(envelope.q.get))
-
   }
 
   private[this] def onReply(envelope: MessageEnvelope): Unit = {
@@ -225,14 +170,7 @@ class ProtocolConnection(
     case PingRequest =>
       sendMessage(MessageEnvelope(PingMessage(), None, None))
     case PongTimeout =>
-      abort("pong timeout")
-      eventHandler lift ConnectionDropped
-  }
-
-  private[this] def handleInvalidMessage(error: String): Unit = {
-    logger.error(error)
-    this.abort(error)
-    eventHandler lift ConnectionError(error)
+      clientActor ! PongTimeout
   }
 
   class ReplyCallbackImpl(reqId: Long) extends ReplyCallback {

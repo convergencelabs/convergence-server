@@ -33,7 +33,7 @@ case class PongMessage() extends ProtocolMessage
 // Client Messages
 ///////////////////////////////////////////////////////////////////////////////
 
-case class ErrorMessage(c: String, d: String) extends OutgoingProtocolResponseMessage
+case class ErrorMessage(c: String, d: String) extends OutgoingProtocolResponseMessage with IncomingProtocolNormalMessage
 case class SuccessMessage() extends OutgoingProtocolResponseMessage
 
 // Handshaking
