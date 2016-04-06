@@ -13,7 +13,6 @@ class DomainRemoteDBController(domainConfig: Config) extends DomainDBController 
 
   val AdminUser = domainConfig.getString("admin-username")
   val AdminPassword = domainConfig.getString("admin-password")
-  val AdminUri = domainConfig.getString("admin-uri")
 
   val Username = domainConfig.getString("username")
   val BaseUri = domainConfig.getString("uri")
@@ -26,11 +25,12 @@ class DomainRemoteDBController(domainConfig: Config) extends DomainDBController 
   def createDomain(): DBConfig = {
     val id = UUID.randomUUID().getLeastSignificantBits().toString()
     val password = UUID.randomUUID().getLeastSignificantBits.toString()
+    val uri = s"BaseUri/$id"
+    
+    val serverAdmin = new OServerAdmin(uri)
+    serverAdmin.connect(AdminUser, AdminPassword).createDatabase(DBType, StorageMode).close()
 
-    val serverAdmin = new OServerAdmin(AdminUri)
-    serverAdmin.connect(AdminUser, AdminPassword).createDatabase(id, DBType, StorageMode).close()
-
-    val db = new ODatabaseDocumentTx(s"$BaseUri/$id")
+    val db = new ODatabaseDocumentTx(uri)
     db.activateOnCurrentThread()
     db.open(Username, password)
 
@@ -42,7 +42,7 @@ class DomainRemoteDBController(domainConfig: Config) extends DomainDBController 
   }
 
   def deleteDomain(id: String): Unit = {
-    val serverAdmin = new OServerAdmin(AdminUri)
-    serverAdmin.connect(AdminUser, AdminPassword).dropDatabase(id)
+    val serverAdmin = new OServerAdmin(s"BaseUri/$id")
+    serverAdmin.connect(AdminUser, AdminPassword).dropDatabase(id).close()
   }
 }
