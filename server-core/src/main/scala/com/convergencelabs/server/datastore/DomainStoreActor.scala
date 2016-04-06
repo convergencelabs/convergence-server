@@ -59,6 +59,10 @@ class DomainStoreActor private[datastore] (private[this] val dbPool: OPartitione
       case None => GetDomainFailure
     }
   }
+
+  def listDomains(listRequest: ListDomainsRequest): Try[ListDomainsResponse] = {
+    domainStore.getDomainsByOwner(listRequest.uid) map (domains => ListDomainsResponse(domains))
+  }
 }
 
 object DomainStoreActor {
@@ -74,8 +78,6 @@ object DomainStoreActor {
 
   case class ListDomainsRequest(uid: String)
 
-  sealed trait ListDomainsResponse
-  case class ListDomainsSuccess(domains: List[Domain]) extends ListDomainsResponse
-  case object ListDomainsFailure extends ListDomainsResponse
+  case class ListDomainsResponse(domains: List[Domain])
 }
 
