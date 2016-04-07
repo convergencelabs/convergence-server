@@ -85,13 +85,12 @@ class ClientActor(
         protocolConfig,
         context.system.scheduler,
         context.dispatcher)
-      context.become(receiveWhileConnected)
+      context.become(receiveWhileHandshaking)
     case x: Any =>
-      println(x)
-      ???
+      invalidMessage(x)
   }
 
-  def receiveWhileConnected: Receive = {
+  def receiveIncomingTextMessage: Receive = {
     case IncomingTextMessage(message) =>
       this.protocolConnection.onIncomingMessage(message) match {
         case Success(Some(event)) =>
@@ -101,42 +100,73 @@ class ClientActor(
         case Failure(cause) =>
           invalidMessage(cause)
       }
+  }
 
-    case handshakeSuccess: InternalHandshakeSuccess =>
-      handleHandshakeSuccess(handshakeSuccess)
-
-    case authSuccess: InternalAuthSuccess =>
-      handleAuthenticationSuccess(authSuccess)
-
+  def receiveOutgoing: Receive = {
     case message: OutgoingProtocolNormalMessage => onOutgoingMessage(message)
     case message: OutgoingProtocolRequestMessage => onOutgoingRequest(message)
+  }
 
+  def receiveCommon: Receive = {
     case WebSocketClosed => onConnectionClosed()
     case WebSocketError(cause) => onConnectionError(cause)
     case x: Any => invalidMessage(x)
   }
 
-  var messageHandler: MessageHandler = receiveWhileHandshaking
+  val receiveHandshakeSuccess: Receive = {
+    case handshakeSuccess: InternalHandshakeSuccess =>
+      handleHandshakeSuccess(handshakeSuccess)
+  }
 
-  def receiveWhileHandshaking: MessageHandler = {
+  val receiveWhileHandshaking =
+    receiveHandshakeSuccess orElse
+      receiveIncomingTextMessage orElse
+      receiveCommon
+
+  val receiveAuthentiationSuccess: Receive = {
+    case authSuccess: InternalAuthSuccess =>
+      handleAuthenticationSuccess(authSuccess)
+
+  }
+
+  val receiveWhileAuthenticating =
+    receiveAuthentiationSuccess orElse
+      receiveIncomingTextMessage orElse
+      receiveCommon
+
+  val receiveWhileAuthenticated =
+      receiveIncomingTextMessage orElse
+      receiveOutgoing orElse
+      receiveCommon
+
+  var messageHandler: MessageHandler = handleHandshakeMessage
+
+  def handleHandshakeMessage: MessageHandler = {
     case RequestReceived(message, replyCallback) if message.isInstanceOf[HandshakeRequestMessage] => {
       handshake(message.asInstanceOf[HandshakeRequestMessage], replyCallback)
     }
     case x: Any => invalidMessage(x)
   }
 
-  def receiveWhileAuthenticating: MessageHandler = {
+  def handleAuthentationMessage: MessageHandler = {
     case RequestReceived(message, replyCallback) if message.isInstanceOf[AuthenticationRequestMessage] => {
       authenticate(message.asInstanceOf[AuthenticationRequestMessage], replyCallback)
     }
     case x: Any => invalidMessage(x)
   }
 
+  def handleMessagesWhenAuthenticated: MessageHandler = {
+    case RequestReceived(message, replyPromise) if message.isInstanceOf[HandshakeRequestMessage] => invalidMessage(message)
+    case RequestReceived(message, replyPromise) if message.isInstanceOf[AuthenticationRequestMessage] => invalidMessage(message)
+
+    case message: MessageReceived => onMessageReceived(message)
+    case message: RequestReceived => onRequestReceived(message)
+  }
+
   def authenticate(requestMessage: AuthenticationRequestMessage, cb: ReplyCallback): Unit = {
     val message = requestMessage match {
       case PasswordAuthRequestMessage(username, password) => PasswordAuthRequest(username, password)
       case TokenAuthRequestMessage(token) => TokenAuthRequest(token)
-      case _ => ??? // todo invalid message
     }
 
     val future = domainActor ? message
@@ -163,8 +193,9 @@ class ClientActor(
     val InternalAuthSuccess(uid, username, cb) = message
     this.modelClient = context.actorOf(ModelClientActor.props(uid, sessionId, modelManagerActor))
     this.userClient = context.actorOf(UserClientActor.props(userServiceActor))
-    this.messageHandler = receiveWhileAuthenticated
+    this.messageHandler = handleMessagesWhenAuthenticated
     cb.reply(AuthenticationResponseMessage(true, Some(username)))
+    context.become(receiveWhileAuthenticated)
   }
 
   def handshake(request: HandshakeRequestMessage, cb: ReplyCallback): Unit = {
@@ -197,16 +228,8 @@ class ClientActor(
     this.modelManagerActor = modelManagerActor
     this.userServiceActor = userServiceActor
     cb.reply(HandshakeResponseMessage(true, None, Some(sessionId), Some(reconnectToken), None, Some(ProtocolConfigData(true))))
-    this.messageHandler = receiveWhileAuthenticating
-  }
-
-  def receiveWhileAuthenticated: MessageHandler = {
-    case RequestReceived(message, replyPromise) if message.isInstanceOf[HandshakeRequestMessage] => invalidMessage(message)
-    
-    case message: MessageReceived => onMessageReceived(message)
-    case message: RequestReceived => onRequestReceived(message)
-
-    case x: Any => unhandled(x)
+    this.messageHandler = handleAuthentationMessage
+    context.become(receiveWhileAuthenticating)
   }
 
   def onOutgoingMessage(message: OutgoingProtocolNormalMessage): Unit = {

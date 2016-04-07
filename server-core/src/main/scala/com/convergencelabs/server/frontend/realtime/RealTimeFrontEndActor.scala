@@ -46,7 +46,6 @@ class RealTimeFrontEndActor(
     case message: Any => unhandled(message)
   }
 
-
   private[this] def registerDomainManager(member: Member): Unit = {
     val domainManager = context.actorSelection(RootActorPath(member.address) / "user" / "domainManager")
     val f = domainManager.resolveOne(new FiniteDuration(10, TimeUnit.SECONDS))
