@@ -24,7 +24,7 @@ class AuthService(
   private[this] val executionContext: ExecutionContext,
   private[this] val authActor: ActorRef,
   private[this] val defaultTimeout: Timeout)
-    extends JsonService {
+    extends JsonSupport {
 
   implicit val ec = executionContext
   implicit val t = defaultTimeout

@@ -21,7 +21,7 @@ import scala.util.Failure
 case class AuthenticationFailed(ok: Boolean, error: String) extends ResponseMessage
 
 
-class Authenticator(authActor: ActorRef, timeout: Timeout, executionContext: ExecutionContext) extends JsonService {
+class Authenticator(authActor: ActorRef, timeout: Timeout, executionContext: ExecutionContext) extends JsonSupport {
 
   val authFailed = ErrorMessage("Unauthroized")
   

@@ -11,15 +11,19 @@ import com.convergencelabs.server.datastore.DomainStoreActor.ListDomainsRequest
 import com.convergencelabs.server.datastore.DomainStoreActor.ListDomainsResponse
 import scala.util.Try
 import scala.util.Success
+import com.convergencelabs.server.domain.DomainFqn
 
 case class DomainsResponse(ok: Boolean, domains: List[DomainFqn])
 case class DomainResponse(ok: Boolean, domain: Option[DomainInfo])
+case class DomainInfo(namespace: String, domain: String, title: String)
+case class DomainRequest(domainId: String)
+
 
 class DomainService(
   private[this] val executionContext: ExecutionContext,
   private[this] val domainActor: ActorRef,
   private[this] val defaultTimeout: Timeout)
-    extends JsonService {
+    extends JsonSupport {
 
   implicit val ec = executionContext
   implicit val t = defaultTimeout
