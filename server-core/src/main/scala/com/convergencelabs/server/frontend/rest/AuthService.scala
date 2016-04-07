@@ -12,6 +12,11 @@ import scala.util.Success
 import scala.concurrent.ExecutionContext
 import scala.util.Failure
 import akka.http.scaladsl.model.StatusCodes
+import com.convergencelabs.server.datastore.AuthStoreActor.AuthRequest
+import com.convergencelabs.server.datastore.AuthStoreActor.AuthResponse
+import com.convergencelabs.server.datastore.AuthStoreActor.AuthSuccess
+import com.convergencelabs.server.datastore.AuthStoreActor.AuthFailure
+import scala.util.Try
 
 case class AuthHttpResponse(ok: Boolean, token: Option[String]) extends ResponseMessage
 
@@ -33,9 +38,9 @@ class AuthService(
   }
 
   def authRequest(req: AuthRequest): Future[AuthHttpResponse] = {
-    (authActor ? req).mapTo[AuthResponse].map {
-      case AuthSuccess(token) => AuthHttpResponse(true, Some(token))
-      case AuthFailure => AuthHttpResponse(false, None)
+    (authActor ? req).mapTo[Try[AuthResponse]].map {
+      case Success(AuthSuccess(uid, token)) => AuthHttpResponse(true, Some(token))
+      case _ => AuthHttpResponse(false, None)
     }
   }
 }

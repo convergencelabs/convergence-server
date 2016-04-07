@@ -89,6 +89,15 @@ class DomainStoreSpec
       }
     }
 
+   "getting domains by owner" must {
+      "return all domains for an owner" in withPersistenceStore { store =>
+        val domains = store.getDomainsByOwner("cu0").success.get
+        domains.length shouldBe 3
+        domains(0).id shouldBe ns1d1Id
+        domains(1).id shouldBe ns1d2Id
+      }
+    }
+    
     "getting domains by namespace" must {
       "return all domains for a namespace" in withPersistenceStore { store =>
         val domains = store.getDomainsInNamespace(namespace1).success.get

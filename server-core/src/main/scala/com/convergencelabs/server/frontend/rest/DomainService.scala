@@ -6,6 +6,11 @@ import akka.actor.ActorRef
 import akka.util.Timeout
 import scala.concurrent.Future
 import akka.pattern.ask
+import com.convergencelabs.server.datastore.DomainStoreActor
+import com.convergencelabs.server.datastore.DomainStoreActor.ListDomainsRequest
+import com.convergencelabs.server.datastore.DomainStoreActor.ListDomainsResponse
+import scala.util.Try
+import scala.util.Success
 
 case class DomainsResponse(ok: Boolean, domains: List[DomainFqn])
 case class DomainResponse(ok: Boolean, domain: Option[DomainInfo])
@@ -35,8 +40,9 @@ class DomainService(
   }
 
   def domainsRequest(userId: String): Future[DomainsResponse] = {
-    (domainActor ? DomainsRequest).mapTo[List[_]].map {
-      case x: List[DomainFqn] => DomainsResponse(true, x)
+    (domainActor ? ListDomainsRequest).mapTo[Try[ListDomainsResponse]].map {
+      case Success(ListDomainsResponse(domains)) => DomainsResponse(true, (domains map (domain => DomainFqn(domain.domainFqn.namespace, domain.domainFqn.domainId))))
+      case _ => DomainsResponse(false, List())
     }
   }
 

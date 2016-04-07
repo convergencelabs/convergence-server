@@ -30,7 +30,7 @@ class Authenticator(userActor: ActorRef, timeout: Timeout, executionContext: Exe
     // need to change this to send the correct case class and map to the
     // correct response.
     // (userActor ? "some case class").mapTo[Option[String]]
-    Future.successful(Some("some user"))
+    Future.successful(Some("cu0"))
   }
 
   def rejectAuthentication(): StandardRoute = {

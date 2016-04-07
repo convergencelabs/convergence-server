@@ -7,6 +7,7 @@ import com.convergencelabs.server.datastore.AuthStoreActor._
 import scala.util.Success
 import scala.util.Failure
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
+import akka.actor.Props
 
 class AuthStoreActor private[datastore] (private[this] val dbPool: OPartitionedDatabasePool)
     extends Actor with ActorLogging {
@@ -22,7 +23,7 @@ class AuthStoreActor private[datastore] (private[this] val dbPool: OPartitionedD
   def authenticateUser(authRequest: AuthRequest): Try[AuthResponse] = {
     userStore.validateCredentials(authRequest.username, authRequest.password) map {
       case Some((uid, token)) => AuthSuccess(uid, token)
-      case None        => AuthFailure
+      case None               => AuthFailure
     }
   }
 
@@ -35,6 +36,8 @@ class AuthStoreActor private[datastore] (private[this] val dbPool: OPartitionedD
 }
 
 object AuthStoreActor {
+  def props(dbPool: OPartitionedDatabasePool): Props = Props(new AuthStoreActor(dbPool))
+  
   case class AuthRequest(username: String, password: String)
 
   sealed trait AuthResponse

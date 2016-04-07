@@ -11,11 +11,12 @@ import com.typesafe.config.Config
 import com.convergencelabs.server.domain.Domain
 import com.convergencelabs.server.domain.DomainFqn
 import scala.util.Failure
+import akka.actor.Props
 
 class DomainStoreActor private[datastore] (private[this] val dbPool: OPartitionedDatabasePool)
     extends Actor with ActorLogging {
 
-  private[this] val domainConfig: Config = context.system.settings.config.getConfig("convergence.database")
+  private[this] val domainConfig: Config = context.system.settings.config.getConfig("domain")
 
   private[this] val domainStore: DomainStore = new DomainStore(dbPool)
 
@@ -28,6 +29,10 @@ class DomainStoreActor private[datastore] (private[this] val dbPool: OPartitione
 
   def receive: Receive = {
     case createRequest: CreateDomainRequest => sender ! createDomain(createRequest)
+    case deleteRequest: DeleteDomainRequest => sender ! deleteDomain(deleteRequest)
+    case getRequest: GetDomainRequest       => sender ! getDomain(getRequest)
+    case listRequest: ListDomainsRequest    => sender ! listDomains(listRequest)
+    case message: Any                       => unhandled(message)
   }
 
   def createDomain(createRequest: CreateDomainRequest): Try[Unit] = {
@@ -37,11 +42,11 @@ class DomainStoreActor private[datastore] (private[this] val dbPool: OPartitione
     domainStore.createDomain(Domain(id, DomainFqn(namespace, domainId), username, password, displayName, owner))
 
   }
-  
+
   def deleteDomain(deleteRequest: DeleteDomainRequest): Try[Unit] = {
     val DeleteDomainRequest(namespace, domainId) = deleteRequest
-     val domain = domainStore.getDomainByFqn(DomainFqn(namespace, domainId))
-     domain flatMap {
+    val domain = domainStore.getDomainByFqn(DomainFqn(namespace, domainId))
+    domain flatMap {
       case Some(domain) => {
         domainStore.removeDomain(domain.id)
         domainDBContoller.deleteDomain(domain.id)
@@ -50,22 +55,24 @@ class DomainStoreActor private[datastore] (private[this] val dbPool: OPartitione
       //TODO: Determine correct exception to throw here
       case None => Failure(new IllegalArgumentException("Domain Not Found"))
     }
-  }  
+  }
 
   def getDomain(getRequest: GetDomainRequest): Try[GetDomainResponse] = {
     val GetDomainRequest(namespace, domainId) = getRequest
     domainStore.getDomainByFqn(DomainFqn(namespace, domainId)) map {
       case Some(domain) => GetDomainSuccess(domain)
-      case None => GetDomainFailure
+      case None         => GetDomainFailure
     }
   }
 
   def listDomains(listRequest: ListDomainsRequest): Try[ListDomainsResponse] = {
-    domainStore.getDomainsByOwner(listRequest.uid) map (domains => ListDomainsResponse(domains))
+    domainStore.getDomainsByOwner(listRequest.uid) map (ListDomainsResponse)
   }
 }
 
 object DomainStoreActor {
+  def props(dbPool: OPartitionedDatabasePool): Props = Props(new DomainStoreActor(dbPool))
+
   case class CreateDomainRequest(namespace: String, domainId: String, displayName: String, owner: String)
 
   case class DeleteDomainRequest(namespace: String, domainId: String)
