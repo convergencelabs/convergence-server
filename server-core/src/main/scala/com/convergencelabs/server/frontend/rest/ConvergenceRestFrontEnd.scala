@@ -49,7 +49,7 @@ class ConvergenceRestFrontEnd(
 
     // These are the rest services
     val authService = new AuthService(ec, authActor, defaultRequestTimeout)
-    val authenticator = new Authenticator(null, defaultRequestTimeout, ec)
+    val authenticator = new Authenticator(authActor, defaultRequestTimeout, ec)
     val domainService = new DomainService(ec, domainActor, defaultRequestTimeout)
 
     val route = cors() {

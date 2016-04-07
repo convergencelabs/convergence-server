@@ -10,11 +10,18 @@ import akka.actor.ActorRef
 import akka.util.Timeout
 import scala.concurrent.ExecutionContext
 import akka.pattern.ask
+import com.convergencelabs.server.datastore.AuthStoreActor.ValidateRequest
+import com.convergencelabs.server.datastore.AuthStoreActor.ValidateResponse
+import com.convergencelabs.server.datastore.AuthStoreActor.ValidateSuccess
+import com.convergencelabs.server.datastore.AuthStoreActor.ValidateFailure
+import scala.util.Try
+import scala.util.Success
+import scala.util.Failure
 
 case class AuthenticationFailed(ok: Boolean, error: String) extends ResponseMessage
 
 
-class Authenticator(userActor: ActorRef, timeout: Timeout, executionContext: ExecutionContext) extends JsonService {
+class Authenticator(authActor: ActorRef, timeout: Timeout, executionContext: ExecutionContext) extends JsonService {
 
   val authFailed = ErrorMessage("Unauthroized")
   
@@ -26,11 +33,12 @@ class Authenticator(userActor: ActorRef, timeout: Timeout, executionContext: Exe
   implicit val ec = executionContext
   implicit val t = timeout
 
-  def validateToken(authToken: String): Future[Option[String]] = {
-    // need to change this to send the correct case class and map to the
-    // correct response.
-    // (userActor ? "some case class").mapTo[Option[String]]
-    Future.successful(Some("cu0"))
+  def validateToken(token: String): Future[Option[String]] = {
+     (authActor ? ValidateRequest(token)).mapTo[Try[ValidateResponse]] map {
+       case Success(ValidateSuccess(uid)) => Some(uid)
+       case Success(ValidateFailure) => None
+       case Failure(cause) => None
+     }
   }
 
   def rejectAuthentication(): StandardRoute = {
