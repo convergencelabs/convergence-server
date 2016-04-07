@@ -44,7 +44,7 @@ class DomainService(
   }
 
   def domainsRequest(userId: String): Future[DomainsResponse] = {
-    (domainActor ? ListDomainsRequest).mapTo[Try[ListDomainsResponse]].map {
+    (domainActor ? ListDomainsRequest(userId)).mapTo[Try[ListDomainsResponse]].map {
       case Success(ListDomainsResponse(domains)) => DomainsResponse(true, (domains map (domain => DomainFqn(domain.domainFqn.namespace, domain.domainFqn.domainId))))
       case _ => DomainsResponse(false, List())
     }
