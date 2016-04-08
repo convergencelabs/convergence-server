@@ -13,26 +13,22 @@ import ch.megard.akka.http.cors.CorsDirectives._
 import com.convergencelabs.server.datastore.AuthStoreActor
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.convergencelabs.server.datastore.DomainStoreActor
-
-object ConvergenceRestFrontEnd {
-  def main(args: Array[String]) {
-    val server = new ConvergenceRestFrontEnd("localhost", 8081, ActorSystem("rest-system"))
-    server.start()
-  }
-}
+import grizzled.slf4j.Logging
 
 class ConvergenceRestFrontEnd(
-    val interface: String,
-    val port: Int,
-    implicit val system: ActorSystem) {
+  val system: ActorSystem,
+  val interface: String,
+  val port: Int)
+    extends Logging {
 
+  implicit val s = system
   implicit val materializer = ActorMaterializer()
   implicit val ec = system.dispatcher
   implicit val defaultRequestTimeout = Timeout(2 seconds)
 
   def start(): Unit = {
-    
-        // FIXME we could pass this in.
+
+    // FIXME we could pass this in.
     val dbConfig = system.settings.config.getConfig("convergence.database")
 
     val baseUri = dbConfig.getString("uri")
@@ -42,9 +38,7 @@ class ConvergenceRestFrontEnd(
 
     val dbPool = new OPartitionedDatabasePool(fullUri, password, password)
 
-    // Here are the actors that do the actual work
     val authActor = system.actorOf(AuthStoreActor.props(dbPool))
-
     val domainActor = system.actorOf(DomainStoreActor.props(dbPool))
 
     // These are the rest services
@@ -67,6 +61,6 @@ class ConvergenceRestFrontEnd(
     // Now we start up the server
     val bindingFuture = Http().bindAndHandle(route, interface, port)
 
-    println(s"Convergence Rest Front End listening at http://${interface}:${port}/")
+    logger.info(s"Convergence Rest Front End listening at http://${interface}:${port}/")
   }
 }

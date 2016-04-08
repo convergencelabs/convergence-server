@@ -68,7 +68,7 @@ class TestServer(
     realTimeFrontEnd.start()
     
     restFrontEndSystem = startupCluster(2555, "restFrontend", configFile)
-    restFrontEnd = new ConvergenceRestFrontEnd("0.0.0.0", 8081, restFrontEndSystem)
+    restFrontEnd = new ConvergenceRestFrontEnd(restFrontEndSystem, "0.0.0.0", 8081)
     restFrontEnd.start()
 
     logger.info("Test Server started.")
