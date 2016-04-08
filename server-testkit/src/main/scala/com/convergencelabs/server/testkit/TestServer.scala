@@ -64,11 +64,11 @@ class TestServer(
     backend.start()
 
     realTimeFrontEndSystem = startupCluster(2554, "realTimeFrontEndSystem", configFile)
-    realTimeFrontEnd = new ConvergenceRealTimeFrontend(realTimeFrontEndSystem, "localhost", 8080)
+    realTimeFrontEnd = new ConvergenceRealTimeFrontend(realTimeFrontEndSystem, "0.0.0.0", 8080)
     realTimeFrontEnd.start()
     
     restFrontEndSystem = startupCluster(2555, "restFrontend", configFile)
-    restFrontEnd = new ConvergenceRestFrontEnd("localhost", 8081, restFrontEndSystem)
+    restFrontEnd = new ConvergenceRestFrontEnd("0.0.0.0", 8081, restFrontEndSystem)
     restFrontEnd.start()
 
     logger.info("Test Server started.")
