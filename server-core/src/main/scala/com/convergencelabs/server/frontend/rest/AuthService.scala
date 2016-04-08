@@ -18,7 +18,7 @@ import com.convergencelabs.server.datastore.AuthStoreActor.AuthSuccess
 import com.convergencelabs.server.datastore.AuthStoreActor.AuthFailure
 import scala.util.Try
 
-case class AuthHttpResponse(ok: Boolean, token: Option[String]) extends ResponseMessage
+case class TokenResponse(ok: Boolean, token: String) extends ResponseMessage
 
 class AuthService(
   private[this] val executionContext: ExecutionContext,
@@ -37,10 +37,11 @@ class AuthService(
     }
   }
 
-  def authRequest(req: AuthRequest): Future[AuthHttpResponse] = {
+  def authRequest(req: AuthRequest): Future[RestResponse] = {
     (authActor ? req).mapTo[Try[AuthResponse]].map {
-      case Success(AuthSuccess(uid, token)) => AuthHttpResponse(true, Some(token))
-      case _ => AuthHttpResponse(false, None)
+      case Success(AuthSuccess(uid, token)) => (StatusCodes.OK, TokenResponse(true, token))
+      case Success(AuthFailure) => (StatusCodes.Unauthorized, ErrorResponse(false, "Unauthorized"))
+      case Failure(error) => (StatusCodes.InternalServerError, ErrorResponse(false, "Internal server error!"))
     }
   }
 }

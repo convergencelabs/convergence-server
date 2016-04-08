@@ -23,7 +23,7 @@ case class AuthenticationFailed(ok: Boolean, error: String) extends ResponseMess
 
 class Authenticator(authActor: ActorRef, timeout: Timeout, executionContext: ExecutionContext) extends JsonSupport {
 
-  val authFailed = ErrorMessage("Unauthroized")
+  val authFailed = ErrorResponse(false, "Unauthroized")
   
   import BasicDirectives._
   import RouteDirectives._
