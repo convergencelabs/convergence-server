@@ -26,6 +26,7 @@ object MessageSerializer {
     MessageType.AuthenticationResponse -> classOf[AuthenticationResponseMessage],
 
     MessageType.CreateRealTimeModelRequest -> classOf[CreateRealtimeModelRequestMessage],
+    MessageType.CreateRealTimeModelResponse -> classOf[CreateRealtimeModelSuccessMessage],
 
     MessageType.OpenRealTimeModelRequest -> classOf[OpenRealtimeModelRequestMessage],
     MessageType.OpenRealTimeModelResponse -> classOf[OpenRealtimeModelResponseMessage],
@@ -34,6 +35,7 @@ object MessageSerializer {
     MessageType.CloseRealTimeModelResponse -> classOf[CloseRealTimeModelSuccessMessage],
 
     MessageType.DeleteRealtimeModelRequest -> classOf[DeleteRealtimeModelRequestMessage],
+    MessageType.DeleteRealtimeModelResponse -> classOf[DeleteRealtimeModelSuccessMessage],
 
     MessageType.ModelDataResponse -> classOf[ModelDataResponseMessage],
     MessageType.ModelDataRequest -> classOf[ModelDataRequestMessage],

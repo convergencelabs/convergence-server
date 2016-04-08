@@ -34,7 +34,6 @@ case class PongMessage() extends ProtocolMessage
 ///////////////////////////////////////////////////////////////////////////////
 
 case class ErrorMessage(c: String, d: String) extends OutgoingProtocolResponseMessage with IncomingProtocolNormalMessage
-case class SuccessMessage() extends OutgoingProtocolResponseMessage
 
 // Handshaking
 case class HandshakeRequestMessage(r: scala.Boolean, k: Option[String]) extends IncomingProtocolRequestMessage
@@ -90,6 +89,8 @@ case class OpenModelData(d: ObjectValue, s: Set[String], r: Set[ReferenceData])
 case class ReferenceData(s: String, d: String, k: String, c: Int, v: Option[Any])
 
 case class CloseRealTimeModelSuccessMessage() extends OutgoingProtocolResponseMessage
+case class CreateRealtimeModelSuccessMessage() extends OutgoingProtocolResponseMessage
+case class DeleteRealtimeModelSuccessMessage() extends OutgoingProtocolResponseMessage
 
 case class OperationAcknowledgementMessage(r: String, s: Long, v: Long) extends OutgoingProtocolNormalMessage
 case class RemoteOperationMessage(r: String, u: String, s: String, v: Long, p: Long, o: OperationData) extends OutgoingProtocolNormalMessage
