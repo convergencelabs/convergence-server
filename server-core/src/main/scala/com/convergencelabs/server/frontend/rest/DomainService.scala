@@ -69,7 +69,7 @@ class DomainService(
     val CreateRequest(namespace, domainId, displayName) = createRequest
     (domainActor ? CreateDomainRequest(namespace, domainId, displayName, userId)).mapTo[Try[Unit]].map {
       case Success(_)     => (StatusCodes.Created, CreateResponse(true))
-      case Failure(error) => (StatusCodes.InternalServerError, ErrorResponse(false, "Internal server error!"))
+      case Failure(error) => InternalServerError
     }
   }
 
@@ -78,22 +78,22 @@ class DomainService(
       case Success(ListDomainsResponse(domains)) => (StatusCodes.OK, DomainsResponse(
         true,
         (domains map (domain => DomainFqn(domain.domainFqn.namespace, domain.domainFqn.domainId)))))
-      case Failure(error) => (StatusCodes.InternalServerError, ErrorResponse(false, "Internal server error!"))
+      case Failure(error) => InternalServerError
     }
   }
 
   def domainRequest(namespace: String, domainId: String): Future[RestResponse] = {
     (domainActor ? GetDomainRequest(namespace, domainId)).mapTo[Try[GetDomainResponse]].map {
       case Success(GetDomainSuccess(domain)) => (StatusCodes.OK, DomainResponse(true, domain))
-      case Success(GetDomainFailure)         => (StatusCodes.NotFound, ErrorResponse(false, "Domain not found!"))
-      case Failure(error)                    => (StatusCodes.InternalServerError, ErrorResponse(false, "Internal server error!"))
+      case Success(GetDomainFailure)         => (StatusCodes.NotFound, ErrorResponse("Domain not found!"))
+      case Failure(error)                    => InternalServerError
     }
   }
 
   def deleteRequest(namespace: String, domainId: String): Future[RestResponse] = {
     (domainActor ? DeleteDomainRequest(namespace, domainId)).mapTo[Try[Unit]].map {
       case Success(_)     => (StatusCodes.Created, DeleteResponse(true))
-      case Failure(error) => (StatusCodes.InternalServerError, ErrorResponse(false, "Internal server error!"))
+      case Failure(error) => InternalServerError
     }
   }
 }
