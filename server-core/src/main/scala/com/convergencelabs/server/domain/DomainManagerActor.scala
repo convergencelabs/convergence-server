@@ -59,26 +59,26 @@ class DomainManagerActor(
 
   private[this] def onHandshakeRequest(request: HandshakeRequest): Unit = {
     val domainFqn = request.domainFqn
-    domainStore.domainExists(domainFqn) match {
-      case Success(false) => sender ! HandshakeFailure("domain_does_not_exists", "The domain does not exist")
-      case Success(true) => {
-        if (!this.domainFqnToActor.contains(domainFqn)) {
+    if (this.domainFqnToActor.contains(domainFqn)) {
+      log.debug("Client connected to loaded domain '{}'.", domainFqn)
+      // If this domain was going to be closing, cancel the close request.
+      if (shudownRequests.contains(domainFqn)) {
+        log.debug(s"Canceling request to close domain: ${domainFqn}", domainFqn)
+        shudownRequests(domainFqn).cancel()
+        shudownRequests.remove(domainFqn)
+      }
+      domainFqnToActor(domainFqn) forward request
+    } else {
+      domainStore.domainExists(domainFqn) match {
+        case Success(false) => 
+          log.debug("Client connected to non-existent domain '{}'", domainFqn)
+          sender ! HandshakeFailure("domain_does_not_exists", "The domain does not exist")
+        case Success(true) => 
           log.debug("Client connected to unloaded domain '{}', loading it.", domainFqn)
           handleClientOpeningClosedDomain(domainFqn, request)
-        } else {
-          log.debug("Client connected to loaded domain '{}'.", domainFqn)
-          // If this domain was going to be closing, cancel the close request.
-          if (shudownRequests.contains(domainFqn)) {
-            log.debug(s"Canceling request to close domain: ${domainFqn}", domainFqn)
-            shudownRequests(domainFqn).cancel()
-            shudownRequests.remove(domainFqn)
-          }
-          domainFqnToActor(domainFqn) forward request
-        }
-      }
-      case Failure(cause) => {
-        log.error(cause, "Unknown error handshaking")
-        sender ! HandshakeFailure("unknown", "unknown error handshaking")
+        case Failure(cause) => 
+          log.error(cause, "Unknown error handshaking")
+          sender ! HandshakeFailure("unknown", "unknown error handshaking")
       }
     }
   }

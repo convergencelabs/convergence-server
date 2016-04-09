@@ -173,7 +173,7 @@ class DomainPersistenceManagerActor(
   private[this] def shutdownPool(domainFqn: DomainFqn): Unit = {
     providers.get(domainFqn) match {
       case Some(provider) => {
-        log.warning(s"Shutting down persistence provider: ${domainFqn}")
+        log.debug(s"Shutting down persistence provider: ${domainFqn}")
         providers = providers - domainFqn
         refernceCounts = refernceCounts - domainFqn
         provider.shutdown()
