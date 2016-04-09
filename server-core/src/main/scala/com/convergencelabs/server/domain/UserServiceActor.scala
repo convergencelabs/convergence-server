@@ -20,7 +20,6 @@ object UserServiceActor {
     new UserServiceActor(domainFqn))
 }
 
-
 class UserServiceActor private[domain] (domainFqn: DomainFqn) extends Actor with ActorLogging {
 
   var persistenceProvider: DomainPersistenceProvider = _
@@ -73,7 +72,7 @@ class UserServiceActor private[domain] (domainFqn: DomainFqn) extends Actor with
       case UserLookUpField.Email => DomainUserField.Email
     }
   }
-  
+
   override def postStop(): Unit = {
     log.debug("ModelManagerActor({}) received shutdown command.  Shutting down all Realtime Models.", this.domainFqn)
     DomainPersistenceManagerActor.releasePersistenceProvider(self, context, domainFqn)

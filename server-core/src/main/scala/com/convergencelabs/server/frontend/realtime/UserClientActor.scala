@@ -117,7 +117,7 @@ class UserClientActor(userServiceActor: ActorRef) extends Actor with ActorLoggin
       case UserFieldCodes.FirstName => UserLookUpField.FirstName
       case UserFieldCodes.LastName => UserLookUpField.LastName
       case UserFieldCodes.Email => UserLookUpField.Email
-      case _ => ???
+      case _ => ??? // FIXME can we make this be a better matcher using an enum or something?
     }
   }
 

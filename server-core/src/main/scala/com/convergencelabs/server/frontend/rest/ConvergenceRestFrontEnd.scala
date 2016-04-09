@@ -29,7 +29,6 @@ class ConvergenceRestFrontEnd(
 
   def start(): Unit = {
 
-    // FIXME we could pass this in.
     val dbConfig = system.settings.config.getConfig("convergence.database")
 
     val baseUri = dbConfig.getString("uri")

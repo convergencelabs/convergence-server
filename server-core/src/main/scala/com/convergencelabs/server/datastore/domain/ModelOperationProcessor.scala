@@ -63,8 +63,8 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     applyOperationToModel(modelOperation.modelFqn, modelOperation.op, db)
 
     // Persist the operation
-    // FIXME this causes an exception
-    //db.save(modelOperation.asODocument)
+    // FIXME Can't persist operations this causes an exception
+    // db.save(modelOperation.asODocument)
 
     // Update the model metadata
     updateModelMetaData(modelOperation.modelFqn, modelOperation.timestamp, db)
@@ -96,28 +96,28 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
   // scalastyle:off cyclomatic.complexity
   private[this] def applyOperationToModel(fqn: ModelFqn, operation: Operation, db: ODatabaseDocumentTx): Unit = {
     operation match {
-      case op: CompoundOperation             => op.operations foreach { o => applyOperationToModel(fqn, o, db) }
-      case op: DiscreteOperation if op.noOp  => // Do nothing since this is a noOp
+      case op: CompoundOperation => op.operations foreach { o => applyOperationToModel(fqn, o, db) }
+      case op: DiscreteOperation if op.noOp => // Do nothing since this is a noOp
 
-      case op: ArrayInsertOperation          => applyArrayInsertOperation(fqn, op, db)
-      case op: ArrayRemoveOperation          => applyArrayRemoveOperation(fqn, op, db)
-      case op: ArrayReplaceOperation         => applyArrayReplaceOperation(fqn, op, db)
-      case op: ArrayMoveOperation            => applyArrayMoveOperation(fqn, op, db)
-      case op: ArraySetOperation             => applyArraySetOperation(fqn, op, db)
+      case op: ArrayInsertOperation => applyArrayInsertOperation(fqn, op, db)
+      case op: ArrayRemoveOperation => applyArrayRemoveOperation(fqn, op, db)
+      case op: ArrayReplaceOperation => applyArrayReplaceOperation(fqn, op, db)
+      case op: ArrayMoveOperation => applyArrayMoveOperation(fqn, op, db)
+      case op: ArraySetOperation => applyArraySetOperation(fqn, op, db)
 
-      case op: ObjectAddPropertyOperation    => applyObjectAddPropertyOperation(fqn, op, db)
-      case op: ObjectSetPropertyOperation    => applyObjectSetPropertyOperation(fqn, op, db)
+      case op: ObjectAddPropertyOperation => applyObjectAddPropertyOperation(fqn, op, db)
+      case op: ObjectSetPropertyOperation => applyObjectSetPropertyOperation(fqn, op, db)
       case op: ObjectRemovePropertyOperation => applyObjectRemovePropertyOperation(fqn, op, db)
-      case op: ObjectSetOperation            => applyObjectSetOperation(fqn, op, db)
+      case op: ObjectSetOperation => applyObjectSetOperation(fqn, op, db)
 
-      case op: StringInsertOperation         => applyStringInsertOperation(fqn, op, db)
-      case op: StringRemoveOperation         => applyStringRemoveOperation(fqn, op, db)
-      case op: StringSetOperation            => applyStringSetOperation(fqn, op, db)
+      case op: StringInsertOperation => applyStringInsertOperation(fqn, op, db)
+      case op: StringRemoveOperation => applyStringRemoveOperation(fqn, op, db)
+      case op: StringSetOperation => applyStringSetOperation(fqn, op, db)
 
-      case op: NumberAddOperation            => applyNumberAddOperation(fqn, op, db)
-      case op: NumberSetOperation            => applyNumberSetOperation(fqn, op, db)
+      case op: NumberAddOperation => applyNumberAddOperation(fqn, op, db)
+      case op: NumberSetOperation => applyNumberSetOperation(fqn, op, db)
 
-      case op: BooleanSetOperation           => applyBooleanSetOperation(fqn, op, db)
+      case op: BooleanSetOperation => applyBooleanSetOperation(fqn, op, db)
     }
   }
   // scalastyle:on cyclomatic.complexity
@@ -134,7 +134,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
         db.commit()
         Unit
       }
-      case Success(None)  => //TODO: Handle model doesn't exist
+      case Success(None) => //TODO: Handle model doesn't exist
       case Failure(error) => //TODO: Handle failure looking up model
     }
   }
@@ -162,7 +162,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
 
         Unit
       }
-      case Success(None)  => //TODO: Handle model doesn't exist
+      case Success(None) => //TODO: Handle model doesn't exist
       case Failure(error) => //TODO: Handle failure looking up model
     }
   }
@@ -181,7 +181,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
         val children = operation.value map (v => OrientDataValueBuilder.dataValueToODocument(v, rid))
         children.foreach { child => child.save() }
         db.commit()
-        
+
         val params = Map(VID -> operation.id, CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, Value -> children.asJava)
         val queryString = s"UPDATE ArrayValue SET children = :value WHERE vid = : vid and model.collectionId = :collectionId and model.modelId = :modelId"
         val updateCommand = new OCommandSQL(queryString)
@@ -189,7 +189,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
         db.commit()
         Unit
       }
-      case Success(None)  => //TODO: Handle model doesn't exist
+      case Success(None) => //TODO: Handle model doesn't exist
       case Failure(error) => //TODO: Handle failure looking up mod
     }
   }
@@ -207,7 +207,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
         db.command(updateCommand).execute(params.asJava)
         db.commit()
       }
-      case Success(None)  => //TODO: Handle model doesn't exist
+      case Success(None) => //TODO: Handle model doesn't exist
       case Failure(error) => //TODO: Handle failure looking up model
     }
   }
@@ -218,14 +218,14 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
         val value = OrientDataValueBuilder.dataValueToODocument(operation.value, rid)
         value.save()
         db.commit()
-        
+
         val pathString = "children." + operation.property
         val params = Map(VID -> operation.id, CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, Value -> value)
         val updateCommand = new OCommandSQL(s"UPDATE ObjectValue SET $pathString = :value WHERE vid = :vid and model.collectionId = :collectionId and model.modelId = :modelId")
         db.command(updateCommand).execute(params.asJava)
         db.commit()
       }
-      case Success(None)  => //TODO: Handle model doesn't exist
+      case Success(None) => //TODO: Handle model doesn't exist
       case Failure(error) => //TODO: Handle failure looking up model
     }
   }
@@ -241,16 +241,16 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
   private[this] def applyObjectSetOperation(fqn: ModelFqn, operation: ObjectSetOperation, db: ODatabaseDocumentTx): Unit = {
     getModelRid(fqn) match {
       case Success(Some(rid)) => {
-        val children = operation.value map {case(k, v) => (k, OrientDataValueBuilder.dataValueToODocument(v, rid))}
+        val children = operation.value map { case (k, v) => (k, OrientDataValueBuilder.dataValueToODocument(v, rid)) }
         children.values foreach { child => child.save() }
         db.commit()
-        
+
         val params = Map(VID -> operation.id, CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, Value -> children.asJava)
         val updateCommand = new OCommandSQL(s"UPDATE ObjectValue SET children = :value WHERE vid = :vid and model.collectionId = :collectionId and model.modelId = :modelId")
         db.command(updateCommand).execute(params.asJava)
         db.commit()
       }
-      case Success(None)  => //TODO: Handle model doesn't exist
+      case Success(None) => //TODO: Handle model doesn't exist
       case Failure(error) => //TODO: Handle failure looking up mode
     }
   }
@@ -313,9 +313,9 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
       ModelId -> fqn.modelId)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     result.asScala.toList match {
-      case first :: Nil  => Some(first)
+      case first :: Nil => Some(first)
       case first :: rest => None
-      case Nil           => None
+      case Nil => None
     }
   }
 }

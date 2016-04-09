@@ -75,8 +75,8 @@ class ModelClientActor(
   implicit val ec = context.dispatcher
 
   def receive: Receive = {
-    case MessageReceived(message) if message.isInstanceOf[IncomingProtocolNormalMessage] =>
-      onMessageReceived(message.asInstanceOf[IncomingProtocolNormalMessage])
+    case MessageReceived(message) if message.isInstanceOf[IncomingModelNormalMessage] =>
+      onMessageReceived(message.asInstanceOf[IncomingModelNormalMessage])
     case RequestReceived(message, replyPromise) if message.isInstanceOf[IncomingModelRequestMessage] =>
       onRequestReceived(message.asInstanceOf[IncomingModelRequestMessage], replyPromise)
     case message: RealtimeModelClientMessage =>
@@ -196,7 +196,7 @@ class ModelClientActor(
     }
   }
 
-  def onMessageReceived(message: IncomingProtocolNormalMessage): Unit = {
+  def onMessageReceived(message: IncomingModelNormalMessage): Unit = {
     message match {
       case submission: OperationSubmissionMessage => onOperationSubmission(submission)
       case publishReference: PublishReferenceMessage => onPublishReference(publishReference)

@@ -52,12 +52,12 @@ class ClientActor(
   type MessageHandler = PartialFunction[ProtocolMessageEvent, Unit]
 
   // FIXME hard-coded (used for auth and handshake)
-  implicit val requestTimeout = Timeout(1 seconds)
-  implicit val ec = context.dispatcher
+  private[this] implicit val requestTimeout = Timeout(1 seconds)
+  private[this] implicit val ec = context.dispatcher
 
-  var connectionActor: ActorRef = _
+  private[this] var connectionActor: ActorRef = _
 
-  val handshakeTimeoutTask = context.system.scheduler.scheduleOnce(handshakeTimeout) {
+  private[this]  val handshakeTimeoutTask = context.system.scheduler.scheduleOnce(handshakeTimeout) {
     log.debug("Client handshaked timeout")
     connectionActor ! CloseConnection
     context.stop(self)
@@ -65,18 +65,18 @@ class ClientActor(
 
   private[this] val connectionManager = context.parent
 
-  var modelClient: ActorRef = _
-  var userClient: ActorRef = _
-  var domainActor: ActorRef = _
-  var modelManagerActor: ActorRef = _
-  var userServiceActor: ActorRef = _
-  var sessionId: String = _
+  private[this] var modelClient: ActorRef = _
+  private[this] var userClient: ActorRef = _
+  private[this] var domainActor: ActorRef = _
+  private[this] var modelManagerActor: ActorRef = _
+  private[this] var userServiceActor: ActorRef = _
+  private[this] var sessionId: String = _
 
-  var protocolConnection: ProtocolConnection = _
+  private[this] var protocolConnection: ProtocolConnection = _
 
   def receive: Receive = receiveWhileConnecting
 
-  def receiveWhileConnecting: Receive = {
+  private[this] def receiveWhileConnecting: Receive = {
     case WebSocketOpened(connectionActor) =>
       this.connectionActor = connectionActor
       this.protocolConnection = new ProtocolConnection(
@@ -90,7 +90,7 @@ class ClientActor(
       invalidMessage(x)
   }
 
-  def receiveIncomingTextMessage: Receive = {
+  private[this] def receiveIncomingTextMessage: Receive = {
     case IncomingTextMessage(message) =>
       this.protocolConnection.onIncomingMessage(message) match {
         case Success(Some(event)) =>
@@ -102,60 +102,60 @@ class ClientActor(
       }
   }
 
-  def receiveOutgoing: Receive = {
+  private[this] def receiveOutgoing: Receive = {
     case message: OutgoingProtocolNormalMessage => onOutgoingMessage(message)
     case message: OutgoingProtocolRequestMessage => onOutgoingRequest(message)
   }
 
-  def receiveCommon: Receive = {
+  private[this] def receiveCommon: Receive = {
     case WebSocketClosed => onConnectionClosed()
     case WebSocketError(cause) => onConnectionError(cause)
     case x: Any => invalidMessage(x)
   }
 
-  val receiveHandshakeSuccess: Receive = {
+  private[this] val receiveHandshakeSuccess: Receive = {
     case handshakeSuccess: InternalHandshakeSuccess =>
       handleHandshakeSuccess(handshakeSuccess)
   }
 
-  val receiveWhileHandshaking =
+  private[this] val receiveWhileHandshaking =
     receiveHandshakeSuccess orElse
       receiveIncomingTextMessage orElse
       receiveCommon
 
-  val receiveAuthentiationSuccess: Receive = {
+  private[this] val receiveAuthentiationSuccess: Receive = {
     case authSuccess: InternalAuthSuccess =>
       handleAuthenticationSuccess(authSuccess)
 
   }
 
-  val receiveWhileAuthenticating =
+  private[this] val receiveWhileAuthenticating =
     receiveAuthentiationSuccess orElse
       receiveIncomingTextMessage orElse
       receiveCommon
 
-  val receiveWhileAuthenticated =
-      receiveIncomingTextMessage orElse
+  private[this] val receiveWhileAuthenticated =
+    receiveIncomingTextMessage orElse
       receiveOutgoing orElse
       receiveCommon
 
-  var messageHandler: MessageHandler = handleHandshakeMessage
+  private[this] var messageHandler: MessageHandler = handleHandshakeMessage
 
-  def handleHandshakeMessage: MessageHandler = {
+  private[this] def handleHandshakeMessage: MessageHandler = {
     case RequestReceived(message, replyCallback) if message.isInstanceOf[HandshakeRequestMessage] => {
       handshake(message.asInstanceOf[HandshakeRequestMessage], replyCallback)
     }
     case x: Any => invalidMessage(x)
   }
 
-  def handleAuthentationMessage: MessageHandler = {
+  private[this] def handleAuthentationMessage: MessageHandler = {
     case RequestReceived(message, replyCallback) if message.isInstanceOf[AuthenticationRequestMessage] => {
       authenticate(message.asInstanceOf[AuthenticationRequestMessage], replyCallback)
     }
     case x: Any => invalidMessage(x)
   }
 
-  def handleMessagesWhenAuthenticated: MessageHandler = {
+  private[this] def handleMessagesWhenAuthenticated: MessageHandler = {
     case RequestReceived(message, replyPromise) if message.isInstanceOf[HandshakeRequestMessage] => invalidMessage(message)
     case RequestReceived(message, replyPromise) if message.isInstanceOf[AuthenticationRequestMessage] => invalidMessage(message)
 
@@ -163,7 +163,7 @@ class ClientActor(
     case message: RequestReceived => onRequestReceived(message)
   }
 
-  def authenticate(requestMessage: AuthenticationRequestMessage, cb: ReplyCallback): Unit = {
+  private[this] def authenticate(requestMessage: AuthenticationRequestMessage, cb: ReplyCallback): Unit = {
     val message = requestMessage match {
       case PasswordAuthRequestMessage(username, password) => PasswordAuthRequest(username, password)
       case TokenAuthRequestMessage(token) => TokenAuthRequest(token)
@@ -198,7 +198,7 @@ class ClientActor(
     context.become(receiveWhileAuthenticated)
   }
 
-  def handshake(request: HandshakeRequestMessage, cb: ReplyCallback): Unit = {
+  private[this] def handshake(request: HandshakeRequestMessage, cb: ReplyCallback): Unit = {
     log.debug("handhsaking with domain")
     val canceled = handshakeTimeoutTask.cancel()
     if (canceled) {
@@ -221,7 +221,7 @@ class ClientActor(
     }
   }
 
-  def handleHandshakeSuccess(success: InternalHandshakeSuccess): Unit = {
+  private[this] def handleHandshakeSuccess(success: InternalHandshakeSuccess): Unit = {
     val InternalHandshakeSuccess(HandshakeSuccess(sessionId, reconnectToken, domainActor, modelManagerActor, userServiceActor), cb) = success
     this.sessionId = sessionId
     this.domainActor = domainActor
@@ -232,11 +232,11 @@ class ClientActor(
     context.become(receiveWhileAuthenticating)
   }
 
-  def onOutgoingMessage(message: OutgoingProtocolNormalMessage): Unit = {
+  private[this] def onOutgoingMessage(message: OutgoingProtocolNormalMessage): Unit = {
     protocolConnection.send(message)
   }
 
-  def onOutgoingRequest(message: OutgoingProtocolRequestMessage): Unit = {
+  private[this] def onOutgoingRequest(message: OutgoingProtocolRequestMessage): Unit = {
     val askingActor = sender
     val f = protocolConnection.request(message)
     // FIXME should we allow them to specify what should be coming back.
@@ -246,13 +246,13 @@ class ClientActor(
     }
   }
 
-  private def onMessageReceived(message: MessageReceived): Unit = {
+  private[this] def onMessageReceived(message: MessageReceived): Unit = {
     message match {
       case MessageReceived(x) if x.isInstanceOf[IncomingModelNormalMessage] => modelClient.forward(message)
     }
   }
 
-  private def onRequestReceived(message: RequestReceived): Unit = {
+  private[this] def onRequestReceived(message: RequestReceived): Unit = {
     message match {
       case RequestReceived(x, _) if x.isInstanceOf[IncomingModelRequestMessage] =>
         modelClient.forward(message)
@@ -261,8 +261,7 @@ class ClientActor(
     }
   }
 
-  // FIXME duplicate code.
-  private def onConnectionClosed(): Unit = {
+  private[this] def onConnectionClosed(): Unit = {
     log.debug("Connection Closed")
     if (domainActor != null) {
       domainActor ! ClientDisconnected(sessionId)
@@ -270,15 +269,7 @@ class ClientActor(
     context.stop(self)
   }
 
-  private def onConnectionDropped(): Unit = {
-    log.debug("Connection Dropped")
-    if (domainActor != null) {
-      domainActor ! ClientDisconnected(sessionId)
-    }
-    context.stop(self)
-  }
-
-  private def onConnectionError(cause: Throwable): Unit = {
+  private[this] def onConnectionError(cause: Throwable): Unit = {
     log.debug("Connection Error: " + cause.getMessage)
     if (domainActor != null) {
       domainActor ! ClientDisconnected(sessionId)

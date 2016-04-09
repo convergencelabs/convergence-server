@@ -17,6 +17,7 @@ import akka.actor.Scheduler
 import scala.util.Success
 import scala.util.Failure
 import scala.util.Success
+import scala.util.Try
 
 object DomainManagerActor {
   val RelativeActorPath = "domainManager"
@@ -69,41 +70,37 @@ class DomainManagerActor(
       }
       domainFqnToActor(domainFqn) forward request
     } else {
-      domainStore.domainExists(domainFqn) match {
-        case Success(false) => 
-          log.debug("Client connected to non-existent domain '{}'", domainFqn)
-          sender ! HandshakeFailure("domain_does_not_exists", "The domain does not exist")
-        case Success(true) => 
-          log.debug("Client connected to unloaded domain '{}', loading it.", domainFqn)
-          handleClientOpeningClosedDomain(domainFqn, request)
-        case Failure(cause) => 
-          log.error(cause, "Unknown error handshaking")
-          sender ! HandshakeFailure("unknown", "unknown error handshaking")
-      }
+      handleClientOpeningClosedDomain(domainFqn, request)
     }
   }
 
   private[this] def handleClientOpeningClosedDomain(domainFqn: DomainFqn, request: HandshakeRequest): Unit = {
-    // This only works because this is synchronous.
-    // FIXME I don't think it is for sure that the actor will be up and running at this point.
-    openClosedDomain(domainFqn)
-    domainFqnToActor(domainFqn) forward request
+    openClosedDomain(domainFqn) match {
+      case Success(None) =>
+        log.debug("Client connected to non-existent domain '{}'", domainFqn)
+        sender ! HandshakeFailure("domain_does_not_exists", "The domain does not exist")
+      case Success(Some(domainActor)) =>
+        log.debug("Client connected to unloaded domain '{}', loaded it.", domainFqn)
+        domainActor forward request
+      case Failure(cause) =>
+        log.error(cause, "Unknown error handshaking")
+        sender ! HandshakeFailure("unknown", "unknown error handshaking")
+    }
   }
 
-  private[this] def openClosedDomain(domainFqn: DomainFqn): Unit = {
-    domainStore.getDomainByFqn(domainFqn) match {
-      case Success(Some(domainConfig)) => {
+  private[this] def openClosedDomain(domainFqn: DomainFqn): Try[Option[ActorRef]] = {
+    domainStore.getDomainByFqn(domainFqn) flatMap {
+      case Some(domainConfig) => {
         val domainActor = context.actorOf(DomainActor.props(
           self,
           domainConfig.domainFqn,
           protocolConfig,
           domainShutdownDelay))
-
         actorsToDomainFqn(domainActor) = domainFqn
         domainFqnToActor(domainFqn) = domainActor
+        Success(Some(domainActor))
       }
-      case Success(None) => ??? // FIXME need to respond with a failure.
-      case Failure(cause) => ??? // FIXME need to respond with a failure.
+      case None => Success(None)
     }
   }
 
