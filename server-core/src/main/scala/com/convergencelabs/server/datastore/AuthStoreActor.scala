@@ -12,8 +12,9 @@ import akka.actor.Status
 
 import ReplyUtil.ReplyTry
 
-class AuthStoreActor private[datastore] (private[this] val dbPool: OPartitionedDatabasePool)
-    extends Actor with ActorLogging {
+class AuthStoreActor private[datastore] (
+  private[this] val dbPool: OPartitionedDatabasePool)
+    extends StoreActor with ActorLogging {
 
   private[this] val userStore: UserStore = new UserStore(dbPool)
 
@@ -24,17 +25,17 @@ class AuthStoreActor private[datastore] (private[this] val dbPool: OPartitionedD
   }
 
   private[this] def authenticateUser(authRequest: AuthRequest): Unit = {
-    sender ! (userStore.validateCredentials(authRequest.username, authRequest.password) mapReply {
+    reply(userStore.validateCredentials(authRequest.username, authRequest.password)) {
       case Some((uid, token)) => AuthSuccess(uid, token)
       case None => AuthFailure
-    })
+    }
   }
 
   private[this] def validateToken(validateRequest: ValidateRequest): Unit = {
-    sender ! (userStore.validateToken(validateRequest.token) mapReply {
+    reply(userStore.validateToken(validateRequest.token)) {
       case Some(userId) => ValidateSuccess(userId)
       case None => ValidateFailure
-    })
+    }
   }
 }
 
