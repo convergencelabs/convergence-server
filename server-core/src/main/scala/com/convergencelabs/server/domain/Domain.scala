@@ -4,6 +4,9 @@ case class Domain(
   id: String,
   domainFqn: DomainFqn,
   displayName: String,
-  dbUsername: String,
-  dbPassword: String,
   owner: String)
+
+case class DomainDatabaseInfo(
+    database: String,
+    username: String,
+    password: String)

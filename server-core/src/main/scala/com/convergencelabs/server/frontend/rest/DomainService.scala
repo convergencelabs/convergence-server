@@ -29,10 +29,17 @@ import com.convergencelabs.server.datastore.UserStoreActor.GetAllUsersResponse
 import com.convergencelabs.server.domain.DomainUser
 
 case class DomainsResponse(ok: Boolean, domains: List[DomainFqn]) extends ResponseMessage
-case class DomainResponse(ok: Boolean, domain: Domain) extends ResponseMessage
+case class DomainResponse(ok: Boolean, domain: DomainInfo) extends ResponseMessage
 case class CreateResponse(ok: Boolean) extends ResponseMessage
 case class DeleteResponse(ok: Boolean) extends ResponseMessage
 case class ListUsersResponse(ok: Boolean, users: List[DomainUser]) extends ResponseMessage
+
+case class DomainInfo(
+  id: String,
+  displayName: String,
+  namespace: String,
+  domainId: String,
+  owner: String)
 
 case class CreateRequest(namespace: String, domainId: String, displayName: String)
 
@@ -78,7 +85,7 @@ class DomainService(
   def createRequest(createRequest: CreateRequest, userId: String): Future[RestResponse] = {
     val CreateRequest(namespace, domainId, displayName) = createRequest
     (domainActor ? CreateDomainRequest(namespace, domainId, displayName, userId)).mapTo[Try[Unit]].map {
-      case Success(_)     => (StatusCodes.Created, CreateResponse(true))
+      case Success(_) => (StatusCodes.Created, CreateResponse(true))
       case Failure(error) => InternalServerError
     }
   }
@@ -94,23 +101,30 @@ class DomainService(
 
   def domainRequest(namespace: String, domainId: String): Future[RestResponse] = {
     (domainActor ? GetDomainRequest(namespace, domainId)).mapTo[Try[GetDomainResponse]].map {
-      case Success(GetDomainSuccess(domain)) => (StatusCodes.OK, DomainResponse(true, domain))
-      case Success(GetDomainFailure)         => (StatusCodes.NotFound, ErrorResponse("Domain not found!"))
-      case Failure(error)                    => InternalServerError
+      case Success(GetDomainSuccess(domain)) => 
+        (StatusCodes.OK, DomainResponse(true, DomainInfo(
+            domain.id, 
+            domain.displayName, 
+            domain.domainFqn.namespace, 
+            domain.domainFqn.domainId,
+            domain.owner)))
+      case Success(GetDomainFailure) => 
+        (StatusCodes.NotFound, ErrorResponse("Domain not found!"))
+      case Failure(error) => InternalServerError
     }
   }
 
   def deleteRequest(namespace: String, domainId: String): Future[RestResponse] = {
     (domainActor ? DeleteDomainRequest(namespace, domainId)).mapTo[Try[Unit]].map {
-      case Success(_)     => (StatusCodes.Created, DeleteResponse(true))
+      case Success(_) => (StatusCodes.Created, DeleteResponse(true))
       case Failure(error) => InternalServerError
     }
   }
-  
-    def getAllUsersRequest(namespace: String, domainId: String): Future[RestResponse] = {
+
+  def getAllUsersRequest(namespace: String, domainId: String): Future[RestResponse] = {
     (domainActor ? DomainMessage(DomainFqn(namespace, domainId), GetAllUsersRequest())).mapTo[Try[GetAllUsersResponse]].map {
       case Success(GetAllUsersResponse(users)) => (StatusCodes.OK, ListUsersResponse(true, users))
-      case Failure(error)                    => InternalServerError 
+      case Failure(error) => InternalServerError
     }
   }
 }

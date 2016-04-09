@@ -17,8 +17,6 @@ object DomainMapper extends ODocumentMapper {
       id,
       DomainFqn(namespace, domainId),
       displayName,
-      dbUsername,
-      dbPassword,
       owner) = domainConfig
 
     val doc = new ODocument(DomainClassName)
@@ -26,8 +24,6 @@ object DomainMapper extends ODocumentMapper {
     doc.field(Fields.Namespace, namespace)
     doc.field(Fields.DomainId, domainId)
     doc.field(Fields.DisplayName, displayName)
-    doc.field(Fields.DBUsername, dbUsername)
-    doc.field(Fields.DBPassword, dbPassword)
 
     doc
   }
@@ -38,13 +34,10 @@ object DomainMapper extends ODocumentMapper {
 
   private[datastore] implicit def oDocumentToDomain(doc: ODocument): Domain = {
     validateDocumentClass(doc, DomainClassName)
-
     Domain(
       doc.field(Fields.Id),
       DomainFqn(doc.field(Fields.Namespace), doc.field(Fields.DomainId)),
       doc.field(Fields.DisplayName),
-      doc.field(Fields.DBUsername),
-      doc.field(Fields.DBPassword),
       doc.field(Fields.Owner).asInstanceOf[ODocument].field(Fields.Uid))
   }
 

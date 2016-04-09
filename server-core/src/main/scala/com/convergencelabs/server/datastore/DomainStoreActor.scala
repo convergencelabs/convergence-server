@@ -39,7 +39,7 @@ class DomainStoreActor private[datastore] (private[this] val dbPool: OPartitione
     val CreateDomainRequest(namespace, domainId, displayName, owner) = createRequest
     val DBConfig(id, username, password) = domainDBContoller.createDomain()
     //TODO: Need to handle rollback of domain creation if this fails
-    domainStore.createDomain(Domain(id, DomainFqn(namespace, domainId), username, password, displayName, owner))
+    domainStore.createDomain(Domain(id, DomainFqn(namespace, domainId), displayName, owner), username, password)
 
   }
 

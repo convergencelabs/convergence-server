@@ -22,8 +22,6 @@ class DomainMapperSpec
           "id",
           DomainFqn("ns", "dId"),
           "My Domain",
-          "user",
-          "pass",
           "cu0")
 
         val doc = domain.asODocument

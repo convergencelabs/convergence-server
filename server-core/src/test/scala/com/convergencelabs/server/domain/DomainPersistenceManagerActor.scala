@@ -67,8 +67,6 @@ class DomainManagerActorSpec()
       "d1",
       domainFqn,
       "Default",
-      "",
-      "",
       "cu0")
 
     val domainStore = mock[DomainStore]
