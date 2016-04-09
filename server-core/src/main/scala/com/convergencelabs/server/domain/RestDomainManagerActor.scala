@@ -23,26 +23,27 @@ import java.time.Duration
 import java.time.temporal.TemporalUnit
 import java.time.temporal.ChronoUnit
 import com.convergencelabs.server.domain.RestDomainActor.Shutdown
+import com.convergencelabs.server.datastore.DomainStore
+import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 
 object RestDomainManagerActor {
   val RelativeActorPath = "restDomainManager"
 
-  def props(
-    convergencePersistence: PersistenceProvider): Props = Props(
-    new RestDomainManagerActor(convergencePersistence))
+  def props(dbPool: OPartitionedDatabasePool): Props = Props(new RestDomainManagerActor(dbPool))
 
   case class ScheduledShutdown(cancellable: Cancellable, lastMessageTime: Instant)
 
   case class ShutdownDomain(domainFqn: DomainFqn)
 }
 
-class RestDomainManagerActor(convergencePersistence: PersistenceProvider)
+class RestDomainManagerActor(dbPool: OPartitionedDatabasePool)
     extends Actor with ActorLogging {
 
   private[this] val cluster = Cluster(context.system)
   private[this] implicit val ec = context.dispatcher
-
-  private[this] val domainStore = convergencePersistence.domainStore
+  
+  private[this] val persistenceProvider = new PersistenceProvider(dbPool) 
+  private[this] val domainStore = persistenceProvider.domainStore
   private[this] val domainShutdownDelay = new FiniteDuration(5, TimeUnit.MINUTES)
   private[this] val domainShutdownDelay2 = Duration.of(5, ChronoUnit.MINUTES)
 

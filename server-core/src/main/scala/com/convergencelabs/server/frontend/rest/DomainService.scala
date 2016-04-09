@@ -23,17 +23,23 @@ import akka.http.scaladsl.model.StatusCode
 import akka.http.scaladsl.model.StatusCodes
 import scala.util.Failure
 import com.convergencelabs.server.datastore.DomainStoreActor.GetDomainFailure
+import com.convergencelabs.server.datastore.UserStoreActor.GetAllUsersRequest
+import com.convergencelabs.server.domain.RestDomainActor.DomainMessage
+import com.convergencelabs.server.datastore.UserStoreActor.GetAllUsersResponse
+import com.convergencelabs.server.domain.DomainUser
 
 case class DomainsResponse(ok: Boolean, domains: List[DomainFqn]) extends ResponseMessage
 case class DomainResponse(ok: Boolean, domain: Domain) extends ResponseMessage
 case class CreateResponse(ok: Boolean) extends ResponseMessage
 case class DeleteResponse(ok: Boolean) extends ResponseMessage
+case class ListUsersResponse(ok: Boolean, users: List[DomainUser]) extends ResponseMessage
 
 case class CreateRequest(namespace: String, domainId: String, displayName: String)
 
 class DomainService(
   private[this] val executionContext: ExecutionContext,
   private[this] val domainActor: ActorRef,
+  private[this] val domainManagerActor: ActorRef,
   private[this] val defaultTimeout: Timeout)
     extends JsonSupport {
 
@@ -60,6 +66,10 @@ class DomainService(
               delete {
                 complete(deleteRequest(namespace, domainId))
               }
+          } ~ pathPrefix("users") {
+            get {
+              complete(getAllUsersRequest(namespace, domainId))
+            }
           }
         }
     }
@@ -94,6 +104,13 @@ class DomainService(
     (domainActor ? DeleteDomainRequest(namespace, domainId)).mapTo[Try[Unit]].map {
       case Success(_)     => (StatusCodes.Created, DeleteResponse(true))
       case Failure(error) => InternalServerError
+    }
+  }
+  
+    def getAllUsersRequest(namespace: String, domainId: String): Future[RestResponse] = {
+    (domainActor ? DomainMessage(DomainFqn(namespace, domainId), GetAllUsersRequest())).mapTo[Try[GetAllUsersResponse]].map {
+      case Success(GetAllUsersResponse(users)) => (StatusCodes.OK, ListUsersResponse(true, users))
+      case Failure(error)                    => InternalServerError 
     }
   }
 }

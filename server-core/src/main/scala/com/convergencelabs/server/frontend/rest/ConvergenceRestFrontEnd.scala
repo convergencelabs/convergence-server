@@ -14,6 +14,7 @@ import com.convergencelabs.server.datastore.AuthStoreActor
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.convergencelabs.server.datastore.DomainStoreActor
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.domain.RestDomainManagerActor
 
 class ConvergenceRestFrontEnd(
   val system: ActorSystem,
@@ -40,11 +41,12 @@ class ConvergenceRestFrontEnd(
 
     val authActor = system.actorOf(AuthStoreActor.props(dbPool))
     val domainActor = system.actorOf(DomainStoreActor.props(dbPool))
+    val domainManagerActor = system.actorOf(RestDomainManagerActor.props(dbPool))
 
     // These are the rest services
     val authService = new AuthService(ec, authActor, defaultRequestTimeout)
     val authenticator = new Authenticator(authActor, defaultRequestTimeout, ec)
-    val domainService = new DomainService(ec, domainActor, defaultRequestTimeout)
+    val domainService = new DomainService(ec, domainActor, domainManagerActor, defaultRequestTimeout)
 
     val route = cors() {
       // All request are under the "rest" path.

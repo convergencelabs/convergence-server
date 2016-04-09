@@ -31,8 +31,8 @@ class RestDomainActor(domainFqn: DomainFqn) extends Actor with ActorLogging {
   private[this] val userStoreActor: ActorRef = context.actorOf(UserStoreActor.props(domainFqn))
 
   def receive: Receive = {
-    case Shutdown                  => shutdown()
     case message: UserStoreRequest => userStoreActor forward message
+    case Shutdown                  => shutdown()
     case message: Any              => unhandled(message)
   }
 
