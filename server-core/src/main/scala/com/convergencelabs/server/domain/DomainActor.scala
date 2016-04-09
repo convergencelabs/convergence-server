@@ -34,7 +34,6 @@ import com.convergencelabs.server.datastore.domain.PersistenceProviderUnavailabl
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import scala.util.Try
 
-// FIXME protocol config is silly.
 object DomainActor {
   def props(
     domainManagerActor: ActorRef,
@@ -150,16 +149,14 @@ class DomainActor(
       self, context, domainFqn)
 
     p match {
-      case Success(provider) => {
+      case Success(provider) =>
         this.persistenceProvider = provider
         authenticator = new AuthenticationHandler(
           provider.configStore,
           provider.userStore,
           context.dispatcher)
-      }
-      case Failure(cause) => {
+      case Failure(cause) =>
         log.error(cause, "Unable to obtain a domain persistence provider.")
-      }
     }
   }
 

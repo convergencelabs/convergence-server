@@ -20,5 +20,4 @@ package object rest {
   type RestResponse = Tuple2[StatusCode, ResponseMessage]
   
   val InternalServerError: RestResponse = (StatusCodes.InternalServerError, ErrorResponse("Internal Server Error!"))
-
 }

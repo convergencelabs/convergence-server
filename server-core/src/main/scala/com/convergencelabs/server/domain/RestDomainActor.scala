@@ -14,6 +14,11 @@ import com.convergencelabs.server.datastore.UserStoreActor.UserStoreRequest
 import com.convergencelabs.server.datastore.UserStoreActor
 import akka.actor.PoisonPill
 import akka.dispatch.Futures
+import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
+import scala.util.Success
+import scala.util.Failure
+import com.convergencelabs.server.datastore.CollectionStoreActor
+import com.convergencelabs.server.datastore.CollectionStoreActor.CollectionStoreRequest
 
 object RestDomainActor {
   def props(domainFqn: DomainFqn): Props = Props(new RestDomainActor(domainFqn))
@@ -26,17 +31,34 @@ object RestDomainActor {
 
 class RestDomainActor(domainFqn: DomainFqn) extends Actor with ActorLogging {
 
-  private[this] var persistenceProvider: DomainPersistenceProvider = _
   private[this] implicit val ec = context.dispatcher
-  private[this] val userStoreActor: ActorRef = context.actorOf(UserStoreActor.props(domainFqn))
+  
+  private[this] var persistenceProvider: DomainPersistenceProvider = _
+  private[this] var userStoreActor: ActorRef = _
+  private[this] var collectionStoreActor: ActorRef = _
 
   def receive: Receive = {
     case message: UserStoreRequest => userStoreActor forward message
+    case message: CollectionStoreRequest => collectionStoreActor forward message
     case Shutdown                  => shutdown()
     case message: Any              => unhandled(message)
   }
 
   def shutdown(): Unit = {
     gracefulStop(userStoreActor, GracefulStopWaitTime, PoisonPill).onComplete(_ => context.stop(self))
+  }
+  
+  override def preStart(): Unit = {
+    DomainPersistenceManagerActor.acquirePersistenceProvider(self, context, domainFqn) match {
+      case Success(provider) => 
+        userStoreActor = context.actorOf(UserStoreActor.props(provider.userStore))
+        collectionStoreActor = context.actorOf(CollectionStoreActor.props(provider.collectionStore))
+      case Failure(cause) => 
+        log.error(cause, "Unable to obtain a domain persistence provider.")
+    }
+  }
+  
+  override def postStop(): Unit = {
+    DomainPersistenceManagerActor.releasePersistenceProvider(self, context, domainFqn)
   }
 }

@@ -13,11 +13,11 @@ import com.convergencelabs.server.domain.DomainFqn
 import scala.util.Failure
 import akka.actor.Props
 
-class DomainStoreActor private[datastore] (private[this] val dbPool: OPartitionedDatabasePool)
-    extends Actor with ActorLogging {
+class DomainStoreActor private[datastore] (
+  private[this] val dbPool: OPartitionedDatabasePool)
+    extends StoreActor with ActorLogging {
 
   private[this] val domainConfig: Config = context.system.settings.config.getConfig("domain")
-
   private[this] val domainStore: DomainStore = new DomainStore(dbPool)
 
   private[this] val domainDBContoller: DomainDBController =
@@ -28,25 +28,24 @@ class DomainStoreActor private[datastore] (private[this] val dbPool: OPartitione
     }
 
   def receive: Receive = {
-    case createRequest: CreateDomainRequest => sender ! createDomain(createRequest)
-    case deleteRequest: DeleteDomainRequest => sender ! deleteDomain(deleteRequest)
-    case getRequest: GetDomainRequest       => sender ! getDomain(getRequest)
-    case listRequest: ListDomainsRequest    => sender ! listDomains(listRequest)
-    case message: Any                       => unhandled(message)
+    case createRequest: CreateDomainRequest => createDomain(createRequest)
+    case deleteRequest: DeleteDomainRequest => deleteDomain(deleteRequest)
+    case getRequest: GetDomainRequest => getDomain(getRequest)
+    case listRequest: ListDomainsRequest => listDomains(listRequest)
+    case message: Any => unhandled(message)
   }
 
-  def createDomain(createRequest: CreateDomainRequest): Try[Unit] = {
+  def createDomain(createRequest: CreateDomainRequest): Unit = {
     val CreateDomainRequest(namespace, domainId, displayName, owner) = createRequest
     val DBConfig(id, username, password) = domainDBContoller.createDomain()
     //TODO: Need to handle rollback of domain creation if this fails
-    domainStore.createDomain(Domain(id, DomainFqn(namespace, domainId), displayName, owner), username, password)
-
+    reply(domainStore.createDomain(Domain(id, DomainFqn(namespace, domainId), displayName, owner), username, password))
   }
 
-  def deleteDomain(deleteRequest: DeleteDomainRequest): Try[Unit] = {
+  def deleteDomain(deleteRequest: DeleteDomainRequest): Unit = {
     val DeleteDomainRequest(namespace, domainId) = deleteRequest
     val domain = domainStore.getDomainByFqn(DomainFqn(namespace, domainId))
-    domain flatMap {
+    reply(domain flatMap {
       case Some(domain) => {
         domainStore.removeDomain(domain.id)
         domainDBContoller.deleteDomain(domain.id)
@@ -54,19 +53,19 @@ class DomainStoreActor private[datastore] (private[this] val dbPool: OPartitione
       }
       //TODO: Determine correct exception to throw here
       case None => Failure(new IllegalArgumentException("Domain Not Found"))
-    }
+    })
   }
 
-  def getDomain(getRequest: GetDomainRequest): Try[GetDomainResponse] = {
+  def getDomain(getRequest: GetDomainRequest): Unit = {
     val GetDomainRequest(namespace, domainId) = getRequest
-    domainStore.getDomainByFqn(DomainFqn(namespace, domainId)) map {
+    mapAndReply(domainStore.getDomainByFqn(DomainFqn(namespace, domainId))) {
       case Some(domain) => GetDomainSuccess(domain)
-      case None         => GetDomainFailure
+      case None => DomainNotFound
     }
   }
 
-  def listDomains(listRequest: ListDomainsRequest): Try[ListDomainsResponse] = {
-    domainStore.getDomainsByOwner(listRequest.uid) map (ListDomainsResponse)
+  def listDomains(listRequest: ListDomainsRequest): Unit = {
+    mapAndReply(domainStore.getDomainsByOwner(listRequest.uid))(ListDomainsResponse(_))
   }
 }
 
@@ -81,10 +80,9 @@ object DomainStoreActor {
 
   sealed trait GetDomainResponse
   case class GetDomainSuccess(domain: Domain) extends GetDomainResponse
-  case object GetDomainFailure extends GetDomainResponse
+  case object DomainNotFound extends GetDomainResponse
 
   case class ListDomainsRequest(uid: String)
 
   case class ListDomainsResponse(domains: List[Domain])
 }
-

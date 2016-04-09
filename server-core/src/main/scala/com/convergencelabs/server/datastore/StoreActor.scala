@@ -1,19 +1,31 @@
 package com.convergencelabs.server.datastore
 
+import scala.util.Failure
+import scala.util.Success
 import scala.util.Try
+
 import akka.actor.Actor
 import akka.actor.ActorLogging
-import com.convergencelabs.server.datastore.AuthStoreActor._
-import scala.util.Success
-import scala.util.Failure
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import akka.actor.Props
 import akka.actor.Status
 
-import ReplyUtil.ReplyTry
-
 abstract class StoreActor private[datastore] extends Actor with ActorLogging {
-  def reply[T](value: Try[T])(mapper: PartialFunction[T, Any]): Unit = {
-    sender ! (value mapReply(mapper))
+
+  private[this] val defaultMapper: PartialFunction[Any, Any] = {
+    case x => x
+  }
+
+  def mapAndReply[T](value: Try[T])(mapper: Function[T, Any]): Unit = {
+    sender ! (mapReply(value, mapper))
+  }
+
+  def reply[T](value: Try[T]): Unit = {
+    sender ! (mapReply(value, defaultMapper))
+  }
+
+  def mapReply[T](t: Try[T], f: Function[T, Any]): Any = {
+    t match {
+      case Failure(cause) => Status.Failure(cause)
+      case Success(x) => f(x)
+    }
   }
 }

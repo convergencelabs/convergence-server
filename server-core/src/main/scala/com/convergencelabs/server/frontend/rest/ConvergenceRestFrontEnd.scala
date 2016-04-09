@@ -1,20 +1,24 @@
 package com.convergencelabs.server.frontend.rest
 
-import scala.io.StdIn
-import scala.language.postfixOps
 import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
+import com.convergencelabs.server.datastore.AuthStoreActor
+import com.convergencelabs.server.datastore.DomainStoreActor
+import com.convergencelabs.server.datastore.PersistenceProvider
+import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
+import com.convergencelabs.server.domain.RestDomainManagerActor
+import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import akka.actor.ActorSystem
 import akka.actor.Props
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.server.ExceptionHandler
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import ch.megard.akka.http.cors.CorsDirectives._
-import com.convergencelabs.server.datastore.AuthStoreActor
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import com.convergencelabs.server.datastore.DomainStoreActor
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.domain.RestDomainManagerActor
+import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.model.HttpResponse
 
 class ConvergenceRestFrontEnd(
   val system: ActorSystem,
@@ -29,6 +33,7 @@ class ConvergenceRestFrontEnd(
 
   def start(): Unit = {
 
+    // FIXME this is a hack all of this should be a rest backend
     val dbConfig = system.settings.config.getConfig("convergence.database")
 
     val baseUri = dbConfig.getString("uri")
@@ -41,6 +46,14 @@ class ConvergenceRestFrontEnd(
     val authActor = system.actorOf(AuthStoreActor.props(dbPool))
     val domainActor = system.actorOf(DomainStoreActor.props(dbPool))
     val domainManagerActor = system.actorOf(RestDomainManagerActor.props(dbPool))
+
+    val persistenceProvider = new PersistenceProvider(dbPool)
+    val dbPoolManager = system.actorOf(
+      DomainPersistenceManagerActor.props(
+        baseUri,
+        persistenceProvider.domainStore),
+      DomainPersistenceManagerActor.RelativePath)
+    // Down to here
 
     // These are the rest services
     val authService = new AuthService(ec, authActor, defaultRequestTimeout)

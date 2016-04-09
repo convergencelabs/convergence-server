@@ -10,8 +10,6 @@ import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import akka.actor.Props
 import akka.actor.Status
 
-import ReplyUtil.ReplyTry
-
 class AuthStoreActor private[datastore] (
   private[this] val dbPool: OPartitionedDatabasePool)
     extends StoreActor with ActorLogging {
@@ -25,14 +23,14 @@ class AuthStoreActor private[datastore] (
   }
 
   private[this] def authenticateUser(authRequest: AuthRequest): Unit = {
-    reply(userStore.validateCredentials(authRequest.username, authRequest.password)) {
+    mapAndReply(userStore.validateCredentials(authRequest.username, authRequest.password)) {
       case Some((uid, token)) => AuthSuccess(uid, token)
       case None => AuthFailure
     }
   }
 
   private[this] def validateToken(validateRequest: ValidateRequest): Unit = {
-    reply(userStore.validateToken(validateRequest.token)) {
+    mapAndReply(userStore.validateToken(validateRequest.token)) {
       case Some(userId) => ValidateSuccess(userId)
       case None => ValidateFailure
     }

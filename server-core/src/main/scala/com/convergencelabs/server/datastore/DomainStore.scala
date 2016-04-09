@@ -28,7 +28,6 @@ class DomainStore private[datastore] (dbPool: OPartitionedDatabasePool)
   private[this] val Uid = "uid"
 
   def createDomain(domain: Domain, dbUsername: String, dbPassword: String): Try[Unit] = tryWithDb { db =>
-
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE uid = :uid")
     val params = Map(Uid -> domain.owner)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
