@@ -34,10 +34,9 @@ class Authenticator(authActor: ActorRef, timeout: Timeout, executionContext: Exe
   implicit val t = timeout
 
   def validateToken(token: String): Future[Option[String]] = {
-     (authActor ? ValidateRequest(token)).mapTo[Try[ValidateResponse]] map {
-       case Success(ValidateSuccess(uid)) => Some(uid)
-       case Success(ValidateFailure) => None
-       case Failure(cause) => None
+     (authActor ? ValidateRequest(token)).mapTo[ValidateResponse] map {
+       case ValidateSuccess(uid) => Some(uid)
+       case ValidateFailure => None
      }
   }
 

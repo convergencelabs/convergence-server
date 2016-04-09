@@ -46,7 +46,6 @@ class DomainManagerActor(
 
   private[this] val actorsToDomainFqn = mutable.HashMap[ActorRef, DomainFqn]()
   private[this] val domainFqnToActor = mutable.HashMap[DomainFqn, ActorRef]()
-  private[this] val queuedHahdshakeRequests = mutable.Map[DomainFqn, ListBuffer[HandshakeRequestRecord]]()
   private[this] val shudownRequests = mutable.Map[DomainFqn, Cancellable]()
 
   log.debug("DomainManager started.")
@@ -136,5 +135,4 @@ class DomainManagerActor(
   }
 }
 
-private case class HandshakeRequestRecord(asker: ActorRef, request: HandshakeRequest)
 private case class DomainShutdownApproval(domainFqn: DomainFqn)

@@ -38,10 +38,9 @@ class AuthService(
   }
 
   def authRequest(req: AuthRequest): Future[RestResponse] = {
-    (authActor ? req).mapTo[Try[AuthResponse]].map {
-      case Success(AuthSuccess(uid, token)) => (StatusCodes.OK, TokenResponse(true, token))
-      case Success(AuthFailure) => (StatusCodes.Unauthorized, ErrorResponse("Unauthorized"))
-      case Failure(error) => InternalServerError
+    (authActor ? req).mapTo[AuthResponse].map {
+      case AuthSuccess(uid, token) => (StatusCodes.OK, TokenResponse(true, token))
+      case AuthFailure => (StatusCodes.Unauthorized, ErrorResponse("Unauthorized"))
     }
   }
 }
