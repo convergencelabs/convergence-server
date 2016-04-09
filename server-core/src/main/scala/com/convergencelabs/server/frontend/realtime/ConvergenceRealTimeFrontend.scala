@@ -2,14 +2,12 @@ package com.convergencelabs.server.frontend.realtime
 
 import java.util.concurrent.TimeUnit
 
-import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 
-import com.convergencelabs.server.HeartbeatConfiguration
-import com.convergencelabs.server.ProtocolConfiguration
+import com.convergencelabs.server.ProtocolConfigUtil
 
 import akka.actor.ActorSystem
 import akka.actor.Inbox
@@ -24,14 +22,7 @@ class ConvergenceRealTimeFrontend(
   private[this] val websocketPort: Int)
     extends Logging {
 
-  // FIXME this object is nonsensical.  It's all over the place.  I don't know
-  // if this is the right place for this.
-  private val protoConfig = ProtocolConfiguration(
-    5 seconds,
-    HeartbeatConfiguration(
-      true,
-      5 seconds,
-      10 seconds))
+  private[this] val protoConfig = ProtocolConfigUtil.loadConfig(system.settings.config)
 
   private[this] val inbox = Inbox.create(system)
   private[this] val connectionManager = system.actorOf(RealTimeFrontEndActor.props(inbox.getRef(), protoConfig), "connectionManager")
