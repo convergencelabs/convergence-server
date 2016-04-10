@@ -23,6 +23,7 @@ import com.convergencelabs.server.domain.model.data.DataValue
 import com.convergencelabs.server.frontend.realtime.model.OperationType
 
 import Utils.jnumberToDouble
+import OperationSerializer._
 
 object Utils {
   def jnumberToDouble(value: JValue): Double = {
@@ -39,96 +40,108 @@ object Big {
   def unapply(n: BigInt): Option[Int] = Some(n.toInt)
 }
 
+object OperationSerializer {
+  val T = "t"
+  val V = "v"
+  val D = "d"
+  val N = "n"
+  val I = "i"
+  val K = "k"
+  val P = "p"
+  val O = "o"
+  val F = "f"
+}
+
 class OperationSerializer extends CustomSerializer[OperationData](format => ({
-  case JObject(List(("t", JInt(Big(OperationType.Compound))), ("o", JArray(ops)))) =>
+  case JObject(List((T, JInt(Big(OperationType.Compound))), (O, JArray(ops)))) =>
     implicit val f = format;
     CompoundOperationData(ops.map { op => Extraction.extract[OperationData](op).asInstanceOf[DiscreteOperationData] })
 
-  case JObject(List(("t", JInt(Big(OperationType.ArrayInsert))), ("d", JString(id)), ("n", JBool(noOp)), ("i", JInt(Big(index))), ("v", value))) =>
+  case JObject(List((T, JInt(Big(OperationType.ArrayInsert))), (D, JString(id)), (N, JBool(noOp)), (I, JInt(Big(index))), (V, value))) =>
     implicit val f = format;
     ArrayInsertOperationData(id, noOp, index, Extraction.extract[DataValue](value))
-  case JObject(List(("t", JInt(Big(OperationType.ArrayRemove))), ("d", JString(id)), ("n", JBool(noOp)), ("i", JInt(Big(index))))) =>
+  case JObject(List((T, JInt(Big(OperationType.ArrayRemove))), (D, JString(id)), (N, JBool(noOp)), (I, JInt(Big(index))))) =>
     ArrayRemoveOperationData(id, noOp, index)
-  case JObject(List(("t", JInt(Big(OperationType.ArraySet))), ("d", JString(id)), ("n", JBool(noOp)), ("i", JInt(Big(index))), ("v", value))) =>
+  case JObject(List((T, JInt(Big(OperationType.ArraySet))), (D, JString(id)), (N, JBool(noOp)), (I, JInt(Big(index))), (V, value))) =>
     implicit val f = format;
     ArrayReplaceOperationData(id, noOp, index, Extraction.extract[DataValue](value))
-  case JObject(List(("t", JInt(Big(OperationType.ArrayReorder))), ("d", JString(id)), ("n", JBool(noOp)), ("f", JInt(Big(from))), ("o", JInt(Big(to))))) =>
+  case JObject(List((T, JInt(Big(OperationType.ArrayReorder))), (D, JString(id)), (N, JBool(noOp)), ("f", JInt(Big(from))), (O, JInt(Big(to))))) =>
     ArrayMoveOperationData(id, noOp, from, to)
-  case JObject(List(("t", JInt(Big(OperationType.ArrayValue))), ("d", JString(id)), ("n", JBool(noOp)), ("v", JArray(values)))) =>
+  case JObject(List((T, JInt(Big(OperationType.ArrayValue))), (D, JString(id)), (N, JBool(noOp)), (V, JArray(values)))) =>
     implicit val f = format;
     ArraySetOperationData(id, noOp, values.map { value => Extraction.extract[DataValue](value) })
 
-  case JObject(List(("t", JInt(Big(OperationType.ObjectAdd))), ("d", JString(id)), ("n", JBool(noOp)), ("k", JString(prop)), ("v", value))) =>
+  case JObject(List((T, JInt(Big(OperationType.ObjectAdd))), (D, JString(id)), (N, JBool(noOp)), (K, JString(prop)), (V, value))) =>
     implicit val f = format;
     ObjectAddPropertyOperationData(id, noOp, prop, Extraction.extract[DataValue](value))
-  case JObject(List(("t", JInt(Big(OperationType.ObjectSet))), ("d", JString(id)), ("n", JBool(noOp)), ("k", JString(prop)), ("v", value))) =>
+  case JObject(List((T, JInt(Big(OperationType.ObjectSet))), (D, JString(id)), (N, JBool(noOp)), (K, JString(prop)), (V, value))) =>
     implicit val f = format;
     ObjectSetPropertyOperationData(id, noOp, prop, Extraction.extract[DataValue](value))
-  case JObject(List(("t", JInt(Big(OperationType.ObjectRemove))), ("d", JString(id)), ("n", JBool(noOp)), ("k", JString(prop)))) =>
+  case JObject(List((T, JInt(Big(OperationType.ObjectRemove))), (D, JString(id)), (N, JBool(noOp)), (K, JString(prop)))) =>
     ObjectRemovePropertyOperationData(id, noOp, prop)
-  case JObject(List(("t", JInt(Big(OperationType.ObjectValue))), ("d", JString(id)), ("n", JBool(noOp)), ("v", JObject(fields)))) =>
+  case JObject(List((T, JInt(Big(OperationType.ObjectValue))), (D, JString(id)), (N, JBool(noOp)), (V, JObject(fields)))) =>
     implicit val f = format;
     ObjectSetOperationData(id, noOp, fields.toMap.map { case (k, v) => (k, Extraction.extract[DataValue](v)) })
 
-  case JObject(List(("t", JInt(Big(OperationType.StringInsert))), ("d", JString(id)), ("n", JBool(noOp)), ("i", JInt(Big(index))), ("v", JString(value)))) =>
+  case JObject(List((T, JInt(Big(OperationType.StringInsert))), (D, JString(id)), (N, JBool(noOp)), (I, JInt(Big(index))), (V, JString(value)))) =>
     StringInsertOperationData(id, noOp, index, value)
-  case JObject(List(("t", JInt(Big(OperationType.StringRemove))), ("d", JString(id)), ("n", JBool(noOp)), ("i", JInt(Big(index))), ("v", JString(value)))) =>
+  case JObject(List((T, JInt(Big(OperationType.StringRemove))), (D, JString(id)), (N, JBool(noOp)), (I, JInt(Big(index))), (V, JString(value)))) =>
     StringRemoveOperationData(id, noOp, index, value)
-  case JObject(List(("t", JInt(Big(OperationType.StringValue))), ("d", JString(id)), ("n", JBool(noOp)), ("v", JString(value)))) =>
+  case JObject(List((T, JInt(Big(OperationType.StringValue))), (D, JString(id)), (N, JBool(noOp)), (V, JString(value)))) =>
     StringSetOperationData(id, noOp, value)
 
-  case JObject(List(("t", JInt(Big(OperationType.NumberAdd))), ("d", JString(id)), ("n", JBool(noOp)), ("v", value))) =>
+  case JObject(List((T, JInt(Big(OperationType.NumberAdd))), (D, JString(id)), (N, JBool(noOp)), (V, value))) =>
     NumberAddOperationData(id, noOp, jnumberToDouble(value))
-  case JObject(List(("t", JInt(Big(OperationType.NumberValue))), ("d", JString(id)), ("n", JBool(noOp)), ("v", value))) =>
+  case JObject(List((T, JInt(Big(OperationType.NumberValue))), (D, JString(id)), (N, JBool(noOp)), (V, value))) =>
     NumberSetOperationData(id, noOp, jnumberToDouble(value))
 
-  case JObject(List(("t", JInt(Big(OperationType.BooleanValue))), ("d", JString(id)), ("n", JBool(noOp)), ("v", JBool(value)))) =>
+  case JObject(List((T, JInt(Big(OperationType.BooleanValue))), (D, JString(id)), (N, JBool(noOp)), (V, JBool(value)))) =>
     BooleanSetOperationData(id, noOp, value)
 }, {
   case CompoundOperationData(ops) =>
-    ("t" -> OperationType.Compound) ~
-      ("o" -> ops.map { op =>
+    (T -> OperationType.Compound) ~
+      (O -> ops.map { op =>
         Extraction.decompose(op)(format).asInstanceOf[JObject]
       })
 
   case ArrayInsertOperationData(id, noOp, index, value) =>
-    ("t" -> OperationType.ArrayInsert) ~ ("d" -> id) ~ ("n" -> noOp) ~ ("i" -> index) ~
-      ("v" -> Extraction.decompose(value)(format).asInstanceOf[JObject])
+    (T -> OperationType.ArrayInsert) ~ (D -> id) ~ (N -> noOp) ~ (I -> index) ~
+      (V -> Extraction.decompose(value)(format).asInstanceOf[JObject])
   case ArrayRemoveOperationData(id, noOp, index) =>
-    ("t" -> OperationType.ArrayRemove) ~ ("d" -> id) ~ ("n" -> noOp) ~ ("i" -> index)
+    (T -> OperationType.ArrayRemove) ~ (D -> id) ~ (N -> noOp) ~ (I -> index)
   case ArrayReplaceOperationData(id, noOp, index, value) =>
-    ("t" -> OperationType.ArraySet) ~ ("d" -> id) ~ ("n" -> noOp) ~ ("i" -> index) ~
-      ("v" -> Extraction.decompose(value)(format).asInstanceOf[JObject])
+    (T -> OperationType.ArraySet) ~ (D -> id) ~ (N -> noOp) ~ (I -> index) ~
+      (V -> Extraction.decompose(value)(format).asInstanceOf[JObject])
   case ArrayMoveOperationData(id, noOp, from, to) =>
-    ("t" -> OperationType.ArrayReorder) ~ ("d" -> id) ~ ("n" -> noOp) ~ ("f" -> from) ~ ("o" -> to)
+    (T -> OperationType.ArrayReorder) ~ (D -> id) ~ (N -> noOp) ~ (F -> from) ~ (O -> to)
   case ArraySetOperationData(id, noOp, value) =>
-    ("t" -> OperationType.ArrayValue) ~ ("d" -> id) ~ ("n" -> noOp) ~
-      ("v" -> Extraction.decompose(value)(format).asInstanceOf[JObject])
+    (T -> OperationType.ArrayValue) ~ (D -> id) ~ (N -> noOp) ~
+      (V -> Extraction.decompose(value)(format).asInstanceOf[JObject])
 
   case ObjectSetPropertyOperationData(id, noOp, prop, value) =>
-    ("t" -> OperationType.ObjectSet) ~ ("d" -> id) ~ ("n" -> noOp) ~ ("p" -> prop)
-    ("v" -> Extraction.decompose(value)(format).asInstanceOf[JObject])
+    (T -> OperationType.ObjectSet) ~ (D -> id) ~ (N -> noOp) ~ (P -> prop)
+    (V -> Extraction.decompose(value)(format).asInstanceOf[JObject])
   case ObjectAddPropertyOperationData(id, noOp, prop, value) =>
-    ("t" -> OperationType.ObjectAdd) ~ ("d" -> id) ~ ("n" -> noOp) ~ ("p" -> prop)
-    ("v" -> Extraction.decompose(value)(format).asInstanceOf[JObject])
+    (T -> OperationType.ObjectAdd) ~ (D -> id) ~ (N -> noOp) ~ (P -> prop)
+    (V -> Extraction.decompose(value)(format).asInstanceOf[JObject])
   case ObjectRemovePropertyOperationData(id, noOp, prop) =>
-    ("t" -> OperationType.ObjectAdd) ~ ("d" -> id) ~ ("n" -> noOp) ~ ("p" -> prop)
+    (T -> OperationType.ObjectAdd) ~ (D -> id) ~ (N -> noOp) ~ (P -> prop)
   case ObjectSetOperationData(id, noOp, value) =>
-    ("t" -> OperationType.ObjectValue) ~ ("d" -> id) ~ ("n" -> noOp) ~
-      ("v" -> Extraction.decompose(value)(format).asInstanceOf[JObject])
+    (T -> OperationType.ObjectValue) ~ (D -> id) ~ (N -> noOp) ~
+      (V -> Extraction.decompose(value)(format).asInstanceOf[JObject])
 
   case StringInsertOperationData(id, noOp, index, value) =>
-    ("t" -> OperationType.StringInsert) ~ ("d" -> id) ~ ("n" -> noOp) ~ ("i" -> index) ~ ("v" -> value)
+    (T -> OperationType.StringInsert) ~ (D -> id) ~ (N -> noOp) ~ (I -> index) ~ (V -> value)
   case StringRemoveOperationData(id, noOp, index, value) =>
-    ("t" -> OperationType.StringRemove) ~ ("d" -> id) ~ ("n" -> noOp) ~ ("i" -> index) ~ ("v" -> value)
+    (T -> OperationType.StringRemove) ~ (D -> id) ~ (N -> noOp) ~ (I -> index) ~ (V -> value)
   case StringSetOperationData(id, noOp, value) =>
-    ("t" -> OperationType.StringValue) ~ ("d" -> id) ~ ("n" -> noOp) ~ ("v" -> value)
+    (T -> OperationType.StringValue) ~ (D -> id) ~ (N -> noOp) ~ (V -> value)
 
   case NumberAddOperationData(id, noOp, value) =>
-    ("t" -> OperationType.NumberAdd) ~ ("d" -> id) ~ ("n" -> noOp) ~ ("v" -> value)
+    (T -> OperationType.NumberAdd) ~ (D -> id) ~ (N -> noOp) ~ (V -> value)
   case NumberSetOperationData(id, noOp, value) =>
-    ("t" -> OperationType.NumberValue) ~ ("d" -> id) ~ ("n" -> noOp) ~ ("v" -> value)
+    (T -> OperationType.NumberValue) ~ (D -> id) ~ (N -> noOp) ~ (V -> value)
 
   case BooleanSetOperationData(id, noOp, value) =>
-    ("t" -> OperationType.BooleanValue) ~ ("d" -> id) ~ ("n" -> noOp) ~ ("v" -> value)
+    (T -> OperationType.BooleanValue) ~ (D -> id) ~ (N -> noOp) ~ (V -> value)
 }))

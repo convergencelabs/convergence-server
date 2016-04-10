@@ -18,9 +18,9 @@ class DomainUserStoreSpec
   val u1Id = "u1"
 
   // Pre-loaded Users
-  val User0 = DomainUser("u0", "admin", Some("admin"), Some("admin"), Some("admin@example.com"))
-  val User1 = DomainUser(u1Id, "test1", Some("Test"), Some("One"), Some("test1@example.com"))
-  val User2 = DomainUser("u2", "test2", Some("Test"), Some("Two"), Some("test2@example.com"))
+  val User0 = DomainUser("u0", "admin", Some("firstAdmin"), Some("lastAdmin"), Some("admin@example.com"))
+  val User1 = DomainUser(u1Id, "test1", Some("Test1"), Some("One"), Some("test1@example.com"))
+  val User2 = DomainUser("u2", "test2", Some("Test2"), Some("Two"), Some("test2@example.com"))
 
   // New Users
   val User10 = DomainUser("u10", "user10", Some("first10"), Some("last10"), Some("user10@example.com"))

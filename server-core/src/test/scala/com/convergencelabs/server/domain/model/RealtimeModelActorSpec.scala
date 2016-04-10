@@ -210,7 +210,7 @@ class RealtimeModelActorSpec
       }
 
       "close a client that submits an invalid operation" in new TwoOpenClients {
-        val badOp = StringInsertOperation("", false, 1, "1")
+        val badOp = StringInsertOperation("", false, 1, "bad op")
 
         Mockito.when(modelOperationProcessor.processModelOperation(
           Matchers.any())).thenReturn(Failure(new IllegalArgumentException("Induced Exception for test: Invalid Operation")))
@@ -235,14 +235,14 @@ class RealtimeModelActorSpec
   }
 
   trait TestFixture {
-    val uid1 = "1"
-    val uid2 = "2"
+    val uid1 = "u1"
+    val uid2 = "u2"
 
-    val session1 = "1"
-    val session2 = "2"
+    val session1 = "s1"
+    val session2 = "s2"
 
     val modelFqn = ModelFqn("collection", "model" + System.nanoTime())
-    val modelJsonData = ObjectValue("1", Map("key" -> StringValue("2", "value")))
+    val modelJsonData = ObjectValue("vid1", Map("key" -> StringValue("vid2", "value")))
     val modelCreateTime = Instant.ofEpochMilli(2L)
     val modelModifiedTime = Instant.ofEpochMilli(3L)
     val modelData = Model(ModelMetaData(modelFqn, 1L, modelCreateTime, modelModifiedTime), modelJsonData)

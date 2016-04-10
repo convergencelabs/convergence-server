@@ -20,7 +20,7 @@ object ObjectOperationExhaustiveSpec {
 
   val ExistingProperties = List("A", "B", "C")
   val NewProperties = List("D", "E", "F")
-  val NewValues = List(DoubleValue("2", 4), DoubleValue("2", 5), DoubleValue("2", 6))
+  val NewValues = List(DoubleValue("vid2", 4), DoubleValue("vid3", 5), DoubleValue("vid4", 6))
 }
 
 abstract class ObjectOperationExhaustiveSpec[S <: ObjectOperation, C <: ObjectOperation](implicit s: ClassTag[S], c: ClassTag[C])

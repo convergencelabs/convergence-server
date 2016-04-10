@@ -49,7 +49,7 @@ class ProtocolConnectionSpec
 
     "sending a normal message" must {
       "send the correct message envelope" in new TestFixture(system) {
-        val toSend = OperationAcknowledgementMessage("id", 4, 5)
+        val toSend = OperationAcknowledgementMessage("id1", 4, 5)
         connection.send(toSend)
 
         val OutgoingTextMessage(message) = this.connectionActor.expectMsgClass(10 millis, classOf[OutgoingTextMessage])
@@ -233,7 +233,7 @@ class ProtocolConnectionSpec
     "receiving a reply" must {
 
       "ignore when the reply has no request" in new TestFixture(system) {
-        val message = ModelDataResponseMessage(ObjectValue("id", Map()))
+        val message = ModelDataResponseMessage(ObjectValue("vid1", Map()))
         val envelope = MessageEnvelope(message, None, Some(1L))
 
         val json = MessageSerializer.writeJson(envelope)
@@ -247,7 +247,7 @@ class ProtocolConnectionSpec
         val OutgoingTextMessage(message) = this.connectionActor.expectMsgClass(10 millis, classOf[OutgoingTextMessage])
         val sentEnvelope = MessageSerializer.readJson[MessageEnvelope](message)
 
-        val replyMessage = ModelDataResponseMessage(ObjectValue("id", Map()))
+        val replyMessage = ModelDataResponseMessage(ObjectValue("vid2", Map()))
         val replyEnvelope = MessageEnvelope(replyMessage, None, sentEnvelope.q)
 
         val replyJson = MessageSerializer.writeJson(replyEnvelope)
