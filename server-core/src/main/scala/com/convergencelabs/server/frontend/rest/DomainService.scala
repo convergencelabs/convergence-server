@@ -65,24 +65,22 @@ class DomainService(
       pathEnd {
         get {
           complete(domainsRequest(userId))
-        } ~
-          post {
-            entity(as[CreateRequest]) { request =>
-              complete(createRequest(request, userId))
-            }
+        } ~ post {
+          entity(as[CreateRequest]) { request =>
+            complete(createRequest(request, userId))
           }
-      } ~
-        pathPrefix(Segment / Segment) { (namespace, domainId) => {
+        }
+      } ~ pathPrefix(Segment / Segment) { (namespace, domainId) =>
+        {
           val domain = DomainFqn(namespace, domainId)
           pathEnd {
             get {
               complete(domainRequest(namespace, domainId))
-            } ~
-              delete {
-                complete(deleteRequest(namespace, domainId))
-              }
+            } ~ delete {
+              complete(deleteRequest(namespace, domainId))
+            }
           } ~
-            domainUserService.route(userId, namespace, domainId) ~
+            domainUserService.route(userId, domain) ~
             domainCollectionService.route(userId, domain) ~
             domainModelService.route(userId, domain)
         }

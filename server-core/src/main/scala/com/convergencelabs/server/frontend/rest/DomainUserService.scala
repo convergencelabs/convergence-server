@@ -5,14 +5,9 @@ import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-
-import com.convergencelabs.server.datastore.UserStoreActor.GetAllUsersRequest
-import com.convergencelabs.server.datastore.UserStoreActor.GetAllUsersResponse
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.DomainUser
 import com.convergencelabs.server.domain.RestDomainActor.DomainMessage
-
-import DomainUserService.GetUsersResponse
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.model.StatusCodes
@@ -20,12 +15,16 @@ import akka.http.scaladsl.server.Directive.addByNameNullaryApply
 import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Directives.get
 import akka.http.scaladsl.server.Directives.pathPrefix
+import akka.http.scaladsl.server.Directives.pathEnd
 import akka.http.scaladsl.server.Directives.segmentStringToPathMatcher
 import akka.pattern.ask
 import akka.util.Timeout
+import com.convergencelabs.server.datastore.UserStoreActor.GetUsersResponse
+import com.convergencelabs.server.datastore.UserStoreActor.GetUsers
+import com.convergencelabs.server.datastore.UserStoreActor.GetUsersResponse
 
 object DomainUserService {
-  case class GetUsersResponse(ok: Boolean, users: List[DomainUser]) extends ResponseMessage
+  case class GetUsersRestResponse(ok: Boolean, users: List[DomainUser]) extends ResponseMessage
 }
 
 class DomainUserService(
@@ -39,17 +38,19 @@ class DomainUserService(
   implicit val ec = executionContext
   implicit val t = defaultTimeout
 
-  def route(userId: String, namespace: String, domainId: String) = {
+  def route(userId: String, domain: DomainFqn) = {
     pathPrefix("users") {
-      get {
-        complete(getAllUsersRequest(namespace, domainId))
+      pathEnd {
+        get {
+          complete(getAllUsersRequest(domain))
+        }
       }
     }
   }
 
-  def getAllUsersRequest(namespace: String, domainId: String): Future[RestResponse] = {
-    (domainRestActor ? DomainMessage(DomainFqn(namespace, domainId), GetAllUsersRequest())).mapTo[GetAllUsersResponse] map {
-      case GetAllUsersResponse(users) => (StatusCodes.OK, GetUsersResponse(true, users))
+  def getAllUsersRequest(domain: DomainFqn): Future[RestResponse] = {
+    (domainRestActor ? DomainMessage(domain, GetUsers)).mapTo[GetUsersResponse] map {
+      case GetUsersResponse(users) => (StatusCodes.OK, GetUsersRestResponse(true, users))
     }
   }
 }
