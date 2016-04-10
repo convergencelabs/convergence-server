@@ -1,18 +1,11 @@
 package com.convergencelabs.server.frontend.realtime
 
-import java.util.concurrent.LinkedBlockingDeque
 import scala.concurrent.Await
-import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
-import org.json4s.JsonAST.JString
+
 import org.json4s.NoTypeHints
 import org.json4s.jackson.Serialization
-import org.junit.runner.RunWith
-import org.mockito.{ Matchers => MockitoMatchers }
-import org.mockito.Mockito
-import org.mockito.Mockito.times
 import org.scalatest.Assertions
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.Finders
@@ -20,18 +13,15 @@ import org.scalatest.Matchers
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
-import org.scalatest.junit.JUnitRunner
 import org.scalatest.mock.MockitoSugar
+
 import com.convergencelabs.server.HeartbeatConfiguration
 import com.convergencelabs.server.ProtocolConfiguration
-import com.convergencelabs.server.util.concurrent.UnexpectedErrorException
+import com.convergencelabs.server.domain.model.data.ObjectValue
+
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
-import org.json4s.JsonAST.JInt
-import org.json4s.JsonAST.JObject
-import com.convergencelabs.server.domain.model.data.ObjectValue
-import org.scalatest.TryValues._
 
 // scalastyle:off magic.number
 class ProtocolConnectionSpec

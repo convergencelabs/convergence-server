@@ -1,9 +1,14 @@
 package com.convergencelabs.server.datastore
 
+import com.convergencelabs.server.datastore.domain.DomainUserStore
+import com.convergencelabs.server.domain.DomainUser
+
+import UserStoreActor.CreateUser
+import UserStoreActor.CreateUserResponse
+import UserStoreActor.GetUsers
+import UserStoreActor.GetUsersResponse
 import akka.actor.ActorLogging
 import akka.actor.Props
-import com.convergencelabs.server.domain.DomainUser
-import com.convergencelabs.server.datastore.domain.DomainUserStore
 
 object UserStoreActor {
   def props(userStore: DomainUserStore): Props = Props(new UserStoreActor(userStore))
@@ -18,8 +23,6 @@ object UserStoreActor {
 
 class UserStoreActor private[datastore] (private[this] val userStore: DomainUserStore)
     extends StoreActor with ActorLogging {
-
-  import UserStoreActor._
 
   def receive: Receive = {
     case GetUsers => getAllUsers()

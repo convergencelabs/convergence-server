@@ -59,7 +59,6 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     applyOperationToModel(modelOperation.modelFqn, modelOperation.op, db)
 
     // Persist the operation
-    // FIXME Can't persist operations this causes an exception
     db.save(modelOperation.asODocument)
 
     // Update the model metadata

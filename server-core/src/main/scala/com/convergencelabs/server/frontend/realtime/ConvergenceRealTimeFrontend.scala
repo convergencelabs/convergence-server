@@ -27,7 +27,7 @@ class ConvergenceRealTimeFrontend(
   private[this] val inbox = Inbox.create(system)
   private[this] val connectionManager = system.actorOf(RealTimeFrontEndActor.props(inbox.getRef(), protoConfig), "connectionManager")
 
-  import system.dispatcher
+  implicit val dispatcher = system.dispatcher
   implicit val s = system
 
   def start(): Unit = {

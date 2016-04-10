@@ -33,7 +33,10 @@ case class PongMessage() extends ProtocolMessage
 // Client Messages
 ///////////////////////////////////////////////////////////////////////////////
 
-case class ErrorMessage(c: String, d: String) extends OutgoingProtocolResponseMessage with IncomingProtocolNormalMessage
+case class ErrorMessage(c: String, d: String)
+  extends OutgoingProtocolResponseMessage
+  with IncomingProtocolNormalMessage
+  with OutgoingProtocolNormalMessage
 
 // Handshaking
 case class HandshakeRequestMessage(r: scala.Boolean, k: Option[String]) extends IncomingProtocolRequestMessage
@@ -81,7 +84,6 @@ case class PublishReferenceMessage(r: String, d: String, k: String, c: Int) exte
 case class UnpublishReferenceMessage(r: String, d: String, k: String) extends IncomingModelNormalMessage
 case class SetReferenceMessage(r: String, d: String, k: String, c: Int, v: Any, s: Long) extends IncomingModelNormalMessage
 case class ClearReferenceMessage(r: String, d: String, k: String) extends IncomingModelNormalMessage
-
 
 // Outgoing Model Messages
 case class OpenRealtimeModelResponseMessage(r: String, p: String, v: Long, c: Long, m: Long, d: OpenModelData) extends OutgoingProtocolResponseMessage

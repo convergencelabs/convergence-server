@@ -30,6 +30,8 @@ import akka.http.scaladsl.server.Directives.segmentStringToPathMatcher
 import akka.pattern.ask
 import akka.util.Timeout
 import akka.http.scaladsl.server.Route
+import DomainModelService.GetModelsResponse
+import DomainModelService.GetModelResponse
 
 object DomainModelService {
   case class GetModelsResponse(models: List[Model]) extends AbstractSuccessResponse
@@ -41,8 +43,6 @@ class DomainModelService(
   private[this] val domainRestActor: ActorRef,
   private[this] val defaultTimeout: Timeout)
     extends JsonSupport {
-
-  import DomainModelService._
 
   implicit val ec = executionContext
   implicit val t = defaultTimeout

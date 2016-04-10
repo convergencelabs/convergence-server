@@ -28,6 +28,7 @@ import akka.util.Timeout
 import com.convergencelabs.server.domain.HandshakeSuccess
 import scala.util.Failure
 import com.convergencelabs.server.ProtocolConfiguration
+import akka.actor.PoisonPill
 
 object ClientActor {
   def props(
@@ -49,7 +50,7 @@ class ClientActor(
   type MessageHandler = PartialFunction[ProtocolMessageEvent, Unit]
 
   // FIXME hard-coded (used for auth and handshake)
-  private[this] implicit val requestTimeout = Timeout(1 seconds)
+  private[this] implicit val requestTimeout = Timeout(5 seconds)
   private[this] implicit val ec = context.dispatcher
 
   private[this] var connectionActor: ActorRef = _
@@ -237,10 +238,13 @@ class ClientActor(
   private[this] def onOutgoingRequest(message: OutgoingProtocolRequestMessage): Unit = {
     val askingActor = sender
     val f = protocolConnection.request(message)
-    // FIXME should we allow them to specify what should be coming back.
     f.mapTo[IncomingProtocolResponseMessage] onComplete {
-      case Success(response) => askingActor ! response
-      case Failure(cause) => ??? // FIXME what do do on failure?
+      case Success(response) => 
+        askingActor ! response
+      case Failure(cause) => 
+        this.protocolConnection.send(ErrorMessage("invalid_response", "Error processing a response"))
+        this.connectionActor ! PoisonPill
+        this.onConnectionClosed()
     }
   }
 

@@ -218,8 +218,6 @@ class RealtimeModelActor(
         concurrencyControl,
         modelData.data)
 
-      // TODO Initialize tree reference model
-
       queuedOpeningClients foreach {
         case (sessionKey, queuedClientRecord) =>
           respondToClientOpenRequest(sessionKey, modelData, queuedClientRecord)

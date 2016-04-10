@@ -1,14 +1,15 @@
 package com.convergencelabs.server.datastore.domain.mapper
 
-import java.util.{ List => JavaList }
 import java.util.{ Map => JavaMap }
-import scala.collection.JavaConverters._
+
+import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.collection.JavaConverters.mapAsScalaMapConverter
 import scala.language.implicitConversions
-import com.convergencelabs.server.domain.model.ot.ObjectSetOperation
-import com.convergencelabs.server.util.JValueMapper
-import com.orientechnologies.orient.core.record.impl.ODocument
-import org.json4s.JsonAST.JObject
+
 import com.convergencelabs.server.datastore.mapper.ODocumentMapper
+import com.convergencelabs.server.domain.model.ot.ObjectSetOperation
+import com.orientechnologies.orient.core.record.impl.ODocument
+
 import DataValueMapper.DataValueToODocument
 import DataValueMapper.ODocumentToDataValue
 
