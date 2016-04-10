@@ -38,7 +38,7 @@ class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
   }
 
   def setModelSnapshotConfig(modelSnapshotConfig: ModelSnapshotConfig): Try[Unit] = tryWithDb { db =>
-    // TODO why doesn't this work??
+    // FIXME why doesn't this work??
     //    val updateString = "UPDATE DomainConfig SET modelSnapshotConfig = :modelSnapshotConfig"
     //    val query = new OCommandSQL(updateString)
     //    val params = Map("modelSnapshotConfig" -> modelSnapshotConfig.asODocument)

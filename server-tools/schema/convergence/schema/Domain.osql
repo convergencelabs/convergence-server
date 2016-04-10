@@ -19,6 +19,11 @@ ALTER PROPERTY Domain.domainId NOTNULL true;
 CREATE Property Domain.displayName STRING;
 ALTER PROPERTY Domain.displayName MANDATORY true;
 
+#Domain.owner
+CREATE Property Domain.owner LINK User;
+ALTER PROPERTY Domain.owner MANDATORY true;
+ALTER PROPERTY Domain.owner NOTNULL true;
+
 #Domain.dbUsername
 CREATE Property Domain.dbUsername STRING;
 

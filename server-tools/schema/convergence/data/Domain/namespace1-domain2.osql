@@ -4,4 +4,5 @@ INSERT INTO Domain SET
   domainId = "domain2",
   displayName = "Test Domain 2",
   dbUsername = "admin",
-  dbPassword = "admin";
+  dbPassword = "admin",
+  owner = (SELECT FROM User WHERE uid = 'cu0');

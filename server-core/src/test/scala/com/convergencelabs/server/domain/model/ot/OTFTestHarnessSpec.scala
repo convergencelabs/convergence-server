@@ -11,12 +11,15 @@ import org.json4s.JArray
 import org.json4s.JBool
 import org.json4s.JInt
 import org.json4s.JString
+import org.json4s.JsonAST.JDecimal
+import org.json4s.JsonAST.JDouble
+import org.json4s.JsonAST.JLong
+import org.json4s.JsonAST.JNothing
 import org.json4s.JsonAST.JNull
 import org.json4s.JsonAST.JObject
 import org.json4s.JsonAST.JValue
 import org.json4s.jackson.Serialization.read
 import org.json4s.jvalue2monadic
-import org.scalatest.Finders
 import org.scalatest.FunSpec
 
 import com.convergencelabs.server.domain.model.data.ArrayValue
@@ -148,8 +151,12 @@ class OTFTestHarnessSpec extends FunSpec {
     jValue match {
       case JString(value) => StringValue(valueId, value)
       case JInt(value) => DoubleValue(valueId, value.toDouble)
+      case JLong(value) => DoubleValue(valueId, value.toDouble)
+      case JDouble(value) => DoubleValue(valueId, value.toDouble)
+      case JDecimal(value) => DoubleValue(valueId, value.toDouble)
       case JBool(value) => BooleanValue(valueId, value)
       case JNull => NullValue(valueId)
+      case JNothing => NullValue(valueId)
       case JArray(arr) => ArrayValue( valueId, arr.map { v => mapToDataValue(v) })
       case JObject(fields) => ObjectValue(valueId, fields.toMap.mapValues{v => mapToDataValue(v)})
     }

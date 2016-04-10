@@ -5,12 +5,12 @@ import org.scalatest.Matchers
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
-
 import com.convergencelabs.server.datastore.domain.PersistenceStoreSpec
 import com.convergencelabs.server.domain.Domain
 import com.convergencelabs.server.domain.DomainFqn
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
+import com.convergencelabs.server.domain.DomainDatabaseInfo
 
 class DomainStoreSpec
     extends PersistenceStoreSpec[DomainStore]("/dbfiles/convergence.json.gz")
@@ -25,6 +25,7 @@ class DomainStoreSpec
   val ns1d1Id = "namespace1-domain1"
   val ns1d2Id = "namespace1-domain2"
   val root = "root"
+  val owner = "cu0"
 
   "A DomainStore" when {
 
@@ -67,11 +68,11 @@ class DomainStoreSpec
           "t4",
           fqn,
           "Test Domain 4",
-          root,
-          root)
+          owner)
 
-        store.createDomain(domainConfig).success
+        store.createDomain(domainConfig, root, root).success
         store.getDomainByFqn(fqn).success.get.value shouldBe domainConfig
+        store.getDomainDatabaseInfo(fqn).success.get.value shouldBe DomainDatabaseInfo(domainConfig.id, root, root)
       }
 
       "return a failure if the domain exists" in withPersistenceStore { store =>
@@ -79,13 +80,21 @@ class DomainStoreSpec
           "t1",
           ns1d1,
           "Test Domain 1",
-          root,
-          root)
+          owner)
 
-        store.createDomain(domainConfig).failed.get shouldBe a[ORecordDuplicatedException]
+        store.createDomain(domainConfig, root, root).failed.get shouldBe a[ORecordDuplicatedException]
       }
     }
 
+   "getting domains by owner" must {
+      "return all domains for an owner" in withPersistenceStore { store =>
+        val domains = store.getDomainsByOwner("cu0").success.get
+        domains.length shouldBe 3
+        domains(0).id shouldBe ns1d1Id
+        domains(1).id shouldBe ns1d2Id
+      }
+    }
+    
     "getting domains by namespace" must {
       "return all domains for a namespace" in withPersistenceStore { store =>
         val domains = store.getDomainsInNamespace(namespace1).success.get
@@ -112,8 +121,7 @@ class DomainStoreSpec
           "namespace1-domain1",
           DomainFqn(namespace1, domain1),
           "Test Domain 1 Updated",
-          "admin updated",
-          "password")
+          owner)
 
         store.updateDomain(toUpdate).success
         val queried = store.getDomainByFqn(ns1d1).success.get.value
@@ -126,11 +134,12 @@ class DomainStoreSpec
           "namespace1-domain-none",
           DomainFqn(namespace1, domain1),
           "Test Domain 1 Updated",
-          "admin updated",
-          "password")
+          owner)
 
         store.updateDomain(toUpdate).failure
       }
+      
+      // FIXME need to test / add updating db info.
     }
   }
 }

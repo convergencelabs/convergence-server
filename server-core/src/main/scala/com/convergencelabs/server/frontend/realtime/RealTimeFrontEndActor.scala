@@ -8,7 +8,6 @@ import scala.util.Failure
 import scala.util.Success
 
 import com.convergencelabs.server.ProtocolConfiguration
-import com.convergencelabs.server.domain.DomainFqn
 
 import akka.actor.Actor
 import akka.actor.ActorLogging
@@ -23,12 +22,12 @@ import akka.cluster.ClusterEvent.MemberUp
 import akka.cluster.ClusterEvent.UnreachableMember
 import akka.cluster.Member
 
-object ConnectionManagerActor {
+object RealTimeFrontEndActor {
   def props(startUpListener: ActorRef, protocolConfig: ProtocolConfiguration): Props = Props(
-    new ConnectionManagerActor(startUpListener, protocolConfig))
+    new RealTimeFrontEndActor(startUpListener, protocolConfig))
 }
 
-class ConnectionManagerActor(
+class RealTimeFrontEndActor(
   startUpListener: ActorRef,
   protocolConfig: ProtocolConfiguration)
     extends Actor with ActorLogging {
@@ -41,15 +40,9 @@ class ConnectionManagerActor(
     case MemberUp(member) if member.hasRole("domainManager") => registerDomainManager(member)
     case DomainManagerRegistration(ref) => {
       domainManagerActor = ref
-      context.become(receiveWhenInitialized)
       log.info("Domain Manager Registered")
-      startUpListener ! StartUpComplete
+      startUpListener ! StartUpComplete(ref)
     }
-    case message: Any => unhandled(message)
-  }
-
-  def receiveWhenInitialized: Receive = {
-    case newSocketEvent: NewSocketEvent => onNewSocketEvent(newSocketEvent)
     case message: Any => unhandled(message)
   }
 
@@ -62,22 +55,6 @@ class ConnectionManagerActor(
     }
   }
 
-  private[this] def onNewSocketEvent(newSocketEvent: NewSocketEvent): Unit = {
-    val connection = new ProtocolConnection(
-      newSocketEvent.socket,
-      protocolConfig,
-      context.system.scheduler,
-      context.dispatcher)
-
-    // FIXME hardcoded timeout
-
-    val clientActor = context.system.actorOf(ClientActor.props(
-      domainManagerActor,
-      connection,
-      newSocketEvent.domainFqn,
-      FiniteDuration(5, TimeUnit.SECONDS)))
-  }
-
   override def preStart(): Unit = {
     cluster.subscribe(self,
       initialStateMode = InitialStateAsEvents,
@@ -87,5 +64,4 @@ class ConnectionManagerActor(
 }
 
 case class DomainManagerRegistration(actor: ActorRef)
-case class NewSocketEvent(domainFqn: DomainFqn, socket: ConvergenceServerSocket)
-case object StartUpComplete
+case class StartUpComplete(domainManagerActor: ActorRef)

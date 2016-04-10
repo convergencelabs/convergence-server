@@ -55,12 +55,7 @@ class RealtimeModelActor(
   private[this] var clientToSessionId = HashMap[ActorRef, SessionKey]()
   private[this] var queuedOpeningClients = HashMap[SessionKey, OpenRequestRecord]()
 
-  // FIXME I'd like to move the CC into the model.  We should move a bunch of stuff
-  // into the model actually.  Probably all the handling of the persistence and
-  // concurrency control.  Basically the actor should just handle the messages and
-  // tracking of client actors.
   private[this] var model: RealTimeModel = _
-
   private[this] var latestSnapshot: ModelSnapshotMetaData = _
 
   private[this] val operationTransformer = new OperationTransformer(new TransformationFunctionRegistry())

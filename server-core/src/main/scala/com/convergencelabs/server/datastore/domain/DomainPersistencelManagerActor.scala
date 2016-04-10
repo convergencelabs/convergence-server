@@ -144,12 +144,12 @@ class DomainPersistenceManagerActor(
 
   private[this] def createProvider(domainFqn: DomainFqn): Try[DomainPersistenceProvider] = Try({
     log.debug(s"Creating new persistence provider: ${domainFqn}")
-    domainStore.getDomainByFqn(domainFqn) match {
+    domainStore.getDomainDatabaseInfo(domainFqn) match {
       case Success(Some(domainInfo)) => {
         val pool = new OPartitionedDatabasePool(
-          baseDbUri + domainInfo.id,
-          domainInfo.dbUsername,
-          domainInfo.dbPassword)
+          baseDbUri + domainInfo.database,
+          domainInfo.username,
+          domainInfo.password)
         log.debug(s"Creating new connection pool for '${domainFqn}': ${pool.getUrl}")
         val provider = new DomainPersistenceProvider(pool)
         provider.validateConnection() match {
@@ -173,7 +173,7 @@ class DomainPersistenceManagerActor(
   private[this] def shutdownPool(domainFqn: DomainFqn): Unit = {
     providers.get(domainFqn) match {
       case Some(provider) => {
-        log.warning(s"Shutting down persistence provider: ${domainFqn}")
+        log.debug(s"Shutting down persistence provider: ${domainFqn}")
         providers = providers - domainFqn
         refernceCounts = refernceCounts - domainFqn
         provider.shutdown()

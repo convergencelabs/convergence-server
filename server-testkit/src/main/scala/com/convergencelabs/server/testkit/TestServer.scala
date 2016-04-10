@@ -1,17 +1,14 @@
 package com.convergencelabs.server.testkit
 
 import java.io.File
-
 import scala.annotation.varargs
-
 import com.convergencelabs.server.BackendNode
-import com.convergencelabs.server.frontend.realtime.ConvergenceRealtimeFrontend
+import com.convergencelabs.server.frontend.realtime.ConvergenceRealTimeFrontend
 import com.orientechnologies.common.log.OLogManager
 import com.orientechnologies.orient.core.command.OCommandOutputListener
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.orientechnologies.orient.core.db.tool.ODatabaseImport
 import com.typesafe.config.ConfigFactory
-
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorSystem
@@ -23,6 +20,7 @@ import akka.cluster.ClusterEvent.MemberRemoved
 import akka.cluster.ClusterEvent.MemberUp
 import akka.cluster.ClusterEvent.UnreachableMember
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.frontend.rest.ConvergenceRestFrontEnd
 
 object TestServer {
   def main(args: Array[String]): Unit = {
@@ -43,11 +41,11 @@ class TestServer(
   var backend: BackendNode = _
   var backendSystem: ActorSystem = _
   
-  var frontEnd1: ConvergenceRealtimeFrontend = _
-  var frontEndSystem1: ActorSystem = _
+  var realTimeFrontEnd: ConvergenceRealTimeFrontend = _
+  var realTimeFrontEndSystem: ActorSystem = _
   
-  var frontEnd2: ConvergenceRealtimeFrontend = _
-  var frontEndSystem2: ActorSystem = _
+  var restFrontEndSystem: ActorSystem = _
+  var restFrontEnd: ConvergenceRestFrontEnd = _
   
   def start(): Unit = {
     logger.info("Test Server starting up")
@@ -65,13 +63,13 @@ class TestServer(
     backend = new BackendNode(backendSystem)
     backend.start()
 
-    frontEndSystem1 = startupCluster(2554, "realtimeFrontend1", configFile)
-    frontEnd1 = new ConvergenceRealtimeFrontend(frontEndSystem1, 8080)
-    frontEnd1.start()
-
-    frontEndSystem2 = startupCluster(2555, "realtimeFrontend2", configFile)
-    frontEnd2 = new ConvergenceRealtimeFrontend(frontEndSystem2, 8081)
-    frontEnd2.start()
+    realTimeFrontEndSystem = startupCluster(2554, "realTimeFrontEndSystem", configFile)
+    realTimeFrontEnd = new ConvergenceRealTimeFrontend(realTimeFrontEndSystem, "0.0.0.0", 8080)
+    realTimeFrontEnd.start()
+    
+    restFrontEndSystem = startupCluster(2555, "restFrontend", configFile)
+    restFrontEnd = new ConvergenceRestFrontEnd(restFrontEndSystem, "0.0.0.0", 8081)
+    restFrontEnd.start()
 
     logger.info("Test Server started.")
   }
@@ -80,11 +78,10 @@ class TestServer(
     backendSystem.terminate()
     backend.stop()
     
-    frontEndSystem1.terminate()
-    frontEnd1.stop()
+    realTimeFrontEndSystem.terminate()
+    realTimeFrontEnd.stop()
     
-    frontEndSystem2.terminate()
-    frontEnd2.stop()
+    restFrontEndSystem.terminate()
   }
 
   def importDatabase(dbName: String, importFile: String): Unit = {

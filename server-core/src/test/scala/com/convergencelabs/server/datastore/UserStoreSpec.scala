@@ -9,6 +9,8 @@ import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import com.convergencelabs.server.User
 import com.convergencelabs.server.datastore.domain.PersistenceStoreSpec
+import java.time.Instant
+import java.util.Date
 
 class UserStoreSpec
     extends PersistenceStoreSpec[UserStore]("/dbfiles/convergence.json.gz")
@@ -47,7 +49,7 @@ class UserStoreSpec
       "correctly set the password" in withPersistenceStore { store =>
         val password = "newPasswordToSet"
         store.setUserPassword(User0.username, password).success
-        store.validateCredentials(User0.username, password).success.get shouldBe (true, Some("cu0"))
+        store.validateCredentials(User0.username, password).success.get.get._1 shouldBe "cu0"
       }
 
       "throw exception if user does not exist" in withPersistenceStore { store =>
@@ -56,16 +58,33 @@ class UserStoreSpec
     }
 
     "validating credentials" must {
-      "return true and a uid for a vaid usename and password" in withPersistenceStore { store =>
-        store.validateCredentials(User0.username, "password").success.value shouldBe (true, Some("cu0"))
+      "return true and a uid for a valid usename and password" in withPersistenceStore { store =>
+        store.validateCredentials(User0.username, "password").success.value.get._1 shouldBe "cu0"
       }
 
       "return false and None for an valid username and invalid password" in withPersistenceStore { store =>
-        store.validateCredentials(User0.username, "wrong").success.value shouldBe (false, None)
+        store.validateCredentials(User0.username, "wrong").success.value shouldBe None
       }
 
       "return false and None for an invalid username" in withPersistenceStore { store =>
-        store.validateCredentials("no one", "p").success.value shouldBe (false, None)
+        store.validateCredentials("no one", "p").success.value shouldBe None
+      }
+    }
+    
+    "validating tokens" must {
+      "return true and a uid for a valid token" in withPersistenceStore { store =>
+        store.createToken(User0.uid, "myToken", Date.from(Instant.now().plusSeconds(100))) 
+        store.validateToken("myToken").success.value shouldBe Some("cu0")
+      }
+
+      "return false and None for an expired token" in withPersistenceStore { store =>
+        val expireTime = Instant.now().minusSeconds(1)
+        store.createToken(User0.uid, "myToken", Date.from(expireTime))
+        store.validateToken("myToken").success.value shouldBe None
+      }
+
+      "return false and None for an invalid token" in withPersistenceStore { store =>
+        store.validateToken("myToken").success.value shouldBe None
       }
     }
   }

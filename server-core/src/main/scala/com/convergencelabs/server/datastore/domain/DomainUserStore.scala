@@ -257,7 +257,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     val pagedQuery = QueryUtil.buildPagedQuery(baseQuery + whereClause + orderByClause, limit, offset)
     val query = new OSQLSynchQuery[ODocument](pagedQuery)
 
-    val params = Map("searchString" -> ("%"+ searchString + "%"))
+    val params = Map("searchString" -> ("%" + searchString + "%"))
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
     result.asScala.toList.map { doc => doc.asDomainUser }

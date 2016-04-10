@@ -33,8 +33,7 @@ case class PongMessage() extends ProtocolMessage
 // Client Messages
 ///////////////////////////////////////////////////////////////////////////////
 
-case class ErrorMessage(c: String, d: String) extends OutgoingProtocolResponseMessage
-case class SuccessMessage() extends OutgoingProtocolResponseMessage
+case class ErrorMessage(c: String, d: String) extends OutgoingProtocolResponseMessage with IncomingProtocolNormalMessage
 
 // Handshaking
 case class HandshakeRequestMessage(r: scala.Boolean, k: Option[String]) extends IncomingProtocolRequestMessage
@@ -60,6 +59,7 @@ case class ErrorData(
 sealed trait AuthenticationRequestMessage extends IncomingProtocolRequestMessage
 case class PasswordAuthRequestMessage(u: String, p: String) extends AuthenticationRequestMessage
 case class TokenAuthRequestMessage(t: String) extends AuthenticationRequestMessage
+
 case class AuthenticationResponseMessage(s: Boolean, u: Option[String]) extends OutgoingProtocolResponseMessage
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -89,6 +89,8 @@ case class OpenModelData(d: ObjectValue, s: Set[String], r: Set[ReferenceData])
 case class ReferenceData(s: String, d: String, k: String, c: Int, v: Option[Any])
 
 case class CloseRealTimeModelSuccessMessage() extends OutgoingProtocolResponseMessage
+case class CreateRealtimeModelSuccessMessage() extends OutgoingProtocolResponseMessage
+case class DeleteRealtimeModelSuccessMessage() extends OutgoingProtocolResponseMessage
 
 case class OperationAcknowledgementMessage(r: String, s: Long, v: Long) extends OutgoingProtocolNormalMessage
 case class RemoteOperationMessage(r: String, u: String, s: String, v: Long, p: Long, o: OperationData) extends OutgoingProtocolNormalMessage

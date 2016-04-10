@@ -10,11 +10,11 @@ package object domain {
 
   sealed trait HandshakeResponse
   case class HandshakeSuccess(
-      sessionId: String, 
-      reconnectToken: String, 
-      domainActor: ActorRef, 
-      modelManager: ActorRef,
-      userService: ActorRef) extends HandshakeResponse
+    sessionId: String,
+    reconnectToken: String,
+    domainActor: ActorRef,
+    modelManager: ActorRef,
+    userService: ActorRef) extends HandshakeResponse
   case class HandshakeFailure(code: String, details: String) extends HandshakeResponse
 
   case class ClientDisconnected(sessionId: String)
