@@ -15,9 +15,11 @@ class DomainUserStoreSpec
     with WordSpecLike
     with Matchers {
 
+  val u1Id = "u1"
+
   // Pre-loaded Users
   val User0 = DomainUser("u0", "admin", Some("admin"), Some("admin"), Some("admin@example.com"))
-  val User1 = DomainUser("u1", "test1", Some("Test"), Some("One"), Some("test1@example.com"))
+  val User1 = DomainUser(u1Id, "test1", Some("Test"), Some("One"), Some("test1@example.com"))
   val User2 = DomainUser("u2", "test2", Some("Test"), Some("Two"), Some("test2@example.com"))
 
   // New Users
@@ -171,7 +173,7 @@ class DomainUserStoreSpec
 
       "should a single user if only one user matches" in withPersistenceStore { store =>
         val fields = List(DomainUserField.UserId)
-        val searchString = "u1"
+        val searchString = u1Id
         val users = store.searchUsersByFields(fields, searchString, None, None, None, None).success.value
         users.length shouldBe 1
         users(0) shouldBe User1
@@ -188,7 +190,7 @@ class DomainUserStoreSpec
 
       "should a single user if only one user matches" in withPersistenceStore { store =>
         val fields = List(DomainUserField.UserId)
-        val searchString = "u1"
+        val searchString = u1Id
         val users = store.searchUsersByFields(fields, searchString, None, None, None, None).success.value
         users.length shouldBe 1
         users(0) shouldBe User1
@@ -209,7 +211,7 @@ class DomainUserStoreSpec
       "correctly set the password" in withPersistenceStore { store =>
         val password = "newPasswordToSet"
         store.setDomainUserPassword(User1.username, password).success
-        store.validateCredentials(User1.username, password).success.get shouldBe (true, Some("u1"))
+        store.validateCredentials(User1.username, password).success.get shouldBe (true, Some(u1Id))
       }
 
       "throw exception if user does not exist" in withPersistenceStore { store =>
@@ -219,7 +221,7 @@ class DomainUserStoreSpec
 
     "validating credentials" must {
       "return true and a uid for a vaid usename and passwordr" in withPersistenceStore { store =>
-        store.validateCredentials(User1.username, "password").success.value shouldBe (true, Some("u1"))
+        store.validateCredentials(User1.username, "password").success.value shouldBe (true, Some(u1Id))
       }
 
       "return false and None for an valid username and invalid password" in withPersistenceStore { store =>

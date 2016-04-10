@@ -19,8 +19,8 @@ class UserStoreSpec
     with WordSpecLike
     with Matchers {
 
-  // Pre-loaded Users
   val cu0 = "cu0"
+  val DummyToken = "myToken"
   val User0 = User(cu0, "test")
   val tokenDurationMinutes = 5
   val tokenDuration = FiniteDuration(tokenDurationMinutes, TimeUnit.MINUTES)
@@ -78,18 +78,18 @@ class UserStoreSpec
 
     "validating tokens" must {
       "return true and a uid for a valid token" in withPersistenceStore { store =>
-        store.createToken(User0.uid, "myToken", Date.from(Instant.now().plusSeconds(100)))
-        store.validateToken("myToken").success.value shouldBe Some(cu0)
+        store.createToken(User0.uid, DummyToken, Date.from(Instant.now().plusSeconds(100)))
+        store.validateToken(DummyToken).success.value shouldBe Some(cu0)
       }
 
       "return false and None for an expired token" in withPersistenceStore { store =>
         val expireTime = Instant.now().minusSeconds(1)
-        store.createToken(User0.uid, "myToken", Date.from(expireTime))
-        store.validateToken("myToken").success.value shouldBe None
+        store.createToken(User0.uid, DummyToken, Date.from(expireTime))
+        store.validateToken(DummyToken).success.value shouldBe None
       }
 
       "return false and None for an invalid token" in withPersistenceStore { store =>
-        store.validateToken("myToken").success.value shouldBe None
+        store.validateToken(DummyToken).success.value shouldBe None
       }
     }
   }

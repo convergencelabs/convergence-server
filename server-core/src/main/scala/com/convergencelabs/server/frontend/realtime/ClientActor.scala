@@ -239,9 +239,9 @@ class ClientActor(
     val askingActor = sender
     val f = protocolConnection.request(message)
     f.mapTo[IncomingProtocolResponseMessage] onComplete {
-      case Success(response) => 
+      case Success(response) =>
         askingActor ! response
-      case Failure(cause) => 
+      case Failure(cause) =>
         this.protocolConnection.send(ErrorMessage("invalid_response", "Error processing a response"))
         this.connectionActor ! PoisonPill
         this.onConnectionClosed()

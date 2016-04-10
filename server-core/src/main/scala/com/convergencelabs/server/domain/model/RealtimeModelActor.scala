@@ -35,7 +35,6 @@ import scala.collection.mutable.ListBuffer
  * An instance of the RealtimeModelActor manages the lifecycle of a single
  * realtime model.
  */
-// FIXME right now we don't handle when a client disconnects.
 class RealtimeModelActor(
     private[this] val modelManagerActor: ActorRef,
     private[this] val domainFqn: DomainFqn,
@@ -187,13 +186,11 @@ class RealtimeModelActor(
     }
 
     f match {
-      case Success(modelDataResponse) => {
+      case Success(modelDataResponse) =>
         self ! modelDataResponse
-      }
-      case Failure(cause) => {
+      case Failure(cause) =>
         log.error(cause, "Could not initialize model from the database")
         self ! DatabaseModelFailure(cause)
-      }
     }
   }
 
@@ -244,9 +241,8 @@ class RealtimeModelActor(
     val askingActor = sender
 
     future.mapTo[ClientModelDataResponse] onComplete {
-      case Success(response) => {
+      case Success(response) =>
         self ! response
-      }
       case Failure(cause) => cause match {
         case e: ClassCastException =>
           log.warning("The client responded with an unexpected value:" + e.getMessage)
@@ -315,8 +311,6 @@ class RealtimeModelActor(
     connectedClients += (sk -> requestRecord.clientActor)
     clientToSessionId += (requestRecord.clientActor -> sk)
 
-    // this is how we are being notified that our client is gone.
-    // TODO is the the best way.
     context.watch(requestRecord.clientActor)
 
     // Send a message to the client informing them of the successful model open.
@@ -340,10 +334,10 @@ class RealtimeModelActor(
 
     // Let other client knows
     val msg = RemoteClientOpened(modelResourceId, sk)
-    connectedClients.filterKeys({ _ != sk }).foreach({
+    connectedClients filterKeys ({ _ != sk }) foreach {
       case (session, clientActor) =>
         clientActor ! msg
-    })
+    }
   }
 
   /**
@@ -369,15 +363,13 @@ class RealtimeModelActor(
       this.model.clientDisconnected(sk)
       context.unwatch(clientActor)
 
-      // TODO handle reference leaving
-
       // Acknowledge the close back to the requester
       sender ! CloseRealtimeModelSuccess()
 
       val closedMessage = RemoteClientClosed(modelResourceId, sk)
 
       // If there are other clients, inform them.
-      connectedClients.values foreach { client => client ! closedMessage }
+      connectedClients.values foreach (client => client ! closedMessage)
 
       checkForConnectionsAndClose()
     }
@@ -396,10 +388,7 @@ class RealtimeModelActor(
    * Handles the notification of a deleted model, while open.
    */
   private[this] def handleModelDeletedWhileOpen(): Unit = {
-    connectedClients.keys foreach {
-      sk => forceClosedModel(sk, "Model deleted", false)
-    }
-
+    connectedClients.keys foreach (sk => forceClosedModel(sk, "Model deleted", false))
     context.stop(self)
   }
 
@@ -416,17 +405,15 @@ class RealtimeModelActor(
       request.operation)
 
     transformAndApplyOperation(sessionKey, unprocessedOpEvent) match {
-      case Success(outgoinOperation) => {
+      case Success(outgoinOperation) =>
         broadcastOperation(sessionKey, outgoinOperation, request.seqNo)
         if (snapshotRequired()) { executeSnapshot() }
-      }
-      case Failure(error) => {
+      case Failure(error) =>
         log.error(error, "Error applying operation to model, closing client");
         forceClosedModel(
           sessionKey,
           "Error applying operation to model, closing as a precautionary step: " + error.getMessage,
           true)
-      }
     }
   }
 
@@ -444,15 +431,14 @@ class RealtimeModelActor(
         sk.sid,
         processedOpEvent.operation))
       processedOpEvent
-    }.map { processedOpEvent =>
+    } map (processedOpEvent =>
       OutgoingOperation(
         modelResourceId,
         sk.uid,
         sk.sid,
         processedOpEvent.contextVersion,
         timestamp.toEpochMilli(),
-        processedOpEvent.operation)
-    }
+        processedOpEvent.operation))
   }
 
   /**
@@ -478,14 +464,13 @@ class RealtimeModelActor(
         broacastToAllOthers(event, sk)
       case Success(None) =>
       // Event's no-op'ed
-      case _ =>
-        // FIXME
-        ???
+      case Failure(cause) =>
+        forceClosedModel(sk, "invalid reference event", true)
     }
   }
 
   private[this] def broacastToAllOthers(message: Any, origin: SessionKey): Unit = {
-    connectedClients.filter(p => p._1 != origin).foreach {
+    connectedClients.filter(p => p._1 != origin) foreach {
       case (sk, clientActor) => clientActor ! message
     }
   }
@@ -556,8 +541,6 @@ class RealtimeModelActor(
     connectedClients -= sk
     this.model.clientDisconnected(sk)
 
-    // TODO handle reference node leaving
-
     val closedMessage = RemoteClientClosed(modelResourceId, sk)
 
     if (notifyOthers) {
@@ -576,9 +559,7 @@ class RealtimeModelActor(
    * Informs all clients that the model could not be initialized.
    */
   private[this] def handleInitializationFailure(response: AnyRef): Unit = {
-    queuedOpeningClients.values foreach {
-      openRequest => openRequest.askingActor ! response
-    }
+    queuedOpeningClients.values foreach (openRequest => openRequest.askingActor ! response)
 
     queuedOpeningClients = HashMap[SessionKey, OpenRequestRecord]()
     checkForConnectionsAndClose()

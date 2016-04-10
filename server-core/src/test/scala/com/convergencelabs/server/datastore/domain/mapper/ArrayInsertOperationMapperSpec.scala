@@ -13,7 +13,6 @@ class ArrayInsertOperationMapperSpec
     extends WordSpec
     with Matchers {
 
-
   "An ArrayInsertOperationMapper" when {
     "when converting ArrayInsertOperation operations" must {
       "correctly map and unmap a ArrayInsertOperation" in {
