@@ -11,8 +11,8 @@ object CollectionStoreActor {
   def props(collectionStore: CollectionStore): Props = Props(new CollectionStoreActor(collectionStore))
 
   trait CollectionStoreRequest
-  case class GetCollectionsRequest(offset: Option[Int], limit: Option[Int]) extends CollectionStoreRequest
-  case class GetCollectionConfigRequest(id: String) extends CollectionStoreRequest
+  case class GetCollections(offset: Option[Int], limit: Option[Int]) extends CollectionStoreRequest
+  case class GetCollection(id: String) extends CollectionStoreRequest
   
   case class CollectionInfo(id: String, name: String)
 }
@@ -24,8 +24,8 @@ class CollectionStoreActor private[datastore] (
   import CollectionStoreActor._
   
   def receive: Receive = {
-    case GetCollectionsRequest(offset, limit) => getCollections(offset, limit)
-    case GetCollectionConfigRequest(collectionId) => getCollectionConfig(collectionId)
+    case GetCollections(offset, limit) => getCollections(offset, limit)
+    case GetCollection(collectionId) => getCollectionConfig(collectionId)
     case message: Any => unhandled(message)
   }
 

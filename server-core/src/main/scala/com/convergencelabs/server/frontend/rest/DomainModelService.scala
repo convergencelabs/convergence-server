@@ -32,7 +32,7 @@ import akka.util.Timeout
 
 object DomainModelService {
   case class GetModelsResponse(ok: Boolean, models: List[Model]) extends ResponseMessage
-  case class GetModelResponse(ok: Boolean, models: Model) extends ResponseMessage
+  case class GetModelResponse(ok: Boolean, model: Model) extends ResponseMessage
 }
 
 class DomainModelService(

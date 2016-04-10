@@ -72,7 +72,8 @@ class DomainService(
             }
           }
       } ~
-        pathPrefix(Segment / Segment) { (namespace, domainId) =>
+        pathPrefix(Segment / Segment) { (namespace, domainId) => {
+          val domain = DomainFqn(namespace, domainId)
           pathEnd {
             get {
               complete(domainRequest(namespace, domainId))
@@ -82,9 +83,10 @@ class DomainService(
               }
           } ~
             domainUserService.route(userId, namespace, domainId) ~
-            domainCollectionService.route(userId, namespace, domainId) ~
-            domainModelService.route(userId, DomainFqn(namespace, domainId))
+            domainCollectionService.route(userId, domain) ~
+            domainModelService.route(userId, domain)
         }
+      }
     }
   }
 
