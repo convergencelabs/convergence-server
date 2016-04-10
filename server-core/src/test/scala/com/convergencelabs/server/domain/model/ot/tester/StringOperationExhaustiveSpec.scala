@@ -6,7 +6,8 @@ object StringOperationExhaustiveSpec {
   val StringModelInitialState: String = "ABCDEFGHIJKLMNO"
 }
 
-abstract class StringOperationExhaustiveSpec[S <: StringOperation, C <: StringOperation](implicit s: ClassTag[S], c: ClassTag[C]) extends OperationPairExhaustiveSpec[MockStringModel, S, C] {
+abstract class StringOperationExhaustiveSpec[S <: StringOperation, C <: StringOperation](implicit s: ClassTag[S], c: ClassTag[C])
+    extends OperationPairExhaustiveSpec[MockStringModel, S, C] {
 
   def generateIndices(): List[Int] = {
     val len = StringOperationExhaustiveSpec.StringModelInitialState.length

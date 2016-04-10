@@ -117,7 +117,6 @@ class UserClientActor(userServiceActor: ActorRef) extends Actor with ActorLoggin
       case UserFieldCodes.FirstName => UserLookUpField.FirstName
       case UserFieldCodes.LastName => UserLookUpField.LastName
       case UserFieldCodes.Email => UserLookUpField.Email
-      case _ => ??? // FIXME can we make this be a better matcher using an enum or something?
     }
   }
 
@@ -126,7 +125,7 @@ class UserClientActor(userServiceActor: ActorRef) extends Actor with ActorLoggin
     DomainUserData(uid, username, firstname, lastName, email)
   }
 
-  private[this] object UserFieldCodes {
+  private[this] object UserFieldCodes extends Enumeration {
     val UserId = 0;
     val Username = 1;
     val FirstName = 2;

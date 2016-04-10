@@ -94,8 +94,10 @@ package model {
   case class ClientModelDataRequest(modelFqn: ModelFqn) extends RealtimeModelClientMessage
 
   sealed trait RemoteReferenceEvent extends RealtimeModelClientMessage
-  case class RemoteReferencePublished(resourceId: String, sessionId: String, id: String, key: String, referenceType: ReferenceType.Value) extends RemoteReferenceEvent
-  case class RemoteReferenceSet(resourceId: String, sessionId: String, id: String, key: String, referenceType: ReferenceType.Value, value: Any) extends RemoteReferenceEvent
+  case class RemoteReferencePublished(resourceId: String, sessionId: String, id: String, key: String,
+    referenceType: ReferenceType.Value) extends RemoteReferenceEvent
+  case class RemoteReferenceSet(resourceId: String, sessionId: String, id: String, key: String,
+    referenceType: ReferenceType.Value, value: Any) extends RemoteReferenceEvent
   case class RemoteReferenceCleared(resourceId: String, sessionId: String, id: String, key: String) extends RemoteReferenceEvent
   case class RemoteReferenceUnpublished(resourceId: String, sessionId: String, id: String, key: String) extends RemoteReferenceEvent
 

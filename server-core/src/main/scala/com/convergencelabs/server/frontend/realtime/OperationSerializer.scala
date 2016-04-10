@@ -22,15 +22,15 @@ import org.json4s.JsonDSL.string2jvalue
 import com.convergencelabs.server.domain.model.data.DataValue
 import com.convergencelabs.server.frontend.realtime.model.OperationType
 
-import utils.jnumberToDouble
+import Utils.jnumberToDouble
 
-object utils {
+object Utils {
   def jnumberToDouble(value: JValue): Double = {
     value match {
       case JInt(x) => x.doubleValue()
       case JDouble(x) => x
       case JLong(x) => x.doubleValue()
-      case _ => ???
+      case _ => throw new IllegalArgumentException("invlid number type")
     }
   }
 }
