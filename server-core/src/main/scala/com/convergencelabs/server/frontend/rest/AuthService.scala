@@ -19,7 +19,7 @@ import akka.http.scaladsl.server.Directives.segmentStringToPathMatcher
 import akka.pattern.ask
 import akka.util.Timeout
 
-case class TokenResponse(ok: Boolean, token: String) extends ResponseMessage
+case class TokenResponse(token: String) extends AbstractSuccessResponse
 
 class AuthService(
   private[this] val executionContext: ExecutionContext,
@@ -40,7 +40,7 @@ class AuthService(
 
   def authRequest(req: AuthRequest): Future[RestResponse] = {
     (authActor ? req).mapTo[AuthResponse].map {
-      case AuthSuccess(uid, token) => (StatusCodes.OK, TokenResponse(true, token))
+      case AuthSuccess(uid, token) => (StatusCodes.OK, TokenResponse(token))
       case AuthFailure => (StatusCodes.Unauthorized, ErrorResponse("Unauthorized"))
     }
   }

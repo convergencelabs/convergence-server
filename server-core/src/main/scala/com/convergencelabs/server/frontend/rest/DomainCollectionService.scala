@@ -25,8 +25,8 @@ import akka.pattern.ask
 import akka.util.Timeout
 
 object DomainCollectionService {
-  case class GetCollectionsResponse(ok: Boolean, collections: List[CollectionInfo]) extends ResponseMessage
-  case class GetCollectionResponse(ok: Boolean, collection: Collection) extends ResponseMessage
+  case class GetCollectionsResponse(collections: List[CollectionInfo]) extends AbstractSuccessResponse
+  case class GetCollectionResponse(collection: Collection) extends AbstractSuccessResponse
 }
 
 class DomainCollectionService(
@@ -60,12 +60,12 @@ class DomainCollectionService(
     (domainRestActor ? DomainMessage(
       domain,
       GetCollections(None, None))).mapTo[List[CollectionInfo]] map
-      (collections => (StatusCodes.OK, GetCollectionsResponse(true, collections)))
+      (collections => (StatusCodes.OK, GetCollectionsResponse(collections)))
   }
 
   def getCollection(domain: DomainFqn, collectionId: String): Future[RestResponse] = {
     (domainRestActor ? DomainMessage(domain,GetCollection(collectionId))).mapTo[Option[Collection]] map {
-      case Some(collection) => (StatusCodes.OK, GetCollectionResponse(true, collection))
+      case Some(collection) => (StatusCodes.OK, GetCollectionResponse(collection))
       case None => (StatusCodes.NotFound, ErrorResponse("collection_not_found"))
     }
   }

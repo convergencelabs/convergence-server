@@ -24,7 +24,7 @@ import com.convergencelabs.server.datastore.UserStoreActor.GetUsers
 import com.convergencelabs.server.datastore.UserStoreActor.GetUsersResponse
 
 object DomainUserService {
-  case class GetUsersRestResponse(ok: Boolean, users: List[DomainUser]) extends ResponseMessage
+  case class GetUsersRestResponse(users: List[DomainUser]) extends AbstractSuccessResponse
 }
 
 class DomainUserService(
@@ -50,7 +50,7 @@ class DomainUserService(
 
   def getAllUsersRequest(domain: DomainFqn): Future[RestResponse] = {
     (domainRestActor ? DomainMessage(domain, GetUsers)).mapTo[GetUsersResponse] map {
-      case GetUsersResponse(users) => (StatusCodes.OK, GetUsersRestResponse(true, users))
+      case GetUsersResponse(users) => (StatusCodes.OK, GetUsersRestResponse(users))
     }
   }
 }

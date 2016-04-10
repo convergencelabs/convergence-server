@@ -32,10 +32,10 @@ import akka.http.scaladsl.server.Directives.segmentStringToPathMatcher
 import akka.pattern.ask
 import akka.util.Timeout
 
-case class DomainsResponse(ok: Boolean, domains: List[DomainFqn]) extends ResponseMessage
-case class DomainResponse(ok: Boolean, domain: DomainInfo) extends ResponseMessage
-case class CreateResponse(ok: Boolean) extends ResponseMessage
-case class DeleteResponse(ok: Boolean) extends ResponseMessage
+case class DomainsResponse(domains: List[DomainFqn]) extends AbstractSuccessResponse
+case class DomainResponse(domain: DomainInfo) extends AbstractSuccessResponse
+case class CreateResponse() extends AbstractSuccessResponse
+case class DeleteResponse() extends AbstractSuccessResponse
 
 case class DomainInfo(
   id: String,
@@ -91,14 +91,13 @@ class DomainService(
   def createRequest(createRequest: CreateRequest, userId: String): Future[RestResponse] = {
     val CreateRequest(namespace, domainId, displayName) = createRequest
     (domainStoreActor ? CreateDomainRequest(namespace, domainId, displayName, userId)).mapTo[Unit].map {
-      case _ => (StatusCodes.Created, CreateResponse(true))
+      case _ => (StatusCodes.Created, CreateResponse())
     }
   }
 
   def domainsRequest(userId: String): Future[RestResponse] = {
     (domainStoreActor ? ListDomainsRequest(userId)).mapTo[ListDomainsResponse].map {
       case ListDomainsResponse(domains) => (StatusCodes.OK, DomainsResponse(
-        true,
         (domains map (domain => DomainFqn(domain.domainFqn.namespace, domain.domainFqn.domainId)))))
     }
   }
@@ -106,7 +105,7 @@ class DomainService(
   def domainRequest(namespace: String, domainId: String): Future[RestResponse] = {
     (domainStoreActor ? GetDomainRequest(namespace, domainId)).mapTo[GetDomainResponse].map {
       case GetDomainSuccess(domain) =>
-        (StatusCodes.OK, DomainResponse(true, DomainInfo(
+        (StatusCodes.OK, DomainResponse(DomainInfo(
           domain.id,
           domain.displayName,
           domain.domainFqn.namespace,
@@ -119,7 +118,7 @@ class DomainService(
 
   def deleteRequest(namespace: String, domainId: String): Future[RestResponse] = {
     (domainStoreActor ? DeleteDomainRequest(namespace, domainId)) map {
-      case _ => (StatusCodes.Created, DeleteResponse(true))
+      case _ => (StatusCodes.Created, DeleteResponse())
     }
   }
 }

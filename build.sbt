@@ -4,7 +4,7 @@ import Dependencies.Test._
 
 val commonSettings = packSettings ++ Seq(
   organization := "com.convergencelabs",
-  scalaVersion := "2.11.7",
+  scalaVersion := "2.11.8",
   scalacOptions := Seq("-deprecation", "-feature"),
   fork := true,
   packMain := Map("test-server" -> "com.convergencelabs.server.testkit.TestServer"),

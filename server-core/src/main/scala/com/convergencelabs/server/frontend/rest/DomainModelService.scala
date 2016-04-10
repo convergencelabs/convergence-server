@@ -31,8 +31,8 @@ import akka.pattern.ask
 import akka.util.Timeout
 
 object DomainModelService {
-  case class GetModelsResponse(ok: Boolean, models: List[Model]) extends ResponseMessage
-  case class GetModelResponse(ok: Boolean, model: Model) extends ResponseMessage
+  case class GetModelsResponse(models: List[Model]) extends AbstractSuccessResponse
+  case class GetModelResponse(model: Model) extends AbstractSuccessResponse
 }
 
 class DomainModelService(
@@ -70,21 +70,21 @@ class DomainModelService(
     (domainRestActor ? DomainMessage(
       domain,
       GetModels(None, None))).mapTo[List[Model]] map
-      (models => (StatusCodes.OK, GetModelsResponse(true, models)))
+      (models => (StatusCodes.OK, GetModelsResponse(models)))
   }
 
   def getModelInCollection(domain: DomainFqn, collectionId: String): Future[RestResponse] = {
     (domainRestActor ? DomainMessage(
       domain,
       GetModelsInCollection(collectionId, None, None))).mapTo[List[Model]] map
-      (models => (StatusCodes.OK, GetModelsResponse(true, models)))
+      (models => (StatusCodes.OK, GetModelsResponse(models)))
   }
 
   def getModel(domain: DomainFqn, model: ModelFqn): Future[RestResponse] = {
     (domainRestActor ? DomainMessage(
       domain,
       GetModel(model))).mapTo[Option[Model]] map {
-        case Some(model) => (StatusCodes.OK, GetModelResponse(true, model))
+        case Some(model) => (StatusCodes.OK, GetModelResponse(model))
         case None => (StatusCodes.OK, ErrorResponse("model_not_found"))
       }
   }
