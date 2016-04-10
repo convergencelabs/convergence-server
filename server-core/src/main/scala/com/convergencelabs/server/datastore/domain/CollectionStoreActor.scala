@@ -14,7 +14,6 @@ object CollectionStoreActor {
   case class GetCollectionsRequest(offset: Option[Int], limit: Option[Int]) extends CollectionStoreRequest
   case class GetCollectionConfigRequest(id: String) extends CollectionStoreRequest
   
-  
   case class CollectionInfo(id: String, name: String)
 }
 

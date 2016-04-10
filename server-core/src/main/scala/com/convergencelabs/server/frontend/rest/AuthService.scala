@@ -1,22 +1,23 @@
 package com.convergencelabs.server.frontend.rest
 
-import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.model.HttpEntity
-import akka.http.scaladsl.model.ContentTypes
-import de.heikoseeberger.akkahttpjson4s.Json4sSupport
-import akka.actor.ActorRef
-import akka.pattern.ask
-import akka.util.Timeout
-import scala.concurrent.Future
-import scala.util.Success
 import scala.concurrent.ExecutionContext
-import scala.util.Failure
-import akka.http.scaladsl.model.StatusCodes
+import scala.concurrent.Future
+
+import com.convergencelabs.server.datastore.AuthStoreActor.AuthFailure
 import com.convergencelabs.server.datastore.AuthStoreActor.AuthRequest
 import com.convergencelabs.server.datastore.AuthStoreActor.AuthResponse
 import com.convergencelabs.server.datastore.AuthStoreActor.AuthSuccess
-import com.convergencelabs.server.datastore.AuthStoreActor.AuthFailure
-import scala.util.Try
+
+import akka.actor.ActorRef
+import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.server.Directive.addByNameNullaryApply
+import akka.http.scaladsl.server.Directives.handleWith
+import akka.http.scaladsl.server.Directives.pathEnd
+import akka.http.scaladsl.server.Directives.pathPrefix
+import akka.http.scaladsl.server.Directives.post
+import akka.http.scaladsl.server.Directives.segmentStringToPathMatcher
+import akka.pattern.ask
+import akka.util.Timeout
 
 case class TokenResponse(ok: Boolean, token: String) extends ResponseMessage
 
