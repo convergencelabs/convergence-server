@@ -1,14 +1,11 @@
 package com.convergencelabs.server.frontend.realtime
 
 import org.json4s.DefaultFormats
-import org.json4s.Extraction
-import org.json4s.JsonAST.JValue
 import org.json4s.jackson.Serialization.read
 import org.json4s.jackson.Serialization.write
-import org.json4s.reflect.Reflector
-import com.convergencelabs.server.util.BiMap
-import com.convergencelabs.server.frontend.realtime.model.OperationType
-import com.convergencelabs.server.frontend.realtime.data._
+
+import com.convergencelabs.server.frontend.realtime.data.DataValueFieldSerializer
+import com.convergencelabs.server.frontend.realtime.data.DataValueTypeHints
 
 object MessageSerializer {
 

@@ -1,19 +1,20 @@
 package com.convergencelabs.server.datastore.domain
 
-import java.util.{ List => JavaList }
-import scala.collection.JavaConverters.asScalaBufferConverter
-import scala.collection.JavaConverters._
 import java.time.Instant
 import java.util.Date
+import java.util.{ List => JavaList }
+
+import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.collection.JavaConverters.seqAsJavaListConverter
+import scala.util.Failure
+import scala.util.Success
 import scala.util.Try
+
 import org.json4s.NoTypeHints
 import org.json4s.jackson.Serialization
-import org.json4s.jackson.Serialization.write
+
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.server.datastore.domain.OrientPathUtil.appendToPath
-import com.convergencelabs.server.datastore.domain.OrientPathUtil.toOrientPath
-import com.convergencelabs.server.datastore.domain.OrientPathUtil.escape
 import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelOperation
 import com.convergencelabs.server.domain.model.ot.ArrayInsertOperation
@@ -34,18 +35,12 @@ import com.convergencelabs.server.domain.model.ot.Operation
 import com.convergencelabs.server.domain.model.ot.StringInsertOperation
 import com.convergencelabs.server.domain.model.ot.StringRemoveOperation
 import com.convergencelabs.server.domain.model.ot.StringSetOperation
-import com.convergencelabs.server.util.JValueMapper
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import com.orientechnologies.orient.core.sql.OCommandSQL
-import com.orientechnologies.orient.core.id.ORID
-import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
-import com.orientechnologies.orient.core.record.impl.ODocument
-import com.convergencelabs.server.datastore.domain.mapper.DataValueMapper.DataValueToODocument
-import scala.util.Success
-import scala.util.Failure
 import com.orientechnologies.orient.core.db.record.OIdentifiable
-import java.lang.Double
+import com.orientechnologies.orient.core.record.impl.ODocument
+import com.orientechnologies.orient.core.sql.OCommandSQL
+import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 
 class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     extends AbstractDatabasePersistence(dbPool) {
@@ -134,8 +129,8 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
         db.commit()
         Unit
       }
-      case Success(None) => //TODO: Handle model doesn't exist
-      case Failure(error) => //TODO: Handle failure looking up model
+      case Success(None) => // TODO: Handle model doesn't exist
+      case Failure(error) => // TODO: Handle failure looking up model
     }
   }
 
@@ -162,8 +157,8 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
 
         Unit
       }
-      case Success(None) => //TODO: Handle model doesn't exist
-      case Failure(error) => //TODO: Handle failure looking up model
+      case Success(None) => // TODO: Handle model doesn't exist
+      case Failure(error) => // TODO: Handle failure looking up model
     }
   }
 
@@ -183,14 +178,21 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
         db.commit()
 
         val params = Map(VID -> operation.id, CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, Value -> children.asJava)
-        val queryString = s"UPDATE ArrayValue SET children = :value WHERE vid = : vid and model.collectionId = :collectionId and model.modelId = :modelId"
+        val queryString =
+          s"""UPDATE ArrayValue 
+             |SET 
+             |  children = :value 
+             |WHERE 
+             |  vid = : vid AND 
+             |  model.collectionId = :collectionId AND
+             |  model.modelId = :modelId""".stripMargin
         val updateCommand = new OCommandSQL(queryString)
         db.command(updateCommand).execute(params.asJava)
         db.commit()
         Unit
       }
-      case Success(None) => //TODO: Handle model doesn't exist
-      case Failure(error) => //TODO: Handle failure looking up mod
+      case Success(None) => // TODO: Handle model doesn't exist
+      case Failure(error) => // TODO: Handle failure looking up mod
     }
   }
 
@@ -207,8 +209,8 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
         db.command(updateCommand).execute(params.asJava)
         db.commit()
       }
-      case Success(None) => //TODO: Handle model doesn't exist
-      case Failure(error) => //TODO: Handle failure looking up model
+      case Success(None) => // TODO: Handle model doesn't exist
+      case Failure(error) => // TODO: Handle failure looking up model
     }
   }
 
@@ -225,8 +227,8 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
         db.command(updateCommand).execute(params.asJava)
         db.commit()
       }
-      case Success(None) => //TODO: Handle model doesn't exist
-      case Failure(error) => //TODO: Handle failure looking up model
+      case Success(None) => // TODO: Handle model doesn't exist
+      case Failure(error) => // TODO: Handle failure looking up model
     }
   }
 
@@ -250,8 +252,8 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
         db.command(updateCommand).execute(params.asJava)
         db.commit()
       }
-      case Success(None) => //TODO: Handle model doesn't exist
-      case Failure(error) => //TODO: Handle failure looking up mode
+      case Success(None) => // TODO: Handle model doesn't exist
+      case Failure(error) => // TODO: Handle failure looking up mode
     }
   }
 

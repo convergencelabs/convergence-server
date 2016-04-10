@@ -22,7 +22,7 @@ class RealTimeObject(
   var childValues: Map[String, RealTimeValue] = value.children.map {
     case (k, v) => (k, this.model.createValue(v, Some(this), Some(k)))
   }.toMap
-  
+
   def children(): List[RealTimeValue] = {
     childValues.values.toList
   }
@@ -82,7 +82,7 @@ class RealTimeObject(
 
     val child = this.childValues(op.property)
     childValues = this.childValues - op.property
-    
+
     this.referenceManager.referenceMap.getAll().foreach {
       case x: PropertyRemoveAware => x.handlePropertyRemove(op.property)
     }

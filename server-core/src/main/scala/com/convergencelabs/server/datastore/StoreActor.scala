@@ -11,7 +11,7 @@ import akka.actor.Status
 abstract class StoreActor private[datastore] extends Actor with ActorLogging {
 
   private[this] val defaultMapper: PartialFunction[Any, Any] = {
-    case x => x
+    case x: Any => x
   }
 
   def mapAndReply[T](value: Try[T])(mapper: Function[T, Any]): Unit = {

@@ -1,20 +1,28 @@
 package com.convergencelabs.server.frontend.realtime
 
-import org.json4s.DefaultFormats
-import org.json4s.Extraction
-import org.json4s.JsonAST.JValue
-import org.json4s.jackson.Serialization.read
-import org.json4s.jackson.Serialization.write
-import org.json4s.reflect.Reflector
-import com.convergencelabs.server.util.BiMap
-import com.convergencelabs.server.frontend.realtime.model.OperationType
-import com.convergencelabs.server.frontend.realtime.data._
 import org.json4s.CustomSerializer
-import com.convergencelabs.server.domain.model.ot._
-import org.json4s._
-import org.json4s.JsonDSL._
-import org.json4s.jackson.JsonMethods._
+import org.json4s.Extraction
+import org.json4s.JArray
+import org.json4s.JBool
+import org.json4s.JDouble
+import org.json4s.JInt
+import org.json4s.JLong
+import org.json4s.JObject
+import org.json4s.JString
+import org.json4s.JsonAST.JValue
+import org.json4s.JsonDSL.boolean2jvalue
+import org.json4s.JsonDSL.double2jvalue
+import org.json4s.JsonDSL.int2jvalue
+import org.json4s.JsonDSL.jobject2assoc
+import org.json4s.JsonDSL.pair2Assoc
+import org.json4s.JsonDSL.pair2jvalue
+import org.json4s.JsonDSL.seq2jvalue
+import org.json4s.JsonDSL.string2jvalue
+
 import com.convergencelabs.server.domain.model.data.DataValue
+import com.convergencelabs.server.frontend.realtime.model.OperationType
+
+import utils.jnumberToDouble
 
 object utils {
   def jnumberToDouble(value: JValue): Double = {
@@ -28,10 +36,8 @@ object utils {
 }
 
 object Big {
-  def unapply(n: BigInt) = Some(n.toInt)
+  def unapply(n: BigInt): Option[Int] = Some(n.toInt)
 }
-
-import utils._
 
 class OperationSerializer extends CustomSerializer[OperationData](format => ({
   case JObject(List(("t", JInt(Big(OperationType.Compound))), ("o", JArray(ops)))) =>

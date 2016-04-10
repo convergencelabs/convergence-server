@@ -1,14 +1,15 @@
 package com.convergencelabs.server.datastore
 
-import scala.util.Try
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import com.convergencelabs.server.datastore.AuthStoreActor._
-import scala.util.Success
-import scala.util.Failure
+import com.convergencelabs.server.datastore.AuthStoreActor.AuthFailure
+import com.convergencelabs.server.datastore.AuthStoreActor.AuthRequest
+import com.convergencelabs.server.datastore.AuthStoreActor.AuthSuccess
+import com.convergencelabs.server.datastore.AuthStoreActor.ValidateFailure
+import com.convergencelabs.server.datastore.AuthStoreActor.ValidateRequest
+import com.convergencelabs.server.datastore.AuthStoreActor.ValidateSuccess
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
+
+import akka.actor.ActorLogging
 import akka.actor.Props
-import akka.actor.Status
 
 class AuthStoreActor private[datastore] (
   private[this] val dbPool: OPartitionedDatabasePool)

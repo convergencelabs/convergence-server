@@ -40,7 +40,7 @@ class DomainStore private[datastore] (dbPool: OPartitionedDatabasePool)
         db.save(doc)
         Unit
       }
-      //TODO: How to handle exception
+      // TODO: How to handle exception
       case None => throw new IllegalArgumentException("Invalid Domain Owner")
     }
   }

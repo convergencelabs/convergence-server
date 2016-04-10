@@ -35,7 +35,7 @@ class RealTimeArray(
   var childValues = value.children.map {
     x => this.model.createValue(x, Some(this), Some({ i += 1; i }))
   }
-  
+
   def children(): List[RealTimeValue] = {
     childValues.toList
   }
@@ -117,8 +117,8 @@ class RealTimeArray(
       childValues(i).parentField = Some(i)
     }
   }
-  
+
   def detachChildren(): Unit = {
-    childValues.foreach({child => child.detach()})
-  }  
+    childValues.foreach({ child => child.detach() })
+  }
 }

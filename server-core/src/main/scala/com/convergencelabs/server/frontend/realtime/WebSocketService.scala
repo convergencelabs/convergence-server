@@ -17,6 +17,7 @@ import akka.stream.OverflowStrategy
 import akka.stream.scaladsl.Flow
 import akka.stream.scaladsl.Sink
 import akka.stream.scaladsl.Source
+import akka.http.scaladsl.server.Route
 
 case class IncomingTextMessage(message: String)
 case class OutgoingTextMessage(message: String)
@@ -24,10 +25,9 @@ case class OutgoingTextMessage(message: String)
 class WebSocketService(
     val domainManager: ActorRef,
     val protocolConfig: ProtocolConfiguration,
-    val handshakeTimeout: FiniteDuration,
     implicit val fm: Materializer, system: ActorSystem) extends Directives {
-  
-  def route =
+
+  val route: Route =
     get {
       path("domain" / Segment / Segment) { (namespace, domain) =>
         handleWebSocketMessages(realTimeDomainFlow(namespace, domain))
@@ -49,16 +49,15 @@ class WebSocketService(
           // text message.  This will be the output of the flow.
           TextMessage.Strict(msg)
       }
-      
-      def createFlowForConnection(namespace: String, domain: String): Flow[IncomingTextMessage, OutgoingTextMessage, Any] = {
+
+  def createFlowForConnection(namespace: String, domain: String): Flow[IncomingTextMessage, OutgoingTextMessage, Any] = {
 
     val clientActor = system.actorOf(ClientActor.props(
-        domainManager, 
-        DomainFqn(namespace, domain), 
-        protocolConfig, 
-        handshakeTimeout))
-    
-    val connection =  system.actorOf(ConnectionActor.props(clientActor))
+      domainManager,
+      DomainFqn(namespace, domain),
+      protocolConfig))
+
+    val connection = system.actorOf(ConnectionActor.props(clientActor))
 
     // This is how we route messages that are coming in.  Basically we route them
     // to the echo actor and, when the flow is completed (e.g. the web socket is

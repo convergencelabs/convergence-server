@@ -2,23 +2,26 @@ package com.convergencelabs.server.frontend.rest
 
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
+
 import com.convergencelabs.server.datastore.AuthStoreActor
 import com.convergencelabs.server.datastore.DomainStoreActor
 import com.convergencelabs.server.datastore.PersistenceProvider
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 import com.convergencelabs.server.domain.RestDomainManagerActor
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
+
 import akka.actor.ActorSystem
-import akka.actor.Props
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server.ExceptionHandler
+import akka.http.scaladsl.server.Directive.addByNameNullaryApply
+import akka.http.scaladsl.server.Directive.addDirectiveApply
+import akka.http.scaladsl.server.Directives.enhanceRouteWithConcatenation
+import akka.http.scaladsl.server.Directives.pathPrefix
+import akka.http.scaladsl.server.Directives.segmentStringToPathMatcher
+import akka.http.scaladsl.server.RouteResult.route2HandlerFlow
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
-import ch.megard.akka.http.cors.CorsDirectives._
+import ch.megard.akka.http.cors.CorsDirectives.cors
 import grizzled.slf4j.Logging
-import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.model.HttpResponse
 
 class ConvergenceRestFrontEnd(
   val system: ActorSystem,

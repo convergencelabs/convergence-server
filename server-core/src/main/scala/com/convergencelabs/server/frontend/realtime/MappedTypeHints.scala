@@ -7,6 +7,6 @@ case class MappedTypeHits(private val hintMap: Map[String, Class[_]]) extends Ty
 
   val hints: List[Class[_]] = hintMap.values.toList
 
-  def hintFor(clazz: Class[_]) = reverseHintMap(clazz)
-  def classFor(hint: String) = hintMap.get(hint)
+  def hintFor(clazz: Class[_]): String = reverseHintMap(clazz)
+  def classFor(hint: String): Option[Class[_]] = hintMap.get(hint)
 }

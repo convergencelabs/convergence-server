@@ -81,7 +81,9 @@ class DomainManagerActorSpec()
     val convergencePersistence = mock[PersistenceProvider]
     Mockito.when(convergencePersistence.domainStore).thenReturn(domainStore)
 
-    val protocolConfig = ProtocolConfiguration(2 seconds,
+    val protocolConfig = ProtocolConfiguration(
+      2 seconds,
+      2 seconds,
       HeartbeatConfiguration(
         false,
         0 seconds,

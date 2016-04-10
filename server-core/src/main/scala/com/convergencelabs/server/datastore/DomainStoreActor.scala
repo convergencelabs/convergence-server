@@ -1,16 +1,21 @@
 package com.convergencelabs.server.datastore
 
-import scala.util.Try
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import com.convergencelabs.server.datastore.DomainStoreActor._
-import scala.util.Success
 import scala.util.Failure
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import com.typesafe.config.Config
+import scala.util.Success
+
+import com.convergencelabs.server.datastore.DomainStoreActor.CreateDomainRequest
+import com.convergencelabs.server.datastore.DomainStoreActor.DeleteDomainRequest
+import com.convergencelabs.server.datastore.DomainStoreActor.DomainNotFound
+import com.convergencelabs.server.datastore.DomainStoreActor.GetDomainRequest
+import com.convergencelabs.server.datastore.DomainStoreActor.GetDomainSuccess
+import com.convergencelabs.server.datastore.DomainStoreActor.ListDomainsRequest
+import com.convergencelabs.server.datastore.DomainStoreActor.ListDomainsResponse
 import com.convergencelabs.server.domain.Domain
 import com.convergencelabs.server.domain.DomainFqn
-import scala.util.Failure
+import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
+import com.typesafe.config.Config
+
+import akka.actor.ActorLogging
 import akka.actor.Props
 
 class DomainStoreActor private[datastore] (
@@ -38,7 +43,7 @@ class DomainStoreActor private[datastore] (
   def createDomain(createRequest: CreateDomainRequest): Unit = {
     val CreateDomainRequest(namespace, domainId, displayName, owner) = createRequest
     val DBConfig(id, username, password) = domainDBContoller.createDomain()
-    //TODO: Need to handle rollback of domain creation if this fails
+    // TODO: Need to handle rollback of domain creation if this fails
     reply(domainStore.createDomain(Domain(id, DomainFqn(namespace, domainId), displayName, owner), username, password))
   }
 
@@ -46,13 +51,13 @@ class DomainStoreActor private[datastore] (
     val DeleteDomainRequest(namespace, domainId) = deleteRequest
     val domain = domainStore.getDomainByFqn(DomainFqn(namespace, domainId))
     reply(domain flatMap {
-      case Some(domain) => {
+      case Some(domain) =>
         domainStore.removeDomain(domain.id)
         domainDBContoller.deleteDomain(domain.id)
         Success(Unit)
-      }
-      //TODO: Determine correct exception to throw here
-      case None => Failure(new IllegalArgumentException("Domain Not Found"))
+      case None => 
+        // TODO: Determine correct exception to throw here
+        Failure(new IllegalArgumentException("Domain Not Found"))
     })
   }
 

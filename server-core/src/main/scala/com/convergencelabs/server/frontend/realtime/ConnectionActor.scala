@@ -39,7 +39,7 @@ class ConnectionActor(clientActor: ActorRef) extends Actor with ActorLogging {
       socketActor = None
       clientActor ! WebSocketError(cause)
       this.context.stop(self)
-      
+
     case CloseConnection =>
       socketActor.get ! PoisonPill
       this.context.stop(self)

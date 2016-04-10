@@ -168,6 +168,7 @@ class ModelManagerActorSpec
     val domainActor = new TestProbe(system)
     val protocolConfig = ProtocolConfiguration(
       100 millis,
+      100 millis,
       HeartbeatConfiguration(
         true,
         5 seconds,

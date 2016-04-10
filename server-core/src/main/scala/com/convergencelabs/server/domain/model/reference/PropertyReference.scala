@@ -8,13 +8,13 @@ class PropertyReference(
   source: RealTimeValue,
   sessionId: String,
   key: String)
-    extends ModelReference[String](source, sessionId, key) 
+    extends ModelReference[String](source, sessionId, key)
     with PropertyRemoveAware {
-  
+
   def handlePropertyRemove(property: String): Unit = {
     this.value = this.value match {
       case Some(v) if v.equals(property) => None
-      case value => value
+      case value: Any => value
     }
   }
 }

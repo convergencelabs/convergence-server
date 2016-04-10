@@ -87,7 +87,7 @@ class UserStore private[datastore] (private[this] val dbPool: OPartitionedDataba
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     result.asScala.toList match {
       case doc :: Nil => true
-      case _          => false
+      case _ => false
     }
   }
 
@@ -130,8 +130,9 @@ class UserStore private[datastore] (private[this] val dbPool: OPartitionedDataba
         PasswordUtil.checkPassword(password, pwhash) match {
           case true => {
             val uid: String = doc.field(Uid)
-            //TODO: Determine best way to create this
+            // TODO: Determine best way to create this
             val token = UUID.randomUUID().toString()
+            // FIXME make this configurable
             val expireTime = Date.from(Instant.now().plus(Duration.ofMinutes(5)))
             createToken(uid, token, expireTime)
             Some((uid, token))
@@ -144,7 +145,7 @@ class UserStore private[datastore] (private[this] val dbPool: OPartitionedDataba
 
   def createToken(uid: String, token: String, expireTime: Date): Try[Unit] = tryWithDb { db =>
     val query = new OCommandSQL("INSERT INTO UserAuthToken SET user = (SELECT FROM User WHERE uid = :uid), token = :token, expireTime = :expireTime")
-    //TODO: Configure Timeout
+    // TODO: Configure Timeout
     val params = Map(Uid -> uid, Token -> token, ExpireTime -> expireTime)
     db.command(query).execute(params.asJava)
     Unit

@@ -33,20 +33,17 @@ object ClientActor {
   def props(
     domainManager: ActorRef,
     domainFqn: DomainFqn,
-    protocolConfig: ProtocolConfiguration,
-    handshakeTimeout: FiniteDuration): Props = Props(
+    protocolConfig: ProtocolConfiguration): Props = Props(
     new ClientActor(
       domainManager,
       domainFqn,
-      protocolConfig,
-      handshakeTimeout))
+      protocolConfig))
 }
 
 class ClientActor(
   private[this] val domainManager: ActorRef,
   private[this] val domainFqn: DomainFqn,
-  private[this] val protocolConfig: ProtocolConfiguration,
-  private[this] val handshakeTimeout: FiniteDuration)
+  private[this] val protocolConfig: ProtocolConfiguration)
     extends Actor with ActorLogging {
 
   type MessageHandler = PartialFunction[ProtocolMessageEvent, Unit]
@@ -57,11 +54,12 @@ class ClientActor(
 
   private[this] var connectionActor: ActorRef = _
 
-  private[this]  val handshakeTimeoutTask = context.system.scheduler.scheduleOnce(handshakeTimeout) {
-    log.debug("Client handshaked timeout")
-    connectionActor ! CloseConnection
-    context.stop(self)
-  }
+  private[this] val handshakeTimeoutTask =
+    context.system.scheduler.scheduleOnce(protocolConfig.handshakeTimeout) {
+      log.debug("Client handshaked timeout")
+      connectionActor ! CloseConnection
+      context.stop(self)
+    }
 
   private[this] val connectionManager = context.parent
 

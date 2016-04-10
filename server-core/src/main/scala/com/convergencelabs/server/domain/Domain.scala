@@ -7,6 +7,6 @@ case class Domain(
   owner: String)
 
 case class DomainDatabaseInfo(
-    database: String,
-    username: String,
-    password: String)
+  database: String,
+  username: String,
+  password: String)

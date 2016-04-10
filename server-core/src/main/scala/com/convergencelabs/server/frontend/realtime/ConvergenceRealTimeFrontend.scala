@@ -40,7 +40,6 @@ class ConvergenceRealTimeFrontend(
         val service = new WebSocketService(
           domainManager,
           protoConfig,
-          FiniteDuration(5, TimeUnit.SECONDS),
           materializer,
           system)
 

@@ -126,28 +126,28 @@ class RealTimeModel(
   }
 
   def processReferenceEvent(event: ModelReferenceEvent, sk: String): Try[Option[RemoteReferenceEvent]] = Try {
-    // We could do a map here to simplify things, but I am thinking we will want to 
+    // We could do a map here to simplify things, but I am thinking we will want to
     // do some sort of check later on to see if this value ever existed.
-    
+
     // FIXME the processReferenceEvent method actually returns a try,
     // we are not checking this value, so if it fails we swallow.
     idToValue.get(event.id) match {
       case Some(realTimeValue) =>
         event match {
-          case publish: PublishReference => 
+          case publish: PublishReference =>
             realTimeValue.processReferenceEvent(publish, sk)
             val PublishReference(id, key, refType) = publish
             Some(RemoteReferencePublished(resourceId, sk, id, key, refType))
-          case unpublish: UnpublishReference => 
+          case unpublish: UnpublishReference =>
             realTimeValue.processReferenceEvent(unpublish, sk)
             val UnpublishReference(id, key) = unpublish
             Some(RemoteReferenceUnpublished(resourceId, sk, id, key))
-          case set: SetReference => 
+          case set: SetReference =>
             val xformed = this.cc.processRemoteReferenceSet(sk, set)
             realTimeValue.processReferenceEvent(xformed, sk)
             val SetReference(id, key, refType, value, versio) = xformed
             Some(RemoteReferenceSet(this.resourceId, sk, id, key, refType, value))
-          case cleared: ClearReference => 
+          case cleared: ClearReference =>
             realTimeValue.processReferenceEvent(cleared, sk)
             val ClearReference(id, key) = cleared
             Some(RemoteReferenceCleared(resourceId, sk, id, key))
@@ -165,36 +165,36 @@ class RealTimeModel(
       Success(())
     }
   }
-  
+
   def references(): Set[ReferenceState] = {
     this.references(this.data)
   }
-  
+
   def references(value: RealTimeValue): Set[ReferenceState] = {
     value match {
       case v: RealTimeContainerValue =>
-       val mine = v.references().map {x => toReferenceState(x)}
-       val childrens = v.children.flatMap { child =>
-         references(child)
-       }.toSet
-       return mine ++ childrens
-      case v =>
-        value.references().map {x => toReferenceState(x)}
+        val mine = v.references().map { x => toReferenceState(x) }
+        val childrens = v.children.flatMap { child =>
+          references(child)
+        }.toSet
+        mine ++ childrens
+      case v: Any =>
+        value.references().map { x => toReferenceState(x) }
     }
   }
-  
+
   def toReferenceState(r: ModelReference[_]): ReferenceState = {
     val refType = r match {
       case ref: IndexReference => ReferenceType.Index
       case ref: RangeReference => ReferenceType.Range
       case _ => throw new IllegalArgumentException("Unexpected reference type")
     }
-    
+
     ReferenceState(
-        r.sessionId, 
-        r.modelValue.id,
-        r.key,
-        refType,
-        r.get)
+      r.sessionId,
+      r.modelValue.id,
+      r.key,
+      refType,
+      r.get)
   }
 }

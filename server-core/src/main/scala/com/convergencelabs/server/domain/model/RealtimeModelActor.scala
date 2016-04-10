@@ -619,7 +619,7 @@ object RealtimeModelActor {
       clientDataResponseTimeout,
       snapshotConfig))
 
-  def sessionKeyToClientId(sk: SessionKey): String = s"${sk.uid}:${sk.sid}"
+  def sessionKeyToClientId(sk: SessionKey): String = sk.serialize()
 }
 
 private object ErrorCodes extends Enumeration {

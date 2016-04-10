@@ -13,6 +13,7 @@ package object server {
     pongTimeout: FiniteDuration)
 
   case class ProtocolConfiguration(
+    handshakeTimeout: FiniteDuration,
     defaultRequestTimeout: FiniteDuration,
     heartbeatConfig: HeartbeatConfiguration)
 
@@ -20,6 +21,7 @@ package object server {
     def loadConfig(config: Config): ProtocolConfiguration = {
       val protoConfig = config.getConfig("convergence.protocol")
       ProtocolConfiguration(
+        FiniteDuration(protoConfig.getInt("handshakeTimeout"), TimeUnit.SECONDS),
         FiniteDuration(protoConfig.getInt("defaultRequestTimeout"), TimeUnit.SECONDS),
         HeartbeatConfiguration(
           protoConfig.getBoolean("heartbeat.enabled"),

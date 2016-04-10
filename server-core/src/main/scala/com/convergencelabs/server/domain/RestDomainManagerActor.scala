@@ -41,8 +41,8 @@ class RestDomainManagerActor(dbPool: OPartitionedDatabasePool)
 
   private[this] val cluster = Cluster(context.system)
   private[this] implicit val ec = context.dispatcher
-  
-  private[this] val persistenceProvider = new PersistenceProvider(dbPool) 
+
+  private[this] val persistenceProvider = new PersistenceProvider(dbPool)
   private[this] val domainStore = persistenceProvider.domainStore
   private[this] val domainShutdownDelay = new FiniteDuration(5, TimeUnit.MINUTES)
   private[this] val domainShutdownDelay2 = Duration.of(5, ChronoUnit.MINUTES)
@@ -51,9 +51,9 @@ class RestDomainManagerActor(dbPool: OPartitionedDatabasePool)
   private[this] val scheduledShutdowns = mutable.Map[DomainFqn, ScheduledShutdown]()
 
   def receive: Receive = {
-    case message: DomainMessage  => onDomainMessage(message)
+    case message: DomainMessage => onDomainMessage(message)
     case message: ShutdownDomain => onShutdownDomain(message)
-    case message: Any            => unhandled(message)
+    case message: Any => unhandled(message)
   }
 
   private[this] def onDomainMessage(message: DomainMessage): Unit = {
@@ -65,7 +65,7 @@ class RestDomainManagerActor(dbPool: OPartitionedDatabasePool)
       scheduledShutdowns(domainFqn) = ScheduledShutdown(shutdownTask, Instant.now())
     } else {
       domainStore.getDomainByFqn(domainFqn) match {
-        case Success(None) => ??? //Handle Error: domain does not exist
+        case Success(None) => ??? // FIXME Handle Error: domain does not exist
         case Success(Some(domain)) => {
           val domainActor = context.actorOf(RestDomainActor.props(domain.domainFqn))
           domainFqnToActor(domain.domainFqn) = domainActor
@@ -90,7 +90,6 @@ class RestDomainManagerActor(dbPool: OPartitionedDatabasePool)
       val domainActor = domainFqnToActor(domainFqn)
       domainFqnToActor.remove(domainFqn)
       domainActor ! Shutdown
-
     }
   }
 
@@ -98,4 +97,3 @@ class RestDomainManagerActor(dbPool: OPartitionedDatabasePool)
     log.debug("RestDomainManager shutdown.")
   }
 }
-

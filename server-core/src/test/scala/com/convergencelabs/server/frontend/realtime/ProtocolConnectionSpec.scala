@@ -198,6 +198,7 @@ class ProtocolConnectionSpec
 
         val protoConfig = ProtocolConfiguration(
           100 millis,
+          100 millis,
           HeartbeatConfiguration(
             true,
             10 millis,
@@ -221,6 +222,7 @@ class ProtocolConnectionSpec
         val connectionActor = new TestProbe(system)
 
         val protoConfig = ProtocolConfiguration(
+          100 millis,
           100 millis,
           HeartbeatConfiguration(
             true,
@@ -295,6 +297,7 @@ class ProtocolConnectionSpec
     val connectionActor = new TestProbe(system)
 
     val protoConfig = ProtocolConfiguration(
+      100 millis,
       100 millis,
       HeartbeatConfiguration(
         false,

@@ -22,6 +22,7 @@ import akka.util.Timeout
 import com.convergencelabs.server.datastore.UserStoreActor.GetUsersResponse
 import com.convergencelabs.server.datastore.UserStoreActor.GetUsers
 import com.convergencelabs.server.datastore.UserStoreActor.GetUsersResponse
+import akka.http.scaladsl.server.Route
 
 object DomainUserService {
   case class GetUsersRestResponse(users: List[DomainUser]) extends AbstractSuccessResponse
@@ -38,7 +39,7 @@ class DomainUserService(
   implicit val ec = executionContext
   implicit val t = defaultTimeout
 
-  def route(userId: String, domain: DomainFqn) = {
+  def route(userId: String, domain: DomainFqn): Route = {
     pathPrefix("users") {
       pathEnd {
         get {

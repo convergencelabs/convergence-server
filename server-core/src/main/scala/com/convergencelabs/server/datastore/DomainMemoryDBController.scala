@@ -22,11 +22,14 @@ class DomainMemoryDBController(domainConfig: Config) extends DomainDBController 
     db.activateOnCurrentThread()
     db.create()
 
-    val dbImport = new ODatabaseImport(db, Schema, new OCommandOutputListener() { def onMessage(message: String) {} })
+    val dbImport = new ODatabaseImport(db, Schema, new OCommandOutputListener() {
+      def onMessage(message: String) {}
+    })
+
     dbImport.importDatabase()
     db.close()
 
-    return DBConfig(id, Username, Password)
+    DBConfig(id, Username, Password)
   }
 
   def deleteDomain(id: String): Unit = {

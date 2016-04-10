@@ -29,6 +29,7 @@ import akka.http.scaladsl.server.Directives.post
 import akka.http.scaladsl.server.Directives.segmentStringToPathMatcher
 import akka.pattern.ask
 import akka.util.Timeout
+import akka.http.scaladsl.server.Route
 
 object DomainModelService {
   case class GetModelsResponse(models: List[Model]) extends AbstractSuccessResponse
@@ -46,7 +47,7 @@ class DomainModelService(
   implicit val ec = executionContext
   implicit val t = defaultTimeout
 
-  def route(userId: String, domain: DomainFqn) = {
+  def route(userId: String, domain: DomainFqn): Route = {
     pathPrefix("models") {
       (pathEnd & get) {
         complete(getModels(domain))

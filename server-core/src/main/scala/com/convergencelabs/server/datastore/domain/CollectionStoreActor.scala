@@ -1,9 +1,10 @@
 package com.convergencelabs.server.datastore
 
 import com.convergencelabs.server.datastore.domain.CollectionStore
-import com.convergencelabs.server.domain.DomainFqn
 
 import CollectionStoreActor.CollectionInfo
+import CollectionStoreActor.GetCollection
+import CollectionStoreActor.GetCollections
 import akka.actor.ActorLogging
 import akka.actor.Props
 
@@ -13,7 +14,7 @@ object CollectionStoreActor {
   trait CollectionStoreRequest
   case class GetCollections(offset: Option[Int], limit: Option[Int]) extends CollectionStoreRequest
   case class GetCollection(id: String) extends CollectionStoreRequest
-  
+
   case class CollectionInfo(id: String, name: String)
 }
 
@@ -21,8 +22,6 @@ class CollectionStoreActor private[datastore] (
   private[this] val collectionStore: CollectionStore)
     extends StoreActor with ActorLogging {
 
-  import CollectionStoreActor._
-  
   def receive: Receive = {
     case GetCollections(offset, limit) => getCollections(offset, limit)
     case GetCollection(collectionId) => getCollectionConfig(collectionId)
@@ -34,7 +33,7 @@ class CollectionStoreActor private[datastore] (
       collections.map { c => CollectionInfo(c.id, c.name) }
     }
   }
-  
+
   def getCollectionConfig(id: String): Unit = {
     reply(collectionStore.getCollection(id))
   }

@@ -48,16 +48,18 @@ class ClientActorSpec
   }
 
   "A ClientActor" when {
-    
+
   }
 
   class TestFixture(system: ActorSystem) {
     val domainManagerActor = new TestProbe(system)
-    
+
     val connectionActor = new TestProbe(system)
 
     val domainFqn = DomainFqn("namespace", "domainId")
-    val protoConfig = ProtocolConfiguration(2 seconds,
+    val protoConfig = ProtocolConfiguration(
+      2 seconds,
+      250 millis,
       HeartbeatConfiguration(
         false,
         0 seconds,
@@ -66,11 +68,10 @@ class ClientActorSpec
     val props = ClientActor.props(
       domainManagerActor.ref,
       domainFqn,
-      protoConfig,
-      new FiniteDuration(250, TimeUnit.MILLISECONDS))
+      protoConfig)
 
     val clientActor = system.actorOf(props)
-    
+
     clientActor ! WebSocketOpened(connectionActor.ref)
   }
 
