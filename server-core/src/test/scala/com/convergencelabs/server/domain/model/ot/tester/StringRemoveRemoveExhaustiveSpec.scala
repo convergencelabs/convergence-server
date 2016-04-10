@@ -3,7 +3,7 @@ package com.convergencelabs.server.domain.model.ot
 import OperationPairExhaustiveSpec.ValueId
 
 class StringRemoveRemoveExhaustiveSpec extends StringOperationExhaustiveSpec[StringRemoveOperation, StringRemoveOperation] {
-  
+
   def generateCases(): List[TransformationCase[StringRemoveOperation, StringRemoveOperation]] = {
     val ranges = generateRemoveRanges()
     for { r1 <- ranges; r2 <- ranges } yield TransformationCase(

@@ -55,7 +55,7 @@ class DomainStoreActor private[datastore] (
         domainStore.removeDomain(domain.id)
         domainDBContoller.deleteDomain(domain.id)
         Success(Unit)
-      case None => 
+      case None =>
         // TODO: Determine correct exception to throw here
         Failure(new IllegalArgumentException("Domain Not Found"))
     })

@@ -1,6 +1,5 @@
 package com.convergencelabs.server.domain.model.ot
 
-
 import ObjectOperationExhaustiveSpec.ExistingProperties
 import ObjectOperationExhaustiveSpec.NewProperties
 import ObjectOperationExhaustiveSpec.NewValues
@@ -9,7 +8,7 @@ import OperationPairExhaustiveSpec.ValueId
 class ObjectRemovePropertyRemovePropertyExhaustiveSpec extends ObjectOperationExhaustiveSpec[ObjectRemovePropertyOperation, ObjectRemovePropertyOperation] {
 
   val valueId = "testId"
-  
+
   def generateCases(): List[TransformationCase[ObjectRemovePropertyOperation, ObjectRemovePropertyOperation]] = {
     for {
       prop1 <- ExistingProperties

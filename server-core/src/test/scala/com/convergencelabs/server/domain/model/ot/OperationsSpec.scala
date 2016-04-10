@@ -13,9 +13,9 @@ import com.convergencelabs.server.domain.model.data.NullValue
 class OperationsSpec extends FunSuite with Matchers {
 
   val valueId = "vid"
-  
+
   val nv = NullValue(valueId)
-  
+
   // String Operations
 
   test("StringInsertOperation must preserve other fields when setting noOp and path") {

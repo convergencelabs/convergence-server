@@ -6,7 +6,7 @@ import ObjectOperationExhaustiveSpec.SetObjects
 import OperationPairExhaustiveSpec.ValueId
 
 class ObjectSetAddPropertyExhaustiveSpec extends ObjectOperationExhaustiveSpec[ObjectSetOperation, ObjectAddPropertyOperation] {
-  
+
   def generateCases(): List[TransformationCase[ObjectSetOperation, ObjectAddPropertyOperation]] = {
     for {
       prop1 <- NewProperties

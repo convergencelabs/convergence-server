@@ -24,7 +24,7 @@ package model {
   sealed trait ModelReferenceEvent {
     val id: String
   }
-  
+
   case class PublishReference(id: String, key: String, referenceType: ReferenceType.Value) extends ModelReferenceEvent
   case class SetReference(id: String, key: String, referenceType: ReferenceType.Value, value: Any, contextVersion: Long) extends ModelReferenceEvent
   case class ClearReference(id: String, key: String) extends ModelReferenceEvent

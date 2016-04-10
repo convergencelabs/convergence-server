@@ -34,7 +34,7 @@ class DomainRemoteDBController(domainConfig: Config) extends DomainDBController 
     db.open(Username, password)
 
     val dbImport = new ODatabaseImport(db, Schema, new OCommandOutputListener() {
-      def onMessage(message: String) {}
+      def onMessage(message: String): Unit = {}
     })
 
     dbImport.importDatabase()

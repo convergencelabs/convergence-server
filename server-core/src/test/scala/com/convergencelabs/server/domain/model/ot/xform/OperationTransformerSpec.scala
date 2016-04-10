@@ -17,7 +17,7 @@ class OperationTransformerSpec
     extends WordSpec
     with Matchers
     with MockitoSugar {
-  
+
   val valueId = "testId"
 
   "A OperationTransformer" when {

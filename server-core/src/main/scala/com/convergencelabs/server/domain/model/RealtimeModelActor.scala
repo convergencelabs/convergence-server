@@ -159,7 +159,7 @@ class RealtimeModelActor(
     modelStore.modelExists(modelFqn) match {
       case Success(false) =>
         if (request.initializerProvided) {
-          // Otherwise this client has nothing for us, but there is at least one 
+          // Otherwise this client has nothing for us, but there is at least one
           // other client in the mix.
           requestModelDataFromClient(request.clientActor)
         }
@@ -479,7 +479,7 @@ class RealtimeModelActor(
       case Success(Some(event)) =>
         broacastToAllOthers(event, sk)
       case Success(None) =>
-        // Event's no-op'ed
+      // Event's no-op'ed
       case _ =>
         // FIXME
         ???

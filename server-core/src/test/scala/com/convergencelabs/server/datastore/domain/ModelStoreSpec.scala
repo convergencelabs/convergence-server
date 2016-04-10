@@ -81,8 +81,8 @@ class ModelStoreSpec
             0L,
             time,
             time),
-            ObjectValue("t1-data", 
-                Map(("foo" -> StringValue("t1-foo", "bar")))))
+          ObjectValue("t1-data",
+            Map(("foo" -> StringValue("t1-foo", "bar")))))
 
         store.createModel(model).success
         store.getModel(modelFqn).success.value.value shouldBe model
@@ -96,8 +96,8 @@ class ModelStoreSpec
             0L,
             time,
             time),
-            ObjectValue("t2-data", 
-                Map(("foo" -> StringValue("t2-foo", "bar")))))
+          ObjectValue("t2-data",
+            Map(("foo" -> StringValue("t2-foo", "bar")))))
 
         store.createModel(model).failure.exception shouldBe a[ORecordDuplicatedException]
       }

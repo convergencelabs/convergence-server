@@ -175,7 +175,7 @@ class RealtimeModelActorSpec
         var client2Response = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
 
         client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[RemoteClientOpened])
-        
+
         realtimeModelActor.tell(CloseRealtimeModelRequest(uid2, session1), client2.ref)
         val closeAck = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[CloseRealtimeModelSuccess])
 

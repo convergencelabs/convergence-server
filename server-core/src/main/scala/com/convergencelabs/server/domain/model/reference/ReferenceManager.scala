@@ -7,6 +7,7 @@ import com.convergencelabs.server.domain.model.RealTimeValue
 import com.convergencelabs.server.domain.model.ReferenceType
 import com.convergencelabs.server.domain.model.SetReference
 import com.convergencelabs.server.domain.model.UnpublishReference
+import ReferenceManager.ReferenceDoesNotExist
 
 object ReferenceManager {
   val ReferenceDoesNotExist = "Reference does not exist"
@@ -16,8 +17,6 @@ class ReferenceManager(
     private val source: RealTimeValue,
     private val validTypes: List[ReferenceType.Value]) {
 
-  import ReferenceManager._
-  
   private[this] val rm = new ReferenceMap()
 
   def referenceMap(): ReferenceMap = rm

@@ -10,12 +10,18 @@ import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 
 import akka.actor.ActorLogging
 import akka.actor.Props
+import scala.concurrent.duration.FiniteDuration
+import java.util.concurrent.TimeUnit
 
 class AuthStoreActor private[datastore] (
   private[this] val dbPool: OPartitionedDatabasePool)
     extends StoreActor with ActorLogging {
 
-  private[this] val userStore: UserStore = new UserStore(dbPool)
+  val tokenDuration = context.system.settings.config.getInt("convergence.authTokenValidMinutes")
+
+  private[this] val userStore: UserStore = new UserStore(
+    dbPool,
+    FiniteDuration(tokenDuration, TimeUnit.MINUTES))
 
   def receive: Receive = {
     case authRequest: AuthRequest => authenticateUser(authRequest)

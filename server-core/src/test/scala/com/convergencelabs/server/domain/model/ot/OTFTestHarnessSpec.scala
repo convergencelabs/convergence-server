@@ -120,7 +120,7 @@ class OTFTestHarnessSpec extends FunSpec {
       case JObject(List((Type, JString("ArrayMove")), (NoOp, JBool(noOp)), ("fromIndex", JInt(fromIndex)), ("toIndex", JInt(toIndex)))) =>
         ArrayMoveOperation(valueId, noOp, fromIndex.intValue(), toIndex.intValue())
       case JObject(List((Type, JString("ArraySet")), (NoOp, JBool(noOp)), (Value, value @ JArray(values)))) =>
-        ArraySetOperation(valueId, noOp, values.map {v => mapToDataValue(v)})
+        ArraySetOperation(valueId, noOp, values.map { v => mapToDataValue(v) })
 
       case JObject(List((Type, JString("ObjectAddProperty")), (NoOp, JBool(noOp)), (Prop, JString(prop)), (Value, value))) =>
         ObjectAddPropertyOperation(valueId, noOp, prop, mapToDataValue(value))
@@ -129,7 +129,7 @@ class OTFTestHarnessSpec extends FunSpec {
       case JObject(List((Type, JString("ObjectRemoveProperty")), (NoOp, JBool(noOp)), (Prop, JString(prop)))) =>
         ObjectRemovePropertyOperation(valueId, noOp, prop)
       case JObject(List((Type, JString("ObjectSet")), (NoOp, JBool(noOp)), (Value, value @ JObject(fields)))) =>
-        ObjectSetOperation(valueId, noOp, fields.toMap.mapValues {x => mapToDataValue(x)})
+        ObjectSetOperation(valueId, noOp, fields.toMap.mapValues { x => mapToDataValue(x) })
 
       case JObject(List((Type, JString("BooleanSet")), (NoOp, JBool(noOp)), (Value, JBool(value)))) =>
         BooleanSetOperation(valueId, noOp, value)
@@ -146,7 +146,7 @@ class OTFTestHarnessSpec extends FunSpec {
     }
   }
   // scalastyle:on cyclomatic.complexity
-  
+
   def mapToDataValue(jValue: JValue): DataValue = {
     jValue match {
       case JString(value) => StringValue(valueId, value)
@@ -157,8 +157,8 @@ class OTFTestHarnessSpec extends FunSpec {
       case JBool(value) => BooleanValue(valueId, value)
       case JNull => NullValue(valueId)
       case JNothing => NullValue(valueId)
-      case JArray(arr) => ArrayValue( valueId, arr.map { v => mapToDataValue(v) })
-      case JObject(fields) => ObjectValue(valueId, fields.toMap.mapValues{v => mapToDataValue(v)})
+      case JArray(arr) => ArrayValue(valueId, arr.map { v => mapToDataValue(v) })
+      case JObject(fields) => ObjectValue(valueId, fields.toMap.mapValues { v => mapToDataValue(v) })
     }
   }
 }

@@ -23,7 +23,7 @@ class DomainMemoryDBController(domainConfig: Config) extends DomainDBController 
     db.create()
 
     val dbImport = new ODatabaseImport(db, Schema, new OCommandOutputListener() {
-      def onMessage(message: String) {}
+      def onMessage(message: String): Unit = {}
     })
 
     dbImport.importDatabase()

@@ -21,28 +21,28 @@ object OrientDataValueBuilder {
       case value: StringValue => stringValueToODocument(value, modelDoc)
       case value: BooleanValue => booleanValueToODocument(value, modelDoc)
       case value: DoubleValue => doubleValueToODocument(value, modelDoc)
-      case value: NullValue =>  nullValueToODocument(value, modelDoc)
+      case value: NullValue => nullValueToODocument(value, modelDoc)
     }
   }
-  
+
   def objectValueToODocument(value: ObjectValue, modelDoc: OIdentifiable): ODocument = {
     val objectDoc = new ODocument("ObjectValue")
     objectDoc.field("model", modelDoc)
     objectDoc.field("vid", value.id)
-    val children = value.children map {case (k, v) => (k, dataValueToODocument(v, modelDoc))}
+    val children = value.children map { case (k, v) => (k, dataValueToODocument(v, modelDoc)) }
     objectDoc.field("children", children.asJava, OType.LINKMAP)
     objectDoc
   }
-  
+
   def arrayValueToODocument(value: ArrayValue, modelDoc: OIdentifiable): ODocument = {
     val arrayDoc = new ODocument("ArrayValue")
     arrayDoc.field("model", modelDoc)
     arrayDoc.field("vid", value.id)
-    var children = value.children map {child => dataValueToODocument(child, modelDoc)}
+    var children = value.children map { child => dataValueToODocument(child, modelDoc) }
     arrayDoc.field("children", children.asJava, OType.LINKLIST)
     arrayDoc
   }
-  
+
   def stringValueToODocument(value: StringValue, modelDoc: OIdentifiable): ODocument = {
     val stringDoc = new ODocument("StringValue")
     stringDoc.field("model", modelDoc)
@@ -50,7 +50,7 @@ object OrientDataValueBuilder {
     stringDoc.field("value", value.value)
     stringDoc
   }
-  
+
   def booleanValueToODocument(value: BooleanValue, modelDoc: OIdentifiable): ODocument = {
     val booleanValue = new ODocument("BooleanValue")
     booleanValue.field("model", modelDoc)
@@ -58,7 +58,7 @@ object OrientDataValueBuilder {
     booleanValue.field("value", value.value)
     booleanValue
   }
-  
+
   def doubleValueToODocument(value: DoubleValue, modelDoc: OIdentifiable): ODocument = {
     val doubleValue = new ODocument("DoubleValue")
     doubleValue.field("model", modelDoc)
@@ -66,8 +66,8 @@ object OrientDataValueBuilder {
     doubleValue.field("value", value.value)
     doubleValue
   }
-  
-    def nullValueToODocument(value: NullValue, modelDoc: OIdentifiable): ODocument = {
+
+  def nullValueToODocument(value: NullValue, modelDoc: OIdentifiable): ODocument = {
     val nullValue = new ODocument("NullValue")
     nullValue.field("model", modelDoc)
     nullValue.field("vid", value.id)

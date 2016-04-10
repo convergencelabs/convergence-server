@@ -11,6 +11,8 @@ import com.convergencelabs.server.User
 import com.convergencelabs.server.datastore.domain.PersistenceStoreSpec
 import java.time.Instant
 import java.util.Date
+import scala.concurrent.duration.FiniteDuration
+import java.util.concurrent.TimeUnit
 
 class UserStoreSpec
     extends PersistenceStoreSpec[UserStore]("/dbfiles/convergence.json.gz")
@@ -18,9 +20,12 @@ class UserStoreSpec
     with Matchers {
 
   // Pre-loaded Users
-  val User0 = User("cu0", "test")
+  val cu0 = "cu0"
+  val User0 = User(cu0, "test")
+  val tokenDurationMinutes = 5
+  val tokenDuration = FiniteDuration(tokenDurationMinutes, TimeUnit.MINUTES)
 
-  def createStore(dbPool: OPartitionedDatabasePool): UserStore = new UserStore(dbPool)
+  def createStore(dbPool: OPartitionedDatabasePool): UserStore = new UserStore(dbPool, tokenDuration)
 
   "A DomainUserStore" when {
     "querying a user" must {
@@ -49,7 +54,7 @@ class UserStoreSpec
       "correctly set the password" in withPersistenceStore { store =>
         val password = "newPasswordToSet"
         store.setUserPassword(User0.username, password).success
-        store.validateCredentials(User0.username, password).success.get.get._1 shouldBe "cu0"
+        store.validateCredentials(User0.username, password).success.get.get._1 shouldBe cu0
       }
 
       "throw exception if user does not exist" in withPersistenceStore { store =>
@@ -59,7 +64,7 @@ class UserStoreSpec
 
     "validating credentials" must {
       "return true and a uid for a valid usename and password" in withPersistenceStore { store =>
-        store.validateCredentials(User0.username, "password").success.value.get._1 shouldBe "cu0"
+        store.validateCredentials(User0.username, "password").success.value.get._1 shouldBe cu0
       }
 
       "return false and None for an valid username and invalid password" in withPersistenceStore { store =>
@@ -70,11 +75,11 @@ class UserStoreSpec
         store.validateCredentials("no one", "p").success.value shouldBe None
       }
     }
-    
+
     "validating tokens" must {
       "return true and a uid for a valid token" in withPersistenceStore { store =>
-        store.createToken(User0.uid, "myToken", Date.from(Instant.now().plusSeconds(100))) 
-        store.validateToken("myToken").success.value shouldBe Some("cu0")
+        store.createToken(User0.uid, "myToken", Date.from(Instant.now().plusSeconds(100)))
+        store.validateToken("myToken").success.value shouldBe Some(cu0)
       }
 
       "return false and None for an expired token" in withPersistenceStore { store =>

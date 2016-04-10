@@ -10,7 +10,6 @@ import ArrayOperationExhaustiveSpec.ArrayValue
 class ArrayInsertSetExhaustiveSpec extends ArrayOperationExhaustiveSpec[ArrayInsertOperation, ArraySetOperation] {
 
   def generateCases(): List[TransformationCase[ArrayInsertOperation, ArraySetOperation]] = {
-    
     for { i1 <- generateIndices() } yield TransformationCase(
       ArrayInsertOperation(ValueId, false, i1, Value1),
       ArraySetOperation(ValueId, false, ArrayValue))

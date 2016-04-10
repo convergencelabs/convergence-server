@@ -1,12 +1,11 @@
 package com.convergencelabs.server.domain.model.ot
 
-
 import ObjectOperationExhaustiveSpec.ExistingProperties
 import ObjectOperationExhaustiveSpec.NewValues
 import OperationPairExhaustiveSpec.ValueId
 
 class ObjectSetPropertyRemovePropertyExhaustiveSpec extends ObjectOperationExhaustiveSpec[ObjectSetPropertyOperation, ObjectRemovePropertyOperation] {
-  
+
   def generateCases(): List[TransformationCase[ObjectSetPropertyOperation, ObjectRemovePropertyOperation]] = {
     for {
       setProp <- ExistingProperties

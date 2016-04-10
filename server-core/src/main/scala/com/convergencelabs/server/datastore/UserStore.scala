@@ -1,29 +1,29 @@
 package com.convergencelabs.server.datastore
 
+import java.time.Duration
+import java.time.Instant
+import java.util.Date
 import java.util.{ List => JavaList }
+import java.util.UUID
+
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.mapAsJavaMapConverter
-import scala.collection.JavaConverters.seqAsJavaListConverter
+import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
+
 import org.json4s.NoTypeHints
 import org.json4s.jackson.Serialization
+
+import com.convergencelabs.server.User
+import com.convergencelabs.server.datastore.domain.PasswordUtil
+import com.convergencelabs.server.datastore.mapper.UserMapper.ODocumentToUser
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
+
 import grizzled.slf4j.Logging
-import scala.collection.mutable.ListBuffer
-import scala.collection.mutable.HashTable
-import scala.collection.mutable.HashTable
-import com.convergencelabs.server.User
-import com.convergencelabs.server.datastore.domain.PasswordUtil
-import com.convergencelabs.server.datastore.mapper.UserMapper.UserToODocument
-import com.convergencelabs.server.datastore.mapper.UserMapper.ODocumentToUser
-import java.util.Date
-import java.time.Instant
-import java.util.UUID
-import java.time.Duration
 
 /**
  * Manages the persistence of Users.  This class manages both user profile records
@@ -34,11 +34,14 @@ import java.time.Duration
  *
  * @param dbPool The database pool to use.
  */
-class UserStore private[datastore] (private[this] val dbPool: OPartitionedDatabasePool)
+class UserStore private[datastore] (
+  private[this] val dbPool: OPartitionedDatabasePool,
+  private[this] val tokenValidityDuration: FiniteDuration)
     extends AbstractDatabasePersistence(dbPool)
     with Logging {
 
   private[this] implicit val formats = Serialization.formats(NoTypeHints)
+  private val tokenDuration = Duration.ofNanos(tokenValidityDuration.toNanos)
 
   val Uid = "uid"
   val Username = "username"
@@ -130,10 +133,8 @@ class UserStore private[datastore] (private[this] val dbPool: OPartitionedDataba
         PasswordUtil.checkPassword(password, pwhash) match {
           case true => {
             val uid: String = doc.field(Uid)
-            // TODO: Determine best way to create this
             val token = UUID.randomUUID().toString()
-            // FIXME make this configurable
-            val expireTime = Date.from(Instant.now().plus(Duration.ofMinutes(5)))
+            val expireTime = Date.from(Instant.now().plus(tokenDuration))
             createToken(uid, token, expireTime)
             Some((uid, token))
           }
@@ -144,8 +145,12 @@ class UserStore private[datastore] (private[this] val dbPool: OPartitionedDataba
   }
 
   def createToken(uid: String, token: String, expireTime: Date): Try[Unit] = tryWithDb { db =>
-    val query = new OCommandSQL("INSERT INTO UserAuthToken SET user = (SELECT FROM User WHERE uid = :uid), token = :token, expireTime = :expireTime")
-    // TODO: Configure Timeout
+    val queryStirng =
+      """INSERT INTO UserAuthToken SET
+        |  user = (SELECT FROM User WHERE uid = :uid),
+        |  token = :token,
+        |  expireTime = :expireTime""".stripMargin
+    val query = new OCommandSQL(queryStirng)
     val params = Map(Uid -> uid, Token -> token, ExpireTime -> expireTime)
     db.command(query).execute(params.asJava)
     Unit
@@ -172,7 +177,7 @@ class UserStore private[datastore] (private[this] val dbPool: OPartitionedDataba
 
   def updateToken(token: String): Try[Unit] = tryWithDb { db =>
     val query = new OCommandSQL("UPDATE UserAuthToken SET expireTime = :expireTime WHERE token = :token")
-    val params = Map(Token -> token, ExpireTime -> Date.from(Instant.now().plus(Duration.ofMinutes(5))))
+    val params = Map(Token -> token, ExpireTime -> Date.from(Instant.now().plus(tokenDuration)))
     db.command(query).execute(params.asJava)
     Unit
   }

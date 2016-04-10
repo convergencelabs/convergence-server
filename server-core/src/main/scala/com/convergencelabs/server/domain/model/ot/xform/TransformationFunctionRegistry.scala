@@ -87,7 +87,7 @@ private[model] class TransformationFunctionRegistry {
   def getOperationTransformationFunction[S <: DiscreteOperation, C <: DiscreteOperation](s: S, c: C): Option[OperationTransformationFunction[S, C]] = {
     otfs.getOperationTransformationFunction(s, c)
   }
-  
+
   def getReferenceTransformationFunction[O <: DiscreteOperation](op: O, referenceType: ReferenceType.Value): Option[ReferenceTransformationFunction[O]] = {
     rtfs.getReferenceTransformationFunction(op, referenceType)
   }

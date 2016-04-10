@@ -27,7 +27,7 @@ object ObjectValueMapper extends ODocumentMapper {
     val ObjectValue(vid, children) = obj
     val doc = new ODocument(OpDocumentClassName)
     doc.field(Fields.VID, vid)
-    val docChildren = children map{case(k, v)=> (k, v.asODocument)}
+    val docChildren = children map { case (k, v) => (k, v.asODocument) }
     doc.field(Fields.Children, docChildren.asJava)
     doc
   }
@@ -41,8 +41,8 @@ object ObjectValueMapper extends ODocumentMapper {
 
     val vid = doc.field(Fields.VID).asInstanceOf[String]
     val children: JavaMap[String, OIdentifiable] = doc.field(Fields.Children);
-    val dataValues = children.asScala map {case (k, v) => (k, v.getRecord[ODocument].asDataValue)}
-    
+    val dataValues = children.asScala map { case (k, v) => (k, v.getRecord[ODocument].asDataValue) }
+
     ObjectValue(vid, dataValues.toMap)
   }
 

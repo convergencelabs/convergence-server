@@ -16,7 +16,7 @@ import com.convergencelabs.server.domain.model.data.StringValue
 class TransformationFunctionRegistrySpec extends WordSpec with Matchers {
 
   val valueId = "testId"
-  
+
   val StringInsert = StringInsertOperation(valueId, false, 1, "")
   val StringRemove = StringRemoveOperation(valueId, false, 1, "")
   val StringSet = StringSetOperation(valueId, false, "4")

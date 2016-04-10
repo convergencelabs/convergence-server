@@ -7,7 +7,7 @@ class ArrayReplaceReplaceExhaustiveSpec extends ArrayOperationExhaustiveSpec[Arr
   def generateCases(): List[TransformationCase[ArrayReplaceOperation, ArrayReplaceOperation]] = {
     val indices = generateIndices()
     val values = generateValues()
-    
+
     for {
       i1 <- indices
       v1 <- values

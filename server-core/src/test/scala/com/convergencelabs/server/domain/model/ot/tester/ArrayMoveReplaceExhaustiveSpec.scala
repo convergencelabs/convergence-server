@@ -6,7 +6,7 @@ import OperationPairExhaustiveSpec.ValueId
 import ArrayOperationExhaustiveSpec.Value1
 
 class ArrayMoveReplaceExhaustiveSpec extends ArrayOperationExhaustiveSpec[ArrayMoveOperation, ArrayReplaceOperation] {
-  
+
   def generateCases(): List[TransformationCase[ArrayMoveOperation, ArrayReplaceOperation]] = {
     for { r <- generateMoveRanges(); i <- generateIndices() } yield TransformationCase(
       ArrayMoveOperation(ValueId, false, r.fromIndex, r.toIndex),

@@ -4,6 +4,7 @@ import java.time.Instant
 import java.util.Date
 import java.util.{ List => JavaList }
 
+import scala.annotation.migration
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.collection.JavaConverters.seqAsJavaListConverter
@@ -15,6 +16,7 @@ import org.json4s.NoTypeHints
 import org.json4s.jackson.Serialization
 
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
+import com.convergencelabs.server.datastore.domain.mapper.ModelOperationMapper.ModelOperationToODocument
 import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelOperation
 import com.convergencelabs.server.domain.model.ot.ArrayInsertOperation
@@ -44,7 +46,6 @@ import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 
 class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     extends AbstractDatabasePersistence(dbPool) {
-
   val VID = "vid";
   val CollectionId = "collectionId"
   val ModelId = "modelId"
@@ -59,7 +60,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
 
     // Persist the operation
     // FIXME Can't persist operations this causes an exception
-    // db.save(modelOperation.asODocument)
+    db.save(modelOperation.asODocument)
 
     // Update the model metadata
     updateModelMetaData(modelOperation.modelFqn, modelOperation.timestamp, db)
@@ -179,11 +180,11 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
 
         val params = Map(VID -> operation.id, CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, Value -> children.asJava)
         val queryString =
-          s"""UPDATE ArrayValue 
-             |SET 
-             |  children = :value 
-             |WHERE 
-             |  vid = : vid AND 
+          s"""UPDATE ArrayValue
+             |SET
+             |  children = :value
+             |WHERE
+             |  vid = : vid AND
              |  model.collectionId = :collectionId AND
              |  model.modelId = :modelId""".stripMargin
         val updateCommand = new OCommandSQL(queryString)

@@ -165,7 +165,7 @@ class ModelClientActor(
     val mappedValue = mapOutgoingReferenceValue(refType, value)
     context.parent ! RemoteReferenceSetMessage(resourceId, sessionId, path, key, mappedType, mappedValue)
   }
-  
+
   def mapOutgoingReferenceValue(refType: ReferenceType.Value, value: Any): Any = {
     refType match {
       case ReferenceType.Index =>
@@ -173,7 +173,7 @@ class ModelClientActor(
       case ReferenceType.Range =>
         val range = value.asInstanceOf[(Int, Int)]
         List(range._1, range._2)
-      case _ => 
+      case _ =>
         ??? // FIXME
     }
   }
@@ -242,7 +242,7 @@ class ModelClientActor(
       case ReferenceType.Range =>
         val range = value.asInstanceOf[List[BigInt]]
         (range(0).intValue(), range(1).intValue())
-      case _ => 
+      case _ =>
         ??? // FIXME
     }
   }
@@ -263,7 +263,7 @@ class ModelClientActor(
         val convertedReferences = references.map { ref =>
           val ReferenceState(sessionId, valueId, key, refType, value) = ref
           val mappedType = ReferenceType.map(refType)
-          val mappedValue = value.map { v => mapOutgoingReferenceValue(refType, v)}
+          val mappedValue = value.map { v => mapOutgoingReferenceValue(refType, v) }
           ReferenceData(sessionId, valueId, key, mappedType, mappedValue)
         }.toSet
         cb.reply(

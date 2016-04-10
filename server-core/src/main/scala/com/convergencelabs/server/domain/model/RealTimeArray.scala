@@ -113,7 +113,7 @@ class RealTimeArray(
   }
 
   private[this] def updateIndices(fromIndex: Int, toIndex: Int): Unit = {
-    for (i <- fromIndex to toIndex) {
+    for {i <- fromIndex to toIndex} {
       childValues(i).parentField = Some(i)
     }
   }
