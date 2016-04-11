@@ -45,7 +45,7 @@ object ObjectSetPropertyOperationMapper extends ODocumentMapper {
   private[domain] val DocumentClassName = "ObjectSetPropertyOperation"
 
   private[domain] object Fields {
-    val Id = "id"
+    val Id = "vid"
     val NoOp = "noOp"
     val Prop = "prop"
     val Val = "val"
