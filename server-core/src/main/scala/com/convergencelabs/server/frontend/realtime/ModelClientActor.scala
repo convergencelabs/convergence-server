@@ -4,6 +4,9 @@ import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
+
+import com.convergencelabs.server.domain.model.ClearReference
+import com.convergencelabs.server.domain.model.ClientDataRequestFailure
 import com.convergencelabs.server.domain.model.ClientModelDataRequest
 import com.convergencelabs.server.domain.model.ClientModelDataResponse
 import com.convergencelabs.server.domain.model.CloseRealtimeModelRequest
@@ -16,20 +19,32 @@ import com.convergencelabs.server.domain.model.ModelAlreadyExists
 import com.convergencelabs.server.domain.model.ModelAlreadyOpen
 import com.convergencelabs.server.domain.model.ModelCreated
 import com.convergencelabs.server.domain.model.ModelDeleted
+import com.convergencelabs.server.domain.model.ModelDeletedWhileOpening
 import com.convergencelabs.server.domain.model.ModelForceClose
 import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelNotFound
+import com.convergencelabs.server.domain.model.NoSuchModel
 import com.convergencelabs.server.domain.model.OpenModelResponse
 import com.convergencelabs.server.domain.model.OpenModelSuccess
 import com.convergencelabs.server.domain.model.OpenRealtimeModelRequest
 import com.convergencelabs.server.domain.model.OperationAcknowledgement
 import com.convergencelabs.server.domain.model.OperationSubmission
 import com.convergencelabs.server.domain.model.OutgoingOperation
+import com.convergencelabs.server.domain.model.PublishReference
 import com.convergencelabs.server.domain.model.RealtimeModelClientMessage
+import com.convergencelabs.server.domain.model.ReferenceState
+import com.convergencelabs.server.domain.model.ReferenceType
 import com.convergencelabs.server.domain.model.RemoteClientClosed
 import com.convergencelabs.server.domain.model.RemoteClientOpened
+import com.convergencelabs.server.domain.model.RemoteReferenceCleared
+import com.convergencelabs.server.domain.model.RemoteReferencePublished
+import com.convergencelabs.server.domain.model.RemoteReferenceSet
+import com.convergencelabs.server.domain.model.RemoteReferenceUnpublished
+import com.convergencelabs.server.domain.model.SessionKey
+import com.convergencelabs.server.domain.model.SetReference
+import com.convergencelabs.server.domain.model.UnpublishReference
 import com.convergencelabs.server.util.concurrent.AskFuture
-import com.convergencelabs.server.util.concurrent.UnexpectedErrorException
+
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
@@ -37,20 +52,6 @@ import akka.actor.Props
 import akka.actor.actorRef2Scala
 import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.server.domain.model.ModelDeletedWhileOpening
-import com.convergencelabs.server.domain.model.ClientDataRequestFailure
-import com.convergencelabs.server.domain.model.NoSuchModel
-import com.convergencelabs.server.domain.model.ReferenceType
-import com.convergencelabs.server.domain.model.PublishReference
-import com.convergencelabs.server.domain.model.UnpublishReference
-import com.convergencelabs.server.domain.model.SetReference
-import com.convergencelabs.server.domain.model.ClearReference
-import com.convergencelabs.server.domain.model.RemoteReferencePublished
-import com.convergencelabs.server.domain.model.RemoteReferenceUnpublished
-import com.convergencelabs.server.domain.model.RemoteReferenceSet
-import com.convergencelabs.server.domain.model.RemoteReferenceCleared
-import com.convergencelabs.server.domain.model.ReferenceState
-import com.convergencelabs.server.domain.model.SessionKey
 
 object ModelClientActor {
   def props(
@@ -139,13 +140,11 @@ class ModelClientActor(
     val askingActor = sender
     val future = context.parent ? ModelDataRequestMessage(collectionId, modelId)
     future.mapResponse[ModelDataResponseMessage] onComplete {
-      case Success(ModelDataResponseMessage(data)) => {
+      case Success(ModelDataResponseMessage(data)) =>
         askingActor ! ClientModelDataResponse(data)
-      }
-      case Failure(cause) => {
-        cause.printStackTrace()
-        ??? // FIXME what to do?
-      }
+      case Failure(cause) =>
+        // forward the failure to the asker, so we fail fast.
+        askingActor ! akka.actor.Status.Failure(cause)
     }
   }
 
@@ -168,13 +167,11 @@ class ModelClientActor(
 
   def mapOutgoingReferenceValue(refType: ReferenceType.Value, value: Any): Any = {
     refType match {
-      case ReferenceType.Index =>
-        value
       case ReferenceType.Range =>
         val range = value.asInstanceOf[(Int, Int)]
         List(range._1, range._2)
       case _ =>
-        ??? // FIXME
+        value
     }
   }
 
@@ -243,7 +240,7 @@ class ModelClientActor(
         val range = value.asInstanceOf[List[BigInt]]
         (range(0).intValue(), range(1).intValue())
       case _ =>
-        ??? // FIXME
+        value
     }
   }
 

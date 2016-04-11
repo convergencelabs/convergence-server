@@ -1,30 +1,26 @@
 package com.convergencelabs.server.domain
 
-import java.util.concurrent.TimeUnit
+import java.time.Instant
+
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.Duration
+import scala.util.Failure
+import scala.util.Success
+
 import com.convergencelabs.server.datastore.PersistenceProvider
+import com.convergencelabs.server.domain.RestDomainActor.DomainMessage
+import com.convergencelabs.server.domain.RestDomainActor.Shutdown
+import com.convergencelabs.server.domain.RestDomainManagerActor.ScheduledShutdown
+import com.convergencelabs.server.domain.RestDomainManagerActor.ShutdownDomain
+import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
+
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
 import akka.actor.Cancellable
-import akka.actor.PoisonPill
 import akka.actor.Props
+import akka.actor.actorRef2Scala
 import akka.cluster.Cluster
-import akka.actor.Scheduler
-import scala.util.Success
-import scala.util.Failure
-import com.convergencelabs.server.domain.RestDomainActor.DomainMessage
-import com.convergencelabs.server.domain.RestDomainManagerActor.ShutdownDomain
-import com.convergencelabs.server.domain.RestDomainManagerActor.ScheduledShutdown
-import java.time.Instant
-import java.time.Duration
-import java.time.temporal.TemporalUnit
-import java.time.temporal.ChronoUnit
-import com.convergencelabs.server.domain.RestDomainActor.Shutdown
-import com.convergencelabs.server.datastore.DomainStore
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 
 object RestDomainManagerActor {
   val RelativeActorPath = "restDomainManager"
@@ -44,8 +40,10 @@ class RestDomainManagerActor(dbPool: OPartitionedDatabasePool)
 
   private[this] val persistenceProvider = new PersistenceProvider(dbPool)
   private[this] val domainStore = persistenceProvider.domainStore
-  private[this] val domainShutdownDelay = new FiniteDuration(5, TimeUnit.MINUTES)
-  private[this] val domainShutdownDelay2 = Duration.of(5, ChronoUnit.MINUTES)
+
+  private[this] val domainShutdownDelay2 =
+    context.system.settings.config.getDuration("convergence.rest-domain-shutdown-delay")
+  private[this] val domainShutdownDelay = Duration.fromNanos(domainShutdownDelay2.toNanos())
 
   private[this] val domainFqnToActor = mutable.HashMap[DomainFqn, ActorRef]()
   private[this] val scheduledShutdowns = mutable.Map[DomainFqn, ScheduledShutdown]()
@@ -58,28 +56,25 @@ class RestDomainManagerActor(dbPool: OPartitionedDatabasePool)
 
   private[this] def onDomainMessage(message: DomainMessage): Unit = {
     val domainFqn = message.domainFqn
-
     if (domainFqnToActor.contains(domainFqn)) {
       scheduledShutdowns(domainFqn).cancellable.cancel()
       val shutdownTask = context.system.scheduler.scheduleOnce(domainShutdownDelay, self, ShutdownDomain(domainFqn))
       scheduledShutdowns(domainFqn) = ScheduledShutdown(shutdownTask, Instant.now())
+      domainFqnToActor(domainFqn) forward message.message
     } else {
       domainStore.getDomainByFqn(domainFqn) match {
-        case Success(None) => ??? // FIXME Handle Error: domain does not exist
-        case Success(Some(domain)) => {
+        case Success(Some(domain)) =>
           val domainActor = context.actorOf(RestDomainActor.props(domain.domainFqn))
           domainFqnToActor(domain.domainFqn) = domainActor
           val shutdownTask = context.system.scheduler.scheduleOnce(domainShutdownDelay, self, ShutdownDomain(domainFqn))
           scheduledShutdowns(domainFqn) = ScheduledShutdown(shutdownTask, Instant.now())
-        }
-        case Failure(cause) => {
-          ???
-          //          sender ! HandshakeFailure("unknown", "unknown error handshaking")
-        }
+          domainFqnToActor(domainFqn) forward message.message
+        case Success(None) =>
+          sender ! akka.actor.Status.Failure(new IllegalStateException("Domain does not exist"))
+        case Failure(cause) =>
+          akka.actor.Status.Failure(cause)
       }
     }
-
-    domainFqnToActor(domainFqn) forward message.message
   }
 
   private[this] def onShutdownDomain(message: ShutdownDomain): Unit = {

@@ -86,7 +86,8 @@ class ModelManagerActor(
 
   private[this] def onCreateModelRequest(createRequest: CreateModelRequest): Unit = {
     persistenceProvider.modelStore.modelExists(createRequest.modelFqn) match {
-      case Success(true) => sender ! ModelAlreadyExists
+      case Success(true) =>
+        sender ! ModelAlreadyExists
       case Success(false) =>
         val createTime = Instant.now()
         val model = Model(
@@ -110,7 +111,8 @@ class ModelManagerActor(
           case e: IOException =>
             sender ! UnknownErrorResponse("Could not create model: " + e.getMessage)
         }
-      case Failure(cause) => ???
+      case Failure(cause) =>
+        sender ! akka.actor.Status.Failure(cause)
     }
   }
 
