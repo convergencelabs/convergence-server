@@ -3,6 +3,7 @@ package com.convergencelabs
 import scala.concurrent.duration.FiniteDuration
 import com.typesafe.config.Config
 import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.Duration
 
 package object server {
   case class UnknownErrorResponse(details: String)
@@ -21,12 +22,12 @@ package object server {
     def loadConfig(config: Config): ProtocolConfiguration = {
       val protoConfig = config.getConfig("convergence.protocol")
       ProtocolConfiguration(
-        FiniteDuration(protoConfig.getInt("handshakeTimeout"), TimeUnit.SECONDS),
-        FiniteDuration(protoConfig.getInt("defaultRequestTimeout"), TimeUnit.SECONDS),
+        Duration.fromNanos(protoConfig.getDuration("handshake-timeout").toNanos()),
+        Duration.fromNanos(protoConfig.getDuration("default-request-timeout").toNanos()),
         HeartbeatConfiguration(
           protoConfig.getBoolean("heartbeat.enabled"),
-          FiniteDuration(protoConfig.getInt("heartbeat.pingInterval"), TimeUnit.SECONDS),
-          FiniteDuration(protoConfig.getInt("heartbeat.pongTimeout"), TimeUnit.SECONDS)))
+          Duration.fromNanos(protoConfig.getDuration("heartbeat.ping-interval").toNanos()),
+          Duration.fromNanos(protoConfig.getDuration("heartbeat.pong-timeout").toNanos())))
     }
   }
 }

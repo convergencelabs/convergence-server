@@ -13,6 +13,7 @@ import java.time.Instant
 import java.util.Date
 import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
+import java.time.Duration
 
 class UserStoreSpec
     extends PersistenceStoreSpec[UserStore]("/dbfiles/convergence.json.gz")
@@ -23,7 +24,7 @@ class UserStoreSpec
   val DummyToken = "myToken"
   val User0 = User(cu0, "test")
   val tokenDurationMinutes = 5
-  val tokenDuration = FiniteDuration(tokenDurationMinutes, TimeUnit.MINUTES)
+  val tokenDuration = Duration.ofSeconds(5)
 
   def createStore(dbPool: OPartitionedDatabasePool): UserStore = new UserStore(dbPool, tokenDuration)
 

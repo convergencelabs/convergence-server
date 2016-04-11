@@ -36,12 +36,11 @@ import grizzled.slf4j.Logging
  */
 class UserStore private[datastore] (
   private[this] val dbPool: OPartitionedDatabasePool,
-  private[this] val tokenValidityDuration: FiniteDuration)
+  private[this] val tokenValidityDuration: Duration)
     extends AbstractDatabasePersistence(dbPool)
     with Logging {
 
   private[this] implicit val formats = Serialization.formats(NoTypeHints)
-  private val tokenDuration = Duration.ofNanos(tokenValidityDuration.toNanos)
 
   val Uid = "uid"
   val Username = "username"
@@ -134,7 +133,7 @@ class UserStore private[datastore] (
           case true => {
             val uid: String = doc.field(Uid)
             val token = UUID.randomUUID().toString()
-            val expireTime = Date.from(Instant.now().plus(tokenDuration))
+            val expireTime = Date.from(Instant.now().plus(tokenValidityDuration))
             createToken(uid, token, expireTime)
             Some((uid, token))
           }
@@ -177,7 +176,7 @@ class UserStore private[datastore] (
 
   def updateToken(token: String): Try[Unit] = tryWithDb { db =>
     val query = new OCommandSQL("UPDATE UserAuthToken SET expireTime = :expireTime WHERE token = :token")
-    val params = Map(Token -> token, ExpireTime -> Date.from(Instant.now().plus(tokenDuration)))
+    val params = Map(Token -> token, ExpireTime -> Date.from(Instant.now().plus(tokenValidityDuration)))
     db.command(query).execute(params.asJava)
     Unit
   }

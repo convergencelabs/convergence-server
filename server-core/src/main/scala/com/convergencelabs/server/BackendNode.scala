@@ -16,7 +16,7 @@ class BackendNode(system: ActorSystem) extends Logging {
   def start(): Unit = {
     logger.info("Backend Node starting up.")
 
-    val dbConfig = system.settings.config.getConfig("convergence.database")
+    val dbConfig = system.settings.config.getConfig("convergence.convergence-database")
 
     val baseUri = dbConfig.getString("uri")
     val fullUri = baseUri + "/" + dbConfig.getString("database")

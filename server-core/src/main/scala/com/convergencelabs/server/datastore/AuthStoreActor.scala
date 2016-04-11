@@ -12,16 +12,17 @@ import akka.actor.ActorLogging
 import akka.actor.Props
 import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.Duration
 
 class AuthStoreActor private[datastore] (
   private[this] val dbPool: OPartitionedDatabasePool)
     extends StoreActor with ActorLogging {
 
-  val tokenDuration = context.system.settings.config.getInt("convergence.authTokenValidMinutes")
+  val tokenDuration = context.system.settings.config.getDuration("convergence.auth-token-expiration")
 
   private[this] val userStore: UserStore = new UserStore(
     dbPool,
-    FiniteDuration(tokenDuration, TimeUnit.MINUTES))
+    tokenDuration)
 
   def receive: Receive = {
     case authRequest: AuthRequest => authenticateUser(authRequest)

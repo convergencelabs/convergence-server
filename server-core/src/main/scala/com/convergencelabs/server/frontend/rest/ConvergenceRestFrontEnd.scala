@@ -37,7 +37,7 @@ class ConvergenceRestFrontEnd(
   def start(): Unit = {
 
     // FIXME this is a hack all of this should be a rest backend
-    val dbConfig = system.settings.config.getConfig("convergence.database")
+    val dbConfig = system.settings.config.getConfig("convergence.convergence-database")
 
     val baseUri = dbConfig.getString("uri")
     val fullUri = baseUri + "/" + dbConfig.getString("database")

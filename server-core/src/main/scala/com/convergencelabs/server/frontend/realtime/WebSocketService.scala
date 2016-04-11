@@ -21,6 +21,7 @@ import akka.stream.scaladsl.Sink
 import akka.stream.scaladsl.Source
 import akka.http.scaladsl.server.Route
 import scala.concurrent.Future
+import scala.concurrent.duration.Duration
 
 case class IncomingTextMessage(message: String)
 case class OutgoingTextMessage(message: String)
@@ -33,8 +34,9 @@ class WebSocketService(
     extends Directives {
 
   private[this] val config = system.settings.config
-  private[this] val maxFrames = config.getInt("convergence.websocket.maxFrames")
-  private[this] val maxStreamDuration = config.getInt("convergence.websocket.maxStreamDurationSeconds")
+  private[this] val maxFrames = config.getInt("convergence.websocket.max-frames")
+  private[this] val maxStreamDuration = Duration.fromNanos(
+      config.getDuration("convergence.websocket.max-stream-duration").toNanos)
 
   private[this] implicit val ec = system.dispatcher
 
@@ -51,7 +53,7 @@ class WebSocketService(
         case TextMessage.Strict(msg) ⇒ Future.successful(IncomingTextMessage(msg))
         case TextMessage.Streamed(stream) ⇒ stream
           .limit(maxFrames)
-          .completionTimeout(maxStreamDuration seconds)
+          .completionTimeout(maxStreamDuration)
           .runFold("")(_ + _)
           .flatMap(msg => Future.successful(IncomingTextMessage(msg)))
       }

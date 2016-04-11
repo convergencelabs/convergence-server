@@ -18,6 +18,7 @@ import scala.util.Success
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
+import scala.concurrent.duration.Duration
 
 object DomainManagerActor {
   val RelativeActorPath = "domainManager"
@@ -43,7 +44,8 @@ class DomainManagerActor(
   private[this] val domainStore = convergencePersistence.domainStore
 
   // FIXME pull from config
-  private[this] val domainShutdownDelay = new FiniteDuration(10, TimeUnit.SECONDS)
+  private[this] val domainShutdownDelay = Duration.fromNanos(
+        context.system.settings.config.getDuration("convergence.domain-shutdown-delay").toNanos)
 
   private[this] val actorsToDomainFqn = mutable.HashMap[ActorRef, DomainFqn]()
   private[this] val domainFqnToActor = mutable.HashMap[DomainFqn, ActorRef]()

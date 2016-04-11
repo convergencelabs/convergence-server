@@ -22,7 +22,7 @@ class DomainStoreActor private[datastore] (
   private[this] val dbPool: OPartitionedDatabasePool)
     extends StoreActor with ActorLogging {
 
-  private[this] val domainConfig: Config = context.system.settings.config.getConfig("domain")
+  private[this] val domainConfig: Config = context.system.settings.config.getConfig("convergence.domain-databases")
   private[this] val domainStore: DomainStore = new DomainStore(dbPool)
 
   private[this] val domainDBContoller: DomainDBController =
