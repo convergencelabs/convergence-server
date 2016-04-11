@@ -20,7 +20,6 @@ import com.convergencelabs.server.frontend.realtime.OpenRealtimeModelResponseMes
 import com.convergencelabs.server.frontend.realtime.OperationAcknowledgementMessage
 import com.convergencelabs.server.frontend.realtime.OperationSubmissionMessage
 import com.convergencelabs.server.frontend.realtime.StringInsertOperationData
-import com.convergencelabs.server.frontend.realtime.SuccessMessage
 import com.convergencelabs.server.frontend.realtime.AuthenticationRequestMessage
 import com.convergencelabs.server.domain.PasswordAuthRequest
 import com.convergencelabs.server.domain.PasswordAuthRequest
@@ -35,7 +34,7 @@ class MockClientTest extends FunSuite with BeforeAndAfterAll {
       "test-server/mono-server-application.conf",
       Map(
         "convergence" -> "test-server/convergence.json.gz",
-        "namespace1-domain1" -> "test-server/domain.json.gz"))
+        "namespace1-domain1" -> "test-server/n1-d1.json.gz"))
   
   override def beforeAll(): Unit = {
     testServer.start()

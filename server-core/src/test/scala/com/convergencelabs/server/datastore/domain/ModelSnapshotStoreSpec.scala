@@ -18,7 +18,7 @@ import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 
 // scalastyle:off magic.number
 class ModelSnapshotStoreSpec
-    extends PersistenceStoreSpec[ModelSnapshotStore]("/dbfiles/domain.json.gz")
+    extends PersistenceStoreSpec[ModelSnapshotStore]("/dbfiles/n1-d1.json.gz")
     with WordSpecLike
     with Matchers {
 

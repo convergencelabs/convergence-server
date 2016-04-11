@@ -57,7 +57,7 @@ class DomainManagerActorSpec()
   }
 
   trait TestFixture {
-    val domainFqn = DomainFqn("convergence", "default")
+    val domainFqn = DomainFqn("namespace1", "domain1")
     val nonExistingDomain = DomainFqn("no", "domain")
 
     val keys = Map[String, TokenPublicKey]()

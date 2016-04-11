@@ -28,7 +28,7 @@ object TestServer {
       "test-server/mono-server-application.conf",
       Map(
         "convergence" -> "test-server/convergence.json.gz",
-        "namespace1-domain1" -> "test-server/domain.json.gz"))
+        "namespace1-domain1" -> "test-server/n1-d1.json.gz"))
     server.start()
   }
 }

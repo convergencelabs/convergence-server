@@ -43,7 +43,6 @@ class DomainManagerActor(
 
   private[this] val domainStore = convergencePersistence.domainStore
 
-  // FIXME pull from config
   private[this] val domainShutdownDelay = Duration.fromNanos(
         context.system.settings.config.getDuration("convergence.domain-shutdown-delay").toNanos)
 

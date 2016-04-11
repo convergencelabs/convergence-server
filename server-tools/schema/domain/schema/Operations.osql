@@ -7,9 +7,9 @@ CREATE CLASS Operation ABSTRACT;
 CREATE CLASS DiscreteOperation EXTENDS Operation ABSTRACT;
 
 #DiscreteOperation.vid
-CREATE PROPERTY DiscreteOperation.path STRING;
-ALTER PROPERTY DiscreteOperation.path MANDATORY true;
-ALTER PROPERTY DiscreteOperation.path NOTNULL true;
+CREATE PROPERTY DiscreteOperation.vid STRING;
+ALTER PROPERTY DiscreteOperation.vid MANDATORY true;
+ALTER PROPERTY DiscreteOperation.vid NOTNULL true;
 
 #DiscreteOperation.noOp
 CREATE PROPERTY DiscreteOperation.noOp BOOLEAN;

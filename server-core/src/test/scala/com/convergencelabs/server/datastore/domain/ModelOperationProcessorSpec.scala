@@ -43,7 +43,7 @@ import com.convergencelabs.server.domain.model.data.BooleanValue
 
 // scalastyle:off magic.number multiple.string.literals
 class ModelOperationProcessorSpec
-    extends PersistenceStoreSpec[(ModelOperationProcessor, ModelOperationStore, ModelStore)]("/dbfiles/domain.json.gz")
+    extends PersistenceStoreSpec[(ModelOperationProcessor, ModelOperationStore, ModelStore)]("/dbfiles/n1-d1.json.gz")
     with WordSpecLike
     with OptionValues
     with Matchers {

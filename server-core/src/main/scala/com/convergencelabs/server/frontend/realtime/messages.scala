@@ -34,9 +34,10 @@ case class PongMessage() extends ProtocolMessage
 ///////////////////////////////////////////////////////////////////////////////
 
 case class ErrorMessage(c: String, d: String)
-  extends OutgoingProtocolResponseMessage
-  with IncomingProtocolNormalMessage
-  with OutgoingProtocolNormalMessage
+ extends OutgoingProtocolResponseMessage
+ with OutgoingProtocolNormalMessage
+ with IncomingProtocolNormalMessage
+ with IncomingProtocolResponseMessage
 
 // Handshaking
 case class HandshakeRequestMessage(r: scala.Boolean, k: Option[String]) extends IncomingProtocolRequestMessage
