@@ -22,8 +22,16 @@ import org.json4s.JsonDSL.string2jvalue
 import com.convergencelabs.server.domain.model.data.DataValue
 import com.convergencelabs.server.frontend.realtime.model.OperationType
 
+import OperationSerializer.D
+import OperationSerializer.F
+import OperationSerializer.I
+import OperationSerializer.K
+import OperationSerializer.N
+import OperationSerializer.O
+import OperationSerializer.P
+import OperationSerializer.T
+import OperationSerializer.V
 import Utils.jnumberToDouble
-import OperationSerializer._
 
 object Utils {
   def jnumberToDouble(value: JValue): Double = {

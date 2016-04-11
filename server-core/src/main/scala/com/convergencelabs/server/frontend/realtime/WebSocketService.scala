@@ -1,6 +1,8 @@
 package com.convergencelabs.server.frontend.realtime
 
 import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
 
 import com.convergencelabs.server.ProtocolConfiguration
 import com.convergencelabs.server.domain.DomainFqn
@@ -18,14 +20,23 @@ import akka.stream.scaladsl.Flow
 import akka.stream.scaladsl.Sink
 import akka.stream.scaladsl.Source
 import akka.http.scaladsl.server.Route
+import scala.concurrent.Future
 
 case class IncomingTextMessage(message: String)
 case class OutgoingTextMessage(message: String)
 
 class WebSocketService(
-    val domainManager: ActorRef,
-    val protocolConfig: ProtocolConfiguration,
-    implicit val fm: Materializer, system: ActorSystem) extends Directives {
+  private[this] val domainManager: ActorRef,
+  private[this] val protocolConfig: ProtocolConfiguration,
+  private[this] implicit val fm: Materializer,
+  private[this] implicit val system: ActorSystem)
+    extends Directives {
+
+  private[this] val config = system.settings.config
+  private[this] val maxFrames = config.getInt("convergence.websocket.maxFrames")
+  private[this] val maxStreamDuration = config.getInt("convergence.websocket.maxStreamDurationSeconds")
+
+  private[this] implicit val ec = system.dispatcher
 
   val route: Route =
     get {
@@ -34,24 +45,23 @@ class WebSocketService(
       }
     }
 
-  def realTimeDomainFlow(namespace: String, domain: String): Flow[Message, Message, Any] =
+  private[this] def realTimeDomainFlow(namespace: String, domain: String): Flow[Message, Message, Any] =
     Flow[Message]
       .collect {
-        case TextMessage.Strict(msg) ⇒ IncomingTextMessage(msg)
-        // This will lose (ignore) messages not received in one chunk (which is
-        // unlikely because chat messages are small) but absolutely possible
-        // FIXME: We need to handle TextMessage.Streamed as well.
+        case TextMessage.Strict(msg) ⇒ Future.successful(IncomingTextMessage(msg))
+        case TextMessage.Streamed(stream) ⇒ stream
+          .limit(maxFrames)
+          .completionTimeout(maxStreamDuration seconds)
+          .runFold("")(_ + _)
+          .flatMap(msg => Future.successful(IncomingTextMessage(msg)))
       }
-      .via(createFlowForConnection(namespace, domain)) // Route to our echo flow
+      .mapAsync(parallelism = 3)(identity)
+      .via(createFlowForConnection(namespace, domain))
       .map {
-        case OutgoingTextMessage(msg) ⇒
-          // We get back strings from our echo flow.  Wrap them in a web socket
-          // text message.  This will be the output of the flow.
-          TextMessage.Strict(msg)
+        case OutgoingTextMessage(msg) ⇒ TextMessage.Strict(msg)
       }
 
-  def createFlowForConnection(namespace: String, domain: String): Flow[IncomingTextMessage, OutgoingTextMessage, Any] = {
-
+  private[this] def createFlowForConnection(namespace: String, domain: String): Flow[IncomingTextMessage, OutgoingTextMessage, Any] = {
     val clientActor = system.actorOf(ClientActor.props(
       domainManager,
       DomainFqn(namespace, domain),
@@ -65,7 +75,7 @@ class WebSocketService(
     val in = Flow[IncomingTextMessage].to(Sink.actorRef[IncomingTextMessage](connection, WebSocketClosed))
 
     // This is where outgoing messages will go.  Basically we create an actor based
-    // source for messages.  This creates an actor ref that you can send messages to
+    // source for messages.  This creates an ActorRef that you can send messages to
     // and then will be spit out the flow.  However to get access to this you must
     // materialize the source.  By materializing it we get a reference to the underlying
     // actor and we can send another actor this reference, or use the reference however
