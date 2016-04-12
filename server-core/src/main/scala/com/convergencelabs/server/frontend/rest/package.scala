@@ -21,9 +21,12 @@ package object rest {
 
   case class ErrorResponse(error: String) extends AbstractErrorResponse
 
-  type RestResponse = Tuple2[StatusCode, ResponseMessage]
+  type RestResponse = (StatusCode, ResponseMessage)
+
+  val OkResponse: RestResponse = (StatusCodes.OK, SuccessRestResponse())
 
   val InternalServerError: RestResponse = (StatusCodes.InternalServerError, ErrorResponse("internal_server_error"))
   val DuplicateError: RestResponse = (StatusCodes.Conflict, ErrorResponse("duplicate_error"))
   val NotFoundError: RestResponse = (StatusCodes.NotFound, ErrorResponse("not_found_error"))
+  val AuthFailureError: RestResponse = (StatusCodes.Unauthorized, ErrorResponse("unauthorized"))
 }

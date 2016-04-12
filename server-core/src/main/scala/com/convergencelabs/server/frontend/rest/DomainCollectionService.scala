@@ -68,7 +68,7 @@ class DomainCollectionService(
   def getCollection(domain: DomainFqn, collectionId: String): Future[RestResponse] = {
     (domainRestActor ? DomainMessage(domain, GetCollection(collectionId))).mapTo[Option[Collection]] map {
       case Some(collection) => (StatusCodes.OK, GetCollectionResponse(collection))
-      case None => (StatusCodes.NotFound, ErrorResponse("collection_not_found"))
+      case None => NotFoundError
     }
   }
 }

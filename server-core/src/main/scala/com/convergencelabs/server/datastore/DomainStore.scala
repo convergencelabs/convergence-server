@@ -33,8 +33,8 @@ class DomainStore private[datastore] (dbPool: OPartitionedDatabasePool)
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE uid = :uid")
     val params = Map(Uid -> domain.owner)
 
+    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     try {
-      val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
       QueryUtil.enforceSingletonResultList(result) match {
         case Some(user) => {
           val doc = domain.asODocument
@@ -123,7 +123,7 @@ class DomainStore private[datastore] (dbPool: OPartitionedDatabasePool)
     val command = new OCommandSQL("DELETE FROM Domain WHERE id = :id")
     val params = Map(Id -> id)
     val count: Int = db.command(command).execute(params.asJava)
-    if(count > 0) {
+    if (count > 0) {
       DeleteSuccess
     } else {
       NotFound

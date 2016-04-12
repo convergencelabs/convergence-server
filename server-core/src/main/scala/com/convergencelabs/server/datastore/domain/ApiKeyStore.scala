@@ -17,6 +17,15 @@ import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import grizzled.slf4j.Logging
 import mapper.TokenPublicKeyMapper.ODocumentToTokenPublicKey
 import mapper.TokenPublicKeyMapper.TokenPublicKeyToODocument
+import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
+import com.convergencelabs.server.datastore.DuplicateValue
+import com.convergencelabs.server.datastore.CreateResult
+import com.convergencelabs.server.datastore.CreateSuccess
+import com.convergencelabs.server.datastore.UpdateResult
+import com.convergencelabs.server.datastore.NotFound
+import com.convergencelabs.server.datastore.UpdateSuccess
+import com.convergencelabs.server.datastore.DeleteResult
+import com.convergencelabs.server.datastore.DeleteSuccess
 
 class ApiKeyStore private[datastore] (
   private[this] val dbPool: OPartitionedDatabasePool)
@@ -41,12 +50,16 @@ class ApiKeyStore private[datastore] (
     QueryUtil.mapSingletonList(result) { _.asTokenPublicKey }
   }
 
-  def createKey(key: TokenPublicKey): Try[Unit] = tryWithDb { db =>
-    db.save(key.asODocument)
-    ()
+  def createKey(key: TokenPublicKey): Try[CreateResult[Unit]] = tryWithDb { db =>
+    try {
+      db.save(key.asODocument)
+    } catch {
+      case e: ORecordDuplicatedException => DuplicateValue
+    }
+    CreateSuccess(())
   }
 
-  def updateKey(key: TokenPublicKey): Try[Unit] = tryWithDb { db =>
+  def updateKey(key: TokenPublicKey): Try[UpdateResult] = tryWithDb { db =>
     val updatedDoc = key.asODocument
     val queryString = "SELECT FROM TokenPublicKey WHERE id = :id"
     val query = new OSQLSynchQuery[ODocument](queryString)
@@ -54,23 +67,23 @@ class ApiKeyStore private[datastore] (
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
     QueryUtil.enforceSingletonResultList(result) match {
-      case Some(doc) =>
+      case Some(doc) => {
         doc.merge(updatedDoc, false, false)
         db.save(doc)
-        ()
-      case None =>
-        throw new IllegalArgumentException("Key not found")
+        UpdateSuccess
+      }
+      case None => NotFound
     }
   }
 
-  def deleteKey(id: String): Try[Unit] = tryWithDb { db =>
+  def deleteKey(id: String): Try[DeleteResult] = tryWithDb { db =>
     val queryString = "DELETE FROM TokenPublicKey WHERE id = :id"
     val command = new OCommandSQL(queryString)
     val params = Map(Id -> id)
     val deleted: Int = db.command(command).execute(params.asJava)
     deleted match {
-      case 1 => ()
-      case _ => throw new IllegalArgumentException("The key could not be deleted because it did not exist")
+      case 1 => DeleteSuccess
+      case _ => NotFound
     }
   }
 }

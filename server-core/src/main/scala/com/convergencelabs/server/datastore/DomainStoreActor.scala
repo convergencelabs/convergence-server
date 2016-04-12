@@ -5,11 +5,8 @@ import scala.util.Success
 
 import com.convergencelabs.server.datastore.DomainStoreActor.CreateDomainRequest
 import com.convergencelabs.server.datastore.DomainStoreActor.DeleteDomainRequest
-import com.convergencelabs.server.datastore.DomainStoreActor.DomainNotFound
 import com.convergencelabs.server.datastore.DomainStoreActor.GetDomainRequest
-import com.convergencelabs.server.datastore.DomainStoreActor.GetDomainSuccess
 import com.convergencelabs.server.datastore.DomainStoreActor.ListDomainsRequest
-import com.convergencelabs.server.datastore.DomainStoreActor.ListDomainsResponse
 import com.convergencelabs.server.domain.Domain
 import com.convergencelabs.server.domain.DomainFqn
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
@@ -62,14 +59,11 @@ class DomainStoreActor private[datastore] (
 
   def getDomain(getRequest: GetDomainRequest): Unit = {
     val GetDomainRequest(namespace, domainId) = getRequest
-    mapAndReply(domainStore.getDomainByFqn(DomainFqn(namespace, domainId))) {
-      case Some(domain) => GetDomainSuccess(domain)
-      case None => DomainNotFound
-    }
+    reply(domainStore.getDomainByFqn(DomainFqn(namespace, domainId)))
   }
 
   def listDomains(listRequest: ListDomainsRequest): Unit = {
-    mapAndReply(domainStore.getDomainsByOwner(listRequest.uid))(ListDomainsResponse(_))
+    reply(domainStore.getDomainsByOwner(listRequest.uid))
   }
 }
 
@@ -77,16 +71,7 @@ object DomainStoreActor {
   def props(dbPool: OPartitionedDatabasePool): Props = Props(new DomainStoreActor(dbPool))
 
   case class CreateDomainRequest(namespace: String, domainId: String, displayName: String, owner: String)
-
   case class DeleteDomainRequest(namespace: String, domainId: String)
-
   case class GetDomainRequest(namespace: String, domainId: String)
-
-  sealed trait GetDomainResponse
-  case class GetDomainSuccess(domain: Domain) extends GetDomainResponse
-  case object DomainNotFound extends GetDomainResponse
-
   case class ListDomainsRequest(uid: String)
-
-  case class ListDomainsResponse(domains: List[Domain])
 }

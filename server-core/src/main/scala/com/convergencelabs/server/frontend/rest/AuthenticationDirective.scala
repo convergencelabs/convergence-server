@@ -28,8 +28,6 @@ case class AuthenticationFailed(ok: Boolean, error: String) extends ResponseMess
 
 class Authenticator(authActor: ActorRef, timeout: Timeout, executionContext: ExecutionContext) extends JsonSupport {
 
-  val authFailed = ErrorResponse("Unauthroized")
-
   implicit val ec = executionContext
   implicit val t = timeout
 
@@ -40,10 +38,6 @@ class Authenticator(authActor: ActorRef, timeout: Timeout, executionContext: Exe
     }
   }
 
-  def rejectAuthentication(): StandardRoute = {
-    complete(StatusCodes.Unauthorized, authFailed)
-  }
-
   val requireAuthenticated: Directive1[String] = {
     parameter("token".?).flatMap {
       case Some(token) =>
@@ -51,10 +45,10 @@ class Authenticator(authActor: ActorRef, timeout: Timeout, executionContext: Exe
           case Some(user) =>
             provide(user)
           case None =>
-            rejectAuthentication()
+            complete(AuthFailureError)
         }
       case None =>
-        rejectAuthentication()
+        complete(AuthFailureError)
     }
   }
 }
