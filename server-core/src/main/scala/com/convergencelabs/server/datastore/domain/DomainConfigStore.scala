@@ -27,6 +27,10 @@ class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
     extends AbstractDatabasePersistence(dbPool)
     with Logging {
 
+  def getAdminUserName(): String = {
+    "ConvergenceAdmin"
+  }
+  
   def getModelSnapshotConfig(): Try[ModelSnapshotConfig] = tryWithDb { db =>
     val queryString = "SELECT modelSnapshotConfig FROM DomainConfig"
     val query = new OSQLSynchQuery[ODocument](queryString)

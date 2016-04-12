@@ -26,7 +26,7 @@ import scala.reflect.ClassTag
 import com.convergencelabs.server.datastore.domain.ApiKeyStore
 
 object AuthenticationHandler {
-  val AdminKeyId = "ConvergenceAdminUIKey"
+  val AdminKeyId = "ConvergenceAdminKey"
   val AllowedClockSkew = 30
 }
 

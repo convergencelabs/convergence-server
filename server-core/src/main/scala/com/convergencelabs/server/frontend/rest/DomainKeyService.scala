@@ -5,7 +5,7 @@ import scala.concurrent.Future
 
 import com.convergencelabs.server.datastore.ApiKeyStoreActor.GetDomainApiKeys
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.RestDomainActor.DomainMessage
+import com.convergencelabs.server.domain.RestDomainManagerActor.DomainMessage
 import com.convergencelabs.server.domain.TokenPublicKey
 
 import DomainKeyService.GetKeysRestResponse

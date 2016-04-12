@@ -7,7 +7,7 @@ import com.convergencelabs.server.datastore.CollectionStoreActor.CollectionInfo
 import com.convergencelabs.server.datastore.CollectionStoreActor.GetCollection
 import com.convergencelabs.server.datastore.CollectionStoreActor.GetCollections
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.RestDomainActor.DomainMessage
+import com.convergencelabs.server.domain.RestDomainManagerActor.DomainMessage
 import com.convergencelabs.server.domain.model.Collection
 
 import DomainCollectionService.GetCollectionResponse

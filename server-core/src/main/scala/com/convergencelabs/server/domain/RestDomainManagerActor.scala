@@ -8,8 +8,8 @@ import scala.util.Failure
 import scala.util.Success
 
 import com.convergencelabs.server.datastore.PersistenceProvider
-import com.convergencelabs.server.domain.RestDomainActor.DomainMessage
 import com.convergencelabs.server.domain.RestDomainActor.Shutdown
+import com.convergencelabs.server.domain.RestDomainManagerActor.DomainMessage
 import com.convergencelabs.server.domain.RestDomainManagerActor.ScheduledShutdown
 import com.convergencelabs.server.domain.RestDomainManagerActor.ShutdownDomain
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
@@ -23,12 +23,12 @@ import akka.actor.actorRef2Scala
 import akka.cluster.Cluster
 
 object RestDomainManagerActor {
-  val RelativeActorPath = "restDomainManager"
-
   def props(dbPool: OPartitionedDatabasePool): Props = Props(new RestDomainManagerActor(dbPool))
 
-  case class ScheduledShutdown(cancellable: Cancellable, lastMessageTime: Instant)
+  val RelativeActorPath = "restDomainManager"
 
+  case class DomainMessage(domainFqn: DomainFqn, message: Any)
+  case class ScheduledShutdown(cancellable: Cancellable, lastMessageTime: Instant)
   case class ShutdownDomain(domainFqn: DomainFqn)
 }
 

@@ -7,7 +7,7 @@ import com.convergencelabs.server.datastore.ModelStoreActor.GetModel
 import com.convergencelabs.server.datastore.ModelStoreActor.GetModels
 import com.convergencelabs.server.datastore.ModelStoreActor.GetModelsInCollection
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.RestDomainActor.DomainMessage
+import com.convergencelabs.server.domain.RestDomainManagerActor.DomainMessage
 import com.convergencelabs.server.domain.model.Model
 import com.convergencelabs.server.domain.model.ModelFqn
 
