@@ -14,7 +14,7 @@ package object rest {
   }
 
   case class SuccessRestResponse() extends AbstractSuccessResponse
-  
+
   abstract class AbstractErrorResponse() extends ResponseMessage {
     val ok = false
   }
@@ -24,4 +24,7 @@ package object rest {
   type RestResponse = Tuple2[StatusCode, ResponseMessage]
 
   val InternalServerError: RestResponse = (StatusCodes.InternalServerError, ErrorResponse("Internal Server Error!"))
+
+  def duplicateError(message: String): RestResponse = (StatusCodes.Conflict, ErrorResponse(message))
+  def notFoundError(message: String): RestResponse = (StatusCodes.NotFound, ErrorResponse(message))
 }

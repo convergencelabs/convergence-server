@@ -16,6 +16,8 @@ import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.domain.DomainDatabaseInfo
 import com.convergencelabs.server.domain.DomainDatabaseInfo
+import com.orientechnologies.orient.core.exception.OValidationException
+import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
 class DomainStore private[datastore] (dbPool: OPartitionedDatabasePool)
     extends AbstractDatabasePersistence(dbPool)
@@ -27,21 +29,26 @@ class DomainStore private[datastore] (dbPool: OPartitionedDatabasePool)
   private[this] val Owner = "owner"
   private[this] val Uid = "uid"
 
-  def createDomain(domain: Domain, dbUsername: String, dbPassword: String): Try[Unit] = tryWithDb { db =>
+  def createDomain(domain: Domain, dbUsername: String, dbPassword: String): Try[CreateResult[Unit]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE uid = :uid")
     val params = Map(Uid -> domain.owner)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.enforceSingletonResultList(result) match {
-      case Some(user) => {
-        val doc = domain.asODocument
-        doc.field(Owner, user)
-        doc.field("dbUsername", dbUsername)
-        doc.field("dbPassword", dbPassword)
-        db.save(doc)
-        Unit
+
+    try {
+      val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
+      QueryUtil.enforceSingletonResultList(result) match {
+        case Some(user) => {
+          val doc = domain.asODocument
+          doc.field(Owner, user)
+          doc.field("dbUsername", dbUsername)
+          doc.field("dbPassword", dbPassword)
+          db.save(doc)
+          CreateSuccess(())
+        }
+        // TODO: How to handle exception
+        case None => throw new IllegalArgumentException("Invalid Domain Owner")
       }
-      // TODO: How to handle exception
-      case None => throw new IllegalArgumentException("Invalid Domain Owner")
+    } catch {
+      case e: ORecordDuplicatedException => DuplicateValue
     }
   }
 
@@ -59,7 +66,7 @@ class DomainStore private[datastore] (dbPool: OPartitionedDatabasePool)
 
     QueryUtil.enforceSingletonResultList(result) match {
       case Some(_) => true
-      case None => false
+      case None    => false
     }
   }
 
@@ -112,14 +119,18 @@ class DomainStore private[datastore] (dbPool: OPartitionedDatabasePool)
     result.asScala.toList map { doc => doc.asDomain }
   }
 
-  def removeDomain(id: String): Try[Boolean] = tryWithDb { db =>
+  def removeDomain(id: String): Try[DeleteResult] = tryWithDb { db =>
     val command = new OCommandSQL("DELETE FROM Domain WHERE id = :id")
     val params = Map(Id -> id)
     val count: Int = db.command(command).execute(params.asJava)
-    count > 0
+    if(count > 0) {
+      DeleteSuccess
+    } else {
+      NotFound
+    }
   }
 
-  def updateDomain(domain: Domain): Try[Unit] = tryWithDb { db =>
+  def updateDomain(domain: Domain): Try[UpdateResult] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM Domain WHERE id = :id")
     val params = Map(Id -> domain.id)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
@@ -130,10 +141,9 @@ class DomainStore private[datastore] (dbPool: OPartitionedDatabasePool)
         newDoc.removeField("owner")
         doc.merge(domain, true, false)
         db.save(doc)
-        Unit
+        UpdateSuccess
       }
-      case None => throw new IllegalArgumentException(
-        s"Domain to update could not be found: ${domain.domainFqn.namespace}/${domain.domainFqn.domainId}")
+      case None => NotFound
     }
   }
 }

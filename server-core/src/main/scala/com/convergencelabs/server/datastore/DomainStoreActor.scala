@@ -17,6 +17,7 @@ import com.typesafe.config.Config
 
 import akka.actor.ActorLogging
 import akka.actor.Props
+import scala.util.Try
 
 class DomainStoreActor private[datastore] (
   private[this] val dbPool: OPartitionedDatabasePool)
@@ -54,10 +55,8 @@ class DomainStoreActor private[datastore] (
       case Some(domain) =>
         domainStore.removeDomain(domain.id)
         domainDBContoller.deleteDomain(domain.id)
-        Success(Unit)
-      case None =>
-        // TODO: Determine correct exception to throw here
-        Failure(new IllegalArgumentException("Domain Not Found"))
+        Success(DeleteSuccess)
+      case None => Success(NotFound)
     })
   }
 

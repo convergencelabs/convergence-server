@@ -31,6 +31,12 @@ import akka.http.scaladsl.server.Directives.post
 import akka.http.scaladsl.server.Directives.segmentStringToPathMatcher
 import akka.pattern.ask
 import akka.util.Timeout
+import com.convergencelabs.server.datastore.CreateResult
+import com.convergencelabs.server.datastore.CreateSuccess
+import com.convergencelabs.server.datastore.DuplicateValue
+import com.convergencelabs.server.datastore.DeleteResult
+import com.convergencelabs.server.datastore.DeleteSuccess
+import com.convergencelabs.server.datastore.NotFound
 
 case class DomainsResponse(domains: List[DomainFqn]) extends AbstractSuccessResponse
 case class DomainResponse(domain: DomainInfo) extends AbstractSuccessResponse
@@ -84,7 +90,7 @@ class DomainService(
           } ~
             domainUserService.route(userId, domain) ~
             domainCollectionService.route(userId, domain) ~
-            domainModelService.route(userId, domain)~
+            domainModelService.route(userId, domain) ~
             domainKeyService.route(userId, domain) ~
             domainAdminTokenService.route(userId, domain)
         }
@@ -94,8 +100,9 @@ class DomainService(
 
   def createRequest(createRequest: CreateRequest, userId: String): Future[RestResponse] = {
     val CreateRequest(namespace, domainId, displayName) = createRequest
-    (domainStoreActor ? CreateDomainRequest(namespace, domainId, displayName, userId)).mapTo[Unit].map {
-      case _ => (StatusCodes.Created, CreateResponse())
+    (domainStoreActor ? CreateDomainRequest(namespace, domainId, displayName, userId)).mapTo[CreateResult[Unit]].map {
+      case result: CreateSuccess[Unit] => (StatusCodes.Created, CreateResponse())
+      case DuplicateValue      => duplicateError(s"Domain with namespace: $namespace and domainId: $domainId already exists!")
     }
   }
 
@@ -121,8 +128,9 @@ class DomainService(
   }
 
   def deleteRequest(namespace: String, domainId: String): Future[RestResponse] = {
-    (domainStoreActor ? DeleteDomainRequest(namespace, domainId)) map {
-      case _ => (StatusCodes.Created, DeleteResponse())
+    (domainStoreActor ? DeleteDomainRequest(namespace, domainId)).mapTo[DeleteResult] map {
+      case DeleteSuccess => (StatusCodes.OK, DeleteResponse())
+      case NotFound => notFoundError(s"Domain with namespace: $namespace and domainId: $domainId not found!")
     }
   }
 }

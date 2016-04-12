@@ -82,7 +82,7 @@ class DomainStoreSpec
           "Test Domain 1",
           owner)
 
-        store.createDomain(domainConfig, root, root).failed.get shouldBe a[ORecordDuplicatedException]
+        store.createDomain(domainConfig, root, root).success.get shouldBe DuplicateValue
       }
     }
 
@@ -136,7 +136,7 @@ class DomainStoreSpec
           "Test Domain 1 Updated",
           owner)
 
-        store.updateDomain(toUpdate).failure
+        store.updateDomain(toUpdate).success.get shouldBe NotFound
       }
       // FIXME need to test / add updating db info.
     }
