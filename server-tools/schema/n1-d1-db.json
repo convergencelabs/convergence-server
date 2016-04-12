@@ -66,6 +66,8 @@
     "domain/data/n1-d1/UserCredential/u3.osql",
     
     "domain/data/n1-d1/User/u4.osql",
-    "domain/data/n1-d1/UserCredential/u4.osql"
+    "domain/data/n1-d1/UserCredential/u4.osql",
+    
+    "domain/data/n1-d1/TokenPublicKey/test.osql"
   ]
 }

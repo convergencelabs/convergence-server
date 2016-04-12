@@ -19,6 +19,8 @@ import akka.actor.Props
 import akka.pattern.gracefulStop
 import com.convergencelabs.server.datastore.ModelStoreActor.ModelStoreRequest
 import com.convergencelabs.server.datastore.ModelStoreActor
+import com.convergencelabs.server.datastore.ApiKeyStoreActor.ApiKeyStoreRequest
+import com.convergencelabs.server.datastore.ApiKeyStoreActor
 
 object RestDomainActor {
   def props(domainFqn: DomainFqn): Props = Props(new RestDomainActor(domainFqn))
@@ -35,6 +37,7 @@ class RestDomainActor(domainFqn: DomainFqn) extends Actor with ActorLogging {
   private[this] var userStoreActor: ActorRef = _
   private[this] var collectionStoreActor: ActorRef = _
   private[this] var modelStoreActor: ActorRef = _
+  private[this] var keyStoreActor: ActorRef = _
 
   def receive: Receive = {
     case message: UserStoreRequest =>
@@ -43,6 +46,8 @@ class RestDomainActor(domainFqn: DomainFqn) extends Actor with ActorLogging {
       collectionStoreActor forward message
     case message: ModelStoreRequest =>
       modelStoreActor forward message
+    case message: ApiKeyStoreRequest =>
+      keyStoreActor forward message
     case Shutdown =>
       shutdown()
     case message: Any =>
@@ -51,6 +56,7 @@ class RestDomainActor(domainFqn: DomainFqn) extends Actor with ActorLogging {
 
   def shutdown(): Unit = {
     gracefulStop(userStoreActor, GracefulStopWaitTime, PoisonPill).onComplete(_ => context.stop(self))
+    // FIXME shut all of these down?
   }
 
   override def preStart(): Unit = {
@@ -59,6 +65,7 @@ class RestDomainActor(domainFqn: DomainFqn) extends Actor with ActorLogging {
         userStoreActor = context.actorOf(UserStoreActor.props(provider.userStore))
         collectionStoreActor = context.actorOf(CollectionStoreActor.props(provider.collectionStore))
         modelStoreActor = context.actorOf(ModelStoreActor.props(provider.modelStore))
+        keyStoreActor = context.actorOf(ApiKeyStoreActor.props(provider.keyStore))
       case Failure(cause) =>
         log.error(cause, "Unable to obtain a domain persistence provider.")
     }

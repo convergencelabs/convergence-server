@@ -29,3 +29,6 @@ ALTER PROPERTY TokenPublicKey.enabled NOTNULL true;
 CREATE PROPERTY TokenPublicKey.key STRING;
 ALTER PROPERTY TokenPublicKey.key MANDATORY true;
 ALTER PROPERTY TokenPublicKey.key NOTNULL true;
+
+#TokenPublicKey Indexes
+CREATE INDEX TokenPublicKey.id ON TokenPublicKey (id) UNIQUE_HASH_INDEX;

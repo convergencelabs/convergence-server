@@ -62,6 +62,7 @@ class ConvergenceRestFrontEnd(
     val authService = new AuthService(ec, authActor, defaultRequestTimeout)
     val authenticator = new Authenticator(authActor, defaultRequestTimeout, ec)
     val domainService = new DomainService(ec, domainActor, domainManagerActor, defaultRequestTimeout)
+    val keyGenService = new KeyGenService(ec)
 
     val route = cors() {
       // All request are under the "rest" path.
@@ -70,7 +71,8 @@ class ConvergenceRestFrontEnd(
         authService.route ~
           // Everything else must be authenticated
           authenticator.requireAuthenticated { userId =>
-            domainService.route(userId)
+            domainService.route(userId) ~
+            keyGenService.route()
           }
       }
     }

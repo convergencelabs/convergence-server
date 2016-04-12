@@ -10,6 +10,8 @@ import com.convergencelabs.server.datastore.AbstractPersistenceProvider
 class DomainPersistenceProvider(private[this] val dbPool: OPartitionedDatabasePool) extends AbstractPersistenceProvider(dbPool)  {
 
   val userStore = new DomainUserStore(dbPool)
+  
+  val keyStore = new ApiKeyStore(dbPool)
 
   val configStore = new DomainConfigStore(dbPool)
 

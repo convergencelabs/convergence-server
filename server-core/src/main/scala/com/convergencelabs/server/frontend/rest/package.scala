@@ -9,12 +9,14 @@ package object rest {
     def ok: Boolean
   }
 
-  abstract class AbstractErrorResponse() extends ResponseMessage {
-    val ok = false
-  }
-
   abstract class AbstractSuccessResponse() extends ResponseMessage {
     val ok = true
+  }
+
+  case class SuccessRestResponse() extends AbstractSuccessResponse
+  
+  abstract class AbstractErrorResponse() extends ResponseMessage {
+    val ok = false
   }
 
   case class ErrorResponse(error: String) extends AbstractErrorResponse

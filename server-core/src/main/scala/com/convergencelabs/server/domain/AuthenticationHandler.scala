@@ -23,6 +23,7 @@ import akka.actor.actorRef2Scala
 import grizzled.slf4j.Logging
 import scala.util.Try
 import scala.reflect.ClassTag
+import com.convergencelabs.server.datastore.domain.ApiKeyStore
 
 object AuthenticationHandler {
   val AdminKeyId = "ConvergenceAdminUIKey"
@@ -31,6 +32,7 @@ object AuthenticationHandler {
 
 class AuthenticationHandler(
   private[this] val domainConfigStore: DomainConfigStore,
+  private[this] val keyStore: ApiKeyStore,
   private[this] val userStore: DomainUserStore,
   private[this] implicit val ec: ExecutionContext)
     extends Logging {
@@ -121,7 +123,7 @@ class AuthenticationHandler(
 
   private[this] def getJWTPublicKey(keyId: String): Option[PublicKey] = {
     val keyPem: Option[String] = if (!AuthenticationHandler.AdminKeyId.equals(keyId)) {
-      domainConfigStore.getTokenKey(keyId) match {
+      keyStore.getKey(keyId) match {
         case Success(Some(key)) if key.enabled => Some(key.key)
         case _ => None
       }

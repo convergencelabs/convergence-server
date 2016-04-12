@@ -20,9 +20,7 @@ class AuthStoreActor private[datastore] (
 
   val tokenDuration = context.system.settings.config.getDuration("convergence.auth-token-expiration")
 
-  private[this] val userStore: UserStore = new UserStore(
-    dbPool,
-    tokenDuration)
+  private[this] val userStore: UserStore = new UserStore(dbPool, tokenDuration)
 
   def receive: Receive = {
     case authRequest: AuthRequest => authenticateUser(authRequest)

@@ -27,6 +27,7 @@ import java.security.KeyFactory
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import java.security.spec.PKCS8EncodedKeySpec
 import java.io.StringReader
+import com.convergencelabs.server.datastore.domain.ApiKeyStore
 
 class AuthenticationHandlerSpec()
     extends TestKit(ActorSystem("AuthManagerActorSpec"))
@@ -169,6 +170,7 @@ class AuthenticationHandlerSpec()
     Mockito.when(userStore.validateCredentials(noUidUser, noUidPassword)).thenReturn(Success(true, None))
 
     val domainConfigStore = mock[DomainConfigStore]
+    val keyStore = mock[ApiKeyStore]
 
     val enabledKey = TokenPublicKey(
       "enabledkey",
@@ -177,7 +179,7 @@ class AuthenticationHandlerSpec()
       Instant.now(),
       KeyConstants.PublicKey,
       true)
-    Mockito.when(domainConfigStore.getTokenKey(enabledKey.id)).thenReturn(Success(Some(enabledKey)))
+    Mockito.when(keyStore.getKey(enabledKey.id)).thenReturn(Success(Some(enabledKey)))
 
     val adminKeyPair = TokenKeyPair(KeyConstants.PublicKey, KeyConstants.PrivateKey)
     Mockito.when(domainConfigStore.getAdminKeyPair()).thenReturn(Success(adminKeyPair))
@@ -189,7 +191,7 @@ class AuthenticationHandlerSpec()
       Instant.now(),
       KeyConstants.PublicKey,
       false)
-    Mockito.when(domainConfigStore.getTokenKey(disabledKey.id)).thenReturn(Success(Some(disabledKey)))
+    Mockito.when(keyStore.getKey(disabledKey.id)).thenReturn(Success(Some(disabledKey)))
 
     val invalidKey = TokenPublicKey(
       "invalidKey",
@@ -198,12 +200,12 @@ class AuthenticationHandlerSpec()
       Instant.now(),
       "invalid",
       true)
-    Mockito.when(domainConfigStore.getTokenKey(invalidKey.id)).thenReturn(Success(Some(invalidKey)))
+    Mockito.when(keyStore.getKey(invalidKey.id)).thenReturn(Success(Some(invalidKey)))
 
     val missingKey = "missingKey"
-    Mockito.when(domainConfigStore.getTokenKey(missingKey)).thenReturn(Success(None))
+    Mockito.when(keyStore.getKey(missingKey)).thenReturn(Success(None))
 
-    val authHandler = new AuthenticationHandler(domainConfigStore, userStore, system.dispatcher)
+    val authHandler = new AuthenticationHandler(domainConfigStore, keyStore, userStore, system.dispatcher)
   }
 
 }

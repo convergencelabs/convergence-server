@@ -59,6 +59,7 @@ class DomainService(
   val domainUserService = new DomainUserService(ec, domainManagerActor, t)
   val domainCollectionService = new DomainCollectionService(ec, domainManagerActor, t)
   val domainModelService = new DomainModelService(ec, domainManagerActor, t)
+  val domainKeyService = new DomainKeyService(ec, domainManagerActor, t)
 
   val route = { userId: String =>
     pathPrefix("domains") {
@@ -82,7 +83,8 @@ class DomainService(
           } ~
             domainUserService.route(userId, domain) ~
             domainCollectionService.route(userId, domain) ~
-            domainModelService.route(userId, domain)
+            domainModelService.route(userId, domain)~
+            domainKeyService.route(userId, domain)
         }
       }
     }
