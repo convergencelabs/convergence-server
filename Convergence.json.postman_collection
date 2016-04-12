@@ -19,6 +19,15 @@
 			"collectionId": "daf05435-42df-8c67-0b6f-5c3789915874"
 		},
 		{
+			"id": "7414b498-c272-687f-fec7-0f268e7d5104",
+			"name": "DomainAdminToken",
+			"description": "",
+			"order": [
+				"211da2f8-a14d-8219-0798-a030dcaeae4a"
+			],
+			"owner": 0
+		},
+		{
 			"id": "5401759a-f585-942f-07d2-71d50651ba11",
 			"name": "DomainCollections",
 			"description": "",
@@ -111,6 +120,25 @@
 			"rawModeData": "{\n  \"id\": \"created-key\",\n  \"name\": \"Another Key\",\n  \"description\": \"A key created by postman\",\n  \"keyDate\": \"2015-09-21T12:32:43.000Z\",\n  \"key\": \"-----BEGIN PUBLIC KEY-----\\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlqHvXYPseLVx2vCSCipw\\nxOumeB2t3JFxXnQ1qC9QMcAydKT7oeTZEbJxgbpaeEy2QkH7J8drkfu78RBh9nFb\\nJ3yh3/cZS09wMM4NQsmqqpee4qHromwR1N4MgYAzDGcnl0iHeaYc56tHt5n5ENjG\\n+bjEULEGIFVbDs2MBxyswchyqRFGHse41uLxhybhDNkEQLUcqkbVesqVXGsz25Hi\\nBdxfYRJ9+2x70GwxDf0nBfZb1fvUFZnCDJHKO/wqv5k9BcuCDLUOdRgJa7+E721V\\nSvopddtRgEFnEWoOilcUWtF03CUy4tw3hv1VDcbXKsEma0KjP5IAvWFVI6dbDHeh\\nLQIDAQAB\\n-----END PUBLIC KEY-----\\n\",\n  \"enabled\": true\n}"
 		},
 		{
+			"id": "211da2f8-a14d-8219-0798-a030dcaeae4a",
+			"headers": "",
+			"url": "http://localhost:8081/rest/domains/namespace1/domain1/adminToken?token={{token}}",
+			"preRequestScript": null,
+			"pathVariables": {},
+			"method": "GET",
+			"data": null,
+			"dataMode": "params",
+			"version": 2,
+			"tests": null,
+			"currentHelper": "normal",
+			"helperAttributes": {},
+			"time": 1460475740068,
+			"name": "GetDomainAdminToken",
+			"description": "",
+			"collectionId": "daf05435-42df-8c67-0b6f-5c3789915874",
+			"responses": []
+		},
+		{
 			"id": "42c85dbc-7b02-fd32-d21a-23646337a335",
 			"headers": "",
 			"url": "http://localhost:8081/rest/domains/namespace1/domain1/models/people/person1?token={{token}}",
@@ -180,7 +208,7 @@
 			"tests": "var response = JSON.parse(responseBody);\npostman.setGlobalVariable(\"token\", response.token);",
 			"currentHelper": "normal",
 			"helperAttributes": {},
-			"time": 1460244386083,
+			"time": 1460475743762,
 			"name": "Authenticate",
 			"description": "",
 			"collectionId": "daf05435-42df-8c67-0b6f-5c3789915874",
