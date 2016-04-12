@@ -102,7 +102,7 @@ class DomainService(
     val CreateRequest(namespace, domainId, displayName) = createRequest
     (domainStoreActor ? CreateDomainRequest(namespace, domainId, displayName, userId)).mapTo[CreateResult[Unit]].map {
       case result: CreateSuccess[Unit] => (StatusCodes.Created, CreateResponse())
-      case DuplicateValue      => duplicateError(s"Domain with namespace: $namespace and domainId: $domainId already exists!")
+      case DuplicateValue      => DuplicateError
     }
   }
 
@@ -130,7 +130,7 @@ class DomainService(
   def deleteRequest(namespace: String, domainId: String): Future[RestResponse] = {
     (domainStoreActor ? DeleteDomainRequest(namespace, domainId)).mapTo[DeleteResult] map {
       case DeleteSuccess => (StatusCodes.OK, DeleteResponse())
-      case NotFound => notFoundError(s"Domain with namespace: $namespace and domainId: $domainId not found!")
+      case NotFound => NotFoundError
     }
   }
 }

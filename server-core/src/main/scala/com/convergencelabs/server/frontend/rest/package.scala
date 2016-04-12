@@ -23,8 +23,7 @@ package object rest {
 
   type RestResponse = Tuple2[StatusCode, ResponseMessage]
 
-  val InternalServerError: RestResponse = (StatusCodes.InternalServerError, ErrorResponse("Internal Server Error!"))
-
-  def duplicateError(message: String): RestResponse = (StatusCodes.Conflict, ErrorResponse(message))
-  def notFoundError(message: String): RestResponse = (StatusCodes.NotFound, ErrorResponse(message))
+  val InternalServerError: RestResponse = (StatusCodes.InternalServerError, ErrorResponse("internal_server_error"))
+  val DuplicateError: RestResponse = (StatusCodes.Conflict, ErrorResponse("duplicate_error"))
+  val NotFoundError: RestResponse = (StatusCodes.NotFound, ErrorResponse("not_found_error"))
 }
