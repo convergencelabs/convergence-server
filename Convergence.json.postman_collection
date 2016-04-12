@@ -3,7 +3,8 @@
 	"name": "Convergence",
 	"description": "",
 	"order": [
-		"6fbdb9f2-bb6e-786f-7b6d-960c559285b1"
+		"6fbdb9f2-bb6e-786f-7b6d-960c559285b1",
+		"9a2270c7-2e1a-767a-7944-66970ce19d46"
 	],
 	"folders": [
 		{
@@ -27,6 +28,19 @@
 			],
 			"owner": 0,
 			"collectionId": "daf05435-42df-8c67-0b6f-5c3789915874"
+		},
+		{
+			"id": "57203007-1034-baed-e1d5-a4e8b9657804",
+			"name": "DomainKeys",
+			"description": "",
+			"order": [
+				"fb8d6143-cbf0-833d-d102-09a4e2880ed8",
+				"6e932d3b-4717-e5f1-eb66-4146a113daee",
+				"1f74f824-fa12-c356-bea4-70bf5007d941",
+				"956c7747-6ac7-c944-bb6b-513955345220",
+				"c8f5e246-b130-17c0-f8f5-4eef5b4097cd"
+			],
+			"owner": 0
 		},
 		{
 			"id": "501f937b-5e18-c75c-070e-a1fe07234d32",
@@ -77,6 +91,26 @@
 			"folder": "501f937b-5e18-c75c-070e-a1fe07234d32"
 		},
 		{
+			"id": "1f74f824-fa12-c356-bea4-70bf5007d941",
+			"headers": "Content-Type: application/json\n",
+			"url": "http://localhost:8081/rest/domains/namespace1/domain1/keys?token={{token}}",
+			"preRequestScript": null,
+			"pathVariables": {},
+			"method": "POST",
+			"data": [],
+			"dataMode": "raw",
+			"version": 2,
+			"tests": null,
+			"currentHelper": "normal",
+			"helperAttributes": {},
+			"time": 1460432248081,
+			"name": "CreateDomainKey",
+			"description": "",
+			"collectionId": "daf05435-42df-8c67-0b6f-5c3789915874",
+			"responses": [],
+			"rawModeData": "{\n  \"id\": \"created-key\",\n  \"name\": \"Another Key\",\n  \"description\": \"A key created by postman\",\n  \"keyDate\": \"2015-09-21T12:32:43.000Z\",\n  \"key\": \"-----BEGIN PUBLIC KEY-----\\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlqHvXYPseLVx2vCSCipw\\nxOumeB2t3JFxXnQ1qC9QMcAydKT7oeTZEbJxgbpaeEy2QkH7J8drkfu78RBh9nFb\\nJ3yh3/cZS09wMM4NQsmqqpee4qHromwR1N4MgYAzDGcnl0iHeaYc56tHt5n5ENjG\\n+bjEULEGIFVbDs2MBxyswchyqRFGHse41uLxhybhDNkEQLUcqkbVesqVXGsz25Hi\\nBdxfYRJ9+2x70GwxDf0nBfZb1fvUFZnCDJHKO/wqv5k9BcuCDLUOdRgJa7+E721V\\nSvopddtRgEFnEWoOilcUWtF03CUy4tw3hv1VDcbXKsEma0KjP5IAvWFVI6dbDHeh\\nLQIDAQAB\\n-----END PUBLIC KEY-----\\n\",\n  \"enabled\": true\n}"
+		},
+		{
 			"id": "42c85dbc-7b02-fd32-d21a-23646337a335",
 			"headers": "",
 			"url": "http://localhost:8081/rest/domains/namespace1/domain1/models/people/person1?token={{token}}",
@@ -116,6 +150,25 @@
 			"folder": "26293e92-ecd5-5fb1-6efe-8b9a74c2a8ec"
 		},
 		{
+			"id": "6e932d3b-4717-e5f1-eb66-4146a113daee",
+			"headers": "",
+			"url": "http://localhost:8081/rest/domains/namespace1/domain1/keys/test?token={{token}}",
+			"preRequestScript": null,
+			"pathVariables": {},
+			"method": "GET",
+			"data": null,
+			"dataMode": "params",
+			"version": 2,
+			"tests": null,
+			"currentHelper": "normal",
+			"helperAttributes": {},
+			"time": 1460429084183,
+			"name": "GetDomainKey",
+			"description": "",
+			"collectionId": "daf05435-42df-8c67-0b6f-5c3789915874",
+			"responses": []
+		},
+		{
 			"id": "6fbdb9f2-bb6e-786f-7b6d-960c559285b1",
 			"headers": "Content-Type: application/json\n",
 			"url": "http://localhost:8081/rest/auth",
@@ -153,6 +206,44 @@
 			"collectionId": "daf05435-42df-8c67-0b6f-5c3789915874",
 			"responses": [],
 			"folder": "5401759a-f585-942f-07d2-71d50651ba11"
+		},
+		{
+			"id": "956c7747-6ac7-c944-bb6b-513955345220",
+			"headers": "",
+			"url": "http://localhost:8081/rest/domains/namespace1/domain1/keys/created-key?token={{token}}",
+			"preRequestScript": null,
+			"pathVariables": {},
+			"method": "DELETE",
+			"data": null,
+			"dataMode": "params",
+			"version": 2,
+			"tests": null,
+			"currentHelper": "normal",
+			"helperAttributes": {},
+			"time": 1460432639534,
+			"name": "DeleteDomainKey",
+			"description": "",
+			"collectionId": "daf05435-42df-8c67-0b6f-5c3789915874",
+			"responses": []
+		},
+		{
+			"id": "9a2270c7-2e1a-767a-7944-66970ce19d46",
+			"headers": "",
+			"url": "http://localhost:8081/rest/keygen?token={{token}}",
+			"preRequestScript": null,
+			"pathVariables": {},
+			"method": "GET",
+			"data": null,
+			"dataMode": "params",
+			"version": 2,
+			"tests": null,
+			"currentHelper": "normal",
+			"helperAttributes": {},
+			"time": 1460392319448,
+			"name": "KeyGen",
+			"description": "",
+			"collectionId": "daf05435-42df-8c67-0b6f-5c3789915874",
+			"responses": []
 		},
 		{
 			"id": "9f0f8a99-3355-4b09-7eb1-ce66fdc07aa1",
@@ -233,6 +324,45 @@
 			"collectionId": "daf05435-42df-8c67-0b6f-5c3789915874",
 			"responses": [],
 			"folder": "26293e92-ecd5-5fb1-6efe-8b9a74c2a8ec"
+		},
+		{
+			"id": "c8f5e246-b130-17c0-f8f5-4eef5b4097cd",
+			"headers": "Content-Type: application/json\n",
+			"url": "http://localhost:8081/rest/domains/namespace1/domain1/keys/created-key?token={{token}}",
+			"preRequestScript": null,
+			"pathVariables": {},
+			"method": "PUT",
+			"data": [],
+			"dataMode": "raw",
+			"version": 2,
+			"tests": null,
+			"currentHelper": "normal",
+			"helperAttributes": {},
+			"time": 1460432790915,
+			"name": "UpdateDomainKey",
+			"description": "",
+			"collectionId": "daf05435-42df-8c67-0b6f-5c3789915874",
+			"responses": [],
+			"rawModeData": "{\n  \"id\": \"created-key\",\n  \"name\": \"This was updated Key\",\n  \"description\": \"A key updated by postman\",\n  \"keyDate\": \"2015-09-21T12:32:43.000Z\",\n  \"key\": \"-----BEGIN PUBLIC KEY-----\\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlqHvXYPseLVx2vCSCipw\\nxOumeB2t3JFxXnQ1qC9QMcAydKT7oeTZEbJxgbpaeEy2QkH7J8drkfu78RBh9nFb\\nJ3yh3/cZS09wMM4NQsmqqpee4qHromwR1N4MgYAzDGcnl0iHeaYc56tHt5n5ENjG\\n+bjEULEGIFVbDs2MBxyswchyqRFGHse41uLxhybhDNkEQLUcqkbVesqVXGsz25Hi\\nBdxfYRJ9+2x70GwxDf0nBfZb1fvUFZnCDJHKO/wqv5k9BcuCDLUOdRgJa7+E721V\\nSvopddtRgEFnEWoOilcUWtF03CUy4tw3hv1VDcbXKsEma0KjP5IAvWFVI6dbDHeh\\nLQIDAQAB\\n-----END PUBLIC KEY-----\\n\",\n  \"enabled\": true\n}"
+		},
+		{
+			"id": "fb8d6143-cbf0-833d-d102-09a4e2880ed8",
+			"headers": "",
+			"url": "http://localhost:8081/rest/domains/namespace1/domain1/keys?token={{token}}",
+			"preRequestScript": null,
+			"pathVariables": {},
+			"method": "GET",
+			"data": null,
+			"dataMode": "params",
+			"version": 2,
+			"tests": null,
+			"currentHelper": "normal",
+			"helperAttributes": {},
+			"time": 1460429059072,
+			"name": "GetDomainKeys",
+			"description": "",
+			"collectionId": "daf05435-42df-8c67-0b6f-5c3789915874",
+			"responses": []
 		}
 	]
 }
