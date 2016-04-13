@@ -37,6 +37,10 @@ import com.convergencelabs.server.frontend.rest.DomainUserService.CreateUserResp
 import java.util.UUID
 import com.convergencelabs.server.datastore.UserStoreActor.GetUserByUid
 import com.convergencelabs.server.frontend.rest.DomainUserService.GetUserRestResponse
+import com.convergencelabs.server.datastore.DeleteResult
+import com.convergencelabs.server.datastore.DeleteSuccess
+import com.convergencelabs.server.datastore.NotFound
+import com.convergencelabs.server.datastore.UserStoreActor.DeleteDomainUser
 
 object DomainUserService {
   case class CreateUserRequest(username: String, firstName: Option[String], lastName: Option[String], email: Option[String], password: Option[String])
@@ -69,6 +73,8 @@ class DomainUserService(
         pathEnd {
           get {
             complete(getUserByUid(uid, domain))
+          } ~ delete {
+            complete(deleteUser(uid, domain))
           }
         }
       }
@@ -90,7 +96,14 @@ class DomainUserService(
   def getUserByUid(uid: String, domain: DomainFqn): Future[RestResponse] = {
     (domainRestActor ? DomainMessage(domain, GetUserByUid(uid))).mapTo[Option[DomainUser]] map {
       case Some(user) => (StatusCodes.OK, GetUserRestResponse(user))
-      case None => NotFoundError
+      case None       => NotFoundError
+    }
+  }
+
+  def deleteUser(uid: String, domain: DomainFqn): Future[RestResponse] = {
+    (domainRestActor ? DomainMessage(domain, DeleteDomainUser(uid))).mapTo[DeleteResult] map {
+      case DeleteSuccess => OkResponse
+      case NotFound      => NotFoundError
     }
   }
 }

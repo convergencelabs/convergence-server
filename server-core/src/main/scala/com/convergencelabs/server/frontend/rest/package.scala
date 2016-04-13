@@ -24,6 +24,7 @@ package object rest {
   type RestResponse = (StatusCode, ResponseMessage)
 
   val OkResponse: RestResponse = (StatusCodes.OK, SuccessRestResponse())
+  val CreateRestResponse: RestResponse = (StatusCodes.Created, SuccessRestResponse())
 
   val InternalServerError: RestResponse = (StatusCodes.InternalServerError, ErrorResponse("internal_server_error"))
   val DuplicateError: RestResponse = (StatusCodes.Conflict, ErrorResponse("duplicate_error"))

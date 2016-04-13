@@ -24,9 +24,21 @@ import akka.http.scaladsl.server.Directives.get
 import akka.http.scaladsl.server.Directives.pathEnd
 import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.segmentStringToPathMatcher
+import akka.http.scaladsl.server.Directives.delete
+import akka.http.scaladsl.server.Directives.entity
+import akka.http.scaladsl.server.Directives.post
+import akka.http.scaladsl.server.Directives.as
 import akka.pattern.ask
 import akka.util.Timeout
 import akka.http.scaladsl.server.Route
+import com.convergencelabs.server.datastore.DeleteResult
+import com.convergencelabs.server.datastore.DeleteSuccess
+import com.convergencelabs.server.datastore.NotFound
+import com.convergencelabs.server.datastore.CollectionStoreActor.DeleteCollection
+import com.convergencelabs.server.datastore.CreateResult
+import com.convergencelabs.server.datastore.CreateSuccess
+import com.convergencelabs.server.datastore.CollectionStoreActor.CreateCollection
+import com.convergencelabs.server.datastore.DuplicateValue
 
 object DomainCollectionService {
   case class GetCollectionsResponse(collections: List[CollectionInfo]) extends AbstractSuccessResponse
@@ -47,11 +59,17 @@ class DomainCollectionService(
       pathEnd {
         get {
           complete(getCollections(domain))
+        } ~ post {
+          entity(as[Collection]) { collection =>
+            complete(createCollection(domain, collection))
+          }
         }
       } ~ pathPrefix(Segment) { collectionId =>
         pathEnd {
           get {
             complete(getCollection(domain, collectionId))
+          } ~ delete {
+            complete(deleteCollection(domain, collectionId))
           }
         }
       }
@@ -68,7 +86,21 @@ class DomainCollectionService(
   def getCollection(domain: DomainFqn, collectionId: String): Future[RestResponse] = {
     (domainRestActor ? DomainMessage(domain, GetCollection(collectionId))).mapTo[Option[Collection]] map {
       case Some(collection) => (StatusCodes.OK, GetCollectionResponse(collection))
-      case None => NotFoundError
+      case None             => NotFoundError
+    }
+  }
+
+  def createCollection(domain: DomainFqn, collection: Collection): Future[RestResponse] = {
+    (domainRestActor ? DomainMessage(domain, CreateCollection(collection))).mapTo[CreateResult[Unit]] map {
+      case message: CreateSuccess[Unit] => CreateRestResponse
+      case DuplicateValue               => DuplicateError
+    }
+  }
+
+  def deleteCollection(domain: DomainFqn, collectionId: String): Future[RestResponse] = {
+    (domainRestActor ? DomainMessage(domain, DeleteCollection(collectionId))).mapTo[DeleteResult] map {
+      case DeleteSuccess => OkResponse
+      case NotFound      => NotFoundError
     }
   }
 }

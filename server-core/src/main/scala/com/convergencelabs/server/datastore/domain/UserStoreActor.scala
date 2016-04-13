@@ -9,6 +9,7 @@ import akka.actor.ActorLogging
 import akka.actor.Props
 import java.util.UUID
 import com.convergencelabs.server.datastore.UserStoreActor.GetUserByUid
+import com.convergencelabs.server.datastore.UserStoreActor.DeleteDomainUser
 
 object UserStoreActor {
   def props(userStore: DomainUserStore): Props = Props(new UserStoreActor(userStore))
@@ -22,16 +23,18 @@ object UserStoreActor {
     lastName: Option[String],
     email: Option[String],
     password: Option[String]) extends UserStoreRequest
+  case class DeleteDomainUser(uid: String) extends UserStoreRequest
 }
 
 class UserStoreActor private[datastore] (private[this] val userStore: DomainUserStore)
     extends StoreActor with ActorLogging {
 
   def receive: Receive = {
-    case GetUsers             => getAllUsers()
-    case message: GetUserByUid => getUserById(message)
-    case message: CreateUser  => createUser(message)
-    case message: Any         => unhandled(message)
+    case GetUsers                  => getAllUsers()
+    case message: GetUserByUid     => getUserById(message)
+    case message: CreateUser       => createUser(message)
+    case message: DeleteDomainUser => deleteUser(message)
+    case message: Any              => unhandled(message)
   }
 
   def getAllUsers(): Unit = {
@@ -48,5 +51,9 @@ class UserStoreActor private[datastore] (private[this] val userStore: DomainUser
 
   def getUserById(message: GetUserByUid): Unit = {
     reply(userStore.getDomainUserByUid(message.uid))
+  }
+
+  def deleteUser(message: DeleteDomainUser): Unit = {
+    reply(userStore.deleteDomainUser(message.uid))
   }
 }

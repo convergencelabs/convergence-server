@@ -15,6 +15,16 @@ import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
+import com.convergencelabs.server.datastore.DeleteResult
+import com.convergencelabs.server.datastore.DeleteSuccess
+import com.convergencelabs.server.datastore.NotFound
+import com.convergencelabs.server.datastore.CreateResult
+import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
+import com.convergencelabs.server.datastore.DuplicateValue
+import com.convergencelabs.server.datastore.CreateSuccess
+import com.convergencelabs.server.datastore.UpdateResult
+import com.convergencelabs.server.datastore.UpdateSuccess
+import com.convergencelabs.server.datastore.InvalidValue
 
 object CollectionStore {
   private val CollectionId = "collectionId"
@@ -45,12 +55,16 @@ class CollectionStore private[domain] (dbPool: OPartitionedDatabasePool)
     }
   }
 
-  def createCollection(collection: Collection): Try[Unit] = tryWithDb { db =>
-    db.save(collection.asODocument)
-    Unit
+  def createCollection(collection: Collection): Try[CreateResult[Unit]] = tryWithDb { db =>
+    try {
+      db.save(collection.asODocument)
+      CreateSuccess(())
+    } catch {
+      case e: ORecordDuplicatedException => DuplicateValue
+    }
   }
 
-  def updateCollection(collection: Collection): Try[Unit] = tryWithDb { db =>
+  def updateCollection(collection: Collection): Try[UpdateResult] = tryWithDb { db =>
     val updatedDoc = collection.asODocument
 
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM Collection WHERE collectionId = :collectionId")
@@ -59,15 +73,19 @@ class CollectionStore private[domain] (dbPool: OPartitionedDatabasePool)
 
     QueryUtil.enforceSingletonResultList(result) match {
       case Some(doc) =>
-        doc.merge(updatedDoc, false, false)
-        db.save(doc)
-        ()
-      case None =>
-        throw new IllegalArgumentException("Collection not found")
+        try {
+          doc.merge(updatedDoc, false, false)
+          db.save(doc)
+          UpdateSuccess
+        } catch {
+          case e: ORecordDuplicatedException => InvalidValue
+        }
+
+      case None => NotFound
     }
   }
 
-  def deleteCollection(collectionId: String): Try[Unit] = tryWithDb { db =>
+  def deleteCollection(collectionId: String): Try[DeleteResult] = tryWithDb { db =>
     val queryString =
       """DELETE FROM Collection
         |WHERE
@@ -77,8 +95,8 @@ class CollectionStore private[domain] (dbPool: OPartitionedDatabasePool)
     val params = Map(CollectionStore.CollectionId -> collectionId)
     val deleted: Int = db.command(command).execute(params.asJava)
     deleted match {
-      case 1 => Unit
-      case _ => throw new IllegalArgumentException("The model could not be deleted because it did not exist")
+      case 0 => NotFound
+      case _ => DeleteSuccess
     }
   }
 
@@ -96,7 +114,7 @@ class CollectionStore private[domain] (dbPool: OPartitionedDatabasePool)
 
   def getOrCreateCollection(collectionId: String): Try[Collection] = {
     this.ensureCollectionExists(collectionId)
-    this.getCollection(collectionId).map { x => x.get}
+    this.getCollection(collectionId).map { x => x.get }
   }
 
   def getAllCollections(

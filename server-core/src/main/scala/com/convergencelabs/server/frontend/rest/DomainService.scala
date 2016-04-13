@@ -37,8 +37,6 @@ import com.convergencelabs.server.domain.Domain
 
 case class DomainsResponse(domains: List[DomainFqn]) extends AbstractSuccessResponse
 case class DomainResponse(domain: DomainInfo) extends AbstractSuccessResponse
-case class CreateResponse() extends AbstractSuccessResponse
-case class DeleteResponse() extends AbstractSuccessResponse
 
 case class DomainInfo(
   id: String,
@@ -98,7 +96,7 @@ class DomainService(
   def createRequest(createRequest: CreateRequest, userId: String): Future[RestResponse] = {
     val CreateRequest(namespace, domainId, displayName) = createRequest
     (domainStoreActor ? CreateDomainRequest(namespace, domainId, displayName, userId)).mapTo[CreateResult[Unit]].map {
-      case result: CreateSuccess[Unit] => (StatusCodes.Created, CreateResponse())
+      case result: CreateSuccess[Unit] => CreateRestResponse
       case DuplicateValue              => DuplicateError
     }
   }
@@ -125,7 +123,7 @@ class DomainService(
 
   def deleteRequest(namespace: String, domainId: String): Future[RestResponse] = {
     (domainStoreActor ? DeleteDomainRequest(namespace, domainId)).mapTo[DeleteResult] map {
-      case DeleteSuccess => (StatusCodes.OK, DeleteResponse())
+      case DeleteSuccess => OkResponse
       case NotFound      => NotFoundError
     }
   }
