@@ -16,7 +16,7 @@ class ArrayInsertOperationMapperSpec
   "An ArrayInsertOperationMapper" when {
     "when converting ArrayInsertOperation operations" must {
       "correctly map and unmap a ArrayInsertOperation" in {
-        val op = ArrayInsertOperation("vid", true, 4, StringValue("aiom-test", "test"))
+        val op = ArrayInsertOperation("vid", true, 4, StringValue("aiom-test", "test")) // scalastyle:ignore magic.number
         val opDoc = op.asODocument
         val reverted = opDoc.asArrayInsertOperation
         op shouldBe reverted

@@ -142,8 +142,8 @@ class ModelManagerActorSpec
       false,
       true,
       true,
-      250,
-      500,
+      250, // scalastyle:ignore magic.number
+      500, // scalastyle:ignore magic.number
       false,
       false,
       Duration.of(0, ChronoUnit.MINUTES),

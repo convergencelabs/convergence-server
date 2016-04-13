@@ -19,7 +19,8 @@ import scala.util.Try
 import java.io.Reader
 import java.io.FileReader
 
-import ConvergenceJwtUtil._
+import ConvergenceJwtUtil.Issuer
+import ConvergenceJwtUtil.Audiance
 
 object ConvergenceJwtUtil {
 

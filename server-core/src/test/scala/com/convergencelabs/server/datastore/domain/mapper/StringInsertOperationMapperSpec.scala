@@ -17,7 +17,7 @@ class StringInsertOperationMapperSpec
   "An StringInsertOperationMapper" when {
     "when converting StringInsertOperation operations" must {
       "correctly map and unmap a StringInsertOperation" in {
-        val op = StringInsertOperation("vid", true, 4, "test")
+        val op = StringInsertOperation("vid", true, 4, "test") // scalastyle:ignore magic.number
         val opDoc = op.asODocument
         val reverted = opDoc.asStringInsertOperation
         op shouldBe reverted

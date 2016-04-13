@@ -43,8 +43,8 @@ class DomainConfigStoreSpec
             true,
             true,
             true,
-            250L,
-            500L,
+            250L, // scalastyle:ignore magic.number
+            500L, // scalastyle:ignore magic.number
             false,
             false,
             Duration.of(0, ChronoUnit.SECONDS),
@@ -62,8 +62,8 @@ class DomainConfigStoreSpec
           0L,
           true,
           true,
-          Duration.of(60, ChronoUnit.SECONDS),
-          Duration.of(360, ChronoUnit.SECONDS))
+          Duration.of(60, ChronoUnit.SECONDS), // scalastyle:ignore magic.number
+          Duration.of(360, ChronoUnit.SECONDS)) // scalastyle:ignore magic.number
 
         store.setModelSnapshotConfig(configToSet).success
         store.getModelSnapshotConfig().success.value shouldBe configToSet

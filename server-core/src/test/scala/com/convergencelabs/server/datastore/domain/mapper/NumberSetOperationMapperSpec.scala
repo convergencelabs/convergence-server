@@ -17,7 +17,7 @@ class NumberSetOperationMapperSpec
   "An NumberSetOperationMapper" when {
     "when converting NumberSetOperation operations" must {
       "correctly map and unmap a NumberSetOperation" in {
-        val op = NumberSetOperation("vid", true, 4)
+        val op = NumberSetOperation("vid", true, 4) // scalastyle:ignore magic.number
         val opDoc = op.asODocument
         val reverted = opDoc.asNumberSetOperation
         op shouldBe reverted

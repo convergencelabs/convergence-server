@@ -30,7 +30,7 @@ class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
   def getAdminUserName(): String = {
     "ConvergenceAdmin"
   }
-  
+
   def getModelSnapshotConfig(): Try[ModelSnapshotConfig] = tryWithDb { db =>
     val queryString = "SELECT modelSnapshotConfig FROM DomainConfig"
     val query = new OSQLSynchQuery[ODocument](queryString)

@@ -17,7 +17,7 @@ class ArrayRemoveOperationMapperSpec
   "An ArrayRemoveOperationMapper" when {
     "when converting ArrayRemoveOperation operations" must {
       "correctly map and unmap a ArrayRemoveOperation" in {
-        val op = ArrayRemoveOperation("vid", true, 4)
+        val op = ArrayRemoveOperation("vid", true, 4) // scalastyle:ignore magic.number
         val opDoc = op.asODocument
         val reverted = opDoc.asArrayRemoveOperation
         op shouldBe reverted

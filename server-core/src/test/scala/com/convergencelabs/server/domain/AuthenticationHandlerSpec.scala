@@ -230,7 +230,7 @@ object JwtGenerator {
     jwtClaims.setGeneratedJwtId()
     jwtClaims.setExpirationTimeMinutesInTheFuture(2)
     jwtClaims.setIssuedAtToNow()
-    jwtClaims.setNotBeforeMinutesInThePast(10)
+    jwtClaims.setNotBeforeMinutesInThePast(10) // scalastyle:ignore magic.number
 
     // Add claims the user is providing.
     jwtClaims.setSubject(username)

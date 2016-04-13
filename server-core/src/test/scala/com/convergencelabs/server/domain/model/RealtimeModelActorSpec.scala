@@ -213,19 +213,19 @@ class RealtimeModelActorSpec
         // FIXME we don't know how to stimulate this anymore because the operation
         // gets no oped because the VID doens't exists.  Maybe we need to first
         // create a VID that is an object and then target a string at it?
-        
-//        val badOp = StringInsertOperation("", false, 1, "bad op")
-//
-//        Mockito.when(modelOperationProcessor.processModelOperation(
-//          Matchers.any())).thenReturn(Failure(new IllegalArgumentException("Induced Exception for test: Invalid Operation")))
-//
-//        realtimeModelActor.tell(OperationSubmission(
-//          0L,
-//          modelData.metaData.version,
-//          badOp), client1.ref)
-//
-//        client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[RemoteClientClosed])
-//        client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ModelForceClose])
+
+        //        val badOp = StringInsertOperation("", false, 1, "bad op")
+        //
+        //        Mockito.when(modelOperationProcessor.processModelOperation(
+        //          Matchers.any())).thenReturn(Failure(new IllegalArgumentException("Induced Exception for test: Invalid Operation")))
+        //
+        //        realtimeModelActor.tell(OperationSubmission(
+        //          0L,
+        //          modelData.metaData.version,
+        //          badOp), client1.ref)
+        //
+        //        client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[RemoteClientClosed])
+        //        client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ModelForceClose])
       }
     }
 

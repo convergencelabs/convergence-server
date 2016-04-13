@@ -17,7 +17,7 @@ class ArrayReplaceOperationMapperSpec
   "An ArrayReplaceOperationMapper" when {
     "when converting ArrayReplaceOperation operations" must {
       "correctly map and unmap a ArrayReplaceOperation" in {
-        val op = ArrayReplaceOperation("vid", true, 4, StringValue("arom-test", "test"))
+        val op = ArrayReplaceOperation("vid", true, 4, StringValue("arom-test", "test")) // scalastyle:ignore magic.number
         val opDoc = op.asODocument
         val reverted = opDoc.asArrayReplaceOperation
         op shouldBe reverted

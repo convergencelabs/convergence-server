@@ -17,7 +17,7 @@ class StringRemoveOperationMapperSpec
   "An StringRemoveOperationMapper" when {
     "when converting StringRemoveOperation operations" must {
       "correctly map and unmap a StringRemoveOperation" in {
-        val op = StringRemoveOperation("vid", true, 4, "test")
+        val op = StringRemoveOperation("vid", true, 4, "test") // scalastyle:ignore magic.number
         val opDoc = op.asODocument
         val reverted = opDoc.asStringRemoveOperation
         op shouldBe reverted

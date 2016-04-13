@@ -24,7 +24,7 @@ class UserStoreSpec
   val DummyToken = "myToken"
   val User0 = User(cu0, "test")
   val tokenDurationMinutes = 5
-  val tokenDuration = Duration.ofSeconds(5)
+  val tokenDuration = Duration.ofSeconds(5) // scalastyle:ignore magic.number
 
   def createStore(dbPool: OPartitionedDatabasePool): UserStore = new UserStore(dbPool, tokenDuration)
 
@@ -79,7 +79,7 @@ class UserStoreSpec
 
     "validating tokens" must {
       "return true and a uid for a valid token" in withPersistenceStore { store =>
-        store.createToken(User0.uid, DummyToken, Date.from(Instant.now().plusSeconds(100)))
+        store.createToken(User0.uid, DummyToken, Date.from(Instant.now().plusSeconds(100))) // scalastyle:ignore magic.number
         store.validateToken(DummyToken).success.value shouldBe Some(cu0)
       }
 
