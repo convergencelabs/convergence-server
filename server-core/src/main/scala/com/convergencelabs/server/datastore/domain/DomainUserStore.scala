@@ -23,6 +23,17 @@ import com.convergencelabs.server.domain.UserLookUpField
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.HashTable
 import scala.collection.mutable.HashTable
+import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
+import com.convergencelabs.server.datastore.DuplicateValue
+import com.convergencelabs.server.datastore.CreateResult
+import com.convergencelabs.server.datastore.CreateSuccess
+import com.convergencelabs.server.datastore.DeleteResult
+import com.convergencelabs.server.datastore.NotFound
+import com.convergencelabs.server.datastore.DeleteSuccess
+import com.convergencelabs.server.datastore.UpdateResult
+import com.convergencelabs.server.datastore.UpdateSuccess
+import com.convergencelabs.server.datastore.UpdateResult
+import com.convergencelabs.server.datastore.InvalidValue
 
 /**
  * Manages the persistence of Domain Users.  This class manages both user profile records
@@ -55,23 +66,27 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    *
    * @return A String representing the created users uid.
    */
-  def createDomainUser(domainUser: DomainUser, password: Option[String]): Try[String] = tryWithDb { db =>
+  def createDomainUser(domainUser: DomainUser, password: Option[String]): Try[CreateResult[String]] = tryWithDb { db =>
     val userDoc = domainUser.asODocument
-    db.save(userDoc)
-    userDoc.reload()
+    try {
+      db.save(userDoc)
+      userDoc.reload()
 
-    val pwDoc = db.newInstance("UserCredential")
-    pwDoc.field("user", userDoc, OType.LINK) // FIXME verify this creates a link and now a new doc.
+      val pwDoc = db.newInstance("UserCredential")
+      pwDoc.field("user", userDoc, OType.LINK) // FIXME verify this creates a link and now a new doc.
 
-    password match {
-      case Some(pass) => pwDoc.field(Password, PasswordUtil.hashPassword(pass))
-      case None => pwDoc.field(Password, null, OType.STRING) // scalastyle:off null
+      password match {
+        case Some(pass) => pwDoc.field(Password, PasswordUtil.hashPassword(pass))
+        case None       => pwDoc.field(Password, null, OType.STRING) // scalastyle:off null
+      }
+
+      db.save(pwDoc)
+
+      val uid: String = userDoc.field(Uid, OType.STRING)
+      CreateSuccess(uid)
+    } catch {
+      case e: ORecordDuplicatedException => DuplicateValue
     }
-
-    db.save(pwDoc)
-
-    val uid: String = userDoc.field(Uid, OType.STRING)
-    uid
   }
 
   /**
@@ -79,11 +94,14 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    *
    * @param the uid of the user to delete.
    */
-  def deleteDomainUser(uid: String): Try[Unit] = tryWithDb { db =>
+  def deleteDomainUser(uid: String): Try[DeleteResult] = tryWithDb { db =>
     val command = new OCommandSQL("DELETE FROM User WHERE uid = :uid")
     val params = Map(Uid -> uid)
-    db.command(command).execute(params.asJava)
-    Unit
+    val count: Int = db.command(command).execute(params.asJava)
+    count match {
+      case 0 => NotFound
+      case _ => DeleteSuccess
+    }
   }
 
   /**
@@ -92,7 +110,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    *
    * @param domainUser The user to update.
    */
-  def updateDomainUser(domainUser: DomainUser): Try[Unit] = tryWithDb { db =>
+  def updateDomainUser(domainUser: DomainUser): Try[UpdateResult] = tryWithDb { db =>
     val updatedDoc = domainUser.asODocument
 
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE uid = :uid")
@@ -101,11 +119,14 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
 
     QueryUtil.enforceSingletonResultList(result) match {
       case Some(doc) =>
-        doc.merge(updatedDoc, false, false)
-        db.save(doc)
-        Unit
-      case None =>
-        throw new IllegalArgumentException("User not found")
+        try {
+          doc.merge(updatedDoc, false, false)
+          db.save(doc)
+          UpdateSuccess
+        } catch {
+          case e: ORecordDuplicatedException => InvalidValue
+        }
+      case None => NotFound
     }
   }
 
@@ -206,7 +227,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     result.asScala.toList match {
       case doc :: Nil => true
-      case _ => false
+      case _          => false
     }
   }
 
@@ -269,7 +290,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    * @param username The unique username of the user.
    * @param password The new password to use for internal authentication
    */
-  def setDomainUserPassword(username: String, password: String): Try[Unit] = tryWithDb { db =>
+  def setDomainUserPassword(username: String, password: String): Try[UpdateResult] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT * FROM UserCredential WHERE user.username = :username")
     val params = Map(Username -> username)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
@@ -278,8 +299,8 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
       case Some(doc) =>
         doc.field(Password, PasswordUtil.hashPassword(password))
         db.save(doc)
-        Unit
-      case None => throw new IllegalArgumentException("User not found when setting password.")
+        UpdateSuccess
+      case None => NotFound
     }
   }
 

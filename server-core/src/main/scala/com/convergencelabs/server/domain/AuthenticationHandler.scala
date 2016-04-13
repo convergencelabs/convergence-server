@@ -24,6 +24,10 @@ import grizzled.slf4j.Logging
 import scala.util.Try
 import scala.reflect.ClassTag
 import com.convergencelabs.server.datastore.domain.ApiKeyStore
+import com.convergencelabs.server.datastore.CreateResult
+import com.convergencelabs.server.datastore.CreateSuccess
+import com.convergencelabs.server.datastore.NotFound
+import com.convergencelabs.server.datastore.DuplicateValue
 
 object AuthenticationHandler {
   val AdminKeyId = "ConvergenceAdminKey"
@@ -40,14 +44,14 @@ class AuthenticationHandler(
   def authenticate(request: AuthenticationRequest): Future[AuthenticationResponse] = {
     request match {
       case message: PasswordAuthRequest => authenticatePassword(message)
-      case message: TokenAuthRequest => authenticateToken(message)
+      case message: TokenAuthRequest    => authenticateToken(message)
     }
   }
 
   private[this] def authenticatePassword(authRequest: PasswordAuthRequest): Future[AuthenticationResponse] = {
     val response = userStore.validateCredentials(authRequest.username, authRequest.password) match {
       case Success((true, Some(uid))) => AuthenticationSuccess(uid, authRequest.username)
-      case Success((false, _)) => AuthenticationFailure
+      case Success((false, _))        => AuthenticationFailure
       case Success((true, None)) => {
         // We validated the user, but could not get the user id.  This should not happen.
         logger.error(s"user with username '${authRequest.username}' had valid credentials, but a valid uid was not returned")
@@ -77,7 +81,7 @@ class AuthenticationHandler(
 
       getJWTPublicKey(keyId) match {
         case Some(publicKey) => authenticateTokenWithPublicKey(authRequest, publicKey)
-        case None => AuthenticationFailure
+        case None            => AuthenticationFailure
       }
     }
   }
@@ -104,15 +108,17 @@ class AuthenticationHandler(
       }
       case Success(None) => {
         createUserFromJWT(jwtClaims) match {
-          case Success(uid) => AuthenticationSuccess(uid, username)
-          case Failure(cause) => AuthenticationFailure
+          case Success(CreateSuccess(uid)) => AuthenticationSuccess(uid, username)
+          //TODO: Determine what to do on duplicate value exception
+          case Success(DuplicateValue)     => AuthenticationFailure
+          case Failure(cause)              => AuthenticationFailure
         }
       }
       case Failure(cause) => AuthenticationFailure
     }
   }
 
-  private[this] def createUserFromJWT(jwtClaims: JwtClaims): Try[String] = {
+  private[this] def createUserFromJWT(jwtClaims: JwtClaims): Try[CreateResult[String]] = {
     val username = jwtClaims.getSubject()
     val firstName = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.FirstName)
     val lastName = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.LastName)
@@ -125,7 +131,7 @@ class AuthenticationHandler(
     val keyPem: Option[String] = if (!AuthenticationHandler.AdminKeyId.equals(keyId)) {
       keyStore.getKey(keyId) match {
         case Success(Some(key)) if key.enabled => Some(key.key)
-        case _ => None
+        case _                                 => None
       }
     } else {
       domainConfigStore.getAdminKeyPair() match {

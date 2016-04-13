@@ -9,6 +9,9 @@ import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import com.convergencelabs.server.domain.DomainUser
 import com.convergencelabs.server.datastore.SortOrder
+import com.convergencelabs.server.datastore.DuplicateValue
+import com.convergencelabs.server.datastore.NotFound
+import com.convergencelabs.server.datastore.InvalidValue
 
 class DomainUserStoreSpec
     extends PersistenceStoreSpec[DomainUserStore]("/dbfiles/n1-d1.json.gz")
@@ -41,21 +44,21 @@ class DomainUserStoreSpec
       "not allow duplicate uids" in withPersistenceStore { store =>
         store.createDomainUser(User10, None).success
         val duplicate = DomainUser(User10.uid, User11.username, User11.firstName, User11.lastName, User11.email)
-        store.createDomainUser(duplicate, None).failed.get shouldBe a[ORecordDuplicatedException]
+        store.createDomainUser(duplicate, None).success.get shouldBe DuplicateValue
       }
 
       "not allow duplicate usernames" in withPersistenceStore { store =>
         store.createDomainUser(User10, None).success
 
         val duplicate = DomainUser(User11.uid, User10.username, User11.firstName, User11.lastName, User11.email)
-        store.createDomainUser(duplicate, None).failed.get shouldBe a[ORecordDuplicatedException]
+        store.createDomainUser(duplicate, None).success.get shouldBe DuplicateValue
       }
 
       "not allow duplicate emails" in withPersistenceStore { store =>
         store.createDomainUser(User10, None).success
 
         val duplicate = DomainUser(User11.uid, User11.username, User11.firstName, User11.lastName, User10.email)
-        store.createDomainUser(duplicate, None).failed.get shouldBe a[ORecordDuplicatedException]
+        store.createDomainUser(duplicate, None).success.get shouldBe DuplicateValue
       }
 
       "correctly set the password, if one was provided" in withPersistenceStore { store =>
@@ -125,18 +128,18 @@ class DomainUserStoreSpec
         store.createDomainUser(User10, None).success
         store.createDomainUser(User11, None).success
         val original2Dup = DomainUser(User11.uid, User11.username, User11.firstName, User11.lastName, User10.email)
-        store.updateDomainUser(original2Dup).failed.get shouldBe a[ORecordDuplicatedException]
+        store.updateDomainUser(original2Dup).success.get shouldBe InvalidValue
       }
 
       "not allow setting duplicate username" in withPersistenceStore { store =>
         store.createDomainUser(User10, None).success
         store.createDomainUser(User11, None).success
         val original2Dup = DomainUser(User11.uid, User10.username, User11.firstName, User11.lastName, User11.email)
-        store.updateDomainUser(original2Dup).failed.get shouldBe a[ORecordDuplicatedException]
+        val result = store.updateDomainUser(original2Dup).success.get shouldBe InvalidValue
       }
 
       "throw exception if user does not exist" in withPersistenceStore { store =>
-        store.updateDomainUser(User10).failed.get shouldBe a[IllegalArgumentException]
+        store.updateDomainUser(User10).success.get shouldBe NotFound
       }
 
       "currectly update an existing user, if unique properties are not violoated" in withPersistenceStore { store =>
@@ -215,7 +218,7 @@ class DomainUserStoreSpec
       }
 
       "throw exception if user does not exist" in withPersistenceStore { store =>
-        store.setDomainUserPassword("DoesNotExist", "doesn't matter").failed.get shouldBe a[IllegalArgumentException]
+        store.setDomainUserPassword("DoesNotExist", "doesn't matter").success.get shouldBe NotFound
       }
     }
 

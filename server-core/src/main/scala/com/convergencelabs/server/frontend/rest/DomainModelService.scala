@@ -86,7 +86,7 @@ class DomainModelService(
       domain,
       GetModel(model))).mapTo[Option[Model]] map {
         case Some(model) => (StatusCodes.OK, GetModelResponse(model))
-        case None => (StatusCodes.OK, ErrorResponse("model_not_found"))
+        case None => NotFoundError
       }
   }
 }

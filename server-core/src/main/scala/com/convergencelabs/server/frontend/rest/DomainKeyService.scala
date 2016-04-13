@@ -35,6 +35,17 @@ import com.convergencelabs.server.datastore.ApiKeyStoreActor.GetDomainApiKey
 import com.convergencelabs.server.datastore.ApiKeyStoreActor.CreateDomainApiKey
 import com.convergencelabs.server.datastore.ApiKeyStoreActor.DeleteDomainApiKey
 import com.convergencelabs.server.datastore.ApiKeyStoreActor.UpdateDomainApiKey
+import com.convergencelabs.server.datastore.CreateResult
+import com.convergencelabs.server.datastore.CreateResult
+import com.convergencelabs.server.datastore.CreateSuccess
+import com.convergencelabs.server.datastore.DuplicateValue
+import com.convergencelabs.server.datastore.UpdateResult
+import com.convergencelabs.server.datastore.UpdateSuccess
+import com.convergencelabs.server.datastore.DeleteResult
+import com.convergencelabs.server.datastore.DeleteSuccess
+import com.convergencelabs.server.datastore.NotFound
+import org.omg.CORBA.DynAnyPackage.Invalid
+import com.convergencelabs.server.datastore.InvalidValue
 
 object DomainKeyService {
   case class GetKeysRestResponse(keys: List[TokenPublicKey]) extends AbstractSuccessResponse
@@ -83,22 +94,29 @@ class DomainKeyService(
   def getKey(domain: DomainFqn, keyId: String): Future[RestResponse] = {
     (domainRestActor ? DomainMessage(domain, GetDomainApiKey(keyId))).mapTo[Option[TokenPublicKey]] map {
       case Some(key) => (StatusCodes.OK, GetKeyRestResponse(key))
-      case None => (StatusCodes.OK, ErrorResponse("not_found"))
+      case None      => NotFoundError
     }
   }
 
   def createKey(domain: DomainFqn, key: TokenPublicKey): Future[RestResponse] = {
-    (domainRestActor ? DomainMessage(domain, CreateDomainApiKey(key))) map (
-      x => (StatusCodes.OK, SuccessRestResponse()))
+    (domainRestActor ? DomainMessage(domain, CreateDomainApiKey(key))).mapTo[CreateResult[Unit]] map {
+      case result: CreateSuccess[Unit] => OkResponse
+      case DuplicateValue              => DuplicateError
+    }
   }
 
   def updateKey(domain: DomainFqn, key: TokenPublicKey): Future[RestResponse] = {
-    (domainRestActor ? DomainMessage(domain, UpdateDomainApiKey(key))) map (
-      x => (StatusCodes.OK, SuccessRestResponse()))
+    (domainRestActor ? DomainMessage(domain, UpdateDomainApiKey(key))).mapTo[UpdateResult] map {
+      case UpdateSuccess => OkResponse
+      case InvalidValue => InvalidValueError
+      case NotFound => NotFoundError
+    }
   }
 
   def deleteKey(domain: DomainFqn, keyId: String): Future[RestResponse] = {
-    (domainRestActor ? DomainMessage(domain, DeleteDomainApiKey(keyId))) map (
-      x => (StatusCodes.OK, SuccessRestResponse()))
+    (domainRestActor ? DomainMessage(domain, DeleteDomainApiKey(keyId))).mapTo[DeleteResult] map {
+      case DeleteSuccess => OkResponse
+      case NotFound => NotFoundError
+    }
   }
 }
