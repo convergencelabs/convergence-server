@@ -28,6 +28,7 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider
 import java.security.spec.PKCS8EncodedKeySpec
 import java.io.StringReader
 import com.convergencelabs.server.datastore.domain.ApiKeyStore
+import com.convergencelabs.server.datastore.CreateSuccess
 
 class AuthenticationHandlerSpec()
     extends TestKit(ActorSystem("AuthManagerActorSpec"))
@@ -151,7 +152,7 @@ class AuthenticationHandlerSpec()
     val lazyUserName = "newUserName"
     val lazyUser = DomainUser(null, lazyUserName, None, None, None)
     Mockito.when(userStore.getDomainUserByUsername(lazyUserName)).thenReturn(Success(None))
-    Mockito.when(userStore.createDomainUser(lazyUser, None)).thenReturn(Success(lazyUserUid))
+    Mockito.when(userStore.createDomainUser(lazyUser, None)).thenReturn(Success(CreateSuccess(lazyUserUid)))
 
     val brokenUserName = "brokenUser"
     Mockito.when(userStore.getDomainUserByUsername(brokenUserName)).thenReturn(Failure(new IllegalStateException("induced error for testing")))

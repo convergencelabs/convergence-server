@@ -123,10 +123,9 @@ class DomainStore private[datastore] (dbPool: OPartitionedDatabasePool)
     val command = new OCommandSQL("DELETE FROM Domain WHERE id = :id")
     val params = Map(Id -> id)
     val count: Int = db.command(command).execute(params.asJava)
-    if (count > 0) {
-      DeleteSuccess
-    } else {
-      NotFound
+    count match {
+      case 0 => NotFound
+      case _ => DeleteSuccess
     }
   }
 

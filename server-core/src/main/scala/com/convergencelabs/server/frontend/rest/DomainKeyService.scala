@@ -44,6 +44,8 @@ import com.convergencelabs.server.datastore.UpdateSuccess
 import com.convergencelabs.server.datastore.DeleteResult
 import com.convergencelabs.server.datastore.DeleteSuccess
 import com.convergencelabs.server.datastore.NotFound
+import org.omg.CORBA.DynAnyPackage.Invalid
+import com.convergencelabs.server.datastore.InvalidValue
 
 object DomainKeyService {
   case class GetKeysRestResponse(keys: List[TokenPublicKey]) extends AbstractSuccessResponse
@@ -106,6 +108,7 @@ class DomainKeyService(
   def updateKey(domain: DomainFqn, key: TokenPublicKey): Future[RestResponse] = {
     (domainRestActor ? DomainMessage(domain, UpdateDomainApiKey(key))).mapTo[UpdateResult] map {
       case UpdateSuccess => OkResponse
+      case InvalidValue => InvalidValueError
       case NotFound => NotFoundError
     }
   }

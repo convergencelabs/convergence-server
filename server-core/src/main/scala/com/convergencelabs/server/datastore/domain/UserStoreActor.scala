@@ -4,9 +4,7 @@ import com.convergencelabs.server.datastore.domain.DomainUserStore
 import com.convergencelabs.server.domain.DomainUser
 
 import UserStoreActor.CreateUser
-import UserStoreActor.CreateUserResponse
 import UserStoreActor.GetUsers
-import UserStoreActor.GetUsersResponse
 import akka.actor.ActorLogging
 import akka.actor.Props
 
@@ -15,10 +13,7 @@ object UserStoreActor {
 
   trait UserStoreRequest
   case object GetUsers extends UserStoreRequest
-  case class GetUsersResponse(users: List[DomainUser])
-
   case class CreateUser(user: DomainUser, password: String) extends UserStoreRequest
-  case class CreateUserResponse(uid: String)
 }
 
 class UserStoreActor private[datastore] (private[this] val userStore: DomainUserStore)
@@ -31,10 +26,10 @@ class UserStoreActor private[datastore] (private[this] val userStore: DomainUser
   }
 
   def getAllUsers(): Unit = {
-    mapAndReply(userStore.getAllDomainUsers(None, None, None, None))(GetUsersResponse(_))
+    reply(userStore.getAllDomainUsers(None, None, None, None))
   }
 
   def createUser(message: CreateUser): Unit = {
-    mapAndReply(userStore.createDomainUser(message.user, Some(message.password)))(CreateUserResponse(_))
+    reply(userStore.createDomainUser(message.user, Some(message.password)))
   }
 }

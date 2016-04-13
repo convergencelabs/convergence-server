@@ -27,6 +27,7 @@ package object rest {
 
   val InternalServerError: RestResponse = (StatusCodes.InternalServerError, ErrorResponse("internal_server_error"))
   val DuplicateError: RestResponse = (StatusCodes.Conflict, ErrorResponse("duplicate_error"))
+  val InvalidValueError: RestResponse = (StatusCodes.BadRequest, ErrorResponse("invalid_value_error"))
   val NotFoundError: RestResponse = (StatusCodes.NotFound, ErrorResponse("not_found_error"))
   val AuthFailureError: RestResponse = (StatusCodes.Unauthorized, ErrorResponse("unauthorized"))
 }
