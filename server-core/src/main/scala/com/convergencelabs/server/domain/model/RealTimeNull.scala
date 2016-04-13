@@ -12,7 +12,7 @@ class RealTimeNull(
     extends RealTimeValue(value.id, model, parent, parentField, List()) {
 
   def data(): Null = {
-    null
+    null  // scalastyle:ignore null
   }
 
   def processOperation(op: DiscreteOperation): Try[Unit] = Try {

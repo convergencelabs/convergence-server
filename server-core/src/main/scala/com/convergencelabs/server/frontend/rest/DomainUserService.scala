@@ -35,11 +35,14 @@ import com.convergencelabs.server.datastore.CreateSuccess
 import com.convergencelabs.server.datastore.DuplicateValue
 import com.convergencelabs.server.frontend.rest.DomainUserService.CreateUserResponse
 import java.util.UUID
+import com.convergencelabs.server.datastore.UserStoreActor.GetUserByUid
+import com.convergencelabs.server.frontend.rest.DomainUserService.GetUserRestResponse
 
 object DomainUserService {
-  case class CreateUserRequest(username: String, firstName: Option[String], lastName: Option[String], email: Option[String], password: String)
+  case class CreateUserRequest(username: String, firstName: Option[String], lastName: Option[String], email: Option[String], password: Option[String])
   case class CreateUserResponse(uid: String) extends AbstractSuccessResponse
   case class GetUsersRestResponse(users: List[DomainUser]) extends AbstractSuccessResponse
+  case class GetUserRestResponse(user: DomainUser) extends AbstractSuccessResponse
 
 }
 
@@ -59,7 +62,13 @@ class DomainUserService(
           complete(getAllUsersRequest(domain))
         } ~ post {
           entity(as[CreateUserRequest]) { request =>
-            complete(createUserRequest(request))
+            complete(createUserRequest(request, domain))
+          }
+        }
+      } ~ pathPrefix(Segment) { uid =>
+        pathEnd {
+          get {
+            complete(getUserByUid(uid, domain))
           }
         }
       }
@@ -70,12 +79,18 @@ class DomainUserService(
     (domainRestActor ? DomainMessage(domain, GetUsers)).mapTo[List[DomainUser]] map (users => (StatusCodes.OK, GetUsersRestResponse(users)))
   }
 
-  def createUserRequest(createRequest: CreateUserRequest): Future[RestResponse] = {
+  def createUserRequest(createRequest: CreateUserRequest, domain: DomainFqn): Future[RestResponse] = {
     val CreateUserRequest(username, firstName, lastName, email, password) = createRequest
-    // TODO: Determine Correct Place to Create UID
-    (domainRestActor ? CreateUser(DomainUser(UUID.randomUUID().toString(), username, firstName, lastName, email), password)).mapTo[CreateResult[String]].map {
+    (domainRestActor ? DomainMessage(domain, CreateUser(username, firstName, lastName, email, password))).mapTo[CreateResult[String]].map {
       case result: CreateSuccess[String] => (StatusCodes.Created, CreateUserResponse(result.result))
-      case DuplicateValue              => DuplicateError
+      case DuplicateValue                => DuplicateError
+    }
+  }
+
+  def getUserByUid(uid: String, domain: DomainFqn): Future[RestResponse] = {
+    (domainRestActor ? DomainMessage(domain, GetUserByUid(uid))).mapTo[Option[DomainUser]] map {
+      case Some(user) => (StatusCodes.OK, GetUserRestResponse(user))
+      case None => NotFoundError
     }
   }
 }

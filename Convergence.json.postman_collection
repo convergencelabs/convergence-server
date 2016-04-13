@@ -69,7 +69,9 @@
 			"name": "DomainUsers",
 			"description": "",
 			"order": [
-				"30265c2b-e52d-14a6-f3e8-6d733bd70d09"
+				"30265c2b-e52d-14a6-f3e8-6d733bd70d09",
+				"0316e2bb-9066-0770-8712-3f548e85975a",
+				"9f66f7bb-5f32-5729-0a36-408ecf30b35b"
 			],
 			"owner": 0,
 			"collectionId": "daf05435-42df-8c67-0b6f-5c3789915874"
@@ -80,6 +82,26 @@
 	"remoteLink": "",
 	"public": false,
 	"requests": [
+		{
+			"id": "0316e2bb-9066-0770-8712-3f548e85975a",
+			"headers": "Content-Type: application/json\n",
+			"url": "http://localhost:8081/rest/domains/namespace1/domain1/users?token={{token}}",
+			"preRequestScript": null,
+			"pathVariables": {},
+			"method": "POST",
+			"data": [],
+			"dataMode": "raw",
+			"version": 2,
+			"tests": null,
+			"currentHelper": "normal",
+			"helperAttributes": {},
+			"time": 1460567821306,
+			"name": "CreateDomainUser",
+			"description": "",
+			"collectionId": "e1aaa557-528d-55b9-a6cc-139fd2008011",
+			"responses": [],
+			"rawModeData": "{\n    \"username\":\"myUser\",\n    \"firstName\":\"My\",\n    \"lastName\":\"User\",\n    \"email\":\"my@email.com\",\n    \"password\":\"password\"\n}"
+		},
 		{
 			"id": "1193b2bb-9710-7bd7-75bb-34d20654bdf4",
 			"headers": "Content-Type: application/json\n",
@@ -403,6 +425,25 @@
 			"collectionId": "e1aaa557-528d-55b9-a6cc-139fd2008011",
 			"responses": [],
 			"folder": "5a36e4d6-1a30-cc8e-eb6f-f122cd08b587"
+		},
+		{
+			"id": "9f66f7bb-5f32-5729-0a36-408ecf30b35b",
+			"headers": "",
+			"url": "http://localhost:8081/rest/domains/namespace1/domain1/users/u1?token={{token}}",
+			"preRequestScript": null,
+			"pathVariables": {},
+			"method": "GET",
+			"data": null,
+			"dataMode": "params",
+			"version": 2,
+			"tests": null,
+			"currentHelper": "normal",
+			"helperAttributes": {},
+			"time": 1460569811232,
+			"name": "GetDomainUserByUID",
+			"description": "",
+			"collectionId": "e1aaa557-528d-55b9-a6cc-139fd2008011",
+			"responses": []
 		},
 		{
 			"id": "c3aad50e-51ba-5fff-a9af-97c61205df5e",
