@@ -53,10 +53,10 @@ class ApiKeyStore private[datastore] (
   def createKey(key: TokenPublicKey): Try[CreateResult[Unit]] = tryWithDb { db =>
     try {
       db.save(key.asODocument)
+      CreateSuccess(())
     } catch {
       case e: ORecordDuplicatedException => DuplicateValue
     }
-    CreateSuccess(())
   }
 
   def updateKey(key: TokenPublicKey): Try[UpdateResult] = tryWithDb { db =>
