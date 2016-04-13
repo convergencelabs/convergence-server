@@ -5,7 +5,6 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration.FiniteDuration
 import com.convergencelabs.server.ProtocolConfiguration
-import com.convergencelabs.server.datastore.PersistenceProvider
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
@@ -19,20 +18,21 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 import scala.concurrent.duration.Duration
+import com.convergencelabs.server.datastore.DomainStore
 
 object DomainManagerActor {
   val RelativeActorPath = "domainManager"
 
   def props(
-    convergencePersistence: PersistenceProvider,
+    domainStore: DomainStore,
     protocolConfig: ProtocolConfiguration): Props = Props(
     new DomainManagerActor(
-      convergencePersistence,
+      domainStore,
       protocolConfig))
 }
 
 class DomainManagerActor(
-  private[this] val convergencePersistence: PersistenceProvider,
+  private[this] val domainStore: DomainStore,
   private[this] val protocolConfig: ProtocolConfiguration)
     extends Actor with ActorLogging {
 
@@ -41,7 +41,6 @@ class DomainManagerActor(
   private[this] val cluster = Cluster(context.system)
   private[this] implicit val ec = context.dispatcher
 
-  private[this] val domainStore = convergencePersistence.domainStore
 
   private[this] val domainShutdownDelay = Duration.fromNanos(
         context.system.settings.config.getDuration("convergence.domain-shutdown-delay").toNanos)

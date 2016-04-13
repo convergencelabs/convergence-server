@@ -7,7 +7,7 @@ import scala.concurrent.duration.Duration
 import scala.util.Failure
 import scala.util.Success
 
-import com.convergencelabs.server.datastore.PersistenceProvider
+import com.convergencelabs.server.datastore.DomainStore
 import com.convergencelabs.server.domain.RestDomainActor.Shutdown
 import com.convergencelabs.server.domain.RestDomainManagerActor.DomainMessage
 import com.convergencelabs.server.domain.RestDomainManagerActor.ScheduledShutdown
@@ -38,8 +38,7 @@ class RestDomainManagerActor(dbPool: OPartitionedDatabasePool)
   private[this] val cluster = Cluster(context.system)
   private[this] implicit val ec = context.dispatcher
 
-  private[this] val persistenceProvider = new PersistenceProvider(dbPool)
-  private[this] val domainStore = persistenceProvider.domainStore
+  private[this] val domainStore = new DomainStore(dbPool)
 
   private[this] val domainShutdownDelay2 =
     context.system.settings.config.getDuration("convergence.rest-domain-shutdown-delay")

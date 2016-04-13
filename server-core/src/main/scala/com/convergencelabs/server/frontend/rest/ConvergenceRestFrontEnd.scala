@@ -5,7 +5,7 @@ import scala.language.postfixOps
 
 import com.convergencelabs.server.datastore.AuthStoreActor
 import com.convergencelabs.server.datastore.DomainStoreActor
-import com.convergencelabs.server.datastore.PersistenceProvider
+import com.convergencelabs.server.datastore.DomainStore
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 import com.convergencelabs.server.domain.RestDomainManagerActor
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
@@ -50,11 +50,11 @@ class ConvergenceRestFrontEnd(
     val domainActor = system.actorOf(DomainStoreActor.props(dbPool))
     val domainManagerActor = system.actorOf(RestDomainManagerActor.props(dbPool))
 
-    val persistenceProvider = new PersistenceProvider(dbPool)
+    val domainStore = new DomainStore(dbPool)
     val dbPoolManager = system.actorOf(
       DomainPersistenceManagerActor.props(
         baseUri,
-        persistenceProvider.domainStore),
+        domainStore),
       DomainPersistenceManagerActor.RelativePath)
     // Down to here
 

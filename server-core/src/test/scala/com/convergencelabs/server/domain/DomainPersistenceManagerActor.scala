@@ -10,7 +10,6 @@ import scala.util.Success
 import org.junit.runner.RunWith
 import org.mockito.Mockito
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.Finders
 import org.scalatest.WordSpecLike
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.mock.MockitoSugar
@@ -18,7 +17,6 @@ import org.scalatest.mock.MockitoSugar
 import com.convergencelabs.server.HeartbeatConfiguration
 import com.convergencelabs.server.ProtocolConfiguration
 import com.convergencelabs.server.datastore.DomainStore
-import com.convergencelabs.server.datastore.PersistenceProvider
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.util.MockDomainPersistenceManagerActor
 import com.typesafe.config.ConfigFactory
@@ -78,8 +76,6 @@ class DomainManagerActorSpec()
     Mockito.when(provider.validateConnection()).thenReturn(true)
     domainPersistence.underlyingActor.mockProviders = Map(domainFqn -> provider)
 
-    val convergencePersistence = mock[PersistenceProvider]
-    Mockito.when(convergencePersistence.domainStore).thenReturn(domainStore)
 
     val protocolConfig = ProtocolConfiguration(
       2 seconds,
@@ -90,6 +86,6 @@ class DomainManagerActorSpec()
         0 seconds))
 
     val domainManagerActor = system.actorOf(
-      DomainManagerActor.props(convergencePersistence, protocolConfig))
+      DomainManagerActor.props(domainStore, protocolConfig))
   }
 }

@@ -19,7 +19,7 @@ import com.convergencelabs.server.domain.DomainDatabaseInfo
 import com.orientechnologies.orient.core.exception.OValidationException
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
-class DomainStore private[datastore] (dbPool: OPartitionedDatabasePool)
+class DomainStore (dbPool: OPartitionedDatabasePool)
     extends AbstractDatabasePersistence(dbPool)
     with Logging {
 

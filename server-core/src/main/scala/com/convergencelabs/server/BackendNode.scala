@@ -1,9 +1,8 @@
 package com.convergencelabs.server
 
-import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
-import com.convergencelabs.server.datastore.PersistenceProvider
+import com.convergencelabs.server.datastore.DomainStore
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 import com.convergencelabs.server.domain.DomainManagerActor
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
@@ -24,18 +23,18 @@ class BackendNode(system: ActorSystem) extends Logging {
     val password = dbConfig.getString("password")
 
     val dbPool = new OPartitionedDatabasePool(fullUri, password, password)
-    val persistenceProvider = new PersistenceProvider(dbPool)
+    val domainStore = new DomainStore(dbPool)
 
     val protocolConfig = ProtocolConfigUtil.loadConfig(system.settings.config)
 
     val dbPoolManager = system.actorOf(
       DomainPersistenceManagerActor.props(
         baseUri,
-        persistenceProvider.domainStore),
+        domainStore),
       DomainPersistenceManagerActor.RelativePath)
 
     system.actorOf(DomainManagerActor.props(
-      persistenceProvider,
+      domainStore,
       protocolConfig),
       DomainManagerActor.RelativeActorPath)
 
