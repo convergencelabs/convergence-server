@@ -35,7 +35,7 @@ class ApiKeyStoreSpec
 
   def createStore(dbPool: OPartitionedDatabasePool): ApiKeyStore = new ApiKeyStore(dbPool)
 
-  "A DomainConfigStore" when {
+  "A ApiKeyStore" when {
     "retrieving domain keys" must {
       "return the correct list of all keys" in withPersistenceStore { store =>
         store.getKeys(None, None).success.get shouldBe keys

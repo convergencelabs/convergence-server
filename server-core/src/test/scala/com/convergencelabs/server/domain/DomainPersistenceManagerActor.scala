@@ -69,6 +69,7 @@ class DomainManagerActorSpec()
 
     val domainStore = mock[DomainStore]
     Mockito.when(domainStore.getDomainByFqn(domainFqn)).thenReturn(Success(Some(domain)))
+    Mockito.when(domainStore.getDomainByFqn(nonExistingDomain)).thenReturn(Success(None))
     Mockito.when(domainStore.domainExists(domainFqn)).thenReturn(Success(true))
     Mockito.when(domainStore.domainExists(nonExistingDomain)).thenReturn(Success(false))
 

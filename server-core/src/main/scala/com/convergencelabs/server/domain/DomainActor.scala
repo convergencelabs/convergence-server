@@ -14,12 +14,10 @@ import org.jose4j.jwt.consumer.JwtConsumerBuilder
 import org.jose4j.jwt.consumer.InvalidJwtException
 import java.io.IOException
 import org.jose4j.jwt.MalformedClaimException
-import scala.util.control.NonFatal
 import scala.collection.mutable.ListBuffer
 import org.jose4j.jwt.JwtClaims
 import java.security.PublicKey
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.server.datastore.ConfigurationStore
 import java.util.UUID
 import scala.util.Success
 import scala.util.Failure
