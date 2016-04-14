@@ -23,6 +23,9 @@ import akka.http.scaladsl.server.directives.ParameterDirectives.string2NR
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
 import akka.pattern.ask
 import akka.util.Timeout
+import akka.http.scaladsl.model.HttpRequest
+import akka.http.scaladsl.model.headers.Authorization
+import akka.http.scaladsl.model.headers.GenericHttpCredentials
 
 case class AuthenticationFailed(ok: Boolean, error: String) extends ResponseMessage
 
@@ -34,21 +37,26 @@ class Authenticator(authActor: ActorRef, timeout: Timeout, executionContext: Exe
   def validateToken(token: String): Future[Option[String]] = {
     (authActor ? ValidateRequest(token)).mapTo[ValidateResponse] map {
       case ValidateSuccess(uid) => Some(uid)
-      case ValidateFailure => None
+      case ValidateFailure      => None
     }
   }
 
-  val requireAuthenticated: Directive1[String] = {
-    parameter("token".?).flatMap {
-      case Some(token) =>
-        onSuccess(validateToken(token)).flatMap {
-          case Some(user) =>
-            provide(user)
-          case None =>
-            complete(AuthFailureError)
+  def requireAuthenticated(request: HttpRequest): Directive1[String] = {
+    val auth = for {
+      Authorization(GenericHttpCredentials(scheme, _, params)) <- request.header[Authorization]
+    } yield (scheme, params)
+
+    auth match {
+      case Some(("token", params)) if params.size == 1 && params.isDefinedAt("") => {
+        params.get("") match {
+          case Some(token) => onSuccess(validateToken(token)).flatMap {
+            case Some(user) => provide(user)
+            case None       => complete(AuthFailureError)
+          }
+          case None => complete(AuthFailureError)
         }
-      case None =>
-        complete(AuthFailureError)
+      }
+      case None => complete(AuthFailureError)
     }
   }
 }

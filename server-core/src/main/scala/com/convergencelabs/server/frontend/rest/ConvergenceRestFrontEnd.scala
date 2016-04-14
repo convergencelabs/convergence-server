@@ -17,6 +17,7 @@ import akka.http.scaladsl.server.Directive.addDirectiveApply
 import akka.http.scaladsl.server.Directives.enhanceRouteWithConcatenation
 import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.segmentStringToPathMatcher
+import akka.http.scaladsl.server.Directives.extractRequest
 import akka.http.scaladsl.server.RouteResult.route2HandlerFlow
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
@@ -70,10 +71,12 @@ class ConvergenceRestFrontEnd(
         // You can call the auth service without being authenticated
         authService.route ~
           // Everything else must be authenticated
-          authenticator.requireAuthenticated { userId =>
+        extractRequest { request =>
+          authenticator.requireAuthenticated(request) { userId =>
             domainService.route(userId) ~
             keyGenService.route()
           }
+        }
       }
     }
 
