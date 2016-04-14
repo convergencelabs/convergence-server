@@ -29,7 +29,7 @@ class DomainStore (dbPool: OPartitionedDatabasePool)
   private[this] val Owner = "owner"
   private[this] val Uid = "uid"
 
-  def createDomain(domain: Domain, dbUsername: String, dbPassword: String): Try[CreateResult[Unit]] = tryWithDb { db =>
+  def createDomain(domain: Domain, dbName: String, dbUsername: String, dbPassword: String): Try[CreateResult[Unit]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE uid = :uid")
     val params = Map(Uid -> domain.owner)
 
@@ -39,6 +39,7 @@ class DomainStore (dbPool: OPartitionedDatabasePool)
         case Some(user) => {
           val doc = domain.asODocument
           doc.field(Owner, user)
+          doc.field("dbName", dbName)
           doc.field("dbUsername", dbUsername)
           doc.field("dbPassword", dbPassword)
           db.save(doc)
@@ -71,7 +72,7 @@ class DomainStore (dbPool: OPartitionedDatabasePool)
   }
 
   def getDomainDatabaseInfo(domainFqn: DomainFqn): Try[Option[DomainDatabaseInfo]] = tryWithDb { db =>
-    val queryString = "SELECT id, dbUsername, dbPassword FROM Domain WHERE namespace = :namespace AND domainId = :domainId"
+    val queryString = "SELECT dbName, dbUsername, dbPassword FROM Domain WHERE namespace = :namespace AND domainId = :domainId"
     val query = new OSQLSynchQuery[ODocument](queryString)
 
     val params = Map(
@@ -81,7 +82,7 @@ class DomainStore (dbPool: OPartitionedDatabasePool)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
     QueryUtil.mapSingletonList(result) { doc =>
-      DomainDatabaseInfo(doc.field("id"), doc.field("dbUsername"), doc.field("dbPassword"))
+      DomainDatabaseInfo(doc.field("dbName"), doc.field("dbUsername"), doc.field("dbPassword"))
     }
   }
 

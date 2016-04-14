@@ -3,6 +3,7 @@ INSERT INTO Domain SET
   namespace = "namespace1",
   domainId = "domain2",
   displayName = "Test Domain 2",
+  dbName = "namespace1-domain2",
   dbUsername = "admin",
   dbPassword = "admin",
   owner = (SELECT FROM User WHERE uid = 'cu0');

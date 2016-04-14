@@ -5,4 +5,4 @@ trait DomainDBController {
   def deleteDomain(id: String): Unit
 }
 
-case class DBConfig(id: String, username: String, password: String)
+case class DBConfig(dbName: String, username: String, password: String)

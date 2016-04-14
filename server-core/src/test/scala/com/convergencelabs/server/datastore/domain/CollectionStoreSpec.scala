@@ -17,6 +17,8 @@ import java.util.concurrent.TimeUnit
 import java.time.Duration
 import com.convergencelabs.server.domain.ModelSnapshotConfig
 import com.convergencelabs.server.domain.model.Collection
+import com.convergencelabs.server.datastore.DuplicateValue
+import com.convergencelabs.server.datastore.NotFound
 
 // scalastyle:off magic.number
 class CollectionStoreSpec
@@ -69,7 +71,7 @@ class CollectionStoreSpec
 
       "not create a collection that is not a duplicate collection id" in withPersistenceStore { store =>
         val collection = Collection(peopleCollectionId, "a name", true, Some(snapshotConfig))
-        store.createCollection(collection).failure.exception shouldBe a[ORecordDuplicatedException]
+        store.createCollection(collection).success.value shouldBe DuplicateValue
       }
     }
 
@@ -91,9 +93,9 @@ class CollectionStoreSpec
         store.getCollection(peopleCollectionId).success.value.value shouldBe updated
       }
 
-      "fail on a collection that does not exist" in withPersistenceStore { store =>
+      "return NotFound on a collection that does not exist" in withPersistenceStore { store =>
         val toUpdate = Collection(carsCollectionId, "", false, None)
-        store.updateCollection(toUpdate).failure
+        store.updateCollection(toUpdate).success.value shouldBe NotFound
       }
     }
 
@@ -137,9 +139,9 @@ class CollectionStoreSpec
         store.getCollection(teamCollectionId).success.value shouldBe defined
       }
 
-      "return a failure for deleting a non-existent collection" in withPersistenceStore { store =>
+      "return NotFound for deleting a non-existent collection" in withPersistenceStore { store =>
         store.getCollection(carsCollectionId).success.value shouldBe None
-        store.deleteCollection(carsCollectionId).failure
+        store.deleteCollection(carsCollectionId).success.value shouldBe NotFound
       }
     }
 

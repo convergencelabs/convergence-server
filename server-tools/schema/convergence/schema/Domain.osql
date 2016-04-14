@@ -24,6 +24,9 @@ CREATE Property Domain.owner LINK User;
 ALTER PROPERTY Domain.owner MANDATORY true;
 ALTER PROPERTY Domain.owner NOTNULL true;
 
+#Domain.dbName
+CREATE Property Domain.dbName STRING;
+
 #Domain.dbUsername
 CREATE Property Domain.dbUsername STRING;
 
@@ -32,4 +35,5 @@ CREATE Property Domain.dbPassword STRING;
 
 #Domain Indexes
 CREATE INDEX Domain.id ON Domain (id) UNIQUE;
+CREATE INDEX Domain.dbName ON Domain (dbName) UNIQUE;
 CREATE INDEX Domain.namespace_domainId ON Domain (namespace, domainId) UNIQUE_HASH_INDEX;

@@ -64,25 +64,25 @@ class DomainStoreSpec
     "creating a domain" must {
       "insert the domain record into the database" in withPersistenceStore { store =>
         val fqn = DomainFqn("test", "test4")
-        val domainConfig = Domain(
+        val domain = Domain(
           "t4",
           fqn,
           "Test Domain 4",
           owner)
 
-        store.createDomain(domainConfig, root, root).success
-        store.getDomainByFqn(fqn).success.get.value shouldBe domainConfig
-        store.getDomainDatabaseInfo(fqn).success.get.value shouldBe DomainDatabaseInfo(domainConfig.id, root, root)
+        store.createDomain(domain, "t4", root, root).success
+        store.getDomainByFqn(fqn).success.get.value shouldBe domain
+        store.getDomainDatabaseInfo(fqn).success.get.value shouldBe DomainDatabaseInfo("t4", root, root)
       }
 
       "return a failure if the domain exists" in withPersistenceStore { store =>
-        val domainConfig = Domain(
+        val domain = Domain(
           "t1",
           ns1d1,
           "Test Domain 1",
           owner)
 
-        store.createDomain(domainConfig, root, root).success.get shouldBe DuplicateValue
+        store.createDomain(domain, "t1", root, root).success.get shouldBe DuplicateValue
       }
     }
 
