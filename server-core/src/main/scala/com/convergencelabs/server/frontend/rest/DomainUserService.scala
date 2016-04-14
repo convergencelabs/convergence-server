@@ -41,6 +41,7 @@ import com.convergencelabs.server.datastore.DeleteResult
 import com.convergencelabs.server.datastore.DeleteSuccess
 import com.convergencelabs.server.datastore.NotFound
 import com.convergencelabs.server.datastore.UserStoreActor.DeleteDomainUser
+import com.convergencelabs.server.datastore.InvalidValue
 
 object DomainUserService {
   case class CreateUserRequest(username: String, firstName: Option[String], lastName: Option[String], email: Option[String], password: Option[String])
@@ -90,6 +91,7 @@ class DomainUserService(
     (domainRestActor ? DomainMessage(domain, CreateUser(username, firstName, lastName, email, password))).mapTo[CreateResult[String]].map {
       case result: CreateSuccess[String] => (StatusCodes.Created, CreateUserResponse(result.result))
       case DuplicateValue                => DuplicateError
+      case InvalidValue                  => InvalidValueError
     }
   }
 

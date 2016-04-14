@@ -28,6 +28,7 @@ import com.convergencelabs.server.datastore.CreateResult
 import com.convergencelabs.server.datastore.CreateSuccess
 import com.convergencelabs.server.datastore.NotFound
 import com.convergencelabs.server.datastore.DuplicateValue
+import com.convergencelabs.server.datastore.InvalidValue
 
 object AuthenticationHandler {
   val AdminKeyId = "ConvergenceAdminKey"
@@ -109,8 +110,9 @@ class AuthenticationHandler(
       case Success(None) => {
         createUserFromJWT(jwtClaims) match {
           case Success(CreateSuccess(uid)) => AuthenticationSuccess(uid, username)
-          //TODO: Determine what to do on duplicate value exception
+          // FIXME: Determine what to do on duplicate value exception
           case Success(DuplicateValue)     => AuthenticationFailure
+          case Success(InvalidValue)       => AuthenticationFailure
           case Failure(cause)              => AuthenticationFailure
         }
       }

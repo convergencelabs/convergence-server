@@ -11,6 +11,6 @@ package object datastore {
 
   sealed trait UpdateResult
   case object UpdateSuccess extends UpdateResult
-  case object InvalidValue extends UpdateResult
+  case object InvalidValue extends UpdateResult with CreateResult[Nothing]
   case object NotFound extends UpdateResult with DeleteResult
 }

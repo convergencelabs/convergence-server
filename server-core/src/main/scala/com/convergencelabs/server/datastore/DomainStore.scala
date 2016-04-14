@@ -45,8 +45,7 @@ class DomainStore (dbPool: OPartitionedDatabasePool)
           db.save(doc)
           CreateSuccess(())
         }
-        // TODO: How to handle exception
-        case None => throw new IllegalArgumentException("Invalid Domain Owner")
+        case None => InvalidValue
       }
     } catch {
       case e: ORecordDuplicatedException => DuplicateValue

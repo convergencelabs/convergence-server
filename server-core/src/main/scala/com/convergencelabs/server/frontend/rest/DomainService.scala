@@ -34,6 +34,7 @@ import com.convergencelabs.server.datastore.DeleteResult
 import com.convergencelabs.server.datastore.DeleteSuccess
 import com.convergencelabs.server.datastore.NotFound
 import com.convergencelabs.server.domain.Domain
+import com.convergencelabs.server.datastore.InvalidValue
 
 case class DomainsResponse(domains: List[DomainFqn]) extends AbstractSuccessResponse
 case class DomainResponse(domain: DomainInfo) extends AbstractSuccessResponse
@@ -98,6 +99,7 @@ class DomainService(
     (domainStoreActor ? CreateDomainRequest(namespace, domainId, displayName, userId)).mapTo[CreateResult[Unit]].map {
       case result: CreateSuccess[Unit] => CreateRestResponse
       case DuplicateValue              => DuplicateError
+      case InvalidValue                 => InvalidValueError
     }
   }
 

@@ -102,6 +102,7 @@ class DomainKeyService(
     (domainRestActor ? DomainMessage(domain, CreateDomainApiKey(key))).mapTo[CreateResult[Unit]] map {
       case result: CreateSuccess[Unit] => OkResponse
       case DuplicateValue              => DuplicateError
+      case InvalidValue                 => InvalidValueError
     }
   }
 

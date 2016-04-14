@@ -39,6 +39,7 @@ import com.convergencelabs.server.datastore.CreateResult
 import com.convergencelabs.server.datastore.CreateSuccess
 import com.convergencelabs.server.datastore.CollectionStoreActor.CreateCollection
 import com.convergencelabs.server.datastore.DuplicateValue
+import com.convergencelabs.server.datastore.InvalidValue
 
 object DomainCollectionService {
   case class GetCollectionsResponse(collections: List[CollectionInfo]) extends AbstractSuccessResponse
@@ -94,6 +95,7 @@ class DomainCollectionService(
     (domainRestActor ? DomainMessage(domain, CreateCollection(collection))).mapTo[CreateResult[Unit]] map {
       case message: CreateSuccess[Unit] => CreateRestResponse
       case DuplicateValue               => DuplicateError
+      case InvalidValue                 => InvalidValueError
     }
   }
 
