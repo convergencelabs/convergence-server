@@ -55,6 +55,8 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
   private[this] implicit val formats = Serialization.formats(NoTypeHints)
 
   def processModelOperation(modelOperation: ModelOperation): Try[Unit] = tryWithDb { db =>
+    // TODO this shuould all be in a transaction, but orientdb has a problem with this.
+    
     // Apply the op.
     applyOperationToModel(modelOperation.modelFqn, modelOperation.op, db)
 
@@ -67,7 +69,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     Unit
   }
 
-  private[this] def updateModelMetaData(fqn: ModelFqn, timestamp: Instant, db: ODatabaseDocumentTx): Unit = {
+  private[this] def updateModelMetaData(fqn: ModelFqn, timestamp: Instant, db: ODatabaseDocumentTx): Try[Unit] = Try {
     val queryString =
       """UPDATE Model SET
         |  version = eval('version + 1'),
@@ -84,7 +86,6 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
       "timestamp" -> Date.from(timestamp))
 
     val result: Object = db.command(updateCommand).execute(params.asJava)
-    db.commit()
     Unit
   }
 
@@ -118,32 +119,25 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
   // scalastyle:on cyclomatic.complexity
 
   private[this] def applyArrayInsertOperation(fqn: ModelFqn, operation: ArrayInsertOperation, db: ODatabaseDocumentTx): Unit = {
-    getModelRid(fqn) match {
-      case Success(Some(rid)) => {
-        val value = OrientDataValueBuilder.dataValueToODocument(operation.value, rid)
-        value.save()
+    val value = OrientDataValueBuilder.dataValueToODocument(operation.value, getModelRid(fqn, db))
+    value.save()
 
-        val queryString =
-          s"""UPDATE ArrayValue SET
+    val queryString =
+      s"""UPDATE ArrayValue SET
              |  children = arrayInsert(children, :index, :value)
              |WHERE
              |  vid = :vid AND
              |  model.collectionId = :collectionId AND
              |  model.modelId = :modelId""".stripMargin
-        val updateCommand = new OCommandSQL(queryString)
-        val params = Map(
-          VID -> operation.id,
-          CollectionId -> fqn.collectionId,
-          ModelId -> fqn.modelId,
-          Index -> operation.index,
-          Value -> value)
-        db.command(updateCommand).execute(params.asJava)
-        db.commit()
-        Unit
-      }
-      case Success(None) => ??? // FIXME: Handle model doesn't exist
-      case Failure(error) => ??? // FIXME: Handle failure looking up model
-    }
+    val updateCommand = new OCommandSQL(queryString)
+    val params = Map(
+      VID -> operation.id,
+      CollectionId -> fqn.collectionId,
+      ModelId -> fqn.modelId,
+      Index -> operation.index,
+      Value -> value)
+    db.command(updateCommand).execute(params.asJava)
+    ()
   }
 
   private[this] def applyArrayRemoveOperation(
@@ -167,34 +161,26 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
 
   private[this] def applyArrayReplaceOperation(
     fqn: ModelFqn, operation: ArrayReplaceOperation, db: ODatabaseDocumentTx): Unit = {
-    getModelRid(fqn) match {
-      case Success(Some(rid)) => {
-        val value = OrientDataValueBuilder.dataValueToODocument(operation.value, rid)
-        value.save()
-        db.commit()
+    val value = OrientDataValueBuilder.dataValueToODocument(operation.value, getModelRid(fqn, db))
+    value.save()
+    db.commit()
 
-        val queryString =
-          s"""UPDATE ArrayValue SET
+    val queryString =
+      s"""UPDATE ArrayValue SET
              |  children = arrayReplace(children, :index, :value)
              |WHERE
              |  model.collectionId = :collectionId AND
              |  model.modelId = :modelId""".stripMargin
-        val updateCommand = new OCommandSQL(queryString)
+    val updateCommand = new OCommandSQL(queryString)
 
-        val params = Map(
-          VID -> operation.id,
-          CollectionId -> fqn.collectionId,
-          ModelId -> fqn.modelId,
-          Index -> operation.index,
-          Value -> value)
-        db.command(updateCommand).execute(params.asJava)
-        db.commit()
-
-        Unit
-      }
-      case Success(None) => ??? // FIXME: Handle model doesn't exist
-      case Failure(error) => ??? // FIXME: Handle failure looking up model
-    }
+    val params = Map(
+      VID -> operation.id,
+      CollectionId -> fqn.collectionId,
+      ModelId -> fqn.modelId,
+      Index -> operation.index,
+      Value -> value)
+    db.command(updateCommand).execute(params.asJava)
+    ()
   }
 
   private[this] def applyArrayMoveOperation(fqn: ModelFqn, operation: ArrayMoveOperation, db: ODatabaseDocumentTx): Unit = {
@@ -214,91 +200,76 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
       "toIndex" -> operation.toIndex)
     db.command(updateCommand).execute(params.asJava)
     db.commit()
+    ()
   }
 
   private[this] def applyArraySetOperation(fqn: ModelFqn, operation: ArraySetOperation, db: ODatabaseDocumentTx): Unit = {
-    getModelRid(fqn) match {
-      case Success(Some(rid)) => {
-        val children = operation.value map (v => OrientDataValueBuilder.dataValueToODocument(v, rid))
-        children.foreach { child => child.save() }
-        db.commit()
+    val children = operation.value map (v => OrientDataValueBuilder.dataValueToODocument(v, getModelRid(fqn, db)))
+    children.foreach { child => child.save() }
+    db.commit()
 
-        val params = Map(VID -> operation.id, CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, Value -> children.asJava)
-        val queryString =
-          s"""UPDATE ArrayValue
+    val params = Map(VID -> operation.id, CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, Value -> children.asJava)
+    val queryString =
+      s"""UPDATE ArrayValue
              |SET
              |  children = :value
              |WHERE
              |  vid = : vid AND
              |  model.collectionId = :collectionId AND
              |  model.modelId = :modelId""".stripMargin
-        val updateCommand = new OCommandSQL(queryString)
-        db.command(updateCommand).execute(params.asJava)
-        db.commit()
-        Unit
-      }
-      case Success(None) => ??? // FIXME: Handle model doesn't exist
-      case Failure(error) => ??? // FIXME: Handle failure looking up mod
-    }
+    val updateCommand = new OCommandSQL(queryString)
+    db.command(updateCommand).execute(params.asJava)
+    db.commit()
+    Unit
   }
 
   private[this] def applyObjectAddPropertyOperation(fqn: ModelFqn, operation: ObjectAddPropertyOperation, db: ODatabaseDocumentTx): Unit = {
-    getModelRid(fqn) match {
-      case Success(Some(rid)) => {
-        val value = OrientDataValueBuilder.dataValueToODocument(operation.value, rid)
-        value.save()
-        db.commit()
+    val value = OrientDataValueBuilder.dataValueToODocument(operation.value, getModelRid(fqn, db))
+    value.save()
+    db.commit()
 
-        val child = "children." + operation.property
-        val queryString =
-          s"""UPDATE ObjectValue SET
+    val child = "children." + operation.property
+    val queryString =
+      s"""UPDATE ObjectValue SET
              |  $child = :value
              |WHERE
              |  vid = :vid AND
              |  model.collectionId = :collectionId AND
              |  model.modelId = :modelId""".stripMargin
-        val updateCommand = new OCommandSQL(queryString)
-        val params = Map(
-          VID -> operation.id,
-          CollectionId -> fqn.collectionId,
-          ModelId -> fqn.modelId,
-          Value -> value)
-        db.command(updateCommand).execute(params.asJava)
-        db.commit()
-      }
-      case Success(None) => ??? // FIXME: Handle model doesn't exist
-      case Failure(error) => ??? // FIXME: Handle failure looking up model
-    }
+    val updateCommand = new OCommandSQL(queryString)
+    val params = Map(
+      VID -> operation.id,
+      CollectionId -> fqn.collectionId,
+      ModelId -> fqn.modelId,
+      Value -> value)
+    db.command(updateCommand).execute(params.asJava)
+    db.commit()
+    ()
   }
 
   private[this] def applyObjectSetPropertyOperation(
     fqn: ModelFqn, operation: ObjectSetPropertyOperation, db: ODatabaseDocumentTx): Unit = {
-    getModelRid(fqn) match {
-      case Success(Some(rid)) => {
-        val value = OrientDataValueBuilder.dataValueToODocument(operation.value, rid)
-        value.save()
-        db.commit()
+    val value = OrientDataValueBuilder.dataValueToODocument(operation.value, getModelRid(fqn, db))
+    value.save()
+    db.commit()
 
-        val pathString = "children." + operation.property
-        val queryString =
-          s"""UPDATE ObjectValue SET
+    val pathString = "children." + operation.property
+    val queryString =
+      s"""UPDATE ObjectValue SET
              |  $pathString = :value
              |WHERE
              |  vid = :vid AND
              |  model.collectionId = :collectionId AND
              |  model.modelId = :modelId""".stripMargin
-        val updateCommand = new OCommandSQL(queryString)
-        val params = Map(
-          VID -> operation.id,
-          CollectionId -> fqn.collectionId,
-          ModelId -> fqn.modelId,
-          Value -> value)
-        db.command(updateCommand).execute(params.asJava)
-        db.commit()
-      }
-      case Success(None) => ??? // FIXME: Handle model doesn't exist
-      case Failure(error) => ??? // FIXME: Handle failure looking up model
-    }
+    val updateCommand = new OCommandSQL(queryString)
+    val params = Map(
+      VID -> operation.id,
+      CollectionId -> fqn.collectionId,
+      ModelId -> fqn.modelId,
+      Value -> value)
+    db.command(updateCommand).execute(params.asJava)
+    db.commit()
+    ()
   }
 
   private[this] def applyObjectRemovePropertyOperation(fqn: ModelFqn, operation: ObjectRemovePropertyOperation, db: ODatabaseDocumentTx): Unit = {
@@ -320,31 +291,26 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
   }
 
   private[this] def applyObjectSetOperation(fqn: ModelFqn, operation: ObjectSetOperation, db: ODatabaseDocumentTx): Unit = {
-    getModelRid(fqn) match {
-      case Success(Some(rid)) => {
-        val children = operation.value map { case (k, v) => (k, OrientDataValueBuilder.dataValueToODocument(v, rid)) }
-        children.values foreach { child => child.save() }
-        db.commit()
+    val children = operation.value map { case (k, v) => (k, OrientDataValueBuilder.dataValueToODocument(v, getModelRid(fqn, db))) }
+    children.values foreach { child => child.save() }
+    db.commit()
 
-        val queryString =
-          s"""UPDATE ObjectValue SET
+    val queryString =
+      s"""UPDATE ObjectValue SET
              |  children = :value
              |WHERE
              |  vid = :vid AND
              |  model.collectionId = :collectionId AND
              |  model.modelId = :modelId""".stripMargin
-        val updateCommand = new OCommandSQL(queryString)
-        val params = Map(
-          VID -> operation.id,
-          CollectionId -> fqn.collectionId,
-          ModelId -> fqn.modelId,
-          Value -> children.asJava)
-        db.command(updateCommand).execute(params.asJava)
-        db.commit()
-      }
-      case Success(None) => ??? // FIXME: Handle model doesn't exist
-      case Failure(error) => ??? // FIXME: Handle failure looking up mode
-    }
+    val updateCommand = new OCommandSQL(queryString)
+    val params = Map(
+      VID -> operation.id,
+      CollectionId -> fqn.collectionId,
+      ModelId -> fqn.modelId,
+      Value -> children.asJava)
+    db.command(updateCommand).execute(params.asJava)
+    db.commit()
+    ()
   }
 
   private[this] def applyStringInsertOperation(fqn: ModelFqn, operation: StringInsertOperation, db: ODatabaseDocumentTx): Unit = {
@@ -404,7 +370,6 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
   }
 
   private[this] def applyNumberAddOperation(fqn: ModelFqn, operation: NumberAddOperation, db: ODatabaseDocumentTx): Unit = {
-
     val value = operation.value
     val queryString =
       s"""UPDATE DoubleValue SET
@@ -419,7 +384,6 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
       CollectionId -> fqn.collectionId,
       ModelId -> fqn.modelId)
     db.command(updateCommand).execute(params.asJava)
-    db.commit()
   }
 
   private[this] def applyNumberSetOperation(fqn: ModelFqn, operation: NumberSetOperation, db: ODatabaseDocumentTx): Unit = {
@@ -454,10 +418,9 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
       ModelId -> fqn.modelId,
       Value -> operation.value)
     db.command(updateCommand).execute(params.asJava)
-    db.commit()
   }
 
-  private[this] def getModelRid(fqn: ModelFqn): Try[Option[OIdentifiable]] = tryWithDb { db =>
+  private[this] def getModelRid(fqn: ModelFqn, db: ODatabaseDocumentTx): OIdentifiable = {
     val queryString =
       """SELECT
         |FROM Model
@@ -470,9 +433,9 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
       ModelId -> fqn.modelId)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     result.asScala.toList match {
-      case first :: Nil => Some(first)
-      case first :: rest => None
-      case Nil => None
+      case first :: Nil => first
+      case _ =>
+        throw new IllegalArgumentException("The model does not exist: " + fqn)
     }
   }
 }
