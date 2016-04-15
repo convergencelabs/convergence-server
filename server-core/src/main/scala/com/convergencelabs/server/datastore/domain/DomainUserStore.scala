@@ -68,25 +68,23 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    */
   def createDomainUser(domainUser: DomainUser, password: Option[String]): Try[CreateResult[String]] = tryWithDb { db =>
     val userDoc = domainUser.asODocument
-    try {
-      db.save(userDoc)
-      userDoc.reload()
+    db.save(userDoc)
+    userDoc.reload()
 
-      val pwDoc = db.newInstance("UserCredential")
-      pwDoc.field("user", userDoc, OType.LINK) // FIXME verify this creates a link and now a new doc.
+    val pwDoc = db.newInstance("UserCredential")
+    pwDoc.field("user", userDoc, OType.LINK) // FIXME verify this creates a link and now a new doc.
 
-      password match {
-        case Some(pass) => pwDoc.field(Password, PasswordUtil.hashPassword(pass))
-        case None       => pwDoc.field(Password, null, OType.STRING) // scalastyle:off null
-      }
-
-      db.save(pwDoc)
-
-      val uid: String = userDoc.field(Uid, OType.STRING)
-      CreateSuccess(uid)
-    } catch {
-      case e: ORecordDuplicatedException => DuplicateValue
+    password match {
+      case Some(pass) => pwDoc.field(Password, PasswordUtil.hashPassword(pass))
+      case None => pwDoc.field(Password, null, OType.STRING) // scalastyle:off null
     }
+
+    db.save(pwDoc)
+
+    val uid: String = userDoc.field(Uid, OType.STRING)
+    CreateSuccess(uid)
+  } recover {
+    case e: ORecordDuplicatedException => DuplicateValue
   }
 
   /**
@@ -227,7 +225,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     result.asScala.toList match {
       case doc :: Nil => true
-      case _          => false
+      case _ => false
     }
   }
 

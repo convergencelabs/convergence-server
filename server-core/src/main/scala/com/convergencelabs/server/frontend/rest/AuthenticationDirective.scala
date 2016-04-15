@@ -37,26 +37,18 @@ class Authenticator(authActor: ActorRef, timeout: Timeout, executionContext: Exe
   def validateToken(token: String): Future[Option[String]] = {
     (authActor ? ValidateRequest(token)).mapTo[ValidateResponse] map {
       case ValidateSuccess(uid) => Some(uid)
-      case ValidateFailure      => None
+      case ValidateFailure => None
     }
   }
 
   def requireAuthenticated(request: HttpRequest): Directive1[String] = {
-    val auth = for {
-      Authorization(GenericHttpCredentials(scheme, _, params)) <- request.header[Authorization]
-    } yield (scheme, params)
-
-    auth match {
-      case Some(("token", params)) if params.size == 1 && params.isDefinedAt("") => {
-        params.get("") match {
-          case Some(token) => onSuccess(validateToken(token)).flatMap {
-            case Some(user) => provide(user)
-            case None       => complete(AuthFailureError)
-          }
+    request.header[Authorization] match {
+      case Some(Authorization(GenericHttpCredentials("token", _, params))) if params.keySet == Set("") =>
+        onSuccess(validateToken(params(""))).flatMap {
+          case Some(user) => provide(user)
           case None => complete(AuthFailureError)
         }
-      }
-      case None => complete(AuthFailureError)
+      case _ => complete(AuthFailureError)
     }
   }
 }
