@@ -24,6 +24,7 @@ import scala.util.Success
 import scala.util.Failure
 import com.convergencelabs.server.UnknownErrorResponse
 import scala.util.Try
+import akka.actor.Status
 
 class ModelManagerActor(
   private[this] val domainFqn: DomainFqn,
@@ -130,7 +131,7 @@ class ModelManagerActor(
 
         sender ! ModelDeleted
       case Success(false) => sender ! ModelNotFound
-      case Failure(cause) => ??? // FIXME
+      case Failure(cause) => sender ! Status.Failure
     }
   }
 

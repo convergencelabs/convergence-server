@@ -55,8 +55,8 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
   private[this] implicit val formats = Serialization.formats(NoTypeHints)
 
   def processModelOperation(modelOperation: ModelOperation): Try[Unit] = tryWithDb { db =>
-    // TODO this shuould all be in a transaction, but orientdb has a problem with this.
-    
+    // TODO this should all be in a transaction, but orientdb has a problem with this.
+
     // Apply the op.
     applyOperationToModel(modelOperation.modelFqn, modelOperation.op, db)
 
