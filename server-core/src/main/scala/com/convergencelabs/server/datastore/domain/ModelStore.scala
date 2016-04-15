@@ -1,6 +1,7 @@
 package com.convergencelabs.server.datastore.domain
 
 import java.util.{ List => JavaList }
+import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.util.Try
@@ -30,6 +31,9 @@ import com.orientechnologies.orient.core.id.ORID
 import java.util.Date
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.datastore.domain.mapper.ObjectValueMapper.ODocumentToObjectValue
+import java.util.ArrayList
+import com.orientechnologies.orient.core.db.record.OIdentifiable
+import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 
 object ModelStore {
   private val ModelClass = "Model"
@@ -39,6 +43,8 @@ object ModelStore {
   private val Version = "version"
   private val CreatedTime = "createdTime"
   private val ModifiedTime = "modifiedTime"
+
+  private val ModelIndex = "Model.collectionId_modelId"
 }
 
 class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
@@ -47,20 +53,8 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
   private[this] implicit val formats = Serialization.formats(NoTypeHints)
 
   def modelExists(fqn: ModelFqn): Try[Boolean] = tryWithDb { db =>
-    val queryString =
-      """SELECT modelId
-        |FROM Model
-        |WHERE
-        |  collectionId = :collectionId AND
-        |  modelId = :modelId""".stripMargin
-
-    val query = new OSQLSynchQuery[ODocument](queryString)
-    val params = Map(
-      ModelStore.CollectionId -> fqn.collectionId,
-      ModelStore.ModelId -> fqn.modelId)
-
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    !result.isEmpty()
+    val key = List(fqn.collectionId, fqn.modelId)
+    Option(db.getMetadata.getIndexManager.getIndex(ModelStore.ModelIndex).get(key.asJava)).isDefined
   }
 
   def createModel(model: Model): Try[Unit] = tryWithDb { db =>
@@ -104,31 +98,11 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
   }
 
   def getModel(fqn: ModelFqn): Try[Option[Model]] = tryWithDb { db =>
-    val queryString =
-      """SELECT *
-        |FROM Model
-        |WHERE
-        |  collectionId = :collectionId AND
-        |  modelId = :modelId""".stripMargin
-    val query = new OSQLSynchQuery[ODocument](queryString)
-    val params = Map(
-      ModelStore.CollectionId -> fqn.collectionId,
-      ModelStore.ModelId -> fqn.modelId)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.mapSingletonList(result) { _.asModel }
+    getModelDoc(fqn, db) map (doc => doc.asModel)
   }
 
   def getModelMetaData(fqn: ModelFqn): Try[Option[ModelMetaData]] = tryWithDb { db =>
-    val queryString =
-      """SELECT modelId, collectionId, version, createdTime, modifiedTime
-        |FROM Model
-        |WHERE
-        |  collectionId = :collectionId AND
-        |  modelId = :modelId""".stripMargin
-    val query = new OSQLSynchQuery[ODocument](queryString)
-    val params = Map(ModelStore.CollectionId -> fqn.collectionId, ModelStore.ModelId -> fqn.modelId)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.mapSingletonList(result) { _.asModelMetaData }
+    getModelDoc(fqn, db) map (doc => doc.asModelMetaData)
   }
 
   def getAllModelMetaDataInCollection(
@@ -178,9 +152,12 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
   }
 
   def getModelData(fqn: ModelFqn): Try[Option[ObjectValue]] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT data FROM Model WHERE collectionId = :collectionId AND modelId = :modelId")
-    val params = Map(ModelStore.CollectionId -> fqn.collectionId, ModelStore.ModelId -> fqn.modelId)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.mapSingletonList(result)(doc => doc.field(ModelStore.Data).asInstanceOf[ODocument].asObjectValue)
+    getModelDoc(fqn, db) map (doc => doc.field(ModelStore.Data).asInstanceOf[ODocument].asObjectValue)
+  }
+
+  private[this] def getModelDoc(fqn: ModelFqn, db: ODatabaseDocumentTx): Option[ODocument] = {
+    val key = List(fqn.collectionId, fqn.modelId)
+    val oId: OIdentifiable = db.getMetadata.getIndexManager.getIndex(ModelStore.ModelIndex).get(key.asJava).asInstanceOf[OIdentifiable]
+    Option(oId) map (oId => oId.getRecord[ODocument])
   }
 }
