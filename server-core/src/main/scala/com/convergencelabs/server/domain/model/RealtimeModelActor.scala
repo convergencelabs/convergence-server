@@ -434,8 +434,7 @@ class RealtimeModelActor(
     } map (processedOpEvent =>
       OutgoingOperation(
         modelResourceId,
-        sk.uid,
-        sk.sid,
+        sk,
         processedOpEvent.contextVersion,
         timestamp.toEpochMilli(),
         processedOpEvent.operation))

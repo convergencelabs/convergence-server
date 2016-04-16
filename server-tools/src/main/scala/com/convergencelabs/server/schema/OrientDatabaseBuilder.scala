@@ -151,7 +151,7 @@ class OrientDatabaseBuilder(
       val mergedLines = smartSplitLines.asScala.toList.map {
         line => line.replace('\n', ' ')
       }
-      if(useTransaction) {
+      if (useTransaction) {
         db.begin()
       }
       val sql = mergedLines.mkString("\n")

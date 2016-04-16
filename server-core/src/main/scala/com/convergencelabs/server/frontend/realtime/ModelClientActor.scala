@@ -106,12 +106,11 @@ class ModelClientActor(
   // scalastyle:on cyclomatic.complexity
 
   def onOutgoingOperation(op: OutgoingOperation): Unit = {
-    val OutgoingOperation(resoruceId, userId, sessionId, contextVersion, timestamp, operation) = op
+    val OutgoingOperation(resoruceId, sessionKey, contextVersion, timestamp, operation) = op
 
     context.parent ! RemoteOperationMessage(
       resoruceId,
-      userId,
-      sessionId,
+      sessionKey.serialize(),
       contextVersion,
       timestamp,
       OperationMapper.mapOutgoing(operation))

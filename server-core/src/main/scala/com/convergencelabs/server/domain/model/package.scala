@@ -83,8 +83,7 @@ package model {
   case class OperationAcknowledgement(resourceId: String, seqNo: Long, contextVersion: Long) extends RealtimeModelClientMessage
   case class OutgoingOperation(
     resourceId: String,
-    userId: String,
-    sessionId: String,
+    sessionKey: SessionKey,
     contextVersion: Long,
     timestampe: Long,
     operation: Operation) extends RealtimeModelClientMessage
