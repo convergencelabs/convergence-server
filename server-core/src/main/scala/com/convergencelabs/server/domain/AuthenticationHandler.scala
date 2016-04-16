@@ -29,6 +29,7 @@ import com.convergencelabs.server.datastore.CreateSuccess
 import com.convergencelabs.server.datastore.NotFound
 import com.convergencelabs.server.datastore.DuplicateValue
 import com.convergencelabs.server.datastore.InvalidValue
+import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateDomainUser
 
 object AuthenticationHandler {
   val AdminKeyId = "ConvergenceAdminKey"
@@ -125,7 +126,7 @@ class AuthenticationHandler(
     val firstName = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.FirstName)
     val lastName = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.LastName)
     val email = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.Email)
-    val newUser = DomainUser(null, username, firstName, lastName, email)
+    val newUser = CreateDomainUser(username, firstName, lastName, email)
     userStore.createDomainUser(newUser, None)
   }
 

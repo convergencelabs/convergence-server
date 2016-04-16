@@ -30,6 +30,8 @@ class ConvergenceRealTimeFrontend(
   implicit val dispatcher = system.dispatcher
   implicit val s = system
 
+  var binding: Option[Http.ServerBinding] = None
+
   def start(): Unit = {
     logger.info(s"Realtime Front End starting up on port $websocketPort.")
     val timeout = FiniteDuration(5, TimeUnit.SECONDS)
@@ -43,10 +45,10 @@ class ConvergenceRealTimeFrontend(
           materializer,
           system)
 
-        val binding = Http().bindAndHandle(service.route, interface, websocketPort)
-        binding.onComplete {
-          case Success(binding) ⇒
-            val localAddress = binding.localAddress
+        Http().bindAndHandle(service.route, interface, websocketPort).onComplete {
+          case Success(b) ⇒
+            this.binding = Some(b)
+            val localAddress = b.localAddress
             logger.info(s"Realtime Front End started up on port $websocketPort.")
           case Failure(e) ⇒
             logger.info(s"Binding failed with ${e.getMessage}")
@@ -57,6 +59,9 @@ class ConvergenceRealTimeFrontend(
   }
 
   def stop(): Unit = {
-    // TODO shutdow
+    this.binding match {
+      case Some(binding) => binding.unbind()
+      case None =>
+    }
   }
 }

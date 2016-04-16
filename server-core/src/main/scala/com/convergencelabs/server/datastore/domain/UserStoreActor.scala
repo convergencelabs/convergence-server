@@ -10,6 +10,7 @@ import akka.actor.Props
 import java.util.UUID
 import com.convergencelabs.server.datastore.UserStoreActor.GetUserByUid
 import com.convergencelabs.server.datastore.UserStoreActor.DeleteDomainUser
+import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateDomainUser
 
 object UserStoreActor {
   def props(userStore: DomainUserStore): Props = Props(new UserStoreActor(userStore))
@@ -43,10 +44,8 @@ class UserStoreActor private[datastore] (private[this] val userStore: DomainUser
 
   def createUser(message: CreateUser): Unit = {
     val CreateUser(username, firstName, lastName, email, password) = message
-    // Fixme: Determine Correct Place to Create UID
-    val uid = UUID.randomUUID().toString()
-    val domainuser = DomainUser(uid, username, firstName, lastName, email)
-    reply(userStore.createDomainUser(domainuser, message.password))
+    val domainuser = CreateDomainUser(username, firstName, lastName, email)
+    reply(userStore.createDomainUser(domainuser, password))
   }
 
   def getUserById(message: GetUserByUid): Unit = {

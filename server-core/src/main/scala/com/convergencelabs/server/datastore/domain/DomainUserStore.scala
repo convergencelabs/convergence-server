@@ -34,6 +34,16 @@ import com.convergencelabs.server.datastore.UpdateResult
 import com.convergencelabs.server.datastore.UpdateSuccess
 import com.convergencelabs.server.datastore.UpdateResult
 import com.convergencelabs.server.datastore.InvalidValue
+import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateDomainUser
+import java.util.UUID
+
+object DomainUserStore {
+  case class CreateDomainUser(
+    username: String,
+    firstName: Option[String],
+    lastName: Option[String],
+    email: Option[String])
+}
 
 /**
  * Manages the persistence of Domain Users.  This class manages both user profile records
@@ -66,8 +76,18 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    *
    * @return A String representing the created users uid.
    */
-  def createDomainUser(domainUser: DomainUser, password: Option[String]): Try[CreateResult[String]] = tryWithDb { db =>
-    val userDoc = domainUser.asODocument
+  def createDomainUser(domainUser: CreateDomainUser, password: Option[String]): Try[CreateResult[String]] = tryWithDb { db =>
+    // scalastyle:off null
+    // TODO move uid to a sequence in the DB or something
+    val create = DomainUser(
+      UUID.randomUUID().toString(),
+      domainUser.username,
+      domainUser.firstName,
+      domainUser.lastName,
+      domainUser.email)
+    // scalastyle:on null
+
+    val userDoc = create.asODocument
     db.save(userDoc)
     userDoc.reload()
 

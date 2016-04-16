@@ -147,6 +147,7 @@ class OTFTestHarnessSpec extends FunSpec {
   }
   // scalastyle:on cyclomatic.complexity
 
+  // scalastyle:off cyclomatic.complexity
   def mapToDataValue(jValue: JValue): DataValue = {
     jValue match {
       case JString(value) => StringValue(valueId, value)
@@ -161,6 +162,7 @@ class OTFTestHarnessSpec extends FunSpec {
       case JObject(fields) => ObjectValue(valueId, fields.toMap.mapValues { v => mapToDataValue(v) })
     }
   }
+  // scalastyle:on cyclomatic.complexity
 }
 
 case class OperationPair(serverOp: JObject, clientOp: JObject)

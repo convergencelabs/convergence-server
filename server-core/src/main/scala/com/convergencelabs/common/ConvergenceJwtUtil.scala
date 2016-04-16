@@ -19,13 +19,17 @@ import scala.util.Try
 import java.io.Reader
 import java.io.FileReader
 
-import ConvergenceJwtUtil.Issuer
 import ConvergenceJwtUtil.Audiance
+import ConvergenceJwtUtil.DefaultExpirationMinutes
+import ConvergenceJwtUtil.DefaultNotBeforeMinutes
+import ConvergenceJwtUtil.Issuer
 
 object ConvergenceJwtUtil {
 
   val Issuer = "ConvergenceJwtUtil"
   val Audiance = "Convergence"
+  val DefaultExpirationMinutes = 10
+  val DefaultNotBeforeMinutes = 10
 
   Security.addProvider(new BouncyCastleProvider())
 
@@ -57,8 +61,8 @@ class ConvergenceJwtUtil(
     private[this] val keyId: String,
     private[this] val privateKey: PrivateKey) {
 
-  var expirationMinutes = 10
-  var notBeforeMinutes = 2
+  var expirationMinutes = DefaultExpirationMinutes
+  var notBeforeMinutes = DefaultNotBeforeMinutes
 
   def getExpirationMinutes(): Int = {
     expirationMinutes

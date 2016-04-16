@@ -18,7 +18,7 @@ class AuthStoreActor private[datastore] (
   private[this] val dbPool: OPartitionedDatabasePool)
     extends StoreActor with ActorLogging {
 
-  val tokenDuration = context.system.settings.config.getDuration("convergence.auth-token-expiration")
+  val tokenDuration = context.system.settings.config.getDuration("convergence.rest.auth-token-expiration")
 
   private[this] val userStore: UserStore = new UserStore(dbPool, tokenDuration)
 

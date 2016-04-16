@@ -66,7 +66,7 @@ class ClientActor(
 
   private[this] var modelClient: ActorRef = _
   private[this] var userClient: ActorRef = _
-  private[this] var domainActor: ActorRef = _
+  private[this] var domainActor: Option[ActorRef] = None
   private[this] var modelManagerActor: ActorRef = _
   private[this] var userServiceActor: ActorRef = _
   private[this] var sessionId: String = _
@@ -168,7 +168,7 @@ class ClientActor(
       case TokenAuthRequestMessage(token) => TokenAuthRequest(token)
     }
 
-    val future = domainActor ? message
+    val future = domainActor.get ? message
 
     // FIXME if authentication fails we should probably stop the actor
     // and or shut down the connection?
@@ -223,7 +223,7 @@ class ClientActor(
   private[this] def handleHandshakeSuccess(success: InternalHandshakeSuccess): Unit = {
     val InternalHandshakeSuccess(HandshakeSuccess(sessionId, reconnectToken, domainActor, modelManagerActor, userServiceActor), cb) = success
     this.sessionId = sessionId
-    this.domainActor = domainActor
+    this.domainActor = Some(domainActor)
     this.modelManagerActor = modelManagerActor
     this.userServiceActor = userServiceActor
     cb.reply(HandshakeResponseMessage(true, None, Some(sessionId), Some(reconnectToken), None, Some(ProtocolConfigData(true))))
@@ -265,16 +265,16 @@ class ClientActor(
 
   private[this] def onConnectionClosed(): Unit = {
     log.debug("Connection Closed")
-    if (domainActor != null) {
-      domainActor ! ClientDisconnected(sessionId)
+    if (domainActor.isDefined) {
+      domainActor.get ! ClientDisconnected(sessionId)
     }
     context.stop(self)
   }
 
   private[this] def onConnectionError(cause: Throwable): Unit = {
     log.debug("Connection Error: " + cause.getMessage)
-    if (domainActor != null) {
-      domainActor ! ClientDisconnected(sessionId)
+    if (domainActor.isDefined) {
+      domainActor.get ! ClientDisconnected(sessionId)
     }
     context.stop(self)
   }

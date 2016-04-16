@@ -41,7 +41,7 @@ class RestDomainManagerActor(dbPool: OPartitionedDatabasePool)
   private[this] val domainStore = new DomainStore(dbPool)
 
   private[this] val domainShutdownDelay2 =
-    context.system.settings.config.getDuration("convergence.rest-domain-shutdown-delay")
+    context.system.settings.config.getDuration("convergence.rest.rest-domain-shutdown-delay")
   private[this] val domainShutdownDelay = Duration.fromNanos(domainShutdownDelay2.toNanos())
 
   private[this] val domainFqnToActor = mutable.HashMap[DomainFqn, ActorRef]()

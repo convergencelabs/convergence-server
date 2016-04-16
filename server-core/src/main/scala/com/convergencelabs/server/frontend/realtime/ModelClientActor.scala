@@ -88,6 +88,7 @@ class ModelClientActor(
   //
   // Outgoing Messages
   //
+  // scalastyle:off cyclomatic.complexity
   def onOutgoingModelMessage(event: RealtimeModelClientMessage): Unit = {
     event match {
       case op: OutgoingOperation => onOutgoingOperation(op)
@@ -102,6 +103,7 @@ class ModelClientActor(
       case refCleared: RemoteReferenceCleared => onRemoteReferenceCleared(refCleared)
     }
   }
+  // scalastyle:on cyclomatic.complexity
 
   def onOutgoingOperation(op: OutgoingOperation): Unit = {
     val OutgoingOperation(resoruceId, userId, sessionId, contextVersion, timestamp, operation) = op

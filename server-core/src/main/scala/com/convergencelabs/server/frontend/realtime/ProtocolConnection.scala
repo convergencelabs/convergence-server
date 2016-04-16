@@ -107,6 +107,7 @@ class ProtocolConnection(
     }
   }
 
+  // scalastyle:off cyclomatic.complexity
   private def handleValidMessage(envelope: MessageEnvelope): Try[Option[ProtocolMessageEvent]] = Try {
     if (!envelope.b.isInstanceOf[PingMessage] && !envelope.b.isInstanceOf[PongMessage]) {
       logger.debug("R: " + envelope)
@@ -129,9 +130,10 @@ class ProtocolConnection(
         onReply(envelope)
         None
       case _ =>
-        throw new IllegalArgumentException("Invalid message.")
+        throw new IllegalArgumentException("Invalid message: " + envelope)
     }
   }
+  // scalastyle:on cyclomatic.complexity
 
   def dispose(): Unit = {
     if (heartbeatHelper.started) {

@@ -29,6 +29,7 @@ import java.security.spec.PKCS8EncodedKeySpec
 import java.io.StringReader
 import com.convergencelabs.server.datastore.domain.ApiKeyStore
 import com.convergencelabs.server.datastore.CreateSuccess
+import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateDomainUser
 
 class AuthenticationHandlerSpec()
     extends TestKit(ActorSystem("AuthManagerActorSpec"))
@@ -150,7 +151,7 @@ class AuthenticationHandlerSpec()
 
     val lazyUserUid = "newUserId"
     val lazyUserName = "newUserName"
-    val lazyUser = DomainUser(null, lazyUserName, None, None, None)
+    val lazyUser = CreateDomainUser(lazyUserName, None, None, None)
     Mockito.when(userStore.getDomainUserByUsername(lazyUserName)).thenReturn(Success(None))
     Mockito.when(userStore.createDomainUser(lazyUser, None)).thenReturn(Success(CreateSuccess(lazyUserUid)))
 
@@ -158,7 +159,7 @@ class AuthenticationHandlerSpec()
     Mockito.when(userStore.getDomainUserByUsername(brokenUserName)).thenReturn(Failure(new IllegalStateException("induced error for testing")))
 
     val brokenLazyUsername = "borkenLazyUserName"
-    val brokenLazyUser = DomainUser(null, brokenLazyUsername, None, None, None)
+    val brokenLazyUser = CreateDomainUser(brokenLazyUsername, None, None, None)
     Mockito.when(userStore.getDomainUserByUsername(brokenLazyUsername)).thenReturn(Success(None))
     Mockito.when(userStore.createDomainUser(brokenLazyUser, None)).thenReturn(Failure(new IllegalStateException("induced error for testing")))
 
