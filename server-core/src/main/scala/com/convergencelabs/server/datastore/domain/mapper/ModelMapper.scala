@@ -1,7 +1,6 @@
 package com.convergencelabs.server.datastore.domain.mapper
 
 import java.util.Date
-import java.util.{ Map => JavaMap }
 
 import scala.language.implicitConversions
 
@@ -9,9 +8,9 @@ import com.convergencelabs.server.datastore.mapper.ODocumentMapper
 import com.convergencelabs.server.domain.model.Model
 import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelMetaData
-import com.convergencelabs.server.util.JValueMapper
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
+
 import ObjectValueMapper.ODocumentToObjectValue
 
 object ModelMapper extends ODocumentMapper {

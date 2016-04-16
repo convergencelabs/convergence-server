@@ -1,9 +1,5 @@
 package com.convergencelabs.server.datastore.domain.mapper
 
-import java.util.{ List => JavaList }
-
-import scala.collection.JavaConverters.asScalaBufferConverter
-import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.language.implicitConversions
 
 import com.convergencelabs.server.datastore.mapper.ODocumentMapper

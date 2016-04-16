@@ -1,13 +1,13 @@
 package com.convergencelabs.server.datastore.domain.mapper
 
 import scala.language.implicitConversions
+
 import com.convergencelabs.server.datastore.domain.mapper.ModelSnapshotConfigMapper.ModelSnapshotConfigToODocument
 import com.convergencelabs.server.datastore.domain.mapper.ModelSnapshotConfigMapper.ODocumentToModelSnapshotConfig
 import com.convergencelabs.server.datastore.mapper.ODocumentMapper
 import com.convergencelabs.server.domain.model.Collection
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
-import com.convergencelabs.server.domain.ModelSnapshotConfig
 
 object CollectionMapper extends ODocumentMapper {
 

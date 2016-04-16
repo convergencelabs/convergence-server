@@ -1,12 +1,14 @@
 package com.convergencelabs.server.datastore.domain.mapper
 
+import java.time.Instant
+import java.util.Date
+
 import scala.language.implicitConversions
+
 import com.convergencelabs.server.datastore.mapper.ODocumentMapper
 import com.convergencelabs.server.domain.TokenPublicKey
-import com.orientechnologies.orient.core.record.impl.ODocument
-import java.util.Date
 import com.orientechnologies.orient.core.metadata.schema.OType
-import java.time.Instant
+import com.orientechnologies.orient.core.record.impl.ODocument
 
 object TokenPublicKeyMapper extends ODocumentMapper {
 

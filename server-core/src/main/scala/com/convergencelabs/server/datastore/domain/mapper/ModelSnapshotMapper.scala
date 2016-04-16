@@ -1,16 +1,15 @@
 package com.convergencelabs.server.datastore.domain.mapper
 
 import java.time.Instant
-import java.util.Date
-import java.util.{ Map => JavaMap }
+
 import scala.language.implicitConversions
-import com.convergencelabs.server.domain.model.ModelSnapshot
-import com.convergencelabs.server.domain.model.ModelFqn
-import com.convergencelabs.server.domain.model.ModelSnapshotMetaData
-import com.convergencelabs.server.util.JValueMapper
-import com.orientechnologies.orient.core.metadata.schema.OType
-import com.orientechnologies.orient.core.record.impl.ODocument
+
 import com.convergencelabs.server.datastore.mapper.ODocumentMapper
+import com.convergencelabs.server.domain.model.ModelFqn
+import com.convergencelabs.server.domain.model.ModelSnapshot
+import com.convergencelabs.server.domain.model.ModelSnapshotMetaData
+import com.orientechnologies.orient.core.record.impl.ODocument
+
 import ObjectValueMapper.ODocumentToObjectValue
 import ObjectValueMapper.ObjectValueToODocument
 

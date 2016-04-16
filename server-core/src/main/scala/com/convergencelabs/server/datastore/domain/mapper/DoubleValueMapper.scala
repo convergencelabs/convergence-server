@@ -1,15 +1,10 @@
 package com.convergencelabs.server.datastore.domain.mapper
 
-import java.util.{ List => JavaList }
-import scala.collection.JavaConverters.asScalaBufferConverter
-import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.language.implicitConversions
-import com.orientechnologies.orient.core.record.impl.ODocument
-import com.convergencelabs.server.util.JValueMapper
+
 import com.convergencelabs.server.datastore.mapper.ODocumentMapper
 import com.convergencelabs.server.domain.model.data.DoubleValue
-import DataValueMapper.DataValueToODocument
-import DataValueMapper.ODocumentToDataValue
+import com.orientechnologies.orient.core.record.impl.ODocument
 
 object DoubleValueMapper extends ODocumentMapper {
 

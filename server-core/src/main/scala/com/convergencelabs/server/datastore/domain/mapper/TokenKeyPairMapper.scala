@@ -1,9 +1,10 @@
 package com.convergencelabs.server.datastore.domain.mapper
 
-import com.orientechnologies.orient.core.record.impl.ODocument
-import com.convergencelabs.server.domain.TokenKeyPair
 import scala.language.implicitConversions
+
 import com.convergencelabs.server.datastore.mapper.ODocumentMapper
+import com.convergencelabs.server.domain.TokenKeyPair
+import com.orientechnologies.orient.core.record.impl.ODocument
 
 object TokenKeyPairMapper extends ODocumentMapper {
 

@@ -1,16 +1,10 @@
 package com.convergencelabs.server.datastore.domain.mapper
 
-import java.util.{ List => JavaList }
-import scala.collection.JavaConverters.asScalaBufferConverter
-import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.language.implicitConversions
-import com.convergencelabs.server.domain.model.ot.NumberSetOperation
-import com.convergencelabs.server.util.JValueMapper
-import com.orientechnologies.orient.core.record.impl.ODocument
-import org.json4s.JsonAST.JObject
-import org.json4s.JsonAST.JNumber
+
 import com.convergencelabs.server.datastore.mapper.ODocumentMapper
-import org.json4s.JsonAST.JDouble
+import com.convergencelabs.server.domain.model.ot.NumberSetOperation
+import com.orientechnologies.orient.core.record.impl.ODocument
 
 object NumberSetOperationMapper extends ODocumentMapper {
 

@@ -1,35 +1,41 @@
 package com.convergencelabs.server.datastore.domain.mapper
 
 import scala.language.implicitConversions
-import com.orientechnologies.orient.core.record.impl.ODocument
+
 import com.convergencelabs.server.datastore.mapper.ODocumentMapper
-import com.convergencelabs.server.domain.model.data.ObjectValue
-import com.convergencelabs.server.domain.model.data.DataValue
-import ObjectValueMapper.ObjectValueToODocument
-import ObjectValueMapper.{ DocumentClassName => ObjectValueDocName, OpDocumentClassName => ObjectOpValueDocName }
-import ArrayValueMapper.{ DocumentClassName => ArrayValueDocName, OpDocumentClassName => ArrayOpValueDocName }
-import StringValueMapper.{ DocumentClassName => StringValueDocName, OpDocumentClassName => StringOpValueDocName }
-import BooleanValueMapper.{ DocumentClassName => BooleanValueDocName, OpDocumentClassName => BooleanOpValueDocName }
-import DoubleValueMapper.{ DocumentClassName => DoubleValueDocName, OpDocumentClassName => DoubleOpValueDocName }
-import NullValueMapper.{ DocumentClassName => NullValueDocName, OpDocumentClassName => NullOpValueDocName }
-import ObjectValueMapper.ODocumentToObjectValue
-import ObjectValueMapper.ObjectValueToODocument
-import ArrayValueMapper.ODocumentToArrayValue
-import ArrayValueMapper.ArrayValueToODocument
-import StringValueMapper.ODocumentToStringValue
-import StringValueMapper.StringValueToODocument
-import BooleanValueMapper.ODocumentToBooleanValue
-import BooleanValueMapper.BooleanValueToODocument
-import DoubleValueMapper.ODocumentToDoubleValue
-import DoubleValueMapper.DoubleValueToODocument
-import NullValueMapper.ODocumentToNullValue
-import NullValueMapper.NullValueToODocument
-import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.model.data.ArrayValue
-import com.convergencelabs.server.domain.model.data.StringValue
 import com.convergencelabs.server.domain.model.data.BooleanValue
+import com.convergencelabs.server.domain.model.data.DataValue
 import com.convergencelabs.server.domain.model.data.DoubleValue
 import com.convergencelabs.server.domain.model.data.NullValue
+import com.convergencelabs.server.domain.model.data.ObjectValue
+import com.convergencelabs.server.domain.model.data.StringValue
+import com.orientechnologies.orient.core.record.impl.ODocument
+
+import ArrayValueMapper.ArrayValueToODocument
+import ArrayValueMapper.{ DocumentClassName => ArrayValueDocName }
+import ArrayValueMapper.ODocumentToArrayValue
+import ArrayValueMapper.{ OpDocumentClassName => ArrayOpValueDocName }
+import BooleanValueMapper.BooleanValueToODocument
+import BooleanValueMapper.{ DocumentClassName => BooleanValueDocName }
+import BooleanValueMapper.ODocumentToBooleanValue
+import BooleanValueMapper.{ OpDocumentClassName => BooleanOpValueDocName }
+import DoubleValueMapper.{ DocumentClassName => DoubleValueDocName }
+import DoubleValueMapper.DoubleValueToODocument
+import DoubleValueMapper.ODocumentToDoubleValue
+import DoubleValueMapper.{ OpDocumentClassName => DoubleOpValueDocName }
+import NullValueMapper.{ DocumentClassName => NullValueDocName }
+import NullValueMapper.NullValueToODocument
+import NullValueMapper.ODocumentToNullValue
+import NullValueMapper.{ OpDocumentClassName => NullOpValueDocName }
+import ObjectValueMapper.{ DocumentClassName => ObjectValueDocName }
+import ObjectValueMapper.ODocumentToObjectValue
+import ObjectValueMapper.ObjectValueToODocument
+import ObjectValueMapper.{ OpDocumentClassName => ObjectOpValueDocName }
+import StringValueMapper.{ DocumentClassName => StringValueDocName }
+import StringValueMapper.ODocumentToStringValue
+import StringValueMapper.{ OpDocumentClassName => StringOpValueDocName }
+import StringValueMapper.StringValueToODocument
 
 object DataValueMapper extends ODocumentMapper {
 
