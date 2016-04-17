@@ -31,4 +31,5 @@ package object rest {
   val InvalidValueError: RestResponse = (StatusCodes.BadRequest, ErrorResponse("invalid_value_error"))
   val NotFoundError: RestResponse = (StatusCodes.NotFound, ErrorResponse("not_found_error"))
   val AuthFailureError: RestResponse = (StatusCodes.Unauthorized, ErrorResponse("unauthorized"))
+  val ForbiddenError: RestResponse = (StatusCodes.Forbidden, ErrorResponse("forbidden"))
 }

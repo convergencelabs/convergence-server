@@ -101,7 +101,7 @@ class DomainService(
                 domainKeyService.route(userId, domain) ~
                 domainAdminTokenService.route(userId, domain)
             case AuthorizationDenied =>
-              complete(AuthFailureError)
+              complete(ForbiddenError)
           }
         }
       }
