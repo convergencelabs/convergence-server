@@ -8,9 +8,12 @@
   ],
   "dataScripts": [
     "convergence/data/User/cu0.osql",
+    "convergence/data/User/cu1.osql",
     "convergence/data/UserCredential/cu0.osql",
+    "convergence/data/UserCredential/cu1.osql",
     "convergence/data/Domain/namespace1-domain1.osql",
     "convergence/data/Domain/namespace1-domain2.osql",
-    "convergence/data/Domain/namespace2-domain1.osql"
+    "convergence/data/Domain/namespace2-domain1.osql",
+    "convergence/data/Domain/namespace3-domain1.osql"
   ]
 }

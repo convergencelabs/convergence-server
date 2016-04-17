@@ -1,9 +1,5 @@
 package com.convergencelabs.server.domain.model.ot
 
-import scala.collection.JavaConverters.mapAsScalaMapConverter
-
-import com.convergencelabs.server.util.JValueMapper
-
 class MockObjectModel(private var state: Map[String, Any]) extends MockModel {
 
   def updateModel(op: DiscreteOperation): Unit = {

@@ -7,6 +7,7 @@ import com.convergencelabs.server.datastore.DomainStoreActor.CreateDomainRequest
 import com.convergencelabs.server.datastore.DomainStoreActor.DeleteDomainRequest
 import com.convergencelabs.server.datastore.DomainStoreActor.GetDomainRequest
 import com.convergencelabs.server.datastore.DomainStoreActor.ListDomainsRequest
+import akka.http.scaladsl.server.directives.FutureDirectives.onSuccess
 import com.convergencelabs.server.domain.DomainFqn
 
 import akka.actor.ActorRef
@@ -35,6 +36,13 @@ import com.convergencelabs.server.datastore.DeleteSuccess
 import com.convergencelabs.server.datastore.NotFound
 import com.convergencelabs.server.domain.Domain
 import com.convergencelabs.server.datastore.InvalidValue
+import com.convergencelabs.server.domain.RestAuthnorizationActor.DomainAuthorization
+import scala.util.Failure
+import com.convergencelabs.server.domain.RestAuthnorizationActor.AuthorizationGranted
+import scala.util.Success
+import com.convergencelabs.server.domain.RestAuthnorizationActor.AuthorizationDenied
+import com.convergencelabs.server.domain.RestAuthnorizationActor.AuthorizationResult
+import com.convergencelabs.server.domain.RestAuthnorizationActor.AuthorizationResult
 
 case class DomainsResponse(domains: List[DomainFqn]) extends AbstractSuccessResponse
 case class DomainResponse(domain: DomainInfo) extends AbstractSuccessResponse
@@ -50,6 +58,7 @@ case class CreateRequest(namespace: String, domainId: String, displayName: Strin
 
 class DomainService(
   private[this] val executionContext: ExecutionContext,
+  private[this] val authz: ActorRef,
   private[this] val domainStoreActor: ActorRef,
   private[this] val domainManagerActor: ActorRef,
   private[this] val defaultTimeout: Timeout)
@@ -77,18 +86,24 @@ class DomainService(
       } ~ pathPrefix(Segment / Segment) { (namespace, domainId) =>
         {
           val domain = DomainFqn(namespace, domainId)
-          pathEnd {
-            get {
-              complete(domainRequest(namespace, domainId))
-            } ~ delete {
-              complete(deleteRequest(namespace, domainId))
-            }
-          } ~
-            domainUserService.route(userId, domain) ~
-            domainCollectionService.route(userId, domain) ~
-            domainModelService.route(userId, domain) ~
-            domainKeyService.route(userId, domain) ~
-            domainAdminTokenService.route(userId, domain)
+          onSuccess((authz ? DomainAuthorization(userId, domain)).mapTo[AuthorizationResult]) {
+            case AuthorizationGranted =>
+              pathEnd {
+                get {
+                  complete(domainRequest(namespace, domainId))
+                } ~ delete {
+                  complete(deleteRequest(namespace, domainId))
+                }
+              } ~
+                domainUserService.route(userId, domain) ~
+                domainCollectionService.route(userId, domain) ~
+                domainModelService.route(userId, domain) ~
+                domainKeyService.route(userId, domain) ~
+                domainAdminTokenService.route(userId, domain)
+            case AuthorizationDenied =>
+              complete((StatusCodes.Unauthorized, "Unauthorized"))
+          }
+
         }
       }
     }
@@ -98,8 +113,8 @@ class DomainService(
     val CreateRequest(namespace, domainId, displayName) = createRequest
     (domainStoreActor ? CreateDomainRequest(namespace, domainId, displayName, userId)).mapTo[CreateResult[Unit]].map {
       case result: CreateSuccess[Unit] => CreateRestResponse
-      case DuplicateValue              => DuplicateError
-      case InvalidValue                 => InvalidValueError
+      case DuplicateValue => DuplicateError
+      case InvalidValue => InvalidValueError
     }
   }
 
@@ -126,7 +141,7 @@ class DomainService(
   def deleteRequest(namespace: String, domainId: String): Future[RestResponse] = {
     (domainStoreActor ? DeleteDomainRequest(namespace, domainId)).mapTo[DeleteResult] map {
       case DeleteSuccess => OkResponse
-      case NotFound      => NotFoundError
+      case NotFound => NotFoundError
     }
   }
 }

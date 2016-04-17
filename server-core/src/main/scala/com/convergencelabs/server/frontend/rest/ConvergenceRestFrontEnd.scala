@@ -23,6 +23,7 @@ import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import ch.megard.akka.http.cors.CorsDirectives.cors
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.domain.RestAuthnorizationActor
 
 class ConvergenceRestFrontEnd(
   val system: ActorSystem,
@@ -36,7 +37,6 @@ class ConvergenceRestFrontEnd(
   implicit val defaultRequestTimeout = Timeout(2 seconds)
 
   def start(): Unit = {
-
     // FIXME this is a hack all of this should be a rest backend
     val dbConfig = system.settings.config.getConfig("convergence.convergence-database")
 
@@ -46,12 +46,13 @@ class ConvergenceRestFrontEnd(
     val password = dbConfig.getString("password")
 
     val dbPool = new OPartitionedDatabasePool(fullUri, password, password)
+    val domainStore = new DomainStore(dbPool)
 
     val authActor = system.actorOf(AuthStoreActor.props(dbPool))
     val domainActor = system.actorOf(DomainStoreActor.props(dbPool))
     val domainManagerActor = system.actorOf(RestDomainManagerActor.props(dbPool))
+    val authzActor = system.actorOf(RestAuthnorizationActor.props(domainStore))
 
-    val domainStore = new DomainStore(dbPool)
     val dbPoolManager = system.actorOf(
       DomainPersistenceManagerActor.props(
         baseUri,
@@ -62,7 +63,7 @@ class ConvergenceRestFrontEnd(
     // These are the rest services
     val authService = new AuthService(ec, authActor, defaultRequestTimeout)
     val authenticator = new Authenticator(authActor, defaultRequestTimeout, ec)
-    val domainService = new DomainService(ec, domainActor, domainManagerActor, defaultRequestTimeout)
+    val domainService = new DomainService(ec, authzActor, domainActor, domainManagerActor, defaultRequestTimeout)
     val keyGenService = new KeyGenService(ec)
 
     val route = cors() {
@@ -71,18 +72,17 @@ class ConvergenceRestFrontEnd(
         // You can call the auth service without being authenticated
         authService.route ~
           // Everything else must be authenticated
-        extractRequest { request =>
-          authenticator.requireAuthenticated(request) { userId =>
-            domainService.route(userId) ~
-            keyGenService.route()
+          extractRequest { request =>
+            authenticator.requireAuthenticated(request) { userId =>
+              domainService.route(userId) ~
+                keyGenService.route()
+            }
           }
-        }
       }
     }
 
     // Now we start up the server
     val bindingFuture = Http().bindAndHandle(route, interface, port)
-
     logger.info(s"Convergence Rest Front End listening at http://${interface}:${port}/")
   }
 }
