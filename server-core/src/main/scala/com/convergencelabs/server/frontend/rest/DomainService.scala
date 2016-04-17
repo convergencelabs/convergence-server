@@ -101,9 +101,8 @@ class DomainService(
                 domainKeyService.route(userId, domain) ~
                 domainAdminTokenService.route(userId, domain)
             case AuthorizationDenied =>
-              complete((StatusCodes.Unauthorized, "Unauthorized"))
+              complete(AuthFailureError)
           }
-
         }
       }
     }
