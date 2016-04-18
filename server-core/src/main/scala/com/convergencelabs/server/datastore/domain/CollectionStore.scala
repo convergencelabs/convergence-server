@@ -30,7 +30,7 @@ object CollectionStore {
   private val CollectionId = "collectionId"
 }
 
-class CollectionStore private[domain] (dbPool: OPartitionedDatabasePool)
+class CollectionStore private[domain] (dbPool: OPartitionedDatabasePool, modelStore: ModelStore)
     extends AbstractDatabasePersistence(dbPool) {
 
   def collectionExists(collectionId: String): Try[Boolean] = tryWithDb { db =>
@@ -86,6 +86,8 @@ class CollectionStore private[domain] (dbPool: OPartitionedDatabasePool)
   }
 
   def deleteCollection(collectionId: String): Try[DeleteResult] = tryWithDb { db =>
+    modelStore.deleteAllModelsInCollection(collectionId)
+
     val queryString =
       """DELETE FROM Collection
         |WHERE

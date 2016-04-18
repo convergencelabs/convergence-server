@@ -68,7 +68,7 @@ class ModelOperationProcessorSpec
   def createStore(dbPool: OPartitionedDatabasePool): (ModelOperationProcessor, ModelOperationStore, ModelStore) =
     (new ModelOperationProcessor(dbPool),
       new ModelOperationStore(dbPool),
-      new ModelStore(dbPool))
+      new ModelStore(dbPool, new ModelOperationStore(dbPool), new ModelSnapshotStore(dbPool)))
 
   "A ModelOperationProcessor" when {
 

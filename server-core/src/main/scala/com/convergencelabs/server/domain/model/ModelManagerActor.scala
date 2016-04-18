@@ -38,10 +38,10 @@ class ModelManagerActor(
 
   def receive: Receive = {
     case message: OpenRealtimeModelRequest => onOpenRealtimeModel(message)
-    case message: CreateModelRequest => onCreateModelRequest(message)
-    case message: DeleteModelRequest => onDeleteModelRequest(message)
-    case message: ModelShutdownRequest => onModelShutdownRequest(message)
-    case message: Any => unhandled(message)
+    case message: CreateModelRequest       => onCreateModelRequest(message)
+    case message: DeleteModelRequest       => onDeleteModelRequest(message)
+    case message: ModelShutdownRequest     => onModelShutdownRequest(message)
+    case message: Any                      => unhandled(message)
   }
 
   private[this] def onOpenRealtimeModel(openRequest: OpenRealtimeModelRequest): Unit = {
@@ -124,10 +124,7 @@ class ModelManagerActor(
           openRealtimeModels.remove(deleteRequest.modelFqn).get ! ModelDeleted
         }
 
-        // FIXME do we need to somehow do these in a transaction?
         persistenceProvider.modelStore.deleteModel(deleteRequest.modelFqn)
-        persistenceProvider.modelSnapshotStore.removeAllSnapshotsForModel(deleteRequest.modelFqn)
-        persistenceProvider.modelOperationStore.removeOperationsForModel(deleteRequest.modelFqn)
 
         sender ! ModelDeleted
       case Success(false) => sender ! ModelNotFound
@@ -160,7 +157,7 @@ object ModelManagerActor {
   val RelativePath = "modelManager"
 
   def props(domainFqn: DomainFqn,
-    protocolConfig: ProtocolConfiguration): Props = Props(
+            protocolConfig: ProtocolConfiguration): Props = Props(
     new ModelManagerActor(
       domainFqn,
       protocolConfig))

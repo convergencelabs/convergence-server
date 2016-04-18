@@ -26,7 +26,12 @@ class CollectionStoreSpec
     with WordSpecLike
     with Matchers {
 
-  def createStore(dbPool: OPartitionedDatabasePool): CollectionStore = new CollectionStore(dbPool)
+  def createStore(dbPool: OPartitionedDatabasePool): CollectionStore = new CollectionStore(
+    dbPool,
+    new ModelStore(
+      dbPool,
+      new ModelOperationStore(dbPool),
+      new ModelSnapshotStore(dbPool)))
 
   val companyCollectionId = "company"
   val peopleCollectionId = "people"

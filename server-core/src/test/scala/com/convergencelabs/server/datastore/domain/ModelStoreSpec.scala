@@ -24,7 +24,7 @@ class ModelStoreSpec
 
   val df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSz")
 
-  def createStore(dbPool: OPartitionedDatabasePool): ModelStore = new ModelStore(dbPool)
+  def createStore(dbPool: OPartitionedDatabasePool): ModelStore = new ModelStore(dbPool, new ModelOperationStore(dbPool), new ModelSnapshotStore(dbPool))
 
   val peopleCollectionId = "people"
 

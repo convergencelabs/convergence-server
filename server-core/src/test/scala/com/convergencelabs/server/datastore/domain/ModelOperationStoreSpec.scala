@@ -56,12 +56,12 @@ class ModelOperationStoreSpec
     }
     "deleting all operations for a model" must {
       "remove all operations in the model" in withPersistenceStore { store =>
-        store.removeOperationsForModel(modelFqn).success
+        store.deleteAllOperationsForModel(modelFqn).success
         store.getOperationsAfterVersion(modelFqn, 0).success.get shouldBe empty
       }
 
       "do nothing if model does not exist" in withPersistenceStore { store =>
-        store.removeOperationsForModel(notFoundFqn).success
+        store.deleteAllOperationsForModel(notFoundFqn).success
       }
     }
   }

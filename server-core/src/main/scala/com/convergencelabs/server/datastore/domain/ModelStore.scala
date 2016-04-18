@@ -47,7 +47,7 @@ object ModelStore {
   private val ModelIndex = "Model.collectionId_modelId"
 }
 
-class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
+class ModelStore private[domain] (dbPool: OPartitionedDatabasePool, operationStore: ModelOperationStore, snapshotStore: ModelSnapshotStore)
     extends AbstractDatabasePersistence(dbPool) {
 
   private[this] implicit val formats = Serialization.formats(NoTypeHints)
@@ -75,6 +75,9 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
   }
 
   def deleteModel(fqn: ModelFqn): Try[Unit] = tryWithDb { db =>
+    operationStore.deleteAllOperationsForModel(fqn)
+    snapshotStore.removeAllSnapshotsForModel(fqn)
+
     val queryString =
       "DELETE FROM Model WHERE collectionId = :collectionId AND modelId = :modelId"
     val command = new OCommandSQL(queryString)
@@ -89,6 +92,9 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool)
   }
 
   def deleteAllModelsInCollection(collectionId: String): Try[Unit] = tryWithDb { db =>
+    operationStore.deleteAllOperationsForCollection(collectionId)
+    snapshotStore.removeAllSnapshotsForCollection(collectionId)
+
     val queryString =
       "DELETE FROM Model WHERE collectionId = :collectionId"
     val command = new OCommandSQL(queryString)
