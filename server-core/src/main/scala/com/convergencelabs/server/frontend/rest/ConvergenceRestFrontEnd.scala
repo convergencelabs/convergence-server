@@ -72,7 +72,13 @@ class ConvergenceRestFrontEnd(
     val keyGenService = new KeyGenService(ec)
 
     val settings = CorsSettings.defaultSettings.copy(
-      allowedMethods = List(HttpMethods.GET, HttpMethods.POST, HttpMethods.HEAD, HttpMethods.OPTIONS, HttpMethods.DELETE))
+      allowedMethods = List(
+        HttpMethods.GET,
+        HttpMethods.POST,
+        HttpMethods.PUT,
+        HttpMethods.DELETE,
+        HttpMethods.HEAD,
+        HttpMethods.OPTIONS))
 
     val route = cors(settings) {
       // All request are under the "rest" path.
