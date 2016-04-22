@@ -24,6 +24,11 @@ import akka.util.Timeout
 import ch.megard.akka.http.cors.CorsDirectives.cors
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.domain.RestAuthnorizationActor
+import ch.megard.akka.http.cors.CorsSettings
+import akka.http.javadsl.model.headers.HttpOrigin
+import akka.http.scaladsl.model.headers.HttpOriginRange
+import ch.megard.akka.http.cors.HttpHeaderRange
+import akka.http.scaladsl.model.HttpMethods
 
 class ConvergenceRestFrontEnd(
   val system: ActorSystem,
@@ -66,7 +71,10 @@ class ConvergenceRestFrontEnd(
     val domainService = new DomainService(ec, authzActor, domainActor, domainManagerActor, defaultRequestTimeout)
     val keyGenService = new KeyGenService(ec)
 
-    val route = cors() {
+    val settings = CorsSettings.defaultSettings.copy(
+      allowedMethods = List(HttpMethods.GET, HttpMethods.POST, HttpMethods.HEAD, HttpMethods.OPTIONS, HttpMethods.DELETE))
+
+    val route = cors(settings) {
       // All request are under the "rest" path.
       pathPrefix("rest") {
         // You can call the auth service without being authenticated
