@@ -10,6 +10,9 @@ import org.json4s.CustomSerializer
 import java.time.Instant
 import org.json4s.JsonAST.JString
 import java.util.Date
+import java.time.Duration
+import org.json4s.JsonAST.JLong
+import org.json4s.JsonAST.JInt
 
 trait JsonSupport extends Json4sSupport {
 
@@ -27,7 +30,21 @@ trait JsonSupport extends Json4sSupport {
       JString(df.format(Date.from(x)))
   }))
 
+  val durationSerializer = new CustomSerializer[Duration](formats => ({
+    case JInt(int) =>
+      val l = int.longValue()
+      Duration.ofMillis(l)
+    case JLong(long) =>
+      Duration.ofMillis(long)
+  }, {
+    case x: Duration =>
+      JLong(x.toMillis())
+  }))
+
   implicit val serialization = Serialization
 
-  implicit val formats = DefaultFormats + instantSerializer + FieldSerializer[ResponseMessage]()
+  implicit val formats = DefaultFormats +
+    instantSerializer +
+    durationSerializer +
+    FieldSerializer[ResponseMessage]()
 }

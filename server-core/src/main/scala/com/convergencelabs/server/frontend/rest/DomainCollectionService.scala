@@ -3,9 +3,17 @@ package com.convergencelabs.server.frontend.rest
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
-import com.convergencelabs.server.datastore.CollectionStoreActor.CollectionInfo
+import com.convergencelabs.server.datastore.CollectionStoreActor.CreateCollection
+import com.convergencelabs.server.datastore.CollectionStoreActor.DeleteCollection
 import com.convergencelabs.server.datastore.CollectionStoreActor.GetCollection
 import com.convergencelabs.server.datastore.CollectionStoreActor.GetCollections
+import com.convergencelabs.server.datastore.CreateResult
+import com.convergencelabs.server.datastore.CreateSuccess
+import com.convergencelabs.server.datastore.DeleteResult
+import com.convergencelabs.server.datastore.DeleteSuccess
+import com.convergencelabs.server.datastore.DuplicateValue
+import com.convergencelabs.server.datastore.InvalidValue
+import com.convergencelabs.server.datastore.NotFound
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.RestDomainManagerActor.DomainMessage
 import com.convergencelabs.server.domain.model.Collection
@@ -18,31 +26,22 @@ import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
 import akka.http.scaladsl.server.Directive.addDirectiveApply
 import akka.http.scaladsl.server.Directives.Segment
+import akka.http.scaladsl.server.Directives.as
 import akka.http.scaladsl.server.Directives.complete
+import akka.http.scaladsl.server.Directives.delete
 import akka.http.scaladsl.server.Directives.enhanceRouteWithConcatenation
+import akka.http.scaladsl.server.Directives.entity
 import akka.http.scaladsl.server.Directives.get
 import akka.http.scaladsl.server.Directives.pathEnd
 import akka.http.scaladsl.server.Directives.pathPrefix
-import akka.http.scaladsl.server.Directives.segmentStringToPathMatcher
-import akka.http.scaladsl.server.Directives.delete
-import akka.http.scaladsl.server.Directives.entity
 import akka.http.scaladsl.server.Directives.post
-import akka.http.scaladsl.server.Directives.as
+import akka.http.scaladsl.server.Directives.segmentStringToPathMatcher
+import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.util.Timeout
-import akka.http.scaladsl.server.Route
-import com.convergencelabs.server.datastore.DeleteResult
-import com.convergencelabs.server.datastore.DeleteSuccess
-import com.convergencelabs.server.datastore.NotFound
-import com.convergencelabs.server.datastore.CollectionStoreActor.DeleteCollection
-import com.convergencelabs.server.datastore.CreateResult
-import com.convergencelabs.server.datastore.CreateSuccess
-import com.convergencelabs.server.datastore.CollectionStoreActor.CreateCollection
-import com.convergencelabs.server.datastore.DuplicateValue
-import com.convergencelabs.server.datastore.InvalidValue
 
 object DomainCollectionService {
-  case class GetCollectionsResponse(collections: List[CollectionInfo]) extends AbstractSuccessResponse
+  case class GetCollectionsResponse(collections: List[Collection]) extends AbstractSuccessResponse
   case class GetCollectionResponse(collection: Collection) extends AbstractSuccessResponse
 }
 
@@ -80,7 +79,7 @@ class DomainCollectionService(
   def getCollections(domain: DomainFqn): Future[RestResponse] = {
     (domainRestActor ? DomainMessage(
       domain,
-      GetCollections(None, None))).mapTo[List[CollectionInfo]] map
+      GetCollections(None, None))).mapTo[List[Collection]] map
       (collections => (StatusCodes.OK, GetCollectionsResponse(collections)))
   }
 

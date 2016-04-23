@@ -1,16 +1,14 @@
 package com.convergencelabs.server.datastore
 
+import com.convergencelabs.server.datastore.CollectionStoreActor.CreateCollection
+import com.convergencelabs.server.datastore.CollectionStoreActor.DeleteCollection
 import com.convergencelabs.server.datastore.domain.CollectionStore
+import com.convergencelabs.server.domain.model.Collection
 
-import CollectionStoreActor.CollectionInfo
 import CollectionStoreActor.GetCollection
 import CollectionStoreActor.GetCollections
 import akka.actor.ActorLogging
 import akka.actor.Props
-import com.convergencelabs.server.datastore.CollectionStoreActor.DeleteCollection
-import com.convergencelabs.server.domain.model.Collection
-import java.util.UUID
-import com.convergencelabs.server.datastore.CollectionStoreActor.CreateCollection
 
 object CollectionStoreActor {
   def props(collectionStore: CollectionStore): Props = Props(new CollectionStoreActor(collectionStore))
@@ -20,8 +18,6 @@ object CollectionStoreActor {
   case class GetCollection(id: String) extends CollectionStoreRequest
   case class DeleteCollection(collectionId: String) extends CollectionStoreRequest
   case class CreateCollection(collection: Collection) extends CollectionStoreRequest
-
-  case class CollectionInfo(id: String, name: String)
 }
 
 class CollectionStoreActor private[datastore] (
@@ -37,9 +33,7 @@ class CollectionStoreActor private[datastore] (
   }
 
   def getCollections(offset: Option[Int], limit: Option[Int]): Unit = {
-    mapAndReply(collectionStore.getAllCollections(offset, limit)) { collections =>
-      collections.map { c => CollectionInfo(c.id, c.name) }
-    }
+    reply(collectionStore.getAllCollections(offset, limit))
   }
 
   def getCollectionConfig(id: String): Unit = {
