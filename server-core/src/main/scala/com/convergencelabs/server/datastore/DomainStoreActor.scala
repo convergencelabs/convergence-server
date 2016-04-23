@@ -5,6 +5,7 @@ import scala.util.Success
 
 import com.convergencelabs.server.datastore.DomainStoreActor.CreateDomainRequest
 import com.convergencelabs.server.datastore.DomainStoreActor.DeleteDomainRequest
+import com.convergencelabs.server.datastore.DomainStoreActor.UpdateDomainRequest
 import com.convergencelabs.server.datastore.DomainStoreActor.GetDomainRequest
 import com.convergencelabs.server.datastore.DomainStoreActor.ListDomainsRequest
 import com.convergencelabs.server.domain.Domain
@@ -34,9 +35,10 @@ class DomainStoreActor private[datastore] (
   def receive: Receive = {
     case createRequest: CreateDomainRequest => createDomain(createRequest)
     case deleteRequest: DeleteDomainRequest => deleteDomain(deleteRequest)
-    case getRequest: GetDomainRequest       => getDomain(getRequest)
-    case listRequest: ListDomainsRequest    => listDomains(listRequest)
-    case message: Any                       => unhandled(message)
+    case updateRequest: UpdateDomainRequest => updateDomain(updateRequest)
+    case getRequest: GetDomainRequest => getDomain(getRequest)
+    case listRequest: ListDomainsRequest => listDomains(listRequest)
+    case message: Any => unhandled(message)
   }
 
   def createDomain(createRequest: CreateDomainRequest): Unit = {
@@ -46,6 +48,18 @@ class DomainStoreActor private[datastore] (
     val id = UUID.randomUUID().toString()
     // TODO: Need to handle rollback of domain creation if this fails
     reply(domainStore.createDomain(Domain(id, DomainFqn(namespace, domainId), displayName, owner), dbName, username, password))
+  }
+
+  def updateDomain(request: UpdateDomainRequest): Unit = {
+    val UpdateDomainRequest(namespace, domainId, displayName) = request
+    reply(
+      domainStore.getDomainByFqn(DomainFqn(namespace, domainId)).flatMap {
+        case Some(domain) =>
+          val updated = domain.copy(displayName = displayName)
+          domainStore.updateDomain(updated)
+        case None =>
+          Success(NotFound)
+      })
   }
 
   def deleteDomain(deleteRequest: DeleteDomainRequest): Unit = {
@@ -77,6 +91,7 @@ object DomainStoreActor {
   def props(dbPool: OPartitionedDatabasePool): Props = Props(new DomainStoreActor(dbPool))
 
   case class CreateDomainRequest(namespace: String, domainId: String, displayName: String, owner: String)
+  case class UpdateDomainRequest(namespace: String, domainId: String, displayName: String)
   case class DeleteDomainRequest(namespace: String, domainId: String)
   case class GetDomainRequest(namespace: String, domainId: String)
   case class ListDomainsRequest(uid: String)

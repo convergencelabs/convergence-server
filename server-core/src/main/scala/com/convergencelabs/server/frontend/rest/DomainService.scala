@@ -4,6 +4,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
 import com.convergencelabs.server.datastore.DomainStoreActor.CreateDomainRequest
+import com.convergencelabs.server.datastore.DomainStoreActor.UpdateDomainRequest
 import com.convergencelabs.server.datastore.DomainStoreActor.DeleteDomainRequest
 import com.convergencelabs.server.datastore.DomainStoreActor.GetDomainRequest
 import com.convergencelabs.server.datastore.DomainStoreActor.ListDomainsRequest
@@ -25,6 +26,7 @@ import akka.http.scaladsl.server.Directives.get
 import akka.http.scaladsl.server.Directives.pathEnd
 import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.post
+import akka.http.scaladsl.server.Directives.put
 import akka.http.scaladsl.server.Directives.segmentStringToPathMatcher
 import akka.pattern.ask
 import akka.util.Timeout
@@ -42,7 +44,8 @@ import com.convergencelabs.server.domain.RestAuthnorizationActor.AuthorizationGr
 import scala.util.Success
 import com.convergencelabs.server.domain.RestAuthnorizationActor.AuthorizationDenied
 import com.convergencelabs.server.domain.RestAuthnorizationActor.AuthorizationResult
-import com.convergencelabs.server.domain.RestAuthnorizationActor.AuthorizationResult
+import com.convergencelabs.server.datastore.UpdateResult
+import com.convergencelabs.server.datastore.UpdateSuccess
 
 case class DomainsResponse(domains: List[DomainFqn]) extends AbstractSuccessResponse
 case class DomainResponse(domain: DomainInfo) extends AbstractSuccessResponse
@@ -54,7 +57,8 @@ case class DomainInfo(
   domainId: String,
   owner: String)
 
-case class CreateRequest(namespace: String, domainId: String, displayName: String)
+case class CreateDomainRestRequest(namespace: String, domainId: String, displayName: String)
+case class UpdateDomainRestRequest(displayName: String)
 
 class DomainService(
   private[this] val executionContext: ExecutionContext,
@@ -77,10 +81,10 @@ class DomainService(
     pathPrefix("domains") {
       pathEnd {
         get {
-          complete(domainsRequest(userId))
+          complete(getDomains(userId))
         } ~ post {
-          entity(as[CreateRequest]) { request =>
-            complete(createRequest(request, userId))
+          entity(as[CreateDomainRestRequest]) { request =>
+            complete(createDomain(request, userId))
           }
         }
       } ~ pathPrefix(Segment / Segment) { (namespace, domainId) =>
@@ -90,9 +94,13 @@ class DomainService(
             case AuthorizationGranted =>
               pathEnd {
                 get {
-                  complete(domainRequest(namespace, domainId))
+                  complete(getDomain(namespace, domainId))
                 } ~ delete {
-                  complete(deleteRequest(namespace, domainId))
+                  complete(deleteDomain(namespace, domainId))
+                } ~ put {
+                  entity(as[UpdateDomainRestRequest]) { request =>
+                    complete(updateDomain(namespace, domainId, request))
+                  }
                 }
               } ~
                 domainUserService.route(userId, domain) ~
@@ -108,8 +116,8 @@ class DomainService(
     }
   }
 
-  def createRequest(createRequest: CreateRequest, userId: String): Future[RestResponse] = {
-    val CreateRequest(namespace, domainId, displayName) = createRequest
+  def createDomain(createRequest: CreateDomainRestRequest, userId: String): Future[RestResponse] = {
+    val CreateDomainRestRequest(namespace, domainId, displayName) = createRequest
     (domainStoreActor ? CreateDomainRequest(namespace, domainId, displayName, userId)).mapTo[CreateResult[Unit]].map {
       case result: CreateSuccess[Unit] => CreateRestResponse
       case DuplicateValue => DuplicateError
@@ -117,14 +125,14 @@ class DomainService(
     }
   }
 
-  def domainsRequest(userId: String): Future[RestResponse] = {
+  def getDomains(userId: String): Future[RestResponse] = {
     (domainStoreActor ? ListDomainsRequest(userId)).mapTo[List[Domain]].map(domains =>
       (StatusCodes.OK, DomainsResponse(
         (domains map (domain => DomainFqn(domain.domainFqn.namespace, domain.domainFqn.domainId))))))
 
   }
 
-  def domainRequest(namespace: String, domainId: String): Future[RestResponse] = {
+  def getDomain(namespace: String, domainId: String): Future[RestResponse] = {
     (domainStoreActor ? GetDomainRequest(namespace, domainId)).mapTo[Option[Domain]].map {
       case Some(domain) =>
         (StatusCodes.OK, DomainResponse(DomainInfo(
@@ -137,9 +145,18 @@ class DomainService(
     }
   }
 
-  def deleteRequest(namespace: String, domainId: String): Future[RestResponse] = {
+  def deleteDomain(namespace: String, domainId: String): Future[RestResponse] = {
     (domainStoreActor ? DeleteDomainRequest(namespace, domainId)).mapTo[DeleteResult] map {
       case DeleteSuccess => OkResponse
+      case NotFound => NotFoundError
+    }
+  }
+
+  def updateDomain(namespace: String, domainId: String, request: UpdateDomainRestRequest): Future[RestResponse] = {
+    val UpdateDomainRestRequest(displayName) = request
+    (domainStoreActor ? UpdateDomainRequest(namespace, domainId, displayName)).mapTo[UpdateResult].map {
+      case UpdateSuccess => OkResponse
+      case InvalidValue => InvalidValueError
       case NotFound => NotFoundError
     }
   }
