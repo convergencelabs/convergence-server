@@ -24,6 +24,7 @@ import akka.http.scaladsl.server.Directives.get
 import akka.http.scaladsl.server.Directives.pathEnd
 import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.post
+import akka.http.scaladsl.server.Directives.put
 import akka.http.scaladsl.server.Directives.segmentStringToPathMatcher
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
@@ -42,12 +43,21 @@ import com.convergencelabs.server.datastore.DeleteSuccess
 import com.convergencelabs.server.datastore.NotFound
 import com.convergencelabs.server.datastore.UserStoreActor.DeleteDomainUser
 import com.convergencelabs.server.datastore.InvalidValue
+import com.convergencelabs.server.frontend.rest.DomainUserService.UpdateUserRequest
+import com.convergencelabs.server.datastore.UserStoreActor.UpdateUser
+import com.convergencelabs.server.datastore.UpdateResult
+import com.convergencelabs.server.datastore.UpdateSuccess
 
 object DomainUserService {
   case class CreateUserRequest(username: String, firstName: Option[String], lastName: Option[String], email: Option[String], password: Option[String])
   case class CreateUserResponse(uid: String) extends AbstractSuccessResponse
   case class GetUsersRestResponse(users: List[DomainUser]) extends AbstractSuccessResponse
   case class GetUserRestResponse(user: DomainUser) extends AbstractSuccessResponse
+  case class UpdateUserRequest(
+    username: String,
+    firstName: Option[String],
+    lastName: Option[String],
+    email: Option[String])
 
 }
 
@@ -76,6 +86,10 @@ class DomainUserService(
             complete(getUserByUid(uid, domain))
           } ~ delete {
             complete(deleteUser(uid, domain))
+          } ~ put {
+            entity(as[UpdateUserRequest]) { request =>
+              complete(updateUserRequest(uid, request, domain))
+            }
           }
         }
       }
@@ -92,6 +106,15 @@ class DomainUserService(
       case result: CreateSuccess[String] => (StatusCodes.Created, CreateUserResponse(result.result))
       case DuplicateValue                => DuplicateError
       case InvalidValue                  => InvalidValueError
+    }
+  }
+
+  def updateUserRequest(uid: String, updateRequest: UpdateUserRequest, domain: DomainFqn): Future[RestResponse] = {
+    val UpdateUserRequest(username, firstName, lastName, email) = updateRequest
+    (domainRestActor ? DomainMessage(domain, UpdateUser(uid, username, firstName, lastName, email))).mapTo[UpdateResult].map {
+      case UpdateSuccess => OkResponse
+      case NotFound      => NotFoundError
+      case InvalidValue  => InvalidValueError
     }
   }
 

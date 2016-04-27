@@ -11,6 +11,7 @@ import java.util.UUID
 import com.convergencelabs.server.datastore.UserStoreActor.GetUserByUid
 import com.convergencelabs.server.datastore.UserStoreActor.DeleteDomainUser
 import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateDomainUser
+import com.convergencelabs.server.datastore.UserStoreActor.UpdateUser
 
 object UserStoreActor {
   def props(userStore: DomainUserStore): Props = Props(new UserStoreActor(userStore))
@@ -25,6 +26,12 @@ object UserStoreActor {
     email: Option[String],
     password: Option[String]) extends UserStoreRequest
   case class DeleteDomainUser(uid: String) extends UserStoreRequest
+  case class UpdateUser(
+    uid: String,
+    username: String,
+    firstName: Option[String],
+    lastName: Option[String],
+    email: Option[String]) extends UserStoreRequest
 }
 
 class UserStoreActor private[datastore] (private[this] val userStore: DomainUserStore)
@@ -35,6 +42,7 @@ class UserStoreActor private[datastore] (private[this] val userStore: DomainUser
     case message: GetUserByUid     => getUserById(message)
     case message: CreateUser       => createUser(message)
     case message: DeleteDomainUser => deleteUser(message)
+    case message: UpdateUser       => updateUser(message)
     case message: Any              => unhandled(message)
   }
 
@@ -46,6 +54,12 @@ class UserStoreActor private[datastore] (private[this] val userStore: DomainUser
     val CreateUser(username, firstName, lastName, email, password) = message
     val domainuser = CreateDomainUser(username, firstName, lastName, email)
     reply(userStore.createDomainUser(domainuser, password))
+  }
+
+  def updateUser(message: UpdateUser): Unit = {
+    val UpdateUser(uid, username, firstName, lastName, email) = message
+    val domainuser = DomainUser(uid, username, firstName, lastName, email);
+    reply(userStore.updateDomainUser(domainuser))
   }
 
   def getUserById(message: GetUserByUid): Unit = {
