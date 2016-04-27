@@ -76,7 +76,8 @@
 				"64bd5c19-c4ef-0aa6-6e42-7a8076cda1f1",
 				"cd071c1a-4a2d-65e4-0c00-ab532aa9ec40",
 				"8ef215e0-d15d-6d80-b1c5-248556a87c50",
-				"f771924c-d399-330d-d347-8f296b52f643"
+				"f771924c-d399-330d-d347-8f296b52f643",
+				"18c58d7e-9086-bf41-7b3f-4b80c2e0d697"
 			],
 			"owner": 0,
 			"collectionId": "daf05435-42df-8c67-0b6f-5c3789915874"
@@ -87,6 +88,28 @@
 	"remoteLink": "",
 	"public": false,
 	"requests": [
+		{
+			"id": "18c58d7e-9086-bf41-7b3f-4b80c2e0d697",
+			"headers": "Content-Type: application/json\nAuthorization: token {{token}}\n",
+			"url": "http://localhost:8081/rest/domains/namespace1/domain1/users/u1/password",
+			"pathVariables": {},
+			"preRequestScript": null,
+			"method": "PUT",
+			"collectionId": "4b4d014a-96cc-5c52-7a11-3e9d10329cb7",
+			"data": [],
+			"dataMode": "raw",
+			"name": "SetDomainUserPassword",
+			"description": "",
+			"descriptionFormat": "html",
+			"time": 1461719727426,
+			"version": 2,
+			"responses": [],
+			"tests": null,
+			"currentHelper": "normal",
+			"helperAttributes": {},
+			"folder": "d294be86-b545-6a74-f25a-3a395dd7bab7",
+			"rawModeData": "{\n    \"password\":\"newPassword\"\n}"
+		},
 		{
 			"id": "1c2f7fec-8aef-1dac-0018-16f935c811e7",
 			"headers": "Authorization: token {{token}}\n",

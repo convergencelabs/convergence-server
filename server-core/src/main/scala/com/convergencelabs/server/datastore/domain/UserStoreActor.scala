@@ -12,6 +12,7 @@ import com.convergencelabs.server.datastore.UserStoreActor.GetUserByUid
 import com.convergencelabs.server.datastore.UserStoreActor.DeleteDomainUser
 import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateDomainUser
 import com.convergencelabs.server.datastore.UserStoreActor.UpdateUser
+import com.convergencelabs.server.datastore.UserStoreActor.SetPassword
 
 object UserStoreActor {
   def props(userStore: DomainUserStore): Props = Props(new UserStoreActor(userStore))
@@ -32,6 +33,9 @@ object UserStoreActor {
     firstName: Option[String],
     lastName: Option[String],
     email: Option[String]) extends UserStoreRequest
+  case class SetPassword(
+    uid: String,
+    password: String) extends UserStoreRequest
 }
 
 class UserStoreActor private[datastore] (private[this] val userStore: DomainUserStore)
@@ -43,6 +47,7 @@ class UserStoreActor private[datastore] (private[this] val userStore: DomainUser
     case message: CreateUser       => createUser(message)
     case message: DeleteDomainUser => deleteUser(message)
     case message: UpdateUser       => updateUser(message)
+    case message: SetPassword      => setPassword(message)
     case message: Any              => unhandled(message)
   }
 
@@ -60,6 +65,11 @@ class UserStoreActor private[datastore] (private[this] val userStore: DomainUser
     val UpdateUser(uid, username, firstName, lastName, email) = message
     val domainuser = DomainUser(uid, username, firstName, lastName, email);
     reply(userStore.updateDomainUser(domainuser))
+  }
+
+  def setPassword(message: SetPassword): Unit = {
+    val SetPassword(uid, password) = message
+    reply(userStore.setDomainUserPassword(uid, password))
   }
 
   def getUserById(message: GetUserByUid): Unit = {

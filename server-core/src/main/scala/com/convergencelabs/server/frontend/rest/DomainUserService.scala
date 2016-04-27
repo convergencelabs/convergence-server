@@ -47,6 +47,8 @@ import com.convergencelabs.server.frontend.rest.DomainUserService.UpdateUserRequ
 import com.convergencelabs.server.datastore.UserStoreActor.UpdateUser
 import com.convergencelabs.server.datastore.UpdateResult
 import com.convergencelabs.server.datastore.UpdateSuccess
+import com.convergencelabs.server.frontend.rest.DomainUserService.SetPasswordRequest
+import com.convergencelabs.server.datastore.UserStoreActor.SetPassword
 
 object DomainUserService {
   case class CreateUserRequest(username: String, firstName: Option[String], lastName: Option[String], email: Option[String], password: Option[String])
@@ -58,6 +60,7 @@ object DomainUserService {
     firstName: Option[String],
     lastName: Option[String],
     email: Option[String])
+  case class SetPasswordRequest(password: String)
 
 }
 
@@ -91,6 +94,14 @@ class DomainUserService(
               complete(updateUserRequest(uid, request, domain))
             }
           }
+        } ~ pathPrefix("password") {
+          pathEnd {
+            put {
+              entity(as[SetPasswordRequest]) { request =>
+                complete(setPasswordRequest(uid, request, domain))
+              }
+            }
+          }
         }
       }
     }
@@ -112,6 +123,14 @@ class DomainUserService(
   def updateUserRequest(uid: String, updateRequest: UpdateUserRequest, domain: DomainFqn): Future[RestResponse] = {
     val UpdateUserRequest(username, firstName, lastName, email) = updateRequest
     (domainRestActor ? DomainMessage(domain, UpdateUser(uid, username, firstName, lastName, email))).mapTo[UpdateResult].map {
+      case UpdateSuccess => OkResponse
+      case NotFound      => NotFoundError
+      case InvalidValue  => InvalidValueError
+    }
+  }
+
+  def setPasswordRequest(uid: String, setPasswordRequest: SetPasswordRequest, domain: DomainFqn): Future[RestResponse] = {
+    (domainRestActor ? DomainMessage(domain, SetPassword(uid, setPasswordRequest.password))).mapTo[UpdateResult].map {
       case UpdateSuccess => OkResponse
       case NotFound      => NotFoundError
       case InvalidValue  => InvalidValueError

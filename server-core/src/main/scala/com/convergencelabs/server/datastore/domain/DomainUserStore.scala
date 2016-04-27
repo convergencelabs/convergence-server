@@ -303,14 +303,14 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
   }
 
   /**
-   * Set the password for an existing user by username.
+   * Set the password for an existing user by uid.
    *
-   * @param username The unique username of the user.
+   * @param username The unique uid of the user.
    * @param password The new password to use for internal authentication
    */
-  def setDomainUserPassword(username: String, password: String): Try[UpdateResult] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT * FROM UserCredential WHERE user.username = :username")
-    val params = Map(Username -> username)
+  def setDomainUserPassword(uid: String, password: String): Try[UpdateResult] = tryWithDb { db =>
+    val query = new OSQLSynchQuery[ODocument]("SELECT * FROM UserCredential WHERE user.uid = :uid")
+    val params = Map(Uid -> uid)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
     QueryUtil.enforceSingletonResultList(result) match {
