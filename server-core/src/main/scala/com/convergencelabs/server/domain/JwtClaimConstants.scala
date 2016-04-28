@@ -7,6 +7,6 @@ object JwtClaimConstants {
 }
 
 object JwtConstants {
-  val Issuer = "ConvergenceJWTGenerator"
+  val Issuer = "ConvergenceClient"
   val Audiance = "Convergence"
 }

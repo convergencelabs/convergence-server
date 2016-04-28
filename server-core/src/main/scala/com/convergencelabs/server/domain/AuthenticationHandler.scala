@@ -46,14 +46,14 @@ class AuthenticationHandler(
   def authenticate(request: AuthenticationRequest): Future[AuthenticationResponse] = {
     request match {
       case message: PasswordAuthRequest => authenticatePassword(message)
-      case message: TokenAuthRequest    => authenticateToken(message)
+      case message: TokenAuthRequest => authenticateToken(message)
     }
   }
 
   private[this] def authenticatePassword(authRequest: PasswordAuthRequest): Future[AuthenticationResponse] = {
     val response = userStore.validateCredentials(authRequest.username, authRequest.password) match {
       case Success((true, Some(uid))) => AuthenticationSuccess(uid, authRequest.username)
-      case Success((false, _))        => AuthenticationFailure
+      case Success((false, _)) => AuthenticationFailure
       case Success((true, None)) => {
         // We validated the user, but could not get the user id.  This should not happen.
         logger.error(s"user with username '${authRequest.username}' had valid credentials, but a valid uid was not returned")
@@ -83,7 +83,7 @@ class AuthenticationHandler(
 
       getJWTPublicKey(keyId) match {
         case Some(publicKey) => authenticateTokenWithPublicKey(authRequest, publicKey)
-        case None            => AuthenticationFailure
+        case None => AuthenticationFailure
       }
     }
   }
@@ -112,9 +112,9 @@ class AuthenticationHandler(
         createUserFromJWT(jwtClaims) match {
           case Success(CreateSuccess(uid)) => AuthenticationSuccess(uid, username)
           // FIXME: Determine what to do on duplicate value exception
-          case Success(DuplicateValue)     => AuthenticationFailure
-          case Success(InvalidValue)       => AuthenticationFailure
-          case Failure(cause)              => AuthenticationFailure
+          case Success(DuplicateValue) => AuthenticationFailure
+          case Success(InvalidValue) => AuthenticationFailure
+          case Failure(cause) => AuthenticationFailure
         }
       }
       case Failure(cause) => AuthenticationFailure
@@ -134,7 +134,7 @@ class AuthenticationHandler(
     val keyPem: Option[String] = if (!AuthenticationHandler.AdminKeyId.equals(keyId)) {
       keyStore.getKey(keyId) match {
         case Success(Some(key)) if key.enabled => Some(key.key)
-        case _                                 => None
+        case _ => None
       }
     } else {
       domainConfigStore.getAdminKeyPair() match {

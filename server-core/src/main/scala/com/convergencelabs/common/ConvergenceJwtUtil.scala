@@ -19,15 +19,13 @@ import scala.util.Try
 import java.io.Reader
 import java.io.FileReader
 
-import ConvergenceJwtUtil.Audiance
 import ConvergenceJwtUtil.DefaultExpirationMinutes
 import ConvergenceJwtUtil.DefaultNotBeforeMinutes
-import ConvergenceJwtUtil.Issuer
+import com.convergencelabs.server.domain.JwtClaimConstants
+import com.convergencelabs.server.domain.JwtConstants
 
 object ConvergenceJwtUtil {
 
-  val Issuer = "ConvergenceJwtUtil"
-  val Audiance = "Convergence"
   val DefaultExpirationMinutes = 10
   val DefaultNotBeforeMinutes = 10
 
@@ -91,8 +89,8 @@ class ConvergenceJwtUtil(
   def generateToken(username: String, claims: Map[String, Any] = Map()): Try[String] = Try {
     // Create the claims with the basic info.
     val jwtClaims = new JwtClaims()
-    jwtClaims.setIssuer(Issuer)
-    jwtClaims.setAudience(Audiance)
+    jwtClaims.setIssuer(JwtConstants.Issuer)
+    jwtClaims.setAudience(JwtConstants.Audiance)
     jwtClaims.setGeneratedJwtId()
     jwtClaims.setExpirationTimeMinutesInTheFuture(expirationMinutes)
     jwtClaims.setIssuedAtToNow()
