@@ -21,7 +21,7 @@ class DomainRemoteDBController(domainConfig: Config) extends DomainDBController 
   val DBType = "document"
   val StorageMode = "plocal"
 
-  def createDomain(): DBConfig = {
+  def createDomain(importFile: Option[String]): DBConfig = {
     val id = UUID.randomUUID().getLeastSignificantBits().toString()
     val password = UUID.randomUUID().getLeastSignificantBits.toString()
     val uri = s"BaseUri/$id"
@@ -33,7 +33,7 @@ class DomainRemoteDBController(domainConfig: Config) extends DomainDBController 
     db.activateOnCurrentThread()
     db.open(Username, password)
 
-    val dbImport = new ODatabaseImport(db, Schema, new OCommandOutputListener() {
+    val dbImport = new ODatabaseImport(db, importFile.getOrElse(Schema), new OCommandOutputListener() {
       def onMessage(message: String): Unit = {}
     })
 

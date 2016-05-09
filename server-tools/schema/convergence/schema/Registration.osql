@@ -1,0 +1,30 @@
+CREATE CLASS Registration;
+
+#Registration.email
+CREATE PROPERTY Registration.email String;
+ALTER PROPERTY Registration.email MANDATORY true;
+ALTER PROPERTY Registration.email NOTNULL true;
+
+#Registration.fname
+CREATE PROPERTY Registration.fname String;
+ALTER PROPERTY Registration.fname MANDATORY true;
+ALTER PROPERTY Registration.fname NOTNULL true;
+
+#Registration.lname
+CREATE PROPERTY Registration.lname String;
+ALTER PROPERTY Registration.lname MANDATORY true;
+ALTER PROPERTY Registration.lname NOTNULL true;
+
+#Registration.token
+CREATE PROPERTY Registration.token String;
+ALTER PROPERTY Registration.token MANDATORY true;
+ALTER PROPERTY Registration.token NOTNULL true;
+
+#Registration.approved
+CREATE PROPERTY Registration.approved Boolean;
+ALTER PROPERTY Registration.approved MANDATORY true;
+ALTER PROPERTY Registration.approved NOTNULL true;
+
+#Registration Indexes
+CREATE INDEX Registration.email ON Registration (email) UNIQUE;
+CREATE INDEX Registration.email_token ON Registration (email, token) UNIQUE;

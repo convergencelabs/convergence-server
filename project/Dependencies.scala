@@ -52,6 +52,7 @@ object Dependencies {
   
     // MISC  
     val commonsLang        = "org.apache.commons"       % "commons-lang3"                 % "3.4"                       // Apache 2.0
+    val commonsEmail       = "org.apache.commons"       % "commons-email"                 % "1.4"                       // Apache 2.0
     val json4s             = "org.json4s"               % "json4s-jackson_2.11"           % "3.3.0"                     // Apache 2.0
   }
   

@@ -24,6 +24,7 @@ import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 
 import grizzled.slf4j.Logging
+import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
 /**
  * Manages the persistence of Users.  This class manages both user profile records
@@ -47,6 +48,28 @@ class UserStore private[datastore] (
   val Password = "password"
   val Token = "token"
   val ExpireTime = "expireTime"
+
+  def createUser(user: User, password: String): Try[CreateResult[String]] = tryWithDb { db =>
+    // TODO move uid to a sequence in the DB or something
+
+    val userDoc = new ODocument("User");
+    userDoc.field(Uid, user.uid);
+    userDoc.field(Username, user.username);
+
+    db.save(userDoc)
+    userDoc.reload()
+
+    val pwDoc = db.newInstance("UserCredential")
+    pwDoc.field("user", userDoc, OType.LINK) // FIXME verify this creates a link and now a new doc.
+    pwDoc.field(Password, PasswordUtil.hashPassword(password))
+
+    db.save(pwDoc)
+
+    val uid: String = userDoc.field(Uid, OType.STRING)
+    CreateSuccess(uid)
+  } recover {
+    case e: ORecordDuplicatedException => DuplicateValue
+  }
 
   /**
    * Gets a single user by uid.
@@ -89,7 +112,7 @@ class UserStore private[datastore] (
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     result.asScala.toList match {
       case doc :: Nil => true
-      case _ => false
+      case _          => false
     }
   }
 

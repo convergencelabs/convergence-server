@@ -15,14 +15,14 @@ class DomainMemoryDBController(domainConfig: Config) extends DomainDBController 
   val Schema = domainConfig.getString("schema")
   val Password = "admin"
 
-  def createDomain(): DBConfig = {
+  def createDomain(importFile: Option[String]): DBConfig = {
     val id = UUID.randomUUID().getLeastSignificantBits().toString()
 
     val db = new ODatabaseDocumentTx(s"$BaseUri/$id")
     db.activateOnCurrentThread()
     db.create()
 
-    val dbImport = new ODatabaseImport(db, Schema, new OCommandOutputListener() {
+    val dbImport = new ODatabaseImport(db, importFile.getOrElse(Schema), new OCommandOutputListener() {
       def onMessage(message: String): Unit = {}
     })
 

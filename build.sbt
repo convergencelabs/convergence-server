@@ -27,6 +27,7 @@ val serverCore = (project in file("server-core")).
         akkaHttpJson4s,
         akkaHttpCors,
         commonsLang,
+        commonsEmail,
         jose4j,
         bouncyCastle,
         scrypt,

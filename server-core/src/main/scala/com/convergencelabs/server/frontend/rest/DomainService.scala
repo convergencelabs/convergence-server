@@ -118,7 +118,7 @@ class DomainService(
 
   def createDomain(createRequest: CreateDomainRestRequest, userId: String): Future[RestResponse] = {
     val CreateDomainRestRequest(namespace, domainId, displayName) = createRequest
-    (domainStoreActor ? CreateDomainRequest(namespace, domainId, displayName, userId)).mapTo[CreateResult[Unit]].map {
+    (domainStoreActor ? CreateDomainRequest(namespace, domainId, displayName, userId, None)).mapTo[CreateResult[Unit]].map {
       case result: CreateSuccess[Unit] => CreateRestResponse
       case DuplicateValue => DuplicateError
       case InvalidValue => InvalidValueError

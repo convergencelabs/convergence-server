@@ -42,8 +42,8 @@ class DomainStoreActor private[datastore] (
   }
 
   def createDomain(createRequest: CreateDomainRequest): Unit = {
-    val CreateDomainRequest(namespace, domainId, displayName, owner) = createRequest
-    val DBConfig(dbName, username, password) = domainDBContoller.createDomain()
+    val CreateDomainRequest(namespace, domainId, displayName, owner, importFile) = createRequest
+    val DBConfig(dbName, username, password) = domainDBContoller.createDomain(importFile)
     // FIXME: Determine correct way to create id
     val id = UUID.randomUUID().toString()
     // TODO: Need to handle rollback of domain creation if this fails
@@ -90,7 +90,7 @@ class DomainStoreActor private[datastore] (
 object DomainStoreActor {
   def props(dbPool: OPartitionedDatabasePool): Props = Props(new DomainStoreActor(dbPool))
 
-  case class CreateDomainRequest(namespace: String, domainId: String, displayName: String, owner: String)
+  case class CreateDomainRequest(namespace: String, domainId: String, displayName: String, owner: String, importFile: Option[String])
   case class UpdateDomainRequest(namespace: String, domainId: String, displayName: String)
   case class DeleteDomainRequest(namespace: String, domainId: String)
   case class GetDomainRequest(namespace: String, domainId: String)

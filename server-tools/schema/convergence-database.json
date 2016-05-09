@@ -2,6 +2,7 @@
   "outputFile": "convergence.json.gz",
   "schemaScripts": [
     "convergence/schema/User.osql",
+    "convergence/schema/Registration.osql",
     "convergence/schema/Domain.osql",
     "convergence/schema/UserCredential.osql",
     "convergence/schema/UserAuthToken.osql"

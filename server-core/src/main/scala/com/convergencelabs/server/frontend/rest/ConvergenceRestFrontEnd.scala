@@ -32,6 +32,8 @@ import akka.http.scaladsl.model.HttpMethods
 import akka.http.scaladsl.server.directives.SecurityDirectives.authenticateBasic
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
 import akka.http.scaladsl.server.directives.Credentials
+import com.convergencelabs.server.datastore.RegistrationActor
+import com.convergencelabs.server.datastore.ConvergenceUserManagerActor
 
 object ConvergenceRestFrontEnd {
   val ConvergenceCorsSettings = CorsSettings.defaultSettings.copy(
@@ -53,7 +55,7 @@ class ConvergenceRestFrontEnd(
   implicit val s = system
   implicit val materializer = ActorMaterializer()
   implicit val ec = system.dispatcher
-  implicit val defaultRequestTimeout = Timeout(2 seconds)
+  implicit val defaultRequestTimeout = Timeout(20 seconds)
 
   def start(): Unit = {
     // FIXME this is a hack all of this should be a rest backend
@@ -70,8 +72,11 @@ class ConvergenceRestFrontEnd(
 
     val authActor = system.actorOf(AuthStoreActor.props(dbPool))
     val domainActor = system.actorOf(DomainStoreActor.props(dbPool))
+    val userManagerActor = system.actorOf(ConvergenceUserManagerActor.props(dbPool, domainActor))
+    val registrationActor = system.actorOf(RegistrationActor.props(dbPool, userManagerActor))
     val domainManagerActor = system.actorOf(RestDomainManagerActor.props(dbPool))
     val authzActor = system.actorOf(RestAuthnorizationActor.props(domainStore))
+    val convergenceUserActor = system.actorOf(ConvergenceUserManagerActor.props(dbPool, domainActor))
 
     val dbPoolManager = system.actorOf(
       DomainPersistenceManagerActor.props(baseUri, domainStore),
@@ -81,15 +86,17 @@ class ConvergenceRestFrontEnd(
     // These are the rest services
     val authService = new AuthService(ec, authActor, defaultRequestTimeout)
     val authenticator = new Authenticator(authActor, defaultRequestTimeout, ec)
+    val registrationService = new RegistrationService(ec, registrationActor, defaultRequestTimeout)
     val domainService = new DomainService(ec, authzActor, domainActor, domainManagerActor, defaultRequestTimeout)
     val keyGenService = new KeyGenService(ec)
-    val convergenceAdminService = new ConvergenceAdminService();
-                                                                           
+    val convergenceAdminService = new ConvergenceAdminService(ec, convergenceUserActor, defaultRequestTimeout)
+
     val route = cors(ConvergenceRestFrontEnd.ConvergenceCorsSettings) {
       // All request are under the "rest" path.
       pathPrefix("rest") {
         // You can call the auth service without being authenticated
-        authService.route ~
+        registrationService.route ~
+          authService.route ~
           // Everything else must be authenticated
           extractRequest { request =>
             authenticator.requireAuthenticated(request) { userId =>
