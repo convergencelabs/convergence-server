@@ -70,13 +70,22 @@ class RegistrationStore private[datastore] (
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM Registration WHERE token = :token")
     val params = Map(Token -> token)
     val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.mapSingletonList(results) { result => result.field(Email) }
+    QueryUtil.mapSingletonList(results) { result =>  {
+        val email: String = result.field(Email)
+        email
+      }
+    }
   }
 
   def isRegistrationApproved(email: String, token: String): Try[Option[Boolean]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM Registration WHERE email = :email AND token = :token")
     val params = Map(Email -> email, Token -> token)
     val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.mapSingletonList(results) { result => result.field(Approved, OType.BOOLEAN) }
+    QueryUtil.mapSingletonList(results) { result =>
+      {
+        val approved: Boolean = result.field(Approved, OType.BOOLEAN)
+        approved
+      }
+    }
   }
 }
