@@ -51,4 +51,25 @@ object MessageType extends Enumeration {
   val UserLookUpRequest = 50
   val UserSearchRequest = 51
   val UserListResponse = 52
+  
+  val ActivityOpenRequest = 60
+  val ActivityOpenResponse = 61
+
+  val ActivityCloseRequest = 62
+  val ActivityCloseResponse = 63
+
+  val ActivityJoinRequest = 64
+  val ActivityJoinResponse = 65
+
+  val ActivityLeaveRequest = 66
+  val ActivityLeaveResponse = 67
+
+  val ActivitySessionJoined = 68
+  val ActivitySessionLeft = 69
+
+  val ActivityLocalStateSet = 70
+  val ActivityLocalStateCleared = 71
+
+  val ActivityRemoteStateSet = 72
+  val ActivityRemoteStateCleared = 73
 }

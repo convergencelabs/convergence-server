@@ -6,6 +6,8 @@ import org.json4s.jackson.Serialization.write
 
 import com.convergencelabs.server.frontend.realtime.data.DataValueFieldSerializer
 import com.convergencelabs.server.frontend.realtime.data.DataValueTypeHints
+import com.convergencelabs.server.domain.ActivityServiceActor.ActivitySetState
+import com.convergencelabs.server.frontend.realtime.ActivitySetStateMessage
 
 object MessageSerializer {
 
@@ -58,7 +60,22 @@ object MessageSerializer {
 
     MessageType.UserLookUpRequest -> classOf[UserLookUpMessage],
     MessageType.UserSearchRequest -> classOf[UserSearchMessage],
-    MessageType.UserListResponse -> classOf[UserListMessage]),
+    MessageType.UserListResponse -> classOf[UserListMessage],
+
+    MessageType.ActivityOpenRequest -> classOf[ActivityOpenRequestMessage],
+    MessageType.ActivityOpenResponse -> classOf[ActivityOpenSuccessMessage],
+    MessageType.ActivityCloseRequest -> classOf[ActivityCloseRequestMessage],
+    MessageType.ActivityCloseResponse -> classOf[ActivityCloseSuccessMessage],
+    MessageType.ActivityJoinRequest -> classOf[ActivityJoinRequestMessage],
+    MessageType.ActivityJoinResponse -> classOf[ActivityJoinSuccessMessage],
+    MessageType.ActivityLeaveRequest -> classOf[ActivityLeaveRequestMessage],
+    MessageType.ActivityLeaveResponse -> classOf[ActivityLeaveSuccessMessage],
+    MessageType.ActivitySessionJoined -> classOf[ActivitySessionJoinedMessage],
+    MessageType.ActivitySessionLeft -> classOf[ActivitySessionLeftMessage],
+    MessageType.ActivityLocalStateSet -> classOf[ActivitySetStateMessage],
+    MessageType.ActivityLocalStateCleared -> classOf[ActivityClearStateMessage],
+    MessageType.ActivityRemoteStateSet -> classOf[ActivityRemoteStateSetMessage],
+    MessageType.ActivityRemoteStateCleared -> classOf[ActivityRemoteStateClearedMessage]),
 
     DefaultFormats.withTypeHintFieldName("?") + new OperationSerializer() + DataValueTypeHints + DataValueFieldSerializer)
 

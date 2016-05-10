@@ -14,7 +14,8 @@ package object domain {
     reconnectToken: String,
     domainActor: ActorRef,
     modelManager: ActorRef,
-    userService: ActorRef) extends HandshakeResponse
+    userService: ActorRef,
+    activityService: ActorRef) extends HandshakeResponse
   case class HandshakeFailure(code: String, details: String) extends HandshakeResponse
 
   case class ClientDisconnected(sessionId: String)

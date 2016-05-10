@@ -74,7 +74,7 @@ class UserServiceActor private[domain] (domainFqn: DomainFqn) extends Actor with
   }
 
   override def postStop(): Unit = {
-    log.debug("ModelManagerActor({}) received shutdown command.  Shutting down all Realtime Models.", this.domainFqn)
+    log.debug(s"UserServiceActor(${domainFqn}) stopped.")
     DomainPersistenceManagerActor.releasePersistenceProvider(self, context, domainFqn)
   }
 

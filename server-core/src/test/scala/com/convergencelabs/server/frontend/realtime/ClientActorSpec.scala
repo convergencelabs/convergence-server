@@ -79,6 +79,7 @@ class ClientActorSpec
     val domainActor = new TestProbe(system)
     val modelManagerActor = new TestProbe(system)
     val userServiceActor = new TestProbe(system)
+    val activityServiceActor = new TestProbe(system)
 
     val handshakeRequestMessage = HandshakeRequestMessage(false, None)
     val handshakeCallback = new TestReplyCallback()
@@ -87,7 +88,7 @@ class ClientActorSpec
     clientActor.tell(handshakeEvent, ActorRef.noSender)
 
     domainManagerActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeRequest])
-    domainManagerActor.reply(HandshakeSuccess(SessionId, RecconnectToken, domainActor.ref, modelManagerActor.ref, userServiceActor.ref))
+    domainManagerActor.reply(HandshakeSuccess(SessionId, RecconnectToken, domainActor.ref, modelManagerActor.ref, userServiceActor.ref, activityServiceActor.ref))
     Await.result(handshakeCallback.result, 250 millis)
   }
 

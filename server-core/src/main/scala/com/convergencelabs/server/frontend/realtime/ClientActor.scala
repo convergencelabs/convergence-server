@@ -29,6 +29,7 @@ import com.convergencelabs.server.domain.HandshakeSuccess
 import scala.util.Failure
 import com.convergencelabs.server.ProtocolConfiguration
 import akka.actor.PoisonPill
+import com.convergencelabs.server.domain.model.SessionKey
 
 object ClientActor {
   def props(
@@ -66,9 +67,12 @@ class ClientActor(
 
   private[this] var modelClient: ActorRef = _
   private[this] var userClient: ActorRef = _
+  private[this] var activityClient: ActorRef = _
+  
   private[this] var domainActor: Option[ActorRef] = None
   private[this] var modelManagerActor: ActorRef = _
   private[this] var userServiceActor: ActorRef = _
+  private[this] var activityServiceActor: ActorRef = _
   private[this] var sessionId: String = _
 
   private[this] var protocolConnection: ProtocolConnection = _
@@ -192,6 +196,7 @@ class ClientActor(
     val InternalAuthSuccess(uid, username, cb) = message
     this.modelClient = context.actorOf(ModelClientActor.props(uid, sessionId, modelManagerActor))
     this.userClient = context.actorOf(UserClientActor.props(userServiceActor))
+    this.activityClient = context.actorOf(ActivityClientActor.props(activityServiceActor, SessionKey(uid, sessionId)))
     this.messageHandler = handleMessagesWhenAuthenticated
     cb.reply(AuthenticationResponseMessage(true, Some(username)))
     context.become(receiveWhileAuthenticated)
@@ -221,11 +226,14 @@ class ClientActor(
   }
 
   private[this] def handleHandshakeSuccess(success: InternalHandshakeSuccess): Unit = {
-    val InternalHandshakeSuccess(HandshakeSuccess(sessionId, reconnectToken, domainActor, modelManagerActor, userServiceActor), cb) = success
+    val InternalHandshakeSuccess(HandshakeSuccess(
+      sessionId, reconnectToken, domainActor, modelManagerActor, userActor, activityActor),
+      cb) = success
     this.sessionId = sessionId
     this.domainActor = Some(domainActor)
     this.modelManagerActor = modelManagerActor
-    this.userServiceActor = userServiceActor
+    this.userServiceActor = userActor
+    this.activityServiceActor = activityActor
     cb.reply(HandshakeResponseMessage(true, None, Some(sessionId), Some(reconnectToken), None, Some(ProtocolConfigData(true))))
     this.messageHandler = handleAuthentationMessage
     context.become(receiveWhileAuthenticating)
@@ -251,6 +259,7 @@ class ClientActor(
   private[this] def onMessageReceived(message: MessageReceived): Unit = {
     message match {
       case MessageReceived(x) if x.isInstanceOf[IncomingModelNormalMessage] => modelClient.forward(message)
+      case MessageReceived(x) if x.isInstanceOf[IncomingActivityMessage] => activityClient.forward(message)
     }
   }
 
@@ -260,6 +269,8 @@ class ClientActor(
         modelClient.forward(message)
       case RequestReceived(x, _) if x.isInstanceOf[IncomingUserMessage] =>
         userClient.forward(message)
+      case RequestReceived(x, _) if x.isInstanceOf[IncomingActivityMessage] =>
+        activityClient.forward(message)
     }
   }
 

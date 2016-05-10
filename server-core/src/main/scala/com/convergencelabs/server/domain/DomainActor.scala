@@ -73,6 +73,10 @@ class DomainActor(
     domainFqn),
     UserServiceActor.RelativePath)
 
+  private[this] val activityServiceActor = context.actorOf(ActivityServiceActor.props(
+    domainFqn),
+    ActivityServiceActor.RelativePath)
+
   private[this] var authenticator: AuthenticationHandler = _
 
   log.debug(s"Domain start up complete: ${domainFqn}")
@@ -107,7 +111,13 @@ class DomainActor(
             ("todo", "todo")
           }
         }
-        sender ! HandshakeSuccess(sessionId, reconnectToken, self, modelManagerActorRef, userServiceActor)
+        sender ! HandshakeSuccess(
+            sessionId, 
+            reconnectToken, 
+            self, 
+            modelManagerActorRef, 
+            userServiceActor,
+            activityServiceActor)
       }
       case false => {
         sender ! HandshakeFailure("domain_unavailable", "Could not connect to database.")
