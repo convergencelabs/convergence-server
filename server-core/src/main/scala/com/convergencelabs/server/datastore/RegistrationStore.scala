@@ -1,30 +1,22 @@
 package com.convergencelabs.server.datastore
 
-import java.time.Duration
-import java.time.Instant
-import java.util.Date
 import java.util.{ List => JavaList }
 import java.util.UUID
 
-import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.mapAsJavaMapConverter
-import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 
 import org.json4s.NoTypeHints
 import org.json4s.jackson.Serialization
 
-import com.convergencelabs.server.User
-import com.convergencelabs.server.datastore.domain.PasswordUtil
-import com.convergencelabs.server.datastore.mapper.UserMapper.ODocumentToUser
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
+import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
 import grizzled.slf4j.Logging
-import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
 class RegistrationStore private[datastore] (
   private[this] val dbPool: OPartitionedDatabasePool)
@@ -54,9 +46,9 @@ class RegistrationStore private[datastore] (
     case e: ORecordDuplicatedException => DuplicateValue
   }
 
-  def removeRegistration(email: String, token: String): Try[DeleteResult] = tryWithDb { db =>
-    val command = new OCommandSQL("DELETE FROM Registration WHERE email = :email AND token = :token")
-    val params = Map(Email -> email, Token -> token)
+  def removeRegistration(token: String): Try[DeleteResult] = tryWithDb { db =>
+    val command = new OCommandSQL("DELETE FROM Registration WHERE token = :token")
+    val params = Map(Token -> token)
     val count: Int = db.command(command).execute(params.asJava)
     count match {
       case 0 => NotFound
@@ -64,9 +56,9 @@ class RegistrationStore private[datastore] (
     }
   }
 
-  def approveRegistration(email: String, token: String): Try[UpdateResult] = tryWithDb { db =>
-    val command = new OCommandSQL("Update Registration Set approved = true WHERE email = :email AND token = :token")
-    val params = Map(Email -> email, Token -> token)
+  def approveRegistration(token: String): Try[UpdateResult] = tryWithDb { db =>
+    val command = new OCommandSQL("Update Registration Set approved = true WHERE token = :token")
+    val params = Map(Token -> token)
     val count: Int = db.command(command).execute(params.asJava)
     count match {
       case 0 => NotFound
@@ -74,17 +66,17 @@ class RegistrationStore private[datastore] (
     }
   }
 
+  def getRegistrationEmail(token: String): Try[Option[String]] = tryWithDb { db =>
+    val query = new OSQLSynchQuery[ODocument]("SELECT FROM Registration WHERE token = :token")
+    val params = Map(Token -> token)
+    val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
+    QueryUtil.mapSingletonList(results) { result => result.field(Email) }
+  }
+
   def isRegistrationApproved(email: String, token: String): Try[Option[Boolean]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM Registration WHERE email = :email AND token = :token")
     val params = Map(Email -> email, Token -> token)
     val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    println(results)
-    QueryUtil.mapSingletonList(results) {
-      result =>
-        {
-          println(result.field(Approved))
-          result.field(Approved, OType.BOOLEAN)
-        }
-    }
+    QueryUtil.mapSingletonList(results) { result => result.field(Approved, OType.BOOLEAN) }
   }
 }

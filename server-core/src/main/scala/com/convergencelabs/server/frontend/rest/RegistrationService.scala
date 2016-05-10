@@ -29,10 +29,12 @@ import com.convergencelabs.server.datastore.RegistrationActor.ApproveRegistratio
 import com.convergencelabs.server.datastore.UpdateResult
 import com.convergencelabs.server.datastore.UpdateSuccess
 import com.convergencelabs.server.datastore.NotFound
+import com.convergencelabs.server.datastore.RegistrationActor.RejectRegistration
 
 case class Registration(username: String, fname: String, lname: String, email: String, password: String, token: String)
 case class RegistrationRequest(fname: String, lname: String, email: String)
-case class RegistrationApproval(email: String, token: String)
+case class RegistrationApproval(token: String)
+case class RegistrationRejection(token: String)
 
 class RegistrationService(
   private[this] val executionContext: ExecutionContext,
@@ -60,6 +62,12 @@ class RegistrationService(
           handleWith(registrationApprove)
         }
       }
+    } ~ pathPrefix("reject") {
+      pathEnd {
+        post {
+          handleWith(registrationReject)
+        }
+      }
     }
   }
 
@@ -73,8 +81,17 @@ class RegistrationService(
   }
 
   def registrationApprove(req: RegistrationApproval): Future[RestResponse] = {
-    val RegistrationApproval(email, token) = req
-    (registrationActor ? ApproveRegistration(email, token)).mapTo[UpdateResult].map {
+    val RegistrationApproval(token) = req
+    (registrationActor ? ApproveRegistration(token)).mapTo[UpdateResult].map {
+      case UpdateSuccess => OkResponse
+      case NotFound      => NotFoundError
+      case InvalidValue  => InvalidValueError
+    }
+  }
+  
+  def registrationReject(req: RegistrationRejection): Future[RestResponse] = {
+    val RegistrationRejection(token) = req
+    (registrationActor ? RejectRegistration(token)).mapTo[UpdateResult].map {
       case UpdateSuccess => OkResponse
       case NotFound      => NotFoundError
       case InvalidValue  => InvalidValueError

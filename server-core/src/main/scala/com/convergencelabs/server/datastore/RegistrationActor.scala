@@ -22,14 +22,16 @@ import org.apache.commons.mail.HtmlEmail
 import scala.concurrent.duration.FiniteDuration
 import org.apache.commons.mail.DefaultAuthenticator
 import org.apache.commons.mail.SimpleEmail
+import com.typesafe.config.Config
+import com.convergencelabs.server.datastore.RegistrationActor.RejectRegistration
 
 object RegistrationActor {
   def props(dbPool: OPartitionedDatabasePool, userManager: ActorRef): Props = Props(new RegistrationActor(dbPool, userManager))
 
   case class RegisterUser(username: String, fname: String, lname: String, email: String, password: String, token: String)
   case class AddRegistration(fname: String, lname: String, email: String)
-  case class ApproveRegistration(email: String, token: String)
-
+  case class ApproveRegistration(token: String)
+  case class RejectRegistration(token: String)
 }
 
 class RegistrationActor private[datastore] (dbPool: OPartitionedDatabasePool, userManager: ActorRef) extends StoreActor with ActorLogging {
@@ -38,12 +40,21 @@ class RegistrationActor private[datastore] (dbPool: OPartitionedDatabasePool, us
   private[this] implicit val requstTimeout = Timeout(15 seconds)
   private[this] implicit val exectionContext = context.dispatcher
 
+  private[this] val smtpConfig: Config = context.system.settings.config.getConfig("convergence.smtp")
+  private[this] val username = smtpConfig.getString("username")
+  private[this] val password = smtpConfig.getString("password")
+  private[this] val toAddress = smtpConfig.getString("toAddress")
+  private[this] val fromAddress = smtpConfig.getString("fromAddress")
+  private[this] val host = smtpConfig.getString("host")
+  private[this] val port = smtpConfig.getInt("port")
+
   private[this] val registrationStore = new RegistrationStore(dbPool)
 
   def receive: Receive = {
     case message: RegisterUser        => registerUser(message)
     case message: AddRegistration     => addRegistration(message)
     case message: ApproveRegistration => appoveRegistration(message)
+    case message: RejectRegistration  => rejectRegistration(message)
     case message: Any                 => unhandled(message)
   }
 
@@ -55,7 +66,7 @@ class RegistrationActor private[datastore] (dbPool: OPartitionedDatabasePool, us
         val req = CreateConvergenceUserRequest(username, password)
         (userManager ? req).mapTo[CreateResult[String]] onSuccess {
           case result: CreateSuccess[String] => {
-            registrationStore.removeRegistration(email, token)
+            registrationStore.removeRegistration(token)
             origSender ! result
           }
           case _ => origSender ! _
@@ -69,12 +80,6 @@ class RegistrationActor private[datastore] (dbPool: OPartitionedDatabasePool, us
     val AddRegistration(fname, lname, email) = message
     reply(registrationStore.addRegistration(fname, lname, email) map {
       case CreateSuccess(token) => {
-
-        val smtpEmail = ""
-        val smtpPassword = ""
-        val sendFrom = "cameron@convergencelabs.com"
-        val sendTo = "cameron@convergencelabs.com"
-
         val htmlBuilder = StringBuilder.newBuilder
         htmlBuilder ++= "<!DOCTYPE html>\n"
         htmlBuilder ++= "<html lang='en'>\n"
@@ -83,35 +88,19 @@ class RegistrationActor private[datastore] (dbPool: OPartitionedDatabasePool, us
         htmlBuilder ++= "	<title>Title</title>\n"
         htmlBuilder ++= "</head>\n"
         htmlBuilder ++= "<body>\n"
-        htmlBuilder ++= "	<button id='approveButton' onclick='post();'>Approve</button>\n"
+        htmlBuilder ++= s"	<a href='http://localhost:8081/approval/${token}'>Approval Page</a>\n"
         htmlBuilder ++= "</body>\n"
-
-        htmlBuilder ++= "<script>\n"
-        htmlBuilder ++= "	function post(callback) {\n"
-        htmlBuilder ++= "		try {\n"
-        htmlBuilder ++= "			var req = new XMLHttpRequest();\n"
-        htmlBuilder ++= "     req.open('POST', 'http://localhost:8081/rest/registration/approve', true);\n"
-        htmlBuilder ++= "     req.setRequestHeader('Content-type', 'application/json');\n"
-        htmlBuilder ++= "     req.setRequestHeader('Access-Control-Allow-Origin', '*');\n"
-        htmlBuilder ++= s"     req.send(JSON.stringify({'email': '${email}', 'token': '${token}'}));\n"
-        htmlBuilder ++= "    } catch (e) {\n"
-        htmlBuilder ++= "      window.console && console.log(e);\n"
-        htmlBuilder ++= "    }\n"
-        htmlBuilder ++= "  }\n"
-        htmlBuilder ++= "</script>\n"
         htmlBuilder ++= "</html>\n"
 
         val approvalEmail = new HtmlEmail()
-        approvalEmail.setHostName("smtp.gmail.com")
-        approvalEmail.setSmtpPort(465)
-        approvalEmail.setAuthenticator(new DefaultAuthenticator(smtpEmail, smtpPassword))
-        approvalEmail.setSSLOnConnect(true)
-        approvalEmail.setFrom(sendFrom)
+        approvalEmail.setHostName(host)
+        approvalEmail.setSmtpPort(port)
+        approvalEmail.setAuthenticator(new DefaultAuthenticator(username, password))
+        approvalEmail.setFrom(fromAddress)
         approvalEmail.setSubject(s"Registration Approval Request for ${fname} ${lname}")
         approvalEmail.setHtmlMsg(htmlBuilder.toString())
-        // Todo: Need to set alternative msg
-        approvalEmail.setTextMsg("")
-        approvalEmail.addTo(sendTo)
+        approvalEmail.setTextMsg(s"Approval Link: http://localhost:8081/approval/${token}")
+        approvalEmail.addTo(toAddress)
         approvalEmail.send()
 
         CreateSuccess(Unit)
@@ -123,8 +112,46 @@ class RegistrationActor private[datastore] (dbPool: OPartitionedDatabasePool, us
   }
 
   def appoveRegistration(message: ApproveRegistration): Unit = {
-    val ApproveRegistration(email, token) = message
-    reply(registrationStore.approveRegistration(email, token))
-    // Send Registation Email To User
+    val ApproveRegistration(token) = message
+
+    val resp = registrationStore.approveRegistration(token)
+    reply(resp)
+    resp match {
+      case Success(UpdateSuccess) => {
+        registrationStore.getRegistrationEmail(token) match {
+          case Success(Some(email)) => {
+            val htmlBuilder = StringBuilder.newBuilder
+            htmlBuilder ++= "<!DOCTYPE html>\n"
+            htmlBuilder ++= "<html lang='en'>\n"
+            htmlBuilder ++= "<head>\n"
+            htmlBuilder ++= "	<meta charset='UTF-8'>\n"
+            htmlBuilder ++= "	<title>Title</title>\n"
+            htmlBuilder ++= "</head>\n"
+            htmlBuilder ++= "<body>\n"
+            htmlBuilder ++= s"	<a href='http://localhost:8081/signup/${token}'>Signup Page</a>\n"
+            htmlBuilder ++= "</body>\n"
+            htmlBuilder ++= "</html>\n"
+
+            val approvalEmail = new HtmlEmail()
+            approvalEmail.setHostName(host)
+            approvalEmail.setSmtpPort(port)
+            approvalEmail.setAuthenticator(new DefaultAuthenticator(username, password))
+            approvalEmail.setFrom(fromAddress)
+            approvalEmail.setSubject("Signup Approved")
+            approvalEmail.setHtmlMsg(htmlBuilder.toString())
+            approvalEmail.setTextMsg(s"Signup Link: http://localhost:8081/signup/${token}")
+            approvalEmail.addTo(email)
+            approvalEmail.send()
+          }
+          case _ => log.error("Unable to lookup registration to send Email")
+        }
+      }
+      case _ => // Do Nothing, we have already replied with this error
+    }
+  }
+
+  def rejectRegistration(message: RejectRegistration): Unit = {
+    val RejectRegistration(token) = message
+    reply(registrationStore.removeRegistration(token))
   }
 }

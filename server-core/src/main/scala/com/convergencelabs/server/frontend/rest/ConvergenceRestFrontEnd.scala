@@ -18,6 +18,10 @@ import akka.http.scaladsl.server.Directives.enhanceRouteWithConcatenation
 import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.segmentStringToPathMatcher
 import akka.http.scaladsl.server.Directives.extractRequest
+import akka.http.scaladsl.server.Directives.get
+import akka.http.scaladsl.server.Directives.complete
+import akka.http.scaladsl.server.Directives.pathEnd
+import akka.http.scaladsl.server.Directives.Segment
 import akka.http.scaladsl.server.RouteResult.route2HandlerFlow
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
@@ -25,15 +29,21 @@ import ch.megard.akka.http.cors.CorsDirectives.cors
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.domain.RestAuthnorizationActor
 import ch.megard.akka.http.cors.CorsSettings
-import akka.http.javadsl.model.headers.HttpOrigin
+import akka.http.scaladsl.model.headers.HttpOrigin
 import akka.http.scaladsl.model.headers.HttpOriginRange
 import ch.megard.akka.http.cors.HttpHeaderRange
 import akka.http.scaladsl.model.HttpMethods
 import akka.http.scaladsl.server.directives.SecurityDirectives.authenticateBasic
-import akka.http.scaladsl.server.directives.RouteDirectives.complete
 import akka.http.scaladsl.server.directives.Credentials
 import com.convergencelabs.server.datastore.RegistrationActor
 import com.convergencelabs.server.datastore.ConvergenceUserManagerActor
+import akka.http.scaladsl.model.HttpResponse
+import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.model.HttpEntity
+import akka.http.scaladsl.model.MediaTypes
+import akka.http.scaladsl.model.ContentType
+import akka.http.scaladsl.model.HttpCharsets
+import akka.http.scaladsl.model.StatusCode
 
 object ConvergenceRestFrontEnd {
   val ConvergenceCorsSettings = CorsSettings.defaultSettings.copy(
@@ -91,6 +101,48 @@ class ConvergenceRestFrontEnd(
     val keyGenService = new KeyGenService(ec)
     val convergenceAdminService = new ConvergenceAdminService(ec, convergenceUserActor, defaultRequestTimeout)
 
+    def getApprovalHtml(token: String): String = {
+      val htmlBuilder = StringBuilder.newBuilder
+      htmlBuilder ++= "<!DOCTYPE html>\n"
+      htmlBuilder ++= "<html lang='en'>\n"
+      htmlBuilder ++= "<head>\n"
+      htmlBuilder ++= "	<meta charset='UTF-8'>\n"
+      htmlBuilder ++= "	<title>Title</title>\n"
+      htmlBuilder ++= "</head>\n"
+      htmlBuilder ++= "<body>\n"
+      htmlBuilder ++= "	<button id='approveButton' onclick='approve();'>Approve</button>\n"
+      htmlBuilder ++= "</body>\n"
+      htmlBuilder ++= "<body>\n"
+      htmlBuilder ++= "	<button id='rejectButton' onclick='post();'>Reject</button>\n"
+      htmlBuilder ++= "</body>\n"
+      htmlBuilder ++= "<script>\n"
+      htmlBuilder ++= "	function approve() {\n"
+      htmlBuilder ++= "		try {\n"
+      htmlBuilder ++= "			var req = new XMLHttpRequest();\n"
+      htmlBuilder ++= "     req.open('POST', 'http://localhost:8081/rest/registration/approve', true);\n"
+      htmlBuilder ++= "     req.setRequestHeader('Content-type', 'application/json');\n"
+      htmlBuilder ++= "     req.setRequestHeader('Access-Control-Allow-Origin', '*');\n"
+      htmlBuilder ++= s"     req.send(JSON.stringify({'token': '${token}'}));\n"
+      htmlBuilder ++= "    } catch (e) {\n"
+      htmlBuilder ++= "      window.console && console.log(e);\n"
+      htmlBuilder ++= "    }\n"
+      htmlBuilder ++= "  }\n"
+      htmlBuilder ++= "	function reject() {\n"
+      htmlBuilder ++= "		try {\n"
+      htmlBuilder ++= "			var req = new XMLHttpRequest();\n"
+      htmlBuilder ++= "     req.open('POST', 'http://localhost:8081/rest/registration/reject', true);\n"
+      htmlBuilder ++= "     req.setRequestHeader('Content-type', 'application/json');\n"
+      htmlBuilder ++= "     req.setRequestHeader('Access-Control-Allow-Origin', '*');\n"
+      htmlBuilder ++= s"     req.send(JSON.stringify({'token': '${token}'}));\n"
+      htmlBuilder ++= "    } catch (e) {\n"
+      htmlBuilder ++= "      window.console && console.log(e);\n"
+      htmlBuilder ++= "    }\n"
+      htmlBuilder ++= "  }\n"
+      htmlBuilder ++= "</script>\n"
+      htmlBuilder ++= "</html>\n"
+      htmlBuilder.toString()
+    }
+
     val route = cors(ConvergenceRestFrontEnd.ConvergenceCorsSettings) {
       // All request are under the "rest" path.
       pathPrefix("rest") {
@@ -107,6 +159,14 @@ class ConvergenceRestFrontEnd(
       } ~ pathPrefix("admin") {
         authenticateBasic(realm = "convergence admin", AdminAuthenticator.authenticate(adminsConfig)) { adminUser =>
           convergenceAdminService.route(adminUser)
+        }
+      } ~ pathPrefix("approval") {
+        pathPrefix(Segment) { token =>
+          pathEnd {
+            get {
+              complete(StatusCodes.OK, HttpEntity(ContentType.WithCharset(MediaTypes.`text/html`, HttpCharsets.`UTF-8`), getApprovalHtml(token)))
+            }
+          }
         }
       }
     }
