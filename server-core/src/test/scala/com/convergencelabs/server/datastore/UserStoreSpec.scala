@@ -21,8 +21,9 @@ class UserStoreSpec
     with Matchers {
 
   val cu0 = "cu0"
+  val username = "test"
   val DummyToken = "myToken"
-  val User0 = User(cu0, "test", "test@convergence.com", "test", "test")
+  val User0 = User(cu0, username, "test@convergence.com", username, username)
   val tokenDurationMinutes = 5
   val tokenDuration = Duration.ofSeconds(5) // scalastyle:ignore magic.number
 

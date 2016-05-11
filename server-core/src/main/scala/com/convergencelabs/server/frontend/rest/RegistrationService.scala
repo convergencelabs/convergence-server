@@ -88,7 +88,7 @@ class RegistrationService(
       case InvalidValue  => InvalidValueError
     }
   }
-  
+
   def registrationReject(req: RegistrationRejection): Future[RestResponse] = {
     val RegistrationRejection(token) = req
     (registrationActor ? RejectRegistration(token)).mapTo[UpdateResult].map {

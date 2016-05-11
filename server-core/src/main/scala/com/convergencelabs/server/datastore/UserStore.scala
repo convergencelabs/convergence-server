@@ -76,7 +76,7 @@ class UserStore private[datastore] (
   } recover {
     case e: ORecordDuplicatedException => DuplicateValue
   }
-  
+
   def deleteUser(username: String): Try[DeleteResult] = tryWithDb { db =>
     val command = new OCommandSQL("DELETE FROM User WHERE username = :username")
     val params = Map(Username -> username)
