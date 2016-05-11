@@ -30,10 +30,14 @@ import com.convergencelabs.server.datastore.NotFound
 import com.convergencelabs.server.datastore.DuplicateValue
 import com.convergencelabs.server.datastore.InvalidValue
 import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateDomainUser
+import com.convergencelabs.server.domain.model.SessionKey
 
 object AuthenticationHandler {
   val AdminKeyId = "ConvergenceAdminKey"
   val AllowedClockSkew = 30
+
+  private val MaxSessionId = 2176782335L
+  private val SessionIdRadix = 36
 }
 
 class AuthenticationHandler(
@@ -42,6 +46,8 @@ class AuthenticationHandler(
   private[this] val userStore: DomainUserStore,
   private[this] implicit val ec: ExecutionContext)
     extends Logging {
+
+  private[this] var nextSessionId = 0L
 
   def authenticate(request: AuthenticationRequest): Future[AuthenticationResponse] = {
     request match {
@@ -52,7 +58,7 @@ class AuthenticationHandler(
 
   private[this] def authenticatePassword(authRequest: PasswordAuthRequest): Future[AuthenticationResponse] = {
     val response = userStore.validateCredentials(authRequest.username, authRequest.password) match {
-      case Success((true, Some(uid))) => AuthenticationSuccess(uid, authRequest.username)
+      case Success((true, Some(uid))) => AuthenticationSuccess(uid, authRequest.username, SessionKey(uid, generateNextSessionId()))
       case Success((false, _)) => AuthenticationFailure
       case Success((true, None)) => {
         // We validated the user, but could not get the user id.  This should not happen.
@@ -106,11 +112,11 @@ class AuthenticationHandler(
     // sure a replay attack is not possible.
     userStore.getDomainUserByUsername(username) match {
       case Success(Some(user)) => {
-        AuthenticationSuccess(user.uid, user.username)
+        AuthenticationSuccess(user.uid, user.username, SessionKey(user.uid, generateNextSessionId()))
       }
       case Success(None) => {
         createUserFromJWT(jwtClaims) match {
-          case Success(CreateSuccess(uid)) => AuthenticationSuccess(uid, username)
+          case Success(CreateSuccess(uid)) => AuthenticationSuccess(uid, username, SessionKey(uid, generateNextSessionId()))
           // FIXME: Determine what to do on duplicate value exception
           case Success(DuplicateValue) => AuthenticationFailure
           case Success(InvalidValue) => AuthenticationFailure
@@ -156,5 +162,17 @@ class AuthenticationHandler(
           Success(None)
       }.get
     }
+  }
+
+  private[this] def generateNextSessionId(): String = {
+    val sessionId = nextSessionId
+
+    if (nextSessionId < AuthenticationHandler.MaxSessionId) {
+      nextSessionId += 1
+    } else {
+      nextSessionId = 0
+    }
+
+    java.lang.Long.toString(sessionId, AuthenticationHandler.SessionIdRadix)
   }
 }

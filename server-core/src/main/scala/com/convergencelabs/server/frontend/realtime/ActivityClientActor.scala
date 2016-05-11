@@ -24,6 +24,10 @@ import com.convergencelabs.server.domain.ActivityServiceActor.ActivityLeaveSucce
 import com.convergencelabs.server.domain.ActivityServiceActor.ActivityLeaveRequest
 import com.convergencelabs.server.domain.ActivityServiceActor.ActivitySetState
 import com.convergencelabs.server.domain.ActivityServiceActor.ActivityClearState
+import com.convergencelabs.server.domain.ActivityServiceActor.ActivitySessionJoined
+import com.convergencelabs.server.domain.ActivityServiceActor.ActivitySessionLeft
+import com.convergencelabs.server.domain.ActivityServiceActor.ActivityRemoteStateSet
+import com.convergencelabs.server.domain.ActivityServiceActor.ActivityRemoteStateCleared
 
 object ActivityClientActor {
   def props(activityServiceActor: ActorRef, sk: SessionKey): Props =
@@ -40,6 +44,16 @@ class ActivityClientActor(activityServiceActor: ActorRef, sk: SessionKey) extend
       onMessageReceived(message.asInstanceOf[IncomingActivityNormalMessage])
     case RequestReceived(message, replyPromise) if message.isInstanceOf[IncomingActivityRequestMessage] =>
       onRequestReceived(message.asInstanceOf[IncomingActivityRequestMessage], replyPromise)
+
+    case ActivitySessionJoined(activityId, sk) =>
+      context.parent ! ActivitySessionJoinedMessage(activityId, sk.serialize())
+    case ActivitySessionLeft(activityId, sk) =>
+      context.parent ! ActivitySessionLeftMessage(activityId, sk.serialize())
+    case ActivityRemoteStateSet(activityId, sk, key, value) =>
+      context.parent ! ActivityRemoteStateSetMessage(activityId, sk.serialize(), key, value)
+    case ActivityRemoteStateCleared(activityId, sk, key) =>
+      context.parent ! ActivityRemoteStateClearedMessage(activityId, sk.serialize(), key)
+
     case x: Any => unhandled(x)
   }
 

@@ -42,9 +42,6 @@ object DomainActor {
       domainManagerActor,
       domainFqn,
       protocolConfig))
-
-  private val MaxSessionId = 2176782335L
-  private val SessionIdRadix = 36
 }
 
 /**
@@ -62,7 +59,6 @@ class DomainActor(
 
   private[this] var persistenceProvider: DomainPersistenceProvider = _
   private[this] implicit val ec = context.dispatcher
-  private[this] var nextSessionId = 0L
 
   private[this] val modelManagerActorRef = context.actorOf(ModelManagerActor.props(
     domainFqn,
@@ -102,22 +98,11 @@ class DomainActor(
     persistenceProvider.validateConnection() match {
       case true => {
         connectedClients += message.clientActor
-        val (sessionId, reconnectToken) = message.reconnect match {
-          case false => {
-            (generateNextSessionId(), generateSessionToken())
-          }
-          case true => {
-            // FIXME Are we doing anything with reconnection?
-            ("todo", "todo")
-          }
-        }
         sender ! HandshakeSuccess(
-            sessionId, 
-            reconnectToken, 
-            self, 
-            modelManagerActorRef, 
-            userServiceActor,
-            activityServiceActor)
+          self,
+          modelManagerActorRef,
+          userServiceActor,
+          activityServiceActor)
       }
       case false => {
         sender ! HandshakeFailure("domain_unavailable", "Could not connect to database.")
@@ -134,22 +119,6 @@ class DomainActor(
 
       domainManagerActor ! DomainShutdownRequest(domainFqn)
     }
-  }
-
-  def generateNextSessionId(): String = {
-    val sessionId = nextSessionId
-
-    if (nextSessionId < DomainActor.MaxSessionId) {
-      nextSessionId += 1
-    } else {
-      nextSessionId = 0
-    }
-
-    java.lang.Long.toString(sessionId, DomainActor.SessionIdRadix)
-  }
-
-  def generateSessionToken(): String = {
-    UUID.randomUUID().toString() + UUID.randomUUID().toString()
   }
 
   override def preStart(): Unit = {

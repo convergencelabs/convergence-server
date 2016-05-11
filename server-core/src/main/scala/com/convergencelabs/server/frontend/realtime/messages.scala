@@ -45,8 +45,6 @@ case class HandshakeRequestMessage(r: scala.Boolean, k: Option[String]) extends 
 case class HandshakeResponseMessage(
   s: scala.Boolean, // success
   e: Option[ErrorData], // error
-  i: Option[String], // sessionId
-  k: Option[String], // token
   r: Option[scala.Boolean], // retryOk
   c: Option[ProtocolConfigData]) extends OutgoingProtocolResponseMessage
 
@@ -64,7 +62,7 @@ sealed trait AuthenticationRequestMessage extends IncomingProtocolRequestMessage
 case class PasswordAuthRequestMessage(u: String, p: String) extends AuthenticationRequestMessage
 case class TokenAuthRequestMessage(k: String) extends AuthenticationRequestMessage
 
-case class AuthenticationResponseMessage(s: Boolean, u: Option[String]) extends OutgoingProtocolResponseMessage
+case class AuthenticationResponseMessage(s: Boolean, i: Option[String], n: Option[String], e: Option[String]) extends OutgoingProtocolResponseMessage
 
 ///////////////////////////////////////////////////////////////////////////////
 // Model Messages

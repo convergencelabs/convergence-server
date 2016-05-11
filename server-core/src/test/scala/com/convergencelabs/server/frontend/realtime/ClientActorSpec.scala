@@ -31,6 +31,7 @@ import akka.actor.Terminated
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
 import akka.actor.PoisonPill
+import com.convergencelabs.server.domain.model.SessionKey
 
 // scalastyle:off magic.number
 @RunWith(classOf[JUnitRunner])
@@ -88,7 +89,7 @@ class ClientActorSpec
     clientActor.tell(handshakeEvent, ActorRef.noSender)
 
     domainManagerActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeRequest])
-    domainManagerActor.reply(HandshakeSuccess(SessionId, RecconnectToken, domainActor.ref, modelManagerActor.ref, userServiceActor.ref, activityServiceActor.ref))
+    domainManagerActor.reply(HandshakeSuccess(domainActor.ref, modelManagerActor.ref, userServiceActor.ref, activityServiceActor.ref))
     Await.result(handshakeCallback.result, 250 millis)
   }
 
@@ -101,9 +102,9 @@ class ClientActorSpec
     clientActor.tell(authEvent, ActorRef.noSender)
 
     domainActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[PasswordAuthRequest])
-    domainActor.reply(AuthenticationSuccess("u1", "test"))
+    domainActor.reply(AuthenticationSuccess("u1", "test", SessionKey("u1", "0")))
 
-    val AuthenticationResponseMessage(rId, cId) = Await.result(authCallback.result, 250 millis)
+    val AuthenticationResponseMessage(ok, Some(uid), Some(username), Some(session)) = Await.result(authCallback.result, 250 millis)
   }
 
   class TestReplyCallback() extends ReplyCallback {
