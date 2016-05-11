@@ -25,7 +25,7 @@ object ConvergenceUserManagerActor {
     Props(new ConvergenceUserManagerActor(dbPool, domainStoreActor))
 
   case class CreateConvergenceUserRequest(username: String, email: String, firstName: String, lastName: String, password: String)
-  case class DeleteConvergenceUserRequest()
+  case class DeleteConvergenceUserRequest(username: String)
 }
 
 class ConvergenceUserManagerActor private[datastore] (
@@ -53,10 +53,10 @@ class ConvergenceUserManagerActor private[datastore] (
     userStore.createUser(User(userId, username, email, firstName, lastName), password) map {
       case CreateSuccess(uid) => {
         val domainResults = for {
-          exampleDomain <- createExampleDomain(uid, message.username)
-          defaultDomain <- createDefaultDomain(uid, message.username)
+          exampleDomain <- createExampleDomain(uid, username)
+          defaultDomain <- createDefaultDomain(uid, username)
         } yield (exampleDomain, defaultDomain)
-        
+
         domainResults onSuccess {
           case (resp1: CreateSuccess[Unit], resp2: CreateSuccess[Unit]) => {
             val blah = origSender
@@ -69,8 +69,15 @@ class ConvergenceUserManagerActor private[datastore] (
     }
   }
 
-  def deleteConvergenceUser(message: DeleteConvergenceUserRequest) {
-    ???
+  def deleteConvergenceUser(message: DeleteConvergenceUserRequest): Unit = {
+    val origSender = sender
+    userStore.deleteUser(message.username) map {
+      case DeleteSuccess => {
+        // FIXME: Delete all domains for that user
+        origSender ! DeleteSuccess
+      }
+      case NotFound => origSender ! NotFound
+    }
   }
 
   private[this] def createExampleDomain(userId: String, username: String): Future[CreateResult[Unit]] = {
