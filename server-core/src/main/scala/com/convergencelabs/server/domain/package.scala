@@ -3,6 +3,7 @@ package com.convergencelabs.server
 import com.convergencelabs.server.domain.DomainFqn
 
 import akka.actor.ActorRef
+import com.convergencelabs.server.domain.model.SessionKey
 
 package object domain {
 
@@ -10,11 +11,10 @@ package object domain {
 
   sealed trait HandshakeResponse
   case class HandshakeSuccess(
-    sessionId: String,
-    reconnectToken: String,
     domainActor: ActorRef,
     modelManager: ActorRef,
-    userService: ActorRef) extends HandshakeResponse
+    userService: ActorRef,
+    activityService: ActorRef) extends HandshakeResponse
   case class HandshakeFailure(code: String, details: String) extends HandshakeResponse
 
   case class ClientDisconnected(sessionId: String)
@@ -25,7 +25,7 @@ package object domain {
   case class TokenAuthRequest(jwt: String) extends AuthenticationRequest
 
   sealed trait AuthenticationResponse
-  case class AuthenticationSuccess(uid: String, username: String) extends AuthenticationResponse
+  case class AuthenticationSuccess(uid: String, username: String, sk: SessionKey) extends AuthenticationResponse
   case object AuthenticationFailure extends AuthenticationResponse
   case object AuthenticationError extends AuthenticationResponse
 }

@@ -34,10 +34,10 @@ case class PongMessage() extends ProtocolMessage
 ///////////////////////////////////////////////////////////////////////////////
 
 case class ErrorMessage(c: String, d: String)
- extends OutgoingProtocolResponseMessage
- with OutgoingProtocolNormalMessage
- with IncomingProtocolNormalMessage
- with IncomingProtocolResponseMessage
+  extends OutgoingProtocolResponseMessage
+  with OutgoingProtocolNormalMessage
+  with IncomingProtocolNormalMessage
+  with IncomingProtocolResponseMessage
 
 // Handshaking
 case class HandshakeRequestMessage(r: scala.Boolean, k: Option[String]) extends IncomingProtocolRequestMessage
@@ -45,8 +45,6 @@ case class HandshakeRequestMessage(r: scala.Boolean, k: Option[String]) extends 
 case class HandshakeResponseMessage(
   s: scala.Boolean, // success
   e: Option[ErrorData], // error
-  i: Option[String], // sessionId
-  k: Option[String], // token
   r: Option[scala.Boolean], // retryOk
   c: Option[ProtocolConfigData]) extends OutgoingProtocolResponseMessage
 
@@ -64,7 +62,7 @@ sealed trait AuthenticationRequestMessage extends IncomingProtocolRequestMessage
 case class PasswordAuthRequestMessage(u: String, p: String) extends AuthenticationRequestMessage
 case class TokenAuthRequestMessage(k: String) extends AuthenticationRequestMessage
 
-case class AuthenticationResponseMessage(s: Boolean, u: Option[String]) extends OutgoingProtocolResponseMessage
+case class AuthenticationResponseMessage(s: Boolean, i: Option[String], n: Option[String], e: Option[String]) extends OutgoingProtocolResponseMessage
 
 ///////////////////////////////////////////////////////////////////////////////
 // Model Messages
@@ -120,3 +118,30 @@ case class UserSearchMessage(f: List[Int], v: String, o: Option[Int], l: Option[
 
 case class UserListMessage(u: List[DomainUserData]) extends OutgoingProtocolResponseMessage
 case class DomainUserData(i: String, n: String, f: Option[String], l: Option[String], e: Option[String])
+
+///////////////////////////////////////////////////////////////////////////////
+// Activity Messages
+///////////////////////////////////////////////////////////////////////////////
+
+sealed trait IncomingActivityMessage
+sealed trait IncomingActivityRequestMessage extends IncomingActivityMessage with IncomingProtocolRequestMessage
+case class ActivityOpenRequestMessage(i: String) extends IncomingActivityRequestMessage
+case class ActivityCloseRequestMessage(i: String) extends IncomingActivityRequestMessage
+case class ActivityJoinRequestMessage(i: String) extends IncomingActivityRequestMessage
+case class ActivityLeaveRequestMessage(i: String) extends IncomingActivityRequestMessage
+
+sealed trait IncomingActivityNormalMessage extends IncomingActivityMessage
+case class ActivitySetStateMessage(i: String, k: String, v: Any) extends IncomingProtocolNormalMessage with IncomingActivityNormalMessage
+case class ActivityClearStateMessage(i: String, k: String) extends IncomingProtocolNormalMessage with IncomingActivityNormalMessage
+
+case class ActivityOpenSuccessMessage(s: Map[String, Map[String, Any]]) extends OutgoingProtocolResponseMessage
+case class ActivityCloseSuccessMessage() extends OutgoingProtocolResponseMessage
+case class ActivityJoinSuccessMessage() extends OutgoingProtocolResponseMessage
+case class ActivityLeaveSuccessMessage() extends OutgoingProtocolResponseMessage
+
+
+case class ActivitySessionJoinedMessage(i: String, s: String) extends OutgoingProtocolNormalMessage
+case class ActivitySessionLeftMessage(i: String, s: String) extends OutgoingProtocolNormalMessage
+
+case class ActivityRemoteStateSetMessage(i: String, s: String, k: String, v: Any) extends OutgoingProtocolNormalMessage
+case class ActivityRemoteStateClearedMessage(i: String, s: String, k: String) extends OutgoingProtocolNormalMessage

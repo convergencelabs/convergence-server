@@ -64,7 +64,7 @@ class DomainManagerActor(
       log.debug("Client connected to loaded domain '{}'.", domainFqn)
       // If this domain was going to be closing, cancel the close request.
       if (shudownRequests.contains(domainFqn)) {
-        log.debug(s"Canceling request to close domain: ${domainFqn}", domainFqn)
+        log.debug(s"Canceling request to close domain: ${domainFqn}")
         shudownRequests(domainFqn).cancel()
         shudownRequests.remove(domainFqn)
       }

@@ -136,7 +136,7 @@ class ProtocolConnectionSpec
         val json = MessageSerializer.writeJson(envelope)
         val RequestReceived(m, cb) = connection.onIncomingMessage(json).success.value.value.asInstanceOf[RequestReceived]
 
-        val response = HandshakeResponseMessage(true, None, Some("foo"), Some("bar"), None, None)
+        val response = HandshakeResponseMessage(true, None, None, None)
         cb.reply(response)
 
         val expectedResponseEnvelope = MessageEnvelope(response, None, Some(1L))

@@ -51,7 +51,7 @@ class CollectionStore private[domain] (dbPool: OPartitionedDatabasePool, modelSt
       case true =>
         ()
       case false =>
-        createCollection(Collection(collectionId, "", false, None))
+        createCollection(Collection(collectionId, collectionId, false, None))
     }
   }
 

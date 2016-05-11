@@ -29,6 +29,7 @@ import com.convergencelabs.server.domain.HandshakeSuccess
 import scala.util.Failure
 import com.convergencelabs.server.ProtocolConfiguration
 import akka.actor.PoisonPill
+import com.convergencelabs.server.domain.model.SessionKey
 
 object ClientActor {
   def props(
@@ -66,9 +67,12 @@ class ClientActor(
 
   private[this] var modelClient: ActorRef = _
   private[this] var userClient: ActorRef = _
+  private[this] var activityClient: ActorRef = _
+  
   private[this] var domainActor: Option[ActorRef] = None
   private[this] var modelManagerActor: ActorRef = _
   private[this] var userServiceActor: ActorRef = _
+  private[this] var activityServiceActor: ActorRef = _
   private[this] var sessionId: String = _
 
   private[this] var protocolConnection: ProtocolConnection = _
@@ -173,27 +177,28 @@ class ClientActor(
     // FIXME if authentication fails we should probably stop the actor
     // and or shut down the connection?
     future.mapResponse[AuthenticationResponse] onComplete {
-      case Success(AuthenticationSuccess(uid, username)) => {
-        self ! InternalAuthSuccess(uid, username, cb)
+      case Success(AuthenticationSuccess(uid, username, sk)) => {
+        self ! InternalAuthSuccess(uid, username, sk, cb)
       }
       case Success(AuthenticationFailure) => {
-        cb.reply(AuthenticationResponseMessage(false, None))
+        cb.reply(AuthenticationResponseMessage(false, None, None, None))
       }
       case Success(AuthenticationError) => {
-        cb.reply(AuthenticationResponseMessage(false, None)) // TODO do we want this to go back to the client as something else?
+        cb.reply(AuthenticationResponseMessage(false, None, None, None)) // TODO do we want this to go back to the client as something else?
       }
       case Failure(cause) => {
-        cb.reply(AuthenticationResponseMessage(false, None))
+        cb.reply(AuthenticationResponseMessage(false, None, None, None))
       }
     }
   }
 
   private[this] def handleAuthenticationSuccess(message: InternalAuthSuccess): Unit = {
-    val InternalAuthSuccess(uid, username, cb) = message
-    this.modelClient = context.actorOf(ModelClientActor.props(uid, sessionId, modelManagerActor))
+    val InternalAuthSuccess(uid, username, sk, cb) = message
+    this.modelClient = context.actorOf(ModelClientActor.props(uid, sk.serialize(), modelManagerActor))
     this.userClient = context.actorOf(UserClientActor.props(userServiceActor))
+    this.activityClient = context.actorOf(ActivityClientActor.props(activityServiceActor, sk))
     this.messageHandler = handleMessagesWhenAuthenticated
-    cb.reply(AuthenticationResponseMessage(true, Some(username)))
+    cb.reply(AuthenticationResponseMessage(true, Some(uid), Some(username), Some(sk.serialize())))
     context.become(receiveWhileAuthenticated)
   }
 
@@ -207,12 +212,12 @@ class ClientActor(
           self ! InternalHandshakeSuccess(success.asInstanceOf[HandshakeSuccess], cb)
         }
         case Success(HandshakeFailure(code, details)) => {
-          cb.reply(HandshakeResponseMessage(false, Some(ErrorData(code, details)), None, None, Some(true), None))
+          cb.reply(HandshakeResponseMessage(false, Some(ErrorData(code, details)), Some(true), None))
           this.connectionActor ! CloseConnection
           context.stop(self)
         }
         case Failure(cause) => {
-          cb.reply(HandshakeResponseMessage(false, Some(ErrorData("unknown", "uknown error")), None, None, Some(true), None))
+          cb.reply(HandshakeResponseMessage(false, Some(ErrorData("unknown", "uknown error")), Some(true), None))
           this.connectionActor ! CloseConnection
           context.stop(self)
         }
@@ -221,12 +226,14 @@ class ClientActor(
   }
 
   private[this] def handleHandshakeSuccess(success: InternalHandshakeSuccess): Unit = {
-    val InternalHandshakeSuccess(HandshakeSuccess(sessionId, reconnectToken, domainActor, modelManagerActor, userServiceActor), cb) = success
+    val InternalHandshakeSuccess(HandshakeSuccess(domainActor, modelManagerActor, userActor, activityActor),
+      cb) = success
     this.sessionId = sessionId
     this.domainActor = Some(domainActor)
     this.modelManagerActor = modelManagerActor
-    this.userServiceActor = userServiceActor
-    cb.reply(HandshakeResponseMessage(true, None, Some(sessionId), Some(reconnectToken), None, Some(ProtocolConfigData(true))))
+    this.userServiceActor = userActor
+    this.activityServiceActor = activityActor
+    cb.reply(HandshakeResponseMessage(true, None, None, Some(ProtocolConfigData(true))))
     this.messageHandler = handleAuthentationMessage
     context.become(receiveWhileAuthenticating)
   }
@@ -251,6 +258,7 @@ class ClientActor(
   private[this] def onMessageReceived(message: MessageReceived): Unit = {
     message match {
       case MessageReceived(x) if x.isInstanceOf[IncomingModelNormalMessage] => modelClient.forward(message)
+      case MessageReceived(x) if x.isInstanceOf[IncomingActivityMessage] => activityClient.forward(message)
     }
   }
 
@@ -260,6 +268,8 @@ class ClientActor(
         modelClient.forward(message)
       case RequestReceived(x, _) if x.isInstanceOf[IncomingUserMessage] =>
         userClient.forward(message)
+      case RequestReceived(x, _) if x.isInstanceOf[IncomingActivityMessage] =>
+        activityClient.forward(message)
     }
   }
 
@@ -292,5 +302,5 @@ class ClientActor(
   }
 }
 
-case class InternalAuthSuccess(uid: String, username: String, cb: ReplyCallback)
+case class InternalAuthSuccess(uid: String, username: String, sk: SessionKey, cb: ReplyCallback)
 case class InternalHandshakeSuccess(handshakeSuccess: HandshakeSuccess, cb: ReplyCallback)

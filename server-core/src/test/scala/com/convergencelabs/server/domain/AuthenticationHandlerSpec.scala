@@ -30,6 +30,7 @@ import java.io.StringReader
 import com.convergencelabs.server.datastore.domain.ApiKeyStore
 import com.convergencelabs.server.datastore.CreateSuccess
 import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateDomainUser
+import com.convergencelabs.server.domain.model.SessionKey
 
 class AuthenticationHandlerSpec()
     extends TestKit(ActorSystem("AuthManagerActorSpec"))
@@ -42,14 +43,12 @@ class AuthenticationHandlerSpec()
     TestKit.shutdownActorSystem(system)
   }
 
-  // FIXME we need to test that models actually get created and deteled.  Not sure how to do this.
-
   "A AuthenticationHandler" when {
     "authenticating a user by password" must {
       "authetnicate successfully for a correct username and password" in new TestFixture {
         val f = authHandler.authenticate(PasswordAuthRequest(existingUserName, existingCorrectPassword))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
-        result shouldBe AuthenticationSuccess(existingUserUid, existingUserName)
+        result shouldBe AuthenticationSuccess(existingUserUid, existingUserName, SessionKey(existingUserUid, "0"))
       }
 
       "Fail authetnication for an incorrect username and password" in new TestFixture {
@@ -81,7 +80,7 @@ class AuthenticationHandlerSpec()
       "successfully authenticate a user with a valid key" in new TestFixture {
         val f = authHandler.authenticate(TokenAuthRequest(JwtGenerator.generate(existingUserName, enabledKey.id)))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
-        result shouldBe AuthenticationSuccess(existingUserUid, existingUserName)
+        result shouldBe AuthenticationSuccess(existingUserUid, existingUserName, SessionKey(existingUserUid, "0"))
       }
 
       "return an authentication failure for a non-existent key" in new TestFixture {
@@ -105,13 +104,13 @@ class AuthenticationHandlerSpec()
       "return an authentication success for the admin key" in new TestFixture {
         val f = authHandler.authenticate(TokenAuthRequest(JwtGenerator.generate(existingUserName, AuthenticationHandler.AdminKeyId)))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
-        result shouldBe AuthenticationSuccess(existingUserUid, existingUserName)
+        result shouldBe AuthenticationSuccess(existingUserUid, existingUserName, SessionKey(existingUserUid, "0"))
       }
 
       "return an authentication success lazily created user" in new TestFixture {
         val f = authHandler.authenticate(TokenAuthRequest(JwtGenerator.generate(lazyUserName, enabledKey.id)))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
-        result shouldBe AuthenticationSuccess(lazyUserUid, lazyUserName)
+        result shouldBe AuthenticationSuccess(lazyUserUid, lazyUserName, SessionKey(lazyUserUid, "0"))
       }
 
       "return an authentication failure when the user can't be looked up" in new TestFixture {
