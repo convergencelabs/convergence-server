@@ -44,7 +44,7 @@ class ConvergenceAdminService(
   
  def createConvergenceUserRequest(createRequest: CreateUserRequest): Future[RestResponse] = {
     val CreateUserRequest(username, firstName, lastName, email, password) = createRequest
-    (userManagerActor ? CreateConvergenceUserRequest(username, password)).mapTo[CreateResult[String]].map {
+    (userManagerActor ? CreateConvergenceUserRequest(username, password, email, firstName, lastName)).mapTo[CreateResult[String]].map {
       case result: CreateSuccess[String] => CreateRestResponse
       case DuplicateValue                => DuplicateError
       case InvalidValue                  => InvalidValueError

@@ -63,7 +63,7 @@ class RegistrationActor private[datastore] (dbPool: OPartitionedDatabasePool, us
     val RegisterUser(username, fname, lname, email, password, token) = message
     registrationStore.isRegistrationApproved(email, token).map {
       case Some(true) => {
-        val req = CreateConvergenceUserRequest(username, password)
+        val req = CreateConvergenceUserRequest(username, password, email, fname, lname)
         (userManager ? req).mapTo[CreateResult[String]] onSuccess {
           case result: CreateSuccess[String] => {
             registrationStore.removeRegistration(token)

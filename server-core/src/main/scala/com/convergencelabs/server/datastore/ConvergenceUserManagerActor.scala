@@ -24,7 +24,7 @@ object ConvergenceUserManagerActor {
   def props(dbPool: OPartitionedDatabasePool, domainStoreActor: ActorRef): Props =
     Props(new ConvergenceUserManagerActor(dbPool, domainStoreActor))
 
-  case class CreateConvergenceUserRequest(username: String, password: String)
+  case class CreateConvergenceUserRequest(username: String, email: String, firstName: String, lastName: String, password: String)
   case class DeleteConvergenceUserRequest()
 }
 
@@ -47,9 +47,10 @@ class ConvergenceUserManagerActor private[datastore] (
   }
 
   def createConvergenceUser(message: CreateConvergenceUserRequest): Unit = {
+    val CreateConvergenceUserRequest(username, email, firstName, lastName, password) = message
     val userId = UUID.randomUUID().toString()
     val origSender = sender
-    userStore.createUser(User(userId, message.username), message.password) map {
+    userStore.createUser(User(userId, username, email, firstName, lastName), password) map {
       case CreateSuccess(uid) => {
         val domainResults = for {
           exampleDomain <- createExampleDomain(uid, message.username)

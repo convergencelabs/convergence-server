@@ -45,6 +45,9 @@ class UserStore private[datastore] (
 
   val Uid = "uid"
   val Username = "username"
+  val Email = "email"
+  val FirstName = "firstName"
+  val LastName = "lastName"
   val Password = "password"
   val Token = "token"
   val ExpireTime = "expireTime"
@@ -55,6 +58,9 @@ class UserStore private[datastore] (
     val userDoc = new ODocument("User");
     userDoc.field(Uid, user.uid);
     userDoc.field(Username, user.username);
+    userDoc.field(Email, user.email)
+    userDoc.field(FirstName, user.firstName)
+    userDoc.field(LastName, user.lastName)
 
     db.save(userDoc)
     userDoc.reload()

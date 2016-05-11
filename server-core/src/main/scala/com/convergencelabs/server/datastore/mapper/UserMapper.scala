@@ -14,6 +14,9 @@ object UserMapper extends ODocumentMapper {
     val doc = new ODocument(DocumentClassName)
     doc.field(Fields.Uid, obj.uid)
     doc.field(Fields.Username, obj.username)
+    doc.field(Fields.Email, obj.email)
+    doc.field(Fields.FirstName, obj.firstName)
+    doc.field(Fields.LastName, obj.lastName)
     doc
   }
 
@@ -26,7 +29,10 @@ object UserMapper extends ODocumentMapper {
 
     User(
       doc.field(Fields.Uid),
-      doc.field(Fields.Username))
+      doc.field(Fields.Username),
+      doc.field(Fields.Email),
+      doc.field(Fields.FirstName),
+      doc.field(Fields.LastName))
   }
 
   private[datastore] val DocumentClassName = "User"
@@ -34,5 +40,8 @@ object UserMapper extends ODocumentMapper {
   private[datastore] object Fields {
     val Uid = "uid"
     val Username = "username"
+    val Email = "email"
+    val FirstName = "firstName"
+    val LastName = "lastName"
   }
 }
