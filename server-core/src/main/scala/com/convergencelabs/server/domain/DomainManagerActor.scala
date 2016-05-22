@@ -41,9 +41,8 @@ class DomainManagerActor(
   private[this] val cluster = Cluster(context.system)
   private[this] implicit val ec = context.dispatcher
 
-
   private[this] val domainShutdownDelay = Duration.fromNanos(
-        context.system.settings.config.getDuration("convergence.domain-shutdown-delay").toNanos)
+    context.system.settings.config.getDuration("convergence.domain-shutdown-delay").toNanos)
 
   private[this] val actorsToDomainFqn = mutable.HashMap[ActorRef, DomainFqn]()
   private[this] val domainFqnToActor = mutable.HashMap[DomainFqn, ActorRef]()

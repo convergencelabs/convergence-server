@@ -1,0 +1,15 @@
+{
+  "inherit": "convergence-schema.json",
+  "schemaScripts": [
+  ],
+  "dataScripts": [
+    "convergence/User/cu0.osql",
+    "convergence/User/cu1.osql",
+    "convergence/UserCredential/cu0.osql",
+    "convergence/UserCredential/cu1.osql",
+    "convergence/Domain/namespace1-domain1.osql",
+    "convergence/Domain/namespace1-domain2.osql",
+    "convergence/Domain/namespace2-domain1.osql",
+    "convergence/Domain/namespace3-domain1.osql"
+  ]
+}

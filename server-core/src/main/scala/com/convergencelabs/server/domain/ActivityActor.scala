@@ -1,7 +1,11 @@
 package com.convergencelabs.server.domain
 
-import com.convergencelabs.server.domain.model.SessionKey
+import akka.actor.ActorLogging
+import akka.actor.Actor
 import akka.actor.ActorRef
+import akka.actor.Props
+
+import com.convergencelabs.server.domain.model.SessionKey
 import com.convergencelabs.server.domain.ActivityServiceActor.ActivitySessionJoined
 import com.convergencelabs.server.domain.ActivityServiceActor.ActivitySessionLeft
 import com.convergencelabs.server.domain.ActivityServiceActor.ActivityOpenSuccess
@@ -10,81 +14,63 @@ import com.convergencelabs.server.domain.ActivityServiceActor.ActivityJoinSucces
 import com.convergencelabs.server.domain.ActivityServiceActor.ActivityLeaveSuccess
 import com.convergencelabs.server.domain.ActivityServiceActor.ActivityRemoteStateSet
 import com.convergencelabs.server.domain.ActivityServiceActor.ActivityRemoteStateCleared
+import com.convergencelabs.server.domain.ActivityServiceActor.ActivityOpenRequest
+import com.convergencelabs.server.domain.ActivityServiceActor.ActivityCloseRequest
+import com.convergencelabs.server.domain.ActivityServiceActor.ActivityJoinRequest
+import com.convergencelabs.server.domain.ActivityServiceActor.ActivityLeaveRequest
+import com.convergencelabs.server.domain.ActivityServiceActor.ActivitySetState
+import com.convergencelabs.server.domain.ActivityServiceActor.ActivityClearState
+import akka.actor.Status
+import akka.actor.Terminated
 
-private[domain] class ActivityManager {
-  private[this] var openActivities = Map[String, Activity]()
-
-  def open(activityId: String, sk: SessionKey, client: ActorRef, replyTo: ActorRef): Unit = {
-    if (!openActivities.contains(activityId)) {
-      // not yet open
-      openActivities += (activityId -> new Activity(activityId))
-    }
-
-    val activity = openActivities(activityId)
-    activity.open(sk, client, replyTo)
-  }
-
-  def close(activityId: String, sk: SessionKey, replyTo: ActorRef): Unit = {
-    openActivities.get(activityId) match {
-      case Some(activity) =>
-        activity.close(sk, replyTo)
-        if (activity.isEmpty) {
-          this.openActivities -= activityId
-        }
-      case None =>
-        replyTo ! new akka.actor.Status.Failure(new IllegalStateException("Must have activity open to join"))
-    }
-  }
-
-  def join(activityId: String, sk: SessionKey, replyTo: ActorRef): Unit = {
-    val activity = openActivities(activityId)
-    activity.join(sk, replyTo)
-  }
-
-  def leave(activityId: String, sk: SessionKey, replyTo: ActorRef): Unit = {
-    val activity = openActivities(activityId)
-    activity.leave(sk, replyTo)
-  }
-
-  def setState(activityId: String, sk: SessionKey, key: String, value: Any): Unit = {
-    val activity = openActivities(activityId)
-    activity.setState(sk, key, value)
-  }
-
-  def clearState(activityId: String, sk: SessionKey, key: String): Unit = {
-    val activity = openActivities(activityId)
-    activity.clearState(sk, key)
-  }
+object ActivityActor {
+  def props(activityId: String): Props = Props(
+    new ActivityActor(activityId))
 }
 
-private class Activity(private[this] val activityId: String) {
+private[domain] class ActivityActor(private[this] val activityId: String)
+    extends Actor with ActorLogging {
+
   private[this] var openedSessions = Map[SessionKey, ActorRef]()
+  private[this] var openedClients = Map[ActorRef, SessionKey]()
   private[this] var joinedSessions = Map[SessionKey, ActorRef]()
   private[this] var stateMap = new ActivityStateMap()
 
-  def isEmpty(): Boolean = {
+  def receive: Receive = {
+    case ActivityOpenRequest(id, sk, client) => open(sk, client)
+    case ActivityCloseRequest(id, sk) => close(sk)
+    case ActivityJoinRequest(id, sk) => join(sk)
+    case ActivityLeaveRequest(id, sk) => leave(sk)
+    case ActivitySetState(id, sk, key, value) => setState(sk, key, value)
+    case ActivityClearState(id, sk, key) => clearState(sk, key)
+    case Terminated(actor) => handleClientDeath(actor)
+  }
+
+  private[this] def isEmpty(): Boolean = {
     openedSessions.isEmpty
   }
 
-  def getOpenedSessions(): Map[SessionKey, ActorRef] = {
+  private[this] def getOpenedSessions(): Map[SessionKey, ActorRef] = {
     this.openedSessions
   }
 
-  def isOpen(sk: SessionKey): Boolean = {
+  private[this] def isOpen(sk: SessionKey): Boolean = {
     this.openedSessions.contains(sk)
   }
 
-  def open(sk: SessionKey, client: ActorRef, replyTo: ActorRef): Unit = {
+  private[this] def open(sk: SessionKey, client: ActorRef): Unit = {
     this.openedSessions.get(sk) match {
       case Some(x) =>
-        throw new IllegalStateException("Session already opened")
+        sender ! Status.Failure(new IllegalStateException("Session already has activity open."))
       case None =>
         this.openedSessions += (sk -> client)
-        replyTo ! ActivityOpenSuccess(getState())
+        this.openedClients += (client -> sk)
+        context.watch(client)
+        sender ! ActivityOpenSuccess(stateMap.getState())
     }
   }
 
-  def close(sk: SessionKey, replyTo: ActorRef): Unit = {
+  private[this] def close(sk: SessionKey): Unit = {
     if (!isOpen(sk)) {
       throw throw new IllegalStateException("Session must have activity open to close it.")
     }
@@ -94,18 +80,18 @@ private class Activity(private[this] val activityId: String) {
     }
 
     this.openedSessions -= sk
-    replyTo ! ActivityCloseSuccess()
+    sender ! ActivityCloseSuccess()
   }
 
-  def getJoinedSessions(): Map[SessionKey, ActorRef] = {
+  private[this] def getJoinedSessions(): Map[SessionKey, ActorRef] = {
     this.joinedSessions
   }
 
-  def isJoined(sk: SessionKey): Boolean = {
+  private[this] def isJoined(sk: SessionKey): Boolean = {
     this.joinedSessions.contains(sk)
   }
 
-  def join(sk: SessionKey, replyTo: ActorRef): Unit = {
+  private[this] def join(sk: SessionKey): Unit = {
     if (!isOpen(sk)) {
       throw throw new IllegalStateException("Session must have activity open to join.")
     }
@@ -122,29 +108,30 @@ private class Activity(private[this] val activityId: String) {
         this.joinedSessions += (sk -> this.openedSessions(sk))
         this.stateMap.join(sk)
 
-        replyTo ! ActivityJoinSuccess()
+        sender ! ActivityJoinSuccess()
     }
   }
 
-  def leave(sk: SessionKey, replyTo: ActorRef): Unit = {
+  private[this] def leave(sk: SessionKey): Unit = {
     if (!isJoined(sk)) {
       throw throw new IllegalStateException("Session be joined to activity in order to leave.")
     } else {
       leaveHelper(sk)
-      replyTo ! ActivityLeaveSuccess()
+      sender ! ActivityLeaveSuccess()
     }
   }
 
-  def leaveHelper(sk: SessionKey): Unit = {
+  private[this] def leaveHelper(sk: SessionKey): Unit = {
     val leaver = this.openedSessions(sk)
     val message = ActivitySessionLeft(activityId, sk)
     openedSessions.values filter (_ != leaver) foreach (_ ! message)
 
     this.stateMap.leave(sk)
     this.joinedSessions -= sk
+    this.openedClients -= leaver
   }
 
-  def setState(sk: SessionKey, key: String, value: Any): Unit = {
+  private[this] def setState(sk: SessionKey, key: String, value: Any): Unit = {
     if (isJoined(sk)) {
       stateMap.setState(sk, key, value)
       val setter = this.openedSessions(sk)
@@ -153,7 +140,7 @@ private class Activity(private[this] val activityId: String) {
     }
   }
 
-  def clearState(sk: SessionKey, key: String): Unit = {
+  private[this] def clearState(sk: SessionKey, key: String): Unit = {
     if (isJoined(sk)) {
       stateMap.clearState(sk, key)
       val clearer = this.openedSessions(sk)
@@ -162,8 +149,14 @@ private class Activity(private[this] val activityId: String) {
     }
   }
 
-  def getState(): Map[SessionKey, Map[String, Any]] = {
-    stateMap.getState()
+  private[this] def handleClientDeath(actor: ActorRef): Unit = {
+    this.openedClients.get(actor) match {
+      case Some(sk) =>
+        log.debug(s"Client with session ${sk.serialize()} was stopped.  Leaving activity.")
+        this.leaveHelper(sk)
+      case None =>
+        log.warning("Deathwatch on a client was triggered for an actor that did not have thi activity open")
+    }
   }
 }
 

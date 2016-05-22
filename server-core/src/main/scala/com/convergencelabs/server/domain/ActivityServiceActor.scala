@@ -12,6 +12,7 @@ import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
 import akka.actor.Props
+import com.convergencelabs.server.domain.ActivityServiceActor.ActivityShutdownRequest
 
 object ActivityServiceActor {
 
@@ -40,22 +41,55 @@ object ActivityServiceActor {
 
   case class ActivityRemoteStateSet(activityId: String, sk: SessionKey, key: String, value: Any)
   case class ActivityRemoteStateCleared(activityId: String, sk: SessionKey, key: String)
+
+  case class ActivityShutdownRequest(activityId: String)
 }
 
-// TODO if we need to, each activity could be modeled by an individual actor
-// which would somewhat improve parallelism.  We could send the "open" to this
-// actor but then create / forward to another actor and send that actors ref
-// back to the client.
+// TODO we could forward the activity actor back to the client at some point so message
+// don't have to bottleneck here.
 class ActivityServiceActor private[domain] (domainFqn: DomainFqn) extends Actor with ActorLogging {
 
-  private[this] val activityManager = new ActivityManager();
+  private[this] var openActivities = Map[String, ActorRef]()
 
   def receive: Receive = {
-    case ActivityOpenRequest(id, sk, client) => activityManager.open(id, sk, client, sender)
-    case ActivityCloseRequest(id, sk) => activityManager.close(id, sk, sender)
-    case ActivityJoinRequest(id, sk) => activityManager.join(id, sk, sender)
-    case ActivityLeaveRequest(id, sk) => activityManager.leave(id, sk, sender)
-    case ActivitySetState(id, sk, key, value) => activityManager.setState(id, sk, key, value)
-    case ActivityClearState(id, sk, key) => activityManager.clearState(id, sk, key)
+    case openRequest: ActivityOpenRequest => open(openRequest)
+    case closeRequest: ActivityCloseRequest => getAndForward(closeRequest.activityId, closeRequest)
+    case joinRequest: ActivityJoinRequest => getAndForward(joinRequest.activityId, joinRequest)
+    case leaveRequest: ActivityLeaveRequest => getAndForward(leaveRequest.activityId, leaveRequest)
+    case setState: ActivitySetState => getAndForward(setState.activityId, setState)
+    case clearState: ActivityClearState => getAndForward(clearState.activityId, clearState)
+    case shutdown: ActivityShutdownRequest => handleShutdownRequest(shutdown)
+  }
+
+  private[this] def open(openRequest: ActivityOpenRequest): Unit = {
+    if (!openActivities.contains(openRequest.activityId)) {
+      // not yet open.  Create the actor.
+      openActivities += (openRequest.activityId -> context.actorOf(
+        ActivityActor.props(openRequest.activityId)))
+    }
+
+    val activity = openActivities(openRequest.activityId)
+    activity forward openRequest
+  }
+
+  private[this] def getAndForward(activityId: String, message: Any): Unit = {
+    openActivities.get(activityId) match {
+      case Some(activity) =>
+        activity forward message
+      case None =>
+        sender ! new akka.actor.Status.Failure(new IllegalStateException("No such open activity exists."))
+    }
+  }
+
+  private[this] def handleShutdownRequest(shutdown: ActivityShutdownRequest): Unit = {
+    log.debug(s"Shutdown request for activity: ${shutdown.activityId}")
+    // FIXME there is a race condition here.
+    openActivities.get(shutdown.activityId) match {
+      case Some(activity) =>
+        openActivities -= shutdown.activityId
+        context.stop(activity)
+      case None =>
+        log.error("Request to shutdown an actor that is not open");
+    }
   }
 }

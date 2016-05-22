@@ -15,6 +15,11 @@ import com.orientechnologies.orient.core.command.script.OCommandScript
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.orientechnologies.orient.core.db.tool.ODatabaseExport
 import com.orientechnologies.orient.core.serialization.serializer.OStringSerializerHelper
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
+import scala.PartialFunction.AndThen
+import scala.util.control.NonFatal
 
 private object Conf {
   def apply(arguments: Seq[String]): Conf = new Conf(arguments)
@@ -24,104 +29,156 @@ private class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   version("Convergence Database Builder 0.1.0 (c) 2015 Convergence Labs")
   banner("Usage: -s files -o filename -m file [-v]")
 
-  val schemaFiles = opt[List[String]](
-    argName = "schema-files",
-    descr = "A comma separated list of osql schema scripts",
+  val sourceDir = opt[String](
+    argName = "source",
+    descr = "The locatin of the source folder",
     required = false,
-    default = None)
+    default = Some("src/main/odb"))
 
-  val outputFile = opt[String](
-    argName = "output",
-    descr = "The OrientDB Merge file to output to",
+  val schemaDir = opt[String](
+    argName = "schema",
+    descr = "The relative locatin of the schema dir relative to the root",
     required = false,
-    default = None)
+    default = Some("schema"))
+
+  val dataDir = opt[String](
+    argName = "data",
+    descr = "The relative locatin of the data dir relative to the source",
+    required = false,
+    default = Some("data"))
+
+  val databaseDir = opt[String](
+    argName = "database",
+    descr = "The relative locatin of the database dir relative to the source",
+    required = false,
+    default = Some("database"))
+
+  val targetDir = opt[String](
+    argName = "target",
+    descr = "The location of the target folder",
+    required = false,
+    default = Some("target/odb/"))
 
   val verbose = toggle(
     name = "verbose",
     default = Some(false),
     descrYes = "Print verbose output")
-
-  val manifest = opt[String](
-    argName = "manifest",
-    descr = "A manifest to run",
-    required = false,
-    default = None)
-
-  conflicts(manifest, List(schemaFiles, outputFile))
-  requireOne(manifest, schemaFiles)
-  codependent(schemaFiles, outputFile)
-
 }
 
 object OrientDatabaseBuilder {
   def main(args: Array[String]): Unit = {
     val conf = Conf(args)
 
-    val schemaFiles = conf.schemaFiles.get
-    val outputFile = conf.outputFile.get
-    val manifestFile = conf.manifest.get
-    val verbose = conf.verbose.get.getOrElse(false)
+    val verbose = conf.verbose.get.get
+    val targetDir = new File(conf.targetDir.get.get)
 
-    val builder = new OrientDatabaseBuilder(manifestFile, schemaFiles, outputFile, verbose)
-    builder.buildSchema()
+    val files = for {
+      rootDir <- verifyDirectoryExists(new File(conf.sourceDir.get.get), "rootDir")
+      dataDir <- verifyDirectoryExists(new File(rootDir, conf.dataDir.get.get), "dataDir")
+      schemaDir <- verifyDirectoryExists(new File(rootDir, conf.schemaDir.get.get), "schemaDir")
+      databaseDir <- verifyDirectoryExists(new File(rootDir, conf.databaseDir.get.get), "databaseDir")
+    } yield (rootDir, dataDir, schemaDir, databaseDir)
+
+    files match {
+      case Success((rootDir, dataDir, schemaDir, databaseDir)) =>
+        val builder = new OrientDatabaseBuilder(
+          rootDir,
+          schemaDir,
+          dataDir,
+          databaseDir,
+          targetDir,
+          verbose)
+        builder.buildAll()
+      case Failure(f) =>
+        println(f.getMessage)
+    }
+  }
+
+  def verifyDirectoryExists(dir: File, optName: String): Try[File] = {
+    if (!dir.exists()) {
+      Failure(new IllegalArgumentException(s"Directory '${optName}' does not exist: ${dir}"))
+    } else if (!dir.isDirectory()) {
+      Failure(new IllegalArgumentException(s"'${optName}' is not a directory"))
+    } else {
+      Success(dir)
+    }
   }
 }
 
 class OrientDatabaseBuilder(
-    private[this] val manifestFile: Option[String],
-    private[this] val schemaFiles: Option[List[String]],
-    private[this] val outputFile: Option[String],
+    private[this] val rootDir: File,
+    private[this] val schemaDir: File,
+    private[this] val dataDir: File,
+    private[this] val databaseDir: File,
+    private[this] val targetDir: File,
     private[this] val verbose: Boolean) {
 
   private[this] val db = new ODatabaseDocumentTx("memory:export" + System.nanoTime())
 
-  def buildSchema(): Unit = {
+  def buildAll(): Unit = {
+    targetDir.mkdirs()
+
+    val allFiles = recurseDirectory(databaseDir)
+    allFiles.foreach { src =>
+      val srcPath = src.getPath()
+      val relPath = srcPath.substring(databaseDir.getPath.length(), srcPath.length())
+      val target = new File(targetDir, relPath + ".gz")
+      if (src.lastModified() > target.lastModified()) {
+        println(s"'$srcPath' has been modified since last build.  Building.")
+        buildDatabase(src, target)
+      } else {
+        println(s"'$srcPath' is already up to date.")
+      }
+    }
+  }
+
+  private[this] def buildDatabase(src: File, target: File): Unit = {
     if (verbose) {
       println("Creating temporary in memory database")
     }
     db.create()
-    val output = (manifestFile, schemaFiles, outputFile) match {
-      case (Some(manifest), None, None) => buildFromManifest(manifest)
-      case (None, Some(schema), Some(output)) => buildFromInputOutput(schema, output)
-      case _ => ???
+
+    buildFromManifest(src, List()) flatMap { _ =>
+      println(s"Building database build completed")
+      exportDatabase(target)
+    } recover {
+      case t: Exception =>
+        println(t.getMessage)
     }
+
     if (verbose) {
-      println("Closeing temporary in memory database.")
+      println("Dropping temporary in memory database.")
     }
+
     db.drop()
-    println("Database construction complete.")
+    println("Done processing current database.")
   }
 
-  private[this] def exportDatabase(outputFile: String): Unit = {
-    println(s"Exporting database to $outputFile.")
-    val export = new ODatabaseExport(db, outputFile, new OutputListener(verbose))
-    export.exportDatabase()
-    export.close()
-    println("Export complete.")
-  }
-
-  private[this] def buildFromInputOutput(schemaFiles: List[String], outputFile: String): Unit = {
-    schemaFiles.foreach { filename =>
-      processessScript(filename, false)
-    }
-
-    exportDatabase(outputFile)
-  }
-
-  private[this] def buildFromManifest(manifestFilePath: String): Unit = {
-    println(s"Building database from manifiest file: $manifestFilePath")
-    val manifestFile = new File(manifestFilePath)
-    val manifestData = fromFile(manifestFile).mkString
+  private[this] def buildFromManifest(src: File, children: List[File]): Try[Unit] = {
+    println(s"Building database from manifiest file: ${src.getPath}")
+    val manifestData = fromFile(src).mkString
     implicit val f = DefaultFormats
-    val manifest = read[DatabaseBuilderConfig](manifestData)
-    processManifestScripts(manifest.schemaScripts, manifestFile.getParent, false)
-    processManifestScripts(manifest.dataScripts, manifestFile.getParent, true)
+    val manifest = read[DatabaseManifest](manifestData)
 
-    println(s"Building database build completed")
-    exportDatabase(manifest.outputFile)
+    val newChildren = children :+ src
+
+    for {
+      inherit <- manifest.inherit match {
+        case Some(parentManifest) =>
+          val parentFile = new File(databaseDir, parentManifest)
+          if (newChildren.contains(parentFile)) {
+            Failure(new IllegalArgumentException("Can not have loops in inheritance: " + (newChildren :+ parentFile)))
+          } else {
+            buildFromManifest(parentFile, newChildren)
+          }
+        case None => Success(())
+      }
+      schema <- processManifestScripts(manifest.schemaScripts, schemaDir, false)
+      data <- processManifestScripts(manifest.dataScripts, dataDir, true)
+    } yield ()
   }
 
-  private[this] def processManifestScripts(scriptFiles: Option[List[String]], basePath: String, useTransaction: Boolean): Unit = {
+  private[this] def processManifestScripts(scriptFiles: Option[List[String]], basePath: File, useTransaction: Boolean): Try[Unit] = Try {
     scriptFiles match {
       case Some(scripts) => scripts.foreach { script =>
         val potentialFile = new File(script)
@@ -161,6 +218,20 @@ class OrientDatabaseBuilder(
     } finally {
       source.close()
     }
+  }
+
+  private[this] def exportDatabase(target: File): Try[Unit] = Try {
+    println(s"Exporting database to ${target.getPath()}.")
+    val export = new ODatabaseExport(db, target.getAbsolutePath, new OutputListener(verbose))
+    export.exportDatabase()
+    export.close()
+    println("Export complete.")
+    ()
+  }
+
+  private[this] def recurseDirectory(dir: File): Array[File] = {
+    val these = dir.listFiles
+    these ++ these.filter(f => f.isDirectory && f.getName().startsWith(".")).flatMap(recurseDirectory)
   }
 }
 

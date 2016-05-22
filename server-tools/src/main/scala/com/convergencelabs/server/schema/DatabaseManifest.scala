@@ -1,6 +1,6 @@
 package com.convergencelabs.server.schema
 
-case class DatabaseBuilderConfig(
-  outputFile: String,
+case class DatabaseManifest(
+  inherit: Option[String],
   schemaScripts: Option[List[String]],
   dataScripts: Option[List[String]])
