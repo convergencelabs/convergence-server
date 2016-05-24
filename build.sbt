@@ -12,6 +12,7 @@ val commonSettings = packSettings ++ Seq(
  )
 
 val serverCore = (project in file("server-core")).
+  enablePlugins(SbtTwirl).
   configs(Configs.all: _*).
   settings(commonSettings: _*).
   settings(Testing.settings: _*).
