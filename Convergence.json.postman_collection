@@ -8,6 +8,15 @@
 	],
 	"folders": [
 		{
+			"id": "01dcfd29-09d5-37f4-7600-821cab25ce3c",
+			"name": "Admin",
+			"description": "",
+			"order": [
+				"8fe2e74b-9812-bf80-83a7-93371e4bd692"
+			],
+			"owner": 0
+		},
+		{
 			"id": "d1a07278-f641-a9b0-da1d-2d2c2ddd9a3b",
 			"name": "Domain",
 			"description": "",
@@ -81,6 +90,16 @@
 			],
 			"owner": 0,
 			"collectionId": "daf05435-42df-8c67-0b6f-5c3789915874"
+		},
+		{
+			"id": "0611196c-9cfd-0f4f-b168-087a2381b7d0",
+			"name": "Registration",
+			"description": "",
+			"order": [
+				"2e4acfee-36e3-3f58-4721-5adeebfa4f94",
+				"777fedbc-7545-f54c-5614-d15fd006c6bd"
+			],
+			"owner": 0
 		}
 	],
 	"timestamp": 1459697594024,
@@ -170,6 +189,28 @@
 			"collectionId": "4b4d014a-96cc-5c52-7a11-3e9d10329cb7",
 			"responses": [],
 			"folder": "3330f2f0-dda3-30c0-a35e-5b871cc30f90"
+		},
+		{
+			"id": "2e4acfee-36e3-3f58-4721-5adeebfa4f94",
+			"headers": "Content-Type: application/json\n",
+			"url": "http://localhost:8081/rest/registration",
+			"pathVariables": {},
+			"preRequestScript": null,
+			"method": "POST",
+			"collectionId": "4b4d014a-96cc-5c52-7a11-3e9d10329cb7",
+			"data": [],
+			"dataMode": "raw",
+			"name": "RegisterUser",
+			"description": "",
+			"descriptionFormat": "html",
+			"time": 1462980947890,
+			"version": 2,
+			"responses": [],
+			"tests": null,
+			"currentHelper": "normal",
+			"helperAttributes": {},
+			"folder": "0611196c-9cfd-0f4f-b168-087a2381b7d0",
+			"rawModeData": "{\n    \"username\": \"cmeyer\",\n    \"email\": \"madmancam@gmail.com\",\n    \"fname\": \"Cameron\",\n    \"lname\": \"Meyer\",\n    \"token\": \"e1259ab6-6d1e-4eab-b228-4d975a54cfe1\",\n    \"password\": \"myPassword\"\n}"
 		},
 		{
 			"id": "374e629a-27e2-8c0a-4ffd-4202e0658b79",
@@ -353,6 +394,28 @@
 			"folder": "d1a07278-f641-a9b0-da1d-2d2c2ddd9a3b"
 		},
 		{
+			"id": "777fedbc-7545-f54c-5614-d15fd006c6bd",
+			"headers": "Content-Type: application/json\n",
+			"url": "http://localhost:8081/rest/registration/request",
+			"pathVariables": {},
+			"preRequestScript": null,
+			"method": "POST",
+			"collectionId": "4b4d014a-96cc-5c52-7a11-3e9d10329cb7",
+			"data": [],
+			"dataMode": "raw",
+			"name": "RequestRegistration",
+			"description": "",
+			"descriptionFormat": "html",
+			"time": 1462980969496,
+			"version": 2,
+			"responses": [],
+			"tests": null,
+			"currentHelper": "normal",
+			"helperAttributes": {},
+			"folder": "0611196c-9cfd-0f4f-b168-087a2381b7d0",
+			"rawModeData": "{\n    \"email\": \"madmancam@gmail.com\",\n    \"fname\": \"Cameron\",\n    \"lname\": \"Meyer\"\n}"
+		},
+		{
 			"id": "8b8224c4-3eea-0bb7-535a-d3ab6521d90d",
 			"headers": "Authorization: token {{token}}\n",
 			"url": "http://localhost:8081/rest/domains/namespace1/domain1/keys",
@@ -411,6 +474,28 @@
 			"collectionId": "4b4d014a-96cc-5c52-7a11-3e9d10329cb7",
 			"responses": [],
 			"folder": "d294be86-b545-6a74-f25a-3a395dd7bab7"
+		},
+		{
+			"id": "8fe2e74b-9812-bf80-83a7-93371e4bd692",
+			"headers": "Authorization: Basic YWRtaW46cGFzc3dvcmQ=\nContent-Type: application/json\n",
+			"url": "http://localhost:8081/admin/users",
+			"pathVariables": {},
+			"preRequestScript": null,
+			"method": "POST",
+			"collectionId": "4b4d014a-96cc-5c52-7a11-3e9d10329cb7",
+			"data": [],
+			"dataMode": "raw",
+			"name": "AddConvergenceUser",
+			"description": "",
+			"descriptionFormat": "html",
+			"time": 1462981006626,
+			"version": 2,
+			"responses": [],
+			"tests": null,
+			"currentHelper": "normal",
+			"helperAttributes": {},
+			"folder": "01dcfd29-09d5-37f4-7600-821cab25ce3c",
+			"rawModeData": "{\n    \"username\":\"myUser\",\n    \"firstName\":\"My\",\n    \"lastName\":\"User\",\n    \"email\":\"my@email.com\",\n    \"password\":\"password\"\n}"
 		},
 		{
 			"id": "95e9fe3f-1326-a484-a161-3bd63df3867c",
