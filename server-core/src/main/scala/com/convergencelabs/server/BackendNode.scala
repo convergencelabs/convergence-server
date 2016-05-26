@@ -10,28 +10,16 @@ import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import akka.actor.ActorSystem
 import grizzled.slf4j.Logging
 
-class BackendNode(system: ActorSystem) extends Logging {
+class BackendNode(system: ActorSystem, dbPool: OPartitionedDatabasePool) extends Logging {
 
   def start(): Unit = {
     logger.info("Backend Node starting up.")
 
     val dbConfig = system.settings.config.getConfig("convergence.convergence-database")
 
-    val baseUri = dbConfig.getString("uri")
-    val fullUri = baseUri + "/" + dbConfig.getString("database")
-    val username = dbConfig.getString("username")
-    val password = dbConfig.getString("password")
-
-    val dbPool = new OPartitionedDatabasePool(fullUri, password, password)
     val domainStore = new DomainStore(dbPool)
 
     val protocolConfig = ProtocolConfigUtil.loadConfig(system.settings.config)
-
-    val dbPoolManager = system.actorOf(
-      DomainPersistenceManagerActor.props(
-        baseUri,
-        domainStore),
-      DomainPersistenceManagerActor.RelativePath)
 
     system.actorOf(DomainManagerActor.props(
       domainStore,

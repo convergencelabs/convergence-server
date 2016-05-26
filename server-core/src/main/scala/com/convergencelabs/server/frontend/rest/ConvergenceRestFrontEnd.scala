@@ -59,7 +59,8 @@ object ConvergenceRestFrontEnd {
 class ConvergenceRestFrontEnd(
   val system: ActorSystem,
   val interface: String,
-  val port: Int)
+  val port: Int,
+  val dbPool: OPartitionedDatabasePool)
     extends Logging {
 
   implicit val s = system
@@ -69,15 +70,6 @@ class ConvergenceRestFrontEnd(
 
   def start(): Unit = {
     // FIXME this is a hack all of this should be a rest backend
-    val dbConfig = system.settings.config.getConfig("convergence.convergence-database")
-    val baseUri = dbConfig.getString("uri")
-    val fullUri = baseUri + "/" + dbConfig.getString("database")
-    val username = dbConfig.getString("username")
-    val password = dbConfig.getString("password")
-
-    val adminsConfig = system.settings.config.getConfig("convergence.convergence-admins")
-
-    val dbPool = new OPartitionedDatabasePool(fullUri, password, password)
     val domainStore = new DomainStore(dbPool)
 
     val authActor = system.actorOf(AuthStoreActor.props(dbPool))
@@ -87,10 +79,6 @@ class ConvergenceRestFrontEnd(
     val domainManagerActor = system.actorOf(RestDomainManagerActor.props(dbPool))
     val authzActor = system.actorOf(RestAuthnorizationActor.props(domainStore))
     val convergenceUserActor = system.actorOf(ConvergenceUserManagerActor.props(dbPool, domainActor))
-
-    val dbPoolManager = system.actorOf(
-      DomainPersistenceManagerActor.props(baseUri, domainStore),
-      DomainPersistenceManagerActor.RelativePath)
     // Down to here
 
     // These are the rest services
@@ -100,7 +88,11 @@ class ConvergenceRestFrontEnd(
     val domainService = new DomainService(ec, authzActor, domainActor, domainManagerActor, defaultRequestTimeout)
     val keyGenService = new KeyGenService(ec)
     val convergenceAdminService = new ConvergenceAdminService(ec, convergenceUserActor, defaultRequestTimeout)
-
+    
+    // FIXME this should be somewhere else.  It's a bit much to have this right here.
+    
+    val adminsConfig = system.settings.config.getConfig("convergence.convergence-admins")
+    
     def getApprovalHtml(token: String): String = {
       val htmlBuilder = StringBuilder.newBuilder
       htmlBuilder ++= "<!DOCTYPE html>\n"

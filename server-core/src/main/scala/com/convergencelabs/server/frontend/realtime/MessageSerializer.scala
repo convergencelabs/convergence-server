@@ -7,7 +7,6 @@ import org.json4s.jackson.Serialization.write
 import com.convergencelabs.server.frontend.realtime.data.DataValueFieldSerializer
 import com.convergencelabs.server.frontend.realtime.data.DataValueTypeHints
 import com.convergencelabs.server.domain.ActivityServiceActor.ActivitySetState
-import com.convergencelabs.server.frontend.realtime.ActivitySetStateMessage
 
 object MessageSerializer {
 
