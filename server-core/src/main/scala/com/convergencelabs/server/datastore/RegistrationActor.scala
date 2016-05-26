@@ -80,17 +80,7 @@ class RegistrationActor private[datastore] (dbPool: OPartitionedDatabasePool, us
     val AddRegistration(fname, lname, email) = message
     reply(registrationStore.addRegistration(fname, lname, email) map {
       case CreateSuccess(token) => {
-        val htmlBuilder = StringBuilder.newBuilder
-        htmlBuilder ++= "<!DOCTYPE html>\n"
-        htmlBuilder ++= "<html lang='en'>\n"
-        htmlBuilder ++= "<head>\n"
-        htmlBuilder ++= "  <meta charset='UTF-8'>\n"
-        htmlBuilder ++= "  <title>Title</title>\n"
-        htmlBuilder ++= "</head>\n"
-        htmlBuilder ++= "<body>\n"
-        htmlBuilder ++= s"  <a href='http://localhost:8081/approval/${token}'>Approval Page</a>\n"
-        htmlBuilder ++= "</body>\n"
-        htmlBuilder ++= "</html>\n"
+        val templateHtml = html.registrationRequest(token, fname, lname, email)
 
         val approvalEmail = new HtmlEmail()
         approvalEmail.setHostName(host)
@@ -98,7 +88,7 @@ class RegistrationActor private[datastore] (dbPool: OPartitionedDatabasePool, us
         approvalEmail.setAuthenticator(new DefaultAuthenticator(username, password))
         approvalEmail.setFrom(fromAddress)
         approvalEmail.setSubject(s"Registration Approval Request for ${fname} ${lname}")
-        approvalEmail.setHtmlMsg(htmlBuilder.toString())
+        approvalEmail.setHtmlMsg(templateHtml.toString())
         approvalEmail.setTextMsg(s"Approval Link: http://localhost:8081/approval/${token}")
         approvalEmail.addTo(toAddress)
         approvalEmail.send()

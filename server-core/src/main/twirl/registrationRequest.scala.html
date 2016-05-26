@@ -1,0 +1,13 @@
+@(token: String, firstName: String, lastName: String, email: String)
+
+<!DOCTYPE html>
+<html lang='en'>
+  <head>
+    <meta charset='UTF-8'>
+    <title>Title</title>
+  </head>
+  <body>
+  	@firstName @lastName (@email) would like to register for Convergence.  
+    <a href='http://localhost:8081/approval/@token'>Click here</a> to approve or deny the request.
+  </body>
+</html>
