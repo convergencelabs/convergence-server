@@ -31,6 +31,7 @@ val serverCore = (project in file("server-core")).
     ++ publishPackArchiveTgz
   ).
   settings(
+    unmanagedSourceDirectories in Compile += baseDirectory.value / "target" / "scala-2.11" / "twirl" / "main",
     name := "convergence-server-core",
     libraryDependencies ++= 
       akkaCore ++ 
