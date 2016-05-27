@@ -66,13 +66,15 @@ class RegistrationStore private[datastore] (
     }
   }
 
-  def getRegistrationEmail(token: String): Try[Option[String]] = tryWithDb { db =>
+  def getRegistrationInfo(token: String): Try[Option[Tuple3[String, String, String]]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM Registration WHERE token = :token")
     val params = Map(Token -> token)
     val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
     QueryUtil.mapSingletonList(results) { result =>  {
+        val firstName: String = result.field(FirstName)  
+        val lastName: String = result.field(LastName)
         val email: String = result.field(Email)
-        email
+        (firstName, lastName, email)
       }
     }
   }

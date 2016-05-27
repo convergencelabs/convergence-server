@@ -1,0 +1,35 @@
+@(signupUrl: String, welcomeText: String)
+
+<!DOCTYPE html>
+<html lang='en'>
+  <head>
+    <meta charset='UTF-8'>
+    <style type="text/css">
+
+    	body { font-family:"HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif; font-size:1.3em; margin:10px; }
+    	.title { margin: 20px 0 10px; font-size: 1.9em; }
+    	.title img { width:35px; vertical-align:middle; }
+    	a { text-decoration: none; color:#0D5C90;} a span { display:inline-block; vertical-align:middle; }
+    	a.signup { box-sizing:border-box; background:transparent; text-align:center; overflow:hidden; cursor:pointer; outline:none;
+    			   border:none; display:inline-block; vertical-align:middle; font-size:14px; font-weight:500; text-transform:uppercase;
+    			   padding:0 10px; margin:10px 0; min-width:88px; line-height:36px; border-radius:3px; 
+    			   -webkit-transition:background 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    			   transition:background 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    			   -webkit-transform:translate3d(0, 0, 0); transform:translate3d(0, 0, 0); box-shadow:0 2px 5px 0 rgba(0, 0, 0, 0.26);
+    			   color:rgba(255, 255, 255, 0.87059); background-color:#3f51b5; }
+    
+    
+    </style>
+  </head>
+  <body>
+    <div class="title">
+      <a href="http://www.convergencelabs.com">
+        <img src="http://www.convergencelabs.com/logo.png" alt="Convergence Logo">
+        <span>Convergence</span>
+      </a>
+    </div>
+    <p>@welcomeText to Convergence!  We're excited to see what you can build with our platform.</p>
+    <p>Click the button below to create an account.  If you have any problems, please let us know at contact@@convergencelabs.com.</p>
+  	<p><a class="signup" href='@signupUrl'>Create Account</a></p>
+  </body>
+</html>

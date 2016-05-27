@@ -24,6 +24,8 @@ import org.apache.commons.mail.DefaultAuthenticator
 import org.apache.commons.mail.SimpleEmail
 import com.typesafe.config.Config
 import com.convergencelabs.server.datastore.RegistrationActor.RejectRegistration
+import com.convergencelabs.templates.email.html
+import java.net.URLEncoder
 
 object RegistrationActor {
   def props(dbPool: OPartitionedDatabasePool, userManager: ActorRef): Props = Props(new RegistrationActor(dbPool, userManager))
@@ -109,28 +111,27 @@ class RegistrationActor private[datastore] (dbPool: OPartitionedDatabasePool, us
     reply(resp)
     resp match {
       case Success(UpdateSuccess) => {
-        registrationStore.getRegistrationEmail(token) match {
-          case Success(Some(email)) => {
-            val htmlBuilder = StringBuilder.newBuilder
-            htmlBuilder ++= "<!DOCTYPE html>\n"
-            htmlBuilder ++= "<html lang='en'>\n"
-            htmlBuilder ++= "<head>\n"
-            htmlBuilder ++= "  <meta charset='UTF-8'>\n"
-            htmlBuilder ++= "  <title>Title</title>\n"
-            htmlBuilder ++= "</head>\n"
-            htmlBuilder ++= "<body>\n"
-            htmlBuilder ++= s"  <a href='http://localhost:8081/signup/${token}'>Signup Page</a>\n"
-            htmlBuilder ++= "</body>\n"
-            htmlBuilder ++= "</html>\n"
+        registrationStore.getRegistrationInfo(token) match {
+          case Success(Some(registration)) => {
+            val (firstName, lastName, email) = registration
+            
+            val fnameEncoded = URLEncoder.encode(firstName, "UTF8")
+            val lnameEncoded = URLEncoder.encode(lastName, "UTF8")
+            val emailEncoded = URLEncoder.encode(email, "UTF8")
+            val adminServerUrl = "http://localhost:3000"
+            val signupUrl = s"${adminServerUrl}/signup/${token}?fname=${fnameEncoded}&lname=${lnameEncoded}&email=${emailEncoded}"
+            val welcomeTxt = if(firstName != null && firstName.nonEmpty) s"${firstName}, welcome" else "Welcome"
+            
+            val templateHtml = html.registrationApproved(signupUrl, welcomeTxt)
 
             val approvalEmail = new HtmlEmail()
             approvalEmail.setHostName(host)
             approvalEmail.setSmtpPort(port)
             approvalEmail.setAuthenticator(new DefaultAuthenticator(username, password))
             approvalEmail.setFrom(fromAddress)
-            approvalEmail.setSubject("Signup Approved")
-            approvalEmail.setHtmlMsg(htmlBuilder.toString())
-            approvalEmail.setTextMsg(s"Signup Link: http://localhost:8081/signup/${token}")
+            approvalEmail.setSubject(s"${welcomeTxt} to Convergence!")
+            approvalEmail.setHtmlMsg(templateHtml.toString())
+            approvalEmail.setTextMsg(s"Signup Link: ${signupUrl}")
             approvalEmail.addTo(email)
             approvalEmail.send()
           }

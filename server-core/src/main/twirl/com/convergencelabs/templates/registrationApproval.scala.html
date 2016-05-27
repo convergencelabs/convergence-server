@@ -1,0 +1,28 @@
+@(serverUrl: String, token: String)
+
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+  <meta charset='UTF-8'>
+  <title>Handle registration requests</title>
+</head>
+<body>
+  <button id='approveButton' onclick="post('@serverUrl/rest/registration/approve');">Approve</button>
+</body>
+<body>
+  <button id='rejectButton' onclick="post('@serverUrl/rest/registration/reject');">Reject</button>
+</body>
+<script> 
+  function post(url) {
+  	try {
+      var req = new XMLHttpRequest();
+      req.open('POST', url, true);
+      req.setRequestHeader('Content-type', 'application/json');
+      req.setRequestHeader('Access-Control-Allow-Origin', '*');
+      req.send(JSON.stringify({'token': '@token'}));
+    } catch (e) {
+      window.console && console.log(e);
+    }
+  }
+</script>
+</html>

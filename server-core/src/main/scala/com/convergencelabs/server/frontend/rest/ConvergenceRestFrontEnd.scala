@@ -44,6 +44,7 @@ import akka.http.scaladsl.model.MediaTypes
 import akka.http.scaladsl.model.ContentType
 import akka.http.scaladsl.model.HttpCharsets
 import akka.http.scaladsl.model.StatusCode
+import com.convergencelabs.templates.html
 
 object ConvergenceRestFrontEnd {
   val ConvergenceCorsSettings = CorsSettings.defaultSettings.copy(
@@ -94,45 +95,9 @@ class ConvergenceRestFrontEnd(
     val adminsConfig = system.settings.config.getConfig("convergence.convergence-admins")
     
     def getApprovalHtml(token: String): String = {
-      val htmlBuilder = StringBuilder.newBuilder
-      htmlBuilder ++= "<!DOCTYPE html>\n"
-      htmlBuilder ++= "<html lang='en'>\n"
-      htmlBuilder ++= "<head>\n"
-      htmlBuilder ++= "  <meta charset='UTF-8'>\n"
-      htmlBuilder ++= "  <title>Title</title>\n"
-      htmlBuilder ++= "</head>\n"
-      htmlBuilder ++= "<body>\n"
-      htmlBuilder ++= "  <button id='approveButton' onclick='approve();'>Approve</button>\n"
-      htmlBuilder ++= "</body>\n"
-      htmlBuilder ++= "<body>\n"
-      htmlBuilder ++= "  <button id='rejectButton' onclick='post();'>Reject</button>\n"
-      htmlBuilder ++= "</body>\n"
-      htmlBuilder ++= "<script>\n"
-      htmlBuilder ++= "  function approve() {\n"
-      htmlBuilder ++= "    try {\n"
-      htmlBuilder ++= "      var req = new XMLHttpRequest();\n"
-      htmlBuilder ++= "      req.open('POST', 'http://localhost:8081/rest/registration/approve', true);\n"
-      htmlBuilder ++= "      req.setRequestHeader('Content-type', 'application/json');\n"
-      htmlBuilder ++= "      req.setRequestHeader('Access-Control-Allow-Origin', '*');\n"
-      htmlBuilder ++= s"      req.send(JSON.stringify({'token': '${token}'}));\n"
-      htmlBuilder ++= "    } catch (e) {\n"
-      htmlBuilder ++= "      window.console && console.log(e);\n"
-      htmlBuilder ++= "    }\n"
-      htmlBuilder ++= "  }\n"
-      htmlBuilder ++= "  function reject() {\n"
-      htmlBuilder ++= "    try {\n"
-      htmlBuilder ++= "      var req = new XMLHttpRequest();\n"
-      htmlBuilder ++= "      req.open('POST', 'http://localhost:8081/rest/registration/reject', true);\n"
-      htmlBuilder ++= "      req.setRequestHeader('Content-type', 'application/json');\n"
-      htmlBuilder ++= "      req.setRequestHeader('Access-Control-Allow-Origin', '*');\n"
-      htmlBuilder ++= s"      req.send(JSON.stringify({'token': '${token}'}));\n"
-      htmlBuilder ++= "    } catch (e) {\n"
-      htmlBuilder ++= "      window.console && console.log(e);\n"
-      htmlBuilder ++= "    }\n"
-      htmlBuilder ++= "  }\n"
-      htmlBuilder ++= "</script>\n"
-      htmlBuilder ++= "</html>\n"
-      htmlBuilder.toString()
+      val serverUrl = "http://localhost:8081"
+      val templateHtml = html.registrationApproval(serverUrl, token)
+      return templateHtml.toString();
     }
 
     val route = cors(ConvergenceRestFrontEnd.ConvergenceCorsSettings) {
