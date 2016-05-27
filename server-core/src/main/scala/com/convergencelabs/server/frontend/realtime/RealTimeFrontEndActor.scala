@@ -37,7 +37,7 @@ class RealTimeFrontEndActor(
   var domainManagerActor: ActorRef = _
 
   def receive: Receive = {
-    case MemberUp(member) if member.hasRole("domainManager") => registerDomainManager(member)
+    case MemberUp(member) if member.hasRole("backend") => registerDomainManager(member)
     case DomainManagerRegistration(ref) => {
       domainManagerActor = ref
       log.info("Domain Manager Registered")
@@ -47,6 +47,7 @@ class RealTimeFrontEndActor(
   }
 
   private[this] def registerDomainManager(member: Member): Unit = {
+    
     val domainManager = context.actorSelection(RootActorPath(member.address) / "user" / "domainManager")
     val f = domainManager.resolveOne(new FiniteDuration(10, TimeUnit.SECONDS))
     f onComplete {

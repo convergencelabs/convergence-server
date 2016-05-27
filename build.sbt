@@ -2,13 +2,19 @@ import Dependencies.Compile._
 import Dependencies.Test._
 
 
-val commonSettings = packSettings ++ Seq(
+val commonSettings = Seq(
   organization := "com.convergencelabs",
   scalaVersion := "2.11.8",
   scalacOptions := Seq("-deprecation", "-feature"),
   fork := true,
-  packMain := Map("test-server" -> "com.convergencelabs.server.testkit.TestServer"),
-  packResourceDir += (baseDirectory.value / "server-testkit" / "test-server" -> "test-server")
+  publishTo := {
+    val nexus = "https://builds.convergencelabs.tech/nexus/repository/"
+    if (isSnapshot.value)
+      Some("snapshots" at nexus + "maven-snapshots/") 
+    else
+      Some("releases"  at nexus + "maven-releases")
+  },
+  credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
  )
 
 val serverCore = (project in file("server-core")).
@@ -17,6 +23,15 @@ val serverCore = (project in file("server-core")).
   settings(commonSettings: _*).
   settings(Testing.settings: _*).
   settings(
+    packSettings ++ 
+    Seq(
+      packMain := Map("server-node" -> "com.convergencelabs.server.ConvergenceServerNode"),
+      packResourceDir += (baseDirectory.value / "src" / "config" -> "config")
+    )
+    ++ publishPackArchiveTgz
+  ).
+  settings(
+    unmanagedSourceDirectories in Compile += baseDirectory.value / "target" / "scala-2.11" / "twirl" / "main",
     name := "convergence-server-core",
     libraryDependencies ++= 
       akkaCore ++ 
@@ -34,16 +49,71 @@ val serverCore = (project in file("server-core")).
         scrypt,
         netty,
         javaWebsockets, 
+        scallop,
         "org.scala-lang" % "scala-reflect" % scalaVersion.value
       ) ++
       testingCore ++
       testingAkka
   )
+  
+val serverNode = (project in file("server-node")).
+  enablePlugins(DockerPlugin).
+  configs(Configs.all: _*).
+  settings(commonSettings: _*).
+  settings(
+    packSettings ++ 
+    Seq(
+      packMain := Map("server-node" -> "com.convergencelabs.server.ConvergenceServerNode"),
+      packResourceDir += (baseDirectory.value / "src" / "config" -> "config")
+    )
+    ++ publishPackArchiveTgz
+  ).
+  settings(Seq(
+    docker <<= (docker dependsOn pack),
+    dockerfile in docker := {
+      new Dockerfile {
+        from("java:openjdk-8-jre")
+        add(new java.io.File("server-node/target/pack"), "/opt/convergence")
+        workDir("/opt/convergence/")
+        expose(8080)
+        entryPoint("/opt/convergence/bin/server-node")
+      }
+    },
+    imageNames in docker := {
+      Seq(ImageName("convergence-server-node"))
+    }
+  )).
+  settings(
+    name := "convergence-server-node",
+    publishArtifact in (Compile, packageBin) := false, 
+    publishArtifact in (Compile, packageDoc) := false, 
+    publishArtifact in (Compile, packageSrc) := false
+  ).
+  dependsOn(serverCore)
 
 val testkit = (project in file("server-testkit")).
+  enablePlugins(DockerPlugin).
   configs(Configs.all: _*).
   settings(commonSettings: _*).
   settings(Testing.settings: _*).
+  settings(Seq(
+    docker <<= (docker dependsOn pack),
+    dockerfile in docker := {
+      new Dockerfile {
+        from("java:openjdk-8-jre")
+        add(new java.io.File("server-testkit/target/pack"), "/opt/convergence")
+        expose(8080)
+        entryPoint("/opt/convergence/bin/test-server")
+      }
+    },
+    imageNames in docker := {
+      Seq(ImageName("convergence-test-server"))
+    }
+  )).
+  settings(packSettings ++ Seq(
+    packMain := Map("test-server" -> "com.convergencelabs.server.testkit.TestServer"),
+    packResourceDir += (baseDirectory.value / "server-testkit" / "test-server" -> "test-server")
+  )).
   settings(
     name := "convergence-server-testkit",
     libraryDependencies ++= 
@@ -54,7 +124,10 @@ val testkit = (project in file("server-testkit")).
     Seq(javaWebsockets)
   )
   .dependsOn(serverCore)
-
+  
+docker in testkit <<= docker dependsOn (pack in testkit)
+  
+  
 val tools = (project in file("server-tools")).
   configs(Configs.all: _*).
   settings(commonSettings: _*).
@@ -81,36 +154,17 @@ val e2eTests = (project in file("server-e2e-tests")).
   ).
   dependsOn(testkit)
 
-lazy val dockerSettings = Seq(
-  dockerfile in docker := {
-  
-    new Dockerfile {
-      from("centos:7")
-      run("yum", "--assumeyes", "install", "java-1.8.0-openjdk-devel")
-      add(new java.io.File("target/pack"), "/opt/convergence")
-      env("JAVA_HOME", "/usr/lib/jvm/java-1.8.0")
-      env("PATH", "$JAVA_HOME/bin:$PATH")
-      workDir("/opt/convergence/")
-      expose(8080)
-      entryPoint("/opt/convergence/bin/test-server")
-    }
-  },
-  imageNames in docker := {
-    Seq(ImageName("convergence-server"))
-  }
-)
-
 val root = (project in file(".")).
-  enablePlugins(DockerPlugin).
+  
   configs(Configs.all: _*).
   settings(commonSettings: _*).
   settings(Testing.settings: _*).
-  settings(dockerSettings:_*).
   settings(
     name := "convergence-server",
-    aggregate in pack := false,
-    aggregate in docker := false
+    publishArtifact in (Compile, packageBin) := false, // there are no binaries
+    publishArtifact in (Compile, packageDoc) := false, // there are no javadocs
+    publishArtifact in (Compile, packageSrc) := false
   ).
-  aggregate(tools, serverCore, testkit, e2eTests)
+  aggregate(tools, serverCore, serverNode, testkit, e2eTests)
   
-  docker <<= docker dependsOn pack
+
