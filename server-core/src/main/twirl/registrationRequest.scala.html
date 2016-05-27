@@ -1,4 +1,4 @@
-@(token: String, firstName: String, lastName: String, email: String)
+@(token: String, firstName: String, lastName: String, email: String, serverUrl: String)
 
 <!DOCTYPE html>
 <html lang='en'>
@@ -7,7 +7,7 @@
     <title>Title</title>
   </head>
   <body>
-  	@firstName @lastName (@email) would like to register for Convergence.  
-    <a href='http://localhost:8081/approval/@token'>Click here</a> to approve or deny the request.
+  	<p>@firstName @lastName (@email) would like to register for Convergence.  
+    <p><a href='@serverUrl/approval/@token'>Click here</a> to approve or deny the request.
   </body>
 </html>

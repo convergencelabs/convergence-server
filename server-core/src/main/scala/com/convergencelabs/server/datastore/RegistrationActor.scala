@@ -80,16 +80,17 @@ class RegistrationActor private[datastore] (dbPool: OPartitionedDatabasePool, us
     val AddRegistration(fname, lname, email) = message
     reply(registrationStore.addRegistration(fname, lname, email) map {
       case CreateSuccess(token) => {
-        val templateHtml = html.registrationRequest(token, fname, lname, email)
+        val serverUrl = "http://localhost:8081"
+        val templateHtml = html.registrationRequest(token, fname, lname, email, serverUrl)
 
         val approvalEmail = new HtmlEmail()
         approvalEmail.setHostName(host)
         approvalEmail.setSmtpPort(port)
         approvalEmail.setAuthenticator(new DefaultAuthenticator(username, password))
         approvalEmail.setFrom(fromAddress)
-        approvalEmail.setSubject(s"Registration Approval Request for ${fname} ${lname}")
+        approvalEmail.setSubject(s"Registration Request from ${fname} ${lname}")
         approvalEmail.setHtmlMsg(templateHtml.toString())
-        approvalEmail.setTextMsg(s"Approval Link: http://localhost:8081/approval/${token}")
+        approvalEmail.setTextMsg(s"Approval Link: ${serverUrl}/approval/${token}")
         approvalEmail.addTo(toAddress)
         approvalEmail.send()
 
