@@ -90,13 +90,12 @@ class ConvergenceRestFrontEnd(
     val keyGenService = new KeyGenService(ec)
     val convergenceAdminService = new ConvergenceAdminService(ec, convergenceUserActor, defaultRequestTimeout)
     
-    // FIXME this should be somewhere else.  It's a bit much to have this right here.
-    
     val adminsConfig = system.settings.config.getConfig("convergence.convergence-admins")
+    val restServerHost = system.settings.config.getString("convergence.rest.host")
+    val restServerPort = system.settings.config.getInt("convergence.rest.port")
     
     def getApprovalHtml(token: String): String = {
-      val serverUrl = "http://localhost:8081"
-      val templateHtml = html.registrationApproval(serverUrl, token)
+      val templateHtml = html.registrationApproval(s"http://${restServerHost}:${restServerPort}", token)
       return templateHtml.toString();
     }
 

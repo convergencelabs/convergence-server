@@ -72,15 +72,17 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
 
     if (roles.contains("realTimeFrontend")) {
       info("Starting up realtime front end.")
+      val host = config.getString("convergence.websocket.host")
       val port = config.getInt("convergence.websocket.port")
-      val realTimeFrontEnd = new ConvergenceRealTimeFrontend(system, "0.0.0.0", port)
+      val realTimeFrontEnd = new ConvergenceRealTimeFrontend(system, host, port)
       realTimeFrontEnd.start()
     }
 
     if (roles.contains("restFrontend")) {
       info("Starting up rest front end.")
+      val host = config.getString("convergence.rest.host")
       val port = config.getInt("convergence.rest.port")
-      val restFrontEnd = new ConvergenceRestFrontEnd(system, "0.0.0.0", port, dbPool.get)
+      val restFrontEnd = new ConvergenceRestFrontEnd(system, host, port, dbPool.get)
       restFrontEnd.start()
     }
   }

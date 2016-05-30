@@ -49,6 +49,12 @@ class RegistrationActor private[datastore] (dbPool: OPartitionedDatabasePool, us
   private[this] val fromAddress = smtpConfig.getString("fromAddress")
   private[this] val host = smtpConfig.getString("host")
   private[this] val port = smtpConfig.getInt("port")
+  
+  private[this] val restServerConfig = context.system.settings.config.getConfig("convergence.rest")
+  private[this] val restServerUrl = s"http://${restServerConfig.getString("host")}:${restServerConfig.getInt("port")}";
+  
+  private[this] val adminUiServerConfig = context.system.settings.config.getConfig("convergence.admin-ui")
+  private[this] val adminUiServerUrl = s"http://${adminUiServerConfig.getString("host")}:${adminUiServerConfig.getInt("port")}";
 
   private[this] val registrationStore = new RegistrationStore(dbPool)
 
@@ -82,8 +88,7 @@ class RegistrationActor private[datastore] (dbPool: OPartitionedDatabasePool, us
     val AddRegistration(fname, lname, email) = message
     reply(registrationStore.addRegistration(fname, lname, email) map {
       case CreateSuccess(token) => {
-        val serverUrl = "http://localhost:8081"
-        val templateHtml = html.registrationRequest(token, fname, lname, email, serverUrl)
+        val templateHtml = html.registrationRequest(token, fname, lname, email, restServerUrl)
 
         val approvalEmail = new HtmlEmail()
         approvalEmail.setHostName(host)
@@ -92,7 +97,7 @@ class RegistrationActor private[datastore] (dbPool: OPartitionedDatabasePool, us
         approvalEmail.setFrom(fromAddress)
         approvalEmail.setSubject(s"Registration Request from ${fname} ${lname}")
         approvalEmail.setHtmlMsg(templateHtml.toString())
-        approvalEmail.setTextMsg(s"Approval Link: ${serverUrl}/approval/${token}")
+        approvalEmail.setTextMsg(s"Approval Link: ${restServerUrl}/approval/${token}")
         approvalEmail.addTo(toAddress)
         approvalEmail.send()
 
@@ -118,8 +123,7 @@ class RegistrationActor private[datastore] (dbPool: OPartitionedDatabasePool, us
             val fnameEncoded = URLEncoder.encode(firstName, "UTF8")
             val lnameEncoded = URLEncoder.encode(lastName, "UTF8")
             val emailEncoded = URLEncoder.encode(email, "UTF8")
-            val adminServerUrl = "http://localhost:3000"
-            val signupUrl = s"${adminServerUrl}/signup/${token}?fname=${fnameEncoded}&lname=${lnameEncoded}&email=${emailEncoded}"
+            val signupUrl = s"${adminUiServerUrl}/signup/${token}?fname=${fnameEncoded}&lname=${lnameEncoded}&email=${emailEncoded}"
             val welcomeTxt = if(firstName != null && firstName.nonEmpty) s"${firstName}, welcome" else "Welcome"
             
             val templateHtml = html.registrationApproved(signupUrl, welcomeTxt)

@@ -7,22 +7,27 @@
   <title>Handle registration requests</title>
 </head>
 <body>
-  <button id='approveButton' onclick="post('@serverUrl/rest/registration/approve');">Approve</button>
-</body>
-<body>
-  <button id='rejectButton' onclick="post('@serverUrl/rest/registration/reject');">Reject</button>
-</body>
-<script> 
-  function post(url) {
-  	try {
-      var req = new XMLHttpRequest();
-      req.open('POST', url, true);
-      req.setRequestHeader('Content-type', 'application/json');
-      req.setRequestHeader('Access-Control-Allow-Origin', '*');
-      req.send(JSON.stringify({'token': '@token'}));
-    } catch (e) {
-      window.console && console.log(e);
+  <button id='approveButton' onclick="doAction('approve');">Approve</button>
+  <button id='rejectButton' onclick="doAction('reject');">Reject</button>
+  <div id="approveSuccess" style="display: none">Approved.</div>
+  <div id="rejectSuccess" style="display: none">Rejected.</div>
+  <div id="error" style="display: none"></div>
+  <script> 
+    var baseUrl = '@serverUrl/rest/registration/';
+    function doAction(action) {	
+	  try {
+        var req = new XMLHttpRequest();
+        req.open('POST', baseUrl + action, true);
+        req.setRequestHeader('Content-type', 'application/json');
+        req.setRequestHeader('Access-Control-Allow-Origin', '*');
+        req.send(JSON.stringify({'token': '@token'}));
+        
+        document.getElementById(action + 'Success').style.display = 'block';
+      } catch (e) {
+        document.getElementById('error').innerHTML = e;
+        document.getElementById('error').style.display = 'block';
+      }
     }
-  }
-</script>
+  </script>
+</body>
 </html>
