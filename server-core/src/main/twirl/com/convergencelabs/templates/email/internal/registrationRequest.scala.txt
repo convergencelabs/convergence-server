@@ -1,0 +1,6 @@
+@(token: String, firstName: String, lastName: String, email: String, serverUrl: String)
+
+@firstName @lastName (@email) would like to register for Convergence.  
+Go here to approve or deny the request:
+
+@serverUrl/approval/@token

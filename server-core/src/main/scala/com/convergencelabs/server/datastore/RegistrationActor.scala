@@ -2,7 +2,6 @@ package com.convergencelabs.server.datastore
 
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
-
 import akka.actor.ActorLogging
 import akka.actor.Props
 import akka.pattern.ask
@@ -18,14 +17,12 @@ import scala.util.Try
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import scala.util.Success
 import scala.util.Failure
-import org.apache.commons.mail.HtmlEmail
 import scala.concurrent.duration.FiniteDuration
-import org.apache.commons.mail.DefaultAuthenticator
-import org.apache.commons.mail.SimpleEmail
 import com.typesafe.config.Config
 import com.convergencelabs.server.datastore.RegistrationActor.RejectRegistration
-import com.convergencelabs.templates.email.html
 import java.net.URLEncoder
+import com.convergencelabs.templates
+import com.convergencelabs.server.util.EmailUtilities
 
 object RegistrationActor {
   def props(dbPool: OPartitionedDatabasePool, userManager: ActorRef): Props = Props(new RegistrationActor(dbPool, userManager))
@@ -43,12 +40,6 @@ class RegistrationActor private[datastore] (dbPool: OPartitionedDatabasePool, us
   private[this] implicit val exectionContext = context.dispatcher
 
   private[this] val smtpConfig: Config = context.system.settings.config.getConfig("convergence.smtp")
-  private[this] val username = smtpConfig.getString("username")
-  private[this] val password = smtpConfig.getString("password")
-  private[this] val toAddress = smtpConfig.getString("toAddress")
-  private[this] val fromAddress = smtpConfig.getString("fromAddress")
-  private[this] val host = smtpConfig.getString("host")
-  private[this] val port = smtpConfig.getInt("port")
   
   private[this] val restServerConfig = context.system.settings.config.getConfig("convergence.rest")
   private[this] val restServerUrl = s"http://${restServerConfig.getString("host")}:${restServerConfig.getInt("port")}";
@@ -75,6 +66,15 @@ class RegistrationActor private[datastore] (dbPool: OPartitionedDatabasePool, us
         (userManager ? req).mapTo[CreateResult[String]] onSuccess {
           case result: CreateSuccess[String] => {
             registrationStore.removeRegistration(token)
+            
+            val welcomeTxt = if(fname != null && fname.nonEmpty) s"${fname}, welcome" else "Welcome"
+            val templateHtml = templates.email.html.accountCreated(username, welcomeTxt)
+            val templateTxt = templates.email.txt.accountCreated(username, welcomeTxt)
+            val newAccountEmail = EmailUtilities.createHtmlEmail(smtpConfig, templateHtml, templateTxt.toString())
+            newAccountEmail.setSubject(s"${welcomeTxt} to Convergence!")
+            newAccountEmail.addTo(email)
+            newAccountEmail.send()
+            
             origSender ! result
           }
           case _ => origSender ! _
@@ -88,18 +88,18 @@ class RegistrationActor private[datastore] (dbPool: OPartitionedDatabasePool, us
     val AddRegistration(fname, lname, email) = message
     reply(registrationStore.addRegistration(fname, lname, email) map {
       case CreateSuccess(token) => {
-        val templateHtml = html.registrationRequest(token, fname, lname, email, restServerUrl)
-
-        val approvalEmail = new HtmlEmail()
-        approvalEmail.setHostName(host)
-        approvalEmail.setSmtpPort(port)
-        approvalEmail.setAuthenticator(new DefaultAuthenticator(username, password))
-        approvalEmail.setFrom(fromAddress)
-        approvalEmail.setSubject(s"Registration Request from ${fname} ${lname}")
-        approvalEmail.setHtmlMsg(templateHtml.toString())
-        approvalEmail.setTextMsg(s"Approval Link: ${restServerUrl}/approval/${token}")
-        approvalEmail.addTo(toAddress)
-        approvalEmail.send()
+        val bodyContent = templates.email.internal.txt.registrationRequest(token, fname, lname, email, restServerUrl)
+        val internalEmail = EmailUtilities.createTextEmail(smtpConfig, bodyContent.toString())
+        internalEmail.setSubject(s"Registration Request from ${fname} ${lname}")
+        internalEmail.addTo(smtpConfig.getString("new-registration-to-address"))
+        internalEmail.send()
+        
+        val template = templates.email.html.accountRequested(fname)
+        val templateTxt = templates.email.txt.accountRequested(fname)
+        val newRequestEmail = EmailUtilities.createHtmlEmail(smtpConfig, template, templateTxt.toString())
+        newRequestEmail.setSubject(s"${fname}, your account request has been received")
+        newRequestEmail.addTo(email)
+        newRequestEmail.send()
 
         CreateSuccess(Unit)
       }
@@ -124,18 +124,13 @@ class RegistrationActor private[datastore] (dbPool: OPartitionedDatabasePool, us
             val lnameEncoded = URLEncoder.encode(lastName, "UTF8")
             val emailEncoded = URLEncoder.encode(email, "UTF8")
             val signupUrl = s"${adminUiServerUrl}/signup/${token}?fname=${fnameEncoded}&lname=${lnameEncoded}&email=${emailEncoded}"
-            val welcomeTxt = if(firstName != null && firstName.nonEmpty) s"${firstName}, welcome" else "Welcome"
+            val introTxt = if(firstName != null && firstName.nonEmpty) s"${firstName}, good news!" else "Good news!"
             
-            val templateHtml = html.registrationApproved(signupUrl, welcomeTxt)
+            val templateHtml = templates.email.html.registrationApproved(signupUrl, introTxt)
+            val templateTxt = templates.email.txt.registrationApproved(signupUrl, introTxt)
 
-            val approvalEmail = new HtmlEmail()
-            approvalEmail.setHostName(host)
-            approvalEmail.setSmtpPort(port)
-            approvalEmail.setAuthenticator(new DefaultAuthenticator(username, password))
-            approvalEmail.setFrom(fromAddress)
-            approvalEmail.setSubject(s"${welcomeTxt} to Convergence!")
-            approvalEmail.setHtmlMsg(templateHtml.toString())
-            approvalEmail.setTextMsg(s"Signup Link: ${signupUrl}")
+            val approvalEmail = EmailUtilities.createHtmlEmail(smtpConfig, templateHtml, templateTxt.toString());
+            approvalEmail.setSubject(s"Your Convergence account request has been approved")
             approvalEmail.addTo(email)
             approvalEmail.send()
           }

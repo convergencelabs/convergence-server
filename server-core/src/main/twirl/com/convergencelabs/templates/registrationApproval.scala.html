@@ -17,12 +17,15 @@
     function doAction(action) {	
 	  try {
         var req = new XMLHttpRequest();
+        req.onreadystatechange = function() {
+          if (req.readyState == XMLHttpRequest.DONE) {
+            document.getElementById(action + 'Success').style.display = 'block';
+          }
+        }
         req.open('POST', baseUrl + action, true);
         req.setRequestHeader('Content-type', 'application/json');
         req.setRequestHeader('Access-Control-Allow-Origin', '*');
         req.send(JSON.stringify({'token': '@token'}));
-        
-        document.getElementById(action + 'Success').style.display = 'block';
       } catch (e) {
         document.getElementById('error').innerHTML = e;
         document.getElementById('error').style.display = 'block';
