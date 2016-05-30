@@ -112,7 +112,7 @@ val testkit = (project in file("server-testkit")).
   )).
   settings(packSettings ++ Seq(
     packMain := Map("test-server" -> "com.convergencelabs.server.testkit.TestServer"),
-    packResourceDir += (baseDirectory.value / "server-testkit" / "test-server" -> "test-server")
+    packResourceDir += (baseDirectory.value / "test-server" -> "test-server")
   )).
   settings(
     name := "convergence-server-testkit",
