@@ -74,8 +74,8 @@ val serverNode = (project in file("server-node")).
       new Dockerfile {
         from("java:openjdk-8-jre")
         add(new java.io.File("server-node/target/pack"), "/opt/convergence")
-        workDir("/opt/convergence/")
         expose(8080)
+        workDir("/opt/convergence/")
         entryPoint("/opt/convergence/bin/server-node")
       }
     },
@@ -103,6 +103,7 @@ val testkit = (project in file("server-testkit")).
         from("java:openjdk-8-jre")
         add(new java.io.File("server-testkit/target/pack"), "/opt/convergence")
         expose(8080)
+        workDir("/opt/convergence/")
         entryPoint("/opt/convergence/bin/test-server")
       }
     },
