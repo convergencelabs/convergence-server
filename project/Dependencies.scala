@@ -7,7 +7,7 @@ object Dependencies {
   // Versions
   object Versions {
     val akka      = "2.4.3"
-    val orientDb  = "2.1.13"
+    val orientDb  = "2.2.0"
     val log4j     = "2.4.1"
   }
 
@@ -25,11 +25,11 @@ object Dependencies {
     val akkaHttpJson4s     = "de.heikoseeberger"        % "akka-http-json4s_2.11"         % "1.5.3"
     val akkaHttpCors       = "ch.megard"                %% "akka-http-cors"                % "0.1.0"
     
+
     // Orient DB Dependencies
     val orientDbClient     = "com.orientechnologies"    % "orientdb-client"               % Versions.orientDb           // Apache 2.0
     val orientDbCore       = "com.orientechnologies"    % "orientdb-core"                 % Versions.orientDb           // Apache 2.0
-    val orientDbEnterprise = "com.orientechnologies"    % "orientdb-enterprise"           % Versions.orientDb           // Apache 2.0
-    val orientDb = Seq(orientDbClient, orientDbCore, orientDbEnterprise)
+    val orientDb = Seq(orientDbClient, orientDbCore)
   
     // Logging
     val grizzledSlf4j      = "org.clapper"              % "grizzled-slf4j_2.11"           % "1.0.2"                     // BSD
