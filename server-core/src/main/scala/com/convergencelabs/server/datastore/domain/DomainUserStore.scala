@@ -36,6 +36,8 @@ import com.convergencelabs.server.datastore.UpdateResult
 import com.convergencelabs.server.datastore.InvalidValue
 import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateDomainUser
 import java.util.UUID
+import com.orientechnologies.orient.core.metadata.sequence.OSequence.CreateParams
+import com.orientechnologies.orient.core.metadata.sequence.OSequence.SEQUENCE_TYPE
 
 object DomainUserStore {
   case class CreateDomainUser(
@@ -63,6 +65,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
   val Uid = "uid"
   val Username = "username"
   val Password = "password"
+  val UidSeq = "UIDSEQ"
 
   /**
    * Creates a new domain user in the system, and optionally set a password.
@@ -77,15 +80,21 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    * @return A String representing the created users uid.
    */
   def createDomainUser(domainUser: CreateDomainUser, password: Option[String]): Try[CreateResult[String]] = tryWithDb { db =>
-    // scalastyle:off null
-    // TODO move uid to a sequence in the DB or something
+    //FIXME: Remove after figuring out how to create in schema
+    if(!db.getMetadata().getSequenceLibrary().getSequenceNames.contains(UidSeq)) {
+      val createParams = new CreateParams().setDefaults()
+      db.getMetadata().getSequenceLibrary().createSequence(UidSeq, SEQUENCE_TYPE.CACHED, createParams)
+    }
+    
+    val seq = db.getMetadata().getSequenceLibrary().getSequence(UidSeq)
+    val uid = seq.next().toString
+    
     val create = DomainUser(
-      UUID.randomUUID().toString(),
+      uid,
       domainUser.username,
       domainUser.firstName,
       domainUser.lastName,
       domainUser.email)
-    // scalastyle:on null
 
     val userDoc = create.asODocument
     db.save(userDoc)
@@ -101,7 +110,6 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
 
     db.save(pwDoc)
 
-    val uid: String = userDoc.field(Uid, OType.STRING)
     CreateSuccess(uid)
   } recover {
     case e: ORecordDuplicatedException => DuplicateValue

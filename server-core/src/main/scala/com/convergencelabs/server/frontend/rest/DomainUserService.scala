@@ -35,7 +35,6 @@ import com.convergencelabs.server.datastore.CreateResult
 import com.convergencelabs.server.datastore.CreateSuccess
 import com.convergencelabs.server.datastore.DuplicateValue
 import com.convergencelabs.server.frontend.rest.DomainUserService.CreateUserResponse
-import java.util.UUID
 import com.convergencelabs.server.datastore.UserStoreActor.GetUserByUid
 import com.convergencelabs.server.frontend.rest.DomainUserService.GetUserRestResponse
 import com.convergencelabs.server.datastore.DeleteResult

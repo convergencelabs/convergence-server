@@ -25,6 +25,8 @@ import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 
 import grizzled.slf4j.Logging
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
+import com.orientechnologies.orient.core.metadata.sequence.OSequence.CreateParams
+import com.orientechnologies.orient.core.metadata.sequence.OSequence.SEQUENCE_TYPE
 
 /**
  * Manages the persistence of Users.  This class manages both user profile records
@@ -51,12 +53,21 @@ class UserStore private[datastore] (
   val Password = "password"
   val Token = "token"
   val ExpireTime = "expireTime"
+  
+  val UidSeq = "UIDSEQ"
 
   def createUser(user: User, password: String): Try[CreateResult[String]] = tryWithDb { db =>
-    // TODO move uid to a sequence in the DB or something
-
+    //FIXME: Remove after figuring out how to create in schema
+    if(!db.getMetadata().getSequenceLibrary().getSequenceNames.contains(UidSeq)) {
+      val createParams = new CreateParams().setDefaults()
+      db.getMetadata().getSequenceLibrary().createSequence(UidSeq, SEQUENCE_TYPE.CACHED, createParams)
+    }
+    
+    val seq = db.getMetadata().getSequenceLibrary().getSequence(UidSeq)
+    val uid = seq.next().toString
+    
     val userDoc = new ODocument("User");
-    userDoc.field(Uid, user.uid);
+    userDoc.field(Uid, uid);
     userDoc.field(Username, user.username);
     userDoc.field(Email, user.email)
     userDoc.field(FirstName, user.firstName)
@@ -71,7 +82,6 @@ class UserStore private[datastore] (
 
     db.save(pwDoc)
 
-    val uid: String = userDoc.field(Uid, OType.STRING)
     CreateSuccess(uid)
   } recover {
     case e: ORecordDuplicatedException => DuplicateValue

@@ -7,7 +7,6 @@ import UserStoreActor.CreateUser
 import UserStoreActor.GetUsers
 import akka.actor.ActorLogging
 import akka.actor.Props
-import java.util.UUID
 import com.convergencelabs.server.datastore.UserStoreActor.GetUserByUid
 import com.convergencelabs.server.datastore.UserStoreActor.DeleteDomainUser
 import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateDomainUser

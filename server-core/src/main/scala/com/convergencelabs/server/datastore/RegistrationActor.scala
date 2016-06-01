@@ -10,7 +10,6 @@ import akka.actor.ActorRef
 import com.convergencelabs.server.datastore.RegistrationActor.RegisterUser
 import com.convergencelabs.server.datastore.RegistrationActor.AddRegistration
 import com.convergencelabs.server.datastore.RegistrationActor.ApproveRegistration
-import java.util.UUID
 import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.CreateConvergenceUserRequest
 import akka.actor.ActorRef
 import scala.util.Try

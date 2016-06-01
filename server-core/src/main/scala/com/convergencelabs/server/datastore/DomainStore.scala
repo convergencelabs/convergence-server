@@ -18,6 +18,8 @@ import com.convergencelabs.server.domain.DomainDatabaseInfo
 import com.convergencelabs.server.domain.DomainDatabaseInfo
 import com.orientechnologies.orient.core.exception.OValidationException
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
+import com.orientechnologies.orient.core.metadata.sequence.OSequence.SEQUENCE_TYPE
+import com.orientechnologies.orient.core.metadata.sequence.OSequence.CreateParams
 
 class DomainStore (dbPool: OPartitionedDatabasePool)
     extends AbstractDatabasePersistence(dbPool)
@@ -28,8 +30,20 @@ class DomainStore (dbPool: OPartitionedDatabasePool)
   private[this] val DomainId = "domainId"
   private[this] val Owner = "owner"
   private[this] val Uid = "uid"
+  
+  val DidSeq = "DIDSEQ"
+  
 
   def createDomain(domain: Domain, dbName: String, dbUsername: String, dbPassword: String): Try[CreateResult[Unit]] = tryWithDb { db =>
+    //FIXME: Remove after figuring out how to create in schema
+    if(!db.getMetadata().getSequenceLibrary().getSequenceNames.contains(DidSeq)) {
+      val createParams = new CreateParams().setDefaults()
+      db.getMetadata().getSequenceLibrary().createSequence(DidSeq, SEQUENCE_TYPE.CACHED, createParams)
+    }
+    
+    val seq = db.getMetadata().getSequenceLibrary().getSequence(DidSeq)
+    val did = seq.next().toString
+    
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE uid = :uid")
     val params = Map(Uid -> domain.owner)
 
@@ -38,6 +52,7 @@ class DomainStore (dbPool: OPartitionedDatabasePool)
       QueryUtil.enforceSingletonResultList(result) match {
         case Some(user) => {
           val doc = domain.asODocument
+          doc.field(Id, did)
           doc.field(Owner, user)
           doc.field("dbName", dbName)
           doc.field("dbUsername", dbUsername)

@@ -18,7 +18,6 @@ import scala.collection.mutable.ListBuffer
 import org.jose4j.jwt.JwtClaims
 import java.security.PublicKey
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
-import java.util.UUID
 import scala.util.Success
 import scala.util.Failure
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor

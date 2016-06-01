@@ -16,7 +16,6 @@ import com.typesafe.config.Config
 import akka.actor.ActorLogging
 import akka.actor.Props
 import scala.util.Try
-import java.util.UUID
 
 class DomainStoreActor private[datastore] (
   private[this] val dbPool: OPartitionedDatabasePool)
@@ -44,10 +43,8 @@ class DomainStoreActor private[datastore] (
   def createDomain(createRequest: CreateDomainRequest): Unit = {
     val CreateDomainRequest(namespace, domainId, displayName, owner, importFile) = createRequest
     val DBConfig(dbName, username, password) = domainDBContoller.createDomain(importFile)
-    // FIXME: Determine correct way to create id
-    val id = UUID.randomUUID().toString()
     // TODO: Need to handle rollback of domain creation if this fails
-    reply(domainStore.createDomain(Domain(id, DomainFqn(namespace, domainId), displayName, owner), dbName, username, password))
+    reply(domainStore.createDomain(Domain(null, DomainFqn(namespace, domainId), displayName, owner), dbName, username, password))
   }
 
   def updateDomain(request: UpdateDomainRequest): Unit = {

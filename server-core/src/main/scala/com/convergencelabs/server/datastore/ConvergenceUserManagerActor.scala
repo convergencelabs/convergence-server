@@ -1,7 +1,5 @@
 package com.convergencelabs.server.datastore
 
-import java.util.UUID
-
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
@@ -48,9 +46,8 @@ class ConvergenceUserManagerActor private[datastore] (
 
   def createConvergenceUser(message: CreateConvergenceUserRequest): Unit = {
     val CreateConvergenceUserRequest(username, email, firstName, lastName, password) = message
-    val userId = UUID.randomUUID().toString()
     val origSender = sender
-    userStore.createUser(User(userId, username, email, firstName, lastName), password) map {
+    userStore.createUser(User(null, username, email, firstName, lastName), password) map {
       case CreateSuccess(uid) => {
         val domainResults = for {
           exampleDomain <- createExampleDomain(uid, username)
