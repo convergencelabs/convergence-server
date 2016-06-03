@@ -1,0 +1,9 @@
+#!/bin/bash
+set -e  
+
+# ensure the following environment variables are set. exit script and container if not set.
+test $admin_ui_host
+
+/usr/local/bin/confd -onetime -backend env
+
+/opt/convergence/bin/server-node

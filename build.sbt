@@ -31,7 +31,7 @@ val serverCore = (project in file("server-core")).
     ++ publishPackArchiveTgz
   ).
   settings(
-    unmanagedSourceDirectories in Compile += baseDirectory.value / "target" / "scala-2.11" / "twirl" / "main",
+   unmanagedSourceDirectories in Compile += baseDirectory.value / "target" / "scala-2.11" / "twirl" / "main",
     name := "convergence-server-core",
     libraryDependencies ++= 
       akkaCore ++ 
@@ -74,6 +74,10 @@ val serverNode = (project in file("server-node")).
       new Dockerfile {
         from("java:openjdk-8-jre")
         add(new java.io.File("server-node/target/pack"), "/opt/convergence")
+        add("https://github.com/kelseyhightower/confd/releases/download/v0.11.0/confd-0.11.0-linux-amd64", "/usr/local/bin/confd")
+        add(new java.io.File("server-node/src/confd"), "/etc/confd/")
+        add(new java.io.File("server-node/src/bin"), "/opt/convergence/bin")
+        run("chmod", "+x", "/usr/local/bin/confd")
         expose(8080)
         workDir("/opt/convergence/")
         entryPoint("/opt/convergence/bin/server-node")
