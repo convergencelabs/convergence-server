@@ -20,13 +20,12 @@ import akka.http.scaladsl.server.Directives.Segment
 import akka.http.scaladsl.server.Directives.as
 import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Directives.delete
-import akka.http.scaladsl.server.Directives.enhanceRouteWithConcatenation
+import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Directives.entity
 import akka.http.scaladsl.server.Directives.get
 import akka.http.scaladsl.server.Directives.pathEnd
 import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.post
-import akka.http.scaladsl.server.Directives.segmentStringToPathMatcher
 import akka.pattern.ask
 import akka.util.Timeout
 import akka.http.scaladsl.server.Route

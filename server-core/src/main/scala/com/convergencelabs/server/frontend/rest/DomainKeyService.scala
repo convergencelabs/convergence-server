@@ -25,8 +25,7 @@ import akka.http.scaladsl.server.Directives.post
 import akka.http.scaladsl.server.Directives.delete
 import akka.http.scaladsl.server.Directives.as
 import akka.http.scaladsl.server.Directives.put
-import akka.http.scaladsl.server.Directives.segmentStringToPathMatcher
-import akka.http.scaladsl.server.Directives.enhanceRouteWithConcatenation
+import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Directive.addDirectiveApply
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask

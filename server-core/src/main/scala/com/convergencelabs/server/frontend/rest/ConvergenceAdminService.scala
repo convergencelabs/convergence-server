@@ -12,8 +12,7 @@ import akka.http.scaladsl.server.Directives.delete
 import akka.http.scaladsl.server.Directives.Segment
 import akka.http.scaladsl.server.Directives.get
 import akka.http.scaladsl.server.Directives.complete
-import akka.http.scaladsl.server.Directives.segmentStringToPathMatcher
-import akka.http.scaladsl.server.Directives.enhanceRouteWithConcatenation
+import akka.http.scaladsl.server.Directives._
 import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.server.frontend.rest.ConvergenceAdminService.CreateUserRequest
