@@ -14,10 +14,10 @@ package model {
   // Incoming Messages From Client
   //
   case class OpenRequestRecord(clientActor: ActorRef, askingActor: ActorRef)
-  case class OpenRealtimeModelRequest(userId: String, sessionId: String, modelFqn: ModelFqn, initializerProvided: Boolean, clientActor: ActorRef)
+  case class OpenRealtimeModelRequest(sk: SessionKey, modelFqn: ModelFqn, initializerProvided: Boolean, clientActor: ActorRef)
   case class CreateModelRequest(modelFqn: ModelFqn, modelData: ObjectValue)
   case class DeleteModelRequest(modelFqn: ModelFqn)
-  case class CloseRealtimeModelRequest(userId: String, sessionId: String)
+  case class CloseRealtimeModelRequest(sk: SessionKey)
   case class OperationSubmission(seqNo: Long, contextVersion: Long, operation: Operation)
   case class ClientModelDataResponse(modelData: ObjectValue)
 

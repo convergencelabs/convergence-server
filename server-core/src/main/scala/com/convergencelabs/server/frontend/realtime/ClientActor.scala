@@ -194,7 +194,7 @@ class ClientActor(
 
   private[this] def handleAuthenticationSuccess(message: InternalAuthSuccess): Unit = {
     val InternalAuthSuccess(uid, username, sk, cb) = message
-    this.modelClient = context.actorOf(ModelClientActor.props(uid, sk.serialize(), modelManagerActor))
+    this.modelClient = context.actorOf(ModelClientActor.props(sk, modelManagerActor))
     this.userClient = context.actorOf(UserClientActor.props(userServiceActor))
     this.activityClient = context.actorOf(ActivityClientActor.props(activityServiceActor, sk))
     this.messageHandler = handleMessagesWhenAuthenticated

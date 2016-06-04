@@ -25,7 +25,6 @@ import com.convergencelabs.server.frontend.realtime.model.OperationType
 import OperationSerializer.D
 import OperationSerializer.F
 import OperationSerializer.I
-import OperationSerializer.K
 import OperationSerializer.N
 import OperationSerializer.O
 import OperationSerializer.P
@@ -54,7 +53,6 @@ object OperationSerializer {
   val D = "d"
   val N = "n"
   val I = "i"
-  val K = "k"
   val P = "p"
   val O = "o"
   val F = "f"
@@ -79,13 +77,13 @@ class OperationSerializer extends CustomSerializer[OperationData](format => ({
     implicit val f = format;
     ArraySetOperationData(id, noOp, values.map { value => Extraction.extract[DataValue](value) })
 
-  case JObject(List((T, JInt(Big(OperationType.ObjectAdd))), (D, JString(id)), (N, JBool(noOp)), (K, JString(prop)), (V, value))) =>
+  case JObject(List((T, JInt(Big(OperationType.ObjectAdd))), (D, JString(id)), (N, JBool(noOp)), (P, JString(prop)), (V, value))) =>
     implicit val f = format;
     ObjectAddPropertyOperationData(id, noOp, prop, Extraction.extract[DataValue](value))
-  case JObject(List((T, JInt(Big(OperationType.ObjectSet))), (D, JString(id)), (N, JBool(noOp)), (K, JString(prop)), (V, value))) =>
+  case JObject(List((T, JInt(Big(OperationType.ObjectSet))), (D, JString(id)), (N, JBool(noOp)), (P, JString(prop)), (V, value))) =>
     implicit val f = format;
     ObjectSetPropertyOperationData(id, noOp, prop, Extraction.extract[DataValue](value))
-  case JObject(List((T, JInt(Big(OperationType.ObjectRemove))), (D, JString(id)), (N, JBool(noOp)), (K, JString(prop)))) =>
+  case JObject(List((T, JInt(Big(OperationType.ObjectRemove))), (D, JString(id)), (N, JBool(noOp)), (P, JString(prop)))) =>
     ObjectRemovePropertyOperationData(id, noOp, prop)
   case JObject(List((T, JInt(Big(OperationType.ObjectValue))), (D, JString(id)), (N, JBool(noOp)), (V, JObject(fields)))) =>
     implicit val f = format;
@@ -127,13 +125,13 @@ class OperationSerializer extends CustomSerializer[OperationData](format => ({
       (V -> Extraction.decompose(value)(format).asInstanceOf[JObject])
 
   case ObjectSetPropertyOperationData(id, noOp, prop, value) =>
-    (T -> OperationType.ObjectSet) ~ (D -> id) ~ (N -> noOp) ~ (P -> prop)
-    (V -> Extraction.decompose(value)(format).asInstanceOf[JObject])
+    (T -> OperationType.ObjectSet) ~ (D -> id) ~ (N -> noOp) ~ (P -> prop) ~
+      (V -> Extraction.decompose(value)(format).asInstanceOf[JObject])
   case ObjectAddPropertyOperationData(id, noOp, prop, value) =>
-    (T -> OperationType.ObjectAdd) ~ (D -> id) ~ (N -> noOp) ~ (P -> prop)
-    (V -> Extraction.decompose(value)(format).asInstanceOf[JObject])
+    (T -> OperationType.ObjectAdd) ~ (D -> id) ~ (N -> noOp) ~ (P -> prop) ~
+      (V -> Extraction.decompose(value)(format).asInstanceOf[JObject])
   case ObjectRemovePropertyOperationData(id, noOp, prop) =>
-    (T -> OperationType.ObjectAdd) ~ (D -> id) ~ (N -> noOp) ~ (P -> prop)
+    (T -> OperationType.ObjectRemove) ~ (D -> id) ~ (N -> noOp) ~ (P -> prop)
   case ObjectSetOperationData(id, noOp, value) =>
     (T -> OperationType.ObjectValue) ~ (D -> id) ~ (N -> noOp) ~
       (V -> Extraction.decompose(value)(format).asInstanceOf[JObject])

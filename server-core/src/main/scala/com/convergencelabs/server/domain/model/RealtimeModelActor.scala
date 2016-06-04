@@ -126,7 +126,7 @@ class RealtimeModelActor(
    * method is called, the actor will be an in initializing state.
    */
   private[this] def onOpenModelWhileUninitialized(request: OpenRealtimeModelRequest): Unit = {
-    queuedOpeningClients += (SessionKey(request.userId, request.sessionId) -> OpenRequestRecord(request.clientActor, sender()))
+    queuedOpeningClients += (request.sk -> OpenRequestRecord(request.clientActor, sender()))
     modelStore.modelExists(modelFqn) match {
       case Success(true) =>
         requestModelDataFromDatastore()
@@ -150,7 +150,7 @@ class RealtimeModelActor(
   private[this] def onOpenModelWhileInitializing(request: OpenRealtimeModelRequest): Unit = {
     // We know we are already INITIALIZING.  This means we are at least the second client
     // to open the model before it was fully initialized.
-    queuedOpeningClients += (SessionKey(request.userId, request.sessionId) -> OpenRequestRecord(request.clientActor, sender()))
+    queuedOpeningClients += (request.sk -> OpenRequestRecord(request.clientActor, sender()))
 
     // If we are persistent, then the data is already loading, so there is nothing to do.
     // However, if we are not persistent, we have already asked the previous opening client
@@ -285,7 +285,7 @@ class RealtimeModelActor(
    * Handles a request to open the model, when the model is already initialized.
    */
   private[this] def onOpenModelWhileInitialized(request: OpenRealtimeModelRequest): Unit = {
-    val sk = SessionKey(request.userId, request.sessionId)
+    val sk = request.sk
     if (connectedClients.contains(sk)) {
       sender ! ModelAlreadyOpen
     } else {
@@ -344,8 +344,7 @@ class RealtimeModelActor(
    * Handles a request to close the model.
    */
   private[this] def onCloseModelRequest(request: CloseRealtimeModelRequest): Unit = {
-    val sk = SessionKey(request.userId, request.sessionId)
-    clientClosed(sk)
+    clientClosed(request.sk)
   }
 
   private[this] def handleTerminated(terminated: Terminated): Unit = {
@@ -422,15 +421,17 @@ class RealtimeModelActor(
    */
   private[this] def transformAndApplyOperation(sk: SessionKey, unprocessedOpEvent: UnprocessedOperationEvent): Try[OutgoingOperation] = {
     val timestamp = Instant.now()
-    this.model.processOperationEvent(unprocessedOpEvent).map { processedOpEvent =>
+    this.model.processOperationEvent(unprocessedOpEvent).flatMap { processedOpEvent =>
+      // FIXME this is actually broken.  If this doens't work it will pop out as a failure
+      // and go up to the caller, which will just kill the client.  But the model and the database
+      // are now out of sync.  We actually need to kill the whole thing.
       modelOperationProcessor.processModelOperation(ModelOperation(
         modelFqn,
         processedOpEvent.resultingVersion,
         timestamp,
         sk.uid,
         sk.sid,
-        processedOpEvent.operation))
-      processedOpEvent
+        processedOpEvent.operation)) map { _ => processedOpEvent }
     } map (processedOpEvent =>
       OutgoingOperation(
         modelResourceId,

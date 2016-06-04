@@ -316,7 +316,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
   private[this] def applyStringInsertOperation(fqn: ModelFqn, operation: StringInsertOperation, db: ODatabaseDocumentTx): Unit = {
     val queryString =
       s"""UPDATE StringValue SET
-         |  value = stringInsert(value, :index, :value)
+         |  value = value.left(:index).append(:value).append(value.substring(:index))
          |WHERE
          |  vid = :vid AND
          |  model.collectionId = :collectionId AND
@@ -330,6 +330,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
       Value -> operation.value)
     db.command(updateCommand).execute(params.asJava)
     db.commit()
+    ()
   }
 
   private[this] def applyStringRemoveOperation(fqn: ModelFqn, operation: StringRemoveOperation, db: ODatabaseDocumentTx): Unit = {

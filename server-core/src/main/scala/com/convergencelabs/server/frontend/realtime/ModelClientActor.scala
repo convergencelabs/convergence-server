@@ -55,21 +55,17 @@ import akka.util.Timeout
 
 object ModelClientActor {
   def props(
-    userId: String,
-    sessionId: String,
+    sk: SessionKey,
     modelManager: ActorRef): Props =
-    Props(new ModelClientActor(userId, sessionId, modelManager))
+    Props(new ModelClientActor(sk, modelManager))
 }
 
 class ModelClientActor(
-  userId: String,
-  sessionId: String,
+  sessionKey: SessionKey,
   modelManager: ActorRef)
     extends Actor with ActorLogging {
 
   var openRealtimeModels = Map[String, ActorRef]()
-
-  val sessionKey = SessionKey(userId, sessionId)
 
   // FIXME hardcoded
   implicit val timeout = Timeout(5 seconds)
@@ -254,7 +250,7 @@ class ModelClientActor(
 
   def onOpenRealtimeModelRequest(request: OpenRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
     val future = modelManager ? OpenRealtimeModelRequest(
-      userId, sessionId, ModelFqn(request.c, request.m), request.i, self)
+      sessionKey, ModelFqn(request.c, request.m), request.i, self)
     future.mapResponse[OpenModelResponse] onComplete {
       case Success(OpenModelSuccess(realtimeModelActor, modelResourceId, valueIdPrefix, metaData, connectedClients, references, modelData)) => {
         openRealtimeModels += (modelResourceId -> realtimeModelActor)
@@ -297,7 +293,7 @@ class ModelClientActor(
   def onCloseRealtimeModelRequest(request: CloseRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
     openRealtimeModels.get(request.r) match {
       case Some(modelActor) =>
-        val future = modelActor ? CloseRealtimeModelRequest(userId, sessionId)
+        val future = modelActor ? CloseRealtimeModelRequest(sessionKey)
         future.mapResponse[CloseRealtimeModelSuccess] onComplete {
           case Success(CloseRealtimeModelSuccess()) =>
             openRealtimeModels -= request.r
