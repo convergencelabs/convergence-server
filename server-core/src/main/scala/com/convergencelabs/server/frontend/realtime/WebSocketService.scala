@@ -14,6 +14,7 @@ import akka.http.scaladsl.model.ws.TextMessage
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
 import akka.http.scaladsl.server.Directive.addDirectiveApply
 import akka.http.scaladsl.server.Directives
+import akka.http.scaladsl.server.Directives._
 import akka.stream.Materializer
 import akka.stream.OverflowStrategy
 import akka.stream.scaladsl.Flow
