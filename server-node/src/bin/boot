@@ -2,7 +2,19 @@
 set -e  
 
 # ensure the following environment variables are set. exit script and container if not set.
+
+#Required DB Variables
+test $orient_uri
+test $orient_conv_user
+test $orient_conv_pass
+
+test $orient_admin_user
+test $orient_admin_pass
+
+
+#Required Admin UI Variables
 test $admin_ui_host
+test $admin_ui_port
 
 /usr/local/bin/confd -onetime -backend env
 

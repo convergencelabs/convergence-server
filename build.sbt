@@ -31,7 +31,7 @@ val serverCore = (project in file("server-core")).
     ++ publishPackArchiveTgz
   ).
   settings(
-   unmanagedSourceDirectories in Compile += baseDirectory.value / "target" / "scala-2.11" / "twirl" / "main",
+   // unmanagedSourceDirectories in Compile += baseDirectory.value / "target" / "scala-2.11" / "twirl" / "main",
     name := "convergence-server-core",
     libraryDependencies ++= 
       akkaCore ++ 
@@ -80,7 +80,7 @@ val serverNode = (project in file("server-node")).
         run("chmod", "+x", "/usr/local/bin/confd")
         expose(8080)
         workDir("/opt/convergence/")
-        entryPoint("/opt/convergence/bin/server-node")
+        entryPoint("/opt/convergence/bin/boot")
       }
     },
     imageNames in docker := {
