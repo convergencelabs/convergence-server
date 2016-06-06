@@ -1,26 +1,28 @@
 package com.convergencelabs.server
 
-import com.typesafe.config.ConfigFactory
 import java.io.File
+
+import scala.collection.JavaConverters.asScalaBufferConverter
+
+import com.convergencelabs.server.datastore.DomainStore
+import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
+import com.convergencelabs.server.frontend.realtime.ConvergenceRealTimeFrontend
+import com.convergencelabs.server.frontend.rest.ConvergenceRestFrontEnd
+import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.typesafe.config.Config
+import com.typesafe.config.ConfigFactory
+
 import akka.actor.Actor
 import akka.actor.ActorLogging
+import akka.actor.ActorSystem
+import akka.actor.Props
 import akka.cluster.Cluster
 import akka.cluster.ClusterEvent.InitialStateAsEvents
 import akka.cluster.ClusterEvent.MemberEvent
 import akka.cluster.ClusterEvent.MemberRemoved
-import akka.cluster.ClusterEvent.UnreachableMember
 import akka.cluster.ClusterEvent.MemberUp
-import akka.actor.ActorSystem
-import akka.actor.Props
-import com.convergencelabs.server.frontend.realtime.ConvergenceRealTimeFrontend
-import com.convergencelabs.server.frontend.rest.ConvergenceRestFrontEnd
-import scala.collection.JavaConversions._
-import scala.collection.JavaConverters._
+import akka.cluster.ClusterEvent.UnreachableMember
 import grizzled.slf4j.Logging
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import com.convergencelabs.server.datastore.DomainStore
-import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 
 object ConvergenceServerNode {
   def main(args: Array[String]): Unit = {
@@ -40,6 +42,8 @@ object ConvergenceServerNode {
 
 class ConvergenceServerNode(private[this] val config: Config) extends Logging {
 
+  var nodeSystem: Option[ActorSystem] = None 
+  
   def start(): Unit = {
     val system = ActorSystem("Convergence", config)
     system.actorOf(Props[SimpleClusterListener], name = "clusterListener")
@@ -84,6 +88,15 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
       val port = config.getInt("convergence.rest.port")
       val restFrontEnd = new ConvergenceRestFrontEnd(system, host, port, dbPool.get)
       restFrontEnd.start()
+    }
+    
+    this.nodeSystem = Some(system)
+  }
+  
+  def stop(): Unit = {
+    nodeSystem match {
+      case Some(system) => system.terminate()
+      case None =>
     }
   }
 

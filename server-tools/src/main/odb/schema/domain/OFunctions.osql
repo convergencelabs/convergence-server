@@ -1,38 +1,3 @@
-# abs
-INSERT INTO OFunction SET
-  idempotent = false,
-  code = "return Math.abs(parseInt(val));",
-  name ="abs",
-  language = "javascript",
-  parameters = [
-    "val"
-  ];
-
-# stringInsert
-INSERT INTO OFunction SET
-  idempotent = false,
-  code = "var idx = parseInt(index);\nreturn text.slice(0,idx) + value + text.slice(idx);",
-  name ="stringInsert",
-  language = "javascript",
-  parameters = [
-    "text",
-    "index",
-    "value"
-  ];
-  
-# stringRemove
-INSERT INTO OFunction SET
-  idempotent = false,
-  code = "var idx = parseInt(index);\nreturn text.slice(0,idx) + text.slice(idx + length);",
-  name ="stringRemove",
-  language = "javascript",
-  parameters = [
-    "text",
-    "index",
-    "value"
-  ];
-  
-
 # arrayInsert
 INSERT INTO OFunction SET
   idempotent = false,

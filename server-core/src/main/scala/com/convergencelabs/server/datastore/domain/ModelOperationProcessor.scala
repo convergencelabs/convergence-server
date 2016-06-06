@@ -334,9 +334,10 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
   }
 
   private[this] def applyStringRemoveOperation(fqn: ModelFqn, operation: StringRemoveOperation, db: ODatabaseDocumentTx): Unit = {
+    val endLength = operation.index + operation.value.length
     val queryString =
       s"""UPDATE StringValue SET
-         |  value = stringRemove(value, :index, :length)
+         |  value = value.left(:index).append(value.substring(:endLength))
          |WHERE
          |  vid = :vid AND
          |  model.collectionId = :collectionId AND
@@ -347,7 +348,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
       CollectionId -> fqn.collectionId,
       ModelId -> fqn.modelId,
       Index -> operation.index,
-      "length" -> operation.value.length())
+      "endLength" -> endLength)
     db.command(updateCommand).execute(params.asJava)
     db.commit()
   }

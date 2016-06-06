@@ -27,6 +27,12 @@ class TestServer(
   databases: Map[String, String])
     extends Logging {
 
+  var openedDatabases = List[ODatabaseDocumentTx]()
+
+  // Override the configuration of the port
+  val config = ConfigFactory.parseFile(new File("test-server/convergence-application.conf"))
+  val server = new ConvergenceServerNode(config)
+
   def start(): Unit = {
     logger.info("Test Server starting up")
     OLogManager.instance().setConsoleLevel("WARNING")
@@ -34,12 +40,17 @@ class TestServer(
     // Set Up OrientDB database
     databases.foreach { case (id, file) => importDatabase(id, file) }
 
-    // Override the configuration of the port
-    val config = ConfigFactory.parseFile(new File("test-server/convergence-application.conf"))
-    val server = new ConvergenceServerNode(config)
     server.start()
 
     logger.info("Test Server started.")
+  }
+
+  def stop(): Unit = {
+    server.stop()
+
+    openedDatabases.foreach { db =>
+      db.drop()
+    }
   }
 
   def importDatabase(dbName: String, importFile: String): Unit = {
@@ -52,5 +63,7 @@ class TestServer(
     dbImport.close()
 
     db.getMetadata.reload()
+
+    openedDatabases = openedDatabases :+ db
   }
 }
