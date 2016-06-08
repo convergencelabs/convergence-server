@@ -15,16 +15,6 @@ import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
-import akka.http.scaladsl.server.Directives.complete
-import akka.http.scaladsl.server.Directives.Segment
-import akka.http.scaladsl.server.Directives.get
-import akka.http.scaladsl.server.Directives.pathEnd
-import akka.http.scaladsl.server.Directives.pathPrefix
-import akka.http.scaladsl.server.Directives.entity
-import akka.http.scaladsl.server.Directives.post
-import akka.http.scaladsl.server.Directives.delete
-import akka.http.scaladsl.server.Directives.as
-import akka.http.scaladsl.server.Directives.put
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Directive.addDirectiveApply
 import akka.http.scaladsl.server.Route

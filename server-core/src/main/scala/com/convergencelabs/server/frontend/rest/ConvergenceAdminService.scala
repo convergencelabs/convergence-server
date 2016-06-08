@@ -4,14 +4,6 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
 import akka.actor.ActorRef
-import akka.http.scaladsl.server.Directives.handleWith
-import akka.http.scaladsl.server.Directives.pathEnd
-import akka.http.scaladsl.server.Directives.pathPrefix
-import akka.http.scaladsl.server.Directives.post
-import akka.http.scaladsl.server.Directives.delete
-import akka.http.scaladsl.server.Directives.Segment
-import akka.http.scaladsl.server.Directives.get
-import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Directives._
 import akka.pattern.ask
 import akka.util.Timeout
