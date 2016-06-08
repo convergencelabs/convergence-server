@@ -3,6 +3,8 @@ package com.convergencelabs.server.datastore
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
+import scala.util.Failure
+import scala.util.Success
 
 import com.convergencelabs.server.User
 import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.CreateConvergenceUserRequest
@@ -14,9 +16,10 @@ import com.typesafe.config.Config
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
 import akka.actor.Props
+import akka.actor.Status
+import akka.actor.actorRef2Scala
 import akka.pattern.ask
 import akka.util.Timeout
-import scala.util.Success
 
 object ConvergenceUserManagerActor {
   def props(dbPool: OPartitionedDatabasePool, domainStoreActor: ActorRef): Props =
@@ -27,8 +30,10 @@ object ConvergenceUserManagerActor {
 }
 
 class ConvergenceUserManagerActor private[datastore] (
-    private[this] val dbPool: OPartitionedDatabasePool,
-    private[this] val domainStoreActor: ActorRef) extends StoreActor with ActorLogging {
+  private[this] val dbPool: OPartitionedDatabasePool,
+  private[this] val domainStoreActor: ActorRef)
+    extends StoreActor
+    with ActorLogging {
 
   // FIXME: Read this from configuration
   private[this] implicit val requstTimeout = Timeout(2 seconds)
@@ -41,7 +46,7 @@ class ConvergenceUserManagerActor private[datastore] (
   def receive: Receive = {
     case message: CreateConvergenceUserRequest => createConvergenceUser(message)
     case message: DeleteConvergenceUserRequest => deleteConvergenceUser(message)
-    case message: Any                          => unhandled(message)
+    case message: Any => unhandled(message)
   }
 
   def createConvergenceUser(message: CreateConvergenceUserRequest): Unit = {
@@ -54,15 +59,23 @@ class ConvergenceUserManagerActor private[datastore] (
           defaultDomain <- createDefaultDomain(uid, username)
         } yield (exampleDomain, defaultDomain)
 
-        domainResults onSuccess {
-          case (resp1: CreateSuccess[Unit], resp2: CreateSuccess[Unit]) => {
+        domainResults.mapTo[(CreateResult[Unit], CreateResult[Unit])] onComplete {
+          case Success((resp1: CreateSuccess[Unit], resp2: CreateSuccess[Unit])) =>
             val blah = origSender
             origSender ! CreateSuccess(Unit)
-          }
+          case Success((_, resp2: CreateSuccess[Unit])) =>
+            origSender ! Status.Failure(new RuntimeException("Unable to create example domain for user"))
+          case Success((resp1: CreateSuccess[Unit], _)) =>
+            origSender ! Status.Failure(new RuntimeException("Unable to create default domain for user"))
+          case Success(_) =>
+            origSender ! Status.Failure(new RuntimeException("Unknown failure creating initial domains for user"))
+          case Failure(f) =>
+            log.error(f, "Unable to create initial domains for user");
+            origSender ! Status.Failure(f)
         }
       }
       case DuplicateValue => origSender ! DuplicateValue
-      case InvalidValue   => origSender ! InvalidValue
+      case InvalidValue => origSender ! InvalidValue
     }
   }
 
