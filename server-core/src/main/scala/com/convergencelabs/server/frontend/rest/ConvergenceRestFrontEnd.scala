@@ -88,7 +88,7 @@ class ConvergenceRestFrontEnd(
     val restPublicEndpoint = system.settings.config.getString("convergence.rest-public-endpoint")
     
     def getApprovalHtml(token: String): String = {
-      val templateHtml = html.registrationApproval(s"http://${restPublicEndpoint}", token)
+      val templateHtml = html.registrationApproval(s"${restPublicEndpoint}", token)
       return templateHtml.toString();
     }
 
