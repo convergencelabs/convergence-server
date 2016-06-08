@@ -44,7 +44,7 @@ class DomainRemoteDBController(domainConfig: Config) extends DomainDBController 
   }
 
   def deleteDomain(id: String): Unit = {
-    val serverAdmin = new OServerAdmin(s"BaseUri/$id")
+    val serverAdmin = new OServerAdmin(s"${BaseUri}/${id}")
     serverAdmin.connect(AdminUser, AdminPassword).dropDatabase(id).close()
   }
 }
