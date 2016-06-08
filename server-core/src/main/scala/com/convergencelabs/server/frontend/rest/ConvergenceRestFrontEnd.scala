@@ -85,11 +85,10 @@ class ConvergenceRestFrontEnd(
     val convergenceAdminService = new ConvergenceAdminService(ec, convergenceUserActor, defaultRequestTimeout)
     
     val adminsConfig = system.settings.config.getConfig("convergence.convergence-admins")
-    val restServerHost = system.settings.config.getString("convergence.rest.host")
-    val restServerPort = system.settings.config.getInt("convergence.rest.port")
+    val restPublicEndpoint = system.settings.config.getString("convergence.rest-public-endpoint")
     
     def getApprovalHtml(token: String): String = {
-      val templateHtml = html.registrationApproval(s"http://${restServerHost}:${restServerPort}", token)
+      val templateHtml = html.registrationApproval(s"http://${restPublicEndpoint}", token)
       return templateHtml.toString();
     }
 
