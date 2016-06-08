@@ -24,7 +24,7 @@ class DomainRemoteDBController(domainConfig: Config) extends DomainDBController 
   def createDomain(importFile: Option[String]): DBConfig = {
     val id = UUID.randomUUID().getLeastSignificantBits().toString()
     val password = UUID.randomUUID().getLeastSignificantBits.toString()
-    val uri = s"BaseUri/$id"
+    val uri = s"${BaseUri}/${id}"
 
     val serverAdmin = new OServerAdmin(uri)
     serverAdmin.connect(AdminUser, AdminPassword).createDatabase(DBType, StorageMode).close()
