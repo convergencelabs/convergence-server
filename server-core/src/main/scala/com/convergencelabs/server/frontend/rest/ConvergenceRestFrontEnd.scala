@@ -14,13 +14,8 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
 import akka.http.scaladsl.server.Directive.addDirectiveApply
-import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server.Directives.extractRequest
-import akka.http.scaladsl.server.Directives.get
-import akka.http.scaladsl.server.Directives.complete
-import akka.http.scaladsl.server.Directives.pathEnd
-import akka.http.scaladsl.server.Directives.Segment
+import akka.pattern._
 import akka.http.scaladsl.server.RouteResult.route2HandlerFlow
 import akka.stream.ActorMaterializer
 import akka.util.Timeout

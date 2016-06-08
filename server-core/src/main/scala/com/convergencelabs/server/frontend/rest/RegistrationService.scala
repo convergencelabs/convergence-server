@@ -9,14 +9,8 @@ import com.convergencelabs.server.datastore.AuthStoreActor.AuthResponse
 import com.convergencelabs.server.datastore.AuthStoreActor.AuthSuccess
 
 import akka.actor.ActorRef
-import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.server.Directive.addByNameNullaryApply
-import akka.http.scaladsl.server.Directives.handleWith
-import akka.http.scaladsl.server.Directives.pathEnd
-import akka.http.scaladsl.server.Directives.pathPrefix
-import akka.http.scaladsl.server.Directives.post
 import akka.http.scaladsl.server.Directives._
-import akka.pattern.ask
+import akka.pattern._
 import akka.util.Timeout
 import com.convergencelabs.server.datastore.CreateResult
 import com.convergencelabs.server.datastore.CreateSuccess
