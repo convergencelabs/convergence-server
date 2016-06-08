@@ -16,6 +16,8 @@ test $orient_admin_pass
 test $admin_ui_host
 test $admin_ui_port
 
+test $rest_public_endpoint
+
 /usr/local/bin/confd -onetime -backend env
 
 /opt/convergence/bin/server-node
