@@ -4,7 +4,7 @@ convergence-server:
   environment:
     orient_uri: '"remote:192.168.99.100"'
     orient_conv_user: '"admin"'
-    orient_conv_pass: 'admin'
+    orient_conv_pass: '"admin"'
     orient_admin_user: '"root"'
     orient_admin_pass: '"password"'
     admin_ui_host: '"192.168.99.100"'
