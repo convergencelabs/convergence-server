@@ -15,6 +15,7 @@ class DomainRemoteDBController(domainConfig: Config) extends DomainDBController 
   val AdminPassword = domainConfig.getString("admin-password")
 
   val Username = domainConfig.getString("username")
+  val DefaultPassword = domainConfig.getString("default-password")
   val BaseUri = domainConfig.getString("uri")
   val Schema = domainConfig.getString("schema")
 
@@ -23,15 +24,14 @@ class DomainRemoteDBController(domainConfig: Config) extends DomainDBController 
 
   def createDomain(importFile: Option[String]): DBConfig = {
     val id = UUID.randomUUID().getLeastSignificantBits().toString()
-    val password = UUID.randomUUID().getLeastSignificantBits.toString()
     val uri = s"${BaseUri}/${id}"
-
+    
     val serverAdmin = new OServerAdmin(uri)
     serverAdmin.connect(AdminUser, AdminPassword).createDatabase(DBType, StorageMode).close()
-
+    
     val db = new ODatabaseDocumentTx(uri)
     db.activateOnCurrentThread()
-    db.open(Username, password)
+    db.open(Username, DefaultPassword)
 
     val dbImport = new ODatabaseImport(db, importFile.getOrElse(Schema), new OCommandOutputListener() {
       def onMessage(message: String): Unit = {}
@@ -40,7 +40,7 @@ class DomainRemoteDBController(domainConfig: Config) extends DomainDBController 
     dbImport.importDatabase()
     db.close()
 
-    DBConfig(id, Username, password)
+    DBConfig(id, Username, DefaultPassword)
   }
 
   def deleteDomain(id: String): Unit = {

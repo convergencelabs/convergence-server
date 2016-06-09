@@ -6,6 +6,8 @@ import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 
+import collection.JavaConverters._
+
 import com.convergencelabs.server.User
 import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.CreateConvergenceUserRequest
 import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.DeleteConvergenceUserRequest
@@ -40,6 +42,7 @@ class ConvergenceUserManagerActor private[datastore] (
   private[this] implicit val exectionContext = context.dispatcher
 
   private[this] val domainConfig: Config = context.system.settings.config.getConfig("convergence.domain-databases")
+  private[this] val autoCreateConfigs: List[Config] = context.system.settings.config.getConfigList("convergence.auto-create-domains").asScala.toList
   private[this] val tokenDuration = context.system.settings.config.getDuration("convergence.rest.auth-token-expiration")
   private[this] val userStore: UserStore = new UserStore(dbPool, tokenDuration)
 
@@ -54,25 +57,11 @@ class ConvergenceUserManagerActor private[datastore] (
     val origSender = sender
     userStore.createUser(User(null, username, email, firstName, lastName), password) map {
       case CreateSuccess(uid) => {
-        val domainResults = for {
-          exampleDomain <- createExampleDomain(uid, username)
-          defaultDomain <- createDefaultDomain(uid, username)
-        } yield (exampleDomain, defaultDomain)
-
-        domainResults.mapTo[(CreateResult[Unit], CreateResult[Unit])] onComplete {
-          case Success((resp1: CreateSuccess[Unit], resp2: CreateSuccess[Unit])) =>
-            val blah = origSender
-            origSender ! CreateSuccess(Unit)
-          case Success((_, resp2: CreateSuccess[Unit])) =>
-            origSender ! Status.Failure(new RuntimeException("Unable to create example domain for user"))
-          case Success((resp1: CreateSuccess[Unit], _)) =>
-            origSender ! Status.Failure(new RuntimeException("Unable to create default domain for user"))
-          case Success(_) =>
-            origSender ! Status.Failure(new RuntimeException("Unknown failure creating initial domains for user"))
-          case Failure(f) =>
-            log.error(f, "Unable to create initial domains for user");
-            origSender ! Status.Failure(f)
+        autoCreateConfigs foreach { config => {
+          val importFile = if(config.hasPath("import-file")) { Some(config.getString("import-file"))} else {None}
+          createDomain(uid, username, config.getString("name"), importFile)}
         }
+        origSender ! CreateSuccess(uid)
       }
       case DuplicateValue => origSender ! DuplicateValue
       case InvalidValue => origSender ! InvalidValue
@@ -90,11 +79,13 @@ class ConvergenceUserManagerActor private[datastore] (
     }
   }
 
-  private[this] def createExampleDomain(userId: String, username: String): Future[CreateResult[Unit]] = {
-    (domainStoreActor ? CreateDomainRequest(username, "examples", "Examples", userId, Some("test-server/n1-d1.json.gz"))).mapTo[CreateResult[Unit]]
-  }
-
-  private[this] def createDefaultDomain(userId: String, username: String): Future[CreateResult[Unit]] = {
-    (domainStoreActor ? CreateDomainRequest(username, "default", "Default", userId, None)).mapTo[CreateResult[Unit]]
+  private[this] def createDomain(userId: String, username: String, name: String, importFile: Option[String]): Unit = {
+    (domainStoreActor ? CreateDomainRequest(username, name, name, userId, importFile)).mapTo[CreateResult[Unit]] onComplete {
+       case Success(resp: CreateSuccess[Unit]) => log.debug(s"Domain '${name}' created for '${username}'");
+       case Success(DuplicateValue) => log.error(s"Unable to create '${name}' domain for user: Duplicate value exception");
+       case Success(InvalidValue) => log.error(s"Unable to create '${name}' domain for user: Invalid value exception");
+       case Failure(f) => log.error(f, s"Unable to create '${name}' domain for user");
+    }
+    Unit
   }
 }
