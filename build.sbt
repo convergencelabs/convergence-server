@@ -77,6 +77,7 @@ val serverNode = (project in file("server-node")).
         add("https://github.com/kelseyhightower/confd/releases/download/v0.11.0/confd-0.11.0-linux-amd64", "/usr/local/bin/confd")
         add(new java.io.File("server-node/src/confd"), "/etc/confd/")
         add(new java.io.File("server-node/src/bin"), "/opt/convergence/bin")
+        add(new java.io.File("server-node/src/schema"), "/opt/convergence/schema")
         run("chmod", "+x", "/opt/convergence/bin/boot")
         run("chmod", "+x", "/usr/local/bin/confd")
         
