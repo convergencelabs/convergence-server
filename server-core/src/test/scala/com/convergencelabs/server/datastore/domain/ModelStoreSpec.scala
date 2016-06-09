@@ -18,7 +18,7 @@ import com.convergencelabs.server.domain.model.data.ObjectValue
 
 // scalastyle:off magic.number
 class ModelStoreSpec
-    extends PersistenceStoreSpec[ModelStore]("/dbfiles/n1-d1.json.gz")
+    extends PersistenceStoreSpec[ModelStore]("/dbfiles/domain-n1-d1.json.gz")
     with WordSpecLike
     with Matchers {
 

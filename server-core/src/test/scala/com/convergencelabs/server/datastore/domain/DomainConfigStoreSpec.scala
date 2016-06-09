@@ -17,7 +17,7 @@ import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 
 // scalastyle:off line.size.limit
 class DomainConfigStoreSpec
-    extends PersistenceStoreSpec[DomainConfigStore]("/dbfiles/n1-d1.json.gz")
+    extends PersistenceStoreSpec[DomainConfigStore]("/dbfiles/domain-n1-d1.json.gz")
     with WordSpecLike
     with Matchers {
 

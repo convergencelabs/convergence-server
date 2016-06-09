@@ -22,7 +22,7 @@ import com.convergencelabs.server.datastore.NotFound
 
 // scalastyle:off magic.number
 class CollectionStoreSpec
-    extends PersistenceStoreSpec[CollectionStore]("/dbfiles/n1-d1.json.gz")
+    extends PersistenceStoreSpec[CollectionStore]("/dbfiles/domain-n1-d1.json.gz")
     with WordSpecLike
     with Matchers {
 

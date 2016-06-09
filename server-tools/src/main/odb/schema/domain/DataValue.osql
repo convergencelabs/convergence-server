@@ -89,7 +89,7 @@ ALTER PROPERTY ObjectOpValue.children NOTNULL true;
 ALTER PROPERTY ObjectOpValue.children READONLY true;
 
 #ModelSnapshot.data
-CREATE Property ModelSnapshot.data LINK ObjectOpValue;
+CREATE Property ModelSnapshot.data EMBEDDED ObjectOpValue;
 ALTER PROPERTY ModelSnapshot.data MANDATORY true;
 
 ###################### ArrayOpValue ######################

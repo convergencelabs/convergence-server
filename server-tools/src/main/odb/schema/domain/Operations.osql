@@ -13,7 +13,7 @@ ALTER PROPERTY DiscreteOperation.vid NOTNULL true;
 
 #DiscreteOperation.noOp
 CREATE PROPERTY DiscreteOperation.noOp BOOLEAN;
-ALTER PROPERTY DiscreteOperation.noOp DEFAULT FALSE;
+#ALTER PROPERTY DiscreteOperation.noOp DEFAULT FALSE;
 
 ###################### CompoundOperation ######################
 

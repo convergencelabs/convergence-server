@@ -11,7 +11,7 @@ import java.time.Instant
 
 // scalastyle:off magic.number
 class ModelOperationStoreSpec
-    extends PersistenceStoreSpec[ModelOperationStore]("/dbfiles/n1-d1.json.gz")
+    extends PersistenceStoreSpec[ModelOperationStore]("/dbfiles/domain-n1-d1.json.gz")
     with WordSpecLike
     with Matchers {
 

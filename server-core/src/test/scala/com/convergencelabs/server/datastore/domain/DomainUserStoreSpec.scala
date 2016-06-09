@@ -16,7 +16,7 @@ import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateDomainU
 import com.convergencelabs.server.datastore.CreateSuccess
 
 class DomainUserStoreSpec
-    extends PersistenceStoreSpec[DomainUserStore]("/dbfiles/n1-d1.json.gz")
+    extends PersistenceStoreSpec[DomainUserStore]("/dbfiles/domain-n1-d1.json.gz")
     with WordSpecLike
     with Matchers {
 

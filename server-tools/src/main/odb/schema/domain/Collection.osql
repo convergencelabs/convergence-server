@@ -14,7 +14,7 @@ ALTER PROPERTY Collection.name NOTNULL true;
 CREATE Property Collection.overrideSnapshotConfig BOOLEAN;
 ALTER PROPERTY Collection.overrideSnapshotConfig MANDATORY true;
 ALTER PROPERTY Collection.overrideSnapshotConfig NOTNULL true;
-ALTER PROPERTY Collection.overrideSnapshotConfig DEFAULT false;
+#ALTER PROPERTY Collection.overrideSnapshotConfig DEFAULT false;
 
 #Collection.snapshotConfig
 CREATE Property Collection.snapshotConfig EMBEDDED ModelSnapshotConfig;
