@@ -6,7 +6,7 @@ INSERT INTO ModelSnapshot SET
     data = {
     "@type": "d",
     "@class": "ObjectOpValue",
-    "vid": ms-pp1-0,
+    "vid": "ms-pp1-0",
 	"children": {
 	    "fname": {
 	        "@type": "d",
