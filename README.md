@@ -32,10 +32,10 @@ You will need to install docker.  If you are on linux, everything should be stra
 $ sbt docker
 ```
 
-The docker container will be named "com.convergencelabs/convergence-server".  You can run it as follows:
+The docker container will be named `convergence-test-server`.  You can run it as follows:
 
 ```bash
-docker run -p 8080:8080 com.convergencelabs/convergence-server
+docker run -p 0.0.0.0:8080-8081:8080-8081 convergence-test-server
 ```
 
 The -p 8080:8080 links the port on the localhost to the port 8080 in the container.  If you are running on OSX or Windows, you will be running docker in a VM that has an ip address other than local host.  The container will then be running on some other IP.

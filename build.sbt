@@ -21,7 +21,7 @@ val serverCore = (project in file("server-core")).
   enablePlugins(SbtTwirl).
   configs(Configs.all: _*).
   settings(commonSettings: _*).
-  settings(Testing.settings: _*)
+  settings(Testing.settings: _*).
   settings(
    // unmanagedSourceDirectories in Compile += baseDirectory.value / "target" / "scala-2.11" / "twirl" / "main",
     name := "convergence-server-core",
