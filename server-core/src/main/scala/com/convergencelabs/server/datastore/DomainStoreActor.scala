@@ -26,7 +26,7 @@ class DomainStoreActor private[datastore] (
 
   private[this] val domainDBContoller: DomainDBController =
     if (domainConfig.getString("uri").startsWith("remote:")) {
-      new DomainRemoteDBController(domainConfig)
+      new DomainRemoteDBController(domainConfig, context.system)
     } else {
       new DomainMemoryDBController(domainConfig)
     }

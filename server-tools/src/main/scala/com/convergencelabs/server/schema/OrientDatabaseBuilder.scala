@@ -206,15 +206,19 @@ class OrientDatabaseBuilder(
 
       val smartSplitLines = OStringSerializerHelper.smartSplit(linesAsString, ';', true)
       val mergedLines = smartSplitLines.asScala.toList.map {
-        line => line.replace('\n', ' ')
+        line => line.replace('\n', ' ').trim()
       }
       if (useTransaction) {
         db.begin()
       }
-      val sql = mergedLines.mkString("\n")
+      
+      val sql = mergedLines.mkString(";\n")
       println(sql)
       db.command(new OCommandScript(sql)).execute()
-      db.commit()
+      
+      if (useTransaction) {
+        db.commit()
+      }
     } finally {
       source.close()
     }
