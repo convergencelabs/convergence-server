@@ -26,6 +26,9 @@ import scala.util.Success
 import scala.concurrent.ExecutionContext
 import grizzled.slf4j.Logging
 import scala.io.Source
+import akka.http.scaladsl.model.headers._
+import scala.concurrent.duration.Duration
+import scala.concurrent.Await
 
 class DomainRemoteDBController(
   domainConfig: Config,
@@ -64,19 +67,22 @@ class DomainRemoteDBController(
     // FIXME need a separate param for this uri
     val orientRestUrl = "http://192.168.99.100:2480"
 
-    val connectApi = s"${orientRestUrl}/connect/convergence"
-    logger.debug(s"Connecting to orientdb: $connectApi")
-
-    Http().singleRequest(
-      HttpRequest(
-        method = HttpMethods.GET,
-        uri = connectApi)) onComplete {
-        case Success(r) => debug(r)
-        case Failure(f) => f.printStackTrace()
-      }
+    val importContents = Source.fromFile(importFile.getOrElse(Schema)).mkString
 
     val importApi = s"${orientRestUrl}/import/${id}"
-    logger.debug(s"Making rest call to import domain schema: $importApi")
+    
+    // FIXME A bit of a hack, but don't feel like messing with futures at the moment.
+    val importEntity = Await.result(Marshal(importContents).to[RequestEntity], Duration.Inf)
+    val authHeader = Authorization(BasicHttpCredentials("admin", "admin"))
+    val importPost = HttpRequest(method = HttpMethods.POST,
+      uri = importApi, headers = List(authHeader), entity = importEntity)
+
+    Http().singleRequest(importPost) onComplete {
+      case Success(r) =>
+        logger.debug(s"Import Success: $r")
+      case Failure(f) =>
+        f.printStackTrace()
+    }
 
     DBConfig(id, Username, DefaultPassword)
   }
