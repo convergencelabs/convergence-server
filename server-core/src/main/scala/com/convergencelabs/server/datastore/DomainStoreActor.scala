@@ -21,15 +21,12 @@ class DomainStoreActor private[datastore] (
   private[this] val dbPool: OPartitionedDatabasePool)
     extends StoreActor with ActorLogging {
 
-  private[this] val domainConfig: Config = context.system.settings.config.getConfig("convergence.domain-databases")
+  private[this] val orientDbConfig: Config = context.system.settings.config.getConfig("convergence.orient-db")
+  private[this] val domainDbConfig: Config = context.system.settings.config.getConfig("convergence.domain-databases")
   private[this] val domainStore: DomainStore = new DomainStore(dbPool)
 
   private[this] val domainDBContoller: DomainDBController =
-    if (domainConfig.getString("uri").startsWith("remote:")) {
-      new DomainRemoteDBController(domainConfig, context.system)
-    } else {
-      new DomainMemoryDBController(domainConfig)
-    }
+      new DomainRemoteDBController(orientDbConfig, domainDbConfig, context.system)
 
   def receive: Receive = {
     case createRequest: CreateDomainRequest => createDomain(createRequest)

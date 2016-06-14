@@ -41,9 +41,7 @@ class RegistrationActor private[datastore] (dbPool: OPartitionedDatabasePool, us
   private[this] val smtpConfig: Config = context.system.settings.config.getConfig("convergence.smtp")
   
   private[this] val restPublicEndpoint = context.system.settings.config.getString("convergence.rest-public-endpoint")
-  
-  private[this] val adminUiServerConfig = context.system.settings.config.getConfig("convergence.admin-ui")
-  private[this] val adminUiServerUrl = s"http://${adminUiServerConfig.getString("host")}:${adminUiServerConfig.getInt("port")}";
+  private[this] val adminUiServerUrl = context.system.settings.config.getString("convergence.admin-ui-uri")
 
   private[this] val registrationStore = new RegistrationStore(dbPool)
 

@@ -1,22 +1,25 @@
 #!/bin/bash
-set -e  
+
+require_env_var() {
+  if [ "$1" == "" ]; then
+    echo "Required variable not set: $2"
+    echo "Aborting."
+    exit 1
+  fi
+}
 
 # ensure the following environment variables are set. exit script and container if not set.
 
-#Required DB Variables
-test $orient_uri
-test $orient_conv_user
-test $orient_conv_pass
+require_env_var "$orient_db_uri" "orient_db_uri"
+require_env_var "$orient_rest_uri" "orient_rest_uri"
+require_env_var "$orient_admin_user" "orient_admin_user"
+require_env_var "$orient_admin_pass" "orient_admin_pass"
 
-test $orient_admin_user
-test $orient_admin_pass
+require_env_var "$orient_conv_user" "orient_conv_user"
+require_env_var "$orient_conv_pass" "orient_conv_pass"
 
-
-#Required Admin UI Variables
-test $admin_ui_host
-test $admin_ui_port
-
-test $rest_public_endpoint
+require_env_var "$admin_ui_uri" "admin_ui_uri"
+require_env_var "$rest_public_endpoint" "rest_public_endpoint"
 
 /usr/local/bin/confd -onetime -backend env
 

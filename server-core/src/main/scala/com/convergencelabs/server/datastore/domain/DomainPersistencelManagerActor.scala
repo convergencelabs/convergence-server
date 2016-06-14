@@ -147,7 +147,7 @@ class DomainPersistenceManagerActor(
     domainStore.getDomainDatabaseInfo(domainFqn) match {
       case Success(Some(domainInfo)) => {
         val pool = new OPartitionedDatabasePool(
-          baseDbUri + domainInfo.database,
+          s"${baseDbUri}/${domainInfo.database}",
           domainInfo.username,
           domainInfo.password)
         log.debug(s"Creating new connection pool for '${domainFqn}': ${pool.getUrl}")

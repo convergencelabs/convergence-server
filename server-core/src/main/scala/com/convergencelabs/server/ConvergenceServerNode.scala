@@ -24,15 +24,15 @@ import akka.cluster.ClusterEvent.MemberUp
 import akka.cluster.ClusterEvent.UnreachableMember
 import grizzled.slf4j.Logging
 
-object ConvergenceServerNode {
+object ConvergenceServerNode extends Logging {
   def main(args: Array[String]): Unit = {
     val options = ServerCLIConf(args)
     val configFile = new File(options.config.get.get)
 
     if (!configFile.exists()) {
-      println(s"Config file not found: ${configFile.getAbsolutePath}")
+      error(s"Config file not found: ${configFile.getAbsolutePath}")
     } else {
-      println(s"Starting up with config file: ${configFile.getAbsolutePath}")
+      info(s"Starting up with config file: ${configFile.getAbsolutePath}")
       val config = ConfigFactory.parseFile(configFile)
       val server = new ConvergenceServerNode(config)
       server.start()
@@ -54,11 +54,13 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
 
     if (roles.contains("backend") || roles.contains("restFrontend")) {
 
-      val dbConfig = config.getConfig("convergence.convergence-database")
-      val baseUri = dbConfig.getString("uri")
-      val fullUri = baseUri + "/" + dbConfig.getString("database")
-      val username = dbConfig.getString("username")
-      val password = dbConfig.getString("password")
+      val orientDbConfig = config.getConfig("convergence.orient-db")
+      val baseUri = orientDbConfig.getString("db-uri")
+      
+      val convergenceDbConfig = config.getConfig("convergence.convergence-database")
+      val fullUri = baseUri + "/" + convergenceDbConfig.getString("database")
+      val username = convergenceDbConfig.getString("username")
+      val password = convergenceDbConfig.getString("password")
 
       dbPool = Some(new OPartitionedDatabasePool(fullUri, password, password))
 

@@ -31,18 +31,20 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.Await
 
 class DomainRemoteDBController(
-  domainConfig: Config,
+  val orientDbConfig: Config,
+  val domainDbConfig: Config,
   implicit val system: ActorSystem)
     extends DomainDBController
     with Logging {
 
-  val AdminUser = domainConfig.getString("admin-username")
-  val AdminPassword = domainConfig.getString("admin-password")
+  val AdminUser = orientDbConfig.getString("admin-username")
+  val AdminPassword = orientDbConfig.getString("admin-password")
+  val BaseDbUri = orientDbConfig.getString("db-uri")
+  val BaseRestUri = orientDbConfig.getString("rest-uri")
 
-  val Username = domainConfig.getString("username")
-  val DefaultPassword = domainConfig.getString("default-password")
-  val BaseUri = domainConfig.getString("uri")
-  val Schema = domainConfig.getString("schema")
+  val Username = domainDbConfig.getString("username")
+  val DefaultPassword = domainDbConfig.getString("default-password")
+  val Schema = domainDbConfig.getString("schema")
 
   val DBType = "document"
   val StorageMode = "plocal"
@@ -53,7 +55,7 @@ class DomainRemoteDBController(
   def createDomain(importFile: Option[String]): DBConfig = {
     val id = UUID.randomUUID().getLeastSignificantBits().toString()
 
-    val uri = s"${BaseUri}/${id}"
+    val uri = s"${BaseDbUri}/${id}"
     logger.debug(s"Creating domain database: $uri")
 
     val serverAdmin = new OServerAdmin(uri)
@@ -64,13 +66,9 @@ class DomainRemoteDBController(
     db.activateOnCurrentThread()
     db.open(Username, DefaultPassword)
 
-    // FIXME need a separate param for this uri
-    val orientRestUrl = "http://192.168.99.100:2480"
-
     val importContents = Source.fromFile(importFile.getOrElse(Schema)).mkString
+    val importApi = s"${BaseRestUri}/import/${id}"
 
-    val importApi = s"${orientRestUrl}/import/${id}"
-    
     // FIXME A bit of a hack, but don't feel like messing with futures at the moment.
     val importEntity = Await.result(Marshal(importContents).to[RequestEntity], Duration.Inf)
     val authHeader = Authorization(BasicHttpCredentials("admin", "admin"))
@@ -88,7 +86,7 @@ class DomainRemoteDBController(
   }
 
   def deleteDomain(id: String): Unit = {
-    val serverAdmin = new OServerAdmin(s"${BaseUri}/${id}")
+    val serverAdmin = new OServerAdmin(s"${BaseDbUri}/${id}")
     serverAdmin.connect(AdminUser, AdminPassword).dropDatabase(id).close()
   }
 }
