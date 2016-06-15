@@ -23,6 +23,7 @@ import akka.stream.scaladsl.Source
 import akka.http.scaladsl.server.Route
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
+import grizzled.slf4j.Logging
 
 case class IncomingTextMessage(message: String)
 case class OutgoingTextMessage(message: String)
@@ -32,7 +33,8 @@ class WebSocketService(
   private[this] val protocolConfig: ProtocolConfiguration,
   private[this] implicit val fm: Materializer,
   private[this] implicit val system: ActorSystem)
-    extends Directives {
+    extends Directives
+    with Logging {
 
   private[this] val config = system.settings.config
   private[this] val maxFrames = config.getInt("convergence.websocket.max-frames")
@@ -48,7 +50,8 @@ class WebSocketService(
       }
     }
 
-  private[this] def realTimeDomainFlow(namespace: String, domain: String): Flow[Message, Message, Any] =
+  private[this] def realTimeDomainFlow(namespace: String, domain: String): Flow[Message, Message, Any] = {
+    logger.info(s"New web socket connection for $namespace/$domain")
     Flow[Message]
       .collect {
         case TextMessage.Strict(msg) ⇒ Future.successful(IncomingTextMessage(msg))
@@ -63,6 +66,7 @@ class WebSocketService(
       .map {
         case OutgoingTextMessage(msg) ⇒ TextMessage.Strict(msg)
       }
+  }
 
   private[this] def createFlowForConnection(namespace: String, domain: String): Flow[IncomingTextMessage, OutgoingTextMessage, Any] = {
     val clientActor = system.actorOf(ClientActor.props(
@@ -73,16 +77,17 @@ class WebSocketService(
     val connection = system.actorOf(ConnectionActor.props(clientActor))
 
     // This is how we route messages that are coming in.  Basically we route them
-    // to the echo actor and, when the flow is completed (e.g. the web socket is
-    // disconnected) we send a Disconnected case class.
+    // to the connection actor and, when the flow is completed (e.g. the web socket is
+    // closed) we send a WebSocketClosed case object, which the connection can listen for.
     val in = Flow[IncomingTextMessage].to(Sink.actorRef[IncomingTextMessage](connection, WebSocketClosed))
 
     // This is where outgoing messages will go.  Basically we create an actor based
     // source for messages.  This creates an ActorRef that you can send messages to
     // and then will be spit out the flow.  However to get access to this you must
     // materialize the source.  By materializing it we get a reference to the underlying
-    // actor and we can send another actor this reference, or use the reference however
-    // we want (e.g. create a connection)
+    // actor.  We can send an actor ref (in a message) to the connection actor.  This is
+    // how the connection actor will get a reference to the actor that it needs to sent 
+    // messages to.
     val out = Source.actorRef[OutgoingTextMessage](1, OverflowStrategy.fail).mapMaterializedValue({ ref =>
       connection ! WebSocketOpened(ref)
     })
