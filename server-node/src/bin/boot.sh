@@ -1,12 +1,14 @@
-#!/bin/bash
+#!/bin/sh
 
 require_env_var() {
   if [ "$1" == "" ]; then
-    echo "Required variable not set: $2"
+    echo "Error: '$2' was not set."
     echo "Aborting."
     exit 1
   fi
 }
+
+echo "Convergence UI Container starting up.  Checking required environment variables."
 
 # ensure the following environment variables are set. exit script and container if not set.
 
@@ -21,6 +23,9 @@ require_env_var "$orient_conv_pass" "orient_conv_pass"
 require_env_var "$admin_ui_uri" "admin_ui_uri"
 require_env_var "$rest_public_endpoint" "rest_public_endpoint"
 
+echo "All required variables are set.  Booting."
+echo ""
+
 /usr/local/bin/confd -onetime -backend env
 
-/opt/convergence/bin/server-node
+exec /opt/convergence/bin/server-node

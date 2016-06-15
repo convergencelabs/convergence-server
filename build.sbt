@@ -64,20 +64,24 @@ val serverNode = (project in file("server-node")).
     docker <<= (docker dependsOn pack),
     dockerfile in docker := {
       new Dockerfile {
-        from("java:openjdk-8-jre")
+        from("java:openjdk-8-jre-alpine")
         
         add(new java.io.File("server-node/target/pack"), "/opt/convergence")
-        add("https://github.com/kelseyhightower/confd/releases/download/v0.11.0/confd-0.11.0-linux-amd64", "/usr/local/bin/confd")
-        add(new java.io.File("server-node/src/confd"), "/etc/confd/")
-        add(new java.io.File("server-node/src/bin"), "/opt/convergence/bin")
-        add(new java.io.File("server-node/src/schema"), "/opt/convergence/schema")
         
-        run("chmod", "+x", "/opt/convergence/bin/boot")
+        add("https://github.com/kelseyhightower/confd/releases/download/v0.11.0/confd-0.11.0-linux-amd64", "/usr/local/bin/confd")
         run("chmod", "+x", "/usr/local/bin/confd")
+        add(new java.io.File("server-node/src/confd"), "/etc/confd/")
+        
+        add(new java.io.File("server-node/src/schema"), "/opt/convergence/schema")
+
+        add(new java.io.File("server-node/src/bin"), "/opt/convergence/bin")
+        run("chmod", "+x", "/opt/convergence/bin/boot.sh")
         
         expose(8080)
+        expose(8081)
+        
         workDir("/opt/convergence/")
-        entryPoint("/opt/convergence/bin/boot")
+        entryPoint("/opt/convergence/bin/boot.sh")
       }
     },
     imageNames in docker := {
