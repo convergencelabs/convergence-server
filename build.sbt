@@ -101,37 +101,17 @@ val testkit = (project in file("server-testkit")).
   configs(Configs.all: _*).
   settings(commonSettings: _*).
   settings(Testing.settings: _*).
-  settings(Seq(
-    docker <<= (docker dependsOn pack),
-    dockerfile in docker := {
-      new Dockerfile {
-        from("java:openjdk-8-jre")
-        add(new java.io.File("server-testkit/target/pack"), "/opt/convergence")
-        expose(8080)
-        workDir("/opt/convergence/")
-        entryPoint("/opt/convergence/bin/test-server")
-      }
-    },
-    imageNames in docker := {
-      Seq(ImageName("convergence-test-server"))
-    }
-  )).
-  settings(packSettings ++ Seq(
-    packMain := Map("test-server" -> "com.convergencelabs.server.testkit.TestServer"),
-    packResourceDir += (baseDirectory.value / "test-server" -> "test-server")
-  )).
   settings(
     name := "convergence-server-testkit",
     libraryDependencies ++= 
     akkaCore ++ 
     orientDb ++ 
+    Seq(orientDbServer) ++
     loggingAll ++
     testingCore ++
     Seq(javaWebsockets)
   )
   .dependsOn(serverCore)
-  
-docker in testkit <<= docker dependsOn (pack in testkit)
   
   
 val tools = (project in file("server-tools")).

@@ -16,8 +16,8 @@ object TestServer {
     val server = new TestServer(
       "test-server/mono-server-application.conf",
       Map(
-        "convergence" -> "test-server/convergence.json.gz",
-        "namespace1-domain1" -> "test-server/n1-d1.json.gz"))
+        "convergence" -> "test-server/schema/convergence.json.gz",
+        "namespace1-domain1" -> "test-server/schema/n1-d1.json.gz"))
     server.start()
   }
 }
@@ -32,9 +32,13 @@ class TestServer(
   // Override the configuration of the port
   val config = ConfigFactory.parseFile(new File("test-server/convergence-application.conf"))
   val server = new ConvergenceServerNode(config)
+  val oriendDb = new EmbeddedOrientDB();
 
   def start(): Unit = {
     logger.info("Test Server starting up")
+    
+    oriendDb.start()
+    
     OLogManager.instance().setConsoleLevel("WARNING")
 
     // Set Up OrientDB database
@@ -51,12 +55,17 @@ class TestServer(
     openedDatabases.foreach { db =>
       db.drop()
     }
+    
+    oriendDb.stop()
   }
+  
 
   def importDatabase(dbName: String, importFile: String): Unit = {
-    val db = new ODatabaseDocumentTx(s"memory:$dbName")
+    oriendDb.createDatabase(dbName)
+    
+    val db = new ODatabaseDocumentTx(s"plocal:target/orientdb/$dbName")
     db.activateOnCurrentThread()
-    db.create()
+    db.open("admin", "admin")
 
     val dbImport = new ODatabaseImport(db, importFile, new OCommandOutputListener() { def onMessage(message: String) {} })
     dbImport.importDatabase()
