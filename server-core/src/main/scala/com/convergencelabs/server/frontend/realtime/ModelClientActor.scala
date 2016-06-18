@@ -285,6 +285,7 @@ class ModelClientActor(
         cb.expectedError("data_request_failure", message)
       }
       case Failure(cause) => {
+        log.error(cause, "Unexpected error opening model.")
         cb.unknownError()
       }
     }
@@ -299,6 +300,7 @@ class ModelClientActor(
             openRealtimeModels -= request.r
             cb.reply(CloseRealTimeModelSuccessMessage())
           case Failure(cause) =>
+            log.error(cause, "Unexpected error closing model.")
             cb.unexpectedError("could not close model")
         }
       case None =>
@@ -312,7 +314,9 @@ class ModelClientActor(
     future.mapResponse[CreateModelResponse] onComplete {
       case Success(ModelCreated) => cb.reply(CreateRealtimeModelSuccessMessage())
       case Success(ModelAlreadyExists) => cb.expectedError("model_alread_exists", "A model with the specifieid collection and model id already exists")
-      case Failure(cause) => cb.unexpectedError("could not create model")
+      case Failure(cause) =>
+        log.error(cause, "Unexpected error creating model.")
+        cb.unexpectedError("could not create model")
     }
   }
 
@@ -322,7 +326,9 @@ class ModelClientActor(
     future.mapResponse[DeleteModelResponse] onComplete {
       case Success(ModelDeleted) => cb.reply(DeleteRealtimeModelSuccessMessage())
       case Success(ModelNotFound) => cb.reply(ErrorMessage("model_not_found", "A model with the specifieid collection and model id does not exists"))
-      case Failure(cause) => cb.unexpectedError("could not delete model")
+      case Failure(cause) =>
+        log.error(cause, "Unexpected error deleting model.")
+        cb.unexpectedError("could not delete model")
     }
   }
 }
