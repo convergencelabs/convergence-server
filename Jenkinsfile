@@ -1,12 +1,15 @@
 node {
 
   stage 'Checkout'
-
-  // checkout scm
-  echo 'Checking out'
-
+  checkout scm
+  
+  stage 'Compile'
+  sh 'sbt compile'
+  
   stage 'Test'
-       
-  echo 'Testing'
+  sh 'sbt test'
+  
+  stage 'Docker'
+  sh 'sbt docker'
  }
  
