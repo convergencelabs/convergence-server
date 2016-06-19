@@ -10,6 +10,6 @@ node {
   sh '/usr/local/sbt/bin/sbt test'
   
   stage 'Docker'
-  sh 'sbt docker'
+  sh '/usr/local/sbt/bin/sbt docker'
  }
  
