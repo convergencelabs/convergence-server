@@ -4,10 +4,10 @@ node {
   checkout scm
   
   stage 'Compile'
-  sh 'set'
+  sh '/usr/local/sbt/bin/sbt compile'
   
   stage 'Test'
-  sh 'sbt test'
+  sh '/usr/local/sbt/bin/sbt test'
   
   stage 'Docker'
   sh 'sbt docker'
