@@ -4,7 +4,7 @@ node {
   checkout scm
   
   stage 'Compile'
-  sh 'sbt compile'
+  sh 'set'
   
   stage 'Test'
   sh 'sbt test'
