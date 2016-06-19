@@ -97,7 +97,6 @@ val serverNode = (project in file("server-node")).
   dependsOn(serverCore)
 
 val testkit = (project in file("server-testkit")).
-  enablePlugins(DockerPlugin).
   configs(Configs.all: _*).
   settings(commonSettings: _*).
   settings(Testing.settings: _*).
