@@ -1,6 +1,6 @@
 import Dependencies.Compile._
 import Dependencies.Test._
-
+import java.io.File
 
 val commonSettings = Seq(
   organization := "com.convergencelabs",
@@ -48,53 +48,38 @@ val serverCore = (project in file("server-core")).
       testingAkka
   )
   
-val serverNode = (project in file("server-node")).
-  enablePlugins(DockerPlugin).
-  configs(Configs.all: _*).
-  settings(commonSettings: _*).
-  settings(
+lazy val dockerBuild = taskKey[Unit]("docker-build")
+val serverNode = (project in file("server-node"))
+  .configs(Configs.all: _*)
+  .settings(commonSettings: _*)
+  .settings(
     packSettings ++ 
     Seq(
       packMain := Map("server-node" -> "com.convergencelabs.server.ConvergenceServerNode"),
       packResourceDir += (baseDirectory.value / "src" / "config" -> "config")
     )
     ++ publishPackArchiveTgz
-  ).
-  settings(Seq(
-    docker <<= (docker dependsOn pack),
-    dockerfile in docker := {
-      new Dockerfile {
-        from("java:openjdk-8-jre-alpine")
-        
-        add(new java.io.File("server-node/target/pack"), "/opt/convergence")
-        
-        add("https://github.com/kelseyhightower/confd/releases/download/v0.11.0/confd-0.11.0-linux-amd64", "/usr/local/bin/confd")
-        run("chmod", "+x", "/usr/local/bin/confd")
-        add(new java.io.File("server-node/src/confd"), "/etc/confd/")
-        
-        add(new java.io.File("server-node/src/schema"), "/opt/convergence/schema")
-
-        add(new java.io.File("server-node/src/bin"), "/opt/convergence/bin")
-        run("chmod", "+x", "/opt/convergence/bin/boot.sh")
-        
-        expose(8080)
-        expose(8081)
-        
-        workDir("/opt/convergence/")
-        entryPoint("/opt/convergence/bin/boot.sh")
-      }
-    },
-    imageNames in docker := {
-      Seq(ImageName("convergence-server-node"))
-    }
-  )).
-  settings(
+  )
+  .settings(
     name := "convergence-server-node",
     publishArtifact in (Compile, packageBin) := false, 
     publishArtifact in (Compile, packageDoc) := false, 
     publishArtifact in (Compile, packageSrc) := false
-  ).
-  dependsOn(serverCore)
+  )
+  .settings(
+    dockerBuild := {
+	  val dockerSrc = new File("server-node/src/docker")
+	  val dockerTarget = new File("server-node/target/docker")
+	  val packSrc = new File("server-node/target/pack")
+	  val packTarget = new File("server-node/target/docker/pack")
+	  
+	  IO.copyDirectory(dockerSrc, dockerTarget, true, false)
+	  IO.copyDirectory(packSrc, packTarget, true, false)
+	  
+	  "docker build -t convergence-server-node server-node/target/docker/" !
+	}
+  )
+  .dependsOn(serverCore)
 
 val testkit = (project in file("server-testkit")).
   configs(Configs.all: _*).
@@ -140,7 +125,6 @@ val e2eTests = (project in file("server-e2e-tests")).
   dependsOn(testkit)
 
 val root = (project in file(".")).
-  
   configs(Configs.all: _*).
   settings(commonSettings: _*).
   settings(Testing.settings: _*).
@@ -152,4 +136,3 @@ val root = (project in file(".")).
   ).
   aggregate(tools, serverCore, serverNode, testkit, e2eTests)
   
-

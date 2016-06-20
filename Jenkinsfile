@@ -9,7 +9,10 @@ node {
   stage 'Test'
   sh 'sbt test'
   
-  stage 'Docker'
-  sh 'sbt docker'
+  stage 'Server Node Pack'
+  sh 'sbt serverNode/pack'
+  
+  stage 'Server Node Docker'
+  sh 'sbt serverNode/dockerBuild'
  }
  
