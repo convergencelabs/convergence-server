@@ -54,7 +54,12 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool, operationSto
 
   def modelExists(fqn: ModelFqn): Try[Boolean] = tryWithDb { db =>
     val key = List(fqn.collectionId, fqn.modelId)
-    Option(db.getMetadata.getIndexManager.getIndex(ModelStore.ModelIndex).get(key.asJava)).isDefined
+    Option(db
+        .getMetadata
+        .getIndexManager
+        .getIndex(ModelStore.ModelIndex)
+        .get(key.asJava))
+        .isDefined
   }
 
   def createModel(model: Model): Try[Unit] = tryWithDb { db =>
