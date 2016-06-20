@@ -14,7 +14,7 @@ node {
   
   stage 'Server Node Docker (Dev)'
   echo "Current build number is ${env.BUILD_NUMBER}"
-  sh 'docker build -t nexus.convergencelabs.tech:18444/convergence-server-node .'
+  sh 'docker build -t nexus.convergencelabs.tech:18444/convergence-server-node server-node/src/docker'
   sh 'docker push nexus.convergencelabs.tech:18444/convergence-server-node'
  }
  
