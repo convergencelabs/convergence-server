@@ -104,7 +104,7 @@ class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
     result.asScala.toList map { _.asModelOperation }
   }
 
-  def removeOperationsForModel(fqn: ModelFqn): Try[Unit] = tryWithDb { db =>
+  def deleteAllOperationsForModel(fqn: ModelFqn): Try[Unit] = tryWithDb { db =>
     val db = dbPool.acquire()
     val commandString =
       """DELETE FROM ModelOperation
@@ -113,6 +113,19 @@ class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
         |  modelId = :modelId""".stripMargin
 
     val params = Map(CollectionId -> fqn.collectionId, ModelId -> fqn.modelId)
+    val command = new OCommandSQL(commandString)
+    db.command(command).execute(params.asJava)
+    db.close()
+  }
+
+  def deleteAllOperationsForCollection(collectionId: String): Try[Unit] = tryWithDb { db =>
+    val db = dbPool.acquire()
+    val commandString =
+      """DELETE FROM ModelOperation
+        |WHERE
+        |  collectionId = :collectionId""".stripMargin
+
+    val params = Map(CollectionId -> collectionId)
     val command = new OCommandSQL(commandString)
     db.command(command).execute(params.asJava)
     db.close()

@@ -17,9 +17,7 @@ class MessageSerializerSpec
     val message = OperationSubmissionMessage("r", 1L, 2L, op)
     val envelop = MessageEnvelope(message, None, None)
     val json = MessageSerializer.writeJson(envelop)
-    
-    println(json)
-    val deserialized = MessageSerializer.readJson[MessageEnvelope](json);
 
+    val deserialized = MessageSerializer.readJson[MessageEnvelope](json);
   }
 }

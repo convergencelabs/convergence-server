@@ -9,17 +9,19 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 import ArraySetOperationMapper.ArraySetOperationToODocument
 import ArraySetOperationMapper.ODocumentToArraySetOperation
 import org.json4s.JsonAST.JArray
+import com.convergencelabs.server.domain.model.data.StringValue
+import com.convergencelabs.server.domain.model.data.ArrayValue
+import com.convergencelabs.server.domain.model.data.DataValue
 
 class ArraySetOperationMapperSpec
     extends WordSpec
     with Matchers {
 
-  val path = List(3, "foo", 4) // scalastyle:off magic.number
-
   "An ArraySetOperationMapper" when {
     "when converting ArraySetOperation operations" must {
       "correctly map and unmap a ArraySetOperation" in {
-        val op = ArraySetOperation(path, true, JArray(List(JString("test"))))
+        val children: List[DataValue] = List(StringValue("asom-test", "test"))
+        val op = ArraySetOperation("vid", true, children)
         val opDoc = op.asODocument
         val reverted = opDoc.asArraySetOperation
         op shouldBe reverted

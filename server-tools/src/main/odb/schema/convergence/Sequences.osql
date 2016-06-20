@@ -1,0 +1,5 @@
+#Domain ID Sequence
+CREATE SEQUENCE didSeq;
+
+#User ID Sequence
+CREATE SEQUENCE uidSeq;

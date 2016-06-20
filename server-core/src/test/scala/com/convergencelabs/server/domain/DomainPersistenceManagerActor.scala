@@ -10,7 +10,6 @@ import scala.util.Success
 import org.junit.runner.RunWith
 import org.mockito.Mockito
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.Finders
 import org.scalatest.WordSpecLike
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.mock.MockitoSugar
@@ -18,7 +17,6 @@ import org.scalatest.mock.MockitoSugar
 import com.convergencelabs.server.HeartbeatConfiguration
 import com.convergencelabs.server.ProtocolConfiguration
 import com.convergencelabs.server.datastore.DomainStore
-import com.convergencelabs.server.datastore.PersistenceProvider
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.util.MockDomainPersistenceManagerActor
 import com.typesafe.config.ConfigFactory
@@ -57,7 +55,7 @@ class DomainManagerActorSpec()
   }
 
   trait TestFixture {
-    val domainFqn = DomainFqn("convergence", "default")
+    val domainFqn = DomainFqn("namespace1", "domain1")
     val nonExistingDomain = DomainFqn("no", "domain")
 
     val keys = Map[String, TokenPublicKey]()
@@ -67,11 +65,11 @@ class DomainManagerActorSpec()
       "d1",
       domainFqn,
       "Default",
-      "",
-      "")
+      "cu0")
 
     val domainStore = mock[DomainStore]
     Mockito.when(domainStore.getDomainByFqn(domainFqn)).thenReturn(Success(Some(domain)))
+    Mockito.when(domainStore.getDomainByFqn(nonExistingDomain)).thenReturn(Success(None))
     Mockito.when(domainStore.domainExists(domainFqn)).thenReturn(Success(true))
     Mockito.when(domainStore.domainExists(nonExistingDomain)).thenReturn(Success(false))
 
@@ -79,16 +77,16 @@ class DomainManagerActorSpec()
     Mockito.when(provider.validateConnection()).thenReturn(true)
     domainPersistence.underlyingActor.mockProviders = Map(domainFqn -> provider)
 
-    val convergencePersistence = mock[PersistenceProvider]
-    Mockito.when(convergencePersistence.domainStore).thenReturn(domainStore)
 
-    val protocolConfig = ProtocolConfiguration(2 seconds,
+    val protocolConfig = ProtocolConfiguration(
+      2 seconds,
+      2 seconds,
       HeartbeatConfiguration(
         false,
         0 seconds,
         0 seconds))
 
     val domainManagerActor = system.actorOf(
-      DomainManagerActor.props(convergencePersistence, protocolConfig))
+      DomainManagerActor.props(domainStore, protocolConfig))
   }
 }

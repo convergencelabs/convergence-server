@@ -11,7 +11,7 @@ import java.time.Instant
 
 // scalastyle:off magic.number
 class ModelOperationStoreSpec
-    extends PersistenceStoreSpec[ModelOperationStore]("/dbfiles/domain.json.gz")
+    extends PersistenceStoreSpec[ModelOperationStore]("/dbfiles/domain-n1-d1.json.gz")
     with WordSpecLike
     with Matchers {
 
@@ -56,12 +56,12 @@ class ModelOperationStoreSpec
     }
     "deleting all operations for a model" must {
       "remove all operations in the model" in withPersistenceStore { store =>
-        store.removeOperationsForModel(modelFqn).success
+        store.deleteAllOperationsForModel(modelFqn).success
         store.getOperationsAfterVersion(modelFqn, 0).success.get shouldBe empty
       }
 
       "do nothing if model does not exist" in withPersistenceStore { store =>
-        store.removeOperationsForModel(notFoundFqn).success
+        store.deleteAllOperationsForModel(notFoundFqn).success
       }
     }
   }

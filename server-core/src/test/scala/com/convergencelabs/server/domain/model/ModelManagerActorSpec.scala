@@ -4,12 +4,10 @@ import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
-
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
 import scala.util.Success
-
 import org.json4s.JsonAST.JObject
 import org.json4s.JsonAST.JString
 import org.junit.runner.RunWith
@@ -19,7 +17,6 @@ import org.scalatest.Finders
 import org.scalatest.WordSpecLike
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.mock.MockitoSugar
-
 import com.convergencelabs.server.HeartbeatConfiguration
 import com.convergencelabs.server.ProtocolConfiguration
 import com.convergencelabs.server.datastore.domain.DomainConfigStore
@@ -30,10 +27,11 @@ import com.convergencelabs.server.datastore.domain.ModelStore
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.ModelSnapshotConfig
 import com.convergencelabs.server.util.MockDomainPersistenceManagerActor
-
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
+import com.convergencelabs.server.datastore.domain.CollectionStore
+import com.convergencelabs.server.domain.model.data.ObjectValue
 
 @RunWith(classOf[JUnitRunner])
 class ModelManagerActorSpec
@@ -54,7 +52,7 @@ class ModelManagerActorSpec
     "opening model" must {
       "sucessfully load an unopen model" in new TestFixture {
         val client = new TestProbe(system)
-        modelManagerActor.tell(OpenRealtimeModelRequest(userId1, sessionId1, modelFqn, true, client.ref), client.ref)
+        modelManagerActor.tell(OpenRealtimeModelRequest(SessionKey(userId1, sessionId1), modelFqn, true, client.ref), client.ref)
 
         val message = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
         assert(message.modelData == modelData.data)
@@ -65,11 +63,11 @@ class ModelManagerActorSpec
 
       "sucessfully load an open model" in new TestFixture {
         val client1 = new TestProbe(system)
-        modelManagerActor.tell(OpenRealtimeModelRequest(userId1, sessionId1, modelFqn, true, client1.ref), client1.ref)
+        modelManagerActor.tell(OpenRealtimeModelRequest(SessionKey(userId1, sessionId1), modelFqn, true, client1.ref), client1.ref)
         client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
 
         val client2 = new TestProbe(system)
-        modelManagerActor.tell(OpenRealtimeModelRequest(userId2, sessionId1, modelFqn, true, client2.ref), client2.ref)
+        modelManagerActor.tell(OpenRealtimeModelRequest(SessionKey(userId2, sessionId1), modelFqn, true, client2.ref), client2.ref)
         val response = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
 
         assert(response.modelData == modelData.data)
@@ -80,7 +78,7 @@ class ModelManagerActorSpec
 
       "request data if the model does not exist" in new TestFixture {
         val client1 = new TestProbe(system)
-        modelManagerActor.tell(OpenRealtimeModelRequest(userId1, sessionId1, nonExistentModelFqn, true, client1.ref), client1.ref)
+        modelManagerActor.tell(OpenRealtimeModelRequest(SessionKey(userId1, sessionId1), nonExistentModelFqn, true, client1.ref), client1.ref)
         val response = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientModelDataRequest])
       }
     }
@@ -88,13 +86,13 @@ class ModelManagerActorSpec
     "requested to create a model" must {
       "return ModelCreated if the model does not exist" in new TestFixture {
         val client = new TestProbe(system)
-        modelManagerActor.tell(CreateModelRequest(nonExistentModelFqn, JString("new data")), client.ref)
+        modelManagerActor.tell(CreateModelRequest(nonExistentModelFqn, ObjectValue("", Map())), client.ref)
         client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelCreated)
       }
 
       "return ModelAlreadyExists if the model exists" in new TestFixture {
         val client = new TestProbe(system)
-        modelManagerActor.tell(CreateModelRequest(modelFqn, JString("new data")), client.ref)
+        modelManagerActor.tell(CreateModelRequest(modelFqn, ObjectValue("", Map())), client.ref)
         client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelAlreadyExists)
       }
     }
@@ -118,13 +116,14 @@ class ModelManagerActorSpec
     val userId1 = "u1";
     val userId2 = "u2";
     val sessionId1 = "1";
+    val collectionId = "collection"
 
-    val nonExistentModelFqn = ModelFqn("collection", "no model")
-    val modelFqn = ModelFqn("collection", "model" + System.nanoTime())
+    val nonExistentModelFqn = ModelFqn(collectionId, "no model")
+    val modelFqn = ModelFqn(collectionId, "model" + System.nanoTime())
     val modelJsonData = JObject("key" -> JString("value"))
     val modelCreateTime = Instant.ofEpochMilli(2L)
     val modelModifiedTime = Instant.ofEpochMilli(3L)
-    val modelData = Model(ModelMetaData(modelFqn, 1L, modelCreateTime, modelModifiedTime), modelJsonData)
+    val modelData = Model(ModelMetaData(modelFqn, 1L, modelCreateTime, modelModifiedTime), ObjectValue("", Map()))
     val modelSnapshotTime = Instant.ofEpochMilli(2L)
     val modelSnapshotMetaData = ModelSnapshotMetaData(modelFqn, 1L, modelSnapshotTime)
 
@@ -143,18 +142,23 @@ class ModelManagerActorSpec
       false,
       true,
       true,
-      250,
-      500,
+      250, // scalastyle:ignore magic.number
+      500, // scalastyle:ignore magic.number
       false,
       false,
       Duration.of(0, ChronoUnit.MINUTES),
       Duration.of(0, ChronoUnit.MINUTES))))
+
+    val collectionStore = mock[CollectionStore]
+    Mockito.when(collectionStore.getOrCreateCollection(collectionId))
+      .thenReturn(Success(Collection(collectionId, "", false, None)))
 
     val domainPersistence = mock[DomainPersistenceProvider]
     Mockito.when(domainPersistence.modelStore).thenReturn(modelStore)
     Mockito.when(domainPersistence.modelSnapshotStore).thenReturn(modelSnapshotStore)
     Mockito.when(domainPersistence.modelOperationStore).thenReturn(modelOperationStore)
     Mockito.when(domainPersistence.configStore).thenReturn(domainConfigStore)
+    Mockito.when(domainPersistence.collectionStore).thenReturn(collectionStore)
 
     val domainFqn = DomainFqn("convergence", "default")
 
@@ -163,6 +167,7 @@ class ModelManagerActorSpec
     val resourceId = "1" + System.nanoTime()
     val domainActor = new TestProbe(system)
     val protocolConfig = ProtocolConfiguration(
+      100 millis,
       100 millis,
       HeartbeatConfiguration(
         true,

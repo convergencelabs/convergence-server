@@ -27,6 +27,10 @@ import java.security.KeyFactory
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import java.security.spec.PKCS8EncodedKeySpec
 import java.io.StringReader
+import com.convergencelabs.server.datastore.domain.ApiKeyStore
+import com.convergencelabs.server.datastore.CreateSuccess
+import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateDomainUser
+import com.convergencelabs.server.domain.model.SessionKey
 
 class AuthenticationHandlerSpec()
     extends TestKit(ActorSystem("AuthManagerActorSpec"))
@@ -39,14 +43,12 @@ class AuthenticationHandlerSpec()
     TestKit.shutdownActorSystem(system)
   }
 
-  // FIXME we need to test that models actually get created and deteled.  Not sure how to do this.
-
   "A AuthenticationHandler" when {
     "authenticating a user by password" must {
       "authetnicate successfully for a correct username and password" in new TestFixture {
         val f = authHandler.authenticate(PasswordAuthRequest(existingUserName, existingCorrectPassword))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
-        result shouldBe AuthenticationSuccess(existingUserUid, existingUserName)
+        result shouldBe AuthenticationSuccess(existingUserUid, existingUserName, SessionKey(existingUserUid, "0"))
       }
 
       "Fail authetnication for an incorrect username and password" in new TestFixture {
@@ -78,7 +80,7 @@ class AuthenticationHandlerSpec()
       "successfully authenticate a user with a valid key" in new TestFixture {
         val f = authHandler.authenticate(TokenAuthRequest(JwtGenerator.generate(existingUserName, enabledKey.id)))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
-        result shouldBe AuthenticationSuccess(existingUserUid, existingUserName)
+        result shouldBe AuthenticationSuccess(existingUserUid, existingUserName, SessionKey(existingUserUid, "0"))
       }
 
       "return an authentication failure for a non-existent key" in new TestFixture {
@@ -102,13 +104,13 @@ class AuthenticationHandlerSpec()
       "return an authentication success for the admin key" in new TestFixture {
         val f = authHandler.authenticate(TokenAuthRequest(JwtGenerator.generate(existingUserName, AuthenticationHandler.AdminKeyId)))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
-        result shouldBe AuthenticationSuccess(existingUserUid, existingUserName)
+        result shouldBe AuthenticationSuccess(existingUserUid, existingUserName, SessionKey(existingUserUid, "0"))
       }
 
       "return an authentication success lazily created user" in new TestFixture {
         val f = authHandler.authenticate(TokenAuthRequest(JwtGenerator.generate(lazyUserName, enabledKey.id)))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
-        result shouldBe AuthenticationSuccess(lazyUserUid, lazyUserName)
+        result shouldBe AuthenticationSuccess(lazyUserUid, lazyUserName, SessionKey(lazyUserUid, "0"))
       }
 
       "return an authentication failure when the user can't be looked up" in new TestFixture {
@@ -148,15 +150,15 @@ class AuthenticationHandlerSpec()
 
     val lazyUserUid = "newUserId"
     val lazyUserName = "newUserName"
-    val lazyUser = DomainUser(null, lazyUserName, None, None, None)
+    val lazyUser = CreateDomainUser(lazyUserName, None, None, None)
     Mockito.when(userStore.getDomainUserByUsername(lazyUserName)).thenReturn(Success(None))
-    Mockito.when(userStore.createDomainUser(lazyUser, None)).thenReturn(Success(lazyUserUid))
+    Mockito.when(userStore.createDomainUser(lazyUser, None)).thenReturn(Success(CreateSuccess(lazyUserUid)))
 
     val brokenUserName = "brokenUser"
     Mockito.when(userStore.getDomainUserByUsername(brokenUserName)).thenReturn(Failure(new IllegalStateException("induced error for testing")))
 
     val brokenLazyUsername = "borkenLazyUserName"
-    val brokenLazyUser = DomainUser(null, brokenLazyUsername, None, None, None)
+    val brokenLazyUser = CreateDomainUser(brokenLazyUsername, None, None, None)
     Mockito.when(userStore.getDomainUserByUsername(brokenLazyUsername)).thenReturn(Success(None))
     Mockito.when(userStore.createDomainUser(brokenLazyUser, None)).thenReturn(Failure(new IllegalStateException("induced error for testing")))
 
@@ -169,6 +171,7 @@ class AuthenticationHandlerSpec()
     Mockito.when(userStore.validateCredentials(noUidUser, noUidPassword)).thenReturn(Success(true, None))
 
     val domainConfigStore = mock[DomainConfigStore]
+    val keyStore = mock[ApiKeyStore]
 
     val enabledKey = TokenPublicKey(
       "enabledkey",
@@ -177,7 +180,7 @@ class AuthenticationHandlerSpec()
       Instant.now(),
       KeyConstants.PublicKey,
       true)
-    Mockito.when(domainConfigStore.getTokenKey(enabledKey.id)).thenReturn(Success(Some(enabledKey)))
+    Mockito.when(keyStore.getKey(enabledKey.id)).thenReturn(Success(Some(enabledKey)))
 
     val adminKeyPair = TokenKeyPair(KeyConstants.PublicKey, KeyConstants.PrivateKey)
     Mockito.when(domainConfigStore.getAdminKeyPair()).thenReturn(Success(adminKeyPair))
@@ -189,7 +192,7 @@ class AuthenticationHandlerSpec()
       Instant.now(),
       KeyConstants.PublicKey,
       false)
-    Mockito.when(domainConfigStore.getTokenKey(disabledKey.id)).thenReturn(Success(Some(disabledKey)))
+    Mockito.when(keyStore.getKey(disabledKey.id)).thenReturn(Success(Some(disabledKey)))
 
     val invalidKey = TokenPublicKey(
       "invalidKey",
@@ -198,12 +201,12 @@ class AuthenticationHandlerSpec()
       Instant.now(),
       "invalid",
       true)
-    Mockito.when(domainConfigStore.getTokenKey(invalidKey.id)).thenReturn(Success(Some(invalidKey)))
+    Mockito.when(keyStore.getKey(invalidKey.id)).thenReturn(Success(Some(invalidKey)))
 
     val missingKey = "missingKey"
-    Mockito.when(domainConfigStore.getTokenKey(missingKey)).thenReturn(Success(None))
+    Mockito.when(keyStore.getKey(missingKey)).thenReturn(Success(None))
 
-    val authHandler = new AuthenticationHandler(domainConfigStore, userStore, system.dispatcher)
+    val authHandler = new AuthenticationHandler(domainConfigStore, keyStore, userStore, system.dispatcher)
   }
 
 }
@@ -227,7 +230,7 @@ object JwtGenerator {
     jwtClaims.setGeneratedJwtId()
     jwtClaims.setExpirationTimeMinutesInTheFuture(2)
     jwtClaims.setIssuedAtToNow()
-    jwtClaims.setNotBeforeMinutesInThePast(10)
+    jwtClaims.setNotBeforeMinutesInThePast(10) // scalastyle:ignore magic.number
 
     // Add claims the user is providing.
     jwtClaims.setSubject(username)

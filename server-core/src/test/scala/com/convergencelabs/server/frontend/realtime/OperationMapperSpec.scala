@@ -1,14 +1,12 @@
 package com.convergencelabs.server.frontend.realtime
 
 import scala.math.BigInt.int2bigInt
-
 import org.json4s.JsonAST.JArray
 import org.json4s.JsonAST.JInt
 import org.json4s.JsonAST.JObject
 import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
-
 import com.convergencelabs.server.domain.model.ot.ArrayInsertOperation
 import com.convergencelabs.server.domain.model.ot.ArrayMoveOperation
 import com.convergencelabs.server.domain.model.ot.ArrayRemoveOperation
@@ -25,39 +23,41 @@ import com.convergencelabs.server.domain.model.ot.ObjectSetPropertyOperation
 import com.convergencelabs.server.domain.model.ot.StringInsertOperation
 import com.convergencelabs.server.domain.model.ot.StringRemoveOperation
 import com.convergencelabs.server.domain.model.ot.StringSetOperation
+import org.json4s.JsonAST.JDouble
+import com.convergencelabs.server.domain.model.data.DoubleValue
 
 // scalastyle:off magic.number
 class OperationMapperSpec extends WordSpec with Matchers {
 
   val X = "X"
 
-  val Path = List("1", 2, "3")
+  val Id = "testId"
   val NoOp = true
-  val JVal = JInt(5)
+  val Value = DoubleValue("vid", 2)
   val Prop = "prop"
 
   val operations = List(
-    ObjectSetPropertyOperation(Path, NoOp, Prop, JVal),
-    ObjectAddPropertyOperation(Path, NoOp, Prop, JVal),
-    ObjectRemovePropertyOperation(Path, NoOp, Prop),
-    ObjectSetOperation(Path, NoOp, JObject(List("p" -> JVal))),
+    ObjectSetPropertyOperation(Id, NoOp, Prop, Value),
+    ObjectAddPropertyOperation(Id, NoOp, Prop, Value),
+    ObjectRemovePropertyOperation(Id, NoOp, Prop),
+    ObjectSetOperation(Id, NoOp, Map("p" -> Value)),
 
-    ArrayInsertOperation(Path, NoOp, 1, JVal),
-    ArrayRemoveOperation(Path, NoOp, 1),
-    ArrayReplaceOperation(Path, NoOp, 1, JVal),
-    ArrayMoveOperation(Path, NoOp, 1, 2),
-    ArraySetOperation(Path, NoOp, JArray(List(JVal))),
+    ArrayInsertOperation(Id, NoOp, 1, Value),
+    ArrayRemoveOperation(Id, NoOp, 1),
+    ArrayReplaceOperation(Id, NoOp, 1, Value),
+    ArrayMoveOperation(Id, NoOp, 1, 2),
+    ArraySetOperation(Id, NoOp, List(Value)),
 
-    StringInsertOperation(Path, NoOp, 1, X),
-    StringRemoveOperation(Path, NoOp, 1, X),
-    StringSetOperation(Path, NoOp, X),
+    StringInsertOperation(Id, NoOp, 1, X),
+    StringRemoveOperation(Id, NoOp, 1, X),
+    StringSetOperation(Id, NoOp, X),
 
-    NumberSetOperation(Path, NoOp, JVal),
-    NumberAddOperation(Path, NoOp, JVal),
+    NumberSetOperation(Id, NoOp, 3),
+    NumberAddOperation(Id, NoOp, 4),
 
-    BooleanSetOperation(Path, NoOp, true),
+    BooleanSetOperation(Id, NoOp, true),
 
-    CompoundOperation(List(NumberSetOperation(Path, NoOp, JVal))))
+    CompoundOperation(List(NumberSetOperation(Id, NoOp, 3))))
 
   "An OperationMapper" when {
     "mapping an unmapping operations" must {

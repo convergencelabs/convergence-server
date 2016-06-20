@@ -1,0 +1,15 @@
+INSERT INTO ModelOperation SET
+  collectionId = "people",
+  modelId = "person1",
+  timestamp = DATE("2015-10-20T13:00:00.000+0000"),
+  uid = "u0",
+  sid = "u0-1",
+  version = 13,
+  op = {
+    "@type": "d",
+    "@class":"StringInsertOperation",
+    "idx": 0,
+    "noOp": false,
+    "vid": "pp1-fname",
+    "val": "J"
+  };

@@ -1,9 +1,8 @@
 package com.convergencelabs.server
 
-import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
-import com.convergencelabs.server.datastore.PersistenceProvider
+import com.convergencelabs.server.datastore.DomainStore
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 import com.convergencelabs.server.domain.DomainManagerActor
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
@@ -11,38 +10,19 @@ import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import akka.actor.ActorSystem
 import grizzled.slf4j.Logging
 
-class BackendNode(system: ActorSystem) extends Logging {
+class BackendNode(system: ActorSystem, dbPool: OPartitionedDatabasePool) extends Logging {
 
   def start(): Unit = {
     logger.info("Backend Node starting up.")
 
-    // FIXME we could pass this in.
-    val dbConfig = system.settings.config.getConfig("convergence.database")
+    val dbConfig = system.settings.config.getConfig("convergence.convergence-database")
 
-    val baseUri = dbConfig.getString("uri")
-    val fullUri = baseUri + "/" + dbConfig.getString("database")
-    val username = dbConfig.getString("username")
-    val password = dbConfig.getString("password")
+    val domainStore = new DomainStore(dbPool)
 
-    val dbPool = new OPartitionedDatabasePool(fullUri, password, password)
-    val persistenceProvider = new PersistenceProvider(dbPool)
-
-    // FIXME do we get this from the config.  If so do we need to pass it?
-    val protocolConfig = ProtocolConfiguration(
-      5 seconds,
-      HeartbeatConfiguration(
-        true,
-        5 seconds,
-        10 seconds))
-
-    val dbPoolManager = system.actorOf(
-      DomainPersistenceManagerActor.props(
-        baseUri,
-        persistenceProvider.domainStore),
-      DomainPersistenceManagerActor.RelativePath)
+    val protocolConfig = ProtocolConfigUtil.loadConfig(system.settings.config)
 
     system.actorOf(DomainManagerActor.props(
-      persistenceProvider,
+      domainStore,
       protocolConfig),
       DomainManagerActor.RelativeActorPath)
 

@@ -2,29 +2,29 @@ package com.convergencelabs.server.datastore.domain
 
 import java.text.SimpleDateFormat
 import java.time.Instant
-
 import org.json4s.JsonAST.JObject
 import org.json4s.JsonAST.JString
 import org.scalatest.Matchers
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
-
 import com.convergencelabs.server.domain.model.Model
 import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelMetaData
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
+import com.convergencelabs.server.domain.model.data.StringValue
+import com.convergencelabs.server.domain.model.data.ObjectValue
 
 // scalastyle:off magic.number
 class ModelStoreSpec
-    extends PersistenceStoreSpec[ModelStore]("/dbfiles/domain.json.gz")
+    extends PersistenceStoreSpec[ModelStore]("/dbfiles/domain-n1-d1.json.gz")
     with WordSpecLike
     with Matchers {
 
-  val df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+  val df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSz")
 
-  def createStore(dbPool: OPartitionedDatabasePool): ModelStore = new ModelStore(dbPool)
+  def createStore(dbPool: OPartitionedDatabasePool): ModelStore = new ModelStore(dbPool, new ModelOperationStore(dbPool), new ModelSnapshotStore(dbPool))
 
   val peopleCollectionId = "people"
 
@@ -32,29 +32,29 @@ class ModelStoreSpec
   val person1MetaData = ModelMetaData(
     person1,
     20,
-    Instant.ofEpochMilli(df.parse("2015-10-20 01:00:00").getTime),
-    Instant.ofEpochMilli(df.parse("2015-10-20 12:00:00").getTime))
+    Instant.ofEpochMilli(df.parse("2015-10-20T01:00:00.000+0000").getTime),
+    Instant.ofEpochMilli(df.parse("2015-10-20T12:00:00.000+0000").getTime))
 
   val person2 = ModelFqn(peopleCollectionId, "person2")
   val person2MetaData = ModelMetaData(
     person2,
     0,
-    Instant.ofEpochMilli(df.parse("2015-10-20 02:00:00").getTime),
-    Instant.ofEpochMilli(df.parse("2015-10-20 02:00:00").getTime))
+    Instant.ofEpochMilli(df.parse("2015-10-20T02:00:00.000+0000").getTime),
+    Instant.ofEpochMilli(df.parse("2015-10-20T02:00:00.000+0000").getTime))
 
   val person3 = ModelFqn(peopleCollectionId, "person3")
   val person3MetaData = ModelMetaData(
     person3,
     0,
-    Instant.ofEpochMilli(df.parse("2015-10-20 03:00:00").getTime),
-    Instant.ofEpochMilli(df.parse("2015-10-20 03:00:00").getTime))
+    Instant.ofEpochMilli(df.parse("2015-10-20T03:00:00.000+0000").getTime),
+    Instant.ofEpochMilli(df.parse("2015-10-20T03:00:00.000+0000").getTime))
 
   val company1 = ModelFqn("company", "company1")
   val company1MetaData = ModelMetaData(
     company1,
     0,
-    Instant.ofEpochMilli(df.parse("2015-10-20 04:00:00").getTime),
-    Instant.ofEpochMilli(df.parse("2015-10-20 04:00:00").getTime))
+    Instant.ofEpochMilli(df.parse("2015-10-20T04:00:00.000+0000").getTime),
+    Instant.ofEpochMilli(df.parse("2015-10-20T04:00:00.000+0000").getTime))
 
   val nonExsitingFqn = ModelFqn("notRealCollection", "notRealModel")
 
@@ -81,7 +81,8 @@ class ModelStoreSpec
             0L,
             time,
             time),
-          JObject("foo" -> JString("bar")))
+          ObjectValue("t1-data",
+            Map(("foo" -> StringValue("t1-foo", "bar")))))
 
         store.createModel(model).success
         store.getModel(modelFqn).success.value.value shouldBe model
@@ -95,7 +96,8 @@ class ModelStoreSpec
             0L,
             time,
             time),
-          JObject("foo" -> JString("bar")))
+          ObjectValue("t2-data",
+            Map(("foo" -> StringValue("t2-foo", "bar")))))
 
         store.createModel(model).failure.exception shouldBe a[ORecordDuplicatedException]
       }

@@ -23,6 +23,8 @@ import com.convergencelabs.server.domain.ModelSnapshotConfig
 import scala.util.Success
 import scala.util.Failure
 import com.convergencelabs.server.UnknownErrorResponse
+import scala.util.Try
+import akka.actor.Status
 
 class ModelManagerActor(
   private[this] val domainFqn: DomainFqn,
@@ -36,48 +38,57 @@ class ModelManagerActor(
 
   def receive: Receive = {
     case message: OpenRealtimeModelRequest => onOpenRealtimeModel(message)
-    case message: CreateModelRequest => onCreateModelRequest(message)
-    case message: DeleteModelRequest => onDeleteModelRequest(message)
-    case message: ModelShutdownRequest => onModelShutdownRequest(message)
-    case message: Any => unhandled(message)
+    case message: CreateModelRequest       => onCreateModelRequest(message)
+    case message: DeleteModelRequest       => onDeleteModelRequest(message)
+    case message: ModelShutdownRequest     => onModelShutdownRequest(message)
+    case message: Any                      => unhandled(message)
   }
 
   private[this] def onOpenRealtimeModel(openRequest: OpenRealtimeModelRequest): Unit = {
-    if (!this.openRealtimeModels.contains(openRequest.modelFqn)) {
-      val resourceId = "" + nextModelResourceId
-      nextModelResourceId += 1
+    this.openRealtimeModels.get(openRequest.modelFqn) match {
+      case Some(modelActor) =>
+        // Model already open
+        modelActor forward openRequest
+      case None =>
+        // Model not already open, load it
+        val resourceId = "" + nextModelResourceId
+        nextModelResourceId += 1
+        getSnapshotConfigForModel(openRequest.modelFqn.collectionId) match {
+          case Success(snapshotConfig) =>
+            val props = RealtimeModelActor.props(
+              self,
+              domainFqn,
+              openRequest.modelFqn,
+              resourceId,
+              persistenceProvider.modelStore,
+              persistenceProvider.modelOperationProcessor,
+              persistenceProvider.modelSnapshotStore,
+              5000, // FIXME hard-coded time.  Should this be part of the protocol?
+              snapshotConfig)
 
-      persistenceProvider.configStore.getModelSnapshotConfig() match {
-        case Success(modelSnapshotConfig) => {
-          val props = RealtimeModelActor.props(
-            self,
-            domainFqn,
-            openRequest.modelFqn,
-            resourceId,
-            persistenceProvider.modelStore,
-            persistenceProvider.modelOperationProcessor,
-            persistenceProvider.modelSnapshotStore,
-            5000, // FIXME hard-coded time.  Should this be part of the protocol?
-            modelSnapshotConfig)
+            val modelActor = context.actorOf(props, resourceId)
+            this.openRealtimeModels.put(openRequest.modelFqn, modelActor)
+            modelActor forward openRequest
+          case Failure(e) =>
+            sender ! UnknownErrorResponse("Could not open model")
+        }
+    }
+  }
 
-          val modelActor = context.actorOf(props, resourceId);
-          this.openRealtimeModels.put(openRequest.modelFqn, modelActor);
-        }
-        case Failure(cause) => {
-          cause.printStackTrace()
-          ??? // FIXME
-        }
+  private[this] def getSnapshotConfigForModel(collectionId: String): Try[ModelSnapshotConfig] = {
+    persistenceProvider.collectionStore.getOrCreateCollection(collectionId).flatMap { c =>
+      if (c.overrideSnapshotConfig) {
+        Success(c.snapshotConfig.get)
+      } else {
+        persistenceProvider.configStore.getModelSnapshotConfig()
       }
     }
-    // FIXME something above could fail.  Here we just throw an exception.
-    // this is not good.
-    val modelActor = openRealtimeModels.get(openRequest.modelFqn).get
-    modelActor forward openRequest
   }
 
   private[this] def onCreateModelRequest(createRequest: CreateModelRequest): Unit = {
     persistenceProvider.modelStore.modelExists(createRequest.modelFqn) match {
-      case Success(true) => sender ! ModelAlreadyExists
+      case Success(true) =>
+        sender ! ModelAlreadyExists
       case Success(false) =>
         val createTime = Instant.now()
         val model = Model(
@@ -90,6 +101,7 @@ class ModelManagerActor(
 
         try {
           // FIXME all of this should work or not, together.
+          persistenceProvider.collectionStore.ensureCollectionExists(createRequest.modelFqn.collectionId)
           persistenceProvider.modelStore.createModel(model)
           persistenceProvider.modelSnapshotStore.createSnapshot(
             ModelSnapshot(ModelSnapshotMetaData(createRequest.modelFqn, 0, createTime),
@@ -100,7 +112,8 @@ class ModelManagerActor(
           case e: IOException =>
             sender ! UnknownErrorResponse("Could not create model: " + e.getMessage)
         }
-      case Failure(cause) => ???
+      case Failure(cause) =>
+        sender ! akka.actor.Status.Failure(cause)
     }
   }
 
@@ -111,14 +124,11 @@ class ModelManagerActor(
           openRealtimeModels.remove(deleteRequest.modelFqn).get ! ModelDeleted
         }
 
-        // FIXME do we need to somehow do these in a transaction?
         persistenceProvider.modelStore.deleteModel(deleteRequest.modelFqn)
-        persistenceProvider.modelSnapshotStore.removeAllSnapshotsForModel(deleteRequest.modelFqn)
-        persistenceProvider.modelOperationStore.removeOperationsForModel(deleteRequest.modelFqn)
 
         sender ! ModelDeleted
       case Success(false) => sender ! ModelNotFound
-      case Failure(cause) => ??? // FIXME
+      case Failure(cause) => sender ! Status.Failure
     }
   }
 
@@ -147,7 +157,7 @@ object ModelManagerActor {
   val RelativePath = "modelManager"
 
   def props(domainFqn: DomainFqn,
-    protocolConfig: ProtocolConfiguration): Props = Props(
+            protocolConfig: ProtocolConfiguration): Props = Props(
     new ModelManagerActor(
       domainFqn,
       protocolConfig))

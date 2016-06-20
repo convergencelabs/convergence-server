@@ -27,6 +27,10 @@ class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
     extends AbstractDatabasePersistence(dbPool)
     with Logging {
 
+  def getAdminUserName(): String = {
+    "ConvergenceAdmin"
+  }
+
   def getModelSnapshotConfig(): Try[ModelSnapshotConfig] = tryWithDb { db =>
     val queryString = "SELECT modelSnapshotConfig FROM DomainConfig"
     val query = new OSQLSynchQuery[ODocument](queryString)
@@ -38,7 +42,7 @@ class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
   }
 
   def setModelSnapshotConfig(modelSnapshotConfig: ModelSnapshotConfig): Try[Unit] = tryWithDb { db =>
-    // TODO why doesn't this work??
+    // FIXME why doesn't this work??
     //    val updateString = "UPDATE DomainConfig SET modelSnapshotConfig = :modelSnapshotConfig"
     //    val query = new OCommandSQL(updateString)
     //    val params = Map("modelSnapshotConfig" -> modelSnapshotConfig.asODocument)
@@ -68,34 +72,6 @@ class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
       TokenKeyPair(
         doc.field("adminPublicKey", OType.STRING),
         doc.field("adminPrivateKey", OType.STRING))
-    }.get
-  }
-
-  // FIXME we need an add and remove tokenKey.
-
-  def getTokenKey(keyId: String): Try[Option[TokenPublicKey]] = tryWithDb { db =>
-    val queryString = "SELECT tokenKeys[id = :keyId] FROM DomainConfig"
-    val query = new OSQLSynchQuery[ODocument](queryString)
-    val params = Map("keyId" -> keyId)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-
-    QueryUtil.mapSingletonListToOption(result) { doc =>
-      val keys: JavaList[ODocument] = Collections.singletonList(doc.field("tokenKeys"))
-      QueryUtil.mapSingletonList(keys) { _.asTokenPublicKey }
-    }
-  }
-
-  def getTokenKeys(): Try[Map[String, TokenPublicKey]] = tryWithDb { db =>
-    val sql = "SELECT tokenKeys FROM DomainConfig"
-    val query = new OSQLSynchQuery[ODocument](sql)
-    val result: JavaList[ODocument] = db.command(query).execute()
-
-    QueryUtil.mapSingletonList(result) { doc =>
-      val docList: JavaList[ODocument] = doc.field("tokenKeys", OType.EMBEDDEDLIST)
-      docList.map(t => {
-        val key = t.asTokenPublicKey
-        (key.id -> key)
-      })(collection.breakOut): Map[String, TokenPublicKey]
     }.get
   }
 }

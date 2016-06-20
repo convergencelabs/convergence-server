@@ -1,0 +1,14 @@
+INSERT INTO ModelOperation SET
+  collectionId = "people",
+  modelId = "person1",
+  timestamp = DATE("2015-10-20T10:00:00.000+0000"),
+  uid = "u0",
+  sid = "u0-1",
+  version = 10,
+  op = {
+    "@type": "d",
+    "@class":"ObjectRemovePropertyOperation",
+    "prop": "cell",
+    "noOp": false,
+    "vid": "pp1-data"
+  };

@@ -68,11 +68,13 @@ class DomainActorSpec
 
     val domainManagerActor = new TestProbe(system)
 
-    val protocolConfig = ProtocolConfiguration(2 seconds,
-        HeartbeatConfiguration(
-            false,
-            0 seconds,
-            0 seconds))
+    val protocolConfig = ProtocolConfiguration(
+      2 seconds,
+      2 seconds,
+      HeartbeatConfiguration(
+        false,
+        0 seconds,
+        0 seconds))
 
     val props = DomainActor.props(
       domainManagerActor.ref,

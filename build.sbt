@@ -1,39 +1,85 @@
 import Dependencies.Compile._
 import Dependencies.Test._
+import java.io.File
 
-
-val commonSettings = packSettings ++ Seq(
+val commonSettings = Seq(
   organization := "com.convergencelabs",
-  scalaVersion := "2.11.7",
+  scalaVersion := "2.11.8",
   scalacOptions := Seq("-deprecation", "-feature"),
   fork := true,
-  packMain := Map("test-server" -> "com.convergencelabs.server.testkit.TestServer"),
-  packResourceDir += (baseDirectory.value / "server-testkit" / "test-server" -> "test-server")
+  publishTo := {
+    val nexus = "https://builds.convergencelabs.tech/nexus/repository/"
+    if (isSnapshot.value)
+      Some("snapshots" at nexus + "maven-snapshots/") 
+    else
+      Some("releases"  at nexus + "maven-releases")
+  },
+  credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
  )
 
 val serverCore = (project in file("server-core")).
+  enablePlugins(SbtTwirl).
   configs(Configs.all: _*).
   settings(commonSettings: _*).
   settings(Testing.settings: _*).
   settings(
+   // unmanagedSourceDirectories in Compile += baseDirectory.value / "target" / "scala-2.11" / "twirl" / "main",
     name := "convergence-server-core",
     libraryDependencies ++= 
       akkaCore ++ 
       orientDb ++ 
       loggingAll ++ 
       Seq(
+        akkaHttp,
         json4s, 
+        akkaHttpJson4s,
+        akkaHttpCors,
         commonsLang,
+        commonsEmail,
         jose4j,
         bouncyCastle,
         scrypt,
         netty,
         javaWebsockets, 
+        scallop,
         "org.scala-lang" % "scala-reflect" % scalaVersion.value
       ) ++
       testingCore ++
       testingAkka
   )
+  
+lazy val dockerBuild = taskKey[Unit]("docker-build")
+val serverNode = (project in file("server-node"))
+  .configs(Configs.all: _*)
+  .settings(commonSettings: _*)
+  .settings(
+    packSettings ++ 
+    Seq(
+      packMain := Map("server-node" -> "com.convergencelabs.server.ConvergenceServerNode"),
+      packResourceDir += (baseDirectory.value / "src" / "config" -> "config")
+    )
+  )
+  .settings(
+    name := "convergence-server-node",
+    publishArtifact in (Compile, packageBin) := false, 
+    publishArtifact in (Compile, packageDoc) := false, 
+    publishArtifact in (Compile, packageSrc) := false
+  )
+  .settings(
+    dockerBuild := {
+	  val dockerSrc = new File("server-node/src/docker")
+	  val dockerTarget = new File("server-node/target/docker")
+	  val packSrc = new File("server-node/target/pack")
+	  val packTarget = new File("server-node/target/docker/pack")
+	  
+	  IO.copyDirectory(dockerSrc, dockerTarget, true, false)
+	  IO.copyDirectory(packSrc, packTarget, true, false)
+	  
+	  "docker build -t convergence-server-node server-node/target/docker/" !
+	}
+  )
+  .settings(dockerBuild <<= (dockerBuild dependsOn pack))  
+  .dependsOn(serverCore)
 
 val testkit = (project in file("server-testkit")).
   configs(Configs.all: _*).
@@ -44,12 +90,14 @@ val testkit = (project in file("server-testkit")).
     libraryDependencies ++= 
     akkaCore ++ 
     orientDb ++ 
+    Seq(orientDbServer) ++
     loggingAll ++
     testingCore ++
     Seq(javaWebsockets)
   )
   .dependsOn(serverCore)
-
+  
+  
 val tools = (project in file("server-tools")).
   configs(Configs.all: _*).
   settings(commonSettings: _*).
@@ -76,30 +124,15 @@ val e2eTests = (project in file("server-e2e-tests")).
   ).
   dependsOn(testkit)
 
-lazy val dockerSettings = Seq(
-  dockerfile in docker := {
-  
-    new Dockerfile {
-      from("java:8")
-      add(new java.io.File("target/pack"), "/opt/convergence")
-      workDir("/opt/convergence/")
-      entryPoint("/opt/convergence/bin/test-server")
-      expose(8080)
-    }
-  }
-)
-
 val root = (project in file(".")).
-  enablePlugins(DockerPlugin).
   configs(Configs.all: _*).
   settings(commonSettings: _*).
   settings(Testing.settings: _*).
-  settings(dockerSettings:_*).
   settings(
     name := "convergence-server",
-    aggregate in pack := false,
-    aggregate in docker := false
+    publishArtifact in (Compile, packageBin) := false, // there are no binaries
+    publishArtifact in (Compile, packageDoc) := false, // there are no javadocs
+    publishArtifact in (Compile, packageSrc) := false
   ).
-  aggregate(tools, serverCore, testkit, e2eTests)
+  aggregate(tools, serverCore, serverNode, testkit, e2eTests)
   
-  docker <<= docker dependsOn pack

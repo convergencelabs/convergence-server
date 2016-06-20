@@ -1,10 +1,13 @@
 package com.convergencelabs.server.domain.model.ot
 
 import scala.reflect.ClassTag
+import com.convergencelabs.server.domain.model.ReferenceType
+import scala.collection.immutable.Map.Map2
 
 private[model] class TransformationFunctionRegistry {
 
-  private[this] val otfs = new TFMap()
+  private[this] val otfs = new OTFMap()
+  private[this] val rtfs = new RTFMap()
 
   // String Functions
   otfs.register[StringInsertOperation, StringInsertOperation](StringInsertInsertTF)
@@ -81,25 +84,12 @@ private[model] class TransformationFunctionRegistry {
   // Boolean Functions
   otfs.register[BooleanSetOperation, BooleanSetOperation](BooleanSetSetTF)
 
-  def getTransformationFunction[S <: DiscreteOperation, C <: DiscreteOperation](s: S, c: C): Option[OperationTransformationFunction[S, C]] = {
+  def getOperationTransformationFunction[S <: DiscreteOperation, C <: DiscreteOperation](s: S, c: C): Option[OperationTransformationFunction[S, C]] = {
     otfs.getOperationTransformationFunction(s, c)
   }
 
-  def getPathTransformationFunction[A <: DiscreteOperation](a: A): Option[PathTransformationFunction[A]] = {
-    val tf: Option[PathTransformationFunction[_]] = a match {
-      case a: ArrayInsertOperation => Some(ArrayInsertPTF)
-      case a: ArrayRemoveOperation => Some(ArrayRemovePTF)
-      case a: ArrayReplaceOperation => Some(ArrayReplacePTF)
-      case a: ArrayMoveOperation => Some(ArrayMovePTF)
-      case a: ArraySetOperation => Some(ArraySetPTF)
-
-      case a: ObjectRemovePropertyOperation => Some(ObjectRemovePropertyPTF)
-      case a: ObjectSetPropertyOperation => Some(ObjectSetPropertyPTF)
-      case a: ObjectSetOperation => Some(ObjectSetPTF)
-      case _ => None
-    }
-
-    tf.map { tf => tf.asInstanceOf[PathTransformationFunction[A]] }
+  def getReferenceTransformationFunction[O <: DiscreteOperation](op: O, referenceType: ReferenceType.Value): Option[ReferenceTransformationFunction[O]] = {
+    rtfs.getReferenceTransformationFunction(op, referenceType)
   }
 }
 
@@ -113,7 +103,7 @@ private object RegistryKey {
   }
 }
 
-private class TFMap {
+private class OTFMap {
   var otfs = Map[RegistryKey[_, _], OperationTransformationFunction[_, _]]()
 
   def register[S <: DiscreteOperation, C <: DiscreteOperation](otf: OperationTransformationFunction[S, C])(implicit s: ClassTag[S], c: ClassTag[C]): Unit = {
@@ -128,5 +118,25 @@ private class TFMap {
   def getOperationTransformationFunction[S <: DiscreteOperation, C <: DiscreteOperation](s: S, c: C): Option[OperationTransformationFunction[S, C]] = {
     val key = RegistryKey(s.getClass, c.getClass)
     otfs.get(key).asInstanceOf[Option[OperationTransformationFunction[S, C]]]
+  }
+}
+
+private class RTFMap {
+  var rtfs = Map[Tuple2[Class[_], ReferenceType.Value], ReferenceTransformationFunction[_]]()
+
+  def register[S <: DiscreteOperation](referenceType: ReferenceType.Value, otf: ReferenceTransformationFunction[S])(implicit s: ClassTag[S]): Unit = {
+    val sClass = s.runtimeClass.asInstanceOf[Class[S]]
+    val key = (sClass, referenceType)
+    if (rtfs.get(key).isDefined) {
+      throw new IllegalArgumentException(s"Reference transformation function already registered for ${key._1.getSimpleName}, ${key._2}")
+    } else {
+      rtfs = rtfs + (key -> otf)
+    }
+  }
+
+  def getReferenceTransformationFunction[S <: DiscreteOperation](s: S, referenceType: ReferenceType.Value): Option[ReferenceTransformationFunction[S]] = {
+    val sClass = s.getClass.asInstanceOf[Class[S]]
+    val key = (sClass, referenceType)
+    rtfs.get(key).asInstanceOf[Option[ReferenceTransformationFunction[S]]]
   }
 }

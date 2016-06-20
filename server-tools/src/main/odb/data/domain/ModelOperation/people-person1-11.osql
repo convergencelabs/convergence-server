@@ -1,0 +1,27 @@
+INSERT INTO ModelOperation SET
+  collectionId = "people",
+  modelId = "person1",
+  timestamp = DATE("2015-10-20T11:00:00.000+0000"),
+  uid = "u0",
+  sid = "u0-1",
+  version = 11,
+  op = {
+    "@type": "d",
+    "@class":"ObjectSetOperation",
+    "noOp": false,
+    "vid": "pp1-spouse",
+    "val": {
+		"fname": {
+    		"@type": "d",
+    		"@class": "StringOpValue",
+    		"vid": "pp1-op11-1",
+    		"value": "jane"
+		},
+		"lname": {
+    		"@type": "d",
+    		"@class": "StringOpValue",
+    		"vid": "pp1-op11-2",
+    		"value": "smith"
+		}
+	}
+  };

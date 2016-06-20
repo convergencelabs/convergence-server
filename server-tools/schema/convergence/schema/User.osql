@@ -1,9 +1,0 @@
-CREATE CLASS User;
-
-#User.username
-CREATE PROPERTY User.username String;
-ALTER PROPERTY User.username MANDATORY true;
-ALTER PROPERTY User.username NOTNULL true;
-
-#User Indexes
-CREATE INDEX User.username ON User (username) UNIQUE;

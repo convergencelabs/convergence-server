@@ -17,21 +17,11 @@ import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 
 // scalastyle:off line.size.limit
 class DomainConfigStoreSpec
-    extends PersistenceStoreSpec[DomainConfigStore]("/dbfiles/domain.json.gz")
+    extends PersistenceStoreSpec[DomainConfigStore]("/dbfiles/domain-n1-d1.json.gz")
     with WordSpecLike
     with Matchers {
 
-  val df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
-
-  val tokenKey = TokenPublicKey(
-    "test",
-    "Test Key",
-    "A key for testing",
-    Instant.ofEpochMilli(df.parse("2015-09-21 12:32:43").getTime),
-    "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlqHvXYPseLVx2vCSCipw\nxOumeB2t3JFxXnQ1qC9QMcAydKT7oeTZEbJxgbpaeEy2QkH7J8drkfu78RBh9nFb\nJ3yh3/cZS09wMM4NQsmqqpee4qHromwR1N4MgYAzDGcnl0iHeaYc56tHt5n5ENjG\n+bjEULEGIFVbDs2MBxyswchyqRFGHse41uLxhybhDNkEQLUcqkbVesqVXGsz25Hi\nBdxfYRJ9+2x70GwxDf0nBfZb1fvUFZnCDJHKO/wqv5k9BcuCDLUOdRgJa7+E721V\nSvopddtRgEFnEWoOilcUWtF03CUy4tw3hv1VDcbXKsEma0KjP5IAvWFVI6dbDHeh\nLQIDAQAB\n-----END PUBLIC KEY-----\n",
-    true)
-
-  val tokenKeysMap = Map(tokenKey.id -> tokenKey)
+  val df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSz")
 
   val adminKeyPair = TokenKeyPair(
     "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAiqTif8iluSxzziE9aeNB\nxJoV3sg4iJZ/qAV8pZoVObpB10rm2C2vV8+IZXF+x9Pulk/8C8CljW8RtsaNbN4P\nqauNOm6Zk8faCbRHlt8PuN06TDRRX2FiWzeEQVFq/vnMIJwiWpYpIBB/TYYa5pnP\n4hmAdOR4XkJoSj6cACDHzEf3JTFq7HOdbwLg1GR9VTmTJvLBhKgTNINhyczN/R5Y\ndrFg/A+FqaA0gWEsvA2ig7bzwRMNBwFyPrb1//S/Qc47ndChVxK1lQchkFZKRsIz\n5ZjL5/YmfmWNpaYpQl6yH7vMIMB28arQw6FMBjqEfU2D4f0mrsKtu36xZJ8bWDN0\n8QIDAQAB\n-----END PUBLIC KEY-----\n",
@@ -40,16 +30,6 @@ class DomainConfigStoreSpec
   def createStore(dbPool: OPartitionedDatabasePool): DomainConfigStore = new DomainConfigStore(dbPool)
 
   "A DomainConfigStore" when {
-    "retrieving domain keys" must {
-      "return the correct list of all keys" in withPersistenceStore { store =>
-        store.getTokenKeys().success.get shouldBe tokenKeysMap
-      }
-
-      "return the correct key by id" in withPersistenceStore { store =>
-        store.getTokenKey(tokenKey.id).success.value.get shouldBe tokenKey
-      }
-    }
-
     "getting the admin key pair" must {
       "return the correct key by id" in withPersistenceStore { store =>
         store.getAdminKeyPair().success.value shouldBe adminKeyPair
@@ -63,8 +43,8 @@ class DomainConfigStoreSpec
             true,
             true,
             true,
-            250L,
-            500L,
+            250L, // scalastyle:ignore magic.number
+            500L, // scalastyle:ignore magic.number
             false,
             false,
             Duration.of(0, ChronoUnit.SECONDS),
@@ -82,8 +62,8 @@ class DomainConfigStoreSpec
           0L,
           true,
           true,
-          Duration.of(60, ChronoUnit.SECONDS),
-          Duration.of(360, ChronoUnit.SECONDS))
+          Duration.of(60, ChronoUnit.SECONDS), // scalastyle:ignore magic.number
+          Duration.of(360, ChronoUnit.SECONDS)) // scalastyle:ignore magic.number
 
         store.setModelSnapshotConfig(configToSet).success
         store.getModelSnapshotConfig().success.value shouldBe configToSet

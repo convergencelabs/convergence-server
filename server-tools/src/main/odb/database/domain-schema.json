@@ -1,0 +1,19 @@
+{
+  "schemaScripts": [
+    "domain/OrientConfig.osql",
+    "domain/ModelSnapshotConfig.osql",
+    "domain/TokenPublicKey.osql",
+    "domain/DomainConfig.osql",
+    "domain/Collection.osql",
+    "domain/Model.osql",
+    "domain/ModelSnapshot.osql",
+    "domain/DataValue.osql",
+    "domain/Operations.osql",
+    "domain/ModelOperation.osql",
+    "domain/User.osql",
+    "domain/UserCredential.osql",
+    "domain/OFunctions.osql"
+  ],
+  "dataScripts": [
+  ]
+} 

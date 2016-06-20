@@ -1,0 +1,46 @@
+# arrayInsert
+INSERT INTO OFunction SET
+  idempotent = false,
+  code = "var idx = parseInt(index);\narray.add(idx, value);\nreturn array;",
+  name ="arrayInsert",
+  language = "javascript",
+  parameters = [
+    "array",
+    "index",
+    "value"
+  ];
+  
+# arrayRemove
+INSERT INTO OFunction SET
+  idempotent = false,
+  code = "var idx = parseInt(index);\narray.remove(idx);\nreturn array;",
+  name ="arrayRemove",
+  language = "javascript",
+  parameters = [
+    "array",
+    "index"
+  ];
+  
+# arrayReplace
+INSERT INTO OFunction SET
+  idempotent = false,
+  code = "var idx = parseInt(index);\narray.set(idx, value);\nreturn array;",
+  name ="arrayReplace",
+  language = "javascript",
+  parameters = [
+    "array",
+    "index",
+    "value"
+  ];
+  
+# arrayMove
+INSERT INTO OFunction SET
+  idempotent = false,
+  code = "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;",
+  name ="arrayMove",
+  language = "javascript",
+  parameters = [
+    "array",
+    "fromIndex",
+    "toIndex"
+  ];

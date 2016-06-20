@@ -1,0 +1,20 @@
+INSERT INTO ModelOperation SET
+  collectionId = "people",
+  modelId = "person1",
+  timestamp = DATE("2015-10-20T12:00:00.000+0000"),
+  uid = "u0",
+  sid = "u0-1",
+  version = 12,
+  op = {
+    "@type": "d",
+    "@class":"ObjectSetPropertyOperation",
+    "prop": "married",
+    "noOp": false,
+    "vid": "pp1-married",
+    "val": {
+		"@type": "d",
+		"@class": "BooleanOpValue",
+		"vid": "pp1-op12",
+		"value": true
+	}
+  };

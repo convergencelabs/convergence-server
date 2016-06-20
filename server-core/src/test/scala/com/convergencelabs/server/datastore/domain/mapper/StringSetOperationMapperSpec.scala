@@ -14,12 +14,10 @@ class StringSetOperationMapperSpec
     extends WordSpec
     with Matchers {
 
-  val path = List(3, "foo", 4) // scalastyle:off magic.number
-
   "An StringSetOperationMapper" when {
     "when converting StringSetOperation operations" must {
       "correctly map and unmap a StringSetOperation" in {
-        val op = StringSetOperation(path, true, "test")
+        val op = StringSetOperation("vid", true, "test")
         val opDoc = op.asODocument
         val reverted = opDoc.asStringSetOperation
         op shouldBe reverted

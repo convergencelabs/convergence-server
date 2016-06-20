@@ -14,13 +14,10 @@ import org.jose4j.jwt.consumer.JwtConsumerBuilder
 import org.jose4j.jwt.consumer.InvalidJwtException
 import java.io.IOException
 import org.jose4j.jwt.MalformedClaimException
-import scala.util.control.NonFatal
 import scala.collection.mutable.ListBuffer
 import org.jose4j.jwt.JwtClaims
 import java.security.PublicKey
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.server.datastore.ConfigurationStore
-import java.util.UUID
 import scala.util.Success
 import scala.util.Failure
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
@@ -34,7 +31,6 @@ import com.convergencelabs.server.datastore.domain.PersistenceProviderUnavailabl
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import scala.util.Try
 
-// FIXME protocol config is silly.
 object DomainActor {
   def props(
     domainManagerActor: ActorRef,
@@ -45,9 +41,6 @@ object DomainActor {
       domainManagerActor,
       domainFqn,
       protocolConfig))
-
-  private val MaxSessionId = 2176782335L
-  private val SessionIdRadix = 36
 }
 
 /**
@@ -65,12 +58,19 @@ class DomainActor(
 
   private[this] var persistenceProvider: DomainPersistenceProvider = _
   private[this] implicit val ec = context.dispatcher
-  private[this] var nextSessionId = 0L
 
   private[this] val modelManagerActorRef = context.actorOf(ModelManagerActor.props(
     domainFqn,
     protocolConfig),
     ModelManagerActor.RelativePath)
+
+  private[this] val userServiceActor = context.actorOf(UserServiceActor.props(
+    domainFqn),
+    UserServiceActor.RelativePath)
+
+  private[this] val activityServiceActor = context.actorOf(ActivityServiceActor.props(
+    domainFqn),
+    ActivityServiceActor.RelativePath)
 
   private[this] var authenticator: AuthenticationHandler = _
 
@@ -97,16 +97,11 @@ class DomainActor(
     persistenceProvider.validateConnection() match {
       case true => {
         connectedClients += message.clientActor
-        val (sessionId, reconnectToken) = message.reconnect match {
-          case false => {
-            (generateNextSessionId(), generateSessionToken())
-          }
-          case true => {
-            // FIXME Are we doing anything with reconnection?
-            ("todo", "todo")
-          }
-        }
-        sender ! HandshakeSuccess(sessionId, reconnectToken, self, modelManagerActorRef)
+        sender ! HandshakeSuccess(
+          self,
+          modelManagerActorRef,
+          userServiceActor,
+          activityServiceActor)
       }
       case false => {
         sender ! HandshakeFailure("domain_unavailable", "Could not connect to database.")
@@ -125,37 +120,20 @@ class DomainActor(
     }
   }
 
-  def generateNextSessionId(): String = {
-    val sessionId = nextSessionId
-
-    if (nextSessionId < DomainActor.MaxSessionId) {
-      nextSessionId += 1
-    } else {
-      nextSessionId = 0
-    }
-
-    java.lang.Long.toString(sessionId, DomainActor.SessionIdRadix)
-  }
-
-  def generateSessionToken(): String = {
-    UUID.randomUUID().toString() + UUID.randomUUID().toString()
-  }
-
   override def preStart(): Unit = {
     val p = DomainPersistenceManagerActor.acquirePersistenceProvider(
       self, context, domainFqn)
 
     p match {
-      case Success(provider) => {
+      case Success(provider) =>
         this.persistenceProvider = provider
         authenticator = new AuthenticationHandler(
           provider.configStore,
+          provider.keyStore,
           provider.userStore,
           context.dispatcher)
-      }
-      case Failure(cause) => {
+      case Failure(cause) =>
         log.error(cause, "Unable to obtain a domain persistence provider.")
-      }
     }
   }
 

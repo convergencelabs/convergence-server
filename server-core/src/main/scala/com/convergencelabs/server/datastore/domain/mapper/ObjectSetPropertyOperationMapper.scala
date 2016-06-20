@@ -1,14 +1,13 @@
 package com.convergencelabs.server.datastore.domain.mapper
 
-import java.util.{ List => JavaList }
-import scala.collection.JavaConverters.asScalaBufferConverter
-import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.language.implicitConversions
-import com.convergencelabs.server.domain.model.ot.ObjectSetPropertyOperation
-import com.convergencelabs.server.util.JValueMapper
-import com.orientechnologies.orient.core.record.impl.ODocument
-import org.json4s.JsonAST.JObject
+
 import com.convergencelabs.server.datastore.mapper.ODocumentMapper
+import com.convergencelabs.server.domain.model.ot.ObjectSetPropertyOperation
+import com.orientechnologies.orient.core.record.impl.ODocument
+
+import DataValueMapper.DataValueToODocument
+import DataValueMapper.ODocumentToDataValue
 
 object ObjectSetPropertyOperationMapper extends ODocumentMapper {
 
@@ -17,12 +16,12 @@ object ObjectSetPropertyOperationMapper extends ODocumentMapper {
   }
 
   private[domain] implicit def objectSetPropertyOperationToODocument(obj: ObjectSetPropertyOperation): ODocument = {
-    val ObjectSetPropertyOperation(path, noOp, prop, value) = obj
+    val ObjectSetPropertyOperation(id, noOp, prop, value) = obj
     val doc = new ODocument(DocumentClassName)
-    doc.field(Fields.Path, path.asJava)
+    doc.field(Fields.Id, id)
     doc.field(Fields.NoOp, noOp)
     doc.field(Fields.Prop, prop)
-    doc.field(Fields.Val, JValueMapper.jValueToJava(value))
+    doc.field(Fields.Val, value.asODocument)
     doc
   }
 
@@ -33,17 +32,17 @@ object ObjectSetPropertyOperationMapper extends ODocumentMapper {
   private[domain] implicit def oDocumentToObjectSetPropertyOperation(doc: ODocument): ObjectSetPropertyOperation = {
     validateDocumentClass(doc, DocumentClassName)
 
-    val path = doc.field(Fields.Path).asInstanceOf[JavaList[_]]
+    val id = doc.field(Fields.Id).asInstanceOf[String]
     val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
     val prop = doc.field(Fields.Prop).asInstanceOf[String]
-    val value = JValueMapper.javaToJValue(doc.field(Fields.Val))
-    ObjectSetPropertyOperation(path.asScala.toList, noOp, prop, value)
+    val value = doc.field(Fields.Val).asInstanceOf[ODocument].asDataValue
+    ObjectSetPropertyOperation(id, noOp, prop, value)
   }
 
   private[domain] val DocumentClassName = "ObjectSetPropertyOperation"
 
   private[domain] object Fields {
-    val Path = "path"
+    val Id = "vid"
     val NoOp = "noOp"
     val Prop = "prop"
     val Val = "val"

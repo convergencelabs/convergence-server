@@ -196,7 +196,8 @@ private[ot] object ArrayMoveMoveTF extends OperationTransformationFunction[Array
     }
   }
 
-  private[this] def transformServerBackwardMoveWithClientBackwardMove(s: ArrayMoveOperation, c: ArrayMoveOperation): (ArrayMoveOperation, ArrayMoveOperation) = {
+  private[this] def transformServerBackwardMoveWithClientBackwardMove(
+    s: ArrayMoveOperation, c: ArrayMoveOperation): (ArrayMoveOperation, ArrayMoveOperation) = {
     ArrayMoveHelper.getRangeRelationship(s, c) match {
       case Precedes =>
         // A-MM-BB-1
@@ -240,7 +241,8 @@ private[ot] object ArrayMoveMoveTF extends OperationTransformationFunction[Array
     }
   }
 
-  private[this] def transformServerBackwardMoveWithClientIdentityMove(s: ArrayMoveOperation, c: ArrayMoveOperation): (ArrayMoveOperation, ArrayMoveOperation) = {
+  private[this] def transformServerBackwardMoveWithClientIdentityMove(
+    s: ArrayMoveOperation, c: ArrayMoveOperation): (ArrayMoveOperation, ArrayMoveOperation) = {
     ArrayMoveHelper.getRangeIndexRelationship(s, c.fromIndex) match {
       case Before | After =>
         // A-MM-BI-1 and A-MM-BI-5
@@ -268,7 +270,8 @@ private[ot] object ArrayMoveMoveTF extends OperationTransformationFunction[Array
     }
   }
 
-  private[this] def transformServerIdentityMoveWithClientBackwardMove(s: ArrayMoveOperation, c: ArrayMoveOperation): (ArrayMoveOperation, ArrayMoveOperation) = {
+  private[this] def transformServerIdentityMoveWithClientBackwardMove(
+    s: ArrayMoveOperation, c: ArrayMoveOperation): (ArrayMoveOperation, ArrayMoveOperation) = {
     ArrayMoveHelper.getRangeIndexRelationship(c, s.fromIndex) match {
       case Before | After =>
         // A-MM-IB-1 and A-MM-IB-5
@@ -282,7 +285,8 @@ private[ot] object ArrayMoveMoveTF extends OperationTransformationFunction[Array
     }
   }
 
-  private[this] def transformServerIdentityMoveWithClientIdentityMove(s: ArrayMoveOperation, c: ArrayMoveOperation): (ArrayMoveOperation, ArrayMoveOperation) = {
+  private[this] def transformServerIdentityMoveWithClientIdentityMove(
+    s: ArrayMoveOperation, c: ArrayMoveOperation): (ArrayMoveOperation, ArrayMoveOperation) = {
     // A-MM-II-1
     (s, c)
   }

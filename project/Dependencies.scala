@@ -6,8 +6,8 @@ object Dependencies {
   
   // Versions
   object Versions {
-    val akka      = "2.4.0"
-    val orientDb  = "2.1.7"
+    val akka      = "2.4.7"
+    val orientDb  = "2.2.0"
     val log4j     = "2.4.1"
   }
 
@@ -19,14 +19,18 @@ object Dependencies {
     val akkaSlf4j          = "com.typesafe.akka"        % "akka-slf4j_2.11"               % Versions.akka              // Apache 2.0
     val akkaCore = Seq(akkaActor, akkaCluster, akkaSlf4j)
     
-    val akkaHttp           = "com.typesafe.akka"        % "akka-http-experimental_2.11"   % "1.0"                       // Apache 2.0
-    val akkaStream         = "com.typesafe.akka"        % "akka-stream-experimental_2.11" % "1.0"                       // Apache 2.0
+    val akkaHttp           = "com.typesafe.akka"        % "akka-http-experimental_2.11"   % Versions.akka
+    val akkaHttpTest       = "com.typesafe.akka"        % "akka-http-testkit-experimental_2.11" % Versions.akka
+
+    val akkaHttpJson4s     = "de.heikoseeberger"        % "akka-http-json4s_2.11"         % "1.5.3"
+    val akkaHttpCors       = "ch.megard"                %% "akka-http-cors"                % "0.1.0"
     
+
     // Orient DB Dependencies
     val orientDbClient     = "com.orientechnologies"    % "orientdb-client"               % Versions.orientDb           // Apache 2.0
-    val orientDbCore       = "com.orientechnologies"    % "orientdb-core"                 % Versions.orientDb           // Apache 2.0
-    val orientDbEnterprise = "com.orientechnologies"    % "orientdb-enterprise"           % Versions.orientDb           // Apache 2.0
-    val orientDb = Seq(orientDbClient, orientDbCore, orientDbEnterprise)
+    val orientDbCore       = "com.orientechnologies"    % "orientdb-core"                 % Versions.orientDb 
+    val orientDbServer       = "com.orientechnologies"    % "orientdb-server"                 % Versions.orientDb // Apache 2.0
+    val orientDb = Seq(orientDbClient, orientDbCore)
   
     // Logging
     val grizzledSlf4j      = "org.clapper"              % "grizzled-slf4j_2.11"           % "1.0.2"                     // BSD
@@ -49,6 +53,7 @@ object Dependencies {
   
     // MISC  
     val commonsLang        = "org.apache.commons"       % "commons-lang3"                 % "3.4"                       // Apache 2.0
+    val commonsEmail       = "org.apache.commons"       % "commons-email"                 % "1.4"                       // Apache 2.0
     val json4s             = "org.json4s"               % "json4s-jackson_2.11"           % "3.3.0"                     // Apache 2.0
   }
   
