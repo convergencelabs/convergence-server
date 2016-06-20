@@ -24,6 +24,10 @@ node {
     cp -a server-node/src/docker/ server-node/target/docker
     cp -a server-node/target/pack server-node/target/docker/pack
     
+    echo "Logging in to docker"
+    docker login -u "jenkins" -p "FgOUf&M*tW0calwmLLnY" nexus.convergencelabs.tech:18444
+    docker login -u "jenkins" -p "FgOUf&M*tW0calwmLLnY" nexus.convergencelabs.tech:18443
+    
     echo "Building the container"
     docker build -t nexus.convergencelabs.tech:18444/convergence-server-node server-node/target/docker
     
