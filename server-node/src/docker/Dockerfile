@@ -1,6 +1,6 @@
 FROM java:openjdk-8-jre-alpine
 
-ADD pack /opt/convergence
+ADD ../../target/pack /opt/convergence
 
 # Set Up confd
 ADD bin/confd-0.11.0-linux-amd64 /usr/local/bin/confd

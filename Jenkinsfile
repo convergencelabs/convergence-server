@@ -13,6 +13,7 @@ node {
   sh 'sbt serverNode/pack'
   
   stage 'Server Node Docker'
-  sh 'sbt serverNode/dockerBuild'
+  echo "Current build number is ${env.BUILD_NUMBER}
+  sh 'docker build -t convergence-server-node'
  }
  

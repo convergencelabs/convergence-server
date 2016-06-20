@@ -48,7 +48,6 @@ val serverCore = (project in file("server-core")).
       testingAkka
   )
   
-lazy val dockerBuild = taskKey[Unit]("docker-build")
 val serverNode = (project in file("server-node"))
   .configs(Configs.all: _*)
   .settings(commonSettings: _*)
@@ -58,26 +57,12 @@ val serverNode = (project in file("server-node"))
       packMain := Map("server-node" -> "com.convergencelabs.server.ConvergenceServerNode"),
       packResourceDir += (baseDirectory.value / "src" / "config" -> "config")
     )
-    ++ publishPackArchiveTgz
   )
   .settings(
     name := "convergence-server-node",
     publishArtifact in (Compile, packageBin) := false, 
     publishArtifact in (Compile, packageDoc) := false, 
     publishArtifact in (Compile, packageSrc) := false
-  )
-  .settings(
-    dockerBuild := {
-	  val dockerSrc = new File("server-node/src/docker")
-	  val dockerTarget = new File("server-node/target/docker")
-	  val packSrc = new File("server-node/target/pack")
-	  val packTarget = new File("server-node/target/docker/pack")
-	  
-	  IO.copyDirectory(dockerSrc, dockerTarget, true, false)
-	  IO.copyDirectory(packSrc, packTarget, true, false)
-	  
-	  "docker build -t convergence-server-node server-node/target/docker/" !
-	}
   )
   .dependsOn(serverCore)
 
