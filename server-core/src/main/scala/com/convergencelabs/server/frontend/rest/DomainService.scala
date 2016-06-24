@@ -118,7 +118,6 @@ class DomainService(
     (domainStoreActor ? ListDomainsRequest(userId)).mapTo[List[Domain]].map(domains =>
       (StatusCodes.OK, DomainsResponse(
         (domains map (domain => DomainFqn(domain.domainFqn.namespace, domain.domainFqn.domainId))))))
-
   }
 
   def getDomain(namespace: String, domainId: String): Future[RestResponse] = {

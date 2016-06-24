@@ -81,12 +81,13 @@ class ConvergenceRestFrontEnd(
     val authenticator = new Authenticator(authActor, defaultRequestTimeout, ec)
     val registrationService = new RegistrationService(ec, registrationActor, defaultRequestTimeout)
     val domainService = new DomainService(ec, authzActor, domainActor, domainManagerActor, defaultRequestTimeout)
+    val profileService = new ProfileService(ec, convergenceUserActor, defaultRequestTimeout)
     val keyGenService = new KeyGenService(ec)
     val convergenceAdminService = new ConvergenceAdminService(ec, convergenceUserActor, defaultRequestTimeout)
-    
+
     val adminsConfig = system.settings.config.getConfig("convergence.convergence-admins")
     val restPublicEndpoint = system.settings.config.getString("convergence.rest-public-endpoint")
-    
+
     def getApprovalHtml(token: String): String = {
       val templateHtml = html.registrationApproval(s"${restPublicEndpoint}", token)
       return templateHtml.toString();
@@ -102,7 +103,8 @@ class ConvergenceRestFrontEnd(
           extractRequest { request =>
             authenticator.requireAuthenticated(request) { userId =>
               domainService.route(userId) ~
-                keyGenService.route()
+                keyGenService.route() ~
+                profileService.route(userId)
             }
           }
       } ~ pathPrefix("admin") {

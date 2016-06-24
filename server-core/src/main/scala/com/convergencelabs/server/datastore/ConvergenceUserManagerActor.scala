@@ -22,6 +22,7 @@ import akka.actor.Status
 import akka.actor.actorRef2Scala
 import akka.pattern.ask
 import akka.util.Timeout
+import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUserProfile
 
 object ConvergenceUserManagerActor {
   def props(dbPool: OPartitionedDatabasePool, domainStoreActor: ActorRef): Props =
@@ -29,6 +30,7 @@ object ConvergenceUserManagerActor {
 
   case class CreateConvergenceUserRequest(username: String, email: String, firstName: String, lastName: String, password: String)
   case class DeleteConvergenceUserRequest(username: String)
+  case class GetConvergenceUserProfile(userId: String)
 }
 
 class ConvergenceUserManagerActor private[datastore] (
@@ -49,6 +51,7 @@ class ConvergenceUserManagerActor private[datastore] (
   def receive: Receive = {
     case message: CreateConvergenceUserRequest => createConvergenceUser(message)
     case message: DeleteConvergenceUserRequest => deleteConvergenceUser(message)
+    case message: GetConvergenceUserProfile => getConvergenceUserProfile(message)
     case message: Any => unhandled(message)
   }
 
@@ -57,14 +60,26 @@ class ConvergenceUserManagerActor private[datastore] (
     val origSender = sender
     userStore.createUser(User(null, username, email, firstName, lastName), password) map {
       case CreateSuccess(uid) => {
-        autoCreateConfigs foreach { config => {
-          val importFile = if(config.hasPath("import-file")) { Some(config.getString("import-file"))} else {None}
-          createDomain(uid, username, config.getString("name"), importFile)}
+        autoCreateConfigs foreach { config =>
+          {
+            val importFile = if (config.hasPath("import-file")) { Some(config.getString("import-file")) } else { None }
+            createDomain(uid, username, config.getString("name"), importFile)
+          }
         }
         origSender ! CreateSuccess(uid)
       }
       case DuplicateValue => origSender ! DuplicateValue
       case InvalidValue => origSender ! InvalidValue
+    }
+  }
+
+  def getConvergenceUserProfile(message: GetConvergenceUserProfile): Unit = {
+    val GetConvergenceUserProfile(userId) = message
+    userStore.getUserByUid(userId) match {
+      case Success(opt) =>
+        sender ! opt
+      case Failure(f) =>
+        sender ! Status.Failure(f)
     }
   }
 
@@ -81,10 +96,10 @@ class ConvergenceUserManagerActor private[datastore] (
 
   private[this] def createDomain(userId: String, username: String, name: String, importFile: Option[String]): Unit = {
     (domainStoreActor ? CreateDomainRequest(username, name, name, userId, importFile)).mapTo[CreateResult[Unit]] onComplete {
-       case Success(resp: CreateSuccess[Unit]) => log.debug(s"Domain '${name}' created for '${username}'");
-       case Success(DuplicateValue) => log.error(s"Unable to create '${name}' domain for user: Duplicate value exception");
-       case Success(InvalidValue) => log.error(s"Unable to create '${name}' domain for user: Invalid value exception");
-       case Failure(f) => log.error(f, s"Unable to create '${name}' domain for user");
+      case Success(resp: CreateSuccess[Unit]) => log.debug(s"Domain '${name}' created for '${username}'");
+      case Success(DuplicateValue) => log.error(s"Unable to create '${name}' domain for user: Duplicate value exception");
+      case Success(InvalidValue) => log.error(s"Unable to create '${name}' domain for user: Invalid value exception");
+      case Failure(f) => log.error(f, s"Unable to create '${name}' domain for user");
     }
     Unit
   }
