@@ -9,6 +9,7 @@ import akka.actor.ActorLogging
 import akka.actor.Status
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
+import akka.actor.ActorRef
 
 abstract class StoreActor private[datastore] extends Actor with ActorLogging {
 
@@ -20,11 +21,19 @@ abstract class StoreActor private[datastore] extends Actor with ActorLogging {
     sender ! (mapReply(value, mapper))
   }
 
-  def reply[T](value: Try[T]): Unit = {
+  def reply[T](value: Try[T], sender: ActorRef): Unit = {
     sender ! (mapReply(value, defaultMapper))
   }
   
+  def reply[T](value: Try[T]): Unit = {
+    reply(value, sender)
+  }
+  
   def reply[T](f: Throwable): Unit = {
+    reply(f, sender)
+  }
+  
+  def reply[T](f: Throwable, sender: ActorRef): Unit = {
     sender ! Status.Failure(f)
   }
 

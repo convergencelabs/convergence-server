@@ -59,18 +59,30 @@ class ConvergenceUserManagerActor private[datastore] (
     val CreateConvergenceUserRequest(username, email, firstName, lastName, password) = message
     val origSender = sender
     userStore.createUser(User(null, username, email, firstName, lastName), password) map {
-      case CreateSuccess(uid) => {
-        autoCreateConfigs foreach { config =>
-          {
-            val importFile = if (config.hasPath("import-file")) { Some(config.getString("import-file")) } else { None }
-            createDomain(uid, username, config.getString("name"), importFile)
-          }
+      case CreateSuccess(uid) =>
+        log.debug("User created.  Creating domains")
+        seqFutures(autoCreateConfigs) { config =>
+          val importFile = if (config.hasPath("import-file")) { Some(config.getString("import-file")) } else { None }
+          createDomain(uid, username, config.getString("name"), importFile)
+        } andThen {
+          case _ =>
+            origSender ! CreateSuccess(uid)
         }
-        origSender ! CreateSuccess(uid)
-      }
-      case DuplicateValue => origSender ! DuplicateValue
-      case InvalidValue => origSender ! InvalidValue
+
+      case DuplicateValue =>
+        origSender ! DuplicateValue
+      case InvalidValue =>
+        origSender ! InvalidValue
     }
+  }
+
+  def seqFutures[T, U](items: TraversableOnce[T])(yourfunction: T => Future[U]): Future[List[U]] = {
+    items.foldLeft(Future.successful[List[U]](Nil)) {
+      (f, item) =>
+        f.flatMap {
+          x => yourfunction(item).map(_ :: x)
+        }
+    } map (_.reverse)
   }
 
   def getConvergenceUserProfile(message: GetConvergenceUserProfile): Unit = {
@@ -94,13 +106,22 @@ class ConvergenceUserManagerActor private[datastore] (
     }
   }
 
-  private[this] def createDomain(userId: String, username: String, name: String, importFile: Option[String]): Unit = {
-    (domainStoreActor ? CreateDomainRequest(username, name, name, userId, importFile)).mapTo[CreateResult[Unit]] onComplete {
-      case Success(resp: CreateSuccess[Unit]) => log.debug(s"Domain '${name}' created for '${username}'");
-      case Success(DuplicateValue) => log.error(s"Unable to create '${name}' domain for user: Duplicate value exception");
-      case Success(InvalidValue) => log.error(s"Unable to create '${name}' domain for user: Invalid value exception");
-      case Failure(f) => log.error(f, s"Unable to create '${name}' domain for user");
+  private[this] def createDomain(userId: String, username: String, name: String, importFile: Option[String]): Future[CreateResult[Unit]] = {
+    log.debug(s"Requesting domain creation for user '${username}': $name")
+    
+    // FIXME hardcoded
+    implicit val requstTimeout = Timeout(120 seconds)
+    (domainStoreActor ? CreateDomainRequest(username, name, name, userId, importFile)).mapTo[CreateResult[Unit]] andThen {
+      case Success(resp: CreateSuccess[Unit]) =>
+        log.debug(s"Domain '${name}' created for '${username}'");
+      case Success(DuplicateValue) =>
+        log.error(s"Unable to create '${name}' domain for user: Duplicate value exception");
+      case Success(InvalidValue) =>
+        log.error(s"Unable to create '${name}' domain for user: Invalid value exception");
+      case Success(x) =>
+        println(x)
+      case Failure(f) =>
+        log.error(f, s"Unable to create '${name}' domain for user");
     }
-    Unit
   }
 }

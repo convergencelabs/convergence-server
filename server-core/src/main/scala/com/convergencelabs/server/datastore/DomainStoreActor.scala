@@ -40,12 +40,13 @@ class DomainStoreActor private[datastore] (
   }
 
   def createDomain(createRequest: CreateDomainRequest): Unit = {
+    val origSender = sender
     val CreateDomainRequest(namespace, domainId, displayName, owner, importFile) = createRequest
     domainDBContoller.createDomain(importFile) onComplete {
       case Success(DBConfig(dbName, username, password)) =>
-        reply(domainStore.createDomain(Domain(null, DomainFqn(namespace, domainId), displayName, owner), dbName, username, password))
+        reply(domainStore.createDomain(Domain(null, DomainFqn(namespace, domainId), displayName, owner), dbName, username, password), origSender)
       case Failure(f) =>
-        reply(f)
+        reply(f, origSender)
     }
   }
 
