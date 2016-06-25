@@ -38,10 +38,10 @@ class ModelManagerActor(
 
   def receive: Receive = {
     case message: OpenRealtimeModelRequest => onOpenRealtimeModel(message)
-    case message: CreateModelRequest       => onCreateModelRequest(message)
-    case message: DeleteModelRequest       => onDeleteModelRequest(message)
-    case message: ModelShutdownRequest     => onModelShutdownRequest(message)
-    case message: Any                      => unhandled(message)
+    case message: CreateModelRequest => onCreateModelRequest(message)
+    case message: DeleteModelRequest => onDeleteModelRequest(message)
+    case message: ModelShutdownRequest => onModelShutdownRequest(message)
+    case message: Any => unhandled(message)
   }
 
   private[this] def onOpenRealtimeModel(openRequest: OpenRealtimeModelRequest): Unit = {
@@ -86,34 +86,42 @@ class ModelManagerActor(
   }
 
   private[this] def onCreateModelRequest(createRequest: CreateModelRequest): Unit = {
-    persistenceProvider.modelStore.modelExists(createRequest.modelFqn) match {
-      case Success(true) =>
-        sender ! ModelAlreadyExists
-      case Success(false) =>
-        val createTime = Instant.now()
-        val model = Model(
-          ModelMetaData(
-            createRequest.modelFqn,
-            0,
-            createTime,
-            createTime),
-          createRequest.modelData)
+    val ModelFqn(collectionId, modelId) = createRequest.modelFqn
+    // FIXME perhaps these should be some expected error type, like InvalidArgument
+    if (collectionId.length == 0) {
+      sender ! UnknownErrorResponse("The collecitonId can not be empty when creating a model")
+    } else if (modelId.length == 0) {
+      sender ! UnknownErrorResponse("The modelId can not be empty when creating a model")
+    } else {
+      persistenceProvider.modelStore.modelExists(createRequest.modelFqn) match {
+        case Success(true) =>
+          sender ! ModelAlreadyExists
+        case Success(false) =>
+          val createTime = Instant.now()
+          val model = Model(
+            ModelMetaData(
+              createRequest.modelFqn,
+              0,
+              createTime,
+              createTime),
+            createRequest.modelData)
 
-        try {
-          // FIXME all of this should work or not, together.
-          persistenceProvider.collectionStore.ensureCollectionExists(createRequest.modelFqn.collectionId)
-          persistenceProvider.modelStore.createModel(model)
-          persistenceProvider.modelSnapshotStore.createSnapshot(
-            ModelSnapshot(ModelSnapshotMetaData(createRequest.modelFqn, 0, createTime),
-              createRequest.modelData))
+          try {
+            // FIXME all of this should work or not, together.
+            persistenceProvider.collectionStore.ensureCollectionExists(createRequest.modelFqn.collectionId)
+            persistenceProvider.modelStore.createModel(model)
+            persistenceProvider.modelSnapshotStore.createSnapshot(
+              ModelSnapshot(ModelSnapshotMetaData(createRequest.modelFqn, 0, createTime),
+                createRequest.modelData))
 
-          sender ! ModelCreated
-        } catch {
-          case e: IOException =>
-            sender ! UnknownErrorResponse("Could not create model: " + e.getMessage)
-        }
-      case Failure(cause) =>
-        sender ! akka.actor.Status.Failure(cause)
+            sender ! ModelCreated
+          } catch {
+            case e: IOException =>
+              sender ! UnknownErrorResponse("Could not create model: " + e.getMessage)
+          }
+        case Failure(cause) =>
+          sender ! akka.actor.Status.Failure(cause)
+      }
     }
   }
 
@@ -157,7 +165,7 @@ object ModelManagerActor {
   val RelativePath = "modelManager"
 
   def props(domainFqn: DomainFqn,
-            protocolConfig: ProtocolConfiguration): Props = Props(
+    protocolConfig: ProtocolConfiguration): Props = Props(
     new ModelManagerActor(
       domainFqn,
       protocolConfig))

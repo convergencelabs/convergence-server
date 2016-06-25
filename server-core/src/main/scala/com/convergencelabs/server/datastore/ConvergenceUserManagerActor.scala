@@ -64,11 +64,9 @@ class ConvergenceUserManagerActor private[datastore] (
         seqFutures(autoCreateConfigs) { config =>
           val importFile = if (config.hasPath("import-file")) { Some(config.getString("import-file")) } else { None }
           createDomain(uid, username, config.getString("name"), importFile)
-        } andThen {
-          case _ =>
-            origSender ! CreateSuccess(uid)
         }
-
+        
+        origSender ! CreateSuccess(uid)
       case DuplicateValue =>
         origSender ! DuplicateValue
       case InvalidValue =>
