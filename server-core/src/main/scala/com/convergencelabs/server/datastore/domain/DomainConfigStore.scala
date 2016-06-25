@@ -22,6 +22,7 @@ import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 
 import grizzled.slf4j.Logging
+import java.util.ArrayList
 
 class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
     extends AbstractDatabasePersistence(dbPool)
@@ -32,6 +33,7 @@ class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
     doc.field("modelSnapshotConfig", modelSnapshotConfig.asODocument, OType.EMBEDDED)
     doc.field("adminPublicKey", tokenKeyPair.publicKey)
     doc.field("adminPrivateKey", tokenKeyPair.privateKey)
+    doc.field("tokenKeys", new ArrayList[TokenPublicKey](), OType.EMBEDDEDLIST)
     doc.save()
     ()
   }

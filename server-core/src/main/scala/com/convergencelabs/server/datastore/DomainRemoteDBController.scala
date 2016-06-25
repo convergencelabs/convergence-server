@@ -114,7 +114,7 @@ class DomainDBController(
     // FIXME workaround to orientdb import issues, where the schema is out of whack.
     val db = pool.acquire()
     db.getMetadata().reload()
-    db.release()
+    db.close()
     (id, pool)
   } flatMap {
     case (id, pool) =>
