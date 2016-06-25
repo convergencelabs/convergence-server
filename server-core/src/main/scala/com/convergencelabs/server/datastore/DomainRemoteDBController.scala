@@ -52,7 +52,6 @@ object DomainRemoteDBController {
     JavaDuration.of(0, ChronoUnit.MINUTES))
 }
 
-
 case class DBConfig(dbName: String, username: String, password: String)
 
 class DomainDBController(
@@ -76,7 +75,7 @@ class DomainDBController(
   implicit val materializer = ActorMaterializer()
   implicit val ec = system.dispatcher
 
-  def createDomain(importFile: Option[String]): Try[DBConfig] = Try {
+  def createDomain(importFile: Option[String]): Future[DBConfig] = {
     val id = UUID.randomUUID().getLeastSignificantBits().toString()
 
     val uri = s"${BaseDbUri}/${id}"
@@ -97,41 +96,45 @@ class DomainDBController(
     val importPost = HttpRequest(method = HttpMethods.POST,
       uri = importApi, headers = List(authHeader), entity = importEntity)
 
-    Http().singleRequest(importPost) onComplete {
-      case Success(r) =>
-        logger.debug(s"Import Success: $r")
-      case Failure(f) =>
-        f.printStackTrace()
+    val f = Http().singleRequest(importPost)
+    f.flatMap { response =>
+      logger.debug(s"Import Success: $response")
+      initDomain(id, uri, Username, DefaultPassword) match {
+        case Success(config) =>
+          Future.successful(config)
+        case Failure(f) =>
+          Future.failed(f)
+      }
     }
+  }
 
-    // 
-    // Load the config.
-    //
-    val pool = new OPartitionedDatabasePool(uri, Username, DefaultPassword, 64, 1)
+  private[this] def initDomain(id: String, uri: String, username: String, password: String): Try[DBConfig] = Try {
+    val pool = new OPartitionedDatabasePool(uri, username, password, 64, 1)
 
     // FIXME workaround to orientdb import issues, where the schema is out of whack.
     val db = pool.acquire()
     db.getMetadata().reload()
     db.release()
     (id, pool)
-  } flatMap { case (id, pool) =>
-    JwtUtil.createKey().flatMap { rsaJsonWebKey =>
-      for {
-        publicKey <- JwtUtil.getPublicCertificatePEM(rsaJsonWebKey)
-        privateKey <- JwtUtil.getPrivateKeyPEM(rsaJsonWebKey)
-      } yield {
-        (publicKey, privateKey)
-      }
-    } flatMap {
-      case (pubKey, privKey) =>
-        val persistenceProvider = new DomainPersistenceProvider(pool)
-        persistenceProvider.configStore.initializeDomainConfig(
-            new TokenKeyPair(pubKey, privKey), 
+  } flatMap {
+    case (id, pool) =>
+      JwtUtil.createKey().flatMap { rsaJsonWebKey =>
+        for {
+          publicKey <- JwtUtil.getPublicCertificatePEM(rsaJsonWebKey)
+          privateKey <- JwtUtil.getPrivateKeyPEM(rsaJsonWebKey)
+        } yield {
+          (publicKey, privateKey)
+        }
+      } flatMap {
+        case (pubKey, privKey) =>
+          val persistenceProvider = new DomainPersistenceProvider(pool)
+          persistenceProvider.configStore.initializeDomainConfig(
+            new TokenKeyPair(pubKey, privKey),
             DomainRemoteDBController.DefaultSnapshotConfig)
-    } map { _ =>
-      pool.close()
-      DBConfig(id, Username, DefaultPassword)
-    }
+      } map { _ =>
+        pool.close()
+        DBConfig(id, Username, DefaultPassword)
+      }
   }
 
   def deleteDomain(id: String): Unit = {

@@ -68,7 +68,7 @@ class ConvergenceRestFrontEnd(
     val domainStore = new DomainStore(dbPool)
 
     val authActor = system.actorOf(AuthStoreActor.props(dbPool))
-    val domainActor = system.actorOf(DomainStoreActor.props(dbPool))
+    val domainActor = system.actorOf(DomainStoreActor.props(dbPool, ec))
     val userManagerActor = system.actorOf(ConvergenceUserManagerActor.props(dbPool, domainActor))
     val registrationActor = system.actorOf(RegistrationActor.props(dbPool, userManagerActor))
     val domainManagerActor = system.actorOf(RestDomainManagerActor.props(dbPool))

@@ -16,9 +16,11 @@ import com.typesafe.config.Config
 import akka.actor.ActorLogging
 import akka.actor.Props
 import scala.util.Try
+import scala.concurrent.ExecutionContext
 
 class DomainStoreActor private[datastore] (
-  private[this] val dbPool: OPartitionedDatabasePool)
+  private[this] val dbPool: OPartitionedDatabasePool,
+  private[this] implicit val ec: ExecutionContext)
     extends StoreActor with ActorLogging {
 
   private[this] val orientDbConfig: Config = context.system.settings.config.getConfig("convergence.orient-db")
@@ -39,11 +41,12 @@ class DomainStoreActor private[datastore] (
 
   def createDomain(createRequest: CreateDomainRequest): Unit = {
     val CreateDomainRequest(namespace, domainId, displayName, owner, importFile) = createRequest
-    reply(
-      domainDBContoller.createDomain(importFile).flatMap {
-        case DBConfig(dbName, username, password) =>
-          domainStore.createDomain(Domain(null, DomainFqn(namespace, domainId), displayName, owner), dbName, username, password)
-      })
+    domainDBContoller.createDomain(importFile) onComplete {
+      case Success(DBConfig(dbName, username, password)) =>
+        reply(domainStore.createDomain(Domain(null, DomainFqn(namespace, domainId), displayName, owner), dbName, username, password))
+      case Failure(f) =>
+        reply(f)
+    }
   }
 
   def updateDomain(request: UpdateDomainRequest): Unit = {
@@ -84,7 +87,8 @@ class DomainStoreActor private[datastore] (
 }
 
 object DomainStoreActor {
-  def props(dbPool: OPartitionedDatabasePool): Props = Props(new DomainStoreActor(dbPool))
+  def props(dbPool: OPartitionedDatabasePool,
+      ec: ExecutionContext): Props = Props(new DomainStoreActor(dbPool, ec))
 
   case class CreateDomainRequest(namespace: String, domainId: String, displayName: String, owner: String, importFile: Option[String])
   case class UpdateDomainRequest(namespace: String, domainId: String, displayName: String)
