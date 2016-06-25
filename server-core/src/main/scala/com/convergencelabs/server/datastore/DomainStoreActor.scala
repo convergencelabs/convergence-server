@@ -25,8 +25,8 @@ class DomainStoreActor private[datastore] (
   private[this] val domainDbConfig: Config = context.system.settings.config.getConfig("convergence.domain-databases")
   private[this] val domainStore: DomainStore = new DomainStore(dbPool)
 
-  private[this] val domainDBContoller: DomainDBController =
-      new DomainRemoteDBController(orientDbConfig, domainDbConfig, context.system)
+  private[this] val domainDBContoller =
+    new DomainDBController(orientDbConfig, domainDbConfig, context.system)
 
   def receive: Receive = {
     case createRequest: CreateDomainRequest => createDomain(createRequest)
@@ -39,9 +39,11 @@ class DomainStoreActor private[datastore] (
 
   def createDomain(createRequest: CreateDomainRequest): Unit = {
     val CreateDomainRequest(namespace, domainId, displayName, owner, importFile) = createRequest
-    val DBConfig(dbName, username, password) = domainDBContoller.createDomain(importFile)
-    // TODO: Need to handle rollback of domain creation if this fails
-    reply(domainStore.createDomain(Domain(null, DomainFqn(namespace, domainId), displayName, owner), dbName, username, password))
+    reply(
+      domainDBContoller.createDomain(importFile).flatMap {
+        case DBConfig(dbName, username, password) =>
+          domainStore.createDomain(Domain(null, DomainFqn(namespace, domainId), displayName, owner), dbName, username, password)
+      })
   }
 
   def updateDomain(request: UpdateDomainRequest): Unit = {

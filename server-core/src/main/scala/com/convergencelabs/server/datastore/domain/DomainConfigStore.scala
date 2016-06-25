@@ -74,4 +74,19 @@ class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
         doc.field("adminPrivateKey", OType.STRING))
     }.get
   }
+  
+  def setAdminKeyPair(pair: TokenKeyPair): Try[Unit] = tryWithDb { db =>
+    val queryString = """
+      |UPDATE
+      |  DomainConfig
+      |SET
+      |  adminPublicKey = :publicKey, 
+      |  adminPrivateKey = :privateKey""".stripMargin
+    val command = new OCommandSQL(queryString)
+    
+    val params = Map("publicKey" -> pair.publicKey, "privateKey" -> pair.privateKey).asJava
+    
+    db.command(command).execute(params)
+    ()
+  }
 }

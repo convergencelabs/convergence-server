@@ -27,15 +27,39 @@ import scala.concurrent.ExecutionContext
 import grizzled.slf4j.Logging
 import scala.io.Source
 import akka.http.scaladsl.model.headers._
-import scala.concurrent.duration.Duration
 import scala.concurrent.Await
+import com.convergencelabs.server.datastore.domain.DomainConfigStore
+import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
+import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
+import com.convergencelabs.server.domain.JwtUtil
+import com.convergencelabs.server.domain.TokenKeyPair
+import com.convergencelabs.server.domain.ModelSnapshotConfig
+import java.time.{ Duration => JavaDuration }
+import java.time.temporal.ChronoUnit
+import scala.concurrent.duration.Duration
+import scala.util.Try
 
-class DomainRemoteDBController(
+object DomainRemoteDBController {
+  val DefaultSnapshotConfig = ModelSnapshotConfig(
+    false,
+    false,
+    false,
+    250,
+    1000,
+    false,
+    false,
+    JavaDuration.of(0, ChronoUnit.MINUTES),
+    JavaDuration.of(0, ChronoUnit.MINUTES))
+}
+
+
+case class DBConfig(dbName: String, username: String, password: String)
+
+class DomainDBController(
   val orientDbConfig: Config,
   val domainDbConfig: Config,
   implicit val system: ActorSystem)
-    extends DomainDBController
-    with Logging {
+    extends Logging {
 
   val AdminUser = orientDbConfig.getString("admin-username")
   val AdminPassword = orientDbConfig.getString("admin-password")
@@ -52,19 +76,17 @@ class DomainRemoteDBController(
   implicit val materializer = ActorMaterializer()
   implicit val ec = system.dispatcher
 
-  def createDomain(importFile: Option[String]): DBConfig = {
+  def createDomain(importFile: Option[String]): Try[DBConfig] = Try {
     val id = UUID.randomUUID().getLeastSignificantBits().toString()
 
     val uri = s"${BaseDbUri}/${id}"
     logger.debug(s"Creating domain database: $uri")
 
     val serverAdmin = new OServerAdmin(uri)
-    serverAdmin.connect(AdminUser, AdminPassword).createDatabase(DBType, StorageMode).close()
+    serverAdmin.connect(AdminUser, AdminPassword)
+      .createDatabase(DBType, StorageMode)
+      .close()
     logger.debug(s"domain database created at: $uri")
-
-    val db = new ODatabaseDocumentTx(uri)
-    db.activateOnCurrentThread()
-    db.open(Username, DefaultPassword)
 
     val importContents = Source.fromFile(importFile.getOrElse(Schema)).mkString
     val importApi = s"${BaseRestUri}/import/${id}"
@@ -82,7 +104,34 @@ class DomainRemoteDBController(
         f.printStackTrace()
     }
 
-    DBConfig(id, Username, DefaultPassword)
+    // 
+    // Load the config.
+    //
+    val pool = new OPartitionedDatabasePool(uri, Username, DefaultPassword, 64, 1)
+
+    // FIXME workaround to orientdb import issues, where the schema is out of whack.
+    val db = pool.acquire()
+    db.getMetadata().reload()
+    db.release()
+    (id, pool)
+  } flatMap { case (id, pool) =>
+    val persistenceProvider = new DomainPersistenceProvider(pool)
+
+    JwtUtil.createKey().flatMap { rsaJsonWebKey =>
+      for {
+        publicKey <- JwtUtil.getPublicCertificatePEM(rsaJsonWebKey)
+        privateKey <- JwtUtil.getPrivateKeyPEM(rsaJsonWebKey)
+      } yield {
+        (publicKey, privateKey)
+      }
+    } flatMap {
+      case (pubKey, privKey) =>
+        persistenceProvider.configStore.setAdminKeyPair(new TokenKeyPair(pubKey, privKey))
+    } flatMap { _ =>
+      persistenceProvider.configStore.setModelSnapshotConfig(DomainRemoteDBController.DefaultSnapshotConfig)
+    } map { _ =>
+      DBConfig(id, Username, DefaultPassword)
+    }
   }
 
   def deleteDomain(id: String): Unit = {
