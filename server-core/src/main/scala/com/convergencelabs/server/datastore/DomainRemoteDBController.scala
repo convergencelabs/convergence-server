@@ -115,8 +115,6 @@ class DomainDBController(
     db.release()
     (id, pool)
   } flatMap { case (id, pool) =>
-    val persistenceProvider = new DomainPersistenceProvider(pool)
-
     JwtUtil.createKey().flatMap { rsaJsonWebKey =>
       for {
         publicKey <- JwtUtil.getPublicCertificatePEM(rsaJsonWebKey)
@@ -126,10 +124,12 @@ class DomainDBController(
       }
     } flatMap {
       case (pubKey, privKey) =>
-        persistenceProvider.configStore.setAdminKeyPair(new TokenKeyPair(pubKey, privKey))
-    } flatMap { _ =>
-      persistenceProvider.configStore.setModelSnapshotConfig(DomainRemoteDBController.DefaultSnapshotConfig)
+        val persistenceProvider = new DomainPersistenceProvider(pool)
+        persistenceProvider.configStore.initializeDomainConfig(
+            new TokenKeyPair(pubKey, privKey), 
+            DomainRemoteDBController.DefaultSnapshotConfig)
     } map { _ =>
+      pool.close()
       DBConfig(id, Username, DefaultPassword)
     }
   }
