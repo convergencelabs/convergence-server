@@ -29,7 +29,7 @@ class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
   
   def initializeDomainConfig(tokenKeyPair: TokenKeyPair, modelSnapshotConfig: ModelSnapshotConfig): Try[Unit] = tryWithDb { db =>
     val doc = new ODocument("DomainConfig")
-    doc.field("modelSnapshotConfig", modelSnapshotConfig.asODocument)
+    doc.field("modelSnapshotConfig", modelSnapshotConfig.asODocument, OType.EMBEDDED)
     doc.field("adminPublicKey", tokenKeyPair.publicKey)
     doc.field("adminPrivateKey", tokenKeyPair.privateKey)
     doc.save()
