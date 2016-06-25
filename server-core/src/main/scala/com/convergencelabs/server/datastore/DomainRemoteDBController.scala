@@ -80,12 +80,11 @@ class DomainDBController(
 
     val uri = s"${BaseDbUri}/${id}"
     logger.debug(s"Creating domain database: $uri")
-
     val serverAdmin = new OServerAdmin(uri)
     serverAdmin.connect(AdminUser, AdminPassword)
       .createDatabase(DBType, StorageMode)
       .close()
-    logger.debug(s"domain database created at: $uri")
+    logger.debug(s"Domain database created at: $uri")
 
     val importContents = Source.fromFile(importFile.getOrElse(Schema)).mkString
     val importApi = s"${BaseRestUri}/import/${id}"
@@ -96,28 +95,29 @@ class DomainDBController(
     val importPost = HttpRequest(method = HttpMethods.POST,
       uri = importApi, headers = List(authHeader), entity = importEntity)
 
+    logger.debug(s"Starting database import: $importPost")
     val f = Http().singleRequest(importPost)
     f.flatMap { response =>
-      logger.debug(s"Import Success: $response")
-      initDomain(id, uri, Username, DefaultPassword) match {
-        case Success(config) =>
-          Future.successful(config)
+      logger.debug(s"Import completed successfully: $response")
+      initDomain(uri, Username, DefaultPassword) match {
+        case Success(()) =>
+          Future.successful(DBConfig(id, Username, DefaultPassword))
         case Failure(f) =>
           Future.failed(f)
       }
     }
   }
 
-  private[this] def initDomain(id: String, uri: String, username: String, password: String): Try[DBConfig] = Try {
+  private[this] def initDomain(uri: String, username: String, password: String): Try[Unit] = Try {
+    logger.debug(s"Initializing domain: $uri")
     val pool = new OPartitionedDatabasePool(uri, username, password, 64, 1)
-
-    // FIXME workaround to orientdb import issues, where the schema is out of whack.
-    val db = pool.acquire()
-    db.getMetadata().reload()
-    db.close()
-    (id, pool)
+    val persistenceProvider = new DomainPersistenceProvider(pool)
+    persistenceProvider.validateConnection()
+    logger.debug(s"Connected to domain database: $uri")
+    persistenceProvider
   } flatMap {
-    case (id, pool) =>
+    case persistenceProvider =>
+      logger.debug(s"Generating admin key: $uri")
       JwtUtil.createKey().flatMap { rsaJsonWebKey =>
         for {
           publicKey <- JwtUtil.getPublicCertificatePEM(rsaJsonWebKey)
@@ -127,13 +127,16 @@ class DomainDBController(
         }
       } flatMap {
         case (pubKey, privKey) =>
-          val persistenceProvider = new DomainPersistenceProvider(pool)
+          logger.debug(s"Created public key for domain: $uri")
+          logger.debug(s"Saving domain config record: $uri")
           persistenceProvider.configStore.initializeDomainConfig(
             new TokenKeyPair(pubKey, privKey),
             DomainRemoteDBController.DefaultSnapshotConfig)
       } map { _ =>
-        pool.close()
-        DBConfig(id, Username, DefaultPassword)
+        logger.debug(s"Domain config record saved: $uri")
+        logger.debug(s"Disconnecting from database: $uri")
+        persistenceProvider.shutdown()
+        logger.debug(s"Domain initialized: $uri")
       }
   }
 
