@@ -44,7 +44,7 @@ class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
     val query = new OSQLSynchQuery[ODocument]("SELECT count(*) AS count FROM DomainConfig")
     val result: JavaList[ODocument] = db.command(query).execute()
     val count: Long = result.get(0).field("count", OType.LONG)
-    result.size() == count;
+    count == 1;
   }
 
   def getAdminUserName(): String = {
