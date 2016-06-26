@@ -29,6 +29,8 @@ class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
     with Logging {
   
   def initializeDomainConfig(tokenKeyPair: TokenKeyPair, modelSnapshotConfig: ModelSnapshotConfig): Try[Unit] = tryWithDb { db =>
+    db.command(new OCommandSQL("DELETE FROM DomainConfig")).execute()
+    
     val doc = new ODocument("DomainConfig")
     doc.field("modelSnapshotConfig", modelSnapshotConfig.asODocument, OType.EMBEDDED)
     doc.field("adminPublicKey", tokenKeyPair.publicKey)
@@ -36,6 +38,12 @@ class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
     doc.field("tokenKeys", new ArrayList[TokenPublicKey](), OType.EMBEDDEDLIST)
     doc.save()
     ()
+  }
+  
+  def isInitialized(): Try[Boolean] = tryWithDb { db =>
+    val query = new OSQLSynchQuery[ODocument]("SELECT count(*) FROM DomainConfig")
+    val result: JavaList[ODocument] = db.command(query).execute()
+    result.size() == 1;
   }
 
   def getAdminUserName(): String = {

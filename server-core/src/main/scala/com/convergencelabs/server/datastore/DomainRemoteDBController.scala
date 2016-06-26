@@ -123,15 +123,19 @@ class DomainDBController(
           publicKey <- JwtUtil.getPublicCertificatePEM(rsaJsonWebKey)
           privateKey <- JwtUtil.getPrivateKeyPEM(rsaJsonWebKey)
         } yield {
-          (publicKey, privateKey)
+          new TokenKeyPair(publicKey, privateKey)
         }
-      } flatMap {
-        case (pubKey, privKey) =>
-          logger.debug(s"Created public key for domain: $uri")
-          logger.debug(s"Saving domain config record: $uri")
+      } flatMap { keyPair =>
+        logger.debug(s"Created public key for domain: $uri")
+        if (persistenceProvider.configStore.isInitialized().get) {
+          logger.debug(s"Domain alreay initialized, updating keys: $uri")
+          persistenceProvider.configStore.setAdminKeyPair(keyPair)
+        } else {
+          logger.debug(s"Domain no initialized, iniitalizing: $uri")
           persistenceProvider.configStore.initializeDomainConfig(
-            new TokenKeyPair(pubKey, privKey),
+            keyPair,
             DomainRemoteDBController.DefaultSnapshotConfig)
+        }
       } map { _ =>
         logger.debug(s"Domain config record saved: $uri")
         logger.debug(s"Disconnecting from database: $uri")
