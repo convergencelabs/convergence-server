@@ -1,43 +1,36 @@
 package com.convergencelabs.server.datastore
 
-import com.typesafe.config.Config
-import com.convergencelabs.server.domain.Domain
-import java.util.UUID
-import com.convergencelabs.server.domain.DomainFqn
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import com.orientechnologies.orient.core.db.tool.ODatabaseImport
-import com.orientechnologies.orient.core.command.OCommandOutputListener
-import com.orientechnologies.orient.client.remote.OServerAdmin
-import scala.concurrent.Future
-import akka.http.scaladsl.model.HttpResponse
-import akka.http.scaladsl.model.HttpRequest
-import akka.http.scaladsl.Http
-import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
-import akka.http.scaladsl.model.HttpMethod
-import akka.http.scaladsl.model.HttpMethods
-import akka.http.scaladsl.marshalling.Marshal
-import akka.http.scaladsl.model.RequestEntity
-import akka.http.scaladsl.model.HttpEntity
-import akka.http.scaladsl.model.ContentTypes
-import akka.http.scaladsl.model.HttpHeader
-import scala.util.Failure
-import scala.util.Success
-import scala.concurrent.ExecutionContext
-import grizzled.slf4j.Logging
-import scala.io.Source
-import akka.http.scaladsl.model.headers._
-import scala.concurrent.Await
-import com.convergencelabs.server.datastore.domain.DomainConfigStore
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.server.domain.JwtUtil
-import com.convergencelabs.server.domain.TokenKeyPair
-import com.convergencelabs.server.domain.ModelSnapshotConfig
 import java.time.{ Duration => JavaDuration }
 import java.time.temporal.ChronoUnit
+import java.util.UUID
+
+import scala.concurrent.Await
+import scala.concurrent.Future
 import scala.concurrent.duration.Duration
+import scala.io.Source
+import scala.util.Failure
+import scala.util.Success
 import scala.util.Try
+
+import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
+import com.convergencelabs.server.domain.JwtUtil
+import com.convergencelabs.server.domain.ModelSnapshotConfig
+import com.convergencelabs.server.domain.TokenKeyPair
+import com.orientechnologies.orient.client.remote.OServerAdmin
+import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
+import com.typesafe.config.Config
+
+import akka.actor.ActorSystem
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.marshalling.Marshal
+import akka.http.scaladsl.model.HttpMethods
+import akka.http.scaladsl.model.HttpRequest
+import akka.http.scaladsl.model.RequestEntity
+import akka.http.scaladsl.model.Uri.apply
+import akka.http.scaladsl.model.headers.Authorization
+import akka.http.scaladsl.model.headers.BasicHttpCredentials
+import akka.stream.ActorMaterializer
+import grizzled.slf4j.Logging
 
 object DomainRemoteDBController {
   val DefaultSnapshotConfig = ModelSnapshotConfig(
@@ -131,16 +124,20 @@ class DomainDBController(
           logger.debug(s"Domain alreay initialized, updating keys: $uri")
           persistenceProvider.configStore.setAdminKeyPair(keyPair)
         } else {
-          logger.debug(s"Domain no initialized, iniitalizing: $uri")
+          logger.debug(s"Domain not initialized, iniitalizing: $uri")
           persistenceProvider.configStore.initializeDomainConfig(
             keyPair,
             DomainRemoteDBController.DefaultSnapshotConfig)
         }
-      } map { _ =>
-        logger.debug(s"Domain config record saved: $uri")
-        logger.debug(s"Disconnecting from database: $uri")
-        persistenceProvider.shutdown()
-        logger.debug(s"Domain initialized: $uri")
+      } match {
+        case s: Success[_] =>
+          logger.debug(s"Domain initialized: $uri")
+          persistenceProvider.shutdown()
+          s
+        case f @ Failure(cause)  =>
+          logger.error(s"Failure initializing domain: $uri", cause)
+          persistenceProvider.shutdown()
+          f
       }
   }
 
