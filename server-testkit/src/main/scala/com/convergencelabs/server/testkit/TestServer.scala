@@ -39,8 +39,6 @@ class TestServer(
     
     oriendDb.start()
     
-    OLogManager.instance().setConsoleLevel("INFO")
-
     // Set Up OrientDB database
     databases.foreach { case (id, file) => importDatabase(id, file) }
 
