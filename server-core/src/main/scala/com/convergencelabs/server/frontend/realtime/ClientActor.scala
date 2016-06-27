@@ -274,7 +274,7 @@ class ClientActor(
   }
 
   private[this] def onConnectionClosed(): Unit = {
-    log.debug("Connection Closed")
+    log.info("Connection Closed")
     if (domainActor.isDefined) {
       domainActor.get ! ClientDisconnected(sessionId)
     }
