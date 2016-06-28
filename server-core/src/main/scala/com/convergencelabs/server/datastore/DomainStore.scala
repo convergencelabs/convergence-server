@@ -34,7 +34,7 @@ class DomainStore (dbPool: OPartitionedDatabasePool)
   val DidSeq = "DIDSEQ"
   
 
-  def createDomain(domain: Domain, dbName: String, dbUsername: String, dbPassword: String): Try[CreateResult[Unit]] = tryWithDb { db =>
+  def createDomain(domain: Domain, dbName: String, dbUsername: String, dbPassword: String): Try[CreateResult[String]] = tryWithDb { db =>
     //FIXME: Remove after figuring out how to create in schema
     if(!db.getMetadata().getSequenceLibrary().getSequenceNames.contains(DidSeq)) {
       val createParams = new CreateParams().setDefaults()
@@ -58,7 +58,7 @@ class DomainStore (dbPool: OPartitionedDatabasePool)
           doc.field("dbUsername", dbUsername)
           doc.field("dbPassword", dbPassword)
           db.save(doc)
-          CreateSuccess(())
+          CreateSuccess(did)
         }
         case None => InvalidValue
       }

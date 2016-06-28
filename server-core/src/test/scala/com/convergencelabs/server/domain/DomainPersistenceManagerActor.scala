@@ -65,7 +65,8 @@ class DomainManagerActorSpec()
       "d1",
       domainFqn,
       "Default",
-      "cu0")
+      "cu0",
+      DomainStatus.Online)
 
     val domainStore = mock[DomainStore]
     Mockito.when(domainStore.getDomainByFqn(domainFqn)).thenReturn(Success(Some(domain)))

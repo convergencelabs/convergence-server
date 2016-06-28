@@ -15,6 +15,7 @@ import scala.util.Try
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.domain.JwtUtil
 import com.convergencelabs.server.domain.ModelSnapshotConfig
+import com.convergencelabs.server.util.concurrent.FutureUtils._
 import com.convergencelabs.server.domain.TokenKeyPair
 import com.orientechnologies.orient.client.remote.OServerAdmin
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
@@ -60,6 +61,7 @@ class DomainDBController(
 
   val Username = domainDbConfig.getString("username")
   val DefaultPassword = domainDbConfig.getString("default-password")
+  
   val Schema = domainDbConfig.getString("schema")
 
   val DBType = "document"
@@ -68,19 +70,23 @@ class DomainDBController(
   implicit val materializer = ActorMaterializer()
   implicit val ec = system.dispatcher
 
-  def createDomain(importFile: Option[String]): Future[DBConfig] = {
-    val id = UUID.randomUUID().getLeastSignificantBits().toString()
+  def createDomain(
+      dbName: String,
+      dbPassword: String,
+      importFile: Option[String]): Future[Unit] = {
+    val uri = s"${BaseDbUri}/${dbName}"
 
-    val uri = s"${BaseDbUri}/${id}"
     logger.debug(s"Creating domain database: $uri")
     val serverAdmin = new OServerAdmin(uri)
     serverAdmin.connect(AdminUser, AdminPassword)
       .createDatabase(DBType, StorageMode)
       .close()
     logger.debug(s"Domain database created at: $uri")
+    
+    // TODO we need to figure out how to set the admin user's password.
 
     val importContents = Source.fromFile(importFile.getOrElse(Schema)).mkString
-    val importApi = s"${BaseRestUri}/import/${id}"
+    val importApi = s"${BaseRestUri}/import/${dbName}"
 
     // FIXME A bit of a hack, but don't feel like messing with futures at the moment.
     val importEntity = Await.result(Marshal(importContents).to[RequestEntity], Duration.Inf)
@@ -90,20 +96,16 @@ class DomainDBController(
 
     logger.debug(s"Starting database import: $importPost")
     val f = Http().singleRequest(importPost)
-    f.flatMap { response =>
+    f.map { response =>
       logger.debug(s"Import completed successfully: $response")
-      initDomain(uri, Username, DefaultPassword) match {
-        case Success(()) =>
-          Future.successful(DBConfig(id, Username, DefaultPassword))
-        case Failure(f) =>
-          Future.failed(f)
-      }
+      tryToFuture(initDomain(uri, dbPassword))
     }
   }
 
-  private[this] def initDomain(uri: String, username: String, password: String): Try[Unit] = Try {
+
+  private[this] def initDomain(uri: String, password: String): Try[Unit] = Try {
     logger.debug(s"Initializing domain: $uri")
-    val pool = new OPartitionedDatabasePool(uri, username, password, 64, 1)
+    val pool = new OPartitionedDatabasePool(uri, Username, password, 64, 1)
     val persistenceProvider = new DomainPersistenceProvider(pool)
     persistenceProvider.validateConnection()
     logger.debug(s"Connected to domain database: $uri")
@@ -130,11 +132,11 @@ class DomainDBController(
             DomainRemoteDBController.DefaultSnapshotConfig)
         }
       } match {
-        case s: Success[_] =>
+        case s @ Success(_) =>
           logger.debug(s"Domain initialized: $uri")
           persistenceProvider.shutdown()
           s
-        case f @ Failure(cause)  =>
+        case f @ Failure(cause) =>
           logger.error(s"Failure initializing domain: $uri", cause)
           persistenceProvider.shutdown()
           f

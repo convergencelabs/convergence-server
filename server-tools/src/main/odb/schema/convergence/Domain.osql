@@ -33,6 +33,12 @@ CREATE Property Domain.dbUsername STRING;
 #Domain.dbPassword
 CREATE Property Domain.dbPassword STRING;
 
+#Domain.status
+CREATE Property Domain.status String;
+ALTER PROPERTY Domain.status MANDATORY true;
+ALTER PROPERTY Domain.status NOTNULL true;
+
+
 #Domain Indexes
 CREATE INDEX Domain.id ON Domain (id) UNIQUE;
 CREATE INDEX Domain.dbName ON Domain (dbName) UNIQUE;

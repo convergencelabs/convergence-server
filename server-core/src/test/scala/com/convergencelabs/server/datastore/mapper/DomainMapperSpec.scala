@@ -10,6 +10,7 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 
 import DomainMapper.DomainUserToODocument
 import DomainMapper.ODocumentToDomain
+import com.convergencelabs.server.domain.DomainStatus
 
 class DomainMapperSpec
     extends WordSpec
@@ -22,7 +23,8 @@ class DomainMapperSpec
           "id",
           DomainFqn("ns", "dId"),
           "My Domain",
-          "cu0")
+          "cu0",
+          DomainStatus.Online)
 
         val doc = domain.asODocument
         val owner = new ODocument()

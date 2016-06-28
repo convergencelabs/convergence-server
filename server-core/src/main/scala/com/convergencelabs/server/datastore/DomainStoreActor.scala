@@ -17,6 +17,8 @@ import akka.actor.ActorLogging
 import akka.actor.Props
 import scala.util.Try
 import scala.concurrent.ExecutionContext
+import com.convergencelabs.server.domain.DomainStatus
+import java.util.UUID
 
 class DomainStoreActor private[datastore] (
   private[this] val dbPool: OPartitionedDatabasePool,
@@ -25,6 +27,9 @@ class DomainStoreActor private[datastore] (
 
   private[this] val orientDbConfig: Config = context.system.settings.config.getConfig("convergence.orient-db")
   private[this] val domainDbConfig: Config = context.system.settings.config.getConfig("convergence.domain-databases")
+  private[this] val Username = domainDbConfig.getString("username")
+  private[this] val DefaultPassword = domainDbConfig.getString("default-password")
+
   private[this] val domainStore: DomainStore = new DomainStore(dbPool)
 
   private[this] val domainDBContoller =
@@ -40,13 +45,43 @@ class DomainStoreActor private[datastore] (
   }
 
   def createDomain(createRequest: CreateDomainRequest): Unit = {
-    val origSender = sender
     val CreateDomainRequest(namespace, domainId, displayName, owner, importFile) = createRequest
-    domainDBContoller.createDomain(importFile) onComplete {
-      case Success(DBConfig(dbName, username, password)) =>
-        reply(domainStore.createDomain(Domain(null, DomainFqn(namespace, domainId), displayName, owner), dbName, username, password), origSender)
-      case Failure(f) =>
-        reply(f, origSender)
+    val dbName = UUID.randomUUID().getLeastSignificantBits().toString()
+
+    // TODO we should be optionally randomizing the password and passing it in.
+    val password = DefaultPassword
+
+    val result = domainStore.createDomain(
+      Domain(
+        null,
+        DomainFqn(namespace, domainId),
+        displayName,
+        owner,
+        DomainStatus.Initializing),
+      dbName,
+      Username,
+      password)
+
+    reply(result)
+
+    // TODO opportunity for some scala fu here to actually add try like map and foreach
+    // functions to the CreateResult class.
+    result foreach {
+      case CreateSuccess(dId) =>
+        domainDBContoller.createDomain(dbName, password, importFile) onComplete {
+          case Success(()) =>
+            domainStore.getDomainById(dId) map (_.map { domain =>
+              val updated = domain.copy(status = DomainStatus.Online)
+              domainStore.updateDomain(updated)
+            })
+          case Failure(f) =>
+            // TODO we should probably have some field on the domain that references errors?
+            domainStore.getDomainById(dId) map (_.map { domain =>
+              val updated = domain.copy(status = DomainStatus.Error)
+              domainStore.updateDomain(updated)
+            })
+        }
+      case _ =>
     }
   }
 
@@ -89,7 +124,7 @@ class DomainStoreActor private[datastore] (
 
 object DomainStoreActor {
   def props(dbPool: OPartitionedDatabasePool,
-      ec: ExecutionContext): Props = Props(new DomainStoreActor(dbPool, ec))
+    ec: ExecutionContext): Props = Props(new DomainStoreActor(dbPool, ec))
 
   case class CreateDomainRequest(namespace: String, domainId: String, displayName: String, owner: String, importFile: Option[String])
   case class UpdateDomainRequest(namespace: String, domainId: String, displayName: String)

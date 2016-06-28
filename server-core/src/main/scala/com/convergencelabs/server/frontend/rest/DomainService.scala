@@ -44,7 +44,8 @@ case class DomainInfo(
   displayName: String,
   namespace: String,
   domainId: String,
-  owner: String)
+  owner: String,
+  status: String)
 
 case class CreateDomainRestRequest(namespace: String, domainId: String, displayName: String)
 case class UpdateDomainRestRequest(displayName: String)
@@ -128,7 +129,8 @@ class DomainService(
           domain.displayName,
           domain.domainFqn.namespace,
           domain.domainFqn.domainId,
-          domain.owner)))
+          domain.owner,
+          domain.status.toString())))
       case None => NotFoundError
     }
   }

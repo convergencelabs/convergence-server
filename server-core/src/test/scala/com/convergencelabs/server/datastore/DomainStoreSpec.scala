@@ -11,6 +11,7 @@ import com.convergencelabs.server.domain.DomainFqn
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import com.convergencelabs.server.domain.DomainDatabaseInfo
+import com.convergencelabs.server.domain.DomainStatus
 
 class DomainStoreSpec
     extends PersistenceStoreSpec[DomainStore]("/dbfiles/convergence.json.gz")
@@ -69,7 +70,8 @@ class DomainStoreSpec
           "1",
           fqn,
           "Test Domain 4",
-          owner)
+          owner,
+          DomainStatus.Online)
 
         val id = store.createDomain(domain, dbName, root, root).success
         store.getDomainByFqn(fqn).success.get.value shouldBe domain
@@ -82,7 +84,8 @@ class DomainStoreSpec
           id,
           ns1d1,
           "Test Domain 1",
-          owner)
+          owner,
+          DomainStatus.Initializing)
 
         store.createDomain(domain, id, root, root).success.get shouldBe DuplicateValue
       }
@@ -123,7 +126,8 @@ class DomainStoreSpec
           "namespace1-domain1",
           DomainFqn(namespace1, domain1),
           "Test Domain 1 Updated",
-          owner)
+          owner,
+          DomainStatus.Offline)
 
         store.updateDomain(toUpdate).success
         val queried = store.getDomainByFqn(ns1d1).success.get.value
@@ -136,7 +140,8 @@ class DomainStoreSpec
           "namespace1-domain-none",
           DomainFqn(namespace1, domain1),
           "Test Domain 1 Updated",
-          owner)
+          owner,
+          DomainStatus.Online)
 
         store.updateDomain(toUpdate).success.get shouldBe NotFound
       }
