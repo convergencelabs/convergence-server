@@ -113,8 +113,8 @@ class ModelClientActor(
   }
 
   def onOperationAcknowledgement(opAck: OperationAcknowledgement): Unit = {
-    val OperationAcknowledgement(resourceId, seqNo, version) = opAck
-    context.parent ! OperationAcknowledgementMessage(resourceId, seqNo, version)
+    val OperationAcknowledgement(resourceId, seqNo, version, timestamp) = opAck
+    context.parent ! OperationAcknowledgementMessage(resourceId, seqNo, version, timestamp)
   }
 
   def onRemoteClientOpened(opened: RemoteClientOpened): Unit = {

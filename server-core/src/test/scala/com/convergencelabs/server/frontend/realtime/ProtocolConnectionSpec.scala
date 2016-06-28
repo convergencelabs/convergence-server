@@ -49,7 +49,7 @@ class ProtocolConnectionSpec
 
     "sending a normal message" must {
       "send the correct message envelope" in new TestFixture(system) {
-        val toSend = OperationAcknowledgementMessage("id1", 4, 5)
+        val toSend = OperationAcknowledgementMessage("id1", 4, 5, 10)
         connection.send(toSend)
 
         val OutgoingTextMessage(message) = this.connectionActor.expectMsgClass(10 millis, classOf[OutgoingTextMessage])

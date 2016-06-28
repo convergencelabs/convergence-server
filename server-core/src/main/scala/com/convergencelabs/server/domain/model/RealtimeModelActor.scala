@@ -449,7 +449,7 @@ class RealtimeModelActor(
 
     // Ack the sender
     connectedClients(sk) !
-      OperationAcknowledgement(modelResourceId, originSeqNo, outgoingOperation.contextVersion)
+      OperationAcknowledgement(modelResourceId, originSeqNo, outgoingOperation.contextVersion, outgoingOperation.timestamp)
 
     broacastToAllOthers(outgoingOperation, sk)
   }
