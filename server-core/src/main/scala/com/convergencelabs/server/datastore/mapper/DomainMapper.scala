@@ -19,14 +19,14 @@ object DomainMapper extends ODocumentMapper {
       DomainFqn(namespace, domainId),
       displayName,
       owner,
-      state) = domainConfig
+      status) = domainConfig
 
     val doc = new ODocument(DomainClassName)
     doc.field(Fields.Id, id)
     doc.field(Fields.Namespace, namespace)
     doc.field(Fields.DomainId, domainId)
     doc.field(Fields.DisplayName, displayName)
-    doc.field(Fields.Status, state)
+    doc.field(Fields.Status, status.toString())
     doc
   }
 
