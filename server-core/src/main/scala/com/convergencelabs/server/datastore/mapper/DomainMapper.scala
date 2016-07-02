@@ -6,6 +6,7 @@ import com.convergencelabs.server.domain.Domain
 import com.convergencelabs.server.domain.DomainFqn
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.convergencelabs.server.domain.DomainStatus
+import com.convergencelabs.server.datastore.mapper.UserMapper.ODocumentToUser
 
 object DomainMapper extends ODocumentMapper {
 
@@ -37,11 +38,12 @@ object DomainMapper extends ODocumentMapper {
   private[datastore] implicit def oDocumentToDomain(doc: ODocument): Domain = {
     validateDocumentClass(doc, DomainClassName)
     val state: DomainStatus.Value = DomainStatus.withName(doc.field(Fields.Status))
+    
     Domain(
       doc.field(Fields.Id),
       DomainFqn(doc.field(Fields.Namespace), doc.field(Fields.DomainId)),
       doc.field(Fields.DisplayName),
-      doc.field(Fields.Owner).asInstanceOf[ODocument].field("uid"),
+      doc.field(Fields.Owner).asInstanceOf[ODocument].asUser,
       state)
   }
 

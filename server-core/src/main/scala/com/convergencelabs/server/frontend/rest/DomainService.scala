@@ -35,6 +35,7 @@ import com.convergencelabs.server.domain.RestAuthnorizationActor.AuthorizationDe
 import com.convergencelabs.server.domain.RestAuthnorizationActor.AuthorizationResult
 import com.convergencelabs.server.datastore.UpdateResult
 import com.convergencelabs.server.datastore.UpdateSuccess
+import com.convergencelabs.server.User
 
 case class DomainsResponse(domains: List[DomainInfo]) extends AbstractSuccessResponse
 case class DomainResponse(domain: DomainInfo) extends AbstractSuccessResponse
@@ -44,7 +45,7 @@ case class DomainInfo(
   displayName: String,
   namespace: String,
   domainId: String,
-  owner: String,
+  user: User,
   status: String)
 
 case class CreateDomainRestRequest(namespace: String, domainId: String, displayName: String)
