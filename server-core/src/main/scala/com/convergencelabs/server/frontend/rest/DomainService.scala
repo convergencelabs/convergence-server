@@ -45,7 +45,7 @@ case class DomainInfo(
   displayName: String,
   namespace: String,
   domainId: String,
-  user: User,
+  owner: User,
   status: String)
 
 case class CreateDomainRestRequest(namespace: String, domainId: String, displayName: String)
