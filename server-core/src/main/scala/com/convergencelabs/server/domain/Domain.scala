@@ -1,5 +1,7 @@
 package com.convergencelabs.server.domain
 
+import com.convergencelabs.server.User
+
 object DomainStatus extends Enumeration {
   val Initializing = Value("initializing");
   val Error = Value("error");
@@ -13,7 +15,7 @@ case class Domain(
   id: String,
   domainFqn: DomainFqn,
   displayName: String,
-  owner: String,
+  owner: User,
   status: DomainStatus.Value)
 
 case class DomainDatabaseInfo(

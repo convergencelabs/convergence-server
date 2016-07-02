@@ -20,6 +20,7 @@ import com.orientechnologies.orient.core.exception.OValidationException
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import com.orientechnologies.orient.core.metadata.sequence.OSequence.SEQUENCE_TYPE
 import com.orientechnologies.orient.core.metadata.sequence.OSequence.CreateParams
+import com.convergencelabs.server.domain.DomainStatus
 
 class DomainStore (dbPool: OPartitionedDatabasePool)
     extends AbstractDatabasePersistence(dbPool)
@@ -30,11 +31,14 @@ class DomainStore (dbPool: OPartitionedDatabasePool)
   private[this] val DomainId = "domainId"
   private[this] val Owner = "owner"
   private[this] val Uid = "uid"
+  private[this] val DisplayName = "displayName"
+  private[this] val Status = "status"
+  private[this] val DomainClassName = "Domain"
   
   val DidSeq = "DIDSEQ"
   
 
-  def createDomain(domain: Domain, dbName: String, dbUsername: String, dbPassword: String): Try[CreateResult[String]] = tryWithDb { db =>
+  def createDomain(domainFqn: DomainFqn, displayName: String, ownerUid: String, dbInfo: DomainDatabaseInfo): Try[CreateResult[String]] = tryWithDb { db =>
     //FIXME: Remove after figuring out how to create in schema
     if(!db.getMetadata().getSequenceLibrary().getSequenceNames.contains(DidSeq)) {
       val createParams = new CreateParams().setDefaults()
@@ -45,18 +49,22 @@ class DomainStore (dbPool: OPartitionedDatabasePool)
     val did = seq.next().toString
     
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE uid = :uid")
-    val params = Map(Uid -> domain.owner)
+    val params = Map(Uid -> ownerUid)
 
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     try {
       QueryUtil.enforceSingletonResultList(result) match {
         case Some(user) => {
-          val doc = domain.asODocument
+          val doc = new ODocument(DomainClassName)
           doc.field(Id, did)
+          doc.field(Namespace, domainFqn.namespace)
+          doc.field(DomainId, domainFqn.domainId)
+          doc.field(DisplayName, displayName)
+          doc.field(Status, DomainStatus.Initializing.toString())
           doc.field(Owner, user)
-          doc.field("dbName", dbName)
-          doc.field("dbUsername", dbUsername)
-          doc.field("dbPassword", dbPassword)
+          doc.field("dbName", dbInfo.database)
+          doc.field("dbUsername", dbInfo.username)
+          doc.field("dbPassword", dbInfo.password)
           db.save(doc)
           CreateSuccess(did)
         }

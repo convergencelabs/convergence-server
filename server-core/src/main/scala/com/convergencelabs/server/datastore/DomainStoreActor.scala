@@ -19,6 +19,7 @@ import scala.util.Try
 import scala.concurrent.ExecutionContext
 import com.convergencelabs.server.domain.DomainStatus
 import java.util.UUID
+import com.convergencelabs.server.domain.DomainDatabaseInfo
 
 class DomainStoreActor private[datastore] (
   private[this] val dbPool: OPartitionedDatabasePool,
@@ -45,22 +46,21 @@ class DomainStoreActor private[datastore] (
   }
 
   def createDomain(createRequest: CreateDomainRequest): Unit = {
-    val CreateDomainRequest(namespace, domainId, displayName, owner, importFile) = createRequest
+    val CreateDomainRequest(namespace, domainId, displayName, ownerUid, importFile) = createRequest
     val dbName = UUID.randomUUID().getLeastSignificantBits().toString()
 
     // TODO we should be optionally randomizing the password and passing it in.
     val password = DefaultPassword
 
+    
+    
     val result = domainStore.createDomain(
-      Domain(
-        null,
         DomainFqn(namespace, domainId),
         displayName,
-        owner,
-        DomainStatus.Initializing),
-      dbName,
+        ownerUid,
+      DomainDatabaseInfo(dbName,
       Username,
-      password)
+      password))
 
     reply(result)
 
@@ -126,7 +126,7 @@ object DomainStoreActor {
   def props(dbPool: OPartitionedDatabasePool,
     ec: ExecutionContext): Props = Props(new DomainStoreActor(dbPool, ec))
 
-  case class CreateDomainRequest(namespace: String, domainId: String, displayName: String, owner: String, importFile: Option[String])
+  case class CreateDomainRequest(namespace: String, domainId: String, displayName: String, ownerUid: String, importFile: Option[String])
   case class UpdateDomainRequest(namespace: String, domainId: String, displayName: String)
   case class DeleteDomainRequest(namespace: String, domainId: String)
   case class GetDomainRequest(namespace: String, domainId: String)

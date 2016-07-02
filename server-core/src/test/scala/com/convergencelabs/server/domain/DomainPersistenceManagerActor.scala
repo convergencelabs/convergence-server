@@ -24,6 +24,7 @@ import com.typesafe.config.ConfigFactory
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
+import com.convergencelabs.server.User
 
 @RunWith(classOf[JUnitRunner])
 class DomainManagerActorSpec()
@@ -65,7 +66,7 @@ class DomainManagerActorSpec()
       "d1",
       domainFqn,
       "Default",
-      "cu0",
+      User("cu0", "test", "test@convergence.com", "test", "test"),
       DomainStatus.Online)
 
     val domainStore = mock[DomainStore]

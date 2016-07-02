@@ -9,8 +9,10 @@ import com.convergencelabs.server.domain.DomainFqn
 import com.orientechnologies.orient.core.record.impl.ODocument
 
 import DomainMapper.DomainUserToODocument
+import UserMapper.UserToODocument
 import DomainMapper.ODocumentToDomain
 import com.convergencelabs.server.domain.DomainStatus
+import com.convergencelabs.server.User
 
 class DomainMapperSpec
     extends WordSpec
@@ -19,17 +21,16 @@ class DomainMapperSpec
   "An DomainMapper" when {
     "when converting a Domain" must {
       "correctly map and unmap a Domain" in {
+        val owner = User("cu0", "test", "test@convergence.com", "test", "test")
         val domain = Domain(
           "id",
           DomainFqn("ns", "dId"),
           "My Domain",
-          "cu0",
+          owner,
           DomainStatus.Online)
 
         val doc = domain.asODocument
-        val owner = new ODocument()
-        owner.field("uid", "cu0")
-        doc.field("owner", owner)
+        doc.field("owner", owner.asODocument)
         val reverted = doc.asDomain
         reverted shouldBe domain
       }

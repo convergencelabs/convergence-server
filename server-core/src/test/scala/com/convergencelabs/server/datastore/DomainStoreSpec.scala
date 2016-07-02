@@ -12,6 +12,7 @@ import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import com.convergencelabs.server.domain.DomainDatabaseInfo
 import com.convergencelabs.server.domain.DomainStatus
+import com.convergencelabs.server.User
 
 class DomainStoreSpec
     extends PersistenceStoreSpec[DomainStore]("/dbfiles/convergence.json.gz")
@@ -26,7 +27,7 @@ class DomainStoreSpec
   val ns1d1Id = "namespace1-domain1"
   val ns1d2Id = "namespace1-domain2"
   val root = "root"
-  val owner = "cu0"
+  val user = User("cu0", "test", "test@convergence.com", "test", "test")
 
   "A DomainStore" when {
 
@@ -70,10 +71,10 @@ class DomainStoreSpec
           "1",
           fqn,
           "Test Domain 4",
-          owner,
-          DomainStatus.Online)
+          user,
+          DomainStatus.Initializing)
 
-        val id = store.createDomain(domain, dbName, root, root).success
+        val id = store.createDomain(fqn, "Test Domain 4", user.uid, DomainDatabaseInfo(dbName, root, root)).success
         store.getDomainByFqn(fqn).success.get.value shouldBe domain
         store.getDomainDatabaseInfo(fqn).success.get.value shouldBe DomainDatabaseInfo(dbName, root, root)
       }
@@ -84,10 +85,10 @@ class DomainStoreSpec
           id,
           ns1d1,
           "Test Domain 1",
-          owner,
+          user,
           DomainStatus.Initializing)
 
-        store.createDomain(domain, id, root, root).success.get shouldBe DuplicateValue
+        store.createDomain(ns1d1, "Test Domain 1", user.uid, DomainDatabaseInfo(id, root, root)).success.get shouldBe DuplicateValue
       }
     }
 
@@ -126,7 +127,7 @@ class DomainStoreSpec
           "namespace1-domain1",
           DomainFqn(namespace1, domain1),
           "Test Domain 1 Updated",
-          owner,
+          user,
           DomainStatus.Offline)
 
         store.updateDomain(toUpdate).success
@@ -140,7 +141,7 @@ class DomainStoreSpec
           "namespace1-domain-none",
           DomainFqn(namespace1, domain1),
           "Test Domain 1 Updated",
-          owner,
+          user,
           DomainStatus.Online)
 
         store.updateDomain(toUpdate).success.get shouldBe NotFound
