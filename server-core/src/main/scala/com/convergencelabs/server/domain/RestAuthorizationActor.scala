@@ -18,7 +18,7 @@ object RestAuthnorizationActor {
   val RelativeActorPath = "restAuthorization"
 
   sealed trait AuthorizationRequest
-  case class DomainAuthorization(userId: String, domain: DomainFqn)
+  case class DomainAuthorization(username: String, domain: DomainFqn)
 
 
   sealed trait AuthorizationResult
@@ -30,13 +30,13 @@ class RestAuthnorizationActor(domainStore: DomainStore)
     extends Actor with ActorLogging {
 
   def receive: Receive = {
-    case DomainAuthorization(userId, domain) => onDomainAuthorization(userId, domain)
+    case DomainAuthorization(username, domain) => onDomainAuthorization(username, domain)
     case x: Any => unhandled(x)
   }
 
-  private[this] def onDomainAuthorization(userId: String, domain: DomainFqn): Unit = {
+  private[this] def onDomainAuthorization(username: String, domain: DomainFqn): Unit = {
     sender ! (domainStore.getDomainByFqn(domain) match {
-      case Success(Some(domain)) if domain.owner.uid == userId =>
+      case Success(Some(domain)) if domain.owner.username == username =>
         AuthorizationGranted
       case _ =>
         AuthorizationDenied

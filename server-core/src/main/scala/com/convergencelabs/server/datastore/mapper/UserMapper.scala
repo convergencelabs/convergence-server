@@ -12,7 +12,6 @@ object UserMapper extends ODocumentMapper {
 
   private[datastore] implicit def userToODocument(obj: User): ODocument = {
     val doc = new ODocument(DocumentClassName)
-    doc.field(Fields.Uid, obj.uid)
     doc.field(Fields.Username, obj.username)
     doc.field(Fields.Email, obj.email)
     doc.field(Fields.FirstName, obj.firstName)
@@ -28,7 +27,6 @@ object UserMapper extends ODocumentMapper {
     validateDocumentClass(doc, DocumentClassName)
 
     User(
-      doc.field(Fields.Uid),
       doc.field(Fields.Username),
       doc.field(Fields.Email),
       doc.field(Fields.FirstName),
@@ -38,7 +36,6 @@ object UserMapper extends ODocumentMapper {
   private[datastore] val DocumentClassName = "User"
 
   private[datastore] object Fields {
-    val Uid = "uid"
     val Username = "username"
     val Email = "email"
     val FirstName = "firstName"

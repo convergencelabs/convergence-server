@@ -41,11 +41,10 @@ case class DomainsResponse(domains: List[DomainInfo]) extends AbstractSuccessRes
 case class DomainResponse(domain: DomainInfo) extends AbstractSuccessResponse
 
 case class DomainInfo(
-  id: String,
   displayName: String,
   namespace: String,
   domainId: String,
-  owner: User,
+  owner: String,
   status: String)
 
 case class CreateDomainRestRequest(namespace: String, domainId: String, displayName: String)
@@ -120,11 +119,10 @@ class DomainService(
     (domainStoreActor ? ListDomainsRequest(userId)).mapTo[List[Domain]].map(domains =>
       (StatusCodes.OK, DomainsResponse(
         (domains map (domain => DomainInfo(
-          domain.id,
           domain.displayName,
           domain.domainFqn.namespace,
           domain.domainFqn.domainId,
-          domain.owner,
+          domain.owner.username,
           domain.status.toString()))))))
   }
 
@@ -132,11 +130,10 @@ class DomainService(
     (domainStoreActor ? GetDomainRequest(namespace, domainId)).mapTo[Option[Domain]].map {
       case Some(domain) =>
         (StatusCodes.OK, DomainResponse(DomainInfo(
-          domain.id,
           domain.displayName,
           domain.domainFqn.namespace,
           domain.domainFqn.domainId,
-          domain.owner,
+          domain.owner.username,
           domain.status.toString())))
       case None => NotFoundError
     }

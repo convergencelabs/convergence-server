@@ -50,11 +50,11 @@ class ProfileService(
   implicit val ec = executionContext
   implicit val t = defaultTimeout
 
-  val route = { userId: String =>
+  val route = { username: String =>
     pathPrefix("profile") {
       pathEnd {
         get {
-          complete(getProfile(userId))
+          complete(getProfile(username))
         }
       }
     }
@@ -62,7 +62,7 @@ class ProfileService(
 
   def getProfile(userId: String): Future[RestResponse] = {
     (convergenceUserActor ? GetConvergenceUserProfile(userId)).mapTo[Option[User]].map {
-      case Some(User(uid: String,
+      case Some(User(
         username: String,
         email: String,
         firstName: String,

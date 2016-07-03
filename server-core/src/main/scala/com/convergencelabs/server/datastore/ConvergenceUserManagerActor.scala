@@ -5,6 +5,7 @@ import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
+import com.convergencelabs.server.util.concurrent.FutureUtils
 
 import collection.JavaConverters._
 
@@ -58,34 +59,28 @@ class ConvergenceUserManagerActor private[datastore] (
   def createConvergenceUser(message: CreateConvergenceUserRequest): Unit = {
     val CreateConvergenceUserRequest(username, email, firstName, lastName, password) = message
     val origSender = sender
-    userStore.createUser(User(null, username, email, firstName, lastName), password) map {
+    userStore.createUser(User(username, email, firstName, lastName), password) map {
       case CreateSuccess(uid) =>
         log.debug("User created.  Creating domains")
-        seqFutures(autoCreateConfigs) { config =>
+        FutureUtils.seqFutures(autoCreateConfigs) { config =>
           val importFile = if (config.hasPath("import-file")) { Some(config.getString("import-file")) } else { None }
-          createDomain(uid, username, config.getString("name"), importFile)
+          createDomain(username, config.getString("name"), importFile)
         }
-        
+
         origSender ! CreateSuccess(uid)
       case DuplicateValue =>
         origSender ! DuplicateValue
       case InvalidValue =>
         origSender ! InvalidValue
+    } recover {
+      case e: Throwable =>
+        origSender ! Status.Failure(e)
     }
   }
 
-  def seqFutures[T, U](items: TraversableOnce[T])(yourfunction: T => Future[U]): Future[List[U]] = {
-    items.foldLeft(Future.successful[List[U]](Nil)) {
-      (f, item) =>
-        f.flatMap {
-          x => yourfunction(item).map(_ :: x)
-        }
-    } map (_.reverse)
-  }
-
   def getConvergenceUserProfile(message: GetConvergenceUserProfile): Unit = {
-    val GetConvergenceUserProfile(userId) = message
-    userStore.getUserByUid(userId) match {
+    val GetConvergenceUserProfile(username) = message
+    userStore.getUserByUsername(username) match {
       case Success(opt) =>
         sender ! opt
       case Failure(f) =>
@@ -104,12 +99,12 @@ class ConvergenceUserManagerActor private[datastore] (
     }
   }
 
-  private[this] def createDomain(userId: String, username: String, name: String, importFile: Option[String]): Future[CreateResult[Unit]] = {
+  private[this] def createDomain(username: String, name: String, importFile: Option[String]): Future[CreateResult[Unit]] = {
     log.debug(s"Requesting domain creation for user '${username}': $name")
-    
+
     // FIXME hardcoded
     implicit val requstTimeout = Timeout(120 seconds)
-    (domainStoreActor ? CreateDomainRequest(username, name, name, userId, importFile)).mapTo[CreateResult[Unit]] andThen {
+    (domainStoreActor ? CreateDomainRequest(username, name, name, username, importFile)).mapTo[CreateResult[Unit]] andThen {
       case Success(resp: CreateSuccess[Unit]) =>
         log.debug(s"Domain '${name}' created for '${username}'");
       case Success(DuplicateValue) =>

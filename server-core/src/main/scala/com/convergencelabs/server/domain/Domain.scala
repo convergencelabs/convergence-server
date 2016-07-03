@@ -12,7 +12,6 @@ object DomainStatus extends Enumeration {
 }
 
 case class Domain(
-  id: String,
   domainFqn: DomainFqn,
   displayName: String,
   owner: User,

@@ -63,10 +63,9 @@ class DomainManagerActorSpec()
     val adminKeyPair = TokenKeyPair("", "")
 
     val domain = Domain(
-      "d1",
       domainFqn,
       "Default",
-      User("cu0", "test", "test@convergence.com", "test", "test"),
+      User("test", "test@convergence.com", "test", "test"),
       DomainStatus.Online)
 
     val domainStore = mock[DomainStore]

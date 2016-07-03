@@ -52,10 +52,10 @@ class DomainStoreActor private[datastore] (
     // TODO we should be optionally randomizing the password and passing it in.
     val password = DefaultPassword
 
-    
+    val domainFqn = DomainFqn(namespace, domainId)
     
     val result = domainStore.createDomain(
-        DomainFqn(namespace, domainId),
+        domainFqn,
         displayName,
         ownerUid,
       DomainDatabaseInfo(dbName,
@@ -67,16 +67,16 @@ class DomainStoreActor private[datastore] (
     // TODO opportunity for some scala fu here to actually add try like map and foreach
     // functions to the CreateResult class.
     result foreach {
-      case CreateSuccess(dId) =>
+      case CreateSuccess(()) =>
         domainDBContoller.createDomain(dbName, password, importFile) onComplete {
           case Success(()) =>
-            domainStore.getDomainById(dId) map (_.map { domain =>
+            domainStore.getDomainByFqn(domainFqn) map (_.map { domain =>
               val updated = domain.copy(status = DomainStatus.Online)
               domainStore.updateDomain(updated)
             })
           case Failure(f) =>
             // TODO we should probably have some field on the domain that references errors?
-            domainStore.getDomainById(dId) map (_.map { domain =>
+            domainStore.getDomainByFqn(domainFqn) map (_.map { domain =>
               val updated = domain.copy(status = DomainStatus.Error)
               domainStore.updateDomain(updated)
             })
@@ -104,7 +104,7 @@ class DomainStoreActor private[datastore] (
     val databaseConfig = domainStore.getDomainDatabaseInfo(domainFqn)
     reply((domain, databaseConfig) match {
       case (Success(Some(domain)), Success(Some(databaseConfig))) => {
-        domainStore.removeDomain(domain.id)
+        domainStore.removeDomain(domainFqn)
         domainDBContoller.deleteDomain(databaseConfig.database)
         Success(DeleteSuccess)
       }
@@ -126,7 +126,7 @@ object DomainStoreActor {
   def props(dbPool: OPartitionedDatabasePool,
     ec: ExecutionContext): Props = Props(new DomainStoreActor(dbPool, ec))
 
-  case class CreateDomainRequest(namespace: String, domainId: String, displayName: String, ownerUid: String, importFile: Option[String])
+  case class CreateDomainRequest(namespace: String, domainId: String, displayName: String, owner: String, importFile: Option[String])
   case class UpdateDomainRequest(namespace: String, domainId: String, displayName: String)
   case class DeleteDomainRequest(namespace: String, domainId: String)
   case class GetDomainRequest(namespace: String, domainId: String)

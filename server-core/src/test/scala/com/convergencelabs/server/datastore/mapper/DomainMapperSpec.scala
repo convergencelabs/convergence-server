@@ -21,9 +21,8 @@ class DomainMapperSpec
   "An DomainMapper" when {
     "when converting a Domain" must {
       "correctly map and unmap a Domain" in {
-        val owner = User("cu0", "test", "test@convergence.com", "test", "test")
+        val owner = User("test", "test@convergence.com", "test", "test")
         val domain = Domain(
-          "id",
           DomainFqn("ns", "dId"),
           "My Domain",
           owner,

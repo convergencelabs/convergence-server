@@ -45,7 +45,6 @@ class UserStore private[datastore] (
 
   private[this] implicit val formats = Serialization.formats(NoTypeHints)
 
-  val Uid = "uid"
   val Username = "username"
   val Email = "email"
   val FirstName = "firstName"
@@ -54,20 +53,8 @@ class UserStore private[datastore] (
   val Token = "token"
   val ExpireTime = "expireTime"
   
-  val UidSeq = "UIDSEQ"
-
-  def createUser(user: User, password: String): Try[CreateResult[String]] = tryWithDb { db =>
-    //FIXME: Remove after figuring out how to create in schema
-    if(!db.getMetadata().getSequenceLibrary().getSequenceNames.contains(UidSeq)) {
-      val createParams = new CreateParams().setDefaults()
-      db.getMetadata().getSequenceLibrary().createSequence(UidSeq, SEQUENCE_TYPE.CACHED, createParams)
-    }
-    
-    val seq = db.getMetadata().getSequenceLibrary().getSequence(UidSeq)
-    val uid = seq.next().toString
-    
+  def createUser(user: User, password: String): Try[CreateResult[Unit]] = tryWithDb { db =>
     val userDoc = new ODocument("User");
-    userDoc.field(Uid, uid);
     userDoc.field(Username, user.username);
     userDoc.field(Email, user.email)
     userDoc.field(FirstName, user.firstName)
@@ -82,7 +69,7 @@ class UserStore private[datastore] (
 
     db.save(pwDoc)
 
-    CreateSuccess(uid)
+    CreateSuccess(())
   } recover {
     case e: ORecordDuplicatedException => DuplicateValue
   }
@@ -98,23 +85,9 @@ class UserStore private[datastore] (
   }
 
   /**
-   * Gets a single user by uid.
-   *
-   * @param uid The uid of the user to retrieve.
-   *
-   * @return Some(User) if a user with the specified uid exists, or None if no such user exists.
-   */
-  def getUserByUid(uid: String): Try[Option[User]] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE uid = :uid")
-    val params = Map(Uid -> uid)
-    val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.mapSingletonList(results) { _.asUser }
-  }
-
-  /**
    * Gets a single user by username.
    *
-   * @param username The uid of the user to retrieve.
+   * @param username The username of the user to retrieve.
    *
    * @return Some(User) if a user with the specified username exists, or None if no such user exists.
    */
@@ -171,7 +144,7 @@ class UserStore private[datastore] (
    * @return true if the username and passowrd match, false otherwise.
    */
   def validateCredentials(username: String, password: String): Try[Option[Tuple2[String, String]]] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT password, user.uid AS uid FROM UserCredential WHERE user.username = :username")
+    val query = new OSQLSynchQuery[ODocument]("SELECT password, user.username AS username FROM UserCredential WHERE user.username = :username")
     val params = Map(Username -> username)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
@@ -180,11 +153,11 @@ class UserStore private[datastore] (
         val pwhash: String = doc.field(Password)
         PasswordUtil.checkPassword(password, pwhash) match {
           case true => {
-            val uid: String = doc.field(Uid)
+            val username: String = doc.field(Username)
             val token = UUID.randomUUID().toString()
             val expireTime = Date.from(Instant.now().plus(tokenValidityDuration))
-            createToken(uid, token, expireTime)
-            Some((uid, token))
+            createToken(username, token, expireTime)
+            Some((username, token))
           }
           case false => None
         }
@@ -192,20 +165,20 @@ class UserStore private[datastore] (
     }
   }
 
-  def createToken(uid: String, token: String, expireTime: Date): Try[Unit] = tryWithDb { db =>
+  def createToken(username: String, token: String, expireTime: Date): Try[Unit] = tryWithDb { db =>
     val queryStirng =
       """INSERT INTO UserAuthToken SET
-        |  user = (SELECT FROM User WHERE uid = :uid),
+        |  user = (SELECT FROM User WHERE username = :username),
         |  token = :token,
         |  expireTime = :expireTime""".stripMargin
     val query = new OCommandSQL(queryStirng)
-    val params = Map(Uid -> uid, Token -> token, ExpireTime -> expireTime)
+    val params = Map(Username -> username, Token -> token, ExpireTime -> expireTime)
     db.command(query).execute(params.asJava)
     Unit
   }
 
   def validateToken(token: String): Try[Option[String]] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT user.uid AS uid, expireTime FROM UserAuthToken WHERE token = :token")
+    val query = new OSQLSynchQuery[ODocument]("SELECT user.username AS username, expireTime FROM UserAuthToken WHERE token = :token")
     val params = Map(Token -> token)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
@@ -213,9 +186,9 @@ class UserStore private[datastore] (
       case Some(doc) =>
         val expireTime: Date = doc.field(ExpireTime, OType.DATETIME)
         if (Instant.now().isBefore(expireTime.toInstant())) {
-          val uid: String = doc.field(Uid)
+          val username: String = doc.field(Username)
           updateToken(token)
-          Some(uid)
+          Some(username)
         } else {
           None
         }
@@ -229,10 +202,4 @@ class UserStore private[datastore] (
     db.command(query).execute(params.asJava)
     Unit
   }
-}
-
-object UserField extends Enumeration {
-  type Field = Value
-  val UserId = Value("uid")
-  val Username = Value("username")
 }

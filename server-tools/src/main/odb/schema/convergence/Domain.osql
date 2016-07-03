@@ -1,10 +1,5 @@
 CREATE CLASS Domain;
 
-#Domain.id
-CREATE Property Domain.id STRING;
-ALTER PROPERTY Domain.id MANDATORY true;
-ALTER PROPERTY Domain.id NOTNULL true;
-
 #Domain.namespace
 CREATE Property Domain.namespace STRING;
 ALTER PROPERTY Domain.namespace MANDATORY true;
@@ -40,6 +35,5 @@ ALTER PROPERTY Domain.status NOTNULL true;
 
 
 #Domain Indexes
-CREATE INDEX Domain.id ON Domain (id) UNIQUE;
 CREATE INDEX Domain.dbName ON Domain (dbName) UNIQUE;
 CREATE INDEX Domain.namespace_domainId ON Domain (namespace, domainId) UNIQUE_HASH_INDEX;
