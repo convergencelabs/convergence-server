@@ -36,15 +36,17 @@ import scala.collection.mutable.ListBuffer
  * realtime model.
  */
 class RealtimeModelActor(
-    private[this] val modelManagerActor: ActorRef,
-    private[this] val domainFqn: DomainFqn,
-    private[this] val modelFqn: ModelFqn,
-    private[this] val modelResourceId: String,
-    private[this] val modelStore: ModelStore,
-    private[this] val modelOperationProcessor: ModelOperationProcessor,
-    private[this] val modelSnapshotStore: ModelSnapshotStore,
-    private[this] val clientDataResponseTimeout: Long,
-    private[this] val snapshotConfig: ModelSnapshotConfig) extends Actor with ActorLogging {
+  private[this] val modelManagerActor: ActorRef,
+  private[this] val domainFqn: DomainFqn,
+  private[this] val modelFqn: ModelFqn,
+  private[this] val modelResourceId: String,
+  private[this] val modelStore: ModelStore,
+  private[this] val modelOperationProcessor: ModelOperationProcessor,
+  private[this] val modelSnapshotStore: ModelSnapshotStore,
+  private[this] val clientDataResponseTimeout: Long,
+  private[this] val snapshotConfig: ModelSnapshotConfig)
+    extends Actor
+    with ActorLogging {
 
   // This sets the actor dispatcher as an implicit execution context.  This way we
   // don't have to pass this argument to futures.
@@ -465,6 +467,7 @@ class RealtimeModelActor(
       case Success(None) =>
       // Event's no-op'ed
       case Failure(cause) =>
+        log.error(cause, "Invalid reference event") 
         forceClosedModel(sk, "invalid reference event", true)
     }
   }
