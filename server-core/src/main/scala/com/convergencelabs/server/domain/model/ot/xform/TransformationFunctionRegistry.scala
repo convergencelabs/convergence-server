@@ -3,6 +3,12 @@ package com.convergencelabs.server.domain.model.ot
 import scala.reflect.ClassTag
 import com.convergencelabs.server.domain.model.ReferenceType
 import scala.collection.immutable.Map.Map2
+import com.convergencelabs.server.domain.model.ot.xform.reference.StringRemoveIndexTF
+import com.convergencelabs.server.domain.model.ot.xform.reference.StringInsertIndexTF
+import com.convergencelabs.server.domain.model.ot.xform.reference.StringSetIndexTF
+import com.convergencelabs.server.domain.model.ot.xform.reference.StringInsertRangeTF
+import com.convergencelabs.server.domain.model.ot.xform.reference.StringRemoveRangeTF
+import com.convergencelabs.server.domain.model.ot.xform.reference.StringSetRangeTF
 
 private[model] class TransformationFunctionRegistry {
 
@@ -83,6 +89,14 @@ private[model] class TransformationFunctionRegistry {
 
   // Boolean Functions
   otfs.register[BooleanSetOperation, BooleanSetOperation](BooleanSetSetTF)
+  
+  rtfs.register[StringInsertOperation](ReferenceType.Index, StringInsertIndexTF)
+  rtfs.register[StringRemoveOperation](ReferenceType.Index, StringRemoveIndexTF)
+  rtfs.register[StringSetOperation](ReferenceType.Index, StringSetIndexTF)
+  
+  rtfs.register[StringInsertOperation](ReferenceType.Range, StringInsertRangeTF)
+  rtfs.register[StringRemoveOperation](ReferenceType.Range, StringRemoveRangeTF)
+  rtfs.register[StringSetOperation](ReferenceType.Range, StringSetRangeTF)
 
   def getOperationTransformationFunction[S <: DiscreteOperation, C <: DiscreteOperation](s: S, c: C): Option[OperationTransformationFunction[S, C]] = {
     otfs.getOperationTransformationFunction(s, c)

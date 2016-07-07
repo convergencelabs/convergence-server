@@ -126,11 +126,6 @@ class RealTimeModel(
   }
 
   def processReferenceEvent(event: ModelReferenceEvent, sk: String): Try[Option[RemoteReferenceEvent]] = Try {
-    // We could do a map here to simplify things, but I am thinking we will want to
-    // do some sort of check later on to see if this value ever existed.
-
-    // FIXME the processReferenceEvent method actually returns a try,
-    // we are not checking this value, so if it fails we swallow.
     idToValue.get(event.id) match {
       case Some(realTimeValue) =>
         event match {
@@ -143,16 +138,23 @@ class RealTimeModel(
             val UnpublishReference(id, key) = unpublish
             Some(RemoteReferenceUnpublished(resourceId, sk, id, key))
           case set: SetReference =>
-            val xformed = this.cc.processRemoteReferenceSet(sk, set)
-            realTimeValue.processReferenceEvent(xformed, sk)
-            val SetReference(id, key, refType, value, versio) = xformed
-            Some(RemoteReferenceSet(this.resourceId, sk, id, key, refType, value))
+            this.cc.processRemoteReferenceSet(sk, set) match {
+              case Some(xformed) =>
+                realTimeValue.processReferenceEvent(xformed, sk)
+                val SetReference(id, key, refType, value, versio) = xformed
+                Some(RemoteReferenceSet(this.resourceId, sk, id, key, refType, value))
+              case None =>
+                None
+            }
           case cleared: ClearReference =>
             realTimeValue.processReferenceEvent(cleared, sk)
             val ClearReference(id, key) = cleared
             Some(RemoteReferenceCleared(resourceId, sk, id, key))
         }
       case None =>
+        // TODO we just drop the event because we don't have a RTV with this id.
+        // later on I would like to keep some history to know if we ever had
+        // an RTV with this id, else throw an error.
         None
     }
   }

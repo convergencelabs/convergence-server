@@ -11,6 +11,14 @@ import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.WordSpec
 import org.json4s.JsonAST.JDouble
 import com.convergencelabs.server.domain.model.data.StringValue
+import com.convergencelabs.server.domain.model.ReferenceType
+import com.convergencelabs.server.domain.model.SetReference
+import com.convergencelabs.server.domain.model.ot.xform.reference.StringInsertIndexTF
+import com.convergencelabs.server.domain.model.ot.xform.reference.StringRemoveIndexTF
+import com.convergencelabs.server.domain.model.ot.xform.reference.StringSetIndexTF
+import com.convergencelabs.server.domain.model.ot.xform.reference.StringInsertRangeTF
+import com.convergencelabs.server.domain.model.ot.xform.reference.StringRemoveRangeTF
+import com.convergencelabs.server.domain.model.ot.xform.reference.StringSetRangeTF
 
 // scalastyle:off multiple.string.literals
 class TransformationFunctionRegistrySpec extends WordSpec with Matchers {
@@ -36,6 +44,10 @@ class TransformationFunctionRegistrySpec extends WordSpec with Matchers {
   val NumberSet = NumberSetOperation(valueId, false, 1d)
 
   val BooleanSet = BooleanSetOperation(valueId, false, true)
+  
+  val referenceKey = "refKey"
+  
+  val SetRef = SetReference(valueId, referenceKey, ReferenceType.Index, 3, 1l)
 
   "A TransformationFunctionRegistry" when {
 
@@ -418,6 +430,58 @@ class TransformationFunctionRegistrySpec extends WordSpec with Matchers {
         tf.value shouldBe BooleanSetSetTF
       }
     }
+    
+    ///////////////////////////////////////////////////////////////////////////
+    // String References
+    ///////////////////////////////////////////////////////////////////////////
+    "getting a ReferenceTransformationFunction for an StringInsert and an Index reference" must {
+      "return StringInsertIndexFT" in {
+        val tfr = new TransformationFunctionRegistry()
+        val tf = tfr.getReferenceTransformationFunction(StringInsert, ReferenceType.Index)
+        tf.value shouldBe StringInsertIndexTF
+      }
+    }
+    
+    "getting a ReferenceTransformationFunction for an StringRemove and an Index reference" must {
+      "return StringRemoveIndexTF" in {
+        val tfr = new TransformationFunctionRegistry()
+        val tf = tfr.getReferenceTransformationFunction(StringRemove, ReferenceType.Index)
+        tf.value shouldBe StringRemoveIndexTF
+      }
+    }
+    
+    "getting a ReferenceTransformationFunction for an StringSet and an Index reference" must {
+      "return StringSetIndexTF" in {
+        val tfr = new TransformationFunctionRegistry()
+        val tf = tfr.getReferenceTransformationFunction(StringSet, ReferenceType.Index)
+        tf.value shouldBe StringSetIndexTF
+      }
+    }
+    
+    "getting a ReferenceTransformationFunction for an StringInsert and an Range reference" must {
+      "return StringInsertIndexFT" in {
+        val tfr = new TransformationFunctionRegistry()
+        val tf = tfr.getReferenceTransformationFunction(StringInsert, ReferenceType.Range)
+        tf.value shouldBe StringInsertRangeTF
+      }
+    }
+    
+    "getting a ReferenceTransformationFunction for an StringRemove and an Range reference" must {
+      "return StringRemoveRangeTF" in {
+        val tfr = new TransformationFunctionRegistry()
+        val tf = tfr.getReferenceTransformationFunction(StringRemove, ReferenceType.Range)
+        tf.value shouldBe StringRemoveRangeTF
+      }
+    }
+    
+    "getting a ReferenceTransformationFunction for an StringSet and an Range reference" must {
+      "return StringSetRangeTF" in {
+        val tfr = new TransformationFunctionRegistry()
+        val tf = tfr.getReferenceTransformationFunction(StringSet, ReferenceType.Range)
+        tf.value shouldBe StringSetRangeTF
+      }
+    }
+    
 
     ///////////////////////////////////////////////////////////////////////////
     // Exceptional Cases
