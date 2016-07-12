@@ -34,6 +34,9 @@ class ConvergenceRealTimeFrontend(
 
   def start(): Unit = {
     logger.info(s"Realtime Front End starting up on port $websocketPort.")
+    val wsTimeout = system.settings.config.getDuration("akka.http.server.idle-timeout")
+    logger.info(s"Web Socket Timeout set to: $wsTimeout.")
+    
     val timeout = FiniteDuration(5, TimeUnit.SECONDS)
     inbox.receive(timeout) match {
       case StartUpComplete(domainManager) => {

@@ -5,10 +5,10 @@ import com.convergencelabs.server.domain.model.ot.ReferenceTransformationFunctio
 import com.convergencelabs.server.domain.model.ot.StringInsertOperation
 import com.convergencelabs.server.domain.model.ot.xform.IndexTransformer
 
-object StringInsertIndexTF extends ReferenceTransformationFunction[StringInsertOperation] {
+object StringInsertRangeTF extends ReferenceTransformationFunction[StringInsertOperation] {
   def transform(op: StringInsertOperation, setReference: SetReference): Option[SetReference] = {
-    val index = setReference.value.asInstanceOf[Int]
-    val xFormed = IndexTransformer.handleInsert(List(index), op.index, op.value.length)(0)
-    Some(setReference.copy(value = xFormed))
+    val range = setReference.value.asInstanceOf[(Int, Int)]
+    val xFormed = IndexTransformer.handleInsert(List(range._1, range._2), op.index, op.value.length)
+    Some(setReference.copy(value = (xFormed(0), xFormed(1)) ))
   }
 }

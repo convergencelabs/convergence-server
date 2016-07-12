@@ -104,13 +104,14 @@ private[model] class ServerConcurrencyControl(
     })
   }
 
-  def processRemoteReferenceSet(clientId: String, setReference: SetReference): SetReference = {
+  def processRemoteReferenceSet(clientId: String, setReference: SetReference): Option[SetReference] = {
     val clientState = clientStates(clientId)
     val newStatePath = getCurrentClientStatePath(clientState, setReference.contextVersion)
 
-    var result = setReference
+    var result: Option[SetReference] = Some(setReference)
+
     newStatePath.foreach { event =>
-      result = this.referenceTransformer.transform(event.operation, result)
+      result = result.flatMap { ref => this.referenceTransformer.transform(event.operation, ref) }
     }
 
     clientStates(clientId) = clientState.copy(
@@ -119,7 +120,7 @@ private[model] class ServerConcurrencyControl(
 
     pruneHistory()
 
-    result
+    result.map { ref => ref.copy(contextVersion = this._contextVersion) }
   }
 
   /**

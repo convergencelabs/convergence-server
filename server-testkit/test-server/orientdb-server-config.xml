@@ -20,8 +20,8 @@
     <entry name="server.cache.staticResources" value="false" />
     <entry name="server.database.path" value="target/orientdb" />
     
-    <entry name="log.console.level" value="info" />
-    <entry name="log.file.level" value="fine" />
+    <entry name="log.console.level" value="WARNING" />
+    <entry name="log.file.level" value="WARNING" />
     
     <entry name="plugin.dynamic" value="false" />
   </properties>

@@ -5,6 +5,7 @@ import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
+import com.convergencelabs.server.util.concurrent.FutureUtils
 
 import collection.JavaConverters._
 
@@ -22,6 +23,7 @@ import akka.actor.Status
 import akka.actor.actorRef2Scala
 import akka.pattern.ask
 import akka.util.Timeout
+import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUserProfile
 
 object ConvergenceUserManagerActor {
   def props(dbPool: OPartitionedDatabasePool, domainStoreActor: ActorRef): Props =
@@ -29,6 +31,7 @@ object ConvergenceUserManagerActor {
 
   case class CreateConvergenceUserRequest(username: String, email: String, firstName: String, lastName: String, password: String)
   case class DeleteConvergenceUserRequest(username: String)
+  case class GetConvergenceUserProfile(userId: String)
 }
 
 class ConvergenceUserManagerActor private[datastore] (
@@ -49,22 +52,39 @@ class ConvergenceUserManagerActor private[datastore] (
   def receive: Receive = {
     case message: CreateConvergenceUserRequest => createConvergenceUser(message)
     case message: DeleteConvergenceUserRequest => deleteConvergenceUser(message)
+    case message: GetConvergenceUserProfile => getConvergenceUserProfile(message)
     case message: Any => unhandled(message)
   }
 
   def createConvergenceUser(message: CreateConvergenceUserRequest): Unit = {
     val CreateConvergenceUserRequest(username, email, firstName, lastName, password) = message
     val origSender = sender
-    userStore.createUser(User(null, username, email, firstName, lastName), password) map {
-      case CreateSuccess(uid) => {
-        autoCreateConfigs foreach { config => {
-          val importFile = if(config.hasPath("import-file")) { Some(config.getString("import-file"))} else {None}
-          createDomain(uid, username, config.getString("name"), importFile)}
+    userStore.createUser(User(username, email, firstName, lastName), password) map {
+      case CreateSuccess(uid) =>
+        log.debug("User created.  Creating domains")
+        FutureUtils.seqFutures(autoCreateConfigs) { config =>
+          val importFile = if (config.hasPath("import-file")) { Some(config.getString("import-file")) } else { None }
+          createDomain(username, config.getString("name"), importFile)
         }
+
         origSender ! CreateSuccess(uid)
-      }
-      case DuplicateValue => origSender ! DuplicateValue
-      case InvalidValue => origSender ! InvalidValue
+      case DuplicateValue =>
+        origSender ! DuplicateValue
+      case InvalidValue =>
+        origSender ! InvalidValue
+    } recover {
+      case e: Throwable =>
+        origSender ! Status.Failure(e)
+    }
+  }
+
+  def getConvergenceUserProfile(message: GetConvergenceUserProfile): Unit = {
+    val GetConvergenceUserProfile(username) = message
+    userStore.getUserByUsername(username) match {
+      case Success(opt) =>
+        sender ! opt
+      case Failure(f) =>
+        sender ! Status.Failure(f)
     }
   }
 
@@ -79,13 +99,22 @@ class ConvergenceUserManagerActor private[datastore] (
     }
   }
 
-  private[this] def createDomain(userId: String, username: String, name: String, importFile: Option[String]): Unit = {
-    (domainStoreActor ? CreateDomainRequest(username, name, name, userId, importFile)).mapTo[CreateResult[Unit]] onComplete {
-       case Success(resp: CreateSuccess[Unit]) => log.debug(s"Domain '${name}' created for '${username}'");
-       case Success(DuplicateValue) => log.error(s"Unable to create '${name}' domain for user: Duplicate value exception");
-       case Success(InvalidValue) => log.error(s"Unable to create '${name}' domain for user: Invalid value exception");
-       case Failure(f) => log.error(f, s"Unable to create '${name}' domain for user");
+  private[this] def createDomain(username: String, name: String, importFile: Option[String]): Future[CreateResult[Unit]] = {
+    log.debug(s"Requesting domain creation for user '${username}': $name")
+
+    // FIXME hardcoded
+    implicit val requstTimeout = Timeout(120 seconds)
+    (domainStoreActor ? CreateDomainRequest(username, name, name, username, importFile)).mapTo[CreateResult[Unit]] andThen {
+      case Success(resp: CreateSuccess[Unit]) =>
+        log.debug(s"Domain '${name}' created for '${username}'");
+      case Success(DuplicateValue) =>
+        log.error(s"Unable to create '${name}' domain for user: Duplicate value exception");
+      case Success(InvalidValue) =>
+        log.error(s"Unable to create '${name}' domain for user: Invalid value exception");
+      case Success(x) =>
+        println(x)
+      case Failure(f) =>
+        log.error(f, s"Unable to create '${name}' domain for user");
     }
-    Unit
   }
 }

@@ -16,17 +16,25 @@ import com.typesafe.config.Config
 import akka.actor.ActorLogging
 import akka.actor.Props
 import scala.util.Try
+import scala.concurrent.ExecutionContext
+import com.convergencelabs.server.domain.DomainStatus
+import java.util.UUID
+import com.convergencelabs.server.domain.DomainDatabaseInfo
 
 class DomainStoreActor private[datastore] (
-  private[this] val dbPool: OPartitionedDatabasePool)
+  private[this] val dbPool: OPartitionedDatabasePool,
+  private[this] implicit val ec: ExecutionContext)
     extends StoreActor with ActorLogging {
 
   private[this] val orientDbConfig: Config = context.system.settings.config.getConfig("convergence.orient-db")
   private[this] val domainDbConfig: Config = context.system.settings.config.getConfig("convergence.domain-databases")
+  private[this] val Username = domainDbConfig.getString("username")
+  private[this] val DefaultPassword = domainDbConfig.getString("default-password")
+
   private[this] val domainStore: DomainStore = new DomainStore(dbPool)
 
-  private[this] val domainDBContoller: DomainDBController =
-      new DomainRemoteDBController(orientDbConfig, domainDbConfig, context.system)
+  private[this] val domainDBContoller =
+    new DomainDBController(orientDbConfig, domainDbConfig, context.system)
 
   def receive: Receive = {
     case createRequest: CreateDomainRequest => createDomain(createRequest)
@@ -38,10 +46,43 @@ class DomainStoreActor private[datastore] (
   }
 
   def createDomain(createRequest: CreateDomainRequest): Unit = {
-    val CreateDomainRequest(namespace, domainId, displayName, owner, importFile) = createRequest
-    val DBConfig(dbName, username, password) = domainDBContoller.createDomain(importFile)
-    // TODO: Need to handle rollback of domain creation if this fails
-    reply(domainStore.createDomain(Domain(null, DomainFqn(namespace, domainId), displayName, owner), dbName, username, password))
+    val CreateDomainRequest(namespace, domainId, displayName, ownerUid, importFile) = createRequest
+    val dbName = UUID.randomUUID().getLeastSignificantBits().toString()
+
+    // TODO we should be optionally randomizing the password and passing it in.
+    val password = DefaultPassword
+
+    val domainFqn = DomainFqn(namespace, domainId)
+    
+    val result = domainStore.createDomain(
+        domainFqn,
+        displayName,
+        ownerUid,
+      DomainDatabaseInfo(dbName,
+      Username,
+      password))
+
+    reply(result)
+
+    // TODO opportunity for some scala fu here to actually add try like map and foreach
+    // functions to the CreateResult class.
+    result foreach {
+      case CreateSuccess(()) =>
+        domainDBContoller.createDomain(dbName, password, importFile) onComplete {
+          case Success(()) =>
+            domainStore.getDomainByFqn(domainFqn) map (_.map { domain =>
+              val updated = domain.copy(status = DomainStatus.Online)
+              domainStore.updateDomain(updated)
+            })
+          case Failure(f) =>
+            // TODO we should probably have some field on the domain that references errors?
+            domainStore.getDomainByFqn(domainFqn) map (_.map { domain =>
+              val updated = domain.copy(status = DomainStatus.Error)
+              domainStore.updateDomain(updated)
+            })
+        }
+      case _ =>
+    }
   }
 
   def updateDomain(request: UpdateDomainRequest): Unit = {
@@ -63,7 +104,7 @@ class DomainStoreActor private[datastore] (
     val databaseConfig = domainStore.getDomainDatabaseInfo(domainFqn)
     reply((domain, databaseConfig) match {
       case (Success(Some(domain)), Success(Some(databaseConfig))) => {
-        domainStore.removeDomain(domain.id)
+        domainStore.removeDomain(domainFqn)
         domainDBContoller.deleteDomain(databaseConfig.database)
         Success(DeleteSuccess)
       }
@@ -82,7 +123,8 @@ class DomainStoreActor private[datastore] (
 }
 
 object DomainStoreActor {
-  def props(dbPool: OPartitionedDatabasePool): Props = Props(new DomainStoreActor(dbPool))
+  def props(dbPool: OPartitionedDatabasePool,
+    ec: ExecutionContext): Props = Props(new DomainStoreActor(dbPool, ec))
 
   case class CreateDomainRequest(namespace: String, domainId: String, displayName: String, owner: String, importFile: Option[String])
   case class UpdateDomainRequest(namespace: String, domainId: String, displayName: String)

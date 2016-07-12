@@ -75,7 +75,7 @@ val serverNode = (project in file("server-node"))
 	  IO.copyDirectory(dockerSrc, dockerTarget, true, false)
 	  IO.copyDirectory(packSrc, packTarget, true, false)
 	  
-	  "docker build -t convergence-server-node server-node/target/docker/" !
+	  "docker build -t nexus.convergencelabs.tech:18443/convergence-server-node:latest server-node/target/docker/" !
 	}
   )
   .settings(dockerBuild <<= (dockerBuild dependsOn pack))  

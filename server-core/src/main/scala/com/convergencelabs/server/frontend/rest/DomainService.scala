@@ -35,16 +35,17 @@ import com.convergencelabs.server.domain.RestAuthnorizationActor.AuthorizationDe
 import com.convergencelabs.server.domain.RestAuthnorizationActor.AuthorizationResult
 import com.convergencelabs.server.datastore.UpdateResult
 import com.convergencelabs.server.datastore.UpdateSuccess
+import com.convergencelabs.server.User
 
-case class DomainsResponse(domains: List[DomainFqn]) extends AbstractSuccessResponse
+case class DomainsResponse(domains: List[DomainInfo]) extends AbstractSuccessResponse
 case class DomainResponse(domain: DomainInfo) extends AbstractSuccessResponse
 
 case class DomainInfo(
-  id: String,
   displayName: String,
   namespace: String,
   domainId: String,
-  owner: String)
+  owner: String,
+  status: String)
 
 case class CreateDomainRestRequest(namespace: String, domainId: String, displayName: String)
 case class UpdateDomainRestRequest(displayName: String)
@@ -117,19 +118,23 @@ class DomainService(
   def getDomains(userId: String): Future[RestResponse] = {
     (domainStoreActor ? ListDomainsRequest(userId)).mapTo[List[Domain]].map(domains =>
       (StatusCodes.OK, DomainsResponse(
-        (domains map (domain => DomainFqn(domain.domainFqn.namespace, domain.domainFqn.domainId))))))
-
+        (domains map (domain => DomainInfo(
+          domain.displayName,
+          domain.domainFqn.namespace,
+          domain.domainFqn.domainId,
+          domain.owner.username,
+          domain.status.toString()))))))
   }
 
   def getDomain(namespace: String, domainId: String): Future[RestResponse] = {
     (domainStoreActor ? GetDomainRequest(namespace, domainId)).mapTo[Option[Domain]].map {
       case Some(domain) =>
         (StatusCodes.OK, DomainResponse(DomainInfo(
-          domain.id,
           domain.displayName,
           domain.domainFqn.namespace,
           domain.domainFqn.domainId,
-          domain.owner)))
+          domain.owner.username,
+          domain.status.toString())))
       case None => NotFoundError
     }
   }

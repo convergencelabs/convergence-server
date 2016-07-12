@@ -22,10 +22,30 @@ import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 
 import grizzled.slf4j.Logging
+import java.util.ArrayList
 
 class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
     extends AbstractDatabasePersistence(dbPool)
     with Logging {
+  
+  def initializeDomainConfig(tokenKeyPair: TokenKeyPair, modelSnapshotConfig: ModelSnapshotConfig): Try[Unit] = tryWithDb { db =>
+    db.command(new OCommandSQL("DELETE FROM DomainConfig")).execute()
+    
+    val doc = new ODocument("DomainConfig")
+    doc.field("modelSnapshotConfig", modelSnapshotConfig.asODocument, OType.EMBEDDED)
+    doc.field("adminPublicKey", tokenKeyPair.publicKey)
+    doc.field("adminPrivateKey", tokenKeyPair.privateKey)
+    doc.field("tokenKeys", new ArrayList[TokenPublicKey](), OType.EMBEDDEDLIST)
+    doc.save()
+    ()
+  }
+  
+  def isInitialized(): Try[Boolean] = tryWithDb { db =>
+    val query = new OSQLSynchQuery[ODocument]("SELECT count(*) AS count FROM DomainConfig")
+    val result: JavaList[ODocument] = db.command(query).execute()
+    val count: Long = result.get(0).field("count", OType.LONG)
+    count == 1;
+  }
 
   def getAdminUserName(): String = {
     "ConvergenceAdmin"
@@ -73,5 +93,20 @@ class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
         doc.field("adminPublicKey", OType.STRING),
         doc.field("adminPrivateKey", OType.STRING))
     }.get
+  }
+  
+  def setAdminKeyPair(pair: TokenKeyPair): Try[Unit] = tryWithDb { db =>
+    val queryString = """
+      |UPDATE
+      |  DomainConfig
+      |SET
+      |  adminPublicKey = :publicKey, 
+      |  adminPrivateKey = :privateKey""".stripMargin
+    val command = new OCommandSQL(queryString)
+    
+    val params = Map("publicKey" -> pair.publicKey, "privateKey" -> pair.privateKey).asJava
+    
+    db.command(command).execute(params)
+    ()
   }
 }

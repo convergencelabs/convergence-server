@@ -93,7 +93,7 @@ case class CloseRealTimeModelSuccessMessage() extends OutgoingProtocolResponseMe
 case class CreateRealtimeModelSuccessMessage() extends OutgoingProtocolResponseMessage
 case class DeleteRealtimeModelSuccessMessage() extends OutgoingProtocolResponseMessage
 
-case class OperationAcknowledgementMessage(r: String, s: Long, v: Long) extends OutgoingProtocolNormalMessage
+case class OperationAcknowledgementMessage(r: String, s: Long, v: Long, p: Long) extends OutgoingProtocolNormalMessage
 case class RemoteOperationMessage(r: String, s: String, v: Long, p: Long, o: OperationData) extends OutgoingProtocolNormalMessage
 
 case class RemoteClientClosedMessage(r: String, s: String) extends OutgoingProtocolNormalMessage

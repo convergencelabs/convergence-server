@@ -6,4 +6,5 @@ INSERT INTO Domain SET
   dbName = "namespace3-domain1",
   dbUsername = "admin",
   dbPassword = "admin",
-  owner = (SELECT FROM User WHERE uid = 'cu1');
+  owner = (SELECT FROM User WHERE uid = 'cu1'),
+  status = "online";

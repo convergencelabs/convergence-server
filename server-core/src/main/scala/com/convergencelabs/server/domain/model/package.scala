@@ -80,12 +80,12 @@ package model {
   case class CloseRealtimeModelSuccess()
 
   trait RealtimeModelClientMessage
-  case class OperationAcknowledgement(resourceId: String, seqNo: Long, contextVersion: Long) extends RealtimeModelClientMessage
+  case class OperationAcknowledgement(resourceId: String, seqNo: Long, contextVersion: Long, timestamp: Long) extends RealtimeModelClientMessage
   case class OutgoingOperation(
     resourceId: String,
     sessionKey: SessionKey,
     contextVersion: Long,
-    timestampe: Long,
+    timestamp: Long,
     operation: Operation) extends RealtimeModelClientMessage
   case class RemoteClientClosed(resourceId: String, sk: SessionKey) extends RealtimeModelClientMessage
   case class RemoteClientOpened(resourceId: String, sk: SessionKey) extends RealtimeModelClientMessage

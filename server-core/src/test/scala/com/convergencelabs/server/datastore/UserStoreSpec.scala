@@ -16,14 +16,13 @@ import java.util.concurrent.TimeUnit
 import java.time.Duration
 
 class UserStoreSpec
-    extends PersistenceStoreSpec[UserStore]("/dbfiles/convergence.json.gz")
+    extends PersistenceStoreSpec[UserStore]("/dbfiles/convergence-example.json.gz")
     with WordSpecLike
     with Matchers {
 
-  val cu0 = "cu0"
   val username = "test"
   val DummyToken = "myToken"
-  val User0 = User(cu0, username, "test@convergence.com", username, username)
+  val User0 = User(username, "test@convergence.com", username, username)
   val tokenDurationMinutes = 5
   val tokenDuration = Duration.ofSeconds(5) // scalastyle:ignore magic.number
 
@@ -31,11 +30,6 @@ class UserStoreSpec
 
   "A DomainUserStore" when {
     "querying a user" must {
-      "correctly retreive user by uid" in withPersistenceStore { store =>
-        val queried = store.getUserByUid(User0.uid)
-        queried.success.get.value shouldBe User0
-      }
-
       "correctly retreive user by username" in withPersistenceStore { store =>
         val queried = store.getUserByUsername(User0.username)
         queried.success.get.value shouldBe User0
@@ -56,7 +50,7 @@ class UserStoreSpec
       "correctly set the password" in withPersistenceStore { store =>
         val password = "newPasswordToSet"
         store.setUserPassword(User0.username, password).success
-        store.validateCredentials(User0.username, password).success.get.get._1 shouldBe cu0
+        store.validateCredentials(User0.username, password).success.get.get._1 shouldBe username
       }
 
       "throw exception if user does not exist" in withPersistenceStore { store =>
@@ -65,8 +59,8 @@ class UserStoreSpec
     }
 
     "validating credentials" must {
-      "return true and a uid for a valid usename and password" in withPersistenceStore { store =>
-        store.validateCredentials(User0.username, "password").success.value.get._1 shouldBe cu0
+      "return true and a username for a valid usename and password" in withPersistenceStore { store =>
+        store.validateCredentials(User0.username, "password").success.value.get._1 shouldBe username
       }
 
       "return false and None for an valid username and invalid password" in withPersistenceStore { store =>
@@ -80,13 +74,13 @@ class UserStoreSpec
 
     "validating tokens" must {
       "return true and a uid for a valid token" in withPersistenceStore { store =>
-        store.createToken(User0.uid, DummyToken, Date.from(Instant.now().plusSeconds(100))) // scalastyle:ignore magic.number
-        store.validateToken(DummyToken).success.value shouldBe Some(cu0)
+        store.createToken(User0.username, DummyToken, Date.from(Instant.now().plusSeconds(100))) // scalastyle:ignore magic.number
+        store.validateToken(DummyToken).success.value shouldBe Some(username)
       }
 
       "return false and None for an expired token" in withPersistenceStore { store =>
         val expireTime = Instant.now().minusSeconds(1)
-        store.createToken(User0.uid, DummyToken, Date.from(expireTime))
+        store.createToken(User0.username, DummyToken, Date.from(expireTime))
         store.validateToken(DummyToken).success.value shouldBe None
       }
 

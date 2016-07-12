@@ -24,6 +24,7 @@ import com.typesafe.config.ConfigFactory
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
+import com.convergencelabs.server.User
 
 @RunWith(classOf[JUnitRunner])
 class DomainManagerActorSpec()
@@ -62,10 +63,10 @@ class DomainManagerActorSpec()
     val adminKeyPair = TokenKeyPair("", "")
 
     val domain = Domain(
-      "d1",
       domainFqn,
       "Default",
-      "cu0")
+      User("test", "test@convergence.com", "test", "test"),
+      DomainStatus.Online)
 
     val domainStore = mock[DomainStore]
     Mockito.when(domainStore.getDomainByFqn(domainFqn)).thenReturn(Success(Some(domain)))

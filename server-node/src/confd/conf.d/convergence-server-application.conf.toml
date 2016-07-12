@@ -1,6 +1,0 @@
-[template]
-src   = "convergence-server-application.conf"
-dest  = "config/convergence-server-application.conf"
-owner = "root"
-group = "root"
-mode  = "0644"
