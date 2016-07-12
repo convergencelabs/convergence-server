@@ -1,6 +1,6 @@
 INSERT INTO User SET
   uid = "u1",
-  username = "test1",
-  firstName = "Test",
-  lastName = "One",
-  email = "test1@example.com";
+  username = "john",
+  firstName = "john",
+  lastName = "Doe",
+  email = "john@example.com";
