@@ -3,13 +3,13 @@ node {
 
     stage 'Checkout'
     checkout scm
-	
+
     gitlabCommitStatus {
-	  docker.withRegistry('https://nexus.convergencelabs.tech:18443/', 'NexusRepo') {
-	    def sbtTools = docker.image('sbt-tools')
-	    sbtTools.pull()
-	  
-	    docker.image(sbtTools.imageName()).inside {
+      docker.withRegistry('https://nexus.convergencelabs.tech:18443/', 'NexusRepo') {
+        def sbtTools = docker.image('sbt-tools')
+        sbtTools.pull()
+
+        docker.image(sbtTools.imageName()).inside {
           stage 'Compile'
           sh 'sbt compile'
 
@@ -18,8 +18,8 @@ node {
 
           stage 'Server Node Pack'
           sh 'sbt serverNode/pack'
-	    }
-	  }
+        }
+      }
       stage 'Server Node Docker (Dev)'
       echo "Current build number is ${env.BUILD_NUMBER}"
 
@@ -28,11 +28,11 @@ node {
         cp -a server-node/src/docker/ server-node/target/docker
         cp -a server-node/target/pack server-node/target/docker/pack
 
-		docker.withRegistry('https://nexus.convergencelabs.tech:18444/', 'NexusRepo') {
+        docker.withRegistry('https://nexus.convergencelabs.tech:18444/', 'NexusRepo') {
           echo "Building the container"
-          docker.build('convergence-server-node-test', 'server-node/target/docker').push('latest')
+          docker.build('convergence-server-node-test', 'server-node/target/docker/').push('latest')
        }
       '''
-	}
+     }
    }
  }
