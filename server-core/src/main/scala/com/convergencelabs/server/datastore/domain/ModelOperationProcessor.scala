@@ -43,6 +43,7 @@ import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
+import com.orientechnologies.common.io.OIOUtils
 
 class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     extends AbstractDatabasePersistence(dbPool) {
@@ -321,13 +322,21 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
          |  vid = :vid AND
          |  model.collectionId = :collectionId AND
          |  model.modelId = :modelId""".stripMargin
+
+    // FIXME remove this when the following orient issue is resolved
+    // https://github.com/orientechnologies/orientdb/issues/6250
+    val hackValue = if (OIOUtils.isStringContent(operation.value)) {
+      "\"\"" + operation.value + "\"\""
+    } else {
+      operation.value
+    }
     val updateCommand = new OCommandSQL(queryString)
     val params = Map(
       VID -> operation.id,
       CollectionId -> fqn.collectionId,
       ModelId -> fqn.modelId,
       Index -> operation.index,
-      Value -> operation.value)
+      Value -> hackValue)
     db.command(updateCommand).execute(params.asJava)
     db.commit()
     ()
