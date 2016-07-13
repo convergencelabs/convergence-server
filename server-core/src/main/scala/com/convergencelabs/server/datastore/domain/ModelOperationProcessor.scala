@@ -44,9 +44,11 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.orientechnologies.common.io.OIOUtils
+import grizzled.slf4j.Logging
 
 class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
-    extends AbstractDatabasePersistence(dbPool) {
+    extends AbstractDatabasePersistence(dbPool)
+    with Logging {
   val VID = "vid";
   val CollectionId = "collectionId"
   val ModelId = "modelId"
@@ -326,10 +328,13 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     // FIXME remove this when the following orient issue is resolved
     // https://github.com/orientechnologies/orientdb/issues/6250
     val hackValue = if (OIOUtils.isStringContent(operation.value)) {
-      "\"\"" + operation.value + "\"\""
+      val hack = "\"\"" + operation.value + "\"\""
+      logger.warn(s"Using OrientDB Hack for string append: ${operation.value} -> ${hack}")
+      hack
     } else {
       operation.value
     }
+    
     val updateCommand = new OCommandSQL(queryString)
     val params = Map(
       VID -> operation.id,
