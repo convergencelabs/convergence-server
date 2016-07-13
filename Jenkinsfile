@@ -9,7 +9,7 @@ node {
 	    def sbtTools = docker.image('sbt-tools')
 	    sbtTools.pull()
 	  
-	    sbtTools.inside {
+	    docker.image(sbtTools.imageName()).inside {
           stage 'Compile'
           sh 'sbt compile'
 
