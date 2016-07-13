@@ -37,7 +37,8 @@ object Dependencies {
     val log4jSlf4J         = "org.apache.logging.log4j" % "log4j-slf4j-impl"              % Versions.log4j              // Apache 2.0
     val log4jApi           = "org.apache.logging.log4j" % "log4j-api"                     % Versions.log4j              // Apache 2.0
     val log4jCore          = "org.apache.logging.log4j" % "log4j-core"                    % Versions.log4j              // Apache 2.0
-    val loggingAll = Seq(grizzledSlf4j, log4jSlf4J, log4jApi, log4jCore)
+	val log4jJul           = "org.apache.logging.log4j" % "log4j-jul"                     % Versions.log4j              // Apache 2.0
+    val loggingAll = Seq(grizzledSlf4j, log4jSlf4J, log4jApi, log4jCore, log4jJul)
   
     // Crypto
     val jose4j             = "org.bitbucket.b_c"        % "jose4j"                        % "0.4.4"                     // Apache 2.0
