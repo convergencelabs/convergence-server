@@ -6,7 +6,7 @@ node {
 	
     gitlabCommitStatus {
 	  docker.withRegistry('https://nexus.convergencelabs.tech:18443/', 'NexusRepo') {
-	    def sbtTools = docker.image('nexus.convergencelabs.tech:18443/sbt-tools:latest')
+	    def sbtTools = docker.image('sbt-tools')
 	    sbtTools.pull()
 	  
 	    sbtTools.inside {
@@ -31,7 +31,7 @@ node {
 		dir('server-node/target/docker') {
 		  docker.withRegistry('https://nexus.convergencelabs.tech:18444/', 'NexusRepo') {
             echo "Building the container"
-            docker.build('nexus.convergencelabs.tech:18444/convergence-server-node-test').push('latest')
+            docker.build('convergence-server-node-test').push('latest')
          }
        }
       '''
