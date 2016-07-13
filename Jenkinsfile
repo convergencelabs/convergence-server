@@ -28,11 +28,9 @@ node {
         cp -a server-node/src/docker/ server-node/target/docker
         cp -a server-node/target/pack server-node/target/docker/pack
 
-		dir('server-node/target/docker') {
-		  docker.withRegistry('https://nexus.convergencelabs.tech:18444/', 'NexusRepo') {
-            echo "Building the container"
-            docker.build('convergence-server-node-test').push('latest')
-         }
+		docker.withRegistry('https://nexus.convergencelabs.tech:18444/', 'NexusRepo') {
+          echo "Building the container"
+          docker.build('convergence-server-node-test', 'server-node/target/docker').push('latest')
        }
       '''
 	}
