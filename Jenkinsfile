@@ -11,21 +11,21 @@ node {
 	'''
 	
     gitlabCommitStatus {
+	  docker.withRegistry('https://nexus.convergencelabs.tech:18443/', 'NexusRepo') {
+	    def sbtTools = docker.image('sbt-tools:latest')
+	    sbtTools.pull()
 	  
-	  def sbtTools = docker.image('nexus.convergencelabs.tech:18443/sbt-tools:latest')
-	  sbtTools.pull()
-	  
-	  sbtTools.inside {
-        stage 'Compile'
-        sh 'sbt compile'
+	    sbtTools.inside {
+          stage 'Compile'
+          sh 'sbt compile'
 
-        stage 'Test'
-        sh 'sbt test'
+          stage 'Test'
+          sh 'sbt test'
 
-        stage 'Server Node Pack'
-        sh 'sbt serverNode/pack'
+          stage 'Server Node Pack'
+          sh 'sbt serverNode/pack'
+	    }
 	  }
-	  
       stage 'Server Node Docker (Dev)'
       echo "Current build number is ${env.BUILD_NUMBER}"
 
@@ -33,8 +33,6 @@ node {
         echo "Creating docker target directory"
         cp -a server-node/src/docker/ server-node/target/docker
         cp -a server-node/target/pack server-node/target/docker/pack
-
-
 
         echo "Building the container"
         docker build -t nexus.convergencelabs.tech:18444/convergence-server-node-test server-node/target/docker
