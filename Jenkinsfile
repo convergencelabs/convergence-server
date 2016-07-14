@@ -1,4 +1,5 @@
 node {
+  deleteDir()
   withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'NexusRepo', usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PASSWORD']]) {
 
     stage 'Checkout'
