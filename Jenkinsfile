@@ -34,11 +34,12 @@ node {
         docker login -u $NEXUS_USER -p $NEXUS_PASSWORD nexus.convergencelabs.tech:18444
 
         echo "Building the container"
-        docker build -t nexus.convergencelabs.tech:18444/convergence-server-node server-node/target/docker
+        docker build -t nexus.convergencelabs.tech:18444/convergence-server-node server-node/target/docker 
 
         echo "Publishing the container"
         docker push nexus.convergencelabs.tech:18444/convergence-server-node
       '''
      }
    }
+   deleteDir()
  }
