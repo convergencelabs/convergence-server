@@ -53,15 +53,7 @@ class PresenceServiceActor private[domain] (domainFqn: DomainFqn) extends Actor 
   }
 
   def getPresence(userIds: List[String]): Unit = {
-    val result = userIds.map { userId =>
-      this.presences.get(userId) match {
-        case Some(presence) =>
-          presence
-        case None =>
-          UserPresence(userId, false, Map(), Set())
-      }
-    }
-    sender ! result
+    sender ! lookupPresence(userIds)
   }
 
   def userConnected(userId: String, client: ActorRef): Unit = {
@@ -90,22 +82,61 @@ class PresenceServiceActor private[domain] (domainFqn: DomainFqn) extends Actor 
   }
 
   def publishState(userId: String, key: String, value: Any): Unit = {
-     // Basically look up the presense, set the state, then look at the subscriptions map to see
-    // if anyone else is subscribed at this user id, and send a message to those clients.
+    this.presences.get(userId) match { 
+      case Some(presence) =>
+        this.presences += (userId -> presence.copy(state=presence.state +  (key -> value)))
+        this.broadcastToSubscribed(userId, UserPresencePublishState(userId, key, value))
+      case None =>
+        // TODO Error
+    }
   }
 
   def clearState(userId: String, key: String): Unit = {
- // Basically look up the presense, clear the state, then look at the subscriptions map to see
-    // if anyone else is subscribed at this user id, and send a message to those clients.
+    this.presences.get(userId) match { 
+      case Some(presence) =>
+        this.presences += (userId -> presence.copy(state=presence.state - key))
+        this.broadcastToSubscribed(userId, UserPresenceClearState(userId, key))
+      case None =>
+        // TODO Error
+    }
   }
   
+  def subscribe(userIds: List[String], client: ActorRef): Unit = {
+    val result = userIds.map { userId =>  
+      subscribe(userId, client)
+    }
+    lookupPresence(userIds)
+  }
+  
+  
   def subscribe(userId: String, client: ActorRef): Unit = {
-    // Add this actor ref to the SET that is in the subscriptions map at the value for the key that
-    // is this user id.  Create the key/value pair if it is not there.
+    val newSubscribers = this.subscriptions.getOrElse(userId, Set()) + client
+    this.subscriptions += (userId -> newSubscribers)
   }
   
   def unsubscribe(userId: String, client: ActorRef): Unit = {
-    // remove this actor ref from the SET that is in the subscriptions map at the value for the key that
-    // is this user id.  remove the key/value pair if it is now empty.
+    val newSubscribers = this.subscriptions.getOrElse(userId, Set()) - client
+    if (newSubscribers.isEmpty) {
+      
+    } else {
+      this.subscriptions += (userId -> newSubscribers)
+    }
+  }
+  
+  private [this] def lookupPresence(userIds: List[String]): List[UserPresence] = {
+    userIds.map { userId =>
+      this.presences.get(userId) match {
+        case Some(presence) =>
+          presence
+        case None =>
+          UserPresence(userId, false, Map(), Set())
+      }
+    }
+  }
+  
+  private [this] def broadcastToSubscribed(userId: String, message: Any): Unit = {
+    this.subscriptions.get(userId) map { _.foreach { client =>  
+      client ! message
+    }}
   }
 }
