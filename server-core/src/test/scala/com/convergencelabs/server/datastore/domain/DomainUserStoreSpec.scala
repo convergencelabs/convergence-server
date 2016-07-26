@@ -234,5 +234,16 @@ class DomainUserStoreSpec
         store.validateCredentials("no one", "p").success.value shouldBe (false, None)
       }
     }
+    
+    "nextSessionId" must {
+      "return unique consecutive values" in withPersistenceStore { store =>
+        val session1 = store.nextSessionId.success.value
+        val session2 = store.nextSessionId.success.value
+        
+        session1 shouldNot equal(session2)
+      }
+    }
+    
+    
   }
 }

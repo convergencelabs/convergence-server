@@ -38,6 +38,9 @@ import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateDomainU
 import java.util.UUID
 import com.orientechnologies.orient.core.metadata.sequence.OSequence.CreateParams
 import com.orientechnologies.orient.core.metadata.sequence.OSequence.SEQUENCE_TYPE
+import java.util.Base64
+import java.lang.Long
+import java.math.BigInteger
 
 object DomainUserStore {
   case class CreateDomainUser(
@@ -66,6 +69,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
   val Username = "username"
   val Password = "password"
   val UidSeq = "UIDSEQ"
+  val SessionSeq = "SESSIONSEQ"
 
   /**
    * Creates a new domain user in the system, and optionally set a password.
@@ -81,14 +85,14 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    */
   def createDomainUser(domainUser: CreateDomainUser, password: Option[String]): Try[CreateResult[String]] = tryWithDb { db =>
     //FIXME: Remove after figuring out how to create in schema
-    if(!db.getMetadata().getSequenceLibrary().getSequenceNames.contains(UidSeq)) {
+    if (!db.getMetadata().getSequenceLibrary().getSequenceNames.contains(UidSeq)) {
       val createParams = new CreateParams().setDefaults()
       db.getMetadata().getSequenceLibrary().createSequence(UidSeq, SEQUENCE_TYPE.CACHED, createParams)
     }
-    
+
     val seq = db.getMetadata().getSequenceLibrary().getSequence(UidSeq)
     val uid = seq.next().toString
-    
+
     val create = DomainUser(
       uid,
       domainUser.username,
@@ -105,7 +109,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
 
     password match {
       case Some(pass) => pwDoc.field(Password, PasswordUtil.hashPassword(pass))
-      case None => pwDoc.field(Password, null, OType.STRING) // scalastyle:off null
+      case None       => pwDoc.field(Password, null, OType.STRING) // scalastyle:off null
     }
 
     db.save(pwDoc)
@@ -253,7 +257,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     result.asScala.toList match {
       case doc :: Nil => true
-      case _ => false
+      case _          => false
     }
   }
 
@@ -355,6 +359,17 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
         }
       case None => (false, None)
     }
+  }
+
+  def nextSessionId: Try[String] = tryWithDb { db =>
+    //FIXME: Remove after figuring out how to create in schema
+    if (!db.getMetadata().getSequenceLibrary().getSequenceNames.contains(SessionSeq)) {
+      val createParams = new CreateParams().setDefaults()
+      db.getMetadata().getSequenceLibrary().createSequence(SessionSeq, SEQUENCE_TYPE.CACHED, createParams)
+    }
+
+    val seq = db.getMetadata().getSequenceLibrary().getSequence(SessionSeq)
+    Long.toString(seq.next(), 36)
   }
 }
 
