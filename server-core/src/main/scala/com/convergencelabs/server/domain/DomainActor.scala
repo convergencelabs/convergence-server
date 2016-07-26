@@ -30,6 +30,7 @@ import com.convergencelabs.server.datastore.domain.PersistenceProviderReference
 import com.convergencelabs.server.datastore.domain.PersistenceProviderUnavailable
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import scala.util.Try
+import akka.actor.Terminated
 
 object DomainActor {
   def props(
@@ -82,7 +83,15 @@ class DomainActor(
     case message: HandshakeRequest => onHandshakeRequest(message)
     case message: AuthenticationRequest => onAuthenticationRequest(message)
     case message: ClientDisconnected => onClientDisconnect(message)
+    case Terminated(client) => handleDeathWatch(client)
     case message: Any => unhandled(message)
+  }
+
+  private[this] def handleDeathWatch(actorRef: ActorRef): Unit = {
+    if (this.connectedClients.contains(actorRef)) {
+      log.debug(s"Client actor died, removing")
+      removeClient(actorRef)
+    }
   }
 
   private[this] def onAuthenticationRequest(message: AuthenticationRequest): Unit = {
@@ -97,6 +106,8 @@ class DomainActor(
     persistenceProvider.validateConnection() match {
       case true => {
         connectedClients += message.clientActor
+        context.watch(message.clientActor)
+
         sender ! HandshakeSuccess(
           self,
           modelManagerActorRef,
@@ -111,11 +122,13 @@ class DomainActor(
 
   private[this] def onClientDisconnect(message: ClientDisconnected): Unit = {
     log.debug(s"Client disconnecting: ${message.sessionId}")
+    removeClient(sender())
+  }
 
-    connectedClients.remove(sender())
+  private[this] def removeClient(client: ActorRef): Unit = {
+    connectedClients.remove(client)
     if (connectedClients.isEmpty) {
       log.debug(s"Last client disconnected from domain: ${domainFqn}")
-
       domainManagerActor ! DomainShutdownRequest(domainFqn)
     }
   }

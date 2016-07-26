@@ -68,7 +68,7 @@ class ClientActor(
   private[this] var modelClient: ActorRef = _
   private[this] var userClient: ActorRef = _
   private[this] var activityClient: ActorRef = _
-  
+
   private[this] var domainActor: Option[ActorRef] = None
   private[this] var modelManagerActor: ActorRef = _
   private[this] var userServiceActor: ActorRef = _
@@ -275,17 +275,13 @@ class ClientActor(
 
   private[this] def onConnectionClosed(): Unit = {
     log.info("Connection Closed")
-    if (domainActor.isDefined) {
-      domainActor.get ! ClientDisconnected(sessionId)
-    }
+    domainActor.foreach { _ ! ClientDisconnected(sessionId) }
     context.stop(self)
   }
 
   private[this] def onConnectionError(cause: Throwable): Unit = {
     log.debug("Connection Error: " + cause.getMessage)
-    if (domainActor.isDefined) {
-      domainActor.get ! ClientDisconnected(sessionId)
-    }
+    domainActor.foreach { _ ! ClientDisconnected(sessionId) }
     context.stop(self)
   }
 
