@@ -7,6 +7,8 @@ import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
 import akka.actor.Props
+import com.convergencelabs.server.util.SubscriptionMap
+import akka.actor.Terminated
 
 object PresenceServiceActor {
 
@@ -25,6 +27,7 @@ object PresenceServiceActor {
 
   case class UserPresencePublishState(userId: String, key: String, value: Any)
   case class UserPresenceClearState(userId: String, key: String)
+  case class UserPresenceAvailability(userId: String, available: Boolean)
 
   case class SubscribePresence(userId: String, client: ActorRef)
   case class UnsubscribePresence(userId: String, client: ActorRef)
@@ -33,8 +36,13 @@ object PresenceServiceActor {
 class PresenceServiceActor private[domain] (domainFqn: DomainFqn) extends Actor with ActorLogging {
 
   private var presences = Map[String, UserPresence]()
-  private var subscriptions = Map[String, Set[ActorRef]]()
+  
+  // FIXME These are particularly problematic.  We are storing actor refs and userIds
+  // in memory.  there is not a good way to persist this.
+  private var subscriptions = SubscriptionMap[ActorRef, String]()
+  private var clients = Map[ActorRef, String]()
 
+  
   def receive: Receive = {
     case PresenceRequest(userIds) =>
       getPresence(userIds)
@@ -50,25 +58,31 @@ class PresenceServiceActor private[domain] (domainFqn: DomainFqn) extends Actor 
       subscribe(userId, client)
     case UnsubscribePresence(userId, client) =>
       unsubscribe(userId, client)
+    case Terminated(client) =>
+      handleDeathwatch(client)
   }
 
-  def getPresence(userIds: List[String]): Unit = {
+  private[this] def getPresence(userIds: List[String]): Unit = {
     sender ! lookupPresence(userIds)
   }
 
-  def userConnected(userId: String, client: ActorRef): Unit = {
+  private[this] def userConnected(userId: String, client: ActorRef): Unit = {
+    clients += (client -> userId)
     val result = this.presences.get(userId) match {
       case Some(presence) =>
         presence.copy(clients = presence.clients + client)
       case None =>
         UserPresence(userId, true, Map(), Set(client))
     }
+    
+    context.watch(client)
 
     this.presences += (userId -> result)
     sender ! result
   }
 
-  def userDiconnected(userId: String, client: ActorRef): Unit = {
+  private[this] def userDiconnected(userId: String, client: ActorRef): Unit = {
+    clients -= client
     this.presences.get(userId) match {
       case Some(presence) =>
         val updated = presence.copy(clients = presence.clients - client)
@@ -81,49 +95,42 @@ class PresenceServiceActor private[domain] (domainFqn: DomainFqn) extends Actor 
     }
   }
 
-  def publishState(userId: String, key: String, value: Any): Unit = {
-    this.presences.get(userId) match { 
+  private[this] def publishState(userId: String, key: String, value: Any): Unit = {
+    this.presences.get(userId) match {
       case Some(presence) =>
-        this.presences += (userId -> presence.copy(state=presence.state +  (key -> value)))
+        this.presences += (userId -> presence.copy(state = presence.state + (key -> value)))
         this.broadcastToSubscribed(userId, UserPresencePublishState(userId, key, value))
       case None =>
-        // TODO Error
+      // TODO Error
     }
   }
 
-  def clearState(userId: String, key: String): Unit = {
-    this.presences.get(userId) match { 
+  private[this] def clearState(userId: String, key: String): Unit = {
+    this.presences.get(userId) match {
       case Some(presence) =>
-        this.presences += (userId -> presence.copy(state=presence.state - key))
+        this.presences += (userId -> presence.copy(state = presence.state - key))
         this.broadcastToSubscribed(userId, UserPresenceClearState(userId, key))
       case None =>
-        // TODO Error
+      // TODO Error
     }
   }
-  
-  def subscribe(userIds: List[String], client: ActorRef): Unit = {
-    val result = userIds.map { userId =>  
+
+  private[this] def subscribe(userIds: List[String], client: ActorRef): Unit = {
+    val result = userIds.map { userId =>
       subscribe(userId, client)
     }
     lookupPresence(userIds)
   }
-  
-  
-  def subscribe(userId: String, client: ActorRef): Unit = {
-    val newSubscribers = this.subscriptions.getOrElse(userId, Set()) + client
-    this.subscriptions += (userId -> newSubscribers)
+
+  private[this] def subscribe(userId: String, client: ActorRef): Unit = {
+    this.subscriptions.subscribe(client, userId)
   }
-  
-  def unsubscribe(userId: String, client: ActorRef): Unit = {
-    val newSubscribers = this.subscriptions.getOrElse(userId, Set()) - client
-    if (newSubscribers.isEmpty) {
-      
-    } else {
-      this.subscriptions += (userId -> newSubscribers)
-    }
+
+  private[this] def unsubscribe(userId: String, client: ActorRef): Unit = {
+    this.subscriptions.unsubscribe(client, userId)
   }
-  
-  private [this] def lookupPresence(userIds: List[String]): List[UserPresence] = {
+
+  private[this] def lookupPresence(userIds: List[String]): List[UserPresence] = {
     userIds.map { userId =>
       this.presences.get(userId) match {
         case Some(presence) =>
@@ -133,10 +140,14 @@ class PresenceServiceActor private[domain] (domainFqn: DomainFqn) extends Actor 
       }
     }
   }
-  
-  private [this] def broadcastToSubscribed(userId: String, message: Any): Unit = {
-    this.subscriptions.get(userId) map { _.foreach { client =>  
+
+  private[this] def broadcastToSubscribed(userId: String, message: Any): Unit = {
+    this.subscriptions.subscribers(userId) foreach { client =>
       client ! message
-    }}
+    }
+  }
+  
+  private[this] def handleDeathwatch(client: ActorRef): Unit = {
+    this.subscriptions.unsubscribe(client)
   }
 }
