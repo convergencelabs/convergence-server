@@ -75,47 +75,47 @@ class RealtimeModelActor(
    */
   private[this] def receiveUninitialized: Receive = {
     case request: OpenRealtimeModelRequest => onOpenModelWhileUninitialized(request)
-    case unknown: Any => unhandled(unknown)
+    case unknown: Any                      => unhandled(unknown)
   }
 
   /**
    * Handles messages while the model is being initialized from one or more clients.
    */
   private[this] def receiveInitializingFromClients: Receive = {
-    case request: OpenRealtimeModelRequest => onOpenModelWhileInitializing(request)
-    case dataResponse: DatabaseModelResponse => onDatabaseModelResponse(dataResponse)
+    case request: OpenRealtimeModelRequest     => onOpenModelWhileInitializing(request)
+    case dataResponse: DatabaseModelResponse   => onDatabaseModelResponse(dataResponse)
     case dataResponse: ClientModelDataResponse => onClientModelDataResponse(dataResponse)
-    case ModelDeleted => handleInitializationFailure(ModelDeletedWhileOpening)
-    case unknown: Any => unhandled(unknown)
+    case ModelDeleted                          => handleInitializationFailure(ModelDeletedWhileOpening)
+    case unknown: Any                          => unhandled(unknown)
   }
 
   /**
    * Handles messages while the model is being initialized from the database.
    */
   private[this] def receiveInitializingFromDatabase: Receive = {
-    case request: OpenRealtimeModelRequest => onOpenModelWhileInitializing(request)
-    case dataResponse: DatabaseModelResponse => onDatabaseModelResponse(dataResponse)
-    case DatabaseModelFailure(cause) => handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
-    case ModelDeleted => handleInitializationFailure(ModelDeletedWhileOpening)
+    case request: OpenRealtimeModelRequest     => onOpenModelWhileInitializing(request)
+    case dataResponse: DatabaseModelResponse   => onDatabaseModelResponse(dataResponse)
+    case DatabaseModelFailure(cause)           => handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
+    case ModelDeleted                          => handleInitializationFailure(ModelDeletedWhileOpening)
     case dataResponse: ClientModelDataResponse =>
-    case unknown: Any => unhandled(unknown)
+    case unknown: Any                          => unhandled(unknown)
   }
 
   /**
    * Handles messages once the model has been completely initialized.
    */
   private[this] def receiveInitialized: Receive = {
-    case openRequest: OpenRealtimeModelRequest => onOpenModelWhileInitialized(openRequest)
-    case closeRequest: CloseRealtimeModelRequest => onCloseModelRequest(closeRequest)
+    case openRequest: OpenRealtimeModelRequest    => onOpenModelWhileInitialized(openRequest)
+    case closeRequest: CloseRealtimeModelRequest  => onCloseModelRequest(closeRequest)
     case operationSubmission: OperationSubmission => onOperationSubmission(operationSubmission)
-    case referenceEvent: ModelReferenceEvent => onReferenceEvent(referenceEvent)
-    case dataResponse: ClientModelDataResponse =>
+    case referenceEvent: ModelReferenceEvent      => onReferenceEvent(referenceEvent)
+    case dataResponse: ClientModelDataResponse    =>
     // This can happen if we asked several clients for the data.  The first
     // one will be handled, but the rest will come in an simply be ignored.
-    case snapshotMetaData: ModelSnapshotMetaData => this.latestSnapshot = snapshotMetaData
-    case ModelDeleted => handleModelDeletedWhileOpen()
-    case terminated: Terminated => handleTerminated(terminated)
-    case unknown: Any => unhandled(unknown)
+    case snapshotMetaData: ModelSnapshotMetaData  => this.latestSnapshot = snapshotMetaData
+    case ModelDeleted                             => handleModelDeletedWhileOpen()
+    case terminated: Terminated                   => handleTerminated(terminated)
+    case unknown: Any                             => unhandled(unknown)
   }
 
   //
@@ -183,7 +183,7 @@ class RealtimeModelActor(
       val model = modelStore.getModel(modelFqn)
       (model, snapshotMetaData) match {
         case (Success(Some(m)), Success(Some(s))) => DatabaseModelResponse(m, s)
-        case _ => throw new IllegalStateException("Could not get both the model snapshot and model data")
+        case _                                    => throw new IllegalStateException("Could not get both the model snapshot and model data")
       }
     }
 
@@ -358,19 +358,10 @@ class RealtimeModelActor(
     if (!connectedClients.contains(sk)) {
       sender ! ModelNotOpened
     } else {
-      val clientActor = connectedClients(sk)
-      clientToSessionId -= clientActor
-      connectedClients -= sk
-      this.model.clientDisconnected(sk)
-      context.unwatch(clientActor)
+      val closedActor = closeModel(sk, true)
 
       // Acknowledge the close back to the requester
       sender ! CloseRealtimeModelSuccess()
-
-      val closedMessage = RemoteClientClosed(modelResourceId, sk)
-
-      // If there are other clients, inform them.
-      connectedClients.values foreach (client => client ! closedMessage)
 
       checkForConnectionsAndClose()
     }
@@ -398,23 +389,28 @@ class RealtimeModelActor(
   //
 
   private[this] def onOperationSubmission(request: OperationSubmission): Unit = {
-    val sessionKey = this.clientToSessionId(sender)
+    val sessionKey = this.clientToSessionId.get(sender)
 
-    val unprocessedOpEvent = UnprocessedOperationEvent(
-      sessionKey,
-      request.contextVersion,
-      request.operation)
+    sessionKey match {
+      case None => log.warning("Received operation from client for model that is not open!" )
+      case Some(session) => {
+        val unprocessedOpEvent = UnprocessedOperationEvent(
+          session,
+          request.contextVersion,
+          request.operation)
 
-    transformAndApplyOperation(sessionKey, unprocessedOpEvent) match {
-      case Success(outgoinOperation) =>
-        broadcastOperation(sessionKey, outgoinOperation, request.seqNo)
-        if (snapshotRequired()) { executeSnapshot() }
-      case Failure(error) =>
-        log.error(error, "Error applying operation to model, closing client");
-        forceClosedModel(
-          sessionKey,
-          "Error applying operation to model, closing as a precautionary step: " + error.getMessage,
-          true)
+        transformAndApplyOperation(session, unprocessedOpEvent) match {
+          case Success(outgoinOperation) =>
+            broadcastOperation(session, outgoinOperation, request.seqNo)
+            if (snapshotRequired()) { executeSnapshot() }
+          case Failure(error) =>
+            log.error(error, s"Error applying operation to model, kicking client from model: ${request}");
+            forceClosedModel(
+              session,
+              s"Error applying operation seqNo ${request.seqNo} to model, kicking client out of model: " + error.getMessage,
+              true)
+        }
+      }
     }
   }
 
@@ -467,7 +463,7 @@ class RealtimeModelActor(
       case Success(None) =>
       // Event's no-op'ed
       case Failure(cause) =>
-        log.error(cause, "Invalid reference event") 
+        log.error(cause, "Invalid reference event")
         forceClosedModel(sk, "invalid reference event", true)
     }
   }
@@ -540,22 +536,36 @@ class RealtimeModelActor(
    * Kicks a specific client out of the model.
    */
   private[this] def forceClosedModel(sk: SessionKey, reason: String, notifyOthers: Boolean): Unit = {
-    val closedActor = connectedClients(sk)
-    connectedClients -= sk
-    this.model.clientDisconnected(sk)
-
-    val closedMessage = RemoteClientClosed(modelResourceId, sk)
-
-    if (notifyOthers) {
-      // There are still other clients with this model open so notify them
-      // that this person has left
-      connectedClients.values foreach { client => client ! closedMessage }
-    }
+    val closedActor = closeModel(sk, notifyOthers)
 
     val forceCloseMessage = ModelForceClose(modelResourceId, reason)
     closedActor ! forceCloseMessage
 
     checkForConnectionsAndClose()
+  }
+  
+  /**
+   * Closes a model for a session and return the associated actor
+   * 
+   * @param sk The session of the client to close
+   * @param notifyOthers If True notifies other connected clients of close
+   * @return The actor associated with the closed session
+   */
+private[this] def closeModel(sk: SessionKey, notifyOthers: Boolean): ActorRef = {
+    val closedActor = connectedClients(sk)
+    connectedClients -= sk
+    clientToSessionId -= closedActor
+    this.model.clientDisconnected(sk)
+    context.unwatch(closedActor)
+
+    if (notifyOthers) {
+      // There are still other clients with this model open so notify them
+      // that this person has left
+      val closedMessage = RemoteClientClosed(modelResourceId, sk)
+      connectedClients.values foreach { client => client ! closedMessage }
+    }
+    
+    return closedActor
   }
 
   /**
