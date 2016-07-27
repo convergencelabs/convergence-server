@@ -6,7 +6,7 @@
     </Console>
   </Appenders>
   <Loggers>
-    <Root level="debug"><AppenderRef ref="Console"/></Root>
+    <Root level="warn"><AppenderRef ref="Console"/></Root>
     <Logger name="com.convergencelabs" level="debug" />
   </Loggers>
 </Configuration>
