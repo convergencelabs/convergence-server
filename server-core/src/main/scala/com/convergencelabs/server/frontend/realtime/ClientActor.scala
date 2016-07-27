@@ -56,6 +56,7 @@ class ClientActor(
 
   private[this] var connectionActor: ActorRef = _
 
+  // FIXME this should probably be for handshake and auth.
   private[this] val handshakeTimeoutTask =
     context.system.scheduler.scheduleOnce(protocolConfig.handshakeTimeout) {
       log.debug("Client handshaked timeout")
@@ -194,6 +195,7 @@ class ClientActor(
 
   private[this] def handleAuthenticationSuccess(message: InternalAuthSuccess): Unit = {
     val InternalAuthSuccess(uid, username, sk, cb) = message
+    this.sessionId = sk.serialize();
     this.modelClient = context.actorOf(ModelClientActor.props(sk, modelManagerActor))
     this.userClient = context.actorOf(UserClientActor.props(userServiceActor))
     this.activityClient = context.actorOf(ActivityClientActor.props(activityServiceActor, sk))
@@ -228,7 +230,6 @@ class ClientActor(
   private[this] def handleHandshakeSuccess(success: InternalHandshakeSuccess): Unit = {
     val InternalHandshakeSuccess(HandshakeSuccess(domainActor, modelManagerActor, userActor, activityActor),
       cb) = success
-    this.sessionId = sessionId
     this.domainActor = Some(domainActor)
     this.modelManagerActor = modelManagerActor
     this.userServiceActor = userActor
@@ -274,7 +275,7 @@ class ClientActor(
   }
 
   private[this] def onConnectionClosed(): Unit = {
-    log.info("Connection Closed")
+    log.info(s"Connection Closed: ${sessionId}")
     domainActor.foreach { _ ! ClientDisconnected(sessionId) }
     context.stop(self)
   }

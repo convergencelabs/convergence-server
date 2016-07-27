@@ -79,7 +79,7 @@ class ProtocolConnection(
   }
 
   def handleClosed(): Unit = {
-    logger.debug(s"protocol connection closed")
+    logger.debug(s"Protocol connection closed")
     if (heartbeatHelper.started) {
       heartbeatHelper.stop()
     }
