@@ -14,7 +14,6 @@ object DomainUserMapper extends ODocumentMapper {
 
   private[domain] implicit def domainUserToODocument(obj: DomainUser): ODocument = {
     val doc = new ODocument(DocumentClassName)
-    doc.field(Fields.Uid, obj.uid)
     doc.field(Fields.Username, obj.username)
     doc.field(Fields.FirstName, valueOrNull(obj.firstName))
     doc.field(Fields.LastName, valueOrNull(obj.lastName))
@@ -30,7 +29,6 @@ object DomainUserMapper extends ODocumentMapper {
     validateDocumentClass(doc, DocumentClassName)
 
     DomainUser(
-      doc.field(Fields.Uid),
       doc.field(Fields.Username),
       toOption(doc.field(Fields.FirstName)),
       toOption(doc.field(Fields.LastName)),
@@ -40,7 +38,6 @@ object DomainUserMapper extends ODocumentMapper {
   private[domain] val DocumentClassName = "User"
 
   private[domain] object Fields {
-    val Uid = "uid"
     val Username = "username"
     val FirstName = "firstName"
     val LastName = "lastName"

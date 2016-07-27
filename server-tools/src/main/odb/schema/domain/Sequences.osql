@@ -1,5 +1,2 @@
-#User ID Sequence
-CREATE SEQUENCE uidSeq;
-
 #User Session Sequence
 CREATE SEQUENCE sessionSeq;

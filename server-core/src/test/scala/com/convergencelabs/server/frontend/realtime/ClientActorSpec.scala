@@ -102,9 +102,9 @@ class ClientActorSpec
     clientActor.tell(authEvent, ActorRef.noSender)
 
     domainActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[PasswordAuthRequest])
-    domainActor.reply(AuthenticationSuccess("u1", "test", SessionKey("u1", "0")))
+    domainActor.reply(AuthenticationSuccess("test", SessionKey("test", "0")))
 
-    val AuthenticationResponseMessage(ok, Some(uid), Some(username), Some(session)) = Await.result(authCallback.result, 250 millis)
+    val AuthenticationResponseMessage(ok, Some(username), Some(session)) = Await.result(authCallback.result, 250 millis)
   }
 
   class TestReplyCallback() extends ReplyCallback {

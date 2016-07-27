@@ -2,7 +2,7 @@ INSERT INTO ModelOperation SET
   collectionId = "people",
   modelId = "person1",
   timestamp = DATE("2015-10-20T12:00:00.000+0000"),
-  uid = "u0",
+  username = 'test1',
   sid = "u0-1",
   version = 12,
   op = {

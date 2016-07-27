@@ -112,7 +112,6 @@ class UserClientActor(userServiceActor: ActorRef) extends Actor with ActorLoggin
 
   private[this] def mapUserField(fieldCode: Int): UserLookUpField.Value = {
     fieldCode match {
-      case UserFieldCodes.UserId => UserLookUpField.UserId
       case UserFieldCodes.Username => UserLookUpField.Username
       case UserFieldCodes.FirstName => UserLookUpField.FirstName
       case UserFieldCodes.LastName => UserLookUpField.LastName
@@ -121,8 +120,8 @@ class UserClientActor(userServiceActor: ActorRef) extends Actor with ActorLoggin
   }
 
   private[this] def mapDomainUser(user: DomainUser): DomainUserData = {
-    val DomainUser(uid, username, firstname, lastName, email) = user
-    DomainUserData(uid, username, firstname, lastName, email)
+    val DomainUser(username, firstname, lastName, email) = user
+    DomainUserData(username, firstname, lastName, email)
   }
 
   private[this] object UserFieldCodes extends Enumeration {

@@ -53,21 +53,17 @@ class AuthenticationHandler(
 
   private[this] def authenticatePassword(authRequest: PasswordAuthRequest): Future[AuthenticationResponse] = {
     val response = userStore.validateCredentials(authRequest.username, authRequest.password) match {
-      case Success((true, Some(uid))) => {
+      case Success(true) => {
         userStore.nextSessionId match {
-          case Success(sessionId) => AuthenticationSuccess(uid, authRequest.username, SessionKey(uid, sessionId))
+          case Success(sessionId) => AuthenticationSuccess(authRequest.username, SessionKey(authRequest.username, sessionId))
           case Failure(cause) => {
             logger.error("Unable to authenticate a user", cause)
             AuthenticationError
           }
         }
       }
-      case Success((false, _)) => AuthenticationFailure
-      case Success((true, None)) => {
-        // We validated the user, but could not get the user id.  This should not happen.
-        logger.error(s"user with username '${authRequest.username}' had valid credentials, but a valid uid was not returned")
-        AuthenticationError
-      }
+      case Success(false) => 
+        AuthenticationFailure
       case Failure(cause) => {
         logger.error("Unable to authenticate a user", cause)
         AuthenticationError
@@ -117,11 +113,11 @@ class AuthenticationHandler(
         // sure a replay attack is not possible
         userStore.getDomainUserByUsername(username) match {
           case Success(Some(user)) => {
-            AuthenticationSuccess(user.uid, user.username, SessionKey(user.uid, sessionId))
+            AuthenticationSuccess(user.username, SessionKey(user.username, sessionId))
           }
           case Success(None) => {
             createUserFromJWT(jwtClaims) match {
-              case Success(CreateSuccess(uid)) => AuthenticationSuccess(uid, username, SessionKey(uid, sessionId))
+              case Success(CreateSuccess(_)) => AuthenticationSuccess(username, SessionKey(username, sessionId))
               // FIXME: Determine what to do on duplicate value exception
               case Success(DuplicateValue)     => AuthenticationFailure
               case Success(InvalidValue)       => AuthenticationFailure
@@ -139,7 +135,7 @@ class AuthenticationHandler(
 
   }
 
-  private[this] def createUserFromJWT(jwtClaims: JwtClaims): Try[CreateResult[String]] = {
+  private[this] def createUserFromJWT(jwtClaims: JwtClaims): Try[CreateResult[Unit]] = {
     val username = jwtClaims.getSubject()
     val firstName = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.FirstName)
     val lastName = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.LastName)

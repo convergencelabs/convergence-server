@@ -178,29 +178,29 @@ class ClientActor(
     // FIXME if authentication fails we should probably stop the actor
     // and or shut down the connection?
     future.mapResponse[AuthenticationResponse] onComplete {
-      case Success(AuthenticationSuccess(uid, username, sk)) => {
-        self ! InternalAuthSuccess(uid, username, sk, cb)
+      case Success(AuthenticationSuccess(username, sk)) => {
+        self ! InternalAuthSuccess(username, sk, cb)
       }
       case Success(AuthenticationFailure) => {
-        cb.reply(AuthenticationResponseMessage(false, None, None, None))
+        cb.reply(AuthenticationResponseMessage(false, None, None))
       }
       case Success(AuthenticationError) => {
-        cb.reply(AuthenticationResponseMessage(false, None, None, None)) // TODO do we want this to go back to the client as something else?
+        cb.reply(AuthenticationResponseMessage(false, None, None)) // TODO do we want this to go back to the client as something else?
       }
       case Failure(cause) => {
-        cb.reply(AuthenticationResponseMessage(false, None, None, None))
+        cb.reply(AuthenticationResponseMessage(false, None, None))
       }
     }
   }
 
   private[this] def handleAuthenticationSuccess(message: InternalAuthSuccess): Unit = {
-    val InternalAuthSuccess(uid, username, sk, cb) = message
+    val InternalAuthSuccess(username, sk, cb) = message
     this.sessionId = sk.serialize();
     this.modelClient = context.actorOf(ModelClientActor.props(sk, modelManagerActor))
     this.userClient = context.actorOf(UserClientActor.props(userServiceActor))
     this.activityClient = context.actorOf(ActivityClientActor.props(activityServiceActor, sk))
     this.messageHandler = handleMessagesWhenAuthenticated
-    cb.reply(AuthenticationResponseMessage(true, Some(uid), Some(username), Some(sk.serialize())))
+    cb.reply(AuthenticationResponseMessage(true, Some(username), Some(sk.serialize())))
     context.become(receiveWhileAuthenticated)
   }
 
@@ -299,5 +299,5 @@ class ClientActor(
   }
 }
 
-case class InternalAuthSuccess(uid: String, username: String, sk: SessionKey, cb: ReplyCallback)
+case class InternalAuthSuccess(username: String, sk: SessionKey, cb: ReplyCallback)
 case class InternalHandshakeSuccess(handshakeSuccess: HandshakeSuccess, cb: ReplyCallback)

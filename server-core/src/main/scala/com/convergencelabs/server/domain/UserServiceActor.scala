@@ -47,8 +47,6 @@ class UserServiceActor private[domain] (domainFqn: DomainFqn) extends Actor with
 
   def lookUpUsers(criteria: UserLookUp): Unit = {
     val users = criteria.field match {
-      case UserLookUpField.UserId =>
-        persistenceProvider.userStore.getDomainUsersByUid(criteria.values)
       case UserLookUpField.Username =>
         persistenceProvider.userStore.getDomainUsersByUsername(criteria.values)
       case UserLookUpField.Email =>
@@ -65,7 +63,6 @@ class UserServiceActor private[domain] (domainFqn: DomainFqn) extends Actor with
 
   def converField(field: UserLookUpField.Value): DomainUserField.Field = {
     field match {
-      case UserLookUpField.UserId => DomainUserField.UserId
       case UserLookUpField.Username => DomainUserField.Username
       case UserLookUpField.FirstName => DomainUserField.FirstName
       case UserLookUpField.LastName => DomainUserField.LastName
@@ -85,7 +82,7 @@ class UserServiceActor private[domain] (domainFqn: DomainFqn) extends Actor with
 }
 
 object UserLookUpField extends Enumeration {
-  val UserId, Username, FirstName, LastName, Email = Value
+  val Username, FirstName, LastName, Email = Value
 }
 
 case class UserLookUp(field: UserLookUpField.Value, values: List[String])

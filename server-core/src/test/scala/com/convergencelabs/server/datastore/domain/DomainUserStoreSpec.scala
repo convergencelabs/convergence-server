@@ -20,12 +20,10 @@ class DomainUserStoreSpec
     with WordSpecLike
     with Matchers {
 
-  val u1Id = "u1"
-
   // Pre-loaded Users
-  val User0 = DomainUser("u0", "admin", Some("firstAdmin"), Some("lastAdmin"), Some("admin@example.com"))
-  val User1 = DomainUser(u1Id, "test1", Some("Test"), Some("One"), Some("test1@example.com"))
-  val User2 = DomainUser("u2", "test2", Some("Test"), Some("Two"), Some("test2@example.com"))
+  val User0 = DomainUser("admin", Some("Admin"), Some("User"), Some("admin@example.com"))
+  val User1 = DomainUser("test1", Some("Test"), Some("One"), Some("test1@example.com"))
+  val User2 = DomainUser("test2", Some("Test"), Some("Two"), Some("test2@example.com"))
 
   // New Users
   val User10 = CreateDomainUser("user10", Some("first10"), Some("last10"), Some("user10@example.com"))
@@ -40,7 +38,7 @@ class DomainUserStoreSpec
         store.createDomainUser(User10, None).success
 
         val queried = store.getDomainUserByUsername(User10.username)
-        val DomainUser(uid, username, fname, lname, email) = queried.success.get.value
+        val DomainUser(username, fname, lname, email) = queried.success.get.value
         CreateDomainUser(username, fname, lname, email) shouldBe User10
       }
 
@@ -62,24 +60,23 @@ class DomainUserStoreSpec
         val passwd = "newPassword"
         val CreateSuccess(uid) = store.createDomainUser(User10, Some(passwd)).success.value
 
-        store.validateCredentials(User10.username, passwd).success.get shouldBe (true, Some(uid))
-        store.validateCredentials(User10.username, "notCorrect").success.get shouldBe (false, None)
+        store.validateCredentials(User10.username, passwd).success.get shouldBe true
+        store.validateCredentials(User10.username, "notCorrect").success.get shouldBe false
       }
 
       "allow creation of users with only uid and username" in withPersistenceStore { store =>
-        val CreateSuccess(createdUid) = store.createDomainUser(User12, None).success.value
+        val CreateSuccess(_) = store.createDomainUser(User12, None).success.value
 
         val queried = store.getDomainUserByUsername(User12.username)
-        val DomainUser(uid, username, fname, lname, email) = queried.success.get.value
-        createdUid shouldBe uid
+        val DomainUser(username, fname, lname, email) = queried.success.get.value
         CreateDomainUser(username, fname, lname, email) shouldBe User12
       }
     }
 
     "removing a user" must {
-      "correctly remove the user by uid" in withPersistenceStore { store =>
-        store.deleteDomainUser(User1.uid).success
-        val queried = store.getDomainUserByUid(User1.uid)
+      "correctly remove the user by username" in withPersistenceStore { store =>
+        store.deleteDomainUser(User1.username).success
+        val queried = store.getDomainUserByUsername(User1.username)
         queried.success.get shouldBe None
       }
 
@@ -89,10 +86,6 @@ class DomainUserStoreSpec
     }
 
     "querying a user" must {
-      "correctly retreive user by uid" in withPersistenceStore { store =>
-        val queried = store.getDomainUserByUid(User1.uid)
-        queried.success.get.value shouldBe User1
-      }
 
       "correctly retreive user by username" in withPersistenceStore { store =>
         val queried = store.getDomainUserByUsername(User1.username)
@@ -106,11 +99,6 @@ class DomainUserStoreSpec
     }
 
     "querying multiple users" must {
-      "correctly retreive users by uid" in withPersistenceStore { store =>
-        val queried = store.getDomainUsersByUid(List(User1.uid, User2.uid))
-        queried.success.value should contain allOf (User1, User2)
-      }
-
       "correctly retreive users by username" in withPersistenceStore { store =>
         val queried = store.getDomainUsersByUsername(List(User1.username, User2.username))
         queried.success.value should contain allOf (User1, User2)
@@ -125,24 +113,24 @@ class DomainUserStoreSpec
     "updating user" must {
       "not allow setting duplicate email" in withPersistenceStore { store =>
         store.createDomainUser(User10, None).success
-        val CreateSuccess(uid) = store.createDomainUser(User11, None).success.value
-        val original2Dup = DomainUser(uid, User11.username, User11.firstName, User11.lastName, User10.email)
+        val CreateSuccess(_) = store.createDomainUser(User11, None).success.value
+        val original2Dup = DomainUser(User11.username, User11.firstName, User11.lastName, User10.email)
         store.updateDomainUser(original2Dup).success.get shouldBe InvalidValue
       }
 
       "not allow setting duplicate username" in withPersistenceStore { store =>
         store.createDomainUser(User10, None).success
-        val CreateSuccess(uid) = store.createDomainUser(User11, None).success.value
-        val original2Dup = DomainUser(uid, User10.username, User11.firstName, User11.lastName, User11.email)
+        val CreateSuccess(()) = store.createDomainUser(User11, None).success.value
+        val original2Dup = DomainUser(User10.username, User11.firstName, User11.lastName, User11.email)
         val result = store.updateDomainUser(original2Dup).success.get shouldBe InvalidValue
       }
 
       "throw exception if user does not exist" in withPersistenceStore { store =>
-        store.updateDomainUser(DomainUser("no one", "foo", None, None, None)).success.get shouldBe NotFound
+        store.updateDomainUser(DomainUser("foo", None, None, None)).success.get shouldBe NotFound
       }
 
       "currectly update an existing user, if unique properties are not violoated" in withPersistenceStore { store =>
-        val updated = DomainUser(User1.uid, User1.username, Some("f"), Some("l"), Some("e"))
+        val updated = DomainUser(User1.username, Some("f"), Some("l"), Some("e"))
         store.updateDomainUser(updated).success
         val queried = store.getDomainUserByUsername(User1.username).success.value.get
         queried shouldBe updated
@@ -167,32 +155,15 @@ class DomainUserStoreSpec
 
     "searching for users by fields" must {
       "should return multiple matches if a prefix is supplied" in withPersistenceStore { store =>
-        val fields = List(DomainUserField.UserId)
-        val searchString = "u"
+        val fields = List(DomainUserField.Username)
+        val searchString = "test"
         val users = store.searchUsersByFields(fields, searchString, None, None, None, None).success.value
-        users.length shouldBe 5
+        users.length shouldBe 4
       }
 
       "should a single user if only one user matches" in withPersistenceStore { store =>
-        val fields = List(DomainUserField.UserId)
-        val searchString = u1Id
-        val users = store.searchUsersByFields(fields, searchString, None, None, None, None).success.value
-        users.length shouldBe 1
-        users(0) shouldBe User1
-      }
-    }
-
-    "getting users users by fields" must {
-      "should return multiple matches if a prefix is supplied" in withPersistenceStore { store =>
-        val fields = List(DomainUserField.UserId)
-        val searchString = "u"
-        val users = store.searchUsersByFields(fields, searchString, None, None, None, None).success.value
-        users.length shouldBe 5
-      }
-
-      "should a single user if only one user matches" in withPersistenceStore { store =>
-        val fields = List(DomainUserField.UserId)
-        val searchString = u1Id
+        val fields = List(DomainUserField.Username)
+        val searchString = "test1"
         val users = store.searchUsersByFields(fields, searchString, None, None, None, None).success.value
         users.length shouldBe 1
         users(0) shouldBe User1
@@ -212,8 +183,8 @@ class DomainUserStoreSpec
     "setting a users password" must {
       "correctly set the password" in withPersistenceStore { store =>
         val password = "newPasswordToSet"
-        store.setDomainUserPassword(User1.uid, password).success
-        store.validateCredentials(User1.username, password).success.get shouldBe (true, Some(u1Id))
+        store.setDomainUserPassword(User1.username, password).success
+        store.validateCredentials(User1.username, password).success.get shouldBe true
       }
 
       "throw exception if user does not exist" in withPersistenceStore { store =>
@@ -223,15 +194,15 @@ class DomainUserStoreSpec
 
     "validating credentials" must {
       "return true and a uid for a vaid usename and password" in withPersistenceStore { store =>
-        store.validateCredentials(User1.username, "password").success.value shouldBe (true, Some(u1Id))
+        store.validateCredentials(User1.username, "password").success.value shouldBe true
       }
 
       "return false and None for an valid username and invalid password" in withPersistenceStore { store =>
-        store.validateCredentials(User1.username, "wrong").success.value shouldBe (false, None)
+        store.validateCredentials(User1.username, "wrong").success.value shouldBe false
       }
 
       "return false and None for an invalid username" in withPersistenceStore { store =>
-        store.validateCredentials("no one", "p").success.value shouldBe (false, None)
+        store.validateCredentials("no one", "p").success.value shouldBe false
       }
     }
     
@@ -243,7 +214,5 @@ class DomainUserStoreSpec
         session1 shouldNot equal(session2)
       }
     }
-    
-    
   }
 }

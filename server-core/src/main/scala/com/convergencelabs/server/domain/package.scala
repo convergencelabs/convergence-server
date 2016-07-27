@@ -25,7 +25,7 @@ package object domain {
   case class TokenAuthRequest(jwt: String) extends AuthenticationRequest
 
   sealed trait AuthenticationResponse
-  case class AuthenticationSuccess(uid: String, username: String, sk: SessionKey) extends AuthenticationResponse
+  case class AuthenticationSuccess(username: String, sk: SessionKey) extends AuthenticationResponse
   case object AuthenticationFailure extends AuthenticationResponse
   case object AuthenticationError extends AuthenticationResponse
 }

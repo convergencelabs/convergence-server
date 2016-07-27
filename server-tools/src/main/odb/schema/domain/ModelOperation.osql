@@ -21,10 +21,10 @@ CREATE Property ModelOperation.timestamp DATETIME;
 ALTER PROPERTY ModelOperation.timestamp MANDATORY true;
 ALTER PROPERTY ModelOperation.timestamp NOTNULL true;
 
-#ModelOperation.uid
-CREATE Property ModelOperation.uid STRING;
-ALTER PROPERTY ModelOperation.uid MANDATORY true;
-ALTER PROPERTY ModelOperation.uid NOTNULL true;
+#ModelOperation.username
+CREATE Property ModelOperation.username STRING;
+ALTER PROPERTY ModelOperation.username MANDATORY true;
+ALTER PROPERTY ModelOperation.username NOTNULL true;
 
 #ModelOperation.sid
 CREATE Property ModelOperation.sid STRING;

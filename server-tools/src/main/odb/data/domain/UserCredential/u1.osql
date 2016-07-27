@@ -1,3 +1,3 @@
 INSERT INTO UserCredential SET
-  user = (SELECT FROM User WHERE uid = 'u1'),
+  user = (SELECT FROM User WHERE username = 'test1'),
   password = "$s0$e0801$716P73SJN3V8tq6WPKVt1A==$MVE9SbTLZMsjyce64tqx5yrFuaLGgpGXxKWLNwARcnM=";

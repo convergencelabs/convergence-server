@@ -48,7 +48,7 @@ class AuthenticationHandlerSpec()
       "authetnicate successfully for a correct username and password" in new TestFixture {
         val f = authHandler.authenticate(PasswordAuthRequest(existingUserName, existingCorrectPassword))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
-        result shouldBe AuthenticationSuccess(existingUserUid, existingUserName, SessionKey(existingUserUid, "1"))
+        result shouldBe AuthenticationSuccess(existingUserName, SessionKey(existingUserName, "1"))
       }
 
       "Fail authetnication for an incorrect username and password" in new TestFixture {
@@ -68,19 +68,13 @@ class AuthenticationHandlerSpec()
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
         result shouldBe AuthenticationError
       }
-
-      "return an authenticatoin error when the user store can not find a uid" in new TestFixture {
-        val f = authHandler.authenticate(PasswordAuthRequest(noUidUser, noUidPassword))
-        val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
-        result shouldBe AuthenticationError
-      }
     }
 
     "authenticating a user by token" must {
       "successfully authenticate a user with a valid key" in new TestFixture {
         val f = authHandler.authenticate(TokenAuthRequest(JwtGenerator.generate(existingUserName, enabledKey.id)))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
-        result shouldBe AuthenticationSuccess(existingUserUid, existingUserName, SessionKey(existingUserUid, "1"))
+        result shouldBe AuthenticationSuccess(existingUserName, SessionKey(existingUserName, "1"))
       }
 
       "return an authentication failure for a non-existent key" in new TestFixture {
@@ -104,13 +98,13 @@ class AuthenticationHandlerSpec()
       "return an authentication success for the admin key" in new TestFixture {
         val f = authHandler.authenticate(TokenAuthRequest(JwtGenerator.generate(existingUserName, AuthenticationHandler.AdminKeyId)))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
-        result shouldBe AuthenticationSuccess(existingUserUid, existingUserName, SessionKey(existingUserUid, "1"))
+        result shouldBe AuthenticationSuccess(existingUserName, SessionKey(existingUserName, "1"))
       }
 
       "return an authentication success lazily created user" in new TestFixture {
         val f = authHandler.authenticate(TokenAuthRequest(JwtGenerator.generate(lazyUserName, enabledKey.id)))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
-        result shouldBe AuthenticationSuccess(lazyUserUid, lazyUserName, SessionKey(lazyUserUid, "1"))
+        result shouldBe AuthenticationSuccess(lazyUserName, SessionKey(lazyUserName, "1"))
       }
 
       "return an authentication failure when the user can't be looked up" in new TestFixture {
@@ -130,8 +124,7 @@ class AuthenticationHandlerSpec()
   trait TestFixture {
     val sessionId = 0
     val existingUserName = "existing"
-    val existingUserUid = "uid"
-    val existingUser = DomainUser(existingUserUid, existingUserName, None, None, None)
+    val existingUser = DomainUser(existingUserName, None, None, None)
 
     val existingCorrectPassword = "correct"
     val existingIncorrectPassword = "incorrect"
@@ -152,15 +145,14 @@ class AuthenticationHandlerSpec()
 
     Mockito.when(userStore.getDomainUserByUsername(nonExistingUser)).thenReturn(Success(None))
 
-    Mockito.when(userStore.validateCredentials(existingUserName, existingCorrectPassword)).thenReturn(Success(true, Some(existingUserUid)))
-    Mockito.when(userStore.validateCredentials(existingUserName, existingIncorrectPassword)).thenReturn(Success(false, None))
-    Mockito.when(userStore.validateCredentials(nonExistingUser, "")).thenReturn(Success(false, None))
+    Mockito.when(userStore.validateCredentials(existingUserName, existingCorrectPassword)).thenReturn(Success(true))
+    Mockito.when(userStore.validateCredentials(existingUserName, existingIncorrectPassword)).thenReturn(Success(false))
+    Mockito.when(userStore.validateCredentials(nonExistingUser, "")).thenReturn(Success(false))
 
-    val lazyUserUid = "newUserId"
     val lazyUserName = "newUserName"
     val lazyUser = CreateDomainUser(lazyUserName, None, None, None)
     Mockito.when(userStore.getDomainUserByUsername(lazyUserName)).thenReturn(Success(None))
-    Mockito.when(userStore.createDomainUser(lazyUser, None)).thenReturn(Success(CreateSuccess(lazyUserUid)))
+    Mockito.when(userStore.createDomainUser(lazyUser, None)).thenReturn(Success(CreateSuccess(())))
 
     val brokenUserName = "brokenUser"
     Mockito.when(userStore.getDomainUserByUsername(brokenUserName)).thenReturn(Failure(new IllegalStateException("induced error for testing")))
@@ -173,10 +165,6 @@ class AuthenticationHandlerSpec()
     val authfailureUser = "authFailureUser"
     val authfailurePassword = "authFailurePassword"
     Mockito.when(userStore.validateCredentials(authfailureUser, authfailurePassword)).thenReturn(Failure(new IllegalStateException()))
-
-    val noUidUser = "noUidUser"
-    val noUidPassword = "noUidPassword"
-    Mockito.when(userStore.validateCredentials(noUidUser, noUidPassword)).thenReturn(Success(true, None))
 
     val domainConfigStore = mock[DomainConfigStore]
     val keyStore = mock[ApiKeyStore]

@@ -17,7 +17,6 @@ class DomainUserMapperSpec
     "when converting a DomainUser" must {
       "correctly map and unmap a DomainUser" in {
         val domainUser = DomainUser(
-          "uid",
           "username",
           Some("firstName"),
           Some("lastName"),

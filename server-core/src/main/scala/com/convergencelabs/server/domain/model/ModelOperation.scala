@@ -8,6 +8,6 @@ case class ModelOperation(
   modelFqn: ModelFqn,
   version: Long,
   timestamp: Instant,
-  uid: String,
+  username: String,
   sid: String,
   op: Operation)

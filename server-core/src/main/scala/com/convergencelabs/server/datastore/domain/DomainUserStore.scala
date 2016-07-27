@@ -65,7 +65,6 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
 
   private[this] implicit val formats = Serialization.formats(NoTypeHints)
 
-  val Uid = "uid"
   val Username = "username"
   val Password = "password"
   val UidSeq = "UIDSEQ"
@@ -83,18 +82,9 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    *
    * @return A String representing the created users uid.
    */
-  def createDomainUser(domainUser: CreateDomainUser, password: Option[String]): Try[CreateResult[String]] = tryWithDb { db =>
-    //FIXME: Remove after figuring out how to create in schema
-    if (!db.getMetadata().getSequenceLibrary().getSequenceNames.contains(UidSeq)) {
-      val createParams = new CreateParams().setDefaults()
-      db.getMetadata().getSequenceLibrary().createSequence(UidSeq, SEQUENCE_TYPE.CACHED, createParams)
-    }
-
-    val seq = db.getMetadata().getSequenceLibrary().getSequence(UidSeq)
-    val uid = seq.next().toString
+  def createDomainUser(domainUser: CreateDomainUser, password: Option[String]): Try[CreateResult[Unit]] = tryWithDb { db =>
 
     val create = DomainUser(
-      uid,
       domainUser.username,
       domainUser.firstName,
       domainUser.lastName,
@@ -114,7 +104,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
 
     db.save(pwDoc)
 
-    CreateSuccess(uid)
+    CreateSuccess(())
   } recover {
     case e: ORecordDuplicatedException => DuplicateValue
   }
@@ -124,9 +114,9 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    *
    * @param the uid of the user to delete.
    */
-  def deleteDomainUser(uid: String): Try[DeleteResult] = tryWithDb { db =>
-    val command = new OCommandSQL("DELETE FROM User WHERE uid = :uid")
-    val params = Map(Uid -> uid)
+  def deleteDomainUser(username: String): Try[DeleteResult] = tryWithDb { db =>
+    val command = new OCommandSQL("DELETE FROM User WHERE username = :username")
+    val params = Map(Username -> username)
     val count: Int = db.command(command).execute(params.asJava)
     count match {
       case 0 => NotFound
@@ -143,8 +133,8 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
   def updateDomainUser(domainUser: DomainUser): Try[UpdateResult] = tryWithDb { db =>
     val updatedDoc = domainUser.asODocument
 
-    val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE uid = :uid")
-    val params = Map(Uid -> domainUser.uid)
+    val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username = :username")
+    val params = Map(Username -> domainUser.username)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
     QueryUtil.enforceSingletonResultList(result) match {
@@ -158,34 +148,6 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
         }
       case None => NotFound
     }
-  }
-
-  /**
-   * Gets a single domain user by uid.
-   *
-   * @param uid The uid of the user to retrieve.
-   *
-   * @return Some(DomainUser) if a user with the specified uid exists, or None if no such user exists.
-   */
-  def getDomainUserByUid(uid: String): Try[Option[DomainUser]] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE uid = :uid")
-    val params = Map(Uid -> uid)
-    val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.mapSingletonList(results) { _.asDomainUser }
-  }
-
-  /**
-   * Gets a list of domain users matching any of a list of uids.
-   *
-   * @param uids The list of uids of the users to retrieve.
-   *
-   * @return A list of users matching the list of supplied uids.
-   */
-  def getDomainUsersByUid(uids: List[String]): Try[List[DomainUser]] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE uid in :uids")
-    val params = Map("uids" -> uids.asJava)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    result.asScala.toList.map { _.asDomainUser }
   }
 
   /**
@@ -317,12 +279,12 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
   /**
    * Set the password for an existing user by uid.
    *
-   * @param username The unique uid of the user.
+   * @param username The unique username of the user.
    * @param password The new password to use for internal authentication
    */
-  def setDomainUserPassword(uid: String, password: String): Try[UpdateResult] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT * FROM UserCredential WHERE user.uid = :uid")
-    val params = Map(Uid -> uid)
+  def setDomainUserPassword(username: String, password: String): Try[UpdateResult] = tryWithDb { db =>
+    val query = new OSQLSynchQuery[ODocument]("SELECT * FROM UserCredential WHERE user.username = :username")
+    val params = Map(Username -> username)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
     QueryUtil.enforceSingletonResultList(result) match {
@@ -342,7 +304,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    *
    * @return true if the username and passowrd match, false otherwise.
    */
-  def validateCredentials(username: String, password: String): Try[Tuple2[Boolean, Option[String]]] = tryWithDb { db =>
+  def validateCredentials(username: String, password: String): Try[Boolean] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT password, user.uid AS uid FROM UserCredential WHERE user.username = :username")
     val params = Map(Username -> username)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
@@ -350,14 +312,9 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     QueryUtil.enforceSingletonResultList(result) match {
       case Some(doc) =>
         val pwhash: String = doc.field(Password)
-        PasswordUtil.checkPassword(password, pwhash) match {
-          case true => {
-            val uid: String = doc.field(Uid)
-            (true, Some(uid))
-          }
-          case false => (false, None)
-        }
-      case None => (false, None)
+        PasswordUtil.checkPassword(password, pwhash)
+      case None =>
+        false
     }
   }
 
@@ -375,7 +332,6 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
 
 object DomainUserField extends Enumeration {
   type Field = Value
-  val UserId = Value("uid")
   val Username = Value("username")
   val FirstName = Value("firstName")
   val LastName = Value("lastName")

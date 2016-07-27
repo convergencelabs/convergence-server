@@ -62,7 +62,7 @@ sealed trait AuthenticationRequestMessage extends IncomingProtocolRequestMessage
 case class PasswordAuthRequestMessage(u: String, p: String) extends AuthenticationRequestMessage
 case class TokenAuthRequestMessage(k: String) extends AuthenticationRequestMessage
 
-case class AuthenticationResponseMessage(s: Boolean, i: Option[String], n: Option[String], e: Option[String]) extends OutgoingProtocolResponseMessage
+case class AuthenticationResponseMessage(s: Boolean, n: Option[String], e: Option[String]) extends OutgoingProtocolResponseMessage
 
 ///////////////////////////////////////////////////////////////////////////////
 // Model Messages
@@ -117,7 +117,7 @@ case class UserSearchMessage(f: List[Int], v: String, o: Option[Int], l: Option[
   extends IncomingProtocolRequestMessage with IncomingUserMessage
 
 case class UserListMessage(u: List[DomainUserData]) extends OutgoingProtocolResponseMessage
-case class DomainUserData(i: String, n: String, f: Option[String], l: Option[String], e: Option[String])
+case class DomainUserData(n: String, f: Option[String], l: Option[String], e: Option[String])
 
 ///////////////////////////////////////////////////////////////////////////////
 // Activity Messages
