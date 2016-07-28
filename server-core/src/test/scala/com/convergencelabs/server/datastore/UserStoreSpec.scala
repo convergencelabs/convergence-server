@@ -50,7 +50,7 @@ class UserStoreSpec
       "correctly set the password" in withPersistenceStore { store =>
         val password = "newPasswordToSet"
         store.setUserPassword(User0.username, password).success
-        store.validateCredentials(User0.username, password).success.get.get._1 shouldBe username
+        store.validateCredentials(User0.username, password).success.get shouldBe defined
       }
 
       "throw exception if user does not exist" in withPersistenceStore { store =>
@@ -60,7 +60,7 @@ class UserStoreSpec
 
     "validating credentials" must {
       "return true and a username for a valid usename and password" in withPersistenceStore { store =>
-        store.validateCredentials(User0.username, "password").success.value.get._1 shouldBe username
+        store.validateCredentials(User0.username, "password").success.get shouldBe defined
       }
 
       "return false and None for an valid username and invalid password" in withPersistenceStore { store =>

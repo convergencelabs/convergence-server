@@ -30,18 +30,18 @@ class DomainAdminTokenService(
   implicit val ec = executionContext
   implicit val t = defaultTimeout
 
-  def route(userId: String, domain: DomainFqn): Route = {
+  def route(username: String, domain: DomainFqn): Route = {
     pathPrefix("adminToken") {
       pathEnd {
         get {
-          complete(getAdminToken(domain, userId))
+          complete(getAdminToken(domain, username))
         }
       }
     }
   }
 
-  def getAdminToken(domain: DomainFqn, userId: String): Future[RestResponse] = {
-    (domainRestActor ? DomainMessage(domain, AdminTokenRequest(userId))).mapTo[String] map {
+  def getAdminToken(domain: DomainFqn, username: String): Future[RestResponse] = {
+    (domainRestActor ? DomainMessage(domain, AdminTokenRequest(username))).mapTo[String] map {
       case token: String => (StatusCodes.OK, AdminTokenRestResponse(token))
     }
   }

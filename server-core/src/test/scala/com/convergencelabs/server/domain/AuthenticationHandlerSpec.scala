@@ -110,13 +110,13 @@ class AuthenticationHandlerSpec()
       "return an authentication failure when the user can't be looked up" in new TestFixture {
         val f = authHandler.authenticate(TokenAuthRequest(JwtGenerator.generate(brokenUserName, enabledKey.id)))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
-        result shouldBe AuthenticationFailure
+        result shouldBe AuthenticationError
       }
 
       "return an authentication failure when the user can't be created" in new TestFixture {
         val f = authHandler.authenticate(TokenAuthRequest(JwtGenerator.generate(brokenLazyUsername, enabledKey.id)))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
-        result shouldBe AuthenticationFailure
+        result shouldBe AuthenticationError
       }
     }
   }

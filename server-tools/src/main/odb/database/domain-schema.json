@@ -12,7 +12,8 @@
     "domain/ModelOperation.osql",
     "domain/User.osql",
     "domain/UserCredential.osql",
-    "domain/OFunctions.osql"
+    "domain/OFunctions.osql",
+    "domain/Sequences.osql"
   ],
   "dataScripts": [
   ]

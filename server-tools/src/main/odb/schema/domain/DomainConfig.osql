@@ -5,11 +5,6 @@ CREATE PROPERTY DomainConfig.modelSnapshotConfig EMBEDDED ModelSnapshotConfig;
 ALTER PROPERTY DomainConfig.modelSnapshotConfig MANDATORY true;
 ALTER PROPERTY DomainConfig.modelSnapshotConfig NOTNULL true;
 
-#DomainConfig.tokenKeys
-CREATE PROPERTY DomainConfig.tokenKeys EMBEDDEDLIST TokenPublicKey;
-ALTER PROPERTY DomainConfig.tokenKeys MANDATORY true;
-ALTER PROPERTY DomainConfig.tokenKeys NOTNULL true;
-
 #DomainConfig.adminPublicKey
 CREATE PROPERTY DomainConfig.adminPublicKey STRING;
 ALTER PROPERTY DomainConfig.adminPublicKey MANDATORY true;

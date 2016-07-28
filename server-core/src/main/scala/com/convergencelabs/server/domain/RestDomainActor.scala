@@ -34,7 +34,7 @@ object RestDomainActor {
   def props(domainFqn: DomainFqn): Props = Props(new RestDomainActor(domainFqn))
 
   case object Shutdown
-  case class AdminTokenRequest(convergenceUserId: String)
+  case class AdminTokenRequest(convergenceUsername: String)
 }
 
 class RestDomainActor(domainFqn: DomainFqn) extends Actor with ActorLogging {
@@ -50,8 +50,8 @@ class RestDomainActor(domainFqn: DomainFqn) extends Actor with ActorLogging {
     context.system.settings.config.getDuration("convergence.rest.max-rest-actor-shutdown").toNanos())
 
   def receive: Receive = {
-    case AdminTokenRequest(convergenceUserId) =>
-      getAdminToken(convergenceUserId)
+    case AdminTokenRequest(convergenceUsername) =>
+      getAdminToken(convergenceUsername)
     case message: UserStoreRequest =>
       userStoreActor forward message
     case message: CollectionStoreRequest =>
@@ -72,7 +72,8 @@ class RestDomainActor(domainFqn: DomainFqn) extends Actor with ActorLogging {
       unhandled(message)
   }
 
-  def getAdminToken(convergenceUserId: String): Unit = {
+  def getAdminToken(convergenceUsername: String): Unit = {
+    // TODO why are we passing in the convergence user name.
     domainConfigStore.getAdminKeyPair() flatMap { pair =>
       // FIXME hardcoded
       ConvergenceJwtUtil.fromString("ConvergenceAdminKey", pair.privateKey)

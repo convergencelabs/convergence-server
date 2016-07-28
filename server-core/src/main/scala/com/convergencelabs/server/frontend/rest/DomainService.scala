@@ -67,20 +67,20 @@ class DomainService(
   val domainKeyService = new DomainKeyService(ec, domainManagerActor, t)
   val domainAdminTokenService = new DomainAdminTokenService(ec, domainManagerActor, t)
 
-  val route = { userId: String =>
+  val route = { username: String =>
     pathPrefix("domains") {
       pathEnd {
         get {
-          complete(getDomains(userId))
+          complete(getDomains(username))
         } ~ post {
           entity(as[CreateDomainRestRequest]) { request =>
-            complete(createDomain(request, userId))
+            complete(createDomain(request, username))
           }
         }
       } ~ pathPrefix(Segment / Segment) { (namespace, domainId) =>
         {
           val domain = DomainFqn(namespace, domainId)
-          onSuccess((authz ? DomainAuthorization(userId, domain)).mapTo[AuthorizationResult]) {
+          onSuccess((authz ? DomainAuthorization(username, domain)).mapTo[AuthorizationResult]) {
             case AuthorizationGranted =>
               pathEnd {
                 get {
@@ -93,11 +93,11 @@ class DomainService(
                   }
                 }
               } ~
-                domainUserService.route(userId, domain) ~
-                domainCollectionService.route(userId, domain) ~
-                domainModelService.route(userId, domain) ~
-                domainKeyService.route(userId, domain) ~
-                domainAdminTokenService.route(userId, domain)
+                domainUserService.route(username, domain) ~
+                domainCollectionService.route(username, domain) ~
+                domainModelService.route(username, domain) ~
+                domainKeyService.route(username, domain) ~
+                domainAdminTokenService.route(username, domain)
             case AuthorizationDenied =>
               complete(ForbiddenError)
           }
@@ -106,17 +106,17 @@ class DomainService(
     }
   }
 
-  def createDomain(createRequest: CreateDomainRestRequest, userId: String): Future[RestResponse] = {
+  def createDomain(createRequest: CreateDomainRestRequest, username: String): Future[RestResponse] = {
     val CreateDomainRestRequest(namespace, domainId, displayName) = createRequest
-    (domainStoreActor ? CreateDomainRequest(namespace, domainId, displayName, userId, None)).mapTo[CreateResult[Unit]].map {
+    (domainStoreActor ? CreateDomainRequest(namespace, domainId, displayName, username, None)).mapTo[CreateResult[Unit]].map {
       case result: CreateSuccess[Unit] => CreateRestResponse
       case DuplicateValue => DuplicateError
       case InvalidValue => InvalidValueError
     }
   }
 
-  def getDomains(userId: String): Future[RestResponse] = {
-    (domainStoreActor ? ListDomainsRequest(userId)).mapTo[List[Domain]].map(domains =>
+  def getDomains(username: String): Future[RestResponse] = {
+    (domainStoreActor ? ListDomainsRequest(username)).mapTo[List[Domain]].map(domains =>
       (StatusCodes.OK, DomainsResponse(
         (domains map (domain => DomainInfo(
           domain.displayName,

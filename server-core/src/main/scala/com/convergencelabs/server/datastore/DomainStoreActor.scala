@@ -46,7 +46,7 @@ class DomainStoreActor private[datastore] (
   }
 
   def createDomain(createRequest: CreateDomainRequest): Unit = {
-    val CreateDomainRequest(namespace, domainId, displayName, ownerUid, importFile) = createRequest
+    val CreateDomainRequest(namespace, domainId, displayName, ownerUsername, importFile) = createRequest
     val dbName = UUID.randomUUID().getLeastSignificantBits().toString()
 
     // TODO we should be optionally randomizing the password and passing it in.
@@ -57,7 +57,7 @@ class DomainStoreActor private[datastore] (
     val result = domainStore.createDomain(
         domainFqn,
         displayName,
-        ownerUid,
+        ownerUsername,
       DomainDatabaseInfo(dbName,
       Username,
       password))
@@ -118,7 +118,7 @@ class DomainStoreActor private[datastore] (
   }
 
   def listDomains(listRequest: ListDomainsRequest): Unit = {
-    reply(domainStore.getDomainsByOwner(listRequest.uid))
+    reply(domainStore.getDomainsByOwner(listRequest.username))
   }
 }
 
@@ -130,5 +130,5 @@ object DomainStoreActor {
   case class UpdateDomainRequest(namespace: String, domainId: String, displayName: String)
   case class DeleteDomainRequest(namespace: String, domainId: String)
   case class GetDomainRequest(namespace: String, domainId: String)
-  case class ListDomainsRequest(uid: String)
+  case class ListDomainsRequest(username: String)
 }

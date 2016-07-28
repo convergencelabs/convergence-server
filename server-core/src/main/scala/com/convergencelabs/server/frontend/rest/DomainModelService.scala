@@ -37,7 +37,7 @@ class DomainModelService(
   implicit val ec = executionContext
   implicit val t = defaultTimeout
 
-  def route(userId: String, domain: DomainFqn): Route = {
+  def route(username: String, domain: DomainFqn): Route = {
     pathPrefix("models") {
       (pathEnd & get) {
         complete(getModels(domain))

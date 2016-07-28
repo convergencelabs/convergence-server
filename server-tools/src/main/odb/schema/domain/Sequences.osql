@@ -1,2 +1,3 @@
 #User Session Sequence
-CREATE SEQUENCE sessionSeq;
+
+CREATE SEQUENCE sessionSeq TYPE ORDERED;

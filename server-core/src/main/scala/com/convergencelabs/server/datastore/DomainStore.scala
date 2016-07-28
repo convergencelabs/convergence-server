@@ -37,9 +37,9 @@ class DomainStore (dbPool: OPartitionedDatabasePool)
   val DidSeq = "DIDSEQ"
   
 
-  def createDomain(domainFqn: DomainFqn, displayName: String, owner: String, dbInfo: DomainDatabaseInfo): Try[CreateResult[Unit]] = tryWithDb { db =>
+  def createDomain(domainFqn: DomainFqn, displayName: String, ownerUsername: String, dbInfo: DomainDatabaseInfo): Try[CreateResult[Unit]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username = :username")
-    val params = Map("username" -> owner)
+    val params = Map("username" -> ownerUsername)
 
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     try {

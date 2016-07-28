@@ -143,7 +143,7 @@ class UserStore private[datastore] (
    *
    * @return true if the username and passowrd match, false otherwise.
    */
-  def validateCredentials(username: String, password: String): Try[Option[Tuple2[String, String]]] = tryWithDb { db =>
+  def validateCredentials(username: String, password: String): Try[Option[String]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT password, user.username AS username FROM UserCredential WHERE user.username = :username")
     val params = Map(Username -> username)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
@@ -157,11 +157,13 @@ class UserStore private[datastore] (
             val token = UUID.randomUUID().toString()
             val expireTime = Date.from(Instant.now().plus(tokenValidityDuration))
             createToken(username, token, expireTime)
-            Some((username, token))
+            Some(token)
           }
-          case false => None
+          case false => 
+            None
         }
-      case None => None
+      case None =>
+        None
     }
   }
 

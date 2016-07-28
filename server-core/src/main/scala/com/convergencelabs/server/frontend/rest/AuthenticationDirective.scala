@@ -42,8 +42,10 @@ class Authenticator(
     request.header[Authorization] match {
       case Some(Authorization(GenericHttpCredentials("token", _, params))) if params.keySet == Set("") =>
         onSuccess(validateToken(params(""))).flatMap {
-          case Some(user) => provide(user)
-          case None => complete(AuthFailureError)
+          case Some(username) =>
+            provide(username)
+          case None =>
+            complete(AuthFailureError)
         }
       case _ => complete(AuthFailureError)
     }
@@ -51,8 +53,10 @@ class Authenticator(
 
   private[this] def validateToken(token: String): Future[Option[String]] = {
     (authActor ? ValidateRequest(token)).mapTo[ValidateResponse] map {
-      case ValidateSuccess(uid) => Some(uid)
-      case ValidateFailure => None
+      case ValidateSuccess(username) =>
+        Some(username)
+      case ValidateFailure =>
+        None
     }
   }
 }

@@ -38,7 +38,7 @@ import com.convergencelabs.server.datastore.UpdateSuccess
 import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUserProfile
 import com.convergencelabs.server.User
 
-case class CovergenceUserProfile(userId: String, username: String, email: String, firstName: String, lastName: String)
+case class CovergenceUserProfile(username: String, email: String, firstName: String, lastName: String)
 case class UserProfileResponse(profile: CovergenceUserProfile) extends AbstractSuccessResponse
 
 class ProfileService(
@@ -60,14 +60,14 @@ class ProfileService(
     }
   }
 
-  def getProfile(userId: String): Future[RestResponse] = {
-    (convergenceUserActor ? GetConvergenceUserProfile(userId)).mapTo[Option[User]].map {
+  def getProfile(username: String): Future[RestResponse] = {
+    (convergenceUserActor ? GetConvergenceUserProfile(username)).mapTo[Option[User]].map {
       case Some(User(
         username: String,
         email: String,
         firstName: String,
         lastName: String)) =>
-        (StatusCodes.OK, UserProfileResponse(CovergenceUserProfile(userId, username, email, firstName, lastName)))
+        (StatusCodes.OK, UserProfileResponse(CovergenceUserProfile(username, email, firstName, lastName)))
       case None =>
         NotFoundError
     }

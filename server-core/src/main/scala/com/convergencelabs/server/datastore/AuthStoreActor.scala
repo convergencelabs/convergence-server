@@ -30,14 +30,16 @@ class AuthStoreActor private[datastore] (
 
   private[this] def authenticateUser(authRequest: AuthRequest): Unit = {
     mapAndReply(userStore.validateCredentials(authRequest.username, authRequest.password)) {
-      case Some((uid, token)) => AuthSuccess(uid, token)
-      case None => AuthFailure
+      case Some(token) => 
+        AuthSuccess(token)
+      case None => 
+        AuthFailure
     }
   }
 
   private[this] def validateToken(validateRequest: ValidateRequest): Unit = {
     mapAndReply(userStore.validateToken(validateRequest.token)) {
-      case Some(userId) => ValidateSuccess(userId)
+      case Some(username) => ValidateSuccess(username)
       case None => ValidateFailure
     }
   }
@@ -49,12 +51,12 @@ object AuthStoreActor {
   case class AuthRequest(username: String, password: String)
 
   sealed trait AuthResponse
-  case class AuthSuccess(uid: String, token: String) extends AuthResponse
+  case class AuthSuccess(token: String) extends AuthResponse
   case object AuthFailure extends AuthResponse
 
   case class ValidateRequest(token: String)
 
   sealed trait ValidateResponse
-  case class ValidateSuccess(uid: String) extends ValidateResponse
+  case class ValidateSuccess(username: String) extends ValidateResponse
   case object ValidateFailure extends ValidateResponse
 }

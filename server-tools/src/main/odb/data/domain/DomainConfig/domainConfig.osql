@@ -15,17 +15,4 @@ INSERT INTO DomainConfig SET
     "minTimeInterval": 0,
     "maxTimeInterval": 0,
     "@fieldTypes": "minVersionInterval=l,maxVersionInterval=l,minTimeInterval=l,maxTimeInterval=l"
-  },
-  tokenKeys = [
-    {
-      "@type": "d",
-      "@version": 0,
-      "@class": "TokenPublicKey",
-      "created": "2015-09-21T12:32:43.000+0000",
-      "id": "test",
-      "name": "Test Key",
-      "description": "A key for testing",
-      "enabled": true,
-      "key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlqHvXYPseLVx2vCSCipw\nxOumeB2t3JFxXnQ1qC9QMcAydKT7oeTZEbJxgbpaeEy2QkH7J8drkfu78RBh9nFb\nJ3yh3/cZS09wMM4NQsmqqpee4qHromwR1N4MgYAzDGcnl0iHeaYc56tHt5n5ENjG\n+bjEULEGIFVbDs2MBxyswchyqRFGHse41uLxhybhDNkEQLUcqkbVesqVXGsz25Hi\nBdxfYRJ9+2x70GwxDf0nBfZb1fvUFZnCDJHKO/wqv5k9BcuCDLUOdRgJa7+E721V\nSvopddtRgEFnEWoOilcUWtF03CUy4tw3hv1VDcbXKsEma0KjP5IAvWFVI6dbDHeh\nLQIDAQAB\n-----END PUBLIC KEY-----\n"
-    }
-  ];
+  };

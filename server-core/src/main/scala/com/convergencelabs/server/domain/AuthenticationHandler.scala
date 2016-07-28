@@ -31,6 +31,7 @@ import com.convergencelabs.server.datastore.DuplicateValue
 import com.convergencelabs.server.datastore.InvalidValue
 import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateDomainUser
 import com.convergencelabs.server.domain.model.SessionKey
+import scala.util.control.NonFatal
 
 object AuthenticationHandler {
   val AdminKeyId = "ConvergenceAdminKey"
@@ -47,11 +48,12 @@ class AuthenticationHandler(
   def authenticate(request: AuthenticationRequest): Future[AuthenticationResponse] = {
     request match {
       case message: PasswordAuthRequest => authenticatePassword(message)
-      case message: TokenAuthRequest    => authenticateToken(message)
+      case message: TokenAuthRequest => authenticateToken(message)
     }
   }
 
   private[this] def authenticatePassword(authRequest: PasswordAuthRequest): Future[AuthenticationResponse] = {
+    logger.debug("Authenticating by username and password")
     val response = userStore.validateCredentials(authRequest.username, authRequest.password) match {
       case Success(true) => {
         userStore.nextSessionId match {
@@ -62,7 +64,7 @@ class AuthenticationHandler(
           }
         }
       }
-      case Success(false) => 
+      case Success(false) =>
         AuthenticationFailure
       case Failure(cause) => {
         logger.error("Unable to authenticate a user", cause)
@@ -87,8 +89,11 @@ class AuthenticationHandler(
       val keyId = objects.get(0).getKeyIdHeaderValue()
 
       getJWTPublicKey(keyId) match {
-        case Some(publicKey) => authenticateTokenWithPublicKey(authRequest, publicKey)
-        case None            => AuthenticationFailure
+        case Some(publicKey) =>
+          authenticateTokenWithPublicKey(authRequest, publicKey)
+        case None =>
+          logger.warn("Request to authenticate via token, with an invalid keyId")
+          AuthenticationFailure
       }
     }
   }
@@ -104,35 +109,33 @@ class AuthenticationHandler(
       .build()
 
     val jwtClaims = jwtConsumer.processToClaims(authRequest.jwt)
-
     val username = jwtClaims.getSubject()
 
-    userStore.nextSessionId match {
-      case Success(sessionId) => {
-        // FIXME in theory we should cache the token id for longer than the expiration to make
-        // sure a replay attack is not possible
-        userStore.getDomainUserByUsername(username) match {
-          case Success(Some(user)) => {
-            AuthenticationSuccess(user.username, SessionKey(user.username, sessionId))
-          }
-          case Success(None) => {
-            createUserFromJWT(jwtClaims) match {
-              case Success(CreateSuccess(_)) => AuthenticationSuccess(username, SessionKey(username, sessionId))
-              // FIXME: Determine what to do on duplicate value exception
-              case Success(DuplicateValue)     => AuthenticationFailure
-              case Success(InvalidValue)       => AuthenticationFailure
-              case Failure(cause)              => AuthenticationFailure
-            }
-          }
-          case Failure(cause) => AuthenticationFailure
-        }
-      }
-      case Failure(cause) => {
-        logger.error("Unable to authenticate a user", cause)
-        AuthenticationError
-      }
-    }
+    // FIXME in theory we should cache the token id for longer than the expiration to make
+    // sure a replay attack is not possible
 
+    userStore.getDomainUserByUsername(username) flatMap {
+      case Some(user) =>
+        logger.error("User specificed in token already exists, returning auth success.")
+        userStore.nextSessionId map (id => AuthenticationSuccess(username, SessionKey(username, id)))
+      case None =>
+        logger.error("User specificed in token does not exist exist, creating.")
+        createUserFromJWT(jwtClaims) flatMap {
+          case CreateSuccess(_) | DuplicateValue =>
+            // The duplicate value case is when a race condition occurs between when we looked up the
+            // user and then tried to create them.
+            logger.error("User specificed in token now exists, returning auth success.")
+            userStore.nextSessionId map (id => AuthenticationSuccess(username, SessionKey(username, id)))
+          case InvalidValue =>
+            Failure(new IllegalArgumentException("Lazy creation of user based on JWT authentication failed: {$username}"))
+        }
+    } match {
+      case Success(response) =>
+        response
+      case Failure(cause) =>
+        logger.error("Unable to authenticate a user via token.", cause)
+        AuthenticationError
+    }
   }
 
   private[this] def createUserFromJWT(jwtClaims: JwtClaims): Try[CreateResult[Unit]] = {
@@ -148,7 +151,7 @@ class AuthenticationHandler(
     val keyPem: Option[String] = if (!AuthenticationHandler.AdminKeyId.equals(keyId)) {
       keyStore.getKey(keyId) match {
         case Success(Some(key)) if key.enabled => Some(key.key)
-        case _                                 => None
+        case _ => None
       }
     } else {
       domainConfigStore.getAdminKeyPair() match {

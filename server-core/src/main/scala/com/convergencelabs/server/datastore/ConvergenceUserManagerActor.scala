@@ -31,7 +31,7 @@ object ConvergenceUserManagerActor {
 
   case class CreateConvergenceUserRequest(username: String, email: String, firstName: String, lastName: String, password: String)
   case class DeleteConvergenceUserRequest(username: String)
-  case class GetConvergenceUserProfile(userId: String)
+  case class GetConvergenceUserProfile(username: String)
 }
 
 class ConvergenceUserManagerActor private[datastore] (

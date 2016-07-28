@@ -14,7 +14,6 @@ import com.convergencelabs.server.datastore.AuthStoreActor.AuthSuccess
 import com.convergencelabs.server.datastore.AuthStoreActor.AuthFailure
 import com.convergencelabs.server.datastore.AuthStoreActor.AuthResponse
 
-
 case class TokenResponse(token: String) extends AbstractSuccessResponse
 
 class AuthService(
@@ -22,7 +21,7 @@ class AuthService(
   private[this] val authActor: ActorRef,
   private[this] val defaultTimeout: Timeout)
     extends JsonSupport {
- 
+
   implicit val ec = executionContext
   implicit val t = defaultTimeout
 
@@ -36,8 +35,10 @@ class AuthService(
 
   def authRequest(req: AuthRequest): Future[RestResponse] = {
     (authActor ? req).mapTo[AuthResponse].map {
-      case AuthSuccess(uid, token) => (StatusCodes.OK, TokenResponse(token))
-      case AuthFailure             => AuthFailureError
+      case AuthSuccess(token) =>
+        (StatusCodes.OK, TokenResponse(token))
+      case AuthFailure =>
+        AuthFailureError
     }
   }
 }

@@ -319,12 +319,6 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
   }
 
   def nextSessionId: Try[String] = tryWithDb { db =>
-    //FIXME: Remove after figuring out how to create in schema
-    if (!db.getMetadata().getSequenceLibrary().getSequenceNames.contains(SessionSeq)) {
-      val createParams = new CreateParams().setDefaults()
-      db.getMetadata().getSequenceLibrary().createSequence(SessionSeq, SEQUENCE_TYPE.CACHED, createParams)
-    }
-
     val seq = db.getMetadata().getSequenceLibrary().getSequence(SessionSeq)
     Long.toString(seq.next(), 36)
   }

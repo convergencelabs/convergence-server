@@ -101,10 +101,10 @@ class ConvergenceRestFrontEnd(
           authService.route ~
           // Everything else must be authenticated
           extractRequest { request =>
-            authenticator.requireAuthenticated(request) { userId =>
-              domainService.route(userId) ~
+            authenticator.requireAuthenticated(request) { username =>
+              domainService.route(username) ~
                 keyGenService.route() ~
-                profileService.route(userId)
+                profileService.route(username)
             }
           }
       } ~ pathPrefix("admin") {

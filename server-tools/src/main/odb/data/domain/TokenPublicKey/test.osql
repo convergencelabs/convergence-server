@@ -1,5 +1,5 @@
 INSERT INTO TokenPublicKey SET
-  created = "2015-09-21T12:32:43.000+0000",
+  created = DATE("2015-09-21T12:32:43.000+0000"),
   id = "test",
   name = "Test Key",
   description = "A key for testing",
