@@ -72,4 +72,19 @@ object MessageType extends Enumeration {
 
   val ActivityRemoteStateSet = 72
   val ActivityRemoteStateCleared = 73
+  
+  val PresenceSetState = 74
+  val PresenceClearState = 75
+
+  val PresenceStateSet = 76
+  val PresenceStateCleared = 77
+
+  val PresenceAvailabilityChanged = 78
+
+  val PresenceRequest = 79
+  val PresenceResponse = 80
+
+  val PresenceSubscribeRequest = 81
+  val PresenceSubscribeResponse = 82
+  val PresenceUnsubscribe = 83
 }

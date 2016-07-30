@@ -72,6 +72,10 @@ class DomainActor(
   private[this] val activityServiceActor = context.actorOf(ActivityServiceActor.props(
     domainFqn),
     ActivityServiceActor.RelativePath)
+    
+  private[this] val presenceServiceActor = context.actorOf(PresenceServiceActor.props(
+    domainFqn),
+    PresenceServiceActor.RelativePath)
 
   private[this] var authenticator: AuthenticationHandler = _
 
@@ -112,7 +116,8 @@ class DomainActor(
           self,
           modelManagerActorRef,
           userServiceActor,
-          activityServiceActor)
+          activityServiceActor,
+          presenceServiceActor)
       }
       case false => {
         sender ! HandshakeFailure("domain_unavailable", "Could not connect to database.")

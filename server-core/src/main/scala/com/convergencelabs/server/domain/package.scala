@@ -14,7 +14,8 @@ package object domain {
     domainActor: ActorRef,
     modelManager: ActorRef,
     userService: ActorRef,
-    activityService: ActorRef) extends HandshakeResponse
+    activityService: ActorRef,
+    presenceService: ActorRef) extends HandshakeResponse
   case class HandshakeFailure(code: String, details: String) extends HandshakeResponse
 
   case class ClientDisconnected(sessionId: String)

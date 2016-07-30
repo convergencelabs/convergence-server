@@ -74,7 +74,15 @@ object MessageSerializer {
     MessageType.ActivityLocalStateSet -> classOf[ActivitySetStateMessage],
     MessageType.ActivityLocalStateCleared -> classOf[ActivityClearStateMessage],
     MessageType.ActivityRemoteStateSet -> classOf[ActivityRemoteStateSetMessage],
-    MessageType.ActivityRemoteStateCleared -> classOf[ActivityRemoteStateClearedMessage]),
+    MessageType.ActivityRemoteStateCleared -> classOf[ActivityRemoteStateClearedMessage],
+    
+    MessageType.PresenceSetState -> classOf[PresenceSetStateMessage],
+    MessageType.PresenceClearState -> classOf[PresenceClearStateMessage],
+    MessageType.PresenceRequest -> classOf[PresenceRequestMessage],
+    MessageType.PresenceSubscribeRequest -> classOf[SubscribePresenceRequestMessage],
+    MessageType.PresenceUnsubscribe -> classOf[UnsubscribePresenceMessage]),
+    
+    
 
     DefaultFormats.withTypeHintFieldName("?") + new OperationSerializer() + DataValueTypeHints + DataValueFieldSerializer)
 

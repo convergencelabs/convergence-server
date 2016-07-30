@@ -8,6 +8,7 @@ import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.OpenModelMetaData
 import com.convergencelabs.server.ProtocolConfiguration
 import com.convergencelabs.server.domain.model.data.ObjectValue
+import com.convergencelabs.server.domain.PresenceServiceActor.UserPresence
 
 // scalastyle:off number.of.types
 
@@ -145,3 +146,20 @@ case class ActivitySessionLeftMessage(i: String, s: String) extends OutgoingProt
 
 case class ActivityRemoteStateSetMessage(i: String, s: String, k: String, v: Any) extends OutgoingProtocolNormalMessage
 case class ActivityRemoteStateClearedMessage(i: String, s: String, k: String) extends OutgoingProtocolNormalMessage
+
+sealed trait IncomingPresenceMessage
+sealed trait IncomingPresenceRequestMessage extends IncomingPresenceMessage with IncomingProtocolRequestMessage
+case class PresenceRequestMessage(u: List[String]) extends IncomingPresenceRequestMessage
+case class SubscribePresenceRequestMessage(u: String) extends IncomingPresenceRequestMessage
+
+case class PresenceResponseMessage(p: List[UserPresence]) extends OutgoingProtocolResponseMessage
+case class SubscribePresenceResponseMessage(p: UserPresence) extends OutgoingProtocolResponseMessage
+
+sealed trait IncomingPresenceNormalMessage extends IncomingPresenceMessage with IncomingProtocolNormalMessage
+case class PresenceSetStateMessage(k: String, v: Any) extends IncomingPresenceNormalMessage
+case class PresenceClearStateMessage(k: String) extends IncomingPresenceNormalMessage
+case class UnsubscribePresenceMessage(u: String) extends IncomingPresenceNormalMessage
+
+case class PresenceStateSetMessage(u: String, k: String, v: Any) extends OutgoingProtocolNormalMessage
+case class PresenceStateClearedMessage(u: String, k: String) extends OutgoingProtocolNormalMessage
+case class PresenceAvailabilityChangedMessage(u: String, a: Boolean) extends OutgoingProtocolNormalMessage
