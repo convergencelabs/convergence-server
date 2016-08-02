@@ -18,7 +18,7 @@ object PresenceServiceActor {
     new PresenceServiceActor(domainFqn))
 
   case class PresenceRequest(usernames: List[String])
-  case class UserPresence(username: String, avaialble: Boolean, state: Map[String, Any], clients: Set[ActorRef])
+  case class UserPresence(username: String, available: Boolean, state: Map[String, Any], clients: Set[ActorRef])
 
   case class UserConnected(username: String, client: ActorRef)
   
