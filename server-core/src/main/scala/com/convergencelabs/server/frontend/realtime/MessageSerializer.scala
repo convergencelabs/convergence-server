@@ -78,11 +78,13 @@ object MessageSerializer {
     
     MessageType.PresenceSetState -> classOf[PresenceSetStateMessage],
     MessageType.PresenceClearState -> classOf[PresenceClearStateMessage],
+    MessageType.PresenceStateSet -> classOf[PresenceStateSetMessage],
+    MessageType.PresenceStateCleared -> classOf[PresenceStateClearedMessage],
     MessageType.PresenceRequest -> classOf[PresenceRequestMessage],
+    MessageType.PresenceResponse -> classOf[PresenceResponseMessage],
     MessageType.PresenceSubscribeRequest -> classOf[SubscribePresenceRequestMessage],
+    MessageType.PresenceSubscribeResponse -> classOf[SubscribePresenceResponseMessage],
     MessageType.PresenceUnsubscribe -> classOf[UnsubscribePresenceMessage]),
-    
-    
 
     DefaultFormats.withTypeHintFieldName("?") + new OperationSerializer() + DataValueTypeHints + DataValueFieldSerializer)
 
