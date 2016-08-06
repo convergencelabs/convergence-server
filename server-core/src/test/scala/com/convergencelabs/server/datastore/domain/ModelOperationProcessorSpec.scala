@@ -58,6 +58,7 @@ class ModelOperationProcessorSpec
   val marriedVID = "pp1-married"
 
   val fnameField = "fname"
+  val lnameField = "lname"
   val emailsField = "emails"
   val ageField = "age"
   val marriedField = "married"
@@ -97,6 +98,20 @@ class ModelOperationProcessorSpec
         val response = processor.processModelOperation(modelOp).success
         val modelData = modelStore.getModelData(modelFqn).success.value.value
         modelData.children(fnameField) shouldEqual StringValue(fnameVID, "xyjohn")
+      }
+
+      "apply all operations in rename compound operation" in withPersistenceStore { stores =>
+        val (processor, opStore, modelStore) = stores
+
+        val op1 = ObjectRemovePropertyOperation("pp1-data", false, lnameField)
+        val op2 = ObjectAddPropertyOperation("pp1-data", false, "newName", StringValue("idididi", "somethingelse"))
+
+        val compound = CompoundOperation(List(op1, op2))
+
+        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, compound)
+        val response = processor.processModelOperation(modelOp).success
+        val modelData = modelStore.getModelData(modelFqn).success.value.value
+        modelData.children("newName") shouldEqual StringValue("idididi", "somethingelse")
       }
 
       "not apply noOp'ed operations in the compound operation" in withPersistenceStore { stores =>

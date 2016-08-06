@@ -8,6 +8,7 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 
 import DataValueMapper.DataValueToODocument
 import DataValueMapper.ODocumentToDataValue
+import com.orientechnologies.orient.core.metadata.schema.OType
 
 object ArrayInsertOperationMapper extends ODocumentMapper {
 
@@ -21,7 +22,7 @@ object ArrayInsertOperationMapper extends ODocumentMapper {
     doc.field(Fields.Id, id)
     doc.field(Fields.NoOp, noOp)
     doc.field(Fields.Idx, index)
-    doc.field(Fields.Val, value.asODocument)
+    doc.field(Fields.Val, value.asODocument, OType.EMBEDDED)
     doc
   }
 
