@@ -51,7 +51,7 @@ import akka.util.Timeout
 
 object DomainUserService {
   case class CreateUserRequest(username: String, firstName: Option[String], lastName: Option[String], email: Option[String], password: Option[String])
-  case class CreateUserResponse(uid: String) extends AbstractSuccessResponse
+  case class CreateUserResponse() extends AbstractSuccessResponse
   case class GetUsersRestResponse(users: List[DomainUser]) extends AbstractSuccessResponse
   case class GetUserRestResponse(user: DomainUser) extends AbstractSuccessResponse
   case class UpdateUserRequest(
@@ -111,8 +111,8 @@ class DomainUserService(
 
   def createUserRequest(createRequest: CreateUserRequest, domain: DomainFqn): Future[RestResponse] = {
     val CreateUserRequest(username, firstName, lastName, email, password) = createRequest
-    (domainRestActor ? DomainMessage(domain, CreateUser(username, firstName, lastName, email, password))).mapTo[CreateResult[String]].map {
-      case result: CreateSuccess[String] => (StatusCodes.Created, CreateUserResponse(result.result))
+    (domainRestActor ? DomainMessage(domain, CreateUser(username, firstName, lastName, email, password))).mapTo[CreateResult[Unit]].map {
+      case result: CreateSuccess[Unit] => (StatusCodes.Created, CreateUserResponse())
       case DuplicateValue                => DuplicateError
       case InvalidValue                  => InvalidValueError
     }
