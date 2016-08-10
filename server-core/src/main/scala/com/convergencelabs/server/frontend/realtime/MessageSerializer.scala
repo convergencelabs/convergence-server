@@ -6,7 +6,6 @@ import org.json4s.jackson.Serialization.write
 
 import com.convergencelabs.server.frontend.realtime.data.DataValueFieldSerializer
 import com.convergencelabs.server.frontend.realtime.data.DataValueTypeHints
-import com.convergencelabs.server.domain.ActivityServiceActor.ActivitySetState
 
 object MessageSerializer {
 
@@ -84,7 +83,14 @@ object MessageSerializer {
     MessageType.PresenceResponse -> classOf[PresenceResponseMessage],
     MessageType.PresenceSubscribeRequest -> classOf[SubscribePresenceRequestMessage],
     MessageType.PresenceSubscribeResponse -> classOf[SubscribePresenceResponseMessage],
-    MessageType.PresenceUnsubscribe -> classOf[UnsubscribePresenceMessage]),
+    MessageType.PresenceUnsubscribe -> classOf[UnsubscribePresenceMessage],
+    
+    MessageType.JoinRoom -> classOf[JoinedChatRoomMessage],
+    MessageType.LeaveRoom -> classOf[LeftChatRoomMessage],
+    MessageType.PublishChatMessage -> classOf[PublishedChatMessage],
+    MessageType.UserJoinedRoom -> classOf[UserJoinedRoomMessage],
+    MessageType.UserLeftRoom -> classOf[UnsubscribePresenceMessage],
+    MessageType.ChatMessagePublished -> classOf[UserChatMessage]),
 
     DefaultFormats.withTypeHintFieldName("?") + new OperationSerializer() + DataValueTypeHints + DataValueFieldSerializer)
 

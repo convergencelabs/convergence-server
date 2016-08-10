@@ -163,3 +163,13 @@ case class UnsubscribePresenceMessage(u: String) extends IncomingPresenceNormalM
 case class PresenceStateSetMessage(u: String, k: String, v: Any) extends OutgoingProtocolNormalMessage
 case class PresenceStateClearedMessage(u: String, k: String) extends OutgoingProtocolNormalMessage
 case class PresenceAvailabilityChangedMessage(u: String, a: Boolean) extends OutgoingProtocolNormalMessage
+
+sealed trait IncomingChatMessage
+sealed trait IncomingChatNormalMessage extends IncomingChatMessage with IncomingProtocolNormalMessage
+case class JoinedChatRoomMessage(r: String) extends IncomingChatNormalMessage
+case class LeftChatRoomMessage(r: String) extends IncomingChatNormalMessage
+case class PublishedChatMessage(r: String, m: String) extends IncomingChatNormalMessage
+
+case class UserJoinedRoomMessage(r: String, u: String, s: String, t: Long) extends OutgoingProtocolNormalMessage
+case class UserLeftRoomMessage(r: String, u: String, s: String, t: Long) extends OutgoingProtocolNormalMessage
+case class UserChatMessage(r: String, u: String, s: String, m: String, t: Long) extends OutgoingProtocolNormalMessage

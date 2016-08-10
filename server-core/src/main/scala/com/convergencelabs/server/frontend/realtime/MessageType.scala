@@ -87,4 +87,12 @@ object MessageType extends Enumeration {
   val PresenceSubscribeRequest = 81
   val PresenceSubscribeResponse = 82
   val PresenceUnsubscribe = 83
+  
+  val JoinRoom = 84
+  val LeaveRoom = 85
+  val PublishChatMessage = 86
+
+  val UserJoinedRoom = 87
+  val UserLeftRoom = 88
+  val ChatMessagePublished = 89
 }
