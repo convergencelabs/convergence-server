@@ -70,12 +70,14 @@ class ClientActor(
   private[this] var userClient: ActorRef = _
   private[this] var activityClient: ActorRef = _
   private[this] var presenceClient: ActorRef = _
+  private[this] var chatClient: ActorRef = _
   
   private[this] var domainActor: Option[ActorRef] = None
   private[this] var modelManagerActor: ActorRef = _
   private[this] var userServiceActor: ActorRef = _
   private[this] var activityServiceActor: ActorRef = _
   private[this] var presenceServiceActor: ActorRef = _
+  private[this] var chatServiceActor: ActorRef = _
   private[this] var sessionId: String = _
 
   private[this] var protocolConnection: ProtocolConnection = _
@@ -202,6 +204,7 @@ class ClientActor(
     this.userClient = context.actorOf(UserClientActor.props(userServiceActor))
     this.activityClient = context.actorOf(ActivityClientActor.props(activityServiceActor, sk))
     this.presenceClient = context.actorOf(PresenceClientActor.props(presenceServiceActor, sk))
+    this.chatClient = context.actorOf(ChatClientActor.props(chatServiceActor, sk))
     this.messageHandler = handleMessagesWhenAuthenticated
     cb.reply(AuthenticationResponseMessage(true, Some(username), Some(sk.serialize())))
     context.become(receiveWhileAuthenticated)
@@ -231,13 +234,14 @@ class ClientActor(
   }
 
   private[this] def handleHandshakeSuccess(success: InternalHandshakeSuccess): Unit = {
-    val InternalHandshakeSuccess(HandshakeSuccess(domainActor, modelManagerActor, userActor, activityActor, presenceActor),
+    val InternalHandshakeSuccess(HandshakeSuccess(domainActor, modelManagerActor, userActor, activityActor, presenceActor, chatActor),
       cb) = success
     this.domainActor = Some(domainActor)
     this.modelManagerActor = modelManagerActor
     this.userServiceActor = userActor
     this.activityServiceActor = activityActor
     this.presenceServiceActor = presenceActor
+    this.chatServiceActor = chatActor
     cb.reply(HandshakeResponseMessage(true, None, None, Some(ProtocolConfigData(true))))
     this.messageHandler = handleAuthentationMessage
     context.become(receiveWhileAuthenticating)
@@ -265,6 +269,7 @@ class ClientActor(
       case MessageReceived(x) if x.isInstanceOf[IncomingModelNormalMessage] => modelClient.forward(message)
       case MessageReceived(x) if x.isInstanceOf[IncomingActivityMessage] => activityClient.forward(message)
       case MessageReceived(x) if x.isInstanceOf[IncomingPresenceMessage] => presenceClient.forward(message)
+      case MessageReceived(x) if x.isInstanceOf[IncomingChatMessage] => chatClient.forward(message)
     }
   }
 

@@ -170,6 +170,6 @@ case class JoinedChatRoomMessage(r: String) extends IncomingChatNormalMessage
 case class LeftChatRoomMessage(r: String) extends IncomingChatNormalMessage
 case class PublishedChatMessage(r: String, m: String) extends IncomingChatNormalMessage
 
-case class UserJoinedRoomMessage(r: String, u: String, s: String, t: Long) extends OutgoingProtocolNormalMessage
-case class UserLeftRoomMessage(r: String, u: String, s: String, t: Long) extends OutgoingProtocolNormalMessage
-case class UserChatMessage(r: String, u: String, s: String, m: String, t: Long) extends OutgoingProtocolNormalMessage
+case class UserJoinedRoomMessage(r: String, u: String, s: String, p: Long) extends OutgoingProtocolNormalMessage
+case class UserLeftRoomMessage(r: String, u: String, s: String, p: Long) extends OutgoingProtocolNormalMessage
+case class UserChatMessage(r: String, u: String, s: String, m: String, p: Long) extends OutgoingProtocolNormalMessage

@@ -15,6 +15,7 @@ import com.convergencelabs.server.domain.ChatServiceActor.SendMessage
 import com.convergencelabs.server.domain.ChatServiceActor.UserLeft
 import com.convergencelabs.server.domain.ChatServiceActor.UserJoined
 import java.util.Calendar
+import com.convergencelabs.server.domain.ChatServiceActor.UserMessage
 
 object ChatServiceActor {
 
@@ -79,7 +80,7 @@ class ChatServiceActor private[domain] (domainFqn: DomainFqn) extends Actor with
     clients.get(client) match {
       case Some(sk) => {
         if(subscriptions.isSubscribed(client, roomId)) {
-          broadcastToSubscribed(client, roomId, UserLeft(roomId, sk, Calendar.getInstance().getTimeInMillis()))
+          broadcastToSubscribed(client, roomId, UserMessage(roomId, sk, message, Calendar.getInstance().getTimeInMillis()))
         }
       }
       case None =>

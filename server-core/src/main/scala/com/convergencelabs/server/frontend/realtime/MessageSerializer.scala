@@ -89,7 +89,7 @@ object MessageSerializer {
     MessageType.LeaveRoom -> classOf[LeftChatRoomMessage],
     MessageType.PublishChatMessage -> classOf[PublishedChatMessage],
     MessageType.UserJoinedRoom -> classOf[UserJoinedRoomMessage],
-    MessageType.UserLeftRoom -> classOf[UnsubscribePresenceMessage],
+    MessageType.UserLeftRoom -> classOf[UserLeftRoomMessage],
     MessageType.ChatMessagePublished -> classOf[UserChatMessage]),
 
     DefaultFormats.withTypeHintFieldName("?") + new OperationSerializer() + DataValueTypeHints + DataValueFieldSerializer)
