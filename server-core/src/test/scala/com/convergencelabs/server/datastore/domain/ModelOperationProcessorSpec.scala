@@ -259,6 +259,17 @@ class ModelOperationProcessorSpec
         val modelData = modelStore.getModelData(modelFqn).success.value.value
         modelData.children("addedProperty") shouldEqual StringValue("aoo-value", "value")
       }
+      
+      "correctly update the model on ObjectAddProperty with a special char" in withPersistenceStore { stores =>
+        val (processor, opStore, modelStore) = stores
+
+        val op = ObjectAddPropertyOperation("pp1-data", false, "prop-with-dash", StringValue("aoo-value", "value"))
+        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
+        processor.processModelOperation(modelOp).success
+
+        val modelData = modelStore.getModelData(modelFqn).success.value.value
+        modelData.children("prop-with-dash") shouldEqual StringValue("aoo-value", "value")
+      }
 
       "correctly update the model on ObjectSetProperty" in withPersistenceStore { stores =>
         val (processor, opStore, modelStore) = stores
@@ -279,10 +290,23 @@ class ModelOperationProcessorSpec
         processor.processModelOperation(modelOp).success
 
         val modelData = modelStore.getModelData(modelFqn).success.value.value
+        modelData.children.get(fnameField) shouldBe None
+      }
+      
+      "correctly update the model on ObjectRemoveProperty with dash" in withPersistenceStore { stores =>
+        val (processor, opStore, modelStore) = stores
+        
+        val propWithDash = "prop-with-dash"
 
-        intercept[NoSuchElementException] {
-          modelData.children(fnameField)
-        }
+        val addOp = ObjectAddPropertyOperation("pp1-data", false, propWithDash, StringValue("aoo-value", "value"))
+        processor.processModelOperation(ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, addOp)).success
+        
+        val op = ObjectRemovePropertyOperation("pp1-data", false, propWithDash)
+        val modelOp = ModelOperation(modelFqn, startingVersion  + 1, Instant.now(), uid, sid, op)
+        processor.processModelOperation(modelOp).success
+
+        val modelData = modelStore.getModelData(modelFqn).success.value.value
+        modelData.children.get(propWithDash) shouldBe None
       }
 
       "correctly update the model on ObjectSet" in withPersistenceStore { stores =>

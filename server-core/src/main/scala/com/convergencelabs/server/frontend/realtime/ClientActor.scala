@@ -60,7 +60,10 @@ class ClientActor(
   private[this] val handshakeTimeoutTask =
     context.system.scheduler.scheduleOnce(protocolConfig.handshakeTimeout) {
       log.debug("Client handshaked timeout")
-      connectionActor ! CloseConnection
+      Option(connectionActor) match {
+        case Some(connection) => connection ! CloseConnection
+        case None =>
+      }
       context.stop(self)
     }
 

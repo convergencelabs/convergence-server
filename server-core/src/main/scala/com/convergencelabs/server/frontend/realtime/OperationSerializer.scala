@@ -122,7 +122,7 @@ class OperationSerializer extends CustomSerializer[OperationData](format => ({
     (T -> OperationType.ArrayReorder) ~ (D -> id) ~ (N -> noOp) ~ (F -> from) ~ (O -> to)
   case ArraySetOperationData(id, noOp, value) =>
     (T -> OperationType.ArrayValue) ~ (D -> id) ~ (N -> noOp) ~
-      (V -> Extraction.decompose(value)(format).asInstanceOf[JObject])
+      (V -> Extraction.decompose(value)(format).asInstanceOf[JArray])
 
   case ObjectSetPropertyOperationData(id, noOp, prop, value) =>
     (T -> OperationType.ObjectSet) ~ (D -> id) ~ (N -> noOp) ~ (P -> prop) ~

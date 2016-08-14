@@ -234,7 +234,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     val child = "children." + operation.property
     val queryString =
       s"""UPDATE ObjectValue SET
-             |  $child = :value
+             |  `$child` = :value
              |WHERE
              |  vid = :vid AND
              |  model.collectionId = :collectionId AND
@@ -259,7 +259,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     val pathString = "children." + operation.property
     val queryString =
       s"""UPDATE ObjectValue SET
-             |  $pathString = :value
+             |  `$pathString` = :value
              |WHERE
              |  vid = :vid AND
              |  model.collectionId = :collectionId AND

@@ -10,7 +10,9 @@ case class ArrayValue(id: String, children: List[DataValue]) extends DataValue
 
 case class BooleanValue(id: String, value: Boolean) extends DataValue
 
-case class DoubleValue(id: String, value: Double) extends DataValue
+case class DoubleValue(id: String, value: Double) extends DataValue {
+  def this(id: String, value: Int) = this(id, value.doubleValue())
+}
 
 case class NullValue(id: String) extends DataValue
 
