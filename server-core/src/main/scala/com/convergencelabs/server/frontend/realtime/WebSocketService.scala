@@ -88,7 +88,7 @@ class WebSocketService(
     // actor.  We can send an actor ref (in a message) to the connection actor.  This is
     // how the connection actor will get a reference to the actor that it needs to sent 
     // messages to.
-    val out = Source.actorRef[OutgoingTextMessage](1, OverflowStrategy.fail).mapMaterializedValue({ ref =>
+    val out = Source.actorRef[OutgoingTextMessage](100, OverflowStrategy.fail).mapMaterializedValue({ ref =>
       connection ! WebSocketOpened(ref)
     })
 
