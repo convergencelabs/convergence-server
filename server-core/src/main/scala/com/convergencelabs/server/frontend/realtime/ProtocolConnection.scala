@@ -87,10 +87,9 @@ class ProtocolConnection(
 
   def sendMessage(envelope: MessageEnvelope): Unit = {
     val json = MessageSerializer.writeJson(envelope)
-    logger.debug("D: " + json)
     connectionActor ! OutgoingTextMessage(json)
     if (!envelope.b.isInstanceOf[PingMessage] && !envelope.b.isInstanceOf[PongMessage]) {
-      logger.debug("S: " + envelope)
+      logger.trace("S: " + envelope)
     }
   }
 
@@ -111,7 +110,7 @@ class ProtocolConnection(
   // scalastyle:off cyclomatic.complexity
   private def handleValidMessage(envelope: MessageEnvelope): Try[Option[ProtocolMessageEvent]] = Try {
     if (!envelope.b.isInstanceOf[PingMessage] && !envelope.b.isInstanceOf[PongMessage]) {
-      logger.debug("R: " + envelope)
+      logger.trace("R: " + envelope)
     }
 
     envelope match {

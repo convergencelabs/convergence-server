@@ -30,6 +30,12 @@ import akka.actor.Terminated
 import org.json4s.JsonAST.JObject
 import com.convergencelabs.server.domain.model.ot.xform.ReferenceTransformer
 import scala.collection.mutable.ListBuffer
+import com.convergencelabs.server.domain.model.ot.ProcessedOperationEvent
+import akka.stream.OverflowStrategy
+import akka.stream.scaladsl.Source
+import akka.stream.scaladsl.Flow
+import akka.stream.scaladsl.Sink
+import akka.stream.ActorMaterializer
 
 /**
  * An instance of the RealtimeModelActor manages the lifecycle of a single
@@ -75,47 +81,47 @@ class RealtimeModelActor(
    */
   private[this] def receiveUninitialized: Receive = {
     case request: OpenRealtimeModelRequest => onOpenModelWhileUninitialized(request)
-    case unknown: Any                      => unhandled(unknown)
+    case unknown: Any => unhandled(unknown)
   }
 
   /**
    * Handles messages while the model is being initialized from one or more clients.
    */
   private[this] def receiveInitializingFromClients: Receive = {
-    case request: OpenRealtimeModelRequest     => onOpenModelWhileInitializing(request)
-    case dataResponse: DatabaseModelResponse   => onDatabaseModelResponse(dataResponse)
+    case request: OpenRealtimeModelRequest => onOpenModelWhileInitializing(request)
+    case dataResponse: DatabaseModelResponse => onDatabaseModelResponse(dataResponse)
     case dataResponse: ClientModelDataResponse => onClientModelDataResponse(dataResponse)
-    case ModelDeleted                          => handleInitializationFailure(ModelDeletedWhileOpening)
-    case unknown: Any                          => unhandled(unknown)
+    case ModelDeleted => handleInitializationFailure(ModelDeletedWhileOpening)
+    case unknown: Any => unhandled(unknown)
   }
 
   /**
    * Handles messages while the model is being initialized from the database.
    */
   private[this] def receiveInitializingFromDatabase: Receive = {
-    case request: OpenRealtimeModelRequest     => onOpenModelWhileInitializing(request)
-    case dataResponse: DatabaseModelResponse   => onDatabaseModelResponse(dataResponse)
-    case DatabaseModelFailure(cause)           => handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
-    case ModelDeleted                          => handleInitializationFailure(ModelDeletedWhileOpening)
+    case request: OpenRealtimeModelRequest => onOpenModelWhileInitializing(request)
+    case dataResponse: DatabaseModelResponse => onDatabaseModelResponse(dataResponse)
+    case DatabaseModelFailure(cause) => handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
+    case ModelDeleted => handleInitializationFailure(ModelDeletedWhileOpening)
     case dataResponse: ClientModelDataResponse =>
-    case unknown: Any                          => unhandled(unknown)
+    case unknown: Any => unhandled(unknown)
   }
 
   /**
    * Handles messages once the model has been completely initialized.
    */
   private[this] def receiveInitialized: Receive = {
-    case openRequest: OpenRealtimeModelRequest    => onOpenModelWhileInitialized(openRequest)
-    case closeRequest: CloseRealtimeModelRequest  => onCloseModelRequest(closeRequest)
+    case openRequest: OpenRealtimeModelRequest => onOpenModelWhileInitialized(openRequest)
+    case closeRequest: CloseRealtimeModelRequest => onCloseModelRequest(closeRequest)
     case operationSubmission: OperationSubmission => onOperationSubmission(operationSubmission)
-    case referenceEvent: ModelReferenceEvent      => onReferenceEvent(referenceEvent)
-    case dataResponse: ClientModelDataResponse    =>
+    case referenceEvent: ModelReferenceEvent => onReferenceEvent(referenceEvent)
+    case dataResponse: ClientModelDataResponse =>
     // This can happen if we asked several clients for the data.  The first
     // one will be handled, but the rest will come in an simply be ignored.
-    case snapshotMetaData: ModelSnapshotMetaData  => this.latestSnapshot = snapshotMetaData
-    case ModelDeleted                             => handleModelDeletedWhileOpen()
-    case terminated: Terminated                   => handleTerminated(terminated)
-    case unknown: Any                             => unhandled(unknown)
+    case snapshotMetaData: ModelSnapshotMetaData => this.latestSnapshot = snapshotMetaData
+    case ModelDeleted => handleModelDeletedWhileOpen()
+    case terminated: Terminated => handleTerminated(terminated)
+    case unknown: Any => unhandled(unknown)
   }
 
   //
@@ -183,7 +189,7 @@ class RealtimeModelActor(
       val model = modelStore.getModel(modelFqn)
       (model, snapshotMetaData) match {
         case (Success(Some(m)), Success(Some(s))) => DatabaseModelResponse(m, s)
-        case _                                    => throw new IllegalStateException("Could not get both the model snapshot and model data")
+        case _ => throw new IllegalStateException("Could not get both the model snapshot and model data")
       }
     }
 
@@ -392,7 +398,7 @@ class RealtimeModelActor(
     val sessionKey = this.clientToSessionId.get(sender)
 
     sessionKey match {
-      case None => log.warning("Received operation from client for model that is not open!" )
+      case None => log.warning("Received operation from client for model that is not open!")
       case Some(session) => {
         val unprocessedOpEvent = UnprocessedOperationEvent(
           session,
@@ -419,25 +425,35 @@ class RealtimeModelActor(
    */
   private[this] def transformAndApplyOperation(sk: SessionKey, unprocessedOpEvent: UnprocessedOperationEvent): Try[OutgoingOperation] = {
     val timestamp = Instant.now()
-    this.model.processOperationEvent(unprocessedOpEvent).flatMap { processedOpEvent =>
-      // FIXME this is actually broken.  If this doens't work it will pop out as a failure
-      // and go up to the caller, which will just kill the client.  But the model and the database
-      // are now out of sync.  We actually need to kill the whole thing.
-      modelOperationProcessor.processModelOperation(ModelOperation(
+    this.model.processOperationEvent(unprocessedOpEvent).map { processedOpEvent =>
+      persistenceStream ! ModelOperation(
         modelFqn,
         processedOpEvent.resultingVersion,
         timestamp,
         sk.uid,
         sk.sid,
-        processedOpEvent.operation)) map { _ => processedOpEvent }
-    } map (processedOpEvent =>
+        processedOpEvent.operation)
+
       OutgoingOperation(
         modelResourceId,
         sk,
         processedOpEvent.contextVersion,
         timestamp.toEpochMilli(),
-        processedOpEvent.operation))
+        processedOpEvent.operation)
+    }
   }
+
+  implicit val materializer = ActorMaterializer()
+  val persistenceStream = Flow[ModelOperation]
+    .map { message =>
+      modelOperationProcessor.processModelOperation(message)
+    }.to(Sink.onComplete {
+      case Success(_) =>
+        log.debug("Persistence stream completed successfully")
+      case Failure(f) =>
+        log.error(f, "Persistence stream completed with an error")
+    }).runWith(Source
+      .actorRef[ModelOperation](bufferSize = 1000, OverflowStrategy.fail))
 
   /**
    * Sends an ACK back to the originator of the operation and an operation message
@@ -543,15 +559,15 @@ class RealtimeModelActor(
 
     checkForConnectionsAndClose()
   }
-  
+
   /**
    * Closes a model for a session and return the associated actor
-   * 
+   *
    * @param sk The session of the client to close
    * @param notifyOthers If True notifies other connected clients of close
    * @return The actor associated with the closed session
    */
-private[this] def closeModel(sk: SessionKey, notifyOthers: Boolean): ActorRef = {
+  private[this] def closeModel(sk: SessionKey, notifyOthers: Boolean): ActorRef = {
     val closedActor = connectedClients(sk)
     connectedClients -= sk
     clientToSessionId -= closedActor
@@ -564,7 +580,7 @@ private[this] def closeModel(sk: SessionKey, notifyOthers: Boolean): ActorRef = 
       val closedMessage = RemoteClientClosed(modelResourceId, sk)
       connectedClients.values foreach { client => client ! closedMessage }
     }
-    
+
     return closedActor
   }
 
