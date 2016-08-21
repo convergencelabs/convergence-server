@@ -35,12 +35,12 @@ class ChatClientActor(chatServiceActor: ActorRef, sk: SessionKey) extends Actor 
     case MessageReceived(message) if message.isInstanceOf[IncomingChatNormalMessage] =>
       onMessageReceived(message.asInstanceOf[IncomingChatNormalMessage])
 
-    case UserJoined(roomId, SessionKey(username, sessionId), timestamp) =>
-      context.parent ! UserJoinedRoomMessage(roomId, username, sessionId, timestamp)
-    case UserLeft(roomId, SessionKey(username, sessionId), timestamp) =>
-      context.parent ! UserLeftRoomMessage(roomId, username, sessionId, timestamp)
-    case UserMessage(roomId, SessionKey(username, sessionId), message, timestamp) =>
-      context.parent ! UserChatMessage(roomId, username, sessionId, message, timestamp)
+    case UserJoined(roomId, sk, timestamp) =>
+      context.parent ! UserJoinedRoomMessage(roomId, sk.uid, sk.serialize(), timestamp)
+    case UserLeft(roomId, sk, timestamp) =>
+      context.parent ! UserLeftRoomMessage(roomId, sk.uid, sk.serialize(), timestamp)
+    case UserMessage(roomId, sk, message, timestamp) =>
+      context.parent ! UserChatMessage(roomId, sk.uid, sk.serialize(), message, timestamp)
 
     case x: Any => unhandled(x)
   }
@@ -51,9 +51,12 @@ class ChatClientActor(chatServiceActor: ActorRef, sk: SessionKey) extends Actor 
 
   def onMessageReceived(message: IncomingChatNormalMessage): Unit = {
     message match {
-      case JoinedChatRoomMessage(roomId)           => onJoined(roomId)
-      case LeftChatRoomMessage(roomId)             => onLeft(roomId)
-      case PublishedChatMessage(roomId, message) => onChatMessage(roomId, message)
+      case JoinedChatRoomMessage(roomId) => 
+        onJoined(roomId)
+      case LeftChatRoomMessage(roomId) => 
+        onLeft(roomId)
+      case PublishedChatMessage(roomId, message) => 
+        onChatMessage(roomId, message)
     }
   }
 
