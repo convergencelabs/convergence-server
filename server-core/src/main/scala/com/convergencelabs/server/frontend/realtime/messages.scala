@@ -126,19 +126,15 @@ case class DomainUserData(n: String, f: Option[String], l: Option[String], e: Op
 
 sealed trait IncomingActivityMessage
 sealed trait IncomingActivityRequestMessage extends IncomingActivityMessage with IncomingProtocolRequestMessage
-case class ActivityOpenRequestMessage(i: String) extends IncomingActivityRequestMessage
-case class ActivityCloseRequestMessage(i: String) extends IncomingActivityRequestMessage
-case class ActivityJoinRequestMessage(i: String) extends IncomingActivityRequestMessage
-case class ActivityLeaveRequestMessage(i: String) extends IncomingActivityRequestMessage
+case class ActivityParticipantsRequestMessage(i: String) extends IncomingActivityRequestMessage
 
 sealed trait IncomingActivityNormalMessage extends IncomingActivityMessage
+case class ActivityJoinMessage(i: String) extends IncomingProtocolNormalMessage with IncomingActivityNormalMessage
+case class ActivityLeaveMessage(i: String) extends IncomingProtocolNormalMessage with IncomingActivityNormalMessage
 case class ActivitySetStateMessage(i: String, k: String, v: Any) extends IncomingProtocolNormalMessage with IncomingActivityNormalMessage
 case class ActivityClearStateMessage(i: String, k: String) extends IncomingProtocolNormalMessage with IncomingActivityNormalMessage
 
-case class ActivityOpenSuccessMessage(s: Map[String, Map[String, Any]]) extends OutgoingProtocolResponseMessage
-case class ActivityCloseSuccessMessage() extends OutgoingProtocolResponseMessage
-case class ActivityJoinSuccessMessage() extends OutgoingProtocolResponseMessage
-case class ActivityLeaveSuccessMessage() extends OutgoingProtocolResponseMessage
+case class ActivityParticipantsResponseMessage(s: Map[String, Map[String, Any]]) extends OutgoingProtocolResponseMessage
 
 
 case class ActivitySessionJoinedMessage(i: String, s: String) extends OutgoingProtocolNormalMessage

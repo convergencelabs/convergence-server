@@ -13,21 +13,17 @@ import akka.actor.Props
 import akka.actor.actorRef2Scala
 import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.server.domain.ActivityServiceActor.ActivityOpenRequest
 import com.convergencelabs.server.domain.model.SessionKey
-import com.convergencelabs.server.domain.ActivityServiceActor.ActivityOpenSuccess
-import com.convergencelabs.server.domain.ActivityServiceActor.ActivityCloseRequest
-import com.convergencelabs.server.domain.ActivityServiceActor.ActivityCloseSuccess
-import com.convergencelabs.server.domain.ActivityServiceActor.ActivityJoinSuccess
-import com.convergencelabs.server.domain.ActivityServiceActor.ActivityJoinRequest
-import com.convergencelabs.server.domain.ActivityServiceActor.ActivityLeaveSuccess
-import com.convergencelabs.server.domain.ActivityServiceActor.ActivityLeaveRequest
 import com.convergencelabs.server.domain.ActivityServiceActor.ActivitySetState
 import com.convergencelabs.server.domain.ActivityServiceActor.ActivityClearState
 import com.convergencelabs.server.domain.ActivityServiceActor.ActivitySessionJoined
 import com.convergencelabs.server.domain.ActivityServiceActor.ActivitySessionLeft
 import com.convergencelabs.server.domain.ActivityServiceActor.ActivityRemoteStateSet
 import com.convergencelabs.server.domain.ActivityServiceActor.ActivityRemoteStateCleared
+import com.convergencelabs.server.domain.ActivityServiceActor.ActivityParticipantsRequest
+import com.convergencelabs.server.domain.ActivityServiceActor.ActivityParticipants
+import com.convergencelabs.server.domain.ActivityServiceActor.ActivityJoin
+import com.convergencelabs.server.domain.ActivityServiceActor.ActivityLeave
 
 object ActivityClientActor {
   def props(activityServiceActor: ActorRef, sk: SessionKey): Props =
@@ -63,6 +59,8 @@ class ActivityClientActor(activityServiceActor: ActorRef, sk: SessionKey) extend
 
   def onMessageReceived(message: IncomingActivityNormalMessage): Unit = {
     message match {
+      case join: ActivityJoinMessage => onActivityJoin(join)
+      case leave: ActivityLeaveMessage => onActivityLeave(leave)
       case setState: ActivitySetStateMessage => onActivityStateSet(setState)
       case clearState: ActivityClearStateMessage => onActivityStateCleared(clearState)
     }
@@ -80,60 +78,31 @@ class ActivityClientActor(activityServiceActor: ActorRef, sk: SessionKey) extend
 
   def onRequestReceived(message: IncomingActivityRequestMessage, replyCallback: ReplyCallback): Unit = {
     message match {
-      case open: ActivityOpenRequestMessage => onActivityOpen(open, replyCallback)
-      case close: ActivityCloseRequestMessage => onActivityClose(close, replyCallback)
-      case join: ActivityJoinRequestMessage => onActivityJoin(join, replyCallback)
-      case leave: ActivityLeaveRequestMessage => onActivityLeave(leave, replyCallback)
+      case participant: ActivityParticipantsRequestMessage => onParticipantsRequest(participant, replyCallback)
     }
   }
 
-  def onActivityOpen(request: ActivityOpenRequestMessage, cb: ReplyCallback): Unit = {
-    val ActivityOpenRequestMessage(activityId) = request
-    val future = this.activityServiceActor ? ActivityOpenRequest(activityId, sk, self)
+  def onParticipantsRequest(request: ActivityParticipantsRequestMessage, cb: ReplyCallback): Unit = {
+    val ActivityParticipantsRequestMessage(activityId) = request
+    val future = this.activityServiceActor ? ActivityParticipantsRequest(activityId)
 
-    future.mapResponse[ActivityOpenSuccess] onComplete {
-      case Success(ActivityOpenSuccess(state)) =>
-        cb.reply(ActivityOpenSuccessMessage(state.map({
+    future.mapResponse[ActivityParticipants] onComplete {
+      case Success(ActivityParticipants(state)) =>
+        cb.reply(ActivityParticipantsResponseMessage(state.map({
           case (k, v) => (k.serialize() -> v)
         })))
       case Failure(cause) =>
-        cb.unexpectedError("could not open activity")
+        cb.unexpectedError("could not get participants")
     }
   }
 
-  def onActivityClose(request: ActivityCloseRequestMessage, cb: ReplyCallback): Unit = {
-    val ActivityCloseRequestMessage(activityId) = request
-    val future = this.activityServiceActor ? ActivityCloseRequest(activityId, sk)
-
-    future.mapResponse[ActivityCloseSuccess] onComplete {
-      case Success(ActivityCloseSuccess()) =>
-        cb.reply(ActivityCloseSuccessMessage())
-      case Failure(cause) =>
-        cb.unexpectedError("could not close activity")
-    }
+  def onActivityJoin(request: ActivityJoinMessage): Unit = {
+    val ActivityJoinMessage(activityId) = request
+    this.activityServiceActor ! ActivityJoin(activityId, sk, self)
   }
 
-  def onActivityJoin(request: ActivityJoinRequestMessage, cb: ReplyCallback): Unit = {
-    val ActivityJoinRequestMessage(activityId) = request
-    val future = this.activityServiceActor ? ActivityJoinRequest(activityId, sk)
-
-    future.mapResponse[ActivityJoinSuccess] onComplete {
-      case Success(ActivityJoinSuccess()) =>
-        cb.reply(ActivityJoinSuccessMessage())
-      case Failure(cause) =>
-        cb.unexpectedError("could not join activity")
-    }
-  }
-
-  def onActivityLeave(request: ActivityLeaveRequestMessage, cb: ReplyCallback): Unit = {
-    val ActivityLeaveRequestMessage(activityId) = request
-    val future = this.activityServiceActor ? ActivityLeaveRequest(activityId, sk)
-
-    future.mapResponse[ActivityLeaveSuccess] onComplete {
-      case Success(ActivityLeaveSuccess()) =>
-        cb.reply(ActivityLeaveSuccessMessage())
-      case Failure(cause) =>
-        cb.unexpectedError("could not leave activity")
-    }
+  def onActivityLeave(request: ActivityLeaveMessage): Unit = {
+    val ActivityLeaveMessage(activityId) = request
+    this.activityServiceActor ! ActivityLeave(activityId, sk)
   }
 }

@@ -52,11 +52,8 @@ object MessageType extends Enumeration {
   val UserSearchRequest = 51
   val UserListResponse = 52
   
-  val ActivityOpenRequest = 60
-  val ActivityOpenResponse = 61
-
-  val ActivityCloseRequest = 62
-  val ActivityCloseResponse = 63
+  val ActivityParticipantsRequest = 60
+  val ActivityParticipantsResponse = 61
 
   val ActivityJoinRequest = 64
   val ActivityJoinResponse = 65
