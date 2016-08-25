@@ -26,7 +26,7 @@ object ActivityActor {
 
 private[domain] class ActivityActor(private[this] val activityId: String)
     extends Actor with ActorLogging {
-  
+
   private[this] var joinedClients = Map[ActorRef, SessionKey]()
   private[this] var joinedSessions = Map[SessionKey, ActorRef]()
   private[this] var stateMap = new ActivityStateMap()
@@ -61,10 +61,11 @@ private[domain] class ActivityActor(private[this] val activityId: String)
       case Some(x) =>
         throw new IllegalStateException("Session already joined")
       case None =>
-        state.foreach { case (k, v) =>
-          this.stateMap.setState(sk, k, v)
+        state.foreach {
+          case (k, v) =>
+            this.stateMap.setState(sk, k, v)
         }
-        
+
         val message = ActivitySessionJoined(activityId, sk, state)
         joinedSessions.values filter (_ != client) foreach (_ ! message)
 
@@ -72,7 +73,9 @@ private[domain] class ActivityActor(private[this] val activityId: String)
         this.joinedClients += (client -> sk)
         this.stateMap.join(sk)
 
-        //sender ! ActivityJoinSuccess()
+        context.watch(client)
+
+      //sender ! ActivityJoinSuccess()
     }
   }
 
@@ -93,14 +96,17 @@ private[domain] class ActivityActor(private[this] val activityId: String)
     this.stateMap.leave(sk)
     this.joinedSessions -= sk
     this.joinedClients -= leaver
+    
+    this.context.unwatch(leaver)
   }
 
   private[this] def setState(sk: SessionKey, state: Map[String, Any]): Unit = {
     if (isJoined(sk)) {
-      state.foreach { case (key: String, value: Any) => 
-        stateMap.setState(sk, key, value)  
+      state.foreach {
+        case (key: String, value: Any) =>
+          stateMap.setState(sk, key, value)
       }
-      
+
       val setter = this.joinedSessions(sk)
       val message = ActivityRemoteStateSet(activityId, sk, state)
       joinedSessions.values.filter(_ != setter) foreach (_ ! message)
