@@ -302,6 +302,7 @@ class ClientActor(
   }
 
   private[this] def invalidMessage(message: Any): Unit = {
+    log.error("Invalid message: " + message)
     connectionActor ! CloseConnection
     context.stop(self)
   }

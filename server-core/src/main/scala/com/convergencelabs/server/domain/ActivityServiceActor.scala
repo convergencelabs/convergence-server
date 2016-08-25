@@ -23,20 +23,20 @@ object ActivityServiceActor {
 
   // Incoming Messages
   case class ActivityParticipantsRequest(activityId: String)
-  case class ActivityJoin(activityId: String, sk: SessionKey, actorRef: ActorRef)
+  case class ActivityJoin(activityId: String, sk: SessionKey, state: Map[String, Any], actorRef: ActorRef)
   case class ActivityLeave(activityId: String, sk: SessionKey)
 
-  case class ActivitySetState(activityId: String, sk: SessionKey, key: String, value: Any)
-  case class ActivityClearState(activityId: String, sk: SessionKey, key: String)
+  case class ActivitySetState(activityId: String, sk: SessionKey, state: Map[String, Any])
+  case class ActivityClearState(activityId: String, sk: SessionKey, keys: List[String])
 
   // Outgoing Messages
   case class ActivityParticipants(state: Map[SessionKey, Map[String, Any]])
 
-  case class ActivitySessionJoined(activityId: String, sk: SessionKey)
+  case class ActivitySessionJoined(activityId: String, sk: SessionKey, state: Map[String, Any])
   case class ActivitySessionLeft(activityId: String, sk: SessionKey)
 
-  case class ActivityRemoteStateSet(activityId: String, sk: SessionKey, key: String, value: Any)
-  case class ActivityRemoteStateCleared(activityId: String, sk: SessionKey, key: String)
+  case class ActivityRemoteStateSet(activityId: String, sk: SessionKey, state: Map[String, Any])
+  case class ActivityRemoteStateCleared(activityId: String, sk: SessionKey, keys: List[String])
 
   case class ActivityShutdownRequest(activityId: String)
 }

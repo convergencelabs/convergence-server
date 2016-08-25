@@ -41,14 +41,14 @@ class ActivityClientActor(activityServiceActor: ActorRef, sk: SessionKey) extend
     case RequestReceived(message, replyPromise) if message.isInstanceOf[IncomingActivityRequestMessage] =>
       onRequestReceived(message.asInstanceOf[IncomingActivityRequestMessage], replyPromise)
 
-    case ActivitySessionJoined(activityId, sk) =>
-      context.parent ! ActivitySessionJoinedMessage(activityId, sk.serialize())
+    case ActivitySessionJoined(activityId, sk ,state) =>
+      context.parent ! ActivitySessionJoinedMessage(activityId, sk.serialize(), state)
     case ActivitySessionLeft(activityId, sk) =>
       context.parent ! ActivitySessionLeftMessage(activityId, sk.serialize())
-    case ActivityRemoteStateSet(activityId, sk, key, value) =>
-      context.parent ! ActivityRemoteStateSetMessage(activityId, sk.serialize(), key, value)
-    case ActivityRemoteStateCleared(activityId, sk, key) =>
-      context.parent ! ActivityRemoteStateClearedMessage(activityId, sk.serialize(), key)
+    case ActivityRemoteStateSet(activityId, sk, state) =>
+      context.parent ! ActivityRemoteStateSetMessage(activityId, sk.serialize(), state)
+    case ActivityRemoteStateCleared(activityId, sk, keys) =>
+      context.parent ! ActivityRemoteStateClearedMessage(activityId, sk.serialize(), keys)
 
     case x: Any => unhandled(x)
   }
@@ -67,13 +67,13 @@ class ActivityClientActor(activityServiceActor: ActorRef, sk: SessionKey) extend
   }
 
   def onActivityStateSet(message: ActivitySetStateMessage): Unit = {
-    val ActivitySetStateMessage(id, key, value) = message
-    this.activityServiceActor ! ActivitySetState(id, sk, key, value)
+    val ActivitySetStateMessage(id, state) = message
+    this.activityServiceActor ! ActivitySetState(id, sk, state)
   }
 
   def onActivityStateCleared(message: ActivityClearStateMessage): Unit = {
-    val ActivityClearStateMessage(id, key) = message
-    this.activityServiceActor ! ActivityClearState(id, sk, key)
+    val ActivityClearStateMessage(id, keys) = message
+    this.activityServiceActor ! ActivityClearState(id, sk, keys)
   }
 
   def onRequestReceived(message: IncomingActivityRequestMessage, replyCallback: ReplyCallback): Unit = {
@@ -97,8 +97,8 @@ class ActivityClientActor(activityServiceActor: ActorRef, sk: SessionKey) extend
   }
 
   def onActivityJoin(request: ActivityJoinMessage): Unit = {
-    val ActivityJoinMessage(activityId) = request
-    this.activityServiceActor ! ActivityJoin(activityId, sk, self)
+    val ActivityJoinMessage(activityId, state) = request
+    this.activityServiceActor ! ActivityJoin(activityId, sk, state, self)
   }
 
   def onActivityLeave(request: ActivityLeaveMessage): Unit = {

@@ -129,19 +129,19 @@ sealed trait IncomingActivityRequestMessage extends IncomingActivityMessage with
 case class ActivityParticipantsRequestMessage(i: String) extends IncomingActivityRequestMessage
 
 sealed trait IncomingActivityNormalMessage extends IncomingActivityMessage
-case class ActivityJoinMessage(i: String) extends IncomingProtocolNormalMessage with IncomingActivityNormalMessage
+case class ActivityJoinMessage(i: String, s: Map[String, Any]) extends IncomingProtocolNormalMessage with IncomingActivityNormalMessage
 case class ActivityLeaveMessage(i: String) extends IncomingProtocolNormalMessage with IncomingActivityNormalMessage
-case class ActivitySetStateMessage(i: String, k: String, v: Any) extends IncomingProtocolNormalMessage with IncomingActivityNormalMessage
-case class ActivityClearStateMessage(i: String, k: String) extends IncomingProtocolNormalMessage with IncomingActivityNormalMessage
+case class ActivitySetStateMessage(i: String, v: Map[String, Any]) extends IncomingProtocolNormalMessage with IncomingActivityNormalMessage
+case class ActivityClearStateMessage(i: String, k: List[String]) extends IncomingProtocolNormalMessage with IncomingActivityNormalMessage
 
 case class ActivityParticipantsResponseMessage(s: Map[String, Map[String, Any]]) extends OutgoingProtocolResponseMessage
 
 
-case class ActivitySessionJoinedMessage(i: String, s: String) extends OutgoingProtocolNormalMessage
+case class ActivitySessionJoinedMessage(i: String, s: String, t: Map[String, Any]) extends OutgoingProtocolNormalMessage
 case class ActivitySessionLeftMessage(i: String, s: String) extends OutgoingProtocolNormalMessage
 
-case class ActivityRemoteStateSetMessage(i: String, s: String, k: String, v: Any) extends OutgoingProtocolNormalMessage
-case class ActivityRemoteStateClearedMessage(i: String, s: String, k: String) extends OutgoingProtocolNormalMessage
+case class ActivityRemoteStateSetMessage(i: String, s: String, v: Map[String, Any]) extends OutgoingProtocolNormalMessage
+case class ActivityRemoteStateClearedMessage(i: String, s: String, k: List[String]) extends OutgoingProtocolNormalMessage
 
 sealed trait IncomingPresenceMessage
 sealed trait IncomingPresenceRequestMessage extends IncomingPresenceMessage with IncomingProtocolRequestMessage

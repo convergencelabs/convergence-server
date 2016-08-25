@@ -33,10 +33,10 @@ private[domain] class ActivityActor(private[this] val activityId: String)
 
   def receive: Receive = {
     case ActivityParticipantsRequest(id) => participantsRequest()
-    case ActivityJoin(id, sk, client) => join(sk, client)
+    case ActivityJoin(id, sk, state, client) => join(sk, state, client)
     case ActivityLeave(id, sk) => leave(sk)
-    case ActivitySetState(id, sk, key, value) => setState(sk, key, value)
-    case ActivityClearState(id, sk, key) => clearState(sk, key)
+    case ActivitySetState(id, sk, state) => setState(sk, state)
+    case ActivityClearState(id, sk, keys) => clearState(sk, keys)
     case Terminated(actor) => handleClientDeath(actor)
   }
 
@@ -56,12 +56,16 @@ private[domain] class ActivityActor(private[this] val activityId: String)
     this.joinedSessions.contains(sk)
   }
 
-  private[this] def join(sk: SessionKey, client: ActorRef): Unit = {
+  private[this] def join(sk: SessionKey, state: Map[String, Any], client: ActorRef): Unit = {
     this.joinedSessions.get(sk) match {
       case Some(x) =>
         throw new IllegalStateException("Session already joined")
       case None =>
-        val message = ActivitySessionJoined(activityId, sk)
+        state.foreach { case (k, v) =>
+          this.stateMap.setState(sk, k, v)
+        }
+        
+        val message = ActivitySessionJoined(activityId, sk, state)
         joinedSessions.values filter (_ != client) foreach (_ ! message)
 
         this.joinedSessions += (sk -> client)
@@ -91,20 +95,23 @@ private[domain] class ActivityActor(private[this] val activityId: String)
     this.joinedClients -= leaver
   }
 
-  private[this] def setState(sk: SessionKey, key: String, value: Any): Unit = {
+  private[this] def setState(sk: SessionKey, state: Map[String, Any]): Unit = {
     if (isJoined(sk)) {
-      stateMap.setState(sk, key, value)
+      state.foreach { case (key: String, value: Any) => 
+        stateMap.setState(sk, key, value)  
+      }
+      
       val setter = this.joinedSessions(sk)
-      val message = ActivityRemoteStateSet(activityId, sk, key, value)
+      val message = ActivityRemoteStateSet(activityId, sk, state)
       joinedSessions.values.filter(_ != setter) foreach (_ ! message)
     }
   }
 
-  private[this] def clearState(sk: SessionKey, key: String): Unit = {
+  private[this] def clearState(sk: SessionKey, keys: List[String]): Unit = {
     if (isJoined(sk)) {
-      stateMap.clearState(sk, key)
+      keys foreach (stateMap.clearState(sk, _))
       val clearer = this.joinedSessions(sk)
-      val message = ActivityRemoteStateCleared(activityId, sk, key)
+      val message = ActivityRemoteStateCleared(activityId, sk, keys)
       joinedSessions.values.filter(_ != clearer) foreach (_ ! message)
     }
   }
