@@ -137,7 +137,7 @@ case class ActivityClearStateMessage(i: String, k: List[String]) extends Incomin
 case class ActivityParticipantsResponseMessage(s: Map[String, Map[String, Any]]) extends OutgoingProtocolResponseMessage
 
 
-case class ActivitySessionJoinedMessage(i: String, s: String, t: Map[String, Any]) extends OutgoingProtocolNormalMessage
+case class ActivitySessionJoinedMessage(i: String, s: String, v: Map[String, Any]) extends OutgoingProtocolNormalMessage
 case class ActivitySessionLeftMessage(i: String, s: String) extends OutgoingProtocolNormalMessage
 
 case class ActivityRemoteStateSetMessage(i: String, s: String, v: Map[String, Any]) extends OutgoingProtocolNormalMessage
