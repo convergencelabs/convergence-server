@@ -7,8 +7,8 @@ import com.convergencelabs.server.domain.model.ot.xform.IndexTransformer
 
 object StringRemoveIndexTF extends ReferenceTransformationFunction[StringRemoveOperation] {
   def transform(op: StringRemoveOperation, setReference: SetReference): Option[SetReference] = {
-    val index = setReference.value.asInstanceOf[Int]
-    val xFormed = IndexTransformer.handleRemove(List(index), op.index, op.value.length)(0)
-    Some(setReference.copy(value = xFormed))
+    val indices = setReference.values.asInstanceOf[List[Int]]
+    val xFormed = IndexTransformer.handleRemove(indices, op.index, op.value.length)
+    Some(setReference.copy(values = xFormed))
   }
 }

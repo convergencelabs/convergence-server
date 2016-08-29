@@ -80,15 +80,15 @@ case class DeleteRealtimeModelRequestMessage(c: String, m: String) extends Incom
 
 case class ModelDataResponseMessage(d: ObjectValue) extends IncomingProtocolResponseMessage
 
-case class PublishReferenceMessage(r: String, d: String, k: String, c: Int) extends IncomingModelNormalMessage
-case class UnpublishReferenceMessage(r: String, d: String, k: String) extends IncomingModelNormalMessage
-case class SetReferenceMessage(r: String, d: String, k: String, c: Int, v: Any, s: Long) extends IncomingModelNormalMessage
-case class ClearReferenceMessage(r: String, d: String, k: String) extends IncomingModelNormalMessage
+case class PublishReferenceMessage(r: String, d: Option[String], k: String, c: Int) extends IncomingModelNormalMessage
+case class UnpublishReferenceMessage(r: String, d: Option[String], k: String) extends IncomingModelNormalMessage
+case class SetReferenceMessage(r: String, d: Option[String], k: String, c: Int, v: List[Any], s: Long) extends IncomingModelNormalMessage
+case class ClearReferenceMessage(r: String, d: Option[String], k: String) extends IncomingModelNormalMessage
 
 // Outgoing Model Messages
 case class OpenRealtimeModelResponseMessage(r: String, p: String, v: Long, c: Long, m: Long, d: OpenModelData) extends OutgoingProtocolResponseMessage
 case class OpenModelData(d: ObjectValue, s: Set[String], r: Set[ReferenceData])
-case class ReferenceData(s: String, d: String, k: String, c: Int, v: Option[Any])
+case class ReferenceData(s: String, d: Option[String], k: String, c: Int, v: List[Any])
 
 case class CloseRealTimeModelSuccessMessage() extends OutgoingProtocolResponseMessage
 case class CreateRealtimeModelSuccessMessage() extends OutgoingProtocolResponseMessage
@@ -103,10 +103,10 @@ case class ModelForceCloseMessage(r: String, s: String) extends OutgoingProtocol
 
 case class ModelDataRequestMessage(c: String, m: String) extends OutgoingProtocolRequestMessage
 
-case class RemoteReferencePublishedMessage(r: String, s: String, d: String, k: String, c: Int) extends OutgoingProtocolNormalMessage
-case class RemoteReferenceUnpublishedMessage(r: String, s: String, d: String, k: String) extends OutgoingProtocolNormalMessage
-case class RemoteReferenceSetMessage(r: String, s: String, d: String, k: String, c: Int, v: Any) extends OutgoingProtocolNormalMessage
-case class RemoteReferenceClearedMessage(r: String, s: String, d: String, k: String) extends OutgoingProtocolNormalMessage
+case class RemoteReferencePublishedMessage(r: String, s: String, d: Option[String], k: String, c: Int) extends OutgoingProtocolNormalMessage
+case class RemoteReferenceUnpublishedMessage(r: String, s: String, d: Option[String], k: String) extends OutgoingProtocolNormalMessage
+case class RemoteReferenceSetMessage(r: String, s: String, d: Option[String], k: String, c: Int, v: List[Any]) extends OutgoingProtocolNormalMessage
+case class RemoteReferenceClearedMessage(r: String, s: String, d: Option[String], k: String) extends OutgoingProtocolNormalMessage
 
 ///////////////////////////////////////////////////////////////////////////////
 // User Messages

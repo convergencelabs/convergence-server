@@ -1,29 +1,26 @@
 package com.convergencelabs.server.domain.model.reference
 
-import com.convergencelabs.server.domain.model.RealTimeValue
-import com.convergencelabs.server.domain.model.SessionKey
-
 abstract class ModelReference[T](
-    val modelValue: RealTimeValue,
+    val modelValue: Any,
     val sessionId: String,
     val key: String) {
 
-  protected var value: Option[T] = None
+  protected var values: List[T] = List()
 
   def clear(): Unit = {
-    this.value = None
+    this.values = List()
   }
 
-  def set(value: T): Unit = {
-    this.value = Some(value)
+  def set(values: List[T]): Unit = {
+    this.values = values
   }
 
-  def get(): Option[T] = {
-    this.value
+  def get(): List[T] = {
+    this.values
   }
 
   def isSet(): Boolean = {
-    this.get().isDefined
+    !this.get().isEmpty
   }
 
   def handleSet(): Unit = {

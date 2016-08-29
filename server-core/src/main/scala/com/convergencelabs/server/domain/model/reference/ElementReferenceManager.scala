@@ -9,18 +9,18 @@ import com.convergencelabs.server.domain.model.SetReference
 import com.convergencelabs.server.domain.model.UnpublishReference
 import ReferenceManager.ReferenceDoesNotExist
 import com.convergencelabs.server.domain.model.RealTimeValue
-import com.convergencelabs.server.domain.model.RealTimeValue
+import com.convergencelabs.server.domain.model.RealTimeModel
 
-object ReferenceManager {
+object ElementReferenceManager {
   val ReferenceDoesNotExist = "Reference does not exist"
 }
 
-class ReferenceManager(
-    private val source: RealTimeValue,
+class ElementReferenceManager(
+    private val source: RealTimeModel,
     private val validTypes: List[ReferenceType.Value]) {
 
   private[this] val rm = new ReferenceMap()
-
+  
   def referenceMap(): ReferenceMap = rm
 
   def handleReferenceEvent(event: ModelReferenceEvent, sessionId: String): Unit = {
@@ -42,12 +42,8 @@ class ReferenceManager(
     }
 
     val reference = event.referenceType match {
-      case ReferenceType.Index =>
-        new IndexReference(this.source, sessionId, event.key)
-      case ReferenceType.Range =>
-        new RangeReference(this.source, sessionId, event.key)
-      case ReferenceType.Property =>
-        new PropertyReference(this.source, sessionId, event.key)
+      case ReferenceType.Element =>
+        new ElementReference(this.source, sessionId, event.key)
     }
 
     this.referenceMap.put(reference)
@@ -72,12 +68,15 @@ class ReferenceManager(
 
   private[this] def handleReferenceSet(event: SetReference, sessionId: String): Unit = {
     this.rm.get(sessionId, event.key) match {
-      case Some(reference: IndexReference) =>
-        reference.set(event.values.asInstanceOf[List[Int]])
-      case Some(reference: RangeReference) =>
-        reference.set(event.values.asInstanceOf[List[(Int, Int)]])
-      case Some(reference: PropertyReference) =>
-        reference.set(event.values.asInstanceOf[List[String]])
+      case Some(reference: ElementReference) =>
+        val vids = event.values.asInstanceOf[List[String]]
+        vids filter { source.idToValue.contains(_) }
+        
+        for (vid <- vids) {
+          source.idToValue(vid).addListener(reference.handleElementDetached)
+        }
+        
+        reference.set(vids)
       case Some(_) =>
         throw new IllegalArgumentException("Unknown reference type")
       case None =>

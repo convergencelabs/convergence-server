@@ -146,20 +146,20 @@ class ModelClientActor(
   }
 
   def onRemoteReferencePublished(refPublished: RemoteReferencePublished): Unit = {
-    val RemoteReferencePublished(resourceId, sessionId, path, key, refType) = refPublished
-    context.parent ! RemoteReferencePublishedMessage(resourceId, sessionId, path, key, ReferenceType.map(refType))
+    val RemoteReferencePublished(resourceId, sessionId, id, key, refType) = refPublished
+    context.parent ! RemoteReferencePublishedMessage(resourceId, sessionId, id, key, ReferenceType.map(refType))
   }
 
   def onRemoteReferenceUnpublished(refUnpublished: RemoteReferenceUnpublished): Unit = {
-    val RemoteReferenceUnpublished(resourceId, sessionId, path, key) = refUnpublished
-    context.parent ! RemoteReferenceUnpublishedMessage(resourceId, sessionId, path, key)
+    val RemoteReferenceUnpublished(resourceId, sessionId, id, key) = refUnpublished
+    context.parent ! RemoteReferenceUnpublishedMessage(resourceId, sessionId, id, key)
   }
 
   def onRemoteReferenceSet(refSet: RemoteReferenceSet): Unit = {
-    val RemoteReferenceSet(resourceId, sessionId, path, key, refType, value) = refSet
+    val RemoteReferenceSet(resourceId, sessionId, id, key, refType, values) = refSet
     val mappedType = ReferenceType.map(refType)
-    val mappedValue = mapOutgoingReferenceValue(refType, value)
-    context.parent ! RemoteReferenceSetMessage(resourceId, sessionId, path, key, mappedType, mappedValue)
+    val mappedValue = values.map { v => mapOutgoingReferenceValue(refType, v) }
+    context.parent ! RemoteReferenceSetMessage(resourceId, sessionId, id, key, mappedType, mappedValue)
   }
 
   def mapOutgoingReferenceValue(refType: ReferenceType.Value, value: Any): Any = {
@@ -222,22 +222,24 @@ class ModelClientActor(
   }
 
   def onSetReference(message: SetReferenceMessage): Unit = {
-    val SetReferenceMessage(resourceId, id, key, refType, value, version) = message
+    val SetReferenceMessage(resourceId, id, key, refType, values, version) = message
     val mappedType = ReferenceType.map(refType)
-    val setReference = SetReference(id, key, mappedType, mapIncomingReferenceValue(mappedType, value), version)
+    val setReference = SetReference(id, key, mappedType, mapIncomingReferenceValue(mappedType, values), version)
     val modelActor = openRealtimeModels(resourceId)
     modelActor ! setReference
   }
 
-  def mapIncomingReferenceValue(refType: ReferenceType.Value, value: Any): Any = {
+  def mapIncomingReferenceValue(refType: ReferenceType.Value, values: List[Any]): List[Any] = {
     refType match {
       case ReferenceType.Index =>
-        value.asInstanceOf[BigInt].intValue()
+        values map { value => value.asInstanceOf[BigInt].intValue() }
       case ReferenceType.Range =>
-        val range = value.asInstanceOf[List[BigInt]]
-        (range(0).intValue(), range(1).intValue())
+        values map { value =>
+          val range = value.asInstanceOf[List[BigInt]]
+          (range(0).intValue(), range(1).intValue())
+        }
       case _ =>
-        value
+        values
     }
   }
 
@@ -255,10 +257,10 @@ class ModelClientActor(
       case Success(OpenModelSuccess(realtimeModelActor, modelResourceId, valueIdPrefix, metaData, connectedClients, references, modelData)) => {
         openRealtimeModels += (modelResourceId -> realtimeModelActor)
         val convertedReferences = references.map { ref =>
-          val ReferenceState(sessionId, valueId, key, refType, value) = ref
+          val ReferenceState(sessionId, valueId, key, refType, values) = ref
           val mappedType = ReferenceType.map(refType)
-          val mappedValue = value.map { v => mapOutgoingReferenceValue(refType, v) }
-          ReferenceData(sessionId, valueId, key, mappedType, mappedValue)
+          val mappedValues = values.map { v => mapOutgoingReferenceValue(refType, v) }
+          ReferenceData(sessionId, valueId, key, mappedType, mappedValues)
         }.toSet
         cb.reply(
           OpenRealtimeModelResponseMessage(

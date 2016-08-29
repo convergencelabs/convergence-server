@@ -7,6 +7,7 @@ import scala.util.Failure
 import com.convergencelabs.server.domain.model.reference.ReferenceManager
 import com.convergencelabs.server.domain.model.reference.ModelReference
 
+
 abstract class RealTimeValue(
     private[model] val id: String,
     private[model] val model: RealTimeModel,
@@ -17,6 +18,7 @@ abstract class RealTimeValue(
   model.registerValue(this)
 
   protected val referenceManager = new ReferenceManager(this, validReferenceTypes)
+  protected var listeners: List[String => Unit] = Nil
 
   def path(): List[Any] = {
     parent match {
@@ -25,7 +27,16 @@ abstract class RealTimeValue(
     }
   }
 
+  def addListener(listener: String => Unit) {
+    listeners ::= listener
+  }
+  
+  def removeListener(listener: String => Unit) {
+    listeners filter(!_.equals(listener))
+  }
+  
   def detach(): Unit = {
+    for (listener <- listeners) listener(id)
     model.unregisterValue(this)
   }
 

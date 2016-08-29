@@ -47,7 +47,7 @@ class TransformationFunctionRegistrySpec extends WordSpec with Matchers {
   
   val referenceKey = "refKey"
   
-  val SetRef = SetReference(valueId, referenceKey, ReferenceType.Index, 3, 1l)
+  val SetRef = SetReference(Some(valueId), referenceKey, ReferenceType.Index, List(3), 1l)
 
   "A TransformationFunctionRegistry" when {
 

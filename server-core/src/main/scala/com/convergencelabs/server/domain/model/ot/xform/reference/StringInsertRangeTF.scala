@@ -7,8 +7,13 @@ import com.convergencelabs.server.domain.model.ot.xform.IndexTransformer
 
 object StringInsertRangeTF extends ReferenceTransformationFunction[StringInsertOperation] {
   def transform(op: StringInsertOperation, setReference: SetReference): Option[SetReference] = {
-    val range = setReference.value.asInstanceOf[(Int, Int)]
-    val xFormed = IndexTransformer.handleInsert(List(range._1, range._2), op.index, op.value.length)
-    Some(setReference.copy(value = (xFormed(0), xFormed(1)) ))
+    val ranges = setReference.values.asInstanceOf[List[(Int, Int)]]
+    
+    val xFormedRanges = ranges map { range =>
+      val xFormed = IndexTransformer.handleInsert(List(range._1, range._2), op.index, op.value.length)
+      (xFormed(0), xFormed(1))
+    }
+
+    Some(setReference.copy(values = xFormedRanges))
   }
 }

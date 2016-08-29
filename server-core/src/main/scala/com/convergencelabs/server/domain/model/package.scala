@@ -22,13 +22,13 @@ package model {
   case class ClientModelDataResponse(modelData: ObjectValue)
 
   sealed trait ModelReferenceEvent {
-    val id: String
+    val id: Option[String]
   }
 
-  case class PublishReference(id: String, key: String, referenceType: ReferenceType.Value) extends ModelReferenceEvent
-  case class SetReference(id: String, key: String, referenceType: ReferenceType.Value, value: Any, contextVersion: Long) extends ModelReferenceEvent
-  case class ClearReference(id: String, key: String) extends ModelReferenceEvent
-  case class UnpublishReference(id: String, key: String) extends ModelReferenceEvent
+  case class PublishReference(id: Option[String], key: String, referenceType: ReferenceType.Value) extends ModelReferenceEvent
+  case class SetReference(id: Option[String], key: String, referenceType: ReferenceType.Value, values: List[Any], contextVersion: Long) extends ModelReferenceEvent
+  case class ClearReference(id: Option[String], key: String) extends ModelReferenceEvent
+  case class UnpublishReference(id: Option[String], key: String) extends ModelReferenceEvent
 
   sealed trait DeleteModelResponse
   case object ModelDeleted extends DeleteModelResponse
@@ -65,10 +65,10 @@ package model {
 
   case class ReferenceState(
     sessionId: String,
-    valueId: String,
+    valueId: Option[String],
     key: String,
     referenceType: ReferenceType.Value,
-    value: Option[Any])
+    values: List[Any])
 
   sealed trait OpenModelFailure extends OpenModelResponse
   case object ModelAlreadyOpen extends OpenModelFailure
@@ -93,12 +93,12 @@ package model {
   case class ClientModelDataRequest(modelFqn: ModelFqn) extends RealtimeModelClientMessage
 
   sealed trait RemoteReferenceEvent extends RealtimeModelClientMessage
-  case class RemoteReferencePublished(resourceId: String, sessionId: String, id: String, key: String,
+  case class RemoteReferencePublished(resourceId: String, sessionId: String, id: Option[String], key: String,
     referenceType: ReferenceType.Value) extends RemoteReferenceEvent
-  case class RemoteReferenceSet(resourceId: String, sessionId: String, id: String, key: String,
-    referenceType: ReferenceType.Value, value: Any) extends RemoteReferenceEvent
-  case class RemoteReferenceCleared(resourceId: String, sessionId: String, id: String, key: String) extends RemoteReferenceEvent
-  case class RemoteReferenceUnpublished(resourceId: String, sessionId: String, id: String, key: String) extends RemoteReferenceEvent
+  case class RemoteReferenceSet(resourceId: String, sessionId: String, id: Option[String], key: String,
+    referenceType: ReferenceType.Value, value: List[Any]) extends RemoteReferenceEvent
+  case class RemoteReferenceCleared(resourceId: String, sessionId: String, id: Option[String], key: String) extends RemoteReferenceEvent
+  case class RemoteReferenceUnpublished(resourceId: String, sessionId: String, id: Option[String], key: String) extends RemoteReferenceEvent
 
   case object ModelNotOpened
 }
