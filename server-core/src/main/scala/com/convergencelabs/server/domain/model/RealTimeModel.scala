@@ -58,6 +58,7 @@ class RealTimeModel(
   def clientDisconnected(sk: String): Unit = {
     this.cc.untrackClient(sk)
     this.data.sessionDisconnected(sk)
+    this.elementReferenceManager.sessionDisconnected(sk)
   }
 
   def registerValue(realTimeValue: RealTimeValue): Unit = {
