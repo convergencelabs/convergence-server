@@ -127,6 +127,7 @@ class RealTimeModel(
     }
   }
 
+  // fixme: refactor this
   def processReferenceEvent(event: ModelReferenceEvent, sk: String): Try[Option[RemoteReferenceEvent]] = Try {
     event.id match {
       case Some(id) =>
@@ -145,7 +146,7 @@ class RealTimeModel(
                 this.cc.processRemoteReferenceSet(sk, set) match {
                   case Some(xformed) =>
                     realTimeValue.processReferenceEvent(xformed, sk)
-                    val SetReference(id, key, refType, value, versio) = xformed
+                    val SetReference(id, key, refType, value, version) = xformed
                     Some(RemoteReferenceSet(this.resourceId, sk, id, key, refType, value))
                   case None =>
                     None
@@ -195,7 +196,8 @@ class RealTimeModel(
   }
 
   def references(): Set[ReferenceState] = {
-    this.references(this.data)
+   val mine = elementReferenceManager.referenceMap().getAll().map { x => toReferenceState(x) }
+   this.references(this.data) ++ mine
   }
 
   def references(value: RealTimeValue): Set[ReferenceState] = {
