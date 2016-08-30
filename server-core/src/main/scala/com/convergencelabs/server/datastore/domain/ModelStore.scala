@@ -35,6 +35,7 @@ import java.util.ArrayList
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import scala.collection.mutable.HashMap
+import com.convergencelabs.server.domain.model.QueryOrderBy
 
 object ModelStore {
   private val ModelClass = "Model"
@@ -56,11 +57,11 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool, operationSto
   def modelExists(fqn: ModelFqn): Try[Boolean] = tryWithDb { db =>
     val key = List(fqn.collectionId, fqn.modelId)
     Option(db
-        .getMetadata
-        .getIndexManager
-        .getIndex(ModelStore.ModelIndex)
-        .get(key.asJava))
-        .isDefined
+      .getMetadata
+      .getIndexManager
+      .getIndex(ModelStore.ModelIndex)
+      .get(key.asJava))
+      .isDefined
   }
 
   def createModel(model: Model): Try[Unit] = tryWithDb { db =>
@@ -167,26 +168,20 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool, operationSto
     collectionId: Option[String],
     offset: Option[Int],
     limit: Option[Int],
-    orderBy: Option[String]): Try[List[ModelMetaData]] = tryWithDb { db =>
+    orderBy: Option[QueryOrderBy]): Try[List[ModelMetaData]] = tryWithDb { db =>
 
-    val params = Map[String, String]()
-      
-    val where: String = collectionId match {
-      case Some(cId) => {
-        params ++ ModelStore.CollectionId -> collectionId
-        "WHERE collectionId = :collectionId"
-      }
-      case None => ""
-    }
-    
-    val order: String = orderBy match {
-      case Some(orderField) => {
-        params ++ "orderField" -> orderField
-        "ORDER BY :orderField ASC"
-      }
-      case None => ""
-    }
-      
+    var params = Map[String, String]()
+
+    val where = collectionId map { collectionId =>
+      params += ModelStore.CollectionId -> collectionId
+      "WHERE collectionId = :collectionId"
+    } getOrElse ("")
+
+    val order: String = orderBy map { orderBy =>
+      val ascendingParam = if (orderBy.ascending) { "ASC" } else { "DESC" }
+      s"ORDER BY ${orderBy.field} ${ascendingParam}"
+    } getOrElse ""
+
     val queryString =
       s"""SELECT modelId, collectionId, version, createdTime, modifiedTime
          |FROM Model
@@ -199,12 +194,11 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool, operationSto
       offset)
 
     val query = new OSQLSynchQuery[ODocument](pagedQuery)
-    
+
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     result.asScala.toList map { _.asModelMetaData }
   }
-  
-  
+
   def getModelData(fqn: ModelFqn): Try[Option[ObjectValue]] = tryWithDb { db =>
     getModelDoc(fqn, db) map (doc => doc.field(ModelStore.Data).asInstanceOf[ODocument].asObjectValue)
   }

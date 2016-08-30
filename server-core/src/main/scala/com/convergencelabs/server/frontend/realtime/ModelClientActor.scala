@@ -54,6 +54,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.server.domain.model.QueryModelsRequest
 import com.convergencelabs.server.domain.model.QueryModelsResponse
+import com.convergencelabs.server.domain.model.QueryOrderBy
 
 object ModelClientActor {
   def props(
@@ -89,16 +90,16 @@ class ModelClientActor(
   // scalastyle:off cyclomatic.complexity
   def onOutgoingModelMessage(event: RealtimeModelClientMessage): Unit = {
     event match {
-      case op: OutgoingOperation => onOutgoingOperation(op)
-      case opAck: OperationAcknowledgement => onOperationAcknowledgement(opAck)
-      case remoteOpened: RemoteClientOpened => onRemoteClientOpened(remoteOpened)
-      case remoteClosed: RemoteClientClosed => onRemoteClientClosed(remoteClosed)
-      case foreceClosed: ModelForceClose => onModelForceClose(foreceClosed)
-      case dataRequest: ClientModelDataRequest => onClientModelDataRequest(dataRequest)
-      case refPublished: RemoteReferencePublished => onRemoteReferencePublished(refPublished)
+      case op: OutgoingOperation                      => onOutgoingOperation(op)
+      case opAck: OperationAcknowledgement            => onOperationAcknowledgement(opAck)
+      case remoteOpened: RemoteClientOpened           => onRemoteClientOpened(remoteOpened)
+      case remoteClosed: RemoteClientClosed           => onRemoteClientClosed(remoteClosed)
+      case foreceClosed: ModelForceClose              => onModelForceClose(foreceClosed)
+      case dataRequest: ClientModelDataRequest        => onClientModelDataRequest(dataRequest)
+      case refPublished: RemoteReferencePublished     => onRemoteReferencePublished(refPublished)
       case refUnpublished: RemoteReferenceUnpublished => onRemoteReferenceUnpublished(refUnpublished)
-      case refSet: RemoteReferenceSet => onRemoteReferenceSet(refSet)
-      case refCleared: RemoteReferenceCleared => onRemoteReferenceCleared(refCleared)
+      case refSet: RemoteReferenceSet                 => onRemoteReferenceSet(refSet)
+      case refCleared: RemoteReferenceCleared         => onRemoteReferenceCleared(refCleared)
     }
   }
   // scalastyle:on cyclomatic.complexity
@@ -185,21 +186,21 @@ class ModelClientActor(
 
   def onRequestReceived(message: IncomingModelRequestMessage, replyCallback: ReplyCallback): Unit = {
     message match {
-      case openRequest: OpenRealtimeModelRequestMessage => onOpenRealtimeModelRequest(openRequest, replyCallback)
-      case closeRequest: CloseRealtimeModelRequestMessage => onCloseRealtimeModelRequest(closeRequest, replyCallback)
+      case openRequest: OpenRealtimeModelRequestMessage     => onOpenRealtimeModelRequest(openRequest, replyCallback)
+      case closeRequest: CloseRealtimeModelRequestMessage   => onCloseRealtimeModelRequest(closeRequest, replyCallback)
       case createRequest: CreateRealtimeModelRequestMessage => onCreateRealtimeModelRequest(createRequest, replyCallback)
       case deleteRequest: DeleteRealtimeModelRequestMessage => onDeleteRealtimeModelRequest(deleteRequest, replyCallback)
-      case queryRequest: ModelsQueryRequestMessage => onModelQueryRequest(queryRequest, replyCallback)
+      case queryRequest: ModelsQueryRequestMessage          => onModelQueryRequest(queryRequest, replyCallback)
     }
   }
 
   def onMessageReceived(message: IncomingModelNormalMessage): Unit = {
     message match {
-      case submission: OperationSubmissionMessage => onOperationSubmission(submission)
-      case publishReference: PublishReferenceMessage => onPublishReference(publishReference)
+      case submission: OperationSubmissionMessage        => onOperationSubmission(submission)
+      case publishReference: PublishReferenceMessage     => onPublishReference(publishReference)
       case unpublishReference: UnpublishReferenceMessage => onUnpublishReference(unpublishReference)
-      case setReference: SetReferenceMessage => onSetReference(setReference)
-      case clearReference: ClearReferenceMessage => onClearReference(clearReference)
+      case setReference: SetReferenceMessage             => onSetReference(setReference)
+      case clearReference: ClearReferenceMessage         => onClearReference(clearReference)
     }
   }
 
@@ -317,7 +318,7 @@ class ModelClientActor(
     val CreateRealtimeModelRequestMessage(collectionId, modelId, data) = request
     val future = modelManager ? CreateModelRequest(ModelFqn(collectionId, modelId), data)
     future.mapResponse[CreateModelResponse] onComplete {
-      case Success(ModelCreated) => cb.reply(CreateRealtimeModelSuccessMessage())
+      case Success(ModelCreated)       => cb.reply(CreateRealtimeModelSuccessMessage())
       case Success(ModelAlreadyExists) => cb.expectedError("model_alread_exists", "A model with the specifieid collection and model id already exists")
       case Failure(cause) =>
         log.error(cause, "Unexpected error creating model.")
@@ -329,19 +330,28 @@ class ModelClientActor(
     val DeleteRealtimeModelRequestMessage(collectionId, modelId) = request
     val future = modelManager ? DeleteModelRequest(ModelFqn(collectionId, modelId))
     future.mapResponse[DeleteModelResponse] onComplete {
-      case Success(ModelDeleted) => cb.reply(DeleteRealtimeModelSuccessMessage())
+      case Success(ModelDeleted)  => cb.reply(DeleteRealtimeModelSuccessMessage())
       case Success(ModelNotFound) => cb.reply(ErrorMessage("model_not_found", "A model with the specifieid collection and model id does not exists"))
       case Failure(cause) =>
         log.error(cause, "Unexpected error deleting model.")
         cb.unexpectedError("could not delete model")
     }
   }
-  
+
   def onModelQueryRequest(request: ModelsQueryRequestMessage, cb: ReplyCallback): Unit = {
     val ModelsQueryRequestMessage(collection, limit, offset, orderBy) = request
-    val future = modelManager ? QueryModelsRequest(collection, limit, offset, orderBy)
+    val future = modelManager ? QueryModelsRequest(collection, limit, offset, orderBy map {
+      case OrderBy(field, ascending) => QueryOrderBy(field, ascending)
+    })
     future.mapResponse[QueryModelsResponse] onComplete {
-      case Success(QueryModelsResponse(result)) => cb.reply(ModelsQueryResponseMessage(result))
+      case Success(QueryModelsResponse(result)) => cb.reply(
+          ModelsQueryResponseMessage(result map {
+            r => ModelResult(
+                r.fqn.collectionId, 
+                r.fqn.modelId, 
+                r.createdTime.toEpochMilli(),
+                r.modifiedTime.toEpochMilli(), 
+                r.version)}))
       case Failure(cause) =>
         log.error(cause, "Unexpected error deleting model.")
         cb.unexpectedError("could not delete model")

@@ -26,7 +26,9 @@ import com.convergencelabs.server.UnknownErrorResponse
 import scala.util.Try
 import akka.actor.Status
 
-case class QueryModelsRequest(collection: Option[String], limit: Option[Int], offset: Option[Int], orderBy: Option[String])
+case class QueryModelsRequest(collection: Option[String], limit: Option[Int], offset: Option[Int], orderBy: Option[QueryOrderBy])
+case class QueryOrderBy(field: String, ascending: Boolean)
+
 case class QueryModelsResponse(result: List[ModelMetaData])
 
 class ModelManagerActor(

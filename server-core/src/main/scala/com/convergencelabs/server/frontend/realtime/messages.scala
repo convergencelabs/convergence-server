@@ -80,8 +80,9 @@ case class CloseRealtimeModelRequestMessage(r: String) extends IncomingModelRequ
 case class CreateRealtimeModelRequestMessage(c: String, m: String, d: ObjectValue) extends IncomingModelRequestMessage
 case class DeleteRealtimeModelRequestMessage(c: String, m: String) extends IncomingModelRequestMessage
 
-case class ModelsQueryRequestMessage(c: Option[String], l: Option[Int], f: Option[Int], o: Option[String]) extends IncomingModelRequestMessage
 
+case class ModelsQueryRequestMessage(c: Option[String], l: Option[Int], f: Option[Int], o: Option[OrderBy]) extends IncomingModelRequestMessage
+case class OrderBy(f: String, a: Boolean)
 
 case class ModelDataResponseMessage(d: ObjectValue) extends IncomingProtocolResponseMessage
 
@@ -99,7 +100,8 @@ case class CloseRealTimeModelSuccessMessage() extends OutgoingProtocolResponseMe
 case class CreateRealtimeModelSuccessMessage() extends OutgoingProtocolResponseMessage
 case class DeleteRealtimeModelSuccessMessage() extends OutgoingProtocolResponseMessage
 
-case class ModelsQueryResponseMessage(r: List[ModelMetaData]) extends OutgoingProtocolResponseMessage
+case class ModelsQueryResponseMessage(r: List[ModelResult]) extends OutgoingProtocolResponseMessage
+case class ModelResult(l: String, m: String, c: Long, d: Long, v: Long)
 
 case class OperationAcknowledgementMessage(r: String, s: Long, v: Long, p: Long) extends OutgoingProtocolNormalMessage
 case class RemoteOperationMessage(r: String, s: String, v: Long, p: Long, o: OperationData) extends OutgoingProtocolNormalMessage

@@ -15,6 +15,8 @@ import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import com.convergencelabs.server.domain.model.data.StringValue
 import com.convergencelabs.server.domain.model.data.ObjectValue
+import com.convergencelabs.server.frontend.realtime.OrderBy
+import com.convergencelabs.server.domain.model.QueryOrderBy
 
 // scalastyle:off magic.number
 class ModelStoreSpec
@@ -180,6 +182,65 @@ class ModelStoreSpec
         list shouldBe List(
           person1MetaData,
           person2MetaData)
+      }
+    }
+
+    "querying model meta data" must {
+      "return all models if no params are provided" in withPersistenceStore { store =>
+        val list = store.queryModels(None, None, None, None).success.value
+        list shouldBe List(
+          company1MetaData,
+          person1MetaData,
+          person2MetaData,
+          person3MetaData)
+      }
+      
+      "return only models in a collection if collection is provided" in withPersistenceStore { store =>
+        val list = store.queryModels(Some("people"), None, None, None).success.value
+        list shouldBe List(
+          person1MetaData,
+          person2MetaData,
+          person3MetaData)
+      }
+      
+      "return correct models if a limit is provided" in withPersistenceStore { store =>
+        val list = store.queryModels(None, None, Some(2), None).success.value
+        list shouldBe List(
+          company1MetaData,
+          person1MetaData)
+      }
+      
+      "return correct models if an offset is provided" in withPersistenceStore { store =>
+        val list = store.queryModels(None, Some(1), None, None).success.value
+        list shouldBe List(
+          person1MetaData,
+          person2MetaData,
+          person3MetaData)
+      }
+      
+      "return correct models if an offset and limit is provided" in withPersistenceStore { store =>
+        val list = store.queryModels(None, Some(1), Some(2), None).success.value
+        list shouldBe List(
+          person1MetaData,
+          person2MetaData)
+      }
+      
+      "return models in correct order if orderBy ASC is provided" in withPersistenceStore { store =>
+        val list = store.queryModels(None, None, None, Some(QueryOrderBy("modelId", true))).success.value
+        list shouldBe List(
+          company1MetaData,
+          person1MetaData,
+          person2MetaData,
+          person3MetaData)
+      }
+      
+      "return models in correct order if orderBy DESC is provided" in withPersistenceStore { store =>
+        val list = store.queryModels(None, None, None, Some(QueryOrderBy("modelId", false))).success.value
+        list shouldBe List(
+          person3MetaData,
+          person2MetaData,
+          person1MetaData,
+          company1MetaData)
       }
     }
 
