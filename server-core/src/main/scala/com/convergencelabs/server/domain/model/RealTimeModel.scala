@@ -34,6 +34,7 @@ import com.convergencelabs.server.domain.model.reference.IndexReference
 import com.convergencelabs.server.domain.model.reference.RangeReference
 import com.convergencelabs.server.domain.model.reference.ModelReference
 import com.convergencelabs.server.domain.model.reference.ElementReferenceManager
+import com.convergencelabs.server.domain.model.reference.ElementReference
 
 class RealTimeModel(
     private[this] val fqn: ModelFqn,
@@ -217,6 +218,7 @@ class RealTimeModel(
     val refType = r match {
       case ref: IndexReference => ReferenceType.Index
       case ref: RangeReference => ReferenceType.Range
+      case ref: ElementReference => ReferenceType.Element
       case _                   => throw new IllegalArgumentException("Unexpected reference type")
     }
 
