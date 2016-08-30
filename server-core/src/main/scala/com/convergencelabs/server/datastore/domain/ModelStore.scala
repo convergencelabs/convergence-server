@@ -34,6 +34,7 @@ import com.convergencelabs.server.datastore.domain.mapper.ObjectValueMapper.ODoc
 import java.util.ArrayList
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import scala.collection.mutable.HashMap
 
 object ModelStore {
   private val ModelClass = "Model"
@@ -162,6 +163,48 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool, operationSto
     result.asScala.toList map { _.asModelMetaData }
   }
 
+  def queryModels(
+    collectionId: Option[String],
+    offset: Option[Int],
+    limit: Option[Int],
+    orderBy: Option[String]): Try[List[ModelMetaData]] = tryWithDb { db =>
+
+    val params = Map[String, String]()
+      
+    val where: String = collectionId match {
+      case Some(cId) => {
+        params ++ ModelStore.CollectionId -> collectionId
+        "WHERE collectionId = :collectionId"
+      }
+      case None => ""
+    }
+    
+    val order: String = orderBy match {
+      case Some(orderField) => {
+        params ++ "orderField" -> orderField
+        "ORDER BY :orderField ASC"
+      }
+      case None => ""
+    }
+      
+    val queryString =
+      s"""SELECT modelId, collectionId, version, createdTime, modifiedTime
+         |FROM Model
+         |${where}
+         |${order}""".stripMargin
+
+    val pagedQuery = QueryUtil.buildPagedQuery(
+      queryString,
+      limit,
+      offset)
+
+    val query = new OSQLSynchQuery[ODocument](pagedQuery)
+    
+    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
+    result.asScala.toList map { _.asModelMetaData }
+  }
+  
+  
   def getModelData(fqn: ModelFqn): Try[Option[ObjectValue]] = tryWithDb { db =>
     getModelDoc(fqn, db) map (doc => doc.field(ModelStore.Data).asInstanceOf[ODocument].asObjectValue)
   }

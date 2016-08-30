@@ -52,6 +52,8 @@ import akka.actor.Props
 import akka.actor.actorRef2Scala
 import akka.pattern.ask
 import akka.util.Timeout
+import com.convergencelabs.server.domain.model.QueryModelsRequest
+import com.convergencelabs.server.domain.model.QueryModelsResponse
 
 object ModelClientActor {
   def props(
@@ -187,6 +189,7 @@ class ModelClientActor(
       case closeRequest: CloseRealtimeModelRequestMessage => onCloseRealtimeModelRequest(closeRequest, replyCallback)
       case createRequest: CreateRealtimeModelRequestMessage => onCreateRealtimeModelRequest(createRequest, replyCallback)
       case deleteRequest: DeleteRealtimeModelRequestMessage => onDeleteRealtimeModelRequest(deleteRequest, replyCallback)
+      case queryRequest: ModelsQueryRequestMessage => onModelQueryRequest(queryRequest, replyCallback)
     }
   }
 
@@ -328,6 +331,17 @@ class ModelClientActor(
     future.mapResponse[DeleteModelResponse] onComplete {
       case Success(ModelDeleted) => cb.reply(DeleteRealtimeModelSuccessMessage())
       case Success(ModelNotFound) => cb.reply(ErrorMessage("model_not_found", "A model with the specifieid collection and model id does not exists"))
+      case Failure(cause) =>
+        log.error(cause, "Unexpected error deleting model.")
+        cb.unexpectedError("could not delete model")
+    }
+  }
+  
+  def onModelQueryRequest(request: ModelsQueryRequestMessage, cb: ReplyCallback): Unit = {
+    val ModelsQueryRequestMessage(collection, limit, offset, orderBy) = request
+    val future = modelManager ? QueryModelsRequest(collection, limit, offset, orderBy)
+    future.mapResponse[QueryModelsResponse] onComplete {
+      case Success(QueryModelsResponse(result)) => cb.reply(ModelsQueryResponseMessage(result))
       case Failure(cause) =>
         log.error(cause, "Unexpected error deleting model.")
         cb.unexpectedError("could not delete model")

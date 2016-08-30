@@ -9,6 +9,7 @@ import com.convergencelabs.server.domain.model.OpenModelMetaData
 import com.convergencelabs.server.ProtocolConfiguration
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.PresenceServiceActor.UserPresence
+import com.convergencelabs.server.domain.model.ModelMetaData
 
 // scalastyle:off number.of.types
 
@@ -65,6 +66,7 @@ case class TokenAuthRequestMessage(k: String) extends AuthenticationRequestMessa
 
 case class AuthenticationResponseMessage(s: Boolean, n: Option[String], e: Option[String]) extends OutgoingProtocolResponseMessage
 
+
 ///////////////////////////////////////////////////////////////////////////////
 // Model Messages
 ///////////////////////////////////////////////////////////////////////////////
@@ -77,6 +79,9 @@ case class OpenRealtimeModelRequestMessage(c: String, m: String, i: Boolean) ext
 case class CloseRealtimeModelRequestMessage(r: String) extends IncomingModelRequestMessage
 case class CreateRealtimeModelRequestMessage(c: String, m: String, d: ObjectValue) extends IncomingModelRequestMessage
 case class DeleteRealtimeModelRequestMessage(c: String, m: String) extends IncomingModelRequestMessage
+
+case class ModelsQueryRequestMessage(c: Option[String], l: Option[Int], f: Option[Int], o: Option[String]) extends IncomingModelRequestMessage
+
 
 case class ModelDataResponseMessage(d: ObjectValue) extends IncomingProtocolResponseMessage
 
@@ -93,6 +98,8 @@ case class ReferenceData(s: String, d: Option[String], k: String, c: Int, v: Lis
 case class CloseRealTimeModelSuccessMessage() extends OutgoingProtocolResponseMessage
 case class CreateRealtimeModelSuccessMessage() extends OutgoingProtocolResponseMessage
 case class DeleteRealtimeModelSuccessMessage() extends OutgoingProtocolResponseMessage
+
+case class ModelsQueryResponseMessage(r: List[ModelMetaData]) extends OutgoingProtocolResponseMessage
 
 case class OperationAcknowledgementMessage(r: String, s: Long, v: Long, p: Long) extends OutgoingProtocolNormalMessage
 case class RemoteOperationMessage(r: String, s: String, v: Long, p: Long, o: OperationData) extends OutgoingProtocolNormalMessage

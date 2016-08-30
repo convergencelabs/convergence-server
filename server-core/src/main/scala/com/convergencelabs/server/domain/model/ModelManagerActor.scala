@@ -26,6 +26,9 @@ import com.convergencelabs.server.UnknownErrorResponse
 import scala.util.Try
 import akka.actor.Status
 
+case class QueryModelsRequest(collection: Option[String], limit: Option[Int], offset: Option[Int], orderBy: Option[String])
+case class QueryModelsResponse(result: List[ModelMetaData])
+
 class ModelManagerActor(
   private[this] val domainFqn: DomainFqn,
   private[this] val protocolConfig: ProtocolConfiguration)
@@ -40,6 +43,7 @@ class ModelManagerActor(
     case message: OpenRealtimeModelRequest => onOpenRealtimeModel(message)
     case message: CreateModelRequest => onCreateModelRequest(message)
     case message: DeleteModelRequest => onDeleteModelRequest(message)
+    case message: QueryModelsRequest => onQueryModelsRequest(message)
     case message: ModelShutdownRequest => onModelShutdownRequest(message)
     case message: Any => unhandled(message)
   }
@@ -137,6 +141,14 @@ class ModelManagerActor(
         sender ! ModelDeleted
       case Success(false) => sender ! ModelNotFound
       case Failure(cause) => sender ! Status.Failure
+    }
+  }
+  
+  private[this] def onQueryModelsRequest(request: QueryModelsRequest): Unit = {
+    val QueryModelsRequest(collection, limit, offset, orderBy) = request
+    persistenceProvider.modelStore.queryModels(collection, limit, offset, orderBy) match {
+      case Success(result) => sender ! QueryModelsResponse(result)
+      case Failure(cause) => sender ! Status.Failure(cause)
     }
   }
 
