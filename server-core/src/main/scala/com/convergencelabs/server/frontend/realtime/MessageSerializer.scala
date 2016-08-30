@@ -86,7 +86,10 @@ object MessageSerializer {
     MessageType.PublishChatMessage -> classOf[PublishedChatMessage],
     MessageType.UserJoinedRoom -> classOf[UserJoinedRoomMessage],
     MessageType.UserLeftRoom -> classOf[UserLeftRoomMessage],
-    MessageType.ChatMessagePublished -> classOf[UserChatMessage]),
+    MessageType.ChatMessagePublished -> classOf[UserChatMessage],
+    
+    MessageType.ModelsQueryRequest -> classOf[ModelsQueryRequestMessage],
+    MessageType.ModelsQueryResponse -> classOf[ModelsQueryResponseMessage]),
 
     DefaultFormats.withTypeHintFieldName("?") + new OperationSerializer() + DataValueTypeHints + DataValueFieldSerializer)
 

@@ -166,8 +166,8 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool, operationSto
 
   def queryModels(
     collectionId: Option[String],
-    offset: Option[Int],
     limit: Option[Int],
+    offset: Option[Int],
     orderBy: Option[QueryOrderBy]): Try[List[ModelMetaData]] = tryWithDb { db =>
 
     var params = Map[String, String]()

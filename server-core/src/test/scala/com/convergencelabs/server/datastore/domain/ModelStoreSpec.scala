@@ -204,14 +204,14 @@ class ModelStoreSpec
       }
       
       "return correct models if a limit is provided" in withPersistenceStore { store =>
-        val list = store.queryModels(None, None, Some(2), None).success.value
+        val list = store.queryModels(None, Some(2), None, None).success.value
         list shouldBe List(
           company1MetaData,
           person1MetaData)
       }
       
       "return correct models if an offset is provided" in withPersistenceStore { store =>
-        val list = store.queryModels(None, Some(1), None, None).success.value
+        val list = store.queryModels(None, None, Some(1), None).success.value
         list shouldBe List(
           person1MetaData,
           person2MetaData,
@@ -219,7 +219,7 @@ class ModelStoreSpec
       }
       
       "return correct models if an offset and limit is provided" in withPersistenceStore { store =>
-        val list = store.queryModels(None, Some(1), Some(2), None).success.value
+        val list = store.queryModels(None, Some(2), Some(1), None).success.value
         list shouldBe List(
           person1MetaData,
           person2MetaData)

@@ -92,4 +92,7 @@ object MessageType extends Enumeration {
   val UserJoinedRoom = 87
   val UserLeftRoom = 88
   val ChatMessagePublished = 89
+  
+  val ModelsQueryRequest = 90
+  val ModelsQueryResponse = 91
 }
