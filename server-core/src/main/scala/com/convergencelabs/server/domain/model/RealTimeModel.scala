@@ -173,7 +173,7 @@ class RealTimeModel(
             Some(RemoteReferenceUnpublished(resourceId, sk, id, key))
           case set: SetReference =>
             val SetReference(id, key, refType, values, version) = set
-            val xformedValue = values.asInstanceOf[List[String]] filter { !idToValue.contains(_) }
+            val xformedValue = values.asInstanceOf[List[String]] filter { idToValue.contains(_) }
             val xformedSet = SetReference(id, key, refType, xformedValue, version)
             elementReferenceManager.handleReferenceEvent(xformedSet, sk)
             Some(RemoteReferenceSet(this.resourceId, sk, id, key, refType, xformedValue))
