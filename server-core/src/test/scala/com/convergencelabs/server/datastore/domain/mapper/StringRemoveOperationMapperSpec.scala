@@ -4,7 +4,7 @@ import org.json4s.JsonAST.JString
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
 
-import com.convergencelabs.server.domain.model.ot.StringRemoveOperation
+import com.convergencelabs.server.domain.model.ot.AppliedStringRemoveOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
 
 import StringRemoveOperationMapper.StringRemoveOperationToODocument
@@ -17,7 +17,7 @@ class StringRemoveOperationMapperSpec
   "An StringRemoveOperationMapper" when {
     "when converting StringRemoveOperation operations" must {
       "correctly map and unmap a StringRemoveOperation" in {
-        val op = StringRemoveOperation("vid", true, 4, "test") // scalastyle:ignore magic.number
+        val op = AppliedStringRemoveOperation("vid", true, 4, 4, Some("test")) // scalastyle:ignore magic.number
         val opDoc = op.asODocument
         val reverted = opDoc.asStringRemoveOperation
         op shouldBe reverted

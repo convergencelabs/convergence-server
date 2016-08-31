@@ -3,7 +3,7 @@ package com.convergencelabs.server.datastore.domain.mapper
 import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
-import com.convergencelabs.server.domain.model.ot.ObjectSetPropertyOperation
+import com.convergencelabs.server.domain.model.ot.AppliedObjectSetPropertyOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
 import ObjectSetPropertyOperationMapper.ObjectSetPropertyOperationToODocument
 import ObjectSetPropertyOperationMapper.ODocumentToObjectSetPropertyOperation
@@ -16,7 +16,7 @@ class ObjectSetPropertyOperationMapperSpec
   "An ObjectSetPropertyOperationMapper" when {
     "when converting ObjectSetPropertyOperation operations" must {
       "correctly map and unmap a ObjectSetPropertyOperation" in {
-        val op = ObjectSetPropertyOperation("vid", true, "foo", StringValue("vid1", "bar"))
+        val op = AppliedObjectSetPropertyOperation("vid", true, "foo", StringValue("vid1", "bar"), Some(StringValue("oldId", "oldValue")))
         val opDoc = op.asODocument
         val reverted = opDoc.asObjectSetPropertyOperation
         op shouldBe reverted

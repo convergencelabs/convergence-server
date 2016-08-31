@@ -4,11 +4,12 @@ import org.json4s.JsonAST.JString
 import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
-import com.convergencelabs.server.domain.model.ot.ObjectRemovePropertyOperation
+import com.convergencelabs.server.domain.model.ot.AppliedObjectRemovePropertyOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
 import ObjectRemovePropertyOperationMapper.ObjectRemovePropertyOperationToODocument
 import ObjectRemovePropertyOperationMapper.ODocumentToObjectRemovePropertyOperation
 import org.json4s.JsonAST.JObject
+import com.convergencelabs.server.domain.model.data.StringValue
 
 class ObjectRemovePropertyOperationMapperSpec
     extends WordSpec
@@ -17,7 +18,7 @@ class ObjectRemovePropertyOperationMapperSpec
   "An ObjectRemovePropertyOperationMapper" when {
     "when converting ObjectRemovePropertyOperation operations" must {
       "correctly map and unmap a ObjectRemovePropertyOperation" in {
-        val op = ObjectRemovePropertyOperation("vid", true, "foo")
+        val op = AppliedObjectRemovePropertyOperation("vid", true, "foo", Some(StringValue("oldId", "oldValue")))
         val opDoc = op.asODocument
         val reverted = opDoc.asObjectRemovePropertyOperation
         op shouldBe reverted

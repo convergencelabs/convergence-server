@@ -4,7 +4,7 @@ import org.json4s.JsonAST.JString
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
 
-import com.convergencelabs.server.domain.model.ot.StringSetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedStringSetOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
 
 import StringSetOperationMapper.StringSetOperationToODocument
@@ -17,7 +17,7 @@ class StringSetOperationMapperSpec
   "An StringSetOperationMapper" when {
     "when converting StringSetOperation operations" must {
       "correctly map and unmap a StringSetOperation" in {
-        val op = StringSetOperation("vid", true, "test")
+        val op = AppliedStringSetOperation("vid", true, "test", Some("oldValue"))
         val opDoc = op.asODocument
         val reverted = opDoc.asStringSetOperation
         op shouldBe reverted

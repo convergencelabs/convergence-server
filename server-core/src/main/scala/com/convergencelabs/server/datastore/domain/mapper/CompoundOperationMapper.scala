@@ -7,18 +7,18 @@ import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.language.implicitConversions
 
 import com.convergencelabs.server.datastore.mapper.ODocumentMapper
-import com.convergencelabs.server.domain.model.ot.CompoundOperation
+import com.convergencelabs.server.domain.model.ot.AppliedCompoundOperation
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 
 object CompoundOperationMapper extends ODocumentMapper {
 
-  private[domain] implicit class CompoundOperationToODocument(val s: CompoundOperation) extends AnyVal {
+  private[domain] implicit class CompoundOperationToODocument(val s: AppliedCompoundOperation) extends AnyVal {
     def asODocument: ODocument = compoundOperationToODocument(s)
   }
 
-  private[domain] implicit def compoundOperationToODocument(obj: CompoundOperation): ODocument = {
-    val CompoundOperation(ops) = obj
+  private[domain] implicit def compoundOperationToODocument(obj: AppliedCompoundOperation): ODocument = {
+    val AppliedCompoundOperation(ops) = obj
     val doc = new ODocument(DocumentClassName)
     val opDocs = ops.map { OrientDBOperationMapper.operationToODocument(_) }
     doc.field(Fields.Ops, opDocs.asJava, OType.EMBEDDEDLIST)
@@ -26,15 +26,15 @@ object CompoundOperationMapper extends ODocumentMapper {
   }
 
   private[domain] implicit class ODocumentToCompoundOperation(val d: ODocument) extends AnyVal {
-    def asCompoundOperation: CompoundOperation = oDocumentToCompoundOperation(d)
+    def asCompoundOperation: AppliedCompoundOperation = oDocumentToCompoundOperation(d)
   }
 
-  private[domain] implicit def oDocumentToCompoundOperation(doc: ODocument): CompoundOperation = {
+  private[domain] implicit def oDocumentToCompoundOperation(doc: ODocument): AppliedCompoundOperation = {
     validateDocumentClass(doc, DocumentClassName)
 
     val opDocs: JavaList[ODocument] = doc.field(Fields.Ops, OType.EMBEDDEDLIST)
     val ops = opDocs.asScala.toList.map { OrientDBOperationMapper.oDocumentToDiscreteOperation(_) }
-    CompoundOperation(ops)
+    AppliedCompoundOperation(ops)
   }
 
   private[domain] val DocumentClassName = "CompoundOperation"

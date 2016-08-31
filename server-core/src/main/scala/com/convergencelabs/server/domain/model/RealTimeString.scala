@@ -11,6 +11,10 @@ import scala.util.Success
 import com.convergencelabs.server.domain.model.reference.ReferenceManager
 import com.convergencelabs.server.domain.model.reference.PositionalRemoveAware
 import com.convergencelabs.server.domain.model.reference.PositionalInsertAware
+import com.convergencelabs.server.domain.model.ot.AppliedStringOperation
+import com.convergencelabs.server.domain.model.ot.AppliedStringInsertOperation
+import com.convergencelabs.server.domain.model.ot.AppliedStringRemoveOperation
+import com.convergencelabs.server.domain.model.ot.AppliedStringSetOperation
 
 class RealTimeString(
   private[this] val value: StringValue,
@@ -25,11 +29,16 @@ class RealTimeString(
       List(ReferenceType.Index, ReferenceType.Range)) {
 
   private[this] var string = value.value
+  
   def data(): String = {
     this.string
   }
+  
+  def dataValue(): StringValue = {
+    StringValue(id, string)
+  }
 
-  def processOperation(op: DiscreteOperation): Try[Unit] = Try {
+  def processOperation(op: DiscreteOperation): Try[AppliedStringOperation] = Try {
     op match {
       case insert: StringInsertOperation => this.processInsertOperation(insert)
       case remove: StringRemoveOperation => this.processRemoveOperation(remove)
@@ -38,30 +47,46 @@ class RealTimeString(
     }
   }
 
-  private[this] def processInsertOperation(op: StringInsertOperation): Unit = {
-    if (this.string.length < op.index || op.index < 0) {
-      throw new IllegalArgumentException("Index out of bounds: " + op.index)
+  private[this] def processInsertOperation(op: StringInsertOperation): AppliedStringInsertOperation = {
+    val StringInsertOperation(id, noOp, index, value) = op
+    
+    if (this.string.length < index || index < 0) {
+      throw new IllegalArgumentException("Index out of bounds: " + index)
     }
-    this.string = this.string.slice(0, op.index) + op.value + this.string.slice(op.index, this.string.length)
+    this.string = this.string.slice(0, index) + value + this.string.slice(index, this.string.length)
 
     this.referenceManager.referenceMap.getAll().foreach {
-      case x: PositionalInsertAware => x.handlePositionalInsert(op.index, op.value.length)
+      case x: PositionalInsertAware => x.handlePositionalInsert(index, value.length)
     }
+    
+    AppliedStringInsertOperation(id, noOp, index, value)
   }
 
-  private[this] def processRemoveOperation(op: StringRemoveOperation): Unit = {
-    if (this.string.length < op.index + op.value.length || op.index < 0) {
+  private[this] def processRemoveOperation(op: StringRemoveOperation): AppliedStringRemoveOperation = {
+    val StringRemoveOperation(id, noOp, index, value) = op
+    
+    if (this.string.length < index + value.length || index < 0) {
       throw new Error("Index out of bounds!")
     }
-    this.string = this.string.slice(0, op.index) + this.string.slice(op.index + op.value.length, this.string.length)
+    
+    val oldValue = this.string.slice(index, value.length) 
+    
+    this.string = this.string.slice(0, index) + this.string.slice(index + value.length, this.string.length)
 
     this.referenceManager.referenceMap.getAll().foreach {
-      case x: PositionalRemoveAware => x.handlePositionalRemove(op.index, op.value.length)
+      case x: PositionalRemoveAware => x.handlePositionalRemove(index, value.length)
     }
+    
+    AppliedStringRemoveOperation(id, noOp, index, value.length(), Some(oldValue))
   }
 
-  private[this] def processSetOperation(op: StringSetOperation): Unit = {
-    this.string = op.value
+  private[this] def processSetOperation(op: StringSetOperation): AppliedStringSetOperation = {
+    val StringSetOperation(id, noOp, value) = op
+    
+    val oldValue = string
+    this.string = value
     this.referenceManager.referenceMap.getAll().foreach { x => x.handleSet() }
+    
+    AppliedStringSetOperation(id, noOp, value, Some(oldValue))
   }
 }

@@ -1,23 +1,23 @@
 package com.convergencelabs.server.datastore.domain.mapper
 
-import com.convergencelabs.server.domain.model.ot.ArrayInsertOperation
-import com.convergencelabs.server.domain.model.ot.ArrayMoveOperation
-import com.convergencelabs.server.domain.model.ot.ArrayRemoveOperation
-import com.convergencelabs.server.domain.model.ot.ArrayReplaceOperation
-import com.convergencelabs.server.domain.model.ot.ArraySetOperation
-import com.convergencelabs.server.domain.model.ot.BooleanSetOperation
-import com.convergencelabs.server.domain.model.ot.CompoundOperation
-import com.convergencelabs.server.domain.model.ot.DiscreteOperation
-import com.convergencelabs.server.domain.model.ot.NumberAddOperation
-import com.convergencelabs.server.domain.model.ot.NumberSetOperation
-import com.convergencelabs.server.domain.model.ot.ObjectAddPropertyOperation
-import com.convergencelabs.server.domain.model.ot.ObjectRemovePropertyOperation
-import com.convergencelabs.server.domain.model.ot.ObjectSetOperation
-import com.convergencelabs.server.domain.model.ot.ObjectSetPropertyOperation
-import com.convergencelabs.server.domain.model.ot.Operation
-import com.convergencelabs.server.domain.model.ot.StringInsertOperation
-import com.convergencelabs.server.domain.model.ot.StringRemoveOperation
-import com.convergencelabs.server.domain.model.ot.StringSetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedArrayInsertOperation
+import com.convergencelabs.server.domain.model.ot.AppliedArrayMoveOperation
+import com.convergencelabs.server.domain.model.ot.AppliedArrayRemoveOperation
+import com.convergencelabs.server.domain.model.ot.AppliedArrayReplaceOperation
+import com.convergencelabs.server.domain.model.ot.AppliedArraySetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedBooleanSetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedCompoundOperation
+import com.convergencelabs.server.domain.model.ot.AppliedDiscreteOperation
+import com.convergencelabs.server.domain.model.ot.AppliedNumberAddOperation
+import com.convergencelabs.server.domain.model.ot.AppliedNumberSetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedObjectAddPropertyOperation
+import com.convergencelabs.server.domain.model.ot.AppliedObjectRemovePropertyOperation
+import com.convergencelabs.server.domain.model.ot.AppliedObjectSetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedObjectSetPropertyOperation
+import com.convergencelabs.server.domain.model.ot.AppliedOperation
+import com.convergencelabs.server.domain.model.ot.AppliedStringInsertOperation
+import com.convergencelabs.server.domain.model.ot.AppliedStringRemoveOperation
+import com.convergencelabs.server.domain.model.ot.AppliedStringSetOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
 
 import ArrayInsertOperationMapper.ArrayInsertOperationToODocument
@@ -71,7 +71,7 @@ import StringSetOperationMapper.StringSetOperationToODocument
 
 object OrientDBOperationMapper {
 
-  def oDocumentToOperation(opAsDoc: ODocument): Operation = {
+  def oDocumentToOperation(opAsDoc: ODocument): AppliedOperation = {
     opAsDoc.getClassName match {
       case CompoundDocName => opAsDoc.asCompoundOperation
       case _ => oDocumentToDiscreteOperation(opAsDoc)
@@ -79,7 +79,7 @@ object OrientDBOperationMapper {
   }
 
   // scalastyle:off cyclomatic.complexity
-  private[mapper] def oDocumentToDiscreteOperation(doc: ODocument): DiscreteOperation = {
+  private[mapper] def oDocumentToDiscreteOperation(doc: ODocument): AppliedDiscreteOperation = {
     doc.getClassName match {
       case StringInsertDocName => doc.asStringInsertOperation
       case StringRemoveDocName => doc.asStringRemoveOperation
@@ -104,39 +104,39 @@ object OrientDBOperationMapper {
   }
   // scalastyle:on cyclomatic.complexity
 
-  def operationToODocument(op: Operation): ODocument = {
+  def operationToODocument(op: AppliedOperation): ODocument = {
     op match {
-      case op: CompoundOperation => op.asODocument
-      case op: DiscreteOperation => discreteOperationToODocument(op)
+      case op: AppliedCompoundOperation => op.asODocument
+      case op: AppliedDiscreteOperation => discreteOperationToODocument(op)
     }
   }
 
   // scalastyle:off cyclomatic.complexity
-  private[this] def discreteOperationToODocument(op: DiscreteOperation): ODocument = {
+  private[this] def discreteOperationToODocument(op: AppliedDiscreteOperation): ODocument = {
     op match {
       // String Operations
-      case op: StringInsertOperation => op.asODocument
-      case op: StringRemoveOperation => op.asODocument
-      case op: StringSetOperation => op.asODocument
+      case op: AppliedStringInsertOperation => op.asODocument
+      case op: AppliedStringRemoveOperation => op.asODocument
+      case op: AppliedStringSetOperation => op.asODocument
 
       // Array Operations
-      case op: ArrayInsertOperation => op.asODocument
-      case op: ArrayRemoveOperation => op.asODocument
-      case op: ArrayMoveOperation => op.asODocument
-      case op: ArrayReplaceOperation => op.asODocument
-      case op: ArraySetOperation => op.asODocument
+      case op: AppliedArrayInsertOperation => op.asODocument
+      case op: AppliedArrayRemoveOperation => op.asODocument
+      case op: AppliedArrayMoveOperation => op.asODocument
+      case op: AppliedArrayReplaceOperation => op.asODocument
+      case op: AppliedArraySetOperation => op.asODocument
 
       // Object Operations
-      case op: ObjectSetPropertyOperation => op.asODocument
-      case op: ObjectAddPropertyOperation => op.asODocument
-      case op: ObjectRemovePropertyOperation => op.asODocument
-      case op: ObjectSetOperation => op.asODocument
+      case op: AppliedObjectSetPropertyOperation => op.asODocument
+      case op: AppliedObjectAddPropertyOperation => op.asODocument
+      case op: AppliedObjectRemovePropertyOperation => op.asODocument
+      case op: AppliedObjectSetOperation => op.asODocument
 
       // Number Operations
-      case op: NumberAddOperation => op.asODocument
-      case op: NumberSetOperation => op.asODocument
+      case op: AppliedNumberAddOperation => op.asODocument
+      case op: AppliedNumberSetOperation => op.asODocument
 
-      case op: BooleanSetOperation => op.asODocument
+      case op: AppliedBooleanSetOperation => op.asODocument
     }
   }
   // scalastyle:on cyclomatic.complexity

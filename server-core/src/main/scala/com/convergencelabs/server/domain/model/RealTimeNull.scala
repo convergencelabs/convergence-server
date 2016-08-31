@@ -3,6 +3,7 @@ package com.convergencelabs.server.domain.model
 import scala.util.Try
 import com.convergencelabs.server.domain.model.ot.DiscreteOperation
 import com.convergencelabs.server.domain.model.data.NullValue
+import com.convergencelabs.server.domain.model.ot.AppliedDiscreteOperation
 
 class RealTimeNull(
   private[this] val value: NullValue,
@@ -14,8 +15,12 @@ class RealTimeNull(
   def data(): Null = {
     null  // scalastyle:ignore null
   }
+  
+  def dataValue(): NullValue = {
+    value
+  }
 
-  def processOperation(op: DiscreteOperation): Try[Unit] = Try {
+  def processOperation(op: DiscreteOperation): Try[AppliedDiscreteOperation] = Try {
     throw new IllegalArgumentException("Invalid operation type in RealTimeDouble");
   }
 }

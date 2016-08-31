@@ -4,7 +4,7 @@ import org.json4s.JsonAST.JString
 import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
-import com.convergencelabs.server.domain.model.ot.ObjectAddPropertyOperation
+import com.convergencelabs.server.domain.model.ot.AppliedObjectAddPropertyOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
 import ObjectAddPropertyOperationMapper.ObjectAddPropertyOperationToODocument
 import ObjectAddPropertyOperationMapper.ODocumentToObjectAddPropertyOperation
@@ -18,7 +18,7 @@ class ObjectAddPropertyOperationMapperSpec
   "An ObjectAddPropertyOperationMapper" when {
     "when converting ObjectAddPropertyOperation operations" must {
       "correctly map and unmap a ObjectAddPropertyOperation" in {
-        val op = ObjectAddPropertyOperation("vid", true, "foo", StringValue("vid1", "bar"))
+        val op = AppliedObjectAddPropertyOperation("vid", true, "foo", StringValue("vid1", "bar"))
         val opDoc = op.asODocument
         val reverted = opDoc.asObjectAddPropertyOperation
         op shouldBe reverted

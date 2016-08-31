@@ -4,7 +4,7 @@ import org.json4s.JsonAST.JString
 import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
-import com.convergencelabs.server.domain.model.ot.ArrayReplaceOperation
+import com.convergencelabs.server.domain.model.ot.AppliedArrayReplaceOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
 import ArrayReplaceOperationMapper.ArrayReplaceOperationToODocument
 import ArrayReplaceOperationMapper.ODocumentToArrayReplaceOperation
@@ -17,7 +17,7 @@ class ArrayReplaceOperationMapperSpec
   "An ArrayReplaceOperationMapper" when {
     "when converting ArrayReplaceOperation operations" must {
       "correctly map and unmap a ArrayReplaceOperation" in {
-        val op = ArrayReplaceOperation("vid", true, 4, StringValue("arom-test", "test")) // scalastyle:ignore magic.number
+        val op = AppliedArrayReplaceOperation("vid", true, 4, StringValue("arom-test", "test"), Some(StringValue("oldId", "oldValue"))) // scalastyle:ignore magic.number
         val opDoc = op.asODocument
         val reverted = opDoc.asArrayReplaceOperation
         op shouldBe reverted

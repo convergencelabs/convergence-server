@@ -5,22 +5,22 @@ import scala.math.BigDecimal.double2bigDecimal
 import scala.math.BigInt.int2bigInt
 import org.scalatest.Finders
 import org.scalatest.WordSpec
-import com.convergencelabs.server.domain.model.ot.ArrayInsertOperation
-import com.convergencelabs.server.domain.model.ot.ArrayMoveOperation
-import com.convergencelabs.server.domain.model.ot.ArrayRemoveOperation
-import com.convergencelabs.server.domain.model.ot.ArrayReplaceOperation
-import com.convergencelabs.server.domain.model.ot.ArraySetOperation
-import com.convergencelabs.server.domain.model.ot.CompoundOperation
-import com.convergencelabs.server.domain.model.ot.ObjectAddPropertyOperation
-import com.convergencelabs.server.domain.model.ot.ObjectRemovePropertyOperation
-import com.convergencelabs.server.domain.model.ot.ObjectSetOperation
-import com.convergencelabs.server.domain.model.ot.ObjectSetPropertyOperation
-import com.convergencelabs.server.domain.model.ot.StringInsertOperation
-import com.convergencelabs.server.domain.model.ot.StringRemoveOperation
-import com.convergencelabs.server.domain.model.ot.StringSetOperation
-import com.convergencelabs.server.domain.model.ot.NumberAddOperation
+import com.convergencelabs.server.domain.model.ot.AppliedArrayInsertOperation
+import com.convergencelabs.server.domain.model.ot.AppliedArrayMoveOperation
+import com.convergencelabs.server.domain.model.ot.AppliedArrayRemoveOperation
+import com.convergencelabs.server.domain.model.ot.AppliedArrayReplaceOperation
+import com.convergencelabs.server.domain.model.ot.AppliedArraySetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedCompoundOperation
+import com.convergencelabs.server.domain.model.ot.AppliedObjectAddPropertyOperation
+import com.convergencelabs.server.domain.model.ot.AppliedObjectRemovePropertyOperation
+import com.convergencelabs.server.domain.model.ot.AppliedObjectSetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedObjectSetPropertyOperation
+import com.convergencelabs.server.domain.model.ot.AppliedStringInsertOperation
+import com.convergencelabs.server.domain.model.ot.AppliedStringRemoveOperation
+import com.convergencelabs.server.domain.model.ot.AppliedStringSetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedNumberAddOperation
 import org.scalatest.Matchers
-import com.convergencelabs.server.domain.model.ot.NumberSetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedNumberSetOperation
 import com.convergencelabs.server.domain.model.data.StringValue
 import com.convergencelabs.server.domain.model.data.DoubleValue
 import com.convergencelabs.server.domain.model.data.ArrayValue
@@ -28,6 +28,7 @@ import com.convergencelabs.server.domain.model.data.BooleanValue
 import com.convergencelabs.server.domain.model.data.NullValue
 import com.convergencelabs.server.domain.model.data.DoubleValue
 import com.convergencelabs.server.domain.model.data.ObjectValue
+import com.convergencelabs.server.domain.model.data.DataValue
 
 class OrientDBOperationMapperSpec
     extends WordSpec
@@ -60,21 +61,21 @@ class OrientDBOperationMapperSpec
   "An OrientDBOperationMapper" when {
     "converting string operations" must {
       "correctly map and unmap an StringInsertOperation" in {
-        val op = StringInsertOperation(valueId, true, 3, "inserted")
+        val op = AppliedStringInsertOperation(valueId, true, 3, "inserted")
         val asDoc = OrientDBOperationMapper.operationToODocument(op)
         val reverted = OrientDBOperationMapper.oDocumentToOperation(asDoc)
         reverted shouldBe op
       }
 
       "correctly map and unmap an StringRemoveOperation" in {
-        val op = StringRemoveOperation(valueId, true, 3, "removed")
+        val op = AppliedStringRemoveOperation(valueId, true, 3, 7, Some("removed"))
         val asDoc = OrientDBOperationMapper.operationToODocument(op)
         val reverted = OrientDBOperationMapper.oDocumentToOperation(asDoc)
         reverted shouldBe op
       }
 
       "correctly map and unmap an StringSetOperation" in {
-        val op = StringSetOperation(valueId, true, "something")
+        val op = AppliedStringSetOperation(valueId, true, "something", Some("old"))
         val asDoc = OrientDBOperationMapper.operationToODocument(op)
         val reverted = OrientDBOperationMapper.oDocumentToOperation(asDoc)
         reverted shouldBe op
@@ -83,35 +84,35 @@ class OrientDBOperationMapperSpec
 
     "converting array operations" must {
       "correctly map and unmap an ArrayInsertOperation" in {
-        val op = ArrayInsertOperation(valueId, true, 3, complexJsonObject)
+        val op = AppliedArrayInsertOperation(valueId, true, 3, complexJsonObject)
         val asDoc = OrientDBOperationMapper.operationToODocument(op)
         val reverted = OrientDBOperationMapper.oDocumentToOperation(asDoc)
         reverted shouldBe op
       }
 
       "correctly map and unmap an ArrayRemoveOperation" in {
-        val op = ArrayRemoveOperation(valueId, true, 3)
+        val op = AppliedArrayRemoveOperation(valueId, true, 3, Some(StringValue("oldId", "oldValue")))
         val asDoc = OrientDBOperationMapper.operationToODocument(op)
         val reverted = OrientDBOperationMapper.oDocumentToOperation(asDoc)
         reverted shouldBe op
       }
 
       "correctly map and unmap an ArrayReplaceOperation" in {
-        val op = ArrayReplaceOperation(valueId, true, 3, complexJsonArray)
+        val op = AppliedArrayReplaceOperation(valueId, true, 3, complexJsonArray, Some(StringValue("oldId", "oldValue")))
         val asDoc = OrientDBOperationMapper.operationToODocument(op)
         val reverted = OrientDBOperationMapper.oDocumentToOperation(asDoc)
         reverted shouldBe op
       }
 
       "correctly map and unmap an ArrayMoveOperation" in {
-        val op = ArrayMoveOperation(valueId, true, 3, 5)
+        val op = AppliedArrayMoveOperation(valueId, true, 3, 5)
         val asDoc = OrientDBOperationMapper.operationToODocument(op)
         val reverted = OrientDBOperationMapper.oDocumentToOperation(asDoc)
         reverted shouldBe op
       }
 
       "correctly map and unmap an ArraySetOperation" in {
-        val op = ArraySetOperation(valueId, true, complexJsonArray.children)
+        val op = AppliedArraySetOperation(valueId, true, complexJsonArray.children, Some(List[DataValue]()))
         val asDoc = OrientDBOperationMapper.operationToODocument(op)
         val reverted = OrientDBOperationMapper.oDocumentToOperation(asDoc)
         reverted shouldBe op
@@ -120,28 +121,28 @@ class OrientDBOperationMapperSpec
 
     "converting object operations" must {
       "correctly map and unmap an ObjectSetPropertyOperation" in {
-        val op = ObjectSetPropertyOperation(valueId, true, "setProp", complexJsonObject)
+        val op = AppliedObjectSetPropertyOperation(valueId, true, "setProp", complexJsonObject, Some(StringValue("oldId", "oldValue")))
         val asDoc = OrientDBOperationMapper.operationToODocument(op)
         val reverted = OrientDBOperationMapper.oDocumentToOperation(asDoc)
         reverted shouldBe op
       }
 
       "correctly map and unmap an ObjectAddPropertyOperation" in {
-        val op = ObjectAddPropertyOperation(valueId, true, "addProp", complexJsonObject)
+        val op = AppliedObjectAddPropertyOperation(valueId, true, "addProp", complexJsonObject)
         val asDoc = OrientDBOperationMapper.operationToODocument(op)
         val reverted = OrientDBOperationMapper.oDocumentToOperation(asDoc)
         reverted shouldBe op
       }
 
       "correctly map and unmap an ObjectRemovePropertyOperation" in {
-        val op = ObjectRemovePropertyOperation(valueId, true, "remvoveProp")
+        val op = AppliedObjectRemovePropertyOperation(valueId, true, "remvoveProp", Some(StringValue("oldId", "oldValue")))
         val asDoc = OrientDBOperationMapper.operationToODocument(op)
         val reverted = OrientDBOperationMapper.oDocumentToOperation(asDoc)
         reverted shouldBe op
       }
 
       "correctly map and unmap an ObjectSetOperation" in {
-        val op = ObjectSetOperation(valueId, true, complexJsonObject.children)
+        val op = AppliedObjectSetOperation(valueId, true, complexJsonObject.children, Some(Map[String, DataValue]()))
         val asDoc = OrientDBOperationMapper.operationToODocument(op)
         val reverted = OrientDBOperationMapper.oDocumentToOperation(asDoc)
         reverted shouldBe op
@@ -150,14 +151,14 @@ class OrientDBOperationMapperSpec
 
     "converting number operations" must {
       "correctly map and unmap an NumberAddOperation" in {
-        val op = NumberAddOperation(valueId, true, 1)
+        val op = AppliedNumberAddOperation(valueId, true, 1)
         val asDoc = OrientDBOperationMapper.operationToODocument(op)
         val reverted = OrientDBOperationMapper.oDocumentToOperation(asDoc)
         reverted shouldBe op
       }
 
       "correctly map and unmap an NumberSetOperation" in {
-        val op = NumberSetOperation(valueId, true, 1)
+        val op = AppliedNumberSetOperation(valueId, true, 1, Some(3))
         val asDoc = OrientDBOperationMapper.operationToODocument(op)
         val reverted = OrientDBOperationMapper.oDocumentToOperation(asDoc)
         reverted shouldBe op
@@ -167,10 +168,10 @@ class OrientDBOperationMapperSpec
     "converting compound operations" must {
       "correctly map and unmap a CompoundOperation" in {
         val ops = List(
-          ObjectSetOperation(valueId, true, complexJsonObject.children),
-          ArrayRemoveOperation("vid2", true, 3))
+          AppliedObjectSetOperation(valueId, true, complexJsonObject.children, Some(Map[String, DataValue]())),
+          AppliedArrayRemoveOperation("vid2", true, 3, Some(StringValue("oldId", "oldValue"))))
 
-        val op = CompoundOperation(ops)
+        val op = AppliedCompoundOperation(ops)
         val asDoc = OrientDBOperationMapper.operationToODocument(op)
         val reverted = OrientDBOperationMapper.oDocumentToOperation(asDoc)
         reverted shouldBe op

@@ -35,6 +35,39 @@ import com.convergencelabs.server.domain.model.reference.RangeReference
 import com.convergencelabs.server.domain.model.reference.ModelReference
 import com.convergencelabs.server.domain.model.reference.ElementReferenceManager
 import com.convergencelabs.server.domain.model.reference.ElementReference
+import com.convergencelabs.server.domain.model.ot.AppliedOperation
+import com.convergencelabs.server.domain.model.ot.AppliedCompoundOperation
+import com.convergencelabs.server.domain.model.ot.AppliedDiscreteOperation
+import com.convergencelabs.server.domain.model.ot.AppliedStringRemoveOperation
+import com.convergencelabs.server.domain.model.ot.AppliedStringInsertOperation
+import com.convergencelabs.server.domain.model.ot.AppliedStringSetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedObjectSetPropertyOperation
+import com.convergencelabs.server.domain.model.ot.AppliedObjectRemovePropertyOperation
+import com.convergencelabs.server.domain.model.ot.AppliedObjectSetOperation
+import com.convergencelabs.server.domain.model.ot.ObjectAddPropertyOperation
+import com.convergencelabs.server.domain.model.ot.AppliedObjectAddPropertyOperation
+import com.convergencelabs.server.domain.model.ot.AppliedNumberAddOperation
+import com.convergencelabs.server.domain.model.ot.AppliedNumberSetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedBooleanSetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedArrayInsertOperation
+import com.convergencelabs.server.domain.model.ot.AppliedArrayRemoveOperation
+import com.convergencelabs.server.domain.model.ot.AppliedArrayReplaceOperation
+import com.convergencelabs.server.domain.model.ot.AppliedArrayMoveOperation
+import com.convergencelabs.server.domain.model.ot.AppliedArraySetOperation
+import com.convergencelabs.server.domain.model.ot.StringRemoveOperation
+import com.convergencelabs.server.domain.model.ot.StringInsertOperation
+import com.convergencelabs.server.domain.model.ot.StringSetOperation
+import com.convergencelabs.server.domain.model.ot.ObjectSetPropertyOperation
+import com.convergencelabs.server.domain.model.ot.ObjectRemovePropertyOperation
+import com.convergencelabs.server.domain.model.ot.ObjectSetOperation
+import com.convergencelabs.server.domain.model.ot.NumberAddOperation
+import com.convergencelabs.server.domain.model.ot.NumberSetOperation
+import com.convergencelabs.server.domain.model.ot.BooleanSetOperation
+import com.convergencelabs.server.domain.model.ot.ArrayInsertOperation
+import com.convergencelabs.server.domain.model.ot.ArrayRemoveOperation
+import com.convergencelabs.server.domain.model.ot.ArrayReplaceOperation
+import com.convergencelabs.server.domain.model.ot.ArrayMoveOperation
+import com.convergencelabs.server.domain.model.ot.ArraySetOperation
 
 class RealTimeModel(
     private[this] val fqn: ModelFqn,
@@ -84,14 +117,14 @@ class RealTimeModel(
     }
   }
 
-  def processOperationEvent(unprocessed: UnprocessedOperationEvent): Try[ProcessedOperationEvent] = {
+  def processOperationEvent(unprocessed: UnprocessedOperationEvent): Try[(ProcessedOperationEvent, AppliedOperation)] = {
     // FIXME  We need to validate the operation (id != null for example)
     val preprocessed = unprocessed.copy(operation = noOpObsoleteOperations(unprocessed.operation))
     val processed = cc.processRemoteOperation(preprocessed)
     applyOpperation(processed.operation) match {
-      case Success(_) =>
+      case Success(appliedOperation) =>
         cc.commit()
-        Success(processed)
+        Success(processed, appliedOperation)
       case Failure(f) =>
         cc.rollback()
         Failure(f)
@@ -114,16 +147,16 @@ class RealTimeModel(
     }
   }
 
-  private[this] def applyOpperation(op: Operation): Try[Unit] = {
+  private[this] def applyOpperation(op: Operation): Try[AppliedOperation] = {
     op match {
       case c: CompoundOperation =>
-        c.operations foreach { o =>
+        val appliedOperations = c.operations map { o =>
           applyDiscreteOperation(o) match {
-            case Failure(f) => throw f
-            case _          =>
+            case Failure(f)                           => throw f
+            case Success(appliedOp: AppliedOperation) => appliedOp
           }
         }
-        Success(())
+        Success(AppliedCompoundOperation(appliedOperations))
       case d: DiscreteOperation =>
         applyDiscreteOperation(d)
     }
@@ -188,18 +221,34 @@ class RealTimeModel(
     }
   }
 
-  def applyDiscreteOperation(op: DiscreteOperation): Try[Unit] = {
+  def applyDiscreteOperation(op: DiscreteOperation): Try[AppliedDiscreteOperation] = {
     if (!op.noOp) {
       val value = this.idToValue(op.id)
       value.processOperation(op)
     } else {
-      Success(())
+      Success(op match {
+        case StringRemoveOperation(id, noOp, index, value)         => AppliedStringRemoveOperation(id, noOp, index, value.length(), None)
+        case StringInsertOperation(id, noOp, index, value)         => AppliedStringInsertOperation(id, noOp, index, value)
+        case StringSetOperation(id, noOp, value)                   => AppliedStringSetOperation(id, noOp, value, None) 
+        case ObjectSetPropertyOperation(id, noOp, property, value) => AppliedObjectSetPropertyOperation(id, noOp, property, value, None)
+        case ObjectAddPropertyOperation(id, noOp, property, value) => AppliedObjectAddPropertyOperation(id, noOp, property, value)
+        case ObjectRemovePropertyOperation(id, noOp, property)     => AppliedObjectRemovePropertyOperation(id, noOp, property, None)
+        case ObjectSetOperation(id, noOp, value)                   => AppliedObjectSetOperation(id, noOp, value, None)
+        case NumberAddOperation(id, noOp, value)                   => AppliedNumberAddOperation(id, noOp, value)
+        case NumberSetOperation(id, noOp, value)                   => AppliedNumberSetOperation(id, noOp, value, None)
+        case BooleanSetOperation(id, noOp, value)                  => AppliedBooleanSetOperation(id, noOp, value, None)
+        case ArrayInsertOperation(id, noOp, index, value)          => AppliedArrayInsertOperation(id, noOp, index, value)
+        case ArrayRemoveOperation(id, noOp, index)                 => AppliedArrayRemoveOperation(id, noOp, index, None)
+        case ArrayReplaceOperation(id, noOp, index, value)         => AppliedArrayReplaceOperation(id, noOp, index, value, None)
+        case ArrayMoveOperation(id, noOp, fromIndex, toIndex)      => AppliedArrayMoveOperation(id, noOp, fromIndex, toIndex)
+        case ArraySetOperation(id, noOp, value)                    => AppliedArraySetOperation(id, noOp, value, None)
+      })
     }
   }
 
   def references(): Set[ReferenceState] = {
-   val mine = elementReferenceManager.referenceMap().getAll().map { x => toReferenceState(x) }
-   this.references(this.data) ++ mine
+    val mine = elementReferenceManager.referenceMap().getAll().map { x => toReferenceState(x) }
+    this.references(this.data) ++ mine
   }
 
   def references(value: RealTimeValue): Set[ReferenceState] = {
@@ -217,10 +266,10 @@ class RealTimeModel(
 
   def toReferenceState(r: ModelReference[_]): ReferenceState = {
     val refType = r match {
-      case ref: IndexReference => ReferenceType.Index
-      case ref: RangeReference => ReferenceType.Range
+      case ref: IndexReference   => ReferenceType.Index
+      case ref: RangeReference   => ReferenceType.Range
       case ref: ElementReference => ReferenceType.Element
-      case _                   => throw new IllegalArgumentException("Unexpected reference type")
+      case _                     => throw new IllegalArgumentException("Unexpected reference type")
     }
 
     ReferenceState(
