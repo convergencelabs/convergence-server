@@ -19,7 +19,7 @@ object StringRemoveOperationMapper extends ODocumentMapper {
     doc.field(Fields.NoOp, noOp)
     doc.field(Fields.Idx, index)
     doc.field(Fields.Length, length)
-    doc.field(Fields.OldValue, oldValue)
+    doc.field(Fields.OldValue, oldValue.getOrElse(null))
     doc
   }
 

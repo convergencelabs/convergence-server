@@ -18,7 +18,7 @@ object NumberSetOperationMapper extends ODocumentMapper {
     doc.field(Fields.Id, id)
     doc.field(Fields.NoOp, noOp)
     doc.field(Fields.Val, value)
-    doc.field(Fields.OldVal, oldValue.getOrElse(null))
+    doc.field(Fields.OldValue, oldValue.getOrElse(null))
     doc
   }
 
@@ -32,7 +32,7 @@ object NumberSetOperationMapper extends ODocumentMapper {
     val id = doc.field(Fields.Id).asInstanceOf[String]
     val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
     val value = doc.field(Fields.Val).asInstanceOf[Double]
-    val oldValue = Option(doc.field(Fields.OldVal).asInstanceOf[Double])
+    val oldValue = Option(doc.field(Fields.OldValue).asInstanceOf[Double])
     AppliedNumberSetOperation(id, noOp, value, oldValue)
   }
 
@@ -42,6 +42,6 @@ object NumberSetOperationMapper extends ODocumentMapper {
     val Id = "vid"
     val NoOp = "noOp"
     val Val = "val"
-    val OldVal = "oldVal"
+    val OldValue = "oldVal"
   }
 }

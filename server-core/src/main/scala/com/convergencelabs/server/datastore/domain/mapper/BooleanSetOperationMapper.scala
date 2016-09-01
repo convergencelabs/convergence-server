@@ -18,7 +18,7 @@ object BooleanSetOperationMapper extends ODocumentMapper {
     doc.field(Fields.Id, id)
     doc.field(Fields.NoOp, noOp)
     doc.field(Fields.Val, value)
-    doc.field(Fields.OldVal, oldValue.getOrElse(null))
+    doc.field(Fields.OldValue, oldValue.getOrElse(null))
     doc
   }
 
@@ -32,7 +32,7 @@ object BooleanSetOperationMapper extends ODocumentMapper {
     val id = doc.field(Fields.Id).asInstanceOf[String]
     val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
     val value = doc.field(Fields.Val).asInstanceOf[Boolean]
-    val oldValue = doc.field(Fields.OldVal).asInstanceOf[Boolean]
+    val oldValue = doc.field(Fields.OldValue).asInstanceOf[Boolean]
     AppliedBooleanSetOperation(id, noOp, value, Option(oldValue))
   }
 
@@ -42,6 +42,6 @@ object BooleanSetOperationMapper extends ODocumentMapper {
     val Id = "vid"
     val NoOp = "noOp"
     val Val = "val"
-    val OldVal = "oldValue"
+    val OldValue = "oldVal"
   }
 }

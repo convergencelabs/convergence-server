@@ -47,6 +47,6 @@ object ObjectRemovePropertyOperationMapper extends ODocumentMapper {
     val NoOp = "noOp"
     val Prop = "prop"
     val Val = "val"
-    val OldValue = "oldValue"
+    val OldValue = "oldVal"
   }
 }

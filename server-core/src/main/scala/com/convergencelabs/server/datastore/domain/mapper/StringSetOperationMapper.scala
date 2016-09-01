@@ -18,7 +18,7 @@ object StringSetOperationMapper extends ODocumentMapper {
     doc.field(Fields.Id, id)
     doc.field(Fields.NoOp, noOp)
     doc.field(Fields.Val, value)
-    doc.field(Fields.OldValue, oldValue)
+    doc.field(Fields.OldValue, oldValue.getOrElse(null))
     doc
   }
 

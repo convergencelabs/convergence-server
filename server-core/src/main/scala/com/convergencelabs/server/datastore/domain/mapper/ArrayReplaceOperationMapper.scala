@@ -50,6 +50,6 @@ object ArrayReplaceOperationMapper extends ODocumentMapper {
     val NoOp = "noOp"
     val Val = "val"
     val Idx = "idx"
-    val OldValue = "oldValue"
+    val OldValue = "oldVal"
   }
 }

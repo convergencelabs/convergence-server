@@ -27,7 +27,7 @@ object ArraySetOperationMapper extends ODocumentMapper {
     var docValue = value map(_.asODocument);
     doc.field(Fields.Val, docValue.asJava)
     var oldValueDoc = oldValue map {_ map {_.asODocument}} map {_.asJava};
-    doc.field(Fields.Val, oldValueDoc.getOrElse(null))
+    doc.field(Fields.OldValue, oldValueDoc.getOrElse(null))
     doc
   }
 
@@ -41,7 +41,7 @@ object ArraySetOperationMapper extends ODocumentMapper {
     val id = doc.field(Fields.Id).asInstanceOf[String]
     val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
     val value = doc.field(Fields.Val).asInstanceOf[JavaList[ODocument]].asScala.toList.map {v => v.asDataValue}
-    val oldValue = Option(doc.field(Fields.OldValue)) map {_.asInstanceOf[JavaList[ODocument]].asScala.toList.map {_.asDataValue}}
+    val oldValue = Option(doc.field(Fields.OldValue).asInstanceOf[JavaList[ODocument]]) map {_.asScala.toList.map {_.asDataValue}}
     AppliedArraySetOperation(id, noOp, value, oldValue)
   }
 
@@ -51,6 +51,6 @@ object ArraySetOperationMapper extends ODocumentMapper {
     val Id = "vid"
     val NoOp = "noOp"
     val Val = "val"
-    val OldValue = "oldValue"
+    val OldValue = "oldVal"
   }
 }

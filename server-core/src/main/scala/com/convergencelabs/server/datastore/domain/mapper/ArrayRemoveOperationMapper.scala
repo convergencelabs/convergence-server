@@ -47,6 +47,6 @@ object ArrayRemoveOperationMapper extends ODocumentMapper {
     val Id = "vid"
     val NoOp = "noOp"
     val Idx = "idx"
-    val OldValue = "oldValue"
+    val OldValue = "oldVal"
   }
 }
