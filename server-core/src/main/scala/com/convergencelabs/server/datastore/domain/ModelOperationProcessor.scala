@@ -19,24 +19,24 @@ import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.server.datastore.domain.mapper.ModelOperationMapper.ModelOperationToODocument
 import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelOperation
-import com.convergencelabs.server.domain.model.ot.ArrayInsertOperation
-import com.convergencelabs.server.domain.model.ot.ArrayMoveOperation
-import com.convergencelabs.server.domain.model.ot.ArrayRemoveOperation
-import com.convergencelabs.server.domain.model.ot.ArrayReplaceOperation
-import com.convergencelabs.server.domain.model.ot.ArraySetOperation
-import com.convergencelabs.server.domain.model.ot.BooleanSetOperation
-import com.convergencelabs.server.domain.model.ot.CompoundOperation
-import com.convergencelabs.server.domain.model.ot.DiscreteOperation
-import com.convergencelabs.server.domain.model.ot.NumberAddOperation
-import com.convergencelabs.server.domain.model.ot.NumberSetOperation
-import com.convergencelabs.server.domain.model.ot.ObjectAddPropertyOperation
-import com.convergencelabs.server.domain.model.ot.ObjectRemovePropertyOperation
-import com.convergencelabs.server.domain.model.ot.ObjectSetOperation
-import com.convergencelabs.server.domain.model.ot.ObjectSetPropertyOperation
-import com.convergencelabs.server.domain.model.ot.Operation
-import com.convergencelabs.server.domain.model.ot.StringInsertOperation
-import com.convergencelabs.server.domain.model.ot.StringRemoveOperation
-import com.convergencelabs.server.domain.model.ot.StringSetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedArrayInsertOperation
+import com.convergencelabs.server.domain.model.ot.AppliedArrayMoveOperation
+import com.convergencelabs.server.domain.model.ot.AppliedArrayRemoveOperation
+import com.convergencelabs.server.domain.model.ot.AppliedArrayReplaceOperation
+import com.convergencelabs.server.domain.model.ot.AppliedArraySetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedBooleanSetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedCompoundOperation
+import com.convergencelabs.server.domain.model.ot.AppliedDiscreteOperation
+import com.convergencelabs.server.domain.model.ot.AppliedNumberAddOperation
+import com.convergencelabs.server.domain.model.ot.AppliedNumberSetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedObjectAddPropertyOperation
+import com.convergencelabs.server.domain.model.ot.AppliedObjectRemovePropertyOperation
+import com.convergencelabs.server.domain.model.ot.AppliedObjectSetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedObjectSetPropertyOperation
+import com.convergencelabs.server.domain.model.ot.AppliedOperation
+import com.convergencelabs.server.domain.model.ot.AppliedStringInsertOperation
+import com.convergencelabs.server.domain.model.ot.AppliedStringRemoveOperation
+import com.convergencelabs.server.domain.model.ot.AppliedStringSetOperation
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.orientechnologies.orient.core.db.record.OIdentifiable
@@ -93,35 +93,35 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
   }
 
   // scalastyle:off cyclomatic.complexity
-  private[this] def applyOperationToModel(fqn: ModelFqn, operation: Operation, db: ODatabaseDocumentTx): Unit = {
+  private[this] def applyOperationToModel(fqn: ModelFqn, operation: AppliedOperation, db: ODatabaseDocumentTx): Unit = {
     operation match {
-      case op: CompoundOperation => op.operations foreach { o => applyOperationToModel(fqn, o, db) }
-      case op: DiscreteOperation if op.noOp => // Do nothing since this is a noOp
+      case op: AppliedCompoundOperation => op.operations foreach { o => applyOperationToModel(fqn, o, db) }
+      case op: AppliedDiscreteOperation if op.noOp => // Do nothing since this is a noOp
 
-      case op: ArrayInsertOperation => applyArrayInsertOperation(fqn, op, db)
-      case op: ArrayRemoveOperation => applyArrayRemoveOperation(fqn, op, db)
-      case op: ArrayReplaceOperation => applyArrayReplaceOperation(fqn, op, db)
-      case op: ArrayMoveOperation => applyArrayMoveOperation(fqn, op, db)
-      case op: ArraySetOperation => applyArraySetOperation(fqn, op, db)
+      case op: AppliedArrayInsertOperation => applyArrayInsertOperation(fqn, op, db)
+      case op: AppliedArrayRemoveOperation => applyArrayRemoveOperation(fqn, op, db)
+      case op: AppliedArrayReplaceOperation => applyArrayReplaceOperation(fqn, op, db)
+      case op: AppliedArrayMoveOperation => applyArrayMoveOperation(fqn, op, db)
+      case op: AppliedArraySetOperation => applyArraySetOperation(fqn, op, db)
 
-      case op: ObjectAddPropertyOperation => applyObjectAddPropertyOperation(fqn, op, db)
-      case op: ObjectSetPropertyOperation => applyObjectSetPropertyOperation(fqn, op, db)
-      case op: ObjectRemovePropertyOperation => applyObjectRemovePropertyOperation(fqn, op, db)
-      case op: ObjectSetOperation => applyObjectSetOperation(fqn, op, db)
+      case op: AppliedObjectAddPropertyOperation => applyObjectAddPropertyOperation(fqn, op, db)
+      case op: AppliedObjectSetPropertyOperation => applyObjectSetPropertyOperation(fqn, op, db)
+      case op: AppliedObjectRemovePropertyOperation => applyObjectRemovePropertyOperation(fqn, op, db)
+      case op: AppliedObjectSetOperation => applyObjectSetOperation(fqn, op, db)
 
-      case op: StringInsertOperation => applyStringInsertOperation(fqn, op, db)
-      case op: StringRemoveOperation => applyStringRemoveOperation(fqn, op, db)
-      case op: StringSetOperation => applyStringSetOperation(fqn, op, db)
+      case op: AppliedStringInsertOperation => applyStringInsertOperation(fqn, op, db)
+      case op: AppliedStringRemoveOperation => applyStringRemoveOperation(fqn, op, db)
+      case op: AppliedStringSetOperation => applyStringSetOperation(fqn, op, db)
 
-      case op: NumberAddOperation => applyNumberAddOperation(fqn, op, db)
-      case op: NumberSetOperation => applyNumberSetOperation(fqn, op, db)
+      case op: AppliedNumberAddOperation => applyNumberAddOperation(fqn, op, db)
+      case op: AppliedNumberSetOperation => applyNumberSetOperation(fqn, op, db)
 
-      case op: BooleanSetOperation => applyBooleanSetOperation(fqn, op, db)
+      case op: AppliedBooleanSetOperation => applyBooleanSetOperation(fqn, op, db)
     }
   }
   // scalastyle:on cyclomatic.complexity
 
-  private[this] def applyArrayInsertOperation(fqn: ModelFqn, operation: ArrayInsertOperation, db: ODatabaseDocumentTx): Unit = {
+  private[this] def applyArrayInsertOperation(fqn: ModelFqn, operation: AppliedArrayInsertOperation, db: ODatabaseDocumentTx): Unit = {
     val value = OrientDataValueBuilder.dataValueToODocument(operation.value, getModelRid(fqn, db))
     value.save()
 
@@ -144,7 +144,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
   }
 
   private[this] def applyArrayRemoveOperation(
-    fqn: ModelFqn, operation: ArrayRemoveOperation, db: ODatabaseDocumentTx): Unit = {
+    fqn: ModelFqn, operation: AppliedArrayRemoveOperation, db: ODatabaseDocumentTx): Unit = {
     val queryString =
       s"""UPDATE ArrayValue SET
          |  children = arrayRemove(children, :index)
@@ -163,7 +163,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
   }
 
   private[this] def applyArrayReplaceOperation(
-    fqn: ModelFqn, operation: ArrayReplaceOperation, db: ODatabaseDocumentTx): Unit = {
+    fqn: ModelFqn, operation: AppliedArrayReplaceOperation, db: ODatabaseDocumentTx): Unit = {
     val value = OrientDataValueBuilder.dataValueToODocument(operation.value, getModelRid(fqn, db))
     value.save()
     db.commit()
@@ -186,7 +186,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     ()
   }
 
-  private[this] def applyArrayMoveOperation(fqn: ModelFqn, operation: ArrayMoveOperation, db: ODatabaseDocumentTx): Unit = {
+  private[this] def applyArrayMoveOperation(fqn: ModelFqn, operation: AppliedArrayMoveOperation, db: ODatabaseDocumentTx): Unit = {
     val queryString =
       s"""UPDATE ArrayValue SET
          |  children = arrayMove(children, :fromIndex, :toIndex)
@@ -206,7 +206,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     ()
   }
 
-  private[this] def applyArraySetOperation(fqn: ModelFqn, operation: ArraySetOperation, db: ODatabaseDocumentTx): Unit = {
+  private[this] def applyArraySetOperation(fqn: ModelFqn, operation: AppliedArraySetOperation, db: ODatabaseDocumentTx): Unit = {
     val children = operation.value map (v => OrientDataValueBuilder.dataValueToODocument(v, getModelRid(fqn, db)))
     children.foreach { child => child.save() }
     db.commit()
@@ -226,7 +226,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     Unit
   }
 
-  private[this] def applyObjectAddPropertyOperation(fqn: ModelFqn, operation: ObjectAddPropertyOperation, db: ODatabaseDocumentTx): Unit = {
+  private[this] def applyObjectAddPropertyOperation(fqn: ModelFqn, operation: AppliedObjectAddPropertyOperation, db: ODatabaseDocumentTx): Unit = {
     val value = OrientDataValueBuilder.dataValueToODocument(operation.value, getModelRid(fqn, db))
     value.save()
     db.commit()
@@ -251,7 +251,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
   }
 
   private[this] def applyObjectSetPropertyOperation(
-    fqn: ModelFqn, operation: ObjectSetPropertyOperation, db: ODatabaseDocumentTx): Unit = {
+    fqn: ModelFqn, operation: AppliedObjectSetPropertyOperation, db: ODatabaseDocumentTx): Unit = {
     val value = OrientDataValueBuilder.dataValueToODocument(operation.value, getModelRid(fqn, db))
     value.save()
     db.commit()
@@ -275,7 +275,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     ()
   }
 
-  private[this] def applyObjectRemovePropertyOperation(fqn: ModelFqn, operation: ObjectRemovePropertyOperation, db: ODatabaseDocumentTx): Unit = {
+  private[this] def applyObjectRemovePropertyOperation(fqn: ModelFqn, operation: AppliedObjectRemovePropertyOperation, db: ODatabaseDocumentTx): Unit = {
     val queryString =
       s"""UPDATE ObjectValue REMOVE
          |  children = :property
@@ -293,7 +293,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     db.commit()
   }
 
-  private[this] def applyObjectSetOperation(fqn: ModelFqn, operation: ObjectSetOperation, db: ODatabaseDocumentTx): Unit = {
+  private[this] def applyObjectSetOperation(fqn: ModelFqn, operation: AppliedObjectSetOperation, db: ODatabaseDocumentTx): Unit = {
     val children = operation.value map { case (k, v) => (k, OrientDataValueBuilder.dataValueToODocument(v, getModelRid(fqn, db))) }
     children.values foreach { child => child.save() }
     db.commit()
@@ -316,7 +316,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     ()
   }
 
-  private[this] def applyStringInsertOperation(fqn: ModelFqn, operation: StringInsertOperation, db: ODatabaseDocumentTx): Unit = {
+  private[this] def applyStringInsertOperation(fqn: ModelFqn, operation: AppliedStringInsertOperation, db: ODatabaseDocumentTx): Unit = {
     val queryString =
       s"""UPDATE StringValue SET
          |  value = value.left(:index).append(:value).append(value.substring(:index))
@@ -347,8 +347,8 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     ()
   }
 
-  private[this] def applyStringRemoveOperation(fqn: ModelFqn, operation: StringRemoveOperation, db: ODatabaseDocumentTx): Unit = {
-    val endLength = operation.index + operation.value.length
+  private[this] def applyStringRemoveOperation(fqn: ModelFqn, operation: AppliedStringRemoveOperation, db: ODatabaseDocumentTx): Unit = {
+    val endLength = operation.index + operation.length
     val queryString =
       s"""UPDATE StringValue SET
          |  value = value.left(:index).append(value.substring(:endLength))
@@ -367,7 +367,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     db.commit()
   }
 
-  private[this] def applyStringSetOperation(fqn: ModelFqn, operation: StringSetOperation, db: ODatabaseDocumentTx): Unit = {
+  private[this] def applyStringSetOperation(fqn: ModelFqn, operation: AppliedStringSetOperation, db: ODatabaseDocumentTx): Unit = {
     val queryString =
       s"""UPDATE StringValue SET
          |  value = :value
@@ -385,7 +385,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     db.commit()
   }
 
-  private[this] def applyNumberAddOperation(fqn: ModelFqn, operation: NumberAddOperation, db: ODatabaseDocumentTx): Unit = {
+  private[this] def applyNumberAddOperation(fqn: ModelFqn, operation: AppliedNumberAddOperation, db: ODatabaseDocumentTx): Unit = {
     val value = operation.value
     val queryString =
       s"""UPDATE DoubleValue SET
@@ -402,7 +402,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     db.command(updateCommand).execute(params.asJava)
   }
 
-  private[this] def applyNumberSetOperation(fqn: ModelFqn, operation: NumberSetOperation, db: ODatabaseDocumentTx): Unit = {
+  private[this] def applyNumberSetOperation(fqn: ModelFqn, operation: AppliedNumberSetOperation, db: ODatabaseDocumentTx): Unit = {
     val queryString =
       s"""UPDATE DoubleValue SET
          |  value = :value
@@ -419,7 +419,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     db.command(updateCommand).execute(params.asJava)
   }
 
-  private[this] def applyBooleanSetOperation(fqn: ModelFqn, operation: BooleanSetOperation, db: ODatabaseDocumentTx): Unit = {
+  private[this] def applyBooleanSetOperation(fqn: ModelFqn, operation: AppliedBooleanSetOperation, db: ODatabaseDocumentTx): Unit = {
     val queryString =
       s"""UPDATE BooleanValue SET
          |  value = :value

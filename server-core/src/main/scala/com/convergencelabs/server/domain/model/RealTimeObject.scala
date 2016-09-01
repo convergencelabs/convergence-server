@@ -11,6 +11,12 @@ import org.json4s.JsonAST.JObject
 import com.convergencelabs.server.domain.model.ot.DiscreteOperation
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.model.reference.PropertyRemoveAware
+import com.convergencelabs.server.domain.model.ot.AppliedObjectOperation
+import com.convergencelabs.server.domain.model.ot.AppliedObjectAddPropertyOperation
+import com.convergencelabs.server.domain.model.ot.AppliedObjectRemovePropertyOperation
+import com.convergencelabs.server.domain.model.data.DataValue
+import com.convergencelabs.server.domain.model.ot.AppliedObjectSetPropertyOperation
+import com.convergencelabs.server.domain.model.ot.AppliedObjectSetOperation
 
 class RealTimeObject(
   private[this] val value: ObjectValue,
@@ -47,6 +53,10 @@ class RealTimeObject(
   def data(): Map[String, _] = {
     childValues.mapValues { child => child.data() }
   }
+  
+  def dataValue(): ObjectValue = {
+    ObjectValue(id, childValues.mapValues { child => child.dataValue()})
+  }
 
   protected def child(childPath: Any): Try[Option[RealTimeValue]] = {
     childPath match {
@@ -57,7 +67,7 @@ class RealTimeObject(
     }
   }
 
-  def processOperation(op: DiscreteOperation): Try[Unit] = Try {
+  def processOperation(op: DiscreteOperation): Try[AppliedObjectOperation] = Try {
     op match {
       case add: ObjectAddPropertyOperation => processAddPropertyOperation(add)
       case remove: ObjectRemovePropertyOperation => processRemovePropertyOperation(remove)
@@ -67,40 +77,52 @@ class RealTimeObject(
     }
   }
 
-  def processAddPropertyOperation(op: ObjectAddPropertyOperation): Try[Unit] = Try {
-    if (childValues.contains(op.property)) {
-      new IllegalArgumentException(s"Object already contains property ${op.property}")
+  def processAddPropertyOperation(op: ObjectAddPropertyOperation): AppliedObjectAddPropertyOperation = {
+    val ObjectAddPropertyOperation(id, noOp, property, value) = op
+    if (childValues.contains(property)) {
+      new IllegalArgumentException(s"Object already contains property ${property}")
     }
-    val child = this.model.createValue(op.value, Some(this), Some(op.property))
-    this.childValues = this.childValues + (op.property -> child)
+    val child = this.model.createValue(value, Some(this), Some(property))
+    this.childValues = this.childValues + (property -> child)
+    
+    AppliedObjectAddPropertyOperation(id, noOp, property, value)
   }
 
-  def processRemovePropertyOperation(op: ObjectRemovePropertyOperation): Try[Unit] = Try {
-    if (!childValues.contains(op.property)) {
-      new IllegalArgumentException(s"Object does not contain property ${op.property}")
+  def processRemovePropertyOperation(op: ObjectRemovePropertyOperation): AppliedObjectRemovePropertyOperation = {
+    val ObjectRemovePropertyOperation(id, noOp, property) = op
+    if (!childValues.contains(property)) {
+      new IllegalArgumentException(s"Object does not contain property ${property}")
     }
 
-    val child = this.childValues(op.property)
-    childValues = this.childValues - op.property
+    val child = this.childValues(property)
+    childValues = this.childValues - property
 
     this.referenceManager.referenceMap.getAll().foreach {
       case x: PropertyRemoveAware => x.handlePropertyRemove(op.property)
     }
+    
+    AppliedObjectRemovePropertyOperation(id, noOp, property, Some(child.dataValue()))
   }
 
-  def processSetPropertyOperation(op: ObjectSetPropertyOperation): Try[Unit] = Try {
-    if (!childValues.contains(op.property)) {
-      new IllegalArgumentException(s"Object does not contain property ${op.property}")
+  def processSetPropertyOperation(op: ObjectSetPropertyOperation): AppliedObjectSetPropertyOperation = {
+    val ObjectSetPropertyOperation(id, noOp, property, value) = op
+    if (!childValues.contains(property)) {
+      new IllegalArgumentException(s"Object does not contain property ${property}")
     }
 
     val oldChild = childValues(op.property)
-    val child = this.model.createValue(op.value, Some(this), Some(op.property))
-    childValues = childValues + (op.property -> child)
+    val child = this.model.createValue(op.value, Some(this), Some(property))
+    childValues = childValues + (property -> child)
+    
+    AppliedObjectSetPropertyOperation(id, noOp, property, value, Some(oldChild.dataValue()))
   }
 
-  def processSetValueOperation(op: ObjectSetOperation): Try[Unit] = Try {
+  def processSetValueOperation(op: ObjectSetOperation): AppliedObjectSetOperation = {
+    val ObjectSetOperation(id, noOp, value) = op
+    val oldValue = dataValue()
     childValues = op.value.map {
       case (k, v) => (k, this.model.createValue(v, Some(this), Some(k)))
     }.toMap
+    AppliedObjectSetOperation(id, noOp, value, Some(oldValue.children))
   }
 }

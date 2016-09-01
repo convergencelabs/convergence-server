@@ -9,7 +9,8 @@ INSERT INTO ModelOperation SET
     "@type": "d",
     "@class":"StringRemoveOperation",
     "idx": 1,
+    "length": 1,
     "noOp": false,
     "vid": "pp1-fname",
-    "val": "j"
+    "oldVal": "j"
   };

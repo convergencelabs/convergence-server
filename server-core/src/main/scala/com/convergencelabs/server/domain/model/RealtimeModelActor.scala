@@ -425,14 +425,14 @@ class RealtimeModelActor(
    */
   private[this] def transformAndApplyOperation(sk: SessionKey, unprocessedOpEvent: UnprocessedOperationEvent): Try[OutgoingOperation] = {
     val timestamp = Instant.now()
-    this.model.processOperationEvent(unprocessedOpEvent).map { processedOpEvent =>
+    this.model.processOperationEvent(unprocessedOpEvent).map { case (processedOpEvent, appliedOp) =>
       persistenceStream ! ModelOperation(
         modelFqn,
         processedOpEvent.resultingVersion,
         timestamp,
         sk.uid,
         sk.sid,
-        processedOpEvent.operation)
+        appliedOp)
 
       OutgoingOperation(
         modelResourceId,

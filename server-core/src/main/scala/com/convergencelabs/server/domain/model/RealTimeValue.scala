@@ -6,6 +6,9 @@ import com.convergencelabs.server.domain.model.ot.DiscreteOperation
 import scala.util.Failure
 import com.convergencelabs.server.domain.model.reference.ReferenceManager
 import com.convergencelabs.server.domain.model.reference.ModelReference
+import com.convergencelabs.server.domain.model.ot.AppliedOperation
+import com.convergencelabs.server.domain.model.ot.AppliedDiscreteOperation
+import com.convergencelabs.server.domain.model.data.DataValue
 
 
 abstract class RealTimeValue(
@@ -41,8 +44,10 @@ abstract class RealTimeValue(
   }
 
   def data(): Any
+  
+  def dataValue(): DataValue
 
-  def processOperation(operation: DiscreteOperation): Try[Unit]
+  def processOperation(operation: DiscreteOperation): Try[AppliedDiscreteOperation]
 
   def references(): Set[ModelReference[_]] = {
     this.referenceManager.referenceMap().getAll()

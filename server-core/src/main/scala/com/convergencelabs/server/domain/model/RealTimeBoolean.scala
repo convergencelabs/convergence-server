@@ -7,6 +7,8 @@ import scala.util.Try
 import com.convergencelabs.server.domain.model.ot.DiscreteOperation
 import com.convergencelabs.server.domain.model.data.BooleanValue
 import scala.util.Failure
+import com.convergencelabs.server.domain.model.ot.AppliedBooleanOperation
+import com.convergencelabs.server.domain.model.ot.AppliedBooleanSetOperation
 
 class RealTimeBoolean(
   private[this] val value: BooleanValue,
@@ -18,17 +20,26 @@ class RealTimeBoolean(
   private[this] var boolean = value.value
 
   def data(): Boolean = {
-    this.boolean
+    boolean
+  }
+  
+  def dataValue(): BooleanValue = {
+    BooleanValue(id, boolean)
   }
 
-  def processOperation(op: DiscreteOperation): Try[Unit] = Try {
+  def processOperation(op: DiscreteOperation): Try[AppliedBooleanOperation] = Try {
     op match {
       case value: BooleanSetOperation => this.processSetOperation(value)
       case _ => throw new IllegalArgumentException("Invalid operation type in RealTimeBoolean");
     }
   }
 
-  private[this] def processSetOperation(op: BooleanSetOperation): Unit = {
-    this.boolean = op.value
+  private[this] def processSetOperation(op: BooleanSetOperation): AppliedBooleanSetOperation = {
+    val BooleanSetOperation(id, noOp, value) = op
+    
+    val oldValue = data()
+    boolean = value
+    
+    AppliedBooleanSetOperation(id, noOp, value, Some(oldValue))
   }
 }

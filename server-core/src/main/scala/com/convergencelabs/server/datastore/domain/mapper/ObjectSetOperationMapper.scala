@@ -7,7 +7,7 @@ import scala.collection.JavaConverters.mapAsScalaMapConverter
 import scala.language.implicitConversions
 
 import com.convergencelabs.server.datastore.mapper.ODocumentMapper
-import com.convergencelabs.server.domain.model.ot.ObjectSetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedObjectSetOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
 
 import DataValueMapper.DataValueToODocument
@@ -15,31 +15,34 @@ import DataValueMapper.ODocumentToDataValue
 
 object ObjectSetOperationMapper extends ODocumentMapper {
 
-  private[domain] implicit class ObjectSetOperationToODocument(val s: ObjectSetOperation) extends AnyVal {
+  private[domain] implicit class ObjectSetOperationToODocument(val s: AppliedObjectSetOperation) extends AnyVal {
     def asODocument: ODocument = objectSetOperationToODocument(s)
   }
 
-  private[domain] implicit def objectSetOperationToODocument(obj: ObjectSetOperation): ODocument = {
-    val ObjectSetOperation(id, noOp, value) = obj
+  private[domain] implicit def objectSetOperationToODocument(obj: AppliedObjectSetOperation): ODocument = {
+    val AppliedObjectSetOperation(id, noOp, value, oldValue) = obj
     val doc = new ODocument(DocumentClassName)
     doc.field(Fields.Id, id)
     doc.field(Fields.NoOp, noOp)
     val valueDoc = obj.value map {case (k, v) => (k, v.asODocument)}
     doc.field(Fields.Val, valueDoc.asJava)
+    val oldValDoc = (oldValue map {_ map {case (k, v) => (k, v.asODocument)}}) map {_.asJava}
+    doc.field(Fields.OldValue, oldValDoc.getOrElse(null))
     doc
   }
 
   private[domain] implicit class ODocumentToObjectSetOperation(val d: ODocument) extends AnyVal {
-    def asObjectSetOperation: ObjectSetOperation = oDocumentToObjectSetOperation(d)
+    def asObjectSetOperation: AppliedObjectSetOperation = oDocumentToObjectSetOperation(d)
   }
 
-  private[domain] implicit def oDocumentToObjectSetOperation(doc: ODocument): ObjectSetOperation = {
+  private[domain] implicit def oDocumentToObjectSetOperation(doc: ODocument): AppliedObjectSetOperation = {
     validateDocumentClass(doc, DocumentClassName)
 
     val id = doc.field(Fields.Id).asInstanceOf[String]
     val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
     val value = doc.field(Fields.Val).asInstanceOf[JavaMap[String, ODocument]].asScala map {case (k, v) => (k, v.asDataValue)}
-    ObjectSetOperation(id, noOp, value.toMap)
+    val oldValue = Option(doc.field(Fields.OldValue).asInstanceOf[JavaMap[String, ODocument]]) map {_.asScala.toMap map {case (k, v) => (k, v.asDataValue)}}
+    AppliedObjectSetOperation(id, noOp, value.toMap, oldValue)
   }
 
   private[domain] val DocumentClassName = "ObjectSetOperation"
@@ -48,5 +51,6 @@ object ObjectSetOperationMapper extends ODocumentMapper {
     val Id = "vid"
     val NoOp = "noOp"
     val Val = "val"
+    val OldValue = "oldVal"
   }
 }

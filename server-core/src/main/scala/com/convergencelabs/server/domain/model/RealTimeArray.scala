@@ -23,6 +23,13 @@ import scala.util.Try
 import scala.util.Success
 import scala.util.Failure
 import com.convergencelabs.server.domain.model.data.ArrayValue
+import com.convergencelabs.server.domain.model.ot.AppliedArrayOperation
+import com.convergencelabs.server.domain.model.ot.AppliedArrayInsertOperation
+import com.convergencelabs.server.domain.model.ot.AppliedArrayRemoveOperation
+import com.convergencelabs.server.domain.model.data.DataValue
+import com.convergencelabs.server.domain.model.ot.AppliedArrayReplaceOperation
+import com.convergencelabs.server.domain.model.ot.AppliedArrayMoveOperation
+import com.convergencelabs.server.domain.model.ot.AppliedArraySetOperation
 
 class RealTimeArray(
   private[this] val value: ArrayValue,
@@ -59,6 +66,10 @@ class RealTimeArray(
   def data(): List[_] = {
     children.map({ v => v.data() })
   }
+  
+  def dataValue(): ArrayValue = {
+    ArrayValue(id, children map { _.dataValue() })
+  }
 
   protected def child(childPath: Any): Try[Option[RealTimeValue]] = {
     childPath match {
@@ -69,7 +80,7 @@ class RealTimeArray(
     }
   }
 
-  def processOperation(op: DiscreteOperation): Try[Unit] = Try {
+  def processOperation(op: DiscreteOperation): Try[AppliedArrayOperation] = Try {
     op match {
       case insert: ArrayInsertOperation => processInsertOperation(insert)
       case remove: ArrayRemoveOperation => processRemoveOperation(remove)
@@ -80,36 +91,51 @@ class RealTimeArray(
     }
   }
 
-  def processInsertOperation(op: ArrayInsertOperation): Unit = {
-    val child = this.model.createValue(op.value, Some(this), Some(parentField))
-    childValues = childValues.patch(op.index, List(child), 0)
-    this.updateIndices(op.index + 1, childValues.length - 1)
+  def processInsertOperation(op: ArrayInsertOperation): AppliedArrayInsertOperation = {
+    val ArrayInsertOperation(id, noOp, index, value) = op
+    val child = this.model.createValue(value, Some(this), Some(parentField))
+    childValues = childValues.patch(index, List(child), 0)
+    this.updateIndices(index + 1, childValues.length - 1)
+    
+    AppliedArrayInsertOperation(id, noOp, index, value)
   }
 
-  def processRemoveOperation(op: ArrayRemoveOperation): Unit = {
-    val oldChild = childValues(op.index)
-    childValues = childValues.patch(op.index, List(), 1)
-    this.updateIndices(op.index, childValues.length - 1)
+  def processRemoveOperation(op: ArrayRemoveOperation): AppliedArrayRemoveOperation = {
+    val ArrayRemoveOperation(id, noOp, index) = op
+    val oldChild = childValues(index)
+    childValues = childValues.patch(index, List(), 1)
+    this.updateIndices(index, childValues.length - 1)
+    
+    AppliedArrayRemoveOperation(id, noOp, index, Some(oldChild.dataValue()))
   }
 
-  def processReplaceOperation(op: ArrayReplaceOperation): Unit = {
-    val oldChild = childValues(op.index)
-    val child = this.model.createValue(op.value, Some(this), Some(parentField))
-    childValues = childValues.patch(op.index, List(child), 1)
+  def processReplaceOperation(op: ArrayReplaceOperation): AppliedArrayReplaceOperation = {
+    val ArrayReplaceOperation(id, noOp, index, value) = op
+    val oldChild = childValues(index)
+    val child = this.model.createValue(value, Some(this), Some(parentField))
+    childValues = childValues.patch(index, List(child), 1)
+    
+    AppliedArrayReplaceOperation(id, noOp, index, value, Some(oldChild.dataValue()))
   }
 
-  def processReorderOperation(op: ArrayMoveOperation): Unit = {
-    val child = childValues(op.fromIndex)
-    childValues = childValues.patch(op.fromIndex, List(), 1)
-    childValues = childValues.patch(op.toIndex, List(child), 0)
-    this.updateIndices(op.fromIndex, op.toIndex)
+  def processReorderOperation(op: ArrayMoveOperation): AppliedArrayMoveOperation = {
+    val ArrayMoveOperation(id, noOp, fromIndex, toIndex) = op
+    val child = childValues(fromIndex)
+    childValues = childValues.patch(fromIndex, List(), 1)
+    childValues = childValues.patch(toIndex, List(child), 0)
+    this.updateIndices(fromIndex, toIndex)
+    
+    AppliedArrayMoveOperation(id, noOp, fromIndex, toIndex)
   }
 
-  def processSetValueOperation(op: ArraySetOperation): Unit = {
+  def processSetValueOperation(op: ArraySetOperation): AppliedArraySetOperation = {
+    val ArraySetOperation(id, noOp, value) = op
+    val oldValue = dataValue()
     var i = 0;
-    childValues = op.value.map {
+    childValues = value.map {
       v => this.model.createValue(v, Some(this), Some({ i += 1; i }))
     }
+    AppliedArraySetOperation(id, noOp, value, Some(oldValue.children))
   }
 
   private[this] def updateIndices(fromIndex: Int, toIndex: Int): Unit = {

@@ -11,7 +11,7 @@ import org.json4s.JsonAST.JObject
 import com.convergencelabs.server.domain.model.ModelOperation
 import java.time.Instant
 import com.convergencelabs.server.domain.model.ModelFqn
-import com.convergencelabs.server.domain.model.ot.StringInsertOperation
+import com.convergencelabs.server.domain.model.ot.AppliedStringInsertOperation
 
 class ModelOperationMapperSpec
     extends WordSpec
@@ -29,7 +29,7 @@ class ModelOperationMapperSpec
           Instant.ofEpochMilli(System.currentTimeMillis()),
           "uid",
           "sid",
-          StringInsertOperation("vid", true, 5, "test")) // scalastyle:off magic.number
+          AppliedStringInsertOperation("vid", true, 5, "test")) // scalastyle:off magic.number
 
         val opDoc = modelOperation.asODocument
         val reverted = opDoc.asModelOperation

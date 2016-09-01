@@ -40,6 +40,23 @@ import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.model.data.DoubleValue
 import com.convergencelabs.server.domain.model.data.DoubleValue
 import com.convergencelabs.server.domain.model.data.BooleanValue
+import com.convergencelabs.server.domain.model.ot.AppliedStringInsertOperation
+import com.convergencelabs.server.domain.model.ot.AppliedCompoundOperation
+import com.convergencelabs.server.domain.model.ot.AppliedObjectRemovePropertyOperation
+import com.convergencelabs.server.domain.model.ot.AppliedObjectAddPropertyOperation
+import com.convergencelabs.server.domain.model.ot.AppliedStringRemoveOperation
+import com.convergencelabs.server.domain.model.ot.AppliedStringSetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedArrayInsertOperation
+import com.convergencelabs.server.domain.model.ot.AppliedArrayRemoveOperation
+import com.convergencelabs.server.domain.model.data.DataValue
+import com.convergencelabs.server.domain.model.ot.AppliedArrayReplaceOperation
+import com.convergencelabs.server.domain.model.ot.AppliedArrayMoveOperation
+import com.convergencelabs.server.domain.model.ot.AppliedArraySetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedObjectSetPropertyOperation
+import com.convergencelabs.server.domain.model.ot.AppliedObjectSetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedNumberAddOperation
+import com.convergencelabs.server.domain.model.ot.AppliedNumberSetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedBooleanSetOperation
 
 // scalastyle:off magic.number multiple.string.literals
 class ModelOperationProcessorSpec
@@ -77,7 +94,7 @@ class ModelOperationProcessorSpec
       "not apply the operation" in withPersistenceStore { stores =>
         val (processor, opStore, modelStore) = stores
 
-        val op = StringInsertOperation(fnameVID, true, 0, "abc")
+        val op = AppliedStringInsertOperation(fnameVID, true, 0, "abc")
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
         val response = processor.processModelOperation(modelOp).success
         val modelData = modelStore.getModelData(modelFqn).success.value.value
@@ -89,10 +106,10 @@ class ModelOperationProcessorSpec
       "apply all operations in the compound operation" in withPersistenceStore { stores =>
         val (processor, opStore, modelStore) = stores
 
-        val op1 = StringInsertOperation(fnameVID, false, 0, "x")
-        val op2 = StringInsertOperation(fnameVID, false, 1, "y")
+        val op1 = AppliedStringInsertOperation(fnameVID, false, 0, "x")
+        val op2 = AppliedStringInsertOperation(fnameVID, false, 1, "y")
 
-        val compound = CompoundOperation(List(op1, op2))
+        val compound = AppliedCompoundOperation(List(op1, op2))
 
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, compound)
         val response = processor.processModelOperation(modelOp).success
@@ -103,10 +120,10 @@ class ModelOperationProcessorSpec
       "apply all operations in rename compound operation" in withPersistenceStore { stores =>
         val (processor, opStore, modelStore) = stores
 
-        val op1 = ObjectRemovePropertyOperation("pp1-data", false, lnameField)
-        val op2 = ObjectAddPropertyOperation("pp1-data", false, "newName", StringValue("idididi", "somethingelse"))
+        val op1 = AppliedObjectRemovePropertyOperation("pp1-data", false, lnameField, Some(StringValue("oldId", "oldValue")))
+        val op2 = AppliedObjectAddPropertyOperation("pp1-data", false, "newName", StringValue("idididi", "somethingelse"))
 
-        val compound = CompoundOperation(List(op1, op2))
+        val compound = AppliedCompoundOperation(List(op1, op2))
 
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, compound)
         val response = processor.processModelOperation(modelOp).success
@@ -117,10 +134,10 @@ class ModelOperationProcessorSpec
       "not apply noOp'ed operations in the compound operation" in withPersistenceStore { stores =>
         val (processor, opStore, modelStore) = stores
 
-        val op1 = StringInsertOperation(fnameVID, false, 0, "x")
-        val op2 = StringInsertOperation(fnameVID, true, 1, "y")
+        val op1 = AppliedStringInsertOperation(fnameVID, false, 0, "x")
+        val op2 = AppliedStringInsertOperation(fnameVID, true, 1, "y")
 
-        val compound = CompoundOperation(List(op1, op2))
+        val compound = AppliedCompoundOperation(List(op1, op2))
 
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, compound)
         val response = processor.processModelOperation(modelOp).success
@@ -133,7 +150,7 @@ class ModelOperationProcessorSpec
       "correctly update the model on StringInsert" in withPersistenceStore { stores =>
         val (processor, opStore, modelStore) = stores
 
-        val op = StringInsertOperation(fnameVID, false, 0, "abc")
+        val op = AppliedStringInsertOperation(fnameVID, false, 0, "abc")
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
         val response = processor.processModelOperation(modelOp).success
 
@@ -144,7 +161,7 @@ class ModelOperationProcessorSpec
       "correctly update the model on StringRemove" in withPersistenceStore { stores =>
         val (processor, opStore, modelStore) = stores
 
-        val op = StringRemoveOperation(fnameVID, false, 1, "oh")
+        val op = AppliedStringRemoveOperation(fnameVID, false, 1, 2, Some("Oh"))
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
         processor.processModelOperation(modelOp).success
 
@@ -155,7 +172,7 @@ class ModelOperationProcessorSpec
       "correctly update the model on StringSet" in withPersistenceStore { stores =>
         val (processor, opStore, modelStore) = stores
 
-        val op = StringSetOperation(fnameVID, false, "new string")
+        val op = AppliedStringSetOperation(fnameVID, false, "new string", Some("oldValue"))
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
         processor.processModelOperation(modelOp).success
 
@@ -169,7 +186,7 @@ class ModelOperationProcessorSpec
         val (processor, opStore, modelStore) = stores
 
         val insertVal = ObjectValue("pp1-f1", Map("field1" -> StringValue("pp1-sv", "someValue"), "field2" -> DoubleValue("pp1-5", 5)))
-        val op = ArrayInsertOperation(emailsVID, false, 0, insertVal)
+        val op = AppliedArrayInsertOperation(emailsVID, false, 0, insertVal)
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
         processor.processModelOperation(modelOp).success
 
@@ -185,7 +202,7 @@ class ModelOperationProcessorSpec
       "correctly update the model on ArrayRemove" in withPersistenceStore { stores =>
         val (processor, opStore, modelStore) = stores
 
-        val op = ArrayRemoveOperation(emailsVID, false, 0)
+        val op = AppliedArrayRemoveOperation(emailsVID, false, 0, Some(StringValue("oldId", "removedValue")))
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
         processor.processModelOperation(modelOp).success
 
@@ -202,7 +219,7 @@ class ModelOperationProcessorSpec
         val (processor, opStore, modelStore) = stores
 
         val replaceVal = ObjectValue("art-data", Map("field1" -> StringValue("art-f1", "someValue"), "field2" -> DoubleValue("art-f2", 5)))
-        val op = ArrayReplaceOperation(emailsVID, false, 0, replaceVal)
+        val op = AppliedArrayReplaceOperation(emailsVID, false, 0, replaceVal, Some(StringValue("oldId", "removedValue")))
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
         processor.processModelOperation(modelOp).success
 
@@ -219,7 +236,7 @@ class ModelOperationProcessorSpec
       "correctly update the model on ArrayMove" in withPersistenceStore { stores =>
         val (processor, opStore, modelStore) = stores
 
-        val op = ArrayMoveOperation(emailsVID, false, 0, 2)
+        val op = AppliedArrayMoveOperation(emailsVID, false, 0, 2)
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
         processor.processModelOperation(modelOp).success
 
@@ -234,7 +251,7 @@ class ModelOperationProcessorSpec
         val (processor, opStore, modelStore) = stores
 
         val setValue = List(StringValue("as-sv", "someValue"), StringValue("as-sov", "someOtherValue"))
-        val op = ArraySetOperation(emailsVID, false, setValue)
+        val op = AppliedArraySetOperation(emailsVID, false, setValue, Some(List[DataValue]()))
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
         processor.processModelOperation(modelOp).success
 
@@ -252,7 +269,7 @@ class ModelOperationProcessorSpec
       "correctly update the model on ObjectAddProperty" in withPersistenceStore { stores =>
         val (processor, opStore, modelStore) = stores
 
-        val op = ObjectAddPropertyOperation("pp1-data", false, "addedProperty", StringValue("aoo-value", "value"))
+        val op = AppliedObjectAddPropertyOperation("pp1-data", false, "addedProperty", StringValue("aoo-value", "value"))
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
         processor.processModelOperation(modelOp).success
 
@@ -263,7 +280,7 @@ class ModelOperationProcessorSpec
       "correctly update the model on ObjectAddProperty with a special char" in withPersistenceStore { stores =>
         val (processor, opStore, modelStore) = stores
 
-        val op = ObjectAddPropertyOperation("pp1-data", false, "prop-with-dash", StringValue("aoo-value", "value"))
+        val op = AppliedObjectAddPropertyOperation("pp1-data", false, "prop-with-dash", StringValue("aoo-value", "value"))
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
         processor.processModelOperation(modelOp).success
 
@@ -274,7 +291,7 @@ class ModelOperationProcessorSpec
       "correctly update the model on ObjectSetProperty" in withPersistenceStore { stores =>
         val (processor, opStore, modelStore) = stores
 
-        val op = ObjectSetPropertyOperation("pp1-data", false, fnameField, StringValue("pp1-fnbob", "bob"))
+        val op = AppliedObjectSetPropertyOperation("pp1-data", false, fnameField, StringValue("pp1-fnbob", "bob"), Some(StringValue("oldId", "oldVal")))
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
         processor.processModelOperation(modelOp).success
 
@@ -285,7 +302,7 @@ class ModelOperationProcessorSpec
       "correctly update the model on ObjectRemoveProperty" in withPersistenceStore { stores =>
         val (processor, opStore, modelStore) = stores
 
-        val op = ObjectRemovePropertyOperation("pp1-data", false, fnameField)
+        val op = AppliedObjectRemovePropertyOperation("pp1-data", false, fnameField, Some(StringValue("oldId", "oldVal")))
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
         processor.processModelOperation(modelOp).success
 
@@ -298,10 +315,10 @@ class ModelOperationProcessorSpec
         
         val propWithDash = "prop-with-dash"
 
-        val addOp = ObjectAddPropertyOperation("pp1-data", false, propWithDash, StringValue("aoo-value", "value"))
+        val addOp = AppliedObjectAddPropertyOperation("pp1-data", false, propWithDash, StringValue("aoo-value", "value"))
         processor.processModelOperation(ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, addOp)).success
         
-        val op = ObjectRemovePropertyOperation("pp1-data", false, propWithDash)
+        val op = AppliedObjectRemovePropertyOperation("pp1-data", false, propWithDash, Some(StringValue("aoo-value", "value")))
         val modelOp = ModelOperation(modelFqn, startingVersion  + 1, Instant.now(), uid, sid, op)
         processor.processModelOperation(modelOp).success
 
@@ -313,7 +330,7 @@ class ModelOperationProcessorSpec
         val (processor, opStore, modelStore) = stores
 
         val replacePerson = Map("fname" -> StringValue("pp1-fnbob", "bob"), "lname" -> StringValue("pp1-lnsmith", "smith"))
-        val op = ObjectSetOperation("pp1-data", false, replacePerson)
+        val op = AppliedObjectSetOperation("pp1-data", false, replacePerson, Some(Map("fname" -> StringValue("oldId1", "yo"), "lname" -> StringValue("oldId2", "yoyo"))))
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
         processor.processModelOperation(modelOp).success
 
@@ -326,7 +343,7 @@ class ModelOperationProcessorSpec
       "correctly update the model on NumberAdd" in withPersistenceStore { stores =>
         val (processor, opStore, modelStore) = stores
 
-        val op = NumberAddOperation(ageVID, false, 5)
+        val op = AppliedNumberAddOperation(ageVID, false, 5)
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
         val response = processor.processModelOperation(modelOp)
 
@@ -337,7 +354,7 @@ class ModelOperationProcessorSpec
       "correctly update the model on NumberSet" in withPersistenceStore { stores =>
         val (processor, opStore, modelStore) = stores
 
-        val op = NumberSetOperation(ageVID, false, 33)
+        val op = AppliedNumberSetOperation(ageVID, false, 33, Some(22))
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
         processor.processModelOperation(modelOp)
 
@@ -350,7 +367,7 @@ class ModelOperationProcessorSpec
       "correctly update the model on BooleanSet" in withPersistenceStore { stores =>
         val (processor, opStore, modelStore) = stores
 
-        val op = BooleanSetOperation(marriedVID, false, true)
+        val op = AppliedBooleanSetOperation(marriedVID, false, true, Some(false))
         val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
         val response = processor.processModelOperation(modelOp)
 

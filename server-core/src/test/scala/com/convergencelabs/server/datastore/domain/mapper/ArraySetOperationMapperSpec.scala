@@ -4,7 +4,7 @@ import org.json4s.JsonAST.JString
 import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
-import com.convergencelabs.server.domain.model.ot.ArraySetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedArraySetOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
 import ArraySetOperationMapper.ArraySetOperationToODocument
 import ArraySetOperationMapper.ODocumentToArraySetOperation
@@ -20,8 +20,9 @@ class ArraySetOperationMapperSpec
   "An ArraySetOperationMapper" when {
     "when converting ArraySetOperation operations" must {
       "correctly map and unmap a ArraySetOperation" in {
+        val oldChildren: List[DataValue] = List(StringValue("asom-test-old", "oldString"))
         val children: List[DataValue] = List(StringValue("asom-test", "test"))
-        val op = ArraySetOperation("vid", true, children)
+        val op = AppliedArraySetOperation("vid", true, children, Some(oldChildren))
         val opDoc = op.asODocument
         val reverted = opDoc.asArraySetOperation
         op shouldBe reverted

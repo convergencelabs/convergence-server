@@ -6,7 +6,7 @@ import org.json4s.JsonAST.JInt
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
 
-import com.convergencelabs.server.domain.model.ot.BooleanSetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedBooleanSetOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
 
 import BooleanSetOperationMapper.BooleanSetOperationToODocument
@@ -19,7 +19,7 @@ class BooleanSetOperationMapperSpec
   "An BooleanSetOperationMapper" when {
     "when converting BooleanSetOperation operations" must {
       "correctly map and unmap a BooleanSetOperation" in {
-        val op = BooleanSetOperation("vid", true, true)
+        val op = AppliedBooleanSetOperation("vid", true, true, Some(false))
         val opDoc = op.asODocument
         val reverted = opDoc.asBooleanSetOperation
         op shouldBe reverted
