@@ -376,30 +376,61 @@ class ModelOperationProcessorSpec
       }
     }
 
-    "handling non alpha object preoprties" must {
+    "handling non specialy object preoprty names" must {
 
-      "correctly handle property names in the path with special chars" in withPersistenceStore { stores =>
-        //        val (processor, opStore, modelStore) = stores
-        //
-        //        val property = "my-prop!"
-        //        val op = ObjectAddPropertyOperation(List(), false, property, new JString("value"))
-        //        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
-        //        processor.processModelOperation(modelOp).success
-        //
-        //        val modelData = modelStore.getModelData(modelFqn).success.value.value
-        //        modelData \ property shouldBe JString("value")
+      "correctly add property names that start with a period" in withPersistenceStore { stores =>
+        val (processor, opStore, modelStore) = stores
+
+        val property = "my-prop!"
+        val addOp = AppliedObjectAddPropertyOperation("pp1-data", false, ".value", StringValue("aoo-value", "value"))
+        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, addOp)
+
+        processor.processModelOperation(modelOp).success
+        val modelData = modelStore.getModelData(modelFqn).success.value.value
+        modelData.children(".value") shouldBe StringValue("aoo-value", "value")
+      }
+      
+      "correctly update property names that start with a period" in withPersistenceStore { stores =>
+        val (processor, opStore, modelStore) = stores
+
+        val property = "my-prop!"
+        val addOp = AppliedObjectAddPropertyOperation("pp1-data", false, ".value", StringValue("aoo-value", "initial"))
+        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, addOp)
+
+        processor.processModelOperation(modelOp).success
+        val modelData = modelStore.getModelData(modelFqn).success.value.value
+        modelData.children(".value") shouldBe StringValue("aoo-value", "initial")
+        
+        val setOp = AppliedObjectSetPropertyOperation("pp1-data", false, ".value", StringValue("aoo-value1", "updated"), Some(StringValue("aoo-value", "initial")))
+        val setModelOp = ModelOperation(modelFqn, startingVersion + 1, Instant.now(), uid, sid, setOp)
+
+        processor.processModelOperation(setModelOp).success
+        val updatedModelData = modelStore.getModelData(modelFqn).success.value.value
+        updatedModelData.children(".value") shouldBe StringValue("aoo-value1", "updated")
       }
 
       "correctly handle property names in the path that are numeric" in withPersistenceStore { stores =>
-        //        val (processor, opStore, modelStore) = stores
-        //
-        //        val property = "4"
-        //        val op = ObjectAddPropertyOperation(List(), false, property, new JString("value"))
-        //        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
-        //        processor.processModelOperation(modelOp).success
-        //
-        //        val modelData = modelStore.getModelData(modelFqn).success.value.value
-        //        modelData \ property shouldBe JString("value")
+        val (processor, opStore, modelStore) = stores
+
+        val property = "4"
+        val op = AppliedObjectAddPropertyOperation("pp1-data", false, property, StringValue("aoo-value", "value"))
+        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
+        processor.processModelOperation(modelOp).success
+
+        val modelData = modelStore.getModelData(modelFqn).success.value.value
+        modelData.children(property) shouldBe StringValue("aoo-value", "value")
+      }
+      
+      "correctly handle property names in the path that have a dash" in withPersistenceStore { stores =>
+        val (processor, opStore, modelStore) = stores
+
+        val property = "a-dash"
+        val op = AppliedObjectAddPropertyOperation("pp1-data", false, property, StringValue("aoo-value", "value"))
+        val modelOp = ModelOperation(modelFqn, startingVersion, Instant.now(), uid, sid, op)
+        processor.processModelOperation(modelOp).success
+
+        val modelData = modelStore.getModelData(modelFqn).success.value.value
+        modelData.children(property) shouldBe StringValue("aoo-value", "value")
       }
     }
   }

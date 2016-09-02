@@ -230,11 +230,10 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     val value = OrientDataValueBuilder.dataValueToODocument(operation.value, getModelRid(fqn, db))
     value.save()
     db.commit()
-
-    val child = "children." + operation.property
+    
     val queryString =
-      s"""UPDATE ObjectValue SET
-             |  `$child` = :value
+      s"""UPDATE ObjectValue PUT
+             |  children = :property, :value
              |WHERE
              |  vid = :vid AND
              |  model.collectionId = :collectionId AND
@@ -244,7 +243,8 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
       VID -> operation.id,
       CollectionId -> fqn.collectionId,
       ModelId -> fqn.modelId,
-      Value -> value)
+      Value -> value,
+      "property" -> operation.property)
     db.command(updateCommand).execute(params.asJava)
     db.commit()
     ()
@@ -256,10 +256,9 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     value.save()
     db.commit()
 
-    val pathString = "children." + operation.property
     val queryString =
-      s"""UPDATE ObjectValue SET
-             |  `$pathString` = :value
+      s"""UPDATE ObjectValue PUT
+             |  children = :property, :value
              |WHERE
              |  vid = :vid AND
              |  model.collectionId = :collectionId AND
@@ -269,7 +268,8 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
       VID -> operation.id,
       CollectionId -> fqn.collectionId,
       ModelId -> fqn.modelId,
-      Value -> value)
+      Value -> value,
+      "property" -> operation.property)
     db.command(updateCommand).execute(params.asJava)
     db.commit()
     ()
