@@ -25,6 +25,7 @@ import scala.util.Failure
 import com.convergencelabs.server.UnknownErrorResponse
 import scala.util.Try
 import akka.actor.Status
+import akka.actor.Terminated
 
 case class QueryModelsRequest(collection: Option[String], limit: Option[Int], offset: Option[Int], orderBy: Option[QueryOrderBy])
 case class QueryOrderBy(field: String, ascending: Boolean)
@@ -36,7 +37,7 @@ class ModelManagerActor(
   private[this] val protocolConfig: ProtocolConfiguration)
     extends Actor with ActorLogging {
 
-  private[this] val openRealtimeModels = mutable.Map[ModelFqn, ActorRef]()
+  private[this] var openRealtimeModels = Map[ModelFqn, ActorRef]()
   private[this] var nextModelResourceId: Long = 0
 
   var persistenceProvider: DomainPersistenceProvider = _
@@ -47,6 +48,7 @@ class ModelManagerActor(
     case message: DeleteModelRequest => onDeleteModelRequest(message)
     case message: QueryModelsRequest => onQueryModelsRequest(message)
     case message: ModelShutdownRequest => onModelShutdownRequest(message)
+    case Terminated(actor) => onActorDeath(actor)
     case message: Any => unhandled(message)
   }
 
@@ -73,7 +75,8 @@ class ModelManagerActor(
               snapshotConfig)
 
             val modelActor = context.actorOf(props, resourceId)
-            this.openRealtimeModels.put(openRequest.modelFqn, modelActor)
+            this.openRealtimeModels += (openRequest.modelFqn -> modelActor)
+            this.context.watch(modelActor)
             modelActor forward openRequest
           case Failure(e) =>
             sender ! UnknownErrorResponse("Could not open model")
@@ -135,7 +138,9 @@ class ModelManagerActor(
     persistenceProvider.modelStore.modelExists(deleteRequest.modelFqn) match {
       case Success(true) =>
         if (openRealtimeModels.contains(deleteRequest.modelFqn)) {
-          openRealtimeModels.remove(deleteRequest.modelFqn).get ! ModelDeleted
+          val closed =  openRealtimeModels(deleteRequest.modelFqn)
+          closed ! ModelDeleted
+          openRealtimeModels -= deleteRequest.modelFqn
         }
 
         persistenceProvider.modelStore.deleteModel(deleteRequest.modelFqn)
@@ -156,15 +161,20 @@ class ModelManagerActor(
 
   private[this] def onModelShutdownRequest(shutdownRequest: ModelShutdownRequest): Unit = {
     val fqn = shutdownRequest.modelFqn
-    val modelActor = openRealtimeModels.remove(fqn)
-    if (!modelActor.isEmpty) {
-      modelActor.get ! PoisonPill
+    openRealtimeModels.get(fqn) map (_ ! ModelShutdown)
+    openRealtimeModels -= (fqn)
+  }
+  
+  private[this] def onActorDeath(actor: ActorRef): Unit = {
+    // TODO might be more efficient ay to do this.
+    openRealtimeModels = openRealtimeModels filter { case (fqn, modelActorRef) =>
+      actor != modelActorRef
     }
   }
 
   override def postStop(): Unit = {
     log.debug("ModelManagerActor({}) received shutdown command.  Shutting down all Realtime Models.", this.domainFqn)
-    openRealtimeModels.clear()
+    openRealtimeModels = Map()
     DomainPersistenceManagerActor.releasePersistenceProvider(self, context, domainFqn)
   }
 

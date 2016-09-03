@@ -116,7 +116,7 @@ class AuthenticationHandler(
 
     userStore.getDomainUserByUsername(username) flatMap {
       case Some(user) =>
-        logger.error("User specificed in token already exists, returning auth success.")
+        logger.debug("User specificed in token already exists, returning auth success.")
         userStore.nextSessionId map (id => AuthenticationSuccess(username, SessionKey(username, id)))
       case None =>
         logger.error("User specificed in token does not exist exist, creating.")
@@ -124,7 +124,7 @@ class AuthenticationHandler(
           case CreateSuccess(_) | DuplicateValue =>
             // The duplicate value case is when a race condition occurs between when we looked up the
             // user and then tried to create them.
-            logger.error("User specificed in token now exists, returning auth success.")
+            logger.warn("Attempted to auto create user, but user already exists, returning auth success.")
             userStore.nextSessionId map (id => AuthenticationSuccess(username, SessionKey(username, id)))
           case InvalidValue =>
             Failure(new IllegalArgumentException("Lazy creation of user based on JWT authentication failed: {$username}"))

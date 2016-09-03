@@ -36,6 +36,8 @@ import akka.stream.scaladsl.Source
 import akka.stream.scaladsl.Flow
 import akka.stream.scaladsl.Sink
 import akka.stream.ActorMaterializer
+import akka.actor.PoisonPill
+import akka.actor.Status
 
 /**
  * An instance of the RealtimeModelActor manages the lifecycle of a single
@@ -69,6 +71,28 @@ class RealtimeModelActor(
   private[this] val referenceTransformer = new ReferenceTransformer(new TransformationFunctionRegistry())
 
   private[this] val snapshotCalculator = new ModelSnapshotCalculator(snapshotConfig)
+
+  implicit val materializer = ActorMaterializer()
+  val persistenceStream = Flow[ModelOperation]
+    .map { modelOperation =>
+      modelOperationProcessor.processModelOperation(modelOperation) match {
+        case Failure(f) =>
+          // FIXME this is probably altering state outside of the thread.
+          // probably need to send a message.
+          this.log.error(f, "Error applying operation: " + modelOperation)
+          this.forceCloseAllAfterError("persistence error")
+        case _ =>
+      }
+    }.to(Sink.onComplete {
+      case Success(_) =>
+        log.debug("Persistence stream completed successfully")
+      case Failure(f) =>
+        // FIXME this is probably alterning state outside of the thread.
+        // probably need to send a message.
+        log.error(f, "Persistence stream completed with an error")
+        this.forceCloseAllAfterError("persitence error")
+    }).runWith(Source
+      .actorRef[ModelOperation](bufferSize = 1000, OverflowStrategy.fail))
 
   //
   // Receive methods
@@ -121,6 +145,7 @@ class RealtimeModelActor(
     case snapshotMetaData: ModelSnapshotMetaData => this.latestSnapshot = snapshotMetaData
     case ModelDeleted => handleModelDeletedWhileOpen()
     case terminated: Terminated => handleTerminated(terminated)
+    case ModelShutdown => shutdown()
     case unknown: Any => unhandled(unknown)
   }
 
@@ -356,8 +381,12 @@ class RealtimeModelActor(
   }
 
   private[this] def handleTerminated(terminated: Terminated): Unit = {
-    val sk = clientToSessionId(terminated.actor)
-    clientClosed(sk)
+    clientToSessionId.get(terminated.actor) match {
+      case Some(sk) =>
+        clientClosed(sk)
+      case None =>
+        this.log.warning("An unexpected actor terminated: " + terminated.actor.path)
+    }
   }
 
   private[this] def clientClosed(sk: SessionKey): Unit = {
@@ -378,6 +407,7 @@ class RealtimeModelActor(
    */
   private[this] def checkForConnectionsAndClose(): Unit = {
     if (connectedClients.isEmpty) {
+      log.debug("All clients closed the model, requesting shutdown")
       modelManagerActor ! new ModelShutdownRequest(this.modelFqn)
     }
   }
@@ -425,45 +455,33 @@ class RealtimeModelActor(
    */
   private[this] def transformAndApplyOperation(sk: SessionKey, unprocessedOpEvent: UnprocessedOperationEvent): Try[OutgoingOperation] = {
     val timestamp = Instant.now()
-    this.model.processOperationEvent(unprocessedOpEvent).map { case (processedOpEvent, appliedOp) =>
-      persistenceStream ! ModelOperation(
-        modelFqn,
-        processedOpEvent.resultingVersion,
-        timestamp,
-        sk.uid,
-        sk.sid,
-        appliedOp)
+    this.model.processOperationEvent(unprocessedOpEvent).map {
+      case (processedOpEvent, appliedOp) =>
+        persistenceStream ! ModelOperation(
+          modelFqn,
+          processedOpEvent.resultingVersion,
+          timestamp,
+          sk.uid,
+          sk.sid,
+          appliedOp)
 
-      OutgoingOperation(
-        modelResourceId,
-        sk,
-        processedOpEvent.contextVersion,
-        timestamp.toEpochMilli(),
-        processedOpEvent.operation)
+        OutgoingOperation(
+          modelResourceId,
+          sk,
+          processedOpEvent.contextVersion,
+          timestamp.toEpochMilli(),
+          processedOpEvent.operation)
     }
   }
-
-  implicit val materializer = ActorMaterializer()
-  val persistenceStream = Flow[ModelOperation]
-    .map { message =>
-      modelOperationProcessor.processModelOperation(message)
-    }.to(Sink.onComplete {
-      case Success(_) =>
-        log.debug("Persistence stream completed successfully")
-      case Failure(f) =>
-        log.error(f, "Persistence stream completed with an error")
-    }).runWith(Source
-      .actorRef[ModelOperation](bufferSize = 1000, OverflowStrategy.fail))
 
   /**
    * Sends an ACK back to the originator of the operation and an operation message
    * to all other connected clients.
    */
   private[this] def broadcastOperation(sk: SessionKey, outgoingOperation: OutgoingOperation, originSeqNo: Long): Unit = {
-
     // Ack the sender
-    connectedClients(sk) !
-      OperationAcknowledgement(modelResourceId, originSeqNo, outgoingOperation.contextVersion, outgoingOperation.timestamp)
+    connectedClients(sk) ! OperationAcknowledgement(
+      modelResourceId, originSeqNo, outgoingOperation.contextVersion, outgoingOperation.timestamp)
 
     broacastToAllOthers(outgoingOperation, sk)
   }
@@ -543,6 +561,7 @@ class RealtimeModelActor(
    * Kicks all clients out of the model.
    */
   private[this] def forceCloseAllAfterError(reason: String): Unit = {
+    log.debug("Force closing all clients after an internal error")
     connectedClients foreach {
       case (clientId, actor) => forceClosedModel(clientId, reason, false)
     }
@@ -594,6 +613,11 @@ class RealtimeModelActor(
     checkForConnectionsAndClose()
   }
 
+  private def shutdown(): Unit = {
+    this.persistenceStream ! Status.Success("stream complete")
+    this.context.stop(self)
+  }
+
   override def postStop(): Unit = {
     log.debug("Unloading Realtime Model({}/{})", domainFqn, modelFqn)
     connectedClients = HashMap()
@@ -629,6 +653,8 @@ object RealtimeModelActor {
 
   def sessionKeyToClientId(sk: SessionKey): String = sk.serialize()
 }
+
+case object ModelShutdown
 
 private object ErrorCodes extends Enumeration {
   val Unknown = "unknown"

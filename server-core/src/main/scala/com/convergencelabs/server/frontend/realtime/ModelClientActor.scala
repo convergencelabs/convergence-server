@@ -55,6 +55,7 @@ import akka.util.Timeout
 import com.convergencelabs.server.domain.model.QueryModelsRequest
 import com.convergencelabs.server.domain.model.QueryModelsResponse
 import com.convergencelabs.server.domain.model.QueryOrderBy
+import akka.actor.Terminated
 
 object ModelClientActor {
   def props(
@@ -68,11 +69,11 @@ class ModelClientActor(
   modelManager: ActorRef)
     extends Actor with ActorLogging {
 
-  var openRealtimeModels = Map[String, ActorRef]()
+  private[this] var openRealtimeModels = Map[String, ActorRef]()
 
   // FIXME hardcoded
-  implicit val timeout = Timeout(5 seconds)
-  implicit val ec = context.dispatcher
+  private[this] implicit val timeout = Timeout(5 seconds)
+  private[this] implicit val ec = context.dispatcher
 
   def receive: Receive = {
     case MessageReceived(message) if message.isInstanceOf[IncomingModelNormalMessage] =>
@@ -81,6 +82,8 @@ class ModelClientActor(
       onRequestReceived(message.asInstanceOf[IncomingModelRequestMessage], replyPromise)
     case message: RealtimeModelClientMessage =>
       onOutgoingModelMessage(message)
+    case Terminated(ref) =>
+      onActorDeath(ref)
     case x: Any => unhandled(x)
   }
 
@@ -88,25 +91,31 @@ class ModelClientActor(
   // Outgoing Messages
   //
   // scalastyle:off cyclomatic.complexity
-  def onOutgoingModelMessage(event: RealtimeModelClientMessage): Unit = {
+  private[this] def onOutgoingModelMessage(event: RealtimeModelClientMessage): Unit = {
     event match {
-      case op: OutgoingOperation                      => onOutgoingOperation(op)
-      case opAck: OperationAcknowledgement            => onOperationAcknowledgement(opAck)
-      case remoteOpened: RemoteClientOpened           => onRemoteClientOpened(remoteOpened)
-      case remoteClosed: RemoteClientClosed           => onRemoteClientClosed(remoteClosed)
-      case foreceClosed: ModelForceClose              => onModelForceClose(foreceClosed)
-      case dataRequest: ClientModelDataRequest        => onClientModelDataRequest(dataRequest)
-      case refPublished: RemoteReferencePublished     => onRemoteReferencePublished(refPublished)
+      case op: OutgoingOperation => onOutgoingOperation(op)
+      case opAck: OperationAcknowledgement => onOperationAcknowledgement(opAck)
+      case remoteOpened: RemoteClientOpened => onRemoteClientOpened(remoteOpened)
+      case remoteClosed: RemoteClientClosed => onRemoteClientClosed(remoteClosed)
+      case foreceClosed: ModelForceClose => onModelForceClose(foreceClosed)
+      case dataRequest: ClientModelDataRequest => onClientModelDataRequest(dataRequest)
+      case refPublished: RemoteReferencePublished => onRemoteReferencePublished(refPublished)
       case refUnpublished: RemoteReferenceUnpublished => onRemoteReferenceUnpublished(refUnpublished)
-      case refSet: RemoteReferenceSet                 => onRemoteReferenceSet(refSet)
-      case refCleared: RemoteReferenceCleared         => onRemoteReferenceCleared(refCleared)
+      case refSet: RemoteReferenceSet => onRemoteReferenceSet(refSet)
+      case refCleared: RemoteReferenceCleared => onRemoteReferenceCleared(refCleared)
     }
   }
   // scalastyle:on cyclomatic.complexity
 
-  def onOutgoingOperation(op: OutgoingOperation): Unit = {
-    val OutgoingOperation(resoruceId, sessionKey, contextVersion, timestamp, operation) = op
+  private[this] def onActorDeath(actor: ActorRef): Unit = {
+    log.error("Model actor unexpectedly terminated.")
+    openRealtimeModels.find (_._2 == actor) map { case (resourceId, ref) =>
+      closeModel(resourceId, "unknown server error")  
+    }
+  }
 
+  private[this] def onOutgoingOperation(op: OutgoingOperation): Unit = {
+    val OutgoingOperation(resoruceId, sessionKey, contextVersion, timestamp, operation) = op
     context.parent ! RemoteOperationMessage(
       resoruceId,
       sessionKey.serialize(),
@@ -115,27 +124,33 @@ class ModelClientActor(
       OperationMapper.mapOutgoing(operation))
   }
 
-  def onOperationAcknowledgement(opAck: OperationAcknowledgement): Unit = {
+  private[this] def onOperationAcknowledgement(opAck: OperationAcknowledgement): Unit = {
     val OperationAcknowledgement(resourceId, seqNo, version, timestamp) = opAck
     context.parent ! OperationAcknowledgementMessage(resourceId, seqNo, version, timestamp)
   }
 
-  def onRemoteClientOpened(opened: RemoteClientOpened): Unit = {
+  private[this] def onRemoteClientOpened(opened: RemoteClientOpened): Unit = {
     val RemoteClientOpened(resourceId, sk) = opened
     context.parent ! RemoteClientOpenedMessage(resourceId, sk.serialize())
   }
 
-  def onRemoteClientClosed(closed: RemoteClientClosed): Unit = {
+  private[this] def onRemoteClientClosed(closed: RemoteClientClosed): Unit = {
     val RemoteClientClosed(resourceId, sk) = closed
     context.parent ! RemoteClientClosedMessage(resourceId, sk.serialize())
   }
 
-  def onModelForceClose(forceClose: ModelForceClose): Unit = {
+  private[this] def onModelForceClose(forceClose: ModelForceClose): Unit = {
     val ModelForceClose(resourceId, reason) = forceClose
+    closeModel(resourceId, reason)
+  }
+  
+  private[this] def closeModel(resourceId: String, reason: String): Unit = {
     context.parent ! ModelForceCloseMessage(resourceId, reason)
+    openRealtimeModels.get(resourceId) map (this.context.unwatch(_))
+    openRealtimeModels -= resourceId
   }
 
-  def onClientModelDataRequest(dataRequest: ClientModelDataRequest): Unit = {
+  private[this] def onClientModelDataRequest(dataRequest: ClientModelDataRequest): Unit = {
     val ClientModelDataRequest(ModelFqn(collectionId, modelId)) = dataRequest
     val askingActor = sender
     val future = context.parent ? ModelDataRequestMessage(collectionId, modelId)
@@ -148,24 +163,24 @@ class ModelClientActor(
     }
   }
 
-  def onRemoteReferencePublished(refPublished: RemoteReferencePublished): Unit = {
+  private[this] def onRemoteReferencePublished(refPublished: RemoteReferencePublished): Unit = {
     val RemoteReferencePublished(resourceId, sessionId, id, key, refType) = refPublished
     context.parent ! RemoteReferencePublishedMessage(resourceId, sessionId, id, key, ReferenceType.map(refType))
   }
 
-  def onRemoteReferenceUnpublished(refUnpublished: RemoteReferenceUnpublished): Unit = {
+  private[this] def onRemoteReferenceUnpublished(refUnpublished: RemoteReferenceUnpublished): Unit = {
     val RemoteReferenceUnpublished(resourceId, sessionId, id, key) = refUnpublished
     context.parent ! RemoteReferenceUnpublishedMessage(resourceId, sessionId, id, key)
   }
 
-  def onRemoteReferenceSet(refSet: RemoteReferenceSet): Unit = {
+  private[this] def onRemoteReferenceSet(refSet: RemoteReferenceSet): Unit = {
     val RemoteReferenceSet(resourceId, sessionId, id, key, refType, values) = refSet
     val mappedType = ReferenceType.map(refType)
     val mappedValue = values.map { v => mapOutgoingReferenceValue(refType, v) }
     context.parent ! RemoteReferenceSetMessage(resourceId, sessionId, id, key, mappedType, mappedValue)
   }
 
-  def mapOutgoingReferenceValue(refType: ReferenceType.Value, value: Any): Any = {
+  private[this] def mapOutgoingReferenceValue(refType: ReferenceType.Value, value: Any): Any = {
     refType match {
       case ReferenceType.Range =>
         val range = value.asInstanceOf[(Int, Int)]
@@ -175,7 +190,7 @@ class ModelClientActor(
     }
   }
 
-  def onRemoteReferenceCleared(refCleared: RemoteReferenceCleared): Unit = {
+  private[this] def onRemoteReferenceCleared(refCleared: RemoteReferenceCleared): Unit = {
     val RemoteReferenceCleared(resourceId, sessionId, path, key) = refCleared
     context.parent ! RemoteReferenceClearedMessage(resourceId, sessionId, path, key)
   }
@@ -184,34 +199,34 @@ class ModelClientActor(
   // Incoming Messages
   //
 
-  def onRequestReceived(message: IncomingModelRequestMessage, replyCallback: ReplyCallback): Unit = {
+  private[this] def onRequestReceived(message: IncomingModelRequestMessage, replyCallback: ReplyCallback): Unit = {
     message match {
-      case openRequest: OpenRealtimeModelRequestMessage     => onOpenRealtimeModelRequest(openRequest, replyCallback)
-      case closeRequest: CloseRealtimeModelRequestMessage   => onCloseRealtimeModelRequest(closeRequest, replyCallback)
+      case openRequest: OpenRealtimeModelRequestMessage => onOpenRealtimeModelRequest(openRequest, replyCallback)
+      case closeRequest: CloseRealtimeModelRequestMessage => onCloseRealtimeModelRequest(closeRequest, replyCallback)
       case createRequest: CreateRealtimeModelRequestMessage => onCreateRealtimeModelRequest(createRequest, replyCallback)
       case deleteRequest: DeleteRealtimeModelRequestMessage => onDeleteRealtimeModelRequest(deleteRequest, replyCallback)
-      case queryRequest: ModelsQueryRequestMessage          => onModelQueryRequest(queryRequest, replyCallback)
+      case queryRequest: ModelsQueryRequestMessage => onModelQueryRequest(queryRequest, replyCallback)
     }
   }
 
-  def onMessageReceived(message: IncomingModelNormalMessage): Unit = {
+  private[this] def onMessageReceived(message: IncomingModelNormalMessage): Unit = {
     message match {
-      case submission: OperationSubmissionMessage        => onOperationSubmission(submission)
-      case publishReference: PublishReferenceMessage     => onPublishReference(publishReference)
+      case submission: OperationSubmissionMessage => onOperationSubmission(submission)
+      case publishReference: PublishReferenceMessage => onPublishReference(publishReference)
       case unpublishReference: UnpublishReferenceMessage => onUnpublishReference(unpublishReference)
-      case setReference: SetReferenceMessage             => onSetReference(setReference)
-      case clearReference: ClearReferenceMessage         => onClearReference(clearReference)
+      case setReference: SetReferenceMessage => onSetReference(setReference)
+      case clearReference: ClearReferenceMessage => onClearReference(clearReference)
     }
   }
 
-  def onOperationSubmission(message: OperationSubmissionMessage): Unit = {
+  private[this] def onOperationSubmission(message: OperationSubmissionMessage): Unit = {
     val OperationSubmissionMessage(resourceId, seqNo, version, operation) = message
     val submission = OperationSubmission(seqNo, version, OperationMapper.mapIncoming(operation))
     val modelActor = openRealtimeModels(resourceId)
     modelActor ! submission
   }
 
-  def onPublishReference(message: PublishReferenceMessage): Unit = {
+  private[this] def onPublishReference(message: PublishReferenceMessage): Unit = {
     val PublishReferenceMessage(resourceId, id, key, refType) = message
     val publishReference = PublishReference(id, key, ReferenceType.map(refType))
     val modelActor = openRealtimeModels(resourceId)
@@ -225,7 +240,7 @@ class ModelClientActor(
     modelActor ! unpublishReference
   }
 
-  def onSetReference(message: SetReferenceMessage): Unit = {
+  private[this] def onSetReference(message: SetReferenceMessage): Unit = {
     val SetReferenceMessage(resourceId, id, key, refType, values, version) = message
     val mappedType = ReferenceType.map(refType)
     val setReference = SetReference(id, key, mappedType, mapIncomingReferenceValue(mappedType, values), version)
@@ -233,7 +248,7 @@ class ModelClientActor(
     modelActor ! setReference
   }
 
-  def mapIncomingReferenceValue(refType: ReferenceType.Value, values: List[Any]): List[Any] = {
+  private[this] def mapIncomingReferenceValue(refType: ReferenceType.Value, values: List[Any]): List[Any] = {
     refType match {
       case ReferenceType.Index =>
         values map { value => value.asInstanceOf[BigInt].intValue() }
@@ -247,19 +262,20 @@ class ModelClientActor(
     }
   }
 
-  def onClearReference(message: ClearReferenceMessage): Unit = {
+  private[this] def onClearReference(message: ClearReferenceMessage): Unit = {
     val ClearReferenceMessage(resourceId, id, key) = message
     val clearReference = ClearReference(id, key)
     val modelActor = openRealtimeModels(resourceId)
     modelActor ! clearReference
   }
 
-  def onOpenRealtimeModelRequest(request: OpenRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
+  private[this] def onOpenRealtimeModelRequest(request: OpenRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
     val future = modelManager ? OpenRealtimeModelRequest(
       sessionKey, ModelFqn(request.c, request.m), request.i, self)
     future.mapResponse[OpenModelResponse] onComplete {
       case Success(OpenModelSuccess(realtimeModelActor, modelResourceId, valueIdPrefix, metaData, connectedClients, references, modelData)) => {
         openRealtimeModels += (modelResourceId -> realtimeModelActor)
+        this.context.watch(realtimeModelActor)
         val convertedReferences = references.map { ref =>
           val ReferenceState(sessionId, valueId, key, refType, values) = ref
           val mappedType = ReferenceType.map(refType)
@@ -297,7 +313,7 @@ class ModelClientActor(
     }
   }
 
-  def onCloseRealtimeModelRequest(request: CloseRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
+  private[this] def onCloseRealtimeModelRequest(request: CloseRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
     openRealtimeModels.get(request.r) match {
       case Some(modelActor) =>
         val future = modelActor ? CloseRealtimeModelRequest(sessionKey)
@@ -314,11 +330,11 @@ class ModelClientActor(
     }
   }
 
-  def onCreateRealtimeModelRequest(request: CreateRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
+  private[this] def onCreateRealtimeModelRequest(request: CreateRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
     val CreateRealtimeModelRequestMessage(collectionId, modelId, data) = request
     val future = modelManager ? CreateModelRequest(ModelFqn(collectionId, modelId), data)
     future.mapResponse[CreateModelResponse] onComplete {
-      case Success(ModelCreated)       => cb.reply(CreateRealtimeModelSuccessMessage())
+      case Success(ModelCreated) => cb.reply(CreateRealtimeModelSuccessMessage())
       case Success(ModelAlreadyExists) => cb.expectedError("model_alread_exists", "A model with the specifieid collection and model id already exists")
       case Failure(cause) =>
         log.error(cause, "Unexpected error creating model.")
@@ -326,11 +342,11 @@ class ModelClientActor(
     }
   }
 
-  def onDeleteRealtimeModelRequest(request: DeleteRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
+  private[this] def onDeleteRealtimeModelRequest(request: DeleteRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
     val DeleteRealtimeModelRequestMessage(collectionId, modelId) = request
     val future = modelManager ? DeleteModelRequest(ModelFqn(collectionId, modelId))
     future.mapResponse[DeleteModelResponse] onComplete {
-      case Success(ModelDeleted)  => cb.reply(DeleteRealtimeModelSuccessMessage())
+      case Success(ModelDeleted) => cb.reply(DeleteRealtimeModelSuccessMessage())
       case Success(ModelNotFound) => cb.reply(ErrorMessage("model_not_found", "A model with the specifieid collection and model id does not exists"))
       case Failure(cause) =>
         log.error(cause, "Unexpected error deleting model.")
@@ -338,20 +354,22 @@ class ModelClientActor(
     }
   }
 
-  def onModelQueryRequest(request: ModelsQueryRequestMessage, cb: ReplyCallback): Unit = {
+  private[this] def onModelQueryRequest(request: ModelsQueryRequestMessage, cb: ReplyCallback): Unit = {
     val ModelsQueryRequestMessage(collection, limit, offset, orderBy) = request
     val future = modelManager ? QueryModelsRequest(collection, limit, offset, orderBy map {
       case OrderBy(field, ascending) => QueryOrderBy(field, ascending)
     })
     future.mapResponse[QueryModelsResponse] onComplete {
       case Success(QueryModelsResponse(result)) => cb.reply(
-          ModelsQueryResponseMessage(result map {
-            r => ModelResult(
-                r.fqn.collectionId, 
-                r.fqn.modelId, 
-                r.createdTime.toEpochMilli(),
-                r.modifiedTime.toEpochMilli(), 
-                r.version)}))
+        ModelsQueryResponseMessage(result map {
+          r =>
+            ModelResult(
+              r.fqn.collectionId,
+              r.fqn.modelId,
+              r.createdTime.toEpochMilli(),
+              r.modifiedTime.toEpochMilli(),
+              r.version)
+        }))
       case Failure(cause) =>
         log.error(cause, "Unexpected error deleting model.")
         cb.unexpectedError("could not delete model")
