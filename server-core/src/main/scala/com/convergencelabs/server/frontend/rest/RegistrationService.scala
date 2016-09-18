@@ -25,7 +25,7 @@ import com.convergencelabs.server.datastore.NotFound
 import com.convergencelabs.server.datastore.RegistrationActor.RejectRegistration
 
 case class Registration(username: String, fname: String, lname: String, email: String, password: String, token: String)
-case class RegistrationRequest(fname: String, lname: String, email: String)
+case class RegistrationRequest(fname: String, lname: String, email: String, reason: String)
 case class RegistrationApproval(token: String)
 case class RegistrationRejection(token: String)
 
@@ -65,8 +65,8 @@ class RegistrationService(
   }
 
   def registrationRequest(req: RegistrationRequest): Future[RestResponse] = {
-    val RegistrationRequest(fname, lname, email) = req
-    (registrationActor ? AddRegistration(fname, lname, email)).mapTo[CreateResult[Unit]].map {
+    val RegistrationRequest(fname, lname, email, reason) = req
+    (registrationActor ? AddRegistration(fname, lname, email, reason)).mapTo[CreateResult[Unit]].map {
       case response: CreateSuccess[Unit] => CreateRestResponse
       case DuplicateValue                => DuplicateError
       case InvalidValue                  => InvalidValueError

@@ -30,8 +30,9 @@ class RegistrationStore private[datastore] (
   val LastName = "lname"
   val Token = "token"
   val Approved = "approved"
+  val Reason = "reason"
 
-  def addRegistration(fname: String, lname: String, email: String): Try[CreateResult[String]] = tryWithDb { db =>
+  def addRegistration(fname: String, lname: String, email: String, reason: String): Try[CreateResult[String]] = tryWithDb { db =>
     val token = UUID.randomUUID().toString()
     val regDoc = new ODocument("Registration");
     regDoc.field(Email, email);
@@ -39,6 +40,7 @@ class RegistrationStore private[datastore] (
     regDoc.field(LastName, lname);
     regDoc.field(Token, token);
     regDoc.field(Approved, false);
+    regDoc.field(Reason, reason)
 
     db.save(regDoc)
     CreateSuccess(token)

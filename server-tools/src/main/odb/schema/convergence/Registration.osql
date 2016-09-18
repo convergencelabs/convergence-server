@@ -15,6 +15,11 @@ CREATE PROPERTY Registration.lname String;
 ALTER PROPERTY Registration.lname MANDATORY true;
 ALTER PROPERTY Registration.lname NOTNULL true;
 
+#Registration.reason
+CREATE PROPERTY Registration.reason String;
+ALTER PROPERTY Registration.reason MANDATORY true;
+ALTER PROPERTY Registration.reason NOTNULL true;
+
 #Registration.token
 CREATE PROPERTY Registration.token String;
 ALTER PROPERTY Registration.token MANDATORY true;

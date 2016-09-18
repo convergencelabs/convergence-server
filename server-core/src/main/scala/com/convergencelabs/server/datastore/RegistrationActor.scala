@@ -27,7 +27,7 @@ object RegistrationActor {
   def props(dbPool: OPartitionedDatabasePool, userManager: ActorRef): Props = Props(new RegistrationActor(dbPool, userManager))
 
   case class RegisterUser(username: String, fname: String, lname: String, email: String, password: String, token: String)
-  case class AddRegistration(fname: String, lname: String, email: String)
+  case class AddRegistration(fname: String, lname: String, email: String, reason: String)
   case class ApproveRegistration(token: String)
   case class RejectRegistration(token: String)
 }
@@ -81,10 +81,10 @@ class RegistrationActor private[datastore] (dbPool: OPartitionedDatabasePool, us
   }
 
   def addRegistration(message: AddRegistration): Unit = {
-    val AddRegistration(fname, lname, email) = message
-    reply(registrationStore.addRegistration(fname, lname, email) map {
+    val AddRegistration(fname, lname, email, reason) = message
+    reply(registrationStore.addRegistration(fname, lname, email, reason) map {
       case CreateSuccess(token) => {
-        val bodyContent = templates.email.internal.txt.registrationRequest(token, fname, lname, email, restPublicEndpoint)
+        val bodyContent = templates.email.internal.txt.registrationRequest(token, fname, lname, email, reason, restPublicEndpoint)
         val internalEmail = EmailUtilities.createTextEmail(smtpConfig, bodyContent.toString())
         internalEmail.setSubject(s"Registration Request from ${fname} ${lname}")
         internalEmail.addTo(smtpConfig.getString("new-registration-to-address"))

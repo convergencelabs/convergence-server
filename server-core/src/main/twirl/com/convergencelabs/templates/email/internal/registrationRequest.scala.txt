@@ -1,6 +1,10 @@
-@(token: String, firstName: String, lastName: String, email: String, serverUrl: String)
+@(token: String, firstName: String, lastName: String, email: String, reason: String, serverUrl: String)
 
-@firstName @lastName (@email) would like to register for Convergence.  
+@firstName @lastName (@email) would like to register for Convergence.  The reason they
+gave for requesting a registration was:
+
+@reason
+  
 Go here to approve or deny the request:
 
 @serverUrl/approval/@token
