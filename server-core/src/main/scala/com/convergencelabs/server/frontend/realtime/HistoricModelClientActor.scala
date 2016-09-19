@@ -46,7 +46,7 @@ class HistoricModelClientActor(
   private var operationStoreActor: ActorRef = _
 
   def receive: Receive = {
-    case RequestReceived(message, replyPromise) if message.isInstanceOf[IncomingModelRequestMessage] =>
+    case RequestReceived(message, replyPromise) if message.isInstanceOf[IncomingHistoricalModelRequestMessage] =>
       onRequestReceived(message.asInstanceOf[IncomingHistoricalModelRequestMessage], replyPromise)
     case x: Any => unhandled(x)
   }

@@ -74,6 +74,7 @@ class ClientActor(
   private[this] var activityClient: ActorRef = _
   private[this] var presenceClient: ActorRef = _
   private[this] var chatClient: ActorRef = _
+  private[this] var historyClient: ActorRef = _
   
   private[this] var domainActor: Option[ActorRef] = None
   private[this] var modelManagerActor: ActorRef = _
@@ -208,6 +209,7 @@ class ClientActor(
     this.activityClient = context.actorOf(ActivityClientActor.props(activityServiceActor, sk))
     this.presenceClient = context.actorOf(PresenceClientActor.props(presenceServiceActor, sk))
     this.chatClient = context.actorOf(ChatClientActor.props(chatServiceActor, sk))
+    this.historyClient = context.actorOf(HistoricModelClientActor.props(sk, domainFqn));
     this.messageHandler = handleMessagesWhenAuthenticated
     cb.reply(AuthenticationResponseMessage(true, Some(username), Some(sk.serialize())))
     context.become(receiveWhileAuthenticated)
@@ -286,6 +288,8 @@ class ClientActor(
         activityClient.forward(message)
       case RequestReceived(x, _) if x.isInstanceOf[IncomingPresenceMessage] =>
         presenceClient.forward(message)
+      case RequestReceived(x, _) if x.isInstanceOf[IncomingHistoricalModelRequestMessage] =>
+        historyClient.forward(message)
     }
   }
 
