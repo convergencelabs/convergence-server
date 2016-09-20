@@ -5,6 +5,7 @@ import scala.language.implicitConversions
 import com.convergencelabs.server.datastore.mapper.ODocumentMapper
 import com.convergencelabs.server.domain.model.ot.AppliedStringRemoveOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
+import com.orientechnologies.orient.core.metadata.schema.OType
 
 object StringRemoveOperationMapper extends ODocumentMapper {
 
@@ -19,7 +20,7 @@ object StringRemoveOperationMapper extends ODocumentMapper {
     doc.field(Fields.NoOp, noOp)
     doc.field(Fields.Idx, index)
     doc.field(Fields.Length, length)
-    doc.field(Fields.OldValue, oldValue.getOrElse(null))
+    doc.field(Fields.OldValue, oldValue.getOrElse(null))   
     doc
   }
 
@@ -33,9 +34,9 @@ object StringRemoveOperationMapper extends ODocumentMapper {
     val id = doc.field(Fields.Id).asInstanceOf[String]
     val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
     val index = doc.field(Fields.Idx).asInstanceOf[Int]
-    val value = doc.field(Fields.Length).asInstanceOf[Int]
+    val length = doc.field(Fields.Length).asInstanceOf[Int]
     val oldValue = Option(doc.field(Fields.OldValue).asInstanceOf[String])
-    AppliedStringRemoveOperation(id, noOp, index, value, oldValue)
+    AppliedStringRemoveOperation(id, noOp, index, length, oldValue)
   }
 
   private[domain] val DocumentClassName = "StringRemoveOperation"

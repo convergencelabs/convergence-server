@@ -69,15 +69,13 @@ class RealTimeString(
       throw new Error("Index out of bounds!")
     }
     
-    val oldValue = this.string.slice(index, value.length) 
-    
     this.string = this.string.slice(0, index) + this.string.slice(index + value.length, this.string.length)
 
     this.referenceManager.referenceMap.getAll().foreach {
       case x: PositionalRemoveAware => x.handlePositionalRemove(index, value.length)
     }
     
-    AppliedStringRemoveOperation(id, noOp, index, value.length(), Some(oldValue))
+    AppliedStringRemoveOperation(id, noOp, index, value.length(), Some(value))
   }
 
   private[this] def processSetOperation(op: StringSetOperation): AppliedStringSetOperation = {
