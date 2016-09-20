@@ -94,9 +94,9 @@ object MessageSerializer {
     MessageType.HistoricalDataRequest -> classOf[HistoricalDataRequestMessage],
     MessageType.HistoricalDataResponse -> classOf[HistoricalDataResponseMessage],
     MessageType.HistoricalOperationsRequest -> classOf[HistoricalOperationRequestMessage],
-    MessageType.HistoricalOperationsResponse -> classOf[HistoricalDataResponseMessage]),
+    MessageType.HistoricalOperationsResponse -> classOf[HistoricalOperationsResponseMessage]),
 
-    DefaultFormats.withTypeHintFieldName("?") + new OperationSerializer() + DataValueTypeHints + DataValueFieldSerializer)
+    DefaultFormats.withTypeHintFieldName("?") + new OperationSerializer() + new AppliedOperationSerializer() + DataValueTypeHints + DataValueFieldSerializer)
 
   private[this] implicit val formats = DefaultFormats + incomingMessageSerializer
 
