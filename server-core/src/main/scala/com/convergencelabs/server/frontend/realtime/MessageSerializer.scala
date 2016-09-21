@@ -89,9 +89,14 @@ object MessageSerializer {
     MessageType.ChatMessagePublished -> classOf[UserChatMessage],
     
     MessageType.ModelsQueryRequest -> classOf[ModelsQueryRequestMessage],
-    MessageType.ModelsQueryResponse -> classOf[ModelsQueryResponseMessage]),
+    MessageType.ModelsQueryResponse -> classOf[ModelsQueryResponseMessage],
+    
+    MessageType.HistoricalDataRequest -> classOf[HistoricalDataRequestMessage],
+    MessageType.HistoricalDataResponse -> classOf[HistoricalDataResponseMessage],
+    MessageType.HistoricalOperationsRequest -> classOf[HistoricalOperationRequestMessage],
+    MessageType.HistoricalOperationsResponse -> classOf[HistoricalOperationsResponseMessage]),
 
-    DefaultFormats.withTypeHintFieldName("?") + new OperationSerializer() + DataValueTypeHints + DataValueFieldSerializer)
+    DefaultFormats.withTypeHintFieldName("?") + new OperationSerializer() + new AppliedOperationSerializer() + DataValueTypeHints + DataValueFieldSerializer)
 
   private[this] implicit val formats = DefaultFormats + incomingMessageSerializer
 

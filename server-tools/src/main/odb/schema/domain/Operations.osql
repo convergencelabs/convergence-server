@@ -48,9 +48,9 @@ ALTER PROPERTY StringRemoveOperation.idx MANDATORY true;
 ALTER PROPERTY StringRemoveOperation.idx NOTNULL true;
 
 #StringRemoveOperation.length
-CREATE PROPERTY StringRemoveOperation.val INTEGER;
-ALTER PROPERTY StringRemoveOperation.val MANDATORY true;
-ALTER PROPERTY StringRemoveOperation.val NOTNULL true;
+CREATE PROPERTY StringRemoveOperation.length INTEGER;
+ALTER PROPERTY StringRemoveOperation.length MANDATORY true;
+ALTER PROPERTY StringRemoveOperation.length NOTNULL true;
 
 #StringRemoveOperation.oldVal
 CREATE PROPERTY StringRemoveOperation.oldVal STRING;

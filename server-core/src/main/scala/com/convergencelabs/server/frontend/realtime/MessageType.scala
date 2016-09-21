@@ -95,4 +95,10 @@ object MessageType extends Enumeration {
   
   val ModelsQueryRequest = 90
   val ModelsQueryResponse = 91
+  
+  val HistoricalDataRequest = 92
+  val HistoricalDataResponse = 93
+  
+  val HistoricalOperationsRequest = 94
+  val HistoricalOperationsResponse = 95
 }

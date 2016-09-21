@@ -10,6 +10,7 @@ import com.convergencelabs.server.ProtocolConfiguration
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.PresenceServiceActor.UserPresence
 import com.convergencelabs.server.domain.model.ModelMetaData
+import com.convergencelabs.server.domain.model.ModelOperation
 
 // scalastyle:off number.of.types
 
@@ -116,6 +117,18 @@ case class RemoteReferencePublishedMessage(r: String, s: String, d: Option[Strin
 case class RemoteReferenceUnpublishedMessage(r: String, s: String, d: Option[String], k: String) extends OutgoingProtocolNormalMessage
 case class RemoteReferenceSetMessage(r: String, s: String, d: Option[String], k: String, c: Int, v: List[Any]) extends OutgoingProtocolNormalMessage
 case class RemoteReferenceClearedMessage(r: String, s: String, d: Option[String], k: String) extends OutgoingProtocolNormalMessage
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Historical Model Messages
+///////////////////////////////////////////////////////////////////////////////
+sealed trait IncomingHistoricalModelRequestMessage extends IncomingProtocolRequestMessage
+case class HistoricalDataRequestMessage(c: String, m: String) extends IncomingHistoricalModelRequestMessage
+case class HistoricalOperationRequestMessage(c: String, m: String, v: Long, l: Int) extends IncomingHistoricalModelRequestMessage
+
+case class HistoricalDataResponseMessage(d: ObjectValue, v: Long, c: Long, m: Long) extends OutgoingProtocolResponseMessage
+case class HistoricalOperationsResponseMessage(o: List[ModelOperationData]) extends OutgoingProtocolResponseMessage
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // User Messages
