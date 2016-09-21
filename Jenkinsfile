@@ -12,7 +12,7 @@ node {
 
         docker.image(sbtTools.imageName()).inside {
           stage 'Compile'
-          sh 'sbt -J-Xmx2G compile'
+          sh 'sbt -d -J-Xmx3G compile'
 
           stage 'Test'
           sh 'sbt test'
