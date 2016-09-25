@@ -109,7 +109,7 @@ val tools = (project in file("server-tools")).
     orientDb ++ 
     loggingAll ++
     testingCore ++
-    Seq(scallop, json4s)
+    Seq(scallop, json4s, jacksonYaml)
   )
   
 val e2eTests = (project in file("server-e2e-tests")).
