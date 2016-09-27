@@ -1,30 +1,4 @@
-package com.convergencelabs.server.schema
-
-import org.json4s.DefaultFormats
-import org.json4s.Extraction
-import org.json4s.jackson.JsonMethods
-
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
-import org.json4s.ShortTypeHints
-import org.json4s.ext.EnumNameSerializer
-
-object Test {
-
-  case class Person(firstName: String, lastName: String, age: Int)
-  case class Group(name: String, members: List[Person])
-
-  val groupYaml = """name: my group
-members:
-  - firstName: Michael
-    lastName: MacFadden
-    age: 36
-  - firstName: Jim
-    lastName: james
-    age: 23
-"""
-
-  val deltaYaml = """version: 1
+version: 1
 description: Initial Domain Schema Creation
 changes:
 
@@ -938,31 +912,3 @@ changes:
     parameters: ["array", "fromIndex", "toIndex"]
     code: "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;"
     
-"""
-  
-  
-
-  val mapper = new ObjectMapper(new YAMLFactory())
-  implicit val f = DefaultFormats.withTypeHintFieldName("type") +
-    ShortTypeHints(List(classOf[CreateClass], classOf[AlterClass], classOf[DropClass], 
-        classOf[AddProperty], classOf[AlterProperty], classOf[DropProperty],
-        classOf[CreateIndex], classOf[DropIndex],
-        classOf[CreateSequence], classOf[DropSequence],
-        classOf[RunSQLCommand],
-        classOf[CreateFunction], classOf[AlterFunction], classOf[DropFunction])) +
-    new EnumNameSerializer(OrientType) +
-    new EnumNameSerializer(IndexType) +
-    new EnumNameSerializer(SequenceType)
-
-  def main(args: Array[String]): Unit = {
-    println(parseYaml[Group](groupYaml))
-    println(parseYaml[Delta](deltaYaml))
-  }
-
-  def parseYaml[A](yaml: String)(implicit mf: Manifest[A]): A = {
-    val jsonNode = mapper.readTree(yaml)
-    val jValue = JsonMethods.fromJsonNode(jsonNode)
-    println(jsonNode)
-    Extraction.extract[A](jValue)
-  }
-}

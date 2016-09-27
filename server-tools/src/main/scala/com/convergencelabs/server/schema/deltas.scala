@@ -23,7 +23,7 @@ case class Delta(version: Int, description: String, changes: List[Change])
 
 sealed trait Change
 
-case class CreateClass(name: String, superclass: Option[String], properties: List[Property]) extends Change
+case class CreateClass(name: String, superclass: Option[String], `abstract`: Option[Boolean], properties: List[Property]) extends Change
 case class AlterClass(name: String, newName: Option[String], superclass: Option[String]) extends Change
 case class DropClass(name: String) extends Change
 
@@ -39,6 +39,10 @@ case class DropSequence(name: String) extends Change
 
 case class RunSQLCommand(command: String) extends Change
 
+case class CreateFunction(name: String, code: String, parameters: List[String], language: Option[String], idempotent: Option[Boolean]) extends Change
+case class AlterFunction(name: String, newName: Option[String], code: Option[String], parameters: Option[List[String]], language: Option[String], idempotent: Option[Boolean]) extends Change
+case class DropFunction(name: String) extends Change
+
 case class Property(name: String, orientType: OrientType.Value, typeClass: Option[String], contraints: Option[Constraints])
 case class PropertyOptions(name: Option[String], orientType: Option[OrientType.Value], typeClass: Option[String], contraints: Option[Constraints])
 
@@ -51,7 +55,8 @@ case class Constraints(
     notNull: Option[Boolean], 
     regex: Option[String],
     collate: Option[String],
-    custom: Option[CustomProperty])
+    custom: Option[CustomProperty],
+    default: Option[String])
     
 case class CustomProperty(name: String, value: String)
     

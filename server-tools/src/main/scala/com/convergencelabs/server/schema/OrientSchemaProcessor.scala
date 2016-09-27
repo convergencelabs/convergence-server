@@ -10,16 +10,17 @@ import com.orientechnologies.orient.core.metadata.sequence.OSequence.SEQUENCE_TY
 import com.orientechnologies.orient.core.metadata.sequence.OSequence
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.sql.OCommandSQL
+import com.orientechnologies.orient.core.metadata.function.OFunction
 
 object OrientSchemaProcessor {
   def main(args: Array[String]): Unit = {
-      val db = new ODatabaseDocumentTx("memory:export" + System.nanoTime())
-      db.create()
-      val processor = new OrientSchemaProcessor(db)
-      
-      val delta = Delta(1, "Test", List(CreateClass("myClass", None, List())))
-      processor.applyDelta(delta)
-      println(db.getMetadata.getSchema.existsClass("myClass"))
+    val db = new ODatabaseDocumentTx("memory:export" + System.nanoTime())
+    db.create()
+    val processor = new OrientSchemaProcessor(db)
+
+    val delta = Delta(1, "Test", List(CreateClass("myClass", None, None, List())))
+    processor.applyDelta(delta)
+    println(db.getMetadata.getSchema.existsClass("myClass"))
   }
 }
 
@@ -42,17 +43,21 @@ class OrientSchemaProcessor(db: ODatabaseDocumentTx) {
       case createSequence: CreateSequence => applyCreateSequence(createSequence)
       case dropSequence: DropSequence     => applyDropSequence(dropSequence)
       case runSQLCommand: RunSQLCommand   => applyRunSQLCommand(runSQLCommand)
+      case createFunction: CreateFunction => applyCreateFunction(createFunction)
+      case alterFunction: AlterFunction   => applyAlterFunction(alterFunction)
+      case dropFunction: DropFunction     => applyDropFunction(dropFunction)
     }
   }
 
   private def applyCreateClass(createClass: CreateClass): Unit = {
-    val CreateClass(name, superclass, properties) = createClass
-    val newClass = superclass match {
-      case Some(className) => {
-        val oClass: OClass = db.getMetadata.getSchema.getClass(className)
-        db.getMetadata.getSchema.createClass(name, oClass)
-      }
-      case None => db.getMetadata.getSchema.createClass(name)
+    val CreateClass(name, superclass, isAbstract, properties) = createClass
+    val sClass = superclass.map { db.getMetadata.getSchema.getClass(_) }
+
+    val newClass = (isAbstract, sClass) match {
+      case (Some(true), Some(oClass)) => db.getMetadata.getSchema.createAbstractClass(name, oClass)
+      case (_, Some(oClass))          => db.getMetadata.getSchema.createClass(name, oClass)
+      case (Some(true), None)         => db.getMetadata.getSchema.createAbstractClass(name)
+      case (_, None)                  => db.getMetadata.getSchema.createClass(name)
     }
 
     properties foreach { addProperty(newClass, _) }
@@ -114,6 +119,7 @@ class OrientSchemaProcessor(db: ODatabaseDocumentTx) {
     constraints.regex.foreach { oProp.setRegexp(_) }
     constraints.collate.foreach { oProp.setCollate(_) }
     constraints.custom.foreach { cutomProp => oProp.setCustom(cutomProp.name, cutomProp.value) }
+    constraints.default.foreach { oProp.setDefaultValue(_) }
   }
 
   private def applyDropProperty(dropProperty: DropProperty): Unit = {
@@ -144,7 +150,7 @@ class OrientSchemaProcessor(db: ODatabaseDocumentTx) {
     cacheSize.foreach { params.setCacheSize(_) }
 
     sequenceLibrary.createSequence(name, sType match {
-      case SequenceType.Cached => SEQUENCE_TYPE.CACHED
+      case SequenceType.Cached  => SEQUENCE_TYPE.CACHED
       case SequenceType.Ordered => SEQUENCE_TYPE.ORDERED
     }, params);
   }
@@ -153,53 +159,79 @@ class OrientSchemaProcessor(db: ODatabaseDocumentTx) {
     val DropSequence(name) = dropSequence
     db.getMetadata.getSequenceLibrary.dropSequence(name)
   }
-  
+
   private def applyRunSQLCommand(runSQLCommand: RunSQLCommand): Unit = {
     val RunSQLCommand(command) = runSQLCommand
     db.command(new OCommandSQL(command)).execute()
   }
-  
+
+  private def applyCreateFunction(createFunction: CreateFunction): Unit = {
+    val CreateFunction(name, code, parameters, language, idempotent) = createFunction
+    val function: OFunction = db.getMetadata.getFunctionLibrary.createFunction(name)
+
+    function.setCode(code)
+    function.setParameters(parameters.asJava)
+    language.foreach { function.setLanguage(_) }
+    idempotent.foreach { function.setIdempotent(_) }
+  }
+
+  private def applyAlterFunction(alterFunction: AlterFunction): Unit = {
+    val AlterFunction(name, newName, code, parameters, language, idempotent) = alterFunction
+    val function: OFunction = db.getMetadata.getFunctionLibrary.getFunction(name)
+
+    newName.foreach { function.setName(_) }
+    code.foreach { function.setCode(_) }
+    parameters.foreach { params => function.setParameters(params.asJava) }
+    language.foreach { function.setLanguage(_) }
+    idempotent.foreach { function.setIdempotent(_) }
+  }
+
+  private def applyDropFunction(dropFunction: DropFunction): Unit = {
+    val DropFunction(name) = dropFunction
+    db.getMetadata.getFunctionLibrary.dropFunction(name)
+  }
+
   private def toOType(orientType: OrientType.Value): OType = {
     orientType match {
-      case OrientType.Boolean => OType.BOOLEAN
-      case OrientType.Integer => OType.INTEGER
-      case OrientType.Short => OType.SHORT
-      case OrientType.Long => OType.LONG
-      case OrientType.Float => OType.FLOAT
-      case OrientType.Double => OType.DOUBLE
-      case OrientType.DateTime => OType.DATETIME
-      case OrientType.String => OType.STRING
-      case OrientType.Binary => OType.BINARY
-      case OrientType.Embedded => OType.EMBEDDED
+      case OrientType.Boolean      => OType.BOOLEAN
+      case OrientType.Integer      => OType.INTEGER
+      case OrientType.Short        => OType.SHORT
+      case OrientType.Long         => OType.LONG
+      case OrientType.Float        => OType.FLOAT
+      case OrientType.Double       => OType.DOUBLE
+      case OrientType.DateTime     => OType.DATETIME
+      case OrientType.String       => OType.STRING
+      case OrientType.Binary       => OType.BINARY
+      case OrientType.Embedded     => OType.EMBEDDED
       case OrientType.EmbeddedList => OType.EMBEDDEDLIST
-      case OrientType.EmbeddedSet => OType.EMBEDDEDSET
-      case OrientType.EmbeddedMap => OType.EMBEDDEDMAP
-      case OrientType.Link => OType.LINK
-      case OrientType.LinkList => OType.LINKLIST
-      case OrientType.LinkSet => OType.LINKSET
-      case OrientType.LinkMap => OType.LINKMAP
-      case OrientType.Byte => OType.BYTE
-      case OrientType.Transient => OType.TRANSIENT
-      case OrientType.Date => OType.DATE
-      case OrientType.Custom => OType.CUSTOM
-      case OrientType.Decimal => OType.DECIMAL
-      case OrientType.LinkBag => OType.LINKBAG
-      case OrientType.Any => OType.ANY
+      case OrientType.EmbeddedSet  => OType.EMBEDDEDSET
+      case OrientType.EmbeddedMap  => OType.EMBEDDEDMAP
+      case OrientType.Link         => OType.LINK
+      case OrientType.LinkList     => OType.LINKLIST
+      case OrientType.LinkSet      => OType.LINKSET
+      case OrientType.LinkMap      => OType.LINKMAP
+      case OrientType.Byte         => OType.BYTE
+      case OrientType.Transient    => OType.TRANSIENT
+      case OrientType.Date         => OType.DATE
+      case OrientType.Custom       => OType.CUSTOM
+      case OrientType.Decimal      => OType.DECIMAL
+      case OrientType.LinkBag      => OType.LINKBAG
+      case OrientType.Any          => OType.ANY
     }
   }
-  
-    private def toOIndexType(indexType: IndexType.Value): OClass.INDEX_TYPE = {
+
+  private def toOIndexType(indexType: IndexType.Value): OClass.INDEX_TYPE = {
     indexType match {
-      case IndexType.Unique => OClass.INDEX_TYPE.UNIQUE
-      case IndexType.NotUnique => OClass.INDEX_TYPE.NOTUNIQUE
-      case IndexType.FullText => OClass.INDEX_TYPE.FULLTEXT
-      case IndexType.Dictionary => OClass.INDEX_TYPE.DICTIONARY
-      case IndexType.Proxy => OClass.INDEX_TYPE.PROXY
-      case IndexType.UniqueHashIndex => OClass.INDEX_TYPE.UNIQUE_HASH_INDEX
-      case IndexType.NotUniqueHashIndex => OClass.INDEX_TYPE.NOTUNIQUE_HASH_INDEX
-      case IndexType.FullTextHashIndex => OClass.INDEX_TYPE.FULLTEXT_HASH_INDEX
+      case IndexType.Unique              => OClass.INDEX_TYPE.UNIQUE
+      case IndexType.NotUnique           => OClass.INDEX_TYPE.NOTUNIQUE
+      case IndexType.FullText            => OClass.INDEX_TYPE.FULLTEXT
+      case IndexType.Dictionary          => OClass.INDEX_TYPE.DICTIONARY
+      case IndexType.Proxy               => OClass.INDEX_TYPE.PROXY
+      case IndexType.UniqueHashIndex     => OClass.INDEX_TYPE.UNIQUE_HASH_INDEX
+      case IndexType.NotUniqueHashIndex  => OClass.INDEX_TYPE.NOTUNIQUE_HASH_INDEX
+      case IndexType.FullTextHashIndex   => OClass.INDEX_TYPE.FULLTEXT_HASH_INDEX
       case IndexType.DictionaryHashIndex => OClass.INDEX_TYPE.DICTIONARY_HASH_INDEX
-      case IndexType.Spatial => OClass.INDEX_TYPE.SPATIAL
+      case IndexType.Spatial             => OClass.INDEX_TYPE.SPATIAL
     }
   }
 
