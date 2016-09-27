@@ -1,22 +1,22 @@
 package com.convergencelabs.server.schema
 
-object SequenceType extends Enumeration {
-  val cached, ordered = Value
-}
-
 object OrientType extends Enumeration {
-  val  BOOLEAN, INTEGER, SHORT, LONG, FLOAT, DOUBLE, 
-  DATETIME, STRING, BINARY, 
-  EMBEDDED, EMBEDDEDLIST, EMBEDDEDSET, EMBEDDEDMAP, 
-  LINK, LINKLIST, LINKSET, LINKMAP, 
-  BYTE, TRANSIENT, DATE, CUSTOM, DECIMAL, LINKBAG, ANY = Value
+  val  Boolean, Integer, Short, Long, Float, Double, 
+  DateTime, String, Binary, 
+  Embedded, EmbeddedList, EmbeddedSet, EmbeddedMap, 
+  Link, LinkList, LinkSet, LinkMap, 
+  Byte, Transient, Date, Custom, Decimal, LinkBag, Any = Value
 }
 
 object IndexType extends Enumeration {
-  val UNIQUE, NOTUNIQUE, FULLTEXT, 
-  DICTIONARY, PROXY, UNIQUE_HASH_INDEX, 
-  NOTUNIQUE_HASH_INDEX, FULLTEXT_HASH_INDEX, 
-  DICTIONARY_HASH_INDEX, SPATIAL = Value
+  val Unique, NotUnique, FullText, 
+  Dictionary, Proxy, UniqueHashIndex, 
+  NotUniqueHashIndex, FullTextHashIndex, 
+  DictionaryHashIndex, Spatial = Value
+}
+
+object SequenceType extends Enumeration {
+  val Cached, Ordered = Value
 }
 
 case class Delta(version: Int, description: String, changes: List[Change])

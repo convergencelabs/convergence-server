@@ -144,8 +144,8 @@ class OrientSchemaProcessor(db: ODatabaseDocumentTx) {
     cacheSize.foreach { params.setCacheSize(_) }
 
     sequenceLibrary.createSequence(name, sType match {
-      case SequenceType.cached => SEQUENCE_TYPE.CACHED
-      case SequenceType.ordered => SEQUENCE_TYPE.ORDERED
+      case SequenceType.Cached => SEQUENCE_TYPE.CACHED
+      case SequenceType.Ordered => SEQUENCE_TYPE.ORDERED
     }, params);
   }
 
@@ -161,45 +161,45 @@ class OrientSchemaProcessor(db: ODatabaseDocumentTx) {
   
   private def toOType(orientType: OrientType.Value): OType = {
     orientType match {
-      case OrientType.BOOLEAN => OType.BOOLEAN
-      case OrientType.INTEGER => OType.INTEGER
-      case OrientType.SHORT => OType.SHORT
-      case OrientType.LONG => OType.LONG
-      case OrientType.FLOAT => OType.FLOAT
-      case OrientType.DOUBLE => OType.DOUBLE
-      case OrientType.DATETIME => OType.DATETIME
-      case OrientType.STRING => OType.STRING
-      case OrientType.BINARY => OType.BINARY
-      case OrientType.EMBEDDED => OType.EMBEDDED
-      case OrientType.EMBEDDEDLIST => OType.EMBEDDEDLIST
-      case OrientType.EMBEDDEDSET => OType.EMBEDDEDSET
-      case OrientType.EMBEDDEDMAP => OType.EMBEDDEDMAP
-      case OrientType.LINK => OType.LINK
-      case OrientType.LINKLIST => OType.LINKLIST
-      case OrientType.LINKSET => OType.LINKSET
-      case OrientType.LINKMAP => OType.LINKMAP
-      case OrientType.BYTE => OType.BYTE
-      case OrientType.TRANSIENT => OType.TRANSIENT
-      case OrientType.DATE => OType.DATE
-      case OrientType.CUSTOM => OType.CUSTOM
-      case OrientType.DECIMAL => OType.DECIMAL
-      case OrientType.LINKBAG => OType.LINKBAG
-      case OrientType.ANY => OType.ANY
+      case OrientType.Boolean => OType.BOOLEAN
+      case OrientType.Integer => OType.INTEGER
+      case OrientType.Short => OType.SHORT
+      case OrientType.Long => OType.LONG
+      case OrientType.Float => OType.FLOAT
+      case OrientType.Double => OType.DOUBLE
+      case OrientType.DateTime => OType.DATETIME
+      case OrientType.String => OType.STRING
+      case OrientType.Binary => OType.BINARY
+      case OrientType.Embedded => OType.EMBEDDED
+      case OrientType.EmbeddedList => OType.EMBEDDEDLIST
+      case OrientType.EmbeddedSet => OType.EMBEDDEDSET
+      case OrientType.EmbeddedMap => OType.EMBEDDEDMAP
+      case OrientType.Link => OType.LINK
+      case OrientType.LinkList => OType.LINKLIST
+      case OrientType.LinkSet => OType.LINKSET
+      case OrientType.LinkMap => OType.LINKMAP
+      case OrientType.Byte => OType.BYTE
+      case OrientType.Transient => OType.TRANSIENT
+      case OrientType.Date => OType.DATE
+      case OrientType.Custom => OType.CUSTOM
+      case OrientType.Decimal => OType.DECIMAL
+      case OrientType.LinkBag => OType.LINKBAG
+      case OrientType.Any => OType.ANY
     }
   }
   
     private def toOIndexType(indexType: IndexType.Value): OClass.INDEX_TYPE = {
     indexType match {
-      case IndexType.UNIQUE => OClass.INDEX_TYPE.UNIQUE
-      case IndexType.NOTUNIQUE => OClass.INDEX_TYPE.NOTUNIQUE
-      case IndexType.FULLTEXT => OClass.INDEX_TYPE.FULLTEXT
-      case IndexType.DICTIONARY => OClass.INDEX_TYPE.DICTIONARY
-      case IndexType.PROXY => OClass.INDEX_TYPE.PROXY
-      case IndexType.UNIQUE_HASH_INDEX => OClass.INDEX_TYPE.UNIQUE_HASH_INDEX
-      case IndexType.NOTUNIQUE_HASH_INDEX => OClass.INDEX_TYPE.NOTUNIQUE_HASH_INDEX
-      case IndexType.FULLTEXT_HASH_INDEX => OClass.INDEX_TYPE.FULLTEXT_HASH_INDEX
-      case IndexType.DICTIONARY_HASH_INDEX => OClass.INDEX_TYPE.DICTIONARY_HASH_INDEX
-      case IndexType.SPATIAL => OClass.INDEX_TYPE.SPATIAL
+      case IndexType.Unique => OClass.INDEX_TYPE.UNIQUE
+      case IndexType.NotUnique => OClass.INDEX_TYPE.NOTUNIQUE
+      case IndexType.FullText => OClass.INDEX_TYPE.FULLTEXT
+      case IndexType.Dictionary => OClass.INDEX_TYPE.DICTIONARY
+      case IndexType.Proxy => OClass.INDEX_TYPE.PROXY
+      case IndexType.UniqueHashIndex => OClass.INDEX_TYPE.UNIQUE_HASH_INDEX
+      case IndexType.NotUniqueHashIndex => OClass.INDEX_TYPE.NOTUNIQUE_HASH_INDEX
+      case IndexType.FullTextHashIndex => OClass.INDEX_TYPE.FULLTEXT_HASH_INDEX
+      case IndexType.DictionaryHashIndex => OClass.INDEX_TYPE.DICTIONARY_HASH_INDEX
+      case IndexType.Spatial => OClass.INDEX_TYPE.SPATIAL
     }
   }
 

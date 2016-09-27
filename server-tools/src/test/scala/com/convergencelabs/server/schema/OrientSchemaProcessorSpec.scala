@@ -24,7 +24,7 @@ class OrientSchemaProcessorSpec extends WordSpecLike with Matchers {
       "Correctly create class and its properties" in withDb { db =>
         val delta = Delta(1, "Description",
           List(CreateClass("MyClass", None,
-            List(Property("prop1", OrientType.STRING, None, None)))))
+            List(Property("prop1", OrientType.String, None, None)))))
 
         val processor = new OrientSchemaProcessor(db)
         processor.applyDelta(delta)
@@ -86,7 +86,7 @@ class OrientSchemaProcessorSpec extends WordSpecLike with Matchers {
       "Correctly adds new property to class" in withDb { db =>
         val delta = Delta(1, "Description",
           List(CreateClass("MyClass", None, List()),
-            AddProperty("MyClass", Property("prop1", OrientType.STRING, None, None))))
+            AddProperty("MyClass", Property("prop1", OrientType.String, None, None))))
 
         val processor = new OrientSchemaProcessor(db)
         processor.applyDelta(delta)
@@ -99,8 +99,8 @@ class OrientSchemaProcessorSpec extends WordSpecLike with Matchers {
       "Correctly alters property class" in withDb { db =>
         val delta = Delta(1, "Description",
           List(CreateClass("MyClass", None,
-            List(Property("prop1", OrientType.SHORT, None, None))),
-            AlterProperty("MyClass", "prop1", PropertyOptions(None, Some(OrientType.INTEGER), None, None))))
+            List(Property("prop1", OrientType.Short, None, None))),
+            AlterProperty("MyClass", "prop1", PropertyOptions(None, Some(OrientType.Integer), None, None))))
 
         val processor = new OrientSchemaProcessor(db)
         processor.applyDelta(delta)
@@ -112,7 +112,7 @@ class OrientSchemaProcessorSpec extends WordSpecLike with Matchers {
       "Correctly alters property name" in withDb { db =>
         val delta = Delta(1, "Description",
           List(CreateClass("MyClass", None,
-            List(Property("prop1", OrientType.SHORT, None, None))),
+            List(Property("prop1", OrientType.Short, None, None))),
             AlterProperty("MyClass", "prop1", PropertyOptions(Some("prop2"), None, None, None))))
 
         val processor = new OrientSchemaProcessor(db)
@@ -126,7 +126,7 @@ class OrientSchemaProcessorSpec extends WordSpecLike with Matchers {
       "Correctly drops property from class" in withDb { db =>
         val delta = Delta(1, "Description",
           List(CreateClass("MyClass", None,
-            List(Property("prop1", OrientType.SHORT, None, None))),
+            List(Property("prop1", OrientType.Short, None, None))),
             DropProperty("MyClass", "prop1")))
 
         val processor = new OrientSchemaProcessor(db)
@@ -140,8 +140,8 @@ class OrientSchemaProcessorSpec extends WordSpecLike with Matchers {
       "Correctly creates unique index for class" in withDb { db =>
         val delta = Delta(1, "Description",
           List(CreateClass("MyClass", None,
-            List(Property("prop1", OrientType.SHORT, None, None))),
-            CreateIndex("MyClass", "MyClass.prop1", IndexType.UNIQUE, List("prop1"))))
+            List(Property("prop1", OrientType.Short, None, None))),
+            CreateIndex("MyClass", "MyClass.prop1", IndexType.Unique, List("prop1"))))
 
         val processor = new OrientSchemaProcessor(db)
         processor.applyDelta(delta)
@@ -154,8 +154,8 @@ class OrientSchemaProcessorSpec extends WordSpecLike with Matchers {
     "Processing a DropIndex change" must {
       "Correctly drops index" in withDb { db =>
         val delta = Delta(1, "Description",
-          List(CreateClass("MyClass", None, List(Property("prop1", OrientType.SHORT, None, None))),
-            CreateIndex("MyClass", "MyClass.prop1", IndexType.UNIQUE, List("prop1")),
+          List(CreateClass("MyClass", None, List(Property("prop1", OrientType.Short, None, None))),
+            CreateIndex("MyClass", "MyClass.prop1", IndexType.Unique, List("prop1")),
             DropIndex("MyClass.prop1")))
 
         val processor = new OrientSchemaProcessor(db)
@@ -168,7 +168,7 @@ class OrientSchemaProcessorSpec extends WordSpecLike with Matchers {
       "Correctly creates sequence" in withDb { db =>
         val delta = Delta(1, "Description",
           List(CreateClass("MyClass", None, List()),
-            CreateSequence("MySequence", SequenceType.ordered, None, None, None)))
+            CreateSequence("MySequence", SequenceType.Ordered, None, None, None)))
 
         val processor = new OrientSchemaProcessor(db)
         processor.applyDelta(delta)

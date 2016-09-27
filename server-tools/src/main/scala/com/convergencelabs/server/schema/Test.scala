@@ -24,7 +24,7 @@ members:
     age: 23
 """
 
-  val deltaYaml = """version: 0
+  val deltaYaml = """version: 1
 description: Initial Schema Creation
 changes:
 
@@ -34,25 +34,25 @@ changes:
     name: User
     properties: 
       - name: username
-        orientType: STRING
+        orientType: String
         constraints:
           mandatory: true 
           notNull: true
 
       - name: email
-        orientType: STRING
+        orientType: String
         constraints:
           mandatory: true 
           notNull: true
           
       - name: firstName
-        orientType: STRING
+        orientType: String
         constraints:
           mandatory: true 
           notNull: true
 
       - name: lastName
-        orientType: STRING
+        orientType: String
         constraints:
           mandatory: true 
           notNull: true
@@ -60,13 +60,13 @@ changes:
   - type: CreateIndex
     className: User
     name: User.username
-    indexType: UNIQUE
+    indexType: Unique
     properties: [username]
 
   - type: CreateIndex
     className: User
     name: User.email
-    indexType: UNIQUE
+    indexType: Unique
     properties: [email]
     
 ########## UserCredential Class ##########
@@ -75,14 +75,14 @@ changes:
     name: UserCredential
     properties: 
       - name: user
-        orientType: LINK
+        orientType: Link
         classType: User
         constraints:
           mandatory: true 
           notNull: true
 
       - name: password
-        orientType: STRING
+        orientType: String
         constraints:
           mandatory: true 
           notNull: true
@@ -90,7 +90,7 @@ changes:
   - type: CreateIndex
     className: UserCredential
     name: UserCredential.user
-    indexType: UNIQUE
+    indexType: Unique
     properties: [user]
     
 ########## UserAuthToken Class ##########
@@ -99,20 +99,20 @@ changes:
     name: UserAuthToken
     properties: 
       - name: user
-        orientType: LINK
+        orientType: Link
         classType: User
         constraints:
           mandatory: true 
           notNull: true
 
       - name: token
-        orientType: STRING
+        orientType: String
         constraints:
           mandatory: true 
           notNull: true
           
       - name: expireTime
-        orientType: DATETIME
+        orientType: DateTime
         constraints:
           mandatory: true 
           notNull: true
@@ -123,40 +123,40 @@ changes:
     name: Domain
     properties: 
       - name: namespace
-        orientType: STRING
+        orientType: String
         constraints:
           mandatory: true 
           notNull: true
           
       - name: domainId
-        orientType: STRING
+        orientType: String
         constraints: 
           mandatory: true
           notNull: true
           
       - name: displayName
-        orientType: STRING
+        orientType: String
         constraints: 
           mandatory: true
           
       - name: owner
-        orientType: LINK
+        orientType: Link
         classType: User
         constraints: 
           mandatory: true
           notNull: true
           
       - name: dbName
-        orientType: STRING
+        orientType: String
 
       - name: dbUsername
-        orientType: STRING
+        orientType: String
         
       - name: dbPassword
-        orientType: STRING
+        orientType: String
 
       - name: status
-        orientType: STRING
+        orientType: String
         constraints: 
           mandatory: true
           notNull: true
@@ -164,13 +164,13 @@ changes:
   - type: CreateIndex
     className: Domain
     name: Domain.dbName
-    indexType: UNIQUE
+    indexType: Unique
     properties: [dbName]
 
   - type: CreateIndex
     className: Domain
     name: Domain.namespace_domainId
-    indexType: UNIQUE_HASH_INDEX
+    indexType: UniqueHashIndex
     properties: [namespace, domainId]
     
 ########## Registration Class ##########
@@ -179,37 +179,37 @@ changes:
     name: Registration
     properties: 
       - name: email
-        orientType: STRING
+        orientType: String
         constraints:
           mandatory: true 
           notNull: true
           
       - name: fname
-        orientType: STRING
+        orientType: String
         constraints: 
           mandatory: true
           notNull: true
           
       - name: lname
-        orientType: STRING
+        orientType: String
         constraints: 
           mandatory: true
           notNull: true
           
       - name: reason
-        orientType: STRING
+        orientType: String
         constraints: 
           mandatory: true
           notNull: true
           
       - name: token
-        orientType: STRING
+        orientType: String
         constraints: 
           mandatory: true
           notNull: true
           
       - name: approved
-        orientType: BOOLEAN
+        orientType: Boolean
         constraints: 
           mandatory: true
           notNull: true
@@ -217,15 +217,14 @@ changes:
   - type: CreateIndex
     className: Registration
     name: Registration.email
-    indexType: UNIQUE
+    indexType: Unique
     properties: [email]
 
   - type: CreateIndex
     className: Registration
     name: Registration.email_token
-    indexType: UNIQUE
+    indexType: Unique
     properties: [email, token]
-    
 """
   
   
