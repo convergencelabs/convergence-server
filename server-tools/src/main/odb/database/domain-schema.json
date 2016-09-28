@@ -1,5 +1,5 @@
 {
-  "deltaDirectory": "domain",
+  "dbType": "Domain",
   "schemaVersion": 1,
   "dataScripts": [
   ]

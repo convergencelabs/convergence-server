@@ -123,16 +123,7 @@ class OrientDatabaseBuilder(
   private[this] val db = new ODatabaseDocumentTx("memory:export" + System.nanoTime())
 
   val mapper = new ObjectMapper(new YAMLFactory())
-  implicit val f = DefaultFormats.withTypeHintFieldName("type") +
-    ShortTypeHints(List(classOf[CreateClass], classOf[AlterClass], classOf[DropClass],
-      classOf[AddProperty], classOf[AlterProperty], classOf[DropProperty],
-      classOf[CreateIndex], classOf[DropIndex],
-      classOf[CreateSequence], classOf[DropSequence],
-      classOf[RunSQLCommand],
-      classOf[CreateFunction], classOf[AlterFunction], classOf[DropFunction])) +
-    new EnumNameSerializer(OrientType) +
-    new EnumNameSerializer(IndexType) +
-    new EnumNameSerializer(SequenceType)
+  implicit val f = DefaultFormats + new EnumNameSerializer(DBType)
 
   def buildAll(): Unit = {
     targetDir.mkdirs()
@@ -181,13 +172,13 @@ class OrientDatabaseBuilder(
     val newChildren = children :+ src
 
     for {
-      schema <- applyDeltas(manifest.schemaVersion, deltaDir.getAbsolutePath, manifest.deltaDirectory)
+      schema <- applyDeltas(manifest.schemaVersion, deltaDir.getAbsolutePath, manifest.dbType)
       data <- processManifestScripts(manifest.dataScripts, dataDir, true)
     } yield ()
   }
 
-  private[this] def applyDeltas(version: Int, deltaDir: String, deltaFolder: String): Try[Unit] = Try {
-    val manager = new OrientSchemaManager(db, deltaDir, deltaFolder)
+  private[this] def applyDeltas(version: Int, deltaDir: String, dbType: DBType.Value): Try[Unit] = Try {
+    val manager = new OrientSchemaManager(db, deltaDir, dbType)
     manager.upgradeToVersion(version);
   }
 

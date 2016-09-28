@@ -12,6 +12,10 @@ import org.json4s.jackson.JsonMethods
 import org.json4s.Extraction
 import com.orientechnologies.orient.core.metadata.schema.OClass
 
+object DBType extends Enumeration {
+  val Convergence, Domain = Value
+}
+
 object OrientSchemaManager {
   val DatabaseVersion = "DatabaseVersion"
   val ManagerVersion = 1
@@ -22,7 +26,7 @@ object OrientSchemaManager {
   }
 }
 
-class OrientSchemaManager(db: ODatabaseDocumentTx, rootDeltaDir: String, deltaFolder: String) {
+class OrientSchemaManager(db: ODatabaseDocumentTx, rootDeltaDir: String, dbType: DBType.Value) {
 
   private[this] val mapper = new ObjectMapper(new YAMLFactory())
   private implicit val format = DefaultFormats.withTypeHintFieldName("type") +
@@ -38,7 +42,16 @@ class OrientSchemaManager(db: ODatabaseDocumentTx, rootDeltaDir: String, deltaFo
 
   private[this] var currentVersion: Option[Int] = None
   private[this] var currentManagerVersion: Option[Int] = None
-  private[this] var processor = new OrientSchemaProcessor(db)
+
+  private[this] val processor = new OrientSchemaProcessor(db)
+  private[this] val versionDeltaDirectory = s"${rootDeltaDir}/version"
+  private[this] val deltaDirectory =
+    s"${rootDeltaDir}/${
+      dbType match {
+        case DBType.Convergence => "convergence"
+        case DBType.Domain      => "domain"
+      }
+    }"
 
   def currentVersion(): Int = {
     currentVersion = currentVersion.orElse({
@@ -60,19 +73,17 @@ class OrientSchemaManager(db: ODatabaseDocumentTx, rootDeltaDir: String, deltaFo
 
   def upgradeToVersion(version: Int): Unit = {
     upgradeManagerVersion()
-    val deltaDirectory = s"${rootDeltaDir}/${deltaFolder}"
     val startVersion = currentVersion() + 1
     val deltas = for (i <- startVersion to version) yield getDelta(i, deltaDirectory)
-    deltas.foreach { 
-      delta => processor.applyDelta(delta) 
+    deltas.foreach {
+      delta => processor.applyDelta(delta)
     }
     db.getMetadata.getSchema.getClass(OrientSchemaManager.DatabaseVersion).setCustom(Fields.Version, version.toString)
   }
 
   private[this] def upgradeManagerVersion() {
-    val deltaDirectory = s"${rootDeltaDir}/version"
     val startVersion = currentManagerVersion() + 1
-    val deltas = for (i <- startVersion to OrientSchemaManager.ManagerVersion) yield getDelta(i, deltaDirectory)
+    val deltas = for (i <- startVersion to OrientSchemaManager.ManagerVersion) yield getDelta(i, versionDeltaDirectory)
     deltas.foreach { delta =>
       processor.applyDelta(delta)
     }
