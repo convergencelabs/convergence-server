@@ -1,11 +1,6 @@
 {
-  "schemaScripts": [
-    "convergence/User.osql",
-    "convergence/Registration.osql",
-    "convergence/Domain.osql",
-    "convergence/UserCredential.osql",
-    "convergence/UserAuthToken.osql"
-  ],
+  "deltaDirectory": "convergence",
+  "schemaVersion": 1,
   "dataScripts": [
   ]
 }

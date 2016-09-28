@@ -1,6 +1,6 @@
 package com.convergencelabs.server.schema
 
 case class DatabaseManifest(
-  inherit: Option[String],
-  schemaScripts: Option[List[String]],
+  deltaDirectory: String,
+  schemaVersion: Int,
   dataScripts: Option[List[String]])

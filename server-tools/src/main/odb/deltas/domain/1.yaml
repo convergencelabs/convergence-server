@@ -578,7 +578,7 @@ changes:
 ########## ObjectRemovePropertyOperation Class ##########
 
   - type: CreateClass
-    name: ObjectAddPropertyOperation
+    name: ObjectRemovePropertyOperation
     superclass: DiscreteOperation
     properties: 
       - name: prop
@@ -887,28 +887,28 @@ changes:
   - type: CreateFunction
     name: arrayInsert
     idempotent: false
-    language:  "javascript"
-    parameters: ["array", "index", "value"]
+    language: javascript
+    parameters: [array, index, value]
     code: "var idx = parseInt(index);\narray.add(idx, value);\nreturn array;"
     
   - type: CreateFunction
     name: arrayRemove
     idempotent: false
-    language:  "javascript"
-    parameters: ["array", "index"]
+    language: javascript
+    parameters: [array, index]
     code: "var idx = parseInt(index);\narray.remove(idx);\nreturn array;"
     
   - type: CreateFunction
     name: arrayReplace
     idempotent: false
-    language:  "javascript"
-    parameters: ["array", "index", "value"]
+    language: javascript
+    parameters: [array, index, value]
     code: "var idx = parseInt(index);\narray.set(idx, value);\nreturn array;"    
     
   - type: CreateFunction
     name: arrayMove
     idempotent: false
-    language:  "javascript"
-    parameters: ["array", "fromIndex", "toIndex"]
+    language: javascript
+    parameters: [array, fromIndex, toIndex]
     code: "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;"
     

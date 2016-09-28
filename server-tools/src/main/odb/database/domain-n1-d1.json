@@ -1,7 +1,6 @@
 {
-  "inherit": "domain-schema.json",
-  "schemaScripts": [
-  ],
+  "deltaDirectory": "domain",
+  "schemaVersion": 1,
   "dataScripts": [
     "domain/DomainConfig/domainConfig.osql",
     

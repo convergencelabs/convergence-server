@@ -20,6 +20,13 @@ import scala.util.Success
 import scala.util.Try
 import scala.PartialFunction.AndThen
 import scala.util.control.NonFatal
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import org.json4s.ext.EnumNameSerializer
+import org.json4s.ShortTypeHints
+import org.json4s.DefaultFormats
+import org.json4s.Extraction
+import org.json4s.jackson.JsonMethods
 
 private object Conf {
   def apply(arguments: Seq[String]): Conf = new Conf(arguments)
@@ -35,11 +42,11 @@ private class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
     required = false,
     default = Some("src/main/odb"))
 
-  val schemaDir = opt[String](
-    argName = "schema",
-    descr = "The relative locatin of the schema dir relative to the root",
+  val deltaDir = opt[String](
+    argName = "deltas",
+    descr = "The relative locatin of the delta dir relative to the root",
     required = false,
-    default = Some("schema"))
+    default = Some("deltas"))
 
   val dataDir = opt[String](
     argName = "data",
@@ -75,15 +82,15 @@ object OrientDatabaseBuilder {
     val files = for {
       rootDir <- verifyDirectoryExists(new File(conf.sourceDir.get.get), "rootDir")
       dataDir <- verifyDirectoryExists(new File(rootDir, conf.dataDir.get.get), "dataDir")
-      schemaDir <- verifyDirectoryExists(new File(rootDir, conf.schemaDir.get.get), "schemaDir")
+      deltaDir <- verifyDirectoryExists(new File(rootDir, conf.deltaDir.get.get), "deltaDir")
       databaseDir <- verifyDirectoryExists(new File(rootDir, conf.databaseDir.get.get), "databaseDir")
-    } yield (rootDir, dataDir, schemaDir, databaseDir)
+    } yield (rootDir, dataDir, deltaDir, databaseDir)
 
     files match {
-      case Success((rootDir, dataDir, schemaDir, databaseDir)) =>
+      case Success((rootDir, dataDir, deltaDir, databaseDir)) =>
         val builder = new OrientDatabaseBuilder(
           rootDir,
-          schemaDir,
+          deltaDir,
           dataDir,
           databaseDir,
           targetDir,
@@ -107,13 +114,25 @@ object OrientDatabaseBuilder {
 
 class OrientDatabaseBuilder(
     private[this] val rootDir: File,
-    private[this] val schemaDir: File,
+    private[this] val deltaDir: File,
     private[this] val dataDir: File,
     private[this] val databaseDir: File,
     private[this] val targetDir: File,
     private[this] val verbose: Boolean) {
 
   private[this] val db = new ODatabaseDocumentTx("memory:export" + System.nanoTime())
+
+  val mapper = new ObjectMapper(new YAMLFactory())
+  implicit val f = DefaultFormats.withTypeHintFieldName("type") +
+    ShortTypeHints(List(classOf[CreateClass], classOf[AlterClass], classOf[DropClass],
+      classOf[AddProperty], classOf[AlterProperty], classOf[DropProperty],
+      classOf[CreateIndex], classOf[DropIndex],
+      classOf[CreateSequence], classOf[DropSequence],
+      classOf[RunSQLCommand],
+      classOf[CreateFunction], classOf[AlterFunction], classOf[DropFunction])) +
+    new EnumNameSerializer(OrientType) +
+    new EnumNameSerializer(IndexType) +
+    new EnumNameSerializer(SequenceType)
 
   def buildAll(): Unit = {
     targetDir.mkdirs()
@@ -157,25 +176,28 @@ class OrientDatabaseBuilder(
   private[this] def buildFromManifest(src: File, children: List[File]): Try[Unit] = {
     println(s"Building database from manifiest file: ${src.getPath}")
     val manifestData = fromFile(src).mkString
-    implicit val f = DefaultFormats
     val manifest = read[DatabaseManifest](manifestData)
 
     val newChildren = children :+ src
 
     for {
-      inherit <- manifest.inherit match {
-        case Some(parentManifest) =>
-          val parentFile = new File(databaseDir, parentManifest)
-          if (newChildren.contains(parentFile)) {
-            Failure(new IllegalArgumentException("Can not have loops in inheritance: " + (newChildren :+ parentFile)))
-          } else {
-            buildFromManifest(parentFile, newChildren)
-          }
-        case None => Success(())
-      }
-      schema <- processManifestScripts(manifest.schemaScripts, schemaDir, false)
+      schema <- applyDeltas(manifest.schemaVersion, deltaDir.getAbsolutePath + "/" + manifest.deltaDirectory)
       data <- processManifestScripts(manifest.dataScripts, dataDir, true)
     } yield ()
+  }
+
+  private[this] def applyDeltas(version: Int, deltaDir: String): Try[Unit] = Try {
+    val processor = new OrientSchemaProcessor(db)
+    for (i <- 1 to version) {
+      processor.applyDelta(getDelta(i, deltaDir));
+    }
+  }
+
+  private[this] def getDelta(version: Int, deltaDir: String): Delta = {
+    val jsonNode = mapper.readTree(new File(s"${deltaDir}/${version}.yaml"))
+    val jValue = JsonMethods.fromJsonNode(jsonNode)
+    println(jsonNode)
+    Extraction.extract[Delta](jValue)
   }
 
   private[this] def processManifestScripts(scriptFiles: Option[List[String]], basePath: File, useTransaction: Boolean): Try[Unit] = Try {
@@ -211,11 +233,11 @@ class OrientDatabaseBuilder(
       if (useTransaction) {
         db.begin()
       }
-      
+
       val sql = mergedLines.mkString(";\n")
       println(sql)
       db.command(new OCommandScript(sql)).execute()
-      
+
       if (useTransaction) {
         db.commit()
       }

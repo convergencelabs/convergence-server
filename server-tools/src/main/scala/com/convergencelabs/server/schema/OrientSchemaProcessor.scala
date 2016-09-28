@@ -173,6 +173,7 @@ class OrientSchemaProcessor(db: ODatabaseDocumentTx) {
     function.setParameters(parameters.asJava)
     language.foreach { function.setLanguage(_) }
     idempotent.foreach { function.setIdempotent(_) }
+    function.save()
   }
 
   private def applyAlterFunction(alterFunction: AlterFunction): Unit = {

@@ -1,7 +1,6 @@
 {
-  "inherit": "convergence-schema.json",
-  "schemaScripts": [
-  ],
+  "deltaDirectory": "convergence",
+  "schemaVersion": 1,
   "dataScripts": [
     "convergence/User/cu0.osql",
     "convergence/User/cu1.osql",
