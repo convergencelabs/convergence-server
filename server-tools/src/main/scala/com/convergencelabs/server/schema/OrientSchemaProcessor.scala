@@ -12,18 +12,6 @@ import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.metadata.function.OFunction
 
-object OrientSchemaProcessor {
-  def main(args: Array[String]): Unit = {
-    val db = new ODatabaseDocumentTx("memory:export" + System.nanoTime())
-    db.create()
-    val processor = new OrientSchemaProcessor(db)
-
-    val delta = Delta(1, "Test", List(CreateClass("myClass", None, None, List())))
-    processor.applyDelta(delta)
-    println(db.getMetadata.getSchema.existsClass("myClass"))
-  }
-}
-
 class OrientSchemaProcessor(db: ODatabaseDocumentTx) {
 
   def applyDelta(delta: Delta): Unit = {
@@ -185,6 +173,7 @@ class OrientSchemaProcessor(db: ODatabaseDocumentTx) {
     parameters.foreach { params => function.setParameters(params.asJava) }
     language.foreach { function.setLanguage(_) }
     idempotent.foreach { function.setIdempotent(_) }
+    function.save()
   }
 
   private def applyDropFunction(dropFunction: DropFunction): Unit = {
