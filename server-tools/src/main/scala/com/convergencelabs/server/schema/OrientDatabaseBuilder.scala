@@ -181,23 +181,14 @@ class OrientDatabaseBuilder(
     val newChildren = children :+ src
 
     for {
-      schema <- applyDeltas(manifest.schemaVersion, deltaDir.getAbsolutePath + "/" + manifest.deltaDirectory)
+      schema <- applyDeltas(manifest.schemaVersion, deltaDir.getAbsolutePath, manifest.deltaDirectory)
       data <- processManifestScripts(manifest.dataScripts, dataDir, true)
     } yield ()
   }
 
-  private[this] def applyDeltas(version: Int, deltaDir: String): Try[Unit] = Try {
-    val processor = new OrientSchemaProcessor(db)
-    for (i <- 1 to version) {
-      processor.applyDelta(getDelta(i, deltaDir));
-    }
-  }
-
-  private[this] def getDelta(version: Int, deltaDir: String): Delta = {
-    val jsonNode = mapper.readTree(new File(s"${deltaDir}/${version}.yaml"))
-    val jValue = JsonMethods.fromJsonNode(jsonNode)
-    println(jsonNode)
-    Extraction.extract[Delta](jValue)
+  private[this] def applyDeltas(version: Int, deltaDir: String, deltaFolder: String): Try[Unit] = Try {
+    val manager = new OrientSchemaManager(db, deltaDir, deltaFolder)
+    manager.upgradeToVersion(version);
   }
 
   private[this] def processManifestScripts(scriptFiles: Option[List[String]], basePath: File, useTransaction: Boolean): Try[Unit] = Try {
