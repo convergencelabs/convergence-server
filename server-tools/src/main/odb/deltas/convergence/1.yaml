@@ -4,7 +4,7 @@ changes:
 
 ########## User Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: User
     properties: 
       - name: username
@@ -31,13 +31,13 @@ changes:
           mandatory: true 
           notNull: true
 
-  - type: CreateIndex
+  - action: CreateIndex
     className: User
     name: User.username
     type: Unique
     properties: [username]
 
-  - type: CreateIndex
+  - action: CreateIndex
     className: User
     name: User.email
     type: Unique
@@ -45,7 +45,7 @@ changes:
     
 ########## UserCredential Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: UserCredential
     properties: 
       - name: user
@@ -61,7 +61,7 @@ changes:
           mandatory: true 
           notNull: true
           
-  - type: CreateIndex
+  - action: CreateIndex
     className: UserCredential
     name: UserCredential.user
     type: Unique
@@ -69,7 +69,7 @@ changes:
     
 ########## UserAuthToken Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: UserAuthToken
     properties: 
       - name: user
@@ -93,7 +93,7 @@ changes:
           
 ########## Domain Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: Domain
     properties: 
       - name: namespace
@@ -135,13 +135,13 @@ changes:
           mandatory: true
           notNull: true
           
-  - type: CreateIndex
+  - action: CreateIndex
     className: Domain
     name: Domain.dbName
     type: Unique
     properties: [dbName]
 
-  - type: CreateIndex
+  - action: CreateIndex
     className: Domain
     name: Domain.namespace_domainId
     type: UniqueHashIndex
@@ -149,7 +149,7 @@ changes:
     
 ########## Registration Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: Registration
     properties: 
       - name: email
@@ -188,13 +188,13 @@ changes:
           mandatory: true
           notNull: true
           
-  - type: CreateIndex
+  - action: CreateIndex
     className: Registration
     name: Registration.email
     type: Unique
     properties: [email]
 
-  - type: CreateIndex
+  - action: CreateIndex
     className: Registration
     name: Registration.email_token
     type: Unique

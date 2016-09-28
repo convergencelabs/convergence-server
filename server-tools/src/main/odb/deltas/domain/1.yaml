@@ -4,12 +4,12 @@ changes:
 
 ########## DateTimeFormat ##########
 
-  - type: RunSQLCommand
+  - action: RunSQLCommand
     command: "ALTER DATABASE DATETIMEFORMAT \"yyyy-MM-dd'T'HH:mm:ss.SSSZ\";"
 
 ########## ModelSnapshotConfig Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: ModelSnapshotConfig
     properties: 
       - name: ModelSnapshotConfig
@@ -68,7 +68,7 @@ changes:
 
 ########## TokenPublicKey Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: TokenPublicKey
     properties: 
       - name: id
@@ -107,7 +107,7 @@ changes:
           mandatory: true 
           notNull: true
           
-  - type: CreateIndex
+  - action: CreateIndex
     className: TokenPublicKey
     name: TokenPublicKey.id
     type: UniqueHashIndex
@@ -115,7 +115,7 @@ changes:
 
 ########## DomainConfig Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: DomainConfig
     properties: 
       - name: modelSnapshotConfig
@@ -139,7 +139,7 @@ changes:
           
 ########## Collection Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: Collection
     properties: 
       - name: collectionId
@@ -167,7 +167,7 @@ changes:
         constraints:
           notNull: true
 
-  - type: CreateIndex
+  - action: CreateIndex
     className: Collection
     name: Collection.collectionId
     type: UniqueHashIndex
@@ -175,7 +175,7 @@ changes:
 
 ########## Model Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: Model
     properties: 
       - name: collectionId
@@ -210,7 +210,7 @@ changes:
           mandatory: true 
           notNull: true
 
-  - type: CreateIndex
+  - action: CreateIndex
     className: Model
     name: Model.collectionId_modelId
     type: UniqueHashIndex
@@ -218,7 +218,7 @@ changes:
 
 ########## ModelSnapshot Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: ModelSnapshot
     properties: 
       - name: collectionId
@@ -246,13 +246,13 @@ changes:
           mandatory: true 
           notNull: true
 
-  - type: CreateIndex
+  - action: CreateIndex
     className: ModelSnapshot
     name: ModelSnapshot.collectionId_modelId_version
     type: Unique
     properties: [collectionId, modelId, version]
 
-  - type: CreateIndex
+  - action: CreateIndex
     className: ModelSnapshot
     name: ModelSnapshot.collectionId_modelId
     type: NotUniqueHashIndex
@@ -260,7 +260,7 @@ changes:
 
 ########## DataValue Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: DataValue
     abstract: true
     properties: 
@@ -281,7 +281,7 @@ changes:
     
 ########## ObjectValue Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: ObjectValue
     superclass: DataValue
     properties: 
@@ -294,7 +294,7 @@ changes:
           
 ########## ArrayValue Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: ArrayValue
     superclass: DataValue
     properties: 
@@ -306,7 +306,7 @@ changes:
     
 ########## StringValue Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: StringValue
     superclass: DataValue
     properties: 
@@ -318,7 +318,7 @@ changes:
      
 ########## DoubleValue Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: DoubleValue
     superclass: DataValue
     properties: 
@@ -330,7 +330,7 @@ changes:
           
 ########## BooleanValue Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: BooleanValue
     superclass: DataValue
     properties: 
@@ -342,13 +342,13 @@ changes:
 
 ########## NullValue Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: NullValue
     superclass: DataValue
 
 ########## OpValue Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: OpValue
     abstract: true
     properties: 
@@ -361,7 +361,7 @@ changes:
 
 ########## ObjectOpValue Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: ObjectOpValue
     superclass: OpValue
     properties: 
@@ -375,7 +375,7 @@ changes:
 
 ########## ArrayOpValue Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: ArrayOpValue
     superclass: OpValue
     properties: 
@@ -389,7 +389,7 @@ changes:
 
 ########## StringOpValue Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: StringOpValue
     superclass: OpValue
     properties: 
@@ -402,7 +402,7 @@ changes:
 
 ########## DoubleOpValue Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: DoubleOpValue
     superclass: OpValue
     properties: 
@@ -415,7 +415,7 @@ changes:
 
 ########## BooleanOpValue Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: BooleanOpValue
     superclass: OpValue
     properties: 
@@ -429,7 +429,7 @@ changes:
 
 ########## NullOpValue Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: NullOpValue
     superclass: OpValue       
     
@@ -440,13 +440,13 @@ changes:
     
 ########## Operation Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: Operation
     abstract: true    
     
 ########## DiscreteOperation Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: DiscreteOperation
     superclass: Operation
     abstract: true
@@ -465,7 +465,7 @@ changes:
     
 ########## CompoundOperation Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: CompoundOperation
     superclass: Operation
     properties: 
@@ -478,7 +478,7 @@ changes:
 
 ########## StringInsertOperation Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: StringInsertOperation
     superclass: DiscreteOperation
     properties: 
@@ -496,7 +496,7 @@ changes:
     
 ########## StringRemoveOperation Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: StringRemoveOperation
     superclass: DiscreteOperation
     properties: 
@@ -519,7 +519,7 @@ changes:
     
 ########## StringSetOperation Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: StringSetOperation
     superclass: DiscreteOperation
     properties: 
@@ -535,7 +535,7 @@ changes:
     
  ########## ObjectSetPropertyOperation Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: ObjectSetPropertyOperation
     superclass: DiscreteOperation
     properties: 
@@ -559,7 +559,7 @@ changes:
     
 ########## ObjectAddPropertyOperation Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: ObjectAddPropertyOperation
     superclass: DiscreteOperation
     properties: 
@@ -577,7 +577,7 @@ changes:
       
 ########## ObjectRemovePropertyOperation Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: ObjectRemovePropertyOperation
     superclass: DiscreteOperation
     properties: 
@@ -595,7 +595,7 @@ changes:
     
 ########## ObjectSetOperation Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: ObjectSetOperation
     superclass: DiscreteOperation
     properties: 
@@ -613,7 +613,7 @@ changes:
     
 ########## NumberAddOperation Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: NumberAddOperation
     superclass: DiscreteOperation
     properties: 
@@ -625,7 +625,7 @@ changes:
              
 ########## NumberSetOperation Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: NumberSetOperation
     superclass: DiscreteOperation
     properties: 
@@ -642,7 +642,7 @@ changes:
     
 ########## ArrayInsertOperation Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: ArrayInsertOperation
     superclass: DiscreteOperation
     properties: 
@@ -660,7 +660,7 @@ changes:
     
 ########## ArrayRemoveOperation Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: ArrayRemoveOperation
     superclass: DiscreteOperation
     properties: 
@@ -678,7 +678,7 @@ changes:
         
 ########## ArrayReplaceOperation Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: ArrayReplaceOperation
     superclass: DiscreteOperation
     properties: 
@@ -702,7 +702,7 @@ changes:
     
 ########## ArrayMoveOperation Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: ArrayMoveOperation
     superclass: DiscreteOperation
     properties: 
@@ -720,7 +720,7 @@ changes:
     
 ########## ArraySetOperation Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: ArraySetOperation
     superclass: DiscreteOperation
     properties: 
@@ -740,7 +740,7 @@ changes:
 
 ########## ModelOperation Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: ModelOperation
     properties: 
       - name: collectionId
@@ -786,13 +786,13 @@ changes:
           mandatory: true 
           notNull: true
 
-  - type: CreateIndex
+  - action: CreateIndex
     className: ModelOperation
     name: ModelOperation.collectionId_modelId_version
     type: Unique
     properties: [collectionId, modelId, version]
 
-  - type: CreateIndex
+  - action: CreateIndex
     className: ModelOperation
     name: ModelOperation.collectionId_modelId
     type: NotUniqueHashIndex
@@ -801,7 +801,7 @@ changes:
 
 ########## User Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: User
     properties: 
       - name: username
@@ -819,13 +819,13 @@ changes:
       - name: lastName
         type: String
           
-  - type: CreateIndex
+  - action: CreateIndex
     className: User
     name: User.username
     type: Unique
     properties: [username]
     
-  - type: CreateIndex
+  - action: CreateIndex
     className: User
     name: User.email
     type: Unique
@@ -833,7 +833,7 @@ changes:
     
 ########## UserCredential Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: UserCredential
     properties: 
       - name: user
@@ -849,7 +849,7 @@ changes:
           mandatory: true 
           notNull: true
 
-  - type: CreateIndex
+  - action: CreateIndex
     className: UserCredential
     name: UserCredential.user
     type: Unique
@@ -857,7 +857,7 @@ changes:
 
 
 ########## Additional Properties ##########
-  - type: AddProperty
+  - action: AddProperty
     className: Model
     property: 
       name: data
@@ -866,7 +866,7 @@ changes:
       constraints:
         mandatory: true 
       
-  - type: AddProperty
+  - action: AddProperty
     className: ModelSnapshot
     property: 
       name: data
@@ -878,34 +878,34 @@ changes:
 
 ########## Sequences ##########
 
-  - type: CreateSequence
+  - action: CreateSequence
     name: sessionSeq
     sequenceType: Ordered
 
 ########## Functions ##########
 
-  - type: CreateFunction
+  - action: CreateFunction
     name: arrayInsert
     idempotent: false
     language: javascript
     parameters: [array, index, value]
     code: "var idx = parseInt(index);\narray.add(idx, value);\nreturn array;"
     
-  - type: CreateFunction
+  - action: CreateFunction
     name: arrayRemove
     idempotent: false
     language: javascript
     parameters: [array, index]
     code: "var idx = parseInt(index);\narray.remove(idx);\nreturn array;"
     
-  - type: CreateFunction
+  - action: CreateFunction
     name: arrayReplace
     idempotent: false
     language: javascript
     parameters: [array, index, value]
     code: "var idx = parseInt(index);\narray.set(idx, value);\nreturn array;"    
     
-  - type: CreateFunction
+  - action: CreateFunction
     name: arrayMove
     idempotent: false
     language: javascript

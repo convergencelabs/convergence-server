@@ -4,11 +4,11 @@ changes:
 
 ########## DatabaseVersion Class ##########
 
-  - type: CreateClass
+  - action: CreateClass
     name: DatabaseVersion
     
-  - type: RunSQLCommand
+  - action: RunSQLCommand
     command: "ALTER Class DatabaseVersion CUSTOM managerVersion=1"
     
-  - type: RunSQLCommand
+  - action: RunSQLCommand
     command: "ALTER Class DatabaseVersion CUSTOM version=0"          

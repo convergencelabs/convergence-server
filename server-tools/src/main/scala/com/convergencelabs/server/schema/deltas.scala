@@ -31,7 +31,7 @@ case class AddProperty(className: String, property: Property) extends Change
 case class AlterProperty(className: String, name: String, property: PropertyOptions) extends Change
 case class DropProperty(className: String, name: String) extends Change
 
-case class CreateIndex(className: String, name: String, indexType: IndexType.Value, properties: List[String]) extends Change
+case class CreateIndex(className: String, name: String, `type`: IndexType.Value, properties: List[String]) extends Change
 case class DropIndex(name: String) extends Change
 
 case class CreateSequence(name: String, sequenceType: SequenceType.Value, start: Option[Int], increment: Option[Int], cacheSize: Option[Int]) extends Change
