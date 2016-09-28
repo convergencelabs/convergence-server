@@ -8,25 +8,25 @@ changes:
     name: User
     properties: 
       - name: username
-        orientType: String
+        type: String
         constraints:
           mandatory: true 
           notNull: true
 
       - name: email
-        orientType: String
+        type: String
         constraints:
           mandatory: true 
           notNull: true
           
       - name: firstName
-        orientType: String
+        type: String
         constraints:
           mandatory: true 
           notNull: true
 
       - name: lastName
-        orientType: String
+        type: String
         constraints:
           mandatory: true 
           notNull: true
@@ -34,13 +34,13 @@ changes:
   - type: CreateIndex
     className: User
     name: User.username
-    indexType: Unique
+    type: Unique
     properties: [username]
 
   - type: CreateIndex
     className: User
     name: User.email
-    indexType: Unique
+    type: Unique
     properties: [email]
     
 ########## UserCredential Class ##########
@@ -49,14 +49,14 @@ changes:
     name: UserCredential
     properties: 
       - name: user
-        orientType: Link
+        type: Link
         classType: User
         constraints:
           mandatory: true 
           notNull: true
 
       - name: password
-        orientType: String
+        type: String
         constraints:
           mandatory: true 
           notNull: true
@@ -64,7 +64,7 @@ changes:
   - type: CreateIndex
     className: UserCredential
     name: UserCredential.user
-    indexType: Unique
+    type: Unique
     properties: [user]
     
 ########## UserAuthToken Class ##########
@@ -73,20 +73,20 @@ changes:
     name: UserAuthToken
     properties: 
       - name: user
-        orientType: Link
+        type: Link
         classType: User
         constraints:
           mandatory: true 
           notNull: true
 
       - name: token
-        orientType: String
+        type: String
         constraints:
           mandatory: true 
           notNull: true
           
       - name: expireTime
-        orientType: DateTime
+        type: DateTime
         constraints:
           mandatory: true 
           notNull: true
@@ -97,40 +97,40 @@ changes:
     name: Domain
     properties: 
       - name: namespace
-        orientType: String
+        type: String
         constraints:
           mandatory: true 
           notNull: true
           
       - name: domainId
-        orientType: String
+        type: String
         constraints: 
           mandatory: true
           notNull: true
           
       - name: displayName
-        orientType: String
+        type: String
         constraints: 
           mandatory: true
           
       - name: owner
-        orientType: Link
+        type: Link
         classType: User
         constraints: 
           mandatory: true
           notNull: true
           
       - name: dbName
-        orientType: String
+        type: String
 
       - name: dbUsername
-        orientType: String
+        type: String
         
       - name: dbPassword
-        orientType: String
+        type: String
 
       - name: status
-        orientType: String
+        type: String
         constraints: 
           mandatory: true
           notNull: true
@@ -138,13 +138,13 @@ changes:
   - type: CreateIndex
     className: Domain
     name: Domain.dbName
-    indexType: Unique
+    type: Unique
     properties: [dbName]
 
   - type: CreateIndex
     className: Domain
     name: Domain.namespace_domainId
-    indexType: UniqueHashIndex
+    type: UniqueHashIndex
     properties: [namespace, domainId]
     
 ########## Registration Class ##########
@@ -153,37 +153,37 @@ changes:
     name: Registration
     properties: 
       - name: email
-        orientType: String
+        type: String
         constraints:
           mandatory: true 
           notNull: true
           
       - name: fname
-        orientType: String
+        type: String
         constraints: 
           mandatory: true
           notNull: true
           
       - name: lname
-        orientType: String
+        type: String
         constraints: 
           mandatory: true
           notNull: true
           
       - name: reason
-        orientType: String
+        type: String
         constraints: 
           mandatory: true
           notNull: true
           
       - name: token
-        orientType: String
+        type: String
         constraints: 
           mandatory: true
           notNull: true
           
       - name: approved
-        orientType: Boolean
+        type: Boolean
         constraints: 
           mandatory: true
           notNull: true
@@ -191,12 +191,12 @@ changes:
   - type: CreateIndex
     className: Registration
     name: Registration.email
-    indexType: Unique
+    type: Unique
     properties: [email]
 
   - type: CreateIndex
     className: Registration
     name: Registration.email_token
-    indexType: Unique
+    type: Unique
     properties: [email, token]
     

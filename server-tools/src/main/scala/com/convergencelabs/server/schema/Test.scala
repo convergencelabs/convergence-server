@@ -11,18 +11,6 @@ import org.json4s.ext.EnumNameSerializer
 
 object Test {
 
-  case class Person(firstName: String, lastName: String, age: Int)
-  case class Group(name: String, members: List[Person])
-
-  val groupYaml = """name: my group
-members:
-  - firstName: Michael
-    lastName: MacFadden
-    age: 36
-  - firstName: Jim
-    lastName: james
-    age: 23
-"""
 
   val deltaYaml = """version: 1
 description: Initial Domain Schema Creation
@@ -39,55 +27,55 @@ changes:
     name: ModelSnapshotConfig
     properties: 
       - name: ModelSnapshotConfig
-        orientType: Boolean
+        type: Boolean
         constraints:
           mandatory: true 
           notNull: true
           
       - name: triggerByVersion
-        orientType: Boolean
+        type: Boolean
         constraints:
           mandatory: true 
           notNull: true
 
       - name: limitedByVersion
-        orientType: Boolean
+        type: Boolean
         constraints:
           mandatory: true 
           notNull: true
 
       - name: minVersionInterval
-        orientType: Long
+        type: Long
         constraints:
           mandatory: true 
           notNull: true
 
       - name: maxVersionInterval
-        orientType: Long
+        type: Long
         constraints:
           mandatory: true 
           notNull: true
 
       - name: triggerByTime
-        orientType: Boolean
+        type: Boolean
         constraints:
           mandatory: true 
           notNull: true
 
       - name: limitedByTime
-        orientType: Boolean
+        type: Boolean
         constraints:
           mandatory: true 
           notNull: true
 
       - name: minTimeInterval
-        orientType: Long
+        type: Long
         constraints:
           mandatory: true 
           notNull: true
 
       - name: maxTimeInterval
-        orientType: Long
+        type: Long
         constraints:
           mandatory: true 
           notNull: true
@@ -98,37 +86,37 @@ changes:
     name: TokenPublicKey
     properties: 
       - name: id
-        orientType: String
+        type: String
         constraints:
           mandatory: true 
           notNull: true
           
       - name: name
-        orientType: String
+        type: String
         constraints:
           mandatory: true 
           notNull: true
 
       - name: description
-        orientType: String
+        type: String
         constraints:
           mandatory: true 
           notNull: true
 
       - name: created
-        orientType: DateTime
+        type: DateTime
         constraints:
           mandatory: true 
           notNull: true
 
       - name: enabled
-        orientType: Boolean
+        type: Boolean
         constraints:
           mandatory: true 
           notNull: true
 
       - name: key
-        orientType: String
+        type: String
         constraints:
           mandatory: true 
           notNull: true
@@ -145,20 +133,20 @@ changes:
     name: DomainConfig
     properties: 
       - name: modelSnapshotConfig
-        orientType: Embedded
+        type: Embedded
         classType: ModelSnapshotConfig
         constraints:
           mandatory: true 
           notNull: true
 
       - name: adminPublicKey
-        orientType: String
+        type: String
         constraints:
           mandatory: true 
           notNull: true
           
       - name: adminPrivateKey
-        orientType: String
+        type: String
         constraints:
           mandatory: true 
           notNull: true
@@ -169,26 +157,26 @@ changes:
     name: Collection
     properties: 
       - name: collectionId
-        orientType: String
+        type: String
         constraints:
           mandatory: true 
           notNull: true
 
       - name: name
-        orientType: String
+        type: String
         constraints:
           mandatory: true 
           notNull: true
           
       - name: overrideSnapshotConfig
-        orientType: Boolean
+        type: Boolean
         constraints:
           mandatory: true 
           notNull: true
           default: false
 
       - name: snapshotConfig
-        orientType: Embedded
+        type: Embedded
         classType: ModelSnapshotConfig
         constraints:
           notNull: true
@@ -205,33 +193,33 @@ changes:
     name: Model
     properties: 
       - name: collectionId
-        orientType: String
+        type: String
         constraints:
           mandatory: true 
           notNull: true
           
       - name: modelId
-        orientType: String
+        type: String
         constraints:
           mandatory: true 
           notNull: true
 
       - name: version
-        orientType: Long
+        type: Long
         constraints:
           mandatory: true 
           notNull: true
           min: 0
 
       - name: createdTime
-        orientType: DateTime
+        type: DateTime
         constraints:
           mandatory: true 
           notNull: true
           readOnly: true
 
       - name: modifiedTime
-        orientType: DateTime
+        type: DateTime
         constraints:
           mandatory: true 
           notNull: true
@@ -248,26 +236,26 @@ changes:
     name: ModelSnapshot
     properties: 
       - name: collectionId
-        orientType: String
+        type: String
         constraints:
           mandatory: true 
           notNull: true
           
       - name: modelId
-        orientType: String
+        type: String
         constraints:
           mandatory: true 
           notNull: true
 
       - name: version
-        orientType: Long
+        type: Long
         constraints:
           mandatory: true 
           notNull: true
           min: 0
 
       - name: timestamp
-        orientType: DateTime
+        type: DateTime
         constraints:
           mandatory: true 
           notNull: true
@@ -291,14 +279,14 @@ changes:
     abstract: true
     properties: 
       - name: vid
-        orientType: String
+        type: String
         constraints:
           mandatory: true 
           notNull: true
           readOnly: true
 
       - name: model
-        orientType: Link
+        type: Link
         classType: Model
         constraints:
           mandatory: true 
@@ -312,7 +300,7 @@ changes:
     superclass: DataValue
     properties: 
       - name: children
-        orientType: LinkMap
+        type: LinkMap
         classType: DataValue
         constraints:
           mandatory: true 
@@ -325,7 +313,7 @@ changes:
     superclass: DataValue
     properties: 
       - name: children
-        orientType: LinkList
+        type: LinkList
         constraints:
           mandatory: true 
           notNull: true
@@ -337,7 +325,7 @@ changes:
     superclass: DataValue
     properties: 
       - name: value
-        orientType: String
+        type: String
         constraints:
           mandatory: true 
           notNull: true
@@ -349,7 +337,7 @@ changes:
     superclass: DataValue
     properties: 
       - name: value
-        orientType: Double
+        type: Double
         constraints:
           mandatory: true
           notNull: true
@@ -361,7 +349,7 @@ changes:
     superclass: DataValue
     properties: 
       - name: value
-        orientType: Boolean
+        type: Boolean
         constraints:
           mandatory: true
           notNull: true
@@ -379,7 +367,7 @@ changes:
     abstract: true
     properties: 
       - name: vid
-        orientType: String
+        type: String
         constraints:
           mandatory: true 
           notNull: true
@@ -392,7 +380,7 @@ changes:
     superclass: OpValue
     properties: 
       - name: children
-        orientType: EmbeddedMap
+        type: EmbeddedMap
         classType: OpValue
         constraints:
           mandatory: true 
@@ -406,7 +394,7 @@ changes:
     superclass: OpValue
     properties: 
       - name: children
-        orientType: EmbeddedList
+        type: EmbeddedList
         classType: OpValue
         constraints:
           mandatory: true 
@@ -420,7 +408,7 @@ changes:
     superclass: OpValue
     properties: 
       - name: value
-        orientType: String
+        type: String
         constraints:
           mandatory: true 
           notNull: true
@@ -433,7 +421,7 @@ changes:
     superclass: OpValue
     properties: 
       - name: value
-        orientType: Double
+        type: Double
         constraints:
           mandatory: true 
           notNull: true
@@ -446,7 +434,7 @@ changes:
     superclass: OpValue
     properties: 
       - name: value
-        orientType: Boolean
+        type: Boolean
         constraints:
           mandatory: true 
           notNull: true
@@ -478,14 +466,14 @@ changes:
     abstract: true
     properties: 
       - name: vid
-        orientType: String
+        type: String
         constraints:
           mandatory: true 
           notNull: true
           readOnly: true
 
       - name: noOp
-        orientType: Boolean
+        type: Boolean
         constraints:
           default: false 
     
@@ -496,7 +484,7 @@ changes:
     superclass: Operation
     properties: 
       - name: ops
-        orientType: EmbeddedList
+        type: EmbeddedList
         classType: DiscreteOperation
         constraints:
           mandatory: true 
@@ -509,13 +497,13 @@ changes:
     superclass: DiscreteOperation
     properties: 
       - name: idx
-        orientType: Integer
+        type: Integer
         constraints:
           mandatory: true 
           notNull: true    
     
       - name: val
-        orientType: String
+        type: String
         constraints:
           mandatory: true 
           notNull: true     
@@ -527,19 +515,19 @@ changes:
     superclass: DiscreteOperation
     properties: 
       - name: idx
-        orientType: Integer
+        type: Integer
         constraints:
           mandatory: true 
           notNull: true    
 
       - name: length
-        orientType: Integer
+        type: Integer
         constraints:
           mandatory: true 
           notNull: true    
               
       - name: oldVal
-        orientType: String
+        type: String
         constraints:
           mandatory: true 
     
@@ -550,12 +538,12 @@ changes:
     superclass: DiscreteOperation
     properties: 
       - name: val
-        orientType: String
+        type: String
         constraints:
           mandatory: true 
              
       - name: oldVal
-        orientType: String
+        type: String
         constraints:
           mandatory: true     
     
@@ -566,19 +554,19 @@ changes:
     superclass: DiscreteOperation
     properties: 
       - name: prop
-        orientType: String
+        type: String
         constraints:
           mandatory: true
           notNull: true 
              
       - name: val
-        orientType: Embedded
+        type: Embedded
         classType: OpValue
         constraints:
           mandatory: true      
     
       - name: oldVal
-        orientType: Embedded
+        type: Embedded
         classType: OpValue
         constraints:
           mandatory: true      
@@ -590,13 +578,13 @@ changes:
     superclass: DiscreteOperation
     properties: 
       - name: prop
-        orientType: String
+        type: String
         constraints:
           mandatory: true
           notNull: true 
              
       - name: val
-        orientType: Embedded
+        type: Embedded
         classType: OpValue
         constraints:
           mandatory: true      
@@ -608,13 +596,13 @@ changes:
     superclass: DiscreteOperation
     properties: 
       - name: prop
-        orientType: String
+        type: String
         constraints:
           mandatory: true
           notNull: true     
     
       - name: oldVal
-        orientType: Embedded
+        type: Embedded
         classType: OpValue
         constraints:
           mandatory: true       
@@ -626,13 +614,13 @@ changes:
     superclass: DiscreteOperation
     properties: 
       - name: val
-        orientType: EmbeddedMap
+        type: EmbeddedMap
         classType: OpValue
         constraints:
           mandatory: true
     
       - name: oldVal
-        orientType: EmbeddedMap
+        type: EmbeddedMap
         classType: OpValue
         constraints:
           mandatory: true       
@@ -644,7 +632,7 @@ changes:
     superclass: DiscreteOperation
     properties: 
       - name: val
-        orientType: Any
+        type: Any
         constraints:
           mandatory: true 
           notNull: true
@@ -656,13 +644,13 @@ changes:
     superclass: DiscreteOperation
     properties: 
       - name: val
-        orientType: Any
+        type: Any
         constraints:
           mandatory: true 
           notNull: true
              
       - name: oldVal
-        orientType: Any
+        type: Any
         constraints:
           mandatory: true     
     
@@ -673,13 +661,13 @@ changes:
     superclass: DiscreteOperation
     properties: 
       - name: idx
-        orientType: Integer
+        type: Integer
         constraints:
           mandatory: true
           notNull: true 
              
       - name: val
-        orientType: Embedded
+        type: Embedded
         classType: OpValue
         constraints:
           mandatory: true      
@@ -691,13 +679,13 @@ changes:
     superclass: DiscreteOperation
     properties: 
       - name: idx
-        orientType: Integer
+        type: Integer
         constraints:
           mandatory: true
           notNull: true 
              
       - name: oldVal
-        orientType: Embedded
+        type: Embedded
         classType: OpValue
         constraints:
           mandatory: true      
@@ -709,19 +697,19 @@ changes:
     superclass: DiscreteOperation
     properties: 
       - name: idx
-        orientType: Integer
+        type: Integer
         constraints:
           mandatory: true
           notNull: true 
 
       - name: val
-        orientType: Embedded
+        type: Embedded
         classType: OpValue
         constraints:
           mandatory: true
              
       - name: oldVal
-        orientType: Embedded
+        type: Embedded
         classType: OpValue
         constraints:
           mandatory: true     
@@ -733,13 +721,13 @@ changes:
     superclass: DiscreteOperation
     properties: 
       - name: fromIdx
-        orientType: Integer
+        type: Integer
         constraints:
           mandatory: true
           notNull: true 
    
       - name: toIdx
-        orientType: Integer
+        type: Integer
         constraints:
           mandatory: true
           notNull: true     
@@ -752,14 +740,14 @@ changes:
     properties: 
     
       - name: val
-        orientType: EmbeddedList
+        type: EmbeddedList
         classType: OpValue
         constraints:
           mandatory: true
           notNull: true
              
       - name: oldVal
-        orientType: EmbeddedList
+        type: EmbeddedList
         classType: OpValue
         constraints:
           mandatory: true
@@ -770,44 +758,44 @@ changes:
     name: ModelOperation
     properties: 
       - name: collectionId
-        orientType: String
+        type: String
         constraints:
           mandatory: true 
           notNull: true
           
       - name: modelId
-        orientType: String
+        type: String
         constraints:
           mandatory: true 
           notNull: true
 
       - name: version
-        orientType: Long
+        type: Long
         constraints:
           mandatory: true 
           notNull: true
           min: 0
 
       - name: timestamp
-        orientType: DateTime
+        type: DateTime
         constraints:
           mandatory: true 
           notNull: true
 
       - name: username
-        orientType: String
+        type: String
         constraints:
           mandatory: true 
           notNull: true
 
       - name: sid
-        orientType: String
+        type: String
         constraints:
           mandatory: true 
           notNull: true
 
       - name: op
-        orientType: Any
+        type: Any
         constraints:
           mandatory: true 
           notNull: true
@@ -831,19 +819,19 @@ changes:
     name: User
     properties: 
       - name: username
-        orientType: String
+        type: String
         constraints:
           mandatory: true 
           notNull: true
           
       - name: email
-        orientType: String
+        type: String
 
       - name: firstName
-        orientType: String
+        type: String
 
       - name: lastName
-        orientType: String
+        type: String
           
   - type: CreateIndex
     className: User
@@ -863,14 +851,14 @@ changes:
     name: UserCredential
     properties: 
       - name: user
-        orientType: Link
+        type: Link
         classType: User
         constraints:
           mandatory: true 
           notNull: true
           
       - name: password
-        orientType: String
+        type: String
         constraints:
           mandatory: true 
           notNull: true
@@ -887,7 +875,7 @@ changes:
     className: Model
     property: 
       name: data
-      orientType: Link
+      type: Link
       classType: ObjectValue
       constraints:
         mandatory: true 
@@ -896,7 +884,7 @@ changes:
     className: ModelSnapshot
     property: 
       name: data
-      orientType: Embedded
+      type: Embedded
       classType: ObjectOpValue
       constraints:
         mandatory: true 
@@ -944,7 +932,7 @@ changes:
 
   val mapper = new ObjectMapper(new YAMLFactory())
   implicit val f = DefaultFormats.withTypeHintFieldName("type") +
-    ShortTypeHints(List(classOf[CreateClass], classOf[AlterClass], classOf[DropClass], 
+    new SimpleNamePolymorphicSerializer[Change]("type", List(classOf[CreateClass], classOf[AlterClass], classOf[DropClass], 
         classOf[AddProperty], classOf[AlterProperty], classOf[DropProperty],
         classOf[CreateIndex], classOf[DropIndex],
         classOf[CreateSequence], classOf[DropSequence],
@@ -955,7 +943,6 @@ changes:
     new EnumNameSerializer(SequenceType)
 
   def main(args: Array[String]): Unit = {
-    println(parseYaml[Group](groupYaml))
     println(parseYaml[Delta](deltaYaml))
   }
 

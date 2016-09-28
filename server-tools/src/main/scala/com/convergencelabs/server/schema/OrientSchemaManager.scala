@@ -11,6 +11,7 @@ import java.io.File
 import org.json4s.jackson.JsonMethods
 import org.json4s.Extraction
 import com.orientechnologies.orient.core.metadata.schema.OClass
+import org.json4s.FieldSerializer
 
 object DBType extends Enumeration {
   val Convergence, Domain = Value
@@ -29,8 +30,8 @@ object OrientSchemaManager {
 class OrientSchemaManager(db: ODatabaseDocumentTx, rootDeltaDir: String, dbType: DBType.Value) {
 
   private[this] val mapper = new ObjectMapper(new YAMLFactory())
-  private implicit val format = DefaultFormats.withTypeHintFieldName("type") +
-    ShortTypeHints(List(classOf[CreateClass], classOf[AlterClass], classOf[DropClass],
+  private implicit val format = DefaultFormats +
+    new SimpleNamePolymorphicSerializer[Change]("type", List(classOf[CreateClass], classOf[AlterClass], classOf[DropClass],
       classOf[AddProperty], classOf[AlterProperty], classOf[DropProperty],
       classOf[CreateIndex], classOf[DropIndex],
       classOf[CreateSequence], classOf[DropSequence],

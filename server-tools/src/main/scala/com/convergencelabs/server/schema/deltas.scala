@@ -43,7 +43,7 @@ case class CreateFunction(name: String, code: String, parameters: List[String], 
 case class AlterFunction(name: String, newName: Option[String], code: Option[String], parameters: Option[List[String]], language: Option[String], idempotent: Option[Boolean]) extends Change
 case class DropFunction(name: String) extends Change
 
-case class Property(name: String, orientType: OrientType.Value, typeClass: Option[String], contraints: Option[Constraints])
+case class Property(name: String, `type`: OrientType.Value, typeClass: Option[String], contraints: Option[Constraints])
 case class PropertyOptions(name: Option[String], orientType: Option[OrientType.Value], typeClass: Option[String], contraints: Option[Constraints])
 
 
