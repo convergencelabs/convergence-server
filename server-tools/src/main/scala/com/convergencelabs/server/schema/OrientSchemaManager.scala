@@ -30,13 +30,22 @@ object OrientSchemaManager {
 class OrientSchemaManager(db: ODatabaseDocumentTx, rootDeltaDir: String, dbType: DBType.Value) {
 
   private[this] val mapper = new ObjectMapper(new YAMLFactory())
-  private implicit val format = DefaultFormats +
-    new SimpleNamePolymorphicSerializer[Change]("action", List(classOf[CreateClass], classOf[AlterClass], classOf[DropClass],
-      classOf[AddProperty], classOf[AlterProperty], classOf[DropProperty],
-      classOf[CreateIndex], classOf[DropIndex],
-      classOf[CreateSequence], classOf[DropSequence],
+  private[this] implicit val format = DefaultFormats +
+    SimpleNamePolymorphicSerializer[Change]("action", List(
+      classOf[CreateClass],
+      classOf[AlterClass],
+      classOf[DropClass],
+      classOf[AddProperty],
+      classOf[AlterProperty],
+      classOf[DropProperty],
+      classOf[CreateIndex],
+      classOf[DropIndex],
+      classOf[CreateSequence],
+      classOf[DropSequence],
       classOf[RunSQLCommand],
-      classOf[CreateFunction], classOf[AlterFunction], classOf[DropFunction])) +
+      classOf[CreateFunction],
+      classOf[AlterFunction],
+      classOf[DropFunction])) +
     new EnumNameSerializer(OrientType) +
     new EnumNameSerializer(IndexType) +
     new EnumNameSerializer(SequenceType)
@@ -50,7 +59,7 @@ class OrientSchemaManager(db: ODatabaseDocumentTx, rootDeltaDir: String, dbType:
     s"${rootDeltaDir}/${
       dbType match {
         case DBType.Convergence => "convergence"
-        case DBType.Domain      => "domain"
+        case DBType.Domain => "domain"
       }
     }"
 

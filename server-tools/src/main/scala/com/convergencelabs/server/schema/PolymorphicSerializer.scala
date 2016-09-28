@@ -1,6 +1,7 @@
 package com.convergencelabs.server.schema
 
 import scala.annotation.implicitNotFound
+import scala.annotation.migration
 import scala.language.existentials
 import scala.language.postfixOps
 
@@ -16,45 +17,109 @@ import org.json4s.JsonDSL.string2jvalue
 import org.json4s.MappingException
 import org.json4s.Serializer
 import org.json4s.TypeInfo
+import org.json4s.DefaultFormats
 
-class PolymorphicSerializer[T: Manifest](typeField: String, typeMap: Map[String, Class[_]]) extends Serializer[T] {
-  val classMap = typeMap.map(_.swap)
-  if (classMap.size != typeMap.size) {
-    // TODO tell them which one violated it.
-    throw new IllegalArgumentException("Mappings need to be unique")
+/**
+ * A custom object serializer that will append a specified field to resulting JObject based
+ * on a provided type mapping.  The supplied classes are restricted to being a subclass
+ * of the parameterized type T.
+ * <p>
+ * Example:<pre>
+ * sealed trait Person
+ * case class Customer(name: String, customerId: String)
+ * case class Employee(name: String, employeeId: String)
+ *
+ * val ser = new PolymorphicSerializer[Person](
+ *   "type",
+ *   Map("cust" -> classOf[Customer], "emp" -> classOf[Employee])
+ * )
+ * implicit val formats = DefaultFormats + ser
+ * </pre>
+ *
+ * @constructor Creates a new PolymorphicSerializer from the specified typeField and typeMap
+ * @param typeField The string name of the field to add to the object to indicate type.
+ * @param typeMap Mapping between subclasses and the string identifier the defines the type.
+ */
+class PolymorphicSerializer[T: Manifest](typeField: String, typeMap: Map[String, Class[_ <: T]]) extends Serializer[T] {
+
+  // Ensure we don't have any duplicate mappings
+  val counts = typeMap.values groupBy (identity(_)) mapValues (_.size)
+  counts.find(_._2 > 1) map { clazz =>
+    throw new IllegalArgumentException(
+      "Mappings need to be unique, but a class was mapped to more than one type id: " + clazz._1)
   }
 
-  val Class = implicitly[Manifest[T]].runtimeClass
+  private[this] val classMap = typeMap.map(_.swap)
+  private[this] val SuperClass = implicitly[Manifest[T]].runtimeClass
 
   def deserialize(implicit format: Formats): PartialFunction[(TypeInfo, JValue), T] = {
-    case (TypeInfo(Class, _), json) => json match {
+    case (TypeInfo(SuperClass, _), json) => json match {
       case JObject(JField(name, JString(typeId)) :: rest) =>
         typeMap.get(typeId) match {
           case Some(clazz) =>
             Extraction.extract(JObject(rest), TypeInfo(clazz, None)).asInstanceOf[T]
           case None =>
-            throw new MappingException(s"No class mapping for subclass of ${Class.getName} with type id ${typeId}.")
+            throw new MappingException(s"No class mapping for subclass of ${SuperClass.getName} with type id ${typeId}.")
         }
-      case _ =>
-        throw new MappingException(s"Subclass of ${Class.getName} must have a type field of '${typeField}'.")
     }
   }
 
   def serialize(implicit format: Formats): PartialFunction[Any, JValue] = {
-    case c: Change =>
-      classMap.get(c.getClass) match {
+    case c: T =>
+      classMap.get(c.getClass.asInstanceOf[Class[T]]) match {
         case Some(typeId) =>
-          val obj = Extraction.decompose(c).asInstanceOf[JObject]
+          // TODO Need to figure out a way to not have an infinite loop.
+          val obj = Extraction.decompose(c)(DefaultFormats).asInstanceOf[JObject]
           val augmented = obj ~ (typeField -> typeId)
           augmented
         case None =>
-          throw new MappingException(s"No class mapping type mapping for subclass of ${Class.getName}: ${c.getClass.getName}")
+          throw new MappingException(s"No class mapping type mapping for subclass of ${SuperClass.getName}: ${c.getClass.getName}")
       }
-    case x: Any =>
-      throw new MappingException(s"Can't map a class that is not a subclass of ${Class.getName}: ${x.getClass.getName}")
   }
 }
 
-class SimpleNamePolymorphicSerializer[T: Manifest](typeField: String, classes: List[Class[_]]) extends PolymorphicSerializer[T](
-    typeField, classes map (c => c.getSimpleName -> c) toMap) {
+/**
+ * Companion object to the PolymorphicSerializer adding a convenience apply method
+ * so that "new" does not have to be used.  See the PolymorphicSerializer class
+ * for details.
+ */
+object PolymorphicSerializer {
+  def apply[T: Manifest](typeField: String, typeMap: Map[String, Class[_ <: T]]) = {
+    new PolymorphicSerializer[T](typeField, typeMap)
+  }
+}
+
+/**
+ * A custom object serializer that will append a specified field to resulting JObject based
+ * on the simple class name.  The supplied classes are restricted to being a subclass
+ * of the parameterized type T. Note, since the simple name is used, all sub classes must
+ * have distinct simple names.
+ *
+ * <p>
+ * Example:<pre>
+ * sealed trait Person
+ * case class Customer(name: String, customerId: String)
+ * case class Employee(name: String, employeeId: String)
+ *
+ * val ser = new SimpleNamePolymorphicSerializer[Person]("type", List[classOf[Customer], classOf[Employee]])
+ * implicit val formats = DefaultFormats + ser
+ * </pre>
+ *
+ * @constructor Creates a new PolymorphicSerializer from the specified typeField and class list.
+ * @param typeField The string name of the field to add to the object to indicate type.
+ * @param classes A list of valid sub classes to process.
+ */
+class SimpleNamePolymorphicSerializer[T: Manifest](typeField: String, classes: List[Class[_ <: T]]) extends PolymorphicSerializer[T](
+  typeField, classes map (c => c.getSimpleName -> c) toMap) {
+}
+
+/**
+ * Companion object to the SimpleNamePolymorphicSerializer adding a convenience apply method
+ * so that "new" does not have to be used.  See the PolymorphicSerializer class
+ * for details.
+ */
+object SimpleNamePolymorphicSerializer {
+  def apply[T: Manifest](typeField: String, classes: List[Class[_ <: T]]) = {
+    new SimpleNamePolymorphicSerializer[T](typeField, classes)
+  }
 }
