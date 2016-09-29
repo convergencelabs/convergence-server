@@ -7,29 +7,10 @@ changes:
   - action: CreateClass
     name: User
     properties: 
-      - name: username
-        type: String
-        constraints:
-          mandatory: true 
-          notNull: true
-
-      - name: email
-        type: String
-        constraints:
-          mandatory: true 
-          notNull: true
-          
-      - name: firstName
-        type: String
-        constraints:
-          mandatory: true 
-          notNull: true
-
-      - name: lastName
-        type: String
-        constraints:
-          mandatory: true 
-          notNull: true
+      - {name: username, type: String, constraints: {mandatory: true, notNull: true}}
+      - {name: email, type: String, constraints: {mandatory: true, notNull: true}}
+      - {name: firstName, type: String, constraints: {mandatory: true, notNull: true}}
+      - {name: lastName, type: String, constraints: {mandatory: true, notNull: true}}
 
   - action: CreateIndex
     className: User
