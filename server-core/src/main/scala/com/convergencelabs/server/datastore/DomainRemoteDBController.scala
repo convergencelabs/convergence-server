@@ -99,12 +99,16 @@ class DomainDBController(
       }
     }
 
-    logger.debug(s"Creating base domain schema: $uri")
-    val importer = new ODatabaseImport(db, importFile.getOrElse(Schema), listener)
-    importer.importDatabase();
-    logger.debug(s"Base domain schema created: $uri")
-
-    tryToFuture(initDomain(uri, dbPassword))
+    tryToFuture(Try {
+      logger.debug(s"Creating base domain schema: $uri")
+      val importer = new ODatabaseImport(db, importFile.getOrElse(Schema), listener)
+      importer.importDatabase();
+      importer.close();
+      db.close()
+      logger.debug(s"Base domain schema created: $uri")
+    } flatMap { x =>
+      initDomain(uri, dbPassword)
+    })
   }
 
   private[this] def initDomain(uri: String, password: String): Try[Unit] = Try {
