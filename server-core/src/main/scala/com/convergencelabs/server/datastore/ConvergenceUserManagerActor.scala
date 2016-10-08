@@ -63,7 +63,12 @@ class ConvergenceUserManagerActor private[datastore] (
       case CreateSuccess(uid) =>
         log.debug("User created.  Creating domains")
         FutureUtils.seqFutures(autoCreateConfigs) { config =>
-          val importFile = if (config.hasPath("import-file")) { Some(config.getString("import-file")) } else { None }
+          val importFile = if (config.hasPath("import-file")) {
+            Some(config.getString("import-file"))
+          } else {
+            None
+          }
+          
           createDomain(username, config.getString("name"), importFile)
         }
 

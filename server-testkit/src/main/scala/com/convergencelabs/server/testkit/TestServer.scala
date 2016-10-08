@@ -16,8 +16,7 @@ object TestServer {
     val server = new TestServer(
       "test-server/mono-server-application.conf",
       Map(
-        "convergence" -> "test-server/schema/convergence-example.json.gz",
-        "namespace1-domain1" -> "test-server/schema/domain-n1-d1.json.gz"))
+        "convergence" -> "test-server/schema/convergence-schema.json.gz"))
     server.start()
   }
 }

@@ -32,6 +32,12 @@ import akka.http.scaladsl.model.headers.Authorization
 import akka.http.scaladsl.model.headers.BasicHttpCredentials
 import akka.stream.ActorMaterializer
 import grizzled.slf4j.Logging
+import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.orientechnologies.orient.core.db.tool.ODatabaseImport
+import com.orientechnologies.orient.core.command.OCommandOutputListener
+import java.io.ByteArrayInputStream
+import java.io.FileInputStream
+import java.io.File
 
 object DomainRemoteDBController {
   val DefaultSnapshotConfig = ModelSnapshotConfig(
@@ -61,7 +67,7 @@ class DomainDBController(
 
   val Username = domainDbConfig.getString("username")
   val DefaultPassword = domainDbConfig.getString("default-password")
-  
+
   val Schema = domainDbConfig.getString("schema")
 
   val DBType = "document"
@@ -71,9 +77,9 @@ class DomainDBController(
   implicit val ec = system.dispatcher
 
   def createDomain(
-      dbName: String,
-      dbPassword: String,
-      importFile: Option[String]): Future[Unit] = {
+    dbName: String,
+    dbPassword: String,
+    importFile: Option[String]): Future[Unit] = {
     val uri = s"${BaseDbUri}/${dbName}"
 
     logger.debug(s"Creating domain database: $uri")
@@ -82,26 +88,24 @@ class DomainDBController(
       .createDatabase(DBType, StorageMode)
       .close()
     logger.debug(s"Domain database created at: $uri")
-    
+
     // TODO we need to figure out how to set the admin user's password.
+    val db = new ODatabaseDocumentTx(uri)
+    db.open(AdminUser, AdminPassword)
 
-    val importContents = Source.fromFile(importFile.getOrElse(Schema)).mkString
-    val importApi = s"${BaseRestUri}/import/${dbName}"
+    val listener = new OCommandOutputListener() {
+      def onMessage(iText: String): Unit = {
 
-    // FIXME A bit of a hack, but don't feel like messing with futures at the moment.
-    val importEntity = Await.result(Marshal(importContents).to[RequestEntity], Duration.Inf)
-    val authHeader = Authorization(BasicHttpCredentials("admin", "admin"))
-    val importPost = HttpRequest(method = HttpMethods.POST,
-      uri = importApi, headers = List(authHeader), entity = importEntity)
-
-    logger.debug(s"Starting database import: $importPost")
-    val f = Http().singleRequest(importPost)
-    f.map { response =>
-      logger.debug(s"Import completed successfully: $response")
-      tryToFuture(initDomain(uri, dbPassword))
+      }
     }
-  }
 
+    logger.debug(s"Creating base domain schema: $uri")
+    val importer = new ODatabaseImport(db, importFile.getOrElse(Schema), listener)
+    importer.importDatabase();
+    logger.debug(s"Base domain schema created: $uri")
+
+    tryToFuture(initDomain(uri, dbPassword))
+  }
 
   private[this] def initDomain(uri: String, password: String): Try[Unit] = Try {
     logger.debug(s"Initializing domain: $uri")

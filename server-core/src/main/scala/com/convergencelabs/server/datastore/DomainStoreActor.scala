@@ -70,11 +70,14 @@ class DomainStoreActor private[datastore] (
       case CreateSuccess(()) =>
         domainDBContoller.createDomain(dbName, password, importFile) onComplete {
           case Success(()) =>
+            log.debug(s"Domain created, setting status to online: $dbName")
             domainStore.getDomainByFqn(domainFqn) map (_.map { domain =>
               val updated = domain.copy(status = DomainStatus.Online)
               domainStore.updateDomain(updated)
             })
           case Failure(f) =>
+            log.error(s"Domain was not created successfully: $dbName", f)
+            
             // TODO we should probably have some field on the domain that references errors?
             domainStore.getDomainByFqn(domainFqn) map (_.map { domain =>
               val updated = domain.copy(status = DomainStatus.Error)
