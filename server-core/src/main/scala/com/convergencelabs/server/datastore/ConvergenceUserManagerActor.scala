@@ -107,8 +107,8 @@ class ConvergenceUserManagerActor private[datastore] (
   private[this] def createDomain(username: String, name: String, importFile: Option[String]): Future[CreateResult[Unit]] = {
     log.debug(s"Requesting domain creation for user '${username}': $name")
 
-    // FIXME hardcoded
-    implicit val requstTimeout = Timeout(120 seconds)
+    // FIXME hard coded
+    implicit val requstTimeout = Timeout(240 seconds)
     (domainStoreActor ? CreateDomainRequest(username, name, name, username, importFile)).mapTo[CreateResult[Unit]] andThen {
       case Success(resp: CreateSuccess[Unit]) =>
         log.debug(s"Domain '${name}' created for '${username}'");
@@ -116,8 +116,6 @@ class ConvergenceUserManagerActor private[datastore] (
         log.error(s"Unable to create '${name}' domain for user: Duplicate value exception");
       case Success(InvalidValue) =>
         log.error(s"Unable to create '${name}' domain for user: Invalid value exception");
-      case Success(x) =>
-        println(x)
       case Failure(f) =>
         log.error(f, s"Unable to create '${name}' domain for user");
     }

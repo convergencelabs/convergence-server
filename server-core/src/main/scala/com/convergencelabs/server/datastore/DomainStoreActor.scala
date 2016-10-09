@@ -76,7 +76,7 @@ class DomainStoreActor private[datastore] (
               domainStore.updateDomain(updated)
             })
           case Failure(f) =>
-            log.error(s"Domain was not created successfully: $dbName", f)
+            log.error(f, s"Domain was not created successfully: $dbName")
             
             // TODO we should probably have some field on the domain that references errors?
             domainStore.getDomainByFqn(domainFqn) map (_.map { domain =>

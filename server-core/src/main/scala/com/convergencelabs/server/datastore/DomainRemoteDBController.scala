@@ -2,12 +2,8 @@ package com.convergencelabs.server.datastore
 
 import java.time.{ Duration => JavaDuration }
 import java.time.temporal.ChronoUnit
-import java.util.UUID
 
-import scala.concurrent.Await
 import scala.concurrent.Future
-import scala.concurrent.duration.Duration
-import scala.io.Source
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
@@ -15,29 +11,18 @@ import scala.util.Try
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.domain.JwtUtil
 import com.convergencelabs.server.domain.ModelSnapshotConfig
-import com.convergencelabs.server.util.concurrent.FutureUtils._
 import com.convergencelabs.server.domain.TokenKeyPair
+import com.convergencelabs.server.util.concurrent.FutureUtils.tryToFuture
 import com.orientechnologies.orient.client.remote.OServerAdmin
+import com.orientechnologies.orient.core.command.OCommandOutputListener
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
+import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.orientechnologies.orient.core.db.tool.ODatabaseImport
 import com.typesafe.config.Config
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.marshalling.Marshal
-import akka.http.scaladsl.model.HttpMethods
-import akka.http.scaladsl.model.HttpRequest
-import akka.http.scaladsl.model.RequestEntity
-import akka.http.scaladsl.model.Uri.apply
-import akka.http.scaladsl.model.headers.Authorization
-import akka.http.scaladsl.model.headers.BasicHttpCredentials
 import akka.stream.ActorMaterializer
 import grizzled.slf4j.Logging
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import com.orientechnologies.orient.core.db.tool.ODatabaseImport
-import com.orientechnologies.orient.core.command.OCommandOutputListener
-import java.io.ByteArrayInputStream
-import java.io.FileInputStream
-import java.io.File
 
 object DomainRemoteDBController {
   val DefaultSnapshotConfig = ModelSnapshotConfig(
@@ -76,6 +61,12 @@ class DomainDBController(
   implicit val materializer = ActorMaterializer()
   implicit val ec = system.dispatcher
 
+  val listener = new OCommandOutputListener() {
+    def onMessage(message: String): Unit = {
+      //logger.debug(message)
+    }
+  }
+
   def createDomain(
     dbName: String,
     dbPassword: String,
@@ -93,15 +84,10 @@ class DomainDBController(
     val db = new ODatabaseDocumentTx(uri)
     db.open(AdminUser, AdminPassword)
 
-    val listener = new OCommandOutputListener() {
-      def onMessage(iText: String): Unit = {
-
-      }
-    }
-
     tryToFuture(Try {
-      logger.debug(s"Creating base domain schema: $uri")
-      val importer = new ODatabaseImport(db, importFile.getOrElse(Schema), listener)
+      val f = importFile.getOrElse(Schema)
+      logger.debug(s"Creating base domain schema from file '$f': $uri")
+      val importer = new ODatabaseImport(db, f, listener)
       importer.importDatabase();
       importer.close();
       db.close()
