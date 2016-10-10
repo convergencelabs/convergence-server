@@ -32,6 +32,7 @@ class DomainStore (dbPool: OPartitionedDatabasePool)
   private[this] val Uid = "uid"
   private[this] val DisplayName = "displayName"
   private[this] val Status = "status"
+  private[this] val StatusMessage = "statusMessage"
   private[this] val DomainClassName = "Domain"
   
   val DidSeq = "DIDSEQ"
@@ -50,6 +51,7 @@ class DomainStore (dbPool: OPartitionedDatabasePool)
           doc.field(DomainId, domainFqn.domainId)
           doc.field(DisplayName, displayName)
           doc.field(Status, DomainStatus.Initializing.toString())
+          doc.field(StatusMessage, "")
           doc.field(Owner, user)
           doc.field("dbName", dbInfo.database)
           doc.field("dbUsername", dbInfo.username)
@@ -146,6 +148,7 @@ class DomainStore (dbPool: OPartitionedDatabasePool)
     QueryUtil.enforceSingletonResultList(result) match {
       case Some(doc) => {
         val newDoc = domain.asODocument
+        // FIXME what is this for?
         newDoc.removeField("owner")
         doc.merge(domain, true, false)
         db.save(doc)

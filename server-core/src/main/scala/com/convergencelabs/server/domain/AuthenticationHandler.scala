@@ -142,8 +142,9 @@ class AuthenticationHandler(
     val username = jwtClaims.getSubject()
     val firstName = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.FirstName)
     val lastName = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.LastName)
+    val displayName = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.DisplayName)
     val email = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.Email)
-    val newUser = CreateDomainUser(username, firstName, lastName, email)
+    val newUser = CreateDomainUser(username, firstName, lastName, displayName, email)
     userStore.createDomainUser(newUser, None)
   }
 

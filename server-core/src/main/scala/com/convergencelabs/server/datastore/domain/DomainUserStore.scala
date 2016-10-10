@@ -47,6 +47,7 @@ object DomainUserStore {
     username: String,
     firstName: Option[String],
     lastName: Option[String],
+    displayName: Option[String],
     email: Option[String])
 }
 
@@ -88,6 +89,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
       domainUser.username,
       domainUser.firstName,
       domainUser.lastName,
+      domainUser.displayName,
       domainUser.email)
 
     val userDoc = create.asODocument

@@ -26,7 +26,8 @@ class DomainMapperSpec
           DomainFqn("ns", "dId"),
           "My Domain",
           owner,
-          DomainStatus.Online)
+          DomainStatus.Online,
+          "")
 
         val doc = domain.asODocument
         doc.field("owner", owner.asODocument)

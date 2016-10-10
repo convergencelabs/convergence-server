@@ -69,7 +69,8 @@ class DomainStoreSpec
           fqn,
           "Test Domain 4",
           user,
-          DomainStatus.Initializing)
+          DomainStatus.Initializing,
+          "")
 
         val id = store.createDomain(fqn, "Test Domain 4", user.username, DomainDatabaseInfo(dbName, root, root)).success
         store.getDomainByFqn(fqn).success.get.value shouldBe domain
@@ -82,7 +83,8 @@ class DomainStoreSpec
           ns1d1,
           "Test Domain 1",
           user,
-          DomainStatus.Initializing)
+          DomainStatus.Initializing, 
+          "")
 
         store.createDomain(ns1d1, "Test Domain 1", user.username, DomainDatabaseInfo(id, root, root)).success.get shouldBe DuplicateValue
       }
@@ -123,7 +125,8 @@ class DomainStoreSpec
           DomainFqn(namespace1, domain1),
           "Test Domain 1 Updated",
           user,
-          DomainStatus.Offline)
+          DomainStatus.Offline,
+          "domain manually take offline by user")
 
         store.updateDomain(toUpdate).success
         val queried = store.getDomainByFqn(ns1d1).success.get.value
@@ -136,7 +139,8 @@ class DomainStoreSpec
           DomainFqn(namespace1, domain3),
           "Test Domain 1 Updated",
           user,
-          DomainStatus.Online)
+          DomainStatus.Online,
+          "")
 
         store.updateDomain(toUpdate).success.get shouldBe NotFound
       }

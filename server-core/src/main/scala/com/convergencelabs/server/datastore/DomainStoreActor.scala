@@ -20,6 +20,8 @@ import scala.concurrent.ExecutionContext
 import com.convergencelabs.server.domain.DomainStatus
 import java.util.UUID
 import com.convergencelabs.server.domain.DomainDatabaseInfo
+import java.io.StringWriter
+import java.io.PrintWriter
 
 class DomainStoreActor private[datastore] (
   private[this] val dbPool: OPartitionedDatabasePool,
@@ -78,9 +80,16 @@ class DomainStoreActor private[datastore] (
           case Failure(f) =>
             log.error(f, s"Domain was not created successfully: $dbName")
             
+            val sr = new StringWriter();
+            val w = new PrintWriter(sr);
+            f.printStackTrace(w);
+            val statusMessage = sr.getBuffer.toString();
+            sr.close();
+            w.close()
+            
             // TODO we should probably have some field on the domain that references errors?
             domainStore.getDomainByFqn(domainFqn) map (_.map { domain =>
-              val updated = domain.copy(status = DomainStatus.Error)
+              val updated = domain.copy(status = DomainStatus.Error, statusMessage = statusMessage)
               domainStore.updateDomain(updated)
             })
         }

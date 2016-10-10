@@ -17,6 +17,7 @@ object DomainUserMapper extends ODocumentMapper {
     doc.field(Fields.Username, obj.username)
     doc.field(Fields.FirstName, valueOrNull(obj.firstName))
     doc.field(Fields.LastName, valueOrNull(obj.lastName))
+    doc.field(Fields.DisplayName, valueOrNull(obj.displayName))
     doc.field(Fields.Email, valueOrNull(obj.email))
     doc
   }
@@ -32,6 +33,7 @@ object DomainUserMapper extends ODocumentMapper {
       doc.field(Fields.Username),
       toOption(doc.field(Fields.FirstName)),
       toOption(doc.field(Fields.LastName)),
+      toOption(doc.field(Fields.DisplayName)),
       toOption(doc.field(Fields.Email)))
   }
 
@@ -41,6 +43,7 @@ object DomainUserMapper extends ODocumentMapper {
     val Username = "username"
     val FirstName = "firstName"
     val LastName = "lastName"
+    val DisplayName = "displayName"
     val Email = "email"
   }
 }

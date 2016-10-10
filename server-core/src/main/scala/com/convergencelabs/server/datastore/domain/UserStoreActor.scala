@@ -23,6 +23,7 @@ object UserStoreActor {
     username: String,
     firstName: Option[String],
     lastName: Option[String],
+    displayName: Option[String],
     email: Option[String],
     password: Option[String]) extends UserStoreRequest
   case class DeleteDomainUser(uid: String) extends UserStoreRequest
@@ -30,6 +31,7 @@ object UserStoreActor {
     username: String,
     firstName: Option[String],
     lastName: Option[String],
+    displayName: Option[String],
     email: Option[String]) extends UserStoreRequest
   case class SetPassword(
     uid: String,
@@ -54,14 +56,14 @@ class UserStoreActor private[datastore] (private[this] val userStore: DomainUser
   }
 
   def createUser(message: CreateUser): Unit = {
-    val CreateUser(username, firstName, lastName, email, password) = message
-    val domainuser = CreateDomainUser(username, firstName, lastName, email)
+    val CreateUser(username, firstName, lastName, displayName, email, password) = message
+    val domainuser = CreateDomainUser(username, firstName, lastName, displayName, email)
     reply(userStore.createDomainUser(domainuser, password))
   }
 
   def updateUser(message: UpdateUser): Unit = {
-    val UpdateUser(username, firstName, lastName, email) = message
-    val domainuser = DomainUser(username, firstName, lastName, email);
+    val UpdateUser(username, firstName, lastName, displayName, email) = message
+    val domainuser = DomainUser(username, firstName, lastName, displayName, email);
     reply(userStore.updateDomainUser(domainuser))
   }
 

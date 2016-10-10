@@ -140,7 +140,7 @@ case class UserSearchMessage(f: List[Int], v: String, o: Option[Int], l: Option[
   extends IncomingProtocolRequestMessage with IncomingUserMessage
 
 case class UserListMessage(u: List[DomainUserData]) extends OutgoingProtocolResponseMessage
-case class DomainUserData(n: String, f: Option[String], l: Option[String], e: Option[String])
+case class DomainUserData(n: String, f: Option[String], l: Option[String], d: Option[String], e: Option[String])
 
 ///////////////////////////////////////////////////////////////////////////////
 // Activity Messages
