@@ -7,15 +7,24 @@ node {
 
     gitlabCommitStatus {
       docker.withRegistry('https://nexus.convergencelabs.tech:18443/', 'NexusRepo') {
-        def sbtTools = docker.image('sbt-tools')
+        def sbtTools = docker.image('sbt-tools:0.5')
         sbtTools.pull()
 
         docker.image(sbtTools.imageName()).inside {
+		  stage 'Configure'
+          sh '/usr/local/bin/confd -onetime -backend env'
+		
           stage 'Compile'
           sh 'sbt -d -J-Xmx3G -J-Xss5M compile'
 
           stage 'Test'
           sh 'sbt test'
+		  
+		  stage 'Package'
+          sh 'sbt package'
+          
+          stage 'Publish'
+          sh 'sbt publish'
 
           stage 'Server Node Pack'
           sh 'sbt serverNode/pack'
