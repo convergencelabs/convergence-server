@@ -2,10 +2,8 @@ package com.convergencelabs.server.datastore.domain.mapper
 
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
-
 import com.convergencelabs.server.domain.DomainUser
 import com.orientechnologies.orient.core.record.impl.ODocument
-
 import DomainUserMapper.DomainUserToODocument
 import DomainUserMapper.ODocumentToDomainUser
 
