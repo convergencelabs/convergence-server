@@ -29,7 +29,7 @@ package model {
     val id: Option[String]
   }
 
-  case class PublishReference(id: Option[String], key: String, referenceType: ReferenceType.Value) extends ModelReferenceEvent
+  case class PublishReference(id: Option[String], key: String, referenceType: ReferenceType.Value, values: Option[List[Any]], contextVersion: Option[Long]) extends ModelReferenceEvent
   case class SetReference(id: Option[String], key: String, referenceType: ReferenceType.Value, values: List[Any], contextVersion: Long) extends ModelReferenceEvent
   case class ClearReference(id: Option[String], key: String) extends ModelReferenceEvent
   case class UnpublishReference(id: Option[String], key: String) extends ModelReferenceEvent
@@ -97,8 +97,9 @@ package model {
   case class ClientModelDataRequest(modelFqn: ModelFqn) extends RealtimeModelClientMessage
 
   sealed trait RemoteReferenceEvent extends RealtimeModelClientMessage
-  case class RemoteReferencePublished(resourceId: String, sessionId: String, id: Option[String], key: String,
-    referenceType: ReferenceType.Value) extends RemoteReferenceEvent
+  case class RemoteReferencePublished(
+      resourceId: String, sessionId: String, id: Option[String], key: String,
+    referenceType: ReferenceType.Value, values: Option[List[Any]]) extends RemoteReferenceEvent
   case class RemoteReferenceSet(resourceId: String, sessionId: String, id: Option[String], key: String,
     referenceType: ReferenceType.Value, value: List[Any]) extends RemoteReferenceEvent
   case class RemoteReferenceCleared(resourceId: String, sessionId: String, id: Option[String], key: String) extends RemoteReferenceEvent

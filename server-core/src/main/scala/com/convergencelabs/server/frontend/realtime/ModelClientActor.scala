@@ -164,8 +164,9 @@ class ModelClientActor(
   }
 
   private[this] def onRemoteReferencePublished(refPublished: RemoteReferencePublished): Unit = {
-    val RemoteReferencePublished(resourceId, sessionId, id, key, refType) = refPublished
-    context.parent ! RemoteReferencePublishedMessage(resourceId, sessionId, id, key, ReferenceType.map(refType))
+    val RemoteReferencePublished(resourceId, sessionId, id, key, refType, values) = refPublished
+    val mappedValue = values.map { _.map{ v => mapOutgoingReferenceValue(refType, v) }}
+    context.parent ! RemoteReferencePublishedMessage(resourceId, sessionId, id, key, ReferenceType.map(refType), mappedValue)
   }
 
   private[this] def onRemoteReferenceUnpublished(refUnpublished: RemoteReferenceUnpublished): Unit = {
@@ -227,8 +228,10 @@ class ModelClientActor(
   }
 
   private[this] def onPublishReference(message: PublishReferenceMessage): Unit = {
-    val PublishReferenceMessage(resourceId, id, key, refType) = message
-    val publishReference = PublishReference(id, key, ReferenceType.map(refType))
+    val PublishReferenceMessage(resourceId, id, key, refType, valueOption, version) = message
+    val mappedType = ReferenceType.map(refType)
+    val values = valueOption.map {mapIncomingReferenceValue(mappedType, _)}
+    val publishReference = PublishReference(id, key, mappedType, values, version)
     val modelActor = openRealtimeModels(resourceId)
     modelActor ! publishReference
   }

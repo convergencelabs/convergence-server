@@ -107,13 +107,13 @@ class RealTimeModel(
     parent: Option[RealTimeContainerValue],
     parentField: Option[Any]): RealTimeValue = {
     value match {
-      case v: StringValue  => new RealTimeString(v, this, parent, parentField)
-      case v: DoubleValue  => new RealTimeDouble(v, this, parent, parentField)
+      case v: StringValue => new RealTimeString(v, this, parent, parentField)
+      case v: DoubleValue => new RealTimeDouble(v, this, parent, parentField)
       case v: BooleanValue => new RealTimeBoolean(v, this, parent, parentField)
-      case v: ObjectValue  => new RealTimeObject(v, this, parent, parentField)
-      case v: ArrayValue   => new RealTimeArray(v, this, parent, parentField)
-      case v: NullValue    => new RealTimeNull(v, this, parent, parentField)
-      case _               => throw new IllegalArgumentException("Unsupported type: " + value)
+      case v: ObjectValue => new RealTimeObject(v, this, parent, parentField)
+      case v: ArrayValue => new RealTimeArray(v, this, parent, parentField)
+      case v: NullValue => new RealTimeNull(v, this, parent, parentField)
+      case _ => throw new IllegalArgumentException("Unsupported type: " + value)
     }
   }
 
@@ -152,7 +152,7 @@ class RealTimeModel(
       case c: CompoundOperation =>
         val appliedOperations = c.operations map { o =>
           applyDiscreteOperation(o) match {
-            case Failure(f)                           => throw f
+            case Failure(f) => throw f
             case Success(appliedOp: AppliedOperation) => appliedOp
           }
         }
@@ -171,8 +171,23 @@ class RealTimeModel(
             event match {
               case publish: PublishReference =>
                 realTimeValue.processReferenceEvent(publish, sk)
-                val PublishReference(id, key, refType) = publish
-                Some(RemoteReferencePublished(resourceId, sk, id, key, refType))
+                val PublishReference(id, key, refType, values, contextVersion) = publish
+                
+                (values, contextVersion) match {
+                  case (Some(values), Some(contextVersion)) =>
+                    val refVal: ReferenceValue = ReferenceValue(id, key, refType, values, contextVersion)
+                    this.cc.processRemoteReferenceSet(sk, refVal) match {
+                      case Some(xformed) =>
+                        val setRef: SetReference = SetReference(xformed.id, xformed.key, xformed.referenceType, xformed.values, xformed.contextVersion)
+                        realTimeValue.processReferenceEvent(setRef, sk)
+                        Some(RemoteReferencePublished(this.resourceId, sk, setRef.id, setRef.key, setRef.referenceType, Some(setRef.values)))
+                      case None =>
+                        None
+                    }
+                  case _ =>
+                    Some(RemoteReferencePublished(this.resourceId, sk, id, key,refType, None))
+                }
+
               case unpublish: UnpublishReference =>
                 realTimeValue.processReferenceEvent(unpublish, sk)
                 val UnpublishReference(id, key) = unpublish
@@ -200,11 +215,21 @@ class RealTimeModel(
             None
         }
       case None =>
+        // This handles element references which have no id.
         event match {
           case publish: PublishReference =>
             elementReferenceManager.handleReferenceEvent(publish, sk)
-            val PublishReference(id, key, refType) = publish
-            Some(RemoteReferencePublished(resourceId, sk, id, key, refType))
+            val PublishReference(id, key, refType, values, contextVersion) = publish
+            (values, contextVersion) match {
+              case (Some(values), Some(contextVersion)) =>
+                val xformedValue = values.asInstanceOf[List[String]] filter { idToValue.contains(_) }
+                val xformedSet = SetReference(id, key, refType, xformedValue, contextVersion)
+                elementReferenceManager.handleReferenceEvent(xformedSet, sk)
+                Some(RemoteReferencePublished(resourceId, sk, id, key, refType, Some(xformedValue)))
+              case _ =>
+                Some(RemoteReferencePublished(resourceId, sk, id, key, refType, None))
+            }
+            
           case unpublish: UnpublishReference =>
             elementReferenceManager.handleReferenceEvent(unpublish, sk)
             val UnpublishReference(id, key) = unpublish
@@ -229,21 +254,21 @@ class RealTimeModel(
       value.processOperation(op)
     } else {
       Success(op match {
-        case StringRemoveOperation(id, noOp, index, value)         => AppliedStringRemoveOperation(id, noOp, index, value.length(), None)
-        case StringInsertOperation(id, noOp, index, value)         => AppliedStringInsertOperation(id, noOp, index, value)
-        case StringSetOperation(id, noOp, value)                   => AppliedStringSetOperation(id, noOp, value, None) 
+        case StringRemoveOperation(id, noOp, index, value) => AppliedStringRemoveOperation(id, noOp, index, value.length(), None)
+        case StringInsertOperation(id, noOp, index, value) => AppliedStringInsertOperation(id, noOp, index, value)
+        case StringSetOperation(id, noOp, value) => AppliedStringSetOperation(id, noOp, value, None)
         case ObjectSetPropertyOperation(id, noOp, property, value) => AppliedObjectSetPropertyOperation(id, noOp, property, value, None)
         case ObjectAddPropertyOperation(id, noOp, property, value) => AppliedObjectAddPropertyOperation(id, noOp, property, value)
-        case ObjectRemovePropertyOperation(id, noOp, property)     => AppliedObjectRemovePropertyOperation(id, noOp, property, None)
-        case ObjectSetOperation(id, noOp, value)                   => AppliedObjectSetOperation(id, noOp, value, None)
-        case NumberAddOperation(id, noOp, value)                   => AppliedNumberAddOperation(id, noOp, value)
-        case NumberSetOperation(id, noOp, value)                   => AppliedNumberSetOperation(id, noOp, value, None)
-        case BooleanSetOperation(id, noOp, value)                  => AppliedBooleanSetOperation(id, noOp, value, None)
-        case ArrayInsertOperation(id, noOp, index, value)          => AppliedArrayInsertOperation(id, noOp, index, value)
-        case ArrayRemoveOperation(id, noOp, index)                 => AppliedArrayRemoveOperation(id, noOp, index, None)
-        case ArrayReplaceOperation(id, noOp, index, value)         => AppliedArrayReplaceOperation(id, noOp, index, value, None)
-        case ArrayMoveOperation(id, noOp, fromIndex, toIndex)      => AppliedArrayMoveOperation(id, noOp, fromIndex, toIndex)
-        case ArraySetOperation(id, noOp, value)                    => AppliedArraySetOperation(id, noOp, value, None)
+        case ObjectRemovePropertyOperation(id, noOp, property) => AppliedObjectRemovePropertyOperation(id, noOp, property, None)
+        case ObjectSetOperation(id, noOp, value) => AppliedObjectSetOperation(id, noOp, value, None)
+        case NumberAddOperation(id, noOp, value) => AppliedNumberAddOperation(id, noOp, value)
+        case NumberSetOperation(id, noOp, value) => AppliedNumberSetOperation(id, noOp, value, None)
+        case BooleanSetOperation(id, noOp, value) => AppliedBooleanSetOperation(id, noOp, value, None)
+        case ArrayInsertOperation(id, noOp, index, value) => AppliedArrayInsertOperation(id, noOp, index, value)
+        case ArrayRemoveOperation(id, noOp, index) => AppliedArrayRemoveOperation(id, noOp, index, None)
+        case ArrayReplaceOperation(id, noOp, index, value) => AppliedArrayReplaceOperation(id, noOp, index, value, None)
+        case ArrayMoveOperation(id, noOp, fromIndex, toIndex) => AppliedArrayMoveOperation(id, noOp, fromIndex, toIndex)
+        case ArraySetOperation(id, noOp, value) => AppliedArraySetOperation(id, noOp, value, None)
       })
     }
   }
@@ -268,10 +293,10 @@ class RealTimeModel(
 
   def toReferenceState(r: ModelReference[_]): ReferenceState = {
     val refType = r match {
-      case ref: IndexReference   => ReferenceType.Index
-      case ref: RangeReference   => ReferenceType.Range
+      case ref: IndexReference => ReferenceType.Index
+      case ref: RangeReference => ReferenceType.Range
       case ref: ElementReference => ReferenceType.Element
-      case _                     => throw new IllegalArgumentException("Unexpected reference type")
+      case _ => throw new IllegalArgumentException("Unexpected reference type")
     }
 
     ReferenceState(
