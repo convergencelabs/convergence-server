@@ -1,12 +1,8 @@
 package com.convergencelabs.server.datastore.domain
 
 import java.util.{ List => JavaList }
-
-import scala.collection.JavaConverters.asScalaBufferConverter
-import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.collection.immutable.HashMap
 import scala.util.Try
-
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.server.datastore.QueryUtil
 import com.convergencelabs.server.domain.model.ModelFqn
@@ -16,11 +12,9 @@ import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
-
 import grizzled.slf4j.Logging
-import mapper.ModelSnapshotMapper.ModelSnapshotToODocument
-import mapper.ModelSnapshotMapper.ODocumentToModelSnapshot
-import mapper.ModelSnapshotMapper.ODocumentToModelSnapshotMetaData
+import scala.collection.JavaConverters._
+import com.convergencelabs.server.datastore.domain.mapper.ModelSnapshotMapper._
 
 /**
  * Manages the persistence of model snapshots.

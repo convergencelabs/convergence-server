@@ -1,17 +1,9 @@
 package com.convergencelabs.server.datastore.domain
 
-import java.util.Collections
 import java.util.{ List => JavaList }
-
-import scala.collection.JavaConversions.asScalaBuffer
-import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.util.Try
-
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.server.datastore.QueryUtil
-import com.convergencelabs.server.datastore.domain.mapper.ModelSnapshotConfigMapper.ModelSnapshotConfigToODocument
-import com.convergencelabs.server.datastore.domain.mapper.ModelSnapshotConfigMapper.ODocumentToModelSnapshotConfig
-import com.convergencelabs.server.datastore.domain.mapper.TokenPublicKeyMapper.ODocumentToTokenPublicKey
 import com.convergencelabs.server.domain.ModelSnapshotConfig
 import com.convergencelabs.server.domain.TokenKeyPair
 import com.convergencelabs.server.domain.TokenPublicKey
@@ -20,9 +12,10 @@ import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
-
 import grizzled.slf4j.Logging
 import java.util.ArrayList
+import scala.collection.JavaConverters._
+import com.convergencelabs.server.datastore.domain.mapper.ModelSnapshotConfigMapper._
 
 class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
     extends AbstractDatabasePersistence(dbPool)

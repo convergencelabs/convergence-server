@@ -15,8 +15,6 @@ import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import com.convergencelabs.server.domain.model.data.StringValue
 import com.convergencelabs.server.domain.model.data.ObjectValue
-import com.convergencelabs.server.frontend.realtime.OrderBy
-import com.convergencelabs.server.domain.model.QueryOrderBy
 
 // scalastyle:off magic.number
 class ModelStoreSpec
@@ -226,7 +224,7 @@ class ModelStoreSpec
       }
       
       "return models in correct order if orderBy ASC is provided" in withPersistenceStore { store =>
-        val list = store.queryModels(None, None, None, Some(QueryOrderBy("modelId", true))).success.value
+        val list = store.queryModels(None, None, None, Some(("modelId", true))).success.value
         list shouldBe List(
           company1MetaData,
           person1MetaData,
@@ -235,7 +233,7 @@ class ModelStoreSpec
       }
       
       "return models in correct order if orderBy DESC is provided" in withPersistenceStore { store =>
-        val list = store.queryModels(None, None, None, Some(QueryOrderBy("modelId", false))).success.value
+        val list = store.queryModels(None, None, None, Some(("modelId", false))).success.value
         list shouldBe List(
           person3MetaData,
           person2MetaData,

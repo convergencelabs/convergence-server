@@ -1,10 +1,8 @@
 package com.convergencelabs.server.datastore
 
 import java.util.{ List => JavaList }
-
-import scala.collection.JavaConverters.asScalaBufferConverter
-
 import grizzled.slf4j.Logging
+import scala.collection.JavaConverters._
 
 object QueryUtil extends Logging {
   private[this] val MultipleElementsMessage = "Only exepected one element in the result list, but more than one returned."

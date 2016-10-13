@@ -1,11 +1,7 @@
 package com.convergencelabs.server.datastore.domain
 
 import java.util.{ List => JavaList }
-
-import scala.collection.JavaConverters.asScalaBufferConverter
-import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.util.Try
-
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.server.datastore.QueryUtil
 import com.convergencelabs.server.domain.TokenPublicKey
@@ -13,7 +9,6 @@ import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
-
 import grizzled.slf4j.Logging
 import mapper.TokenPublicKeyMapper.ODocumentToTokenPublicKey
 import mapper.TokenPublicKeyMapper.TokenPublicKeyToODocument
@@ -26,6 +21,8 @@ import com.convergencelabs.server.datastore.NotFound
 import com.convergencelabs.server.datastore.UpdateSuccess
 import com.convergencelabs.server.datastore.DeleteResult
 import com.convergencelabs.server.datastore.DeleteSuccess
+import java.util.{List => JavaList}
+import scala.collection.JavaConverters._
 
 class ApiKeyStore private[datastore] (
   private[this] val dbPool: OPartitionedDatabasePool)

@@ -1,12 +1,12 @@
 package com.convergencelabs.server.domain.model.ot.xform.reference
 
-import com.convergencelabs.server.domain.model.SetReference
 import com.convergencelabs.server.domain.model.ot.ReferenceTransformationFunction
 import com.convergencelabs.server.domain.model.ot.StringInsertOperation
 import com.convergencelabs.server.domain.model.ot.xform.IndexTransformer
+import com.convergencelabs.server.domain.model.ReferenceValue
 
 object StringInsertRangeTF extends ReferenceTransformationFunction[StringInsertOperation] {
-  def transform(op: StringInsertOperation, setReference: SetReference): Option[SetReference] = {
+  def transform(op: StringInsertOperation, setReference: ReferenceValue): Option[ReferenceValue] = {
     val ranges = setReference.values.asInstanceOf[List[(Int, Int)]]
     
     val xFormedRanges = ranges map { range =>

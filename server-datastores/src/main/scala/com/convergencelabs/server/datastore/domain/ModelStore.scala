@@ -1,25 +1,11 @@
 package com.convergencelabs.server.datastore.domain
 
 import java.util.{ List => JavaList }
-import scala.collection.JavaConverters.seqAsJavaListConverter
-import scala.collection.JavaConverters.asScalaBufferConverter
-import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.util.Try
-import org.json4s.JArray
-import org.json4s.JBool
-import org.json4s.JObject
-import org.json4s.JString
-import org.json4s.JValue
-import org.json4s.JsonAST.JNumber
 import org.json4s.NoTypeHints
-import org.json4s.jackson.JsonMethods.parse
 import org.json4s.jackson.Serialization
-import org.json4s.jvalue2monadic
-import org.json4s.string2JsonInput
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.server.datastore.QueryUtil
-import com.convergencelabs.server.datastore.domain.mapper.ModelMapper.ODocumentToModel
-import com.convergencelabs.server.datastore.domain.mapper.ModelMapper.ODocumentToModelMetaData
 import com.convergencelabs.server.domain.model.Model
 import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelMetaData
@@ -27,15 +13,13 @@ import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
-import com.orientechnologies.orient.core.id.ORID
 import java.util.Date
 import com.convergencelabs.server.domain.model.data.ObjectValue
-import com.convergencelabs.server.datastore.domain.mapper.ObjectValueMapper.ODocumentToObjectValue
-import java.util.ArrayList
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import scala.collection.mutable.HashMap
-import com.convergencelabs.server.domain.model.QueryOrderBy
+import scala.collection.JavaConverters._
+import com.convergencelabs.server.datastore.domain.mapper.ModelMapper._
+import com.convergencelabs.server.datastore.domain.mapper.ObjectValueMapper._
 
 object ModelStore {
   private val ModelClass = "Model"
@@ -168,7 +152,7 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool, operationSto
     collectionId: Option[String],
     limit: Option[Int],
     offset: Option[Int],
-    orderBy: Option[QueryOrderBy]): Try[List[ModelMetaData]] = tryWithDb { db =>
+    orderBy: Option[(String, Boolean)]): Try[List[ModelMetaData]] = tryWithDb { db =>
 
     var params = Map[String, String]()
 
@@ -178,8 +162,8 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool, operationSto
     } getOrElse ("")
 
     val order: String = orderBy map { orderBy =>
-      val ascendingParam = if (orderBy.ascending) { "ASC" } else { "DESC" }
-      s"ORDER BY ${orderBy.field} ${ascendingParam}"
+      val ascendingParam = if (orderBy._2) { "ASC" } else { "DESC" }
+      s"ORDER BY ${orderBy._1} ${ascendingParam}"
     } getOrElse ""
 
     val queryString =

@@ -3,20 +3,10 @@ package com.convergencelabs.server.datastore.domain
 import java.time.Instant
 import java.util.Date
 import java.util.{ List => JavaList }
-
-import scala.annotation.migration
-import scala.collection.JavaConverters.asScalaBufferConverter
-import scala.collection.JavaConverters.mapAsJavaMapConverter
-import scala.collection.JavaConverters.seqAsJavaListConverter
-import scala.util.Failure
-import scala.util.Success
 import scala.util.Try
-
 import org.json4s.NoTypeHints
 import org.json4s.jackson.Serialization
-
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.server.datastore.domain.mapper.ModelOperationMapper.ModelOperationToODocument
 import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelOperation
 import com.convergencelabs.server.domain.model.ot.AppliedArrayInsertOperation
@@ -45,6 +35,8 @@ import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.orientechnologies.common.io.OIOUtils
 import grizzled.slf4j.Logging
+import scala.collection.JavaConverters._
+import com.convergencelabs.server.datastore.domain.mapper.ModelOperationMapper._
 
 class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     extends AbstractDatabasePersistence(dbPool)

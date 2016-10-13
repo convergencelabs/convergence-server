@@ -1,12 +1,12 @@
 package com.convergencelabs.server.domain.model.ot.xform.reference
 
-import com.convergencelabs.server.domain.model.SetReference
 import com.convergencelabs.server.domain.model.ot.ReferenceTransformationFunction
 import com.convergencelabs.server.domain.model.ot.StringRemoveOperation
 import com.convergencelabs.server.domain.model.ot.xform.IndexTransformer
+import com.convergencelabs.server.domain.model.ReferenceValue
 
 object StringRemoveRangeTF extends ReferenceTransformationFunction[StringRemoveOperation] {
-  def transform(op: StringRemoveOperation, setReference: SetReference): Option[SetReference] = {
+  def transform(op: StringRemoveOperation, setReference: ReferenceValue): Option[ReferenceValue] = {
     val ranges = setReference.values.asInstanceOf[List[(Int, Int)]]
     val xformedRanges = ranges map { range =>
       val xFormed = IndexTransformer.handleRemove(List(range._1, range._2), op.index, op.value.length)

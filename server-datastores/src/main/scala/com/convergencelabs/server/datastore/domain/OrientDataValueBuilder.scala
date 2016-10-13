@@ -8,10 +8,9 @@ import com.convergencelabs.server.domain.model.data.StringValue
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.model.data.ArrayValue
 import com.orientechnologies.orient.core.metadata.schema.OType
-import scala.collection.JavaConverters.mapAsJavaMapConverter
-import scala.collection.JavaConverters.seqAsJavaListConverter
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.convergencelabs.server.domain.model.data.NullValue
+import scala.collection.JavaConverters._
 
 object OrientDataValueBuilder {
 

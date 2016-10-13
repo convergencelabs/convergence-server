@@ -1,10 +1,7 @@
 package com.convergencelabs.server.datastore.domain
 
-import scala.collection.JavaConverters.asScalaBufferConverter
-import scala.collection.JavaConverters.mapAsJavaMapConverter
 import org.json4s.NoTypeHints
 import org.json4s.jackson.Serialization
-import com.convergencelabs.server.datastore.domain.mapper.ModelOperationMapper.ODocumentToModelOperation
 import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelOperation
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
@@ -16,6 +13,8 @@ import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import scala.util.Try
 import java.time.Instant
 import com.convergencelabs.server.datastore.QueryUtil
+import scala.collection.JavaConverters._
+import com.convergencelabs.server.datastore.domain.mapper.ModelOperationMapper._
 
 class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
     extends AbstractDatabasePersistence(dbPool) {

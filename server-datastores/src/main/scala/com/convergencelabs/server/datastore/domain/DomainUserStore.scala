@@ -1,17 +1,12 @@
 package com.convergencelabs.server.datastore.domain
 
 import java.util.{ List => JavaList }
-import scala.collection.JavaConverters.asScalaBufferConverter
-import scala.collection.JavaConverters.mapAsJavaMapConverter
-import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.util.Try
 import org.json4s.NoTypeHints
 import org.json4s.jackson.Serialization
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.server.datastore.QueryUtil
 import com.convergencelabs.server.datastore.SortOrder
-import com.convergencelabs.server.datastore.domain.mapper.DomainUserMapper.DomainUserToODocument
-import com.convergencelabs.server.datastore.domain.mapper.DomainUserMapper.ODocumentToDomainUser
 import com.convergencelabs.server.domain.DomainUser
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.metadata.schema.OType
@@ -19,10 +14,7 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.domain.UserLookUpField
 import scala.collection.mutable.ListBuffer
-import scala.collection.mutable.HashTable
-import scala.collection.mutable.HashTable
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import com.convergencelabs.server.datastore.DuplicateValue
 import com.convergencelabs.server.datastore.CreateResult
@@ -35,12 +27,10 @@ import com.convergencelabs.server.datastore.UpdateSuccess
 import com.convergencelabs.server.datastore.UpdateResult
 import com.convergencelabs.server.datastore.InvalidValue
 import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateDomainUser
-import java.util.UUID
-import com.orientechnologies.orient.core.metadata.sequence.OSequence.CreateParams
-import com.orientechnologies.orient.core.metadata.sequence.OSequence.SEQUENCE_TYPE
-import java.util.Base64
+import scala.collection.JavaConverters._
+import com.convergencelabs.server.datastore.domain.mapper.DomainUserMapper._
 import java.lang.Long
-import java.math.BigInteger
+
 
 object DomainUserStore {
   case class CreateDomainUser(

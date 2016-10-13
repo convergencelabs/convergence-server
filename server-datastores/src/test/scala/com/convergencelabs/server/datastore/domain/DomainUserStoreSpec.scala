@@ -14,6 +14,7 @@ import com.convergencelabs.server.datastore.NotFound
 import com.convergencelabs.server.datastore.InvalidValue
 import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateDomainUser
 import com.convergencelabs.server.datastore.CreateSuccess
+import com.convergencelabs.server.datastore.`package`
 
 class DomainUserStoreSpec
     extends PersistenceStoreSpec[DomainUserStore]("/dbfiles/domain-n1-d1.json.gz")

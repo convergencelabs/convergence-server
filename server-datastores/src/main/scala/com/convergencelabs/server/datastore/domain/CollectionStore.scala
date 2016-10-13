@@ -1,15 +1,9 @@
 package com.convergencelabs.server.datastore.domain
 
 import java.util.{ List => JavaList }
-
-import scala.collection.JavaConverters.asScalaBufferConverter
-import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.util.Try
-
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.server.datastore.QueryUtil
-import com.convergencelabs.server.datastore.domain.mapper.CollectionMapper.CollectionToODocument
-import com.convergencelabs.server.datastore.domain.mapper.CollectionMapper.ODocumentToCollection
 import com.convergencelabs.server.domain.model.Collection
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.record.impl.ODocument
@@ -25,6 +19,9 @@ import com.convergencelabs.server.datastore.CreateSuccess
 import com.convergencelabs.server.datastore.UpdateResult
 import com.convergencelabs.server.datastore.UpdateSuccess
 import com.convergencelabs.server.datastore.InvalidValue
+import java.util.{List => JavaList}
+import scala.collection.JavaConverters._
+import com.convergencelabs.server.datastore.domain.mapper.CollectionMapper._
 
 object CollectionStore {
   private val CollectionId = "collectionId"

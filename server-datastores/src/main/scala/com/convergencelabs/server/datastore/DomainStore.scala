@@ -1,8 +1,6 @@
 package com.convergencelabs.server.datastore
 
 import java.util.{ List => JavaList }
-import scala.collection.JavaConverters.asScalaBufferConverter
-import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.util.Try
 import com.convergencelabs.server.datastore.mapper.DomainMapper.DomainUserToODocument
 import com.convergencelabs.server.datastore.mapper.DomainMapper.ODocumentToDomain
@@ -16,11 +14,10 @@ import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.domain.DomainDatabaseInfo
 import com.convergencelabs.server.domain.DomainDatabaseInfo
-import com.orientechnologies.orient.core.exception.OValidationException
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
-import com.orientechnologies.orient.core.metadata.sequence.OSequence.SEQUENCE_TYPE
-import com.orientechnologies.orient.core.metadata.sequence.OSequence.CreateParams
 import com.convergencelabs.server.domain.DomainStatus
+import java.util.{List => JavaList}
+import scala.collection.JavaConverters._
 
 class DomainStore (dbPool: OPartitionedDatabasePool)
     extends AbstractDatabasePersistence(dbPool)

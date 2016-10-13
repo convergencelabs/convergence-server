@@ -1,8 +1,6 @@
 package com.convergencelabs.server.domain.model
 
 import java.time.Instant
-
-import com.convergencelabs.server.domain.model.ot.Operation
 import com.convergencelabs.server.domain.model.ot.AppliedOperation
 
 case class ModelOperation(
