@@ -1,4 +1,0 @@
-INSERT INTO Collection SET
-  collectionId = "company",
-  name = "Company",
-  overrideSnapshotConfig = false;

@@ -1,6 +1,0 @@
-INSERT INTO User SET
-  uid = "cu0",
-  username = "test",
-  email = "test@convergence.com",
-  firstName = "test",
-  lastName = "test"

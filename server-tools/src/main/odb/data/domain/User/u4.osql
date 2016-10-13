@@ -1,5 +1,0 @@
-INSERT INTO User SET
-  username = "test4",
-  firstName = "Test",
-  lastName = "Four",
-  email = "test4@example.com";

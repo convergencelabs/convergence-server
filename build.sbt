@@ -139,20 +139,6 @@ val testkit = (project in file("server-testkit")).
   )
   .dependsOn(serverCore)
   
-  
-val tools = (project in file("server-tools")).
-  configs(Configs.all: _*).
-  settings(commonSettings: _*).
-  settings(Testing.settings: _*).
-  settings(
-    name := "convergence-server-tools",
-    libraryDependencies ++= 
-    orientDb ++ 
-    loggingAll ++
-    testingCore ++
-    Seq(scallop, json4s, json4sExt, jacksonYaml)
-  )
-  
 val e2eTests = (project in file("server-e2e-tests")).
   configs(Configs.all: _*).
   settings(commonSettings: _*).
@@ -176,5 +162,5 @@ val root = (project in file(".")).
     publishArtifact in (Compile, packageDoc) := false, // there are no javadocs
     publishArtifact in (Compile, packageSrc) := false
   ).
-  aggregate(tools, serverOt, serverDatastore, serverCore, serverNode, testkit, e2eTests)
+  aggregate(serverOt, serverDatastore, serverCore, serverNode, testkit, e2eTests)
   
