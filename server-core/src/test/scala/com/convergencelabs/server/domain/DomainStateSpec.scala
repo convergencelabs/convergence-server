@@ -4,7 +4,6 @@ import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.WordSpec
-import com.convergencelabs.server.domain.DomainStatus
 
 class DomainStatusSpec
     extends WordSpec

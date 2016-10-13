@@ -25,11 +25,6 @@ import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
 import com.convergencelabs.server.User
-import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.DomainStatus
-import com.convergencelabs.server.domain.Domain
-import com.convergencelabs.server.domain.TokenKeyPair
-import com.convergencelabs.server.domain.TokenPublicKey
 
 @RunWith(classOf[JUnitRunner])
 class DomainManagerActorSpec()

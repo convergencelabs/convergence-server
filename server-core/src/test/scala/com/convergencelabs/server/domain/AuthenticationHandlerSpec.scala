@@ -31,11 +31,6 @@ import com.convergencelabs.server.datastore.domain.ApiKeyStore
 import com.convergencelabs.server.datastore.CreateSuccess
 import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateDomainUser
 import com.convergencelabs.server.domain.model.SessionKey
-import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.datastore.`package`
-import com.convergencelabs.server.domain.DomainUser
-import com.convergencelabs.server.domain.TokenKeyPair
-import com.convergencelabs.server.domain.TokenPublicKey
 
 class AuthenticationHandlerSpec()
     extends TestKit(ActorSystem("AuthManagerActorSpec"))

@@ -22,7 +22,6 @@ import com.convergencelabs.server.util.MockDomainPersistenceManagerActor
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
-import com.convergencelabs.server.domain.DomainFqn
 
 @RunWith(classOf[JUnitRunner])
 class DomainActorSpec

@@ -32,11 +32,6 @@ import akka.testkit.TestKit
 import akka.testkit.TestProbe
 import com.convergencelabs.server.datastore.domain.CollectionStore
 import com.convergencelabs.server.domain.model.data.ObjectValue
-import com.convergencelabs.server.domain.model.Collection
-import com.convergencelabs.server.domain.model.ModelFqn
-import com.convergencelabs.server.domain.model.ModelMetaData
-import com.convergencelabs.server.domain.model.Model
-import com.convergencelabs.server.domain.model.ModelSnapshotMetaData
 
 @RunWith(classOf[JUnitRunner])
 class ModelManagerActorSpec
