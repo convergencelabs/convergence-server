@@ -8,7 +8,7 @@ val commonSettings = Seq(
   scalacOptions := Seq("-deprecation", "-feature"),
   fork := true,
   publishTo := {
-    val nexus = "https://builds.convergencelabs.tech/nexus/repository/"
+    val nexus = "https://nexus.convergencelabs.tech/repository/"
     if (isSnapshot.value)
       Some("snapshots" at nexus + "maven-snapshots/") 
     else
