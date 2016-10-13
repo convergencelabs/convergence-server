@@ -85,6 +85,7 @@ class DomainDBController(
     db.open(AdminUser, AdminPassword)
 
     tryToFuture(Try {
+      // FIXME make sure this becomes asynchronous.
       val f = importFile.getOrElse(Schema)
       logger.debug(s"Creating base domain schema from file '$f': $uri")
       val importer = new ODatabaseImport(db, f, listener)
