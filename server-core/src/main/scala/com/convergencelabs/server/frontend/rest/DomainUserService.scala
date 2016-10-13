@@ -50,13 +50,14 @@ import akka.pattern.ask
 import akka.util.Timeout
 
 object DomainUserService {
-  case class CreateUserRequest(username: String, firstName: Option[String], lastName: Option[String], email: Option[String], password: Option[String])
+  case class CreateUserRequest(username: String, firstName: Option[String], lastName: Option[String], displayName: Option[String], email: Option[String], password: Option[String])
   case class CreateUserResponse() extends AbstractSuccessResponse
   case class GetUsersRestResponse(users: List[DomainUser]) extends AbstractSuccessResponse
   case class GetUserRestResponse(user: DomainUser) extends AbstractSuccessResponse
   case class UpdateUserRequest(
     firstName: Option[String],
     lastName: Option[String],
+    displayName: Option[String],
     email: Option[String])
   case class SetPasswordRequest(password: String)
 
@@ -110,42 +111,42 @@ class DomainUserService(
   }
 
   def createUserRequest(createRequest: CreateUserRequest, domain: DomainFqn): Future[RestResponse] = {
-    val CreateUserRequest(username, firstName, lastName, email, password) = createRequest
-    (domainRestActor ? DomainMessage(domain, CreateUser(username, firstName, lastName, email, password))).mapTo[CreateResult[Unit]].map {
+    val CreateUserRequest(username, firstName, lastName, displayName, email, password) = createRequest
+    (domainRestActor ? DomainMessage(domain, CreateUser(username, firstName, lastName, displayName, email, password))).mapTo[CreateResult[Unit]].map {
       case result: CreateSuccess[Unit] => (StatusCodes.Created, CreateUserResponse())
-      case DuplicateValue                => DuplicateError
-      case InvalidValue                  => InvalidValueError
+      case DuplicateValue => DuplicateError
+      case InvalidValue => InvalidValueError
     }
   }
 
   def updateUserRequest(username: String, updateRequest: UpdateUserRequest, domain: DomainFqn): Future[RestResponse] = {
-    val UpdateUserRequest(firstName, lastName, email) = updateRequest
-    (domainRestActor ? DomainMessage(domain, UpdateUser(username, firstName, lastName, email))).mapTo[UpdateResult].map {
+    val UpdateUserRequest(firstName, lastName, displayName, email) = updateRequest
+    (domainRestActor ? DomainMessage(domain, UpdateUser(username, firstName, lastName, displayName, email))).mapTo[UpdateResult].map {
       case UpdateSuccess => OkResponse
-      case NotFound      => NotFoundError
-      case InvalidValue  => InvalidValueError
+      case NotFound => NotFoundError
+      case InvalidValue => InvalidValueError
     }
   }
 
   def setPasswordRequest(uid: String, setPasswordRequest: SetPasswordRequest, domain: DomainFqn): Future[RestResponse] = {
     (domainRestActor ? DomainMessage(domain, SetPassword(uid, setPasswordRequest.password))).mapTo[UpdateResult].map {
       case UpdateSuccess => OkResponse
-      case NotFound      => NotFoundError
-      case InvalidValue  => InvalidValueError
+      case NotFound => NotFoundError
+      case InvalidValue => InvalidValueError
     }
   }
 
   def getUserByUsername(username: String, domain: DomainFqn): Future[RestResponse] = {
     (domainRestActor ? DomainMessage(domain, GetUserByUsername(username))).mapTo[Option[DomainUser]] map {
       case Some(user) => (StatusCodes.OK, GetUserRestResponse(user))
-      case None       => NotFoundError
+      case None => NotFoundError
     }
   }
 
   def deleteUser(uid: String, domain: DomainFqn): Future[RestResponse] = {
     (domainRestActor ? DomainMessage(domain, DeleteDomainUser(uid))).mapTo[DeleteResult] map {
       case DeleteSuccess => OkResponse
-      case NotFound      => NotFoundError
+      case NotFound => NotFoundError
     }
   }
 }

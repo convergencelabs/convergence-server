@@ -1,6 +1,8 @@
 package com.convergencelabs.server.datastore
 
 import java.util.{ List => JavaList }
+import scala.collection.JavaConverters.asScalaBufferConverter
+import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.util.Try
 import com.convergencelabs.server.datastore.mapper.DomainMapper.DomainUserToODocument
 import com.convergencelabs.server.datastore.mapper.DomainMapper.ODocumentToDomain
@@ -14,10 +16,11 @@ import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.domain.DomainDatabaseInfo
 import com.convergencelabs.server.domain.DomainDatabaseInfo
+import com.orientechnologies.orient.core.exception.OValidationException
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
+import com.orientechnologies.orient.core.metadata.sequence.OSequence.SEQUENCE_TYPE
+import com.orientechnologies.orient.core.metadata.sequence.OSequence.CreateParams
 import com.convergencelabs.server.domain.DomainStatus
-import java.util.{List => JavaList}
-import scala.collection.JavaConverters._
 
 class DomainStore (dbPool: OPartitionedDatabasePool)
     extends AbstractDatabasePersistence(dbPool)
@@ -29,6 +32,7 @@ class DomainStore (dbPool: OPartitionedDatabasePool)
   private[this] val Uid = "uid"
   private[this] val DisplayName = "displayName"
   private[this] val Status = "status"
+  private[this] val StatusMessage = "statusMessage"
   private[this] val DomainClassName = "Domain"
   
   val DidSeq = "DIDSEQ"
@@ -47,6 +51,7 @@ class DomainStore (dbPool: OPartitionedDatabasePool)
           doc.field(DomainId, domainFqn.domainId)
           doc.field(DisplayName, displayName)
           doc.field(Status, DomainStatus.Initializing.toString())
+          doc.field(StatusMessage, "")
           doc.field(Owner, user)
           doc.field("dbName", dbInfo.database)
           doc.field("dbUsername", dbInfo.username)
@@ -143,6 +148,7 @@ class DomainStore (dbPool: OPartitionedDatabasePool)
     QueryUtil.enforceSingletonResultList(result) match {
       case Some(doc) => {
         val newDoc = domain.asODocument
+        // FIXME what is this for?
         newDoc.removeField("owner")
         doc.merge(domain, true, false)
         db.save(doc)

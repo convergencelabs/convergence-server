@@ -14,7 +14,6 @@ import com.convergencelabs.server.datastore.NotFound
 import com.convergencelabs.server.datastore.InvalidValue
 import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateDomainUser
 import com.convergencelabs.server.datastore.CreateSuccess
-import com.convergencelabs.server.datastore.`package`
 
 class DomainUserStoreSpec
     extends PersistenceStoreSpec[DomainUserStore]("/dbfiles/domain-n1-d1.json.gz")
@@ -22,14 +21,14 @@ class DomainUserStoreSpec
     with Matchers {
 
   // Pre-loaded Users
-  val User0 = DomainUser("admin", Some("Admin"), Some("User"), Some("admin@example.com"))
-  val User1 = DomainUser("test1", Some("Test"), Some("One"), Some("test1@example.com"))
-  val User2 = DomainUser("test2", Some("Test"), Some("Two"), Some("test2@example.com"))
+  val User0 = DomainUser("admin", Some("Admin"), Some("User"), Some("Admin User"), Some("admin@example.com"))
+  val User1 = DomainUser("test1", Some("Test"), Some("One"), Some("Test One"), Some("test1@example.com"))
+  val User2 = DomainUser("test2", Some("Test"), Some("Two"), Some("Test Two"), Some("test2@example.com"))
 
   // New Users
-  val User10 = CreateDomainUser("user10", Some("first10"), Some("last10"), Some("user10@example.com"))
-  val User11 = CreateDomainUser("user11", Some("first11"), Some("last11"), Some("user11@example.com"))
-  val User12 = CreateDomainUser("user12", None, None, None)
+  val User10 = CreateDomainUser("user10", Some("first10"), Some("last10"), Some("first10 last10"), Some("user10@example.com"))
+  val User11 = CreateDomainUser("user11", Some("first11"), Some("last11"), Some("first11 last11"), Some("user11@example.com"))
+  val User12 = CreateDomainUser("user12", None, None, None, None)
 
   def createStore(dbPool: OPartitionedDatabasePool): DomainUserStore = new DomainUserStore(dbPool)
 
@@ -39,21 +38,21 @@ class DomainUserStoreSpec
         store.createDomainUser(User10, None).success
 
         val queried = store.getDomainUserByUsername(User10.username)
-        val DomainUser(username, fname, lname, email) = queried.success.get.value
-        CreateDomainUser(username, fname, lname, email) shouldBe User10
+        val DomainUser(username, fname, lname, displayName, email) = queried.success.get.value
+        CreateDomainUser(username, fname, lname, displayName, email) shouldBe User10
       }
 
       "not allow duplicate usernames" in withPersistenceStore { store =>
         store.createDomainUser(User10, None).success
 
-        val duplicate = CreateDomainUser(User10.username, User11.firstName, User11.lastName, User11.email)
+        val duplicate = CreateDomainUser(User10.username, User11.firstName, User11.lastName, User11.displayName, User11.email)
         store.createDomainUser(duplicate, None).success.get shouldBe DuplicateValue
       }
 
       "not allow duplicate emails" in withPersistenceStore { store =>
         store.createDomainUser(User10, None).success
 
-        val duplicate = CreateDomainUser(User11.username, User11.firstName, User11.lastName, User10.email)
+        val duplicate = CreateDomainUser(User11.username, User11.firstName, User11.lastName,  User11.displayName, User10.email)
         store.createDomainUser(duplicate, None).success.get shouldBe DuplicateValue
       }
 
@@ -69,8 +68,8 @@ class DomainUserStoreSpec
         val CreateSuccess(_) = store.createDomainUser(User12, None).success.value
 
         val queried = store.getDomainUserByUsername(User12.username)
-        val DomainUser(username, fname, lname, email) = queried.success.get.value
-        CreateDomainUser(username, fname, lname, email) shouldBe User12
+        val DomainUser(username, fname, lname, displayName, email) = queried.success.get.value
+        CreateDomainUser(username, fname, lname, displayName, email) shouldBe User12
       }
     }
 
@@ -115,23 +114,23 @@ class DomainUserStoreSpec
       "not allow setting duplicate email" in withPersistenceStore { store =>
         store.createDomainUser(User10, None).success
         val CreateSuccess(_) = store.createDomainUser(User11, None).success.value
-        val original2Dup = DomainUser(User11.username, User11.firstName, User11.lastName, User10.email)
+        val original2Dup = DomainUser(User11.username, User11.firstName, User11.lastName, User11.displayName, User10.email)
         store.updateDomainUser(original2Dup).success.get shouldBe InvalidValue
       }
 
       "not allow setting duplicate username" in withPersistenceStore { store =>
         store.createDomainUser(User10, None).success
         val CreateSuccess(()) = store.createDomainUser(User11, None).success.value
-        val original2Dup = DomainUser(User10.username, User11.firstName, User11.lastName, User11.email)
+        val original2Dup = DomainUser(User10.username, User11.firstName, User11.lastName, User11.displayName, User11.email)
         val result = store.updateDomainUser(original2Dup).success.get shouldBe InvalidValue
       }
 
       "throw exception if user does not exist" in withPersistenceStore { store =>
-        store.updateDomainUser(DomainUser("foo", None, None, None)).success.get shouldBe NotFound
+        store.updateDomainUser(DomainUser("foo", None, None, None, None)).success.get shouldBe NotFound
       }
 
       "currectly update an existing user, if unique properties are not violoated" in withPersistenceStore { store =>
-        val updated = DomainUser(User1.username, Some("f"), Some("l"), Some("e"))
+        val updated = DomainUser(User1.username, Some("f"), Some("l"), Some("d"), Some("e"))
         store.updateDomainUser(updated).success
         val queried = store.getDomainUserByUsername(User1.username).success.value.get
         queried shouldBe updated
@@ -155,14 +154,14 @@ class DomainUserStoreSpec
     }
 
     "searching for users by fields" must {
-      "should return multiple matches if a prefix is supplied" in withPersistenceStore { store =>
+      "return multiple matches if a prefix is supplied" in withPersistenceStore { store =>
         val fields = List(DomainUserField.Username)
         val searchString = "test"
         val users = store.searchUsersByFields(fields, searchString, None, None, None, None).success.value
         users.length shouldBe 4
       }
 
-      "should a single user if only one user matches" in withPersistenceStore { store =>
+      "return a single user if only one user matches" in withPersistenceStore { store =>
         val fields = List(DomainUserField.Username)
         val searchString = "test1"
         val users = store.searchUsersByFields(fields, searchString, None, None, None, None).success.value

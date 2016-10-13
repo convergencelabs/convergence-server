@@ -20,6 +20,7 @@ class DomainUserMapperSpec
           "username",
           Some("firstName"),
           Some("lastName"),
+          Some("displayName"),
           Some("email"))
 
         val doc = domainUser.asODocument

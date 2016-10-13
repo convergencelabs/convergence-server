@@ -6,6 +6,6 @@ case class TokenPublicKey(
   id: String,
   name: String,
   description: String,
-  keyDate: Instant,
+  created: Instant,
   key: String,
   enabled: Boolean)

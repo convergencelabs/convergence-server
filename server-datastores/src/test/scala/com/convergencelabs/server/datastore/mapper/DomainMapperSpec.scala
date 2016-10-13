@@ -1,13 +1,10 @@
 package com.convergencelabs.server.datastore.mapper
 
-import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
-
 import com.convergencelabs.server.domain.Domain
 import com.convergencelabs.server.domain.DomainFqn
 import com.orientechnologies.orient.core.record.impl.ODocument
-
 import DomainMapper.DomainUserToODocument
 import UserMapper.UserToODocument
 import DomainMapper.ODocumentToDomain
@@ -26,7 +23,8 @@ class DomainMapperSpec
           DomainFqn("ns", "dId"),
           "My Domain",
           owner,
-          DomainStatus.Online)
+          DomainStatus.Online,
+          "")
 
         val doc = domain.asODocument
         doc.field("owner", owner.asODocument)

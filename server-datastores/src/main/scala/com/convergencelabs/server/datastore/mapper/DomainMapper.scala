@@ -1,7 +1,6 @@
 package com.convergencelabs.server.datastore.mapper
 
 import scala.language.implicitConversions
-
 import com.convergencelabs.server.domain.Domain
 import com.convergencelabs.server.domain.DomainFqn
 import com.orientechnologies.orient.core.record.impl.ODocument
@@ -19,13 +18,15 @@ object DomainMapper extends ODocumentMapper {
       DomainFqn(namespace, domainId),
       displayName,
       owner,
-      status) = domainConfig
+      status,
+      statusMessage) = domainConfig
 
     val doc = new ODocument(DomainClassName)
     doc.field(Fields.Namespace, namespace)
     doc.field(Fields.DomainId, domainId)
     doc.field(Fields.DisplayName, displayName)
     doc.field(Fields.Status, status.toString())
+    doc.field(Fields.StatusMessage, statusMessage)
     doc
   }
 
@@ -35,13 +36,14 @@ object DomainMapper extends ODocumentMapper {
 
   private[datastore] implicit def oDocumentToDomain(doc: ODocument): Domain = {
     validateDocumentClass(doc, DomainClassName)
-    val state: DomainStatus.Value = DomainStatus.withName(doc.field(Fields.Status))
+    val status: DomainStatus.Value = DomainStatus.withName(doc.field(Fields.Status))
     
     Domain(
       DomainFqn(doc.field(Fields.Namespace), doc.field(Fields.DomainId)),
       doc.field(Fields.DisplayName),
       doc.field(Fields.Owner).asInstanceOf[ODocument].asUser,
-      state)
+      status,
+      doc.field(Fields.StatusMessage))
   }
 
   private[datastore] val DomainClassName = "Domain"
@@ -54,5 +56,6 @@ object DomainMapper extends ODocumentMapper {
     val DBPassword = "dbPassword"
     val Owner = "owner"
     val Status = "status"
+    val StatusMessage = "statusMessage"
   }
 }

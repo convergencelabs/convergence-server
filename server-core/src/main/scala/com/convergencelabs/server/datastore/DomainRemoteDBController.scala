@@ -2,12 +2,8 @@ package com.convergencelabs.server.datastore
 
 import java.time.{ Duration => JavaDuration }
 import java.time.temporal.ChronoUnit
-import java.util.UUID
 
-import scala.concurrent.Await
 import scala.concurrent.Future
-import scala.concurrent.duration.Duration
-import scala.io.Source
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
@@ -15,21 +11,16 @@ import scala.util.Try
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.domain.JwtUtil
 import com.convergencelabs.server.domain.ModelSnapshotConfig
-import com.convergencelabs.server.util.concurrent.FutureUtils._
 import com.convergencelabs.server.domain.TokenKeyPair
+import com.convergencelabs.server.util.concurrent.FutureUtils.tryToFuture
 import com.orientechnologies.orient.client.remote.OServerAdmin
+import com.orientechnologies.orient.core.command.OCommandOutputListener
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
+import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.orientechnologies.orient.core.db.tool.ODatabaseImport
 import com.typesafe.config.Config
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.marshalling.Marshal
-import akka.http.scaladsl.model.HttpMethods
-import akka.http.scaladsl.model.HttpRequest
-import akka.http.scaladsl.model.RequestEntity
-import akka.http.scaladsl.model.Uri.apply
-import akka.http.scaladsl.model.headers.Authorization
-import akka.http.scaladsl.model.headers.BasicHttpCredentials
 import akka.stream.ActorMaterializer
 import grizzled.slf4j.Logging
 
@@ -61,7 +52,7 @@ class DomainDBController(
 
   val Username = domainDbConfig.getString("username")
   val DefaultPassword = domainDbConfig.getString("default-password")
-  
+
   val Schema = domainDbConfig.getString("schema")
 
   val DBType = "document"
@@ -70,10 +61,16 @@ class DomainDBController(
   implicit val materializer = ActorMaterializer()
   implicit val ec = system.dispatcher
 
+  val listener = new OCommandOutputListener() {
+    def onMessage(message: String): Unit = {
+      //logger.debug(message)
+    }
+  }
+
   def createDomain(
-      dbName: String,
-      dbPassword: String,
-      importFile: Option[String]): Future[Unit] = {
+    dbName: String,
+    dbPassword: String,
+    importFile: Option[String]): Future[Unit] = {
     val uri = s"${BaseDbUri}/${dbName}"
 
     logger.debug(s"Creating domain database: $uri")
@@ -82,26 +79,23 @@ class DomainDBController(
       .createDatabase(DBType, StorageMode)
       .close()
     logger.debug(s"Domain database created at: $uri")
-    
+
     // TODO we need to figure out how to set the admin user's password.
+    val db = new ODatabaseDocumentTx(uri)
+    db.open(AdminUser, AdminPassword)
 
-    val importContents = Source.fromFile(importFile.getOrElse(Schema)).mkString
-    val importApi = s"${BaseRestUri}/import/${dbName}"
-
-    // FIXME A bit of a hack, but don't feel like messing with futures at the moment.
-    val importEntity = Await.result(Marshal(importContents).to[RequestEntity], Duration.Inf)
-    val authHeader = Authorization(BasicHttpCredentials("admin", "admin"))
-    val importPost = HttpRequest(method = HttpMethods.POST,
-      uri = importApi, headers = List(authHeader), entity = importEntity)
-
-    logger.debug(s"Starting database import: $importPost")
-    val f = Http().singleRequest(importPost)
-    f.map { response =>
-      logger.debug(s"Import completed successfully: $response")
-      tryToFuture(initDomain(uri, dbPassword))
-    }
+    tryToFuture(Try {
+      val f = importFile.getOrElse(Schema)
+      logger.debug(s"Creating base domain schema from file '$f': $uri")
+      val importer = new ODatabaseImport(db, f, listener)
+      importer.importDatabase();
+      importer.close();
+      db.close()
+      logger.debug(s"Base domain schema created: $uri")
+    } flatMap { x =>
+      initDomain(uri, dbPassword)
+    })
   }
-
 
   private[this] def initDomain(uri: String, password: String): Try[Unit] = Try {
     logger.debug(s"Initializing domain: $uri")

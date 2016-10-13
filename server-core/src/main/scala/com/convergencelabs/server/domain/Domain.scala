@@ -15,7 +15,7 @@ case class Domain(
   domainFqn: DomainFqn,
   displayName: String,
   owner: User,
-  status: DomainStatus.Value, 
+  status: DomainStatus.Value,
   statusMessage: String)
 
 case class DomainDatabaseInfo(

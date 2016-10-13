@@ -2,9 +2,7 @@ package com.convergencelabs.server.datastore.domain.mapper
 
 import java.time.Instant
 import java.util.Date
-
 import scala.language.implicitConversions
-
 import com.convergencelabs.server.datastore.mapper.ODocumentMapper
 import com.convergencelabs.server.domain.TokenPublicKey
 import com.orientechnologies.orient.core.metadata.schema.OType
@@ -21,7 +19,7 @@ object TokenPublicKeyMapper extends ODocumentMapper {
     doc.field(Fields.Id, tokenPublicKey.id)
     doc.field(Fields.Name, tokenPublicKey.name)
     doc.field(Fields.Description, tokenPublicKey.description)
-    doc.field(Fields.Created, new Date(tokenPublicKey.keyDate.toEpochMilli()))
+    doc.field(Fields.Created, new Date(tokenPublicKey.created.toEpochMilli()))
     doc.field(Fields.Key, tokenPublicKey.key)
     doc.field(Fields.Enabled, tokenPublicKey.enabled)
     doc
