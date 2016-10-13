@@ -3,8 +3,8 @@ package com.convergencelabs.server.domain.model.ot
 import grizzled.slf4j.Logging
 import org.apache.commons.lang3.Validate
 import scala.collection.mutable
-import com.convergencelabs.server.domain.model.SetReference
 import com.convergencelabs.server.domain.model.ot.xform.ReferenceTransformer
+import com.convergencelabs.server.domain.model.ReferenceValue
 
 /**
  * The ServerConcurrencyControl class implements the server side Operational Transformation Control Algorithm.  It is
@@ -104,11 +104,11 @@ private[model] class ServerConcurrencyControl(
     })
   }
 
-  def processRemoteReferenceSet(clientId: String, setReference: SetReference): Option[SetReference] = {
+  def processRemoteReferenceSet(clientId: String, setReference: ReferenceValue): Option[ReferenceValue] = {
     val clientState = clientStates(clientId)
     val newStatePath = getCurrentClientStatePath(clientState, setReference.contextVersion)
 
-    var result: Option[SetReference] = Some(setReference)
+    var result: Option[ReferenceValue] = Some(setReference)
 
     newStatePath.foreach { event =>
       result = result.flatMap { ref => this.referenceTransformer.transform(event.operation, ref) }

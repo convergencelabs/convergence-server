@@ -15,7 +15,7 @@ import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
 import java.time.Duration
 
-class UserStoreSpec
+class \
     extends PersistenceStoreSpec[UserStore]("/dbfiles/convergence-example.json.gz")
     with WordSpecLike
     with Matchers {

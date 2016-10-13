@@ -1,14 +1,14 @@
 package com.convergencelabs.server.domain.model.ot.xform
 
-import com.convergencelabs.server.domain.model.SetReference
 import com.convergencelabs.server.domain.model.ot.CompoundOperation
 import com.convergencelabs.server.domain.model.ot.DiscreteOperation
 import com.convergencelabs.server.domain.model.ot.Operation
 import com.convergencelabs.server.domain.model.ot.TransformationFunctionRegistry
+import com.convergencelabs.server.domain.model.ReferenceValue
 
 class ReferenceTransformer(private[this] val tfr: TransformationFunctionRegistry) {
 
-  def transform(op: Operation, setReference: SetReference): Option[SetReference] = {
+  def transform(op: Operation, setReference: ReferenceValue): Option[ReferenceValue] = {
     op match {
       case c: CompoundOperation =>
         transform(c, setReference)
@@ -17,8 +17,8 @@ class ReferenceTransformer(private[this] val tfr: TransformationFunctionRegistry
     }
   }
 
-  private[this] def transform(op: CompoundOperation, setReference: SetReference): Option[SetReference] = {
-    var result: Option[SetReference] = Some(setReference)
+  private[this] def transform(op: CompoundOperation, setReference: ReferenceValue): Option[ReferenceValue] = {
+    var result: Option[ReferenceValue] = Some(setReference)
     // TODO this could be more efficient if we could break the loop the first time we
     // get none back.
     op.operations.foreach { op =>
@@ -27,7 +27,7 @@ class ReferenceTransformer(private[this] val tfr: TransformationFunctionRegistry
     result
   }
 
-  private[this] def transform(op: DiscreteOperation, setReference: SetReference): Option[SetReference] = {
+  private[this] def transform(op: DiscreteOperation, setReference: ReferenceValue): Option[ReferenceValue] = {
     val tf = tfr.getReferenceTransformationFunction(op, setReference.referenceType)
     tf match {
       case Some(tf) => tf.transform(op, setReference)

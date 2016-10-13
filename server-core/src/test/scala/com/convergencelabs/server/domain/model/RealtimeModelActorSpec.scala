@@ -35,6 +35,10 @@ import com.convergencelabs.server.domain.model.ot.ObjectAddPropertyOperation
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.model.data.StringValue
 import com.convergencelabs.server.domain.model.data.NullValue
+import com.convergencelabs.server.domain.model.ModelFqn
+import com.convergencelabs.server.domain.model.ModelMetaData
+import com.convergencelabs.server.domain.model.Model
+import com.convergencelabs.server.domain.model.ModelSnapshotMetaData
 
 // FIXME we really only check message types and not data.
 // scalastyle:off magic.number

@@ -153,7 +153,7 @@ class ModelManagerActor(
   
   private[this] def onQueryModelsRequest(request: QueryModelsRequest): Unit = {
     val QueryModelsRequest(collection, limit, offset, orderBy) = request
-    persistenceProvider.modelStore.queryModels(collection, limit, offset, orderBy) match {
+    persistenceProvider.modelStore.queryModels(collection, limit, offset, orderBy map { ob => (ob.field, ob.ascending)}) match {
       case Success(result) => sender ! QueryModelsResponse(result)
       case Failure(cause) => sender ! Status.Failure(cause)
     }

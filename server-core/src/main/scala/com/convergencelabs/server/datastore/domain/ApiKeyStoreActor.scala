@@ -10,6 +10,7 @@ import ApiKeyStoreActor.GetDomainApiKeys
 import ApiKeyStoreActor.UpdateDomainApiKey
 import akka.actor.ActorLogging
 import akka.actor.Props
+import com.convergencelabs.server.datastore.domain.ApiKeyStore
 
 object ApiKeyStoreActor {
   def props(keyStore: ApiKeyStore): Props = Props(new ApiKeyStoreActor(keyStore))

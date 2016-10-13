@@ -92,16 +92,11 @@ object OrientDatabaseUpgrader {
     val version = conf.deltaVersion.get.get
     val verbose = conf.verbose.get.get
 
-    try {
-    
     val db = new ODatabaseDocumentTx(dbUrl)
     db.open(username, password)
 
     val manager = new OrientSchemaManager(db, deltaDir, dbType)
     manager.upgradeToVersion(version)
-    } finally {
-      
-    }
   }
 
   def verifyDirectoryExists(dir: String): Try[Unit] = {

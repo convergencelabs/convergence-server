@@ -7,6 +7,10 @@ import akka.actor.ActorRef
 import java.time.Instant
 import java.time.Duration
 import com.convergencelabs.server.domain.model.data.ObjectValue
+import com.convergencelabs.server.domain.model.Collection
+import com.convergencelabs.server.domain.model.ModelFqn
+import com.convergencelabs.server.domain.model.Model
+import com.convergencelabs.server.domain.model.ModelSnapshotMetaData
 
 package model {
 

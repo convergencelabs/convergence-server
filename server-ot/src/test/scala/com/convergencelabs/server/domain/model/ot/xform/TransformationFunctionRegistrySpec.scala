@@ -12,13 +12,13 @@ import org.scalatest.WordSpec
 import org.json4s.JsonAST.JDouble
 import com.convergencelabs.server.domain.model.data.StringValue
 import com.convergencelabs.server.domain.model.ReferenceType
-import com.convergencelabs.server.domain.model.SetReference
 import com.convergencelabs.server.domain.model.ot.xform.reference.StringInsertIndexTF
 import com.convergencelabs.server.domain.model.ot.xform.reference.StringRemoveIndexTF
 import com.convergencelabs.server.domain.model.ot.xform.reference.StringSetIndexTF
 import com.convergencelabs.server.domain.model.ot.xform.reference.StringInsertRangeTF
 import com.convergencelabs.server.domain.model.ot.xform.reference.StringRemoveRangeTF
 import com.convergencelabs.server.domain.model.ot.xform.reference.StringSetRangeTF
+import com.convergencelabs.server.domain.model.ReferenceValue
 
 // scalastyle:off multiple.string.literals
 class TransformationFunctionRegistrySpec extends WordSpec with Matchers {
@@ -47,7 +47,7 @@ class TransformationFunctionRegistrySpec extends WordSpec with Matchers {
   
   val referenceKey = "refKey"
   
-  val SetRef = SetReference(Some(valueId), referenceKey, ReferenceType.Index, List(3), 1l)
+  val SetRef = ReferenceValue(Some(valueId), referenceKey, ReferenceType.Index, List(3), 1l)
 
   "A TransformationFunctionRegistry" when {
 

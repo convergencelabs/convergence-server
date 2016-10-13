@@ -17,6 +17,46 @@ val commonSettings = Seq(
   credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
  )
 
+ val serverOt = (project in file("server-ot")).
+  configs(Configs.all: _*).
+  settings(commonSettings: _*).
+  settings(Testing.settings: _*).
+  settings(
+    name := "convergence-server-ot",
+    libraryDependencies ++= 
+      orientDb ++ 
+      loggingAll ++ 
+      Seq(
+        json4s, 
+        commonsLang,
+        jose4j,
+        bouncyCastle,
+        scrypt,
+        "org.scala-lang" % "scala-reflect" % scalaVersion.value
+      ) ++
+      testingCore
+  )
+ 
+ val serverDatastore = (project in file("server-datastores")).
+  configs(Configs.all: _*).
+  settings(commonSettings: _*).
+  settings(Testing.settings: _*).
+  settings(
+    name := "convergence-server-datastores",
+    libraryDependencies ++= 
+      orientDb ++ 
+      loggingAll ++ 
+      Seq(
+        json4s, 
+        commonsLang,
+        jose4j,
+        bouncyCastle,
+        scrypt,
+        "org.scala-lang" % "scala-reflect" % scalaVersion.value
+      ) ++
+      testingCore
+  ).dependsOn(serverOt)
+ 
 val serverCore = (project in file("server-core")).
   enablePlugins(SbtTwirl).
   configs(Configs.all: _*).
@@ -46,7 +86,8 @@ val serverCore = (project in file("server-core")).
       ) ++
       testingCore ++
       testingAkka
-  )
+  ).dependsOn(serverDatastore)
+  
   
 lazy val dockerBuild = taskKey[Unit]("docker-build")
 val serverNode = (project in file("server-node"))
@@ -135,5 +176,5 @@ val root = (project in file(".")).
     publishArtifact in (Compile, packageDoc) := false, // there are no javadocs
     publishArtifact in (Compile, packageSrc) := false
   ).
-  aggregate(tools, serverCore, serverNode, testkit, e2eTests)
+  aggregate(tools, serverOt, serverDatastore, serverCore, serverNode, testkit, e2eTests)
   

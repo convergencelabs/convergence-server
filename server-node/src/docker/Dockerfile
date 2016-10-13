@@ -18,4 +18,4 @@ EXPOSE 8081
 
 WORKDIR /opt/convergence/
 
-CMD ["/opt/convergence/bin/boot.sh"]
+CMD [/usr/local/bin/confd -onetime -backend env]

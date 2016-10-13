@@ -178,11 +178,13 @@ class RealTimeModel(
                 val UnpublishReference(id, key) = unpublish
                 Some(RemoteReferenceUnpublished(resourceId, sk, id, key))
               case set: SetReference =>
-                this.cc.processRemoteReferenceSet(sk, set) match {
+                //TODO: Added ReferenceValue to move ot packages into separate project and need to evaluate usage here
+                val refVal: ReferenceValue = ReferenceValue(set.id, set.key, set.referenceType, set.values, set.contextVersion)
+                this.cc.processRemoteReferenceSet(sk, refVal) match {
                   case Some(xformed) =>
-                    realTimeValue.processReferenceEvent(xformed, sk)
-                    val SetReference(id, key, refType, value, version) = xformed
-                    Some(RemoteReferenceSet(this.resourceId, sk, id, key, refType, value))
+                    val setRef: SetReference = SetReference(xformed.id, xformed.key, xformed.referenceType, xformed.values, xformed.contextVersion)
+                    realTimeValue.processReferenceEvent(setRef, sk)
+                    Some(RemoteReferenceSet(this.resourceId, sk, setRef.id, setRef.key, setRef.referenceType, setRef.values))
                   case None =>
                     None
                 }
