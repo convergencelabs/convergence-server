@@ -23,6 +23,10 @@ import akka.cluster.ClusterEvent.MemberRemoved
 import akka.cluster.ClusterEvent.MemberUp
 import akka.cluster.ClusterEvent.UnreachableMember
 import grizzled.slf4j.Logging
+import com.orientechnologies.orient.client.remote.OServerAdmin
+import com.convergencelabs.server.schema.OrientSchemaManager
+import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.convergencelabs.server.schema.DBType
 
 object ConvergenceServerNode extends Logging {
   def main(args: Array[String]): Unit = {
@@ -42,8 +46,8 @@ object ConvergenceServerNode extends Logging {
 
 class ConvergenceServerNode(private[this] val config: Config) extends Logging {
 
-  var nodeSystem: Option[ActorSystem] = None 
-  
+  var nodeSystem: Option[ActorSystem] = None
+
   def start(): Unit = {
     val system = ActorSystem("Convergence", config)
     system.actorOf(Props[SimpleClusterListener], name = "clusterListener")
@@ -56,13 +60,19 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
 
       val orientDbConfig = config.getConfig("convergence.orient-db")
       val baseUri = orientDbConfig.getString("db-uri")
-      
+
       val convergenceDbConfig = config.getConfig("convergence.convergence-database")
       val fullUri = baseUri + "/" + convergenceDbConfig.getString("database")
       val username = convergenceDbConfig.getString("username")
       val password = convergenceDbConfig.getString("password")
 
-      dbPool = Some(new OPartitionedDatabasePool(fullUri, password, password))
+      if (convergenceDbConfig.hasPath("auto-install") && convergenceDbConfig.getBoolean("auto-install")) {
+        val adminUser = orientDbConfig.getString("admin-username")
+        val adminPassword = orientDbConfig.getString("admin-password")
+        bootstrapConvergenceDB(fullUri, adminUser, adminPassword, username, password)
+      }
+
+      dbPool = Some(new OPartitionedDatabasePool(fullUri, username, password))
 
       val domainStore = new DomainStore(dbPool.get)
       system.actorOf(
@@ -91,14 +101,31 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
       val restFrontEnd = new ConvergenceRestFrontEnd(system, host, port, dbPool.get)
       restFrontEnd.start()
     }
-    
+
     this.nodeSystem = Some(system)
   }
-  
+
+  def bootstrapConvergenceDB(uri: String, adminUser: String, adminPassword: String, username: String, password: String): Unit = {
+    val serverAdmin = new OServerAdmin(uri).connect(adminUser, adminPassword)
+    if (!serverAdmin.existsDatabase()) {
+      serverAdmin.createDatabase("document", "plocal").close()
+      val db = new ODatabaseDocumentTx(uri)
+      db.open(username, password)
+      try {
+        val schemaManager = new OrientSchemaManager(db, DBType.Convergence)
+        schemaManager.upgradeToVersion(1)
+      } finally {
+        db.close()
+      }
+    } else {
+      serverAdmin.close()
+    }
+  }
+
   def stop(): Unit = {
     nodeSystem match {
       case Some(system) => system.terminate()
-      case None =>
+      case None         =>
     }
   }
 
