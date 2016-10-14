@@ -19,7 +19,7 @@ sealed trait AppliedDiscreteOperationData extends AppliedOperationData {
 
 sealed trait AppliedStringOperaitonData extends AppliedDiscreteOperationData
 case class AppliedStringInsertOperationData(d: String, n: Boolean, i: Int, v: String) extends AppliedStringOperaitonData
-case class AppliedStringRemoveOperationData(d: String, n: Boolean, i: Int, v: Int, o: Option[String]) extends AppliedStringOperaitonData
+case class AppliedStringRemoveOperationData(d: String, n: Boolean, i: Int, l: Int, o: Option[String]) extends AppliedStringOperaitonData
 case class AppliedStringSetOperationData(d: String, n: Boolean, v: String, o: Option[String]) extends AppliedStringOperaitonData
 
 sealed trait AppliedArrayOperaitonData extends AppliedDiscreteOperationData

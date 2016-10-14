@@ -12,7 +12,7 @@ object ModelOperationStoreActor {
 
   trait ModelOperationStoreRequest
 
-  case class GetOperations(fqn: ModelFqn, version: Long, limit: Int) extends ModelOperationStoreRequest
+  case class GetOperations(fqn: ModelFqn, first: Long, last: Long) extends ModelOperationStoreRequest
 }
 
 class ModelOperationStoreActor private[datastore] (
@@ -20,11 +20,11 @@ class ModelOperationStoreActor private[datastore] (
     extends StoreActor with ActorLogging {
 
   def receive: Receive = {
-    case GetOperations(fqn, version, limit) => getOperations(fqn, version, limit)
+    case GetOperations(fqn, first, last) => getOperations(fqn, first, last)
     case message: Any => unhandled(message)
   }
 
-  def getOperations(fqn: ModelFqn, version: Long, limit: Int): Unit = {
-    reply(operationStore.getOperationsAfterVersion(fqn, version, limit))
+  def getOperations(fqn: ModelFqn, first: Long, last: Long): Unit = {
+    reply(operationStore.getOperationsInVersionRange(fqn, first, last))
   }
 }

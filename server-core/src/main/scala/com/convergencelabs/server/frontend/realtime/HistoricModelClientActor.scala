@@ -79,8 +79,8 @@ class HistoricModelClientActor(
   }
 
   private[this] def onOperationRequest(request: HistoricalOperationRequestMessage, cb: ReplyCallback): Unit = {
-    val HistoricalOperationRequestMessage(collection, modelId, version, limit) = request
-    (operationStoreActor ? GetOperations(ModelFqn(collection, modelId), version, limit)).mapResponse[List[ModelOperation]] onComplete {
+    val HistoricalOperationRequestMessage(collection, modelId, first, last) = request
+    (operationStoreActor ? GetOperations(ModelFqn(collection, modelId), first, last)).mapResponse[List[ModelOperation]] onComplete {
       case (Success(operations)) => {
         cb.reply(HistoricalOperationsResponseMessage(operations map ModelOperationMapper.mapOutgoing))
       }

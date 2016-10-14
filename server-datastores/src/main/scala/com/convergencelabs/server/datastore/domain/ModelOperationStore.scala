@@ -102,6 +102,28 @@ class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
     db.close()
     result.asScala.toList map { _.asModelOperation }
   }
+  
+  def getOperationsInVersionRange(fqn: ModelFqn, firstVersion: Long, lastVersion: Long): Try[List[ModelOperation]] = tryWithDb { db =>
+    val db = dbPool.acquire()
+    val queryString =
+      """SELECT * FROM ModelOperation
+        |WHERE
+        |  collectionId = :collectionId AND
+        |  modelId = :modelId AND
+        |  version >= :firstVersion AND
+        |  version <= :lastVersion
+        |ORDER BY version ASC""".stripMargin
+
+    val query = new OSQLSynchQuery[ODocument](queryString)
+    val params = Map(
+        CollectionId -> fqn.collectionId, 
+        ModelId -> fqn.modelId, 
+        "firstVersion" -> firstVersion,
+        "lastVersion" -> lastVersion)
+    val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
+    db.close()
+    result.asScala.toList map { _.asModelOperation }
+  }
 
   def deleteAllOperationsForModel(fqn: ModelFqn): Try[Unit] = tryWithDb { db =>
     val db = dbPool.acquire()
