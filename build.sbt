@@ -14,8 +14,10 @@ val commonSettings = Seq(
     else
       Some("releases"  at nexus + "maven-releases")
   },
-  credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
+  credentials += Credentials(Path.userHome / ".ivy2" / ".credentials"),
+  resolvers += "Maven Public" at "https://nexus.convergencelabs.tech/repository/maven-public"
  )
+
 
  val serverOt = (project in file("server-ot")).
   configs(Configs.all: _*).
@@ -70,6 +72,7 @@ val serverCore = (project in file("server-core")).
       orientDb ++ 
       loggingAll ++ 
       Seq(
+	    dbUpgrader,
         akkaHttp,
         json4s, 
         akkaHttpJson4s,

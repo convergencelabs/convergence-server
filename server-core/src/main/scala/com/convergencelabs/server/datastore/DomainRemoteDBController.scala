@@ -23,6 +23,8 @@ import com.typesafe.config.Config
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.schema.OrientSchemaManager
+import com.convergencelabs.server.schema.DBType.Domain
 
 object DomainRemoteDBController {
   val DefaultSnapshotConfig = ModelSnapshotConfig(
@@ -53,8 +55,6 @@ class DomainDBController(
   val Username = domainDbConfig.getString("username")
   val DefaultPassword = domainDbConfig.getString("default-password")
 
-  val Schema = domainDbConfig.getString("schema")
-
   val DBType = "document"
   val StorageMode = "plocal"
 
@@ -69,8 +69,7 @@ class DomainDBController(
 
   def createDomain(
     dbName: String,
-    dbPassword: String,
-    importFile: Option[String]): Future[Unit] = {
+    dbPassword: String): Future[Unit] = {
     val uri = s"${BaseDbUri}/${dbName}"
 
     logger.debug(s"Creating domain database: $uri")
@@ -86,11 +85,8 @@ class DomainDBController(
 
     tryToFuture(Try {
       // FIXME make sure this becomes asynchronous.
-      val f = importFile.getOrElse(Schema)
-      logger.debug(s"Creating base domain schema from file '$f': $uri")
-      val importer = new ODatabaseImport(db, f, listener)
-      importer.importDatabase();
-      importer.close();
+      val schemaManager = new OrientSchemaManager(db, Domain)
+      schemaManager.upgradeToVersion(1)
       db.close()
       logger.debug(s"Base domain schema created: $uri")
     } flatMap { x =>

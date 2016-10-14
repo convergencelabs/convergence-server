@@ -70,7 +70,7 @@ class DomainStoreActor private[datastore] (
     // functions to the CreateResult class.
     result foreach {
       case CreateSuccess(()) =>
-        domainDBContoller.createDomain(dbName, password, importFile) onComplete {
+        domainDBContoller.createDomain(dbName, password) onComplete {
           case Success(()) =>
             log.debug(s"Domain created, setting status to online: $dbName")
             domainStore.getDomainByFqn(domainFqn) map (_.map { domain =>
