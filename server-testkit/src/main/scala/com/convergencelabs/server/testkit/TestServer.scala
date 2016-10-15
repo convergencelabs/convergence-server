@@ -10,17 +10,19 @@ import com.orientechnologies.orient.core.db.tool.ODatabaseImport
 import com.typesafe.config.ConfigFactory
 
 import grizzled.slf4j.Logging
+import java.io.InputStreamReader
 
 object TestServer {
   def main(args: Array[String]): Unit = {
-    val server = new TestServer("test-server/convergence-application.conf")
+    val server = new TestServer("/convergence-application.conf")
     server.start()
   }
 }
 
 class TestServer(configFile: String) extends Logging {
   // Override the configuration of the port
-  val config = ConfigFactory.parseFile(new File(configFile))
+  val reader = new InputStreamReader(getClass.getResourceAsStream(configFile))
+  val config = ConfigFactory.parseReader(reader)
   val server = new ConvergenceServerNode(config)
   val oriendDb = new EmbeddedOrientDB();
 

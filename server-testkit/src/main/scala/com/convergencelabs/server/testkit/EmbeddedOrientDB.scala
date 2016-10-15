@@ -22,7 +22,7 @@ class EmbeddedOrientDB extends Logging {
 
     odbTarget.mkdirs()
 
-    val configFile = new FileInputStream(new File("test-server/orientdb-server-config.xml"))
+    val configFile = getClass.getResourceAsStream("/orientdb-server-config.xml")
     server.startup(configFile)
     server.activate()
     admin.connect("root", "password")
