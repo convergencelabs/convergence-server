@@ -31,6 +31,8 @@ import com.convergencelabs.server.schema.DBType
 object ConvergenceServerNode extends Logging {
   def main(args: Array[String]): Unit = {
     val options = ServerCLIConf(args)
+    options.verify();
+    
     val configFile = new File(options.config.get.get)
 
     if (!configFile.exists()) {
