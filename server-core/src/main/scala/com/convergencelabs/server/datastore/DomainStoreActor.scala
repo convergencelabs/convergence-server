@@ -35,34 +35,33 @@ class DomainStoreActor private[datastore] (
 
   private[this] val domainStore: DomainStore = new DomainStore(dbPool)
 
-  private[this] val domainDBContoller =
-    new DomainDBController(orientDbConfig, domainDbConfig, context.system)
+  private[this] val domainDBContoller = new DomainDBController(orientDbConfig, domainDbConfig, context.system)
 
   def receive: Receive = {
     case createRequest: CreateDomainRequest => createDomain(createRequest)
     case deleteRequest: DeleteDomainRequest => deleteDomain(deleteRequest)
     case updateRequest: UpdateDomainRequest => updateDomain(updateRequest)
-    case getRequest: GetDomainRequest => getDomain(getRequest)
-    case listRequest: ListDomainsRequest => listDomains(listRequest)
-    case message: Any => unhandled(message)
+    case getRequest: GetDomainRequest       => getDomain(getRequest)
+    case listRequest: ListDomainsRequest    => listDomains(listRequest)
+    case message: Any                       => unhandled(message)
   }
 
   def createDomain(createRequest: CreateDomainRequest): Unit = {
-    val CreateDomainRequest(namespace, domainId, displayName, ownerUsername, importFile) = createRequest
+    val CreateDomainRequest(namespace, domainId, displayName, ownerUsername) = createRequest
     val dbName = UUID.randomUUID().getLeastSignificantBits().toString()
 
     // TODO we should be optionally randomizing the password and passing it in.
     val password = DefaultPassword
 
     val domainFqn = DomainFqn(namespace, domainId)
-    
+
     val result = domainStore.createDomain(
-        domainFqn,
-        displayName,
-        ownerUsername,
+      domainFqn,
+      displayName,
+      ownerUsername,
       DomainDatabaseInfo(dbName,
-      Username,
-      password))
+        Username,
+        password))
 
     reply(result)
 
@@ -79,14 +78,14 @@ class DomainStoreActor private[datastore] (
             })
           case Failure(f) =>
             log.error(f, s"Domain was not created successfully: $dbName")
-            
+
             val sr = new StringWriter();
             val w = new PrintWriter(sr);
             f.printStackTrace(w);
             val statusMessage = sr.getBuffer.toString();
             sr.close();
             w.close()
-            
+
             // TODO we should probably have some field on the domain that references errors?
             domainStore.getDomainByFqn(domainFqn) map (_.map { domain =>
               val updated = domain.copy(status = DomainStatus.Error, statusMessage = statusMessage)
@@ -136,9 +135,9 @@ class DomainStoreActor private[datastore] (
 
 object DomainStoreActor {
   def props(dbPool: OPartitionedDatabasePool,
-    ec: ExecutionContext): Props = Props(new DomainStoreActor(dbPool, ec))
+            ec: ExecutionContext): Props = Props(new DomainStoreActor(dbPool, ec))
 
-  case class CreateDomainRequest(namespace: String, domainId: String, displayName: String, owner: String, importFile: Option[String])
+  case class CreateDomainRequest(namespace: String, domainId: String, displayName: String, owner: String)
   case class UpdateDomainRequest(namespace: String, domainId: String, displayName: String)
   case class DeleteDomainRequest(namespace: String, domainId: String)
   case class GetDomainRequest(namespace: String, domainId: String)

@@ -63,13 +63,7 @@ class ConvergenceUserManagerActor private[datastore] (
       case CreateSuccess(uid) =>
         log.debug("User created.  Creating domains")
         FutureUtils.seqFutures(autoCreateConfigs) { config =>
-          val importFile = if (config.hasPath("import-file")) {
-            Some(config.getString("import-file"))
-          } else {
-            None
-          }
-          
-          createDomain(username, config.getString("name"), importFile)
+          createDomain(username, config.getString("id"), config.getString("displayName"))
         }
 
         origSender ! CreateSuccess(uid)
@@ -104,20 +98,20 @@ class ConvergenceUserManagerActor private[datastore] (
     }
   }
 
-  private[this] def createDomain(username: String, name: String, importFile: Option[String]): Future[CreateResult[Unit]] = {
-    log.debug(s"Requesting domain creation for user '${username}': $name")
+  private[this] def createDomain(username: String, id: String, displayName: String): Future[CreateResult[Unit]] = {
+    log.debug(s"Requesting domain creation for user '${username}': $id")
 
     // FIXME hard coded
     implicit val requstTimeout = Timeout(240 seconds)
-    (domainStoreActor ? CreateDomainRequest(username, name, name, username, importFile)).mapTo[CreateResult[Unit]] andThen {
+    (domainStoreActor ? CreateDomainRequest(username, id, displayName, username)).mapTo[CreateResult[Unit]] andThen {
       case Success(resp: CreateSuccess[Unit]) =>
-        log.debug(s"Domain '${name}' created for '${username}'");
+        log.debug(s"Domain '${id}' created for '${username}'");
       case Success(DuplicateValue) =>
-        log.error(s"Unable to create '${name}' domain for user: Duplicate value exception");
+        log.error(s"Unable to create '${id}' domain for user: Duplicate value exception");
       case Success(InvalidValue) =>
-        log.error(s"Unable to create '${name}' domain for user: Invalid value exception");
+        log.error(s"Unable to create '${id}' domain for user: Invalid value exception");
       case Failure(f) =>
-        log.error(f, s"Unable to create '${name}' domain for user");
+        log.error(f, s"Unable to create '${id}' domain for user");
     }
   }
 }
