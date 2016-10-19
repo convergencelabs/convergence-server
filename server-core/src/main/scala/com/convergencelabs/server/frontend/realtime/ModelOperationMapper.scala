@@ -28,7 +28,7 @@ private[realtime] object ModelOperationMapper {
 
   def mapOutgoing(modelOp: ModelOperation): ModelOperationData = {
     val ModelOperation(ModelFqn(collectionId, modelId), version, timestamp, username, sid, op) = modelOp
-    ModelOperationData(collectionId, modelId, version, timestamp.getEpochSecond, username, sid,
+    ModelOperationData(collectionId, modelId, version, timestamp.toEpochMilli, username, sid,
       op match {
         case operation: AppliedCompoundOperation => mapOutgoingCompound(operation)
         case operation: AppliedDiscreteOperation => mapOutgoingDiscrete(operation)
