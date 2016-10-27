@@ -149,9 +149,9 @@ case class DomainUserData(n: String, f: Option[String], l: Option[String], d: Op
 sealed trait IncomingActivityMessage
 sealed trait IncomingActivityRequestMessage extends IncomingActivityMessage with IncomingProtocolRequestMessage
 case class ActivityParticipantsRequestMessage(i: String) extends IncomingActivityRequestMessage
+case class ActivityJoinMessage(i: String, s: Map[String, Any]) extends IncomingActivityRequestMessage
 
 sealed trait IncomingActivityNormalMessage extends IncomingActivityMessage
-case class ActivityJoinMessage(i: String, s: Map[String, Any]) extends IncomingProtocolNormalMessage with IncomingActivityNormalMessage
 case class ActivityLeaveMessage(i: String) extends IncomingProtocolNormalMessage with IncomingActivityNormalMessage
 case class ActivitySetStateMessage(i: String, v: Map[String, Any]) extends IncomingProtocolNormalMessage with IncomingActivityNormalMessage
 case class ActivityRemoveStateMessage(i: String, k: List[String]) extends IncomingProtocolNormalMessage with IncomingActivityNormalMessage
