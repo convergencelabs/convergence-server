@@ -16,8 +16,11 @@ import akka.actor.Status
 import akka.actor.Terminated
 import com.convergencelabs.server.domain.ActivityServiceActor.ActivityParticipantsRequest
 import com.convergencelabs.server.domain.ActivityServiceActor.ActivityParticipants
-import com.convergencelabs.server.domain.ActivityServiceActor.ActivityJoin
 import com.convergencelabs.server.domain.ActivityServiceActor.ActivityLeave
+import com.convergencelabs.server.domain.ActivityServiceActor.ActivityRemoveState
+import com.convergencelabs.server.domain.ActivityServiceActor.ActivityRemoteStateRemoved
+import com.convergencelabs.server.domain.ActivityServiceActor.ActivityJoinRequest
+import com.convergencelabs.server.domain.ActivityServiceActor.ActivityJoinResponse
 
 object ActivityActor {
   def props(activityId: String): Props = Props(
@@ -33,10 +36,11 @@ private[domain] class ActivityActor(private[this] val activityId: String)
 
   def receive: Receive = {
     case ActivityParticipantsRequest(id) => participantsRequest()
-    case ActivityJoin(id, sk, state, client) => join(sk, state, client)
+    case ActivityJoinRequest(id, sk, state, client) => join(sk, state, client)
     case ActivityLeave(id, sk) => leave(sk)
     case ActivitySetState(id, sk, state) => setState(sk, state)
-    case ActivityClearState(id, sk, keys) => clearState(sk, keys)
+    case ActivityRemoveState(id, sk, keys) => removeState(sk, keys)
+    case ActivityClearState(id, sk) => clearState(sk)
     case Terminated(actor) => handleClientDeath(actor)
   }
 
@@ -75,7 +79,7 @@ private[domain] class ActivityActor(private[this] val activityId: String)
 
         context.watch(client)
 
-      //sender ! ActivityJoinSuccess()
+      sender ! ActivityJoinResponse(stateMap.getState())
     }
   }
 
@@ -112,12 +116,20 @@ private[domain] class ActivityActor(private[this] val activityId: String)
       joinedSessions.values.filter(_ != setter) foreach (_ ! message)
     }
   }
-
-  private[this] def clearState(sk: SessionKey, keys: List[String]): Unit = {
+  
+    private[this] def removeState(sk: SessionKey, keys: List[String]): Unit = {
     if (isJoined(sk)) {
       keys foreach (stateMap.clearState(sk, _))
       val clearer = this.joinedSessions(sk)
-      val message = ActivityRemoteStateCleared(activityId, sk, keys)
+      val message = ActivityRemoteStateRemoved(activityId, sk, keys)
+      joinedSessions.values.filter(_ != clearer) foreach (_ ! message)
+    }
+  }
+
+  private[this] def clearState(sk: SessionKey): Unit = {
+    if (isJoined(sk)) {
+      val clearer = this.joinedSessions(sk)
+      val message = ActivityRemoteStateCleared(activityId, sk)
       joinedSessions.values.filter(_ != clearer) foreach (_ ! message)
     }
   }

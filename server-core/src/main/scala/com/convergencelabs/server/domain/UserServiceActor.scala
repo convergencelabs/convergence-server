@@ -66,6 +66,7 @@ class UserServiceActor private[domain] (domainFqn: DomainFqn) extends Actor with
       case UserLookUpField.Username => DomainUserField.Username
       case UserLookUpField.FirstName => DomainUserField.FirstName
       case UserLookUpField.LastName => DomainUserField.LastName
+      case UserLookUpField.DisplayName => DomainUserField.DisplayName
       case UserLookUpField.Email => DomainUserField.Email
     }
   }
@@ -82,7 +83,7 @@ class UserServiceActor private[domain] (domainFqn: DomainFqn) extends Actor with
 }
 
 object UserLookUpField extends Enumeration {
-  val Username, FirstName, LastName, Email = Value
+  val Username, FirstName, LastName, DisplayName, Email = Value
 }
 
 case class UserLookUp(field: UserLookUpField.Value, values: List[String])

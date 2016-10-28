@@ -65,40 +65,42 @@ object MessageType extends Enumeration {
   val ActivitySessionLeft = 69
 
   val ActivityLocalStateSet = 70
-  val ActivityLocalStateCleared = 71
+  val ActivityLocalStateRemoved = 71
+  val ActivityLocalStateCleared = 72
 
-  val ActivityRemoteStateSet = 72
-  val ActivityRemoteStateCleared = 73
+  val ActivityRemoteStateSet = 73
+  val ActivityRemoteStateRemoved = 74
+  val ActivityRemoteStateCleared = 75
   
-  val PresenceSetState = 74
-  val PresenceClearState = 75
+  val PresenceSetState = 76
+  val PresenceClearState = 77
 
-  val PresenceStateSet = 76
-  val PresenceStateCleared = 77
+  val PresenceStateSet = 78
+  val PresenceStateCleared = 79
 
-  val PresenceAvailabilityChanged = 78
+  val PresenceAvailabilityChanged = 80
 
-  val PresenceRequest = 79
-  val PresenceResponse = 80
+  val PresenceRequest = 81
+  val PresenceResponse = 82
 
-  val PresenceSubscribeRequest = 81
-  val PresenceSubscribeResponse = 82
-  val PresenceUnsubscribe = 83
+  val PresenceSubscribeRequest = 83
+  val PresenceSubscribeResponse = 84
+  val PresenceUnsubscribe = 85
   
-  val JoinRoom = 84
-  val LeaveRoom = 85
-  val PublishChatMessage = 86
+  val JoinRoom = 86
+  val LeaveRoom = 87
+  val PublishChatMessage = 88
 
-  val UserJoinedRoom = 87
-  val UserLeftRoom = 88
-  val ChatMessagePublished = 89
+  val UserJoinedRoom = 89
+  val UserLeftRoom = 90
+  val ChatMessagePublished = 91
   
-  val ModelsQueryRequest = 90
-  val ModelsQueryResponse = 91
+  val ModelsQueryRequest = 92
+  val ModelsQueryResponse = 93
   
-  val HistoricalDataRequest = 92
-  val HistoricalDataResponse = 93
+  val HistoricalDataRequest = 94
+  val HistoricalDataResponse = 95
   
-  val HistoricalOperationsRequest = 94
-  val HistoricalOperationsResponse = 95
+  val HistoricalOperationsRequest = 96
+  val HistoricalOperationsResponse = 97
 }

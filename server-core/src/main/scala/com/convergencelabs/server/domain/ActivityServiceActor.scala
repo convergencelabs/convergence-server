@@ -11,8 +11,9 @@ import akka.actor.Props
 import com.convergencelabs.server.domain.ActivityServiceActor.ActivityShutdownRequest
 import com.convergencelabs.server.domain.ActivityServiceActor.ActivityParticipants
 import com.convergencelabs.server.domain.ActivityServiceActor.ActivityParticipantsRequest
-import com.convergencelabs.server.domain.ActivityServiceActor.ActivityJoin
 import com.convergencelabs.server.domain.ActivityServiceActor.ActivityLeave
+import com.convergencelabs.server.domain.ActivityServiceActor.ActivityJoinResponse
+import com.convergencelabs.server.domain.ActivityServiceActor.ActivityJoinRequest
 
 object ActivityServiceActor {
 
@@ -23,20 +24,23 @@ object ActivityServiceActor {
 
   // Incoming Messages
   case class ActivityParticipantsRequest(activityId: String)
-  case class ActivityJoin(activityId: String, sk: SessionKey, state: Map[String, Any], actorRef: ActorRef)
+  case class ActivityJoinRequest(activityId: String, sk: SessionKey, state: Map[String, Any], actorRef: ActorRef)
   case class ActivityLeave(activityId: String, sk: SessionKey)
 
   case class ActivitySetState(activityId: String, sk: SessionKey, state: Map[String, Any])
-  case class ActivityClearState(activityId: String, sk: SessionKey, keys: List[String])
+  case class ActivityRemoveState(activityId: String, sk: SessionKey, keys: List[String])
+  case class ActivityClearState(activityId: String, sk: SessionKey)
 
   // Outgoing Messages
+  case class ActivityJoinResponse(state: Map[SessionKey, Map[String, Any]])
   case class ActivityParticipants(state: Map[SessionKey, Map[String, Any]])
 
   case class ActivitySessionJoined(activityId: String, sk: SessionKey, state: Map[String, Any])
   case class ActivitySessionLeft(activityId: String, sk: SessionKey)
 
   case class ActivityRemoteStateSet(activityId: String, sk: SessionKey, state: Map[String, Any])
-  case class ActivityRemoteStateCleared(activityId: String, sk: SessionKey, keys: List[String])
+  case class ActivityRemoteStateRemoved(activityId: String, sk: SessionKey, keys: List[String])
+  case class ActivityRemoteStateCleared(activityId: String, sk: SessionKey)
 
   case class ActivityShutdownRequest(activityId: String)
 }
@@ -48,7 +52,7 @@ class ActivityServiceActor private[domain] (domainFqn: DomainFqn) extends Actor 
   private[this] var openActivities = Map[String, ActorRef]()
 
   def receive: Receive = {
-    case joinRequest: ActivityJoin => getAndForward(joinRequest.activityId, joinRequest)
+    case joinRequest: ActivityJoinRequest => getAndForward(joinRequest.activityId, joinRequest)
     case leaveRequest: ActivityLeave => getAndForward(leaveRequest.activityId, leaveRequest)
     case participantsRequest: ActivityParticipantsRequest => participantRequest(participantsRequest.activityId, participantsRequest)
     case setState: ActivitySetState => getAndForward(setState.activityId, setState)
