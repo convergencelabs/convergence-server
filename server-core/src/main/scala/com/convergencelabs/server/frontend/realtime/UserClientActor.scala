@@ -115,6 +115,7 @@ class UserClientActor(userServiceActor: ActorRef) extends Actor with ActorLoggin
       case UserFieldCodes.Username => UserLookUpField.Username
       case UserFieldCodes.FirstName => UserLookUpField.FirstName
       case UserFieldCodes.LastName => UserLookUpField.LastName
+      case UserFieldCodes.DisplayName => UserLookUpField.DisplayName
       case UserFieldCodes.Email => UserLookUpField.Email
     }
   }
@@ -129,6 +130,7 @@ class UserClientActor(userServiceActor: ActorRef) extends Actor with ActorLoggin
     val Username = 1;
     val FirstName = 2;
     val LastName = 3;
-    val Email = 4;
+    val DisplayName = 4;
+    val Email = 5;
   }
 }

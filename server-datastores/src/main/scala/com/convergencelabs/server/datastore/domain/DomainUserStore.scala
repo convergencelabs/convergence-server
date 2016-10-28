@@ -330,5 +330,6 @@ object DomainUserField extends Enumeration {
   val Username = Value("username")
   val FirstName = Value("firstName")
   val LastName = Value("lastName")
+  val DisplayName = Value("displayName")
   val Email = Value("email")
 }
