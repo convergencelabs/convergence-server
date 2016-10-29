@@ -84,7 +84,8 @@ object MessageSerializer {
     MessageType.PresenceSubscribeResponse -> classOf[SubscribePresenceResponseMessage],
     MessageType.PresenceUnsubscribe -> classOf[UnsubscribePresenceMessage],
     
-    MessageType.JoinRoom -> classOf[JoinedChatRoomMessage],
+    MessageType.JoinRoomRequest -> classOf[JoinChatRoomRequestMessage],
+    MessageType.JoinRoomResponse -> classOf[JoinChatRoomResponseMessage],
     MessageType.LeaveRoom -> classOf[LeftChatRoomMessage],
     MessageType.PublishChatMessage -> classOf[PublishedChatMessage],
     MessageType.UserJoinedRoom -> classOf[UserJoinedRoomMessage],

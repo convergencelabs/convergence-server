@@ -187,8 +187,12 @@ case class PresenceStateClearedMessage(u: String, k: String) extends OutgoingPro
 case class PresenceAvailabilityChangedMessage(u: String, a: Boolean) extends OutgoingProtocolNormalMessage
 
 sealed trait IncomingChatMessage
+sealed trait IncomingChatRequestMessage extends IncomingChatMessage with IncomingProtocolRequestMessage
+case class JoinChatRoomRequestMessage(r: String) extends IncomingChatRequestMessage
+
+case class JoinChatRoomResponseMessage(p: List[String], c: Long, l: Long) extends OutgoingProtocolResponseMessage
+
 sealed trait IncomingChatNormalMessage extends IncomingChatMessage with IncomingProtocolNormalMessage
-case class JoinedChatRoomMessage(r: String) extends IncomingChatNormalMessage
 case class LeftChatRoomMessage(r: String) extends IncomingChatNormalMessage
 case class PublishedChatMessage(r: String, m: String) extends IncomingChatNormalMessage
 

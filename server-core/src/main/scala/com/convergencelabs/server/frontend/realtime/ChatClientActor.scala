@@ -17,9 +17,10 @@ import com.convergencelabs.server.domain.model.SessionKey
 import com.convergencelabs.server.domain.ChatServiceActor.UserJoined
 import com.convergencelabs.server.domain.ChatServiceActor.UserLeft
 import com.convergencelabs.server.domain.ChatServiceActor.UserMessage
-import com.convergencelabs.server.domain.ChatServiceActor.JoinRoom
 import com.convergencelabs.server.domain.ChatServiceActor.LeaveRoom
 import com.convergencelabs.server.domain.ChatServiceActor.SendMessage
+import com.convergencelabs.server.domain.ChatServiceActor.JoinRoomRequest
+import com.convergencelabs.server.domain.ChatServiceActor.JoinRoomResponse
 
 object ChatClientActor {
   def props(chatServiceActor: ActorRef, sk: SessionKey): Props =
@@ -34,6 +35,8 @@ class ChatClientActor(chatServiceActor: ActorRef, sk: SessionKey) extends Actor 
   def receive: Receive = {
     case MessageReceived(message) if message.isInstanceOf[IncomingChatNormalMessage] =>
       onMessageReceived(message.asInstanceOf[IncomingChatNormalMessage])
+    case RequestReceived(message, replyPromise) if message.isInstanceOf[IncomingChatRequestMessage] =>
+      onRequestReceived(message.asInstanceOf[IncomingChatRequestMessage], replyPromise)
 
     case UserJoined(roomId, sk, timestamp) =>
       context.parent ! UserJoinedRoomMessage(roomId, sk.uid, sk.serialize(), timestamp)
@@ -51,17 +54,28 @@ class ChatClientActor(chatServiceActor: ActorRef, sk: SessionKey) extends Actor 
 
   def onMessageReceived(message: IncomingChatNormalMessage): Unit = {
     message match {
-      case JoinedChatRoomMessage(roomId) => 
-        onJoined(roomId)
-      case LeftChatRoomMessage(roomId) => 
+      case LeftChatRoomMessage(roomId) =>
         onLeft(roomId)
-      case PublishedChatMessage(roomId, message) => 
+      case PublishedChatMessage(roomId, message) =>
         onChatMessage(roomId, message)
     }
   }
 
-  def onJoined(roomId: String): Unit = {
-    this.chatServiceActor ! JoinRoom(self, roomId, sk)
+  def onRequestReceived(message: IncomingChatRequestMessage, replyCallback: ReplyCallback): Unit = {
+    message match {
+      case JoinChatRoomRequestMessage(roomId) => onJoined(roomId, replyCallback)
+    }
+  }
+
+  def onJoined(roomId: String, cb: ReplyCallback): Unit = {
+    val future = this.chatServiceActor ? JoinRoomRequest(self, roomId, sk)
+
+    future.mapResponse[JoinRoomResponse] onComplete {
+      case Success(JoinRoomResponse(members, count, lastMessage)) =>
+        cb.reply(JoinChatRoomResponseMessage(members.map { _.serialize() }, count, lastMessage))
+      case Failure(cause) =>
+        cb.unexpectedError("could not join activity")
+    }
   }
 
   def onLeft(roomId: String): Unit = {

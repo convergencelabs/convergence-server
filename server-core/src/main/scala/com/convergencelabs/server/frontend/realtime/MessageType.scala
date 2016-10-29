@@ -87,20 +87,21 @@ object MessageType extends Enumeration {
   val PresenceSubscribeResponse = 84
   val PresenceUnsubscribe = 85
   
-  val JoinRoom = 86
-  val LeaveRoom = 87
-  val PublishChatMessage = 88
+  val JoinRoomRequest = 86
+  val JoinRoomResponse = 87
+  val LeaveRoom = 88
+  val PublishChatMessage = 89
 
-  val UserJoinedRoom = 89
-  val UserLeftRoom = 90
-  val ChatMessagePublished = 91
+  val UserJoinedRoom = 90
+  val UserLeftRoom = 91
+  val ChatMessagePublished = 92
   
-  val ModelsQueryRequest = 92
-  val ModelsQueryResponse = 93
+  val ModelsQueryRequest = 93
+  val ModelsQueryResponse = 94
   
-  val HistoricalDataRequest = 94
-  val HistoricalDataResponse = 95
+  val HistoricalDataRequest = 95
+  val HistoricalDataResponse = 96
   
-  val HistoricalOperationsRequest = 96
-  val HistoricalOperationsResponse = 97
+  val HistoricalOperationsRequest = 97
+  val HistoricalOperationsResponse = 98
 }

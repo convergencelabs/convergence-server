@@ -62,7 +62,7 @@ class ClientActor(
       log.debug("Client handshaked timeout")
       Option(connectionActor) match {
         case Some(connection) => connection ! CloseConnection
-        case None =>
+        case None             =>
       }
       context.stop(self)
     }
@@ -75,7 +75,7 @@ class ClientActor(
   private[this] var presenceClient: ActorRef = _
   private[this] var chatClient: ActorRef = _
   private[this] var historyClient: ActorRef = _
-  
+
   private[this] var domainActor: Option[ActorRef] = None
   private[this] var modelManagerActor: ActorRef = _
   private[this] var userServiceActor: ActorRef = _
@@ -115,14 +115,14 @@ class ClientActor(
   }
 
   private[this] def receiveOutgoing: Receive = {
-    case message: OutgoingProtocolNormalMessage => onOutgoingMessage(message)
+    case message: OutgoingProtocolNormalMessage  => onOutgoingMessage(message)
     case message: OutgoingProtocolRequestMessage => onOutgoingRequest(message)
   }
 
   private[this] def receiveCommon: Receive = {
-    case WebSocketClosed => onConnectionClosed()
+    case WebSocketClosed       => onConnectionClosed()
     case WebSocketError(cause) => onConnectionError(cause)
-    case x: Any => invalidMessage(x)
+    case x: Any                => invalidMessage(x)
   }
 
   private[this] val receiveHandshakeSuccess: Receive = {
@@ -178,7 +178,7 @@ class ClientActor(
   private[this] def authenticate(requestMessage: AuthenticationRequestMessage, cb: ReplyCallback): Unit = {
     val message = requestMessage match {
       case PasswordAuthRequestMessage(username, password) => PasswordAuthRequest(username, password)
-      case TokenAuthRequestMessage(token) => TokenAuthRequest(token)
+      case TokenAuthRequestMessage(token)                 => TokenAuthRequest(token)
     }
 
     val future = domainActor.get ? message
@@ -272,9 +272,9 @@ class ClientActor(
   private[this] def onMessageReceived(message: MessageReceived): Unit = {
     message match {
       case MessageReceived(x) if x.isInstanceOf[IncomingModelNormalMessage] => modelClient.forward(message)
-      case MessageReceived(x) if x.isInstanceOf[IncomingActivityMessage] => activityClient.forward(message)
-      case MessageReceived(x) if x.isInstanceOf[IncomingPresenceMessage] => presenceClient.forward(message)
-      case MessageReceived(x) if x.isInstanceOf[IncomingChatMessage] => chatClient.forward(message)
+      case MessageReceived(x) if x.isInstanceOf[IncomingActivityMessage]    => activityClient.forward(message)
+      case MessageReceived(x) if x.isInstanceOf[IncomingPresenceMessage]    => presenceClient.forward(message)
+      case MessageReceived(x) if x.isInstanceOf[IncomingChatMessage]        => chatClient.forward(message)
     }
   }
 
@@ -288,6 +288,8 @@ class ClientActor(
         activityClient.forward(message)
       case RequestReceived(x, _) if x.isInstanceOf[IncomingPresenceMessage] =>
         presenceClient.forward(message)
+      case RequestReceived(x, _) if x.isInstanceOf[IncomingChatMessage] =>
+        chatClient.forward(message)
       case RequestReceived(x, _) if x.isInstanceOf[IncomingHistoricalModelRequestMessage] =>
         historyClient.forward(message)
     }

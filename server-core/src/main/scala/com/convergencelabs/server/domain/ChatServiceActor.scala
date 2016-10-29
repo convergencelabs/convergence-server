@@ -9,13 +9,15 @@ import akka.actor.ActorRef
 import akka.actor.Props
 import com.convergencelabs.server.util.SubscriptionMap
 import akka.actor.Terminated
-import com.convergencelabs.server.domain.ChatServiceActor.JoinRoom
 import com.convergencelabs.server.domain.ChatServiceActor.LeaveRoom
 import com.convergencelabs.server.domain.ChatServiceActor.SendMessage
 import com.convergencelabs.server.domain.ChatServiceActor.UserLeft
 import com.convergencelabs.server.domain.ChatServiceActor.UserJoined
 import java.util.Calendar
 import com.convergencelabs.server.domain.ChatServiceActor.UserMessage
+import com.convergencelabs.server.domain.ChatServiceActor.JoinRoomRequest
+import com.convergencelabs.server.domain.ChatServiceActor.JoinRoomResponse
+import java.time.Instant
 
 object ChatServiceActor {
 
@@ -24,7 +26,8 @@ object ChatServiceActor {
   def props(domainFqn: DomainFqn): Props = Props(
     new ChatServiceActor(domainFqn))
 
-  case class JoinRoom(client: ActorRef, roomId: String, sk: SessionKey)
+  case class JoinRoomRequest(client: ActorRef, roomId: String, sk: SessionKey)
+  case class JoinRoomResponse(members: List[SessionKey], messageCount: Long, lastMessageTime: Long)
   case class LeaveRoom(client: ActorRef, roomId: String)
   case class SendMessage(client: ActorRef, roomId: String, message: String)
   
@@ -45,7 +48,7 @@ class ChatServiceActor private[domain] (domainFqn: DomainFqn) extends Actor with
 
   
   def receive: Receive = {
-    case JoinRoom(client, roomId, sk) =>
+    case JoinRoomRequest(client, roomId, sk) =>
       joinRoom(client, roomId, sk)
     case LeaveRoom(client, roomId) =>
       leaveRoom(client, roomId)
@@ -59,6 +62,7 @@ class ChatServiceActor private[domain] (domainFqn: DomainFqn) extends Actor with
     subscriptions.subscribe(client, roomId)
     clients += (client -> sk)
     broadcastToSubscribed(client, roomId, UserJoined(roomId, sk, Calendar.getInstance().getTimeInMillis()))
+    sender ! JoinRoomResponse(subscriptions.subscribers(roomId).map { clients(_) }.toList, 0, Instant.now().toEpochMilli())
   }
 
   private[this] def leaveRoom(client: ActorRef, roomId: String): Unit = {
