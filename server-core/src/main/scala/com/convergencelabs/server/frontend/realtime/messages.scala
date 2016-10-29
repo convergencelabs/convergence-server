@@ -65,7 +65,7 @@ sealed trait AuthenticationRequestMessage extends IncomingProtocolRequestMessage
 case class PasswordAuthRequestMessage(u: String, p: String) extends AuthenticationRequestMessage
 case class TokenAuthRequestMessage(k: String) extends AuthenticationRequestMessage
 
-case class AuthenticationResponseMessage(s: Boolean, n: Option[String], e: Option[String]) extends OutgoingProtocolResponseMessage
+case class AuthenticationResponseMessage(s: Boolean, n: Option[String], e: Option[String], p: Option[Map[String, Any]]) extends OutgoingProtocolResponseMessage
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -172,18 +172,20 @@ case class ActivityRemoteStateClearedMessage(i: String, s: String) extends Outgo
 sealed trait IncomingPresenceMessage
 sealed trait IncomingPresenceRequestMessage extends IncomingPresenceMessage with IncomingProtocolRequestMessage
 case class PresenceRequestMessage(u: List[String]) extends IncomingPresenceRequestMessage
-case class SubscribePresenceRequestMessage(u: String) extends IncomingPresenceRequestMessage
+case class SubscribePresenceRequestMessage(u: List[String]) extends IncomingPresenceRequestMessage
 
 case class PresenceResponseMessage(p: List[UserPresence]) extends OutgoingProtocolResponseMessage
-case class SubscribePresenceResponseMessage(p: UserPresence) extends OutgoingProtocolResponseMessage
+case class SubscribePresenceResponseMessage(p: List[UserPresence]) extends OutgoingProtocolResponseMessage
 
 sealed trait IncomingPresenceNormalMessage extends IncomingPresenceMessage with IncomingProtocolNormalMessage
-case class PresenceSetStateMessage(k: String, v: Any) extends IncomingPresenceNormalMessage
-case class PresenceClearStateMessage(k: String) extends IncomingPresenceNormalMessage
+case class PresenceSetStateMessage(s: Map[String, Any]) extends IncomingPresenceNormalMessage
+case class PresenceRemoveStateMessage(k: List[String]) extends IncomingPresenceNormalMessage
+case class PresenceClearStateMessage() extends IncomingPresenceNormalMessage
 case class UnsubscribePresenceMessage(u: String) extends IncomingPresenceNormalMessage
 
-case class PresenceStateSetMessage(u: String, k: String, v: Any) extends OutgoingProtocolNormalMessage
-case class PresenceStateClearedMessage(u: String, k: String) extends OutgoingProtocolNormalMessage
+case class PresenceStateSetMessage(u: String, s: Map[String, Any]) extends OutgoingProtocolNormalMessage
+case class PresenceStateRemovedMessage(u: String, k: List[String]) extends OutgoingProtocolNormalMessage
+case class PresenceStateClearedMessage(u: String) extends OutgoingProtocolNormalMessage
 case class PresenceAvailabilityChangedMessage(u: String, a: Boolean) extends OutgoingProtocolNormalMessage
 
 sealed trait IncomingChatMessage

@@ -30,6 +30,8 @@ import scala.util.Failure
 import com.convergencelabs.server.ProtocolConfiguration
 import akka.actor.PoisonPill
 import com.convergencelabs.server.domain.model.SessionKey
+import com.convergencelabs.server.domain.PresenceServiceActor.PresenceRequest
+import com.convergencelabs.server.domain.PresenceServiceActor.UserPresence
 
 object ClientActor {
   def props(
@@ -176,33 +178,44 @@ class ClientActor(
   }
 
   private[this] def authenticate(requestMessage: AuthenticationRequestMessage, cb: ReplyCallback): Unit = {
-    val message = requestMessage match {
+    val authRequest = requestMessage match {
       case PasswordAuthRequestMessage(username, password) => PasswordAuthRequest(username, password)
       case TokenAuthRequestMessage(token)                 => TokenAuthRequest(token)
     }
-
-    val future = domainActor.get ? message
+    
+    val authFuture = this.domainActor.get ? authRequest
 
     // FIXME if authentication fails we should probably stop the actor
     // and or shut down the connection?
-    future.mapResponse[AuthenticationResponse] onComplete {
+    authFuture.mapResponse[AuthenticationResponse] onComplete {
       case Success(AuthenticationSuccess(username, sk)) => {
-        self ! InternalAuthSuccess(username, sk, cb)
+        getPresenceAfterAuth(username, sk, cb)
       }
       case Success(AuthenticationFailure) => {
-        cb.reply(AuthenticationResponseMessage(false, None, None))
+        cb.reply(AuthenticationResponseMessage(false, None, None, None))
       }
       case Success(AuthenticationError) => {
-        cb.reply(AuthenticationResponseMessage(false, None, None)) // TODO do we want this to go back to the client as something else?
+        cb.reply(AuthenticationResponseMessage(false, None, None, None)) // TODO do we want this to go back to the client as something else?
       }
       case Failure(cause) => {
-        cb.reply(AuthenticationResponseMessage(false, None, None))
+        cb.reply(AuthenticationResponseMessage(false, None, None, None))
       }
     }
   }
+  
+  private[this] def getPresenceAfterAuth(username: String, sk: SessionKey, cb: ReplyCallback) {
+    val future = this.presenceServiceActor ? PresenceRequest(List(username))
+    future.mapTo[List[UserPresence]] onComplete { 
+      case Success(first :: nil) =>
+        self ! InternalAuthSuccess(username, sk, first, cb)
+      case _ =>
+        cb.reply(AuthenticationResponseMessage(false, None, None, None))
+    }
+    
+  }
 
   private[this] def handleAuthenticationSuccess(message: InternalAuthSuccess): Unit = {
-    val InternalAuthSuccess(username, sk, cb) = message
+    val InternalAuthSuccess(username, sk, presence, cb) = message
     this.sessionId = sk.serialize();
     this.modelClient = context.actorOf(ModelClientActor.props(sk, modelManagerActor))
     this.userClient = context.actorOf(UserClientActor.props(userServiceActor))
@@ -211,7 +224,8 @@ class ClientActor(
     this.chatClient = context.actorOf(ChatClientActor.props(chatServiceActor, sk))
     this.historyClient = context.actorOf(HistoricModelClientActor.props(sk, domainFqn));
     this.messageHandler = handleMessagesWhenAuthenticated
-    cb.reply(AuthenticationResponseMessage(true, Some(username), Some(sk.serialize())))
+    
+    cb.reply(AuthenticationResponseMessage(true, Some(username), Some(sk.serialize()), Some(presence.state)))
     context.become(receiveWhileAuthenticated)
   }
 
@@ -321,5 +335,5 @@ class ClientActor(
   }
 }
 
-case class InternalAuthSuccess(username: String, sk: SessionKey, cb: ReplyCallback)
+case class InternalAuthSuccess(username: String, sk: SessionKey, presence: UserPresence, cb: ReplyCallback)
 case class InternalHandshakeSuccess(handshakeSuccess: HandshakeSuccess, cb: ReplyCallback)

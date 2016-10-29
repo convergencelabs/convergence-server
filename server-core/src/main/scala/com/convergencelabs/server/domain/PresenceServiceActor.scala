@@ -22,11 +22,12 @@ object PresenceServiceActor {
 
   case class UserConnected(username: String, client: ActorRef)
   
-  case class UserPresencePublishState(username: String, key: String, value: Any)
-  case class UserPresenceClearState(username: String, key: String)
+  case class UserPresenceSetState(username: String, state: Map[String, Any])
+  case class UserPresenceRemoveState(username: String, keys: List[String])
+  case class UserPresenceClearState(username: String)
   case class UserPresenceAvailability(username: String, available: Boolean)
 
-  case class SubscribePresence(username: String, client: ActorRef)
+  case class SubscribePresence(usernames: List[String], client: ActorRef)
   case class UnsubscribePresence(username: String, client: ActorRef)
 }
 
@@ -45,12 +46,14 @@ class PresenceServiceActor private[domain] (domainFqn: DomainFqn) extends Actor 
       getPresence(usernames)
     case UserConnected(username, client) =>
       userConnected(username, client)
-    case UserPresencePublishState(username, key, value) =>
-      publishState(username, key, value)
-    case UserPresenceClearState(username, key) =>
-      clearState(username, key)
-    case SubscribePresence(username, client) =>
-      subscribe(username, client)
+    case UserPresenceSetState(username, state) =>
+      setState(username, state)
+    case UserPresenceRemoveState(username, key) =>
+      removeState(username, key)
+    case UserPresenceClearState(username) =>
+      clearState(username)
+    case SubscribePresence(usernames, client) =>
+      subscribe(usernames, client)
     case UnsubscribePresence(username, client) =>
       unsubscribe(username, client)
     case Terminated(client) =>
@@ -96,21 +99,35 @@ class PresenceServiceActor private[domain] (domainFqn: DomainFqn) extends Actor 
     }
   }
 
-  private[this] def publishState(username: String, key: String, value: Any): Unit = {
+  private[this] def setState(username: String, state: Map[String, Any]): Unit = {
     this.presences.get(username) match {
       case Some(presence) =>
-        this.presences += (username -> presence.copy(state = presence.state + (key -> value)))
-        this.broadcastToSubscribed(username, UserPresencePublishState(username, key, value))
+        state foreach { case (k, v) =>
+          this.presences += (username -> presence.copy(state = presence.state + (k -> v)))  
+        }
+        this.broadcastToSubscribed(username, UserPresenceSetState(username, state))
+      case None =>
+      // TODO Error
+    }
+  }
+  
+  private[this] def clearState(username: String): Unit = {
+    this.presences.get(username) match {
+      case Some(presence) =>
+        this.presences += (username -> presence.copy(state = Map()))
+        this.broadcastToSubscribed(username, UserPresenceClearState(username))
       case None =>
       // TODO Error
     }
   }
 
-  private[this] def clearState(username: String, key: String): Unit = {
+  private[this] def removeState(username: String, keys: List[String]): Unit = {
     this.presences.get(username) match {
       case Some(presence) =>
-        this.presences += (username -> presence.copy(state = presence.state - key))
-        this.broadcastToSubscribed(username, UserPresenceClearState(username, key))
+        keys foreach { key =>
+          this.presences += (username -> presence.copy(state = presence.state - key))  
+        }
+        this.broadcastToSubscribed(username, UserPresenceRemoveState(username, keys))
       case None =>
       // TODO Error
     }
@@ -118,14 +135,9 @@ class PresenceServiceActor private[domain] (domainFqn: DomainFqn) extends Actor 
 
   private[this] def subscribe(usernames: List[String], client: ActorRef): Unit = {
     val result = usernames.map { username =>
-      subscribe(username, client)
+      this.subscriptions.subscribe(client, username)
     }
-    lookupPresence(usernames)
-  }
-
-  private[this] def subscribe(username: String, client: ActorRef): Unit = {
-    this.subscriptions.subscribe(client, username)
-    sender ! lookupPresence(List(username)).head
+    sender ! lookupPresence(usernames)
   }
 
   private[this] def unsubscribe(username: String, client: ActorRef): Unit = {
