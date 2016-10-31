@@ -6,6 +6,7 @@ import com.convergencelabs.server.domain.DomainUser
 import com.orientechnologies.orient.core.record.impl.ODocument
 import DomainUserMapper.DomainUserToODocument
 import DomainUserMapper.ODocumentToDomainUser
+import com.convergencelabs.server.domain.DomainUserType
 
 class DomainUserMapperSpec
     extends WordSpec
@@ -15,6 +16,7 @@ class DomainUserMapperSpec
     "when converting a DomainUser" must {
       "correctly map and unmap a DomainUser" in {
         val domainUser = DomainUser(
+          DomainUserType.Normal,
           "username",
           Some("firstName"),
           Some("lastName"),

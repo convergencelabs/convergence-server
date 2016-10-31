@@ -32,6 +32,9 @@ import com.convergencelabs.server.datastore.InvalidValue
 import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateDomainUser
 import com.convergencelabs.server.domain.model.SessionKey
 import scala.util.control.NonFatal
+import java.util.UUID
+import com.convergencelabs.server.util.concurrent.FutureUtils.tryToFuture
+import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateNormalDomainUser
 
 object AuthenticationHandler {
   val AdminKeyId = "ConvergenceAdminKey"
@@ -49,6 +52,28 @@ class AuthenticationHandler(
     request match {
       case message: PasswordAuthRequest => authenticatePassword(message)
       case message: TokenAuthRequest => authenticateToken(message)
+      case message: AnonymousAuthRequest => authenticateAnonymous(message)
+      case message: AdminAuthRequest => authenticateAdmin(message)
+    }
+  }
+
+  private[this] def authenticateAnonymous(authRequest: AnonymousAuthRequest): Future[AuthenticationResponse] = {
+    val AnonymousAuthRequest(displayName) = authRequest;
+    val result = userStore.createAnonymousDomainUser(displayName) flatMap {
+      case CreateSuccess(username) =>
+        userStore.nextSessionId map (id => AuthenticationSuccess(username, SessionKey(username, id)))
+      case InvalidValue | DuplicateValue =>
+        logger.error("Attempted to auto create user, but user already exists, returning auth success.")
+        Success(AuthenticationError)
+    }
+
+    tryToFuture(result)
+  }
+
+  private[this] def authenticateAdmin(authRequest: AdminAuthRequest): Future[AuthenticationResponse] = {
+    Future[AuthenticationResponse] {
+      // FIXME Implement this
+      AuthenticationFailure
     }
   }
 
@@ -138,14 +163,14 @@ class AuthenticationHandler(
     }
   }
 
-  private[this] def createUserFromJWT(jwtClaims: JwtClaims): Try[CreateResult[Unit]] = {
+  private[this] def createUserFromJWT(jwtClaims: JwtClaims): Try[CreateResult[String]] = {
     val username = jwtClaims.getSubject()
     val firstName = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.FirstName)
     val lastName = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.LastName)
     val displayName = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.DisplayName)
     val email = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.Email)
-    val newUser = CreateDomainUser(username, firstName, lastName, displayName, email)
-    userStore.createDomainUser(newUser, None)
+    val newUser = CreateNormalDomainUser(username, firstName, lastName, displayName, email)
+    userStore.createNormalDomainUser(newUser, None)
   }
 
   private[this] def getJWTPublicKey(keyId: String): Option[PublicKey] = {

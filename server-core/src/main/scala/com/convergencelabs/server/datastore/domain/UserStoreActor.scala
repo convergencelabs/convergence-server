@@ -12,6 +12,8 @@ import com.convergencelabs.server.datastore.UserStoreActor.DeleteDomainUser
 import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateDomainUser
 import com.convergencelabs.server.datastore.UserStoreActor.UpdateUser
 import com.convergencelabs.server.datastore.UserStoreActor.SetPassword
+import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateNormalDomainUser
+import com.convergencelabs.server.datastore.domain.DomainUserStore.UpdateDomainUser
 
 object UserStoreActor {
   def props(userStore: DomainUserStore): Props = Props(new UserStoreActor(userStore))
@@ -57,13 +59,13 @@ class UserStoreActor private[datastore] (private[this] val userStore: DomainUser
 
   def createUser(message: CreateUser): Unit = {
     val CreateUser(username, firstName, lastName, displayName, email, password) = message
-    val domainuser = CreateDomainUser(username, firstName, lastName, displayName, email)
-    reply(userStore.createDomainUser(domainuser, password))
+    val domainuser = CreateNormalDomainUser(username, firstName, lastName, displayName, email)
+    reply(userStore.createNormalDomainUser(domainuser, password))
   }
 
   def updateUser(message: UpdateUser): Unit = {
     val UpdateUser(username, firstName, lastName, displayName, email) = message
-    val domainuser = DomainUser(username, firstName, lastName, displayName, email);
+    val domainuser = UpdateDomainUser(username, firstName, lastName, displayName, email);
     reply(userStore.updateDomainUser(domainuser))
   }
 

@@ -121,8 +121,8 @@ class UserClientActor(userServiceActor: ActorRef) extends Actor with ActorLoggin
   }
 
   private[this] def mapDomainUser(user: DomainUser): DomainUserData = {
-    val DomainUser(username, firstname, lastName, displayName, email) = user
-    DomainUserData(username, firstname, lastName, displayName, email)
+    val DomainUser(userType, username, firstname, lastName, displayName, email) = user
+    DomainUserData(userType.toString(), username, firstname, lastName, displayName, email)
   }
 
   private[this] object UserFieldCodes extends Enumeration {

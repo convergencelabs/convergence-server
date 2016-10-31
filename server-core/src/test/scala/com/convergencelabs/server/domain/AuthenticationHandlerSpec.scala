@@ -31,6 +31,7 @@ import com.convergencelabs.server.datastore.domain.ApiKeyStore
 import com.convergencelabs.server.datastore.CreateSuccess
 import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateDomainUser
 import com.convergencelabs.server.domain.model.SessionKey
+import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateNormalDomainUser
 
 class AuthenticationHandlerSpec()
     extends TestKit(ActorSystem("AuthManagerActorSpec"))
@@ -124,7 +125,7 @@ class AuthenticationHandlerSpec()
   trait TestFixture {
     val sessionId = 0
     val existingUserName = "existing"
-    val existingUser = DomainUser(existingUserName, None, None, None, None)
+    val existingUser = DomainUser(DomainUserType.Normal, existingUserName, None, None, None, None)
 
     val existingCorrectPassword = "correct"
     val existingIncorrectPassword = "incorrect"
@@ -150,17 +151,17 @@ class AuthenticationHandlerSpec()
     Mockito.when(userStore.validateCredentials(nonExistingUser, "")).thenReturn(Success(false))
 
     val lazyUserName = "newUserName"
-    val lazyUser = CreateDomainUser(lazyUserName, None, None, None, None)
+    val lazyUser = CreateNormalDomainUser(lazyUserName, None, None, None, None)
     Mockito.when(userStore.getDomainUserByUsername(lazyUserName)).thenReturn(Success(None))
-    Mockito.when(userStore.createDomainUser(lazyUser, None)).thenReturn(Success(CreateSuccess(())))
+    Mockito.when(userStore.createNormalDomainUser(lazyUser, None)).thenReturn(Success(CreateSuccess(lazyUserName)))
 
     val brokenUserName = "brokenUser"
     Mockito.when(userStore.getDomainUserByUsername(brokenUserName)).thenReturn(Failure(new IllegalStateException("induced error for testing")))
 
     val brokenLazyUsername = "borkenLazyUserName"
-    val brokenLazyUser = CreateDomainUser(brokenLazyUsername, None, None, None, None)
+    val brokenLazyUser = CreateNormalDomainUser(brokenLazyUsername, None, None, None, None)
     Mockito.when(userStore.getDomainUserByUsername(brokenLazyUsername)).thenReturn(Success(None))
-    Mockito.when(userStore.createDomainUser(brokenLazyUser, None)).thenReturn(Failure(new IllegalStateException("induced error for testing")))
+    Mockito.when(userStore.createNormalDomainUser(brokenLazyUser, None)).thenReturn(Failure(new IllegalStateException("induced error for testing")))
 
     val authfailureUser = "authFailureUser"
     val authfailurePassword = "authFailurePassword"

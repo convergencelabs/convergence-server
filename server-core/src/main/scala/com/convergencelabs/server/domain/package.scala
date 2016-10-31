@@ -25,6 +25,8 @@ package object domain {
   sealed trait AuthenticationRequest
   case class PasswordAuthRequest(username: String, password: String) extends AuthenticationRequest
   case class TokenAuthRequest(jwt: String) extends AuthenticationRequest
+  case class AnonymousAuthRequest(displayName: Option[String]) extends AuthenticationRequest
+  case class AdminAuthRequest(convergenceUsername: String, password: String) extends AuthenticationRequest
 
   sealed trait AuthenticationResponse
   case class AuthenticationSuccess(username: String, sk: SessionKey) extends AuthenticationResponse

@@ -40,9 +40,28 @@ import com.orientechnologies.orient.core.metadata.sequence.OSequence.SEQUENCE_TY
 import java.util.Base64
 import java.lang.Long
 import java.math.BigInteger
+import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateNormalDomainUser
+import com.convergencelabs.server.domain.DomainUserType
+import com.convergencelabs.server.datastore.domain.DomainUserStore.UpdateDomainUser
 
 object DomainUserStore {
+
+  case class CreateNormalDomainUser(
+    username: String,
+    firstName: Option[String],
+    lastName: Option[String],
+    displayName: Option[String],
+    email: Option[String])
+
+  case class UpdateDomainUser(
+    username: String,
+    firstName: Option[String],
+    lastName: Option[String],
+    displayName: Option[String],
+    email: Option[String])
+
   case class CreateDomainUser(
+    userType: DomainUserType.Value,
     username: String,
     firstName: Option[String],
     lastName: Option[String],
@@ -82,9 +101,46 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    *
    * @return A String representing the created users uid.
    */
-  def createDomainUser(domainUser: CreateDomainUser, password: Option[String]): Try[CreateResult[Unit]] = tryWithDb { db =>
+  def createNormalDomainUser(domainUser: CreateNormalDomainUser, password: Option[String]): Try[CreateResult[String]] = {
+    val normalUser = CreateDomainUser(
+      DomainUserType.Normal,
+      domainUser.username,
+      domainUser.firstName,
+      domainUser.lastName,
+      domainUser.displayName,
+      domainUser.email)
+    this.createDomainUser(normalUser, password)
+  }
 
+  def createAnonymousDomainUser(displayName: Option[String]): Try[CreateResult[String]] = {
+    val username = "anonymous:" + UUID.randomUUID().toString();
+    val anonymousUser = CreateDomainUser(
+      DomainUserType.Anonymous,
+      username,
+      None,
+      None,
+      displayName,
+      None)
+
+    this.createDomainUser(anonymousUser, None)
+  }
+
+  def createAdminDomainUser(convergenceUsername: Option[String]): Try[CreateResult[String]] = {
+    val username = "admin:" + UUID.randomUUID().toString();
+    val adminUser = CreateDomainUser(
+      DomainUserType.Admin,
+      username,
+      None,
+      None,
+      Some(convergenceUsername + "(Admin)"),
+      None)
+
+    this.createDomainUser(adminUser, None)
+  }
+
+  private[this] def createDomainUser(domainUser: CreateDomainUser, password: Option[String]): Try[CreateResult[String]] = tryWithDb { db =>
     val create = DomainUser(
+      domainUser.userType,
       domainUser.username,
       domainUser.firstName,
       domainUser.lastName,
@@ -100,12 +156,12 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
 
     password match {
       case Some(pass) => pwDoc.field(Password, PasswordUtil.hashPassword(pass))
-      case None       => pwDoc.field(Password, null, OType.STRING) // scalastyle:off null
+      case None => pwDoc.field(Password, null, OType.STRING) // scalastyle:off null
     }
 
     db.save(pwDoc)
 
-    CreateSuccess(())
+    CreateSuccess((domainUser.username))
   } recover {
     case e: ORecordDuplicatedException => DuplicateValue
   }
@@ -131,7 +187,10 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    *
    * @param domainUser The user to update.
    */
-  def updateDomainUser(domainUser: DomainUser): Try[UpdateResult] = tryWithDb { db =>
+  def updateDomainUser(update: UpdateDomainUser): Try[UpdateResult] = tryWithDb { db =>
+    val UpdateDomainUser(username, firstName, lastName, displayName, email) = update;
+    val domainUser = DomainUser(DomainUserType.Normal, username, firstName, lastName, displayName, email)
+    
     val updatedDoc = domainUser.asODocument
 
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username = :username")
@@ -220,7 +279,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     result.asScala.toList match {
       case doc :: Nil => true
-      case _          => false
+      case _ => false
     }
   }
 

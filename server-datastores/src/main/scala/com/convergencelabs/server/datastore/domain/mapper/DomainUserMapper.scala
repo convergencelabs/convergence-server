@@ -4,6 +4,7 @@ import scala.language.implicitConversions
 import com.convergencelabs.server.datastore.mapper.ODocumentMapper
 import com.convergencelabs.server.domain.DomainUser
 import com.orientechnologies.orient.core.record.impl.ODocument
+import com.convergencelabs.server.domain.DomainUserType
 
 object DomainUserMapper extends ODocumentMapper {
 
@@ -12,7 +13,8 @@ object DomainUserMapper extends ODocumentMapper {
   }
 
   private[domain] implicit def domainUserToODocument(obj: DomainUser): ODocument = {
-    val doc = new ODocument(DocumentClassName)
+    val doc = new ODocument(DocumentClassName) 
+    doc.field(Fields.UserType, obj.userType.toString.toLowerCase)
     doc.field(Fields.Username, obj.username)
     doc.field(Fields.FirstName, valueOrNull(obj.firstName))
     doc.field(Fields.LastName, valueOrNull(obj.lastName))
@@ -29,6 +31,7 @@ object DomainUserMapper extends ODocumentMapper {
     validateDocumentClass(doc, DocumentClassName)
 
     DomainUser(
+      DomainUserType.withNameOpt(doc.field(Fields.UserType)).get,
       doc.field(Fields.Username),
       toOption(doc.field(Fields.FirstName)),
       toOption(doc.field(Fields.LastName)),
@@ -39,6 +42,7 @@ object DomainUserMapper extends ODocumentMapper {
   private[domain] val DocumentClassName = "User"
 
   private[domain] object Fields {
+    val UserType = "userType"
     val Username = "username"
     val FirstName = "firstName"
     val LastName = "lastName"
