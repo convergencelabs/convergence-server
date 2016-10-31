@@ -43,6 +43,12 @@ import java.math.BigInteger
 import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateNormalDomainUser
 import com.convergencelabs.server.domain.DomainUserType
 import com.convergencelabs.server.datastore.domain.DomainUserStore.UpdateDomainUser
+import java.time.Instant
+import com.orientechnologies.orient.core.index.OIndex
+import com.orientechnologies.orient.core.db.record.OIdentifiable
+import com.orientechnologies.orient.core.index.OCompositeKey
+import sun.util.calendar.JulianCalendar.Date
+import java.util.Date
 
 object DomainUserStore {
 
@@ -88,6 +94,8 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
   val Password = "password"
   val UidSeq = "UIDSEQ"
   val SessionSeq = "SESSIONSEQ"
+  val UsernameIndex = "User.username"
+  val LastLogin = "lastLogin"
 
   /**
    * Creates a new domain user in the system, and optionally set a password.
@@ -376,6 +384,16 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
       case None =>
         false
     }
+  }
+  
+  def setLastLogin(username: String, userType: DomainUserType.Value, instant: Instant): Try[Unit] = tryWithDb { db =>
+    val index = db.getMetadata.getIndexManager.getIndex(UsernameIndex)
+    val key = new OCompositeKey(List(username, userType.toString.toLowerCase).asJava)
+    if(index.contains(key)) {
+      val record: ODocument = index.get(key).asInstanceOf[OIdentifiable].getRecord[ODocument]
+      record.field(LastLogin, instant.toEpochMilli()).save()
+    }
+    Unit
   }
 
   def nextSessionId: Try[String] = tryWithDb { db =>

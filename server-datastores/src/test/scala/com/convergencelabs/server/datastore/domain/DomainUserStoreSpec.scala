@@ -17,6 +17,7 @@ import com.convergencelabs.server.datastore.CreateSuccess
 import com.convergencelabs.server.domain.DomainUserType
 import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateNormalDomainUser
 import com.convergencelabs.server.datastore.domain.DomainUserStore.UpdateDomainUser
+import java.time.Instant
 
 class DomainUserStoreSpec
     extends PersistenceStoreSpec[DomainUserStore]("/dbfiles/domain-n1-d1.json.gz")
@@ -216,6 +217,12 @@ class DomainUserStoreSpec
         val session2 = store.nextSessionId.success.value
         
         session1 shouldNot equal(session2)
+      }
+    }
+    
+    "setting last login" must {
+      "updated last login doesn't fail" in withPersistenceStore { store =>
+        store.setLastLogin(User1.username, DomainUserType.Normal, Instant.now()).success
       }
     }
   }
