@@ -113,7 +113,8 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
   }
 
   def createAnonymousDomainUser(displayName: Option[String]): Try[CreateResult[String]] = {
-    val username = "anonymous:" + UUID.randomUUID().toString();
+    // FIXME make a sequence
+    val username = UUID.randomUUID().toString()
     val anonymousUser = CreateDomainUser(
       DomainUserType.Anonymous,
       username,
@@ -125,11 +126,10 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     this.createDomainUser(anonymousUser, None)
   }
 
-  def createAdminDomainUser(convergenceUsername: Option[String]): Try[CreateResult[String]] = {
-    val username = "admin:" + UUID.randomUUID().toString();
+  def createAdminDomainUser(convergenceUsername: String): Try[CreateResult[String]] = {
     val adminUser = CreateDomainUser(
       DomainUserType.Admin,
-      username,
+      convergenceUsername,
       None,
       None,
       Some(convergenceUsername + "(Admin)"),
@@ -172,7 +172,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    * @param the uid of the user to delete.
    */
   def deleteDomainUser(username: String): Try[DeleteResult] = tryWithDb { db =>
-    val command = new OCommandSQL("DELETE FROM User WHERE username = :username")
+    val command = new OCommandSQL("DELETE FROM User WHERE username = :username AND userType = 'normal'")
     val params = Map(Username -> username)
     val count: Int = db.command(command).execute(params.asJava)
     count match {
@@ -193,7 +193,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     
     val updatedDoc = domainUser.asODocument
 
-    val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username = :username")
+    val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username = :username AND userType = 'normal'")
     val params = Map(Username -> domainUser.username)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
@@ -218,7 +218,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    * @return Some(DomainUser) if a user with the specified username exists, or None if no such user exists.
    */
   def getDomainUserByUsername(username: String): Try[Option[DomainUser]] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username = :username")
+    val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username = :username AND userType = 'normal'")
     val params = Map(Username -> username)
     val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
     QueryUtil.mapSingletonList(results) { _.asDomainUser }
@@ -232,7 +232,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    * @return A list of users matching the list of supplied usernames.
    */
   def getDomainUsersByUsername(usernames: List[String]): Try[List[DomainUser]] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username in :usernames")
+    val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username in :usernames AND userType = 'normal'")
     val params = Map("usernames" -> usernames.asJava)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     result.asScala.toList.map { _.asDomainUser }
@@ -246,7 +246,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    * @return Some(DomainUser) if a user with the specified email exists, or None if no such user exists.
    */
   def getDomainUserByEmail(email: String): Try[Option[DomainUser]] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE email = :email")
+    val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE email = :email AND userType = 'normal'")
     val params = Map("email" -> email)
     val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
     QueryUtil.mapSingletonList(results) { _.asDomainUser }
@@ -260,7 +260,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    * @return A list of users matching the list of supplied emails.
    */
   def getDomainUsersByEmail(emails: List[String]): Try[List[DomainUser]] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE email in :emails")
+    val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE email in :emails AND userType = 'normal'")
     val params = Map("emails" -> emails.asJava)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     result.asScala.toList.map { doc => doc.asDomainUser }
@@ -274,7 +274,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    * @return true if the user exists, false otherwise.
    */
   def domainUserExists(username: String): Try[Boolean] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username = :username")
+    val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username = :username AND userType = 'normal'")
     val params = Map(Username -> username)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     result.asScala.toList match {
@@ -299,7 +299,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
 
     val order = orderBy.getOrElse(DomainUserField.Username)
     val sort = sortOrder.getOrElse(SortOrder.Descending)
-    val baseQuery = s"SELECT * FROM User ORDER BY $order $sort"
+    val baseQuery = s"SELECT * FROM User WHERE userType = 'normal' ORDER BY $order $sort"
     val query = new OSQLSynchQuery[ODocument](QueryUtil.buildPagedQuery(baseQuery, limit, offset))
     val result: JavaList[ODocument] = db.command(query).execute()
 
@@ -321,7 +321,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
       whereTerms += s"$field LIKE :searchString"
     }
 
-    val whereClause = " WHERE " + whereTerms.mkString(" OR ")
+    val whereClause = " WHERE userType = 'normal' AND (" + whereTerms.mkString(" OR ") + ")"
 
     val order = orderBy.getOrElse(DomainUserField.Username)
     val sort = sortOrder.getOrElse(SortOrder.Descending)
@@ -343,7 +343,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    * @param password The new password to use for internal authentication
    */
   def setDomainUserPassword(username: String, password: String): Try[UpdateResult] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT * FROM UserCredential WHERE user.username = :username")
+    val query = new OSQLSynchQuery[ODocument]("SELECT * FROM UserCredential WHERE user.username = :username AND user.userType = 'normal'")
     val params = Map(Username -> username)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
@@ -365,7 +365,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    * @return true if the username and passowrd match, false otherwise.
    */
   def validateCredentials(username: String, password: String): Try[Boolean] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT password, user.uid AS uid FROM UserCredential WHERE user.username = :username")
+    val query = new OSQLSynchQuery[ODocument]("SELECT password, user.uid AS uid FROM UserCredential WHERE user.username = :username AND user.userType = 'normal'")
     val params = Map(Username -> username)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 

@@ -20,6 +20,8 @@ object MessageSerializer {
 
     MessageType.PasswordAuthRequest -> classOf[PasswordAuthRequestMessage],
     MessageType.TokenAuthRequest -> classOf[TokenAuthRequestMessage],
+    MessageType.AnonymousAuthRequest -> classOf[AnonymousAuthRequestMessage],
+    MessageType.AdminAuthRequest -> classOf[AdminAuthRequestMessage],
     MessageType.AuthenticationResponse -> classOf[AuthenticationResponseMessage],
 
     MessageType.CreateRealTimeModelRequest -> classOf[CreateRealtimeModelRequestMessage],
