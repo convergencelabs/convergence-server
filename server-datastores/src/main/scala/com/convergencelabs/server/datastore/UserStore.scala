@@ -27,6 +27,7 @@ import grizzled.slf4j.Logging
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import com.orientechnologies.orient.core.metadata.sequence.OSequence.CreateParams
 import com.orientechnologies.orient.core.metadata.sequence.OSequence.SEQUENCE_TYPE
+import com.orientechnologies.orient.core.db.record.OIdentifiable
 
 /**
  * Manages the persistence of Users.  This class manages both user profile records
@@ -52,6 +53,9 @@ class UserStore private[datastore] (
   val Password = "password"
   val Token = "token"
   val ExpireTime = "expireTime"
+  
+  val UsernameIndex = "User.username"
+  val LastLogin = "lastLogin"
   
   def createUser(user: User, password: String): Try[CreateResult[Unit]] = tryWithDb { db =>
     val userDoc = new ODocument("User");
@@ -157,6 +161,7 @@ class UserStore private[datastore] (
             val token = UUID.randomUUID().toString()
             val expireTime = Date.from(Instant.now().plus(tokenValidityDuration))
             createToken(username, token, expireTime)
+            setLastLogin(username, Instant.now())
             Some(token)
           }
           case false => 
@@ -202,6 +207,15 @@ class UserStore private[datastore] (
     val query = new OCommandSQL("UPDATE UserAuthToken SET expireTime = :expireTime WHERE token = :token")
     val params = Map(Token -> token, ExpireTime -> Date.from(Instant.now().plus(tokenValidityDuration)))
     db.command(query).execute(params.asJava)
+    Unit
+  }
+  
+  def setLastLogin(username: String, instant: Instant): Try[Unit] = tryWithDb { db =>
+    val index = db.getMetadata.getIndexManager.getIndex(UsernameIndex)
+    if(index.contains(username)) {
+      val record: ODocument = index.get(username).asInstanceOf[OIdentifiable].getRecord[ODocument]
+      record.field(LastLogin, instant.toEpochMilli()).save()
+    }
     Unit
   }
 }

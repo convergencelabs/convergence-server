@@ -4,6 +4,7 @@ import java.io.StringReader
 import java.security.KeyFactory
 import java.security.PublicKey
 import java.security.spec.X509EncodedKeySpec
+import java.time.Instant
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
@@ -68,7 +69,9 @@ class AuthenticationHandler(
     val response = userStore.validateCredentials(authRequest.username, authRequest.password) match {
       case Success(true) => {
         userStore.nextSessionId match {
-          case Success(sessionId) => AuthenticationSuccess(authRequest.username, SessionKey(authRequest.username, sessionId))
+          case Success(sessionId) => 
+            updateLastLogin(authRequest.username, DomainUserType.Normal)
+            AuthenticationSuccess(authRequest.username, SessionKey(authRequest.username, sessionId))
           case Failure(cause) => {
             logger.error("Unable to authenticate a user", cause)
             AuthenticationError
@@ -195,5 +198,9 @@ class AuthenticationHandler(
           Success(None)
       }.get
     }
+  }
+  
+  private[this] def updateLastLogin(username: String, userType: DomainUserType.Value): Unit = {
+   userStore.setLastLogin(username, userType, Instant.now())
   }
 }
