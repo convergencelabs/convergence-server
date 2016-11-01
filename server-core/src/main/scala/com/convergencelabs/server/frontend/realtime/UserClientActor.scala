@@ -123,11 +123,6 @@ class UserClientActor(userServiceActor: ActorRef) extends Actor with ActorLoggin
 
   private[this] def mapDomainUser(user: DomainUser): DomainUserData = {
     val DomainUser(userType, username, firstname, lastName, displayName, email) = user
-    val processedUsername = userType match {
-      case DomainUserType.Normal => username
-      case DomainUserType.Admin => "admin:" + username
-      case DomainUserType.Anonymous => "anonymous:" + username
-    }
     DomainUserData(userType.toString(), username, firstname, lastName, displayName, email)
   }
 

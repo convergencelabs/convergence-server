@@ -123,7 +123,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
 
   def createAnonymousDomainUser(displayName: Option[String]): Try[CreateResult[String]] = {
     // FIXME make a sequence
-    val username = UUID.randomUUID().toString()
+    val username = "anonymous:" + UUID.randomUUID().toString()
     val anonymousUser = CreateDomainUser(
       DomainUserType.Anonymous,
       username,
@@ -136,9 +136,10 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
   }
 
   def createAdminDomainUser(convergenceUsername: String): Try[CreateResult[String]] = {
+    val username = "admin:" + convergenceUsername
     val adminUser = CreateDomainUser(
       DomainUserType.Admin,
-      convergenceUsername,
+      username,
       None,
       None,
       Some(convergenceUsername + "(Admin)"),
