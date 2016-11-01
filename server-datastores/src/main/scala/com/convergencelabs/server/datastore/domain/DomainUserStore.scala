@@ -1,54 +1,47 @@
 package com.convergencelabs.server.datastore.domain
 
+import java.lang.{ Long => JavaLong }
+import java.time.Instant
 import java.util.{ List => JavaList }
+
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.collection.JavaConverters.seqAsJavaListConverter
+import scala.collection.mutable.ListBuffer
 import scala.util.Try
+
 import org.json4s.NoTypeHints
 import org.json4s.jackson.Serialization
+
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
+import com.convergencelabs.server.datastore.CreateResult
+import com.convergencelabs.server.datastore.CreateSuccess
+import com.convergencelabs.server.datastore.DeleteResult
+import com.convergencelabs.server.datastore.DeleteSuccess
+import com.convergencelabs.server.datastore.DuplicateValue
+import com.convergencelabs.server.datastore.InvalidValue
+import com.convergencelabs.server.datastore.NotFound
 import com.convergencelabs.server.datastore.QueryUtil
 import com.convergencelabs.server.datastore.SortOrder
+import com.convergencelabs.server.datastore.UpdateResult
+import com.convergencelabs.server.datastore.UpdateSuccess
+import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateDomainUser
+import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateNormalDomainUser
+import com.convergencelabs.server.datastore.domain.DomainUserStore.UpdateDomainUser
 import com.convergencelabs.server.datastore.domain.mapper.DomainUserMapper.DomainUserToODocument
 import com.convergencelabs.server.datastore.domain.mapper.DomainUserMapper.ODocumentToDomainUser
 import com.convergencelabs.server.domain.DomainUser
+import com.convergencelabs.server.domain.DomainUserType
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
+import com.orientechnologies.orient.core.db.record.OIdentifiable
+import com.orientechnologies.orient.core.index.OCompositeKey
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
-import grizzled.slf4j.Logging
-import scala.collection.mutable.ListBuffer
-import scala.collection.mutable.HashTable
-import scala.collection.mutable.HashTable
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
-import com.convergencelabs.server.datastore.DuplicateValue
-import com.convergencelabs.server.datastore.CreateResult
-import com.convergencelabs.server.datastore.CreateSuccess
-import com.convergencelabs.server.datastore.DeleteResult
-import com.convergencelabs.server.datastore.NotFound
-import com.convergencelabs.server.datastore.DeleteSuccess
-import com.convergencelabs.server.datastore.UpdateResult
-import com.convergencelabs.server.datastore.UpdateSuccess
-import com.convergencelabs.server.datastore.UpdateResult
-import com.convergencelabs.server.datastore.InvalidValue
-import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateDomainUser
-import java.util.UUID
-import com.orientechnologies.orient.core.metadata.sequence.OSequence.CreateParams
-import com.orientechnologies.orient.core.metadata.sequence.OSequence.SEQUENCE_TYPE
-import java.util.Base64
-import java.lang.Long
-import java.math.BigInteger
-import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateNormalDomainUser
-import com.convergencelabs.server.domain.DomainUserType
-import com.convergencelabs.server.datastore.domain.DomainUserStore.UpdateDomainUser
-import java.time.Instant
-import com.orientechnologies.orient.core.index.OIndex
-import com.orientechnologies.orient.core.db.record.OIdentifiable
-import com.orientechnologies.orient.core.index.OCompositeKey
-import sun.util.calendar.JulianCalendar.Date
-import java.util.Date
+
+import grizzled.slf4j.Logging
 
 object DomainUserStore {
 
@@ -95,6 +88,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
   val UserType = "userType"
   val UidSeq = "UIDSEQ"
   val SessionSeq = "SESSIONSEQ"
+  val AnonymousUsernameSeq = "anonymousUsernameSeq"
   val UsernameIndex = "User.username"
   val LastLogin = "lastLogin"
 
@@ -122,8 +116,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
   }
 
   def createAnonymousDomainUser(displayName: Option[String]): Try[CreateResult[String]] = {
-    // FIXME make a sequence
-    val username = "anonymous:" + UUID.randomUUID().toString()
+    val username = "anonymous:" + this.nextAnonymousUsername
     val anonymousUser = CreateDomainUser(
       DomainUserType.Anonymous,
       username,
@@ -406,10 +399,15 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     }
     Unit
   }
+  
+  def nextAnonymousUsername: Try[String] = tryWithDb { db =>
+    val seq = db.getMetadata().getSequenceLibrary().getSequence(AnonymousUsernameSeq)
+    JavaLong.toString(seq.next(), 36)
+  }
 
   def nextSessionId: Try[String] = tryWithDb { db =>
     val seq = db.getMetadata().getSequenceLibrary().getSequence(SessionSeq)
-    Long.toString(seq.next(), 36)
+    JavaLong.toString(seq.next(), 36)
   }
 }
 
