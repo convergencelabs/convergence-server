@@ -23,7 +23,6 @@ object DomainConfigStore {
     val ModelSnapshotConfig = "modelSnapshotConfig"
     val AdminPublicKey = "adminPublicKey"
     val AdminPrivateKey = "adminPrivateKey"
-    val TokenKeys = "tokenKeys"
     val AnonymousAuth = "anonymousAuth"
   }
 }
@@ -39,7 +38,6 @@ class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
     doc.field(Fields.ModelSnapshotConfig, modelSnapshotConfig.asODocument, OType.EMBEDDED)
     doc.field(Fields.AdminPublicKey, tokenKeyPair.publicKey)
     doc.field(Fields.AdminPrivateKey, tokenKeyPair.privateKey)
-    doc.field(Fields.TokenKeys, new ArrayList[TokenPublicKey](), OType.EMBEDDEDLIST)
     doc.field(Fields.AnonymousAuth, false)
     doc.
       doc.save()
