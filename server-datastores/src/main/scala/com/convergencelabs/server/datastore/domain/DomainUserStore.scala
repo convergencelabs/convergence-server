@@ -116,16 +116,18 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
   }
 
   def createAnonymousDomainUser(displayName: Option[String]): Try[CreateResult[String]] = {
-    val username = "anonymous:" + this.nextAnonymousUsername
-    val anonymousUser = CreateDomainUser(
-      DomainUserType.Anonymous,
-      username,
-      None,
-      None,
-      displayName,
-      None)
+    this.nextAnonymousUsername flatMap { next =>
+      val username = "anonymous:" + next
+      val anonymousUser = CreateDomainUser(
+        DomainUserType.Anonymous,
+        username,
+        None,
+        None,
+        displayName,
+        None)
 
-    this.createDomainUser(anonymousUser, None)
+      this.createDomainUser(anonymousUser, None)
+    }
   }
 
   def createAdminDomainUser(convergenceUsername: String): Try[CreateResult[String]] = {
@@ -193,7 +195,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
   def updateDomainUser(update: UpdateDomainUser): Try[UpdateResult] = tryWithDb { db =>
     val UpdateDomainUser(username, firstName, lastName, displayName, email) = update;
     val domainUser = DomainUser(DomainUserType.Normal, username, firstName, lastName, displayName, email)
-    
+
     val updatedDoc = domainUser.asODocument
 
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username = :username AND userType = 'normal'")
@@ -279,12 +281,11 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
   def domainUserExists(username: String): Try[Boolean] = {
     this.userExists(username, DomainUserType.Normal)
   }
-  
+
   def adminUserExists(username: String): Try[Boolean] = {
     this.userExists(username, DomainUserType.Admin)
   }
-  
-  
+
   private[this] def userExists(username: String, userType: DomainUserType.Value): Try[Boolean] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username = :username AND userType = :userType")
     val params = Map(Username -> username, UserType -> userType.toString.toLowerCase)
@@ -389,17 +390,17 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
         false
     }
   }
-  
+
   def setLastLogin(username: String, userType: DomainUserType.Value, instant: Instant): Try[Unit] = tryWithDb { db =>
     val index = db.getMetadata.getIndexManager.getIndex(UsernameIndex)
     val key = new OCompositeKey(List(username, userType.toString.toLowerCase).asJava)
-    if(index.contains(key)) {
+    if (index.contains(key)) {
       val record: ODocument = index.get(key).asInstanceOf[OIdentifiable].getRecord[ODocument]
       record.field(LastLogin, instant.toEpochMilli()).save()
     }
     Unit
   }
-  
+
   def nextAnonymousUsername: Try[String] = tryWithDb { db =>
     val seq = db.getMetadata().getSequenceLibrary().getSequence(AnonymousUsernameSeq)
     JavaLong.toString(seq.next(), 36)
