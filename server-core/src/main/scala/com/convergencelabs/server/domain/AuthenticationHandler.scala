@@ -53,12 +53,21 @@ class AuthenticationHandler(
 
   private[this] def authenticateAnonymous(authRequest: AnonymousAuthRequest): Future[AuthenticationResponse] = {
     val AnonymousAuthRequest(displayName) = authRequest;
-    val result = userStore.createAnonymousDomainUser(displayName) flatMap {
-      case CreateSuccess(username) =>
-        userStore.nextSessionId map (id => AuthenticationSuccess(username, SessionKey(username, id)))
-      case InvalidValue | DuplicateValue =>
-        logger.error("Attempted to auto create user, but user already exists, returning auth success.")
-        Success(AuthenticationError)
+
+    val result = domainConfigStore.isAnonymousAuthEnabled() flatMap {
+      case false =>
+        Success(AuthenticationFailure)
+      case true =>
+        userStore.createAnonymousDomainUser(displayName) flatMap {
+          case CreateSuccess(username) =>
+            userStore.nextSessionId map (id => AuthenticationSuccess(username, SessionKey(username, id)))
+          case InvalidValue | DuplicateValue =>
+            logger.error("Attempted to auto create user, but user already exists, returning auth success.")
+            Success(AuthenticationError)
+        }
+    } recover {
+      case e: Exception =>
+          AuthenticationError
     }
 
     tryToFuture(result)
@@ -69,7 +78,7 @@ class AuthenticationHandler(
     val response = userStore.validateCredentials(authRequest.username, authRequest.password) match {
       case Success(true) => {
         userStore.nextSessionId match {
-          case Success(sessionId) => 
+          case Success(sessionId) =>
             updateLastLogin(authRequest.username, DomainUserType.Normal)
             AuthenticationSuccess(authRequest.username, SessionKey(authRequest.username, sessionId))
           case Failure(cause) => {
@@ -132,6 +141,9 @@ class AuthenticationHandler(
       case true => userStore.domainUserExists(username)
       case false => userStore.adminUserExists(username)
     }
+    
+    if (exists == null)
+      println("\n\n###" + username)
 
     exists flatMap {
       case true =>
@@ -199,8 +211,8 @@ class AuthenticationHandler(
       }.get
     }
   }
-  
+
   private[this] def updateLastLogin(username: String, userType: DomainUserType.Value): Unit = {
-   userStore.setLastLogin(username, userType, Instant.now())
+    userStore.setLastLogin(username, userType, Instant.now())
   }
 }

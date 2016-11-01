@@ -282,11 +282,13 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    *
    * @return true if the user exists, false otherwise.
    */
-  def domainUserExists(username: String): Try[Boolean] = 
+  def domainUserExists(username: String): Try[Boolean] = {
     this.userExists(username, DomainUserType.Normal)
+  }
   
-  def adminUserExists(username: String): Try[Boolean] = 
+  def adminUserExists(username: String): Try[Boolean] = {
     this.userExists(username, DomainUserType.Admin)
+  }
   
   
   private[this] def userExists(username: String, userType: DomainUserType.Value): Try[Boolean] = tryWithDb { db =>

@@ -138,12 +138,16 @@ class AuthenticationHandlerSpec()
       val nextSessionId = sessionId + 1
       nextSessionId.toString()
     }
-    
+
     val userStore = mock[DomainUserStore]
-    
+
     Mockito.when(userStore.nextSessionId).thenReturn(Success(nextSessionId()))
+    Mockito.when(userStore.domainUserExists(existingUserName)).thenReturn(Success(true))
+    Mockito.when(userStore.adminUserExists(existingUserName)).thenReturn(Success(true))
     Mockito.when(userStore.getDomainUserByUsername(existingUserName)).thenReturn(Success(Some(existingUser)))
 
+    Mockito.when(userStore.domainUserExists(nonExistingUser)).thenReturn(Success(false))
+    Mockito.when(userStore.adminUserExists(nonExistingUser)).thenReturn(Success(false))
     Mockito.when(userStore.getDomainUserByUsername(nonExistingUser)).thenReturn(Success(None))
 
     Mockito.when(userStore.validateCredentials(existingUserName, existingCorrectPassword)).thenReturn(Success(true))
@@ -154,20 +158,30 @@ class AuthenticationHandlerSpec()
     val lazyUser = CreateNormalDomainUser(lazyUserName, None, None, None, None)
     Mockito.when(userStore.getDomainUserByUsername(lazyUserName)).thenReturn(Success(None))
     Mockito.when(userStore.createNormalDomainUser(lazyUser, None)).thenReturn(Success(CreateSuccess(lazyUserName)))
+    Mockito.when(userStore.createAdminDomainUser(lazyUserName)).thenReturn(Success(CreateSuccess(lazyUserName)))
+    Mockito.when(userStore.domainUserExists(lazyUserName)).thenReturn(Success(false))
+    Mockito.when(userStore.adminUserExists(lazyUserName)).thenReturn(Success(false))
 
     val brokenUserName = "brokenUser"
     Mockito.when(userStore.getDomainUserByUsername(brokenUserName)).thenReturn(Failure(new IllegalStateException("induced error for testing")))
+    Mockito.when(userStore.domainUserExists(brokenUserName)).thenReturn(Failure(new IllegalStateException("induced error for testing")))
+    Mockito.when(userStore.adminUserExists(brokenUserName)).thenReturn(Failure(new IllegalStateException("induced error for testing")))
 
     val brokenLazyUsername = "borkenLazyUserName"
     val brokenLazyUser = CreateNormalDomainUser(brokenLazyUsername, None, None, None, None)
     Mockito.when(userStore.getDomainUserByUsername(brokenLazyUsername)).thenReturn(Success(None))
     Mockito.when(userStore.createNormalDomainUser(brokenLazyUser, None)).thenReturn(Failure(new IllegalStateException("induced error for testing")))
+    Mockito.when(userStore.domainUserExists(brokenLazyUsername)).thenReturn(Success(false))
+    Mockito.when(userStore.adminUserExists(brokenLazyUsername)).thenReturn(Success(false))
 
     val authfailureUser = "authFailureUser"
     val authfailurePassword = "authFailurePassword"
     Mockito.when(userStore.validateCredentials(authfailureUser, authfailurePassword)).thenReturn(Failure(new IllegalStateException()))
+    Mockito.when(userStore.domainUserExists(authfailureUser)).thenReturn(Success(false))
 
     val domainConfigStore = mock[DomainConfigStore]
+    Mockito.when(domainConfigStore.isAnonymousAuthEnabled()).thenReturn(Success(true))
+
     val keyStore = mock[ApiKeyStore]
 
     val enabledKey = TokenPublicKey(
