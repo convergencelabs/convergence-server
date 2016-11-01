@@ -48,6 +48,7 @@ import com.convergencelabs.server.domain.UserList
 import com.convergencelabs.server.domain.UserList
 import com.convergencelabs.server.domain.DomainUser
 import com.convergencelabs.server.domain.UserLookUp
+import com.convergencelabs.server.domain.DomainUserType
 
 object UserClientActor {
   def props(userServiceActor: ActorRef): Props =
@@ -122,6 +123,11 @@ class UserClientActor(userServiceActor: ActorRef) extends Actor with ActorLoggin
 
   private[this] def mapDomainUser(user: DomainUser): DomainUserData = {
     val DomainUser(userType, username, firstname, lastName, displayName, email) = user
+    val processedUsername = userType match {
+      case DomainUserType.Normal => username
+      case DomainUserType.Admin => "admin:" + username
+      case DomainUserType.Anonymous => "anonymous:" + username
+    }
     DomainUserData(userType.toString(), username, firstname, lastName, displayName, email)
   }
 

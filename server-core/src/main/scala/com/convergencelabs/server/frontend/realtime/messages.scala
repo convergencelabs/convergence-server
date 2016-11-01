@@ -63,7 +63,6 @@ case class ErrorData(
 // Authentication Messages
 sealed trait AuthenticationRequestMessage extends IncomingProtocolRequestMessage
 case class PasswordAuthRequestMessage(u: String, p: String) extends AuthenticationRequestMessage
-case class AdminAuthRequestMessage(u: String, p: String) extends AuthenticationRequestMessage
 case class TokenAuthRequestMessage(k: String) extends AuthenticationRequestMessage
 case class AnonymousAuthRequestMessage(d: Option[String]) extends AuthenticationRequestMessage
 

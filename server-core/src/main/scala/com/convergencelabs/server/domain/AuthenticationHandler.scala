@@ -4,37 +4,31 @@ import java.io.StringReader
 import java.security.KeyFactory
 import java.security.PublicKey
 import java.security.spec.X509EncodedKeySpec
-import scala.annotation.implicitNotFound
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
-import scala.concurrent.Promise
 import scala.util.Failure
 import scala.util.Success
+import scala.util.Try
+
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.bouncycastle.openssl.PEMParser
 import org.jose4j.jwt.JwtClaims
-import org.jose4j.jwt.consumer.InvalidJwtException
 import org.jose4j.jwt.consumer.JwtConsumerBuilder
-import com.convergencelabs.server.datastore.domain.DomainConfigStore
-import com.convergencelabs.server.datastore.domain.DomainUserStore
-import com.convergencelabs.server.util.TryWithResource
-import akka.actor.ActorRef
-import akka.actor.actorRef2Scala
-import grizzled.slf4j.Logging
-import scala.util.Try
-import scala.reflect.ClassTag
-import com.convergencelabs.server.datastore.domain.ApiKeyStore
+
 import com.convergencelabs.server.datastore.CreateResult
 import com.convergencelabs.server.datastore.CreateSuccess
-import com.convergencelabs.server.datastore.NotFound
 import com.convergencelabs.server.datastore.DuplicateValue
 import com.convergencelabs.server.datastore.InvalidValue
-import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateDomainUser
-import com.convergencelabs.server.domain.model.SessionKey
-import scala.util.control.NonFatal
-import java.util.UUID
-import com.convergencelabs.server.util.concurrent.FutureUtils.tryToFuture
+import com.convergencelabs.server.datastore.domain.ApiKeyStore
+import com.convergencelabs.server.datastore.domain.DomainConfigStore
+import com.convergencelabs.server.datastore.domain.DomainUserStore
 import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateNormalDomainUser
+import com.convergencelabs.server.domain.model.SessionKey
+import com.convergencelabs.server.util.TryWithResource
+import com.convergencelabs.server.util.concurrent.FutureUtils.tryToFuture
+
+import grizzled.slf4j.Logging
 
 object AuthenticationHandler {
   val AdminKeyId = "ConvergenceAdminKey"
@@ -53,7 +47,6 @@ class AuthenticationHandler(
       case message: PasswordAuthRequest => authenticatePassword(message)
       case message: TokenAuthRequest => authenticateToken(message)
       case message: AnonymousAuthRequest => authenticateAnonymous(message)
-      case message: AdminAuthRequest => authenticateAdmin(message)
     }
   }
 
@@ -68,13 +61,6 @@ class AuthenticationHandler(
     }
 
     tryToFuture(result)
-  }
-
-  private[this] def authenticateAdmin(authRequest: AdminAuthRequest): Future[AuthenticationResponse] = {
-    Future[AuthenticationResponse] {
-      // FIXME Implement this
-      AuthenticationFailure
-    }
   }
 
   private[this] def authenticatePassword(authRequest: PasswordAuthRequest): Future[AuthenticationResponse] = {
@@ -114,8 +100,8 @@ class AuthenticationHandler(
       val keyId = objects.get(0).getKeyIdHeaderValue()
 
       getJWTPublicKey(keyId) match {
-        case Some(publicKey) =>
-          authenticateTokenWithPublicKey(authRequest, publicKey)
+        case Some((publicKey, admin)) =>
+          authenticateTokenWithPublicKey(authRequest, publicKey, admin)
         case None =>
           logger.warn("Request to authenticate via token, with an invalid keyId")
           AuthenticationFailure
@@ -123,7 +109,7 @@ class AuthenticationHandler(
     }
   }
 
-  private[this] def authenticateTokenWithPublicKey(authRequest: TokenAuthRequest, publicKey: PublicKey): AuthenticationResponse = {
+  private[this] def authenticateTokenWithPublicKey(authRequest: TokenAuthRequest, publicKey: PublicKey, admin: Boolean): AuthenticationResponse = {
     val jwtConsumer = new JwtConsumerBuilder()
       .setRequireExpirationTime()
       .setAllowedClockSkewInSeconds(AuthenticationHandler.AllowedClockSkew)
@@ -139,13 +125,18 @@ class AuthenticationHandler(
     // FIXME in theory we should cache the token id for longer than the expiration to make
     // sure a replay attack is not possible
 
-    userStore.getDomainUserByUsername(username) flatMap {
-      case Some(user) =>
+    val exists = admin match {
+      case true => userStore.domainUserExists(username)
+      case false => userStore.adminUserExists(username)
+    }
+
+    exists flatMap {
+      case true =>
         logger.debug("User specificed in token already exists, returning auth success.")
         userStore.nextSessionId map (id => AuthenticationSuccess(username, SessionKey(username, id)))
-      case None =>
+      case false =>
         logger.error("User specificed in token does not exist exist, creating.")
-        createUserFromJWT(jwtClaims) flatMap {
+        createUserFromJWT(jwtClaims, admin) flatMap {
           case CreateSuccess(_) | DuplicateValue =>
             // The duplicate value case is when a race condition occurs between when we looked up the
             // user and then tried to create them.
@@ -163,28 +154,33 @@ class AuthenticationHandler(
     }
   }
 
-  private[this] def createUserFromJWT(jwtClaims: JwtClaims): Try[CreateResult[String]] = {
+  private[this] def createUserFromJWT(jwtClaims: JwtClaims, admin: Boolean): Try[CreateResult[String]] = {
     val username = jwtClaims.getSubject()
-    val firstName = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.FirstName)
-    val lastName = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.LastName)
-    val displayName = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.DisplayName)
-    val email = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.Email)
-    val newUser = CreateNormalDomainUser(username, firstName, lastName, displayName, email)
-    userStore.createNormalDomainUser(newUser, None)
+    admin match {
+      case true =>
+        val firstName = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.FirstName)
+        val lastName = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.LastName)
+        val displayName = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.DisplayName)
+        val email = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.Email)
+        val newUser = CreateNormalDomainUser(username, firstName, lastName, displayName, email)
+        userStore.createNormalDomainUser(newUser, None)
+      case false =>
+        userStore.createAdminDomainUser(username)
+    }
   }
 
-  private[this] def getJWTPublicKey(keyId: String): Option[PublicKey] = {
-    val keyPem: Option[String] = if (!AuthenticationHandler.AdminKeyId.equals(keyId)) {
+  private[this] def getJWTPublicKey(keyId: String): Option[(PublicKey, Boolean)] = {
+    val (keyPem, admin) = if (!AuthenticationHandler.AdminKeyId.equals(keyId)) {
       keyStore.getKey(keyId) match {
-        case Success(Some(key)) if key.enabled => Some(key.key)
-        case _ => None
+        case Success(Some(key)) if key.enabled => (Some(key.key), false)
+        case _ => (None, false)
       }
     } else {
       domainConfigStore.getAdminKeyPair() match {
-        case Success(keyPair) => Some(keyPair.publicKey)
+        case Success(keyPair) => (Some(keyPair.publicKey), true)
         case _ =>
           logger.error("Unabled to load admin key for domain")
-          None
+          (None, false)
       }
     }
 
@@ -192,7 +188,7 @@ class AuthenticationHandler(
       TryWithResource(new PEMParser(new StringReader(pem))) { pemReader =>
         val spec = new X509EncodedKeySpec(pemReader.readPemObject().getContent())
         val keyFactory = KeyFactory.getInstance("RSA", new BouncyCastleProvider())
-        Some(keyFactory.generatePublic(spec))
+        Some((keyFactory.generatePublic(spec), admin))
       }.recoverWith {
         case e: Throwable =>
           logger.warn("Unabled to decode jwt public key: " + e.getMessage)

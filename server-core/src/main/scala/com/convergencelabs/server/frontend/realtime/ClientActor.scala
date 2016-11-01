@@ -18,7 +18,6 @@ import com.convergencelabs.server.domain.HandshakeSuccess
 import com.convergencelabs.server.domain.PasswordAuthRequest
 import com.convergencelabs.server.domain.TokenAuthRequest
 import com.convergencelabs.server.domain.AnonymousAuthRequest
-import com.convergencelabs.server.domain.AdminAuthRequest
 import com.convergencelabs.server.util.concurrent.AskFuture
 import akka.actor.Actor
 import akka.actor.ActorLogging
@@ -185,7 +184,6 @@ class ClientActor(
       case PasswordAuthRequestMessage(username, password) => PasswordAuthRequest(username, password)
       case TokenAuthRequestMessage(token)                 => TokenAuthRequest(token)
       case AnonymousAuthRequestMessage(displayName)       => AnonymousAuthRequest(displayName)
-      case AdminAuthRequestMessage(username, password)       => AdminAuthRequest(username, password)
     }
     
     val authFuture = this.domainActor.get ? authRequest

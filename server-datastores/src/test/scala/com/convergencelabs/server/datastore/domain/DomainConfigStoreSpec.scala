@@ -51,7 +51,7 @@ class DomainConfigStoreSpec
             Duration.of(0, ChronoUnit.SECONDS))
       }
     }
-
+    
     "setting the model snapshot config" must {
       "get and set the correct object" in withPersistenceStore { store =>
         val configToSet = ModelSnapshotConfig(
@@ -67,6 +67,20 @@ class DomainConfigStoreSpec
 
         store.setModelSnapshotConfig(configToSet).success
         store.getModelSnapshotConfig().success.value shouldBe configToSet
+      }
+    }
+    
+    "getting the anonymousAuthEnabled config" must {
+      "return the correct boolean" in withPersistenceStore { store =>
+        store.isAnonymousAuthEnabled().success.value shouldBe false
+      }
+    }
+    
+     "setting the anonymousAuthEnabled config" must {
+      "get and set the correct value" in withPersistenceStore { store =>
+        store.isAnonymousAuthEnabled().success.value shouldBe false
+        store.setAnonymousAuthEnabled(true).success
+        store.isAnonymousAuthEnabled().success.value shouldBe true
       }
     }
   }

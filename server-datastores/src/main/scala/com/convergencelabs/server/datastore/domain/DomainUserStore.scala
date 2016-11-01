@@ -86,6 +86,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
 
   val Username = "username"
   val Password = "password"
+  val UserType = "userType"
   val UidSeq = "UIDSEQ"
   val SessionSeq = "SESSIONSEQ"
 
@@ -273,9 +274,16 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    *
    * @return true if the user exists, false otherwise.
    */
-  def domainUserExists(username: String): Try[Boolean] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username = :username AND userType = 'normal'")
-    val params = Map(Username -> username)
+  def domainUserExists(username: String): Try[Boolean] = 
+    this.userExists(username, DomainUserType.Normal)
+  
+  def adminUserExists(username: String): Try[Boolean] = 
+    this.userExists(username, DomainUserType.Admin)
+  
+  
+  private[this] def userExists(username: String, userType: DomainUserType.Value): Try[Boolean] = tryWithDb { db =>
+    val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username = :username AND userType = :userType")
+    val params = Map(Username -> username, UserType -> userType.toString.toLowerCase)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     result.asScala.toList match {
       case doc :: Nil => true

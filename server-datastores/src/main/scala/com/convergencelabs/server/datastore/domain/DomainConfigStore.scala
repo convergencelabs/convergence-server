@@ -16,28 +16,60 @@ import grizzled.slf4j.Logging
 import java.util.ArrayList
 import scala.collection.JavaConverters._
 import com.convergencelabs.server.datastore.domain.mapper.ModelSnapshotConfigMapper._
+import DomainConfigStore.Fields
+
+object DomainConfigStore {
+  object Fields {
+    val ModelSnapshotConfig = "modelSnapshotConfig"
+    val AdminPublicKey = "adminPublicKey"
+    val AdminPrivateKey = "adminPrivateKey"
+    val TokenKeys = "tokenKeys"
+    val AnonymousAuth = "anonymousAuth"
+  }
+}
 
 class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
     extends AbstractDatabasePersistence(dbPool)
     with Logging {
-  
+
   def initializeDomainConfig(tokenKeyPair: TokenKeyPair, modelSnapshotConfig: ModelSnapshotConfig): Try[Unit] = tryWithDb { db =>
     db.command(new OCommandSQL("DELETE FROM DomainConfig")).execute()
-    
+
     val doc = new ODocument("DomainConfig")
-    doc.field("modelSnapshotConfig", modelSnapshotConfig.asODocument, OType.EMBEDDED)
-    doc.field("adminPublicKey", tokenKeyPair.publicKey)
-    doc.field("adminPrivateKey", tokenKeyPair.privateKey)
-    doc.field("tokenKeys", new ArrayList[TokenPublicKey](), OType.EMBEDDEDLIST)
-    doc.save()
+    doc.field(Fields.ModelSnapshotConfig, modelSnapshotConfig.asODocument, OType.EMBEDDED)
+    doc.field(Fields.AdminPublicKey, tokenKeyPair.publicKey)
+    doc.field(Fields.AdminPrivateKey, tokenKeyPair.privateKey)
+    doc.field(Fields.TokenKeys, new ArrayList[TokenPublicKey](), OType.EMBEDDEDLIST)
+    doc.field(Fields.AnonymousAuth, false)
+    doc.
+      doc.save()
     ()
   }
-  
+
   def isInitialized(): Try[Boolean] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT count(*) AS count FROM DomainConfig")
     val result: JavaList[ODocument] = db.command(query).execute()
     val count: Long = result.get(0).field("count", OType.LONG)
     count == 1;
+  }
+
+  def isAnonymousAuthEnabled(): Try[Boolean] = tryWithDb { db =>
+    val queryString = s"SELECT ${Fields.AnonymousAuth} FROM DomainConfig"
+    val query = new OSQLSynchQuery[ODocument](queryString)
+    val result: JavaList[ODocument] = db.command(query).execute()
+    QueryUtil.mapSingletonList(result) { doc =>
+      val enabled: Boolean = doc.field(Fields.AnonymousAuth, OType.BOOLEAN)
+      enabled
+    }.get
+  }
+
+  def setAnonymousAuthEnabled(enabled: Boolean): Try[Unit] = tryWithDb { db =>
+    val updateString = s"UPDATE DomainConfig SET ${Fields.AnonymousAuth} = :anonymousAuth"
+    val query = new OCommandSQL(updateString)
+    val params = Map("anonymousAuth" -> enabled)
+    val updated: Int = db.command(query).execute(params.asJava)
+    require(updated == 1)
+    Unit
   }
 
   def getAdminUserName(): String = {
@@ -87,7 +119,7 @@ class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
         doc.field("adminPrivateKey", OType.STRING))
     }.get
   }
-  
+
   def setAdminKeyPair(pair: TokenKeyPair): Try[Unit] = tryWithDb { db =>
     val queryString = """
       |UPDATE
@@ -96,9 +128,9 @@ class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
       |  adminPublicKey = :publicKey, 
       |  adminPrivateKey = :privateKey""".stripMargin
     val command = new OCommandSQL(queryString)
-    
+
     val params = Map("publicKey" -> pair.publicKey, "privateKey" -> pair.privateKey).asJava
-    
+
     db.command(command).execute(params)
     ()
   }
