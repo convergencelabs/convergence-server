@@ -49,11 +49,18 @@ import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.util.Timeout
 
+case class DomainUserData(
+  username: String,
+  firstName: Option[String],
+  lastName: Option[String],
+  displayName: Option[String],
+  email: Option[String])
+
 object DomainUserService {
   case class CreateUserRequest(username: String, firstName: Option[String], lastName: Option[String], displayName: Option[String], email: Option[String], password: Option[String])
   case class CreateUserResponse() extends AbstractSuccessResponse
-  case class GetUsersRestResponse(users: List[DomainUser]) extends AbstractSuccessResponse
-  case class GetUserRestResponse(user: DomainUser) extends AbstractSuccessResponse
+  case class GetUsersRestResponse(users: List[DomainUserData]) extends AbstractSuccessResponse
+  case class GetUserRestResponse(user: DomainUserData) extends AbstractSuccessResponse
   case class UpdateUserRequest(
     firstName: Option[String],
     lastName: Option[String],
@@ -107,7 +114,8 @@ class DomainUserService(
   }
 
   def getAllUsersRequest(domain: DomainFqn): Future[RestResponse] = {
-    (domainRestActor ? DomainMessage(domain, GetUsers)).mapTo[List[DomainUser]] map (users => (StatusCodes.OK, GetUsersRestResponse(users)))
+    (domainRestActor ? DomainMessage(domain, GetUsers)).mapTo[List[DomainUser]] map 
+    (users => (StatusCodes.OK, GetUsersRestResponse(users.map (toUserData(_)))))
   }
 
   def createUserRequest(createRequest: CreateUserRequest, domain: DomainFqn): Future[RestResponse] = {
@@ -138,7 +146,7 @@ class DomainUserService(
 
   def getUserByUsername(username: String, domain: DomainFqn): Future[RestResponse] = {
     (domainRestActor ? DomainMessage(domain, GetUserByUsername(username))).mapTo[Option[DomainUser]] map {
-      case Some(user) => (StatusCodes.OK, GetUserRestResponse(user))
+      case Some(user) => (StatusCodes.OK, GetUserRestResponse(toUserData(user)))
       case None => NotFoundError
     }
   }
@@ -148,5 +156,10 @@ class DomainUserService(
       case DeleteSuccess => OkResponse
       case NotFound => NotFoundError
     }
+  }
+  
+  private[this] def toUserData(user: DomainUser): DomainUserData = {
+    val DomainUser(userType, username, firstName, lastName, displayName, email) = user
+    DomainUserData(username, firstName, lastName, displayName, email)
   }
 }
