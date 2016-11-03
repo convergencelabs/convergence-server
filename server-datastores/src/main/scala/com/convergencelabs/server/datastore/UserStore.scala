@@ -147,7 +147,7 @@ class UserStore private[datastore] (
    *
    * @return true if the username and passowrd match, false otherwise.
    */
-  def validateCredentials(username: String, password: String): Try[Option[String]] = tryWithDb { db =>
+  def validateCredentials(username: String, password: String): Try[Option[(String, Instant)]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT password, user.username AS username FROM UserCredential WHERE user.username = :username")
     val params = Map(Username -> username)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
@@ -159,10 +159,10 @@ class UserStore private[datastore] (
           case true => {
             val username: String = doc.field(Username)
             val token = UUID.randomUUID().toString()
-            val expireTime = Date.from(Instant.now().plus(tokenValidityDuration))
-            createToken(username, token, expireTime)
+            val expiration = Instant.now().plus(tokenValidityDuration)
+            createToken(username, token, expiration)
             setLastLogin(username, Instant.now())
-            Some(token)
+            Some((token, expiration))
           }
           case false => 
             None
@@ -172,14 +172,14 @@ class UserStore private[datastore] (
     }
   }
 
-  def createToken(username: String, token: String, expireTime: Date): Try[Unit] = tryWithDb { db =>
+  def createToken(username: String, token: String, expiration: Instant): Try[Unit] = tryWithDb { db =>
     val queryStirng =
       """INSERT INTO UserAuthToken SET
         |  user = (SELECT FROM User WHERE username = :username),
         |  token = :token,
         |  expireTime = :expireTime""".stripMargin
     val query = new OCommandSQL(queryStirng)
-    val params = Map(Username -> username, Token -> token, ExpireTime -> expireTime)
+    val params = Map(Username -> username, Token -> token, ExpireTime -> Date.from(expiration))
     db.command(query).execute(params.asJava)
     Unit
   }
@@ -192,9 +192,11 @@ class UserStore private[datastore] (
     QueryUtil.enforceSingletonResultList(result) match {
       case Some(doc) =>
         val expireTime: Date = doc.field(ExpireTime, OType.DATETIME)
-        if (Instant.now().isBefore(expireTime.toInstant())) {
+        val expireInstant: Instant = expireTime.toInstant()
+        if (Instant.now().isBefore(expireInstant)) {
           val username: String = doc.field(Username)
-          updateToken(token)
+          val newExpiration = Instant.now().plus(tokenValidityDuration)
+          updateToken(token, newExpiration)
           Some(username)
         } else {
           None
@@ -202,12 +204,30 @@ class UserStore private[datastore] (
       case None => None
     }
   }
+  
+  def expirationCheck(token: String): Try[Option[(String, Instant)]] = tryWithDb { db =>
+    val query = new OSQLSynchQuery[ODocument]("SELECT user.username AS username, expireTime FROM UserAuthToken WHERE token = :token")
+    val params = Map(Token -> token)
+    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
-  def updateToken(token: String): Try[Unit] = tryWithDb { db =>
+    QueryUtil.enforceSingletonResultList(result) match {
+      case Some(doc) =>
+        val expireTime: Date = doc.field(ExpireTime, OType.DATETIME)
+        val expireInstant: Instant = expireTime.toInstant()
+        if (Instant.now().isBefore(expireInstant)) {
+          val username: String = doc.field(Username)
+          Some((username, expireInstant))
+        } else {
+          None
+        }
+      case None => None
+    }
+  }
+
+  def updateToken(token: String, expiration: Instant): Try[Unit] = tryWithDb { db =>
     val query = new OCommandSQL("UPDATE UserAuthToken SET expireTime = :expireTime WHERE token = :token")
-    val params = Map(Token -> token, ExpireTime -> Date.from(Instant.now().plus(tokenValidityDuration)))
+    val params = Map(Token -> token, ExpireTime -> Date.from(expiration))
     db.command(query).execute(params.asJava)
-    Unit
   }
   
   def setLastLogin(username: String, instant: Instant): Try[Unit] = tryWithDb { db =>

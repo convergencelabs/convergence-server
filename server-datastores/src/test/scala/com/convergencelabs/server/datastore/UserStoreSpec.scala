@@ -74,13 +74,13 @@ class \
 
     "validating tokens" must {
       "return true and a uid for a valid token" in withPersistenceStore { store =>
-        store.createToken(User0.username, DummyToken, Date.from(Instant.now().plusSeconds(100))) // scalastyle:ignore magic.number
+        store.createToken(User0.username, DummyToken, Instant.now().plusSeconds(100)) // scalastyle:ignore magic.number
         store.validateToken(DummyToken).success.value shouldBe Some(username)
       }
 
       "return false and None for an expired token" in withPersistenceStore { store =>
         val expireTime = Instant.now().minusSeconds(1)
-        store.createToken(User0.username, DummyToken, Date.from(expireTime))
+        store.createToken(User0.username, DummyToken, expireTime)
         store.validateToken(DummyToken).success.value shouldBe None
       }
 
