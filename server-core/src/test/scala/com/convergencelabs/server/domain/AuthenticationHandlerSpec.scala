@@ -186,7 +186,6 @@ class AuthenticationHandlerSpec()
 
     val enabledKey = TokenPublicKey(
       "enabledkey",
-      "Enabled Key",
       "An enabled key",
       Instant.now(),
       KeyConstants.PublicKey,
@@ -198,8 +197,7 @@ class AuthenticationHandlerSpec()
 
     val disabledKey = TokenPublicKey(
       "disabledkey",
-      "Disabled Key",
-      "An disabled key",
+      "A disabled key",
       Instant.now(),
       KeyConstants.PublicKey,
       false)
@@ -207,7 +205,6 @@ class AuthenticationHandlerSpec()
 
     val invalidKey = TokenPublicKey(
       "invalidKey",
-      "Invalid Key",
       "An invalid key",
       Instant.now(),
       "invalid",

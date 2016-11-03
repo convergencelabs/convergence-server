@@ -11,6 +11,7 @@ import ApiKeyStoreActor.UpdateDomainApiKey
 import akka.actor.ActorLogging
 import akka.actor.Props
 import com.convergencelabs.server.datastore.domain.ApiKeyStore
+import com.convergencelabs.server.datastore.domain.ApiKeyStore.CreateKey
 
 object ApiKeyStoreActor {
   def props(keyStore: ApiKeyStore): Props = Props(new ApiKeyStoreActor(keyStore))
@@ -20,7 +21,7 @@ object ApiKeyStoreActor {
   case class GetDomainApiKey(id: String) extends ApiKeyStoreRequest
   case class DeleteDomainApiKey(id: String) extends ApiKeyStoreRequest
   case class UpdateDomainApiKey(key: TokenPublicKey) extends ApiKeyStoreRequest
-  case class CreateDomainApiKey(key: TokenPublicKey) extends ApiKeyStoreRequest
+  case class CreateDomainApiKey(key: CreateKey) extends ApiKeyStoreRequest
 }
 
 class ApiKeyStoreActor private[datastore] (private[this] val keyStore: ApiKeyStore)
@@ -47,7 +48,7 @@ class ApiKeyStoreActor private[datastore] (private[this] val keyStore: ApiKeySto
     reply(keyStore.deleteKey(id))
   }
 
-  def createKey(key: TokenPublicKey): Unit = {
+  def createKey(key: CreateKey): Unit = {
     reply(keyStore.createKey(key))
   }
 

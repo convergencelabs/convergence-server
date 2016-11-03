@@ -21,8 +21,14 @@ import com.convergencelabs.server.datastore.NotFound
 import com.convergencelabs.server.datastore.UpdateSuccess
 import com.convergencelabs.server.datastore.DeleteResult
 import com.convergencelabs.server.datastore.DeleteSuccess
-import java.util.{List => JavaList}
+import java.util.{ List => JavaList }
 import scala.collection.JavaConverters._
+import java.time.Instant
+import com.convergencelabs.server.datastore.domain.ApiKeyStore.CreateKey
+
+object ApiKeyStore {
+  case class CreateKey(id: String, description: String, key: String, enabled: Boolean)
+}
 
 class ApiKeyStore private[datastore] (
   private[this] val dbPool: OPartitionedDatabasePool)
@@ -47,9 +53,12 @@ class ApiKeyStore private[datastore] (
     QueryUtil.mapSingletonList(result) { _.asTokenPublicKey }
   }
 
-  def createKey(key: TokenPublicKey): Try[CreateResult[Unit]] = tryWithDb { db =>
+  def createKey(key: CreateKey): Try[CreateResult[Unit]] = tryWithDb { db =>
+    val CreateKey(id, descriptin, keyString, enabled) = key
+    val tokenKey = TokenPublicKey(id, descriptin, Instant.now(), keyString, enabled)
+
     try {
-      db.save(key.asODocument)
+      db.save(tokenKey.asODocument)
       CreateSuccess(())
     } catch {
       case e: ORecordDuplicatedException => DuplicateValue

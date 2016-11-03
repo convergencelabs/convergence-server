@@ -17,7 +17,6 @@ object TokenPublicKeyMapper extends ODocumentMapper {
   private[domain] implicit def tokenPublicKeyToODocument(tokenPublicKey: TokenPublicKey): ODocument = {
     val doc = new ODocument(DocumentClassName)
     doc.field(Fields.Id, tokenPublicKey.id)
-    doc.field(Fields.Name, tokenPublicKey.name)
     doc.field(Fields.Description, tokenPublicKey.description)
     doc.field(Fields.Created, new Date(tokenPublicKey.created.toEpochMilli()))
     doc.field(Fields.Key, tokenPublicKey.key)
@@ -36,7 +35,6 @@ object TokenPublicKeyMapper extends ODocumentMapper {
 
     TokenPublicKey(
       doc.field(Fields.Id),
-      doc.field(Fields.Name),
       doc.field(Fields.Description),
       Instant.ofEpochMilli(createdDate.getTime),
       doc.field(Fields.Key),

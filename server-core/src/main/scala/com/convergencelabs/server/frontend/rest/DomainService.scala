@@ -61,6 +61,7 @@ class DomainService(
   implicit val ec = executionContext
   implicit val t = defaultTimeout
 
+  val domainConfigService = new DomainConfigService(ec, domainManagerActor, t)
   val domainUserService = new DomainUserService(ec, domainManagerActor, t)
   val domainCollectionService = new DomainCollectionService(ec, domainManagerActor, t)
   val domainModelService = new DomainModelService(ec, domainManagerActor, t)
@@ -97,7 +98,8 @@ class DomainService(
                 domainCollectionService.route(username, domain) ~
                 domainModelService.route(username, domain) ~
                 domainKeyService.route(username, domain) ~
-                domainAdminTokenService.route(username, domain)
+                domainAdminTokenService.route(username, domain) ~
+                domainConfigService.route(username, domain)
             case AuthorizationDenied =>
               complete(ForbiddenError)
           }

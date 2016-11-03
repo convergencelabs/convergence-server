@@ -18,7 +18,6 @@ class TokenPublicKeyMapperSpec
       "correctly map and unmap a TokenPublicKey" in {
         val publickKey = TokenPublicKey(
           "id",
-          "name",
           "description:",
           Instant.now(),
           "key",

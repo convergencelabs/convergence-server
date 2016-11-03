@@ -29,6 +29,8 @@ import akka.actor.actorRef2Scala
 import akka.pattern.gracefulStop
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
+import com.convergencelabs.server.datastore.ConfigStoreActor.ConfigStoreRequest
+import com.convergencelabs.server.datastore.ConfigStoreActor
 
 object RestDomainActor {
   def props(domainFqn: DomainFqn): Props = Props(new RestDomainActor(domainFqn))
@@ -44,6 +46,7 @@ class RestDomainActor(domainFqn: DomainFqn) extends Actor with ActorLogging {
   private[this] var collectionStoreActor: ActorRef = _
   private[this] var modelStoreActor: ActorRef = _
   private[this] var keyStoreActor: ActorRef = _
+  private[this] var configStoreActor: ActorRef = _
   private[this] var domainConfigStore: DomainConfigStore = _
 
   val MaxShutdownWaitTime = Duration.fromNanos(
@@ -60,6 +63,8 @@ class RestDomainActor(domainFqn: DomainFqn) extends Actor with ActorLogging {
       modelStoreActor forward message
     case message: ApiKeyStoreRequest =>
       keyStoreActor forward message
+    case message: ConfigStoreRequest =>
+      configStoreActor forward message
     case Shutdown =>
       shutdown()
     case message: Any =>
@@ -102,6 +107,7 @@ class RestDomainActor(domainFqn: DomainFqn) extends Actor with ActorLogging {
         domainConfigStore = provider.configStore
 
         userStoreActor = context.actorOf(UserStoreActor.props(provider.userStore))
+        configStoreActor = context.actorOf(ConfigStoreActor.props(provider.configStore))
         collectionStoreActor = context.actorOf(CollectionStoreActor.props(provider.collectionStore))
         modelStoreActor = context.actorOf(ModelStoreActor.props(provider.modelStore))
         keyStoreActor = context.actorOf(ApiKeyStoreActor.props(provider.keyStore))

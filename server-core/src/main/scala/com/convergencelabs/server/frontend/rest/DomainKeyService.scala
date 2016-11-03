@@ -35,6 +35,7 @@ import com.convergencelabs.server.datastore.DeleteSuccess
 import com.convergencelabs.server.datastore.NotFound
 import org.omg.CORBA.DynAnyPackage.Invalid
 import com.convergencelabs.server.datastore.InvalidValue
+import com.convergencelabs.server.datastore.domain.ApiKeyStore.CreateKey
 
 object DomainKeyService {
   case class GetKeysRestResponse(keys: List[TokenPublicKey]) extends AbstractSuccessResponse
@@ -56,7 +57,7 @@ class DomainKeyService(
         get {
           complete(getKeys(domain))
         } ~ post {
-          entity(as[TokenPublicKey]) { key =>
+          entity(as[CreateKey]) { key =>
             complete(createKey(domain, key))
           }
         }
@@ -87,7 +88,7 @@ class DomainKeyService(
     }
   }
 
-  def createKey(domain: DomainFqn, key: TokenPublicKey): Future[RestResponse] = {
+  def createKey(domain: DomainFqn, key: CreateKey): Future[RestResponse] = {
     (domainRestActor ? DomainMessage(domain, CreateDomainApiKey(key))).mapTo[CreateResult[Unit]] map {
       case result: CreateSuccess[Unit] => OkResponse
       case DuplicateValue              => DuplicateError
