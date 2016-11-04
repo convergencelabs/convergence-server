@@ -173,29 +173,29 @@ class AuthenticationHandler(
     val username = jwtClaims.getSubject()
     admin match {
       case true =>
+        userStore.createAdminDomainUser(username)
+      case false =>
         val firstName = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.FirstName)
         val lastName = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.LastName)
         val displayName = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.DisplayName)
         val email = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.Email)
         val newUser = CreateNormalDomainUser(username, firstName, lastName, displayName, email)
         userStore.createNormalDomainUser(newUser, None)
-      case false =>
-        userStore.createAdminDomainUser(username)
     }
   }
 
   private[this] def getJWTPublicKey(keyId: String): Option[(PublicKey, Boolean)] = {
-    val (keyPem, admin) = if (!AuthenticationHandler.AdminKeyId.equals(keyId)) {
-      keyStore.getKey(keyId) match {
-        case Success(Some(key)) if key.enabled => (Some(key.key), false)
-        case _ => (None, false)
-      }
-    } else {
+    val (keyPem, admin) = if (AuthenticationHandler.AdminKeyId.equals(keyId)) {
       domainConfigStore.getAdminKeyPair() match {
         case Success(keyPair) => (Some(keyPair.publicKey), true)
         case _ =>
           logger.error("Unabled to load admin key for domain")
           (None, false)
+      }
+    } else {
+      keyStore.getKey(keyId) match {
+        case Success(Some(key)) if key.enabled => (Some(key.key), false)
+        case _ => (None, false)
       }
     }
 
