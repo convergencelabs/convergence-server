@@ -78,13 +78,10 @@ class RestDomainActor(domainFqn: DomainFqn) extends Actor with ActorLogging {
   }
 
   def getAdminToken(convergenceUsername: String): Unit = {
-    // TODO why are we passing in the convergence user name.
     domainConfigStore.getAdminKeyPair() flatMap { pair =>
-      // FIXME hardcoded
-      ConvergenceJwtUtil.fromString("ConvergenceAdminKey", pair.privateKey)
+      ConvergenceJwtUtil.fromString(AuthenticationHandler.AdminKeyId, pair.privateKey)
     } flatMap { util =>
-      val username = domainConfigStore.getAdminUserName()
-      util.generateToken(username)
+      util.generateToken(convergenceUsername)
     } match {
       case Success(token) => sender ! token
       case Failure(cause) => sender ! akka.actor.Status.Failure(cause)
