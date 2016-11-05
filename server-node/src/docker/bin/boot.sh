@@ -20,8 +20,8 @@ require_env_var "$orient_admin_pass" "orient_admin_pass"
 require_env_var "$orient_conv_user" "orient_conv_user"
 require_env_var "$orient_conv_pass" "orient_conv_pass"
 
-require_env_var "$admin_ui_uri" "admin_ui_uri"
-require_env_var "$rest_public_endpoint" "rest_public_endpoint"
+require_env_var "$admin_ui_url" "admin_ui_url"
+require_env_var "$registration_base_url" "registration_base_url"
 
 echo "All required variables are set.  Booting."
 echo ""

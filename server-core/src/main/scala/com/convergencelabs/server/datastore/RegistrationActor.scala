@@ -40,8 +40,8 @@ class RegistrationActor private[datastore] (dbPool: OPartitionedDatabasePool, us
 
   private[this] val smtpConfig: Config = context.system.settings.config.getConfig("convergence.smtp")
   
-  private[this] val restPublicEndpoint = context.system.settings.config.getString("convergence.rest-public-endpoint")
-  private[this] val adminUiServerUrl = context.system.settings.config.getString("convergence.admin-ui-uri")
+  private[this] val registrationBaseUrl = context.system.settings.config.getString("convergence.registration-base-url")
+  private[this] val adminUiServerUrl = context.system.settings.config.getString("convergence.admin-ui-url")
 
   private[this] val registrationStore = new RegistrationStore(dbPool)
 
@@ -84,7 +84,7 @@ class RegistrationActor private[datastore] (dbPool: OPartitionedDatabasePool, us
     val AddRegistration(fname, lname, email, reason) = message
     reply(registrationStore.addRegistration(fname, lname, email, reason) map {
       case CreateSuccess(token) => {
-        val bodyContent = templates.email.internal.txt.registrationRequest(token, fname, lname, email, reason, restPublicEndpoint)
+        val bodyContent = templates.email.internal.txt.registrationRequest(token, fname, lname, email, reason, registrationBaseUrl)
         val internalEmail = EmailUtilities.createTextEmail(smtpConfig, bodyContent.toString())
         internalEmail.setSubject(s"Registration Request from ${fname} ${lname}")
         internalEmail.addTo(smtpConfig.getString("new-registration-to-address"))

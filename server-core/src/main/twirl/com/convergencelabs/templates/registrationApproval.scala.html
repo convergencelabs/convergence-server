@@ -1,4 +1,4 @@
-@(serverUrl: String, token: String)
+@(registrationBaseUrl: String, token: String)
 
 <!DOCTYPE html>
 <html lang='en'>
@@ -13,7 +13,7 @@
   <div id="rejectSuccess" style="display: none">Rejected.</div>
   <div id="error" style="display: none"></div>
   <script> 
-    var baseUrl = '@serverUrl/rest/registration/';
+    var baseUrl = '@registrationBaseUrl';
     function doAction(action) {	
 	  try {
         var req = new XMLHttpRequest();

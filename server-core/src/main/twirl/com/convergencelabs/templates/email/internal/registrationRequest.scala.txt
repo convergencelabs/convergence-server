@@ -1,4 +1,4 @@
-@(token: String, firstName: String, lastName: String, email: String, reason: String, serverUrl: String)
+@(token: String, firstName: String, lastName: String, email: String, reason: String, registrationBaseUrl: String)
 
 @firstName @lastName (@email) would like to register for Convergence.  The reason they
 gave for requesting a registration was:
@@ -7,4 +7,4 @@ gave for requesting a registration was:
   
 Go here to approve or deny the request:
 
-@serverUrl/approval/@token
+@(registrationBaseUrl)approvalForm/@token
