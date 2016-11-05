@@ -19,7 +19,7 @@ import com.convergencelabs.server.datastore.AuthStoreActor.TokenExpirationSucces
 import com.convergencelabs.server.datastore.AuthStoreActor.TokenExpirationFailure
 
 case class TokenResponse(token: String, expiration: Long) extends AbstractSuccessResponse
-case class ExpirationResponse(username: String, expiration: Long) extends AbstractSuccessResponse
+case class ExpirationResponse(valid: Boolean, username: Option[String], delta: Option[Long]) extends AbstractSuccessResponse
 
 class AuthService(
   private[this] val executionContext: ExecutionContext,
@@ -46,15 +46,17 @@ class AuthService(
 
   def authRequest(req: AuthRequest): Future[RestResponse] = {
     (authActor ? req).mapTo[AuthResponse].map {
-      case AuthSuccess(token, expiration) => (StatusCodes.OK, TokenResponse(token, expiration.toEpochMilli()))
-      case AuthFailure                    => AuthFailureError
+      case AuthSuccess(token, expiration) => (StatusCodes.OK, TokenResponse(token, expiration.toMillis()))
+      case AuthFailure => AuthFailureError
     }
   }
 
   def tokenExprirationCheck(req: TokenExpirationRequest): Future[RestResponse] = {
     (authActor ? req).mapTo[TokenExpirationResponse].map {
-      case TokenExpirationSuccess(username, expiration) => (StatusCodes.OK, ExpirationResponse(username, expiration.toEpochMilli()))
-      case TokenExpirationFailure                       => AuthFailureError
+      case TokenExpirationSuccess(username, exprieDelta) =>
+        (StatusCodes.OK, ExpirationResponse(true, Some(username), Some(exprieDelta.toMillis())))
+      case TokenExpirationFailure => 
+        (StatusCodes.OK, ExpirationResponse(false, None, None))
     }
   }
 }

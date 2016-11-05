@@ -12,11 +12,11 @@ import akka.actor.ActorLogging
 import akka.actor.Props
 import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.Duration
 import java.time.Instant
 import com.convergencelabs.server.datastore.AuthStoreActor.TokenExpirationRequest
 import com.convergencelabs.server.datastore.AuthStoreActor.TokenExpirationSuccess
 import com.convergencelabs.server.datastore.AuthStoreActor.TokenExpirationFailure
+import java.time.Duration
 
 class AuthStoreActor private[datastore] (
   private[this] val dbPool: OPartitionedDatabasePool)
@@ -35,7 +35,9 @@ class AuthStoreActor private[datastore] (
 
   private[this] def authenticateUser(authRequest: AuthRequest): Unit = {
     mapAndReply(userStore.validateCredentials(authRequest.username, authRequest.password)) {
-      case Some((token, expiration)) => AuthSuccess(token, expiration)
+      case Some((token, expiration)) => 
+        val delta = Duration.between(Instant.now(), expiration)
+        AuthSuccess(token, delta)
       case None =>
         AuthFailure
     }
@@ -50,8 +52,11 @@ class AuthStoreActor private[datastore] (
 
   private[this] def expirationRequest(tokenExpirationRequest: TokenExpirationRequest): Unit = {
     mapAndReply(userStore.expirationCheck(tokenExpirationRequest.token)) {
-      case Some((username, expiration)) => TokenExpirationSuccess(username, expiration)
-      case None                         => TokenExpirationFailure
+      case Some((username, expiration)) =>
+        val now = Instant.now()
+        TokenExpirationSuccess(username, Duration.between(now, expiration))
+      case None                        
+      => TokenExpirationFailure
     }
   }
 }
@@ -62,7 +67,7 @@ object AuthStoreActor {
   case class AuthRequest(username: String, password: String)
 
   sealed trait AuthResponse
-  case class AuthSuccess(token: String, expiration: Instant) extends AuthResponse
+  case class AuthSuccess(token: String, expiration: Duration) extends AuthResponse
   case object AuthFailure extends AuthResponse
 
   case class ValidateRequest(token: String)
@@ -74,6 +79,6 @@ object AuthStoreActor {
   case class TokenExpirationRequest(token: String)
 
   sealed trait TokenExpirationResponse
-  case class TokenExpirationSuccess(username: String, expiration: Instant) extends TokenExpirationResponse
+  case class TokenExpirationSuccess(username: String, expiration: Duration) extends TokenExpirationResponse
   case object TokenExpirationFailure extends TokenExpirationResponse
 }
