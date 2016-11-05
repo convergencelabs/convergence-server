@@ -22,6 +22,8 @@ import com.convergencelabs.server.datastore.RegistrationActor.RejectRegistration
 import java.net.URLEncoder
 import com.convergencelabs.templates
 import com.convergencelabs.server.util.EmailUtilities
+import com.convergencelabs.server.datastore.RegistrationActor.RegistrationInfo
+import com.convergencelabs.server.datastore.RegistrationActor.RegistrationInfoRequest
 
 object RegistrationActor {
   def props(dbPool: OPartitionedDatabasePool, userManager: ActorRef): Props = Props(new RegistrationActor(dbPool, userManager))
@@ -30,6 +32,8 @@ object RegistrationActor {
   case class AddRegistration(fname: String, lname: String, email: String, reason: String)
   case class ApproveRegistration(token: String)
   case class RejectRegistration(token: String)
+  case class RegistrationInfoRequest(token: String)
+  case class RegistrationInfo(fname: String, lname: String, email: String)
 }
 
 class RegistrationActor private[datastore] (dbPool: OPartitionedDatabasePool, userManager: ActorRef) extends StoreActor with ActorLogging {
@@ -39,18 +43,19 @@ class RegistrationActor private[datastore] (dbPool: OPartitionedDatabasePool, us
   private[this] implicit val exectionContext = context.dispatcher
 
   private[this] val smtpConfig: Config = context.system.settings.config.getConfig("convergence.smtp")
-  
+
   private[this] val registrationBaseUrl = context.system.settings.config.getString("convergence.registration-base-url")
   private[this] val adminUiServerUrl = context.system.settings.config.getString("convergence.admin-ui-url")
 
   private[this] val registrationStore = new RegistrationStore(dbPool)
 
   def receive: Receive = {
-    case message: RegisterUser        => registerUser(message)
-    case message: AddRegistration     => addRegistration(message)
+    case message: RegisterUser => registerUser(message)
+    case message: AddRegistration => addRegistration(message)
     case message: ApproveRegistration => appoveRegistration(message)
-    case message: RejectRegistration  => rejectRegistration(message)
-    case message: Any                 => unhandled(message)
+    case message: RejectRegistration => rejectRegistration(message)
+    case message: RegistrationInfoRequest => getRegistrationInfo(message)
+    case message: Any => unhandled(message)
   }
 
   def registerUser(message: RegisterUser): Unit = {
@@ -62,15 +67,15 @@ class RegistrationActor private[datastore] (dbPool: OPartitionedDatabasePool, us
         (userManager ? req).mapTo[CreateResult[String]] onSuccess {
           case result: CreateSuccess[String] => {
             registrationStore.removeRegistration(token)
-            
-            val welcomeTxt = if(fname != null && fname.nonEmpty) s"${fname}, welcome" else "Welcome"
+
+            val welcomeTxt = if (fname != null && fname.nonEmpty) s"${fname}, welcome" else "Welcome"
             val templateHtml = templates.email.html.accountCreated(username, welcomeTxt)
             val templateTxt = templates.email.txt.accountCreated(username, welcomeTxt)
             val newAccountEmail = EmailUtilities.createHtmlEmail(smtpConfig, templateHtml, templateTxt.toString())
             newAccountEmail.setSubject(s"${welcomeTxt} to Convergence!")
             newAccountEmail.addTo(email)
             newAccountEmail.send()
-            
+
             origSender ! result
           }
           case _ => origSender ! _
@@ -89,7 +94,7 @@ class RegistrationActor private[datastore] (dbPool: OPartitionedDatabasePool, us
         internalEmail.setSubject(s"Registration Request from ${fname} ${lname}")
         internalEmail.addTo(smtpConfig.getString("new-registration-to-address"))
         internalEmail.send()
-        
+
         val template = templates.email.html.accountRequested(fname)
         val templateTxt = templates.email.txt.accountRequested(fname)
         val newRequestEmail = EmailUtilities.createHtmlEmail(smtpConfig, template, templateTxt.toString())
@@ -100,7 +105,7 @@ class RegistrationActor private[datastore] (dbPool: OPartitionedDatabasePool, us
         CreateSuccess(Unit)
       }
       case DuplicateValue => DuplicateValue
-      case InvalidValue   => InvalidValue
+      case InvalidValue => InvalidValue
     })
 
   }
@@ -115,13 +120,13 @@ class RegistrationActor private[datastore] (dbPool: OPartitionedDatabasePool, us
         registrationStore.getRegistrationInfo(token) match {
           case Success(Some(registration)) => {
             val (firstName, lastName, email) = registration
-            
+
             val fnameEncoded = URLEncoder.encode(firstName, "UTF8")
             val lnameEncoded = URLEncoder.encode(lastName, "UTF8")
             val emailEncoded = URLEncoder.encode(email, "UTF8")
-            val signupUrl = s"${adminUiServerUrl}/signup/${token}?fname=${fnameEncoded}&lname=${lnameEncoded}&email=${emailEncoded}"
-            val introTxt = if(firstName != null && firstName.nonEmpty) s"${firstName}, good news!" else "Good news!"
-            
+            val signupUrl = s"${adminUiServerUrl}signup/${token}"
+            val introTxt = if (firstName != null && firstName.nonEmpty) s"${firstName}, good news!" else "Good news!"
+
             val templateHtml = templates.email.html.registrationApproved(signupUrl, introTxt)
             val templateTxt = templates.email.txt.registrationApproved(signupUrl, introTxt)
 
@@ -135,6 +140,17 @@ class RegistrationActor private[datastore] (dbPool: OPartitionedDatabasePool, us
       }
       case _ => // Do Nothing, we have already replied with this error
     }
+  }
+
+  def getRegistrationInfo(message: RegistrationInfoRequest): Unit = {
+    val RegistrationInfoRequest(token) = message
+    val result = registrationStore.getRegistrationInfo(token) map {
+      _.map { registration =>
+        val (firstName, lastName, email) = registration
+        RegistrationInfo(firstName, lastName, email)
+      }
+    }
+    reply(result)
   }
 
   def rejectRegistration(message: RejectRegistration): Unit = {

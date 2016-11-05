@@ -30,11 +30,15 @@ import akka.http.scaladsl.model.HttpCharsets
 import akka.http.scaladsl.model.HttpEntity
 import akka.http.scaladsl.model.HttpResponse
 import com.convergencelabs.templates.html
+import com.convergencelabs.server.datastore.RegistrationActor.RegistrationInfoRequest
+import com.convergencelabs.server.datastore.RegistrationActor.RegistrationInfo
 
 case class Registration(username: String, fname: String, lname: String, email: String, password: String, token: String)
 case class RegistrationRequest(fname: String, lname: String, email: String, reason: String)
 case class RegistrationApproval(token: String)
 case class RegistrationRejection(token: String)
+case class TokenInfo(firstName: String, lastName: String, email: String)
+case class TokenInfoResponse(info: Option[TokenInfo]) extends AbstractSuccessResponse
 
 class RegistrationService(
   private[this] val executionContext: ExecutionContext,
@@ -67,6 +71,14 @@ class RegistrationService(
       pathEnd {
         post {
           handleWith(registrationReject)
+        }
+      }
+    } ~ pathPrefix("info") {
+      pathPrefix(Segment) { token =>
+        pathEnd {
+          get {
+            complete(registrationInfo(token))
+          }
         }
       }
     } ~ pathPrefix("approvalForm") {
@@ -117,6 +129,18 @@ class RegistrationService(
       case CreateSuccess(uid) => CreateRestResponse
       case DuplicateValue => DuplicateError
       case InvalidValue => InvalidValueError
+    }
+  }
+
+  def registrationInfo(token: String): Future[RestResponse] = {
+    println("geting token info for: " + token)
+    (registrationActor ? RegistrationInfoRequest(token)).mapTo[Option[RegistrationInfo]].map {
+      case Some(RegistrationInfo(fname, lname, email)) =>
+        val tokenInfo = TokenInfo(fname, lname, email)
+        println("got info: " + tokenInfo)
+        (StatusCodes.OK, TokenInfoResponse(Some(tokenInfo)))
+      case None =>
+        (StatusCodes.OK, TokenInfoResponse(None))
     }
   }
 
