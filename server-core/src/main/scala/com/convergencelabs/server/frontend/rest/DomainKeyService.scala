@@ -35,11 +35,13 @@ import com.convergencelabs.server.datastore.DeleteSuccess
 import com.convergencelabs.server.datastore.NotFound
 import org.omg.CORBA.DynAnyPackage.Invalid
 import com.convergencelabs.server.datastore.InvalidValue
-import com.convergencelabs.server.datastore.domain.ApiKeyStore.CreateKey
+import com.convergencelabs.server.datastore.domain.ApiKeyStore.KeyInfo
+import com.convergencelabs.server.frontend.rest.DomainKeyService.UpdateInfo
 
 object DomainKeyService {
   case class GetKeysRestResponse(keys: List[TokenPublicKey]) extends AbstractSuccessResponse
   case class GetKeyRestResponse(key: TokenPublicKey) extends AbstractSuccessResponse
+  case class UpdateInfo(description: String, key: String, enabled: Boolean)
 }
 
 class DomainKeyService(
@@ -57,7 +59,7 @@ class DomainKeyService(
         get {
           complete(getKeys(domain))
         } ~ post {
-          entity(as[CreateKey]) { key =>
+          entity(as[KeyInfo]) { key =>
             complete(createKey(domain, key))
           }
         }
@@ -65,8 +67,8 @@ class DomainKeyService(
         get {
           complete(getKey(domain, keyId))
         } ~ put {
-          entity(as[TokenPublicKey]) { key =>
-            complete(updateKey(domain, key))
+          entity(as[UpdateInfo]) { key =>
+            complete(updateKey(domain, keyId, key))
           }
         } ~ delete {
           complete(deleteKey(domain, keyId))
@@ -88,7 +90,7 @@ class DomainKeyService(
     }
   }
 
-  def createKey(domain: DomainFqn, key: CreateKey): Future[RestResponse] = {
+  def createKey(domain: DomainFqn, key: KeyInfo): Future[RestResponse] = {
     (domainRestActor ? DomainMessage(domain, CreateDomainApiKey(key))).mapTo[CreateResult[Unit]] map {
       case result: CreateSuccess[Unit] => OkResponse
       case DuplicateValue              => DuplicateError
@@ -96,8 +98,10 @@ class DomainKeyService(
     }
   }
 
-  def updateKey(domain: DomainFqn, key: TokenPublicKey): Future[RestResponse] = {
-    (domainRestActor ? DomainMessage(domain, UpdateDomainApiKey(key))).mapTo[UpdateResult] map {
+  def updateKey(domain: DomainFqn, keyId: String, update: UpdateInfo): Future[RestResponse] = {
+    val UpdateInfo(description, key, enabled) = update
+    val info = KeyInfo(keyId, description, key, enabled)
+    (domainRestActor ? DomainMessage(domain, UpdateDomainApiKey(info))).mapTo[UpdateResult] map {
       case UpdateSuccess => OkResponse
       case InvalidValue => InvalidValueError
       case NotFound => NotFoundError

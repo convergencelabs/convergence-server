@@ -23,7 +23,9 @@ import akka.actor.Status
 import akka.actor.actorRef2Scala
 import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUserProfile
+import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUser
+import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUsers
+import com.convergencelabs.server.datastore.DomainStoreActor.DeleteDomainsForUserRequest
 
 object ConvergenceUserManagerActor {
   def props(dbPool: OPartitionedDatabasePool, domainStoreActor: ActorRef): Props =
@@ -31,7 +33,8 @@ object ConvergenceUserManagerActor {
 
   case class CreateConvergenceUserRequest(username: String, email: String, firstName: String, lastName: String, password: String)
   case class DeleteConvergenceUserRequest(username: String)
-  case class GetConvergenceUserProfile(username: String)
+  case class GetConvergenceUser(username: String)
+  case object GetConvergenceUsers
 }
 
 class ConvergenceUserManagerActor private[datastore] (
@@ -52,7 +55,8 @@ class ConvergenceUserManagerActor private[datastore] (
   def receive: Receive = {
     case message: CreateConvergenceUserRequest => createConvergenceUser(message)
     case message: DeleteConvergenceUserRequest => deleteConvergenceUser(message)
-    case message: GetConvergenceUserProfile => getConvergenceUserProfile(message)
+    case message: GetConvergenceUser => getConvergenceUser(message)
+    case GetConvergenceUsers => getConvergenceUsers()
     case message: Any => unhandled(message)
   }
 
@@ -77,25 +81,23 @@ class ConvergenceUserManagerActor private[datastore] (
     }
   }
 
-  def getConvergenceUserProfile(message: GetConvergenceUserProfile): Unit = {
-    val GetConvergenceUserProfile(username) = message
-    userStore.getUserByUsername(username) match {
-      case Success(opt) =>
-        sender ! opt
-      case Failure(f) =>
-        sender ! Status.Failure(f)
-    }
+  def getConvergenceUser(message: GetConvergenceUser): Unit = {
+    val GetConvergenceUser(username) = message
+    reply(userStore.getUserByUsername(username))
+  }
+  
+  def getConvergenceUsers(): Unit = {
+    reply(userStore.getUsers())
   }
 
   def deleteConvergenceUser(message: DeleteConvergenceUserRequest): Unit = {
-    val origSender = sender
-    userStore.deleteUser(message.username) map {
-      case DeleteSuccess => {
-        // FIXME: Delete all domains for that user
-        origSender ! DeleteSuccess
-      }
-      case NotFound => origSender ! NotFound
-    }
+    val DeleteConvergenceUserRequest(username) = message;
+    
+    val result = (domainStoreActor ? DeleteDomainsForUserRequest(username)).mapTo[Unit] flatMap ( _ =>
+       FutureUtils.tryToFuture(userStore.deleteUser(username)) 
+    )
+    
+    reply(result)
   }
 
   private[this] def createDomain(username: String, id: String, displayName: String): Future[CreateResult[Unit]] = {

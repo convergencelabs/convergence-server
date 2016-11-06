@@ -38,14 +38,19 @@ abstract class StoreActor private[datastore] extends Actor with ActorLogging {
   }
 
   def reply[T](future: Future[T])(implicit ec: ExecutionContext): Unit = {
+    mapAndReply(future)(defaultMapper)(ec)
+  }
+  
+  def mapAndReply[T](future: Future[T])(mapper: Function[T, Any])(implicit ec: ExecutionContext): Unit = {
+    val currentSender = sender
     future onComplete {
-      case s: Success[T] =>
-        sender ! (mapReply(s, defaultMapper))
+      case Success(s) =>
+        currentSender ! mapper(s)
       case Failure(cause) =>
-        Status.Failure(cause)
+        currentSender ! Status.Failure(cause)
     }
   }
-
+  
   def mapReply[T](t: Try[T], f: Function[T, Any]): Any = {
     t match {
       case Failure(cause) =>

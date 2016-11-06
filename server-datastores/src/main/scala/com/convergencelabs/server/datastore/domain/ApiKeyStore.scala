@@ -24,10 +24,10 @@ import com.convergencelabs.server.datastore.DeleteSuccess
 import java.util.{ List => JavaList }
 import scala.collection.JavaConverters._
 import java.time.Instant
-import com.convergencelabs.server.datastore.domain.ApiKeyStore.CreateKey
+import com.convergencelabs.server.datastore.domain.ApiKeyStore.KeyInfo
 
 object ApiKeyStore {
-  case class CreateKey(id: String, description: String, key: String, enabled: Boolean)
+  case class KeyInfo(id: String, description: String, key: String, enabled: Boolean)
 }
 
 class ApiKeyStore private[datastore] (
@@ -53,8 +53,8 @@ class ApiKeyStore private[datastore] (
     QueryUtil.mapSingletonList(result) { _.asTokenPublicKey }
   }
 
-  def createKey(key: CreateKey): Try[CreateResult[Unit]] = tryWithDb { db =>
-    val CreateKey(id, descriptin, keyString, enabled) = key
+  def createKey(key: KeyInfo): Try[CreateResult[Unit]] = tryWithDb { db =>
+    val KeyInfo(id, descriptin, keyString, enabled) = key
     val tokenKey = TokenPublicKey(id, descriptin, Instant.now(), keyString, enabled)
 
     try {
@@ -65,11 +65,14 @@ class ApiKeyStore private[datastore] (
     }
   }
 
-  def updateKey(key: TokenPublicKey): Try[UpdateResult] = tryWithDb { db =>
-    val updatedDoc = key.asODocument
+  def updateKey(info: KeyInfo): Try[UpdateResult] = tryWithDb { db =>
+    val KeyInfo(keyId, descr, key, enabled) = info
+    val updateKey = TokenPublicKey(keyId, descr, Instant.now(), key, enabled)
+    
+    val updatedDoc = updateKey.asODocument
     val queryString = "SELECT FROM TokenPublicKey WHERE id = :id"
     val query = new OSQLSynchQuery[ODocument](queryString)
-    val params = Map(Id -> key.id)
+    val params = Map(Id ->keyId)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
     QueryUtil.enforceSingletonResultList(result) match {

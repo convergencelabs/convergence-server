@@ -101,6 +101,12 @@ class UserStore private[datastore] (
     val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
     QueryUtil.mapSingletonList(results) { _.asUser }
   }
+  
+  def getUsers(): Try[List[User]] = tryWithDb { db =>
+    val query = new OSQLSynchQuery[ODocument]("SELECT FROM User")
+    val results: JavaList[ODocument] = db.command(query).execute()
+    results.asScala.toList.map (_.asUser)
+  }
 
   /**
    * Checks to see if a given username exists in the system.

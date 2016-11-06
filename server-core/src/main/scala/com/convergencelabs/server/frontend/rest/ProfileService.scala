@@ -35,7 +35,7 @@ import com.convergencelabs.server.domain.RestAuthnorizationActor.AuthorizationDe
 import com.convergencelabs.server.domain.RestAuthnorizationActor.AuthorizationResult
 import com.convergencelabs.server.datastore.UpdateResult
 import com.convergencelabs.server.datastore.UpdateSuccess
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUserProfile
+import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUser
 import com.convergencelabs.server.User
 
 case class CovergenceUserProfile(username: String, email: String, firstName: String, lastName: String)
@@ -61,7 +61,7 @@ class ProfileService(
   }
 
   def getProfile(username: String): Future[RestResponse] = {
-    (convergenceUserActor ? GetConvergenceUserProfile(username)).mapTo[Option[User]].map {
+    (convergenceUserActor ? GetConvergenceUser(username)).mapTo[Option[User]].map {
       case Some(User(
         username: String,
         email: String,

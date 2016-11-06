@@ -22,6 +22,7 @@ import java.util.UUID
 import com.convergencelabs.server.domain.DomainDatabaseInfo
 import java.io.StringWriter
 import java.io.PrintWriter
+import com.convergencelabs.server.datastore.DomainStoreActor.DeleteDomainsForUserRequest
 
 class DomainStoreActor private[datastore] (
   private[this] val dbPool: OPartitionedDatabasePool,
@@ -43,6 +44,7 @@ class DomainStoreActor private[datastore] (
     case updateRequest: UpdateDomainRequest => updateDomain(updateRequest)
     case getRequest: GetDomainRequest       => getDomain(getRequest)
     case listRequest: ListDomainsRequest    => listDomains(listRequest)
+    case deleteForUser: DeleteDomainsForUserRequest    => deleteDomainsForUser(deleteForUser)
     case message: Any                       => unhandled(message)
   }
 
@@ -122,6 +124,28 @@ class DomainStoreActor private[datastore] (
       case _ => Success(NotFound)
     })
   }
+  
+  def deleteDomainsForUser(request: DeleteDomainsForUserRequest): Unit = {
+    val DeleteDomainsForUserRequest(username) = request
+    log.debug(s"Deleting domains for user: ${username}")
+    val result = domainStore.getDomainsByOwner(username) map { _.foreach { domain =>
+      log.debug(s"Looking up config for domain ${domain.domainFqn}")
+          domainStore.getDomainDatabaseInfo(domain.domainFqn) map { _.map { config =>
+            log.debug(s"Deleting domain: ${domain.domainFqn}")
+            // FIXME this is failing, not only does it now work but this
+            // mess of mapping and foreach'es doesn't actually propagate the error
+            // back at all.  Needs more work.
+            domainDBContoller.deleteDomain(config.database)
+            log.debug(s"Deleted database: ${domain.domainFqn}")
+            domainStore.removeDomain(domain.domainFqn)
+            log.debug(s"Deleted domain config: ${domain.domainFqn}")
+          }
+        }
+      } 
+    }
+    
+    reply(result)
+  }
 
   def getDomain(getRequest: GetDomainRequest): Unit = {
     val GetDomainRequest(namespace, domainId) = getRequest
@@ -142,4 +166,5 @@ object DomainStoreActor {
   case class DeleteDomainRequest(namespace: String, domainId: String)
   case class GetDomainRequest(namespace: String, domainId: String)
   case class ListDomainsRequest(username: String)
+  case class DeleteDomainsForUserRequest(username: String)
 }
