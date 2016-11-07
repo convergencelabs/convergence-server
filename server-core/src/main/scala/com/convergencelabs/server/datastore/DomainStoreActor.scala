@@ -42,10 +42,10 @@ class DomainStoreActor private[datastore] (
     case createRequest: CreateDomainRequest => createDomain(createRequest)
     case deleteRequest: DeleteDomainRequest => deleteDomain(deleteRequest)
     case updateRequest: UpdateDomainRequest => updateDomain(updateRequest)
-    case getRequest: GetDomainRequest       => getDomain(getRequest)
-    case listRequest: ListDomainsRequest    => listDomains(listRequest)
-    case deleteForUser: DeleteDomainsForUserRequest    => deleteDomainsForUser(deleteForUser)
-    case message: Any                       => unhandled(message)
+    case getRequest: GetDomainRequest => getDomain(getRequest)
+    case listRequest: ListDomainsRequest => listDomains(listRequest)
+    case deleteForUser: DeleteDomainsForUserRequest => deleteDomainsForUser(deleteForUser)
+    case message: Any => unhandled(message)
   }
 
   def createDomain(createRequest: CreateDomainRequest): Unit = {
@@ -124,27 +124,38 @@ class DomainStoreActor private[datastore] (
       case _ => Success(NotFound)
     })
   }
-  
+
   def deleteDomainsForUser(request: DeleteDomainsForUserRequest): Unit = {
     val DeleteDomainsForUserRequest(username) = request
     log.debug(s"Deleting domains for user: ${username}")
-    val result = domainStore.getDomainsByOwner(username) map { _.foreach { domain =>
-      log.debug(s"Looking up config for domain ${domain.domainFqn}")
-          domainStore.getDomainDatabaseInfo(domain.domainFqn) map { _.map { config =>
-            log.debug(s"Deleting domain: ${domain.domainFqn}")
-            // FIXME this is failing, not only does it now work but this
-            // mess of mapping and foreach'es doesn't actually propagate the error
-            // back at all.  Needs more work.
-            domainDBContoller.deleteDomain(config.database)
-            log.debug(s"Deleted database: ${domain.domainFqn}")
-            domainStore.removeDomain(domain.domainFqn)
-            log.debug(s"Deleted domain config: ${domain.domainFqn}")
+
+    domainStore.getAllDomainInfoForUser(username) map { domains =>
+      // FIXME we need to review what happens when something fails.
+      // we will eventually delete the user and then we won't be
+      // able to look up the domains again.
+      sender ! (())
+      
+      domains.foreach {
+        case (domain, info) =>
+          log.debug(s"Deleting domain database for ${domain.domainFqn}: ${info.database}")
+          domainDBContoller.deleteDomain(info.database) flatMap { _ =>
+            log.debug(s"Domain database deleted: ${info.database}")
+            log.debug(s"Removing domain record: ${domain.domainFqn}")
+            val result = domainStore.removeDomain(domain.domainFqn)
+            log.debug(s"Domain record removed: ${domain.domainFqn}")
+            result
+          } match {
+            case Failure(f) =>
+              log.error(f, s"Error deleting domain: ${domain.domainFqn}")
+            case _ =>
+              log.debug(s"Domain deleted: ${domain.domainFqn}")
           }
-        }
-      } 
+      }
+    } match {
+      case Failure(f) =>
+        log.error(f, s"Error deleting domains for user: ${username}")
+      case _ =>
     }
-    
-    reply(result)
   }
 
   def getDomain(getRequest: GetDomainRequest): Unit = {
@@ -159,7 +170,7 @@ class DomainStoreActor private[datastore] (
 
 object DomainStoreActor {
   def props(dbPool: OPartitionedDatabasePool,
-            ec: ExecutionContext): Props = Props(new DomainStoreActor(dbPool, ec))
+    ec: ExecutionContext): Props = Props(new DomainStoreActor(dbPool, ec))
 
   case class CreateDomainRequest(namespace: String, domainId: String, displayName: String, owner: String)
   case class UpdateDomainRequest(namespace: String, domainId: String, displayName: String)

@@ -98,6 +98,19 @@ class DomainStore (dbPool: OPartitionedDatabasePool)
       DomainDatabaseInfo(doc.field("dbName"), doc.field("dbUsername"), doc.field("dbPassword"))
     }
   }
+  
+  def getAllDomainInfoForUser(username: String): Try[List[(Domain,DomainDatabaseInfo)]] = tryWithDb { db =>
+    val queryString = "SELECT * FROM Domain WHERE owner.username = :username"
+    val query = new OSQLSynchQuery[ODocument](queryString)
+    val params = Map("username" -> username)
+
+    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
+    result.asScala.toList map { doc =>
+      val domain = doc.asDomain
+      val info = DomainDatabaseInfo(doc.field("dbName"), doc.field("dbUsername"), doc.field("dbPassword"))
+      (domain, info)
+    }
+  }
 
   def getDomainByFqn(domainFqn: DomainFqn): Try[Option[Domain]] = tryWithDb { db =>
     val queryString = "SELECT FROM Domain WHERE namespace = :namespace AND domainId = :domainId"

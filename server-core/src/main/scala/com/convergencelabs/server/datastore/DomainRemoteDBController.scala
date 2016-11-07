@@ -134,8 +134,11 @@ class DomainDBController(
       }
   }
 
-  def deleteDomain(id: String): Unit = {
-    val serverAdmin = new OServerAdmin(s"${BaseDbUri}/${id}")
-    serverAdmin.connect(AdminUser, AdminPassword).dropDatabase(id).close()
+  def deleteDomain(dbName: String): Try[Unit] = Try {
+    val serverAdmin = new OServerAdmin(s"${BaseDbUri}/${dbName}")
+    serverAdmin
+      .connect(AdminUser, AdminPassword)
+      .dropDatabase(StorageMode)
+      .close()
   }
 }
