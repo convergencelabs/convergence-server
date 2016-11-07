@@ -27,12 +27,18 @@ import com.orientechnologies.orient.client.remote.OServerAdmin
 import com.convergencelabs.server.schema.OrientSchemaManager
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.convergencelabs.server.schema.DBType
+import com.orientechnologies.orient.core.config.OGlobalConfiguration
+import com.orientechnologies.orient.core.exception.OStorageException
+import scala.util.Try
+import scala.util.Success
+import scala.util.Failure
+import java.time.Duration
 
 object ConvergenceServerNode extends Logging {
   def main(args: Array[String]): Unit = {
     val options = ServerCLIConf(args)
     options.verify();
-    
+
     val configFile = new File(options.config.get.get)
 
     if (!configFile.exists()) {
@@ -71,7 +77,8 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
       if (convergenceDbConfig.hasPath("auto-install") && convergenceDbConfig.getBoolean("auto-install")) {
         val adminUser = orientDbConfig.getString("admin-username")
         val adminPassword = orientDbConfig.getString("admin-password")
-        bootstrapConvergenceDB(fullUri, adminUser, adminPassword, username, password)
+        val retryDelay = convergenceDbConfig.getDuration("retry-delay")
+        bootstrapConvergenceDB(fullUri, adminUser, adminPassword, username, password, retryDelay)
       }
 
       dbPool = Some(new OPartitionedDatabasePool(fullUri, username, password))
@@ -107,8 +114,12 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
     this.nodeSystem = Some(system)
   }
 
-  def bootstrapConvergenceDB(uri: String, adminUser: String, adminPassword: String, username: String, password: String): Unit = {
-    val serverAdmin = new OServerAdmin(uri).connect(adminUser, adminPassword)
+  def bootstrapConvergenceDB(uri: String, adminUser: String, adminPassword: String, username: String, password: String, retryDelay: Duration): Unit = {
+    logger.info("Attempting to connect to OrientDB for the first time")
+    val connectTries = Iterator.continually(attemptConnect(uri, adminUser, adminPassword, retryDelay))
+    val serverAdmin = connectTries.dropWhile(_.isEmpty).next().get
+    logger.info("Connected to OrientDB")
+
     if (!serverAdmin.existsDatabase()) {
       serverAdmin.createDatabase("document", "plocal").close()
       val db = new ODatabaseDocumentTx(uri)
@@ -121,6 +132,17 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
       }
     } else {
       serverAdmin.close()
+    }
+  }
+
+  def attemptConnect(uri: String, adminUser: String, adminPassword: String, retryDelay: Duration) = {
+    Try(new OServerAdmin(uri).connect(adminUser, adminPassword)) match {
+      case Success(serverAdmin) => Some(serverAdmin)
+      case Failure(e) => {
+        logger.warn(s"Unable to connect to OrientDB, retrying in ${retryDelay.toMillis()}ms")
+        Thread.sleep(retryDelay.toMillis())
+        None
+      }
     }
   }
 
