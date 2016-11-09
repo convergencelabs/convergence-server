@@ -8,7 +8,7 @@ require_env_var() {
   fi
 }
 
-echo "Convergence UI Container starting up.  Checking required environment variables."
+echo "Convergence Server Node Container starting up.  Checking required environment variables."
 
 # ensure the following environment variables are set. exit script and container if not set.
 

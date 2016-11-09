@@ -126,7 +126,6 @@ class AuthenticationHandler(
       .setRequireExpirationTime()
       .setAllowedClockSkewInSeconds(AuthenticationHandler.AllowedClockSkew)
       .setRequireSubject()
-      .setExpectedIssuer(JwtConstants.Issuer)
       .setExpectedAudience(JwtConstants.Audiance)
       .setVerificationKey(publicKey)
       .build()
