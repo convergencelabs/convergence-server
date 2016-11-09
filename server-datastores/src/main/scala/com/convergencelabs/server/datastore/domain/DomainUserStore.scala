@@ -223,7 +223,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    * @return Some(DomainUser) if a user with the specified username exists, or None if no such user exists.
    */
   def getDomainUserByUsername(username: String): Try[Option[DomainUser]] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username = :username AND userType = 'normal'")
+    val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username = :username")
     val params = Map(Username -> username)
     val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
     QueryUtil.mapSingletonList(results) { _.asDomainUser }
@@ -237,7 +237,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    * @return A list of users matching the list of supplied usernames.
    */
   def getDomainUsersByUsername(usernames: List[String]): Try[List[DomainUser]] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username in :usernames AND userType = 'normal'")
+    val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username in :usernames")
     val params = Map("usernames" -> usernames.asJava)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     result.asScala.toList.map { _.asDomainUser }
