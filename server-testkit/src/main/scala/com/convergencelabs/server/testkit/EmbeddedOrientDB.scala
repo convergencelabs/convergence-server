@@ -16,11 +16,15 @@ class EmbeddedOrientDB extends Logging {
     logger.info("Starting up embedded OrientDB")
     val odbTarget = new File("target/orientdb")
 
-    if (odbTarget.exists()) {
+    val persistent = java.lang.Boolean.getBoolean("convergence.test-server.persistent")
+    
+    if (!persistent && odbTarget.exists()) {
       FileUtils.deleteDirectory(odbTarget)
     }
-
-    odbTarget.mkdirs()
+    
+    if (odbTarget.exists()) {
+      odbTarget.mkdirs()
+    }
 
     val configFile = getClass.getResourceAsStream("/orientdb-server-config.xml")
     server.startup(configFile)

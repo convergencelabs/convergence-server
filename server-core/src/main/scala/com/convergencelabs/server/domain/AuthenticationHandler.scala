@@ -115,7 +115,7 @@ class AuthenticationHandler(
         case Some((publicKey, admin)) =>
           authenticateTokenWithPublicKey(authRequest, publicKey, admin)
         case None =>
-          logger.warn("Request to authenticate via token, with an invalid keyId")
+          logger.warn(s"Request to authenticate via token, with an invalid keyId: ${keyId}")
           AuthenticationFailure
       }
     }

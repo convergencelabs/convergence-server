@@ -89,7 +89,7 @@ class ConvergenceJwtUtil(
   def generateToken(username: String, claims: Map[String, Any] = Map()): Try[String] = Try {
     // Create the claims with the basic info.
     val jwtClaims = new JwtClaims()
-    jwtClaims.setIssuer(JwtConstants.Issuer)
+    jwtClaims.setIssuer("ConvergenceJwtUtil")
     jwtClaims.setAudience(JwtConstants.Audiance)
     jwtClaims.setGeneratedJwtId()
     jwtClaims.setExpirationTimeMinutesInTheFuture(expirationMinutes)
