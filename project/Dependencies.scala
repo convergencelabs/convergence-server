@@ -41,7 +41,7 @@ object Dependencies {
     val loggingAll = Seq(grizzledSlf4j, log4jSlf4J, log4jApi, log4jCore, log4jJul)
   
     // Crypto
-    val jose4j             = "org.bitbucket.b_c"        % "jose4j"                        % "0.4.4"                     // Apache 2.0
+    val jose4j             = "org.bitbucket.b_c"        % "jose4j"                        % "0.5.2"                     // Apache 2.0
     val bouncyCastle       = "org.bouncycastle"         % "bcpkix-jdk15on"                % "1.52"                      // MIT
     val scrypt             = "com.lambdaworks"          % "scrypt"                        % "1.4.0"                     // Apache 2.0
   
