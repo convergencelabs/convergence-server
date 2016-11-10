@@ -140,13 +140,11 @@ class AuthenticationHandler(
       case true => userStore.domainUserExists(username)
       case false => userStore.adminUserExists(username)
     }
-    
-    if (exists == null)
-      println("\n\n###" + username)
 
     exists flatMap {
       case true =>
         logger.debug("User specificed in token already exists, returning auth success.")
+        // FIXME We need to update the users info based on any provided claims.
         userStore.nextSessionId map (id => AuthenticationSuccess(username, SessionKey(username, id)))
       case false =>
         logger.error("User specificed in token does not exist exist, creating.")
