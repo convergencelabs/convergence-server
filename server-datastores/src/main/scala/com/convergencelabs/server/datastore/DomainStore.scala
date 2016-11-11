@@ -87,7 +87,7 @@ class DomainStore (dbPool: OPartitionedDatabasePool)
   }
 
   def getDomainDatabaseInfo(domainFqn: DomainFqn): Try[Option[DomainDatabaseInfo]] = tryWithDb { db =>
-    val queryString = "SELECT dbName, dbUsername, dbPassword FROM Domain WHERE namespace = :namespace AND domainId = :domainId"
+    val queryString = "SELECT dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword FROM Domain WHERE namespace = :namespace AND domainId = :domainId"
     val query = new OSQLSynchQuery[ODocument](queryString)
 
     val params = Map(
