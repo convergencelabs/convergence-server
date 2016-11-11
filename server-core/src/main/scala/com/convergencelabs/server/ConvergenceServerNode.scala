@@ -121,14 +121,19 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
     logger.info("Connected to OrientDB")
 
     if (!serverAdmin.existsDatabase()) {
+      logger.info("Bootstrapping database")
       serverAdmin.createDatabase("document", "plocal").close()
       val db = new ODatabaseDocumentTx(uri)
       db.open(username, password)
-      try {
-        val schemaManager = new OrientSchemaManager(db, DBType.Convergence)
-        schemaManager.upgradeToVersion(1)
-      } finally {
-        db.close()
+      val schemaManager = new OrientSchemaManager(db, DBType.Convergence)
+
+      // FIXME make this a config
+      schemaManager.upgradeToVersion(2) match {
+        case Success(_) =>
+          logger.info("Databes bootstrapping complete")
+        case Failure(f) =>
+          logger.error("Databes bootstrapping failed.", f)
+          db.close()
       }
     } else {
       serverAdmin.close()

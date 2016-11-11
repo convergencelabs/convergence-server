@@ -22,6 +22,7 @@ require_env_var "$orient_conv_pass" "orient_conv_pass"
 
 require_env_var "$admin_ui_url" "admin_ui_url"
 require_env_var "$registration_base_url" "registration_base_url"
+require_env_var "$randomize_db_credentials" "randomize_db_credentials"
 
 echo "All required variables are set.  Booting."
 echo ""

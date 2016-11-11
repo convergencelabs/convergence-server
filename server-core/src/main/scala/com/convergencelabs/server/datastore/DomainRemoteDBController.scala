@@ -25,6 +25,10 @@ import akka.stream.ActorMaterializer
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.schema.OrientSchemaManager
 import com.convergencelabs.server.schema.DBType.Domain
+import com.orientechnologies.orient.core.metadata.security.OUser
+
+import DomainRemoteDBController._
+import com.convergencelabs.server.domain.DomainDatabaseInfo
 
 object DomainRemoteDBController {
   val DefaultSnapshotConfig = ModelSnapshotConfig(
@@ -37,23 +41,22 @@ object DomainRemoteDBController {
     false,
     JavaDuration.of(0, ChronoUnit.MINUTES),
     JavaDuration.of(0, ChronoUnit.MINUTES))
+    
+  val OrientDefaultAdmin = "admin"
+  val OrientDefaultReader = "reader"
+  val OrientDefaultWriter = "writer"
 }
 
 case class DBConfig(dbName: String, username: String, password: String)
 
 class DomainDBController(
   val orientDbConfig: Config,
-  val domainDbConfig: Config,
   implicit val system: ActorSystem)
     extends Logging {
 
   val AdminUser = orientDbConfig.getString("admin-username")
   val AdminPassword = orientDbConfig.getString("admin-password")
   val BaseDbUri = orientDbConfig.getString("db-uri")
-  val BaseRestUri = orientDbConfig.getString("rest-uri")
-
-  val Username = domainDbConfig.getString("username")
-  val DefaultPassword = domainDbConfig.getString("default-password")
 
   val DBType = "document"
   val StorageMode = "plocal"
@@ -67,36 +70,59 @@ class DomainDBController(
     }
   }
 
-  def createDomain(
-    dbName: String,
-    dbPassword: String): Future[Unit] = {
+  def createDomain(dbInfo: DomainDatabaseInfo): Future[Unit] = {
+    val DomainDatabaseInfo(dbName, adminUsername, adminPassword, normalUsername, normalPassword) = dbInfo
     val uri = s"${BaseDbUri}/${dbName}"
 
     logger.debug(s"Creating domain database: $uri")
     val serverAdmin = new OServerAdmin(uri)
     serverAdmin.connect(AdminUser, AdminPassword)
-      .createDatabase(DBType, StorageMode)
+      .createDatabase(DBType, StorageMode)      
       .close()
     logger.debug(s"Domain database created at: $uri")
 
-    // TODO we need to figure out how to set the admin user's password.
+    // Orient DB has three default users. admin, reader and writer. They all 
+    // get created with their passwords equal to their usernames. We want
+    // to change the admin and writer and delete the reader.
     val db = new ODatabaseDocumentTx(uri)
     db.open(AdminUser, AdminPassword)
-
+    
+    // Change the admin username / password and then reconnect
+    val adminUser = db.getMetadata().getSecurity().getUser(OrientDefaultAdmin)
+    adminUser.setName(adminUsername)
+    adminUser.setPassword(adminPassword)
+    adminUser.save()
+    
+    // Close and reconnect with the new credentials to make sure everything
+    // we set properly.
+    db.close()
+    db.open(adminUsername, adminPassword)
+    
+    // Change the username and password of the normal user
+    val normalUser = db.getMetadata().getSecurity().getUser(OrientDefaultWriter)
+    normalUser.setName(normalUsername)
+    normalUser.setPassword(normalPassword)
+    normalUser.save()
+    
+    // Delete the reader user since we do not need it.
+    db.getMetadata().getSecurity().getUser(OrientDefaultReader).getDocument().delete()
+    
     tryToFuture(Try {
       // FIXME make sure this becomes asynchronous.
       val schemaManager = new OrientSchemaManager(db, Domain)
+      
+      // FIXME make this a config
       schemaManager.upgradeToVersion(1)
       db.close()
       logger.debug(s"Base domain schema created: $uri")
     } flatMap { x =>
-      initDomain(uri, dbPassword)
+      initDomain(uri, adminUsername, adminPassword)
     })
   }
 
-  private[this] def initDomain(uri: String, password: String): Try[Unit] = Try {
+  private[this] def initDomain(uri: String, username: String, password: String): Try[Unit] = Try {
     logger.debug(s"Initializing domain: $uri")
-    val pool = new OPartitionedDatabasePool(uri, Username, password, 64, 1)
+    val pool = new OPartitionedDatabasePool(uri, username, password, 64, 1)
     val persistenceProvider = new DomainPersistenceProvider(pool)
     persistenceProvider.validateConnection()
     logger.debug(s"Connected to domain database: $uri")

@@ -30,13 +30,11 @@ class DomainStoreActor private[datastore] (
     extends StoreActor with ActorLogging {
 
   private[this] val orientDbConfig: Config = context.system.settings.config.getConfig("convergence.orient-db")
-  private[this] val domainDbConfig: Config = context.system.settings.config.getConfig("convergence.domain-databases")
-  private[this] val Username = domainDbConfig.getString("username")
-  private[this] val DefaultPassword = domainDbConfig.getString("default-password")
+  private[this] val RandomizeCredentials = context.system.settings.config.getBoolean("convergence.domain-databases.randomize-credentials")
 
   private[this] val domainStore: DomainStore = new DomainStore(dbPool)
 
-  private[this] val domainDBContoller = new DomainDBController(orientDbConfig, domainDbConfig, context.system)
+  private[this] val domainDBContoller = new DomainDBController(orientDbConfig, context.system)
 
   def receive: Receive = {
     case createRequest: CreateDomainRequest => createDomain(createRequest)
@@ -50,20 +48,32 @@ class DomainStoreActor private[datastore] (
 
   def createDomain(createRequest: CreateDomainRequest): Unit = {
     val CreateDomainRequest(namespace, domainId, displayName, ownerUsername) = createRequest
-    val dbName = UUID.randomUUID().getLeastSignificantBits().toString()
+    val dbName = Math.abs(UUID.randomUUID().getLeastSignificantBits()).toString()
 
-    // TODO we should be optionally randomizing the password and passing it in.
-    val password = DefaultPassword
+    val (adminUsername, adminPassword, normalUsername, normalPassword) = RandomizeCredentials match {
+      case false =>
+        ("admin", "admin", "writer", "writer")
+      case true =>
+        (UUID.randomUUID().toString(),
+          UUID.randomUUID().toString(),
+          UUID.randomUUID().toString(),
+          UUID.randomUUID().toString())
+    }
 
+    val domainDbInfo = DomainDatabaseInfo(
+        dbName,
+        normalUsername,
+        normalPassword,
+        adminUsername,
+        adminPassword)
+    
     val domainFqn = DomainFqn(namespace, domainId)
 
     val result = domainStore.createDomain(
       domainFqn,
       displayName,
       ownerUsername,
-      DomainDatabaseInfo(dbName,
-        Username,
-        password))
+      domainDbInfo)
 
     reply(result)
 
@@ -71,7 +81,7 @@ class DomainStoreActor private[datastore] (
     // functions to the CreateResult class.
     result foreach {
       case CreateSuccess(()) =>
-        domainDBContoller.createDomain(dbName, password) onComplete {
+        domainDBContoller.createDomain(domainDbInfo) onComplete {
           case Success(()) =>
             log.debug(s"Domain created, setting status to online: $dbName")
             domainStore.getDomainByFqn(domainFqn) map (_.map { domain =>
@@ -134,7 +144,7 @@ class DomainStoreActor private[datastore] (
       // we will eventually delete the user and then we won't be
       // able to look up the domains again.
       sender ! (())
-      
+
       domains.foreach {
         case (domain, info) =>
           log.debug(s"Deleting domain database for ${domain.domainFqn}: ${info.database}")

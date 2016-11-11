@@ -56,6 +56,8 @@ class DomainStore (dbPool: OPartitionedDatabasePool)
           doc.field("dbName", dbInfo.database)
           doc.field("dbUsername", dbInfo.username)
           doc.field("dbPassword", dbInfo.password)
+          doc.field("dbAdminUsername", dbInfo.adminUsername)
+          doc.field("dbAdminPassword", dbInfo.adminPassword)
           db.save(doc)
           CreateSuccess(())
         }
@@ -95,7 +97,12 @@ class DomainStore (dbPool: OPartitionedDatabasePool)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
     QueryUtil.mapSingletonList(result) { doc =>
-      DomainDatabaseInfo(doc.field("dbName"), doc.field("dbUsername"), doc.field("dbPassword"))
+      DomainDatabaseInfo(
+          doc.field("dbName"), 
+          doc.field("dbUsername"), 
+          doc.field("dbPassword"),
+          doc.field("dbAdminUsername"), 
+          doc.field("dbAdminPassword"))
     }
   }
   
@@ -107,7 +114,12 @@ class DomainStore (dbPool: OPartitionedDatabasePool)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     result.asScala.toList map { doc =>
       val domain = doc.asDomain
-      val info = DomainDatabaseInfo(doc.field("dbName"), doc.field("dbUsername"), doc.field("dbPassword"))
+      val info =  DomainDatabaseInfo(
+          doc.field("dbName"), 
+          doc.field("dbUsername"), 
+          doc.field("dbPassword"),
+          doc.field("dbAdminUsername"), 
+          doc.field("dbAdminPassword"))
       (domain, info)
     }
   }

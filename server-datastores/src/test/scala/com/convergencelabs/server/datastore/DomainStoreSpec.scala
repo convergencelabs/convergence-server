@@ -33,6 +33,11 @@ class DomainStoreSpec
   
   val root = "root"
   
+  val DbAdminUsername = "admin"
+  val DbAdminPassword = "admin"
+  val DbNormalUsername = "writer"
+  val DbNormalPassword = "writer"
+  
   val user = User("test", "test@convergence.com", "test", "test")
 
   "A DomainStore" when {
@@ -70,12 +75,15 @@ class DomainStoreSpec
           DomainStatus.Initializing,
           "")
 
-        val id = store.createDomain(fqn, "Test Domain 4", user.username, DomainDatabaseInfo(dbName, root, root)).success
+        val id = store.createDomain(fqn, "Test Domain 4", user.username, DomainDatabaseInfo(
+            dbName, DbNormalUsername, DbNormalPassword, DbAdminUsername, DbAdminPassword)).success
+            
         store.getDomainByFqn(fqn).success.get.value shouldBe domain
-        store.getDomainDatabaseInfo(fqn).success.get.value shouldBe DomainDatabaseInfo(dbName, root, root)
+        store.getDomainDatabaseInfo(fqn).success.get.value shouldBe DomainDatabaseInfo(
+            dbName, DbNormalUsername, DbNormalPassword, DbAdminUsername, DbAdminPassword)
       }
 
-      "return a failure if the domain exists" in withPersistenceStore { store =>
+      "return a DuplicateValue if the domain exists" in withPersistenceStore { store =>
         val id = "t1"
         val domain = Domain(
           ns1d1,
@@ -84,7 +92,8 @@ class DomainStoreSpec
           DomainStatus.Initializing, 
           "")
 
-        store.createDomain(ns1d1, "Test Domain 1", user.username, DomainDatabaseInfo(id, root, root)).success.get shouldBe DuplicateValue
+        store.createDomain(ns1d1, "Test Domain 1", user.username, DomainDatabaseInfo(
+            id, DbNormalUsername, DbNormalPassword, DbAdminUsername, DbAdminPassword)).success.get shouldBe DuplicateValue
       }
     }
 
