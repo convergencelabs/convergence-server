@@ -56,6 +56,7 @@ class ActivityServiceActor private[domain] (domainFqn: DomainFqn) extends Actor 
     case leaveRequest: ActivityLeave => getAndForward(leaveRequest.activityId, leaveRequest)
     case participantsRequest: ActivityParticipantsRequest => participantRequest(participantsRequest.activityId, participantsRequest)
     case setState: ActivitySetState => getAndForward(setState.activityId, setState)
+    case removeState: ActivitySetState => getAndForward(removeState.activityId, removeState)
     case clearState: ActivityClearState => getAndForward(clearState.activityId, clearState)
     case shutdown: ActivityShutdownRequest => handleShutdownRequest(shutdown)
   }
