@@ -20,6 +20,9 @@ require_env_var "$orient_admin_pass" "orient_admin_pass"
 require_env_var "$orient_conv_user" "orient_conv_user"
 require_env_var "$orient_conv_pass" "orient_conv_pass"
 
+require_env_var "$admin_rest_user" "admin_rest_user"
+require_env_var "$admin_rest_password" "admin_rest_password"
+
 require_env_var "$admin_ui_url" "admin_ui_url"
 require_env_var "$registration_base_url" "registration_base_url"
 require_env_var "$randomize_db_credentials" "randomize_db_credentials"
