@@ -86,13 +86,23 @@ class ModelManagerActorSpec
     "requested to create a model" must {
       "return ModelCreated if the model does not exist" in new TestFixture {
         val client = new TestProbe(system)
-        modelManagerActor.tell(CreateModelRequest(nonExistentModelFqn, ObjectValue("", Map())), client.ref)
+        val ModelFqn(cId, mId) = nonExistentModelFqn
+        val data = ObjectValue("", Map())
+        
+        val now = Instant.now()
+        Mockito.when(modelStore.createModel(cId, Some(mId), data))
+          .thenReturn(Success(Model(ModelMetaData(nonExistentModelFqn, 0L, now, now), data)))
+
+        modelManagerActor.tell(CreateModelRequest(cId, Some(mId), data), client.ref)
         client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelCreated)
       }
 
       "return ModelAlreadyExists if the model exists" in new TestFixture {
         val client = new TestProbe(system)
-        modelManagerActor.tell(CreateModelRequest(modelFqn, ObjectValue("", Map())), client.ref)
+        val ModelFqn(cId, mId) = modelFqn
+        val data = ObjectValue("", Map())
+        
+        modelManagerActor.tell(CreateModelRequest(cId, Some(mId), data), client.ref)
         client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelAlreadyExists)
       }
     }
@@ -152,6 +162,8 @@ class ModelManagerActorSpec
     val collectionStore = mock[CollectionStore]
     Mockito.when(collectionStore.getOrCreateCollection(collectionId))
       .thenReturn(Success(Collection(collectionId, "", false, None)))
+    Mockito.when(collectionStore.ensureCollectionExists(collectionId))
+      .thenReturn(Success(()))
 
     val domainPersistence = mock[DomainPersistenceProvider]
     Mockito.when(domainPersistence.modelStore).thenReturn(modelStore)

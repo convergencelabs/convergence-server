@@ -26,6 +26,8 @@ import com.convergencelabs.server.UnknownErrorResponse
 import scala.util.Try
 import akka.actor.Status
 import akka.actor.Terminated
+import com.convergencelabs.server.domain.model.data.ObjectValue
+import scala.util.control.NonFatal
 
 case class QueryModelsRequest(collection: Option[String], limit: Option[Int], offset: Option[Int], orderBy: Option[QueryOrderBy])
 case class QueryOrderBy(field: String, ascending: Boolean)
@@ -61,8 +63,10 @@ class ModelManagerActor(
         // Model not already open, load it
         val resourceId = "" + nextModelResourceId
         nextModelResourceId += 1
-        getSnapshotConfigForModel(openRequest.modelFqn.collectionId) match {
-          case Success(snapshotConfig) =>
+        val collectionId = openRequest.modelFqn.collectionId
+        persistenceProvider.collectionStore.ensureCollectionExists(collectionId) flatMap (_ =>
+            getSnapshotConfigForModel(collectionId) 
+          ) flatMap { snapshotConfig =>
             val props = RealtimeModelActor.props(
               self,
               domainFqn,
@@ -78,7 +82,9 @@ class ModelManagerActor(
             this.openRealtimeModels += (openRequest.modelFqn -> modelActor)
             this.context.watch(modelActor)
             modelActor forward openRequest
-          case Failure(e) =>
+            Success(())
+        } recover {
+          case e: Exception =>
             sender ! UnknownErrorResponse("Could not open model")
         }
     }
@@ -95,42 +101,42 @@ class ModelManagerActor(
   }
 
   private[this] def onCreateModelRequest(createRequest: CreateModelRequest): Unit = {
-    val ModelFqn(collectionId, modelId) = createRequest.modelFqn
+    val CreateModelRequest(collectionId, modelId, data) = createRequest
     // FIXME perhaps these should be some expected error type, like InvalidArgument
     if (collectionId.length == 0) {
       sender ! UnknownErrorResponse("The collecitonId can not be empty when creating a model")
-    } else if (modelId.length == 0) {
-      sender ! UnknownErrorResponse("The modelId can not be empty when creating a model")
     } else {
-      persistenceProvider.modelStore.modelExists(createRequest.modelFqn) match {
-        case Success(true) =>
-          sender ! ModelAlreadyExists
-        case Success(false) =>
-          val createTime = Instant.now()
-          val model = Model(
-            ModelMetaData(
-              createRequest.modelFqn,
-              0,
-              createTime,
-              createTime),
-            createRequest.modelData)
-
-          try {
-            // FIXME all of this should work or not, together.
-            persistenceProvider.collectionStore.ensureCollectionExists(createRequest.modelFqn.collectionId)
-            persistenceProvider.modelStore.createModel(model)
-            persistenceProvider.modelSnapshotStore.createSnapshot(
-              ModelSnapshot(ModelSnapshotMetaData(createRequest.modelFqn, 0, createTime),
-                createRequest.modelData))
-
-            sender ! ModelCreated
-          } catch {
-            case e: IOException =>
-              sender ! UnknownErrorResponse("Could not create model: " + e.getMessage)
+      // FIXME is this worth doing, there is still a race condition here.  We should probably
+      // just create and have that method let us know of a duplicate
+      modelId match {
+        case Some(id) =>
+          persistenceProvider.modelStore.modelExists(ModelFqn(collectionId, id)) map {
+            case true =>
+              sender ! ModelAlreadyExists
+            case false =>
+              createModel(collectionId, modelId, data)
+          } recover {
+            case cause: Exception =>
+              sender ! akka.actor.Status.Failure(cause)
           }
-        case Failure(cause) =>
-          sender ! akka.actor.Status.Failure(cause)
+        case None =>
+          createModel(collectionId, None, data)
       }
+    }
+  }
+
+  private[this] def createModel(collectionId: String, modelId: Option[String], data: ObjectValue): Unit = {
+    // FIXME all of this should work or not, together. We also do this in two different places
+    // we should abstract this somewhere
+    persistenceProvider.collectionStore.ensureCollectionExists(collectionId) flatMap (_ =>
+      persistenceProvider.modelStore.createModel(collectionId, modelId, data)) map { model =>
+      val ModelMetaData(fqn, version, created, modeified) = model.metaData
+      val snapshot = ModelSnapshot(ModelSnapshotMetaData(fqn, version, created), model.data)
+      persistenceProvider.modelSnapshotStore.createSnapshot(snapshot)
+      sender ! ModelCreated
+    } recover {
+      case e: Exception =>
+        sender ! UnknownErrorResponse("Could not create model: " + e.getMessage)
     }
   }
 
@@ -138,7 +144,7 @@ class ModelManagerActor(
     persistenceProvider.modelStore.modelExists(deleteRequest.modelFqn) match {
       case Success(true) =>
         if (openRealtimeModels.contains(deleteRequest.modelFqn)) {
-          val closed =  openRealtimeModels(deleteRequest.modelFqn)
+          val closed = openRealtimeModels(deleteRequest.modelFqn)
           closed ! ModelDeleted
           openRealtimeModels -= deleteRequest.modelFqn
         }
@@ -150,10 +156,10 @@ class ModelManagerActor(
       case Failure(cause) => sender ! Status.Failure
     }
   }
-  
+
   private[this] def onQueryModelsRequest(request: QueryModelsRequest): Unit = {
     val QueryModelsRequest(collection, limit, offset, orderBy) = request
-    persistenceProvider.modelStore.queryModels(collection, limit, offset, orderBy map { ob => (ob.field, ob.ascending)}) match {
+    persistenceProvider.modelStore.queryModels(collection, limit, offset, orderBy map { ob => (ob.field, ob.ascending) }) match {
       case Success(result) => sender ! QueryModelsResponse(result)
       case Failure(cause) => sender ! Status.Failure(cause)
     }
@@ -164,11 +170,12 @@ class ModelManagerActor(
     openRealtimeModels.get(fqn) map (_ ! ModelShutdown)
     openRealtimeModels -= (fqn)
   }
-  
+
   private[this] def onActorDeath(actor: ActorRef): Unit = {
     // TODO might be more efficient ay to do this.
-    openRealtimeModels = openRealtimeModels filter { case (fqn, modelActorRef) =>
-      actor != modelActorRef
+    openRealtimeModels = openRealtimeModels filter {
+      case (fqn, modelActorRef) =>
+        actor != modelActorRef
     }
   }
 

@@ -335,7 +335,7 @@ class ModelClientActor(
 
   private[this] def onCreateRealtimeModelRequest(request: CreateRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
     val CreateRealtimeModelRequestMessage(collectionId, modelId, data) = request
-    val future = modelManager ? CreateModelRequest(ModelFqn(collectionId, modelId), data)
+    val future = modelManager ? CreateModelRequest(collectionId, modelId, data)
     future.mapResponse[CreateModelResponse] onComplete {
       case Success(ModelCreated) => cb.reply(CreateRealtimeModelSuccessMessage())
       case Success(ModelAlreadyExists) => cb.expectedError("model_alread_exists", "A model with the specifieid collection and model id already exists")

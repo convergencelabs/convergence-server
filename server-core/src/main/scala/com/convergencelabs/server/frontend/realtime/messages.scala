@@ -79,7 +79,7 @@ case class OperationSubmissionMessage(r: String, s: Long, v: Long, o: OperationD
 sealed trait IncomingModelRequestMessage extends IncomingProtocolRequestMessage
 case class OpenRealtimeModelRequestMessage(c: String, m: String, i: Boolean) extends IncomingModelRequestMessage
 case class CloseRealtimeModelRequestMessage(r: String) extends IncomingModelRequestMessage
-case class CreateRealtimeModelRequestMessage(c: String, m: String, d: ObjectValue) extends IncomingModelRequestMessage
+case class CreateRealtimeModelRequestMessage(c: String, m: Option[String], d: ObjectValue) extends IncomingModelRequestMessage
 case class DeleteRealtimeModelRequestMessage(c: String, m: String) extends IncomingModelRequestMessage
 
 

@@ -20,6 +20,8 @@ import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import scala.collection.JavaConverters._
 import com.convergencelabs.server.datastore.domain.mapper.ModelMapper._
 import com.convergencelabs.server.datastore.domain.mapper.ObjectValueMapper._
+import java.time.Instant
+import java.util.UUID
 
 object ModelStore {
   private val ModelClass = "Model"
@@ -48,21 +50,33 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool, operationSto
       .isDefined
   }
 
-  def createModel(model: Model): Try[Unit] = tryWithDb { db =>
+  def createModel(collectionId: String, modelId: Option[String], data: ObjectValue): Try[Model] = tryWithDb { db =>
     db.begin()
+    
+    val createdTime = Instant.now()
+    val modifiedTime = createdTime
+    val version = 0
     val modelDoc = new ODocument(ModelStore.ModelClass)
+    val computedModelId = modelId.getOrElse(UUID.randomUUID().toString)
 
-    val ModelMetaData(ModelFqn(collectionId, modelId), version, createdTime, modifiedTime) = model.metaData
     modelDoc.field(ModelStore.CollectionId, collectionId)
-    modelDoc.field(ModelStore.ModelId, modelId)
+    modelDoc.field(ModelStore.ModelId, computedModelId)
     modelDoc.field(ModelStore.Version, version)
     modelDoc.field(ModelStore.CreatedTime, Date.from(createdTime))
     modelDoc.field(ModelStore.ModifiedTime, Date.from(modifiedTime))
     modelDoc.save()
-    modelDoc.field(ModelStore.Data, OrientDataValueBuilder.objectValueToODocument(model.data, modelDoc))
+    modelDoc.field(ModelStore.Data, OrientDataValueBuilder.objectValueToODocument(data, modelDoc))
     modelDoc.save()
     db.commit()
-    Unit
+    
+    Model(
+      ModelMetaData(
+        ModelFqn(collectionId, computedModelId),
+        version,
+        createdTime,
+        modifiedTime
+      ),
+      data)
   }
 
   def deleteModel(fqn: ModelFqn): Try[Unit] = tryWithDb { db =>

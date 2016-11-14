@@ -73,33 +73,25 @@ class ModelStoreSpec
 
     "creating a model" must {
       "create a model that is not a duplicate model fqn" in withPersistenceStore { store =>
-        val modelFqn = ModelFqn(peopleCollectionId, "person4")
-        val time = Instant.now()
-        val model = Model(
-          ModelMetaData(
-            modelFqn,
-            0L,
-            time,
-            time),
-          ObjectValue("t1-data",
-            Map(("foo" -> StringValue("t1-foo", "bar")))))
-
-        store.createModel(model).success
-        store.getModel(modelFqn).success.value.value shouldBe model
+        val modelId = "person4"
+        val modelFqn = ModelFqn(peopleCollectionId, modelId)
+        
+        val data = ObjectValue(
+            "t1-data",
+            Map(("foo" -> StringValue("t1-foo", "bar"))))
+                
+        store.createModel(peopleCollectionId, Some(modelId), data).success
+        val model = store.getModel(modelFqn).success.value.value
+        model.metaData.fqn shouldBe modelFqn
+        model.metaData.version shouldBe 0
+        model.data shouldBe data
       }
 
-      "not create a model that is not a duplicate model fqn" in withPersistenceStore { store =>
-        val time = Instant.now()
-        val model = Model(
-          ModelMetaData(
-            person1,
-            0L,
-            time,
-            time),
-          ObjectValue("t2-data",
-            Map(("foo" -> StringValue("t2-foo", "bar")))))
-
-        store.createModel(model).failure.exception shouldBe a[ORecordDuplicatedException]
+      "not create a model that is a duplicate model fqn" in withPersistenceStore { store =>
+        val data = ObjectValue("t2-data",
+            Map(("foo" -> StringValue("t2-foo", "bar"))))
+            
+        store.createModel(person1.collectionId, Some(person1.modelId), data).failure.exception shouldBe a[ORecordDuplicatedException]
       }
     }
 

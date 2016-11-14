@@ -4,11 +4,10 @@ import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
+
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Success
-import org.json4s.JsonAST.JObject
-import org.json4s.JsonAST.JString
-import org.junit.runner.RunWith
+
 import org.mockito.ArgumentCaptor
 import org.mockito.Matchers
 import org.mockito.Mockito
@@ -16,25 +15,22 @@ import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.WordSpecLike
-import org.scalatest.junit.JUnitRunner
 import org.scalatest.mock.MockitoSugar
+
+import com.convergencelabs.server.UnknownErrorResponse
 import com.convergencelabs.server.datastore.domain.ModelOperationProcessor
 import com.convergencelabs.server.datastore.domain.ModelSnapshotStore
 import com.convergencelabs.server.datastore.domain.ModelStore
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.ModelSnapshotConfig
-import com.convergencelabs.server.domain.model.ot.StringInsertOperation
+import com.convergencelabs.server.domain.model.data.NullValue
+import com.convergencelabs.server.domain.model.data.ObjectValue
+import com.convergencelabs.server.domain.model.data.StringValue
+import com.convergencelabs.server.domain.model.ot.ObjectAddPropertyOperation
+
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
-import com.convergencelabs.server.UnknownErrorResponse
-import scala.util.Failure
-import scala.util.Success
-import com.convergencelabs.server.datastore.domain.CollectionStore
-import com.convergencelabs.server.domain.model.ot.ObjectAddPropertyOperation
-import com.convergencelabs.server.domain.model.data.ObjectValue
-import com.convergencelabs.server.domain.model.data.StringValue
-import com.convergencelabs.server.domain.model.data.NullValue
 
 // FIXME we really only check message types and not data.
 // scalastyle:off magic.number
@@ -111,6 +107,9 @@ class RealtimeModelActorSpec
         client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientModelDataRequest])
 
         // Now mock that the data is there.
+        val now = Instant.now()
+        Mockito.when(modelStore.createModel(modelFqn.collectionId, Some(modelFqn.modelId), modelJsonData))
+           .thenReturn(Success(Model(ModelMetaData(modelFqn, 0L, now, now), modelJsonData)))
         Mockito.when(modelStore.getModel(modelFqn)).thenReturn(Success(Some(modelData)))
         Mockito.when(modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)).thenReturn(Success(Some(modelSnapshotMetaData)))
 
@@ -128,7 +127,7 @@ class RealtimeModelActorSpec
 
         // Verify that the model and snapshot were created.
         // FIXME use arg capture to match it.
-        verify(modelStore, times(1)).createModel(Matchers.any())
+        verify(modelStore, times(1)).createModel(Matchers.any(), Matchers.any(), Matchers.any())
 
         val snapshotCaptor = ArgumentCaptor.forClass(classOf[ModelSnapshot])
 
