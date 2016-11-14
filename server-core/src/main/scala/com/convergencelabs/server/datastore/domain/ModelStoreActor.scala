@@ -1,26 +1,26 @@
 package com.convergencelabs.server.datastore
 
+import scala.util.Success
+
+import com.convergencelabs.server.datastore.ModelStoreActor.CreateModel
+import com.convergencelabs.server.datastore.ModelStoreActor.CreateOrUpdateModel
+import com.convergencelabs.server.datastore.ModelStoreActor.DeleteModel
+import com.convergencelabs.server.datastore.domain.CollectionStore
 import com.convergencelabs.server.datastore.domain.ModelStore
 import com.convergencelabs.server.domain.model.ModelFqn
+import com.convergencelabs.server.domain.model.data.ArrayValue
+import com.convergencelabs.server.domain.model.data.BooleanValue
+import com.convergencelabs.server.domain.model.data.DataValue
+import com.convergencelabs.server.domain.model.data.DoubleValue
+import com.convergencelabs.server.domain.model.data.NullValue
+import com.convergencelabs.server.domain.model.data.ObjectValue
+import com.convergencelabs.server.domain.model.data.StringValue
 
 import ModelStoreActor.GetModel
 import ModelStoreActor.GetModels
 import ModelStoreActor.GetModelsInCollection
 import akka.actor.ActorLogging
 import akka.actor.Props
-import com.convergencelabs.server.datastore.ModelStoreActor.DeleteModel
-import com.convergencelabs.server.datastore.ModelStoreActor.CreateModel
-import com.convergencelabs.server.datastore.ModelStoreActor.CreateOrUpdateModel
-import com.convergencelabs.server.domain.model.data.ObjectValue
-import apple.laf.JRSUIConstants.DoubleValue
-import com.convergencelabs.server.domain.model.data.DataValue
-import com.convergencelabs.server.domain.model.data.DoubleValue
-import com.convergencelabs.server.domain.model.data.StringValue
-import com.convergencelabs.server.domain.model.data.BooleanValue
-import com.convergencelabs.server.domain.model.data.ArrayValue
-import com.convergencelabs.server.domain.model.data.NullValue
-import scala.util.Success
-import com.convergencelabs.server.datastore.domain.CollectionStore
 
 object ModelStoreActor {
   def props(
