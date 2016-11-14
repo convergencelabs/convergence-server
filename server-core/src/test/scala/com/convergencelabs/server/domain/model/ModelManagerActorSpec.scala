@@ -32,6 +32,9 @@ import akka.testkit.TestKit
 import akka.testkit.TestProbe
 import com.convergencelabs.server.datastore.domain.CollectionStore
 import com.convergencelabs.server.domain.model.data.ObjectValue
+import com.convergencelabs.server.datastore.CreateSuccess
+import com.convergencelabs.server.datastore.DeleteSuccess
+import com.convergencelabs.server.datastore.NotFound
 
 @RunWith(classOf[JUnitRunner])
 class ModelManagerActorSpec
@@ -91,7 +94,7 @@ class ModelManagerActorSpec
         
         val now = Instant.now()
         Mockito.when(modelStore.createModel(cId, Some(mId), data))
-          .thenReturn(Success(Model(ModelMetaData(nonExistentModelFqn, 0L, now, now), data)))
+          .thenReturn(Success(CreateSuccess(Model(ModelMetaData(nonExistentModelFqn, 0L, now, now), data))))
 
         modelManagerActor.tell(CreateModelRequest(cId, Some(mId), data), client.ref)
         client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelCreated)
@@ -139,7 +142,9 @@ class ModelManagerActorSpec
 
     val modelStore = mock[ModelStore]
     Mockito.when(modelStore.modelExists(modelFqn)).thenReturn(Success(true))
+    Mockito.when(modelStore.deleteModel(modelFqn)).thenReturn(Success(DeleteSuccess))
     Mockito.when(modelStore.modelExists(nonExistentModelFqn)).thenReturn(Success(false))
+    Mockito.when(modelStore.deleteModel(nonExistentModelFqn)).thenReturn(Success(NotFound))
     Mockito.when(modelStore.getModel(modelFqn)).thenReturn(Success(Some(modelData)))
 
     val modelSnapshotStore = mock[ModelSnapshotStore]

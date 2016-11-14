@@ -22,6 +22,15 @@ import com.convergencelabs.server.datastore.domain.mapper.ModelMapper._
 import com.convergencelabs.server.datastore.domain.mapper.ObjectValueMapper._
 import java.time.Instant
 import java.util.UUID
+import com.convergencelabs.server.datastore.DeleteResult
+import com.convergencelabs.server.datastore.DeleteSuccess
+import com.convergencelabs.server.datastore.NotFound
+import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
+import com.convergencelabs.server.datastore.DuplicateValue
+import com.convergencelabs.server.datastore.CreateResult
+import com.convergencelabs.server.datastore.CreateSuccess
+import com.convergencelabs.server.datastore.UpdateResult
+import com.convergencelabs.server.datastore.InvalidValue
 
 object ModelStore {
   private val ModelClass = "Model"
@@ -50,7 +59,8 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool, operationSto
       .isDefined
   }
 
-  def createModel(collectionId: String, modelId: Option[String], data: ObjectValue): Try[Model] = tryWithDb { db =>
+  // FIXME this should return a create result.
+  def createModel(collectionId: String, modelId: Option[String], data: ObjectValue): Try[CreateResult[Model]] = tryWithDb { db =>
     db.begin()
     
     val createdTime = Instant.now()
@@ -69,17 +79,24 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool, operationSto
     modelDoc.save()
     db.commit()
     
-    Model(
+    CreateSuccess(Model(
       ModelMetaData(
         ModelFqn(collectionId, computedModelId),
         version,
         createdTime,
         modifiedTime
       ),
-      data)
+      data))
+  } recover {
+    case e: ORecordDuplicatedException => DuplicateValue
+  }
+  
+  def updateModel(fqn: ModelFqn, data: ObjectValue): Try[UpdateResult] = tryWithDb { db =>
+    // FIXME implement
+    InvalidValue
   }
 
-  def deleteModel(fqn: ModelFqn): Try[Unit] = tryWithDb { db =>
+  def deleteModel(fqn: ModelFqn): Try[DeleteResult] = tryWithDb { db =>
     operationStore.deleteAllOperationsForModel(fqn)
     snapshotStore.removeAllSnapshotsForModel(fqn)
 
@@ -91,8 +108,8 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool, operationSto
       ModelStore.ModelId -> fqn.modelId)
     val deleted: Int = db.command(command).execute(params.asJava)
     deleted match {
-      case 1 => Unit
-      case _ => throw new IllegalArgumentException("The model could not be deleted because it did not exist")
+      case 1 => DeleteSuccess
+      case _ => NotFound
     }
   }
 

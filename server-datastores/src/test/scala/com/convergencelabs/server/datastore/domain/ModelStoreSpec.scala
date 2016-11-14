@@ -15,6 +15,8 @@ import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import com.convergencelabs.server.domain.model.data.StringValue
 import com.convergencelabs.server.domain.model.data.ObjectValue
+import com.convergencelabs.server.datastore.DuplicateValue
+import com.convergencelabs.server.datastore.NotFound
 
 // scalastyle:off magic.number
 class ModelStoreSpec
@@ -91,7 +93,7 @@ class ModelStoreSpec
         val data = ObjectValue("t2-data",
             Map(("foo" -> StringValue("t2-foo", "bar"))))
             
-        store.createModel(person1.collectionId, Some(person1.modelId), data).failure.exception shouldBe a[ORecordDuplicatedException]
+        store.createModel(person1.collectionId, Some(person1.modelId), data).success.value shouldBe DuplicateValue
       }
     }
 
@@ -249,7 +251,7 @@ class ModelStoreSpec
 
       "return a failure for deleting a non-existent model" in withPersistenceStore { store =>
         store.getModel(nonExsitingFqn).success.value shouldBe None
-        store.deleteModel(nonExsitingFqn).failure
+        store.deleteModel(nonExsitingFqn).success.value shouldBe NotFound
       }
     }
 

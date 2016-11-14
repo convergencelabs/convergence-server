@@ -28,6 +28,11 @@ import akka.actor.Status
 import akka.actor.Terminated
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import scala.util.control.NonFatal
+import com.convergencelabs.server.datastore.CreateSuccess
+import com.convergencelabs.server.datastore.DuplicateValue
+import com.convergencelabs.server.datastore.InvalidValue
+import com.convergencelabs.server.datastore.DeleteSuccess
+import com.convergencelabs.server.datastore.NotFound
 
 case class QueryModelsRequest(collection: Option[String], limit: Option[Int], offset: Option[Int], orderBy: Option[QueryOrderBy])
 case class QueryOrderBy(field: String, ascending: Boolean)
@@ -65,24 +70,23 @@ class ModelManagerActor(
         nextModelResourceId += 1
         val collectionId = openRequest.modelFqn.collectionId
         persistenceProvider.collectionStore.ensureCollectionExists(collectionId) flatMap (_ =>
-            getSnapshotConfigForModel(collectionId) 
-          ) flatMap { snapshotConfig =>
-            val props = RealtimeModelActor.props(
-              self,
-              domainFqn,
-              openRequest.modelFqn,
-              resourceId,
-              persistenceProvider.modelStore,
-              persistenceProvider.modelOperationProcessor,
-              persistenceProvider.modelSnapshotStore,
-              5000, // FIXME hard-coded time.  Should this be part of the protocol?
-              snapshotConfig)
+          getSnapshotConfigForModel(collectionId)) flatMap { snapshotConfig =>
+          val props = RealtimeModelActor.props(
+            self,
+            domainFqn,
+            openRequest.modelFqn,
+            resourceId,
+            persistenceProvider.modelStore,
+            persistenceProvider.modelOperationProcessor,
+            persistenceProvider.modelSnapshotStore,
+            5000, // FIXME hard-coded time.  Should this be part of the protocol?
+            snapshotConfig)
 
-            val modelActor = context.actorOf(props, resourceId)
-            this.openRealtimeModels += (openRequest.modelFqn -> modelActor)
-            this.context.watch(modelActor)
-            modelActor forward openRequest
-            Success(())
+          val modelActor = context.actorOf(props, resourceId)
+          this.openRealtimeModels += (openRequest.modelFqn -> modelActor)
+          this.context.watch(modelActor)
+          modelActor forward openRequest
+          Success(())
         } recover {
           case e: Exception =>
             sender ! UnknownErrorResponse("Could not open model")
@@ -129,11 +133,17 @@ class ModelManagerActor(
     // FIXME all of this should work or not, together. We also do this in two different places
     // we should abstract this somewhere
     persistenceProvider.collectionStore.ensureCollectionExists(collectionId) flatMap (_ =>
-      persistenceProvider.modelStore.createModel(collectionId, modelId, data)) map { model =>
-      val ModelMetaData(fqn, version, created, modeified) = model.metaData
-      val snapshot = ModelSnapshot(ModelSnapshotMetaData(fqn, version, created), model.data)
-      persistenceProvider.modelSnapshotStore.createSnapshot(snapshot)
-      sender ! ModelCreated
+      persistenceProvider.modelStore.createModel(collectionId, modelId, data)) map {
+      case CreateSuccess(model) =>
+        val ModelMetaData(fqn, version, created, modeified) = model.metaData
+        val snapshot = ModelSnapshot(ModelSnapshotMetaData(fqn, version, created), model.data)
+        persistenceProvider.modelSnapshotStore.createSnapshot(snapshot)
+        sender ! ModelCreated
+      case DuplicateValue =>
+        sender ! ModelAlreadyExists
+      case InvalidValue =>
+        // FIXME better error message
+        sender ! UnknownErrorResponse("Could not create model beause it contained an invalid value")
     } recover {
       case e: Exception =>
         sender ! UnknownErrorResponse("Could not create model: " + e.getMessage)
@@ -141,19 +151,19 @@ class ModelManagerActor(
   }
 
   private[this] def onDeleteModelRequest(deleteRequest: DeleteModelRequest): Unit = {
-    persistenceProvider.modelStore.modelExists(deleteRequest.modelFqn) match {
-      case Success(true) =>
-        if (openRealtimeModels.contains(deleteRequest.modelFqn)) {
-          val closed = openRealtimeModels(deleteRequest.modelFqn)
-          closed ! ModelDeleted
-          openRealtimeModels -= deleteRequest.modelFqn
-        }
+    if (openRealtimeModels.contains(deleteRequest.modelFqn)) {
+      val closed = openRealtimeModels(deleteRequest.modelFqn)
+      closed ! ModelDeleted
+      openRealtimeModels -= deleteRequest.modelFqn
+    }
 
-        persistenceProvider.modelStore.deleteModel(deleteRequest.modelFqn)
-
+    persistenceProvider.modelStore.deleteModel(deleteRequest.modelFqn) map {
+      case DeleteSuccess =>
         sender ! ModelDeleted
-      case Success(false) => sender ! ModelNotFound
-      case Failure(cause) => sender ! Status.Failure
+      case NotFound =>
+        sender ! ModelNotFound
+    } recover {
+      case cause: Exception => sender ! Status.Failure
     }
   }
 

@@ -38,6 +38,7 @@ import akka.stream.scaladsl.Sink
 import akka.stream.ActorMaterializer
 import akka.actor.PoisonPill
 import akka.actor.Status
+import com.convergencelabs.server.datastore.CreateSuccess
 
 /**
  * An instance of the RealtimeModelActor manages the lifecycle of a single
@@ -299,12 +300,18 @@ class RealtimeModelActor(
    */
   private[this] def onClientModelDataResponse(response: ClientModelDataResponse): Unit = {
     val ClientModelDataResponse(modelData) = response
-    val result = modelStore.createModel(modelFqn.collectionId, Some(modelFqn.modelId), modelData) 
-    result map { model =>
-      val Model(ModelMetaData(fqn, version, createdTime, modifiedTime), data) = model
-      modelSnapshotStore.createSnapshot(
-        ModelSnapshot(ModelSnapshotMetaData(modelFqn, version, createdTime), response.modelData))
-      requestModelDataFromDatastore()
+    val result = modelStore.createModel(modelFqn.collectionId, Some(modelFqn.modelId), modelData)
+    result map {
+      case CreateSuccess(model) =>
+        val Model(ModelMetaData(fqn, version, createdTime, modifiedTime), data) = model
+        modelSnapshotStore.createSnapshot(
+          ModelSnapshot(ModelSnapshotMetaData(modelFqn, version, createdTime), response.modelData))
+        requestModelDataFromDatastore()
+      case _ =>
+        // FIXME unhandled error
+    } recover {
+      case e: Exception =>
+        // FIXME Unhandled Error
     }
   }
 

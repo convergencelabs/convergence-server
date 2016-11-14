@@ -19,9 +19,14 @@ import com.convergencelabs.server.domain.model.data.StringValue
 import com.convergencelabs.server.domain.model.data.BooleanValue
 import com.convergencelabs.server.domain.model.data.ArrayValue
 import com.convergencelabs.server.domain.model.data.NullValue
+import scala.util.Success
+import com.convergencelabs.server.datastore.domain.CollectionStore
 
 object ModelStoreActor {
-  def props(modelStore: ModelStore): Props = Props(new ModelStoreActor(modelStore))
+  def props(
+    modelStore: ModelStore,
+    collectionStore: CollectionStore): Props =
+    Props(new ModelStoreActor(modelStore, collectionStore))
 
   trait ModelStoreRequest
 
@@ -38,7 +43,8 @@ object ModelStoreActor {
 }
 
 class ModelStoreActor private[datastore] (
-  private[this] val modelStore: ModelStore)
+  private[this] val modelStore: ModelStore,
+  private[this] val collectionStore: CollectionStore)
     extends StoreActor with ActorLogging {
 
   def receive: Receive = {
@@ -72,15 +78,27 @@ class ModelStoreActor private[datastore] (
 
   def createModel(collectionId: String, data: Map[String, Any]): Unit = {
     val root = ModelDataGenerator(data)
-    reply(
-      modelStore.createModel(collectionId, None, root) map (model => model.metaData.fqn.modelId))
+    val result = collectionStore.ensureCollectionExists(collectionId) flatMap { _ =>
+      modelStore.createModel(collectionId, None, root) map {
+        case CreateSuccess(model) => CreateSuccess(model.metaData.fqn)
+        case x: Any => x
+      }
+    }
+    reply(result)
   }
 
   def createOrUpdateModel(collectionId: String, modelId: String, data: Map[String, Any]): Unit = {
     //FIXME If the model is open this could cause problems.
     val root = ModelDataGenerator(data)
-    reply(
-      modelStore.createModel(collectionId, Some(modelId), root) map (model => model.metaData.fqn.modelId))
+    val result = collectionStore.ensureCollectionExists(collectionId) flatMap { _ =>
+      modelStore.createModel(collectionId, Some(modelId), root) flatMap {
+        case CreateSuccess(model) => Success(CreateSuccess(model.metaData.fqn))
+        case DuplicateValue =>
+          modelStore.updateModel(ModelFqn(collectionId, modelId), root)
+        case InvalidValue => Success(InvalidValue)
+      }
+    }
+    reply(result)
   }
 
   def deleteModel(modelFqn: ModelFqn): Unit = {
@@ -118,17 +136,19 @@ class ModelDataGenerator() {
         DoubleValue(nextId(), num)
       case num: Int =>
         DoubleValue(nextId(), num.doubleValue())
+      case num: BigInt =>
+        DoubleValue(nextId(), num.doubleValue())
       case num: Long =>
         DoubleValue(nextId(), num.doubleValue())
       case bool: Boolean =>
         BooleanValue(nextId(), bool)
       case str: String =>
         StringValue(nextId(), str)
-      case x: Any if Option(x).isEmpty =>
+      case null =>
         NullValue(nextId())
     }
   }
-  
+
   private[this] def nextId(): String = {
     id = id + 1
     this.ServerIdPrefix + id

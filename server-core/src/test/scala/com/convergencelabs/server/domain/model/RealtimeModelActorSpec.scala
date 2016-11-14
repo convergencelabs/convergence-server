@@ -31,6 +31,7 @@ import com.convergencelabs.server.domain.model.ot.ObjectAddPropertyOperation
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
+import com.convergencelabs.server.datastore.CreateSuccess
 
 // FIXME we really only check message types and not data.
 // scalastyle:off magic.number
@@ -109,7 +110,7 @@ class RealtimeModelActorSpec
         // Now mock that the data is there.
         val now = Instant.now()
         Mockito.when(modelStore.createModel(modelFqn.collectionId, Some(modelFqn.modelId), modelJsonData))
-           .thenReturn(Success(Model(ModelMetaData(modelFqn, 0L, now, now), modelJsonData)))
+           .thenReturn(Success(CreateSuccess(Model(ModelMetaData(modelFqn, 0L, now, now), modelJsonData))))
         Mockito.when(modelStore.getModel(modelFqn)).thenReturn(Success(Some(modelData)))
         Mockito.when(modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)).thenReturn(Success(Some(modelSnapshotMetaData)))
 

@@ -120,8 +120,8 @@ class DomainModelService(
   def putModel(domain: DomainFqn, colletionId: String, modelId: String, data: Map[String, Any]): Future[RestResponse] = {
     (domainRestActor ? DomainMessage(
       domain,
-      CreateOrUpdateModel(colletionId, modelId, data))).mapTo[CreateOrUpdateResult[Unit]] map {
-        case CreateSuccess(()) => OkResponse 
+      CreateOrUpdateModel(colletionId, modelId, data))).mapTo[CreateOrUpdateResult[ModelFqn]] map {
+        case CreateSuccess(fqn) => OkResponse 
         case UpdateSuccess => OkResponse
         case InvalidValue => InvalidValueError
       }
