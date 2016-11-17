@@ -1,22 +1,24 @@
 package com.convergencelabs.server.datastore.domain
 
 import java.util.{ List => JavaList }
+
+import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.util.Try
+
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.server.datastore.QueryUtil
-import com.convergencelabs.server.domain.ModelSnapshotConfig
+import com.convergencelabs.server.datastore.domain.mapper.ModelSnapshotConfigMapper.ModelSnapshotConfigToODocument
+import com.convergencelabs.server.datastore.domain.mapper.ModelSnapshotConfigMapper.ODocumentToModelSnapshotConfig
 import com.convergencelabs.server.domain.JwtKeyPair
-import com.convergencelabs.server.domain.JwtPublicKey
+import com.convergencelabs.server.domain.ModelSnapshotConfig
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
-import grizzled.slf4j.Logging
-import java.util.ArrayList
-import scala.collection.JavaConverters._
-import com.convergencelabs.server.datastore.domain.mapper.ModelSnapshotConfigMapper._
+
 import DomainConfigStore.Fields
+import grizzled.slf4j.Logging
 
 object DomainConfigStore {
   object Fields {
@@ -39,8 +41,7 @@ class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
     doc.field(Fields.AdminPublicKey, tokenKeyPair.publicKey)
     doc.field(Fields.AdminPrivateKey, tokenKeyPair.privateKey)
     doc.field(Fields.AnonymousAuth, false)
-    doc.
-      doc.save()
+    doc.save()
     ()
   }
 

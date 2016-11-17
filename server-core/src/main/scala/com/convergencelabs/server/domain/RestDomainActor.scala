@@ -107,7 +107,7 @@ class RestDomainActor(domainFqn: DomainFqn) extends Actor with ActorLogging {
         configStoreActor = context.actorOf(ConfigStoreActor.props(provider.configStore))
         collectionStoreActor = context.actorOf(CollectionStoreActor.props(provider.collectionStore))
         modelStoreActor = context.actorOf(ModelStoreActor.props(provider.modelStore, provider.collectionStore))
-        keyStoreActor = context.actorOf(JwtAuthKeyStoreActor.props(provider.keyStore))
+        keyStoreActor = context.actorOf(JwtAuthKeyStoreActor.props(provider.jwtAuthKeyStore))
       case Failure(cause) =>
         log.error(cause, "Unable to obtain a domain persistence provider.")
     }

@@ -152,7 +152,7 @@ class DomainActor(
         this.persistenceProvider = provider
         authenticator = new AuthenticationHandler(
           provider.configStore,
-          provider.keyStore,
+          provider.jwtAuthKeyStore,
           provider.userStore,
           context.dispatcher)
       case Failure(cause) =>
