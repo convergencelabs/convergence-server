@@ -2,9 +2,9 @@ package com.convergencelabs.server.domain
 
 import java.time.Instant
 
-case class TokenPublicKey(
+case class JwtPublicKey(
   id: String,
   description: String,
-  created: Instant,
+  updated: Instant,
   key: String,
   enabled: Boolean)

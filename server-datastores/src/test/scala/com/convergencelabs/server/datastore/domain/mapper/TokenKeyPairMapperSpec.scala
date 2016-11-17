@@ -4,11 +4,11 @@ import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
 
-import com.convergencelabs.server.domain.TokenKeyPair
+import com.convergencelabs.server.domain.JwtKeyPair
 import com.orientechnologies.orient.core.record.impl.ODocument
 
-import TokenKeyPairMapper.ODocumentToTokenKeyPair
-import TokenKeyPairMapper.TokenKeyPairToODocument
+import JwtKeyPairMapper.ODocumentToTokenKeyPair
+import JwtKeyPairMapper.TokenKeyPairToODocument
 
 class TokenKeyPairMapperSpec
     extends WordSpec
@@ -17,7 +17,7 @@ class TokenKeyPairMapperSpec
   "An TokenKeyPairMapper" when {
     "when converting a TokenKeyPair" must {
       "correctly map and unmap a TokenKeyPair" in {
-        val pair = TokenKeyPair(
+        val pair = JwtKeyPair(
           "public",
           "private")
 

@@ -5,8 +5,8 @@ import scala.util.Try
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.server.datastore.QueryUtil
 import com.convergencelabs.server.domain.ModelSnapshotConfig
-import com.convergencelabs.server.domain.TokenKeyPair
-import com.convergencelabs.server.domain.TokenPublicKey
+import com.convergencelabs.server.domain.JwtKeyPair
+import com.convergencelabs.server.domain.JwtPublicKey
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
@@ -31,7 +31,7 @@ class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
     extends AbstractDatabasePersistence(dbPool)
     with Logging {
 
-  def initializeDomainConfig(tokenKeyPair: TokenKeyPair, modelSnapshotConfig: ModelSnapshotConfig): Try[Unit] = tryWithDb { db =>
+  def initializeDomainConfig(tokenKeyPair: JwtKeyPair, modelSnapshotConfig: ModelSnapshotConfig): Try[Unit] = tryWithDb { db =>
     db.command(new OCommandSQL("DELETE FROM DomainConfig")).execute()
 
     val doc = new ODocument("DomainConfig")
@@ -102,19 +102,19 @@ class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
     }
   }
 
-  def getAdminKeyPair(): Try[TokenKeyPair] = tryWithDb { db =>
+  def getAdminKeyPair(): Try[JwtKeyPair] = tryWithDb { db =>
     val queryString = "SELECT adminPublicKey, adminPrivateKey FROM DomainConfig"
     val query = new OSQLSynchQuery[ODocument](queryString)
     val result: JavaList[ODocument] = db.command(query).execute()
 
     QueryUtil.mapSingletonList(result) { doc =>
-      TokenKeyPair(
+      JwtKeyPair(
         doc.field("adminPublicKey", OType.STRING),
         doc.field("adminPrivateKey", OType.STRING))
     }.get
   }
 
-  def setAdminKeyPair(pair: TokenKeyPair): Try[Unit] = tryWithDb { db =>
+  def setAdminKeyPair(pair: JwtKeyPair): Try[Unit] = tryWithDb { db =>
     val queryString = """
       |UPDATE
       |  DomainConfig

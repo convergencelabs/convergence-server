@@ -11,19 +11,19 @@ import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
 
 import com.convergencelabs.server.domain.ModelSnapshotConfig
-import com.convergencelabs.server.domain.TokenKeyPair
-import com.convergencelabs.server.domain.TokenPublicKey
+import com.convergencelabs.server.domain.JwtKeyPair
+import com.convergencelabs.server.domain.JwtPublicKey
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 
 // scalastyle:off line.size.limit
 class ApiKeyStoreSpec
-    extends PersistenceStoreSpec[ApiKeyStore]("/dbfiles/domain-n1-d1.json.gz")
+    extends PersistenceStoreSpec[JwtAuthKeyStore]("/dbfiles/domain-n1-d1.json.gz")
     with WordSpecLike
     with Matchers {
 
   val df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSz")
 
-  val tokenKey = TokenPublicKey(
+  val tokenKey = JwtPublicKey(
     "test",
     "A key for testing",
     Instant.ofEpochMilli(df.parse("2015-09-21T12:32:43.000+0000").getTime),
@@ -32,7 +32,7 @@ class ApiKeyStoreSpec
 
   val keys = List(tokenKey)
 
-  def createStore(dbPool: OPartitionedDatabasePool): ApiKeyStore = new ApiKeyStore(dbPool)
+  def createStore(dbPool: OPartitionedDatabasePool): JwtAuthKeyStore = new JwtAuthKeyStore(dbPool)
 
   "A ApiKeyStore" when {
     "retrieving domain keys" must {

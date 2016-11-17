@@ -3,7 +3,7 @@ package com.convergencelabs.server.datastore.domain.mapper
 import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
-import com.convergencelabs.server.domain.TokenPublicKey
+import com.convergencelabs.server.domain.JwtPublicKey
 import com.orientechnologies.orient.core.record.impl.ODocument
 import TokenPublicKeyMapper.ODocumentToTokenPublicKey
 import TokenPublicKeyMapper.TokenPublicKeyToODocument
@@ -16,7 +16,7 @@ class TokenPublicKeyMapperSpec
   "An TokenPublicKeyMapper" when {
     "when converting a TokenPublicKey" must {
       "correctly map and unmap a TokenPublicKey" in {
-        val publickKey = TokenPublicKey(
+        val publickKey = JwtPublicKey(
           "id",
           "description:",
           Instant.now(),

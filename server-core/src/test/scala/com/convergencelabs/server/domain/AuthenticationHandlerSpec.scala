@@ -1,37 +1,36 @@
 package com.convergencelabs.server.domain
 
+import java.io.StringReader
+import java.security.KeyFactory
+import java.security.spec.PKCS8EncodedKeySpec
+import java.time.Instant
 import java.util.concurrent.TimeUnit
+
 import scala.concurrent.Await
 import scala.concurrent.duration.FiniteDuration
+import scala.util.Failure
 import scala.util.Success
-import org.junit.runner.RunWith
+
+import org.bouncycastle.jce.provider.BouncyCastleProvider
+import org.bouncycastle.util.io.pem.PemReader
+import org.jose4j.jws.AlgorithmIdentifiers
+import org.jose4j.jws.JsonWebSignature
+import org.jose4j.jwt.JwtClaims
 import org.mockito.Mockito
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.Finders
+import org.scalatest.Matchers
 import org.scalatest.WordSpecLike
-import org.scalatest.junit.JUnitRunner
 import org.scalatest.mock.MockitoSugar
+
+import com.convergencelabs.server.datastore.CreateSuccess
 import com.convergencelabs.server.datastore.domain.DomainConfigStore
 import com.convergencelabs.server.datastore.domain.DomainUserStore
+import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateNormalDomainUser
+import com.convergencelabs.server.datastore.domain.JwtAuthKeyStore
+import com.convergencelabs.server.domain.model.SessionKey
+
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
-import scala.util.Failure
-import org.scalatest.Matchers
-import java.time.Instant
-import org.jose4j.jwk.RsaJwkGenerator
-import org.jose4j.jwt.JwtClaims
-import org.jose4j.jws.JsonWebSignature
-import org.jose4j.jws.AlgorithmIdentifiers
-import org.bouncycastle.util.io.pem.PemReader
-import java.security.KeyFactory
-import org.bouncycastle.jce.provider.BouncyCastleProvider
-import java.security.spec.PKCS8EncodedKeySpec
-import java.io.StringReader
-import com.convergencelabs.server.datastore.domain.ApiKeyStore
-import com.convergencelabs.server.datastore.CreateSuccess
-import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateDomainUser
-import com.convergencelabs.server.domain.model.SessionKey
-import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateNormalDomainUser
 
 class AuthenticationHandlerSpec()
     extends TestKit(ActorSystem("AuthManagerActorSpec"))
@@ -182,9 +181,9 @@ class AuthenticationHandlerSpec()
     val domainConfigStore = mock[DomainConfigStore]
     Mockito.when(domainConfigStore.isAnonymousAuthEnabled()).thenReturn(Success(true))
 
-    val keyStore = mock[ApiKeyStore]
+    val keyStore = mock[JwtAuthKeyStore]
 
-    val enabledKey = TokenPublicKey(
+    val enabledKey = JwtPublicKey(
       "enabledkey",
       "An enabled key",
       Instant.now(),
@@ -192,10 +191,10 @@ class AuthenticationHandlerSpec()
       true)
     Mockito.when(keyStore.getKey(enabledKey.id)).thenReturn(Success(Some(enabledKey)))
 
-    val adminKeyPair = TokenKeyPair(KeyConstants.PublicKey, KeyConstants.PrivateKey)
+    val adminKeyPair = JwtKeyPair(KeyConstants.PublicKey, KeyConstants.PrivateKey)
     Mockito.when(domainConfigStore.getAdminKeyPair()).thenReturn(Success(adminKeyPair))
 
-    val disabledKey = TokenPublicKey(
+    val disabledKey = JwtPublicKey(
       "disabledkey",
       "A disabled key",
       Instant.now(),
@@ -203,7 +202,7 @@ class AuthenticationHandlerSpec()
       false)
     Mockito.when(keyStore.getKey(disabledKey.id)).thenReturn(Success(Some(disabledKey)))
 
-    val invalidKey = TokenPublicKey(
+    val invalidKey = JwtPublicKey(
       "invalidKey",
       "An invalid key",
       Instant.now(),

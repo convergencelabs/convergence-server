@@ -21,7 +21,7 @@ import com.convergencelabs.server.datastore.CreateResult
 import com.convergencelabs.server.datastore.CreateSuccess
 import com.convergencelabs.server.datastore.DuplicateValue
 import com.convergencelabs.server.datastore.InvalidValue
-import com.convergencelabs.server.datastore.domain.ApiKeyStore
+import com.convergencelabs.server.datastore.domain.JwtAuthKeyStore
 import com.convergencelabs.server.datastore.domain.DomainConfigStore
 import com.convergencelabs.server.datastore.domain.DomainUserStore
 import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateNormalDomainUser
@@ -38,7 +38,7 @@ object AuthenticationHandler {
 
 class AuthenticationHandler(
   private[this] val domainConfigStore: DomainConfigStore,
-  private[this] val keyStore: ApiKeyStore,
+  private[this] val keyStore: JwtAuthKeyStore,
   private[this] val userStore: DomainUserStore,
   private[this] implicit val ec: ExecutionContext)
     extends Logging {

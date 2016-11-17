@@ -59,8 +59,8 @@ class DomainManagerActorSpec()
     val domainFqn = DomainFqn("namespace1", "domain1")
     val nonExistingDomain = DomainFqn("no", "domain")
 
-    val keys = Map[String, TokenPublicKey]()
-    val adminKeyPair = TokenKeyPair("", "")
+    val keys = Map[String, JwtPublicKey]()
+    val adminKeyPair = JwtKeyPair("", "")
 
     val domain = Domain(
       domainFqn,

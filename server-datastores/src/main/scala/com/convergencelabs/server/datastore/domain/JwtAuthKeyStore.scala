@@ -4,7 +4,7 @@ import java.util.{ List => JavaList }
 import scala.util.Try
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.server.datastore.QueryUtil
-import com.convergencelabs.server.domain.TokenPublicKey
+import com.convergencelabs.server.domain.JwtPublicKey
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
@@ -24,20 +24,20 @@ import com.convergencelabs.server.datastore.DeleteSuccess
 import java.util.{ List => JavaList }
 import scala.collection.JavaConverters._
 import java.time.Instant
-import com.convergencelabs.server.datastore.domain.ApiKeyStore.KeyInfo
+import com.convergencelabs.server.datastore.domain.JwtAuthKeyStore.KeyInfo
 
-object ApiKeyStore {
+object JwtAuthKeyStore {
   case class KeyInfo(id: String, description: String, key: String, enabled: Boolean)
 }
 
-class ApiKeyStore private[datastore] (
+class JwtAuthKeyStore private[datastore] (
   private[this] val dbPool: OPartitionedDatabasePool)
     extends AbstractDatabasePersistence(dbPool)
     with Logging {
 
   val Id = "id"
 
-  def getKeys(offset: Option[Int], limit: Option[Int]): Try[List[TokenPublicKey]] = tryWithDb { db =>
+  def getKeys(offset: Option[Int], limit: Option[Int]): Try[List[JwtPublicKey]] = tryWithDb { db =>
     val queryString = "SELECT * FROM TokenPublicKey ORDER BY id ASC"
     val pageQuery = QueryUtil.buildPagedQuery(queryString, limit, offset)
     val query = new OSQLSynchQuery[ODocument](pageQuery)
@@ -45,7 +45,7 @@ class ApiKeyStore private[datastore] (
     result.asScala.toList map { _.asTokenPublicKey }
   }
 
-  def getKey(id: String): Try[Option[TokenPublicKey]] = tryWithDb { db =>
+  def getKey(id: String): Try[Option[JwtPublicKey]] = tryWithDb { db =>
     val queryString = "SELECT * FROM TokenPublicKey WHERE id = :id"
     val query = new OSQLSynchQuery[ODocument](queryString)
     val params = Map(Id -> id)
@@ -54,25 +54,29 @@ class ApiKeyStore private[datastore] (
   }
 
   def createKey(key: KeyInfo): Try[CreateResult[Unit]] = tryWithDb { db =>
-    val KeyInfo(id, descriptin, keyString, enabled) = key
-    val tokenKey = TokenPublicKey(id, descriptin, Instant.now(), keyString, enabled)
-
-    try {
-      db.save(tokenKey.asODocument)
-      CreateSuccess(())
-    } catch {
-      case e: ORecordDuplicatedException => DuplicateValue
-    }
+    val KeyInfo(id, description, publicKey, enabled) = key
+    val tokenKey = JwtPublicKey(id, description, Instant.now(), publicKey, enabled)
+    db.save(tokenKey.asODocument)
+    CreateSuccess(())
+  } recover {
+    case e: ORecordDuplicatedException => DuplicateValue
+  }
+  
+  def importKey(key: JwtPublicKey): Try[CreateResult[Unit]] = tryWithDb { db =>
+    db.save(key.asODocument)
+    CreateSuccess(())
+  } recover {
+    case e: ORecordDuplicatedException => DuplicateValue
   }
 
   def updateKey(info: KeyInfo): Try[UpdateResult] = tryWithDb { db =>
     val KeyInfo(keyId, descr, key, enabled) = info
-    val updateKey = TokenPublicKey(keyId, descr, Instant.now(), key, enabled)
-    
+    val updateKey = JwtPublicKey(keyId, descr, Instant.now(), key, enabled)
+
     val updatedDoc = updateKey.asODocument
     val queryString = "SELECT FROM TokenPublicKey WHERE id = :id"
     val query = new OSQLSynchQuery[ODocument](queryString)
-    val params = Map(Id ->keyId)
+    val params = Map(Id -> keyId)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
     QueryUtil.enforceSingletonResultList(result) match {

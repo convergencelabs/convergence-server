@@ -7,8 +7,8 @@ import scala.util.Failure
 import scala.util.Success
 
 import com.convergencelabs.common.ConvergenceJwtUtil
-import com.convergencelabs.server.datastore.ApiKeyStoreActor
-import com.convergencelabs.server.datastore.ApiKeyStoreActor.ApiKeyStoreRequest
+import com.convergencelabs.server.datastore.JwtAuthKeyStoreActor
+import com.convergencelabs.server.datastore.JwtAuthKeyStoreActor.ApiKeyStoreRequest
 import com.convergencelabs.server.datastore.CollectionStoreActor
 import com.convergencelabs.server.datastore.CollectionStoreActor.CollectionStoreRequest
 import com.convergencelabs.server.datastore.ModelStoreActor
@@ -107,7 +107,7 @@ class RestDomainActor(domainFqn: DomainFqn) extends Actor with ActorLogging {
         configStoreActor = context.actorOf(ConfigStoreActor.props(provider.configStore))
         collectionStoreActor = context.actorOf(CollectionStoreActor.props(provider.collectionStore))
         modelStoreActor = context.actorOf(ModelStoreActor.props(provider.modelStore, provider.collectionStore))
-        keyStoreActor = context.actorOf(ApiKeyStoreActor.props(provider.keyStore))
+        keyStoreActor = context.actorOf(JwtAuthKeyStoreActor.props(provider.keyStore))
       case Failure(cause) =>
         log.error(cause, "Unable to obtain a domain persistence provider.")
     }

@@ -7,7 +7,7 @@ class DomainPersistenceProvider(private[this] val dbPool: OPartitionedDatabasePo
 
   val userStore = new DomainUserStore(dbPool)
 
-  val keyStore = new ApiKeyStore(dbPool)
+  val keyStore = new JwtAuthKeyStore(dbPool)
 
   val configStore = new DomainConfigStore(dbPool)
 

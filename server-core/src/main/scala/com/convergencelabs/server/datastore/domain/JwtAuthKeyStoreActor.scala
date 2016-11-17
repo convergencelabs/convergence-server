@@ -1,20 +1,18 @@
 package com.convergencelabs.server.datastore
 
-import com.convergencelabs.server.datastore.domain.ApiKeyStore
-import com.convergencelabs.server.domain.TokenPublicKey
+import com.convergencelabs.server.datastore.domain.JwtAuthKeyStore
+import com.convergencelabs.server.datastore.domain.JwtAuthKeyStore.KeyInfo
 
-import ApiKeyStoreActor.CreateDomainApiKey
-import ApiKeyStoreActor.DeleteDomainApiKey
-import ApiKeyStoreActor.GetDomainApiKey
-import ApiKeyStoreActor.GetDomainApiKeys
-import ApiKeyStoreActor.UpdateDomainApiKey
+import JwtAuthKeyStoreActor.CreateDomainApiKey
+import JwtAuthKeyStoreActor.DeleteDomainApiKey
+import JwtAuthKeyStoreActor.GetDomainApiKey
+import JwtAuthKeyStoreActor.GetDomainApiKeys
+import JwtAuthKeyStoreActor.UpdateDomainApiKey
 import akka.actor.ActorLogging
 import akka.actor.Props
-import com.convergencelabs.server.datastore.domain.ApiKeyStore
-import com.convergencelabs.server.datastore.domain.ApiKeyStore.KeyInfo
 
-object ApiKeyStoreActor {
-  def props(keyStore: ApiKeyStore): Props = Props(new ApiKeyStoreActor(keyStore))
+object JwtAuthKeyStoreActor {
+  def props(keyStore: JwtAuthKeyStore): Props = Props(new JwtAuthKeyStoreActor(keyStore))
 
   sealed trait ApiKeyStoreRequest
   case class GetDomainApiKeys(offset: Option[Int], limit: Option[Int]) extends ApiKeyStoreRequest
@@ -24,7 +22,7 @@ object ApiKeyStoreActor {
   case class CreateDomainApiKey(key: KeyInfo) extends ApiKeyStoreRequest
 }
 
-class ApiKeyStoreActor private[datastore] (private[this] val keyStore: ApiKeyStore)
+class JwtAuthKeyStoreActor private[datastore] (private[this] val keyStore: JwtAuthKeyStore)
     extends StoreActor with ActorLogging {
 
   def receive: Receive = {
