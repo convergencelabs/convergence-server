@@ -31,6 +31,7 @@ import com.convergencelabs.server.datastore.CreateResult
 import com.convergencelabs.server.datastore.CreateSuccess
 import com.convergencelabs.server.datastore.UpdateResult
 import com.convergencelabs.server.datastore.InvalidValue
+import com.convergencelabs.server.datastore.CreateResult
 
 object ModelStore {
   private val ModelClass = "Model"
@@ -59,18 +60,37 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool, operationSto
       .isDefined
   }
 
-  // FIXME this should return a create result.
-  def createModel(collectionId: String, modelId: Option[String], data: ObjectValue): Try[CreateResult[Model]] = tryWithDb { db =>
-    db.begin()
+  def createModel(collectionId: String, modelId: Option[String], data: ObjectValue): Try[CreateResult[Model]] = {
     
     val createdTime = Instant.now()
     val modifiedTime = createdTime
     val version = 0
-    val modelDoc = new ODocument(ModelStore.ModelClass)
     val computedModelId = modelId.getOrElse(UUID.randomUUID().toString)
+    
+    val model = Model(
+      ModelMetaData(
+        ModelFqn(collectionId, computedModelId),
+        version,
+        createdTime,
+        modifiedTime),
+      data)
+      
+    this.createModel(model)
+  } 
 
+  def createModel(model: Model): Try[CreateResult[Model]] = tryWithDb { db =>
+    db.begin()
+
+    val collectionId = model.metaData.fqn.collectionId
+    val modelId = model.metaData.fqn.modelId
+    val createdTime = model.metaData.createdTime
+    val modifiedTime = model.metaData.modifiedTime
+    val version = model.metaData.version
+    val data = model.data
+
+    val modelDoc = new ODocument(ModelStore.ModelClass)
     modelDoc.field(ModelStore.CollectionId, collectionId)
-    modelDoc.field(ModelStore.ModelId, computedModelId)
+    modelDoc.field(ModelStore.ModelId, modelId)
     modelDoc.field(ModelStore.Version, version)
     modelDoc.field(ModelStore.CreatedTime, Date.from(createdTime))
     modelDoc.field(ModelStore.ModifiedTime, Date.from(modifiedTime))
@@ -78,19 +98,12 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool, operationSto
     modelDoc.field(ModelStore.Data, OrientDataValueBuilder.objectValueToODocument(data, modelDoc))
     modelDoc.save()
     db.commit()
-    
-    CreateSuccess(Model(
-      ModelMetaData(
-        ModelFqn(collectionId, computedModelId),
-        version,
-        createdTime,
-        modifiedTime
-      ),
-      data))
+
+    CreateSuccess(model)
   } recover {
     case e: ORecordDuplicatedException => DuplicateValue
   }
-  
+
   def updateModel(fqn: ModelFqn, data: ObjectValue): Try[UpdateResult] = tryWithDb { db =>
     // FIXME implement
     InvalidValue

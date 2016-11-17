@@ -25,7 +25,6 @@ class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
   private[this] implicit val formats = Serialization.formats(NoTypeHints)
 
   def getMaxVersion(fqn: ModelFqn): Try[Option[Long]] = tryWithDb { db =>
-    val db = dbPool.acquire()
     val queryString =
       """SELECT max(version)
         |FROM ModelOperation
@@ -37,8 +36,6 @@ class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
     val params = Map(CollectionId -> fqn.collectionId, ModelId -> fqn.modelId)
     val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
 
-    db.close()
-
     result.asScala.toList match {
       case doc :: Nil => Some(doc.field("max", OType.LONG))
       case _          => None
@@ -46,7 +43,6 @@ class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
   }
 
   def getVersionAtOrBeforeTime(fqn: ModelFqn, time: Instant): Try[Option[Long]] = tryWithDb { db =>
-    val db = dbPool.acquire()
     val queryString =
       """SELECT max(version)
         |FROM ModelOperation
@@ -58,7 +54,6 @@ class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
     val query = new OSQLSynchQuery[ODocument](queryString)
     val params = Map(CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, "time" -> new java.util.Date(time.toEpochMilli()))
     val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
-    db.close()
     result.asScala.toList match {
       case doc :: rest => Some(doc.field("max", OType.LONG))
       case Nil         => None
@@ -66,7 +61,6 @@ class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
   }
 
   def getOperationsAfterVersion(fqn: ModelFqn, version: Long): Try[List[ModelOperation]] = tryWithDb { db =>
-    val db = dbPool.acquire()
     val queryString =
       """SELECT * FROM ModelOperation
         |WHERE
@@ -78,12 +72,10 @@ class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
     val query = new OSQLSynchQuery[ODocument](queryString)
     val params = Map(CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, "version" -> version)
     val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
-    db.close()
     result.asScala.toList map { _.asModelOperation }
   }
 
   def getOperationsAfterVersion(fqn: ModelFqn, version: Long, limit: Int): Try[List[ModelOperation]] = tryWithDb { db =>
-    val db = dbPool.acquire()
     val queryString =
       """SELECT * FROM ModelOperation
         |WHERE
@@ -99,12 +91,10 @@ class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
       "version" -> version,
       "limit" -> limit)
     val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
-    db.close()
     result.asScala.toList map { _.asModelOperation }
   }
   
   def getOperationsInVersionRange(fqn: ModelFqn, firstVersion: Long, lastVersion: Long): Try[List[ModelOperation]] = tryWithDb { db =>
-    val db = dbPool.acquire()
     val queryString =
       """SELECT * FROM ModelOperation
         |WHERE
@@ -121,12 +111,10 @@ class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
         "firstVersion" -> firstVersion,
         "lastVersion" -> lastVersion)
     val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
-    db.close()
     result.asScala.toList map { _.asModelOperation }
   }
 
   def deleteAllOperationsForModel(fqn: ModelFqn): Try[Unit] = tryWithDb { db =>
-    val db = dbPool.acquire()
     val commandString =
       """DELETE FROM ModelOperation
         |WHERE
@@ -136,11 +124,10 @@ class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
     val params = Map(CollectionId -> fqn.collectionId, ModelId -> fqn.modelId)
     val command = new OCommandSQL(commandString)
     db.command(command).execute(params.asJava)
-    db.close()
+    ()
   }
 
   def deleteAllOperationsForCollection(collectionId: String): Try[Unit] = tryWithDb { db =>
-    val db = dbPool.acquire()
     val commandString =
       """DELETE FROM ModelOperation
         |WHERE
@@ -149,7 +136,11 @@ class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
     val params = Map(CollectionId -> collectionId)
     val command = new OCommandSQL(commandString)
     db.command(command).execute(params.asJava)
-    db.close()
+    ()
+  }
+  
+  def createModelOperation(modelOperation: ModelOperation): Try[Unit] = tryWithDb { db =>
+    db.save(modelOperation.asODocument)
   }
 }
 
