@@ -143,7 +143,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     this.createDomainUser(adminUser, None)
   }
 
-  private[this] def createDomainUser(domainUser: CreateDomainUser, password: Option[String]): Try[CreateResult[String]] = tryWithDb { db =>
+  def createDomainUser(domainUser: CreateDomainUser, password: Option[String]): Try[CreateResult[String]] = tryWithDb { db =>
     val create = DomainUser(
       domainUser.userType,
       domainUser.username,
