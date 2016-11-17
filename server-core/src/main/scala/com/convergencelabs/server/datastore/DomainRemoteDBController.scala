@@ -11,7 +11,7 @@ import scala.util.Try
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.domain.JwtUtil
 import com.convergencelabs.server.domain.ModelSnapshotConfig
-import com.convergencelabs.server.domain.TokenKeyPair
+import com.convergencelabs.server.domain.JwtKeyPair
 import com.convergencelabs.server.util.concurrent.FutureUtils.tryToFuture
 import com.orientechnologies.orient.client.remote.OServerAdmin
 import com.orientechnologies.orient.core.command.OCommandOutputListener
@@ -135,7 +135,7 @@ class DomainDBController(
           publicKey <- JwtUtil.getPublicCertificatePEM(rsaJsonWebKey)
           privateKey <- JwtUtil.getPrivateKeyPEM(rsaJsonWebKey)
         } yield {
-          new TokenKeyPair(publicKey, privateKey)
+          new JwtKeyPair(publicKey, privateKey)
         }
       } flatMap { keyPair =>
         logger.debug(s"Created public key for domain: $uri")
