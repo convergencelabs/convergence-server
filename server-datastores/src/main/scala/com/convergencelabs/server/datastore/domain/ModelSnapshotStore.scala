@@ -126,7 +126,7 @@ class ModelSnapshotStore private[domain] (
     limit: Option[Int],
     offset: Option[Int]): Try[List[ModelSnapshotMetaData]] = tryWithDb { db =>
     val baseQuery =
-      """SELECT version, timestamp
+      """SELECT version, timestamp, collectionId, modelId
         |FROM ModelSnapshot
         |WHERE
         |  collectionId = :collectionId AND
@@ -155,7 +155,7 @@ class ModelSnapshotStore private[domain] (
    */
   def getLatestSnapshotMetaDataForModel(fqn: ModelFqn): Try[Option[ModelSnapshotMetaData]] = tryWithDb { db =>
     val queryString =
-      """SELECT version, timestamp
+      """SELECT version, timestamp, collectionId, modelId
         |FROM ModelSnapshot
         |WHERE
         |  collectionId = :collectionId AND
