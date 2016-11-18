@@ -38,7 +38,7 @@ import com.orientechnologies.orient.core.db.record.OIdentifiable
  *
  * @param dbPool The database pool to use.
  */
-class UserStore private[datastore] (
+class UserStore (
   private[this] val dbPool: OPartitionedDatabasePool,
   private[this] val tokenValidityDuration: Duration)
     extends AbstractDatabasePersistence(dbPool)
