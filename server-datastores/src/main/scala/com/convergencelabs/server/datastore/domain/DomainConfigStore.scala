@@ -45,13 +45,6 @@ class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
     ()
   }
 
-  def isInitialized(): Try[Boolean] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT count(*) AS count FROM DomainConfig")
-    val result: JavaList[ODocument] = db.command(query).execute()
-    val count: Long = result.get(0).field("count", OType.LONG)
-    count == 1;
-  }
-
   def isAnonymousAuthEnabled(): Try[Boolean] = tryWithDb { db =>
     val queryString = s"SELECT ${Fields.AnonymousAuth} FROM DomainConfig"
     val query = new OSQLSynchQuery[ODocument](queryString)

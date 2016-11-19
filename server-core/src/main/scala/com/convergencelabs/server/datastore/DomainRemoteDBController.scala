@@ -41,7 +41,7 @@ object DomainRemoteDBController {
     false,
     JavaDuration.of(0, ChronoUnit.MINUTES),
     JavaDuration.of(0, ChronoUnit.MINUTES))
-    
+
   val OrientDefaultAdmin = "admin"
   val OrientDefaultReader = "reader"
   val OrientDefaultWriter = "writer"
@@ -77,7 +77,7 @@ class DomainDBController(
     logger.debug(s"Creating domain database: $uri")
     val serverAdmin = new OServerAdmin(uri)
     serverAdmin.connect(AdminUser, AdminPassword)
-      .createDatabase(DBType, StorageMode)      
+      .createDatabase(DBType, StorageMode)
       .close()
     logger.debug(s"Domain database created at: $uri")
 
@@ -86,31 +86,31 @@ class DomainDBController(
     // to change the admin and writer and delete the reader.
     val db = new ODatabaseDocumentTx(uri)
     db.open(AdminUser, AdminPassword)
-    
+
     // Change the admin username / password and then reconnect
     val adminUser = db.getMetadata().getSecurity().getUser(OrientDefaultAdmin)
     adminUser.setName(adminUsername)
     adminUser.setPassword(adminPassword)
     adminUser.save()
-    
+
     // Close and reconnect with the new credentials to make sure everything
     // we set properly.
     db.close()
     db.open(adminUsername, adminPassword)
-    
+
     // Change the username and password of the normal user
     val normalUser = db.getMetadata().getSecurity().getUser(OrientDefaultWriter)
     normalUser.setName(normalUsername)
     normalUser.setPassword(normalPassword)
     normalUser.save()
-    
+
     // Delete the reader user since we do not need it.
     db.getMetadata().getSecurity().getUser(OrientDefaultReader).getDocument().delete()
-    
+
     tryToFuture(Try {
       // FIXME make sure this becomes asynchronous.
       val schemaManager = new OrientSchemaManager(db, Domain)
-      
+
       // FIXME make this a config
       schemaManager.upgradeToVersion(1)
       db.close()
@@ -120,15 +120,15 @@ class DomainDBController(
     })
   }
 
-  private[this] def initDomain(uri: String, username: String, password: String): Try[Unit] = Try {
+  private[this] def initDomain(uri: String, username: String, password: String): Try[Unit] = {
     logger.debug(s"Initializing domain: $uri")
-    val pool = new OPartitionedDatabasePool(uri, username, password, 64, 1)
+    val pool = new OPartitionedDatabasePool(uri, username, password)
     val persistenceProvider = new DomainPersistenceProvider(pool)
-    persistenceProvider.validateConnection()
-    logger.debug(s"Connected to domain database: $uri")
-    persistenceProvider
+    persistenceProvider.validateConnection() map (_ => persistenceProvider)
   } flatMap {
-    case persistenceProvider =>
+    persistenceProvider =>
+      logger.debug(s"Connected to domain database: $uri")
+      
       logger.debug(s"Generating admin key: $uri")
       JwtUtil.createKey().flatMap { rsaJsonWebKey =>
         for {
@@ -139,24 +139,19 @@ class DomainDBController(
         }
       } flatMap { keyPair =>
         logger.debug(s"Created public key for domain: $uri")
-        if (persistenceProvider.configStore.isInitialized().get) {
-          logger.debug(s"Domain alreay initialized, updating keys: $uri")
-          persistenceProvider.configStore.setAdminKeyPair(keyPair)
-        } else {
-          logger.debug(s"Domain not initialized, iniitalizing: $uri")
-          persistenceProvider.configStore.initializeDomainConfig(
-            keyPair,
-            DomainRemoteDBController.DefaultSnapshotConfig)
-        }
-      } match {
-        case s @ Success(_) =>
-          logger.debug(s"Domain initialized: $uri")
-          persistenceProvider.shutdown()
-          s
-        case f @ Failure(cause) =>
+        
+        logger.debug(s"Domain iniitalizing domain: $uri")
+        persistenceProvider.configStore.initializeDomainConfig(
+          keyPair,
+          DomainRemoteDBController.DefaultSnapshotConfig)
+      } map { _ =>
+        logger.debug(s"Domain initialized: $uri")
+        persistenceProvider.shutdown()
+      } recoverWith {
+        case cause: Exception =>
           logger.error(s"Failure initializing domain: $uri", cause)
           persistenceProvider.shutdown()
-          f
+          Failure(cause)
       }
   }
 

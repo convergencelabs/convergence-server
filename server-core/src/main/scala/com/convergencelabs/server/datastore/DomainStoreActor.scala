@@ -98,7 +98,6 @@ class DomainStoreActor private[datastore] (
             sr.close();
             w.close()
 
-            // TODO we should probably have some field on the domain that references errors?
             domainStore.getDomainByFqn(domainFqn) map (_.map { domain =>
               val updated = domain.copy(status = DomainStatus.Error, statusMessage = statusMessage)
               domainStore.updateDomain(updated)

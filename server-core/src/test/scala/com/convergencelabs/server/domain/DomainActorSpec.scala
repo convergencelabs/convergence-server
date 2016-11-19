@@ -22,6 +22,7 @@ import com.convergencelabs.server.util.MockDomainPersistenceManagerActor
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
+import scala.util.Success
 
 @RunWith(classOf[JUnitRunner])
 class DomainActorSpec
@@ -63,7 +64,7 @@ class DomainActorSpec
     val domainFqn = DomainFqn("convergence", "default")
 
     val provider = mock[DomainPersistenceProvider]
-    Mockito.when(provider.validateConnection()).thenReturn(true)
+    Mockito.when(provider.validateConnection()).thenReturn(Success(()))
     domainPersistence.underlyingActor.mockProviders = Map(domainFqn -> provider)
 
     val domainManagerActor = new TestProbe(system)

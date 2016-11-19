@@ -1,29 +1,29 @@
 package com.convergencelabs.server.datastore
 
+import java.net.URLEncoder
+
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
-import akka.actor.ActorLogging
-import akka.actor.Props
-import akka.pattern.ask
-import akka.util.Timeout
-import akka.actor.ActorRef
-import com.convergencelabs.server.datastore.RegistrationActor.RegisterUser
+import scala.util.Success
+
+import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.CreateConvergenceUserRequest
 import com.convergencelabs.server.datastore.RegistrationActor.AddRegistration
 import com.convergencelabs.server.datastore.RegistrationActor.ApproveRegistration
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.CreateConvergenceUserRequest
-import akka.actor.ActorRef
-import scala.util.Try
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import scala.util.Success
-import scala.util.Failure
-import scala.concurrent.duration.FiniteDuration
-import com.typesafe.config.Config
-import com.convergencelabs.server.datastore.RegistrationActor.RejectRegistration
-import java.net.URLEncoder
-import com.convergencelabs.templates
-import com.convergencelabs.server.util.EmailUtilities
+import com.convergencelabs.server.datastore.RegistrationActor.RegisterUser
 import com.convergencelabs.server.datastore.RegistrationActor.RegistrationInfo
 import com.convergencelabs.server.datastore.RegistrationActor.RegistrationInfoRequest
+import com.convergencelabs.server.datastore.RegistrationActor.RejectRegistration
+import com.convergencelabs.server.util.EmailUtilities
+import com.convergencelabs.templates
+import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
+import com.typesafe.config.Config
+
+import akka.actor.ActorLogging
+import akka.actor.ActorRef
+import akka.actor.Props
+import akka.actor.actorRef2Scala
+import akka.pattern.ask
+import akka.util.Timeout
 
 object RegistrationActor {
   def props(dbPool: OPartitionedDatabasePool, userManager: ActorRef): Props = Props(new RegistrationActor(dbPool, userManager))
@@ -107,14 +107,14 @@ class RegistrationActor private[datastore] (dbPool: OPartitionedDatabasePool, us
       case DuplicateValue => DuplicateValue
       case InvalidValue => InvalidValue
     })
-
   }
 
   def appoveRegistration(message: ApproveRegistration): Unit = {
     val ApproveRegistration(token) = message
-
     val resp = registrationStore.approveRegistration(token)
+    
     reply(resp)
+    
     resp match {
       case Success(UpdateSuccess) => {
         registrationStore.getRegistrationInfo(token) match {

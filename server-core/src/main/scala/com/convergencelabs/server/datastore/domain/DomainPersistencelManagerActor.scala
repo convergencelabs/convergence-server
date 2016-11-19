@@ -142,33 +142,25 @@ class DomainPersistenceManagerActor(
     })
   }
 
-  private[this] def createProvider(domainFqn: DomainFqn): Try[DomainPersistenceProvider] = Try({
+  private[this] def createProvider(domainFqn: DomainFqn): Try[DomainPersistenceProvider] = {
     log.debug(s"Creating new persistence provider: ${domainFqn}")
-    domainStore.getDomainDatabaseInfo(domainFqn) match {
-      case Success(Some(domainInfo)) => {
+    domainStore.getDomainDatabaseInfo(domainFqn) flatMap {
+      case Some(domainInfo) =>
         val pool = new OPartitionedDatabasePool(
           s"${baseDbUri}/${domainInfo.database}",
           domainInfo.username,
           domainInfo.password)
         log.debug(s"Creating new connection pool for '${domainFqn}': ${pool.getUrl}")
         val provider = new DomainPersistenceProvider(pool)
-        provider.validateConnection() match {
-          case false => throw new IllegalStateException("unable to connect to the database")
-          case true =>
+        provider.validateConnection() flatMap { _ =>
+          providers = providers + (domainFqn -> provider)
+          Success(provider)
         }
-        providers = providers + (domainFqn -> provider)
-        provider
-      }
-      case Success(None) => {
-        throw new IllegalStateException(
-          s"Error looking up the domain record for $domainFqn, when initializing a domain persistence provider.")
-      }
-      case Failure(cause) => {
-        log.debug(cause.getMessage)
-        throw cause
-      }
+      case None =>
+        Failure(new IllegalStateException(
+          s"Error looking up the domain record for $domainFqn, when initializing a domain persistence provider."))
     }
-  })
+  }
 
   private[this] def shutdownPool(domainFqn: DomainFqn): Unit = {
     providers.get(domainFqn) match {

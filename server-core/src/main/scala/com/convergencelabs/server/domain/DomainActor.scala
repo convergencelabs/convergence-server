@@ -72,11 +72,11 @@ class DomainActor(
   private[this] val activityServiceActor = context.actorOf(ActivityServiceActor.props(
     domainFqn),
     ActivityServiceActor.RelativePath)
-    
+
   private[this] val presenceServiceActor = context.actorOf(PresenceServiceActor.props(
     domainFqn),
     PresenceServiceActor.RelativePath)
-    
+
   private[this] val chatServiceActor = context.actorOf(ChatServiceActor.props(
     domainFqn),
     ChatServiceActor.RelativePath)
@@ -111,22 +111,20 @@ class DomainActor(
   }
 
   private[this] def onHandshakeRequest(message: HandshakeRequest): Unit = {
-    persistenceProvider.validateConnection() match {
-      case true => {
-        connectedClients += message.clientActor
-        context.watch(message.clientActor)
-
-        sender ! HandshakeSuccess(
-          self,
-          modelManagerActorRef,
-          userServiceActor,
-          activityServiceActor,
-          presenceServiceActor,
-          chatServiceActor)
-      }
-      case false => {
+    persistenceProvider.validateConnection() map { _ =>
+      connectedClients += message.clientActor
+      context.watch(message.clientActor)
+      sender ! HandshakeSuccess(
+        self,
+        modelManagerActorRef,
+        userServiceActor,
+        activityServiceActor,
+        presenceServiceActor,
+        chatServiceActor)
+    } recover {
+      case cause: Exception =>
+        log.error(cause, "Could not connect to domain database")
         sender ! HandshakeFailure("domain_unavailable", "Could not connect to database.")
-      }
     }
   }
 

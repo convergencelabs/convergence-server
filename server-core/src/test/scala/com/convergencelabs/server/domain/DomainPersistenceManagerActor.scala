@@ -76,7 +76,7 @@ class DomainManagerActorSpec()
     Mockito.when(domainStore.domainExists(nonExistingDomain)).thenReturn(Success(false))
 
     val provider = mock[DomainPersistenceProvider]
-    Mockito.when(provider.validateConnection()).thenReturn(true)
+    Mockito.when(provider.validateConnection()).thenReturn(Success(()))
     domainPersistence.underlyingActor.mockProviders = Map(domainFqn -> provider)
 
 
