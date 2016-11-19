@@ -28,6 +28,8 @@ import akka.util.Timeout
 import ch.megard.akka.http.cors.CorsDirectives.cors
 import ch.megard.akka.http.cors.CorsSettings
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.db.provision.DomainProvisioner
+import com.convergencelabs.server.db.provision.DomainProvisionerActor
 
 object ConvergenceRestFrontEnd {
   val ConvergenceCorsSettings = CorsSettings.defaultSettings.copy(
@@ -54,15 +56,24 @@ class ConvergenceRestFrontEnd(
 
   def start(): Unit = {
     // FIXME this is a hack all of this should be a rest backend
-    val domainStore = new DomainStore(dbPool)
+    val orientDbConfig = system.settings.config.getConfig("convergence.orient-db")
+    val domainProvisioner = new DomainProvisioner(
+      orientDbConfig.getString("db-uri"),
+      orientDbConfig.getString("admin-username"),
+      orientDbConfig.getString("admin-password"))
+    val provisionerActor = system.actorOf(DomainProvisionerActor.props(domainProvisioner), DomainProvisionerActor.RelativePath)
 
     val authActor = system.actorOf(AuthStoreActor.props(dbPool))
-    val domainActor = system.actorOf(DomainStoreActor.props(dbPool, ec))
+    val domainActor = system.actorOf(DomainStoreActor.props(dbPool, provisionerActor))
     val userManagerActor = system.actorOf(ConvergenceUserManagerActor.props(dbPool, domainActor))
     val registrationActor = system.actorOf(RegistrationActor.props(dbPool, userManagerActor))
     val domainManagerActor = system.actorOf(RestDomainManagerActor.props(dbPool))
+
+    // FIXME should this take an actor ref instead?
+    val domainStore = new DomainStore(dbPool)
     val authzActor = system.actorOf(RestAuthnorizationActor.props(domainStore))
     val convergenceUserActor = system.actorOf(ConvergenceUserManagerActor.props(dbPool, domainActor))
+
     // Down to here
 
     val registrationBaseUrl = system.settings.config.getString("convergence.registration-base-url")

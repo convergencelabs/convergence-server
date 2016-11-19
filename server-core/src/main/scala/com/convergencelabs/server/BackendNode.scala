@@ -9,6 +9,7 @@ import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 
 import akka.actor.ActorSystem
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.db.provision.DomainProvisioner
 
 class BackendNode(system: ActorSystem, dbPool: OPartitionedDatabasePool) extends Logging {
 
@@ -25,7 +26,7 @@ class BackendNode(system: ActorSystem, dbPool: OPartitionedDatabasePool) extends
       domainStore,
       protocolConfig),
       DomainManagerActor.RelativeActorPath)
-
+      
     logger.info("Backend Node started up.")
   }
 

@@ -24,15 +24,15 @@ import akka.cluster.ClusterEvent.MemberUp
 import akka.cluster.ClusterEvent.UnreachableMember
 import grizzled.slf4j.Logging
 import com.orientechnologies.orient.client.remote.OServerAdmin
-import com.convergencelabs.server.schema.OrientSchemaManager
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import com.convergencelabs.server.schema.DBType
 import com.orientechnologies.orient.core.config.OGlobalConfiguration
 import com.orientechnologies.orient.core.exception.OStorageException
 import scala.util.Try
 import scala.util.Success
 import scala.util.Failure
 import java.time.Duration
+import com.convergencelabs.server.schema.DatabaseSchemaManager
+import com.convergencelabs.db.deltas.DeltaCategory
 
 object ConvergenceServerNode extends Logging {
   def main(args: Array[String]): Unit = {
@@ -123,18 +123,16 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
     if (!serverAdmin.existsDatabase()) {
       logger.info("Bootstrapping database")
       serverAdmin.createDatabase("document", "plocal").close()
-      val db = new ODatabaseDocumentTx(uri)
-      db.open(username, password)
-      val schemaManager = new OrientSchemaManager(db, DBType.Convergence)
+      val dbPool = new OPartitionedDatabasePool(uri, username, password)
+      val schemaManager = new DatabaseSchemaManager(dbPool, DeltaCategory.Convergence)
 
-      // FIXME make this a config
-      schemaManager.upgradeToVersion(2) match {
+      schemaManager.upgradeToLatest() match {
         case Success(_) =>
-          logger.info("Databes bootstrapping complete")
+          logger.info("Database bootstrapping complete")
         case Failure(f) =>
-          logger.error("Databes bootstrapping failed.", f)
-          db.close()
+          logger.error("Database bootstrapping failed.", f)
       }
+      dbPool.close()
     } else {
       serverAdmin.close()
     }

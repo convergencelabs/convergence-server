@@ -12,9 +12,12 @@ import com.convergencelabs.server.domain.Domain
 import com.convergencelabs.server.domain.DomainFqn
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.typesafe.config.Config
+import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
 
 import akka.actor.ActorLogging
 import akka.actor.Props
+import akka.pattern.ask
 import scala.util.Try
 import scala.concurrent.ExecutionContext
 import com.convergencelabs.server.domain.DomainStatus
@@ -23,18 +26,23 @@ import com.convergencelabs.server.domain.DomainDatabaseInfo
 import java.io.StringWriter
 import java.io.PrintWriter
 import com.convergencelabs.server.datastore.DomainStoreActor.DeleteDomainsForUserRequest
+import akka.actor.ActorRef
+import com.convergencelabs.server.db.provision.DomainProvisionerActor.ProvisionDomain
+import akka.util.Timeout
+import com.convergencelabs.server.db.provision.DomainProvisionerActor.DomainProvisioned
+import com.convergencelabs.server.db.provision.DomainProvisionerActor.DestroyDomain
+import com.convergencelabs.server.db.provision.DomainProvisionerActor.DomainDeleted
+import com.convergencelabs.server.db.provision.DomainProvisionerActor
 
 class DomainStoreActor private[datastore] (
   private[this] val dbPool: OPartitionedDatabasePool,
-  private[this] implicit val ec: ExecutionContext)
+  private[this] val domainProvisioner: ActorRef)
     extends StoreActor with ActorLogging {
 
-  private[this] val orientDbConfig: Config = context.system.settings.config.getConfig("convergence.orient-db")
   private[this] val RandomizeCredentials = context.system.settings.config.getBoolean("convergence.domain-databases.randomize-credentials")
 
   private[this] val domainStore: DomainStore = new DomainStore(dbPool)
-
-  private[this] val domainDBContoller = new DomainDBController(orientDbConfig, context.system)
+  private[this] implicit val ec = context.system.dispatcher
 
   def receive: Receive = {
     case createRequest: CreateDomainRequest => createDomain(createRequest)
@@ -61,12 +69,12 @@ class DomainStoreActor private[datastore] (
     }
 
     val domainDbInfo = DomainDatabaseInfo(
-        dbName,
-        normalUsername,
-        normalPassword,
-        adminUsername,
-        adminPassword)
-    
+      dbName,
+      normalUsername,
+      normalPassword,
+      adminUsername,
+      adminPassword)
+
     val domainFqn = DomainFqn(namespace, domainId)
 
     val result = domainStore.createDomain(
@@ -81,8 +89,10 @@ class DomainStoreActor private[datastore] (
     // functions to the CreateResult class.
     result foreach {
       case CreateSuccess(()) =>
-        domainDBContoller.createDomain(domainDbInfo) onComplete {
-          case Success(()) =>
+        implicit val requstTimeout = Timeout(4 minutes) // FXIME hardcoded timeout
+        val message = ProvisionDomain(dbName, normalUsername, normalPassword, adminUsername, adminPassword)
+        (domainProvisioner ? message).mapTo[DomainProvisioned] onComplete {
+          case Success(DomainProvisioned()) =>
             log.debug(s"Domain created, setting status to online: $dbName")
             domainStore.getDomainByFqn(domainFqn) map (_.map { domain =>
               val updated = domain.copy(status = DomainStatus.Online)
@@ -104,6 +114,7 @@ class DomainStoreActor private[datastore] (
             })
         }
       case _ =>
+      // FIXME what happens here?
     }
   }
 
@@ -127,7 +138,9 @@ class DomainStoreActor private[datastore] (
     reply((domain, databaseConfig) match {
       case (Success(Some(domain)), Success(Some(databaseConfig))) => {
         domainStore.removeDomain(domainFqn)
-        domainDBContoller.deleteDomain(databaseConfig.database)
+        // FIXME we don't seem to care about the response?
+        implicit val requstTimeout = Timeout(4 minutes) // FXIME hardcoded timeout
+        (domainProvisioner ? DestroyDomain(databaseConfig.database))
         Success(DeleteSuccess)
       }
       case _ => Success(NotFound)
@@ -147,23 +160,25 @@ class DomainStoreActor private[datastore] (
       domains.foreach {
         case (domain, info) =>
           log.debug(s"Deleting domain database for ${domain.domainFqn}: ${info.database}")
-          domainDBContoller.deleteDomain(info.database) flatMap { _ =>
-            log.debug(s"Domain database deleted: ${info.database}")
-            log.debug(s"Removing domain record: ${domain.domainFqn}")
-            val result = domainStore.removeDomain(domain.domainFqn)
-            log.debug(s"Domain record removed: ${domain.domainFqn}")
-            result
-          } match {
+          // FIXME we don't seem to care about the response?
+          implicit val requstTimeout = Timeout(4 minutes) // FXIME hardcoded timeout
+          (domainProvisioner ? DestroyDomain(info.database)) onComplete {
+            case Success(_) =>
+              log.debug(s"Domain database deleted: ${info.database}")
+              log.debug(s"Removing domain record: ${domain.domainFqn}")
+              domainStore.removeDomain(domain.domainFqn) match {
+                case Success(_) =>
+                  log.debug(s"Domain record removed: ${domain.domainFqn}")
+                case Failure(cause) =>
+                  log.error(cause, s"Error deleting domain record: ${domain.domainFqn}")
+              }
             case Failure(f) =>
-              log.error(f, s"Error deleting domain: ${domain.domainFqn}")
-            case _ =>
-              log.debug(s"Domain deleted: ${domain.domainFqn}")
+              log.error(f, s"Could not desstroy domain database: ${domain.domainFqn}")
           }
       }
-    } match {
-      case Failure(f) =>
-        log.error(f, s"Error deleting domains for user: ${username}")
-      case _ =>
+    } recover {
+      case cause: Exception =>
+        log.error(cause, s"Error deleting domains for user: ${username}")
     }
   }
 
@@ -179,7 +194,8 @@ class DomainStoreActor private[datastore] (
 
 object DomainStoreActor {
   def props(dbPool: OPartitionedDatabasePool,
-    ec: ExecutionContext): Props = Props(new DomainStoreActor(dbPool, ec))
+    provisionerActor: ActorRef): Props =
+    Props(new DomainStoreActor(dbPool, provisionerActor))
 
   case class CreateDomainRequest(namespace: String, domainId: String, displayName: String, owner: String)
   case class UpdateDomainRequest(namespace: String, domainId: String, displayName: String)
