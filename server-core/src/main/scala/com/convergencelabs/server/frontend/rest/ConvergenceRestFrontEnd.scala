@@ -30,6 +30,7 @@ import ch.megard.akka.http.cors.CorsSettings
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.db.provision.DomainProvisioner
 import com.convergencelabs.server.db.provision.DomainProvisionerActor
+import com.convergencelabs.server.db.data.ConvergenceImporterActor
 
 object ConvergenceRestFrontEnd {
   val ConvergenceCorsSettings = CorsSettings.defaultSettings.copy(
@@ -63,6 +64,11 @@ class ConvergenceRestFrontEnd(
       orientDbConfig.getString("admin-password"))
     val provisionerActor = system.actorOf(DomainProvisionerActor.props(domainProvisioner), DomainProvisionerActor.RelativePath)
 
+    val importerActor = system.actorOf(ConvergenceImporterActor.props(
+      orientDbConfig.getString("db-uri"),
+      dbPool,
+      provisionerActor), ConvergenceImporterActor.RelativePath)
+
     val authActor = system.actorOf(AuthStoreActor.props(dbPool))
     val domainActor = system.actorOf(DomainStoreActor.props(dbPool, provisionerActor))
     val userManagerActor = system.actorOf(ConvergenceUserManagerActor.props(dbPool, domainActor))
@@ -85,7 +91,9 @@ class ConvergenceRestFrontEnd(
     val domainService = new DomainService(ec, authzActor, domainActor, domainManagerActor, defaultRequestTimeout)
     val profileService = new ProfileService(ec, convergenceUserActor, defaultRequestTimeout)
     val keyGenService = new KeyGenService(ec)
-    val convergenceAdminService = new ConvergenceAdminService(ec, convergenceUserActor, defaultRequestTimeout)
+    val convergenceUserService = new ConvergenceUserService(ec, convergenceUserActor, defaultRequestTimeout)
+
+    val convergenceImportService = new ConvergenceImportService(ec, importerActor, defaultRequestTimeout)
 
     val adminsConfig = system.settings.config.getConfig("convergence.convergence-admins")
 
@@ -104,7 +112,8 @@ class ConvergenceRestFrontEnd(
           }
       } ~ pathPrefix("admin") {
         authenticateBasic(realm = "convergence admin", AdminAuthenticator.authenticate(adminsConfig)) { adminUser =>
-          convergenceAdminService.route(adminUser)
+          convergenceUserService.route(adminUser) ~
+            convergenceImportService.route(adminUser)
         }
       } ~ registrationService.route
     }

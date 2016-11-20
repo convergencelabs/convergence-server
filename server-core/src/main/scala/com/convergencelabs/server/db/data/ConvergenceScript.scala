@@ -24,4 +24,4 @@ case class CreateDomain(
   dbPassword: String,
   dbAdminUsername: String,
   dbAdminPassword: String,
-  script: Option[DomainScript])
+  dataImport: Option[DomainScript])

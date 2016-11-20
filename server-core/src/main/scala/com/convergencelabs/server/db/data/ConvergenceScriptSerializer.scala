@@ -16,9 +16,10 @@ import java.util.Date
 import org.json4s.CustomSerializer
 import java.io.FileNotFoundException
 
-class ImportScriptSerializer {
+class ConvergenceScriptSerializer {
+  
   private[this] val mapper = new ObjectMapper(new YAMLFactory())
-  private[this] implicit val format = DefaultFormats
+  private[this] implicit val format = JsonFormats.format
 
   def deserialize(in: InputStream): Try[ConvergenceScript] = Try {
     Option(in) map { stream  =>

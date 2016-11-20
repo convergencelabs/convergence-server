@@ -3,34 +3,47 @@ package com.convergencelabs.server.frontend.rest
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
-import akka.actor.ActorRef
-import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.model.StatusCodes
-import akka.pattern.ask
-import akka.util.Timeout
-import com.convergencelabs.server.frontend.rest.ConvergenceAdminService.CreateUserRequest
+import com.convergencelabs.server.User
 import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.CreateConvergenceUserRequest
+import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.DeleteConvergenceUserRequest
+import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUser
+import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUsers
 import com.convergencelabs.server.datastore.CreateResult
 import com.convergencelabs.server.datastore.CreateSuccess
-import com.convergencelabs.server.datastore.DuplicateValue
-import com.convergencelabs.server.datastore.InvalidValue
 import com.convergencelabs.server.datastore.DeleteResult
 import com.convergencelabs.server.datastore.DeleteSuccess
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.DeleteConvergenceUserRequest
+import com.convergencelabs.server.datastore.DuplicateValue
+import com.convergencelabs.server.datastore.InvalidValue
 import com.convergencelabs.server.datastore.NotFound
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUsers
-import com.convergencelabs.server.User
-import com.convergencelabs.server.frontend.rest.ConvergenceAdminService.GetUsersResponse
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUser
-import com.convergencelabs.server.frontend.rest.ConvergenceAdminService.GetUserResponse
+import com.convergencelabs.server.frontend.rest.ConvergenceUserService.CreateUserRequest
+import com.convergencelabs.server.frontend.rest.ConvergenceUserService.GetUserResponse
+import com.convergencelabs.server.frontend.rest.ConvergenceUserService.GetUsersResponse
 
-object ConvergenceAdminService {
+import akka.actor.ActorRef
+import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
+import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.server.Directive.addByNameNullaryApply
+import akka.http.scaladsl.server.Directive.addDirectiveApply
+import akka.http.scaladsl.server.Directives.Segment
+import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
+import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
+import akka.http.scaladsl.server.Directives.complete
+import akka.http.scaladsl.server.Directives.delete
+import akka.http.scaladsl.server.Directives.get
+import akka.http.scaladsl.server.Directives.handleWith
+import akka.http.scaladsl.server.Directives.pathEnd
+import akka.http.scaladsl.server.Directives.pathPrefix
+import akka.http.scaladsl.server.Directives.post
+import akka.pattern.ask
+import akka.util.Timeout
+
+object ConvergenceUserService {
   case class CreateUserRequest(username: String, firstName: String, lastName: String, email: String, password: String)
   case class GetUsersResponse(users: List[User]) extends AbstractSuccessResponse
   case class GetUserResponse(user: Option[User]) extends AbstractSuccessResponse
 }
 
-class ConvergenceAdminService(
+class ConvergenceUserService(
     private[this] val executionContext: ExecutionContext,
     private[this] val userManagerActor: ActorRef,
     private[this] val defaultTimeout: Timeout) extends JsonSupport {
@@ -78,11 +91,9 @@ class ConvergenceAdminService(
     (userManagerActor ? GetConvergenceUsers).mapTo[List[User]] map
       (users => (StatusCodes.OK, GetUsersResponse(users)))
   }
-  
+
   def getUser(username: String): Future[RestResponse] = {
     (userManagerActor ? GetConvergenceUser(username)).mapTo[Option[User]] map
       (user => (StatusCodes.OK, GetUserResponse(user)))
   }
 }
-
-

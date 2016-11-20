@@ -26,13 +26,20 @@ class ConvergenceImporterActor(
   }
 
   private[this] def importConvergence(script: ConvergenceScript): Unit = {
-    val importer: ConvergenceImporter = new ConvergenceImporter(
+    val importer = new ConvergenceImporter(
       dbBaseUri,
       dbPool,
       domainProvisioner,
       script,
       context.system.dispatcher)
-
+    importer.importData() map { _ => 
+      log.debug("Import completed successfuly")
+    } recover {
+      case cause: Exception =>
+        log.error(cause, "Data import failed")
+    }
+    
+    sender ! (())
   }
 
   private[this] def importDomain(fqn: DomainFqn, script: DomainScript): Unit = {

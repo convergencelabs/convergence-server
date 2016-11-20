@@ -90,7 +90,7 @@ class DomainImporter(
   }
 
   def createJwtAuthKeys(): Try[Unit] = Try {
-    logger.debug("Importting JWT Auth Keys")
+    logger.debug("Importing JWT Auth Keys")
     data.jwtAuthKeys foreach (_.foreach { keyData =>
       val key = JwtPublicKey(
         keyData.keyId,

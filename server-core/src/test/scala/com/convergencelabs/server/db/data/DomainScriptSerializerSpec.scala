@@ -7,7 +7,7 @@ import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
 
-class ImportDomainScriptSerializerSpec extends WordSpecLike with Matchers {
+class DomainScriptSerializerSpec extends WordSpecLike with Matchers {
 
   "A CreateDomainScriptSerializer" when {
     "deserializing a scropt" must {

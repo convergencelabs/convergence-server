@@ -83,7 +83,7 @@ class DomainProvisioner(
     // get created with their passwords equal to their usernames. We want
     // to change the admin and writer and delete the reader.
     val db = new ODatabaseDocumentTx(dbUri)
-    db.open(OrientDefaultAdmin, OrientDefaultAdmin)
+    db.open(dbRootUsername, dbRootPasword)
 
     // Change the admin username / password and then reconnect
     val adminUser = db.getMetadata().getSecurity().getUser(OrientDefaultAdmin)
@@ -141,7 +141,7 @@ class DomainProvisioner(
           new JwtKeyPair(publicKey, privateKey)
         }
       } flatMap { keyPair =>
-        logger.debug(s"Created public key for domain: ${uri}")
+        logger.debug(s"Created key pair for domain: ${uri}")
 
         logger.debug(s"Iniitalizing domain: ${uri}")
         persistenceProvider.configStore.initializeDomainConfig(

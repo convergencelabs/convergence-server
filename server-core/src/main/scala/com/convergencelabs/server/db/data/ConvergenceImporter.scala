@@ -20,13 +20,14 @@ import scala.util.Success
 import scala.util.Failure
 import scala.concurrent.ExecutionContext
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
+import grizzled.slf4j.Logging
 
 class ConvergenceImporter(
     private[this] val dbBaseUri: String,
     private[this] val dbPool: OPartitionedDatabasePool,
     private[this] val domainProvisioner: ActorRef,
     private[this] val data: ConvergenceScript,
-    private[this] implicit val ec: ExecutionContext) {
+    private[this] implicit val ec: ExecutionContext) extends Logging {
 
   def importData(): Try[Unit] = {
     importUsers() flatMap (_ =>
@@ -34,6 +35,7 @@ class ConvergenceImporter(
   }
 
   def importUsers(): Try[Unit] = Try {
+    logger.debug("Importing convergence users")
     val userStore = new UserStore(dbPool, Duration.ofMillis(0L))
     data.users foreach {
       _.map { userData =>
@@ -45,12 +47,15 @@ class ConvergenceImporter(
         userStore.createUser(user, userData.password) recover { case e: Exception => throw e }
       }
     }
+    logger.debug("Done importing convergence users")
   }
 
   def importDomains(): Try[Unit] = Try {
+    logger.debug("Importing domains")
     val domainStore = new DomainStore(dbPool)
     data.domains foreach {
       _.map { domainData =>
+        logger.debug(s"Importing domaing: ${domainData.namespace}/${domainData.domainId}")
         val domainDbInfo = DomainDatabaseInfo(
           domainData.dbName,
           domainData.dbUsername,
@@ -70,18 +75,30 @@ class ConvergenceImporter(
           domainData.dbAdminUsername,
           domainData.dbAdminUsername)
 
+        logger.debug(s"Requestion domain provisioning for: ${domainData.dbName}")
         (domainProvisioner ? message).mapTo[DomainProvisioned] onComplete {
           case Success(DomainProvisioned()) =>
-            domainData.script map { script =>
+            logger.debug(s"Domain provisioned successfuly: ${domainData.dbName}")
+
+            domainData.dataImport map { script =>
               val dbPool = new OPartitionedDatabasePool(
-                s"${dbBaseUri}/domainData.dbName", domainData.dbUsername, domainData.dbPassword)
+                s"${dbBaseUri}/${domainData.dbName}", domainData.dbUsername, domainData.dbPassword)
               val provider = new DomainPersistenceProvider(dbPool)
               val domainImporter = new DomainImporter(provider, script)
-              // FIXME handle errors.
-              domainImporter.importDomain()
+              
+              domainImporter.importDomain() map { _ =>
+                logger.debug("Domain import successful")
+              } recover {
+                case cause: Exception =>
+                  logger.error("Domain import failed", cause)
+              }
             }
+
           case Failure(cause) =>
+            logger.error("Domain provisioing failed", cause)
         }
+
+        logger.debug(s"Finished importing domaing: ${domainData.namespace}/${domainData.domainId}")
       }
     }
   }
