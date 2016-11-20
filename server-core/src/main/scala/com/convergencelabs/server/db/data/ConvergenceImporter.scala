@@ -21,11 +21,15 @@ import scala.util.Failure
 import scala.concurrent.ExecutionContext
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import grizzled.slf4j.Logging
+import java.util.UUID
+import com.convergencelabs.server.datastore.DomainStoreActor.CreateDomainRequest
+import com.convergencelabs.server.datastore.CreateResult
+import com.convergencelabs.server.datastore.CreateSuccess
 
 class ConvergenceImporter(
     private[this] val dbBaseUri: String,
     private[this] val dbPool: OPartitionedDatabasePool,
-    private[this] val domainProvisioner: ActorRef,
+    private[this] val domainStoreActor: ActorRef,
     private[this] val data: ConvergenceScript,
     private[this] implicit val ec: ExecutionContext) extends Logging {
 
@@ -56,49 +60,42 @@ class ConvergenceImporter(
     data.domains foreach {
       _.map { domainData =>
         logger.debug(s"Importing domaing: ${domainData.namespace}/${domainData.domainId}")
-        val domainDbInfo = DomainDatabaseInfo(
-          domainData.dbName,
-          domainData.dbUsername,
-          domainData.dbPassword,
-          domainData.dbAdminUsername,
-          domainData.dbAdminUsername)
 
-        val domainFqn = DomainFqn(domainData.namespace, domainData.domainId)
+        val domainCreateRequest = CreateDomainRequest(
+          domainData.namespace, domainData.domainId, domainData.displayName, domainData.owner)
 
-        domainStore.createDomain(domainFqn, domainData.displayName, domainData.owner, domainDbInfo)
+        // FXIME hardcoded timeout
+        implicit val requstTimeout = Timeout(4 minutes)
+        logger.debug(s"Requestion domain provisioning for: ${domainData.namespace}/${domainData.domainId}")
+        val response = (domainStoreActor ? domainCreateRequest).mapTo[CreateResult[DomainDatabaseInfo]]
 
-        implicit val requstTimeout = Timeout(4 minutes) // FXIME hardcoded timeout
-        val message = ProvisionDomain(
-          domainData.dbName,
-          domainData.dbUsername,
-          domainData.dbPassword,
-          domainData.dbAdminUsername,
-          domainData.dbAdminUsername)
-
-        logger.debug(s"Requestion domain provisioning for: ${domainData.dbName}")
-        (domainProvisioner ? message).mapTo[DomainProvisioned] onComplete {
-          case Success(DomainProvisioned()) =>
-            logger.debug(s"Domain provisioned successfuly: ${domainData.dbName}")
-
+        response onSuccess {
+          case CreateSuccess(dbInfo) =>
+            logger.debug(s"Domain database provisioned successfuly: ${domainData.namespace}/${domainData.domainId}")
             domainData.dataImport map { script =>
+              logger.debug(s"Importing data for domain: ${domainData.namespace}/${domainData.domainId}")
               val dbPool = new OPartitionedDatabasePool(
-                s"${dbBaseUri}/${domainData.dbName}", domainData.dbUsername, domainData.dbPassword)
+                s"${dbBaseUri}/${dbInfo.database}", dbInfo.username, dbInfo.password)
               val provider = new DomainPersistenceProvider(dbPool)
               val domainImporter = new DomainImporter(provider, script)
-              
+
               domainImporter.importDomain() map { _ =>
-                logger.debug("Domain import successful")
+                logger.debug("Domain import successful.")
               } recover {
                 case cause: Exception =>
                   logger.error("Domain import failed", cause)
+                  Failure(cause)
               }
+            } orElse {
+              logger.debug("No data to import, domain provisioing complete")
+              None
             }
-
-          case Failure(cause) =>
-            logger.error("Domain provisioing failed", cause)
         }
 
-        logger.debug(s"Finished importing domaing: ${domainData.namespace}/${domainData.domainId}")
+        response onFailure {
+          case cause: Exception =>
+            logger.error("Domain provisioing failed", cause)
+        }
       }
     }
   }

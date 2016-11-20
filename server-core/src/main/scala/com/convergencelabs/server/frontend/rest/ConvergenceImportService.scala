@@ -19,15 +19,17 @@ import akka.http.scaladsl.server.Directives.post
 import akka.pattern.ask
 import akka.util.Timeout
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
-
+import grizzled.slf4j.Logging
 
 object ConvergenceImportService {
 }
 
 class ConvergenceImportService(
-    private[this] val executionContext: ExecutionContext,
-    private[this] val importerActor: ActorRef,
-    private[this] val defaultTimeout: Timeout) extends Json4sSupport {
+  private[this] val executionContext: ExecutionContext,
+  private[this] val importerActor: ActorRef,
+  private[this] val defaultTimeout: Timeout)
+    extends Json4sSupport
+    with Logging {
 
   implicit val serialization = Serialization
   implicit val formats = JsonFormats.format
@@ -48,6 +50,7 @@ class ConvergenceImportService(
   }
 
   def importConvergence(script: ConvergenceScript): Future[RestResponse] = {
+    logger.debug(s"Received an import request: ${script}")
     (importerActor ? ConvergenceImport(script)).mapTo[Unit].map {
       case _ => OkResponse
     }

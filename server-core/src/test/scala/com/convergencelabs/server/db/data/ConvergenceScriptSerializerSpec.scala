@@ -28,11 +28,6 @@ class ConvergenceScriptSerializerSpec extends WordSpecLike with Matchers {
           status,
           statusMessage,
           owner,
-          dbName,
-          username,
-          password,
-          adminUsername,
-          adminPassword,
           dataImport) = domains.value(0)
 
         namespace shouldBe "imported"
@@ -41,14 +36,9 @@ class ConvergenceScriptSerializerSpec extends WordSpecLike with Matchers {
         status shouldBe "online"
         statusMessage shouldBe ""
         owner shouldBe "imported"
-        dbName shouldBe "importedDb"
-        username shouldBe "normalUser"
-        password shouldBe "normalPassword"
-        adminUsername shouldBe "adminUser"
-        adminPassword shouldBe "adminPassword"
 
         println(dataImport.value)
-        
+
         val DomainScript(config, jwtAuthKeys, domainUsers, collections, models) = dataImport.value
         config shouldBe SetDomainConfig(true, CreateJwtKeyPair("Public Key", "Private Key"))
 

@@ -33,6 +33,7 @@ import com.convergencelabs.server.db.provision.DomainProvisionerActor.DomainProv
 import com.convergencelabs.server.db.provision.DomainProvisionerActor.DestroyDomain
 import com.convergencelabs.server.db.provision.DomainProvisionerActor.DomainDeleted
 import com.convergencelabs.server.db.provision.DomainProvisionerActor
+import com.convergencelabs.server.util.ExceptionUtils
 
 class DomainStoreActor private[datastore] (
   private[this] val dbPool: OPartitionedDatabasePool,
@@ -56,11 +57,11 @@ class DomainStoreActor private[datastore] (
 
   def createDomain(createRequest: CreateDomainRequest): Unit = {
     val CreateDomainRequest(namespace, domainId, displayName, ownerUsername) = createRequest
+    
     val dbName = Math.abs(UUID.randomUUID().getLeastSignificantBits()).toString()
-
-    val (adminUsername, adminPassword, normalUsername, normalPassword) = RandomizeCredentials match {
+    val (dbUsername, dbPassword, dbAdminUsername, dbAdminPassword) = RandomizeCredentials match {
       case false =>
-        ("admin", "admin", "writer", "writer")
+        ("writer", "writer", "admin", "admin")
       case true =>
         (UUID.randomUUID().toString(),
           UUID.randomUUID().toString(),
@@ -68,29 +69,15 @@ class DomainStoreActor private[datastore] (
           UUID.randomUUID().toString())
     }
 
-    val domainDbInfo = DomainDatabaseInfo(
-      dbName,
-      normalUsername,
-      normalPassword,
-      adminUsername,
-      adminPassword)
-
+    val domainDbInfo = DomainDatabaseInfo(dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword)
     val domainFqn = DomainFqn(namespace, domainId)
 
-    val result = domainStore.createDomain(
-      domainFqn,
-      displayName,
-      ownerUsername,
-      domainDbInfo)
-
-    reply(result)
-
-    // TODO opportunity for some scala fu here to actually add try like map and foreach
-    // functions to the CreateResult class.
-    result foreach {
+    val currentSender = sender
+    
+    domainStore.createDomain(domainFqn, displayName, ownerUsername, domainDbInfo) map {
       case CreateSuccess(()) =>
         implicit val requstTimeout = Timeout(4 minutes) // FXIME hardcoded timeout
-        val message = ProvisionDomain(dbName, normalUsername, normalPassword, adminUsername, adminPassword)
+        val message = ProvisionDomain(dbName, dbPassword, dbPassword, dbAdminUsername, dbAdminPassword)
         (domainProvisioner ? message).mapTo[DomainProvisioned] onComplete {
           case Success(DomainProvisioned()) =>
             log.debug(s"Domain created, setting status to online: $dbName")
@@ -98,23 +85,23 @@ class DomainStoreActor private[datastore] (
               val updated = domain.copy(status = DomainStatus.Online)
               domainStore.updateDomain(updated)
             })
-          case Failure(f) =>
-            log.error(f, s"Domain was not created successfully: $dbName")
+            reply(Success(CreateSuccess(domainDbInfo)), currentSender)
 
-            val sr = new StringWriter();
-            val w = new PrintWriter(sr);
-            f.printStackTrace(w);
-            val statusMessage = sr.getBuffer.toString();
-            sr.close();
-            w.close()
-
+          case Failure(cause) =>
+            log.error(cause, s"Domain was not created successfully: $dbName")
+            val statusMessage = ExceptionUtils.stackTraceToString(cause)
             domainStore.getDomainByFqn(domainFqn) map (_.map { domain =>
               val updated = domain.copy(status = DomainStatus.Error, statusMessage = statusMessage)
               domainStore.updateDomain(updated)
             })
+            reply(Failure(cause), currentSender)
         }
-      case _ =>
-      // FIXME what happens here?
+      case InvalidValue =>
+        reply(Success(InvalidValue), currentSender)
+      case DuplicateValue =>
+        reply(Success(InvalidValue), currentSender)
+    } recover {
+      case cause: Exception => reply(Failure(cause), currentSender)
     }
   }
 

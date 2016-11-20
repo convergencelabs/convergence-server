@@ -64,13 +64,14 @@ class ConvergenceRestFrontEnd(
       orientDbConfig.getString("admin-password"))
     val provisionerActor = system.actorOf(DomainProvisionerActor.props(domainProvisioner), DomainProvisionerActor.RelativePath)
 
+    val domainActor = system.actorOf(DomainStoreActor.props(dbPool, provisionerActor))
+    
     val importerActor = system.actorOf(ConvergenceImporterActor.props(
       orientDbConfig.getString("db-uri"),
       dbPool,
-      provisionerActor), ConvergenceImporterActor.RelativePath)
+      domainActor), ConvergenceImporterActor.RelativePath)
 
     val authActor = system.actorOf(AuthStoreActor.props(dbPool))
-    val domainActor = system.actorOf(DomainStoreActor.props(dbPool, provisionerActor))
     val userManagerActor = system.actorOf(ConvergenceUserManagerActor.props(dbPool, domainActor))
     val registrationActor = system.actorOf(RegistrationActor.props(dbPool, userManagerActor))
     val domainManagerActor = system.actorOf(RestDomainManagerActor.props(dbPool))

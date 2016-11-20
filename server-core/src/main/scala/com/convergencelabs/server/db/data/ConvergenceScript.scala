@@ -19,9 +19,4 @@ case class CreateDomain(
   status: String,
   statusMessage: String,
   owner: String,
-  dbName: String,
-  dbUsername: String,
-  dbPassword: String,
-  dbAdminUsername: String,
-  dbAdminPassword: String,
   dataImport: Option[DomainScript])
