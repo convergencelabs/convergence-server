@@ -2,7 +2,7 @@ package com.convergencelabs.server.db.data
 
 import java.time.Instant
 
-case class ImportDomainScript(
+case class DomainScript(
   config: SetDomainConfig,
   jwtAuthKeys: Option[List[CreateJwtAuthKey]],
   users: Option[List[CreateDomainUser]],

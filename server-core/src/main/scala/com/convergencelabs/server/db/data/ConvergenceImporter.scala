@@ -7,11 +7,26 @@ import java.time.Duration
 import com.convergencelabs.server.datastore.UserStore
 import com.convergencelabs.server.User
 import com.convergencelabs.server.datastore.DomainStore
+import com.convergencelabs.server.domain.DomainDatabaseInfo
+import com.convergencelabs.server.domain.DomainFqn
+import akka.actor.ActorRef
+import akka.pattern.ask
+import akka.util.Timeout
+import scala.concurrent.duration.DurationInt
+import com.convergencelabs.server.db.provision.DomainProvisionerActor.ProvisionDomain
+import scala.language.postfixOps
+import com.convergencelabs.server.db.provision.DomainProvisionerActor.DomainProvisioned
+import scala.util.Success
+import scala.util.Failure
+import scala.concurrent.ExecutionContext
+import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 
 class ConvergenceImporter(
+    private[this] val dbBaseUri: String,
     private[this] val dbPool: OPartitionedDatabasePool,
-    private[this] val domainDbProvider: DomainDBProvider,
-    private[this] val data: ImportScript) {
+    private[this] val domainProvisioner: ActorRef,
+    private[this] val data: ConvergenceScript,
+    private[this] implicit val ec: ExecutionContext) {
 
   def importData(): Try[Unit] = {
     importUsers() flatMap (_ =>
@@ -27,12 +42,47 @@ class ConvergenceImporter(
           userData.email,
           userData.firstName.getOrElse(""),
           userData.lastName.getOrElse(""))
-        userStore.createUser(user, userData.password) recover {case e: Exception => throw e}
+        userStore.createUser(user, userData.password) recover { case e: Exception => throw e }
       }
     }
   }
 
   def importDomains(): Try[Unit] = Try {
     val domainStore = new DomainStore(dbPool)
+    data.domains foreach {
+      _.map { domainData =>
+        val domainDbInfo = DomainDatabaseInfo(
+          domainData.dbName,
+          domainData.dbUsername,
+          domainData.dbPassword,
+          domainData.dbAdminUsername,
+          domainData.dbAdminUsername)
+
+        val domainFqn = DomainFqn(domainData.namespace, domainData.domainId)
+
+        domainStore.createDomain(domainFqn, domainData.displayName, domainData.owner, domainDbInfo)
+
+        implicit val requstTimeout = Timeout(4 minutes) // FXIME hardcoded timeout
+        val message = ProvisionDomain(
+          domainData.dbName,
+          domainData.dbUsername,
+          domainData.dbPassword,
+          domainData.dbAdminUsername,
+          domainData.dbAdminUsername)
+
+        (domainProvisioner ? message).mapTo[DomainProvisioned] onComplete {
+          case Success(DomainProvisioned()) =>
+            domainData.script map { script =>
+              val dbPool = new OPartitionedDatabasePool(
+                s"${dbBaseUri}/domainData.dbName", domainData.dbUsername, domainData.dbPassword)
+              val provider = new DomainPersistenceProvider(dbPool)
+              val domainImporter = new DomainImporter(provider, script)
+              // FIXME handle errors.
+              domainImporter.importDomain()
+            }
+          case Failure(cause) =>
+        }
+      }
+    }
   }
 }

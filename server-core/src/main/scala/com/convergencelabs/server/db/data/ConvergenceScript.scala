@@ -1,6 +1,6 @@
 package com.convergencelabs.server.db.data
 
-case class ImportScript(
+case class ConvergenceScript(
   users: Option[List[CreateConvergenceUser]],
   domains: Option[List[CreateDomain]])
 
@@ -23,4 +23,5 @@ case class CreateDomain(
   dbUsername: String,
   dbPassword: String,
   dbAdminUsername: String,
-  dbAdminPassword: String)
+  dbAdminPassword: String,
+  script: Option[DomainScript])

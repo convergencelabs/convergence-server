@@ -14,7 +14,7 @@ class ImportScriptSerializerSpec extends WordSpecLike with Matchers {
         val in = getClass.getResourceAsStream("/com/convergencelabs/server/db/data/convergence-script.yaml")
         val value = serializer.deserialize(in).success.value
 
-        val ImportScript(users, domains) = value
+        val ConvergenceScript(users, domains) = value
 
         users.value shouldBe List(
           CreateConvergenceUser("test1", "myPassword", "test1@example.com", Some("Test"), Some("One"), Some("Test One")))
@@ -30,7 +30,8 @@ class ImportScriptSerializerSpec extends WordSpecLike with Matchers {
           "abc",
           "password",
           "xyz",
-          "password"))
+          "password",
+          None))
       }
     }
   }

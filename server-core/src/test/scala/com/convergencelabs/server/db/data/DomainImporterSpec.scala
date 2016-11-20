@@ -49,7 +49,7 @@ class DomainImporterSpec extends WordSpecLike with Matchers {
         val provider = new DomainPersistenceProvider(dbPool)
         provider.validateConnection().success
         
-        val serializer = new ImportDomainScriptSerializer()
+        val serializer = new DomainScriptSerializer()
         val in = getClass.getResourceAsStream("/com/convergencelabs/server/db/data/create-domain.yaml")
         val script = serializer.deserialize(in).success.value
 

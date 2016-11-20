@@ -47,7 +47,7 @@ import grizzled.slf4j.Logging
 
 class DomainImporter(
     private[this] val persistence: DomainPersistenceProvider,
-    private[this] val data: ImportDomainScript) extends Logging {
+    private[this] val data: DomainScript) extends Logging {
 
   def importDomain(): Try[Unit] = {
     logger.debug("Importing domain data")

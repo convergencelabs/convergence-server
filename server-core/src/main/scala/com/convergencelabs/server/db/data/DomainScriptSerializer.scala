@@ -15,7 +15,7 @@ import java.time.Instant
 import java.util.Date
 import org.json4s.CustomSerializer
 
-class ImportDomainScriptSerializer {
+class DomainScriptSerializer {
   private[this] val mapper = new ObjectMapper(new YAMLFactory())
 
   private[this] val operationSerializer = PolymorphicSerializer[CreateOperation]("type", Map(
@@ -66,9 +66,9 @@ class ImportDomainScriptSerializer {
   private[this] implicit val format =
     DefaultFormats + operationSerializer + dataValueSerializer + instantSerializer
 
-  def deserialize(in: InputStream): Try[ImportDomainScript] = Try {
+  def deserialize(in: InputStream): Try[DomainScript] = Try {
     val jsonNode = mapper.readTree(in)
     val jValue = JsonMethods.fromJsonNode(jsonNode)
-    Extraction.extract[ImportDomainScript](jValue)
+    Extraction.extract[DomainScript](jValue)
   }
 }

@@ -20,11 +20,11 @@ class ImportScriptSerializer {
   private[this] val mapper = new ObjectMapper(new YAMLFactory())
   private[this] implicit val format = DefaultFormats
 
-  def deserialize(in: InputStream): Try[ImportScript] = Try {
+  def deserialize(in: InputStream): Try[ConvergenceScript] = Try {
     Option(in) map { stream  =>
       val jsonNode = mapper.readTree(stream)
       val jValue = JsonMethods.fromJsonNode(jsonNode)
-      Extraction.extract[ImportScript](jValue)
+      Extraction.extract[ConvergenceScript](jValue)
     } getOrElse {
       throw new FileNotFoundException("could not open script file")
     }

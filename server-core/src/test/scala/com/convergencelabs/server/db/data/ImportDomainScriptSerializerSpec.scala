@@ -12,11 +12,11 @@ class ImportDomainScriptSerializerSpec extends WordSpecLike with Matchers {
   "A CreateDomainScriptSerializer" when {
     "deserializing a scropt" must {
       "corrrectly parse" in {
-        val serializer = new ImportDomainScriptSerializer()
+        val serializer = new DomainScriptSerializer()
         val in = getClass.getResourceAsStream("/com/convergencelabs/server/db/data/create-domain.yaml")
         val value = serializer.deserialize(in).success.value
         
-        val ImportDomainScript(config, jwtAuthKeys, users, collections, models) = value
+        val DomainScript(config, jwtAuthKeys, users, collections, models) = value
         config shouldBe SetDomainConfig(true, CreateJwtKeyPair("Public Key", "Private Key"))
         
         jwtAuthKeys.value shouldBe List(CreateJwtAuthKey("test-key", Some("a test key"), Instant.parse("2016-11-16T17:49:15.233Z"), "Public Key", true))
