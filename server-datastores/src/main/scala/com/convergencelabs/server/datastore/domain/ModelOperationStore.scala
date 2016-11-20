@@ -141,6 +141,7 @@ class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
   
   def createModelOperation(modelOperation: ModelOperation): Try[Unit] = tryWithDb { db =>
     db.save(modelOperation.asODocument)
+    ()
   }
 }
 

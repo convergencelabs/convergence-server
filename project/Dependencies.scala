@@ -28,8 +28,8 @@ object Dependencies {
 
     // Orient DB Dependencies
     val orientDbClient     = "com.orientechnologies"    % "orientdb-client"               % Versions.orientDb           // Apache 2.0
-    val orientDbCore       = "com.orientechnologies"    % "orientdb-core"                 % Versions.orientDb 
-    val orientDbServer       = "com.orientechnologies"    % "orientdb-server"                 % Versions.orientDb // Apache 2.0
+    val orientDbCore       = "com.orientechnologies"    % "orientdb-core"                 % Versions.orientDb           // Apache 2.0
+    val orientDbServer       = "com.orientechnologies"  % "orientdb-server"               % Versions.orientDb           // Apache 2.0
     val orientDb = Seq(orientDbClient, orientDbCore)
   
     // Logging
@@ -37,7 +37,7 @@ object Dependencies {
     val log4jSlf4J         = "org.apache.logging.log4j" % "log4j-slf4j-impl"              % Versions.log4j              // Apache 2.0
     val log4jApi           = "org.apache.logging.log4j" % "log4j-api"                     % Versions.log4j              // Apache 2.0
     val log4jCore          = "org.apache.logging.log4j" % "log4j-core"                    % Versions.log4j              // Apache 2.0
-	val log4jJul           = "org.apache.logging.log4j" % "log4j-jul"                     % Versions.log4j              // Apache 2.0
+	  val log4jJul           = "org.apache.logging.log4j" % "log4j-jul"                     % Versions.log4j              // Apache 2.0
     val loggingAll = Seq(grizzledSlf4j, log4jSlf4J, log4jApi, log4jCore, log4jJul)
   
     // Crypto
@@ -56,7 +56,7 @@ object Dependencies {
     val commonsLang        = "org.apache.commons"       % "commons-lang3"                 % "3.4"                       // Apache 2.0
     val commonsEmail       = "org.apache.commons"       % "commons-email"                 % "1.4"                       // Apache 2.0
     val json4s             = "org.json4s"               % "json4s-jackson_2.11"           % "3.3.0"                     // Apache 2.0
-	val json4sExt          = "org.json4s"               % "json4s-ext_2.11"               % "3.3.0"                     // Apache 2.0
+	  val json4sExt          = "org.json4s"               % "json4s-ext_2.11"               % "3.3.0"                     // Apache 2.0
     val jacksonYaml        = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-yaml" % "2.7.4"
 	
 	val dbUpgrader         = "com.convergencelabs"      % "orientdb-upgrader_2.11"        % "1.0-SNAPSHOT"

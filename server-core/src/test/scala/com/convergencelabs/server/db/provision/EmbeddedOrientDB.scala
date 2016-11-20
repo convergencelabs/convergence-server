@@ -10,7 +10,7 @@ import com.orientechnologies.orient.server.config.OServerEntryConfiguration
 import grizzled.slf4j.Logging
 
 class EmbeddedOrientDB(dataPath: String, persistent: Boolean) extends Logging {
-  val server = OServerMain.create()
+  val server = OServerMain.create(false)
   val admin = new OServerAdmin("remote:localhost")
 
   val odbTarget = new File(dataPath)

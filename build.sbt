@@ -87,7 +87,7 @@ val serverCore = (project in file("server-core")).
         scallop,
         "org.scala-lang" % "scala-reflect" % scalaVersion.value
       ) ++
-      Seq(orientDbServer) ++
+      Seq(orientDbServer % "test") ++
       testingCore ++
       testingAkka
   ).dependsOn(serverDatastore)
