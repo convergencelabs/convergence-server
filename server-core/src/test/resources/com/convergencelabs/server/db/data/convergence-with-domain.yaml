@@ -1,12 +1,12 @@
 users:
-  - {username: test1, firstName: Test, lastName: One, displayName: "Test One", email: "test1@example.com", password: myPassword}
+  - {username: imported, firstName: Imported, lastName: User, displayName: "Imported User", email: "imported@example.com", password: password}
 domains:
-  - namespace: test1
+  - namespace: imported
     domainId: code-editor
     displayName: "Code Editor"
     status: online
     statusMessage: ""
-    owner: test1
+    owner: imported
     dbName: importedDb
     dbUsername: normalUser
     dbPassword: normalPassword

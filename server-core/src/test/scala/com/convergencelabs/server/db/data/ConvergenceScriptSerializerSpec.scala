@@ -19,7 +19,7 @@ class ConvergenceScriptSerializerSpec extends WordSpecLike with Matchers {
         val ConvergenceScript(users, domains) = value
 
         users.value shouldBe List(
-          CreateConvergenceUser("test1", "myPassword", "test1@example.com", Some("Test"), Some("One"), Some("Test One")))
+          CreateConvergenceUser("imported", "password", "imported@example.com", Some("Imported"), Some("User"), Some("Imported User")))
 
         val CreateDomain(
           namespace,
@@ -35,17 +35,17 @@ class ConvergenceScriptSerializerSpec extends WordSpecLike with Matchers {
           adminPassword,
           dataImport) = domains.value(0)
 
-        namespace shouldBe "test1"
+        namespace shouldBe "imported"
         domainId shouldBe "code-editor"
         displayName shouldBe "Code Editor"
         status shouldBe "online"
         statusMessage shouldBe ""
-        owner shouldBe "test1"
-        dbName shouldBe "fooDatabase"
-        username shouldBe "abc"
-        password shouldBe "password"
-        adminUsername shouldBe "xyz"
-        adminPassword shouldBe "password"
+        owner shouldBe "imported"
+        dbName shouldBe "importedDb"
+        username shouldBe "normalUser"
+        password shouldBe "normalPassword"
+        adminUsername shouldBe "adminUser"
+        adminPassword shouldBe "adminPassword"
 
         println(dataImport.value)
         
