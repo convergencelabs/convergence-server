@@ -37,9 +37,10 @@ import com.convergencelabs.server.datastore.InvalidValue
 import com.convergencelabs.server.datastore.CreateOrUpdateResult
 import com.convergencelabs.server.datastore.ModelStoreActor.CreateModel
 import com.convergencelabs.server.datastore.DuplicateValue
+import com.convergencelabs.server.domain.model.ModelMetaData
 
 object DomainModelService {
-  case class GetModelsResponse(models: List[Model]) extends AbstractSuccessResponse
+  case class GetModelsResponse(models: List[ModelMetaData]) extends AbstractSuccessResponse
   case class GetModelResponse(model: Model) extends AbstractSuccessResponse
   case class CreateModelResponse(collectionId: String, modelId: String) extends AbstractSuccessResponse
 }
@@ -86,14 +87,14 @@ class DomainModelService(
   def getModels(domain: DomainFqn): Future[RestResponse] = {
     (domainRestActor ? DomainMessage(
       domain,
-      GetModels(None, None))).mapTo[List[Model]] map
+      GetModels(None, None))).mapTo[List[ModelMetaData]] map
       (models => (StatusCodes.OK, GetModelsResponse(models)))
   }
 
   def getModelInCollection(domain: DomainFqn, collectionId: String): Future[RestResponse] = {
     (domainRestActor ? DomainMessage(
       domain,
-      GetModelsInCollection(collectionId, None, None))).mapTo[List[Model]] map
+      GetModelsInCollection(collectionId, None, None))).mapTo[List[ModelMetaData]] map
       (models => (StatusCodes.OK, GetModelsResponse(models)))
   }
 
