@@ -12,29 +12,35 @@ class EmbeddedOrientDB extends Logging {
   val server = OServerMain.create()
   val admin = new OServerAdmin("remote:localhost")
 
+  val persistent = java.lang.Boolean.getBoolean("convergence.test-server.persistent")
+  val odbTarget = new File("target/orientdb")
+
   def start(): Unit = {
     logger.info("Starting up embedded OrientDB")
-    val odbTarget = new File("target/orientdb")
 
-    val persistent = java.lang.Boolean.getBoolean("convergence.test-server.persistent")
-    
     if (!persistent && odbTarget.exists()) {
       FileUtils.deleteDirectory(odbTarget)
     }
-    
-    if (odbTarget.exists()) {
+
+    if (!odbTarget.exists()) {
       odbTarget.mkdirs()
     }
 
     val configFile = getClass.getResourceAsStream("/orientdb-server-config.xml")
     server.startup(configFile)
     server.activate()
+    
     admin.connect("root", "password")
+    
     logger.info("OrientDB started")
   }
 
   def stop(): Unit = {
     server.shutdown()
+
+    if (!persistent && odbTarget.exists()) {
+      FileUtils.deleteDirectory(odbTarget)
+    }
   }
 
   def createDatabase(dbName: String): Unit = {

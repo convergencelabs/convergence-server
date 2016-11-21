@@ -61,7 +61,8 @@ class DomainStore (dbPool: OPartitionedDatabasePool)
         case None => InvalidValue
       }
     } catch {
-      case e: ORecordDuplicatedException => DuplicateValue
+      case e: ORecordDuplicatedException => 
+        DuplicateValue
     }
   }
 

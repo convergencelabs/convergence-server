@@ -57,16 +57,15 @@ class DomainStoreActor private[datastore] (
 
   def createDomain(createRequest: CreateDomainRequest): Unit = {
     val CreateDomainRequest(namespace, domainId, displayName, ownerUsername) = createRequest
+    log.debug(s"Receved request to create domain: ${namespace}/${domainId}")
     
-    val dbName = Math.abs(UUID.randomUUID().getLeastSignificantBits()).toString()
+    val dbName = Math.abs(UUID.randomUUID().getLeastSignificantBits).toString
     val (dbUsername, dbPassword, dbAdminUsername, dbAdminPassword) = RandomizeCredentials match {
       case false =>
         ("writer", "writer", "admin", "admin")
       case true =>
-        (UUID.randomUUID().toString(),
-          UUID.randomUUID().toString(),
-          UUID.randomUUID().toString(),
-          UUID.randomUUID().toString())
+        (UUID.randomUUID().toString(), UUID.randomUUID().toString(),
+          UUID.randomUUID().toString(), UUID.randomUUID().toString())
     }
 
     val domainDbInfo = DomainDatabaseInfo(dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword)
@@ -99,7 +98,7 @@ class DomainStoreActor private[datastore] (
       case InvalidValue =>
         reply(Success(InvalidValue), currentSender)
       case DuplicateValue =>
-        reply(Success(InvalidValue), currentSender)
+        reply(Success(DuplicateValue), currentSender)
     } recover {
       case cause: Exception => reply(Failure(cause), currentSender)
     }

@@ -14,6 +14,7 @@ import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import grizzled.slf4j.Logging
 import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 import com.convergencelabs.server.datastore.domain.mapper.ModelSnapshotMapper._
 
 /**
@@ -70,6 +71,32 @@ class ModelSnapshotStore private[domain] (
 
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     QueryUtil.mapSingletonList(result) { _.asModelSnapshot }
+  }
+  
+  /**
+   * Gets snapshots for the specified model.
+   *
+   * @param fqn The model identifier of the snapshot to get.
+   * @param version The version of the snapshot to get.
+   *
+   * @return Some(SnapshotData) if a snapshot corresponding to the model and
+   * version if it exists, or None if it does not.
+   */
+  def getSnapshots(fqn: ModelFqn): Try[List[ModelSnapshot]] = tryWithDb { db =>
+    val queryString =
+      """SELECT *
+        |FROM ModelSnapshot
+        |WHERE
+        |  collectionId = :collectionId AND
+        |  modelId = :modelId""".stripMargin
+
+    val query = new OSQLSynchQuery[ODocument](queryString)
+    val params = HashMap(
+      CollectionId -> fqn.collectionId,
+      ModelId -> fqn.modelId)
+
+    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
+    result.toList map { _.asModelSnapshot }
   }
 
   /////////////////////////////////////////////////////////////////////////////
