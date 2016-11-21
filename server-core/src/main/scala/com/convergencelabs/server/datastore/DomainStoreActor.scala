@@ -77,7 +77,7 @@ class DomainStoreActor private[datastore] (
     domainStore.createDomain(domainFqn, displayName, ownerUsername, domainDbInfo) map {
       case CreateSuccess(()) =>
         implicit val requstTimeout = Timeout(4 minutes) // FXIME hardcoded timeout
-        val message = ProvisionDomain(dbName, dbPassword, dbPassword, dbAdminUsername, dbAdminPassword)
+        val message = ProvisionDomain(dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword)
         (domainProvisioner ? message).mapTo[DomainProvisioned] onComplete {
           case Success(DomainProvisioned()) =>
             log.debug(s"Domain created, setting status to online: $dbName")
