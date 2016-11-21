@@ -77,11 +77,11 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
   def exportUsers(): Try[List[CreateDomainUser]] = {
     logger.debug("Exporting domain users")
     persistence.userStore.getAllDomainUsers(None, None, None, None) map {
-        _.map { domainUser =>
-          val DomainUser(userType, username, firstName, lastName, displayName, email) = domainUser
-          CreateDomainUser(userType.toString, username, firstName, lastName, displayName, email, None)
-        }
+      _.map { domainUser =>
+        val DomainUser(userType, username, firstName, lastName, displayName, email) = domainUser
+        CreateDomainUser(userType.toString, username, firstName, lastName, displayName, email, None)
       }
+    }
   }
 
   def exportCollections(): Try[List[CreateCollection]] = {
@@ -96,8 +96,9 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
 
   def exportModels(): Try[List[CreateModel]] = Try {
     logger.debug("exporting models")
-    persistence.modelStore.getAllModelMetaData(None, None).map { modelList =>
-      modelList.map(metaData => exportModel(metaData.fqn).get)
+    persistence.modelStore.getAllModelMetaData(None, None).map {
+      modelList =>
+        modelList.map(metaData => exportModel(metaData.fqn).get)
     }.get
   }
 

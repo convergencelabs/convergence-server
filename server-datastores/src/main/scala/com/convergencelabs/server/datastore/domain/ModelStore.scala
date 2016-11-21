@@ -61,12 +61,12 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool, operationSto
   }
 
   def createModel(collectionId: String, modelId: Option[String], data: ObjectValue): Try[CreateResult[Model]] = {
-    
+
     val createdTime = Instant.now()
     val modifiedTime = createdTime
     val version = 0
     val computedModelId = modelId.getOrElse(UUID.randomUUID().toString)
-    
+
     val model = Model(
       ModelMetaData(
         ModelFqn(collectionId, computedModelId),
@@ -74,9 +74,9 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool, operationSto
         createdTime,
         modifiedTime),
       data)
-      
+
     this.createModel(model)
-  } 
+  }
 
   def createModel(model: Model): Try[CreateResult[Model]] = tryWithDb { db =>
     db.begin()
@@ -182,11 +182,7 @@ class ModelStore private[domain] (dbPool: OPartitionedDatabasePool, operationSto
         |  collectionId ASC,
         |  modelId ASC""".stripMargin
 
-    val pageQuery = QueryUtil.buildPagedQuery(
-      queryString,
-      limit,
-      offset)
-
+    val pageQuery = QueryUtil.buildPagedQuery(queryString, limit, offset)
     val query = new OSQLSynchQuery[ODocument](pageQuery)
     val result: JavaList[ODocument] = db.command(query).execute()
     result.asScala.toList map { _.asModelMetaData }

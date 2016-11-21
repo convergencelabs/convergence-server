@@ -1,18 +1,22 @@
 package com.convergencelabs.server.db.data
 
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import akka.actor.Props
-import akka.actor.actorRef2Scala
-import com.typesafe.config.Config
-import ConvergenceImporterActor._
-import akka.actor.ActorRef
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import com.convergencelabs.server.schema.DomainDBProvider
-import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import scala.util.Failure
 import scala.util.Success
+
+import com.convergencelabs.server.datastore.DomainDBProvider
+import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
+import com.convergencelabs.server.domain.DomainFqn
+import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
+
+import ConvergenceImporterActor.ConvergenceImport
+import ConvergenceImporterActor.DomainExport
+import ConvergenceImporterActor.DomainExportResponse
+import ConvergenceImporterActor.DomainImport
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.ActorRef
+import akka.actor.Props
+import akka.actor.actorRef2Scala
 
 class ConvergenceImporterActor(
     private[this] val dbBaseUri: String,
@@ -58,6 +62,7 @@ class ConvergenceImporterActor(
   }
   
   private[this] def exportDomain(fqn: DomainFqn): Unit = {
+    log.debug(s"Exporting domain: ${fqn.namespace}/${fqn.domainId}")
     domainDbProvider.getDomainDBPool(fqn) foreach {
       _.map { domainPool =>
         val provider = new DomainPersistenceProvider(domainPool)

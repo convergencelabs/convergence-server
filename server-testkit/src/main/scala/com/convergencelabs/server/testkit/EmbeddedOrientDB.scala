@@ -1,12 +1,11 @@
 package com.convergencelabs.server.testkit
 
-import com.orientechnologies.orient.server.OServerMain
-import com.orientechnologies.orient.server.config.OServerConfiguration
-import com.orientechnologies.orient.server.config.OServerUserConfiguration
-import grizzled.slf4j.Logging
-import com.orientechnologies.orient.client.remote.OServerAdmin
-import java.io.FileInputStream
 import java.io.File
+
+import com.orientechnologies.orient.client.remote.OServerAdmin
+import com.orientechnologies.orient.server.OServerMain
+
+import grizzled.slf4j.Logging
 
 class EmbeddedOrientDB extends Logging {
   val server = OServerMain.create()
@@ -16,7 +15,8 @@ class EmbeddedOrientDB extends Logging {
   val odbTarget = new File("target/orientdb")
 
   def start(): Unit = {
-    logger.info("Starting up embedded OrientDB")
+    logger.info("Starting up EmbeddedOrientDB")
+    logger.info("OrientDB Path: " + odbTarget.getAbsolutePath)
 
     if (!persistent && odbTarget.exists()) {
       FileUtils.deleteDirectory(odbTarget)
@@ -30,9 +30,10 @@ class EmbeddedOrientDB extends Logging {
     server.startup(configFile)
     server.activate()
     
+    logger.info("OrientDB Database Path: " + server.getDatabaseDirectory)
     admin.connect("root", "password")
     
-    logger.info("OrientDB started")
+    logger.info("EmbeddedOrientDB started")
   }
 
   def stop(): Unit = {

@@ -28,8 +28,13 @@ import akka.pattern.ask
 import akka.util.Timeout
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.db.data.ConvergenceImporterActor.DomainExportResponse
+import com.convergencelabs.server.db.data.DomainScript
+import com.convergencelabs.server.frontend.rest.ConvergenceImportService.DomainExportRestResponse
+import akka.http.scaladsl.model.StatusCodes
 
 object ConvergenceImportService {
+  case class DomainExportRestResponse(export: DomainScript) extends AbstractSuccessResponse
 }
 
 class ConvergenceImportService(
@@ -74,8 +79,8 @@ class ConvergenceImportService(
 
   def exportDomain(namespace: String, domainId: String): Future[RestResponse] = {
     logger.debug(s"Received a domain export request: ${namespace}/${domainId}")
-    (importerActor ? DomainExport(DomainFqn(namespace, domainId))).mapTo[Unit].map {
-      case _ => OkResponse
+    (importerActor ? DomainExport(DomainFqn(namespace, domainId))).mapTo[DomainExportResponse].map {
+      case DomainExportResponse(script) => (StatusCodes.OK, DomainExportRestResponse(script))
     }
   }
 }
