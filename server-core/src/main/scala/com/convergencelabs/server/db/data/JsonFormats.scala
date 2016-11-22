@@ -1,6 +1,6 @@
 package com.convergencelabs.server.db.data
 
-import com.convergencelabs.server.schema.PolymorphicSerializer
+import com.convergencelabs.server.util.PolymorphicSerializer
 import java.util.TimeZone
 import java.text.SimpleDateFormat
 import org.json4s.JsonAST.JString

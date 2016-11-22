@@ -1,0 +1,13 @@
+version: 2
+description: Rename TokenPublicKey to JwtAuthKey and update it's properties.
+changes:
+
+  - action: AlterClass
+    name: TokenPublicKey
+    newName: JwtAuthKey
+
+  - action: AlterProperty
+    className: TokenPublicKey
+    name: created
+    property: {name: updated}
+

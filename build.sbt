@@ -72,9 +72,10 @@ val serverCore = (project in file("server-core")).
       orientDb ++ 
       loggingAll ++ 
       Seq(
-	    dbUpgrader,
         akkaHttp,
         json4s, 
+        jacksonYaml,
+        json4sExt,
         akkaHttpJson4s,
         akkaHttpCors,
         commonsLang,

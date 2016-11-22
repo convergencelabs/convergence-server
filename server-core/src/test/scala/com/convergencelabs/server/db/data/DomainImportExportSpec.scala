@@ -1,34 +1,15 @@
 package com.convergencelabs.server.db.data
 
-import java.time.Instant
-
 import org.scalatest.Matchers
 import org.scalatest.OptionValues.convertOptionToValuable
-import org.scalatest.TryValues._
+import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
 
-import com.convergencelabs.db.deltas.DeltaCategory
-import com.convergencelabs.server.datastore.SortOrder
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.server.datastore.domain.DomainUserField
-import com.convergencelabs.server.domain.DomainUser
-import com.convergencelabs.server.domain.DomainUserType
-import com.convergencelabs.server.domain.JwtKeyPair
-import com.convergencelabs.server.domain.JwtPublicKey
-import com.convergencelabs.server.domain.model.Collection
-import com.convergencelabs.server.domain.model.Model
-import com.convergencelabs.server.domain.model.ModelFqn
-import com.convergencelabs.server.domain.model.ModelMetaData
-import com.convergencelabs.server.domain.model.ModelOperation
-import com.convergencelabs.server.domain.model.ModelSnapshot
-import com.convergencelabs.server.domain.model.ModelSnapshotMetaData
-import com.convergencelabs.server.domain.model.data.ObjectValue
-import com.convergencelabs.server.domain.model.data.StringValue
-import com.convergencelabs.server.domain.model.ot.AppliedStringInsertOperation
-import com.convergencelabs.server.schema.DatabaseSchemaManager
+import com.convergencelabs.server.db.schema.DatabaseSchemaManager
+import com.convergencelabs.server.db.schema.DeltaCategory
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import scala.util.Success
 
 class DomainImportExportSpec extends WordSpecLike with Matchers {
 

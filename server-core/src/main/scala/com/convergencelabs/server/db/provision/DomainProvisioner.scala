@@ -7,10 +7,11 @@ import scala.util.Failure
 import scala.util.Try
 
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
+import com.convergencelabs.server.db.schema.DatabaseSchemaManager
+import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.domain.JwtKeyPair
 import com.convergencelabs.server.domain.JwtUtil
 import com.convergencelabs.server.domain.ModelSnapshotConfig
-import com.convergencelabs.server.schema.DatabaseSchemaManager
 import com.orientechnologies.orient.client.remote.OServerAdmin
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
@@ -22,7 +23,6 @@ import DomainProvisioner.OrientDefaultReader
 import DomainProvisioner.OrientDefaultWriter
 import DomainProvisioner.StorageMode
 import grizzled.slf4j.Logging
-import com.convergencelabs.db.deltas.DeltaCategory
 
 object DomainProvisioner {
   val DefaultSnapshotConfig = ModelSnapshotConfig(

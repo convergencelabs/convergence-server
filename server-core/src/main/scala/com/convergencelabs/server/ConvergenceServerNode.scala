@@ -31,13 +31,12 @@ import scala.util.Try
 import scala.util.Success
 import scala.util.Failure
 import java.time.Duration
-import com.convergencelabs.server.schema.DatabaseSchemaManager
-import com.convergencelabs.db.deltas.DeltaCategory
+import com.convergencelabs.server.db.schema.DatabaseSchemaManager
+import com.convergencelabs.server.db.schema.DeltaCategory
 
 object ConvergenceServerNode extends Logging {
   def main(args: Array[String]): Unit = {
     val options = ServerCLIConf(args)
-    options.verify();
 
     val configFile = new File(options.config.get.get)
 

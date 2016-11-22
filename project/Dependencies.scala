@@ -50,7 +50,7 @@ object Dependencies {
     val javaWebsockets     = "org.java-websocket"       % "Java-WebSocket"                % "1.3.0"                     // MIT
   
     //Command Line Parser
-    val scallop            = "org.rogach"               % "scallop_2.11"                  % "0.9.5"                     // MIT
+    val scallop            = "org.rogach"               % "scallop_2.11"                  % "2.0.5"                     // MIT
   
     // MISC  
     val commonsLang        = "org.apache.commons"       % "commons-lang3"                 % "3.4"                       // Apache 2.0
@@ -58,8 +58,6 @@ object Dependencies {
     val json4s             = "org.json4s"               % "json4s-jackson_2.11"           % "3.3.0"                     // Apache 2.0
 	  val json4sExt          = "org.json4s"               % "json4s-ext_2.11"               % "3.3.0"                     // Apache 2.0
     val jacksonYaml        = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-yaml" % "2.7.4"
-	
-	val dbUpgrader         = "com.convergencelabs"      % "orientdb-upgrader_2.11"        % "1.0-SNAPSHOT"
   }
   
   object Test {

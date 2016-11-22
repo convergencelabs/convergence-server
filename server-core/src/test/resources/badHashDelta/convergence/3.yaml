@@ -1,0 +1,13 @@
+version: 3
+description: Updated Domain to make dbUsername/dbPassword mandatory.
+changes:
+
+  - action: AlterProperty
+    className: Domain
+    name: dbUsername
+    property: {constraints: {mandatory: true, notNull: true}}
+
+  - action: AlterProperty
+    className: Domain
+    name: dbPassword
+    property: {constraints: {mandatory: true, notNull: true}}

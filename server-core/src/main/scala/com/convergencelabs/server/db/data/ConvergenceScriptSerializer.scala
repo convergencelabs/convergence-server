@@ -7,7 +7,7 @@ import java.io.InputStream
 import scala.util.Try
 import org.json4s.jackson.JsonMethods
 import org.json4s.Extraction
-import com.convergencelabs.server.schema.PolymorphicSerializer
+import com.convergencelabs.server.util.PolymorphicSerializer
 import java.util.TimeZone
 import java.text.SimpleDateFormat
 import org.json4s.JsonAST.JString

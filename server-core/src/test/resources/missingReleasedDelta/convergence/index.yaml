@@ -1,0 +1,5 @@
+maxDelta: 3
+maxReleasedDelta: 2
+deltas:
+  1: a251f56340c295fd989d851d1df3179f15292374af18ae01c2d9aa886df78f8b
+  2: acedb8fb85793d91b9254dd485a02fb3beea957f29fc3212c00b4c1f44041657

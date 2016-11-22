@@ -1,0 +1,14 @@
+version: 1
+description: Initial Version Schema
+changes:
+
+########## DatabaseVersion Class ##########
+
+  - action: CreateClass
+    name: DatabaseVersion
+
+  - action: RunSQLCommand
+    command: "ALTER Class DatabaseVersion CUSTOM managerVersion=1"
+
+  - action: RunSQLCommand
+    command: "ALTER Class DatabaseVersion CUSTOM version=0"
