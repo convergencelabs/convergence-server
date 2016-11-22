@@ -24,7 +24,9 @@ case class CreateDomainUser(
   lastName: Option[String],
   displayName: Option[String],
   email: Option[String],
-  password: Option[String])
+  password: Option[SetPassword])
+
+case class SetPassword(passwordType: String, value: String)
 
 case class CreateJwtAuthKey(
   keyId: String,

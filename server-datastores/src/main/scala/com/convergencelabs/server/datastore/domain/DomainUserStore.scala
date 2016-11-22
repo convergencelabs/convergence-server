@@ -157,7 +157,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     userDoc.reload()
 
     val pwDoc = db.newInstance("UserCredential")
-    pwDoc.field("user", userDoc, OType.LINK) // FIXME verify this creates a link and now a new doc.
+    pwDoc.field("user", userDoc, OType.LINK)
 
     password match {
       case Some(pass) => pwDoc.field(Password, PasswordUtil.hashPassword(pass))
@@ -355,18 +355,36 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    * @param username The unique username of the user.
    * @param password The new password to use for internal authentication
    */
-  def setDomainUserPassword(username: String, password: String): Try[UpdateResult] = tryWithDb { db =>
+  def setDomainUserPassword(username: String, password: String): Try[UpdateResult] = {
+    setDomainUserPasswordHash(username, PasswordUtil.hashPassword(password))
+  }
+  
+  /**
+   * Set the password for an existing user by uid.
+   *
+   * @param username The unique username of the user.
+   * @param password The new password to use for internal authentication
+   */
+  def setDomainUserPasswordHash(username: String, passwordHash: String): Try[UpdateResult] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT * FROM UserCredential WHERE user.username = :username AND user.userType = 'normal'")
     val params = Map(Username -> username)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
     QueryUtil.enforceSingletonResultList(result) match {
       case Some(doc) =>
-        doc.field(Password, PasswordUtil.hashPassword(password))
+        doc.field(Password, passwordHash)
         db.save(doc)
         UpdateSuccess
       case None => NotFound
     }
+  }
+
+  def getDomainUserPasswordHash(username: String): Try[Option[String]] = tryWithDb { db =>
+    val query = new OSQLSynchQuery[ODocument]("SELECT * FROM UserCredential WHERE user.username = :username AND user.userType = 'normal'")
+    val params = Map(Username -> username)
+    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
+
+    QueryUtil.enforceSingletonResultList(result) flatMap { doc => Option(doc.field(Password)) }
   }
 
   /**

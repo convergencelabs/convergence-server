@@ -35,6 +35,8 @@ import com.convergencelabs.server.domain.model.ot.AppliedStringRemoveOperation
 import com.convergencelabs.server.domain.model.ot.AppliedStringSetOperation
 
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.datastore.domain.DomainUserField
+import com.convergencelabs.server.datastore.SortOrder
 
 class DomainExporter(private[this] val persistence: DomainPersistenceProvider) extends Logging {
 
@@ -52,7 +54,7 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
     }
   }
 
-  def exportConfig(): Try[SetDomainConfig] = {
+  private[this] def exportConfig(): Try[SetDomainConfig] = {
     logger.debug("Setting domain configuration")
     val config = persistence.configStore
 
@@ -64,7 +66,7 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
     }
   }
 
-  def exportJwtAuthKeys(): Try[List[CreateJwtAuthKey]] = {
+  private[this] def exportJwtAuthKeys(): Try[List[CreateJwtAuthKey]] = {
     logger.debug("Exporting JWT Auth Keys")
     persistence.jwtAuthKeyStore.getKeys(None, None) map {
       _.map { jwtKey =>
@@ -74,17 +76,21 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
     }
   }
 
-  def exportUsers(): Try[List[CreateDomainUser]] = {
+  private[this] def exportUsers(): Try[List[CreateDomainUser]] = {
     logger.debug("Exporting domain users")
-    persistence.userStore.getAllDomainUsers(None, None, None, None) map {
+    persistence.userStore.getAllDomainUsers(Some(DomainUserField.Username), Some(SortOrder.Descending), None, None) map {
       _.map { domainUser =>
+        // FIXME better error handling here
+        val pwHash = persistence.userStore.getDomainUserPasswordHash(domainUser.username).get map { hash =>
+          SetPassword("hash", hash)
+        }
         val DomainUser(userType, username, firstName, lastName, displayName, email) = domainUser
-        CreateDomainUser(userType.toString, username, firstName, lastName, displayName, email, None)
+        CreateDomainUser(userType.toString.toLowerCase, username, firstName, lastName, displayName, email, pwHash)
       }
     }
   }
 
-  def exportCollections(): Try[List[CreateCollection]] = {
+  private[this] def exportCollections(): Try[List[CreateCollection]] = {
     logger.debug("exporting collections")
     persistence.collectionStore.getAllCollections(None, None) map {
       _.map { col =>
@@ -94,7 +100,7 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
     }
   }
 
-  def exportModels(): Try[List[CreateModel]] = Try {
+  private[this] def exportModels(): Try[List[CreateModel]] = Try {
     logger.debug("exporting models")
     persistence.modelStore.getAllModelMetaData(None, None).map {
       modelList =>
@@ -102,7 +108,7 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
     }.get
   }
 
-  def exportModel(fqn: ModelFqn): Try[CreateModel] = {
+  private[this] def exportModel(fqn: ModelFqn): Try[CreateModel] = {
     val models = persistence.modelStore
     val opStore = persistence.modelOperationStore
     val snapshotStore = persistence.modelSnapshotStore
@@ -125,7 +131,7 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
     }
   }
 
-  def exportDataValue(data: DataValue): CreateDataValue = {
+  private[this] def exportDataValue(data: DataValue): CreateDataValue = {
     data match {
       case ObjectValue(vId, children) =>
         val converted = children map { case (k, v) => (k, exportDataValue(v)) }
@@ -144,7 +150,7 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
     }
   }
 
-  def exportModelSnapshots(modelSnapshots: List[ModelSnapshot]): List[CreateModelSnapshot] = {
+  private[this] def exportModelSnapshots(modelSnapshots: List[ModelSnapshot]): List[CreateModelSnapshot] = {
     modelSnapshots.map { snapshot =>
       CreateModelSnapshot(
         snapshot.metaData.version,
@@ -153,7 +159,7 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
     }
   }
 
-  def exportModelOperations(ops: List[ModelOperation]): List[CreateModelOperation] = {
+  private[this] def exportModelOperations(ops: List[ModelOperation]): List[CreateModelOperation] = {
     ops.map { op =>
       CreateModelOperation(
         op.version,
@@ -164,7 +170,7 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
     }
   }
 
-  def exportOperation(opData: AppliedOperation): CreateOperation = {
+  private[this] def exportOperation(opData: AppliedOperation): CreateOperation = {
     opData match {
       case AppliedCompoundOperation(operations) =>
         val ops = operations.map(exportOperation(_).asInstanceOf[CreateDiscreteOperation])

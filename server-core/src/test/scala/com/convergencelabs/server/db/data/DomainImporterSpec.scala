@@ -50,7 +50,7 @@ class DomainImporterSpec extends WordSpecLike with Matchers {
         provider.validateConnection().success
         
         val serializer = new DomainScriptSerializer()
-        val in = getClass.getResourceAsStream("/com/convergencelabs/server/db/data/create-domain.yaml")
+        val in = getClass.getResourceAsStream("/com/convergencelabs/server/db/data/import-domain-test.yaml")
         val script = serializer.deserialize(in).success.value
 
         val importer = new DomainImporter(provider, script)
@@ -78,6 +78,9 @@ class DomainImporterSpec extends WordSpecLike with Matchers {
         users(0) shouldBe DomainUser(DomainUserType.Normal, "test1", Some("Test"), Some("One"), Some("Test One"), Some("test1@example.com"))
         users(1) shouldBe DomainUser(DomainUserType.Normal, "test2", Some("Test"), Some("Two"), Some("Test Two"), Some("test2@example.com"))
 
+        provider.userStore.getDomainUserPasswordHash("test1").success.value.value shouldBe "someHash"
+        provider.userStore.getDomainUserPasswordHash("test2").success.value.value shouldBe "someHash"
+        
         val collections = provider.collectionStore.getAllCollections(None, None).success.value
         collections.size shouldBe 1
         collections(0) shouldBe Collection("colleciton1", "Collection 1", false, None)

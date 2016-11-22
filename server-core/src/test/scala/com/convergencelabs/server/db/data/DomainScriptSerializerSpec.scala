@@ -22,8 +22,8 @@ class DomainScriptSerializerSpec extends WordSpecLike with Matchers {
         jwtAuthKeys.value shouldBe List(CreateJwtAuthKey("test-key", Some("a test key"), Instant.parse("2016-11-16T17:49:15.233Z"), "Public Key", true))
         
         users.value shouldBe List(
-            CreateDomainUser("normal", "test1", Some("Test"), Some("One"), Some("Test One"), Some("test1@example.com"), Some("myPassword")),
-            CreateDomainUser("normal", "test2", Some("Test"), Some("Two"), Some("Test Two"), Some("test2@example.com"), Some("myPassword")))
+          CreateDomainUser("normal", "test1", Some("Test"), Some("One"), Some("Test One"), Some("test1@example.com"), Some(SetPassword("plaintext", "somePassword"))),
+          CreateDomainUser("normal", "test2", Some("Test"), Some("Two"), Some("Test Two"), Some("test2@example.com"), Some(SetPassword("hash", "someHash"))))
         
         collections.value shouldBe List(CreateCollection("colleciton1", "Collection 1", false))
         

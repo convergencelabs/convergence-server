@@ -8,7 +8,7 @@ jwtAuthKeys:
   - {keyId: "test-key", description: "a test key", updated: "2016-11-16T17:49:15.233Z",  key: "Public Key", enabled: true}
 
 users:
-  - {userType: "normal", username: test1, firstName: Test, lastName: One, displayName: "Test One", email: test1@example.com, password: {passwordType: plaintext, value: somePassword}}
+  - {userType: "normal", username: test1, firstName: Test, lastName: One, displayName: "Test One", email: test1@example.com, password: {passwordType: hash, value: someHash}}
   - {userType: "normal", username: test2, firstName: Test, lastName: Two, displayName: "Test Two", email: test2@example.com, password: {passwordType: hash, value: someHash}}
 
 collections:
