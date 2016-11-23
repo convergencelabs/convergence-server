@@ -13,7 +13,7 @@ import DatabaseManager.DatabaseVersion
 import grizzled.slf4j.Logging
 
 object DatabaseManager {
-  case class DatabaseVersion(managerVerion: Long, databaseVersion: Long)
+  case class DatabaseVersion(managerVerion: Int, databaseVersion: Int)
 }
 
 class DatabaseManager(url: String, dbPool: OPartitionedDatabasePool) extends Logging {

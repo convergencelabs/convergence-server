@@ -31,6 +31,8 @@ import grizzled.slf4j.Logging
 import com.convergencelabs.server.db.provision.DomainProvisioner
 import com.convergencelabs.server.db.provision.DomainProvisionerActor
 import com.convergencelabs.server.db.data.ConvergenceImporterActor
+import com.convergencelabs.server.db.schema.DatabaseManager
+import com.convergencelabs.server.db.schema.DatabaseManagerActor
 
 object ConvergenceRestFrontEnd {
   val ConvergenceCorsSettings = CorsSettings.defaultSettings.copy(
@@ -80,6 +82,9 @@ class ConvergenceRestFrontEnd(
     val domainStore = new DomainStore(dbPool)
     val authzActor = system.actorOf(RestAuthnorizationActor.props(domainStore))
     val convergenceUserActor = system.actorOf(ConvergenceUserManagerActor.props(dbPool, domainActor))
+    
+    val databaseManager = new DatabaseManager(orientDbConfig.getString("db-uri"), dbPool)
+    val databaseManagerActor = system.actorOf(DatabaseManagerActor.props(databaseManager))
 
     // Down to here
 
@@ -95,6 +100,8 @@ class ConvergenceRestFrontEnd(
     val convergenceUserService = new ConvergenceUserService(ec, convergenceUserActor, defaultRequestTimeout)
 
     val convergenceImportService = new ConvergenceImportService(ec, importerActor, defaultRequestTimeout)
+    
+    val databaseManagerService = new DatabaseManagerRestService(ec, databaseManagerActor, defaultRequestTimeout)
 
     val adminsConfig = system.settings.config.getConfig("convergence.convergence-admins")
 
@@ -114,7 +121,8 @@ class ConvergenceRestFrontEnd(
       } ~ pathPrefix("admin") {
         authenticateBasic(realm = "convergence admin", AdminAuthenticator.authenticate(adminsConfig)) { adminUser =>
           convergenceUserService.route(adminUser) ~
-            convergenceImportService.route(adminUser)
+            convergenceImportService.route(adminUser) ~
+            databaseManagerService.route(adminUser)
         }
       } ~ registrationService.route
     }

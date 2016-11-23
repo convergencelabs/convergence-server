@@ -52,4 +52,5 @@ object DatabaseManagerActor {
 
   case class UpgradeConvergence(version: Option[Int])
   case class UpgradeDomain(fqn: DomainFqn, version: Option[Int])
+  
 }
