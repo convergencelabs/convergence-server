@@ -102,8 +102,7 @@ val serverNode = (project in file("server-node"))
     packSettings ++ 
     Seq(
 	  packJvmOpts := Map("server-node" -> Seq("-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager")),
-      packMain := Map("server-node" -> "com.convergencelabs.server.ConvergenceServerNode"),
-      packResourceDir += (baseDirectory.value / "src" / "config" -> "config")
+      packMain := Map("server-node" -> "com.convergencelabs.server.ConvergenceServerNode")
     )
   )
   .settings(
