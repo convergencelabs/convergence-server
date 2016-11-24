@@ -35,6 +35,7 @@ import grizzled.slf4j.Logging
 import com.convergencelabs.server.db.data.ConvergenceImporterActor.ConvergenceExport
 import com.convergencelabs.server.db.data.ConvergenceImporterActor.ConvergenceExportResponse
 import com.convergencelabs.server.db.data.ConvergenceImportService.ConvergenceExportRestResponse
+import com.convergencelabs.server.frontend.realtime.MappedTypeHits
 
 object ConvergenceImportService {
   case class DomainExportRestResponse(export: DomainScript) extends AbstractSuccessResponse
@@ -81,7 +82,7 @@ class ConvergenceImportService(
       case DomainExportResponse(script) => (StatusCodes.OK, DomainExportRestResponse(script))
     }
   }
-  
+
   def exportUser(username: String): Future[RestResponse] = {
     logger.debug(s"Received a convergence export request for user: ${username}")
     (importerActor ? ConvergenceExport(Some(username))).mapTo[ConvergenceExportResponse].map {
