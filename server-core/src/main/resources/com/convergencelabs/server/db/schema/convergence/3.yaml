@@ -1,13 +1,45 @@
 version: 3
-description: Updated Domain to make dbUsername/dbPassword mandatory.
+description: Enhances the domain database management in the Convergence schema.
 changes:
 
-  - action: AlterProperty
-    className: Domain
-    name: dbUsername
-    property: {constraints: {mandatory: true, notNull: true}}
+########## Domain Class ##########
 
-  - action: AlterProperty
+  - action: RunSQLCommand
+    command: "UPDATE Domain SET version = 1;"
+
+  - action: AddProperty
     className: Domain
-    name: dbPassword
-    property: {constraints: {mandatory: true, notNull: true}}
+    property: {name: version, type: Integer, constraints: {mandatory: true, notNull: true}}
+
+########## DomainDeltaHistory Class ##########
+
+  - action: CreateClass
+    name: DomainDeltaHistory
+    properties: 
+      - {name: domain, type: Link, classType: Domain, constraints: {mandatory: true, notNull: true}}
+      - {name: deltaNo, type: Integer, constraints: {mandatory: true, notNull: true}}
+      - {name: status, type: String, constraints: {mandatory: true, notNull: true}}
+      - {name: message, type: String}
+      - {name: date, type: DateTime, constraints: {notNull: true}}
+
+  - action: CreateIndex
+    className: DomainDeltaHistory
+    name: DomainDeltaHistory.delta_delatNo
+    type: Unique
+    properties: [domain, deltaNo]
+    
+########## ConvergenceDeltaHistory Class ##########
+
+  - action: CreateClass
+    name: ConvergenceDeltaHistory
+    properties: 
+      - {name: deltaNo, type: Integer, constraints: {mandatory: true, notNull: true}}
+      - {name: status, type: String, constraints: {mandatory: true, notNull: true}}
+      - {name: message, type: String}
+      - {name: date, type: DateTime, constraints: {notNull: true}}
+
+  - action: CreateIndex
+    className: ConvergenceDeltaHistory
+    name: ConvergenceDeltaHistory.delta_delatNo
+    type: Unique
+    properties: [domain, deltaNo]

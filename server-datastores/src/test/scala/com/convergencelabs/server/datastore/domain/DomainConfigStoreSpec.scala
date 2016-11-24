@@ -12,7 +12,7 @@ import org.scalatest.WordSpecLike
 
 import com.convergencelabs.server.domain.ModelSnapshotConfig
 import com.convergencelabs.server.domain.JwtKeyPair
-import com.convergencelabs.server.domain.JwtPublicKey
+import com.convergencelabs.server.domain.JwtAuthKey
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 
 // scalastyle:off line.size.limit

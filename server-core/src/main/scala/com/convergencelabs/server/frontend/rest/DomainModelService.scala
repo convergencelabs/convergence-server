@@ -38,10 +38,30 @@ import com.convergencelabs.server.datastore.CreateOrUpdateResult
 import com.convergencelabs.server.datastore.ModelStoreActor.CreateModel
 import com.convergencelabs.server.datastore.DuplicateValue
 import com.convergencelabs.server.domain.model.ModelMetaData
+import java.time.Instant
+import com.convergencelabs.server.domain.model.data.ObjectValue
+import com.convergencelabs.server.frontend.rest.DomainModelService.ModelMetaDataResponse
+import com.convergencelabs.server.frontend.rest.DomainModelService.ModelResponse
 
 object DomainModelService {
-  case class GetModelsResponse(models: List[ModelMetaData]) extends AbstractSuccessResponse
-  case class GetModelResponse(model: Model) extends AbstractSuccessResponse
+
+  case class ModelMetaDataResponse(
+    collectionId: String,
+    modelId: String,
+    version: Long,
+    createdTime: Instant,
+    modifiedTime: Instant)
+
+  case class ModelResponse(
+    collectionId: String,
+    modelId: String,
+    version: Long,
+    createdTime: Instant,
+    modifiedTime: Instant,
+    data: ObjectValue)
+
+  case class GetModelsResponse(models: List[ModelMetaDataResponse]) extends AbstractSuccessResponse
+  case class GetModelResponse(model: ModelResponse) extends AbstractSuccessResponse
   case class CreateModelResponse(collectionId: String, modelId: String) extends AbstractSuccessResponse
 }
 
@@ -64,8 +84,8 @@ class DomainModelService(
             complete(getModelInCollection(domain, collectionId))
           } ~ post {
             entity(as[Map[String, Any]]) { data =>
-                complete(postModel(domain, collectionId, data))
-              }
+              complete(postModel(domain, collectionId, data))
+            }
           }
         } ~ pathPrefix(Segment) { modelId: String =>
           pathEnd {
@@ -87,47 +107,72 @@ class DomainModelService(
   def getModels(domain: DomainFqn): Future[RestResponse] = {
     (domainRestActor ? DomainMessage(
       domain,
-      GetModels(None, None))).mapTo[List[ModelMetaData]] map
-      (models => (StatusCodes.OK, GetModelsResponse(models)))
+      GetModels(None, None))).mapTo[List[ModelMetaData]] map {
+        _.map(mapMetaData(_))
+      } map {
+        models => (StatusCodes.OK, GetModelsResponse(models))
+      }
   }
 
   def getModelInCollection(domain: DomainFqn, collectionId: String): Future[RestResponse] = {
     (domainRestActor ? DomainMessage(
       domain,
-      GetModelsInCollection(collectionId, None, None))).mapTo[List[ModelMetaData]] map
-      (models => (StatusCodes.OK, GetModelsResponse(models)))
+      GetModelsInCollection(collectionId, None, None))).mapTo[List[ModelMetaData]] map {
+        _.map(mapMetaData(_))
+      } map {
+        models => (StatusCodes.OK, GetModelsResponse(models))
+      }
   }
+
+  def mapMetaData(metaData: ModelMetaData): ModelMetaDataResponse = {
+    ModelMetaDataResponse(
+      metaData.fqn.collectionId,
+      metaData.fqn.modelId,
+      metaData.version,
+      metaData.createdTime,
+      metaData.modifiedTime)
+  }
+
+  //  
 
   def getModel(domain: DomainFqn, model: ModelFqn): Future[RestResponse] = {
     (domainRestActor ? DomainMessage(
       domain,
       GetModel(model))).mapTo[Option[Model]] map {
-        case Some(model) => (StatusCodes.OK, GetModelResponse(model))
+        case Some(model) =>
+          val mr = ModelResponse(
+            model.metaData.fqn.collectionId,
+            model.metaData.fqn.modelId,
+            model.metaData.version,
+            model.metaData.createdTime,
+            model.metaData.modifiedTime,
+            model.data)
+          (StatusCodes.OK, GetModelResponse(mr))
         case None => NotFoundError
       }
   }
-  
+
   def postModel(domain: DomainFqn, colletionId: String, data: Map[String, Any]): Future[RestResponse] = {
     (domainRestActor ? DomainMessage(
       domain,
       CreateModel(colletionId, data))).mapTo[CreateResult[ModelFqn]] map {
         case CreateSuccess(ModelFqn(collectionId, modelId)) =>
-          (StatusCodes.OK, CreateModelResponse(collectionId, modelId)) 
+          (StatusCodes.OK, CreateModelResponse(collectionId, modelId))
         case InvalidValue => InvalidValueError
         case DuplicateValue => DuplicateError
       }
   }
-  
+
   def putModel(domain: DomainFqn, colletionId: String, modelId: String, data: Map[String, Any]): Future[RestResponse] = {
     (domainRestActor ? DomainMessage(
       domain,
       CreateOrUpdateModel(colletionId, modelId, data))).mapTo[CreateOrUpdateResult[ModelFqn]] map {
-        case CreateSuccess(fqn) => OkResponse 
+        case CreateSuccess(fqn) => OkResponse
         case UpdateSuccess => OkResponse
         case InvalidValue => InvalidValueError
       }
   }
-  
+
   def deleteModel(domain: DomainFqn, colletionId: String, modelId: String): Future[RestResponse] = {
     (domainRestActor ? DomainMessage(
       domain,

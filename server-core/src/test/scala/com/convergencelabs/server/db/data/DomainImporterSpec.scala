@@ -15,7 +15,7 @@ import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.domain.DomainUser
 import com.convergencelabs.server.domain.DomainUserType
 import com.convergencelabs.server.domain.JwtKeyPair
-import com.convergencelabs.server.domain.JwtPublicKey
+import com.convergencelabs.server.domain.JwtAuthKey
 import com.convergencelabs.server.domain.model.Collection
 import com.convergencelabs.server.domain.model.Model
 import com.convergencelabs.server.domain.model.ModelFqn
@@ -42,7 +42,7 @@ class DomainImporterSpec extends WordSpecLike with Matchers {
 
         val dbPool = new OPartitionedDatabasePool(url, "admin", "admin")
 
-        val upgrader = new DatabaseSchemaManager(dbPool, DeltaCategory.Domain)
+        val upgrader = new DatabaseSchemaManager(dbPool, DeltaCategory.Domain, false)
         upgrader.upgradeToLatest()
 
         val provider = new DomainPersistenceProvider(dbPool)
@@ -61,7 +61,7 @@ class DomainImporterSpec extends WordSpecLike with Matchers {
 
         val keys = provider.jwtAuthKeyStore.getKeys(None, None).success.value
         keys.size shouldBe 1
-        keys(0) shouldBe JwtPublicKey(
+        keys(0) shouldBe JwtAuthKey(
           "test-key",
           "a test key",
           Instant.parse("2016-11-16T17:49:15.233Z"),

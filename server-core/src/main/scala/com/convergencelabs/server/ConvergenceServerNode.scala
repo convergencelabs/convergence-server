@@ -36,17 +36,21 @@ import com.convergencelabs.server.db.schema.DeltaCategory
 
 object ConvergenceServerNode extends Logging {
   def main(args: Array[String]): Unit = {
-    val options = ServerCLIConf(args)
+    try {
+      val options = ServerCLIConf(args)
+      val configFile = new File(options.config.toOption.get)
 
-    val configFile = new File(options.config.get.get)
-
-    if (!configFile.exists()) {
-      error(s"Config file not found: ${configFile.getAbsolutePath}")
-    } else {
-      info(s"Starting up with config file: ${configFile.getAbsolutePath}")
-      val config = ConfigFactory.parseFile(configFile)
-      val server = new ConvergenceServerNode(config)
-      server.start()
+      if (!configFile.exists()) {
+        error(s"Config file not found: ${configFile.getAbsolutePath}")
+      } else {
+        info(s"Starting up with config file: ${configFile.getAbsolutePath}")
+        val config = ConfigFactory.parseFile(configFile)
+        val server = new ConvergenceServerNode(config)
+        server.start()
+      }
+    } catch {
+      case cause: Throwable =>
+        logger.error("Could not start server node", cause)
     }
   }
 }
@@ -73,11 +77,14 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
       val username = convergenceDbConfig.getString("username")
       val password = convergenceDbConfig.getString("password")
 
-      if (convergenceDbConfig.hasPath("auto-install") && convergenceDbConfig.getBoolean("auto-install")) {
-        val adminUser = orientDbConfig.getString("admin-username")
-        val adminPassword = orientDbConfig.getString("admin-password")
-        val retryDelay = convergenceDbConfig.getDuration("retry-delay")
-        bootstrapConvergenceDB(fullUri, adminUser, adminPassword, username, password, retryDelay)
+      if (convergenceDbConfig.hasPath("auto-install")) {
+        if (convergenceDbConfig.getBoolean("auto-install.enabled")) {
+          val preRelease = convergenceDbConfig.getBoolean("auto-install.pre-release")
+          val adminUser = orientDbConfig.getString("admin-username")
+          val adminPassword = orientDbConfig.getString("admin-password")
+          val retryDelay = convergenceDbConfig.getDuration("retry-delay")
+          bootstrapConvergenceDB(fullUri, adminUser, adminPassword, username, password, retryDelay, preRelease)
+        }
       }
 
       dbPool = Some(new OPartitionedDatabasePool(fullUri, username, password))
@@ -113,7 +120,14 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
     this.nodeSystem = Some(system)
   }
 
-  def bootstrapConvergenceDB(uri: String, adminUser: String, adminPassword: String, username: String, password: String, retryDelay: Duration): Unit = {
+  def bootstrapConvergenceDB(
+    uri: String,
+    adminUser: String,
+    adminPassword: String,
+    username: String,
+    password: String,
+    retryDelay: Duration,
+    preRelease: Boolean): Unit = {
     logger.info("Attempting to connect to OrientDB for the first time")
     val connectTries = Iterator.continually(attemptConnect(uri, adminUser, adminPassword, retryDelay))
     val serverAdmin = connectTries.dropWhile(_.isEmpty).next().get
@@ -123,7 +137,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
       logger.info("Bootstrapping database")
       serverAdmin.createDatabase("document", "plocal").close()
       val dbPool = new OPartitionedDatabasePool(uri, username, password)
-      val schemaManager = new DatabaseSchemaManager(dbPool, DeltaCategory.Convergence)
+      val schemaManager = new DatabaseSchemaManager(dbPool, DeltaCategory.Convergence, preRelease)
 
       schemaManager.upgradeToLatest() match {
         case Success(_) =>
@@ -151,7 +165,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
   def stop(): Unit = {
     nodeSystem match {
       case Some(system) => system.terminate()
-      case None         =>
+      case None =>
     }
   }
 

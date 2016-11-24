@@ -57,7 +57,11 @@ class UserStore (
   val UsernameIndex = "User.username"
   val LastLogin = "lastLogin"
   
-  def createUser(user: User, password: String): Try[CreateResult[Unit]] = tryWithDb { db =>
+  def createUser(user: User, password: String): Try[CreateResult[Unit]] = {
+    createUserWithPasswordHash(user, PasswordUtil.hashPassword(password))
+  }
+  
+  def createUserWithPasswordHash(user: User, passwordHash: String): Try[CreateResult[Unit]] = tryWithDb { db =>
     val userDoc = new ODocument("User");
     userDoc.field(Username, user.username);
     userDoc.field(Email, user.email)
@@ -69,7 +73,7 @@ class UserStore (
 
     val pwDoc = db.newInstance("UserCredential")
     pwDoc.field("user", userDoc, OType.LINK) // FIXME verify this creates a link and now a new doc.
-    pwDoc.field(Password, PasswordUtil.hashPassword(password))
+    pwDoc.field(Password, passwordHash)
 
     db.save(pwDoc)
 
@@ -143,6 +147,13 @@ class UserStore (
         Unit
       case None => throw new IllegalArgumentException("User not found when setting password.")
     }
+  }
+  
+  def getDomainUserPasswordHash(username: String): Try[Option[String]] = tryWithDb { db =>
+    val query = new OSQLSynchQuery[ODocument]("SELECT * FROM UserCredential WHERE user.username = :username")
+    val params = Map(Username -> username)
+    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
+    QueryUtil.enforceSingletonResultList(result) flatMap { doc => Option(doc.field(Password)) }
   }
 
   /**

@@ -17,6 +17,8 @@ import akka.actor.ActorLogging
 import akka.actor.ActorRef
 import akka.actor.Props
 import akka.actor.actorRef2Scala
+import com.convergencelabs.server.db.data.ConvergenceImporterActor.ConvergenceExport
+import com.convergencelabs.server.db.data.ConvergenceImporterActor.ConvergenceExportResponse
 
 class ConvergenceImporterActor(
     private[this] val dbBaseUri: String,
@@ -26,9 +28,14 @@ class ConvergenceImporterActor(
   val domainDbProvider = new DomainDBProvider(dbBaseUri, dbPool)
 
   def receive: Receive = {
-    case ConvergenceImport(script) => importConvergence(script)
-    case DomainImport(fqn, script) => importDomain(fqn, script)
-    case DomainExport(fqn) => exportDomain(fqn)
+    case ConvergenceImport(script) => 
+      importConvergence(script)
+    case ConvergenceExport(Some(username)) =>
+      exportConvergenceUser(username)
+    case DomainImport(fqn, script) => 
+      importDomain(fqn, script)
+    case DomainExport(fqn) => 
+      exportDomain(fqn)
     case message: Any => unhandled(message)
   }
 
@@ -47,6 +54,17 @@ class ConvergenceImporterActor(
     }
     
     sender ! (())
+  }
+  
+  private[this] def exportConvergenceUser(username: String): Unit = {
+    log.debug(s"Exporting convergence user: ${username}")
+    val exporter = new ConvergenceExporter(dbBaseUri, dbPool)
+    exporter.exportData(username) match {
+      case Success(script) =>
+        sender ! ConvergenceExportResponse(script)
+      case Failure(cause) =>
+        sender ! akka.actor.Status.Failure(cause)
+    }
   }
 
   private[this] def importDomain(fqn: DomainFqn, script: DomainScript): Unit = {
@@ -92,6 +110,10 @@ object ConvergenceImporterActor {
 
   case class ConvergenceImport(script: ConvergenceScript)
   case class DomainImport(domainFqn: DomainFqn, script: DomainScript)
+  
+  case class ConvergenceExport(username: Option[String])
+  case class ConvergenceExportResponse(script: ConvergenceScript)
+  
   case class DomainExport(domainFqn: DomainFqn)
   case class DomainExportResponse(script: DomainScript)
 }

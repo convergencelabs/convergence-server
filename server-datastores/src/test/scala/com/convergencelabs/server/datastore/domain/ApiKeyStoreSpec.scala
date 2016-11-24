@@ -12,7 +12,7 @@ import org.scalatest.WordSpecLike
 
 import com.convergencelabs.server.domain.ModelSnapshotConfig
 import com.convergencelabs.server.domain.JwtKeyPair
-import com.convergencelabs.server.domain.JwtPublicKey
+import com.convergencelabs.server.domain.JwtAuthKey
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 
 // scalastyle:off line.size.limit
@@ -23,7 +23,7 @@ class ApiKeyStoreSpec
 
   val df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSz")
 
-  val tokenKey = JwtPublicKey(
+  val tokenKey = JwtAuthKey(
     "test",
     "A key for testing",
     Instant.ofEpochMilli(df.parse("2015-09-21T12:32:43.000+0000").getTime),

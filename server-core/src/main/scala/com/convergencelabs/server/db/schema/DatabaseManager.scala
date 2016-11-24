@@ -39,45 +39,45 @@ class DatabaseManager(url: String, dbPool: OPartitionedDatabasePool) extends Log
     }
   }
 
-  def updagradeConvergence(version: Int): Try[Unit] = {
-    val schemaManager = new DatabaseSchemaManager(dbPool, DeltaCategory.Convergence)
+  def updagradeConvergence(version: Int, preRelease: Boolean): Try[Unit] = {
+    val schemaManager = new DatabaseSchemaManager(dbPool, DeltaCategory.Convergence, preRelease)
     schemaManager.upgradeToVersion(version)
   }
 
-  def updagradeConvergenceToLatest(): Try[Unit] = {
-    val schemaManager = new DatabaseSchemaManager(dbPool, DeltaCategory.Convergence)
+  def updagradeConvergenceToLatest(preRelease: Boolean): Try[Unit] = {
+    val schemaManager = new DatabaseSchemaManager(dbPool, DeltaCategory.Convergence, preRelease)
     schemaManager.upgradeToLatest()
   }
 
-  def upgradeDomain(fqn: DomainFqn, version: Int): Try[Unit] = getDbPool(fqn) { dbPool =>
-    val schemaManager = new DatabaseSchemaManager(dbPool, DeltaCategory.Domain)
+  def upgradeDomain(fqn: DomainFqn, version: Int, preRelease: Boolean): Try[Unit] = getDbPool(fqn) { dbPool =>
+    val schemaManager = new DatabaseSchemaManager(dbPool, DeltaCategory.Domain, preRelease)
     schemaManager.upgradeToVersion(version)
   }
 
-  def upgradeDomainToLatest(fqn: DomainFqn): Try[Unit] = getDbPool(fqn) { dbPool =>
-    val schemaManager = new DatabaseSchemaManager(dbPool, DeltaCategory.Domain)
+  def upgradeDomainToLatest(fqn: DomainFqn, preRelease: Boolean): Try[Unit] = getDbPool(fqn) { dbPool =>
+    val schemaManager = new DatabaseSchemaManager(dbPool, DeltaCategory.Domain, preRelease)
     schemaManager.upgradeToLatest()
   }
 
-  def upgradeAllDomains(version: Int): Try[Unit] = {
+  def upgradeAllDomains(version: Int, preRelease: Boolean): Try[Unit] = {
     domainProvider.getDomains() map {
       case domainList =>
         val dbPools = domainList.map { fqn => domainProvider.getDomainDBPool(fqn) }.flatMap { _.get }
         dbPools.foreach { dbPool =>
-          val schemaManager = new DatabaseSchemaManager(dbPool, DeltaCategory.Domain)
+          val schemaManager = new DatabaseSchemaManager(dbPool, DeltaCategory.Domain, preRelease)
           schemaManager.upgradeToVersion(version)
         }
     }
   }
 
-  def upgradeAllDomainsToLatest(): Unit = {
+  def upgradeAllDomainsToLatest(preRelease: Boolean): Try[Unit] = {
     domainProvider.getDomains() map {
       case domainList =>
         val dbPools = domainList.map { fqn => domainProvider.getDomainDBPool(fqn) }.flatMap { _.get }
         dbPools.foreach { dbPool =>
-          val schemaManager = new DatabaseSchemaManager(dbPool, DeltaCategory.Domain)
+          val schemaManager = new DatabaseSchemaManager(dbPool, DeltaCategory.Domain, preRelease)
           schemaManager.upgradeToLatest() match {
-            case Success(()) => //logger.info("Upgrade Completed")
+            case Success(()) =>
             case Failure(e) => logger.error("Upgrade Failed")
           }
         }

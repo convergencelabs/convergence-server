@@ -48,7 +48,12 @@ class ConvergenceImporter(
           userData.email,
           userData.firstName.getOrElse(""),
           userData.lastName.getOrElse(""))
-        userStore.createUser(user, userData.password) recover { case e: Exception => throw e }
+          userData.password.passwordType match {
+          case "plaintext" =>
+            userStore.createUser(user, userData.password.value).get
+          case "hash" =>
+            userStore.createUserWithPasswordHash(user, userData.password.value).get
+        }
       }
     }
     logger.debug("Done importing convergence users")

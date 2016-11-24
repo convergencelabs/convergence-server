@@ -6,7 +6,7 @@ case class ConvergenceScript(
 
 case class CreateConvergenceUser(
   username: String,
-  password: String,
+  password: SetPassword,
   email: String,
   firstName: Option[String],
   lastName: Option[String],

@@ -10,7 +10,7 @@ class DeltaManagerSpec extends WordSpecLike with Matchers {
     
     "missing a released delta" must {
       "not validate" in {
-        val manager = new DeltaManager(Some("/missingReleasedDelta/"))
+        val manager = new DeltaManager(Some("/schema/missingReleasedDelta/"))
         val manifest = manager.manifest(DeltaCategory.Convergence).success.value
         manifest.validate().failure
       }
@@ -18,7 +18,7 @@ class DeltaManagerSpec extends WordSpecLike with Matchers {
     
     "missing a non released delta" must {
       "not validate" in {
-        val manager = new DeltaManager(Some("/missingNonReleasedDelta/"))
+        val manager = new DeltaManager(Some("/schema/missingNonReleasedDelta/"))
         val manifest = manager.manifest(DeltaCategory.Convergence).success.value
         manifest.validate().failure
       }
@@ -26,21 +26,21 @@ class DeltaManagerSpec extends WordSpecLike with Matchers {
     
     "having a bad hash" must {
       "not validate" in {
-        val manager = new DeltaManager(Some("/badHashDelta/"))
+        val manager = new DeltaManager(Some("/schema/badHashDelta/"))
         val manifest = manager.manifest(DeltaCategory.Convergence).success.value
         manifest.validate().failure
       }
     }
     
-    "processing good deltas a bad hash" must {
+    "processing good deltas" must {
       "return the correct maxDelta" in {
-        val manager = new DeltaManager(None)
+        val manager = new DeltaManager(Some("/schema/goodDeltas/"))
         val manifest = manager.manifest(DeltaCategory.Convergence).success.value
         manifest.maxDelta() shouldBe 3
       }
       
       "return the correct maxReleasedDelta" in {
-        val manager = new DeltaManager(None)
+        val manager = new DeltaManager(Some("/schema/goodDeltas/"))
         val manifest = manager.manifest(DeltaCategory.Convergence).success.value
         manifest.maxReleasedDelta() shouldBe 2
       }

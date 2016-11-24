@@ -1,5 +1,5 @@
 users:
-  - {username: imported, firstName: Imported, lastName: User, displayName: "Imported User", email: "imported@example.com", password: password}
+  - {username: imported, firstName: Imported, lastName: User, displayName: "Imported User", email: "imported@example.com", password: {passwordType: "plaintext", value: "password"}}
 domains:
   - namespace: imported
     domainId: code-editor

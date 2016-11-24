@@ -31,27 +31,29 @@ class DeltaManifest(
   def getInputStream(deltaNumber: Int): Option[InputStream] = {
     Option(getClass.getResourceAsStream(getDeltaPath(deltaNumber)))
   }
-  
-  def forEach(releasedOnly: Boolean)(callback: (Int, String, InputStream) => Try[Unit]): Try[Unit] = Try {
-    val max = releasedOnly match {
-      case true => index.maxReleasedDelta
-      case false => index.maxDelta
+
+  def forEach(currentVersion: Int, preRelease: Boolean)(callback: (Int, String, InputStream) => Try[Unit]): Try[Unit] = Try {
+    val max = preRelease match {
+      case true => index.maxDelta
+      case false => index.maxReleasedDelta
     }
-    
-    for (deltaNumber <- 1 to max) {
-      val path = getDeltaPath(deltaNumber)
-      val in = getInputStream(deltaNumber) getOrElse {
-        throw new IllegalStateException(s"Delta ${deltaNumber} is missing.")
+
+    if (currentVersion < max) {
+      for (deltaNumber <- currentVersion + 1 to max) {
+        val path = getDeltaPath(deltaNumber)
+        val in = getInputStream(deltaNumber) getOrElse {
+          throw new IllegalStateException(s"Delta ${deltaNumber} is missing.")
+        }
+
+        callback(deltaNumber, path, in).get
       }
-      
-      callback(deltaNumber, path, in).get
     }
   }
 
   private[this] def getDeltaPath(deltaNumber: Int): String = {
     s"${basePath}${deltaNumber}.yaml"
   }
-  
+
   private[this] def validateHash(deltaNumber: Int, in: InputStream): Unit = {
     val expectedHash = index.deltas.get(deltaNumber.toString) getOrElse {
       throw new IllegalStateException(s"Delta ${deltaNumber} is missing a hash.")
@@ -59,7 +61,7 @@ class DeltaManifest(
 
     val contents = scala.io.Source.fromInputStream(in).mkString
     val hash = SHA256(contents)
-    
+
     if (hash != expectedHash) {
       throw new IllegalStateException(s"Delta ${deltaNumber} failed hash validation.")
     }

@@ -33,6 +33,7 @@ import com.convergencelabs.server.db.provision.DomainProvisionerActor
 import com.convergencelabs.server.db.data.ConvergenceImporterActor
 import com.convergencelabs.server.db.schema.DatabaseManager
 import com.convergencelabs.server.db.schema.DatabaseManagerActor
+import com.convergencelabs.server.db.data.ConvergenceImportService
 
 object ConvergenceRestFrontEnd {
   val ConvergenceCorsSettings = CorsSettings.defaultSettings.copy(
@@ -60,10 +61,14 @@ class ConvergenceRestFrontEnd(
   def start(): Unit = {
     // FIXME this is a hack all of this should be a rest backend
     val orientDbConfig = system.settings.config.getConfig("convergence.orient-db")
+    val domainPreRelease = system.settings.config.getBoolean("convergence.domain-databases.pre-release")
+    
     val domainProvisioner = new DomainProvisioner(
       orientDbConfig.getString("db-uri"),
       orientDbConfig.getString("admin-username"),
-      orientDbConfig.getString("admin-password"))
+      orientDbConfig.getString("admin-password"),
+      domainPreRelease)
+    
     val provisionerActor = system.actorOf(DomainProvisionerActor.props(domainProvisioner), DomainProvisionerActor.RelativePath)
 
     val domainActor = system.actorOf(DomainStoreActor.props(dbPool, provisionerActor))

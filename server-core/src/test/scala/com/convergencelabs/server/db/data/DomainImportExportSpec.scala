@@ -23,7 +23,7 @@ class DomainImportExportSpec extends WordSpecLike with Matchers {
 
       val dbPool = new OPartitionedDatabasePool(url, "admin", "admin")
 
-      val upgrader = new DatabaseSchemaManager(dbPool, DeltaCategory.Domain)
+      val upgrader = new DatabaseSchemaManager(dbPool, DeltaCategory.Domain, false)
       upgrader.upgradeToLatest()
 
       val provider = new DomainPersistenceProvider(dbPool)

@@ -8,7 +8,7 @@ import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.domain.DomainUser
 import com.convergencelabs.server.domain.DomainUserType
 import com.convergencelabs.server.domain.JwtKeyPair
-import com.convergencelabs.server.domain.JwtPublicKey
+import com.convergencelabs.server.domain.JwtAuthKey
 import com.convergencelabs.server.domain.model.Collection
 import com.convergencelabs.server.domain.model.Model
 import com.convergencelabs.server.domain.model.ModelFqn
@@ -92,7 +92,7 @@ class DomainImporter(
   def createJwtAuthKeys(): Try[Unit] = Try {
     logger.debug("Importing JWT Auth Keys")
     data.jwtAuthKeys foreach (_.foreach { keyData =>
-      val key = JwtPublicKey(
+      val key = JwtAuthKey(
         keyData.keyId,
         keyData.description.getOrElse(""),
         keyData.updated,

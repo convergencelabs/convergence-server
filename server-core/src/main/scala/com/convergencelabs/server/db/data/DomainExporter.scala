@@ -4,7 +4,7 @@ import scala.util.Try
 
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.domain.DomainUser
-import com.convergencelabs.server.domain.JwtPublicKey
+import com.convergencelabs.server.domain.JwtAuthKey
 import com.convergencelabs.server.domain.model.Collection
 import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelOperation
@@ -70,7 +70,7 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
     logger.debug("Exporting JWT Auth Keys")
     persistence.jwtAuthKeyStore.getKeys(None, None) map {
       _.map { jwtKey =>
-        val JwtPublicKey(id, desc, updated, key, enabled) = jwtKey
+        val JwtAuthKey(id, desc, updated, key, enabled) = jwtKey
         CreateJwtAuthKey(id, Some(desc), updated, key, enabled)
       }
     }

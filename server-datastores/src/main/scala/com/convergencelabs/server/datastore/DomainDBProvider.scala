@@ -20,6 +20,14 @@ class DomainDBProvider(url: String, dbPool: OPartitionedDatabasePool) {
 
   val domainStore = new DomainStore(dbPool)
 
+  def getDomainAdminDBPool(fqn: DomainFqn): Try[Option[OPartitionedDatabasePool]] = {
+    domainStore.getDomainDatabaseInfo(fqn) map {
+      _ map { domainInfo =>
+        new OPartitionedDatabasePool(s"${url}/${domainInfo.database}", domainInfo.adminUsername, domainInfo.adminUsername)
+      }
+    }
+  }
+  
   def getDomainDBPool(fqn: DomainFqn): Try[Option[OPartitionedDatabasePool]] = {
     domainStore.getDomainDatabaseInfo(fqn) map {
       _ map { domainInfo =>

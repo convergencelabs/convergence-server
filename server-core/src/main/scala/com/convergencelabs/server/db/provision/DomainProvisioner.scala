@@ -47,10 +47,16 @@ object DomainProvisioner {
 class DomainProvisioner(
   dbBaseUri: String,
   dbRootUsername: String,
-  dbRootPasword: String)
+  dbRootPasword: String,
+  preRelease: Boolean)
     extends Logging {
 
-  def provisionDomain(dbName: String, dbUsername: String, dbPassword: String, dbAdminUsername: String, dbAdminPassword: String): Try[Unit] = {
+  def provisionDomain(
+      dbName: String, 
+      dbUsername: String, 
+      dbPassword: String, 
+      dbAdminUsername: String, 
+      dbAdminPassword: String): Try[Unit] = {
     val dbUri = computeDbUri(dbName)
     logger.debug(s"Provisioning domain: $dbUri")
     createDatabase(dbUri) flatMap { _ =>
@@ -58,7 +64,7 @@ class DomainProvisioner(
     } flatMap { _ =>
       val dbPool = new OPartitionedDatabasePool(dbUri, dbAdminUsername, dbAdminPassword)
       val t = configureNonAdminUsers(dbPool, dbUsername, dbPassword) flatMap { _ =>
-        installSchema(dbPool)
+        installSchema(dbPool, preRelease)
       }
       logger.debug(s"Disconnecting as admin user: $dbUri")
       dbPool.close()
@@ -115,8 +121,8 @@ class DomainProvisioner(
     ()
   }
 
-  private[this] def installSchema(dbPool: OPartitionedDatabasePool): Try[Unit] = {
-    val schemaManager = new DatabaseSchemaManager(dbPool, DeltaCategory.Domain)
+  private[this] def installSchema(dbPool: OPartitionedDatabasePool, preRelease: Boolean): Try[Unit] = {
+    val schemaManager = new DatabaseSchemaManager(dbPool, DeltaCategory.Domain, preRelease)
     logger.debug(s"Installing domain db schema to: ${dbPool.getUrl}")
     schemaManager.upgradeToLatest() map { _ =>
       logger.debug(s"Base domain schema created: ${dbPool.getUrl}")

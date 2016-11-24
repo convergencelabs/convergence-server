@@ -16,4 +16,6 @@ private class ServerCLIConf(arguments: Seq[String]) extends ScallopConf(argument
     descr = "The locatin of the source folder",
     required = false,
     default = Some("config/convergence-server-application.conf"))
+    
+    verify()
 }

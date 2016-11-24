@@ -19,7 +19,7 @@ class ConvergenceScriptSerializerSpec extends WordSpecLike with Matchers {
         val ConvergenceScript(users, domains) = value
 
         users.value shouldBe List(
-          CreateConvergenceUser("imported", "password", "imported@example.com", Some("Imported"), Some("User"), Some("Imported User")))
+          CreateConvergenceUser("imported", SetPassword("plaintext", "password"), "imported@example.com", Some("Imported"), Some("User"), Some("Imported User")))
 
         val CreateDomain(
           namespace,

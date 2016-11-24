@@ -1,9 +1,12 @@
 package com.convergencelabs.server.db.schema
 
+import scala.util.Success
+
 import com.convergencelabs.server.db.schema.DatabaseManagerActor.GetConvergenceVersion
 import com.convergencelabs.server.db.schema.DatabaseManagerActor.GetDomainVersion
 import com.convergencelabs.server.db.schema.DatabaseManagerActor.UpgradeConvergence
 import com.convergencelabs.server.db.schema.DatabaseManagerActor.UpgradeDomain
+import com.convergencelabs.server.db.schema.DatabaseManagerActor.UpgradeDomains
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.util.ReplyUtil
 
@@ -23,20 +26,34 @@ class DatabaseManagerActor(private[this] val databaseManager: DatabaseManager)
     case GetDomainVersion(fqn) =>
       reply(databaseManager.getDomainVersion(fqn), sender)
 
-    case UpgradeConvergence(version) =>
+    case UpgradeConvergence(version, preRelease) =>
+      reply(Success(()), sender)
+      
       version match {
         case Some(v) =>
-          reply(databaseManager.updagradeConvergence(v), sender)
+          databaseManager.updagradeConvergence(v, preRelease)
         case None =>
-          reply(databaseManager.updagradeConvergenceToLatest(), sender)
+          databaseManager.updagradeConvergenceToLatest(preRelease)
       }
 
-    case UpgradeDomain(fqn, version) =>
+    case UpgradeDomain(fqn, version, preRelease) =>
+      reply(Success(()), sender)
+      
       version match {
         case Some(v) =>
-          reply(databaseManager.upgradeDomain(fqn, v), sender)
+          databaseManager.upgradeDomain(fqn, v, preRelease)
         case None =>
-          reply(databaseManager.upgradeDomainToLatest(fqn), sender)
+          databaseManager.upgradeDomainToLatest(fqn, preRelease)
+      }
+
+    case UpgradeDomains(version, preRelease) =>
+      reply(Success(()), sender)
+      
+      version match {
+        case Some(v) =>
+          databaseManager.upgradeAllDomains(v, preRelease)
+        case None =>
+          databaseManager.upgradeAllDomainsToLatest(preRelease)
       }
   }
 }
@@ -50,7 +67,7 @@ object DatabaseManagerActor {
   case object GetConvergenceVersion
   case class GetDomainVersion(fqn: DomainFqn)
 
-  case class UpgradeConvergence(version: Option[Int])
-  case class UpgradeDomain(fqn: DomainFqn, version: Option[Int])
-  
+  case class UpgradeConvergence(version: Option[Int], preRelease: Boolean)
+  case class UpgradeDomain(fqn: DomainFqn, version: Option[Int], preRelease: Boolean)
+  case class UpgradeDomains(version: Option[Int], preRelease: Boolean)
 }

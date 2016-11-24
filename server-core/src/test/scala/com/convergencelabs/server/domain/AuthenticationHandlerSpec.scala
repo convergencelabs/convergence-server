@@ -183,7 +183,7 @@ class AuthenticationHandlerSpec()
 
     val keyStore = mock[JwtAuthKeyStore]
 
-    val enabledKey = JwtPublicKey(
+    val enabledKey = JwtAuthKey(
       "enabledkey",
       "An enabled key",
       Instant.now(),
@@ -194,7 +194,7 @@ class AuthenticationHandlerSpec()
     val adminKeyPair = JwtKeyPair(KeyConstants.PublicKey, KeyConstants.PrivateKey)
     Mockito.when(domainConfigStore.getAdminKeyPair()).thenReturn(Success(adminKeyPair))
 
-    val disabledKey = JwtPublicKey(
+    val disabledKey = JwtAuthKey(
       "disabledkey",
       "A disabled key",
       Instant.now(),
@@ -202,7 +202,7 @@ class AuthenticationHandlerSpec()
       false)
     Mockito.when(keyStore.getKey(disabledKey.id)).thenReturn(Success(Some(disabledKey)))
 
-    val invalidKey = JwtPublicKey(
+    val invalidKey = JwtAuthKey(
       "invalidKey",
       "An invalid key",
       Instant.now(),

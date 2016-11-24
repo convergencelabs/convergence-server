@@ -7,7 +7,6 @@ changes:
     newName: JwtAuthKey
 
   - action: AlterProperty
-    className: TokenPublicKey
+    className: JwtAuthKey
     name: created
     property: {name: updated}
-

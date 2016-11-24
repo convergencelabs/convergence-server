@@ -20,7 +20,6 @@ import com.convergencelabs.server.datastore.UpdateResult
 import com.convergencelabs.server.datastore.UpdateSuccess
 import com.convergencelabs.server.datastore.domain.JwtAuthKeyStore.KeyInfo
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.JwtPublicKey
 import com.convergencelabs.server.domain.RestDomainManagerActor.DomainMessage
 import com.convergencelabs.server.frontend.rest.DomainKeyService.UpdateInfo
 
@@ -46,10 +45,11 @@ import akka.http.scaladsl.server.Directives.put
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.util.Timeout
+import com.convergencelabs.server.domain.JwtAuthKey
 
 object DomainKeyService {
-  case class GetKeysRestResponse(keys: List[JwtPublicKey]) extends AbstractSuccessResponse
-  case class GetKeyRestResponse(key: JwtPublicKey) extends AbstractSuccessResponse
+  case class GetKeysRestResponse(keys: List[JwtAuthKey]) extends AbstractSuccessResponse
+  case class GetKeyRestResponse(key: JwtAuthKey) extends AbstractSuccessResponse
   case class UpdateInfo(description: String, key: String, enabled: Boolean)
 }
 
@@ -87,13 +87,13 @@ class DomainKeyService(
   }
 
   def getKeys(domain: DomainFqn): Future[RestResponse] = {
-    (domainRestActor ? DomainMessage(domain, GetDomainApiKeys(None, None))).mapTo[List[JwtPublicKey]] map {
-      case keys: List[JwtPublicKey] => (StatusCodes.OK, GetKeysRestResponse(keys))
+    (domainRestActor ? DomainMessage(domain, GetDomainApiKeys(None, None))).mapTo[List[JwtAuthKey]] map {
+      case keys: List[JwtAuthKey] => (StatusCodes.OK, GetKeysRestResponse(keys))
     }
   }
 
   def getKey(domain: DomainFqn, keyId: String): Future[RestResponse] = {
-    (domainRestActor ? DomainMessage(domain, GetDomainApiKey(keyId))).mapTo[Option[JwtPublicKey]] map {
+    (domainRestActor ? DomainMessage(domain, GetDomainApiKey(keyId))).mapTo[Option[JwtAuthKey]] map {
       case Some(key) => (StatusCodes.OK, GetKeyRestResponse(key))
       case None      => NotFoundError
     }
