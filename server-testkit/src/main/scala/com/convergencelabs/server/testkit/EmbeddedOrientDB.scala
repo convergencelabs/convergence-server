@@ -1,25 +1,22 @@
 package com.convergencelabs.server.testkit
 
 import java.io.File
-
 import com.orientechnologies.orient.client.remote.OServerAdmin
 import com.orientechnologies.orient.server.OServerMain
-
+import com.orientechnologies.orient.server.config.OServerConfigurationManager
+import com.orientechnologies.orient.server.config.OServerEntryConfiguration
 import grizzled.slf4j.Logging
 
-class EmbeddedOrientDB extends Logging {
-  val server = OServerMain.create()
+class EmbeddedOrientDB(dataPath: String, persistent: Boolean) extends Logging {
+  val server = OServerMain.create(false)
   val admin = new OServerAdmin("remote:localhost")
 
-  val persistent = java.lang.Boolean.getBoolean("convergence.test-server.persistent")
-  val odbTarget = new File("target/orientdb")
+  val odbTarget = new File(dataPath)
 
   def start(): Unit = {
-    logger.info("Starting up EmbeddedOrientDB")
-    logger.info("OrientDB Path: " + odbTarget.getAbsolutePath)
-
+    logger.info("Starting up embedded OrientDB")
     if (!persistent && odbTarget.exists()) {
-      FileUtils.deleteDirectory(odbTarget)
+      deleteDirectory(odbTarget)
     }
 
     if (!odbTarget.exists()) {
@@ -27,24 +24,37 @@ class EmbeddedOrientDB extends Logging {
     }
 
     val configFile = getClass.getResourceAsStream("/orientdb-server-config.xml")
-    server.startup(configFile)
+    val serverCfg = new OServerConfigurationManager(configFile);
+    val config = serverCfg.getConfiguration()
+    val properties = config.properties.toList filter { _.name != "server.database.path" }
+    val withData = properties ++ List(new OServerEntryConfiguration("server.database.path", odbTarget.getAbsolutePath))
+    config.properties = withData.toArray
+    server.startup(config)
     server.activate()
     
-    logger.info("OrientDB Database Path: " + server.getDatabaseDirectory)
     admin.connect("root", "password")
-    
-    logger.info("EmbeddedOrientDB started")
+    logger.info(s"OrientDB started at path: ${server.getDatabaseDirectory}")
   }
 
   def stop(): Unit = {
     server.shutdown()
-
-    if (!persistent && odbTarget.exists()) {
-      FileUtils.deleteDirectory(odbTarget)
+    if (!persistent) {
+      deleteDirectory(odbTarget)
     }
   }
 
-  def createDatabase(dbName: String): Unit = {
-    admin.createDatabase(dbName, "document", "plocal");
+  def deleteDirectory(path: File): Boolean = {
+    if (path.exists()) {
+      val files = path.listFiles().toList
+      files.foreach { file =>
+        if (file.isDirectory()) {
+          deleteDirectory(file)
+        } else {
+          file.delete()
+        }
+      }
+    }
+
+    path.delete()
   }
 }

@@ -20,11 +20,14 @@ object TestServer {
 }
 
 class TestServer(configFile: String) extends Logging {
-  // Override the configuration of the port
+  
+  val persistent = java.lang.Boolean.getBoolean("convergence.test-server.persistent")
+  val odbTarget = new File("target/orientdb")
+  
   val reader = new InputStreamReader(getClass.getResourceAsStream(configFile))
   val config = ConfigFactory.parseReader(reader)
   val server = new ConvergenceServerNode(config)
-  val oriendDb = new EmbeddedOrientDB();
+  val oriendDb = new EmbeddedOrientDB(odbTarget.getAbsolutePath, persistent);
 
   def start(): Unit = {
     logger.info("Test Server starting up")

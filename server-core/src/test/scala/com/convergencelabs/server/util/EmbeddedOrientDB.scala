@@ -1,12 +1,10 @@
-package com.convergencelabs.server.db.provision
+package com.convergencelabs.server.util
 
 import java.io.File
-
 import com.orientechnologies.orient.client.remote.OServerAdmin
 import com.orientechnologies.orient.server.OServerMain
 import com.orientechnologies.orient.server.config.OServerConfigurationManager
 import com.orientechnologies.orient.server.config.OServerEntryConfiguration
-
 import grizzled.slf4j.Logging
 
 class EmbeddedOrientDB(dataPath: String, persistent: Boolean) extends Logging {
@@ -43,10 +41,6 @@ class EmbeddedOrientDB(dataPath: String, persistent: Boolean) extends Logging {
     if (!persistent) {
       deleteDirectory(odbTarget)
     }
-  }
-
-  def createDatabase(dbName: String): Unit = {
-    admin.createDatabase(dbName, "document", "plocal");
   }
 
   def deleteDirectory(path: File): Boolean = {

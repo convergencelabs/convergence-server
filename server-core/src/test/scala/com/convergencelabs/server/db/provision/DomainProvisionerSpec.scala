@@ -4,6 +4,7 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.Matchers
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpec
+import com.convergencelabs.server.util.EmbeddedOrientDB
 
 class DomainProvisionerSpec()
     extends WordSpec
