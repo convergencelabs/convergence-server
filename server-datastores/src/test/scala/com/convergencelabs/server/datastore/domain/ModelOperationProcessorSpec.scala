@@ -413,7 +413,7 @@ class ModelOperationProcessorSpec
 
   def withTestData(testCode: DomainPersistenceProvider => Any): Unit = {
     this.withPersistenceStore { provider =>
-      provider.userStore.createDomainUser(user, None)
+      provider.userStore.createDomainUser(user)
       provider.collectionStore.ensureCollectionExists(peopleCollectionId)
       provider.modelStore.createModel(person1Model)
       testCode(provider)

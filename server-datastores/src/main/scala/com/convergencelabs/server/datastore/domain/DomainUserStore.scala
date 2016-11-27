@@ -128,12 +128,9 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    *
    * @param domainUser The user to add to the system.
    *
-   * @param password An optional password if internal authentication is to
-   * be used for this user.
-   *
    * @return A String representing the created users uid.
    */
-  def createNormalDomainUser(domainUser: CreateNormalDomainUser, password: Option[String]): Try[CreateResult[String]] = {
+  def createNormalDomainUser(domainUser: CreateNormalDomainUser): Try[CreateResult[String]] = {
     // fixme disallow special chars, specifically : in the username
     val normalUser = DomainUser(
       DomainUserType.Normal,
@@ -142,7 +139,8 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
       domainUser.lastName,
       domainUser.displayName,
       domainUser.email)
-    this.createDomainUser(normalUser, password)
+
+    this.createDomainUser(normalUser)
   }
 
   def createAnonymousDomainUser(displayName: Option[String]): Try[CreateResult[String]] = {
@@ -156,7 +154,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
         displayName,
         None)
 
-      this.createDomainUser(anonymousUser, None)
+      this.createDomainUser(anonymousUser)
     }
   }
 
@@ -170,10 +168,10 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
       Some(convergenceUsername + "(Admin)"),
       None)
 
-    this.createDomainUser(adminUser, None)
+    this.createDomainUser(adminUser)
   }
 
-  def createDomainUser(domainUser: DomainUser, password: Option[String]): Try[CreateResult[String]] = tryWithDb { db =>
+  def createDomainUser(domainUser: DomainUser): Try[CreateResult[String]] = tryWithDb { db =>
     val create = DomainUser(
       domainUser.userType,
       domainUser.username,
@@ -184,17 +182,6 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
 
     val userDoc = DomainUserStore.domainUserToDoc(create)
     db.save(userDoc)
-    userDoc.reload()
-
-    val pwDoc = db.newInstance("UserCredential")
-    pwDoc.field("user", userDoc, OType.LINK)
-
-    password match {
-      case Some(pass) => pwDoc.field(Password, PasswordUtil.hashPassword(pass))
-      case None => pwDoc.field(Password, null, OType.STRING) // scalastyle:off null
-    }
-
-    db.save(pwDoc)
 
     CreateSuccess((domainUser.username))
   } recover {
@@ -396,25 +383,32 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    * @param password The new password to use for internal authentication
    */
   def setDomainUserPasswordHash(username: String, passwordHash: String): Try[UpdateResult] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT * FROM UserCredential WHERE user.username = :username AND user.userType = 'normal'")
+    val query = "SELECT @rid as rid FROM User WHERE username = :username AND userType = 'normal'"
     val params = Map(Username -> username)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-
-    QueryUtil.enforceSingletonResultList(result) match {
-      case Some(doc) =>
+    QueryUtil.lookupOptionalDocument(query, params, db) match {
+      case None =>
+        NotFound
+      case Some(ridDoc) =>
+        val rid = ridDoc.field("rid").asInstanceOf[ODocument].getIdentity
+        val query = "SELECT * FROM UserCredential WHERE user = :user"
+        val params = Map("user" -> rid)
+        val doc = QueryUtil.lookupOptionalDocument(query, params, db).getOrElse {
+          val newDoc = db.newInstance("UserCredential")
+          newDoc.field("user", rid, OType.LINK)
+          newDoc
+        }
         doc.field(Password, passwordHash)
         db.save(doc)
         UpdateSuccess
-      case None => NotFound
     }
   }
 
   def getDomainUserPasswordHash(username: String): Try[Option[String]] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT * FROM UserCredential WHERE user.username = :username AND user.userType = 'normal'")
+    val query = "SELECT * FROM UserCredential WHERE user.username = :username AND user.userType = 'normal'"
     val params = Map(Username -> username)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-
-    QueryUtil.enforceSingletonResultList(result) flatMap { doc => Option(doc.field(Password)) }
+    QueryUtil.lookupOptionalDocument(query, params, db) flatMap {
+      doc => Option(doc.field(Password))
+    }
   }
 
   /**
@@ -423,17 +417,20 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    * @param username The username of the user to check the password for.
    * @param password The cleartext password of the user
    *
-   * @return true if the username and passowrd match, false otherwise.
+   * @return true if the username and password match, false otherwise.
    */
   def validateCredentials(username: String, password: String): Try[Boolean] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT password, user.uid AS uid FROM UserCredential WHERE user.username = :username AND user.userType = 'normal'")
+    val query = "SELECT password FROM UserCredential WHERE user.username = :username AND user.userType = 'normal'"
     val params = Map(Username -> username)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-
-    QueryUtil.enforceSingletonResultList(result) match {
+    QueryUtil.lookupOptionalDocument(query, params, db) match {
       case Some(doc) =>
-        val pwhash: String = doc.field(Password)
-        PasswordUtil.checkPassword(password, pwhash)
+        val storedHash: String = doc.field(Password, OType.STRING)
+        Option(storedHash) match {
+          case Some(hash) =>
+            PasswordUtil.checkPassword(password, hash)
+          case None =>
+            false
+        }
       case None =>
         false
     }

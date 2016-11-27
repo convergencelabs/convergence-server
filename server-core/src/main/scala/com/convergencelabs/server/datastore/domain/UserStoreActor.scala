@@ -12,6 +12,7 @@ import UserStoreActor.CreateUser
 import UserStoreActor.GetUsers
 import akka.actor.ActorLogging
 import akka.actor.Props
+import scala.util.Success
 
 object UserStoreActor {
   def props(userStore: DomainUserStore): Props = Props(new UserStoreActor(userStore))
@@ -42,13 +43,13 @@ class UserStoreActor private[datastore] (private[this] val userStore: DomainUser
     extends StoreActor with ActorLogging {
 
   def receive: Receive = {
-    case GetUsers                    => getAllUsers()
-    case message: GetUserByUsername  => getUserByUsername(message)
-    case message: CreateUser         => createUser(message)
-    case message: DeleteDomainUser   => deleteUser(message)
-    case message: UpdateUser         => updateUser(message)
-    case message: SetPassword        => setPassword(message)
-    case message: Any                => unhandled(message)
+    case GetUsers => getAllUsers()
+    case message: GetUserByUsername => getUserByUsername(message)
+    case message: CreateUser => createUser(message)
+    case message: DeleteDomainUser => deleteUser(message)
+    case message: UpdateUser => updateUser(message)
+    case message: SetPassword => setPassword(message)
+    case message: Any => unhandled(message)
   }
 
   def getAllUsers(): Unit = {
@@ -58,7 +59,15 @@ class UserStoreActor private[datastore] (private[this] val userStore: DomainUser
   def createUser(message: CreateUser): Unit = {
     val CreateUser(username, firstName, lastName, displayName, email, password) = message
     val domainuser = CreateNormalDomainUser(username, firstName, lastName, displayName, email)
-    reply(userStore.createNormalDomainUser(domainuser, password))
+    val result = userStore.createNormalDomainUser(domainuser) flatMap { x =>
+      password match {
+        case None =>
+          Success(x)
+        case Some(pw) =>
+          userStore.setDomainUserPassword(username, pw)
+      }
+    }
+    reply(result)
   }
 
   def updateUser(message: UpdateUser): Unit = {
@@ -75,7 +84,7 @@ class UserStoreActor private[datastore] (private[this] val userStore: DomainUser
   def deleteUser(message: DeleteDomainUser): Unit = {
     reply(userStore.deleteDomainUser(message.uid))
   }
-  
+
   def getUserByUsername(message: GetUserByUsername): Unit = {
     reply(userStore.getDomainUserByUsername(message.username))
   }

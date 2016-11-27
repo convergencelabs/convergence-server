@@ -77,12 +77,12 @@ class DomainImporterSpec extends WordSpecLike with Matchers {
         users(0) shouldBe DomainUser(DomainUserType.Normal, "test1", Some("Test"), Some("One"), Some("Test One"), Some("test1@example.com"))
         users(1) shouldBe DomainUser(DomainUserType.Normal, "test2", Some("Test"), Some("Two"), Some("Test Two"), Some("test2@example.com"))
 
-        provider.userStore.getDomainUserPasswordHash("test1").success.value.value shouldBe "someHash"
+        provider.userStore.validateCredentials("test1", "somePassword").get shouldBe true
         provider.userStore.getDomainUserPasswordHash("test2").success.value.value shouldBe "someHash"
         
         val collections = provider.collectionStore.getAllCollections(None, None).success.value
         collections.size shouldBe 1
-        collections(0) shouldBe Collection("colleciton1", "Collection 1", false, None)
+        collections(0) shouldBe Collection("collection1", "Collection 1", false, None)
 
         val modelFqn = ModelFqn("collection1", "someId")
 

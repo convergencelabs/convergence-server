@@ -177,7 +177,7 @@ class AuthenticationHandler(
         val displayName = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.DisplayName)
         val email = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.Email)
         val newUser = CreateNormalDomainUser(username, firstName, lastName, displayName, email)
-        userStore.createNormalDomainUser(newUser, None)
+        userStore.createNormalDomainUser(newUser)
     }
   }
 

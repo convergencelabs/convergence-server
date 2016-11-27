@@ -13,7 +13,7 @@ class DomainScriptSerializerSpec extends WordSpecLike with Matchers {
     "deserializing a scropt" must {
       "corrrectly parse" in {
         val serializer = new DomainScriptSerializer()
-        val in = getClass.getResourceAsStream("/com/convergencelabs/server/db/data/create-domain.yaml")
+        val in = getClass.getResourceAsStream("/com/convergencelabs/server/db/data/import-domain-test.yaml")
         val value = serializer.deserialize(in).success.value
         
         val DomainScript(config, jwtAuthKeys, users, collections, models) = value
@@ -25,7 +25,7 @@ class DomainScriptSerializerSpec extends WordSpecLike with Matchers {
           CreateDomainUser("normal", "test1", Some("Test"), Some("One"), Some("Test One"), Some("test1@example.com"), Some(SetPassword("plaintext", "somePassword"))),
           CreateDomainUser("normal", "test2", Some("Test"), Some("Two"), Some("Test Two"), Some("test2@example.com"), Some(SetPassword("hash", "someHash"))))
         
-        collections.value shouldBe List(CreateCollection("colleciton1", "Collection 1", false))
+        collections.value shouldBe List(CreateCollection("collection1", "Collection 1", false))
         
         models.value shouldBe List(
             CreateModel(

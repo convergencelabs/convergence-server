@@ -114,7 +114,7 @@ class DomainImporter(
         userData.lastName,
         userData.displayName,
         userData.email)
-      persistence.userStore.createDomainUser(user, None)
+      persistence.userStore.createDomainUser(user)
       
       userData.password map { password =>
         password.passwordType match {

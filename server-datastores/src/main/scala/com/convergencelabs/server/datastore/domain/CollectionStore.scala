@@ -31,7 +31,7 @@ import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 
 object CollectionStore {
-  val DocumentClassName = "Collection"
+  val ClassName = "Collection"
 
   val Id = "id"
   val Name = "name"
@@ -39,7 +39,7 @@ object CollectionStore {
   val SnapshotConfig = "snapshotConfig"
 
   def collectionToDoc(collection: Collection): ODocument = {
-    val doc = new ODocument(DocumentClassName)
+    val doc = new ODocument(ClassName)
     doc.field(Id, collection.id)
     doc.field(Name, collection.name)
     doc.field(OverrideSnapshotConfig, collection.overrideSnapshotConfig)

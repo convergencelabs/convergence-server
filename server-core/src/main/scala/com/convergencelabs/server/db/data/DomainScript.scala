@@ -81,34 +81,34 @@ sealed trait CreateOperation
 case class CreateCompoundOperation(operations: List[CreateDiscreteOperation]) extends CreateOperation
 
 sealed trait CreateDiscreteOperation extends CreateOperation {
-  def id: String
+  def element: String
   def noOp: Boolean
 }
 
 sealed trait CreateStringOperation extends CreateDiscreteOperation
-case class CreateStringRemoveOperation(id: String, noOp: Boolean, index: Int, length: Int, oldValue: Option[String]) extends CreateStringOperation
-case class CreateStringInsertOperation(id: String, noOp: Boolean, index: Int, value: String) extends CreateStringOperation
-case class CreateStringSetOperation(id: String, noOp: Boolean, value: String, oldValue: Option[String]) extends CreateStringOperation
+case class CreateStringRemoveOperation(element: String, noOp: Boolean, index: Int, length: Int, oldValue: Option[String]) extends CreateStringOperation
+case class CreateStringInsertOperation(element: String, noOp: Boolean, index: Int, value: String) extends CreateStringOperation
+case class CreateStringSetOperation(element: String, noOp: Boolean, value: String, oldValue: Option[String]) extends CreateStringOperation
 
 sealed trait CreateObjectOperation extends CreateDiscreteOperation
-case class CreateObjectSetPropertyOperation(id: String, noOp: Boolean, property: String, value: CreateDataValue, oldValue: Option[CreateDataValue]) extends CreateObjectOperation
-case class CreateObjectAddPropertyOperation(id: String, noOp: Boolean, property: String, value: CreateDataValue) extends CreateObjectOperation
-case class CreateObjectRemovePropertyOperation(id: String, noOp: Boolean, property: String, oldValue: Option[CreateDataValue]) extends CreateObjectOperation
-case class CreateObjectSetOperation(id: String, noOp: Boolean, value: Map[String, CreateDataValue], oldValue: Option[Map[String, CreateDataValue]]) extends CreateObjectOperation
+case class CreateObjectSetPropertyOperation(element: String, noOp: Boolean, property: String, value: CreateDataValue, oldValue: Option[CreateDataValue]) extends CreateObjectOperation
+case class CreateObjectAddPropertyOperation(element: String, noOp: Boolean, property: String, value: CreateDataValue) extends CreateObjectOperation
+case class CreateObjectRemovePropertyOperation(element: String, noOp: Boolean, property: String, oldValue: Option[CreateDataValue]) extends CreateObjectOperation
+case class CreateObjectSetOperation(element: String, noOp: Boolean, value: Map[String, CreateDataValue], oldValue: Option[Map[String, CreateDataValue]]) extends CreateObjectOperation
 
 sealed trait CreateNumberOperation extends CreateDiscreteOperation
-case class CreateNumberDeltaOperation(id: String, noOp: Boolean, value: Double) extends CreateNumberOperation
-case class CreateNumberSetOperation(id: String, noOp: Boolean, value: Double, oldValue: Option[Double]) extends CreateNumberOperation
+case class CreateNumberDeltaOperation(element: String, noOp: Boolean, value: Double) extends CreateNumberOperation
+case class CreateNumberSetOperation(element: String, noOp: Boolean, value: Double, oldValue: Option[Double]) extends CreateNumberOperation
 
 sealed trait CreateBooleanOperation extends CreateDiscreteOperation
-case class CreateBooleanSetOperation(id: String, noOp: Boolean, value: Boolean, oldValue: Option[Boolean]) extends CreateBooleanOperation
+case class CreateBooleanSetOperation(element: String, noOp: Boolean, value: Boolean, oldValue: Option[Boolean]) extends CreateBooleanOperation
 
 sealed trait CreateArrayOperation extends CreateDiscreteOperation
-case class CreateArrayInsertOperation(id: String, noOp: Boolean, index: Int, value: CreateDataValue) extends CreateArrayOperation
-case class CreateArrayRemoveOperation(id: String, noOp: Boolean, index: Int, oldValue: Option[CreateDataValue]) extends CreateArrayOperation
-case class CreateArrayReplaceOperation(id: String, noOp: Boolean, index: Int, value: CreateDataValue, oldValue: Option[CreateDataValue]) extends CreateArrayOperation
-case class CreateArrayReorderOperation(id: String, noOp: Boolean, fromIndex: Int, toIndex: Int) extends CreateArrayOperation
-case class CreateArraySetOperation(id: String, noOp: Boolean, value: List[CreateDataValue], oldValue: Option[List[CreateDataValue]]) extends CreateArrayOperation
+case class CreateArrayInsertOperation(element: String, noOp: Boolean, index: Int, value: CreateDataValue) extends CreateArrayOperation
+case class CreateArrayRemoveOperation(element: String, noOp: Boolean, index: Int, oldValue: Option[CreateDataValue]) extends CreateArrayOperation
+case class CreateArrayReplaceOperation(element: String, noOp: Boolean, index: Int, value: CreateDataValue, oldValue: Option[CreateDataValue]) extends CreateArrayOperation
+case class CreateArrayReorderOperation(element: String, noOp: Boolean, fromIndex: Int, toIndex: Int) extends CreateArrayOperation
+case class CreateArraySetOperation(element: String, noOp: Boolean, value: List[CreateDataValue], oldValue: Option[List[CreateDataValue]]) extends CreateArrayOperation
 
 case class CreateModelSnapshot(
   version: Long,

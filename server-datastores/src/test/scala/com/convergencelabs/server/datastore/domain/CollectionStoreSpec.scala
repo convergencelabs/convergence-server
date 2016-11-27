@@ -50,7 +50,7 @@ class CollectionStoreSpec
     Duration.ofSeconds(0))
 
   val peopleCollection = Collection(peopleCollectionId, "People", true, Some(snapshotConfig))
-  val copmanyCollection = Collection(companyCollectionId, "Company", false, None)
+  val copmanyCollection = Collection(companyCollectionId, "Some Company", false, None)
   val teamCollection = Collection(teamCollectionId, "Team", false, None)
 
   "An ColletionStore" when {
@@ -68,6 +68,11 @@ class CollectionStoreSpec
 
     "creating a collection" must {
       "create a collection that is not a duplicate id" in withPersistenceStore { store =>
+        store.createCollection(copmanyCollection).success
+        store.getCollection(copmanyCollection.id).success.value.value shouldBe copmanyCollection
+      }
+      
+      "properly handle a None snapshot config" in withPersistenceStore { store =>
         store.createCollection(copmanyCollection).success
         store.getCollection(copmanyCollection.id).success.value.value shouldBe copmanyCollection
       }

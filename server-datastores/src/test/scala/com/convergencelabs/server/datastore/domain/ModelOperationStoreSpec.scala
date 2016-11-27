@@ -128,7 +128,7 @@ class ModelOperationStoreSpec
   }
 
   def initCommonData(provider: DomainPersistenceProvider): Unit = {
-    provider.userStore.createDomainUser(user, None).get
+    provider.userStore.createDomainUser(user).get
     provider.collectionStore.ensureCollectionExists(modelFqn.collectionId).get
     provider.modelStore.createModel(model).get
   }
