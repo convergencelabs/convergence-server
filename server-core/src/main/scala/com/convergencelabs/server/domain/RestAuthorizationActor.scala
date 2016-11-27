@@ -36,7 +36,7 @@ class RestAuthnorizationActor(domainStore: DomainStore)
 
   private[this] def onDomainAuthorization(username: String, domain: DomainFqn): Unit = {
     sender ! (domainStore.getDomainByFqn(domain) match {
-      case Success(Some(domain)) if domain.owner.username == username =>
+      case Success(Some(domain)) if domain.owner == username =>
         AuthorizationGranted
       case _ =>
         AuthorizationDenied

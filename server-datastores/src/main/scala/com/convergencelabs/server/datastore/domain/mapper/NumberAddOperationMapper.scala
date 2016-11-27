@@ -37,7 +37,7 @@ object NumberAddOperationMapper extends ODocumentMapper {
   private[domain] val DocumentClassName = "NumberAddOperation"
 
   private[domain] object Fields {
-    val Id = "vid"
+    val Id = "elementId"
     val NoOp = "noOp"
     val Val = "val"
   }

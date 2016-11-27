@@ -31,7 +31,7 @@ case class AddProperty(className: String, property: Property) extends Change
 case class AlterProperty(className: String, name: String, property: PropertyOptions) extends Change
 case class DropProperty(className: String, name: String) extends Change
 
-case class CreateIndex(className: String, name: String, `type`: IndexType.Value, properties: List[String]) extends Change
+case class CreateIndex(className: String, name: String, `type`: IndexType.Value, properties: List[String], metaData: Option[Map[String, Any]]) extends Change
 case class DropIndex(name: String) extends Change
 
 case class CreateSequence(name: String, sequenceType: SequenceType.Value, start: Option[Int], increment: Option[Int], cacheSize: Option[Int]) extends Change
@@ -43,8 +43,8 @@ case class CreateFunction(name: String, code: String, parameters: List[String], 
 case class AlterFunction(name: String, newName: Option[String], code: Option[String], parameters: Option[List[String]], language: Option[String], idempotent: Option[Boolean]) extends Change
 case class DropFunction(name: String) extends Change
 
-case class Property(name: String, `type`: OrientType.Value, typeClass: Option[String], constraints: Option[Constraints])
-case class PropertyOptions(name: Option[String], orientType: Option[OrientType.Value], typeClass: Option[String], constraints: Option[Constraints])
+case class Property(name: String, `type`: OrientType.Value, linkedType: Option[OrientType.Value], linkedClass: Option[String], constraints: Option[Constraints])
+case class PropertyOptions(name: Option[String], orientType: Option[OrientType.Value], linkedType: Option[OrientType.Value], linkedClass: Option[String], constraints: Option[Constraints])
 
 
 case class Constraints(

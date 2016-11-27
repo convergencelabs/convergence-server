@@ -17,9 +17,9 @@ object StringValueMapper extends ODocumentMapper {
   }
 
   private[domain] implicit def stringValueToODocument(obj: StringValue): ODocument = {
-    val StringValue(vid, value) = obj
+    val StringValue(id, value) = obj
     val doc = new ODocument(OpDocumentClassName)
-    doc.field(Fields.VID, vid)
+    doc.field(Fields.Id, id)
     doc.field(Fields.Value, value)
     doc
   }
@@ -31,16 +31,16 @@ object StringValueMapper extends ODocumentMapper {
   private[domain] implicit def oDocumentToStringValue(doc: ODocument): StringValue = {
     validateDocumentClass(doc, DocumentClassName, OpDocumentClassName)
 
-    val vid = doc.field(Fields.VID).asInstanceOf[String]
+    val id = doc.field(Fields.Id).asInstanceOf[String]
     val value = doc.field(Fields.Value).asInstanceOf[String]
-    StringValue(vid, value);
+    StringValue(id, value);
   }
 
   private[domain] val DocumentClassName = "StringValue"
   private[domain] val OpDocumentClassName = "StringOpValue"
 
   private[domain] object Fields {
-    val VID = "vid"
+    val Id = "id"
     val Value = "value"
   }
 }

@@ -39,7 +39,7 @@ object StringInsertOperationMapper extends ODocumentMapper {
   private[domain] val DocumentClassName = "StringInsertOperation"
 
   private[domain] object Fields {
-    val Id = "vid"
+    val Id = "elementId"
     val NoOp = "noOp"
     val Val = "val"
     val Idx = "idx"

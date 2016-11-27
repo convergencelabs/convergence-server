@@ -30,7 +30,7 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
       "Correctly create class and its properties" in withDb { dbPool =>
         val delta = Delta(1, "Description",
           List(CreateClass("MyClass", None, None,
-            List(Property("prop1", OrientType.String, None, None)))))
+            List(Property("prop1", OrientType.String, None, None, None)))))
 
         val processor = new DatabaseSchemaProcessor(dbPool)
         processor.applyDelta(delta)
@@ -107,7 +107,7 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
       "Correctly adds new property to class" in withDb { dbPool =>
         val delta = Delta(1, "Description",
           List(CreateClass("MyClass", None, None, List()),
-            AddProperty("MyClass", Property("prop1", OrientType.String, None, None))))
+            AddProperty("MyClass", Property("prop1", OrientType.String, None, None, None))))
 
         val processor = new DatabaseSchemaProcessor(dbPool)
         processor.applyDelta(delta)
@@ -123,8 +123,8 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
       "Correctly alters property class" in withDb { dbPool =>
         val delta = Delta(1, "Description",
           List(CreateClass("MyClass", None, None,
-            List(Property("prop1", OrientType.Short, None, None))),
-            AlterProperty("MyClass", "prop1", PropertyOptions(None, Some(OrientType.Integer), None, None))))
+            List(Property("prop1", OrientType.Short, None, None, None))),
+            AlterProperty("MyClass", "prop1", PropertyOptions(None, Some(OrientType.Integer), None, None, None))))
 
         val processor = new DatabaseSchemaProcessor(dbPool)
         processor.applyDelta(delta)
@@ -139,8 +139,8 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
       "Correctly alters property name" in withDb { dbPool =>
         val delta = Delta(1, "Description",
           List(CreateClass("MyClass", None, None,
-            List(Property("prop1", OrientType.Short, None, None))),
-            AlterProperty("MyClass", "prop1", PropertyOptions(Some("prop2"), None, None, None))))
+            List(Property("prop1", OrientType.Short, None, None, None))),
+            AlterProperty("MyClass", "prop1", PropertyOptions(Some("prop2"), None, None, None, None))))
 
         val processor = new DatabaseSchemaProcessor(dbPool)
         processor.applyDelta(delta)
@@ -158,7 +158,7 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
       "Correctly drops property from class" in withDb { dbPool =>
         val delta = Delta(1, "Description",
           List(CreateClass("MyClass", None, None,
-            List(Property("prop1", OrientType.Short, None, None))),
+            List(Property("prop1", OrientType.Short, None, None, None))),
             DropProperty("MyClass", "prop1")))
 
         val processor = new DatabaseSchemaProcessor(dbPool)
@@ -175,8 +175,8 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
       "Correctly creates unique index for class" in withDb { dbPool =>
         val delta = Delta(1, "Description",
           List(CreateClass("MyClass", None, None,
-            List(Property("prop1", OrientType.Short, None, None))),
-            CreateIndex("MyClass", "MyClass.prop1", IndexType.Unique, List("prop1"))))
+            List(Property("prop1", OrientType.Short, None, None, None))),
+            CreateIndex("MyClass", "MyClass.prop1", IndexType.Unique, List("prop1"), None)))
 
         val processor = new DatabaseSchemaProcessor(dbPool)
         processor.applyDelta(delta)
@@ -192,8 +192,8 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
     "Processing a DropIndex change" must {
       "Correctly drops index" in withDb { dbPool =>
         val delta = Delta(1, "Description",
-          List(CreateClass("MyClass", None, None, List(Property("prop1", OrientType.Short, None, None))),
-            CreateIndex("MyClass", "MyClass.prop1", IndexType.Unique, List("prop1")),
+          List(CreateClass("MyClass", None, None, List(Property("prop1", OrientType.Short, None, None, None))),
+            CreateIndex("MyClass", "MyClass.prop1", IndexType.Unique, List("prop1"), None),
             DropIndex("MyClass.prop1")))
 
         val processor = new DatabaseSchemaProcessor(dbPool)

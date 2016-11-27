@@ -4,4 +4,5 @@ case class User(
   username: String,
   email: String,
   firstName: String,
-  lastName: String)
+  lastName: String,
+  displayName: String)

@@ -8,26 +8,66 @@ import java.util.UUID
 
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.mapAsJavaMapConverter
-import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
-
-import org.json4s.NoTypeHints
-import org.json4s.jackson.Serialization
 
 import com.convergencelabs.server.User
 import com.convergencelabs.server.datastore.domain.PasswordUtil
-import com.convergencelabs.server.datastore.mapper.UserMapper.ODocumentToUser
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
+import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.orientechnologies.orient.core.db.record.OIdentifiable
+import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
-
-import grizzled.slf4j.Logging
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
-import com.orientechnologies.orient.core.metadata.sequence.OSequence.CreateParams
-import com.orientechnologies.orient.core.metadata.sequence.OSequence.SEQUENCE_TYPE
-import com.orientechnologies.orient.core.db.record.OIdentifiable
+
+import UserStore.Fields.Email
+import UserStore.Fields.FirstName
+import UserStore.Fields.LastName
+import UserStore.Fields.Username
+import grizzled.slf4j.Logging
+
+object UserStore {
+  val ClassName = "User"
+  
+  object Fields {
+    val Username = "username"
+    val Email = "email"
+    val FirstName = "firstName"
+    val LastName = "lastName"
+    val DisplayName = "displayName"
+  }
+  
+  def docToUser(doc: ODocument): User = {
+    User(
+      doc.field(Fields.Username),
+      doc.field(Fields.Email),
+      doc.field(Fields.FirstName),
+      doc.field(Fields.LastName),
+      doc.field(Fields.DisplayName))
+  }
+  
+  def userToDoc(user: User): ODocument = {
+    val doc = new ODocument(ClassName)
+    doc.field(Fields.Username, user.username)
+    doc.field(Fields.Email, user.email)
+    doc.field(Fields.FirstName, user.firstName)
+    doc.field(Fields.LastName, user.lastName)
+    doc.field(Fields.DisplayName, user.displayName)
+    doc
+  }
+  
+  def getUserRid(username: String, db: ODatabaseDocumentTx): Try[ORID] = {
+    val query = "SELECT @RID as rid FROM User WHERE username = :username"
+    val params = Map("username" -> username)
+    QueryUtil.lookupMandatoryDocument(query, params, db) map { doc =>
+      val ridDoc: ODocument = doc.field("rid")
+      val rid = ridDoc.getIdentity
+      rid
+    }
+  }
+}
 
 /**
  * Manages the persistence of Users.  This class manages both user profile records
@@ -44,12 +84,6 @@ class UserStore (
     extends AbstractDatabasePersistence(dbPool)
     with Logging {
 
-  private[this] implicit val formats = Serialization.formats(NoTypeHints)
-
-  val Username = "username"
-  val Email = "email"
-  val FirstName = "firstName"
-  val LastName = "lastName"
   val Password = "password"
   val Token = "token"
   val ExpireTime = "expireTime"
@@ -62,12 +96,7 @@ class UserStore (
   }
   
   def createUserWithPasswordHash(user: User, passwordHash: String): Try[CreateResult[Unit]] = tryWithDb { db =>
-    val userDoc = new ODocument("User");
-    userDoc.field(Username, user.username);
-    userDoc.field(Email, user.email)
-    userDoc.field(FirstName, user.firstName)
-    userDoc.field(LastName, user.lastName)
-
+    val userDoc = UserStore.userToDoc(user)
     db.save(userDoc)
     userDoc.reload()
 
@@ -103,13 +132,13 @@ class UserStore (
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username = :username")
     val params = Map(Username -> username)
     val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.mapSingletonList(results) { _.asUser }
+    QueryUtil.mapSingletonList(results) { UserStore.docToUser(_) }
   }
   
   def getUsers(): Try[List[User]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User")
     val results: JavaList[ODocument] = db.command(query).execute()
-    results.asScala.toList.map (_.asUser)
+    results.asScala.toList.map (UserStore.docToUser(_))
   }
 
   /**

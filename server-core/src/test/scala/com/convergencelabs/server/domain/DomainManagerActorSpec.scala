@@ -65,7 +65,7 @@ class DomainManagerActorSpec()
     val domain = Domain(
       domainFqn,
       "Default",
-      User("test", "test@convergence.com", "test", "test"),
+      "test",
       DomainStatus.Online,
       "")
 

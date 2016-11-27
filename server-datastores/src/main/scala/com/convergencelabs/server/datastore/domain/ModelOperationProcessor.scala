@@ -36,12 +36,15 @@ import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.orientechnologies.common.io.OIOUtils
 import grizzled.slf4j.Logging
 import scala.collection.JavaConverters._
-import com.convergencelabs.server.datastore.domain.mapper.ModelOperationMapper._
+import com.orientechnologies.orient.core.id.ORID
 
-class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
+class ModelOperationProcessor private[domain] (
+    private[this] val dbPool: OPartitionedDatabasePool,
+    private[this] val modelOpStore: ModelOperationStore)
     extends AbstractDatabasePersistence(dbPool)
     with Logging {
-  val VID = "vid";
+  
+  val Id = "id";
   val CollectionId = "collectionId"
   val ModelId = "modelId"
   val Value = "value"
@@ -56,7 +59,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     applyOperationToModel(modelOperation.modelFqn, modelOperation.op, db)
 
     // Persist the operation
-    db.save(modelOperation.asODocument)
+    modelOpStore.createModelOperation(modelOperation).get
 
     // Update the model metadata
     updateModelMetaData(modelOperation.modelFqn, modelOperation.timestamp, db)
@@ -70,8 +73,8 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
         |  version = eval('version + 1'),
         |  modifiedTime = :timestamp
         |WHERE
-        |  collectionId = :collectionId AND
-        |  modelId = :modelId""".stripMargin
+        |  model.collection.id = :collectionId AND
+        |  model.id = :modelId""".stripMargin
 
     val updateCommand = new OCommandSQL(queryString)
 
@@ -121,12 +124,12 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
       s"""UPDATE ArrayValue SET
              |  children = arrayInsert(children, :index, :value)
              |WHERE
-             |  vid = :vid AND
-             |  model.collectionId = :collectionId AND
-             |  model.modelId = :modelId""".stripMargin
+             |  id = :id AND
+             |  model.collection.id = :collectionId AND
+             |  model.id = :modelId""".stripMargin
     val updateCommand = new OCommandSQL(queryString)
     val params = Map(
-      VID -> operation.id,
+      Id -> operation.id,
       CollectionId -> fqn.collectionId,
       ModelId -> fqn.modelId,
       Index -> operation.index,
@@ -141,12 +144,12 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
       s"""UPDATE ArrayValue SET
          |  children = arrayRemove(children, :index)
          |WHERE
-         |  vid = :vid AND
-         |  model.collectionId = :collectionId AND
-         |  model.modelId = :modelId""".stripMargin
+         |  id = :id AND
+         |  model.collection.id = :collectionId AND
+         |  model.id = :modelId""".stripMargin
     val updateCommand = new OCommandSQL(queryString)
     val params = Map(
-      VID -> operation.id,
+      Id -> operation.id,
       CollectionId -> fqn.collectionId,
       ModelId -> fqn.modelId,
       Index -> operation.index)
@@ -164,12 +167,12 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
       s"""UPDATE ArrayValue SET
              |  children = arrayReplace(children, :index, :value)
              |WHERE
-             |  model.collectionId = :collectionId AND
-             |  model.modelId = :modelId""".stripMargin
+             |  model.collection.id = :collectionId AND
+             |  model.id = :modelId""".stripMargin
     val updateCommand = new OCommandSQL(queryString)
 
     val params = Map(
-      VID -> operation.id,
+      Id -> operation.id,
       CollectionId -> fqn.collectionId,
       ModelId -> fqn.modelId,
       Index -> operation.index,
@@ -183,12 +186,12 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
       s"""UPDATE ArrayValue SET
          |  children = arrayMove(children, :fromIndex, :toIndex)
          |WHERE
-         |  vid = :vid AND
-         |  model.collectionId = :collectionId AND
-         |  model.modelId = :modelId""".stripMargin
+         |  id = :id AND
+         |  model.collection.id = :collectionId AND
+         |  model.id = :modelId""".stripMargin
     val updateCommand = new OCommandSQL(queryString)
     val params = Map(
-      VID -> operation.id,
+      Id -> operation.id,
       CollectionId -> fqn.collectionId,
       ModelId -> fqn.modelId,
       "fromIndex" -> operation.fromIndex,
@@ -203,15 +206,15 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     children.foreach { child => child.save() }
     db.commit()
 
-    val params = Map(VID -> operation.id, CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, Value -> children.asJava)
+    val params = Map(Id -> operation.id, CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, Value -> children.asJava)
     val queryString =
       s"""UPDATE ArrayValue
              |SET
              |  children = :value
              |WHERE
-             |  vid = : vid AND
-             |  model.collectionId = :collectionId AND
-             |  model.modelId = :modelId""".stripMargin
+             |  id = : id AND
+             |  model.collection.id = :collectionId AND
+             |  model.id = :modelId""".stripMargin
     val updateCommand = new OCommandSQL(queryString)
     db.command(updateCommand).execute(params.asJava)
     db.commit()
@@ -227,12 +230,12 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
       s"""UPDATE ObjectValue PUT
              |  children = :property, :value
              |WHERE
-             |  vid = :vid AND
-             |  model.collectionId = :collectionId AND
-             |  model.modelId = :modelId""".stripMargin
+             |  id = :id AND
+             |  model.collection.id = :collectionId AND
+             |  model.id = :modelId""".stripMargin
     val updateCommand = new OCommandSQL(queryString)
     val params = Map(
-      VID -> operation.id,
+      Id -> operation.id,
       CollectionId -> fqn.collectionId,
       ModelId -> fqn.modelId,
       Value -> value,
@@ -252,12 +255,12 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
       s"""UPDATE ObjectValue PUT
              |  children = :property, :value
              |WHERE
-             |  vid = :vid AND
-             |  model.collectionId = :collectionId AND
-             |  model.modelId = :modelId""".stripMargin
+             |  id = :id AND
+             |  model.collection.id = :collectionId AND
+             |  model.id = :modelId""".stripMargin
     val updateCommand = new OCommandSQL(queryString)
     val params = Map(
-      VID -> operation.id,
+      Id -> operation.id,
       CollectionId -> fqn.collectionId,
       ModelId -> fqn.modelId,
       Value -> value,
@@ -272,12 +275,12 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
       s"""UPDATE ObjectValue REMOVE
          |  children = :property
          |WHERE
-         |  vid = :vid AND
-         |  model.collectionId = :collectionId AND
-         |  model.modelId = :modelId""".stripMargin
+         |  id = :id AND
+         |  model.collection.id = :collectionId AND
+         |  model.id = :modelId""".stripMargin
     val updateCommand = new OCommandSQL(queryString)
     val params = Map(
-      VID -> operation.id,
+      Id -> operation.id,
       CollectionId -> fqn.collectionId,
       ModelId -> fqn.modelId,
       "property" -> operation.property)
@@ -294,12 +297,12 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
       s"""UPDATE ObjectValue SET
              |  children = :value
              |WHERE
-             |  vid = :vid AND
-             |  model.collectionId = :collectionId AND
-             |  model.modelId = :modelId""".stripMargin
+             |  id = :id AND
+             |  model.collection.id = :collectionId AND
+             |  model.id = :modelId""".stripMargin
     val updateCommand = new OCommandSQL(queryString)
     val params = Map(
-      VID -> operation.id,
+      Id -> operation.id,
       CollectionId -> fqn.collectionId,
       ModelId -> fqn.modelId,
       Value -> children.asJava)
@@ -313,9 +316,9 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
       s"""UPDATE StringValue SET
          |  value = value.left(:index).append(:value).append(value.substring(:index))
          |WHERE
-         |  vid = :vid AND
-         |  model.collectionId = :collectionId AND
-         |  model.modelId = :modelId""".stripMargin
+         |  id = :id AND
+         |  model.collection.id = :collectionId AND
+         |  model.id = :modelId""".stripMargin
 
     // FIXME remove this when the following orient issue is resolved
     // https://github.com/orientechnologies/orientdb/issues/6250
@@ -329,7 +332,7 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
     
     val updateCommand = new OCommandSQL(queryString)
     val params = Map(
-      VID -> operation.id,
+      Id -> operation.id,
       CollectionId -> fqn.collectionId,
       ModelId -> fqn.modelId,
       Index -> operation.index,
@@ -345,12 +348,12 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
       s"""UPDATE StringValue SET
          |  value = value.left(:index).append(value.substring(:endLength))
          |WHERE
-         |  vid = :vid AND
-         |  model.collectionId = :collectionId AND
-         |  model.modelId = :modelId""".stripMargin
+         |  id = :id AND
+         |  model.collection.id = :collectionId AND
+         |  model.id = :modelId""".stripMargin
     val updateCommand = new OCommandSQL(queryString)
     val params = Map(
-      VID -> operation.id,
+      Id -> operation.id,
       CollectionId -> fqn.collectionId,
       ModelId -> fqn.modelId,
       Index -> operation.index,
@@ -364,12 +367,12 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
       s"""UPDATE StringValue SET
          |  value = :value
          |WHERE
-         |  vid = :vid AND
-         |  model.collectionId = :collectionId AND
-         |  model.modelId = :modelId""".stripMargin
+         |  id = :id AND
+         |  model.collection.id = :collectionId AND
+         |  model.id = :modelId""".stripMargin
     val updateCommand = new OCommandSQL(queryString)
     val params = Map(
-      VID -> operation.id,
+      Id -> operation.id,
       CollectionId -> fqn.collectionId,
       ModelId -> fqn.modelId,
       Value -> operation.value)
@@ -383,12 +386,12 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
       s"""UPDATE DoubleValue SET
          |  value = eval('value + $value')
          |WHERE
-         |  vid = :vid AND
-         |  model.collectionId = :collectionId AND
-         |  model.modelId = :modelId""".stripMargin
+         |  id = :id AND
+         |  model.collection.id = :collectionId AND
+         |  model.id = :modelId""".stripMargin
     val updateCommand = new OCommandSQL(queryString)
     val params = Map(
-      VID -> operation.id,
+      Id -> operation.id,
       CollectionId -> fqn.collectionId,
       ModelId -> fqn.modelId)
     db.command(updateCommand).execute(params.asJava)
@@ -399,12 +402,12 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
       s"""UPDATE DoubleValue SET
          |  value = :value
          |WHERE
-         |  vid = :vid AND
-         |  model.collectionId = :collectionId AND
-         |  model.modelId = :modelId""".stripMargin
+         |  id = :id AND
+         |  model.collection.id = :collectionId AND
+         |  model.id = :modelId""".stripMargin
     val updateCommand = new OCommandSQL(queryString)
     val params = Map(
-      VID -> operation.id,
+      Id -> operation.id,
       CollectionId -> fqn.collectionId,
       ModelId -> fqn.modelId,
       Value -> operation.value)
@@ -416,34 +419,19 @@ class ModelOperationProcessor private[domain] (dbPool: OPartitionedDatabasePool)
       s"""UPDATE BooleanValue SET
          |  value = :value
          |WHERE
-         |  vid = :vid AND
-         |  model.collectionId = :collectionId AND
-         |  model.modelId = :modelId""".stripMargin
+         |  id = :id AND
+         |  model.collection.id = :collectionId AND
+         |  model.id = :modelId""".stripMargin
     val updateCommand = new OCommandSQL(queryString)
     val params = Map(
-      VID -> operation.id,
+      Id -> operation.id,
       CollectionId -> fqn.collectionId,
       ModelId -> fqn.modelId,
       Value -> operation.value)
     db.command(updateCommand).execute(params.asJava)
   }
 
-  private[this] def getModelRid(fqn: ModelFqn, db: ODatabaseDocumentTx): OIdentifiable = {
-    val queryString =
-      """SELECT
-        |FROM Model
-        |WHERE
-        |  collectionId = :collectionId AND
-        |  modelId = :modelId""".stripMargin
-    val query = new OSQLSynchQuery[ODocument](queryString)
-    val params = Map(
-      CollectionId -> fqn.collectionId,
-      ModelId -> fqn.modelId)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    result.asScala.toList match {
-      case first :: Nil => first
-      case _ =>
-        throw new IllegalArgumentException("The model does not exist: " + fqn)
-    }
+  private[this] def getModelRid(fqn: ModelFqn, db: ODatabaseDocumentTx): ORID = {
+    ModelStore.getModelRid(fqn.modelId, fqn.collectionId, db).get
   }
 }

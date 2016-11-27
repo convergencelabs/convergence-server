@@ -24,9 +24,9 @@ object ArraySetOperationMapper extends ODocumentMapper {
     val doc = new ODocument(DocumentClassName)
     doc.field(Fields.Id, id)
     doc.field(Fields.NoOp, noOp)
-    var docValue = value map(_.asODocument);
+    val docValue = value map(_.asODocument);
     doc.field(Fields.Val, docValue.asJava)
-    var oldValueDoc = oldValue map {_ map {_.asODocument}} map {_.asJava};
+    val oldValueDoc = oldValue map {_ map {_.asODocument}} map {_.asJava};
     doc.field(Fields.OldValue, oldValueDoc.getOrElse(null))
     doc
   }
@@ -48,7 +48,7 @@ object ArraySetOperationMapper extends ODocumentMapper {
   private[domain] val DocumentClassName = "ArraySetOperation"
 
   private[domain] object Fields {
-    val Id = "vid"
+    val Id = "elementId"
     val NoOp = "noOp"
     val Val = "val"
     val OldValue = "oldVal"

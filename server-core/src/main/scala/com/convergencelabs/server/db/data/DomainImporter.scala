@@ -1,14 +1,16 @@
 package com.convergencelabs.server.db.data
 
-import scala.util.Try
-
 import java.time.{ Duration => JavaDuration }
 import java.time.temporal.ChronoUnit
+
+import scala.util.Try
+
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.domain.DomainUser
 import com.convergencelabs.server.domain.DomainUserType
-import com.convergencelabs.server.domain.JwtKeyPair
 import com.convergencelabs.server.domain.JwtAuthKey
+import com.convergencelabs.server.domain.JwtKeyPair
+import com.convergencelabs.server.domain.ModelSnapshotConfig
 import com.convergencelabs.server.domain.model.Collection
 import com.convergencelabs.server.domain.model.Model
 import com.convergencelabs.server.domain.model.ModelFqn
@@ -41,8 +43,7 @@ import com.convergencelabs.server.domain.model.ot.AppliedOperation
 import com.convergencelabs.server.domain.model.ot.AppliedStringInsertOperation
 import com.convergencelabs.server.domain.model.ot.AppliedStringRemoveOperation
 import com.convergencelabs.server.domain.model.ot.AppliedStringSetOperation
-import com.convergencelabs.server.domain.ModelSnapshotConfig
-import com.convergencelabs.server.datastore.domain.DomainUserStore.{ CreateDomainUser => CreateUser }
+
 import grizzled.slf4j.Logging
 
 class DomainImporter(
@@ -93,7 +94,7 @@ class DomainImporter(
     logger.debug("Importing JWT Auth Keys")
     data.jwtAuthKeys foreach (_.foreach { keyData =>
       val key = JwtAuthKey(
-        keyData.keyId,
+        keyData.id,
         keyData.description.getOrElse(""),
         keyData.updated,
         keyData.key,
@@ -106,7 +107,7 @@ class DomainImporter(
   def createUsers(): Try[Unit] = Try {
     logger.debug("Importting domain users")
     data.users foreach (_.foreach { userData =>
-      val user = CreateUser(
+      val user = DomainUser(
         DomainUserType.withNameOpt(userData.userType).get,
         userData.username,
         userData.firstName,
@@ -130,7 +131,7 @@ class DomainImporter(
     logger.debug("Importting collections")
     data.collections foreach (_.foreach { collectionData =>
       val collection = Collection(
-        collectionData.collectionId,
+        collectionData.id,
         collectionData.name,
         false,
         None)
@@ -144,7 +145,7 @@ class DomainImporter(
   }
 
   def createModel(modelData: CreateModel): Unit = {
-    val fqn = ModelFqn(modelData.collectionId, modelData.modelId)
+    val fqn = ModelFqn(modelData.collection, modelData.id)
     val data = createDataValue(modelData.data).asInstanceOf[ObjectValue]
     val model = Model(
       ModelMetaData(

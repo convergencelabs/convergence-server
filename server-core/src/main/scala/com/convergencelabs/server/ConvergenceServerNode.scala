@@ -1,13 +1,20 @@
 package com.convergencelabs.server
 
 import java.io.File
+import java.time.Duration
 
 import scala.collection.JavaConverters.asScalaBufferConverter
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
 
-import com.convergencelabs.server.datastore.DomainStore
+import com.convergencelabs.server.datastore.DomainDatabaseStore
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
+import com.convergencelabs.server.db.schema.DatabaseSchemaManager
+import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.frontend.realtime.ConvergenceRealTimeFrontend
 import com.convergencelabs.server.frontend.rest.ConvergenceRestFrontEnd
+import com.orientechnologies.orient.client.remote.OServerAdmin
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
@@ -23,16 +30,6 @@ import akka.cluster.ClusterEvent.MemberRemoved
 import akka.cluster.ClusterEvent.MemberUp
 import akka.cluster.ClusterEvent.UnreachableMember
 import grizzled.slf4j.Logging
-import com.orientechnologies.orient.client.remote.OServerAdmin
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import com.orientechnologies.orient.core.config.OGlobalConfiguration
-import com.orientechnologies.orient.core.exception.OStorageException
-import scala.util.Try
-import scala.util.Success
-import scala.util.Failure
-import java.time.Duration
-import com.convergencelabs.server.db.schema.DatabaseSchemaManager
-import com.convergencelabs.server.db.schema.DeltaCategory
 
 object ConvergenceServerNode extends Logging {
   def main(args: Array[String]): Unit = {
@@ -89,9 +86,9 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
 
       dbPool = Some(new OPartitionedDatabasePool(fullUri, username, password))
 
-      val domainStore = new DomainStore(dbPool.get)
+      val domainDatabaseStore = new DomainDatabaseStore(dbPool.get)
       system.actorOf(
-        DomainPersistenceManagerActor.props(baseUri, domainStore),
+        DomainPersistenceManagerActor.props(baseUri, domainDatabaseStore),
         DomainPersistenceManagerActor.RelativePath)
     }
 

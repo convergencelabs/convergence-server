@@ -43,7 +43,7 @@ object ArrayInsertOperationMapper extends ODocumentMapper {
   private[domain] val DocumentClassName = "ArrayInsertOperation"
 
   private[domain] object Fields {
-    val Id = "vid"
+    val Id = "elementId"
     val NoOp = "noOp"
     val Val = "val"
     val Idx = "idx"

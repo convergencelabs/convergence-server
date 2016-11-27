@@ -19,26 +19,68 @@ import com.convergencelabs.server.datastore.CreateSuccess
 import com.convergencelabs.server.datastore.UpdateResult
 import com.convergencelabs.server.datastore.UpdateSuccess
 import com.convergencelabs.server.datastore.InvalidValue
-import java.util.{List => JavaList}
+import java.util.{ List => JavaList }
 import scala.collection.JavaConverters._
-import com.convergencelabs.server.datastore.domain.mapper.CollectionMapper._
+import com.orientechnologies.orient.core.metadata.schema.OType
+import com.convergencelabs.server.datastore.domain.mapper.ModelSnapshotConfigMapper.ModelSnapshotConfigToODocument
+import com.convergencelabs.server.datastore.domain.mapper.ModelSnapshotConfigMapper.ODocumentToModelSnapshotConfig
+
+import CollectionStore._
+import com.orientechnologies.orient.core.id.ORID
+import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.orientechnologies.orient.core.db.record.OIdentifiable
 
 object CollectionStore {
-  private val CollectionId = "collectionId"
+  val DocumentClassName = "Collection"
+
+  val Id = "id"
+  val Name = "name"
+  val OverrideSnapshotConfig = "overrideSnapshotConfig"
+  val SnapshotConfig = "snapshotConfig"
+
+  def collectionToDoc(collection: Collection): ODocument = {
+    val doc = new ODocument(DocumentClassName)
+    doc.field(Id, collection.id)
+    doc.field(Name, collection.name)
+    doc.field(OverrideSnapshotConfig, collection.overrideSnapshotConfig)
+    collection.snapshotConfig.foreach { config =>
+      doc.field(SnapshotConfig, config.asODocument)
+    }
+    doc
+  }
+
+  def docToCollection(doc: ODocument): Collection = {
+    val snapshotConfig: ODocument = doc.field(SnapshotConfig, OType.EMBEDDED);
+    Collection(
+      doc.field(Id),
+      doc.field(Name),
+      doc.field(OverrideSnapshotConfig),
+      Option(snapshotConfig).map { _.asModelSnapshotConfig })
+  }
+
+  def getCollectionRid(id: String, db: ODatabaseDocumentTx): Try[ORID] = {
+    val query = "SELECT @RID as rid FROM Collection WHERE id = :id"
+    val params = Map("id" -> id)
+    QueryUtil.lookupMandatoryDocument(query, params, db) map { doc =>
+      val ridDoc: ODocument = doc.field("rid")
+      val rid = ridDoc.getIdentity
+      rid
+    }
+  }
 }
 
 class CollectionStore private[domain] (dbPool: OPartitionedDatabasePool, modelStore: ModelStore)
     extends AbstractDatabasePersistence(dbPool) {
 
-  def collectionExists(collectionId: String): Try[Boolean] = tryWithDb { db =>
+  def collectionExists(id: String): Try[Boolean] = tryWithDb { db =>
     val queryString =
-      """SELECT collectionId
+      """SELECT id
         |FROM Collection
         |WHERE
-        |  collectionId = :collectionId""".stripMargin
+        |  id = :id""".stripMargin
 
     val query = new OSQLSynchQuery[ODocument](queryString)
-    val params = Map(CollectionStore.CollectionId -> collectionId)
+    val params = Map(CollectionStore.Id -> id)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     !result.isEmpty()
   }
@@ -53,19 +95,18 @@ class CollectionStore private[domain] (dbPool: OPartitionedDatabasePool, modelSt
   }
 
   def createCollection(collection: Collection): Try[CreateResult[Unit]] = tryWithDb { db =>
-    try {
-      db.save(collection.asODocument)
-      CreateSuccess(())
-    } catch {
-      case e: ORecordDuplicatedException => DuplicateValue
-    }
+    val doc = collectionToDoc(collection)
+    db.save(doc)
+    CreateSuccess(())
+  } recover {
+    case e: ORecordDuplicatedException => DuplicateValue
   }
 
   def updateCollection(collection: Collection): Try[UpdateResult] = tryWithDb { db =>
-    val updatedDoc = collection.asODocument
+    val updatedDoc = collectionToDoc(collection)
 
-    val query = new OSQLSynchQuery[ODocument]("SELECT FROM Collection WHERE collectionId = :collectionId")
-    val params = Map(CollectionStore.CollectionId -> collection.id)
+    val query = new OSQLSynchQuery[ODocument]("SELECT FROM Collection WHERE id = :id")
+    val params = Map(CollectionStore.Id -> collection.id)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
     QueryUtil.enforceSingletonResultList(result) match {
@@ -82,16 +123,16 @@ class CollectionStore private[domain] (dbPool: OPartitionedDatabasePool, modelSt
     }
   }
 
-  def deleteCollection(collectionId: String): Try[DeleteResult] = tryWithDb { db =>
-    modelStore.deleteAllModelsInCollection(collectionId)
+  def deleteCollection(id: String): Try[DeleteResult] = tryWithDb { db =>
+    modelStore.deleteAllModelsInCollection(id)
 
     val queryString =
       """DELETE FROM Collection
         |WHERE
-        |  collectionId = :collectionId""".stripMargin
+        |  id = :id""".stripMargin
 
     val command = new OCommandSQL(queryString)
-    val params = Map(CollectionStore.CollectionId -> collectionId)
+    val params = Map(CollectionStore.Id -> id)
     val deleted: Int = db.command(command).execute(params.asJava)
     deleted match {
       case 0 => NotFound
@@ -99,16 +140,16 @@ class CollectionStore private[domain] (dbPool: OPartitionedDatabasePool, modelSt
     }
   }
 
-  def getCollection(collectionId: String): Try[Option[Collection]] = tryWithDb { db =>
+  def getCollection(id: String): Try[Option[Collection]] = tryWithDb { db =>
     val queryString =
       """SELECT *
         |FROM Collection
         |WHERE
-        |  collectionId = :collectionId""".stripMargin
+        |  id = :id""".stripMargin
     val query = new OSQLSynchQuery[ODocument](queryString)
-    val params = Map(CollectionStore.CollectionId -> collectionId)
+    val params = Map(CollectionStore.Id -> id)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.mapSingletonList(result) { _.asCollection }
+    QueryUtil.mapSingletonList(result) { docToCollection(_) }
   }
 
   def getOrCreateCollection(collectionId: String): Try[Collection] = {
@@ -133,6 +174,6 @@ class CollectionStore private[domain] (dbPool: OPartitionedDatabasePool, modelSt
 
     val query = new OSQLSynchQuery[ODocument](pageQuery)
     val result: JavaList[ODocument] = db.command(query).execute()
-    result.asScala.toList map { _.asCollection }
+    result.asScala.toList map { docToCollection(_) }
   }
 }

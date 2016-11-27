@@ -1,18 +1,20 @@
 package com.convergencelabs.server.datastore
 
+import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
-import com.convergencelabs.server.util.concurrent.FutureUtils
-
-import collection.JavaConverters._
 
 import com.convergencelabs.server.User
 import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.CreateConvergenceUserRequest
 import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.DeleteConvergenceUserRequest
+import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUser
+import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUsers
 import com.convergencelabs.server.datastore.DomainStoreActor.CreateDomainRequest
+import com.convergencelabs.server.datastore.DomainStoreActor.DeleteDomainsForUserRequest
+import com.convergencelabs.server.util.concurrent.FutureUtils
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.typesafe.config.Config
 
@@ -23,15 +25,12 @@ import akka.actor.Status
 import akka.actor.actorRef2Scala
 import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUser
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUsers
-import com.convergencelabs.server.datastore.DomainStoreActor.DeleteDomainsForUserRequest
 
 object ConvergenceUserManagerActor {
   def props(dbPool: OPartitionedDatabasePool, domainStoreActor: ActorRef): Props =
     Props(new ConvergenceUserManagerActor(dbPool, domainStoreActor))
 
-  case class CreateConvergenceUserRequest(username: String, email: String, firstName: String, lastName: String, password: String)
+  case class CreateConvergenceUserRequest(username: String, email: String, firstName: String, lastName: String, displayName: String, password: String)
   case class DeleteConvergenceUserRequest(username: String)
   case class GetConvergenceUser(username: String)
   case object GetConvergenceUsers
@@ -61,9 +60,9 @@ class ConvergenceUserManagerActor private[datastore] (
   }
 
   def createConvergenceUser(message: CreateConvergenceUserRequest): Unit = {
-    val CreateConvergenceUserRequest(username, email, firstName, lastName, password) = message
+    val CreateConvergenceUserRequest(username, email, firstName, lastName, displayName, password) = message
     val origSender = sender
-    userStore.createUser(User(username, email, firstName, lastName), password) map {
+    userStore.createUser(User(username, email, firstName, lastName, displayName), password) map {
       case CreateSuccess(uid) =>
         log.debug("User created.  Creating domains")
         FutureUtils.seqFutures(autoCreateConfigs) { config =>

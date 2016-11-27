@@ -8,5 +8,5 @@ case class ModelOperation(
   version: Long,
   timestamp: Instant,
   username: String,
-  sid: String,
+  sessionId: String,
   op: AppliedOperation)

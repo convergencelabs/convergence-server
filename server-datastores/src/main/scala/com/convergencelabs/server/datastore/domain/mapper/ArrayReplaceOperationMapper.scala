@@ -46,7 +46,7 @@ object ArrayReplaceOperationMapper extends ODocumentMapper {
   private[domain] val DocumentClassName = "ArrayReplaceOperation"
 
   private[domain] object Fields {
-    val Id = "vid"
+    val Id = "elementId"
     val NoOp = "noOp"
     val Val = "val"
     val Idx = "idx"

@@ -19,6 +19,5 @@ class DomainPersistenceProvider(private[this] val dbPool: OPartitionedDatabasePo
 
   val collectionStore = new CollectionStore(dbPool, modelStore: ModelStore)
 
-  val modelOperationProcessor = new ModelOperationProcessor(dbPool)
-
+  val modelOperationProcessor = new ModelOperationProcessor(dbPool, modelOperationStore)
 }

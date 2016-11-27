@@ -22,7 +22,7 @@ import com.convergencelabs.server.datastore.NotFound
 
 // scalastyle:off magic.number
 class CollectionStoreSpec
-    extends PersistenceStoreSpec[CollectionStore]("/dbfiles/domain-n1-d1.json.gz")
+    extends PersistenceStoreSpec[CollectionStore]("/domain.json.gz")
     with WordSpecLike
     with Matchers {
 
@@ -49,34 +49,32 @@ class CollectionStoreSpec
     Duration.ofSeconds(0),
     Duration.ofSeconds(0))
 
-  val expectedPeopleCollection = Collection(peopleCollectionId, "People", true, Some(snapshotConfig))
-  val expectedCopmanyCollection = Collection(companyCollectionId, "Company", false, None)
-  val expectedTeamCollection = Collection(teamCollectionId, "Team", false, None)
+  val peopleCollection = Collection(peopleCollectionId, "People", true, Some(snapshotConfig))
+  val copmanyCollection = Collection(companyCollectionId, "Company", false, None)
+  val teamCollection = Collection(teamCollectionId, "Team", false, None)
 
   "An ColletionStore" when {
 
     "asked whether a collection exists" must {
-
       "return false if it doesn't exist" in withPersistenceStore { store =>
         store.collectionExists(carsCollectionId).success.value shouldBe false
       }
 
       "return true if it does exist" in withPersistenceStore { store =>
-        store.collectionExists(peopleCollectionId).success.value shouldBe true
+        store.createCollection(peopleCollection)
+        store.collectionExists(peopleCollection.id).success.value shouldBe true
       }
     }
 
     "creating a collection" must {
-      "create a collection that is not a duplicate model fqn" in withPersistenceStore { store =>
-        val collection = Collection(carsCollectionId, "a name", true, Some(snapshotConfig))
-
-        store.createCollection(collection).success
-        store.getCollection(carsCollectionId).success.value.value shouldBe collection
+      "create a collection that is not a duplicate id" in withPersistenceStore { store =>
+        store.createCollection(copmanyCollection).success
+        store.getCollection(copmanyCollection.id).success.value.value shouldBe copmanyCollection
       }
 
       "not create a collection that is not a duplicate collection id" in withPersistenceStore { store =>
-        val collection = Collection(peopleCollectionId, "a name", true, Some(snapshotConfig))
-        store.createCollection(collection).success.value shouldBe DuplicateValue
+        store.createCollection(copmanyCollection).success
+        store.createCollection(copmanyCollection).success.value shouldBe DuplicateValue
       }
     }
 
@@ -86,12 +84,14 @@ class CollectionStoreSpec
       }
 
       "return Some if it does exist" in withPersistenceStore { store =>
-        store.getCollection(peopleCollectionId).success.value shouldBe defined
+        store.createCollection(peopleCollection).success
+        store.getCollection(peopleCollectionId).success.value.value shouldBe peopleCollection
       }
     }
 
     "updatig a collection" must {
       "successfully update an existing collection" in withPersistenceStore { store =>
+        store.createCollection(peopleCollection).success
         val existing = store.getCollection(peopleCollectionId).success.value.value
         val updated = existing.copy(name = "foo", overrideSnapshotConfig = false, snapshotConfig = None)
         store.updateCollection(updated).success.value
@@ -106,33 +106,53 @@ class CollectionStoreSpec
 
     "getting all collections" must {
       "return all meta data when no limit or offset are provided" in withPersistenceStore { store =>
+        store.createCollection(copmanyCollection).success
+        store.createCollection(peopleCollection).success
+        store.createCollection(teamCollection).success
+        
         val list = store.getAllCollections(None, None).success.value
         list shouldBe List(
-          expectedCopmanyCollection,
-          expectedPeopleCollection,
-          expectedTeamCollection)
+          copmanyCollection,
+          peopleCollection,
+          teamCollection)
       }
 
       "return only the limited number of meta data when limit provided" in withPersistenceStore { store =>
+        store.createCollection(copmanyCollection).success
+        store.createCollection(peopleCollection).success
+        store.createCollection(teamCollection).success
+        
         val list = store.getAllCollections(None, Some(1)).success.value
-        list shouldBe List(expectedCopmanyCollection)
+        list shouldBe List(copmanyCollection)
       }
 
       "return only the limited number of meta data when offset provided" in withPersistenceStore { store =>
+        store.createCollection(copmanyCollection).success
+        store.createCollection(peopleCollection).success
+        store.createCollection(teamCollection).success
+        
         val list = store.getAllCollections(Some(1), None).success.value
         list shouldBe List(
-          expectedPeopleCollection,
-          expectedTeamCollection)
+          peopleCollection,
+          teamCollection)
       }
 
       "return only the limited number of meta data when limit and offset provided" in withPersistenceStore { store =>
+        store.createCollection(copmanyCollection).success
+        store.createCollection(peopleCollection).success
+        store.createCollection(teamCollection).success
+        
         val list = store.getAllCollections(Some(1), Some(1)).success.value
-        list shouldBe List(expectedPeopleCollection)
+        list shouldBe List(peopleCollection)
       }
     }
 
     "deleting a specific collection" must {
       "delete the specified collection and no others" in withPersistenceStore { store =>
+        store.createCollection(copmanyCollection).success
+        store.createCollection(peopleCollection).success
+        store.createCollection(teamCollection).success
+        
         store.getCollection(peopleCollectionId).success.value shouldBe defined
         store.getCollection(companyCollectionId).success.value shouldBe defined
         store.getCollection(teamCollectionId).success.value shouldBe defined
@@ -158,6 +178,7 @@ class CollectionStoreSpec
       }
 
       "does not error for a collection that exists" in withPersistenceStore { store =>
+        store.createCollection(peopleCollection).success
         store.collectionExists(peopleCollectionId).success.value shouldBe true
         store.ensureCollectionExists(peopleCollectionId).success
       }
@@ -170,8 +191,9 @@ class CollectionStoreSpec
       }
 
       "gets a collection that exists" in withPersistenceStore { store =>
+        store.createCollection(peopleCollection).success
         store.collectionExists(peopleCollectionId).success.value shouldBe true
-        store.getOrCreateCollection(peopleCollectionId).success.value shouldBe expectedPeopleCollection
+        store.getOrCreateCollection(peopleCollectionId).success.value shouldBe peopleCollection
       }
     }
   }

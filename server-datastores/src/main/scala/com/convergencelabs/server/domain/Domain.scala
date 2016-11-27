@@ -14,11 +14,12 @@ object DomainStatus extends Enumeration {
 case class Domain(
   domainFqn: DomainFqn,
   displayName: String,
-  owner: User,
+  owner: String,
   status: DomainStatus.Value,
   statusMessage: String)
 
-case class DomainDatabaseInfo(
+case class DomainDatabase(
+  domainFqn: DomainFqn,
   database: String,
   username: String,
   password: String,

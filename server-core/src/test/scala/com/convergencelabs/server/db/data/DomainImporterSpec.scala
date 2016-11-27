@@ -42,7 +42,7 @@ class DomainImporterSpec extends WordSpecLike with Matchers {
 
         val dbPool = new OPartitionedDatabasePool(url, "admin", "admin")
 
-        val upgrader = new DatabaseSchemaManager(dbPool, DeltaCategory.Domain, false)
+        val upgrader = new DatabaseSchemaManager(dbPool, DeltaCategory.Domain, true)
         upgrader.upgradeToLatest()
 
         val provider = new DomainPersistenceProvider(dbPool)
@@ -54,7 +54,7 @@ class DomainImporterSpec extends WordSpecLike with Matchers {
 
         val importer = new DomainImporter(provider, script)
 
-        importer.importDomain().success
+        importer.importDomain().get
 
         provider.configStore.isAnonymousAuthEnabled().success.value shouldBe true
         provider.configStore.getAdminKeyPair().success.value shouldBe JwtKeyPair("Public Key", "Private Key")

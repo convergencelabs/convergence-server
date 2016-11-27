@@ -14,7 +14,7 @@ object NullValueMapper extends ODocumentMapper {
 
   private[domain] implicit def nullValueToODocument(value: NullValue): ODocument = {
     val doc = new ODocument(OpDocumentClassName)
-    doc.field(Fields.VID, value.id)
+    doc.field(Fields.Id, value.id)
     doc
   }
 
@@ -24,14 +24,14 @@ object NullValueMapper extends ODocumentMapper {
 
   private[domain] implicit def oDocumentToNullValue(doc: ODocument): NullValue = {
     validateDocumentClass(doc, DocumentClassName, OpDocumentClassName)
-    val vid = doc.field(Fields.VID).asInstanceOf[String]
-    NullValue(vid);
+    val id = doc.field(Fields.Id).asInstanceOf[String]
+    NullValue(id);
   }
 
   private[domain] val DocumentClassName = "NullValue"
   private[domain] val OpDocumentClassName = "NullOpValue"
 
   private[domain] object Fields {
-    val VID = "vid"
+    val Id = "id"
   }
 }

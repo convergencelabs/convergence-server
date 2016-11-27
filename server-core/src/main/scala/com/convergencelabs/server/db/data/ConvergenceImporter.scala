@@ -2,7 +2,6 @@ package com.convergencelabs.server.db.data
 
 import java.time.Duration
 
-import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
@@ -18,7 +17,7 @@ import com.convergencelabs.server.datastore.DuplicateValue
 import com.convergencelabs.server.datastore.InvalidValue
 import com.convergencelabs.server.datastore.UserStore
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.server.domain.DomainDatabaseInfo
+import com.convergencelabs.server.domain.DomainDatabase
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 
 import akka.actor.ActorRef
@@ -47,7 +46,8 @@ class ConvergenceImporter(
           userData.username,
           userData.email,
           userData.firstName.getOrElse(""),
-          userData.lastName.getOrElse(""))
+          userData.lastName.getOrElse(""),
+          userData.displayName.getOrElse(""))
           userData.password.passwordType match {
           case "plaintext" =>
             userStore.createUser(user, userData.password.value).get
@@ -72,7 +72,7 @@ class ConvergenceImporter(
         // FXIME hardcoded timeout
         implicit val requstTimeout = Timeout(4 minutes)
         logger.debug(s"Requesting domain provisioning for: ${domainData.namespace}/${domainData.domainId}")
-        val response = (domainStoreActor ? domainCreateRequest).mapTo[CreateResult[DomainDatabaseInfo]]
+        val response = (domainStoreActor ? domainCreateRequest).mapTo[CreateResult[DomainDatabase]]
 
         response onSuccess {
           case CreateSuccess(dbInfo) =>

@@ -1,7 +1,6 @@
 package com.convergencelabs.server.datastore.domain
 
 import java.lang.{ Long => JavaLong }
-import java.time.Instant
 import java.util.{ List => JavaList }
 
 import scala.collection.JavaConverters.asScalaBufferConverter
@@ -9,9 +8,6 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.collection.mutable.ListBuffer
 import scala.util.Try
-
-import org.json4s.NoTypeHints
-import org.json4s.jackson.Serialization
 
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.server.datastore.CreateResult
@@ -25,16 +21,13 @@ import com.convergencelabs.server.datastore.QueryUtil
 import com.convergencelabs.server.datastore.SortOrder
 import com.convergencelabs.server.datastore.UpdateResult
 import com.convergencelabs.server.datastore.UpdateSuccess
-import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateDomainUser
 import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateNormalDomainUser
 import com.convergencelabs.server.datastore.domain.DomainUserStore.UpdateDomainUser
-import com.convergencelabs.server.datastore.domain.mapper.DomainUserMapper.DomainUserToODocument
-import com.convergencelabs.server.datastore.domain.mapper.DomainUserMapper.ODocumentToDomainUser
 import com.convergencelabs.server.domain.DomainUser
 import com.convergencelabs.server.domain.DomainUserType
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import com.orientechnologies.orient.core.db.record.OIdentifiable
-import com.orientechnologies.orient.core.index.OCompositeKey
+import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
@@ -42,8 +35,23 @@ import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
 import grizzled.slf4j.Logging
+import com.orientechnologies.orient.core.index.OCompositeKey
+import java.time.Instant
+import com.orientechnologies.orient.core.db.record.OIdentifiable
+import java.util.Date
 
 object DomainUserStore {
+
+  val ClassName = "User"
+
+  object Fields {
+    val UserType = "userType"
+    val Username = "username"
+    val FirstName = "firstName"
+    val LastName = "lastName"
+    val DisplayName = "displayName"
+    val Email = "email"
+  }
 
   case class CreateNormalDomainUser(
     username: String,
@@ -59,13 +67,36 @@ object DomainUserStore {
     displayName: Option[String],
     email: Option[String])
 
-  case class CreateDomainUser(
-    userType: DomainUserType.Value,
-    username: String,
-    firstName: Option[String],
-    lastName: Option[String],
-    displayName: Option[String],
-    email: Option[String])
+  def getUserRid(username: String, db: ODatabaseDocumentTx): Try[ORID] = {
+    val query = "SELECT @RID as rid FROM User WHERE username = :username"
+    val params = Map("username" -> username)
+    QueryUtil.lookupMandatoryDocument(query, params, db) map { doc =>
+      val ridDoc: ODocument = doc.field("rid")
+      val rid = ridDoc.getIdentity
+      rid
+    }
+  }
+
+  def domainUserToDoc(obj: DomainUser): ODocument = {
+    val doc = new ODocument(ClassName)
+    doc.field(Fields.UserType, obj.userType.toString.toLowerCase)
+    doc.field(Fields.Username, obj.username)
+    obj.firstName.map { doc.field(Fields.FirstName, _) }
+    obj.lastName.map { doc.field(Fields.LastName, _) }
+    obj.displayName.map { doc.field(Fields.DisplayName, _) }
+    obj.email.map { doc.field(Fields.Email, _) }
+    doc
+  }
+
+  def docToDomainUser(doc: ODocument): DomainUser = {
+    DomainUser(
+      DomainUserType.withNameOpt(doc.field(Fields.UserType)).get,
+      doc.field(Fields.Username),
+      Option(doc.field(Fields.FirstName)),
+      Option(doc.field(Fields.LastName)),
+      Option(doc.field(Fields.DisplayName)),
+      Option(doc.field(Fields.Email)))
+  }
 }
 
 /**
@@ -80,8 +111,6 @@ object DomainUserStore {
 class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDatabasePool)
     extends AbstractDatabasePersistence(dbPool)
     with Logging {
-
-  private[this] implicit val formats = Serialization.formats(NoTypeHints)
 
   val Username = "username"
   val Password = "password"
@@ -105,7 +134,8 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
    * @return A String representing the created users uid.
    */
   def createNormalDomainUser(domainUser: CreateNormalDomainUser, password: Option[String]): Try[CreateResult[String]] = {
-    val normalUser = CreateDomainUser(
+    // fixme disallow special chars, specifically : in the username
+    val normalUser = DomainUser(
       DomainUserType.Normal,
       domainUser.username,
       domainUser.firstName,
@@ -118,7 +148,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
   def createAnonymousDomainUser(displayName: Option[String]): Try[CreateResult[String]] = {
     this.nextAnonymousUsername flatMap { next =>
       val username = "anonymous:" + next
-      val anonymousUser = CreateDomainUser(
+      val anonymousUser = DomainUser(
         DomainUserType.Anonymous,
         username,
         None,
@@ -132,7 +162,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
 
   def createAdminDomainUser(convergenceUsername: String): Try[CreateResult[String]] = {
     val username = "admin:" + convergenceUsername
-    val adminUser = CreateDomainUser(
+    val adminUser = DomainUser(
       DomainUserType.Admin,
       username,
       None,
@@ -143,7 +173,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     this.createDomainUser(adminUser, None)
   }
 
-  def createDomainUser(domainUser: CreateDomainUser, password: Option[String]): Try[CreateResult[String]] = tryWithDb { db =>
+  def createDomainUser(domainUser: DomainUser, password: Option[String]): Try[CreateResult[String]] = tryWithDb { db =>
     val create = DomainUser(
       domainUser.userType,
       domainUser.username,
@@ -152,7 +182,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
       domainUser.displayName,
       domainUser.email)
 
-    val userDoc = create.asODocument
+    val userDoc = DomainUserStore.domainUserToDoc(create)
     db.save(userDoc)
     userDoc.reload()
 
@@ -196,7 +226,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     val UpdateDomainUser(username, firstName, lastName, displayName, email) = update;
     val domainUser = DomainUser(DomainUserType.Normal, username, firstName, lastName, displayName, email)
 
-    val updatedDoc = domainUser.asODocument
+    val updatedDoc = DomainUserStore.domainUserToDoc(domainUser)
 
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username = :username AND userType = 'normal'")
     val params = Map(Username -> domainUser.username)
@@ -226,7 +256,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username = :username")
     val params = Map(Username -> username)
     val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.mapSingletonList(results) { _.asDomainUser }
+    QueryUtil.mapSingletonList(results) { DomainUserStore.docToDomainUser(_) }
   }
 
   /**
@@ -240,7 +270,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username in :usernames")
     val params = Map("usernames" -> usernames.asJava)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    result.asScala.toList.map { _.asDomainUser }
+    result.asScala.toList.map { DomainUserStore.docToDomainUser(_) }
   }
 
   /**
@@ -254,7 +284,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE email = :email AND userType = 'normal'")
     val params = Map("email" -> email)
     val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.mapSingletonList(results) { _.asDomainUser }
+    QueryUtil.mapSingletonList(results) { DomainUserStore.docToDomainUser(_) }
   }
 
   /**
@@ -268,7 +298,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE email in :emails AND userType = 'normal'")
     val params = Map("emails" -> emails.asJava)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    result.asScala.toList.map { doc => doc.asDomainUser }
+    result.asScala.toList.map { DomainUserStore.docToDomainUser(_) }
   }
 
   /**
@@ -316,7 +346,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     val query = new OSQLSynchQuery[ODocument](QueryUtil.buildPagedQuery(baseQuery, limit, offset))
     val result: JavaList[ODocument] = db.command(query).execute()
 
-    result.asScala.toList.map { doc => doc.asDomainUser }
+    result.asScala.toList.map { DomainUserStore.docToDomainUser(_) }
   }
 
   def searchUsersByFields(
@@ -346,7 +376,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     val params = Map("searchString" -> ("%" + searchString + "%"))
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
-    result.asScala.toList.map { doc => doc.asDomainUser }
+    result.asScala.toList.map { DomainUserStore.docToDomainUser(_) }
   }
 
   /**
@@ -358,7 +388,7 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
   def setDomainUserPassword(username: String, password: String): Try[UpdateResult] = {
     setDomainUserPasswordHash(username, PasswordUtil.hashPassword(password))
   }
-  
+
   /**
    * Set the password for an existing user by uid.
    *
@@ -411,10 +441,9 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
 
   def setLastLogin(username: String, userType: DomainUserType.Value, instant: Instant): Try[Unit] = tryWithDb { db =>
     val index = db.getMetadata.getIndexManager.getIndex(UsernameIndex)
-    val key = new OCompositeKey(List(username, userType.toString.toLowerCase).asJava)
-    if (index.contains(key)) {
-      val record: ODocument = index.get(key).asInstanceOf[OIdentifiable].getRecord[ODocument]
-      record.field(LastLogin, instant.toEpochMilli()).save()
+    if (index.contains(username)) {
+      val record: ODocument = index.get(username).asInstanceOf[OIdentifiable].getRecord[ODocument]
+      record.field(LastLogin, Date.from(instant)).save()
     }
     Unit
   }

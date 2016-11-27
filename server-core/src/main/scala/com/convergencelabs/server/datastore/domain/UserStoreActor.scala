@@ -1,19 +1,17 @@
 package com.convergencelabs.server.datastore
 
+import com.convergencelabs.server.datastore.UserStoreActor.DeleteDomainUser
+import com.convergencelabs.server.datastore.UserStoreActor.GetUserByUsername
+import com.convergencelabs.server.datastore.UserStoreActor.SetPassword
+import com.convergencelabs.server.datastore.UserStoreActor.UpdateUser
 import com.convergencelabs.server.datastore.domain.DomainUserStore
-import com.convergencelabs.server.domain.DomainUser
+import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateNormalDomainUser
+import com.convergencelabs.server.datastore.domain.DomainUserStore.UpdateDomainUser
 
 import UserStoreActor.CreateUser
 import UserStoreActor.GetUsers
 import akka.actor.ActorLogging
 import akka.actor.Props
-import com.convergencelabs.server.datastore.UserStoreActor.GetUserByUsername
-import com.convergencelabs.server.datastore.UserStoreActor.DeleteDomainUser
-import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateDomainUser
-import com.convergencelabs.server.datastore.UserStoreActor.UpdateUser
-import com.convergencelabs.server.datastore.UserStoreActor.SetPassword
-import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateNormalDomainUser
-import com.convergencelabs.server.datastore.domain.DomainUserStore.UpdateDomainUser
 
 object UserStoreActor {
   def props(userStore: DomainUserStore): Props = Props(new UserStoreActor(userStore))

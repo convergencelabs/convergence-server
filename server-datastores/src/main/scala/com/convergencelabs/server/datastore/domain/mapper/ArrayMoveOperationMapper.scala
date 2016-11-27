@@ -39,7 +39,7 @@ object ArrayMoveOperationMapper extends ODocumentMapper {
   private[domain] val DocumentClassName = "ArrayMoveOperation"
 
   private[domain] object Fields {
-    val Id = "vid"
+    val Id = "elementId"
     val NoOp = "noOp"
     val From = "fromIdx"
     val To = "toIdx"

@@ -8,7 +8,7 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
-import com.convergencelabs.server.datastore.DomainStore
+import com.convergencelabs.server.datastore.DomainDatabaseStore
 import com.convergencelabs.server.domain.DomainFqn
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 
@@ -28,8 +28,8 @@ object DomainPersistenceManagerActor {
 
   def props(
     baseDbUri: String,
-    domainStore: DomainStore): Props = Props(
-    new DomainPersistenceManagerActor(baseDbUri, domainStore))
+    domainDatabaseStore: DomainDatabaseStore): Props = Props(
+    new DomainPersistenceManagerActor(baseDbUri, domainDatabaseStore))
 
   def getLocalInstancePath(requestor: ActorPath): ActorPath = {
     requestor.root / "user" / RelativePath
@@ -59,7 +59,7 @@ object DomainPersistenceManagerActor {
 
 class DomainPersistenceManagerActor(
     baseDbUri: String,
-    domainStore: DomainStore) extends Actor with ActorLogging {
+    domainDatabaseStore: DomainDatabaseStore) extends Actor with ActorLogging {
 
   private[this] var refernceCounts = Map[DomainFqn, Int]()
   private[this] var providers = Map[DomainFqn, DomainPersistenceProvider]()
@@ -144,7 +144,7 @@ class DomainPersistenceManagerActor(
 
   private[this] def createProvider(domainFqn: DomainFqn): Try[DomainPersistenceProvider] = {
     log.debug(s"Creating new persistence provider: ${domainFqn}")
-    domainStore.getDomainDatabaseInfo(domainFqn) flatMap {
+    domainDatabaseStore.getDomainDatabase(domainFqn) flatMap {
       case Some(domainInfo) =>
         val pool = new OPartitionedDatabasePool(
           s"${baseDbUri}/${domainInfo.database}",

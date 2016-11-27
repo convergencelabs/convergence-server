@@ -1,17 +1,12 @@
 users:
   - {username: imported, firstName: Imported, lastName: User, displayName: "Imported User", email: "imported@example.com", password: {passwordType: "plaintext", value: "password"}}
 domains:
-  - namespace: imported
-    domainId: code-editor
+  - id: code-editor
+    namespace: imported
     displayName: "Code Editor"
     status: online
     statusMessage: ""
     owner: imported
-    dbName: importedDb
-    dbUsername: normalUser
-    dbPassword: normalPassword
-    dbAdminUsername: adminUser
-    dbAdminPassword: adminPassword
     dataImport:
       config:
         anonymousAuth: true
@@ -19,38 +14,38 @@ domains:
           publicKey: "Public Key"
           privateKey: "Private Key"
       jwtAuthKeys:
-        - {keyId: "test-key", description: "a test key", updated: "2016-11-16T17:49:15.233Z",  key: "Public Key", enabled: true}
+        - {id: "test-key", description: "a test key", updated: "2016-11-16T17:49:15.233Z",  key: "Public Key", enabled: true}
       users:
         - {userType: "normal", username: test1, firstName: Test, lastName: One, displayName: "Test One", email: test1@example.com, password: {passwordType: plaintext, value: somePassword}}
         - {userType: "normal", username: test2, firstName: Test, lastName: Two, displayName: "Test Two", email: test2@example.com, password: {passwordType: hash, value: someHash}}
       collections:
-        - {collectionId: colleciton1, name: Collection 1, overrideSnapshotConfig: false}
+        - {id: colleciton1, name: Collection 1, overrideSnapshotConfig: false}
       models:
-        - collectionId: collection1 
-          modelId: someId
+        - collection: collection1 
+          id: someId
           version: 2
           created: "2016-11-16T17:49:15.233Z"
           modified: "2016-11-16T17:49:15.233Z"
           data:
-            vId: vid1
+            id: vid1
             type: "object"
             children: 
               "myString":
                 type: "string"
-                vId: vid2
+                id: vid2
                 value: "my string"
           operations:
-            - {version: 1, timestamp: "2016-11-16T17:49:15.233Z", username: "test1", sessionId: "84hf", op: {type: StringInsert, vId: vid2, noOp: false, index: 0, value: "!"}}
-            - {version: 2, timestamp: "2016-11-16T17:49:15.233Z", username: "test1", sessionId: "84hf", op: {type: StringInsert, vId: vid2, noOp: false, index: 1, value: "@"}}
+            - {version: 1, timestamp: "2016-11-16T17:49:15.233Z", username: "test1", sessionId: "84hf", op: {type: StringInsert, id: vid2, noOp: false, index: 0, value: "!"}}
+            - {version: 2, timestamp: "2016-11-16T17:49:15.233Z", username: "test1", sessionId: "84hf", op: {type: StringInsert, id: vid2, noOp: false, index: 1, value: "@"}}
           snapshots:
             - version: 1
               timestamp: "2016-11-16T17:49:15.233Z"
               data:
-                vId: vid1
+                id: vid1
                 type: "object"
                 children:
                   myString:
                     type: "string" 
-                    vId: vid2
+                    id: vid2
                     value: "my string"
     

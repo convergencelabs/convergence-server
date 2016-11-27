@@ -44,7 +44,7 @@ object ArrayRemoveOperationMapper extends ODocumentMapper {
   private[domain] val DocumentClassName = "ArrayRemoveOperation"
 
   private[domain] object Fields {
-    val Id = "vid"
+    val Id = "elementId"
     val NoOp = "noOp"
     val Idx = "idx"
     val OldValue = "oldVal"

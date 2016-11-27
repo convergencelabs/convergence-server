@@ -43,7 +43,7 @@ object ObjectRemovePropertyOperationMapper extends ODocumentMapper {
   private[domain] val DocumentClassName = "ObjectRemovePropertyOperation"
 
   private[domain] object Fields {
-    val Id = "vid"
+    val Id = "elementId"
     val NoOp = "noOp"
     val Prop = "prop"
     val Val = "val"

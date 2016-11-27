@@ -38,7 +38,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 
 object ConvergenceUserService {
-  case class CreateUserRequest(username: String, firstName: String, lastName: String, email: String, password: String)
+  case class CreateUserRequest(username: String, firstName: String, lastName: String, displayName: String, email: String, password: String)
   case class GetUsersResponse(users: List[User]) extends AbstractSuccessResponse
   case class GetUserResponse(user: Option[User]) extends AbstractSuccessResponse
 }
@@ -72,8 +72,8 @@ class ConvergenceUserService(
   }
 
   def createConvergenceUserRequest(createRequest: CreateUserRequest): Future[RestResponse] = {
-    val CreateUserRequest(username, firstName, lastName, email, password) = createRequest
-    (userManagerActor ? CreateConvergenceUserRequest(username, email, firstName, lastName, password)).mapTo[CreateResult[String]].map {
+    val CreateUserRequest(username, firstName, lastName, email, displayName, password) = createRequest
+    (userManagerActor ? CreateConvergenceUserRequest(username, email, firstName, lastName, displayName, password)).mapTo[CreateResult[String]].map {
       case result: CreateSuccess[String] => CreateRestResponse
       case DuplicateValue => DuplicateError
       case InvalidValue => InvalidValueError

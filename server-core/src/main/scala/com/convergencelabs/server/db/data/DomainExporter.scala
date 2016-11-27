@@ -165,7 +165,7 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
         op.version,
         op.timestamp,
         op.username,
-        op.sid,
+        op.sessionId,
         exportOperation(op.op))
     }
   }

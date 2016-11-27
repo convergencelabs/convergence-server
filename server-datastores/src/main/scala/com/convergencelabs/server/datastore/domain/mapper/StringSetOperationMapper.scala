@@ -39,7 +39,7 @@ object StringSetOperationMapper extends ODocumentMapper {
   private[domain] val DocumentClassName = "StringSetOperation"
 
   private[domain] object Fields {
-    val Id = "vid"
+    val Id = "elementId"
     val NoOp = "noOp"
     val Val = "val"
     val OldValue = "oldVal"

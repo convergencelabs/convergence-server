@@ -124,7 +124,7 @@ class DomainService(
           domain.displayName,
           domain.domainFqn.namespace,
           domain.domainFqn.domainId,
-          domain.owner.username,
+          domain.owner,
           domain.status.toString()))))))
   }
 
@@ -135,7 +135,7 @@ class DomainService(
           domain.displayName,
           domain.domainFqn.namespace,
           domain.domainFqn.domainId,
-          domain.owner.username,
+          domain.owner,
           domain.status.toString())))
       case None => NotFoundError
     }

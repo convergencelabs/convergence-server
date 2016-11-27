@@ -22,20 +22,20 @@ changes:
       - {name: minTimeInterval,    type: Long,    constraints: {mandatory: true, notNull: true}}
       - {name: maxTimeInterval,    type: Long,    constraints: {mandatory: true, notNull: true}}
 
-########## TokenPublicKey Class ##########
+########## JwtAuthKey Class ##########
 
   - action: CreateClass
-    name: TokenPublicKey
+    name: JwtAuthKey
     properties: 
       - {name: id,          type: String,   constraints: {mandatory: true, notNull: true}}  
       - {name: description, type: String,   constraints: {mandatory: true, notNull: true}}
-      - {name: created,     type: DateTime, constraints: {mandatory: true, notNull: true}}
+      - {name: updated,     type: DateTime, constraints: {mandatory: true, notNull: true}}
       - {name: enabled,     type: Boolean,  constraints: {mandatory: true, notNull: true}}
       - {name: key,         type: String,   constraints: {mandatory: true, notNull: true}}
           
   - action: CreateIndex
-    className: TokenPublicKey
-    name: TokenPublicKey.id
+    className: JwtAuthKey
+    name: JwtAuthKey.id
     type: UniqueHashIndex
     properties: [id]
 
@@ -54,55 +54,54 @@ changes:
   - action: CreateClass
     name: Collection
     properties: 
-      - {name: collectionId,           type: String, constraints: {mandatory: true, notNull: true}}
-      - {name: name,                   type: String, constraints: {mandatory: true, notNull: true}}
-      - {name: overrideSnapshotConfig, type: Boolean, constraints: {mandatory: true, notNull: true, default: false}}
+      - {name: id,                     type: String,                                   constraints: {mandatory: true, notNull: true}}
+      - {name: name,                   type: String,                                   constraints: {mandatory: true, notNull: true}}
+      - {name: overrideSnapshotConfig, type: Boolean,                                  constraints: {mandatory: true, notNull: true, default: false}}
       - {name: snapshotConfig,         type: Embedded, classType: ModelSnapshotConfig, constraints: {notNull: true}}
 
   - action: CreateIndex
     className: Collection
-    name: Collection.collectionId
+    name: Collection.id
     type: UniqueHashIndex
-    properties: [collectionId]
+    properties: [id]
 
 ########## Model Class ##########
 
   - action: CreateClass
     name: Model
     properties: 
-      - {name: collectionId, type: String,   constraints: {mandatory: true, notNull: true}}
-      - {name: modelId,      type: String,   constraints: {mandatory: true, notNull: true}}
-      - {name: version,      type: Long,     constraints: {mandatory: true, notNull: true, min: 0}}
-      - {name: createdTime,  type: DateTime, constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: modifiedTime, type: DateTime, constraints: {mandatory: true, notNull: true}}
+      - {name: collection,   type: Link, classType: Collection, constraints: {mandatory: true, notNull: true}}
+      - {name: id,           type: String,                      constraints: {mandatory: true, notNull: true}}
+      - {name: version,      type: Long,                        constraints: {mandatory: true, notNull: true, min: 1}}
+      - {name: createdTime,  type: DateTime,                    constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: modifiedTime, type: DateTime,                    constraints: {mandatory: true, notNull: true}}
 
   - action: CreateIndex
     className: Model
-    name: Model.collectionId_modelId
+    name: Model.collection_id
     type: UniqueHashIndex
-    properties: [collectionId, modelId]
+    properties: [collection, id]
 
 ########## ModelSnapshot Class ##########
 
   - action: CreateClass
     name: ModelSnapshot
     properties: 
-      - {name: collectionId, type: String, constraints: {mandatory: true, notNull: true}}
-      - {name: modelId,      type: String, constraints: {mandatory: true, notNull: true}}
-      - {name: version,      type: Long, constraints: {mandatory: true, notNull: true, min: 0}}
-      - {name: timestamp,    type: DateTime, constraints: {mandatory: true, notNull: true}}
+      - {name: model,     type: Link, classType: Model, constraints: {mandatory: true, notNull: true}}
+      - {name: version,   type: Long,                   constraints: {mandatory: true, notNull: true, min: 1}}
+      - {name: timestamp, type: DateTime,               constraints: {mandatory: true, notNull: true}}
 
   - action: CreateIndex
     className: ModelSnapshot
-    name: ModelSnapshot.collectionId_modelId_version
+    name: ModelSnapshot.model_version
     type: Unique
-    properties: [collectionId, modelId, version]
+    properties: [model, version]
 
   - action: CreateIndex
     className: ModelSnapshot
-    name: ModelSnapshot.collectionId_modelId
+    name: ModelSnapshot.model
     type: NotUniqueHashIndex
-    properties: [collectionId, modelId]
+    properties: [model]
 
 ########## DataValue Class ##########
 
@@ -110,7 +109,7 @@ changes:
     name: DataValue
     abstract: true
     properties: 
-      - {name: vid, type: String, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: vid, type: String,                   constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: model, type: Link, classType: Model, constraints: {mandatory: true, notNull: true, readOnly: true}}
     
 ########## ObjectValue Class ##########
@@ -254,9 +253,9 @@ changes:
     name: StringRemoveOperation
     superclass: DiscreteOperation
     properties: 
-      - {name: idx, type: Integer, constraints: {mandatory: true, notNull: true}}  
+      - {name: idx,    type: Integer, constraints: {mandatory: true, notNull: true}}  
       - {name: length, type: Integer, constraints: {mandatory: true, notNull: true}}    
-      - {name: oldVal, type: String, constraints: {mandatory: true}} 
+      - {name: oldVal, type: String,  constraints: {mandatory: true}} 
     
 ########## StringSetOperation Class ##########
 
@@ -264,7 +263,7 @@ changes:
     name: StringSetOperation
     superclass: DiscreteOperation
     properties: 
-      - {name: val, type: String, constraints: {mandatory: true}} 
+      - {name: val,    type: String, constraints: {mandatory: true}} 
       - {name: oldVal, type: String, constraints: {mandatory: true}}     
     
  ########## ObjectSetPropertyOperation Class ##########
@@ -273,8 +272,8 @@ changes:
     name: ObjectSetPropertyOperation
     superclass: DiscreteOperation
     properties: 
-      - {name: prop, type: String, constraints: {mandatory: true, notNull: true}} 
-      - {name: val, type: Embedded, classType: OpValue, constraints: {mandatory: true}}      
+      - {name: prop,   type: String,                       constraints: {mandatory: true, notNull: true}} 
+      - {name: val,    type: Embedded, classType: OpValue, constraints: {mandatory: true}}      
       - {name: oldVal, type: Embedded, classType: OpValue, constraints: {mandatory: true}}      
     
 ########## ObjectAddPropertyOperation Class ##########
@@ -283,8 +282,8 @@ changes:
     name: ObjectAddPropertyOperation
     superclass: DiscreteOperation
     properties: 
-      - {name: prop, type: String, constraints: {mandatory: true, notNull: true}} 
-      - {name: val, type: Embedded, classType: OpValue, constraints: {mandatory: true}}      
+      - {name: prop, type: String,                       constraints: {mandatory: true, notNull: true}} 
+      - {name: val,  type: Embedded, classType: OpValue, constraints: {mandatory: true}}      
       
 ########## ObjectRemovePropertyOperation Class ##########
 
@@ -292,7 +291,7 @@ changes:
     name: ObjectRemovePropertyOperation
     superclass: DiscreteOperation
     properties: 
-      - {name: prop, type: String, constraints: {mandatory: true, notNull: true}}
+      - {name: prop,   type: String,                       constraints: {mandatory: true, notNull: true}}
       - {name: oldVal, type: Embedded, classType: OpValue, constraints: {mandatory: true}}       
     
 ########## ObjectSetOperation Class ##########
@@ -301,7 +300,7 @@ changes:
     name: ObjectSetOperation
     superclass: DiscreteOperation
     properties: 
-      - {name: val, type: EmbeddedMap, classType: OpValue, constraints: {mandatory: true}}
+      - {name: val,    type: EmbeddedMap, classType: OpValue, constraints: {mandatory: true}}
       - {name: oldVal, type: EmbeddedMap, classType: OpValue, constraints: {mandatory: true}}       
     
 ########## NumberAddOperation Class ##########
@@ -318,7 +317,7 @@ changes:
     name: NumberSetOperation
     superclass: DiscreteOperation
     properties: 
-      - {name: val, type: Any, constraints: {mandatory: true, notNull: true}}
+      - {name: val, type: Any,    constraints: {mandatory: true, notNull: true}}
       - {name: oldVal, type: Any, constraints: {mandatory: true, notNull: true}}     
 
 ########## BooleanSetOperation Class ##########
@@ -329,7 +328,6 @@ changes:
     properties: 
       - {name: val, type: Boolean, constraints: {mandatory: true, notNull: true}}
       - {name: oldVal, type: Boolean, constraints: {mandatory: true, notNull: true}} 
-
 
 ########## ArrayInsertOperation Class ##########
 
@@ -346,7 +344,7 @@ changes:
     name: ArrayRemoveOperation
     superclass: DiscreteOperation
     properties: 
-      - {name: idx,    type: Integer, constraints: {mandatory: true, notNull: true}} 
+      - {name: idx,    type: Integer,                      constraints: {mandatory: true, notNull: true}} 
       - {name: oldVal, type: Embedded, classType: OpValue, constraints: {mandatory: true}}      
         
 ########## ArrayReplaceOperation Class ##########
@@ -355,7 +353,7 @@ changes:
     name: ArrayReplaceOperation
     superclass: DiscreteOperation
     properties: 
-      - {name: idx,    type: Integer, constraints: {mandatory: true, notNull: true}} 
+      - {name: idx,    type: Integer,                      constraints: {mandatory: true, notNull: true}} 
       - {name: val,    type: Embedded, classType: OpValue, constraints: {mandatory: true}}
       - {name: oldVal, type: Embedded, classType: OpValue, constraints: {mandatory: true}}     
     
@@ -366,7 +364,7 @@ changes:
     superclass: DiscreteOperation
     properties: 
       - {name: fromIdx, type: Integer, constraints: {mandatory: true, notNull: true}} 
-      - {name: toIdx, type: Integer, constraints: {mandatory: true, notNull: true}}     
+      - {name: toIdx, type: Integer,   constraints: {mandatory: true, notNull: true}}     
     
 ########## ArraySetOperation Class ##########
 
@@ -374,7 +372,7 @@ changes:
     name: ArraySetOperation
     superclass: DiscreteOperation
     properties: 
-      - {name: val, type: EmbeddedList, classType: OpValue, constraints: {mandatory: true, notNull: true}}
+      - {name: val, type: EmbeddedList, classType: OpValue,    constraints: {mandatory: true, notNull: true}}
       - {name: oldVal, type: EmbeddedList, classType: OpValue, constraints: {mandatory: true}}
 
 ########## ModelOperation Class ##########
@@ -382,25 +380,24 @@ changes:
   - action: CreateClass
     name: ModelOperation
     properties: 
-      - {name: collectionId, type: String,   constraints: {mandatory: true, notNull: true}}
-      - {name: modelId,      type: String,   constraints: {mandatory: true, notNull: true}}
-      - {name: version,      type: Long,     constraints: {mandatory: true, notNull: true, min: 0}}
-      - {name: timestamp,    type: DateTime, constraints: {mandatory: true, notNull: true}}
-      - {name: username,     type: String,   constraints: {mandatory: true, notNull: true}}
-      - {name: sid,          type: String,   constraints: {mandatory: true, notNull: true}}
-      - {name: op,           type: Any,      constraints: {mandatory: true, notNull: true}}
+      - {name: model,     type: Link,     classType: Model, constraints: {mandatory: true, notNull: true}}
+      - {name: version,   type: Long,                       constraints: {mandatory: true, notNull: true, min: 1}}
+      - {name: timestamp, type: DateTime,                   constraints: {mandatory: true, notNull: true}}
+      - {name: user,      type: String,   classType: User,  constraints: {mandatory: true, notNull: true}}
+      - {name: sessionId, type: String,                     constraints: {mandatory: true, notNull: true}}
+      - {name: op,        type: Any,                        constraints: {mandatory: true, notNull: true}}
 
   - action: CreateIndex
     className: ModelOperation
-    name: ModelOperation.collectionId_modelId_version
+    name: ModelOperation.model_version
     type: Unique
-    properties: [collectionId, modelId, version]
+    properties: [model, version]
 
   - action: CreateIndex
     className: ModelOperation
-    name: ModelOperation.collectionId_modelId
+    name: ModelOperation.model
     type: NotUniqueHashIndex
-    properties: [collectionId, modelId]
+    properties: [model]
 
 
 ########## User Class ##########
@@ -408,26 +405,26 @@ changes:
   - action: CreateClass
     name: User
     properties:
-      - {name: userType,  type: String, constraints: {mandatory: true, notNull: true}} 
-      - {name: username,  type: String, constraints: {mandatory: true, notNull: true}}
-      - {name: email,     type: String}
-      - {name: firstName, type: String}
-      - {name: lastName,  type: String}
-      - {name: lastLogin, type: DateTime, constraints: {notNull: true}}
+      - {name: userType,     type: String, constraints: {mandatory: true, notNull: true}} 
+      - {name: username,     type: String, constraints: {mandatory: true, notNull: true}}
+      - {name: email,        type: String}
+      - {name: firstName,    type: String}
+      - {name: lastName,     type: String}
+      - {name: displayName,  type: String}
           
   - action: CreateIndex
     className: User
     name: User.username
     type: Unique
-    properties: [username, userType]
-    
+    properties: [username]
+
 ########## UserCredential Class ##########
 
   - action: CreateClass
     name: UserCredential
     properties: 
       - {name: user,     type: Link, classType: User, constraints: {mandatory: true, notNull: true}}
-      - {name: password, type: String, constraints: {mandatory: true}}
+      - {name: password, type: String,                constraints: {mandatory: true}}
 
   - action: CreateIndex
     className: UserCredential
@@ -435,6 +432,21 @@ changes:
     type: Unique
     properties: [user]
 
+######### Login History ##########
+
+  - action: CreateClass
+    name: LoginHistory
+    properties:
+      - {name: user,       type: Link, classType: User, constraints: {mandatory: true, notNull: true}} 
+      - {name: timestamp,  type: DateTime,              constraints: {mandatory: true, notNull: true}}
+      - {name: success,    type: Boolean,               constraints: {mandatory: true, notNull: true}}
+      - {name: remoteHost, type: String,                constraints: {mandatory: true, notNull: true}}
+          
+  - action: CreateIndex
+    className: LoginHistory
+    name: LoginHistory.user
+    type: NotUniqueHashIndex
+    properties: [user]
 
 ########## Additional Properties ##########
   - action: AddProperty

@@ -1,33 +1,67 @@
 package com.convergencelabs.server.datastore.domain
 
+import java.time.Instant
+import java.util.Date
 import java.util.{ List => JavaList }
+
+import scala.collection.JavaConverters.asScalaBufferConverter
+import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.util.Try
+
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
+import com.convergencelabs.server.datastore.CreateResult
+import com.convergencelabs.server.datastore.CreateSuccess
+import com.convergencelabs.server.datastore.DeleteResult
+import com.convergencelabs.server.datastore.DeleteSuccess
+import com.convergencelabs.server.datastore.DuplicateValue
+import com.convergencelabs.server.datastore.NotFound
 import com.convergencelabs.server.datastore.QueryUtil
+import com.convergencelabs.server.datastore.UpdateResult
+import com.convergencelabs.server.datastore.UpdateSuccess
+import com.convergencelabs.server.datastore.domain.JwtAuthKeyStore.KeyInfo
 import com.convergencelabs.server.domain.JwtAuthKey
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
+import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
-import grizzled.slf4j.Logging
-import mapper.JwtAuthKeyMapper.ODocumentToJwtAuthKey
-import mapper.JwtAuthKeyMapper.JwtAuthKeyToODocument
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
-import com.convergencelabs.server.datastore.DuplicateValue
-import com.convergencelabs.server.datastore.CreateResult
-import com.convergencelabs.server.datastore.CreateSuccess
-import com.convergencelabs.server.datastore.UpdateResult
-import com.convergencelabs.server.datastore.NotFound
-import com.convergencelabs.server.datastore.UpdateSuccess
-import com.convergencelabs.server.datastore.DeleteResult
-import com.convergencelabs.server.datastore.DeleteSuccess
-import java.util.{ List => JavaList }
-import scala.collection.JavaConverters._
-import java.time.Instant
-import com.convergencelabs.server.datastore.domain.JwtAuthKeyStore.KeyInfo
+
+import grizzled.slf4j.Logging
 
 object JwtAuthKeyStore {
+  val ClassName = "JwtAuthKey"
+
+  object Fields {
+    val Id = "id"
+    val Name = "name"
+    val Description = "description"
+    val Updated = "updated"
+    val Key = "key"
+    val Enabled = "enabled"
+  }
+
   case class KeyInfo(id: String, description: String, key: String, enabled: Boolean)
+
+  def jwtAuthKeyToDoc(jwtAuthKey: JwtAuthKey): ODocument = {
+    val doc = new ODocument(ClassName)
+    doc.field(Fields.Id, jwtAuthKey.id)
+    doc.field(Fields.Description, jwtAuthKey.description)
+    doc.field(Fields.Updated, new Date(jwtAuthKey.updated.toEpochMilli()))
+    doc.field(Fields.Key, jwtAuthKey.key)
+    doc.field(Fields.Enabled, jwtAuthKey.enabled)
+    doc
+  }
+  
+  def docToJwtAuthKey(doc: ODocument): JwtAuthKey = {
+    val createdDate: Date = doc.field(Fields.Updated, OType.DATETIME)
+    JwtAuthKey(
+      doc.field(Fields.Id),
+      doc.field(Fields.Description),
+      Instant.ofEpochMilli(createdDate.getTime),
+      doc.field(Fields.Key),
+      doc.field(Fields.Enabled))
+  }
 }
 
 class JwtAuthKeyStore private[datastore] (
@@ -37,19 +71,14 @@ class JwtAuthKeyStore private[datastore] (
 
   val Id = "id"
 
-  // FIXME take this out after upgrade
-  val db = dbPool.acquire()
-  val JwtAuthKeyClass = db.getMetadata.getSchema.existsClass("JwtAuthKey") match {
-    case true => "JwtAuthKey" // next class
-    case false => "TokenPublicKey" // old class
-  }
+  val JwtAuthKeyClass = "JwtAuthKey"
 
   def getKeys(offset: Option[Int], limit: Option[Int]): Try[List[JwtAuthKey]] = tryWithDb { db =>
     val queryString = s"SELECT * FROM ${JwtAuthKeyClass} ORDER BY id ASC"
     val pageQuery = QueryUtil.buildPagedQuery(queryString, limit, offset)
     val query = new OSQLSynchQuery[ODocument](pageQuery)
     val result: JavaList[ODocument] = db.command(query).execute()
-    result.asScala.toList map { _.asJwtAuthKey }
+    result.asScala.toList map { JwtAuthKeyStore.docToJwtAuthKey(_) }
   }
 
   def getKey(id: String): Try[Option[JwtAuthKey]] = tryWithDb { db =>
@@ -57,17 +86,17 @@ class JwtAuthKeyStore private[datastore] (
     val query = new OSQLSynchQuery[ODocument](queryString)
     val params = Map(Id -> id)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.mapSingletonList(result) { _.asJwtAuthKey }
+    QueryUtil.mapSingletonList(result) { JwtAuthKeyStore.docToJwtAuthKey(_) }
   }
 
   def createKey(key: KeyInfo): Try[CreateResult[Unit]] = {
     val KeyInfo(id, description, publicKey, enabled) = key
     val jwtAuthKey = JwtAuthKey(id, description, Instant.now(), publicKey, enabled)
     importKey(jwtAuthKey)
-  } 
+  }
 
   def importKey(jwtAuthKey: JwtAuthKey): Try[CreateResult[Unit]] = tryWithDb { db =>
-    val doc = jwtAuthKey.asODocument(JwtAuthKeyClass)
+    val doc = JwtAuthKeyStore.jwtAuthKeyToDoc(jwtAuthKey)
     db.save(doc)
     CreateSuccess(())
   } recover {
@@ -78,7 +107,7 @@ class JwtAuthKeyStore private[datastore] (
     val KeyInfo(keyId, descr, key, enabled) = info
     val updateKey = JwtAuthKey(keyId, descr, Instant.now(), key, enabled)
 
-    val updatedDoc = updateKey.asODocument(JwtAuthKeyClass)
+    val updatedDoc = JwtAuthKeyStore.jwtAuthKeyToDoc(updateKey)
     val queryString = s"SELECT FROM ${JwtAuthKey} WHERE id = :id"
     val query = new OSQLSynchQuery[ODocument](queryString)
     val params = Map(Id -> keyId)

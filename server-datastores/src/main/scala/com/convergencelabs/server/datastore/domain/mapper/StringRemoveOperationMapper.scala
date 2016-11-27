@@ -42,7 +42,7 @@ object StringRemoveOperationMapper extends ODocumentMapper {
   private[domain] val DocumentClassName = "StringRemoveOperation"
 
   private[domain] object Fields {
-    val Id = "vid"
+    val Id = "elementId"
     val NoOp = "noOp"
     val Length = "length"
     val Idx = "idx"

@@ -43,7 +43,7 @@ object ObjectAddPropertyOperationMapper extends ODocumentMapper {
   private[domain] val DocumentClassName = "ObjectAddPropertyOperation"
 
   private[domain] object Fields {
-    val Id = "vid"
+    val Id = "elementId"
     val NoOp = "noOp"
     val Prop = "prop"
     val Val = "val"

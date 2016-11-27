@@ -60,8 +60,8 @@ class ConvergenceExporter(
   private[this] def exportDomains(username: String): Try[List[CreateDomain]] = {
     logger.debug(s"Exporting domains for user: ${username}")
     val domainStore = new DomainStore(dbPool)
-    domainStore.getAllDomainInfoForUser(username) map {
-      _.map { case (domain, dbInfo) =>
+    domainStore.getDomainsByOwner(username) map {
+      _.map { case domain =>
         // FIXME error handling
         val pool = dbProvider.getDomainDBPool(domain.domainFqn).get.get
         val provider = new DomainPersistenceProvider(pool)
@@ -74,7 +74,7 @@ class ConvergenceExporter(
             domain.displayName,
             domain.status.toString().toLowerCase(),
             domain.statusMessage,
-            domain.owner.username,
+            domain.owner,
             Some(domainScript)
             )
         result

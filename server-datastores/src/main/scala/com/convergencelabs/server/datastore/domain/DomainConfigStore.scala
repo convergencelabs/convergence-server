@@ -29,19 +29,19 @@ object DomainConfigStore {
   }
 }
 
-class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
+class DomainConfigStore (dbPool: OPartitionedDatabasePool)
     extends AbstractDatabasePersistence(dbPool)
     with Logging {
 
   def initializeDomainConfig(tokenKeyPair: JwtKeyPair, modelSnapshotConfig: ModelSnapshotConfig): Try[Unit] = tryWithDb { db =>
     db.command(new OCommandSQL("DELETE FROM DomainConfig")).execute()
 
-    val doc = new ODocument("DomainConfig")
+    val doc = db.newInstance("DomainConfig")
     doc.field(Fields.ModelSnapshotConfig, modelSnapshotConfig.asODocument, OType.EMBEDDED)
     doc.field(Fields.AdminPublicKey, tokenKeyPair.publicKey)
     doc.field(Fields.AdminPrivateKey, tokenKeyPair.privateKey)
     doc.field(Fields.AnonymousAuth, false)
-    doc.save()
+    db.save(doc)
     ()
   }
   
@@ -125,7 +125,6 @@ class DomainConfigStore private[domain] (dbPool: OPartitionedDatabasePool)
     val command = new OCommandSQL(queryString)
 
     val params = Map("publicKey" -> pair.publicKey, "privateKey" -> pair.privateKey).asJava
-
     db.command(command).execute(params)
     ()
   }

@@ -22,7 +22,6 @@ import scala.util.Try
 import scala.concurrent.ExecutionContext
 import com.convergencelabs.server.domain.DomainStatus
 import java.util.UUID
-import com.convergencelabs.server.domain.DomainDatabaseInfo
 import java.io.StringWriter
 import java.io.PrintWriter
 import com.convergencelabs.server.datastore.DomainStoreActor.DeleteDomainsForUserRequest
@@ -34,6 +33,7 @@ import com.convergencelabs.server.db.provision.DomainProvisionerActor.DestroyDom
 import com.convergencelabs.server.db.provision.DomainProvisionerActor.DomainDeleted
 import com.convergencelabs.server.db.provision.DomainProvisionerActor
 import com.convergencelabs.server.util.ExceptionUtils
+import com.convergencelabs.server.domain.DomainDatabase
 
 class DomainStoreActor private[datastore] (
   private[this] val dbPool: OPartitionedDatabasePool,
@@ -42,7 +42,9 @@ class DomainStoreActor private[datastore] (
 
   private[this] val RandomizeCredentials = context.system.settings.config.getBoolean("convergence.domain-databases.randomize-credentials")
 
+  
   private[this] val domainStore: DomainStore = new DomainStore(dbPool)
+  private[this] val domainDatabaseStore: DomainDatabaseStore = new DomainDatabaseStore(dbPool)
   private[this] implicit val ec = context.system.dispatcher
 
   def receive: Receive = {
@@ -68,12 +70,13 @@ class DomainStoreActor private[datastore] (
           UUID.randomUUID().toString(), UUID.randomUUID().toString())
     }
 
-    val domainDbInfo = DomainDatabaseInfo(dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword)
+    
     val domainFqn = DomainFqn(namespace, domainId)
+    val domainDbInfo = DomainDatabase(domainFqn, dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword)
 
     val currentSender = sender
     
-    domainStore.createDomain(domainFqn, displayName, ownerUsername, domainDbInfo) map {
+    domainStore.createDomain(domainFqn, displayName, ownerUsername) map {
       case CreateSuccess(()) =>
         implicit val requstTimeout = Timeout(4 minutes) // FXIME hardcoded timeout
         val message = ProvisionDomain(dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword)
@@ -120,7 +123,7 @@ class DomainStoreActor private[datastore] (
     val DeleteDomainRequest(namespace, domainId) = deleteRequest
     val domainFqn = DomainFqn(namespace, domainId)
     val domain = domainStore.getDomainByFqn(domainFqn)
-    val databaseConfig = domainStore.getDomainDatabaseInfo(domainFqn)
+    val databaseConfig = domainDatabaseStore.getDomainDatabase(domainFqn)
     reply((domain, databaseConfig) match {
       case (Success(Some(domain)), Success(Some(databaseConfig))) => {
         domainStore.removeDomain(domainFqn)
@@ -137,29 +140,29 @@ class DomainStoreActor private[datastore] (
     val DeleteDomainsForUserRequest(username) = request
     log.debug(s"Deleting domains for user: ${username}")
 
-    domainStore.getAllDomainInfoForUser(username) map { domains =>
+    domainDatabaseStore.getAllDomainDatabasesForUser(username) map { domainDatabases =>
       // FIXME we need to review what happens when something fails.
       // we will eventually delete the user and then we won't be
       // able to look up the domains again.
       sender ! (())
 
-      domains.foreach {
-        case (domain, info) =>
-          log.debug(s"Deleting domain database for ${domain.domainFqn}: ${info.database}")
+      domainDatabases.foreach {
+        case domainDatabase =>
+          log.debug(s"Deleting domain database for ${domainDatabase.domainFqn}: ${domainDatabase.database}")
           // FIXME we don't seem to care about the response?
           implicit val requstTimeout = Timeout(4 minutes) // FXIME hardcoded timeout
-          (domainProvisioner ? DestroyDomain(info.database)) onComplete {
+          (domainProvisioner ? DestroyDomain(domainDatabase.database)) onComplete {
             case Success(_) =>
-              log.debug(s"Domain database deleted: ${info.database}")
-              log.debug(s"Removing domain record: ${domain.domainFqn}")
-              domainStore.removeDomain(domain.domainFqn) match {
+              log.debug(s"Domain database deleted: ${domainDatabase.database}")
+              log.debug(s"Removing domain record: ${domainDatabase.domainFqn}")
+              domainStore.removeDomain(domainDatabase.domainFqn) match {
                 case Success(_) =>
-                  log.debug(s"Domain record removed: ${domain.domainFqn}")
+                  log.debug(s"Domain record removed: ${domainDatabase.domainFqn}")
                 case Failure(cause) =>
-                  log.error(cause, s"Error deleting domain record: ${domain.domainFqn}")
+                  log.error(cause, s"Error deleting domain record: ${domainDatabase.domainFqn}")
               }
             case Failure(f) =>
-              log.error(f, s"Could not desstroy domain database: ${domain.domainFqn}")
+              log.error(f, s"Could not desstroy domain database: ${domainDatabase.domainFqn}")
           }
       }
     } recover {
