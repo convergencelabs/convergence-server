@@ -38,8 +38,8 @@ case class CreateJwtAuthKey(
 case class CreateCollection(id: String, name: String, overrideSnapshotConfig: Boolean)
 
 case class CreateModel(
-  collection: String,
   id: String,
+  collection: String,
   version: Long,
   created: Instant,
   modified: Instant,

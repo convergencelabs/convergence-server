@@ -50,16 +50,16 @@ class DomainImporterSpec extends WordSpecLike with Matchers {
         
         val serializer = new DomainScriptSerializer()
         val in = getClass.getResourceAsStream("/com/convergencelabs/server/db/data/import-domain-test.yaml")
-        val script = serializer.deserialize(in).success.value
+        val script = serializer.deserialize(in).get
 
         val importer = new DomainImporter(provider, script)
 
         importer.importDomain().get
 
-        provider.configStore.isAnonymousAuthEnabled().success.value shouldBe true
-        provider.configStore.getAdminKeyPair().success.value shouldBe JwtKeyPair("Public Key", "Private Key")
+        provider.configStore.isAnonymousAuthEnabled().get shouldBe true
+        provider.configStore.getAdminKeyPair().get shouldBe JwtKeyPair("Public Key", "Private Key")
 
-        val keys = provider.jwtAuthKeyStore.getKeys(None, None).success.value
+        val keys = provider.jwtAuthKeyStore.getKeys(None, None).get
         keys.size shouldBe 1
         keys(0) shouldBe JwtAuthKey(
           "test-key",
@@ -71,22 +71,22 @@ class DomainImporterSpec extends WordSpecLike with Matchers {
         val users = provider.userStore.getAllDomainUsers(
           Some(DomainUserField.Username),
           Some(SortOrder.Ascending),
-          None, None).success.value
+          None, None).get
         users.size shouldBe 2
 
         users(0) shouldBe DomainUser(DomainUserType.Normal, "test1", Some("Test"), Some("One"), Some("Test One"), Some("test1@example.com"))
         users(1) shouldBe DomainUser(DomainUserType.Normal, "test2", Some("Test"), Some("Two"), Some("Test Two"), Some("test2@example.com"))
 
         provider.userStore.validateCredentials("test1", "somePassword").get shouldBe true
-        provider.userStore.getDomainUserPasswordHash("test2").success.value.value shouldBe "someHash"
+        provider.userStore.getDomainUserPasswordHash("test2").get.value shouldBe "someHash"
         
-        val collections = provider.collectionStore.getAllCollections(None, None).success.value
+        val collections = provider.collectionStore.getAllCollections(None, None).get
         collections.size shouldBe 1
         collections(0) shouldBe Collection("collection1", "Collection 1", false, None)
 
         val modelFqn = ModelFqn("collection1", "someId")
 
-        val model = provider.modelStore.getModel(modelFqn).success.value.value
+        val model = provider.modelStore.getModel(modelFqn).get.value
         model shouldBe Model(
           ModelMetaData(
             modelFqn,
@@ -97,7 +97,7 @@ class DomainImporterSpec extends WordSpecLike with Matchers {
             "vid1",
             Map("myString" -> StringValue("vid2", "my string"))))
 
-        val operations = provider.modelOperationStore.getOperationsAfterVersion(modelFqn, 0L).success.value
+        val operations = provider.modelOperationStore.getOperationsAfterVersion(modelFqn, 0L).get
         operations.size shouldBe 2
         operations(0) shouldBe ModelOperation(
           modelFqn,
@@ -114,7 +114,7 @@ class DomainImporterSpec extends WordSpecLike with Matchers {
           "84hf",
           AppliedStringInsertOperation("vid2", false, 1, "@"))
 
-        val snapshot = provider.modelSnapshotStore.getSnapshot(modelFqn, 1).success.value.value
+        val snapshot = provider.modelSnapshotStore.getSnapshot(modelFqn, 1).get.value
         snapshot shouldBe ModelSnapshot(
           ModelSnapshotMetaData(
             modelFqn,

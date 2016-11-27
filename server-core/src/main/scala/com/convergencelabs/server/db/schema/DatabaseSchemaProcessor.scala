@@ -89,7 +89,6 @@ class DatabaseSchemaProcessor(dbPool: OPartitionedDatabasePool) {
 
   private def addProperty(oClass: OClass, property: Property): Unit = {
     val Property(name, orientType, linkedType, linkedClass, constraints) = property
-    println(s"${oClass.getName} - ${property}")
     val db = dbPool.acquire()
     val oProp: OProperty = (linkedType, linkedClass) match {
       case (Some(t), None) =>

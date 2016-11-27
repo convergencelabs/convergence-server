@@ -22,9 +22,9 @@ class DomainProvisionerSpec()
 
   "A DomainProvisioner" when {
     "provisioning a domain" must {
-      "authetnicate successfully for a correct username and password" in {
-        val provisioner = new DomainProvisioner("remote:localhost", "root", "password", false)
-        provisioner.provisionDomain("test", "writer", "wpassword", "admin", "apassword").success
+      "Succfully provision a domain" in {
+        val provisioner = new DomainProvisioner("remote:localhost", "root", "password", true)
+        provisioner.provisionDomain("DomainProvisionerTest", "writer", "wpassword", "admin", "apassword").get
       }
     }
   }

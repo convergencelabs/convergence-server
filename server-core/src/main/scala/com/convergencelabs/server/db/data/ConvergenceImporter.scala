@@ -64,21 +64,21 @@ class ConvergenceImporter(
     val domainStore = new DomainStore(dbPool)
     data.domains foreach {
       _.map { domainData =>
-        logger.debug(s"Importing domaing: ${domainData.namespace}/${domainData.domainId}")
+        logger.debug(s"Importing domaing: ${domainData.namespace}/${domainData.id}")
 
         val domainCreateRequest = CreateDomainRequest(
-          domainData.namespace, domainData.domainId, domainData.displayName, domainData.owner)
+          domainData.namespace, domainData.id, domainData.displayName, domainData.owner)
 
         // FXIME hardcoded timeout
         implicit val requstTimeout = Timeout(4 minutes)
-        logger.debug(s"Requesting domain provisioning for: ${domainData.namespace}/${domainData.domainId}")
+        logger.debug(s"Requesting domain provisioning for: ${domainData.namespace}/${domainData.id}")
         val response = (domainStoreActor ? domainCreateRequest).mapTo[CreateResult[DomainDatabase]]
 
         response onSuccess {
           case CreateSuccess(dbInfo) =>
-            logger.debug(s"Domain database provisioned successfuly: ${domainData.namespace}/${domainData.domainId}")
+            logger.debug(s"Domain database provisioned successfuly: ${domainData.namespace}/${domainData.id}")
             domainData.dataImport map { script =>
-              logger.debug(s"Importing data for domain: ${domainData.namespace}/${domainData.domainId}")
+              logger.debug(s"Importing data for domain: ${domainData.namespace}/${domainData.id}")
               val dbPool = new OPartitionedDatabasePool(
                 s"${dbBaseUri}/${dbInfo.database}", dbInfo.username, dbInfo.password)
               val provider = new DomainPersistenceProvider(dbPool)

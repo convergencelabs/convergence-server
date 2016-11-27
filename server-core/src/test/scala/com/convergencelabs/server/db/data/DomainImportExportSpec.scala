@@ -23,22 +23,22 @@ class DomainImportExportSpec extends WordSpecLike with Matchers {
 
       val dbPool = new OPartitionedDatabasePool(url, "admin", "admin")
 
-      val upgrader = new DatabaseSchemaManager(dbPool, DeltaCategory.Domain, false)
+      val upgrader = new DatabaseSchemaManager(dbPool, DeltaCategory.Domain, true)
       upgrader.upgradeToLatest()
 
       val provider = new DomainPersistenceProvider(dbPool)
-      provider.validateConnection().success
+      provider.validateConnection().get
 
       val serializer = new DomainScriptSerializer()
-      val in = getClass.getResourceAsStream("/com/convergencelabs/server/db/data/import-domain-test.yaml")
+      val in = getClass.getResourceAsStream("/com/convergencelabs/server/db/data/import-export-domain-test.yaml")
       val importScript = serializer.deserialize(in).success.value
 
       val importer = new DomainImporter(provider, importScript)
 
-      importer.importDomain().success
+      importer.importDomain().get
 
       val exporter = new DomainExporter(provider)
-      val exportedScript = exporter.exportDomain().success.value
+      val exportedScript = exporter.exportDomain().get
 
       val DomainScript(importConfig, importJwtKeys, importUsers, importCollections, importModels) = importScript
       val DomainScript(exportConfig, exportJwtKeys, exportUsers, exportCollections, exportModels) = exportedScript

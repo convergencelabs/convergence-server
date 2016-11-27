@@ -19,25 +19,23 @@ class ConvergenceScriptSerializerSpec extends WordSpecLike with Matchers {
         val ConvergenceScript(users, domains) = value
 
         users.value shouldBe List(
-          CreateConvergenceUser("imported", SetPassword("plaintext", "password"), "imported@example.com", Some("Imported"), Some("User"), Some("Imported User")))
+          CreateConvergenceUser("test", SetPassword("plaintext", "password"), "test@example.com", Some("Test"), Some("User"), Some("Test User")))
 
         val CreateDomain(
-          namespace,
           domainId,
+          namespace,
           displayName,
           status,
           statusMessage,
           owner,
           dataImport) = domains.value(0)
 
-        namespace shouldBe "imported"
-        domainId shouldBe "code-editor"
-        displayName shouldBe "Code Editor"
+        namespace shouldBe "test"
+        domainId shouldBe "example"
+        displayName shouldBe "Example"
         status shouldBe "online"
         statusMessage shouldBe ""
-        owner shouldBe "imported"
-
-        println(dataImport.value)
+        owner shouldBe "test"
 
         val DomainScript(config, jwtAuthKeys, domainUsers, collections, models) = dataImport.value
         config shouldBe SetDomainConfig(true, CreateJwtKeyPair("Public Key", "Private Key"))
@@ -48,12 +46,12 @@ class ConvergenceScriptSerializerSpec extends WordSpecLike with Matchers {
           CreateDomainUser("normal", "test1", Some("Test"), Some("One"), Some("Test One"), Some("test1@example.com"), Some(SetPassword("plaintext", "somePassword"))),
           CreateDomainUser("normal", "test2", Some("Test"), Some("Two"), Some("Test Two"), Some("test2@example.com"), Some(SetPassword("hash", "someHash"))))
 
-        collections.value shouldBe List(CreateCollection("colleciton1", "Collection 1", false))
+        collections.value shouldBe List(CreateCollection("collection1", "Collection 1", false))
 
         models.value shouldBe List(
           CreateModel(
-            "collection1",
             "someId",
+            "collection1",
             2L,
             Instant.parse("2016-11-16T17:49:15.233Z"),
             Instant.parse("2016-11-16T17:49:15.233Z"),

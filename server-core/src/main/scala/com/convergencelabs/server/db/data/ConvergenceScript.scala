@@ -13,8 +13,8 @@ case class CreateConvergenceUser(
   displayName: Option[String])
 
 case class CreateDomain(
+  id: String,
   namespace: String,
-  domainId: String,
   displayName: String,
   status: String,
   statusMessage: String,
