@@ -1,5 +1,6 @@
 package com.convergencelabs.server.util
 
+import scala.language.postfixOps
 import org.json4s.DefaultFormats
 import org.json4s.Extraction
 import org.json4s.Formats

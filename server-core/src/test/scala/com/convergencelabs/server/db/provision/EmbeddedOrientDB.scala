@@ -29,7 +29,7 @@ class EmbeddedOrientDB(dataPath: String, persistent: Boolean) extends Logging {
     val serverCfg = new OServerConfigurationManager(configFile);
     val config = serverCfg.getConfiguration()
     val properties = config.properties.toList filter { _.name != "server.database.path" }
-    val withData = properties ++ List(new OServerEntryConfiguration("server.database.path", dataPath))
+    val withData = properties ++ List(new OServerEntryConfiguration("server.database.path", odbTarget.getAbsolutePath))
     config.properties = withData.toArray
     server.startup(config)
     server.activate()
