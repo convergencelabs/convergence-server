@@ -42,7 +42,6 @@ class DomainStoreActor private[datastore] (
 
   private[this] val RandomizeCredentials = context.system.settings.config.getBoolean("convergence.domain-databases.randomize-credentials")
 
-  
   private[this] val domainStore: DomainStore = new DomainStore(dbPool)
   private[this] val domainDatabaseStore: DomainDatabaseStore = new DomainDatabaseStore(dbPool)
   private[this] implicit val ec = context.system.dispatcher
@@ -60,7 +59,7 @@ class DomainStoreActor private[datastore] (
   def createDomain(createRequest: CreateDomainRequest): Unit = {
     val CreateDomainRequest(namespace, domainId, displayName, ownerUsername) = createRequest
     log.debug(s"Receved request to create domain: ${namespace}/${domainId}")
-    
+
     val dbName = Math.abs(UUID.randomUUID().getLeastSignificantBits).toString
     val (dbUsername, dbPassword, dbAdminUsername, dbAdminPassword) = RandomizeCredentials match {
       case false =>
@@ -70,33 +69,39 @@ class DomainStoreActor private[datastore] (
           UUID.randomUUID().toString(), UUID.randomUUID().toString())
     }
 
-    
     val domainFqn = DomainFqn(namespace, domainId)
     val domainDbInfo = DomainDatabase(domainFqn, dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword)
 
     val currentSender = sender
-    
+
     domainStore.createDomain(domainFqn, displayName, ownerUsername) map {
       case CreateSuccess(()) =>
-        implicit val requstTimeout = Timeout(4 minutes) // FXIME hardcoded timeout
-        val message = ProvisionDomain(dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword)
-        (domainProvisioner ? message).mapTo[DomainProvisioned] onComplete {
-          case Success(DomainProvisioned()) =>
-            log.debug(s"Domain created, setting status to online: $dbName")
-            domainStore.getDomainByFqn(domainFqn) map (_.map { domain =>
-              val updated = domain.copy(status = DomainStatus.Online)
-              domainStore.updateDomain(updated)
-            })
-            reply(Success(CreateSuccess(domainDbInfo)), currentSender)
+        // FIXME this would be easier with exceptions.  We are not really checking the success here
+        domainDatabaseStore.createDomainDatabase(domainDbInfo) map {
+          case CreateSuccess(()) =>
+            implicit val requstTimeout = Timeout(4 minutes) // FXIME hardcoded timeout
+            val message = ProvisionDomain(dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword)
+            (domainProvisioner ? message).mapTo[DomainProvisioned] onComplete {
+              case Success(DomainProvisioned()) =>
+                log.debug(s"Domain created, setting status to online: $dbName")
+                domainStore.getDomainByFqn(domainFqn) map (_.map { domain =>
+                  val updated = domain.copy(status = DomainStatus.Online)
+                  domainStore.updateDomain(updated)
+                })
+                reply(Success(CreateSuccess(domainDbInfo)), currentSender)
 
-          case Failure(cause) =>
-            log.error(cause, s"Domain was not created successfully: $dbName")
-            val statusMessage = ExceptionUtils.stackTraceToString(cause)
-            domainStore.getDomainByFqn(domainFqn) map (_.map { domain =>
-              val updated = domain.copy(status = DomainStatus.Error, statusMessage = statusMessage)
-              domainStore.updateDomain(updated)
-            })
-            reply(Failure(cause), currentSender)
+              case Failure(cause) =>
+                log.error(cause, s"Domain was not created successfully: $dbName")
+                val statusMessage = ExceptionUtils.stackTraceToString(cause)
+                domainStore.getDomainByFqn(domainFqn) map (_.map { domain =>
+                  val updated = domain.copy(status = DomainStatus.Error, statusMessage = statusMessage)
+                  domainStore.updateDomain(updated)
+                })
+                reply(Failure(cause), currentSender)
+            }
+          case _ =>
+            // FIXME not really correct
+            reply(Success(InvalidValue), currentSender)
         }
       case InvalidValue =>
         reply(Success(InvalidValue), currentSender)

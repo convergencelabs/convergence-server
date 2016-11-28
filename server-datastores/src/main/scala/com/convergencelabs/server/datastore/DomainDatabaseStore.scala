@@ -88,7 +88,7 @@ class DomainDatabaseStore(dbPool: OPartitionedDatabasePool)
   }
   
   def removeDomainDatabase(domainFqn: DomainFqn): Try[DeleteResult] = tryWithDb { db =>
-    val command = new OCommandSQL("DELETE FROM Domain WHERE namespace = :namespace AND domainId = :domainId")
+    val command = new OCommandSQL("DELETE FROM DomainDatabase WHERE domain.namespace = :namespace AND domain.id = :domainId")
     val params = Map(
       Namespace -> domainFqn.namespace,
       DomainId -> domainFqn.domainId)
@@ -124,7 +124,7 @@ class DomainDatabaseStore(dbPool: OPartitionedDatabasePool)
     val query = 
       s"""
        |SELECT ${AllFields} 
-       |FROM Domain 
+       |FROM DomainDatabase 
        |WHERE 
        | domain.namespace = :namespace AND 
        | domain.id = :domainId""".stripMargin
