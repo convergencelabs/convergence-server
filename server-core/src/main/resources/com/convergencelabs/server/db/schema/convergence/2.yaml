@@ -2,6 +2,19 @@ version: 2
 description: Enhances the domain database management in the Convergence schema.
 changes:
 
+########## DomainDelta Class ##########
+
+  - action: CreateClass
+    name: DomainDelta
+    properties: 
+      - {name: deltaNo, type: Integer, constraints: {mandatory: true, notNull: true}}
+      - {name: delta, type: String, constraints: {mandatory: true, notNull: true}}
+
+  - action: CreateIndex
+    className: DomainDelta
+    name: DomainDelta.deltaNo
+    type: Unique
+    properties: [deltaNo]
 
 ########## DomainDeltaHistory Class ##########
 
@@ -9,29 +22,43 @@ changes:
     name: DomainDeltaHistory
     properties: 
       - {name: domain, type: Link, classType: Domain, constraints: {mandatory: true, notNull: true}}
-      - {name: deltaNo, type: Integer, constraints: {mandatory: true, notNull: true}}
+      - {name: delta, type: Link, classType: DomainDelta, constraints: {mandatory: true, notNull: true}}
       - {name: status, type: String, constraints: {mandatory: true, notNull: true}}
       - {name: message, type: String}
       - {name: date, type: DateTime, constraints: {notNull: true}}
 
   - action: CreateIndex
     className: DomainDeltaHistory
-    name: DomainDeltaHistory.delta_delatNo
+    name: DomainDeltaHistory.domain_delta
     type: Unique
-    properties: [domain, deltaNo]
+    properties: [domain, delta]
     
+########## ConvergenceDelta Class ##########
+
+  - action: CreateClass
+    name: ConvergenceDelta
+    properties: 
+      - {name: deltaNo, type: Integer, constraints: {mandatory: true, notNull: true}}
+      - {name: delta, type: String, constraints: {mandatory: true, notNull: true}}    
+
+  - action: CreateIndex
+    className: ConvergenceDelta
+    name: ConvergenceDelta.deltaNo
+    type: Unique
+    properties: [deltaNo]
+
 ########## ConvergenceDeltaHistory Class ##########
 
   - action: CreateClass
     name: ConvergenceDeltaHistory
     properties: 
-      - {name: deltaNo, type: Integer, constraints: {mandatory: true, notNull: true}}
+      - {name: delta, type: Link, classType: ConvergenceDelta, constraints: {mandatory: true, notNull: true}}
       - {name: status, type: String, constraints: {mandatory: true, notNull: true}}
       - {name: message, type: String}
       - {name: date, type: DateTime, constraints: {notNull: true}}
 
   - action: CreateIndex
     className: ConvergenceDeltaHistory
-    name: ConvergenceDeltaHistory.delta_delatNo
+    name: ConvergenceDeltaHistory.delta
     type: Unique
-    properties: [domain, deltaNo]
+    properties: [delta]
