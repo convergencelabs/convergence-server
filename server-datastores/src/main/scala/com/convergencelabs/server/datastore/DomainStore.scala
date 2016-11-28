@@ -22,12 +22,15 @@ import scala.util.Failure
 import scala.util.control.NonFatal
 import scala.util.Success
 
+import DomainStore.Fields._
+import com.orientechnologies.orient.core.db.record.OIdentifiable
+
 object DomainStore {
   val ClassName = "Domain"
 
   object Fields {
     val Namespace = "namespace"
-    val DomainId = "domainId"
+    val Id = "id"
     val DisplayName = "displayName"
     val Owner = "owner"
     val Status = "status"
@@ -42,10 +45,10 @@ object DomainStore {
         Failure(new IllegalArgumentException(
           s"Could not create/update domain because the owner could not be found: ${ownerUsername}"))
     }.map { ownerLink =>
-      val doc = new ODocument(ClassName)
+      val doc = db.newInstance(ClassName)
+      doc.field(Fields.Id, domainId)
       doc.field(Fields.Namespace, namespace)
       doc.field(Fields.Owner, ownerLink)
-      doc.field(Fields.DomainId, domainId)
       doc.field(Fields.DisplayName, displayName)
       doc.field(Fields.Status, status.toString())
       doc.field(Fields.StatusMessage, statusMessage)
@@ -55,10 +58,11 @@ object DomainStore {
 
   def docToDomain(doc: ODocument): Domain = {
     val status: DomainStatus.Value = DomainStatus.withName(doc.field(Fields.Status))
+    val username: String = doc.field("owner.username") 
     Domain(
-      DomainFqn(doc.field(Fields.Namespace), doc.field(Fields.DomainId)),
+      DomainFqn(doc.field(Fields.Namespace), doc.field(Fields.Id)),
       doc.field(Fields.DisplayName),
-      doc.field(Fields.Owner),
+      username,
       status,
       doc.field(Fields.StatusMessage))
   }
@@ -68,27 +72,15 @@ object DomainStore {
   }
 
   def getDomainRid(namespace: String, domainId: String, db: ODatabaseDocumentTx): Try[ORID] = {
-    val query = "SELECT @RID as rid FROM Domain WHERE id = :id AND namespace = :namespace"
+    val query = "SELECT @rid as rid FROM Domain WHERE id = :id AND namespace = :namespace"
     val params = Map("id" -> domainId, "namespace" -> namespace)
-    QueryUtil.lookupMandatoryDocument(query, params, db) map { doc =>
-      val ridDoc: ODocument = doc.field("rid")
-      val rid = ridDoc.getIdentity
-      rid
-    }
+    QueryUtil.lookupMandatoryDocument(query, params, db) map { _.eval("rid").asInstanceOf[ORID] }
   }
 }
 
 class DomainStore(dbPool: OPartitionedDatabasePool)
     extends AbstractDatabasePersistence(dbPool)
     with Logging {
-
-  private[this] val Namespace = "namespace"
-  private[this] val DomainId = "domainId"
-  private[this] val Owner = "owner"
-  private[this] val DisplayName = "displayName"
-  private[this] val Status = "status"
-  private[this] val StatusMessage = "statusMessage"
-  private[this] val DomainClassName = "Domain"
 
   def createDomain(domainFqn: DomainFqn, displayName: String, ownerUsername: String): Try[CreateResult[Unit]] = tryWithDb { db =>
     val domain = Domain(domainFqn, displayName, ownerUsername, DomainStatus.Initializing, "")
@@ -102,64 +94,47 @@ class DomainStore(dbPool: OPartitionedDatabasePool)
   }
 
   def domainExists(domainFqn: DomainFqn): Try[Boolean] = tryWithDb { db =>
-    val queryString =
+    val query =
       """SELECT id
         |FROM Domain
         |WHERE
         |  namespace = :namespace AND
-        |  id = :domainId""".stripMargin
-
-    val query = new OSQLSynchQuery[ODocument](queryString)
-    val params = Map(Namespace -> domainFqn.namespace, DomainId -> domainFqn.domainId)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-
-    QueryUtil.enforceSingletonResultList(result) match {
-      case Some(_) => true
-      case None => false
-    }
+        |  id = :id""".stripMargin
+    val params = Map(Namespace -> domainFqn.namespace, Id -> domainFqn.domainId)
+    QueryUtil.lookupOptionalDocument(query, params, db) map (_ => true)  getOrElse (false)
   }
 
   def getDomainByFqn(domainFqn: DomainFqn): Try[Option[Domain]] = tryWithDb { db =>
-    val queryString = "SELECT FROM Domain WHERE namespace = :namespace AND id = :domainId"
-    val query = new OSQLSynchQuery[ODocument](queryString)
-
-    val params = Map(
-      Namespace -> domainFqn.namespace,
-      DomainId -> domainFqn.domainId)
-
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.mapSingletonList(result) { DomainStore.docToDomain(_) }
+//    val query = "SELECT * FROM Domain WHERE namespace = :namespace AND id = :id FETCHPLAN *:0 owner.username:0"
+    val query = "SELECT * FROM Domain WHERE namespace = :namespace AND id = :id"
+    val params = Map(Namespace -> domainFqn.namespace, Id -> domainFqn.domainId)
+    QueryUtil.lookupOptionalDocument(query, params, db) map { DomainStore.docToDomain(_) }
   }
 
   def getDomainsByOwner(username: String): Try[List[Domain]] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT FROM Domain WHERE owner.username = :username")
+    val query = "SELECT * FROM Domain WHERE owner.username = :username"
     val params = Map("username" -> username)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    result.asScala.toList map { DomainStore.docToDomain(_) }
+    QueryUtil.query(query, params, db) map { DomainStore.docToDomain(_) }
   }
 
   def getDomainsInNamespace(namespace: String): Try[List[Domain]] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT FROM Domain WHERE namespace = :namespace")
+    val query = "SELECT * FROM Domain WHERE namespace = :namespace"
     val params = Map(Namespace -> namespace)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    result.asScala.toList map { DomainStore.docToDomain(_) }
+    QueryUtil.query(query, params, db) map { DomainStore.docToDomain(_) }
   }
 
   def removeDomain(domainFqn: DomainFqn): Try[DeleteResult] = tryWithDb { db =>
-    val command = new OCommandSQL("DELETE FROM Domain WHERE namespace = :namespace AND id = :domainId")
-    val params = Map(
-      Namespace -> domainFqn.namespace,
-      DomainId -> domainFqn.domainId)
-    val count: Int = db.command(command).execute(params.asJava)
-    count match {
+    val command = new OCommandSQL("DELETE FROM Domain WHERE namespace = :namespace AND id = :id")
+    val params = Map(Namespace -> domainFqn.namespace, Id -> domainFqn.domainId)
+    db.command(command).execute(params.asJava).asInstanceOf[Int] match {
       case 0 => NotFound
       case _ => DeleteSuccess
     }
   }
 
   def updateDomain(domain: Domain): Try[UpdateResult] = tryWithDb { db =>
-    val query = "SELECT FROM Domain WHERE namespace = :namespace AND id = :domainId"
-    val params = Map(Namespace -> domain.domainFqn.namespace, DomainId -> domain.domainFqn.domainId)
+    val query = "SELECT * FROM Domain WHERE namespace = :namespace AND id = :id"
+    val params = Map(Namespace -> domain.domainFqn.namespace, Id -> domain.domainFqn.domainId)
     QueryUtil.lookupOptionalDocument(query, params, db) match {
       case Some(existing) =>
         DomainStore.domainToDoc(domain, db).map { updated =>

@@ -11,6 +11,7 @@ import akka.actor.ActorLogging
 import akka.actor.Props
 import com.convergencelabs.server.domain.RestAuthnorizationActor.AuthorizationGranted
 import com.convergencelabs.server.domain.RestAuthnorizationActor.AuthorizationDenied
+import com.convergencelabs.server.domain.RestAuthnorizationActor.AuthorizationFailure
 
 object RestAuthnorizationActor {
   def props(domainStore: DomainStore): Props = Props(new RestAuthnorizationActor(domainStore))
@@ -20,10 +21,10 @@ object RestAuthnorizationActor {
   sealed trait AuthorizationRequest
   case class DomainAuthorization(username: String, domain: DomainFqn)
 
-
   sealed trait AuthorizationResult
   case object AuthorizationGranted extends AuthorizationResult
   case object AuthorizationDenied extends AuthorizationResult
+  case object AuthorizationFailure extends AuthorizationResult
 }
 
 class RestAuthnorizationActor(domainStore: DomainStore)
@@ -34,12 +35,18 @@ class RestAuthnorizationActor(domainStore: DomainStore)
     case x: Any => unhandled(x)
   }
 
-  private[this] def onDomainAuthorization(username: String, domain: DomainFqn): Unit = {
-    sender ! (domainStore.getDomainByFqn(domain) match {
-      case Success(Some(domain)) if domain.owner == username =>
-        AuthorizationGranted
-      case _ =>
-        AuthorizationDenied
-    })
+  private[this] def onDomainAuthorization(username: String, domainFqn: DomainFqn): Unit = {
+    domainStore.getDomainByFqn(domainFqn) map { domain =>
+      domain match {
+        case Some(domain) if domain.owner == username =>
+          sender ! AuthorizationGranted
+        case _ =>
+          sender ! AuthorizationDenied
+      }
+    } recover {
+      case cause: Exception =>
+        log.error(cause, "Error authorizing user for domain.")
+        sender ! AuthorizationFailure
+    }
   }
 }

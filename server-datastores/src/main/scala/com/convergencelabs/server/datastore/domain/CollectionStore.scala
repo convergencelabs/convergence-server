@@ -61,11 +61,7 @@ object CollectionStore {
   def getCollectionRid(id: String, db: ODatabaseDocumentTx): Try[ORID] = {
     val query = "SELECT @RID as rid FROM Collection WHERE id = :id"
     val params = Map("id" -> id)
-    QueryUtil.lookupMandatoryDocument(query, params, db) map { doc =>
-      val ridDoc: ODocument = doc.field("rid")
-      val rid = ridDoc.getIdentity
-      rid
-    }
+    QueryUtil.lookupMandatoryDocument(query, params, db) map { _.eval("rid").asInstanceOf[ORID] }
   }
 }
 

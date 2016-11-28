@@ -27,10 +27,11 @@ import UserStore.Fields.FirstName
 import UserStore.Fields.LastName
 import UserStore.Fields.Username
 import grizzled.slf4j.Logging
+import scala.util.Success
 
 object UserStore {
   val ClassName = "User"
-  
+
   object Fields {
     val Username = "username"
     val Email = "email"
@@ -38,7 +39,7 @@ object UserStore {
     val LastName = "lastName"
     val DisplayName = "displayName"
   }
-  
+
   def docToUser(doc: ODocument): User = {
     User(
       doc.field(Fields.Username),
@@ -47,7 +48,7 @@ object UserStore {
       doc.field(Fields.LastName),
       doc.field(Fields.DisplayName))
   }
-  
+
   def userToDoc(user: User): ODocument = {
     val doc = new ODocument(ClassName)
     doc.field(Fields.Username, user.username)
@@ -57,15 +58,11 @@ object UserStore {
     doc.field(Fields.DisplayName, user.displayName)
     doc
   }
-  
+
   def getUserRid(username: String, db: ODatabaseDocumentTx): Try[ORID] = {
-    val query = "SELECT @RID as rid FROM User WHERE username = :username"
+    val query = "SELECT @rid as rid FROM User WHERE username = :username"
     val params = Map("username" -> username)
-    QueryUtil.lookupMandatoryDocument(query, params, db) map { doc =>
-      val ridDoc: ODocument = doc.field("rid")
-      val rid = ridDoc.getIdentity
-      rid
-    }
+    QueryUtil.lookupMandatoryDocument(query, params, db) map { _.eval("rid").asInstanceOf[ORID] }
   }
 }
 
@@ -78,7 +75,7 @@ object UserStore {
  *
  * @param dbPool The database pool to use.
  */
-class UserStore (
+class UserStore(
   private[this] val dbPool: OPartitionedDatabasePool,
   private[this] val tokenValidityDuration: Duration)
     extends AbstractDatabasePersistence(dbPool)
@@ -87,14 +84,14 @@ class UserStore (
   val Password = "password"
   val Token = "token"
   val ExpireTime = "expireTime"
-  
+
   val UsernameIndex = "User.username"
   val LastLogin = "lastLogin"
-  
+
   def createUser(user: User, password: String): Try[CreateResult[Unit]] = {
     createUserWithPasswordHash(user, PasswordUtil.hashPassword(password))
   }
-  
+
   def createUserWithPasswordHash(user: User, passwordHash: String): Try[CreateResult[Unit]] = tryWithDb { db =>
     val userDoc = UserStore.userToDoc(user)
     db.save(userDoc)
@@ -134,11 +131,11 @@ class UserStore (
     val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
     QueryUtil.mapSingletonList(results) { UserStore.docToUser(_) }
   }
-  
+
   def getUsers(): Try[List[User]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User")
     val results: JavaList[ODocument] = db.command(query).execute()
-    results.asScala.toList.map (UserStore.docToUser(_))
+    results.asScala.toList.map(UserStore.docToUser(_))
   }
 
   /**
@@ -154,7 +151,7 @@ class UserStore (
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     result.asScala.toList match {
       case doc :: Nil => true
-      case _          => false
+      case _ => false
     }
   }
 
@@ -177,7 +174,7 @@ class UserStore (
       case None => throw new IllegalArgumentException("User not found when setting password.")
     }
   }
-  
+
   def getDomainUserPasswordHash(username: String): Try[Option[String]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT * FROM UserCredential WHERE user.username = :username")
     val params = Map(Username -> username)
@@ -210,7 +207,7 @@ class UserStore (
             setLastLogin(username, Instant.now())
             Some((token, expiration))
           }
-          case false => 
+          case false =>
             None
         }
       case None =>
@@ -250,7 +247,7 @@ class UserStore (
       case None => None
     }
   }
-  
+
   def expirationCheck(token: String): Try[Option[(String, Instant)]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT user.username AS username, expireTime FROM UserAuthToken WHERE token = :token")
     val params = Map(Token -> token)
@@ -275,10 +272,10 @@ class UserStore (
     val params = Map(Token -> token, ExpireTime -> Date.from(expiration))
     db.command(query).execute(params.asJava)
   }
-  
+
   def setLastLogin(username: String, instant: Instant): Try[Unit] = tryWithDb { db =>
     val index = db.getMetadata.getIndexManager.getIndex(UsernameIndex)
-    if(index.contains(username)) {
+    if (index.contains(username)) {
       val record: ODocument = index.get(username).asInstanceOf[OIdentifiable].getRecord[ODocument]
       record.field(LastLogin, instant.toEpochMilli()).save()
     }

@@ -100,11 +100,7 @@ object ModelStore {
   def getModelRid(id: String, collectionId: String, db: ODatabaseDocumentTx): Try[ORID] = {
     val query = "SELECT @RID as rid FROM Model WHERE id = :id AND collection.id = :collectionId"
     val params = Map("id" -> id, "collectionId" -> collectionId)
-    QueryUtil.lookupMandatoryDocument(query, params, db) map { doc =>
-      val ridDoc: ODocument = doc.field("rid")
-      val rid = ridDoc.getIdentity
-      rid
-    }
+    QueryUtil.lookupMandatoryDocument(query, params, db) map { _.eval("rid").asInstanceOf[ORID] }
   }
 }
 

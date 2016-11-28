@@ -36,6 +36,7 @@ import com.convergencelabs.server.domain.RestAuthnorizationActor.AuthorizationRe
 import com.convergencelabs.server.datastore.UpdateResult
 import com.convergencelabs.server.datastore.UpdateSuccess
 import com.convergencelabs.server.User
+import com.convergencelabs.server.domain.RestAuthnorizationActor.AuthorizationFailure
 
 case class DomainsResponse(domains: List[DomainInfo]) extends AbstractSuccessResponse
 case class DomainResponse(domain: DomainInfo) extends AbstractSuccessResponse
@@ -102,6 +103,8 @@ class DomainService(
                 domainConfigService.route(username, domain)
             case AuthorizationDenied =>
               complete(ForbiddenError)
+            case AuthorizationFailure =>
+              complete(InternalServerError)
           }
         }
       }

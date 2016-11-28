@@ -69,8 +69,8 @@ changes:
   - action: CreateClass
     name: Domain
     properties: 
-      - {name: namespace,     type: String,                    constraints: {mandatory: true, notNull: true}}
       - {name: id,            type: String,                    constraints: {mandatory: true, notNull: true}}
+      - {name: namespace,     type: String,                    constraints: {mandatory: true, notNull: true}}
       - {name: displayName,   type: String,                    constraints: {mandatory: true, notNull: true}}
       - {name: owner,         type: Link,   linkedClass: User, constraints: {mandatory: true, notNull: true}}
       - {name: status,        type: String,                    constraints: {mandatory: true, notNull: true}}

@@ -70,11 +70,7 @@ object DomainUserStore {
   def getUserRid(username: String, db: ODatabaseDocumentTx): Try[ORID] = {
     val query = "SELECT @RID as rid FROM User WHERE username = :username"
     val params = Map("username" -> username)
-    QueryUtil.lookupMandatoryDocument(query, params, db) map { doc =>
-      val ridDoc: ODocument = doc.field("rid")
-      val rid = ridDoc.getIdentity
-      rid
-    }
+    QueryUtil.lookupMandatoryDocument(query, params, db) map { _.eval("rid").asInstanceOf[ORID] }
   }
 
   def domainUserToDoc(obj: DomainUser): ODocument = {

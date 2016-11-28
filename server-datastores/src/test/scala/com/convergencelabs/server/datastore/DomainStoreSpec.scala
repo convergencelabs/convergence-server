@@ -42,32 +42,30 @@ class DomainStoreSpec
   
   val Username = "test"
   val Owner = User(Username, "email", "first", "last", "display")
-  val NotOwner = User("other", "email", "first", "last", "display")
+  val NotOwner = User("other", "otherEmail", "first", "last", "display")
   val Password = "password"
   
   "A DomainStore" when {
 
     "asked whether a domain exists" must {
-
       "return false if it doesn't exist" in withTestData { stores =>
-        stores.domain.domainExists(DomainFqn("notRealNs", "notRealId")).success.get shouldBe false
+        stores.domain.domainExists(DomainFqn("notRealNs", "notRealId")).get shouldBe false
       }
 
       "return true if it does exist" in withTestData { stores =>
         stores.domain.createDomain(ns1d1, "", Username).get
-        stores.domain.domainExists(ns1d1).success.get shouldBe true
+        stores.domain.domainExists(ns1d1).get shouldBe true
       }
     }
 
     "retrieving a domain by fqn" must {
-
       "return None if the domain doesn't exist" in withTestData { stores =>
         stores.domain.createDomain(ns1d1, "", Username).get
-        stores.domain.getDomainByFqn(DomainFqn("notReal", "notReal")).success.get shouldBe None
+        stores.domain.getDomainByFqn(DomainFqn("notReal", "notReal")).get shouldBe None
       }
 
       "return Some if the domain exist" in withTestData { stores =>
-        stores.domain.createDomain(ns1d1, "", Username)
+        stores.domain.createDomain(ns1d1, "", Username).get
         stores.domain.getDomainByFqn(ns1d1).success.get shouldBe defined
       }
     }
@@ -83,13 +81,13 @@ class DomainStoreSpec
           DomainStatus.Initializing,
           "")
 
-        stores.domain.createDomain(fqn, "Test Domain 4", Username).success
-        stores.domain.getDomainByFqn(fqn).success.get.value shouldBe domain
+        stores.domain.createDomain(fqn, "Test Domain 4", Username).get
+        stores.domain.getDomainByFqn(fqn).get.value shouldBe domain
       }
 
       "return a DuplicateValue if the domain exists" in withTestData { stores =>
         stores.domain.createDomain(ns1d1, "", Username)
-        stores.domain.createDomain(ns1d1, "Test Domain 1", Username).success.get shouldBe DuplicateValue
+        stores.domain.createDomain(ns1d1, "Test Domain 1", Username).get shouldBe DuplicateValue
       }
       
       "fail if the owner does not exist" in withTestData { stores =>
@@ -99,45 +97,45 @@ class DomainStoreSpec
 
     "getting domains by owner" must {
       "return all domains for an owner" in withTestData { stores =>
-        stores.domain.createDomain(ns1d1, "", Username)
-        stores.domain.createDomain(ns1d2, "", Username)
+        stores.domain.createDomain(ns1d1, "", Username).get
+        stores.domain.createDomain(ns1d2, "", Username).get
         
-        stores.user.createUser(NotOwner, Password)
-        stores.domain.createDomain(ns1d3, "", NotOwner.username)
+        stores.user.createUser(NotOwner, Password).get
+        stores.domain.createDomain(ns1d3, "", NotOwner.username).get
         
-        val domains = stores.domain.getDomainsByOwner(Username).success.get
+        val domains = stores.domain.getDomainsByOwner(Username).get
         domains.map { x => x.domainFqn }.toSet shouldBe Set(ns1d1, ns1d2) 
       }
     }
 
     "getting domains by namespace" must {
       "return all domains for a namespace" in withTestData { stores =>
-        stores.domain.createDomain(ns1d1, "", Username)
-        stores.domain.createDomain(ns1d2, "", Username)
-        stores.domain.createDomain(ns2d1, "", Username)
+        stores.domain.createDomain(ns1d1, "", Username).get
+        stores.domain.createDomain(ns1d2, "", Username).get
+        stores.domain.createDomain(ns2d1, "", Username).get
         
-        val domains = stores.domain.getDomainsInNamespace(namespace1).success.get
+        val domains = stores.domain.getDomainsInNamespace(namespace1).get
         domains.map { x => x.domainFqn }.toSet shouldBe Set(ns1d1, ns1d2)
       }
     }
 
     "removing a domain" must {
       "remove the domain record in the database if it exists" in withTestData { stores =>
-        stores.domain.createDomain(ns1d1, "", Username)
-        stores.domain.createDomain(ns1d2, "", Username)
-        stores.domain.removeDomain(ns1d1).success
-        stores.domain.domainExists(ns1d1).success.get shouldBe false
-        stores.domain.domainExists(ns1d2).success.get shouldBe true
+        stores.domain.createDomain(ns1d1, "", Username).get
+        stores.domain.createDomain(ns1d2, "", Username).get
+        stores.domain.removeDomain(ns1d1).get
+        stores.domain.domainExists(ns1d1).get shouldBe false
+        stores.domain.domainExists(ns1d2).get shouldBe true
       }
 
       "not throw an exception if the domain does not exist" in withTestData { stores =>
-        stores.domain.removeDomain(ns1d3).success
+        stores.domain.removeDomain(ns1d3).get
       }
     }
 
     "updating a domain" must {
       "sucessfully update an existing domain" in withTestData { stores =>
-        stores.domain.createDomain(ns1d1, "", Username)
+        stores.domain.createDomain(ns1d1, "", Username).get
         
         val toUpdate = Domain(
           DomainFqn(namespace1, domain1),
@@ -146,8 +144,8 @@ class DomainStoreSpec
           DomainStatus.Offline,
           "domain manually take offline by user")
 
-        stores.domain.updateDomain(toUpdate).success
-        val queried = stores.domain.getDomainByFqn(ns1d1).success.get.value
+        stores.domain.updateDomain(toUpdate).get
+        val queried = stores.domain.getDomainByFqn(ns1d1).get.value
 
         queried shouldBe toUpdate
       }
@@ -160,14 +158,15 @@ class DomainStoreSpec
           DomainStatus.Online,
           "")
 
-        stores.domain.updateDomain(toUpdate).success.get shouldBe NotFound
+        stores.domain.updateDomain(toUpdate).get shouldBe NotFound
       }
     }
   }
   
-  def withTestData(stores: DomainStoreSpec.SpecStores => Any): Unit = {
+  def withTestData(testCode: DomainStoreSpec.SpecStores => Any): Unit = {
     this.withPersistenceStore { stores =>
-      stores.user.createUser(Owner, Password)
+      stores.user.createUser(Owner, Password).get
+      testCode(stores)
     }
   }
 }
