@@ -111,7 +111,6 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
   val Username = "username"
   val Password = "password"
   val UserType = "userType"
-  val UidSeq = "UIDSEQ"
   val SessionSeq = "SESSIONSEQ"
   val AnonymousUsernameSeq = "anonymousUsernameSeq"
   val UsernameIndex = "User.username"

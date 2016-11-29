@@ -29,6 +29,7 @@ import CollectionStore._
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.orientechnologies.orient.core.db.record.OIdentifiable
+import scala.util.Success
 
 object CollectionStore {
   val ClassName = "Collection"
@@ -81,12 +82,12 @@ class CollectionStore private[domain] (dbPool: OPartitionedDatabasePool, modelSt
     !result.isEmpty()
   }
 
-  def ensureCollectionExists(collectionId: String): Try[Unit] = tryWithDb { db =>
-    this.collectionExists(collectionId).map {
+  def ensureCollectionExists(collectionId: String): Try[Unit] = {
+    this.collectionExists(collectionId).flatMap {
       case true =>
-        ()
+        Success(())
       case false =>
-        createCollection(Collection(collectionId, collectionId, false, None))
+        createCollection(Collection(collectionId, collectionId, false, None)).map { _ => ()}
     }
   }
 

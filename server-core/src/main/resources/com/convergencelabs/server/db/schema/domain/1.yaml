@@ -22,6 +22,16 @@ changes:
       - {name: minTimeInterval,    type: Long,    constraints: {mandatory: true, notNull: true}}
       - {name: maxTimeInterval,    type: Long,    constraints: {mandatory: true, notNull: true}}
 
+########## DomainConfig Class ##########
+
+  - action: CreateClass
+    name: DomainConfig
+    properties: 
+      - {name: modelSnapshotConfig, type: Embedded, linkedClass: ModelSnapshotConfig, constraints: {mandatory: true, notNull: true}}
+      - {name: adminPublicKey,      type: String,                                     constraints: {mandatory: true, notNull: true}}
+      - {name: adminPrivateKey,     type: String,                                     constraints: {mandatory: true, notNull: true}}
+      - {name: anonymousAuth,       type: Boolean,                                    constraints: {mandatory: true, notNull: true}}
+
 ########## JwtAuthKey Class ##########
 
   - action: CreateClass
@@ -37,17 +47,69 @@ changes:
     className: JwtAuthKey
     name: JwtAuthKey.id
     type: UniqueHashIndex
-    properties: [id]
-
-########## DomainConfig Class ##########
+    properties: [id]      
+      
+########## User Class ##########
 
   - action: CreateClass
-    name: DomainConfig
+    name: User
+    properties:
+      - {name: userType,     type: String, constraints: {mandatory: true, notNull: true, readonly: true}} 
+      - {name: username,     type: String, constraints: {mandatory: true, notNull: true}}
+      - {name: email,        type: String, constraints: {notNull: true}}
+      - {name: firstName,    type: String, constraints: {notNull: true}}
+      - {name: lastName,     type: String, constraints: {notNull: true}}
+      - {name: displayName,  type: String, constraints: {notNull: true}}
+          
+  - action: CreateIndex
+    className: User
+    name: User.username
+    type: Unique
+    properties: [username]
+    
+  - action: CreateIndex
+    className: User
+    name: User.email
+    type: Unique
+    properties: [email]
+    metaData:
+      ignoreNullValues: true
+      
+########## UserCredential Class ##########
+
+  - action: CreateClass
+    name: UserCredential
     properties: 
-      - {name: modelSnapshotConfig, type: Embedded, linkedClass: ModelSnapshotConfig, constraints: {mandatory: true, notNull: true}}
-      - {name: adminPublicKey,      type: String,                                     constraints: {mandatory: true, notNull: true}}
-      - {name: adminPrivateKey,     type: String,                                     constraints: {mandatory: true, notNull: true}}
-      - {name: anonymousAuth,       type: Boolean,                                    constraints: {mandatory: true, notNull: true}}
+      - {name: user,     type: Link,   linkedClass: User, constraints: {mandatory: true, notNull: true, readonly: true}}
+      - {name: password, type: String,                    constraints: {mandatory: true, notNull: true}}
+
+  - action: CreateIndex
+    className: UserCredential
+    name: UserCredential.user
+    type: Unique
+    properties: [user]
+
+######### Session ##########
+
+  - action: CreateClass
+    name: DomainSession
+    properties:
+      - {name: sessionId,      type: String,                      constraints: {mandatory: true, notNull: true, readonly: true}}
+      - {name: user,           type: Link,     linkedClass: User, constraints: {mandatory: true, notNull: true, readonly: true}}
+      - {name: active,         type: String,                      constraints: {mandatory: true, notNull: true}} 
+      - {name: connected,      type: DateTime,                    constraints: {mandatory: true, notNull: true, readonly: true}}
+      - {name: disconnected,   type: Boolean,                     constraints: {mandatory: true, notNull: true}}
+      - {name: authMethod,     type: String,                      constraints: {mandatory: true, notNull: true, readonly: true}}
+      - {name: client,         type: String,                      constraints: {mandatory: true, notNull: true, readonly: true}}
+      - {name: clientVersion,  type: String,                      constraints: {mandatory: true, notNull: true, readonly: true}}
+      - {name: clientMetaData, type: String,                      constraints: {mandatory: true, notNull: true, readonly: true}}
+      - {name: remoteHost,     type: String,                      constraints: {mandatory: true, notNull: true, readonly: true}}
+          
+  - action: CreateIndex
+    className: DomainSession
+    name: DomainSession.user
+    type: NotUniqueHashIndex
+    properties: [user]
           
 ########## Collection Class ##########
 
@@ -87,9 +149,9 @@ changes:
   - action: CreateClass
     name: ModelSnapshot
     properties: 
-      - {name: model,     type: Link,     linkedClass: Model, constraints: {mandatory: true, notNull: true}}
-      - {name: version,   type: Long,                         constraints: {mandatory: true, notNull: true, min: 1}}
-      - {name: timestamp, type: DateTime,                     constraints: {mandatory: true, notNull: true}}
+      - {name: model,     type: Link,     linkedClass: Model, constraints: {mandatory: true, notNull: true, readonly: true}}
+      - {name: version,   type: Long,                         constraints: {mandatory: true, notNull: true, min: 1, readonly: true}}
+      - {name: timestamp, type: DateTime,                     constraints: {mandatory: true, notNull: true, readonly: true}}
 
   - action: CreateIndex
     className: ModelSnapshot
@@ -380,12 +442,12 @@ changes:
   - action: CreateClass
     name: ModelOperation
     properties: 
-      - {name: model,     type: Link,     linkedClass: Model, constraints: {mandatory: true, notNull: true}}
-      - {name: version,   type: Long,                         constraints: {mandatory: true, notNull: true, min: 1}}
-      - {name: timestamp, type: DateTime,                     constraints: {mandatory: true, notNull: true}}
-      - {name: user,      type: Link,     linkedClass: User,  constraints: {mandatory: true, notNull: true}}
-      - {name: sessionId, type: String,                       constraints: {mandatory: true, notNull: true}}
-      - {name: operation, type: Any,                          constraints: {mandatory: true, notNull: true}}
+      - {name: model,     type: Link,     linkedClass: Model, constraints: {mandatory: true, notNull: true, readonly: true}}
+      - {name: version,   type: Long,                         constraints: {mandatory: true, notNull: true, min: 1, readonly: true}}
+      - {name: timestamp, type: DateTime,                     constraints: {mandatory: true, notNull: true, readonly: true}}
+      - {name: user,      type: Link,     linkedClass: User,  constraints: {mandatory: true, notNull: true, readonly: true}}
+      - {name: sessionId, type: String,                       constraints: {mandatory: true, notNull: true, readonly: true}}
+      - {name: operation, type: Any,                          constraints: {mandatory: true, notNull: true, readonly: true}}
 
   - action: CreateIndex
     className: ModelOperation
@@ -398,63 +460,6 @@ changes:
     name: ModelOperation.model
     type: NotUniqueHashIndex
     properties: [model]
-
-
-########## User Class ##########
-
-  - action: CreateClass
-    name: User
-    properties:
-      - {name: userType,     type: String, constraints: {mandatory: true, notNull: true}} 
-      - {name: username,     type: String, constraints: {mandatory: true, notNull: true}}
-      - {name: email,        type: String, constraints: {notNull: true}}
-      - {name: firstName,    type: String, constraints: {notNull: true}}
-      - {name: lastName,     type: String, constraints: {notNull: true}}
-      - {name: displayName,  type: String, constraints: {notNull: true}}
-          
-  - action: CreateIndex
-    className: User
-    name: User.username
-    type: Unique
-    properties: [username]
-    
-  - action: CreateIndex
-    className: User
-    name: User.email
-    type: Unique
-    properties: [email]
-    metaData:
-      ignoreNullValues: true
-      
-########## UserCredential Class ##########
-
-  - action: CreateClass
-    name: UserCredential
-    properties: 
-      - {name: user,     type: Link,   linkedClass: User, constraints: {mandatory: true, notNull: true}}
-      - {name: password, type: String,                    constraints: {mandatory: true, notNull: true}}
-
-  - action: CreateIndex
-    className: UserCredential
-    name: UserCredential.user
-    type: Unique
-    properties: [user]
-
-######### Login History ##########
-
-  - action: CreateClass
-    name: LoginHistory
-    properties:
-      - {name: user,       type: Link,     linkedClass: User, constraints: {mandatory: true, notNull: true}} 
-      - {name: timestamp,  type: DateTime,                    constraints: {mandatory: true, notNull: true}}
-      - {name: success,    type: Boolean,                     constraints: {mandatory: true, notNull: true}}
-      - {name: remoteHost, type: String,                      constraints: {mandatory: true, notNull: true}}
-          
-  - action: CreateIndex
-    className: LoginHistory
-    name: LoginHistory.user
-    type: NotUniqueHashIndex
-    properties: [user]
 
 ########## Additional Properties ##########
   - action: AddProperty
