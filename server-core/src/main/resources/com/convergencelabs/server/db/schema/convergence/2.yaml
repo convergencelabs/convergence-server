@@ -8,7 +8,7 @@ changes:
     name: DomainDelta
     properties: 
       - {name: deltaNo, type: Integer, constraints: {mandatory: true, notNull: true}}
-      - {name: delta, type: String, constraints: {mandatory: true, notNull: true}}
+      - {name: delta,   type: String,  constraints: {mandatory: true, notNull: true}}
 
   - action: CreateIndex
     className: DomainDelta
@@ -21,11 +21,11 @@ changes:
   - action: CreateClass
     name: DomainDeltaHistory
     properties: 
-      - {name: domain, type: Link, classType: Domain, constraints: {mandatory: true, notNull: true}}
-      - {name: delta, type: Link, classType: DomainDelta, constraints: {mandatory: true, notNull: true}}
-      - {name: status, type: String, constraints: {mandatory: true, notNull: true}}
+      - {name: domain,  type: Link,    linkedClass: Domain,      constraints: {mandatory: true, notNull: true}}
+      - {name: delta,   type: Link,    linkedClass: DomainDelta, constraints: {mandatory: true, notNull: true}}
+      - {name: status,  type: String,                            constraints: {mandatory: true, notNull: true}}
       - {name: message, type: String}
-      - {name: date, type: DateTime, constraints: {notNull: true}}
+      - {name: date,    type: DateTime,                          constraints: {notNull: true}}
 
   - action: CreateIndex
     className: DomainDeltaHistory
@@ -39,7 +39,7 @@ changes:
     name: ConvergenceDelta
     properties: 
       - {name: deltaNo, type: Integer, constraints: {mandatory: true, notNull: true}}
-      - {name: delta, type: String, constraints: {mandatory: true, notNull: true}}    
+      - {name: delta,   type: String,  constraints: {mandatory: true, notNull: true}}    
 
   - action: CreateIndex
     className: ConvergenceDelta
@@ -52,10 +52,10 @@ changes:
   - action: CreateClass
     name: ConvergenceDeltaHistory
     properties: 
-      - {name: delta, type: Link, classType: ConvergenceDelta, constraints: {mandatory: true, notNull: true}}
-      - {name: status, type: String, constraints: {mandatory: true, notNull: true}}
+      - {name: delta,   type: Link,     linkedClass: ConvergenceDelta, constraints: {mandatory: true, notNull: true}}
+      - {name: status,  type: String,                                  constraints: {mandatory: true, notNull: true}}
       - {name: message, type: String}
-      - {name: date, type: DateTime, constraints: {notNull: true}}
+      - {name: date,    type: DateTime,                                constraints: {notNull: true}}
 
   - action: CreateIndex
     className: ConvergenceDeltaHistory

@@ -30,7 +30,7 @@ changes:
   - action: CreateClass
     name: UserCredential
     properties: 
-      - {name: user,     type: Link,   linkedClass: User, constraints: {mandatory: true, notNull: true}}
+      - {name: user,     type: Link,   linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: password, type: String,                    constraints: {mandatory: true, notNull: true}}
           
   - action: CreateIndex
@@ -44,10 +44,10 @@ changes:
   - action: CreateClass
     name: LoginHistory
     properties:
-      - {name: user,       type: Link,    linkedClass: User, constraints: {mandatory: true, notNull: true}} 
-      - {name: timestamp,  type: DateTime,                   constraints: {mandatory: true, notNull: true}}
-      - {name: success,    type: Boolean,                    constraints: {mandatory: true, notNull: true}}
-      - {name: remoteHost, type: String,                     constraints: {mandatory: true, notNull: true}}
+      - {name: user,       type: Link,    linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}} 
+      - {name: timestamp,  type: DateTime,                   constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: success,    type: Boolean,                    constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: remoteHost, type: String,                     constraints: {mandatory: true, notNull: true, readOnly: true}}
           
   - action: CreateIndex
     className: LoginHistory
@@ -60,8 +60,8 @@ changes:
   - action: CreateClass
     name: UserAuthToken
     properties: 
-      - {name: user,       type: Link,     linkedClass: User, constraints: {mandatory: true, notNull: true}}
-      - {name: token,      type: String,                      constraints: {mandatory: true, notNull: true}}
+      - {name: user,       type: Link,     linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: token,      type: String,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: expireTime, type: DateTime,                    constraints: {mandatory: true, notNull: true}}
           
 ########## Domain Class ##########
@@ -87,7 +87,7 @@ changes:
   - action: CreateClass
     name: DomainDatabase
     properties: 
-      - {name: domain,        type: Link,   linkedClass: Domain, constraints: {mandatory: true, notNull: true}}
+      - {name: domain,        type: Link,   linkedClass: Domain, constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: database,      type: String,                      constraints: {mandatory: true, notNull: true}}
       - {name: username,      type: String,                      constraints: {mandatory: true, notNull: true}}
       - {name: password,      type: String,                      constraints: {mandatory: true, notNull: true}}
@@ -111,11 +111,11 @@ changes:
   - action: CreateClass
     name: Registration
     properties: 
-      - {name: email,    type: String,  constraints: {mandatory: true, notNull: true}}
-      - {name: fname,    type: String,  constraints: {mandatory: true, notNull: true}}
-      - {name: lname,    type: String,  constraints: {mandatory: true, notNull: true}}
-      - {name: reason,   type: String,  constraints: {mandatory: true, notNull: true}}
-      - {name: token,    type: String,  constraints: {mandatory: true, notNull: true}}
+      - {name: email,    type: String,  constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: fname,    type: String,  constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: lname,    type: String,  constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: reason,   type: String,  constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: token,    type: String,  constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: approved, type: Boolean, constraints: {mandatory: true, notNull: true}}
           
   - action: CreateIndex

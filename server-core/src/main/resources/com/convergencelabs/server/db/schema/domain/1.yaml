@@ -54,7 +54,7 @@ changes:
   - action: CreateClass
     name: User
     properties:
-      - {name: userType,     type: String, constraints: {mandatory: true, notNull: true, readonly: true}} 
+      - {name: userType,     type: String, constraints: {mandatory: true, notNull: true, readOnly: true}} 
       - {name: username,     type: String, constraints: {mandatory: true, notNull: true}}
       - {name: email,        type: String, constraints: {notNull: true}}
       - {name: firstName,    type: String, constraints: {notNull: true}}
@@ -80,7 +80,7 @@ changes:
   - action: CreateClass
     name: UserCredential
     properties: 
-      - {name: user,     type: Link,   linkedClass: User, constraints: {mandatory: true, notNull: true, readonly: true}}
+      - {name: user,     type: Link,   linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: password, type: String,                    constraints: {mandatory: true, notNull: true}}
 
   - action: CreateIndex
@@ -94,16 +94,16 @@ changes:
   - action: CreateClass
     name: DomainSession
     properties:
-      - {name: sessionId,      type: String,                      constraints: {mandatory: true, notNull: true, readonly: true}}
-      - {name: user,           type: Link,     linkedClass: User, constraints: {mandatory: true, notNull: true, readonly: true}}
+      - {name: sessionId,      type: String,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: user,           type: Link,     linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: active,         type: String,                      constraints: {mandatory: true, notNull: true}} 
-      - {name: connected,      type: DateTime,                    constraints: {mandatory: true, notNull: true, readonly: true}}
-      - {name: disconnected,   type: Boolean,                     constraints: {mandatory: true, notNull: true}}
-      - {name: authMethod,     type: String,                      constraints: {mandatory: true, notNull: true, readonly: true}}
-      - {name: client,         type: String,                      constraints: {mandatory: true, notNull: true, readonly: true}}
-      - {name: clientVersion,  type: String,                      constraints: {mandatory: true, notNull: true, readonly: true}}
-      - {name: clientMetaData, type: String,                      constraints: {mandatory: true, notNull: true, readonly: true}}
-      - {name: remoteHost,     type: String,                      constraints: {mandatory: true, notNull: true, readonly: true}}
+      - {name: connected,      type: DateTime,                    constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: disconnected,   type: DateTime,                    constraints: {mandatory: true, notNull: true}}
+      - {name: authMethod,     type: String,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: client,         type: String,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: clientVersion,  type: String,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: clientMetaData, type: String,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: remoteHost,     type: String,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
           
   - action: CreateIndex
     className: DomainSession
@@ -149,9 +149,9 @@ changes:
   - action: CreateClass
     name: ModelSnapshot
     properties: 
-      - {name: model,     type: Link,     linkedClass: Model, constraints: {mandatory: true, notNull: true, readonly: true}}
-      - {name: version,   type: Long,                         constraints: {mandatory: true, notNull: true, min: 1, readonly: true}}
-      - {name: timestamp, type: DateTime,                     constraints: {mandatory: true, notNull: true, readonly: true}}
+      - {name: model,     type: Link,     linkedClass: Model, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: version,   type: Long,                         constraints: {mandatory: true, notNull: true, min: 1, readOnly: true}}
+      - {name: timestamp, type: DateTime,                     constraints: {mandatory: true, notNull: true, readOnly: true}}
 
   - action: CreateIndex
     className: ModelSnapshot
@@ -290,7 +290,7 @@ changes:
     abstract: true
     properties: 
       - {name: elementId, type: String,  constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: noOp,      type: Boolean, constraints: {default: false}} 
+      - {name: noOp,      type: Boolean, constraints: {notNull: true, readOnly: true, default: false}} 
     
 ########## CompoundOperation Class ##########
 
@@ -298,7 +298,7 @@ changes:
     name: CompoundOperation
     superclass: Operation
     properties: 
-      - {name: ops, type: EmbeddedList, linkedClass: DiscreteOperation, constraints: {mandatory: true, notNull: true}}
+      - {name: ops, type: EmbeddedList, linkedClass: DiscreteOperation, constraints: {mandatory: true, notNull: true, readOnly: true}}
 
 ########## StringInsertOperation Class ##########
 
@@ -306,8 +306,8 @@ changes:
     name: StringInsertOperation
     superclass: DiscreteOperation
     properties: 
-      - {name: idx, type: Integer, constraints: {mandatory: true, notNull: true}}    
-      - {name: val, type: String,  constraints: {mandatory: true, notNull: true}}     
+      - {name: idx, type: Integer, constraints: {mandatory: true, notNull: true, readOnly: true}}    
+      - {name: val, type: String,  constraints: {mandatory: true, notNull: true, readOnly: true}}     
     
 ########## StringRemoveOperation Class ##########
 
@@ -315,8 +315,8 @@ changes:
     name: StringRemoveOperation
     superclass: DiscreteOperation
     properties: 
-      - {name: idx,    type: Integer, constraints: {mandatory: true, notNull: true}}  
-      - {name: length, type: Integer, constraints: {mandatory: true, notNull: true}}    
+      - {name: idx,    type: Integer, constraints: {mandatory: true, notNull: true, readOnly: true}}  
+      - {name: length, type: Integer, constraints: {mandatory: true, notNull: true, readOnly: true}}    
       - {name: oldVal, type: String,  constraints: {mandatory: true}} 
     
 ########## StringSetOperation Class ##########
@@ -325,8 +325,8 @@ changes:
     name: StringSetOperation
     superclass: DiscreteOperation
     properties: 
-      - {name: val,    type: String, constraints: {mandatory: true}} 
-      - {name: oldVal, type: String, constraints: {mandatory: true}}     
+      - {name: val,    type: String, constraints: {mandatory: true, readOnly: true}} 
+      - {name: oldVal, type: String, constraints: {mandatory: true, readOnly: true}}     
     
  ########## ObjectSetPropertyOperation Class ##########
 
@@ -334,9 +334,9 @@ changes:
     name: ObjectSetPropertyOperation
     superclass: DiscreteOperation
     properties: 
-      - {name: prop,   type: String,                         constraints: {mandatory: true, notNull: true}} 
-      - {name: val,    type: Embedded, linkedClass: OpValue, constraints: {mandatory: true}}      
-      - {name: oldVal, type: Embedded, linkedClass: OpValue, constraints: {mandatory: true}}      
+      - {name: prop,   type: String,                         constraints: {mandatory: true, notNull: true, readOnly: true}} 
+      - {name: val,    type: Embedded, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}      
+      - {name: oldVal, type: Embedded, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}      
     
 ########## ObjectAddPropertyOperation Class ##########
 
@@ -344,8 +344,8 @@ changes:
     name: ObjectAddPropertyOperation
     superclass: DiscreteOperation
     properties: 
-      - {name: prop, type: String,                         constraints: {mandatory: true, notNull: true}} 
-      - {name: val,  type: Embedded, linkedClass: OpValue, constraints: {mandatory: true}}      
+      - {name: prop, type: String,                         constraints: {mandatory: true, notNull: true, readOnly: true}} 
+      - {name: val,  type: Embedded, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}      
       
 ########## ObjectRemovePropertyOperation Class ##########
 
@@ -353,8 +353,8 @@ changes:
     name: ObjectRemovePropertyOperation
     superclass: DiscreteOperation
     properties: 
-      - {name: prop,   type: String,                         constraints: {mandatory: true, notNull: true}}
-      - {name: oldVal, type: Embedded, linkedClass: OpValue, constraints: {mandatory: true}}       
+      - {name: prop,   type: String,                         constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: oldVal, type: Embedded, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}       
     
 ########## ObjectSetOperation Class ##########
 
@@ -362,8 +362,8 @@ changes:
     name: ObjectSetOperation
     superclass: DiscreteOperation
     properties: 
-      - {name: val,    type: EmbeddedMap, linkedClass: OpValue, constraints: {mandatory: true}}
-      - {name: oldVal, type: EmbeddedMap, linkedClass: OpValue, constraints: {mandatory: true}}       
+      - {name: val,    type: EmbeddedMap, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}
+      - {name: oldVal, type: EmbeddedMap, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}       
     
 ########## NumberAddOperation Class ##########
 
@@ -371,7 +371,7 @@ changes:
     name: NumberAddOperation
     superclass: DiscreteOperation
     properties: 
-      - {name: val, type: Any, constraints: {mandatory: true, notNull: true}}
+      - {name: val, type: Any, constraints: {mandatory: true, notNull: true, readOnly: true}}
              
 ########## NumberSetOperation Class ##########
 
@@ -379,8 +379,8 @@ changes:
     name: NumberSetOperation
     superclass: DiscreteOperation
     properties: 
-      - {name: val,    type: Any, constraints: {mandatory: true, notNull: true}}
-      - {name: oldVal, type: Any, constraints: {mandatory: true, notNull: true}}     
+      - {name: val,    type: Any, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: oldVal, type: Any, constraints: {mandatory: true, notNull: true, readOnly: true}}     
 
 ########## BooleanSetOperation Class ##########
 
@@ -388,8 +388,8 @@ changes:
     name: BooleanSetOperation
     superclass: DiscreteOperation
     properties: 
-      - {name: val,    type: Boolean, constraints: {mandatory: true, notNull: true}}
-      - {name: oldVal, type: Boolean, constraints: {mandatory: true, notNull: true}} 
+      - {name: val,    type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: oldVal, type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: true}} 
 
 ########## ArrayInsertOperation Class ##########
 
@@ -397,8 +397,8 @@ changes:
     name: ArrayInsertOperation
     superclass: DiscreteOperation
     properties: 
-      - {name: idx, type: Integer,                        constraints: {mandatory: true, notNull: true}} 
-      - {name: val, type: Embedded, linkedClass: OpValue, constraints: {mandatory: true}}      
+      - {name: idx, type: Integer,                        constraints: {mandatory: true, notNull: true, readOnly: true}} 
+      - {name: val, type: Embedded, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}      
     
 ########## ArrayRemoveOperation Class ##########
 
@@ -406,8 +406,8 @@ changes:
     name: ArrayRemoveOperation
     superclass: DiscreteOperation
     properties: 
-      - {name: idx,    type: Integer,                        constraints: {mandatory: true, notNull: true}} 
-      - {name: oldVal, type: Embedded, linkedClass: OpValue, constraints: {mandatory: true}}      
+      - {name: idx,    type: Integer,                        constraints: {mandatory: true, notNull: true, readOnly: true}} 
+      - {name: oldVal, type: Embedded, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}      
         
 ########## ArrayReplaceOperation Class ##########
 
@@ -415,9 +415,9 @@ changes:
     name: ArrayReplaceOperation
     superclass: DiscreteOperation
     properties: 
-      - {name: idx,    type: Integer,                        constraints: {mandatory: true, notNull: true}} 
-      - {name: val,    type: Embedded, linkedClass: OpValue, constraints: {mandatory: true}}
-      - {name: oldVal, type: Embedded, linkedClass: OpValue, constraints: {mandatory: true}}     
+      - {name: idx,    type: Integer,                        constraints: {mandatory: true, notNull: true, readOnly: true}} 
+      - {name: val,    type: Embedded, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}
+      - {name: oldVal, type: Embedded, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}     
     
 ########## ArrayMoveOperation Class ##########
 
@@ -425,8 +425,8 @@ changes:
     name: ArrayMoveOperation
     superclass: DiscreteOperation
     properties: 
-      - {name: fromIdx, type: Integer,   constraints: {mandatory: true, notNull: true}} 
-      - {name: toIdx,   type: Integer,   constraints: {mandatory: true, notNull: true}}     
+      - {name: fromIdx, type: Integer,   constraints: {mandatory: true, notNull: true, readOnly: true}} 
+      - {name: toIdx,   type: Integer,   constraints: {mandatory: true, notNull: true, readOnly: true}}     
     
 ########## ArraySetOperation Class ##########
 
@@ -434,20 +434,20 @@ changes:
     name: ArraySetOperation
     superclass: DiscreteOperation
     properties: 
-      - {name: val,    type: EmbeddedList, linkedClass: OpValue, constraints: {mandatory: true, notNull: true}}
-      - {name: oldVal, type: EmbeddedList, linkedClass: OpValue, constraints: {mandatory: true}}
+      - {name: val,    type: EmbeddedList, linkedClass: OpValue, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: oldVal, type: EmbeddedList, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}
 
 ########## ModelOperation Class ##########
 
   - action: CreateClass
     name: ModelOperation
     properties: 
-      - {name: model,     type: Link,     linkedClass: Model, constraints: {mandatory: true, notNull: true, readonly: true}}
-      - {name: version,   type: Long,                         constraints: {mandatory: true, notNull: true, min: 1, readonly: true}}
-      - {name: timestamp, type: DateTime,                     constraints: {mandatory: true, notNull: true, readonly: true}}
-      - {name: user,      type: Link,     linkedClass: User,  constraints: {mandatory: true, notNull: true, readonly: true}}
-      - {name: sessionId, type: String,                       constraints: {mandatory: true, notNull: true, readonly: true}}
-      - {name: operation, type: Any,                          constraints: {mandatory: true, notNull: true, readonly: true}}
+      - {name: model,     type: Link,     linkedClass: Model,     constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: version,   type: Long,                             constraints: {mandatory: true, notNull: true, min: 1, readOnly: true}}
+      - {name: timestamp, type: DateTime,                         constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: user,      type: Link,     linkedClass: User,      constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: sessionId, type: String,                           constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: operation, type: Link,     linkedClass: Operation, constraints: {mandatory: true, notNull: true, readOnly: true}}
 
   - action: CreateIndex
     className: ModelOperation
@@ -462,14 +462,14 @@ changes:
     properties: [model]
 
 ########## Additional Properties ##########
+
   - action: AddProperty
     className: Model
-    property: {name: data, type: Link, linkedClass: ObjectValue, constraints: {mandatory: true}} 
+    property: {name: data, type: Link, linkedClass: ObjectValue, constraints: {mandatory: true, notNull: true}} 
       
   - action: AddProperty
     className: ModelSnapshot
-    property: {name: data, type: Embedded, linkedClass: ObjectOpValue, constraints: {mandatory: true}} 
-
+    property: {name: data, type: Embedded, linkedClass: ObjectOpValue, constraints: {mandatory: true, notNull: true}} 
 
 ########## Sequences ##########
 
