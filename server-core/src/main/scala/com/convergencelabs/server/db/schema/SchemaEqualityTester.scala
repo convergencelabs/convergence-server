@@ -9,6 +9,7 @@ import com.orientechnologies.orient.core.metadata.schema.OProperty
 import com.orientechnologies.orient.core.index.OIndex
 import grizzled.slf4j.Logging
 import com.orientechnologies.orient.core.metadata.function.OFunction
+import com.orientechnologies.orient.core.metadata.sequence.OSequence
 
 object SchemaEqualityTester extends Logging {
   def isEqual(db1: ODatabaseDocumentTx, db2: ODatabaseDocumentTx): Boolean = {
@@ -34,7 +35,8 @@ object SchemaEqualityTester extends Logging {
     function1.getName == function2.getName &&
       function1.getCode == function2.getCode &&
       function1.getParameters.toSet == function2.getParameters.toSet &&
-      function1.getLanguage == function2.getLanguage
+      function1.getLanguage == function2.getLanguage &&
+      function1.isIdempotent == function2.isIdempotent
   }
 
   private[this] def areIndexesEqual(db1: ODatabaseDocumentTx, db2: ODatabaseDocumentTx): Boolean = {
@@ -63,11 +65,16 @@ object SchemaEqualityTester extends Logging {
     val sequences = sequenceLibrary1.getSequenceNames.toSet
     sequences == sequenceLibrary2.getSequenceNames.toSet &&
       sequences.forall { sequence =>
-        val seq1 = sequenceLibrary1.getSequence(sequence)
-        val seq2 = sequenceLibrary2.getSequence(sequence)
-        // TODO: Figure out what else to compare
-        seq1.getSequenceType == seq2.getSequenceType
+        isSequenceEqual(sequenceLibrary1.getSequence(sequence), sequenceLibrary2.getSequence(sequence))
       }
+  }
+
+  private[this] def isSequenceEqual(seq1: OSequence, seq2: OSequence): Boolean = {
+    // TODO: Figure out how to compare cache size
+    seq1.getName == seq2.getName &&
+    seq1.getSequenceType == seq2.getSequenceType &&
+    seq1.getDocument.field("start") == seq2.getDocument.field("start") &&
+    seq1.getDocument.field("incr") == seq2.getDocument.field("incr")
   }
 
   private[this] def areClassesEqual(db1: ODatabaseDocumentTx, db2: ODatabaseDocumentTx): Boolean = {

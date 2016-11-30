@@ -15,6 +15,10 @@ import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import scala.util.Try
 import com.orientechnologies.orient.core.record.impl.ODocument
 
+object DatabaseDeltaProcessor {
+  def apply(delta: Delta, db: ODatabaseDocumentTx): Try[Unit] = new DatabaseDeltaProcessor(delta, db).apply()
+}
+
 class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocumentTx) {
 
   private var deferedLinkedProperties = Map[OProperty, String]();

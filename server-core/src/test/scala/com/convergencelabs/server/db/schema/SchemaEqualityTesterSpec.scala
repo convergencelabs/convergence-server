@@ -14,11 +14,8 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
   var db1: ODatabaseDocumentTx = null
   var db2: ODatabaseDocumentTx = null
 
-  var pool1: OPartitionedDatabasePool = null
-  var pool2: OPartitionedDatabasePool = null
-
-  var processor1: DatabaseSchemaProcessor = null
-  var processor2: DatabaseSchemaProcessor = null
+  var processor1: DatabaseDeltaProcessor = null
+  var processor2: DatabaseDeltaProcessor = null
 
   override def beforeEach() {
     val uri1 = s"memory:${dbName}${dbCounter}"
@@ -32,21 +29,9 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
     db2 = new ODatabaseDocumentTx(uri2)
     db2.activateOnCurrentThread()
     db2.create()
-
-    pool1 = new OPartitionedDatabasePool(uri1, "admin", "admin")
-    pool2 = new OPartitionedDatabasePool(uri2, "admin", "admin")
-
-    processor1 = new DatabaseSchemaProcessor(pool1)
-    processor2 = new DatabaseSchemaProcessor(pool2)
   }
 
   override def afterEach() {
-    pool1.close()
-    pool1 = null
-
-    pool2.close()
-    pool2 = null
-
     db1.activateOnCurrentThread()
     db1.drop()
     db1 = null
@@ -65,8 +50,10 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
             "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;",
             List("array", "fromIndex", "toIndex"), None, None)))
 
-        processor1.applyDelta(delta)
-        processor2.applyDelta(delta)
+        db1.activateOnCurrentThread()
+        DatabaseDeltaProcessor.apply(delta, db1)
+        db2.activateOnCurrentThread()
+        DatabaseDeltaProcessor.apply(delta, db2)
 
         SchemaEqualityTester.isEqual(db1, db2) shouldBe true
       }
@@ -79,11 +66,13 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
 
         val delta2 = Delta(1, "Description",
           List(CreateFunction("MyFunction",
-            "var toIn = parseInt(toIndex);\nval fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;",
-            List("array", "fromIndex", "anotherIndex"), None, None)))
+            "var toIn = parseInt(toIndex);\nval from = parseInt(fromIndex);\narray.add(toIn, array.remove(from));\nreturn array;",
+            List("array", "fromIndex", "toIndex"), None, None)))
 
-        processor1.applyDelta(delta1)
-        processor2.applyDelta(delta2)
+        db1.activateOnCurrentThread()
+        DatabaseDeltaProcessor.apply(delta1, db1)
+        db2.activateOnCurrentThread()
+        DatabaseDeltaProcessor.apply(delta2, db2)
 
         SchemaEqualityTester.isEqual(db1, db2) shouldBe false
       }
@@ -99,8 +88,10 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
             "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;",
             List("array", "fromIndex", "toIndex"), None, None)))
 
-        processor1.applyDelta(delta1)
-        processor2.applyDelta(delta2)
+        db1.activateOnCurrentThread()
+        DatabaseDeltaProcessor.apply(delta1, db1)
+        db2.activateOnCurrentThread()
+        DatabaseDeltaProcessor.apply(delta2, db2)
 
         SchemaEqualityTester.isEqual(db1, db2) shouldBe false
       }
@@ -116,10 +107,208 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
             "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;",
             List("array", "fromIndex"), None, None)))
 
-        processor1.applyDelta(delta1)
-        processor2.applyDelta(delta2)
+        db1.activateOnCurrentThread()
+        DatabaseDeltaProcessor.apply(delta1, db1)
+        db2.activateOnCurrentThread()
+        DatabaseDeltaProcessor.apply(delta2, db2)
 
         SchemaEqualityTester.isEqual(db1, db2) shouldBe false
+      }
+
+      "return false if one function has a different language" in {
+        val delta1 = Delta(1, "Description",
+          List(CreateFunction("MyFunction",
+            "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;",
+            List("array", "fromIndex", "toIndex"), None, None)))
+
+        val delta2 = Delta(1, "Description",
+          List(CreateFunction("MyFunction",
+            "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;",
+            List("array", "fromIndex", "toIndex"), Some("javascript"), None)))
+
+        db1.activateOnCurrentThread()
+        DatabaseDeltaProcessor.apply(delta1, db1)
+        db2.activateOnCurrentThread()
+        DatabaseDeltaProcessor.apply(delta2, db2)
+
+        SchemaEqualityTester.isEqual(db1, db2) shouldBe false
+      }
+
+      "return false if one function is idempotent and the other is not" in {
+        val delta1 = Delta(1, "Description",
+          List(CreateFunction("MyFunction",
+            "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;",
+            List("array", "fromIndex", "toIndex"), None, None)))
+
+        val delta2 = Delta(1, "Description",
+          List(CreateFunction("MyFunction",
+            "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;",
+            List("array", "fromIndex", "toIndex"), None, Some(true))))
+
+        db1.activateOnCurrentThread()
+        DatabaseDeltaProcessor.apply(delta1, db1)
+        db2.activateOnCurrentThread()
+        DatabaseDeltaProcessor.apply(delta2, db2)
+
+        SchemaEqualityTester.isEqual(db1, db2) shouldBe false
+      }
+    }
+
+    "comparing sequences" must {
+      "return true if sequences are the same" in {
+
+        val delta = Delta(1, "Description",
+          List(CreateSequence("MySequence", SequenceType.Ordered, None, None, None)))
+
+        db1.activateOnCurrentThread()
+        DatabaseDeltaProcessor.apply(delta, db1)
+        db2.activateOnCurrentThread()
+        DatabaseDeltaProcessor.apply(delta, db2)
+
+        SchemaEqualityTester.isEqual(db1, db2) shouldBe true
+      }
+
+      "return false if sequences have different types" in {
+
+        val delta1 = Delta(1, "Description",
+          List(CreateSequence("MySequence", SequenceType.Ordered, None, None, None)))
+
+        val delta2 = Delta(1, "Description",
+          List(CreateSequence("MySequence", SequenceType.Cached, None, None, None)))
+
+        db1.activateOnCurrentThread()
+        DatabaseDeltaProcessor.apply(delta1, db1)
+        db2.activateOnCurrentThread()
+        DatabaseDeltaProcessor.apply(delta2, db2)
+
+        SchemaEqualityTester.isEqual(db1, db2) shouldBe false
+      }
+
+      "return false if sequences have different names" in {
+        val delta1 = Delta(1, "Description",
+          List(CreateSequence("MySequence", SequenceType.Ordered, None, None, None)))
+
+        val delta2 = Delta(1, "Description",
+          List(CreateSequence("MySequence2", SequenceType.Ordered, None, None, None)))
+
+        db1.activateOnCurrentThread()
+        DatabaseDeltaProcessor.apply(delta1, db1)
+        db2.activateOnCurrentThread()
+        DatabaseDeltaProcessor.apply(delta2, db2)
+
+        SchemaEqualityTester.isEqual(db1, db2) shouldBe false
+      }
+
+      "return false if sequences have different starts" in {
+        val delta1 = Delta(1, "Description",
+          List(CreateSequence("MySequence", SequenceType.Ordered, Some(5), None, None)))
+
+        val delta2 = Delta(1, "Description",
+          List(CreateSequence("MySequence", SequenceType.Ordered, None, None, None)))
+
+        db1.activateOnCurrentThread()
+        DatabaseDeltaProcessor.apply(delta1, db1)
+        db2.activateOnCurrentThread()
+        DatabaseDeltaProcessor.apply(delta2, db2)
+
+        SchemaEqualityTester.isEqual(db1, db2) shouldBe false
+      }
+
+      "return false if sequences have different increments" in {
+        val delta1 = Delta(1, "Description",
+          List(CreateSequence("MySequence", SequenceType.Ordered, None, Some(5), None)))
+
+        val delta2 = Delta(1, "Description",
+          List(CreateSequence("MySequence", SequenceType.Ordered, None, None, None)))
+
+        db1.activateOnCurrentThread()
+        DatabaseDeltaProcessor.apply(delta1, db1)
+        db2.activateOnCurrentThread()
+        DatabaseDeltaProcessor.apply(delta2, db2)
+
+        SchemaEqualityTester.isEqual(db1, db2) shouldBe false
+      }
+    }
+
+    "comparing classes" must {
+      "return true if classes are the same" in {
+        val delta = Delta(1, "Description",
+          List(CreateClass("MyClass", None, None,
+            List(Property("prop1", OrientType.String, None, None, None)))))
+
+        db1.activateOnCurrentThread()
+        DatabaseDeltaProcessor.apply(delta, db1)
+        db2.activateOnCurrentThread()
+        DatabaseDeltaProcessor.apply(delta, db2)
+
+        SchemaEqualityTester.isEqual(db1, db2) shouldBe true
+      }
+
+      "return false if class names are different" in {
+        val delta1 = Delta(1, "Description",
+          List(CreateClass("MyClass", None, None, List())))
+
+        val delta2 = Delta(1, "Description",
+          List(CreateClass("MyClass2", None, None, List())))
+
+        db1.activateOnCurrentThread()
+        DatabaseDeltaProcessor.apply(delta1, db1)
+        db2.activateOnCurrentThread()
+        DatabaseDeltaProcessor.apply(delta2, db2)
+
+        SchemaEqualityTester.isEqual(db1, db2) shouldBe false
+      }
+
+      "return false if class superclass is different" in {
+        val delta1 = Delta(1, "Description",
+          List(CreateClass("MyClass", None, None, List())))
+
+        val delta2 = Delta(1, "Description",
+          List(CreateClass("MySuperClass", None, None, List())))
+
+        val delta3 = Delta(2, "Description",
+          List(CreateClass("MyClass", Some("MySuperClass"), None, List())))
+
+        db1.activateOnCurrentThread()
+        DatabaseDeltaProcessor.apply(delta1, db1)
+        DatabaseDeltaProcessor.apply(delta2, db1)
+        db2.activateOnCurrentThread()
+        DatabaseDeltaProcessor.apply(delta2, db2)
+        DatabaseDeltaProcessor.apply(delta3, db2)
+
+        SchemaEqualityTester.isEqual(db1, db2) shouldBe false
+      }
+    }
+
+    "return false if one class is abstract" in {
+      val delta1 = Delta(1, "Description",
+        List(CreateClass("MyClass", None, None, List())))
+
+      val delta2 = Delta(1, "Description",
+        List(CreateClass("MyClass", None, Some(true), List())))
+
+      db1.activateOnCurrentThread()
+      DatabaseDeltaProcessor.apply(delta1, db1)
+      db2.activateOnCurrentThread()
+      DatabaseDeltaProcessor.apply(delta2, db2)
+
+      SchemaEqualityTester.isEqual(db1, db2) shouldBe false
+    }
+
+    "comparing indexes" must {
+      "return true if indexes are the same" in {
+
+        val delta = Delta(1, "Description",
+          List(CreateClass("MyClass", None, None,
+            List(Property("prop1", OrientType.Short, None, None, None))),
+            CreateIndex("MyClass", "MyClass.prop1", IndexType.Unique, List("prop1"), None)))
+
+        db1.activateOnCurrentThread()
+        DatabaseDeltaProcessor.apply(delta, db1)
+        db2.activateOnCurrentThread()
+        DatabaseDeltaProcessor.apply(delta, db2)
+
+        SchemaEqualityTester.isEqual(db1, db2) shouldBe true
       }
     }
   }
