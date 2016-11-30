@@ -3,7 +3,7 @@ package com.convergencelabs.server.datastore.domain
 import com.convergencelabs.server.datastore.AbstractPersistenceProvider
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 
-class DomainPersistenceProvider(private[this] val dbPool: OPartitionedDatabasePool) extends AbstractPersistenceProvider(dbPool) {
+class DomainPersistenceProvider(val dbPool: OPartitionedDatabasePool) extends AbstractPersistenceProvider(dbPool) {
 
   val configStore = new DomainConfigStore(dbPool)
 
