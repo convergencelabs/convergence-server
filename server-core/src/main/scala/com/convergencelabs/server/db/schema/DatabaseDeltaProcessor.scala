@@ -15,15 +15,16 @@ import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import scala.util.Try
 import com.orientechnologies.orient.core.record.impl.ODocument
 
-class DatabaseSchemaProcessor(dbPool: OPartitionedDatabasePool) {
+class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocumentTx) {
 
-  // TODO: Implement Rollback Strategy
+  private var deferedLinkedProperties = Map[OProperty, String]();
 
-  def applyDelta(delta: Delta): Try[Unit] = Try {
+  def apply(): Try[Unit] = Try {
     delta.changes foreach { change => applyChange(change) }
+    processDeferedLinkedClasses()
   }
 
-  private def applyChange(change: Change): Try[Unit] = {
+  private def applyChange(change: Change): Unit = {
     change match {
       case createClass: CreateClass => applyCreateClass(createClass)
       case alterClass: AlterClass => applyAlterClass(alterClass)
@@ -42,9 +43,8 @@ class DatabaseSchemaProcessor(dbPool: OPartitionedDatabasePool) {
     }
   }
 
-  private def applyCreateClass(createClass: CreateClass): Try[Unit] = Try {
+  private def applyCreateClass(createClass: CreateClass): Unit = {
     val CreateClass(name, superclass, isAbstract, properties) = createClass
-    val db = dbPool.acquire()
     val sClass = superclass.map { db.getMetadata.getSchema.getClass(_) }
 
     val newClass = (isAbstract, sClass) match {
@@ -55,12 +55,10 @@ class DatabaseSchemaProcessor(dbPool: OPartitionedDatabasePool) {
     }
 
     properties foreach { addProperty(newClass, _) }
-    db.close()
   }
 
-  private def applyAlterClass(alterClass: AlterClass): Try[Unit] = Try {
+  private def applyAlterClass(alterClass: AlterClass): Unit = {
     val AlterClass(name, newName, superclass) = alterClass
-    val db = dbPool.acquire()
     val oClass: OClass = db.getMetadata.getSchema.getClass(name)
     newName.foreach { oClass.setName(_) }
     superclass.foreach { supName =>
@@ -69,45 +67,49 @@ class DatabaseSchemaProcessor(dbPool: OPartitionedDatabasePool) {
       arrayList.add(superClass)
       oClass.setSuperClasses(arrayList)
     }
-    db.close()
   }
 
-  private def applyDropClass(dropClass: DropClass): Try[Unit] = Try {
+  private def applyDropClass(dropClass: DropClass): Unit = {
     val DropClass(name) = dropClass
-    val db = dbPool.acquire()
     db.getMetadata.getSchema.dropClass(name)
-    db.close()
   }
 
-  private def applyAddProperty(addProperty: AddProperty): Try[Unit] = Try {
+  private def applyAddProperty(addProperty: AddProperty): Unit = {
     val AddProperty(className, property) = addProperty
-    val db = dbPool.acquire()
     val oClass: OClass = db.getMetadata.getSchema.getClass(className)
     this.addProperty(oClass, property)
-    db.close()
   }
 
   private def addProperty(oClass: OClass, property: Property): Unit = {
     val Property(name, orientType, linkedType, linkedClass, constraints) = property
-    val db = dbPool.acquire()
     val oProp: OProperty = (linkedType, linkedClass) match {
-      case (Some(t), None) =>
-        oClass.createProperty(name, toOType(orientType), toOType(t))
+      case (None, None) =>
+        // lot linked
+        oClass.createProperty(name, toOType(orientType))
+      case (Some(typeName), None) =>
+        // orientType
+        oClass.createProperty(name, toOType(orientType), toOType(typeName))
+      case (None, Some(className)) =>
+        val linkedClass = Option(db.getMetadata.getSchema.getClass(className))
+        linkedClass match {
+          case Some(c) =>
+            // Already defined, create it now with the link
+            oClass.createProperty(name, toOType(orientType), c)
+          case None =>
+            // not defined yet, defer the linking of the property and just create the property
+            // without the link now.
+            val prop = oClass.createProperty(name, toOType(orientType))
+            this.deferedLinkedProperties += (prop -> className)
+            prop
+        }
       case (Some(t), Some(c)) =>
         throw new IllegalArgumentException("Can not specify both a linked class and linked type")
-      case (None, Some(c)) =>
-        val linkedClass = db.getMetadata.getSchema.getClass(c)
-        oClass.createProperty(name, toOType(orientType), linkedClass)
-      case (None, None) =>
-        oClass.createProperty(name, toOType(orientType))
     }
     constraints.foreach { setConstraints(oProp, _) }
-    db.close()
   }
 
-  private def applyAlterProperty(alterProperty: AlterProperty): Try[Unit] = Try {
+  private def applyAlterProperty(alterProperty: AlterProperty): Unit = {
     val AlterProperty(className, name, PropertyOptions(newName, orientType, linkedType, linkedClass, constraints)) = alterProperty
-    val db = dbPool.acquire()
     val oClass: OClass = db.getMetadata.getSchema.getClass(className)
     val oProp: OProperty = oClass.getProperty(name)
     newName.foreach { oProp.setName(_) }
@@ -120,7 +122,6 @@ class DatabaseSchemaProcessor(dbPool: OPartitionedDatabasePool) {
     }
 
     constraints.foreach { setConstraints(oProp, _) }
-    db.close()
   }
 
   private def setConstraints(oProp: OProperty, constraints: Constraints): Unit = {
@@ -135,40 +136,33 @@ class DatabaseSchemaProcessor(dbPool: OPartitionedDatabasePool) {
     constraints.default.foreach { oProp.setDefaultValue(_) }
   }
 
-  private def applyDropProperty(dropProperty: DropProperty): Try[Unit] = Try {
+  private def applyDropProperty(dropProperty: DropProperty): Unit = {
     val DropProperty(className, name) = dropProperty
-    val db = dbPool.acquire()
     val oClass: OClass = db.getMetadata.getSchema.getClass(className)
     oClass.dropProperty(name)
-    db.close()
   }
 
-  private def applyCreateIndex(createIndex: CreateIndex): Try[Unit] = Try {
+  private def applyCreateIndex(createIndex: CreateIndex): Unit = {
     val CreateIndex(className, name, indexType, properties, metaData) = createIndex
-    val db = dbPool.acquire()
     val oClass: OClass = db.getMetadata.getSchema.getClass(className)
-    
+
     val metaDataDoc = metaData match {
       case Some(map) =>
         new ODocument().fromMap(map.asJava)
       case None =>
         new ODocument()
     }
-    
+
     val index = oClass.createIndex(name, toOIndexType(indexType).toString, null, metaDataDoc, properties: _*)
-    db.close()
   }
 
-  private def applyDropIndex(dropIndex: DropIndex): Try[Unit] = Try {
+  private def applyDropIndex(dropIndex: DropIndex): Unit = {
     val DropIndex(name) = dropIndex
-    val db = dbPool.acquire()
     db.getMetadata.getIndexManager.dropIndex(name)
-    db.close()
   }
 
-  private def applyCreateSequence(createSequence: CreateSequence): Try[Unit] = Try {
+  private def applyCreateSequence(createSequence: CreateSequence): Unit = {
     val CreateSequence(name, sType, start, increment, cacheSize) = createSequence
-    val db = dbPool.acquire()
     val sequenceLibrary = db.getMetadata.getSequenceLibrary
 
     val params = new OSequence.CreateParams()
@@ -181,26 +175,20 @@ class DatabaseSchemaProcessor(dbPool: OPartitionedDatabasePool) {
       case SequenceType.Cached => SEQUENCE_TYPE.CACHED
       case SequenceType.Ordered => SEQUENCE_TYPE.ORDERED
     }, params);
-    db.close()
   }
 
-  private def applyDropSequence(dropSequence: DropSequence): Try[Unit] = Try {
+  private def applyDropSequence(dropSequence: DropSequence): Unit = {
     val DropSequence(name) = dropSequence
-    val db = dbPool.acquire()
     db.getMetadata.getSequenceLibrary.dropSequence(name)
-    db.close()
   }
 
-  private def applyRunSQLCommand(runSQLCommand: RunSQLCommand): Try[Unit] = Try {
+  private def applyRunSQLCommand(runSQLCommand: RunSQLCommand): Unit = {
     val RunSQLCommand(command) = runSQLCommand
-    val db = dbPool.acquire()
     db.command(new OCommandSQL(command)).execute()
-    db.close()
   }
 
-  private def applyCreateFunction(createFunction: CreateFunction): Try[Unit] = Try {
+  private def applyCreateFunction(createFunction: CreateFunction): Unit = {
     val CreateFunction(name, code, parameters, language, idempotent) = createFunction
-    val db = dbPool.acquire()
     val function: OFunction = db.getMetadata.getFunctionLibrary.createFunction(name)
 
     function.setCode(code)
@@ -210,9 +198,8 @@ class DatabaseSchemaProcessor(dbPool: OPartitionedDatabasePool) {
     function.save()
   }
 
-  private def applyAlterFunction(alterFunction: AlterFunction): Try[Unit] = Try {
+  private def applyAlterFunction(alterFunction: AlterFunction): Unit = {
     val AlterFunction(name, newName, code, parameters, language, idempotent) = alterFunction
-    val db = dbPool.acquire()
     val function: OFunction = db.getMetadata.getFunctionLibrary.getFunction(name)
 
     newName.foreach { function.setName(_) }
@@ -221,14 +208,11 @@ class DatabaseSchemaProcessor(dbPool: OPartitionedDatabasePool) {
     language.foreach { function.setLanguage(_) }
     idempotent.foreach { function.setIdempotent(_) }
     function.save()
-    db.close()
   }
 
-  private def applyDropFunction(dropFunction: DropFunction): Try[Unit] = Try {
+  private def applyDropFunction(dropFunction: DropFunction): Unit = {
     val DropFunction(name) = dropFunction
-    val db = dbPool.acquire()
     db.getMetadata.getFunctionLibrary.dropFunction(name)
-    db.close()
   }
 
   private def toOType(orientType: OrientType.Value): OType = {
@@ -275,4 +259,15 @@ class DatabaseSchemaProcessor(dbPool: OPartitionedDatabasePool) {
     }
   }
 
+  private def processDeferedLinkedClasses(): Unit = {
+    deferedLinkedProperties map {
+      case (prop, className) =>
+        Option(db.getMetadata().getSchema().getClass(className)) match {
+          case Some(linkedClass) =>
+            prop.setLinkedClass(linkedClass)
+          case None =>
+            throw new IllegalStateException("Could not set linked class because the class does not exist ${}")
+        }
+    }
+  }
 }

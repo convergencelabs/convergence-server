@@ -10,3 +10,11 @@ case class ModelOperation(
   username: String,
   sessionId: String,
   op: AppliedOperation)
+
+  
+case class NewModelOperation(
+  modelFqn: ModelFqn,
+  version: Long,
+  timestamp: Instant,
+  sessionId: String,
+  op: AppliedOperation)

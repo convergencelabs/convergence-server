@@ -23,6 +23,7 @@ import java.util.{ List => JavaList }
 import com.orientechnologies.orient.core.id.ORID
 import ModelOperationStore.Fields._
 import ModelOperationStore.Constants._
+import com.convergencelabs.server.domain.model.NewModelOperation
 
 object ModelOperationStore {
   val ClassName = "ModelOperation"
@@ -32,7 +33,7 @@ object ModelOperationStore {
     val Version = "version"
     val Timestamp = "timestamp"
     val User = "user"
-    val SessionId = "sessionId"
+    val Session = "session"
     val Operation = "operation"
   }
 
@@ -42,17 +43,16 @@ object ModelOperationStore {
     val Username = "username"
   }
   
-  def modelOperationToDoc(opEvent: ModelOperation, db: ODatabaseDocumentTx): Try[ODocument] = {
+  def modelOperationToDoc(opEvent: NewModelOperation, db: ODatabaseDocumentTx): Try[ODocument] = {
     for {
-      user <- DomainUserStore.getUserRid(opEvent.username, db)
+      session <- SessionStore.getDomainSessionRid(opEvent.sessionId, db)
       model <- ModelStore.getModelRid(opEvent.modelFqn.modelId, opEvent.modelFqn.collectionId, db)
     } yield {
       val doc = db.newInstance(ModelOperationStore.ClassName)
       doc.field(Model, model, OType.LINK)
       doc.field(Version, opEvent.version, OType.LONG)
       doc.field(Timestamp, Date.from(opEvent.timestamp), OType.DATETIME)
-      doc.field(User, user, OType.LINK)
-      doc.field(SessionId, opEvent.sessionId)
+      doc.field(Session, session, OType.LINK)
       doc.field(Operation, OrientDBOperationMapper.operationToODocument(opEvent.op))
       doc
     }
@@ -65,19 +65,17 @@ object ModelOperationStore {
     val op = OrientDBOperationMapper.oDocumentToOperation(opDoc)
 
     ModelOperation(
-      ModelFqn(doc.field("collectionId"), doc.field("id")),
+      ModelFqn(doc.field("model.collection.id"), doc.field("model.id")),
       doc.field(Version),
       timestamp,
-      doc.field(Username),
-      doc.field(SessionId),
+      doc.field("session.user.username"),
+      doc.field("session.id"),
       op)
   }
 }
 
 class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
     extends AbstractDatabasePersistence(dbPool) {
-
-  val AllFields = "model.id as id, model.collection.id as collectionId, version, timestamp, user.username as username, sessionId, operation"
 
   private[this] implicit val formats = Serialization.formats(NoTypeHints)
 
@@ -119,7 +117,7 @@ class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
   
   def getModelOperation(fqn: ModelFqn, version: Long): Try[Option[ModelOperation]] = tryWithDb { db =>
     val query =
-      s"""SELECT ${AllFields}
+      """SELECT *
         |FROM ModelOperation
         |WHERE
         |  model.collection.id = :collectionId AND
@@ -131,7 +129,7 @@ class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
 
   def getOperationsAfterVersion(fqn: ModelFqn, version: Long): Try[List[ModelOperation]] = tryWithDb { db =>
     val queryString =
-      s"""SELECT ${AllFields} 
+      """SELECT * 
         |FROM ModelOperation
         |WHERE
         |  model.collection.id = :collectionId AND
@@ -147,7 +145,8 @@ class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
 
   def getOperationsAfterVersion(fqn: ModelFqn, version: Long, limit: Int): Try[List[ModelOperation]] = tryWithDb { db =>
     val queryString =
-      s"""SELECT ${AllFields} FROM ModelOperation
+      """SELECT *
+        |FROM ModelOperation
         |WHERE
         |  model.collection.id = :collectionId AND
         |  model.id = :modelId AND
@@ -166,7 +165,8 @@ class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
 
   def getOperationsInVersionRange(fqn: ModelFqn, firstVersion: Long, lastVersion: Long): Try[List[ModelOperation]] = tryWithDb { db =>
     val queryString =
-      s"""SELECT ${AllFields} FROM ModelOperation
+      s"""SELECT *
+        |FROM ModelOperation
         |WHERE
         |  model.collection.id = :collectionId AND
         |  model.id = :modelId AND
@@ -209,7 +209,7 @@ class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
     ()
   }
 
-  def createModelOperation(modelOperation: ModelOperation): Try[Unit] = tryWithDb { db =>
+  def createModelOperation(modelOperation: NewModelOperation): Try[Unit] = tryWithDb { db =>
     val doc = ModelOperationStore.modelOperationToDoc(modelOperation, db).get
     db.save(doc)
     ()

@@ -31,6 +31,8 @@ import com.convergencelabs.server.datastore.domain.PersistenceProviderUnavailabl
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import scala.util.Try
 import akka.actor.Terminated
+import java.time.Instant
+import com.convergencelabs.server.datastore.domain.DomainSession
 
 object DomainActor {
   def props(
@@ -86,6 +88,7 @@ class DomainActor(
   log.debug(s"Domain start up complete: ${domainFqn}")
 
   private[this] val connectedClients = mutable.Set[ActorRef]()
+  private[this] val authenticatedClients = mutable.Map[ActorRef, String]()
 
   def receive: Receive = {
     case message: HandshakeRequest => onHandshakeRequest(message)
@@ -104,9 +107,29 @@ class DomainActor(
 
   private[this] def onAuthenticationRequest(message: AuthenticationRequest): Unit = {
     val asker = sender
+    val connected = Instant.now()
     authenticator.authenticate(message) onComplete {
-      case Success(x) => asker ! x
-      case Failure(e) => asker ! AuthenticationFailure
+      case Success(response) =>
+        response match {
+          case AuthenticationSuccess(username, sk) =>
+            val method = message match {
+              case x: JwtAuthRequest => "jwt"
+              case x: PasswordAuthRequest => "password"
+              case x: AnonymousAuthRequest => "anonymous"
+            }
+            val session = DomainSession(sk.sid, username, connected, None, method, "javasript", "unknown", Map(), "unknown")
+            persistenceProvider.sessionStore.createSession(session) match {
+              case Success(_) =>
+                authenticatedClients += (message.clientActor -> sk.sid)
+                asker ! response
+              case _ =>
+                asker ! AuthenticationFailure
+            }
+          case _ =>
+            asker ! response
+        }
+      case Failure(e) =>
+        asker ! AuthenticationFailure
     }
   }
 
@@ -135,6 +158,9 @@ class DomainActor(
 
   private[this] def removeClient(client: ActorRef): Unit = {
     connectedClients.remove(client)
+    authenticatedClients.get(client) foreach { sessionId =>
+      persistenceProvider.sessionStore.setSessionDisconneted(sessionId, Instant.now())
+    }
     if (connectedClients.isEmpty) {
       log.debug(s"Last client disconnected from domain: ${domainFqn}")
       domainManagerActor ! DomainShutdownRequest(domainFqn)

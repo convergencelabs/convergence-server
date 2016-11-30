@@ -19,10 +19,11 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
       "Corrrectly create class" in withDb { dbPool =>
         val delta = Delta(1, "Description",
           List(CreateClass("MyClass", None, None, List())))
-        val processor = new DatabaseSchemaProcessor(dbPool)
-        processor.applyDelta(delta)
-        
+          
         val db = dbPool.acquire()
+        val processor = new DatabaseDeltaProcessor(delta, db)
+        processor.apply()
+
         db.getMetadata.getSchema.existsClass("MyClass") shouldBe true
         db.close()
       }
@@ -32,10 +33,10 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
           List(CreateClass("MyClass", None, None,
             List(Property("prop1", OrientType.String, None, None, None)))))
 
-        val processor = new DatabaseSchemaProcessor(dbPool)
-        processor.applyDelta(delta)
-        
         val db = dbPool.acquire()
+        val processor = new DatabaseDeltaProcessor(delta, db)
+        processor.apply()
+
         db.getMetadata.getSchema.existsClass("MyClass") shouldBe true
         db.getMetadata.getSchema.getClass("MyClass").existsProperty("prop1") shouldBe true
         db.close()
@@ -46,10 +47,10 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
           List(CreateClass("MySuperclass", None, None, List()),
             CreateClass("MyClass", Some("MySuperclass"), None, List())))
 
-        val processor = new DatabaseSchemaProcessor(dbPool)
-        processor.applyDelta(delta)
-        
         val db = dbPool.acquire()
+        val processor = new DatabaseDeltaProcessor(delta, db)
+        processor.apply()
+
         db.getMetadata.getSchema.existsClass("MyClass") shouldBe true
         db.getMetadata.getSchema.existsClass("MySuperclass") shouldBe true
         db.close()
@@ -61,11 +62,11 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
         val delta = Delta(1, "Description",
           List(CreateClass("MyClass", None, None, List()),
             AlterClass("MyClass", Some("NewName"), None)))
-
-        val processor = new DatabaseSchemaProcessor(dbPool)
-        processor.applyDelta(delta)
-        
         val db = dbPool.acquire()
+
+        val processor = new DatabaseDeltaProcessor(delta, db)
+        processor.apply()
+
         db.getMetadata.getSchema.existsClass("MyClass") shouldBe false
         db.getMetadata.getSchema.existsClass("NewName") shouldBe true
         db.close()
@@ -76,11 +77,10 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
           List(CreateClass("MyClass", None, None, List()),
             CreateClass("MySuperclass", None, None, List()),
             AlterClass("MyClass", None, Some("MySuperclass"))))
-
-        val processor = new DatabaseSchemaProcessor(dbPool)
-        processor.applyDelta(delta)
-        
         val db = dbPool.acquire()
+        val processor = new DatabaseDeltaProcessor(delta, db)
+        processor.apply()
+
         db.getMetadata.getSchema.existsClass("MyClass") shouldBe true
         db.getMetadata.getSchema.getClass("MyClass").hasSuperClasses() shouldBe true
         db.getMetadata.getSchema.getClass("MyClass").getSuperClassesNames.get(0) shouldBe "MySuperclass"
@@ -93,11 +93,10 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
         val delta = Delta(1, "Description",
           List(CreateClass("MyClass", None, None, List()),
             DropClass("MyClass")))
-
-        val processor = new DatabaseSchemaProcessor(dbPool)
-        processor.applyDelta(delta)
-        
         val db = dbPool.acquire()
+        val processor = new DatabaseDeltaProcessor(delta, db)
+        processor.apply()
+
         db.getMetadata.getSchema.existsClass("MyClass") shouldBe false
         db.close()
       }
@@ -108,11 +107,10 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
         val delta = Delta(1, "Description",
           List(CreateClass("MyClass", None, None, List()),
             AddProperty("MyClass", Property("prop1", OrientType.String, None, None, None))))
-
-        val processor = new DatabaseSchemaProcessor(dbPool)
-        processor.applyDelta(delta)
-        
         val db = dbPool.acquire()
+        val processor = new DatabaseDeltaProcessor(delta, db)
+        processor.apply()
+
         db.getMetadata.getSchema.existsClass("MyClass") shouldBe true
         db.getMetadata.getSchema.getClass("MyClass").existsProperty("prop1") shouldBe true
         db.close()
@@ -125,11 +123,10 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
           List(CreateClass("MyClass", None, None,
             List(Property("prop1", OrientType.Short, None, None, None))),
             AlterProperty("MyClass", "prop1", PropertyOptions(None, Some(OrientType.Integer), None, None, None))))
-
-        val processor = new DatabaseSchemaProcessor(dbPool)
-        processor.applyDelta(delta)
-        
         val db = dbPool.acquire()
+        val processor = new DatabaseDeltaProcessor(delta, db)
+        processor.apply()
+
         db.getMetadata.getSchema.existsClass("MyClass") shouldBe true
         db.getMetadata.getSchema.getClass("MyClass").existsProperty("prop1") shouldBe true
         db.getMetadata.getSchema.getClass("MyClass").getProperty("prop1").getType shouldEqual (OType.INTEGER)
@@ -141,11 +138,10 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
           List(CreateClass("MyClass", None, None,
             List(Property("prop1", OrientType.Short, None, None, None))),
             AlterProperty("MyClass", "prop1", PropertyOptions(Some("prop2"), None, None, None, None))))
-
-        val processor = new DatabaseSchemaProcessor(dbPool)
-        processor.applyDelta(delta)
-        
         val db = dbPool.acquire()
+        val processor = new DatabaseDeltaProcessor(delta, db)
+        processor.apply()
+
         db.getMetadata.getSchema.existsClass("MyClass") shouldBe true
         db.getMetadata.getSchema.getClass("MyClass").existsProperty("prop2") shouldBe true
         val func: OFunction = db.getMetadata.getFunctionLibrary.createFunction("")
@@ -160,11 +156,11 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
           List(CreateClass("MyClass", None, None,
             List(Property("prop1", OrientType.Short, None, None, None))),
             DropProperty("MyClass", "prop1")))
-
-        val processor = new DatabaseSchemaProcessor(dbPool)
-        processor.applyDelta(delta)
-        
         val db = dbPool.acquire()
+
+        val processor = new DatabaseDeltaProcessor(delta, db)
+        processor.apply()
+
         db.getMetadata.getSchema.existsClass("MyClass") shouldBe true
         db.getMetadata.getSchema.getClass("MyClass").existsProperty("prop1") shouldBe false
         db.close()
@@ -178,10 +174,11 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
             List(Property("prop1", OrientType.Short, None, None, None))),
             CreateIndex("MyClass", "MyClass.prop1", IndexType.Unique, List("prop1"), None)))
 
-        val processor = new DatabaseSchemaProcessor(dbPool)
-        processor.applyDelta(delta)
-        
         val db = dbPool.acquire()
+
+        val processor = new DatabaseDeltaProcessor(delta, db)
+        processor.apply()
+
         db.getMetadata.getIndexManager.existsIndex("MyClass.prop1") shouldBe true
         val index = db.getMetadata.getIndexManager.getIndex("MyClass.prop1")
         index.getDefinition.getFields.get(0) shouldBe "prop1"
@@ -195,11 +192,11 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
           List(CreateClass("MyClass", None, None, List(Property("prop1", OrientType.Short, None, None, None))),
             CreateIndex("MyClass", "MyClass.prop1", IndexType.Unique, List("prop1"), None),
             DropIndex("MyClass.prop1")))
-
-        val processor = new DatabaseSchemaProcessor(dbPool)
-        processor.applyDelta(delta)
-        
         val db = dbPool.acquire()
+
+        val processor = new DatabaseDeltaProcessor(delta, db)
+        processor.apply()
+
         db.getMetadata.getIndexManager.existsIndex("MyClass.prop1") shouldBe false
         db.close()
       }
@@ -211,10 +208,10 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
           List(CreateClass("MyClass", None, None, List()),
             CreateSequence("MySequence", SequenceType.Ordered, None, None, None)))
 
-        val processor = new DatabaseSchemaProcessor(dbPool)
-        processor.applyDelta(delta)
-        
         val db = dbPool.acquire()
+        val processor = new DatabaseDeltaProcessor(delta, db)
+        processor.apply()
+
         db.getMetadata.getSequenceLibrary.getSequenceNames.contains("MYSEQUENCE") shouldBe true
         val sequence = db.getMetadata.getSequenceLibrary.getSequence("MySequence")
         sequence.getSequenceType shouldBe SEQUENCE_TYPE.ORDERED
@@ -228,10 +225,11 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
           List(CreateClass("MyClass", None, None, List()),
             DropSequence("MySequence")))
 
-        val processor = new DatabaseSchemaProcessor(dbPool)
-        processor.applyDelta(delta)
-        
         val db = dbPool.acquire()
+
+        val processor = new DatabaseDeltaProcessor(delta, db)
+        processor.apply()
+
         db.getMetadata.getSequenceLibrary.getSequenceNames.contains("MYSEQUENCE") shouldBe false
         db.close()
       }
@@ -243,11 +241,11 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
           List(CreateFunction("MyFunction",
             "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;",
             List("array", "fromIndex", "toIndex"), None, None)))
-
-        val processor = new DatabaseSchemaProcessor(dbPool)
-        processor.applyDelta(delta)
-        
         val db = dbPool.acquire()
+
+        val processor = new DatabaseDeltaProcessor(delta, db)
+        processor.apply()
+
         db.getMetadata.getFunctionLibrary.getFunction("MyFunction") != null shouldBe true
         db.close()
       }
@@ -261,14 +259,14 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
     val dbName = getClass.getSimpleName
     val uri = s"memory:${dbName}${dbCounter}"
     dbCounter += 1
-    
+
     // FIXME see https://github.com/orientechnologies/orientdb/issues/5146
     ODatabaseRecordThreadLocal.INSTANCE
 
     val db = new ODatabaseDocumentTx(uri)
     db.activateOnCurrentThread()
     db.create()
-    
+
     val dbPool = new OPartitionedDatabasePool(uri, "admin", "admin")
 
     try {

@@ -16,7 +16,7 @@ class DomainScriptSerializerSpec extends WordSpecLike with Matchers {
         val in = getClass.getResourceAsStream("/com/convergencelabs/server/db/data/import-domain-test.yaml")
         val value = serializer.deserialize(in).success.value
 
-        val DomainScript(config, jwtAuthKeys, users, collections, models) = value
+        val DomainScript(config, jwtAuthKeys, users, sessions, collections, models) = value
         config shouldBe SetDomainConfig(true, CreateJwtKeyPair("Public Key", "Private Key"))
 
         jwtAuthKeys.value shouldBe List(CreateJwtAuthKey("test-key", Some("a test key"), Instant.parse("2016-11-16T17:49:15.233Z"), "Public Key", true))
@@ -24,6 +24,18 @@ class DomainScriptSerializerSpec extends WordSpecLike with Matchers {
         users.value shouldBe List(
           CreateDomainUser("normal", "test1", Some("Test"), Some("One"), Some("Test One"), Some("test1@example.com"), Some(SetPassword("plaintext", "somePassword"))),
           CreateDomainUser("normal", "test2", Some("Test"), Some("Two"), Some("Test Two"), Some("test2@example.com"), Some(SetPassword("hash", "someHash"))))
+
+        sessions.value shouldBe List(
+          CreateDomainSession(
+            "84hf",
+            "test1",
+            Instant.parse("2016-11-16T17:49:14.233Z"),
+            Some(Instant.parse("2016-11-16T17:49:15.233Z")),
+            "password",
+            "javascript",
+            "1.0",
+            Map(),
+            "unknown"))
 
         collections.value shouldBe List(CreateCollection("collection1", "Collection 1", false))
 
@@ -38,8 +50,8 @@ class DomainScriptSerializerSpec extends WordSpecLike with Matchers {
               "vid1",
               Map("myString" -> CreateStringValue("vid2", "my string"))),
             List(
-              CreateModelOperation(1L, Instant.parse("2016-11-16T17:49:15.233Z"), "test1", "84hf", CreateStringInsertOperation("vid2", false, 0, "!")),
-              CreateModelOperation(2L, Instant.parse("2016-11-16T17:49:15.233Z"), "test1", "84hf", CreateStringInsertOperation("vid2", false, 1, "@"))),
+              CreateModelOperation(1L, Instant.parse("2016-11-16T17:49:15.233Z"), "84hf", CreateStringInsertOperation("vid2", false, 0, "!")),
+              CreateModelOperation(2L, Instant.parse("2016-11-16T17:49:15.233Z"), "84hf", CreateStringInsertOperation("vid2", false, 1, "@"))),
             List(
               CreateModelSnapshot(
                 1L,

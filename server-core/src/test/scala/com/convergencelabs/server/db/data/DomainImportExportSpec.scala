@@ -40,14 +40,15 @@ class DomainImportExportSpec extends WordSpecLike with Matchers {
       val exporter = new DomainExporter(provider)
       val exportedScript = exporter.exportDomain().get
 
-      val DomainScript(importConfig, importJwtKeys, importUsers, importCollections, importModels) = importScript
-      val DomainScript(exportConfig, exportJwtKeys, exportUsers, exportCollections, exportModels) = exportedScript
+      val DomainScript(importConfig, importJwtKeys, importUsers, importSessions, importCollections, importModels) = importScript
+      val DomainScript(exportConfig, exportJwtKeys, exportUsers, exportSessions, exportCollections, exportModels) = exportedScript
 
       importConfig shouldBe exportConfig
       importJwtKeys.toSet shouldBe exportJwtKeys.toSet
       importCollections.toSet shouldBe exportCollections.toSet
       importModels.toSet shouldBe exportModels.toSet
       importUsers.value.toSet should be(exportUsers.value.toSet)
+      importSessions.value.toSet should be(exportSessions.value.toSet)
     }
   }
 }

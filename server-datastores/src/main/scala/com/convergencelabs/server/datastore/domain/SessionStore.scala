@@ -1,11 +1,12 @@
-package com.convergencelabs.server.datastore
+package com.convergencelabs.server.datastore.domain
 
 import java.time.Instant
 import java.util.Date
-import java.util.{ List => JavaList }
+import java.util.{ List => JavaList, Map => JavaMap }
 
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.collection.JavaConversions._
 import scala.util.Failure
 import scala.util.Try
 
@@ -17,13 +18,20 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
-import DomainStore.Fields._
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.datastore.QueryUtil
+import com.convergencelabs.server.datastore.AbstractDatabasePersistence
+import com.convergencelabs.server.datastore.CreateResult
+import com.convergencelabs.server.datastore.CreateSuccess
+import com.convergencelabs.server.datastore.DuplicateValue
+import com.convergencelabs.server.datastore.UpdateResult
+import com.convergencelabs.server.datastore.NotFound
+import com.convergencelabs.server.datastore.UpdateSuccess
+import com.orientechnologies.orient.core.db.record.OTrackedMap
 
 case class DomainSession(
-  sessionId: String,
+  id: String,
   username: String,
-  active: Boolean,
   connected: Instant,
   disconnected: Option[Instant],
   authMethod: String,
@@ -36,9 +44,8 @@ object SessionStore {
   val ClassName = "DomainSession"
 
   object Fields {
-    val SessionId = "sessionId"
+    val Id = "id"
     val User = "user"
-    val Active = "active"
     val Connected = "connected"
     val Disconnected = "disconnected"
     val AuthMethod = "authMethod"
@@ -49,15 +56,14 @@ object SessionStore {
   }
 
   def sessionToDoc(sl: DomainSession, db: ODatabaseDocumentTx): Try[ODocument] = {
-    UserStore.getUserRid(sl.username, db).recoverWith {
+    DomainUserStore.getUserRid(sl.username, db).recoverWith {
       case cause: Exception =>
         Failure(new IllegalArgumentException(
           s"Could not create/update session because the user could not be found: ${sl.username}"))
     }.map { userLink =>
       val doc = db.newInstance(ClassName)
-      doc.field(Fields.SessionId, sl.sessionId)
+      doc.field(Fields.Id, sl.id)
       doc.field(Fields.User, userLink)
-      doc.field(Fields.Active, sl.active)
       doc.field(Fields.Connected, Date.from(sl.connected))
       sl.disconnected foreach { date =>
         doc.field(Fields.Disconnected, Date.from(date))
@@ -65,7 +71,8 @@ object SessionStore {
       doc.field(Fields.AuthMethod, sl.authMethod)
       doc.field(Fields.Client, sl.client)
       doc.field(Fields.ClientVersion, sl.clientVersion)
-      doc.field(Fields.ClientMetaData, sl.clientMetaData)
+      // FIXME make sure this is recursively java
+      doc.field(Fields.ClientMetaData, sl.clientMetaData.asJava, OType.EMBEDDEDMAP)
       doc.field(Fields.RemoteHost, sl.remoteHost)
       doc
     }
@@ -75,18 +82,24 @@ object SessionStore {
     val username: String = doc.field("user.username")
     val connected: Date = doc.field(Fields.Connected, OType.DATE)
     val disconnected: Option[Date] = Option(doc.field(Fields.Disconnected, OType.DATE).asInstanceOf[Date])
+    val metaData: JavaMap[String, Any] = doc.field(Fields.ClientMetaData)
 
     DomainSession(
-      doc.field(Fields.SessionId),
+      doc.field(Fields.Id),
       username,
-      doc.field(Fields.Active),
       connected.toInstant(),
       disconnected map { _.toInstant() },
       doc.field(Fields.AuthMethod),
       doc.field(Fields.Client),
       doc.field(Fields.ClientVersion),
-      doc.field(Fields.ClientMetaData),
+      metaData.toMap,
       doc.field(Fields.RemoteHost))
+  }
+
+  def getDomainSessionRid(id: String, db: ODatabaseDocumentTx): Try[ORID] = {
+    val query = "SELECT @RID as rid FROM DomainSession WHERE id = :id"
+    val params = Map("id" -> id)
+    QueryUtil.lookupMandatoryDocument(query, params, db) map { _.eval("rid").asInstanceOf[ORID] }
   }
 }
 
@@ -94,8 +107,8 @@ class SessionStore(dbPool: OPartitionedDatabasePool)
     extends AbstractDatabasePersistence(dbPool)
     with Logging {
 
-  def createSession(log: DomainSession): Try[CreateResult[Unit]] = tryWithDb { db =>
-    SessionStore.sessionToDoc(log, db).map { doc =>
+  def createSession(session: DomainSession): Try[CreateResult[Unit]] = tryWithDb { db =>
+    SessionStore.sessionToDoc(session, db).map { doc =>
       db.save(doc)
       CreateSuccess(())
     }.get
@@ -103,19 +116,27 @@ class SessionStore(dbPool: OPartitionedDatabasePool)
     case e: ORecordDuplicatedException =>
       DuplicateValue
   }
+  
+  def getSession(sessionId: String): Try[Option[DomainSession]] = tryWithDb { db =>
+    val query = "SELECT * FROM DomainSession WHERE id = :id"
+    val params = Map("id" -> sessionId)
+    QueryUtil.lookupOptionalDocument(query, params, db).map { SessionStore.docToSession(_) } 
+  } 
+  
+  def getSessions(limit: Option[Int], offset: Option[Int]): Try[List[DomainSession]] = tryWithDb { db =>
+    val baseQuery = "SELECT * FROM DomainSession"
+    val query = QueryUtil.buildPagedQuery(baseQuery, limit, offset)
+    QueryUtil.query(query, Map(), db).map { SessionStore.docToSession(_) } 
+  } 
 
-  def getActiveSessions(): Try[List[DomainSession]] = tryWithDb { db =>
-    val query =
-      """SELECT *
-        |FROM DomainSession
-        |WHERE
-        |  active = true""".stripMargin
+  def getConnectedSessions(): Try[List[DomainSession]] = tryWithDb { db =>
+    val query = "SELECT * FROM DomainSession WHERE disconnected IS NOT DEFINED"
     QueryUtil.query(query, Map(), db).map { SessionStore.docToSession(_) }
   }
 
-  def sessionDisconnected(sessionId: String): Try[UpdateResult] = tryWithDb { db =>
-    val query = "UPDATE DomainSession SET disconnected = :disconnected, active = false WHERE sessionId = :sessionId"
-    val params = Map("disconnected" -> new Date(), "sessionId" -> sessionId)
+  def setSessionDisconneted(sessionId: String, disconnectedTime: Instant): Try[UpdateResult] = tryWithDb { db =>
+    val query = "UPDATE DomainSession SET disconnected = :disconnected WHERE id = :sessionId"
+    val params = Map("disconnected" -> Date.from(disconnectedTime), "sessionId" -> sessionId)
     db.command(new OCommandSQL(query)).execute(params.asJava).asInstanceOf[Int] match {
       case 0 =>
         NotFound

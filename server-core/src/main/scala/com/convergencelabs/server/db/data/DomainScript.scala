@@ -6,6 +6,7 @@ case class DomainScript(
   config: SetDomainConfig,
   jwtAuthKeys: Option[List[CreateJwtAuthKey]],
   users: Option[List[CreateDomainUser]],
+  sessions: Option[List[CreateDomainSession]],
   collections: Option[List[CreateCollection]],
   models: Option[List[CreateModel]])
 
@@ -25,6 +26,17 @@ case class CreateDomainUser(
   displayName: Option[String],
   email: Option[String],
   password: Option[SetPassword])
+
+case class CreateDomainSession(
+  id: String,
+  username: String,
+  connected: Instant,
+  disconnected: Option[Instant],
+  authMethod: String,
+  client: String,
+  clientVersion: String,
+  clientMetaData: Map[String, Any],
+  remoteHost: String)
 
 case class SetPassword(passwordType: String, value: String)
 
@@ -69,7 +81,6 @@ case class CreateStringValue(id: String, value: String) extends CreateDataValue
 case class CreateModelOperation(
   version: Long,
   timestamp: Instant,
-  username: String,
   sessionId: String,
   op: CreateOperation)
 
