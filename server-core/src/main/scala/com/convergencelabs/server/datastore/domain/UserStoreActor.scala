@@ -59,12 +59,15 @@ class UserStoreActor private[datastore] (private[this] val userStore: DomainUser
   def createUser(message: CreateUser): Unit = {
     val CreateUser(username, firstName, lastName, displayName, email, password) = message
     val domainuser = CreateNormalDomainUser(username, firstName, lastName, displayName, email)
-    val result = userStore.createNormalDomainUser(domainuser) flatMap { x =>
+    val result = userStore.createNormalDomainUser(domainuser) flatMap { createResult =>
+      // FIXME this only works as a hack because of the way our create result works.
       password match {
         case None =>
-          Success(x)
+          Success(createResult)
         case Some(pw) =>
-          userStore.setDomainUserPassword(username, pw)
+          userStore.setDomainUserPassword(username, pw) map { _ => 
+            createResult
+          }
       }
     }
     reply(result)
