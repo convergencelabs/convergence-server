@@ -74,7 +74,7 @@ class RealtimeModelActor(
   private[this] val snapshotCalculator = new ModelSnapshotCalculator(snapshotConfig)
 
   implicit val materializer = ActorMaterializer()
-  val persistenceStream = Flow[ModelOperation]
+  val persistenceStream = Flow[NewModelOperation]
     .map { modelOperation =>
       modelOperationProcessor.processModelOperation(modelOperation) match {
         case Failure(f) =>
@@ -88,12 +88,12 @@ class RealtimeModelActor(
       case Success(_) =>
         log.debug("Persistence stream completed successfully")
       case Failure(f) =>
-        // FIXME this is probably alterning state outside of the thread.
+        // FIXME this is probably altering state outside of the thread.
         // probably need to send a message.
         log.error(f, "Persistence stream completed with an error")
         this.forceCloseAllAfterError("persitence error")
     }).runWith(Source
-      .actorRef[ModelOperation](bufferSize = 1000, OverflowStrategy.fail))
+      .actorRef[NewModelOperation](bufferSize = 1000, OverflowStrategy.fail))
 
   //
   // Receive methods
@@ -458,11 +458,10 @@ class RealtimeModelActor(
     val timestamp = Instant.now()
     this.model.processOperationEvent(unprocessedOpEvent).map {
       case (processedOpEvent, appliedOp) =>
-        persistenceStream ! ModelOperation(
+        persistenceStream ! NewModelOperation(
           modelFqn,
           processedOpEvent.resultingVersion,
           timestamp,
-          sk.uid,
           sk.sid,
           appliedOp)
 

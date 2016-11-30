@@ -37,6 +37,7 @@ import com.convergencelabs.server.domain.model.ot.AppliedStringSetOperation
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.datastore.domain.DomainUserField
 import com.convergencelabs.server.datastore.SortOrder
+import com.convergencelabs.server.datastore.domain.DomainSession
 
 class DomainExporter(private[this] val persistence: DomainPersistenceProvider) extends Logging {
 
@@ -46,11 +47,12 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
       config <- exportConfig()
       jwtKeys <- exportJwtAuthKeys()
       users <- exportUsers()
+      sessions <- exportSessions()
       collections <- exportCollections()
       models <- exportModels()
     } yield {
       logger.debug("Done importting domain data")
-      DomainScript(config, Some(jwtKeys), Some(users), Some(collections), Some(models))
+      DomainScript(config, Some(jwtKeys), Some(users), Some(sessions), Some(collections), Some(models))
     }
   }
 
@@ -86,6 +88,19 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
         }
         val DomainUser(userType, username, firstName, lastName, displayName, email) = domainUser
         CreateDomainUser(userType.toString.toLowerCase, username, firstName, lastName, displayName, email, pwHash)
+      }
+    }
+  }
+  
+  private[this] def exportSessions(): Try[List[CreateDomainSession]] = {
+    logger.debug("Exporting domain sessions")
+    persistence.sessionStore.getSessions(None, None) map {
+      _.map { domainSession =>
+        // FIXME better error handling here
+        val DomainSession(id, username, connected, disconnected, 
+            authMethod, client, clientVersion, clientMetaData, remoteHost) = domainSession
+        CreateDomainSession(id, username, connected, disconnected, 
+            authMethod, client, clientVersion, clientMetaData, remoteHost)
       }
     }
   }
@@ -164,7 +179,6 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
       CreateModelOperation(
         op.version,
         op.timestamp,
-        op.username,
         op.sessionId,
         exportOperation(op.op))
     }

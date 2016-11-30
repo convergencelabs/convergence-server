@@ -45,6 +45,8 @@ import com.convergencelabs.server.domain.model.ot.AppliedStringRemoveOperation
 import com.convergencelabs.server.domain.model.ot.AppliedStringSetOperation
 
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.datastore.domain.DomainSession
+import com.convergencelabs.server.domain.model.NewModelOperation
 
 class DomainImporter(
     private[this] val persistence: DomainPersistenceProvider,
@@ -57,6 +59,8 @@ class DomainImporter(
     } flatMap { _ =>
       createUsers()
     } flatMap { _ =>
+      createSessions()
+    } flatMap { _ =>
       createCollections()
     } flatMap { _ =>
       createModels()
@@ -67,7 +71,7 @@ class DomainImporter(
 
   def setConfig(): Try[Unit] = {
     logger.debug("Setting domain configuration")
-    
+
     val keyPair = JwtKeyPair(data.config.adminJwtKey.publicKey, data.config.adminJwtKey.privateKey)
     persistence.configStore.isInitialized() map {
       case true =>
@@ -115,7 +119,7 @@ class DomainImporter(
         userData.displayName,
         userData.email)
       persistence.userStore.createDomainUser(user)
-      
+
       userData.password map { password =>
         password.passwordType match {
           case "hash" =>
@@ -124,6 +128,17 @@ class DomainImporter(
             persistence.userStore.setDomainUserPassword(userData.username, password.value)
         }
       }
+    })
+  }
+
+  def createSessions(): Try[Unit] = Try {
+    logger.debug("Importting domain sessions")
+    data.sessions foreach (_.foreach { sessionData =>
+      val CreateDomainSession(id, username, connected, disconnected,
+        authMethod, client, clientVersion, clientMetaData, remoteHost) = sessionData
+      val session = DomainSession(id, username, connected, disconnected,
+        authMethod, client, clientVersion, clientMetaData, remoteHost)
+      persistence.sessionStore.createSession(session)
     })
   }
 
@@ -189,11 +204,10 @@ class DomainImporter(
 
   def createModelOperation(fqn: ModelFqn, opData: CreateModelOperation): Unit = {
     val op = createOperation(opData.op)
-    val modelOp = ModelOperation(
+    val modelOp = NewModelOperation(
       fqn,
       opData.version,
       opData.timestamp,
-      opData.username,
       opData.sessionId,
       op)
 

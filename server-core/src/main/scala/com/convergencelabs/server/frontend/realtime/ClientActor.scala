@@ -16,7 +16,7 @@ import com.convergencelabs.server.domain.HandshakeRequest
 import com.convergencelabs.server.domain.HandshakeResponse
 import com.convergencelabs.server.domain.HandshakeSuccess
 import com.convergencelabs.server.domain.PasswordAuthRequest
-import com.convergencelabs.server.domain.TokenAuthRequest
+import com.convergencelabs.server.domain.JwtAuthRequest
 import com.convergencelabs.server.domain.AnonymousAuthRequest
 import com.convergencelabs.server.util.concurrent.AskFuture
 import akka.actor.Actor
@@ -181,9 +181,9 @@ class ClientActor(
 
   private[this] def authenticate(requestMessage: AuthenticationRequestMessage, cb: ReplyCallback): Unit = {
     val authRequest = requestMessage match {
-      case PasswordAuthRequestMessage(username, password) => PasswordAuthRequest(username, password)
-      case TokenAuthRequestMessage(token)                 => TokenAuthRequest(token)
-      case AnonymousAuthRequestMessage(displayName)       => AnonymousAuthRequest(displayName)
+      case PasswordAuthRequestMessage(username, password) => PasswordAuthRequest(self, username, password)
+      case TokenAuthRequestMessage(token)                 => JwtAuthRequest(self, token)
+      case AnonymousAuthRequestMessage(displayName)       => AnonymousAuthRequest(self, displayName)
     }
     
     val authFuture = this.domainActor.get ? authRequest

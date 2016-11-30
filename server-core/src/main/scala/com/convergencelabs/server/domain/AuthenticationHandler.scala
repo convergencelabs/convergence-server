@@ -46,13 +46,13 @@ class AuthenticationHandler(
   def authenticate(request: AuthenticationRequest): Future[AuthenticationResponse] = {
     request match {
       case message: PasswordAuthRequest => authenticatePassword(message)
-      case message: TokenAuthRequest => authenticateToken(message)
+      case message: JwtAuthRequest => authenticateToken(message)
       case message: AnonymousAuthRequest => authenticateAnonymous(message)
     }
   }
 
   private[this] def authenticateAnonymous(authRequest: AnonymousAuthRequest): Future[AuthenticationResponse] = {
-    val AnonymousAuthRequest(displayName) = authRequest;
+    val AnonymousAuthRequest(_, displayName) = authRequest;
 
     val result = domainConfigStore.isAnonymousAuthEnabled() flatMap {
       case false =>
@@ -98,7 +98,7 @@ class AuthenticationHandler(
     Future.successful(response)
   }
 
-  private[this] def authenticateToken(authRequest: TokenAuthRequest): Future[AuthenticationResponse] = {
+  private[this] def authenticateToken(authRequest: JwtAuthRequest): Future[AuthenticationResponse] = {
     Future[AuthenticationResponse] {
       // This implements a two pass approach to be able to get the key id.
       val firstPassJwtConsumer = new JwtConsumerBuilder()
@@ -121,7 +121,7 @@ class AuthenticationHandler(
     }
   }
 
-  private[this] def authenticateTokenWithPublicKey(authRequest: TokenAuthRequest, publicKey: PublicKey, admin: Boolean): AuthenticationResponse = {
+  private[this] def authenticateTokenWithPublicKey(authRequest: JwtAuthRequest, publicKey: PublicKey, admin: Boolean): AuthenticationResponse = {
     val jwtConsumer = new JwtConsumerBuilder()
       .setRequireExpirationTime()
       .setAllowedClockSkewInSeconds(AuthenticationHandler.AllowedClockSkew)

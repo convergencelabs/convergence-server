@@ -37,6 +37,7 @@ import com.orientechnologies.common.io.OIOUtils
 import grizzled.slf4j.Logging
 import scala.collection.JavaConverters._
 import com.orientechnologies.orient.core.id.ORID
+import com.convergencelabs.server.domain.model.NewModelOperation
 
 class ModelOperationProcessor private[domain] (
     private[this] val dbPool: OPartitionedDatabasePool,
@@ -52,12 +53,12 @@ class ModelOperationProcessor private[domain] (
 
   private[this] implicit val formats = Serialization.formats(NoTypeHints)
 
-  def processModelOperation(modelOperation: ModelOperation): Try[Unit] = tryWithDb { db =>
+  def processModelOperation(modelOperation: NewModelOperation): Try[Unit] = tryWithDb { db =>
     // TODO this should all be in a transaction, but orientdb has a problem with this.
 
     // Apply the op.
     applyOperationToModel(modelOperation.modelFqn, modelOperation.op, db)
-
+    
     // Persist the operation
     modelOpStore.createModelOperation(modelOperation).get
 

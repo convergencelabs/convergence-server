@@ -60,7 +60,6 @@ class DatabaseSchemaManager(
     new EnumNameSerializer(SequenceType)
 
   private[this] val versionController = new DatabaseVersionController(dbPool)
-  private[this] val processor = new DatabaseSchemaProcessor(dbPool)
   private[this] val deltaManager = new DeltaManager(None)
 
   def currentVersion(): Try[Int] = {
@@ -112,7 +111,7 @@ class DatabaseSchemaManager(
           getDelta(in) match {
             case Success(delta) =>
               logger.debug(s"Applying delta: ${deltaNumber}")
-              processor.applyDelta(delta)
+              this.applyDelta(delta)
               versionController.setVersion(deltaNumber)
             case Failure(e) =>
               logger.error("Unable to apply manager deltas")
@@ -124,6 +123,19 @@ class DatabaseSchemaManager(
       case Failure(e) =>
         logger.error("Unable to lookup current version for database")
         Failure(e)
+    }
+  }
+
+  private[this] def applyDelta(delta: Delta): Try[Unit] = {
+    val db = dbPool.acquire()
+    Try {
+      val processor = new DatabaseDeltaProcessor(delta, db)
+      processor.apply()
+      ()
+    }.recover {
+      case e: Exception =>
+        db.close()
+        ()
     }
   }
 
@@ -140,7 +152,7 @@ class DatabaseSchemaManager(
                   getDelta(in) match {
                     case Success(delta) =>
                       logger.info(s"Applying delta: $deltaNumber")
-                      processor.applyDelta(delta) match {
+                      this.applyDelta(delta) match {
                         case Success(()) => versionController.setManagerVersion(deltaNumber)
                         case Failure(e) =>
                           logger.error("Unable to apply manager deltas")

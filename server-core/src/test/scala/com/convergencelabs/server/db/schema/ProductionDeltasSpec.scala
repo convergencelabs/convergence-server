@@ -1,15 +1,13 @@
-package com.convergencelabs.server.schema
+package com.convergencelabs.server.db.schema
 
-import org.scalatest.WordSpecLike
 import org.scalatest.Matchers
-import org.scalatest.TryValues._
-import com.convergencelabs.server.db.schema.DeltaManager
-import com.convergencelabs.server.db.schema.DeltaCategory
+import org.scalatest.TryValues.convertTryToSuccessOrFailure
 
-class ProductionDeltasSpec extends WordSpecLike with Matchers {
+import org.scalatest.WordSpec
+
+class ProductionDeltasSpec extends WordSpec with Matchers {
 
   "Production Deltas" when {
-    
     "processing Convergence Deltas" must {
       "validate" in {
         val manager = new DeltaManager(None)

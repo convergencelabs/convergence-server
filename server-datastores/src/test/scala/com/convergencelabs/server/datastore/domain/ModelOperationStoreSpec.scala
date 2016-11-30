@@ -17,6 +17,7 @@ import com.convergencelabs.server.domain.DomainUser
 import com.convergencelabs.server.domain.model.ModelMetaData
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.model.Model
+import com.convergencelabs.server.domain.model.NewModelOperation
 
 // scalastyle:off magic.number
 class ModelOperationStoreSpec
@@ -35,21 +36,24 @@ class ModelOperationStoreSpec
     ObjectValue("vid", Map()))
 
   val sessionId = "test:1"
+  val session = DomainSession(sessionId, testUsername, Instant.now(), None, "jwt", "js", "1.0", Map(), "127.0.0.1")
 
   val notFoundFqn = ModelFqn("Does Not", "Exist")
 
   val op1 = AppliedStringInsertOperation("0:0", false, 1, "1")
-  val modelOp1 = ModelOperation(modelFqn, 1L, Instant.ofEpochMilli(10), testUsername, sessionId, op1)
+  val modelOp1 = NewModelOperation(modelFqn, 1L, Instant.ofEpochMilli(10), sessionId, op1)
+  val modelOp1Expected = ModelOperation(modelFqn, 1L, Instant.ofEpochMilli(10), testUsername, sessionId, op1)
 
   val op15 = AppliedStringInsertOperation("0:0", false, 2, "2")
-  val modelOp15 = ModelOperation(modelFqn, 15L, Instant.ofEpochMilli(10), testUsername, sessionId, op15)
+  val modelOp15 = NewModelOperation(modelFqn, 15L, Instant.ofEpochMilli(10), sessionId, op15)
+  val modelOp15Expected = ModelOperation(modelFqn, 15L, Instant.ofEpochMilli(10), testUsername, sessionId, op15)
 
   "A ModelOperationStore" when {
     "creating a ModelOperation" must {
       "store it correctly" in withPersistenceStore { provider =>
         initCommonData(provider)
         provider.modelOperationStore.createModelOperation(modelOp1).get
-        provider.modelOperationStore.getModelOperation(modelFqn, 1L).success.value.value shouldBe modelOp1
+        provider.modelOperationStore.getModelOperation(modelFqn, 1L).success.value.value shouldBe modelOp1Expected
       }
 
       "disallow duplicates" in withPersistenceStore { provider =>
@@ -98,8 +102,9 @@ class ModelOperationStoreSpec
         var list = List[ModelOperation]()
         for (version <- 1 to 15) {
           val op = AppliedStringInsertOperation("0:0", false, version, version.toString)
-          val modelOp = ModelOperation(modelFqn, version, Instant.now(), testUsername, sessionId, op)
-          list = list :+ modelOp 
+          val timestamp = Instant.now()
+          val modelOp = NewModelOperation(modelFqn, version, timestamp, sessionId, op)
+          list = list :+ ModelOperation(modelFqn, version, timestamp, testUsername, sessionId, op) 
           provider.modelOperationStore.createModelOperation(modelOp).get
         }
         
@@ -131,5 +136,6 @@ class ModelOperationStoreSpec
     provider.userStore.createDomainUser(user).get
     provider.collectionStore.ensureCollectionExists(modelFqn.collectionId).get
     provider.modelStore.createModel(model).get
+    provider.sessionStore.createSession(session).get
   }
 }

@@ -11,6 +11,9 @@ users:
   - {userType: "normal", username: test1, firstName: Test, lastName: One, displayName: "Test One", email: test1@example.com, password: {passwordType: plaintext, value: somePassword}}
   - {userType: "normal", username: test2, firstName: Test, lastName: Two, displayName: "Test Two", email: test2@example.com, password: {passwordType: hash, value: someHash}}
 
+sessions:
+  - {id: "84hf", username: "test1", connected: "2016-11-16T17:49:14.233Z", disconnected: "2016-11-16T17:49:15.233Z", authMethod: "password", client: "javascript", clientVersion: "1.0", clientMetaData: {}, remoteHost: "unknown"}
+
 collections:
   - {id: collection1, name: "Collection 1", overrideSnapshotConfig: false}
   
@@ -29,8 +32,8 @@ models:
           type: string
           value: "my string"
     operations:
-      - {version: 1, timestamp: "2016-11-16T17:49:15.233Z", username: "test1", sessionId: "84hf", op: {type: StringInsert, element: vid2, noOp: false, index: 0, value: "!"}}
-      - {version: 2, timestamp: "2016-11-16T17:49:15.233Z", username: "test1", sessionId: "84hf", op: {type: StringInsert, element: vid2, noOp: false, index: 1, value: "@"}}
+      - {version: 1, timestamp: "2016-11-16T17:49:15.233Z", sessionId: "84hf", op: {type: StringInsert, element: vid2, noOp: false, index: 0, value: "!"}}
+      - {version: 2, timestamp: "2016-11-16T17:49:15.233Z", sessionId: "84hf", op: {type: StringInsert, element: vid2, noOp: false, index: 1, value: "@"}}
     snapshots:
       - version: 1
         timestamp: "2016-11-16T17:49:15.233Z"

@@ -94,15 +94,14 @@ changes:
   - action: CreateClass
     name: DomainSession
     properties:
-      - {name: sessionId,      type: String,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: id,             type: String,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: user,           type: Link,     linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: active,         type: String,                      constraints: {mandatory: true, notNull: true}} 
       - {name: connected,      type: DateTime,                    constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: disconnected,   type: DateTime,                    constraints: {mandatory: true, notNull: true}}
+      - {name: disconnected,   type: DateTime,                    constraints: {                 notNull: true, readOnly: true}}
       - {name: authMethod,     type: String,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: client,         type: String,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: clientVersion,  type: String,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: clientMetaData, type: String,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: clientMetaData, type: EmbeddedMap,                 constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: remoteHost,     type: String,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
           
   - action: CreateIndex
@@ -110,6 +109,12 @@ changes:
     name: DomainSession.user
     type: NotUniqueHashIndex
     properties: [user]
+    
+  - action: CreateIndex
+    className: DomainSession
+    name: DomainSession.id
+    type: UniqueHashIndex
+    properties: [id]
           
 ########## Collection Class ##########
 
@@ -132,11 +137,12 @@ changes:
   - action: CreateClass
     name: Model
     properties: 
-      - {name: collection,   type: Link,     linkedClass: Collection, constraints: {mandatory: true, notNull: true}}
-      - {name: id,           type: String,                            constraints: {mandatory: true, notNull: true}}
-      - {name: version,      type: Long,                              constraints: {mandatory: true, notNull: true, min: 1}}
-      - {name: createdTime,  type: DateTime,                          constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: modifiedTime, type: DateTime,                          constraints: {mandatory: true, notNull: true}}
+      - {name: collection,   type: Link,     linkedClass: Collection,  constraints: {mandatory: true, notNull: true}}
+      - {name: id,           type: String,                             constraints: {mandatory: true, notNull: true}}
+      - {name: version,      type: Long,                               constraints: {mandatory: true, notNull: true, min: 1}}
+      - {name: createdTime,  type: DateTime,                           constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: modifiedTime, type: DateTime,                           constraints: {mandatory: true, notNull: true}}
+      - {name: data,         type: Link,     linkedClass: ObjectValue, constraints: {mandatory: true, notNull: true}}
 
   - action: CreateIndex
     className: Model
@@ -149,9 +155,10 @@ changes:
   - action: CreateClass
     name: ModelSnapshot
     properties: 
-      - {name: model,     type: Link,     linkedClass: Model, constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: version,   type: Long,                         constraints: {mandatory: true, notNull: true, min: 1, readOnly: true}}
-      - {name: timestamp, type: DateTime,                     constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: model,     type: Link,     linkedClass: Model,         constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: version,   type: Long,                                 constraints: {mandatory: true, notNull: true, readOnly: true, min: 1}}
+      - {name: timestamp, type: DateTime,                             constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: data,      type: Embedded, linkedClass: ObjectOpValue, constraints: {mandatory: true, notNull: true, readOnly: true}}
 
   - action: CreateIndex
     className: ModelSnapshot
@@ -442,12 +449,11 @@ changes:
   - action: CreateClass
     name: ModelOperation
     properties: 
-      - {name: model,     type: Link,     linkedClass: Model,     constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: version,   type: Long,                             constraints: {mandatory: true, notNull: true, min: 1, readOnly: true}}
-      - {name: timestamp, type: DateTime,                         constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: user,      type: Link,     linkedClass: User,      constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: sessionId, type: String,                           constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: operation, type: Link,     linkedClass: Operation, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: model,     type: Link,     linkedClass: Model,         constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: version,   type: Long,                                 constraints: {mandatory: true, notNull: true, min: 1, readOnly: true}}
+      - {name: timestamp, type: DateTime,                             constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: session,   type: Link,     linkedClass: DomainSession, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: operation, type: Link,     linkedClass: Operation,     constraints: {mandatory: true, notNull: true, readOnly: true}}
 
   - action: CreateIndex
     className: ModelOperation
@@ -460,16 +466,6 @@ changes:
     name: ModelOperation.model
     type: NotUniqueHashIndex
     properties: [model]
-
-########## Additional Properties ##########
-
-  - action: AddProperty
-    className: Model
-    property: {name: data, type: Link, linkedClass: ObjectValue, constraints: {mandatory: true, notNull: true}} 
-      
-  - action: AddProperty
-    className: ModelSnapshot
-    property: {name: data, type: Embedded, linkedClass: ObjectOpValue, constraints: {mandatory: true, notNull: true}} 
 
 ########## Sequences ##########
 
