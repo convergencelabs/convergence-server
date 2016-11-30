@@ -46,6 +46,7 @@ import scala.util.Success
 
 object ModelStore {
   val ModelClass = "Model"
+  val ModelCollectionIdIndex = "Model.collection_id"
 
   object Constants {
     val CollectionId = "collectionId"

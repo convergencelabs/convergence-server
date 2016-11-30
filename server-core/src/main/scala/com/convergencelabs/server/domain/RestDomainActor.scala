@@ -31,6 +31,8 @@ import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import com.convergencelabs.server.datastore.ConfigStoreActor.ConfigStoreRequest
 import com.convergencelabs.server.datastore.ConfigStoreActor
+import com.convergencelabs.server.domain.stats.DomainStatsActor.DomainStatsRequest
+import com.convergencelabs.server.domain.stats.DomainStatsActor
 
 object RestDomainActor {
   def props(domainFqn: DomainFqn): Props = Props(new RestDomainActor(domainFqn))
@@ -43,6 +45,7 @@ class RestDomainActor(domainFqn: DomainFqn) extends Actor with ActorLogging {
 
   private[this] implicit val ec = context.dispatcher
   private[this] var userStoreActor: ActorRef = _
+  private[this] var statsActor: ActorRef = _
   private[this] var collectionStoreActor: ActorRef = _
   private[this] var modelStoreActor: ActorRef = _
   private[this] var keyStoreActor: ActorRef = _
@@ -65,6 +68,8 @@ class RestDomainActor(domainFqn: DomainFqn) extends Actor with ActorLogging {
       keyStoreActor forward message
     case message: ConfigStoreRequest =>
       configStoreActor forward message
+    case message: DomainStatsRequest =>
+      statsActor forward message
     case Shutdown =>
       shutdown()
     case message: Any =>
@@ -103,11 +108,13 @@ class RestDomainActor(domainFqn: DomainFqn) extends Actor with ActorLogging {
       case Success(provider) =>
         domainConfigStore = provider.configStore
 
+        statsActor = context.actorOf(DomainStatsActor.props(provider))
         userStoreActor = context.actorOf(UserStoreActor.props(provider.userStore))
         configStoreActor = context.actorOf(ConfigStoreActor.props(provider.configStore))
         collectionStoreActor = context.actorOf(CollectionStoreActor.props(provider.collectionStore))
         modelStoreActor = context.actorOf(ModelStoreActor.props(provider.modelStore, provider.collectionStore))
         keyStoreActor = context.actorOf(JwtAuthKeyStoreActor.props(provider.jwtAuthKeyStore))
+        
       case Failure(cause) =>
         log.error(cause, "Unable to obtain a domain persistence provider.")
     }

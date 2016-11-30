@@ -439,6 +439,11 @@ class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDat
     }
     Unit
   }
+  
+  def getNormalUserCount(): Try[Long] = tryWithDb { db =>
+    val query = "SELECT count(username) as count FROM User WHERE userType = 'normal'"
+    QueryUtil.lookupMandatoryDocument(query, Map(), db).map { _.field("count").asInstanceOf[Long] }.get
+  }
 
   def nextAnonymousUsername: Try[String] = tryWithDb { db =>
     val seq = db.getMetadata().getSequenceLibrary().getSequence(AnonymousUsernameSeq)

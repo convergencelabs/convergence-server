@@ -14,10 +14,26 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 
 import grizzled.slf4j.Logging
+import com.orientechnologies.orient.core.index.OIndex
+import com.orientechnologies.orient.core.db.record.OIdentifiable
+import com.orientechnologies.orient.core.id.ORID
 
 object QueryUtil extends Logging {
   private[this] val MultipleElementsMessage = "Only exepected one element in the result list, but more than one returned."
 
+  def getRidFromIndex(indexName: String, key: Any, db: ODatabaseDocumentTx): Try[ORID] = {
+    val index = db.getMetadata.getIndexManager.getIndex(indexName).asInstanceOf[OIndex[OIdentifiable]]
+    Try {
+      val oid: OIdentifiable = index.get(key)
+      Option(oid.getIdentity) match {
+        case Some(rid) =>
+          rid
+        case None =>
+          throw new IllegalArgumentException("Entity not found")
+      }
+    }
+  }
+  
   def query(q: String, p: Map[String, Any], db: ODatabaseDocumentTx): List[ODocument] = {
     val query = new OSQLSynchQuery[ODocument](q)
     val result: JavaList[ODocument] = db.command(query).execute(p.asJava)

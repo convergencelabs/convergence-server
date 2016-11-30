@@ -30,9 +30,11 @@ import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 import scala.util.Success
+import com.orientechnologies.orient.core.index.OIndex
 
 object CollectionStore {
   val ClassName = "Collection"
+  val CollectionIdIndex = "Collection.id"
 
   val Id = "id"
   val Name = "name"
@@ -60,9 +62,7 @@ object CollectionStore {
   }
 
   def getCollectionRid(id: String, db: ODatabaseDocumentTx): Try[ORID] = {
-    val query = "SELECT @RID as rid FROM Collection WHERE id = :id"
-    val params = Map("id" -> id)
-    QueryUtil.lookupMandatoryDocument(query, params, db) map { _.eval("rid").asInstanceOf[ORID] }
+    QueryUtil.getRidFromIndex(CollectionIdIndex, id, db)
   }
 }
 
@@ -70,16 +70,10 @@ class CollectionStore private[domain] (dbPool: OPartitionedDatabasePool, modelSt
     extends AbstractDatabasePersistence(dbPool) {
 
   def collectionExists(id: String): Try[Boolean] = tryWithDb { db =>
-    val queryString =
-      """SELECT id
-        |FROM Collection
-        |WHERE
-        |  id = :id""".stripMargin
-
-    val query = new OSQLSynchQuery[ODocument](queryString)
+    val query = "SELECT id FROM Collection WHERE id = :id"
     val params = Map(CollectionStore.Id -> id)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    !result.isEmpty()
+    val results = QueryUtil.query(query, params, db)
+    !results.isEmpty
   }
 
   def ensureCollectionExists(collectionId: String): Try[Unit] = {
@@ -87,7 +81,7 @@ class CollectionStore private[domain] (dbPool: OPartitionedDatabasePool, modelSt
       case true =>
         Success(())
       case false =>
-        createCollection(Collection(collectionId, collectionId, false, None)).map { _ => ()}
+        createCollection(Collection(collectionId, collectionId, false, None)).map { _ => () }
     }
   }
 
@@ -138,15 +132,9 @@ class CollectionStore private[domain] (dbPool: OPartitionedDatabasePool, modelSt
   }
 
   def getCollection(id: String): Try[Option[Collection]] = tryWithDb { db =>
-    val queryString =
-      """SELECT *
-        |FROM Collection
-        |WHERE
-        |  id = :id""".stripMargin
-    val query = new OSQLSynchQuery[ODocument](queryString)
+    val query = "SELECT FROM Collection WHERE id = :id"
     val params = Map(CollectionStore.Id -> id)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.mapSingletonList(result) { docToCollection(_) }
+    QueryUtil.lookupOptionalDocument(query, params, db) map { docToCollection(_) }
   }
 
   def getOrCreateCollection(collectionId: String): Try[Collection] = {
@@ -158,17 +146,8 @@ class CollectionStore private[domain] (dbPool: OPartitionedDatabasePool, modelSt
     offset: Option[Int],
     limit: Option[Int]): Try[List[Collection]] = tryWithDb { db =>
 
-    val queryString =
-      """SELECT *
-        |FROM Collection
-        |ORDER BY
-        |  collectionId ASC""".stripMargin
-
-    val pageQuery = QueryUtil.buildPagedQuery(
-      queryString,
-      limit,
-      offset)
-
+    val queryString = "SELECT * FROM Collection ORDER BY collectionId ASC"
+    val pageQuery = QueryUtil.buildPagedQuery(queryString, limit, offset)
     val query = new OSQLSynchQuery[ODocument](pageQuery)
     val result: JavaList[ODocument] = db.command(query).execute()
     result.asScala.toList map { docToCollection(_) }

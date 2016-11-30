@@ -64,6 +64,7 @@ class DomainService(
 
   val domainConfigService = new DomainConfigService(ec, domainManagerActor, t)
   val domainUserService = new DomainUserService(ec, domainManagerActor, t)
+  val domainStatsService = new DomainStatsService(ec, domainManagerActor, t)
   val domainCollectionService = new DomainCollectionService(ec, domainManagerActor, t)
   val domainModelService = new DomainModelService(ec, domainManagerActor, t)
   val domainKeyService = new DomainKeyService(ec, domainManagerActor, t)
@@ -100,7 +101,8 @@ class DomainService(
                 domainModelService.route(username, domain) ~
                 domainKeyService.route(username, domain) ~
                 domainAdminTokenService.route(username, domain) ~
-                domainConfigService.route(username, domain)
+                domainConfigService.route(username, domain) ~
+                domainStatsService.route(username, domain)
             case AuthorizationDenied =>
               complete(ForbiddenError)
             case AuthorizationFailure =>

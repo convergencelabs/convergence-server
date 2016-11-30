@@ -133,6 +133,11 @@ class SessionStore(dbPool: OPartitionedDatabasePool)
     val query = "SELECT * FROM DomainSession WHERE disconnected IS NOT DEFINED"
     QueryUtil.query(query, Map(), db).map { SessionStore.docToSession(_) }
   }
+  
+  def getConnectedSessionsCount(): Try[Long] = tryWithDb { db =>
+    val query = "SELECT count(id) as count FROM DomainSession WHERE disconnected IS NOT DEFINED"
+    QueryUtil.lookupMandatoryDocument(query, Map(), db).map { _.field("count").asInstanceOf[Long] }.get
+  }
 
   def setSessionDisconneted(sessionId: String, disconnectedTime: Instant): Try[UpdateResult] = tryWithDb { db =>
     val query = "UPDATE DomainSession SET disconnected = :disconnected WHERE id = :sessionId"
