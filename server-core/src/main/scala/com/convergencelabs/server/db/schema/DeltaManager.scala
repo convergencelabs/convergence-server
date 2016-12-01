@@ -14,7 +14,6 @@ import DeltaManager._
 object DeltaCategory extends Enumeration {
   val Convergence = Value("convergence")
   val Domain = Value("domain")
-  val Version = Value("version")
 }
 
 object DeltaManager {

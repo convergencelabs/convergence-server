@@ -38,26 +38,7 @@ class DatabaseSchemaManager(
 
   private[this] implicit val releaseOnly = true
 
-  private[this] val mapper = new ObjectMapper(new YAMLFactory())
-  private[this] implicit val format = DefaultFormats +
-    SimpleNamePolymorphicSerializer[Change]("action", List(
-      classOf[CreateClass],
-      classOf[AlterClass],
-      classOf[DropClass],
-      classOf[AddProperty],
-      classOf[AlterProperty],
-      classOf[DropProperty],
-      classOf[CreateIndex],
-      classOf[DropIndex],
-      classOf[CreateSequence],
-      classOf[DropSequence],
-      classOf[RunSQLCommand],
-      classOf[CreateFunction],
-      classOf[AlterFunction],
-      classOf[DropFunction])) +
-    new EnumNameSerializer(OrientType) +
-    new EnumNameSerializer(IndexType) +
-    new EnumNameSerializer(SequenceType)
+  
 
   private[this] val versionController = new DatabaseVersionController(dbPool)
   private[this] val deltaManager = new DeltaManager(None)
@@ -73,12 +54,12 @@ class DatabaseSchemaManager(
   def upgradeToVersion(version: Int): Try[Unit] = {
     deltaManager.manifest(category) match {
       case Success(manifest) =>
-        if (preRelease && version > manifest.maxReleasedDelta()) {
+        if (preRelease && version > manifest.maxPreReleaseVersion()) {
           Failure(new IllegalArgumentException(
-            s"Requested version is greater than the maximum pre-release version (${manifest.maxDelta}): ${version}"))
-        } else if (version > manifest.maxDelta()) {
+            s"Requested version is greater than the maximum pre-release version (${manifest.maxPreReleaseVersion()}): ${version}"))
+        } else if (version > manifest.maxReleasedVersion()) {
           Failure(new IllegalArgumentException(
-            s"Requested version is greater than the maximum released version (${manifest.maxReleasedDelta}): ${version}"))
+            s"Requested version is greater than the maximum released version (${manifest.maxReleasedVersion}): ${version}"))
         }
 
         upgrade(manifest, version)
@@ -92,8 +73,8 @@ class DatabaseSchemaManager(
     deltaManager.manifest(category) match {
       case Success(manifest) =>
         val max = preRelease match {
-          case true => manifest.maxDelta()
-          case false => manifest.maxReleasedDelta()
+          case true => manifest.maxPreReleaseVersion()
+          case false => manifest.maxReleasedVersion()
         }
         upgrade(manifest, max)
       case Failure(e) =>
@@ -107,18 +88,18 @@ class DatabaseSchemaManager(
     currentVersion() match {
       case Success(currentVersion) =>
         logger.debug("Upgrading database")
-        manifest.forEach(currentVersion, preRelease)((deltaNumber: Int, path: String, in: InputStream) => {
-          getDelta(in) match {
-            case Success(delta) =>
-              logger.debug(s"Applying delta: ${deltaNumber}")
-              this.applyDelta(delta)
-              versionController.setVersion(deltaNumber)
-            case Failure(e) =>
-              logger.error("Unable to apply manager deltas")
-              Failure(e)
-          }
-          Success(())
-        })
+//        manifest.forEach(currentVersion, preRelease)((deltaNumber: Int, path: String, in: InputStream) => {
+//          getDelta(in) match {
+//            case Success(delta) =>
+//              logger.debug(s"Applying delta: ${deltaNumber}")
+//              this.applyDelta(delta)
+//              versionController.setVersion(deltaNumber)
+//            case Failure(e) =>
+//              logger.error("Unable to apply manager deltas")
+//              Failure(e)
+//          }
+//          Success(())
+//        })
         Success(())
       case Failure(e) =>
         logger.error("Unable to lookup current version for database")
@@ -144,31 +125,32 @@ class DatabaseSchemaManager(
       case Success(currentVersion) =>
         if (currentVersion < DatabaseVersionController.ManagerVersion) {
           logger.info(s"Manager schema is out of date.  Upgrading manager schema to version: ${DatabaseVersionController.ManagerVersion}")
-          deltaManager.manifest(DeltaCategory.Version) match {
-            case Success(manifest: DeltaManifest) =>
-              logger.info("Loaded manifest.  Applying deltas...")
-              Try {
-                manifest.forEach(currentVersion, preRelease)((deltaNumber, path, in) => {
-                  getDelta(in) match {
-                    case Success(delta) =>
-                      logger.info(s"Applying delta: $deltaNumber")
-                      this.applyDelta(delta) match {
-                        case Success(()) => versionController.setManagerVersion(deltaNumber)
-                        case Failure(e) =>
-                          logger.error("Unable to apply manager deltas")
-                          Failure(e)
-                      }
-                    case Failure(e) =>
-                      logger.error("Unable to read delta")
-                      Failure(e)
-                  }
-                  Success(())
-                })
-              }
-            case Failure(e) =>
-              logger.error("Unable to load manifest for manager")
-              Failure(e)
-          }
+          Success(())
+//          deltaManager.manifest(DeltaCategory.Version) match {
+//            case Success(manifest: DeltaManifest) =>
+//              logger.info("Loaded manifest.  Applying deltas...")
+//              Try {
+//                manifest.forEach(currentVersion, preRelease)((deltaNumber, path, in) => {
+//                  getDelta(in) match {
+//                    case Success(delta) =>
+//                      logger.info(s"Applying delta: $deltaNumber")
+//                      this.applyDelta(delta) match {
+//                        case Success(()) => versionController.setManagerVersion(deltaNumber)
+//                        case Failure(e) =>
+//                          logger.error("Unable to apply manager deltas")
+//                          Failure(e)
+//                      }
+//                    case Failure(e) =>
+//                      logger.error("Unable to read delta")
+//                      Failure(e)
+//                  }
+//                  Success(())
+//                })
+//              }
+//            case Failure(e) =>
+//              logger.error("Unable to load manifest for manager")
+//              Failure(e)
+//          }
         } else {
           Success(())
         }
@@ -178,9 +160,5 @@ class DatabaseSchemaManager(
     }
   }
 
-  private[this] def getDelta(in: InputStream): Try[Delta] = Try {
-    val jsonNode = mapper.readTree(in)
-    val jValue = JsonMethods.fromJsonNode(jsonNode)
-    Extraction.extract[Delta](jValue)
-  }
+  
 }

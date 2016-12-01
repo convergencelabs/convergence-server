@@ -1,3 +1,5 @@
-maxDelta: 1
-maxReleasedDelta: 0
-deltas: {}
+preReleaseVersion: 1
+releasedVersion: 0
+version: {
+  
+}

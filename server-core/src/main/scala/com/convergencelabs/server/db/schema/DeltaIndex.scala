@@ -1,3 +1,4 @@
 package com.convergencelabs.server.db.schema
 
-case class DeltaIndex(maxDelta: Int, maxReleasedDelta: Int, deltas: Map[String, String])
+case class DeltaIndex(preReleaseVersion: Int, releasedVersion: Int, deltas: Map[String, VersionHash])
+case class VersionHash(delta: String, database: String)

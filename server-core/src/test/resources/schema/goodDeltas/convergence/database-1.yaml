@@ -1,0 +1,23 @@
+version: 1
+changes:
+
+  - action: CreateClass
+    name: TestClass1
+    properties: 
+      - {name: prop1, type: String,                         constraints: {mandatory: true, notNull: true}}
+      - {name: prop2, type: Link,  linkedClass: TestClass2, constraints: {mandatory: true, notNull: true}}
+      
+  - action: CreateClass
+    name: TestClass2
+    properties: 
+      - {name: prop3, type: String,                         constraints: {mandatory: true, notNull: true}}
+
+  - action: CreateIndex
+    className: TestClass1
+    name: TestClass1.prop1
+    type: Unique
+    properties: [prop1]
+
+  - action: CreateSequence
+    name: TestSeq1
+    sequenceType: Ordered

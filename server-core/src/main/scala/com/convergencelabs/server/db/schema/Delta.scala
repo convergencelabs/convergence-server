@@ -19,7 +19,7 @@ object SequenceType extends Enumeration {
   val Cached, Ordered = Value
 }
 
-case class Delta(version: Int, description: String, changes: List[Change])
+case class Delta(version: Int, description: Option[String], changes: List[Change])
 
 sealed trait Change
 

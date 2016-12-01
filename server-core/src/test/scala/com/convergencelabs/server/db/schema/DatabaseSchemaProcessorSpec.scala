@@ -17,7 +17,7 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
   "An DatabaseSchemaProcessor" when {
     "Processing a CreateClass change" must {
       "Corrrectly create class" in withDb { dbPool =>
-        val delta = Delta(1, "Description",
+        val delta = Delta(1, Some("Description"),
           List(CreateClass("MyClass", None, None, List())))
           
         val db = dbPool.acquire()
@@ -29,7 +29,7 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
       }
 
       "Correctly create class and its properties" in withDb { dbPool =>
-        val delta = Delta(1, "Description",
+        val delta = Delta(1, Some("Description"),
           List(CreateClass("MyClass", None, None,
             List(Property("prop1", OrientType.String, None, None, None)))))
 
@@ -43,7 +43,7 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
       }
 
       "Correctly create class with superclass" in withDb { dbPool =>
-        val delta = Delta(1, "Description",
+        val delta = Delta(1, Some("Description"),
           List(CreateClass("MySuperclass", None, None, List()),
             CreateClass("MyClass", Some("MySuperclass"), None, List())))
 
@@ -59,7 +59,7 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
 
     "Processing an AlterClass change" must {
       "Correctly alter class name" in withDb { dbPool =>
-        val delta = Delta(1, "Description",
+        val delta = Delta(1, Some("Description"),
           List(CreateClass("MyClass", None, None, List()),
             AlterClass("MyClass", Some("NewName"), None)))
         val db = dbPool.acquire()
@@ -73,7 +73,7 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
       }
 
       "Correctly alter superclass" in withDb { dbPool =>
-        val delta = Delta(1, "Description",
+        val delta = Delta(1, Some("Description"),
           List(CreateClass("MyClass", None, None, List()),
             CreateClass("MySuperclass", None, None, List()),
             AlterClass("MyClass", None, Some("MySuperclass"))))
@@ -90,7 +90,7 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
 
     "Processing a DropClass change" must {
       "Correctly drops class" in withDb { dbPool =>
-        val delta = Delta(1, "Description",
+        val delta = Delta(1, Some("Description"),
           List(CreateClass("MyClass", None, None, List()),
             DropClass("MyClass")))
         val db = dbPool.acquire()
@@ -104,7 +104,7 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
 
     "Processing a AddProperty change" must {
       "Correctly adds new property to class" in withDb { dbPool =>
-        val delta = Delta(1, "Description",
+        val delta = Delta(1, Some("Description"),
           List(CreateClass("MyClass", None, None, List()),
             AddProperty("MyClass", Property("prop1", OrientType.String, None, None, None))))
         val db = dbPool.acquire()
@@ -119,7 +119,7 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
 
     "Processing a AlterProperty change" must {
       "Correctly alters property class" in withDb { dbPool =>
-        val delta = Delta(1, "Description",
+        val delta = Delta(1, Some("Description"),
           List(CreateClass("MyClass", None, None,
             List(Property("prop1", OrientType.Short, None, None, None))),
             AlterProperty("MyClass", "prop1", PropertyOptions(None, Some(OrientType.Integer), None, None, None))))
@@ -134,7 +134,7 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
       }
 
       "Correctly alters property name" in withDb { dbPool =>
-        val delta = Delta(1, "Description",
+        val delta = Delta(1, Some("Description"),
           List(CreateClass("MyClass", None, None,
             List(Property("prop1", OrientType.Short, None, None, None))),
             AlterProperty("MyClass", "prop1", PropertyOptions(Some("prop2"), None, None, None, None))))
@@ -152,7 +152,7 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
 
     "Processing a DropProperty change" must {
       "Correctly drops property from class" in withDb { dbPool =>
-        val delta = Delta(1, "Description",
+        val delta = Delta(1, Some("Description"),
           List(CreateClass("MyClass", None, None,
             List(Property("prop1", OrientType.Short, None, None, None))),
             DropProperty("MyClass", "prop1")))
@@ -169,7 +169,7 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
 
     "Processing a CreateIndex change" must {
       "Correctly creates unique index for class" in withDb { dbPool =>
-        val delta = Delta(1, "Description",
+        val delta = Delta(1, Some("Description"),
           List(CreateClass("MyClass", None, None,
             List(Property("prop1", OrientType.Short, None, None, None))),
             CreateIndex("MyClass", "MyClass.prop1", IndexType.Unique, List("prop1"), None)))
@@ -188,7 +188,7 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
 
     "Processing a DropIndex change" must {
       "Correctly drops index" in withDb { dbPool =>
-        val delta = Delta(1, "Description",
+        val delta = Delta(1, Some("Description"),
           List(CreateClass("MyClass", None, None, List(Property("prop1", OrientType.Short, None, None, None))),
             CreateIndex("MyClass", "MyClass.prop1", IndexType.Unique, List("prop1"), None),
             DropIndex("MyClass.prop1")))
@@ -204,7 +204,7 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
 
     "Processing a CreateSequence change" must {
       "Correctly creates sequence" in withDb { dbPool =>
-        val delta = Delta(1, "Description",
+        val delta = Delta(1, Some("Description"),
           List(CreateClass("MyClass", None, None, List()),
             CreateSequence("MySequence", SequenceType.Ordered, None, None, None)))
 
@@ -221,7 +221,7 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
 
     "Processing a DropSequence change" must {
       "Correctly drops sequence" in withDb { dbPool =>
-        val delta = Delta(1, "Description",
+        val delta = Delta(1, Some("Description"),
           List(CreateClass("MyClass", None, None, List()),
             DropSequence("MySequence")))
 
@@ -237,7 +237,7 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
 
     "Processing a CreateFunction change" must {
       "Correctly creates function" in withDb { dbPool =>
-        val delta = Delta(1, "Description",
+        val delta = Delta(1, Some("Description"),
           List(CreateFunction("MyFunction",
             "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;",
             List("array", "fromIndex", "toIndex"), None, None)))

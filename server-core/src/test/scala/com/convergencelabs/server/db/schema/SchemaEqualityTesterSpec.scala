@@ -45,7 +45,7 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
     "comparing functions" must {
       "return true if functions are the same" in {
 
-        val delta = Delta(1, "Description",
+        val delta = Delta(1, Some("Description"),
           List(CreateFunction("MyFunction",
             "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;",
             List("array", "fromIndex", "toIndex"), None, None)))
@@ -59,12 +59,12 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
       }
 
       "return false if function code is different" in {
-        val delta1 = Delta(1, "Description",
+        val delta1 = Delta(1, Some("Description"),
           List(CreateFunction("MyFunction",
             "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;",
             List("array", "fromIndex", "toIndex"), None, None)))
 
-        val delta2 = Delta(1, "Description",
+        val delta2 = Delta(1, Some("Description"),
           List(CreateFunction("MyFunction",
             "var toIn = parseInt(toIndex);\nval from = parseInt(fromIndex);\narray.add(toIn, array.remove(from));\nreturn array;",
             List("array", "fromIndex", "toIndex"), None, None)))
@@ -78,12 +78,12 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
       }
 
       "return false if function name is different" in {
-        val delta1 = Delta(1, "Description",
+        val delta1 = Delta(1, Some("Description"),
           List(CreateFunction("MyFunction1",
             "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;",
             List("array", "fromIndex", "toIndex"), None, None)))
 
-        val delta2 = Delta(1, "Description",
+        val delta2 = Delta(1, Some("Description"),
           List(CreateFunction("MyFunction2",
             "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;",
             List("array", "fromIndex", "toIndex"), None, None)))
@@ -97,12 +97,12 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
       }
 
       "return false if function parameters are different" in {
-        val delta1 = Delta(1, "Description",
+        val delta1 = Delta(1, Some("Description"),
           List(CreateFunction("MyFunction",
             "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;",
             List("array", "fromIndex", "toIndex"), None, None)))
 
-        val delta2 = Delta(1, "Description",
+        val delta2 = Delta(1, Some("Description"),
           List(CreateFunction("MyFunction",
             "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;",
             List("array", "fromIndex"), None, None)))
@@ -116,12 +116,12 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
       }
 
       "return false if one function has a different language" in {
-        val delta1 = Delta(1, "Description",
+        val delta1 = Delta(1, Some("Description"),
           List(CreateFunction("MyFunction",
             "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;",
             List("array", "fromIndex", "toIndex"), None, None)))
 
-        val delta2 = Delta(1, "Description",
+        val delta2 = Delta(1, Some("Description"),
           List(CreateFunction("MyFunction",
             "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;",
             List("array", "fromIndex", "toIndex"), Some("javascript"), None)))
@@ -135,12 +135,12 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
       }
 
       "return false if one function is idempotent and the other is not" in {
-        val delta1 = Delta(1, "Description",
+        val delta1 = Delta(1, Some("Description"),
           List(CreateFunction("MyFunction",
             "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;",
             List("array", "fromIndex", "toIndex"), None, None)))
 
-        val delta2 = Delta(1, "Description",
+        val delta2 = Delta(1, Some("Description"),
           List(CreateFunction("MyFunction",
             "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;",
             List("array", "fromIndex", "toIndex"), None, Some(true))))
@@ -157,7 +157,7 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
     "comparing sequences" must {
       "return true if sequences are the same" in {
 
-        val delta = Delta(1, "Description",
+        val delta = Delta(1, Some("Description"),
           List(CreateSequence("MySequence", SequenceType.Ordered, None, None, None)))
 
         db1.activateOnCurrentThread()
@@ -170,10 +170,10 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
 
       "return false if sequences have different types" in {
 
-        val delta1 = Delta(1, "Description",
+        val delta1 = Delta(1, Some("Description"),
           List(CreateSequence("MySequence", SequenceType.Ordered, None, None, None)))
 
-        val delta2 = Delta(1, "Description",
+        val delta2 = Delta(1, Some("Description"),
           List(CreateSequence("MySequence", SequenceType.Cached, None, None, None)))
 
         db1.activateOnCurrentThread()
@@ -185,10 +185,10 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
       }
 
       "return false if sequences have different names" in {
-        val delta1 = Delta(1, "Description",
+        val delta1 = Delta(1, Some("Description"),
           List(CreateSequence("MySequence", SequenceType.Ordered, None, None, None)))
 
-        val delta2 = Delta(1, "Description",
+        val delta2 = Delta(1, Some("Description"),
           List(CreateSequence("MySequence2", SequenceType.Ordered, None, None, None)))
 
         db1.activateOnCurrentThread()
@@ -200,10 +200,10 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
       }
 
       "return false if sequences have different starts" in {
-        val delta1 = Delta(1, "Description",
+        val delta1 = Delta(1, Some("Description"),
           List(CreateSequence("MySequence", SequenceType.Ordered, Some(5), None, None)))
 
-        val delta2 = Delta(1, "Description",
+        val delta2 = Delta(1, Some("Description"),
           List(CreateSequence("MySequence", SequenceType.Ordered, None, None, None)))
 
         db1.activateOnCurrentThread()
@@ -215,10 +215,10 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
       }
 
       "return false if sequences have different increments" in {
-        val delta1 = Delta(1, "Description",
+        val delta1 = Delta(1, Some("Description"),
           List(CreateSequence("MySequence", SequenceType.Ordered, None, Some(5), None)))
 
-        val delta2 = Delta(1, "Description",
+        val delta2 = Delta(1, Some("Description"),
           List(CreateSequence("MySequence", SequenceType.Ordered, None, None, None)))
 
         db1.activateOnCurrentThread()
@@ -232,7 +232,7 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
 
     "comparing classes" must {
       "return true if classes are the same" in {
-        val delta = Delta(1, "Description",
+        val delta = Delta(1, Some("Description"),
           List(CreateClass("MyClass", None, None,
             List(Property("prop1", OrientType.String, None, None, None)))))
 
@@ -245,10 +245,10 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
       }
 
       "return false if class names are different" in {
-        val delta1 = Delta(1, "Description",
+        val delta1 = Delta(1, Some("Description"),
           List(CreateClass("MyClass", None, None, List())))
 
-        val delta2 = Delta(1, "Description",
+        val delta2 = Delta(1, Some("Description"),
           List(CreateClass("MyClass2", None, None, List())))
 
         db1.activateOnCurrentThread()
@@ -260,13 +260,13 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
       }
 
       "return false if class superclass is different" in {
-        val delta1 = Delta(1, "Description",
+        val delta1 = Delta(1, Some("Description"),
           List(CreateClass("MyClass", None, None, List())))
 
-        val delta2 = Delta(1, "Description",
+        val delta2 = Delta(1, Some("Description"),
           List(CreateClass("MySuperClass", None, None, List())))
 
-        val delta3 = Delta(2, "Description",
+        val delta3 = Delta(2, Some("Description"),
           List(CreateClass("MyClass", Some("MySuperClass"), None, List())))
 
         db1.activateOnCurrentThread()
@@ -281,10 +281,10 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
     }
 
     "return false if one class is abstract" in {
-      val delta1 = Delta(1, "Description",
+      val delta1 = Delta(1, Some("Description"),
         List(CreateClass("MyClass", None, None, List())))
 
-      val delta2 = Delta(1, "Description",
+      val delta2 = Delta(1, Some("Description"),
         List(CreateClass("MyClass", None, Some(true), List())))
 
       db1.activateOnCurrentThread()
@@ -298,7 +298,7 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
     "comparing indexes" must {
       "return true if indexes are the same" in {
 
-        val delta = Delta(1, "Description",
+        val delta = Delta(1, Some("Description"),
           List(CreateClass("MyClass", None, None,
             List(Property("prop1", OrientType.Short, None, None, None))),
             CreateIndex("MyClass", "MyClass.prop1", IndexType.Unique, List("prop1"), None)))
