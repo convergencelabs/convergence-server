@@ -1,5 +1,4 @@
 preReleaseVersion: 1
 releasedVersion: 0
-version: {
-  
-}
+deltas:
+  1: {delta: null, database: null}

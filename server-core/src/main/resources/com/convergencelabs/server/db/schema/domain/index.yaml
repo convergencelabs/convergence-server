@@ -1,4 +1,4 @@
-maxDelta: 1
-maxReleasedDelta: 0
-deltas: {}
-  
+preReleaseVersion: 1
+releasedVersion: 0
+deltas:
+  1: {delta: null, database: null}
