@@ -37,7 +37,7 @@ case class DomainSession(
   authMethod: String,
   client: String,
   clientVersion: String,
-  clientMetaData: Map[String, Any],
+  clientMetaData: String,
   remoteHost: String)
 
 object SessionStore {
@@ -71,8 +71,7 @@ object SessionStore {
       doc.field(Fields.AuthMethod, sl.authMethod)
       doc.field(Fields.Client, sl.client)
       doc.field(Fields.ClientVersion, sl.clientVersion)
-      // FIXME make sure this is recursively java
-      doc.field(Fields.ClientMetaData, sl.clientMetaData.asJava, OType.EMBEDDEDMAP)
+      doc.field(Fields.ClientMetaData, sl.clientMetaData)
       doc.field(Fields.RemoteHost, sl.remoteHost)
       doc
     }
@@ -82,7 +81,6 @@ object SessionStore {
     val username: String = doc.field("user.username")
     val connected: Date = doc.field(Fields.Connected, OType.DATE)
     val disconnected: Option[Date] = Option(doc.field(Fields.Disconnected, OType.DATE).asInstanceOf[Date])
-    val metaData: JavaMap[String, Any] = doc.field(Fields.ClientMetaData)
 
     DomainSession(
       doc.field(Fields.Id),
@@ -92,7 +90,7 @@ object SessionStore {
       doc.field(Fields.AuthMethod),
       doc.field(Fields.Client),
       doc.field(Fields.ClientVersion),
-      metaData.toMap,
+      doc.field(Fields.ClientMetaData),
       doc.field(Fields.RemoteHost))
   }
 

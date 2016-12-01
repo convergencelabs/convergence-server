@@ -108,16 +108,26 @@ class DomainActor(
   private[this] def onAuthenticationRequest(message: AuthenticationRequest): Unit = {
     val asker = sender
     val connected = Instant.now()
-    authenticator.authenticate(message) onComplete {
+    authenticator.authenticate(message.credentials) onComplete {
       case Success(response) =>
         response match {
           case AuthenticationSuccess(username, sk) =>
-            val method = message match {
+            val method = message.credentials match {
               case x: JwtAuthRequest => "jwt"
               case x: PasswordAuthRequest => "password"
               case x: AnonymousAuthRequest => "anonymous"
             }
-            val session = DomainSession(sk.sid, username, connected, None, method, "javasript", "unknown", Map(), "unknown")
+            val session = DomainSession(
+              sk.sid,
+              username,
+              connected,
+              None,
+              method,
+              message.client,
+              message.clientVersion,
+              message.clientMetaData,
+              message.remoteAddress)
+              
             persistenceProvider.sessionStore.createSession(session) match {
               case Success(_) =>
                 authenticatedClients += (message.clientActor -> sk.sid)

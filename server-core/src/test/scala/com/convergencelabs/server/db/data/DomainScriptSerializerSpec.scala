@@ -34,7 +34,7 @@ class DomainScriptSerializerSpec extends WordSpecLike with Matchers {
             "password",
             "javascript",
             "1.0",
-            Map(),
+            "",
             "unknown"))
 
         collections.value shouldBe List(CreateCollection("collection1", "Collection 1", false))

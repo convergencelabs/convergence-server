@@ -22,12 +22,19 @@ package object domain {
   case class ClientDisconnected(sessionId: String)
   case class DomainShutdownRequest(domainFqn: DomainFqn)
 
-  sealed trait AuthenticationRequest {
-    val clientActor: ActorRef
-  }
-  case class PasswordAuthRequest(clientActor: ActorRef, username: String, password: String) extends AuthenticationRequest
-  case class JwtAuthRequest(clientActor: ActorRef, jwt: String) extends AuthenticationRequest
-  case class AnonymousAuthRequest(clientActor: ActorRef, displayName: Option[String]) extends AuthenticationRequest
+  case class AuthenticationRequest(
+     clientActor: ActorRef,
+     remoteAddress: String,
+     client: String,
+     clientVersion: String,
+     clientMetaData: String,
+     credentials: AuthetncationCredentials
+  )
+  
+  sealed trait AuthetncationCredentials
+  case class PasswordAuthRequest(username: String, password: String) extends AuthetncationCredentials
+  case class JwtAuthRequest(jwt: String) extends AuthetncationCredentials
+  case class AnonymousAuthRequest(displayName: Option[String]) extends AuthetncationCredentials
 
   sealed trait AuthenticationResponse
   case class AuthenticationSuccess(username: String, sk: SessionKey) extends AuthenticationResponse

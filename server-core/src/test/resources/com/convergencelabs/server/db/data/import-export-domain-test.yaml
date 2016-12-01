@@ -12,7 +12,7 @@ users:
   - {userType: "normal", username: test2, firstName: Test, lastName: Two, displayName: "Test Two", email: test2@example.com, password: {passwordType: hash, value: someHash2}}
 
 sessions:
-  - {id: "84hf", username: "test1", connected: "2016-11-16T17:49:14.233Z", disconnected: "2016-11-16T17:49:15.233Z", authMethod: "password", client: "javascript", clientVersion: "1.0", clientMetaData: {}, remoteHost: "unknown"}
+  - {id: "84hf", username: "test1", connected: "2016-11-16T17:49:14.233Z", disconnected: "2016-11-16T17:49:15.233Z", authMethod: "password", client: "javascript", clientVersion: "1.0", clientMetaData: "", remoteHost: "unknown"}
 
 collections:
   - {id: collection1, name: "Collection 1", overrideSnapshotConfig: false}

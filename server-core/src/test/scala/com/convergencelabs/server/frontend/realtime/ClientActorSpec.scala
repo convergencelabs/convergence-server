@@ -32,6 +32,9 @@ import akka.testkit.TestKit
 import akka.testkit.TestProbe
 import akka.actor.PoisonPill
 import com.convergencelabs.server.domain.model.SessionKey
+import akka.http.scaladsl.model.RemoteAddress
+import java.net.InetAddress
+import akka.http.scaladsl.model.RemoteAddress.IP
 
 // scalastyle:off magic.number
 @RunWith(classOf[JUnitRunner])
@@ -69,7 +72,9 @@ class ClientActorSpec
     val props = ClientActor.props(
       domainManagerActor.ref,
       domainFqn,
-      protoConfig)
+      protoConfig,
+      IP(ip=InetAddress.getLocalHost),
+      "")
 
     val clientActor = system.actorOf(props)
 

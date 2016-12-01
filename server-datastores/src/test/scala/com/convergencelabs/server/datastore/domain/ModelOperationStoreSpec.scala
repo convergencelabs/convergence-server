@@ -36,7 +36,7 @@ class ModelOperationStoreSpec
     ObjectValue("vid", Map()))
 
   val sessionId = "test:1"
-  val session = DomainSession(sessionId, testUsername, Instant.now(), None, "jwt", "js", "1.0", Map(), "127.0.0.1")
+  val session = DomainSession(sessionId, testUsername, Instant.now(), None, "jwt", "js", "1.0", "", "127.0.0.1")
 
   val notFoundFqn = ModelFqn("Does Not", "Exist")
 

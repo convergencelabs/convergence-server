@@ -35,7 +35,7 @@ case class CreateDomainSession(
   authMethod: String,
   client: String,
   clientVersion: String,
-  clientMetaData: Map[String, Any],
+  clientMetaData: String,
   remoteHost: String)
 
 case class SetPassword(passwordType: String, value: String)

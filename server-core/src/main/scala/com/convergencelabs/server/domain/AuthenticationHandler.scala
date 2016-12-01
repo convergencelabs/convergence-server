@@ -43,7 +43,7 @@ class AuthenticationHandler(
   private[this] implicit val ec: ExecutionContext)
     extends Logging {
 
-  def authenticate(request: AuthenticationRequest): Future[AuthenticationResponse] = {
+  def authenticate(request: AuthetncationCredentials): Future[AuthenticationResponse] = {
     request match {
       case message: PasswordAuthRequest => authenticatePassword(message)
       case message: JwtAuthRequest => authenticateToken(message)
@@ -52,7 +52,7 @@ class AuthenticationHandler(
   }
 
   private[this] def authenticateAnonymous(authRequest: AnonymousAuthRequest): Future[AuthenticationResponse] = {
-    val AnonymousAuthRequest(_, displayName) = authRequest;
+    val AnonymousAuthRequest(displayName) = authRequest;
 
     val result = domainConfigStore.isAnonymousAuthEnabled() flatMap {
       case false =>

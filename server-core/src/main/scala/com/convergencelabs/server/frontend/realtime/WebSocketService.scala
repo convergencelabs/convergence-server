@@ -24,6 +24,7 @@ import akka.http.scaladsl.server.Route
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import grizzled.slf4j.Logging
+import akka.http.scaladsl.model.RemoteAddress
 
 case class IncomingTextMessage(message: String)
 case class OutgoingTextMessage(message: String)
@@ -39,18 +40,22 @@ class WebSocketService(
   private[this] val config = system.settings.config
   private[this] val maxFrames = config.getInt("convergence.websocket.max-frames")
   private[this] val maxStreamDuration = Duration.fromNanos(
-      config.getDuration("convergence.websocket.max-stream-duration").toNanos)
+    config.getDuration("convergence.websocket.max-stream-duration").toNanos)
 
   private[this] implicit val ec = system.dispatcher
 
   val route: Route =
     get {
       path("domain" / Segment / Segment) { (namespace, domain) =>
-        handleWebSocketMessages(realTimeDomainFlow(namespace, domain))
+        extractClientIP { ip =>
+          headerValueByName("User-Agent") { ua =>
+            handleWebSocketMessages(realTimeDomainFlow(namespace, domain, ip, ua))
+          }
+        }
       }
     }
 
-  private[this] def realTimeDomainFlow(namespace: String, domain: String): Flow[Message, Message, Any] = {
+  private[this] def realTimeDomainFlow(namespace: String, domain: String, remoteAddress: RemoteAddress, ua: String): Flow[Message, Message, Any] = {
     logger.info(s"New web socket connection for $namespace/$domain")
     Flow[Message]
       .collect {
@@ -62,17 +67,19 @@ class WebSocketService(
           .flatMap(msg => Future.successful(IncomingTextMessage(msg)))
       }
       .mapAsync(parallelism = 3)(identity)
-      .via(createFlowForConnection(namespace, domain))
+      .via(createFlowForConnection(namespace, domain, remoteAddress, ua))
       .map {
         case OutgoingTextMessage(msg) ⇒ TextMessage.Strict(msg)
       }
   }
 
-  private[this] def createFlowForConnection(namespace: String, domain: String): Flow[IncomingTextMessage, OutgoingTextMessage, Any] = {
+  private[this] def createFlowForConnection(namespace: String, domain: String, remoteAddress: RemoteAddress, ua: String): Flow[IncomingTextMessage, OutgoingTextMessage, Any] = {
     val clientActor = system.actorOf(ClientActor.props(
       domainManager,
       DomainFqn(namespace, domain),
-      protocolConfig))
+      protocolConfig,
+      remoteAddress,
+      ua))
 
     val connection = system.actorOf(ConnectionActor.props(clientActor))
 

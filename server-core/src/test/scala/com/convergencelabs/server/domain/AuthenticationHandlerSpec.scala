@@ -47,25 +47,25 @@ class AuthenticationHandlerSpec()
   "A AuthenticationHandler" when {
     "authenticating a user by password" must {
       "authetnicate successfully for a correct username and password" in new TestFixture {
-        val f = authHandler.authenticate(PasswordAuthRequest(clientActor, existingUserName, existingCorrectPassword))
+        val f = authHandler.authenticate(PasswordAuthRequest(existingUserName, existingCorrectPassword))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
         result shouldBe AuthenticationSuccess(existingUserName, SessionKey(existingUserName, "1"))
       }
 
       "Fail authetnication for an incorrect username and password" in new TestFixture {
-        val f = authHandler.authenticate(PasswordAuthRequest(clientActor, existingUserName, existingIncorrectPassword))
+        val f = authHandler.authenticate(PasswordAuthRequest(existingUserName, existingIncorrectPassword))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
         result shouldBe AuthenticationFailure
       }
 
       "fail authenticatoin for a user that does not exist" in new TestFixture {
-        val f = authHandler.authenticate(PasswordAuthRequest(clientActor, nonExistingUser, ""))
+        val f = authHandler.authenticate(PasswordAuthRequest(nonExistingUser, ""))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
         result shouldBe AuthenticationFailure
       }
 
       "return an authenticatoin error when validating the cretentials fails" in new TestFixture {
-        val f = authHandler.authenticate(PasswordAuthRequest(clientActor, authfailureUser, authfailurePassword))
+        val f = authHandler.authenticate(PasswordAuthRequest(authfailureUser, authfailurePassword))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
         result shouldBe AuthenticationError
       }
@@ -73,49 +73,49 @@ class AuthenticationHandlerSpec()
 
     "authenticating a user by token" must {
       "successfully authenticate a user with a valid key" in new TestFixture {
-        val f = authHandler.authenticate(JwtAuthRequest(clientActor, JwtGenerator.generate(existingUserName, enabledKey.id)))
+        val f = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(existingUserName, enabledKey.id)))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
         result shouldBe AuthenticationSuccess(existingUserName, SessionKey(existingUserName, "1"))
       }
 
       "return an authentication failure for a non-existent key" in new TestFixture {
-        val f = authHandler.authenticate(JwtAuthRequest(clientActor, JwtGenerator.generate(existingUserName, missingKey)))
+        val f = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(existingUserName, missingKey)))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
         result shouldBe AuthenticationFailure
       }
 
       "return an authentication failure for a disabled key" in new TestFixture {
-        val f = authHandler.authenticate(JwtAuthRequest(clientActor, JwtGenerator.generate(existingUserName, disabledKey.id)))
+        val f = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(existingUserName, disabledKey.id)))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
         result shouldBe AuthenticationFailure
       }
 
       "return an authentication failure for an invalid key" in new TestFixture {
-        val f = authHandler.authenticate(JwtAuthRequest(clientActor, JwtGenerator.generate(existingUserName, invalidKey.id)))
+        val f = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(existingUserName, invalidKey.id)))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
         result shouldBe AuthenticationFailure
       }
 
       "return an authentication success for the admin key" in new TestFixture {
-        val f = authHandler.authenticate(JwtAuthRequest(clientActor, JwtGenerator.generate(existingUserName, AuthenticationHandler.AdminKeyId)))
+        val f = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(existingUserName, AuthenticationHandler.AdminKeyId)))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
         result shouldBe AuthenticationSuccess(existingUserName, SessionKey(existingUserName, "1"))
       }
 
       "return an authentication success lazily created user" in new TestFixture {
-        val f = authHandler.authenticate(JwtAuthRequest(clientActor, JwtGenerator.generate(lazyUserName, enabledKey.id)))
+        val f = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(lazyUserName, enabledKey.id)))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
         result shouldBe AuthenticationSuccess(lazyUserName, SessionKey(lazyUserName, "1"))
       }
 
       "return an authentication failure when the user can't be looked up" in new TestFixture {
-        val f = authHandler.authenticate(JwtAuthRequest(clientActor, JwtGenerator.generate(brokenUserName, enabledKey.id)))
+        val f = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(brokenUserName, enabledKey.id)))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
         result shouldBe AuthenticationError
       }
 
       "return an authentication failure when the user can't be created" in new TestFixture {
-        val f = authHandler.authenticate(JwtAuthRequest(clientActor, JwtGenerator.generate(brokenLazyUsername, enabledKey.id)))
+        val f = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(brokenLazyUsername, enabledKey.id)))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
         result shouldBe AuthenticationError
       }

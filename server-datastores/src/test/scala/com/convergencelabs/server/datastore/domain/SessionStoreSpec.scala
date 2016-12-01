@@ -85,21 +85,21 @@ class SessionStoreSpec
   "A SessionStore" when {
     "creating a session" must {
       "succeed when creating a session with no disconnected time" in withTestData { provider =>
-        val session = DomainSession(sessionId, username, Instant.now(), None, authMethod, client, clientVersion, Map(), remoteHost)
+        val session = DomainSession(sessionId, username, Instant.now(), None, authMethod, client, clientVersion, "", remoteHost)
         provider.sessionStore.createSession(session).get
         val queried = provider.sessionStore.getSession(sessionId).get.value
         queried shouldBe session
       }
 
       "succeed when creating a session with at disconnected time" in withTestData { provider =>
-        val session = DomainSession(sessionId, username, Instant.now(), Some(Instant.now()), authMethod, client, clientVersion, Map(), remoteHost)
+        val session = DomainSession(sessionId, username, Instant.now(), Some(Instant.now()), authMethod, client, clientVersion, "", remoteHost)
         provider.sessionStore.createSession(session).get
         val queried = provider.sessionStore.getSession(sessionId).get.value
         queried shouldBe session
       }
 
       "disallow duplicat session Ids" in withTestData { provider =>
-        val session = DomainSession(sessionId, username, Instant.now(), Some(Instant.now()), authMethod, client, clientVersion, Map(), remoteHost)
+        val session = DomainSession(sessionId, username, Instant.now(), Some(Instant.now()), authMethod, client, clientVersion, "", remoteHost)
         provider.sessionStore.createSession(session).get
         provider.sessionStore.createSession(session).get shouldBe DuplicateValue
       }
@@ -107,7 +107,7 @@ class SessionStoreSpec
 
     "marking a session as disconnected" must {
       "succeed when disconnecting a connected session" in withTestData { provider =>
-        val session = DomainSession(sessionId, username, Instant.now(), None, authMethod, client, clientVersion, Map(), remoteHost)
+        val session = DomainSession(sessionId, username, Instant.now(), None, authMethod, client, clientVersion, "", remoteHost)
         provider.sessionStore.createSession(session).get
         val disconneced = Instant.now()
         provider.sessionStore.setSessionDisconneted(sessionId, disconneced).get
@@ -116,7 +116,7 @@ class SessionStoreSpec
       }
 
       "fail when disconnecting an already disconnected session" in withTestData { provider =>
-        val session = DomainSession(sessionId, username, Instant.now(), Some(Instant.now()), authMethod, client, clientVersion, Map(), remoteHost)
+        val session = DomainSession(sessionId, username, Instant.now(), Some(Instant.now()), authMethod, client, clientVersion, "", remoteHost)
         provider.sessionStore.createSession(session).get
         provider.sessionStore.setSessionDisconneted(sessionId, Instant.now()).failure
       }
@@ -124,9 +124,9 @@ class SessionStoreSpec
 
     "getting connected sessions" must {
       "only return sessions that are connected" in withTestData { provider =>
-        val session1 = DomainSession("1", username, Instant.now(), None, authMethod, client, clientVersion, Map(), remoteHost)
-        val session2 = DomainSession("2", username, Instant.now(), Some(Instant.now()), authMethod, client, clientVersion, Map(), remoteHost)
-        val session3 = DomainSession("3", username, Instant.now(), None, authMethod, client, clientVersion, Map(), remoteHost)
+        val session1 = DomainSession("1", username, Instant.now(), None, authMethod, client, clientVersion, "", remoteHost)
+        val session2 = DomainSession("2", username, Instant.now(), Some(Instant.now()), authMethod, client, clientVersion, "", remoteHost)
+        val session3 = DomainSession("3", username, Instant.now(), None, authMethod, client, clientVersion, "", remoteHost)
 
         provider.sessionStore.createSession(session1).get
         provider.sessionStore.createSession(session2).get

@@ -33,23 +33,31 @@ import akka.actor.PoisonPill
 import com.convergencelabs.server.domain.model.SessionKey
 import com.convergencelabs.server.domain.PresenceServiceActor.PresenceRequest
 import com.convergencelabs.server.domain.PresenceServiceActor.UserPresence
-
+import com.convergencelabs.server.domain.AuthenticationRequest
+import akka.http.scaladsl.model.RemoteAddress
+import com.convergencelabs.server.domain.AuthenticationRequest
 
 object ClientActor {
   def props(
     domainManager: ActorRef,
     domainFqn: DomainFqn,
-    protocolConfig: ProtocolConfiguration): Props = Props(
+    protocolConfig: ProtocolConfiguration,
+    remoteHost: RemoteAddress,
+    userAgent: String): Props = Props(
     new ClientActor(
       domainManager,
       domainFqn,
-      protocolConfig))
+      protocolConfig,
+      remoteHost,
+      userAgent))
 }
 
 class ClientActor(
   private[this] val domainManager: ActorRef,
   private[this] val domainFqn: DomainFqn,
-  private[this] val protocolConfig: ProtocolConfiguration)
+  private[this] val protocolConfig: ProtocolConfiguration,
+  private[this] val remoteHost: RemoteAddress,
+  private[this] val userAgent: String)
     extends Actor with ActorLogging {
 
   type MessageHandler = PartialFunction[ProtocolMessageEvent, Unit]
@@ -66,7 +74,7 @@ class ClientActor(
       log.debug("Client handshaked timeout")
       Option(connectionActor) match {
         case Some(connection) => connection ! CloseConnection
-        case None             =>
+        case None =>
       }
       context.stop(self)
     }
@@ -119,14 +127,14 @@ class ClientActor(
   }
 
   private[this] def receiveOutgoing: Receive = {
-    case message: OutgoingProtocolNormalMessage  => onOutgoingMessage(message)
+    case message: OutgoingProtocolNormalMessage => onOutgoingMessage(message)
     case message: OutgoingProtocolRequestMessage => onOutgoingRequest(message)
   }
 
   private[this] def receiveCommon: Receive = {
-    case WebSocketClosed       => onConnectionClosed()
+    case WebSocketClosed => onConnectionClosed()
     case WebSocketError(cause) => onConnectionError(cause)
-    case x: Any                => invalidMessage(x)
+    case x: Any => invalidMessage(x)
   }
 
   private[this] val receiveHandshakeSuccess: Receive = {
@@ -180,12 +188,23 @@ class ClientActor(
   }
 
   private[this] def authenticate(requestMessage: AuthenticationRequestMessage, cb: ReplyCallback): Unit = {
-    val authRequest = requestMessage match {
-      case PasswordAuthRequestMessage(username, password) => PasswordAuthRequest(self, username, password)
-      case TokenAuthRequestMessage(token)                 => JwtAuthRequest(self, token)
-      case AnonymousAuthRequestMessage(displayName)       => AnonymousAuthRequest(self, displayName)
+    val authCredentials = requestMessage match {
+      case PasswordAuthRequestMessage(username, password) =>
+        PasswordAuthRequest(username, password)
+      case TokenAuthRequestMessage(token) =>
+        JwtAuthRequest(token)
+      case AnonymousAuthRequestMessage(displayName) =>
+        AnonymousAuthRequest(displayName)
     }
-    
+
+    val authRequest = AuthenticationRequest(
+      self,
+      remoteHost.toString,
+      "javascript",
+      "unknown",
+      userAgent,
+      authCredentials)
+
     val authFuture = this.domainActor.get ? authRequest
 
     // FIXME if authentication fails we should probably stop the actor
@@ -205,16 +224,16 @@ class ClientActor(
       }
     }
   }
-  
+
   private[this] def getPresenceAfterAuth(username: String, sk: SessionKey, cb: ReplyCallback) {
     val future = this.presenceServiceActor ? PresenceRequest(List(username))
-    future.mapTo[List[UserPresence]] onComplete { 
+    future.mapTo[List[UserPresence]] onComplete {
       case Success(first :: nil) =>
         self ! InternalAuthSuccess(username, sk, first, cb)
       case _ =>
         cb.reply(AuthenticationResponseMessage(false, None, None, None))
     }
-    
+
   }
 
   private[this] def handleAuthenticationSuccess(message: InternalAuthSuccess): Unit = {
@@ -227,7 +246,7 @@ class ClientActor(
     this.chatClient = context.actorOf(ChatClientActor.props(chatServiceActor, sk))
     this.historyClient = context.actorOf(HistoricModelClientActor.props(sk, domainFqn));
     this.messageHandler = handleMessagesWhenAuthenticated
-    
+
     cb.reply(AuthenticationResponseMessage(true, Some(username), Some(sk.serialize()), Some(presence.state)))
     context.become(receiveWhileAuthenticated)
   }
@@ -289,9 +308,9 @@ class ClientActor(
   private[this] def onMessageReceived(message: MessageReceived): Unit = {
     message match {
       case MessageReceived(x) if x.isInstanceOf[IncomingModelNormalMessage] => modelClient.forward(message)
-      case MessageReceived(x) if x.isInstanceOf[IncomingActivityMessage]    => activityClient.forward(message)
-      case MessageReceived(x) if x.isInstanceOf[IncomingPresenceMessage]    => presenceClient.forward(message)
-      case MessageReceived(x) if x.isInstanceOf[IncomingChatMessage]        => chatClient.forward(message)
+      case MessageReceived(x) if x.isInstanceOf[IncomingActivityMessage] => activityClient.forward(message)
+      case MessageReceived(x) if x.isInstanceOf[IncomingPresenceMessage] => presenceClient.forward(message)
+      case MessageReceived(x) if x.isInstanceOf[IncomingChatMessage] => chatClient.forward(message)
     }
   }
 
