@@ -10,6 +10,7 @@ import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.index.OCompositeKey
 
 import DomainDBProvider.DBDomainIdIndex
+import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 
 object DomainDBProvider {
   val DBNameIndex = "Domain.dbName"
@@ -20,18 +21,18 @@ class DomainDBProvider(url: String, dbPool: OPartitionedDatabasePool) {
 
   val domainDatabaseStore = new DomainDatabaseStore(dbPool)
 
-  def getDomainAdminDBPool(fqn: DomainFqn): Try[Option[OPartitionedDatabasePool]] = {
+  def getDomainAdminDB(fqn: DomainFqn): Try[Option[ODatabaseDocumentTx]] = {
     domainDatabaseStore.getDomainDatabase(fqn) map {
       _ map { domainInfo =>
-        new OPartitionedDatabasePool(s"${url}/${domainInfo.database}", domainInfo.adminUsername, domainInfo.adminUsername)
+        new ODatabaseDocumentTx(s"${url}/${domainInfo.database}").open(domainInfo.adminUsername, domainInfo.adminUsername)
       }
     }
   }
   
-  def getDomainDBPool(fqn: DomainFqn): Try[Option[OPartitionedDatabasePool]] = {
+  def getDomainDB(fqn: DomainFqn): Try[Option[ODatabaseDocumentTx]] = {
     domainDatabaseStore.getDomainDatabase(fqn) map {
       _ map { domainInfo =>
-        new OPartitionedDatabasePool(s"${url}/${domainInfo.database}", domainInfo.username, domainInfo.password)
+        new ODatabaseDocumentTx(s"${url}/${domainInfo.database}").open(domainInfo.username, domainInfo.password)
       }
     }
   }

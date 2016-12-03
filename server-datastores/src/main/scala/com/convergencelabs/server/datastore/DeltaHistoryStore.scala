@@ -15,6 +15,7 @@ import java.time.Instant
 import com.convergencelabs.server.domain.DomainFqn
 import com.orientechnologies.orient.core.index.OCompositeKey
 import collection.JavaConverters._
+import java.util.Date
 
 object DeltaHistoryStore {
   val ConvergenceDeltaClass = "ConvergenceDelta"
@@ -23,8 +24,8 @@ object DeltaHistoryStore {
   val ConvergenceDeltaIndex = "ConvergenceDelta.deltaNo"
   val ConvergenceDeltaHistoryIndex = "ConvergenceDeltaHistory.delta"
 
-  val DomainDeltaClass = "ConvergenceDelta"
-  val DomainDeltaHistoryClass = "ConvergenceDeltaHistory"
+  val DomainDeltaClass = "DomainDelta"
+  val DomainDeltaHistoryClass = "DomainDeltaHistory"
 
   val DomainIndex = "Domain.namespace_id"
   val DomainDeltaIndex = "DomainDelta.deltaNo"
@@ -40,6 +41,12 @@ object DeltaHistoryStore {
     val Message = "message"
     val Date = "date"
   }
+
+  // TODO: Determine what statuses we need
+  object Status {
+    val Error = "error"
+    val Success = "success"
+  }
 }
 
 class DeltaHistoryStore(dbPool: OPartitionedDatabasePool) extends AbstractDatabasePersistence(dbPool) with Logging {
@@ -49,7 +56,7 @@ class DeltaHistoryStore(dbPool: OPartitionedDatabasePool) extends AbstractDataba
 
     // Validate delta exists or create it
     val deltaIndex = db.getMetadata.getIndexManager.getIndex(ConvergenceDeltaIndex)
-    if (deltaIndex.contains(delta.deltaNo)) {
+    if (!deltaIndex.contains(delta.deltaNo)) {
       saveConvergenceDelta(delta, db)
     }
 
@@ -65,8 +72,8 @@ class DeltaHistoryStore(dbPool: OPartitionedDatabasePool) extends AbstractDataba
     val doc = db.newInstance(ConvergernceDeltaHistoryClass)
     doc.field(Fields.Delta, deltaORID)
     doc.field(Fields.Status, status)
-    doc.field(Fields.Message, message)
-    doc.field(Fields.Date, date.toEpochMilli())
+    message.foreach { doc.field(Fields.Message, _) }
+    doc.field(Fields.Date, Date.from(date))
     doc.save()
     ()
   }
@@ -86,13 +93,30 @@ class DeltaHistoryStore(dbPool: OPartitionedDatabasePool) extends AbstractDataba
 
         val status: String = doc.field(Fields.Status)
         val message: Option[String] = Option(doc.field(Fields.Message))
-        val date: Long = doc.field(Fields.Message)
+        val date: Date = doc.field(Fields.Date)
 
         val delta = ConvergenceDelta(deltaNo, value)
-        Some(ConvergenceDeltaHistory(delta, status, message, Instant.ofEpochMilli(date)))
+        Some(ConvergenceDeltaHistory(delta, status, message, date.toInstant()))
+      } else {
+        None
       }
+    } else {
+      None
     }
-    None
+  }
+
+  def getConvergenceDBVersion(): Try[Int] = tryWithDb { db =>
+    val query = s"SELECT max(delta.deltaNo) as version FROM $ConvergenceDeltaHistory WHERE status = :status"
+    val params = Map("status" -> Status.Success)
+    val version: Option[Int] = QueryUtil.lookupOptionalDocument(query, params, db) map { _.field("version") }
+    version.getOrElse(0)
+  }
+
+  def isConvergenceDBHealthy(): Try[Boolean] = tryWithDb { db =>
+    val query = s"SELECT if(count(status) > 0, false, true) as healthy FROM $ConvergenceDeltaHistory WHERE status = :status"
+    val params = Map("status" -> Status.Error)
+    val healthy: Option[Boolean] = QueryUtil.lookupOptionalDocument(query, params, db) map { _.field("healthy") }
+    healthy.getOrElse(true)
   }
 
   def saveDomainDeltaHistory(deltaHistory: DomainDeltaHistory): Try[Unit] = tryWithDb { db =>
@@ -107,7 +131,7 @@ class DeltaHistoryStore(dbPool: OPartitionedDatabasePool) extends AbstractDataba
 
     // Validate delta exists or create it
     val deltaIndex = db.getMetadata.getIndexManager.getIndex(DomainDeltaIndex)
-    if (deltaIndex.contains(delta.deltaNo)) {
+    if (!deltaIndex.contains(delta.deltaNo)) {
       saveDomainDelta(delta, db)
     }
 
@@ -126,8 +150,8 @@ class DeltaHistoryStore(dbPool: OPartitionedDatabasePool) extends AbstractDataba
     doc.field(Fields.Domain, domainORID)
     doc.field(Fields.Delta, deltaORID)
     doc.field(Fields.Status, status)
-    doc.field(Fields.Message, message)
-    doc.field(Fields.Date, date.toEpochMilli())
+    message.foreach { doc.field(Fields.Message, _) }
+    doc.field(Fields.Date, Date.from(date))
     doc.save()
     ()
   }
@@ -155,14 +179,45 @@ class DeltaHistoryStore(dbPool: OPartitionedDatabasePool) extends AbstractDataba
 
           val status: String = doc.field(Fields.Status)
           val message: Option[String] = Option(doc.field(Fields.Message))
-          val date: Long = doc.field(Fields.Message)
+          val date: Date = doc.field(Fields.Date)
 
           val delta = DomainDelta(deltaNo, value)
-          Some(DomainDeltaHistory(domainFqn, delta, status, message, Instant.ofEpochMilli(date)))
+          Some(DomainDeltaHistory(domainFqn, delta, status, message, date.toInstant()))
         }
       }
     }
     None
+  }
+
+  def getDomainDBVersion(domainFqn: DomainFqn): Try[Int] = tryWithDb { db =>
+    if (db.getMetadata.getSchema.existsClass(DomainDeltaHistoryClass)) {
+      val DomainFqn(namespace, domainId) = domainFqn
+      val query =
+        s"""SELECT max(delta.deltaNo) as version
+        |FROM $DomainDeltaHistoryClass
+        |WHERE
+        |  domain.namespace = :namespace AND
+        |  domain.id = :id AND
+        |  status = :status""".stripMargin
+      val params = Map("id" -> domainId, "namespace" -> namespace, "status" -> Status.Success)
+      val version: Option[Int] = QueryUtil.lookupOptionalDocument(query, params, db) map { _.field("version") }
+      version.getOrElse(0)
+    }
+    0
+  }
+
+  def isDomainDBHealthy(domainFqn: DomainFqn): Try[Boolean] = tryWithDb { db =>
+    val DomainFqn(namespace, domainId) = domainFqn
+    val query =
+      s"""SELECT if(count(status) > 0, false, true) as healthy
+        |FROM $DomainDeltaHistoryClass
+        |WHERE
+        |  domain.namespace = :namespace AND
+        |  domain.id = :id AND
+        |  status = :status""".stripMargin
+    val params = Map("id" -> domainId, "namespace" -> namespace, "status" -> Status.Error)
+    val healthy: Option[Boolean] = QueryUtil.lookupOptionalDocument(query, params, db) map { _.field("healthy") }
+    healthy.getOrElse(true)
   }
 
   private[this] def saveConvergenceDelta(delta: ConvergenceDelta, db: ODatabaseDocumentTx): Unit = {

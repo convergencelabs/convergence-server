@@ -82,28 +82,28 @@ class DatabaseExportBuilder(
 
   def build(): Unit = {
     
-    val dbName = "memory:export" + System.nanoTime()
-    val createDb = new ODatabaseDocumentTx(dbName)
-    createDb.create()
-    
-    val dbPool = new OPartitionedDatabasePool(dbName, "admin", "admin")
-    val schemaManager = new DatabaseSchemaManager(dbPool, category, preRelease)
-
-    schemaManager.upgradeToLatest()
-    val db = dbPool.acquire()
-    
-    outputFile.getParentFile.mkdirs()
-    
-    val export = new ODatabaseExport(db, outputFile.getAbsolutePath, new OutputListener(verbose))
-    export.exportDatabase()
-    export.close()
-    
-    dbPool.close()
-    
-    createDb.activateOnCurrentThread()
-    createDb.close()
-    
-    println("Export complete.")
+//    val dbName = "memory:export" + System.nanoTime()
+//    val createDb = new ODatabaseDocumentTx(dbName)
+//    createDb.create()
+//    
+//    val dbPool = new OPartitionedDatabasePool(dbName, "admin", "admin")
+//    val schemaManager = new DatabaseSchemaManager(dbPool, category, preRelease)
+//
+//    schemaManager.upgradeToLatest()
+//    val db = dbPool.acquire()
+//    
+//    outputFile.getParentFile.mkdirs()
+//    
+//    val export = new ODatabaseExport(db, outputFile.getAbsolutePath, new OutputListener(verbose))
+//    export.exportDatabase()
+//    export.close()
+//    
+//    dbPool.close()
+//    
+//    createDb.activateOnCurrentThread()
+//    createDb.close()
+//    
+//    println("Export complete.")
     ()
   }
 }

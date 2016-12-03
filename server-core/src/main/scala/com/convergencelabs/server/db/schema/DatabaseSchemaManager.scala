@@ -22,143 +22,75 @@ import grizzled.slf4j.Logging
 import com.convergencelabs.server.util.SimpleNamePolymorphicSerializer
 
 object DatabaseSchemaManager {
-  val DatabaseVersion = "DatabaseVersion"
 
-  object Fields {
-    val Version = "version"
-    val ManagerVersion = "managerVersion"
+  def installLatest(db: ODatabaseDocumentTx, category: DeltaCategory.Value): Try[Delta] = {
+    new DatabaseSchemaManager(db, category, None).installLatest()
+  }
+
+  def installLatest(db: ODatabaseDocumentTx, category: DeltaCategory.Value, preRelease: Boolean): Try[Delta] = {
+    new DatabaseSchemaManager(db, category, Some(preRelease)).installLatest()
+  }
+
+  def installVersion(db: ODatabaseDocumentTx, category: DeltaCategory.Value, version: Int): Try[Delta] = {
+    new DatabaseSchemaManager(db, category, None).installVersion(version)
+  }
+
+  def installVersion(db: ODatabaseDocumentTx, category: DeltaCategory.Value, version: Int, preRelease: Boolean): Try[Delta] = {
+    new DatabaseSchemaManager(db, category, Some(preRelease)).installVersion(version)
+  }
+
+  def upgradeToNextVersion(db: ODatabaseDocumentTx, category: DeltaCategory.Value, currentVersion: Int): Try[Delta] = {
+    new DatabaseSchemaManager(db, category, None).upgradeToNextVersion(currentVersion)
+  }
+
+  def upgradeToNextVersion(db: ODatabaseDocumentTx, category: DeltaCategory.Value, currentVersion: Int, preRelease: Boolean): Try[Delta] = {
+    new DatabaseSchemaManager(db, category, Some(preRelease)).upgradeToNextVersion(currentVersion)
   }
 }
 
 class DatabaseSchemaManager(
-  private[this] val dbPool: OPartitionedDatabasePool,
+  private[this] val db: ODatabaseDocumentTx,
   private[this] val category: DeltaCategory.Value,
-  private[this] val preRelease: Boolean)
+  private[this] val preRelease: Option[Boolean])
     extends Logging {
 
-  private[this] implicit val releaseOnly = true
-
-  
-
-  private[this] val versionController = new DatabaseVersionController(dbPool)
+  private[this] val releaseOnly = preRelease.getOrElse(false)
   private[this] val deltaManager = new DeltaManager(None)
 
-  def currentVersion(): Try[Int] = {
-    versionController.getVersion()
+  def installLatest(): Try[Delta] = {
+    deltaManager.manifest(category) flatMap { manifest =>
+      val version = if (releaseOnly) {
+        manifest.maxReleasedVersion()
+      } else {
+        manifest.maxPreReleaseVersion()
+      }
+      manifest.getFullDelta(version)
+    } flatMap { delta => applyDelta(delta) }
   }
 
-  private[this] def currentManagerVersion(): Try[Int] = {
-    versionController.getManagerVersion()
+  def installVersion(version: Int): Try[Delta] = {
+    deltaManager.manifest(category) flatMap { manifest =>
+      if (releaseOnly && version > manifest.maxReleasedVersion() ||
+        !releaseOnly && version > manifest.maxPreReleaseVersion()) {
+        Failure(new IllegalArgumentException("Cannot install version that is greater than the max version"))
+      }
+      manifest.getFullDelta(version)
+    } flatMap { applyDelta(_)  }
   }
 
-  def upgradeToVersion(version: Int): Try[Unit] = {
-    deltaManager.manifest(category) match {
-      case Success(manifest) =>
-        if (preRelease && version > manifest.maxPreReleaseVersion()) {
-          Failure(new IllegalArgumentException(
-            s"Requested version is greater than the maximum pre-release version (${manifest.maxPreReleaseVersion()}): ${version}"))
-        } else if (version > manifest.maxReleasedVersion()) {
-          Failure(new IllegalArgumentException(
-            s"Requested version is greater than the maximum released version (${manifest.maxReleasedVersion}): ${version}"))
-        }
-
-        upgrade(manifest, version)
-      case Failure(e) =>
-        logger.error("Unable to load manifest")
-        Failure(e)
-    }
+  def upgradeToNextVersion(currentVersion: Int): Try[Delta] = {
+    deltaManager.manifest(category) flatMap { manifest =>
+      if (releaseOnly && manifest.maxReleasedVersion() <= currentVersion ||
+        !releaseOnly && manifest.maxPreReleaseVersion() <= currentVersion) {
+        ??? // TODO: Handle error where currentversion is the most recent
+      } else {
+        manifest.getIncrementalDelta(currentVersion + 1)
+      }
+    } flatMap { applyDelta(_)  }
   }
 
-  def upgradeToLatest(): Try[Unit] = {
-    deltaManager.manifest(category) match {
-      case Success(manifest) =>
-        val max = preRelease match {
-          case true => manifest.maxPreReleaseVersion()
-          case false => manifest.maxReleasedVersion()
-        }
-        upgrade(manifest, max)
-      case Failure(e) =>
-        logger.error("Unable to load manifest")
-        Failure(e)
-    }
-  }
-
-  private[this] def upgrade(manifest: DeltaManifest, version: Int): Try[Unit] = Try {
-    upgradeManagerVersion()
-    currentVersion() match {
-      case Success(currentVersion) =>
-        logger.debug("Upgrading database")
-//        manifest.forEach(currentVersion, preRelease)((deltaNumber: Int, path: String, in: InputStream) => {
-//          getDelta(in) match {
-//            case Success(delta) =>
-//              logger.debug(s"Applying delta: ${deltaNumber}")
-//              this.applyDelta(delta)
-//              versionController.setVersion(deltaNumber)
-//            case Failure(e) =>
-//              logger.error("Unable to apply manager deltas")
-//              Failure(e)
-//          }
-//          Success(())
-//        })
-        Success(())
-      case Failure(e) =>
-        logger.error("Unable to lookup current version for database")
-        Failure(e)
-    }
-  }
-
-  private[this] def applyDelta(delta: Delta): Try[Unit] = {
-    val db = dbPool.acquire()
-    Try {
+  private[this] def applyDelta(delta: Delta): Try[Delta] = {
       val processor = new DatabaseDeltaProcessor(delta, db)
-      processor.apply()
-      ()
-    }.recover {
-      case e: Exception =>
-        db.close()
-        ()
-    }
+      processor.apply() map { _ => delta }
   }
-
-  private[this] def upgradeManagerVersion(): Try[Unit] = {
-    currentManagerVersion() match {
-      case Success(currentVersion) =>
-        if (currentVersion < DatabaseVersionController.ManagerVersion) {
-          logger.info(s"Manager schema is out of date.  Upgrading manager schema to version: ${DatabaseVersionController.ManagerVersion}")
-          Success(())
-//          deltaManager.manifest(DeltaCategory.Version) match {
-//            case Success(manifest: DeltaManifest) =>
-//              logger.info("Loaded manifest.  Applying deltas...")
-//              Try {
-//                manifest.forEach(currentVersion, preRelease)((deltaNumber, path, in) => {
-//                  getDelta(in) match {
-//                    case Success(delta) =>
-//                      logger.info(s"Applying delta: $deltaNumber")
-//                      this.applyDelta(delta) match {
-//                        case Success(()) => versionController.setManagerVersion(deltaNumber)
-//                        case Failure(e) =>
-//                          logger.error("Unable to apply manager deltas")
-//                          Failure(e)
-//                      }
-//                    case Failure(e) =>
-//                      logger.error("Unable to read delta")
-//                      Failure(e)
-//                  }
-//                  Success(())
-//                })
-//              }
-//            case Failure(e) =>
-//              logger.error("Unable to load manifest for manager")
-//              Failure(e)
-//          }
-        } else {
-          Success(())
-        }
-      case Failure(e) =>
-        logger.error("Unable to lookup current manager version for database")
-        Failure(e)
-    }
-  }
-
-  
 }

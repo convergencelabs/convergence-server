@@ -6,7 +6,6 @@ import scala.concurrent.Future
 import org.json4s.jackson.Serialization
 
 import com.convergencelabs.server.db.data.JsonFormats
-import com.convergencelabs.server.db.schema.DatabaseManager.DatabaseVersion
 import com.convergencelabs.server.db.schema.DatabaseManagerActor.GetConvergenceVersion
 import com.convergencelabs.server.db.schema.DatabaseManagerActor.GetDomainVersion
 import com.convergencelabs.server.db.schema.DatabaseManagerActor.UpgradeConvergence
@@ -39,7 +38,7 @@ import grizzled.slf4j.Logging
 
 object DatabaseManagerRestService {
   case class UpgradeRequest(version: Option[Int], preRelease: Option[Boolean])
-  case class VersionResponse(managerVersion: Int, databaseVersion: Int) extends AbstractSuccessResponse
+  case class VersionResponse(databaseVersion: Int) extends AbstractSuccessResponse
 }
 
 class DatabaseManagerRestService(
@@ -101,14 +100,14 @@ class DatabaseManagerRestService(
   }
 
   def getConvergenceVersion(): Future[RestResponse] = {
-    (databaseManager ? GetConvergenceVersion).mapTo[DatabaseVersion].map {
-      case DatabaseVersion(manager, db) => (StatusCodes.OK, VersionResponse(manager, db))
+    (databaseManager ? GetConvergenceVersion).mapTo[Int].map {
+      case version => (StatusCodes.OK, VersionResponse(version))
     }
   }
 
   def getDomainVersion(namespace: String, domainId: String): Future[RestResponse] = {
-    (databaseManager ? GetDomainVersion(DomainFqn(namespace, domainId))).mapTo[DatabaseVersion].map {
-      case DatabaseVersion(manager, db) => (StatusCodes.OK, VersionResponse(manager, db))
+    (databaseManager ? GetDomainVersion(DomainFqn(namespace, domainId))).mapTo[Int].map {
+      case version => (StatusCodes.OK, VersionResponse(version))
     }
   }
 }
