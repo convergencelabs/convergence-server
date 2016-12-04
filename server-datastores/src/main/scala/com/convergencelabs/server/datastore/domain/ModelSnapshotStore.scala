@@ -23,6 +23,7 @@ import ModelSnapshotStore.Constants._
 import java.time.Instant
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import java.util.Date
+import com.convergencelabs.server.datastore.DatabaseProvider
 
 object ModelSnapshotStore {
   val ClassName = "ModelSnapshot"
@@ -75,8 +76,8 @@ object ModelSnapshotStore {
  * @param dbPool The database pool to use for connections.
  */
 class ModelSnapshotStore private[domain] (
-  private[this] val dbPool: OPartitionedDatabasePool)
-    extends AbstractDatabasePersistence(dbPool)
+  private[this] val dbProvider: DatabaseProvider)
+    extends AbstractDatabasePersistence(dbProvider)
     with Logging {
   
   val AllFields = s"version, timestamp, model.collection.id as collectionId, model.id as modelId, data"

@@ -11,6 +11,7 @@ import scala.util.Try
 import com.convergencelabs.server.User
 import com.convergencelabs.server.datastore.CreateResult
 import com.convergencelabs.server.datastore.CreateSuccess
+import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.datastore.DomainStore
 import com.convergencelabs.server.datastore.DomainStoreActor.CreateDomainRequest
 import com.convergencelabs.server.datastore.DuplicateValue
@@ -27,7 +28,7 @@ import grizzled.slf4j.Logging
 
 class ConvergenceImporter(
     private[this] val dbBaseUri: String,
-    private[this] val dbPool: OPartitionedDatabasePool,
+    private[this] val dbProvider: DatabaseProvider,
     private[this] val domainStoreActor: ActorRef,
     private[this] val data: ConvergenceScript,
     private[this] implicit val ec: ExecutionContext) extends Logging {
@@ -39,7 +40,7 @@ class ConvergenceImporter(
 
   def importUsers(): Try[Unit] = Try {
     logger.debug("Importing convergence users")
-    val userStore = new UserStore(dbPool, Duration.ofMillis(0L))
+    val userStore = new UserStore(dbProvider, Duration.ofMillis(0L))
     data.users foreach {
       _.map { userData =>
         val user = User(
@@ -61,7 +62,7 @@ class ConvergenceImporter(
 
   def importDomains(): Try[Unit] = Try {
     logger.debug("Importing domains")
-    val domainStore = new DomainStore(dbPool)
+    val domainStore = new DomainStore(dbProvider)
     data.domains foreach {
       _.map { domainData =>
         logger.debug(s"Importing domaing: ${domainData.namespace}/${domainData.id}")
@@ -81,7 +82,7 @@ class ConvergenceImporter(
               logger.debug(s"Importing data for domain: ${domainData.namespace}/${domainData.id}")
               val dbPool = new OPartitionedDatabasePool(
                 s"${dbBaseUri}/${dbInfo.database}", dbInfo.username, dbInfo.password)
-              val provider = new DomainPersistenceProvider(dbPool)
+              val provider = new DomainPersistenceProvider(dbProvider)
               val domainImporter = new DomainImporter(provider, script)
 
               domainImporter.importDomain() map { _ =>

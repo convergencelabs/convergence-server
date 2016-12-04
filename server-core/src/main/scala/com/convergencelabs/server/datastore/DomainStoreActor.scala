@@ -1,49 +1,42 @@
 package com.convergencelabs.server.datastore
 
+import java.util.UUID
+
+import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 
 import com.convergencelabs.server.datastore.DomainStoreActor.CreateDomainRequest
 import com.convergencelabs.server.datastore.DomainStoreActor.DeleteDomainRequest
-import com.convergencelabs.server.datastore.DomainStoreActor.UpdateDomainRequest
+import com.convergencelabs.server.datastore.DomainStoreActor.DeleteDomainsForUserRequest
 import com.convergencelabs.server.datastore.DomainStoreActor.GetDomainRequest
 import com.convergencelabs.server.datastore.DomainStoreActor.ListDomainsRequest
-import com.convergencelabs.server.domain.Domain
+import com.convergencelabs.server.datastore.DomainStoreActor.UpdateDomainRequest
+import com.convergencelabs.server.db.provision.DomainProvisionerActor.DestroyDomain
+import com.convergencelabs.server.db.provision.DomainProvisionerActor.DomainProvisioned
+import com.convergencelabs.server.db.provision.DomainProvisionerActor.ProvisionDomain
+import com.convergencelabs.server.domain.DomainDatabase
 import com.convergencelabs.server.domain.DomainFqn
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import com.typesafe.config.Config
-import scala.concurrent.duration.DurationInt
-import scala.language.postfixOps
+import com.convergencelabs.server.domain.DomainStatus
+import com.convergencelabs.server.util.ExceptionUtils
 
 import akka.actor.ActorLogging
-import akka.actor.Props
-import akka.pattern.ask
-import scala.util.Try
-import scala.concurrent.ExecutionContext
-import com.convergencelabs.server.domain.DomainStatus
-import java.util.UUID
-import java.io.StringWriter
-import java.io.PrintWriter
-import com.convergencelabs.server.datastore.DomainStoreActor.DeleteDomainsForUserRequest
 import akka.actor.ActorRef
-import com.convergencelabs.server.db.provision.DomainProvisionerActor.ProvisionDomain
+import akka.actor.Props
+import akka.actor.actorRef2Scala
+import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.server.db.provision.DomainProvisionerActor.DomainProvisioned
-import com.convergencelabs.server.db.provision.DomainProvisionerActor.DestroyDomain
-import com.convergencelabs.server.db.provision.DomainProvisionerActor.DomainDeleted
-import com.convergencelabs.server.db.provision.DomainProvisionerActor
-import com.convergencelabs.server.util.ExceptionUtils
-import com.convergencelabs.server.domain.DomainDatabase
 
 class DomainStoreActor private[datastore] (
-  private[this] val dbPool: OPartitionedDatabasePool,
+  private[this] val dbProvider: DatabaseProvider,
   private[this] val domainProvisioner: ActorRef)
     extends StoreActor with ActorLogging {
 
   private[this] val RandomizeCredentials = context.system.settings.config.getBoolean("convergence.domain-databases.randomize-credentials")
 
-  private[this] val domainStore: DomainStore = new DomainStore(dbPool)
-  private[this] val domainDatabaseStore: DomainDatabaseStore = new DomainDatabaseStore(dbPool)
+  private[this] val domainStore: DomainStore = new DomainStore(dbProvider)
+  private[this] val domainDatabaseStore: DomainDatabaseStore = new DomainDatabaseStore(dbProvider)
   private[this] implicit val ec = context.system.dispatcher
 
   def receive: Receive = {
@@ -187,9 +180,9 @@ class DomainStoreActor private[datastore] (
 }
 
 object DomainStoreActor {
-  def props(dbPool: OPartitionedDatabasePool,
+  def props(dbProvider: DatabaseProvider,
     provisionerActor: ActorRef): Props =
-    Props(new DomainStoreActor(dbPool, provisionerActor))
+    Props(new DomainStoreActor(dbProvider, provisionerActor))
 
   case class CreateDomainRequest(namespace: String, domainId: String, displayName: String, owner: String)
   case class UpdateDomainRequest(namespace: String, domainId: String, displayName: String)

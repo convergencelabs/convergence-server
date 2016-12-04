@@ -1,29 +1,35 @@
 package com.convergencelabs.server.datastore.domain
 
+import java.time.Instant
+import java.util.Date
+
+import scala.collection.JavaConverters.asScalaBufferConverter
+import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.util.Try
+
 import org.json4s.NoTypeHints
 import org.json4s.jackson.Serialization
+
+import com.convergencelabs.server.datastore.AbstractDatabasePersistence
+import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.datastore.QueryUtil
+import com.convergencelabs.server.datastore.domain.mapper.OrientDBOperationMapper
 import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelOperation
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
+import com.convergencelabs.server.domain.model.NewModelOperation
+import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
-import com.convergencelabs.server.datastore.AbstractDatabasePersistence
-import scala.util.Try
-import java.time.Instant
-import com.convergencelabs.server.datastore.QueryUtil
-import scala.collection.JavaConverters._
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import com.convergencelabs.server.datastore.domain.mapper.OrientDBOperationMapper
-import scala.util.Success
-import scala.util.Failure
-import java.util.Date
-import java.util.{ List => JavaList }
-import com.orientechnologies.orient.core.id.ORID
-import ModelOperationStore.Fields._
-import ModelOperationStore.Constants._
-import com.convergencelabs.server.domain.model.NewModelOperation
+
+import ModelOperationStore.Constants.CollectionId
+import ModelOperationStore.Constants.ModelId
+import ModelOperationStore.Fields.Model
+import ModelOperationStore.Fields.Operation
+import ModelOperationStore.Fields.Session
+import ModelOperationStore.Fields.Timestamp
+import ModelOperationStore.Fields.Version
 
 object ModelOperationStore {
   val ClassName = "ModelOperation"
@@ -74,8 +80,8 @@ object ModelOperationStore {
   }
 }
 
-class ModelOperationStore private[domain] (dbPool: OPartitionedDatabasePool)
-    extends AbstractDatabasePersistence(dbPool) {
+class ModelOperationStore private[domain] (dbProvider: DatabaseProvider)
+    extends AbstractDatabasePersistence(dbProvider) {
 
   private[this] implicit val formats = Serialization.formats(NoTypeHints)
 

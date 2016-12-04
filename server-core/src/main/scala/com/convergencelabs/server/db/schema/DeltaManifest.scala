@@ -12,6 +12,7 @@ import org.json4s.jackson.JsonMethods
 import org.json4s.Extraction
 import java.io.IOException
 import scala.util.Success
+import scala.io.Source
 
 object DeltaManifest {
   val Formats = DefaultFormats +
@@ -44,19 +45,28 @@ class DeltaManifest(
   def validateIndex(): Try[Unit] = Try {
     for (version <- 1 to index.preReleaseVersion) {
       val incrementalPath = getIncrementalDeltaPath(version)
-      val incrementalDelta = getDelta(incrementalPath).get
-      if (incrementalDelta.version != version) {
-        throw new IOException(s"Incremental delta version ${incrementalDelta.version} does not match file name: ${incrementalPath}")
+      val incrementalDelta = loadDeltaScript(incrementalPath).get
+      if (incrementalDelta.delta.version != version) {
+        throw new IOException(s"Incremental delta version ${incrementalDelta.delta.version} does not match file name: ${incrementalPath}")
       }
 
-      validateDeltaHash(version, false).get
+      validateDeltaHash(incrementalDelta, false).get
 
       val fulllPath = getIncrementalDeltaPath(version)
-      val fullDelta = getDelta(fulllPath).get
-      if (fullDelta.version != version) {
-        throw new IOException(s"Incremental delta version ${fullDelta.version} does not match file name: ${fulllPath}")
+      val fullDelta = loadDeltaScript(fulllPath).get
+      if (fullDelta.delta.version != version) {
+        throw new IOException(s"Incremental delta version ${fullDelta.delta.version} does not match file name: ${fulllPath}")
       }
-      validateDeltaHash(version, true).get
+      validateDeltaHash(fullDelta, true).get
+    }
+  }
+
+  def maxVersion(preRelease: Boolean): Int = {
+    preRelease match {
+      case true =>
+        index.preReleaseVersion
+      case false =>
+        index.releasedVersion
     }
   }
 
@@ -68,15 +78,15 @@ class DeltaManifest(
     index.preReleaseVersion
   }
 
-  def getFullDelta(version: Int): Try[Delta] = {
-    validateDeltaHash(version, true) flatMap { _ =>
-      getDelta(getFullDeltaPath(version))
+  def getFullDelta(version: Int): Try[DeltaScript] = {
+    loadDeltaScript(getFullDeltaPath(version)) flatMap { ds => 
+      validateDeltaHash(ds, true) map { _ => ds }
     }
   }
 
-  def getIncrementalDelta(version: Int): Try[Delta] = {
-    validateDeltaHash(version, false) flatMap { _ =>
-      getDelta(getIncrementalDeltaPath(version))
+  def getIncrementalDelta(version: Int): Try[DeltaScript] = {
+    loadDeltaScript(getIncrementalDeltaPath(version)) flatMap { ds => 
+      validateDeltaHash(ds, false) map { _ => ds }
     }
   }
 
@@ -88,7 +98,9 @@ class DeltaManifest(
     s"${basePath}database-${version}.yaml"
   }
 
-  private[this] def validateDeltaHash(version: Int, full: Boolean): Try[Unit] = Try {
+  private[this] def validateDeltaHash(deltaScript: DeltaScript, full: Boolean): Try[Unit] = Try {
+    val deltaText = deltaScript.rawScript
+    val version = deltaScript.delta.version
     if (version <= index.releasedVersion) {
       val hashes = index.deltas.get(version.toString) getOrElse {
         throw new IllegalStateException(s"Delta ${version} is missing a hash entry.")
@@ -101,20 +113,15 @@ class DeltaManifest(
           (getIncrementalDeltaPath(version), hashes.delta)
       }
 
-      val in = getDeltaInputStream(path).getOrElse {
-        throw new IOException(s"Delta ${version} is missing: ${path}")
-      }
-
-      validateHash(hash, in).recoverWith {
+      validateHash(hash, deltaText).recoverWith {
         case cause: Exception =>
           Failure(new IOException(s"Delta failed hash validation: ${path}", cause))
       }.get
     }
   }
 
-  private[this] def validateHash(expectedHash: String, deltaInputStream: InputStream): Try[Unit] = {
-    val contents = scala.io.Source.fromInputStream(deltaInputStream).mkString
-    val hash = SHA256(contents)
+  private[this] def validateHash(expectedHash: String, deltaText: String): Try[Unit] = {
+    val hash = SHA256(deltaText)
     if (hash != expectedHash) {
       Failure(new IOException(s"delta hash validation failed:\nexpected: ${expectedHash}\nactual : ${hash}"))
     } else {
@@ -127,24 +134,27 @@ class DeltaManifest(
     m.map("%02x".format(_)).mkString
   }
 
-  private[this] def getDeltaInputStream(path: String): Option[InputStream] = {
-    Option(getClass.getResourceAsStream(path))
-  }
-
-  private[this] def getDelta(path: String): Try[Delta] = {
-    getDeltaInputStream(path) match {
+  private[this] def loadDeltaScript(path: String): Try[DeltaScript] = {
+    getDeltaText(path) match {
       case None =>
         Failure(new IOException(s"Delta not found: ${path}"))
-      case Some(in) =>
+      case Some(rawText) =>
         Try {
           implicit val formats = (DeltaManifest.Formats)
-          val jsonNode = mapper.readTree(in)
+          val jsonNode = mapper.readTree(rawText)
           val jValue = JsonMethods.fromJsonNode(jsonNode)
-          Extraction.extract[Delta](jValue)
+          val parsed = Extraction.extract[Delta](jValue)
+          DeltaScript(rawText, parsed)
         } recover {
           case cause: Exception =>
             throw new IOException(s"Could not parse delta: ${path}")
         }
+    }
+  }
+  
+  private[this] def getDeltaText(path: String): Option[String] = {
+    Option(getClass.getResourceAsStream(path)) map { in =>
+        Source.fromInputStream(in).mkString
     }
   }
 }

@@ -1,21 +1,32 @@
 package com.convergencelabs.server.datastore
 
-import grizzled.slf4j.Logging
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import com.convergencelabs.server.domain.datastore.ConvergenceDeltaHistory
-import com.convergencelabs.server.domain.datastore.ConvergenceDelta
-import com.convergencelabs.server.domain.datastore.DomainDeltaHistory
-import com.convergencelabs.server.domain.datastore.DomainDelta
-import scala.util.Try
-import com.convergencelabs.server.datastore.DeltaHistoryStore._
-import com.orientechnologies.orient.core.db.record.OIdentifiable
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import com.orientechnologies.orient.core.record.impl.ODocument
-import java.time.Instant
-import com.convergencelabs.server.domain.DomainFqn
-import com.orientechnologies.orient.core.index.OCompositeKey
-import collection.JavaConverters._
 import java.util.Date
+
+import scala.collection.JavaConverters.seqAsJavaListConverter
+import scala.util.Try
+
+import com.convergencelabs.server.datastore.DeltaHistoryStore.ConvergenceDeltaClass
+import com.convergencelabs.server.datastore.DeltaHistoryStore.ConvergenceDeltaHistoryIndex
+import com.convergencelabs.server.datastore.DeltaHistoryStore.ConvergenceDeltaIndex
+import com.convergencelabs.server.datastore.DeltaHistoryStore.ConvergernceDeltaHistoryClass
+import com.convergencelabs.server.datastore.DeltaHistoryStore.DomainDeltaClass
+import com.convergencelabs.server.datastore.DeltaHistoryStore.DomainDeltaHistoryClass
+import com.convergencelabs.server.datastore.DeltaHistoryStore.DomainDeltaHistoryIndex
+import com.convergencelabs.server.datastore.DeltaHistoryStore.DomainDeltaIndex
+import com.convergencelabs.server.datastore.DeltaHistoryStore.DomainIndex
+import com.convergencelabs.server.datastore.DeltaHistoryStore.Fields
+import com.convergencelabs.server.datastore.DeltaHistoryStore.Status
+import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.datastore.ConvergenceDelta
+import com.convergencelabs.server.domain.datastore.ConvergenceDeltaHistory
+import com.convergencelabs.server.domain.datastore.DomainDelta
+import com.convergencelabs.server.domain.datastore.DomainDeltaHistory
+import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.orientechnologies.orient.core.db.record.OIdentifiable
+import com.orientechnologies.orient.core.index.OCompositeKey
+import com.orientechnologies.orient.core.record.impl.ODocument
+
+import grizzled.slf4j.Logging
 
 object DeltaHistoryStore {
   val ConvergenceDeltaClass = "ConvergenceDelta"
@@ -49,7 +60,7 @@ object DeltaHistoryStore {
   }
 }
 
-class DeltaHistoryStore(dbPool: OPartitionedDatabasePool) extends AbstractDatabasePersistence(dbPool) with Logging {
+class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
 
   def saveConvergenceDeltaHistory(deltaHistory: ConvergenceDeltaHistory): Try[Unit] = tryWithDb { db =>
     val ConvergenceDeltaHistory(delta, status, message, date) = deltaHistory

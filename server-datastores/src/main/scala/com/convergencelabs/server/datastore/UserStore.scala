@@ -76,9 +76,9 @@ object UserStore {
  * @param dbPool The database pool to use.
  */
 class UserStore(
-  private[this] val dbPool: OPartitionedDatabasePool,
+  private[this] val dbProvider: DatabaseProvider,
   private[this] val tokenValidityDuration: Duration)
-    extends AbstractDatabasePersistence(dbPool)
+    extends AbstractDatabasePersistence(dbProvider)
     with Logging {
 
   val Password = "password"

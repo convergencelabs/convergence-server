@@ -45,7 +45,7 @@ class DomainStatsActor(
     }
   }
 
-  def getDatabaseSize(): Try[Long] = TryWithResource(persistence.dbPool.acquire()) { db =>
+  def getDatabaseSize(): Try[Long] = persistence.dbProvider.tryWithDatabase { db =>
     db.getSize()
   }
 }

@@ -8,11 +8,13 @@ import java.util.UUID
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.util.Failure
+import scala.util.Success
 import scala.util.Try
 
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.server.datastore.CreateResult
 import com.convergencelabs.server.datastore.CreateSuccess
+import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.datastore.DeleteResult
 import com.convergencelabs.server.datastore.DeleteSuccess
 import com.convergencelabs.server.datastore.DuplicateValue
@@ -25,7 +27,6 @@ import com.convergencelabs.server.domain.model.Model
 import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelMetaData
 import com.convergencelabs.server.domain.model.data.ObjectValue
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.metadata.schema.OType
@@ -42,7 +43,6 @@ import ModelStore.Fields.Id
 import ModelStore.Fields.ModifiedTime
 import ModelStore.Fields.Version
 import grizzled.slf4j.Logging
-import scala.util.Success
 
 object ModelStore {
   val ModelClass = "Model"
@@ -99,10 +99,10 @@ object ModelStore {
 }
 
 class ModelStore private[domain] (
-  dbPool: OPartitionedDatabasePool,
+  dbProvider: DatabaseProvider,
   operationStore: ModelOperationStore,
   snapshotStore: ModelSnapshotStore)
-    extends AbstractDatabasePersistence(dbPool)
+    extends AbstractDatabasePersistence(dbProvider)
     with Logging {
 
   def modelExists(fqn: ModelFqn): Try[Boolean] = tryWithDb { db =>

@@ -10,7 +10,6 @@ import scala.util.Try
 
 import com.convergencelabs.server.datastore.DomainDatabaseStore
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
-import com.convergencelabs.server.db.schema.DatabaseSchemaManager
 import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.frontend.realtime.ConvergenceRealTimeFrontend
 import com.convergencelabs.server.frontend.rest.ConvergenceRestFrontEnd
@@ -30,6 +29,9 @@ import akka.cluster.ClusterEvent.MemberRemoved
 import akka.cluster.ClusterEvent.MemberUp
 import akka.cluster.ClusterEvent.UnreachableMember
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.db.schema.ConvergenceSchemaManager
+import com.convergencelabs.server.datastore.DeltaHistoryStore
+import com.convergencelabs.server.datastore.DatabaseProvider
 
 object ConvergenceServerNode extends Logging {
   def main(args: Array[String]): Unit = {
@@ -62,7 +64,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
 
     val roles = config.getAnyRefList("akka.cluster.roles").asScala.toList
 
-    var dbPool: Option[OPartitionedDatabasePool] = None
+    var dbPool: Option[DatabaseProvider] = None
 
     if (roles.contains("backend") || roles.contains("restFrontend")) {
 
@@ -84,7 +86,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
         }
       }
 
-      dbPool = Some(new OPartitionedDatabasePool(fullUri, username, password))
+      dbPool = Some(DatabaseProvider(new OPartitionedDatabasePool(fullUri, username, password)))
 
       val domainDatabaseStore = new DomainDatabaseStore(dbPool.get)
       system.actorOf(
@@ -133,16 +135,18 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
     if (!serverAdmin.existsDatabase()) {
       logger.info("Bootstrapping database")
       serverAdmin.createDatabase("document", "plocal").close()
-      val dbPool = new OPartitionedDatabasePool(uri, username, password)
-      val schemaManager = new DatabaseSchemaManager(dbPool, DeltaCategory.Convergence, preRelease)
-
-      schemaManager.upgradeToLatest() match {
-        case Success(_) =>
-          logger.info("Database bootstrapping complete")
-        case Failure(f) =>
-          logger.error("Database bootstrapping failed.", f)
+      val dbProvider = DatabaseProvider(new OPartitionedDatabasePool(uri, username, password))
+      val deltaHistoryStore = new DeltaHistoryStore(dbProvider)
+      dbProvider.tryWithDatabase { db =>
+        val schemaManager = new ConvergenceSchemaManager(db, deltaHistoryStore, preRelease)
+        schemaManager.install() match {
+          case Success(_) =>
+            logger.info("Database bootstrapping complete")
+          case Failure(f) =>
+            logger.error("Database bootstrapping failed.", f)
+        }
       }
-      dbPool.close()
+      dbProvider.shutdown()
     } else {
       serverAdmin.close()
     }

@@ -19,12 +19,12 @@ import com.convergencelabs.server.datastore.AuthStoreActor.TokenExpirationFailur
 import java.time.Duration
 
 class AuthStoreActor private[datastore] (
-  private[this] val dbPool: OPartitionedDatabasePool)
+  private[this] val dbProvider: DatabaseProvider)
     extends StoreActor with ActorLogging {
 
   val tokenDuration = context.system.settings.config.getDuration("convergence.rest.auth-token-expiration")
 
-  private[this] val userStore: UserStore = new UserStore(dbPool, tokenDuration)
+  private[this] val userStore: UserStore = new UserStore(dbProvider, tokenDuration)
 
   def receive: Receive = {
     case authRequest: AuthRequest                       => authenticateUser(authRequest)
@@ -62,7 +62,7 @@ class AuthStoreActor private[datastore] (
 }
 
 object AuthStoreActor {
-  def props(dbPool: OPartitionedDatabasePool): Props = Props(new AuthStoreActor(dbPool))
+  def props(dbProvider: DatabaseProvider): Props = Props(new AuthStoreActor(dbProvider))
 
   case class AuthRequest(username: String, password: String)
 

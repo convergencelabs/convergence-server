@@ -1,6 +1,8 @@
 package com.convergencelabs.server.datastore.domain
 
 import java.lang.{ Long => JavaLong }
+import java.time.Instant
+import java.util.Date
 import java.util.{ List => JavaList }
 
 import scala.collection.JavaConverters.asScalaBufferConverter
@@ -12,6 +14,7 @@ import scala.util.Try
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.server.datastore.CreateResult
 import com.convergencelabs.server.datastore.CreateSuccess
+import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.datastore.DeleteResult
 import com.convergencelabs.server.datastore.DeleteSuccess
 import com.convergencelabs.server.datastore.DuplicateValue
@@ -25,8 +28,8 @@ import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateNormalD
 import com.convergencelabs.server.datastore.domain.DomainUserStore.UpdateDomainUser
 import com.convergencelabs.server.domain.DomainUser
 import com.convergencelabs.server.domain.DomainUserType
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
@@ -35,10 +38,6 @@ import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
 import grizzled.slf4j.Logging
-import com.orientechnologies.orient.core.index.OCompositeKey
-import java.time.Instant
-import com.orientechnologies.orient.core.db.record.OIdentifiable
-import java.util.Date
 
 object DomainUserStore {
 
@@ -104,8 +103,8 @@ object DomainUserStore {
  *
  * @param dbPool The database pool to use.
  */
-class DomainUserStore private[domain] (private[this] val dbPool: OPartitionedDatabasePool)
-    extends AbstractDatabasePersistence(dbPool)
+class DomainUserStore private[domain] (private[this] val dbProvider: DatabaseProvider)
+    extends AbstractDatabasePersistence(dbProvider)
     with Logging {
 
   val Username = "username"

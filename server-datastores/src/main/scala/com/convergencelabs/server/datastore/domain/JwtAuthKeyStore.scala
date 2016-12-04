@@ -11,6 +11,7 @@ import scala.util.Try
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.server.datastore.CreateResult
 import com.convergencelabs.server.datastore.CreateSuccess
+import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.datastore.DeleteResult
 import com.convergencelabs.server.datastore.DeleteSuccess
 import com.convergencelabs.server.datastore.DuplicateValue
@@ -20,7 +21,6 @@ import com.convergencelabs.server.datastore.UpdateResult
 import com.convergencelabs.server.datastore.UpdateSuccess
 import com.convergencelabs.server.datastore.domain.JwtAuthKeyStore.KeyInfo
 import com.convergencelabs.server.domain.JwtAuthKey
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
@@ -65,8 +65,8 @@ object JwtAuthKeyStore {
 }
 
 class JwtAuthKeyStore private[datastore] (
-  private[this] val dbPool: OPartitionedDatabasePool)
-    extends AbstractDatabasePersistence(dbPool)
+  private[this] val dbProvider: DatabaseProvider)
+    extends AbstractDatabasePersistence(dbProvider)
     with Logging {
 
   val Id = "id"

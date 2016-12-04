@@ -3,10 +3,12 @@ package com.convergencelabs.server.db.data
 import scala.util.Failure
 import scala.util.Success
 
-import com.convergencelabs.server.datastore.DomainDBProvider
+import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.datastore.DomainDatabaseFactory
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
+import com.convergencelabs.server.db.data.ConvergenceImporterActor.ConvergenceExport
+import com.convergencelabs.server.db.data.ConvergenceImporterActor.ConvergenceExportResponse
 import com.convergencelabs.server.domain.DomainFqn
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 
 import ConvergenceImporterActor.ConvergenceImport
 import ConvergenceImporterActor.DomainExport
@@ -17,15 +19,13 @@ import akka.actor.ActorLogging
 import akka.actor.ActorRef
 import akka.actor.Props
 import akka.actor.actorRef2Scala
-import com.convergencelabs.server.db.data.ConvergenceImporterActor.ConvergenceExport
-import com.convergencelabs.server.db.data.ConvergenceImporterActor.ConvergenceExportResponse
 
 class ConvergenceImporterActor(
     private[this] val dbBaseUri: String,
-    private[this] val dbPool: OPartitionedDatabasePool,
+    private[this] val dbProvider: DatabaseProvider,
     private[this] val domainProvisioner: ActorRef) extends Actor with ActorLogging {
 
-  val domainDbProvider = new DomainDBProvider(dbBaseUri, dbPool)
+  val domainDbProvider = new DomainDatabaseFactory(dbBaseUri, dbProvider)
 
   def receive: Receive = {
     case ConvergenceImport(script) => 
@@ -42,7 +42,7 @@ class ConvergenceImporterActor(
   private[this] def importConvergence(script: ConvergenceScript): Unit = {
     val importer = new ConvergenceImporter(
       dbBaseUri,
-      dbPool,
+      dbProvider,
       domainProvisioner,
       script,
       context.system.dispatcher)
@@ -58,7 +58,7 @@ class ConvergenceImporterActor(
   
   private[this] def exportConvergenceUser(username: String): Unit = {
     log.debug(s"Exporting convergence user: ${username}")
-    val exporter = new ConvergenceExporter(dbBaseUri, dbPool)
+    val exporter = new ConvergenceExporter(dbBaseUri, dbProvider)
     exporter.exportData(username) match {
       case Success(script) =>
         sender ! ConvergenceExportResponse(script)
@@ -68,9 +68,9 @@ class ConvergenceImporterActor(
   }
 
   private[this] def importDomain(fqn: DomainFqn, script: DomainScript): Unit = {
-    domainDbProvider.getDomainDBPool(fqn) foreach {
+    domainDbProvider.getDomainDatabasePool(fqn) foreach {
       _.map { domainPool =>
-        val provider = new DomainPersistenceProvider(domainPool)
+        val provider = new DomainPersistenceProvider(dbProvider)
         val domainImporter = new DomainImporter(provider, script)
         // FIXME handle error
         domainImporter.importDomain()
@@ -81,9 +81,9 @@ class ConvergenceImporterActor(
   
   private[this] def exportDomain(fqn: DomainFqn): Unit = {
     log.debug(s"Exporting domain: ${fqn.namespace}/${fqn.domainId}")
-    domainDbProvider.getDomainDBPool(fqn) foreach {
+    domainDbProvider.getDomainDatabasePool(fqn) foreach {
       _.map { domainPool =>
-        val provider = new DomainPersistenceProvider(domainPool)
+        val provider = new DomainPersistenceProvider(dbProvider)
         val domainExporter = new DomainExporter(provider)
         // FIXME handle error
         domainExporter.exportDomain() match {
@@ -104,9 +104,9 @@ object ConvergenceImporterActor {
 
   def props(
     dbBaseUri: String,
-    dbPool: OPartitionedDatabasePool,
+    dbProvider: DatabaseProvider,
     domainProvisioner: ActorRef): Props =
-    Props(new ConvergenceImporterActor(dbBaseUri, dbPool, domainProvisioner))
+    Props(new ConvergenceImporterActor(dbBaseUri, dbProvider, domainProvisioner))
 
   case class ConvergenceImport(script: ConvergenceScript)
   case class DomainImport(domainFqn: DomainFqn, script: DomainScript)

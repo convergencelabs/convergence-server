@@ -7,8 +7,8 @@ import scala.util.Failure
 import scala.util.Try
 
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.server.db.schema.DatabaseSchemaManager
-import com.convergencelabs.server.db.schema.DeltaCategory
+import com.convergencelabs.server.db.schema.DomainSchemaManager
+import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.JwtKeyPair
 import com.convergencelabs.server.domain.JwtUtil
 import com.convergencelabs.server.domain.ModelSnapshotConfig
@@ -23,6 +23,8 @@ import DomainProvisioner.OrientDefaultReader
 import DomainProvisioner.OrientDefaultWriter
 import DomainProvisioner.StorageMode
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.datastore.DeltaHistoryStore
 
 object DomainProvisioner {
   val DefaultSnapshotConfig = ModelSnapshotConfig(
@@ -45,6 +47,7 @@ object DomainProvisioner {
 }
 
 class DomainProvisioner(
+  historyStore: DeltaHistoryStore,
   dbBaseUri: String,
   dbRootUsername: String,
   dbRootPasword: String,
@@ -52,23 +55,26 @@ class DomainProvisioner(
     extends Logging {
 
   def provisionDomain(
-      dbName: String, 
-      dbUsername: String, 
-      dbPassword: String, 
-      dbAdminUsername: String, 
-      dbAdminPassword: String): Try[Unit] = {
+    domainFqn: DomainFqn,
+    dbName: String,
+    dbUsername: String,
+    dbPassword: String,
+    dbAdminUsername: String,
+    dbAdminPassword: String): Try[Unit] = {
     val dbUri = computeDbUri(dbName)
     logger.debug(s"Provisioning domain: $dbUri")
     createDatabase(dbUri) flatMap { _ =>
       setAdminCredentials(dbUri, dbAdminUsername, dbAdminPassword)
     } flatMap { _ =>
-      val dbPool = new OPartitionedDatabasePool(dbUri, dbAdminUsername, dbAdminPassword)
-      val t = configureNonAdminUsers(dbPool, dbUsername, dbPassword) flatMap { _ =>
-        installSchema(dbPool, preRelease)
+      val db = new ODatabaseDocumentTx(dbUri)
+      db.open(dbAdminUsername, dbAdminPassword)
+      val povider = DatabaseProvider(db)
+      val result = configureNonAdminUsers(povider, dbUsername, dbPassword) flatMap { _ =>
+        installSchema(domainFqn, povider, preRelease)
       }
       logger.debug(s"Disconnecting as admin user: $dbUri")
-      dbPool.close()
-      t
+      povider.shutdown()
+      result
     } flatMap { _ =>
       initDomain(dbUri, dbUsername, dbPassword)
     }
@@ -104,35 +110,40 @@ class DomainProvisioner(
     db.close()
   }
 
-  private[this] def configureNonAdminUsers(dbPool: OPartitionedDatabasePool, dbUsername: String, dbPassword: String): Try[Unit] = Try {
-    val db = dbPool.acquire()
-    logger.debug(s"Updating normal user credentials: ${db.getURL}")
+  private[this] def configureNonAdminUsers(dbProvider: DatabaseProvider, dbUsername: String, dbPassword: String): Try[Unit] = {
+    dbProvider.tryWithDatabase { db =>
+      logger.debug(s"Updating normal user credentials: ${db.getURL}")
 
-    // Change the username and password of the normal user
-    val normalUser = db.getMetadata().getSecurity().getUser(OrientDefaultWriter)
-    normalUser.setName(dbUsername)
-    normalUser.setPassword(dbPassword)
-    normalUser.save()
+      // Change the username and password of the normal user
+      val normalUser = db.getMetadata().getSecurity().getUser(OrientDefaultWriter)
+      normalUser.setName(dbUsername)
+      normalUser.setPassword(dbPassword)
+      normalUser.save()
 
-    logger.debug(s"Deleting 'reader' user credentials: ${db.getURL}")
-    // Delete the reader user since we do not need it.
-    db.getMetadata().getSecurity().getUser(OrientDefaultReader).getDocument().delete()
-    db.close()
-    ()
+      logger.debug(s"Deleting 'reader' user credentials: ${db.getURL}")
+      // Delete the reader user since we do not need it.
+      db.getMetadata().getSecurity().getUser(OrientDefaultReader).getDocument().delete()
+      ()
+    }
   }
 
-  private[this] def installSchema(dbPool: OPartitionedDatabasePool, preRelease: Boolean): Try[Unit] = {
-    val schemaManager = new DatabaseSchemaManager(dbPool, DeltaCategory.Domain, preRelease)
-    logger.debug(s"Installing domain db schema to: ${dbPool.getUrl}")
-    schemaManager.upgradeToLatest() map { _ =>
-      logger.debug(s"Base domain schema created: ${dbPool.getUrl}")
+  private[this] def installSchema(domainFqn: DomainFqn, dbProvider: DatabaseProvider, preRelease: Boolean): Try[Unit] = {
+    dbProvider.withDatabase { db =>
+      // FIXME should be use the other actor
+      val schemaManager = new DomainSchemaManager(domainFqn, db, historyStore, preRelease)
+      logger.debug(s"Installing domain db schema to: ${db.getURL}")
+      schemaManager.install() map { _ =>
+        logger.debug(s"Base domain schema created: ${db.getURL}")
+      }
     }
   }
 
   private[this] def initDomain(uri: String, username: String, password: String): Try[Unit] = {
     logger.debug(s"Connecting as normal user to initialize domain: ${uri}")
-    val pool = new OPartitionedDatabasePool(uri, username, password)
-    val persistenceProvider = new DomainPersistenceProvider(pool)
+    val db = new ODatabaseDocumentTx(uri)
+    db.open(username, password)
+    val povider = DatabaseProvider(db)
+    val persistenceProvider = new DomainPersistenceProvider(povider)
     persistenceProvider.validateConnection() map (_ => persistenceProvider)
   } flatMap {
     persistenceProvider =>

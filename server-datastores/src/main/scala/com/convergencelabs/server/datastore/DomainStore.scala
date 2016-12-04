@@ -1,29 +1,21 @@
 package com.convergencelabs.server.datastore
 
-import java.util.{ List => JavaList }
-
-import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.util.Failure
 import scala.util.Try
 
 import com.convergencelabs.server.domain.Domain
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.DomainStatus
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
-import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
+import DomainStore.Fields.Id
+import DomainStore.Fields.Namespace
 import grizzled.slf4j.Logging
-import scala.util.Failure
-import scala.util.control.NonFatal
-import scala.util.Success
-
-import DomainStore.Fields._
-import com.orientechnologies.orient.core.db.record.OIdentifiable
 
 object DomainStore {
   val ClassName = "Domain"
@@ -78,8 +70,8 @@ object DomainStore {
   }
 }
 
-class DomainStore(dbPool: OPartitionedDatabasePool)
-    extends AbstractDatabasePersistence(dbPool)
+class DomainStore(dbProvider: DatabaseProvider)
+    extends AbstractDatabasePersistence(dbProvider)
     with Logging {
 
   def createDomain(domainFqn: DomainFqn, displayName: String, ownerUsername: String): Try[CreateResult[Unit]] = tryWithDb { db =>

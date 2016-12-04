@@ -1,28 +1,23 @@
 package com.convergencelabs.server.datastore
 
 import java.util.{ List => JavaList }
+
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.util.Failure
 import scala.util.Try
-import com.convergencelabs.server.domain.Domain
+
+import com.convergencelabs.server.domain.DomainDatabase
 import com.convergencelabs.server.domain.DomainFqn
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
+import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
-import grizzled.slf4j.Logging
-import com.convergencelabs.server.domain.DomainDatabase
-import com.convergencelabs.server.domain.DomainDatabase
-import com.orientechnologies.orient.core.exception.OValidationException
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
-import com.orientechnologies.orient.core.metadata.sequence.OSequence.SEQUENCE_TYPE
-import com.orientechnologies.orient.core.metadata.sequence.OSequence.CreateParams
-import com.convergencelabs.server.domain.DomainStatus
-import scala.util.Failure
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import com.orientechnologies.orient.core.metadata.schema.OType
-import DomainDatabaseStore.Fields._
-import DomainDatabaseStore.Constants._
+
+import DomainDatabaseStore.Constants.DomainId
+import DomainDatabaseStore.Constants.Namespace
+import grizzled.slf4j.Logging
 
 object DomainDatabaseStore {
   val ClassName = "DomainDatabase"
@@ -70,8 +65,8 @@ object DomainDatabaseStore {
   }
 }
 
-class DomainDatabaseStore(dbPool: OPartitionedDatabasePool)
-    extends AbstractDatabasePersistence(dbPool)
+class DomainDatabaseStore(dbProvider: DatabaseProvider)
+    extends AbstractDatabasePersistence(dbProvider)
     with Logging {
 
   val AllFields = "domain.id as domainId, domain.namespace as namespace, database, username, password, adminUsername, adminPassword"

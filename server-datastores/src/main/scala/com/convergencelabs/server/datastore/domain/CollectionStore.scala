@@ -1,36 +1,37 @@
 package com.convergencelabs.server.datastore.domain
 
 import java.util.{ List => JavaList }
+
+import scala.collection.JavaConverters.asScalaBufferConverter
+import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.util.Success
 import scala.util.Try
+
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
+import com.convergencelabs.server.datastore.CreateResult
+import com.convergencelabs.server.datastore.CreateSuccess
+import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.datastore.DeleteResult
+import com.convergencelabs.server.datastore.DeleteSuccess
+import com.convergencelabs.server.datastore.DuplicateValue
+import com.convergencelabs.server.datastore.InvalidValue
+import com.convergencelabs.server.datastore.NotFound
 import com.convergencelabs.server.datastore.QueryUtil
+import com.convergencelabs.server.datastore.UpdateResult
+import com.convergencelabs.server.datastore.UpdateSuccess
+import com.convergencelabs.server.datastore.domain.mapper.ModelSnapshotConfigMapper.ModelSnapshotConfigToODocument
+import com.convergencelabs.server.datastore.domain.mapper.ModelSnapshotConfigMapper.ODocumentToModelSnapshotConfig
 import com.convergencelabs.server.domain.model.Collection
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
+import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.orientechnologies.orient.core.id.ORID
+import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
-import com.convergencelabs.server.datastore.DeleteResult
-import com.convergencelabs.server.datastore.DeleteSuccess
-import com.convergencelabs.server.datastore.NotFound
-import com.convergencelabs.server.datastore.CreateResult
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
-import com.convergencelabs.server.datastore.DuplicateValue
-import com.convergencelabs.server.datastore.CreateSuccess
-import com.convergencelabs.server.datastore.UpdateResult
-import com.convergencelabs.server.datastore.UpdateSuccess
-import com.convergencelabs.server.datastore.InvalidValue
-import java.util.{ List => JavaList }
-import scala.collection.JavaConverters._
-import com.orientechnologies.orient.core.metadata.schema.OType
-import com.convergencelabs.server.datastore.domain.mapper.ModelSnapshotConfigMapper.ModelSnapshotConfigToODocument
-import com.convergencelabs.server.datastore.domain.mapper.ModelSnapshotConfigMapper.ODocumentToModelSnapshotConfig
 
-import CollectionStore._
-import com.orientechnologies.orient.core.id.ORID
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import com.orientechnologies.orient.core.db.record.OIdentifiable
-import scala.util.Success
-import com.orientechnologies.orient.core.index.OIndex
+import CollectionStore.collectionToDoc
+import CollectionStore.docToCollection
 
 object CollectionStore {
   val ClassName = "Collection"
@@ -66,8 +67,8 @@ object CollectionStore {
   }
 }
 
-class CollectionStore private[domain] (dbPool: OPartitionedDatabasePool, modelStore: ModelStore)
-    extends AbstractDatabasePersistence(dbPool) {
+class CollectionStore private[domain] (dbProvider: DatabaseProvider, modelStore: ModelStore)
+    extends AbstractDatabasePersistence(dbProvider) {
 
   def collectionExists(id: String): Try[Boolean] = tryWithDb { db =>
     val query = "SELECT id FROM Collection WHERE id = :id"

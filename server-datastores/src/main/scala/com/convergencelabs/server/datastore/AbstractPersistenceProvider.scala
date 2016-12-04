@@ -5,12 +5,12 @@ import scala.util.Try
 import scala.util.Success
 import scala.util.Failure
 
-abstract class AbstractPersistenceProvider(dbPool: OPartitionedDatabasePool) {
+abstract class AbstractPersistenceProvider(dbProvider: DatabaseProvider) {
   def validateConnection(): Try[Unit] = {
-    Try[Unit](dbPool.acquire().close())
+    dbProvider.validateConnection()
   }
 
   def shutdown(): Unit = {
-    dbPool.close()
+    dbProvider.shutdown()
   }
 }

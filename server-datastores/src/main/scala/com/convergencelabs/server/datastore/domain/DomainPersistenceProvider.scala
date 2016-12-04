@@ -2,24 +2,25 @@ package com.convergencelabs.server.datastore.domain
 
 import com.convergencelabs.server.datastore.AbstractPersistenceProvider
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
+import com.convergencelabs.server.datastore.DatabaseProvider
 
-class DomainPersistenceProvider(val dbPool: OPartitionedDatabasePool) extends AbstractPersistenceProvider(dbPool) {
+class DomainPersistenceProvider(val dbProvider: DatabaseProvider) extends AbstractPersistenceProvider(dbProvider) {
 
-  val configStore = new DomainConfigStore(dbPool)
+  val configStore = new DomainConfigStore(dbProvider)
 
-  val userStore = new DomainUserStore(dbPool)
+  val userStore = new DomainUserStore(dbProvider)
   
-  val sessionStore = new SessionStore(dbPool)
+  val sessionStore = new SessionStore(dbProvider)
 
-  val jwtAuthKeyStore = new JwtAuthKeyStore(dbPool)
+  val jwtAuthKeyStore = new JwtAuthKeyStore(dbProvider)
 
-  val modelOperationStore = new ModelOperationStore(dbPool)
+  val modelOperationStore = new ModelOperationStore(dbProvider)
 
-  val modelSnapshotStore = new ModelSnapshotStore(dbPool)
+  val modelSnapshotStore = new ModelSnapshotStore(dbProvider)
 
-  val modelStore = new ModelStore(dbPool, modelOperationStore, modelSnapshotStore)
+  val modelStore = new ModelStore(dbProvider, modelOperationStore, modelSnapshotStore)
 
-  val collectionStore = new CollectionStore(dbPool, modelStore: ModelStore)
+  val collectionStore = new CollectionStore(dbProvider, modelStore: ModelStore)
 
-  val modelOperationProcessor = new ModelOperationProcessor(dbPool, modelOperationStore)
+  val modelOperationProcessor = new ModelOperationProcessor(dbProvider, modelOperationStore)
 }

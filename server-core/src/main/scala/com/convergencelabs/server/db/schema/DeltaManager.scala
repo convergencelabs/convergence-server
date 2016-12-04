@@ -19,6 +19,14 @@ object DeltaCategory extends Enumeration {
 object DeltaManager {
   val DeltaBasePath = "/com/convergencelabs/server/db/schema/"
   val IndexFileName = "index.yaml"
+  
+  def convergenceManifest(): Try[DeltaManifest] = {
+    new DeltaManager(None).manifest(DeltaCategory.Convergence)
+  }
+  
+  def domainManifest(): Try[DeltaManifest] = {
+    new DeltaManager(None).manifest(DeltaCategory.Convergence)
+  }
 }
 
 class DeltaManager(alternateBasePath: Option[String]) {

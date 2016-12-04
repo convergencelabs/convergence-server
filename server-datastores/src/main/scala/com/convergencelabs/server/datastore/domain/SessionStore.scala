@@ -28,6 +28,7 @@ import com.convergencelabs.server.datastore.UpdateResult
 import com.convergencelabs.server.datastore.NotFound
 import com.convergencelabs.server.datastore.UpdateSuccess
 import com.orientechnologies.orient.core.db.record.OTrackedMap
+import com.convergencelabs.server.datastore.DatabaseProvider
 
 case class DomainSession(
   id: String,
@@ -101,8 +102,8 @@ object SessionStore {
   }
 }
 
-class SessionStore(dbPool: OPartitionedDatabasePool)
-    extends AbstractDatabasePersistence(dbPool)
+class SessionStore(dbProvider: DatabaseProvider)
+    extends AbstractDatabasePersistence(dbProvider)
     with Logging {
 
   def createSession(session: DomainSession): Try[CreateResult[Unit]] = tryWithDb { db =>

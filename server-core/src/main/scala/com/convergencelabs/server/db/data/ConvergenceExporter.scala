@@ -8,7 +8,6 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
-import com.convergencelabs.server.datastore.DomainDBProvider
 import com.convergencelabs.server.datastore.DomainStore
 import com.convergencelabs.server.datastore.UserStore
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
@@ -16,12 +15,14 @@ import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 
 import akka.actor.ActorRef
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.datastore.DomainDatabaseFactory
 
 class ConvergenceExporter(
     private[this] val dbBaseUri: String,
-    private[this] val dbPool: OPartitionedDatabasePool) extends Logging {
+    private[this] val dbProvider: DatabaseProvider) extends Logging {
 
-  val dbProvider = new DomainDBProvider(dbBaseUri, dbPool)
+  val dbFactory = new DomainDatabaseFactory(dbBaseUri, dbProvider)
   
   def exportData(username: String): Try[ConvergenceScript] = {
     for {
@@ -34,7 +35,7 @@ class ConvergenceExporter(
 
   private[this] def exportUser(username: String): Try[CreateConvergenceUser] = {
     logger.debug("Importing convergence user")
-    val userStore = new UserStore(dbPool, Duration.ofMillis(0L))
+    val userStore = new UserStore(dbProvider, Duration.ofMillis(0L))
 
     val user = for {
       user <- userStore.getUserByUsername(username)
@@ -59,12 +60,12 @@ class ConvergenceExporter(
 
   private[this] def exportDomains(username: String): Try[List[CreateDomain]] = {
     logger.debug(s"Exporting domains for user: ${username}")
-    val domainStore = new DomainStore(dbPool)
+    val domainStore = new DomainStore(dbProvider)
     domainStore.getDomainsByOwner(username) map {
       _.map { case domain =>
         // FIXME error handling
-        val pool = dbProvider.getDomainDBPool(domain.domainFqn).get.get
-        val provider = new DomainPersistenceProvider(pool)
+        val pool = dbFactory.getDomainDatabasePool(domain.domainFqn).get.get
+        val provider = new DomainPersistenceProvider(DatabaseProvider(pool))
         val exporter = new DomainExporter(provider)
         // FIXME error handling
         val domainScript = exporter.exportDomain().get

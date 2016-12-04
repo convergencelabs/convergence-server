@@ -34,6 +34,8 @@ import com.convergencelabs.server.db.data.ConvergenceImporterActor
 import com.convergencelabs.server.db.schema.DatabaseManager
 import com.convergencelabs.server.db.schema.DatabaseManagerActor
 import com.convergencelabs.server.db.data.ConvergenceImportService
+import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.datastore.DeltaHistoryStore
 
 object ConvergenceRestFrontEnd {
   val ConvergenceCorsSettings = CorsSettings.defaultSettings.copy(
@@ -50,7 +52,7 @@ class ConvergenceRestFrontEnd(
   val system: ActorSystem,
   val interface: String,
   val port: Int,
-  val dbPool: OPartitionedDatabasePool)
+  val convergenceDbProvider: DatabaseProvider)
     extends Logging {
 
   implicit val s = system
@@ -63,7 +65,11 @@ class ConvergenceRestFrontEnd(
     val orientDbConfig = system.settings.config.getConfig("convergence.orient-db")
     val domainPreRelease = system.settings.config.getBoolean("convergence.domain-databases.pre-release")
     
+    // FIXME remove this eventually
+    val historyStore = new DeltaHistoryStore(convergenceDbProvider)
+    
     val domainProvisioner = new DomainProvisioner(
+        historyStore,
       orientDbConfig.getString("db-uri"),
       orientDbConfig.getString("admin-username"),
       orientDbConfig.getString("admin-password"),
@@ -71,24 +77,24 @@ class ConvergenceRestFrontEnd(
     
     val provisionerActor = system.actorOf(DomainProvisionerActor.props(domainProvisioner), DomainProvisionerActor.RelativePath)
 
-    val domainActor = system.actorOf(DomainStoreActor.props(dbPool, provisionerActor))
+    val domainActor = system.actorOf(DomainStoreActor.props(convergenceDbProvider, provisionerActor))
     
     val importerActor = system.actorOf(ConvergenceImporterActor.props(
       orientDbConfig.getString("db-uri"),
-      dbPool,
+      convergenceDbProvider,
       domainActor), ConvergenceImporterActor.RelativePath)
 
-    val authActor = system.actorOf(AuthStoreActor.props(dbPool))
-    val userManagerActor = system.actorOf(ConvergenceUserManagerActor.props(dbPool, domainActor))
-    val registrationActor = system.actorOf(RegistrationActor.props(dbPool, userManagerActor))
-    val domainManagerActor = system.actorOf(RestDomainManagerActor.props(dbPool))
+    val authActor = system.actorOf(AuthStoreActor.props(convergenceDbProvider))
+    val userManagerActor = system.actorOf(ConvergenceUserManagerActor.props(convergenceDbProvider, domainActor))
+    val registrationActor = system.actorOf(RegistrationActor.props(convergenceDbProvider, userManagerActor))
+    val domainManagerActor = system.actorOf(RestDomainManagerActor.props(convergenceDbProvider))
 
     // FIXME should this take an actor ref instead?
-    val domainStore = new DomainStore(dbPool)
+    val domainStore = new DomainStore(convergenceDbProvider)
     val authzActor = system.actorOf(RestAuthnorizationActor.props(domainStore))
-    val convergenceUserActor = system.actorOf(ConvergenceUserManagerActor.props(dbPool, domainActor))
+    val convergenceUserActor = system.actorOf(ConvergenceUserManagerActor.props(convergenceDbProvider, domainActor))
     
-    val databaseManager = new DatabaseManager(orientDbConfig.getString("db-uri"), dbPool)
+    val databaseManager = new DatabaseManager(orientDbConfig.getString("db-uri"), convergenceDbProvider)
     val databaseManagerActor = system.actorOf(DatabaseManagerActor.props(databaseManager))
 
     // Down to here

@@ -27,8 +27,8 @@ import akka.pattern.ask
 import akka.util.Timeout
 
 object ConvergenceUserManagerActor {
-  def props(dbPool: OPartitionedDatabasePool, domainStoreActor: ActorRef): Props =
-    Props(new ConvergenceUserManagerActor(dbPool, domainStoreActor))
+  def props(dbProvider: DatabaseProvider, domainStoreActor: ActorRef): Props =
+    Props(new ConvergenceUserManagerActor(dbProvider, domainStoreActor))
 
   case class CreateConvergenceUserRequest(username: String, email: String, firstName: String, lastName: String, displayName: String, password: String)
   case class DeleteConvergenceUserRequest(username: String)
@@ -37,7 +37,7 @@ object ConvergenceUserManagerActor {
 }
 
 class ConvergenceUserManagerActor private[datastore] (
-  private[this] val dbPool: OPartitionedDatabasePool,
+  private[this] val dbProvider: DatabaseProvider,
   private[this] val domainStoreActor: ActorRef)
     extends StoreActor
     with ActorLogging {
@@ -49,7 +49,7 @@ class ConvergenceUserManagerActor private[datastore] (
   private[this] val domainConfig: Config = context.system.settings.config.getConfig("convergence.domain-databases")
   private[this] val autoCreateConfigs: List[Config] = context.system.settings.config.getConfigList("convergence.auto-create-domains").asScala.toList
   private[this] val tokenDuration = context.system.settings.config.getDuration("convergence.rest.auth-token-expiration")
-  private[this] val userStore: UserStore = new UserStore(dbPool, tokenDuration)
+  private[this] val userStore: UserStore = new UserStore(dbProvider, tokenDuration)
 
   def receive: Receive = {
     case message: CreateConvergenceUserRequest => createConvergenceUser(message)

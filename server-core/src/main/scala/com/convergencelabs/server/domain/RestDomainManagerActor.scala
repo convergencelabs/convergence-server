@@ -7,12 +7,12 @@ import scala.concurrent.duration.Duration
 import scala.util.Failure
 import scala.util.Success
 
+import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.datastore.DomainStore
 import com.convergencelabs.server.domain.RestDomainActor.Shutdown
 import com.convergencelabs.server.domain.RestDomainManagerActor.DomainMessage
 import com.convergencelabs.server.domain.RestDomainManagerActor.ScheduledShutdown
 import com.convergencelabs.server.domain.RestDomainManagerActor.ShutdownDomain
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 
 import akka.actor.Actor
 import akka.actor.ActorLogging
@@ -23,7 +23,7 @@ import akka.actor.actorRef2Scala
 import akka.cluster.Cluster
 
 object RestDomainManagerActor {
-  def props(dbPool: OPartitionedDatabasePool): Props = Props(new RestDomainManagerActor(dbPool))
+  def props(dbProvider: DatabaseProvider): Props = Props(new RestDomainManagerActor(dbProvider))
 
   val RelativeActorPath = "restDomainManager"
 
@@ -32,13 +32,13 @@ object RestDomainManagerActor {
   case class ShutdownDomain(domainFqn: DomainFqn)
 }
 
-class RestDomainManagerActor(dbPool: OPartitionedDatabasePool)
+class RestDomainManagerActor(dbProvider: DatabaseProvider)
     extends Actor with ActorLogging {
 
   private[this] val cluster = Cluster(context.system)
   private[this] implicit val ec = context.dispatcher
 
-  private[this] val domainStore = new DomainStore(dbPool)
+  private[this] val domainStore = new DomainStore(dbProvider)
 
   private[this] val domainShutdownDelay2 =
     context.system.settings.config.getDuration("convergence.rest.rest-domain-shutdown-delay")

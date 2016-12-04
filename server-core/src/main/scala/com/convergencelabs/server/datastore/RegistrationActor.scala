@@ -26,7 +26,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 
 object RegistrationActor {
-  def props(dbPool: OPartitionedDatabasePool, userManager: ActorRef): Props = Props(new RegistrationActor(dbPool, userManager))
+  def props(dbProvider: DatabaseProvider, userManager: ActorRef): Props = Props(new RegistrationActor(dbProvider, userManager))
 
   case class RegisterUser(username: String, fname: String, lname: String, email: String, password: String, token: String)
   case class AddRegistration(fname: String, lname: String, email: String, reason: String)
@@ -36,7 +36,7 @@ object RegistrationActor {
   case class RegistrationInfo(fname: String, lname: String, email: String)
 }
 
-class RegistrationActor private[datastore] (dbPool: OPartitionedDatabasePool, userManager: ActorRef) extends StoreActor with ActorLogging {
+class RegistrationActor private[datastore] (dbProvider: DatabaseProvider, userManager: ActorRef) extends StoreActor with ActorLogging {
 
   // FIXME: Read this from configuration
   private[this] implicit val requstTimeout = Timeout(15 seconds)
@@ -47,7 +47,7 @@ class RegistrationActor private[datastore] (dbPool: OPartitionedDatabasePool, us
   private[this] val registrationBaseUrl = context.system.settings.config.getString("convergence.registration-base-url")
   private[this] val adminUiServerUrl = context.system.settings.config.getString("convergence.admin-ui-url")
 
-  private[this] val registrationStore = new RegistrationStore(dbPool)
+  private[this] val registrationStore = new RegistrationStore(dbProvider)
 
   def receive: Receive = {
     case message: RegisterUser => registerUser(message)

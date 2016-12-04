@@ -6,12 +6,12 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.util.Try
 
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
+import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.datastore.QueryUtil
 import com.convergencelabs.server.datastore.domain.mapper.ModelSnapshotConfigMapper.ModelSnapshotConfigToODocument
 import com.convergencelabs.server.datastore.domain.mapper.ModelSnapshotConfigMapper.ODocumentToModelSnapshotConfig
 import com.convergencelabs.server.domain.JwtKeyPair
 import com.convergencelabs.server.domain.ModelSnapshotConfig
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
@@ -29,8 +29,8 @@ object DomainConfigStore {
   }
 }
 
-class DomainConfigStore (dbPool: OPartitionedDatabasePool)
-    extends AbstractDatabasePersistence(dbPool)
+class DomainConfigStore (dbProvider: DatabaseProvider)
+    extends AbstractDatabasePersistence(dbProvider)
     with Logging {
 
   def initializeDomainConfig(tokenKeyPair: JwtKeyPair, modelSnapshotConfig: ModelSnapshotConfig): Try[Unit] = tryWithDb { db =>

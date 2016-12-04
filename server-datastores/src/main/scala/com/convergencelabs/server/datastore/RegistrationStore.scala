@@ -19,8 +19,8 @@ import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import grizzled.slf4j.Logging
 
 class RegistrationStore private[datastore] (
-  private[this] val dbPool: OPartitionedDatabasePool)
-    extends AbstractDatabasePersistence(dbPool)
+  private[this] val dbProvider: DatabaseProvider)
+    extends AbstractDatabasePersistence(dbProvider)
     with Logging {
 
   private[this] implicit val formats = Serialization.formats(NoTypeHints)

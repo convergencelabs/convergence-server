@@ -2,13 +2,18 @@ package com.convergencelabs.server.datastore.domain
 
 import java.time.Instant
 import java.util.Date
-import java.util.{ List => JavaList }
+
+import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.util.Try
+
 import org.json4s.NoTypeHints
 import org.json4s.jackson.Serialization
+
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
+import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.domain.model.ModelFqn
-import com.convergencelabs.server.domain.model.ModelOperation
+import com.convergencelabs.server.domain.model.NewModelOperation
 import com.convergencelabs.server.domain.model.ot.AppliedArrayInsertOperation
 import com.convergencelabs.server.domain.model.ot.AppliedArrayMoveOperation
 import com.convergencelabs.server.domain.model.ot.AppliedArrayRemoveOperation
@@ -27,22 +32,17 @@ import com.convergencelabs.server.domain.model.ot.AppliedOperation
 import com.convergencelabs.server.domain.model.ot.AppliedStringInsertOperation
 import com.convergencelabs.server.domain.model.ot.AppliedStringRemoveOperation
 import com.convergencelabs.server.domain.model.ot.AppliedStringSetOperation
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import com.orientechnologies.orient.core.db.record.OIdentifiable
-import com.orientechnologies.orient.core.record.impl.ODocument
-import com.orientechnologies.orient.core.sql.OCommandSQL
-import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.orientechnologies.common.io.OIOUtils
-import grizzled.slf4j.Logging
-import scala.collection.JavaConverters._
+import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.orientechnologies.orient.core.id.ORID
-import com.convergencelabs.server.domain.model.NewModelOperation
+import com.orientechnologies.orient.core.sql.OCommandSQL
+
+import grizzled.slf4j.Logging
 
 class ModelOperationProcessor private[domain] (
-    private[this] val dbPool: OPartitionedDatabasePool,
+    private[this] val dbProvider: DatabaseProvider,
     private[this] val modelOpStore: ModelOperationStore)
-    extends AbstractDatabasePersistence(dbPool)
+    extends AbstractDatabasePersistence(dbProvider)
     with Logging {
   
   val Id = "id";
