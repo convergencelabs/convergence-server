@@ -24,9 +24,7 @@ import com.typesafe.config.ConfigFactory
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
-import com.convergencelabs.server.User
 
-@RunWith(classOf[JUnitRunner])
 class DomainManagerActorSpec()
     extends TestKit(ActorSystem("DomainManagerActorSpec", ConfigFactory.parseResources("cluster-application.conf")))
     with WordSpecLike

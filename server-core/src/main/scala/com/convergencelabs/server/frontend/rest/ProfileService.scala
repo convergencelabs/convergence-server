@@ -36,7 +36,7 @@ import com.convergencelabs.server.domain.RestAuthnorizationActor.AuthorizationRe
 import com.convergencelabs.server.datastore.UpdateResult
 import com.convergencelabs.server.datastore.UpdateSuccess
 import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUser
-import com.convergencelabs.server.User
+import com.convergencelabs.server.datastore.User
 
 case class CovergenceUserProfile(username: String, email: String, firstName: String, lastName: String, displayName: String)
 case class UserProfileResponse(profile: CovergenceUserProfile) extends AbstractSuccessResponse

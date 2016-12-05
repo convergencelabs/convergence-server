@@ -7,7 +7,6 @@ import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 
-import com.convergencelabs.server.User
 import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.CreateConvergenceUserRequest
 import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.DeleteConvergenceUserRequest
 import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUser

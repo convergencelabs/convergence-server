@@ -3,7 +3,7 @@ package com.convergencelabs.server.frontend.rest
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
-import com.convergencelabs.server.User
+import com.convergencelabs.server.datastore.User
 import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.CreateConvergenceUserRequest
 import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.DeleteConvergenceUserRequest
 import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUser

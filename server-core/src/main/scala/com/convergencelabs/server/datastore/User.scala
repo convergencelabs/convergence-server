@@ -1,4 +1,4 @@
-package com.convergencelabs.server
+package com.convergencelabs.server.datastore
 
 case class User(
   username: String,

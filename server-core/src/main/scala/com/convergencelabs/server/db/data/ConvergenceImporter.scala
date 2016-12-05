@@ -8,7 +8,7 @@ import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Try
 
-import com.convergencelabs.server.User
+import com.convergencelabs.server.datastore.User
 import com.convergencelabs.server.datastore.CreateResult
 import com.convergencelabs.server.datastore.CreateSuccess
 import com.convergencelabs.server.datastore.DatabaseProvider

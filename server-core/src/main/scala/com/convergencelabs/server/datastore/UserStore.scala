@@ -10,7 +10,6 @@ import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.util.Try
 
-import com.convergencelabs.server.User
 import com.convergencelabs.server.datastore.domain.PasswordUtil
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.orientechnologies.orient.core.db.record.OIdentifiable
