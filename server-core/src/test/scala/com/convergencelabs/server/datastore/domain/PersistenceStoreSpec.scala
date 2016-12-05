@@ -16,6 +16,7 @@ abstract class PersistenceStoreSpec[S](category: DeltaCategory.Value) {
   protected def createStore(dbProvider: DatabaseProvider): S
 
   var dbCounter = 0
+  
   def withPersistenceStore(testCode: S => Any): Unit = {
     // make sure no accidental collisions
     val dbName = getClass.getSimpleName
@@ -26,8 +27,6 @@ abstract class PersistenceStoreSpec[S](category: DeltaCategory.Value) {
     db.activateOnCurrentThread()
     db.create()
 
-    db.getMetadata.reload()
-    
     val dbProvider = DatabaseProvider(db)
     
     val mgr = new TestingSchemaManager(db, category, true)

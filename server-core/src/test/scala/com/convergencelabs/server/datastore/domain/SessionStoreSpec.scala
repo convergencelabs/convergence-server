@@ -120,7 +120,7 @@ class SessionStoreSpec
       "fail when disconnecting an already disconnected session" in withTestData { provider =>
         val session = DomainSession(sessionId, username, Instant.now(), Some(Instant.now()), authMethod, client, clientVersion, "", remoteHost)
         provider.sessionStore.createSession(session).get
-        provider.sessionStore.setSessionDisconneted(sessionId, Instant.now()).failure
+        provider.sessionStore.setSessionDisconneted(sessionId, Instant.now()).failure.exception.printStackTrace()
       }
     }
 

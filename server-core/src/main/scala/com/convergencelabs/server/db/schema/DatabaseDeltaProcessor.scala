@@ -26,6 +26,7 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocumentTx) {
   def apply(): Try[Unit] = Try {
     delta.changes foreach { change => applyChange(change) }
     processDeferedLinkedClasses()
+    db.getMetadata.reload()
   }
 
   private def applyChange(change: Change): Unit = {
