@@ -56,17 +56,5 @@ class DeltaHistoryStoreSpec extends WordSpecLike with Matchers with BeforeAndAft
         retrievedDeltaHistory.get.get shouldEqual deltaHistory
       }
     }
-
-    "retrieving a convergence delta history record" must {
-      "match the record that was saved" in {
-        val currrentTime = Instant.now()
-        val delta = ConvergenceDelta(1, "Some YAML")
-        val deltaHistory = ConvergenceDeltaHistory(delta, DeltaHistoryStore.Status.Success, None, currrentTime)
-        deltaHistoryStore.saveConvergenceDeltaHistory(deltaHistory)
-
-        val retrievedDeltaHistory = deltaHistoryStore.getConvergenceDeltaHistory(1)
-        retrievedDeltaHistory.get.get shouldEqual deltaHistory
-      }
-    }
   }
 }

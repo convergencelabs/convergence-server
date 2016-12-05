@@ -106,7 +106,7 @@ changes:
       - {name: authMethod,     type: String,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: client,         type: String,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: clientVersion,  type: String,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: clientMetaData, type: EmbeddedMap,                 constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: clientMetaData, type: String,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: remoteHost,     type: String,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
           
   - action: CreateIndex

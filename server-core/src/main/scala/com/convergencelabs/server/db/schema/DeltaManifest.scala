@@ -49,13 +49,12 @@ class DeltaManifest(
       if (incrementalDelta.delta.version != version) {
         throw new IOException(s"Incremental delta version ${incrementalDelta.delta.version} does not match file name: ${incrementalPath}")
       }
-
       validateDeltaHash(incrementalDelta, false).get
 
-      val fulllPath = getIncrementalDeltaPath(version)
+      val fulllPath = getFullDeltaPath(version)
       val fullDelta = loadDeltaScript(fulllPath).get
       if (fullDelta.delta.version != version) {
-        throw new IOException(s"Incremental delta version ${fullDelta.delta.version} does not match file name: ${fulllPath}")
+        throw new IOException(s"Full delta version ${fullDelta.delta.version} does not match file name: ${fulllPath}")
       }
       validateDeltaHash(fullDelta, true).get
     }
