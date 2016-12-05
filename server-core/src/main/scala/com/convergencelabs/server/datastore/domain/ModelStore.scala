@@ -288,7 +288,7 @@ class ModelStore private[domain] (
     val order: String = orderBy map { orderBy =>
       val ascendingParam = if (orderBy._2) { "ASC" } else { "DESC" }
       s"ORDER BY ${orderBy._1} ${ascendingParam}"
-    } getOrElse ""
+    } getOrElse "ORDER BY id ASC"
 
     val queryString =
       s"""SELECT *
