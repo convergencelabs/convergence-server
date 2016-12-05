@@ -6,10 +6,11 @@ import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
 
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.server.db.schema.DatabaseSchemaManager
 import com.convergencelabs.server.db.schema.DeltaCategory
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.convergencelabs.server.db.schema.TestingSchemaManager
+import com.convergencelabs.server.datastore.DatabaseProvider
 
 class DomainImportExportSpec extends WordSpecLike with Matchers {
 
@@ -21,10 +22,10 @@ class DomainImportExportSpec extends WordSpecLike with Matchers {
       db.activateOnCurrentThread()
       db.create()
 
-      val dbPool = new OPartitionedDatabasePool(url, "admin", "admin")
+      val dbPool = DatabaseProvider(db)
 
-      val upgrader = new DatabaseSchemaManager(dbPool, DeltaCategory.Domain, true)
-      upgrader.upgradeToLatest()
+      val upgrader = new TestingSchemaManager(db, DeltaCategory.Domain, true)
+      upgrader.install()
 
       val provider = new DomainPersistenceProvider(dbPool)
       provider.validateConnection().get

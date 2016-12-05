@@ -25,7 +25,16 @@ object DeltaManager {
   }
   
   def domainManifest(): Try[DeltaManifest] = {
-    new DeltaManager(None).manifest(DeltaCategory.Convergence)
+    new DeltaManager(None).manifest(DeltaCategory.Domain)
+  }
+  
+  def manifest(category: DeltaCategory.Value): Try[DeltaManifest] = {
+    category match {
+      case DeltaCategory.Convergence =>
+        DeltaManager.convergenceManifest()
+      case DeltaCategory.Domain =>
+        DeltaManager.domainManifest()
+    }
   }
 }
 

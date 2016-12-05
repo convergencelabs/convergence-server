@@ -9,7 +9,7 @@ import scala.util.Failure
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.convergencelabs.server.datastore.DeltaHistoryStore
 
-abstract class AbstractSchemaManager(db: ODatabaseDocumentTx, historyStore: DeltaHistoryStore, preRelease: Boolean) {
+abstract class AbstractSchemaManager(db: ODatabaseDocumentTx, preRelease: Boolean) {
 
   def install(): Try[Unit] = {
     loadManifest().flatMap { manifest =>

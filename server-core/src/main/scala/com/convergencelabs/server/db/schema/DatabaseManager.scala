@@ -15,10 +15,10 @@ import grizzled.slf4j.Logging
 object DatabaseManager {
 }
 
-class DatabaseManager(url: String, dbProvider: DatabaseProvider) extends Logging {
+class DatabaseManager(url: String, convergenceDbProvider: DatabaseProvider) extends Logging {
 
-  private[this] val deltaHistoryStore = new DeltaHistoryStore(dbProvider)
-  private[this] val domainProvider = new DomainDatabaseFactory(url, dbProvider)
+  private[this] val deltaHistoryStore = new DeltaHistoryStore(convergenceDbProvider)
+  private[this] val domainProvider = new DomainDatabaseFactory(url, convergenceDbProvider)
   private[this] val deltaManager = new DeltaManager(None)
 
   def getConvergenceVersion(): Try[Int] = {
@@ -36,7 +36,7 @@ class DatabaseManager(url: String, dbProvider: DatabaseProvider) extends Logging
         Failure(new IllegalArgumentException("version is greater than max version"))
       } else {
         deltaHistoryStore.getConvergenceDBVersion() map { currentVersion =>
-          dbProvider.tryWithDatabase { db =>
+          convergenceDbProvider.tryWithDatabase { db =>
             currentVersion to version foreach { _ => upgradeConvergenceToNextVersion(db, preRelease).get }
           }
         }
@@ -44,8 +44,8 @@ class DatabaseManager(url: String, dbProvider: DatabaseProvider) extends Logging
     }
   }
 
-  def updagradeConvergenceToLatest(dbProvider: DatabaseProvider, preRelease: Boolean): Try[Unit] = {
-    dbProvider.withDatabase { db =>
+  def updagradeConvergenceToLatest(preRelease: Boolean): Try[Unit] = {
+    convergenceDbProvider.withDatabase { db =>
       val schemaManager = new ConvergenceSchemaManager(db, deltaHistoryStore, preRelease)
       schemaManager.upgrade()
     }

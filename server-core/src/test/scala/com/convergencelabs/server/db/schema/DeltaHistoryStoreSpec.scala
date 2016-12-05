@@ -1,16 +1,17 @@
 package com.convergencelabs.server.db.schema
 
 import java.time.Instant
+
+import org.scalatest.BeforeAndAfterEach
 import org.scalatest.Matchers
 import org.scalatest.WordSpecLike
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import org.scalatest.BeforeAndAfterEach
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import com.convergencelabs.server.domain.datastore.ConvergenceDeltaHistory
-import com.convergencelabs.server.domain.datastore.ConvergenceDelta
+
+import com.convergencelabs.server.datastore.ConvergenceDelta
+import com.convergencelabs.server.datastore.ConvergenceDeltaHistory
+import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.datastore.DeltaHistoryStore
 import com.convergencelabs.server.datastore.DomainStore
-import org.scalatest.Finders
+import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 
 class DeltaHistoryStoreSpec extends WordSpecLike with Matchers with BeforeAndAfterEach {
 
@@ -18,7 +19,7 @@ class DeltaHistoryStoreSpec extends WordSpecLike with Matchers with BeforeAndAft
   val dbName = getClass.getSimpleName
 
   var db: ODatabaseDocumentTx = null
-  var pool: OPartitionedDatabasePool = null
+  var dbProvider: DatabaseProvider = null
   var deltaHistoryStore: DeltaHistoryStore = null
   var domainStore: DomainStore = null
 
@@ -29,17 +30,15 @@ class DeltaHistoryStoreSpec extends WordSpecLike with Matchers with BeforeAndAft
     db.activateOnCurrentThread()
     db.create()
 
-    pool = new OPartitionedDatabasePool(uri, "admin", "admin")
-    val schemaManager = new DatabaseSchemaManager(pool, DeltaCategory.Convergence, true)
-    schemaManager.installLatest()
+    dbProvider = DatabaseProvider(db)
+    val schemaManager = new TestingSchemaManager(db, DeltaCategory.Convergence, true)
+    schemaManager.install()
 
-    deltaHistoryStore = new DeltaHistoryStore(pool)
-    domainStore = new DomainStore(pool)
+    deltaHistoryStore = new DeltaHistoryStore(dbProvider)
+    domainStore = new DomainStore(dbProvider)
   }
 
   override def afterEach() {
-    pool.close()
-    pool = null
     db.activateOnCurrentThread()
     db.drop()
     db = null

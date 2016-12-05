@@ -4,12 +4,12 @@ import com.convergencelabs.server.db.provision.DomainProvisionerActor.DestroyDom
 import com.convergencelabs.server.db.provision.DomainProvisionerActor.DomainDeleted
 import com.convergencelabs.server.db.provision.DomainProvisionerActor.DomainProvisioned
 import com.convergencelabs.server.db.provision.DomainProvisionerActor.ProvisionDomain
+import com.convergencelabs.server.domain.DomainFqn
 
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.Props
 import akka.actor.actorRef2Scala
-import com.typesafe.config.Config
 
 class DomainProvisionerActor(private[this] val provisioner: DomainProvisioner) extends Actor with ActorLogging {
   def receive: Receive = {
@@ -19,10 +19,10 @@ class DomainProvisionerActor(private[this] val provisioner: DomainProvisioner) e
   }
 
   private[this] def provisionDomain(provision: ProvisionDomain): Unit = {
-    val ProvisionDomain(databaseName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword) = provision
+    val ProvisionDomain(fqn, databaseName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword) = provision
     val currentSender = sender
     // make this asynchronous in the future
-    provisioner.provisionDomain(databaseName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword) map { _ =>
+    provisioner.provisionDomain(fqn, databaseName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword) map { _ =>
       currentSender ! DomainProvisioned()
     } recover {
       case cause: Exception =>
@@ -42,12 +42,13 @@ class DomainProvisionerActor(private[this] val provisioner: DomainProvisioner) e
 }
 
 object DomainProvisionerActor {
-  
+
   val RelativePath = "domainProvisioner"
-  
+
   def props(provisioner: DomainProvisioner): Props = Props(new DomainProvisionerActor(provisioner))
 
   case class ProvisionDomain(
+    domainFqn: DomainFqn,
     databaseName: String,
     dbUsername: String,
     dbPassword: String,

@@ -7,18 +7,18 @@ import scala.util.Try
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 import com.convergencelabs.server.datastore.DeltaHistoryStore
-import com.convergencelabs.server.domain.datastore.ConvergenceDelta
-import com.convergencelabs.server.domain.datastore.ConvergenceDeltaHistory
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.convergencelabs.server.datastore.ConvergenceDelta
+import com.convergencelabs.server.datastore.ConvergenceDeltaHistory
 
 class ConvergenceSchemaManager(db: ODatabaseDocumentTx, historyStore: DeltaHistoryStore, preRelease: Boolean)
-    extends AbstractSchemaManager(db: ODatabaseDocumentTx, historyStore: DeltaHistoryStore, preRelease: Boolean) {
+    extends AbstractSchemaManager(db, preRelease: Boolean) {
 
   def getCurrentVersion(): Try[Int] = {
     this.historyStore.getConvergenceDBVersion()
   }
 
-  def recordDeltaSuccess(delta: DeltaScript): Unit = Try {
+  def recordDeltaSuccess(delta: DeltaScript): Try[Unit] = Try {
     val cd = ConvergenceDelta(delta.delta.version, delta.rawScript)
     val history = ConvergenceDeltaHistory(cd, DeltaHistoryStore.Status.Success, None, Instant.now())
     this.historyStore.saveConvergenceDeltaHistory(history)

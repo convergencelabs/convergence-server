@@ -22,6 +22,7 @@ import akka.actor.Terminated
 import akka.actor.actorRef2Scala
 import akka.pattern.Patterns
 import akka.util.Timeout
+import com.convergencelabs.server.datastore.DatabaseProvider
 
 object DomainPersistenceManagerActor {
   val RelativePath = "DomainPersistenceManagerActor"
@@ -151,7 +152,7 @@ class DomainPersistenceManagerActor(
           domainInfo.username,
           domainInfo.password)
         log.debug(s"Creating new connection pool for '${domainFqn}': ${pool.getUrl}")
-        val provider = new DomainPersistenceProvider(pool)
+        val provider = new DomainPersistenceProvider(DatabaseProvider(pool))
         provider.validateConnection() flatMap { _ =>
           providers = providers + (domainFqn -> provider)
           Success(provider)

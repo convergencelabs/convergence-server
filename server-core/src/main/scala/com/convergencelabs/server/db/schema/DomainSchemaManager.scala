@@ -2,38 +2,38 @@ package com.convergencelabs.server.db.schema
 
 import java.time.Instant
 
+import scala.util.Failure
 import scala.util.Try
 
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 import com.convergencelabs.server.datastore.DeltaHistoryStore
-import com.convergencelabs.server.domain.datastore.ConvergenceDelta
-import com.convergencelabs.server.domain.datastore.ConvergenceDeltaHistory
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.datastore.DomainDelta
-import com.convergencelabs.server.domain.datastore.DomainDeltaHistory
-import grizzled.slf4j.Logging
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+
+import grizzled.slf4j.Logging
+import com.convergencelabs.server.datastore.DomainDeltaHistory
+import com.convergencelabs.server.datastore.DomainDelta
 
 class DomainSchemaManager(
   domainFqn: DomainFqn,
   db: ODatabaseDocumentTx,
   historyStore: DeltaHistoryStore,
   preRelease: Boolean)
-    extends AbstractSchemaManager(db: ODatabaseDocumentTx, historyStore: DeltaHistoryStore, preRelease: Boolean)
+    extends AbstractSchemaManager(db, preRelease)
     with Logging {
 
   def getCurrentVersion(): Try[Int] = {
     this.historyStore.getDomainDBVersion(domainFqn)
   }
 
-  def recordDeltaSuccess(delta: DeltaScript): Unit = Try {
+  def recordDeltaSuccess(delta: DeltaScript): Try[Unit] = Try {
     val dd = DomainDelta(delta.delta.version, delta.rawScript)
     val history = DomainDeltaHistory(domainFqn, dd, DeltaHistoryStore.Status.Success, None, Instant.now())
-    this.historyStore.saveDomainDeltaHistory(history) recover {
+    this.historyStore.saveDomainDeltaHistory(history) recoverWith {
       case cause: Exception =>
         logger.error(s"Error creating detla history record for successful domain delta: ${history}")
+        Failure(cause)
     }
   }
 

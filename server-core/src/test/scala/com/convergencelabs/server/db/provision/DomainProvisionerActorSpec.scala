@@ -21,6 +21,7 @@ import akka.actor.Status
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
 import scala.util.Failure
+import com.convergencelabs.server.domain.DomainFqn
 
 
 
@@ -38,11 +39,11 @@ class DomainProvisionerActorSpec
     "receiving a ProvisionDomain" must {
       "respond with DomainProvisioned if the provisioing is successful" in new TestFixture {
         Mockito
-          .when(provisioner.provisionDomain("dbname", "username", "password", "adminUsername", "adminPassword"))
+          .when(provisioner.provisionDomain(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword"))
           .thenReturn(Success(()))
 
         val client = new TestProbe(system)
-        val message = ProvisionDomain("dbname", "username", "password", "adminUsername", "adminPassword")
+        val message = ProvisionDomain(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword")
         domainProvisionerActor.tell(message, client.ref)
 
         client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[DomainProvisioned])
@@ -50,11 +51,11 @@ class DomainProvisionerActorSpec
       
       "respond with a failure if the provisioing is not successful" in new TestFixture {
         Mockito
-          .when(provisioner.provisionDomain("dbname", "username", "password", "adminUsername", "adminPassword"))
+          .when(provisioner.provisionDomain(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword"))
           .thenReturn(Failure(new IllegalStateException()))
 
         val client = new TestProbe(system)
-        val message = ProvisionDomain("dbname", "username", "password", "adminUsername", "adminPassword")
+        val message = ProvisionDomain(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword")
         domainProvisionerActor.tell(message, client.ref)
 
         client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Status.Failure])
@@ -66,5 +67,6 @@ class DomainProvisionerActorSpec
     val provisioner = mock[DomainProvisioner]
     val props = DomainProvisionerActor.props(provisioner)
     val domainProvisionerActor = system.actorOf(props)
+    val domainFqn = DomainFqn("some", "domain")
   }
 }

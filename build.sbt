@@ -18,7 +18,6 @@ val commonSettings = Seq(
   resolvers += "Maven Public" at "https://nexus.convergencelabs.tech/repository/maven-public"
  )
 
-
  val serverOt = (project in file("server-ot")).
   configs(Configs.all: _*).
   settings(commonSettings: _*).
@@ -38,26 +37,6 @@ val commonSettings = Seq(
       ) ++
       testingCore
   )
- 
- val serverDatastore = (project in file("server-datastores")).
-  configs(Configs.all: _*).
-  settings(commonSettings: _*).
-  settings(Testing.settings: _*).
-  settings(
-    name := "convergence-server-datastores",
-    libraryDependencies ++= 
-      orientDb ++ 
-      loggingAll ++ 
-      Seq(
-        json4s, 
-        commonsLang,
-        jose4j,
-        bouncyCastle,
-        scrypt,
-        "org.scala-lang" % "scala-reflect" % scalaVersion.value
-      ) ++
-      testingCore
-  ).dependsOn(serverOt)
  
 val serverCore = (project in file("server-core")).
   enablePlugins(SbtTwirl).
@@ -91,7 +70,7 @@ val serverCore = (project in file("server-core")).
       Seq(orientDbServer % "test") ++
       testingCore ++
       testingAkka
-  ).dependsOn(serverDatastore)
+  ).dependsOn(serverOt)
   
   
 lazy val dockerBuild = taskKey[Unit]("docker-build")
@@ -166,5 +145,5 @@ val root = (project in file(".")).
     publishArtifact in (Compile, packageDoc) := false, // there are no javadocs
     publishArtifact in (Compile, packageSrc) := false
   ).
-  aggregate(serverOt, serverDatastore, serverCore, serverNode, testkit, e2eTests)
+  aggregate(serverOt, serverCore, serverNode, testkit, e2eTests)
   

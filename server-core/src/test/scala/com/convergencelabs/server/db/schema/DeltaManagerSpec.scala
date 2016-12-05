@@ -56,9 +56,9 @@ class DeltaManagerSpec extends WordSpecLike with Matchers {
         val manifest = manager.manifest(DeltaCategory.Convergence).get
         val delta = manifest.getIncrementalDelta(1).get
 
-        delta.version shouldBe 1
-        delta.description shouldBe Some("Initial schema creation")
-        delta.changes shouldBe List(
+        delta.delta.version shouldBe 1
+        delta.delta.description shouldBe Some("Initial schema creation")
+        delta.delta.changes shouldBe List(
           CreateClass("TestClass1", None, None, List(
             Property("prop1", OrientType.String, None, None, Some(Constraints(None, None, Some(true), None, Some(true), None, None, None, None))),
             Property("prop2", OrientType.Link, None, Some("TestClass2"), Some(Constraints(None, None, Some(true), None, Some(true), None, None, None, None))))),
