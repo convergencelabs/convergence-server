@@ -39,6 +39,7 @@ class SingleDatabaseProvider(db: ODatabaseDocumentTx) extends DatabaseProvider {
   }
   
   def shutdown(): Unit = {
+    db.activateOnCurrentThread()
     db.close()
   }
 }

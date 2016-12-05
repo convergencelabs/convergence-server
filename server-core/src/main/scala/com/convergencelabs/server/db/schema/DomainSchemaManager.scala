@@ -32,7 +32,7 @@ class DomainSchemaManager(
     val history = DomainDeltaHistory(domainFqn, dd, DeltaHistoryStore.Status.Success, None, Instant.now())
     this.historyStore.saveDomainDeltaHistory(history) recoverWith {
       case cause: Exception =>
-        logger.error(s"Error creating detla history record for successful domain delta: ${history}")
+        logger.error(s"Error creating detla history record for successful domain delta: \n${history}", cause)
         Failure(cause)
     }
   }

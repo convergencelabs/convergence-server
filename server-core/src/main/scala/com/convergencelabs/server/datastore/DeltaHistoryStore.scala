@@ -19,7 +19,6 @@ import DeltaHistoryStore.DomainDeltaClass
 import DeltaHistoryStore.DomainDeltaHistoryClass
 import DeltaHistoryStore.DomainDeltaHistoryIndex
 import DeltaHistoryStore.DomainDeltaIndex
-import DeltaHistoryStore.DomainIndex
 import DeltaHistoryStore.Fields
 import DeltaHistoryStore.Status
 import grizzled.slf4j.Logging
@@ -31,12 +30,11 @@ object DeltaHistoryStore {
   val ConvergenceDeltaIndex = "ConvergenceDelta.deltaNo"
   val ConvergenceDeltaHistoryIndex = "ConvergenceDeltaHistory.delta"
 
-  val DomainDeltaClass = "Domain"
+  val DomainDeltaClass = "DomainDelta"
   val DomainDeltaHistoryClass = "DomainDeltaHistory"
 
-  val DomainIndex = "Domain.namespace_id"
   val DomainDeltaIndex = "DomainDelta.deltaNo"
-  val DomainDeltaHistoryIndex = "DomainDeltaHistory.delta"
+  val DomainDeltaHistoryIndex = "DomainDeltaHistory.domain_delta"
   
   object Fields {
     val DeltaNo = "deltaNo"
@@ -129,13 +127,9 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
   def saveDomainDeltaHistory(deltaHistory: DomainDeltaHistory): Try[Unit] = tryWithDb { db =>
     val DomainDeltaHistory(domain, delta, status, message, date) = deltaHistory
 
-    // Validate domain exists
-    val domainKey = new OCompositeKey(List(domain.namespace, domain.domainId).asJava)
-    val domainIndex = db.getMetadata.getIndexManager.getIndex(DomainIndex)
-    if (!domainIndex.contains(domainKey)) {
-      // TODO: Handle Domain Does not exist
-    }
-
+    // FIXME hand the error better.
+    val domainORID = DomainStore.getDomainRid(domain, db).get
+    
     // Validate delta exists or create it
     val deltaIndex = db.getMetadata.getIndexManager.getIndex(DomainDeltaIndex)
     if (!deltaIndex.contains(delta.deltaNo)) {
@@ -143,7 +137,6 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
     }
 
     val deltaORID = deltaIndex.get(delta.deltaNo).asInstanceOf[OIdentifiable].getIdentity
-    val domainORID = domainIndex.get(domainKey).asInstanceOf[OIdentifiable].getIdentity
 
     // Remove old history record
     val deltaHistoryKey = new OCompositeKey(List(deltaORID, domainORID).asJava)
@@ -171,12 +164,7 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
 
     if (deltaIndex.contains(deltaNo)) {
       val deltaORID = deltaIndex.get(deltaNo).asInstanceOf[OIdentifiable].getIdentity
-
-      val domainKey = new OCompositeKey(List(namespace, domainId).asJava)
-      val domainIndex = db.getMetadata.getIndexManager.getIndex(DomainIndex)
-      if (!domainIndex.contains(domainKey)) {
-        val domainORID = deltaIndex.get(domainKey).asInstanceOf[OIdentifiable].getIdentity
-
+      DomainStore.getDomainRid(domainFqn, db).map { domainORID =>
         if (deltaHistoryIndex.contains(deltaORID)) {
           val doc: ODocument = deltaHistoryIndex.get(deltaORID).asInstanceOf[OIdentifiable].getRecord.asInstanceOf[ODocument]
           val deltaDoc: ODocument = doc.field(Fields.Delta)
@@ -190,10 +178,13 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
 
           val delta = DomainDelta(deltaNo, value)
           Some(DomainDeltaHistory(domainFqn, delta, status, message, date.toInstant()))
+        } else {
+          None
         }
-      }
+      }.getOrElse(None) // FIXME should maybe use recover?
+    } else {
+      None
     }
-    None
   }
 
   def getDomainDBVersion(domainFqn: DomainFqn): Try[Int] = tryWithDb { db =>
