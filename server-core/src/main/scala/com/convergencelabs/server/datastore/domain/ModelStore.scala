@@ -263,7 +263,7 @@ class ModelStore private[domain] (
       s"""SELECT *
         |FROM Model
         |ORDER BY
-        |  collectionId ASC,
+        |  collection.id ASC,
         |  id ASC""".stripMargin
 
     val pageQuery = QueryUtil.buildPagedQuery(queryString, limit, offset)

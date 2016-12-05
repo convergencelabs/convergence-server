@@ -144,7 +144,7 @@ class CollectionStore private[domain] (dbProvider: DatabaseProvider, modelStore:
     offset: Option[Int],
     limit: Option[Int]): Try[List[Collection]] = tryWithDb { db =>
 
-    val queryString = "SELECT * FROM Collection ORDER BY collectionId ASC"
+    val queryString = "SELECT * FROM Collection ORDER BY id ASC"
     val pageQuery = QueryUtil.buildPagedQuery(queryString, limit, offset)
     val query = new OSQLSynchQuery[ODocument](pageQuery)
     val result: JavaList[ODocument] = db.command(query).execute()
