@@ -41,7 +41,7 @@ object DomainDatabaseStore {
     DomainStore.getDomainRid(fqn, db).recoverWith {
       case cause: Exception =>
         Failure(new IllegalArgumentException(
-          s"Could store domain database info because domain does not exists: ${fqn}"))
+          s"Could store domain database info because domain does not exist: ${fqn}"))
     }.map { domainLink =>
       val doc = new ODocument(ClassName)
       doc.field(Fields.Domain, domainLink)
@@ -56,7 +56,7 @@ object DomainDatabaseStore {
 
   def docToDomainDatabase(doc: ODocument): DomainDatabase = {
     DomainDatabase(
-      DomainFqn(doc.field("namespace"), doc.field("domainId")),
+      DomainFqn(doc.field("domain.namespace"), doc.field("domain.id")),
       doc.field(Fields.Database),
       doc.field(Fields.Username),
       doc.field(Fields.Password),
@@ -68,9 +68,6 @@ object DomainDatabaseStore {
 class DomainDatabaseStore(dbProvider: DatabaseProvider)
     extends AbstractDatabasePersistence(dbProvider)
     with Logging {
-
-  val AllFields = "domain.id as domainId, domain.namespace as namespace, database, username, password, adminUsername, adminPassword"
-
 
   def createDomainDatabase(domainDatabase: DomainDatabase): Try[CreateResult[Unit]] = tryWithDb { db =>
     DomainDatabaseStore.domainDatabaseToDoc(domainDatabase, db).map { doc =>
@@ -95,7 +92,7 @@ class DomainDatabaseStore(dbProvider: DatabaseProvider)
   }
 
   def updateDomainDatabase(domainDatabase: DomainDatabase): Try[UpdateResult] = tryWithDb { db =>
-    val query = "SELECT FROM DomainDatabase WHERE domain.namespace = :namespace AND domain.id = :domainId"
+    val query = "SELECT * FROM DomainDatabase WHERE domain.namespace = :namespace AND domain.id = :domainId"
     val params = Map(
         Namespace -> domainDatabase.domainFqn.namespace, 
         DomainId -> domainDatabase.domainFqn.domainId)
@@ -117,8 +114,8 @@ class DomainDatabaseStore(dbProvider: DatabaseProvider)
 
   def getDomainDatabase(domainFqn: DomainFqn): Try[Option[DomainDatabase]] = tryWithDb { db =>
     val query = 
-      s"""
-       |SELECT ${AllFields} 
+      """
+       |SELECT *
        |FROM DomainDatabase 
        |WHERE 
        | domain.namespace = :namespace AND 
@@ -129,7 +126,7 @@ class DomainDatabaseStore(dbProvider: DatabaseProvider)
   }
 
   def getAllDomainDatabasesForUser(username: String): Try[List[DomainDatabase]] = tryWithDb { db =>
-    val queryString = "SELECT ${AllFields} FROM DomainDatabase WHERE domain.owner.username = :username"
+    val queryString = "SELECT * FROM DomainDatabase WHERE domain.owner.username = :username"
     val query = new OSQLSynchQuery[ODocument](queryString)
     val params = Map("username" -> username)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)

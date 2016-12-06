@@ -8,9 +8,15 @@ import com.convergencelabs.server.datastore.DomainDatabaseStoreSpec.SpecStores
 import com.convergencelabs.server.datastore.domain.PersistenceStoreSpec
 import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.domain.DomainFqn
+import java.time.Duration
+import com.convergencelabs.server.domain.DomainDatabase
+import org.scalatest.TryValues._
 
 object DomainDatabaseStoreSpec {
-  case class SpecStores(domain: DomainStore, domainDatabase: DomainDatabaseStore)
+  case class SpecStores(
+      user: UserStore,
+      domain: DomainStore, 
+      domainDatabase: DomainDatabaseStore)
 }
 
 class DomainDatabaseStoreSpec
@@ -19,7 +25,7 @@ class DomainDatabaseStoreSpec
     with Matchers {
 
   def createStore(dbProvider: DatabaseProvider): SpecStores = {
-    SpecStores(new DomainStore(dbProvider), new DomainDatabaseStore(dbProvider))
+    SpecStores(new UserStore(dbProvider, Duration.ofMinutes(1)), new DomainStore(dbProvider), new DomainDatabaseStore(dbProvider))
   }
 
   val namespace1 = "namespace1"
@@ -32,22 +38,46 @@ class DomainDatabaseStoreSpec
   val ns1d2 = DomainFqn(namespace1, domain2)
   
   // Not in database
-  val ns1d3 = DomainFqn(namespace1, domain3)
+  val ns2d1 = DomainFqn("ns2", "d1")
   
-  val root = "root"
+  val owner = User("owner", "foo@example.com", "", "", "") 
+  val notOwner = User("notOwner", "not@example.com", "", "", "") 
   
-  val DbAdminUsername = "admin"
-  val DbAdminPassword = "admin"
-  val DbNormalUsername = "writer"
-  val DbNormalPassword = "writer"
+  val adminUsername = "admin"
+  val adminPassword = "admin"
+  val username = "writer"
+  val password = "writer"
   
-
+  val db1 = "db1"
+  
   "A DomainDatabaseStore" when {
 
-    "asked whether a domain exists" must {
-
-      "return false if it doesn't exist" in withPersistenceStore { stores =>
+    "creating a domain database entry" must {
+      "successfully create and retrieve the entry" in withTestData { stores =>
+        val database = DomainDatabase(ns1d1, db1, username, password, adminUsername, adminPassword)
+        stores.domainDatabase.createDomainDatabase(database).get
+        val queried = stores.domainDatabase.getDomainDatabase(ns1d1).get.get
+        queried shouldBe database
       }
+      
+      "disallow duplicate entries for the same domain" in withTestData { stores =>
+        val database = DomainDatabase(ns1d1, db1, username, password, adminUsername, adminPassword)
+        stores.domainDatabase.createDomainDatabase(database).get
+        stores.domainDatabase.createDomainDatabase(database).get shouldBe DuplicateValue
+      }
+    }
+  }
+  
+  def withTestData(testCode: SpecStores => Any): Unit = {
+    withPersistenceStore { stores =>
+      stores.user.createUser(owner, "password").get
+      stores.domain.createDomain(ns1d1, "ns1d1", owner.username).get
+      stores.domain.createDomain(ns1d2, "ns1d2", owner.username).get
+      
+      stores.user.createUser(notOwner, "password").get
+      stores.domain.createDomain(ns2d1, "ns2d1", notOwner.username).get
+      
+      testCode(stores)
     }
   }
 }
