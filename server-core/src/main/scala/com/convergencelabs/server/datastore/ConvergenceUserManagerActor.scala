@@ -24,6 +24,7 @@ import akka.actor.Status
 import akka.actor.actorRef2Scala
 import akka.pattern.ask
 import akka.util.Timeout
+import com.convergencelabs.server.domain.DomainDatabase
 
 object ConvergenceUserManagerActor {
   def props(dbProvider: DatabaseProvider, domainStoreActor: ActorRef): Props =
@@ -61,14 +62,13 @@ class ConvergenceUserManagerActor private[datastore] (
   def createConvergenceUser(message: CreateConvergenceUserRequest): Unit = {
     val CreateConvergenceUserRequest(username, email, firstName, lastName, displayName, password) = message
     val origSender = sender
-    userStore.createUser(User(username, email, firstName, lastName, displayName), password) map {
-      case uid =>
-        log.debug("User created.  Creating domains")
-        FutureUtils.seqFutures(autoCreateConfigs) { config =>
-          createDomain(username, config.getString("id"), config.getString("displayName"))
-        }
+    userStore.createUser(User(username, email, firstName, lastName, displayName), password) map { _ =>
+      log.debug("User created.  Creating domains")
+      FutureUtils.seqFutures(autoCreateConfigs) { config =>
+        createDomain(username, config.getString("id"), config.getString("displayName"))
+      }
 
-        origSender ! uid
+      origSender ! (())
     } recover {
       case e: Throwable =>
         origSender ! Status.Failure(e)
@@ -79,27 +79,27 @@ class ConvergenceUserManagerActor private[datastore] (
     val GetConvergenceUser(username) = message
     reply(userStore.getUserByUsername(username))
   }
-  
+
   def getConvergenceUsers(): Unit = {
     reply(userStore.getUsers())
   }
 
   def deleteConvergenceUser(message: DeleteConvergenceUserRequest): Unit = {
     val DeleteConvergenceUserRequest(username) = message;
-    
-    val result = (domainStoreActor ? DeleteDomainsForUserRequest(username)).mapTo[Unit] flatMap ( _ =>
-       FutureUtils.tryToFuture(userStore.deleteUser(username)) 
-    )
-    
+
+    val result = (domainStoreActor ? DeleteDomainsForUserRequest(username)).mapTo[Unit] flatMap (_ =>
+      FutureUtils.tryToFuture(userStore.deleteUser(username)))
+
     reply(result)
   }
 
-  private[this] def createDomain(username: String, id: String, displayName: String): Future[Unit] = {
+  private[this] def createDomain(username: String, id: String, displayName: String): Future[Any] = {
     log.debug(s"Requesting domain creation for user '${username}': $id")
 
     // FIXME hard coded
     implicit val requstTimeout = Timeout(240 seconds)
-    (domainStoreActor ? CreateDomainRequest(username, id, displayName, username)).mapTo[Unit] andThen {
+    val message = CreateDomainRequest(username, id, displayName, username)
+    (domainStoreActor ? message).andThen {
       case Success(_) =>
         log.debug(s"Domain '${id}' created for '${username}'");
       case Failure(f) =>

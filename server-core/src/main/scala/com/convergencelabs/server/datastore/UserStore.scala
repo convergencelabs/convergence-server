@@ -100,9 +100,8 @@ class UserStore(
     pwDoc.field(Password, passwordHash)
 
     db.save(pwDoc)
-
     ()
-  } recover {
+  } recoverWith {
     case e: ORecordDuplicatedException => handleDuplicateValue(e)
   }
 

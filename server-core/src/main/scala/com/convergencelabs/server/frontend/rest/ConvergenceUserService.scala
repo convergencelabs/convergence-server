@@ -24,6 +24,7 @@ import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Directives.delete
 import akka.http.scaladsl.server.Directives.get
 import akka.http.scaladsl.server.Directives.handleWith
+import akka.http.scaladsl.server.Directives.handleExceptions
 import akka.http.scaladsl.server.Directives.pathEnd
 import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.post
@@ -69,13 +70,14 @@ class ConvergenceUserService(
 
   def createConvergenceUserRequest(createRequest: CreateUserRequest): Future[RestResponse] = {
     val CreateUserRequest(username, firstName, lastName, displayName, email, password) = createRequest
-    (userManagerActor ? CreateConvergenceUserRequest(username, email, firstName, lastName, displayName, password)).mapTo[String].map { _ =>
+    val message = CreateConvergenceUserRequest(username, email, firstName, lastName, displayName, password)
+    (userManagerActor ? message) map { _ =>
       CreateRestResponse
     }
   }
 
   def deleteConvergenceUserRequest(username: String): Future[RestResponse] = {
-    (userManagerActor ? DeleteConvergenceUserRequest(username)).mapTo[Unit].map { _ =>
+    (userManagerActor ? DeleteConvergenceUserRequest(username)) map { _ =>
       CreateRestResponse
     }
   }

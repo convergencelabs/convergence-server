@@ -18,6 +18,7 @@ import akka.http.scaladsl.model.HttpMethods
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
 import akka.http.scaladsl.server.Directive.addDirectiveApply
 import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
+import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
 import akka.http.scaladsl.server.Directives.extractRequest
 import akka.http.scaladsl.server.Directives.pathPrefix
@@ -36,6 +37,10 @@ import com.convergencelabs.server.db.schema.DatabaseManagerActor
 import com.convergencelabs.server.db.data.ConvergenceImportService
 import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.datastore.DeltaHistoryStore
+import akka.http.scaladsl.server.ExceptionHandler
+import com.convergencelabs.server.datastore.DuplicateValueExcpetion
+import com.convergencelabs.server.datastore.InvalidValueExcpetion
+import com.convergencelabs.server.datastore.EntityNotFoundException
 
 object ConvergenceRestFrontEnd {
   val ConvergenceCorsSettings = CorsSettings.defaultSettings.copy(
@@ -53,7 +58,7 @@ class ConvergenceRestFrontEnd(
   val interface: String,
   val port: Int,
   val convergenceDbProvider: DatabaseProvider)
-    extends Logging {
+    extends Logging with JsonSupport {
 
   implicit val s = system
   implicit val materializer = ActorMaterializer()
@@ -116,6 +121,17 @@ class ConvergenceRestFrontEnd(
 
     val adminsConfig = system.settings.config.getConfig("convergence.convergence-admins")
 
+    implicit def exceptionHandler: ExceptionHandler = ExceptionHandler {
+    case e: DuplicateValueExcpetion =>
+      complete(duplicateResponse(e.field))
+
+    case e: InvalidValueExcpetion =>
+      complete(invalidValueResponse(e.field))
+
+    case e: EntityNotFoundException =>
+      complete(NotFoundError)
+  }
+    
     val route = cors(ConvergenceRestFrontEnd.ConvergenceCorsSettings) {
       // All request are under the "rest" path.
       pathPrefix("rest") {

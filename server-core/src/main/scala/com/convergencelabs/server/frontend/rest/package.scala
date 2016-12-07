@@ -23,7 +23,7 @@ package object rest {
   case class ErrorResponse(error: String) extends AbstractErrorResponse
 
   
-  case class DuplicateError(field: String) extends AbstractErrorResponse {
+  case class DuplicateError(val field: String) extends AbstractErrorResponse {
     val error = "duplicate_error"
   }
   
