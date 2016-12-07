@@ -67,39 +67,29 @@ class DomainStoreActor private[datastore] (
 
     val currentSender = sender
 
-    domainStore.createDomain(domainFqn, displayName, ownerUsername) map {
-      case CreateSuccess(()) =>
-        // FIXME this would be easier with exceptions.  We are not really checking the success here
-        domainDatabaseStore.createDomainDatabase(domainDbInfo) map {
-          case CreateSuccess(()) =>
-            implicit val requstTimeout = Timeout(4 minutes) // FXIME hardcoded timeout
-            val message = ProvisionDomain(domainFqn, dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword)
-            (domainProvisioner ? message).mapTo[DomainProvisioned] onComplete {
-              case Success(DomainProvisioned()) =>
-                log.debug(s"Domain created, setting status to online: $dbName")
-                domainStore.getDomainByFqn(domainFqn) map (_.map { domain =>
-                  val updated = domain.copy(status = DomainStatus.Online)
-                  domainStore.updateDomain(updated)
-                })
-                reply(Success(CreateSuccess(domainDbInfo)), currentSender)
+    domainStore.createDomain(domainFqn, displayName, ownerUsername) flatMap { _ =>
+        domainDatabaseStore.createDomainDatabase(domainDbInfo)
+    } map { _ =>
+        implicit val requstTimeout = Timeout(4 minutes) // FXIME hardcoded timeout
+        val message = ProvisionDomain(domainFqn, dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword)
+        (domainProvisioner ? message).mapTo[DomainProvisioned] onComplete {
+          case Success(DomainProvisioned()) =>
+            log.debug(s"Domain created, setting status to online: $dbName")
+            domainStore.getDomainByFqn(domainFqn) map (_.map { domain =>
+              val updated = domain.copy(status = DomainStatus.Online)
+              domainStore.updateDomain(updated)
+            })
+            reply(Success(domainDbInfo), currentSender)
 
-              case Failure(cause) =>
-                log.error(cause, s"Domain was not created successfully: $dbName")
-                val statusMessage = ExceptionUtils.stackTraceToString(cause)
-                domainStore.getDomainByFqn(domainFqn) map (_.map { domain =>
-                  val updated = domain.copy(status = DomainStatus.Error, statusMessage = statusMessage)
-                  domainStore.updateDomain(updated)
-                })
-                reply(Failure(cause), currentSender)
-            }
-          case _ =>
-            // FIXME not really correct
-            reply(Success(InvalidValue), currentSender)
+          case Failure(cause) =>
+            log.error(cause, s"Domain was not created successfully: $dbName")
+            val statusMessage = ExceptionUtils.stackTraceToString(cause)
+            domainStore.getDomainByFqn(domainFqn) map (_.map { domain =>
+              val updated = domain.copy(status = DomainStatus.Error, statusMessage = statusMessage)
+              domainStore.updateDomain(updated)
+            })
+            reply(Failure(cause), currentSender)
         }
-      case InvalidValue =>
-        reply(Success(InvalidValue), currentSender)
-      case DuplicateValue =>
-        reply(Success(DuplicateValue), currentSender)
     } recover {
       case cause: Exception => reply(Failure(cause), currentSender)
     }
@@ -113,7 +103,7 @@ class DomainStoreActor private[datastore] (
           val updated = domain.copy(displayName = displayName)
           domainStore.updateDomain(updated)
         case None =>
-          Success(NotFound)
+          Failure(new EntityNotFoundException())
       })
   }
 
@@ -128,9 +118,9 @@ class DomainStoreActor private[datastore] (
         // FIXME we don't seem to care about the response?
         implicit val requstTimeout = Timeout(4 minutes) // FXIME hardcoded timeout
         (domainProvisioner ? DestroyDomain(databaseConfig.database))
-        Success(DeleteSuccess)
+        Success(())
       }
-      case _ => Success(NotFound)
+      case _ => Failure(new EntityNotFoundException())
     })
   }
 

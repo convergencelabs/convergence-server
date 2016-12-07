@@ -4,20 +4,17 @@ import java.time.Instant
 import java.util.Date
 import java.util.{ List => JavaList }
 import java.util.UUID
+
+import scala.collection.JavaConverters.asScalaBufferConverter
+import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.util.Failure
-import scala.util.Success
 import scala.util.Try
+
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.server.datastore.CreateResult
-import com.convergencelabs.server.datastore.CreateSuccess
 import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.DeleteResult
-import com.convergencelabs.server.datastore.DeleteSuccess
-import com.convergencelabs.server.datastore.DuplicateValue
-import com.convergencelabs.server.datastore.NotFound
+import com.convergencelabs.server.datastore.DuplicateValueExcpetion
+import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.datastore.QueryUtil
-import com.convergencelabs.server.datastore.UpdateResult
-import com.convergencelabs.server.datastore.UpdateSuccess
 import com.convergencelabs.server.datastore.domain.mapper.ObjectValueMapper.ODocumentToObjectValue
 import com.convergencelabs.server.domain.model.Model
 import com.convergencelabs.server.domain.model.ModelFqn
@@ -30,12 +27,15 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
+
+import ModelStore.Constants.CollectionId
+import ModelStore.Fields.Collection
+import ModelStore.Fields.CreatedTime
+import ModelStore.Fields.Data
+import ModelStore.Fields.Id
+import ModelStore.Fields.ModifiedTime
+import ModelStore.Fields.Version
 import grizzled.slf4j.Logging
-import java.util.{List => JavaList}
-import scala.collection.JavaConverters._
-import scala.collection.JavaConversions._
-import ModelStore.Fields._
-import ModelStore.Constants._
 
 object ModelStore {
   val ModelClass = "Model"
@@ -104,7 +104,7 @@ class ModelStore private[domain] (
     QueryUtil.hasResults(query, params, db)
   }
 
-  def createModel(collectionId: String, modelId: Option[String], data: ObjectValue): Try[CreateResult[Model]] = {
+  def createModel(collectionId: String, modelId: Option[String], data: ObjectValue): Try[Model] = {
     val createdTime = Instant.now()
     val modifiedTime = createdTime
     val version = 1
@@ -121,7 +121,7 @@ class ModelStore private[domain] (
     this.createModel(model)
   }
 
-  def createModel(model: Model): Try[CreateResult[Model]] = tryWithDb { db =>
+  def createModel(model: Model): Try[Model] = tryWithDb { db =>
     val collectionId = model.metaData.fqn.collectionId
     val modelId = model.metaData.fqn.modelId
     val createdTime = model.metaData.createdTime
@@ -149,56 +149,48 @@ class ModelStore private[domain] (
         modelDoc.save()
         db.commit()
 
-        CreateSuccess(model)
+        model
       }.get
-
-  } recover {
-    case e: ORecordDuplicatedException => DuplicateValue
+  } recoverWith {
+    case e: ORecordDuplicatedException => handleDuplicateValue(e)
   }
 
-  def updateModel(fqn: ModelFqn, data: ObjectValue): Try[UpdateResult] = tryWithDb { db =>
+  def updateModel(fqn: ModelFqn, data: ObjectValue): Try[Unit] = tryWithDb { db =>
     ModelStore.getModelDoc(fqn, db) match {
       case Some(doc) =>
         deleteDataValuesForModel(fqn, db).map { _ =>
           val dataValueDoc = OrientDataValueBuilder.dataValueToODocument(data, doc)
           doc.field(Data, dataValueDoc)
           doc.save()
-          UpdateSuccess
+          ()
         }.get
       case None =>
-        NotFound
+        throw EntityNotFoundException()
     }
   }
 
-  def deleteModel(fqn: ModelFqn): Try[DeleteResult] = tryWithDb { db =>
-    modelExists(fqn).flatMap {
-      case false =>
-        Success(NotFound)
-      case true =>
-        operationStore.deleteAllOperationsForModel(fqn).flatMap { _ =>
-          snapshotStore.removeAllSnapshotsForModel(fqn)
-        }.flatMap { _ =>
-          deleteDataValuesForModel(fqn, db)
-        }.map { _ =>
-          val command = new OCommandSQL("DELETE FROM Model WHERE collection.id = :collectionId AND id = :id")
-          val params = Map(CollectionId -> fqn.collectionId, Id -> fqn.modelId)
-          db.command(command).execute(params.asJava).asInstanceOf[Int] match {
-            case 1 => DeleteSuccess
-            case _ => NotFound
-          }
-        }
+  def deleteModel(fqn: ModelFqn): Try[Unit] = tryWithDb { db =>
+    operationStore.deleteAllOperationsForModel(fqn).flatMap { _ =>
+      snapshotStore.removeAllSnapshotsForModel(fqn)
+    }.flatMap { _ =>
+      deleteDataValuesForModel(fqn, db)
+    }.map { _ =>
+      val command = new OCommandSQL("DELETE FROM Model WHERE collection.id = :collectionId AND id = :id")
+      val params = Map(CollectionId -> fqn.collectionId, Id -> fqn.modelId)
+      db.command(command).execute(params.asJava).asInstanceOf[Int] match {
+        case 1 => 
+          ()
+        case _ =>
+          throw EntityNotFoundException()
+      }
     }.get
   }
 
   def deleteDataValuesForModel(fqn: ModelFqn, db: ODatabaseDocumentTx): Try[Unit] = Try {
     val command = new OCommandSQL("DELETE FROM DataValue WHERE model.collection.id = :collectionId AND model.id = :id")
     val params = Map(CollectionId -> fqn.collectionId, Id -> fqn.modelId)
-    db.command(command).execute(params.asJava).asInstanceOf[Int] match {
-      case 0 =>
-        throw new IllegalArgumentException(s"No datavalues to delete for model ${fqn}")
-      case _ =>
-        ()
-    }
+    db.command(command).execute(params.asJava).asInstanceOf[Int]
+    ()
   }
 
   def deleteAllModelsInCollection(collectionId: String): Try[Unit] = tryWithDb { db =>
@@ -309,5 +301,14 @@ class ModelStore private[domain] (
 
   def getModelData(fqn: ModelFqn): Try[Option[ObjectValue]] = tryWithDb { db =>
     ModelStore.getModelDoc(fqn, db) map (doc => doc.field(Data).asInstanceOf[ODocument].asObjectValue)
+  }
+
+  private[this] def handleDuplicateValue[T](e: ORecordDuplicatedException): Try[T] = {
+    e.getIndexName match {
+      case ModelStore.ModelCollectionIdIndex =>
+        Failure(DuplicateValueExcpetion("id_collection"))
+      case _ =>
+        Failure(e)
+    }
   }
 }

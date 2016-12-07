@@ -19,6 +19,7 @@ import grizzled.slf4j.Logging
 
 object DomainStore {
   val ClassName = "Domain"
+  val DomainNamespaceIdIndex = "Domain.namespace_id"
 
   object Fields {
     val Namespace = "namespace"
@@ -74,15 +75,14 @@ class DomainStore(dbProvider: DatabaseProvider)
     extends AbstractDatabasePersistence(dbProvider)
     with Logging {
 
-  def createDomain(domainFqn: DomainFqn, displayName: String, ownerUsername: String): Try[CreateResult[Unit]] = tryWithDb { db =>
+  def createDomain(domainFqn: DomainFqn, displayName: String, ownerUsername: String): Try[Unit] = tryWithDb { db =>
     val domain = Domain(domainFqn, displayName, ownerUsername, DomainStatus.Initializing, "")
     DomainStore.domainToDoc(domain, db).map { doc =>
       db.save(doc)
-      CreateSuccess(())
+      ()
     }.get
-  } recover {
-    case e: ORecordDuplicatedException =>
-      DuplicateValue
+  } recoverWith {
+    case e: ORecordDuplicatedException => handleDuplicateValue[Unit](e)
   }
 
   def domainExists(domainFqn: DomainFqn): Try[Boolean] = tryWithDb { db =>
@@ -115,16 +115,18 @@ class DomainStore(dbProvider: DatabaseProvider)
     QueryUtil.query(query, params, db) map { DomainStore.docToDomain(_) }
   }
 
-  def removeDomain(domainFqn: DomainFqn): Try[DeleteResult] = tryWithDb { db =>
+  def removeDomain(domainFqn: DomainFqn): Try[Unit] = tryWithDb { db =>
     val command = new OCommandSQL("DELETE FROM Domain WHERE namespace = :namespace AND id = :id")
     val params = Map(Namespace -> domainFqn.namespace, Id -> domainFqn.domainId)
     db.command(command).execute(params.asJava).asInstanceOf[Int] match {
-      case 0 => NotFound
-      case _ => DeleteSuccess
+      case 0 => 
+        throw new EntityNotFoundException()
+      case _ => 
+        ()
     }
   }
 
-  def updateDomain(domain: Domain): Try[UpdateResult] = tryWithDb { db =>
+  def updateDomain(domain: Domain): Try[Unit] = tryWithDb { db =>
     val query = "SELECT * FROM Domain WHERE namespace = :namespace AND id = :id"
     val params = Map(Namespace -> domain.domainFqn.namespace, Id -> domain.domainFqn.domainId)
     QueryUtil.lookupOptionalDocument(query, params, db) match {
@@ -132,14 +134,21 @@ class DomainStore(dbProvider: DatabaseProvider)
         DomainStore.domainToDoc(domain, db).map { updated =>
           existing.merge(updated, true, false)
           db.save(existing)
-          UpdateSuccess
+          ()
         }.get
       case _ =>
-        NotFound
+        throw new EntityNotFoundException()
     }
-  }.recover {
-    case e: ORecordDuplicatedException =>
-      // FIXME should this be duplicate value??
-      InvalidValue
+  }.recoverWith {
+    case e: ORecordDuplicatedException => handleDuplicateValue[Unit](e)
+  }
+  
+  private[this] def handleDuplicateValue[T](e: ORecordDuplicatedException):  Try[T] = {
+      e.getIndexName match {
+        case DomainStore.DomainNamespaceIdIndex =>
+          Failure(DuplicateValueExcpetion("namespace_id"))
+        case _ =>
+          Failure(e)
+      }
   }
 }

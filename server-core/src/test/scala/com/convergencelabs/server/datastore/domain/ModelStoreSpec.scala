@@ -10,14 +10,14 @@ import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
 
 import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.DuplicateValue
-import com.convergencelabs.server.datastore.NotFound
 import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.domain.model.Model
 import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelMetaData
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.model.data.StringValue
+import com.convergencelabs.server.datastore.DuplicateValueExcpetion
+import com.convergencelabs.server.datastore.EntityNotFoundException
 
 case class ModelStoreSpecStores(collection: CollectionStore, model: ModelStore)
 
@@ -112,7 +112,7 @@ class ModelStoreSpec
         val data = ObjectValue("t2-data",
           Map(("foo" -> StringValue("t2-foo", "bar"))))
         stores.model.createModel(person1.collectionId, Some(person1.modelId), data).get
-        stores.model.createModel(person1.collectionId, Some(person1.modelId), data).get shouldBe DuplicateValue
+        stores.model.createModel(person1.collectionId, Some(person1.modelId), data).failure.exception shouldBe a[DuplicateValueExcpetion]
       }
     }
 
@@ -307,7 +307,7 @@ class ModelStoreSpec
       "return a failure for deleting a non-existent model" in withPersistenceStore { stores =>
         createAllModels(stores)
         stores.model.getModel(nonExsitingFqn).get shouldBe None
-        stores.model.deleteModel(nonExsitingFqn).get shouldBe NotFound
+        stores.model.deleteModel(nonExsitingFqn).failure.exception shouldBe a[EntityNotFoundException]
       }
     }
 

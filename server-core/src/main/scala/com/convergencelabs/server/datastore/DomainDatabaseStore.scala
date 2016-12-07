@@ -11,7 +11,7 @@ import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import grizzled.slf4j.Logging
-import java.util.{List => JavaList}
+import java.util.{ List => JavaList }
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -21,12 +21,14 @@ import DomainDatabaseStore.Constants._
 
 object DomainDatabaseStore {
   val ClassName = "DomainDatabase"
+  val DomainIndex = "DomainDatabase.domain"
+  val DatabaseIndex = "DomainDatabase.database"
 
   object Constants {
     val Namespace = "namespace"
     val DomainId = "domainId"
   }
-  
+
   object Fields {
     val Domain = "domain"
     val Database = "database"
@@ -69,58 +71,55 @@ class DomainDatabaseStore(dbProvider: DatabaseProvider)
     extends AbstractDatabasePersistence(dbProvider)
     with Logging {
 
-  def createDomainDatabase(domainDatabase: DomainDatabase): Try[CreateResult[Unit]] = tryWithDb { db =>
+  def createDomainDatabase(domainDatabase: DomainDatabase): Try[Unit] = tryWithDb { db =>
     DomainDatabaseStore.domainDatabaseToDoc(domainDatabase, db).map { doc =>
       db.save(doc)
-      CreateSuccess(())
+      ()
     }.get
-  } recover {
-    case e: ORecordDuplicatedException =>
-      DuplicateValue
+  } recoverWith {
+    case e: ORecordDuplicatedException => handleDuplicateValue(e)
   }
-  
-  def removeDomainDatabase(domainFqn: DomainFqn): Try[DeleteResult] = tryWithDb { db =>
+
+  def removeDomainDatabase(domainFqn: DomainFqn): Try[Unit] = tryWithDb { db =>
     val command = new OCommandSQL("DELETE FROM DomainDatabase WHERE domain.namespace = :namespace AND domain.id = :domainId")
     val params = Map(
       Namespace -> domainFqn.namespace,
       DomainId -> domainFqn.domainId)
     val count: Int = db.command(command).execute(params.asJava)
     count match {
-      case 0 => NotFound
-      case _ => DeleteSuccess
+      case 0 => throw new EntityNotFoundException()
+      case _ => ()
     }
   }
 
-  def updateDomainDatabase(domainDatabase: DomainDatabase): Try[UpdateResult] = tryWithDb { db =>
+  def updateDomainDatabase(domainDatabase: DomainDatabase): Try[Unit] = tryWithDb { db =>
     val query = "SELECT * FROM DomainDatabase WHERE domain.namespace = :namespace AND domain.id = :domainId"
     val params = Map(
-        Namespace -> domainDatabase.domainFqn.namespace, 
-        DomainId -> domainDatabase.domainFqn.domainId)
+      Namespace -> domainDatabase.domainFqn.namespace,
+      DomainId -> domainDatabase.domainFqn.domainId)
     QueryUtil.lookupOptionalDocument(query, params, db) match {
       case Some(existing) =>
         DomainDatabaseStore.domainDatabaseToDoc(domainDatabase, db).map { updated =>
           existing.merge(updated, true, false)
           db.save(existing)
-          UpdateSuccess
+          ()
         }.get
       case _ =>
-        NotFound
+        throw new EntityNotFoundException()
     }
   }.recover {
-    case e: ORecordDuplicatedException =>
-      // FIXME should this be duplicate value??
-      InvalidValue
+    case e: ORecordDuplicatedException => handleDuplicateValue(e)
   }
 
   def getDomainDatabase(domainFqn: DomainFqn): Try[Option[DomainDatabase]] = tryWithDb { db =>
-    val query = 
+    val query =
       """
        |SELECT *
        |FROM DomainDatabase 
        |WHERE 
        | domain.namespace = :namespace AND 
        | domain.id = :domainId""".stripMargin
-       
+
     val params = Map(Namespace -> domainFqn.namespace, DomainId -> domainFqn.domainId)
     QueryUtil.lookupOptionalDocument(query, params, db) map { DomainDatabaseStore.docToDomainDatabase(_) }
   }
@@ -131,5 +130,16 @@ class DomainDatabaseStore(dbProvider: DatabaseProvider)
     val params = Map("username" -> username)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     result.asScala.toList map { DomainDatabaseStore.docToDomainDatabase(_) }
+  }
+
+  private[this] def handleDuplicateValue[T](e: ORecordDuplicatedException): Try[T] = {
+    e.getIndexName match {
+      case DomainDatabaseStore.DomainIndex =>
+        Failure(DuplicateValueExcpetion("domain"))
+      case DomainDatabaseStore.DatabaseIndex =>
+        Failure(DuplicateValueExcpetion("database"))
+      case _ =>
+        Failure(e)
+    }
   }
 }

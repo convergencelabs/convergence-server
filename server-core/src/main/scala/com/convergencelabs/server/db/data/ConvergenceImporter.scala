@@ -9,13 +9,9 @@ import scala.util.Failure
 import scala.util.Try
 
 import com.convergencelabs.server.datastore.User
-import com.convergencelabs.server.datastore.CreateResult
-import com.convergencelabs.server.datastore.CreateSuccess
 import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.datastore.DomainStore
 import com.convergencelabs.server.datastore.DomainStoreActor.CreateDomainRequest
-import com.convergencelabs.server.datastore.DuplicateValue
-import com.convergencelabs.server.datastore.InvalidValue
 import com.convergencelabs.server.datastore.UserStore
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.domain.DomainDatabase
@@ -73,10 +69,10 @@ class ConvergenceImporter(
         // FXIME hardcoded timeout
         implicit val requstTimeout = Timeout(4 minutes)
         logger.debug(s"Requesting domain provisioning for: ${domainData.namespace}/${domainData.id}")
-        val response = (domainStoreActor ? domainCreateRequest).mapTo[CreateResult[DomainDatabase]]
+        val response = (domainStoreActor ? domainCreateRequest).mapTo[DomainDatabase]
 
         response onSuccess {
-          case CreateSuccess(dbInfo) =>
+          case dbInfo =>
             logger.debug(s"Domain database provisioned successfuly: ${domainData.namespace}/${domainData.id}")
             domainData.dataImport map { script =>
               logger.debug(s"Importing data for domain: ${domainData.namespace}/${domainData.id}")
@@ -96,10 +92,6 @@ class ConvergenceImporter(
               logger.debug("No data to import, domain provisioing complete")
               None
             }
-          case InvalidValue =>
-            logger.error("could not create domain due to an invalid value")
-          case DuplicateValue =>
-            logger.error("could not create domain, because a domain already exists")
         }
 
         response onFailure {

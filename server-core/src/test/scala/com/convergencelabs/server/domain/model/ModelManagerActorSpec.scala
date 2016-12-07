@@ -32,11 +32,11 @@ import akka.testkit.TestKit
 import akka.testkit.TestProbe
 import com.convergencelabs.server.datastore.domain.CollectionStore
 import com.convergencelabs.server.domain.model.data.ObjectValue
-import com.convergencelabs.server.datastore.CreateSuccess
-import com.convergencelabs.server.datastore.DeleteSuccess
-import com.convergencelabs.server.datastore.NotFound
+import scala.util.Failure
+import com.convergencelabs.server.datastore.EntityNotFoundException
+import org.mockito.Matchers
+import com.convergencelabs.server.datastore.DuplicateValueExcpetion
 
-@RunWith(classOf[JUnitRunner])
 class ModelManagerActorSpec
     extends TestKit(ActorSystem("ModelManagerActorSpec"))
     with WordSpecLike
@@ -91,11 +91,15 @@ class ModelManagerActorSpec
         val client = new TestProbe(system)
         val ModelFqn(cId, mId) = nonExistentModelFqn
         val data = ObjectValue("", Map())
-        
-        val now = Instant.now()
-        Mockito.when(modelStore.createModel(cId, Some(mId), data))
-          .thenReturn(Success(CreateSuccess(Model(ModelMetaData(nonExistentModelFqn, 0L, now, now), data))))
 
+        val now = Instant.now()
+        
+        Mockito.when(modelStore.createModel(cId, Some(mId), data))
+          .thenReturn(Success(Model(ModelMetaData(nonExistentModelFqn, 0L, now, now), data)))
+
+        Mockito.when(modelSnapshotStore.createSnapshot(Matchers.any()))
+          .thenReturn(Success(()))
+          
         modelManagerActor.tell(CreateModelRequest(cId, Some(mId), data), client.ref)
         client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelCreated)
       }
@@ -105,6 +109,9 @@ class ModelManagerActorSpec
         val ModelFqn(cId, mId) = modelFqn
         val data = ObjectValue("", Map())
         
+         Mockito.when(modelStore.createModel(cId, Some(mId), data))
+          .thenReturn(Failure(DuplicateValueExcpetion("foo")))
+
         modelManagerActor.tell(CreateModelRequest(cId, Some(mId), data), client.ref)
         client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelAlreadyExists)
       }
@@ -120,7 +127,7 @@ class ModelManagerActorSpec
       "return ModelNotFound if the model does not exist" in new TestFixture {
         val client = new TestProbe(system)
         modelManagerActor.tell(DeleteModelRequest(nonExistentModelFqn), client.ref)
-        val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelNotFound)
+        val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), akka.actor.Status.Failure(EntityNotFoundException()))
       }
     }
   }
@@ -142,9 +149,9 @@ class ModelManagerActorSpec
 
     val modelStore = mock[ModelStore]
     Mockito.when(modelStore.modelExists(modelFqn)).thenReturn(Success(true))
-    Mockito.when(modelStore.deleteModel(modelFqn)).thenReturn(Success(DeleteSuccess))
+    Mockito.when(modelStore.deleteModel(modelFqn)).thenReturn(Success(()))
     Mockito.when(modelStore.modelExists(nonExistentModelFqn)).thenReturn(Success(false))
-    Mockito.when(modelStore.deleteModel(nonExistentModelFqn)).thenReturn(Success(NotFound))
+    Mockito.when(modelStore.deleteModel(nonExistentModelFqn)).thenReturn(Failure(EntityNotFoundException()))
     Mockito.when(modelStore.getModel(modelFqn)).thenReturn(Success(Some(modelData)))
 
     val modelSnapshotStore = mock[ModelSnapshotStore]
@@ -167,6 +174,7 @@ class ModelManagerActorSpec
     val collectionStore = mock[CollectionStore]
     Mockito.when(collectionStore.getOrCreateCollection(collectionId))
       .thenReturn(Success(Collection(collectionId, "", false, None)))
+      
     Mockito.when(collectionStore.ensureCollectionExists(collectionId))
       .thenReturn(Success(()))
 

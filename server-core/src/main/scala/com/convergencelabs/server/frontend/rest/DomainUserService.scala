@@ -3,15 +3,6 @@ package com.convergencelabs.server.frontend.rest
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
-import com.convergencelabs.server.datastore.CreateResult
-import com.convergencelabs.server.datastore.CreateSuccess
-import com.convergencelabs.server.datastore.DeleteResult
-import com.convergencelabs.server.datastore.DeleteSuccess
-import com.convergencelabs.server.datastore.DuplicateValue
-import com.convergencelabs.server.datastore.InvalidValue
-import com.convergencelabs.server.datastore.NotFound
-import com.convergencelabs.server.datastore.UpdateResult
-import com.convergencelabs.server.datastore.UpdateSuccess
 import com.convergencelabs.server.datastore.UserStoreActor.CreateUser
 import com.convergencelabs.server.datastore.UserStoreActor.DeleteDomainUser
 import com.convergencelabs.server.datastore.UserStoreActor.GetUserByUsername
@@ -114,50 +105,40 @@ class DomainUserService(
   }
 
   def getAllUsersRequest(domain: DomainFqn): Future[RestResponse] = {
-    (domainRestActor ? DomainMessage(domain, GetUsers)).mapTo[List[DomainUser]] map 
-    (users => (StatusCodes.OK, GetUsersRestResponse(users.map (toUserData(_)))))
+    (domainRestActor ? DomainMessage(domain, GetUsers)).mapTo[List[DomainUser]] map
+      (users => (StatusCodes.OK, GetUsersRestResponse(users.map(toUserData(_)))))
   }
 
   def createUserRequest(createRequest: CreateUserRequest, domain: DomainFqn): Future[RestResponse] = {
     val CreateUserRequest(username, firstName, lastName, displayName, email, password) = createRequest
-    (domainRestActor ? DomainMessage(domain, CreateUser(username, firstName, lastName, displayName, email, password))).mapTo[CreateResult[Unit]].map {
-      case result: CreateSuccess[Unit] => (StatusCodes.Created, CreateUserResponse())
-      case DuplicateValue => DuplicateError
-      case InvalidValue => InvalidValueError
-    }
+    val message = DomainMessage(domain, CreateUser(username, firstName, lastName, displayName, email, password))
+    (domainRestActor ? message).mapTo[Unit] map { _ => (StatusCodes.Created, CreateUserResponse()) }
   }
 
   def updateUserRequest(username: String, updateRequest: UpdateUserRequest, domain: DomainFqn): Future[RestResponse] = {
     val UpdateUserRequest(firstName, lastName, displayName, email) = updateRequest
-    (domainRestActor ? DomainMessage(domain, UpdateUser(username, firstName, lastName, displayName, email))).mapTo[UpdateResult].map {
-      case UpdateSuccess => OkResponse
-      case NotFound => NotFoundError
-      case InvalidValue => InvalidValueError
-    }
+    val message = DomainMessage(domain, UpdateUser(username, firstName, lastName, displayName, email))
+    (domainRestActor ? message) map { _ => OkResponse }
   }
 
   def setPasswordRequest(uid: String, setPasswordRequest: SetPasswordRequest, domain: DomainFqn): Future[RestResponse] = {
-    (domainRestActor ? DomainMessage(domain, SetPassword(uid, setPasswordRequest.password))).mapTo[UpdateResult].map {
-      case UpdateSuccess => OkResponse
-      case NotFound => NotFoundError
-      case InvalidValue => InvalidValueError
-    }
+    val message = DomainMessage(domain, SetPassword(uid, setPasswordRequest.password))
+    (domainRestActor ? message) map { _ => OkResponse }
   }
 
   def getUserByUsername(username: String, domain: DomainFqn): Future[RestResponse] = {
     (domainRestActor ? DomainMessage(domain, GetUserByUsername(username))).mapTo[Option[DomainUser]] map {
-      case Some(user) => (StatusCodes.OK, GetUserRestResponse(toUserData(user)))
-      case None => NotFoundError
+      case Some(user) =>
+        (StatusCodes.OK, GetUserRestResponse(toUserData(user)))
+      case None =>
+        NotFoundError
     }
   }
 
   def deleteUser(uid: String, domain: DomainFqn): Future[RestResponse] = {
-    (domainRestActor ? DomainMessage(domain, DeleteDomainUser(uid))).mapTo[DeleteResult] map {
-      case DeleteSuccess => OkResponse
-      case NotFound => NotFoundError
-    }
+    (domainRestActor ? DomainMessage(domain, DeleteDomainUser(uid))) map { _ => OkResponse }
   }
-  
+
   private[this] def toUserData(user: DomainUser): DomainUserData = {
     val DomainUser(userType, username, firstName, lastName, displayName, email) = user
     DomainUserData(username, firstName, lastName, displayName, email)

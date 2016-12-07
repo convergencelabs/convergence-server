@@ -4,10 +4,8 @@ import java.util.{ List => JavaList }
 import java.util.UUID
 
 import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.util.Failure
 import scala.util.Try
-
-import org.json4s.NoTypeHints
-import org.json4s.jackson.Serialization
 
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
@@ -21,8 +19,8 @@ class RegistrationStore private[datastore] (
   private[this] val dbProvider: DatabaseProvider)
     extends AbstractDatabasePersistence(dbProvider)
     with Logging {
-
-  private[this] implicit val formats = Serialization.formats(NoTypeHints)
+  
+  val EmailIndex = "Registration.email"
 
   val Email = "email"
   val FirstName = "fname"
@@ -31,7 +29,7 @@ class RegistrationStore private[datastore] (
   val Approved = "approved"
   val Reason = "reason"
 
-  def addRegistration(fname: String, lname: String, email: String, reason: String): Try[CreateResult[String]] = tryWithDb { db =>
+  def addRegistration(fname: String, lname: String, email: String, reason: String): Try[String] = tryWithDb { db =>
     val token = UUID.randomUUID().toString()
     val regDoc = new ODocument("Registration");
     regDoc.field(Email, email);
@@ -42,28 +40,28 @@ class RegistrationStore private[datastore] (
     regDoc.field(Reason, reason)
 
     db.save(regDoc)
-    CreateSuccess(token)
-  } recover {
-    case e: ORecordDuplicatedException => DuplicateValue
+    token
+  } recoverWith {
+    case e: ORecordDuplicatedException => handleDuplicateValue[String](e)
   }
 
-  def removeRegistration(token: String): Try[DeleteResult] = tryWithDb { db =>
+  def removeRegistration(token: String): Try[Unit] = tryWithDb { db =>
     val command = new OCommandSQL("DELETE FROM Registration WHERE token = :token")
     val params = Map(Token -> token)
     val count: Int = db.command(command).execute(params.asJava)
     count match {
-      case 0 => NotFound
-      case _ => DeleteSuccess
+      case 0 => throw new EntityNotFoundException()
+      case _ => ()
     }
   }
 
-  def approveRegistration(token: String): Try[UpdateResult] = tryWithDb { db =>
+  def approveRegistration(token: String): Try[Unit] = tryWithDb { db =>
     val command = new OCommandSQL("Update Registration Set approved = true WHERE token = :token")
     val params = Map(Token -> token)
     val count: Int = db.command(command).execute(params.asJava)
     count match {
-      case 0 => NotFound
-      case _ => UpdateSuccess
+      case 0 => throw new EntityNotFoundException()
+      case _ => ()
     }
   }
 
@@ -71,8 +69,9 @@ class RegistrationStore private[datastore] (
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM Registration WHERE token = :token")
     val params = Map(Token -> token)
     val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.mapSingletonList(results) { result =>  {
-        val firstName: String = result.field(FirstName)  
+    QueryUtil.mapSingletonList(results) { result =>
+      {
+        val firstName: String = result.field(FirstName)
         val lastName: String = result.field(LastName)
         val email: String = result.field(Email)
         (firstName, lastName, email)
@@ -89,6 +88,15 @@ class RegistrationStore private[datastore] (
         val approved: Boolean = result.field(Approved, OType.BOOLEAN)
         approved
       }
+    }
+  }
+
+  private[this] def handleDuplicateValue[T](e: ORecordDuplicatedException): Try[T] = {
+    e.getIndexName match {
+      case EmailIndex =>
+        Failure(DuplicateValueExcpetion(Email))
+      case _ =>
+        Failure(e)
     }
   }
 }

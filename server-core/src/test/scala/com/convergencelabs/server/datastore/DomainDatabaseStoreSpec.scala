@@ -1,16 +1,16 @@
 package com.convergencelabs.server.datastore
 
-import org.scalatest.Finders
+import java.time.Duration
+
 import org.scalatest.Matchers
+import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
 
 import com.convergencelabs.server.datastore.DomainDatabaseStoreSpec.SpecStores
 import com.convergencelabs.server.datastore.domain.PersistenceStoreSpec
 import com.convergencelabs.server.db.schema.DeltaCategory
-import com.convergencelabs.server.domain.DomainFqn
-import java.time.Duration
 import com.convergencelabs.server.domain.DomainDatabase
-import org.scalatest.TryValues._
+import com.convergencelabs.server.domain.DomainFqn
 
 object DomainDatabaseStoreSpec {
   case class SpecStores(
@@ -63,7 +63,7 @@ class DomainDatabaseStoreSpec
       "disallow duplicate entries for the same domain" in withTestData { stores =>
         val database = DomainDatabase(ns1d1, db1, username, password, adminUsername, adminPassword)
         stores.domainDatabase.createDomainDatabase(database).get
-        stores.domainDatabase.createDomainDatabase(database).get shouldBe DuplicateValue
+        stores.domainDatabase.createDomainDatabase(database).failure.exception shouldBe a[DuplicateValueExcpetion]
       }
     }
   }

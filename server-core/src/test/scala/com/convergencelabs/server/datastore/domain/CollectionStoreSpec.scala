@@ -9,11 +9,11 @@ import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
 
 import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.DuplicateValue
-import com.convergencelabs.server.datastore.NotFound
 import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.domain.ModelSnapshotConfig
 import com.convergencelabs.server.domain.model.Collection
+import com.convergencelabs.server.datastore.DuplicateValueExcpetion
+import com.convergencelabs.server.datastore.EntityNotFoundException
 
 // scalastyle:off magic.number
 class CollectionStoreSpec
@@ -74,7 +74,7 @@ class CollectionStoreSpec
 
       "not create a collection that is not a duplicate collection id" in withPersistenceStore { store =>
         store.createCollection(copmanyCollection).success
-        store.createCollection(copmanyCollection).success.value shouldBe DuplicateValue
+        store.createCollection(copmanyCollection).failure.exception shouldBe a[DuplicateValueExcpetion]
       }
     }
 
@@ -98,9 +98,9 @@ class CollectionStoreSpec
         store.getCollection(peopleCollectionId).success.value.value shouldBe updated
       }
 
-      "return NotFound on a collection that does not exist" in withPersistenceStore { store =>
+      "return EntityNotFoundException on a collection that does not exist" in withPersistenceStore { store =>
         val toUpdate = Collection(carsCollectionId, "", false, None)
-        store.updateCollection(toUpdate).success.value shouldBe NotFound
+        store.updateCollection(toUpdate).failure.exception shouldBe a[EntityNotFoundException]
       }
     }
 
@@ -164,9 +164,9 @@ class CollectionStoreSpec
         store.getCollection(teamCollectionId).success.value shouldBe defined
       }
 
-      "return NotFound for deleting a non-existent collection" in withPersistenceStore { store =>
+      "return EntityNotFoundException for deleting a non-existent collection" in withPersistenceStore { store =>
         store.getCollection(carsCollectionId).success.value shouldBe None
-        store.deleteCollection(carsCollectionId).success.value shouldBe NotFound
+        store.deleteCollection(carsCollectionId).failure.exception shouldBe a[EntityNotFoundException]
       }
     }
 

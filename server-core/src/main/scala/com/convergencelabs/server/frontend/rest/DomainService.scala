@@ -3,20 +3,11 @@ package com.convergencelabs.server.frontend.rest
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
-import com.convergencelabs.server.datastore.CreateResult
-import com.convergencelabs.server.datastore.CreateSuccess
-import com.convergencelabs.server.datastore.DeleteResult
-import com.convergencelabs.server.datastore.DeleteSuccess
 import com.convergencelabs.server.datastore.DomainStoreActor.CreateDomainRequest
 import com.convergencelabs.server.datastore.DomainStoreActor.DeleteDomainRequest
 import com.convergencelabs.server.datastore.DomainStoreActor.GetDomainRequest
 import com.convergencelabs.server.datastore.DomainStoreActor.ListDomainsRequest
 import com.convergencelabs.server.datastore.DomainStoreActor.UpdateDomainRequest
-import com.convergencelabs.server.datastore.DuplicateValue
-import com.convergencelabs.server.datastore.InvalidValue
-import com.convergencelabs.server.datastore.NotFound
-import com.convergencelabs.server.datastore.UpdateResult
-import com.convergencelabs.server.datastore.UpdateSuccess
 import com.convergencelabs.server.domain.Domain
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.RestAuthnorizationActor.AuthorizationDenied
@@ -124,11 +115,8 @@ class DomainService(
 
   def createDomain(createRequest: CreateDomainRestRequest, username: String): Future[RestResponse] = {
     val CreateDomainRestRequest(namespace, domainId, displayName) = createRequest
-    (domainStoreActor ? CreateDomainRequest(namespace, domainId, displayName, username)).mapTo[CreateResult[Unit]].map {
-      case result: CreateSuccess[Unit] => CreateRestResponse
-      case DuplicateValue => DuplicateError
-      case InvalidValue => InvalidValueError
-    }
+    val message = CreateDomainRequest(namespace, domainId, displayName, username)
+    (domainStoreActor ? message).mapTo[Unit].map { _ => CreateRestResponse }
   }
 
   def getDomains(username: String): Future[RestResponse] = {
@@ -151,23 +139,18 @@ class DomainService(
           domain.domainFqn.domainId,
           domain.owner,
           domain.status.toString())))
-      case None => NotFoundError
+      case None => 
+        NotFoundError
     }
   }
 
   def deleteDomain(namespace: String, domainId: String): Future[RestResponse] = {
-    (domainStoreActor ? DeleteDomainRequest(namespace, domainId)).mapTo[DeleteResult] map {
-      case DeleteSuccess => OkResponse
-      case NotFound => NotFoundError
-    }
+    (domainStoreActor ? DeleteDomainRequest(namespace, domainId)) map { _ => OkResponse }
   }
 
   def updateDomain(namespace: String, domainId: String, request: UpdateDomainRestRequest): Future[RestResponse] = {
     val UpdateDomainRestRequest(displayName) = request
-    (domainStoreActor ? UpdateDomainRequest(namespace, domainId, displayName)).mapTo[UpdateResult].map {
-      case UpdateSuccess => OkResponse
-      case InvalidValue => InvalidValueError
-      case NotFound => NotFoundError
-    }
+    val message = UpdateDomainRequest(namespace, domainId, displayName)
+    (domainStoreActor ? message) map { _ => OkResponse }
   }
 }

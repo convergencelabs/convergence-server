@@ -8,6 +8,7 @@ import java.util.UUID
 
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.util.Failure
 import scala.util.Try
 
 import com.convergencelabs.server.datastore.domain.PasswordUtil
@@ -25,6 +26,9 @@ import grizzled.slf4j.Logging
 
 object UserStore {
   val ClassName = "User"
+
+  val UsernameIndex = "User.username"
+  val EmailIndex = "User.email"
 
   object Fields {
     val Username = "username"
@@ -82,11 +86,11 @@ class UserStore(
   val UsernameIndex = "User.username"
   val LastLogin = "lastLogin"
 
-  def createUser(user: User, password: String): Try[CreateResult[Unit]] = {
+  def createUser(user: User, password: String): Try[Unit] = {
     createUserWithPasswordHash(user, PasswordUtil.hashPassword(password))
   }
 
-  def createUserWithPasswordHash(user: User, passwordHash: String): Try[CreateResult[Unit]] = tryWithDb { db =>
+  def createUserWithPasswordHash(user: User, passwordHash: String): Try[Unit] = tryWithDb { db =>
     val userDoc = UserStore.userToDoc(user)
     db.save(userDoc)
     userDoc.reload()
@@ -97,18 +101,18 @@ class UserStore(
 
     db.save(pwDoc)
 
-    CreateSuccess(())
+    ()
   } recover {
-    case e: ORecordDuplicatedException => DuplicateValue
+    case e: ORecordDuplicatedException => handleDuplicateValue(e)
   }
 
-  def deleteUser(username: String): Try[DeleteResult] = tryWithDb { db =>
+  def deleteUser(username: String): Try[Unit] = tryWithDb { db =>
     val command = new OCommandSQL("DELETE FROM User WHERE username = :username")
     val params = Map(Username -> username)
     val count: Int = db.command(command).execute(params.asJava)
     count match {
-      case 0 => NotFound
-      case _ => DeleteSuccess
+      case 0 => throw new EntityNotFoundException()
+      case _ => ()
     }
   }
 
@@ -274,5 +278,16 @@ class UserStore(
       record.field(LastLogin, instant.toEpochMilli()).save()
     }
     Unit
+  }
+
+  private[this] def handleDuplicateValue[T](e: ORecordDuplicatedException): Try[T] = {
+    e.getIndexName match {
+      case UserStore.UsernameIndex =>
+        Failure(DuplicateValueExcpetion(Username))
+      case UserStore.EmailIndex =>
+        Failure(DuplicateValueExcpetion(UserStore.Fields.Email))
+      case _ =>
+        Failure(e)
+    }
   }
 }

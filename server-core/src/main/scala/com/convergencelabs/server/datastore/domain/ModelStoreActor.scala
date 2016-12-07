@@ -79,10 +79,7 @@ class ModelStoreActor private[datastore] (
   def createModel(collectionId: String, data: Map[String, Any]): Unit = {
     val root = ModelDataGenerator(data)
     val result = collectionStore.ensureCollectionExists(collectionId) flatMap { _ =>
-      modelStore.createModel(collectionId, None, root) map {
-        case CreateSuccess(model) => CreateSuccess(model.metaData.fqn)
-        case x: Any => x
-      }
+      modelStore.createModel(collectionId, None, root) map { model => model.metaData.fqn }
     }
     reply(result)
   }
@@ -91,11 +88,13 @@ class ModelStoreActor private[datastore] (
     //FIXME If the model is open this could cause problems.
     val root = ModelDataGenerator(data)
     val result = collectionStore.ensureCollectionExists(collectionId) flatMap { _ =>
-      modelStore.createModel(collectionId, Some(modelId), root) flatMap {
-        case CreateSuccess(model) => Success(CreateSuccess(model.metaData.fqn))
-        case DuplicateValue =>
-          modelStore.updateModel(ModelFqn(collectionId, modelId), root)
-        case InvalidValue => Success(InvalidValue)
+      modelStore.createModel(collectionId, Some(modelId), root) map { _ =>
+        ModelFqn(collectionId, modelId) 
+      } recoverWith {
+        case e: DuplicateValueExcpetion =>
+          modelStore.updateModel(ModelFqn(collectionId, modelId), root) map { _ =>
+            ModelFqn(collectionId, modelId)
+          }
       }
     }
     reply(result)

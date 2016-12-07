@@ -62,17 +62,13 @@ class ConvergenceUserManagerActor private[datastore] (
     val CreateConvergenceUserRequest(username, email, firstName, lastName, displayName, password) = message
     val origSender = sender
     userStore.createUser(User(username, email, firstName, lastName, displayName), password) map {
-      case CreateSuccess(uid) =>
+      case uid =>
         log.debug("User created.  Creating domains")
         FutureUtils.seqFutures(autoCreateConfigs) { config =>
           createDomain(username, config.getString("id"), config.getString("displayName"))
         }
 
-        origSender ! CreateSuccess(uid)
-      case DuplicateValue =>
-        origSender ! DuplicateValue
-      case InvalidValue =>
-        origSender ! InvalidValue
+        origSender ! uid
     } recover {
       case e: Throwable =>
         origSender ! Status.Failure(e)
@@ -98,18 +94,14 @@ class ConvergenceUserManagerActor private[datastore] (
     reply(result)
   }
 
-  private[this] def createDomain(username: String, id: String, displayName: String): Future[CreateResult[Unit]] = {
+  private[this] def createDomain(username: String, id: String, displayName: String): Future[Unit] = {
     log.debug(s"Requesting domain creation for user '${username}': $id")
 
     // FIXME hard coded
     implicit val requstTimeout = Timeout(240 seconds)
-    (domainStoreActor ? CreateDomainRequest(username, id, displayName, username)).mapTo[CreateResult[Unit]] andThen {
-      case Success(resp: CreateSuccess[Unit]) =>
+    (domainStoreActor ? CreateDomainRequest(username, id, displayName, username)).mapTo[Unit] andThen {
+      case Success(_) =>
         log.debug(s"Domain '${id}' created for '${username}'");
-      case Success(DuplicateValue) =>
-        log.error(s"Unable to create '${id}' domain for user: Duplicate value exception");
-      case Success(InvalidValue) =>
-        log.error(s"Unable to create '${id}' domain for user: Invalid value exception");
       case Failure(f) =>
         log.error(f, s"Unable to create '${id}' domain for user");
     }

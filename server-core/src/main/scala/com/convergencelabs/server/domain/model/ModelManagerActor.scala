@@ -28,11 +28,8 @@ import akka.actor.Status
 import akka.actor.Terminated
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import scala.util.control.NonFatal
-import com.convergencelabs.server.datastore.CreateSuccess
-import com.convergencelabs.server.datastore.DuplicateValue
-import com.convergencelabs.server.datastore.InvalidValue
-import com.convergencelabs.server.datastore.DeleteSuccess
-import com.convergencelabs.server.datastore.NotFound
+import com.convergencelabs.server.datastore.DuplicateValueExcpetion
+import com.convergencelabs.server.datastore.InvalidValueExcpetion
 
 case class QueryModelsRequest(collection: Option[String], limit: Option[Int], offset: Option[Int], orderBy: Option[QueryOrderBy])
 case class QueryOrderBy(field: String, ascending: Boolean)
@@ -110,41 +107,26 @@ class ModelManagerActor(
     if (collectionId.length == 0) {
       sender ! UnknownErrorResponse("The collecitonId can not be empty when creating a model")
     } else {
-      // FIXME is this worth doing, there is still a race condition here.  We should probably
-      // just create and have that method let us know of a duplicate
-      modelId match {
-        case Some(id) =>
-          persistenceProvider.modelStore.modelExists(ModelFqn(collectionId, id)) map {
-            case true =>
-              sender ! ModelAlreadyExists
-            case false =>
-              createModel(collectionId, modelId, data)
-          } recover {
-            case cause: Exception =>
-              sender ! akka.actor.Status.Failure(cause)
-          }
-        case None =>
-          createModel(collectionId, None, data)
-      }
+      createModel(collectionId, modelId, data)
     }
   }
 
   private[this] def createModel(collectionId: String, modelId: Option[String], data: ObjectValue): Unit = {
     // FIXME all of this should work or not, together. We also do this in two different places
     // we should abstract this somewhere
-    persistenceProvider.collectionStore.ensureCollectionExists(collectionId) flatMap (_ =>
-      persistenceProvider.modelStore.createModel(collectionId, modelId, data)) map {
-      case CreateSuccess(model) =>
+    persistenceProvider.collectionStore.ensureCollectionExists(collectionId) flatMap { _ =>
+      persistenceProvider.modelStore.createModel(collectionId, modelId, data) 
+    } flatMap { model =>
         val ModelMetaData(fqn, version, created, modeified) = model.metaData
         val snapshot = ModelSnapshot(ModelSnapshotMetaData(fqn, version, created), model.data)
         persistenceProvider.modelSnapshotStore.createSnapshot(snapshot)
-        sender ! ModelCreated
-      case DuplicateValue =>
-        sender ! ModelAlreadyExists
-      case InvalidValue =>
-        // FIXME better error message
-        sender ! UnknownErrorResponse("Could not create model beause it contained an invalid value")
+    } map { _ =>
+      sender ! ModelCreated
     } recover {
+      case e: DuplicateValueExcpetion =>
+        sender ! ModelAlreadyExists
+      case e: InvalidValueExcpetion =>
+        sender ! UnknownErrorResponse("Could not create model beause it contained an invalid value")        
       case e: Exception =>
         sender ! UnknownErrorResponse("Could not create model: " + e.getMessage)
     }
@@ -157,13 +139,10 @@ class ModelManagerActor(
       openRealtimeModels -= deleteRequest.modelFqn
     }
 
-    persistenceProvider.modelStore.deleteModel(deleteRequest.modelFqn) map {
-      case DeleteSuccess =>
+    persistenceProvider.modelStore.deleteModel(deleteRequest.modelFqn) map { _ =>
         sender ! ModelDeleted
-      case NotFound =>
-        sender ! ModelNotFound
     } recover {
-      case cause: Exception => sender ! Status.Failure
+      case cause: Exception => sender ! Status.Failure(cause)
     }
   }
 

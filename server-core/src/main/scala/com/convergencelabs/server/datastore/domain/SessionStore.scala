@@ -2,28 +2,24 @@ package com.convergencelabs.server.datastore.domain
 
 import java.time.Instant
 import java.util.Date
-import scala.collection.JavaConversions._
+
+import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.util.Failure
 import scala.util.Try
+
+import com.convergencelabs.server.datastore.AbstractDatabasePersistence
+import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.datastore.DuplicateValueExcpetion
+import com.convergencelabs.server.datastore.EntityNotFoundException
+import com.convergencelabs.server.datastore.QueryUtil
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
-import grizzled.slf4j.Logging
-import com.convergencelabs.server.datastore.QueryUtil
-import com.convergencelabs.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.server.datastore.CreateResult
-import com.convergencelabs.server.datastore.CreateSuccess
-import com.convergencelabs.server.datastore.DuplicateValue
-import com.convergencelabs.server.datastore.UpdateResult
-import com.convergencelabs.server.datastore.NotFound
-import com.convergencelabs.server.datastore.UpdateSuccess
-import com.convergencelabs.server.datastore.DatabaseProvider
 
-import scala.collection.JavaConversions._
-import scala.collection.JavaConverters._
+import grizzled.slf4j.Logging
 
 case class DomainSession(
   id: String,
@@ -38,6 +34,8 @@ case class DomainSession(
 
 object SessionStore {
   val ClassName = "DomainSession"
+  
+  val SessionIdIndex = "DomainSession.id"
 
   object Fields {
     val Id = "id"
@@ -101,46 +99,54 @@ class SessionStore(dbProvider: DatabaseProvider)
     extends AbstractDatabasePersistence(dbProvider)
     with Logging {
 
-  def createSession(session: DomainSession): Try[CreateResult[Unit]] = tryWithDb { db =>
+  def createSession(session: DomainSession): Try[Unit] = tryWithDb { db =>
     SessionStore.sessionToDoc(session, db).map { doc =>
       db.save(doc)
-      CreateSuccess(())
+      ()
     }.get
-  } recover {
-    case e: ORecordDuplicatedException =>
-      DuplicateValue
+  } recoverWith {
+    case e: ORecordDuplicatedException => handleDuplicateValue(e)
   }
-  
+
   def getSession(sessionId: String): Try[Option[DomainSession]] = tryWithDb { db =>
     val query = "SELECT * FROM DomainSession WHERE id = :id"
     val params = Map("id" -> sessionId)
-    QueryUtil.lookupOptionalDocument(query, params, db).map { SessionStore.docToSession(_) } 
-  } 
-  
+    QueryUtil.lookupOptionalDocument(query, params, db).map { SessionStore.docToSession(_) }
+  }
+
   def getSessions(limit: Option[Int], offset: Option[Int]): Try[List[DomainSession]] = tryWithDb { db =>
     val baseQuery = "SELECT * FROM DomainSession"
     val query = QueryUtil.buildPagedQuery(baseQuery, limit, offset)
-    QueryUtil.query(query, Map(), db).map { SessionStore.docToSession(_) } 
-  } 
+    QueryUtil.query(query, Map(), db).map { SessionStore.docToSession(_) }
+  }
 
   def getConnectedSessions(): Try[List[DomainSession]] = tryWithDb { db =>
     val query = "SELECT * FROM DomainSession WHERE disconnected IS NOT DEFINED"
     QueryUtil.query(query, Map(), db).map { SessionStore.docToSession(_) }
   }
-  
+
   def getConnectedSessionsCount(): Try[Long] = tryWithDb { db =>
     val query = "SELECT count(id) as count FROM DomainSession WHERE disconnected IS NOT DEFINED"
     QueryUtil.lookupMandatoryDocument(query, Map(), db).map { _.field("count").asInstanceOf[Long] }.get
   }
 
-  def setSessionDisconneted(sessionId: String, disconnectedTime: Instant): Try[UpdateResult] = tryWithDb { db =>
+  def setSessionDisconneted(sessionId: String, disconnectedTime: Instant): Try[Unit] = tryWithDb { db =>
     val query = "UPDATE DomainSession SET disconnected = :disconnected WHERE id = :sessionId"
     val params = Map("disconnected" -> Date.from(disconnectedTime), "sessionId" -> sessionId)
     db.command(new OCommandSQL(query)).execute(params.asJava).asInstanceOf[Int] match {
       case 0 =>
-        NotFound
+        throw EntityNotFoundException()
       case _ =>
-        UpdateSuccess
+        ()
+    }
+  }
+
+  private[this] def handleDuplicateValue[T](e: ORecordDuplicatedException): Try[T] = {
+    e.getIndexName match {
+      case SessionStore.SessionIdIndex =>
+        Failure(DuplicateValueExcpetion(SessionStore.Fields.Id))
+      case _ =>
+        Failure(e)
     }
   }
 }

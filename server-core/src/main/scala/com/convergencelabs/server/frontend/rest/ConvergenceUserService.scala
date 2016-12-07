@@ -8,13 +8,6 @@ import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.CreateCo
 import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.DeleteConvergenceUserRequest
 import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUser
 import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUsers
-import com.convergencelabs.server.datastore.CreateResult
-import com.convergencelabs.server.datastore.CreateSuccess
-import com.convergencelabs.server.datastore.DeleteResult
-import com.convergencelabs.server.datastore.DeleteSuccess
-import com.convergencelabs.server.datastore.DuplicateValue
-import com.convergencelabs.server.datastore.InvalidValue
-import com.convergencelabs.server.datastore.NotFound
 import com.convergencelabs.server.frontend.rest.ConvergenceUserService.CreateUserRequest
 import com.convergencelabs.server.frontend.rest.ConvergenceUserService.GetUserResponse
 import com.convergencelabs.server.frontend.rest.ConvergenceUserService.GetUsersResponse
@@ -36,6 +29,9 @@ import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.post
 import akka.pattern.ask
 import akka.util.Timeout
+import com.convergencelabs.server.datastore.DuplicateValueExcpetion
+import com.convergencelabs.server.datastore.InvalidValueExcpetion
+import akka.http.scaladsl.server.ExceptionHandler
 
 object ConvergenceUserService {
   case class CreateUserRequest(username: String, firstName: String, lastName: String, displayName: String, email: String, password: String)
@@ -73,17 +69,14 @@ class ConvergenceUserService(
 
   def createConvergenceUserRequest(createRequest: CreateUserRequest): Future[RestResponse] = {
     val CreateUserRequest(username, firstName, lastName, displayName, email, password) = createRequest
-    (userManagerActor ? CreateConvergenceUserRequest(username, email, firstName, lastName, displayName, password)).mapTo[CreateResult[String]].map {
-      case result: CreateSuccess[String] => CreateRestResponse
-      case DuplicateValue => DuplicateError
-      case InvalidValue => InvalidValueError
+    (userManagerActor ? CreateConvergenceUserRequest(username, email, firstName, lastName, displayName, password)).mapTo[String].map { _ =>
+      CreateRestResponse
     }
   }
 
   def deleteConvergenceUserRequest(username: String): Future[RestResponse] = {
-    (userManagerActor ? DeleteConvergenceUserRequest(username)).mapTo[DeleteResult].map {
-      case DeleteSuccess => OkResponse
-      case NotFound => NotFoundError
+    (userManagerActor ? DeleteConvergenceUserRequest(username)).mapTo[Unit].map { _ =>
+      CreateRestResponse
     }
   }
 

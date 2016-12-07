@@ -9,15 +9,6 @@ import com.convergencelabs.server.datastore.JwtAuthKeyStoreActor.DeleteDomainApi
 import com.convergencelabs.server.datastore.JwtAuthKeyStoreActor.GetDomainApiKey
 import com.convergencelabs.server.datastore.JwtAuthKeyStoreActor.GetDomainApiKeys
 import com.convergencelabs.server.datastore.JwtAuthKeyStoreActor.UpdateDomainApiKey
-import com.convergencelabs.server.datastore.CreateResult
-import com.convergencelabs.server.datastore.CreateSuccess
-import com.convergencelabs.server.datastore.DeleteResult
-import com.convergencelabs.server.datastore.DeleteSuccess
-import com.convergencelabs.server.datastore.DuplicateValue
-import com.convergencelabs.server.datastore.InvalidValue
-import com.convergencelabs.server.datastore.NotFound
-import com.convergencelabs.server.datastore.UpdateResult
-import com.convergencelabs.server.datastore.UpdateSuccess
 import com.convergencelabs.server.datastore.domain.JwtAuthKeyStore.KeyInfo
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.RestDomainManagerActor.DomainMessage
@@ -95,32 +86,27 @@ class DomainKeyService(
   def getKey(domain: DomainFqn, keyId: String): Future[RestResponse] = {
     (domainRestActor ? DomainMessage(domain, GetDomainApiKey(keyId))).mapTo[Option[JwtAuthKey]] map {
       case Some(key) => (StatusCodes.OK, GetKeyRestResponse(key))
-      case None      => NotFoundError
+      case None => NotFoundError
     }
   }
 
   def createKey(domain: DomainFqn, key: KeyInfo): Future[RestResponse] = {
-    (domainRestActor ? DomainMessage(domain, CreateDomainApiKey(key))).mapTo[CreateResult[Unit]] map {
-      case result: CreateSuccess[Unit] => OkResponse
-      case DuplicateValue              => DuplicateError
-      case InvalidValue                 => InvalidValueError
+    (domainRestActor ? DomainMessage(domain, CreateDomainApiKey(key))) map { _ =>
+      OkResponse
     }
   }
 
   def updateKey(domain: DomainFqn, keyId: String, update: UpdateInfo): Future[RestResponse] = {
     val UpdateInfo(description, key, enabled) = update
     val info = KeyInfo(keyId, description, key, enabled)
-    (domainRestActor ? DomainMessage(domain, UpdateDomainApiKey(info))).mapTo[UpdateResult] map {
-      case UpdateSuccess => OkResponse
-      case InvalidValue => InvalidValueError
-      case NotFound => NotFoundError
+    (domainRestActor ? DomainMessage(domain, UpdateDomainApiKey(info))).map { _ =>
+      OkResponse
     }
   }
 
   def deleteKey(domain: DomainFqn, keyId: String): Future[RestResponse] = {
-    (domainRestActor ? DomainMessage(domain, DeleteDomainApiKey(keyId))).mapTo[DeleteResult] map {
-      case DeleteSuccess => OkResponse
-      case NotFound => NotFoundError
+    (domainRestActor ? DomainMessage(domain, DeleteDomainApiKey(keyId))) map { _ =>
+      OkResponse
     }
   }
 }

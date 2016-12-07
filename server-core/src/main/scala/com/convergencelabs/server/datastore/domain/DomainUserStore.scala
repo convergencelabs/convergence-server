@@ -7,18 +7,9 @@ import java.util.{ List => JavaList }
 import scala.collection.mutable.ListBuffer
 import scala.util.Try
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.server.datastore.CreateResult
-import com.convergencelabs.server.datastore.CreateSuccess
 import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.DeleteResult
-import com.convergencelabs.server.datastore.DeleteSuccess
-import com.convergencelabs.server.datastore.DuplicateValue
-import com.convergencelabs.server.datastore.InvalidValue
-import com.convergencelabs.server.datastore.NotFound
 import com.convergencelabs.server.datastore.QueryUtil
 import com.convergencelabs.server.datastore.SortOrder
-import com.convergencelabs.server.datastore.UpdateResult
-import com.convergencelabs.server.datastore.UpdateSuccess
 import com.convergencelabs.server.domain.DomainUser
 import com.convergencelabs.server.domain.DomainUserType
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
@@ -30,16 +21,22 @@ import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import grizzled.slf4j.Logging
-import java.lang.{Long => JavaLong}
-import java.util.{List => JavaList}
+import java.lang.{ Long => JavaLong }
+import java.util.{ List => JavaList }
 import scala.collection.JavaConverters._
 import scala.collection.JavaConversions._
 import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateNormalDomainUser
 import com.convergencelabs.server.datastore.domain.DomainUserStore.UpdateDomainUser
+import scala.util.Failure
+import com.convergencelabs.server.datastore.DuplicateValueExcpetion
+import com.convergencelabs.server.datastore.EntityNotFoundException
 
 object DomainUserStore {
 
   val ClassName = "User"
+
+  val UsernameIndex = "User.username"
+  val EmailIndex = "User.email"
 
   object Fields {
     val UserType = "userType"
@@ -122,7 +119,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
    *
    * @return A String representing the created users uid.
    */
-  def createNormalDomainUser(domainUser: CreateNormalDomainUser): Try[CreateResult[String]] = {
+  def createNormalDomainUser(domainUser: CreateNormalDomainUser): Try[String] = {
     // fixme disallow special chars, specifically : in the username
     val normalUser = DomainUser(
       DomainUserType.Normal,
@@ -135,7 +132,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
     this.createDomainUser(normalUser)
   }
 
-  def createAnonymousDomainUser(displayName: Option[String]): Try[CreateResult[String]] = {
+  def createAnonymousDomainUser(displayName: Option[String]): Try[String] = {
     this.nextAnonymousUsername flatMap { next =>
       val username = "anonymous:" + next
       val anonymousUser = DomainUser(
@@ -150,7 +147,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
     }
   }
 
-  def createAdminDomainUser(convergenceUsername: String): Try[CreateResult[String]] = {
+  def createAdminDomainUser(convergenceUsername: String): Try[String] = {
     val username = "admin:" + convergenceUsername
     val adminUser = DomainUser(
       DomainUserType.Admin,
@@ -163,7 +160,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
     this.createDomainUser(adminUser)
   }
 
-  def createDomainUser(domainUser: DomainUser): Try[CreateResult[String]] = tryWithDb { db =>
+  def createDomainUser(domainUser: DomainUser): Try[String] = tryWithDb { db =>
     val create = DomainUser(
       domainUser.userType,
       domainUser.username,
@@ -175,9 +172,9 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
     val userDoc = DomainUserStore.domainUserToDoc(create)
     db.save(userDoc)
 
-    CreateSuccess((domainUser.username))
-  } recover {
-    case e: ORecordDuplicatedException => DuplicateValue
+    domainUser.username
+  } recoverWith {
+    case e: ORecordDuplicatedException => handleDuplicateValue(e)
   }
 
   /**
@@ -185,13 +182,15 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
    *
    * @param the uid of the user to delete.
    */
-  def deleteDomainUser(username: String): Try[DeleteResult] = tryWithDb { db =>
+  def deleteDomainUser(username: String): Try[Unit] = tryWithDb { db =>
     val command = new OCommandSQL("DELETE FROM User WHERE username = :username AND userType = 'normal'")
     val params = Map(Username -> username)
     val count: Int = db.command(command).execute(params.asJava)
     count match {
-      case 0 => NotFound
-      case _ => DeleteSuccess
+      case 0 => 
+        throw EntityNotFoundException()
+      case _ => 
+        ()
     }
   }
 
@@ -201,7 +200,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
    *
    * @param domainUser The user to update.
    */
-  def updateDomainUser(update: UpdateDomainUser): Try[UpdateResult] = tryWithDb { db =>
+  def updateDomainUser(update: UpdateDomainUser): Try[Unit] = tryWithDb { db =>
     val UpdateDomainUser(username, firstName, lastName, displayName, email) = update;
     val domainUser = DomainUser(DomainUserType.Normal, username, firstName, lastName, displayName, email)
 
@@ -213,15 +212,14 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
 
     QueryUtil.enforceSingletonResultList(result) match {
       case Some(doc) =>
-        try {
           doc.merge(updatedDoc, false, false)
           db.save(doc)
-          UpdateSuccess
-        } catch {
-          case e: ORecordDuplicatedException => InvalidValue
-        }
-      case None => NotFound
+          ()
+      case None => 
+        throw EntityNotFoundException()
     }
+  } recoverWith {
+    case e: ORecordDuplicatedException => handleDuplicateValue(e)
   }
 
   /**
@@ -364,7 +362,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
    * @param username The unique username of the user.
    * @param password The new password to use for internal authentication
    */
-  def setDomainUserPassword(username: String, password: String): Try[UpdateResult] = {
+  def setDomainUserPassword(username: String, password: String): Try[Unit] = {
     setDomainUserPasswordHash(username, PasswordUtil.hashPassword(password))
   }
 
@@ -374,12 +372,12 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
    * @param username The unique username of the user.
    * @param password The new password to use for internal authentication
    */
-  def setDomainUserPasswordHash(username: String, passwordHash: String): Try[UpdateResult] = tryWithDb { db =>
+  def setDomainUserPasswordHash(username: String, passwordHash: String): Try[Unit] = tryWithDb { db =>
     val query = "SELECT @rid as rid FROM User WHERE username = :username AND userType = 'normal'"
     val params = Map(Username -> username)
     QueryUtil.lookupOptionalDocument(query, params, db) match {
       case None =>
-        NotFound
+        throw new EntityNotFoundException()
       case Some(ridDoc) =>
         val rid = ridDoc.field("rid").asInstanceOf[ODocument].getIdentity
         val query = "SELECT * FROM UserCredential WHERE user = :user"
@@ -391,7 +389,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
         }
         doc.field(Password, passwordHash)
         db.save(doc)
-        UpdateSuccess
+        ()
     }
   }
 
@@ -436,7 +434,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
     }
     Unit
   }
-  
+
   def getNormalUserCount(): Try[Long] = tryWithDb { db =>
     val query = "SELECT count(username) as count FROM User WHERE userType = 'normal'"
     QueryUtil.lookupMandatoryDocument(query, Map(), db).map { _.field("count").asInstanceOf[Long] }.get
@@ -450,6 +448,17 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
   def nextSessionId: Try[String] = tryWithDb { db =>
     val seq = db.getMetadata().getSequenceLibrary().getSequence(SessionSeq)
     JavaLong.toString(seq.next(), 36)
+  }
+
+  private[this] def handleDuplicateValue[T](e: ORecordDuplicatedException): Try[T] = {
+    e.getIndexName match {
+      case DomainUserStore.UsernameIndex =>
+        Failure(DuplicateValueExcpetion(DomainUserStore.Fields.Username))
+      case DomainUserStore.EmailIndex =>
+        Failure(DuplicateValueExcpetion(DomainUserStore.Fields.Email))
+      case _ =>
+        Failure(e)
+    }
   }
 }
 

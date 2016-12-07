@@ -1,8 +1,13 @@
 package com.convergencelabs.server.frontend.rest
 
+import java.time.Instant
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
+import com.convergencelabs.server.datastore.ModelStoreActor.CreateModel
+import com.convergencelabs.server.datastore.ModelStoreActor.CreateOrUpdateModel
+import com.convergencelabs.server.datastore.ModelStoreActor.DeleteModel
 import com.convergencelabs.server.datastore.ModelStoreActor.GetModel
 import com.convergencelabs.server.datastore.ModelStoreActor.GetModels
 import com.convergencelabs.server.datastore.ModelStoreActor.GetModelsInCollection
@@ -10,38 +15,36 @@ import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.RestDomainManagerActor.DomainMessage
 import com.convergencelabs.server.domain.model.Model
 import com.convergencelabs.server.domain.model.ModelFqn
+import com.convergencelabs.server.domain.model.ModelMetaData
+import com.convergencelabs.server.domain.model.data.ObjectValue
+import com.convergencelabs.server.frontend.rest.DomainModelService.ModelMetaDataResponse
+import com.convergencelabs.server.frontend.rest.DomainModelService.ModelResponse
 
+import DomainModelService.CreateModelResponse
+import DomainModelService.GetModelResponse
+import DomainModelService.GetModelsResponse
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
 import akka.http.scaladsl.server.Directive.addDirectiveApply
-import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.server.Directives.Segment
+import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
+import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
+import akka.http.scaladsl.server.Directives.as
+import akka.http.scaladsl.server.Directives.complete
+import akka.http.scaladsl.server.Directives.delete
+import akka.http.scaladsl.server.Directives.entity
+import akka.http.scaladsl.server.Directives.get
+import akka.http.scaladsl.server.Directives.pathEnd
+import akka.http.scaladsl.server.Directives.pathPrefix
+import akka.http.scaladsl.server.Directives.post
+import akka.http.scaladsl.server.Directives.put
+import akka.http.scaladsl.server.Route
+
 import akka.pattern.ask
 import akka.util.Timeout
-import akka.http.scaladsl.server.Route
-import DomainModelService.GetModelsResponse
-import DomainModelService.GetModelResponse
-import DomainModelService.CreateModelResponse
-import com.convergencelabs.server.datastore.ModelStoreActor.CreateOrUpdateModel
-import com.convergencelabs.server.datastore.ModelStoreActor.DeleteModel
-import com.convergencelabs.server.datastore.DeleteResult
-import com.convergencelabs.server.datastore.DeleteSuccess
-import com.convergencelabs.server.datastore.NotFound
-import com.convergencelabs.server.datastore.CreateResult
-import com.convergencelabs.server.datastore.UpdateResult
-import com.convergencelabs.server.datastore.CreateResult
-import com.convergencelabs.server.datastore.CreateSuccess
-import com.convergencelabs.server.datastore.UpdateSuccess
-import com.convergencelabs.server.datastore.InvalidValue
-import com.convergencelabs.server.datastore.CreateOrUpdateResult
-import com.convergencelabs.server.datastore.ModelStoreActor.CreateModel
-import com.convergencelabs.server.datastore.DuplicateValue
-import com.convergencelabs.server.domain.model.ModelMetaData
-import java.time.Instant
-import com.convergencelabs.server.domain.model.data.ObjectValue
-import com.convergencelabs.server.frontend.rest.DomainModelService.ModelMetaDataResponse
-import com.convergencelabs.server.frontend.rest.DomainModelService.ModelResponse
+
 
 object DomainModelService {
 
@@ -133,8 +136,6 @@ class DomainModelService(
       metaData.modifiedTime)
   }
 
-  //  
-
   def getModel(domain: DomainFqn, model: ModelFqn): Future[RestResponse] = {
     (domainRestActor ? DomainMessage(
       domain,
@@ -148,37 +149,26 @@ class DomainModelService(
             model.metaData.modifiedTime,
             model.data)
           (StatusCodes.OK, GetModelResponse(mr))
-        case None => NotFoundError
+        case None => 
+          NotFoundError
       }
   }
 
   def postModel(domain: DomainFqn, colletionId: String, data: Map[String, Any]): Future[RestResponse] = {
-    (domainRestActor ? DomainMessage(
-      domain,
-      CreateModel(colletionId, data))).mapTo[CreateResult[ModelFqn]] map {
-        case CreateSuccess(ModelFqn(collectionId, modelId)) =>
-          (StatusCodes.OK, CreateModelResponse(collectionId, modelId))
-        case InvalidValue => InvalidValueError
-        case DuplicateValue => DuplicateError
-      }
+    val message = DomainMessage(domain, CreateModel(colletionId, data))
+    (domainRestActor ? message).mapTo[ModelFqn] map {
+      case ModelFqn(collectionId, modelId) =>
+        (StatusCodes.OK, CreateModelResponse(collectionId, modelId))
+    }
   }
 
   def putModel(domain: DomainFqn, colletionId: String, modelId: String, data: Map[String, Any]): Future[RestResponse] = {
-    (domainRestActor ? DomainMessage(
-      domain,
-      CreateOrUpdateModel(colletionId, modelId, data))).mapTo[CreateOrUpdateResult[ModelFqn]] map {
-        case CreateSuccess(fqn) => OkResponse
-        case UpdateSuccess => OkResponse
-        case InvalidValue => InvalidValueError
-      }
+    val message = DomainMessage(domain, CreateOrUpdateModel(colletionId, modelId, data))
+    (domainRestActor ? message).mapTo[ModelFqn] map { _ => OkResponse }
   }
 
   def deleteModel(domain: DomainFqn, colletionId: String, modelId: String): Future[RestResponse] = {
-    (domainRestActor ? DomainMessage(
-      domain,
-      DeleteModel(ModelFqn(colletionId, modelId)))).mapTo[DeleteResult] map {
-        case DeleteSuccess => OkResponse
-        case NotFound => NotFoundError
-      }
+    val message = DomainMessage(domain, DeleteModel(ModelFqn(colletionId, modelId)))
+    (domainRestActor ? message).mapTo[Unit] map { _ => OkResponse }
   }
 }

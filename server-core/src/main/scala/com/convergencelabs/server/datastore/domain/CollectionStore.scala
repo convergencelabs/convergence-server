@@ -4,21 +4,15 @@ import java.util.{ List => JavaList }
 
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.server.datastore.CreateResult
-import com.convergencelabs.server.datastore.CreateSuccess
 import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.DeleteResult
-import com.convergencelabs.server.datastore.DeleteSuccess
-import com.convergencelabs.server.datastore.DuplicateValue
-import com.convergencelabs.server.datastore.InvalidValue
-import com.convergencelabs.server.datastore.NotFound
+import com.convergencelabs.server.datastore.DuplicateValueExcpetion
+import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.datastore.QueryUtil
-import com.convergencelabs.server.datastore.UpdateResult
-import com.convergencelabs.server.datastore.UpdateSuccess
 import com.convergencelabs.server.datastore.domain.mapper.ModelSnapshotConfigMapper.ModelSnapshotConfigToODocument
 import com.convergencelabs.server.datastore.domain.mapper.ModelSnapshotConfigMapper.ODocumentToModelSnapshotConfig
 import com.convergencelabs.server.domain.model.Collection
@@ -83,15 +77,15 @@ class CollectionStore private[domain] (dbProvider: DatabaseProvider, modelStore:
     }
   }
 
-  def createCollection(collection: Collection): Try[CreateResult[Unit]] = tryWithDb { db =>
+  def createCollection(collection: Collection): Try[Unit] = tryWithDb { db =>
     val doc = CollectionStore.collectionToDoc(collection)
     db.save(doc)
-    CreateSuccess(())
-  } recover {
-    case e: ORecordDuplicatedException => DuplicateValue
+    ()
+  } recoverWith {
+    case e: ORecordDuplicatedException => handleDuplicateValue(e)
   }
 
-  def updateCollection(collection: Collection): Try[UpdateResult] = tryWithDb { db =>
+  def updateCollection(collection: Collection): Try[Unit] = tryWithDb { db =>
     val updatedDoc = CollectionStore.collectionToDoc(collection)
 
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM Collection WHERE id = :id")
@@ -100,19 +94,17 @@ class CollectionStore private[domain] (dbProvider: DatabaseProvider, modelStore:
 
     QueryUtil.enforceSingletonResultList(result) match {
       case Some(doc) =>
-        try {
           doc.merge(updatedDoc, false, false)
           db.save(doc)
-          UpdateSuccess
-        } catch {
-          case e: ORecordDuplicatedException => InvalidValue
-        }
-
-      case None => NotFound
+          ()
+      case None => 
+        throw new EntityNotFoundException()
     }
+  } recoverWith {
+    case e: ORecordDuplicatedException => handleDuplicateValue(e)
   }
 
-  def deleteCollection(id: String): Try[DeleteResult] = tryWithDb { db =>
+  def deleteCollection(id: String): Try[Unit] = tryWithDb { db =>
     modelStore.deleteAllModelsInCollection(id)
 
     val queryString =
@@ -124,8 +116,8 @@ class CollectionStore private[domain] (dbProvider: DatabaseProvider, modelStore:
     val params = Map(CollectionStore.Id -> id)
     val deleted: Int = db.command(command).execute(params.asJava)
     deleted match {
-      case 0 => NotFound
-      case _ => DeleteSuccess
+      case 0 => throw EntityNotFoundException()
+      case _ => ()
     }
   }
 
@@ -149,5 +141,14 @@ class CollectionStore private[domain] (dbProvider: DatabaseProvider, modelStore:
     val query = new OSQLSynchQuery[ODocument](pageQuery)
     val result: JavaList[ODocument] = db.command(query).execute()
     result.asScala.toList map { CollectionStore.docToCollection(_) }
+  }
+
+  private[this] def handleDuplicateValue[T](e: ORecordDuplicatedException): Try[T] = {
+    e.getIndexName match {
+      case CollectionStore.CollectionIdIndex =>
+        Failure(DuplicateValueExcpetion(CollectionStore.Id))
+      case _ =>
+        Failure(e)
+    }
   }
 }

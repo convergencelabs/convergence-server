@@ -12,16 +12,9 @@ import akka.actor.ActorRef
 import akka.http.scaladsl.server.Directives._
 import akka.pattern._
 import akka.util.Timeout
-import com.convergencelabs.server.datastore.CreateResult
-import com.convergencelabs.server.datastore.CreateSuccess
-import com.convergencelabs.server.datastore.DuplicateValue
-import com.convergencelabs.server.datastore.InvalidValue
 import com.convergencelabs.server.datastore.RegistrationActor.RegisterUser
 import com.convergencelabs.server.datastore.RegistrationActor.AddRegistration
 import com.convergencelabs.server.datastore.RegistrationActor.ApproveRegistration
-import com.convergencelabs.server.datastore.UpdateResult
-import com.convergencelabs.server.datastore.UpdateSuccess
-import com.convergencelabs.server.datastore.NotFound
 import com.convergencelabs.server.datastore.RegistrationActor.RejectRegistration
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.model.MediaTypes
@@ -98,38 +91,23 @@ class RegistrationService(
 
   def registrationRequest(req: RegistrationRequest): Future[RestResponse] = {
     val RegistrationRequest(fname, lname, email, reason) = req
-    (registrationActor ? AddRegistration(fname, lname, email, reason)).mapTo[CreateResult[Unit]].map {
-      case response: CreateSuccess[Unit] => CreateRestResponse
-      case DuplicateValue => DuplicateError
-      case InvalidValue => InvalidValueError
-    }
+    (registrationActor ? AddRegistration(fname, lname, email, reason)) map { _ => CreateRestResponse }
   }
 
   def registrationApprove(req: RegistrationApproval): Future[RestResponse] = {
     val RegistrationApproval(token) = req
-    (registrationActor ? ApproveRegistration(token)).mapTo[UpdateResult].map {
-      case UpdateSuccess => OkResponse
-      case NotFound => NotFoundError
-      case InvalidValue => InvalidValueError
-    }
+    (registrationActor ? ApproveRegistration(token)) map { _ => OkResponse }
   }
 
   def registrationReject(req: RegistrationRejection): Future[RestResponse] = {
     val RegistrationRejection(token) = req
-    (registrationActor ? RejectRegistration(token)).mapTo[UpdateResult].map {
-      case UpdateSuccess => OkResponse
-      case NotFound => NotFoundError
-      case InvalidValue => InvalidValueError
-    }
+    (registrationActor ? RejectRegistration(token)) map { _ => OkResponse }
   }
 
   def registration(req: Registration): Future[RestResponse] = {
     val Registration(username, fname, lname, email, password, token) = req
-    (registrationActor ? RegisterUser(username, fname, lname, email, password, token)).mapTo[CreateResult[String]].map {
-      case CreateSuccess(uid) => CreateRestResponse
-      case DuplicateValue => DuplicateError
-      case InvalidValue => InvalidValueError
-    }
+    val message = RegisterUser(username, fname, lname, email, password, token)
+    (registrationActor ? message) map { _ => CreateRestResponse }
   }
 
   def registrationInfo(token: String): Future[RestResponse] = {

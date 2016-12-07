@@ -7,13 +7,6 @@ import com.convergencelabs.server.datastore.CollectionStoreActor.CreateCollectio
 import com.convergencelabs.server.datastore.CollectionStoreActor.DeleteCollection
 import com.convergencelabs.server.datastore.CollectionStoreActor.GetCollection
 import com.convergencelabs.server.datastore.CollectionStoreActor.GetCollections
-import com.convergencelabs.server.datastore.CreateResult
-import com.convergencelabs.server.datastore.CreateSuccess
-import com.convergencelabs.server.datastore.DeleteResult
-import com.convergencelabs.server.datastore.DeleteSuccess
-import com.convergencelabs.server.datastore.DuplicateValue
-import com.convergencelabs.server.datastore.InvalidValue
-import com.convergencelabs.server.datastore.NotFound
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.RestDomainManagerActor.DomainMessage
 import com.convergencelabs.server.domain.model.Collection
@@ -81,17 +74,14 @@ class DomainCollectionService(
   }
 
   def createCollection(domain: DomainFqn, collection: Collection): Future[RestResponse] = {
-    (domainRestActor ? DomainMessage(domain, CreateCollection(collection))).mapTo[CreateResult[Unit]] map {
-      case message: CreateSuccess[Unit] => CreateRestResponse
-      case DuplicateValue               => DuplicateError
-      case InvalidValue                 => InvalidValueError
+    (domainRestActor ? DomainMessage(domain, CreateCollection(collection))) map { _ =>
+      CreateRestResponse
     }
   }
 
   def deleteCollection(domain: DomainFqn, collectionId: String): Future[RestResponse] = {
-    (domainRestActor ? DomainMessage(domain, DeleteCollection(collectionId))).mapTo[DeleteResult] map {
-      case DeleteSuccess => OkResponse
-      case NotFound      => NotFoundError
+    (domainRestActor ? DomainMessage(domain, DeleteCollection(collectionId))) map {_ =>
+      OkResponse
     }
   }
 }

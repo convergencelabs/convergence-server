@@ -2,7 +2,6 @@ package com.convergencelabs.server.datastore
 
 import java.time.Duration
 
-import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
@@ -84,9 +83,9 @@ class DomainStoreSpec
         stores.domain.getDomainByFqn(fqn).get.value shouldBe domain
       }
 
-      "return a DuplicateValue if the domain exists" in withTestData { stores =>
+      "return a DuplicateValueExcpetion if the domain exists" in withTestData { stores =>
         stores.domain.createDomain(ns1d1, "", Username)
-        stores.domain.createDomain(ns1d1, "Test Domain 1", Username).get shouldBe DuplicateValue
+        stores.domain.createDomain(ns1d1, "Test Domain 1", Username).failure.exception shouldBe a[DuplicateValueExcpetion]
       }
       
       "fail if the owner does not exist" in withTestData { stores =>
@@ -128,7 +127,7 @@ class DomainStoreSpec
       }
 
       "not throw an exception if the domain does not exist" in withTestData { stores =>
-        stores.domain.removeDomain(ns1d3).get
+        stores.domain.removeDomain(ns1d3).failure.exception shouldBe a[EntityNotFoundException]
       }
     }
 
@@ -157,7 +156,7 @@ class DomainStoreSpec
           DomainStatus.Online,
           "")
 
-        stores.domain.updateDomain(toUpdate).get shouldBe NotFound
+        stores.domain.updateDomain(toUpdate).failure.exception shouldBe a[EntityNotFoundException]
       }
     }
   }

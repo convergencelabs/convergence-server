@@ -64,8 +64,8 @@ class RegistrationActor private[datastore] (dbProvider: DatabaseProvider, userMa
     registrationStore.isRegistrationApproved(email, token).map {
       case Some(true) => {
         val req = CreateConvergenceUserRequest(username, email, fname, lname, s"$fname $lname", password)
-        (userManager ? req).mapTo[CreateResult[String]] onSuccess {
-          case result: CreateSuccess[String] => {
+        (userManager ? req).mapTo[String] onSuccess {
+          case result: String => {
             registrationStore.removeRegistration(token)
 
             val welcomeTxt = if (fname != null && fname.nonEmpty) s"${fname}, welcome" else "Welcome"
@@ -78,45 +78,42 @@ class RegistrationActor private[datastore] (dbProvider: DatabaseProvider, userMa
 
             origSender ! result
           }
-          case _ => origSender ! _
         }
       }
-      case _ => origSender ! InvalidValue
+      case Some(false) => 
+        origSender ! akka.actor.Status.Failure(new IllegalArgumentException("Registration not approved"))
+      case None => 
+        origSender ! akka.actor.Status.Failure(new EntityNotFoundException("Registration token not found"))
     }
   }
 
   def addRegistration(message: AddRegistration): Unit = {
     val AddRegistration(fname, lname, email, reason) = message
-    reply(registrationStore.addRegistration(fname, lname, email, reason) map {
-      case CreateSuccess(token) => {
-        val bodyContent = templates.email.internal.txt.registrationRequest(token, fname, lname, email, reason, registrationBaseUrl)
-        val internalEmail = EmailUtilities.createTextEmail(smtpConfig, bodyContent.toString())
-        internalEmail.setSubject(s"Registration Request from ${fname} ${lname}")
-        internalEmail.addTo(smtpConfig.getString("new-registration-to-address"))
-        internalEmail.send()
+    reply(registrationStore.addRegistration(fname, lname, email, reason) map { token =>
+      val bodyContent = templates.email.internal.txt.registrationRequest(token, fname, lname, email, reason, registrationBaseUrl)
+      val internalEmail = EmailUtilities.createTextEmail(smtpConfig, bodyContent.toString())
+      internalEmail.setSubject(s"Registration Request from ${fname} ${lname}")
+      internalEmail.addTo(smtpConfig.getString("new-registration-to-address"))
+      internalEmail.send()
 
-        val template = templates.email.html.accountRequested(fname)
-        val templateTxt = templates.email.txt.accountRequested(fname)
-        val newRequestEmail = EmailUtilities.createHtmlEmail(smtpConfig, template, templateTxt.toString())
-        newRequestEmail.setSubject(s"${fname}, your account request has been received")
-        newRequestEmail.addTo(email)
-        newRequestEmail.send()
-
-        CreateSuccess(Unit)
-      }
-      case DuplicateValue => DuplicateValue
-      case InvalidValue => InvalidValue
+      val template = templates.email.html.accountRequested(fname)
+      val templateTxt = templates.email.txt.accountRequested(fname)
+      val newRequestEmail = EmailUtilities.createHtmlEmail(smtpConfig, template, templateTxt.toString())
+      newRequestEmail.setSubject(s"${fname}, your account request has been received")
+      newRequestEmail.addTo(email)
+      newRequestEmail.send()
+      ()
     })
   }
 
   def appoveRegistration(message: ApproveRegistration): Unit = {
     val ApproveRegistration(token) = message
     val resp = registrationStore.approveRegistration(token)
-    
+
     reply(resp)
-    
+
     resp match {
-      case Success(UpdateSuccess) => {
+      case Success(()) => {
         registrationStore.getRegistrationInfo(token) match {
           case Success(Some(registration)) => {
             val (firstName, lastName, email) = registration

@@ -62,9 +62,9 @@ import com.convergencelabs.server.domain.model.data.NullValue
 import com.convergencelabs.server.domain.model.Model
 import com.convergencelabs.server.domain.DomainUserType
 import com.convergencelabs.server.domain.DomainUser
-import com.convergencelabs.server.datastore.DuplicateValue
 import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.db.schema.DeltaCategory
+import com.convergencelabs.server.datastore.DuplicateValueExcpetion
 
 // scalastyle:off magic.number multiple.string.literals
 class SessionStoreSpec
@@ -103,7 +103,7 @@ class SessionStoreSpec
       "disallow duplicat session Ids" in withTestData { provider =>
         val session = DomainSession(sessionId, username, Instant.now(), Some(Instant.now()), authMethod, client, clientVersion, "", remoteHost)
         provider.sessionStore.createSession(session).get
-        provider.sessionStore.createSession(session).get shouldBe DuplicateValue
+        provider.sessionStore.createSession(session).failure.exception shouldBe a[DuplicateValueExcpetion]
       }
     }
 

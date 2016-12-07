@@ -22,7 +22,6 @@ import org.scalatest.Matchers
 import org.scalatest.WordSpecLike
 import org.scalatest.mock.MockitoSugar
 
-import com.convergencelabs.server.datastore.CreateSuccess
 import com.convergencelabs.server.datastore.domain.DomainConfigStore
 import com.convergencelabs.server.datastore.domain.DomainUserStore
 import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateNormalDomainUser
@@ -159,8 +158,8 @@ class AuthenticationHandlerSpec()
     val lazyUserName = "newUserName"
     val lazyUser = CreateNormalDomainUser(lazyUserName, None, None, None, None)
     Mockito.when(userStore.getDomainUserByUsername(lazyUserName)).thenReturn(Success(None))
-    Mockito.when(userStore.createNormalDomainUser(lazyUser)).thenReturn(Success(CreateSuccess(lazyUserName)))
-    Mockito.when(userStore.createAdminDomainUser(lazyUserName)).thenReturn(Success(CreateSuccess(lazyUserName)))
+    Mockito.when(userStore.createNormalDomainUser(lazyUser)).thenReturn(Success(lazyUserName))
+    Mockito.when(userStore.createAdminDomainUser(lazyUserName)).thenReturn(Success(lazyUserName))
     Mockito.when(userStore.domainUserExists(lazyUserName)).thenReturn(Success(false))
     Mockito.when(userStore.adminUserExists(lazyUserName)).thenReturn(Success(false))
 

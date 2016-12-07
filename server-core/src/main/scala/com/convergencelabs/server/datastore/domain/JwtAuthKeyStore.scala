@@ -6,19 +6,14 @@ import java.util.{ List => JavaList }
 
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.util.Failure
 import scala.util.Try
 
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.server.datastore.CreateResult
-import com.convergencelabs.server.datastore.CreateSuccess
 import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.DeleteResult
-import com.convergencelabs.server.datastore.DeleteSuccess
-import com.convergencelabs.server.datastore.DuplicateValue
-import com.convergencelabs.server.datastore.NotFound
+import com.convergencelabs.server.datastore.DuplicateValueExcpetion
+import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.datastore.QueryUtil
-import com.convergencelabs.server.datastore.UpdateResult
-import com.convergencelabs.server.datastore.UpdateSuccess
 import com.convergencelabs.server.domain.JwtAuthKey
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
@@ -31,6 +26,8 @@ import grizzled.slf4j.Logging
 
 object JwtAuthKeyStore {
   val ClassName = "JwtAuthKey"
+  
+  val IdIndex = "JwtAuthKey.id"
 
   object Fields {
     val Id = "id"
@@ -52,7 +49,7 @@ object JwtAuthKeyStore {
     doc.field(Fields.Enabled, jwtAuthKey.enabled)
     doc
   }
-  
+
   def docToJwtAuthKey(doc: ODocument): JwtAuthKey = {
     val createdDate: Date = doc.field(Fields.Updated, OType.DATETIME)
     JwtAuthKey(
@@ -71,10 +68,9 @@ class JwtAuthKeyStore private[datastore] (
 
   val Id = "id"
 
-  val JwtAuthKeyClass = "JwtAuthKey"
 
   def getKeys(offset: Option[Int], limit: Option[Int]): Try[List[JwtAuthKey]] = tryWithDb { db =>
-    val queryString = s"SELECT * FROM ${JwtAuthKeyClass} ORDER BY id ASC"
+    val queryString = "SELECT * FROM JwtAuthKey ORDER BY id ASC"
     val pageQuery = QueryUtil.buildPagedQuery(queryString, limit, offset)
     val query = new OSQLSynchQuery[ODocument](pageQuery)
     val result: JavaList[ODocument] = db.command(query).execute()
@@ -82,33 +78,33 @@ class JwtAuthKeyStore private[datastore] (
   }
 
   def getKey(id: String): Try[Option[JwtAuthKey]] = tryWithDb { db =>
-    val queryString = s"SELECT * FROM ${JwtAuthKeyClass} WHERE id = :id"
+    val queryString = "SELECT * FROM JwtAuthKey WHERE id = :id"
     val query = new OSQLSynchQuery[ODocument](queryString)
     val params = Map(Id -> id)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     QueryUtil.mapSingletonList(result) { JwtAuthKeyStore.docToJwtAuthKey(_) }
   }
 
-  def createKey(key: KeyInfo): Try[CreateResult[Unit]] = {
+  def createKey(key: KeyInfo): Try[Unit] = {
     val KeyInfo(id, description, publicKey, enabled) = key
     val jwtAuthKey = JwtAuthKey(id, description, Instant.now(), publicKey, enabled)
     importKey(jwtAuthKey)
   }
 
-  def importKey(jwtAuthKey: JwtAuthKey): Try[CreateResult[Unit]] = tryWithDb { db =>
+  def importKey(jwtAuthKey: JwtAuthKey): Try[Unit] = tryWithDb { db =>
     val doc = JwtAuthKeyStore.jwtAuthKeyToDoc(jwtAuthKey)
     db.save(doc)
-    CreateSuccess(())
-  } recover {
-    case e: ORecordDuplicatedException => DuplicateValue
+    ()
+  } recoverWith {
+    case e: ORecordDuplicatedException => handleDuplicateValue(e)
   }
 
-  def updateKey(info: KeyInfo): Try[UpdateResult] = tryWithDb { db =>
+  def updateKey(info: KeyInfo): Try[Unit] = tryWithDb { db =>
     val KeyInfo(keyId, descr, key, enabled) = info
     val updateKey = JwtAuthKey(keyId, descr, Instant.now(), key, enabled)
 
     val updatedDoc = JwtAuthKeyStore.jwtAuthKeyToDoc(updateKey)
-    val queryString = s"SELECT FROM ${JwtAuthKey} WHERE id = :id"
+    val queryString = "SELECT FROM JwtAuthKey WHERE id = :id"
     val query = new OSQLSynchQuery[ODocument](queryString)
     val params = Map(Id -> keyId)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
@@ -117,20 +113,32 @@ class JwtAuthKeyStore private[datastore] (
       case Some(doc) => {
         doc.merge(updatedDoc, false, false)
         db.save(doc)
-        UpdateSuccess
+        ()
       }
-      case None => NotFound
+      case None =>
+        throw EntityNotFoundException()
     }
   }
 
-  def deleteKey(id: String): Try[DeleteResult] = tryWithDb { db =>
-    val queryString = s"DELETE FROM ${JwtAuthKey} WHERE id = :id"
+  def deleteKey(id: String): Try[Unit] = tryWithDb { db =>
+    val queryString = "DELETE FROM JwtAuthKey WHERE id = :id"
     val command = new OCommandSQL(queryString)
     val params = Map(Id -> id)
     val deleted: Int = db.command(command).execute(params.asJava)
     deleted match {
-      case 1 => DeleteSuccess
-      case _ => NotFound
+      case 1 =>
+        ()
+      case _ => 
+        throw EntityNotFoundException()
+    }
+  }
+
+  private[this] def handleDuplicateValue[T](e: ORecordDuplicatedException): Try[T] = {
+    e.getIndexName match {
+      case JwtAuthKeyStore.IdIndex =>
+        Failure(DuplicateValueExcpetion(JwtAuthKeyStore.Fields.Id))
+      case _ =>
+        Failure(e)
     }
   }
 }
