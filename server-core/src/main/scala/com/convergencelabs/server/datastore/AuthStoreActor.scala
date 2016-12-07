@@ -17,6 +17,7 @@ import com.convergencelabs.server.datastore.AuthStoreActor.TokenExpirationReques
 import com.convergencelabs.server.datastore.AuthStoreActor.TokenExpirationSuccess
 import com.convergencelabs.server.datastore.AuthStoreActor.TokenExpirationFailure
 import java.time.Duration
+import com.convergencelabs.server.datastore.AuthStoreActor.InvalidateTokenRequest
 
 class AuthStoreActor private[datastore] (
   private[this] val dbProvider: DatabaseProvider)
@@ -30,12 +31,13 @@ class AuthStoreActor private[datastore] (
     case authRequest: AuthRequest                       => authenticateUser(authRequest)
     case validateRequest: ValidateRequest               => validateToken(validateRequest)
     case tokenExpirationRequest: TokenExpirationRequest => expirationRequest(tokenExpirationRequest)
+    case invalidateTokenRequest: InvalidateTokenRequest => invalidateToken(invalidateTokenRequest)
     case message: Any                                   => unhandled(message)
   }
 
   private[this] def authenticateUser(authRequest: AuthRequest): Unit = {
     mapAndReply(userStore.validateCredentials(authRequest.username, authRequest.password)) {
-      case Some((token, expiration)) => 
+      case Some((token, expiration)) =>
         val delta = Duration.between(Instant.now(), expiration)
         AuthSuccess(token, delta)
       case None =>
@@ -55,9 +57,12 @@ class AuthStoreActor private[datastore] (
       case Some((username, expiration)) =>
         val now = Instant.now()
         TokenExpirationSuccess(username, Duration.between(now, expiration))
-      case None                        
-      => TokenExpirationFailure
+      case None => TokenExpirationFailure
     }
+  }
+
+  private[this] def invalidateToken(invalidateTokenRequest: InvalidateTokenRequest): Unit = {
+    reply(userStore.removeToken(invalidateTokenRequest.token))
   }
 }
 
@@ -81,4 +86,6 @@ object AuthStoreActor {
   sealed trait TokenExpirationResponse
   case class TokenExpirationSuccess(username: String, expiration: Duration) extends TokenExpirationResponse
   case object TokenExpirationFailure extends TokenExpirationResponse
+
+  case class InvalidateTokenRequest(token: String)
 }

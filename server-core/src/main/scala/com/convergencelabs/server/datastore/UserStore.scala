@@ -223,6 +223,14 @@ class UserStore(
     db.command(query).execute(params.asJava)
     Unit
   }
+  
+  def removeToken(token: String): Try[Unit] = tryWithDb { db =>
+    val queryStirng = "DELETE FROM UserAuthToken WHERE token = :token"
+    val query = new OCommandSQL(queryStirng)
+    val params = Map(Token -> token)
+    db.command(query).execute(params.asJava)
+    Unit
+  }
 
   def validateToken(token: String): Try[Option[String]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT user.username AS username, expireTime FROM UserAuthToken WHERE token = :token")

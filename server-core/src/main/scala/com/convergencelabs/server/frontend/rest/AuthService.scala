@@ -17,6 +17,10 @@ import com.convergencelabs.server.datastore.AuthStoreActor.TokenExpirationReques
 import com.convergencelabs.server.datastore.AuthStoreActor.TokenExpirationResponse
 import com.convergencelabs.server.datastore.AuthStoreActor.TokenExpirationSuccess
 import com.convergencelabs.server.datastore.AuthStoreActor.TokenExpirationFailure
+import com.convergencelabs.server.datastore.AuthStoreActor.InvalidateTokenRequest
+import scala.util.Try
+import scala.util.Success
+import scala.util.Failure
 
 case class TokenResponse(token: String, expiration: Long) extends AbstractSuccessResponse
 case class ExpirationResponse(valid: Boolean, username: Option[String], delta: Option[Long]) extends AbstractSuccessResponse
@@ -41,6 +45,12 @@ class AuthService(
           handleWith(tokenExprirationCheck)
         }
       }
+    } ~ pathPrefix("invalidate") {
+      pathEnd {
+        post {
+          handleWith(invalidateToken)
+        }
+      }
     }
   }
 
@@ -57,6 +67,12 @@ class AuthService(
         (StatusCodes.OK, ExpirationResponse(true, Some(username), Some(exprieDelta.toMillis())))
       case TokenExpirationFailure => 
         (StatusCodes.OK, ExpirationResponse(false, None, None))
+    }
+  }
+  
+    def invalidateToken(req: InvalidateTokenRequest): Future[RestResponse] = {
+    (authActor ? req).map {
+      _ => OkResponse
     }
   }
 }
