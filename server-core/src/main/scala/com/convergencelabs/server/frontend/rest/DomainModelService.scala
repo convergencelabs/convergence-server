@@ -108,9 +108,8 @@ class DomainModelService(
   }
 
   def getModels(domain: DomainFqn): Future[RestResponse] = {
-    (domainRestActor ? DomainMessage(
-      domain,
-      GetModels(None, None))).mapTo[List[ModelMetaData]] map {
+    val message = DomainMessage(domain, GetModels(None, None))
+    (domainRestActor ? message).mapTo[List[ModelMetaData]] map {
         _.map(mapMetaData(_))
       } map {
         models => (StatusCodes.OK, GetModelsResponse(models))
@@ -118,9 +117,8 @@ class DomainModelService(
   }
 
   def getModelInCollection(domain: DomainFqn, collectionId: String): Future[RestResponse] = {
-    (domainRestActor ? DomainMessage(
-      domain,
-      GetModelsInCollection(collectionId, None, None))).mapTo[List[ModelMetaData]] map {
+    val message = DomainMessage(domain, GetModelsInCollection(collectionId, None, None))
+    (domainRestActor ? message).mapTo[List[ModelMetaData]] map {
         _.map(mapMetaData(_))
       } map {
         models => (StatusCodes.OK, GetModelsResponse(models))
@@ -137,9 +135,8 @@ class DomainModelService(
   }
 
   def getModel(domain: DomainFqn, model: ModelFqn): Future[RestResponse] = {
-    (domainRestActor ? DomainMessage(
-      domain,
-      GetModel(model))).mapTo[Option[Model]] map {
+    val message = DomainMessage(domain, GetModel(model))
+    (domainRestActor ? message).mapTo[Option[Model]] map {
         case Some(model) =>
           val mr = ModelResponse(
             model.metaData.fqn.collectionId,
@@ -158,17 +155,17 @@ class DomainModelService(
     val message = DomainMessage(domain, CreateModel(colletionId, data))
     (domainRestActor ? message).mapTo[ModelFqn] map {
       case ModelFqn(collectionId, modelId) =>
-        (StatusCodes.OK, CreateModelResponse(collectionId, modelId))
+        (StatusCodes.Created, CreateModelResponse(collectionId, modelId))
     }
   }
 
   def putModel(domain: DomainFqn, colletionId: String, modelId: String, data: Map[String, Any]): Future[RestResponse] = {
     val message = DomainMessage(domain, CreateOrUpdateModel(colletionId, modelId, data))
-    (domainRestActor ? message).mapTo[ModelFqn] map { _ => OkResponse }
+    (domainRestActor ? message) map { _ => OkResponse }
   }
 
   def deleteModel(domain: DomainFqn, colletionId: String, modelId: String): Future[RestResponse] = {
     val message = DomainMessage(domain, DeleteModel(ModelFqn(colletionId, modelId)))
-    (domainRestActor ? message).mapTo[Unit] map { _ => OkResponse }
+    (domainRestActor ? message) map { _ => OkResponse }
   }
 }

@@ -60,28 +60,26 @@ class DomainCollectionService(
   }
 
   def getCollections(domain: DomainFqn): Future[RestResponse] = {
-    (domainRestActor ? DomainMessage(
-      domain,
-      GetCollections(None, None))).mapTo[List[Collection]] map
+    val message = DomainMessage(domain, GetCollections(None, None))
+    (domainRestActor ? message).mapTo[List[Collection]] map
       (collections => (StatusCodes.OK, GetCollectionsResponse(collections)))
   }
 
   def getCollection(domain: DomainFqn, collectionId: String): Future[RestResponse] = {
-    (domainRestActor ? DomainMessage(domain, GetCollection(collectionId))).mapTo[Option[Collection]] map {
+    val message = DomainMessage(domain, GetCollection(collectionId))
+    (domainRestActor ? message).mapTo[Option[Collection]] map {
       case Some(collection) => (StatusCodes.OK, GetCollectionResponse(collection))
-      case None             => NotFoundError
+      case None => NotFoundError
     }
   }
 
   def createCollection(domain: DomainFqn, collection: Collection): Future[RestResponse] = {
-    (domainRestActor ? DomainMessage(domain, CreateCollection(collection))) map { _ =>
-      CreateRestResponse
-    }
+    val message = DomainMessage(domain, CreateCollection(collection))
+    (domainRestActor ? message) map { _ => CreateRestResponse }
   }
 
   def deleteCollection(domain: DomainFqn, collectionId: String): Future[RestResponse] = {
-    (domainRestActor ? DomainMessage(domain, DeleteCollection(collectionId))) map {_ =>
-      OkResponse
-    }
+    val message = DomainMessage(domain, DeleteCollection(collectionId))
+    (domainRestActor ? message) map { _ => OkResponse }
   }
 }

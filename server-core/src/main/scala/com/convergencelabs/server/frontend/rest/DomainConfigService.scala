@@ -64,12 +64,13 @@ class DomainConfigService(
   }
 
   def getAnonymousAuthEnabled(domain: DomainFqn): Future[RestResponse] = {
-    (domainRestActor ? DomainMessage(domain, GetAnonymousAuth)).mapTo[Boolean] map 
+    val message = DomainMessage(domain, GetAnonymousAuth)
+    (domainRestActor ? message).mapTo[Boolean] map 
     (enabled => (StatusCodes.OK, AnonymousAuthResponse(enabled)))
   }
   
   def setAnonymousAuthEnabled(domain: DomainFqn, request: AnonymousAuthPut): Future[RestResponse] = {
-    (domainRestActor ? DomainMessage(domain, SetAnonymousAuth(request.enabled))).mapTo[Unit] map 
-    (_ => OkResponse)
+    val message = DomainMessage(domain, SetAnonymousAuth(request.enabled))
+    (domainRestActor ? message) map  (_ => OkResponse)
   }
 }

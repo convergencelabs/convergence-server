@@ -99,7 +99,7 @@ class DomainKeyService(
   def updateKey(domain: DomainFqn, keyId: String, update: UpdateInfo): Future[RestResponse] = {
     val UpdateInfo(description, key, enabled) = update
     val info = KeyInfo(keyId, description, key, enabled)
-    (domainRestActor ? DomainMessage(domain, UpdateDomainApiKey(info))).map { _ =>
+    (domainRestActor ? DomainMessage(domain, UpdateDomainApiKey(info))) map { _ =>
       OkResponse
     }
   }

@@ -41,7 +41,8 @@ class DomainAdminTokenService(
   }
 
   def getAdminToken(domain: DomainFqn, username: String): Future[RestResponse] = {
-    (domainRestActor ? DomainMessage(domain, AdminTokenRequest(username))).mapTo[String] map {
+    val message = DomainMessage(domain, AdminTokenRequest(username))
+    (domainRestActor ? message).mapTo[String] map {
       case token: String => (StatusCodes.OK, AdminTokenRestResponse(token))
     }
   }
