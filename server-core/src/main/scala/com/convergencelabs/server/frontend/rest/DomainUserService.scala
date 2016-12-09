@@ -112,7 +112,7 @@ class DomainUserService(
   def createUserRequest(createRequest: CreateUserRequest, domain: DomainFqn): Future[RestResponse] = {
     val CreateUserRequest(username, firstName, lastName, displayName, email, password) = createRequest
     val message = DomainMessage(domain, CreateUser(username, firstName, lastName, displayName, email, password))
-    (domainRestActor ? message).mapTo[Unit] map { _ => (StatusCodes.Created, CreateUserResponse()) }
+    (domainRestActor ? message) map { _ => (StatusCodes.Created, CreateUserResponse()) }
   }
 
   def updateUserRequest(username: String, updateRequest: UpdateUserRequest, domain: DomainFqn): Future[RestResponse] = {

@@ -2,6 +2,7 @@ version: 1
 description: Initial Domain schema creation
 changes:
 
+
 ########## DateTimeFormat ##########
 
   - action: RunSQLCommand

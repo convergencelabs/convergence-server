@@ -1,4 +1,4 @@
 preReleaseVersion: 1
-releasedVersion: 0
+releasedVersion: 1
 deltas:
-  1: {delta: null, database: null}
+  1: {delta: 22360ba0f0fbf1a4db14aeea3e583857b9e50ca73f00c89dce6d6933076af8e6, database: 36bbf4cd67f76e36b9f2040d49583ea1d69e61c4c49b05a5bf39194874582e9d}
