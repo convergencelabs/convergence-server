@@ -98,7 +98,8 @@ class AuthenticationHandlerSpec()
       "return an authentication success for the admin key" in new TestFixture {
         val f = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(existingUserName, AuthenticationHandler.AdminKeyId)))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
-        result shouldBe AuthenticationSuccess(existingUserName, SessionKey(existingUserName, "1"))
+        val expectedUsername = DomainUserStore.adminUsername(existingUserName)
+        result shouldBe AuthenticationSuccess(expectedUsername, SessionKey(expectedUsername, "1"))
       }
 
       "return an authentication success lazily created user" in new TestFixture {

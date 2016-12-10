@@ -17,17 +17,17 @@ import org.bouncycastle.openssl.PEMParser
 import org.jose4j.jwt.JwtClaims
 import org.jose4j.jwt.consumer.JwtConsumerBuilder
 
-import com.convergencelabs.server.datastore.domain.JwtAuthKeyStore
+import com.convergencelabs.server.datastore.DuplicateValueExcpetion
+import com.convergencelabs.server.datastore.InvalidValueExcpetion
 import com.convergencelabs.server.datastore.domain.DomainConfigStore
 import com.convergencelabs.server.datastore.domain.DomainUserStore
 import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateNormalDomainUser
+import com.convergencelabs.server.datastore.domain.JwtAuthKeyStore
 import com.convergencelabs.server.domain.model.SessionKey
 import com.convergencelabs.server.util.TryWithResource
 import com.convergencelabs.server.util.concurrent.FutureUtils.tryToFuture
 
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.datastore.DuplicateValueExcpetion
-import com.convergencelabs.server.datastore.InvalidValueExcpetion
 
 object AuthenticationHandler {
   val AdminKeyId = "ConvergenceAdminKey"
@@ -59,7 +59,7 @@ class AuthenticationHandler(
         userStore.createAnonymousDomainUser(displayName) flatMap { username => authSuccess(username) }
     } recover {
       case e: Exception =>
-          AuthenticationError
+        AuthenticationError
     }
 
     tryToFuture(result)
@@ -129,37 +129,42 @@ class AuthenticationHandler(
     // sure a replay attack is not possible
 
     val exists = admin match {
-      case true => userStore.domainUserExists(username)
-      case false => userStore.adminUserExists(username)
+      case true => userStore.adminUserExists(username)
+      case false => userStore.domainUserExists(username)
+    }
+    
+    val resolvedUsername = admin match {
+      case true => DomainUserStore.adminUsername(username)
+      case false => username
     }
 
     exists.flatMap {
       case true =>
         logger.debug("User specificed in token already exists, returning auth success.")
         // FIXME We need to update the users info based on any provided claims.
-        authSuccess(username)
+        authSuccess(resolvedUsername)
       case false =>
         logger.error("User specificed in token does not exist exist, creating.")
         createUserFromJWT(jwtClaims, admin) flatMap { _ =>
-          authSuccess(username)
+          authSuccess(resolvedUsername)
         } recoverWith {
           case e: DuplicateValueExcpetion =>
             // The duplicate value case is when a race condition occurs between when we looked up the
             // user and then tried to create them.
             logger.warn("Attempted to auto create user, but user already exists, returning auth success.")
-            authSuccess(username)
+            authSuccess(resolvedUsername)
           case e: InvalidValueExcpetion =>
             Failure(new IllegalArgumentException("Lazy creation of user based on JWT authentication failed: {$username}", e))
-        } 
+        }
     }.recover {
       case cause: Exception =>
         logger.error("Unable to authenticate a user via token.", cause)
         AuthenticationError
     }.get
   }
-  
+
   private[this] def authSuccess(username: String): Try[AuthenticationResponse] = {
-    userStore.nextSessionId map { id => 
+    userStore.nextSessionId map { id =>
       AuthenticationSuccess(username, SessionKey(username, id))
     }
   }

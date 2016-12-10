@@ -38,6 +38,9 @@ object DomainUserStore {
   val UsernameIndex = "User.username"
   val EmailIndex = "User.email"
 
+  val AdminUserPrefeix = "admin:"
+  val AnonymousUserPrefeix = "anonymous:"
+
   object Fields {
     val UserType = "userType"
     val Username = "username"
@@ -60,6 +63,14 @@ object DomainUserStore {
     lastName: Option[String],
     displayName: Option[String],
     email: Option[String])
+
+  def adminUsername(convergneceUsername: String): String = {
+    AdminUserPrefeix + convergneceUsername
+  }
+
+  def anonymousUsername(username: String): String = {
+    AnonymousUserPrefeix + username
+  }
 
   def getUserRid(username: String, db: ODatabaseDocumentTx): Try[ORID] = {
     val query = "SELECT @RID as rid FROM User WHERE username = :username"
@@ -187,9 +198,9 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
     val params = Map(Username -> username)
     val count: Int = db.command(command).execute(params.asJava)
     count match {
-      case 0 => 
+      case 0 =>
         throw EntityNotFoundException()
-      case _ => 
+      case _ =>
         ()
     }
   }
@@ -212,10 +223,10 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
 
     QueryUtil.enforceSingletonResultList(result) match {
       case Some(doc) =>
-          doc.merge(updatedDoc, false, false)
-          db.save(doc)
-          ()
-      case None => 
+        doc.merge(updatedDoc, false, false)
+        db.save(doc)
+        ()
+      case None =>
         throw EntityNotFoundException()
     }
   } recoverWith {
@@ -223,7 +234,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
   }
 
   /**
-   * Gets a single domain user by usernam.
+   * Gets a single domain user by username.
    *
    * @param username The uid of the user to retrieve.
    *
@@ -290,7 +301,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
   }
 
   def adminUserExists(username: String): Try[Boolean] = {
-    this.userExists(username, DomainUserType.Admin)
+    this.userExists(DomainUserStore.adminUsername(username), DomainUserType.Admin)
   }
 
   private[this] def userExists(username: String, userType: DomainUserType.Value): Try[Boolean] = tryWithDb { db =>

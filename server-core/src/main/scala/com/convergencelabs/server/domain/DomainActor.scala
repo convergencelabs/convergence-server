@@ -108,36 +108,42 @@ class DomainActor(
   private[this] def onAuthenticationRequest(message: AuthenticationRequest): Unit = {
     val asker = sender
     val connected = Instant.now()
+
     authenticator.authenticate(message.credentials) onComplete {
-      case Success(response) =>
-        response match {
-          case AuthenticationSuccess(username, sk) =>
-            val method = message.credentials match {
-              case x: JwtAuthRequest => "jwt"
-              case x: PasswordAuthRequest => "password"
-              case x: AnonymousAuthRequest => "anonymous"
-            }
-            val session = DomainSession(
-              sk.sid,
-              username,
-              connected,
-              None,
-              method,
-              message.client,
-              message.clientVersion,
-              message.clientMetaData,
-              message.remoteAddress)
-              
-            persistenceProvider.sessionStore.createSession(session) match {
-              case Success(_) =>
-                authenticatedClients += (message.clientActor -> sk.sid)
-                asker ! response
-              case _ =>
-                asker ! AuthenticationFailure
-            }
-          case _ =>
-            asker ! response
+      case Success(AuthenticationSuccess(username, sk)) =>
+        log.debug("Authenticated user successfully, creating session")
+        
+        val method = message.credentials match {
+          case x: JwtAuthRequest => "jwt"
+          case x: PasswordAuthRequest => "password"
+          case x: AnonymousAuthRequest => "anonymous"
         }
+
+        val session = DomainSession(
+          sk.sid,
+          username,
+          connected,
+          None,
+          method,
+          message.client,
+          message.clientVersion,
+          message.clientMetaData,
+          message.remoteAddress)
+
+        persistenceProvider.sessionStore.createSession(session) map { _ =>
+            authenticatedClients += (message.clientActor -> sk.sid)
+            asker ! AuthenticationSuccess(username, sk)
+        } recover {
+          case cause: Exception =>
+            log.error(cause, "Unable to authenticate user because a session could not be created")
+            asker ! AuthenticationFailure
+        }
+      case Success(AuthenticationFailure) =>
+        asker ! AuthenticationFailure
+
+      case Success(AuthenticationError) =>
+        asker ! AuthenticationError
+
       case Failure(e) =>
         asker ! AuthenticationFailure
     }
