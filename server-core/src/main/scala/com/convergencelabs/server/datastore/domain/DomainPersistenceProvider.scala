@@ -21,5 +21,5 @@ class DomainPersistenceProvider(val dbProvider: DatabaseProvider) extends Abstra
 
   val collectionStore = new CollectionStore(dbProvider, modelStore: ModelStore)
 
-  val modelOperationProcessor = new ModelOperationProcessor(dbProvider, modelOperationStore)
+  val modelOperationProcessor = new ModelOperationProcessor(dbProvider, modelOperationStore, modelStore)
 }

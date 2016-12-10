@@ -216,6 +216,38 @@ class ModelStoreSpec
       }
     }
 
+    "updating a model for an operation" must {
+      "increment the version by 1" in withPersistenceStore { stores =>
+        stores.collection.ensureCollectionExists(peopleCollectionId)
+        val modelBefore = stores.model.createModel(person1Model).get
+        stores.model.updateModelOnOperation(person1Model.metaData.fqn, Instant.now())
+        
+        val modelAfter = stores.model.getModel(person1Model.metaData.fqn).get.get
+        modelAfter.metaData.version shouldBe modelBefore.metaData.version + 1 
+      }
+      
+      "correctly set the timestamp" in withPersistenceStore { stores =>
+        stores.collection.ensureCollectionExists(peopleCollectionId)
+        val modelBefore = stores.model.createModel(person1Model).get
+        val timeStamp = Instant.now()
+        stores.model.updateModelOnOperation(person1Model.metaData.fqn, timeStamp)
+        
+        val modelAfter = stores.model.getModel(person1Model.metaData.fqn).get.get
+        modelAfter.metaData.modifiedTime shouldBe timeStamp 
+      }
+      
+      "leave all other data instact" in withPersistenceStore { stores =>
+        stores.collection.ensureCollectionExists(peopleCollectionId)
+        val modelBefore = stores.model.createModel(person1Model).get
+        stores.model.updateModelOnOperation(person1Model.metaData.fqn, Instant.now())
+        
+        val modelAfter = stores.model.getModel(person1Model.metaData.fqn).get.get
+        modelAfter.metaData.createdTime shouldBe modelBefore.metaData.createdTime
+        modelAfter.metaData.fqn shouldBe modelBefore.metaData.fqn
+        modelAfter.data shouldBe modelBefore.data
+      }
+    }
+
     "querying model meta data" must {
       "return all models if no params are provided" in withPersistenceStore { stores =>
         createAllModels(stores)
@@ -292,7 +324,7 @@ class ModelStoreSpec
     "deleting a specific model" must {
       "delete the specified model and no others" in withPersistenceStore { stores =>
         createAllModels(stores)
-        
+
         stores.model.getModel(person1).get shouldBe defined
         stores.model.getModel(person2).get shouldBe defined
         stores.model.getModel(company1).get shouldBe defined
@@ -314,7 +346,7 @@ class ModelStoreSpec
     "deleting all models in collection" must {
       "delete the models in the specified and no others" in withPersistenceStore { stores =>
         createAllModels(stores)
-        
+
         stores.model.getModel(person1).get shouldBe defined
         stores.model.getModel(person2).get shouldBe defined
         stores.model.getModel(person3).get shouldBe defined
@@ -335,7 +367,7 @@ class ModelStoreSpec
     stores.model.createModel(company1Model).get
     createAllPersonModels(stores)
   }
-  
+
   def createAllPersonModels(stores: ModelStoreSpecStores): Unit = {
     stores.collection.ensureCollectionExists(peopleCollectionId)
     stores.model.createModel(person1Model).get

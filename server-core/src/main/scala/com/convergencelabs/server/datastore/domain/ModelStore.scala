@@ -168,6 +168,30 @@ class ModelStore private[domain] (
         throw EntityNotFoundException()
     }
   }
+  
+  def updateModelOnOperation(fqn: ModelFqn, timestamp: Instant): Try[Unit] = tryWithDb { db =>
+    val queryString =
+      """UPDATE Model SET
+        |  version = eval('version + 1'),
+        |  modifiedTime = :timestamp
+        |WHERE
+        |  collection.id = :collectionId AND
+        |  id = :modelId""".stripMargin
+
+    val updateCommand = new OCommandSQL(queryString)
+
+    val params = Map(
+      "collectionId" -> fqn.collectionId,
+      "modelId" -> fqn.modelId,
+      "timestamp" -> Date.from(timestamp))
+
+    db.command(updateCommand).execute(params.asJava).asInstanceOf[Int] match {
+      case 0 =>
+        throw EntityNotFoundException()
+      case _ =>
+        ()
+    }
+  }
 
   def deleteModel(fqn: ModelFqn): Try[Unit] = tryWithDb { db =>
     operationStore.deleteAllOperationsForModel(fqn).flatMap { _ =>

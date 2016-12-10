@@ -35,10 +35,12 @@ import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.sql.OCommandSQL
 
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.datastore.EntityNotFoundException
 
 class ModelOperationProcessor private[domain] (
   private[this] val dbProvider: DatabaseProvider,
-  private[this] val modelOpStore: ModelOperationStore)
+  private[this] val modelOpStore: ModelOperationStore,
+  private[this] val modelStore: ModelStore)
     extends AbstractDatabasePersistence(dbProvider)
     with Logging {
 
@@ -52,39 +54,17 @@ class ModelOperationProcessor private[domain] (
     // TODO this should all be in a transaction, but orientdb has a problem with this.
 
     // Apply the op.
-    applyOperationToModel(modelOperation.modelFqn, modelOperation.op, db)
-
-    // Persist the operation
-    modelOpStore.createModelOperation(modelOperation).get
-
-    // Update the model metadata
-    updateModelMetaData(modelOperation.modelFqn, modelOperation.timestamp, db)
-
-    Unit
+    applyOperationToModel(modelOperation.modelFqn, modelOperation.op, db).flatMap { _ =>
+      // Persist the operation
+      modelOpStore.createModelOperation(modelOperation)
+    }.flatMap { _ =>
+      // Update the model metadata
+      modelStore.updateModelOnOperation(modelOperation.modelFqn, modelOperation.timestamp)
+    }.get
   }
-
-  private[this] def updateModelMetaData(fqn: ModelFqn, timestamp: Instant, db: ODatabaseDocumentTx): Try[Unit] = Try {
-    val queryString =
-      """UPDATE Model SET
-        |  version = eval('version + 1'),
-        |  modifiedTime = :timestamp
-        |WHERE
-        |  model.collection.id = :collectionId AND
-        |  model.id = :modelId""".stripMargin
-
-    val updateCommand = new OCommandSQL(queryString)
-
-    val params = Map(
-      CollectionId -> fqn.collectionId,
-      ModelId -> fqn.modelId,
-      "timestamp" -> Date.from(timestamp))
-
-    val result: Object = db.command(updateCommand).execute(params.asJava)
-    Unit
-  }
-
+  
   // scalastyle:off cyclomatic.complexity
-  private[this] def applyOperationToModel(fqn: ModelFqn, operation: AppliedOperation, db: ODatabaseDocumentTx): Unit = {
+  private[this] def applyOperationToModel(fqn: ModelFqn, operation: AppliedOperation, db: ODatabaseDocumentTx): Try[Unit] = Try {
     operation match {
       case op: AppliedCompoundOperation => op.operations foreach { o => applyOperationToModel(fqn, o, db) }
       case op: AppliedDiscreteOperation if op.noOp => // Do nothing since this is a noOp
