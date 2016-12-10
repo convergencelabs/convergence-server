@@ -144,7 +144,7 @@ class AuthenticationHandler(
         // FIXME We need to update the users info based on any provided claims.
         authSuccess(resolvedUsername)
       case false =>
-        logger.error("User specificed in token does not exist exist, creating.")
+        logger.debug("User specificed in token does not exist exist, creating.")
         createUserFromJWT(jwtClaims, admin) flatMap { _ =>
           authSuccess(resolvedUsername)
         } recoverWith {
