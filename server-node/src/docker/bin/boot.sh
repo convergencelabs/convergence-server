@@ -17,8 +17,11 @@ require_env_var "$orient_rest_uri" "orient_rest_uri"
 require_env_var "$orient_admin_user" "orient_admin_user"
 require_env_var "$orient_admin_pass" "orient_admin_pass"
 
-require_env_var "$orient_conv_user" "orient_conv_user"
-require_env_var "$orient_conv_pass" "orient_conv_pass"
+require_env_var "$db_username" "db_username"
+require_env_var "$db_password" "db_password"
+
+require_env_var "$db_admin_username" "db_admin_username"
+require_env_var "$db_admin_password" "db_admin_password"
 
 require_env_var "$admin_rest_user" "admin_rest_user"
 require_env_var "$admin_rest_password" "admin_rest_password"
