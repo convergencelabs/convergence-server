@@ -143,7 +143,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
       logger.info("Covergence database created, connecting as default admin user")
 
       val db = new ODatabaseDocumentTx(uri)
-      db.open(adminUsername, adminPassword)
+      db.open("admin", "admin")
       logger.info("Connected to convergence database.")
 
       logger.info("Deleting default 'reader' user.")
