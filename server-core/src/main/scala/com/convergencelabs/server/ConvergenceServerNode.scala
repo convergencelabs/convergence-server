@@ -32,6 +32,7 @@ import grizzled.slf4j.Logging
 import com.convergencelabs.server.db.schema.ConvergenceSchemaManager
 import com.convergencelabs.server.datastore.DeltaHistoryStore
 import com.convergencelabs.server.datastore.DatabaseProvider
+import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 
 object ConvergenceServerNode extends Logging {
   def main(args: Array[String]): Unit = {
@@ -73,16 +74,13 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
 
       val convergenceDbConfig = config.getConfig("convergence.convergence-database")
       val fullUri = baseUri + "/" + convergenceDbConfig.getString("database")
+
       val username = convergenceDbConfig.getString("username")
       val password = convergenceDbConfig.getString("password")
 
       if (convergenceDbConfig.hasPath("auto-install")) {
         if (convergenceDbConfig.getBoolean("auto-install.enabled")) {
-          val preRelease = convergenceDbConfig.getBoolean("auto-install.pre-release")
-          val adminUser = orientDbConfig.getString("admin-username")
-          val adminPassword = orientDbConfig.getString("admin-password")
-          val retryDelay = convergenceDbConfig.getDuration("retry-delay")
-          bootstrapConvergenceDB(fullUri, adminUser, adminPassword, username, password, retryDelay, preRelease)
+          bootstrapConvergenceDB(fullUri, convergenceDbConfig, orientDbConfig)
         }
       }
 
@@ -121,35 +119,63 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
 
   def bootstrapConvergenceDB(
     uri: String,
-    adminUser: String,
-    adminPassword: String,
-    username: String,
-    password: String,
-    retryDelay: Duration,
-    preRelease: Boolean): Unit = {
+    convergenceDbConfig: Config,
+    orientDbConfig: Config): Try[Unit] = Try {
     logger.info("Attempting to connect to OrientDB for the first time")
-    val connectTries = Iterator.continually(attemptConnect(uri, adminUser, adminPassword, retryDelay))
-    val serverAdmin = connectTries.dropWhile(_.isEmpty).next().get
-    logger.info("Connected to OrientDB")
 
+    val username = convergenceDbConfig.getString("username")
+    val password = convergenceDbConfig.getString("password")
+    val adminUsername = convergenceDbConfig.getString("admin-username")
+    val adminPassword = convergenceDbConfig.getString("admin-password")
+    val preRelease = convergenceDbConfig.getBoolean("auto-install.pre-release")
+    val retryDelay = convergenceDbConfig.getDuration("retry-delay")
+
+    val serverAdminUsername = orientDbConfig.getString("admin-username")
+    val serverAdminPassword = orientDbConfig.getString("admin-password")
+
+    val connectTries = Iterator.continually(attemptConnect(uri, serverAdminUsername, serverAdminPassword, retryDelay))
+    val serverAdmin = connectTries.dropWhile(_.isEmpty).next().get
+    logger.info("Connected to OrientDB with Server Admin")
+    logger.info("Checking for convergence database")
     if (!serverAdmin.existsDatabase()) {
-      logger.info("Bootstrapping database")
+      logger.info("Covergence database does not exists.  Creating.")
       serverAdmin.createDatabase("document", "plocal").close()
-      val dbProvider = DatabaseProvider(new OPartitionedDatabasePool(uri, username, password))
+      logger.info("Covergence database created, connecting as default admin user")
+
+      val db = new ODatabaseDocumentTx(uri)
+      db.open(adminUsername, adminPassword)
+      logger.info("Connected to convergence database.")
+
+      logger.info("Deleting default 'reader' user.")
+      db.getMetadata().getSecurity().getUser("reader").getDocument().delete()
+
+      logger.info("Setting 'writer' user credentials.")
+      val writerUser = db.getMetadata().getSecurity().getUser("writer")
+      writerUser.setName(username)
+      writerUser.setPassword(password)
+      writerUser.save()
+
+      logger.info("Setting 'admin' user credentials.")
+      val adminUser = db.getMetadata().getSecurity().getUser("admin")
+      adminUser.setName(adminUsername)
+      adminUser.setPassword(adminPassword)
+      adminUser.save()
+
+      logger.info("Installing schema.")
+      val dbProvider = DatabaseProvider(db)
       val deltaHistoryStore = new DeltaHistoryStore(dbProvider)
       dbProvider.tryWithDatabase { db =>
         val schemaManager = new ConvergenceSchemaManager(db, deltaHistoryStore, preRelease)
-        schemaManager.install() match {
-          case Success(_) =>
-            logger.info("Database bootstrapping complete")
-          case Failure(f) =>
-            logger.error("Database bootstrapping failed.", f)
-        }
-      }
+        schemaManager.install()
+        logger.info("Schema installation complete")
+      }.get
+
       dbProvider.shutdown()
     } else {
+      logger.info("Convergence database exists.")
       serverAdmin.close()
     }
+    ()
   }
 
   def attemptConnect(uri: String, adminUser: String, adminPassword: String, retryDelay: Duration) = {
