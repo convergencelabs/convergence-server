@@ -1,0 +1,68 @@
+version: 2
+description: Schema to add roles and permissions
+changes:
+
+
+########## Permission Class ##########
+
+  - action: CreateClass
+    name: Permission
+    properties: 
+      - {name: id,          type: String, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: description, type: String, constraints: {                 notNull: true, readOnly: true}}
+
+  - action: CreateIndex
+    className: Permission
+    name: Permission.id
+    type: Unique
+    properties: [id]
+
+
+########## Role Class ##########
+
+  - action: CreateClass
+    name: ConvergenceRole
+    properties: 
+      - {name: id,          type: String,                            constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: permissions, type: LinkList, linkedClass: Permission, constraints: {mandatory: true, notNull: true}}
+      - {name: description, type: String,                            constraints: {                 notNull: true, readOnly: true}}
+
+  - action: CreateIndex
+    className: Role
+    name: Role.id
+    type: Unique
+    properties: [id]
+    
+########## DomainUserRole Class ##########
+
+  - action: CreateClass
+    name: DomainRole
+    properties: 
+      - {name: role,   type: Link, linkedClass: Role,   constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: domain, type: Link, linkedClass: Domain, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: user,   type: Link, linkedClass: User,   constraints: {mandatory: true, notNull: true, readOnly: true}}
+
+## TODO: Add indexs
+
+########## Create Permissions ##########
+
+  - action: RunSQLCommand
+    command: "INSERT INTO Permission (id, description) VALUES ('some-permission', 'Some Permission Description')"
+
+########## Create Roles ##########
+
+  - action: RunSQLCommand
+    command: "INSERT INTO Role (id, permissions, description) VALUES ('some-permission', [], 'Some Permission Description')"
+
+## TODO: Define roles
+   
+########## Add Permission to Roles ##########
+
+  - action: RunSQLCommand
+    command: "UPDATE Role ADD permissions = (SELECT FROM Permission WHERE id = 'some-permission')"
+
+## TODO: Define permissions
+
+########## Permission to Owners ##########
+
+## TODO: Figure this out
