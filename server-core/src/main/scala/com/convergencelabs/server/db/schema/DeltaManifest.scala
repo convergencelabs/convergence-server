@@ -1,20 +1,18 @@
 package com.convergencelabs.server.db.schema
 
-import java.io.IOException
-import java.security.MessageDigest
-
-import scala.util.Failure
-import scala.util.Success
 import scala.util.Try
-
-import org.json4s.DefaultFormats
-import org.json4s.Extraction
+import java.io.InputStream
+import scala.util.Failure
 import org.json4s.ext.EnumNameSerializer
-import org.json4s.jackson.JsonMethods
-
 import com.convergencelabs.server.util.SimpleNamePolymorphicSerializer
+import org.json4s.DefaultFormats
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import org.json4s.jackson.JsonMethods
+import org.json4s.Extraction
+import java.io.IOException
+import scala.util.Success
+import scala.io.Source
 
 object DeltaManifest {
   val Formats = DefaultFormats +
@@ -36,8 +34,6 @@ object DeltaManifest {
     new EnumNameSerializer(OrientType) +
     new EnumNameSerializer(IndexType) +
     new EnumNameSerializer(SequenceType)
-
-  val Encoding = "UTF-8"
 }
 
 class DeltaManifest(
@@ -47,9 +43,7 @@ class DeltaManifest(
   private[this] val mapper = new ObjectMapper(new YAMLFactory())
 
   def validateIndex(): Try[Unit] = Try {
-    for {
-      version <- 1 to index.preReleaseVersion
-    } yield {
+    for (version <- 1 to index.preReleaseVersion) {
       val incrementalPath = getIncrementalDeltaPath(version)
       val incrementalDelta = loadDeltaScript(incrementalPath).get
       if (incrementalDelta.delta.version != version) {
@@ -84,13 +78,13 @@ class DeltaManifest(
   }
 
   def getFullDelta(version: Int): Try[DeltaScript] = {
-    loadDeltaScript(getFullDeltaPath(version)) flatMap { ds =>
+    loadDeltaScript(getFullDeltaPath(version)) flatMap { ds => 
       validateDeltaHash(ds, true) map { _ => ds }
     }
   }
 
   def getIncrementalDelta(version: Int): Try[DeltaScript] = {
-    loadDeltaScript(getIncrementalDeltaPath(version)) flatMap { ds =>
+    loadDeltaScript(getIncrementalDeltaPath(version)) flatMap { ds => 
       validateDeltaHash(ds, false) map { _ => ds }
     }
   }
@@ -126,7 +120,7 @@ class DeltaManifest(
   }
 
   private[this] def validateHash(expectedHash: String, deltaText: String): Try[Unit] = {
-    val hash = sha256(deltaText)
+    val hash = SHA256(deltaText)
     if (hash != expectedHash) {
       Failure(new IOException(s"delta hash validation failed:\nexpected: ${expectedHash}\nactual : ${hash}"))
     } else {
@@ -134,8 +128,8 @@ class DeltaManifest(
     }
   }
 
-  private[this] def sha256(s: String): String = {
-    val m = MessageDigest.getInstance("SHA-256").digest(s.getBytes(DeltaManifest.Encoding))
+  private[this] def SHA256(s: String): String = {
+    val m = java.security.MessageDigest.getInstance("SHA-256").digest(s.getBytes("UTF-8"))
     m.map("%02x".format(_)).mkString
   }
 
@@ -156,12 +150,10 @@ class DeltaManifest(
         }
     }
   }
-
+  
   private[this] def getDeltaText(path: String): Option[String] = {
     Option(getClass.getResourceAsStream(path)) map { in =>
-      val bytes = Stream.continually(in.read).takeWhile(_ != -1).map(_.toByte).toArray
-      in.close()
-      new String(bytes, DeltaManifest.Encoding)
+        Source.fromInputStream(in).mkString
     }
   }
 }
