@@ -1,15 +1,17 @@
 package com.convergencelabs.server.db.schema
 
+import scala.collection.JavaConversions.asScalaBuffer
+import scala.collection.JavaConversions.asScalaSet
+import scala.collection.JavaConversions.collectionAsScalaIterable
+
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import scala.collection.JavaConversions._
-import scala.util.Try
-import scala.util.Failure
+import com.orientechnologies.orient.core.index.OIndex
+import com.orientechnologies.orient.core.metadata.function.OFunction
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.metadata.schema.OProperty
-import com.orientechnologies.orient.core.index.OIndex
-import grizzled.slf4j.Logging
-import com.orientechnologies.orient.core.metadata.function.OFunction
 import com.orientechnologies.orient.core.metadata.sequence.OSequence
+
+import grizzled.slf4j.Logging
 
 object SchemaEqualityTester extends Logging {
   def isEqual(db1: ODatabaseDocumentTx, db2: ODatabaseDocumentTx): Boolean = {
@@ -72,9 +74,9 @@ object SchemaEqualityTester extends Logging {
   private[this] def isSequenceEqual(seq1: OSequence, seq2: OSequence): Boolean = {
     // TODO: Figure out how to compare cache size
     seq1.getName == seq2.getName &&
-    seq1.getSequenceType == seq2.getSequenceType &&
-    seq1.getDocument.field("start") == seq2.getDocument.field("start") &&
-    seq1.getDocument.field("incr") == seq2.getDocument.field("incr")
+      seq1.getSequenceType == seq2.getSequenceType &&
+      seq1.getDocument.field("start") == seq2.getDocument.field("start") &&
+      seq1.getDocument.field("incr") == seq2.getDocument.field("incr")
   }
 
   private[this] def areClassesEqual(db1: ODatabaseDocumentTx, db2: ODatabaseDocumentTx): Boolean = {

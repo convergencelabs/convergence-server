@@ -1,25 +1,21 @@
 package com.convergencelabs.server.db.schema
 
 object OrientType extends Enumeration {
-  val  Boolean, Integer, Short, Long, Float, Double, 
-  DateTime, String, Binary, 
-  Embedded, EmbeddedList, EmbeddedSet, EmbeddedMap, 
-  Link, LinkList, LinkSet, LinkMap, 
-  Byte, Transient, Date, Custom, Decimal, LinkBag, Any = Value
+  val Boolean, Integer, Short, Long, Float, Double, DateTime, String,
+  Binary, Embedded, EmbeddedList, EmbeddedSet, EmbeddedMap, Link, LinkList,
+  LinkSet, LinkMap, Byte, Transient, Date, Custom, Decimal, LinkBag, Any = Value
 }
 
 object IndexType extends Enumeration {
-  val Unique, NotUnique, FullText, 
-  Dictionary, Proxy, UniqueHashIndex, 
-  NotUniqueHashIndex, FullTextHashIndex, 
-  DictionaryHashIndex, Spatial = Value
+  val Unique, NotUnique, FullText, Dictionary, Proxy, UniqueHashIndex, NotUniqueHashIndex,
+  FullTextHashIndex, DictionaryHashIndex, Spatial = Value
 }
 
 object SequenceType extends Enumeration {
   val Cached, Ordered = Value
 }
 
-case class DeltaScript(rawScript: String, delta: Delta)
+case class DeltaScript(rawBytes: Array[Byte], scriptText: String, delta: Delta)
 case class Delta(version: Int, description: Option[String], changes: List[Change])
 
 sealed trait Change
@@ -41,23 +37,24 @@ case class DropSequence(name: String) extends Change
 case class RunSQLCommand(command: String) extends Change
 
 case class CreateFunction(name: String, code: String, parameters: List[String], language: Option[String], idempotent: Option[Boolean]) extends Change
-case class AlterFunction(name: String, newName: Option[String], code: Option[String], parameters: Option[List[String]], language: Option[String], idempotent: Option[Boolean]) extends Change
+case class AlterFunction(name: String, newName: Option[String], code: Option[String],
+  parameters: Option[List[String]], language: Option[String], idempotent: Option[Boolean]) extends Change
 case class DropFunction(name: String) extends Change
 
-case class Property(name: String, `type`: OrientType.Value, linkedType: Option[OrientType.Value], linkedClass: Option[String], constraints: Option[Constraints])
-case class PropertyOptions(name: Option[String], orientType: Option[OrientType.Value], linkedType: Option[OrientType.Value], linkedClass: Option[String], constraints: Option[Constraints])
-
+case class Property(name: String, `type`: OrientType.Value, linkedType: Option[OrientType.Value],
+  linkedClass: Option[String], constraints: Option[Constraints])
+case class PropertyOptions(name: Option[String], orientType: Option[OrientType.Value], linkedType: Option[OrientType.Value],
+  linkedClass: Option[String], constraints: Option[Constraints])
 
 case class Constraints(
-    min: Option[String], 
-    max: Option[String], 
-    mandatory: Option[Boolean], 
-    readOnly: Option[Boolean], 
-    notNull: Option[Boolean], 
-    regex: Option[String],
-    collate: Option[String],
-    custom: Option[CustomProperty],
-    default: Option[String])
-    
+  min: Option[String],
+  max: Option[String],
+  mandatory: Option[Boolean],
+  readOnly: Option[Boolean],
+  notNull: Option[Boolean],
+  regex: Option[String],
+  collate: Option[String],
+  custom: Option[CustomProperty],
+  default: Option[String])
+
 case class CustomProperty(name: String, value: String)
-    

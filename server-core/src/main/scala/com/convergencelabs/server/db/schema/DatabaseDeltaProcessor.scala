@@ -1,19 +1,20 @@
 package com.convergencelabs.server.db.schema
 
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import com.orientechnologies.orient.core.metadata.schema.OProperty
-import com.orientechnologies.orient.core.metadata.schema.OClass
 import java.util.ArrayList
-import com.orientechnologies.common.listener.OProgressListener
-import scala.collection.JavaConverters._
-import com.orientechnologies.orient.core.metadata.sequence.OSequence.SEQUENCE_TYPE
-import com.orientechnologies.orient.core.metadata.sequence.OSequence
-import com.orientechnologies.orient.core.metadata.schema.OType
-import com.orientechnologies.orient.core.sql.OCommandSQL
-import com.orientechnologies.orient.core.metadata.function.OFunction
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
+
+import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.util.Try
+
+import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.orientechnologies.orient.core.metadata.function.OFunction
+import com.orientechnologies.orient.core.metadata.schema.OClass
+import com.orientechnologies.orient.core.metadata.schema.OProperty
+import com.orientechnologies.orient.core.metadata.schema.OType
+import com.orientechnologies.orient.core.metadata.sequence.OSequence
+import com.orientechnologies.orient.core.metadata.sequence.OSequence.SEQUENCE_TYPE
 import com.orientechnologies.orient.core.record.impl.ODocument
+import com.orientechnologies.orient.core.sql.OCommandSQL
 
 object DatabaseDeltaProcessor {
   def apply(delta: Delta, db: ODatabaseDocumentTx): Try[Unit] = new DatabaseDeltaProcessor(delta, db).apply()

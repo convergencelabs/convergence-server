@@ -1,4 +1,4 @@
 preReleaseVersion: 2
 releasedVersion: 1
 deltas:
-  1: {delta: 239835c3ae7d27d6efcf9a31ab7e83d514c4c76989f4891c73841bf6289762a1, database: bbfe7403fe39aeaf23c73e964c1f7b46f7d9b307cdee4788a2c8ed6112065e4e}
+  1: {delta: b9c77bcff9e7d67308a43bbf3bc7fa9098a0294e6ed4e5485aa191c0fd493879, database: a774245a4bdc99afe0ce16b447e5fbd26b21ed876e05446b29a344638a96789e}

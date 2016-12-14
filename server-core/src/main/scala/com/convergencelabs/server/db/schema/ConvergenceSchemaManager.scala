@@ -19,13 +19,13 @@ class ConvergenceSchemaManager(db: ODatabaseDocumentTx, historyStore: DeltaHisto
   }
 
   def recordDeltaSuccess(delta: DeltaScript): Try[Unit] = Try {
-    val cd = ConvergenceDelta(delta.delta.version, delta.rawScript)
+    val cd = ConvergenceDelta(delta.delta.version, delta.scriptText)
     val history = ConvergenceDeltaHistory(cd, DeltaHistoryStore.Status.Success, None, Instant.now())
     this.historyStore.saveConvergenceDeltaHistory(history)
   }
 
   def recordDeltaFailure(delta: DeltaScript, cause: Exception): Unit = {
-    val cd = ConvergenceDelta(delta.delta.version, delta.rawScript)
+    val cd = ConvergenceDelta(delta.delta.version, delta.scriptText)
     val message = ExceptionUtils.getStackTrace(cause)
     val history = ConvergenceDeltaHistory(cd, DeltaHistoryStore.Status.Error, Some(message), Instant.now())
     this.historyStore.saveConvergenceDeltaHistory(history)

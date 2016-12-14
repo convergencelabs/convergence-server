@@ -38,6 +38,7 @@ object DeltaManifest {
     new EnumNameSerializer(SequenceType)
 
   val Encoding = "UTF-8"
+  val HashAlgorithm = "SHA-256"
 }
 
 class DeltaManifest(
@@ -104,7 +105,7 @@ class DeltaManifest(
   }
 
   private[this] def validateDeltaHash(deltaScript: DeltaScript, full: Boolean): Try[Unit] = Try {
-    val deltaText = deltaScript.rawScript
+    val deltaText = deltaScript.rawBytes
     val version = deltaScript.delta.version
     if (version <= index.releasedVersion) {
       val hashes = index.deltas.get(version.toString) getOrElse {
@@ -125,8 +126,8 @@ class DeltaManifest(
     }
   }
 
-  private[this] def validateHash(expectedHash: String, deltaText: String): Try[Unit] = {
-    val hash = sha256(deltaText)
+  private[this] def validateHash(expectedHash: String, deltaBytes: Array[Byte]): Try[Unit] = {
+    val hash = sha256(deltaBytes)
     if (hash != expectedHash) {
       Failure(new IOException(s"delta hash validation failed:\nexpected: ${expectedHash}\nactual : ${hash}"))
     } else {
@@ -134,22 +135,22 @@ class DeltaManifest(
     }
   }
 
-  private[this] def sha256(s: String): String = {
-    val m = MessageDigest.getInstance("SHA-256").digest(s.getBytes(DeltaManifest.Encoding))
+  private[this] def sha256(b: Array[Byte]): String = {
+    val m = MessageDigest.getInstance(DeltaManifest.HashAlgorithm).digest(b)
     m.map("%02x".format(_)).mkString
   }
 
   private[this] def loadDeltaScript(path: String): Try[DeltaScript] = {
-    getDeltaText(path) match {
+    getDeltaBytes(path) match {
       case None =>
         Failure(new IOException(s"Delta not found: ${path}"))
-      case Some(rawText) =>
+      case Some(bytes) =>
         Try {
           implicit val formats = (DeltaManifest.Formats)
-          val jsonNode = mapper.readTree(rawText)
+          val jsonNode = mapper.readTree(bytes)
           val jValue = JsonMethods.fromJsonNode(jsonNode)
           val parsed = Extraction.extract[Delta](jValue)
-          DeltaScript(rawText, parsed)
+          DeltaScript(bytes, new String(bytes, DeltaManifest.Encoding), parsed)
         } recover {
           case cause: Exception =>
             throw new IOException(s"Could not parse delta: ${path}")
@@ -157,11 +158,11 @@ class DeltaManifest(
     }
   }
 
-  private[this] def getDeltaText(path: String): Option[String] = {
+  private[this] def getDeltaBytes(path: String): Option[Array[Byte]] = {
     Option(getClass.getResourceAsStream(path)) map { in =>
       val bytes = Stream.continually(in.read).takeWhile(_ != -1).map(_.toByte).toArray
       in.close()
-      new String(bytes, DeltaManifest.Encoding)
+      bytes
     }
   }
 }
