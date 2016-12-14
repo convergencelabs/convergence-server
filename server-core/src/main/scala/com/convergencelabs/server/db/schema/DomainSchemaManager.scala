@@ -28,7 +28,7 @@ class DomainSchemaManager(
   }
 
   def recordDeltaSuccess(delta: DeltaScript): Try[Unit] = Try {
-    val dd = DomainDelta(delta.delta.version, delta.scriptText)
+    val dd = DomainDelta(delta.delta.version, delta.rawScript)
     val history = DomainDeltaHistory(domainFqn, dd, DeltaHistoryStore.Status.Success, None, Instant.now())
     this.historyStore.saveDomainDeltaHistory(history) recoverWith {
       case cause: Exception =>
@@ -39,7 +39,7 @@ class DomainSchemaManager(
 
   def recordDeltaFailure(delta: DeltaScript, cause: Exception): Unit = {
     val message = ExceptionUtils.getStackTrace(cause)
-    val dd = DomainDelta(delta.delta.version, delta.scriptText)
+    val dd = DomainDelta(delta.delta.version, delta.rawScript)
     val history = DomainDeltaHistory(domainFqn, dd, DeltaHistoryStore.Status.Error, Some(message), Instant.now())
     this.historyStore.saveDomainDeltaHistory(history) recover {
       case cause: Exception =>

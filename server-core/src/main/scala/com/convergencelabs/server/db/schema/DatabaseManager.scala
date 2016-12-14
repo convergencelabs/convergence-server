@@ -12,6 +12,9 @@ import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 
 import grizzled.slf4j.Logging
 
+object DatabaseManager {
+}
+
 class DatabaseManager(url: String, convergenceDbProvider: DatabaseProvider) extends Logging {
 
   private[this] val deltaHistoryStore = new DeltaHistoryStore(convergenceDbProvider)
@@ -67,14 +70,14 @@ class DatabaseManager(url: String, convergenceDbProvider: DatabaseProvider) exte
   }
 
   def upgradeAllDomains(version: Int, preRelease: Boolean): Try[Unit] = {
-    domainProvider.getDomains() map { domainList =>
-      domainList.foreach { upgradeDomain(_, version, preRelease) }
+    domainProvider.getDomains() map {
+      case domainList => domainList.foreach { upgradeDomain(_, version, preRelease) }
     }
   }
 
   def upgradeAllDomainsToLatest(preRelease: Boolean): Try[Unit] = {
-    domainProvider.getDomains() map { domainList =>
-      domainList.foreach { upgradeDomainToLatest(_, preRelease) }
+    domainProvider.getDomains() map {
+      case domainList => domainList.foreach { upgradeDomainToLatest(_, preRelease) }
     }
   }
 
