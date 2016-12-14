@@ -68,7 +68,6 @@ class DomainUserStoreSpec
         store.createNormalDomainUser(two).get shouldBe "2"
       }
 
-
       "allow creation of users with only username" in withPersistenceStore { store =>
         store.createNormalDomainUser(User12).get
         val queried = store.getDomainUserByUsername(User12.username)
@@ -200,23 +199,23 @@ class DomainUserStoreSpec
     "setting a users password" must {
       "correctly set the passwords from plaintext" in withPersistenceStore { store =>
         initUsers(store)
-        
+
         store.setDomainUserPassword(User0.username, "password0").get
         store.setDomainUserPassword(User1.username, "password1").get // already set
         store.setDomainUserPassword(User2.username, "password2").get
-        
+
         store.validateCredentials(User0.username, "password0").get shouldBe true
         store.validateCredentials(User1.username, "password1").get shouldBe true
         store.validateCredentials(User2.username, "password2").get shouldBe true
       }
-      
+
       "correctly set the passwords from hashes" in withPersistenceStore { store =>
         initUsers(store)
-        
+
         store.setDomainUserPasswordHash(User0.username, "hash0").get
         store.setDomainUserPasswordHash(User1.username, "hash1").get // already set
         store.setDomainUserPasswordHash(User2.username, "hash2").get
-        
+
         store.getDomainUserPasswordHash(User0.username).get.value shouldBe "hash0"
         store.getDomainUserPasswordHash(User1.username).get.value shouldBe "hash1"
         store.getDomainUserPasswordHash(User2.username).get.value shouldBe "hash2"
