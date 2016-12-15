@@ -1,4 +1,4 @@
-version: 1
+version: 2
 changes:
 
 
@@ -229,3 +229,9 @@ changes:
       - {name: user,   type: Link, linkedClass: User,   constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: domain, type: Link, linkedClass: Domain, constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: role,   type: Link, linkedClass: Role,   constraints: {mandatory: true, notNull: true, readOnly: true}}
+
+  - action: CreateIndex
+    className: UserDomainRole
+    name: UserDomainRole.user_domain_role
+    type: Unique
+    properties: [user, domain, role]
