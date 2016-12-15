@@ -33,6 +33,19 @@ class PermissionsStoreSpec extends PersistenceStoreSpec[PermissionStoreSpecStore
         permissionStore.createPermission(TestPermission1).isFailure shouldBe true
       }
     }
+    
+    "calling hasBeenSetup()" must {
+      "return true when permissions exist" in withPersistenceStore { stores =>
+        val permissionStore = stores.permissionStore
+        permissionStore.createPermission(TestPermission1).get
+        
+        permissionStore.hasBeenSetup().get shouldEqual true
+      }
+      "return false when no permissions exist" in withPersistenceStore { stores =>
+        val permissionStore = stores.permissionStore
+        permissionStore.hasBeenSetup().get shouldEqual false
+      }
+    }
 
     "saving a role" must {
       "return success" in withPersistenceStore { stores =>

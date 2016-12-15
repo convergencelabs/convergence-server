@@ -73,6 +73,10 @@ object PermissionsStore {
  */
 class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
 
+  def hasBeenSetup() = tryWithDb { db =>
+    db.getMetadata.getIndexManager.getIndex(PermissionIndex).getSize > 0
+  }
+  
   def createPermission(permission: Permission): Try[Unit] = tryWithDb { db =>
     val Permission(id, name, description) = permission
 
