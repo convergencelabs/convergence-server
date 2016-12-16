@@ -51,7 +51,7 @@ class DatabaseManager(
 
   def upgradeDomain(fqn: DomainFqn, version: Int, preRelease: Boolean): Try[Unit] = withDomainDatabase(fqn) { db =>
     val schemaManger = new DomainSchemaManager(fqn, db, deltaHistoryStore, preRelease)
-    schemaManger.upgrade()
+    schemaManger.upgrade(version)
   }
 
   def upgradeDomainToLatest(fqn: DomainFqn, preRelease: Boolean): Try[Unit] = withDomainDatabase(fqn) { db =>
