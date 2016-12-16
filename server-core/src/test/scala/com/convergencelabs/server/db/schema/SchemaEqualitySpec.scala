@@ -13,7 +13,7 @@ class SchemaEqualitySpec
 
   "Schema Equality" when {
     "comparing latest convergence schema" must {
-      "return true if schemas are the same" in withDatabases { (db1, db2) =>
+      "return no error if schemas are the same" in withDatabases { (db1, db2) =>
         val manifest = DeltaManager.convergenceManifest().get
         val maxVersion = manifest.maxPreReleaseVersion()
 
@@ -29,11 +29,11 @@ class SchemaEqualitySpec
         }
         DatabaseDeltaProcessor.apply(currentDelta.delta, db2)
 
-        SchemaEqualityTester.isEqual(db1, db2) shouldBe true
+        SchemaEqualityTester.assertEqual(db1, db2)
       }
     }
     "comparing pre-release convergence schema" must {
-      "return true if schemas are the same" in withDatabases { (db1, db2) =>
+      "return no error if schemas are the same" in withDatabases { (db1, db2) =>
         val manifest = DeltaManager.convergenceManifest().get
         val maxVersion = manifest.maxReleasedVersion()
 
@@ -49,12 +49,12 @@ class SchemaEqualitySpec
         }
         DatabaseDeltaProcessor.apply(currentDelta.delta, db2)
 
-        SchemaEqualityTester.isEqual(db1, db2) shouldBe true
+        SchemaEqualityTester.assertEqual(db1, db2)
       }
     }
 
     "comparing latest domain schema" must {
-      "return true if schemas are the same" in withDatabases { (db1, db2) =>
+      "return no error if schemas are the same" in withDatabases { (db1, db2) =>
         val manifest = DeltaManager.domainManifest().get
         val maxVersion = manifest.maxPreReleaseVersion()
 
@@ -70,11 +70,11 @@ class SchemaEqualitySpec
         }
         DatabaseDeltaProcessor.apply(currentDelta.delta, db2)
 
-        SchemaEqualityTester.isEqual(db1, db2) shouldBe true
+        SchemaEqualityTester.assertEqual(db1, db2)
       }
     }
     "comparing pre-release domain schema" must {
-      "return true if schemas are the same" in withDatabases { (db1, db2) =>
+      "return no error if schemas are the same" in withDatabases { (db1, db2) =>
         val manifest = DeltaManager.domainManifest().get
         val maxVersion = manifest.maxReleasedVersion()
 
@@ -90,7 +90,7 @@ class SchemaEqualitySpec
         }
         DatabaseDeltaProcessor.apply(currentDelta.delta, db2)
 
-        SchemaEqualityTester.isEqual(db1, db2) shouldBe true
+        SchemaEqualityTester.assertEqual(db1, db2)
       }
     }
   }

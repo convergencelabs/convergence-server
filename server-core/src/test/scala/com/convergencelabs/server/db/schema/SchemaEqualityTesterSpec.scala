@@ -43,7 +43,7 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
 
   "SchemaEqualityTester" when {
     "comparing functions" must {
-      "return true if functions are the same" in {
+      "return no error if functions are the same" in {
 
         val delta = Delta(1, Some("Description"),
           List(CreateFunction("MyFunction",
@@ -55,10 +55,10 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
         db2.activateOnCurrentThread()
         DatabaseDeltaProcessor.apply(delta, db2)
 
-        SchemaEqualityTester.isEqual(db1, db2) shouldBe true
+        SchemaEqualityTester.assertEqual(db1, db2)
       }
 
-      "return false if function code is different" in {
+      "return error if function code is different" in {
         val delta1 = Delta(1, Some("Description"),
           List(CreateFunction("MyFunction",
             "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;",
@@ -74,10 +74,10 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
         db2.activateOnCurrentThread()
         DatabaseDeltaProcessor.apply(delta2, db2)
 
-        SchemaEqualityTester.isEqual(db1, db2) shouldBe false
+        an [AssertionError] should be thrownBy SchemaEqualityTester.assertEqual(db1, db2)
       }
 
-      "return false if function name is different" in {
+      "return error iffunction name is different" in {
         val delta1 = Delta(1, Some("Description"),
           List(CreateFunction("MyFunction1",
             "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;",
@@ -93,10 +93,10 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
         db2.activateOnCurrentThread()
         DatabaseDeltaProcessor.apply(delta2, db2)
 
-        SchemaEqualityTester.isEqual(db1, db2) shouldBe false
+        an [AssertionError] should be thrownBy SchemaEqualityTester.assertEqual(db1, db2)
       }
 
-      "return false if function parameters are different" in {
+      "return error iffunction parameters are different" in {
         val delta1 = Delta(1, Some("Description"),
           List(CreateFunction("MyFunction",
             "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;",
@@ -112,10 +112,10 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
         db2.activateOnCurrentThread()
         DatabaseDeltaProcessor.apply(delta2, db2)
 
-        SchemaEqualityTester.isEqual(db1, db2) shouldBe false
+        an [AssertionError] should be thrownBy SchemaEqualityTester.assertEqual(db1, db2)
       }
 
-      "return false if one function has a different language" in {
+      "return error ifone function has a different language" in {
         val delta1 = Delta(1, Some("Description"),
           List(CreateFunction("MyFunction",
             "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;",
@@ -131,10 +131,10 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
         db2.activateOnCurrentThread()
         DatabaseDeltaProcessor.apply(delta2, db2)
 
-        SchemaEqualityTester.isEqual(db1, db2) shouldBe false
+        an [AssertionError] should be thrownBy SchemaEqualityTester.assertEqual(db1, db2)
       }
 
-      "return false if one function is idempotent and the other is not" in {
+      "return error ifone function is idempotent and the other is not" in {
         val delta1 = Delta(1, Some("Description"),
           List(CreateFunction("MyFunction",
             "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;",
@@ -150,7 +150,7 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
         db2.activateOnCurrentThread()
         DatabaseDeltaProcessor.apply(delta2, db2)
 
-        SchemaEqualityTester.isEqual(db1, db2) shouldBe false
+        an [AssertionError] should be thrownBy SchemaEqualityTester.assertEqual(db1, db2)
       }
     }
 
@@ -165,10 +165,10 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
         db2.activateOnCurrentThread()
         DatabaseDeltaProcessor.apply(delta, db2)
 
-        SchemaEqualityTester.isEqual(db1, db2) shouldBe true
+        SchemaEqualityTester.assertEqual(db1, db2)
       }
 
-      "return false if sequences have different types" in {
+      "return error if sequences have different types" in {
 
         val delta1 = Delta(1, Some("Description"),
           List(CreateSequence("MySequence", SequenceType.Ordered, None, None, None)))
@@ -181,10 +181,10 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
         db2.activateOnCurrentThread()
         DatabaseDeltaProcessor.apply(delta2, db2)
 
-        SchemaEqualityTester.isEqual(db1, db2) shouldBe false
+        an [AssertionError] should be thrownBy SchemaEqualityTester.assertEqual(db1, db2)
       }
 
-      "return false if sequences have different names" in {
+      "return error if sequences have different names" in {
         val delta1 = Delta(1, Some("Description"),
           List(CreateSequence("MySequence", SequenceType.Ordered, None, None, None)))
 
@@ -196,10 +196,10 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
         db2.activateOnCurrentThread()
         DatabaseDeltaProcessor.apply(delta2, db2)
 
-        SchemaEqualityTester.isEqual(db1, db2) shouldBe false
+        an [AssertionError] should be thrownBy SchemaEqualityTester.assertEqual(db1, db2)
       }
 
-      "return false if sequences have different starts" in {
+      "return error if sequences have different starts" in {
         val delta1 = Delta(1, Some("Description"),
           List(CreateSequence("MySequence", SequenceType.Ordered, Some(5), None, None)))
 
@@ -211,10 +211,10 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
         db2.activateOnCurrentThread()
         DatabaseDeltaProcessor.apply(delta2, db2)
 
-        SchemaEqualityTester.isEqual(db1, db2) shouldBe false
+        an [AssertionError] should be thrownBy SchemaEqualityTester.assertEqual(db1, db2)
       }
 
-      "return false if sequences have different increments" in {
+      "return error if sequences have different increments" in {
         val delta1 = Delta(1, Some("Description"),
           List(CreateSequence("MySequence", SequenceType.Ordered, None, Some(5), None)))
 
@@ -226,12 +226,12 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
         db2.activateOnCurrentThread()
         DatabaseDeltaProcessor.apply(delta2, db2)
 
-        SchemaEqualityTester.isEqual(db1, db2) shouldBe false
+        an [AssertionError] should be thrownBy SchemaEqualityTester.assertEqual(db1, db2)
       }
     }
 
     "comparing classes" must {
-      "return true if classes are the same" in {
+      "return no error if classes are the same" in {
         val delta = Delta(1, Some("Description"),
           List(CreateClass("MyClass", None, None,
             List(Property("prop1", OrientType.String, None, None, None)))))
@@ -241,10 +241,10 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
         db2.activateOnCurrentThread()
         DatabaseDeltaProcessor.apply(delta, db2)
 
-        SchemaEqualityTester.isEqual(db1, db2) shouldBe true
+        SchemaEqualityTester.assertEqual(db1, db2)
       }
 
-      "return false if class names are different" in {
+      "return error if class names are different" in {
         val delta1 = Delta(1, Some("Description"),
           List(CreateClass("MyClass", None, None, List())))
 
@@ -256,10 +256,10 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
         db2.activateOnCurrentThread()
         DatabaseDeltaProcessor.apply(delta2, db2)
 
-        SchemaEqualityTester.isEqual(db1, db2) shouldBe false
+        an [AssertionError] should be thrownBy SchemaEqualityTester.assertEqual(db1, db2)
       }
 
-      "return false if class superclass is different" in {
+      "return error if class superclass is different" in {
         val delta1 = Delta(1, Some("Description"),
           List(CreateClass("MyClass", None, None, List())))
 
@@ -276,11 +276,11 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
         DatabaseDeltaProcessor.apply(delta2, db2)
         DatabaseDeltaProcessor.apply(delta3, db2)
 
-        SchemaEqualityTester.isEqual(db1, db2) shouldBe false
+        an [AssertionError] should be thrownBy SchemaEqualityTester.assertEqual(db1, db2)
       }
     }
 
-    "return false if one class is abstract" in {
+    "return error if one class is abstract" in {
       val delta1 = Delta(1, Some("Description"),
         List(CreateClass("MyClass", None, None, List())))
 
@@ -292,11 +292,11 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
       db2.activateOnCurrentThread()
       DatabaseDeltaProcessor.apply(delta2, db2)
 
-      SchemaEqualityTester.isEqual(db1, db2) shouldBe false
+      an [AssertionError] should be thrownBy SchemaEqualityTester.assertEqual(db1, db2)
     }
 
     "comparing indexes" must {
-      "return true if indexes are the same" in {
+      "return no error if indexes are the same" in {
 
         val delta = Delta(1, Some("Description"),
           List(CreateClass("MyClass", None, None,
@@ -308,7 +308,7 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
         db2.activateOnCurrentThread()
         DatabaseDeltaProcessor.apply(delta, db2)
 
-        SchemaEqualityTester.isEqual(db1, db2) shouldBe true
+        SchemaEqualityTester.assertEqual(db1, db2)
       }
     }
   }
