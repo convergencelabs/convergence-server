@@ -25,6 +25,7 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocumentTx) {
   private var deferedLinkedProperties = Map[OProperty, String]();
 
   def apply(): Try[Unit] = Try {
+    db.activateOnCurrentThread()
     delta.changes foreach { change => applyChange(change) }
     processDeferedLinkedClasses()
     db.getMetadata.reload()
