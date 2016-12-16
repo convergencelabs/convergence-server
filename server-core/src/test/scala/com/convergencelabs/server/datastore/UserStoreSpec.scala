@@ -20,7 +20,7 @@ class UserStoreSpec
   val username = "test"
   val displayName = "test user"
   val password = "password"
-  
+
   val DummyToken = "myToken"
   val TestUser = User(username, "test@convergence.com", username, username, displayName)
   val tokenDurationMinutes = 5
