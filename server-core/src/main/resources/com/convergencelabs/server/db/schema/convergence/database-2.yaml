@@ -191,7 +191,7 @@ changes:
     properties: 
       - {name: id,          type: String, constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: name,        type: String, constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: description, type: String, constraints: {                 notNull: true, readOnly: true}}
+      - {name: description, type: String, constraints: {mandatory: true, notNull: true, readOnly: true}}
 
   - action: CreateIndex
     className: Permission
