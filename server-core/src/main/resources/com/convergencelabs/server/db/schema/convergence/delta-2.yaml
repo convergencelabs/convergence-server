@@ -54,4 +54,3 @@ changes:
     name: UserDomainRole.user_domain_role
     type: Unique
     properties: [user, domain, role]
-

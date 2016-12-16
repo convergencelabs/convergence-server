@@ -122,12 +122,12 @@ class DeltaManifest(
   }
 
   private[this] def validateHash(expectedHash: String, deltaText: String): Try[Unit] = {
-    //    val hash = sha256(deltaText)
-    //    if (hash != expectedHash) {
-    //      Failure(new IOException(s"delta hash validation failed:\nexpected: ${expectedHash}\nactual : ${hash}"))
-    //    } else {
-    Success(())
-    //    }
+    val hash = sha256(deltaText)
+    if (hash != expectedHash) {
+      Failure(new IOException(s"delta hash validation failed:\nexpected: ${expectedHash}\nactual : ${hash}"))
+    } else {
+      Success(())
+    }
   }
 
   private[this] def sha256(s: String): String = {

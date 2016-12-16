@@ -184,4 +184,3 @@ changes:
     name: Registration.email_token
     type: Unique
     properties: [email, token]
-
