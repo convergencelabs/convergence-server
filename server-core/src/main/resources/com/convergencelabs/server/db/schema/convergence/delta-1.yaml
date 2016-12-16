@@ -7,7 +7,7 @@ changes:
 
   - action: CreateClass
     name: DomainDelta
-    properties: 
+    properties:
       - {name: deltaNo, type: Integer, constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: value,   type: String,  constraints: {mandatory: true, notNull: true, readOnly: true}}
 
@@ -22,7 +22,7 @@ changes:
 
   - action: CreateClass
     name: DomainDeltaHistory
-    properties: 
+    properties:
       - {name: domain,  type: Link,    linkedClass: Domain,      constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: delta,   type: Link,    linkedClass: DomainDelta, constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: status,  type: String,                            constraints: {mandatory: true, notNull: true, readOnly: true}}
@@ -34,15 +34,15 @@ changes:
     name: DomainDeltaHistory.domain_delta
     type: Unique
     properties: [domain, delta]
-    
-    
+
+
 ########## ConvergenceDelta Class ##########
 
   - action: CreateClass
     name: ConvergenceDelta
-    properties: 
+    properties:
       - {name: deltaNo, type: Integer, constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: value,   type: String,  constraints: {mandatory: true, notNull: true, readOnly: true}}    
+      - {name: value,   type: String,  constraints: {mandatory: true, notNull: true, readOnly: true}}
 
   - action: CreateIndex
     className: ConvergenceDelta
@@ -55,7 +55,7 @@ changes:
 
   - action: CreateClass
     name: ConvergenceDeltaHistory
-    properties: 
+    properties:
       - {name: delta,   type: Link,    linkedClass: ConvergenceDelta, constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: status,  type: String,                                 constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: message, type: String,                                 constraints: {                 notNull: true, readOnly: true}}
@@ -72,7 +72,7 @@ changes:
 
   - action: CreateClass
     name: User
-    properties: 
+    properties:
       - {name: username,    type: String,   constraints: {mandatory: true, notNull: true}}
       - {name: email,       type: String,   constraints: {mandatory: true, notNull: true}}
       - {name: firstName,   type: String,   constraints: {mandatory: true, notNull: true}}
@@ -90,64 +90,64 @@ changes:
     name: User.email
     type: Unique
     properties: [email]
-    
-    
+
+
 ########## UserCredential Class ##########
 
   - action: CreateClass
     name: UserCredential
-    properties: 
+    properties:
       - {name: user,     type: Link,   linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: password, type: String,                    constraints: {mandatory: true, notNull: true}}
-          
+
   - action: CreateIndex
     className: UserCredential
     name: UserCredential.user
     type: Unique
     properties: [user]
-    
-        
+
+
 ########## UserAuthToken Class ##########
 
   - action: CreateClass
     name: UserAuthToken
-    properties: 
+    properties:
       - {name: user,       type: Link,     linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: token,      type: String,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: expireTime, type: DateTime,                    constraints: {mandatory: true, notNull: true}}
-          
-          
+
+
 ########## Domain Class ##########
 
   - action: CreateClass
     name: Domain
-    properties: 
+    properties:
       - {name: id,            type: String,                    constraints: {mandatory: true, notNull: true}}
       - {name: namespace,     type: String,                    constraints: {mandatory: true, notNull: true}}
       - {name: displayName,   type: String,                    constraints: {mandatory: true, notNull: true}}
       - {name: owner,         type: Link,   linkedClass: User, constraints: {mandatory: true, notNull: true}}
       - {name: status,        type: String,                    constraints: {mandatory: true, notNull: true}}
       - {name: statusMessage, type: String,                    constraints: {mandatory: true, notNull: true}}
-          
+
   - action: CreateIndex
     className: Domain
     name: Domain.namespace_id
     type: UniqueHashIndex
     properties: [namespace, id]
-    
-    
+
+
 ########## Domain Database ##########
 
   - action: CreateClass
     name: DomainDatabase
-    properties: 
+    properties:
       - {name: domain,        type: Link,   linkedClass: Domain, constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: database,      type: String,                      constraints: {mandatory: true, notNull: true}}
       - {name: username,      type: String,                      constraints: {mandatory: true, notNull: true}}
       - {name: password,      type: String,                      constraints: {mandatory: true, notNull: true}}
       - {name: adminUsername, type: String,                      constraints: {mandatory: true, notNull: true}}
-      - {name: adminPassword, type: String,                      constraints: {mandatory: true, notNull: true}} 
-          
+      - {name: adminPassword, type: String,                      constraints: {mandatory: true, notNull: true}}
+
   - action: CreateIndex
     className: DomainDatabase
     name: DomainDatabase.database
@@ -159,20 +159,20 @@ changes:
     name: DomainDatabase.domain
     type: UniqueHashIndex
     properties: [domain]
-    
-    
+
+
 ########## Registration Class ##########
 
   - action: CreateClass
     name: Registration
-    properties: 
+    properties:
       - {name: email,    type: String,  constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: fname,    type: String,  constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: lname,    type: String,  constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: reason,   type: String,  constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: token,    type: String,  constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: approved, type: Boolean, constraints: {mandatory: true, notNull: true}}
-          
+
   - action: CreateIndex
     className: Registration
     name: Registration.email
@@ -184,4 +184,4 @@ changes:
     name: Registration.email_token
     type: Unique
     properties: [email, token]
-    
+

@@ -13,7 +13,7 @@ changes:
 
   - action: CreateClass
     name: ModelSnapshotConfig
-    properties: 
+    properties:
       - {name: enabled,            type: Boolean, constraints: {mandatory: true, notNull: true}}
       - {name: triggerByVersion,   type: Boolean, constraints: {mandatory: true, notNull: true}}
       - {name: limitedByVersion,   type: Boolean, constraints: {mandatory: true, notNull: true}}
@@ -29,7 +29,7 @@ changes:
 
   - action: CreateClass
     name: DomainConfig
-    properties: 
+    properties:
       - {name: modelSnapshotConfig, type: Embedded, linkedClass: ModelSnapshotConfig, constraints: {mandatory: true, notNull: true}}
       - {name: adminPublicKey,      type: String,                                     constraints: {mandatory: true, notNull: true}}
       - {name: adminPrivateKey,     type: String,                                     constraints: {mandatory: true, notNull: true}}
@@ -40,38 +40,38 @@ changes:
 
   - action: CreateClass
     name: JwtAuthKey
-    properties: 
-      - {name: id,          type: String,   constraints: {mandatory: true, notNull: true}}  
+    properties:
+      - {name: id,          type: String,   constraints: {mandatory: true, notNull: true}}
       - {name: description, type: String,   constraints: {mandatory: true, notNull: true}}
       - {name: updated,     type: DateTime, constraints: {mandatory: true, notNull: true}}
       - {name: enabled,     type: Boolean,  constraints: {mandatory: true, notNull: true}}
       - {name: key,         type: String,   constraints: {mandatory: true, notNull: true}}
-          
+
   - action: CreateIndex
     className: JwtAuthKey
     name: JwtAuthKey.id
     type: UniqueHashIndex
-    properties: [id]      
-      
-      
+    properties: [id]
+
+
 ########## User Class ##########
 
   - action: CreateClass
     name: User
     properties:
-      - {name: userType,     type: String, constraints: {mandatory: true, notNull: true, readOnly: true}} 
+      - {name: userType,     type: String, constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: username,     type: String, constraints: {mandatory: true, notNull: true}}
       - {name: email,        type: String, constraints: {notNull: true}}
       - {name: firstName,    type: String, constraints: {notNull: true}}
       - {name: lastName,     type: String, constraints: {notNull: true}}
       - {name: displayName,  type: String, constraints: {notNull: true}}
-          
+
   - action: CreateIndex
     className: User
     name: User.username
     type: Unique
     properties: [username]
-    
+
   - action: CreateIndex
     className: User
     name: User.email
@@ -79,13 +79,13 @@ changes:
     properties: [email]
     metaData:
       ignoreNullValues: true
-      
-      
+
+
 ########## UserCredential Class ##########
 
   - action: CreateClass
     name: UserCredential
-    properties: 
+    properties:
       - {name: user,     type: Link,   linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: password, type: String,                    constraints: {mandatory: true, notNull: true}}
 
@@ -110,25 +110,25 @@ changes:
       - {name: clientVersion,  type: String,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: clientMetaData, type: String,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: remoteHost,     type: String,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
-          
+
   - action: CreateIndex
     className: DomainSession
     name: DomainSession.user
     type: NotUniqueHashIndex
     properties: [user]
-    
+
   - action: CreateIndex
     className: DomainSession
     name: DomainSession.id
     type: UniqueHashIndex
     properties: [id]
-     
-          
+
+
 ########## Collection Class ##########
 
   - action: CreateClass
     name: Collection
-    properties: 
+    properties:
       - {name: id,                     type: String,                                     constraints: {mandatory: true, notNull: true}}
       - {name: name,                   type: String,                                     constraints: {mandatory: true, notNull: true}}
       - {name: overrideSnapshotConfig, type: Boolean,                                    constraints: {mandatory: true, notNull: true, default: false}}
@@ -145,7 +145,7 @@ changes:
 
   - action: CreateClass
     name: Model
-    properties: 
+    properties:
       - {name: collection,   type: Link,     linkedClass: Collection,  constraints: {mandatory: true, notNull: true}}
       - {name: id,           type: String,                             constraints: {mandatory: true, notNull: true}}
       - {name: version,      type: Long,                               constraints: {mandatory: true, notNull: true, min: 1}}
@@ -164,7 +164,7 @@ changes:
 
   - action: CreateClass
     name: ModelSnapshot
-    properties: 
+    properties:
       - {name: model,     type: Link,     linkedClass: Model,         constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: version,   type: Long,                                 constraints: {mandatory: true, notNull: true, readOnly: true, min: 1}}
       - {name: timestamp, type: DateTime,                             constraints: {mandatory: true, notNull: true, readOnly: true}}
@@ -188,35 +188,35 @@ changes:
   - action: CreateClass
     name: DataValue
     abstract: true
-    properties: 
+    properties:
       - {name: id,    type: String,                   constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: model, type: Link, linkedClass: Model, constraints: {mandatory: true, notNull: true, readOnly: true}}
-  
-    
+
+
 ########## ObjectValue Class ##########
 
   - action: CreateClass
     name: ObjectValue
     superclass: DataValue
-    properties: 
+    properties:
       - {name: children, type: LinkMap, linkedClass: DataValue, constraints: {mandatory: true, notNull: true}}
-  
-          
+
+
 ########## ArrayValue Class ##########
 
   - action: CreateClass
     name: ArrayValue
     superclass: DataValue
-    properties: 
+    properties:
       - {name: children, type: LinkList, constraints: {mandatory: true, notNull: true}}
-   
- 
+
+
 ########## StringValue Class ##########
 
   - action: CreateClass
     name: StringValue
     superclass: DataValue
-    properties: 
+    properties:
       - {name: value, type: String, constraints: {mandatory: true, notNull: true}}
 
 
@@ -225,7 +225,7 @@ changes:
   - action: CreateClass
     name: DoubleValue
     superclass: DataValue
-    properties: 
+    properties:
       - {name: value, type: Double, constraints: {mandatory: true, notNull: true}}
 
 
@@ -234,7 +234,7 @@ changes:
   - action: CreateClass
     name: BooleanValue
     superclass: DataValue
-    properties: 
+    properties:
       - {name: value, type: Boolean, constraints: {mandatory: true, notNull: true}}
 
 
@@ -250,7 +250,7 @@ changes:
   - action: CreateClass
     name: OpValue
     abstract: true
-    properties: 
+    properties:
       - {name: id, type: String, constraints: {mandatory: true, notNull: true, readOnly: true}}
 
 
@@ -259,7 +259,7 @@ changes:
   - action: CreateClass
     name: ObjectOpValue
     superclass: OpValue
-    properties: 
+    properties:
       - {name: children, type: EmbeddedMap, linkedClass: OpValue, constraints: {mandatory: true, notNull: true, readOnly: true}}
 
 
@@ -268,7 +268,7 @@ changes:
   - action: CreateClass
     name: ArrayOpValue
     superclass: OpValue
-    properties: 
+    properties:
       - {name: children, type: EmbeddedList, linkedClass: OpValue, constraints: {mandatory: true, notNull: true, readOnly: true}}
 
 
@@ -277,7 +277,7 @@ changes:
   - action: CreateClass
     name: StringOpValue
     superclass: OpValue
-    properties: 
+    properties:
       - {name: value, type: String, constraints: {mandatory: true, notNull: true, readOnly: true}}
 
 
@@ -286,7 +286,7 @@ changes:
   - action: CreateClass
     name: DoubleOpValue
     superclass: OpValue
-    properties: 
+    properties:
       - {name: value, type: Double, constraints: {mandatory: true, notNull: true, readOnly: true}}
 
 
@@ -295,22 +295,22 @@ changes:
   - action: CreateClass
     name: BooleanOpValue
     superclass: OpValue
-    properties: 
+    properties:
       - {name: value, type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: true}}
-          
+
 
 ########## NullOpValue Class ##########
 
   - action: CreateClass
     name: NullOpValue
-    superclass: OpValue       
-    
-    
+    superclass: OpValue
+
+
 ########## Operation Class ##########
 
   - action: CreateClass
     name: Operation
-    abstract: true    
+    abstract: true
 
 
 ########## DiscreteOperation Class ##########
@@ -319,9 +319,9 @@ changes:
     name: DiscreteOperation
     superclass: Operation
     abstract: true
-    properties: 
+    properties:
       - {name: elementId, type: String,  constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: noOp,      type: Boolean, constraints: {notNull: true, readOnly: true, default: false}} 
+      - {name: noOp,      type: Boolean, constraints: {notNull: true, readOnly: true, default: false}}
 
 
 ########## CompoundOperation Class ##########
@@ -329,7 +329,7 @@ changes:
   - action: CreateClass
     name: CompoundOperation
     superclass: Operation
-    properties: 
+    properties:
       - {name: ops, type: EmbeddedList, linkedClass: DiscreteOperation, constraints: {mandatory: true, notNull: true, readOnly: true}}
 
 
@@ -338,9 +338,9 @@ changes:
   - action: CreateClass
     name: StringInsertOperation
     superclass: DiscreteOperation
-    properties: 
-      - {name: idx, type: Integer, constraints: {mandatory: true, notNull: true, readOnly: true}}    
-      - {name: val, type: String,  constraints: {mandatory: true, notNull: true, readOnly: true}}     
+    properties:
+      - {name: idx, type: Integer, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: val, type: String,  constraints: {mandatory: true, notNull: true, readOnly: true}}
 
 
 ########## StringRemoveOperation Class ##########
@@ -348,10 +348,10 @@ changes:
   - action: CreateClass
     name: StringRemoveOperation
     superclass: DiscreteOperation
-    properties: 
-      - {name: idx,    type: Integer, constraints: {mandatory: true, notNull: true, readOnly: true}}  
-      - {name: length, type: Integer, constraints: {mandatory: true, notNull: true, readOnly: true}}    
-      - {name: oldVal, type: String,  constraints: {mandatory: true}} 
+    properties:
+      - {name: idx,    type: Integer, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: length, type: Integer, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: oldVal, type: String,  constraints: {mandatory: true}}
 
 
 ########## StringSetOperation Class ##########
@@ -359,9 +359,9 @@ changes:
   - action: CreateClass
     name: StringSetOperation
     superclass: DiscreteOperation
-    properties: 
-      - {name: val,    type: String, constraints: {mandatory: true, readOnly: true}} 
-      - {name: oldVal, type: String, constraints: {mandatory: true, readOnly: true}}     
+    properties:
+      - {name: val,    type: String, constraints: {mandatory: true, readOnly: true}}
+      - {name: oldVal, type: String, constraints: {mandatory: true, readOnly: true}}
 
 
 ########## ObjectSetPropertyOperation Class ##########
@@ -369,10 +369,10 @@ changes:
   - action: CreateClass
     name: ObjectSetPropertyOperation
     superclass: DiscreteOperation
-    properties: 
-      - {name: prop,   type: String,                         constraints: {mandatory: true, notNull: true, readOnly: true}} 
-      - {name: val,    type: Embedded, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}      
-      - {name: oldVal, type: Embedded, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}      
+    properties:
+      - {name: prop,   type: String,                         constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: val,    type: Embedded, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}
+      - {name: oldVal, type: Embedded, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}
 
 
 ########## ObjectAddPropertyOperation Class ##########
@@ -380,9 +380,9 @@ changes:
   - action: CreateClass
     name: ObjectAddPropertyOperation
     superclass: DiscreteOperation
-    properties: 
-      - {name: prop, type: String,                         constraints: {mandatory: true, notNull: true, readOnly: true}} 
-      - {name: val,  type: Embedded, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}      
+    properties:
+      - {name: prop, type: String,                         constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: val,  type: Embedded, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}
 
 
 ########## ObjectRemovePropertyOperation Class ##########
@@ -390,9 +390,9 @@ changes:
   - action: CreateClass
     name: ObjectRemovePropertyOperation
     superclass: DiscreteOperation
-    properties: 
+    properties:
       - {name: prop,   type: String,                         constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: oldVal, type: Embedded, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}       
+      - {name: oldVal, type: Embedded, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}
 
 
 ########## ObjectSetOperation Class ##########
@@ -400,9 +400,9 @@ changes:
   - action: CreateClass
     name: ObjectSetOperation
     superclass: DiscreteOperation
-    properties: 
+    properties:
       - {name: val,    type: EmbeddedMap, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}
-      - {name: oldVal, type: EmbeddedMap, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}       
+      - {name: oldVal, type: EmbeddedMap, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}
 
 
 ########## NumberAddOperation Class ##########
@@ -410,7 +410,7 @@ changes:
   - action: CreateClass
     name: NumberAddOperation
     superclass: DiscreteOperation
-    properties: 
+    properties:
       - {name: val, type: Any, constraints: {mandatory: true, notNull: true, readOnly: true}}
 
 
@@ -419,9 +419,9 @@ changes:
   - action: CreateClass
     name: NumberSetOperation
     superclass: DiscreteOperation
-    properties: 
+    properties:
       - {name: val,    type: Any, constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: oldVal, type: Any, constraints: {mandatory: true, notNull: true, readOnly: true}}     
+      - {name: oldVal, type: Any, constraints: {mandatory: true, notNull: true, readOnly: true}}
 
 
 ########## BooleanSetOperation Class ##########
@@ -429,9 +429,9 @@ changes:
   - action: CreateClass
     name: BooleanSetOperation
     superclass: DiscreteOperation
-    properties: 
+    properties:
       - {name: val,    type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: oldVal, type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: true}} 
+      - {name: oldVal, type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: true}}
 
 
 ########## ArrayInsertOperation Class ##########
@@ -439,9 +439,9 @@ changes:
   - action: CreateClass
     name: ArrayInsertOperation
     superclass: DiscreteOperation
-    properties: 
-      - {name: idx, type: Integer,                        constraints: {mandatory: true, notNull: true, readOnly: true}} 
-      - {name: val, type: Embedded, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}      
+    properties:
+      - {name: idx, type: Integer,                        constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: val, type: Embedded, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}
 
 
 ########## ArrayRemoveOperation Class ##########
@@ -449,9 +449,9 @@ changes:
   - action: CreateClass
     name: ArrayRemoveOperation
     superclass: DiscreteOperation
-    properties: 
-      - {name: idx,    type: Integer,                        constraints: {mandatory: true, notNull: true, readOnly: true}} 
-      - {name: oldVal, type: Embedded, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}      
+    properties:
+      - {name: idx,    type: Integer,                        constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: oldVal, type: Embedded, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}
 
 
 ########## ArrayReplaceOperation Class ##########
@@ -459,10 +459,10 @@ changes:
   - action: CreateClass
     name: ArrayReplaceOperation
     superclass: DiscreteOperation
-    properties: 
-      - {name: idx,    type: Integer,                        constraints: {mandatory: true, notNull: true, readOnly: true}} 
+    properties:
+      - {name: idx,    type: Integer,                        constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: val,    type: Embedded, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}
-      - {name: oldVal, type: Embedded, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}     
+      - {name: oldVal, type: Embedded, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}
 
 
 ########## ArrayMoveOperation Class ##########
@@ -470,9 +470,9 @@ changes:
   - action: CreateClass
     name: ArrayMoveOperation
     superclass: DiscreteOperation
-    properties: 
-      - {name: fromIdx, type: Integer,   constraints: {mandatory: true, notNull: true, readOnly: true}} 
-      - {name: toIdx,   type: Integer,   constraints: {mandatory: true, notNull: true, readOnly: true}}     
+    properties:
+      - {name: fromIdx, type: Integer,   constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: toIdx,   type: Integer,   constraints: {mandatory: true, notNull: true, readOnly: true}}
 
 
 ########## ArraySetOperation Class ##########
@@ -480,7 +480,7 @@ changes:
   - action: CreateClass
     name: ArraySetOperation
     superclass: DiscreteOperation
-    properties: 
+    properties:
       - {name: val,    type: EmbeddedList, linkedClass: OpValue, constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: oldVal, type: EmbeddedList, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}
 
@@ -489,7 +489,7 @@ changes:
 
   - action: CreateClass
     name: ModelOperation
-    properties: 
+    properties:
       - {name: model,     type: Link,     linkedClass: Model,         constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: version,   type: Long,                                 constraints: {mandatory: true, notNull: true, min: 1, readOnly: true}}
       - {name: timestamp, type: DateTime,                             constraints: {mandatory: true, notNull: true, readOnly: true}}
@@ -528,24 +528,25 @@ changes:
     language: javascript
     parameters: [array, index, value]
     code: "var idx = parseInt(index);\narray.add(idx, value);\nreturn array;"
-    
+
   - action: CreateFunction
     name: arrayRemove
     idempotent: false
     language: javascript
     parameters: [array, index]
     code: "var idx = parseInt(index);\narray.remove(idx);\nreturn array;"
-    
+
   - action: CreateFunction
     name: arrayReplace
     idempotent: false
     language: javascript
     parameters: [array, index, value]
-    code: "var idx = parseInt(index);\narray.set(idx, value);\nreturn array;"    
-    
+    code: "var idx = parseInt(index);\narray.set(idx, value);\nreturn array;"
+
   - action: CreateFunction
     name: arrayMove
     idempotent: false
     language: javascript
     parameters: [array, fromIndex, toIndex]
     code: "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;"
+
