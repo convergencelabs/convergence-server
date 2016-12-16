@@ -9,7 +9,7 @@ import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
 
 trait ReplyUtil {
-  
+
   def reply[T](result: Try[T], sender: ActorRef): Unit = {
     result match {
       case Success(x) =>
@@ -18,8 +18,8 @@ trait ReplyUtil {
         sender ! Status.Failure(cause)
     }
   }
-  
-  def reply[T](future: Future[T],  sender: ActorRef)(implicit ec: ExecutionContext): Unit = {
+
+  def reply[T](future: Future[T], sender: ActorRef)(implicit ec: ExecutionContext): Unit = {
     future onComplete {
       case Success(s) =>
         sender ! s

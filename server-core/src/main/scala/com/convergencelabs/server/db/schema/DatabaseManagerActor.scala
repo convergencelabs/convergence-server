@@ -28,7 +28,7 @@ class DatabaseManagerActor(private[this] val databaseManager: DatabaseManager)
 
     case UpgradeConvergence(version, preRelease) =>
       reply(Success(()), sender)
-      
+
       version match {
         case Some(v) =>
           databaseManager.updagradeConvergence(v, preRelease)
@@ -38,7 +38,7 @@ class DatabaseManagerActor(private[this] val databaseManager: DatabaseManager)
 
     case UpgradeDomain(fqn, version, preRelease) =>
       reply(Success(()), sender)
-      
+
       version match {
         case Some(v) =>
           databaseManager.upgradeDomain(fqn, v, preRelease)
@@ -48,7 +48,7 @@ class DatabaseManagerActor(private[this] val databaseManager: DatabaseManager)
 
     case UpgradeDomains(version, preRelease) =>
       reply(Success(()), sender)
-      
+
       version match {
         case Some(v) =>
           databaseManager.upgradeAllDomains(v, preRelease)

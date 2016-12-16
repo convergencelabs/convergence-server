@@ -13,7 +13,7 @@ object FutureUtils {
       case Failure(fail) => Future.failed(fail)
     }
   }
-  
+
   def seqFutures[T, U](items: TraversableOnce[T])(yourfunction: T => Future[U])(implicit ec: ExecutionContext): Future[List[U]] = {
     items.foldLeft(Future.successful[List[U]](Nil)) {
       (f, item) =>

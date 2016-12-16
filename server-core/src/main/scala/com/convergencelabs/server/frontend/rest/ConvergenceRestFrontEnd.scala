@@ -68,22 +68,23 @@ class ConvergenceRestFrontEnd(
   def start(): Unit = {
     // FIXME this is a hack all of this should be a rest backend
     val orientDbConfig = system.settings.config.getConfig("convergence.orient-db")
+    val convergenceDbConfig = system.settings.config.getConfig("convergence.convergence-database")
     val domainPreRelease = system.settings.config.getBoolean("convergence.domain-databases.pre-release")
-    
+
     // FIXME remove this eventually
     val historyStore = new DeltaHistoryStore(convergenceDbProvider)
-    
+
     val domainProvisioner = new DomainProvisioner(
-        historyStore,
+      historyStore,
       orientDbConfig.getString("db-uri"),
       orientDbConfig.getString("admin-username"),
       orientDbConfig.getString("admin-password"),
       domainPreRelease)
-    
+
     val provisionerActor = system.actorOf(DomainProvisionerActor.props(domainProvisioner), DomainProvisionerActor.RelativePath)
 
     val domainActor = system.actorOf(DomainStoreActor.props(convergenceDbProvider, provisionerActor))
-    
+
     val importerActor = system.actorOf(ConvergenceImporterActor.props(
       orientDbConfig.getString("db-uri"),
       convergenceDbProvider,
@@ -98,8 +99,8 @@ class ConvergenceRestFrontEnd(
     val domainStore = new DomainStore(convergenceDbProvider)
     val authzActor = system.actorOf(RestAuthnorizationActor.props(domainStore))
     val convergenceUserActor = system.actorOf(ConvergenceUserManagerActor.props(convergenceDbProvider, domainActor))
-    
-    val databaseManager = new DatabaseManager(orientDbConfig.getString("db-uri"), convergenceDbProvider)
+
+    val databaseManager = new DatabaseManager(orientDbConfig.getString("db-uri"), convergenceDbProvider, convergenceDbConfig)
     val databaseManagerActor = system.actorOf(DatabaseManagerActor.props(databaseManager))
 
     // Down to here
@@ -116,22 +117,22 @@ class ConvergenceRestFrontEnd(
     val convergenceUserService = new ConvergenceUserService(ec, convergenceUserActor, defaultRequestTimeout)
 
     val convergenceImportService = new ConvergenceImportService(ec, importerActor, defaultRequestTimeout)
-    
+
     val databaseManagerService = new DatabaseManagerRestService(ec, databaseManagerActor, defaultRequestTimeout)
 
     val adminsConfig = system.settings.config.getConfig("convergence.convergence-admins")
 
     implicit def exceptionHandler: ExceptionHandler = ExceptionHandler {
-    case e: DuplicateValueExcpetion =>
-      complete(duplicateResponse(e.field))
+      case e: DuplicateValueExcpetion =>
+        complete(duplicateResponse(e.field))
 
-    case e: InvalidValueExcpetion =>
-      complete(invalidValueResponse(e.field))
+      case e: InvalidValueExcpetion =>
+        complete(invalidValueResponse(e.field))
 
-    case e: EntityNotFoundException =>
-      complete(NotFoundError)
-  }
-    
+      case e: EntityNotFoundException =>
+        complete(NotFoundError)
+    }
+
     val route = cors(ConvergenceRestFrontEnd.ConvergenceCorsSettings) {
       // All request are under the "rest" path.
       pathPrefix("rest") {

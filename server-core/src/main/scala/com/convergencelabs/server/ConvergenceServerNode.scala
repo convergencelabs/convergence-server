@@ -80,7 +80,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
 
       if (convergenceDbConfig.hasPath("auto-install")) {
         if (convergenceDbConfig.getBoolean("auto-install.enabled")) {
-          bootstrapConvergenceDB(fullUri, convergenceDbConfig, orientDbConfig) recover { 
+          bootstrapConvergenceDB(fullUri, convergenceDbConfig, orientDbConfig) recover {
             case cause: Exception =>
               logger.error("Could not bootstrap database", cause)
           }

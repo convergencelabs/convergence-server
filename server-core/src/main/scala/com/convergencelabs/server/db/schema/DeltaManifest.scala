@@ -43,7 +43,9 @@ class DeltaManifest(
   private[this] val mapper = new ObjectMapper(new YAMLFactory())
 
   def validateIndex(): Try[Unit] = Try {
-    for (version <- 1 to index.preReleaseVersion) {
+    for {
+      version <- 1 to index.preReleaseVersion
+    } yield {
       val incrementalPath = getIncrementalDeltaPath(version)
       val incrementalDelta = loadDeltaScript(incrementalPath).get
       if (incrementalDelta.delta.version != version) {
@@ -78,13 +80,13 @@ class DeltaManifest(
   }
 
   def getFullDelta(version: Int): Try[DeltaScript] = {
-    loadDeltaScript(getFullDeltaPath(version)) flatMap { ds => 
+    loadDeltaScript(getFullDeltaPath(version)) flatMap { ds =>
       validateDeltaHash(ds, true) map { _ => ds }
     }
   }
 
   def getIncrementalDelta(version: Int): Try[DeltaScript] = {
-    loadDeltaScript(getIncrementalDeltaPath(version)) flatMap { ds => 
+    loadDeltaScript(getIncrementalDeltaPath(version)) flatMap { ds =>
       validateDeltaHash(ds, false) map { _ => ds }
     }
   }
@@ -120,15 +122,15 @@ class DeltaManifest(
   }
 
   private[this] def validateHash(expectedHash: String, deltaText: String): Try[Unit] = {
-//    val hash = SHA256(deltaText)
-//    if (hash != expectedHash) {
-//      Failure(new IOException(s"delta hash validation failed:\nexpected: ${expectedHash}\nactual : ${hash}"))
-//    } else {
-      Success(())
-//    }
+    //    val hash = sha256(deltaText)
+    //    if (hash != expectedHash) {
+    //      Failure(new IOException(s"delta hash validation failed:\nexpected: ${expectedHash}\nactual : ${hash}"))
+    //    } else {
+    Success(())
+    //    }
   }
 
-  private[this] def SHA256(s: String): String = {
+  private[this] def sha256(s: String): String = {
     val m = java.security.MessageDigest.getInstance("SHA-256").digest(s.getBytes("UTF-8"))
     m.map("%02x".format(_)).mkString
   }
@@ -150,10 +152,10 @@ class DeltaManifest(
         }
     }
   }
-  
+
   private[this] def getDeltaText(path: String): Option[String] = {
     Option(getClass.getResourceAsStream(path)) map { in =>
-        Source.fromInputStream(in).mkString
+      Source.fromInputStream(in).mkString
     }
   }
 }

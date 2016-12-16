@@ -24,7 +24,7 @@ class BackendNode(system: ActorSystem, dbProvider: DatabaseProvider) extends Log
       domainStore,
       protocolConfig),
       DomainManagerActor.RelativeActorPath)
-      
+
     logger.info("Backend Node started up.")
   }
 

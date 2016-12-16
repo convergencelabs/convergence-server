@@ -8,8 +8,9 @@ import scala.util.Success
 import scala.util.Failure
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.convergencelabs.server.datastore.DeltaHistoryStore
+import grizzled.slf4j.Logging
 
-abstract class AbstractSchemaManager(db: ODatabaseDocumentTx, preRelease: Boolean) {
+abstract class AbstractSchemaManager(db: ODatabaseDocumentTx, preRelease: Boolean) extends Logging {
 
   def install(): Try[Unit] = {
     loadManifest().flatMap { manifest =>
@@ -44,6 +45,7 @@ abstract class AbstractSchemaManager(db: ODatabaseDocumentTx, preRelease: Boolea
   }
 
   private[this] def executeUpgrade(manifest: DeltaManifest, version: Int): Try[Unit] = {
+    logger.debug(s"Executing database upgrade to version: ${version}")
     getCurrentVersion() flatMap { currentVersion =>
       if (version <= currentVersion) {
         Failure(new IllegalArgumentException(
@@ -52,8 +54,11 @@ abstract class AbstractSchemaManager(db: ODatabaseDocumentTx, preRelease: Boolea
         Success(currentVersion)
       }
     } flatMap { currentVersion =>
+      logger.debug(s"Executing database upgrade from ${currentVersion} to ${version}")
       Try {
-        for (v <- currentVersion to version) {
+        for {
+          v <- (currentVersion + 1) to version
+        } yield {
           manifest.getIncrementalDelta(v).flatMap(applyDelta(_)).get
         }
       }
@@ -61,6 +66,7 @@ abstract class AbstractSchemaManager(db: ODatabaseDocumentTx, preRelease: Boolea
   }
 
   def applyDelta(delta: DeltaScript): Try[Unit] = {
+    logger.debug(s"Applying delta: ${delta.delta.version}")
     DatabaseDeltaProcessor.apply(delta.delta, db) recoverWith {
       case cause: Exception =>
         recordDeltaFailure(delta, cause)

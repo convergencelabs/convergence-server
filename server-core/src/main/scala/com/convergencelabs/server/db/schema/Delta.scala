@@ -1,17 +1,17 @@
 package com.convergencelabs.server.db.schema
 
 object OrientType extends Enumeration {
-  val  Boolean, Integer, Short, Long, Float, Double, 
-  DateTime, String, Binary, 
-  Embedded, EmbeddedList, EmbeddedSet, EmbeddedMap, 
-  Link, LinkList, LinkSet, LinkMap, 
+  val  Boolean, Integer, Short, Long, Float, Double,
+  DateTime, String, Binary,
+  Embedded, EmbeddedList, EmbeddedSet, EmbeddedMap,
+  Link, LinkList, LinkSet, LinkMap,
   Byte, Transient, Date, Custom, Decimal, LinkBag, Any = Value
 }
 
 object IndexType extends Enumeration {
-  val Unique, NotUnique, FullText, 
-  Dictionary, Proxy, UniqueHashIndex, 
-  NotUniqueHashIndex, FullTextHashIndex, 
+  val Unique, NotUnique, FullText,
+  Dictionary, Proxy, UniqueHashIndex,
+  NotUniqueHashIndex, FullTextHashIndex,
   DictionaryHashIndex, Spatial = Value
 }
 
@@ -49,15 +49,14 @@ case class PropertyOptions(name: Option[String], orientType: Option[OrientType.V
 
 
 case class Constraints(
-    min: Option[String], 
-    max: Option[String], 
-    mandatory: Option[Boolean], 
-    readOnly: Option[Boolean], 
-    notNull: Option[Boolean], 
+    min: Option[String],
+    max: Option[String],
+    mandatory: Option[Boolean],
+    readOnly: Option[Boolean],
+    notNull: Option[Boolean],
     regex: Option[String],
     collate: Option[String],
     custom: Option[CustomProperty],
     default: Option[String])
-    
-case class CustomProperty(name: String, value: String)
-    
+
+case class CustomProperty(name: String, value: String)    

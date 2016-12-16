@@ -35,7 +35,7 @@ object DeltaHistoryStore {
 
   val DomainDeltaIndex = "DomainDelta.deltaNo"
   val DomainDeltaHistoryIndex = "DomainDeltaHistory.domain_delta"
-  
+
   object Fields {
     val DeltaNo = "deltaNo"
     val Value = "value"
@@ -66,13 +66,6 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
     }
 
     val deltaORID = deltaIndex.get(delta.deltaNo).asInstanceOf[OIdentifiable].getIdentity
-
-    // Remove old history record
-    val deltaHistoryIndex = db.getMetadata.getIndexManager.getIndex(ConvergenceDeltaHistoryIndex)
-    if (deltaHistoryIndex.contains(deltaORID)) {
-      val deltaHistoryORID = deltaHistoryIndex.get(deltaORID).asInstanceOf[OIdentifiable].getIdentity
-      db.delete(deltaHistoryORID)
-    }
 
     val doc = db.newInstance(ConvergernceDeltaHistoryClass)
     doc.field(Fields.Delta, deltaORID)
@@ -113,14 +106,16 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
   def getConvergenceDBVersion(): Try[Int] = tryWithDb { db =>
     val query = s"SELECT max(delta.deltaNo) as version FROM $ConvergenceDeltaHistory WHERE status = :status"
     val params = Map("status" -> Status.Success)
-    val version: Option[Int] = QueryUtil.lookupOptionalDocument(query, params, db) map { _.field("version") }
+    val version = QueryUtil.lookupOptionalDocument(query, params, db) map { _.field("version").asInstanceOf[Int] }
     version.getOrElse(0)
   }
 
   def isConvergenceDBHealthy(): Try[Boolean] = tryWithDb { db =>
     val query = s"SELECT if(count(status) > 0, false, true) as healthy FROM $ConvergenceDeltaHistory WHERE status = :status"
     val params = Map("status" -> Status.Error)
-    val healthy: Option[Boolean] = QueryUtil.lookupOptionalDocument(query, params, db) map { _.field("healthy") }
+    val healthy = QueryUtil.lookupOptionalDocument(query, params, db) map {
+      _.field("healthy").asInstanceOf[Boolean]
+    }
     healthy.getOrElse(true)
   }
 
@@ -129,7 +124,7 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
 
     // FIXME hand the error better.
     val domainORID = DomainStore.getDomainRid(domain, db).get
-    
+
     // Validate delta exists or create it
     val deltaIndex = db.getMetadata.getIndexManager.getIndex(DomainDeltaIndex)
     if (!deltaIndex.contains(delta.deltaNo)) {
@@ -188,20 +183,17 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
   }
 
   def getDomainDBVersion(domainFqn: DomainFqn): Try[Int] = tryWithDb { db =>
-    if (db.getMetadata.getSchema.existsClass(DomainDeltaHistoryClass)) {
-      val DomainFqn(namespace, domainId) = domainFqn
-      val query =
-        s"""SELECT max(delta.deltaNo) as version
+    val DomainFqn(namespace, domainId) = domainFqn
+    val query =
+      s"""SELECT max(delta.deltaNo) as version
         |FROM $DomainDeltaHistoryClass
         |WHERE
         |  domain.namespace = :namespace AND
         |  domain.id = :id AND
         |  status = :status""".stripMargin
-      val params = Map("id" -> domainId, "namespace" -> namespace, "status" -> Status.Success)
-      val version: Option[Int] = QueryUtil.lookupOptionalDocument(query, params, db) map { _.field("version") }
-      version.getOrElse(0)
-    }
-    0
+    val params = Map("id" -> domainId, "namespace" -> namespace, "status" -> Status.Success)
+    val version = QueryUtil.lookupOptionalDocument(query, params, db) map { _.field("version").asInstanceOf[Int] }
+    version.getOrElse(0)
   }
 
   def isDomainDBHealthy(domainFqn: DomainFqn): Try[Boolean] = tryWithDb { db =>
@@ -214,7 +206,9 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
         |  domain.id = :id AND
         |  status = :status""".stripMargin
     val params = Map("id" -> domainId, "namespace" -> namespace, "status" -> Status.Error)
-    val healthy: Option[Boolean] = QueryUtil.lookupOptionalDocument(query, params, db) map { _.field("healthy") }
+    val healthy = QueryUtil.lookupOptionalDocument(query, params, db) map {
+      _.field("healthy").asInstanceOf[Boolean]
+    }
     healthy.getOrElse(true)
   }
 

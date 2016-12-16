@@ -74,7 +74,7 @@ class DatabaseManagerRestService(
 
   def upgradeConvergence(request: UpgradeRequest): Future[RestResponse] = {
     val UpgradeRequest(version, preRelease) = request
-    val to = version.map(_.toString) getOrElse ("latest")
+    val to = toVersion(version, preRelease)
     logger.debug(s"Received an request to upgrade convergence database to version: ${to}")
     (databaseManager ? UpgradeConvergence(version, preRelease.getOrElse(false))).mapTo[Unit].map {
       case _ => OkResponse
@@ -83,31 +83,46 @@ class DatabaseManagerRestService(
 
   def upgradeDomain(namespace: String, domainId: String, request: UpgradeRequest): Future[RestResponse] = {
     val UpgradeRequest(version, preRelease) = request
-    val to = version.map(_.toString) getOrElse ("latest")
+    val to = toVersion(version, preRelease)
     logger.debug(s"Received an request to upgrade domain database to version: ${to}")
-    (databaseManager ? UpgradeDomain(DomainFqn(namespace, domainId), version, preRelease.getOrElse(false))).mapTo[Unit].map {
+    val message = UpgradeDomain(DomainFqn(namespace, domainId), version, preRelease.getOrElse(false))
+    (databaseManager ? message).mapTo[Unit].map {
       case _ => OkResponse
     }
   }
-  
+
   def upgradeDomains(request: UpgradeRequest): Future[RestResponse] = {
     val UpgradeRequest(version, preRelease) = request
-    val to = version.map(_.toString) getOrElse ("latest")
+    val to = toVersion(version, preRelease)
     logger.debug(s"Received an request to upgrade all domain databases to version: ${to}")
-    (databaseManager ? UpgradeDomains(version, preRelease.getOrElse(false))).mapTo[Unit].map {
+    val message = UpgradeDomains(version, preRelease.getOrElse(false))
+    (databaseManager ? message).mapTo[Unit].map {
       case _ => OkResponse
     }
   }
 
   def getConvergenceVersion(): Future[RestResponse] = {
-    (databaseManager ? GetConvergenceVersion).mapTo[Int].map {
-      case version => (StatusCodes.OK, VersionResponse(version))
+    val message = GetConvergenceVersion
+    (databaseManager ? message).mapTo[Int].map { version =>
+      (StatusCodes.OK, VersionResponse(version))
     }
   }
 
   def getDomainVersion(namespace: String, domainId: String): Future[RestResponse] = {
-    (databaseManager ? GetDomainVersion(DomainFqn(namespace, domainId))).mapTo[Int].map {
-      case version => (StatusCodes.OK, VersionResponse(version))
+    val message = GetDomainVersion(DomainFqn(namespace, domainId))
+    (databaseManager ? message).mapTo[Int].map { version =>
+      (StatusCodes.OK, VersionResponse(version))
     }
+  }
+
+  private[this] def toVersion(version: Option[Int], preRelease: Option[Boolean]): String = {
+    val v = version.map(_.toString) getOrElse ("latest")
+    val p = preRelease.getOrElse(false) match {
+      case true =>
+        "pre-released"
+      case false =>
+        "released"
+    }
+    s"${v} (${p})"
   }
 }
