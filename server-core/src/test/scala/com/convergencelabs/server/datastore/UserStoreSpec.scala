@@ -11,18 +11,20 @@ import org.scalatest.WordSpecLike
 
 import com.convergencelabs.server.datastore.domain.PersistenceStoreSpec
 import com.convergencelabs.server.db.schema.DeltaCategory
+import com.convergencelabs.server.datastore.UserStore.User
 
 class UserStoreSpec
     extends PersistenceStoreSpec[UserStore](DeltaCategory.Convergence)
     with WordSpecLike
     with Matchers {
 
-  val username = "test"
-  val displayName = "test user"
+  val username = "test1"
+  val displayName = "test one"
   val password = "password"
 
   val DummyToken = "myToken"
-  val TestUser = User(username, "test@convergence.com", username, username, displayName)
+  val TestUser = User(username, "test1@example.com", username, username, displayName)
+  val TestUser2 = User("testUser2", "test2@example.com", "test", "two", "test two")
   val tokenDurationMinutes = 5
   val tokenDuration = Duration.ofSeconds(5) // scalastyle:ignore magic.number
 
@@ -45,6 +47,31 @@ class UserStoreSpec
 
       "return false if the user does not exist" in withPersistenceStore { store =>
         store.userExists("DoesNotExist").get shouldBe false
+      }
+    }
+    
+    "updating a user" must {
+      "update an existing user" in withPersistenceStore { store =>
+        store.createUser(TestUser, password).get
+        val update = User(TestUser.username, "first", "last", "display", "email")
+        store.updateUser(update).get
+        val queried = store.getUserByUsername(TestUser.username).get.value
+        
+        queried shouldBe update
+      }
+
+      "fail with a EntityNotFoundExcpetion if the user does not exist" in withPersistenceStore { store =>
+        val update = User(TestUser.username, "first", "last", "display", "email")
+        store.updateUser(update).failure.exception shouldBe a[EntityNotFoundException]
+      }
+      
+      "fail with a DuplicateValue when updating to a username that is taken" in withPersistenceStore { store =>
+        store.createUser(TestUser, password).get
+        store.createUser(TestUser2, password).get
+        val update = TestUser2.copy(email = TestUser.email)
+        val exception = store.updateUser(update).failure.exception
+        exception shouldBe a[DuplicateValueExcpetion]
+        exception.asInstanceOf[DuplicateValueExcpetion].field shouldBe UserStore.Fields.Email
       }
     }
 

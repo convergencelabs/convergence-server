@@ -25,12 +25,16 @@ import akka.actor.actorRef2Scala
 import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.server.domain.DomainDatabase
+import com.convergencelabs.server.datastore.ConvergenceUserManagerActor._
+import com.convergencelabs.server.datastore.UserStore.User
 
 object ConvergenceUserManagerActor {
   def props(dbProvider: DatabaseProvider, domainStoreActor: ActorRef): Props =
     Props(new ConvergenceUserManagerActor(dbProvider, domainStoreActor))
 
   case class CreateConvergenceUserRequest(username: String, email: String, firstName: String, lastName: String, displayName: String, password: String)
+  case class UpdateConvergenceUserRequest(username: String, email: String, firstName: String, lastName: String, displayName: String)
+  case class SetPasswordRequest(username: String, password: String)
   case class DeleteConvergenceUserRequest(username: String)
   case class GetConvergenceUser(username: String)
   case object GetConvergenceUsers
@@ -56,7 +60,10 @@ class ConvergenceUserManagerActor private[datastore] (
     case message: DeleteConvergenceUserRequest => deleteConvergenceUser(message)
     case message: GetConvergenceUser => getConvergenceUser(message)
     case GetConvergenceUsers => getConvergenceUsers()
+    case message: UpdateConvergenceUserRequest => updateConvergenceUser(message)
+    case message: SetPasswordRequest => setUserPassword(message)
     case message: Any => unhandled(message)
+    
   }
 
   def createConvergenceUser(message: CreateConvergenceUserRequest): Unit = {
@@ -91,6 +98,19 @@ class ConvergenceUserManagerActor private[datastore] (
       FutureUtils.tryToFuture(userStore.deleteUser(username)))
 
     reply(result)
+  }
+  
+  def updateConvergenceUser(message: UpdateConvergenceUserRequest): Unit = {
+    val UpdateConvergenceUserRequest(username, email, firstName, lastName, displayName) = message;
+    log.debug(s"Updating user: ${username}")
+    val update = User(username, email, firstName, lastName, displayName)
+    reply(userStore.updateUser(update))
+  }
+  
+  def setUserPassword(message: SetPasswordRequest): Unit = {
+    val SetPasswordRequest(username, password) = message;
+    log.debug(s"Setting the password for user: ${username}")
+    reply(userStore.setUserPassword(username, password))
   }
 
   private[this] def createDomain(username: String, id: String, displayName: String): Future[Any] = {

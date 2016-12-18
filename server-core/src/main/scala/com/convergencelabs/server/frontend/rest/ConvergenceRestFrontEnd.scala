@@ -113,6 +113,7 @@ class ConvergenceRestFrontEnd(
     val registrationService = new RegistrationService(ec, registrationActor, defaultRequestTimeout, registrationBaseUrl)
     val domainService = new DomainService(ec, authzActor, domainActor, domainManagerActor, defaultRequestTimeout)
     val profileService = new ProfileService(ec, convergenceUserActor, defaultRequestTimeout)
+    val passwordService = new PasswordService(ec, convergenceUserActor, defaultRequestTimeout)
     val keyGenService = new KeyGenService(ec)
     val convergenceUserService = new ConvergenceUserService(ec, convergenceUserActor, defaultRequestTimeout)
 
@@ -143,7 +144,8 @@ class ConvergenceRestFrontEnd(
             authenticator.requireAuthenticated(request) { username =>
               domainService.route(username) ~
                 keyGenService.route() ~
-                profileService.route(username)
+                profileService.route(username) ~
+                passwordService.route(username)
             }
           }
       } ~ pathPrefix("admin") {

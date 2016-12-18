@@ -39,7 +39,7 @@ class ConvergenceExporter(
 
     val user = for {
       user <- userStore.getUserByUsername(username)
-      pwHash <- userStore.getDomainUserPasswordHash(username)
+      pwHash <- userStore.getUserPasswordHash(username)
     } yield (user, pwHash)
 
     user flatMap {

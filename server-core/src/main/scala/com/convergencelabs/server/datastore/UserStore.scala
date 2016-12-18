@@ -20,6 +20,7 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
+import UserStore.User
 
 import UserStore.Fields.Username
 import grizzled.slf4j.Logging
@@ -62,6 +63,13 @@ object UserStore {
     val params = Map("username" -> username)
     QueryUtil.lookupMandatoryDocument(query, params, db) map { _.eval("rid").asInstanceOf[ORID] }
   }
+
+  case class User(
+    username: String,
+    email: String,
+    firstName: String,
+    lastName: String,
+    displayName: String)
 }
 
 /**
@@ -101,6 +109,20 @@ class UserStore(
 
     db.save(pwDoc)
     ()
+  } recoverWith {
+    case e: ORecordDuplicatedException => handleDuplicateValue(e)
+  }
+
+  def updateUser(user: User): Try[Unit] = tryWithDb { db =>
+    val updatedDoc = UserStore.userToDoc(user)
+    QueryUtil.getFromIndex(UsernameIndex, user.username, db) match {
+      case Some(doc) =>
+        doc.merge(updatedDoc, false, false)
+        db.save(doc)
+        ()
+      case None =>
+        throw EntityNotFoundException()
+    }
   } recoverWith {
     case e: ORecordDuplicatedException => handleDuplicateValue(e)
   }
@@ -172,7 +194,7 @@ class UserStore(
     }
   }
 
-  def getDomainUserPasswordHash(username: String): Try[Option[String]] = tryWithDb { db =>
+  def getUserPasswordHash(username: String): Try[Option[String]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT * FROM UserCredential WHERE user.username = :username")
     val params = Map(Username -> username)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
@@ -223,7 +245,7 @@ class UserStore(
     db.command(query).execute(params.asJava)
     Unit
   }
-  
+
   def removeToken(token: String): Try[Unit] = tryWithDb { db =>
     val queryStirng = "DELETE FROM UserAuthToken WHERE token = :token"
     val query = new OCommandSQL(queryStirng)

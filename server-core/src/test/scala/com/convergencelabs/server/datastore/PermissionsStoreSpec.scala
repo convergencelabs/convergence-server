@@ -1,10 +1,13 @@
 package com.convergencelabs.server.datastore
 
+import java.time.Duration
+
+import org.scalatest.Matchers
+import org.scalatest.WordSpecLike
+
+import com.convergencelabs.server.datastore.UserStore.User
 import com.convergencelabs.server.datastore.domain.PersistenceStoreSpec
 import com.convergencelabs.server.db.schema.DeltaCategory
-import org.scalatest.WordSpecLike
-import org.scalatest.Matchers
-import java.time.Duration
 import com.convergencelabs.server.domain.DomainFqn
 
 case class PermissionStoreSpecStores(permissionStore: PermissionsStore, userStore: UserStore, domainStore: DomainStore)

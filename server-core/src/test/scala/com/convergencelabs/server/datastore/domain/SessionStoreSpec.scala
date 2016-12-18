@@ -100,7 +100,7 @@ class SessionStoreSpec
         queried shouldBe session
       }
 
-      "disallow duplicat session Ids" in withTestData { provider =>
+      "disallow duplicate session Ids" in withTestData { provider =>
         val session = DomainSession(sessionId, username, Instant.now(), Some(Instant.now()), authMethod, client, clientVersion, "", remoteHost)
         provider.sessionStore.createSession(session).get
         provider.sessionStore.createSession(session).failure.exception shouldBe a[DuplicateValueExcpetion]

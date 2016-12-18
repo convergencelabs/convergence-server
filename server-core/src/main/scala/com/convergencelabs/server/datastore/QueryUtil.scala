@@ -21,31 +21,37 @@ import grizzled.slf4j.Logging
 object QueryUtil extends Logging {
   private[this] val MultipleElementsMessage = "Only exepected one element in the result list, but more than one returned."
 
+  def getFromIndex(indexName: String, key: Any, db: ODatabaseDocumentTx): Option[ODocument] = {
+    val index = db.getMetadata.getIndexManager.getIndex(indexName).asInstanceOf[OIndex[OIdentifiable]]
+    val oid: OIdentifiable = index.get(key)
+    Option(oid) map { _.getRecord.asInstanceOf[ODocument] }
+  }
+
   def getRidFromIndex(indexName: String, key: Any, db: ODatabaseDocumentTx): Try[ORID] = {
     val index = db.getMetadata.getIndexManager.getIndex(indexName).asInstanceOf[OIndex[OIdentifiable]]
     Try {
       val oid: OIdentifiable = index.get(key)
-      Option(oid.getIdentity) match {
-        case Some(rid) =>
-          rid
+      Option(oid) match {
+        case Some(o) =>
+          o.getIdentity
         case None =>
           throw new IllegalArgumentException("Entity not found")
       }
     }
   }
-  
+
   def query(q: String, p: Map[String, Any], db: ODatabaseDocumentTx): List[ODocument] = {
     val query = new OSQLSynchQuery[ODocument](q)
     val result: JavaList[ODocument] = db.command(query).execute(p.asJava)
     result.toList
   }
-  
+
   def hasResults(q: String, p: Map[String, Any], db: ODatabaseDocumentTx): Boolean = {
     val query = new OSQLSynchQuery[ODocument](q)
     val result: JavaList[ODocument] = db.command(query).execute(p.asJava)
     !result.isEmpty
   }
-  
+
   def buildPagedQuery(baseQuery: String, limit: Option[Int], offset: Option[Int]): String = {
     val limitOffsetString = (limit, offset) match {
       case (None, None) => ""
@@ -82,12 +88,18 @@ object QueryUtil extends Logging {
   }
 
   def lookupMandatoryDocument(query: String, params: Map[String, Any], db: ODatabaseDocumentTx): Try[ODocument] = {
-      val q = new OSQLSynchQuery[ODocument](query)
-      val results = db.command(q).execute(params.asJava).asInstanceOf[JavaList[ODocument]]
-      QueryUtil.enforceSingleResult(results)
+    val q = new OSQLSynchQuery[ODocument](query)
+    val results = db.command(q).execute(params.asJava).asInstanceOf[JavaList[ODocument]]
+    QueryUtil.enforceSingleResult(results)
   }
 
   def lookupOptionalDocument(query: String, params: Map[String, Any], db: ODatabaseDocumentTx): Option[ODocument] = {
+    val q = new OSQLSynchQuery[ODocument](query)
+    val results: JavaList[ODocument] = db.command(q).execute(params.asJava)
+    QueryUtil.enforceSingletonResultList(results)
+  }
+
+  def updateDocument(query: String, params: Map[String, Any], db: ODatabaseDocumentTx): Option[ODocument] = {
     val q = new OSQLSynchQuery[ODocument](query)
     val results: JavaList[ODocument] = db.command(q).execute(params.asJava)
     QueryUtil.enforceSingletonResultList(results)
