@@ -1,0 +1,25 @@
+version: 3
+description: Schema to add roles and permissions
+changes:
+
+
+########## Permissions ##########
+
+  - action: RunSQLCommand
+    command: "INSERT INTO Permission (id, name, description) 
+              VALUES ('domain-access', 'Domain Access', 'Allows a user to access a domain')"
+    
+  - action: RunSQLCommand
+    command: "INSERT INTO Permission (id, name, description) 
+              VALUES ('manage-permissions', 'Manage Permissions', 'Allows a user to manage permissions and roles')"
+    
+    
+########## Roles ##########
+
+  - action: RunSQLCommand
+    command: "INSERT INTO ROLE (name, permissions, description) 
+              VALUES ('admin', (SELECT FROM Permission), 'Domain Administrator')"
+    
+  - action: RunSQLCommand
+    command: "INSERT INTO ROLE (name, permissions, description) 
+              VALUES ('developer', (SELECT FROM Permission WHERE id = 'domain-access'), 'Domain Developer')"
