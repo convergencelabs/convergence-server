@@ -126,7 +126,7 @@ class PermissionsStoreSpec extends PersistenceStoreSpec[PermissionStoreSpecStore
         permissionStore.addRoleToUser(TestUser.username, TestDomainFQN, "role1").get
         permissionStore.addRoleToUser(TestUser.username, TestDomainFQN, "role2").get
 
-        permissionStore.getAllUserPermissions(TestUser.username, TestDomainFQN).get.length shouldBe 2
+        permissionStore.getAllUserPermissions(TestUser.username, TestDomainFQN).get.size shouldBe 2
       }
     }
   }

@@ -111,7 +111,7 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
     userDomainRoleDoc.save()
   }
 
-  def getAllUserPermissions(username: String, domainFqn: DomainFqn): Try[List[Permission]] = tryWithDb { db =>
+  def getAllUserPermissions(username: String, domainFqn: DomainFqn): Try[Set[Permission]] = tryWithDb { db =>
     // TODO: determine how to create a set of permissions in the query
     val queryString =
       """SELECT expand(set(role.permissions))
@@ -123,10 +123,10 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
     val params = Map("username" -> username, "namespace" -> domainFqn.namespace, "domainId" -> domainFqn.domainId)
     val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
     val resultList = results.asScala.toList
-    resultList.map { docToPermission(_) }.toSet.toList
+    resultList.map { docToPermission(_) }.toSet
   }
 
-  def getAllUserRoles(username: String, domainFqn: DomainFqn): Try[List[Role]] = tryWithDb { db =>
+  def getAllUserRoles(username: String, domainFqn: DomainFqn): Try[Set[Role]] = tryWithDb { db =>
     val queryString =
       """SELECT expand(role)
         |  FROM UserDomainRole
@@ -136,7 +136,7 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
     val query = new OSQLSynchQuery[ODocument](queryString)
     val params = Map("username" -> username, "namespace" -> domainFqn.namespace, "domainId" -> domainFqn.domainId)
     val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    val resultList = results.asScala.toList
+    val resultList = results.asScala.toSet
     resultList.map { docToRole(_) }
   }
 
