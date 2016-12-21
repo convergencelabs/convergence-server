@@ -68,28 +68,30 @@ class DomainStoreActor private[datastore] (
     val currentSender = sender
 
     domainStore.createDomain(domainFqn, displayName, ownerUsername) flatMap { _ =>
-        domainDatabaseStore.createDomainDatabase(domainDbInfo)
+      domainDatabaseStore.createDomainDatabase(domainDbInfo)
     } map { _ =>
-        implicit val requstTimeout = Timeout(4 minutes) // FXIME hardcoded timeout
-        val message = ProvisionDomain(domainFqn, dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword)
-        (domainProvisioner ? message).mapTo[DomainProvisioned] onComplete {
-          case Success(DomainProvisioned()) =>
-            log.debug(s"Domain created, setting status to online: $dbName")
-            domainStore.getDomainByFqn(domainFqn) map (_.map { domain =>
-              val updated = domain.copy(status = DomainStatus.Online)
-              domainStore.updateDomain(updated)
-            })
-            reply(Success(domainDbInfo), currentSender)
+      // Reply now and do the rest asynchronously, the status of the domain will
+      // be updated after the future responds.
+      reply(Success(domainDbInfo), currentSender)
 
-          case Failure(cause) =>
-            log.error(cause, s"Domain was not created successfully: $dbName")
-            val statusMessage = ExceptionUtils.stackTraceToString(cause)
-            domainStore.getDomainByFqn(domainFqn) map (_.map { domain =>
-              val updated = domain.copy(status = DomainStatus.Error, statusMessage = statusMessage)
-              domainStore.updateDomain(updated)
-            })
-            reply(Failure(cause), currentSender)
-        }
+      implicit val requstTimeout = Timeout(4 minutes) // FXIME hardcoded timeout
+      val message = ProvisionDomain(domainFqn, dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword)
+      (domainProvisioner ? message).mapTo[DomainProvisioned] onComplete {
+        case Success(DomainProvisioned()) =>
+          log.debug(s"Domain created, setting status to online: $dbName")
+          domainStore.getDomainByFqn(domainFqn) map (_.map { domain =>
+            val updated = domain.copy(status = DomainStatus.Online)
+            domainStore.updateDomain(updated)
+          })
+
+        case Failure(cause) =>
+          log.error(cause, s"Domain was not created successfully: $dbName")
+          val statusMessage = ExceptionUtils.stackTraceToString(cause)
+          domainStore.getDomainByFqn(domainFqn) map (_.map { domain =>
+            val updated = domain.copy(status = DomainStatus.Error, statusMessage = statusMessage)
+            domainStore.updateDomain(updated)
+          })
+      }
     } recover {
       case cause: Exception => reply(Failure(cause), currentSender)
     }
