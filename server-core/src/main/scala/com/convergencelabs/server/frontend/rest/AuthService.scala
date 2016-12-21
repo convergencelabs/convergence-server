@@ -3,24 +3,26 @@ package com.convergencelabs.server.frontend.rest
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
-import akka.http.scaladsl.model.StatusCodes
-import akka.actor.ActorRef
-import akka.util.Timeout
-import akka.http.scaladsl.server.Directives._
-import akka.pattern._
-
-import com.convergencelabs.server.datastore.AuthStoreActor.AuthRequest
-import com.convergencelabs.server.datastore.AuthStoreActor.AuthSuccess
 import com.convergencelabs.server.datastore.AuthStoreActor.AuthFailure
+import com.convergencelabs.server.datastore.AuthStoreActor.AuthRequest
 import com.convergencelabs.server.datastore.AuthStoreActor.AuthResponse
+import com.convergencelabs.server.datastore.AuthStoreActor.AuthSuccess
+import com.convergencelabs.server.datastore.AuthStoreActor.InvalidateTokenRequest
+import com.convergencelabs.server.datastore.AuthStoreActor.TokenExpirationFailure
 import com.convergencelabs.server.datastore.AuthStoreActor.TokenExpirationRequest
 import com.convergencelabs.server.datastore.AuthStoreActor.TokenExpirationResponse
 import com.convergencelabs.server.datastore.AuthStoreActor.TokenExpirationSuccess
-import com.convergencelabs.server.datastore.AuthStoreActor.TokenExpirationFailure
-import com.convergencelabs.server.datastore.AuthStoreActor.InvalidateTokenRequest
-import scala.util.Try
-import scala.util.Success
-import scala.util.Failure
+
+import akka.actor.ActorRef
+import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
+import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
+import akka.http.scaladsl.server.Directives.handleWith
+import akka.http.scaladsl.server.Directives.pathEnd
+import akka.http.scaladsl.server.Directives.pathPrefix
+import akka.http.scaladsl.server.Directives.post
+import akka.pattern.ask
+import akka.util.Timeout
 
 case class TokenResponse(token: String, expiration: Long) extends AbstractSuccessResponse
 case class ExpirationResponse(valid: Boolean, username: Option[String], delta: Option[Long]) extends AbstractSuccessResponse
