@@ -7,7 +7,7 @@ import scala.language.postfixOps
 import scala.util.Success
 
 import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.CreateConvergenceUserRequest
-import com.convergencelabs.server.datastore.RegistrationActor.AddRegistration
+import com.convergencelabs.server.datastore.RegistrationActor.RequestRegistration
 import com.convergencelabs.server.datastore.RegistrationActor.ApproveRegistration
 import com.convergencelabs.server.datastore.RegistrationActor.RegisterUser
 import com.convergencelabs.server.datastore.RegistrationActor.RegistrationInfo
@@ -24,12 +24,13 @@ import akka.actor.Props
 import akka.actor.actorRef2Scala
 import akka.pattern.ask
 import akka.util.Timeout
+import scala.util.Try
 
 object RegistrationActor {
   def props(dbProvider: DatabaseProvider, userManager: ActorRef): Props = Props(new RegistrationActor(dbProvider, userManager))
 
   case class RegisterUser(username: String, fname: String, lname: String, email: String, password: String, token: String)
-  case class AddRegistration(fname: String, lname: String, email: String, reason: String)
+  case class RequestRegistration(fname: String, lname: String, email: String, reason: String)
   case class ApproveRegistration(token: String)
   case class RejectRegistration(token: String)
   case class RegistrationInfoRequest(token: String)
@@ -51,7 +52,7 @@ class RegistrationActor private[datastore] (dbProvider: DatabaseProvider, userMa
 
   def receive: Receive = {
     case message: RegisterUser => registerUser(message)
-    case message: AddRegistration => addRegistration(message)
+    case message: RequestRegistration => requestRegistration(message)
     case message: ApproveRegistration => appoveRegistration(message)
     case message: RejectRegistration => rejectRegistration(message)
     case message: RegistrationInfoRequest => getRegistrationInfo(message)
@@ -80,30 +81,46 @@ class RegistrationActor private[datastore] (dbProvider: DatabaseProvider, userMa
           }
         }
       }
-      case Some(false) => 
+      case Some(false) =>
         origSender ! akka.actor.Status.Failure(new IllegalArgumentException("Registration not approved"))
-      case None => 
+      case None =>
         origSender ! akka.actor.Status.Failure(new EntityNotFoundException("Registration token not found"))
     }
   }
 
-  def addRegistration(message: AddRegistration): Unit = {
-    val AddRegistration(fname, lname, email, reason) = message
-    reply(registrationStore.addRegistration(fname, lname, email, reason) map { token =>
+  def requestRegistration(message: RequestRegistration): Unit = {
+    val RequestRegistration(fname, lname, email, reason) = message
+    log.debug(s"Processing registration request for email: ${email}")
+    val result = registrationStore.addRegistration(fname, lname, email, reason) flatMap { token =>
       val bodyContent = templates.email.internal.txt.registrationRequest(token, fname, lname, email, reason, registrationBaseUrl)
       val internalEmail = EmailUtilities.createTextEmail(smtpConfig, bodyContent.toString())
       internalEmail.setSubject(s"Registration Request from ${fname} ${lname}")
-      internalEmail.addTo(smtpConfig.getString("new-registration-to-address"))
-      internalEmail.send()
+      val regEmail = smtpConfig.getString("new-registration-to-address")
+      internalEmail.addTo(regEmail)
 
+      Try {
+        internalEmail.send()
+        log.debug(s"Sent email notification to: ${regEmail}")
+      }
+    } flatMap { _ =>
       val template = templates.email.html.accountRequested(fname)
       val templateTxt = templates.email.txt.accountRequested(fname)
       val newRequestEmail = EmailUtilities.createHtmlEmail(smtpConfig, template, templateTxt.toString())
       newRequestEmail.setSubject(s"${fname}, your account request has been received")
       newRequestEmail.addTo(email)
-      newRequestEmail.send()
-      ()
-    })
+      
+      Try {
+        newRequestEmail.send()
+        log.debug(s"Sent email notification to: ${email}")
+        ()
+      }
+    } recover {
+      case cause: Exception =>
+        log.error(cause, s"Error processing registration request for '${email}'.")
+        ()
+    }
+    
+    reply(result)
   }
 
   def appoveRegistration(message: ApproveRegistration): Unit = {
