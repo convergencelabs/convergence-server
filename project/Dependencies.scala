@@ -6,7 +6,8 @@ object Dependencies {
   
   // Versions
   object Versions {
-    val akka      = "2.4.7"
+    val akka      = "2.4.16"
+    val akkaHttp  = "10.0.0"
     val orientDb  = "2.2.11"
     val log4j     = "2.4.1"
   }
@@ -19,8 +20,8 @@ object Dependencies {
     val akkaSlf4j          = "com.typesafe.akka"        % "akka-slf4j_2.11"               % Versions.akka              // Apache 2.0
     val akkaCore = Seq(akkaActor, akkaCluster, akkaSlf4j)
     
-    val akkaHttp           = "com.typesafe.akka"        % "akka-http-experimental_2.11"   % Versions.akka
-    val akkaHttpTest       = "com.typesafe.akka"        % "akka-http-testkit-experimental_2.11" % Versions.akka
+    val akkaHttp           = "com.typesafe.akka"        %% "akka-http"                    % Versions.akkaHttp
+    val akkaHttpTest       = "com.typesafe.akka"        %% "akka-http-testkit"            % Versions.akkaHttp
 
     val akkaHttpJson4s     = "de.heikoseeberger"        % "akka-http-json4s_2.11"         % "1.5.3"
     val akkaHttpCors       = "ch.megard"                %% "akka-http-cors"                % "0.1.0"
