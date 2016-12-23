@@ -58,7 +58,6 @@ case class UpdateDomainRestRequest(displayName: String)
 
 class DomainService(
   private[this] val executionContext: ExecutionContext,
-  private[this] val authz: ActorRef,
   private[this] val authorizationActor: ActorRef,
   private[this] val domainStoreActor: ActorRef,
   private[this] val domainManagerActor: ActorRef,

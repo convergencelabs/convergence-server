@@ -100,7 +100,6 @@ class ConvergenceRestFrontEnd(
 
     // FIXME should this take an actor ref instead?
     val domainStore = new DomainStore(convergenceDbProvider)
-    val authzActor = system.actorOf(RestAuthnorizationActor.props(domainStore))
     val convergenceUserActor = system.actorOf(ConvergenceUserManagerActor.props(convergenceDbProvider, domainActor))
 
     val databaseManager = new DatabaseManager(orientDbConfig.getString("db-uri"), convergenceDbProvider, convergenceDbConfig)
@@ -114,7 +113,7 @@ class ConvergenceRestFrontEnd(
     val authService = new AuthService(ec, authActor, defaultRequestTimeout)
     val authenticator = new Authenticator(authActor, defaultRequestTimeout, ec)
     val registrationService = new RegistrationService(ec, registrationActor, defaultRequestTimeout, registrationBaseUrl)
-    val domainService = new DomainService(ec, authzActor, authorizationActor, domainActor, domainManagerActor, defaultRequestTimeout)
+    val domainService = new DomainService(ec, authorizationActor, domainActor, domainManagerActor, defaultRequestTimeout)
     val profileService = new ProfileService(ec, convergenceUserActor, defaultRequestTimeout)
     val passwordService = new PasswordService(ec, convergenceUserActor, defaultRequestTimeout)
     val keyGenService = new KeyGenService(ec)
