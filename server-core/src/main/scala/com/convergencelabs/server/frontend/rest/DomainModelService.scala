@@ -40,11 +40,13 @@ import akka.http.scaladsl.server.Directives.pathEnd
 import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.post
 import akka.http.scaladsl.server.Directives.put
+import akka.http.scaladsl.server.Directives.authorizeAsync
 import akka.http.scaladsl.server.Route
 
 import akka.pattern.ask
 import akka.util.Timeout
-
+import com.convergencelabs.server.domain.AuthorizationActor.ConvergenceAuthorizedRequest
+import scala.util.Try
 
 object DomainModelService {
 
@@ -70,6 +72,7 @@ object DomainModelService {
 
 class DomainModelService(
   private[this] val executionContext: ExecutionContext,
+  private[this] val authorizationActor: ActorRef,
   private[this] val domainRestActor: ActorRef,
   private[this] val defaultTimeout: Timeout)
     extends JsonSupport {
@@ -84,22 +87,32 @@ class DomainModelService(
       } ~ pathPrefix(Segment) { collectionId: String =>
         pathEnd {
           get {
-            complete(getModelInCollection(domain, collectionId))
+            authorizeAsync(canAccessDomain(domain, username)) {
+              complete(getModelInCollection(domain, collectionId))
+            }
           } ~ post {
             entity(as[Map[String, Any]]) { data =>
-              complete(postModel(domain, collectionId, data))
+              authorizeAsync(canAccessDomain(domain, username)) {
+                complete(postModel(domain, collectionId, data))
+              }
             }
           }
         } ~ pathPrefix(Segment) { modelId: String =>
           pathEnd {
             get {
-              complete(getModel(domain, ModelFqn(collectionId, modelId)))
+              authorizeAsync(canAccessDomain(domain, username)) {
+                complete(getModel(domain, ModelFqn(collectionId, modelId)))
+              }
             } ~ put {
               entity(as[Map[String, Any]]) { data =>
-                complete(putModel(domain, collectionId, modelId, data))
+                authorizeAsync(canAccessDomain(domain, username)) {
+                  complete(putModel(domain, collectionId, modelId, data))
+                }
               }
             } ~ delete {
-              complete(deleteModel(domain, collectionId, modelId))
+              authorizeAsync(canAccessDomain(domain, username)) {
+                complete(deleteModel(domain, collectionId, modelId))
+              }
             }
           }
         }
@@ -110,19 +123,19 @@ class DomainModelService(
   def getModels(domain: DomainFqn): Future[RestResponse] = {
     val message = DomainMessage(domain, GetModels(None, None))
     (domainRestActor ? message).mapTo[List[ModelMetaData]] map {
-        _.map(mapMetaData(_))
-      } map {
-        models => (StatusCodes.OK, GetModelsResponse(models))
-      }
+      _.map(mapMetaData(_))
+    } map {
+      models => (StatusCodes.OK, GetModelsResponse(models))
+    }
   }
 
   def getModelInCollection(domain: DomainFqn, collectionId: String): Future[RestResponse] = {
     val message = DomainMessage(domain, GetModelsInCollection(collectionId, None, None))
     (domainRestActor ? message).mapTo[List[ModelMetaData]] map {
-        _.map(mapMetaData(_))
-      } map {
-        models => (StatusCodes.OK, GetModelsResponse(models))
-      }
+      _.map(mapMetaData(_))
+    } map {
+      models => (StatusCodes.OK, GetModelsResponse(models))
+    }
   }
 
   def mapMetaData(metaData: ModelMetaData): ModelMetaDataResponse = {
@@ -137,18 +150,18 @@ class DomainModelService(
   def getModel(domain: DomainFqn, model: ModelFqn): Future[RestResponse] = {
     val message = DomainMessage(domain, GetModel(model))
     (domainRestActor ? message).mapTo[Option[Model]] map {
-        case Some(model) =>
-          val mr = ModelResponse(
-            model.metaData.fqn.collectionId,
-            model.metaData.fqn.modelId,
-            model.metaData.version,
-            model.metaData.createdTime,
-            model.metaData.modifiedTime,
-            model.data)
-          (StatusCodes.OK, GetModelResponse(mr))
-        case None => 
-          NotFoundError
-      }
+      case Some(model) =>
+        val mr = ModelResponse(
+          model.metaData.fqn.collectionId,
+          model.metaData.fqn.modelId,
+          model.metaData.version,
+          model.metaData.createdTime,
+          model.metaData.modifiedTime,
+          model.data)
+        (StatusCodes.OK, GetModelResponse(mr))
+      case None =>
+        NotFoundError
+    }
   }
 
   def postModel(domain: DomainFqn, colletionId: String, data: Map[String, Any]): Future[RestResponse] = {
@@ -167,5 +180,11 @@ class DomainModelService(
   def deleteModel(domain: DomainFqn, colletionId: String, modelId: String): Future[RestResponse] = {
     val message = DomainMessage(domain, DeleteModel(ModelFqn(colletionId, modelId)))
     (domainRestActor ? message) map { _ => OkResponse }
+  }
+
+  // Permission Checks
+
+  def canAccessDomain(domainFqn: DomainFqn, username: String): Future[Boolean] = {
+    (authorizationActor ? ConvergenceAuthorizedRequest(username, domainFqn, Set("domain-access"))).mapTo[Try[Boolean]].map(_.get)
   }
 }

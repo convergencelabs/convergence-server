@@ -41,6 +41,8 @@ import akka.http.scaladsl.server.ExceptionHandler
 import com.convergencelabs.server.datastore.DuplicateValueExcpetion
 import com.convergencelabs.server.datastore.InvalidValueExcpetion
 import com.convergencelabs.server.datastore.EntityNotFoundException
+import com.convergencelabs.server.datastore.PermissionsStoreActor
+import com.convergencelabs.server.domain.AuthorizationActor
 
 object ConvergenceRestFrontEnd {
   val ConvergenceCorsSettings = CorsSettings.defaultSettings.copy(
@@ -94,6 +96,7 @@ class ConvergenceRestFrontEnd(
     val userManagerActor = system.actorOf(ConvergenceUserManagerActor.props(convergenceDbProvider, domainActor))
     val registrationActor = system.actorOf(RegistrationActor.props(convergenceDbProvider, userManagerActor))
     val domainManagerActor = system.actorOf(RestDomainManagerActor.props(convergenceDbProvider))
+    val authorizationActor = system.actorOf(AuthorizationActor.props(convergenceDbProvider))
 
     // FIXME should this take an actor ref instead?
     val domainStore = new DomainStore(convergenceDbProvider)
@@ -111,7 +114,7 @@ class ConvergenceRestFrontEnd(
     val authService = new AuthService(ec, authActor, defaultRequestTimeout)
     val authenticator = new Authenticator(authActor, defaultRequestTimeout, ec)
     val registrationService = new RegistrationService(ec, registrationActor, defaultRequestTimeout, registrationBaseUrl)
-    val domainService = new DomainService(ec, authzActor, domainActor, domainManagerActor, defaultRequestTimeout)
+    val domainService = new DomainService(ec, authzActor, authorizationActor, domainActor, domainManagerActor, defaultRequestTimeout)
     val profileService = new ProfileService(ec, convergenceUserActor, defaultRequestTimeout)
     val passwordService = new PasswordService(ec, convergenceUserActor, defaultRequestTimeout)
     val keyGenService = new KeyGenService(ec)

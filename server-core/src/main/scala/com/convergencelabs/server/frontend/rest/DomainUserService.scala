@@ -36,9 +36,12 @@ import akka.http.scaladsl.server.Directives.pathEnd
 import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.post
 import akka.http.scaladsl.server.Directives.put
+import akka.http.scaladsl.server.Directives.authorizeAsync
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.util.Timeout
+import com.convergencelabs.server.domain.AuthorizationActor.ConvergenceAuthorizedRequest
+import scala.util.Try
 
 case class DomainUserData(
   username: String,
@@ -63,6 +66,7 @@ object DomainUserService {
 
 class DomainUserService(
   private[this] val executionContext: ExecutionContext,
+  private[this] val authorizationActor: ActorRef,
   private[this] val domainRestActor: ActorRef,
   private[this] val defaultTimeout: Timeout)
     extends JsonSupport {
@@ -74,28 +78,40 @@ class DomainUserService(
     pathPrefix("users") {
       pathEnd {
         get {
-          complete(getAllUsersRequest(domain))
+          authorizeAsync(canAccessDomain(domain, username)) {
+            complete(getAllUsersRequest(domain))
+          }
         } ~ post {
           entity(as[CreateUserRequest]) { request =>
-            complete(createUserRequest(request, domain))
+            authorizeAsync(canAccessDomain(domain, username)) {
+              complete(createUserRequest(request, domain))
+            }
           }
         }
       } ~ pathPrefix(Segment) { username =>
         pathEnd {
           get {
-            complete(getUserByUsername(username, domain))
+            authorizeAsync(canAccessDomain(domain, username)) {
+              complete(getUserByUsername(username, domain))
+            }
           } ~ delete {
-            complete(deleteUser(username, domain))
+            authorizeAsync(canAccessDomain(domain, username)) {
+              complete(deleteUser(username, domain))
+            }
           } ~ put {
             entity(as[UpdateUserRequest]) { request =>
-              complete(updateUserRequest(username, request, domain))
+              authorizeAsync(canAccessDomain(domain, username)) {
+                complete(updateUserRequest(username, request, domain))
+              }
             }
           }
         } ~ pathPrefix("password") {
           pathEnd {
             put {
               entity(as[SetPasswordRequest]) { request =>
-                complete(setPasswordRequest(username, request, domain))
+                authorizeAsync(canAccessDomain(domain, username)) {
+                  complete(setPasswordRequest(username, request, domain))
+                }
               }
             }
           }
@@ -142,5 +158,11 @@ class DomainUserService(
   private[this] def toUserData(user: DomainUser): DomainUserData = {
     val DomainUser(userType, username, firstName, lastName, displayName, email) = user
     DomainUserData(username, firstName, lastName, displayName, email)
+  }
+
+  // Permission Checks
+
+  def canAccessDomain(domainFqn: DomainFqn, username: String): Future[Boolean] = {
+    (authorizationActor ? ConvergenceAuthorizedRequest(username, domainFqn, Set("domain-access"))).mapTo[Try[Boolean]].map(_.get)
   }
 }

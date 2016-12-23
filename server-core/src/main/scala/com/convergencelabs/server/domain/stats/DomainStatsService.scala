@@ -19,6 +19,7 @@ import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Directives.get
 import akka.http.scaladsl.server.Directives.pathEnd
 import akka.http.scaladsl.server.Directives.pathPrefix
+import akka.http.scaladsl.server.Directives.authorizeAsync
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.util.Timeout
@@ -30,6 +31,7 @@ object DomainStatsService {
 
 class DomainStatsService(
   private[this] val executionContext: ExecutionContext,
+  private[this] val authorizationActor: ActorRef,
   private[this] val domainRestActor: ActorRef,
   private[this] val defaultTimeout: Timeout)
     extends JsonSupport {

@@ -12,10 +12,13 @@ import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
+import akka.http.scaladsl.server.Directives.authorizeAsync
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.util.Timeout
+import com.convergencelabs.server.domain.AuthorizationActor.ConvergenceAuthorizedRequest
+import scala.util.Try
 
 object DomainAdminTokenService {
   case class AdminTokenRestResponse(token: String) extends AbstractSuccessResponse
@@ -23,6 +26,7 @@ object DomainAdminTokenService {
 
 class DomainAdminTokenService(
   private[this] val executionContext: ExecutionContext,
+  private[this] val authorizationActor: ActorRef,
   private[this] val domainRestActor: ActorRef,
   private[this] val defaultTimeout: Timeout)
     extends JsonSupport {
@@ -34,7 +38,9 @@ class DomainAdminTokenService(
     pathPrefix("adminToken") {
       pathEnd {
         get {
-          complete(getAdminToken(domain, username))
+          authorizeAsync(canAccessDomain(domain, username)) {
+            complete(getAdminToken(domain, username))
+          }
         }
       }
     }
@@ -45,5 +51,11 @@ class DomainAdminTokenService(
     (domainRestActor ? message).mapTo[String] map {
       case token: String => (StatusCodes.OK, AdminTokenRestResponse(token))
     }
+  }
+
+  // Permission Checks
+
+  def canAccessDomain(domainFqn: DomainFqn, username: String): Future[Boolean] = {
+    (authorizationActor ? ConvergenceAuthorizedRequest(username, domainFqn, Set("domain-access"))).mapTo[Try[Boolean]].map(_.get)
   }
 }

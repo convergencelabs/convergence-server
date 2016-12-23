@@ -33,10 +33,13 @@ import akka.http.scaladsl.server.Directives.pathEnd
 import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.post
 import akka.http.scaladsl.server.Directives.put
+import akka.http.scaladsl.server.Directives.authorizeAsync
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.server.domain.JwtAuthKey
+import com.convergencelabs.server.domain.AuthorizationActor.ConvergenceAuthorizedRequest
+import scala.util.Try
 
 object DomainKeyService {
   case class GetKeysRestResponse(keys: List[JwtAuthKey]) extends AbstractSuccessResponse
@@ -46,6 +49,7 @@ object DomainKeyService {
 
 class DomainKeyService(
   private[this] val executionContext: ExecutionContext,
+  private[this] val authorizationActor: ActorRef,
   private[this] val domainRestActor: ActorRef,
   private[this] val defaultTimeout: Timeout)
     extends JsonSupport {
@@ -57,21 +61,31 @@ class DomainKeyService(
     pathPrefix("keys") {
       pathEnd {
         get {
-          complete(getKeys(domain))
+          authorizeAsync(canAccessDomain(domain, username)) {
+            complete(getKeys(domain))
+          }
         } ~ post {
           entity(as[KeyInfo]) { key =>
-            complete(createKey(domain, key))
+            authorizeAsync(canAccessDomain(domain, username)) {
+              complete(createKey(domain, key))
+            }
           }
         }
       } ~ pathPrefix(Segment) { keyId =>
         get {
-          complete(getKey(domain, keyId))
+          authorizeAsync(canAccessDomain(domain, username)) {
+            complete(getKey(domain, keyId))
+          }
         } ~ put {
           entity(as[UpdateInfo]) { key =>
-            complete(updateKey(domain, keyId, key))
+            authorizeAsync(canAccessDomain(domain, username)) {
+              complete(updateKey(domain, keyId, key))
+            }
           }
         } ~ delete {
-          complete(deleteKey(domain, keyId))
+          authorizeAsync(canAccessDomain(domain, username)) {
+            complete(deleteKey(domain, keyId))
+          }
         }
       }
     }
@@ -86,7 +100,7 @@ class DomainKeyService(
   def getKey(domain: DomainFqn, keyId: String): Future[RestResponse] = {
     (domainRestActor ? DomainMessage(domain, GetDomainApiKey(keyId))).mapTo[Option[JwtAuthKey]] map {
       case Some(key) => (StatusCodes.OK, GetKeyRestResponse(key))
-      case None => NotFoundError
+      case None      => NotFoundError
     }
   }
 
@@ -108,5 +122,11 @@ class DomainKeyService(
     (domainRestActor ? DomainMessage(domain, DeleteDomainApiKey(keyId))) map { _ =>
       OkResponse
     }
+  }
+
+  // Permission Checks
+
+  def canAccessDomain(domainFqn: DomainFqn, username: String): Future[Boolean] = {
+    (authorizationActor ? ConvergenceAuthorizedRequest(username, domainFqn, Set("domain-access"))).mapTo[Try[Boolean]].map(_.get)
   }
 }

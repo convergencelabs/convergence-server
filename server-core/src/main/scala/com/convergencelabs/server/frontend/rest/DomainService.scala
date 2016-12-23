@@ -33,10 +33,15 @@ import akka.http.scaladsl.server.Directives.pathEnd
 import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.post
 import akka.http.scaladsl.server.Directives.put
+import akka.http.scaladsl.server.Directives.authorizeAsync
 import akka.http.scaladsl.server.directives.FutureDirectives.onSuccess
 import akka.http.scaladsl.server.directives.OnSuccessMagnet.apply
 import akka.pattern.ask
 import akka.util.Timeout
+import com.convergencelabs.server.datastore.PermissionsProfile
+import com.convergencelabs.server.datastore.PermissionsStoreActor.GetPermissionsProfileRequest
+import com.convergencelabs.server.domain.AuthorizationActor.ConvergenceAuthorizedRequest
+import scala.util.Try
 
 case class DomainsResponse(domains: List[DomainInfo]) extends AbstractSuccessResponse
 case class DomainResponse(domain: DomainInfo) extends AbstractSuccessResponse
@@ -54,6 +59,7 @@ case class UpdateDomainRestRequest(displayName: String)
 class DomainService(
   private[this] val executionContext: ExecutionContext,
   private[this] val authz: ActorRef,
+  private[this] val authorizationActor: ActorRef,
   private[this] val domainStoreActor: ActorRef,
   private[this] val domainManagerActor: ActorRef,
   private[this] val defaultTimeout: Timeout)
@@ -62,13 +68,13 @@ class DomainService(
   implicit val ec = executionContext
   implicit val t = defaultTimeout
 
-  val domainConfigService = new DomainConfigService(ec, domainManagerActor, t)
-  val domainUserService = new DomainUserService(ec, domainManagerActor, t)
-  val domainStatsService = new DomainStatsService(ec, domainManagerActor, t)
-  val domainCollectionService = new DomainCollectionService(ec, domainManagerActor, t)
-  val domainModelService = new DomainModelService(ec, domainManagerActor, t)
-  val domainKeyService = new DomainKeyService(ec, domainManagerActor, t)
-  val domainAdminTokenService = new DomainAdminTokenService(ec, domainManagerActor, t)
+  val domainConfigService = new DomainConfigService(ec, authorizationActor, domainManagerActor, t)
+  val domainUserService = new DomainUserService(ec, authorizationActor, domainManagerActor, t)
+  val domainStatsService = new DomainStatsService(ec, authorizationActor, domainManagerActor, t)
+  val domainCollectionService = new DomainCollectionService(ec, authorizationActor, domainManagerActor, t)
+  val domainModelService = new DomainModelService(ec, authorizationActor, domainManagerActor, t)
+  val domainKeyService = new DomainKeyService(ec, authorizationActor, domainManagerActor, t)
+  val domainAdminTokenService = new DomainAdminTokenService(ec, authorizationActor, domainManagerActor, t)
 
   val route = { username: String =>
     pathPrefix("domains") {
@@ -83,31 +89,30 @@ class DomainService(
       } ~ pathPrefix(Segment / Segment) { (namespace, domainId) =>
         {
           val domain = DomainFqn(namespace, domainId)
-          onSuccess((authz ? DomainAuthorization(username, domain)).mapTo[AuthorizationResult]) {
-            case AuthorizationGranted =>
-              pathEnd {
-                get {
-                  complete(getDomain(namespace, domainId))
-                } ~ delete {
-                  complete(deleteDomain(namespace, domainId))
-                } ~ put {
-                  entity(as[UpdateDomainRestRequest]) { request =>
-                    complete(updateDomain(namespace, domainId, request))
-                  }
+          pathEnd {
+            get {
+              authorizeAsync(canAccessDomain(domain, username)) {
+                complete(getDomain(namespace, domainId))
+              }
+            } ~ delete {
+              authorizeAsync(canAccessDomain(domain, username)) {
+                complete(deleteDomain(namespace, domainId))
+              }
+            } ~ put {
+              entity(as[UpdateDomainRestRequest]) { request =>
+                authorizeAsync(canAccessDomain(domain, username)) {
+                  complete(updateDomain(namespace, domainId, request))
                 }
-              } ~
-                domainUserService.route(username, domain) ~
-                domainCollectionService.route(username, domain) ~
-                domainModelService.route(username, domain) ~
-                domainKeyService.route(username, domain) ~
-                domainAdminTokenService.route(username, domain) ~
-                domainConfigService.route(username, domain) ~
-                domainStatsService.route(username, domain)
-            case AuthorizationDenied =>
-              complete(ForbiddenError)
-            case AuthorizationFailure =>
-              complete(InternalServerError)
-          }
+              }
+            }
+          } ~
+            domainUserService.route(username, domain) ~
+            domainCollectionService.route(username, domain) ~
+            domainModelService.route(username, domain) ~
+            domainKeyService.route(username, domain) ~
+            domainAdminTokenService.route(username, domain) ~
+            domainConfigService.route(username, domain) ~
+            domainStatsService.route(username, domain)
         }
       }
     }
@@ -139,7 +144,7 @@ class DomainService(
           domain.domainFqn.domainId,
           domain.owner,
           domain.status.toString())))
-      case None => 
+      case None =>
         NotFoundError
     }
   }
@@ -152,5 +157,11 @@ class DomainService(
     val UpdateDomainRestRequest(displayName) = request
     val message = UpdateDomainRequest(namespace, domainId, displayName)
     (domainStoreActor ? message) map { _ => OkResponse }
+  }
+
+  // Permission Checks
+
+  def canAccessDomain(domainFqn: DomainFqn, username: String): Future[Boolean] = {
+    (authorizationActor ? ConvergenceAuthorizedRequest(username, domainFqn, Set("domain-access"))).mapTo[Try[Boolean]].map(_.get)
   }
 }

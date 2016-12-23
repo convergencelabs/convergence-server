@@ -25,6 +25,7 @@ import akka.http.scaladsl.server.Directives.pathEnd
 import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.post
 import akka.http.scaladsl.server.Directives.put
+import akka.http.scaladsl.server.Directives.authorizeAsync
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.util.Timeout
@@ -32,6 +33,8 @@ import com.convergencelabs.server.frontend.rest.DomainConfigService.AnonymousAut
 import com.convergencelabs.server.datastore.ConfigStoreActor.GetAnonymousAuth
 import com.convergencelabs.server.frontend.rest.DomainConfigService.AnonymousAuthResponse
 import com.convergencelabs.server.datastore.ConfigStoreActor.SetAnonymousAuth
+import com.convergencelabs.server.domain.AuthorizationActor.ConvergenceAuthorizedRequest
+import scala.util.Try
 
 object DomainConfigService {
   case class AnonymousAuthPut(enabled: Boolean)
@@ -40,6 +43,7 @@ object DomainConfigService {
 
 class DomainConfigService(
   private[this] val executionContext: ExecutionContext,
+  private[this] val authorizationActor: ActorRef,
   private[this] val domainRestActor: ActorRef,
   private[this] val defaultTimeout: Timeout)
     extends JsonSupport {
@@ -52,25 +56,35 @@ class DomainConfigService(
       pathPrefix("anonymousAuth") {
         pathEnd {
           get {
-            complete(getAnonymousAuthEnabled(domain))
+            authorizeAsync(canAccessDomain(domain, username)) {
+              complete(getAnonymousAuthEnabled(domain))
+            }
           } ~ put {
             entity(as[AnonymousAuthPut]) { request =>
-              complete(setAnonymousAuthEnabled(domain, request))
+              authorizeAsync(canAccessDomain(domain, username)) {
+                complete(setAnonymousAuthEnabled(domain, request))
+              }
             }
           }
-        } 
+        }
       }
     }
   }
 
   def getAnonymousAuthEnabled(domain: DomainFqn): Future[RestResponse] = {
     val message = DomainMessage(domain, GetAnonymousAuth)
-    (domainRestActor ? message).mapTo[Boolean] map 
-    (enabled => (StatusCodes.OK, AnonymousAuthResponse(enabled)))
+    (domainRestActor ? message).mapTo[Boolean] map
+      (enabled => (StatusCodes.OK, AnonymousAuthResponse(enabled)))
   }
-  
+
   def setAnonymousAuthEnabled(domain: DomainFqn, request: AnonymousAuthPut): Future[RestResponse] = {
     val message = DomainMessage(domain, SetAnonymousAuth(request.enabled))
-    (domainRestActor ? message) map  (_ => OkResponse)
+    (domainRestActor ? message) map (_ => OkResponse)
+  }
+
+  // Permission Checks
+
+  def canAccessDomain(domainFqn: DomainFqn, username: String): Future[Boolean] = {
+    (authorizationActor ? ConvergenceAuthorizedRequest(username, domainFqn, Set("domain-access"))).mapTo[Try[Boolean]].map(_.get)
   }
 }
