@@ -33,6 +33,9 @@ import com.convergencelabs.server.db.schema.ConvergenceSchemaManager
 import com.convergencelabs.server.datastore.DeltaHistoryStore
 import com.convergencelabs.server.datastore.DatabaseProvider
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.convergencelabs.server.datastore.PermissionsStore
+import com.convergencelabs.server.datastore.Permission
+import com.convergencelabs.server.datastore.Role
 
 object ConvergenceServerNode extends Logging {
   def main(args: Array[String]): Unit = {
@@ -173,6 +176,16 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
         logger.info("Schema installation complete")
       }.get
 
+      val permissionsStore = new PermissionsStore(dbProvider)
+      
+      // Create Permissions
+      permissionsStore.createPermission(Permission("domain-access", "Domain Access", "Allows a user to access a domain"))
+      permissionsStore.createPermission(Permission("manage-permissions", "Manage Permissions", "Allows a user to manage permissions and roles"))
+      
+      // Create Roles
+      permissionsStore.createRole(Role("admin", List("domain-access", "manage-permissions"), "Domain Administrator"))
+      permissionsStore.createRole(Role("developer", List("domain-access"), "Domain Developer"))
+      
       dbProvider.shutdown()
     } else {
       logger.info("Convergence database exists.")
