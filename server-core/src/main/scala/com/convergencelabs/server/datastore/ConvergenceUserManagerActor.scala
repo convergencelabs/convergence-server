@@ -70,6 +70,8 @@ class ConvergenceUserManagerActor private[datastore] (
     val CreateConvergenceUserRequest(username, email, firstName, lastName, displayName, password) = message
     val origSender = sender
     userStore.createUser(User(username, email, firstName, lastName, displayName), password) map { _ =>
+      origSender ! (())
+      
       log.debug("User created.  Creating domains")
       FutureUtils.seqFutures(autoCreateConfigs) { config =>
         createDomain(
@@ -77,8 +79,6 @@ class ConvergenceUserManagerActor private[datastore] (
             config.getString("displayName"),
             config.getBoolean("anonymousAuth"))
       }
-
-      origSender ! (())
     } recover {
       case e: Throwable =>
         origSender ! Status.Failure(e)
