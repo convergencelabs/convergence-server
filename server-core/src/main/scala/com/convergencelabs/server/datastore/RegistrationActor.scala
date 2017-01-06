@@ -65,14 +65,16 @@ class RegistrationActor private[datastore] (dbProvider: DatabaseProvider, userMa
     registrationStore.isRegistrationApproved(email, token).map {
       case Some(true) => {
         val req = CreateConvergenceUserRequest(username, email, fname, lname, s"$fname $lname", password)
-        (userManager ? req).mapTo[String] onSuccess {
-          case result: String => {
+        (userManager ? req) onComplete {
+          case Success(_) =>
+            log.debug(s"User ${username} created, removing registration entry.")
+            
             registrationStore.removeRegistration(token).recover {
               case cause: Exception =>
                 log.error(cause, s"Could not remove registration request entry for: {$email}")
             }
             
-            origSender ! result
+            origSender ! Success(())
 
             val welcomeTxt = if (fname != null && fname.nonEmpty) s"${fname}, welcome" else "Welcome"
             val templateHtml = templates.email.html.accountCreated(username, welcomeTxt)
@@ -91,7 +93,9 @@ class RegistrationActor private[datastore] (dbProvider: DatabaseProvider, userMa
                 log.error(cause, s"Could not send registration approval notification email for: {$email}")
             }
             ()
-          }
+          case Failure(cause) =>
+            log.error(cause, s"Could not create user: ${username}")
+            origSender ! akka.actor.Status.Failure(cause)
         }
       }
       case Some(false) =>
