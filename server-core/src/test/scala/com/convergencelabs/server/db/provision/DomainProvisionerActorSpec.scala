@@ -39,11 +39,11 @@ class DomainProvisionerActorSpec
     "receiving a ProvisionDomain" must {
       "respond with DomainProvisioned if the provisioing is successful" in new TestFixture {
         Mockito
-          .when(provisioner.provisionDomain(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword"))
+          .when(provisioner.provisionDomain(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword", false))
           .thenReturn(Success(()))
 
         val client = new TestProbe(system)
-        val message = ProvisionDomain(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword")
+        val message = ProvisionDomain(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword", false)
         domainProvisionerActor.tell(message, client.ref)
 
         client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[DomainProvisioned])
@@ -51,11 +51,11 @@ class DomainProvisionerActorSpec
       
       "respond with a failure if the provisioing is not successful" in new TestFixture {
         Mockito
-          .when(provisioner.provisionDomain(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword"))
+          .when(provisioner.provisionDomain(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword", false))
           .thenReturn(Failure(new IllegalStateException()))
 
         val client = new TestProbe(system)
-        val message = ProvisionDomain(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword")
+        val message = ProvisionDomain(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword", false)
         domainProvisionerActor.tell(message, client.ref)
 
         client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Status.Failure])

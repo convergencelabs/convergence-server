@@ -50,7 +50,7 @@ class DomainStoreActor private[datastore] (
   }
 
   def createDomain(createRequest: CreateDomainRequest): Unit = {
-    val CreateDomainRequest(namespace, domainId, displayName, ownerUsername) = createRequest
+    val CreateDomainRequest(namespace, domainId, displayName, ownerUsername, anonymousAuth) = createRequest
     log.debug(s"Receved request to create domain: ${namespace}/${domainId}")
 
     val dbName = Math.abs(UUID.randomUUID().getLeastSignificantBits).toString
@@ -75,7 +75,7 @@ class DomainStoreActor private[datastore] (
       reply(Success(domainDbInfo), currentSender)
 
       implicit val requstTimeout = Timeout(4 minutes) // FXIME hardcoded timeout
-      val message = ProvisionDomain(domainFqn, dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword)
+      val message = ProvisionDomain(domainFqn, dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword, anonymousAuth)
       (domainProvisioner ? message).mapTo[DomainProvisioned] onComplete {
         case Success(DomainProvisioned()) =>
           log.debug(s"Domain created, setting status to online: $dbName")
@@ -176,7 +176,7 @@ object DomainStoreActor {
     provisionerActor: ActorRef): Props =
     Props(new DomainStoreActor(dbProvider, provisionerActor))
 
-  case class CreateDomainRequest(namespace: String, domainId: String, displayName: String, owner: String)
+  case class CreateDomainRequest(namespace: String, domainId: String, displayName: String, owner: String, anonymousAuth: Boolean)
   case class UpdateDomainRequest(namespace: String, domainId: String, displayName: String)
   case class DeleteDomainRequest(namespace: String, domainId: String)
   case class GetDomainRequest(namespace: String, domainId: String)

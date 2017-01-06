@@ -89,7 +89,7 @@ class DomainConfigStoreSpec
 
   def withTestData(testCode: DomainConfigStore => Any): Unit = {
     this.withPersistenceStore { store =>
-      store.initializeDomainConfig(initialAdminKeyPair, initialSnapshotConfig)
+      store.initializeDomainConfig(initialAdminKeyPair, initialSnapshotConfig, false)
       testCode(store)
     }
   }

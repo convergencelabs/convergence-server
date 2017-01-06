@@ -33,14 +33,17 @@ class DomainConfigStore (dbProvider: DatabaseProvider)
     extends AbstractDatabasePersistence(dbProvider)
     with Logging {
 
-  def initializeDomainConfig(tokenKeyPair: JwtKeyPair, modelSnapshotConfig: ModelSnapshotConfig): Try[Unit] = tryWithDb { db =>
+  def initializeDomainConfig(
+      tokenKeyPair: JwtKeyPair, 
+      modelSnapshotConfig: ModelSnapshotConfig,
+      anonymousAuthEnabled: Boolean): Try[Unit] = tryWithDb { db =>
     db.command(new OCommandSQL("DELETE FROM DomainConfig")).execute()
 
     val doc = db.newInstance("DomainConfig")
     doc.field(Fields.ModelSnapshotConfig, modelSnapshotConfig.asODocument, OType.EMBEDDED)
     doc.field(Fields.AdminPublicKey, tokenKeyPair.publicKey)
     doc.field(Fields.AdminPrivateKey, tokenKeyPair.privateKey)
-    doc.field(Fields.AnonymousAuth, false)
+    doc.field(Fields.AnonymousAuth, anonymousAuthEnabled)
     db.save(doc)
     ()
   }

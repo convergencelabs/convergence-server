@@ -66,7 +66,7 @@ class ConvergenceImporter(
         logger.debug(s"Importing domaing: ${domainData.namespace}/${domainData.id}")
 
         val domainCreateRequest = CreateDomainRequest(
-          domainData.namespace, domainData.id, domainData.displayName, domainData.owner)
+          domainData.namespace, domainData.id, domainData.displayName, domainData.owner, false)
 
         // FXIME hardcoded timeout
         implicit val requstTimeout = Timeout(4 minutes)

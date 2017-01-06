@@ -88,7 +88,7 @@ class DomainImporter(
           false,
           JavaDuration.of(0, ChronoUnit.MINUTES),
           JavaDuration.of(0, ChronoUnit.MINUTES))
-        persistence.configStore.initializeDomainConfig(keyPair, defaultSnapshotConfig)
+        persistence.configStore.initializeDomainConfig(keyPair, defaultSnapshotConfig, false)
     } flatMap { _ =>
       persistence.configStore.setAnonymousAuthEnabled(data.config.anonymousAuth)
     }

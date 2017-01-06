@@ -119,7 +119,7 @@ class DomainService(
 
   def createDomain(createRequest: CreateDomainRestRequest, username: String): Future[RestResponse] = {
     val CreateDomainRestRequest(namespace, domainId, displayName) = createRequest
-    val message = CreateDomainRequest(namespace, domainId, displayName, username)
+    val message = CreateDomainRequest(namespace, domainId, displayName, username, false)
     (domainStoreActor ? message) map { _ => CreateRestResponse }
   }
 

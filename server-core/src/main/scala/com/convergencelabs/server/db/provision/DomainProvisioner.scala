@@ -60,7 +60,8 @@ class DomainProvisioner(
     dbUsername: String,
     dbPassword: String,
     dbAdminUsername: String,
-    dbAdminPassword: String): Try[Unit] = {
+    dbAdminPassword: String,
+    anonymousAuth: Boolean): Try[Unit] = {
     val dbUri = computeDbUri(dbName)
     logger.debug(s"Provisioning domain: $dbUri")
     createDatabase(dbUri) flatMap { _ =>
@@ -76,7 +77,7 @@ class DomainProvisioner(
       povider.shutdown()
       result
     } flatMap { _ =>
-      initDomain(dbUri, dbUsername, dbPassword)
+      initDomain(dbUri, dbUsername, dbPassword, anonymousAuth)
     }
   }
 
@@ -138,7 +139,7 @@ class DomainProvisioner(
     }
   }
 
-  private[this] def initDomain(uri: String, username: String, password: String): Try[Unit] = {
+  private[this] def initDomain(uri: String, username: String, password: String, anonymousAuth: Boolean): Try[Unit] = {
     logger.debug(s"Connecting as normal user to initialize domain: ${uri}")
     val db = new ODatabaseDocumentTx(uri)
     db.open(username, password)
@@ -163,7 +164,8 @@ class DomainProvisioner(
         logger.debug(s"Iniitalizing domain: ${uri}")
         persistenceProvider.configStore.initializeDomainConfig(
           keyPair,
-          DefaultSnapshotConfig)
+          DefaultSnapshotConfig,
+          anonymousAuth)
       } map { _ =>
         logger.debug(s"Domain initialized: ${uri}")
         persistenceProvider.shutdown()
