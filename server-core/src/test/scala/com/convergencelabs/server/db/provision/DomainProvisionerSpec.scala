@@ -34,7 +34,7 @@ class DomainProvisionerSpec()
         Mockito.when(store.saveDomainDeltaHistory(Matchers.any())).thenReturn(Success(()))
         
         val provisioner = new DomainProvisioner(store, "remote:localhost", "root", "password", true)
-        provisioner.provisionDomain(DomainFqn("some", "domain"), "DomainProvisionerTest", "writer", "wpassword", "admin", "apassword").get
+        provisioner.provisionDomain(DomainFqn("some", "domain"), "DomainProvisionerTest", "writer", "wpassword", "admin", "apassword", false).get
       }
     }
   }

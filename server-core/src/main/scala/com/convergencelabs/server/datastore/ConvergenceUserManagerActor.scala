@@ -72,7 +72,10 @@ class ConvergenceUserManagerActor private[datastore] (
     userStore.createUser(User(username, email, firstName, lastName, displayName), password) map { _ =>
       log.debug("User created.  Creating domains")
       FutureUtils.seqFutures(autoCreateConfigs) { config =>
-        createDomain(username, config.getString("id"), config.getString("displayName"))
+        createDomain(
+            username, config.getString("id"), 
+            config.getString("displayName"),
+            config.getBoolean("anonymousAuth"))
       }
 
       origSender ! (())
@@ -113,12 +116,12 @@ class ConvergenceUserManagerActor private[datastore] (
     reply(userStore.setUserPassword(username, password))
   }
 
-  private[this] def createDomain(username: String, id: String, displayName: String): Future[Any] = {
+  private[this] def createDomain(username: String, id: String, displayName: String, anonymousAuth: Boolean): Future[Any] = {
     log.debug(s"Requesting domain creation for user '${username}': $id")
 
     // FIXME hard coded
     implicit val requstTimeout = Timeout(240 seconds)
-    val message = CreateDomainRequest(username, id, displayName, username)
+    val message = CreateDomainRequest(username, id, displayName, username, anonymousAuth)
     (domainStoreActor ? message).andThen {
       case Success(_) =>
         log.debug(s"Domain '${id}' created for '${username}'");

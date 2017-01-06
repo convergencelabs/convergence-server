@@ -19,10 +19,10 @@ class DomainProvisionerActor(private[this] val provisioner: DomainProvisioner) e
   }
 
   private[this] def provisionDomain(provision: ProvisionDomain): Unit = {
-    val ProvisionDomain(fqn, databaseName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword) = provision
+    val ProvisionDomain(fqn, databaseName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword, anonymousAuth) = provision
     val currentSender = sender
     // make this asynchronous in the future
-    provisioner.provisionDomain(fqn, databaseName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword) map { _ =>
+    provisioner.provisionDomain(fqn, databaseName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword, anonymousAuth) map { _ =>
       currentSender ! DomainProvisioned()
     } recover {
       case cause: Exception =>
@@ -53,7 +53,8 @@ object DomainProvisionerActor {
     dbUsername: String,
     dbPassword: String,
     dbAdminUsername: String,
-    dbAdminPassword: String)
+    dbAdminPassword: String,
+    anonymousAuth: Boolean)
 
   case class DomainProvisioned()
 
