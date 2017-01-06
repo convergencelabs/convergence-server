@@ -67,7 +67,12 @@ class RegistrationActor private[datastore] (dbProvider: DatabaseProvider, userMa
         val req = CreateConvergenceUserRequest(username, email, fname, lname, s"$fname $lname", password)
         (userManager ? req).mapTo[String] onSuccess {
           case result: String => {
-            registrationStore.removeRegistration(token)
+            registrationStore.removeRegistration(token).recover {
+              case cause: Exception =>
+                log.error(cause, s"Could not remove registration request entry for: {$email}")
+            }
+            
+            origSender ! result
 
             val welcomeTxt = if (fname != null && fname.nonEmpty) s"${fname}, welcome" else "Welcome"
             val templateHtml = templates.email.html.accountCreated(username, welcomeTxt)
@@ -77,7 +82,15 @@ class RegistrationActor private[datastore] (dbProvider: DatabaseProvider, userMa
             newAccountEmail.addTo(email)
             newAccountEmail.send()
 
-            origSender ! result
+            Future {
+              newAccountEmail.send()
+            } onComplete {
+              case Success(_) =>
+                log.debug(s"Sent registration approval notification to: ${email}")
+              case Failure(cause) =>
+                log.error(cause, s"Could not send registration approval notification email for: {$email}")
+            }
+            ()
           }
         }
       }
@@ -152,12 +165,12 @@ class RegistrationActor private[datastore] (dbProvider: DatabaseProvider, userMa
       val approvalEmail = EmailUtilities.createHtmlEmail(smtpConfig, templateHtml, templateTxt.toString());
       approvalEmail.setSubject(s"Your Convergence account request has been approved")
       approvalEmail.addTo(email)
-      
+
       Future {
         approvalEmail.send()
         log.debug(s"Sent registration approval email to: ${email}")
       } onFailure {
-        case cause: Exception => 
+        case cause: Exception =>
           log.error(cause, "Could not send registration approval message to: ${email}")
       }
       ()
