@@ -18,6 +18,7 @@ import org.json4s.JsonDSL.pair2Assoc
 import org.json4s.JsonDSL.pair2jvalue
 import org.json4s.JsonDSL.seq2jvalue
 import org.json4s.JsonDSL.string2jvalue
+import org.json4s.JsonDSL.long2jvalue
 
 import com.convergencelabs.server.domain.model.data.DataValue
 import com.convergencelabs.server.frontend.realtime.model.OperationType
@@ -32,6 +33,7 @@ import AppliedOperationSerializer.T
 import AppliedOperationSerializer.V
 import AppliedOperationSerializer.L
 import Utils.jnumberToDouble
+import Utils.jnumberToInstant
 
 
 
@@ -94,6 +96,9 @@ class AppliedOperationSerializer extends CustomSerializer[AppliedOperationData](
     AppliedNumberAddOperationData(id, noOp, jnumberToDouble(value))
   case JObject(List((T, JInt(Big(OperationType.NumberValue))), (D, JString(id)), (N, JBool(noOp)), (V, value), (O, oldValue))) =>
     AppliedNumberSetOperationData(id, noOp, jnumberToDouble(value), Option(oldValue) map { jnumberToDouble })
+  
+  case JObject(List((T, JInt(Big(OperationType.DateValue))), (D, JString(id)), (N, JBool(noOp)), (V, value), (O, oldValue))) =>
+    AppliedDateSetOperationData(id, noOp, jnumberToInstant(value), Option(oldValue) map { jnumberToInstant })
 
   case JObject(List((T, JInt(Big(OperationType.BooleanValue))), (D, JString(id)), (N, JBool(noOp)), (V, JBool(value)), (O, JBool(oldValue)))) =>
     AppliedBooleanSetOperationData(id, noOp, value, Option(oldValue))
@@ -141,6 +146,9 @@ class AppliedOperationSerializer extends CustomSerializer[AppliedOperationData](
     (T -> OperationType.NumberAdd) ~ (D -> id) ~ (N -> noOp) ~ (V -> value)
   case AppliedNumberSetOperationData(id, noOp, value, oldValue) =>
     (T -> OperationType.NumberValue) ~ (D -> id) ~ (N -> noOp) ~ (V -> value) ~ (O -> oldValue.map(double2jvalue).getOrElse(null))
+    
+  case AppliedDateSetOperationData(id, noOp, value, oldValue) =>
+    (T -> OperationType.DateValue) ~ (D -> id) ~ (N -> noOp) ~ (V -> value.getEpochSecond) ~ (O -> oldValue.map(_.getEpochSecond).map(long2jvalue).getOrElse(null))
 
   case AppliedBooleanSetOperationData(id, noOp, value, oldValue) =>
     (T -> OperationType.BooleanValue) ~ (D -> id) ~ (N -> noOp) ~ (V -> value) ~ (O -> oldValue.map(boolean2jvalue).getOrElse(null))

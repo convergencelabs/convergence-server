@@ -11,6 +11,8 @@ import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.convergencelabs.server.domain.model.data.NullValue
 import scala.collection.JavaConverters._
+import com.convergencelabs.server.domain.model.data.DateValue
+import java.util.Date
 
 object OrientDataValueBuilder {
 
@@ -26,6 +28,7 @@ object OrientDataValueBuilder {
       case value: BooleanValue => booleanValueToODocument(value, modelDoc)
       case value: DoubleValue => doubleValueToODocument(value, modelDoc)
       case value: NullValue => nullValueToODocument(value, modelDoc)
+      case value: DateValue => dateValueToODocument(value, modelDoc)
     }
   }
 
@@ -76,5 +79,13 @@ object OrientDataValueBuilder {
     nullValue.field(Model, modelDoc)
     nullValue.field(Id, value.id)
     nullValue
+  }
+  
+  def dateValueToODocument(value: DateValue, modelDoc: OIdentifiable): ODocument = {
+    val dateValue = new ODocument("DateValue")
+    dateValue.field(Model, modelDoc)
+    dateValue.field(Id, value.id)
+    dateValue.field(Value, Date.from(value.value))
+    dateValue
   }
 }

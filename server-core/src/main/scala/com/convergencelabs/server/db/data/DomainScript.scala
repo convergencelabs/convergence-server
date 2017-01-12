@@ -78,6 +78,8 @@ case class CreateNullValue(id: String) extends CreateDataValue
 
 case class CreateStringValue(id: String, value: String) extends CreateDataValue
 
+case class CreateDateValue(id: String, value: Instant) extends CreateDataValue
+
 case class CreateModelOperation(
   version: Long,
   timestamp: Instant,
@@ -120,6 +122,9 @@ case class CreateArrayRemoveOperation(element: String, noOp: Boolean, index: Int
 case class CreateArrayReplaceOperation(element: String, noOp: Boolean, index: Int, value: CreateDataValue, oldValue: Option[CreateDataValue]) extends CreateArrayOperation
 case class CreateArrayReorderOperation(element: String, noOp: Boolean, fromIndex: Int, toIndex: Int) extends CreateArrayOperation
 case class CreateArraySetOperation(element: String, noOp: Boolean, value: List[CreateDataValue], oldValue: Option[List[CreateDataValue]]) extends CreateArrayOperation
+
+sealed trait CreateDateOperation extends CreateDiscreteOperation
+case class CreateDateSetOperation(element: String, noOp: Boolean, value: Instant, oldValue: Option[Instant]) extends CreateBooleanOperation
 
 case class CreateModelSnapshot(
   version: Long,

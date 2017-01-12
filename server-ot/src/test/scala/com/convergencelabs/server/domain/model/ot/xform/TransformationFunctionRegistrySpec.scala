@@ -19,6 +19,7 @@ import com.convergencelabs.server.domain.model.ot.xform.reference.StringInsertRa
 import com.convergencelabs.server.domain.model.ot.xform.reference.StringRemoveRangeTF
 import com.convergencelabs.server.domain.model.ot.xform.reference.StringSetRangeTF
 import com.convergencelabs.server.domain.model.ReferenceValue
+import java.time.Instant
 
 // scalastyle:off multiple.string.literals
 class TransformationFunctionRegistrySpec extends WordSpec with Matchers {
@@ -44,6 +45,8 @@ class TransformationFunctionRegistrySpec extends WordSpec with Matchers {
   val NumberSet = NumberSetOperation(valueId, false, 1d)
 
   val BooleanSet = BooleanSetOperation(valueId, false, true)
+  
+  val DateSet = DateSetOperation(valueId, false, Instant.now())
   
   val referenceKey = "refKey"
   
@@ -428,6 +431,18 @@ class TransformationFunctionRegistrySpec extends WordSpec with Matchers {
         val tfr = new TransformationFunctionRegistry()
         val tf = tfr.getOperationTransformationFunction(BooleanSet, BooleanSet)
         tf.value shouldBe BooleanSetSetTF
+      }
+    }
+    
+    ///////////////////////////////////////////////////////////////////////////
+    // Date Operations
+    ///////////////////////////////////////////////////////////////////////////
+
+    "getting a TransformationFunction for an DateSetOperation and anoter DateOperation" must {
+      "return the DateSetSetTF when a DateSetOperation and a DateSetOperation are passed in" in {
+        val tfr = new TransformationFunctionRegistry()
+        val tf = tfr.getOperationTransformationFunction(DateSet, DateSet)
+        tf.value shouldBe DateSetSetTF
       }
     }
     

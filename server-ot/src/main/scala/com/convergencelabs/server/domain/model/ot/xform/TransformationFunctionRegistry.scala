@@ -90,6 +90,9 @@ private[model] class TransformationFunctionRegistry {
   // Boolean Functions
   otfs.register[BooleanSetOperation, BooleanSetOperation](BooleanSetSetTF)
   
+  // Date Functions
+  otfs.register[DateSetOperation, DateSetOperation](DateSetSetTF)
+  
   rtfs.register[StringInsertOperation](ReferenceType.Index, StringInsertIndexTF)
   rtfs.register[StringRemoveOperation](ReferenceType.Index, StringRemoveIndexTF)
   rtfs.register[StringSetOperation](ReferenceType.Index, StringSetIndexTF)

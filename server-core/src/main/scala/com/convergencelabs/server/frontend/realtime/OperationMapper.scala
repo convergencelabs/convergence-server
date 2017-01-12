@@ -21,6 +21,7 @@ import com.convergencelabs.server.domain.model.ot.StringSetOperation
 import org.json4s.JsonAST.JNumber
 import org.json4s.JsonAST.JValue
 import org.json4s.JsonAST.JDouble
+import com.convergencelabs.server.domain.model.ot.DateSetOperation
 
 private[realtime] object OperationMapper {
 
@@ -57,6 +58,8 @@ private[realtime] object OperationMapper {
       case NumberSetOperationData(id, noOp, number) => NumberSetOperation(id, noOp, number)
 
       case BooleanSetOperationData(id, noOp, value) => BooleanSetOperation(id, noOp, value)
+      
+      case DateSetOperationData(id, noOp, value) => DateSetOperation(id, noOp, value)
     }
   }
   // scalastyle:on cyclomatic.complexity
@@ -94,6 +97,8 @@ private[realtime] object OperationMapper {
       case NumberSetOperation(id, noOp, number) => NumberSetOperationData(id, noOp, number)
 
       case BooleanSetOperation(id, noOp, value) => BooleanSetOperationData(id, noOp, value)
+      
+      case DateSetOperation(id, noOp, value) => DateSetOperationData(id, noOp, value)
     }
   }
   // scalastyle:on cyclomatic.complexity

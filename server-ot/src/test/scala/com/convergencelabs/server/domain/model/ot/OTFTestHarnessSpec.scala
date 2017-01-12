@@ -35,6 +35,7 @@ import OTFTestHarnessSpec.NoOp
 import OTFTestHarnessSpec.Prop
 import OTFTestHarnessSpec.Type
 import OTFTestHarnessSpec.Value
+import java.time.Instant
 
 object OTFTestHarnessSpec {
   val Type = "type"
@@ -133,6 +134,9 @@ class OTFTestHarnessSpec extends FunSpec {
 
       case JObject(List((Type, JString("BooleanSet")), (NoOp, JBool(noOp)), (Value, JBool(value)))) =>
         BooleanSetOperation(valueId, noOp, value)
+        
+      case JObject(List((Type, JString("DateSet")), (NoOp, JBool(noOp)), (Value, value))) =>
+        DateSetOperation(valueId, noOp, Instant.ofEpochMilli(value.values.toString().toLong))
 
       // FIXME this is a bit of a hack due to number types.
       case JObject(List((Type, JString("NumberAdd")), (NoOp, JBool(noOp)), (Value, value))) =>

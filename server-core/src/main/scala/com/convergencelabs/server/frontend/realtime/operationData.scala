@@ -4,6 +4,7 @@ import org.json4s.JsonAST.JValue
 import org.json4s.JsonAST.JArray
 import org.json4s.JsonAST.JObject
 import com.convergencelabs.server.domain.model.data.DataValue
+import java.time.Instant
 
 sealed trait OperationData
 
@@ -13,6 +14,8 @@ sealed trait DiscreteOperationData extends OperationData {
   def d: String
   def n: Boolean
 }
+
+// TODO: fix misspelling in operation
 
 sealed trait StringOperaitonData extends DiscreteOperationData
 case class StringInsertOperationData(d: String, n: Boolean, i: Int, v: String) extends StringOperaitonData
@@ -38,3 +41,6 @@ case class NumberSetOperationData(d: String, n: Boolean, v: Double) extends Numb
 
 sealed trait BooleanOperaitonData extends DiscreteOperationData
 case class BooleanSetOperationData(d: String, n: Boolean, v: Boolean) extends BooleanOperaitonData
+
+sealed trait DateOperationData extends DiscreteOperationData
+case class DateSetOperationData(d: String, n: Boolean, v: Instant) extends BooleanOperaitonData

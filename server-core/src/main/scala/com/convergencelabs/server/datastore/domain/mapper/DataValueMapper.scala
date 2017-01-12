@@ -10,6 +10,7 @@ import com.convergencelabs.server.domain.model.data.DoubleValue
 import com.convergencelabs.server.domain.model.data.NullValue
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.model.data.StringValue
+import com.convergencelabs.server.domain.model.data.DateValue
 import com.orientechnologies.orient.core.record.impl.ODocument
 
 import ArrayValueMapper.ArrayValueToODocument
@@ -36,6 +37,10 @@ import StringValueMapper.{ DocumentClassName => StringValueDocName }
 import StringValueMapper.ODocumentToStringValue
 import StringValueMapper.{ OpDocumentClassName => StringOpValueDocName }
 import StringValueMapper.StringValueToODocument
+import DateValueMapper.{ DocumentClassName => DateValueDocName }
+import DateValueMapper.{ OpDocumentClassName => DateOpValueDocName }
+import DateValueMapper.DateValueToODocument
+import DateValueMapper.ODocumentToDateValue
 
 object DataValueMapper extends ODocumentMapper {
 
@@ -51,6 +56,7 @@ object DataValueMapper extends ODocumentMapper {
       case data: BooleanValue => data.asODocument
       case data: DoubleValue => data.asODocument
       case data: NullValue => data.asODocument
+      case data: DateValue => data.asODocument
     }
   }
 
@@ -66,6 +72,7 @@ object DataValueMapper extends ODocumentMapper {
       case BooleanValueDocName | BooleanOpValueDocName => doc.asBooleanValue
       case DoubleValueDocName | DoubleOpValueDocName => doc.asDoubleValue
       case NullValueDocName | NullOpValueDocName => doc.asNullValue
+      case DateValueDocName | DateOpValueDocName => doc.asDateValue
     }
   }
 }

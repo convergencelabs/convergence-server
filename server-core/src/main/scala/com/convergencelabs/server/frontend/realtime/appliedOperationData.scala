@@ -4,6 +4,7 @@ import org.json4s.JsonAST.JValue
 import org.json4s.JsonAST.JArray
 import org.json4s.JsonAST.JObject
 import com.convergencelabs.server.domain.model.data.DataValue
+import java.time.Instant
 
 
 case class ModelOperationData(c: String, m: String, v: Long, p: Long, u: String, s: String, o: AppliedOperationData)
@@ -17,6 +18,7 @@ sealed trait AppliedDiscreteOperationData extends AppliedOperationData {
   def n: Boolean
 }
 
+// TODO: fix misspelling in operation
 sealed trait AppliedStringOperaitonData extends AppliedDiscreteOperationData
 case class AppliedStringInsertOperationData(d: String, n: Boolean, i: Int, v: String) extends AppliedStringOperaitonData
 case class AppliedStringRemoveOperationData(d: String, n: Boolean, i: Int, l: Int, o: Option[String]) extends AppliedStringOperaitonData
@@ -41,3 +43,6 @@ case class AppliedNumberSetOperationData(d: String, n: Boolean, v: Double, o: Op
 
 sealed trait AppliedBooleanOperaitonData extends AppliedDiscreteOperationData
 case class AppliedBooleanSetOperationData(d: String, n: Boolean, v: Boolean, o: Option[Boolean]) extends AppliedBooleanOperaitonData
+
+sealed trait AppliedDateOperationData extends AppliedDiscreteOperationData
+case class AppliedDateSetOperationData(d: String, n: Boolean, v: Instant, o: Option[Instant]) extends AppliedDateOperationData

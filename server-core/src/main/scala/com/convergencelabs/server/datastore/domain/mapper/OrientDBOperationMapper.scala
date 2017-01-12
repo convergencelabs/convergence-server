@@ -68,6 +68,10 @@ import StringRemoveOperationMapper.StringRemoveOperationToODocument
 import StringSetOperationMapper.{ DocumentClassName => StringSetDocName }
 import StringSetOperationMapper.ODocumentToStringSetOperation
 import StringSetOperationMapper.StringSetOperationToODocument
+import DateSetOperationMapper.{ DocumentClassName => DateSetDocName }
+import DateSetOperationMapper.ODocumentToDateSetOperation
+import DateSetOperationMapper.DateSetOperationToODocument
+import com.convergencelabs.server.domain.model.ot.AppliedDateSetOperation
 
 object OrientDBOperationMapper {
 
@@ -100,6 +104,8 @@ object OrientDBOperationMapper {
       case NumberSetDocName => doc.asNumberSetOperation
 
       case BooleanSetDocName => doc.asBooleanSetOperation
+      
+      case DateSetDocName => doc.asDateSetOperation
     }
   }
   // scalastyle:on cyclomatic.complexity
@@ -137,6 +143,8 @@ object OrientDBOperationMapper {
       case op: AppliedNumberSetOperation => op.asODocument
 
       case op: AppliedBooleanSetOperation => op.asODocument
+      
+      case op: AppliedDateSetOperation => op.asODocument
     }
   }
   // scalastyle:on cyclomatic.complexity

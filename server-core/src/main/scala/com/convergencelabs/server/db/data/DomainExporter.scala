@@ -38,6 +38,8 @@ import grizzled.slf4j.Logging
 import com.convergencelabs.server.datastore.domain.DomainUserField
 import com.convergencelabs.server.datastore.SortOrder
 import com.convergencelabs.server.datastore.domain.DomainSession
+import com.convergencelabs.server.domain.model.data.DateValue
+import com.convergencelabs.server.domain.model.ot.AppliedDateSetOperation
 
 class DomainExporter(private[this] val persistence: DomainPersistenceProvider) extends Logging {
 
@@ -162,6 +164,8 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
         CreateBooleanValue(vId, value)
       case NullValue(vId) =>
         CreateNullValue(vId)
+      case DateValue(vId, value) =>
+        CreateDateValue(vId, value)
     }
   }
 
@@ -236,6 +240,9 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
 
       case AppliedArraySetOperation(vId, noOp, value, oldValue) =>
         CreateArraySetOperation(vId, noOp, value map (exportDataValue(_)), oldValue map (_.map(exportDataValue(_))))
+        
+      case AppliedDateSetOperation(vId, noOp, value, oldValue) =>
+        CreateDateSetOperation(vId, noOp, value, oldValue)
     }
   }
 }

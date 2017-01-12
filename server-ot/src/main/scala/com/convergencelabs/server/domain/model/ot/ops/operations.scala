@@ -6,6 +6,7 @@ import org.json4s.JsonAST.JObject
 import org.json4s.JsonAST.JValue
 import org.json4s.JsonAST.JDouble
 import com.convergencelabs.server.domain.model.data.DataValue
+import java.time.Instant
 
 sealed trait Operation
 
@@ -101,6 +102,15 @@ case class ArraySetOperation(id: String, noOp: Boolean, value: List[DataValue]) 
   def clone(noOp: scala.Boolean = noOp): ArraySetOperation = copy(noOp = noOp)
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// DAte Operations
+//////////////////////////////////////////////////////////////////////////////
+sealed trait DateOperation extends DiscreteOperation
+
+case class DateSetOperation(id: String, noOp: Boolean, value: Instant) extends DateOperation {
+  def clone(noOp: scala.Boolean = noOp): DateSetOperation = copy(noOp = noOp)
+}
+
  
 sealed trait AppliedOperation 
  
@@ -156,3 +166,11 @@ case class AppliedArrayRemoveOperation(id: String, noOp: Boolean, index: Int, ol
 case class AppliedArrayReplaceOperation(id: String, noOp: Boolean, index: Int, value: DataValue, oldValue: Option[DataValue]) extends AppliedArrayOperation 
 case class AppliedArrayMoveOperation(id: String, noOp: Boolean, fromIndex: Int, toIndex: Int) extends AppliedArrayOperation  
 case class AppliedArraySetOperation(id: String, noOp: Boolean, value: List[DataValue], oldValue: Option[List[DataValue]]) extends AppliedArrayOperation 
+
+/////////////////////////////////////////////////////////////////////////////// 
+// Date Operations 
+////////////////////////////////////////////////////////////////////////////// 
+ 
+sealed trait AppliedDateOperation extends AppliedDiscreteOperation
+case class AppliedDateSetOperation(id: String, noOp: Boolean, value: Instant, oldValue: Option[Instant]) extends AppliedDateOperation
+

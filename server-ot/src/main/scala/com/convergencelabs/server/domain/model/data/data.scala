@@ -1,5 +1,7 @@
 package com.convergencelabs.server.domain.model.data
 
+import java.time.Instant
+
 sealed trait DataValue {
   val id: String
 }
@@ -15,3 +17,5 @@ case class DoubleValue(id: String, value: Double) extends DataValue
 case class NullValue(id: String) extends DataValue
 
 case class StringValue(id: String, value: String) extends DataValue
+
+case class DateValue(id: String, value: Instant) extends DataValue

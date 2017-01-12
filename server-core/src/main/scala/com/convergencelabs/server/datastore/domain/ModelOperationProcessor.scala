@@ -36,6 +36,7 @@ import com.orientechnologies.orient.core.sql.OCommandSQL
 
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.datastore.EntityNotFoundException
+import com.convergencelabs.server.domain.model.ot.AppliedDateSetOperation
 
 class ModelOperationProcessor private[domain] (
   private[this] val dbProvider: DatabaseProvider,
@@ -88,6 +89,8 @@ class ModelOperationProcessor private[domain] (
       case op: AppliedNumberSetOperation => applyNumberSetOperation(fqn, op, db)
 
       case op: AppliedBooleanSetOperation => applyBooleanSetOperation(fqn, op, db)
+      
+      case op: AppliedDateSetOperation => applyDateSetOperation(fqn, op, db)
     }
   }
   // scalastyle:on cyclomatic.complexity
@@ -404,6 +407,23 @@ class ModelOperationProcessor private[domain] (
       CollectionId -> fqn.collectionId,
       ModelId -> fqn.modelId,
       Value -> operation.value)
+    db.command(updateCommand).execute(params.asJava)
+  }
+  
+  private[this] def applyDateSetOperation(fqn: ModelFqn, operation: AppliedDateSetOperation, db: ODatabaseDocumentTx): Unit = {
+    val queryString =
+      s"""UPDATE DateValue SET
+         |  value = :value
+         |WHERE
+         |  id = :id AND
+         |  model.collection.id = :collectionId AND
+         |  model.id = :modelId""".stripMargin
+    val updateCommand = new OCommandSQL(queryString)
+    val params = Map(
+      Id -> operation.id,
+      CollectionId -> fqn.collectionId,
+      ModelId -> fqn.modelId,
+      Value -> Date.from(operation.value))
     db.command(updateCommand).execute(params.asJava)
   }
 

@@ -47,6 +47,8 @@ import com.convergencelabs.server.domain.model.ot.AppliedStringSetOperation
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.datastore.domain.DomainSession
 import com.convergencelabs.server.domain.model.NewModelOperation
+import com.convergencelabs.server.domain.model.ot.AppliedDateSetOperation
+import com.convergencelabs.server.domain.model.data.DateValue
 
 class DomainImporter(
     private[this] val persistence: DomainPersistenceProvider,
@@ -192,6 +194,8 @@ class DomainImporter(
         BooleanValue(vId, value)
       case CreateNullValue(vId) =>
         NullValue(vId)
+      case CreateDateValue(vId, value) =>
+        DateValue(vId, value)
     }
   }
 
@@ -266,6 +270,9 @@ class DomainImporter(
 
       case CreateArraySetOperation(vId, noOp, value, oldValue) =>
         AppliedArraySetOperation(vId, noOp, value map (createDataValue(_)), oldValue map (_.map(createDataValue(_))))
+        
+      case CreateDateSetOperation(vId, noOp, value, oldValue) =>
+        AppliedDateSetOperation(vId, noOp, value, oldValue)
     }
   }
 }

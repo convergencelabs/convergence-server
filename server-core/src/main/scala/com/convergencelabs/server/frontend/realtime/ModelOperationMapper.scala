@@ -23,6 +23,7 @@ import com.convergencelabs.server.domain.model.ot.AppliedNumberSetOperation
 import com.convergencelabs.server.domain.model.ot.AppliedBooleanSetOperation
 import com.convergencelabs.server.domain.model.ModelOperation
 import com.convergencelabs.server.domain.model.ModelFqn
+import com.convergencelabs.server.domain.model.ot.AppliedDateSetOperation
 
 private[realtime] object ModelOperationMapper {
 
@@ -61,6 +62,7 @@ private[realtime] object ModelOperationMapper {
       case AppliedNumberSetOperation(id, noOp, number, oldValue)               => AppliedNumberSetOperationData(id, noOp, number, oldValue)
 
       case AppliedBooleanSetOperation(id, noOp, value, oldValue)               => AppliedBooleanSetOperationData(id, noOp, value, oldValue)
+      case AppliedDateSetOperation(id, noOp, value, oldValue)                  => AppliedDateSetOperationData(id, noOp, value, oldValue)
     }
   }
   // scalastyle:on cyclomatic.complexity

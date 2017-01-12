@@ -68,6 +68,9 @@ import com.convergencelabs.server.domain.model.ot.ArrayRemoveOperation
 import com.convergencelabs.server.domain.model.ot.ArrayReplaceOperation
 import com.convergencelabs.server.domain.model.ot.ArrayMoveOperation
 import com.convergencelabs.server.domain.model.ot.ArraySetOperation
+import com.convergencelabs.server.domain.model.data.DateValue
+import com.convergencelabs.server.domain.model.ot.DateSetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedDateSetOperation
 
 class RealTimeModel(
     private[this] val fqn: ModelFqn,
@@ -113,6 +116,7 @@ class RealTimeModel(
       case v: ObjectValue => new RealTimeObject(v, this, parent, parentField)
       case v: ArrayValue => new RealTimeArray(v, this, parent, parentField)
       case v: NullValue => new RealTimeNull(v, this, parent, parentField)
+      case v: DateValue => new RealTimeDate(v, this, parent, parentField)
       case _ => throw new IllegalArgumentException("Unsupported type: " + value)
     }
   }
@@ -269,6 +273,7 @@ class RealTimeModel(
         case ArrayReplaceOperation(id, noOp, index, value) => AppliedArrayReplaceOperation(id, noOp, index, value, None)
         case ArrayMoveOperation(id, noOp, fromIndex, toIndex) => AppliedArrayMoveOperation(id, noOp, fromIndex, toIndex)
         case ArraySetOperation(id, noOp, value) => AppliedArraySetOperation(id, noOp, value, None)
+        case DateSetOperation(id, noOp, value) => AppliedDateSetOperation(id, noOp, value, None)
       })
     }
   }

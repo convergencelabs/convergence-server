@@ -39,6 +39,10 @@ import com.convergencelabs.server.domain.model.ot.AppliedObjectSetPropertyOperat
 import com.convergencelabs.server.domain.model.ot.AppliedStringInsertOperation
 import com.convergencelabs.server.domain.model.ot.AppliedStringRemoveOperation
 import com.convergencelabs.server.domain.model.ot.AppliedStringSetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedDateSetOperation
+import com.convergencelabs.server.domain.model.data.DateValue
+import scala.language.postfixOps
+import java.time.Duration
 
 // scalastyle:off magic.number multiple.string.literals
 class ModelOperationProcessorSpec
@@ -67,6 +71,7 @@ class ModelOperationProcessorSpec
   val fnameVID = "pp1-fname"
   val emailsVID = "pp1-emails"
   val ageVID = "pp1-age"
+  val bornVID = "pp1-born"
   val marriedVID = "pp1-married"
   val fnameField = "fname"
   val lnameField = "lname"
@@ -74,11 +79,15 @@ class ModelOperationProcessorSpec
   val ageField = "age"
   val spouseField = "spouse"
   val marriedField = "married"
+  val bornField = "born"
+  
+  val bornDate = Instant.now().minus(Duration.ofDays(6000))
 
   val person1Data = ObjectValue("pp1-data", Map(
     fnameField -> StringValue(fnameVID, "john"),
     lnameField -> StringValue("pp1-lname", "smith"),
     ageField -> DoubleValue(ageVID, 26),
+    bornField -> DateValue(bornVID, bornDate),
     marriedField -> BooleanValue(marriedVID, false),
     spouseField -> NullValue("pp1-spouse"),
     emailsField -> ArrayValue(emailsVID, List(
@@ -334,6 +343,18 @@ class ModelOperationProcessorSpec
 
         val modelData = provider.modelStore.getModelData(person1ModelFqn).get.value
         modelData.children(marriedField) shouldBe BooleanValue(marriedVID, true)
+      }
+    }
+    
+    "applying date operations" must {
+      "correctly update the model on DateSet" in withTestData { provider =>
+        val newDate = Instant.now()
+        val op = AppliedDateSetOperation(bornVID, false, newDate, Some(bornDate))
+        val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
+        provider.modelOperationProcessor.processModelOperation(modelOp)
+
+        val modelData = provider.modelStore.getModelData(person1ModelFqn).get.value
+        modelData.children(bornField) shouldBe DateValue(bornVID, newDate)
       }
     }
 

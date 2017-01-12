@@ -9,6 +9,7 @@ import org.scalatest.Matchers
 import org.json4s.JsonAST.JDouble
 import com.convergencelabs.server.domain.model.data.StringValue
 import com.convergencelabs.server.domain.model.data.NullValue
+import java.time.Instant
 
 class OperationsSpec extends FunSuite with Matchers {
 
@@ -99,5 +100,13 @@ class OperationsSpec extends FunSuite with Matchers {
   test("BooleanSetOperation must preserve other fields when setting noOp and path") {
     val original = BooleanSetOperation(valueId, false, true)
     original.clone(true) shouldBe BooleanSetOperation(valueId, true, true)
+  }
+  
+  // Date Operations
+
+  test("DateSetOperation must preserve other fields when setting noOp and path") {
+    val now = Instant.now()
+    val original = DateSetOperation(valueId, false, now)
+    original.clone(true) shouldBe DateSetOperation(valueId, true, now)
   }
 }

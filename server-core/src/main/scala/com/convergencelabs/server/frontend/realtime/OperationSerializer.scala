@@ -18,6 +18,7 @@ import org.json4s.JsonDSL.pair2Assoc
 import org.json4s.JsonDSL.pair2jvalue
 import org.json4s.JsonDSL.seq2jvalue
 import org.json4s.JsonDSL.string2jvalue
+import org.json4s.JsonDSL.long2jvalue
 
 import com.convergencelabs.server.domain.model.data.DataValue
 import com.convergencelabs.server.frontend.realtime.model.OperationType
@@ -31,14 +32,23 @@ import OperationSerializer.P
 import OperationSerializer.T
 import OperationSerializer.V
 import Utils.jnumberToDouble
+import Utils.jnumberToInstant
+import java.time.Instant
 
 object Utils {
   def jnumberToDouble(value: JValue): Double = {
     value match {
-      case JInt(x) => x.doubleValue()
+      case JInt(x)    => x.doubleValue()
       case JDouble(x) => x
-      case JLong(x) => x.doubleValue()
-      case _ => throw new IllegalArgumentException("invlid number type")
+      case JLong(x)   => x.doubleValue()
+      case _          => throw new IllegalArgumentException("invlid number type")
+    }
+  }
+
+  def jnumberToInstant(value: JValue): Instant = {
+    value match {
+      case JLong(x) => Instant.ofEpochMilli(x.longValue())
+      case _        => throw new IllegalArgumentException("invlid date type")
     }
   }
 }
@@ -101,6 +111,9 @@ class OperationSerializer extends CustomSerializer[OperationData](format => ({
   case JObject(List((T, JInt(Big(OperationType.NumberValue))), (D, JString(id)), (N, JBool(noOp)), (V, value))) =>
     NumberSetOperationData(id, noOp, jnumberToDouble(value))
 
+  case JObject(List((T, JInt(Big(OperationType.DateValue))), (D, JString(id)), (N, JBool(noOp)), (V, value))) =>
+    DateSetOperationData(id, noOp, jnumberToInstant(value))
+
   case JObject(List((T, JInt(Big(OperationType.BooleanValue))), (D, JString(id)), (N, JBool(noOp)), (V, JBool(value)))) =>
     BooleanSetOperationData(id, noOp, value)
 }, {
@@ -147,6 +160,9 @@ class OperationSerializer extends CustomSerializer[OperationData](format => ({
     (T -> OperationType.NumberAdd) ~ (D -> id) ~ (N -> noOp) ~ (V -> value)
   case NumberSetOperationData(id, noOp, value) =>
     (T -> OperationType.NumberValue) ~ (D -> id) ~ (N -> noOp) ~ (V -> value)
+
+  case DateSetOperationData(id, noOp, value) =>
+    (T -> OperationType.DateValue) ~ (D -> id) ~ (N -> noOp) ~ (V -> value.getEpochSecond)
 
   case BooleanSetOperationData(id, noOp, value) =>
     (T -> OperationType.BooleanValue) ~ (D -> id) ~ (N -> noOp) ~ (V -> value)

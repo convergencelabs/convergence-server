@@ -21,6 +21,8 @@ import ModelStoreActor.GetModels
 import ModelStoreActor.GetModelsInCollection
 import akka.actor.ActorLogging
 import akka.actor.Props
+import com.convergencelabs.server.domain.model.data.DateValue
+import java.time.Instant
 
 object ModelStoreActor {
   def props(
@@ -143,6 +145,8 @@ class ModelDataGenerator() {
         BooleanValue(nextId(), bool)
       case str: String =>
         StringValue(nextId(), str)
+      case date: Instant => 
+        DateValue(nextId(), date)
       case null =>
         NullValue(nextId())
     }
