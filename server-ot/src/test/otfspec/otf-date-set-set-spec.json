@@ -1,27 +1,27 @@
 {
-  "serverOpType": "NumberSet",
-  "clientOpType": "NumberSet",
+  "serverOpType": "DateSet",
+  "clientOpType": "DateSet",
   "cases": [
     {
       "id": "N-SS-1",
       "input": {
-        "serverOp": {"type": "NumberSet", "noOp": false, "value": 1},
-        "clientOp": {"type": "NumberSet", "noOp": false, "value": 2}
+        "serverOp": {"type": "DateSet", "noOp": false, "value": 1484179423611},
+        "clientOp": {"type": "DateSet", "noOp": false, "value": 1584179425611}
       },
       "output": {
-        "serverOp": {"type": "NumberSet", "noOp": false, "value": 1},
-        "clientOp": {"type": "NumberSet", "noOp": true, "value": 2}
+        "serverOp": {"type": "DateSet", "noOp": false, "value": 1484179423611},
+        "clientOp": {"type": "DateSet", "noOp": true, "value": 1584179425611}
       }
     },
     {
       "id": "N-SS-2",
       "input": {
-        "serverOp": {"type": "NumberSet", "noOp": false, "value": 1},
-        "clientOp": {"type": "NumberSet", "noOp": false, "value": 1}
+        "serverOp": {"type": "DateSet", "noOp": false, "value": 1484179423611},
+        "clientOp": {"type": "DateSet", "noOp": false, "value": 1484179423611}
       },
       "output": {
-        "serverOp": {"type": "NumberSet", "noOp": true, "value": 1},
-        "clientOp": {"type": "NumberSet", "noOp": true, "value": 1}
+        "serverOp": {"type": "DateSet", "noOp": true, "value": 1484179423611},
+        "clientOp": {"type": "DateSet", "noOp": true, "value": 1484179423611}
       }
     }
   ]

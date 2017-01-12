@@ -17,5 +17,5 @@ object OperationType extends Enumeration {
   val StringInsert = 13
   val StringRemove = 14
   val StringValue = 15
-  val DateValue = 15
+  val DateValue = 16
 }
