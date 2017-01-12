@@ -10,6 +10,7 @@ import com.convergencelabs.server.domain.model.data.NullValue
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.model.data.StringValue
 import org.json4s.DefaultFormats
+import com.convergencelabs.server.domain.model.data.DateValue
 
 package object data {
 
@@ -33,5 +34,6 @@ package object data {
     "2" -> classOf[StringValue],
     "3" -> classOf[DoubleValue],
     "4" -> classOf[BooleanValue],
-    "5" -> classOf[NullValue]))
+    "5" -> classOf[NullValue],
+    "6" -> classOf[DateValue]))
 }

@@ -25,6 +25,7 @@ object JsonFormats {
       "double" -> classOf[CreateDoubleValue],
       "boolean" -> classOf[CreateBooleanValue],
       "null" -> classOf[CreateNullValue],
+      "date" -> classOf[CreateDateValue],
 
       "Compound" -> classOf[CreateCompoundOperation],
 
@@ -46,7 +47,9 @@ object JsonFormats {
       "NumberDelta" -> classOf[CreateNumberDeltaOperation],
       "NumberSet" -> classOf[CreateNumberSetOperation],
 
-      "BooleanSet" -> classOf[CreateBooleanSetOperation]))
+      "BooleanSet" -> classOf[CreateBooleanSetOperation],
+      
+      "DateSet" -> classOf[CreateDateSetOperation]))
 
   val UTC = TimeZone.getTimeZone("UTC")
   val df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")

@@ -47,6 +47,7 @@ object Utils {
 
   def jnumberToInstant(value: JValue): Instant = {
     value match {
+      case JInt(x) => Instant.ofEpochMilli(x.longValue())
       case JLong(x) => Instant.ofEpochMilli(x.longValue())
       case _        => throw new IllegalArgumentException("invlid date type")
     }
