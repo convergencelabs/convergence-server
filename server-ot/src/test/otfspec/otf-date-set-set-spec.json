@@ -3,7 +3,7 @@
   "clientOpType": "DateSet",
   "cases": [
     {
-      "id": "N-SS-1",
+      "id": "D-SS-1",
       "input": {
         "serverOp": {"type": "DateSet", "noOp": false, "value": 1484179423611},
         "clientOp": {"type": "DateSet", "noOp": false, "value": 1584179425611}
@@ -14,7 +14,7 @@
       }
     },
     {
-      "id": "N-SS-2",
+      "id": "D-SS-2",
       "input": {
         "serverOp": {"type": "DateSet", "noOp": false, "value": 1484179423611},
         "clientOp": {"type": "DateSet", "noOp": false, "value": 1484179423611}
