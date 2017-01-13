@@ -163,7 +163,7 @@ class OperationSerializer extends CustomSerializer[OperationData](format => ({
     (T -> OperationType.NumberValue) ~ (D -> id) ~ (N -> noOp) ~ (V -> value)
 
   case DateSetOperationData(id, noOp, value) =>
-    (T -> OperationType.DateValue) ~ (D -> id) ~ (N -> noOp) ~ (V -> value.getEpochSecond)
+    (T -> OperationType.DateValue) ~ (D -> id) ~ (N -> noOp) ~ (V -> value.toEpochMilli())
 
   case BooleanSetOperationData(id, noOp, value) =>
     (T -> OperationType.BooleanValue) ~ (D -> id) ~ (N -> noOp) ~ (V -> value)
