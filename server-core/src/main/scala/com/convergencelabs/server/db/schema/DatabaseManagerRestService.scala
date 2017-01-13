@@ -58,6 +58,8 @@ class DatabaseManagerRestService(
     (post & pathPrefix("upgrade")) {
       path("convergence") {
         handleWith(upgradeConvergence)
+      } ~ path("domains") { 
+        handleWith(upgradeDomains)
       } ~ path("domain" / Segment / Segment) { (namespace, domainId) =>
         entity(as[UpgradeRequest]) { request =>
           complete(upgradeDomain(namespace, domainId, request))
