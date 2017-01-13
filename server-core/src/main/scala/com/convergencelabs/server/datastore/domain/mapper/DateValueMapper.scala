@@ -21,7 +21,7 @@ object DateValueMapper extends ODocumentMapper {
     val DateValue(id, value) = obj
     val doc = new ODocument(OpDocumentClassName)
     doc.field(Fields.Id, id)
-    doc.field(Fields.Value, value)
+    doc.field(Fields.Value, Date.from(value))
     doc
   }
 

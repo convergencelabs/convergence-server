@@ -6,8 +6,40 @@ import org.json4s.jackson.Serialization.write
 
 import com.convergencelabs.server.frontend.realtime.data.DataValueFieldSerializer
 import com.convergencelabs.server.frontend.realtime.data.DataValueTypeHints
+import org.json4s.CustomSerializer
+import org.json4s.JsonAST.JString
+import java.time.Instant
+import java.text.SimpleDateFormat
+import org.json4s.JsonAST.JInt
+import org.json4s.JsonAST.JLong
+import org.json4s.JsonAST.JDouble
+import org.json4s.JsonAST.JDecimal
+import java.util.Date
+import java.util.TimeZone
 
 object MessageSerializer {
+
+  val UTC = TimeZone.getTimeZone("UTC")
+  val df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+  df.setTimeZone(UTC)
+
+  private[this] val instantSerializer = new CustomSerializer[Instant](formats => ({
+    case JString(dateString) =>
+      // TODO look into Instant.Parse
+      val date = df.parse(dateString)
+      Instant.ofEpochMilli(date.getTime)
+    case JInt(millis) =>
+      Instant.ofEpochMilli(millis.longValue())
+    case JLong(millis) =>
+      Instant.ofEpochMilli(millis)
+    case JDouble(millis) =>
+      Instant.ofEpochMilli(millis.longValue())
+    case JDecimal(millis) =>
+      Instant.ofEpochMilli(millis.longValue())
+  }, {
+    case x: Instant =>
+      JInt(x.toEpochMilli())
+  }))
 
   private[this] val incomingMessageSerializer = new TypeMapSerializer[ProtocolMessage]("t", Map(
     MessageType.Ping -> classOf[PingMessage],
@@ -74,7 +106,7 @@ object MessageSerializer {
     MessageType.ActivityRemoteStateSet -> classOf[ActivityRemoteStateSetMessage],
     MessageType.ActivityRemoteStateRemoved -> classOf[ActivityRemoteStateRemovedMessage],
     MessageType.ActivityRemoteStateCleared -> classOf[ActivityRemoteStateClearedMessage],
-    
+
     MessageType.PresenceSetState -> classOf[PresenceSetStateMessage],
     MessageType.PresenceClearState -> classOf[PresenceClearStateMessage],
     MessageType.PresenceStateSet -> classOf[PresenceStateSetMessage],
@@ -84,7 +116,7 @@ object MessageSerializer {
     MessageType.PresenceSubscribeRequest -> classOf[SubscribePresenceRequestMessage],
     MessageType.PresenceSubscribeResponse -> classOf[SubscribePresenceResponseMessage],
     MessageType.PresenceUnsubscribe -> classOf[UnsubscribePresenceMessage],
-    
+
     MessageType.JoinRoomRequest -> classOf[JoinChatRoomRequestMessage],
     MessageType.JoinRoomResponse -> classOf[JoinChatRoomResponseMessage],
     MessageType.LeaveRoom -> classOf[LeftChatRoomMessage],
@@ -92,16 +124,16 @@ object MessageSerializer {
     MessageType.UserJoinedRoom -> classOf[UserJoinedRoomMessage],
     MessageType.UserLeftRoom -> classOf[UserLeftRoomMessage],
     MessageType.ChatMessagePublished -> classOf[UserChatMessage],
-    
+
     MessageType.ModelsQueryRequest -> classOf[ModelsQueryRequestMessage],
     MessageType.ModelsQueryResponse -> classOf[ModelsQueryResponseMessage],
-    
+
     MessageType.HistoricalDataRequest -> classOf[HistoricalDataRequestMessage],
     MessageType.HistoricalDataResponse -> classOf[HistoricalDataResponseMessage],
     MessageType.HistoricalOperationsRequest -> classOf[HistoricalOperationRequestMessage],
     MessageType.HistoricalOperationsResponse -> classOf[HistoricalOperationsResponseMessage]),
 
-    DefaultFormats.withTypeHintFieldName("?") + new OperationSerializer() + new AppliedOperationSerializer() + DataValueTypeHints + DataValueFieldSerializer)
+    DefaultFormats.withTypeHintFieldName("?") + new OperationSerializer() + new AppliedOperationSerializer() + DataValueTypeHints + DataValueFieldSerializer + instantSerializer)
 
   private[this] implicit val formats = DefaultFormats + incomingMessageSerializer
 
