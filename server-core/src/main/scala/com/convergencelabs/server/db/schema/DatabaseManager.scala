@@ -59,9 +59,19 @@ class DatabaseManager(
     schemaManger.upgrade()
   }
 
-  def upgradeAllDomains(version: Int, preRelease: Boolean): Try[Unit] = {
+  def upgradeAllDomains(version: Int, preRelease: Boolean): Unit = {
     domainProvider.getDomains() map { domainList =>
-      domainList.foreach { upgradeDomain(_, version, preRelease) }
+      domainList.foreach {
+        domainFqn =>
+          upgradeDomain(domainFqn, version, preRelease) recover {
+            case e: Exception =>
+              logger.error("Unable to upgrade domain", e)
+          }
+      }
+    } recover {
+      case e: Exception => {
+        logger.error("Unable to lookup domains", e)
+      }
     }
   }
 
@@ -79,13 +89,11 @@ class DatabaseManager(
   }
 
   private[this] def withDomainDatabase[T](fqn: DomainFqn)(f: (ODatabaseDocumentTx) => Try[T]): Try[T] = {
-    domainProvider.getDomainAdminDatabase(fqn) flatMap {
-      case Some(db) =>
-        val result = f(db)
-        db.close()
-        result
-      case None =>
-        Failure(throw new IllegalArgumentException("Domain does not exist"))
+    domainProvider.getDomainAdminDatabase(fqn) flatMap { db =>
+      val result = f(db)
+      db.activateOnCurrentThread()
+      db.close()
+      result
     }
   }
 

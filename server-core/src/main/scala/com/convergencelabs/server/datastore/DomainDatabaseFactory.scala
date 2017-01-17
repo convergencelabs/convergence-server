@@ -8,53 +8,68 @@ import com.orientechnologies.orient.core.index.OCompositeKey
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import DomainDatabaseFactory._
 import scala.collection.JavaConversions._
+import com.orientechnologies.orient.core.index.OIndexCursor
+import scala.collection.mutable.MutableList
+import com.orientechnologies.orient.core.record.impl.ODocument
+import com.orientechnologies.orient.core.metadata.schema.OType
+import scala.util.Success
+import scala.util.Failure
+import com.convergencelabs.server.frontend.rest.DomainInfo
+import com.convergencelabs.server.domain.DomainDatabase
 
 object DomainDatabaseFactory {
-  val DBNameIndex = "Domain.dbName"
-  val DBDomainIdIndex = "Domain.namespace_domainId"
+  val DBDomainIdIndex = "Domain.namespace_id"
 }
 
 class DomainDatabaseFactory(url: String, convergenceDbProvider: DatabaseProvider) {
 
   val domainDatabaseStore = new DomainDatabaseStore(convergenceDbProvider)
 
-  def getDomainAdminDatabase(fqn: DomainFqn): Try[Option[ODatabaseDocumentTx]] = {
-    domainDatabaseStore.getDomainDatabase(fqn) map {
-      _ map { domainInfo =>
-        new ODatabaseDocumentTx(s"${url}/${domainInfo.database}").open(domainInfo.adminUsername, domainInfo.adminUsername)
-      }
+  def getDomainAdminDatabase(fqn: DomainFqn): Try[ODatabaseDocumentTx] = {
+    getDomainInfo(fqn) map {
+      domainInfo =>
+        def db = new ODatabaseDocumentTx(s"${url}/${domainInfo.database}")
+        db.open(domainInfo.adminUsername, domainInfo.adminUsername).asInstanceOf[ODatabaseDocumentTx]
     }
   }
 
-  def getDomainAdminDatabasePool(fqn: DomainFqn): Try[Option[OPartitionedDatabasePool]] = {
-    domainDatabaseStore.getDomainDatabase(fqn) map {
-      _ map { domainInfo =>
+  def getDomainAdminDatabasePool(fqn: DomainFqn): Try[OPartitionedDatabasePool] = {
+    getDomainInfo(fqn) map {
+      domainInfo =>
         new OPartitionedDatabasePool(s"${url}/${domainInfo.database}", domainInfo.adminUsername, domainInfo.adminUsername)
-      }
     }
   }
 
-  def getDomainDatabase(fqn: DomainFqn): Try[Option[ODatabaseDocumentTx]] = {
-    domainDatabaseStore.getDomainDatabase(fqn) map {
-      _ map { domainInfo =>
+  def getDomainDatabase(fqn: DomainFqn): Try[ODatabaseDocumentTx] = {
+    getDomainInfo(fqn) map {
+      domainInfo =>
         new ODatabaseDocumentTx(s"${url}/${domainInfo.database}").open(domainInfo.username, domainInfo.password)
-      }
     }
   }
 
-  def getDomainDatabasePool(fqn: DomainFqn): Try[Option[OPartitionedDatabasePool]] = {
-    domainDatabaseStore.getDomainDatabase(fqn) map {
-      _ map { domainInfo =>
+  def getDomainDatabasePool(fqn: DomainFqn): Try[OPartitionedDatabasePool] = {
+    getDomainInfo(fqn) map {
+      domainInfo =>
         new OPartitionedDatabasePool(s"${url}/${domainInfo.database}", domainInfo.username, domainInfo.password)
-      }
     }
   }
 
   def getDomains(): Try[List[DomainFqn]] = {
     convergenceDbProvider.tryWithDatabase { db =>
-      val index = db.getMetadata.getIndexManager.getIndex(DBDomainIdIndex)
-      val keys: Set[OCompositeKey] = index.cursor().toKeys().asInstanceOf[Set[OCompositeKey]]
-      keys.toList.map { key => DomainFqn(key.getKeys.get(0).toString(), key.getKeys.get(1).toString()) }
+      val query = "SELECT namespace, id FROM Domain"
+      val oDocs: List[ODocument] = QueryUtil.query(query, Map(), db)
+      oDocs.map { oDoc => DomainFqn(oDoc.field(DomainStore.Fields.Namespace, OType.STRING), oDoc.field(DomainStore.Fields.Id, OType.STRING)) }
+    }
+  }
+
+  private[this] def getDomainInfo(fqn: DomainFqn): Try[DomainDatabase] = {
+    domainDatabaseStore.getDomainDatabase(fqn) flatMap {
+      _ match {
+        case Some(domainInfo) =>
+          Success(domainInfo)
+        case None =>
+          Failure(new IllegalArgumentException("Domain does not exist"))
+      }
     }
   }
 }

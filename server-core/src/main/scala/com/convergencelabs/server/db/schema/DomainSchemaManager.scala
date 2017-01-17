@@ -27,23 +27,24 @@ class DomainSchemaManager(
     this.historyStore.getDomainDBVersion(domainFqn)
   }
 
-  def recordDeltaSuccess(delta: DeltaScript): Try[Unit] = Try {
+  def recordDeltaSuccess(delta: DeltaScript): Try[Unit] = {
     val dd = DomainDelta(delta.delta.version, delta.rawScript)
     val history = DomainDeltaHistory(domainFqn, dd, DeltaHistoryStore.Status.Success, None, Instant.now())
     this.historyStore.saveDomainDeltaHistory(history) recoverWith {
       case cause: Exception =>
-        logger.error(s"Error creating detla history record for successful domain delta: \n${history}", cause)
+        logger.error(s"Error creating delta history record for successful domain delta: \n${history}", cause)
         Failure(cause)
     }
   }
 
   def recordDeltaFailure(delta: DeltaScript, cause: Exception): Unit = {
+    logger.error("Unable to upgrade database", cause)
     val message = ExceptionUtils.getStackTrace(cause)
     val dd = DomainDelta(delta.delta.version, delta.rawScript)
     val history = DomainDeltaHistory(domainFqn, dd, DeltaHistoryStore.Status.Error, Some(message), Instant.now())
     this.historyStore.saveDomainDeltaHistory(history) recover {
       case cause: Exception =>
-        logger.error(s"Error creating detla history record for failed domain delta: ${history}")
+        logger.error(s"Error creating delta history record for failed domain delta: ${history}", cause)
     }
   }
 

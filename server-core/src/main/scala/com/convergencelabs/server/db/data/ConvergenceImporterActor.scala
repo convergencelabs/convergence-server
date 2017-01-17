@@ -28,13 +28,13 @@ class ConvergenceImporterActor(
   val domainDbProvider = new DomainDatabaseFactory(dbBaseUri, dbProvider)
 
   def receive: Receive = {
-    case ConvergenceImport(script) => 
+    case ConvergenceImport(script) =>
       importConvergence(script)
     case ConvergenceExport(Some(username)) =>
       exportConvergenceUser(username)
-    case DomainImport(fqn, script) => 
+    case DomainImport(fqn, script) =>
       importDomain(fqn, script)
-    case DomainExport(fqn) => 
+    case DomainExport(fqn) =>
       exportDomain(fqn)
     case message: Any => unhandled(message)
   }
@@ -46,16 +46,16 @@ class ConvergenceImporterActor(
       domainProvisioner,
       script,
       context.system.dispatcher)
-    importer.importData() map { _ => 
+    importer.importData() map { _ =>
       log.debug("Import completed successfuly")
     } recover {
       case cause: Exception =>
         log.error(cause, "Data import failed")
     }
-    
+
     sender ! (())
   }
-  
+
   private[this] def exportConvergenceUser(username: String): Unit = {
     log.debug(s"Exporting convergence user: ${username}")
     val exporter = new ConvergenceExporter(dbBaseUri, dbProvider)
@@ -69,20 +69,19 @@ class ConvergenceImporterActor(
 
   private[this] def importDomain(fqn: DomainFqn, script: DomainScript): Unit = {
     domainDbProvider.getDomainDatabasePool(fqn) foreach {
-      _.map { domainPool =>
+      domainPool =>
         val provider = new DomainPersistenceProvider(dbProvider)
         val domainImporter = new DomainImporter(provider, script)
         // FIXME handle error
         domainImporter.importDomain()
         domainPool.close()
-      }
     }
   }
-  
+
   private[this] def exportDomain(fqn: DomainFqn): Unit = {
     log.debug(s"Exporting domain: ${fqn.namespace}/${fqn.domainId}")
     domainDbProvider.getDomainDatabasePool(fqn) foreach {
-      _.map { domainPool =>
+      domainPool =>
         val provider = new DomainPersistenceProvider(dbProvider)
         val domainExporter = new DomainExporter(provider)
         // FIXME handle error
@@ -93,7 +92,6 @@ class ConvergenceImporterActor(
             sender ! akka.actor.Status.Failure(f)
         }
         domainPool.close()
-      }
     }
   }
 }
@@ -110,10 +108,10 @@ object ConvergenceImporterActor {
 
   case class ConvergenceImport(script: ConvergenceScript)
   case class DomainImport(domainFqn: DomainFqn, script: DomainScript)
-  
+
   case class ConvergenceExport(username: Option[String])
   case class ConvergenceExportResponse(script: ConvergenceScript)
-  
+
   case class DomainExport(domainFqn: DomainFqn)
   case class DomainExportResponse(script: DomainScript)
 }

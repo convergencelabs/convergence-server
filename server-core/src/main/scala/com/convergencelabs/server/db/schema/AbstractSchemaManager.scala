@@ -25,22 +25,19 @@ abstract class AbstractSchemaManager(db: ODatabaseDocumentTx, preRelease: Boolea
   private[this] def executeInstall(manifest: DeltaManifest, version: Int): Try[Unit] = {
     val max = manifest.maxVersion(preRelease)
     if (version > max) {
-      Failure(new IllegalArgumentException(
-        s"Invalid version ${version}, which is greater than the max: ${max}"))
+      Failure(new IllegalArgumentException(s"Invalid version ${version}, which is greater than the max: ${max}"))
     } else {
-      Success(())
-    } flatMap { _ =>
       manifest.getFullDelta(version) flatMap { applyDelta(_) }
     }
   }
 
-  def upgrade(): Try[Unit] = Try {
+  def upgrade(): Try[Unit] = {
     loadManifest().flatMap { manifest =>
       executeUpgrade(manifest, manifest.maxVersion(preRelease))
     }
   }
 
-  def upgrade(version: Int): Try[Unit] = Try {
+  def upgrade(version: Int): Try[Unit] = {
     loadManifest().flatMap { executeUpgrade(_, version) }
   }
 
@@ -51,17 +48,16 @@ abstract class AbstractSchemaManager(db: ODatabaseDocumentTx, preRelease: Boolea
         Failure(new IllegalArgumentException(
           s"Invalid version ${version}, which is less than or equal to the current version: ${currentVersion}"))
       } else {
-        Success(currentVersion)
-      }
-    } flatMap { currentVersion =>
-      logger.debug(s"Executing database upgrade from ${currentVersion} to ${version}")
-      Try {
-        for {
-          v <- (currentVersion + 1) to version
-        } yield {
-          manifest.getIncrementalDelta(v).flatMap(applyDelta(_)).get
+        logger.debug(s"Executing database upgrade from ${currentVersion} to ${version}")
+        Try {
+          for {
+            v <- (currentVersion + 1) to version
+          } yield {
+            manifest.getIncrementalDelta(v).flatMap(applyDelta(_)).get
+          }
         }
       }
+
     }
   }
 
