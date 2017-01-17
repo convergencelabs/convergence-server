@@ -29,14 +29,14 @@ class DomainDatabaseFactory(url: String, convergenceDbProvider: DatabaseProvider
     getDomainInfo(fqn) map {
       domainInfo =>
         def db = new ODatabaseDocumentTx(s"${url}/${domainInfo.database}")
-        db.open(domainInfo.adminUsername, domainInfo.adminUsername).asInstanceOf[ODatabaseDocumentTx]
+        db.open(domainInfo.adminUsername, domainInfo.adminPassword).asInstanceOf[ODatabaseDocumentTx]
     }
   }
 
   def getDomainAdminDatabasePool(fqn: DomainFqn): Try[OPartitionedDatabasePool] = {
     getDomainInfo(fqn) map {
       domainInfo =>
-        new OPartitionedDatabasePool(s"${url}/${domainInfo.database}", domainInfo.adminUsername, domainInfo.adminUsername)
+        new OPartitionedDatabasePool(s"${url}/${domainInfo.database}", domainInfo.adminUsername, domainInfo.adminPassword)
     }
   }
 
