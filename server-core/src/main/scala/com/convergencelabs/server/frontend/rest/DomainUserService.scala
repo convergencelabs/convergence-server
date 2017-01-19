@@ -74,34 +74,34 @@ class DomainUserService(
   implicit val ec = executionContext
   implicit val t = defaultTimeout
 
-  def route(username: String, domain: DomainFqn): Route = {
+  def route(convergenceUsername: String, domain: DomainFqn): Route = {
     pathPrefix("users") {
       pathEnd {
         get {
-          authorizeAsync(canAccessDomain(domain, username)) {
+          authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
             complete(getAllUsersRequest(domain))
           }
         } ~ post {
           entity(as[CreateUserRequest]) { request =>
-            authorizeAsync(canAccessDomain(domain, username)) {
+            authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
               complete(createUserRequest(request, domain))
             }
           }
         }
-      } ~ pathPrefix(Segment) { username =>
+      } ~ pathPrefix(Segment) { domainUsername =>
         pathEnd {
           get {
-            authorizeAsync(canAccessDomain(domain, username)) {
-              complete(getUserByUsername(username, domain))
+            authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
+              complete(getUserByUsername(domainUsername, domain))
             }
           } ~ delete {
-            authorizeAsync(canAccessDomain(domain, username)) {
-              complete(deleteUser(username, domain))
+            authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
+              complete(deleteUser(domainUsername, domain))
             }
           } ~ put {
             entity(as[UpdateUserRequest]) { request =>
-              authorizeAsync(canAccessDomain(domain, username)) {
-                complete(updateUserRequest(username, request, domain))
+              authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
+                complete(updateUserRequest(domainUsername, request, domain))
               }
             }
           }
@@ -109,8 +109,8 @@ class DomainUserService(
           pathEnd {
             put {
               entity(as[SetPasswordRequest]) { request =>
-                authorizeAsync(canAccessDomain(domain, username)) {
-                  complete(setPasswordRequest(username, request, domain))
+                authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
+                  complete(setPasswordRequest(domainUsername, request, domain))
                 }
               }
             }
