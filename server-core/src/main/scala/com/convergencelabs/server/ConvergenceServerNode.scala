@@ -36,10 +36,13 @@ import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.convergencelabs.server.datastore.PermissionsStore
 import com.convergencelabs.server.datastore.Permission
 import com.convergencelabs.server.datastore.Role
+import com.convergencelabs.server.util.SystemOutRedirector
 
 object ConvergenceServerNode extends Logging {
   def main(args: Array[String]): Unit = {
     try {
+      SystemOutRedirector.setOutAndErrToLog();
+      
       val options = ServerCLIConf(args)
       val configFile = new File(options.config.toOption.get)
 
