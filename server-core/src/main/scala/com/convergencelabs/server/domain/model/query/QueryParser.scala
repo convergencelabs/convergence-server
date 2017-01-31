@@ -2,7 +2,7 @@ package com.convergencelabs.server.domain.model.query
 
 import org.parboiled2._
 
-class SelectParser(val input: ParserInput) extends Parser {
+class QueryParser(val input: ParserInput) extends Parser {
   def InputLine = rule { SelectStatement ~ EOI }
 
   def SelectStatement = rule { (Select ~ Fields ~ From ~ CollectionToken ~ Where ~ WhereTerms) ~> (Ast.SelectStatement(_, _))}
@@ -45,18 +45,6 @@ class SelectParser(val input: ParserInput) extends Parser {
   val WhiteSpaceChar = CharPredicate(" \n\r\t\f")
 }
 
-object Ast {
-  case class SelectStatement(collection: String, where: WhereTerm)
-  case class WhereTerm(field: String, op: EqualityOperator, value: String)
-
-  sealed trait EqualityOperator
-  case object Equals extends EqualityOperator
-  case object GreaterThan extends EqualityOperator
-  case object LessThan extends EqualityOperator
-  case object LessThanOrEqual extends EqualityOperator
-  case object GreaterThanOrEqual extends EqualityOperator
-}
-
 object Test extends App {
-  println(new SelectParser("SELECT * FROM files WHERE foo = bar").InputLine.run())
+  println(new QueryParser("SELECT * FROM files WHERE foo = bar").InputLine.run())
 }
