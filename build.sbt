@@ -65,6 +65,7 @@ val serverCore = (project in file("server-core")).
         netty,
         javaWebsockets, 
         scallop,
+        parboiled,
         "org.scala-lang" % "scala-reflect" % scalaVersion.value
       ) ++
       Seq(orientDbServer % "test") ++
