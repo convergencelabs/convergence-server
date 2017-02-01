@@ -100,21 +100,15 @@ class SelectStatementSpec
    
    "parsing a WHERE Section" must {
       "parse a unsigned long" in {
-//        println(new QueryParser("WHERE field < 5").WhereSection.run().get)
+        // FIXME Broken
+        // println(new QueryParser("field < 5").Term.run().get)
       }
-      
-     
    }
    
    "parsing a SELECT Statement" must {
       "parse a unsigned long" in {
-        
-//        println(new QueryParser("").WhereCluase.run().get)
-        
         println(new QueryParser("SELECT * FROM people ORDER BY foo DESC, bar ASC, baz LIMIT 10 OFFSET 5").InputLine.run().get)
       }
-      
-     
    }
 
 }

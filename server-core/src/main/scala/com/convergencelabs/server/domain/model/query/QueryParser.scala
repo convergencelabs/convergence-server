@@ -2,6 +2,7 @@ package com.convergencelabs.server.domain.model.query
 
 import org.parboiled2._
 import scala.annotation.switch
+import javax.swing.text.html.CSS.StringValue
 
 class QueryParser(val input: ParserInput) extends Parser {
   def InputLine = rule { SelectStatement ~ EOI }
@@ -78,7 +79,7 @@ class QueryParser(val input: ParserInput) extends Parser {
   // Terms
   /////////////////////////////////////////////////////////////////////////////
 
-  def Term: Rule1[Ast.Term] = rule { Value | MathematicalOperator }
+  def Term: Rule1[Ast.Term] = rule { MathematicalOperator | Value}
 
   /////////////////////////////////////////////////////////////////////////////
   // Mathematical Operator
@@ -95,13 +96,11 @@ class QueryParser(val input: ParserInput) extends Parser {
   // Values
   /////////////////////////////////////////////////////////////////////////////
   def Value = rule {
-    SkipWS ~ run(
-      (cursorChar: @switch) match {
-        case '"' | '\'' => StringValue
-        case '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '-' | '+' => DoubleValue | LongValue
-        case 't' | 'T' | 'f' | 'F' => BooleanValue
-
-      }) ~ SkipWS
+    SkipWS ~ (StringValue | BooleanValue |DoubleValue | LongValue | FieldValue) ~ SkipWS
+  }
+  
+  def FieldValue = rule {
+    SkipWS ~ capture(oneOrMore(!WhiteSpaceChar ~ !Keywords ~ ANY)) ~ SkipWS ~> (Ast.FieldExpressionValue(_))
   }
 
   def StringValue = rule { DoubleQuotedString | SingleQuotedString }
