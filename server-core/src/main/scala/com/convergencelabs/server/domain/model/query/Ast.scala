@@ -29,11 +29,11 @@ object Ast {
   sealed trait Term 
  
   sealed trait ExpressionValue extends Term 
-  case class LongExpressionValue(value: Long) extends Term
-  case class DoubleExpressionValue(value: Double) extends Term 
-  case class StringExpressionValue(value: String) extends Term 
-  case class FieldExpressionValue(value: String) extends Term 
-  case class BooleanExpressionValue(value: Boolean) extends Term 
+  case class LongExpressionValue(value: Long) extends ExpressionValue
+  case class DoubleExpressionValue(value: Double) extends ExpressionValue 
+  case class StringExpressionValue(value: String) extends ExpressionValue 
+  case class FieldExpressionValue(value: String) extends ExpressionValue 
+  case class BooleanExpressionValue(value: Boolean) extends ExpressionValue 
  
  
   sealed trait MathematicalOperator extends Term 
