@@ -4,9 +4,9 @@ object Ast {
   case class SelectStatement( 
     collection: String,  
     where: Option[WhereExpression],  
+    orderBy: List[OrderBy],
     limit: Option[Int],  
-    offset: Option[Int],  
-    orderBy: List[OrderBy])  
+    offset: Option[Int])  
  
   sealed trait WhereExpression 
  
@@ -29,6 +29,7 @@ object Ast {
   sealed trait Term 
  
   sealed trait ExpressionValue extends Term 
+  case class LongExpressionValue(value: Long) extends Term
   case class DoubleExpressionValue(value: Double) extends Term 
   case class StringExpressionValue(value: String) extends Term 
   case class FieldExpressionValue(value: String) extends Term 
@@ -36,16 +37,16 @@ object Ast {
  
  
   sealed trait MathematicalOperator extends Term 
-  case class Add(lhs: Term, rhs: Term) extends Term 
-  case class Subract(lhs: Term, rhs: Term) extends Term 
-  case class Divide(lhs: Term, rhs: Term) extends Term 
-  case class Multiply(lhs: Term, rhs: Term) extends Term 
-  case class Mod(lhs: Term, rhs: Term) extends Term 
+  case class Add(lhs: Term, rhs: Term) extends MathematicalOperator 
+  case class Subtract(lhs: Term, rhs: Term) extends MathematicalOperator 
+  case class Divide(lhs: Term, rhs: Term) extends MathematicalOperator 
+  case class Multiply(lhs: Term, rhs: Term) extends MathematicalOperator 
+  case class Mod(lhs: Term, rhs: Term) extends MathematicalOperator 
  
  
   case class OrderBy(field: String, direction: Option[OrderByDirection])  
  
   sealed trait OrderByDirection 
-  case object Ascending extends OrderByDirection; 
-  case object Descending extends OrderByDirection; 
+  case object Ascending extends OrderByDirection
+  case object Descending extends OrderByDirection 
 }
