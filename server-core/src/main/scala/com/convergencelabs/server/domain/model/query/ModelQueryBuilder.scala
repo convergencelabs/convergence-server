@@ -60,7 +60,7 @@ object ModelQueryBuilder {
           case Ascending  => "ASC"
           case Descending => "DESC"
         } getOrElse("ASC") 
-        s"${orderBy.field} ${ascendingParam}"
+        s"data.${orderBy.field} ${ascendingParam}"
       }).mkString(", ")
     }
 
@@ -92,8 +92,8 @@ object ModelQueryBuilder {
       case LessThan(lhs, rhs)                  => s"(${buildTermString(lhs)} < ${buildTermString(rhs)})"
       case LessThanOrEqual(lhs, rhs)           => s"(${buildTermString(lhs)} <= ${buildTermString(rhs)})"
       case GreaterThanOrEqual(lhs, rhs)        => s"(${buildTermString(lhs)} >= ${buildTermString(rhs)})"
-      case In(field: String, value: List[Any]) => s"(${field} in ${addParam(value.asJava)})"
-      case Like(field: String, value: String)  => s"(${field} like ${addParam(value)})"
+      case In(field: String, value: List[Any]) => s"(data.${field} in ${addParam(value.asJava)})"
+      case Like(field: String, value: String)  => s"(data.${field} like ${addParam(value)})"
     }
   }
 
@@ -110,7 +110,7 @@ object ModelQueryBuilder {
       case DoubleExpressionValue(value)  => s"${addParam(value)}"
       case StringExpressionValue(value)  => s"${addParam(value)}"
       case BooleanExpressionValue(value) => s"${addParam(value)}"
-      case FieldExpressionValue(value)   => s"${value}"
+      case FieldExpressionValue(value)   => s"data.${value}"
     }
   }
 
