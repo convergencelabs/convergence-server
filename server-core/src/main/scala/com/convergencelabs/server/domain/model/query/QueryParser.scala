@@ -10,7 +10,7 @@ object QueryParser {
   def apply(input: ParserInput): QueryParser = {
     new QueryParser(input)
   }
-  
+
   def parse(input: ParserInput): Try[SelectStatement] = {
     QueryParser(input).InputLine.run().asInstanceOf[Try[SelectStatement]]
   }
@@ -88,13 +88,15 @@ class QueryParser(val input: ParserInput) extends Parser {
   // Conditional Expressions
   /////////////////////////////////////////////////////////////////////////////
 
-  def ConditionalRule: Rule1[WhereExpression] = rule { Eq | Ne | Gt | Lt | Ge | Le }
-  def Eq = rule { HiPrecMathRule ~ SkipWS ~ "=" ~ SkipWS ~ HiPrecMathRule ~> Equals }
-  def Ne = rule { HiPrecMathRule ~ SkipWS ~ "!=" ~ SkipWS ~ HiPrecMathRule ~> NotEquals }
-  def Gt = rule { HiPrecMathRule ~ SkipWS ~ ">" ~ SkipWS ~ HiPrecMathRule ~> GreaterThan }
-  def Lt = rule { HiPrecMathRule ~ SkipWS ~ "<" ~ SkipWS ~ HiPrecMathRule ~> LessThan }
-  def Ge = rule { HiPrecMathRule ~ SkipWS ~ ">=" ~ SkipWS ~ HiPrecMathRule ~> GreaterThanOrEqual }
-  def Le = rule { HiPrecMathRule ~ SkipWS ~ "<=" ~ SkipWS ~ HiPrecMathRule ~> LessThanOrEqual }
+  def ConditionalRule: Rule1[WhereExpression] = rule {
+    LowPrecMathRule ~ SkipWS ~ (
+      "=" ~ LowPrecMathRule ~> Equals |
+        "!=" ~ LowPrecMathRule ~> NotEquals |
+        ">" ~ LowPrecMathRule ~> GreaterThan |
+        "<" ~ LowPrecMathRule ~> LessThan |
+        ">=" ~ LowPrecMathRule ~> GreaterThanOrEqual |
+        "<=" ~ LowPrecMathRule ~> LessThanOrEqual)
+  }
 
   /////////////////////////////////////////////////////////////////////////////
   // Mathematical Operator
@@ -218,8 +220,9 @@ object Test extends App {
   //  println(new QueryParser("(1 + 2 * 3)").LowPrecMathRule.run().get)
   //  println(new QueryParser("foo = 'bar' and (baz = 5 + someField * 8 and age < 64 or ahhh != 'bahhhh')").InputLine.run())
   //  println(new QueryParser("foo = 'bar' and (baz = 5 + someField * 8 and age < 64 or ahhh != 'bahhhh')").InputLine.run())
+  println(new QueryParser("(a + 1) < (b + 2)").WhereRule.run().get)
   println(new QueryParser("1 < a + 1").WhereRule.run().get)
-//  println(new QueryParser("Not (1 < a OR  2 = b)").WhereRule.run().get)
+  //  println(new QueryParser("Not (1 < a OR  2 = b)").WhereRule.run().get)
 
-//  println(new QueryParser("((x < y) and(x > (z + 7)))").WhereRule.run().get)
+  //  println(new QueryParser("((x < y) and(x > (z + 7)))").WhereRule.run().get)
 }
