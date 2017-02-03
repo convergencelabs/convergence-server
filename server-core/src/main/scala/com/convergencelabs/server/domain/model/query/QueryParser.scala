@@ -4,6 +4,17 @@ import com.convergencelabs.server.domain.model.query.Ast._
 import org.parboiled2._
 import scala.annotation.switch
 import javax.swing.text.html.CSS.StringValue
+import scala.util.Try
+
+object QueryParser {
+  def apply(input: ParserInput): QueryParser = {
+    new QueryParser(input)
+  }
+
+  def parse(input: ParserInput): Try[SelectStatement] = {
+    QueryParser(input).InputLine.run().asInstanceOf[Try[SelectStatement]]
+  }
+}
 
 class QueryParser(val input: ParserInput) extends Parser {
   def InputLine = rule { SelectStatementRule ~ EOI }
@@ -49,74 +60,74 @@ class QueryParser(val input: ParserInput) extends Parser {
   // Where Expression
   /////////////////////////////////////////////////////////////////////////////
 
-  def WhereRule: Rule1[WhereExpression] = rule { Parens | AndRule | OrRule | NotRule}
+  def WhereRule: Rule1[WhereExpression] = rule { OrRule }
 
   /////////////////////////////////////////////////////////////////////////////
   // Logical Expressions
   /////////////////////////////////////////////////////////////////////////////
-  
-  def Parens = rule {SkipWS ~ "(" ~ WhereRule ~ ")" ~ SkipWS ~ optional(
-      ignoreCase("and") ~ WhereRule ~> And |
-      ignoreCase("or") ~ WhereRule ~> Or
-   )  
-  }
-  
-  def AndRule: Rule1[WhereExpression] = rule {
-    OrRule ~ zeroOrMore(ignoreCase("and") ~ WhereRule ~> And)
-  }
 
   def OrRule: Rule1[WhereExpression] = rule {
-    NotRule ~ zeroOrMore(ignoreCase("or") ~ WhereRule ~> Or)
+    AndRule ~ zeroOrMore(ignoreCase("or") ~ AndRule ~> Or)
   }
-  
-  
-  // FIXME: Not rule needs to be fixed
+
+  def AndRule: Rule1[WhereExpression] = rule {
+    LogicalTerms ~ zeroOrMore(ignoreCase("and") ~ LogicalTerms ~> And)
+  }
+
+  def LogicalTerms = rule { NotRule | LogicalParens | ConditionalRule }
+
   def NotRule: Rule1[WhereExpression] = rule {
-    ConditionalRule ~ zeroOrMore(ignoreCase("not") ~ WhereRule ~> Or)
+    ignoreCase("not") ~ WhereRule ~> Not
+  }
+
+  def LogicalParens = rule {
+    SkipWS ~ "(" ~ SkipWS ~ WhereRule ~ SkipWS ~ ")" ~ SkipWS
   }
 
   /////////////////////////////////////////////////////////////////////////////
   // Conditional Expressions
   /////////////////////////////////////////////////////////////////////////////
 
-  def ConditionalRule: Rule1[WhereExpression] = rule { Eq | Ne | Gt | Lt | Ge | Le}
-  def Eq = rule { HiPrecMathRule ~ SkipWS ~ "=" ~ SkipWS ~ HiPrecMathRule ~> Equals }
-  def Ne = rule { HiPrecMathRule ~ SkipWS ~ "!=" ~ SkipWS ~ HiPrecMathRule ~> NotEquals }
-  def Gt = rule { HiPrecMathRule ~ SkipWS ~ ">" ~ SkipWS ~ HiPrecMathRule ~> GreaterThan }
-  def Lt = rule { HiPrecMathRule ~ SkipWS ~ "<" ~ SkipWS ~ HiPrecMathRule ~> LessThan }
-  def Ge = rule { HiPrecMathRule ~ SkipWS ~ ">=" ~ SkipWS ~ HiPrecMathRule ~> GreaterThanOrEqual }
-  def Le = rule { HiPrecMathRule ~ SkipWS ~ "<=" ~ SkipWS ~ HiPrecMathRule ~> LessThanOrEqual }
-
+  def ConditionalRule: Rule1[WhereExpression] = rule {
+    LowPrecMathRule ~ SkipWS ~ (
+      "=" ~ LowPrecMathRule ~> Equals |
+        "!=" ~ LowPrecMathRule ~> NotEquals |
+        ">" ~ LowPrecMathRule ~> GreaterThan |
+        "<" ~ LowPrecMathRule ~> LessThan |
+        ">=" ~ LowPrecMathRule ~> GreaterThanOrEqual |
+        "<=" ~ LowPrecMathRule ~> LessThanOrEqual)
+  }
 
   /////////////////////////////////////////////////////////////////////////////
   // Mathematical Operator
   /////////////////////////////////////////////////////////////////////////////
 
-  
-  def HiPrecMathRule: Rule1[Term] = rule {
-    LowPrecMathRule ~ zeroOrMore(
-        "*" ~ HiPrecMathRule ~> Multiply |
-        "/" ~ HiPrecMathRule ~> Divide |
-        "%" ~ HiPrecMathRule ~> Mod
-    )
+  def LowPrecMathRule: Rule1[ConditionalTerm] = rule {
+    HiPrecMathRule ~ SkipWS ~ zeroOrMore(
+      '+' ~ HiPrecMathRule ~> Add |
+        '-' ~ HiPrecMathRule ~> Subtract)
   }
-  
-  def LowPrecMathRule: Rule1[Term] = rule {
-    Value ~ zeroOrMore(
-        "+" ~ HiPrecMathRule ~> Add |
-        "-" ~ HiPrecMathRule ~> Subtract
-    )
+
+  def HiPrecMathRule: Rule1[ConditionalTerm] = rule {
+    (MathParens | Value) ~ SkipWS ~ zeroOrMore(
+      '*' ~ Value ~> Multiply |
+        '×' ~ Value ~> Multiply |
+        '/' ~ Value ~> Divide |
+        '%' ~ Value ~> Mod)
   }
+
+  def MathParens = rule { SkipWS ~ "(" ~ SkipWS ~ LowPrecMathRule ~ SkipWS ~ ")" ~ SkipWS }
 
   /////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////
-  
+
   def Value = rule {
     SkipWS ~ (StringValue | BooleanValue | DoubleValue | LongValue | FieldValue) ~ SkipWS
   }
 
+  // FIXME this is not correct since it will include keywords, and also operators like +
   def FieldValue = rule {
-    SkipWS ~ capture(oneOrMore(!WhiteSpaceChar ~ !Keywords ~ ANY)) ~ SkipWS ~> (FieldExpressionValue(_))
+    SkipWS ~ capture(oneOrMore(!WhiteSpaceChar ~ !Keywords ~ ANY)) ~ SkipWS ~> FieldExpressionValue
   }
 
   def StringValue = rule { DoubleQuotedString | SingleQuotedString }
@@ -201,7 +212,6 @@ class QueryParser(val input: ParserInput) extends Parser {
   def Offset = rule { ignoreCase("offset") }
   def Where = rule { ignoreCase("where") }
   def From = rule { ignoreCase("from") }
-
 }
 
 object Test extends App {
