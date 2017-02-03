@@ -76,39 +76,39 @@ class SelectStatementSpec
    }
    
    
-   "parsing an Order By" must {
-     "parse DESC as descending" in {
-       new QueryParser("ORDER BY foo DESC").OrderBySection.run().get shouldBe List(OrderBy("foo", Some(Descending)))
-     }
-     
-     "parse DESCENDING as descending" in {
-       new QueryParser("ORDER BY foo DESCENDING").OrderBySection.run().get shouldBe List(OrderBy("foo", Some(Descending)))
-     }
-     
-     "parse ASC as ascending" in {
-       new QueryParser("ORDER BY foo ASC").OrderBySection.run().get shouldBe List(OrderBy("foo", Some(Ascending)))
-     }
-     
-     "parse ASCENDING as ascending" in {
-       new QueryParser("ORDER BY foo ASCENDING").OrderBySection.run().get shouldBe List(OrderBy("foo", Some(Ascending)))
-     }
-     
-     "parse no direction as None" in {
-       new QueryParser("ORDER BY foo").OrderBySection.run().get shouldBe List(OrderBy("foo", None))
-     }
-   }
-   
-   "parsing a WHERE Section" must {
-      "parse a unsigned long" in {
-        // FIXME Broken
-        // println(new QueryParser("field < 5").Term.run().get)
-      }
-   }
-   
-   "parsing a SELECT Statement" must {
-      "parse a unsigned long" in {
-        println(new QueryParser("WHERE blah = 'Blah' or (foo = 'bar' and bob = 'alice')").WhereSection.run().get)
-      }
-   }
+//   "parsing an Order By" must {
+//     "parse DESC as descending" in {
+//       new QueryParser("ORDER BY foo DESC").OrderBySection.run().get shouldBe List(OrderBy("foo", Some(Descending)))
+//     }
+//     
+//     "parse DESCENDING as descending" in {
+//       new QueryParser("ORDER BY foo DESCENDING").OrderBySection.run().get shouldBe List(OrderBy("foo", Some(Descending)))
+//     }
+//     
+//     "parse ASC as ascending" in {
+//       new QueryParser("ORDER BY foo ASC").OrderBySection.run().get shouldBe List(OrderBy("foo", Some(Ascending)))
+//     }
+//     
+//     "parse ASCENDING as ascending" in {
+//       new QueryParser("ORDER BY foo ASCENDING").OrderBySection.run().get shouldBe List(OrderBy("foo", Some(Ascending)))
+//     }
+//     
+//     "parse no direction as None" in {
+//       new QueryParser("ORDER BY foo").OrderBySection.run().get shouldBe List(OrderBy("foo", None))
+//     }
+//   }
+//   
+//   "parsing a WHERE Section" must {
+//      "parse a unsigned long" in {
+//        // FIXME Broken
+//        // println(new QueryParser("field < 5").Term.run().get)
+//      }
+//   }
+//   
+//   "parsing a SELECT Statement" must {
+//      "parse a unsigned long" in {
+//        println(new QueryParser("WHERE blah = 'Blah' or (foo = 'bar' and bob = 'alice')").WhereSection.run().get)
+//      }
+//   }
 
 }

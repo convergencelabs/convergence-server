@@ -24,7 +24,7 @@ import com.convergencelabs.server.domain.model.query.Ast.LessThanOrEqual
 import com.convergencelabs.server.domain.model.query.Ast.GreaterThanOrEqual
 import com.convergencelabs.server.domain.model.query.Ast.In
 import com.convergencelabs.server.domain.model.query.Ast.Like
-import com.convergencelabs.server.domain.model.query.Ast.Term
+import com.convergencelabs.server.domain.model.query.Ast.ConditionalTerm
 import com.convergencelabs.server.domain.model.query.Ast.ExpressionValue
 import com.convergencelabs.server.domain.model.query.Ast.MathematicalOperator
 import com.convergencelabs.server.domain.model.query.Ast.DoubleExpressionValue
@@ -97,7 +97,7 @@ object ModelQueryBuilder {
     }
   }
 
-  private[this] def buildTermString(term: Term)(implicit param: ScalaMutableMap[String, Any]): String = {
+  private[this] def buildTermString(term: ConditionalTerm)(implicit param: ScalaMutableMap[String, Any]): String = {
     term match {
       case expression: ExpressionValue      => buildExpressionValueString(expression)
       case expression: MathematicalOperator => buildMathmaticalExpressionString(expression)
