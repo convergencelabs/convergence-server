@@ -11,8 +11,8 @@ object QueryParser {
     new QueryParser(input)
   }
   
-  def parse(input: ParserInput): Try[SelectStatementRule] = {
-    QueryParser(input).InputLine.run().asInstanceOf[SelectStatementRule]
+  def parse(input: ParserInput): Try[SelectStatement] = {
+    QueryParser(input).InputLine.run().asInstanceOf[Try[SelectStatement]]
   }
 }
 
@@ -219,7 +219,7 @@ object Test extends App {
   //  println(new QueryParser("foo = 'bar' and (baz = 5 + someField * 8 and age < 64 or ahhh != 'bahhhh')").InputLine.run())
   //  println(new QueryParser("foo = 'bar' and (baz = 5 + someField * 8 and age < 64 or ahhh != 'bahhhh')").InputLine.run())
   println(new QueryParser("1 < a + 1").WhereRule.run().get)
-  println(new QueryParser("Not (1 < a OR  2 = b)").WhereRule.run().get)
+//  println(new QueryParser("Not (1 < a OR  2 = b)").WhereRule.run().get)
 
-  println(new QueryParser("((x < y) and(x > (z + 7)))").WhereRule.run().get)
+//  println(new QueryParser("((x < y) and(x > (z + 7)))").WhereRule.run().get)
 }
