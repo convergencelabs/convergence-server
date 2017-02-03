@@ -55,18 +55,24 @@ class QueryParser(val input: ParserInput) extends Parser {
   // Logical Expressions
   /////////////////////////////////////////////////////////////////////////////
   
-  def Parens = rule {SkipWS ~ "(" ~ WhereRule ~ ")" ~ SkipWS}
+  def Parens = rule {SkipWS ~ "(" ~ WhereRule ~ ")" ~ SkipWS ~ optional(
+      ignoreCase("and") ~ WhereRule ~> And |
+      ignoreCase("or") ~ WhereRule ~> Or
+   )  
+  }
   
   def AndRule: Rule1[WhereExpression] = rule {
-    OrRule ~ zeroOrMore("and" ~ WhereRule ~> And)
+    OrRule ~ zeroOrMore(ignoreCase("and") ~ WhereRule ~> And)
   }
 
   def OrRule: Rule1[WhereExpression] = rule {
-    NotRule ~ zeroOrMore("or" ~ WhereRule ~> Or)
+    NotRule ~ zeroOrMore(ignoreCase("or") ~ WhereRule ~> Or)
   }
   
+  
+  // FIXME: Not rule needs to be fixed
   def NotRule: Rule1[WhereExpression] = rule {
-    ConditionalRule ~ zeroOrMore("not" ~ WhereRule ~> Or)
+    ConditionalRule ~ zeroOrMore(ignoreCase("not") ~ WhereRule ~> Or)
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -74,12 +80,12 @@ class QueryParser(val input: ParserInput) extends Parser {
   /////////////////////////////////////////////////////////////////////////////
 
   def ConditionalRule: Rule1[WhereExpression] = rule { Eq | Ne | Gt | Lt | Ge | Le}
-  def Eq = rule { HiPrecMathRule ~ SkipWS ~ "=" ~ SkipWS ~ HiPrecMathRule ~> (Equals(_, _)) }
-  def Ne = rule { HiPrecMathRule ~ SkipWS ~ "!=" ~ SkipWS ~ HiPrecMathRule ~> (NotEquals(_, _)) }
-  def Gt = rule { HiPrecMathRule ~ SkipWS ~ ">" ~ SkipWS ~ HiPrecMathRule ~> (GreaterThan(_, _)) }
-  def Lt = rule { HiPrecMathRule ~ SkipWS ~ "<" ~ SkipWS ~ HiPrecMathRule ~> (LessThan(_, _)) }
-  def Ge = rule { HiPrecMathRule ~ SkipWS ~ ">=" ~ SkipWS ~ HiPrecMathRule ~> (GreaterThanOrEqual(_, _)) }
-  def Le = rule { HiPrecMathRule ~ SkipWS ~ "<=" ~ SkipWS ~ HiPrecMathRule ~> (LessThanOrEqual(_, _)) }
+  def Eq = rule { HiPrecMathRule ~ SkipWS ~ "=" ~ SkipWS ~ HiPrecMathRule ~> Equals }
+  def Ne = rule { HiPrecMathRule ~ SkipWS ~ "!=" ~ SkipWS ~ HiPrecMathRule ~> NotEquals }
+  def Gt = rule { HiPrecMathRule ~ SkipWS ~ ">" ~ SkipWS ~ HiPrecMathRule ~> GreaterThan }
+  def Lt = rule { HiPrecMathRule ~ SkipWS ~ "<" ~ SkipWS ~ HiPrecMathRule ~> LessThan }
+  def Ge = rule { HiPrecMathRule ~ SkipWS ~ ">=" ~ SkipWS ~ HiPrecMathRule ~> GreaterThanOrEqual }
+  def Le = rule { HiPrecMathRule ~ SkipWS ~ "<=" ~ SkipWS ~ HiPrecMathRule ~> LessThanOrEqual }
 
 
   /////////////////////////////////////////////////////////////////////////////
@@ -199,5 +205,5 @@ class QueryParser(val input: ParserInput) extends Parser {
 }
 
 object Test extends App {
-  println(new QueryParser("SELECT * FROM files WHERE foo = 'bar' and (baz = 5 + someField * 8 and age < 64) or ahhh != 'bahhhh'").InputLine.run())
+  println(new QueryParser("SELECT * FROM files WHERE foo = 'bar' and (baz = 5 + someField * 8 and age < 64 or ahhh != 'bahhhh')").InputLine.run())
 }
