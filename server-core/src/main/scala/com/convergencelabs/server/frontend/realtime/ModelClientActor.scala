@@ -358,20 +358,19 @@ class ModelClientActor(
   }
 
   private[this] def onModelQueryRequest(request: ModelsQueryRequestMessage, cb: ReplyCallback): Unit = {
-    val ModelsQueryRequestMessage(collection, limit, offset, orderBy) = request
-    val future = modelManager ? QueryModelsRequest(collection, limit, offset, orderBy map {
-      case OrderBy(field, ascending) => QueryOrderBy(field, ascending)
-    })
+    val ModelsQueryRequestMessage(query) = request
+    val future = modelManager ? QueryModelsRequest(query)
     future.mapResponse[QueryModelsResponse] onComplete {
       case Success(QueryModelsResponse(result)) => cb.reply(
         ModelsQueryResponseMessage(result map {
           r =>
             ModelResult(
-              r.fqn.collectionId,
-              r.fqn.modelId,
-              r.createdTime.toEpochMilli(),
-              r.modifiedTime.toEpochMilli(),
-              r.version)
+              r.metaData.fqn.collectionId,
+              r.metaData.fqn.modelId,
+              r.metaData.createdTime.toEpochMilli(),
+              r.metaData.modifiedTime.toEpochMilli(),
+              r.metaData.version,
+              r.data)
         }))
       case Failure(cause) =>
         log.error(cause, "Unexpected error deleting model.")

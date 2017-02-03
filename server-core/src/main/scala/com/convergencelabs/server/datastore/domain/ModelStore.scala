@@ -36,6 +36,8 @@ import ModelStore.Fields.Id
 import ModelStore.Fields.ModifiedTime
 import ModelStore.Fields.Version
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.domain.model.query.QueryParser
+import com.convergencelabs.server.domain.model.query.QueryParser
 
 object ModelStore {
   val ModelClass = "Model"
@@ -168,7 +170,7 @@ class ModelStore private[domain] (
         throw EntityNotFoundException()
     }
   }
-  
+
   def updateModelOnOperation(fqn: ModelFqn, timestamp: Instant): Try[Unit] = tryWithDb { db =>
     val queryString =
       """UPDATE Model SET
@@ -202,7 +204,7 @@ class ModelStore private[domain] (
       val command = new OCommandSQL("DELETE FROM Model WHERE collection.id = :collectionId AND id = :id")
       val params = Map(CollectionId -> fqn.collectionId, Id -> fqn.modelId)
       db.command(command).execute(params.asJava).asInstanceOf[Int] match {
-        case 1 => 
+        case 1 =>
           ()
         case _ =>
           throw EntityNotFoundException()
@@ -288,39 +290,16 @@ class ModelStore private[domain] (
     result.asScala.toList map { ModelStore.docToModelMetaData(_) }
   }
 
-  def queryModels(
-    collectionId: Option[String],
-    limit: Option[Int],
-    offset: Option[Int],
-    orderBy: Option[(String, Boolean)]): Try[List[ModelMetaData]] = tryWithDb { db =>
-
-    var params = Map[String, String]()
-
-    val where = collectionId map { collectionId =>
-      params += CollectionId -> collectionId
-      "WHERE collection.id = :collectionId"
-    } getOrElse ("")
-
-    val order: String = orderBy map { orderBy =>
-      val ascendingParam = if (orderBy._2) { "ASC" } else { "DESC" }
-      s"ORDER BY ${orderBy._1} ${ascendingParam}"
-    } getOrElse "ORDER BY id ASC"
-
-    val queryString =
-      s"""SELECT *
-         |FROM Model
-         |${where}
-         |${order}""".stripMargin
-
-    val pagedQuery = QueryUtil.buildPagedQuery(
-      queryString,
-      limit,
-      offset)
-
-    val query = new OSQLSynchQuery[ODocument](pagedQuery)
-
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    result.asScala.toList map { ModelStore.docToModelMetaData(_) }
+  def queryModels(query: String): Try[List[Model]] = tryWithDb { db =>
+    val select = new QueryParser(query).InputLine.run()
+    val queryResult = select.map(ModelQueryBuilder.queryModels(_)) map {
+      queryParams: ModelQueryParameters => {
+        val query = new OSQLSynchQuery[ODocument](queryParams.query)
+        val result: JavaList[ODocument] = db.command(query).execute(queryParams.params.asJava)
+        result.asScala.toList map { ModelStore.docToModel(_) }
+      }
+    }
+    queryResult.get
   }
 
   def getModelData(fqn: ModelFqn): Try[Option[ObjectValue]] = tryWithDb { db =>
