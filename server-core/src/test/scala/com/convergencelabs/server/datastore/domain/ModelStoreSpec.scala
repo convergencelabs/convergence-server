@@ -273,8 +273,8 @@ class ModelStoreSpec
       "return correct models if an offset and limit is provided" in withPersistenceStore { stores =>
         createAllModels(stores)
 
-        val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId OFFSET 1 LIMIT 1").get
-        list shouldBe List(person1Model)
+        val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId LIMIT 1 OFFSET 1").get
+        list shouldBe List(person2Model)
       }
 
       "return models in correct order if orderBy ASC is provided" in withPersistenceStore { stores =>
