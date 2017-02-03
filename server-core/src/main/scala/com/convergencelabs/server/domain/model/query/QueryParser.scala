@@ -1,20 +1,22 @@
 package com.convergencelabs.server.domain.model.query
 
+import com.convergencelabs.server.domain.model.query.Ast._
 import org.parboiled2._
 import scala.annotation.switch
 import javax.swing.text.html.CSS.StringValue
 
 class QueryParser(val input: ParserInput) extends Parser {
-  def InputLine = rule { SelectStatement ~ EOI }
+  def InputLine = rule { SelectStatementRule ~ EOI }
 
-  def SelectStatement = rule {
-    SelectSection ~ 
-    FieldsSection ~ 
-    FromSection ~ 
-    CollectionSection ~ 
-    OrderBySection ~ 
-    LimitSection ~ 
-    OffsetSection ~> (Ast.SelectStatement(_, None, _, _, _))
+  def SelectStatementRule = rule {
+    SelectSection ~
+      FieldsSection ~
+      FromSection ~
+      CollectionSection ~
+      WhereSection ~
+      OrderBySection ~
+      LimitSection ~
+      OffsetSection ~> (SelectStatement(_, _, _, _, _))
   }
 
   def SelectSection = rule { SkipWS ~ Select ~ SkipWS }
@@ -25,8 +27,8 @@ class QueryParser(val input: ParserInput) extends Parser {
 
   def CollectionSection = rule { SkipWS ~ capture(oneOrMore(!WhiteSpaceChar ~ ANY)) ~ SkipWS }
 
-  def WhereSection: Rule1[Option[Ast.WhereExpression]] = rule {
-    Where ~ WhereExpression ~> (Some(_)) | push(None)
+  def WhereSection: Rule1[Option[WhereExpression]] = rule {
+    Where ~ WhereRule ~> (Some(_)) | push(None)
   }
 
   def LimitSection: Rule1[Option[Int]] = rule {
@@ -39,68 +41,76 @@ class QueryParser(val input: ParserInput) extends Parser {
       SkipWS ~ capture(oneOrMore(CharPredicate.Digit)) ~> ((str: String) => Some(str.toInt)) | push(None)
   }
 
-  def OrderBySection: Rule1[List[Ast.OrderBy]] = rule {
-    ignoreCase("order by") ~ oneOrMore(OrderBy).separatedBy(",") ~> ((s: Seq[Ast.OrderBy]) => s.toList) | push(List())
+  def OrderBySection: Rule1[List[OrderBy]] = rule {
+    ignoreCase("order by") ~ oneOrMore(OrderByRule).separatedBy(",") ~> ((s: Seq[OrderBy]) => s.toList) | push(List())
   }
 
   /////////////////////////////////////////////////////////////////////////////
   // Where Expression
   /////////////////////////////////////////////////////////////////////////////
 
-  def WhereExpression: Rule1[Ast.WhereExpression] = rule { ConditionalExpression }
+  def WhereRule: Rule1[WhereExpression] = rule { Parens | AndRule | OrRule | NotRule}
 
   /////////////////////////////////////////////////////////////////////////////
   // Logical Expressions
   /////////////////////////////////////////////////////////////////////////////
+  
+  def Parens = rule {SkipWS ~ "(" ~ WhereRule ~ ")" ~ SkipWS}
+  
+  def AndRule: Rule1[WhereExpression] = rule {
+    OrRule ~ zeroOrMore("and" ~ WhereRule ~> And)
+  }
 
-  def LogicalExpression: Rule1[Ast.LogicalExpression] = rule { And | Or | Not }
-  def And = rule { WhereExpression ~ SkipWS ~ ignoreCase("and") ~ SkipWS ~ WhereExpression ~> (Ast.And(_, _)) }
-  def Or = rule { WhereExpression ~ SkipWS ~ ignoreCase("or") ~ SkipWS ~ WhereExpression ~> (Ast.Or(_, _)) }
-  def Not = rule {
-    ignoreCase("not") ~
-      SkipWS ~ "(" ~
-      SkipWS ~ ConditionalExpression ~
-      SkipWS ~ ")" ~> (Ast.Not(_))
+  def OrRule: Rule1[WhereExpression] = rule {
+    NotRule ~ zeroOrMore("or" ~ WhereRule ~> Or)
+  }
+  
+  def NotRule: Rule1[WhereExpression] = rule {
+    ConditionalRule ~ zeroOrMore("not" ~ WhereRule ~> Or)
   }
 
   /////////////////////////////////////////////////////////////////////////////
   // Conditional Expressions
   /////////////////////////////////////////////////////////////////////////////
 
-  def ConditionalExpression: Rule1[Ast.ConditionalExpression] = rule { Eq | Ne | Gt | Lt | Ge | Le }
-  def Eq = rule { Term ~ SkipWS ~ "=" ~ SkipWS ~ Term ~> (Ast.Equals(_, _)) }
-  def Ne = rule { Term ~ SkipWS ~ "!=" ~ SkipWS ~ Term ~> (Ast.NotEquals(_, _)) }
-  def Gt = rule { Term ~ SkipWS ~ ">" ~ SkipWS ~ Term ~> (Ast.GreaterThan(_, _)) }
-  def Lt = rule { Term ~ SkipWS ~ "<" ~ SkipWS ~ Term ~> (Ast.LessThan(_, _)) }
-  def Ge = rule { Term ~ SkipWS ~ ">=" ~ SkipWS ~ Term ~> (Ast.GreaterThanOrEqual(_, _)) }
-  def Le = rule { Term ~ SkipWS ~ "<=" ~ SkipWS ~ Term ~> (Ast.LessThanOrEqual(_, _)) }
+  def ConditionalRule: Rule1[WhereExpression] = rule { Eq | Ne | Gt | Lt | Ge | Le}
+  def Eq = rule { HiPrecMathRule ~ SkipWS ~ "=" ~ SkipWS ~ HiPrecMathRule ~> (Equals(_, _)) }
+  def Ne = rule { HiPrecMathRule ~ SkipWS ~ "!=" ~ SkipWS ~ HiPrecMathRule ~> (NotEquals(_, _)) }
+  def Gt = rule { HiPrecMathRule ~ SkipWS ~ ">" ~ SkipWS ~ HiPrecMathRule ~> (GreaterThan(_, _)) }
+  def Lt = rule { HiPrecMathRule ~ SkipWS ~ "<" ~ SkipWS ~ HiPrecMathRule ~> (LessThan(_, _)) }
+  def Ge = rule { HiPrecMathRule ~ SkipWS ~ ">=" ~ SkipWS ~ HiPrecMathRule ~> (GreaterThanOrEqual(_, _)) }
+  def Le = rule { HiPrecMathRule ~ SkipWS ~ "<=" ~ SkipWS ~ HiPrecMathRule ~> (LessThanOrEqual(_, _)) }
 
-  /////////////////////////////////////////////////////////////////////////////
-  // Terms
-  /////////////////////////////////////////////////////////////////////////////
-
-  def Term: Rule1[Ast.Term] = rule { MathematicalOperator | Value}
 
   /////////////////////////////////////////////////////////////////////////////
   // Mathematical Operator
   /////////////////////////////////////////////////////////////////////////////
 
-  def MathematicalOperator: Rule1[Ast.MathematicalOperator] = rule { Add | Subtract | Multiply | Divide | Mod }
-  def Add = rule { Term ~ SkipWS ~ "+" ~ SkipWS ~ Term ~> (Ast.Add(_, _)) }
-  def Subtract = rule { Term ~ SkipWS ~ "-" ~ SkipWS ~ Term ~> (Ast.Subtract(_, _)) }
-  def Multiply = rule { Term ~ SkipWS ~ "*" ~ SkipWS ~ Term ~> (Ast.Multiply(_, _)) }
-  def Divide = rule { Term ~ SkipWS ~ "/" ~ SkipWS ~ Term ~> (Ast.Divide(_, _)) }
-  def Mod = rule { Term ~ SkipWS ~ "%" ~ SkipWS ~ Term ~> (Ast.Mod(_, _)) }
-
-  /////////////////////////////////////////////////////////////////////////////
-  // Values
-  /////////////////////////////////////////////////////////////////////////////
-  def Value = rule {
-    SkipWS ~ (StringValue | BooleanValue |DoubleValue | LongValue | FieldValue) ~ SkipWS
+  
+  def HiPrecMathRule: Rule1[Term] = rule {
+    LowPrecMathRule ~ zeroOrMore(
+        "*" ~ HiPrecMathRule ~> Multiply |
+        "/" ~ HiPrecMathRule ~> Divide |
+        "%" ~ HiPrecMathRule ~> Mod
+    )
   }
   
+  def LowPrecMathRule: Rule1[Term] = rule {
+    Value ~ zeroOrMore(
+        "+" ~ HiPrecMathRule ~> Add |
+        "-" ~ HiPrecMathRule ~> Subtract
+    )
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////////
+  
+  def Value = rule {
+    SkipWS ~ (StringValue | BooleanValue | DoubleValue | LongValue | FieldValue) ~ SkipWS
+  }
+
   def FieldValue = rule {
-    SkipWS ~ capture(oneOrMore(!WhiteSpaceChar ~ !Keywords ~ ANY)) ~ SkipWS ~> (Ast.FieldExpressionValue(_))
+    SkipWS ~ capture(oneOrMore(!WhiteSpaceChar ~ !Keywords ~ ANY)) ~ SkipWS ~> (FieldExpressionValue(_))
   }
 
   def StringValue = rule { DoubleQuotedString | SingleQuotedString }
@@ -108,21 +118,21 @@ class QueryParser(val input: ParserInput) extends Parser {
   def DoubleQuotedString = rule {
     DoubleQuote ~
       capture(zeroOrMore(EscapedDoubleQuote | noneOf(DoubleQuote))) ~
-      DoubleQuote ~> ((str: String) => Ast.StringExpressionValue(str.replace(EscapedDoubleQuote, DoubleQuote)))
+      DoubleQuote ~> ((str: String) => StringExpressionValue(str.replace(EscapedDoubleQuote, DoubleQuote)))
   }
 
   def SingleQuotedString = rule {
     SingleQuote ~
       capture(zeroOrMore(EscapedSingleQuote | noneOf(SingleQuote))) ~
-      SingleQuote ~> ((str: String) => Ast.StringExpressionValue(str.replace(EscapedSingleQuote, SingleQuote)))
+      SingleQuote ~> ((str: String) => StringExpressionValue(str.replace(EscapedSingleQuote, SingleQuote)))
   }
 
   def LongValue = rule {
-    capture(SignedNumber) ~> ((str: String) => Ast.LongExpressionValue(str.toLong))
+    capture(SignedNumber) ~> ((str: String) => LongExpressionValue(str.toLong))
   }
 
   def DoubleValue = rule {
-    capture(SignedNumber ~ FracExp) ~> ((str: String) => Ast.DoubleExpressionValue(str.toDouble))
+    capture(SignedNumber ~ FracExp) ~> ((str: String) => DoubleExpressionValue(str.toDouble))
   }
 
   def SignedNumber = rule { optional(anyOf("+-")) ~ Digits }
@@ -138,7 +148,7 @@ class QueryParser(val input: ParserInput) extends Parser {
   def True = rule { ignoreCase("true") ~ push(true) }
   def False = rule { ignoreCase("false") ~ push(false) }
 
-  def BooleanValue = rule { (True | False) ~> (Ast.BooleanExpressionValue(_)) }
+  def BooleanValue = rule { (True | False) ~> (BooleanExpressionValue(_)) }
 
   def Field = rule { oneOrMore(!WhiteSpaceChar ~ ANY) }
 
@@ -146,26 +156,26 @@ class QueryParser(val input: ParserInput) extends Parser {
   // Order By
   /////////////////////////////////////////////////////////////////////////////
 
-  def OrderBy = rule { OrderByWithDirection | OrderByWithoutDirection }
+  def OrderByRule = rule { OrderByWithDirection | OrderByWithoutDirection }
 
-  def OrderByWithDirection: Rule1[Ast.OrderBy] = rule {
+  def OrderByWithDirection: Rule1[OrderBy] = rule {
     SkipWS ~
       (capture(Field) ~ SkipWS ~
-        OrderByDirection) ~> ((field: String, dir: Ast.OrderByDirection) => Ast.OrderBy(field, Some(dir)))
+        OrderByDirection) ~> ((field: String, dir: OrderByDirection) => OrderBy(field, Some(dir)))
   }
 
-  def OrderByWithoutDirection: Rule1[Ast.OrderBy] = rule {
-    SkipWS ~ capture(Field) ~> ((str: String) => Ast.OrderBy(str, None))
+  def OrderByWithoutDirection: Rule1[OrderBy] = rule {
+    SkipWS ~ capture(Field) ~> ((str: String) => OrderBy(str, None))
   }
 
-  def OrderByDirection: Rule1[Ast.OrderByDirection] = rule { Ascending | Descending }
+  def OrderByDirection: Rule1[OrderByDirection] = rule { AscendingRule | DescendingRule }
 
-  def Ascending: Rule1[Ast.OrderByDirection] = rule {
-    (ignoreCase("asc") | ignoreCase("ascending")) ~ push(Ast.Ascending)
+  def AscendingRule: Rule1[OrderByDirection] = rule {
+    (ignoreCase("asc") | ignoreCase("ascending")) ~ push(Ascending)
   }
 
-  def Descending: Rule1[Ast.OrderByDirection] = rule {
-    (ignoreCase("desc") | ignoreCase("descending")) ~ push(Ast.Descending)
+  def DescendingRule: Rule1[OrderByDirection] = rule {
+    (ignoreCase("desc") | ignoreCase("descending")) ~ push(Descending)
   }
 
   def DoubleQuote = "\""
@@ -176,10 +186,10 @@ class QueryParser(val input: ParserInput) extends Parser {
   val WhiteSpaceChar = CharPredicate(" \n\r\t\f")
 
   def SkipWS = rule(zeroOrMore(WhiteSpaceChar))
-  
+
   // FIXM we need to exclude keywords from certian places like orderby, fields, etc.
-  def Keywords = rule {Select | From | Limit | Offset | Where}
-  
+  def Keywords = rule { Select | From | Limit | Offset | Where }
+
   def Select = rule { ignoreCase("select") }
   def Limit = rule { ignoreCase("limit") }
   def Offset = rule { ignoreCase("offset") }
@@ -189,5 +199,5 @@ class QueryParser(val input: ParserInput) extends Parser {
 }
 
 object Test extends App {
-  //  println(new QueryParser("SELECT * FROM files WHERE foo = bar").InputLine.run())
+  println(new QueryParser("SELECT * FROM files WHERE foo = 'bar' and (baz = 5 + someField * 8 and age < 64) or ahhh != 'bahhhh'").InputLine.run())
 }

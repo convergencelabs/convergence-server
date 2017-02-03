@@ -107,7 +107,7 @@ class SelectStatementSpec
    
    "parsing a SELECT Statement" must {
       "parse a unsigned long" in {
-        println(new QueryParser("SELECT * FROM people ORDER BY foo DESC, bar ASC, baz LIMIT 10 OFFSET 5").InputLine.run().get)
+        println(new QueryParser("WHERE blah = 'Blah' or (foo = 'bar' and bob = 'alice')").WhereSection.run().get)
       }
    }
 
