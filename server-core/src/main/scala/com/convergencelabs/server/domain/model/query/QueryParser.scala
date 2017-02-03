@@ -4,6 +4,17 @@ import com.convergencelabs.server.domain.model.query.Ast._
 import org.parboiled2._
 import scala.annotation.switch
 import javax.swing.text.html.CSS.StringValue
+import scala.util.Try
+
+object QueryParser {
+  def apply(input: ParserInput): QueryParser = {
+    new QueryParser(input)
+  }
+  
+  def parse(input: ParserInput): Try[SelectStatementRule] = {
+    QueryParser(input).InputLine.run().asInstanceOf[SelectStatementRule]
+  }
+}
 
 class QueryParser(val input: ParserInput) extends Parser {
   def InputLine = rule { SelectStatementRule ~ EOI }
@@ -112,6 +123,7 @@ class QueryParser(val input: ParserInput) extends Parser {
     SkipWS ~ (StringValue | BooleanValue | DoubleValue | LongValue | FieldValue) ~ SkipWS
   }
 
+  // FIXME this is not correct since it will include keywords, and also operators like +
   def FieldValue = rule {
     SkipWS ~ capture(oneOrMore(!WhiteSpaceChar ~ !Keywords ~ ANY)) ~ SkipWS ~> FieldExpressionValue
   }
@@ -206,9 +218,8 @@ object Test extends App {
   //  println(new QueryParser("(1 + 2 * 3)").LowPrecMathRule.run().get)
   //  println(new QueryParser("foo = 'bar' and (baz = 5 + someField * 8 and age < 64 or ahhh != 'bahhhh')").InputLine.run())
   //  println(new QueryParser("foo = 'bar' and (baz = 5 + someField * 8 and age < 64 or ahhh != 'bahhhh')").InputLine.run())
-  println(new QueryParser("1 < a+1").WhereRule.run().get)
+  println(new QueryParser("1 < a + 1").WhereRule.run().get)
   println(new QueryParser("Not (1 < a OR  2 = b)").WhereRule.run().get)
-  
-  
+
   println(new QueryParser("((x < y) and(x > (z + 7)))").WhereRule.run().get)
 }
