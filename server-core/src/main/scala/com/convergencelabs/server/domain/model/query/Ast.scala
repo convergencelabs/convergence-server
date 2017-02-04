@@ -42,7 +42,6 @@ object Ast {
   case class Multiply(lhs: ConditionalTerm, rhs: ConditionalTerm) extends MathematicalOperator 
   case class Mod(lhs: ConditionalTerm, rhs: ConditionalTerm) extends MathematicalOperator 
  
- 
   case class OrderBy(field: String, direction: Option[OrderByDirection])  
  
   sealed trait OrderByDirection 
