@@ -25,19 +25,19 @@ import com.convergencelabs.server.domain.model.query.Ast.GreaterThanOrEqual
 import com.convergencelabs.server.domain.model.query.Ast.In
 import com.convergencelabs.server.domain.model.query.Ast.Like
 import com.convergencelabs.server.domain.model.query.Ast.ConditionalTerm
-import com.convergencelabs.server.domain.model.query.Ast.ExpressionValue
 import com.convergencelabs.server.domain.model.query.Ast.MathematicalOperator
-import com.convergencelabs.server.domain.model.query.Ast.DoubleExpressionValue
-import com.convergencelabs.server.domain.model.query.Ast.FieldExpressionValue
-import com.convergencelabs.server.domain.model.query.Ast.LongExpressionValue
-import com.convergencelabs.server.domain.model.query.Ast.StringExpressionValue
-import com.convergencelabs.server.domain.model.query.Ast.BooleanExpressionValue
+import com.convergencelabs.server.domain.model.query.Ast.DoubleTerm
+import com.convergencelabs.server.domain.model.query.Ast.FieldTerm
+import com.convergencelabs.server.domain.model.query.Ast.LongTerm
+import com.convergencelabs.server.domain.model.query.Ast.StringTerm
+import com.convergencelabs.server.domain.model.query.Ast.BooleanTerm
 import com.convergencelabs.server.domain.model.query.Ast.Add
 import com.convergencelabs.server.domain.model.query.Ast.Subtract
 import com.convergencelabs.server.domain.model.query.Ast.Divide
 import com.convergencelabs.server.domain.model.query.Ast.Multiply
 import com.convergencelabs.server.domain.model.query.Ast.Mod
 import com.convergencelabs.server.datastore.QueryUtil
+import com.convergencelabs.server.domain.model.query.Ast.ValueTerm
 
 case class ModelQueryParameters(query: String, params: Map[String, Any])
 
@@ -99,18 +99,18 @@ object ModelQueryBuilder {
 
   private[this] def buildTermString(term: ConditionalTerm)(implicit param: ScalaMutableMap[String, Any]): String = {
     term match {
-      case expression: ExpressionValue      => buildExpressionValueString(expression)
+      case expression: ValueTerm      => buildExpressionValueString(expression)
       case expression: MathematicalOperator => buildMathmaticalExpressionString(expression)
     }
   }
 
-  private[this] def buildExpressionValueString(expressionValue: ExpressionValue)(implicit params: ScalaMutableMap[String, Any]): String = {
-    expressionValue match {
-      case LongExpressionValue(value)    => s"${addParam(value)}"
-      case DoubleExpressionValue(value)  => s"${addParam(value)}"
-      case StringExpressionValue(value)  => s"${addParam(value)}"
-      case BooleanExpressionValue(value) => s"${addParam(value)}"
-      case FieldExpressionValue(value)   => s"data.${value}"
+  private[this] def buildExpressionValueString(valueTerm: ValueTerm)(implicit params: ScalaMutableMap[String, Any]): String = {
+    valueTerm match {
+      case LongTerm(value)    => s"${addParam(value)}"
+      case DoubleTerm(value)  => s"${addParam(value)}"
+      case StringTerm(value)  => s"${addParam(value)}"
+      case BooleanTerm(value) => s"${addParam(value)}"
+      case FieldTerm(value)   => s"data.${value}"
     }
   }
 

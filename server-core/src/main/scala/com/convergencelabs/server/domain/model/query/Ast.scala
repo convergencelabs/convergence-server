@@ -28,13 +28,12 @@ object Ast {
  
   sealed trait ConditionalTerm 
  
-  sealed trait ExpressionValue extends ConditionalTerm 
-  case class LongExpressionValue(value: Long) extends ExpressionValue
-  case class DoubleExpressionValue(value: Double) extends ExpressionValue 
-  case class StringExpressionValue(value: String) extends ExpressionValue 
-  case class FieldExpressionValue(value: String) extends ExpressionValue 
-  case class BooleanExpressionValue(value: Boolean) extends ExpressionValue 
- 
+  sealed trait ValueTerm extends ConditionalTerm 
+  case class LongTerm(value: Long) extends ValueTerm
+  case class DoubleTerm(value: Double) extends ValueTerm 
+  case class StringTerm(value: String) extends ValueTerm 
+  case class FieldTerm(value: String) extends ValueTerm 
+  case class BooleanTerm(value: Boolean) extends ValueTerm 
  
   sealed trait MathematicalOperator extends ConditionalTerm 
   case class Add(lhs: ConditionalTerm, rhs: ConditionalTerm) extends MathematicalOperator 

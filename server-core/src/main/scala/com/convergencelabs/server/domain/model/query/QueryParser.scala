@@ -30,25 +30,25 @@ class QueryParser(val input: ParserInput) extends Parser {
       OffsetSection ~> (SelectStatement(_, _, _, _, _))
   }
 
-  def SelectSection = rule { SkipWS ~ Select ~ SkipWS }
+  def SelectSection = rule { SkipWS ~ Keyword.Select ~ SkipWS }
 
   def FieldsSection = rule { optional(SkipWS ~ "*" ~ SkipWS) }
 
-  def FromSection = rule { SkipWS ~ From ~ SkipWS }
+  def FromSection = rule { SkipWS ~ Keyword.From ~ SkipWS }
 
   def CollectionSection = rule { SkipWS ~ capture(oneOrMore(!WhiteSpaceChar ~ ANY)) ~ SkipWS }
 
   def WhereSection: Rule1[Option[WhereExpression]] = rule {
-    Where ~ WhereRule ~> (Some(_)) | push(None)
+    Keyword.Where ~ WhereRule ~> (Some(_)) | push(None)
   }
 
   def LimitSection: Rule1[Option[Int]] = rule {
-    SkipWS ~ Limit ~
+    SkipWS ~ Keyword.Limit ~
       SkipWS ~ capture(oneOrMore(CharPredicate.Digit)) ~> ((str: String) => Some(str.toInt)) | push(None)
   }
 
   def OffsetSection: Rule1[Option[Int]] = rule {
-    SkipWS ~ Offset ~
+    SkipWS ~ Keyword.Offset ~
       SkipWS ~ capture(oneOrMore(CharPredicate.Digit)) ~> ((str: String) => Some(str.toInt)) | push(None)
   }
 
@@ -91,11 +91,11 @@ class QueryParser(val input: ParserInput) extends Parser {
   def ConditionalRule: Rule1[WhereExpression] = rule {
     LowPrecMathRule ~ SkipWS ~ (
       "=" ~ LowPrecMathRule ~> Equals |
-        "!=" ~ LowPrecMathRule ~> NotEquals |
-        ">" ~ LowPrecMathRule ~> GreaterThan |
-        "<" ~ LowPrecMathRule ~> LessThan |
-        ">=" ~ LowPrecMathRule ~> GreaterThanOrEqual |
-        "<=" ~ LowPrecMathRule ~> LessThanOrEqual)
+      "!=" ~ LowPrecMathRule ~> NotEquals |
+      ">" ~ LowPrecMathRule ~> GreaterThan |
+      "<" ~ LowPrecMathRule ~> LessThan |
+      ">=" ~ LowPrecMathRule ~> GreaterThanOrEqual |
+      "<=" ~ LowPrecMathRule ~> LessThanOrEqual)
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -127,7 +127,7 @@ class QueryParser(val input: ParserInput) extends Parser {
 
   // FIXME this is not correct since it will include keywords, and also operators like +
   def FieldValue = rule {
-    SkipWS ~ capture(oneOrMore(!WhiteSpaceChar ~ !Keywords ~ ANY)) ~ SkipWS ~> FieldExpressionValue
+    SkipWS ~ capture(Field) ~ SkipWS ~> FieldTerm
   }
 
   def StringValue = rule { DoubleQuotedString | SingleQuotedString }
@@ -135,21 +135,21 @@ class QueryParser(val input: ParserInput) extends Parser {
   def DoubleQuotedString = rule {
     DoubleQuote ~
       capture(zeroOrMore(EscapedDoubleQuote | noneOf(DoubleQuote))) ~
-      DoubleQuote ~> ((str: String) => StringExpressionValue(str.replace(EscapedDoubleQuote, DoubleQuote)))
+      DoubleQuote ~> ((str: String) => StringTerm(str.replace(EscapedDoubleQuote, DoubleQuote)))
   }
 
   def SingleQuotedString = rule {
     SingleQuote ~
       capture(zeroOrMore(EscapedSingleQuote | noneOf(SingleQuote))) ~
-      SingleQuote ~> ((str: String) => StringExpressionValue(str.replace(EscapedSingleQuote, SingleQuote)))
+      SingleQuote ~> ((str: String) => StringTerm(str.replace(EscapedSingleQuote, SingleQuote)))
   }
 
   def LongValue = rule {
-    capture(SignedNumber) ~> ((str: String) => LongExpressionValue(str.toLong))
+    capture(SignedNumber) ~> ((str: String) => LongTerm(str.toLong))
   }
 
   def DoubleValue = rule {
-    capture(SignedNumber ~ FracExp) ~> ((str: String) => DoubleExpressionValue(str.toDouble))
+    capture(SignedNumber ~ FracExp) ~> ((str: String) => DoubleTerm(str.toDouble))
   }
 
   def SignedNumber = rule { optional(anyOf("+-")) ~ Digits }
@@ -162,12 +162,9 @@ class QueryParser(val input: ParserInput) extends Parser {
 
   def Digits = rule { oneOrMore(CharPredicate.Digit) }
 
-  def True = rule { ignoreCase("true") ~ push(true) }
-  def False = rule { ignoreCase("false") ~ push(false) }
+  def BooleanValue = rule { (True | False) ~> (BooleanTerm(_)) }
 
-  def BooleanValue = rule { (True | False) ~> (BooleanExpressionValue(_)) }
-
-  def Field = rule { oneOrMore(!WhiteSpaceChar ~ ANY) }
+  def Field = rule { oneOrMore(!WhiteSpaceChar ~ !Keywords ~ !ComparisonOperators ~ !MathOperators ~ ANY) }
 
   /////////////////////////////////////////////////////////////////////////////
   // Order By
@@ -204,25 +201,51 @@ class QueryParser(val input: ParserInput) extends Parser {
 
   def SkipWS = rule(zeroOrMore(WhiteSpaceChar))
 
-  // FIXM we need to exclude keywords from certian places like orderby, fields, etc.
-  def Keywords = rule { Select | From | Limit | Offset | Where }
-
-  def Select = rule { ignoreCase("select") }
-  def Limit = rule { ignoreCase("limit") }
-  def Offset = rule { ignoreCase("offset") }
-  def Where = rule { ignoreCase("where") }
-  def From = rule { ignoreCase("from") }
+  
+  /////////////////////////////////////////////////////////////////////////////
+  // Constants and Keywords
+  /////////////////////////////////////////////////////////////////////////////
+  
+  def True = rule { ignoreCase("true") ~ push(true) }
+  def False = rule { ignoreCase("false") ~ push(false) }
+  
+  object MathOperator {
+    val Plus = "+"
+    val Minus = "-"
+    val Times = "*"
+    val Divide = "/"
+    val Mod = "%"
+  }
+  
+  def MathOperators = rule { MathOperator.Plus | MathOperator.Minus | MathOperator.Times | MathOperator.Divide | MathOperator.Mod }
+  
+  object ComparisonOperator {
+    val Eq = "="
+    val Ne = "!="
+    val Gt = ">"
+    val Lt = "<"
+    val Ge = ">="
+    val Le = "<="
+  }
+  
+  def ComparisonOperators = rule { ComparisonOperator.Eq | ComparisonOperator.Ne | ComparisonOperator.Gt | ComparisonOperator.Lt | ComparisonOperator.Ge | ComparisonOperator.Le }
+  
+  object Keyword {
+    def Select = rule { ignoreCase("select") }
+    def Limit = rule { ignoreCase("limit") }
+    def Offset = rule { ignoreCase("offset") }
+    def Where = rule { ignoreCase("where") }
+    def From = rule { ignoreCase("from") }
+    
+    def And = rule { ignoreCase("and") }
+    def Or = rule { ignoreCase("and") }
+    def Not = rule { ignoreCase("not") }
+  }
+  
+  def Keywords = rule { Keyword.Select | Keyword.From | Keyword.Limit | Keyword.Offset | Keyword.Where }
 }
 
 object Test extends App {
 
-  //  println(new QueryParser("SELECT * FROM files WHERE foo = 'bar' and (baz = 5 + someField * 8 and age < 64 or ahhh != 'bahhhh')").InputLine.run())
-  //  println(new QueryParser("(1 + 2 * 3)").LowPrecMathRule.run().get)
-  //  println(new QueryParser("foo = 'bar' and (baz = 5 + someField * 8 and age < 64 or ahhh != 'bahhhh')").InputLine.run())
-  //  println(new QueryParser("foo = 'bar' and (baz = 5 + someField * 8 and age < 64 or ahhh != 'bahhhh')").InputLine.run())
-  println(new QueryParser("(a + 1) < (b + 2)").WhereRule.run().get)
-  println(new QueryParser("1 < a + 1").WhereRule.run().get)
-  //  println(new QueryParser("Not (1 < a OR  2 = b)").WhereRule.run().get)
-
-  //  println(new QueryParser("((x < y) and(x > (z + 7)))").WhereRule.run().get)
+  println(new QueryParser("SELECT * FROM files WHERE foo = 'bar' and (baz = 5 + someField * 8 and age < 64 or ahhh != 'bahhhh')").InputLine.run())
 }
