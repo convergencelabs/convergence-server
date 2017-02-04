@@ -238,7 +238,7 @@ class QueryParser(val input: ParserInput) extends Parser {
     def From = rule { ignoreCase("from") }
     
     def And = rule { ignoreCase("and") }
-    def Or = rule { ignoreCase("and") }
+    def Or = rule { ignoreCase("or") }
     def Not = rule { ignoreCase("not") }
   }
   
