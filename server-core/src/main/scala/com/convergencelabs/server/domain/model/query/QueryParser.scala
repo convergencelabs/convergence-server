@@ -244,8 +244,3 @@ class QueryParser(val input: ParserInput) extends Parser {
   
   def Keywords = rule { Keyword.Select | Keyword.From | Keyword.Limit | Keyword.Offset | Keyword.Where }
 }
-
-object Test extends App {
-
-  println(new QueryParser("SELECT * FROM files WHERE foo = 'bar' and (baz = 5 + someField * 8 and age < 64 or ahhh != 'bahhhh')").InputLine.run())
-}

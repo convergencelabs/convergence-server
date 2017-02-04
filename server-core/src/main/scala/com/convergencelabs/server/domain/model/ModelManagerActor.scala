@@ -31,10 +31,10 @@ import scala.util.control.NonFatal
 import com.convergencelabs.server.datastore.DuplicateValueExcpetion
 import com.convergencelabs.server.datastore.InvalidValueExcpetion
 
-case class QueryModelsRequest(collection: Option[String], limit: Option[Int], offset: Option[Int], orderBy: Option[QueryOrderBy])
+case class QueryModelsRequest(query: String)
 case class QueryOrderBy(field: String, ascending: Boolean)
 
-case class QueryModelsResponse(result: List[ModelMetaData])
+case class QueryModelsResponse(result: List[Model])
 
 class ModelManagerActor(
   private[this] val domainFqn: DomainFqn,
@@ -147,8 +147,8 @@ class ModelManagerActor(
   }
 
   private[this] def onQueryModelsRequest(request: QueryModelsRequest): Unit = {
-    val QueryModelsRequest(collection, limit, offset, orderBy) = request
-    persistenceProvider.modelStore.queryModels(collection, limit, offset, orderBy map { ob => (ob.field, ob.ascending) }) match {
+    val QueryModelsRequest(query) = request
+    persistenceProvider.modelStore.queryModels(query) match {
       case Success(result) => sender ! QueryModelsResponse(result)
       case Failure(cause) => sender ! Status.Failure(cause)
     }

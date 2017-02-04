@@ -125,8 +125,8 @@ object ModelQueryBuilder {
   }
 
   private def addParam(value: Any)(implicit params: ScalaMutableMap[String, Any]): String = {
-    val param = s"${params.size}"
-    params += s"${params.size}" -> value
+    val param = s"p${params.size}"
+    params += param -> value
     s":$param"
   }
 }

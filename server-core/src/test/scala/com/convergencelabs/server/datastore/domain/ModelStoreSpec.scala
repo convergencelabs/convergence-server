@@ -248,76 +248,47 @@ class ModelStoreSpec
       }
     }
 
-    "querying model meta data" must {
-      "return all models if no params are provided" in withPersistenceStore { stores =>
+    "querying model data" must {
+      "return only models in a single collection" in withPersistenceStore { stores =>
         createAllModels(stores)
 
-        val list = stores.model.queryModels(None, None, None, None).get
-        list shouldBe List(
-          company1MetaData,
-          person1MetaData,
-          person2MetaData,
-          person3MetaData)
-      }
-
-      "return only models in a collection if collection is provided" in withPersistenceStore { stores =>
-        createAllModels(stores)
-
-        val list = stores.model.queryModels(Some("people"), None, None, None).get
-        list shouldBe List(
-          person1MetaData,
-          person2MetaData,
-          person3MetaData)
+        val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId").get
+        list shouldBe List(person1Model, person2Model, person3Model)
       }
 
       "return correct models if a limit is provided" in withPersistenceStore { stores =>
         createAllModels(stores)
 
-        val list = stores.model.queryModels(None, Some(2), None, None).get
-        list shouldBe List(
-          company1MetaData,
-          person1MetaData)
+        val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId LIMIT 2").get
+        list shouldBe List(person1Model, person2Model)
       }
 
       "return correct models if an offset is provided" in withPersistenceStore { stores =>
         createAllModels(stores)
 
-        val list = stores.model.queryModels(None, None, Some(1), None).get
-        list shouldBe List(
-          person1MetaData,
-          person2MetaData,
-          person3MetaData)
+        val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId OFFSET 1").get
+        list shouldBe List(person2Model, person3Model)
       }
 
       "return correct models if an offset and limit is provided" in withPersistenceStore { stores =>
         createAllModels(stores)
 
-        val list = stores.model.queryModels(None, Some(2), Some(1), None).get
-        list shouldBe List(
-          person1MetaData,
-          person2MetaData)
+        val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId LIMIT 1 OFFSET 1").get
+        list shouldBe List(person2Model)
       }
 
       "return models in correct order if orderBy ASC is provided" in withPersistenceStore { stores =>
         createAllModels(stores)
 
-        val list = stores.model.queryModels(None, None, None, Some((ModelStore.Fields.Id, true))).get
-        list shouldBe List(
-          company1MetaData,
-          person1MetaData,
-          person2MetaData,
-          person3MetaData)
+        val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId ORDER BY ${ModelStore.Fields.Id} ASC").get
+        list shouldBe List(person1Model, person2Model, person3Model)
       }
 
       "return models in correct order if orderBy DESC is provided" in withPersistenceStore { stores =>
         createAllModels(stores)
 
-        val list = stores.model.queryModels(None, None, None, Some((ModelStore.Fields.Id, false))).get
-        list shouldBe List(
-          person3MetaData,
-          person2MetaData,
-          person1MetaData,
-          company1MetaData)
+        val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId ORDER BY ${ModelStore.Fields.Id} DESC").get
+        list shouldBe List(person3Model, person2Model, person1Model)
       }
     }
 
