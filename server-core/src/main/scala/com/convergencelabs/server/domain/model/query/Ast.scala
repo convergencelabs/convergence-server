@@ -13,7 +13,7 @@ object Ast {
   sealed trait LogicalExpression extends WhereExpression 
   case class And(lhs: WhereExpression, rhs: WhereExpression) extends LogicalExpression 
   case class Or(lhs: WhereExpression, rhs: WhereExpression) extends LogicalExpression 
-  case class Not(conditional: WhereExpression) extends LogicalExpression 
+  case class Not(exp: WhereExpression) extends LogicalExpression 
  
   sealed trait ConditionalExpression extends WhereExpression 
   case class Equals(lhs: ConditionalTerm, rhs: ConditionalTerm) extends ConditionalExpression  

@@ -67,17 +67,18 @@ class QueryParser(val input: ParserInput) extends Parser {
   /////////////////////////////////////////////////////////////////////////////
 
   def OrRule: Rule1[WhereExpression] = rule {
-    AndRule ~ zeroOrMore(ignoreCase("or") ~ AndRule ~> Or)
+    AndRule ~ zeroOrMore(Keyword.Or ~ AndRule ~> Or)
   }
 
   def AndRule: Rule1[WhereExpression] = rule {
-    LogicalTerms ~ zeroOrMore(ignoreCase("and") ~ LogicalTerms ~> And)
+    LogicalTerms ~ zeroOrMore(Keyword.And ~ LogicalTerms ~> And)
   }
 
   def LogicalTerms = rule { NotRule | LogicalParens | ConditionalRule }
 
   def NotRule: Rule1[WhereExpression] = rule {
-    ignoreCase("not") ~ WhereRule ~> Not
+    Keyword.Not ~ ConditionalRule ~> Not |
+    Keyword.Not ~ LogicalParens ~> Not
   }
 
   def LogicalParens = rule {
@@ -164,7 +165,7 @@ class QueryParser(val input: ParserInput) extends Parser {
 
   def BooleanValue = rule { (True | False) ~> (BooleanTerm(_)) }
 
-  def Field = rule { oneOrMore(!WhiteSpaceChar ~ !Keywords ~ !ComparisonOperators ~ !MathOperators ~ ANY) }
+  def Field = rule { oneOrMore(!WhiteSpaceChar ~ !Keywords ~ !ComparisonOperators ~ !MathOperators ~ !Symbols ~ ANY) }
 
   /////////////////////////////////////////////////////////////////////////////
   // Order By
@@ -241,6 +242,18 @@ class QueryParser(val input: ParserInput) extends Parser {
     def Or = rule { ignoreCase("or") }
     def Not = rule { ignoreCase("not") }
   }
+  
+  object Symbol {
+    val LeftParen = "("
+    val RightParen = ")"
+    
+    val LeftBracket = "["
+    val RightBracket = "]"
+    val Dot = "."
+  }
+  
+  def Symbols = rule { Symbol.LeftParen | Symbol.RightParen | Symbol.LeftBracket | Symbol.RightBracket | Symbol.Dot }
+
   
   def Keywords = rule { Keyword.Select | Keyword.From | Keyword.Limit | Keyword.Offset | Keyword.Where }
 }

@@ -128,6 +128,49 @@ class SelectStatementSpec
     }
   }
 
+  "parsing a Where Expression" must {
+    "Give precedence to AND over OR" in {
+      QueryParser("foo = 1 OR bar = 2 AND baz = 3").WhereRule.run().get shouldBe
+        Or(
+          Equals(FieldTerm("foo"), LongTerm(1)),
+          And(
+            Equals(FieldTerm("bar"), LongTerm(2)),
+            Equals(FieldTerm("baz"), LongTerm(3))))
+    }
+
+    "Give precedence parenthesis" in {
+      QueryParser("(foo = 1 OR bar = 2) AND baz = 3").WhereRule.run().get shouldBe
+        And(
+          Or(
+            Equals(FieldTerm("foo"), LongTerm(1)),
+            Equals(FieldTerm("bar"), LongTerm(2))),
+          Equals(FieldTerm("baz"), LongTerm(3)))
+    }
+
+    "Apply not with no parens" in {
+      QueryParser("NOT foo = 1").WhereRule.run().get shouldBe
+        Not(Equals(FieldTerm("foo"), LongTerm(1)))
+    }
+
+    "Apply not with  parens" in {
+      val result = QueryParser("NOT (foo = 1)").WhereRule.run().get
+      println(result)
+        result shouldBe Not(Equals(FieldTerm("foo"), LongTerm(1)))
+    }
+
+    "Apply not to only first term wothout parens" in {
+      QueryParser("NOT foo = 1 AND bar = 2").WhereRule.run().get shouldBe
+        And(
+          Not(Equals(FieldTerm("foo"), LongTerm(1))),
+            Equals(FieldTerm("bar"), LongTerm(2)))
+    }
+    
+    "Terminate field name on a symbol" in {
+      QueryParser("foo=1").WhereRule.run().get shouldBe
+         Equals(FieldTerm("foo"), LongTerm(1))
+    }
+  }
+
   "parsing a SELECT Statement" must {
     "parse SELECT FROM collection" in {
       QueryParser.parse("SELECT FROM collection").get shouldBe SelectStatement("collection", None, List(), None, None)
@@ -154,7 +197,7 @@ class SelectStatementSpec
         Some(3),
         Some(10))
     }
-    
+
     "parse SELECT * FROM collection WHERE foo = 1 ORDER BY bar LIMIT 3 OFFSET 10" in {
       QueryParser.parse("SELECT * FROM collection WHERE foo = 1 ORDER BY bar LIMIT 3 OFFSET 10").get shouldBe SelectStatement(
         "collection",
