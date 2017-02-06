@@ -15,14 +15,13 @@ abstract class PersistenceStoreSpec[S](category: DeltaCategory.Value) {
 
   protected def createStore(dbProvider: DatabaseProvider): S
 
-  var dbCounter = 0
+  private[this] var dbCounter = 0
 
   def withPersistenceStore(testCode: S => Any): Unit = {
     // make sure no accidental collisions
     val dbName = getClass.getSimpleName
-    val uri = s"memory:${dbName}${dbCounter}"
-    dbCounter += 1
-
+    val uri = s"memory:${dbName}${nextDbId()}"
+    
     val db = new ODatabaseDocumentTx(uri)
     db.activateOnCurrentThread()
     db.create()
@@ -39,6 +38,14 @@ abstract class PersistenceStoreSpec[S](category: DeltaCategory.Value) {
     } finally {
       db.activateOnCurrentThread()
       db.drop() // Drop will close and drop
+    }
+  }
+  
+  def nextDbId(): Int = {
+    this.synchronized {
+      val count = dbCounter;
+      dbCounter = dbCounter + 1;
+      count
     }
   }
 
