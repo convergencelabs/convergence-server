@@ -67,7 +67,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
     }
     "given a equals where clause" must {
       "return correct ModelQueryParameters" in {
-        val select = SelectStatement("myCollection", Some(Equals(FieldExpressionValue("name"), StringExpressionValue("Alice"))), List(), None, None)
+        val select = SelectStatement("myCollection", Some(Equals(FieldTerm("name"), StringTerm("Alice"))), List(), None, None)
         ModelQueryBuilder.queryModels(select) shouldBe
           ModelQueryParameters(
             "SELECT FROM Model WHERE collection.id = :0 and (data.name = :1)",
@@ -76,7 +76,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
     }
     "given a NotEquals where clause" must {
       "return correct ModelQueryParameters" in {
-        val select = SelectStatement("myCollection", Some(NotEquals(FieldExpressionValue("name"), StringExpressionValue("Alice"))), List(), None, None)
+        val select = SelectStatement("myCollection", Some(NotEquals(FieldTerm("name"), StringTerm("Alice"))), List(), None, None)
         ModelQueryBuilder.queryModels(select) shouldBe
           ModelQueryParameters(
             "SELECT FROM Model WHERE collection.id = :0 and (data.name != :1)",
@@ -85,7 +85,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
     }
     "given a GreaterThan where clause" must {
       "return correct ModelQueryParameters" in {
-        val select = SelectStatement("myCollection", Some(GreaterThan(FieldExpressionValue("age"), DoubleExpressionValue(15))), List(), None, None)
+        val select = SelectStatement("myCollection", Some(GreaterThan(FieldTerm("age"), DoubleTerm(15))), List(), None, None)
         ModelQueryBuilder.queryModels(select) shouldBe
           ModelQueryParameters(
             "SELECT FROM Model WHERE collection.id = :0 and (data.age > :1)",
@@ -94,7 +94,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
     }
     "given a LessThan where clause" must {
       "return correct ModelQueryParameters" in {
-        val select = SelectStatement("myCollection", Some(LessThan(FieldExpressionValue("age"), LongExpressionValue(15))), List(), None, None)
+        val select = SelectStatement("myCollection", Some(LessThan(FieldTerm("age"), LongTerm(15))), List(), None, None)
         ModelQueryBuilder.queryModels(select) shouldBe
           ModelQueryParameters(
             "SELECT FROM Model WHERE collection.id = :0 and (data.age < :1)",
@@ -103,7 +103,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
     }
     "given a LessThanOrEqual where clause" must {
       "return correct ModelQueryParameters" in {
-        val select = SelectStatement("myCollection", Some(LessThanOrEqual(FieldExpressionValue("age"), LongExpressionValue(15))), List(), None, None)
+        val select = SelectStatement("myCollection", Some(LessThanOrEqual(FieldTerm("age"), LongTerm(15))), List(), None, None)
         ModelQueryBuilder.queryModels(select) shouldBe
           ModelQueryParameters(
             "SELECT FROM Model WHERE collection.id = :0 and (data.age <= :1)",
@@ -112,7 +112,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
     }
     "given a GreaterThanOrEqual where clause" must {
       "return correct ModelQueryParameters" in {
-        val select = SelectStatement("myCollection", Some(GreaterThanOrEqual(FieldExpressionValue("age"), LongExpressionValue(15))), List(), None, None)
+        val select = SelectStatement("myCollection", Some(GreaterThanOrEqual(FieldTerm("age"), LongTerm(15))), List(), None, None)
         ModelQueryBuilder.queryModels(select) shouldBe
           ModelQueryParameters(
             "SELECT FROM Model WHERE collection.id = :0 and (data.age >= :1)",
@@ -140,8 +140,8 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
     "given a Add Operater clause" must {
       "return correct ModelQueryParameters" in {
         val select = SelectStatement("myCollection", 
-            Some(LessThanOrEqual(FieldExpressionValue("age"), 
-                Add(LongExpressionValue(15), LongExpressionValue(5)))), List(), None, None)
+            Some(LessThanOrEqual(FieldTerm("age"), 
+                Add(LongTerm(15), LongTerm(5)))), List(), None, None)
         ModelQueryBuilder.queryModels(select) shouldBe
           ModelQueryParameters(
             "SELECT FROM Model WHERE collection.id = :0 and (data.age <= (:1 + :2))",
