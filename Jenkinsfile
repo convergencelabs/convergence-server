@@ -18,7 +18,7 @@ node {
           sh 'sbt -d -J-Xmx3G -J-Xss5M compile'
 
           stage 'Test'
-          sh 'sbt test'
+          sh 'sbt -d -J-Xmx3G -J-Xss5M test'
 		  
 		  stage 'Package'
           sh 'sbt package'
