@@ -9,13 +9,14 @@ import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.db.schema.ConvergenceSchemaManager
 import com.convergencelabs.server.db.schema.TestingSchemaManager
+import java.util.concurrent.atomic.AtomicInteger
 
 abstract class PersistenceStoreSpec[S](category: DeltaCategory.Value) {
   OLogManager.instance().setConsoleLevel("WARNING")
 
   protected def createStore(dbProvider: DatabaseProvider): S
 
-  private[this] var dbCounter = 0
+  private[this] val dbCounter = new AtomicInteger(1)
 
   def withPersistenceStore(testCode: S => Any): Unit = {
     // make sure no accidental collisions
@@ -42,11 +43,7 @@ abstract class PersistenceStoreSpec[S](category: DeltaCategory.Value) {
   }
   
   def nextDbId(): Int = {
-    this.synchronized {
-      val count = dbCounter;
-      dbCounter = dbCounter + 1;
-      count
-    }
+    dbCounter.getAndIncrement()
   }
 
   object CommandListener extends OCommandOutputListener() {
