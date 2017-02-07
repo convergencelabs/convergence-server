@@ -62,7 +62,7 @@ object ModelQueryBuilder {
           case Ascending  => "ASC"
           case Descending => "DESC"
         } getOrElse("ASC") 
-        s"data.${buildFieldPath(orderBy.field)} ${ascendingParam}"
+        s"${buildFieldPath(orderBy.field)} ${ascendingParam}"
       }).mkString(", ")
     }
 
@@ -73,6 +73,7 @@ object ModelQueryBuilder {
   
   private[this] def buildFieldPath(field: FieldTerm): String = {
     val sb = new StringBuilder()
+    sb.append("data.children.")
     sb.append(field.field.property)
     field.subpath.foreach {
       case IndexPathElement(i) => 
@@ -80,6 +81,9 @@ object ModelQueryBuilder {
       case PropertyPathElement(p) =>
         sb.append(".children").append(".").append(p)
     }
+    
+    sb.append(".value")
+
     sb.toString
   }
 
@@ -124,7 +128,7 @@ object ModelQueryBuilder {
       case DoubleTerm(value)  => s"${addParam(value)}"
       case StringTerm(value)  => s"${addParam(value)}"
       case BooleanTerm(value) => s"${addParam(value)}"
-      case f: FieldTerm   => s"data.${buildFieldPath(f)}"
+      case f: FieldTerm       => buildFieldPath(f)
     }
   }
 
