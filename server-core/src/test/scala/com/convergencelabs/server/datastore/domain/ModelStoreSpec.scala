@@ -253,27 +253,27 @@ class ModelStoreSpec
         createAllModels(stores)
 
         val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId").get
-        list shouldBe List(person1Model, person2Model, person3Model)
+        list.toSet shouldBe Set(person1Model, person2Model, person3Model)
       }
 
       "return correct models if a limit is provided" in withPersistenceStore { stores =>
         createAllModels(stores)
 
-        val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId LIMIT 2").get
-        list shouldBe List(person1Model, person2Model)
+        val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId ORDER BY name ASC LIMIT 2").get
+        list.toSet shouldBe Set(person1Model, person2Model)
       }
 
       "return correct models if an offset is provided" in withPersistenceStore { stores =>
         createAllModels(stores)
 
-        val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId OFFSET 1").get
-        list shouldBe List(person2Model, person3Model)
+        val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId ORDER BY name ASC OFFSET 1").get
+        list.toSet shouldBe Set(person2Model, person3Model)
       }
 
       "return correct models if an offset and limit is provided" in withPersistenceStore { stores =>
         createAllModels(stores)
 
-        val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId LIMIT 1 OFFSET 1").get
+        val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId ORDER BY name ASC LIMIT 1 OFFSET 1").get
         list shouldBe List(person2Model)
       }
 
