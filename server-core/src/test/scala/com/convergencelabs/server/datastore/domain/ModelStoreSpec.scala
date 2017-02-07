@@ -10,14 +10,14 @@ import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
 
 import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.datastore.DuplicateValueExcpetion
+import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.domain.model.Model
 import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelMetaData
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.model.data.StringValue
-import com.convergencelabs.server.datastore.DuplicateValueExcpetion
-import com.convergencelabs.server.datastore.EntityNotFoundException
 
 case class ModelStoreSpecStores(collection: CollectionStore, model: ModelStore)
 

@@ -38,6 +38,8 @@ import com.convergencelabs.server.domain.model.query.Ast.Multiply
 import com.convergencelabs.server.domain.model.query.Ast.Mod
 import com.convergencelabs.server.datastore.QueryUtil
 import com.convergencelabs.server.domain.model.query.Ast.ValueTerm
+import com.convergencelabs.server.domain.model.query.Ast.IndexPathElement
+import com.convergencelabs.server.domain.model.query.Ast.PropertyPathElement
 
 case class ModelQueryParameters(query: String, params: Map[String, Any])
 
@@ -60,13 +62,25 @@ object ModelQueryBuilder {
           case Ascending  => "ASC"
           case Descending => "DESC"
         } getOrElse("ASC") 
-        s"data.${orderBy.field} ${ascendingParam}"
+        s"data.${buildFieldPath(orderBy.field)} ${ascendingParam}"
       }).mkString(", ")
     }
 
     val queryString = s"${selectString}${whereString}${orderString}"
 
     ModelQueryParameters(QueryUtil.buildPagedQuery(queryString, select.limit, select.offset), params.toMap)
+  }
+  
+  private[this] def buildFieldPath(field: FieldTerm): String = {
+    val sb = new StringBuilder()
+    sb.append(field.field.property)
+    field.subpath.foreach {
+      case IndexPathElement(i) => 
+        sb.append(".children").append("[").append(i.toString).append("]")
+      case PropertyPathElement(p) =>
+        sb.append(".children").append(".").append(p)
+    }
+    sb.toString
   }
 
   private[this] def buildExpressionString(where: WhereExpression)(implicit params: ScalaMutableMap[String, Any]): String = {
@@ -110,7 +124,7 @@ object ModelQueryBuilder {
       case DoubleTerm(value)  => s"${addParam(value)}"
       case StringTerm(value)  => s"${addParam(value)}"
       case BooleanTerm(value) => s"${addParam(value)}"
-      case FieldTerm(value)   => s"data.${value}"
+      case f: FieldTerm   => s"data.${buildFieldPath(f)}"
     }
   }
 

@@ -32,8 +32,12 @@ object Ast {
   case class LongTerm(value: Long) extends ValueTerm
   case class DoubleTerm(value: Double) extends ValueTerm 
   case class StringTerm(value: String) extends ValueTerm 
-  case class FieldTerm(value: String) extends ValueTerm 
+  case class FieldTerm(field: PropertyPathElement, subpath: List[FieldPathElement] = List()) extends ValueTerm
   case class BooleanTerm(value: Boolean) extends ValueTerm 
+  
+  sealed trait FieldPathElement
+  case class PropertyPathElement(property: String) extends FieldPathElement
+  case class IndexPathElement(index: Int) extends FieldPathElement
  
   sealed trait MathematicalOperator extends ConditionalTerm 
   case class Add(lhs: ConditionalTerm, rhs: ConditionalTerm) extends MathematicalOperator 
@@ -42,7 +46,7 @@ object Ast {
   case class Multiply(lhs: ConditionalTerm, rhs: ConditionalTerm) extends MathematicalOperator 
   case class Mod(lhs: ConditionalTerm, rhs: ConditionalTerm) extends MathematicalOperator 
  
-  case class OrderBy(field: String, direction: Option[OrderByDirection])  
+  case class OrderBy(field: FieldTerm, direction: Option[OrderByDirection])  
  
   sealed trait OrderByDirection 
   case object Ascending extends OrderByDirection
