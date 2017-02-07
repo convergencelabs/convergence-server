@@ -280,14 +280,14 @@ class ModelStoreSpec
       "return models in correct order if orderBy ASC is provided" in withPersistenceStore { stores =>
         createAllModels(stores)
 
-        val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId ORDER BY ${ModelStore.Fields.Id} ASC").get
+        val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId ORDER BY name ASC").get
         list shouldBe List(person1Model, person2Model, person3Model)
       }
 
       "return models in correct order if orderBy DESC is provided" in withPersistenceStore { stores =>
         createAllModels(stores)
 
-        val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId ORDER BY ${ModelStore.Fields.Id} DESC").get
+        val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId ORDER BY name DESC").get
         list shouldBe List(person3Model, person2Model, person1Model)
       }
     }
