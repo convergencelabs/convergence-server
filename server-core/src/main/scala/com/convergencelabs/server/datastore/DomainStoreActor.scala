@@ -27,6 +27,7 @@ import akka.actor.Props
 import akka.actor.actorRef2Scala
 import akka.pattern.ask
 import akka.util.Timeout
+import scala.util.Try
 
 class DomainStoreActor private[datastore] (
   private[this] val dbProvider: DatabaseProvider,
@@ -109,21 +110,51 @@ class DomainStoreActor private[datastore] (
       })
   }
 
-  def deleteDomain(deleteRequest: DeleteDomainRequest): Unit = {
+  def deleteDomain(deleteRequest: DeleteDomainRequest): Try[Unit] = {
     val DeleteDomainRequest(namespace, domainId) = deleteRequest
     val domainFqn = DomainFqn(namespace, domainId)
-    val domain = domainStore.getDomainByFqn(domainFqn)
-    val databaseConfig = domainDatabaseStore.getDomainDatabase(domainFqn)
-    reply((domain, databaseConfig) match {
-      case (Success(Some(domain)), Success(Some(databaseConfig))) => {
-        domainStore.removeDomain(domainFqn)
-        // FIXME we don't seem to care about the response?
-        implicit val requstTimeout = Timeout(4 minutes) // FXIME hardcoded timeout
-        (domainProvisioner ? DestroyDomain(databaseConfig.database))
-        Success(())
-      }
-      case _ => Failure(new EntityNotFoundException())
-    })
+    deleteDomain(domainFqn)
+  }
+  
+  def deleteDomain(domainFqn: DomainFqn): Try[Unit] = {
+    (for {
+      domain <- domainStore.getDomainByFqn(domainFqn)
+      domainDatabase <- domainDatabaseStore.getDomainDatabase(domainFqn)
+    } yield {
+      reply((domain, domainDatabase) match {
+        case (Some(domain), Some(domainDatabase)) =>
+          log.debug(s"Deleting domain database for ${domainFqn}: ${domainDatabase.database}")
+
+          implicit val requstTimeout = Timeout(4 minutes) // FXIME hard-coded timeout
+          (domainProvisioner ? DestroyDomain(domainDatabase.database)) onComplete {
+            case Success(_) =>
+              log.debug(s"Domain database deleted: ${domainDatabase.database}")
+
+              log.debug(s"Removing domain database record: ${domainFqn}")
+              domainDatabaseStore.removeDomainDatabase(domainFqn) match {
+                case Success(_) =>
+                  log.debug(s"Domain database record removed: ${domainFqn}")
+                case Failure(cause) =>
+                  log.error(cause, s"Error deleting domain database record: ${domainFqn}")
+              }
+              
+              log.debug(s"Removing domain record: ${domainFqn}")
+              domainStore.removeDomain(domainFqn) match {
+                case Success(_) =>
+                  log.debug(s"Domain record removed: ${domainFqn}")
+                case Failure(cause) =>
+                  log.error(cause, s"Error deleting domain record: ${domainFqn}")
+              }
+            case Failure(f) =>
+              log.error(f, s"Could not desstroy domain database: ${domainFqn}")
+          }
+          Success(())
+        case _ =>
+          Failure(new EntityNotFoundException(s"Could not find domain information to delete the domain: ${domainFqn}"))
+      })
+    }) recover {
+      case _ => Failure(new EntityNotFoundException(s"Error looking up domain information to delete the domain: ${domainFqn}"))
+    }
   }
 
   def deleteDomainsForUser(request: DeleteDomainsForUserRequest): Unit = {
@@ -138,21 +169,9 @@ class DomainStoreActor private[datastore] (
 
       domainDatabases.foreach {
         case domainDatabase =>
-          log.debug(s"Deleting domain database for ${domainDatabase.domainFqn}: ${domainDatabase.database}")
-          // FIXME we don't seem to care about the response?
-          implicit val requstTimeout = Timeout(4 minutes) // FXIME hardcoded timeout
-          (domainProvisioner ? DestroyDomain(domainDatabase.database)) onComplete {
-            case Success(_) =>
-              log.debug(s"Domain database deleted: ${domainDatabase.database}")
-              log.debug(s"Removing domain record: ${domainDatabase.domainFqn}")
-              domainStore.removeDomain(domainDatabase.domainFqn) match {
-                case Success(_) =>
-                  log.debug(s"Domain record removed: ${domainDatabase.domainFqn}")
-                case Failure(cause) =>
-                  log.error(cause, s"Error deleting domain record: ${domainDatabase.domainFqn}")
-              }
-            case Failure(f) =>
-              log.error(f, s"Could not desstroy domain database: ${domainDatabase.domainFqn}")
+          deleteDomain(domainDatabase.domainFqn) recover {
+            case cause: Exception =>
+              log.error(cause, s"Unable to delete domain '${domainDatabase.domainFqn}' while deleting user '${username}'")
           }
       }
     } recover {
