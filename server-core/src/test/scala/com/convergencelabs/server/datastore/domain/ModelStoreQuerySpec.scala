@@ -41,13 +41,48 @@ class ModelStoreQuerySpec extends PersistenceStoreSpec[ModelStoreQuerySpecStores
     ModelStoreQuerySpecStores(collectionStore, modelStore)
   }
 
-  "An ModelStore" when {
+  "Querying a ModelStore" when {
 
-    "querying model data" must {
-      "return only models in a single collection" in withPersistenceStore { stores =>
+    "using order by" must {
+      "return correct order when using ASC on top level field" in withPersistenceStore { stores =>
         createModels(stores)
-        val list = stores.model.queryModels("SELECT FROM collection1").get
-        println(list)
+        val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY sField ASC").get
+        list.map { _.metaData.fqn.modelId } shouldEqual (List("model1", "model2"))
+      }
+      "return correct order when using DESC on top level field" in withPersistenceStore { stores =>
+        createModels(stores)
+        val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY sField DESC").get
+        list.map { _.metaData.fqn.modelId } shouldEqual (List("model2", "model1"))
+      }
+      "return correct order when using ASC on field inside top level array" in withPersistenceStore { stores =>
+        createModels(stores)
+        val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY arrayField[0] ASC").get
+        list.map { _.metaData.fqn.modelId } shouldEqual (List("model1", "model2"))
+      }
+      "return correct order when using DESC on field inside top level array" in withPersistenceStore { stores =>
+        createModels(stores)
+        val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY arrayField[0] DESC").get
+        list.map { _.metaData.fqn.modelId } shouldEqual (List("model2", "model1"))
+      }
+      "return correct order when using ASC on field inside second level object" in withPersistenceStore { stores =>
+        createModels(stores)
+        val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY oField.oField2 ASC").get
+        list.map { _.metaData.fqn.modelId } shouldEqual (List("model1", "model2"))
+      }
+      "return correct order when using DESC on field inside second level object" in withPersistenceStore { stores =>
+        createModels(stores)
+        val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY oField.oField2 DESC").get
+        list.map { _.metaData.fqn.modelId } shouldEqual (List("model2", "model1"))
+      }
+      "return correct order when using ASC on field only one model has" in withPersistenceStore { stores =>
+        createModels(stores)
+        val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY model1Field ASC").get
+        list.map { _.metaData.fqn.modelId } shouldEqual (List("model2", "model1"))
+      }
+      "return correct order when using DESC on field only one model has" in withPersistenceStore { stores =>
+        createModels(stores)
+        val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY model1Field DESC").get
+        list.map { _.metaData.fqn.modelId } shouldEqual (List("model1", "model2"))
       }
     }
   }
@@ -117,7 +152,8 @@ class ModelStoreQuerySpec extends PersistenceStoreSpec[ModelStoreQuerySpecStores
                "oField1": "model1String",
                "oField2": 1
              },
-             "arrayField": ["A", "B", "C"]
+             "arrayField": ["A", "B", "C"],
+             "model1Field": "onlyIHaveThis"
            }
           }""")).get
 
