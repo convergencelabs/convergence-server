@@ -61,6 +61,7 @@ class DomainService(
   private[this] val authorizationActor: ActorRef,
   private[this] val domainStoreActor: ActorRef,
   private[this] val domainManagerActor: ActorRef,
+  private[this] val permissionStoreActor: ActorRef,
   private[this] val defaultTimeout: Timeout)
     extends JsonSupport {
 
@@ -74,6 +75,7 @@ class DomainService(
   val domainModelService = new DomainModelService(ec, authorizationActor, domainManagerActor, t)
   val domainKeyService = new DomainKeyService(ec, authorizationActor, domainManagerActor, t)
   val domainAdminTokenService = new DomainAdminTokenService(ec, authorizationActor, domainManagerActor, t)
+  val domainSecurityService = new DomainSecurityService(ec, authorizationActor, permissionStoreActor, t)
 
   val route = { username: String =>
     pathPrefix("domains") {
@@ -111,7 +113,8 @@ class DomainService(
             domainKeyService.route(username, domain) ~
             domainAdminTokenService.route(username, domain) ~
             domainConfigService.route(username, domain) ~
-            domainStatsService.route(username, domain)
+            domainStatsService.route(username, domain) ~
+            domainSecurityService.route(username, domain)
         }
       }
     }

@@ -25,13 +25,20 @@ import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.datastore.PermissionsStoreActor.CreatePermissionRequest
 import com.convergencelabs.server.datastore.PermissionsStoreActor.CreateRoleRequest
 import com.convergencelabs.server.datastore.PermissionsStoreActor.GetPermissionsProfileRequest
+import com.convergencelabs.server.datastore.PermissionsStoreActor.GetAllUserRolesRequest
+import com.convergencelabs.server.datastore.PermissionsStoreActor.GetUserRolesRequest
+import com.convergencelabs.server.datastore.PermissionsStoreActor.SetRolesRequest
 
 object PermissionsStoreActor {
   def props(dbProvider: DatabaseProvider): Props = Props(new PermissionsStoreActor(dbProvider))
 
   case class CreatePermissionRequest(permission: Permission)
   case class CreateRoleRequest(role: Role)
+  case class SetRolesRequest(username: String, domainFqn: DomainFqn, roles: List[String])
+
   case class GetPermissionsProfileRequest(domainFqn: DomainFqn, username: String)
+  case class GetAllUserRolesRequest(domainFqn: DomainFqn)
+  case class GetUserRolesRequest(username: String, domainFqn: DomainFqn)
 }
 
 class PermissionsStoreActor private[datastore] (private[this] val dbProvider: DatabaseProvider) extends StoreActor
@@ -46,7 +53,10 @@ class PermissionsStoreActor private[datastore] (private[this] val dbProvider: Da
   def receive: Receive = {
     case message: CreatePermissionRequest      => createPermission(message)
     case message: CreateRoleRequest            => createRole(message)
+    case message: SetRolesRequest              => setRolesRequest(message)
     case message: GetPermissionsProfileRequest => getPermissionsProfile(message)
+    case message: GetAllUserRolesRequest       => getAllUserRoles(message)
+    case message: GetUserRolesRequest          => getUserRoles(message)
     case message: Any                          => unhandled(message)
 
   }
@@ -60,9 +70,25 @@ class PermissionsStoreActor private[datastore] (private[this] val dbProvider: Da
     val CreateRoleRequest(role) = message
     reply(permissionsStore.createRole(role))
   }
+  
+  def setRolesRequest(message: SetRolesRequest): Unit = {
+    val SetRolesRequest(username, domainFqn, roles) = message
+    val currentRoles = permissionsStore.getAllUserRoles(domainFqn).get
+    reply(permissionsStore.setUserRoles(username, domainFqn, roles))
+  }
 
   def getPermissionsProfile(message: GetPermissionsProfileRequest): Unit = {
     val GetPermissionsProfileRequest(domainFqn, username) = message
-    reply(permissionsStore.getAllUserRoles(username, domainFqn).map { roles => new PermissionsProfile(roles) })
+    reply(permissionsStore.getUserRolePermissions(username, domainFqn).map { roles => new PermissionsProfile(roles) })
+  }
+
+  def getAllUserRoles(message: GetAllUserRolesRequest): Unit = {
+    val GetAllUserRolesRequest(domainFqn) = message
+    reply(permissionsStore.getAllUserRoles(domainFqn))
+  }
+
+  def getUserRoles(message: GetUserRolesRequest): Unit = {
+    val GetUserRolesRequest(username: String, domainFqn) = message
+    reply(permissionsStore.getUserRoles(username, domainFqn))
   }
 }

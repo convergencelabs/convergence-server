@@ -97,6 +97,7 @@ class ConvergenceRestFrontEnd(
     val registrationActor = system.actorOf(RegistrationActor.props(convergenceDbProvider, userManagerActor))
     val domainManagerActor = system.actorOf(RestDomainManagerActor.props(convergenceDbProvider))
     val authorizationActor = system.actorOf(AuthorizationActor.props(convergenceDbProvider))
+    val permissionStoreActor = system.actorOf(PermissionsStoreActor.props(convergenceDbProvider))
 
     // FIXME should this take an actor ref instead?
     val domainStore = new DomainStore(convergenceDbProvider)
@@ -113,14 +114,13 @@ class ConvergenceRestFrontEnd(
     val authService = new AuthService(ec, authActor, defaultRequestTimeout)
     val authenticator = new Authenticator(authActor, defaultRequestTimeout, ec)
     val registrationService = new RegistrationService(ec, registrationActor, defaultRequestTimeout, registrationBaseUrl)
-    val domainService = new DomainService(ec, authorizationActor, domainActor, domainManagerActor, defaultRequestTimeout)
+    val domainService = new DomainService(ec, authorizationActor, domainActor, domainManagerActor, permissionStoreActor, defaultRequestTimeout)
     val profileService = new ProfileService(ec, convergenceUserActor, defaultRequestTimeout)
     val passwordService = new PasswordService(ec, convergenceUserActor, defaultRequestTimeout)
     val keyGenService = new KeyGenService(ec)
+    
     val convergenceUserService = new ConvergenceUserService(ec, convergenceUserActor, defaultRequestTimeout)
-
     val convergenceImportService = new ConvergenceImportService(ec, importerActor, defaultRequestTimeout)
-
     val databaseManagerService = new DatabaseManagerRestService(ec, databaseManagerActor, defaultRequestTimeout)
 
     val adminsConfig = system.settings.config.getConfig("convergence.convergence-admins")
