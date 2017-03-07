@@ -108,6 +108,21 @@ class DomainStore(dbProvider: DatabaseProvider)
     val params = Map("username" -> username)
     QueryUtil.query(query, params, db) map { DomainStore.docToDomain(_) }
   }
+  
+  def getDomainsByAccess(username: String): Try[List[Domain]] = tryWithDb { db =>
+    // TODO: Merge these queries together
+    val accessQuery =
+      """SELECT expand(set(domain))
+        |  FROM UserDomainRole
+        |  WHERE user.username = :username AND
+        |    role.permissions CONTAINS (id = 'domain-access')""".stripMargin
+    val params = Map("username" -> username)
+    val access = QueryUtil.query(accessQuery, params, db) map { DomainStore.docToDomain(_) }
+    
+    val ownershipQuery = "SELECT * FROM Domain WHERE owner.username = :username"
+    val ownership = QueryUtil.query(ownershipQuery, params, db) map { DomainStore.docToDomain(_) }
+    access.union(ownership)
+  }
 
   def getDomainsInNamespace(namespace: String): Try[List[Domain]] = tryWithDb { db =>
     val query = "SELECT * FROM Domain WHERE namespace = :namespace"

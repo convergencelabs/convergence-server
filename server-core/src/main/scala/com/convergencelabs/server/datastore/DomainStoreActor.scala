@@ -186,7 +186,7 @@ class DomainStoreActor private[datastore] (
   }
 
   def listDomains(listRequest: ListDomainsRequest): Unit = {
-    reply(domainStore.getDomainsByOwner(listRequest.username))
+    reply(domainStore.getDomainsByAccess(listRequest.username))
   }
 }
 

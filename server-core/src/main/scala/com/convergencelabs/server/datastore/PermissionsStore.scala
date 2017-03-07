@@ -132,7 +132,6 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
   }
 
   def getAllUserPermissions(username: String, domainFqn: DomainFqn): Try[Set[Permission]] = tryWithDb { db =>
-    // TODO: determine how to create a set of permissions in the query
     val queryString =
       """SELECT expand(set(role.permissions))
         |  FROM UserDomainRole
