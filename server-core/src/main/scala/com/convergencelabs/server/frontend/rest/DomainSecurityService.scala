@@ -49,14 +49,16 @@ import com.convergencelabs.server.frontend.rest.DomainSecurityService.GetUserRol
 import com.convergencelabs.server.frontend.rest.DomainSecurityService.SetUserRolesRequest
 import com.convergencelabs.server.datastore.PermissionsStoreActor.GetUserRolesRequest
 import com.convergencelabs.server.datastore.PermissionsStoreActor.SetRolesRequest
+import com.convergencelabs.server.datastore.PermissionsStoreActor.GetUserPermissionsRequest
+import com.convergencelabs.server.datastore.Permission
+import com.convergencelabs.server.frontend.rest.DomainSecurityService.GetUserPermissionsRestResponse
 
 object DomainSecurityService {
-    case class SetUserRolesRequest(roles: List[String])
-  
+  case class SetUserRolesRequest(roles: List[String])
+
   case class GetAllUserRolesRestResponse(userRoles: Set[UserRoles]) extends AbstractSuccessResponse
   case class GetUserRolesRestResponse(userRoles: UserRoles) extends AbstractSuccessResponse
-  
-  
+  case class GetUserPermissionsRestResponse(permissions: Set[Permission]) extends AbstractSuccessResponse
 }
 
 class DomainSecurityService(
@@ -69,24 +71,34 @@ class DomainSecurityService(
   implicit val t = defaultTimeout
 
   def route(convergenceUsername: String, domain: DomainFqn): Route = {
-    pathPrefix("roles") {
-      pathEnd {
-        get {
-          authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
-            complete(getAllUserRolesRequest(domain))
+    pathPrefix("permissions") {
+        pathPrefix("roles") {
+          pathEnd {
+            get {
+              authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
+                complete(getAllUserRolesRequest(domain))
+              }
+            }
+          } ~ pathPrefix(Segment) { username =>
+            pathEnd {
+              get {
+                authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
+                  complete(getRolesByUsername(username, domain))
+                }
+              } ~ put {
+                entity(as[SetUserRolesRequest]) { request =>
+                  authorizeAsync(canAdministerDomain(domain, convergenceUsername)) {
+                    complete(setUserRolesRequest(username, request, domain))
+                  }
+                }
+              }
+            }
           }
-        }
-      } ~ pathPrefix(Segment) { username =>
+        } ~ pathPrefix(Segment) { username =>
         pathEnd {
           get {
             authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
-              complete(getRolesByUsername(username, domain))
-            }
-          } ~ put {
-            entity(as[SetUserRolesRequest]) { request =>
-              authorizeAsync(canAdministerDomain(domain, convergenceUsername)) {
-                complete(setUserRolesRequest(username, request, domain))
-              }
+              complete(getPermissionsByUsername(username, domain))
             }
           }
         }
@@ -101,10 +113,16 @@ class DomainSecurityService(
 
   def getRolesByUsername(username: String, domain: DomainFqn): Future[RestResponse] = {
     (permissionStoreActor ? GetUserRolesRequest(username, domain)).mapTo[UserRoles] map {
-        userRoles => (StatusCodes.OK, GetUserRolesRestResponse(userRoles))
+      userRoles => (StatusCodes.OK, GetUserRolesRestResponse(userRoles))
     }
   }
-  
+
+  def getPermissionsByUsername(username: String, domain: DomainFqn): Future[RestResponse] = {
+    (permissionStoreActor ? GetUserPermissionsRequest(username, domain)).mapTo[Set[Permission]] map {
+      permissions => (StatusCodes.OK, GetUserPermissionsRestResponse(permissions))
+    }
+  }
+
   def setUserRolesRequest(username: String, updateRequest: SetUserRolesRequest, domain: DomainFqn): Future[RestResponse] = {
     val SetUserRolesRequest(roles) = updateRequest
     val message = SetRolesRequest(username, domain, roles)
@@ -114,10 +132,10 @@ class DomainSecurityService(
   // Permission Checks
 
   def canAdministerDomain(domainFqn: DomainFqn, username: String): Future[Boolean] = {
-    (authorizationActor ? ConvergenceAuthorizedRequest(username, domainFqn, Set("domain-access"))).mapTo[Try[Boolean]].map(_.get)
+    (authorizationActor ? ConvergenceAuthorizedRequest(username, domainFqn, Set("manage-permissions"))).mapTo[Try[Boolean]].map(_.get)
   }
-  
+
   def canAccessDomain(domainFqn: DomainFqn, username: String): Future[Boolean] = {
-    (authorizationActor ? ConvergenceAuthorizedRequest(username, domainFqn, Set("domain-admin"))).mapTo[Try[Boolean]].map(_.get)
+    (authorizationActor ? ConvergenceAuthorizedRequest(username, domainFqn, Set("domain-access"))).mapTo[Try[Boolean]].map(_.get)
   }
 }
