@@ -35,7 +35,7 @@ object QueryUtil extends Logging {
         case Some(o) =>
           o.getIdentity
         case None =>
-          throw new IllegalArgumentException("Entity not found")
+          throw new EntityNotFoundException
       }
     }
   }

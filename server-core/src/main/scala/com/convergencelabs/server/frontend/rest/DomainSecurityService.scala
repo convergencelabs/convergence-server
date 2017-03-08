@@ -52,6 +52,7 @@ import com.convergencelabs.server.datastore.PermissionsStoreActor.SetRolesReques
 import com.convergencelabs.server.datastore.PermissionsStoreActor.GetUserPermissionsRequest
 import com.convergencelabs.server.datastore.Permission
 import com.convergencelabs.server.frontend.rest.DomainSecurityService.GetUserPermissionsRestResponse
+import com.convergencelabs.server.datastore.EntityNotFoundException
 
 object DomainSecurityService {
   case class SetUserRolesRequest(roles: List[String])
@@ -72,29 +73,29 @@ class DomainSecurityService(
 
   def route(convergenceUsername: String, domain: DomainFqn): Route = {
     pathPrefix("permissions") {
-        pathPrefix("roles") {
+      pathPrefix("roles") {
+        pathEnd {
+          get {
+            authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
+              complete(getAllUserRolesRequest(domain))
+            }
+          }
+        } ~ pathPrefix(Segment) { username =>
           pathEnd {
             get {
               authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
-                complete(getAllUserRolesRequest(domain))
+                complete(getRolesByUsername(username, domain))
               }
-            }
-          } ~ pathPrefix(Segment) { username =>
-            pathEnd {
-              get {
-                authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
-                  complete(getRolesByUsername(username, domain))
-                }
-              } ~ put {
-                entity(as[SetUserRolesRequest]) { request =>
-                  authorizeAsync(canAdministerDomain(domain, convergenceUsername)) {
-                    complete(setUserRolesRequest(username, request, domain))
-                  }
+            } ~ put {
+              entity(as[SetUserRolesRequest]) { request =>
+                authorizeAsync(canAdministerDomain(domain, convergenceUsername)) {
+                  complete(setUserRolesRequest(username, request, domain))
                 }
               }
             }
           }
-        } ~ pathPrefix(Segment) { username =>
+        }
+      } ~ pathPrefix(Segment) { username =>
         pathEnd {
           get {
             authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
@@ -126,7 +127,9 @@ class DomainSecurityService(
   def setUserRolesRequest(username: String, updateRequest: SetUserRolesRequest, domain: DomainFqn): Future[RestResponse] = {
     val SetUserRolesRequest(roles) = updateRequest
     val message = SetRolesRequest(username, domain, roles)
-    (permissionStoreActor ? message) map { _ => OkResponse }
+    (permissionStoreActor ? message) map { _ => OkResponse } recover {
+      case _: EntityNotFoundException => NotFoundError
+    }
   }
 
   // Permission Checks
