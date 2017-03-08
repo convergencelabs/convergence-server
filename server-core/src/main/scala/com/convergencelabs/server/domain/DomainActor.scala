@@ -33,6 +33,9 @@ import scala.util.Try
 import akka.actor.Terminated
 import java.time.Instant
 import com.convergencelabs.server.datastore.domain.DomainSession
+import akka.actor.OneForOneStrategy
+import akka.actor.SupervisorStrategy._
+import scala.concurrent.duration._
 
 object DomainActor {
   def props(
@@ -59,6 +62,14 @@ class DomainActor(
 
   log.debug(s"Domain startting up: ${domainFqn}")
 
+  override val supervisorStrategy =
+  OneForOneStrategy(maxNrOfRetries = 10, withinTimeRange = 1.minute) {
+    case e: Throwable          => {
+      log.error(e, s"Actor at '${sender.path}' threw error")
+      Resume
+    }
+  }
+  
   private[this] var persistenceProvider: DomainPersistenceProvider = _
   private[this] implicit val ec = context.dispatcher
 
