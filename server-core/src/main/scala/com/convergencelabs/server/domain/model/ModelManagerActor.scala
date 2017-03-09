@@ -66,8 +66,9 @@ class ModelManagerActor(
         val resourceId = "" + nextModelResourceId
         nextModelResourceId += 1
         val collectionId = openRequest.modelFqn.collectionId
-        persistenceProvider.collectionStore.ensureCollectionExists(collectionId) flatMap (_ =>
-          getSnapshotConfigForModel(collectionId)) flatMap { snapshotConfig =>
+        persistenceProvider.collectionStore.ensureCollectionExists(collectionId) flatMap { _ =>
+          getSnapshotConfigForModel(collectionId)
+        } map { snapshotConfig =>
           val props = RealtimeModelActor.props(
             self,
             domainFqn,
@@ -83,10 +84,11 @@ class ModelManagerActor(
           this.openRealtimeModels += (openRequest.modelFqn -> modelActor)
           this.context.watch(modelActor)
           modelActor forward openRequest
-          Success(())
+          ()
         } recover {
-          case e: Exception =>
-            sender ! UnknownErrorResponse("Could not open model")
+          case cause: Exception =>
+            log.error(cause, s"Error opening model: ${openRequest.modelFqn}")
+            sender ! UnknownErrorResponse("Could not open model due to an unexpected server error.")
         }
     }
   }
@@ -94,7 +96,12 @@ class ModelManagerActor(
   private[this] def getSnapshotConfigForModel(collectionId: String): Try[ModelSnapshotConfig] = {
     persistenceProvider.collectionStore.getOrCreateCollection(collectionId).flatMap { c =>
       if (c.overrideSnapshotConfig) {
-        Success(c.snapshotConfig.get)
+        c.snapshotConfig match {
+          case Some(config) =>
+            Success(config)
+          case None =>
+            Failure(new IllegalStateException("Collection overrides snapshot config, but the config is missing."))
+        }
       } else {
         persistenceProvider.configStore.getModelSnapshotConfig()
       }
@@ -115,18 +122,18 @@ class ModelManagerActor(
     // FIXME all of this should work or not, together. We also do this in two different places
     // we should abstract this somewhere
     persistenceProvider.collectionStore.ensureCollectionExists(collectionId) flatMap { _ =>
-      persistenceProvider.modelStore.createModel(collectionId, modelId, data) 
+      persistenceProvider.modelStore.createModel(collectionId, modelId, data)
     } flatMap { model =>
-        val ModelMetaData(fqn, version, created, modeified) = model.metaData
-        val snapshot = ModelSnapshot(ModelSnapshotMetaData(fqn, version, created), model.data)
-        persistenceProvider.modelSnapshotStore.createSnapshot(snapshot)
+      val ModelMetaData(fqn, version, created, modeified) = model.metaData
+      val snapshot = ModelSnapshot(ModelSnapshotMetaData(fqn, version, created), model.data)
+      persistenceProvider.modelSnapshotStore.createSnapshot(snapshot)
     } map { _ =>
       sender ! ModelCreated
     } recover {
       case e: DuplicateValueExcpetion =>
         sender ! ModelAlreadyExists
       case e: InvalidValueExcpetion =>
-        sender ! UnknownErrorResponse("Could not create model beause it contained an invalid value")        
+        sender ! UnknownErrorResponse("Could not create model beause it contained an invalid value")
       case e: Exception =>
         sender ! UnknownErrorResponse("Could not create model: " + e.getMessage)
     }
@@ -140,7 +147,7 @@ class ModelManagerActor(
     }
 
     persistenceProvider.modelStore.deleteModel(deleteRequest.modelFqn) map { _ =>
-        sender ! ModelDeleted
+      sender ! ModelDeleted
     } recover {
       case cause: Exception => sender ! Status.Failure(cause)
     }
@@ -175,8 +182,12 @@ class ModelManagerActor(
   }
 
   override def preStart(): Unit = {
-    // FIXME Handle none better with logging.
-    persistenceProvider = DomainPersistenceManagerActor.acquirePersistenceProvider(self, context, domainFqn).get
+    DomainPersistenceManagerActor.acquirePersistenceProvider(self, context, domainFqn) match {
+      case Success(provider) =>
+        persistenceProvider = provider
+      case Failure(cause) =>
+        throw new IllegalStateException("Could not obtain a persistence provider", cause)
+    }
   }
 }
 
