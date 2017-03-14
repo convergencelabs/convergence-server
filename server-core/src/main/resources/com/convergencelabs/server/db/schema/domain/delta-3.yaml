@@ -1,0 +1,67 @@
+version: 3
+description: Schema to add roles and permissions to models and collections
+changes:
+
+########## CollectionPermission ##########
+
+  - action: CreateClass
+    name: CollectionPermission
+    properties:
+      - {name: collection, type: Link,   linkedClass: Collection, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: read,       type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
+      - {name: write,      type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
+      - {name: create,     type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
+      - {name: remove,     type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
+      - {name: manage,     type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
+
+########## CollectionUserPermission ##########
+
+  - action: CreateClass
+    name: CollectionUserPermission
+    superclass: CollectionPermission
+    properties:
+      - {name: user, type: Link, linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
+
+  - action: CreateIndex
+    className: CollectionUserPermission
+    name: CollectionUserPermission.user_collection
+    type: Unique
+    properties: [user, collection]
+
+########## Collection Changes ##########
+
+  - action: AddProperty
+    className: Collection
+    property: {name: world, type: Embedded, linkedClass: CollectionPermission}
+
+########## ModelPermission ##########
+
+  - action: CreateClass
+    name: ModelPermission
+    properties:
+      - {name: model,  type: Link,   linkedClass: Model, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: read,   type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
+      - {name: write,  type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
+      - {name: remove, type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
+      - {name: manage, type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
+
+########## ModelUserPermission ##########
+
+  - action: CreateClass
+    name: ModelUserPermission
+    superclass: ModelPermission
+    properties:
+      - {name: user, type: Link, linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
+
+  - action: CreateIndex
+    className: ModelUserPermission
+    name: ModelUserPermission.user_model
+    type: Unique
+    properties: [user, model]
+
+########## Model Changes ##########
+
+  - action: AddProperty
+    className: Model
+    property: {name: world, type: Embedded, linkedClass: ModelPermission}
+    

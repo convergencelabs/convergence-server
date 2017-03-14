@@ -25,9 +25,9 @@ class SchemaEqualitySpec
         db2.activateOnCurrentThread()
         if (maxVersion > 1) {
           val previousFullDelta = manifest.getFullDelta(maxVersion - 1).get
-          DatabaseDeltaProcessor.apply(previousFullDelta.delta, db2)
+          DatabaseDeltaProcessor.apply(previousFullDelta.delta, db2).get
         }
-        DatabaseDeltaProcessor.apply(currentDelta.delta, db2)
+        DatabaseDeltaProcessor.apply(currentDelta.delta, db2).get
 
         SchemaEqualityTester.assertEqual(db1, db2)
       }
@@ -41,13 +41,13 @@ class SchemaEqualitySpec
         val currentDelta = manifest.getIncrementalDelta(maxVersion).get
 
         db1.activateOnCurrentThread()
-        DatabaseDeltaProcessor.apply(currentFullDelta.delta, db1)
+        DatabaseDeltaProcessor.apply(currentFullDelta.delta, db1).get
         db2.activateOnCurrentThread()
         if (maxVersion > 1) {
           val previousFullDelta = manifest.getFullDelta(maxVersion - 1).get
-          DatabaseDeltaProcessor.apply(previousFullDelta.delta, db2)
+          DatabaseDeltaProcessor.apply(previousFullDelta.delta, db2).get
         }
-        DatabaseDeltaProcessor.apply(currentDelta.delta, db2)
+        DatabaseDeltaProcessor.apply(currentDelta.delta, db2).get
 
         SchemaEqualityTester.assertEqual(db1, db2)
       }
@@ -62,13 +62,13 @@ class SchemaEqualitySpec
         val currentDelta = manifest.getIncrementalDelta(maxVersion).get
 
         db1.activateOnCurrentThread()
-        DatabaseDeltaProcessor.apply(currentFullDelta.delta, db1)
+        DatabaseDeltaProcessor.apply(currentFullDelta.delta, db1).get
         db2.activateOnCurrentThread()
         if (maxVersion > 1) {
           val previousFullDelta = manifest.getFullDelta(maxVersion - 1).get
-          DatabaseDeltaProcessor.apply(previousFullDelta.delta, db2)
+          DatabaseDeltaProcessor.apply(previousFullDelta.delta, db2).get
         }
-        DatabaseDeltaProcessor.apply(currentDelta.delta, db2)
+        DatabaseDeltaProcessor.apply(currentDelta.delta, db2).get
 
         SchemaEqualityTester.assertEqual(db1, db2)
       }
@@ -82,13 +82,13 @@ class SchemaEqualitySpec
         val currentDelta = manifest.getIncrementalDelta(maxVersion).get
 
         db1.activateOnCurrentThread()
-        DatabaseDeltaProcessor.apply(currentFullDelta.delta, db1)
+        DatabaseDeltaProcessor.apply(currentFullDelta.delta, db1).get
         db2.activateOnCurrentThread()
         if (maxVersion > 1) {
           val previousFullDelta = manifest.getFullDelta(maxVersion - 1).get
-          DatabaseDeltaProcessor.apply(previousFullDelta.delta, db2)
+          DatabaseDeltaProcessor.apply(previousFullDelta.delta, db2).get
         }
-        DatabaseDeltaProcessor.apply(currentDelta.delta, db2)
+        DatabaseDeltaProcessor.apply(currentDelta.delta, db2).get
 
         SchemaEqualityTester.assertEqual(db1, db2)
       }

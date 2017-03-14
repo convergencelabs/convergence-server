@@ -24,6 +24,7 @@ object SchemaEqualityTester extends Logging {
     val functionLibrary2 = db2.getMetadata.getFunctionLibrary
 
     val functions = functionLibrary1.getFunctionNames.toSet
+    val functions2 = functionLibrary2.getFunctionNames.toSet
     assume(functions == functionLibrary2.getFunctionNames.toSet, "Databases have different functions!")
 
     functions.foreach { function =>
@@ -101,7 +102,7 @@ object SchemaEqualityTester extends Logging {
     assume(class1.isAbstract() == class2.isAbstract(), s"Class type for ${class1.getName} is not the same!")
     assume(class1.getSuperClassesNames == class2.getSuperClassesNames, s"Class superclasses for ${class1.getName} is not the same!")
     assume(class2.getSuperClassesNames.containsAll(class1.getSuperClassesNames), s"Class superclasses for ${class1.getName} is not the same!")
-    assume(props1 == props2, s"Class properties for ${class1.getName} is not the same!")
+    assume(props1 == props2, s"Class properties for ${class1.getName} is not the same! \n$props1 != \n$props2")
     props1.foreach { prop =>
       assertPropertyEqual(class1.getProperty(prop), class2.getProperty(prop))
     }
