@@ -126,9 +126,9 @@ class ModelManagerActor(
     } flatMap { model =>
       val ModelMetaData(fqn, version, created, modeified) = model.metaData
       val snapshot = ModelSnapshot(ModelSnapshotMetaData(fqn, version, created), model.data)
-      persistenceProvider.modelSnapshotStore.createSnapshot(snapshot)
-    } map { _ =>
-      sender ! ModelCreated
+      persistenceProvider.modelSnapshotStore.createSnapshot(snapshot) map { _ => model}
+    } map { model =>
+      sender ! ModelCreated(model.metaData.fqn)
     } recover {
       case e: DuplicateValueExcpetion =>
         sender ! ModelAlreadyExists

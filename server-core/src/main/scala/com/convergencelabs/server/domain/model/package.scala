@@ -39,7 +39,7 @@ package model {
   case object ModelNotFound extends DeleteModelResponse
 
   sealed trait CreateModelResponse
-  case object ModelCreated extends CreateModelResponse
+  case class ModelCreated(fqn: ModelFqn) extends CreateModelResponse
   case object ModelAlreadyExists extends CreateModelResponse
 
   case class CreateCollectionRequest(collection: Collection)

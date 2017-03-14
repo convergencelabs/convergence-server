@@ -101,7 +101,7 @@ class ModelManagerActorSpec
           .thenReturn(Success(()))
           
         modelManagerActor.tell(CreateModelRequest(cId, Some(mId), data), client.ref)
-        client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelCreated)
+        client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelCreated(nonExistentModelFqn))
       }
 
       "return ModelAlreadyExists if the model exists" in new TestFixture {

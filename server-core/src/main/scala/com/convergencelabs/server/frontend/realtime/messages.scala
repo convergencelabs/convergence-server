@@ -98,7 +98,7 @@ case class OpenModelData(d: ObjectValue, s: Set[String], r: Set[ReferenceData])
 case class ReferenceData(s: String, d: Option[String], k: String, c: Int, v: List[Any])
 
 case class CloseRealTimeModelSuccessMessage() extends OutgoingProtocolResponseMessage
-case class CreateRealtimeModelSuccessMessage() extends OutgoingProtocolResponseMessage
+case class CreateRealtimeModelSuccessMessage(c: String, m: String) extends OutgoingProtocolResponseMessage
 case class DeleteRealtimeModelSuccessMessage() extends OutgoingProtocolResponseMessage
 
 case class ModelsQueryResponseMessage(r: List[ModelResult]) extends OutgoingProtocolResponseMessage
