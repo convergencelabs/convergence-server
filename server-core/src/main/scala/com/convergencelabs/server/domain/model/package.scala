@@ -25,6 +25,19 @@ package model {
   case class OperationSubmission(seqNo: Long, contextVersion: Long, operation: Operation)
   case class ClientModelDataResponse(modelData: ObjectValue)
 
+  case class ModelPermissions(read: Boolean, write: Boolean, remove: Boolean, manage: Boolean)
+  case class GetModelPermissionsRequest(collectionId: String, modelId: String)
+  
+  sealed trait GetModelPermissionsResponse
+  case class GetModelPermissionsSuccess(worlPermissions: ModelPermissions, userPermissions: Map[String, ModelPermissions])
+  
+  case class SetModelPermissionsRequest(
+    collectionId: String,
+    modelId: String,
+    worlPermissions: ModelPermissions,
+    userPermissions: Map[String, Option[ModelPermissions]],
+    setAll: Boolean)
+
   sealed trait ModelReferenceEvent {
     val id: Option[String]
   }
@@ -98,7 +111,7 @@ package model {
 
   sealed trait RemoteReferenceEvent extends RealtimeModelClientMessage
   case class RemoteReferencePublished(
-      resourceId: String, sessionId: String, id: Option[String], key: String,
+    resourceId: String, sessionId: String, id: Option[String], key: String,
     referenceType: ReferenceType.Value, values: Option[List[Any]]) extends RemoteReferenceEvent
   case class RemoteReferenceSet(resourceId: String, sessionId: String, id: Option[String], key: String,
     referenceType: ReferenceType.Value, value: List[Any]) extends RemoteReferenceEvent

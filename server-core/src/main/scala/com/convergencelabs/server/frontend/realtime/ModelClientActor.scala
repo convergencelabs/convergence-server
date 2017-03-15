@@ -43,6 +43,9 @@ import com.convergencelabs.server.domain.model.RemoteReferenceUnpublished
 import com.convergencelabs.server.domain.model.SessionKey
 import com.convergencelabs.server.domain.model.SetReference
 import com.convergencelabs.server.domain.model.UnpublishReference
+import com.convergencelabs.server.domain.model.GetModelPermissionsRequest
+import com.convergencelabs.server.domain.model.GetModelPermissionsResponse
+import com.convergencelabs.server.domain.model.SetModelPermissionsRequest
 import com.convergencelabs.server.util.concurrent.AskFuture
 
 import akka.actor.Actor
@@ -207,6 +210,8 @@ class ModelClientActor(
       case createRequest: CreateRealtimeModelRequestMessage => onCreateRealtimeModelRequest(createRequest, replyCallback)
       case deleteRequest: DeleteRealtimeModelRequestMessage => onDeleteRealtimeModelRequest(deleteRequest, replyCallback)
       case queryRequest: ModelsQueryRequestMessage => onModelQueryRequest(queryRequest, replyCallback)
+      case getPermissionRequest: GetModelPermissionsRequestMessage => onGetModelPermissionsRequest(getPermissionRequest, replyCallback)
+      case setPermissionRequest: SetModelPermissionsRequestMessage => onSetModelPermissionsRequest(setPermissionRequest, replyCallback)
     }
   }
 
@@ -376,5 +381,36 @@ class ModelClientActor(
         log.error(cause, "Unexpected error deleting model.")
         cb.unexpectedError("could not delete model")
     }
+  }
+  
+ private[this] def onGetModelPermissionsRequest(request: GetModelPermissionsRequestMessage, cb: ReplyCallback): Unit = {
+    val GetModelPermissionsRequestMessage(collectionId, modelId) = request
+//    val future = modelManager ? GetModelPermissionsRequest(collectionId, modelId)
+//    future.mapResponse[GetModelPermissionsResponse] onComplete {
+//      case Success(GetModelPermissionsResponse(world, users)) => 
+//        val mappedWorld = ModelPermissionsData(world.read, world.write, world.remove, world.manage)
+//        val mappedUsers = users map { case (username, permissions) =>
+//          val ModelPermissions(read, write, remove, manage) = permissions
+//          (username, ModelPermissionsData(read, write, remove, manage))
+//        }
+//        cb.reply(GetModelPermissionsResponseMessage(mappedWorld, mappedUsers))
+//      case Success(ModelNotFound) => 
+//          cb.reply(ErrorMessage("model_not_found", "A model with the specifieid collection and model id does not exists"))
+//      case Failure(cause) =>
+//        log.error(cause, "Unexpected error getting permissions for model.")
+//        cb.unexpectedError("could not delete model")
+//    }
+  }
+ 
+  private[this] def onSetModelPermissionsRequest(request: SetModelPermissionsRequestMessage, cb: ReplyCallback): Unit = {
+    val SetModelPermissionsRequestMessage(collectionId, modelId, world, users, allUsers) = request
+//    val future = modelManager ? DeleteModelRequest(ModelFqn(collectionId, modelId))
+//    future.mapResponse[DeleteModelResponse] onComplete {
+//      case Success(ModelDeleted) => cb.reply(DeleteRealtimeModelSuccessMessage())
+//      case Success(ModelNotFound) => cb.reply(ErrorMessage("model_not_found", "A model with the specifieid collection and model id does not exists"))
+//      case Failure(cause) =>
+//        log.error(cause, "Unexpected error deleting model.")
+//        cb.unexpectedError("could not delete model")
+//    }
   }
 }
