@@ -52,7 +52,8 @@ class RealtimeModelActor(
   private[this] val modelOperationProcessor: ModelOperationProcessor,
   private[this] val modelSnapshotStore: ModelSnapshotStore,
   private[this] val clientDataResponseTimeout: Long,
-  private[this] val snapshotConfig: ModelSnapshotConfig)
+  private[this] val snapshotConfig: ModelSnapshotConfig,
+  private[this] var permissions: RealTimeModelPermissions)
     extends Actor
     with ActorLogging {
 
@@ -139,6 +140,7 @@ class RealtimeModelActor(
     case closeRequest: CloseRealtimeModelRequest => onCloseModelRequest(closeRequest)
     case operationSubmission: OperationSubmission => onOperationSubmission(operationSubmission)
     case referenceEvent: ModelReferenceEvent => onReferenceEvent(referenceEvent)
+    case RealTimeModelPermissionsUpdated(permissions) => onPermissionsUpdated(permissions)
     case dataResponse: ClientModelDataResponse =>
     // This can happen if we asked several clients for the data.  The first
     // one will be handled, but the rest will come in an simply be ignored.
@@ -149,6 +151,30 @@ class RealtimeModelActor(
     case unknown: Any => unhandled(unknown)
   }
 
+  private[this] def onPermissionsUpdated(permissions: RealTimeModelPermissions): Unit = {
+    val oldPermissions = this.permissions
+    this.permissions = permissions
+    // TODO I need to update any connected client that their permissions changed.
+    // I don't want to have a bunch of messages between the model manager actor and this one trying
+    // to describe exactly how the permissions were modiefied. My thought is to just loop over the
+    // connected clients and compute their old and new permissoins and then only send an update to
+    // the ones that changed. If this seems ok, just remove the commment.
+    
+    this.connectedClients foreach { case (sk, actor) =>
+      val oldPerms = getPermissionsForSession(sk, oldPermissions)
+      val newPerms = getPermissionsForSession(sk, this.permissions)
+      if (oldPerms != newPerms) {
+        actor ! ModelPermissionsChanged(modelResourceId, newPerms)
+      }
+    }
+  }
+  
+  private[this] def getPermissionsForSession(sk: SessionKey, permmissions: RealTimeModelPermissions): ModelPermissions = {
+    // TODO this only takes into account model permissions and will need to change when we actually implement
+    // collection permissions for read, write, etc.
+    this.permissions.users.getOrElse(sk.uid, this.permissions.world)
+  }
+  
   //
   // Opening and Closing
   //
@@ -242,9 +268,15 @@ class RealtimeModelActor(
         referenceTransformer,
         modelData.metaData.version)
 
+      // FIXME this is fake
+      val perms = RealTimeModelPermissions(
+          ModelPermissions(true, true, true, true),
+          Map())
+      
       this.model = new RealTimeModel(
         modelFqn,
         modelResourceId,
+        perms,
         concurrencyControl,
         modelData.data)
 
@@ -635,7 +667,8 @@ object RealtimeModelActor {
     modelOperationProcessor: ModelOperationProcessor,
     modelSnapshotStore: ModelSnapshotStore,
     clientDataResponseTimeout: Long,
-    snapshotConfig: ModelSnapshotConfig): Props =
+    snapshotConfig: ModelSnapshotConfig,
+    permissions: RealTimeModelPermissions): Props =
     Props(new RealtimeModelActor(
       modelManagerActor,
       domainFqn,
@@ -645,7 +678,8 @@ object RealtimeModelActor {
       modelOperationProcessor,
       modelSnapshotStore,
       clientDataResponseTimeout,
-      snapshotConfig))
+      snapshotConfig,
+      permissions))
 
   def sessionKeyToClientId(sk: SessionKey): String = sk.serialize()
 }

@@ -88,6 +88,12 @@ object MessageSerializer {
     MessageType.ReferenceUnpublished -> classOf[RemoteReferenceUnpublishedMessage],
     MessageType.ReferenceSet -> classOf[RemoteReferenceSetMessage],
     MessageType.ReferenceCleared -> classOf[RemoteReferenceClearedMessage],
+    
+    MessageType.GetModelPermissionsRequest -> classOf[GetModelPermissionsRequestMessage],
+    MessageType.GetModelPermissionsResponse -> classOf[GetModelPermissionsResponseMessage],
+    MessageType.SetModelPermissionsRequest -> classOf[SetModelPermissionsRequestMessage],
+    MessageType.SetModelPermissionsResponse -> classOf[SetModelPermissionsResponseMessage],
+    MessageType.ModelPermissionsChanged -> classOf[ModelPermissionsChangedMessage],
 
     MessageType.UserLookUpRequest -> classOf[UserLookUpMessage],
     MessageType.UserSearchRequest -> classOf[UserSearchMessage],

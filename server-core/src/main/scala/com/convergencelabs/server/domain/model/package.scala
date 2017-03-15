@@ -25,6 +25,19 @@ package model {
   case class OperationSubmission(seqNo: Long, contextVersion: Long, operation: Operation)
   case class ClientModelDataResponse(modelData: ObjectValue)
 
+  case class ModelPermissions(read: Boolean, write: Boolean, remove: Boolean, manage: Boolean)
+  case class GetModelPermissionsRequest(collectionId: String, modelId: String)
+
+  case class GetModelPermissionsResponse(worlPermissions: ModelPermissions, userPermissions: Map[String, ModelPermissions])
+
+  case class SetModelPermissionsRequest(
+    collectionId: String,
+    modelId: String,
+    setWorld: Boolean,
+    worldPermissions: Option[ModelPermissions],
+    setAllUsers: Boolean,
+    userPermissions: Map[String, Option[ModelPermissions]])
+
   sealed trait ModelReferenceEvent {
     val id: Option[String]
   }
@@ -34,12 +47,15 @@ package model {
   case class ClearReference(id: Option[String], key: String) extends ModelReferenceEvent
   case class UnpublishReference(id: Option[String], key: String) extends ModelReferenceEvent
 
+  case class ModelNotFoundException(message: String = "", cause: Throwable = null)
+    extends Exception(message, cause)
+
   sealed trait DeleteModelResponse
   case object ModelDeleted extends DeleteModelResponse
   case object ModelNotFound extends DeleteModelResponse
 
   sealed trait CreateModelResponse
-  case object ModelCreated extends CreateModelResponse
+  case class ModelCreated(fqn: ModelFqn) extends CreateModelResponse
   case object ModelAlreadyExists extends CreateModelResponse
 
   case class CreateCollectionRequest(collection: Collection)
@@ -47,6 +63,12 @@ package model {
   case class DeleteCollectionRequest(collectionId: String)
   case class GetCollectionRequest(collectionId: String)
   case object GetCollectionsRequest
+
+  // TODO this will also need to include the permissions from the collection as well
+  // and we will need to trigger some sort of update when the collection wide
+  // permissions change.
+  case class RealTimeModelPermissions(world: ModelPermissions, users: Map[String, ModelPermissions])
+  case class RealTimeModelPermissionsUpdated(permissions: RealTimeModelPermissions)
 
   //
   // Incoming Messages From Self
@@ -94,11 +116,12 @@ package model {
   case class RemoteClientClosed(resourceId: String, sk: SessionKey) extends RealtimeModelClientMessage
   case class RemoteClientOpened(resourceId: String, sk: SessionKey) extends RealtimeModelClientMessage
   case class ModelForceClose(resourceId: String, reason: String) extends RealtimeModelClientMessage
+  case class ModelPermissionsChanged(resourceId: String, permissions: ModelPermissions) extends RealtimeModelClientMessage
   case class ClientModelDataRequest(modelFqn: ModelFqn) extends RealtimeModelClientMessage
 
   sealed trait RemoteReferenceEvent extends RealtimeModelClientMessage
   case class RemoteReferencePublished(
-      resourceId: String, sessionId: String, id: Option[String], key: String,
+    resourceId: String, sessionId: String, id: Option[String], key: String,
     referenceType: ReferenceType.Value, values: Option[List[Any]]) extends RemoteReferenceEvent
   case class RemoteReferenceSet(resourceId: String, sessionId: String, id: Option[String], key: String,
     referenceType: ReferenceType.Value, value: List[Any]) extends RemoteReferenceEvent

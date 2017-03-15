@@ -60,6 +60,14 @@ object MessageType extends Enumeration {
   val HistoricalOperationsRequest = 128
   val HistoricalOperationsResponse = 129
   
+  val GetModelPermissionsRequest = 130
+  val GetModelPermissionsResponse = 131
+
+  val SetModelPermissionsRequest = 132
+  val SetModelPermissionsResponse = 133
+
+  val ModelPermissionsChanged = 134
+  
   // Identity
   val UserLookUpRequest = 200
   val UserSearchRequest = 201

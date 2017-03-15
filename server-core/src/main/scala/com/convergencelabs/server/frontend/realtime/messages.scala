@@ -82,6 +82,15 @@ case class CloseRealtimeModelRequestMessage(r: String) extends IncomingModelRequ
 case class CreateRealtimeModelRequestMessage(c: String, m: Option[String], d: ObjectValue) extends IncomingModelRequestMessage
 case class DeleteRealtimeModelRequestMessage(c: String, m: String) extends IncomingModelRequestMessage
 
+case class GetModelPermissionsRequestMessage(c: String, m: String) extends IncomingModelRequestMessage
+case class SetModelPermissionsRequestMessage(
+    c: String, 
+    m: String,
+    s: Boolean,
+    w: Option[ModelPermissionsData],
+    a: Boolean,
+    u: Map[String, Option[ModelPermissionsData]]
+    ) extends IncomingModelRequestMessage
 
 case class ModelsQueryRequestMessage(q: String) extends IncomingModelRequestMessage
 
@@ -98,8 +107,12 @@ case class OpenModelData(d: ObjectValue, s: Set[String], r: Set[ReferenceData])
 case class ReferenceData(s: String, d: Option[String], k: String, c: Int, v: List[Any])
 
 case class CloseRealTimeModelSuccessMessage() extends OutgoingProtocolResponseMessage
-case class CreateRealtimeModelSuccessMessage() extends OutgoingProtocolResponseMessage
+case class CreateRealtimeModelSuccessMessage(c: String, m: String) extends OutgoingProtocolResponseMessage
 case class DeleteRealtimeModelSuccessMessage() extends OutgoingProtocolResponseMessage
+
+case class SetModelPermissionsResponseMessage() extends OutgoingProtocolResponseMessage
+case class GetModelPermissionsResponseMessage(w: ModelPermissionsData, u: Map[String, ModelPermissionsData]) extends OutgoingProtocolResponseMessage
+case class ModelPermissionsChangedMessage(r: String, p: ModelPermissionsData) extends OutgoingProtocolNormalMessage
 
 case class ModelsQueryResponseMessage(r: List[ModelResult]) extends OutgoingProtocolResponseMessage
 case class ModelResult(l: String, m: String, c: Long, d: Long, v: Long, a: ObjectValue)
@@ -118,6 +131,7 @@ case class RemoteReferenceUnpublishedMessage(r: String, s: String, d: Option[Str
 case class RemoteReferenceSetMessage(r: String, s: String, d: Option[String], k: String, c: Int, v: List[Any]) extends OutgoingProtocolNormalMessage
 case class RemoteReferenceClearedMessage(r: String, s: String, d: Option[String], k: String) extends OutgoingProtocolNormalMessage
 
+case class ModelPermissionsData(r: Boolean, w: Boolean, d: Boolean, m: Boolean)
 
 ///////////////////////////////////////////////////////////////////////////////
 // Historical Model Messages
@@ -157,10 +171,8 @@ case class ActivitySetStateMessage(i: String, v: Map[String, Any]) extends Incom
 case class ActivityRemoveStateMessage(i: String, k: List[String]) extends IncomingProtocolNormalMessage with IncomingActivityNormalMessage
 case class ActivityClearStateMessage(i: String) extends IncomingProtocolNormalMessage with IncomingActivityNormalMessage
 
-
 case class ActivityJoinResponseMessage(s: Map[String, Map[String, Any]]) extends OutgoingProtocolResponseMessage
 case class ActivityParticipantsResponseMessage(s: Map[String, Map[String, Any]]) extends OutgoingProtocolResponseMessage
-
 
 case class ActivitySessionJoinedMessage(i: String, s: String, v: Map[String, Any]) extends OutgoingProtocolNormalMessage
 case class ActivitySessionLeftMessage(i: String, s: String) extends OutgoingProtocolNormalMessage

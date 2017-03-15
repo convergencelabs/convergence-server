@@ -256,6 +256,7 @@ class RealtimeModelActorSpec
     val modelSnapshotStore = mock[ModelSnapshotStore]
     val resourceId = "1" + System.nanoTime()
     val modelManagerActor = new TestProbe(system)
+    val permissions = RealTimeModelPermissions(ModelPermissions(true, true, true, true), Map())
     val props = RealtimeModelActor.props(
       modelManagerActor.ref,
       DomainFqn("convergence", "default"),
@@ -265,7 +266,8 @@ class RealtimeModelActorSpec
       modelOperationProcessor,
       modelSnapshotStore,
       100L,
-      ModelSnapshotConfig(true, true, true, 3, 3, false, false, Duration.of(1, ChronoUnit.SECONDS), Duration.of(1, ChronoUnit.SECONDS)))
+      ModelSnapshotConfig(true, true, true, 3, 3, false, false, Duration.of(1, ChronoUnit.SECONDS), Duration.of(1, ChronoUnit.SECONDS)),
+      permissions)
 
     val realtimeModelActor = system.actorOf(props, resourceId)
   }
