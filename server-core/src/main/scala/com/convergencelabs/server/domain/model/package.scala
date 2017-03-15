@@ -67,7 +67,10 @@ package model {
   // TODO this will also need to include the permissions from the collection as well
   // and we will need to trigger some sort of update when the collection wide
   // permissions change.
-  case class RealTimeModelPermissions(world: Option[ModelPermissions], users: Map[String, ModelPermissions])
+  case class RealTimeModelPermissions(
+      collectionWorld: ModelPermissions,
+      modelWorld: Option[ModelPermissions], 
+      modelUsers: Map[String, ModelPermissions])
   case class RealTimeModelPermissionsUpdated(permissions: RealTimeModelPermissions)
 
   //
