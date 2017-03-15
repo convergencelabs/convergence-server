@@ -30,6 +30,7 @@ import com.convergencelabs.server.domain.model.data.ObjectValue
 import scala.util.control.NonFatal
 import com.convergencelabs.server.datastore.DuplicateValueExcpetion
 import com.convergencelabs.server.datastore.InvalidValueExcpetion
+import com.convergencelabs.server.datastore.domain.ModelPermissions
 
 case class QueryModelsRequest(query: String)
 case class QueryOrderBy(field: String, ascending: Boolean)
@@ -70,13 +71,12 @@ class ModelManagerActor(
         val resourceId = "" + nextModelResourceId
         nextModelResourceId += 1
         val collectionId = openRequest.modelFqn.collectionId
-        persistenceProvider.collectionStore.ensureCollectionExists(collectionId) flatMap { _ =>
-          getSnapshotConfigForModel(collectionId)
-        } map { snapshotConfig =>
-          
-          // FIXME need to load permissions from persistence
-          val permissions = RealTimeModelPermissions(ModelPermissions(true, true, true, true), Map())
-          
+        
+        (for {
+          exists <- persistenceProvider.collectionStore.ensureCollectionExists(collectionId)
+          snapshotConfig <- getSnapshotConfigForModel(collectionId)
+          permissions <- this.getModelPermissions(openRequest.modelFqn)
+        } yield { 
           val props = RealtimeModelActor.props(
             self,
             domainFqn,
@@ -94,12 +94,21 @@ class ModelManagerActor(
           this.context.watch(modelActor)
           modelActor forward openRequest
           ()
-        } recover {
+        }) recover {
           case cause: Exception =>
             log.error(cause, s"Error opening model: ${openRequest.modelFqn}")
             sender ! UnknownErrorResponse("Could not open model due to an unexpected server error.")
         }
     }
+  }
+  
+  private[this] def getModelPermissions(fqn: ModelFqn): Try[RealTimeModelPermissions] = {
+//    val permissionsStore = this.persistenceProvider.modelPermissionsStore
+//    for {
+//      world <- permissionsStore.getModelWorldPermissions(fqn)
+//      users <- permissionsStore.getAllModelUserPermissions(fqn)
+//    } yield (RealTimeModelPermissions(world, users))
+    Success(RealTimeModelPermissions(Some(ModelPermissions(true, true, true, true)), Map()))
   }
 
   private[this] def getSnapshotConfigForModel(collectionId: String): Try[ModelSnapshotConfig] = {
@@ -187,7 +196,7 @@ class ModelManagerActor(
     openRealtimeModels.get(ModelFqn(collectionId, modelId)) map { model =>
       // FIXME if the model is open need to get the new aggregate permissions
       // and send them to the open model.
-      val permissions =  RealTimeModelPermissions(ModelPermissions(true, true, true, true), Map())
+      val permissions =  RealTimeModelPermissions(Some(ModelPermissions(true, true, true, true)), Map())
       model ! RealTimeModelPermissionsUpdated(permissions)
     }
   }
