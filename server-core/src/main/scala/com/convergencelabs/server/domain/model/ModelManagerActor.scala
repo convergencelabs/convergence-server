@@ -59,6 +59,8 @@ class ModelManagerActor(
   }
 
   private[this] def onOpenRealtimeModel(openRequest: OpenRealtimeModelRequest): Unit = {
+    // FIXME check permissions
+    
     this.openRealtimeModels.get(openRequest.modelFqn) match {
       case Some(modelActor) =>
         // Model already open
@@ -71,6 +73,10 @@ class ModelManagerActor(
         persistenceProvider.collectionStore.ensureCollectionExists(collectionId) flatMap { _ =>
           getSnapshotConfigForModel(collectionId)
         } map { snapshotConfig =>
+          
+          // FIXME need to load permissions from persistence
+          val permissions = RealTimeModelPermissions(ModelPermissions(true, true, true, true), Map())
+          
           val props = RealtimeModelActor.props(
             self,
             domainFqn,
@@ -80,7 +86,8 @@ class ModelManagerActor(
             persistenceProvider.modelOperationProcessor,
             persistenceProvider.modelSnapshotStore,
             5000, // FIXME hard-coded time.  Should this be part of the protocol?
-            snapshotConfig)
+            snapshotConfig, 
+            permissions)
 
           val modelActor = context.actorOf(props, resourceId)
           this.openRealtimeModels += (openRequest.modelFqn -> modelActor)
@@ -121,6 +128,8 @@ class ModelManagerActor(
   }
 
   private[this] def createModel(collectionId: String, modelId: Option[String], data: ObjectValue): Unit = {
+    // FIXME check permissions for collection create.
+    
     // FIXME all of this should work or not, together. We also do this in two different places
     // we should abstract this somewhere
     persistenceProvider.collectionStore.ensureCollectionExists(collectionId) flatMap { _ =>
@@ -142,6 +151,7 @@ class ModelManagerActor(
   }
 
   private[this] def onDeleteModelRequest(deleteRequest: DeleteModelRequest): Unit = {
+    // FIXME check permissions
     if (openRealtimeModels.contains(deleteRequest.modelFqn)) {
       val closed = openRealtimeModels(deleteRequest.modelFqn)
       closed ! ModelDeleted
@@ -165,19 +175,21 @@ class ModelManagerActor(
   
   private[this] def onGetModelPermissions(request: GetModelPermissionsRequest): Unit = {
     val GetModelPermissionsRequest(collectionId, modelId) = request
-    // FIXME Implement
-//    persistenceProvider.modelStore.queryModels(query) match {
-//      case Success(result) => sender ! QueryModelsResponse(result)
-//      case Failure(cause) => sender ! Status.Failure(cause)
-//    }
+    // FIXME need to implement getting this from the database
+    sender ! GetModelPermissionsResponse(ModelPermissions(true, true, true, true), Map())
   }
   
   private[this] def onSetModelPermissions(request: SetModelPermissionsRequest): Unit = {
     val SetModelPermissionsRequest(collectionId, modelId, world, users, all) = request
-//    persistenceProvider.modelStore.queryModels(query) match {
-//      case Success(result) => sender ! QueryModelsResponse(result)
-//      case Failure(cause) => sender ! Status.Failure(cause)
-//    }
+    
+    // FIXME need to set the permissions in the database
+    
+    openRealtimeModels.get(ModelFqn(collectionId, modelId)) map { model =>
+      // FIXME if the model is open need to get the new aggregate permissions
+      // and send them to the open model.
+      val permissions =  RealTimeModelPermissions(ModelPermissions(true, true, true, true), Map())
+      model ! RealTimeModelPermissionsUpdated(permissions)
+    }
   }
 
   private[this] def onModelShutdownRequest(shutdownRequest: ModelShutdownRequest): Unit = {

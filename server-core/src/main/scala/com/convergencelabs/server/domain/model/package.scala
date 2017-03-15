@@ -64,6 +64,12 @@ package model {
   case class GetCollectionRequest(collectionId: String)
   case object GetCollectionsRequest
 
+  // TODO this will also need to include the permissions from the collection as well
+  // and we will need to trigger some sort of update when the collection wide
+  // permissions change.
+  case class RealTimeModelPermissions(world: ModelPermissions, users: Map[String, ModelPermissions])
+  case class RealTimeModelPermissionsUpdated(permissions: RealTimeModelPermissions)
+  
   //
   // Incoming Messages From Self
   //
