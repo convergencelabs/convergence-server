@@ -108,7 +108,10 @@ class ModelManagerActor(
 //      world <- permissionsStore.getModelWorldPermissions(fqn)
 //      users <- permissionsStore.getAllModelUserPermissions(fqn)
 //    } yield (RealTimeModelPermissions(world, users))
-    Success(RealTimeModelPermissions(Some(ModelPermissions(true, true, true, true)), Map()))
+    Success(RealTimeModelPermissions(
+        ModelPermissions(false, false, false, false),
+        Some(ModelPermissions(true, true, true, true)), 
+        Map()))
   }
 
   private[this] def getSnapshotConfigForModel(collectionId: String): Try[ModelSnapshotConfig] = {
@@ -196,7 +199,10 @@ class ModelManagerActor(
     openRealtimeModels.get(ModelFqn(collectionId, modelId)) map { model =>
       // FIXME if the model is open need to get the new aggregate permissions
       // and send them to the open model.
-      val permissions =  RealTimeModelPermissions(Some(ModelPermissions(true, true, true, true)), Map())
+      val permissions =  RealTimeModelPermissions(
+          ModelPermissions(false, false, false, false),
+          Some(ModelPermissions(true, true, true, true)), 
+          Map())
       model ! RealTimeModelPermissionsUpdated(permissions)
     }
   }

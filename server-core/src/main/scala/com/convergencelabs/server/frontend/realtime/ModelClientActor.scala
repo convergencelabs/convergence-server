@@ -48,6 +48,12 @@ import com.convergencelabs.server.domain.model.GetModelPermissionsResponse
 import com.convergencelabs.server.domain.model.SetModelPermissionsRequest
 import com.convergencelabs.server.domain.PermissionDeniedException
 import com.convergencelabs.server.util.concurrent.AskFuture
+import com.convergencelabs.server.domain.model.ModelNotFoundException
+import com.convergencelabs.server.domain.model.ModelPermissionsChanged
+import com.convergencelabs.server.datastore.domain.ModelPermissions
+import com.convergencelabs.server.domain.model.QueryModelsRequest
+import com.convergencelabs.server.domain.model.QueryModelsResponse
+import com.convergencelabs.server.domain.model.QueryOrderBy
 
 import akka.actor.Actor
 import akka.actor.ActorLogging
@@ -56,13 +62,8 @@ import akka.actor.Props
 import akka.actor.actorRef2Scala
 import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.server.domain.model.QueryModelsRequest
-import com.convergencelabs.server.domain.model.QueryModelsResponse
-import com.convergencelabs.server.domain.model.QueryOrderBy
 import akka.actor.Terminated
-import com.convergencelabs.server.domain.model.ModelPermissions
-import com.convergencelabs.server.domain.model.ModelNotFoundException
-import com.convergencelabs.server.domain.model.ModelPermissionsChanged
+
 
 object ModelClientActor {
   def props(

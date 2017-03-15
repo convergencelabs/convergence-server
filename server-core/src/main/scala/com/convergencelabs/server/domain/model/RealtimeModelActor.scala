@@ -107,6 +107,7 @@ class RealtimeModelActor(
    */
   private[this] def receiveUninitialized: Receive = {
     case request: OpenRealtimeModelRequest => onOpenModelWhileUninitialized(request)
+    case RealTimeModelPermissionsUpdated(permissions) => onPermissionsUpdated(permissions)
     case unknown: Any => unhandled(unknown)
   }
 
@@ -117,6 +118,7 @@ class RealtimeModelActor(
     case request: OpenRealtimeModelRequest => onOpenModelWhileInitializing(request)
     case dataResponse: DatabaseModelResponse => onDatabaseModelResponse(dataResponse)
     case dataResponse: ClientModelDataResponse => onClientModelDataResponse(dataResponse)
+    case RealTimeModelPermissionsUpdated(permissions) => onPermissionsUpdated(permissions)
     case ModelDeleted => handleInitializationFailure(ModelDeletedWhileOpening)
     case unknown: Any => unhandled(unknown)
   }
@@ -128,6 +130,7 @@ class RealtimeModelActor(
     case request: OpenRealtimeModelRequest => onOpenModelWhileInitializing(request)
     case dataResponse: DatabaseModelResponse => onDatabaseModelResponse(dataResponse)
     case DatabaseModelFailure(cause) => handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
+    case RealTimeModelPermissionsUpdated(permissions) => onPermissionsUpdated(permissions)
     case ModelDeleted => handleInitializationFailure(ModelDeletedWhileOpening)
     case dataResponse: ClientModelDataResponse =>
     case unknown: Any => unhandled(unknown)
@@ -160,22 +163,23 @@ class RealtimeModelActor(
     // to describe exactly how the permissions were modified. My thought is to just loop over the
     // connected clients and compute their old and new permission and then only send an update to
     // the ones that changed. If this seems ok, just remove the comment.
-    
-    this.connectedClients foreach { case (sk, actor) =>
-      val oldPerms = getPermissionsForSession(sk, oldPermissions)
-      val newPerms = getPermissionsForSession(sk, this.permissions)
-      if (oldPerms != newPerms) {
-        actor ! ModelPermissionsChanged(modelResourceId, newPerms)
-      }
+
+    this.connectedClients foreach {
+      case (sk, actor) =>
+        val oldPerms = getPermissionsForSession(sk, oldPermissions)
+        val newPerms = getPermissionsForSession(sk, this.permissions)
+        if (oldPerms != newPerms) {
+          actor ! ModelPermissionsChanged(modelResourceId, newPerms)
+        }
     }
   }
-  
+
   private[this] def getPermissionsForSession(sk: SessionKey, permissions: RealTimeModelPermissions): ModelPermissions = {
-    // TODO this only takes into account model permissions and will need to change when we actually implement
-    // collection permissions for read, write, etc.
-    this.permissions.users.getOrElse(sk.uid, this.permissions.world)
+    this.permissions.modelUsers.getOrElse(
+      sk.uid, this.permissions.modelWorld.getOrElse(
+        permissions.collectionWorld))
   }
-  
+
   //
   // Opening and Closing
   //
@@ -269,15 +273,10 @@ class RealtimeModelActor(
         referenceTransformer,
         modelData.metaData.version)
 
-      // FIXME this is fake
-      val perms = RealTimeModelPermissions(
-          Some(ModelPermissions(true, true, true, true)),
-          Map())
-      
       this.model = new RealTimeModel(
         modelFqn,
         modelResourceId,
-        perms,
+        this.permissions,
         concurrencyControl,
         modelData.data)
 
@@ -334,13 +333,13 @@ class RealtimeModelActor(
     val ClientModelDataResponse(modelData) = response
     val result = modelStore.createModel(modelFqn.collectionId, Some(modelFqn.modelId), modelData)
     result map { model =>
-        val Model(ModelMetaData(fqn, version, createdTime, modifiedTime), data) = model
-        modelSnapshotStore.createSnapshot(
-          ModelSnapshot(ModelSnapshotMetaData(modelFqn, version, createdTime), response.modelData))
-        requestModelDataFromDatastore()
+      val Model(ModelMetaData(fqn, version, createdTime, modifiedTime), data) = model
+      modelSnapshotStore.createSnapshot(
+        ModelSnapshot(ModelSnapshotMetaData(modelFqn, version, createdTime), response.modelData))
+      requestModelDataFromDatastore()
     } recover {
       case e: Exception =>
-        // FIXME Unhandled Error
+      // FIXME Unhandled Error
     }
   }
 

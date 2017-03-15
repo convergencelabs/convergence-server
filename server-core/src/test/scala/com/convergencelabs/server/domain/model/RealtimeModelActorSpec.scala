@@ -31,6 +31,7 @@ import com.convergencelabs.server.domain.model.ot.ObjectAddPropertyOperation
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
+import com.convergencelabs.server.datastore.domain.ModelPermissions
 
 // FIXME we really only check message types and not data.
 // scalastyle:off magic.number
@@ -256,7 +257,10 @@ class RealtimeModelActorSpec
     val modelSnapshotStore = mock[ModelSnapshotStore]
     val resourceId = "1" + System.nanoTime()
     val modelManagerActor = new TestProbe(system)
-    val permissions = RealTimeModelPermissions(ModelPermissions(true, true, true, true), Map())
+    val permissions = RealTimeModelPermissions(
+        ModelPermissions(false, false, false, false),
+        Some(ModelPermissions(true, true, true, true)),
+        Map())
     val props = RealtimeModelActor.props(
       modelManagerActor.ref,
       DomainFqn("convergence", "default"),
