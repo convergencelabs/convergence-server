@@ -38,6 +38,7 @@ import akka.stream.scaladsl.Sink
 import akka.stream.ActorMaterializer
 import akka.actor.PoisonPill
 import akka.actor.Status
+import com.convergencelabs.server.datastore.domain.ModelPermissions
 
 /**
  * An instance of the RealtimeModelActor manages the lifecycle of a single
@@ -156,9 +157,9 @@ class RealtimeModelActor(
     this.permissions = permissions
     // TODO I need to update any connected client that their permissions changed.
     // I don't want to have a bunch of messages between the model manager actor and this one trying
-    // to describe exactly how the permissions were modiefied. My thought is to just loop over the
-    // connected clients and compute their old and new permissoins and then only send an update to
-    // the ones that changed. If this seems ok, just remove the commment.
+    // to describe exactly how the permissions were modified. My thought is to just loop over the
+    // connected clients and compute their old and new permission and then only send an update to
+    // the ones that changed. If this seems ok, just remove the comment.
     
     this.connectedClients foreach { case (sk, actor) =>
       val oldPerms = getPermissionsForSession(sk, oldPermissions)
@@ -169,7 +170,7 @@ class RealtimeModelActor(
     }
   }
   
-  private[this] def getPermissionsForSession(sk: SessionKey, permmissions: RealTimeModelPermissions): ModelPermissions = {
+  private[this] def getPermissionsForSession(sk: SessionKey, permissions: RealTimeModelPermissions): ModelPermissions = {
     // TODO this only takes into account model permissions and will need to change when we actually implement
     // collection permissions for read, write, etc.
     this.permissions.users.getOrElse(sk.uid, this.permissions.world)
@@ -270,7 +271,7 @@ class RealtimeModelActor(
 
       // FIXME this is fake
       val perms = RealTimeModelPermissions(
-          ModelPermissions(true, true, true, true),
+          Some(ModelPermissions(true, true, true, true)),
           Map())
       
       this.model = new RealTimeModel(
