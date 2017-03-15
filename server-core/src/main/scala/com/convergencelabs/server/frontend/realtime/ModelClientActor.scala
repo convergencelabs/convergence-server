@@ -426,8 +426,8 @@ class ModelClientActor(
   }
 
   private[this] def onSetModelPermissionsRequest(request: SetModelPermissionsRequestMessage, cb: ReplyCallback): Unit = {
-    val SetModelPermissionsRequestMessage(collectionId, modelId, world, users, allUsers) = request
-    val mappedWorld = ModelPermissions(world.r, world.w, world.d, world.m)
+    val SetModelPermissionsRequestMessage(collectionId, modelId, setWorld, world, allUsers, users) = request
+    val mappedWorld = world map { w => ModelPermissions(w.r, w.w, w.d, w.m) }
     val mappedUsers = users map {
       case (username, permissions) =>
         val p = permissions.map(p => {
@@ -436,7 +436,7 @@ class ModelClientActor(
         })
         (username, p)
     }
-    val message = SetModelPermissionsRequest(collectionId, modelId, mappedWorld, mappedUsers, allUsers)
+    val message = SetModelPermissionsRequest(collectionId, modelId, setWorld, mappedWorld, allUsers, mappedUsers)
     val future = modelManager ? message
     future.mapResponse[Unit] onComplete {
       case Success(()) =>

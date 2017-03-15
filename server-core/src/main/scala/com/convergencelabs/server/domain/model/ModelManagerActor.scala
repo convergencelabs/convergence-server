@@ -180,7 +180,7 @@ class ModelManagerActor(
   }
   
   private[this] def onSetModelPermissions(request: SetModelPermissionsRequest): Unit = {
-    val SetModelPermissionsRequest(collectionId, modelId, world, users, all) = request
+    val SetModelPermissionsRequest(collectionId, modelId, setWorld, world, setAllUsers, users) = request
     
     // FIXME need to set the permissions in the database
     

@@ -83,11 +83,14 @@ case class CreateRealtimeModelRequestMessage(c: String, m: Option[String], d: Ob
 case class DeleteRealtimeModelRequestMessage(c: String, m: String) extends IncomingModelRequestMessage
 
 case class GetModelPermissionsRequestMessage(c: String, m: String) extends IncomingModelRequestMessage
-case class SetModelPermissionsRequestMessage(c: String, 
+case class SetModelPermissionsRequestMessage(
+    c: String, 
     m: String,
-    w: ModelPermissionsData,
-    u: Map[String, Option[ModelPermissionsData]],
-    a: Boolean) extends IncomingModelRequestMessage
+    s: Boolean,
+    w: Option[ModelPermissionsData],
+    a: Boolean,
+    u: Map[String, Option[ModelPermissionsData]]
+    ) extends IncomingModelRequestMessage
 
 case class ModelsQueryRequestMessage(q: String) extends IncomingModelRequestMessage
 

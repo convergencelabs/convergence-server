@@ -27,15 +27,16 @@ package model {
 
   case class ModelPermissions(read: Boolean, write: Boolean, remove: Boolean, manage: Boolean)
   case class GetModelPermissionsRequest(collectionId: String, modelId: String)
-  
+
   case class GetModelPermissionsResponse(worlPermissions: ModelPermissions, userPermissions: Map[String, ModelPermissions])
-  
+
   case class SetModelPermissionsRequest(
     collectionId: String,
     modelId: String,
-    worlPermissions: ModelPermissions,
-    userPermissions: Map[String, Option[ModelPermissions]],
-    setAll: Boolean)
+    setWorld: Boolean,
+    worldPermissions: Option[ModelPermissions],
+    setAllUsers: Boolean,
+    userPermissions: Map[String, Option[ModelPermissions]])
 
   sealed trait ModelReferenceEvent {
     val id: Option[String]
@@ -48,8 +49,7 @@ package model {
 
   case class ModelNotFoundException(message: String = "", cause: Throwable = null)
     extends Exception(message, cause)
-  
-  
+
   sealed trait DeleteModelResponse
   case object ModelDeleted extends DeleteModelResponse
   case object ModelNotFound extends DeleteModelResponse
@@ -69,7 +69,7 @@ package model {
   // permissions change.
   case class RealTimeModelPermissions(world: ModelPermissions, users: Map[String, ModelPermissions])
   case class RealTimeModelPermissionsUpdated(permissions: RealTimeModelPermissions)
-  
+
   //
   // Incoming Messages From Self
   //
