@@ -131,7 +131,7 @@ changes:
       - {name: name,                   type: String,                                     constraints: {mandatory: true, notNull: true}}
       - {name: overrideSnapshotConfig, type: Boolean,                                    constraints: {mandatory: true, notNull: true, default: false}}
       - {name: snapshotConfig,         type: Embedded, linkedClass: ModelSnapshotConfig, constraints: {notNull: true}}
-      - {name: world,                  type: Embedded, linkedClass: CollectionPermission}
+      - {name: world,                  type: Embedded, linkedClass: CollectionPermissions}
 
   - action: CreateIndex
     className: Collection
@@ -151,7 +151,7 @@ changes:
       - {name: createdTime,  type: DateTime,                           constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: modifiedTime, type: DateTime,                           constraints: {mandatory: true, notNull: true}}
       - {name: data,         type: Link,     linkedClass: ObjectValue, constraints: {mandatory: true, notNull: true}}
-      - {name: world,        type: Embedded, linkedClass: ModelPermission}
+      - {name: world,        type: Embedded, linkedClass: ModelPermissions}
 
   - action: CreateIndex
     className: Model
@@ -531,56 +531,80 @@ changes:
     type: NotUniqueHashIndex
     properties: [model]
 
-########## CollectionPermission ##########
+########## CollectionPermissions ##########
 
   - action: CreateClass
-    name: CollectionPermission
+    name: CollectionPermissions
     properties:
-      - {name: collection, type: Link,   linkedClass: Collection, constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: read,       type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
       - {name: write,      type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
       - {name: create,     type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
       - {name: remove,     type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
       - {name: manage,     type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
 
-########## CollectionUserPermission ##########
+########## CollectionUserPermissions ##########
 
   - action: CreateClass
-    name: CollectionUserPermission
-    superclass: CollectionPermission
+    name: CollectionUserPermissions
     properties:
+      - {name: collection, type: Link,   linkedClass: Collection, constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: user, type: Link, linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: permissions, type: Embedded, linkedClass: CollectionPermissions, constraints: {mandatory: true, notNull: true}}
 
   - action: CreateIndex
-    className: CollectionUserPermission
-    name: CollectionUserPermission.user_collection
+    className: CollectionUserPermissions
+    name: CollectionUserPermissions.user_collection
     type: Unique
     properties: [user, collection]
 
-########## ModelPermission ##########
+  - action: CreateIndex
+    className: CollectionUserPermissions
+    name: CollectionUserPermissions.user
+    type: NotUniqueHashIndex
+    properties: [user]
+  
+  - action: CreateIndex
+    className: CollectionUserPermissions
+    name: CollectionUserPermissions.collection
+    type: NotUniqueHashIndex
+    properties: [collection]
+
+########## ModelPermissions ##########
 
   - action: CreateClass
-    name: ModelPermission
+    name: ModelPermissions
     properties:
-      - {name: model,  type: Link,   linkedClass: Model, constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: read,   type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
       - {name: write,  type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
       - {name: remove, type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
       - {name: manage, type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
 
-########## ModelUserPermission ##########
+########## ModelUserPermissions ##########
 
   - action: CreateClass
-    name: ModelUserPermission
-    superclass: ModelPermission
+    name: ModelUserPermissions
     properties:
+      - {name: model,  type: Link,   linkedClass: Model, constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: user, type: Link, linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: permissions, type: Embedded, linkedClass: ModelPermissions, constraints: {mandatory: true, notNull: true}}
 
   - action: CreateIndex
-    className: ModelUserPermission
-    name: ModelUserPermission.user_model
+    className: ModelUserPermissions
+    name: ModelUserPermissions.user_model
     type: Unique
     properties: [user, model]
+    
+  - action: CreateIndex
+    className: ModelUserPermissions
+    name: ModelUserPermissions.user
+    type: NotUniqueHashIndex
+    properties: [user]
+  
+  - action: CreateIndex
+    className: ModelUserPermissions
+    name: ModelUserPermissions.model
+    type: NotUniqueHashIndex
+    properties: [model]
 
 ########## Sequences ##########
 

@@ -91,7 +91,7 @@ class ModelStoreActor private[datastore] (
     val root = ModelDataGenerator(data)
     val result = collectionStore.ensureCollectionExists(collectionId) flatMap { _ =>
       modelStore.createModel(collectionId, Some(modelId), root) map { _ =>
-        ModelFqn(collectionId, modelId) 
+        ModelFqn(collectionId, modelId)
       } recoverWith {
         case e: DuplicateValueExcpetion =>
           modelStore.updateModel(ModelFqn(collectionId, modelId), root) map { _ =>
@@ -122,14 +122,18 @@ class ModelDataGenerator() {
   def create(data: Map[String, Any]): ObjectValue = {
     map(data).asInstanceOf[ObjectValue]
   }
-
+  
   private[this] def map(value: Any): DataValue = {
     value match {
-      case obj: Map[_, _] =>
-        val children = obj map {
-          case (k, v) => (k.toString, this.map(v))
+      case obj: Map[Any, Any] =>
+        if (obj.contains("$convergenceType")) {
+          DateValue(nextId(), Instant.parse(obj.get("value").toString()))
+        } else {
+          val children = obj map {
+            case (k, v) => (k.toString, this.map(v))
+          }
+          ObjectValue(nextId(), children)
         }
-        ObjectValue(nextId(), children)
       case arr: List[_] =>
         val array = arr.map(v => this.map(v))
         ArrayValue(nextId(), array)
@@ -145,7 +149,7 @@ class ModelDataGenerator() {
         BooleanValue(nextId(), bool)
       case str: String =>
         StringValue(nextId(), str)
-      case date: Instant => 
+      case date: Instant =>
         DateValue(nextId(), date)
       case null =>
         NullValue(nextId())
