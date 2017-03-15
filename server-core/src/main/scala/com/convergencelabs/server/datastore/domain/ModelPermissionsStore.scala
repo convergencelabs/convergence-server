@@ -22,7 +22,6 @@ import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.datastore.EntityNotFoundException
 
 case class ModelPermissions(read: Boolean, write: Boolean, remove: Boolean, manage: Boolean)
-case class ModelUserPermissions(modelFqn: ModelFqn, username: String, permissions: ModelPermissions)
 
 case class UserRoles(username: String, roles: Set[String])
 
@@ -102,14 +101,14 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     result.map { docToWorldPermissions(_) }.get
   }
 
-  def setModelWorldPermissions(modelFqn: ModelFqn, permissions: ModelPermissions): Try[Unit] = tryWithDb { db =>
+  def setModelWorldPermissions(modelFqn: ModelFqn, permissions: Option[ModelPermissions]): Try[Unit] = tryWithDb { db =>
     val modelDoc = getModelRid(modelFqn).get.getRecord[ODocument]
-    val permissionsDoc = modelPermissionToDoc(permissions)
-    modelDoc.fields(Fields.World, permissionsDoc)
+    val permissionsDoc = permissions.map { modelPermissionToDoc(_) }
+    modelDoc.fields(Fields.World, permissionsDoc.getOrElse(null))
     modelDoc.save()
   }
 
-  def getAllModelUserPermissions(modelFqn: ModelFqn): Try[List[ModelUserPermissions]] = tryWithDb { db =>
+  def getAllModelUserPermissions(modelFqn: ModelFqn): Try[Map[String, ModelPermissions]] = tryWithDb { db =>
     val queryString =
       """SELECT user.username as username, permissions
         |  FROM ModelUserPermissions
@@ -118,10 +117,18 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     val params = Map("modelId" -> modelFqn.modelId, "collectionId" -> modelFqn.collectionId)
     val results = QueryUtil.query(queryString, params, db)
     results.map { result =>
-      val username = result.field(Fields.Username)
+      val username: String = result.field(Fields.Username)
       val permissions = docToModelPermissions(result.field(Fields.Permissions))
-      ModelUserPermissions(modelFqn, username, permissions)
-    }
+     (username -> permissions)
+    }.toMap
+  }
+  
+  def resetAllModelUserPermissions(fqn: ModelFqn, userPermissions: Map[String, Option[ModelPermissions]]): Try[Unit] = tryWithDb { db =>
+    ???
+  }
+  
+  def updateModelUserPermissions(fqn: ModelFqn, userPermissions: Map[String, Option[ModelPermissions]]): Try[Unit] = tryWithDb { db =>
+    ???
   }
 
   def getModelUserPermissions(modelFqn: ModelFqn, username: String): Try[Option[ModelPermissions]] = tryWithDb { db =>
