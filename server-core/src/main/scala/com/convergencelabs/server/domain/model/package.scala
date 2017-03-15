@@ -11,6 +11,7 @@ import com.convergencelabs.server.domain.model.Collection
 import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.Model
 import com.convergencelabs.server.domain.model.ModelSnapshotMetaData
+import com.convergencelabs.server.datastore.domain.ModelPermissions
 
 package model {
 
@@ -25,7 +26,6 @@ package model {
   case class OperationSubmission(seqNo: Long, contextVersion: Long, operation: Operation)
   case class ClientModelDataResponse(modelData: ObjectValue)
 
-  case class ModelPermissions(read: Boolean, write: Boolean, remove: Boolean, manage: Boolean)
   case class GetModelPermissionsRequest(collectionId: String, modelId: String)
 
   case class GetModelPermissionsResponse(worlPermissions: ModelPermissions, userPermissions: Map[String, ModelPermissions])
@@ -67,7 +67,7 @@ package model {
   // TODO this will also need to include the permissions from the collection as well
   // and we will need to trigger some sort of update when the collection wide
   // permissions change.
-  case class RealTimeModelPermissions(world: ModelPermissions, users: Map[String, ModelPermissions])
+  case class RealTimeModelPermissions(world: Option[ModelPermissions], users: Map[String, ModelPermissions])
   case class RealTimeModelPermissionsUpdated(permissions: RealTimeModelPermissions)
 
   //
