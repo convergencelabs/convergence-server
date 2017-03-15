@@ -28,8 +28,7 @@ package model {
   case class ModelPermissions(read: Boolean, write: Boolean, remove: Boolean, manage: Boolean)
   case class GetModelPermissionsRequest(collectionId: String, modelId: String)
   
-  sealed trait GetModelPermissionsResponse
-  case class GetModelPermissionsSuccess(worlPermissions: ModelPermissions, userPermissions: Map[String, ModelPermissions])
+  case class GetModelPermissionsResponse(worlPermissions: ModelPermissions, userPermissions: Map[String, ModelPermissions])
   
   case class SetModelPermissionsRequest(
     collectionId: String,
@@ -47,6 +46,10 @@ package model {
   case class ClearReference(id: Option[String], key: String) extends ModelReferenceEvent
   case class UnpublishReference(id: Option[String], key: String) extends ModelReferenceEvent
 
+  case class ModelNotFoundException(message: String = "", cause: Throwable = null)
+    extends Exception(message, cause)
+  
+  
   sealed trait DeleteModelResponse
   case object ModelDeleted extends DeleteModelResponse
   case object ModelNotFound extends DeleteModelResponse
@@ -107,6 +110,7 @@ package model {
   case class RemoteClientClosed(resourceId: String, sk: SessionKey) extends RealtimeModelClientMessage
   case class RemoteClientOpened(resourceId: String, sk: SessionKey) extends RealtimeModelClientMessage
   case class ModelForceClose(resourceId: String, reason: String) extends RealtimeModelClientMessage
+  case class ModelPermissionsChanged(resourceId: String, permissions: ModelPermissions) extends RealtimeModelClientMessage
   case class ClientModelDataRequest(modelFqn: ModelFqn) extends RealtimeModelClientMessage
 
   sealed trait RemoteReferenceEvent extends RealtimeModelClientMessage

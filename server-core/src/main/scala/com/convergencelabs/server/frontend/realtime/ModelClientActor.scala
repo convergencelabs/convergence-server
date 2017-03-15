@@ -46,6 +46,7 @@ import com.convergencelabs.server.domain.model.UnpublishReference
 import com.convergencelabs.server.domain.model.GetModelPermissionsRequest
 import com.convergencelabs.server.domain.model.GetModelPermissionsResponse
 import com.convergencelabs.server.domain.model.SetModelPermissionsRequest
+import com.convergencelabs.server.domain.PermissionDeniedException
 import com.convergencelabs.server.util.concurrent.AskFuture
 
 import akka.actor.Actor
@@ -59,12 +60,17 @@ import com.convergencelabs.server.domain.model.QueryModelsRequest
 import com.convergencelabs.server.domain.model.QueryModelsResponse
 import com.convergencelabs.server.domain.model.QueryOrderBy
 import akka.actor.Terminated
+import com.convergencelabs.server.domain.model.ModelPermissions
+import com.convergencelabs.server.domain.model.ModelNotFoundException
+import com.convergencelabs.server.domain.model.ModelPermissionsChanged
 
 object ModelClientActor {
   def props(
     sk: SessionKey,
     modelManager: ActorRef): Props =
     Props(new ModelClientActor(sk, modelManager))
+
+  val ModelNotFoundError = ErrorMessage("model_not_found", "A model with the specifieid collection and model id does not exist.")
 }
 
 class ModelClientActor(
@@ -106,14 +112,16 @@ class ModelClientActor(
       case refUnpublished: RemoteReferenceUnpublished => onRemoteReferenceUnpublished(refUnpublished)
       case refSet: RemoteReferenceSet => onRemoteReferenceSet(refSet)
       case refCleared: RemoteReferenceCleared => onRemoteReferenceCleared(refCleared)
+      case permsChanged: ModelPermissionsChanged => onModelPermissionsChanged(permsChanged)
     }
   }
   // scalastyle:on cyclomatic.complexity
 
   private[this] def onActorDeath(actor: ActorRef): Unit = {
     log.error("Model actor unexpectedly terminated.")
-    openRealtimeModels.find (_._2 == actor) map { case (resourceId, ref) =>
-      closeModel(resourceId, "unknown server error")  
+    openRealtimeModels.find(_._2 == actor) map {
+      case (resourceId, ref) =>
+        closeModel(resourceId, "unknown server error")
     }
   }
 
@@ -141,12 +149,21 @@ class ModelClientActor(
     val RemoteClientClosed(resourceId, sk) = closed
     context.parent ! RemoteClientClosedMessage(resourceId, sk.serialize())
   }
+  
+  private[this] def onModelPermissionsChanged(permsChanged: ModelPermissionsChanged): Unit = {
+    val ModelPermissionsChanged(resourceId, permissions) = permsChanged
+    val ModelPermissions(read, write, remove, manage) = permissions
+    
+    context.parent ! ModelPermissionsChangedMessage(
+        resourceId, 
+        ModelPermissionsData(read, write, remove, manage))
+  }
 
   private[this] def onModelForceClose(forceClose: ModelForceClose): Unit = {
     val ModelForceClose(resourceId, reason) = forceClose
     closeModel(resourceId, reason)
   }
-  
+
   private[this] def closeModel(resourceId: String, reason: String): Unit = {
     context.parent ! ModelForceCloseMessage(resourceId, reason)
     openRealtimeModels.get(resourceId) map (this.context.unwatch(_))
@@ -168,7 +185,7 @@ class ModelClientActor(
 
   private[this] def onRemoteReferencePublished(refPublished: RemoteReferencePublished): Unit = {
     val RemoteReferencePublished(resourceId, sessionId, id, key, refType, values) = refPublished
-    val mappedValue = values.map { _.map{ v => mapOutgoingReferenceValue(refType, v) }}
+    val mappedValue = values.map { _.map { v => mapOutgoingReferenceValue(refType, v) } }
     context.parent ! RemoteReferencePublishedMessage(resourceId, sessionId, id, key, ReferenceType.map(refType), mappedValue)
   }
 
@@ -235,7 +252,7 @@ class ModelClientActor(
   private[this] def onPublishReference(message: PublishReferenceMessage): Unit = {
     val PublishReferenceMessage(resourceId, id, key, refType, valueOption, version) = message
     val mappedType = ReferenceType.map(refType)
-    val values = valueOption.map {mapIncomingReferenceValue(mappedType, _)}
+    val values = valueOption.map { mapIncomingReferenceValue(mappedType, _) }
     val publishReference = PublishReference(id, key, mappedType, values, version)
     val modelActor = openRealtimeModels(resourceId)
     modelActor ! publishReference
@@ -354,8 +371,10 @@ class ModelClientActor(
     val DeleteRealtimeModelRequestMessage(collectionId, modelId) = request
     val future = modelManager ? DeleteModelRequest(ModelFqn(collectionId, modelId))
     future.mapResponse[DeleteModelResponse] onComplete {
-      case Success(ModelDeleted) => cb.reply(DeleteRealtimeModelSuccessMessage())
-      case Success(ModelNotFound) => cb.reply(ErrorMessage("model_not_found", "A model with the specifieid collection and model id does not exists"))
+      case Success(ModelDeleted) =>
+        cb.reply(DeleteRealtimeModelSuccessMessage())
+      case Success(ModelNotFound) =>
+        cb.reply(ErrorMessage("model_not_found", "A model with the specifieid collection and model id does not exists"))
       case Failure(cause) =>
         log.error(cause, "Unexpected error deleting model.")
         cb.unexpectedError("could not delete model")
@@ -382,35 +401,54 @@ class ModelClientActor(
         cb.unexpectedError("could not delete model")
     }
   }
-  
- private[this] def onGetModelPermissionsRequest(request: GetModelPermissionsRequestMessage, cb: ReplyCallback): Unit = {
+
+  private[this] def onGetModelPermissionsRequest(request: GetModelPermissionsRequestMessage, cb: ReplyCallback): Unit = {
     val GetModelPermissionsRequestMessage(collectionId, modelId) = request
-//    val future = modelManager ? GetModelPermissionsRequest(collectionId, modelId)
-//    future.mapResponse[GetModelPermissionsResponse] onComplete {
-//      case Success(GetModelPermissionsResponse(world, users)) => 
-//        val mappedWorld = ModelPermissionsData(world.read, world.write, world.remove, world.manage)
-//        val mappedUsers = users map { case (username, permissions) =>
-//          val ModelPermissions(read, write, remove, manage) = permissions
-//          (username, ModelPermissionsData(read, write, remove, manage))
-//        }
-//        cb.reply(GetModelPermissionsResponseMessage(mappedWorld, mappedUsers))
-//      case Success(ModelNotFound) => 
-//          cb.reply(ErrorMessage("model_not_found", "A model with the specifieid collection and model id does not exists"))
-//      case Failure(cause) =>
-//        log.error(cause, "Unexpected error getting permissions for model.")
-//        cb.unexpectedError("could not delete model")
-//    }
+    val future = modelManager ? GetModelPermissionsRequest(collectionId, modelId)
+    future.mapResponse[GetModelPermissionsResponse] onComplete {
+      case Success(GetModelPermissionsResponse(world, users)) =>
+        val mappedWorld = ModelPermissionsData(world.read, world.write, world.remove, world.manage)
+        val mappedUsers = users map {
+          case (username, permissions) =>
+            val ModelPermissions(read, write, remove, manage) = permissions
+            (username, ModelPermissionsData(read, write, remove, manage))
+        }
+        cb.reply(GetModelPermissionsResponseMessage(mappedWorld, mappedUsers))
+      case Failure(f @ ModelNotFoundException(_, _)) =>
+        cb.reply(ModelClientActor.ModelNotFoundError)
+      case Failure(f @ PermissionDeniedException(_, _)) =>
+        val error = ErrorMessage("permission_denied", "User must have 'read' permissions to get model permissions");
+        cb.reply(ModelClientActor.ModelNotFoundError)
+      case Failure(cause) =>
+        log.error(cause, "Unexpected error getting permissions for model.")
+        cb.unexpectedError("could get model permissions")
+    }
   }
- 
+
   private[this] def onSetModelPermissionsRequest(request: SetModelPermissionsRequestMessage, cb: ReplyCallback): Unit = {
     val SetModelPermissionsRequestMessage(collectionId, modelId, world, users, allUsers) = request
-//    val future = modelManager ? DeleteModelRequest(ModelFqn(collectionId, modelId))
-//    future.mapResponse[DeleteModelResponse] onComplete {
-//      case Success(ModelDeleted) => cb.reply(DeleteRealtimeModelSuccessMessage())
-//      case Success(ModelNotFound) => cb.reply(ErrorMessage("model_not_found", "A model with the specifieid collection and model id does not exists"))
-//      case Failure(cause) =>
-//        log.error(cause, "Unexpected error deleting model.")
-//        cb.unexpectedError("could not delete model")
-//    }
+    val mappedWorld = ModelPermissions(world.r, world.w, world.d, world.m)
+    val mappedUsers = users map {
+      case (username, permissions) =>
+        val p = permissions.map(p => {
+          val ModelPermissionsData(read, write, remove, manage) = p
+          ModelPermissions(read, write, remove, manage)
+        })
+        (username, p)
+    }
+    val message = SetModelPermissionsRequest(collectionId, modelId, mappedWorld, mappedUsers, allUsers)
+    val future = modelManager ? message
+    future.mapResponse[Unit] onComplete {
+      case Success(()) =>
+        cb.reply(SetModelPermissionsResponseMessage())
+      case Failure(f @ ModelNotFoundException(_, _)) =>
+        cb.reply(ModelClientActor.ModelNotFoundError)
+      case Failure(f @ PermissionDeniedException(_, _)) =>
+        val error = ErrorMessage("permission_denied", "User must have 'manage' permissions to set model permissions");
+        cb.reply(ModelClientActor.ModelNotFoundError)
+      case Failure(cause) =>
+        log.error(cause, "Unexpected error setting permissions for model.")
+        cb.unexpectedError("could set model permissions")
+    }
   }
 }

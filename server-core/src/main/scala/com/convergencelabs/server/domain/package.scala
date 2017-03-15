@@ -40,4 +40,7 @@ package object domain {
   case class AuthenticationSuccess(username: String, sk: SessionKey) extends AuthenticationResponse
   case object AuthenticationFailure extends AuthenticationResponse
   case object AuthenticationError extends AuthenticationResponse
+  
+  case class PermissionDeniedException(message: String = "", cause: Throwable = null)
+    extends Exception(message, cause)
 }

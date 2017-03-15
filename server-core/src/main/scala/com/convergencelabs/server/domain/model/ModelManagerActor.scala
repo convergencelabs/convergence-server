@@ -52,6 +52,8 @@ class ModelManagerActor(
     case message: DeleteModelRequest => onDeleteModelRequest(message)
     case message: QueryModelsRequest => onQueryModelsRequest(message)
     case message: ModelShutdownRequest => onModelShutdownRequest(message)
+    case message: GetModelPermissionsRequest => onGetModelPermissions(message)
+    case message: SetModelPermissionsRequest => onSetModelPermissions(message)
     case Terminated(actor) => onActorDeath(actor)
     case message: Any => unhandled(message)
   }
@@ -159,6 +161,23 @@ class ModelManagerActor(
       case Success(result) => sender ! QueryModelsResponse(result)
       case Failure(cause) => sender ! Status.Failure(cause)
     }
+  }
+  
+  private[this] def onGetModelPermissions(request: GetModelPermissionsRequest): Unit = {
+    val GetModelPermissionsRequest(collectionId, modelId) = request
+    // FIXME Implement
+//    persistenceProvider.modelStore.queryModels(query) match {
+//      case Success(result) => sender ! QueryModelsResponse(result)
+//      case Failure(cause) => sender ! Status.Failure(cause)
+//    }
+  }
+  
+  private[this] def onSetModelPermissions(request: SetModelPermissionsRequest): Unit = {
+    val SetModelPermissionsRequest(collectionId, modelId, world, users, all) = request
+//    persistenceProvider.modelStore.queryModels(query) match {
+//      case Success(result) => sender ! QueryModelsResponse(result)
+//      case Failure(cause) => sender ! Status.Failure(cause)
+//    }
   }
 
   private[this] def onModelShutdownRequest(shutdownRequest: ModelShutdownRequest): Unit = {

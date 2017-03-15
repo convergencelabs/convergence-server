@@ -107,8 +107,9 @@ case class CloseRealTimeModelSuccessMessage() extends OutgoingProtocolResponseMe
 case class CreateRealtimeModelSuccessMessage(c: String, m: String) extends OutgoingProtocolResponseMessage
 case class DeleteRealtimeModelSuccessMessage() extends OutgoingProtocolResponseMessage
 
+case class SetModelPermissionsResponseMessage() extends OutgoingProtocolResponseMessage
 case class GetModelPermissionsResponseMessage(w: ModelPermissionsData, u: Map[String, ModelPermissionsData]) extends OutgoingProtocolResponseMessage
-case class ModelPermissionsChangedMessage(r: String, p: ModelPermissionsData)
+case class ModelPermissionsChangedMessage(r: String, p: ModelPermissionsData) extends OutgoingProtocolNormalMessage
 
 case class ModelsQueryResponseMessage(r: List[ModelResult]) extends OutgoingProtocolResponseMessage
 case class ModelResult(l: String, m: String, c: Long, d: Long, v: Long, a: ObjectValue)
