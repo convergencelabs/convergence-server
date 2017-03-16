@@ -20,6 +20,7 @@ import com.convergencelabs.server.datastore.QueryUtil
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.datastore.EntityNotFoundException
+import com.orientechnologies.orient.core.db.record.OIdentifiable
 
 case class ModelPermissions(read: Boolean, write: Boolean, remove: Boolean, manage: Boolean)
 
@@ -102,7 +103,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
   }
 
   def setModelWorldPermissions(modelFqn: ModelFqn, permissions: Option[ModelPermissions]): Try[Unit] = tryWithDb { db =>
-    val modelDoc = getModelRid(modelFqn).get.getRecord[ODocument]
+    val modelDoc = ModelStore.getModelRid(modelFqn.modelId, modelFqn.collectionId, db).get.getRecord[ODocument]
     val permissionsDoc = permissions.map { modelPermissionToDoc(_) }
     modelDoc.fields(Fields.World, permissionsDoc.getOrElse(null))
     modelDoc.save()
@@ -119,16 +120,39 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     results.map { result =>
       val username: String = result.field(Fields.Username)
       val permissions = docToModelPermissions(result.field(Fields.Permissions))
-     (username -> permissions)
+      (username -> permissions)
     }.toMap
   }
-  
-  def resetAllModelUserPermissions(fqn: ModelFqn, userPermissions: Map[String, Option[ModelPermissions]]): Try[Unit] = tryWithDb { db =>
-    ???
+
+  def deleteAllModelUserPermissions(modelFqn: ModelFqn, userPermissions: Map[String, Option[ModelPermissions]]): Try[Unit] = tryWithDb { db =>
+    val queryString =
+      """DELETE FROM ModelUserPermissions
+        |  WHERE model.id = :modelId AND
+        |    model.collection.id = :collectionId""".stripMargin
+    val command = new OCommandSQL(queryString)
+    val params = Map("modelId" -> modelFqn.modelId, "collectionId" -> modelFqn.collectionId)
+    db.command(command).execute(params.asJava)
   }
-  
-  def updateModelUserPermissions(fqn: ModelFqn, userPermissions: Map[String, Option[ModelPermissions]]): Try[Unit] = tryWithDb { db =>
-    ???
+
+  def updateAllModelUserPermissions(modelFqn: ModelFqn, userPermissions: Map[String, Option[ModelPermissions]]): Try[Unit] = tryWithDb { db =>
+    val modelRID = ModelStore.getModelRid(modelFqn.modelId, modelFqn.collectionId, db).get
+    
+    userPermissions.foreach {       
+      case (username, permissions) =>       
+      val userRID = DomainUserStore.getUserRid(username, db).get
+      val key = new OCompositeKey(List(userRID, modelRID).asJava)
+      val modelPermissionRID = getModelUserPermissionsRid(modelFqn, username)
+      if (modelPermissionRID.isSuccess) {
+        db.delete(modelPermissionRID.get)
+      }
+
+      permissions.foreach { perm =>
+        val modelPermissionsDoc = db.newInstance(ModelUserPermissionsClass)
+        modelPermissionsDoc.field(Fields.Model, modelRID)
+        modelPermissionsDoc.field(Fields.User, userRID)
+        modelPermissionsDoc.field(Fields.Permissions, modelPermissionToDoc(perm))
+      }
+    }
   }
 
   def getModelUserPermissions(modelFqn: ModelFqn, username: String): Try[Option[ModelPermissions]] = tryWithDb { db =>
@@ -143,8 +167,19 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     result.map { doc => docToModelPermissions(doc) }
   }
 
-  def setModelUserPermissions(modelFqn: ModelFqn, username: String, permissions: ModelPermissions): Try[Unit] = tryWithDb { db =>
-    ???
+  def updateModelUserPermissions(modelFqn: ModelFqn, username: String, permissions: ModelPermissions): Try[Unit] = tryWithDb { db =>
+    val modelRID = ModelStore.getModelRid(modelFqn.modelId, modelFqn.collectionId, db).get
+    val userRID = DomainUserStore.getUserRid(username, db).get
+    val key = new OCompositeKey(List(userRID, modelRID).asJava)
+    val modelPermissionRID = getModelUserPermissionsRid(modelFqn, username)
+    if (modelPermissionRID.isSuccess) {
+      db.delete(modelPermissionRID.get)
+    }
+
+    val modelPermissionsDoc = db.newInstance(ModelUserPermissionsClass)
+    modelPermissionsDoc.field(Fields.Model, modelRID)
+    modelPermissionsDoc.field(Fields.User, userRID)
+    modelPermissionsDoc.field(Fields.Permissions, modelPermissionToDoc(permissions))
   }
 
   def removeModelUserPermissions(modelFqn: ModelFqn, username: String): Try[Unit] = tryWithDb { db =>
@@ -164,25 +199,10 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     }
   }
 
-  def getUserRid(username: String): Try[ORID] = tryWithDb { db =>
-    QueryUtil.getRidFromIndex(UsernameIndex, username, db).get
-  }
-
-  def getCollectionRid(collectionId: String): Try[ORID] = tryWithDb { db =>
-    QueryUtil.getRidFromIndex(CollectionIndex, collectionId, db).get
-  }
-
-  def getModelRid(modelFqn: ModelFqn): Try[ORID] = tryWithDb { db =>
-    val ModelFqn(collectionId, modelId) = modelFqn
-    val collectionRID = getCollectionRid(collectionId).get
-    val key = new OCompositeKey(List(collectionRID, modelId).asJava)
-    QueryUtil.getRidFromIndex(ModelIndex, key, db).get
-  }
-
-  def getModelUserPermissionsRid(modelFqn: ModelFqn, user: String): Try[ORID] = tryWithDb { db =>
-    val ModelFqn(collectionId, modelId) = modelFqn
-    val collectionRID = getCollectionRid(collectionId).get
-    val key = new OCompositeKey(List(collectionRID, modelId).asJava)
-    QueryUtil.getRidFromIndex(ModelIndex, key, db).get
+  def getModelUserPermissionsRid(modelFqn: ModelFqn, username: String): Try[ORID] = tryWithDb { db =>
+    val modelRID = ModelStore.getModelRid(modelFqn.modelId, modelFqn.collectionId, db).get
+    val userRID = DomainUserStore.getUserRid(username, db).get
+    val key = new OCompositeKey(List(userRID, modelRID).asJava)
+    QueryUtil.getRidFromIndex(ModelUserPermissionsIndex, key, db).get
   }
 }
