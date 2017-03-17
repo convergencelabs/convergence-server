@@ -160,6 +160,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
         modelPermissionsDoc.field(Fields.Model, modelRID)
         modelPermissionsDoc.field(Fields.User, userRID)
         modelPermissionsDoc.field(Fields.Permissions, modelPermissionToDoc(perm))
+        modelPermissionsDoc.save()
       }
     }
   }
@@ -173,7 +174,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
         |    user.username = :username""".stripMargin
     val params = Map("modelId" -> modelFqn.modelId, "collectionId" -> modelFqn.collectionId, "username" -> username)
     val result = QueryUtil.lookupOptionalDocument(queryString, params, db)
-    result.map { doc => docToModelPermissions(doc) }
+    result.map { doc => docToModelPermissions(doc.field("permissions")) }
   }
 
   def updateModelUserPermissions(modelFqn: ModelFqn, username: String, permissions: ModelPermissions): Try[Unit] = tryWithDb { db =>
@@ -189,6 +190,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     modelPermissionsDoc.field(Fields.Model, modelRID)
     modelPermissionsDoc.field(Fields.User, userRID)
     modelPermissionsDoc.field(Fields.Permissions, modelPermissionToDoc(permissions))
+    modelPermissionsDoc.save()
   }
 
   def removeModelUserPermissions(modelFqn: ModelFqn, username: String): Try[Unit] = tryWithDb { db =>
