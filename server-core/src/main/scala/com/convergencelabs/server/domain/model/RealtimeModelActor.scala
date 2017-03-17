@@ -40,6 +40,7 @@ import akka.actor.PoisonPill
 import akka.actor.Status
 import com.convergencelabs.server.datastore.domain.ModelPermissions
 import com.convergencelabs.server.datastore.domain.ModelPermissionsStore
+import com.convergencelabs.server.datastore.domain.CollectionPermissions
 
 /**
  * An instance of the RealtimeModelActor manages the lifecycle of a single
@@ -55,7 +56,6 @@ class RealtimeModelActor(
   private[this] val modelSnapshotStore: ModelSnapshotStore,
   private[this] val clientDataResponseTimeout: Long,
   private[this] val snapshotConfig: ModelSnapshotConfig,
-  private[this] var permissions: RealTimeModelPermissions,
   private[this] var modelPermissionsStore: ModelPermissionsStore)
     extends Actor
     with ActorLogging {
@@ -75,6 +75,10 @@ class RealtimeModelActor(
   private[this] val referenceTransformer = new ReferenceTransformer(new TransformationFunctionRegistry())
 
   private[this] val snapshotCalculator = new ModelSnapshotCalculator(snapshotConfig)
+
+  private[this] var collectionWorldPermissions: Option[CollectionPermissions] = _
+  private[this] var modelWorldPermissions: Option[ModelPermissions] = _
+  private[this] var userModelPermissions: Map[String, ModelPermissions] = _
 
   implicit val materializer = ActorMaterializer()
   val persistenceStream = Flow[NewModelOperation]
@@ -120,7 +124,6 @@ class RealtimeModelActor(
     case request: OpenRealtimeModelRequest     => onOpenModelWhileInitializing(request)
     case dataResponse: DatabaseModelResponse   => onDatabaseModelResponse(dataResponse)
     case dataResponse: ClientModelDataResponse => onClientModelDataResponse(dataResponse)
-    case request: SetModelPermissionsRequest   => onSetPermissionsRequest(request)
     case ModelDeleted                          => handleInitializationFailure(ModelDeletedWhileOpening)
     case unknown: Any                          => unhandled(unknown)
   }
@@ -132,7 +135,6 @@ class RealtimeModelActor(
     case request: OpenRealtimeModelRequest     => onOpenModelWhileInitializing(request)
     case dataResponse: DatabaseModelResponse   => onDatabaseModelResponse(dataResponse)
     case DatabaseModelFailure(cause)           => handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
-    case request: SetModelPermissionsRequest   => onSetPermissionsRequest(request)
     case ModelDeleted                          => handleInitializationFailure(ModelDeletedWhileOpening)
     case dataResponse: ClientModelDataResponse =>
     case unknown: Any                          => unhandled(unknown)
@@ -158,56 +160,57 @@ class RealtimeModelActor(
   }
 
   private[this] def onSetPermissionsRequest(request: SetModelPermissionsRequest): Unit = {
-    val SetModelPermissionsRequest(collectionId, modelId, setWorld, world, setAllUsers, users) = request
+    val SetModelPermissionsRequest(sk, collectionId, modelId, setWorld, world, setAllUsers, users) = request
 
-    val oldPermissions = this.permissions
-    if (setWorld) {
-      modelPermissionsStore.setModelWorldPermissions(modelFqn, world).get
-      val RealTimeModelPermissions(collectionWorld, modelWorld, modelUsers) = this.permissions
-      this.permissions = RealTimeModelPermissions(collectionWorld, world, modelUsers)
-    }
-    if (setAllUsers) {
-      modelPermissionsStore.deleteAllModelUserPermissions(modelFqn).get
-      modelPermissionsStore.updateAllModelUserPermissions(modelFqn, users).get
-      val RealTimeModelPermissions(collectionWorld, modelWorld, modelUsers) = this.permissions
-      val newUsers = scala.collection.mutable.Map[String, ModelPermissions]()
-      users.foreach {
-        case (username, permissions) =>
-          if (permissions.isDefined) {
-            newUsers.put(username, permissions.get)
-          }
-      }
-      this.permissions = RealTimeModelPermissions(collectionWorld, modelWorld, newUsers.toMap)
-    } else {
-      modelPermissionsStore.updateAllModelUserPermissions(modelFqn, users).get
-      val RealTimeModelPermissions(collectionWorld, modelWorld, modelUsers) = this.permissions
-      modelUsers.to
-      val newUsers = scala.collection.mutable.Map[String, ModelPermissions](modelUsers.toSeq: _*)
-      users.foreach {
-        case (username, permissions) =>
-          if (permissions.isDefined) {
-            newUsers.put(username, permissions.get)
-          } else {
-            newUsers.remove(username)
-          }
-      }
-      this.permissions = RealTimeModelPermissions(collectionWorld, modelWorld, newUsers.toMap)
-    }
+    // TODOL Handle else case
+    if (getPermissionsForSession(sk).manage) {
+      val oldModelWorldPermissions = modelWorldPermissions
+      val oldUserModelPermissions = userModelPermissions
 
-    this.connectedClients foreach {
-      case (sk, actor) =>
-        val oldPerms = getPermissionsForSession(sk, oldPermissions)
-        val newPerms = getPermissionsForSession(sk, this.permissions)
-        if (oldPerms != newPerms) {
-          actor ! ModelPermissionsChanged(modelResourceId, newPerms)
+      // TODO: do we really need an option for this and a boolean?
+      if (setWorld) {
+        modelPermissionsStore.setModelWorldPermissions(modelFqn, world).get
+        this.modelWorldPermissions = world
+      }
+
+      if (setAllUsers) {
+        modelPermissionsStore.deleteAllModelUserPermissions(modelFqn).get
+        modelPermissionsStore.updateAllModelUserPermissions(modelFqn, users).get
+        val newUsers = scala.collection.mutable.Map[String, ModelPermissions]()
+        users.foreach {
+          case (username, permissions) =>
+            if (permissions.isDefined) {
+              newUsers.put(username, permissions.get)
+            }
         }
+        userModelPermissions = newUsers.toMap
+      } else {
+        modelPermissionsStore.updateAllModelUserPermissions(modelFqn, users).get
+        val newUsers = scala.collection.mutable.Map[String, ModelPermissions](userModelPermissions.toSeq: _*)
+        users.foreach {
+          case (username, permissions) =>
+            if (permissions.isDefined) {
+              newUsers.put(username, permissions.get)
+            } else {
+              newUsers.remove(username)
+            }
+        }
+        userModelPermissions = newUsers.toMap
+      }
+
+      this.connectedClients foreach {
+        case (sk, actor) =>
+          val oldPerms = oldUserModelPermissions.getOrElse(sk.uid, oldModelWorldPermissions.getOrElse(ModelPermissions(false, false, false, false)))
+          val newPerms = getPermissionsForSession(sk)
+          if (oldPerms != newPerms) {
+            actor ! ModelPermissionsChanged(modelResourceId, newPerms)
+          }
+      }
     }
   }
 
-  private[this] def getPermissionsForSession(sk: SessionKey, permissions: RealTimeModelPermissions): ModelPermissions = {
-    this.permissions.modelUsers.getOrElse(
-      sk.uid, this.permissions.modelWorld.getOrElse(
-        permissions.collectionWorld))
+  private[this] def getPermissionsForSession(sk: SessionKey): ModelPermissions = {
+    userModelPermissions.getOrElse(sk.uid, modelWorldPermissions.getOrElse(ModelPermissions(false, false, false, false)))
   }
 
   //
@@ -273,6 +276,10 @@ class RealtimeModelActor(
     val f = Try {
       val snapshotMetaData = modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)
       val model = modelStore.getModel(modelFqn)
+      collectionWorldPermissions = modelPermissionsStore.getCollectionWorldPermissions(modelFqn.collectionId).get
+      modelWorldPermissions = modelPermissionsStore.getModelWorldPermissions(modelFqn).get
+      userModelPermissions = modelPermissionsStore.getAllModelUserPermissions(modelFqn).get
+
       (model, snapshotMetaData) match {
         case (Success(Some(m)), Success(Some(s))) => DatabaseModelResponse(m, s)
         case _                                    => throw new IllegalStateException("Could not get both the model snapshot and model data")
@@ -306,7 +313,6 @@ class RealtimeModelActor(
       this.model = new RealTimeModel(
         modelFqn,
         modelResourceId,
-        this.permissions,
         concurrencyControl,
         modelData.data)
 
@@ -698,7 +704,6 @@ object RealtimeModelActor {
     modelSnapshotStore: ModelSnapshotStore,
     clientDataResponseTimeout: Long,
     snapshotConfig: ModelSnapshotConfig,
-    permissions: RealTimeModelPermissions,
     modelPermissionsStore: ModelPermissionsStore): Props =
     Props(new RealtimeModelActor(
       modelManagerActor,
@@ -710,7 +715,6 @@ object RealtimeModelActor {
       modelSnapshotStore,
       clientDataResponseTimeout,
       snapshotConfig,
-      permissions,
       modelPermissionsStore))
 
   def sessionKeyToClientId(sk: SessionKey): String = sk.serialize()

@@ -92,7 +92,7 @@ object ModelPermissionsStore {
 
 class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
 
-  def getCollectionWorldPermissions(modelFqn: ModelFqn): Try[Option[CollectionPermissions]] = tryWithDb { db =>
+  def getCollectionWorldPermissions(collectionId: String): Try[Option[CollectionPermissions]] = tryWithDb { db =>
     Some(CollectionPermissions(true, false, false, false, false))
   }
   

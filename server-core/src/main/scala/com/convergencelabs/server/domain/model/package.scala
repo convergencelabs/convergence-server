@@ -31,6 +31,7 @@ package model {
   case class GetModelPermissionsResponse(worlPermissions: ModelPermissions, userPermissions: Map[String, ModelPermissions])
 
   case class SetModelPermissionsRequest(
+    sk: SessionKey, 
     collectionId: String,
     modelId: String,
     setWorld: Boolean,

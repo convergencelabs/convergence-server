@@ -87,7 +87,6 @@ class ModelManagerActor(
               persistenceProvider.modelSnapshotStore,
               5000, // FIXME hard-coded time.  Should this be part of the protocol?
               snapshotConfig,
-              permissions,
               persistenceProvider.modelPermissionsStore)
 
             val modelActor = context.actorOf(props, resourceId)
@@ -105,11 +104,10 @@ class ModelManagerActor(
   }
 
   private[this] def getCollectionUserPermissions(fqn: ModelFqn, username: String): CollectionPermissions = {
-    //FIXME: after implementing collection permissions
     val permissionsStore = this.persistenceProvider.modelPermissionsStore
     val userPermissions = permissionsStore.getCollectionUserPermissions(fqn, username).get
     userPermissions.getOrElse({
-      val collectionWorldPermissions = permissionsStore.getCollectionWorldPermissions(fqn).get
+      val collectionWorldPermissions = permissionsStore.getCollectionWorldPermissions(fqn.collectionId).get
       collectionWorldPermissions.getOrElse(CollectionPermissions(false, false, false, false, false))
     })
   }
@@ -215,7 +213,7 @@ class ModelManagerActor(
   }
 
   private[this] def onSetModelPermissions(request: SetModelPermissionsRequest): Unit = {
-    val SetModelPermissionsRequest(collectionId, modelId, setWorld, world, setAllUsers, users) = request
+    val SetModelPermissionsRequest(sk, collectionId, modelId, setWorld, world, setAllUsers, users) = request
     val modelFqn = ModelFqn(collectionId, modelId)
     this.openRealtimeModels.get(modelFqn) match {
       case Some(modelActor) =>

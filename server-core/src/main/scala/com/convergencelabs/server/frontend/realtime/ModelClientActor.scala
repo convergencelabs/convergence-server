@@ -437,7 +437,7 @@ class ModelClientActor(
         })
         (username, p)
     }
-    val message = SetModelPermissionsRequest(collectionId, modelId, setWorld, mappedWorld, allUsers, mappedUsers)
+    val message = SetModelPermissionsRequest(sessionKey, collectionId, modelId, setWorld, mappedWorld, allUsers, mappedUsers)
     val future = modelManager ? message
     future.mapResponse[Unit] onComplete {
       case Success(()) =>
