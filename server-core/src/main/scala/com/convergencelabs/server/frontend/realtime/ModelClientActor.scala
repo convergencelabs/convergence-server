@@ -358,7 +358,7 @@ class ModelClientActor(
 
   private[this] def onCreateRealtimeModelRequest(request: CreateRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
     val CreateRealtimeModelRequestMessage(collectionId, modelId, data) = request
-    val future = modelManager ? CreateModelRequest(collectionId, modelId, data)
+    val future = modelManager ? CreateModelRequest(sessionKey, collectionId, modelId, data)
     future.mapResponse[CreateModelResponse] onComplete {
       case Success(ModelCreated(ModelFqn(c, m))) => cb.reply(CreateRealtimeModelSuccessMessage(c, m))
       case Success(ModelAlreadyExists) => cb.expectedError("model_alread_exists", "A model with the specifieid collection and model id already exists")
@@ -370,7 +370,7 @@ class ModelClientActor(
 
   private[this] def onDeleteRealtimeModelRequest(request: DeleteRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
     val DeleteRealtimeModelRequestMessage(collectionId, modelId) = request
-    val future = modelManager ? DeleteModelRequest(ModelFqn(collectionId, modelId))
+    val future = modelManager ? DeleteModelRequest(sessionKey, ModelFqn(collectionId, modelId))
     future.mapResponse[DeleteModelResponse] onComplete {
       case Success(ModelDeleted) =>
         cb.reply(DeleteRealtimeModelSuccessMessage())

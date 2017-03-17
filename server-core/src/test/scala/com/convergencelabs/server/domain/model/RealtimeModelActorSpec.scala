@@ -33,6 +33,7 @@ import akka.testkit.TestKit
 import akka.testkit.TestProbe
 import com.convergencelabs.server.datastore.domain.ModelPermissions
 import com.convergencelabs.server.datastore.domain.ModelPermissionsStore
+import com.convergencelabs.server.datastore.domain.CollectionPermissions
 
 // FIXME we really only check message types and not data.
 // scalastyle:off magic.number
@@ -111,7 +112,7 @@ class RealtimeModelActorSpec
         // Now mock that the data is there.
         val now = Instant.now()
         Mockito.when(modelStore.createModel(modelFqn.collectionId, Some(modelFqn.modelId), modelJsonData))
-           .thenReturn(Success(Model(ModelMetaData(modelFqn, 0L, now, now), modelJsonData)))
+          .thenReturn(Success(Model(ModelMetaData(modelFqn, 0L, now, now), modelJsonData)))
         Mockito.when(modelStore.getModel(modelFqn)).thenReturn(Success(Some(modelData)))
         Mockito.when(modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)).thenReturn(Success(Some(modelSnapshotMetaData)))
 
@@ -268,8 +269,10 @@ class RealtimeModelActorSpec
       modelOperationProcessor,
       modelSnapshotStore,
       100L,
-      ModelSnapshotConfig(true, true, true, 3, 3, false, false, Duration.of(1, ChronoUnit.SECONDS), Duration.of(1, ChronoUnit.SECONDS)), 
-      modelPermissionStore)
+      ModelSnapshotConfig(true, true, true, 3, 3, false, false, Duration.of(1, ChronoUnit.SECONDS), Duration.of(1, ChronoUnit.SECONDS)),
+      Some(CollectionPermissions(true, false, false, false, false)),
+      Some(ModelPermissions(true, true, true, true)),
+      Map())
 
     val realtimeModelActor = system.actorOf(props, resourceId)
   }

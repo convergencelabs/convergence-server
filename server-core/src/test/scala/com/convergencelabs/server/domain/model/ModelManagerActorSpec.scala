@@ -100,7 +100,7 @@ class ModelManagerActorSpec
         Mockito.when(modelSnapshotStore.createSnapshot(Matchers.any()))
           .thenReturn(Success(()))
           
-        modelManagerActor.tell(CreateModelRequest(cId, Some(mId), data), client.ref)
+        modelManagerActor.tell(CreateModelRequest(SessionKey(userId1, sessionId1), cId, Some(mId), data), client.ref)
         client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelCreated(nonExistentModelFqn))
       }
 
@@ -112,7 +112,7 @@ class ModelManagerActorSpec
          Mockito.when(modelStore.createModel(cId, Some(mId), data))
           .thenReturn(Failure(DuplicateValueExcpetion("foo")))
 
-        modelManagerActor.tell(CreateModelRequest(cId, Some(mId), data), client.ref)
+        modelManagerActor.tell(CreateModelRequest(SessionKey(userId1, sessionId1), cId, Some(mId), data), client.ref)
         client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelAlreadyExists)
       }
     }
@@ -120,13 +120,13 @@ class ModelManagerActorSpec
     "requested to delete a model" must {
       "return ModelDeleted if the model exists" in new TestFixture {
         val client = new TestProbe(system)
-        modelManagerActor.tell(DeleteModelRequest(modelFqn), client.ref)
+        modelManagerActor.tell(DeleteModelRequest(SessionKey(userId1, sessionId1), modelFqn), client.ref)
         val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelDeleted)
       }
 
       "return ModelNotFound if the model does not exist" in new TestFixture {
         val client = new TestProbe(system)
-        modelManagerActor.tell(DeleteModelRequest(nonExistentModelFqn), client.ref)
+        modelManagerActor.tell(DeleteModelRequest(SessionKey(userId1, sessionId1), nonExistentModelFqn), client.ref)
         val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), akka.actor.Status.Failure(EntityNotFoundException()))
       }
     }

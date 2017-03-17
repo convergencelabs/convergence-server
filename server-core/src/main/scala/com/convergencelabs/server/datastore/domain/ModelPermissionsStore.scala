@@ -96,8 +96,8 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     Some(CollectionPermissions(true, false, false, false, false))
   }
   
-  def getCollectionUserPermissions(modelFqn: ModelFqn, username: String): Try[Option[CollectionPermissions]] = tryWithDb { db =>
-    Some(CollectionPermissions(false, false, false, false, false))
+  def getCollectionUserPermissions(collectionId: String, username: String): Try[Option[CollectionPermissions]] = tryWithDb { db =>
+    None
   }
   
   def getModelWorldPermissions(modelFqn: ModelFqn): Try[Option[ModelPermissions]] = tryWithDb { db =>

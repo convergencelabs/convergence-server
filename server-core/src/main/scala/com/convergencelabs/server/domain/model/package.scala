@@ -12,6 +12,7 @@ import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.Model
 import com.convergencelabs.server.domain.model.ModelSnapshotMetaData
 import com.convergencelabs.server.datastore.domain.ModelPermissions
+import com.convergencelabs.server.datastore.domain.CollectionPermissions
 
 package model {
 
@@ -20,8 +21,8 @@ package model {
   //
   case class OpenRequestRecord(clientActor: ActorRef, askingActor: ActorRef)
   case class OpenRealtimeModelRequest(sk: SessionKey, modelFqn: ModelFqn, initializerProvided: Boolean, clientActor: ActorRef)
-  case class CreateModelRequest(collectionId: String, modelId: Option[String], modelData: ObjectValue)
-  case class DeleteModelRequest(modelFqn: ModelFqn)
+  case class CreateModelRequest(sk: SessionKey, collectionId: String, modelId: Option[String], modelData: ObjectValue)
+  case class DeleteModelRequest(sk: SessionKey, modelFqn: ModelFqn)
   case class CloseRealtimeModelRequest(sk: SessionKey)
   case class OperationSubmission(seqNo: Long, contextVersion: Long, operation: Operation)
   case class ClientModelDataResponse(modelData: ObjectValue)
@@ -69,7 +70,7 @@ package model {
   // and we will need to trigger some sort of update when the collection wide
   // permissions change.
   case class RealTimeModelPermissions(
-      collectionWorld: ModelPermissions,
+      collectionWorld: Option[CollectionPermissions],
       modelWorld: Option[ModelPermissions], 
       modelUsers: Map[String, ModelPermissions])
 

@@ -56,7 +56,9 @@ class RealtimeModelActor(
   private[this] val modelSnapshotStore: ModelSnapshotStore,
   private[this] val clientDataResponseTimeout: Long,
   private[this] val snapshotConfig: ModelSnapshotConfig,
-  private[this] var modelPermissionsStore: ModelPermissionsStore)
+  private[this] var collectionWorldPermissions: Option[CollectionPermissions],
+  private[this] var modelWorldPermissions: Option[ModelPermissions],
+  private[this] var userModelPermissions: Map[String, ModelPermissions])
     extends Actor
     with ActorLogging {
 
@@ -75,10 +77,6 @@ class RealtimeModelActor(
   private[this] val referenceTransformer = new ReferenceTransformer(new TransformationFunctionRegistry())
 
   private[this] val snapshotCalculator = new ModelSnapshotCalculator(snapshotConfig)
-
-  private[this] var collectionWorldPermissions: Option[CollectionPermissions] = _
-  private[this] var modelWorldPermissions: Option[ModelPermissions] = _
-  private[this] var userModelPermissions: Map[String, ModelPermissions] = _
 
   implicit val materializer = ActorMaterializer()
   val persistenceStream = Flow[NewModelOperation]
@@ -169,13 +167,10 @@ class RealtimeModelActor(
 
       // TODO: do we really need an option for this and a boolean?
       if (setWorld) {
-        modelPermissionsStore.setModelWorldPermissions(modelFqn, world).get
         this.modelWorldPermissions = world
       }
 
       if (setAllUsers) {
-        modelPermissionsStore.deleteAllModelUserPermissions(modelFqn).get
-        modelPermissionsStore.updateAllModelUserPermissions(modelFqn, users).get
         val newUsers = scala.collection.mutable.Map[String, ModelPermissions]()
         users.foreach {
           case (username, permissions) =>
@@ -185,7 +180,6 @@ class RealtimeModelActor(
         }
         userModelPermissions = newUsers.toMap
       } else {
-        modelPermissionsStore.updateAllModelUserPermissions(modelFqn, users).get
         val newUsers = scala.collection.mutable.Map[String, ModelPermissions](userModelPermissions.toSeq: _*)
         users.foreach {
           case (username, permissions) =>
@@ -276,9 +270,6 @@ class RealtimeModelActor(
     val f = Try {
       val snapshotMetaData = modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)
       val model = modelStore.getModel(modelFqn)
-      collectionWorldPermissions = modelPermissionsStore.getCollectionWorldPermissions(modelFqn.collectionId).get
-      modelWorldPermissions = modelPermissionsStore.getModelWorldPermissions(modelFqn).get
-      userModelPermissions = modelPermissionsStore.getAllModelUserPermissions(modelFqn).get
 
       (model, snapshotMetaData) match {
         case (Success(Some(m)), Success(Some(s))) => DatabaseModelResponse(m, s)
@@ -704,7 +695,9 @@ object RealtimeModelActor {
     modelSnapshotStore: ModelSnapshotStore,
     clientDataResponseTimeout: Long,
     snapshotConfig: ModelSnapshotConfig,
-    modelPermissionsStore: ModelPermissionsStore): Props =
+    collectionWorldPermissions: Option[CollectionPermissions],
+    modelWorldPermissions: Option[ModelPermissions],
+    userModelPermissions: Map[String, ModelPermissions]): Props =
     Props(new RealtimeModelActor(
       modelManagerActor,
       domainFqn,
@@ -715,7 +708,9 @@ object RealtimeModelActor {
       modelSnapshotStore,
       clientDataResponseTimeout,
       snapshotConfig,
-      modelPermissionsStore))
+      collectionWorldPermissions,
+      modelWorldPermissions,
+      userModelPermissions))
 
   def sessionKeyToClientId(sk: SessionKey): String = sk.serialize()
 }
