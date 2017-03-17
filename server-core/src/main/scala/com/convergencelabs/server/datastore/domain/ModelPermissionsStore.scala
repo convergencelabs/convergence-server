@@ -81,7 +81,7 @@ object ModelPermissionsStore {
   }
 
   def modelPermissionToDoc(permissions: ModelPermissions): ODocument = {
-    val doc = new ODocument()
+    val doc = new ODocument(ModelPermissionsClass)
     doc.field(Fields.Read, permissions.read)
     doc.field(Fields.Write, permissions.write)
     doc.field(Fields.Remove, permissions.remove)
@@ -112,7 +112,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
   }
 
   def setModelWorldPermissions(modelFqn: ModelFqn, permissions: Option[ModelPermissions]): Try[Unit] = tryWithDb { db =>
-    val modelDoc = ModelStore.getModelRid(modelFqn.modelId, modelFqn.collectionId, db).get.getRecord[ODocument]
+    val modelDoc = getModelRid(modelFqn).get.getRecord[ODocument]
     val permissionsDoc = permissions.map { modelPermissionToDoc(_) }
     modelDoc.fields(Fields.World, permissionsDoc.getOrElse(null))
     modelDoc.save()
@@ -207,6 +207,17 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
         ()
     }
   }
+  
+  def getCollectionRid(collectionId: String): Try[ORID] = tryWithDb { db => 
+    QueryUtil.getRidFromIndex(CollectionIndex, collectionId, db).get 
+  } 
+  
+  def getModelRid(modelFqn: ModelFqn): Try[ORID] = tryWithDb { db => 
+    val ModelFqn(collectionId, modelId) = modelFqn 
+    val collectionRID = getCollectionRid(collectionId).get 
+    val key = new OCompositeKey(List(collectionRID, modelId).asJava) 
+    QueryUtil.getRidFromIndex(ModelIndex, key, db).get 
+  } 
 
   def getModelUserPermissionsRid(modelFqn: ModelFqn, username: String): Try[ORID] = tryWithDb { db =>
     val modelRID = ModelStore.getModelRid(modelFqn.modelId, modelFqn.collectionId, db).get
