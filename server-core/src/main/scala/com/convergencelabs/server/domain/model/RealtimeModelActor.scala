@@ -39,6 +39,7 @@ import akka.stream.ActorMaterializer
 import akka.actor.PoisonPill
 import akka.actor.Status
 import com.convergencelabs.server.datastore.domain.ModelPermissions
+import com.convergencelabs.server.datastore.domain.ModelPermissionsStore
 
 /**
  * An instance of the RealtimeModelActor manages the lifecycle of a single
@@ -54,7 +55,8 @@ class RealtimeModelActor(
   private[this] val modelSnapshotStore: ModelSnapshotStore,
   private[this] val clientDataResponseTimeout: Long,
   private[this] val snapshotConfig: ModelSnapshotConfig,
-  private[this] var permissions: RealTimeModelPermissions)
+  private[this] var permissions: RealTimeModelPermissions,
+  private[this] var modelPermissionsStore: ModelPermissionsStore)
     extends Actor
     with ActorLogging {
 
@@ -106,63 +108,91 @@ class RealtimeModelActor(
    * Handles messages when the realtime model has not been initialized yet.
    */
   private[this] def receiveUninitialized: Receive = {
-    case request: OpenRealtimeModelRequest => onOpenModelWhileUninitialized(request)
-    case RealTimeModelPermissionsUpdated(permissions) => onPermissionsUpdated(permissions)
-    case unknown: Any => unhandled(unknown)
+    case request: OpenRealtimeModelRequest   => onOpenModelWhileUninitialized(request)
+    case request: SetModelPermissionsRequest => onSetPermissionsRequest(request)
+    case unknown: Any                        => unhandled(unknown)
   }
 
   /**
    * Handles messages while the model is being initialized from one or more clients.
    */
   private[this] def receiveInitializingFromClients: Receive = {
-    case request: OpenRealtimeModelRequest => onOpenModelWhileInitializing(request)
-    case dataResponse: DatabaseModelResponse => onDatabaseModelResponse(dataResponse)
+    case request: OpenRealtimeModelRequest     => onOpenModelWhileInitializing(request)
+    case dataResponse: DatabaseModelResponse   => onDatabaseModelResponse(dataResponse)
     case dataResponse: ClientModelDataResponse => onClientModelDataResponse(dataResponse)
-    case RealTimeModelPermissionsUpdated(permissions) => onPermissionsUpdated(permissions)
-    case ModelDeleted => handleInitializationFailure(ModelDeletedWhileOpening)
-    case unknown: Any => unhandled(unknown)
+    case request: SetModelPermissionsRequest   => onSetPermissionsRequest(request)
+    case ModelDeleted                          => handleInitializationFailure(ModelDeletedWhileOpening)
+    case unknown: Any                          => unhandled(unknown)
   }
 
   /**
    * Handles messages while the model is being initialized from the database.
    */
   private[this] def receiveInitializingFromDatabase: Receive = {
-    case request: OpenRealtimeModelRequest => onOpenModelWhileInitializing(request)
-    case dataResponse: DatabaseModelResponse => onDatabaseModelResponse(dataResponse)
-    case DatabaseModelFailure(cause) => handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
-    case RealTimeModelPermissionsUpdated(permissions) => onPermissionsUpdated(permissions)
-    case ModelDeleted => handleInitializationFailure(ModelDeletedWhileOpening)
+    case request: OpenRealtimeModelRequest     => onOpenModelWhileInitializing(request)
+    case dataResponse: DatabaseModelResponse   => onDatabaseModelResponse(dataResponse)
+    case DatabaseModelFailure(cause)           => handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
+    case request: SetModelPermissionsRequest   => onSetPermissionsRequest(request)
+    case ModelDeleted                          => handleInitializationFailure(ModelDeletedWhileOpening)
     case dataResponse: ClientModelDataResponse =>
-    case unknown: Any => unhandled(unknown)
+    case unknown: Any                          => unhandled(unknown)
   }
 
   /**
    * Handles messages once the model has been completely initialized.
    */
   private[this] def receiveInitialized: Receive = {
-    case openRequest: OpenRealtimeModelRequest => onOpenModelWhileInitialized(openRequest)
-    case closeRequest: CloseRealtimeModelRequest => onCloseModelRequest(closeRequest)
+    case openRequest: OpenRealtimeModelRequest    => onOpenModelWhileInitialized(openRequest)
+    case closeRequest: CloseRealtimeModelRequest  => onCloseModelRequest(closeRequest)
     case operationSubmission: OperationSubmission => onOperationSubmission(operationSubmission)
-    case referenceEvent: ModelReferenceEvent => onReferenceEvent(referenceEvent)
-    case RealTimeModelPermissionsUpdated(permissions) => onPermissionsUpdated(permissions)
-    case dataResponse: ClientModelDataResponse =>
+    case referenceEvent: ModelReferenceEvent      => onReferenceEvent(referenceEvent)
+    case request: SetModelPermissionsRequest      => onSetPermissionsRequest(request)
+    case dataResponse: ClientModelDataResponse    =>
     // This can happen if we asked several clients for the data.  The first
     // one will be handled, but the rest will come in an simply be ignored.
-    case snapshotMetaData: ModelSnapshotMetaData => this.latestSnapshot = snapshotMetaData
-    case ModelDeleted => handleModelDeletedWhileOpen()
-    case terminated: Terminated => handleTerminated(terminated)
-    case ModelShutdown => shutdown()
-    case unknown: Any => unhandled(unknown)
+    case snapshotMetaData: ModelSnapshotMetaData  => this.latestSnapshot = snapshotMetaData
+    case ModelDeleted                             => handleModelDeletedWhileOpen()
+    case terminated: Terminated                   => handleTerminated(terminated)
+    case ModelShutdown                            => shutdown()
+    case unknown: Any                             => unhandled(unknown)
   }
 
-  private[this] def onPermissionsUpdated(permissions: RealTimeModelPermissions): Unit = {
+  private[this] def onSetPermissionsRequest(request: SetModelPermissionsRequest): Unit = {
+    val SetModelPermissionsRequest(collectionId, modelId, setWorld, world, setAllUsers, users) = request
+
     val oldPermissions = this.permissions
-    this.permissions = permissions
-    // TODO I need to update any connected client that their permissions changed.
-    // I don't want to have a bunch of messages between the model manager actor and this one trying
-    // to describe exactly how the permissions were modified. My thought is to just loop over the
-    // connected clients and compute their old and new permission and then only send an update to
-    // the ones that changed. If this seems ok, just remove the comment.
+    if (setWorld) {
+      modelPermissionsStore.setModelWorldPermissions(modelFqn, world).get
+      val RealTimeModelPermissions(collectionWorld, modelWorld, modelUsers) = this.permissions
+      this.permissions = RealTimeModelPermissions(collectionWorld, world, modelUsers)
+    }
+    if (setAllUsers) {
+      modelPermissionsStore.deleteAllModelUserPermissions(modelFqn).get
+      modelPermissionsStore.updateAllModelUserPermissions(modelFqn, users).get
+      val RealTimeModelPermissions(collectionWorld, modelWorld, modelUsers) = this.permissions
+      val newUsers = scala.collection.mutable.Map[String, ModelPermissions]()
+      users.foreach {
+        case (username, permissions) =>
+          if (permissions.isDefined) {
+            newUsers.put(username, permissions.get)
+          }
+      }
+      this.permissions = RealTimeModelPermissions(collectionWorld, modelWorld, newUsers.toMap)
+    } else {
+      modelPermissionsStore.updateAllModelUserPermissions(modelFqn, users).get
+      val RealTimeModelPermissions(collectionWorld, modelWorld, modelUsers) = this.permissions
+      modelUsers.to
+      val newUsers = scala.collection.mutable.Map[String, ModelPermissions](modelUsers.toSeq: _*)
+      users.foreach {
+        case (username, permissions) =>
+          if (permissions.isDefined) {
+            newUsers.put(username, permissions.get)
+          } else {
+            newUsers.remove(username)
+          }
+      }
+      this.permissions = RealTimeModelPermissions(collectionWorld, modelWorld, newUsers.toMap)
+    }
 
     this.connectedClients foreach {
       case (sk, actor) =>
@@ -245,7 +275,7 @@ class RealtimeModelActor(
       val model = modelStore.getModel(modelFqn)
       (model, snapshotMetaData) match {
         case (Success(Some(m)), Success(Some(s))) => DatabaseModelResponse(m, s)
-        case _ => throw new IllegalStateException("Could not get both the model snapshot and model data")
+        case _                                    => throw new IllegalStateException("Could not get both the model snapshot and model data")
       }
     }
 
@@ -668,7 +698,8 @@ object RealtimeModelActor {
     modelSnapshotStore: ModelSnapshotStore,
     clientDataResponseTimeout: Long,
     snapshotConfig: ModelSnapshotConfig,
-    permissions: RealTimeModelPermissions): Props =
+    permissions: RealTimeModelPermissions,
+    modelPermissionsStore: ModelPermissionsStore): Props =
     Props(new RealtimeModelActor(
       modelManagerActor,
       domainFqn,
@@ -679,7 +710,8 @@ object RealtimeModelActor {
       modelSnapshotStore,
       clientDataResponseTimeout,
       snapshotConfig,
-      permissions))
+      permissions,
+      modelPermissionsStore))
 
   def sessionKeyToClientId(sk: SessionKey): String = sk.serialize()
 }

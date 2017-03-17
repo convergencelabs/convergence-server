@@ -71,7 +71,6 @@ package model {
       collectionWorld: ModelPermissions,
       modelWorld: Option[ModelPermissions], 
       modelUsers: Map[String, ModelPermissions])
-  case class RealTimeModelPermissionsUpdated(permissions: RealTimeModelPermissions)
 
   //
   // Incoming Messages From Self

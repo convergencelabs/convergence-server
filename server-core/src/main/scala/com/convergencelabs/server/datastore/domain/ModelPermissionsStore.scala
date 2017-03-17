@@ -23,6 +23,7 @@ import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 
 case class ModelPermissions(read: Boolean, write: Boolean, remove: Boolean, manage: Boolean)
+case class CollectionPermissions(create: Boolean, read: Boolean, write: Boolean, remove: Boolean, manage: Boolean)
 
 case class UserRoles(username: String, roles: Set[String])
 
@@ -91,6 +92,14 @@ object ModelPermissionsStore {
 
 class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
 
+  def getCollectionWorldPermissions(modelFqn: ModelFqn): Try[Option[CollectionPermissions]] = tryWithDb { db =>
+    Some(CollectionPermissions(true, false, false, false, false))
+  }
+  
+  def getCollectionUserPermissions(modelFqn: ModelFqn, username: String): Try[Option[CollectionPermissions]] = tryWithDb { db =>
+    Some(CollectionPermissions(false, false, false, false, false))
+  }
+  
   def getModelWorldPermissions(modelFqn: ModelFqn): Try[Option[ModelPermissions]] = tryWithDb { db =>
     val queryString =
       """SELECT world
@@ -124,7 +133,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     }.toMap
   }
 
-  def deleteAllModelUserPermissions(modelFqn: ModelFqn, userPermissions: Map[String, Option[ModelPermissions]]): Try[Unit] = tryWithDb { db =>
+  def deleteAllModelUserPermissions(modelFqn: ModelFqn): Try[Unit] = tryWithDb { db =>
     val queryString =
       """DELETE FROM ModelUserPermissions
         |  WHERE model.id = :modelId AND
