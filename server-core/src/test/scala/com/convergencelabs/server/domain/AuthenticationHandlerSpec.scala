@@ -99,7 +99,7 @@ class AuthenticationHandlerSpec()
         val f = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(existingUserName, AuthenticationHandler.AdminKeyId)))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
         val expectedUsername = DomainUserStore.adminUsername(existingUserName)
-        result shouldBe AuthenticationSuccess(expectedUsername, SessionKey(expectedUsername, "1"))
+        result shouldBe AuthenticationSuccess(expectedUsername, SessionKey(expectedUsername, "1", true))
       }
 
       "return an authentication success lazily created user" in new TestFixture {

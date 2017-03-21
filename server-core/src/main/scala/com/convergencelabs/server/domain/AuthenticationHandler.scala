@@ -142,7 +142,11 @@ class AuthenticationHandler(
       case true =>
         logger.debug("User specificed in token already exists, returning auth success.")
         // FIXME We need to update the users info based on any provided claims.
-        authSuccess(resolvedUsername)
+        if(admin) {
+          authSuccessAdmin(resolvedUsername)
+        } else {
+          authSuccess(resolvedUsername)
+        }
       case false =>
         logger.debug("User specificed in token does not exist exist, creating.")
         createUserFromJWT(jwtClaims, admin) flatMap { _ =>
@@ -163,6 +167,12 @@ class AuthenticationHandler(
     }.get
   }
 
+  private[this] def authSuccessAdmin(username: String): Try[AuthenticationResponse] = {
+    userStore.nextSessionId map { id =>
+      AuthenticationSuccess(username, SessionKey(username, id, true))
+    }
+  }
+  
   private[this] def authSuccess(username: String): Try[AuthenticationResponse] = {
     userStore.nextSessionId map { id =>
       AuthenticationSuccess(username, SessionKey(username, id))

@@ -204,7 +204,10 @@ class RealtimeModelActor(
   }
 
   private[this] def getPermissionsForSession(sk: SessionKey): ModelPermissions = {
-    userModelPermissions.getOrElse(sk.uid, modelWorldPermissions.getOrElse(ModelPermissions(false, false, false, false)))
+    sk.admin match {
+      case true  => ModelPermissions(true, true, true, true)
+      case false => userModelPermissions.getOrElse(sk.uid, modelWorldPermissions.getOrElse(ModelPermissions(false, false, false, false)))
+    }
   }
 
   //
@@ -722,6 +725,6 @@ private object ErrorCodes extends Enumeration {
   val ModelDeleted = "model_deleted"
 }
 
-case class SessionKey(uid: String, sid: String) {
+case class SessionKey(uid: String, sid: String, admin: Boolean = false) {
   def serialize(): String = s"${uid}:${sid}"
 }

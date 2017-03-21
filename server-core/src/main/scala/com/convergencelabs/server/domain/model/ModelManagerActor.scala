@@ -67,7 +67,7 @@ class ModelManagerActor(
         // Model already open
         modelActor forward openRequest
       case None =>
-        if (getModelUserPermissions(openRequest.modelFqn, openRequest.sk.uid).read) {
+        if (openRequest.sk.admin || getModelUserPermissions(openRequest.modelFqn, openRequest.sk.uid).read) {
           // Model not already open, load it
           val resourceId = "" + nextModelResourceId
           nextModelResourceId += 1
@@ -165,7 +165,7 @@ class ModelManagerActor(
   }
 
   private[this] def createModel(sk: SessionKey, collectionId: String, modelId: Option[String], data: ObjectValue): Unit = {
-    if (getCollectionUserPermissions(collectionId, sk.uid).create) {
+    if (sk.admin || getCollectionUserPermissions(collectionId, sk.uid).create) {
       persistenceProvider.collectionStore.ensureCollectionExists(collectionId) flatMap { _ =>
         persistenceProvider.modelStore.createModel(collectionId, modelId, data)
       } flatMap { model =>
@@ -192,7 +192,7 @@ class ModelManagerActor(
 
   private[this] def onDeleteModelRequest(deleteRequest: DeleteModelRequest): Unit = {
     val DeleteModelRequest(sk, modelFqn) = deleteRequest
-    if (getModelUserPermissions(modelFqn, sk.uid).remove) {
+    if (sk.admin || getModelUserPermissions(modelFqn, sk.uid).remove) {
       if (openRealtimeModels.contains(modelFqn)) {
         val closed = openRealtimeModels(modelFqn)
         closed ! ModelDeleted
