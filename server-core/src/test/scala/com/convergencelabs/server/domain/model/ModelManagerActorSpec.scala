@@ -36,6 +36,9 @@ import scala.util.Failure
 import com.convergencelabs.server.datastore.EntityNotFoundException
 import org.mockito.Matchers
 import com.convergencelabs.server.datastore.DuplicateValueExcpetion
+import com.convergencelabs.server.datastore.domain.ModelPermissionsStore
+import com.convergencelabs.server.datastore.domain.CollectionPermissions
+import com.convergencelabs.server.datastore.domain.ModelPermissions
 
 class ModelManagerActorSpec
     extends TestKit(ActorSystem("ModelManagerActorSpec"))
@@ -177,6 +180,23 @@ class ModelManagerActorSpec
       
     Mockito.when(collectionStore.ensureCollectionExists(collectionId))
       .thenReturn(Success(()))
+      
+    val modelPermissionsStore = mock[ModelPermissionsStore]
+    Mockito.when(modelPermissionsStore.getModelWorldPermissions(modelFqn)).thenReturn(Success(Some(ModelPermissions(true, true, true, true))))
+    Mockito.when(modelPermissionsStore.getModelWorldPermissions(nonExistentModelFqn)).thenReturn(Success(Some(ModelPermissions(true, true, true, true))))
+    Mockito.when(modelPermissionsStore.getCollectionWorldPermissions(collectionId)).thenReturn(Success(Some(CollectionPermissions(true, true, true, true, true))))
+    Mockito.when(modelPermissionsStore.getAllModelUserPermissions(modelFqn)).thenReturn(Success(Map[String, ModelPermissions]()))
+    Mockito.when(modelPermissionsStore.getAllModelUserPermissions(nonExistentModelFqn)).thenReturn(Success(Map[String, ModelPermissions]()))
+    Mockito.when(modelPermissionsStore.getCollectionUserPermissions(collectionId, userId1)).thenReturn(Success(Some(CollectionPermissions(true, true, true, true, true))))
+    Mockito.when(modelPermissionsStore.getCollectionUserPermissions(collectionId, userId2)).thenReturn(Success(Some(CollectionPermissions(true, true, true, true, true))))
+    Mockito.when(modelPermissionsStore.getModelUserPermissions(modelFqn, userId1)).thenReturn(Success(Some(ModelPermissions(true, true, true, true))))
+    Mockito.when(modelPermissionsStore.getModelUserPermissions(modelFqn, userId2)).thenReturn(Success(Some(ModelPermissions(true, true, true, true))))
+    Mockito.when(modelPermissionsStore.getModelUserPermissions(nonExistentModelFqn, userId1)).thenReturn(Success(Some(ModelPermissions(true, true, true, true))))
+    Mockito.when(modelPermissionsStore.getModelUserPermissions(nonExistentModelFqn, userId2)).thenReturn(Success(Some(ModelPermissions(true, true, true, true))))
+    Mockito.when(modelPermissionsStore.updateModelUserPermissions(modelFqn, userId1, ModelPermissions(true, true, true, true))).thenReturn(Success(()))
+    Mockito.when(modelPermissionsStore.updateModelUserPermissions(modelFqn, userId2, ModelPermissions(true, true, true, true))).thenReturn(Success(()))
+    Mockito.when(modelPermissionsStore.updateModelUserPermissions(nonExistentModelFqn, userId1, ModelPermissions(true, true, true, true))).thenReturn(Success(()))
+    Mockito.when(modelPermissionsStore.updateModelUserPermissions(nonExistentModelFqn, userId2, ModelPermissions(true, true, true, true))).thenReturn(Success(()))
 
     val domainPersistence = mock[DomainPersistenceProvider]
     Mockito.when(domainPersistence.modelStore).thenReturn(modelStore)
@@ -184,6 +204,7 @@ class ModelManagerActorSpec
     Mockito.when(domainPersistence.modelOperationStore).thenReturn(modelOperationStore)
     Mockito.when(domainPersistence.configStore).thenReturn(domainConfigStore)
     Mockito.when(domainPersistence.collectionStore).thenReturn(collectionStore)
+    Mockito.when(domainPersistence.modelPermissionsStore).thenReturn(modelPermissionsStore)
 
     val domainFqn = DomainFqn("convergence", "default")
 
