@@ -413,6 +413,8 @@ class RealtimeModelActor(
 
     val referencesBySession = this.model.references()
 
+    val permissions = this.getPermissionsForSession(sk)
+    
     val openModelResponse = OpenModelSuccess(
       self,
       modelResourceId,
@@ -420,7 +422,8 @@ class RealtimeModelActor(
       metaData,
       connectedClients.keySet,
       referencesBySession,
-      modelData.data)
+      modelData.data,
+      permissions)
 
     requestRecord.askingActor ! openModelResponse
 

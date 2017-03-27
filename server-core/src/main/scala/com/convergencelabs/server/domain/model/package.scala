@@ -91,7 +91,8 @@ package model {
     metaData: OpenModelMetaData,
     connectedClients: Set[SessionKey],
     referencesBySession: Set[ReferenceState],
-    modelData: ObjectValue) extends OpenModelResponse
+    modelData: ObjectValue,
+    modelPermissions: ModelPermissions) extends OpenModelResponse
 
   case class ReferenceState(
     sessionId: String,

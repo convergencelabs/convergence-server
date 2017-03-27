@@ -299,7 +299,7 @@ class ModelClientActor(
     val future = modelManager ? OpenRealtimeModelRequest(
       sessionKey, ModelFqn(request.c, request.m), request.i, self)
     future.mapResponse[OpenModelResponse] onComplete {
-      case Success(OpenModelSuccess(realtimeModelActor, modelResourceId, valueIdPrefix, metaData, connectedClients, references, modelData)) => {
+      case Success(OpenModelSuccess(realtimeModelActor, modelResourceId, valueIdPrefix, metaData, connectedClients, references, modelData, modelPermissions)) => {
         openRealtimeModels += (modelResourceId -> realtimeModelActor)
         this.context.watch(realtimeModelActor)
         val convertedReferences = references.map { ref =>
@@ -318,7 +318,13 @@ class ModelClientActor(
             OpenModelData(
               modelData,
               connectedClients.map({ x => x.serialize() }),
-              convertedReferences)))
+              convertedReferences), 
+            ModelPermissionsData(
+                modelPermissions.read,
+                modelPermissions.write,
+                modelPermissions.remove,
+                modelPermissions.manage
+                )))
       }
       case Success(ModelAlreadyOpen) => {
         cb.expectedError("model_already_open", "The requested model is already open by this client.")
