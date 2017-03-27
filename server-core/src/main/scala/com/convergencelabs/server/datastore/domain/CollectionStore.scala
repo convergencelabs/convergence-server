@@ -85,11 +85,11 @@ class CollectionStore private[domain] (dbProvider: DatabaseProvider, modelStore:
     case e: ORecordDuplicatedException => handleDuplicateValue(e)
   }
 
-  def updateCollection(collection: Collection): Try[Unit] = tryWithDb { db =>
+  def updateCollection(collectionId: String, collection: Collection): Try[Unit] = tryWithDb { db =>
     val updatedDoc = CollectionStore.collectionToDoc(collection)
 
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM Collection WHERE id = :id")
-    val params = Map(CollectionStore.Id -> collection.id)
+    val params = Map(CollectionStore.Id -> collectionId)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
     QueryUtil.enforceSingletonResultList(result) match {

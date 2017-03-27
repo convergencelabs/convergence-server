@@ -2,6 +2,7 @@ package com.convergencelabs.server.datastore
 
 import com.convergencelabs.server.datastore.CollectionStoreActor.CreateCollection
 import com.convergencelabs.server.datastore.CollectionStoreActor.DeleteCollection
+import com.convergencelabs.server.datastore.CollectionStoreActor.UpdateCollection
 import com.convergencelabs.server.datastore.domain.CollectionStore
 import com.convergencelabs.server.domain.model.Collection
 
@@ -18,6 +19,7 @@ object CollectionStoreActor {
   case class GetCollection(id: String) extends CollectionStoreRequest
   case class DeleteCollection(collectionId: String) extends CollectionStoreRequest
   case class CreateCollection(collection: Collection) extends CollectionStoreRequest
+  case class UpdateCollection(collectionId: String, collection: Collection) extends CollectionStoreRequest
 }
 
 class CollectionStoreActor private[datastore] (
@@ -29,6 +31,7 @@ class CollectionStoreActor private[datastore] (
     case GetCollection(collectionId)    => getCollectionConfig(collectionId)
     case CreateCollection(collection)   => createCollection(collection)
     case DeleteCollection(collectionId) => deleteCollection(collectionId)
+    case UpdateCollection(collectionId, collection) => updateCollection(collectionId, collection)
     case message: Any                   => unhandled(message)
   }
 
@@ -42,6 +45,10 @@ class CollectionStoreActor private[datastore] (
 
   def createCollection(collection: Collection): Unit = {
     reply(collectionStore.createCollection(collection))
+  }
+  
+  def updateCollection(collectionId: String, collection: Collection): Unit = {
+    reply(collectionStore.updateCollection(collectionId, collection))
   }
 
   def deleteCollection(collectionId: String): Unit = {
