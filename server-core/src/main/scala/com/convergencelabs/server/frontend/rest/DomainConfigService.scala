@@ -51,11 +51,11 @@ object DomainConfigService {
     snapshotsEnabled: Boolean,
     triggerByVersion: Boolean,
     maximumVersionInterval: Long,
-    limitedByVersion: Boolean,
+    limitByVersion: Boolean,
     minimumVersionInterval: Long,
     triggerByTime: Boolean,
     maximumTimeInterval: Long,
-    limitedByTime: Boolean,
+    limitByTime: Boolean,
     minimumTimeInterval: Long)
 }
 
@@ -117,11 +117,11 @@ class DomainConfigService(
       val ModelSnapshotConfig(
         snapshotsEnabled,
         triggerByVersion,
-        limitedByVersion,
+        limitByVersion,
         minimumVersionInterval,
         maximumVersionInterval,
         triggerByTime,
-        limitedByTime,
+        limitByTime,
         minimumTimeInterval,
         maximumTimeInterval) = config;
       (StatusCodes.OK, ModelSnapshotPolicyResponse(
@@ -129,11 +129,11 @@ class DomainConfigService(
           snapshotsEnabled,
           triggerByVersion,
           maximumVersionInterval,
-          limitedByVersion,
+          limitByVersion,
           minimumVersionInterval,
           triggerByTime,
           maximumTimeInterval.toMinutes() * 60,
-          limitedByTime,
+          limitByTime,
           minimumTimeInterval.toMinutes() * 60)))
     }
   }
@@ -143,11 +143,11 @@ class DomainConfigService(
         snapshotsEnabled,
         triggerByVersion,
         maximumVersionInterval,
-        limitedByVersion,
+        limitByVersion,
         minimumVersionInterval,
         triggerByTime,
         maximumTimeInterval,
-        limitedByTime,
+        limitByTime,
         minimumTimeInterval
         ) = policyData;
     
@@ -155,11 +155,11 @@ class DomainConfigService(
         ModelSnapshotConfig(
           snapshotsEnabled,
           triggerByVersion,
-          limitedByVersion,
+          limitByVersion,
           minimumVersionInterval,
           maximumVersionInterval,
           triggerByTime,
-          limitedByTime,
+          limitByTime,
           Duration.ofSeconds(minimumTimeInterval),
           Duration.ofSeconds(maximumTimeInterval)
           )
