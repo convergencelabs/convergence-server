@@ -94,13 +94,13 @@ class CollectionStoreSpec
         store.createCollection(peopleCollection).success
         val existing = store.getCollection(peopleCollectionId).success.value.value
         val updated = existing.copy(name = "foo", overrideSnapshotConfig = false, snapshotConfig = None)
-        store.updateCollection(updated).success.value
+        store.updateCollection(existing.id, updated).success.value
         store.getCollection(peopleCollectionId).success.value.value shouldBe updated
       }
 
       "return EntityNotFoundException on a collection that does not exist" in withPersistenceStore { store =>
         val toUpdate = Collection(carsCollectionId, "", false, None)
-        store.updateCollection(toUpdate).failure.exception shouldBe a[EntityNotFoundException]
+        store.updateCollection(carsCollectionId, toUpdate).failure.exception shouldBe a[EntityNotFoundException]
       }
     }
 

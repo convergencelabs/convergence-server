@@ -4,6 +4,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
 import com.convergencelabs.server.datastore.CollectionStoreActor.CreateCollection
+import com.convergencelabs.server.datastore.CollectionStoreActor.UpdateCollection
 import com.convergencelabs.server.datastore.CollectionStoreActor.DeleteCollection
 import com.convergencelabs.server.datastore.CollectionStoreActor.GetCollection
 import com.convergencelabs.server.datastore.CollectionStoreActor.GetCollections
@@ -65,6 +66,12 @@ class DomainCollectionService(
             authorizeAsync(canAccessDomain(domain, username)) {
               complete(deleteCollection(domain, collectionId))
             }
+          }  ~ put {
+            entity(as[Collection]) { updateData =>
+              authorizeAsync(canAccessDomain(domain, username)) {
+                complete(updateCollection(domain, collectionId, updateData))
+              }
+            }
           }
         }
       }
@@ -88,6 +95,11 @@ class DomainCollectionService(
   def createCollection(domain: DomainFqn, collection: Collection): Future[RestResponse] = {
     val message = DomainMessage(domain, CreateCollection(collection))
     (domainRestActor ? message) map { _ => CreateRestResponse }
+  }
+  
+  def updateCollection(domain: DomainFqn, collectionId: String, collection: Collection): Future[RestResponse] = {
+    val message = DomainMessage(domain, UpdateCollection(collectionId, collection))
+    (domainRestActor ? message) map { _ => OkResponse }
   }
 
   def deleteCollection(domain: DomainFqn, collectionId: String): Future[RestResponse] = {
