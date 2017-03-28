@@ -152,6 +152,7 @@ changes:
       - {name: modifiedTime, type: DateTime,                           constraints: {mandatory: true, notNull: true}}
       - {name: data,         type: Link,     linkedClass: ObjectValue, constraints: {mandatory: true, notNull: true}}
       - {name: world,        type: Embedded, linkedClass: ModelPermissions}
+      - {name: userPermissions, type: LinkList, linkedClass: ModelUserPermissions}
 
   - action: CreateIndex
     className: Model

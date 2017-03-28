@@ -88,4 +88,8 @@ changes:
   - action: AddProperty
     className: Model
     property: {name: world, type: Embedded, linkedClass: ModelPermissions}
+
+  - action: AddProperty
+    className: Model
+    property: {name: userPermissions, type: LinkList, linkedClass: ModelUserPermissions}
     

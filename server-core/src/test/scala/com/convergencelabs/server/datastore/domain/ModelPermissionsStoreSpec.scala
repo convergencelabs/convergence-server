@@ -94,6 +94,27 @@ class ModelPermissionsStoreSpec
         retrievedPermissions shouldEqual Some(permissions)
       }
     }
+    
+    "retrieving all model user permissions" must {
+      "contain all those just set" in withTestData { provider =>
+        val permissions = ModelPermissions(true, false, true, false)
+        provider.modelPermissionsStore.updateModelUserPermissions(modelFqn, "test1", permissions).get
+        provider.modelPermissionsStore.updateModelUserPermissions(modelFqn, "test2", permissions).get
+        val retrievedPermissions = provider.modelPermissionsStore.getAllModelUserPermissions(modelFqn).get
+        retrievedPermissions shouldEqual Map("test1" -> permissions, "test2" -> permissions)
+      }
+    }
+    
+    "deleting a model user permissions" must {
+      "must no longer be set on the model" in withTestData { provider =>
+        val permissions = ModelPermissions(true, false, true, false)
+        provider.modelPermissionsStore.updateModelUserPermissions(modelFqn, "test1", permissions).get
+        provider.modelPermissionsStore.updateModelUserPermissions(modelFqn, "test2", permissions).get
+        provider.modelPermissionsStore.removeModelUserPermissions(modelFqn, "test1")
+        val retrievedPermissions = provider.modelPermissionsStore.getAllModelUserPermissions(modelFqn).get
+        retrievedPermissions shouldEqual Map("test2" -> permissions)
+      }
+    }
   }
 
   def withTestData(testCode: DomainPersistenceProvider => Any): Unit = {
@@ -101,6 +122,7 @@ class ModelPermissionsStoreSpec
       provider.collectionStore.createCollection(Collection("test", "test", false, None))
       provider.modelStore.createModel("test", Some("test"), ObjectValue("vid", Map()))
       provider.userStore.createDomainUser(DomainUser(DomainUserType.Normal, "test1", None, None, None, None))
+      provider.userStore.createDomainUser(DomainUser(DomainUserType.Normal, "test2", None, None, None, None))
       testCode(provider)
     }
   }

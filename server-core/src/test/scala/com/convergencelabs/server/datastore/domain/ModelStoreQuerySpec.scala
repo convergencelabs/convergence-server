@@ -26,8 +26,10 @@ import org.json4s.jackson.JsonMethods._
 import scala.language.postfixOps
 import com.convergencelabs.server.domain.model.data.BooleanValue
 import com.convergencelabs.server.domain.model.data.DoubleValue
+import com.convergencelabs.server.domain.DomainUser
+import com.convergencelabs.server.domain.DomainUserType
 
-case class ModelStoreQuerySpecStores(collection: CollectionStore, model: ModelStore)
+case class ModelStoreQuerySpecStores(collection: CollectionStore, model: ModelStore, user: DomainUserStore, permissions: ModelPermissionsStore)
 
 // scalastyle:off magic.number
 class ModelStoreQuerySpec extends PersistenceStoreSpec[ModelStoreQuerySpecStores](DeltaCategory.Domain) with WordSpecLike with Matchers {
@@ -38,7 +40,9 @@ class ModelStoreQuerySpec extends PersistenceStoreSpec[ModelStoreQuerySpecStores
   def createStore(dbProvider: DatabaseProvider): ModelStoreQuerySpecStores = {
     val modelStore = new ModelStore(dbProvider, new ModelOperationStore(dbProvider), new ModelSnapshotStore(dbProvider))
     val collectionStore = new CollectionStore(dbProvider, modelStore)
-    ModelStoreQuerySpecStores(collectionStore, modelStore)
+    val userStore = new DomainUserStore(dbProvider)
+    val modelPermissionsStore = new ModelPermissionsStore(dbProvider)
+    ModelStoreQuerySpecStores(collectionStore, modelStore, userStore, modelPermissionsStore)
   }
 
   "Querying a ModelStore" when {
@@ -46,44 +50,67 @@ class ModelStoreQuerySpec extends PersistenceStoreSpec[ModelStoreQuerySpecStores
     "using order by" must {
       "return correct order when using ASC on top level field" in withPersistenceStore { stores =>
         createModels(stores)
-        val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY sField ASC").get
+        val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY sField ASC", None).get
         list.map { _.metaData.fqn.modelId } shouldEqual (List("model1", "model2"))
       }
       "return correct order when using DESC on top level field" in withPersistenceStore { stores =>
         createModels(stores)
-        val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY sField DESC").get
+        val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY sField DESC", None).get
         list.map { _.metaData.fqn.modelId } shouldEqual (List("model2", "model1"))
       }
       "return correct order when using ASC on field inside top level array" in withPersistenceStore { stores =>
         createModels(stores)
-        val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY arrayField[0] ASC").get
+        val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY arrayField[0] ASC", None).get
         list.map { _.metaData.fqn.modelId } shouldEqual (List("model1", "model2"))
       }
       "return correct order when using DESC on field inside top level array" in withPersistenceStore { stores =>
         createModels(stores)
-        val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY arrayField[0] DESC").get
+        val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY arrayField[0] DESC", None).get
         list.map { _.metaData.fqn.modelId } shouldEqual (List("model2", "model1"))
       }
       "return correct order when using ASC on field inside second level object" in withPersistenceStore { stores =>
         createModels(stores)
-        val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY oField.oField2 ASC").get
+        val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY oField.oField2 ASC", None).get
         list.map { _.metaData.fqn.modelId } shouldEqual (List("model1", "model2"))
       }
       "return correct order when using DESC on field inside second level object" in withPersistenceStore { stores =>
         createModels(stores)
-        val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY oField.oField2 DESC").get
+        val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY oField.oField2 DESC", None).get
         list.map { _.metaData.fqn.modelId } shouldEqual (List("model2", "model1"))
       }
       "return correct order when using ASC on field only one model has" in withPersistenceStore { stores =>
         createModels(stores)
-        val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY model1Field ASC").get
+        val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY model1Field ASC", None).get
         list.map { _.metaData.fqn.modelId } shouldEqual (List("model2", "model1"))
       }
       "return correct order when using DESC on field only one model has" in withPersistenceStore { stores =>
         createModels(stores)
-        val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY model1Field DESC").get
+        val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY model1Field DESC", None).get
         list.map { _.metaData.fqn.modelId } shouldEqual (List("model1", "model2"))
       }
+    }
+
+    "when permissions are set" when {
+      "return correct models when world is set to false" in withPersistenceStore { stores =>
+        createModels(stores)
+        createUsers(stores)
+
+        stores.permissions.setModelWorldPermissions(ModelFqn("collection1", "model1"), Some(ModelPermissions(false, false, false, false)))
+
+        val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY sField ASC", Some("test1")).get
+        list.map { _.metaData.fqn.modelId } shouldEqual (List("model2"))
+      }
+
+//      "return correct models when world is set to false but user permission is true" in withPersistenceStore { stores =>
+//        createModels(stores)
+//        createUsers(stores)
+//
+//        stores.permissions.setModelWorldPermissions(ModelFqn("collection1", "model1"), Some(ModelPermissions(false, false, false, false)))
+//        stores.permissions.updateModelUserPermissions(ModelFqn("collection1", "model1"), "test1", ModelPermissions(true, true, true, true))
+//
+//        val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY sField ASC", Some("test1")).get
+//        list.map { _.metaData.fqn.modelId } shouldEqual (List("model1", "model2"))
+//      }
     }
   }
 
@@ -174,5 +201,10 @@ class ModelStoreQuerySpec extends PersistenceStoreSpec[ModelStoreQuerySpecStores
              "arrayField": ["D", "E", "F"]
            }
           }""")).get
+  }
+
+  private[this] def createUsers(stores: ModelStoreQuerySpecStores): Unit = {
+    stores.user.createDomainUser(DomainUser(DomainUserType.Normal, "test1", None, None, None, None))
+    stores.user.createDomainUser(DomainUser(DomainUserType.Normal, "test2", None, None, None, None))
   }
 }

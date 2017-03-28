@@ -1,6 +1,6 @@
 package com.convergencelabs.server.datastore.domain
 
-import scala.collection.mutable.{Map => ScalaMutableMap}
+import scala.collection.mutable.{ Map => ScalaMutableMap }
 import scala.collection.JavaConverters.seqAsJavaListConverter
 
 import ModelStore.Constants.CollectionId
@@ -45,7 +45,7 @@ case class ModelQueryParameters(query: String, params: Map[String, Any])
 
 object ModelQueryBuilder {
 
-  def queryModels(select: SelectStatement): ModelQueryParameters = {
+  def queryModels(select: SelectStatement, username: Option[String]): ModelQueryParameters = {
     implicit val params = ScalaMutableMap[String, Any]()
 
     val selectString = s"SELECT FROM Model WHERE ${ModelStore.Fields.Collection}.${ModelStore.Fields.Id} = ${addParam(select.collection)}"
@@ -54,6 +54,15 @@ object ModelQueryBuilder {
       s" and ${buildExpressionString(where)}"
     }) getOrElse ("")
 
+    val permissionString = username.map { usr =>
+      val userParam = addParam(username)
+      s""" and ((userPermissions contains (username = $userParam)) or
+               (not(userPermissions contains (user.username = $userParam )) and 
+	              ((world is not null and world.read = true) or 
+	               (world is null and collection.world is not null and collection.read = true) or 
+		             (world is null and collection.world is null))))"""
+    }.getOrElse("")
+
     val orderString: String = if (select.orderBy.isEmpty) {
       ""
     } else {
@@ -61,27 +70,27 @@ object ModelQueryBuilder {
         val ascendingParam = orderBy.direction map {
           case Ascending  => "ASC"
           case Descending => "DESC"
-        } getOrElse("ASC") 
+        } getOrElse ("ASC")
         s"${buildFieldPath(orderBy.field)} ${ascendingParam}"
       }).mkString(", ")
     }
 
-    val queryString = s"${selectString}${whereString}${orderString}"
+    val queryString = s"${selectString}${whereString}${permissionString}${orderString}"
 
     ModelQueryParameters(QueryUtil.buildPagedQuery(queryString, select.limit, select.offset), params.toMap)
   }
-  
+
   private[this] def buildFieldPath(field: FieldTerm): String = {
     val sb = new StringBuilder()
     sb.append("data.children.")
     sb.append(field.field.property)
     field.subpath.foreach {
-      case IndexPathElement(i) => 
+      case IndexPathElement(i) =>
         sb.append(".children").append("[").append(i.toString).append("]")
       case PropertyPathElement(p) =>
         sb.append(".children").append(".").append(p)
     }
-    
+
     sb.append(".value")
 
     sb.toString
@@ -117,7 +126,7 @@ object ModelQueryBuilder {
 
   private[this] def buildTermString(term: ConditionalTerm)(implicit param: ScalaMutableMap[String, Any]): String = {
     term match {
-      case expression: ValueTerm      => buildExpressionValueString(expression)
+      case expression: ValueTerm            => buildExpressionValueString(expression)
       case expression: MathematicalOperator => buildMathmaticalExpressionString(expression)
     }
   }

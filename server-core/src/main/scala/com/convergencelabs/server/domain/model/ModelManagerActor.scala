@@ -34,7 +34,7 @@ import com.convergencelabs.server.datastore.domain.ModelPermissions
 import com.convergencelabs.server.datastore.domain.CollectionPermissions
 import com.convergencelabs.server.datastore.UnauthorizedException
 
-case class QueryModelsRequest(query: String)
+case class QueryModelsRequest(sk: SessionKey, query: String)
 case class QueryOrderBy(field: String, ascending: Boolean)
 
 case class QueryModelsResponse(result: List[Model])
@@ -210,9 +210,14 @@ class ModelManagerActor(
   }
 
   private[this] def onQueryModelsRequest(request: QueryModelsRequest): Unit = {
-    val QueryModelsRequest(query) = request
-    persistenceProvider.modelStore.queryModels(query) match {
-      case Success(result) => sender ! QueryModelsResponse(result)
+    val QueryModelsRequest(sk, query) = request
+    val username = if(request.sk.admin) {
+      None
+    } else {
+      Some(request.sk.uid)
+    }
+    persistenceProvider.modelStore.queryModels(query, username) match {
+      case Success(result) =>sender ! QueryModelsResponse(result)
       case Failure(cause)  => sender ! Status.Failure(cause)
     }
   }

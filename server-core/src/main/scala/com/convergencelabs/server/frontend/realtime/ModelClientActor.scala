@@ -384,7 +384,7 @@ class ModelClientActor(
 
   private[this] def onModelQueryRequest(request: ModelsQueryRequestMessage, cb: ReplyCallback): Unit = {
     val ModelsQueryRequestMessage(query) = request
-    val future = modelManager ? QueryModelsRequest(query)
+    val future = modelManager ? QueryModelsRequest(sessionKey, query)
     future.mapResponse[QueryModelsResponse] onComplete {
       case Success(QueryModelsResponse(result)) => cb.reply(
         ModelsQueryResponseMessage(result map {
