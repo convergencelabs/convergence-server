@@ -101,16 +101,16 @@ class ModelStoreQuerySpec extends PersistenceStoreSpec[ModelStoreQuerySpecStores
         list.map { _.metaData.fqn.modelId } shouldEqual (List("model2"))
       }
 
-//      "return correct models when world is set to false but user permission is true" in withPersistenceStore { stores =>
-//        createModels(stores)
-//        createUsers(stores)
-//
-//        stores.permissions.setModelWorldPermissions(ModelFqn("collection1", "model1"), Some(ModelPermissions(false, false, false, false)))
-//        stores.permissions.updateModelUserPermissions(ModelFqn("collection1", "model1"), "test1", ModelPermissions(true, true, true, true))
-//
-//        val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY sField ASC", Some("test1")).get
-//        list.map { _.metaData.fqn.modelId } shouldEqual (List("model1", "model2"))
-//      }
+      "return correct models when world is set to false but user permission is true" in withPersistenceStore { stores =>
+        createModels(stores)
+        createUsers(stores)
+
+        stores.permissions.setModelWorldPermissions(ModelFqn("collection1", "model1"), Some(ModelPermissions(false, false, false, false)))
+        stores.permissions.updateModelUserPermissions(ModelFqn("collection1", "model1"), "test1", ModelPermissions(true, true, true, true))
+
+        val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY sField ASC", Some("test1")).get
+        list.map { _.metaData.fqn.modelId } shouldEqual (List("model1", "model2"))
+      }
     }
   }
 

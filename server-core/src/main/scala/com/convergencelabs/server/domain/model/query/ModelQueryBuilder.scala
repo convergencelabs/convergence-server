@@ -55,14 +55,14 @@ object ModelQueryBuilder {
     }) getOrElse ("")
 
     val permissionString = username.map { usr =>
-      val userParam = addParam(username)
-      s""" and ((userPermissions contains (username = $userParam)) or
+      val userParam = addParam(usr)
+        s""" and ((userPermissions contains (user.username = $userParam and permissions.read = true)) or
                (not(userPermissions contains (user.username = $userParam )) and 
 	              ((world is not null and world.read = true) or 
 	               (world is null and collection.world is not null and collection.read = true) or 
 		             (world is null and collection.world is null))))"""
     }.getOrElse("")
-
+    
     val orderString: String = if (select.orderBy.isEmpty) {
       ""
     } else {
