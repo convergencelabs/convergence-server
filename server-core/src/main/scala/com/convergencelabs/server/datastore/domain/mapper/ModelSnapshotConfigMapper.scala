@@ -54,13 +54,13 @@ object ModelSnapshotConfigMapper extends ODocumentMapper {
 
   object Fields {
     val Enabled = "enabled"
-    val MinTimeInterval = "minTimeInterval"
-    val MaxTimeInterval = "maxTimeInterval"
     val TriggerByVersion = "triggerByVersion"
     val LimitedByVersion = "limitedByVersion"
     val MinVersionInterval = "minVersionInterval"
     val MaxVersionInterval = "maxVersionInterval"
     val TriggerByTime = "triggerByTime"
     val LimitedByTime = "limitedByTime"
+    val MinTimeInterval = "minTimeInterval"
+    val MaxTimeInterval = "maxTimeInterval"
   }
 }

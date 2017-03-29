@@ -132,9 +132,9 @@ class DomainConfigService(
           limitByVersion,
           minimumVersionInterval,
           triggerByTime,
-          maximumTimeInterval.toMinutes() * 60,
+          maximumTimeInterval.toMillis,
           limitByTime,
-          minimumTimeInterval.toMinutes() * 60)))
+          minimumTimeInterval.toMillis)))
     }
   }
 
@@ -160,8 +160,8 @@ class DomainConfigService(
           maximumVersionInterval,
           triggerByTime,
           limitByTime,
-          Duration.ofSeconds(minimumTimeInterval),
-          Duration.ofSeconds(maximumTimeInterval)
+          Duration.ofMillis(minimumTimeInterval),
+          Duration.ofMillis(maximumTimeInterval)
           )
   
     val message = DomainMessage(domain, SetModelSnapshotPolicy(policy))
