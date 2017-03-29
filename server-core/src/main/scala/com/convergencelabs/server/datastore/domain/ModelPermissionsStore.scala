@@ -62,7 +62,7 @@ object ModelPermissionsStore {
 
     val Create = "create"
   }
-  
+
   def docToCollectionWorldPermissions(doc: ODocument): Option[CollectionPermissions] = {
     val world: ODocument = doc.field(Fields.World)
     Option(world).map { worldDoc =>
@@ -94,7 +94,7 @@ object ModelPermissionsStore {
       doc.field(Fields.Remove),
       doc.field(Fields.Manage))
   }
-  
+
   def docToModelPermissions(doc: ODocument): ModelPermissions = {
     ModelPermissions(
       doc.field(Fields.Read),
@@ -112,7 +112,7 @@ object ModelPermissionsStore {
     doc.field(Fields.Manage, permissions.manage)
     doc
   }
-  
+
   def modelPermissionToDoc(permissions: ModelPermissions): ODocument = {
     val doc = new ODocument(ModelPermissionsClass)
     doc.field(Fields.Read, permissions.read)
@@ -134,7 +134,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     val result = QueryUtil.lookupMandatoryDocument(queryString, params, db)
     result.map { docToCollectionWorldPermissions(_) }.get
   }
-  
+
   def setCollectionWorldPermissions(collectionId: String, permissions: Option[CollectionPermissions]): Try[Unit] = tryWithDb { db =>
     val collectionDoc = getCollectionRid(collectionId).get.getRecord[ODocument]
     val permissionsDoc = permissions.map { collectionPermissionToDoc(_) }
@@ -142,8 +142,112 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     collectionDoc.save()
   }
 
+  def getAllCollectionUserPermissions(collectionId: String): Try[Map[String, CollectionPermissions]] = tryWithDb { db =>
+    val collectionRID = CollectionStore.getCollectionRid(collectionId, db).get
+    val collectionDoc = collectionRID.getRecord[ODocument]
+    val userPermissions: JavaList[ODocument] = collectionDoc.field("userPermissions", OType.LINKLIST)
+    if (userPermissions == null) {
+      Map[String, CollectionPermissions]()
+    } else {
+      userPermissions.asScala.map { userPermission =>
+        val user: ODocument = userPermission.field(Fields.User)
+        val username: String = user.field(Fields.Username)
+        val permissions = docToCollectionPermissions(userPermission.field(Fields.Permissions))
+        (username -> permissions)
+      }.toMap
+    }
+  }
+
+  def deleteAllCollectionUserPermissions(collectionId: String): Try[Unit] = tryWithDb { db =>
+    val collectionRID = CollectionStore.getCollectionRid(collectionId, db).get
+    val collectionDoc = collectionRID.getRecord[ODocument]
+    collectionDoc.field("userPermissions", new ArrayList[ODocument]())
+    collectionDoc.save()
+
+    val queryString =
+      """DELETE FROM CollectionUserPermissions
+        |  WHERE collection.id = :collectionId""".stripMargin
+    val command = new OCommandSQL(queryString)
+    val params = Map("collectionId" -> collectionId)
+    db.command(command).execute(params.asJava)
+  }
+
+  def updateAllCollectionUserPermissions(collectionId: String, userPermissions: Map[String, Option[CollectionPermissions]]): Try[Unit] = tryWithDb { db =>
+    val collectionRID = CollectionStore.getCollectionRid(collectionId, db).get
+
+    userPermissions.foreach {
+      case (username, permissions) =>
+        val userRID = DomainUserStore.getUserRid(username, db).get
+        val key = new OCompositeKey(List(userRID, collectionRID).asJava)
+        val collectionPermissionRID = getCollectionUserPermissionsRid(collectionId, username)
+        if (collectionPermissionRID.isSuccess) {
+          db.delete(collectionPermissionRID.get)
+        }
+
+        permissions.foreach { perm =>
+          val collectionPermissionsDoc = db.newInstance(CollectionUserPermissionsClass)
+          collectionPermissionsDoc.field(Fields.Collection, collectionRID)
+          collectionPermissionsDoc.field(Fields.User, userRID)
+          collectionPermissionsDoc.field(Fields.Permissions, collectionPermissionToDoc(perm))
+          collectionPermissionsDoc.save()
+        }
+    }
+  }
+
   def getCollectionUserPermissions(collectionId: String, username: String): Try[Option[CollectionPermissions]] = tryWithDb { db =>
-    None
+    val queryString =
+      """SELECT permissions
+        |  FROM CollectionUserPermissions
+        |  WHERE collection.id = :collectionId AND
+        |    user.username = :username""".stripMargin
+    val params = Map("collectionId" -> collectionId, "username" -> username)
+    val result = QueryUtil.lookupOptionalDocument(queryString, params, db)
+    result.map { doc => docToCollectionPermissions(doc.field("permissions")) }
+  }
+
+  def updateCollectionUserPermissions(collectionId: String, username: String, permissions: CollectionPermissions): Try[Unit] = tryWithDb { db =>
+    val collectionRID = CollectionStore.getCollectionRid(collectionId, db).get
+    val userRID = DomainUserStore.getUserRid(username, db).get
+    val key = new OCompositeKey(List(userRID, collectionRID).asJava)
+    val collectionPermissionRID = getCollectionUserPermissionsRid(collectionId, username)
+    if (collectionPermissionRID.isSuccess) {
+      val collectionPermissionsDoc = collectionPermissionRID.get.getRecord[ODocument]
+      collectionPermissionsDoc.field(Fields.Permissions, collectionPermissionToDoc(permissions))
+      collectionPermissionsDoc.save()
+    } else {
+      var collectionPermissionsDoc = db.newInstance(CollectionUserPermissionsClass)
+      collectionPermissionsDoc.field(Fields.Collection, collectionRID)
+      collectionPermissionsDoc.field(Fields.User, userRID)
+      collectionPermissionsDoc.field(Fields.Permissions, collectionPermissionToDoc(permissions))
+      collectionPermissionsDoc = collectionPermissionsDoc.save()
+
+      val collection = collectionRID.getRecord[ODocument]
+      var userPermissions: JavaList[ODocument] = collection.field("userPermissions")
+      if (userPermissions == null) {
+        userPermissions = new ArrayList[ODocument]()
+      }
+      userPermissions.add(0, collectionPermissionsDoc)
+      collection.field("userPermissions", userPermissions)
+      collection.save()
+    }
+    ()
+  }
+
+  def removeCollectionUserPermissions(collectionId: String, username: String): Try[Unit] = tryWithDb { db =>
+    val collectionRID = CollectionStore.getCollectionRid(collectionId, db).get
+    val collectionDoc = collectionRID.getRecord[ODocument]
+    val userRID = DomainUserStore.getUserRid(username, db).get
+    val userPermissions: JavaList[ODocument] = collectionDoc.field("userPermissions", OType.LINKLIST)
+
+    val newPermissions = userPermissions.asScala.filterNot { permDoc =>
+      if (permDoc.field("user").asInstanceOf[ODocument].getIdentity == userRID) {
+        permDoc.delete()
+        true
+      } else {
+        false
+      }
+    }
+    collectionDoc.field("userPermissions", newPermissions.asJavaCollection)
   }
 
   def getModelWorldPermissions(modelFqn: ModelFqn): Try[Option[ModelPermissions]] = tryWithDb { db =>
@@ -184,6 +288,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     val modelRID = ModelStore.getModelRid(modelFqn.modelId, modelFqn.collectionId, db).get
     val modelDoc = modelRID.getRecord[ODocument]
     modelDoc.field("userPermissions", new ArrayList[ODocument]())
+    modelDoc.save()
 
     val queryString =
       """DELETE FROM ModelUserPermissions
@@ -275,6 +380,13 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
 
   def getCollectionRid(collectionId: String): Try[ORID] = tryWithDb { db =>
     QueryUtil.getRidFromIndex(CollectionIndex, collectionId, db).get
+  }
+
+  def getCollectionUserPermissionsRid(collectionId: String, username: String): Try[ORID] = tryWithDb { db =>
+    val collectionRID = CollectionStore.getCollectionRid(collectionId, db).get
+    val userRID = DomainUserStore.getUserRid(username, db).get
+    val key = new OCompositeKey(List(userRID, collectionRID).asJava)
+    QueryUtil.getRidFromIndex(CollectionUserPermissionsIndex, key, db).get
   }
 
   def getModelRid(modelFqn: ModelFqn): Try[ORID] = tryWithDb { db =>
