@@ -6,5 +6,5 @@ case class Collection(
   id: String,
   name: String,
   overrideSnapshotConfig: Boolean,
-  snapshotConfig: Option[ModelSnapshotConfig]
+  snapshotConfig: ModelSnapshotConfig
 )

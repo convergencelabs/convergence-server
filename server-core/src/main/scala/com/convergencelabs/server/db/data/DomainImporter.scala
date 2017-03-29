@@ -49,11 +49,27 @@ import com.convergencelabs.server.datastore.domain.DomainSession
 import com.convergencelabs.server.domain.model.NewModelOperation
 import com.convergencelabs.server.domain.model.ot.AppliedDateSetOperation
 import com.convergencelabs.server.domain.model.data.DateValue
+import java.time.Duration
+
+object DomainImporter {
+  // FIXME we actually need to import / export this.
+  // right now we are not exporting it, and hard coding this on the way in.
+  val DefaultSnapshotConfig = ModelSnapshotConfig(
+      false,
+      false,
+      false,
+      1000,
+      1000,
+      false,
+      false,
+      Duration.ofMillis(600000),
+      Duration.ofMillis(600000))
+}
 
 class DomainImporter(
     private[this] val persistence: DomainPersistenceProvider,
     private[this] val data: DomainScript) extends Logging {
-
+  
   def importDomain(): Try[Unit] = {
     logger.debug("Importing domain data")
     setConfig() flatMap { _ =>
@@ -151,7 +167,7 @@ class DomainImporter(
         collectionData.id,
         collectionData.name,
         false,
-        None)
+        DomainImporter.DefaultSnapshotConfig)
       persistence.collectionStore.createCollection(collection).get
     })
   }

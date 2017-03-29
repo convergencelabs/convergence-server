@@ -119,7 +119,7 @@ class ModelPermissionsStoreSpec
 
   def withTestData(testCode: DomainPersistenceProvider => Any): Unit = {
     this.withPersistenceStore { provider =>
-      provider.collectionStore.createCollection(Collection("test", "test", false, None))
+      provider.collectionStore.ensureCollectionExists("test")
       provider.modelStore.createModel("test", Some("test"), ObjectValue("vid", Map()))
       provider.userStore.createDomainUser(DomainUser(DomainUserType.Normal, "test1", None, None, None, None))
       provider.userStore.createDomainUser(DomainUser(DomainUserType.Normal, "test2", None, None, None, None))

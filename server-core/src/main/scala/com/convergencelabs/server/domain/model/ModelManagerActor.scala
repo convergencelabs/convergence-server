@@ -142,12 +142,7 @@ class ModelManagerActor(
   private[this] def getSnapshotConfigForModel(collectionId: String): Try[ModelSnapshotConfig] = {
     persistenceProvider.collectionStore.getOrCreateCollection(collectionId).flatMap { c =>
       if (c.overrideSnapshotConfig) {
-        c.snapshotConfig match {
-          case Some(config) =>
-            Success(config)
-          case None =>
-            Failure(new IllegalStateException("Collection overrides snapshot config, but the config is missing."))
-        }
+        Success(c.snapshotConfig)
       } else {
         persistenceProvider.configStore.getModelSnapshotConfig()
       }

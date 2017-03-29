@@ -14,6 +14,9 @@ import com.convergencelabs.server.domain.model.Collection
 
 import DomainCollectionService.GetCollectionResponse
 import DomainCollectionService.GetCollectionsResponse
+import DomainCollectionService.CollectionData
+import DomainCollectionService.CollectionPermissionsData
+
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.model.StatusCodes
@@ -26,10 +29,20 @@ import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.server.domain.AuthorizationActor.ConvergenceAuthorizedRequest
 import scala.util.Try
+import com.convergencelabs.server.frontend.rest.DomainConfigService.ModelSnapshotPolicyData
+import com.convergencelabs.server.domain.ModelSnapshotConfig
+import java.time.Duration
 
 object DomainCollectionService {
-  case class GetCollectionsResponse(collections: List[Collection]) extends AbstractSuccessResponse
-  case class GetCollectionResponse(collection: Collection) extends AbstractSuccessResponse
+  case class GetCollectionsResponse(collections: List[CollectionData]) extends AbstractSuccessResponse
+  case class GetCollectionResponse(collection: CollectionData) extends AbstractSuccessResponse
+  case class CollectionPermissionsData(read: Boolean, write: Boolean, remove: Boolean, manage: Boolean)
+  case class CollectionData(
+    id: String,
+    description: String,
+    worldPermissions: CollectionPermissionsData,
+    overrideSnapshotConfig: Boolean,
+    snapshotConfig: ModelSnapshotPolicyData)
 }
 
 class DomainCollectionService(
@@ -50,7 +63,7 @@ class DomainCollectionService(
             complete(getCollections(domain))
           }
         } ~ post {
-          entity(as[Collection]) { collection =>
+          entity(as[CollectionData]) { collection =>
             authorizeAsync(canAccessDomain(domain, username)) {
               complete(createCollection(domain, collection))
             }
@@ -66,8 +79,8 @@ class DomainCollectionService(
             authorizeAsync(canAccessDomain(domain, username)) {
               complete(deleteCollection(domain, collectionId))
             }
-          }  ~ put {
-            entity(as[Collection]) { updateData =>
+          } ~ put {
+            entity(as[CollectionData]) { updateData =>
               authorizeAsync(canAccessDomain(domain, username)) {
                 complete(updateCollection(domain, collectionId, updateData))
               }
@@ -81,23 +94,25 @@ class DomainCollectionService(
   def getCollections(domain: DomainFqn): Future[RestResponse] = {
     val message = DomainMessage(domain, GetCollections(None, None))
     (domainRestActor ? message).mapTo[List[Collection]] map
-      (collections => (StatusCodes.OK, GetCollectionsResponse(collections)))
+      (collections => (StatusCodes.OK, GetCollectionsResponse(collections.map(collectionToCollectionData(_)))))
   }
 
   def getCollection(domain: DomainFqn, collectionId: String): Future[RestResponse] = {
     val message = DomainMessage(domain, GetCollection(collectionId))
     (domainRestActor ? message).mapTo[Option[Collection]] map {
-      case Some(collection) => (StatusCodes.OK, GetCollectionResponse(collection))
-      case None             => NotFoundError
+      case Some(collection) => (StatusCodes.OK, GetCollectionResponse(collectionToCollectionData(collection)))
+      case None => NotFoundError
     }
   }
 
-  def createCollection(domain: DomainFqn, collection: Collection): Future[RestResponse] = {
+  def createCollection(domain: DomainFqn, collectionData: CollectionData): Future[RestResponse] = {
+    val collection = this.collectionDataToCollection(collectionData)
     val message = DomainMessage(domain, CreateCollection(collection))
     (domainRestActor ? message) map { _ => CreateRestResponse }
   }
-  
-  def updateCollection(domain: DomainFqn, collectionId: String, collection: Collection): Future[RestResponse] = {
+
+  def updateCollection(domain: DomainFqn, collectionId: String, collectionData: CollectionData): Future[RestResponse] = {
+    val collection = this.collectionDataToCollection(collectionData)
     val message = DomainMessage(domain, UpdateCollection(collectionId, collection))
     (domainRestActor ? message) map { _ => OkResponse }
   }
@@ -111,5 +126,72 @@ class DomainCollectionService(
 
   def canAccessDomain(domainFqn: DomainFqn, username: String): Future[Boolean] = {
     (authorizationActor ? ConvergenceAuthorizedRequest(username, domainFqn, Set("domain-access"))).mapTo[Try[Boolean]].map(_.get)
+  }
+
+  def collectionDataToCollection(collectionData: CollectionData): Collection = {
+    // FIXME what to do with the permissions?
+    val CollectionData(
+      id,
+      description,
+      CollectionPermissionsData(read, write, remove, manage),
+      overrideSnapshotConfig,
+      ModelSnapshotPolicyData(
+        snapshotsEnabled,
+        triggerByVersion,
+        maximumVersionInterval,
+        limitByVersion,
+        minimumVersionInterval,
+        triggerByTime,
+        maximumTimeInterval,
+        limitByTime,
+        minimumTimeInterval
+        )
+      ) = collectionData
+    val snapshotConfig = ModelSnapshotConfig(
+      snapshotsEnabled,
+      triggerByVersion,
+      limitByVersion,
+      minimumVersionInterval,
+      maximumVersionInterval,
+      triggerByTime,
+      limitByTime,
+      Duration.ofMillis(minimumTimeInterval),
+      Duration.ofMillis(maximumTimeInterval))
+    val collection = Collection(id, description, overrideSnapshotConfig, snapshotConfig)
+    collection
+  }
+
+  def collectionToCollectionData(collection: Collection): CollectionData = {
+    // FIXME what to do with the permissions?
+    val Collection(
+      id,
+      description,
+      overrideSnapshotConfig,
+      ModelSnapshotConfig(
+        snapshotsEnabled,
+        triggerByVersion,
+        limitByVersion,
+        minimumVersionInterval,
+        maximumVersionInterval,
+        triggerByTime,
+        limitByTime,
+        minimumTimeInterval,
+        maximumTimeInterval
+        )
+      ) = collection
+    val snapshotConfig = ModelSnapshotPolicyData(
+      snapshotsEnabled,
+      triggerByVersion,
+      maximumVersionInterval,
+      limitByVersion,
+      minimumVersionInterval,
+      triggerByTime,
+      maximumTimeInterval.toMillis,
+      limitByTime,
+      minimumTimeInterval.toMillis)
+    // FIXME fake?
+    val worldPermissions = CollectionPermissionsData(true, false, false, false)
+    val collectionData = CollectionData(id, description, worldPermissions, overrideSnapshotConfig, snapshotConfig)
+    collectionData
   }
 }

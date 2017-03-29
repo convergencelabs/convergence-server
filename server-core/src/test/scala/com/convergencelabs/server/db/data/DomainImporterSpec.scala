@@ -84,7 +84,7 @@ class DomainImporterSpec extends WordSpecLike with Matchers {
         
         val collections = provider.collectionStore.getAllCollections(None, None).get
         collections.size shouldBe 1
-        collections(0) shouldBe Collection("collection1", "Collection 1", false, None)
+        collections(0) shouldBe Collection("collection1", "Collection 1", false, DomainImporter.DefaultSnapshotConfig)
 
         val modelFqn = ModelFqn("collection1", "someId")
 
