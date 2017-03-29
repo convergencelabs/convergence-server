@@ -23,6 +23,8 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
+import com.convergencelabs.server.domain.ModelSnapshotConfig
+import java.time.Duration
 
 object CollectionStore {
   val ClassName = "Collection"
@@ -33,14 +35,23 @@ object CollectionStore {
   val OverrideSnapshotConfig = "overrideSnapshotConfig"
   val SnapshotConfig = "snapshotConfig"
 
+  val DefaultSnapshotConfig = ModelSnapshotConfig(
+    false,
+    false,
+    false,
+    1000,
+    1000,
+    false,
+    false,
+    Duration.ofMillis(600000),
+    Duration.ofMillis(600000))
+
   def collectionToDoc(collection: Collection): ODocument = {
     val doc = new ODocument(ClassName)
     doc.field(Id, collection.id)
     doc.field(Name, collection.name)
     doc.field(OverrideSnapshotConfig, collection.overrideSnapshotConfig)
-    collection.snapshotConfig.foreach { config =>
-      doc.field(SnapshotConfig, config.asODocument)
-    }
+    doc.field(SnapshotConfig, collection.snapshotConfig.asODocument, OType.EMBEDDED)
     doc
   }
 
@@ -50,7 +61,7 @@ object CollectionStore {
       doc.field(Id),
       doc.field(Name),
       doc.field(OverrideSnapshotConfig),
-      Option(snapshotConfig).map { _.asModelSnapshotConfig })
+      snapshotConfig.asModelSnapshotConfig)
   }
 
   def getCollectionRid(id: String, db: ODatabaseDocumentTx): Try[ORID] = {
@@ -73,7 +84,7 @@ class CollectionStore private[domain] (dbProvider: DatabaseProvider, modelStore:
       case true =>
         Success(())
       case false =>
-        createCollection(Collection(collectionId, collectionId, false, None)).map { _ => () }
+        createCollection(Collection(collectionId, collectionId, false, CollectionStore.DefaultSnapshotConfig)).map { _ => () }
     }
   }
 
@@ -87,17 +98,12 @@ class CollectionStore private[domain] (dbProvider: DatabaseProvider, modelStore:
 
   def updateCollection(collectionId: String, collection: Collection): Try[Unit] = tryWithDb { db =>
     val updatedDoc = CollectionStore.collectionToDoc(collection)
-
-    val query = new OSQLSynchQuery[ODocument]("SELECT FROM Collection WHERE id = :id")
     val params = Map(CollectionStore.Id -> collectionId)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-
-    QueryUtil.enforceSingletonResultList(result) match {
-      case Some(doc) =>
-          doc.merge(updatedDoc, false, false)
-          db.save(doc)
-          ()
-      case None => 
+    QueryUtil.getFromIndex(CollectionStore.CollectionIdIndex, collectionId, db) match {
+      case Some(existingDoc) =>
+        existingDoc.merge(updatedDoc, false, false)
+        db.save(existingDoc)
+      case None =>
         throw new EntityNotFoundException()
     }
   } recoverWith {

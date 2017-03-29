@@ -44,9 +44,9 @@ class CollectionStoreSpec
     Duration.ofSeconds(0),
     Duration.ofSeconds(0))
 
-  val peopleCollection = Collection(peopleCollectionId, "People", true, Some(snapshotConfig))
-  val copmanyCollection = Collection(companyCollectionId, "Some Company", false, None)
-  val teamCollection = Collection(teamCollectionId, "Team", false, None)
+  val peopleCollection = Collection(peopleCollectionId, "People", true, snapshotConfig)
+  val copmanyCollection = Collection(companyCollectionId, "Some Company", false, snapshotConfig)
+  val teamCollection = Collection(teamCollectionId, "Team", false, snapshotConfig)
 
   "An ColletionStore" when {
 
@@ -92,14 +92,28 @@ class CollectionStoreSpec
     "updatig a collection" must {
       "successfully update an existing collection" in withPersistenceStore { store =>
         store.createCollection(peopleCollection).success
-        val existing = store.getCollection(peopleCollectionId).success.value.value
-        val updated = existing.copy(name = "foo", overrideSnapshotConfig = false, snapshotConfig = None)
-        store.updateCollection(existing.id, updated).success.value
-        store.getCollection(peopleCollectionId).success.value.value shouldBe updated
+        val existing = store.getCollection(peopleCollectionId).get.value
+        val updated = existing.copy(name = "updatedPeople", overrideSnapshotConfig = false, snapshotConfig = snapshotConfig)
+        store.updateCollection(existing.id, updated).get
+        store.getCollection(peopleCollectionId).get.value shouldBe updated
+      }
+      
+      "successfully update an existing collection to a new id" in withPersistenceStore { store =>
+        store.createCollection(peopleCollection).success
+        val existing = store.getCollection(peopleCollectionId).get.value
+        val newId = "newId"
+        val updated = existing.copy(
+            id = newId, 
+            name = "updatedPeople", 
+            overrideSnapshotConfig = false,
+            snapshotConfig = snapshotConfig)
+        store.updateCollection(existing.id, updated).get
+        store.getCollection(newId).get.value shouldBe updated
+        store.getCollection(peopleCollectionId).get shouldBe None
       }
 
       "return EntityNotFoundException on a collection that does not exist" in withPersistenceStore { store =>
-        val toUpdate = Collection(carsCollectionId, "", false, None)
+        val toUpdate = Collection(carsCollectionId, "", false, snapshotConfig)
         store.updateCollection(carsCollectionId, toUpdate).failure.exception shouldBe a[EntityNotFoundException]
       }
     }

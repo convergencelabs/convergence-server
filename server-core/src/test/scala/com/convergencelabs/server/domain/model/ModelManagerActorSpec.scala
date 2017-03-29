@@ -163,7 +163,7 @@ class ModelManagerActorSpec
     val modelOperationStore = mock[ModelOperationStore]
 
     val domainConfigStore = mock[DomainConfigStore]
-    Mockito.when(domainConfigStore.getModelSnapshotConfig()).thenReturn(Success(ModelSnapshotConfig(
+    val snapshotConfig = ModelSnapshotConfig(
       false,
       true,
       true,
@@ -172,11 +172,13 @@ class ModelManagerActorSpec
       false,
       false,
       Duration.of(0, ChronoUnit.MINUTES),
-      Duration.of(0, ChronoUnit.MINUTES))))
+      Duration.of(0, ChronoUnit.MINUTES))
+      
+    Mockito.when(domainConfigStore.getModelSnapshotConfig()).thenReturn(Success(snapshotConfig))
 
     val collectionStore = mock[CollectionStore]
     Mockito.when(collectionStore.getOrCreateCollection(collectionId))
-      .thenReturn(Success(Collection(collectionId, "", false, None)))
+      .thenReturn(Success(Collection(collectionId, "", false, snapshotConfig)))
       
     Mockito.when(collectionStore.ensureCollectionExists(collectionId))
       .thenReturn(Success(()))
