@@ -60,12 +60,13 @@ object CollectionStore {
   }
 
   def docToCollection(doc: ODocument): Collection = {
-    val snapshotConfig: ODocument = doc.field(SnapshotConfig, OType.EMBEDDED);
+    val snapshotConfigDoc: ODocument = doc.field(SnapshotConfig, OType.EMBEDDED);
+    val snapshotConfig = Option(snapshotConfigDoc) map (_.asModelSnapshotConfig) getOrElse (CollectionStore.DefaultSnapshotConfig)
     Collection(
       doc.field(Id),
       doc.field(Name),
       doc.field(OverrideSnapshotConfig),
-      snapshotConfig.asModelSnapshotConfig)
+      snapshotConfig)
   }
 
   def getCollectionRid(id: String, db: ODatabaseDocumentTx): Try[ORID] = {

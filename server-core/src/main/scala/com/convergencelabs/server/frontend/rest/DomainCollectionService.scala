@@ -93,8 +93,8 @@ class DomainCollectionService(
 
   def getCollections(domain: DomainFqn): Future[RestResponse] = {
     val message = DomainMessage(domain, GetCollections(None, None))
-    (domainRestActor ? message).mapTo[List[Collection]] map
-      (collections => (StatusCodes.OK, GetCollectionsResponse(collections.map(collectionToCollectionData(_)))))
+    (domainRestActor ? message).mapTo[List[Collection]] map (collections =>
+      (StatusCodes.OK, GetCollectionsResponse(collections.map(collectionToCollectionData(_)))))
   }
 
   def getCollection(domain: DomainFqn, collectionId: String): Future[RestResponse] = {
