@@ -99,7 +99,7 @@ class CollectionStoreSpec
       }
       
       "successfully update an existing collection to a new id" in withPersistenceStore { store =>
-        store.createCollection(peopleCollection).success
+        store.createCollection(peopleCollection).get
         val existing = store.getCollection(peopleCollectionId).get.value
         val newId = "newId"
         val updated = existing.copy(
@@ -111,6 +111,15 @@ class CollectionStoreSpec
         store.getCollection(newId).get.value shouldBe updated
         store.getCollection(peopleCollectionId).get shouldBe None
       }
+      
+      "not allow a collection to be updated with an id that is already taken" in withPersistenceStore { store =>
+        store.createCollection(peopleCollection).get
+        store.createCollection(copmanyCollection)
+        val existing = store.getCollection(peopleCollectionId).get.value
+        val updated = existing.copy(id = copmanyCollection.id)
+        store.updateCollection(existing.id, updated).failure.exception shouldBe a[DuplicateValueExcpetion]
+      }
+      
 
       "return EntityNotFoundException on a collection that does not exist" in withPersistenceStore { store =>
         val toUpdate = Collection(carsCollectionId, "", false, snapshotConfig)

@@ -48,11 +48,15 @@ object CollectionStore {
 
   def collectionToDoc(collection: Collection): ODocument = {
     val doc = new ODocument(ClassName)
+    setCollectionFieldsInDoc(collection, doc)
+    doc
+  }
+  
+  def setCollectionFieldsInDoc(collection: Collection, doc: ODocument): Unit = {
     doc.field(Id, collection.id)
     doc.field(Name, collection.name)
     doc.field(OverrideSnapshotConfig, collection.overrideSnapshotConfig)
     doc.field(SnapshotConfig, collection.snapshotConfig.asODocument, OType.EMBEDDED)
-    doc
   }
 
   def docToCollection(doc: ODocument): Collection = {
@@ -97,12 +101,12 @@ class CollectionStore private[domain] (dbProvider: DatabaseProvider, modelStore:
   }
 
   def updateCollection(collectionId: String, collection: Collection): Try[Unit] = tryWithDb { db =>
-    val updatedDoc = CollectionStore.collectionToDoc(collection)
     val params = Map(CollectionStore.Id -> collectionId)
     QueryUtil.getFromIndex(CollectionStore.CollectionIdIndex, collectionId, db) match {
       case Some(existingDoc) =>
-        existingDoc.merge(updatedDoc, false, false)
-        db.save(existingDoc)
+        CollectionStore.setCollectionFieldsInDoc(collection, existingDoc)
+        existingDoc.save()
+        ()
       case None =>
         throw new EntityNotFoundException()
     }
