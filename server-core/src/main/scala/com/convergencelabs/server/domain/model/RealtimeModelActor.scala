@@ -91,12 +91,15 @@ class RealtimeModelActor(
       }
     }.to(Sink.onComplete {
       case Success(_) =>
-        log.debug("Persistence stream completed successfully")
+        // Note when we shut down we complete the persistence stream.
+        // So after that is done, we kill ourselves.
+        this.context.stop(self)
       case Failure(f) =>
         // FIXME this is probably altering state outside of the thread.
         // probably need to send a message.
         log.error(f, "Persistence stream completed with an error")
         this.forceCloseAllAfterError("persitence error")
+        this.context.stop(self)
     }).runWith(Source
       .actorRef[NewModelOperation](bufferSize = 1000, OverflowStrategy.fail))
 
@@ -676,11 +679,10 @@ class RealtimeModelActor(
 
   private def shutdown(): Unit = {
     this.persistenceStream ! Status.Success("stream complete")
-    this.context.stop(self)
   }
 
   override def postStop(): Unit = {
-    log.debug("Unloading Realtime Model({}/{})", domainFqn, modelFqn)
+    log.debug("Realtime Model({}/{}) stopped", domainFqn, modelFqn)
     connectedClients = HashMap()
   }
 
