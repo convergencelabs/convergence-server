@@ -9,16 +9,21 @@ import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateNormalD
 import com.convergencelabs.server.datastore.domain.DomainUserStore.UpdateDomainUser
 
 import UserStoreActor.CreateUser
-import UserStoreActor.GetUsers
 import akka.actor.ActorLogging
 import akka.actor.Props
 import scala.util.Success
+import com.convergencelabs.server.datastore.UserStoreActor.GetUsers
+import com.convergencelabs.server.datastore.domain.DomainUserField
+import com.convergencelabs.server.domain.model.query.Ast.OrderBy
 
 object UserStoreActor {
   def props(userStore: DomainUserStore): Props = Props(new UserStoreActor(userStore))
 
   trait UserStoreRequest
-  case object GetUsers extends UserStoreRequest
+  case class GetUsers(
+    filter: Option[String],
+    limit: Option[Int],
+    offset: Option[Int]) extends UserStoreRequest
   case class GetUserByUsername(username: String) extends UserStoreRequest
   case class CreateUser(
     username: String,
@@ -43,17 +48,29 @@ class UserStoreActor private[datastore] (private[this] val userStore: DomainUser
     extends StoreActor with ActorLogging {
 
   def receive: Receive = {
-    case GetUsers => getAllUsers()
     case message: GetUserByUsername => getUserByUsername(message)
-    case message: CreateUser => createUser(message)
-    case message: DeleteDomainUser => deleteUser(message)
-    case message: UpdateUser => updateUser(message)
-    case message: SetPassword => setPassword(message)
-    case message: Any => unhandled(message)
+    case message: CreateUser        => createUser(message)
+    case message: DeleteDomainUser  => deleteUser(message)
+    case message: UpdateUser        => updateUser(message)
+    case message: SetPassword       => setPassword(message)
+    case message: GetUsers          => getAllUsers(message)
+    case message: Any               => unhandled(message)
   }
 
-  def getAllUsers(): Unit = {
-    reply(userStore.getAllDomainUsers(None, None, None, None))
+  def getAllUsers(message: GetUsers): Unit = {
+    val GetUsers(filter, limit, offset) = message
+    filter match {
+      case Some(filterString) =>
+        reply(userStore.searchUsersByFields(
+          List(DomainUserField.Username, DomainUserField.Email),
+          filterString,
+          Some(DomainUserField.Username),
+          Some(SortOrder.Ascending),
+          limit,
+          offset))
+      case None =>
+        reply(userStore.getAllDomainUsers(Some(DomainUserField.Username), Some(SortOrder.Ascending), limit, offset))
+    }
   }
 
   def createUser(message: CreateUser): Unit = {
@@ -65,7 +82,7 @@ class UserStoreActor private[datastore] (private[this] val userStore: DomainUser
         case None =>
           Success(createResult)
         case Some(pw) =>
-          userStore.setDomainUserPassword(username, pw) map { _ => 
+          userStore.setDomainUserPassword(username, pw) map { _ =>
             createResult
           }
       }

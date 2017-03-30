@@ -2,6 +2,7 @@ package com.convergencelabs.server.frontend.rest
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
+import scala.util.Try
 
 import com.convergencelabs.server.datastore.UserStoreActor.CreateUser
 import com.convergencelabs.server.datastore.UserStoreActor.DeleteDomainUser
@@ -9,6 +10,7 @@ import com.convergencelabs.server.datastore.UserStoreActor.GetUserByUsername
 import com.convergencelabs.server.datastore.UserStoreActor.GetUsers
 import com.convergencelabs.server.datastore.UserStoreActor.SetPassword
 import com.convergencelabs.server.datastore.UserStoreActor.UpdateUser
+import com.convergencelabs.server.domain.AuthorizationActor.ConvergenceAuthorizedRequest
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.DomainUser
 import com.convergencelabs.server.domain.RestDomainManagerActor.DomainMessage
@@ -27,21 +29,24 @@ import akka.http.scaladsl.server.Directive.addDirectiveApply
 import akka.http.scaladsl.server.Directives.Segment
 import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
 import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
+import akka.http.scaladsl.server.Directives._string2NR
 import akka.http.scaladsl.server.Directives.as
+import akka.http.scaladsl.server.Directives.authorizeAsync
 import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Directives.delete
 import akka.http.scaladsl.server.Directives.entity
 import akka.http.scaladsl.server.Directives.get
+import akka.http.scaladsl.server.Directives.parameters
 import akka.http.scaladsl.server.Directives.pathEnd
 import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.post
 import akka.http.scaladsl.server.Directives.put
-import akka.http.scaladsl.server.Directives.authorizeAsync
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.server.domain.AuthorizationActor.ConvergenceAuthorizedRequest
-import scala.util.Try
+import com.convergencelabs.server.domain.model.query.Ast.OrderBy
+import com.convergencelabs.server.datastore.domain.DomainUserField
+import com.convergencelabs.server.datastore.SortOrder
 
 case class DomainUserData(
   username: String,
@@ -73,13 +78,18 @@ class DomainUserService(
 
   implicit val ec = executionContext
   implicit val t = defaultTimeout
-
+//    orderBy: Option[DomainUserField.Field],
+//    sortOrder: Option[SortOrder.Value],
+//    limit: Option[Int],
+//    offset: Option[Int]
   def route(convergenceUsername: String, domain: DomainFqn): Route = {
     pathPrefix("users") {
       pathEnd {
         get {
-          authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
-            complete(getAllUsersRequest(domain))
+          parameters("filter".?, "limit".as[Int].?, "offset".as[Int].?) { (filter, limit, offset) =>
+            authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
+              complete(getAllUsersRequest(domain, filter, limit, offset))
+            }
           }
         } ~ post {
           entity(as[CreateUserRequest]) { request =>
@@ -120,8 +130,8 @@ class DomainUserService(
     }
   }
 
-  def getAllUsersRequest(domain: DomainFqn): Future[RestResponse] = {
-    (domainRestActor ? DomainMessage(domain, GetUsers)).mapTo[List[DomainUser]] map
+  def getAllUsersRequest(domain: DomainFqn, filter: Option[String], limit: Option[Int], offset: Option[Int]): Future[RestResponse] = {
+    (domainRestActor ? DomainMessage(domain, GetUsers(filter, limit, offset))).mapTo[List[DomainUser]] map
       (users => (StatusCodes.OK, GetUsersRestResponse(users.map(toUserData(_)))))
   }
 
