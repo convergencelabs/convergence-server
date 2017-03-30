@@ -47,6 +47,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.server.domain.AuthorizationActor.ConvergenceAuthorizedRequest
 import scala.util.Try
+import com.convergencelabs.server.datastore.domain.ModelPermissions
 
 object DomainModelService {
 
@@ -112,6 +113,54 @@ class DomainModelService(
             } ~ delete {
               authorizeAsync(canAccessDomain(domain, username)) {
                 complete(deleteModel(domain, collectionId, modelId))
+              }
+            }
+          } ~ pathPrefix("permisssions") {
+            pathEnd {
+              get {
+                authorizeAsync(canAccessDomain(domain, username)) {
+                  complete(getModelPermissions(domain, ModelFqn(collectionId, modelId)))
+                }
+              }
+            } ~ pathPrefix("world") {
+              pathEnd {
+                get {
+                  authorizeAsync(canAccessDomain(domain, username)) {
+                    complete(getModelWorldPermissions(domain, ModelFqn(collectionId, modelId)))
+                  }
+                } ~ put {
+                  entity(as[ModelPermissions]) { permissions =>
+                    authorizeAsync(canAccessDomain(domain, username)) {
+                      complete(setModelWorldPermissions(domain, ModelFqn(collectionId, modelId), permissions))
+                    }
+                  }
+                }
+              } ~ pathPrefix("user") {
+                pathEnd {
+                  get {
+                    authorizeAsync(canAccessDomain(domain, username)) {
+                      complete(getAllModelUserPermissions(domain, ModelFqn(collectionId, modelId)))
+                    }
+                  }
+                } ~ pathPrefix(Segment) { user: String =>
+                  pathEnd {
+                    get {
+                      authorizeAsync(canAccessDomain(domain, username)) {
+                        complete(getModelUserPermissions(domain, ModelFqn(collectionId, modelId), user))
+                      }
+                    } ~ put {
+                      entity(as[ModelPermissions]) { permissions =>
+                        authorizeAsync(canAccessDomain(domain, username)) {
+                          complete(setModelUserPermissions(domain, ModelFqn(collectionId, modelId), user, permissions))
+                        }
+                      }
+                    } ~ delete {
+                      authorizeAsync(canAccessDomain(domain, username)) {
+                        complete(removeModelUserPermissions(domain, ModelFqn(collectionId, modelId), user))
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -182,6 +231,36 @@ class DomainModelService(
   def deleteModel(domain: DomainFqn, colletionId: String, modelId: String): Future[RestResponse] = {
     val message = DomainMessage(domain, DeleteModel(ModelFqn(colletionId, modelId)))
     (domainRestActor ? message) map { _ => OkResponse }
+  }
+
+  // Domain User Permissions
+
+  def getModelPermissions(domain: DomainFqn, model: ModelFqn): Future[RestResponse] = {
+    ???
+  }
+
+  def getModelWorldPermissions(domain: DomainFqn, model: ModelFqn): Future[RestResponse] = {
+    ???
+  }
+
+  def setModelWorldPermissions(domain: DomainFqn, model: ModelFqn, permissions: ModelPermissions): Future[RestResponse] = {
+    ???
+  }
+
+  def getAllModelUserPermissions(domain: DomainFqn, model: ModelFqn): Future[RestResponse] = {
+    ???
+  }
+
+  def getModelUserPermissions(domain: DomainFqn, model: ModelFqn, username: String): Future[RestResponse] = {
+    ???
+  }
+
+  def setModelUserPermissions(domain: DomainFqn, model: ModelFqn, username: String, permissions: ModelPermissions): Future[RestResponse] = {
+    ???
+  }
+
+  def removeModelUserPermissions(domain: DomainFqn, model: ModelFqn, username: String): Future[RestResponse] = {
+    ???
   }
 
   // Permission Checks
