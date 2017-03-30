@@ -34,6 +34,7 @@ object CollectionStore {
   val Name = "name"
   val OverrideSnapshotConfig = "overrideSnapshotConfig"
   val SnapshotConfig = "snapshotConfig"
+  val WorldPermissions = "worldPermissions"
 
   val DefaultSnapshotConfig = ModelSnapshotConfig(
     false,
@@ -45,6 +46,8 @@ object CollectionStore {
     false,
     Duration.ofMillis(600000),
     Duration.ofMillis(600000))
+    
+  val DefaultWorldPermissions = CollectionPermissions(true, true, true, true, true)
 
   def collectionToDoc(collection: Collection): ODocument = {
     val doc = new ODocument(ClassName)
@@ -57,6 +60,7 @@ object CollectionStore {
     doc.field(Name, collection.name)
     doc.field(OverrideSnapshotConfig, collection.overrideSnapshotConfig)
     doc.field(SnapshotConfig, collection.snapshotConfig.asODocument, OType.EMBEDDED)
+    doc.field(WorldPermissions, ModelPermissionsStore.collectionPermissionToDoc(collection.worldPermissions))
   }
 
   def docToCollection(doc: ODocument): Collection = {
@@ -66,7 +70,8 @@ object CollectionStore {
       doc.field(Id),
       doc.field(Name),
       doc.field(OverrideSnapshotConfig),
-      snapshotConfig)
+      snapshotConfig,
+      ModelPermissionsStore.docToCollectionPermissions(doc.field(WorldPermissions)))
   }
 
   def getCollectionRid(id: String, db: ODatabaseDocumentTx): Try[ORID] = {
@@ -84,12 +89,13 @@ class CollectionStore private[domain] (dbProvider: DatabaseProvider, modelStore:
     !results.isEmpty
   }
 
+  //TODO: Do we need to be passing permissions in here
   def ensureCollectionExists(collectionId: String): Try[Unit] = {
     this.collectionExists(collectionId).flatMap {
       case true =>
         Success(())
       case false =>
-        createCollection(Collection(collectionId, collectionId, false, CollectionStore.DefaultSnapshotConfig)).map { _ => () }
+        createCollection(Collection(collectionId, collectionId, false, CollectionStore.DefaultSnapshotConfig, CollectionStore.DefaultWorldPermissions)).map { _ => () }
     }
   }
 

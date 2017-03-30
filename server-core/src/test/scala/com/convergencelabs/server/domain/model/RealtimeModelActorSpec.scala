@@ -111,13 +111,13 @@ class RealtimeModelActorSpec
 
         // Now mock that the data is there.
         val now = Instant.now()
-        Mockito.when(modelStore.createModel(modelFqn.collectionId, Some(modelFqn.modelId), modelJsonData))
-          .thenReturn(Success(Model(ModelMetaData(modelFqn, 0L, now, now), modelJsonData)))
+        Mockito.when(modelStore.createModel(modelFqn.collectionId, Some(modelFqn.modelId), modelJsonData, modelPermissions))
+          .thenReturn(Success(Model(ModelMetaData(modelFqn, 0L, now, now, modelPermissions), modelJsonData)))
         Mockito.when(modelStore.getModel(modelFqn)).thenReturn(Success(Some(modelData)))
         Mockito.when(modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)).thenReturn(Success(Some(modelSnapshotMetaData)))
 
-        client1.reply(ClientModelDataResponse(modelJsonData))
-        client2.reply(ClientModelDataResponse(modelJsonData))
+        client1.reply(ClientModelDataResponse(modelJsonData, modelPermissions))
+        client2.reply(ClientModelDataResponse(modelJsonData, modelPermissions))
 
         // Verify that both clients got the data.
         client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
@@ -130,7 +130,7 @@ class RealtimeModelActorSpec
 
         // Verify that the model and snapshot were created.
         // FIXME use arg capture to match it.
-        verify(modelStore, times(1)).createModel(Matchers.any(), Matchers.any(), Matchers.any())
+        verify(modelStore, times(1)).createModel(Matchers.any(), Matchers.any(), Matchers.any(), Matchers.any())
 
         val snapshotCaptor = ArgumentCaptor.forClass(classOf[ModelSnapshot])
 
@@ -247,11 +247,13 @@ class RealtimeModelActorSpec
     val session1 = "s1"
     val session2 = "s2"
 
+    val modelPermissions = Some(ModelPermissions(true, true, true, true))
+
     val modelFqn = ModelFqn("collection", "model" + System.nanoTime())
     val modelJsonData = ObjectValue("vid1", Map("key" -> StringValue("vid2", "value")))
     val modelCreateTime = Instant.ofEpochMilli(2L)
     val modelModifiedTime = Instant.ofEpochMilli(3L)
-    val modelData = Model(ModelMetaData(modelFqn, 1L, modelCreateTime, modelModifiedTime), modelJsonData)
+    val modelData = Model(ModelMetaData(modelFqn, 1L, modelCreateTime, modelModifiedTime, modelPermissions), modelJsonData)
     val modelSnapshotTime = Instant.ofEpochMilli(2L)
     val modelSnapshotMetaData = ModelSnapshotMetaData(modelFqn, 1L, modelSnapshotTime)
     val modelStore = mock[ModelStore]

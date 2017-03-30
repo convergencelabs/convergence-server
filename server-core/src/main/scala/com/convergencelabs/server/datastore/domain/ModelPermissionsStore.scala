@@ -51,7 +51,7 @@ object ModelPermissionsStore {
     val User = "user"
     val Permissions = "permissions"
 
-    val World = "world"
+    val World = "worldPermissions"
 
     val Username = "username"
 
@@ -127,7 +127,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
 
   def getCollectionWorldPermissions(collectionId: String): Try[Option[CollectionPermissions]] = tryWithDb { db =>
     val queryString =
-      """SELECT world
+      """SELECT worldPermissions
         |  FROM Collection
         |  WHERE id = :collectionId""".stripMargin
     val params = Map("collectionId" -> collectionId)
@@ -252,7 +252,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
 
   def getModelWorldPermissions(modelFqn: ModelFqn): Try[Option[ModelPermissions]] = tryWithDb { db =>
     val queryString =
-      """SELECT world
+      """SELECT worldPermissions
         |  FROM Model
         |  WHERE id = :modelId AND
         |    collection.id = :collectionId""".stripMargin
@@ -264,8 +264,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
   def setModelWorldPermissions(modelFqn: ModelFqn, permissions: Option[ModelPermissions]): Try[Unit] = tryWithDb { db =>
     val modelDoc = getModelRid(modelFqn).get.getRecord[ODocument]
     val permissionsDoc = permissions.map { modelPermissionToDoc(_) }
-    modelDoc.fields(Fields.World, permissionsDoc.getOrElse(null))
-    modelDoc.save()
+    modelDoc.fields(Fields.World, permissionsDoc.getOrElse(null)).save()
   }
 
   def getAllModelUserPermissions(modelFqn: ModelFqn): Try[Map[String, ModelPermissions]] = tryWithDb { db =>

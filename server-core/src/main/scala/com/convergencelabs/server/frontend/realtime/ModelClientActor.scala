@@ -176,8 +176,8 @@ class ModelClientActor(
     val askingActor = sender
     val future = context.parent ? ModelDataRequestMessage(collectionId, modelId)
     future.mapResponse[ModelDataResponseMessage] onComplete {
-      case Success(ModelDataResponseMessage(data)) =>
-        askingActor ! ClientModelDataResponse(data)
+      case Success(ModelDataResponseMessage(data, worldPermissions)) =>
+        askingActor ! ClientModelDataResponse(data, worldPermissions)
       case Failure(cause) =>
         // forward the failure to the asker, so we fail fast.
         askingActor ! akka.actor.Status.Failure(cause)
@@ -363,8 +363,8 @@ class ModelClientActor(
   }
 
   private[this] def onCreateRealtimeModelRequest(request: CreateRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
-    val CreateRealtimeModelRequestMessage(collectionId, modelId, data) = request
-    val future = modelManager ? CreateModelRequest(sessionKey, collectionId, modelId, data)
+    val CreateRealtimeModelRequestMessage(collectionId, modelId, data, worldPermissions) = request
+    val future = modelManager ? CreateModelRequest(sessionKey, collectionId, modelId, data, worldPermissions)
     future.mapResponse[CreateModelResponse] onComplete {
       case Success(ModelCreated(ModelFqn(c, m))) => cb.reply(CreateRealtimeModelSuccessMessage(c, m))
       case Success(ModelAlreadyExists) => cb.expectedError("model_alread_exists", "A model with the specifieid collection and model id already exists")

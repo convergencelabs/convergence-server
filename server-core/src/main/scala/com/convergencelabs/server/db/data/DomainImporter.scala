@@ -50,6 +50,9 @@ import com.convergencelabs.server.domain.model.NewModelOperation
 import com.convergencelabs.server.domain.model.ot.AppliedDateSetOperation
 import com.convergencelabs.server.domain.model.data.DateValue
 import java.time.Duration
+import com.sun.media.sound.ModelPerformer
+import com.convergencelabs.server.datastore.domain.ModelPermissions
+import com.convergencelabs.server.datastore.domain.CollectionPermissions
 
 object DomainImporter {
   // FIXME we actually need to import / export this.
@@ -160,6 +163,7 @@ class DomainImporter(
     })
   }
 
+  //FIXME: import permissions
   def createCollections(): Try[Unit] = Try {
     logger.debug("Importting collections")
     data.collections foreach (_.foreach { collectionData =>
@@ -167,7 +171,8 @@ class DomainImporter(
         collectionData.id,
         collectionData.name,
         false,
-        DomainImporter.DefaultSnapshotConfig)
+        DomainImporter.DefaultSnapshotConfig,
+        CollectionPermissions(true, true, true, true, true))
       persistence.collectionStore.createCollection(collection).get
     })
   }
@@ -177,6 +182,7 @@ class DomainImporter(
     data.models foreach (_.foreach(createModel(_)))
   }
 
+  //FIXME: import permissions
   def createModel(modelData: CreateModel): Unit = {
     val fqn = ModelFqn(modelData.collection, modelData.id)
     val data = createDataValue(modelData.data).asInstanceOf[ObjectValue]
@@ -185,7 +191,8 @@ class DomainImporter(
         fqn,
         modelData.version,
         modelData.created,
-        modelData.modified),
+        modelData.modified,
+        Some(ModelPermissions(true, true, true, true))),
       data)
 
     persistence.modelStore.createModel(model).get

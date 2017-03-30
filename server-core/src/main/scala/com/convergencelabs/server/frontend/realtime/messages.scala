@@ -11,6 +11,7 @@ import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.PresenceServiceActor.UserPresence
 import com.convergencelabs.server.domain.model.ModelMetaData
 import com.convergencelabs.server.domain.model.ModelOperation
+import com.convergencelabs.server.datastore.domain.ModelPermissions
 
 // scalastyle:off number.of.types
 
@@ -79,7 +80,7 @@ case class OperationSubmissionMessage(r: String, s: Long, v: Long, o: OperationD
 sealed trait IncomingModelRequestMessage extends IncomingProtocolRequestMessage
 case class OpenRealtimeModelRequestMessage(c: String, m: String, i: Boolean) extends IncomingModelRequestMessage
 case class CloseRealtimeModelRequestMessage(r: String) extends IncomingModelRequestMessage
-case class CreateRealtimeModelRequestMessage(c: String, m: Option[String], d: ObjectValue) extends IncomingModelRequestMessage
+case class CreateRealtimeModelRequestMessage(c: String, m: Option[String], d: ObjectValue, w: Option[ModelPermissions]) extends IncomingModelRequestMessage
 case class DeleteRealtimeModelRequestMessage(c: String, m: String) extends IncomingModelRequestMessage
 
 case class GetModelPermissionsRequestMessage(c: String, m: String) extends IncomingModelRequestMessage
@@ -94,7 +95,7 @@ case class SetModelPermissionsRequestMessage(
 
 case class ModelsQueryRequestMessage(q: String) extends IncomingModelRequestMessage
 
-case class ModelDataResponseMessage(d: ObjectValue) extends IncomingProtocolResponseMessage
+case class ModelDataResponseMessage(d: ObjectValue, w: Option[ModelPermissions]) extends IncomingProtocolResponseMessage
 
 case class PublishReferenceMessage(r: String, d: Option[String], k: String, c: Int, v: Option[List[Any]], s: Option[Long]) extends IncomingModelNormalMessage
 case class UnpublishReferenceMessage(r: String, d: Option[String], k: String) extends IncomingModelNormalMessage

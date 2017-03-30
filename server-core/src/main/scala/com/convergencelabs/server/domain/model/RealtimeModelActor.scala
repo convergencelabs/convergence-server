@@ -360,10 +360,10 @@ class RealtimeModelActor(
    * then open the model from the database.
    */
   private[this] def onClientModelDataResponse(response: ClientModelDataResponse): Unit = {
-    val ClientModelDataResponse(modelData) = response
-    val result = modelStore.createModel(modelFqn.collectionId, Some(modelFqn.modelId), modelData)
+    val ClientModelDataResponse(modelData, worldPermissions) = response
+    val result = modelStore.createModel(modelFqn.collectionId, Some(modelFqn.modelId), modelData, worldPermissions)
     result map { model =>
-      val Model(ModelMetaData(fqn, version, createdTime, modifiedTime), data) = model
+      val Model(ModelMetaData(fqn, version, createdTime, modifiedTime, worldPermissions), data) = model
       modelSnapshotStore.createSnapshot(
         ModelSnapshot(ModelSnapshotMetaData(modelFqn, version, createdTime), response.modelData))
       requestModelDataFromDatastore()

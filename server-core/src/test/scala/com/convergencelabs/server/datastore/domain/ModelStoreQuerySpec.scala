@@ -95,7 +95,7 @@ class ModelStoreQuerySpec extends PersistenceStoreSpec[ModelStoreQuerySpecStores
         createModels(stores)
         createUsers(stores)
 
-        stores.permissions.setModelWorldPermissions(ModelFqn("collection1", "model1"), Some(ModelPermissions(false, false, false, false)))
+        stores.permissions.setModelWorldPermissions(ModelFqn("collection1", "model1"), Some(ModelPermissions(false, false, false, false))).get
 
         val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY sField ASC", Some("test1")).get
         list.map { _.metaData.fqn.modelId } shouldEqual (List("model2"))
@@ -123,7 +123,9 @@ class ModelStoreQuerySpec extends PersistenceStoreSpec[ModelStoreQuerySpecStores
     val created = (json \ "created").extract[Long]
     val modified = (json \ "modified").extract[Long]
 
-    val metaData = ModelMetaData(ModelFqn(collectionId, modelId), version, Instant.ofEpochMilli(created), Instant.ofEpochMilli(modified))
+    val modelPermissions = Some(ModelPermissions(true, true, true, true))
+    
+    val metaData = ModelMetaData(ModelFqn(collectionId, modelId), version, Instant.ofEpochMilli(created), Instant.ofEpochMilli(modified), modelPermissions)
 
     Model(metaData, jObjectToObjectValue((json \ "data").asInstanceOf[JObject]))
   }

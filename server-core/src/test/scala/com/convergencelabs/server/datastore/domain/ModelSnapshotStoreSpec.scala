@@ -28,11 +28,13 @@ class ModelSnapshotStoreSpec
   override def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider =
     new DomainPersistenceProvider(dbProvider)
 
+  val modelPermissions = Some(ModelPermissions(true, true, true, true))
+  
   val CollectionId = "people"
 
   val person1ModelFqn = ModelFqn(CollectionId, "person1")
   val person1ModelData = ObjectValue("vid", Map("value" -> DoubleValue("0:1", 1)))
-  val person1ModelMetaData = ModelMetaData(person1ModelFqn, 10L, Instant.now(), Instant.now())
+  val person1ModelMetaData = ModelMetaData(person1ModelFqn, 10L, Instant.now(), Instant.now(), modelPermissions)
   val person1Model = Model(person1ModelMetaData, person1ModelData)
 
   val p1Snapshot1Version = 1L
@@ -58,7 +60,7 @@ class ModelSnapshotStoreSpec
   
   val person2ModelFqn = ModelFqn(CollectionId, "person2")
   val person2ModelData = ObjectValue("vid", Map("value" -> DoubleValue("0:1", 1)))
-  val person2ModelMetaData = ModelMetaData(person2ModelFqn, 10L, Instant.now(), Instant.now())
+  val person2ModelMetaData = ModelMetaData(person2ModelFqn, 10L, Instant.now(), Instant.now(), modelPermissions)
   val person2Model = Model(person2ModelMetaData, person2ModelData)
   
   val p2Snapshot1Version = 20L

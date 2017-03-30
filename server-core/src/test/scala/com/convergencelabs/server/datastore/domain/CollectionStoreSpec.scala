@@ -43,10 +43,12 @@ class CollectionStoreSpec
     false,
     Duration.ofSeconds(0),
     Duration.ofSeconds(0))
+    
+  val collectionPermissions = CollectionPermissions(true, true, true, true, true)
 
-  val peopleCollection = Collection(peopleCollectionId, "People", true, snapshotConfig)
-  val copmanyCollection = Collection(companyCollectionId, "Some Company", false, snapshotConfig)
-  val teamCollection = Collection(teamCollectionId, "Team", false, snapshotConfig)
+  val peopleCollection = Collection(peopleCollectionId, "People", true, snapshotConfig, collectionPermissions)
+  val copmanyCollection = Collection(companyCollectionId, "Some Company", false, snapshotConfig, collectionPermissions)
+  val teamCollection = Collection(teamCollectionId, "Team", false, snapshotConfig, collectionPermissions)
 
   "An ColletionStore" when {
 
@@ -122,7 +124,7 @@ class CollectionStoreSpec
       
 
       "return EntityNotFoundException on a collection that does not exist" in withPersistenceStore { store =>
-        val toUpdate = Collection(carsCollectionId, "", false, snapshotConfig)
+        val toUpdate = Collection(carsCollectionId, "", false, snapshotConfig, collectionPermissions)
         store.updateCollection(carsCollectionId, toUpdate).failure.exception shouldBe a[EntityNotFoundException]
       }
     }

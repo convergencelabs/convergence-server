@@ -23,6 +23,7 @@ import akka.actor.ActorLogging
 import akka.actor.Props
 import com.convergencelabs.server.domain.model.data.DateValue
 import java.time.Instant
+import com.convergencelabs.server.datastore.domain.ModelPermissions
 
 object ModelStoreActor {
   def props(
@@ -32,8 +33,8 @@ object ModelStoreActor {
 
   trait ModelStoreRequest
 
-  case class CreateOrUpdateModel(collectionId: String, modelId: String, data: Map[String, Any]) extends ModelStoreRequest
-  case class CreateModel(collectionId: String, data: Map[String, Any]) extends ModelStoreRequest
+  case class CreateOrUpdateModel(collectionId: String, modelId: String, data: Map[String, Any], worldPermissions: Option[ModelPermissions]) extends ModelStoreRequest
+  case class CreateModel(collectionId: String, data: Map[String, Any], worldPermissions: Option[ModelPermissions]) extends ModelStoreRequest
 
   case class GetModels(offset: Option[Int], limit: Option[Int]) extends ModelStoreRequest
   case class GetModelsInCollection(collectionId: String, offset: Option[Int], limit: Option[Int]) extends ModelStoreRequest
@@ -58,10 +59,10 @@ class ModelStoreActor private[datastore] (
       getModel(modelFqn)
     case DeleteModel(modelFqn) =>
       deleteModel(modelFqn)
-    case CreateModel(collectionId, data) =>
-      createModel(collectionId, data)
-    case CreateOrUpdateModel(collectionId, modelId, data) =>
-      createOrUpdateModel(collectionId, modelId, data)
+    case CreateModel(collectionId, data, worldPermissions) =>
+      createModel(collectionId, data, worldPermissions)
+    case CreateOrUpdateModel(collectionId, modelId, data, worldPermissions) =>
+      createOrUpdateModel(collectionId, modelId, data, worldPermissions)
 
     case message: Any => unhandled(message)
   }
@@ -78,23 +79,23 @@ class ModelStoreActor private[datastore] (
     reply(modelStore.getModel(modelFqn))
   }
 
-  def createModel(collectionId: String, data: Map[String, Any]): Unit = {
+  def createModel(collectionId: String, data: Map[String, Any], worldPermissions: Option[ModelPermissions]): Unit = {
     val root = ModelDataGenerator(data)
     val result = collectionStore.ensureCollectionExists(collectionId) flatMap { _ =>
-      modelStore.createModel(collectionId, None, root) map { model => model.metaData.fqn }
+      modelStore.createModel(collectionId, None, root, worldPermissions) map { model => model.metaData.fqn }
     }
     reply(result)
   }
 
-  def createOrUpdateModel(collectionId: String, modelId: String, data: Map[String, Any]): Unit = {
+  def createOrUpdateModel(collectionId: String, modelId: String, data: Map[String, Any], worldPermissions: Option[ModelPermissions]): Unit = {
     //FIXME If the model is open this could cause problems.
     val root = ModelDataGenerator(data)
     val result = collectionStore.ensureCollectionExists(collectionId) flatMap { _ =>
-      modelStore.createModel(collectionId, Some(modelId), root) map { _ =>
+      modelStore.createModel(collectionId, Some(modelId), root, worldPermissions) map { _ =>
         ModelFqn(collectionId, modelId)
       } recoverWith {
         case e: DuplicateValueExcpetion =>
-          modelStore.updateModel(ModelFqn(collectionId, modelId), root) map { _ =>
+          modelStore.updateModel(ModelFqn(collectionId, modelId), root, worldPermissions) map { _ =>
             ModelFqn(collectionId, modelId)
           }
       }

@@ -73,6 +73,8 @@ class ModelPermissionsStoreSpec
     with WordSpecLike
     with Matchers {
 
+  val modelPermissions = Some(ModelPermissions(true, true, true, true))
+  
   val collectionId = "test"
   val nonExistentCollectionId = "not_real"
   val modelFqn = ModelFqn(collectionId, "test")
@@ -87,11 +89,6 @@ class ModelPermissionsStoreSpec
         provider.modelPermissionsStore.setModelWorldPermissions(modelFqn, Some(permissions)).get
         val retrievedPermissions = provider.modelPermissionsStore.getModelWorldPermissions(modelFqn).get
         retrievedPermissions shouldEqual Some(permissions)
-      }
-
-      "be none if no permissions are set" in withTestData { provider =>
-        val retrievedPermissions = provider.modelPermissionsStore.getModelWorldPermissions(modelFqn).get
-        retrievedPermissions shouldEqual None
       }
 
       "fail if model does not exist" in withTestData { provider =>
@@ -146,11 +143,6 @@ class ModelPermissionsStoreSpec
         retrievedPermissions shouldEqual Some(permissions)
       }
 
-      "be none if no permissions are set" in withTestData { provider =>
-        val retrievedPermissions = provider.modelPermissionsStore.getCollectionWorldPermissions(collectionId).get
-        retrievedPermissions shouldEqual None
-      }
-
       "fail if collection does not exist" in withTestData { provider =>
         an[IllegalStateException] should be thrownBy provider.modelPermissionsStore.getCollectionWorldPermissions(nonExistentCollectionId).get
       }
@@ -198,12 +190,12 @@ class ModelPermissionsStoreSpec
 
   def withTestData(testCode: DomainPersistenceProvider => Any): Unit = {
     this.withPersistenceStore { provider =>
-      provider.collectionStore.ensureCollectionExists("test")
-      provider.collectionStore.ensureCollectionExists("test2")
-      provider.modelStore.createModel("test", Some("test"), ObjectValue("vid", Map()))
-      provider.modelStore.createModel("test2", Some("test"), ObjectValue("vid", Map()))
-      provider.userStore.createDomainUser(DomainUser(DomainUserType.Normal, "test1", None, None, None, None))
-      provider.userStore.createDomainUser(DomainUser(DomainUserType.Normal, "test2", None, None, None, None))
+      provider.collectionStore.ensureCollectionExists("test").get 
+      provider.collectionStore.ensureCollectionExists("test2").get
+      provider.modelStore.createModel("test", Some("test"), ObjectValue("vid", Map()), modelPermissions).get
+      provider.modelStore.createModel("test2", Some("test"), ObjectValue("vid", Map()), modelPermissions).get
+      provider.userStore.createDomainUser(DomainUser(DomainUserType.Normal, "test1", None, None, None, None)).get
+      provider.userStore.createDomainUser(DomainUser(DomainUserType.Normal, "test2", None, None, None, None)).get
       testCode(provider)
     }
   }

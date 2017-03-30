@@ -44,7 +44,7 @@ changes:
 
   - action: AddProperty
     className: Collection
-    property: {name: world, type: Embedded, linkedClass: CollectionPermissions}
+    property: {name: worldPermissions, type: Embedded, linkedClass: CollectionPermissions}
 
 ########## ModelPermissions ##########
 
@@ -61,8 +61,8 @@ changes:
   - action: CreateClass
     name: ModelUserPermissions
     properties:
-      - {name: model,  type: Link,   linkedClass: Model, constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: user, type: Link, linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: model,       type: Link,   linkedClass: Model, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: user,        type: Link, linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: permissions, type: Embedded, linkedClass: ModelPermissions, constraints: {mandatory: true, notNull: true}}
 
   - action: CreateIndex
@@ -87,7 +87,7 @@ changes:
 
   - action: AddProperty
     className: Model
-    property: {name: world, type: Embedded, linkedClass: ModelPermissions}
+    property: {name: worldPermissions, type: Embedded, linkedClass: ModelPermissions}
 
   - action: AddProperty
     className: Model

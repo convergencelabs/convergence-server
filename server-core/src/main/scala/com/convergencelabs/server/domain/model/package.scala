@@ -21,11 +21,11 @@ package model {
   //
   case class OpenRequestRecord(clientActor: ActorRef, askingActor: ActorRef)
   case class OpenRealtimeModelRequest(sk: SessionKey, modelFqn: ModelFqn, initializerProvided: Boolean, clientActor: ActorRef)
-  case class CreateModelRequest(sk: SessionKey, collectionId: String, modelId: Option[String], modelData: ObjectValue)
+  case class CreateModelRequest(sk: SessionKey, collectionId: String, modelId: Option[String], modelData: ObjectValue, worldPermissions: Option[ModelPermissions])
   case class DeleteModelRequest(sk: SessionKey, modelFqn: ModelFqn)
   case class CloseRealtimeModelRequest(sk: SessionKey)
   case class OperationSubmission(seqNo: Long, contextVersion: Long, operation: Operation)
-  case class ClientModelDataResponse(modelData: ObjectValue)
+  case class ClientModelDataResponse(modelData: ObjectValue, worldPermissions: Option[ModelPermissions])
 
   case class GetModelPermissionsRequest(collectionId: String, modelId: String)
 

@@ -131,7 +131,7 @@ changes:
       - {name: name,                   type: String,                                     constraints: {mandatory: true, notNull: true}}
       - {name: overrideSnapshotConfig, type: Boolean,                                    constraints: {mandatory: true, notNull: true, default: false}}
       - {name: snapshotConfig,         type: Embedded, linkedClass: ModelSnapshotConfig, constraints: {notNull: true}}
-      - {name: world,                  type: Embedded, linkedClass: CollectionPermissions}
+      - {name: worldPermissions,       type: Embedded, linkedClass: CollectionPermissions}
 
   - action: CreateIndex
     className: Collection
@@ -145,14 +145,14 @@ changes:
   - action: CreateClass
     name: Model
     properties:
-      - {name: collection,   type: Link,     linkedClass: Collection,  constraints: {mandatory: true, notNull: true}}
-      - {name: id,           type: String,                             constraints: {mandatory: true, notNull: true}}
-      - {name: version,      type: Long,                               constraints: {mandatory: true, notNull: true, min: 1}}
-      - {name: createdTime,  type: DateTime,                           constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: modifiedTime, type: DateTime,                           constraints: {mandatory: true, notNull: true}}
-      - {name: data,         type: Link,     linkedClass: ObjectValue, constraints: {mandatory: true, notNull: true}}
-      - {name: world,        type: Embedded, linkedClass: ModelPermissions}
-      - {name: userPermissions, type: LinkList, linkedClass: ModelUserPermissions}
+      - {name: collection,       type: Link,     linkedClass: Collection,  constraints: {mandatory: true, notNull: true}}
+      - {name: id,               type: String,                             constraints: {mandatory: true, notNull: true}}
+      - {name: version,          type: Long,                               constraints: {mandatory: true, notNull: true, min: 1}}
+      - {name: createdTime,      type: DateTime,                           constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: modifiedTime,     type: DateTime,                           constraints: {mandatory: true, notNull: true}}
+      - {name: data,             type: Link,     linkedClass: ObjectValue, constraints: {mandatory: true, notNull: true}}
+      - {name: worldPermissions, type: Embedded, linkedClass: ModelPermissions}
+      - {name: userPermissions,  type: LinkList, linkedClass: ModelUserPermissions}
 
   - action: CreateIndex
     className: Model

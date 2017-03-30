@@ -35,6 +35,7 @@ import ModelStore.Fields.Data
 import ModelStore.Fields.Id
 import ModelStore.Fields.ModifiedTime
 import ModelStore.Fields.Version
+import ModelStore.Fields.WorldPermissions
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.domain.model.query.QueryParser
 import com.convergencelabs.server.domain.model.query.QueryParser
@@ -55,6 +56,7 @@ object ModelStore {
     val Version = "version"
     val CreatedTime = "createdTime"
     val ModifiedTime = "modifiedTime"
+    val WorldPermissions = "worldPermissions"
   }
 
   private val FindModel = "SELECT * FROM Model WHERE id = :id AND collection.id = :collectionId"
@@ -72,13 +74,15 @@ object ModelStore {
   def docToModelMetaData(doc: ODocument): ModelMetaData = {
     val createdTime: Date = doc.field(CreatedTime, OType.DATETIME)
     val modifiedTime: Date = doc.field(ModifiedTime, OType.DATETIME)
+    val worldPermissions = Option(doc.field(WorldPermissions).asInstanceOf[ODocument]).map { ModelPermissionsStore.docToModelPermissions(_) }
     ModelMetaData(
       ModelFqn(
         doc.field("collection.id"),
         doc.field(Id)),
       doc.field(Version, OType.LONG),
       createdTime.toInstant(),
-      modifiedTime.toInstant())
+      modifiedTime.toInstant(),
+      worldPermissions)
   }
 
   def docToModel(doc: ODocument): Model = {
@@ -106,7 +110,7 @@ class ModelStore private[domain] (
     QueryUtil.hasResults(query, params, db)
   }
 
-  def createModel(collectionId: String, modelId: Option[String], data: ObjectValue): Try[Model] = {
+  def createModel(collectionId: String, modelId: Option[String], data: ObjectValue, worldPermissions: Option[ModelPermissions]): Try[Model] = {
     val createdTime = Instant.now()
     val modifiedTime = createdTime
     val version = 1
@@ -117,7 +121,8 @@ class ModelStore private[domain] (
         ModelFqn(collectionId, computedModelId),
         version,
         createdTime,
-        modifiedTime),
+        modifiedTime,
+        worldPermissions),
       data)
 
     this.createModel(model)
@@ -130,6 +135,7 @@ class ModelStore private[domain] (
     val modifiedTime = model.metaData.modifiedTime
     val version = model.metaData.version
     val data = model.data
+    val worldPermissions = model.metaData.worldPermissions
 
     CollectionStore.getCollectionRid(collectionId, db)
       .recoverWith {
@@ -146,6 +152,8 @@ class ModelStore private[domain] (
         modelDoc.field(Version, version)
         modelDoc.field(CreatedTime, Date.from(createdTime))
         modelDoc.field(ModifiedTime, Date.from(modifiedTime))
+        val worldPermissionsDoc = worldPermissions.map { ModelPermissionsStore.modelPermissionToDoc(_) }
+        modelDoc.field(WorldPermissions, worldPermissionsDoc.getOrElse(null))
         modelDoc.save()
         modelDoc.field(Data, OrientDataValueBuilder.objectValueToODocument(data, modelDoc))
         modelDoc.save()
@@ -157,12 +165,14 @@ class ModelStore private[domain] (
     case e: ORecordDuplicatedException => handleDuplicateValue(e)
   }
 
-  def updateModel(fqn: ModelFqn, data: ObjectValue): Try[Unit] = tryWithDb { db =>
+  def updateModel(fqn: ModelFqn, data: ObjectValue, worldPermissions: Option[ModelPermissions]): Try[Unit] = tryWithDb { db =>
     ModelStore.getModelDoc(fqn, db) match {
       case Some(doc) =>
         deleteDataValuesForModel(fqn, db).map { _ =>
           val dataValueDoc = OrientDataValueBuilder.dataValueToODocument(data, doc)
           doc.field(Data, dataValueDoc)
+          val worldPermissionsDoc = worldPermissions.map { ModelPermissionsStore.modelPermissionToDoc(_) }
+          doc.field(WorldPermissions, worldPermissions)
           doc.save()
           ()
         }.get

@@ -31,9 +31,11 @@ class ModelOperationStoreSpec
   val testUsername = "test"
   val user = DomainUser(DomainUserType.Normal, testUsername, None, None, None, None)
 
+  val modelPermissions = Some(ModelPermissions(true, true, true, true))
+  
   val modelFqn = ModelFqn("people", "person1")
   val model = Model(
-    ModelMetaData(modelFqn, 10L, Instant.now(), Instant.now()),
+    ModelMetaData(modelFqn, 10L, Instant.now(), Instant.now(), modelPermissions),
     ObjectValue("vid", Map()))
 
   val sessionId = "test:1"

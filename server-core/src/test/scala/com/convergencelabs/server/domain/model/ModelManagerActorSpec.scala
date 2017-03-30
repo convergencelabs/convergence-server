@@ -51,6 +51,7 @@ class ModelManagerActorSpec
   }
 
   val domainPersistenceActor = MockDomainPersistenceManagerActor(system)
+  val modelPermissions = Some(ModelPermissions(true, true, true, true))
 
   // FIXME we need to test that models actually get created and deleted.  Not sure how to do this.
 
@@ -97,13 +98,13 @@ class ModelManagerActorSpec
 
         val now = Instant.now()
         
-        Mockito.when(modelStore.createModel(cId, Some(mId), data))
-          .thenReturn(Success(Model(ModelMetaData(nonExistentModelFqn, 0L, now, now), data)))
+        Mockito.when(modelStore.createModel(cId, Some(mId), data, modelPermissions))
+          .thenReturn(Success(Model(ModelMetaData(nonExistentModelFqn, 0L, now, now, modelPermissions), data)))
 
         Mockito.when(modelSnapshotStore.createSnapshot(Matchers.any()))
           .thenReturn(Success(()))
           
-        modelManagerActor.tell(CreateModelRequest(SessionKey(userId1, sessionId1), cId, Some(mId), data), client.ref)
+        modelManagerActor.tell(CreateModelRequest(SessionKey(userId1, sessionId1), cId, Some(mId), data, modelPermissions), client.ref)
         client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelCreated(nonExistentModelFqn))
       }
 
@@ -112,10 +113,10 @@ class ModelManagerActorSpec
         val ModelFqn(cId, mId) = modelFqn
         val data = ObjectValue("", Map())
         
-         Mockito.when(modelStore.createModel(cId, Some(mId), data))
+         Mockito.when(modelStore.createModel(cId, Some(mId), data, modelPermissions))
           .thenReturn(Failure(DuplicateValueExcpetion("foo")))
 
-        modelManagerActor.tell(CreateModelRequest(SessionKey(userId1, sessionId1), cId, Some(mId), data), client.ref)
+        modelManagerActor.tell(CreateModelRequest(SessionKey(userId1, sessionId1), cId, Some(mId), data, modelPermissions), client.ref)
         client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelAlreadyExists)
       }
     }
@@ -146,7 +147,7 @@ class ModelManagerActorSpec
     val modelJsonData = JObject("key" -> JString("value"))
     val modelCreateTime = Instant.ofEpochMilli(2L)
     val modelModifiedTime = Instant.ofEpochMilli(3L)
-    val modelData = Model(ModelMetaData(modelFqn, 1L, modelCreateTime, modelModifiedTime), ObjectValue("", Map()))
+    val modelData = Model(ModelMetaData(modelFqn, 1L, modelCreateTime, modelModifiedTime, modelPermissions), ObjectValue("", Map()))
     val modelSnapshotTime = Instant.ofEpochMilli(2L)
     val modelSnapshotMetaData = ModelSnapshotMetaData(modelFqn, 1L, modelSnapshotTime)
 
@@ -178,7 +179,7 @@ class ModelManagerActorSpec
 
     val collectionStore = mock[CollectionStore]
     Mockito.when(collectionStore.getOrCreateCollection(collectionId))
-      .thenReturn(Success(Collection(collectionId, "", false, snapshotConfig)))
+      .thenReturn(Success(Collection(collectionId, "", false, snapshotConfig, CollectionPermissions(true, true, true, true, true))))
       
     Mockito.when(collectionStore.ensureCollectionExists(collectionId))
       .thenReturn(Success(()))

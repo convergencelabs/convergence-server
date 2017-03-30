@@ -30,6 +30,8 @@ import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.convergencelabs.server.db.schema.DomainSchemaManager
 import com.convergencelabs.server.db.schema.TestingSchemaManager
 import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.datastore.domain.CollectionPermissions
+import com.convergencelabs.server.datastore.domain.ModelPermissions
 
 class DomainImporterSpec extends WordSpecLike with Matchers {
 
@@ -84,7 +86,7 @@ class DomainImporterSpec extends WordSpecLike with Matchers {
         
         val collections = provider.collectionStore.getAllCollections(None, None).get
         collections.size shouldBe 1
-        collections(0) shouldBe Collection("collection1", "Collection 1", false, DomainImporter.DefaultSnapshotConfig)
+        collections(0) shouldBe Collection("collection1", "Collection 1", false, DomainImporter.DefaultSnapshotConfig, CollectionPermissions(true, true, true, true, true))
 
         val modelFqn = ModelFqn("collection1", "someId")
 
@@ -94,7 +96,8 @@ class DomainImporterSpec extends WordSpecLike with Matchers {
             modelFqn,
             2L,
             Instant.parse("2016-11-16T17:49:15.233Z"),
-            Instant.parse("2016-11-16T17:49:15.233Z")),
+            Instant.parse("2016-11-16T17:49:15.233Z"),
+            Some(ModelPermissions(true, true, true, true))),
           ObjectValue(
             "vid1",
             Map("myString" -> StringValue("vid2", "my string"))))

@@ -150,21 +150,21 @@ class ModelManagerActor(
   }
 
   private[this] def onCreateModelRequest(createRequest: CreateModelRequest): Unit = {
-    val CreateModelRequest(sk, collectionId, modelId, data) = createRequest
+    val CreateModelRequest(sk, collectionId, modelId, data, worldPermissions) = createRequest
     // FIXME perhaps these should be some expected error type, like InvalidArgument
     if (collectionId.length == 0) {
       sender ! UnknownErrorResponse("The collecitonId can not be empty when creating a model")
     } else {
-      createModel(sk, collectionId, modelId, data)
+      createModel(sk, collectionId, modelId, data, worldPermissions)
     }
   }
 
-  private[this] def createModel(sk: SessionKey, collectionId: String, modelId: Option[String], data: ObjectValue): Unit = {
+  private[this] def createModel(sk: SessionKey, collectionId: String, modelId: Option[String], data: ObjectValue, worldPermissions: Option[ModelPermissions]): Unit = {
     if (sk.admin || getCollectionUserPermissions(collectionId, sk.uid).create) {
       persistenceProvider.collectionStore.ensureCollectionExists(collectionId) flatMap { _ =>
-        persistenceProvider.modelStore.createModel(collectionId, modelId, data)
+        persistenceProvider.modelStore.createModel(collectionId, modelId, data, worldPermissions)
       } flatMap { model =>
-        val ModelMetaData(fqn, version, created, modeified) = model.metaData
+        val ModelMetaData(fqn, version, created, modeified, worldPermissions) = model.metaData
         val snapshot = ModelSnapshot(ModelSnapshotMetaData(fqn, version, created), model.data)
         // Give the creating user unlimited access to the model
         // TODO: Change this to use defaults

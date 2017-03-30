@@ -40,6 +40,7 @@ import com.convergencelabs.server.datastore.SortOrder
 import com.convergencelabs.server.datastore.domain.DomainSession
 import com.convergencelabs.server.domain.model.data.DateValue
 import com.convergencelabs.server.domain.model.ot.AppliedDateSetOperation
+import com.convergencelabs.server.datastore.domain.CollectionPermissions
 
 class DomainExporter(private[this] val persistence: DomainPersistenceProvider) extends Logging {
 
@@ -107,11 +108,12 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
     }
   }
 
+  //FIXME: export permissions
   private[this] def exportCollections(): Try[List[CreateCollection]] = {
     logger.debug("exporting collections")
     persistence.collectionStore.getAllCollections(None, None) map {
       _.map { col =>
-        val Collection(collectionId, name, overrideSnapshot, snapshotConfig) = col
+        val Collection(collectionId, name, overrideSnapshot, snapshotConfig, CollectionPermissions(true, true, true, true, true)) = col
         CreateCollection(collectionId, name, overrideSnapshot)
       }
     }

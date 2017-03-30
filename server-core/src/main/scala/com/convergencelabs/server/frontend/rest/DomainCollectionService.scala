@@ -32,6 +32,7 @@ import scala.util.Try
 import com.convergencelabs.server.frontend.rest.DomainConfigService.ModelSnapshotPolicyData
 import com.convergencelabs.server.domain.ModelSnapshotConfig
 import java.time.Duration
+import com.convergencelabs.server.datastore.domain.CollectionPermissions
 
 object DomainCollectionService {
   case class GetCollectionsResponse(collections: List[CollectionData]) extends AbstractSuccessResponse
@@ -101,7 +102,7 @@ class DomainCollectionService(
     val message = DomainMessage(domain, GetCollection(collectionId))
     (domainRestActor ? message).mapTo[Option[Collection]] map {
       case Some(collection) => (StatusCodes.OK, GetCollectionResponse(collectionToCollectionData(collection)))
-      case None => NotFoundError
+      case None             => NotFoundError
     }
   }
 
@@ -129,7 +130,7 @@ class DomainCollectionService(
   }
 
   def collectionDataToCollection(collectionData: CollectionData): Collection = {
-    // FIXME what to do with the permissions?
+    // FIXME we are missing create permission
     val CollectionData(
       id,
       description,
@@ -157,12 +158,12 @@ class DomainCollectionService(
       limitByTime,
       Duration.ofMillis(minimumTimeInterval),
       Duration.ofMillis(maximumTimeInterval))
-    val collection = Collection(id, description, overrideSnapshotConfig, snapshotConfig)
+    val collection = Collection(id, description, overrideSnapshotConfig, snapshotConfig, CollectionPermissions(true, read, write, remove, manage))
     collection
   }
 
   def collectionToCollectionData(collection: Collection): CollectionData = {
-    // FIXME what to do with the permissions?
+    // FIXME nedd to add create permission
     val Collection(
       id,
       description,
@@ -177,7 +178,8 @@ class DomainCollectionService(
         limitByTime,
         minimumTimeInterval,
         maximumTimeInterval
-        )
+        ),
+      CollectionPermissions(create, read, write, remove, manage)
       ) = collection
     val snapshotConfig = ModelSnapshotPolicyData(
       snapshotsEnabled,
@@ -190,7 +192,7 @@ class DomainCollectionService(
       limitByTime,
       minimumTimeInterval.toMillis)
     // FIXME fake?
-    val worldPermissions = CollectionPermissionsData(true, false, false, false)
+    val worldPermissions = CollectionPermissionsData(read, write, remove, manage)
     val collectionData = CollectionData(id, description, worldPermissions, overrideSnapshotConfig, snapshotConfig)
     collectionData
   }
