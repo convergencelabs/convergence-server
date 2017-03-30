@@ -23,9 +23,11 @@ import akka.actor.actorRef2Scala
 import akka.pattern.Patterns
 import akka.util.Timeout
 import com.convergencelabs.server.datastore.DatabaseProvider
+import grizzled.slf4j.Logging
 
-object DomainPersistenceManagerActor {
+object DomainPersistenceManagerActor extends Logging {
   val RelativePath = "DomainPersistenceManagerActor"
+  val persistenceProviderTimeout = 5
 
   def props(
     baseDbUri: String,
@@ -41,9 +43,10 @@ object DomainPersistenceManagerActor {
     val selection = context.actorSelection(path)
 
     val message = AcquireDomainPersistence(domainFqn, requestor)
-    val timeout = Timeout(2, TimeUnit.SECONDS)
+    val timeout = Timeout(persistenceProviderTimeout, TimeUnit.SECONDS)
+    debug(s"Sending message to aquire domain persistence for ${domainFqn} by ${requestor.path}")
     val f = Patterns.ask(selection, message, timeout).mapTo[DomainPersistenceResponse]
-    val result = Await.result(f, FiniteDuration(2, TimeUnit.SECONDS))
+    val result = Await.result(f, FiniteDuration(persistenceProviderTimeout, TimeUnit.SECONDS))
 
     result match {
       case PersistenceProviderReference(persistenceProvider) => persistenceProvider
@@ -154,12 +157,13 @@ class DomainPersistenceManagerActor(
         log.debug(s"Creating new connection pool for '${domainFqn}': ${pool.getUrl}")
         val provider = new DomainPersistenceProvider(DatabaseProvider(pool))
         provider.validateConnection() flatMap { _ =>
+          log.debug(s"Successfully created connection pool for '${domainFqn}': ${pool.getUrl}")
           providers = providers + (domainFqn -> provider)
           Success(provider)
         }
       case None =>
-        Failure(new IllegalStateException(
-          s"Error looking up the domain record for $domainFqn, when initializing a domain persistence provider."))
+        val message = s"Error looking up the domain record for $domainFqn, when initializing a domain persistence provider."
+        Failure(new IllegalStateException(message))
     }
   }
 
