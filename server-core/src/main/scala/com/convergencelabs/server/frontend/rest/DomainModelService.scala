@@ -83,79 +83,57 @@ class DomainModelService(
 
   def route(username: String, domain: DomainFqn): Route = {
     pathPrefix("models") {
-      (pathEnd & get) {
-        complete(getModels(domain))
-      } ~ pathPrefix(Segment) { collectionId: String =>
-        pathEnd {
-          get {
-            authorizeAsync(canAccessDomain(domain, username)) {
+      authorizeAsync(canAccessDomain(domain, username)) {
+        (pathEnd & get) {
+          complete(getModels(domain))
+        } ~ pathPrefix(Segment) { collectionId: String =>
+          pathEnd {
+            get {
               complete(getModelInCollection(domain, collectionId))
-            }
-          } ~ post {
-            entity(as[Map[String, Any]]) { data =>
-              authorizeAsync(canAccessDomain(domain, username)) {
+            } ~ post {
+              entity(as[Map[String, Any]]) { data =>
                 complete(postModel(domain, collectionId, data))
               }
             }
-          }
-        } ~ pathPrefix(Segment) { modelId: String =>
-          pathEnd {
-            get {
-              authorizeAsync(canAccessDomain(domain, username)) {
-                complete(getModel(domain, ModelFqn(collectionId, modelId)))
-              }
-            } ~ put {
-              entity(as[Map[String, Any]]) { data =>
-                authorizeAsync(canAccessDomain(domain, username)) {
-                  complete(putModel(domain, collectionId, modelId, data))
-                }
-              }
-            } ~ delete {
-              authorizeAsync(canAccessDomain(domain, username)) {
-                complete(deleteModel(domain, collectionId, modelId))
-              }
-            }
-          } ~ pathPrefix("permisssions") {
+          } ~ pathPrefix(Segment) { modelId: String =>
             pathEnd {
               get {
-                authorizeAsync(canAccessDomain(domain, username)) {
-                  complete(getModelPermissions(domain, ModelFqn(collectionId, modelId)))
+                complete(getModel(domain, ModelFqn(collectionId, modelId)))
+              } ~ put {
+                entity(as[Map[String, Any]]) { data =>
+                  complete(putModel(domain, collectionId, modelId, data))
                 }
+              } ~ delete {
+                complete(deleteModel(domain, collectionId, modelId))
               }
-            } ~ pathPrefix("world") {
+            } ~ pathPrefix("permisssions") {
               pathEnd {
                 get {
-                  authorizeAsync(canAccessDomain(domain, username)) {
+                  complete(getModelPermissions(domain, ModelFqn(collectionId, modelId)))
+                }
+              } ~ pathPrefix("world") {
+                pathEnd {
+                  get {
                     complete(getModelWorldPermissions(domain, ModelFqn(collectionId, modelId)))
-                  }
-                } ~ put {
-                  entity(as[ModelPermissions]) { permissions =>
-                    authorizeAsync(canAccessDomain(domain, username)) {
+                  } ~ put {
+                    entity(as[ModelPermissions]) { permissions =>
                       complete(setModelWorldPermissions(domain, ModelFqn(collectionId, modelId), permissions))
                     }
                   }
-                }
-              } ~ pathPrefix("user") {
-                pathEnd {
-                  get {
-                    authorizeAsync(canAccessDomain(domain, username)) {
-                      complete(getAllModelUserPermissions(domain, ModelFqn(collectionId, modelId)))
-                    }
-                  }
-                } ~ pathPrefix(Segment) { user: String =>
+                } ~ pathPrefix("user") {
                   pathEnd {
                     get {
-                      authorizeAsync(canAccessDomain(domain, username)) {
+                      complete(getAllModelUserPermissions(domain, ModelFqn(collectionId, modelId)))
+                    }
+                  } ~ pathPrefix(Segment) { user: String =>
+                    pathEnd {
+                      get {
                         complete(getModelUserPermissions(domain, ModelFqn(collectionId, modelId), user))
-                      }
-                    } ~ put {
-                      entity(as[ModelPermissions]) { permissions =>
-                        authorizeAsync(canAccessDomain(domain, username)) {
+                      } ~ put {
+                        entity(as[ModelPermissions]) { permissions =>
                           complete(setModelUserPermissions(domain, ModelFqn(collectionId, modelId), user, permissions))
                         }
-                      }
-                    } ~ delete {
-                      authorizeAsync(canAccessDomain(domain, username)) {
+                      } ~ delete {
                         complete(removeModelUserPermissions(domain, ModelFqn(collectionId, modelId), user))
                       }
                     }
