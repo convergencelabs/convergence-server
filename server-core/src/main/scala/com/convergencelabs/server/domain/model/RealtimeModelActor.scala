@@ -289,7 +289,7 @@ class RealtimeModelActor(
   private[this] def requestModelDataFromDatastore(): Unit = {
     context.become(receiveInitializingFromDatabase)
     Future {
-      for {
+      (for {
         snapshotMetaData <- modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)
         model <- modelStore.getModel(modelFqn)
       } yield {
@@ -304,6 +304,11 @@ class RealtimeModelActor(
             log.error(cause, message)
             self ! DatabaseModelFailure(cause)
         }
+      }) recover {
+        case cause: Exception =>
+          val message = s"Error getting model data (${this.modelFqn})"
+          log.error(cause, message)
+          self ! DatabaseModelFailure(cause)
       }
     }
   }
