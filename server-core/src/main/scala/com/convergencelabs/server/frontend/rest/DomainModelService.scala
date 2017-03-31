@@ -124,7 +124,7 @@ class DomainModelService(
               } ~ delete {
                 complete(deleteModel(domain, collectionId, modelId))
               }
-            } ~ pathPrefix("permisssions") {
+            } ~ pathPrefix("permissions") {
               pathEnd {
                 get {
                   complete(getModelPermissions(domain, ModelFqn(collectionId, modelId)))
