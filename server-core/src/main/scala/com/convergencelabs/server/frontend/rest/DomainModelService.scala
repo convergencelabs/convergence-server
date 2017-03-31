@@ -62,6 +62,7 @@ import com.convergencelabs.server.frontend.rest.DomainModelService.GetAllUserPer
 import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.GetModelOverridesPermissions
 import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.SetModelOverridesPermissions
 import com.convergencelabs.server.frontend.rest.DomainModelService.GetModelOverridesPermissionsResponse
+import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.ModelUserPermissions
 
 object DomainModelService {
 
@@ -83,9 +84,9 @@ object DomainModelService {
   case class GetModelsResponse(models: List[ModelMetaDataResponse]) extends AbstractSuccessResponse
   case class GetModelResponse(model: ModelResponse) extends AbstractSuccessResponse
   case class CreateModelResponse(collectionId: String, modelId: String) extends AbstractSuccessResponse
-  case class GetModelPermissionsResponse(overrideWorld: Boolean, worldPermissions: ModelPermissions, userPermissions: Map[String, ModelPermissions]) extends AbstractSuccessResponse
+  case class GetModelPermissionsResponse(overrideWorld: Boolean, worldPermissions: ModelPermissions, userPermissions: List[ModelUserPermissions]) extends AbstractSuccessResponse
   case class GetPermissionsResponse(permissions: ModelPermissions) extends AbstractSuccessResponse
-  case class GetAllUserPermissionsResponse(userPermissions: Map[String, ModelPermissions]) extends AbstractSuccessResponse
+  case class GetAllUserPermissionsResponse(userPermissions: List[ModelUserPermissions]) extends AbstractSuccessResponse
   case class GetModelOverridesPermissionsResponse(overrideWorld: Boolean) extends AbstractSuccessResponse
 }
 
@@ -278,7 +279,7 @@ class DomainModelService(
 
   def getAllModelUserPermissions(domain: DomainFqn, modelFqn: ModelFqn): Future[RestResponse] = {
     val message = DomainMessage(domain, GetAllModelUserPermissions(modelFqn))
-    (domainRestActor ? message).mapTo[Map[String, ModelPermissions]] map {
+    (domainRestActor ? message).mapTo[List[ModelUserPermissions]] map {
       permissions =>
         (StatusCodes.OK, GetAllUserPermissionsResponse(permissions))
     }

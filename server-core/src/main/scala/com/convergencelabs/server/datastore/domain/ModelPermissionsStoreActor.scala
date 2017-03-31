@@ -17,6 +17,7 @@ import akka.actor.ActorLogging
 import akka.actor.Props
 import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.GetModelOverridesPermissions
 import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.SetModelOverridesPermissions
+import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.ModelUserPermissions
 
 object ModelPermissionsStoreActor {
   def props(modelPermissionsStore: ModelPermissionsStore): Props =
@@ -34,7 +35,8 @@ object ModelPermissionsStoreActor {
   case class SetModelUserPermissions(modelFqn: ModelFqn, username: String, permissions: ModelPermissions) extends ModelPermissionsStoreRequest
   case class RemoveModelUserPermissions(modelFqn: ModelFqn, username: String) extends ModelPermissionsStoreRequest
 
-  case class ModelPermissionsResponse(overrideWorld: Boolean, worldPermissions: ModelPermissions, userPermissions: Map[String, ModelPermissions])
+  case class ModelUserPermissions(username: String, permissions: ModelPermissions)
+  case class ModelPermissionsResponse(overrideWorld: Boolean, worldPermissions: ModelPermissions, userPermissions: List[ModelUserPermissions])
 }
 
 class ModelPermissionsStoreActor private[datastore] (
@@ -70,7 +72,10 @@ class ModelPermissionsStoreActor private[datastore] (
       worldPermissions <- modelPermissionsStore.getModelWorldPermissions(modelFqn)
       userPermissions <- modelPermissionsStore.getAllModelUserPermissions(modelFqn)
     } yield {
-      ModelPermissionsResponse(overrideWorld, worldPermissions, userPermissions)
+      val userPermissionsList = userPermissions.toList.map {
+        case Tuple2(username, permissions) => ModelUserPermissions(username, permissions)
+      }
+      ModelPermissionsResponse(overrideWorld, worldPermissions, userPermissionsList)
     }
     reply(result)
   }
@@ -92,7 +97,14 @@ class ModelPermissionsStoreActor private[datastore] (
   }
 
   def getAllModelUserPermissions(modelFqn: ModelFqn): Unit = {
-    reply(modelPermissionsStore.getAllModelUserPermissions(modelFqn))
+    val result = for {
+      userPermissions <- modelPermissionsStore.getAllModelUserPermissions(modelFqn)
+    } yield {
+      val userPermissionsList = userPermissions.toList.map {
+        case Tuple2(username, permissions) => ModelUserPermissions(username, permissions)
+      }
+    }
+    reply(result)
   }
 
   def getModelUserPermissions(modelFqn: ModelFqn, username: String): Unit = {
