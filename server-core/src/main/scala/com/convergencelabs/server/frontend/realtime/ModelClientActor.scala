@@ -176,8 +176,8 @@ class ModelClientActor(
     val askingActor = sender
     val future = context.parent ? ModelDataRequestMessage(collectionId, modelId)
     future.mapResponse[ModelDataResponseMessage] onComplete {
-      case Success(ModelDataResponseMessage(data, worldPermissions)) =>
-        askingActor ! ClientModelDataResponse(data, worldPermissions)
+      case Success(ModelDataResponseMessage(data, overridePermissions, worldPermissions)) =>
+        askingActor ! ClientModelDataResponse(data, overridePermissions, worldPermissions)
       case Failure(cause) =>
         // forward the failure to the asker, so we fail fast.
         askingActor ! akka.actor.Status.Failure(cause)
@@ -363,8 +363,8 @@ class ModelClientActor(
   }
 
   private[this] def onCreateRealtimeModelRequest(request: CreateRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
-    val CreateRealtimeModelRequestMessage(collectionId, modelId, data, worldPermissions) = request
-    val future = modelManager ? CreateModelRequest(sessionKey, collectionId, modelId, data, worldPermissions)
+    val CreateRealtimeModelRequestMessage(collectionId, modelId, data, overridePermissions, worldPermissions) = request
+    val future = modelManager ? CreateModelRequest(sessionKey, collectionId, modelId, data, overridePermissions, worldPermissions)
     future.mapResponse[CreateModelResponse] onComplete {
       case Success(ModelCreated(ModelFqn(c, m))) => cb.reply(CreateRealtimeModelSuccessMessage(c, m))
       case Success(ModelAlreadyExists) => cb.expectedError("model_alread_exists", "A model with the specifieid collection and model id already exists")
@@ -433,7 +433,7 @@ class ModelClientActor(
   }
 
   private[this] def onSetModelPermissionsRequest(request: SetModelPermissionsRequestMessage, cb: ReplyCallback): Unit = {
-    val SetModelPermissionsRequestMessage(collectionId, modelId, setWorld, world, allUsers, users) = request
+    val SetModelPermissionsRequestMessage(collectionId, modelId, overridePermissions, world, allUsers, users) = request
     val mappedWorld = world map { w => ModelPermissions(w.r, w.w, w.d, w.m) }
     val mappedUsers = users map {
       case (username, permissions) =>
@@ -443,7 +443,7 @@ class ModelClientActor(
         })
         (username, p)
     }
-    val message = SetModelPermissionsRequest(sessionKey, collectionId, modelId, setWorld, mappedWorld, allUsers, mappedUsers)
+    val message = SetModelPermissionsRequest(sessionKey, collectionId, modelId, overridePermissions, mappedWorld, allUsers, mappedUsers)
     val future = modelManager ? message
     future.mapResponse[Unit] onComplete {
       case Success(()) =>

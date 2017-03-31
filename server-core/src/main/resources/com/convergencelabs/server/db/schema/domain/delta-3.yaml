@@ -44,7 +44,7 @@ changes:
 
   - action: AddProperty
     className: Collection
-    property: {name: worldPermissions, type: Embedded, linkedClass: CollectionPermissions}
+    property: {name: worldPermissions, type: Embedded, linkedClass: CollectionPermissions, constraints: {mandatory: true, notNull: true, readOnly: false}}
 
 ########## ModelPermissions ##########
 
@@ -87,7 +87,11 @@ changes:
 
   - action: AddProperty
     className: Model
-    property: {name: worldPermissions, type: Embedded, linkedClass: ModelPermissions}
+    property: {name: overridePermissions, type: Boolean, constraints: {notNull: true, readOnly: false, default: false}}
+
+  - action: AddProperty
+    className: Model
+    property: {name: worldPermissions, type: Embedded, linkedClass: ModelPermissions, constraints: {mandatory: true, notNull: true, readOnly: false}}
 
   - action: AddProperty
     className: Model

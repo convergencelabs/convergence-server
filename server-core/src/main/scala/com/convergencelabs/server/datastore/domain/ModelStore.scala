@@ -36,6 +36,7 @@ import ModelStore.Fields.Id
 import ModelStore.Fields.ModifiedTime
 import ModelStore.Fields.Version
 import ModelStore.Fields.WorldPermissions
+import ModelStore.Fields.OverridePermissions
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.domain.model.query.QueryParser
 import com.convergencelabs.server.domain.model.query.QueryParser
@@ -56,6 +57,7 @@ object ModelStore {
     val Version = "version"
     val CreatedTime = "createdTime"
     val ModifiedTime = "modifiedTime"
+    val OverridePermissions = "overridePermissions"
     val WorldPermissions = "worldPermissions"
   }
 
@@ -74,7 +76,7 @@ object ModelStore {
   def docToModelMetaData(doc: ODocument): ModelMetaData = {
     val createdTime: Date = doc.field(CreatedTime, OType.DATETIME)
     val modifiedTime: Date = doc.field(ModifiedTime, OType.DATETIME)
-    val worldPermissions = Option(doc.field(WorldPermissions).asInstanceOf[ODocument]).map { ModelPermissionsStore.docToModelPermissions(_) }
+    val worldPermissions = ModelPermissionsStore.docToModelPermissions(doc.field(WorldPermissions))
     ModelMetaData(
       ModelFqn(
         doc.field("collection.id"),
@@ -82,6 +84,7 @@ object ModelStore {
       doc.field(Version, OType.LONG),
       createdTime.toInstant(),
       modifiedTime.toInstant(),
+      doc.field(OverridePermissions),
       worldPermissions)
   }
 
@@ -110,7 +113,7 @@ class ModelStore private[domain] (
     QueryUtil.hasResults(query, params, db)
   }
 
-  def createModel(collectionId: String, modelId: Option[String], data: ObjectValue, worldPermissions: Option[ModelPermissions]): Try[Model] = {
+  def createModel(collectionId: String, modelId: Option[String], data: ObjectValue, overridePermissions: Boolean, worldPermissions: ModelPermissions): Try[Model] = {
     val createdTime = Instant.now()
     val modifiedTime = createdTime
     val version = 1
@@ -122,6 +125,7 @@ class ModelStore private[domain] (
         version,
         createdTime,
         modifiedTime,
+        overridePermissions,
         worldPermissions),
       data)
 
@@ -135,6 +139,7 @@ class ModelStore private[domain] (
     val modifiedTime = model.metaData.modifiedTime
     val version = model.metaData.version
     val data = model.data
+    val overrridePermissions = model.metaData.overridePermissions
     val worldPermissions = model.metaData.worldPermissions
 
     CollectionStore.getCollectionRid(collectionId, db)
@@ -152,8 +157,8 @@ class ModelStore private[domain] (
         modelDoc.field(Version, version)
         modelDoc.field(CreatedTime, Date.from(createdTime))
         modelDoc.field(ModifiedTime, Date.from(modifiedTime))
-        val worldPermissionsDoc = worldPermissions.map { ModelPermissionsStore.modelPermissionToDoc(_) }
-        modelDoc.field(WorldPermissions, worldPermissionsDoc.getOrElse(null))
+        modelDoc.field(OverridePermissions, overrridePermissions)
+        modelDoc.field(WorldPermissions, ModelPermissionsStore.modelPermissionToDoc(worldPermissions))
         modelDoc.save()
         modelDoc.field(Data, OrientDataValueBuilder.objectValueToODocument(data, modelDoc))
         modelDoc.save()
@@ -165,6 +170,8 @@ class ModelStore private[domain] (
     case e: ORecordDuplicatedException => handleDuplicateValue(e)
   }
 
+  
+  //FIXME: Add in overridePermissions flag
   def updateModel(fqn: ModelFqn, data: ObjectValue, worldPermissions: Option[ModelPermissions]): Try[Unit] = tryWithDb { db =>
     ModelStore.getModelDoc(fqn, db) match {
       case Some(doc) =>

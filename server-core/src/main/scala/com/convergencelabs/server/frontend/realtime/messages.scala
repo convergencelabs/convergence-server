@@ -80,14 +80,14 @@ case class OperationSubmissionMessage(r: String, s: Long, v: Long, o: OperationD
 sealed trait IncomingModelRequestMessage extends IncomingProtocolRequestMessage
 case class OpenRealtimeModelRequestMessage(c: String, m: String, i: Boolean) extends IncomingModelRequestMessage
 case class CloseRealtimeModelRequestMessage(r: String) extends IncomingModelRequestMessage
-case class CreateRealtimeModelRequestMessage(c: String, m: Option[String], d: ObjectValue, w: Option[ModelPermissions]) extends IncomingModelRequestMessage
+case class CreateRealtimeModelRequestMessage(c: String, m: Option[String], d: ObjectValue, v: Option[Boolean], w: Option[ModelPermissions]) extends IncomingModelRequestMessage
 case class DeleteRealtimeModelRequestMessage(c: String, m: String) extends IncomingModelRequestMessage
 
 case class GetModelPermissionsRequestMessage(c: String, m: String) extends IncomingModelRequestMessage
 case class SetModelPermissionsRequestMessage(
     c: String, 
     m: String,
-    s: Boolean,
+    s: Option[Boolean],
     w: Option[ModelPermissionsData],
     a: Boolean,
     u: Map[String, Option[ModelPermissionsData]]
@@ -95,7 +95,7 @@ case class SetModelPermissionsRequestMessage(
 
 case class ModelsQueryRequestMessage(q: String) extends IncomingModelRequestMessage
 
-case class ModelDataResponseMessage(d: ObjectValue, w: Option[ModelPermissions]) extends IncomingProtocolResponseMessage
+case class ModelDataResponseMessage(d: ObjectValue, v: Option[Boolean], w: Option[ModelPermissions]) extends IncomingProtocolResponseMessage
 
 case class PublishReferenceMessage(r: String, d: Option[String], k: String, c: Int, v: Option[List[Any]], s: Option[Long]) extends IncomingModelNormalMessage
 case class UnpublishReferenceMessage(r: String, d: Option[String], k: String) extends IncomingModelNormalMessage

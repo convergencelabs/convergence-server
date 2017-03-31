@@ -50,7 +50,8 @@ object ModelPermissionsStore {
     val Model = "model"
     val User = "user"
     val Permissions = "permissions"
-
+   
+    val OverridePermissions = "overridePermissions"
     val World = "worldPermissions"
 
     val Username = "username"
@@ -63,27 +64,23 @@ object ModelPermissionsStore {
     val Create = "create"
   }
 
-  def docToCollectionWorldPermissions(doc: ODocument): Option[CollectionPermissions] = {
-    val world: ODocument = doc.field(Fields.World)
-    Option(world).map { worldDoc =>
-      CollectionPermissions(
-        worldDoc.field(Fields.Create),
-        worldDoc.field(Fields.Read),
-        worldDoc.field(Fields.Write),
-        worldDoc.field(Fields.Remove),
-        worldDoc.field(Fields.Manage))
-    }
+  def docToCollectionWorldPermissions(doc: ODocument): CollectionPermissions = {
+    val worldDoc: ODocument = doc.field(Fields.World)
+    CollectionPermissions(
+      worldDoc.field(Fields.Create),
+      worldDoc.field(Fields.Read),
+      worldDoc.field(Fields.Write),
+      worldDoc.field(Fields.Remove),
+      worldDoc.field(Fields.Manage))
   }
 
-  def docToWorldPermissions(doc: ODocument): Option[ModelPermissions] = {
-    val world: ODocument = doc.field(Fields.World)
-    Option(world).map { worldDoc =>
-      ModelPermissions(
-        worldDoc.field(Fields.Read),
-        worldDoc.field(Fields.Write),
-        worldDoc.field(Fields.Remove),
-        worldDoc.field(Fields.Manage))
-    }
+  def docToWorldPermissions(doc: ODocument): ModelPermissions = {
+    val worldDoc: ODocument = doc.field(Fields.World)
+    ModelPermissions(
+      worldDoc.field(Fields.Read),
+      worldDoc.field(Fields.Write),
+      worldDoc.field(Fields.Remove),
+      worldDoc.field(Fields.Manage))
   }
 
   def docToCollectionPermissions(doc: ODocument): CollectionPermissions = {
@@ -125,7 +122,7 @@ object ModelPermissionsStore {
 
 class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
 
-  def getCollectionWorldPermissions(collectionId: String): Try[Option[CollectionPermissions]] = tryWithDb { db =>
+  def getCollectionWorldPermissions(collectionId: String): Try[CollectionPermissions] = tryWithDb { db =>
     val queryString =
       """SELECT worldPermissions
         |  FROM Collection
@@ -135,10 +132,10 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     result.map { docToCollectionWorldPermissions(_) }.get
   }
 
-  def setCollectionWorldPermissions(collectionId: String, permissions: Option[CollectionPermissions]): Try[Unit] = tryWithDb { db =>
+  def setCollectionWorldPermissions(collectionId: String, permissions: CollectionPermissions): Try[Unit] = tryWithDb { db =>
     val collectionDoc = getCollectionRid(collectionId).get.getRecord[ODocument]
-    val permissionsDoc = permissions.map { collectionPermissionToDoc(_) }
-    collectionDoc.fields(Fields.World, permissionsDoc.getOrElse(null))
+    val permissionsDoc = collectionPermissionToDoc(permissions)
+    collectionDoc.fields(Fields.World, permissionsDoc)
     collectionDoc.save()
   }
 
@@ -250,7 +247,18 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     collectionDoc.field("userPermissions", newPermissions.asJavaCollection)
   }
 
-  def getModelWorldPermissions(modelFqn: ModelFqn): Try[Option[ModelPermissions]] = tryWithDb { db =>
+  def modelOverridesCollectionPermissions(modelFqn: ModelFqn): Try[Boolean] = tryWithDb { db =>
+    val modelDoc: ODocument = getModelRid(modelFqn).get.getRecord[ODocument]
+    val overridePermissions: Boolean = modelDoc.field(Fields.OverridePermissions, OType.BOOLEAN)
+    overridePermissions
+  }
+  
+  def setOverrideCollectionPermissions(modelFqn: ModelFqn, overridePermissions: Boolean): Try[Unit] = tryWithDb { db =>
+    val modelDoc = getModelRid(modelFqn).get.getRecord[ODocument]
+    modelDoc.field(Fields.OverridePermissions, overridePermissions).save()
+  }
+
+  def getModelWorldPermissions(modelFqn: ModelFqn): Try[ModelPermissions] = tryWithDb { db =>
     val queryString =
       """SELECT worldPermissions
         |  FROM Model
@@ -261,10 +269,10 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     result.map { docToWorldPermissions(_) }.get
   }
 
-  def setModelWorldPermissions(modelFqn: ModelFqn, permissions: Option[ModelPermissions]): Try[Unit] = tryWithDb { db =>
+  def setModelWorldPermissions(modelFqn: ModelFqn, permissions: ModelPermissions): Try[Unit] = tryWithDb { db =>
     val modelDoc = getModelRid(modelFqn).get.getRecord[ODocument]
-    val permissionsDoc = permissions.map { modelPermissionToDoc(_) }
-    modelDoc.fields(Fields.World, permissionsDoc.getOrElse(null)).save()
+    val permissionsDoc = modelPermissionToDoc(permissions)
+    modelDoc.field(Fields.World, permissionsDoc).save()
   }
 
   def getAllModelUserPermissions(modelFqn: ModelFqn): Try[Map[String, ModelPermissions]] = tryWithDb { db =>

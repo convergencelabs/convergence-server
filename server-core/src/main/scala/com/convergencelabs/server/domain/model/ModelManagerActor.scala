@@ -88,9 +88,7 @@ class ModelManagerActor(
               persistenceProvider.modelSnapshotStore,
               5000, // FIXME hard-coded time.  Should this be part of the protocol?
               snapshotConfig,
-              permissions.collectionWorld,
-              permissions.modelWorld,
-              permissions.modelUsers)
+              permissions)
 
             val modelActor = context.actorOf(props, resourceId)
             this.openRealtimeModels += (openRequest.modelFqn -> modelActor)
@@ -110,33 +108,34 @@ class ModelManagerActor(
     val permissionsStore = this.persistenceProvider.modelPermissionsStore
     val userPermissions = permissionsStore.getCollectionUserPermissions(collectionId, username).get
     userPermissions.getOrElse({
-      val collectionWorldPermissions = permissionsStore.getCollectionWorldPermissions(collectionId).get
-      collectionWorldPermissions.getOrElse(CollectionPermissions(false, false, false, false, false))
+      permissionsStore.getCollectionWorldPermissions(collectionId).get
     })
   }
 
   private[this] def getModelUserPermissions(fqn: ModelFqn, username: String): ModelPermissions = {
     val permissionsStore = this.persistenceProvider.modelPermissionsStore
-    val userPermissions = permissionsStore.getModelUserPermissions(fqn, username).get
-    userPermissions.getOrElse({
-      val modelWorldPermissions = permissionsStore.getModelWorldPermissions(fqn).get
-      modelWorldPermissions.getOrElse {
-        permissionsStore.getCollectionWorldPermissions(fqn.collectionId).map {
-          case Some(CollectionPermissions(create, read, write, remove, manage)) => ModelPermissions(read, write, remove, manage)
-          case None => ModelPermissions(false, false, false, false)
-        }.get
-      }
-    })
+
+    if (permissionsStore.modelOverridesCollectionPermissions(fqn).get) {
+      val userPermissions = permissionsStore.getModelUserPermissions(fqn, username).get
+      userPermissions.getOrElse({
+        permissionsStore.getModelWorldPermissions(fqn).get
+      })
+    } else {
+      val CollectionPermissions(create, read, write, remove, manage) = permissionsStore.getCollectionWorldPermissions(fqn.collectionId).get
+      ModelPermissions(read, write, remove, manage)
+    }
   }
 
   private[this] def getModelPermissions(fqn: ModelFqn): Try[RealTimeModelPermissions] = {
     //FIXME: after implementing collection permissions
     val permissionsStore = this.persistenceProvider.modelPermissionsStore
     for {
+      overrideCollection <- permissionsStore.modelOverridesCollectionPermissions(fqn)
       collectionWorld <- permissionsStore.getCollectionWorldPermissions(fqn.collectionId)
+      collectionUsers <- permissionsStore.getAllCollectionUserPermissions(fqn.collectionId)
       modelWorld <- permissionsStore.getModelWorldPermissions(fqn)
-      users <- permissionsStore.getAllModelUserPermissions(fqn)
-    } yield (RealTimeModelPermissions(collectionWorld, modelWorld, users))
+      modelUsers <- permissionsStore.getAllModelUserPermissions(fqn)
+    } yield (RealTimeModelPermissions(overrideCollection, collectionWorld, collectionUsers, modelWorld, modelUsers))
   }
 
   private[this] def getSnapshotConfigForModel(collectionId: String): Try[ModelSnapshotConfig] = {
@@ -150,21 +149,23 @@ class ModelManagerActor(
   }
 
   private[this] def onCreateModelRequest(createRequest: CreateModelRequest): Unit = {
-    val CreateModelRequest(sk, collectionId, modelId, data, worldPermissions) = createRequest
+    val CreateModelRequest(sk, collectionId, modelId, data, overridePermissions, worldPermissions) = createRequest
     // FIXME perhaps these should be some expected error type, like InvalidArgument
     if (collectionId.length == 0) {
       sender ! UnknownErrorResponse("The collecitonId can not be empty when creating a model")
     } else {
-      createModel(sk, collectionId, modelId, data, worldPermissions)
+      createModel(sk, collectionId, modelId, data, overridePermissions, worldPermissions)
     }
   }
 
-  private[this] def createModel(sk: SessionKey, collectionId: String, modelId: Option[String], data: ObjectValue, worldPermissions: Option[ModelPermissions]): Unit = {
+  private[this] def createModel(sk: SessionKey, collectionId: String, modelId: Option[String], data: ObjectValue,
+                                overridePermissions: Option[Boolean], worldPermissions: Option[ModelPermissions]): Unit = {
     if (sk.admin || getCollectionUserPermissions(collectionId, sk.uid).create) {
       persistenceProvider.collectionStore.ensureCollectionExists(collectionId) flatMap { _ =>
-        persistenceProvider.modelStore.createModel(collectionId, modelId, data, worldPermissions)
+        persistenceProvider.modelStore.createModel(collectionId, modelId, data, overridePermissions.getOrElse(false),
+          worldPermissions.getOrElse(ModelPermissions(false, false, false, false)))
       } flatMap { model =>
-        val ModelMetaData(fqn, version, created, modeified, worldPermissions) = model.metaData
+        val ModelMetaData(fqn, version, created, modified, overworldPermissions, worldPermissions) = model.metaData
         val snapshot = ModelSnapshot(ModelSnapshotMetaData(fqn, version, created), model.data)
         // Give the creating user unlimited access to the model
         // TODO: Change this to use defaults
@@ -206,13 +207,13 @@ class ModelManagerActor(
 
   private[this] def onQueryModelsRequest(request: QueryModelsRequest): Unit = {
     val QueryModelsRequest(sk, query) = request
-    val username = if(request.sk.admin) {
+    val username = if (request.sk.admin) {
       None
     } else {
       Some(request.sk.uid)
     }
     persistenceProvider.modelStore.queryModels(query, username) match {
-      case Success(result) =>sender ! QueryModelsResponse(result)
+      case Success(result) => sender ! QueryModelsResponse(result)
       case Failure(cause)  => sender ! Status.Failure(cause)
     }
   }
@@ -224,12 +225,11 @@ class ModelManagerActor(
   }
 
   private[this] def onSetModelPermissions(request: SetModelPermissionsRequest): Unit = {
-    val SetModelPermissionsRequest(sk, collectionId, modelId, setWorld, world, setAllUsers, users) = request
+    val SetModelPermissionsRequest(sk, collectionId, modelId, overrideCollection, world, setAllUsers, users) = request
     val modelFqn = ModelFqn(collectionId, modelId)
     this.openRealtimeModels.get(modelFqn).foreach { _ forward request }
-    if (setWorld) {
-      persistenceProvider.modelPermissionsStore.setModelWorldPermissions(modelFqn, world)
-    }
+    overrideCollection.foreach { persistenceProvider.modelPermissionsStore.setOverrideCollectionPermissions(modelFqn, _) }
+    world.foreach { persistenceProvider.modelPermissionsStore.setModelWorldPermissions(modelFqn, _) }
 
     if (setAllUsers) {
       persistenceProvider.modelPermissionsStore.deleteAllModelUserPermissions(modelFqn)

@@ -21,21 +21,22 @@ package model {
   //
   case class OpenRequestRecord(clientActor: ActorRef, askingActor: ActorRef)
   case class OpenRealtimeModelRequest(sk: SessionKey, modelFqn: ModelFqn, initializerProvided: Boolean, clientActor: ActorRef)
-  case class CreateModelRequest(sk: SessionKey, collectionId: String, modelId: Option[String], modelData: ObjectValue, worldPermissions: Option[ModelPermissions])
+  case class CreateModelRequest(sk: SessionKey, collectionId: String, modelId: Option[String], modelData: ObjectValue,
+                                overridePermissions: Option[Boolean], worldPermissions: Option[ModelPermissions])
   case class DeleteModelRequest(sk: SessionKey, modelFqn: ModelFqn)
   case class CloseRealtimeModelRequest(sk: SessionKey)
   case class OperationSubmission(seqNo: Long, contextVersion: Long, operation: Operation)
-  case class ClientModelDataResponse(modelData: ObjectValue, worldPermissions: Option[ModelPermissions])
+  case class ClientModelDataResponse(modelData: ObjectValue, overridePermissions: Option[Boolean], worldPermissions: Option[ModelPermissions])
 
   case class GetModelPermissionsRequest(collectionId: String, modelId: String)
 
   case class GetModelPermissionsResponse(worlPermissions: ModelPermissions, userPermissions: Map[String, ModelPermissions])
 
   case class SetModelPermissionsRequest(
-    sk: SessionKey, 
+    sk: SessionKey,
     collectionId: String,
     modelId: String,
-    setWorld: Boolean,
+    overrideCollection: Option[Boolean],
     worldPermissions: Option[ModelPermissions],
     setAllUsers: Boolean,
     userPermissions: Map[String, Option[ModelPermissions]])
@@ -70,9 +71,11 @@ package model {
   // and we will need to trigger some sort of update when the collection wide
   // permissions change.
   case class RealTimeModelPermissions(
-      collectionWorld: Option[CollectionPermissions],
-      modelWorld: Option[ModelPermissions], 
-      modelUsers: Map[String, ModelPermissions])
+    modelOverridesCollection: Boolean,
+    collectionWorld: CollectionPermissions,
+    collectionUsers: Map[String, CollectionPermissions],
+    modelWorld: ModelPermissions,
+    modelUsers: Map[String, ModelPermissions])
 
   //
   // Incoming Messages From Self
@@ -129,7 +132,7 @@ package model {
     resourceId: String, sessionId: String, id: Option[String], key: String,
     referenceType: ReferenceType.Value, values: Option[List[Any]]) extends RemoteReferenceEvent
   case class RemoteReferenceSet(resourceId: String, sessionId: String, id: Option[String], key: String,
-    referenceType: ReferenceType.Value, value: List[Any]) extends RemoteReferenceEvent
+                                referenceType: ReferenceType.Value, value: List[Any]) extends RemoteReferenceEvent
   case class RemoteReferenceCleared(resourceId: String, sessionId: String, id: Option[String], key: String) extends RemoteReferenceEvent
   case class RemoteReferenceUnpublished(resourceId: String, sessionId: String, id: Option[String], key: String) extends RemoteReferenceEvent
 

@@ -95,7 +95,9 @@ class ModelStoreQuerySpec extends PersistenceStoreSpec[ModelStoreQuerySpecStores
         createModels(stores)
         createUsers(stores)
 
-        stores.permissions.setModelWorldPermissions(ModelFqn("collection1", "model1"), Some(ModelPermissions(false, false, false, false))).get
+        stores.permissions.setOverrideCollectionPermissions(ModelFqn("collection1", "model1"), true)
+        stores.permissions.setOverrideCollectionPermissions(ModelFqn("collection1", "model2"), true)
+        stores.permissions.setModelWorldPermissions(ModelFqn("collection1", "model1"), ModelPermissions(false, false, false, false)).get
 
         val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY sField ASC", Some("test1")).get
         list.map { _.metaData.fqn.modelId } shouldEqual (List("model2"))
@@ -105,7 +107,9 @@ class ModelStoreQuerySpec extends PersistenceStoreSpec[ModelStoreQuerySpecStores
         createModels(stores)
         createUsers(stores)
 
-        stores.permissions.setModelWorldPermissions(ModelFqn("collection1", "model1"), Some(ModelPermissions(false, false, false, false)))
+        stores.permissions.setOverrideCollectionPermissions(ModelFqn("collection1", "model1"), true)
+        stores.permissions.setOverrideCollectionPermissions(ModelFqn("collection1", "model2"), true)
+        stores.permissions.setModelWorldPermissions(ModelFqn("collection1", "model1"), ModelPermissions(false, false, false, false))
         stores.permissions.updateModelUserPermissions(ModelFqn("collection1", "model1"), "test1", ModelPermissions(true, true, true, true))
 
         val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY sField ASC", Some("test1")).get
@@ -123,9 +127,9 @@ class ModelStoreQuerySpec extends PersistenceStoreSpec[ModelStoreQuerySpecStores
     val created = (json \ "created").extract[Long]
     val modified = (json \ "modified").extract[Long]
 
-    val modelPermissions = Some(ModelPermissions(true, true, true, true))
+    val modelPermissions = ModelPermissions(true, true, true, true)
     
-    val metaData = ModelMetaData(ModelFqn(collectionId, modelId), version, Instant.ofEpochMilli(created), Instant.ofEpochMilli(modified), modelPermissions)
+    val metaData = ModelMetaData(ModelFqn(collectionId, modelId), version, Instant.ofEpochMilli(created), Instant.ofEpochMilli(modified), true, modelPermissions)
 
     Model(metaData, jObjectToObjectValue((json \ "data").asInstanceOf[JObject]))
   }

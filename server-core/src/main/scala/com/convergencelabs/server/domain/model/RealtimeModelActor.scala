@@ -56,15 +56,19 @@ class RealtimeModelActor(
   private[this] val modelSnapshotStore: ModelSnapshotStore,
   private[this] val clientDataResponseTimeout: Long,
   private[this] val snapshotConfig: ModelSnapshotConfig,
-  private[this] var collectionWorldPermissions: Option[CollectionPermissions],
-  private[this] var modelWorldPermissions: Option[ModelPermissions],
-  private[this] var userModelPermissions: Map[String, ModelPermissions])
+  private[this] val permissions: RealTimeModelPermissions)
     extends Actor
     with ActorLogging {
 
   // This sets the actor dispatcher as an implicit execution context.  This way we
   // don't have to pass this argument to futures.
   private[this] implicit val ec: ExecutionContext = context.dispatcher
+
+  private[this] var overrideCollection = permissions.modelOverridesCollection
+  private[this] var collectionWorld = permissions.collectionWorld
+  private[this] var collectionUsers = permissions.collectionUsers
+  private[this] var modelWorld = permissions.modelWorld
+  private[this] var modelUsers = permissions.modelUsers
 
   private[this] var connectedClients = HashMap[SessionKey, ActorRef]()
   private[this] var clientToSessionId = HashMap[ActorRef, SessionKey]()
@@ -158,17 +162,16 @@ class RealtimeModelActor(
   }
 
   private[this] def onSetPermissionsRequest(request: SetModelPermissionsRequest): Unit = {
-    val SetModelPermissionsRequest(sk, collectionId, modelId, setWorld, world, setAllUsers, users) = request
+    val SetModelPermissionsRequest(sk, collectionId, modelId, overridePerms, world, setAllUsers, users) = request
 
-    // TODOL Handle else case
+    // TODO: Handle else case
     if (getPermissionsForSession(sk).manage) {
-      val oldModelWorldPermissions = modelWorldPermissions
-      val oldUserModelPermissions = userModelPermissions
+      val oldOverrideCollection = overrideCollection
+      val oldModelWorldPermissions = modelWorld
+      val oldUserModelPermissions = modelUsers
 
-      // TODO: do we really need an option for this and a boolean?
-      if (setWorld) {
-        this.modelWorldPermissions = world
-      }
+      overridePerms.foreach { overrideCollection = _ }
+      world.foreach { modelWorld = _ }
 
       if (setAllUsers) {
         val newUsers = scala.collection.mutable.Map[String, ModelPermissions]()
@@ -178,9 +181,9 @@ class RealtimeModelActor(
               newUsers.put(username, permissions.get)
             }
         }
-        userModelPermissions = newUsers.toMap
+        modelUsers = newUsers.toMap
       } else {
-        val newUsers = scala.collection.mutable.Map[String, ModelPermissions](userModelPermissions.toSeq: _*)
+        val newUsers = scala.collection.mutable.Map[String, ModelPermissions](modelUsers.toSeq: _*)
         users.foreach {
           case (username, permissions) =>
             if (permissions.isDefined) {
@@ -189,12 +192,12 @@ class RealtimeModelActor(
               newUsers.remove(username)
             }
         }
-        userModelPermissions = newUsers.toMap
+        modelUsers = newUsers.toMap
       }
 
       this.connectedClients foreach {
         case (sk, actor) =>
-          val oldPerms = oldUserModelPermissions.getOrElse(sk.uid, oldModelWorldPermissions.getOrElse(ModelPermissions(false, false, false, false)))
+          val oldPerms = getPermissionsForSession(sk, collectionWorld, collectionUsers, oldOverrideCollection, oldModelWorldPermissions, oldUserModelPermissions)
           val newPerms = getPermissionsForSession(sk)
           if (oldPerms != newPerms) {
             actor ! ModelPermissionsChanged(modelResourceId, newPerms)
@@ -204,10 +207,23 @@ class RealtimeModelActor(
   }
 
   private[this] def getPermissionsForSession(sk: SessionKey): ModelPermissions = {
-    sk.admin match {
-      case true  => ModelPermissions(true, true, true, true)
-      case false => userModelPermissions.getOrElse(sk.uid, modelWorldPermissions.getOrElse(ModelPermissions(false, false, false, false)))
+    getPermissionsForSession(sk, collectionWorld, collectionUsers, overrideCollection, modelWorld, modelUsers)
+  }
+
+  private[this] def getPermissionsForSession(
+    sk: SessionKey, cWorld: CollectionPermissions, cUsers: Map[String, CollectionPermissions],
+    overridePerm: Boolean, mWorld: ModelPermissions, mUsers: Map[String, ModelPermissions]): ModelPermissions = {
+    if (sk.admin) {
+      ModelPermissions(true, true, true, true)
+    } else {
+      if (overridePerm) {
+        mUsers.getOrElse(sk.uid, mWorld)
+      } else {
+        val CollectionPermissions(create, read, write, remove, manage) = cUsers.getOrElse(sk.uid, cWorld)
+        ModelPermissions(read, write, remove, manage)
+      }
     }
+
   }
 
   //
@@ -360,10 +376,11 @@ class RealtimeModelActor(
    * then open the model from the database.
    */
   private[this] def onClientModelDataResponse(response: ClientModelDataResponse): Unit = {
-    val ClientModelDataResponse(modelData, worldPermissions) = response
-    val result = modelStore.createModel(modelFqn.collectionId, Some(modelFqn.modelId), modelData, worldPermissions)
+    val ClientModelDataResponse(modelData, overridePermissions, worldPermissions) = response
+    val result = modelStore.createModel(modelFqn.collectionId, Some(modelFqn.modelId), modelData,
+      overridePermissions.getOrElse(false), worldPermissions.getOrElse(ModelPermissions(false, false, false, false)))
     result map { model =>
-      val Model(ModelMetaData(fqn, version, createdTime, modifiedTime, worldPermissions), data) = model
+      val Model(ModelMetaData(fqn, version, createdTime, modifiedTime, overridePermissions, worldPermissions), data) = model
       modelSnapshotStore.createSnapshot(
         ModelSnapshot(ModelSnapshotMetaData(modelFqn, version, createdTime), response.modelData))
       requestModelDataFromDatastore()
@@ -414,7 +431,7 @@ class RealtimeModelActor(
     val referencesBySession = this.model.references()
 
     val permissions = this.getPermissionsForSession(sk)
-    
+
     val openModelResponse = OpenModelSuccess(
       self,
       modelResourceId,
@@ -701,9 +718,7 @@ object RealtimeModelActor {
     modelSnapshotStore: ModelSnapshotStore,
     clientDataResponseTimeout: Long,
     snapshotConfig: ModelSnapshotConfig,
-    collectionWorldPermissions: Option[CollectionPermissions],
-    modelWorldPermissions: Option[ModelPermissions],
-    userModelPermissions: Map[String, ModelPermissions]): Props =
+    permissions: RealTimeModelPermissions): Props =
     Props(new RealtimeModelActor(
       modelManagerActor,
       domainFqn,
@@ -714,9 +729,7 @@ object RealtimeModelActor {
       modelSnapshotStore,
       clientDataResponseTimeout,
       snapshotConfig,
-      collectionWorldPermissions,
-      modelWorldPermissions,
-      userModelPermissions))
+      permissions))
 
   def sessionKeyToClientId(sk: SessionKey): String = sk.serialize()
 }

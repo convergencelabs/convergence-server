@@ -97,7 +97,8 @@ class DomainImporterSpec extends WordSpecLike with Matchers {
             2L,
             Instant.parse("2016-11-16T17:49:15.233Z"),
             Instant.parse("2016-11-16T17:49:15.233Z"),
-            Some(ModelPermissions(true, true, true, true))),
+            true,
+            ModelPermissions(true, true, true, true)),
           ObjectValue(
             "vid1",
             Map("myString" -> StringValue("vid2", "my string"))))

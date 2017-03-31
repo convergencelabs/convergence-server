@@ -56,11 +56,10 @@ object ModelQueryBuilder {
 
     val permissionString = username.map { usr =>
       val userParam = addParam(usr)
-        s""" and ((userPermissions contains (user.username = $userParam and permissions.read = true)) or
-               (not(userPermissions contains (user.username = $userParam )) and 
-	              ((worldPermissions is not null and worldPermissions.read = true) or 
-	               (worldPermissions is null and collection.worldPermissions is not null and collection.read = true) or 
-		             (worldPermissions is null and collection.worldPermissions is null))))"""
+        s""" and ((overridePermissions == true and ((userPermissions contains (user.username = $userParam and permissions.read = true)) or
+                    (not(userPermissions contains (user.username = $userParam )) and worldPermissions.read = true))) or 
+	               (overridePermissions == false and ((collection.userPermissions contains (user.username = $userParam and permissions.read = true)) or
+                    (not(collection.userPermissions contains (user.username = $userParam )) and collection.worldPermissions.read = true))))"""
     }.getOrElse("")
     
     val orderString: String = if (select.orderBy.isEmpty) {

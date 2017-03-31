@@ -8,4 +8,5 @@ case class ModelMetaData(
   version: Long,
   createdTime: Instant,
   modifiedTime: Instant,
-  worldPermissions: Option[ModelPermissions])
+  overridePermissions: Boolean, 
+  worldPermissions: ModelPermissions)

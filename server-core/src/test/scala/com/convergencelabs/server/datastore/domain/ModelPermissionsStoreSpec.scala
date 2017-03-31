@@ -73,7 +73,7 @@ class ModelPermissionsStoreSpec
     with WordSpecLike
     with Matchers {
 
-  val modelPermissions = Some(ModelPermissions(true, true, true, true))
+  val modelPermissions = ModelPermissions(true, true, true, true)
   
   val collectionId = "test"
   val nonExistentCollectionId = "not_real"
@@ -86,9 +86,9 @@ class ModelPermissionsStoreSpec
     "retrieving the model world permissions" must {
       "be equal to those just set" in withTestData { provider =>
         val permissions = ModelPermissions(true, false, true, false)
-        provider.modelPermissionsStore.setModelWorldPermissions(modelFqn, Some(permissions)).get
+        provider.modelPermissionsStore.setModelWorldPermissions(modelFqn, permissions).get
         val retrievedPermissions = provider.modelPermissionsStore.getModelWorldPermissions(modelFqn).get
-        retrievedPermissions shouldEqual Some(permissions)
+        retrievedPermissions shouldEqual permissions
       }
 
       "fail if model does not exist" in withTestData { provider =>
@@ -138,9 +138,9 @@ class ModelPermissionsStoreSpec
     "retrieving the collection world permissions" must {
       "be equal to those just set" in withTestData { provider =>
         val permissions = CollectionPermissions(false, true, false, true, false)
-        provider.modelPermissionsStore.setCollectionWorldPermissions(collectionId, Some(permissions)).get
+        provider.modelPermissionsStore.setCollectionWorldPermissions(collectionId, permissions).get
         val retrievedPermissions = provider.modelPermissionsStore.getCollectionWorldPermissions(collectionId).get
-        retrievedPermissions shouldEqual Some(permissions)
+        retrievedPermissions shouldEqual permissions
       }
 
       "fail if collection does not exist" in withTestData { provider =>
@@ -192,8 +192,8 @@ class ModelPermissionsStoreSpec
     this.withPersistenceStore { provider =>
       provider.collectionStore.ensureCollectionExists("test").get 
       provider.collectionStore.ensureCollectionExists("test2").get
-      provider.modelStore.createModel("test", Some("test"), ObjectValue("vid", Map()), modelPermissions).get
-      provider.modelStore.createModel("test2", Some("test"), ObjectValue("vid", Map()), modelPermissions).get
+      provider.modelStore.createModel("test", Some("test"), ObjectValue("vid", Map()), true, modelPermissions).get
+      provider.modelStore.createModel("test2", Some("test"), ObjectValue("vid", Map()), true, modelPermissions).get
       provider.userStore.createDomainUser(DomainUser(DomainUserType.Normal, "test1", None, None, None, None)).get
       provider.userStore.createDomainUser(DomainUser(DomainUserType.Normal, "test2", None, None, None, None)).get
       testCode(provider)

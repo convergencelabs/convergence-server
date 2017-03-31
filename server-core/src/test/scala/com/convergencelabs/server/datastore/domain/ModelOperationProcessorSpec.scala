@@ -57,7 +57,7 @@ class ModelOperationProcessorSpec
   val sid = "u1-1"
   val session = DomainSession(sid, username, Instant.now(), None, "jwt", "js", "1.0", "", "127.0.0.1")
   
-  val modelPermissions = Some(ModelPermissions(true, true, true, true))
+  val modelPermissions = ModelPermissions(true, true, true, true)
   
   val startingVersion = 100
   
@@ -69,6 +69,7 @@ class ModelOperationProcessorSpec
     startingVersion,
     Instant.now(),
     Instant.now(),
+    true,
     modelPermissions)
 
   val fnameVID = "pp1-fname"

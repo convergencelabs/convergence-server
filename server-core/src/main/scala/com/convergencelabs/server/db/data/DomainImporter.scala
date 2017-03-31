@@ -192,7 +192,8 @@ class DomainImporter(
         modelData.version,
         modelData.created,
         modelData.modified,
-        Some(ModelPermissions(true, true, true, true))),
+        true,
+        ModelPermissions(true, true, true, true)),
       data)
 
     persistence.modelStore.createModel(model).get

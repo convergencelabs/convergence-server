@@ -51,7 +51,7 @@ class ModelManagerActorSpec
   }
 
   val domainPersistenceActor = MockDomainPersistenceManagerActor(system)
-  val modelPermissions = Some(ModelPermissions(true, true, true, true))
+  val modelPermissions = ModelPermissions(true, true, true, true)
 
   // FIXME we need to test that models actually get created and deleted.  Not sure how to do this.
 
@@ -98,13 +98,13 @@ class ModelManagerActorSpec
 
         val now = Instant.now()
         
-        Mockito.when(modelStore.createModel(cId, Some(mId), data, modelPermissions))
-          .thenReturn(Success(Model(ModelMetaData(nonExistentModelFqn, 0L, now, now, modelPermissions), data)))
+        Mockito.when(modelStore.createModel(cId, Some(mId), data, true, modelPermissions))
+          .thenReturn(Success(Model(ModelMetaData(nonExistentModelFqn, 0L, now, now, true, modelPermissions), data)))
 
         Mockito.when(modelSnapshotStore.createSnapshot(Matchers.any()))
           .thenReturn(Success(()))
           
-        modelManagerActor.tell(CreateModelRequest(SessionKey(userId1, sessionId1), cId, Some(mId), data, modelPermissions), client.ref)
+        modelManagerActor.tell(CreateModelRequest(SessionKey(userId1, sessionId1), cId, Some(mId), data, Some(true), Some(modelPermissions)), client.ref)
         client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelCreated(nonExistentModelFqn))
       }
 
@@ -113,10 +113,10 @@ class ModelManagerActorSpec
         val ModelFqn(cId, mId) = modelFqn
         val data = ObjectValue("", Map())
         
-         Mockito.when(modelStore.createModel(cId, Some(mId), data, modelPermissions))
+         Mockito.when(modelStore.createModel(cId, Some(mId), data, true, modelPermissions))
           .thenReturn(Failure(DuplicateValueExcpetion("foo")))
 
-        modelManagerActor.tell(CreateModelRequest(SessionKey(userId1, sessionId1), cId, Some(mId), data, modelPermissions), client.ref)
+        modelManagerActor.tell(CreateModelRequest(SessionKey(userId1, sessionId1), cId, Some(mId), data, Some(true), Some(modelPermissions)), client.ref)
         client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelAlreadyExists)
       }
     }
@@ -147,7 +147,7 @@ class ModelManagerActorSpec
     val modelJsonData = JObject("key" -> JString("value"))
     val modelCreateTime = Instant.ofEpochMilli(2L)
     val modelModifiedTime = Instant.ofEpochMilli(3L)
-    val modelData = Model(ModelMetaData(modelFqn, 1L, modelCreateTime, modelModifiedTime, modelPermissions), ObjectValue("", Map()))
+    val modelData = Model(ModelMetaData(modelFqn, 1L, modelCreateTime, modelModifiedTime, true, modelPermissions), ObjectValue("", Map()))
     val modelSnapshotTime = Instant.ofEpochMilli(2L)
     val modelSnapshotMetaData = ModelSnapshotMetaData(modelFqn, 1L, modelSnapshotTime)
 
@@ -185,13 +185,16 @@ class ModelManagerActorSpec
       .thenReturn(Success(()))
       
     val modelPermissionsStore = mock[ModelPermissionsStore]
-    Mockito.when(modelPermissionsStore.getModelWorldPermissions(modelFqn)).thenReturn(Success(Some(ModelPermissions(true, true, true, true))))
-    Mockito.when(modelPermissionsStore.getModelWorldPermissions(nonExistentModelFqn)).thenReturn(Success(Some(ModelPermissions(true, true, true, true))))
-    Mockito.when(modelPermissionsStore.getCollectionWorldPermissions(collectionId)).thenReturn(Success(Some(CollectionPermissions(true, true, true, true, true))))
+    Mockito.when(modelPermissionsStore.modelOverridesCollectionPermissions(modelFqn)).thenReturn(Success(true))
+    Mockito.when(modelPermissionsStore.modelOverridesCollectionPermissions(nonExistentModelFqn)).thenReturn(Success(true))
+    Mockito.when(modelPermissionsStore.getModelWorldPermissions(modelFqn)).thenReturn(Success(ModelPermissions(true, true, true, true)))
+    Mockito.when(modelPermissionsStore.getModelWorldPermissions(nonExistentModelFqn)).thenReturn(Success(ModelPermissions(true, true, true, true)))
+    Mockito.when(modelPermissionsStore.getCollectionWorldPermissions(collectionId)).thenReturn(Success(CollectionPermissions(true, true, true, true, true)))
     Mockito.when(modelPermissionsStore.getAllModelUserPermissions(modelFqn)).thenReturn(Success(Map[String, ModelPermissions]()))
     Mockito.when(modelPermissionsStore.getAllModelUserPermissions(nonExistentModelFqn)).thenReturn(Success(Map[String, ModelPermissions]()))
     Mockito.when(modelPermissionsStore.getCollectionUserPermissions(collectionId, userId1)).thenReturn(Success(Some(CollectionPermissions(true, true, true, true, true))))
     Mockito.when(modelPermissionsStore.getCollectionUserPermissions(collectionId, userId2)).thenReturn(Success(Some(CollectionPermissions(true, true, true, true, true))))
+    Mockito.when(modelPermissionsStore.getAllCollectionUserPermissions(collectionId)).thenReturn(Success(Map[String, CollectionPermissions]()))
     Mockito.when(modelPermissionsStore.getModelUserPermissions(modelFqn, userId1)).thenReturn(Success(Some(ModelPermissions(true, true, true, true))))
     Mockito.when(modelPermissionsStore.getModelUserPermissions(modelFqn, userId2)).thenReturn(Success(Some(ModelPermissions(true, true, true, true))))
     Mockito.when(modelPermissionsStore.getModelUserPermissions(nonExistentModelFqn, userId1)).thenReturn(Success(Some(ModelPermissions(true, true, true, true))))
