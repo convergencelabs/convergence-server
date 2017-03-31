@@ -37,7 +37,7 @@ import com.convergencelabs.server.datastore.domain.CollectionPermissions
 object DomainCollectionService {
   case class GetCollectionsResponse(collections: List[CollectionData]) extends AbstractSuccessResponse
   case class GetCollectionResponse(collection: CollectionData) extends AbstractSuccessResponse
-  case class CollectionPermissionsData(read: Boolean, write: Boolean, remove: Boolean, manage: Boolean)
+  case class CollectionPermissionsData(read: Boolean, write: Boolean, remove: Boolean, manage: Boolean, create: Boolean)
   case class CollectionData(
     id: String,
     description: String,
@@ -130,11 +130,10 @@ class DomainCollectionService(
   }
 
   def collectionDataToCollection(collectionData: CollectionData): Collection = {
-    // FIXME we are missing create permission
     val CollectionData(
       id,
       description,
-      CollectionPermissionsData(read, write, remove, manage),
+      CollectionPermissionsData(read, write, remove, manage, create),
       overrideSnapshotConfig,
       ModelSnapshotPolicyData(
         snapshotsEnabled,
@@ -158,12 +157,11 @@ class DomainCollectionService(
       limitByTime,
       Duration.ofMillis(minimumTimeInterval),
       Duration.ofMillis(maximumTimeInterval))
-    val collection = Collection(id, description, overrideSnapshotConfig, snapshotConfig, CollectionPermissions(true, read, write, remove, manage))
+    val collection = Collection(id, description, overrideSnapshotConfig, snapshotConfig, CollectionPermissions(create, read, write, remove, manage))
     collection
   }
 
   def collectionToCollectionData(collection: Collection): CollectionData = {
-    // FIXME nedd to add create permission
     val Collection(
       id,
       description,
@@ -191,8 +189,7 @@ class DomainCollectionService(
       maximumTimeInterval.toMillis,
       limitByTime,
       minimumTimeInterval.toMillis)
-    // FIXME fake?
-    val worldPermissions = CollectionPermissionsData(read, write, remove, manage)
+    val worldPermissions = CollectionPermissionsData(read, write, remove, manage, create)
     val collectionData = CollectionData(id, description, worldPermissions, overrideSnapshotConfig, snapshotConfig)
     collectionData
   }
