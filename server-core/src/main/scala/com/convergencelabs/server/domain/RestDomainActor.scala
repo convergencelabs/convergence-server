@@ -35,6 +35,8 @@ import com.convergencelabs.server.domain.stats.DomainStatsActor.DomainStatsReque
 import com.convergencelabs.server.domain.stats.DomainStatsActor
 import com.convergencelabs.server.datastore.SessionStoreActor.SessionStoreRequest
 import com.convergencelabs.server.datastore.SessionStoreActor
+import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.ModelPermissionsStoreRequest
+import com.convergencelabs.server.datastore.ModelPermissionsStoreActor
 
 object RestDomainActor {
   def props(domainFqn: DomainFqn): Props = Props(new RestDomainActor(domainFqn))
@@ -50,6 +52,7 @@ class RestDomainActor(domainFqn: DomainFqn) extends Actor with ActorLogging {
   private[this] var statsActor: ActorRef = _
   private[this] var collectionStoreActor: ActorRef = _
   private[this] var modelStoreActor: ActorRef = _
+  private[this] var modelPermissionsStoreActor: ActorRef = _
   private[this] var keyStoreActor: ActorRef = _
   private[this] var sessionStoreActor: ActorRef = _
   private[this] var configStoreActor: ActorRef = _
@@ -67,6 +70,8 @@ class RestDomainActor(domainFqn: DomainFqn) extends Actor with ActorLogging {
       collectionStoreActor forward message
     case message: ModelStoreRequest =>
       modelStoreActor forward message
+    case message: ModelPermissionsStoreRequest =>
+      modelPermissionsStoreActor forward message
     case message: ApiKeyStoreRequest =>
       keyStoreActor forward message
     case message: ConfigStoreRequest =>
@@ -118,6 +123,7 @@ class RestDomainActor(domainFqn: DomainFqn) extends Actor with ActorLogging {
         configStoreActor = context.actorOf(ConfigStoreActor.props(provider.configStore))
         collectionStoreActor = context.actorOf(CollectionStoreActor.props(provider.collectionStore))
         modelStoreActor = context.actorOf(ModelStoreActor.props(provider.modelStore, provider.collectionStore))
+        modelStoreActor = context.actorOf(ModelPermissionsStoreActor.props(provider.modelPermissionsStore))
         keyStoreActor = context.actorOf(JwtAuthKeyStoreActor.props(provider.jwtAuthKeyStore))
         sessionStoreActor = context.actorOf(SessionStoreActor.props(provider.sessionStore))
 

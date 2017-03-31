@@ -24,6 +24,7 @@ import akka.actor.Props
 import com.convergencelabs.server.domain.model.data.DateValue
 import java.time.Instant
 import com.convergencelabs.server.datastore.domain.ModelPermissions
+import com.convergencelabs.server.domain.model.GetModelPermissionsRequest
 
 object ModelStoreActor {
   def props(
@@ -82,8 +83,8 @@ class ModelStoreActor private[datastore] (
   def createModel(collectionId: String, data: Map[String, Any], overridePermissions: Option[Boolean], worldPermissions: Option[ModelPermissions]): Unit = {
     val root = ModelDataGenerator(data)
     val result = collectionStore.ensureCollectionExists(collectionId) flatMap { _ =>
-      modelStore.createModel(collectionId, None, root, overridePermissions.getOrElse(false), 
-          worldPermissions.getOrElse(ModelPermissions(false, false, false, false))) map { model => model.metaData.fqn }
+      modelStore.createModel(collectionId, None, root, overridePermissions.getOrElse(false),
+        worldPermissions.getOrElse(ModelPermissions(false, false, false, false))) map { model => model.metaData.fqn }
     }
     reply(result)
   }

@@ -48,6 +48,20 @@ import akka.util.Timeout
 import com.convergencelabs.server.domain.AuthorizationActor.ConvergenceAuthorizedRequest
 import scala.util.Try
 import com.convergencelabs.server.datastore.domain.ModelPermissions
+import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.GetModelPermissions
+import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.ModelPermissionsResponse
+import com.convergencelabs.server.frontend.rest.DomainModelService.GetModelPermissionsResponse
+import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.GetModelWorldPermissions
+import com.convergencelabs.server.frontend.rest.DomainModelService.GetPermissionsResponse
+import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.SetModelWorldPermissions
+import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.SetModelUserPermissions
+import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.RemoveModelUserPermissions
+import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.GetModelUserPermissions
+import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.GetAllModelUserPermissions
+import com.convergencelabs.server.frontend.rest.DomainModelService.GetAllUserPermissionsResponse
+import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.GetModelOverridesPermissions
+import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.SetModelOverridesPermissions
+import com.convergencelabs.server.frontend.rest.DomainModelService.GetModelOverridesPermissionsResponse
 
 object DomainModelService {
 
@@ -69,6 +83,10 @@ object DomainModelService {
   case class GetModelsResponse(models: List[ModelMetaDataResponse]) extends AbstractSuccessResponse
   case class GetModelResponse(model: ModelResponse) extends AbstractSuccessResponse
   case class CreateModelResponse(collectionId: String, modelId: String) extends AbstractSuccessResponse
+  case class GetModelPermissionsResponse(overrideWorld: Boolean, worldPermissions: ModelPermissions, userPermissions: Map[String, ModelPermissions]) extends AbstractSuccessResponse
+  case class GetPermissionsResponse(permissions: ModelPermissions) extends AbstractSuccessResponse
+  case class GetAllUserPermissionsResponse(userPermissions: Map[String, ModelPermissions]) extends AbstractSuccessResponse
+  case class GetModelOverridesPermissionsResponse(overrideWorld: Boolean) extends AbstractSuccessResponse
 }
 
 class DomainModelService(
@@ -110,6 +128,16 @@ class DomainModelService(
               pathEnd {
                 get {
                   complete(getModelPermissions(domain, ModelFqn(collectionId, modelId)))
+                }
+              } ~ pathPrefix("override") {
+                pathEnd {
+                  get {
+                    complete(getModelOverridesPermissions(domain, ModelFqn(collectionId, modelId)))
+                  } ~ put {
+                    entity(as[Boolean]) { overridesPermissions =>
+                      complete(setModelOverridesPermissions(domain, ModelFqn(collectionId, modelId), overridesPermissions))
+                    }
+                  }
                 }
               } ~ pathPrefix("world") {
                 pathEnd {
@@ -211,34 +239,67 @@ class DomainModelService(
     (domainRestActor ? message) map { _ => OkResponse }
   }
 
-  // Domain User Permissions
+  // Model Permissions
 
-  def getModelPermissions(domain: DomainFqn, model: ModelFqn): Future[RestResponse] = {
-    ???
+  def getModelOverridesPermissions(domain: DomainFqn, modelFqn: ModelFqn): Future[RestResponse] = {
+    val message = DomainMessage(domain, GetModelOverridesPermissions(modelFqn))
+    (domainRestActor ? message).mapTo[Boolean] map {
+      overridesPermissions =>
+        (StatusCodes.OK, GetModelOverridesPermissionsResponse(overridesPermissions))
+    }
+  }
+  
+  def setModelOverridesPermissions(domain: DomainFqn, modelFqn: ModelFqn, overridesPermissions: Boolean): Future[RestResponse] = {
+    val message = DomainMessage(domain, SetModelOverridesPermissions(modelFqn, overridesPermissions))
+    (domainRestActor ? message) map { _ => OkResponse }
   }
 
-  def getModelWorldPermissions(domain: DomainFqn, model: ModelFqn): Future[RestResponse] = {
-    ???
+  def getModelPermissions(domain: DomainFqn, modelFqn: ModelFqn): Future[RestResponse] = {
+    val message = DomainMessage(domain, GetModelPermissions(modelFqn))
+    (domainRestActor ? message).mapTo[ModelPermissionsResponse] map {
+      response =>
+        val ModelPermissionsResponse(overridePermissions, world, users) = response
+        (StatusCodes.OK, GetModelPermissionsResponse(overridePermissions, world, users))
+    }
   }
 
-  def setModelWorldPermissions(domain: DomainFqn, model: ModelFqn, permissions: ModelPermissions): Future[RestResponse] = {
-    ???
+  def getModelWorldPermissions(domain: DomainFqn, modelFqn: ModelFqn): Future[RestResponse] = {
+    val message = DomainMessage(domain, GetModelWorldPermissions(modelFqn))
+    (domainRestActor ? message).mapTo[ModelPermissions] map {
+      permissions =>
+        (StatusCodes.OK, GetPermissionsResponse(permissions))
+    }
   }
 
-  def getAllModelUserPermissions(domain: DomainFqn, model: ModelFqn): Future[RestResponse] = {
-    ???
+  def setModelWorldPermissions(domain: DomainFqn, modelFqn: ModelFqn, permissions: ModelPermissions): Future[RestResponse] = {
+    val message = DomainMessage(domain, SetModelWorldPermissions(modelFqn, permissions))
+    (domainRestActor ? message) map { _ => OkResponse }
   }
 
-  def getModelUserPermissions(domain: DomainFqn, model: ModelFqn, username: String): Future[RestResponse] = {
-    ???
+  def getAllModelUserPermissions(domain: DomainFqn, modelFqn: ModelFqn): Future[RestResponse] = {
+    val message = DomainMessage(domain, GetAllModelUserPermissions(modelFqn))
+    (domainRestActor ? message).mapTo[Map[String, ModelPermissions]] map {
+      permissions =>
+        (StatusCodes.OK, GetAllUserPermissionsResponse(permissions))
+    }
   }
 
-  def setModelUserPermissions(domain: DomainFqn, model: ModelFqn, username: String, permissions: ModelPermissions): Future[RestResponse] = {
-    ???
+  def getModelUserPermissions(domain: DomainFqn, modelFqn: ModelFqn, username: String): Future[RestResponse] = {
+    val message = DomainMessage(domain, GetModelUserPermissions(modelFqn, username))
+    (domainRestActor ? message).mapTo[ModelPermissions] map {
+      permissions =>
+        (StatusCodes.OK, GetPermissionsResponse(permissions))
+    }
   }
 
-  def removeModelUserPermissions(domain: DomainFqn, model: ModelFqn, username: String): Future[RestResponse] = {
-    ???
+  def setModelUserPermissions(domain: DomainFqn, modelFqn: ModelFqn, username: String, permissions: ModelPermissions): Future[RestResponse] = {
+    val message = DomainMessage(domain, SetModelUserPermissions(modelFqn, username, permissions))
+    (domainRestActor ? message) map { _ => OkResponse }
+  }
+
+  def removeModelUserPermissions(domain: DomainFqn, modelFqn: ModelFqn, username: String): Future[RestResponse] = {
+    val message = DomainMessage(domain, RemoveModelUserPermissions(modelFqn, username))
+    (domainRestActor ? message) map { _ => OkResponse }
   }
 
   // Permission Checks
