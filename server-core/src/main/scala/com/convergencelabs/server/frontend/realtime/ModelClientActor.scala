@@ -166,9 +166,9 @@ class ModelClientActor(
   }
 
   private[this] def closeModel(resourceId: String, reason: String): Unit = {
-    context.parent ! ModelForceCloseMessage(resourceId, reason)
     openRealtimeModels.get(resourceId) map (this.context.unwatch(_))
     openRealtimeModels -= resourceId
+    context.parent ! ModelForceCloseMessage(resourceId, reason)
   }
 
   private[this] def onClientModelDataRequest(dataRequest: ClientModelDataRequest): Unit = {
@@ -351,6 +351,7 @@ class ModelClientActor(
         val future = modelActor ? CloseRealtimeModelRequest(sessionKey)
         future.mapResponse[CloseRealtimeModelSuccess] onComplete {
           case Success(CloseRealtimeModelSuccess()) =>
+            this.context.unwatch(modelActor)
             openRealtimeModels -= request.r
             cb.reply(CloseRealTimeModelSuccessMessage())
           case Failure(cause) =>

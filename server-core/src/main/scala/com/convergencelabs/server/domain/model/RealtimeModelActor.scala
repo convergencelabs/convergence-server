@@ -95,12 +95,15 @@ class RealtimeModelActor(
       }
     }.to(Sink.onComplete {
       case Success(_) =>
-        log.debug("Persistence stream completed successfully")
+        // Note when we shut down we complete the persistence stream.
+        // So after that is done, we kill ourselves.
+        this.context.stop(self)
       case Failure(f) =>
         // FIXME this is probably altering state outside of the thread.
         // probably need to send a message.
         log.error(f, "Persistence stream completed with an error")
         this.forceCloseAllAfterError("persitence error")
+        this.context.stop(self)
     }).runWith(Source
       .actorRef[NewModelOperation](bufferSize = 1000, OverflowStrategy.fail))
 
@@ -114,51 +117,51 @@ class RealtimeModelActor(
    * Handles messages when the realtime model has not been initialized yet.
    */
   private[this] def receiveUninitialized: Receive = {
-    case request: OpenRealtimeModelRequest   => onOpenModelWhileUninitialized(request)
+    case request: OpenRealtimeModelRequest => onOpenModelWhileUninitialized(request)
     case request: SetModelPermissionsRequest => onSetPermissionsRequest(request)
-    case unknown: Any                        => unhandled(unknown)
+    case unknown: Any => unhandled(unknown)
   }
 
   /**
    * Handles messages while the model is being initialized from one or more clients.
    */
   private[this] def receiveInitializingFromClients: Receive = {
-    case request: OpenRealtimeModelRequest     => onOpenModelWhileInitializing(request)
-    case dataResponse: DatabaseModelResponse   => onDatabaseModelResponse(dataResponse)
+    case request: OpenRealtimeModelRequest => onOpenModelWhileInitializing(request)
+    case dataResponse: DatabaseModelResponse => onDatabaseModelResponse(dataResponse)
     case dataResponse: ClientModelDataResponse => onClientModelDataResponse(dataResponse)
-    case ModelDeleted                          => handleInitializationFailure(ModelDeletedWhileOpening)
-    case unknown: Any                          => unhandled(unknown)
+    case ModelDeleted => handleInitializationFailure(ModelDeletedWhileOpening)
+    case unknown: Any => unhandled(unknown)
   }
 
   /**
    * Handles messages while the model is being initialized from the database.
    */
   private[this] def receiveInitializingFromDatabase: Receive = {
-    case request: OpenRealtimeModelRequest     => onOpenModelWhileInitializing(request)
-    case dataResponse: DatabaseModelResponse   => onDatabaseModelResponse(dataResponse)
-    case DatabaseModelFailure(cause)           => handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
-    case ModelDeleted                          => handleInitializationFailure(ModelDeletedWhileOpening)
+    case request: OpenRealtimeModelRequest => onOpenModelWhileInitializing(request)
+    case dataResponse: DatabaseModelResponse => onDatabaseModelResponse(dataResponse)
+    case DatabaseModelFailure(cause) => handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
+    case ModelDeleted => handleInitializationFailure(ModelDeletedWhileOpening)
     case dataResponse: ClientModelDataResponse =>
-    case unknown: Any                          => unhandled(unknown)
+    case unknown: Any => unhandled(unknown)
   }
 
   /**
    * Handles messages once the model has been completely initialized.
    */
   private[this] def receiveInitialized: Receive = {
-    case openRequest: OpenRealtimeModelRequest    => onOpenModelWhileInitialized(openRequest)
-    case closeRequest: CloseRealtimeModelRequest  => onCloseModelRequest(closeRequest)
+    case openRequest: OpenRealtimeModelRequest => onOpenModelWhileInitialized(openRequest)
+    case closeRequest: CloseRealtimeModelRequest => onCloseModelRequest(closeRequest)
     case operationSubmission: OperationSubmission => onOperationSubmission(operationSubmission)
-    case referenceEvent: ModelReferenceEvent      => onReferenceEvent(referenceEvent)
-    case request: SetModelPermissionsRequest      => onSetPermissionsRequest(request)
-    case dataResponse: ClientModelDataResponse    =>
+    case referenceEvent: ModelReferenceEvent => onReferenceEvent(referenceEvent)
+    case request: SetModelPermissionsRequest => onSetPermissionsRequest(request)
+    case dataResponse: ClientModelDataResponse =>
     // This can happen if we asked several clients for the data.  The first
     // one will be handled, but the rest will come in an simply be ignored.
-    case snapshotMetaData: ModelSnapshotMetaData  => this.latestSnapshot = snapshotMetaData
-    case ModelDeleted                             => handleModelDeletedWhileOpen()
-    case terminated: Terminated                   => handleTerminated(terminated)
-    case ModelShutdown                            => shutdown()
-    case unknown: Any                             => unhandled(unknown)
+    case snapshotMetaData: ModelSnapshotMetaData => this.latestSnapshot = snapshotMetaData
+    case ModelDeleted => handleModelDeletedWhileOpen()
+    case terminated: Terminated => handleTerminated(terminated)
+    case ModelShutdown => shutdown()
+    case unknown: Any => unhandled(unknown)
   }
 
   private[this] def onSetPermissionsRequest(request: SetModelPermissionsRequest): Unit = {
@@ -285,23 +288,23 @@ class RealtimeModelActor(
    */
   private[this] def requestModelDataFromDatastore(): Unit = {
     context.become(receiveInitializingFromDatabase)
-
-    val f = Try {
-      val snapshotMetaData = modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)
-      val model = modelStore.getModel(modelFqn)
-
-      (model, snapshotMetaData) match {
-        case (Success(Some(m)), Success(Some(s))) => DatabaseModelResponse(m, s)
-        case _                                    => throw new IllegalStateException("Could not get both the model snapshot and model data")
+    Future {
+      for {
+        snapshotMetaData <- modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)
+        model <- modelStore.getModel(modelFqn)
+      } yield {
+        (model, snapshotMetaData) match {
+          case (Some(m), Some(s)) =>
+            self ! DatabaseModelResponse(m, s)
+          case _ =>
+            val mMessage = model.map(_ => "found").getOrElse("not found")
+            val sMessage = snapshotMetaData.map(_ => "found").getOrElse("not found")
+            val message = s"Error getting model data (${this.modelFqn}): model: ${mMessage}, snapshot: ${sMessage}"
+            val cause = new IllegalStateException(message)
+            log.error(cause, message)
+            self ! DatabaseModelFailure(cause)
+        }
       }
-    }
-
-    f match {
-      case Success(modelDataResponse) =>
-        self ! modelDataResponse
-      case Failure(cause) =>
-        log.error(cause, "Could not initialize model from the database")
-        self ! DatabaseModelFailure(cause)
     }
   }
 
@@ -693,11 +696,10 @@ class RealtimeModelActor(
 
   private def shutdown(): Unit = {
     this.persistenceStream ! Status.Success("stream complete")
-    this.context.stop(self)
   }
 
   override def postStop(): Unit = {
-    log.debug("Unloading Realtime Model({}/{})", domainFqn, modelFqn)
+    log.debug("Realtime Model({}/{}) stopped", domainFqn, modelFqn)
     connectedClients = HashMap()
   }
 
