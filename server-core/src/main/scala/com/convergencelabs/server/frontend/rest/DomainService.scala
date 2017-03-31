@@ -42,6 +42,7 @@ import com.convergencelabs.server.datastore.PermissionsProfile
 import com.convergencelabs.server.datastore.PermissionsStoreActor.GetPermissionsProfileRequest
 import com.convergencelabs.server.domain.AuthorizationActor.ConvergenceAuthorizedRequest
 import scala.util.Try
+import com.convergencelabs.server.frontend.rest.DomainSessionService
 
 case class DomainsResponse(domains: List[DomainInfo]) extends AbstractSuccessResponse
 case class DomainResponse(domain: DomainInfo) extends AbstractSuccessResponse
@@ -72,6 +73,7 @@ class DomainService(
   val domainUserService = new DomainUserService(ec, authorizationActor, domainManagerActor, t)
   val domainStatsService = new DomainStatsService(ec, authorizationActor, domainManagerActor, t)
   val domainCollectionService = new DomainCollectionService(ec, authorizationActor, domainManagerActor, t)
+  val domainSessionService = new DomainSessionService(ec, authorizationActor, domainManagerActor, t)
   val domainModelService = new DomainModelService(ec, authorizationActor, domainManagerActor, t)
   val domainKeyService = new DomainKeyService(ec, authorizationActor, domainManagerActor, t)
   val domainAdminTokenService = new DomainAdminTokenService(ec, authorizationActor, domainManagerActor, t)
@@ -114,7 +116,8 @@ class DomainService(
             domainAdminTokenService.route(username, domain) ~
             domainConfigService.route(username, domain) ~
             domainStatsService.route(username, domain) ~
-            domainSecurityService.route(username, domain)
+            domainSecurityService.route(username, domain) ~
+            domainSessionService.route(username, domain)
         }
       }
     }

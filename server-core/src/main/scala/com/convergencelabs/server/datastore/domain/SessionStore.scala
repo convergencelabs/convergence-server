@@ -34,7 +34,7 @@ case class DomainSession(
 
 object SessionStore {
   val ClassName = "DomainSession"
-  
+
   val SessionIdIndex = "DomainSession.id"
 
   object Fields {
@@ -122,6 +122,12 @@ class SessionStore(dbProvider: DatabaseProvider)
 
   def getConnectedSessions(): Try[List[DomainSession]] = tryWithDb { db =>
     val query = "SELECT * FROM DomainSession WHERE disconnected IS NOT DEFINED"
+    QueryUtil.query(query, Map(), db).map { SessionStore.docToSession(_) }
+  }
+
+  def getConnectedSessions(limit: Option[Int], offset: Option[Int]): Try[List[DomainSession]] = tryWithDb { db =>
+    val baseQuery = "SELECT * FROM DomainSession WHERE disconnected IS NOT DEFINED"
+    val query = QueryUtil.buildPagedQuery(baseQuery, limit, offset)
     QueryUtil.query(query, Map(), db).map { SessionStore.docToSession(_) }
   }
 

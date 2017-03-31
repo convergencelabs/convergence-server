@@ -33,6 +33,8 @@ import com.convergencelabs.server.datastore.ConfigStoreActor.ConfigStoreRequest
 import com.convergencelabs.server.datastore.ConfigStoreActor
 import com.convergencelabs.server.domain.stats.DomainStatsActor.DomainStatsRequest
 import com.convergencelabs.server.domain.stats.DomainStatsActor
+import com.convergencelabs.server.datastore.SessionStoreActor.SessionStoreRequest
+import com.convergencelabs.server.datastore.SessionStoreActor
 
 object RestDomainActor {
   def props(domainFqn: DomainFqn): Props = Props(new RestDomainActor(domainFqn))
@@ -49,6 +51,7 @@ class RestDomainActor(domainFqn: DomainFqn) extends Actor with ActorLogging {
   private[this] var collectionStoreActor: ActorRef = _
   private[this] var modelStoreActor: ActorRef = _
   private[this] var keyStoreActor: ActorRef = _
+  private[this] var sessionStoreActor: ActorRef = _
   private[this] var configStoreActor: ActorRef = _
   private[this] var domainConfigStore: DomainConfigStore = _
 
@@ -70,6 +73,8 @@ class RestDomainActor(domainFqn: DomainFqn) extends Actor with ActorLogging {
       configStoreActor forward message
     case message: DomainStatsRequest =>
       statsActor forward message
+    case message: SessionStoreRequest =>
+      sessionStoreActor forward message
     case Shutdown =>
       shutdown()
     case message: Any =>
@@ -114,7 +119,8 @@ class RestDomainActor(domainFqn: DomainFqn) extends Actor with ActorLogging {
         collectionStoreActor = context.actorOf(CollectionStoreActor.props(provider.collectionStore))
         modelStoreActor = context.actorOf(ModelStoreActor.props(provider.modelStore, provider.collectionStore))
         keyStoreActor = context.actorOf(JwtAuthKeyStoreActor.props(provider.jwtAuthKeyStore))
-        
+        sessionStoreActor = context.actorOf(SessionStoreActor.props(provider.sessionStore))
+
       case Failure(cause) =>
         log.error(cause, "Unable to obtain a domain persistence provider.")
     }
