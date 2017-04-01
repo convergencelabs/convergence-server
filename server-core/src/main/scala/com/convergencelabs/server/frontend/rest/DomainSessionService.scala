@@ -87,7 +87,6 @@ class DomainSessionService(
       case false => 
         DomainMessage(domain, GetSessions(limit, offset))
     }
-    println(message)
     (domainRestActor ? message).mapTo[List[DomainSession]] map (sessions =>
       (StatusCodes.OK, GetSessionsResponse(sessions.map(sessionToSessionData(_)))))
   }

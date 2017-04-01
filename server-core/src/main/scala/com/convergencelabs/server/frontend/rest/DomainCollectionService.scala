@@ -33,6 +33,10 @@ import com.convergencelabs.server.frontend.rest.DomainConfigService.ModelSnapsho
 import com.convergencelabs.server.domain.ModelSnapshotConfig
 import java.time.Duration
 import com.convergencelabs.server.datastore.domain.CollectionPermissions
+import com.convergencelabs.server.datastore.CollectionStoreActor.GetCollectionSummaries
+import com.convergencelabs.server.datastore.domain.CollectionStore.CollectionSummary
+import com.convergencelabs.server.frontend.rest.DomainCollectionService.GetCollectionSummaryResponse
+import com.convergencelabs.server.frontend.rest.DomainCollectionService.CollectionSummaryData
 
 object DomainCollectionService {
   case class GetCollectionsResponse(collections: List[CollectionData]) extends AbstractSuccessResponse
@@ -44,6 +48,12 @@ object DomainCollectionService {
     worldPermissions: CollectionPermissionsData,
     overrideSnapshotConfig: Boolean,
     snapshotConfig: ModelSnapshotPolicyData)
+
+  case class GetCollectionSummaryResponse(collections: List[CollectionSummaryData]) extends AbstractSuccessResponse
+  case class CollectionSummaryData(
+    id: String,
+    description: String,
+    modelCount: Int)
 }
 
 class DomainCollectionService(
@@ -90,6 +100,16 @@ class DomainCollectionService(
         }
       }
     }
+  } ~ pathPrefix("collectionSummary") {
+    pathEnd {
+      get {
+        parameters("limit".as[Int].?, "offset".as[Int].?) { (limit, offset) =>
+          authorizeAsync(canAccessDomain(domain, username)) {
+            complete(getCollectionSummaries(domain, limit, offset))
+          }
+        }
+      }
+    }
   }
 
   def getCollections(domain: DomainFqn): Future[RestResponse] = {
@@ -102,7 +122,7 @@ class DomainCollectionService(
     val message = DomainMessage(domain, GetCollection(collectionId))
     (domainRestActor ? message).mapTo[Option[Collection]] map {
       case Some(collection) => (StatusCodes.OK, GetCollectionResponse(collectionToCollectionData(collection)))
-      case None             => NotFoundError
+      case None => NotFoundError
     }
   }
 
@@ -121,6 +141,15 @@ class DomainCollectionService(
   def deleteCollection(domain: DomainFqn, collectionId: String): Future[RestResponse] = {
     val message = DomainMessage(domain, DeleteCollection(collectionId))
     (domainRestActor ? message) map { _ => OkResponse }
+  }
+
+  def getCollectionSummaries(domain: DomainFqn, limit: Option[Int], offset: Option[Int]): Future[RestResponse] = {
+    val message = DomainMessage(domain, GetCollectionSummaries(limit, offset))
+    (domainRestActor ? message).mapTo[List[CollectionSummary]] map (collections =>
+      (StatusCodes.OK, GetCollectionSummaryResponse(collections.map { c =>
+        val CollectionSummary(id, desc, count) = c
+        CollectionSummaryData(id, desc, count)
+      })))
   }
 
   // Permission Checks

@@ -10,12 +10,14 @@ import CollectionStoreActor.GetCollection
 import CollectionStoreActor.GetCollections
 import akka.actor.ActorLogging
 import akka.actor.Props
+import com.convergencelabs.server.datastore.CollectionStoreActor.GetCollectionSummaries
 
 object CollectionStoreActor {
   def props(collectionStore: CollectionStore): Props = Props(new CollectionStoreActor(collectionStore))
 
   trait CollectionStoreRequest
   case class GetCollections(offset: Option[Int], limit: Option[Int]) extends CollectionStoreRequest
+  case class GetCollectionSummaries(offset: Option[Int], limit: Option[Int]) extends CollectionStoreRequest
   case class GetCollection(id: String) extends CollectionStoreRequest
   case class DeleteCollection(collectionId: String) extends CollectionStoreRequest
   case class CreateCollection(collection: Collection) extends CollectionStoreRequest
@@ -28,6 +30,7 @@ class CollectionStoreActor private[datastore] (
 
   def receive: Receive = {
     case GetCollections(offset, limit)  => getCollections(offset, limit)
+    case GetCollectionSummaries(offset, limit)  => getCollectionSummaries(offset, limit)
     case GetCollection(collectionId)    => getCollectionConfig(collectionId)
     case CreateCollection(collection)   => createCollection(collection)
     case DeleteCollection(collectionId) => deleteCollection(collectionId)
@@ -37,6 +40,10 @@ class CollectionStoreActor private[datastore] (
 
   def getCollections(offset: Option[Int], limit: Option[Int]): Unit = {
     reply(collectionStore.getAllCollections(offset, limit))
+  }
+  
+  def getCollectionSummaries(offset: Option[Int], limit: Option[Int]): Unit = {
+    reply(collectionStore.getCollectionSummaries(offset, limit))
   }
 
   def getCollectionConfig(id: String): Unit = {

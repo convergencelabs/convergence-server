@@ -7,6 +7,7 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
+import scala.language.postfixOps
 
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.server.datastore.DatabaseProvider
@@ -25,6 +26,7 @@ import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import com.convergencelabs.server.domain.ModelSnapshotConfig
 import java.time.Duration
+import com.convergencelabs.server.datastore.domain.CollectionStore.CollectionSummary
 
 object CollectionStore {
   val ClassName = "Collection"
@@ -77,6 +79,8 @@ object CollectionStore {
   def getCollectionRid(id: String, db: ODatabaseDocumentTx): Try[ORID] = {
     QueryUtil.getRidFromIndex(CollectionIdIndex, id, db)
   }
+  
+  case class CollectionSummary(id: String, description: String, modelCount: Int)
 }
 
 class CollectionStore private[domain] (dbProvider: DatabaseProvider, modelStore: ModelStore)
@@ -158,6 +162,32 @@ class CollectionStore private[domain] (dbProvider: DatabaseProvider, modelStore:
     val query = new OSQLSynchQuery[ODocument](pageQuery)
     val result: JavaList[ODocument] = db.command(query).execute()
     result.asScala.toList map { CollectionStore.docToCollection(_) }
+  }
+  
+  def getCollectionSummaries(
+    offset: Option[Int],
+    limit: Option[Int]): Try[List[CollectionSummary]] = tryWithDb { db =>
+
+    val queryString = "SELECT id, name FROM Collection ORDER BY id ASC"
+    val pageQuery = QueryUtil.buildPagedQuery(queryString, limit, offset)
+    val query = new OSQLSynchQuery[ODocument](pageQuery)
+    val result: JavaList[ODocument] = db.command(query).execute()
+    
+    val modelCountQuery = "SELECT count(id) as count, collection.id as collectionId FROM Model GROUP BY (collection)"
+    val query2 = new OSQLSynchQuery[ODocument](modelCountQuery)
+    val result2: JavaList[ODocument] = db.command(query2).execute()
+    
+    val modelCounts = result2.asScala.toList.map (t => (t.field("collectionId").asInstanceOf[String] -> t.field("count"))) toMap
+    
+    result.asScala.toList.map(doc => {
+      val id: String = doc.field("id")
+      val count: Long = modelCounts.get(id).getOrElse(0)
+      CollectionSummary(
+          id,
+          doc.field("name"),
+          count.toInt
+      )
+    })
   }
 
   private[this] def handleDuplicateValue[T](e: ORecordDuplicatedException): Try[T] = {
