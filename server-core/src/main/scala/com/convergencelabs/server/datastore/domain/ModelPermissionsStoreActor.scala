@@ -97,14 +97,9 @@ class ModelPermissionsStoreActor private[datastore] (
   }
 
   def getAllModelUserPermissions(modelFqn: ModelFqn): Unit = {
-    val result = for {
-      userPermissions <- modelPermissionsStore.getAllModelUserPermissions(modelFqn)
-    } yield {
-      val userPermissionsList = userPermissions.toList.map {
-        case Tuple2(username, permissions) => ModelUserPermissions(username, permissions)
-      }
-    }
-    reply(result)
+    reply(modelPermissionsStore.getAllModelUserPermissions(modelFqn).map(_.toList.map {
+      case Tuple2(username, permissions) => ModelUserPermissions(username, permissions)
+    }))
   }
 
   def getModelUserPermissions(modelFqn: ModelFqn, username: String): Unit = {

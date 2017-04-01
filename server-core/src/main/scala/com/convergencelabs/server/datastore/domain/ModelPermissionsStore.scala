@@ -23,6 +23,7 @@ import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 import java.util.ArrayList
+import com.orientechnologies.orient.core.db.record.OTrackedList
 
 case class ModelPermissions(read: Boolean, write: Boolean, remove: Boolean, manage: Boolean)
 case class CollectionPermissions(create: Boolean, read: Boolean, write: Boolean, remove: Boolean, manage: Boolean)
@@ -283,7 +284,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
       Map[String, ModelPermissions]()
     } else {
       userPermissions.asScala.map { userPermission =>
-        val user: ODocument = userPermission.field(Fields.User)
+        val user: ODocument = userPermission.field(Fields.User, OType.LINK)
         val username: String = user.field(Fields.Username)
         val permissions = docToModelPermissions(userPermission.field(Fields.Permissions))
         (username -> permissions)
@@ -372,17 +373,20 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     val modelRID = ModelStore.getModelRid(modelFqn.modelId, modelFqn.collectionId, db).get
     val modelDoc = modelRID.getRecord[ODocument]
     val userRID = DomainUserStore.getUserRid(username, db).get
-    val userPermissions: JavaList[ODocument] = modelDoc.field("userPermissions", OType.LINKLIST)
+    val userPermissions: OTrackedList[ODocument] = modelDoc.field("userPermissions", OType.LINKLIST)
 
-    val newPermissions = userPermissions.asScala.filterNot { permDoc =>
-      if (permDoc.field("user").asInstanceOf[ODocument].getIdentity == userRID) {
-        permDoc.delete()
-        true
-      } else {
-        false
+    val iter = userPermissions.iterator()
+    var permDoc: Option[ODocument] = None
+    while(iter.hasNext()) {
+      val curDoc = iter.next()
+      if (curDoc.field("user").asInstanceOf[ODocument].getIdentity == userRID) {
+        permDoc = Some(curDoc)
+        iter.remove()
       }
     }
-    modelDoc.field("userPermissions", newPermissions.asJavaCollection)
+    modelDoc.save()
+    permDoc.foreach(_.delete())
+    ()
   }
 
   def getCollectionRid(collectionId: String): Try[ORID] = tryWithDb { db =>
