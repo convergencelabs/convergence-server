@@ -151,9 +151,21 @@ class UserStore(
     QueryUtil.mapSingletonList(results) { UserStore.docToUser(_) }
   }
 
-  def getUsers(): Try[List[User]] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT FROM User")
-    val results: JavaList[ODocument] = db.command(query).execute()
+  def getUsers(filter: Option[String], limit: Option[Int], offset: Option[Int]): Try[List[User]] = tryWithDb { db =>
+    // FIXME don't user string substitution
+    val baseQuery = "SELECT FROM User" + filter.map(term => s" WHERE username LIKE '%${term}%'").getOrElse("")
+    //    val baseQuery = "SELECT FROM User" + filter.map(_ => " WHERE username LIKE :searchString").getOrElse("")
+    val query = QueryUtil.buildPagedQuery(baseQuery, limit, offset)
+    val params = filter match {
+      case Some(searchFilter) =>
+        Map("searchString" -> (s"%${searchFilter}%"))
+        //      case Some(searchFilter) => Map("searchString" -> ( "%" + searchFilter + "%"))
+        Map()
+      case None =>
+        Map()
+    }
+    val q = new OSQLSynchQuery[ODocument](query)
+    val results: JavaList[ODocument] = db.command(q).execute(params)
     results.asScala.toList.map(UserStore.docToUser(_))
   }
 

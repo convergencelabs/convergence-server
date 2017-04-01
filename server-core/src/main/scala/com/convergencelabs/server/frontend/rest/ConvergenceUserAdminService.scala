@@ -8,6 +8,9 @@ import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.CreateCo
 import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.DeleteConvergenceUserRequest
 import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUser
 import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUsers
+import com.convergencelabs.server.frontend.rest.ConvergenceUserAdminService.CreateUserRequest
+import com.convergencelabs.server.frontend.rest.ConvergenceUserAdminService.GetUserResponse
+import com.convergencelabs.server.frontend.rest.ConvergenceUserAdminService.GetUsersResponse
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
@@ -17,10 +20,8 @@ import akka.http.scaladsl.server.Directive.addDirectiveApply
 import akka.http.scaladsl.server.Directives.Segment
 import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
 import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
-import akka.http.scaladsl.server.Directives._string2NR
 import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Directives.delete
-import akka.http.scaladsl.server.Directives.parameters
 import akka.http.scaladsl.server.Directives.get
 import akka.http.scaladsl.server.Directives.handleWith
 import akka.http.scaladsl.server.Directives.handleExceptions
@@ -33,18 +34,17 @@ import com.convergencelabs.server.datastore.DuplicateValueExcpetion
 import com.convergencelabs.server.datastore.InvalidValueExcpetion
 import akka.http.scaladsl.server.ExceptionHandler
 
-object ConvergenceUserService {
+object ConvergenceUserAdminService {
+  case class CreateUserRequest(username: String, firstName: String, lastName: String, displayName: String, email: String, password: String)
   case class GetUsersResponse(users: List[User]) extends AbstractSuccessResponse
   case class GetUserResponse(user: Option[User]) extends AbstractSuccessResponse
 }
 
-class ConvergenceUserService(
+class ConvergenceUserAdminService(
     private[this] val executionContext: ExecutionContext,
     private[this] val userManagerActor: ActorRef,
     private[this] val defaultTimeout: Timeout) extends JsonSupport {
 
-  import ConvergenceUserService._
-  
   implicit val ec = executionContext
   implicit val t = defaultTimeout
 
@@ -52,13 +52,15 @@ class ConvergenceUserService(
     pathPrefix("users") {
       pathEnd {
         get {
-          parameters("filter".?, "limit".as[Int].?, "offset".as[Int].?) { (filter, limit, offset) =>
-            complete(getUsersRequest(filter, limit, offset))
-          }
+          complete(getUsersRequest())
+        } ~ post {
+          handleWith(createConvergenceUserRequest)
         }
       } ~ pathPrefix(Segment) { username =>
         pathEnd {
-          get {
+          delete {
+            complete(deleteConvergenceUserRequest(username))
+          } ~ get {
             complete(getUser(username))
           }
         }
@@ -66,8 +68,19 @@ class ConvergenceUserService(
     }
   }
 
-  def getUsersRequest(filter: Option[String], limit: Option[Int], offset: Option[Int]): Future[RestResponse] = {
-    (userManagerActor ? GetConvergenceUsers(filter, limit, offset)).mapTo[List[User]] map
+  def createConvergenceUserRequest(createRequest: CreateUserRequest): Future[RestResponse] = {
+    val CreateUserRequest(username, firstName, lastName, displayName, email, password) = createRequest
+    val message = CreateConvergenceUserRequest(username, email, firstName, lastName, displayName, password)
+    (userManagerActor ? message) map { _ => CreateRestResponse }
+  }
+
+  def deleteConvergenceUserRequest(username: String): Future[RestResponse] = {
+    val message = DeleteConvergenceUserRequest(username)
+    (userManagerActor ? message) map { _ => CreateRestResponse }
+  }
+
+  def getUsersRequest(): Future[RestResponse] = {
+    (userManagerActor ? GetConvergenceUsers(None, None, None)).mapTo[List[User]] map
       (users => (StatusCodes.OK, GetUsersResponse(users)))
   }
 

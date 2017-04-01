@@ -42,7 +42,6 @@ import com.convergencelabs.server.datastore.PermissionsProfile
 import com.convergencelabs.server.datastore.PermissionsStoreActor.GetPermissionsProfileRequest
 import com.convergencelabs.server.domain.AuthorizationActor.ConvergenceAuthorizedRequest
 import scala.util.Try
-import com.convergencelabs.server.frontend.rest.DomainSessionService
 
 case class DomainsResponse(domains: List[DomainInfo]) extends AbstractSuccessResponse
 case class DomainResponse(domain: DomainInfo) extends AbstractSuccessResponse

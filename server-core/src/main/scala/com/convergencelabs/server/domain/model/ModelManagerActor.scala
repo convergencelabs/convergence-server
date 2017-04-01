@@ -33,6 +33,7 @@ import com.convergencelabs.server.datastore.InvalidValueExcpetion
 import com.convergencelabs.server.datastore.domain.ModelPermissions
 import com.convergencelabs.server.datastore.domain.CollectionPermissions
 import com.convergencelabs.server.datastore.UnauthorizedException
+import com.convergencelabs.server.domain.DomainUserType
 
 case class QueryModelsRequest(sk: SessionKey, query: String)
 case class QueryOrderBy(field: String, ascending: Boolean)
@@ -169,6 +170,7 @@ class ModelManagerActor(
         val snapshot = ModelSnapshot(ModelSnapshotMetaData(fqn, version, created), model.data)
         // Give the creating user unlimited access to the model
         // TODO: Change this to use defaults
+        DomainUserType
         persistenceProvider.modelPermissionsStore.updateModelUserPermissions(fqn, sk.uid, ModelPermissions(true, true, true, true)).get
         persistenceProvider.modelSnapshotStore.createSnapshot(snapshot) map { _ => model }
       } map { model =>

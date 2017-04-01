@@ -37,7 +37,7 @@ object ConvergenceUserManagerActor {
   case class SetPasswordRequest(username: String, password: String)
   case class DeleteConvergenceUserRequest(username: String)
   case class GetConvergenceUser(username: String)
-  case object GetConvergenceUsers
+  case class GetConvergenceUsers(filter: Option[String], limit: Option[Int], offset: Option[Int])
 }
 
 class ConvergenceUserManagerActor private[datastore] (
@@ -59,7 +59,7 @@ class ConvergenceUserManagerActor private[datastore] (
     case message: CreateConvergenceUserRequest => createConvergenceUser(message)
     case message: DeleteConvergenceUserRequest => deleteConvergenceUser(message)
     case message: GetConvergenceUser => getConvergenceUser(message)
-    case GetConvergenceUsers => getConvergenceUsers()
+    case message: GetConvergenceUsers => getConvergenceUsers(message)
     case message: UpdateConvergenceUserRequest => updateConvergenceUser(message)
     case message: SetPasswordRequest => setUserPassword(message)
     case message: Any => unhandled(message)
@@ -90,8 +90,9 @@ class ConvergenceUserManagerActor private[datastore] (
     reply(userStore.getUserByUsername(username))
   }
 
-  def getConvergenceUsers(): Unit = {
-    reply(userStore.getUsers())
+  def getConvergenceUsers(message: GetConvergenceUsers): Unit = {
+    val GetConvergenceUsers(filter, limit, offset) = message
+    reply(userStore.getUsers(filter, limit, offset))
   }
 
   def deleteConvergenceUser(message: DeleteConvergenceUserRequest): Unit = {

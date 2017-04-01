@@ -43,6 +43,7 @@ import com.convergencelabs.server.datastore.InvalidValueExcpetion
 import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.datastore.PermissionsStoreActor
 import com.convergencelabs.server.domain.AuthorizationActor
+import com.convergencelabs.server.frontend.rest.ConvergenceUserService
 
 object ConvergenceRestFrontEnd {
   val ConvergenceCorsSettings = CorsSettings.defaultSettings.copy(
@@ -119,6 +120,7 @@ class ConvergenceRestFrontEnd(
     val passwordService = new PasswordService(ec, convergenceUserActor, defaultRequestTimeout)
     val keyGenService = new KeyGenService(ec)
     
+    val convergenceUserAdminService = new ConvergenceUserAdminService(ec, convergenceUserActor, defaultRequestTimeout)
     val convergenceUserService = new ConvergenceUserService(ec, convergenceUserActor, defaultRequestTimeout)
     val convergenceImportService = new ConvergenceImportService(ec, importerActor, defaultRequestTimeout)
     val databaseManagerService = new DatabaseManagerRestService(ec, databaseManagerActor, defaultRequestTimeout)
@@ -147,12 +149,13 @@ class ConvergenceRestFrontEnd(
               domainService.route(username) ~
                 keyGenService.route() ~
                 profileService.route(username) ~
-                passwordService.route(username)
+                passwordService.route(username) ~
+                convergenceUserService.route(username)
             }
           }
       } ~ pathPrefix("admin") {
         authenticateBasic(realm = "convergence admin", AdminAuthenticator.authenticate(adminsConfig)) { adminUser =>
-          convergenceUserService.route(adminUser) ~
+          convergenceUserAdminService.route(adminUser) ~
             convergenceImportService.route(adminUser) ~
             databaseManagerService.route(adminUser)
         }
