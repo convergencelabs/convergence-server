@@ -121,22 +121,67 @@ class SessionStore(dbProvider: DatabaseProvider)
     QueryUtil.lookupOptionalDocument(query, params, db).map { SessionStore.docToSession(_) }
   }
 
-  def getSessions(limit: Option[Int], offset: Option[Int], sessionType: SessionQueryType.Value): Try[List[DomainSession]] = tryWithDb { db =>
-    val typeWhere = this.getSessionTypeClause(sessionType).map(t => s"WHERE ${t} ").getOrElse("")
-    val baseQuery = s"SELECT * FROM DomainSession ${typeWhere}ORDER BY connected DESC"
+  def getAllSessions(limit: Option[Int], offset: Option[Int]): Try[List[DomainSession]] = tryWithDb { db =>
+    val baseQuery = s"SELECT * FROM DomainSession ORDER BY connected DESC"
     val query = QueryUtil.buildPagedQuery(baseQuery, limit, offset)
     QueryUtil.query(query, Map(), db).map { SessionStore.docToSession(_) }
   }
 
-  def getConnectedSessions(limit: Option[Int], offset: Option[Int], sessionType: SessionQueryType.Value): Try[List[DomainSession]] = tryWithDb { db =>
-    val typeWhere = this.getSessionTypeClause(sessionType).map(t => s"AND ${t} ").getOrElse("")
-    val baseQuery = s"SELECT * FROM DomainSession WHERE disconnected IS NOT DEFINED ${typeWhere}ORDER BY connected DESC"
+  def getSessions(
+    sessionId: Option[String],
+    username: Option[String],
+    remoteHost: Option[String],
+    authMethod: Option[String],
+    connectedOnly: Boolean,
+    sessionType: SessionQueryType.Value,
+    limit: Option[Int],
+    offset: Option[Int]): Try[List[DomainSession]] = tryWithDb { db =>
+    var params = Map[String, Any]()
+    var terms = List[String]()
+
+    sessionId.foreach(sId => {
+      params = params + ("id" -> s"%${sId}%")
+      terms = "id LIKE :id" :: terms
+    })
+
+    username.foreach(un => {
+      params = params + ("username" -> s"%${un}%")
+      terms = "user.username LIKE :username" :: terms
+    })
+
+    remoteHost.foreach(rh => {
+      params = params + ("remoteHost" -> s"%${rh}%")
+      terms = "remoteHost LIKE :remoteHost" :: terms
+    })
+
+    authMethod.foreach(am => {
+      params = params + ("authMethod" -> s"%${am}%")
+      terms = "authMethod LIKE :authMethod" :: terms
+    })
+
+    if (connectedOnly) {
+      terms = "disconnected IS NOT DEFINED" :: terms
+    }
+
+    this.getSessionTypeClause(sessionType).foreach(t => {
+      terms = t :: terms
+      ()
+    })
+
+    val where = terms match {
+      case Nil =>
+        ""
+      case list =>
+        "WHERE " + list.mkString(" AND ")
+    }
+
+    val baseQuery = s"SELECT * FROM DomainSession ${where} ORDER BY connected DESC"
     val query = QueryUtil.buildPagedQuery(baseQuery, limit, offset)
-    QueryUtil.query(query, Map(), db).map { SessionStore.docToSession(_) }
+    QueryUtil.query(query, params, db).map { SessionStore.docToSession(_) }
   }
 
   def getConnectedSessionsCount(sessionType: SessionQueryType.Value): Try[Long] = tryWithDb { db =>
-    val typeWhere = this.getSessionTypeClause(sessionType).map(t => s"AND ${t} ").getOrElse("")
+    val typeWhere = this.getSessionTypeClause(sessionType).map(t => s"AND ${t} ")
     val query = s"SELECT count(id) as count FROM DomainSession WHERE disconnected IS NOT DEFINED ${typeWhere}"
     QueryUtil.lookupMandatoryDocument(query, Map(), db).map { _.field("count").asInstanceOf[Long] }.get
   }

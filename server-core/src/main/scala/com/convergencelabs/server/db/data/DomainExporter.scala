@@ -98,7 +98,7 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
   
   private[this] def exportSessions(): Try[List[CreateDomainSession]] = {
     logger.debug("Exporting domain sessions")
-    persistence.sessionStore.getSessions(None, None, SessionQueryType.All) map {
+    persistence.sessionStore.getAllSessions(None, None) map {
       _.map { domainSession =>
         // FIXME better error handling here
         val DomainSession(id, username, connected, disconnected, 

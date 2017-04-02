@@ -134,8 +134,17 @@ class SessionStoreSpec
         provider.sessionStore.createSession(session1).get
         provider.sessionStore.createSession(session2).get
         provider.sessionStore.createSession(session3).get
-        
-        val conneted = provider.sessionStore.getConnectedSessions(None, None, SessionQueryType.All).get
+
+        val conneted = provider.sessionStore.getSessions(
+          None,
+          None,
+          None,
+          None,
+          true,
+          SessionQueryType.All,
+          None,
+          None).get
+
         conneted.toSet shouldBe Set(session1, session3)
       }
     }

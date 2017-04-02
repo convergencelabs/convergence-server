@@ -1,37 +1,41 @@
 package com.convergencelabs.server.frontend.rest
 
+import java.time.Instant
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.language.postfixOps
+import scala.util.Try
 
+import com.convergencelabs.server.datastore.SessionStoreActor.GetSession
+import com.convergencelabs.server.datastore.SessionStoreActor.GetSessions
+import com.convergencelabs.server.datastore.domain.DomainSession
+import com.convergencelabs.server.datastore.domain.SessionStore.SessionQueryType
+import com.convergencelabs.server.domain.AuthorizationActor.ConvergenceAuthorizedRequest
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.RestDomainManagerActor.DomainMessage
+import com.convergencelabs.server.frontend.rest.DomainSessionService.DomainSessionData
+import com.convergencelabs.server.frontend.rest.DomainSessionService.GetSessionResponse
+import com.convergencelabs.server.frontend.rest.DomainSessionService.GetSessionsResponse
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
 import akka.http.scaladsl.server.Directive.addDirectiveApply
+import akka.http.scaladsl.server.Directives.Segment
+import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
+import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
+import akka.http.scaladsl.server.Directives._string2NR
 import akka.http.scaladsl.server.Directives.authorizeAsync
-import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.server.Directives.complete
+import akka.http.scaladsl.server.Directives.get
+import akka.http.scaladsl.server.Directives.parameters
+import akka.http.scaladsl.server.Directives.pathEnd
+import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Route
-import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.server.domain.AuthorizationActor.ConvergenceAuthorizedRequest
-import scala.util.Try
-import com.convergencelabs.server.frontend.rest.DomainConfigService.ModelSnapshotPolicyData
-import com.convergencelabs.server.domain.ModelSnapshotConfig
-import java.time.Duration
-import com.convergencelabs.server.datastore.domain.CollectionPermissions
-import com.convergencelabs.server.datastore.SessionStoreActor.GetConnectedSessions
-import com.convergencelabs.server.datastore.SessionStoreActor.GetSessions
-import com.convergencelabs.server.datastore.domain.DomainSession
-import com.convergencelabs.server.frontend.rest.DomainSessionService.GetSessionsResponse
-import com.convergencelabs.server.datastore.SessionStoreActor.GetSession
-import java.time.Instant
-import com.convergencelabs.server.frontend.rest.DomainSessionService.DomainSessionData
-import com.convergencelabs.server.frontend.rest.DomainSessionService.GetSessionResponse
-import com.convergencelabs.server.datastore.domain.SessionStore.SessionQueryType
+import akka.pattern.ask
 
 object DomainSessionService {
   case class GetSessionsResponse(sessions: List[DomainSessionData]) extends AbstractSuccessResponse
@@ -63,16 +67,29 @@ class DomainSessionService(
       pathEnd {
         get {
           parameters(
-              "connected".as[Boolean]?, 
-              "type".as[String]?, 
-              "limit".as[Int].?, 
-              "offset".as[Int].?) { (connected, sessionType, limit, offset) =>
-            {
-              authorizeAsync(canAccessDomain(domain, username)) {
-                complete(getSessions(domain, connected, sessionType, limit, offset))
+            "sessionId".as[String].?,
+            "username".as[String].?,
+            "remoteHost".as[String].?,
+            "authMethod".as[String].?,
+            "connectedOnly".as[Boolean]?,
+            "sessionType".as[String]?,
+            "limit".as[Int].?,
+            "offset".as[Int].?) { (sessionId, sessionUsername, remoteHost, authMethod, connectedOnly, sessionType, limit, offset) =>
+              {
+                authorizeAsync(canAccessDomain(domain, username)) {
+                  complete(getSessions(
+                    domain,
+                    sessionId,
+                    sessionUsername,
+                    remoteHost,
+                    authMethod,
+                    connectedOnly,
+                    sessionType,
+                    limit,
+                    offset))
+                }
               }
             }
-          }
         }
       } ~ pathPrefix(Segment) { sessionId =>
         pathEnd {
@@ -88,7 +105,11 @@ class DomainSessionService(
 
   def getSessions(
     domain: DomainFqn,
-    connected: Option[Boolean],
+    sessionId: Option[String],
+    username: Option[String],
+    remoteHost: Option[String],
+    authMethod: Option[String],
+    connectedOnly: Option[Boolean],
     sessionType: Option[String],
     limit: Option[Int],
     offset: Option[Int]): Future[RestResponse] = {
@@ -97,12 +118,16 @@ class DomainSessionService(
       .flatMap(t => SessionQueryType.withNameOpt(t))
       .getOrElse(SessionQueryType.All)
 
-    val message = connected.getOrElse(false) match {
-      case true =>
-        DomainMessage(domain, GetConnectedSessions(limit, offset, st))
-      case false =>
-        DomainMessage(domain, GetSessions(limit, offset, st))
-    }
+    val getMessage = GetSessions(
+      sessionId,
+      username,
+      remoteHost,
+      authMethod,
+      connectedOnly.getOrElse(false),
+      st,
+      limit,
+      offset)
+    val message = DomainMessage(domain, getMessage)
     (domainRestActor ? message).mapTo[List[DomainSession]] map (sessions =>
       (StatusCodes.OK, GetSessionsResponse(sessions.map(sessionToSessionData(_)))))
   }
@@ -110,7 +135,7 @@ class DomainSessionService(
   def getSession(domain: DomainFqn, sessionId: String): Future[RestResponse] = {
     val message = DomainMessage(domain, GetSession(sessionId))
     (domainRestActor ? message).mapTo[Option[DomainSession]] map {
-      case Some(collection) => (StatusCodes.OK, GetSessionResponse(sessionToSessionData(collection)))
+      case Some(sessions) => (StatusCodes.OK, GetSessionResponse(sessionToSessionData(sessions)))
       case None => NotFoundError
     }
   }
