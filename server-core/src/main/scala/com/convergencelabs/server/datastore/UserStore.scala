@@ -160,12 +160,11 @@ class UserStore(
       case Some(searchFilter) =>
         Map("searchString" -> (s"%${searchFilter}%"))
         //      case Some(searchFilter) => Map("searchString" -> ( "%" + searchFilter + "%"))
-        Map()
       case None =>
         Map()
     }
     val q = new OSQLSynchQuery[ODocument](query)
-    val results: JavaList[ODocument] = db.command(q).execute(params)
+    val results: JavaList[ODocument] = db.command(q).execute(params.asJava)
     results.asScala.toList.map(UserStore.docToUser(_))
   }
 
