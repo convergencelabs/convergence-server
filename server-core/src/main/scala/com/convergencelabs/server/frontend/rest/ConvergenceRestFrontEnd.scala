@@ -5,23 +5,39 @@ import scala.language.postfixOps
 
 import com.convergencelabs.server.datastore.AuthStoreActor
 import com.convergencelabs.server.datastore.ConvergenceUserManagerActor
+import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.datastore.DeltaHistoryStore
 import com.convergencelabs.server.datastore.DomainStore
 import com.convergencelabs.server.datastore.DomainStoreActor
+import com.convergencelabs.server.datastore.DuplicateValueExcpetion
+import com.convergencelabs.server.datastore.EntityNotFoundException
+import com.convergencelabs.server.datastore.InvalidValueExcpetion
+import com.convergencelabs.server.datastore.PermissionsStoreActor
 import com.convergencelabs.server.datastore.RegistrationActor
-import com.convergencelabs.server.domain.RestAuthnorizationActor
+import com.convergencelabs.server.db.data.ConvergenceImportService
+import com.convergencelabs.server.db.data.ConvergenceImporterActor
+import com.convergencelabs.server.db.provision.DomainProvisioner
+import com.convergencelabs.server.db.provision.DomainProvisionerActor
+import com.convergencelabs.server.db.schema.DatabaseManager
+import com.convergencelabs.server.db.schema.DatabaseManagerActor
+import com.convergencelabs.server.domain.AuthorizationActor
 import com.convergencelabs.server.domain.RestDomainManagerActor
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.HttpMethods
+import akka.http.scaladsl.model.HttpResponse
+import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
 import akka.http.scaladsl.server.Directive.addDirectiveApply
 import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
-import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
+import akka.http.scaladsl.server.Directives.complete
+import akka.http.scaladsl.server.Directives.handleExceptions
 import akka.http.scaladsl.server.Directives.extractRequest
+import akka.http.scaladsl.server.Directives.extractUri
 import akka.http.scaladsl.server.Directives.pathPrefix
+import akka.http.scaladsl.server.ExceptionHandler
 import akka.http.scaladsl.server.RouteResult.route2HandlerFlow
 import akka.http.scaladsl.server.directives.SecurityDirectives.authenticateBasic
 import akka.stream.ActorMaterializer
@@ -29,21 +45,6 @@ import akka.util.Timeout
 import ch.megard.akka.http.cors.CorsDirectives.cors
 import ch.megard.akka.http.cors.CorsSettings
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.db.provision.DomainProvisioner
-import com.convergencelabs.server.db.provision.DomainProvisionerActor
-import com.convergencelabs.server.db.data.ConvergenceImporterActor
-import com.convergencelabs.server.db.schema.DatabaseManager
-import com.convergencelabs.server.db.schema.DatabaseManagerActor
-import com.convergencelabs.server.db.data.ConvergenceImportService
-import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.DeltaHistoryStore
-import akka.http.scaladsl.server.ExceptionHandler
-import com.convergencelabs.server.datastore.DuplicateValueExcpetion
-import com.convergencelabs.server.datastore.InvalidValueExcpetion
-import com.convergencelabs.server.datastore.EntityNotFoundException
-import com.convergencelabs.server.datastore.PermissionsStoreActor
-import com.convergencelabs.server.domain.AuthorizationActor
-import com.convergencelabs.server.frontend.rest.ConvergenceUserService
 
 object ConvergenceRestFrontEnd {
   val ConvergenceCorsSettings = CorsSettings.defaultSettings.copy(
@@ -67,6 +68,23 @@ class ConvergenceRestFrontEnd(
   implicit val materializer = ActorMaterializer()
   implicit val ec = system.dispatcher
   implicit val defaultRequestTimeout = Timeout(20 seconds)
+
+  val exceptionHandler: ExceptionHandler = ExceptionHandler {
+    case e: DuplicateValueExcpetion =>
+      complete(duplicateResponse(e.field))
+
+    case e: InvalidValueExcpetion =>
+      complete(invalidValueResponse(e.field))
+
+    case e: EntityNotFoundException =>
+      complete(NotFoundError)
+
+    case e: Exception =>
+      extractUri { uri =>
+        logger.error(s"Error handling rest call: ${uri}", e)
+        complete(HttpResponse(StatusCodes.InternalServerError, entity = "There was an internal server error."))
+      }
+  }
 
   def start(): Unit = {
     // FIXME this is a hack all of this should be a rest backend
@@ -119,7 +137,7 @@ class ConvergenceRestFrontEnd(
     val profileService = new ProfileService(ec, convergenceUserActor, defaultRequestTimeout)
     val passwordService = new PasswordService(ec, convergenceUserActor, defaultRequestTimeout)
     val keyGenService = new KeyGenService(ec)
-    
+
     val convergenceUserAdminService = new ConvergenceUserAdminService(ec, convergenceUserActor, defaultRequestTimeout)
     val convergenceUserService = new ConvergenceUserService(ec, convergenceUserActor, defaultRequestTimeout)
     val convergenceImportService = new ConvergenceImportService(ec, importerActor, defaultRequestTimeout)
@@ -127,39 +145,30 @@ class ConvergenceRestFrontEnd(
 
     val adminsConfig = system.settings.config.getConfig("convergence.convergence-admins")
 
-    implicit def exceptionHandler: ExceptionHandler = ExceptionHandler {
-      case e: DuplicateValueExcpetion =>
-        complete(duplicateResponse(e.field))
-
-      case e: InvalidValueExcpetion =>
-        complete(invalidValueResponse(e.field))
-
-      case e: EntityNotFoundException =>
-        complete(NotFoundError)
-    }
-
     val route = cors(ConvergenceRestFrontEnd.ConvergenceCorsSettings) {
-      // All request are under the "rest" path.
-      pathPrefix("rest") {
-        // You can call the auth service without being authenticated
-        authService.route ~
-          // Everything else must be authenticated
-          extractRequest { request =>
-            authenticator.requireAuthenticated(request) { username =>
-              domainService.route(username) ~
-                keyGenService.route() ~
-                profileService.route(username) ~
-                passwordService.route(username) ~
-                convergenceUserService.route(username)
+      handleExceptions(exceptionHandler) {
+        // All request are under the "rest" path.
+        pathPrefix("rest") {
+          // You can call the auth service without being authenticated
+          authService.route ~
+            // Everything else must be authenticated
+            extractRequest { request =>
+              authenticator.requireAuthenticated(request) { username =>
+                domainService.route(username) ~
+                  keyGenService.route() ~
+                  profileService.route(username) ~
+                  passwordService.route(username) ~
+                  convergenceUserService.route(username)
+              }
             }
+        } ~ pathPrefix("admin") {
+          authenticateBasic(realm = "convergence admin", AdminAuthenticator.authenticate(adminsConfig)) { adminUser =>
+            convergenceUserAdminService.route(adminUser) ~
+              convergenceImportService.route(adminUser) ~
+              databaseManagerService.route(adminUser)
           }
-      } ~ pathPrefix("admin") {
-        authenticateBasic(realm = "convergence admin", AdminAuthenticator.authenticate(adminsConfig)) { adminUser =>
-          convergenceUserAdminService.route(adminUser) ~
-            convergenceImportService.route(adminUser) ~
-            databaseManagerService.route(adminUser)
-        }
-      } ~ registrationService.route
+        } ~ registrationService.route
+      }
     }
 
     // Now we start up the server

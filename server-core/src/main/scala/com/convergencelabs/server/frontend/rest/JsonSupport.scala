@@ -12,13 +12,9 @@ import org.json4s.JsonAST.JInt
 import org.json4s.JsonAST.JLong
 import org.json4s.jackson.Serialization
 
-import de.heikoseeberger.akkahttpjson4s.Json4sSupport
 import com.convergencelabs.server.domain.model.data.DataValue
-import akka.http.scaladsl.server.ExceptionHandler
-import com.convergencelabs.server.datastore.DuplicateValueExcpetion
-import akka.http.scaladsl.server.Directives.complete
-import com.convergencelabs.server.datastore.InvalidValueExcpetion
-import com.convergencelabs.server.datastore.EntityNotFoundException
+
+import de.heikoseeberger.akkahttpjson4s.Json4sSupport
 
 trait JsonSupport extends Json4sSupport {
 
@@ -59,15 +55,4 @@ trait JsonSupport extends Json4sSupport {
     durationSerializer +
     dataValueSerializer +
     FieldSerializer[ResponseMessage]()
-
-  implicit def exceptionHandler: ExceptionHandler = ExceptionHandler {
-    case e: DuplicateValueExcpetion =>
-      complete(duplicateResponse(e.field))
-
-    case e: InvalidValueExcpetion =>
-      complete(invalidValueResponse(e.field))
-
-    case e: EntityNotFoundException =>
-      complete(NotFoundError)
-  }
 }
