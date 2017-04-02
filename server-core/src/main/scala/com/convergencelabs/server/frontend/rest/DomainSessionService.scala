@@ -2,6 +2,7 @@ package com.convergencelabs.server.frontend.rest
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
+import scala.language.postfixOps
 
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.RestDomainManagerActor.DomainMessage
@@ -30,6 +31,7 @@ import com.convergencelabs.server.datastore.SessionStoreActor.GetSession
 import java.time.Instant
 import com.convergencelabs.server.frontend.rest.DomainSessionService.DomainSessionData
 import com.convergencelabs.server.frontend.rest.DomainSessionService.GetSessionResponse
+import com.convergencelabs.server.datastore.domain.SessionStore.SessionQueryType
 
 object DomainSessionService {
   case class GetSessionsResponse(sessions: List[DomainSessionData]) extends AbstractSuccessResponse
@@ -60,10 +62,14 @@ class DomainSessionService(
     pathPrefix("sessions") {
       pathEnd {
         get {
-          parameters("connected".as[Boolean]?, "limit".as[Int].?, "offset".as[Int].?) { (connected, limit, offset) =>
+          parameters(
+              "connected".as[Boolean]?, 
+              "type".as[String]?, 
+              "limit".as[Int].?, 
+              "offset".as[Int].?) { (connected, sessionType, limit, offset) =>
             {
               authorizeAsync(canAccessDomain(domain, username)) {
-                complete(getSessions(domain, connected, limit, offset))
+                complete(getSessions(domain, connected, sessionType, limit, offset))
               }
             }
           }
@@ -80,12 +86,22 @@ class DomainSessionService(
     }
   }
 
-  def getSessions(domain: DomainFqn, connected: Option[Boolean], limit: Option[Int], offset: Option[Int]): Future[RestResponse] = {
+  def getSessions(
+    domain: DomainFqn,
+    connected: Option[Boolean],
+    sessionType: Option[String],
+    limit: Option[Int],
+    offset: Option[Int]): Future[RestResponse] = {
+
+    val st = sessionType
+      .flatMap(t => SessionQueryType.withNameOpt(t))
+      .getOrElse(SessionQueryType.All)
+
     val message = connected.getOrElse(false) match {
-      case true => 
-        DomainMessage(domain, GetConnectedSessions(limit, offset))
-      case false => 
-        DomainMessage(domain, GetSessions(limit, offset))
+      case true =>
+        DomainMessage(domain, GetConnectedSessions(limit, offset, st))
+      case false =>
+        DomainMessage(domain, GetSessions(limit, offset, st))
     }
     (domainRestActor ? message).mapTo[List[DomainSession]] map (sessions =>
       (StatusCodes.OK, GetSessionsResponse(sessions.map(sessionToSessionData(_)))))

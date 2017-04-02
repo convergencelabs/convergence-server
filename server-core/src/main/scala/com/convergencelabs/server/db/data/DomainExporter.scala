@@ -41,6 +41,7 @@ import com.convergencelabs.server.datastore.domain.DomainSession
 import com.convergencelabs.server.domain.model.data.DateValue
 import com.convergencelabs.server.domain.model.ot.AppliedDateSetOperation
 import com.convergencelabs.server.datastore.domain.CollectionPermissions
+import com.convergencelabs.server.datastore.domain.SessionStore.SessionQueryType
 
 class DomainExporter(private[this] val persistence: DomainPersistenceProvider) extends Logging {
 
@@ -97,7 +98,7 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
   
   private[this] def exportSessions(): Try[List[CreateDomainSession]] = {
     logger.debug("Exporting domain sessions")
-    persistence.sessionStore.getSessions(None, None) map {
+    persistence.sessionStore.getSessions(None, None, SessionQueryType.All) map {
       _.map { domainSession =>
         // FIXME better error handling here
         val DomainSession(id, username, connected, disconnected, 

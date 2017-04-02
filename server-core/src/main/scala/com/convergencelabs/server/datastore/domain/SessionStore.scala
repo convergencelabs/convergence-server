@@ -20,6 +20,8 @@ import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.domain.DomainUserType
+import com.convergencelabs.server.datastore.domain.SessionStore.SessionQueryType
 
 case class DomainSession(
   id: String,
@@ -93,6 +95,11 @@ object SessionStore {
     val params = Map("id" -> id)
     QueryUtil.lookupMandatoryDocument(query, params, db) map { _.eval("rid").asInstanceOf[ORID] }
   }
+
+  object SessionQueryType extends Enumeration {
+    val Normal, Anonymous, Admin, All, NonAdmin = Value
+    def withNameOpt(s: String): Option[Value] = values.find(_.toString.toLowerCase() == s.toLowerCase())
+  }
 }
 
 class SessionStore(dbProvider: DatabaseProvider)
@@ -114,20 +121,23 @@ class SessionStore(dbProvider: DatabaseProvider)
     QueryUtil.lookupOptionalDocument(query, params, db).map { SessionStore.docToSession(_) }
   }
 
-  def getSessions(limit: Option[Int], offset: Option[Int]): Try[List[DomainSession]] = tryWithDb { db =>
-    val baseQuery = "SELECT * FROM DomainSession ORDER BY connected DESC"
+  def getSessions(limit: Option[Int], offset: Option[Int], sessionType: SessionQueryType.Value): Try[List[DomainSession]] = tryWithDb { db =>
+    val typeWhere = this.getSessionTypeClause(sessionType).map(t => s"WHERE ${t} ").getOrElse("")
+    val baseQuery = s"SELECT * FROM DomainSession ${typeWhere}ORDER BY connected DESC"
     val query = QueryUtil.buildPagedQuery(baseQuery, limit, offset)
     QueryUtil.query(query, Map(), db).map { SessionStore.docToSession(_) }
   }
 
-  def getConnectedSessions(limit: Option[Int], offset: Option[Int]): Try[List[DomainSession]] = tryWithDb { db =>
-    val baseQuery = "SELECT * FROM DomainSession WHERE disconnected IS NOT DEFINED ORDER BY connected DESC"
-    val query = QueryUtil.buildPagedQuery(baseQuery, limit, offset) 
+  def getConnectedSessions(limit: Option[Int], offset: Option[Int], sessionType: SessionQueryType.Value): Try[List[DomainSession]] = tryWithDb { db =>
+    val typeWhere = this.getSessionTypeClause(sessionType).map(t => s"AND ${t} ").getOrElse("")
+    val baseQuery = s"SELECT * FROM DomainSession WHERE disconnected IS NOT DEFINED ${typeWhere}ORDER BY connected DESC"
+    val query = QueryUtil.buildPagedQuery(baseQuery, limit, offset)
     QueryUtil.query(query, Map(), db).map { SessionStore.docToSession(_) }
   }
 
-  def getConnectedSessionsCount(): Try[Long] = tryWithDb { db =>
-    val query = "SELECT count(id) as count FROM DomainSession WHERE disconnected IS NOT DEFINED"
+  def getConnectedSessionsCount(sessionType: SessionQueryType.Value): Try[Long] = tryWithDb { db =>
+    val typeWhere = this.getSessionTypeClause(sessionType).map(t => s"AND ${t} ").getOrElse("")
+    val query = s"SELECT count(id) as count FROM DomainSession WHERE disconnected IS NOT DEFINED ${typeWhere}"
     QueryUtil.lookupMandatoryDocument(query, Map(), db).map { _.field("count").asInstanceOf[Long] }.get
   }
 
@@ -139,6 +149,21 @@ class SessionStore(dbProvider: DatabaseProvider)
         throw EntityNotFoundException()
       case _ =>
         ()
+    }
+  }
+
+  private def getSessionTypeClause(sessionType: SessionQueryType.Value): Option[String] = {
+    sessionType match {
+      case SessionQueryType.All =>
+        None
+      case SessionQueryType.NonAdmin =>
+        Some(s"not(user.userType = 'admin')")
+      case SessionQueryType.Normal =>
+        Some("user.userType = 'normal'")
+      case SessionQueryType.Anonymous =>
+        Some("user.userType = 'anonymous'")
+      case SessionQueryType.Admin =>
+        Some("user.userType = 'admin'")
     }
   }
 

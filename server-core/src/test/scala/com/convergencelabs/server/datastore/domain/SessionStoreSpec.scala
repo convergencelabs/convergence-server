@@ -65,6 +65,7 @@ import com.convergencelabs.server.domain.DomainUser
 import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.datastore.DuplicateValueExcpetion
+import com.convergencelabs.server.datastore.domain.SessionStore.SessionQueryType
 
 // scalastyle:off magic.number multiple.string.literals
 class SessionStoreSpec
@@ -134,7 +135,7 @@ class SessionStoreSpec
         provider.sessionStore.createSession(session2).get
         provider.sessionStore.createSession(session3).get
         
-        val conneted = provider.sessionStore.getConnectedSessions(None, None).get
+        val conneted = provider.sessionStore.getConnectedSessions(None, None, SessionQueryType.All).get
         conneted.toSet shouldBe Set(session1, session3)
       }
     }

@@ -11,6 +11,7 @@ import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.Props
 import akka.actor.actorRef2Scala
+import com.convergencelabs.server.datastore.domain.SessionStore.SessionQueryType
 
 object DomainStatsActor {
   def props(persistence: DomainPersistenceProvider): Props =
@@ -32,7 +33,7 @@ class DomainStatsActor(
 
   def getStats(): Unit = {
     val foo = for {
-      sessionCount <- persistence.sessionStore.getConnectedSessionsCount()
+      sessionCount <- persistence.sessionStore.getConnectedSessionsCount(SessionQueryType.NonAdmin)
       userCount <- persistence.userStore.getNormalUserCount()
       dbSize <- getDatabaseSize()
     } yield {
