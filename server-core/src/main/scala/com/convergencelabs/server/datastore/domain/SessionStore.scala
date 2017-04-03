@@ -12,6 +12,7 @@ import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.datastore.DuplicateValueExcpetion
 import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.datastore.QueryUtil
+import com.convergencelabs.server.datastore.domain.SessionStore.SessionQueryType
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.metadata.schema.OType
@@ -20,8 +21,6 @@ import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.domain.DomainUserType
-import com.convergencelabs.server.datastore.domain.SessionStore.SessionQueryType
 
 case class DomainSession(
   id: String,
@@ -181,7 +180,7 @@ class SessionStore(dbProvider: DatabaseProvider)
   }
 
   def getConnectedSessionsCount(sessionType: SessionQueryType.Value): Try[Long] = tryWithDb { db =>
-    val typeWhere = this.getSessionTypeClause(sessionType).map(t => s"AND ${t} ")
+    val typeWhere = this.getSessionTypeClause(sessionType).map(t => s"AND ${t} ").getOrElse("")
     val query = s"SELECT count(id) as count FROM DomainSession WHERE disconnected IS NOT DEFINED ${typeWhere}"
     QueryUtil.lookupMandatoryDocument(query, Map(), db).map { _.field("count").asInstanceOf[Long] }.get
   }

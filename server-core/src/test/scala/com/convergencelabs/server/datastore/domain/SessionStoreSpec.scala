@@ -148,6 +148,34 @@ class SessionStoreSpec
         conneted.toSet shouldBe Set(session1, session3)
       }
     }
+    
+    "getting connected sessions count" must {
+      "only count sessions that are connected" in withTestData { provider =>
+        val session1 = DomainSession("1", username, Instant.now(), None, authMethod, client, clientVersion, "", remoteHost)
+        val session2 = DomainSession("2", username, Instant.now(), Some(Instant.now()), authMethod, client, clientVersion, "", remoteHost)
+        val session3 = DomainSession("3", username, Instant.now(), None, authMethod, client, clientVersion, "", remoteHost)
+
+        provider.sessionStore.createSession(session1).get
+        provider.sessionStore.createSession(session2).get
+        provider.sessionStore.createSession(session3).get
+
+        val connetedCount = provider.sessionStore.getConnectedSessionsCount(SessionQueryType.All).get
+        connetedCount.shouldBe(2)
+      }
+      
+      "only count non admins sessions that are connected when SessionQueryType.NonAdmin is used" in withTestData { provider =>
+        val session1 = DomainSession("1", username, Instant.now(), None, authMethod, client, clientVersion, "", remoteHost)
+        val session2 = DomainSession("2", username, Instant.now(), Some(Instant.now()), authMethod, client, clientVersion, "", remoteHost)
+        val session3 = DomainSession("3", username, Instant.now(), None, authMethod, client, clientVersion, "", remoteHost)
+
+        provider.sessionStore.createSession(session1).get
+        provider.sessionStore.createSession(session2).get
+        provider.sessionStore.createSession(session3).get
+
+        val connetedCount = provider.sessionStore.getConnectedSessionsCount(SessionQueryType.NonAdmin).get
+        connetedCount.shouldBe(2)
+      }
+    }
   }
 
   def withTestData(testCode: DomainPersistenceProvider => Any): Unit = {
