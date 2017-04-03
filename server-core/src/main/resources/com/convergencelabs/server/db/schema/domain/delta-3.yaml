@@ -42,6 +42,9 @@ changes:
 
 ########## Collection Changes ##########
 
+  - action: RunSQLCommand
+    command: "UPDATE Collection SET worldPermissions = {'read' = true, 'write' = true, 'create' = true, 'remove' = true, 'manage' = true}" 
+
   - action: AddProperty
     className: Collection
     property: {name: worldPermissions, type: Embedded, linkedClass: CollectionPermissions, constraints: {mandatory: true, notNull: true, readOnly: false}}
@@ -84,6 +87,12 @@ changes:
     properties: [model]
 
 ########## Model Changes ##########
+
+  - action: RunSQLCommand
+    command: "UPDATE Model SET overridePermissions = true"
+    
+  - action: RunSQLCommand
+    command: "UPDATE Model SET worldPermissions = {'read' = true, 'write' = true, 'remove' = true, 'manage' = true}" 
 
   - action: AddProperty
     className: Model
