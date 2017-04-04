@@ -102,7 +102,7 @@ changes:
     property: {name: worldPermissions, type: Embedded, linkedClass: ModelPermissions, constraints: {mandatory: false, notNull: true, readOnly: false}}
     
   - action: RunSQLCommand
-    command: "UPDATE Model SET overridePermissions = true"
+    command: "UPDATE Model SET overridePermissions = false"
     
   - action: RunSQLCommand
     command: "UPDATE Model SET worldPermissions = {'@type':'d', '@class':'ModelPermissions', 'read':true, 'write':true, 'remove':true, 'manage':true}" 
