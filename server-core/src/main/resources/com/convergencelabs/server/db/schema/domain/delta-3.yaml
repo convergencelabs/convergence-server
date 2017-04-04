@@ -42,12 +42,12 @@ changes:
 
 ########## Collection Changes ##########
 
-  - action: RunSQLCommand
-    command: "UPDATE Collection SET worldPermissions = {'@type':'d', '@version':0, '@class':'CollectionPermissions', 'read':true, 'write':true, 'create':true, 'remove':true, 'manage':true}" 
-
   - action: AddProperty
     className: Collection
-    property: {name: worldPermissions, type: Embedded, linkedClass: CollectionPermissions, constraints: {mandatory: true, notNull: true, readOnly: false}}
+    property: {name: worldPermissions, type: Embedded, linkedClass: CollectionPermissions, constraints: {mandatory: false, notNull: true, readOnly: false}}
+    
+  - action: RunSQLCommand
+    command: "UPDATE Collection SET worldPermissions = {'@type':'d', '@class':'CollectionPermissions', 'read':true, 'write':true, 'create':true, 'remove':true, 'manage':true}" 
 
 ########## ModelPermissions ##########
 
@@ -88,19 +88,19 @@ changes:
 
 ########## Model Changes ##########
 
-  - action: RunSQLCommand
-    command: "UPDATE Model SET overridePermissions = true"
-    
-  - action: RunSQLCommand
-    command: "UPDATE Model SET worldPermissions = {'@type':'d', '@version':0, '@class':'ModelPermissions', 'read':true, 'write':true, 'remove':true, 'manage':true}" 
-
   - action: AddProperty
     className: Model
     property: {name: overridePermissions, type: Boolean, constraints: {notNull: true, readOnly: false, default: false}}
 
   - action: AddProperty
     className: Model
-    property: {name: worldPermissions, type: Embedded, linkedClass: ModelPermissions, constraints: {mandatory: true, notNull: true, readOnly: false}}
+    property: {name: worldPermissions, type: Embedded, linkedClass: ModelPermissions, constraints: {mandatory: false, notNull: true, readOnly: false}}
+    
+  - action: RunSQLCommand
+    command: "UPDATE Model SET overridePermissions = true"
+    
+  - action: RunSQLCommand
+    command: "UPDATE Model SET worldPermissions = {'@type':'d', '@class':'ModelPermissions', 'read':true, 'write':true, 'remove':true, 'manage':true}" 
 
   - action: AddProperty
     className: Model
