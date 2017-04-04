@@ -49,6 +49,11 @@ changes:
   - action: RunSQLCommand
     command: "UPDATE Collection SET worldPermissions = {'@type':'d', '@class':'CollectionPermissions', 'read':true, 'write':true, 'create':true, 'remove':true, 'manage':true}" 
 
+  - action: AlterProperty
+    className: Collection
+    name: worldPermissions
+    property: {constraints: {mandatory: true, notNull: true, readOnly: false}}
+
 ########## ModelPermissions ##########
 
   - action: CreateClass
@@ -105,4 +110,9 @@ changes:
   - action: AddProperty
     className: Model
     property: {name: userPermissions, type: LinkList, linkedClass: ModelUserPermissions}
+    
+  - action: AlterProperty
+    className: Model
+    name: worldPermissions
+    property: {constraints: {mandatory: true, notNull: true, readOnly: false}}
     
