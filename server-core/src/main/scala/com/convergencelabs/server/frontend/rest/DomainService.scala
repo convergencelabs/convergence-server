@@ -53,7 +53,7 @@ case class DomainInfo(
   owner: String,
   status: String)
 
-case class CreateDomainRestRequest(namespace: String, domainId: String, displayName: String)
+case class CreateDomainRestRequest(namespace: Option[String], domainId: String, displayName: String)
 case class UpdateDomainRestRequest(displayName: String)
 
 class DomainService(
@@ -124,7 +124,7 @@ class DomainService(
 
   def createDomain(createRequest: CreateDomainRestRequest, username: String): Future[RestResponse] = {
     val CreateDomainRestRequest(namespace, domainId, displayName) = createRequest
-    val message = CreateDomainRequest(namespace, domainId, displayName, username, false)
+    val message = CreateDomainRequest(namespace.getOrElse(username), domainId, displayName, username, false)
     (domainStoreActor ? message) map { _ => CreateRestResponse }
   }
 
