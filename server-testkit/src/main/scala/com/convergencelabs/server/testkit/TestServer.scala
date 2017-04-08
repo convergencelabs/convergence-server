@@ -29,7 +29,6 @@ class TestServer(configFile: String) extends Logging {
   val server = new ConvergenceServerNode(config)
   val oriendDb = new EmbeddedOrientDB(odbTarget.getAbsolutePath, persistent)
 
-
   def start(): Unit = {
     logger.info("Test server starting up")
     oriendDb.start()

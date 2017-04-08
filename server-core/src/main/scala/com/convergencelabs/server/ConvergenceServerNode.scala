@@ -42,7 +42,7 @@ object ConvergenceServerNode extends Logging {
   def main(args: Array[String]): Unit = {
     try {
       SystemOutRedirector.setOutAndErrToLog();
-      
+
       val options = ServerCLIConf(args)
       val configFile = new File(options.config.toOption.get)
 
@@ -71,8 +71,6 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
 
     val roles = config.getAnyRefList("akka.cluster.roles").asScala.toList
 
-    var dbPool: Option[DatabaseProvider] = None
-
     if (roles.contains("backend") || roles.contains("restFrontend")) {
 
       val orientDbConfig = config.getConfig("convergence.orient-db")
@@ -93,18 +91,33 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
         }
       }
 
-      dbPool = Some(DatabaseProvider(new OPartitionedDatabasePool(fullUri, username, password)))
+      // FIXME figure out what the partitions and pool size shuold be
+      val dbPool = new OPartitionedDatabasePool(
+          fullUri, 
+          username, 
+          password,
+          Runtime.getRuntime().availableProcessors(),
+          64)
+      val dbProvider = DatabaseProvider(dbPool)
 
-      val domainDatabaseStore = new DomainDatabaseStore(dbPool.get)
+      val domainDatabaseStore = new DomainDatabaseStore(dbProvider)
       system.actorOf(
         DomainPersistenceManagerActor.props(baseUri, domainDatabaseStore),
         DomainPersistenceManagerActor.RelativePath)
-    }
 
-    if (roles.contains("backend")) {
-      info("Starting up backend node.")
-      val backend = new BackendNode(system, dbPool.get)
-      backend.start()
+      if (roles.contains("backend")) {
+        info("Starting up backend node.")
+        val backend = new BackendNode(system, dbProvider)
+        backend.start()
+      }
+
+      if (roles.contains("restFrontend")) {
+        info("Starting up rest front end.")
+        val host = config.getString("convergence.rest.host")
+        val port = config.getInt("convergence.rest.port")
+        val restFrontEnd = new ConvergenceRestFrontEnd(system, host, port, dbProvider)
+        restFrontEnd.start()
+      }
     }
 
     if (roles.contains("realTimeFrontend")) {
@@ -113,14 +126,6 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
       val port = config.getInt("convergence.websocket.port")
       val realTimeFrontEnd = new ConvergenceRealTimeFrontend(system, host, port)
       realTimeFrontEnd.start()
-    }
-
-    if (roles.contains("restFrontend")) {
-      info("Starting up rest front end.")
-      val host = config.getString("convergence.rest.host")
-      val port = config.getInt("convergence.rest.port")
-      val restFrontEnd = new ConvergenceRestFrontEnd(system, host, port, dbPool.get)
-      restFrontEnd.start()
     }
 
     this.nodeSystem = Some(system)
@@ -180,15 +185,15 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
       }.get
 
       val permissionsStore = new PermissionsStore(dbProvider)
-      
+
       // Create Permissions
       permissionsStore.createPermission(Permission("domain-access", "Domain Access", "Allows a user to access a domain"))
       permissionsStore.createPermission(Permission("manage-permissions", "Manage Permissions", "Allows a user to manage permissions and roles"))
-      
+
       // Create Roles
       permissionsStore.createRole(Role("admin", List("domain-access", "manage-permissions"), "Domain Administrator"))
       permissionsStore.createRole(Role("developer", List("domain-access"), "Domain Developer"))
-      
+
       dbProvider.shutdown()
     } else {
       logger.info("Convergence database exists.")
@@ -211,7 +216,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
   def stop(): Unit = {
     logger.info(s"Stopping the convergence server node")
     nodeSystem match {
-      case Some(system) => 
+      case Some(system) =>
         system.terminate()
         logger.info(s"Actor system terminated")
       case None =>
