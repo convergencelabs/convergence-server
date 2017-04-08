@@ -220,7 +220,7 @@ class ClientActor(
         cb.reply(AuthenticationResponseMessage(false, None, None, None)) // TODO do we want this to go back to the client as something else?
       }
       case Failure(cause) => {
-        log.error("Error authenticating user", cause)
+        log.error(cause, "Error authenticating user")
         cb.reply(AuthenticationResponseMessage(false, None, None, None))
       }
     }

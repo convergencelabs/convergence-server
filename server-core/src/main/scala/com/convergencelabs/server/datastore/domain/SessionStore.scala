@@ -1,5 +1,6 @@
 package com.convergencelabs.server.datastore.domain
 
+import java.lang.{ Long => JavaLong }
 import java.time.Instant
 import java.util.Date
 
@@ -35,7 +36,7 @@ case class DomainSession(
 
 object SessionStore {
   val ClassName = "DomainSession"
-
+  val SessionSeq = "SESSIONSEQ"
   val SessionIdIndex = "DomainSession.id"
 
   object Fields {
@@ -104,6 +105,14 @@ object SessionStore {
 class SessionStore(dbProvider: DatabaseProvider)
     extends AbstractDatabasePersistence(dbProvider)
     with Logging {
+
+  def nextSessionId: Try[String] = tryWithDb { db =>
+//    val seq = db.getMetadata().getSequenceLibrary().getSequence(SessionSeq)
+//    JavaLong.toString(seq.next(), 36)
+    val query = "SELECT sequence('SESSIONSEQ').next() as next"
+    val next = QueryUtil.lookupMandatoryDocument(query, Map(), db).map { _.field("next").asInstanceOf[Long] }.get
+    JavaLong.toString(next, 36)
+  }
 
   def createSession(session: DomainSession): Try[Unit] = tryWithDb { db =>
     SessionStore.sessionToDoc(session, db).map { doc =>

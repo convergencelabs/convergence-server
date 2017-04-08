@@ -176,6 +176,14 @@ class SessionStoreSpec
         connetedCount.shouldBe(2)
       }
     }
+    
+    "nextSessionId" must {
+      "return unique values" in withTestData { provider =>
+        val session1 = provider.sessionStore.nextSessionId.get
+        val session2 = provider.sessionStore.nextSessionId.get
+        session1 shouldNot equal(session2)
+      }
+    }
   }
 
   def withTestData(testCode: DomainPersistenceProvider => Any): Unit = {

@@ -251,8 +251,7 @@ class RealtimeModelActor(
         }
       case Failure(cause) =>
         log.error(cause, "Unable to determine if a model exists.")
-        handleInitializationFailure(UnknownErrorResponse(
-          "Unexpected error initializing the model."))
+        handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
     }
   }
 
@@ -279,7 +278,7 @@ class RealtimeModelActor(
       case Failure(cause) =>
         log.error(cause,
           s"Unable to determine if model exists while handling an open request for an initializing model: $domainFqn/$modelFqn")
-        sender ! UnknownErrorResponse("Could not open model")
+        handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
     }
   }
 
@@ -342,9 +341,10 @@ class RealtimeModelActor(
       this.queuedOpeningClients = HashMap[SessionKey, OpenRequestRecord]()
       context.become(receiveInitialized)
     } catch {
-      case e: Exception =>
-        log.error(e, "Unable to initialize realtime model from database response")
-        handleInitializationFailure(UnknownErrorResponse("unknown error opening model"))
+      case cause: Exception =>
+        log.error(cause,
+          s"Unable to initialize the model from a the database: $domainFqn/$modelFqn")
+        handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
     }
   }
 
@@ -385,17 +385,28 @@ class RealtimeModelActor(
    */
   private[this] def onClientModelDataResponse(response: ClientModelDataResponse): Unit = {
     val ClientModelDataResponse(modelData, overridePermissions, worldPermissions) = response
-    val result = modelStore.createModel(modelFqn.collectionId, Some(modelFqn.modelId), modelData,
-      overridePermissions.getOrElse(false), worldPermissions.getOrElse(ModelPermissions(false, false, false, false)))
-    result map { model =>
-      val Model(ModelMetaData(fqn, version, createdTime, modifiedTime, overridePermissions, worldPermissions), data) = model
-      modelSnapshotStore.createSnapshot(
-        ModelSnapshot(ModelSnapshotMetaData(modelFqn, version, createdTime), response.modelData))
-      requestModelDataFromDatastore()
-    } recover {
-      case e: Exception =>
-      // FIXME Unhandled Error
-    }
+    modelStore.createModel(
+      modelFqn.collectionId,
+      Some(modelFqn.modelId),
+      modelData,
+      overridePermissions.getOrElse(false),
+      worldPermissions.getOrElse(ModelPermissions(false, false, false, false))) flatMap { model =>
+        
+        val Model(
+          ModelMetaData(fqn, version, createdTime, modifiedTime, overridePermissions, worldPermissions),
+          data) = model
+
+        modelSnapshotStore.createSnapshot(ModelSnapshot(
+          ModelSnapshotMetaData(modelFqn, version, createdTime),
+          response.modelData))
+      } map { _ =>
+        requestModelDataFromDatastore()
+      } recover {
+        case cause: Exception =>
+           log.error(cause,
+          s"Unable to initialize the model from a client initializer: $domainFqn/$modelFqn")
+        handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
+      }
   }
 
   /**

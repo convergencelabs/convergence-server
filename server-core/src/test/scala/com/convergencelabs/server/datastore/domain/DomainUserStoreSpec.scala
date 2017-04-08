@@ -244,15 +244,6 @@ class DomainUserStoreSpec
       }
     }
 
-    "nextSessionId" must {
-      "return unique consecutive values" in withPersistenceStore { store =>
-        val session1 = store.nextSessionId.get
-        val session2 = store.nextSessionId.get
-
-        session1 shouldNot equal(session2)
-      }
-    }
-
     "setting last login" must {
       "updated last login doesn't fail" in withPersistenceStore { store =>
         initUsers(store)

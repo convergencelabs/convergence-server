@@ -92,7 +92,7 @@ class ModelSnapshotStore private[domain] (
   def createSnapshot(modelSnapshot: ModelSnapshot): Try[Unit] = tryWithDb { db =>
     val doc = ModelSnapshotStore.modelSnapshotToDoc(modelSnapshot, db).get
     db.save(doc)
-    Unit
+    ()
   }
 
   /**

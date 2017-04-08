@@ -1,39 +1,29 @@
 package com.convergencelabs.server.domain.model
 
-import akka.actor.ActorLogging
-import akka.actor.Actor
-import scala.collection.mutable
-import akka.actor.ActorRef
-import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.server.ProtocolConfiguration
-import akka.actor.PoisonPill
-import scala.compat.Platform
-import java.io.IOException
-import scala.concurrent.duration.FiniteDuration
-import java.util.concurrent.TimeUnit
-import akka.actor.Props
-import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
-import java.time.Instant
-import java.time.Duration
-import java.time.temporal.TemporalUnit
-import java.time.temporal.ChronoUnit
-import com.convergencelabs.server.domain.ModelSnapshotConfig
-import scala.util.Success
 import scala.util.Failure
-import com.convergencelabs.server.UnknownErrorResponse
+import scala.util.Success
 import scala.util.Try
-import akka.actor.Status
-import akka.actor.Terminated
-import com.convergencelabs.server.domain.model.data.ObjectValue
-import scala.util.control.NonFatal
+
+import com.convergencelabs.server.ProtocolConfiguration
+import com.convergencelabs.server.UnknownErrorResponse
 import com.convergencelabs.server.datastore.DuplicateValueExcpetion
 import com.convergencelabs.server.datastore.InvalidValueExcpetion
-import com.convergencelabs.server.datastore.domain.ModelPermissions
-import com.convergencelabs.server.datastore.domain.CollectionPermissions
 import com.convergencelabs.server.datastore.UnauthorizedException
-import com.convergencelabs.server.domain.DomainUserType
+import com.convergencelabs.server.datastore.domain.CollectionPermissions
+import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
+import com.convergencelabs.server.datastore.domain.DomainPersistenceManager
+import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
+import com.convergencelabs.server.datastore.domain.ModelPermissions
+import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.ModelSnapshotConfig
+import com.convergencelabs.server.domain.model.data.ObjectValue
+
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.ActorRef
+import akka.actor.Props
+import akka.actor.Status
+import akka.actor.Terminated
 
 case class QueryModelsRequest(sk: SessionKey, query: String)
 case class QueryOrderBy(field: String, ascending: Boolean)
@@ -42,7 +32,8 @@ case class QueryModelsResponse(result: List[Model])
 
 class ModelManagerActor(
   private[this] val domainFqn: DomainFqn,
-  private[this] val protocolConfig: ProtocolConfiguration)
+  private[this] val protocolConfig: ProtocolConfiguration,
+  private[this] val persistenceManager: DomainPersistenceManager)
     extends Actor with ActorLogging {
 
   private[this] var openRealtimeModels = Map[ModelFqn, ActorRef]()
@@ -51,15 +42,15 @@ class ModelManagerActor(
   var persistenceProvider: DomainPersistenceProvider = _
 
   def receive: Receive = {
-    case message: OpenRealtimeModelRequest   => onOpenRealtimeModel(message)
-    case message: CreateModelRequest         => onCreateModelRequest(message)
-    case message: DeleteModelRequest         => onDeleteModelRequest(message)
-    case message: QueryModelsRequest         => onQueryModelsRequest(message)
-    case message: ModelShutdownRequest       => onModelShutdownRequest(message)
+    case message: OpenRealtimeModelRequest => onOpenRealtimeModel(message)
+    case message: CreateModelRequest => onCreateModelRequest(message)
+    case message: DeleteModelRequest => onDeleteModelRequest(message)
+    case message: QueryModelsRequest => onQueryModelsRequest(message)
+    case message: ModelShutdownRequest => onModelShutdownRequest(message)
     case message: GetModelPermissionsRequest => onGetModelPermissions(message)
     case message: SetModelPermissionsRequest => onSetModelPermissions(message)
-    case Terminated(actor)                   => onActorDeath(actor)
-    case message: Any                        => unhandled(message)
+    case Terminated(actor) => onActorDeath(actor)
+    case message: Any => unhandled(message)
   }
 
   private[this] def onOpenRealtimeModel(openRequest: OpenRealtimeModelRequest): Unit = {
@@ -68,75 +59,124 @@ class ModelManagerActor(
         // Model already open
         modelActor forward openRequest
       case None =>
-        if (openRequest.sk.admin || getModelUserPermissions(openRequest.modelFqn, openRequest.sk.uid).read) {
-          // Model not already open, load it
-          val resourceId = "" + nextModelResourceId
-          nextModelResourceId += 1
-          val collectionId = openRequest.modelFqn.collectionId
-
-          (for {
-            exists <- persistenceProvider.collectionStore.ensureCollectionExists(collectionId)
-            snapshotConfig <- getSnapshotConfigForModel(collectionId)
-            permissions <- this.getModelPermissions(openRequest.modelFqn)
-          } yield {
-            val props = RealtimeModelActor.props(
-              self,
-              domainFqn,
-              openRequest.modelFqn,
-              resourceId,
-              persistenceProvider.modelStore,
-              persistenceProvider.modelOperationProcessor,
-              persistenceProvider.modelSnapshotStore,
-              5000, // FIXME hard-coded time.  Should this be part of the protocol?
-              snapshotConfig,
-              permissions)
-
-            val modelActor = context.actorOf(props, resourceId)
-            this.openRealtimeModels += (openRequest.modelFqn -> modelActor)
-            this.context.watch(modelActor)
-            modelActor forward openRequest
-            ()
-          }) recover {
-            case cause: Exception =>
-              log.error(cause, s"Error opening model: ${openRequest.modelFqn}")
-              sender ! UnknownErrorResponse("Could not open model due to an unexpected server error.")
+        // Model not already open, load it
+        val me = this.persistenceProvider.modelStore.modelExists(openRequest.modelFqn)
+        me flatMap { exists =>
+          (if (exists) {
+            canOpen(openRequest.modelFqn, openRequest.sk)
+          } else {
+            canCreate(openRequest.modelFqn.collectionId, openRequest.sk)
+          }) map { allowed =>
+            (allowed, exists)
           }
+        } flatMap {
+          case (canOpenModel, modelExists) =>
+            if (canOpenModel) {
+              val resourceId = "" + nextModelResourceId
+              nextModelResourceId += 1
+              val collectionId = openRequest.modelFqn.collectionId
+
+              (for {
+                collectionExists <- persistenceProvider.collectionStore.ensureCollectionExists(collectionId)
+                snapshotConfig <- getSnapshotConfigForModel(collectionId)
+                permissions <- getModelPermissions(openRequest.modelFqn, modelExists)
+              } yield {
+                val props = RealtimeModelActor.props(
+                  self,
+                  domainFqn,
+                  openRequest.modelFqn,
+                  resourceId,
+                  persistenceProvider.modelStore,
+                  persistenceProvider.modelOperationProcessor,
+                  persistenceProvider.modelSnapshotStore,
+                  5000, // FIXME hard-coded time.  Should this be part of the protocol?
+                  snapshotConfig,
+                  permissions)
+
+                val modelActor = context.actorOf(props, resourceId)
+                this.openRealtimeModels += (openRequest.modelFqn -> modelActor)
+                this.context.watch(modelActor)
+                modelActor forward openRequest
+                ()
+              })
+            } else {
+              val message = if (modelExists) {
+                "Insufficient privlidges to open the specified model."
+              } else {
+                "Insufficient privlidges to create the specified model."
+              }
+              sender ! UnauthorizedException(message)
+              Success(())
+            }
+        } recover {
+          case cause: Exception =>
+            log.error(cause, s"Error opening model: ${openRequest.modelFqn}")
+            sender ! UnknownErrorResponse("Could not open model due to an unexpected server error.")
         }
     }
   }
 
-  private[this] def getCollectionUserPermissions(collectionId: String, username: String): CollectionPermissions = {
+  private[this] def getCollectionUserPermissions(collectionId: String, username: String): Try[Option[CollectionPermissions]] = {
     val permissionsStore = this.persistenceProvider.modelPermissionsStore
-    val userPermissions = permissionsStore.getCollectionUserPermissions(collectionId, username).get
-    userPermissions.getOrElse({
-      permissionsStore.getCollectionWorldPermissions(collectionId).get
-    })
-  }
-
-  private[this] def getModelUserPermissions(fqn: ModelFqn, username: String): ModelPermissions = {
-    val permissionsStore = this.persistenceProvider.modelPermissionsStore
-
-    if (permissionsStore.modelOverridesCollectionPermissions(fqn).get) {
-      val userPermissions = permissionsStore.getModelUserPermissions(fqn, username).get
-      userPermissions.getOrElse({
-        permissionsStore.getModelWorldPermissions(fqn).get
-      })
-    } else {
-      val CollectionPermissions(create, read, write, remove, manage) = permissionsStore.getCollectionWorldPermissions(fqn.collectionId).get
-      ModelPermissions(read, write, remove, manage)
+    permissionsStore.getCollectionUserPermissions(collectionId, username).flatMap { userPermissions =>
+      userPermissions match {
+        case Some(p) =>
+          Success(Some(p))
+        case None =>
+          permissionsStore.getCollectionWorldPermissions(collectionId)
+      }
     }
   }
 
-  private[this] def getModelPermissions(fqn: ModelFqn): Try[RealTimeModelPermissions] = {
-    //FIXME: after implementing collection permissions
+  private[this] def getModelUserPermissions(fqn: ModelFqn, username: String): Try[ModelPermissions] = {
     val permissionsStore = this.persistenceProvider.modelPermissionsStore
-    for {
-      overrideCollection <- permissionsStore.modelOverridesCollectionPermissions(fqn)
-      collectionWorld <- permissionsStore.getCollectionWorldPermissions(fqn.collectionId)
-      collectionUsers <- permissionsStore.getAllCollectionUserPermissions(fqn.collectionId)
-      modelWorld <- permissionsStore.getModelWorldPermissions(fqn)
-      modelUsers <- permissionsStore.getAllModelUserPermissions(fqn)
-    } yield (RealTimeModelPermissions(overrideCollection, collectionWorld, collectionUsers, modelWorld, modelUsers))
+    permissionsStore.modelOverridesCollectionPermissions(fqn).flatMap { overrides =>
+      if (overrides) {
+        permissionsStore.getModelUserPermissions(fqn, username).flatMap { userPerms =>
+          userPerms match {
+            case Some(p) =>
+              Success(p)
+            case None =>
+              permissionsStore.getModelWorldPermissions(fqn)
+          }
+        }
+      } else {
+        permissionsStore.getCollectionWorldPermissions(fqn.collectionId).flatMap { collectionPerms =>
+          collectionPerms match {
+            case Some(c) =>
+              val CollectionPermissions(create, read, write, remove, manage) = c
+              Success(ModelPermissions(read, write, remove, manage))
+            case None =>
+              // TODO we should actually clean this up. When we get here, we know that the eollection does
+              // not exist, which means the model can't exist.
+              Failure(new IllegalArgumentException("Can not get permissions for a model that does not exists"))
+          }
+        }
+      }
+    }
+  }
+
+  private[this] def getModelPermissions(fqn: ModelFqn, modelExists: Boolean): Try[RealTimeModelPermissions] = {
+    val permissionsStore = this.persistenceProvider.modelPermissionsStore
+    if (modelExists) {
+      for {
+        overrideCollection <- permissionsStore.modelOverridesCollectionPermissions(fqn)
+        collectionWorld <- permissionsStore.getCollectionWorldPermissions(fqn.collectionId)
+        collectionUsers <- permissionsStore.getAllCollectionUserPermissions(fqn.collectionId)
+        modelWorld <- permissionsStore.getModelWorldPermissions(fqn)
+        modelUsers <- permissionsStore.getAllModelUserPermissions(fqn)
+      } yield (RealTimeModelPermissions(overrideCollection, collectionWorld.get, collectionUsers, modelWorld, modelUsers))
+    } else {
+      for {
+        collectionWorld <- permissionsStore.getCollectionWorldPermissions(fqn.collectionId)
+        collectionUsers <- permissionsStore.getAllCollectionUserPermissions(fqn.collectionId)
+      } yield (RealTimeModelPermissions(
+        false,
+        collectionWorld.get,
+        collectionUsers,
+        ModelPermissions(false, false, false, false),
+        Map()))
+    }
   }
 
   private[this] def getSnapshotConfigForModel(collectionId: String): Try[ModelSnapshotConfig] = {
@@ -159,51 +199,82 @@ class ModelManagerActor(
     }
   }
 
-  private[this] def createModel(sk: SessionKey, collectionId: String, modelId: Option[String], data: ObjectValue,
-                                overridePermissions: Option[Boolean], worldPermissions: Option[ModelPermissions]): Unit = {
-    if (sk.admin || getCollectionUserPermissions(collectionId, sk.uid).create) {
-      persistenceProvider.collectionStore.ensureCollectionExists(collectionId) flatMap { _ =>
-        persistenceProvider.modelStore.createModel(collectionId, modelId, data, overridePermissions.getOrElse(false),
-          worldPermissions.getOrElse(ModelPermissions(false, false, false, false)))
-      } flatMap { model =>
-        val ModelMetaData(fqn, version, created, modified, overworldPermissions, worldPermissions) = model.metaData
-        val snapshot = ModelSnapshot(ModelSnapshotMetaData(fqn, version, created), model.data)
-        // Give the creating user unlimited access to the model
-        // TODO: Change this to use defaults
-        DomainUserType
-        persistenceProvider.modelPermissionsStore.updateModelUserPermissions(fqn, sk.uid, ModelPermissions(true, true, true, true)).get
-        persistenceProvider.modelSnapshotStore.createSnapshot(snapshot) map { _ => model }
-      } map { model =>
-        sender ! ModelCreated(model.metaData.fqn)
-      } recover {
-        case e: DuplicateValueExcpetion =>
-          sender ! ModelAlreadyExists
-        case e: InvalidValueExcpetion =>
-          sender ! UnknownErrorResponse("Could not create model beause it contained an invalid value")
-        case e: Exception =>
-          sender ! UnknownErrorResponse("Could not create model: " + e.getMessage)
+  private[this] def createModel(
+    sk: SessionKey,
+    collectionId: String,
+    modelId: Option[String],
+    data: ObjectValue,
+    overridePermissions: Option[Boolean],
+    worldPermissions: Option[ModelPermissions]): Unit = {
+
+    canCreate(collectionId, sk) flatMap { canCreateModel =>
+      if (canCreateModel) {
+        persistenceProvider.collectionStore.ensureCollectionExists(collectionId) flatMap { _ =>
+          val model = persistenceProvider.modelStore.createModel(
+            collectionId, modelId, data, overridePermissions.getOrElse(false),
+            worldPermissions.getOrElse(ModelPermissions(false, false, false, false)))
+          model
+        } flatMap { model =>
+          val ModelMetaData(fqn, version, created, modified, overworldPermissions, worldPermissions) = model.metaData
+          val snapshot = ModelSnapshot(ModelSnapshotMetaData(fqn, version, created), model.data)
+          persistenceProvider.modelSnapshotStore.createSnapshot(snapshot) flatMap { _ =>
+            // Give the creating user unlimited access to the model
+            // TODO: Change this to use defaults
+            persistenceProvider
+              .modelPermissionsStore
+              .updateModelUserPermissions(
+                model.metaData.fqn,
+                sk.uid,
+                ModelPermissions(true, true, true, true))
+          } map { _ =>
+            sender ! ModelCreated(model.metaData.fqn)
+            ()
+          }
+        }
+      } else {
+        // FIXME I don't think this is doing anything?
+        sender ! UnauthorizedException("Insufficient privlidges to create models for this collection")
+        Success(())
       }
-    } else {
-      sender ! UnauthorizedException("Insufficient privlidges to create models for this collection")
+    } recover {
+      case e: DuplicateValueExcpetion =>
+        sender ! ModelAlreadyExists
+      case e: InvalidValueExcpetion =>
+        sender ! UnknownErrorResponse("Could not create model beause it contained an invalid value")
+      case e: Exception =>
+        log.error(e, s"Could not create model: ${collectionId} / ${modelId}")
+        sender ! UnknownErrorResponse("Could not create model: " + e.getMessage)
     }
   }
 
   private[this] def onDeleteModelRequest(deleteRequest: DeleteModelRequest): Unit = {
     val DeleteModelRequest(sk, modelFqn) = deleteRequest
-    if (sk.admin || getModelUserPermissions(modelFqn, sk.uid).remove) {
-      if (openRealtimeModels.contains(modelFqn)) {
-        val closed = openRealtimeModels(modelFqn)
-        closed ! ModelDeleted
-        openRealtimeModels -= modelFqn
-      }
 
-      persistenceProvider.modelStore.deleteModel(modelFqn) map { _ =>
-        sender ! ModelDeleted
-      } recover {
-        case cause: Exception => sender ! Status.Failure(cause)
-      }
+    val canDelete = if (sk.admin) {
+      Success(true)
     } else {
-      sender ! UnauthorizedException("Insufficient privlidges to delete model")
+      getModelUserPermissions(modelFqn, sk.uid) map (p => p.remove)
+    }
+
+    canDelete.flatMap { canDelete =>
+      if (canDelete) {
+        if (openRealtimeModels.contains(modelFqn)) {
+          val closed = openRealtimeModels(modelFqn)
+          closed ! ModelDeleted
+          openRealtimeModels -= modelFqn
+        }
+
+        persistenceProvider.modelStore.deleteModel(modelFqn) map { _ =>
+          sender ! ModelDeleted
+          ()
+        }
+      } else {
+        sender ! UnauthorizedException("Insufficient privlidges to delete model")
+        Success(())
+      }
+    } recover {
+      case cause: Exception =>
+        sender ! Status.Failure(cause)
     }
   }
 
@@ -216,7 +287,7 @@ class ModelManagerActor(
     }
     persistenceProvider.modelStore.queryModels(query, username) match {
       case Success(result) => sender ! QueryModelsResponse(result)
-      case Failure(cause)  => sender ! Status.Failure(cause)
+      case Failure(cause) => sender ! Status.Failure(cause)
     }
   }
 
@@ -240,6 +311,26 @@ class ModelManagerActor(
     persistenceProvider.modelPermissionsStore.updateAllModelUserPermissions(modelFqn, users)
   }
 
+  private[this] def canCreate(collectionId: String, sk: SessionKey): Try[Boolean] = {
+    if (sk.admin) {
+      Success(true)
+    } else {
+      // Eventually we need some sort of domain wide configuration to allow / disallow auto creation of
+      // collections.
+      getCollectionUserPermissions(collectionId, sk.uid) map { c =>
+        c map (x => x.create) getOrElse (true)
+      }
+    }
+  }
+
+  private[this] def canOpen(fqn: ModelFqn, sk: SessionKey): Try[Boolean] = {
+    if (sk.admin) {
+      Success(true)
+    } else {
+      getModelUserPermissions(fqn, sk.uid) map (p => p.read)
+    }
+  }
+
   private[this] def onModelShutdownRequest(shutdownRequest: ModelShutdownRequest): Unit = {
     val fqn = shutdownRequest.modelFqn
     openRealtimeModels.get(fqn) map (_ ! ModelShutdown)
@@ -257,11 +348,11 @@ class ModelManagerActor(
   override def postStop(): Unit = {
     log.debug("ModelManagerActor({}) received shutdown command.  Shutting down all Realtime Models.", this.domainFqn)
     openRealtimeModels = Map()
-    DomainPersistenceManagerActor.releasePersistenceProvider(self, context, domainFqn)
+    persistenceManager.releasePersistenceProvider(self, context, domainFqn)
   }
 
   override def preStart(): Unit = {
-    DomainPersistenceManagerActor.acquirePersistenceProvider(self, context, domainFqn) match {
+    persistenceManager.acquirePersistenceProvider(self, context, domainFqn) match {
       case Success(provider) =>
         persistenceProvider = provider
       case Failure(cause) =>
@@ -275,8 +366,10 @@ object ModelManagerActor {
   val RelativePath = "modelManager"
 
   def props(domainFqn: DomainFqn,
-            protocolConfig: ProtocolConfiguration): Props = Props(
+    protocolConfig: ProtocolConfiguration,
+    persistenceManager: DomainPersistenceManager): Props = Props(
     new ModelManagerActor(
       domainFqn,
-      protocolConfig))
+      protocolConfig,
+      persistenceManager))
 }

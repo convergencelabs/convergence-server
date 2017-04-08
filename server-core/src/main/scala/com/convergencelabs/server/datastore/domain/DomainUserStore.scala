@@ -4,12 +4,22 @@ import java.lang.{ Long => JavaLong }
 import java.time.Instant
 import java.util.Date
 import java.util.{ List => JavaList }
+
+import scala.collection.JavaConverters.asScalaBufferConverter
+import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.collection.mutable.ListBuffer
+import scala.util.Failure
 import scala.util.Try
+
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.datastore.DuplicateValueExcpetion
+import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.datastore.QueryUtil
 import com.convergencelabs.server.datastore.SortOrder
+import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateNormalDomainUser
+import com.convergencelabs.server.datastore.domain.DomainUserStore.UpdateDomainUser
 import com.convergencelabs.server.domain.DomainUser
 import com.convergencelabs.server.domain.DomainUserType
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
@@ -20,16 +30,8 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
+
 import grizzled.slf4j.Logging
-import java.lang.{ Long => JavaLong }
-import java.util.{ List => JavaList }
-import scala.collection.JavaConverters._
-import scala.collection.JavaConversions._
-import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateNormalDomainUser
-import com.convergencelabs.server.datastore.domain.DomainUserStore.UpdateDomainUser
-import scala.util.Failure
-import com.convergencelabs.server.datastore.DuplicateValueExcpetion
-import com.convergencelabs.server.datastore.EntityNotFoundException
 
 object DomainUserStore {
 
@@ -116,7 +118,6 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
   val Username = "username"
   val Password = "password"
   val UserType = "userType"
-  val SessionSeq = "SESSIONSEQ"
   val AnonymousUsernameSeq = "anonymousUsernameSeq"
   val UsernameIndex = "User.username"
   val LastLogin = "lastLogin"
@@ -452,13 +453,11 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
   }
 
   def nextAnonymousUsername: Try[String] = tryWithDb { db =>
-    val seq = db.getMetadata().getSequenceLibrary().getSequence(AnonymousUsernameSeq)
-    JavaLong.toString(seq.next(), 36)
-  }
-
-  def nextSessionId: Try[String] = tryWithDb { db =>
-    val seq = db.getMetadata().getSequenceLibrary().getSequence(SessionSeq)
-    JavaLong.toString(seq.next(), 36)
+    //val seq = db.getMetadata().getSequenceLibrary().getSequence(AnonymousUsernameSeq)
+    //val next = seq.next()
+    val query = "SELECT sequence('anonymousUsernameSeq').next() as next"
+    val next = QueryUtil.lookupMandatoryDocument(query, Map(), db).map { _.field("next").asInstanceOf[Long] }.get
+    JavaLong.toString(next, 36)
   }
 
   private[this] def handleDuplicateValue[T](e: ORecordDuplicatedException): Try[T] = {

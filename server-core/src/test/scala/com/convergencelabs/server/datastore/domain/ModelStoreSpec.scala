@@ -230,11 +230,11 @@ class ModelStoreSpec
     "updating a model for an operation" must {
       "increment the version by 1" in withPersistenceStore { stores =>
         stores.collection.ensureCollectionExists(peopleCollectionId)
-        val modelBefore = stores.model.createModel(person1Model).get
+        stores.model.createModel(person1Model).get
         stores.model.updateModelOnOperation(person1Model.metaData.fqn, Instant.now())
         
         val modelAfter = stores.model.getModel(person1Model.metaData.fqn).get.get
-        modelAfter.metaData.version shouldBe modelBefore.metaData.version + 1 
+        modelAfter.metaData.version shouldBe person1Model.metaData.version + 1 
       }
       
       "correctly set the timestamp" in withPersistenceStore { stores =>
@@ -249,13 +249,13 @@ class ModelStoreSpec
       
       "leave all other data instact" in withPersistenceStore { stores =>
         stores.collection.ensureCollectionExists(peopleCollectionId)
-        val modelBefore = stores.model.createModel(person1Model).get
+        stores.model.createModel(person1Model).get
         stores.model.updateModelOnOperation(person1Model.metaData.fqn, Instant.now())
         
         val modelAfter = stores.model.getModel(person1Model.metaData.fqn).get.get
-        modelAfter.metaData.createdTime shouldBe modelBefore.metaData.createdTime
-        modelAfter.metaData.fqn shouldBe modelBefore.metaData.fqn
-        modelAfter.data shouldBe modelBefore.data
+        modelAfter.metaData.createdTime shouldBe person1Model.metaData.createdTime
+        modelAfter.metaData.fqn shouldBe person1Model.metaData.fqn
+        modelAfter.data shouldBe person1Model.data
       }
     }
 

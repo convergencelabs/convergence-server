@@ -25,7 +25,12 @@ import akka.util.Timeout
 import com.convergencelabs.server.datastore.DatabaseProvider
 import grizzled.slf4j.Logging
 
-object DomainPersistenceManagerActor extends Logging {
+trait DomainPersistenceManager {
+  def acquirePersistenceProvider(requestor: ActorRef, context: ActorContext, domainFqn: DomainFqn): Try[DomainPersistenceProvider]
+  def releasePersistenceProvider(requestor: ActorRef, context: ActorContext, domainFqn: DomainFqn): Unit
+}
+
+object DomainPersistenceManagerActor extends DomainPersistenceManager with Logging {
   val RelativePath = "DomainPersistenceManagerActor"
   val persistenceProviderTimeout = 5
 

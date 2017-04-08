@@ -4,41 +4,42 @@ import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
+
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
+import scala.util.Failure
 import scala.util.Success
+
 import org.json4s.JsonAST.JObject
 import org.json4s.JsonAST.JString
-import org.junit.runner.RunWith
+import org.mockito.Matchers
 import org.mockito.Mockito
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.Finders
 import org.scalatest.WordSpecLike
-import org.scalatest.junit.JUnitRunner
 import org.scalatest.mock.MockitoSugar
+
 import com.convergencelabs.server.HeartbeatConfiguration
 import com.convergencelabs.server.ProtocolConfiguration
+import com.convergencelabs.server.datastore.DuplicateValueExcpetion
+import com.convergencelabs.server.datastore.EntityNotFoundException
+import com.convergencelabs.server.datastore.domain.CollectionPermissions
+import com.convergencelabs.server.datastore.domain.CollectionStore
 import com.convergencelabs.server.datastore.domain.DomainConfigStore
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.datastore.domain.ModelOperationStore
+import com.convergencelabs.server.datastore.domain.ModelPermissions
+import com.convergencelabs.server.datastore.domain.ModelPermissionsStore
 import com.convergencelabs.server.datastore.domain.ModelSnapshotStore
 import com.convergencelabs.server.datastore.domain.ModelStore
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.ModelSnapshotConfig
-import com.convergencelabs.server.util.MockDomainPersistenceManagerActor
+import com.convergencelabs.server.domain.model.data.ObjectValue
+import com.convergencelabs.server.util.MockDomainPersistenceManager
+
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
-import com.convergencelabs.server.datastore.domain.CollectionStore
-import com.convergencelabs.server.domain.model.data.ObjectValue
-import scala.util.Failure
-import com.convergencelabs.server.datastore.EntityNotFoundException
-import org.mockito.Matchers
-import com.convergencelabs.server.datastore.DuplicateValueExcpetion
-import com.convergencelabs.server.datastore.domain.ModelPermissionsStore
-import com.convergencelabs.server.datastore.domain.CollectionPermissions
-import com.convergencelabs.server.datastore.domain.ModelPermissions
 
 class ModelManagerActorSpec
     extends TestKit(ActorSystem("ModelManagerActorSpec"))
@@ -49,9 +50,6 @@ class ModelManagerActorSpec
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
   }
-
-  val domainPersistenceActor = MockDomainPersistenceManagerActor(system)
-  val modelPermissions = ModelPermissions(true, true, true, true)
 
   // FIXME we need to test that models actually get created and deleted.  Not sure how to do this.
 
@@ -97,13 +95,13 @@ class ModelManagerActorSpec
         val data = ObjectValue("", Map())
 
         val now = Instant.now()
-        
+
         Mockito.when(modelStore.createModel(cId, Some(mId), data, true, modelPermissions))
           .thenReturn(Success(Model(ModelMetaData(nonExistentModelFqn, 0L, now, now, true, modelPermissions), data)))
 
         Mockito.when(modelSnapshotStore.createSnapshot(Matchers.any()))
           .thenReturn(Success(()))
-          
+
         modelManagerActor.tell(CreateModelRequest(SessionKey(userId1, sessionId1), cId, Some(mId), data, Some(true), Some(modelPermissions)), client.ref)
         client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelCreated(nonExistentModelFqn))
       }
@@ -112,8 +110,8 @@ class ModelManagerActorSpec
         val client = new TestProbe(system)
         val ModelFqn(cId, mId) = modelFqn
         val data = ObjectValue("", Map())
-        
-         Mockito.when(modelStore.createModel(cId, Some(mId), data, true, modelPermissions))
+
+        Mockito.when(modelStore.createModel(cId, Some(mId), data, true, modelPermissions))
           .thenReturn(Failure(DuplicateValueExcpetion("foo")))
 
         modelManagerActor.tell(CreateModelRequest(SessionKey(userId1, sessionId1), cId, Some(mId), data, Some(true), Some(modelPermissions)), client.ref)
@@ -143,7 +141,7 @@ class ModelManagerActorSpec
     val collectionId = "collection"
 
     val nonExistentModelFqn = ModelFqn(collectionId, "no model")
-    val modelFqn = ModelFqn(collectionId, "model" + System.nanoTime())
+    val modelFqn = ModelFqn(collectionId, "model")
     val modelJsonData = JObject("key" -> JString("value"))
     val modelCreateTime = Instant.ofEpochMilli(2L)
     val modelModifiedTime = Instant.ofEpochMilli(3L)
@@ -174,22 +172,22 @@ class ModelManagerActorSpec
       false,
       Duration.of(0, ChronoUnit.MINUTES),
       Duration.of(0, ChronoUnit.MINUTES))
-      
+
     Mockito.when(domainConfigStore.getModelSnapshotConfig()).thenReturn(Success(snapshotConfig))
 
     val collectionStore = mock[CollectionStore]
     Mockito.when(collectionStore.getOrCreateCollection(collectionId))
       .thenReturn(Success(Collection(collectionId, "", false, snapshotConfig, CollectionPermissions(true, true, true, true, true))))
-      
+
     Mockito.when(collectionStore.ensureCollectionExists(collectionId))
       .thenReturn(Success(()))
-      
+
     val modelPermissionsStore = mock[ModelPermissionsStore]
     Mockito.when(modelPermissionsStore.modelOverridesCollectionPermissions(modelFqn)).thenReturn(Success(true))
     Mockito.when(modelPermissionsStore.modelOverridesCollectionPermissions(nonExistentModelFqn)).thenReturn(Success(true))
     Mockito.when(modelPermissionsStore.getModelWorldPermissions(modelFqn)).thenReturn(Success(ModelPermissions(true, true, true, true)))
     Mockito.when(modelPermissionsStore.getModelWorldPermissions(nonExistentModelFqn)).thenReturn(Success(ModelPermissions(true, true, true, true)))
-    Mockito.when(modelPermissionsStore.getCollectionWorldPermissions(collectionId)).thenReturn(Success(CollectionPermissions(true, true, true, true, true)))
+    Mockito.when(modelPermissionsStore.getCollectionWorldPermissions(collectionId)).thenReturn(Success(Some(CollectionPermissions(true, true, true, true, true))))
     Mockito.when(modelPermissionsStore.getAllModelUserPermissions(modelFqn)).thenReturn(Success(Map[String, ModelPermissions]()))
     Mockito.when(modelPermissionsStore.getAllModelUserPermissions(nonExistentModelFqn)).thenReturn(Success(Map[String, ModelPermissions]()))
     Mockito.when(modelPermissionsStore.getCollectionUserPermissions(collectionId, userId1)).thenReturn(Success(Some(CollectionPermissions(true, true, true, true, true))))
@@ -214,7 +212,8 @@ class ModelManagerActorSpec
 
     val domainFqn = DomainFqn("convergence", "default")
 
-    domainPersistenceActor.underlyingActor.mockProviders = Map(domainFqn -> domainPersistence)
+    val modelPermissions = ModelPermissions(true, true, true, true)
+    val persistenceManager = new MockDomainPersistenceManager(Map(domainFqn -> domainPersistence))
 
     val resourceId = "1" + System.nanoTime()
     val domainActor = new TestProbe(system)
@@ -226,7 +225,7 @@ class ModelManagerActorSpec
         5 seconds,
         10 seconds))
 
-    val props = ModelManagerActor.props(domainFqn, protocolConfig)
+    val props = ModelManagerActor.props(domainFqn, protocolConfig, persistenceManager)
 
     val modelManagerActor = system.actorOf(props, resourceId)
   }

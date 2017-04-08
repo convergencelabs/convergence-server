@@ -18,12 +18,14 @@ import com.convergencelabs.server.HeartbeatConfiguration
 import com.convergencelabs.server.ProtocolConfiguration
 import com.convergencelabs.server.datastore.DomainStore
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.server.util.MockDomainPersistenceManagerActor
+import com.convergencelabs.server.util.MockDomainPersistenceManager
 import com.typesafe.config.ConfigFactory
 
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
+import com.convergencelabs.server.datastore.domain.DomainPersistenceManager
+import com.convergencelabs.server.util.MockDomainPersistenceManager
 
 class DomainManagerActorSpec()
     extends TestKit(ActorSystem("DomainManagerActorSpec", ConfigFactory.parseResources("cluster-application.conf")))
@@ -31,7 +33,6 @@ class DomainManagerActorSpec()
     with BeforeAndAfterAll
     with MockitoSugar {
 
-  val domainPersistence = MockDomainPersistenceManagerActor(system)
 
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
@@ -75,7 +76,7 @@ class DomainManagerActorSpec()
 
     val provider = mock[DomainPersistenceProvider]
     Mockito.when(provider.validateConnection()).thenReturn(Success(()))
-    domainPersistence.underlyingActor.mockProviders = Map(domainFqn -> provider)
+    val persistenceManager = new MockDomainPersistenceManager(Map(domainFqn -> provider))
 
 
     val protocolConfig = ProtocolConfiguration(
@@ -87,6 +88,6 @@ class DomainManagerActorSpec()
         0 seconds))
 
     val domainManagerActor = system.actorOf(
-      DomainManagerActor.props(domainStore, protocolConfig))
+      DomainManagerActor.props(domainStore, protocolConfig, persistenceManager))
   }
 }

@@ -31,6 +31,7 @@ import com.convergencelabs.server.domain.model.SessionKey
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
+import com.convergencelabs.server.datastore.domain.SessionStore
 
 class AuthenticationHandlerSpec()
     extends TestKit(ActorSystem("AuthManagerActorSpec"))
@@ -141,9 +142,12 @@ class AuthenticationHandlerSpec()
       nextSessionId.toString()
     }
 
+    val sessionStore = mock[SessionStore]
+    Mockito.when(sessionStore.nextSessionId).thenReturn(Success(nextSessionId()))
+    
+    
     val userStore = mock[DomainUserStore]
 
-    Mockito.when(userStore.nextSessionId).thenReturn(Success(nextSessionId()))
     Mockito.when(userStore.domainUserExists(existingUserName)).thenReturn(Success(true))
     Mockito.when(userStore.adminUserExists(existingUserName)).thenReturn(Success(true))
     Mockito.when(userStore.getDomainUserByUsername(existingUserName)).thenReturn(Success(Some(existingUser)))
@@ -216,7 +220,7 @@ class AuthenticationHandlerSpec()
     val missingKey = "missingKey"
     Mockito.when(keyStore.getKey(missingKey)).thenReturn(Success(None))
 
-    val authHandler = new AuthenticationHandler(domainConfigStore, keyStore, userStore, system.dispatcher)
+    val authHandler = new AuthenticationHandler(domainConfigStore, keyStore, userStore, sessionStore, system.dispatcher)
   }
 
 }

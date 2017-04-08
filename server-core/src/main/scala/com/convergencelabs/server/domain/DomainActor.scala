@@ -36,17 +36,20 @@ import com.convergencelabs.server.datastore.domain.DomainSession
 import akka.actor.OneForOneStrategy
 import akka.actor.SupervisorStrategy._
 import scala.concurrent.duration._
+import com.convergencelabs.server.datastore.domain.DomainPersistenceManager
 
 object DomainActor {
   def props(
     domainManagerActor: ActorRef,
     domainFqn: DomainFqn,
     protocolConfig: ProtocolConfiguration,
-    shutdownDelay: FiniteDuration): Props = Props(
+    shutdownDelay: FiniteDuration,
+    domainPersistenceManager: DomainPersistenceManager): Props = Props(
     new DomainActor(
       domainManagerActor,
       domainFqn,
-      protocolConfig))
+      protocolConfig,
+      domainPersistenceManager))
 }
 
 /**
@@ -56,7 +59,8 @@ object DomainActor {
 class DomainActor(
   domainManagerActor: ActorRef,
   domainFqn: DomainFqn,
-  protocolConfig: ProtocolConfiguration)
+  protocolConfig: ProtocolConfiguration,
+  domainPersistenceManager: DomainPersistenceManager)
     extends Actor
     with ActorLogging {
 
@@ -75,7 +79,8 @@ class DomainActor(
 
   private[this] val modelManagerActorRef = context.actorOf(ModelManagerActor.props(
     domainFqn,
-    protocolConfig),
+    protocolConfig,
+    DomainPersistenceManagerActor),
     ModelManagerActor.RelativePath)
 
   private[this] val userServiceActor = context.actorOf(UserServiceActor.props(
@@ -195,7 +200,7 @@ class DomainActor(
   }
 
   override def preStart(): Unit = {
-    val p = DomainPersistenceManagerActor.acquirePersistenceProvider(
+    val p = domainPersistenceManager.acquirePersistenceProvider(
       self, context, domainFqn)
 
     p match {
@@ -205,6 +210,7 @@ class DomainActor(
           provider.configStore,
           provider.jwtAuthKeyStore,
           provider.userStore,
+          provider.sessionStore,
           context.dispatcher)
       case Failure(cause) =>
         log.error(cause, "Unable to obtain a domain persistence provider.")
@@ -213,6 +219,6 @@ class DomainActor(
 
   override def postStop(): Unit = {
     log.debug(s"Domain(${domainFqn}) received shutdown command.  Shutting down.")
-    DomainPersistenceManagerActor.releasePersistenceProvider(self, context, domainFqn)
+    domainPersistenceManager.releasePersistenceProvider(self, context, domainFqn)
   }
 }

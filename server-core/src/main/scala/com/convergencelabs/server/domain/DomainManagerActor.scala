@@ -1,10 +1,15 @@
 package com.convergencelabs.server.domain
 
-import java.util.concurrent.TimeUnit
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.Duration
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
+
 import com.convergencelabs.server.ProtocolConfiguration
+import com.convergencelabs.server.datastore.DomainStore
+import com.convergencelabs.server.datastore.domain.DomainPersistenceManager
+
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
@@ -12,28 +17,24 @@ import akka.actor.Cancellable
 import akka.actor.PoisonPill
 import akka.actor.Props
 import akka.cluster.Cluster
-import akka.actor.Scheduler
-import scala.util.Success
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-import scala.concurrent.duration.Duration
-import com.convergencelabs.server.datastore.DomainStore
 
 object DomainManagerActor {
   val RelativeActorPath = "domainManager"
 
   def props(
     domainStore: DomainStore,
-    protocolConfig: ProtocolConfiguration): Props = Props(
+    protocolConfig: ProtocolConfiguration,
+    persistenceManager: DomainPersistenceManager): Props = Props(
     new DomainManagerActor(
       domainStore,
-      protocolConfig))
+      protocolConfig,
+      persistenceManager))
 }
 
 class DomainManagerActor(
   private[this] val domainStore: DomainStore,
-  private[this] val protocolConfig: ProtocolConfiguration)
+  private[this] val protocolConfig: ProtocolConfiguration,
+  private[this] val persistenceManager: DomainPersistenceManager)
     extends Actor with ActorLogging {
 
   log.debug("DomainManagerActor starting up with address: " + self.path)
@@ -94,7 +95,8 @@ class DomainManagerActor(
           self,
           domainConfig.domainFqn,
           protocolConfig,
-          domainShutdownDelay))
+          domainShutdownDelay,
+          persistenceManager))
         actorsToDomainFqn(domainActor) = domainFqn
         domainFqnToActor(domainFqn) = domainActor
         Success(Some(domainActor))

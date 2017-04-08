@@ -113,7 +113,13 @@ class ModelStore private[domain] (
     QueryUtil.hasResults(query, params, db)
   }
 
-  def createModel(collectionId: String, modelId: Option[String], data: ObjectValue, overridePermissions: Boolean, worldPermissions: ModelPermissions): Try[Model] = {
+  def createModel(
+    collectionId: String,
+    modelId: Option[String],
+    data: ObjectValue,
+    overridePermissions: Boolean,
+    worldPermissions: ModelPermissions): Try[Model] = {
+    
     val createdTime = Instant.now()
     val modifiedTime = createdTime
     val version = 1
@@ -129,10 +135,10 @@ class ModelStore private[domain] (
         worldPermissions),
       data)
 
-    this.createModel(model)
+    this.createModel(model) map (_ => model)
   }
 
-  def createModel(model: Model): Try[Model] = tryWithDb { db =>
+  def createModel(model: Model): Try[Unit] = tryWithDb { db =>
     val collectionId = model.metaData.fqn.collectionId
     val modelId = model.metaData.fqn.modelId
     val createdTime = model.metaData.createdTime
@@ -147,7 +153,6 @@ class ModelStore private[domain] (
         case cause: Exception =>
           val message = s"Could not create model because collection ${collectionId} could not be found."
           logger.error(message, cause)
-          // FIXME this would be an ideal place to add a string to the invalid value
           Failure(new IllegalArgumentException(message))
       }.map { collectionRid =>
         db.begin()
@@ -159,18 +164,18 @@ class ModelStore private[domain] (
         modelDoc.field(ModifiedTime, Date.from(modifiedTime))
         modelDoc.field(OverridePermissions, overrridePermissions)
         modelDoc.field(WorldPermissions, ModelPermissionsStore.modelPermissionToDoc(worldPermissions))
+        val dataDoc = OrientDataValueBuilder.objectValueToODocument(data, modelDoc)
+        modelDoc.field(Data, dataDoc)
         modelDoc.save()
-        modelDoc.field(Data, OrientDataValueBuilder.objectValueToODocument(data, modelDoc))
-        modelDoc.save()
+        dataDoc.save()
         db.commit()
 
-        model
+        ()
       }.get
   } recoverWith {
     case e: ORecordDuplicatedException => handleDuplicateValue(e)
   }
 
-  
   //FIXME: Add in overridePermissions flag
   def updateModel(fqn: ModelFqn, data: ObjectValue, worldPermissions: Option[ModelPermissions]): Try[Unit] = tryWithDb { db =>
     ModelStore.getModelDoc(fqn, db) match {
@@ -310,12 +315,13 @@ class ModelStore private[domain] (
   def queryModels(query: String, username: Option[String]): Try[List[Model]] = tryWithDb { db =>
     val select = new QueryParser(query).InputLine.run()
     val queryResult = select.map(ModelQueryBuilder.queryModels(_, username)) map {
-      queryParams: ModelQueryParameters => {
-        val query = new OSQLSynchQuery[ODocument](queryParams.query)
-        val result: JavaList[ODocument] = db.command(query).execute(queryParams.params.asJava)
-        
-        result.asScala.toList map { ModelStore.docToModel(_) }
-      }
+      queryParams: ModelQueryParameters =>
+        {
+          val query = new OSQLSynchQuery[ODocument](queryParams.query)
+          val result: JavaList[ODocument] = db.command(query).execute(queryParams.params.asJava)
+
+          result.asScala.toList map { ModelStore.docToModel(_) }
+        }
     }
     queryResult.get
   }

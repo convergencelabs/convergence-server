@@ -17,7 +17,7 @@ import org.scalatest.mock.MockitoSugar
 import com.convergencelabs.server.HeartbeatConfiguration
 import com.convergencelabs.server.ProtocolConfiguration
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.server.util.MockDomainPersistenceManagerActor
+import com.convergencelabs.server.util.MockDomainPersistenceManager
 
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
@@ -34,8 +34,6 @@ class DomainActorSpec
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
   }
-
-  val domainPersistence = MockDomainPersistenceManagerActor(system)
 
   "A DomainActor" when {
     "receiving an initial handshake request" must {
@@ -65,7 +63,8 @@ class DomainActorSpec
 
     val provider = mock[DomainPersistenceProvider]
     Mockito.when(provider.validateConnection()).thenReturn(Success(()))
-    domainPersistence.underlyingActor.mockProviders = Map(domainFqn -> provider)
+    
+    val persistenceManager = new MockDomainPersistenceManager(Map(domainFqn -> provider))
 
     val domainManagerActor = new TestProbe(system)
 
@@ -81,7 +80,8 @@ class DomainActorSpec
       domainManagerActor.ref,
       domainFqn,
       protocolConfig,
-      10 seconds)
+      10 seconds,
+      persistenceManager)
 
     val domainActor = system.actorOf(props)
   }

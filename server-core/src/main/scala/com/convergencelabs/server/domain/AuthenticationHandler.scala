@@ -28,6 +28,7 @@ import com.convergencelabs.server.util.TryWithResource
 import com.convergencelabs.server.util.concurrent.FutureUtils.tryToFuture
 
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.datastore.domain.SessionStore
 
 object AuthenticationHandler {
   val AdminKeyId = "ConvergenceAdminKey"
@@ -38,27 +39,34 @@ class AuthenticationHandler(
   private[this] val domainConfigStore: DomainConfigStore,
   private[this] val keyStore: JwtAuthKeyStore,
   private[this] val userStore: DomainUserStore,
+  private[this] val sessionStore: SessionStore,
   private[this] implicit val ec: ExecutionContext)
     extends Logging {
 
   def authenticate(request: AuthetncationCredentials): Future[AuthenticationResponse] = {
     request match {
-      case message: PasswordAuthRequest => authenticatePassword(message)
-      case message: JwtAuthRequest => authenticateToken(message)
-      case message: AnonymousAuthRequest => authenticateAnonymous(message)
+      case message: PasswordAuthRequest => 
+        authenticatePassword(message)
+      case message: JwtAuthRequest => 
+        authenticateToken(message)
+      case message: AnonymousAuthRequest => 
+        authenticateAnonymous(message)
     }
   }
 
   private[this] def authenticateAnonymous(authRequest: AnonymousAuthRequest): Future[AuthenticationResponse] = {
     val AnonymousAuthRequest(displayName) = authRequest;
-
+    debug(s"Processing anonymous authentication request with display name: ${displayName}")
     val result = domainConfigStore.isAnonymousAuthEnabled() flatMap {
       case false =>
+        debug("Anonymous auth is disabled, so returning AuthenticationFailure")
         Success(AuthenticationFailure)
       case true =>
+        debug("Anonymous auth is enabled, creating anonymous user...")
         userStore.createAnonymousDomainUser(displayName) flatMap { username => authSuccess(username) }
     } recover {
-      case e: Exception =>
+      case cause: Exception =>
+        error("Anonymous authentication error", cause)
         AuthenticationError
     }
 
@@ -69,7 +77,7 @@ class AuthenticationHandler(
     logger.debug("Authenticating by username and password")
     val response = userStore.validateCredentials(authRequest.username, authRequest.password) match {
       case Success(true) => {
-        userStore.nextSessionId match {
+        sessionStore.nextSessionId match {
           case Success(sessionId) =>
             updateLastLogin(authRequest.username, DomainUserType.Normal)
             AuthenticationSuccess(authRequest.username, SessionKey(authRequest.username, sessionId))
@@ -168,13 +176,13 @@ class AuthenticationHandler(
   }
 
   private[this] def authSuccessAdmin(username: String): Try[AuthenticationResponse] = {
-    userStore.nextSessionId map { id =>
+    sessionStore.nextSessionId map { id =>
       AuthenticationSuccess(username, SessionKey(username, id, true))
     }
   }
   
   private[this] def authSuccess(username: String): Try[AuthenticationResponse] = {
-    userStore.nextSessionId map { id =>
+    sessionStore.nextSessionId map { id =>
       AuthenticationSuccess(username, SessionKey(username, id))
     }
   }

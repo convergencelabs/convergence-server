@@ -113,6 +113,7 @@ class RealtimeModelActorSpec
         val now = Instant.now()
         Mockito.when(modelStore.createModel(modelFqn.collectionId, Some(modelFqn.modelId), modelJsonData, true, modelPermissions))
           .thenReturn(Success(Model(ModelMetaData(modelFqn, 0L, now, now, true, modelPermissions), modelJsonData)))
+        Mockito.when(modelSnapshotStore.createSnapshot(Matchers.any())).thenReturn(Success(()))
         Mockito.when(modelStore.getModel(modelFqn)).thenReturn(Success(Some(modelData)))
         Mockito.when(modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)).thenReturn(Success(Some(modelSnapshotMetaData)))
 
@@ -273,7 +274,7 @@ class RealtimeModelActorSpec
       100L,
       ModelSnapshotConfig(true, true, true, 3, 3, false, false, Duration.of(1, ChronoUnit.SECONDS), Duration.of(1, ChronoUnit.SECONDS)),
       RealTimeModelPermissions(true, CollectionPermissions(true, false, false, false, false), Map(), ModelPermissions(true, true, true, true),
-      Map()))
+        Map()))
 
     val realtimeModelActor = system.actorOf(props, resourceId)
   }

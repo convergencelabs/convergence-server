@@ -123,14 +123,14 @@ object ModelPermissionsStore {
 
 class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
 
-  def getCollectionWorldPermissions(collectionId: String): Try[CollectionPermissions] = tryWithDb { db =>
+  def getCollectionWorldPermissions(collectionId: String): Try[Option[CollectionPermissions]] = tryWithDb { db =>
     val queryString =
       """SELECT worldPermissions
         |  FROM Collection
         |  WHERE id = :collectionId""".stripMargin
     val params = Map("collectionId" -> collectionId)
-    val result = QueryUtil.lookupMandatoryDocument(queryString, params, db)
-    result.map { docToCollectionWorldPermissions(_) }.get
+    val result = QueryUtil.lookupOptionalDocument(queryString, params, db)
+    result.map { docToCollectionWorldPermissions(_) }
   }
 
   def setCollectionWorldPermissions(collectionId: String, permissions: CollectionPermissions): Try[Unit] = tryWithDb { db =>

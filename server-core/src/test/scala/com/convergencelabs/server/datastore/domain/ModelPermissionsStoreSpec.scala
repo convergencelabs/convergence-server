@@ -139,12 +139,12 @@ class ModelPermissionsStoreSpec
       "be equal to those just set" in withTestData { provider =>
         val permissions = CollectionPermissions(false, true, false, true, false)
         provider.modelPermissionsStore.setCollectionWorldPermissions(collectionId, permissions).get
-        val retrievedPermissions = provider.modelPermissionsStore.getCollectionWorldPermissions(collectionId).get
+        val retrievedPermissions = provider.modelPermissionsStore.getCollectionWorldPermissions(collectionId).get.get
         retrievedPermissions shouldEqual permissions
       }
 
       "fail if collection does not exist" in withTestData { provider =>
-        an[IllegalStateException] should be thrownBy provider.modelPermissionsStore.getCollectionWorldPermissions(nonExistentCollectionId).get
+        provider.modelPermissionsStore.getCollectionWorldPermissions(nonExistentCollectionId).get shouldBe None
       }
     }
 
