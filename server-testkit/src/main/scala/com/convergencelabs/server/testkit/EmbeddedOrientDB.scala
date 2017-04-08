@@ -37,9 +37,13 @@ class EmbeddedOrientDB(dataPath: String, persistent: Boolean) extends Logging {
   }
 
   def stop(): Unit = {
+    logger.info(s"Stopping the Embedded Orient DB.")
     server.shutdown()
+    logger.info(s"Embedded Orient DB stopped.")
     if (!persistent) {
+      logger.info(s"Deleting Orient DB storage.")
       deleteDirectory(odbTarget)
+      logger.info(s"Deleted Orient DB storage.")
     }
   }
 

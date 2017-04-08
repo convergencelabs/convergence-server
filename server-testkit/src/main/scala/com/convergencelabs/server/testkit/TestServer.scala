@@ -29,18 +29,22 @@ class TestServer(configFile: String) extends Logging {
   val server = new ConvergenceServerNode(config)
   val oriendDb = new EmbeddedOrientDB(odbTarget.getAbsolutePath, persistent)
 
-  sys.ShutdownHookThread {
-    println("exiting")
-  }
 
   def start(): Unit = {
-    logger.info("Test Server starting up")
+    logger.info("Test server starting up")
     oriendDb.start()
     server.start()
-    logger.info("Test Server started.")
+    logger.info("Test server started.")
+    var line = scala.io.StdIn.readLine()
+    while (line.trim() != "exit") {
+      line = scala.io.StdIn.readLine()
+    }
+    this.stop()
+    sys.exit()
   }
 
   def stop(): Unit = {
+    logger.info("Test server shutting down.")
     server.stop()
     oriendDb.stop()
   }

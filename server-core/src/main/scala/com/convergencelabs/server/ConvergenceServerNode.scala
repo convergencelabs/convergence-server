@@ -209,8 +209,11 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
   }
 
   def stop(): Unit = {
+    logger.info(s"Stopping the convergence server node")
     nodeSystem match {
-      case Some(system) => system.terminate()
+      case Some(system) => 
+        system.terminate()
+        logger.info(s"Actor system terminated")
       case None =>
     }
   }
