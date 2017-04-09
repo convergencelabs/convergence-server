@@ -116,7 +116,7 @@ val testkit = (project in file("server-testkit")).
     libraryDependencies ++= 
     akkaCore ++ 
     orientDb ++ 
-    Seq(orientDbServer) ++
+    Seq(orientDbServer, orientDbStudio) ++
     loggingAll ++
     testingCore ++
     Seq(javaWebsockets)

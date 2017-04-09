@@ -136,7 +136,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
   def setCollectionWorldPermissions(collectionId: String, permissions: CollectionPermissions): Try[Unit] = tryWithDb { db =>
     val collectionDoc = getCollectionRid(collectionId).get.getRecord[ODocument]
     val permissionsDoc = collectionPermissionToDoc(permissions)
-    collectionDoc.fields(Fields.World, permissionsDoc)
+    collectionDoc.field(Fields.World, permissionsDoc, OType.EMBEDDED)
     collectionDoc.save()
   }
 
@@ -273,7 +273,8 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
   def setModelWorldPermissions(modelFqn: ModelFqn, permissions: ModelPermissions): Try[Unit] = tryWithDb { db =>
     val modelDoc = getModelRid(modelFqn).get.getRecord[ODocument]
     val permissionsDoc = modelPermissionToDoc(permissions)
-    modelDoc.field(Fields.World, permissionsDoc).save()
+    modelDoc.field(Fields.World, permissionsDoc, OType.EMBEDDED)
+    modelDoc.save()
   }
 
   def getAllModelUserPermissions(modelFqn: ModelFqn): Try[Map[String, ModelPermissions]] = tryWithDb { db =>
@@ -318,7 +319,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
         if (modelPermissionRID.isSuccess) {
           db.delete(modelPermissionRID.get)
         }
-
+        
         permissions.foreach { perm =>
           val modelPermissionsDoc = db.newInstance(ModelUserPermissionsClass)
           modelPermissionsDoc.field(Fields.Model, modelRID)

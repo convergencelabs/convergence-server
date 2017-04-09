@@ -119,7 +119,7 @@ class ModelStore private[domain] (
     data: ObjectValue,
     overridePermissions: Boolean,
     worldPermissions: ModelPermissions): Try[Model] = {
-    
+
     val createdTime = Instant.now()
     val modifiedTime = createdTime
     val version = 1
@@ -163,13 +163,18 @@ class ModelStore private[domain] (
         modelDoc.field(CreatedTime, Date.from(createdTime))
         modelDoc.field(ModifiedTime, Date.from(modifiedTime))
         modelDoc.field(OverridePermissions, overrridePermissions)
-        modelDoc.field(WorldPermissions, ModelPermissionsStore.modelPermissionToDoc(worldPermissions))
+        
+        val worldPermsDoc = ModelPermissionsStore.modelPermissionToDoc(worldPermissions)
+        modelDoc.field(WorldPermissions, worldPermsDoc, OType.EMBEDDED)
+        
         val dataDoc = OrientDataValueBuilder.objectValueToODocument(data, modelDoc)
-        modelDoc.field(Data, dataDoc)
-        modelDoc.save()
-        dataDoc.save()
-        db.commit()
+        modelDoc.field(Data, dataDoc, OType.LINK)
+        
+        // FIXME what about the user permissions LINKLIST?
 
+        dataDoc.save()
+        modelDoc.save()
+        db.commit()
         ()
       }.get
   } recoverWith {

@@ -127,7 +127,6 @@ class RealtimeModelActor(
    */
   private[this] def receiveInitializingFromClients: Receive = {
     case request: OpenRealtimeModelRequest => onOpenModelWhileInitializing(request)
-    case dataResponse: DatabaseModelResponse => onDatabaseModelResponse(dataResponse)
     case dataResponse: ClientModelDataResponse => onClientModelDataResponse(dataResponse)
     case ModelDeleted => handleInitializationFailure(ModelDeletedWhileOpening)
     case unknown: Any => unhandled(unknown)
@@ -154,13 +153,15 @@ class RealtimeModelActor(
     case operationSubmission: OperationSubmission => onOperationSubmission(operationSubmission)
     case referenceEvent: ModelReferenceEvent => onReferenceEvent(referenceEvent)
     case request: SetModelPermissionsRequest => onSetPermissionsRequest(request)
-    case dataResponse: ClientModelDataResponse =>
-    // This can happen if we asked several clients for the data.  The first
-    // one will be handled, but the rest will come in an simply be ignored.
     case snapshotMetaData: ModelSnapshotMetaData => this.latestSnapshot = snapshotMetaData
     case ModelDeleted => handleModelDeletedWhileOpen()
     case terminated: Terminated => handleTerminated(terminated)
     case ModelShutdown => shutdown()
+
+    // This can happen if we asked several clients for the data.  The first
+    // one will be handled, but the rest will come in an simply be ignored.
+    case dataResponse: ClientModelDataResponse =>
+
     case unknown: Any => unhandled(unknown)
   }
 
@@ -287,7 +288,8 @@ class RealtimeModelActor(
    */
   private[this] def requestModelDataFromDatastore(): Unit = {
     context.become(receiveInitializingFromDatabase)
-    Future {
+    log.debug(s"Opening model from database: ${this.modelFqn}")
+//    Future {
       (for {
         snapshotMetaData <- modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)
         model <- modelStore.getModel(modelFqn)
@@ -309,7 +311,7 @@ class RealtimeModelActor(
           log.error(cause, message)
           self ! DatabaseModelFailure(cause)
       }
-    }
+//    }
   }
 
   /**
@@ -384,28 +386,35 @@ class RealtimeModelActor(
    * then open the model from the database.
    */
   private[this] def onClientModelDataResponse(response: ClientModelDataResponse): Unit = {
+    // The next step will to get the data from the database. So we will set this now,
+    // this ensures that we don't take more data from another clinet.
+    context.become(receiveInitializingFromDatabase)
+
+    log.debug(s"Received data for model ${this.modelFqn} from client")
     val ClientModelDataResponse(modelData, overridePermissions, worldPermissions) = response
+
+    log.debug(s"Creating model in database: ${this.modelFqn}")
+    val overrideWorld = overridePermissions.getOrElse(false)
+    val worldPerms = worldPermissions.getOrElse(ModelPermissions(false, false, false, false))
     modelStore.createModel(
-      modelFqn.collectionId,
-      Some(modelFqn.modelId),
-      modelData,
-      overridePermissions.getOrElse(false),
-      worldPermissions.getOrElse(ModelPermissions(false, false, false, false))) flatMap { model =>
+      modelFqn.collectionId, Some(modelFqn.modelId), modelData, overrideWorld, worldPerms) flatMap { model =>
+        log.debug(s"Model created in database: ${this.modelFqn}")
         
         val Model(
           ModelMetaData(fqn, version, createdTime, modifiedTime, overridePermissions, worldPermissions),
           data) = model
 
-        modelSnapshotStore.createSnapshot(ModelSnapshot(
-          ModelSnapshotMetaData(modelFqn, version, createdTime),
-          response.modelData))
+        log.debug(s"Creating initial snapshot database: ${this.modelFqn}")
+        modelSnapshotStore.createSnapshot(
+          ModelSnapshot(ModelSnapshotMetaData(modelFqn, version, createdTime), response.modelData))
       } map { _ =>
+        log.debug(s"Initial snapshot created in database: ${this.modelFqn}")
         requestModelDataFromDatastore()
       } recover {
         case cause: Exception =>
-           log.error(cause,
-          s"Unable to initialize the model from a client initializer: $domainFqn/$modelFqn")
-        handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
+          log.error(cause,
+            s"Unable to initialize the model from a client initializer: $domainFqn/$modelFqn")
+          handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
       }
   }
 
@@ -616,7 +625,8 @@ class RealtimeModelActor(
    */
   private[this] def executeSnapshot(): Unit = {
     // This might not be the exact version that gets snapshotted
-    // but that is OK, this is approximate.
+    // but that is OK, this is approximate. we send a message to
+    // send the snapshot back to the actor to refine the exact version.
     latestSnapshot = ModelSnapshotMetaData(modelFqn, model.contextVersion(), Instant.now())
 
     val f = Future[ModelSnapshotMetaData] {
@@ -646,7 +656,8 @@ class RealtimeModelActor(
     }
 
     f onFailure {
-      case cause: Throwable => log.error(cause, s"Error taking snapshot of model (${modelFqn.collectionId}/${modelFqn.modelId})")
+      case cause: Throwable =>
+        log.error(cause, s"Error taking snapshot of model (${modelFqn.collectionId}/${modelFqn.modelId})")
     }
   }
 

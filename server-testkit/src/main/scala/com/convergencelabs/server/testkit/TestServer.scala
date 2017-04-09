@@ -22,7 +22,7 @@ object TestServer {
 class TestServer(configFile: String) extends Logging {
 
   val persistent = java.lang.Boolean.getBoolean("convergence.test-server.persistent")
-  val odbTarget = new File("target/orientdb")
+  val odbTarget = new File("target/orientdb/databases")
 
   val reader = new InputStreamReader(getClass.getResourceAsStream(configFile))
   val config = ConfigFactory.parseReader(reader)

@@ -30,7 +30,8 @@ object Dependencies {
     // Orient DB Dependencies
     val orientDbClient     = "com.orientechnologies"    % "orientdb-client"               % Versions.orientDb           // Apache 2.0
     val orientDbCore       = "com.orientechnologies"    % "orientdb-core"                 % Versions.orientDb           // Apache 2.0
-    val orientDbServer       = "com.orientechnologies"  % "orientdb-server"               % Versions.orientDb           // Apache 2.0
+    val orientDbServer     = "com.orientechnologies"    % "orientdb-server"               % Versions.orientDb           // Apache 2.0
+    val orientDbStudio     = "com.orientechnologies"    % "orientdb-studio"               % Versions.orientDb           // Apache 2.0
     val orientDb = Seq(orientDbClient, orientDbCore)
   
     // Logging

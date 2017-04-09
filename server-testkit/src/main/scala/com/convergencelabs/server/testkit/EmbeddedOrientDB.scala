@@ -16,6 +16,7 @@ class EmbeddedOrientDB(dataPath: String, persistent: Boolean) extends Logging {
   def start(): Unit = {
     logger.info("Starting up embedded OrientDB")
     if (!persistent && odbTarget.exists()) {
+      logger.info("Removing old data, because the server is set to non-persisten.")
       deleteDirectory(odbTarget)
     }
 
@@ -40,11 +41,6 @@ class EmbeddedOrientDB(dataPath: String, persistent: Boolean) extends Logging {
     logger.info(s"Stopping the Embedded Orient DB.")
     server.shutdown()
     logger.info(s"Embedded Orient DB stopped.")
-    if (!persistent) {
-      logger.info(s"Deleting Orient DB storage.")
-      deleteDirectory(odbTarget)
-      logger.info(s"Deleted Orient DB storage.")
-    }
   }
 
   def deleteDirectory(path: File): Boolean = {

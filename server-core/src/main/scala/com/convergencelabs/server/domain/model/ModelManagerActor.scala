@@ -147,7 +147,7 @@ class ModelManagerActor(
               val CollectionPermissions(create, read, write, remove, manage) = c
               Success(ModelPermissions(read, write, remove, manage))
             case None =>
-              // TODO we should actually clean this up. When we get here, we know that the eollection does
+              // TODO we should actually clean this up. When we get here, we know that the collection does
               // not exist, which means the model can't exist.
               Failure(new IllegalArgumentException("Can not get permissions for a model that does not exists"))
           }
@@ -195,55 +195,44 @@ class ModelManagerActor(
     if (collectionId.length == 0) {
       sender ! UnknownErrorResponse("The collecitonId can not be empty when creating a model")
     } else {
-      createModel(sk, collectionId, modelId, data, overridePermissions, worldPermissions)
-    }
-  }
-
-  private[this] def createModel(
-    sk: SessionKey,
-    collectionId: String,
-    modelId: Option[String],
-    data: ObjectValue,
-    overridePermissions: Option[Boolean],
-    worldPermissions: Option[ModelPermissions]): Unit = {
-
-    canCreate(collectionId, sk) flatMap { canCreateModel =>
-      if (canCreateModel) {
-        persistenceProvider.collectionStore.ensureCollectionExists(collectionId) flatMap { _ =>
-          val model = persistenceProvider.modelStore.createModel(
-            collectionId, modelId, data, overridePermissions.getOrElse(false),
-            worldPermissions.getOrElse(ModelPermissions(false, false, false, false)))
-          model
-        } flatMap { model =>
-          val ModelMetaData(fqn, version, created, modified, overworldPermissions, worldPermissions) = model.metaData
-          val snapshot = ModelSnapshot(ModelSnapshotMetaData(fqn, version, created), model.data)
-          persistenceProvider.modelSnapshotStore.createSnapshot(snapshot) flatMap { _ =>
-            // Give the creating user unlimited access to the model
-            // TODO: Change this to use defaults
-            persistenceProvider
-              .modelPermissionsStore
-              .updateModelUserPermissions(
-                model.metaData.fqn,
-                sk.uid,
-                ModelPermissions(true, true, true, true))
-          } map { _ =>
-            sender ! ModelCreated(model.metaData.fqn)
-            ()
+      canCreate(collectionId, sk) flatMap { canCreateModel =>
+        if (canCreateModel) {
+          persistenceProvider.collectionStore.ensureCollectionExists(collectionId) flatMap { _ =>
+            val model = persistenceProvider.modelStore.createModel(
+              collectionId, modelId, data, overridePermissions.getOrElse(false),
+              worldPermissions.getOrElse(ModelPermissions(false, false, false, false)))
+            model
+          } flatMap { model =>
+            val ModelMetaData(fqn, version, created, modified, overworldPermissions, worldPermissions) = model.metaData
+            val snapshot = ModelSnapshot(ModelSnapshotMetaData(fqn, version, created), model.data)
+            persistenceProvider.modelSnapshotStore.createSnapshot(snapshot) flatMap { _ =>
+              // Give the creating user unlimited access to the model
+              // TODO: Change this to use defaults
+              persistenceProvider
+                .modelPermissionsStore
+                .updateModelUserPermissions(
+                  model.metaData.fqn,
+                  sk.uid,
+                  ModelPermissions(true, true, true, true))
+            } map { _ =>
+              sender ! ModelCreated(model.metaData.fqn)
+              ()
+            }
           }
+        } else {
+          // FIXME I don't think this is doing anything?
+          sender ! UnauthorizedException("Insufficient privlidges to create models for this collection")
+          Success(())
         }
-      } else {
-        // FIXME I don't think this is doing anything?
-        sender ! UnauthorizedException("Insufficient privlidges to create models for this collection")
-        Success(())
+      } recover {
+        case e: DuplicateValueExcpetion =>
+          sender ! ModelAlreadyExists
+        case e: InvalidValueExcpetion =>
+          sender ! UnknownErrorResponse("Could not create model beause it contained an invalid value")
+        case e: Exception =>
+          log.error(e, s"Could not create model: ${collectionId} / ${modelId}")
+          sender ! UnknownErrorResponse("Could not create model: " + e.getMessage)
       }
-    } recover {
-      case e: DuplicateValueExcpetion =>
-        sender ! ModelAlreadyExists
-      case e: InvalidValueExcpetion =>
-        sender ! UnknownErrorResponse("Could not create model beause it contained an invalid value")
-      case e: Exception =>
-        log.error(e, s"Could not create model: ${collectionId} / ${modelId}")
-        sender ! UnknownErrorResponse("Could not create model: " + e.getMessage)
     }
   }
 

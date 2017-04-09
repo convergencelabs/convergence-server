@@ -34,7 +34,7 @@ object OrientDataValueBuilder {
 
   def objectValueToODocument(value: ObjectValue, modelDoc: OIdentifiable): ODocument = {
     val objectDoc = new ODocument("ObjectValue")
-    objectDoc.field(Model, modelDoc)
+    objectDoc.field(Model, modelDoc, OType.LINK)
     objectDoc.field(Id, value.id)
     val children = value.children map { case (k, v) => (k, dataValueToODocument(v, modelDoc)) }
     objectDoc.field("children", children.asJava, OType.LINKMAP)

@@ -96,7 +96,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
           fullUri, 
           username, 
           password,
-          Runtime.getRuntime().availableProcessors(),
+          1,
           64)
       val dbProvider = DatabaseProvider(dbPool)
 

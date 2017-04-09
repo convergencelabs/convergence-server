@@ -155,10 +155,13 @@ class DomainPersistenceManagerActor(
     log.debug(s"Creating new persistence provider: ${domainFqn}")
     domainDatabaseStore.getDomainDatabase(domainFqn) flatMap {
       case Some(domainInfo) =>
+        // FIXME we should make this configurable
         val pool = new OPartitionedDatabasePool(
           s"${baseDbUri}/${domainInfo.database}",
           domainInfo.username,
-          domainInfo.password)
+          domainInfo.password,
+          1,
+          64)
         log.debug(s"Creating new connection pool for '${domainFqn}': ${pool.getUrl}")
         val provider = new DomainPersistenceProvider(DatabaseProvider(pool))
         provider.validateConnection() flatMap { _ =>
