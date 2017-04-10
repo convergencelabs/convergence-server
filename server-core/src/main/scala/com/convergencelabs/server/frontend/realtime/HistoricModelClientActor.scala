@@ -94,7 +94,7 @@ class HistoricModelClientActor(
   override def preStart(): Unit = {
     DomainPersistenceManagerActor.acquirePersistenceProvider(self, context, domainFqn) match {
       case Success(provider) =>
-        modelStoreActor = context.actorOf(ModelStoreActor.props(provider.modelStore, provider.collectionStore))
+        modelStoreActor = context.actorOf(ModelStoreActor.props(provider))
         operationStoreActor = context.actorOf(ModelOperationStoreActor.props(provider.modelOperationStore))
       case Failure(cause) =>
         log.error(cause, "Unable to obtain a domain persistence provider.")
