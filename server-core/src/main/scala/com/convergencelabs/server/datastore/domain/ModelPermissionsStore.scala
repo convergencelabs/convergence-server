@@ -24,6 +24,9 @@ import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 import java.util.ArrayList
 import com.orientechnologies.orient.core.db.record.OTrackedList
+import scala.util.Success
+import scala.util.Failure
+import com.orientechnologies.orient.core.index.OIndex
 
 case class ModelPermissions(read: Boolean, write: Boolean, remove: Boolean, manage: Boolean)
 case class CollectionPermissions(create: Boolean, read: Boolean, write: Boolean, remove: Boolean, manage: Boolean)
@@ -51,7 +54,7 @@ object ModelPermissionsStore {
     val Model = "model"
     val User = "user"
     val Permissions = "permissions"
-   
+
     val OverridePermissions = "overridePermissions"
     val World = "worldPermissions"
 
@@ -253,7 +256,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     val overridePermissions: Boolean = modelDoc.field(Fields.OverridePermissions, OType.BOOLEAN)
     overridePermissions
   }
-  
+
   def setOverrideCollectionPermissions(modelFqn: ModelFqn, overridePermissions: Boolean): Try[Unit] = tryWithDb { db =>
     val modelDoc = getModelRid(modelFqn).get.getRecord[ODocument]
     modelDoc.field(Fields.OverridePermissions, overridePermissions).save()
@@ -316,18 +319,40 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
         val userRID = DomainUserStore.getUserRid(username, db).get
         val key = new OCompositeKey(List(userRID, modelRID).asJava)
         val modelPermissionRID = getModelUserPermissionsRid(modelFqn, username)
-        if (modelPermissionRID.isSuccess) {
-          db.delete(modelPermissionRID.get)
-        }
-        
-        permissions.foreach { perm =>
-          val modelPermissionsDoc = db.newInstance(ModelUserPermissionsClass)
-          modelPermissionsDoc.field(Fields.Model, modelRID)
-          modelPermissionsDoc.field(Fields.User, userRID)
-          modelPermissionsDoc.field(Fields.Permissions, modelPermissionToDoc(perm))
-          modelPermissionsDoc.save()
+
+        modelPermissionRID match {
+          case Success(rid) =>
+            val modelPermissionRecord = rid.getRecord[ODocument]
+            permissions match {
+              case Some(permissions) =>
+                modelPermissionRecord.field(Fields.Permissions, modelPermissionToDoc(permissions))
+                modelPermissionRecord.save()
+              case None => modelPermissionRecord.delete()
+            }
+          case Failure(e) =>
+            permissions match {
+              case Some(permissions) =>
+                val modelPermissionsDoc = db.newInstance(ModelUserPermissionsClass)
+                modelPermissionsDoc.field(Fields.Model, modelRID)
+                modelPermissionsDoc.field(Fields.User, userRID)
+                modelPermissionsDoc.field(Fields.Permissions, modelPermissionToDoc(permissions))
+                modelPermissionsDoc.save()
+              case None => Failure(e)
+            }
         }
     }
+
+    val queryString =
+      """update Model 
+          |  set userPermisssions = (select from ModelUserPermissions 
+          |                                 where model.id = :modelId and 
+          |                                       model.collection.id = :collectionId) 
+          |  where id = :modelId and collection.id = :collectionId""".stripMargin
+
+    val command = new OCommandSQL(queryString)
+    val params = Map("modelId" -> modelFqn.modelId, "collectionId" -> modelFqn.collectionId)
+    db.command(command).execute(params.asJava)
+    ()
   }
 
   def getModelUserPermissions(modelFqn: ModelFqn, username: String): Try[Option[ModelPermissions]] = tryWithDb { db =>
@@ -378,7 +403,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
 
     val iter = userPermissions.iterator()
     var permDoc: Option[ODocument] = None
-    while(iter.hasNext()) {
+    while (iter.hasNext()) {
       val curDoc = iter.next()
       if (curDoc.field("user").asInstanceOf[ODocument].getIdentity == userRID) {
         permDoc = Some(curDoc)
