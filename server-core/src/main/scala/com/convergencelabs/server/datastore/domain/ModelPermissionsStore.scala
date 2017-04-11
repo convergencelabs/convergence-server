@@ -57,6 +57,7 @@ object ModelPermissionsStore {
 
     val OverridePermissions = "overridePermissions"
     val World = "worldPermissions"
+    val UserPermissions = "userPermissions"
 
     val Username = "username"
 
@@ -146,7 +147,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
   def getAllCollectionUserPermissions(collectionId: String): Try[Map[String, CollectionPermissions]] = tryWithDb { db =>
     val collectionRID = CollectionStore.getCollectionRid(collectionId, db).get
     val collectionDoc = collectionRID.getRecord[ODocument]
-    val userPermissions: JavaList[ODocument] = collectionDoc.field("userPermissions", OType.LINKLIST)
+    val userPermissions: JavaList[ODocument] = collectionDoc.field(Fields.UserPermissions, OType.LINKLIST)
     if (userPermissions == null) {
       Map[String, CollectionPermissions]()
     } else {
@@ -162,7 +163,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
   def deleteAllCollectionUserPermissions(collectionId: String): Try[Unit] = tryWithDb { db =>
     val collectionRID = CollectionStore.getCollectionRid(collectionId, db).get
     val collectionDoc = collectionRID.getRecord[ODocument]
-    collectionDoc.field("userPermissions", new ArrayList[ODocument]())
+    collectionDoc.field(Fields.UserPermissions, new ArrayList[ODocument]())
     collectionDoc.save()
 
     val queryString =
@@ -223,12 +224,12 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
       collectionPermissionsDoc = collectionPermissionsDoc.save()
 
       val collection = collectionRID.getRecord[ODocument]
-      var userPermissions: JavaList[ODocument] = collection.field("userPermissions")
+      var userPermissions: JavaList[ODocument] = collection.field(Fields.UserPermissions)
       if (userPermissions == null) {
         userPermissions = new ArrayList[ODocument]()
       }
       userPermissions.add(0, collectionPermissionsDoc)
-      collection.field("userPermissions", userPermissions)
+      collection.field(Fields.UserPermissions, userPermissions)
       collection.save()
     }
     ()
@@ -238,7 +239,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     val collectionRID = CollectionStore.getCollectionRid(collectionId, db).get
     val collectionDoc = collectionRID.getRecord[ODocument]
     val userRID = DomainUserStore.getUserRid(username, db).get
-    val userPermissions: JavaList[ODocument] = collectionDoc.field("userPermissions", OType.LINKLIST)
+    val userPermissions: JavaList[ODocument] = collectionDoc.field(Fields.UserPermissions, OType.LINKLIST)
 
     val newPermissions = userPermissions.asScala.filterNot { permDoc =>
       if (permDoc.field("user").asInstanceOf[ODocument].getIdentity == userRID) {
@@ -248,7 +249,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
         false
       }
     }
-    collectionDoc.field("userPermissions", newPermissions.asJavaCollection)
+    collectionDoc.field(Fields.UserPermissions, newPermissions.asJavaCollection)
   }
 
   def modelOverridesCollectionPermissions(modelFqn: ModelFqn): Try[Boolean] = tryWithDb { db =>
@@ -283,7 +284,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
   def getAllModelUserPermissions(modelFqn: ModelFqn): Try[Map[String, ModelPermissions]] = tryWithDb { db =>
     val modelRID = ModelStore.getModelRid(modelFqn.modelId, modelFqn.collectionId, db).get
     val modelDoc = modelRID.getRecord[ODocument]
-    val userPermissions: JavaList[ODocument] = modelDoc.field("userPermissions", OType.LINKLIST)
+    val userPermissions: JavaList[ODocument] = modelDoc.field(Fields.UserPermissions, OType.LINKLIST)
     if (userPermissions == null) {
       Map[String, ModelPermissions]()
     } else {
@@ -299,7 +300,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
   def deleteAllModelUserPermissions(modelFqn: ModelFqn): Try[Unit] = tryWithDb { db =>
     val modelRID = ModelStore.getModelRid(modelFqn.modelId, modelFqn.collectionId, db).get
     val modelDoc = modelRID.getRecord[ODocument]
-    modelDoc.field("userPermissions", new ArrayList[ODocument]())
+    modelDoc.field(Fields.UserPermissions, new ArrayList[ODocument]())
     modelDoc.save()
 
     val queryString =
@@ -344,7 +345,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
 
     val queryString =
       """update Model 
-          |  set userPermisssions = (select from ModelUserPermissions 
+          |  set userPermissions = (select from ModelUserPermissions 
           |                                 where model.id = :modelId and 
           |                                       model.collection.id = :collectionId) 
           |  where id = :modelId and collection.id = :collectionId""".stripMargin
@@ -384,12 +385,12 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
       modelPermissionsDoc = modelPermissionsDoc.save()
 
       val model = modelRID.getRecord[ODocument]
-      var userPermissions: JavaList[ODocument] = model.field("userPermissions")
+      var userPermissions: JavaList[ODocument] = model.field(Fields.UserPermissions)
       if (userPermissions == null) {
         userPermissions = new ArrayList[ODocument]()
       }
       userPermissions.add(0, modelPermissionsDoc)
-      model.field("userPermissions", userPermissions)
+      model.field(Fields.UserPermissions, userPermissions)
       model.save()
     }
     ()
@@ -399,7 +400,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     val modelRID = ModelStore.getModelRid(modelFqn.modelId, modelFqn.collectionId, db).get
     val modelDoc = modelRID.getRecord[ODocument]
     val userRID = DomainUserStore.getUserRid(username, db).get
-    val userPermissions: OTrackedList[ODocument] = modelDoc.field("userPermissions", OType.LINKLIST)
+    val userPermissions: OTrackedList[ODocument] = modelDoc.field(Fields.UserPermissions, OType.LINKLIST)
 
     val iter = userPermissions.iterator()
     var permDoc: Option[ODocument] = None
