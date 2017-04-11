@@ -182,18 +182,38 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
         val userRID = DomainUserStore.getUserRid(username, db).get
         val key = new OCompositeKey(List(userRID, collectionRID).asJava)
         val collectionPermissionRID = getCollectionUserPermissionsRid(collectionId, username)
-        if (collectionPermissionRID.isSuccess) {
-          db.delete(collectionPermissionRID.get)
-        }
-
-        permissions.foreach { perm =>
-          val collectionPermissionsDoc = db.newInstance(CollectionUserPermissionsClass)
-          collectionPermissionsDoc.field(Fields.Collection, collectionRID)
-          collectionPermissionsDoc.field(Fields.User, userRID)
-          collectionPermissionsDoc.field(Fields.Permissions, collectionPermissionToDoc(perm))
-          collectionPermissionsDoc.save()
+        collectionPermissionRID match {
+          case Success(rid) =>
+            val collectionPermissionRecord = rid.getRecord[ODocument]
+            permissions match {
+              case Some(permissions) =>
+                collectionPermissionRecord.field(Fields.Permissions, collectionPermissionToDoc(permissions))
+                collectionPermissionRecord.save()
+              case None => collectionPermissionRecord.delete()
+            }
+          case Failure(e) =>
+            permissions match {
+              case Some(permissions) =>
+                val collectionPermissionsDoc = db.newInstance(CollectionUserPermissionsClass)
+                collectionPermissionsDoc.field(Fields.Collection, collectionRID)
+                collectionPermissionsDoc.field(Fields.User, userRID)
+                collectionPermissionsDoc.field(Fields.Permissions, collectionPermissionToDoc(permissions))
+                collectionPermissionsDoc.save()
+              case None => Failure(e)
+            }
         }
     }
+
+    val queryString =
+      """update Collection 
+          |  set userPermissions = (select from CollectionUserPermissions 
+          |                                 where  collection.id = :collectionId) 
+          |  where id = :collectionId""".stripMargin
+
+    val command = new OCommandSQL(queryString)
+    val params = Map("collectionId" -> collectionId)
+    db.command(command).execute(params.asJava)
+    ()
   }
 
   def getCollectionUserPermissions(collectionId: String, username: String): Try[Option[CollectionPermissions]] = tryWithDb { db =>
