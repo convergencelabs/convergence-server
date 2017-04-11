@@ -30,7 +30,7 @@ package model {
 
   case class GetModelPermissionsRequest(collectionId: String, modelId: String)
 
-  case class GetModelPermissionsResponse(worlPermissions: ModelPermissions, userPermissions: Map[String, ModelPermissions])
+  case class GetModelPermissionsResponse(overridesCollection: Boolean, worlPermissions: ModelPermissions, userPermissions: Map[String, ModelPermissions])
 
   case class SetModelPermissionsRequest(
     sk: SessionKey,
@@ -40,7 +40,7 @@ package model {
     worldPermissions: Option[ModelPermissions],
     setAllUsers: Boolean,
     userPermissions: Map[String, Option[ModelPermissions]])
-
+        
   sealed trait ModelReferenceEvent {
     val id: Option[String]
   }

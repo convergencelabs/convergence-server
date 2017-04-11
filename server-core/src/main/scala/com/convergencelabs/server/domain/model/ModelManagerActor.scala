@@ -42,15 +42,15 @@ class ModelManagerActor(
   var persistenceProvider: DomainPersistenceProvider = _
 
   def receive: Receive = {
-    case message: OpenRealtimeModelRequest => onOpenRealtimeModel(message)
-    case message: CreateModelRequest => onCreateModelRequest(message)
-    case message: DeleteModelRequest => onDeleteModelRequest(message)
-    case message: QueryModelsRequest => onQueryModelsRequest(message)
-    case message: ModelShutdownRequest => onModelShutdownRequest(message)
+    case message: OpenRealtimeModelRequest   => onOpenRealtimeModel(message)
+    case message: CreateModelRequest         => onCreateModelRequest(message)
+    case message: DeleteModelRequest         => onDeleteModelRequest(message)
+    case message: QueryModelsRequest         => onQueryModelsRequest(message)
+    case message: ModelShutdownRequest       => onModelShutdownRequest(message)
     case message: GetModelPermissionsRequest => onGetModelPermissions(message)
     case message: SetModelPermissionsRequest => onSetModelPermissions(message)
-    case Terminated(actor) => onActorDeath(actor)
-    case message: Any => unhandled(message)
+    case Terminated(actor)                   => onActorDeath(actor)
+    case message: Any                        => unhandled(message)
   }
 
   private[this] def onOpenRealtimeModel(openRequest: OpenRealtimeModelRequest): Unit = {
@@ -276,28 +276,53 @@ class ModelManagerActor(
     }
     persistenceProvider.modelStore.queryModels(query, username) match {
       case Success(result) => sender ! QueryModelsResponse(result)
-      case Failure(cause) => sender ! Status.Failure(cause)
+      case Failure(cause)  => sender ! Status.Failure(cause)
     }
   }
 
   private[this] def onGetModelPermissions(request: GetModelPermissionsRequest): Unit = {
+    val modelFqn = ModelFqn(request.collectionId, request.modelId)
+    val permissionsStore = persistenceProvider.modelPermissionsStore
     val GetModelPermissionsRequest(collectionId, modelId) = request
-    // FIXME need to implement getting this from the database
-    sender ! GetModelPermissionsResponse(ModelPermissions(true, true, true, true), Map())
+    (for {
+      overrideCollection <- permissionsStore.modelOverridesCollectionPermissions(modelFqn)
+      modelWorld <- permissionsStore.getModelWorldPermissions(modelFqn)
+      modelUsers <- permissionsStore.getAllModelUserPermissions(modelFqn)
+    } yield {
+      sender ! GetModelPermissionsResponse(overrideCollection, modelWorld, modelUsers)
+    }) recover {
+      case cause: Exception =>
+        sender ! Status.Failure(cause)
+    }
   }
 
   private[this] def onSetModelPermissions(request: SetModelPermissionsRequest): Unit = {
     val SetModelPermissionsRequest(sk, collectionId, modelId, overrideCollection, world, setAllUsers, users) = request
     val modelFqn = ModelFqn(collectionId, modelId)
     this.openRealtimeModels.get(modelFqn).foreach { _ forward request }
-    overrideCollection.foreach { persistenceProvider.modelPermissionsStore.setOverrideCollectionPermissions(modelFqn, _) }
-    world.foreach { persistenceProvider.modelPermissionsStore.setModelWorldPermissions(modelFqn, _) }
 
-    if (setAllUsers) {
-      persistenceProvider.modelPermissionsStore.deleteAllModelUserPermissions(modelFqn)
+    (for {
+      _ <- overrideCollection match {
+        case Some(ov) => persistenceProvider.modelPermissionsStore.setOverrideCollectionPermissions(modelFqn, ov)
+        case None     => Success(())
+      }
+      _ <- world match {
+        case Some(perms) => persistenceProvider.modelPermissionsStore.setModelWorldPermissions(modelFqn, perms)
+        case None        => Success(())
+      }
+
+      _ <- if (setAllUsers) {
+        persistenceProvider.modelPermissionsStore.deleteAllModelUserPermissions(modelFqn)
+      } else {
+        Success(())
+      }
+      _ <- persistenceProvider.modelPermissionsStore.updateAllModelUserPermissions(modelFqn, users)
+    } yield {
+      sender ! (())
+    }) recover {
+      case cause: Exception =>
+        sender ! Status.Failure(cause)
     }
-
-    persistenceProvider.modelPermissionsStore.updateAllModelUserPermissions(modelFqn, users)
   }
 
   private[this] def canCreate(collectionId: String, sk: SessionKey): Try[Boolean] = {
@@ -355,8 +380,8 @@ object ModelManagerActor {
   val RelativePath = "modelManager"
 
   def props(domainFqn: DomainFqn,
-    protocolConfig: ProtocolConfiguration,
-    persistenceManager: DomainPersistenceManager): Props = Props(
+            protocolConfig: ProtocolConfiguration,
+            persistenceManager: DomainPersistenceManager): Props = Props(
     new ModelManagerActor(
       domainFqn,
       protocolConfig,
