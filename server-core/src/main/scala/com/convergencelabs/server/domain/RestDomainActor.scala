@@ -122,7 +122,7 @@ class RestDomainActor(domainFqn: DomainFqn) extends Actor with ActorLogging {
         userStoreActor = context.actorOf(UserStoreActor.props(provider.userStore))
         configStoreActor = context.actorOf(ConfigStoreActor.props(provider.configStore))
         collectionStoreActor = context.actorOf(CollectionStoreActor.props(provider.collectionStore))
-        modelStoreActor = context.actorOf(ModelStoreActor.props(provider.modelStore, provider.collectionStore))
+        modelStoreActor = context.actorOf(ModelStoreActor.props(provider))
         modelPermissionsStoreActor = context.actorOf(ModelPermissionsStoreActor.props(provider.modelPermissionsStore))
         keyStoreActor = context.actorOf(JwtAuthKeyStoreActor.props(provider.jwtAuthKeyStore))
         sessionStoreActor = context.actorOf(SessionStoreActor.props(provider.sessionStore))

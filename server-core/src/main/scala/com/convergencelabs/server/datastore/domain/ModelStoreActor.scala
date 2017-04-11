@@ -25,12 +25,13 @@ import com.convergencelabs.server.domain.model.data.DateValue
 import java.time.Instant
 import com.convergencelabs.server.datastore.domain.ModelPermissions
 import com.convergencelabs.server.domain.model.GetModelPermissionsRequest
+import com.convergencelabs.server.domain.model.ModelCreator
+import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 
 object ModelStoreActor {
   def props(
-    modelStore: ModelStore,
-    collectionStore: CollectionStore): Props =
-    Props(new ModelStoreActor(modelStore, collectionStore))
+    persistenceProvider: DomainPersistenceProvider): Props =
+    Props(new ModelStoreActor(persistenceProvider))
 
   trait ModelStoreRequest
 
@@ -46,9 +47,7 @@ object ModelStoreActor {
   case class CollectionInfo(id: String, name: String)
 }
 
-class ModelStoreActor private[datastore] (
-  private[this] val modelStore: ModelStore,
-  private[this] val collectionStore: CollectionStore)
+class ModelStoreActor private[datastore] (private[this] val persistenceProvider: DomainPersistenceProvider)
     extends StoreActor with ActorLogging {
 
   def receive: Receive = {
@@ -69,36 +68,43 @@ class ModelStoreActor private[datastore] (
   }
 
   def getModels(offset: Option[Int], limit: Option[Int]): Unit = {
-    reply(modelStore.getAllModelMetaData(offset, limit))
+    reply(persistenceProvider.modelStore.getAllModelMetaData(offset, limit))
   }
 
   def getModelsInCollection(collectionId: String, offset: Option[Int], limit: Option[Int]): Unit = {
-    reply(modelStore.getAllModelMetaDataInCollection(collectionId, offset, limit))
+    reply(persistenceProvider.modelStore.getAllModelMetaDataInCollection(collectionId, offset, limit))
   }
 
   def getModel(modelFqn: ModelFqn): Unit = {
-    reply(modelStore.getModel(modelFqn))
+    reply(persistenceProvider.modelStore.getModel(modelFqn))
   }
 
   def createModel(collectionId: String, data: Map[String, Any], overridePermissions: Option[Boolean], worldPermissions: Option[ModelPermissions]): Unit = {
     val root = ModelDataGenerator(data)
-    val result = collectionStore.ensureCollectionExists(collectionId) flatMap { _ =>
-      modelStore.createModel(collectionId, None, root, overridePermissions.getOrElse(false),
-        worldPermissions.getOrElse(ModelPermissions(false, false, false, false))) map { model => model.metaData.fqn }
-    }
+    // FIXME should we have an owner
+    val result = ModelCreator.createModel(
+            persistenceProvider,
+            None,
+            collectionId,
+            None,
+            root,
+            overridePermissions,
+            worldPermissions
+          ).map (model => model.metaData.fqn)
+    
     reply(result)
   }
 
   def createOrUpdateModel(collectionId: String, modelId: String, data: Map[String, Any], overridePermissions: Option[Boolean], worldPermissions: Option[ModelPermissions]): Unit = {
     //FIXME If the model is open this could cause problems.
     val root = ModelDataGenerator(data)
-    val result = collectionStore.ensureCollectionExists(collectionId) flatMap { _ =>
-      modelStore.createModel(collectionId, Some(modelId), root, overridePermissions.getOrElse(false),
+    val result = persistenceProvider.collectionStore.ensureCollectionExists(collectionId) flatMap { _ =>
+      persistenceProvider.modelStore.createModel(collectionId, Some(modelId), root, overridePermissions.getOrElse(false),
         worldPermissions.getOrElse(ModelPermissions(false, false, false, false))) map { _ =>
           ModelFqn(collectionId, modelId)
         } recoverWith {
           case e: DuplicateValueExcpetion =>
-            modelStore.updateModel(ModelFqn(collectionId, modelId), root, worldPermissions) map { _ =>
+            persistenceProvider.modelStore.updateModel(ModelFqn(collectionId, modelId), root, worldPermissions) map { _ =>
               ModelFqn(collectionId, modelId)
             }
         }
@@ -108,7 +114,7 @@ class ModelStoreActor private[datastore] (
 
   def deleteModel(modelFqn: ModelFqn): Unit = {
     // FIXME If the model is open this could cause problems.
-    reply(modelStore.deleteModel(modelFqn))
+    reply(persistenceProvider.modelStore.deleteModel(modelFqn))
   }
 }
 

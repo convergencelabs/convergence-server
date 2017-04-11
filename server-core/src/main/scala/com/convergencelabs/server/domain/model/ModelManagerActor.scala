@@ -197,27 +197,17 @@ class ModelManagerActor(
     } else {
       canCreate(collectionId, sk) flatMap { canCreateModel =>
         if (canCreateModel) {
-          persistenceProvider.collectionStore.ensureCollectionExists(collectionId) flatMap { _ =>
-            val model = persistenceProvider.modelStore.createModel(
-              collectionId, modelId, data, overridePermissions.getOrElse(false),
-              worldPermissions.getOrElse(ModelPermissions(false, false, false, false)))
-            model
-          } flatMap { model =>
-            val ModelMetaData(fqn, version, created, modified, overworldPermissions, worldPermissions) = model.metaData
-            val snapshot = ModelSnapshot(ModelSnapshotMetaData(fqn, version, created), model.data)
-            persistenceProvider.modelSnapshotStore.createSnapshot(snapshot) flatMap { _ =>
-              // Give the creating user unlimited access to the model
-              // TODO: Change this to use defaults
-              persistenceProvider
-                .modelPermissionsStore
-                .updateModelUserPermissions(
-                  model.metaData.fqn,
-                  sk.uid,
-                  ModelPermissions(true, true, true, true))
-            } map { _ =>
-              sender ! ModelCreated(model.metaData.fqn)
-              ()
-            }
+          ModelCreator.createModel(
+            persistenceProvider,
+            Some(sk.uid),
+            collectionId,
+            modelId,
+            data,
+            overridePermissions,
+            worldPermissions
+          ) map { model =>
+            sender ! ModelCreated(model.metaData.fqn)
+            ()
           }
         } else {
           // FIXME I don't think this is doing anything?
