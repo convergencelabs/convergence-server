@@ -117,52 +117,52 @@ class RealtimeModelActor(
    * Handles messages when the realtime model has not been initialized yet.
    */
   private[this] def receiveUninitialized: Receive = {
-    case request: OpenRealtimeModelRequest => onOpenModelWhileUninitialized(request)
+    case request: OpenRealtimeModelRequest   => onOpenModelWhileUninitialized(request)
     case request: SetModelPermissionsRequest => onSetPermissionsRequest(request)
-    case unknown: Any => unhandled(unknown)
+    case unknown: Any                        => unhandled(unknown)
   }
 
   /**
    * Handles messages while the model is being initialized from one or more clients.
    */
   private[this] def receiveInitializingFromClients: Receive = {
-    case request: OpenRealtimeModelRequest => onOpenModelWhileInitializing(request)
+    case request: OpenRealtimeModelRequest     => onOpenModelWhileInitializing(request)
     case dataResponse: ClientModelDataResponse => onClientModelDataResponse(dataResponse)
-    case ModelDeleted => handleInitializationFailure(ModelDeletedWhileOpening)
-    case unknown: Any => unhandled(unknown)
+    case ModelDeleted                          => handleInitializationFailure(ModelDeletedWhileOpening)
+    case unknown: Any                          => unhandled(unknown)
   }
 
   /**
    * Handles messages while the model is being initialized from the database.
    */
   private[this] def receiveInitializingFromDatabase: Receive = {
-    case request: OpenRealtimeModelRequest => onOpenModelWhileInitializing(request)
-    case dataResponse: DatabaseModelResponse => onDatabaseModelResponse(dataResponse)
-    case DatabaseModelFailure(cause) => handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
-    case ModelDeleted => handleInitializationFailure(ModelDeletedWhileOpening)
+    case request: OpenRealtimeModelRequest     => onOpenModelWhileInitializing(request)
+    case dataResponse: DatabaseModelResponse   => onDatabaseModelResponse(dataResponse)
+    case DatabaseModelFailure(cause)           => handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
+    case ModelDeleted                          => handleInitializationFailure(ModelDeletedWhileOpening)
     case dataResponse: ClientModelDataResponse =>
-    case unknown: Any => unhandled(unknown)
+    case unknown: Any                          => unhandled(unknown)
   }
 
   /**
    * Handles messages once the model has been completely initialized.
    */
   private[this] def receiveInitialized: Receive = {
-    case openRequest: OpenRealtimeModelRequest => onOpenModelWhileInitialized(openRequest)
-    case closeRequest: CloseRealtimeModelRequest => onCloseModelRequest(closeRequest)
+    case openRequest: OpenRealtimeModelRequest    => onOpenModelWhileInitialized(openRequest)
+    case closeRequest: CloseRealtimeModelRequest  => onCloseModelRequest(closeRequest)
     case operationSubmission: OperationSubmission => onOperationSubmission(operationSubmission)
-    case referenceEvent: ModelReferenceEvent => onReferenceEvent(referenceEvent)
-    case request: SetModelPermissionsRequest => onSetPermissionsRequest(request)
-    case snapshotMetaData: ModelSnapshotMetaData => this.latestSnapshot = snapshotMetaData
-    case ModelDeleted => handleModelDeletedWhileOpen()
-    case terminated: Terminated => handleTerminated(terminated)
-    case ModelShutdown => shutdown()
+    case referenceEvent: ModelReferenceEvent      => onReferenceEvent(referenceEvent)
+    case request: SetModelPermissionsRequest      => onSetPermissionsRequest(request)
+    case snapshotMetaData: ModelSnapshotMetaData  => this.latestSnapshot = snapshotMetaData
+    case ModelDeleted                             => handleModelDeletedWhileOpen()
+    case terminated: Terminated                   => handleTerminated(terminated)
+    case ModelShutdown                            => shutdown()
 
     // This can happen if we asked several clients for the data.  The first
     // one will be handled, but the rest will come in an simply be ignored.
-    case dataResponse: ClientModelDataResponse =>
+    case dataResponse: ClientModelDataResponse    =>
 
-    case unknown: Any => unhandled(unknown)
+    case unknown: Any                             => unhandled(unknown)
   }
 
   private[this] def onSetPermissionsRequest(request: SetModelPermissionsRequest): Unit = {
@@ -240,19 +240,25 @@ class RealtimeModelActor(
    * method is called, the actor will be an in initializing state.
    */
   private[this] def onOpenModelWhileUninitialized(request: OpenRealtimeModelRequest): Unit = {
-    queuedOpeningClients += (request.sk -> OpenRequestRecord(request.clientActor, sender()))
-    modelStore.modelExists(modelFqn) match {
-      case Success(true) =>
-        requestModelDataFromDatastore()
-      case Success(false) =>
-        if (request.initializerProvided) {
-          requestModelDataFromClient(request.clientActor)
-        } else {
-          sender ! NoSuchModel
-        }
-      case Failure(cause) =>
-        log.error(cause, "Unable to determine if a model exists.")
-        handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
+    if (getPermissionsForSession(request.sk).read) {
+      queuedOpeningClients += (request.sk -> OpenRequestRecord(request.clientActor, sender()))
+      modelStore.modelExists(modelFqn) match {
+        case Success(true) =>
+          requestModelDataFromDatastore()
+        case Success(false) =>
+          if (request.initializerProvided) {
+            requestModelDataFromClient(request.clientActor)
+          } else {
+            sender ! NoSuchModel
+          }
+        case Failure(cause) =>
+          log.error(cause, "Unable to determine if a model exists.")
+          handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
+      }
+    } else {
+      // TODO: Need to think about what to do in this case. This can only happen if a users permissions change
+      //       after calling open on the model manager but before we get here
+      sender ! Unauthorized
     }
   }
 
@@ -261,25 +267,29 @@ class RealtimeModelActor(
    * already initializing.
    */
   private[this] def onOpenModelWhileInitializing(request: OpenRealtimeModelRequest): Unit = {
-    // We know we are already INITIALIZING.  This means we are at least the second client
-    // to open the model before it was fully initialized.
-    queuedOpeningClients += (request.sk -> OpenRequestRecord(request.clientActor, sender()))
+    if (getPermissionsForSession(request.sk).read) {
+      // We know we are already INITIALIZING.  This means we are at least the second client
+      // to open the model before it was fully initialized.
+      queuedOpeningClients += (request.sk -> OpenRequestRecord(request.clientActor, sender()))
 
-    // If we are persistent, then the data is already loading, so there is nothing to do.
-    // However, if we are not persistent, we have already asked the previous opening client
-    // for the data, but we will ask this client too, in case the others fail.
-    modelStore.modelExists(modelFqn) match {
-      case Success(false) =>
-        if (request.initializerProvided) {
-          // Otherwise this client has nothing for us, but there is at least one
-          // other client in the mix.
-          requestModelDataFromClient(request.clientActor)
-        }
-      case Success(true) => // No action required
-      case Failure(cause) =>
-        log.error(cause,
-          s"Unable to determine if model exists while handling an open request for an initializing model: $domainFqn/$modelFqn")
-        handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
+      // If we are persistent, then the data is already loading, so there is nothing to do.
+      // However, if we are not persistent, we have already asked the previous opening client
+      // for the data, but we will ask this client too, in case the others fail.
+      modelStore.modelExists(modelFqn) match {
+        case Success(false) =>
+          if (request.initializerProvided) {
+            // Otherwise this client has nothing for us, but there is at least one
+            // other client in the mix.
+            requestModelDataFromClient(request.clientActor)
+          }
+        case Success(true) => // No action required
+        case Failure(cause) =>
+          log.error(cause,
+            s"Unable to determine if model exists while handling an open request for an initializing model: $domainFqn/$modelFqn")
+          handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
+      }
+    } else {
+      sender ! Unauthorized
     }
   }
 
@@ -289,29 +299,29 @@ class RealtimeModelActor(
   private[this] def requestModelDataFromDatastore(): Unit = {
     context.become(receiveInitializingFromDatabase)
     log.debug(s"Opening model from database: ${this.modelFqn}")
-//    Future {
-      (for {
-        snapshotMetaData <- modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)
-        model <- modelStore.getModel(modelFqn)
-      } yield {
-        (model, snapshotMetaData) match {
-          case (Some(m), Some(s)) =>
-            self ! DatabaseModelResponse(m, s)
-          case _ =>
-            val mMessage = model.map(_ => "found").getOrElse("not found")
-            val sMessage = snapshotMetaData.map(_ => "found").getOrElse("not found")
-            val message = s"Error getting model data (${this.modelFqn}): model: ${mMessage}, snapshot: ${sMessage}"
-            val cause = new IllegalStateException(message)
-            log.error(cause, message)
-            self ! DatabaseModelFailure(cause)
-        }
-      }) recover {
-        case cause: Exception =>
-          val message = s"Error getting model data (${this.modelFqn})"
+    //    Future {
+    (for {
+      snapshotMetaData <- modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)
+      model <- modelStore.getModel(modelFqn)
+    } yield {
+      (model, snapshotMetaData) match {
+        case (Some(m), Some(s)) =>
+          self ! DatabaseModelResponse(m, s)
+        case _ =>
+          val mMessage = model.map(_ => "found").getOrElse("not found")
+          val sMessage = snapshotMetaData.map(_ => "found").getOrElse("not found")
+          val message = s"Error getting model data (${this.modelFqn}): model: ${mMessage}, snapshot: ${sMessage}"
+          val cause = new IllegalStateException(message)
           log.error(cause, message)
           self ! DatabaseModelFailure(cause)
       }
-//    }
+    }) recover {
+      case cause: Exception =>
+        val message = s"Error getting model data (${this.modelFqn})"
+        log.error(cause, message)
+        self ! DatabaseModelFailure(cause)
+    }
+    //    }
   }
 
   /**
@@ -399,7 +409,7 @@ class RealtimeModelActor(
     modelStore.createModel(
       modelFqn.collectionId, Some(modelFqn.modelId), modelData, overrideWorld, worldPerms) flatMap { model =>
         log.debug(s"Model created in database: ${this.modelFqn}")
-        
+
         val Model(
           ModelMetaData(fqn, version, createdTime, modifiedTime, overridePermissions, worldPermissions),
           data) = model
@@ -422,19 +432,23 @@ class RealtimeModelActor(
    * Handles a request to open the model, when the model is already initialized.
    */
   private[this] def onOpenModelWhileInitialized(request: OpenRealtimeModelRequest): Unit = {
-    val sk = request.sk
-    if (connectedClients.contains(sk)) {
-      sender ! ModelAlreadyOpen
-    } else {
-      modelStore.getModel(modelFqn) match {
-        case Success(Some(modelData)) => respondToClientOpenRequest(sk, modelData, OpenRequestRecord(request.clientActor, sender()))
-        case Success(None) =>
-          log.error(s"Could not find model data in the database for an open model: ${modelFqn}")
-          sender ! UnknownErrorResponse("could not open model")
-        case Failure(cause) =>
-          log.error(cause, s"Could not get model data from the database for model: ${modelFqn}")
-          sender ! UnknownErrorResponse("could not open model")
+    if (getPermissionsForSession(request.sk).read) {
+      val sk = request.sk
+      if (connectedClients.contains(sk)) {
+        sender ! ModelAlreadyOpen
+      } else {
+        modelStore.getModel(modelFqn) match {
+          case Success(Some(modelData)) => respondToClientOpenRequest(sk, modelData, OpenRequestRecord(request.clientActor, sender()))
+          case Success(None) =>
+            log.error(s"Could not find model data in the database for an open model: ${modelFqn}")
+            sender ! UnknownErrorResponse("could not open model")
+          case Failure(cause) =>
+            log.error(cause, s"Could not get model data from the database for model: ${modelFqn}")
+            sender ! UnknownErrorResponse("could not open model")
+        }
       }
+    } else {
+      sender ! Unauthorized
     }
   }
 
@@ -537,24 +551,32 @@ class RealtimeModelActor(
     sessionKey match {
       case None => log.warning("Received operation from client for model that is not open!")
       case Some(session) => {
-        val unprocessedOpEvent = UnprocessedOperationEvent(
-          session,
-          request.contextVersion,
-          request.operation)
+        if (getPermissionsForSession(session).write) {
+          val unprocessedOpEvent = UnprocessedOperationEvent(
+            session,
+            request.contextVersion,
+            request.operation)
 
-        transformAndApplyOperation(session, unprocessedOpEvent) match {
-          case Success(outgoinOperation) =>
-            broadcastOperation(session, outgoinOperation, request.seqNo)
-            if (snapshotRequired()) { executeSnapshot() }
-          case Failure(error) =>
-            log.error(error, s"Error applying operation to model, kicking client from model: ${request}");
-            forceClosedModel(
-              session,
-              s"Error applying operation seqNo ${request.seqNo} to model, kicking client out of model: " + error.getMessage,
-              true)
+          transformAndApplyOperation(session, unprocessedOpEvent) match {
+            case Success(outgoinOperation) =>
+              broadcastOperation(session, outgoinOperation, request.seqNo)
+              if (snapshotRequired()) { executeSnapshot() }
+            case Failure(error) =>
+              log.error(error, s"Error applying operation to model, kicking client from model: ${request}");
+              forceClosedModel(
+                session,
+                s"Error applying operation seqNo ${request.seqNo} to model, kicking client out of model: " + error.getMessage,
+                true)
+          }
+        } else {
+          forceClosedModel(
+            session,
+            s"Unauthorized to edit this model",
+            true)
         }
       }
     }
+
   }
 
   /**

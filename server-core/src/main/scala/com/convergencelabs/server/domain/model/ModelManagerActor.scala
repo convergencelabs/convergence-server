@@ -54,16 +54,17 @@ class ModelManagerActor(
   }
 
   private[this] def onOpenRealtimeModel(openRequest: OpenRealtimeModelRequest): Unit = {
+    val OpenRealtimeModelRequest(sk, modelFqn, initializerProvided, clientActor) = openRequest
     this.openRealtimeModels.get(openRequest.modelFqn) match {
       case Some(modelActor) =>
         // Model already open
         modelActor forward openRequest
       case None =>
         // Model not already open, load it
-        val me = this.persistenceProvider.modelStore.modelExists(openRequest.modelFqn)
+        val me = this.persistenceProvider.modelStore.modelExists(modelFqn)
         me flatMap { exists =>
           (if (exists) {
-            canOpen(openRequest.modelFqn, openRequest.sk)
+            getModelUserPermissions(modelFqn, sk) map (p => p.read)
           } else {
             canCreate(openRequest.modelFqn.collectionId, openRequest.sk)
           }) map { allowed =>
@@ -128,28 +129,32 @@ class ModelManagerActor(
     }
   }
 
-  private[this] def getModelUserPermissions(fqn: ModelFqn, username: String): Try[ModelPermissions] = {
-    val permissionsStore = this.persistenceProvider.modelPermissionsStore
-    permissionsStore.modelOverridesCollectionPermissions(fqn).flatMap { overrides =>
-      if (overrides) {
-        permissionsStore.getModelUserPermissions(fqn, username).flatMap { userPerms =>
-          userPerms match {
-            case Some(p) =>
-              Success(p)
-            case None =>
-              permissionsStore.getModelWorldPermissions(fqn)
+  private[this] def getModelUserPermissions(fqn: ModelFqn, sk: SessionKey): Try[ModelPermissions] = {
+    if (sk.admin) {
+      Success(ModelPermissions(true, true, true, true))
+    } else {
+      val permissionsStore = this.persistenceProvider.modelPermissionsStore
+      permissionsStore.modelOverridesCollectionPermissions(fqn).flatMap { overrides =>
+        if (overrides) {
+          permissionsStore.getModelUserPermissions(fqn, sk.uid).flatMap { userPerms =>
+            userPerms match {
+              case Some(p) =>
+                Success(p)
+              case None =>
+                permissionsStore.getModelWorldPermissions(fqn)
+            }
           }
-        }
-      } else {
-        permissionsStore.getCollectionWorldPermissions(fqn.collectionId).flatMap { collectionPerms =>
-          collectionPerms match {
-            case Some(c) =>
-              val CollectionPermissions(create, read, write, remove, manage) = c
-              Success(ModelPermissions(read, write, remove, manage))
-            case None =>
-              // TODO we should actually clean this up. When we get here, we know that the collection does
-              // not exist, which means the model can't exist.
-              Failure(new IllegalArgumentException("Can not get permissions for a model that does not exists"))
+        } else {
+          permissionsStore.getCollectionWorldPermissions(fqn.collectionId).flatMap { collectionPerms =>
+            collectionPerms match {
+              case Some(c) =>
+                val CollectionPermissions(create, read, write, remove, manage) = c
+                Success(ModelPermissions(read, write, remove, manage))
+              case None =>
+                // TODO we should actually clean this up. When we get here, we know that the collection does
+                // not exist, which means the model can't exist.
+                Failure(new IllegalArgumentException("Can not get permissions for a model that does not exists"))
+            }
           }
         }
       }
@@ -204,11 +209,10 @@ class ModelManagerActor(
             modelId,
             data,
             overridePermissions,
-            worldPermissions
-          ) map { model =>
-            sender ! ModelCreated(model.metaData.fqn)
-            ()
-          }
+            worldPermissions) map { model =>
+              sender ! ModelCreated(model.metaData.fqn)
+              ()
+            }
         } else {
           // FIXME I don't think this is doing anything?
           sender ! UnauthorizedException("Insufficient privlidges to create models for this collection")
@@ -229,11 +233,7 @@ class ModelManagerActor(
   private[this] def onDeleteModelRequest(deleteRequest: DeleteModelRequest): Unit = {
     val DeleteModelRequest(sk, modelFqn) = deleteRequest
 
-    val canDelete = if (sk.admin) {
-      Success(true)
-    } else {
-      getModelUserPermissions(modelFqn, sk.uid) map (p => p.remove)
-    }
+    val canDelete = getModelUserPermissions(modelFqn, sk) map (p => p.remove)
 
     canDelete.flatMap { canDelete =>
       if (canDelete) {
@@ -288,28 +288,39 @@ class ModelManagerActor(
 
   private[this] def onSetModelPermissions(request: SetModelPermissionsRequest): Unit = {
     val SetModelPermissionsRequest(sk, collectionId, modelId, overrideCollection, world, setAllUsers, users) = request
-    val modelFqn = ModelFqn(collectionId, modelId)
-    this.openRealtimeModels.get(modelFqn).foreach { _ forward request }
 
-    (for {
-      _ <- overrideCollection match {
-        case Some(ov) => persistenceProvider.modelPermissionsStore.setOverrideCollectionPermissions(modelFqn, ov)
-        case None     => Success(())
-      }
-      _ <- world match {
-        case Some(perms) => persistenceProvider.modelPermissionsStore.setModelWorldPermissions(modelFqn, perms)
-        case None        => Success(())
-      }
+    val canSetPermissions = getModelUserPermissions(ModelFqn(collectionId, modelId), sk) map (p => p.manage)
 
-      _ <- if (setAllUsers) {
-        persistenceProvider.modelPermissionsStore.deleteAllModelUserPermissions(modelFqn)
+    canSetPermissions.flatMap { canSet =>
+      if (canSet) {
+        val modelFqn = ModelFqn(collectionId, modelId)
+        this.openRealtimeModels.get(modelFqn).foreach { _ forward request }
+
+        (for {
+          _ <- overrideCollection match {
+            case Some(ov) => persistenceProvider.modelPermissionsStore.setOverrideCollectionPermissions(modelFqn, ov)
+            case None     => Success(())
+          }
+          _ <- world match {
+            case Some(perms) => persistenceProvider.modelPermissionsStore.setModelWorldPermissions(modelFqn, perms)
+            case None        => Success(())
+          }
+
+          _ <- if (setAllUsers) {
+            persistenceProvider.modelPermissionsStore.deleteAllModelUserPermissions(modelFqn)
+          } else {
+            Success(())
+          }
+          _ <- persistenceProvider.modelPermissionsStore.updateAllModelUserPermissions(modelFqn, users)
+        } yield {
+          sender ! (())
+
+        })
       } else {
-        Success(())
+        //TODO: Refactor this so we don't need to throw exception
+        throw UnauthorizedException("Insufficient privlidges to create models for this collection")
       }
-      _ <- persistenceProvider.modelPermissionsStore.updateAllModelUserPermissions(modelFqn, users)
-    } yield {
-      sender ! (())
-    }) recover {
+    } recover {
       case cause: Exception =>
         sender ! Status.Failure(cause)
     }
@@ -324,14 +335,6 @@ class ModelManagerActor(
       getCollectionUserPermissions(collectionId, sk.uid) map { c =>
         c map (x => x.create) getOrElse (true)
       }
-    }
-  }
-
-  private[this] def canOpen(fqn: ModelFqn, sk: SessionKey): Try[Boolean] = {
-    if (sk.admin) {
-      Success(true)
-    } else {
-      getModelUserPermissions(fqn, sk.uid) map (p => p.read)
     }
   }
 
