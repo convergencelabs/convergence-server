@@ -108,7 +108,6 @@ package model {
   case object ModelAlreadyOpen extends OpenModelFailure
   case object ModelDeletedWhileOpening extends OpenModelFailure
   case object NoSuchModel extends OpenModelFailure
-  case object Unauthorized extends OpenModelFailure
   case class ClientDataRequestFailure(message: String) extends OpenModelFailure
 
   case class ModelShutdownRequest(modelFqn: ModelFqn)

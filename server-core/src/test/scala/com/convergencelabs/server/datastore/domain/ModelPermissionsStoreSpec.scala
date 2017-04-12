@@ -75,9 +75,11 @@ class ModelPermissionsStoreSpec
 
   val modelPermissions = ModelPermissions(true, true, true, true)
   
-  val collectionId = "test"
+  val collection1 = "collection1"
+  val model1 = "model1"
+  val model2 = "model2"
   val nonExistentCollectionId = "not_real"
-  val modelFqn = ModelFqn(collectionId, "test")
+  val modelFqn = ModelFqn(collection1, model1)
   val nonExistentModelFqn = ModelFqn("test", "not_real")
 
   def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProvider(dbProvider)
@@ -99,13 +101,13 @@ class ModelPermissionsStoreSpec
     "retrieving the model user permissions" must {
       "be equal to those just set" in withTestData { provider =>
         val permissions = ModelPermissions(true, false, true, false)
-        provider.modelPermissionsStore.updateModelUserPermissions(modelFqn, "test1", permissions).get
-        val retrievedPermissions = provider.modelPermissionsStore.getModelUserPermissions(modelFqn, "test1").get
+        provider.modelPermissionsStore.updateModelUserPermissions(modelFqn, model1, permissions).get
+        val retrievedPermissions = provider.modelPermissionsStore.getModelUserPermissions(modelFqn, model1).get
         retrievedPermissions shouldEqual Some(permissions)
       }
 
       "be none if no permissions are set" in withTestData { provider =>
-        val retrievedPermissions = provider.modelPermissionsStore.getModelUserPermissions(modelFqn, "test1").get
+        val retrievedPermissions = provider.modelPermissionsStore.getModelUserPermissions(modelFqn, model1).get
         retrievedPermissions shouldEqual None
       }
     }
@@ -113,10 +115,10 @@ class ModelPermissionsStoreSpec
     "retrieving all model user permissions" must {
       "contain all those just set" in withTestData { provider =>
         val permissions = ModelPermissions(true, false, true, false)
-        provider.modelPermissionsStore.updateModelUserPermissions(modelFqn, "test1", permissions).get
-        provider.modelPermissionsStore.updateModelUserPermissions(modelFqn, "test2", permissions).get
+        provider.modelPermissionsStore.updateModelUserPermissions(modelFqn, model1, permissions).get
+        provider.modelPermissionsStore.updateModelUserPermissions(modelFqn, model2, permissions).get
         val retrievedPermissions = provider.modelPermissionsStore.getAllModelUserPermissions(modelFqn).get
-        retrievedPermissions shouldEqual Map("test1" -> permissions, "test2" -> permissions)
+        retrievedPermissions shouldEqual Map(model1 -> permissions, model2 -> permissions)
       }
 
       "fail if model does not exist" in withTestData { provider =>
@@ -127,19 +129,19 @@ class ModelPermissionsStoreSpec
     "deleting a model user permissions" must {
       "must no longer be set on the model" in withTestData { provider =>
         val permissions = ModelPermissions(true, false, true, false)
-        provider.modelPermissionsStore.updateModelUserPermissions(modelFqn, "test1", permissions).get
-        provider.modelPermissionsStore.updateModelUserPermissions(modelFqn, "test2", permissions).get
-        provider.modelPermissionsStore.removeModelUserPermissions(modelFqn, "test1")
+        provider.modelPermissionsStore.updateModelUserPermissions(modelFqn, model1, permissions).get
+        provider.modelPermissionsStore.updateModelUserPermissions(modelFqn, model2, permissions).get
+        provider.modelPermissionsStore.removeModelUserPermissions(modelFqn, model1)
         val retrievedPermissions = provider.modelPermissionsStore.getAllModelUserPermissions(modelFqn).get
-        retrievedPermissions shouldEqual Map("test2" -> permissions)
+        retrievedPermissions shouldEqual Map(model2 -> permissions)
       }
     }
     
     "retrieving the collection world permissions" must {
       "be equal to those just set" in withTestData { provider =>
         val permissions = CollectionPermissions(false, true, false, true, false)
-        provider.modelPermissionsStore.setCollectionWorldPermissions(collectionId, permissions).get
-        val retrievedPermissions = provider.modelPermissionsStore.getCollectionWorldPermissions(collectionId).get.get
+        provider.modelPermissionsStore.setCollectionWorldPermissions(collection1, permissions).get
+        val retrievedPermissions = provider.modelPermissionsStore.getCollectionWorldPermissions(collection1).get.get
         retrievedPermissions shouldEqual permissions
       }
 
@@ -151,13 +153,13 @@ class ModelPermissionsStoreSpec
     "retrieving the collection user permissions" must {
       "be equal to those just set" in withTestData { provider =>
         val permissions = CollectionPermissions(false, true, false, true, false)
-        provider.modelPermissionsStore.updateCollectionUserPermissions(collectionId, "test1", permissions).get
-        val retrievedPermissions = provider.modelPermissionsStore.getCollectionUserPermissions(collectionId, "test1").get
+        provider.modelPermissionsStore.updateCollectionUserPermissions(collection1, model1, permissions).get
+        val retrievedPermissions = provider.modelPermissionsStore.getCollectionUserPermissions(collection1, model1).get
         retrievedPermissions shouldEqual Some(permissions)
       }
 
       "be none if no permissions are set" in withTestData { provider =>
-        val retrievedPermissions = provider.modelPermissionsStore.getCollectionUserPermissions(collectionId, "test1").get
+        val retrievedPermissions = provider.modelPermissionsStore.getCollectionUserPermissions(collection1, model1).get
         retrievedPermissions shouldEqual None
       }
     }
@@ -165,10 +167,10 @@ class ModelPermissionsStoreSpec
     "retrieving all collection user permissions" must {
       "contain all those just set" in withTestData { provider =>
         val permissions = CollectionPermissions(false, true, false, true, false)
-        provider.modelPermissionsStore.updateCollectionUserPermissions(collectionId, "test1", permissions).get
-        provider.modelPermissionsStore.updateCollectionUserPermissions(collectionId, "test2", permissions).get
-        val retrievedPermissions = provider.modelPermissionsStore.getAllCollectionUserPermissions(collectionId).get
-        retrievedPermissions shouldEqual Map("test1" -> permissions, "test2" -> permissions)
+        provider.modelPermissionsStore.updateCollectionUserPermissions(collection1, model1, permissions).get
+        provider.modelPermissionsStore.updateCollectionUserPermissions(collection1, model2, permissions).get
+        val retrievedPermissions = provider.modelPermissionsStore.getAllCollectionUserPermissions(collection1).get
+        retrievedPermissions shouldEqual Map(model1 -> permissions, model2 -> permissions)
       }
 
       "fail if collection does not exist" in withTestData { provider =>
@@ -179,23 +181,22 @@ class ModelPermissionsStoreSpec
     "deleting a collection user permissions" must {
       "must no longer be set on the collection" in withTestData { provider =>
         val permissions = CollectionPermissions(false, true, false, true, false)
-        provider.modelPermissionsStore.updateCollectionUserPermissions(collectionId, "test1", permissions).get
-        provider.modelPermissionsStore.updateCollectionUserPermissions(collectionId, "test2", permissions).get
-        provider.modelPermissionsStore.removeCollectionUserPermissions(collectionId, "test1")
-        val retrievedPermissions = provider.modelPermissionsStore.getAllCollectionUserPermissions(collectionId).get
-        retrievedPermissions shouldEqual Map("test2" -> permissions)
+        provider.modelPermissionsStore.updateCollectionUserPermissions(collection1, model1, permissions).get
+        provider.modelPermissionsStore.updateCollectionUserPermissions(collection1, model2, permissions).get
+        provider.modelPermissionsStore.removeCollectionUserPermissions(collection1, model1)
+        val retrievedPermissions = provider.modelPermissionsStore.getAllCollectionUserPermissions(collection1).get
+        retrievedPermissions shouldEqual Map(model2 -> permissions)
       }
     }
   }
 
   def withTestData(testCode: DomainPersistenceProvider => Any): Unit = {
     this.withPersistenceStore { provider =>
-      provider.collectionStore.ensureCollectionExists("test").get 
-      provider.collectionStore.ensureCollectionExists("test2").get
-      provider.modelStore.createModel("test", Some("test"), ObjectValue("vid", Map()), true, modelPermissions).get
-      provider.modelStore.createModel("test2", Some("test"), ObjectValue("vid", Map()), true, modelPermissions).get
-      provider.userStore.createDomainUser(DomainUser(DomainUserType.Normal, "test1", None, None, None, None)).get
-      provider.userStore.createDomainUser(DomainUser(DomainUserType.Normal, "test2", None, None, None, None)).get
+      provider.collectionStore.ensureCollectionExists(collection1).get 
+      provider.modelStore.createModel(collection1, Some(model1), ObjectValue("vid", Map()), true, modelPermissions).get
+      provider.modelStore.createModel(collection1, Some(model2), ObjectValue("vid", Map()), true, modelPermissions).get
+      provider.userStore.createDomainUser(DomainUser(DomainUserType.Normal, model1, None, None, None, None)).get
+      provider.userStore.createDomainUser(DomainUser(DomainUserType.Normal, model2, None, None, None, None)).get
       testCode(provider)
     }
   }
