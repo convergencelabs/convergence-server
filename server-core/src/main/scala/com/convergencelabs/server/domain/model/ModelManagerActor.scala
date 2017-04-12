@@ -215,7 +215,7 @@ class ModelManagerActor(
             }
         } else {
           // FIXME I don't think this is doing anything?
-          sender ! UnauthorizedException("Insufficient privlidges to create models for this collection")
+          sender ! UnauthorizedException("Insufficient privileges to create models for this collection")
           Success(())
         }
       } recover {
@@ -248,7 +248,7 @@ class ModelManagerActor(
           ()
         }
       } else {
-        sender ! UnauthorizedException("Insufficient privlidges to delete model")
+        sender ! UnauthorizedException("Insufficient privileges to delete model")
         Success(())
       }
     } recover {
@@ -318,7 +318,7 @@ class ModelManagerActor(
         })
       } else {
         //TODO: Refactor this so we don't need to throw exception
-        throw UnauthorizedException("Insufficient privlidges to create models for this collection")
+        Failure(UnauthorizedException("Insufficient privileges to set model permissions"))
       }
     } recover {
       case cause: Exception =>

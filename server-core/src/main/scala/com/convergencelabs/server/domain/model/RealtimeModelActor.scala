@@ -41,6 +41,7 @@ import akka.actor.Status
 import com.convergencelabs.server.datastore.domain.ModelPermissions
 import com.convergencelabs.server.datastore.domain.ModelPermissionsStore
 import com.convergencelabs.server.datastore.domain.CollectionPermissions
+import com.convergencelabs.server.datastore.UnauthorizedException
 
 /**
  * An instance of the RealtimeModelActor manages the lifecycle of a single
@@ -258,7 +259,7 @@ class RealtimeModelActor(
     } else {
       // TODO: Need to think about what to do in this case. This can only happen if a users permissions change
       //       after calling open on the model manager but before we get here
-      sender ! Unauthorized
+      sender ! Status.Failure(UnauthorizedException("Insufficient privileges to open model"))
     }
   }
 
@@ -289,7 +290,7 @@ class RealtimeModelActor(
           handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
       }
     } else {
-      sender ! Unauthorized
+      sender ! Status.Failure(UnauthorizedException("Insufficient privileges to open model"))
     }
   }
 
@@ -448,7 +449,7 @@ class RealtimeModelActor(
         }
       }
     } else {
-      sender ! Unauthorized
+      sender ! Status.Failure(UnauthorizedException("Insufficient privileges to open model"))
     }
   }
 
