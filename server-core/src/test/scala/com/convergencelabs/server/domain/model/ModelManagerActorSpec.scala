@@ -132,6 +132,13 @@ class ModelManagerActorSpec
         val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), akka.actor.Status.Failure(EntityNotFoundException()))
       }
     }
+    
+    "permissions are set to false" must {
+      "throw exception on open" in new TestFixture {
+        
+      }
+    }
+    
   }
 
   trait TestFixture {
