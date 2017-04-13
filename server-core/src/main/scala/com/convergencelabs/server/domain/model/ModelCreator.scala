@@ -31,7 +31,7 @@ object ModelCreator {
             persistenceProvider
               .modelPermissionsStore
               .updateModelUserPermissions(
-                model.metaData.fqn,
+                model.metaData.fqn.modelId,
                 uname,
                 ModelPermissions(true, true, true, true)) map (_ => model)
           case None =>

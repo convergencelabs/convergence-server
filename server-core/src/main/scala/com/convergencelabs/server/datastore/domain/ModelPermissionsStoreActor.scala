@@ -68,9 +68,9 @@ class ModelPermissionsStoreActor private[datastore] (
 
   def getModelPermissions(modelFqn: ModelFqn): Unit = {
     val result = for {
-      overrideWorld <- modelPermissionsStore.modelOverridesCollectionPermissions(modelFqn)
-      worldPermissions <- modelPermissionsStore.getModelWorldPermissions(modelFqn)
-      userPermissions <- modelPermissionsStore.getAllModelUserPermissions(modelFqn)
+      overrideWorld <- modelPermissionsStore.modelOverridesCollectionPermissions(modelFqn.modelId)
+      worldPermissions <- modelPermissionsStore.getModelWorldPermissions(modelFqn.modelId)
+      userPermissions <- modelPermissionsStore.getAllModelUserPermissions(modelFqn.modelId)
     } yield {
       val userPermissionsList = userPermissions.toList.map {
         case Tuple2(username, permissions) => ModelUserPermissions(username, permissions)
@@ -81,36 +81,36 @@ class ModelPermissionsStoreActor private[datastore] (
   }
 
   def modelOverridesCollectionPermissions(modelFqn: ModelFqn): Unit = {
-    reply(modelPermissionsStore.modelOverridesCollectionPermissions(modelFqn))
+    reply(modelPermissionsStore.modelOverridesCollectionPermissions(modelFqn.modelId))
   }
 
   def setModelOverridesCollectionPermissions(modelFqn: ModelFqn, overridePermissions: Boolean): Unit = {
-    reply(modelPermissionsStore.setOverrideCollectionPermissions(modelFqn, overridePermissions))
+    reply(modelPermissionsStore.setOverrideCollectionPermissions(modelFqn.modelId, overridePermissions))
   }
 
   def getModelWorldPermissions(modelFqn: ModelFqn): Unit = {
-    reply(modelPermissionsStore.getModelWorldPermissions(modelFqn))
+    reply(modelPermissionsStore.getModelWorldPermissions(modelFqn.modelId))
   }
 
   def setModelWorldPermissions(modelFqn: ModelFqn, permissions: ModelPermissions): Unit = {
-    reply(modelPermissionsStore.setModelWorldPermissions(modelFqn, permissions))
+    reply(modelPermissionsStore.setModelWorldPermissions(modelFqn.modelId, permissions))
   }
 
   def getAllModelUserPermissions(modelFqn: ModelFqn): Unit = {
-    reply(modelPermissionsStore.getAllModelUserPermissions(modelFqn).map(_.toList.map {
+    reply(modelPermissionsStore.getAllModelUserPermissions(modelFqn.modelId).map(_.toList.map {
       case Tuple2(username, permissions) => ModelUserPermissions(username, permissions)
     }))
   }
 
   def getModelUserPermissions(modelFqn: ModelFqn, username: String): Unit = {
-    reply(modelPermissionsStore.getModelUserPermissions(modelFqn, username))
+    reply(modelPermissionsStore.getModelUserPermissions(modelFqn.modelId, username))
   }
 
   def setModelUserPermissions(modelFqn: ModelFqn, username: String, permissions: ModelPermissions): Unit = {
-    reply(modelPermissionsStore.updateModelUserPermissions(modelFqn, username, permissions))
+    reply(modelPermissionsStore.updateModelUserPermissions(modelFqn.modelId, username, permissions))
   }
 
   def removeModelUserPermissions(modelFqn: ModelFqn, username: String): Unit = {
-    reply(modelPermissionsStore.removeModelUserPermissions(modelFqn, username))
+    reply(modelPermissionsStore.removeModelUserPermissions(modelFqn.modelId, username))
   }
 }

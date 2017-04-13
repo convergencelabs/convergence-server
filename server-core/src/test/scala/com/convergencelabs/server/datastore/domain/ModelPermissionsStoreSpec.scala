@@ -80,7 +80,8 @@ class ModelPermissionsStoreSpec
   val model2 = "model2"
   val nonExistentCollectionId = "not_real"
   val modelFqn = ModelFqn(collection1, model1)
-  val nonExistentModelFqn = ModelFqn("test", "not_real")
+  val nonRealId = "not_real"
+  val nonExistentModelFqn = ModelFqn("test", nonRealId)
 
   def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProvider(dbProvider)
 
@@ -88,26 +89,26 @@ class ModelPermissionsStoreSpec
     "retrieving the model world permissions" must {
       "be equal to those just set" in withTestData { provider =>
         val permissions = ModelPermissions(true, false, true, false)
-        provider.modelPermissionsStore.setModelWorldPermissions(modelFqn, permissions).get
-        val retrievedPermissions = provider.modelPermissionsStore.getModelWorldPermissions(modelFqn).get
+        provider.modelPermissionsStore.setModelWorldPermissions(model1, permissions).get
+        val retrievedPermissions = provider.modelPermissionsStore.getModelWorldPermissions(model1).get
         retrievedPermissions shouldEqual permissions
       }
 
       "fail if model does not exist" in withTestData { provider =>
-        an[IllegalStateException] should be thrownBy provider.modelPermissionsStore.getModelWorldPermissions(nonExistentModelFqn).get
-      }
+        an[IllegalStateException] should be thrownBy provider.modelPermissionsStore.getModelWorldPermissions(nonRealId).get 
+        }
     }
 
     "retrieving the model user permissions" must {
       "be equal to those just set" in withTestData { provider =>
         val permissions = ModelPermissions(true, false, true, false)
-        provider.modelPermissionsStore.updateModelUserPermissions(modelFqn, model1, permissions).get
-        val retrievedPermissions = provider.modelPermissionsStore.getModelUserPermissions(modelFqn, model1).get
+        provider.modelPermissionsStore.updateModelUserPermissions(model1, model1, permissions).get
+        val retrievedPermissions = provider.modelPermissionsStore.getModelUserPermissions(model1, model1).get
         retrievedPermissions shouldEqual Some(permissions)
       }
 
       "be none if no permissions are set" in withTestData { provider =>
-        val retrievedPermissions = provider.modelPermissionsStore.getModelUserPermissions(modelFqn, model1).get
+        val retrievedPermissions = provider.modelPermissionsStore.getModelUserPermissions(model1, model1).get
         retrievedPermissions shouldEqual None
       }
     }
@@ -115,24 +116,24 @@ class ModelPermissionsStoreSpec
     "retrieving all model user permissions" must {
       "contain all those just set" in withTestData { provider =>
         val permissions = ModelPermissions(true, false, true, false)
-        provider.modelPermissionsStore.updateModelUserPermissions(modelFqn, model1, permissions).get
-        provider.modelPermissionsStore.updateModelUserPermissions(modelFqn, model2, permissions).get
-        val retrievedPermissions = provider.modelPermissionsStore.getAllModelUserPermissions(modelFqn).get
+        provider.modelPermissionsStore.updateModelUserPermissions(model1, model1, permissions).get
+        provider.modelPermissionsStore.updateModelUserPermissions(model1, model2, permissions).get
+        val retrievedPermissions = provider.modelPermissionsStore.getAllModelUserPermissions(model1).get
         retrievedPermissions shouldEqual Map(model1 -> permissions, model2 -> permissions)
       }
 
       "fail if model does not exist" in withTestData { provider =>
-        an[IllegalStateException] should be thrownBy provider.modelPermissionsStore.getAllModelUserPermissions(nonExistentModelFqn).get
+        an[IllegalStateException] should be thrownBy provider.modelPermissionsStore.getAllModelUserPermissions(nonRealId).get
       }
     }
 
     "deleting a model user permissions" must {
       "must no longer be set on the model" in withTestData { provider =>
         val permissions = ModelPermissions(true, false, true, false)
-        provider.modelPermissionsStore.updateModelUserPermissions(modelFqn, model1, permissions).get
-        provider.modelPermissionsStore.updateModelUserPermissions(modelFqn, model2, permissions).get
-        provider.modelPermissionsStore.removeModelUserPermissions(modelFqn, model1)
-        val retrievedPermissions = provider.modelPermissionsStore.getAllModelUserPermissions(modelFqn).get
+        provider.modelPermissionsStore.updateModelUserPermissions(model1, model1, permissions).get
+        provider.modelPermissionsStore.updateModelUserPermissions(model1, model2, permissions).get
+        provider.modelPermissionsStore.removeModelUserPermissions(model1, model1)
+        val retrievedPermissions = provider.modelPermissionsStore.getAllModelUserPermissions(model1).get
         retrievedPermissions shouldEqual Map(model2 -> permissions)
       }
     }

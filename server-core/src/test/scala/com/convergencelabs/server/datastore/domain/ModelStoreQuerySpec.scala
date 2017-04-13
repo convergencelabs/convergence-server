@@ -95,9 +95,9 @@ class ModelStoreQuerySpec extends PersistenceStoreSpec[ModelStoreQuerySpecStores
         createModels(stores)
         createUsers(stores)
 
-        stores.permissions.setOverrideCollectionPermissions(ModelFqn("collection1", "model1"), true)
-        stores.permissions.setOverrideCollectionPermissions(ModelFqn("collection1", "model2"), true)
-        stores.permissions.setModelWorldPermissions(ModelFqn("collection1", "model1"), ModelPermissions(false, false, false, false)).get
+        stores.permissions.setOverrideCollectionPermissions("model1", true)
+        stores.permissions.setOverrideCollectionPermissions("model2", true)
+        stores.permissions.setModelWorldPermissions("model1", ModelPermissions(false, false, false, false)).get
 
         val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY sField ASC", Some("test1")).get
         list.map { _.metaData.fqn.modelId } shouldEqual (List("model2"))
@@ -107,10 +107,10 @@ class ModelStoreQuerySpec extends PersistenceStoreSpec[ModelStoreQuerySpecStores
         createModels(stores)
         createUsers(stores)
 
-        stores.permissions.setOverrideCollectionPermissions(ModelFqn("collection1", "model1"), true)
-        stores.permissions.setOverrideCollectionPermissions(ModelFqn("collection1", "model2"), true)
-        stores.permissions.setModelWorldPermissions(ModelFqn("collection1", "model1"), ModelPermissions(false, false, false, false))
-        stores.permissions.updateModelUserPermissions(ModelFqn("collection1", "model1"), "test1", ModelPermissions(true, true, true, true))
+        stores.permissions.setOverrideCollectionPermissions("model1", true)
+        stores.permissions.setOverrideCollectionPermissions("model2", true)
+        stores.permissions.setModelWorldPermissions("model1", ModelPermissions(false, false, false, false))
+        stores.permissions.updateModelUserPermissions("model1", "test1", ModelPermissions(true, true, true, true))
 
         val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY sField ASC", Some("test1")).get
         list.map { _.metaData.fqn.modelId } shouldEqual (List("model1", "model2"))

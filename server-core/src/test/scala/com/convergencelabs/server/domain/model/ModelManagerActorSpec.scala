@@ -147,8 +147,10 @@ class ModelManagerActorSpec
     val sessionId1 = "1";
     val collectionId = "collection"
 
-    val nonExistentModelFqn = ModelFqn(collectionId, "no model")
-    val modelFqn = ModelFqn(collectionId, "model")
+    val noModelId = "no model"
+    val nonExistentModelFqn = ModelFqn(collectionId, noModelId)
+    val modelId = "model"
+    val modelFqn = ModelFqn(collectionId, modelId)
     val modelJsonData = JObject("key" -> JString("value"))
     val modelCreateTime = Instant.ofEpochMilli(2L)
     val modelModifiedTime = Instant.ofEpochMilli(3L)
@@ -157,14 +159,14 @@ class ModelManagerActorSpec
     val modelSnapshotMetaData = ModelSnapshotMetaData(modelFqn, 1L, modelSnapshotTime)
 
     val modelStore = mock[ModelStore]
-    Mockito.when(modelStore.modelExists(modelFqn)).thenReturn(Success(true))
-    Mockito.when(modelStore.deleteModel(modelFqn)).thenReturn(Success(()))
-    Mockito.when(modelStore.modelExists(nonExistentModelFqn)).thenReturn(Success(false))
-    Mockito.when(modelStore.deleteModel(nonExistentModelFqn)).thenReturn(Failure(EntityNotFoundException()))
-    Mockito.when(modelStore.getModel(modelFqn)).thenReturn(Success(Some(modelData)))
+    Mockito.when(modelStore.modelExists(modelId)).thenReturn(Success(true))
+    Mockito.when(modelStore.deleteModel(modelId)).thenReturn(Success(()))
+    Mockito.when(modelStore.modelExists(noModelId)).thenReturn(Success(false))
+    Mockito.when(modelStore.deleteModel(noModelId)).thenReturn(Failure(EntityNotFoundException()))
+    Mockito.when(modelStore.getModel(modelId)).thenReturn(Success(Some(modelData)))
 
     val modelSnapshotStore = mock[ModelSnapshotStore]
-    Mockito.when(modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)).thenReturn(Success(Some(modelSnapshotMetaData)))
+    Mockito.when(modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelId)).thenReturn(Success(Some(modelSnapshotMetaData)))
 
     val modelOperationStore = mock[ModelOperationStore]
 
@@ -190,24 +192,24 @@ class ModelManagerActorSpec
       .thenReturn(Success(()))
 
     val modelPermissionsStore = mock[ModelPermissionsStore]
-    Mockito.when(modelPermissionsStore.modelOverridesCollectionPermissions(modelFqn)).thenReturn(Success(true))
-    Mockito.when(modelPermissionsStore.modelOverridesCollectionPermissions(nonExistentModelFqn)).thenReturn(Success(true))
-    Mockito.when(modelPermissionsStore.getModelWorldPermissions(modelFqn)).thenReturn(Success(ModelPermissions(true, true, true, true)))
-    Mockito.when(modelPermissionsStore.getModelWorldPermissions(nonExistentModelFqn)).thenReturn(Success(ModelPermissions(true, true, true, true)))
+    Mockito.when(modelPermissionsStore.modelOverridesCollectionPermissions(modelId)).thenReturn(Success(true))
+    Mockito.when(modelPermissionsStore.modelOverridesCollectionPermissions(noModelId)).thenReturn(Success(true))
+    Mockito.when(modelPermissionsStore.getModelWorldPermissions(modelId)).thenReturn(Success(ModelPermissions(true, true, true, true)))
+    Mockito.when(modelPermissionsStore.getModelWorldPermissions(noModelId)).thenReturn(Success(ModelPermissions(true, true, true, true)))
     Mockito.when(modelPermissionsStore.getCollectionWorldPermissions(collectionId)).thenReturn(Success(Some(CollectionPermissions(true, true, true, true, true))))
-    Mockito.when(modelPermissionsStore.getAllModelUserPermissions(modelFqn)).thenReturn(Success(Map[String, ModelPermissions]()))
-    Mockito.when(modelPermissionsStore.getAllModelUserPermissions(nonExistentModelFqn)).thenReturn(Success(Map[String, ModelPermissions]()))
+    Mockito.when(modelPermissionsStore.getAllModelUserPermissions(modelId)).thenReturn(Success(Map[String, ModelPermissions]()))
+    Mockito.when(modelPermissionsStore.getAllModelUserPermissions(noModelId)).thenReturn(Success(Map[String, ModelPermissions]()))
     Mockito.when(modelPermissionsStore.getCollectionUserPermissions(collectionId, userId1)).thenReturn(Success(Some(CollectionPermissions(true, true, true, true, true))))
     Mockito.when(modelPermissionsStore.getCollectionUserPermissions(collectionId, userId2)).thenReturn(Success(Some(CollectionPermissions(true, true, true, true, true))))
     Mockito.when(modelPermissionsStore.getAllCollectionUserPermissions(collectionId)).thenReturn(Success(Map[String, CollectionPermissions]()))
-    Mockito.when(modelPermissionsStore.getModelUserPermissions(modelFqn, userId1)).thenReturn(Success(Some(ModelPermissions(true, true, true, true))))
-    Mockito.when(modelPermissionsStore.getModelUserPermissions(modelFqn, userId2)).thenReturn(Success(Some(ModelPermissions(true, true, true, true))))
-    Mockito.when(modelPermissionsStore.getModelUserPermissions(nonExistentModelFqn, userId1)).thenReturn(Success(Some(ModelPermissions(true, true, true, true))))
-    Mockito.when(modelPermissionsStore.getModelUserPermissions(nonExistentModelFqn, userId2)).thenReturn(Success(Some(ModelPermissions(true, true, true, true))))
-    Mockito.when(modelPermissionsStore.updateModelUserPermissions(modelFqn, userId1, ModelPermissions(true, true, true, true))).thenReturn(Success(()))
-    Mockito.when(modelPermissionsStore.updateModelUserPermissions(modelFqn, userId2, ModelPermissions(true, true, true, true))).thenReturn(Success(()))
-    Mockito.when(modelPermissionsStore.updateModelUserPermissions(nonExistentModelFqn, userId1, ModelPermissions(true, true, true, true))).thenReturn(Success(()))
-    Mockito.when(modelPermissionsStore.updateModelUserPermissions(nonExistentModelFqn, userId2, ModelPermissions(true, true, true, true))).thenReturn(Success(()))
+    Mockito.when(modelPermissionsStore.getModelUserPermissions(modelId, userId1)).thenReturn(Success(Some(ModelPermissions(true, true, true, true))))
+    Mockito.when(modelPermissionsStore.getModelUserPermissions(modelId, userId2)).thenReturn(Success(Some(ModelPermissions(true, true, true, true))))
+    Mockito.when(modelPermissionsStore.getModelUserPermissions(noModelId, userId1)).thenReturn(Success(Some(ModelPermissions(true, true, true, true))))
+    Mockito.when(modelPermissionsStore.getModelUserPermissions(noModelId, userId2)).thenReturn(Success(Some(ModelPermissions(true, true, true, true))))
+    Mockito.when(modelPermissionsStore.updateModelUserPermissions(modelId, userId1, ModelPermissions(true, true, true, true))).thenReturn(Success(()))
+    Mockito.when(modelPermissionsStore.updateModelUserPermissions(modelId, userId2, ModelPermissions(true, true, true, true))).thenReturn(Success(()))
+    Mockito.when(modelPermissionsStore.updateModelUserPermissions(noModelId, userId1, ModelPermissions(true, true, true, true))).thenReturn(Success(()))
+    Mockito.when(modelPermissionsStore.updateModelUserPermissions(noModelId, userId2, ModelPermissions(true, true, true, true))).thenReturn(Success(()))
 
     val domainPersistence = mock[DomainPersistenceProvider]
     Mockito.when(domainPersistence.modelStore).thenReturn(modelStore)

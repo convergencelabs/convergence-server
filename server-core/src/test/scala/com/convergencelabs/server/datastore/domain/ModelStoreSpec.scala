@@ -40,7 +40,8 @@ class ModelStoreSpec
   
   val peopleCollectionId = "people"
 
-  val person1 = ModelFqn(peopleCollectionId, "person1")
+  val person1Id = "person1"
+  val person1 = ModelFqn(peopleCollectionId, person1Id)
   val person1MetaData = ModelMetaData(
     person1,
     20,
@@ -51,7 +52,8 @@ class ModelStoreSpec
   val person1Data = ObjectValue("0:0", Map("name" -> StringValue("0:1", "person1")))
   val person1Model = Model(person1MetaData, person1Data)
 
-  val person2 = ModelFqn(peopleCollectionId, "person2")
+  val person2Id = "person2"
+  val person2 = ModelFqn(peopleCollectionId, person2Id)
   val person2MetaData = ModelMetaData(
     person2,
     1,
@@ -62,7 +64,8 @@ class ModelStoreSpec
   val person2Data = ObjectValue("1:0", Map("name" -> StringValue("1:1", "person2")))
   val person2Model = Model(person2MetaData, person2Data)
 
-  val person3 = ModelFqn(peopleCollectionId, "person3")
+  val person3Id = "person3"
+  val person3 = ModelFqn(peopleCollectionId, person3Id)
   val person3MetaData = ModelMetaData(
     person3,
     1,
@@ -73,7 +76,8 @@ class ModelStoreSpec
   val person3Data = ObjectValue("2:0", Map("name" -> StringValue("2:1", "person3")))
   val person3Model = Model(person3MetaData, person3Data)
 
-  val company1 = ModelFqn("company", "company1")
+  val company1Id = "company1"
+  val company1 = ModelFqn("company", company1Id)
   val company1MetaData = ModelMetaData(
     company1,
     1,
@@ -84,6 +88,7 @@ class ModelStoreSpec
   val company1Data = ObjectValue("3:0", Map("name" -> StringValue("3:1", "company")))
   val company1Model = Model(company1MetaData, company1Data)
 
+  val notRealId = "notRealModel"
   val nonExsitingFqn = ModelFqn("notRealCollection", "notRealModel")
 
   "An ModelStore" when {
@@ -91,13 +96,13 @@ class ModelStoreSpec
     "asked whether a model exists" must {
 
       "return false if it doesn't exist" in withPersistenceStore { stores =>
-        stores.model.modelExists(nonExsitingFqn).get shouldBe false
+        stores.model.modelExists(notRealId).get shouldBe false
       }
 
       "return true if it does exist" in withPersistenceStore { stores =>
         stores.collection.ensureCollectionExists(peopleCollectionId)
         stores.model.createModel(person1Model).get
-        stores.model.modelExists(person1).get shouldBe true
+        stores.model.modelExists(person1Id).get shouldBe true
       }
     }
 
@@ -112,7 +117,7 @@ class ModelStoreSpec
 
         stores.collection.ensureCollectionExists(peopleCollectionId)
         stores.model.createModel(peopleCollectionId, Some(modelId), data, true, modelPermissions).get
-        val model = stores.model.getModel(modelFqn).get.value
+        val model = stores.model.getModel(modelId).get.value
         model.metaData.fqn shouldBe modelFqn
         model.metaData.version shouldBe 1
         model.data shouldBe data
@@ -129,13 +134,13 @@ class ModelStoreSpec
 
     "getting a model" must {
       "return None if it doesn't exist" in withPersistenceStore { stores =>
-        stores.model.getModel(nonExsitingFqn).get shouldBe None
+        stores.model.getModel(notRealId).get shouldBe None
       }
 
       "return Some if it does exist" in withPersistenceStore { stores =>
         stores.collection.ensureCollectionExists(peopleCollectionId)
         stores.model.createModel(person1Model).get
-        stores.model.getModel(person1).get shouldBe defined
+        stores.model.getModel(person1Id).get shouldBe defined
       }
     }
 
@@ -143,11 +148,11 @@ class ModelStoreSpec
       "return the correct meta data if it exists" in withPersistenceStore { stores =>
         stores.collection.ensureCollectionExists(peopleCollectionId)
         stores.model.createModel(person1Model).get
-        stores.model.getModelMetaData(person1).get.value shouldBe person1MetaData
+        stores.model.getModelMetaData(person1Id).get.value shouldBe person1MetaData
       }
 
       "return None if it does not exist" in withPersistenceStore { stores =>
-        stores.model.getModelMetaData(nonExsitingFqn).get shouldBe None
+        stores.model.getModelMetaData(notRealId).get shouldBe None
       }
     }
 
@@ -231,9 +236,9 @@ class ModelStoreSpec
       "increment the version by 1" in withPersistenceStore { stores =>
         stores.collection.ensureCollectionExists(peopleCollectionId)
         stores.model.createModel(person1Model).get
-        stores.model.updateModelOnOperation(person1Model.metaData.fqn, Instant.now())
+        stores.model.updateModelOnOperation(person1Id, Instant.now())
         
-        val modelAfter = stores.model.getModel(person1Model.metaData.fqn).get.get
+        val modelAfter = stores.model.getModel(person1Id).get.get
         modelAfter.metaData.version shouldBe person1Model.metaData.version + 1 
       }
       
@@ -241,18 +246,18 @@ class ModelStoreSpec
         stores.collection.ensureCollectionExists(peopleCollectionId)
         val modelBefore = stores.model.createModel(person1Model).get
         val timeStamp = Instant.now()
-        stores.model.updateModelOnOperation(person1Model.metaData.fqn, timeStamp)
+        stores.model.updateModelOnOperation(person1Id, timeStamp)
         
-        val modelAfter = stores.model.getModel(person1Model.metaData.fqn).get.get
+        val modelAfter = stores.model.getModel(person1Id).get.get
         modelAfter.metaData.modifiedTime shouldBe timeStamp 
       }
       
       "leave all other data instact" in withPersistenceStore { stores =>
         stores.collection.ensureCollectionExists(peopleCollectionId)
         stores.model.createModel(person1Model).get
-        stores.model.updateModelOnOperation(person1Model.metaData.fqn, Instant.now())
+        stores.model.updateModelOnOperation(person1Id, Instant.now())
         
-        val modelAfter = stores.model.getModel(person1Model.metaData.fqn).get.get
+        val modelAfter = stores.model.getModel(person1Id).get.get
         modelAfter.metaData.createdTime shouldBe person1Model.metaData.createdTime
         modelAfter.metaData.fqn shouldBe person1Model.metaData.fqn
         modelAfter.data shouldBe person1Model.data
@@ -307,21 +312,21 @@ class ModelStoreSpec
       "delete the specified model and no others" in withPersistenceStore { stores =>
         createAllModels(stores)
 
-        stores.model.getModel(person1).get shouldBe defined
-        stores.model.getModel(person2).get shouldBe defined
-        stores.model.getModel(company1).get shouldBe defined
+        stores.model.getModel(person1Id).get shouldBe defined
+        stores.model.getModel(person2Id).get shouldBe defined
+        stores.model.getModel(company1Id).get shouldBe defined
 
-        stores.model.deleteModel(person1).get
+        stores.model.deleteModel(person1Id).get
 
-        stores.model.getModel(person1).get shouldBe None
-        stores.model.getModel(person2).get shouldBe defined
-        stores.model.getModel(company1).get shouldBe defined
+        stores.model.getModel(person1Id).get shouldBe None
+        stores.model.getModel(person2Id).get shouldBe defined
+        stores.model.getModel(company1Id).get shouldBe defined
       }
 
       "return a failure for deleting a non-existent model" in withPersistenceStore { stores =>
         createAllModels(stores)
-        stores.model.getModel(nonExsitingFqn).get shouldBe None
-        stores.model.deleteModel(nonExsitingFqn).failure.exception shouldBe a[EntityNotFoundException]
+        stores.model.getModel(notRealId).get shouldBe None
+        stores.model.deleteModel(notRealId).failure.exception shouldBe a[EntityNotFoundException]
       }
     }
 
@@ -329,17 +334,17 @@ class ModelStoreSpec
       "delete the models in the specified and no others" in withPersistenceStore { stores =>
         createAllModels(stores)
 
-        stores.model.getModel(person1).get shouldBe defined
-        stores.model.getModel(person2).get shouldBe defined
-        stores.model.getModel(person3).get shouldBe defined
-        stores.model.getModel(company1).get shouldBe defined
+        stores.model.getModel(person1Id).get shouldBe defined
+        stores.model.getModel(person2Id).get shouldBe defined
+        stores.model.getModel(person3Id).get shouldBe defined
+        stores.model.getModel(company1Id).get shouldBe defined
 
         stores.model.deleteAllModelsInCollection(person1.collectionId).success
 
-        stores.model.getModel(person1).get shouldBe None
-        stores.model.getModel(person2).get shouldBe None
-        stores.model.getModel(person3).get shouldBe None
-        stores.model.getModel(company1).get shouldBe defined
+        stores.model.getModel(person1Id).get shouldBe None
+        stores.model.getModel(person2Id).get shouldBe None
+        stores.model.getModel(person3Id).get shouldBe None
+        stores.model.getModel(company1Id).get shouldBe defined
       }
     }
   }

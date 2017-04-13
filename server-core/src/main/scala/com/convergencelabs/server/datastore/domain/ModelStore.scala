@@ -44,6 +44,7 @@ import com.convergencelabs.server.domain.model.query.QueryParser
 object ModelStore {
   val ModelClass = "Model"
   val ModelCollectionIdIndex = "Model.collection_id"
+  val ModelIdIndex = "Model.id"
 
   object Constants {
     val CollectionId = "collectionId"
@@ -61,15 +62,15 @@ object ModelStore {
     val WorldPermissions = "worldPermissions"
   }
 
-  private val FindModel = "SELECT * FROM Model WHERE id = :id AND collection.id = :collectionId"
+  private val FindModel = "SELECT * FROM Model WHERE id = :id"
 
-  def getModelDocument(collectionId: String, modelId: String, db: ODatabaseDocumentTx): Try[ODocument] = {
-    val params = Map("id" -> modelId, "collectionId" -> collectionId)
+  def getModelDocument(id: String, db: ODatabaseDocumentTx): Try[ODocument] = {
+    val params = Map("id" -> id)
     QueryUtil.lookupMandatoryDocument(FindModel, params, db)
   }
 
-  private def getModelDoc(fqn: ModelFqn, db: ODatabaseDocumentTx): Option[ODocument] = {
-    val params = Map("id" -> fqn.modelId, "collectionId" -> fqn.collectionId)
+  private def getModelDoc(id: String, db: ODatabaseDocumentTx): Option[ODocument] = {
+    val params = Map("id" -> id)
     QueryUtil.lookupOptionalDocument(FindModel, params, db)
   }
 
@@ -93,9 +94,10 @@ object ModelStore {
     Model(docToModelMetaData(doc), data.asObjectValue)
   }
 
-  def getModelRid(id: String, collectionId: String, db: ODatabaseDocumentTx): Try[ORID] = {
-    val query = "SELECT @RID as rid FROM Model WHERE id = :id AND collection.id = :collectionId"
-    val params = Map("id" -> id, "collectionId" -> collectionId)
+  def getModelRid(id: String, db: ODatabaseDocumentTx): Try[ORID] = {
+    
+    val query = "SELECT @RID as rid FROM Model WHERE id = :id"
+    val params = Map("id" -> id)
     QueryUtil.lookupMandatoryDocument(query, params, db) map { _.eval("rid").asInstanceOf[ORID] }
   }
 }
@@ -107,9 +109,9 @@ class ModelStore private[domain] (
     extends AbstractDatabasePersistence(dbProvider)
     with Logging {
 
-  def modelExists(fqn: ModelFqn): Try[Boolean] = tryWithDb { db =>
-    val query = "SELECT id FROM Model where id = :id AND collection.id = :collectionId"
-    val params = Map("id" -> fqn.modelId, "collectionId" -> fqn.collectionId)
+  def modelExists(id: String): Try[Boolean] = tryWithDb { db =>
+    val query = "SELECT id FROM Model where id = :id"
+    val params = Map("id" -> id)
     QueryUtil.hasResults(query, params, db)
   }
 
@@ -182,10 +184,10 @@ class ModelStore private[domain] (
   }
 
   //FIXME: Add in overridePermissions flag
-  def updateModel(fqn: ModelFqn, data: ObjectValue, worldPermissions: Option[ModelPermissions]): Try[Unit] = tryWithDb { db =>
-    ModelStore.getModelDoc(fqn, db) match {
+  def updateModel(id: String, data: ObjectValue, worldPermissions: Option[ModelPermissions]): Try[Unit] = tryWithDb { db =>
+    ModelStore.getModelDoc(id, db) match {
       case Some(doc) =>
-        deleteDataValuesForModel(fqn, db).map { _ =>
+        deleteDataValuesForModel(id).map { _ =>
           val dataValueDoc = OrientDataValueBuilder.dataValueToODocument(data, doc)
           doc.field(Data, dataValueDoc)
           val worldPermissionsDoc = worldPermissions.map { ModelPermissionsStore.modelPermissionToDoc(_) }
@@ -198,20 +200,17 @@ class ModelStore private[domain] (
     }
   }
 
-  def updateModelOnOperation(fqn: ModelFqn, timestamp: Instant): Try[Unit] = tryWithDb { db =>
+  def updateModelOnOperation(id: String, timestamp: Instant): Try[Unit] = tryWithDb { db =>
     val queryString =
       """UPDATE Model SET
         |  version = eval('version + 1'),
         |  modifiedTime = :timestamp
-        |WHERE
-        |  collection.id = :collectionId AND
-        |  id = :modelId""".stripMargin
+        |WHERE id = :id""".stripMargin
 
     val updateCommand = new OCommandSQL(queryString)
 
     val params = Map(
-      "collectionId" -> fqn.collectionId,
-      "modelId" -> fqn.modelId,
+      Id -> id,
       "timestamp" -> Date.from(timestamp))
 
     db.command(updateCommand).execute(params.asJava).asInstanceOf[Int] match {
@@ -222,14 +221,14 @@ class ModelStore private[domain] (
     }
   }
 
-  def deleteModel(fqn: ModelFqn): Try[Unit] = tryWithDb { db =>
-    operationStore.deleteAllOperationsForModel(fqn).flatMap { _ =>
-      snapshotStore.removeAllSnapshotsForModel(fqn)
+  def deleteModel(id: String): Try[Unit] = tryWithDb { db =>
+    operationStore.deleteAllOperationsForModel(id).flatMap { _ =>
+      snapshotStore.removeAllSnapshotsForModel(id)
     }.flatMap { _ =>
-      deleteDataValuesForModel(fqn, db)
+      deleteDataValuesForModel(id)
     }.map { _ =>
-      val command = new OCommandSQL("DELETE FROM Model WHERE collection.id = :collectionId AND id = :id")
-      val params = Map(CollectionId -> fqn.collectionId, Id -> fqn.modelId)
+      val command = new OCommandSQL("DELETE FROM Model WHERE id = :id")
+      val params = Map(Id -> id)
       db.command(command).execute(params.asJava).asInstanceOf[Int] match {
         case 1 =>
           ()
@@ -239,9 +238,9 @@ class ModelStore private[domain] (
     }.get
   }
 
-  def deleteDataValuesForModel(fqn: ModelFqn, db: ODatabaseDocumentTx): Try[Unit] = Try {
-    val command = new OCommandSQL("DELETE FROM DataValue WHERE model.collection.id = :collectionId AND model.id = :id")
-    val params = Map(CollectionId -> fqn.collectionId, Id -> fqn.modelId)
+  def deleteDataValuesForModel(id: String): Try[Unit] = tryWithDb { db =>
+    val command = new OCommandSQL("DELETE FROM DataValue WHERE model.id = :id")
+    val params = Map(Id -> id)
     db.command(command).execute(params.asJava).asInstanceOf[Int]
     ()
   }
@@ -267,12 +266,12 @@ class ModelStore private[domain] (
     ()
   }
 
-  def getModel(fqn: ModelFqn): Try[Option[Model]] = tryWithDb { db =>
-    ModelStore.getModelDoc(fqn, db) map (ModelStore.docToModel(_))
+  def getModel(id: String): Try[Option[Model]] = tryWithDb { db =>
+    ModelStore.getModelDoc(id, db) map (ModelStore.docToModel(_))
   }
 
-  def getModelMetaData(fqn: ModelFqn): Try[Option[ModelMetaData]] = tryWithDb { db =>
-    ModelStore.getModelDoc(fqn, db) map (ModelStore.docToModelMetaData(_))
+  def getModelMetaData(id: String): Try[Option[ModelMetaData]] = tryWithDb { db =>
+    ModelStore.getModelDoc(id, db) map (ModelStore.docToModelMetaData(_))
   }
 
   def getAllModelMetaDataInCollection(
@@ -331,8 +330,8 @@ class ModelStore private[domain] (
     queryResult.get
   }
 
-  def getModelData(fqn: ModelFqn): Try[Option[ObjectValue]] = tryWithDb { db =>
-    ModelStore.getModelDoc(fqn, db) map (doc => doc.field(Data).asInstanceOf[ODocument].asObjectValue)
+  def getModelData(id: String): Try[Option[ObjectValue]] = tryWithDb { db =>
+    ModelStore.getModelDoc(id, db) map (doc => doc.field(Data).asInstanceOf[ODocument].asObjectValue)
   }
 
   private[this] def handleDuplicateValue[T](e: ORecordDuplicatedException): Try[T] = {

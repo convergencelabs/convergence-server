@@ -49,7 +49,7 @@ object ModelOperationStore {
   def modelOperationToDoc(opEvent: NewModelOperation, db: ODatabaseDocumentTx): Try[ODocument] = {
     for {
       session <- SessionStore.getDomainSessionRid(opEvent.sessionId, db)
-      model <- ModelStore.getModelRid(opEvent.modelFqn.modelId, opEvent.modelFqn.collectionId, db)
+      model <- ModelStore.getModelRid(opEvent.modelFqn.modelId, db)
     } yield {
       val doc = db.newInstance(ModelOperationStore.ClassName)
       doc.field(Model, model, OType.LINK)
@@ -80,16 +80,14 @@ object ModelOperationStore {
 class ModelOperationStore private[domain] (dbProvider: DatabaseProvider)
     extends AbstractDatabasePersistence(dbProvider) {
 
-  def getMaxVersion(fqn: ModelFqn): Try[Option[Long]] = tryWithDb { db =>
+  def getMaxVersion(id: String): Try[Option[Long]] = tryWithDb { db =>
     val queryString =
       """SELECT max(version)
         |FROM ModelOperation
-        |WHERE
-        |  model.collection.id = :collectionId AND
-        |  model.id = :modelId""".stripMargin
+        |WHERE model.id = :modelId""".stripMargin
 
     val query = new OSQLSynchQuery[ODocument](queryString)
-    val params = Map(CollectionId -> fqn.collectionId, ModelId -> fqn.modelId)
+    val params = Map(ModelId -> id)
     val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
 
     result.asScala.toList match {
@@ -98,17 +96,16 @@ class ModelOperationStore private[domain] (dbProvider: DatabaseProvider)
     }
   }
 
-  def getVersionAtOrBeforeTime(fqn: ModelFqn, time: Instant): Try[Option[Long]] = tryWithDb { db =>
+  def getVersionAtOrBeforeTime(id: String, time: Instant): Try[Option[Long]] = tryWithDb { db =>
     val queryString =
       """SELECT max(version)
         |FROM ModelOperation
         |WHERE
-        |  model.collection.id = :collectionId AND
         |  model.id = :modelId AND
         |  timestamp <= :time""".stripMargin
 
     val query = new OSQLSynchQuery[ODocument](queryString)
-    val params = Map(CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, "time" -> new java.util.Date(time.toEpochMilli()))
+    val params = Map(ModelId -> id, "time" -> new java.util.Date(time.toEpochMilli()))
     val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
     result.asScala.toList match {
       case doc :: rest => Some(doc.field("max", OType.LONG))
@@ -116,60 +113,55 @@ class ModelOperationStore private[domain] (dbProvider: DatabaseProvider)
     }
   }
   
-  def getModelOperation(fqn: ModelFqn, version: Long): Try[Option[ModelOperation]] = tryWithDb { db =>
+  def getModelOperation(id: String, version: Long): Try[Option[ModelOperation]] = tryWithDb { db =>
     val query =
       """SELECT *
         |FROM ModelOperation
         |WHERE
-        |  model.collection.id = :collectionId AND
         |  model.id = :modelId AND
         |  version = :version""".stripMargin
-    val params = Map(CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, "version" -> version)
+    val params = Map(ModelId -> id, "version" -> version)
     QueryUtil.lookupOptionalDocument(query, params, db) map {ModelOperationStore.docToModelOperation(_)}
   }
 
-  def getOperationsAfterVersion(fqn: ModelFqn, version: Long): Try[List[ModelOperation]] = tryWithDb { db =>
+  def getOperationsAfterVersion(id: String, version: Long): Try[List[ModelOperation]] = tryWithDb { db =>
     val queryString =
       """SELECT * 
         |FROM ModelOperation
         |WHERE
-        |  model.collection.id = :collectionId AND
         |  model.id = :modelId AND
         |  version >= :version
         |ORDER BY version ASC""".stripMargin
 
     val query = new OSQLSynchQuery[ODocument](queryString)
-    val params = Map(CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, "version" -> version)
+    val params = Map(ModelId -> id, "version" -> version)
     val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
     result.asScala.toList map { ModelOperationStore.docToModelOperation(_) }
   }
 
-  def getOperationsAfterVersion(fqn: ModelFqn, version: Long, limit: Int): Try[List[ModelOperation]] = tryWithDb { db =>
+  def getOperationsAfterVersion(id: String, version: Long, limit: Int): Try[List[ModelOperation]] = tryWithDb { db =>
     val queryString =
       """SELECT *
         |FROM ModelOperation
         |WHERE
-        |  model.collection.id = :collectionId AND
         |  model.id = :modelId AND
         | version >= :version
         |ORDER BY version ASC""".stripMargin
 
     val query = new OSQLSynchQuery[ODocument](QueryUtil.buildPagedQuery(queryString, Some(limit), None))
     val params = Map(
-      CollectionId -> fqn.collectionId,
-      ModelId -> fqn.modelId,
+      ModelId -> id,
       "version" -> version,
       "limit" -> limit)
     val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
     result.asScala.toList map { ModelOperationStore.docToModelOperation(_) }
   }
 
-  def getOperationsInVersionRange(fqn: ModelFqn, firstVersion: Long, lastVersion: Long): Try[List[ModelOperation]] = tryWithDb { db =>
+  def getOperationsInVersionRange(id: String, firstVersion: Long, lastVersion: Long): Try[List[ModelOperation]] = tryWithDb { db =>
     val queryString =
       s"""SELECT *
         |FROM ModelOperation
         |WHERE
-        |  model.collection.id = :collectionId AND
         |  model.id = :modelId AND
         |  version >= :firstVersion AND
         |  version <= :lastVersion
@@ -177,22 +169,20 @@ class ModelOperationStore private[domain] (dbProvider: DatabaseProvider)
 
     val query = new OSQLSynchQuery[ODocument](queryString)
     val params = Map(
-      CollectionId -> fqn.collectionId,
-      ModelId -> fqn.modelId,
+      ModelId -> id,
       "firstVersion" -> firstVersion,
       "lastVersion" -> lastVersion)
     val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
     result.asScala.toList map { ModelOperationStore.docToModelOperation(_) }
   }
 
-  def deleteAllOperationsForModel(fqn: ModelFqn): Try[Unit] = tryWithDb { db =>
+  def deleteAllOperationsForModel(id: String): Try[Unit] = tryWithDb { db =>
     val commandString =
       """DELETE FROM ModelOperation
         |WHERE
-        |  model.collection.id = :collectionId AND
         |  model.id = :modelId""".stripMargin
 
-    val params = Map(CollectionId -> fqn.collectionId, ModelId -> fqn.modelId)
+    val params = Map(ModelId -> id)
     val command = new OCommandSQL(commandString)
     db.command(command).execute(params.asJava)
     ()

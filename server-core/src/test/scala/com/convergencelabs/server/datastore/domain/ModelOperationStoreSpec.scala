@@ -33,7 +33,8 @@ class ModelOperationStoreSpec
 
   val modelPermissions = ModelPermissions(true, true, true, true)
   
-  val modelFqn = ModelFqn("people", "person1")
+  val modelId1 = "person1"
+  val modelFqn = ModelFqn("people", modelId1)
   val model = Model(
     ModelMetaData(modelFqn, 10L, Instant.now(), Instant.now(), true, modelPermissions),
     ObjectValue("vid", Map()))
@@ -41,7 +42,8 @@ class ModelOperationStoreSpec
   val sessionId = "test:1"
   val session = DomainSession(sessionId, testUsername, Instant.now(), None, "jwt", "js", "1.0", "", "127.0.0.1")
 
-  val notFoundFqn = ModelFqn("Does Not", "Exist")
+  val notFoundId = "Exist"
+  val notFoundFqn = ModelFqn("Does Not", notFoundId)
 
   val op1 = AppliedStringInsertOperation("0:0", false, 1, "1")
   val modelOp1 = NewModelOperation(modelFqn, 1L, Instant.ofEpochMilli(10), sessionId, op1)
@@ -56,7 +58,7 @@ class ModelOperationStoreSpec
       "store it correctly" in withPersistenceStore { provider =>
         initCommonData(provider)
         provider.modelOperationStore.createModelOperation(modelOp1).get
-        provider.modelOperationStore.getModelOperation(modelFqn, 1L).success.value.value shouldBe modelOp1Expected
+        provider.modelOperationStore.getModelOperation(modelId1, 1L).success.value.value shouldBe modelOp1Expected
       }
 
       "disallow duplicates" in withPersistenceStore { provider =>
@@ -71,11 +73,11 @@ class ModelOperationStoreSpec
         initCommonData(provider)
         provider.modelOperationStore.createModelOperation(modelOp1).get
         provider.modelOperationStore.createModelOperation(modelOp15).get
-        provider.modelOperationStore.getMaxVersion(modelFqn).success.get.get shouldBe 15
+        provider.modelOperationStore.getMaxVersion(modelId1).success.get.get shouldBe 15
       }
 
       "return None if the model has no operation history" in withPersistenceStore { provider =>
-        provider.modelOperationStore.getMaxVersion(notFoundFqn).success.get shouldBe None
+        provider.modelOperationStore.getMaxVersion(notFoundId).success.get shouldBe None
       }
     }
 
@@ -84,11 +86,11 @@ class ModelOperationStoreSpec
         initCommonData(provider)
         provider.modelOperationStore.createModelOperation(modelOp1).get
         provider.modelOperationStore.createModelOperation(modelOp15).get
-        provider.modelOperationStore.getVersionAtOrBeforeTime(modelFqn, Instant.now()).success.get.get shouldBe 15
+        provider.modelOperationStore.getVersionAtOrBeforeTime(modelId1, Instant.now()).success.get.get shouldBe 15
       }
 
       "return None if the model has no operation history" in withPersistenceStore { provider =>
-        provider.modelOperationStore.getVersionAtOrBeforeTime(notFoundFqn, Instant.now()).success.get shouldBe None
+        provider.modelOperationStore.getVersionAtOrBeforeTime(notFoundId, Instant.now()).success.get shouldBe None
       }
     }
 
@@ -97,7 +99,7 @@ class ModelOperationStoreSpec
         initCommonData(provider)
         provider.modelOperationStore.createModelOperation(modelOp1).get
         provider.modelOperationStore.createModelOperation(modelOp15).get
-        provider.modelOperationStore.getOperationsAfterVersion(modelFqn, 6).success.get.size shouldBe 1
+        provider.modelOperationStore.getOperationsAfterVersion(modelId1, 6).success.get.size shouldBe 1
       }
 
       "return the correct operations limited when using a limit" in withPersistenceStore { provider =>
@@ -113,11 +115,11 @@ class ModelOperationStoreSpec
         
         list = list.slice(5, 10)
 
-        provider.modelOperationStore.getOperationsAfterVersion(modelFqn, 6, 5).success.get shouldBe list
+        provider.modelOperationStore.getOperationsAfterVersion(modelId1, 6, 5).success.get shouldBe list
       }
 
       "return None if the model has no operation history" in withPersistenceStore { provider =>
-        provider.modelOperationStore.getOperationsAfterVersion(notFoundFqn, 6).success.get shouldBe empty
+        provider.modelOperationStore.getOperationsAfterVersion(notFoundId, 6).success.get shouldBe empty
       }
     }
     "deleting all operations for a model" must {
@@ -125,12 +127,12 @@ class ModelOperationStoreSpec
         initCommonData(provider)
         provider.modelOperationStore.createModelOperation(modelOp1).get
         provider.modelOperationStore.createModelOperation(modelOp15).get
-        provider.modelOperationStore.deleteAllOperationsForModel(modelFqn).success
-        provider.modelOperationStore.getOperationsAfterVersion(modelFqn, 0).success.get shouldBe empty
+        provider.modelOperationStore.deleteAllOperationsForModel(modelId1).success
+        provider.modelOperationStore.getOperationsAfterVersion(modelId1, 0).success.get shouldBe empty
       }
 
       "do nothing if model does not exist" in withPersistenceStore { provider =>
-        provider.modelOperationStore.deleteAllOperationsForModel(notFoundFqn).success
+        provider.modelOperationStore.deleteAllOperationsForModel(notFoundId).success
       }
     }
   }

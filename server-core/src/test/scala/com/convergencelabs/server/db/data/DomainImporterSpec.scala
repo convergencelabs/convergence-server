@@ -88,9 +88,10 @@ class DomainImporterSpec extends WordSpecLike with Matchers {
         collections.size shouldBe 1
         collections(0) shouldBe Collection("collection1", "Collection 1", false, DomainImporter.DefaultSnapshotConfig, CollectionPermissions(true, true, true, true, true))
 
+        val modelId = "someId"
         val modelFqn = ModelFqn("collection1", "someId")
 
-        val model = provider.modelStore.getModel(modelFqn).get.value
+        val model = provider.modelStore.getModel(modelId).get.value
         model shouldBe Model(
           ModelMetaData(
             modelFqn,
@@ -103,7 +104,7 @@ class DomainImporterSpec extends WordSpecLike with Matchers {
             "vid1",
             Map("myString" -> StringValue("vid2", "my string"))))
 
-        val operations = provider.modelOperationStore.getOperationsAfterVersion(modelFqn, 0L).get
+        val operations = provider.modelOperationStore.getOperationsAfterVersion(modelId, 0L).get
         operations.size shouldBe 2
         operations(0) shouldBe ModelOperation(
           modelFqn,
@@ -120,7 +121,7 @@ class DomainImporterSpec extends WordSpecLike with Matchers {
           "84hf",
           AppliedStringInsertOperation("vid2", false, 1, "@"))
 
-        val snapshot = provider.modelSnapshotStore.getSnapshot(modelFqn, 1).get.value
+        val snapshot = provider.modelSnapshotStore.getSnapshot(modelId, 1).get.value
         snapshot shouldBe ModelSnapshot(
           ModelSnapshotMetaData(
             modelFqn,

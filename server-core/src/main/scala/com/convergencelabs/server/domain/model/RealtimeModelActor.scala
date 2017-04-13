@@ -243,7 +243,7 @@ class RealtimeModelActor(
   private[this] def onOpenModelWhileUninitialized(request: OpenRealtimeModelRequest): Unit = {
     if (getPermissionsForSession(request.sk).read) {
       queuedOpeningClients += (request.sk -> OpenRequestRecord(request.clientActor, sender()))
-      modelStore.modelExists(modelFqn) match {
+      modelStore.modelExists(modelFqn.modelId) match {
         case Success(true) =>
           requestModelDataFromDatastore()
         case Success(false) =>
@@ -276,7 +276,7 @@ class RealtimeModelActor(
       // If we are persistent, then the data is already loading, so there is nothing to do.
       // However, if we are not persistent, we have already asked the previous opening client
       // for the data, but we will ask this client too, in case the others fail.
-      modelStore.modelExists(modelFqn) match {
+      modelStore.modelExists(modelFqn.modelId) match {
         case Success(false) =>
           if (request.initializerProvided) {
             // Otherwise this client has nothing for us, but there is at least one
@@ -302,8 +302,8 @@ class RealtimeModelActor(
     log.debug(s"Opening model from database: ${this.modelFqn}")
     //    Future {
     (for {
-      snapshotMetaData <- modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)
-      model <- modelStore.getModel(modelFqn)
+      snapshotMetaData <- modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn.modelId)
+      model <- modelStore.getModel(modelFqn.modelId)
     } yield {
       (model, snapshotMetaData) match {
         case (Some(m), Some(s)) =>
@@ -438,7 +438,7 @@ class RealtimeModelActor(
       if (connectedClients.contains(sk)) {
         sender ! ModelAlreadyOpen
       } else {
-        modelStore.getModel(modelFqn) match {
+        modelStore.getModel(modelFqn.modelId) match {
           case Success(Some(modelData)) => respondToClientOpenRequest(sk, modelData, OpenRequestRecord(request.clientActor, sender()))
           case Success(None) =>
             log.error(s"Could not find model data in the database for an open model: ${modelFqn}")
@@ -654,7 +654,7 @@ class RealtimeModelActor(
 
     val f = Future[ModelSnapshotMetaData] {
       // FIXME: Handle Failure from try and None from option.
-      val modelData = modelStore.getModel(this.modelFqn).get.get
+      val modelData = modelStore.getModel(this.modelFqn.modelId).get.get
       val snapshot = new ModelSnapshot(
         ModelSnapshotMetaData(
           modelData.metaData.fqn,

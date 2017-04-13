@@ -25,6 +25,6 @@ class ModelOperationStoreActor private[datastore] (
   }
 
   def getOperations(fqn: ModelFqn, first: Long, last: Long): Unit = {
-    reply(operationStore.getOperationsInVersionRange(fqn, first, last))
+    reply(operationStore.getOperationsInVersionRange(fqn.modelId, first, last))
   }
 }

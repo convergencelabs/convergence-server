@@ -44,7 +44,7 @@ object ModelPermissionsStore {
   val ModelUserPermissionsClass = "ModelUserPermissions"
 
   val CollectionIndex = "Collection.id"
-  val ModelIndex = "Model.collection_id"
+  val ModelIndex = "Model.id"
   val UsernameIndex = "User.username"
   val CollectionUserPermissionsIndex = "CollectionUserPermissions.user_collection"
   val ModelUserPermissionsIndex = "ModelUserPermissions.user_model"
@@ -272,37 +272,36 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     collectionDoc.field(Fields.UserPermissions, newPermissions.asJavaCollection)
   }
 
-  def modelOverridesCollectionPermissions(modelFqn: ModelFqn): Try[Boolean] = tryWithDb { db =>
-    val modelDoc: ODocument = getModelRid(modelFqn).get.getRecord[ODocument]
+  def modelOverridesCollectionPermissions(id: String): Try[Boolean] = tryWithDb { db =>
+    val modelDoc: ODocument = getModelRid(id).get.getRecord[ODocument]
     val overridePermissions: Boolean = modelDoc.field(Fields.OverridePermissions, OType.BOOLEAN)
     overridePermissions
   }
 
-  def setOverrideCollectionPermissions(modelFqn: ModelFqn, overridePermissions: Boolean): Try[Unit] = tryWithDb { db =>
-    val modelDoc = getModelRid(modelFqn).get.getRecord[ODocument]
+  def setOverrideCollectionPermissions(id: String, overridePermissions: Boolean): Try[Unit] = tryWithDb { db =>
+    val modelDoc = getModelRid(id).get.getRecord[ODocument]
     modelDoc.field(Fields.OverridePermissions, overridePermissions).save()
   }
 
-  def getModelWorldPermissions(modelFqn: ModelFqn): Try[ModelPermissions] = tryWithDb { db =>
+  def getModelWorldPermissions(id: String): Try[ModelPermissions] = tryWithDb { db =>
     val queryString =
       """SELECT worldPermissions
         |  FROM Model
-        |  WHERE id = :modelId AND
-        |    collection.id = :collectionId""".stripMargin
-    val params = Map("modelId" -> modelFqn.modelId, "collectionId" -> modelFqn.collectionId)
+        |  WHERE id = :modelId""".stripMargin
+    val params = Map("modelId" -> id)
     val result = QueryUtil.lookupMandatoryDocument(queryString, params, db)
     result.map { docToWorldPermissions(_) }.get
   }
 
-  def setModelWorldPermissions(modelFqn: ModelFqn, permissions: ModelPermissions): Try[Unit] = tryWithDb { db =>
-    val modelDoc = getModelRid(modelFqn).get.getRecord[ODocument]
+  def setModelWorldPermissions(id: String, permissions: ModelPermissions): Try[Unit] = tryWithDb { db =>
+    val modelDoc = getModelRid(id).get.getRecord[ODocument]
     val permissionsDoc = modelPermissionToDoc(permissions)
     modelDoc.field(Fields.World, permissionsDoc, OType.EMBEDDED)
     modelDoc.save()
   }
 
-  def getAllModelUserPermissions(modelFqn: ModelFqn): Try[Map[String, ModelPermissions]] = tryWithDb { db =>
-    val modelRID = ModelStore.getModelRid(modelFqn.modelId, modelFqn.collectionId, db).get
+  def getAllModelUserPermissions(id: String): Try[Map[String, ModelPermissions]] = tryWithDb { db =>
+    val modelRID = ModelStore.getModelRid(id, db).get
     val modelDoc = modelRID.getRecord[ODocument]
     val userPermissions: JavaList[ODocument] = modelDoc.field(Fields.UserPermissions, OType.LINKLIST)
     if (userPermissions == null) {
@@ -317,29 +316,28 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     }
   }
 
-  def deleteAllModelUserPermissions(modelFqn: ModelFqn): Try[Unit] = tryWithDb { db =>
-    val modelRID = ModelStore.getModelRid(modelFqn.modelId, modelFqn.collectionId, db).get
+  def deleteAllModelUserPermissions(id: String): Try[Unit] = tryWithDb { db =>
+    val modelRID = ModelStore.getModelRid(id, db).get
     val modelDoc = modelRID.getRecord[ODocument]
     modelDoc.field(Fields.UserPermissions, new ArrayList[ODocument]())
     modelDoc.save()
 
     val queryString =
       """DELETE FROM ModelUserPermissions
-        |  WHERE model.id = :modelId AND
-        |    model.collection.id = :collectionId""".stripMargin
+        |  WHERE model.id = :modelId""".stripMargin
     val command = new OCommandSQL(queryString)
-    val params = Map("modelId" -> modelFqn.modelId, "collectionId" -> modelFqn.collectionId)
+    val params = Map("modelId" -> id)
     db.command(command).execute(params.asJava)
   }
 
-  def updateAllModelUserPermissions(modelFqn: ModelFqn, userPermissions: Map[String, Option[ModelPermissions]]): Try[Unit] = tryWithDb { db =>
-    val modelRID = ModelStore.getModelRid(modelFqn.modelId, modelFqn.collectionId, db).get
+  def updateAllModelUserPermissions(id: String, userPermissions: Map[String, Option[ModelPermissions]]): Try[Unit] = tryWithDb { db =>
+    val modelRID = ModelStore.getModelRid(id,  db).get
 
     userPermissions.foreach {
       case (username, permissions) =>
         val userRID = DomainUserStore.getUserRid(username, db).get
         val key = new OCompositeKey(List(userRID, modelRID).asJava)
-        val modelPermissionRID = getModelUserPermissionsRid(modelFqn, username)
+        val modelPermissionRID = getModelUserPermissionsRid(id, username)
 
         modelPermissionRID match {
           case Success(rid) =>
@@ -366,33 +364,31 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     val queryString =
       """update Model 
           |  set userPermissions = (select from ModelUserPermissions 
-          |                                 where model.id = :modelId and 
-          |                                       model.collection.id = :collectionId) 
+          |                                 where model.id = :modelId) 
           |  where id = :modelId and collection.id = :collectionId""".stripMargin
 
     val command = new OCommandSQL(queryString)
-    val params = Map("modelId" -> modelFqn.modelId, "collectionId" -> modelFqn.collectionId)
+    val params = Map("modelId" -> id)
     db.command(command).execute(params.asJava)
     ()
   }
 
-  def getModelUserPermissions(modelFqn: ModelFqn, username: String): Try[Option[ModelPermissions]] = tryWithDb { db =>
+  def getModelUserPermissions(id: String, username: String): Try[Option[ModelPermissions]] = tryWithDb { db =>
     val queryString =
       """SELECT permissions
         |  FROM ModelUserPermissions
         |  WHERE model.id = :modelId AND
-        |    model.collection.id = :collectionId AND
         |    user.username = :username""".stripMargin
-    val params = Map("modelId" -> modelFqn.modelId, "collectionId" -> modelFqn.collectionId, "username" -> username)
+    val params = Map("modelId" -> id, "username" -> username)
     val result = QueryUtil.lookupOptionalDocument(queryString, params, db)
     result.map { doc => docToModelPermissions(doc.field("permissions")) }
   }
 
-  def updateModelUserPermissions(modelFqn: ModelFqn, username: String, permissions: ModelPermissions): Try[Unit] = tryWithDb { db =>
-    val modelRID = ModelStore.getModelRid(modelFqn.modelId, modelFqn.collectionId, db).get
+  def updateModelUserPermissions(id: String, username: String, permissions: ModelPermissions): Try[Unit] = tryWithDb { db =>
+    val modelRID = ModelStore.getModelRid(id, db).get
     val userRID = DomainUserStore.getUserRid(username, db).get
     val key = new OCompositeKey(List(userRID, modelRID).asJava)
-    val modelPermissionRID = getModelUserPermissionsRid(modelFqn, username)
+    val modelPermissionRID = getModelUserPermissionsRid(id, username)
     if (modelPermissionRID.isSuccess) {
       val modelPermissionsDoc = modelPermissionRID.get.getRecord[ODocument]
       modelPermissionsDoc.field(Fields.Permissions, modelPermissionToDoc(permissions))
@@ -416,8 +412,8 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     ()
   }
 
-  def removeModelUserPermissions(modelFqn: ModelFqn, username: String): Try[Unit] = tryWithDb { db =>
-    val modelRID = ModelStore.getModelRid(modelFqn.modelId, modelFqn.collectionId, db).get
+  def removeModelUserPermissions(id: String, username: String): Try[Unit] = tryWithDb { db =>
+    val modelRID = ModelStore.getModelRid(id, db).get
     val modelDoc = modelRID.getRecord[ODocument]
     val userRID = DomainUserStore.getUserRid(username, db).get
     val userPermissions: OTrackedList[ODocument] = modelDoc.field(Fields.UserPermissions, OType.LINKLIST)
@@ -447,15 +443,12 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     QueryUtil.getRidFromIndex(CollectionUserPermissionsIndex, key, db).get
   }
 
-  def getModelRid(modelFqn: ModelFqn): Try[ORID] = tryWithDb { db =>
-    val ModelFqn(collectionId, modelId) = modelFqn
-    val collectionRID = getCollectionRid(collectionId).get
-    val key = new OCompositeKey(List(collectionRID, modelId).asJava)
-    QueryUtil.getRidFromIndex(ModelIndex, key, db).get
+  def getModelRid(id: String): Try[ORID] = tryWithDb { db =>
+    QueryUtil.getRidFromIndex(ModelIndex, id, db).get
   }
 
-  def getModelUserPermissionsRid(modelFqn: ModelFqn, username: String): Try[ORID] = tryWithDb { db =>
-    val modelRID = ModelStore.getModelRid(modelFqn.modelId, modelFqn.collectionId, db).get
+  def getModelUserPermissionsRid(id: String, username: String): Try[ORID] = tryWithDb { db =>
+    val modelRID = ModelStore.getModelRid(id, db).get
     val userRID = DomainUserStore.getUserRid(username, db).get
     val key = new OCompositeKey(List(userRID, modelRID).asJava)
     QueryUtil.getRidFromIndex(ModelUserPermissionsIndex, key, db).get

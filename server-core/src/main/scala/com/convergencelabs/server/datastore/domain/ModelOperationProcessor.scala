@@ -60,7 +60,7 @@ class ModelOperationProcessor private[domain] (
       modelOpStore.createModelOperation(modelOperation)
     }.flatMap { _ =>
       // Update the model metadata
-      modelStore.updateModelOnOperation(modelOperation.modelFqn, modelOperation.timestamp)
+      modelStore.updateModelOnOperation(modelOperation.modelFqn.modelId, modelOperation.timestamp)
     }.get
   }
   
@@ -428,6 +428,6 @@ class ModelOperationProcessor private[domain] (
   }
 
   private[this] def getModelRid(fqn: ModelFqn, db: ODatabaseDocumentTx): ORID = {
-    ModelStore.getModelRid(fqn.modelId, fqn.collectionId, db).get
+    ModelStore.getModelRid(fqn.modelId, db).get
   }
 }

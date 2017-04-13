@@ -111,7 +111,7 @@ class ModelOperationProcessorSpec
         val op = AppliedStringInsertOperation(fnameVID, true, 0, "abc")
         val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
-        val modelData = provider.modelStore.getModelData(person1ModelFqn).get.value
+        val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(fnameField) shouldEqual StringValue(fnameVID, "john")
       }
     }
@@ -125,7 +125,7 @@ class ModelOperationProcessorSpec
 
         val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, compound)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
-        val modelData = provider.modelStore.getModelData(person1ModelFqn).get.value
+        val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(fnameField) shouldEqual StringValue(fnameVID, "xyjohn")
       }
 
@@ -137,7 +137,7 @@ class ModelOperationProcessorSpec
 
         val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, compound)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
-        val modelData = provider.modelStore.getModelData(person1ModelFqn).get.value
+        val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children("newName") shouldEqual StringValue("idididi", "somethingelse")
       }
 
@@ -149,7 +149,7 @@ class ModelOperationProcessorSpec
 
         val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, compound)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
-        val modelData = provider.modelStore.getModelData(person1ModelFqn).get.value
+        val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(fnameField) shouldEqual StringValue(fnameVID, "xjohn")
       }
     }
@@ -160,7 +160,7 @@ class ModelOperationProcessorSpec
         val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
-        val modelData = provider.modelStore.getModelData(person1ModelFqn).get.value
+        val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(fnameField) shouldEqual StringValue(fnameVID, "abcjohn")
       }
 
@@ -169,7 +169,7 @@ class ModelOperationProcessorSpec
         val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
-        val modelData = provider.modelStore.getModelData(person1ModelFqn).get.value
+        val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(fnameField) shouldEqual StringValue(fnameVID, "jn")
       }
 
@@ -178,7 +178,7 @@ class ModelOperationProcessorSpec
         val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
-        val modelData = provider.modelStore.getModelData(person1ModelFqn).get.value
+        val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(fnameField) shouldEqual StringValue(fnameVID, "new string")
       }
     }
@@ -190,7 +190,7 @@ class ModelOperationProcessorSpec
         val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
-        val modelData = provider.modelStore.getModelData(person1ModelFqn).get.value
+        val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(emailsField) match {
           case ArrayValue(vid, children) => {
             children(0) shouldBe insertVal
@@ -204,7 +204,7 @@ class ModelOperationProcessorSpec
         val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
-        val modelData = provider.modelStore.getModelData(person1ModelFqn).get.value
+        val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(emailsField) match {
           case ArrayValue(vid, children) => {
             children.size shouldBe 2
@@ -219,7 +219,7 @@ class ModelOperationProcessorSpec
         val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
-        val modelData = provider.modelStore.getModelData(person1ModelFqn).get.value
+        val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(emailsField) match {
           case ArrayValue(vid, children) => {
             children(0) shouldBe replaceVal
@@ -234,7 +234,7 @@ class ModelOperationProcessorSpec
         val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
-        val modelData = provider.modelStore.getModelData(person1ModelFqn).get.value
+        val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(emailsField) shouldBe ArrayValue(emailsVID, List(
           StringValue("pp1-email2", "second@email.com"),
           StringValue("pp1-email3", "another@email.com"),
@@ -247,7 +247,7 @@ class ModelOperationProcessorSpec
         val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
-        val modelData = provider.modelStore.getModelData(person1ModelFqn).get.value
+        val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(emailsField) match {
           case ArrayValue(vid, children) => {
             children shouldEqual setValue
@@ -263,7 +263,7 @@ class ModelOperationProcessorSpec
         val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
-        val modelData = provider.modelStore.getModelData(person1ModelFqn).get.value
+        val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children("addedProperty") shouldEqual StringValue("aoo-value", "value")
       }
 
@@ -272,7 +272,7 @@ class ModelOperationProcessorSpec
         val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
-        val modelData = provider.modelStore.getModelData(person1ModelFqn).get.value
+        val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children("prop-with-dash") shouldEqual StringValue("aoo-value", "value")
       }
 
@@ -281,7 +281,7 @@ class ModelOperationProcessorSpec
         val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
-        val modelData = provider.modelStore.getModelData(person1ModelFqn).get.value
+        val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(fnameField) shouldBe StringValue("pp1-fnbob", "bob")
       }
 
@@ -290,7 +290,7 @@ class ModelOperationProcessorSpec
         val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
-        val modelData = provider.modelStore.getModelData(person1ModelFqn).get.value
+        val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children.get(fnameField) shouldBe None
       }
 
@@ -304,7 +304,7 @@ class ModelOperationProcessorSpec
         val modelOp = NewModelOperation(person1ModelFqn, startingVersion + 1, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
-        val modelData = provider.modelStore.getModelData(person1ModelFqn).get.value
+        val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children.get(propWithDash) shouldBe None
       }
 
@@ -314,7 +314,7 @@ class ModelOperationProcessorSpec
         val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
-        val modelData = provider.modelStore.getModelData(person1ModelFqn).get.value
+        val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children shouldBe replacePerson
       }
     }
@@ -325,7 +325,7 @@ class ModelOperationProcessorSpec
         val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp)
 
-        val modelData = provider.modelStore.getModelData(person1ModelFqn).get.value
+        val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(ageField) shouldBe DoubleValue(ageVID, 31)
       }
 
@@ -334,7 +334,7 @@ class ModelOperationProcessorSpec
         val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp)
 
-        val modelData = provider.modelStore.getModelData(person1ModelFqn).get.value
+        val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(ageField) shouldBe DoubleValue(ageVID, 33)
       }
     }
@@ -345,7 +345,7 @@ class ModelOperationProcessorSpec
         val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp)
 
-        val modelData = provider.modelStore.getModelData(person1ModelFqn).get.value
+        val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(marriedField) shouldBe BooleanValue(marriedVID, true)
       }
     }
@@ -357,7 +357,7 @@ class ModelOperationProcessorSpec
         val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp)
 
-        val modelData = provider.modelStore.getModelData(person1ModelFqn).get.value
+        val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(bornField) shouldBe DateValue(bornVID, newDate)
       }
     }
@@ -370,7 +370,7 @@ class ModelOperationProcessorSpec
         val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, addOp)
 
         provider.modelOperationProcessor.processModelOperation(modelOp).get
-        val modelData = provider.modelStore.getModelData(person1ModelFqn).get.value
+        val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(".value") shouldBe StringValue("aoo-value", "value")
       }
 
@@ -380,14 +380,14 @@ class ModelOperationProcessorSpec
         val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, addOp)
 
         provider.modelOperationProcessor.processModelOperation(modelOp).get
-        val modelData = provider.modelStore.getModelData(person1ModelFqn).get.value
+        val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(".value") shouldBe StringValue("aoo-value", "initial")
 
         val setOp = AppliedObjectSetPropertyOperation("pp1-data", false, ".value", StringValue("aoo-value1", "updated"), Some(StringValue("aoo-value", "initial")))
         val setModelOp = NewModelOperation(person1ModelFqn, startingVersion + 1, Instant.now(), sid, setOp)
 
         provider.modelOperationProcessor.processModelOperation(setModelOp).get
-        val updatedModelData = provider.modelStore.getModelData(person1ModelFqn).get.value
+        val updatedModelData = provider.modelStore.getModelData(person1Id).get.value
         updatedModelData.children(".value") shouldBe StringValue("aoo-value1", "updated")
       }
 
@@ -398,7 +398,7 @@ class ModelOperationProcessorSpec
         val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
-        val modelData = provider.modelStore.getModelData(person1ModelFqn).get.value
+        val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(property) shouldBe StringValue("aoo-value", "value")
       }
 
@@ -408,7 +408,7 @@ class ModelOperationProcessorSpec
         val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
-        val modelData = provider.modelStore.getModelData(person1ModelFqn).get.value
+        val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(property) shouldBe StringValue("aoo-value", "value")
       }
     }

@@ -61,7 +61,7 @@ class ModelManagerActor(
         modelActor forward openRequest
       case None =>
         // Model not already open, load it
-        val me = this.persistenceProvider.modelStore.modelExists(modelFqn)
+        val me = this.persistenceProvider.modelStore.modelExists(modelFqn.modelId)
         me flatMap { exists =>
           (if (exists) {
             getModelUserPermissions(modelFqn, sk) map (p => p.read)
@@ -134,14 +134,14 @@ class ModelManagerActor(
       Success(ModelPermissions(true, true, true, true))
     } else {
       val permissionsStore = this.persistenceProvider.modelPermissionsStore
-      permissionsStore.modelOverridesCollectionPermissions(fqn).flatMap { overrides =>
+      permissionsStore.modelOverridesCollectionPermissions(fqn.modelId).flatMap { overrides =>
         if (overrides) {
-          permissionsStore.getModelUserPermissions(fqn, sk.uid).flatMap { userPerms =>
+          permissionsStore.getModelUserPermissions(fqn.modelId, sk.uid).flatMap { userPerms =>
             userPerms match {
               case Some(p) =>
                 Success(p)
               case None =>
-                permissionsStore.getModelWorldPermissions(fqn)
+                permissionsStore.getModelWorldPermissions(fqn.modelId)
             }
           }
         } else {
@@ -165,11 +165,11 @@ class ModelManagerActor(
     val permissionsStore = this.persistenceProvider.modelPermissionsStore
     if (modelExists) {
       for {
-        overrideCollection <- permissionsStore.modelOverridesCollectionPermissions(fqn)
+        overrideCollection <- permissionsStore.modelOverridesCollectionPermissions(fqn.modelId)
         collectionWorld <- permissionsStore.getCollectionWorldPermissions(fqn.collectionId)
         collectionUsers <- permissionsStore.getAllCollectionUserPermissions(fqn.collectionId)
-        modelWorld <- permissionsStore.getModelWorldPermissions(fqn)
-        modelUsers <- permissionsStore.getAllModelUserPermissions(fqn)
+        modelWorld <- permissionsStore.getModelWorldPermissions(fqn.modelId)
+        modelUsers <- permissionsStore.getAllModelUserPermissions(fqn.modelId)
       } yield (RealTimeModelPermissions(overrideCollection, collectionWorld.get, collectionUsers, modelWorld, modelUsers))
     } else {
       for {
@@ -243,7 +243,7 @@ class ModelManagerActor(
           openRealtimeModels -= modelFqn
         }
 
-        persistenceProvider.modelStore.deleteModel(modelFqn) map { _ =>
+        persistenceProvider.modelStore.deleteModel(modelFqn.modelId) map { _ =>
           sender ! ModelDeleted
           ()
         }
@@ -275,9 +275,9 @@ class ModelManagerActor(
     val permissionsStore = persistenceProvider.modelPermissionsStore
     val GetModelPermissionsRequest(collectionId, modelId) = request
     (for {
-      overrideCollection <- permissionsStore.modelOverridesCollectionPermissions(modelFqn)
-      modelWorld <- permissionsStore.getModelWorldPermissions(modelFqn)
-      modelUsers <- permissionsStore.getAllModelUserPermissions(modelFqn)
+      overrideCollection <- permissionsStore.modelOverridesCollectionPermissions(modelFqn.modelId)
+      modelWorld <- permissionsStore.getModelWorldPermissions(modelFqn.modelId)
+      modelUsers <- permissionsStore.getAllModelUserPermissions(modelFqn.modelId)
     } yield {
       sender ! GetModelPermissionsResponse(overrideCollection, modelWorld, modelUsers)
     }) recover {
@@ -298,20 +298,20 @@ class ModelManagerActor(
 
         (for {
           _ <- overrideCollection match {
-            case Some(ov) => persistenceProvider.modelPermissionsStore.setOverrideCollectionPermissions(modelFqn, ov)
+            case Some(ov) => persistenceProvider.modelPermissionsStore.setOverrideCollectionPermissions(modelFqn.modelId, ov)
             case None     => Success(())
           }
           _ <- world match {
-            case Some(perms) => persistenceProvider.modelPermissionsStore.setModelWorldPermissions(modelFqn, perms)
+            case Some(perms) => persistenceProvider.modelPermissionsStore.setModelWorldPermissions(modelFqn.modelId, perms)
             case None        => Success(())
           }
 
           _ <- if (setAllUsers) {
-            persistenceProvider.modelPermissionsStore.deleteAllModelUserPermissions(modelFqn)
+            persistenceProvider.modelPermissionsStore.deleteAllModelUserPermissions(modelFqn.modelId)
           } else {
             Success(())
           }
-          _ <- persistenceProvider.modelPermissionsStore.updateAllModelUserPermissions(modelFqn, users)
+          _ <- persistenceProvider.modelPermissionsStore.updateAllModelUserPermissions(modelFqn.modelId, users)
         } yield {
           sender ! (())
 

@@ -76,7 +76,7 @@ class ModelStoreActor private[datastore] (private[this] val persistenceProvider:
   }
 
   def getModel(modelFqn: ModelFqn): Unit = {
-    reply(persistenceProvider.modelStore.getModel(modelFqn))
+    reply(persistenceProvider.modelStore.getModel(modelFqn.modelId))
   }
 
   def createModel(collectionId: String, data: Map[String, Any], overridePermissions: Option[Boolean], worldPermissions: Option[ModelPermissions]): Unit = {
@@ -104,7 +104,7 @@ class ModelStoreActor private[datastore] (private[this] val persistenceProvider:
           ModelFqn(collectionId, modelId)
         } recoverWith {
           case e: DuplicateValueExcpetion =>
-            persistenceProvider.modelStore.updateModel(ModelFqn(collectionId, modelId), root, worldPermissions) map { _ =>
+            persistenceProvider.modelStore.updateModel(modelId, root, worldPermissions) map { _ =>
               ModelFqn(collectionId, modelId)
             }
         }
@@ -114,7 +114,7 @@ class ModelStoreActor private[datastore] (private[this] val persistenceProvider:
 
   def deleteModel(modelFqn: ModelFqn): Unit = {
     // FIXME If the model is open this could cause problems.
-    reply(persistenceProvider.modelStore.deleteModel(modelFqn))
+    reply(persistenceProvider.modelStore.deleteModel(modelFqn.modelId))
   }
 }
 

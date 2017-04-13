@@ -134,9 +134,9 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
     val snapshotStore = persistence.modelSnapshotStore
 
     for {
-      modelOpt <- models.getModel(fqn)
-      ops <- opStore.getOperationsAfterVersion(fqn, 0)
-      snapshots <- snapshotStore.getSnapshots(fqn)
+      modelOpt <- models.getModel(fqn.modelId)
+      ops <- opStore.getOperationsAfterVersion(fqn.modelId, 0)
+      snapshots <- snapshotStore.getSnapshots(fqn.modelId)
     } yield {
       val model = modelOpt.get
       CreateModel(

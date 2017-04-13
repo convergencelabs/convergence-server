@@ -114,8 +114,8 @@ class RealtimeModelActorSpec
         Mockito.when(modelStore.createModel(modelFqn.collectionId, Some(modelFqn.modelId), modelJsonData, true, modelPermissions))
           .thenReturn(Success(Model(ModelMetaData(modelFqn, 0L, now, now, true, modelPermissions), modelJsonData)))
         Mockito.when(modelSnapshotStore.createSnapshot(Matchers.any())).thenReturn(Success(()))
-        Mockito.when(modelStore.getModel(modelFqn)).thenReturn(Success(Some(modelData)))
-        Mockito.when(modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)).thenReturn(Success(Some(modelSnapshotMetaData)))
+        Mockito.when(modelStore.getModel(modelId)).thenReturn(Success(Some(modelData)))
+        Mockito.when(modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelId)).thenReturn(Success(Some(modelSnapshotMetaData)))
 
         client1.reply(ClientModelDataResponse(modelJsonData, Some(true), Some(modelPermissions)))
         client2.reply(ClientModelDataResponse(modelJsonData, Some(true), Some(modelPermissions)))
@@ -250,7 +250,8 @@ class RealtimeModelActorSpec
 
     val modelPermissions = ModelPermissions(true, true, true, true)
 
-    val modelFqn = ModelFqn("collection", "model" + System.nanoTime())
+    val modelId = "model" + System.nanoTime()
+    val modelFqn = ModelFqn("collection", modelId)
     val modelJsonData = ObjectValue("vid1", Map("key" -> StringValue("vid2", "value")))
     val modelCreateTime = Instant.ofEpochMilli(2L)
     val modelModifiedTime = Instant.ofEpochMilli(3L)
@@ -280,9 +281,9 @@ class RealtimeModelActorSpec
   }
 
   trait MockDatabaseWithModel extends TestFixture {
-    Mockito.when(modelStore.modelExists(modelFqn)).thenReturn(Success(true))
-    Mockito.when(modelStore.getModel(modelFqn)).thenReturn(Success(Some(modelData)))
-    Mockito.when(modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelFqn)).thenReturn(Success(Some(modelSnapshotMetaData)))
+    Mockito.when(modelStore.modelExists(modelId)).thenReturn(Success(true))
+    Mockito.when(modelStore.getModel(modelId)).thenReturn(Success(Some(modelData)))
+    Mockito.when(modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelId)).thenReturn(Success(Some(modelSnapshotMetaData)))
   }
 
   trait OneOpenClient extends MockDatabaseWithModel {
@@ -299,6 +300,6 @@ class RealtimeModelActorSpec
   }
 
   trait MockDatabaseWithoutModel extends TestFixture {
-    Mockito.when(modelStore.modelExists(modelFqn)).thenReturn(Success(false))
+    Mockito.when(modelStore.modelExists(modelId)).thenReturn(Success(false))
   }
 }
