@@ -210,7 +210,7 @@ class ModelManagerActor(
             data,
             overridePermissions,
             worldPermissions) map { model =>
-              sender ! ModelCreated(model.metaData.fqn)
+              sender ! ModelCreated(ModelFqn(model.metaData.collectionId, model.metaData.modelId))
               ()
             }
         } else {

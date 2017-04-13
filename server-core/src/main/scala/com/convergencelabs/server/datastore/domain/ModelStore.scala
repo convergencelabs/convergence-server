@@ -17,7 +17,6 @@ import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.datastore.QueryUtil
 import com.convergencelabs.server.datastore.domain.mapper.ObjectValueMapper.ODocumentToObjectValue
 import com.convergencelabs.server.domain.model.Model
-import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelMetaData
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
@@ -79,9 +78,8 @@ object ModelStore {
     val modifiedTime: Date = doc.field(ModifiedTime, OType.DATETIME)
     val worldPermissions = ModelPermissionsStore.docToModelPermissions(doc.field(WorldPermissions))
     ModelMetaData(
-      ModelFqn(
-        doc.field("collection.id"),
-        doc.field(Id)),
+      doc.field("collection.id"),
+      doc.field(Id),
       doc.field(Version, OType.LONG),
       createdTime.toInstant(),
       modifiedTime.toInstant(),
@@ -95,7 +93,7 @@ object ModelStore {
   }
 
   def getModelRid(id: String, db: ODatabaseDocumentTx): Try[ORID] = {
-    
+
     val query = "SELECT @RID as rid FROM Model WHERE id = :id"
     val params = Map("id" -> id)
     QueryUtil.lookupMandatoryDocument(query, params, db) map { _.eval("rid").asInstanceOf[ORID] }
@@ -129,7 +127,8 @@ class ModelStore private[domain] (
 
     val model = Model(
       ModelMetaData(
-        ModelFqn(collectionId, computedModelId),
+        collectionId,
+        computedModelId,
         version,
         createdTime,
         modifiedTime,
@@ -141,8 +140,8 @@ class ModelStore private[domain] (
   }
 
   def createModel(model: Model): Try[Unit] = tryWithDb { db =>
-    val collectionId = model.metaData.fqn.collectionId
-    val modelId = model.metaData.fqn.modelId
+    val collectionId = model.metaData.collectionId
+    val modelId = model.metaData.modelId
     val createdTime = model.metaData.createdTime
     val modifiedTime = model.metaData.modifiedTime
     val version = model.metaData.version
@@ -165,13 +164,13 @@ class ModelStore private[domain] (
         modelDoc.field(CreatedTime, Date.from(createdTime))
         modelDoc.field(ModifiedTime, Date.from(modifiedTime))
         modelDoc.field(OverridePermissions, overrridePermissions)
-        
+
         val worldPermsDoc = ModelPermissionsStore.modelPermissionToDoc(worldPermissions)
         modelDoc.field(WorldPermissions, worldPermsDoc, OType.EMBEDDED)
-        
+
         val dataDoc = OrientDataValueBuilder.objectValueToODocument(data, modelDoc)
         modelDoc.field(Data, dataDoc, OType.LINK)
-        
+
         // FIXME what about the user permissions LINKLIST?
 
         dataDoc.save()

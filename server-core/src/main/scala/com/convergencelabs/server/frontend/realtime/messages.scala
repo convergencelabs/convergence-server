@@ -4,7 +4,6 @@ import org.json4s.JsonAST.JArray
 import org.json4s.JsonAST.JNumber
 import org.json4s.JsonAST.JObject
 import org.json4s.JsonAST.JValue
-import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.OpenModelMetaData
 import com.convergencelabs.server.ProtocolConfiguration
 import com.convergencelabs.server.domain.model.data.ObjectValue

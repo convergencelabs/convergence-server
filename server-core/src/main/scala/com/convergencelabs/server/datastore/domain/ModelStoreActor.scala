@@ -90,7 +90,7 @@ class ModelStoreActor private[datastore] (private[this] val persistenceProvider:
             root,
             overridePermissions,
             worldPermissions
-          ).map (model => model.metaData.fqn)
+          ).map (model => ModelFqn(model.metaData.collectionId, model.metaData.modelId))
     
     reply(result)
   }

@@ -112,7 +112,7 @@ class RealtimeModelActorSpec
         // Now mock that the data is there.
         val now = Instant.now()
         Mockito.when(modelStore.createModel(modelFqn.collectionId, Some(modelFqn.modelId), modelJsonData, true, modelPermissions))
-          .thenReturn(Success(Model(ModelMetaData(modelFqn, 0L, now, now, true, modelPermissions), modelJsonData)))
+          .thenReturn(Success(Model(ModelMetaData(collectionId, modelId, 0L, now, now, true, modelPermissions), modelJsonData)))
         Mockito.when(modelSnapshotStore.createSnapshot(Matchers.any())).thenReturn(Success(()))
         Mockito.when(modelStore.getModel(modelId)).thenReturn(Success(Some(modelData)))
         Mockito.when(modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelId)).thenReturn(Success(Some(modelSnapshotMetaData)))
@@ -250,12 +250,13 @@ class RealtimeModelActorSpec
 
     val modelPermissions = ModelPermissions(true, true, true, true)
 
+    val collectionId = "collection"
     val modelId = "model" + System.nanoTime()
-    val modelFqn = ModelFqn("collection", modelId)
+    val modelFqn = ModelFqn(collectionId, modelId)
     val modelJsonData = ObjectValue("vid1", Map("key" -> StringValue("vid2", "value")))
     val modelCreateTime = Instant.ofEpochMilli(2L)
     val modelModifiedTime = Instant.ofEpochMilli(3L)
-    val modelData = Model(ModelMetaData(modelFqn, 1L, modelCreateTime, modelModifiedTime, true, modelPermissions), modelJsonData)
+    val modelData = Model(ModelMetaData(collectionId, modelId, 1L, modelCreateTime, modelModifiedTime, true, modelPermissions), modelJsonData)
     val modelSnapshotTime = Instant.ofEpochMilli(2L)
     val modelSnapshotMetaData = ModelSnapshotMetaData(modelFqn, 1L, modelSnapshotTime)
     val modelStore = mock[ModelStore]

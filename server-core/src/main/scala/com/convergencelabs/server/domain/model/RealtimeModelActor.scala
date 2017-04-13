@@ -412,7 +412,7 @@ class RealtimeModelActor(
         log.debug(s"Model created in database: ${this.modelFqn}")
 
         val Model(
-          ModelMetaData(fqn, version, createdTime, modifiedTime, overridePermissions, worldPermissions),
+          ModelMetaData(collectionId, modelId, version, createdTime, modifiedTime, overridePermissions, worldPermissions),
           data) = model
 
         log.debug(s"Creating initial snapshot database: ${this.modelFqn}")
@@ -467,8 +467,8 @@ class RealtimeModelActor(
 
     // Send a message to the client informing them of the successful model open.
     val metaData = OpenModelMetaData(
-      modelData.metaData.fqn.modelId,
-      modelData.metaData.fqn.collectionId,
+      modelData.metaData.modelId,
+      modelData.metaData.collectionId,
       modelData.metaData.version,
       modelData.metaData.createdTime,
       modelData.metaData.modifiedTime)
@@ -659,7 +659,7 @@ class RealtimeModelActor(
       val modelData = modelStore.getModel(this.modelFqn.modelId).get.get
       val snapshot = new ModelSnapshot(
         ModelSnapshotMetaData(
-          modelData.metaData.fqn,
+          ModelFqn(modelData.metaData.collectionId, modelData.metaData.modelId),
           modelData.metaData.version,
           modelData.metaData.modifiedTime),
         modelData.data)

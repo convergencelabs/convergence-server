@@ -33,10 +33,11 @@ class ModelOperationStoreSpec
 
   val modelPermissions = ModelPermissions(true, true, true, true)
   
+  val peopleCollection = "people"
   val modelId1 = "person1"
   val modelFqn = ModelFqn("people", modelId1)
   val model = Model(
-    ModelMetaData(modelFqn, 10L, Instant.now(), Instant.now(), true, modelPermissions),
+    ModelMetaData(peopleCollection, modelId1, 10L, Instant.now(), Instant.now(), true, modelPermissions),
     ObjectValue("vid", Map()))
 
   val sessionId = "test:1"

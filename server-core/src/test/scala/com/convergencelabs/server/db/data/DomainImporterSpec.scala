@@ -88,13 +88,15 @@ class DomainImporterSpec extends WordSpecLike with Matchers {
         collections.size shouldBe 1
         collections(0) shouldBe Collection("collection1", "Collection 1", false, DomainImporter.DefaultSnapshotConfig, CollectionPermissions(true, true, true, true, true))
 
+        val collectionId = "collection1"
         val modelId = "someId"
-        val modelFqn = ModelFqn("collection1", "someId")
+        val modelFqn = ModelFqn("collection1", modelId)
 
         val model = provider.modelStore.getModel(modelId).get.value
         model shouldBe Model(
           ModelMetaData(
-            modelFqn,
+            collectionId,
+            modelId,
             2L,
             Instant.parse("2016-11-16T17:49:15.233Z"),
             Instant.parse("2016-11-16T17:49:15.233Z"),

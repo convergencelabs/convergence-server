@@ -23,15 +23,15 @@ object ModelCreator {
         collectionId, modelId, data, overrideWorld, worldPerms)
       model
     } flatMap { model =>
-      val ModelMetaData(fqn, version, created, modified, overworldPermissions, worldPermissions) = model.metaData
-      val snapshot = ModelSnapshot(ModelSnapshotMetaData(fqn, version, created), model.data)
+      val ModelMetaData(model.metaData.collectionId, model.metaData.modelId, version, created, modified, overworldPermissions, worldPermissions) = model.metaData
+      val snapshot = ModelSnapshot(ModelSnapshotMetaData(ModelFqn(model.metaData.collectionId, model.metaData.modelId), version, created), model.data)
       persistenceProvider.modelSnapshotStore.createSnapshot(snapshot) flatMap { _ =>
         username match {
           case Some(uname) =>
             persistenceProvider
               .modelPermissionsStore
               .updateModelUserPermissions(
-                model.metaData.fqn.modelId,
+                model.metaData.modelId,
                 uname,
                 ModelPermissions(true, true, true, true)) map (_ => model)
           case None =>

@@ -403,8 +403,8 @@ class ModelClientActor(
         ModelsQueryResponseMessage(result map {
           r =>
             ModelResult(
-              r.metaData.fqn.collectionId,
-              r.metaData.fqn.modelId,
+              r.metaData.collectionId,
+              r.metaData.modelId,
               r.metaData.createdTime.toEpochMilli(),
               r.metaData.modifiedTime.toEpochMilli(),
               r.metaData.version,

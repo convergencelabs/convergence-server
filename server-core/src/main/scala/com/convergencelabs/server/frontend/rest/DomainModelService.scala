@@ -201,8 +201,8 @@ class DomainModelService(
 
   def mapMetaData(metaData: ModelMetaData): ModelMetaDataResponse = {
     ModelMetaDataResponse(
-      metaData.fqn.collectionId,
-      metaData.fqn.modelId,
+      metaData.collectionId,
+      metaData.modelId,
       metaData.version,
       metaData.createdTime,
       metaData.modifiedTime)
@@ -213,8 +213,8 @@ class DomainModelService(
     (domainRestActor ? message).mapTo[Option[Model]] map {
       case Some(model) =>
         val mr = ModelResponse(
-          model.metaData.fqn.collectionId,
-          model.metaData.fqn.modelId,
+          model.metaData.collectionId,
+          model.metaData.modelId,
           model.metaData.version,
           model.metaData.createdTime,
           model.metaData.modifiedTime,

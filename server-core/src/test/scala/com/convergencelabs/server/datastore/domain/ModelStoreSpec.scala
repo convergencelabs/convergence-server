@@ -37,13 +37,14 @@ class ModelStoreSpec
   }
 
   val modelPermissions = ModelPermissions(true, true, true, true)
-  
+
   val peopleCollectionId = "people"
 
   val person1Id = "person1"
   val person1 = ModelFqn(peopleCollectionId, person1Id)
   val person1MetaData = ModelMetaData(
-    person1,
+    peopleCollectionId,
+    person1Id,
     20,
     Instant.ofEpochMilli(df.parse("2015-10-20T01:00:00.000+0000").getTime),
     Instant.ofEpochMilli(df.parse("2015-10-20T12:00:00.000+0000").getTime),
@@ -55,7 +56,8 @@ class ModelStoreSpec
   val person2Id = "person2"
   val person2 = ModelFqn(peopleCollectionId, person2Id)
   val person2MetaData = ModelMetaData(
-    person2,
+    peopleCollectionId,
+    person2Id,
     1,
     Instant.ofEpochMilli(df.parse("2015-10-20T02:00:00.000+0000").getTime),
     Instant.ofEpochMilli(df.parse("2015-10-20T02:00:00.000+0000").getTime),
@@ -67,7 +69,8 @@ class ModelStoreSpec
   val person3Id = "person3"
   val person3 = ModelFqn(peopleCollectionId, person3Id)
   val person3MetaData = ModelMetaData(
-    person3,
+    peopleCollectionId,
+    person3Id,
     1,
     Instant.ofEpochMilli(df.parse("2015-10-20T03:00:00.000+0000").getTime),
     Instant.ofEpochMilli(df.parse("2015-10-20T03:00:00.000+0000").getTime),
@@ -76,10 +79,12 @@ class ModelStoreSpec
   val person3Data = ObjectValue("2:0", Map("name" -> StringValue("2:1", "person3")))
   val person3Model = Model(person3MetaData, person3Data)
 
+  val companyCollectionId = "company"
   val company1Id = "company1"
-  val company1 = ModelFqn("company", company1Id)
+  val company1 = ModelFqn(companyCollectionId, company1Id)
   val company1MetaData = ModelMetaData(
-    company1,
+    companyCollectionId,
+    company1Id,
     1,
     Instant.ofEpochMilli(df.parse("2015-10-20T04:00:00.000+0000").getTime),
     Instant.ofEpochMilli(df.parse("2015-10-20T04:00:00.000+0000").getTime),
@@ -118,7 +123,7 @@ class ModelStoreSpec
         stores.collection.ensureCollectionExists(peopleCollectionId)
         stores.model.createModel(peopleCollectionId, Some(modelId), data, true, modelPermissions).get
         val model = stores.model.getModel(modelId).get.value
-        model.metaData.fqn shouldBe modelFqn
+        model.metaData.modelId shouldBe modelId
         model.metaData.version shouldBe 1
         model.data shouldBe data
       }
@@ -237,29 +242,29 @@ class ModelStoreSpec
         stores.collection.ensureCollectionExists(peopleCollectionId)
         stores.model.createModel(person1Model).get
         stores.model.updateModelOnOperation(person1Id, Instant.now())
-        
+
         val modelAfter = stores.model.getModel(person1Id).get.get
-        modelAfter.metaData.version shouldBe person1Model.metaData.version + 1 
+        modelAfter.metaData.version shouldBe person1Model.metaData.version + 1
       }
-      
+
       "correctly set the timestamp" in withPersistenceStore { stores =>
         stores.collection.ensureCollectionExists(peopleCollectionId)
         val modelBefore = stores.model.createModel(person1Model).get
         val timeStamp = Instant.now()
         stores.model.updateModelOnOperation(person1Id, timeStamp)
-        
+
         val modelAfter = stores.model.getModel(person1Id).get.get
-        modelAfter.metaData.modifiedTime shouldBe timeStamp 
+        modelAfter.metaData.modifiedTime shouldBe timeStamp
       }
-      
+
       "leave all other data instact" in withPersistenceStore { stores =>
         stores.collection.ensureCollectionExists(peopleCollectionId)
         stores.model.createModel(person1Model).get
         stores.model.updateModelOnOperation(person1Id, Instant.now())
-        
+
         val modelAfter = stores.model.getModel(person1Id).get.get
         modelAfter.metaData.createdTime shouldBe person1Model.metaData.createdTime
-        modelAfter.metaData.fqn shouldBe person1Model.metaData.fqn
+        modelAfter.metaData.modelId shouldBe person1Id
         modelAfter.data shouldBe person1Model.data
       }
     }

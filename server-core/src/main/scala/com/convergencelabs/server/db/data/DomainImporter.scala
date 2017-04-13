@@ -188,7 +188,8 @@ class DomainImporter(
     val data = createDataValue(modelData.data).asInstanceOf[ObjectValue]
     val model = Model(
       ModelMetaData(
-        fqn,
+        modelData.collection, 
+        modelData.id,
         modelData.version,
         modelData.created,
         modelData.modified,
