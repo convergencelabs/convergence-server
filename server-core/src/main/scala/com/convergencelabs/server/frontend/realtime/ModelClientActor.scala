@@ -315,6 +315,8 @@ class ModelClientActor(
         cb.reply(
           OpenRealtimeModelResponseMessage(
             modelResourceId,
+            metaData.id,
+            metaData.collection,
             valueIdPrefix,
             metaData.version,
             metaData.createdTime.toEpochMilli,

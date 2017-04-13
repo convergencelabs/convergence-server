@@ -102,7 +102,7 @@ case class SetReferenceMessage(r: String, d: Option[String], k: String, c: Int, 
 case class ClearReferenceMessage(r: String, d: Option[String], k: String) extends IncomingModelNormalMessage
 
 // Outgoing Model Messages
-case class OpenRealtimeModelResponseMessage(r: String, p: String, v: Long, c: Long, m: Long, d: OpenModelData, a: ModelPermissionsData) extends OutgoingProtocolResponseMessage
+case class OpenRealtimeModelResponseMessage(r: String, mi: String, ci: String, p: String, v: Long, c: Long, m: Long, d: OpenModelData, a: ModelPermissionsData) extends OutgoingProtocolResponseMessage
 case class OpenModelData(d: ObjectValue, s: Set[String], r: Set[ReferenceData])
 case class ReferenceData(s: String, d: Option[String], k: String, c: Int, v: List[Any])
 

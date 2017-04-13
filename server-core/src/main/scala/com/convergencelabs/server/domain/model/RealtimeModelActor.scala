@@ -467,6 +467,8 @@ class RealtimeModelActor(
 
     // Send a message to the client informing them of the successful model open.
     val metaData = OpenModelMetaData(
+      modelData.metaData.fqn.modelId,
+      modelData.metaData.fqn.collectionId,
       modelData.metaData.version,
       modelData.metaData.createdTime,
       modelData.metaData.modifiedTime)
