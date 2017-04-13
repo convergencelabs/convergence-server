@@ -7,8 +7,6 @@ import scala.util.Success
 
 import com.convergencelabs.server.domain.model.ClearReference
 import com.convergencelabs.server.domain.model.ClientDataRequestFailure
-import com.convergencelabs.server.domain.model.ClientModelDataRequest
-import com.convergencelabs.server.domain.model.ClientModelDataResponse
 import com.convergencelabs.server.domain.model.CloseRealtimeModelRequest
 import com.convergencelabs.server.domain.model.CloseRealtimeModelSuccess
 import com.convergencelabs.server.domain.model.CreateModelRequest
@@ -64,6 +62,8 @@ import akka.pattern.ask
 import akka.util.Timeout
 import akka.actor.Terminated
 import com.convergencelabs.server.datastore.UnauthorizedException
+import com.convergencelabs.server.domain.model.ClientAutoCreateModelConfigRequest
+import com.convergencelabs.server.domain.model.ClientAutoCreateModelConfigResponse
 
 object ModelClientActor {
   def props(
@@ -103,17 +103,17 @@ class ModelClientActor(
   // scalastyle:off cyclomatic.complexity
   private[this] def onOutgoingModelMessage(event: RealtimeModelClientMessage): Unit = {
     event match {
-      case op: OutgoingOperation => onOutgoingOperation(op)
-      case opAck: OperationAcknowledgement => onOperationAcknowledgement(opAck)
-      case remoteOpened: RemoteClientOpened => onRemoteClientOpened(remoteOpened)
-      case remoteClosed: RemoteClientClosed => onRemoteClientClosed(remoteClosed)
-      case foreceClosed: ModelForceClose => onModelForceClose(foreceClosed)
-      case dataRequest: ClientModelDataRequest => onClientModelDataRequest(dataRequest)
-      case refPublished: RemoteReferencePublished => onRemoteReferencePublished(refPublished)
-      case refUnpublished: RemoteReferenceUnpublished => onRemoteReferenceUnpublished(refUnpublished)
-      case refSet: RemoteReferenceSet => onRemoteReferenceSet(refSet)
-      case refCleared: RemoteReferenceCleared => onRemoteReferenceCleared(refCleared)
-      case permsChanged: ModelPermissionsChanged => onModelPermissionsChanged(permsChanged)
+      case op: OutgoingOperation                                 => onOutgoingOperation(op)
+      case opAck: OperationAcknowledgement                       => onOperationAcknowledgement(opAck)
+      case remoteOpened: RemoteClientOpened                      => onRemoteClientOpened(remoteOpened)
+      case remoteClosed: RemoteClientClosed                      => onRemoteClientClosed(remoteClosed)
+      case foreceClosed: ModelForceClose                         => onModelForceClose(foreceClosed)
+      case autoCreateRequest: ClientAutoCreateModelConfigRequest => onAutoCreateModelConfigRequest(autoCreateRequest)
+      case refPublished: RemoteReferencePublished                => onRemoteReferencePublished(refPublished)
+      case refUnpublished: RemoteReferenceUnpublished            => onRemoteReferenceUnpublished(refUnpublished)
+      case refSet: RemoteReferenceSet                            => onRemoteReferenceSet(refSet)
+      case refCleared: RemoteReferenceCleared                    => onRemoteReferenceCleared(refCleared)
+      case permsChanged: ModelPermissionsChanged                 => onModelPermissionsChanged(permsChanged)
     }
   }
   // scalastyle:on cyclomatic.complexity
@@ -171,17 +171,24 @@ class ModelClientActor(
     context.parent ! ModelForceCloseMessage(resourceId, reason)
   }
 
-  private[this] def onClientModelDataRequest(dataRequest: ClientModelDataRequest): Unit = {
-    val ClientModelDataRequest(ModelFqn(collectionId, modelId)) = dataRequest
+  private[this] def onAutoCreateModelConfigRequest(autoConfigRequest: ClientAutoCreateModelConfigRequest): Unit = {
+    val ClientAutoCreateModelConfigRequest(autoConfigId) = autoConfigRequest
     val askingActor = sender
-    val future = context.parent ? ModelDataRequestMessage(collectionId, modelId)
-    future.mapResponse[ModelDataResponseMessage] onComplete {
-      case Success(ModelDataResponseMessage(data, overridePermissions, worldPermissionsData)) =>
+    val future = context.parent ? AutoCreateModelConfigRequestMessage(autoConfigId)
+    future.mapResponse[AutoCreateModelConfigResponseMessage] onComplete {
+      case Success(AutoCreateModelConfigResponseMessage(collection, data, overridePermissions, worldPermissionsData, userPermissionsData)) =>
         val worldPermissions = worldPermissionsData.map(wp => {
           val ModelPermissionsData(read, write, remove, manage) = wp
           ModelPermissions(read, write, remove, manage)
         })
-        askingActor ! ClientModelDataResponse(data, overridePermissions, worldPermissions)
+        val userPermissions = userPermissionsData map {
+          _ map {
+            case (username, permissions) =>
+              val ModelPermissionsData(read, write, remove, manage) = permissions
+              (username, ModelPermissions(read, write, remove, manage))
+          }
+        }
+        askingActor ! ClientAutoCreateModelConfigResponse(collection, data, overridePermissions, worldPermissions, userPermissions)
       case Failure(cause) =>
         // forward the failure to the asker, so we fail fast.
         askingActor ! akka.actor.Status.Failure(cause)
@@ -227,11 +234,11 @@ class ModelClientActor(
 
   private[this] def onRequestReceived(message: IncomingModelRequestMessage, replyCallback: ReplyCallback): Unit = {
     message match {
-      case openRequest: OpenRealtimeModelRequestMessage => onOpenRealtimeModelRequest(openRequest, replyCallback)
-      case closeRequest: CloseRealtimeModelRequestMessage => onCloseRealtimeModelRequest(closeRequest, replyCallback)
-      case createRequest: CreateRealtimeModelRequestMessage => onCreateRealtimeModelRequest(createRequest, replyCallback)
-      case deleteRequest: DeleteRealtimeModelRequestMessage => onDeleteRealtimeModelRequest(deleteRequest, replyCallback)
-      case queryRequest: ModelsQueryRequestMessage => onModelQueryRequest(queryRequest, replyCallback)
+      case openRequest: OpenRealtimeModelRequestMessage            => onOpenRealtimeModelRequest(openRequest, replyCallback)
+      case closeRequest: CloseRealtimeModelRequestMessage          => onCloseRealtimeModelRequest(closeRequest, replyCallback)
+      case createRequest: CreateRealtimeModelRequestMessage        => onCreateRealtimeModelRequest(createRequest, replyCallback)
+      case deleteRequest: DeleteRealtimeModelRequestMessage        => onDeleteRealtimeModelRequest(deleteRequest, replyCallback)
+      case queryRequest: ModelsQueryRequestMessage                 => onModelQueryRequest(queryRequest, replyCallback)
       case getPermissionRequest: GetModelPermissionsRequestMessage => onGetModelPermissionsRequest(getPermissionRequest, replyCallback)
       case setPermissionRequest: SetModelPermissionsRequestMessage => onSetModelPermissionsRequest(setPermissionRequest, replyCallback)
     }
@@ -239,11 +246,11 @@ class ModelClientActor(
 
   private[this] def onMessageReceived(message: IncomingModelNormalMessage): Unit = {
     message match {
-      case submission: OperationSubmissionMessage => onOperationSubmission(submission)
-      case publishReference: PublishReferenceMessage => onPublishReference(publishReference)
+      case submission: OperationSubmissionMessage        => onOperationSubmission(submission)
+      case publishReference: PublishReferenceMessage     => onPublishReference(publishReference)
       case unpublishReference: UnpublishReferenceMessage => onUnpublishReference(unpublishReference)
-      case setReference: SetReferenceMessage => onSetReference(setReference)
-      case clearReference: ClearReferenceMessage => onClearReference(clearReference)
+      case setReference: SetReferenceMessage             => onSetReference(setReference)
+      case clearReference: ClearReferenceMessage         => onClearReference(clearReference)
     }
   }
 
@@ -301,9 +308,9 @@ class ModelClientActor(
 
   private[this] def onOpenRealtimeModelRequest(request: OpenRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
     val future = modelManager ? OpenRealtimeModelRequest(
-      sessionKey, ModelFqn(request.c, request.m), request.i, self)
+      sessionKey, request.m, request.a, self)
     future.mapResponse[OpenModelResponse] onComplete {
-      case Success(OpenModelSuccess(realtimeModelActor, modelResourceId, valueIdPrefix, metaData, connectedClients, references, modelData, modelPermissions)) => 
+      case Success(OpenModelSuccess(realtimeModelActor, modelResourceId, valueIdPrefix, metaData, connectedClients, references, modelData, modelPermissions)) =>
         openRealtimeModels += (modelResourceId -> realtimeModelActor)
         this.context.watch(realtimeModelActor)
         val convertedReferences = references.map { ref =>
@@ -374,7 +381,7 @@ class ModelClientActor(
     val future = modelManager ? CreateModelRequest(sessionKey, collectionId, modelId, data, overridePermissions, worldPermissions)
     future.mapResponse[CreateModelResponse] onComplete {
       case Success(ModelCreated(ModelFqn(c, m))) => cb.reply(CreateRealtimeModelSuccessMessage(c, m))
-      case Success(ModelAlreadyExists) => cb.expectedError("model_alread_exists", "A model with the specifieid collection and model id already exists")
+      case Success(ModelAlreadyExists)           => cb.expectedError("model_alread_exists", "A model with the specifieid collection and model id already exists")
       case Failure(cause) =>
         log.error(cause, "Unexpected error creating model.")
         cb.unexpectedError("could not create model")

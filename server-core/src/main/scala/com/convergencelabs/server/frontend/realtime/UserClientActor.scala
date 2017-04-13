@@ -4,8 +4,6 @@ import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
-import com.convergencelabs.server.domain.model.ClientModelDataRequest
-import com.convergencelabs.server.domain.model.ClientModelDataResponse
 import com.convergencelabs.server.domain.model.CloseRealtimeModelRequest
 import com.convergencelabs.server.domain.model.CloseRealtimeModelSuccess
 import com.convergencelabs.server.domain.model.CreateModelRequest

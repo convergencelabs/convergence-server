@@ -33,8 +33,8 @@ object MessageType extends Enumeration {
   val RemoteClientOpenedModel = 109
   val RemoteClientClosedModel = 110
 
-  val ModelDataRequest = 111
-  val ModelDataResponse = 112
+  val ModelAutoCreateConfigRequest = 111
+  val ModelAutoCreateConfigResponse = 112
 
   val RemoteOperation = 113
 

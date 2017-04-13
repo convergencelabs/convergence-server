@@ -67,8 +67,8 @@ object MessageSerializer {
     MessageType.DeleteRealtimeModelRequest -> classOf[DeleteRealtimeModelRequestMessage],
     MessageType.DeleteRealtimeModelResponse -> classOf[DeleteRealtimeModelSuccessMessage],
 
-    MessageType.ModelDataResponse -> classOf[ModelDataResponseMessage],
-    MessageType.ModelDataRequest -> classOf[ModelDataRequestMessage],
+    MessageType.ModelAutoCreateConfigResponse -> classOf[AutoCreateModelConfigResponseMessage],
+    MessageType.ModelAutoCreateConfigRequest -> classOf[AutoCreateModelConfigRequestMessage],
 
     MessageType.OperationSubmission -> classOf[OperationSubmissionMessage],
     MessageType.OperationAck -> classOf[OperationAcknowledgementMessage],

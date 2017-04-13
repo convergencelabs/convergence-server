@@ -76,7 +76,7 @@ sealed trait IncomingModelNormalMessage extends IncomingProtocolNormalMessage
 case class OperationSubmissionMessage(r: String, s: Long, v: Long, o: OperationData) extends IncomingModelNormalMessage
 
 sealed trait IncomingModelRequestMessage extends IncomingProtocolRequestMessage
-case class OpenRealtimeModelRequestMessage(c: String, m: String, i: Boolean) extends IncomingModelRequestMessage
+case class OpenRealtimeModelRequestMessage(m: Option[String], a: Option[Integer]) extends IncomingModelRequestMessage
 case class CloseRealtimeModelRequestMessage(r: String) extends IncomingModelRequestMessage
 case class CreateRealtimeModelRequestMessage(c: String, m: Option[String], d: ObjectValue, v: Option[Boolean], w: Option[ModelPermissionsData]) extends IncomingModelRequestMessage
 case class DeleteRealtimeModelRequestMessage(c: String, m: String) extends IncomingModelRequestMessage
@@ -93,7 +93,7 @@ case class SetModelPermissionsRequestMessage(
 
 case class ModelsQueryRequestMessage(q: String) extends IncomingModelRequestMessage
 
-case class ModelDataResponseMessage(d: ObjectValue, v: Option[Boolean], w: Option[ModelPermissionsData]) extends IncomingProtocolResponseMessage
+case class AutoCreateModelConfigResponseMessage(c: String, d: Option[ObjectValue], v: Option[Boolean], w: Option[ModelPermissionsData], u: Option[Map[String, ModelPermissionsData]]) extends IncomingProtocolResponseMessage
 
 case class PublishReferenceMessage(r: String, d: Option[String], k: String, c: Int, v: Option[List[Any]], s: Option[Long]) extends IncomingModelNormalMessage
 case class UnpublishReferenceMessage(r: String, d: Option[String], k: String) extends IncomingModelNormalMessage
@@ -123,7 +123,7 @@ case class RemoteClientClosedMessage(r: String, s: String) extends OutgoingProto
 case class RemoteClientOpenedMessage(r: String, s: String) extends OutgoingProtocolNormalMessage
 case class ModelForceCloseMessage(r: String, s: String) extends OutgoingProtocolNormalMessage
 
-case class ModelDataRequestMessage(c: String, m: String) extends OutgoingProtocolRequestMessage
+case class AutoCreateModelConfigRequestMessage(a: Integer) extends OutgoingProtocolRequestMessage
 
 case class RemoteReferencePublishedMessage(r: String, s: String, d: Option[String], k: String, c: Int, v: Option[List[Any]]) extends OutgoingProtocolNormalMessage
 case class RemoteReferenceUnpublishedMessage(r: String, s: String, d: Option[String], k: String) extends OutgoingProtocolNormalMessage

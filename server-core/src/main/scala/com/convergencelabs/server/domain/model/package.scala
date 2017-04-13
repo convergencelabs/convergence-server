@@ -20,13 +20,14 @@ package model {
   // Incoming Messages From Client
   //
   case class OpenRequestRecord(clientActor: ActorRef, askingActor: ActorRef)
-  case class OpenRealtimeModelRequest(sk: SessionKey, modelFqn: ModelFqn, initializerProvided: Boolean, clientActor: ActorRef)
+  case class OpenRealtimeModelRequest(sk: SessionKey, modelId: Option[String], autoCreateId: Option[Integer], clientActor: ActorRef)
   case class CreateModelRequest(sk: SessionKey, collectionId: String, modelId: Option[String], modelData: ObjectValue,
                                 overridePermissions: Option[Boolean], worldPermissions: Option[ModelPermissions])
   case class DeleteModelRequest(sk: SessionKey, modelFqn: ModelFqn)
   case class CloseRealtimeModelRequest(sk: SessionKey)
   case class OperationSubmission(seqNo: Long, contextVersion: Long, operation: Operation)
-  case class ClientModelDataResponse(modelData: ObjectValue, overridePermissions: Option[Boolean], worldPermissions: Option[ModelPermissions])
+  case class ClientAutoCreateModelConfigResponse(collectionId: String, modelData: Option[ObjectValue], overridePermissions: Option[Boolean],
+                                            worldPermissions: Option[ModelPermissions], userPermissions: Option[Map[String, ModelPermissions]])
 
   case class GetModelPermissionsRequest(collectionId: String, modelId: String)
 
@@ -40,7 +41,7 @@ package model {
     worldPermissions: Option[ModelPermissions],
     setAllUsers: Boolean,
     userPermissions: Map[String, Option[ModelPermissions]])
-        
+
   sealed trait ModelReferenceEvent {
     val id: Option[String]
   }
@@ -125,7 +126,7 @@ package model {
   case class RemoteClientOpened(resourceId: String, sk: SessionKey) extends RealtimeModelClientMessage
   case class ModelForceClose(resourceId: String, reason: String) extends RealtimeModelClientMessage
   case class ModelPermissionsChanged(resourceId: String, permissions: ModelPermissions) extends RealtimeModelClientMessage
-  case class ClientModelDataRequest(modelFqn: ModelFqn) extends RealtimeModelClientMessage
+  case class ClientAutoCreateModelConfigRequest(autoConfigId: Integer) extends RealtimeModelClientMessage
 
   sealed trait RemoteReferenceEvent extends RealtimeModelClientMessage
   case class RemoteReferencePublished(
