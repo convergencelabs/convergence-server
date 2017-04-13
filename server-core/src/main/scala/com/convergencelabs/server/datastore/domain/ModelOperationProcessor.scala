@@ -9,7 +9,6 @@ import scala.util.Try
 
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.NewModelOperation
 import com.convergencelabs.server.domain.model.ot.AppliedArrayInsertOperation
 import com.convergencelabs.server.domain.model.ot.AppliedArrayMoveOperation
@@ -55,7 +54,7 @@ class ModelOperationProcessor private[domain] (
     // TODO this should all be in a transaction, but orientdb has a problem with this.
 
     // Apply the op.
-    applyOperationToModel(modelOperation.modelFqn, modelOperation.op, db).flatMap { _ =>
+    applyOperationToModel(modelOperation.modelFqn.modelId, modelOperation.op, db).flatMap { _ =>
       // Persist the operation
       modelOpStore.createModelOperation(modelOperation)
     }.flatMap { _ =>
@@ -65,38 +64,38 @@ class ModelOperationProcessor private[domain] (
   }
   
   // scalastyle:off cyclomatic.complexity
-  private[this] def applyOperationToModel(fqn: ModelFqn, operation: AppliedOperation, db: ODatabaseDocumentTx): Try[Unit] = Try {
+  private[this] def applyOperationToModel(modelId: String, operation: AppliedOperation, db: ODatabaseDocumentTx): Try[Unit] = Try {
     operation match {
-      case op: AppliedCompoundOperation => op.operations foreach { o => applyOperationToModel(fqn, o, db) }
+      case op: AppliedCompoundOperation => op.operations foreach { o => applyOperationToModel(modelId, o, db) }
       case op: AppliedDiscreteOperation if op.noOp => // Do nothing since this is a noOp
 
-      case op: AppliedArrayInsertOperation => applyArrayInsertOperation(fqn, op, db)
-      case op: AppliedArrayRemoveOperation => applyArrayRemoveOperation(fqn, op, db)
-      case op: AppliedArrayReplaceOperation => applyArrayReplaceOperation(fqn, op, db)
-      case op: AppliedArrayMoveOperation => applyArrayMoveOperation(fqn, op, db)
-      case op: AppliedArraySetOperation => applyArraySetOperation(fqn, op, db)
+      case op: AppliedArrayInsertOperation => applyArrayInsertOperation(modelId, op, db)
+      case op: AppliedArrayRemoveOperation => applyArrayRemoveOperation(modelId, op, db)
+      case op: AppliedArrayReplaceOperation => applyArrayReplaceOperation(modelId, op, db)
+      case op: AppliedArrayMoveOperation => applyArrayMoveOperation(modelId, op, db)
+      case op: AppliedArraySetOperation => applyArraySetOperation(modelId, op, db)
 
-      case op: AppliedObjectAddPropertyOperation => applyObjectAddPropertyOperation(fqn, op, db)
-      case op: AppliedObjectSetPropertyOperation => applyObjectSetPropertyOperation(fqn, op, db)
-      case op: AppliedObjectRemovePropertyOperation => applyObjectRemovePropertyOperation(fqn, op, db)
-      case op: AppliedObjectSetOperation => applyObjectSetOperation(fqn, op, db)
+      case op: AppliedObjectAddPropertyOperation => applyObjectAddPropertyOperation(modelId, op, db)
+      case op: AppliedObjectSetPropertyOperation => applyObjectSetPropertyOperation(modelId, op, db)
+      case op: AppliedObjectRemovePropertyOperation => applyObjectRemovePropertyOperation(modelId, op, db)
+      case op: AppliedObjectSetOperation => applyObjectSetOperation(modelId, op, db)
 
-      case op: AppliedStringInsertOperation => applyStringInsertOperation(fqn, op, db)
-      case op: AppliedStringRemoveOperation => applyStringRemoveOperation(fqn, op, db)
-      case op: AppliedStringSetOperation => applyStringSetOperation(fqn, op, db)
+      case op: AppliedStringInsertOperation => applyStringInsertOperation(modelId, op, db)
+      case op: AppliedStringRemoveOperation => applyStringRemoveOperation(modelId, op, db)
+      case op: AppliedStringSetOperation => applyStringSetOperation(modelId, op, db)
 
-      case op: AppliedNumberAddOperation => applyNumberAddOperation(fqn, op, db)
-      case op: AppliedNumberSetOperation => applyNumberSetOperation(fqn, op, db)
+      case op: AppliedNumberAddOperation => applyNumberAddOperation(modelId, op, db)
+      case op: AppliedNumberSetOperation => applyNumberSetOperation(modelId, op, db)
 
-      case op: AppliedBooleanSetOperation => applyBooleanSetOperation(fqn, op, db)
+      case op: AppliedBooleanSetOperation => applyBooleanSetOperation(modelId, op, db)
       
-      case op: AppliedDateSetOperation => applyDateSetOperation(fqn, op, db)
+      case op: AppliedDateSetOperation => applyDateSetOperation(modelId, op, db)
     }
   }
   // scalastyle:on cyclomatic.complexity
 
-  private[this] def applyArrayInsertOperation(fqn: ModelFqn, operation: AppliedArrayInsertOperation, db: ODatabaseDocumentTx): Unit = {
-    val value = OrientDataValueBuilder.dataValueToODocument(operation.value, getModelRid(fqn, db))
+  private[this] def applyArrayInsertOperation(modelId: String, operation: AppliedArrayInsertOperation, db: ODatabaseDocumentTx): Unit = {
+    val value = OrientDataValueBuilder.dataValueToODocument(operation.value, getModelRid(modelId, db))
     value.save()
 
     val queryString =
@@ -104,13 +103,11 @@ class ModelOperationProcessor private[domain] (
              |  children = arrayInsert(children, :index, :value)
              |WHERE
              |  id = :id AND
-             |  model.collection.id = :collectionId AND
              |  model.id = :modelId""".stripMargin
     val updateCommand = new OCommandSQL(queryString)
     val params = Map(
       Id -> operation.id,
-      CollectionId -> fqn.collectionId,
-      ModelId -> fqn.modelId,
+      ModelId -> modelId,
       Index -> operation.index,
       Value -> value)
     db.command(updateCommand).execute(params.asJava)
@@ -118,27 +115,25 @@ class ModelOperationProcessor private[domain] (
   }
 
   private[this] def applyArrayRemoveOperation(
-    fqn: ModelFqn, operation: AppliedArrayRemoveOperation, db: ODatabaseDocumentTx): Unit = {
+    modelId: String, operation: AppliedArrayRemoveOperation, db: ODatabaseDocumentTx): Unit = {
     val queryString =
       s"""UPDATE ArrayValue SET
          |  children = arrayRemove(children, :index)
          |WHERE
          |  id = :id AND
-         |  model.collection.id = :collectionId AND
          |  model.id = :modelId""".stripMargin
     val updateCommand = new OCommandSQL(queryString)
     val params = Map(
       Id -> operation.id,
-      CollectionId -> fqn.collectionId,
-      ModelId -> fqn.modelId,
+      ModelId -> modelId,
       Index -> operation.index)
     db.command(updateCommand).execute(params.asJava)
     db.commit()
   }
 
   private[this] def applyArrayReplaceOperation(
-    fqn: ModelFqn, operation: AppliedArrayReplaceOperation, db: ODatabaseDocumentTx): Unit = {
-    val value = OrientDataValueBuilder.dataValueToODocument(operation.value, getModelRid(fqn, db))
+    modelId: String, operation: AppliedArrayReplaceOperation, db: ODatabaseDocumentTx): Unit = {
+    val value = OrientDataValueBuilder.dataValueToODocument(operation.value, getModelRid(modelId, db))
     value.save()
     db.commit()
 
@@ -146,33 +141,29 @@ class ModelOperationProcessor private[domain] (
       s"""UPDATE ArrayValue SET
              |  children = arrayReplace(children, :index, :value)
              |WHERE
-             |  model.collection.id = :collectionId AND
              |  model.id = :modelId""".stripMargin
     val updateCommand = new OCommandSQL(queryString)
 
     val params = Map(
       Id -> operation.id,
-      CollectionId -> fqn.collectionId,
-      ModelId -> fqn.modelId,
+      ModelId -> modelId,
       Index -> operation.index,
       Value -> value)
     db.command(updateCommand).execute(params.asJava)
     ()
   }
 
-  private[this] def applyArrayMoveOperation(fqn: ModelFqn, operation: AppliedArrayMoveOperation, db: ODatabaseDocumentTx): Unit = {
+  private[this] def applyArrayMoveOperation(modelId: String, operation: AppliedArrayMoveOperation, db: ODatabaseDocumentTx): Unit = {
     val queryString =
       s"""UPDATE ArrayValue SET
          |  children = arrayMove(children, :fromIndex, :toIndex)
          |WHERE
          |  id = :id AND
-         |  model.collection.id = :collectionId AND
          |  model.id = :modelId""".stripMargin
     val updateCommand = new OCommandSQL(queryString)
     val params = Map(
       Id -> operation.id,
-      CollectionId -> fqn.collectionId,
-      ModelId -> fqn.modelId,
+      ModelId -> modelId,
       "fromIndex" -> operation.fromIndex,
       "toIndex" -> operation.toIndex)
     db.command(updateCommand).execute(params.asJava)
@@ -180,19 +171,18 @@ class ModelOperationProcessor private[domain] (
     ()
   }
 
-  private[this] def applyArraySetOperation(fqn: ModelFqn, operation: AppliedArraySetOperation, db: ODatabaseDocumentTx): Unit = {
-    val children = operation.value map (v => OrientDataValueBuilder.dataValueToODocument(v, getModelRid(fqn, db)))
+  private[this] def applyArraySetOperation(modelId: String, operation: AppliedArraySetOperation, db: ODatabaseDocumentTx): Unit = {
+    val children = operation.value map (v => OrientDataValueBuilder.dataValueToODocument(v, getModelRid(modelId, db)))
     children.foreach { child => child.save() }
     db.commit()
 
-    val params = Map(Id -> operation.id, CollectionId -> fqn.collectionId, ModelId -> fqn.modelId, Value -> children.asJava)
+    val params = Map(Id -> operation.id, ModelId -> modelId, Value -> children.asJava)
     val queryString =
       s"""UPDATE ArrayValue
              |SET
              |  children = :value
              |WHERE
              |  id = : id AND
-             |  model.collection.id = :collectionId AND
              |  model.id = :modelId""".stripMargin
     val updateCommand = new OCommandSQL(queryString)
     db.command(updateCommand).execute(params.asJava)
@@ -200,8 +190,8 @@ class ModelOperationProcessor private[domain] (
     Unit
   }
 
-  private[this] def applyObjectAddPropertyOperation(fqn: ModelFqn, operation: AppliedObjectAddPropertyOperation, db: ODatabaseDocumentTx): Unit = {
-    val value = OrientDataValueBuilder.dataValueToODocument(operation.value, getModelRid(fqn, db))
+  private[this] def applyObjectAddPropertyOperation(modelId: String, operation: AppliedObjectAddPropertyOperation, db: ODatabaseDocumentTx): Unit = {
+    val value = OrientDataValueBuilder.dataValueToODocument(operation.value, getModelRid(modelId, db))
     value.save()
     db.commit()
 
@@ -210,13 +200,11 @@ class ModelOperationProcessor private[domain] (
              |  children = :property, :value
              |WHERE
              |  id = :id AND
-             |  model.collection.id = :collectionId AND
              |  model.id = :modelId""".stripMargin
     val updateCommand = new OCommandSQL(queryString)
     val params = Map(
       Id -> operation.id,
-      CollectionId -> fqn.collectionId,
-      ModelId -> fqn.modelId,
+      ModelId -> modelId,
       Value -> value,
       "property" -> operation.property)
     db.command(updateCommand).execute(params.asJava)
@@ -225,8 +213,8 @@ class ModelOperationProcessor private[domain] (
   }
 
   private[this] def applyObjectSetPropertyOperation(
-    fqn: ModelFqn, operation: AppliedObjectSetPropertyOperation, db: ODatabaseDocumentTx): Unit = {
-    val value = OrientDataValueBuilder.dataValueToODocument(operation.value, getModelRid(fqn, db))
+    modelId: String, operation: AppliedObjectSetPropertyOperation, db: ODatabaseDocumentTx): Unit = {
+    val value = OrientDataValueBuilder.dataValueToODocument(operation.value, getModelRid(modelId, db))
     value.save()
     db.commit()
 
@@ -235,13 +223,11 @@ class ModelOperationProcessor private[domain] (
              |  children = :property, :value
              |WHERE
              |  id = :id AND
-             |  model.collection.id = :collectionId AND
              |  model.id = :modelId""".stripMargin
     val updateCommand = new OCommandSQL(queryString)
     val params = Map(
       Id -> operation.id,
-      CollectionId -> fqn.collectionId,
-      ModelId -> fqn.modelId,
+      ModelId -> modelId,
       Value -> value,
       "property" -> operation.property)
     db.command(updateCommand).execute(params.asJava)
@@ -249,26 +235,24 @@ class ModelOperationProcessor private[domain] (
     ()
   }
 
-  private[this] def applyObjectRemovePropertyOperation(fqn: ModelFqn, operation: AppliedObjectRemovePropertyOperation, db: ODatabaseDocumentTx): Unit = {
+  private[this] def applyObjectRemovePropertyOperation(modelId: String, operation: AppliedObjectRemovePropertyOperation, db: ODatabaseDocumentTx): Unit = {
     val queryString =
       s"""UPDATE ObjectValue REMOVE
          |  children = :property
          |WHERE
          |  id = :id AND
-         |  model.collection.id = :collectionId AND
          |  model.id = :modelId""".stripMargin
     val updateCommand = new OCommandSQL(queryString)
     val params = Map(
       Id -> operation.id,
-      CollectionId -> fqn.collectionId,
-      ModelId -> fqn.modelId,
+      ModelId -> modelId,
       "property" -> operation.property)
     db.command(updateCommand).execute(params.asJava)
     db.commit()
   }
 
-  private[this] def applyObjectSetOperation(fqn: ModelFqn, operation: AppliedObjectSetOperation, db: ODatabaseDocumentTx): Unit = {
-    val children = operation.value map { case (k, v) => (k, OrientDataValueBuilder.dataValueToODocument(v, getModelRid(fqn, db))) }
+  private[this] def applyObjectSetOperation(modelId: String, operation: AppliedObjectSetOperation, db: ODatabaseDocumentTx): Unit = {
+    val children = operation.value map { case (k, v) => (k, OrientDataValueBuilder.dataValueToODocument(v, getModelRid(modelId, db))) }
     children.values foreach { child => child.save() }
     db.commit()
 
@@ -277,26 +261,23 @@ class ModelOperationProcessor private[domain] (
              |  children = :value
              |WHERE
              |  id = :id AND
-             |  model.collection.id = :collectionId AND
              |  model.id = :modelId""".stripMargin
     val updateCommand = new OCommandSQL(queryString)
     val params = Map(
       Id -> operation.id,
-      CollectionId -> fqn.collectionId,
-      ModelId -> fqn.modelId,
+      ModelId -> modelId,
       Value -> children.asJava)
     db.command(updateCommand).execute(params.asJava)
     db.commit()
     ()
   }
 
-  private[this] def applyStringInsertOperation(fqn: ModelFqn, operation: AppliedStringInsertOperation, db: ODatabaseDocumentTx): Unit = {
+  private[this] def applyStringInsertOperation(modelId: String, operation: AppliedStringInsertOperation, db: ODatabaseDocumentTx): Unit = {
     val queryString =
       s"""UPDATE StringValue SET
          |  value = value.left(:index).append(:value).append(value.substring(:index))
          |WHERE
          |  id = :id AND
-         |  model.collection.id = :collectionId AND
          |  model.id = :modelId""".stripMargin
 
     // FIXME remove this when the following orient issue is resolved
@@ -312,8 +293,7 @@ class ModelOperationProcessor private[domain] (
     val updateCommand = new OCommandSQL(queryString)
     val params = Map(
       Id -> operation.id,
-      CollectionId -> fqn.collectionId,
-      ModelId -> fqn.modelId,
+      ModelId -> modelId,
       Index -> operation.index,
       Value -> hackValue)
     db.command(updateCommand).execute(params.asJava)
@@ -321,113 +301,101 @@ class ModelOperationProcessor private[domain] (
     ()
   }
 
-  private[this] def applyStringRemoveOperation(fqn: ModelFqn, operation: AppliedStringRemoveOperation, db: ODatabaseDocumentTx): Unit = {
+  private[this] def applyStringRemoveOperation(modelId: String, operation: AppliedStringRemoveOperation, db: ODatabaseDocumentTx): Unit = {
     val endLength = operation.index + operation.length
     val queryString =
       s"""UPDATE StringValue SET
          |  value = value.left(:index).append(value.substring(:endLength))
          |WHERE
          |  id = :id AND
-         |  model.collection.id = :collectionId AND
          |  model.id = :modelId""".stripMargin
     val updateCommand = new OCommandSQL(queryString)
     val params = Map(
       Id -> operation.id,
-      CollectionId -> fqn.collectionId,
-      ModelId -> fqn.modelId,
+      ModelId -> modelId,
       Index -> operation.index,
       "endLength" -> endLength)
     db.command(updateCommand).execute(params.asJava)
     db.commit()
   }
 
-  private[this] def applyStringSetOperation(fqn: ModelFqn, operation: AppliedStringSetOperation, db: ODatabaseDocumentTx): Unit = {
+  private[this] def applyStringSetOperation(modelId: String, operation: AppliedStringSetOperation, db: ODatabaseDocumentTx): Unit = {
     val queryString =
       s"""UPDATE StringValue SET
          |  value = :value
          |WHERE
          |  id = :id AND
-         |  model.collection.id = :collectionId AND
          |  model.id = :modelId""".stripMargin
     val updateCommand = new OCommandSQL(queryString)
     val params = Map(
       Id -> operation.id,
-      CollectionId -> fqn.collectionId,
-      ModelId -> fqn.modelId,
+      ModelId -> modelId,
       Value -> operation.value)
     db.command(updateCommand).execute(params.asJava)
     db.commit()
   }
 
-  private[this] def applyNumberAddOperation(fqn: ModelFqn, operation: AppliedNumberAddOperation, db: ODatabaseDocumentTx): Unit = {
+  private[this] def applyNumberAddOperation(modelId: String, operation: AppliedNumberAddOperation, db: ODatabaseDocumentTx): Unit = {
     val value = operation.value
     val queryString =
       s"""UPDATE DoubleValue SET
          |  value = eval('value + $value')
          |WHERE
          |  id = :id AND
-         |  model.collection.id = :collectionId AND
          |  model.id = :modelId""".stripMargin
     val updateCommand = new OCommandSQL(queryString)
     val params = Map(
       Id -> operation.id,
-      CollectionId -> fqn.collectionId,
-      ModelId -> fqn.modelId)
+      ModelId -> modelId)
     db.command(updateCommand).execute(params.asJava)
   }
 
-  private[this] def applyNumberSetOperation(fqn: ModelFqn, operation: AppliedNumberSetOperation, db: ODatabaseDocumentTx): Unit = {
+  private[this] def applyNumberSetOperation(modelId: String, operation: AppliedNumberSetOperation, db: ODatabaseDocumentTx): Unit = {
     val queryString =
       s"""UPDATE DoubleValue SET
          |  value = :value
          |WHERE
          |  id = :id AND
-         |  model.collection.id = :collectionId AND
          |  model.id = :modelId""".stripMargin
     val updateCommand = new OCommandSQL(queryString)
     val params = Map(
       Id -> operation.id,
-      CollectionId -> fqn.collectionId,
-      ModelId -> fqn.modelId,
+      ModelId -> modelId,
       Value -> operation.value)
     db.command(updateCommand).execute(params.asJava)
   }
 
-  private[this] def applyBooleanSetOperation(fqn: ModelFqn, operation: AppliedBooleanSetOperation, db: ODatabaseDocumentTx): Unit = {
+  private[this] def applyBooleanSetOperation(modelId: String, operation: AppliedBooleanSetOperation, db: ODatabaseDocumentTx): Unit = {
     val queryString =
       s"""UPDATE BooleanValue SET
          |  value = :value
          |WHERE
          |  id = :id AND
-         |  model.collection.id = :collectionId AND
          |  model.id = :modelId""".stripMargin
     val updateCommand = new OCommandSQL(queryString)
     val params = Map(
       Id -> operation.id,
-      CollectionId -> fqn.collectionId,
-      ModelId -> fqn.modelId,
+      ModelId -> modelId,
       Value -> operation.value)
     db.command(updateCommand).execute(params.asJava)
   }
   
-  private[this] def applyDateSetOperation(fqn: ModelFqn, operation: AppliedDateSetOperation, db: ODatabaseDocumentTx): Unit = {
+  private[this] def applyDateSetOperation(modelId: String, operation: AppliedDateSetOperation, db: ODatabaseDocumentTx): Unit = {
     val queryString =
       s"""UPDATE DateValue SET
          |  value = :value
          |WHERE
          |  id = :id AND
-         |  model.collection.id = :collectionId AND
          |  model.id = :modelId""".stripMargin
     val updateCommand = new OCommandSQL(queryString)
     val params = Map(
       Id -> operation.id,
-      CollectionId -> fqn.collectionId,
-      ModelId -> fqn.modelId,
+      ModelId -> modelId,
       Value -> Date.from(operation.value))
     db.command(updateCommand).execute(params.asJava)
   }
 
-  private[this] def getModelRid(fqn: ModelFqn, db: ODatabaseDocumentTx): ORID = {
-    ModelStore.getModelRid(fqn.modelId, db).get
+  private[this] def getModelRid(modelId: String, db: ODatabaseDocumentTx): ORID = {
+    ModelStore.getModelRid(modelId, db).get
   }
 }
