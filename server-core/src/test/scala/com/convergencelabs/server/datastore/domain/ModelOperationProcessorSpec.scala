@@ -109,7 +109,7 @@ class ModelOperationProcessorSpec
     "applying a noOp'ed discrete operation" must {
       "not apply the operation" in withTestData { provider =>
         val op = AppliedStringInsertOperation(fnameVID, true, 0, "abc")
-        val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
+        val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
         val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(fnameField) shouldEqual StringValue(fnameVID, "john")
@@ -123,7 +123,7 @@ class ModelOperationProcessorSpec
 
         val compound = AppliedCompoundOperation(List(op1, op2))
 
-        val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, compound)
+        val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, compound)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
         val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(fnameField) shouldEqual StringValue(fnameVID, "xyjohn")
@@ -135,7 +135,7 @@ class ModelOperationProcessorSpec
 
         val compound = AppliedCompoundOperation(List(op1, op2))
 
-        val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, compound)
+        val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, compound)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
         val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children("newName") shouldEqual StringValue("idididi", "somethingelse")
@@ -147,7 +147,7 @@ class ModelOperationProcessorSpec
 
         val compound = AppliedCompoundOperation(List(op1, op2))
 
-        val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, compound)
+        val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, compound)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
         val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(fnameField) shouldEqual StringValue(fnameVID, "xjohn")
@@ -157,7 +157,7 @@ class ModelOperationProcessorSpec
     "applying string operations" must {
       "correctly update the model on StringInsert" in withTestData { provider =>
         val op = AppliedStringInsertOperation(fnameVID, false, 0, "abc")
-        val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
+        val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -166,7 +166,7 @@ class ModelOperationProcessorSpec
 
       "correctly update the model on StringRemove" in withTestData { provider =>
         val op = AppliedStringRemoveOperation(fnameVID, false, 1, 2, Some("Oh"))
-        val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
+        val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -175,7 +175,7 @@ class ModelOperationProcessorSpec
 
       "correctly update the model on StringSet" in withTestData { provider =>
         val op = AppliedStringSetOperation(fnameVID, false, "new string", Some("oldValue"))
-        val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
+        val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -187,7 +187,7 @@ class ModelOperationProcessorSpec
       "correctly update the model on ArrayInsert" in withTestData { provider =>
         val insertVal = ObjectValue("pp1-f1", Map("field1" -> StringValue("pp1-sv", "someValue"), "field2" -> DoubleValue("pp1-5", 5)))
         val op = AppliedArrayInsertOperation(emailsVID, false, 0, insertVal)
-        val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
+        val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -201,7 +201,7 @@ class ModelOperationProcessorSpec
 
       "correctly update the model on ArrayRemove" in withTestData { provider =>
         val op = AppliedArrayRemoveOperation(emailsVID, false, 0, Some(StringValue("oldId", "removedValue")))
-        val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
+        val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -216,7 +216,7 @@ class ModelOperationProcessorSpec
       "correctly update the model on ArrayReplace" in withTestData { provider =>
         val replaceVal = ObjectValue("art-data", Map("field1" -> StringValue("art-f1", "someValue"), "field2" -> DoubleValue("art-f2", 5)))
         val op = AppliedArrayReplaceOperation(emailsVID, false, 0, replaceVal, Some(StringValue("oldId", "removedValue")))
-        val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
+        val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -231,7 +231,7 @@ class ModelOperationProcessorSpec
 
       "correctly update the model on ArrayMove" in withTestData { provider =>
         val op = AppliedArrayMoveOperation(emailsVID, false, 0, 2)
-        val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
+        val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -244,7 +244,7 @@ class ModelOperationProcessorSpec
       "correctly update the model on ArraySet" in withTestData { provider =>
         val setValue = List(StringValue("as-sv", "someValue"), StringValue("as-sov", "someOtherValue"))
         val op = AppliedArraySetOperation(emailsVID, false, setValue, Some(List[DataValue]()))
-        val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
+        val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -260,7 +260,7 @@ class ModelOperationProcessorSpec
     "applying object operations" must {
       "correctly update the model on ObjectAddProperty" in withTestData { provider =>
         val op = AppliedObjectAddPropertyOperation("pp1-data", false, "addedProperty", StringValue("aoo-value", "value"))
-        val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
+        val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -269,7 +269,7 @@ class ModelOperationProcessorSpec
 
       "correctly update the model on ObjectAddProperty with a special char" in withTestData { provider =>
         val op = AppliedObjectAddPropertyOperation("pp1-data", false, "prop-with-dash", StringValue("aoo-value", "value"))
-        val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
+        val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -278,7 +278,7 @@ class ModelOperationProcessorSpec
 
       "correctly update the model on ObjectSetProperty" in withTestData { provider =>
         val op = AppliedObjectSetPropertyOperation("pp1-data", false, fnameField, StringValue("pp1-fnbob", "bob"), Some(StringValue("oldId", "oldVal")))
-        val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
+        val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -287,7 +287,7 @@ class ModelOperationProcessorSpec
 
       "correctly update the model on ObjectRemoveProperty" in withTestData { provider =>
         val op = AppliedObjectRemovePropertyOperation("pp1-data", false, fnameField, Some(StringValue("oldId", "oldVal")))
-        val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
+        val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -298,10 +298,10 @@ class ModelOperationProcessorSpec
         val propWithDash = "prop-with-dash"
 
         val addOp = AppliedObjectAddPropertyOperation("pp1-data", false, propWithDash, StringValue("aoo-value", "value"))
-        provider.modelOperationProcessor.processModelOperation(NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, addOp)).get
+        provider.modelOperationProcessor.processModelOperation(NewModelOperation(person1Id, startingVersion, Instant.now(), sid, addOp)).get
 
         val op = AppliedObjectRemovePropertyOperation("pp1-data", false, propWithDash, Some(StringValue("aoo-value", "value")))
-        val modelOp = NewModelOperation(person1ModelFqn, startingVersion + 1, Instant.now(), sid, op)
+        val modelOp = NewModelOperation(person1Id, startingVersion + 1, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -311,7 +311,7 @@ class ModelOperationProcessorSpec
       "correctly update the model on ObjectSet" in withTestData { provider =>
         val replacePerson = Map("fname" -> StringValue("pp1-fnbob", "bob"), "lname" -> StringValue("pp1-lnsmith", "smith"))
         val op = AppliedObjectSetOperation("pp1-data", false, replacePerson, Some(Map("fname" -> StringValue("oldId1", "yo"), "lname" -> StringValue("oldId2", "yoyo"))))
-        val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
+        val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -322,7 +322,7 @@ class ModelOperationProcessorSpec
     "applying number operations" must {
       "correctly update the model on NumberAdd" in withTestData { provider =>
         val op = AppliedNumberAddOperation(ageVID, false, 5)
-        val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
+        val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp)
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -331,7 +331,7 @@ class ModelOperationProcessorSpec
 
       "correctly update the model on NumberSet" in withTestData { provider =>
         val op = AppliedNumberSetOperation(ageVID, false, 33, Some(22))
-        val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
+        val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp)
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -342,7 +342,7 @@ class ModelOperationProcessorSpec
     "applying boolean operations" must {
       "correctly update the model on BooleanSet" in withTestData { provider =>
         val op = AppliedBooleanSetOperation(marriedVID, false, true, Some(false))
-        val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
+        val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp)
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -354,7 +354,7 @@ class ModelOperationProcessorSpec
       "correctly update the model on DateSet" in withTestData { provider =>
         val newDate = Instant.now()
         val op = AppliedDateSetOperation(bornVID, false, newDate, Some(bornDate))
-        val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
+        val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp)
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -367,7 +367,7 @@ class ModelOperationProcessorSpec
       "correctly add property names that start with a period" in withTestData { provider =>
         val property = "my-prop!"
         val addOp = AppliedObjectAddPropertyOperation("pp1-data", false, ".value", StringValue("aoo-value", "value"))
-        val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, addOp)
+        val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, addOp)
 
         provider.modelOperationProcessor.processModelOperation(modelOp).get
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -377,14 +377,14 @@ class ModelOperationProcessorSpec
       "correctly update property names that start with a period" in withTestData { provider =>
         val property = "my-prop!"
         val addOp = AppliedObjectAddPropertyOperation("pp1-data", false, ".value", StringValue("aoo-value", "initial"))
-        val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, addOp)
+        val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, addOp)
 
         provider.modelOperationProcessor.processModelOperation(modelOp).get
         val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(".value") shouldBe StringValue("aoo-value", "initial")
 
         val setOp = AppliedObjectSetPropertyOperation("pp1-data", false, ".value", StringValue("aoo-value1", "updated"), Some(StringValue("aoo-value", "initial")))
-        val setModelOp = NewModelOperation(person1ModelFqn, startingVersion + 1, Instant.now(), sid, setOp)
+        val setModelOp = NewModelOperation(person1Id, startingVersion + 1, Instant.now(), sid, setOp)
 
         provider.modelOperationProcessor.processModelOperation(setModelOp).get
         val updatedModelData = provider.modelStore.getModelData(person1Id).get.value
@@ -395,7 +395,7 @@ class ModelOperationProcessorSpec
 
         val property = "4"
         val op = AppliedObjectAddPropertyOperation("pp1-data", false, property, StringValue("aoo-value", "value"))
-        val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
+        val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -405,7 +405,7 @@ class ModelOperationProcessorSpec
       "correctly handle property names in the path that have a dash" in withTestData { provider =>
         val property = "a-dash"
         val op = AppliedObjectAddPropertyOperation("pp1-data", false, property, StringValue("aoo-value", "value"))
-        val modelOp = NewModelOperation(person1ModelFqn, startingVersion, Instant.now(), sid, op)
+        val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value

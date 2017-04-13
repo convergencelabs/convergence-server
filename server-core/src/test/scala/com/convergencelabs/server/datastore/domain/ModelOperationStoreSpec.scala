@@ -46,12 +46,12 @@ class ModelOperationStoreSpec
   val notFoundFqn = ModelFqn("Does Not", notFoundId)
 
   val op1 = AppliedStringInsertOperation("0:0", false, 1, "1")
-  val modelOp1 = NewModelOperation(modelFqn, 1L, Instant.ofEpochMilli(10), sessionId, op1)
-  val modelOp1Expected = ModelOperation(modelFqn, 1L, Instant.ofEpochMilli(10), testUsername, sessionId, op1)
+  val modelOp1 = NewModelOperation(modelId1, 1L, Instant.ofEpochMilli(10), sessionId, op1)
+  val modelOp1Expected = ModelOperation(modelId1, 1L, Instant.ofEpochMilli(10), testUsername, sessionId, op1)
 
   val op15 = AppliedStringInsertOperation("0:0", false, 2, "2")
-  val modelOp15 = NewModelOperation(modelFqn, 15L, Instant.ofEpochMilli(10), sessionId, op15)
-  val modelOp15Expected = ModelOperation(modelFqn, 15L, Instant.ofEpochMilli(10), testUsername, sessionId, op15)
+  val modelOp15 = NewModelOperation(modelId1, 15L, Instant.ofEpochMilli(10), sessionId, op15)
+  val modelOp15Expected = ModelOperation(modelId1, 15L, Instant.ofEpochMilli(10), testUsername, sessionId, op15)
 
   "A ModelOperationStore" when {
     "creating a ModelOperation" must {
@@ -108,8 +108,8 @@ class ModelOperationStoreSpec
         for (version <- 1 to 15) {
           val op = AppliedStringInsertOperation("0:0", false, version, version.toString)
           val timestamp = Instant.now()
-          val modelOp = NewModelOperation(modelFqn, version, timestamp, sessionId, op)
-          list = list :+ ModelOperation(modelFqn, version, timestamp, testUsername, sessionId, op) 
+          val modelOp = NewModelOperation(modelId1, version, timestamp, sessionId, op)
+          list = list :+ ModelOperation(modelId1, version, timestamp, testUsername, sessionId, op) 
           provider.modelOperationStore.createModelOperation(modelOp).get
         }
         

@@ -4,7 +4,7 @@ import java.time.Instant
 import com.convergencelabs.server.domain.model.ot.AppliedOperation
 
 case class ModelOperation(
-  modelFqn: ModelFqn,
+  modelId: String,
   version: Long,
   timestamp: Instant,
   username: String,
@@ -13,7 +13,7 @@ case class ModelOperation(
 
   
 case class NewModelOperation(
-  modelFqn: ModelFqn,
+  modelId: String,
   version: Long,
   timestamp: Instant,
   sessionId: String,

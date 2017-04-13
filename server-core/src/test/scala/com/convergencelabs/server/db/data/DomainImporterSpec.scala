@@ -107,14 +107,14 @@ class DomainImporterSpec extends WordSpecLike with Matchers {
         val operations = provider.modelOperationStore.getOperationsAfterVersion(modelId, 0L).get
         operations.size shouldBe 2
         operations(0) shouldBe ModelOperation(
-          modelFqn,
+          modelFqn.modelId,
           1L,
           Instant.parse("2016-11-16T17:49:15.233Z"),
           "test1",
           "84hf",
           AppliedStringInsertOperation("vid2", false, 0, "!"))
         operations(1) shouldBe ModelOperation(
-          modelFqn,
+          modelFqn.modelId,
           2L,
           Instant.parse("2016-11-16T17:49:15.233Z"),
           "test1",

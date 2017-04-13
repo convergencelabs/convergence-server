@@ -54,12 +54,12 @@ class ModelOperationProcessor private[domain] (
     // TODO this should all be in a transaction, but orientdb has a problem with this.
 
     // Apply the op.
-    applyOperationToModel(modelOperation.modelFqn.modelId, modelOperation.op, db).flatMap { _ =>
+    applyOperationToModel(modelOperation.modelId, modelOperation.op, db).flatMap { _ =>
       // Persist the operation
       modelOpStore.createModelOperation(modelOperation)
     }.flatMap { _ =>
       // Update the model metadata
-      modelStore.updateModelOnOperation(modelOperation.modelFqn.modelId, modelOperation.timestamp)
+      modelStore.updateModelOnOperation(modelOperation.modelId, modelOperation.timestamp)
     }.get
   }
   

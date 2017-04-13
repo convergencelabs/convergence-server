@@ -233,7 +233,7 @@ class DomainImporter(
   def createModelOperation(fqn: ModelFqn, opData: CreateModelOperation): Unit = {
     val op = createOperation(opData.op)
     val modelOp = NewModelOperation(
-      fqn,
+      fqn.modelId,
       opData.version,
       opData.timestamp,
       opData.sessionId,

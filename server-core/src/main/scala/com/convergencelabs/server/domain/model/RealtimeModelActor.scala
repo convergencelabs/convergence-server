@@ -590,7 +590,7 @@ class RealtimeModelActor(
     this.model.processOperationEvent(unprocessedOpEvent).map {
       case (processedOpEvent, appliedOp) =>
         persistenceStream ! NewModelOperation(
-          modelFqn,
+          modelFqn.modelId,
           processedOpEvent.resultingVersion,
           timestamp,
           sk.sid,

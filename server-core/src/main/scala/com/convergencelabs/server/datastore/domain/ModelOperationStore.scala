@@ -11,7 +11,6 @@ import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.datastore.QueryUtil
 import com.convergencelabs.server.datastore.domain.mapper.OrientDBOperationMapper
-import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelOperation
 import com.convergencelabs.server.domain.model.NewModelOperation
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
@@ -49,7 +48,7 @@ object ModelOperationStore {
   def modelOperationToDoc(opEvent: NewModelOperation, db: ODatabaseDocumentTx): Try[ODocument] = {
     for {
       session <- SessionStore.getDomainSessionRid(opEvent.sessionId, db)
-      model <- ModelStore.getModelRid(opEvent.modelFqn.modelId, db)
+      model <- ModelStore.getModelRid(opEvent.modelId, db)
     } yield {
       val doc = db.newInstance(ModelOperationStore.ClassName)
       doc.field(Model, model, OType.LINK)
@@ -68,7 +67,7 @@ object ModelOperationStore {
     val op = OrientDBOperationMapper.oDocumentToOperation(opDoc)
 
     ModelOperation(
-      ModelFqn(doc.field("model.collection.id"), doc.field("model.id")),
+      doc.field("model.id"),
       doc.field(Version),
       timestamp,
       doc.field("session.user.username"),
