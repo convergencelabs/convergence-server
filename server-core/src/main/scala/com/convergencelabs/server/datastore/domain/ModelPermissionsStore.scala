@@ -55,6 +55,7 @@ object ModelPermissionsStore {
     val User = "user"
     val Permissions = "permissions"
 
+    val ID = "id"
     val OverridePermissions = "overridePermissions"
     val World = "worldPermissions"
     val UserPermissions = "userPermissions"
@@ -126,6 +127,44 @@ object ModelPermissionsStore {
 }
 
 class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
+
+  def getUsersCurrentModelPermissions(modelId: String, username: String): Try[ModelPermissions] = tryWithDb { db =>
+    val modelRID = getModelRid(modelId).get
+    val modelDoc = modelRID.getRecord[ODocument]
+    val overridesPermissions: Boolean = modelDoc.field(Fields.OverridePermissions)
+    if (overridesPermissions) {
+      getModelUserPermissions(modelId, username).flatMap { userPerms =>
+        userPerms match {
+          case Some(p) =>
+            Success(p)
+          case None =>
+            getModelWorldPermissions(modelId)
+        }
+      }.get
+    } else {
+      val collectionDoc = modelDoc.field(Fields.Collection)
+      val collectionId: String = modelDoc.field(Fields.ID)
+      getCollectionUserPermissions(collectionId, username).flatMap {
+        userPerms =>
+          userPerms match {
+            case Some(p) =>
+              val CollectionPermissions(create, read, write, remove, manage) = p
+              Success(ModelPermissions(read, write, remove, manage))
+            case None =>
+              getCollectionWorldPermissions(collectionId).map { collectionWorld =>
+                collectionWorld match {
+                  case Some(p) =>
+                    val CollectionPermissions(create, read, write, remove, manage) = p
+                    ModelPermissions(read, write, remove, manage)
+                  case None => 
+                    //TODO: Probably need to return an error here
+                    ModelPermissions(false, false, false, false)
+                }
+              }
+          }
+      }.get
+    }
+  }
 
   def getCollectionWorldPermissions(collectionId: String): Try[Option[CollectionPermissions]] = tryWithDb { db =>
     val queryString =
@@ -331,7 +370,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
   }
 
   def updateAllModelUserPermissions(id: String, userPermissions: Map[String, Option[ModelPermissions]]): Try[Unit] = tryWithDb { db =>
-    val modelRID = ModelStore.getModelRid(id,  db).get
+    val modelRID = ModelStore.getModelRid(id, db).get
 
     userPermissions.foreach {
       case (username, permissions) =>
