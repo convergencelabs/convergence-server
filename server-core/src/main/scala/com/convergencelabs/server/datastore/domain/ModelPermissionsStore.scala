@@ -372,6 +372,8 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
         val key = new OCompositeKey(List(userRID, modelRID).asJava)
         val modelPermissionRID = getModelUserPermissionsRid(id, username)
 
+        // FIXME we probably need some other method that returns an option.
+        // This is not as clean using a try.
         modelPermissionRID match {
           case Success(rid) =>
             val modelPermissionRecord = rid.getRecord[ODocument]

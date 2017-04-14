@@ -372,13 +372,18 @@ class ModelClientActor(
   }
 
   private[this] def onCreateRealtimeModelRequest(request: CreateRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
-    val CreateRealtimeModelRequestMessage(collectionId, modelId, data, overridePermissions, worldPermissionsData) = request
-    val worldPermissions = worldPermissionsData.map(wp => {
+    val CreateRealtimeModelRequestMessage(collectionId, modelId, data, overridePermissions, worldPermissionsData, userPermissionsData) = request
+    val worldPermissions = worldPermissionsData.map { wp =>
       val ModelPermissionsData(read, write, remove, manage) = wp
       ModelPermissions(read, write, remove, manage)
+    }
+    
+    val userPermissions = userPermissionsData.map( permsMap => permsMap map { entry =>
+      val ModelPermissionsData(read, write, remove, manage) = entry._2
+      (entry._1 -> ModelPermissions(read, write, remove, manage))
     })
 
-    val future = modelManager ? CreateModelRequest(sessionKey, collectionId, modelId, data, overridePermissions, worldPermissions)
+    val future = modelManager ? CreateModelRequest(sessionKey, collectionId, modelId, data, overridePermissions, worldPermissions, userPermissions)
     future.mapResponse[CreateModelResponse] onComplete {
       case Success(ModelCreated(m)) => cb.reply(CreateRealtimeModelSuccessMessage(m))
       case Success(ModelAlreadyExists)           => cb.expectedError("model_alread_exists", "A model with the specifieid collection and model id already exists")

@@ -225,18 +225,18 @@ class DomainModelService(
     }
   }
 
-  //TODO: Pass in model permissions
   def postModel(domain: DomainFqn, colletionId: String, data: Map[String, Any]): Future[RestResponse] = {
-    val message = DomainMessage(domain, CreateModel(colletionId, data, None, None))
+    // FIXME need top pass ind model pemrissions options.
+    val message = DomainMessage(domain, CreateModel(colletionId, data, None, None, None))
     (domainRestActor ? message).mapTo[ModelFqn] map {
       case ModelFqn(collectionId, modelId) =>
         (StatusCodes.Created, CreateModelResponse(collectionId, modelId))
     }
   }
 
-  //TODO: Pass in model permissions
   def putModel(domain: DomainFqn, colletionId: String, modelId: String, data: Map[String, Any]): Future[RestResponse] = {
-    val message = DomainMessage(domain, CreateOrUpdateModel(colletionId, modelId, data, None, None))
+    // FIXME need top pass ind model pemrissions options.
+    val message = DomainMessage(domain, CreateOrUpdateModel(colletionId, modelId, data, None, None, None))
     (domainRestActor ? message) map { _ => OkResponse }
   }
 

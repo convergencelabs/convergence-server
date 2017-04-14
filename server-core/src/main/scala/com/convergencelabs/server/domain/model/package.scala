@@ -22,12 +22,12 @@ package model {
   case class OpenRequestRecord(clientActor: ActorRef, askingActor: ActorRef)
   case class OpenRealtimeModelRequest(sk: SessionKey, modelId: Option[String], autoCreateId: Option[Integer], clientActor: ActorRef)
   case class CreateModelRequest(sk: SessionKey, collectionId: String, modelId: Option[String], modelData: ObjectValue,
-                                overridePermissions: Option[Boolean], worldPermissions: Option[ModelPermissions])
+    overridePermissions: Option[Boolean], worldPermissions: Option[ModelPermissions], userPermissions: Option[Map[String, ModelPermissions]])
   case class DeleteModelRequest(sk: SessionKey, modelFqn: ModelFqn)
   case class CloseRealtimeModelRequest(sk: SessionKey)
   case class OperationSubmission(seqNo: Long, contextVersion: Long, operation: Operation)
   case class ClientAutoCreateModelConfigResponse(collectionId: String, modelData: Option[ObjectValue], overridePermissions: Option[Boolean],
-                                            worldPermissions: Option[ModelPermissions], userPermissions: Option[Map[String, ModelPermissions]])
+    worldPermissions: Option[ModelPermissions], userPermissions: Option[Map[String, ModelPermissions]])
 
   case class GetModelPermissionsRequest(modelId: String)
 
@@ -83,7 +83,7 @@ package model {
   //
   case class DatabaseModelResponse(modelData: Model, snapshotMetaData: ModelSnapshotMetaData)
   case class DatabaseModelFailure(cause: Throwable)
-  
+
   //
   // Outgoing Messages
   //
@@ -133,7 +133,7 @@ package model {
     resourceId: String, sessionId: String, id: Option[String], key: String,
     referenceType: ReferenceType.Value, values: Option[List[Any]]) extends RemoteReferenceEvent
   case class RemoteReferenceSet(resourceId: String, sessionId: String, id: Option[String], key: String,
-                                referenceType: ReferenceType.Value, value: List[Any]) extends RemoteReferenceEvent
+    referenceType: ReferenceType.Value, value: List[Any]) extends RemoteReferenceEvent
   case class RemoteReferenceCleared(resourceId: String, sessionId: String, id: Option[String], key: String) extends RemoteReferenceEvent
   case class RemoteReferenceUnpublished(resourceId: String, sessionId: String, id: Option[String], key: String) extends RemoteReferenceEvent
 

@@ -35,8 +35,8 @@ object ModelStoreActor {
 
   trait ModelStoreRequest
 
-  case class CreateOrUpdateModel(collectionId: String, modelId: String, data: Map[String, Any], overridePermissions: Option[Boolean], worldPermissions: Option[ModelPermissions]) extends ModelStoreRequest
-  case class CreateModel(collectionId: String, data: Map[String, Any], overridePermissions: Option[Boolean], worldPermissions: Option[ModelPermissions]) extends ModelStoreRequest
+  case class CreateOrUpdateModel(collectionId: String, modelId: String, data: Map[String, Any], overridePermissions: Option[Boolean], worldPermissions: Option[ModelPermissions], userPermissions: Option[Map[String, ModelPermissions]]) extends ModelStoreRequest
+  case class CreateModel(collectionId: String, data: Map[String, Any], overridePermissions: Option[Boolean], worldPermissions: Option[ModelPermissions], userPermissions: Option[Map[String, ModelPermissions]]) extends ModelStoreRequest
 
   case class GetModels(offset: Option[Int], limit: Option[Int]) extends ModelStoreRequest
   case class GetModelsInCollection(collectionId: String, offset: Option[Int], limit: Option[Int]) extends ModelStoreRequest
@@ -59,10 +59,10 @@ class ModelStoreActor private[datastore] (private[this] val persistenceProvider:
       getModel(modelFqn)
     case DeleteModel(modelFqn) =>
       deleteModel(modelFqn)
-    case CreateModel(collectionId, data, overridePermissions, worldPermissions) =>
-      createModel(collectionId, data, overridePermissions, worldPermissions)
-    case CreateOrUpdateModel(collectionId, modelId, data, overridePermissions, worldPermissions) =>
-      createOrUpdateModel(collectionId, modelId, data, overridePermissions, worldPermissions)
+    case CreateModel(collectionId, data, overridePermissions, worldPermissions, userPermissions) =>
+      createModel(collectionId, data, overridePermissions, worldPermissions, userPermissions)
+    case CreateOrUpdateModel(collectionId, modelId, data, overridePermissions, worldPermissions, userPermissions) =>
+      createOrUpdateModel(collectionId, modelId, data, overridePermissions, worldPermissions, userPermissions)
 
     case message: Any => unhandled(message)
   }
@@ -79,36 +79,42 @@ class ModelStoreActor private[datastore] (private[this] val persistenceProvider:
     reply(persistenceProvider.modelStore.getModel(modelFqn.modelId))
   }
 
-  def createModel(collectionId: String, data: Map[String, Any], overridePermissions: Option[Boolean], worldPermissions: Option[ModelPermissions]): Unit = {
+  def createModel(
+    collectionId: String,
+    data: Map[String, Any],
+    overridePermissions: Option[Boolean],
+    worldPermissions: Option[ModelPermissions],
+    userPermissions: Option[Map[String, ModelPermissions]]): Unit = {
     val root = ModelDataGenerator(data)
     // FIXME should we have an owner
     val result = ModelCreator.createModel(
-            persistenceProvider,
-            None,
-            collectionId,
-            None,
-            root,
-            overridePermissions,
-            worldPermissions
-          ).map (model => ModelFqn(model.metaData.collectionId, model.metaData.modelId))
-    
+      persistenceProvider,
+      None,
+      collectionId,
+      None,
+      root,
+      overridePermissions,
+      worldPermissions,
+      userPermissions).map(model => ModelFqn(model.metaData.collectionId, model.metaData.modelId))
+
     reply(result)
   }
 
-  def createOrUpdateModel(collectionId: String, modelId: String, data: Map[String, Any], overridePermissions: Option[Boolean], worldPermissions: Option[ModelPermissions]): Unit = {
+  def createOrUpdateModel(collectionId: String, modelId: String, data: Map[String, Any], overridePermissions: Option[Boolean], worldPermissions: Option[ModelPermissions], userPermissions: Option[Map[String, ModelPermissions]]): Unit = {
     //FIXME If the model is open this could cause problems.
     val root = ModelDataGenerator(data)
-    val result = persistenceProvider.collectionStore.ensureCollectionExists(collectionId) flatMap { _ =>
-      persistenceProvider.modelStore.createModel(collectionId, Some(modelId), root, overridePermissions.getOrElse(false),
-        worldPermissions.getOrElse(ModelPermissions(false, false, false, false))) map { _ =>
-          ModelFqn(collectionId, modelId)
-        } recoverWith {
-          case e: DuplicateValueExcpetion =>
-            persistenceProvider.modelStore.updateModel(modelId, root, worldPermissions) map { _ =>
-              ModelFqn(collectionId, modelId)
-            }
-        }
-    }
+    val result = ModelCreator.createModel(
+      persistenceProvider,
+      None,
+      collectionId,
+      None,
+      root,
+      overridePermissions,
+      worldPermissions,
+      userPermissions).recoverWith {
+        case e: DuplicateValueExcpetion =>
+          persistenceProvider.modelStore.updateModel(modelId, root, worldPermissions)
+      }.map(_ => ModelFqn(collectionId, modelId))
     reply(result)
   }
 

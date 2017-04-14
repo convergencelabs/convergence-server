@@ -456,7 +456,6 @@ class RealtimeModelActor(
         log.debug(s"Creating model in database: ${this.modelId}")
         val overrideWorld = overridePermissions.getOrElse(false)
         val worldPerms = worldPermissions.getOrElse(ModelPermissions(false, false, false, false))
-
         // FIXME see if this is correct? Sepecifically with the id.
         val rootObject = modelData.getOrElse(ObjectValue("0:0", Map()))
 
@@ -468,7 +467,8 @@ class RealtimeModelActor(
           Some(modelId),
           rootObject,
           overridePermissions,
-          worldPermissions) recover {
+          worldPermissions,
+          userPermissions) recover {
             case cause: Exception =>
               log.error(cause,
                 s"Unable to initialize the model from a client initializer: $domainFqn/$modelId")

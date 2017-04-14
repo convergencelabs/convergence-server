@@ -161,17 +161,7 @@ class ModelManagerActor(
     modelActor forward openRequest
   }
 
-  private[this] def getCollectionUserPermissions(collectionId: String, username: String): Try[CollectionPermissions] = {
-    val permissionsStore = this.persistenceProvider.modelPermissionsStore
-    permissionsStore.getCollectionUserPermissions(collectionId, username).flatMap { userPermissions =>
-      userPermissions match {
-        case Some(p) =>
-          Success(p)
-        case None =>
-          permissionsStore.getCollectionWorldPermissions(collectionId)
-      }
-    }
-  }
+  
 
   private[this] def getModelUserPermissions(id: String, collection: String, sk: SessionKey): Try[ModelPermissions] = {
     if (sk.admin) {
@@ -232,12 +222,12 @@ class ModelManagerActor(
   }
 
   private[this] def onCreateModelRequest(createRequest: CreateModelRequest): Unit = {
-    val CreateModelRequest(sk, collectionId, modelId, data, overridePermissions, worldPermissions) = createRequest
+    val CreateModelRequest(sk, collectionId, modelId, data, overridePermissions, worldPermissions, userPermissions) = createRequest
     // FIXME perhaps these should be some expected error type, like InvalidArgument
     if (collectionId.length == 0) {
       sender ! UnknownErrorResponse("The collecitonId can not be empty when creating a model")
     } else {
-      canCreate(collectionId, sk) flatMap { canCreateModel =>
+      ModelCreator.canCreate(collectionId, sk, this.persistenceProvider.modelPermissionsStore) flatMap { canCreateModel =>
         if (canCreateModel) {
           ModelCreator.createModel(
             persistenceProvider,
@@ -246,7 +236,8 @@ class ModelManagerActor(
             modelId,
             data,
             overridePermissions,
-            worldPermissions) map { model =>
+            worldPermissions, 
+            userPermissions) map { model =>
               sender ! ModelCreated(model.metaData.modelId)
               ()
             }
@@ -359,16 +350,6 @@ class ModelManagerActor(
     } recover {
       case cause: Exception =>
         sender ! Status.Failure(cause)
-    }
-  }
-
-  private[this] def canCreate(collectionId: String, sk: SessionKey): Try[Boolean] = {
-    if (sk.admin) {
-      Success(true)
-    } else {
-      // Eventually we need some sort of domain wide configuration to allow / disallow auto creation of
-      // collections.
-      getCollectionUserPermissions(collectionId, sk.uid) map (c => c.create)
     }
   }
 
