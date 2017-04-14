@@ -73,7 +73,7 @@ import com.convergencelabs.server.domain.model.ot.DateSetOperation
 import com.convergencelabs.server.domain.model.ot.AppliedDateSetOperation
 
 class RealTimeModel(
-    private[this] val fqn: ModelFqn,
+    private[this] val modelId: String,
     private[this] val resourceId: String,
     private[this] val cc: ServerConcurrencyControl,
     private val obj: ObjectValue) {

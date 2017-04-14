@@ -24,6 +24,7 @@ import akka.actor.ActorRef
 import akka.actor.Props
 import akka.actor.Status
 import akka.actor.Terminated
+import java.util.UUID
 
 case class QueryModelsRequest(sk: SessionKey, query: String)
 case class QueryOrderBy(field: String, ascending: Boolean)
@@ -36,32 +37,52 @@ class ModelManagerActor(
   private[this] val persistenceManager: DomainPersistenceManager)
     extends Actor with ActorLogging {
 
-  private[this] var openRealtimeModels = Map[ModelFqn, ActorRef]()
+  private[this] var openRealtimeModels = Map[String, ActorRef]()
   private[this] var nextModelResourceId: Long = 0
 
   var persistenceProvider: DomainPersistenceProvider = _
 
   def receive: Receive = {
-    case message: OpenRealtimeModelRequest   => onOpenRealtimeModel(message)
-    case message: CreateModelRequest         => onCreateModelRequest(message)
-    case message: DeleteModelRequest         => onDeleteModelRequest(message)
-    case message: QueryModelsRequest         => onQueryModelsRequest(message)
-    case message: ModelShutdownRequest       => onModelShutdownRequest(message)
+    case message: OpenRealtimeModelRequest => onOpenRealtimeModel(message)
+    case message: CreateModelRequest => onCreateModelRequest(message)
+    case message: DeleteModelRequest => onDeleteModelRequest(message)
+    case message: QueryModelsRequest => onQueryModelsRequest(message)
+    case message: ModelShutdownRequest => onModelShutdownRequest(message)
     case message: GetModelPermissionsRequest => onGetModelPermissions(message)
     case message: SetModelPermissionsRequest => onSetModelPermissions(message)
-    case Terminated(actor)                   => onActorDeath(actor)
-    case message: Any                        => unhandled(message)
+    case Terminated(actor) => onActorDeath(actor)
+    case message: Any => unhandled(message)
   }
 
   private[this] def onOpenRealtimeModel(openRequest: OpenRealtimeModelRequest): Unit = {
-    val OpenRealtimeModelRequest(sk, modelFqn, initializerProvided, clientActor) = openRequest
-    this.openRealtimeModels.get(openRequest.modelFqn) match {
+    val OpenRealtimeModelRequest(sk, modelId, initializerProvided, clientActor) = openRequest
+
+    modelId match {
+      case Some(id) =>
+        // Model may or may not exist
+        this.openRealtimeModels.get(id) match {
+          case Some(modelActor) =>
+            // Model already open
+            modelActor forward openRequest
+          case None =>
+            createModelActorAndForwarOpenRequest(id, openRequest)
+        }
+      case None =>
+        // Model does not exist
+        val modelId = UUID.randomUUID().toString()
+        createModelActorAndForwarOpenRequest(modelId, openRequest)
+    }
+
+    //
+    // OLD CODE
+    //
+    this.openRealtimeModels.get(openRequest.modelId) match {
       case Some(modelActor) =>
         // Model already open
         modelActor forward openRequest
       case None =>
         // Model not already open, load it
-        val me = this.persistenceProvider.modelStore.modelExists(modelFqn.modelId)
+        val me = this.persistenceProvider.modelStore.modelExists(modelId)
         me flatMap { exists =>
           (if (exists) {
             getModelUserPermissions(modelFqn, sk) map (p => p.read)
@@ -117,6 +138,29 @@ class ModelManagerActor(
     }
   }
 
+  private[this] def createModelActorAndForwarOpenRequest(id: String, openRequest: OpenRealtimeModelRequest): Unit = {
+    // TODO We could optimize this such that the real time model actor only asks for this when it established that
+    // it is going to actually go live. That way we don't unessisarily burn through these.
+    val resourceId = "" + nextModelResourceId
+    nextModelResourceId += 1
+    
+    val props = RealtimeModelActor.props(
+      self,
+      domainFqn,
+      id,
+      resourceId,
+      persistenceProvider,
+      5000, // FIXME hard-coded time.  Should this be part of the protocol?
+      snapshotConfig)
+
+    val modelActor = context.actorOf(props, resourceId)
+    this.openRealtimeModels += (openRequest.modelFqn -> modelActor)
+    this.context.watch(modelActor)
+    
+    // FIXME we probably want a new message, we don't really need to send some of the info.
+    modelActor forward openRequest
+  }
+
   private[this] def getCollectionUserPermissions(collectionId: String, username: String): Try[Option[CollectionPermissions]] = {
     val permissionsStore = this.persistenceProvider.modelPermissionsStore
     permissionsStore.getCollectionUserPermissions(collectionId, username).flatMap { userPermissions =>
@@ -129,23 +173,23 @@ class ModelManagerActor(
     }
   }
 
-  private[this] def getModelUserPermissions(fqn: ModelFqn, sk: SessionKey): Try[ModelPermissions] = {
+  private[this] def getModelUserPermissions(id: String, collection: String, sk: SessionKey): Try[ModelPermissions] = {
     if (sk.admin) {
       Success(ModelPermissions(true, true, true, true))
     } else {
       val permissionsStore = this.persistenceProvider.modelPermissionsStore
-      permissionsStore.modelOverridesCollectionPermissions(fqn.modelId).flatMap { overrides =>
+      permissionsStore.modelOverridesCollectionPermissions(id).flatMap { overrides =>
         if (overrides) {
-          permissionsStore.getModelUserPermissions(fqn.modelId, sk.uid).flatMap { userPerms =>
+          permissionsStore.getModelUserPermissions(id, sk.uid).flatMap { userPerms =>
             userPerms match {
               case Some(p) =>
                 Success(p)
               case None =>
-                permissionsStore.getModelWorldPermissions(fqn.modelId)
+                permissionsStore.getModelWorldPermissions(id)
             }
           }
         } else {
-          permissionsStore.getCollectionWorldPermissions(fqn.collectionId).flatMap { collectionPerms =>
+          permissionsStore.getCollectionWorldPermissions(collection).flatMap { collectionPerms =>
             collectionPerms match {
               case Some(c) =>
                 val CollectionPermissions(create, read, write, remove, manage) = c
@@ -161,20 +205,20 @@ class ModelManagerActor(
     }
   }
 
-  private[this] def getModelPermissions(fqn: ModelFqn, modelExists: Boolean): Try[RealTimeModelPermissions] = {
+  private[this] def getModelPermissions(id: String, collectionId: String, modelExists: Boolean): Try[RealTimeModelPermissions] = {
     val permissionsStore = this.persistenceProvider.modelPermissionsStore
     if (modelExists) {
       for {
-        overrideCollection <- permissionsStore.modelOverridesCollectionPermissions(fqn.modelId)
-        collectionWorld <- permissionsStore.getCollectionWorldPermissions(fqn.collectionId)
-        collectionUsers <- permissionsStore.getAllCollectionUserPermissions(fqn.collectionId)
-        modelWorld <- permissionsStore.getModelWorldPermissions(fqn.modelId)
-        modelUsers <- permissionsStore.getAllModelUserPermissions(fqn.modelId)
+        overrideCollection <- permissionsStore.modelOverridesCollectionPermissions(modelId)
+        collectionWorld <- permissionsStore.getCollectionWorldPermissions(collectionId)
+        collectionUsers <- permissionsStore.getAllCollectionUserPermissions(collectionId)
+        modelWorld <- permissionsStore.getModelWorldPermissions(modelId)
+        modelUsers <- permissionsStore.getAllModelUserPermissions(modelId)
       } yield (RealTimeModelPermissions(overrideCollection, collectionWorld.get, collectionUsers, modelWorld, modelUsers))
     } else {
       for {
-        collectionWorld <- permissionsStore.getCollectionWorldPermissions(fqn.collectionId)
-        collectionUsers <- permissionsStore.getAllCollectionUserPermissions(fqn.collectionId)
+        collectionWorld <- permissionsStore.getCollectionWorldPermissions(collectionId)
+        collectionUsers <- permissionsStore.getAllCollectionUserPermissions(collectionId)
       } yield (RealTimeModelPermissions(
         false,
         collectionWorld.get,
@@ -210,7 +254,7 @@ class ModelManagerActor(
             data,
             overridePermissions,
             worldPermissions) map { model =>
-              sender ! ModelCreated(ModelFqn(model.metaData.collectionId, model.metaData.modelId))
+              sender ! ModelCreated(model.metaData.modelId)
               ()
             }
         } else {
@@ -266,12 +310,12 @@ class ModelManagerActor(
     }
     persistenceProvider.modelStore.queryModels(query, username) match {
       case Success(result) => sender ! QueryModelsResponse(result)
-      case Failure(cause)  => sender ! Status.Failure(cause)
+      case Failure(cause) => sender ! Status.Failure(cause)
     }
   }
 
   private[this] def onGetModelPermissions(request: GetModelPermissionsRequest): Unit = {
-    val modelFqn = ModelFqn(request.collectionId, request.modelId)
+    val modelId = ModelFqn(request.collectionId, request.modelId)
     val permissionsStore = persistenceProvider.modelPermissionsStore
     val GetModelPermissionsRequest(collectionId, modelId) = request
     (for {
@@ -299,11 +343,11 @@ class ModelManagerActor(
         (for {
           _ <- overrideCollection match {
             case Some(ov) => persistenceProvider.modelPermissionsStore.setOverrideCollectionPermissions(modelFqn.modelId, ov)
-            case None     => Success(())
+            case None => Success(())
           }
           _ <- world match {
             case Some(perms) => persistenceProvider.modelPermissionsStore.setModelWorldPermissions(modelFqn.modelId, perms)
-            case None        => Success(())
+            case None => Success(())
           }
 
           _ <- if (setAllUsers) {
@@ -339,9 +383,9 @@ class ModelManagerActor(
   }
 
   private[this] def onModelShutdownRequest(shutdownRequest: ModelShutdownRequest): Unit = {
-    val fqn = shutdownRequest.modelFqn
-    openRealtimeModels.get(fqn) map (_ ! ModelShutdown)
-    openRealtimeModels -= (fqn)
+    val modelId = shutdownRequest.modelId
+    openRealtimeModels.get(modelId) map (_ ! ModelShutdown)
+    openRealtimeModels -= (modelId)
   }
 
   private[this] def onActorDeath(actor: ActorRef): Unit = {
@@ -373,8 +417,8 @@ object ModelManagerActor {
   val RelativePath = "modelManager"
 
   def props(domainFqn: DomainFqn,
-            protocolConfig: ProtocolConfiguration,
-            persistenceManager: DomainPersistenceManager): Props = Props(
+    protocolConfig: ProtocolConfiguration,
+    persistenceManager: DomainPersistenceManager): Props = Props(
     new ModelManagerActor(
       domainFqn,
       protocolConfig,

@@ -184,7 +184,6 @@ class DomainImporter(
 
   //FIXME: import permissions
   def createModel(modelData: CreateModel): Unit = {
-    val fqn = ModelFqn(modelData.collection, modelData.id)
     val data = createDataValue(modelData.data).asInstanceOf[ObjectValue]
     val model = Model(
       ModelMetaData(
@@ -199,8 +198,8 @@ class DomainImporter(
 
     persistence.modelStore.createModel(model).get
 
-    modelData.snapshots foreach (createModelSnapshot(fqn, _))
-    modelData.operations foreach (createModelOperation(fqn, _))
+    modelData.snapshots foreach (createModelSnapshot(modelData.id, _))
+    modelData.operations foreach (createModelOperation(modelData.id, _))
   }
 
   def createDataValue(data: CreateDataValue): DataValue = {
@@ -224,17 +223,17 @@ class DomainImporter(
     }
   }
 
-  def createModelSnapshot(fqn: ModelFqn, snapshotData: CreateModelSnapshot): Unit = {
-    val metaData = ModelSnapshotMetaData(fqn, snapshotData.version, snapshotData.timestamp)
+  def createModelSnapshot(id: String, snapshotData: CreateModelSnapshot): Unit = {
+    val metaData = ModelSnapshotMetaData(id, snapshotData.version, snapshotData.timestamp)
     val data = createDataValue(snapshotData.data).asInstanceOf[ObjectValue]
     val snapshot = ModelSnapshot(metaData, data)
     persistence.modelSnapshotStore.createSnapshot(snapshot).get
   }
 
-  def createModelOperation(fqn: ModelFqn, opData: CreateModelOperation): Unit = {
+  def createModelOperation(id: String, opData: CreateModelOperation): Unit = {
     val op = createOperation(opData.op)
     val modelOp = NewModelOperation(
-      fqn.modelId,
+      id,
       opData.version,
       opData.timestamp,
       opData.sessionId,

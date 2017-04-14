@@ -29,7 +29,7 @@ package model {
   case class ClientAutoCreateModelConfigResponse(collectionId: String, modelData: Option[ObjectValue], overridePermissions: Option[Boolean],
                                             worldPermissions: Option[ModelPermissions], userPermissions: Option[Map[String, ModelPermissions]])
 
-  case class GetModelPermissionsRequest(collectionId: String, modelId: String)
+  case class GetModelPermissionsRequest(modelId: String)
 
   case class GetModelPermissionsResponse(overridesCollection: Boolean, worlPermissions: ModelPermissions, userPermissions: Map[String, ModelPermissions])
 
@@ -59,7 +59,7 @@ package model {
   case object ModelNotFound extends DeleteModelResponse
 
   sealed trait CreateModelResponse
-  case class ModelCreated(fqn: ModelFqn) extends CreateModelResponse
+  case class ModelCreated(id: String) extends CreateModelResponse
   case object ModelAlreadyExists extends CreateModelResponse
 
   case class CreateCollectionRequest(collection: Collection)
@@ -111,7 +111,7 @@ package model {
   case object NoSuchModel extends OpenModelFailure
   case class ClientDataRequestFailure(message: String) extends OpenModelFailure
 
-  case class ModelShutdownRequest(modelFqn: ModelFqn)
+  case class ModelShutdownRequest(modelId: String)
   case class CloseRealtimeModelSuccess()
 
   trait RealtimeModelClientMessage

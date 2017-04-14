@@ -24,7 +24,7 @@ object ModelCreator {
       model
     } flatMap { model =>
       val ModelMetaData(model.metaData.collectionId, model.metaData.modelId, version, created, modified, overworldPermissions, worldPermissions) = model.metaData
-      val snapshot = ModelSnapshot(ModelSnapshotMetaData(ModelFqn(model.metaData.collectionId, model.metaData.modelId), version, created), model.data)
+      val snapshot = ModelSnapshot(ModelSnapshotMetaData(model.metaData.modelId, version, created), model.data)
       persistenceProvider.modelSnapshotStore.createSnapshot(snapshot) flatMap { _ =>
         username match {
           case Some(uname) =>
