@@ -78,11 +78,11 @@ class RealtimeModelActorSpec
 
         realtimeModelActor.tell(OpenRealtimeModelRequest(SessionKey(uid1, session1), Some(modelId), Some(1), client1.ref), client1.ref)
         val dataRequest1 = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientAutoCreateModelConfigRequest])
-        assert(dataRequest1.autoConfigId == Some(1))
+        assert(dataRequest1.autoConfigId == 1)
 
         realtimeModelActor.tell(OpenRealtimeModelRequest(SessionKey(uid2, session2), Some(modelId), Some(1), client2.ref), client2.ref)
         val dataRequest2 = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientAutoCreateModelConfigRequest])
-        assert(dataRequest1.autoConfigId == Some(1))
+        assert(dataRequest1.autoConfigId == 1)
       }
 
       "reject a client that does not respond with data" in new MockDatabaseWithoutModel {

@@ -92,7 +92,6 @@ class RealtimeModelActor(
   private[this] val modelSnapshotStore = persistenceProvider.modelSnapshotStore
   private[this] val permissionsStore = persistenceProvider.modelPermissionsStore
 
-  // FIXME we need to grab these from the database when we complete the open.
   private[this] var overrideCollection: Boolean = _
   private[this] var collectionWorld: CollectionPermissions = _
   private[this] var collectionUsers: Map[String, CollectionPermissions] = _
@@ -452,7 +451,7 @@ class RealtimeModelActor(
         log.debug(s"Received data for model ${this.modelId} from client")
         val ClientAutoCreateModelConfigResponse(colleciton, modelData, overridePermissions, worldPermissions, userPermissions) = config
         
-        //TODO: Store these values in the database
+        // FIXME: Add user permissions to model create
         
         log.debug(s"Creating model in database: ${this.modelId}")
         val overrideWorld = overridePermissions.getOrElse(false)
