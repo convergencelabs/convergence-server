@@ -40,7 +40,7 @@ class ModelSnapshotStoreSpec
 
   val p1Snapshot1Version = 1L
   val p1Snapshot1Date = Instant.parse("2016-01-01T00:00:00Z")
-  val p1Snapshot1MetaData = ModelSnapshotMetaData(person1ModelFqn, p1Snapshot1Version, p1Snapshot1Date)
+  val p1Snapshot1MetaData = ModelSnapshotMetaData(person1Id, p1Snapshot1Version, p1Snapshot1Date)
   val p1Snapshot1Data = ObjectValue("vid", Map("value" -> DoubleValue("0:1", 1)))
   val p1Snapshot1 = ModelSnapshot(p1Snapshot1MetaData, p1Snapshot1Data)
 
@@ -48,13 +48,13 @@ class ModelSnapshotStoreSpec
 
   val p1Snapshot10Version = 10L
   val p1Snapshot10Date = Instant.parse("2016-01-10T00:00:00Z")
-  val p1Snapshot10MetaData = ModelSnapshotMetaData(person1ModelFqn, p1Snapshot10Version, p1Snapshot10Date)
+  val p1Snapshot10MetaData = ModelSnapshotMetaData(person1Id, p1Snapshot10Version, p1Snapshot10Date)
   val p1Snapshot10Data = ObjectValue("vid", Map("value" -> DoubleValue("0:1", 10)))
   val p1Snapshot10 = ModelSnapshot(p1Snapshot10MetaData, p1Snapshot10Data)
 
   val p1Snapshot20Version = 20L
   val p1Snapshot20Date = Instant.parse("2016-01-20T00:00:00Z")
-  val p1Snapshot20MetaData = ModelSnapshotMetaData(person1ModelFqn, p1Snapshot20Version, p1Snapshot20Date)
+  val p1Snapshot20MetaData = ModelSnapshotMetaData(person1Id, p1Snapshot20Version, p1Snapshot20Date)
   val p1Snapshot20Data = ObjectValue("vid", Map("value" -> DoubleValue("0:1", 20)))
   val p1Snapshot20 = ModelSnapshot(p1Snapshot20MetaData, p1Snapshot20Data)
   
@@ -66,7 +66,7 @@ class ModelSnapshotStoreSpec
   
   val p2Snapshot1Version = 20L
   val p2Snapshot1Date = Instant.parse("2016-01-20T00:00:00Z")
-  val p2Snapshot1MetaData = ModelSnapshotMetaData(person2ModelFqn, 1L, Instant.now())
+  val p2Snapshot1MetaData = ModelSnapshotMetaData(person2Id, 1L, Instant.now())
   val p2Snapshot1Data = ObjectValue("vid", Map("value" -> DoubleValue("0:1", 1)))
   val p2Snapshot1 = ModelSnapshot(p2Snapshot1MetaData, p2Snapshot1Data)
   
@@ -82,7 +82,7 @@ class ModelSnapshotStoreSpec
         val timestamp = Instant.now()
 
         val created = ModelSnapshot(
-          ModelSnapshotMetaData(person1ModelFqn, version, timestamp),
+          ModelSnapshotMetaData(person1Id, version, timestamp),
           ObjectValue("0:0", Map("key" -> StringValue("0:1", "value"))))
 
         provider.modelSnapshotStore.createSnapshot(created).success

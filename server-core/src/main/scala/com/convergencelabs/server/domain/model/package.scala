@@ -83,7 +83,7 @@ package model {
   //
   case class DatabaseModelResponse(modelData: Model, snapshotMetaData: ModelSnapshotMetaData)
   case class DatabaseModelFailure(cause: Throwable)
-
+  
   //
   // Outgoing Messages
   //

@@ -81,7 +81,7 @@ case class CloseRealtimeModelRequestMessage(r: String) extends IncomingModelRequ
 case class CreateRealtimeModelRequestMessage(c: String, m: Option[String], d: ObjectValue, v: Option[Boolean], w: Option[ModelPermissionsData]) extends IncomingModelRequestMessage
 case class DeleteRealtimeModelRequestMessage(c: String, m: String) extends IncomingModelRequestMessage
 
-case class GetModelPermissionsRequestMessage(c: String, m: String) extends IncomingModelRequestMessage
+case class GetModelPermissionsRequestMessage(m: String) extends IncomingModelRequestMessage
 case class SetModelPermissionsRequestMessage(
     c: String, 
     m: String,
@@ -106,7 +106,7 @@ case class OpenModelData(d: ObjectValue, s: Set[String], r: Set[ReferenceData])
 case class ReferenceData(s: String, d: Option[String], k: String, c: Int, v: List[Any])
 
 case class CloseRealTimeModelSuccessMessage() extends OutgoingProtocolResponseMessage
-case class CreateRealtimeModelSuccessMessage(c: String, m: String) extends OutgoingProtocolResponseMessage
+case class CreateRealtimeModelSuccessMessage(m: String) extends OutgoingProtocolResponseMessage
 case class DeleteRealtimeModelSuccessMessage() extends OutgoingProtocolResponseMessage
 
 case class SetModelPermissionsResponseMessage() extends OutgoingProtocolResponseMessage

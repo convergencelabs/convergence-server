@@ -126,7 +126,7 @@ class DomainImporterSpec extends WordSpecLike with Matchers {
         val snapshot = provider.modelSnapshotStore.getSnapshot(modelId, 1).get.value
         snapshot shouldBe ModelSnapshot(
           ModelSnapshotMetaData(
-            modelFqn,
+            modelFqn.modelId,
             1L,
             Instant.parse("2016-11-16T17:49:15.233Z")),
           ObjectValue(

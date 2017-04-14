@@ -57,7 +57,7 @@ class ModelManagerActorSpec
     "opening model" must {
       "sucessfully load an unopen model" in new TestFixture {
         val client = new TestProbe(system)
-        modelManagerActor.tell(OpenRealtimeModelRequest(SessionKey(userId1, sessionId1), modelFqn, true, client.ref), client.ref)
+        modelManagerActor.tell(OpenRealtimeModelRequest(SessionKey(userId1, sessionId1), Some(modelFqn.modelId), Some(1), client.ref), client.ref)
 
         val message = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
         assert(message.modelData == modelData.data)
@@ -68,11 +68,11 @@ class ModelManagerActorSpec
 
       "sucessfully load an open model" in new TestFixture {
         val client1 = new TestProbe(system)
-        modelManagerActor.tell(OpenRealtimeModelRequest(SessionKey(userId1, sessionId1), modelFqn, true, client1.ref), client1.ref)
+        modelManagerActor.tell(OpenRealtimeModelRequest(SessionKey(userId1, sessionId1), Some(modelFqn.modelId), Some(1), client1.ref), client1.ref)
         client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
 
         val client2 = new TestProbe(system)
-        modelManagerActor.tell(OpenRealtimeModelRequest(SessionKey(userId2, sessionId1), modelFqn, true, client2.ref), client2.ref)
+        modelManagerActor.tell(OpenRealtimeModelRequest(SessionKey(userId2, sessionId1), Some(modelFqn.modelId), Some(1), client2.ref), client2.ref)
         val response = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
 
         assert(response.modelData == modelData.data)
@@ -83,8 +83,8 @@ class ModelManagerActorSpec
 
       "request data if the model does not exist" in new TestFixture {
         val client1 = new TestProbe(system)
-        modelManagerActor.tell(OpenRealtimeModelRequest(SessionKey(userId1, sessionId1), nonExistentModelFqn, true, client1.ref), client1.ref)
-        val response = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientModelDataRequest])
+        modelManagerActor.tell(OpenRealtimeModelRequest(SessionKey(userId1, sessionId1), Some(nonExistentModelFqn.modelId), Some(1), client1.ref), client1.ref)
+        val response = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientAutoCreateModelConfigRequest])
       }
     }
 
@@ -103,7 +103,7 @@ class ModelManagerActorSpec
           .thenReturn(Success(()))
 
         modelManagerActor.tell(CreateModelRequest(SessionKey(userId1, sessionId1), cId, Some(mId), data, Some(true), Some(modelPermissions)), client.ref)
-        client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelCreated(nonExistentModelFqn))
+        client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelCreated(nonExistentModelFqn.modelId))
       }
 
       "return ModelAlreadyExists if the model exists" in new TestFixture {
@@ -156,7 +156,7 @@ class ModelManagerActorSpec
     val modelModifiedTime = Instant.ofEpochMilli(3L)
     val modelData = Model(ModelMetaData(collectionId, modelId, 1L, modelCreateTime, modelModifiedTime, true, modelPermissions), ObjectValue("", Map()))
     val modelSnapshotTime = Instant.ofEpochMilli(2L)
-    val modelSnapshotMetaData = ModelSnapshotMetaData(modelFqn, 1L, modelSnapshotTime)
+    val modelSnapshotMetaData = ModelSnapshotMetaData(modelId, 1L, modelSnapshotTime)
 
     val modelStore = mock[ModelStore]
     Mockito.when(modelStore.modelExists(modelId)).thenReturn(Success(true))
@@ -196,7 +196,7 @@ class ModelManagerActorSpec
     Mockito.when(modelPermissionsStore.modelOverridesCollectionPermissions(noModelId)).thenReturn(Success(true))
     Mockito.when(modelPermissionsStore.getModelWorldPermissions(modelId)).thenReturn(Success(ModelPermissions(true, true, true, true)))
     Mockito.when(modelPermissionsStore.getModelWorldPermissions(noModelId)).thenReturn(Success(ModelPermissions(true, true, true, true)))
-    Mockito.when(modelPermissionsStore.getCollectionWorldPermissions(collectionId)).thenReturn(Success(Some(CollectionPermissions(true, true, true, true, true))))
+    Mockito.when(modelPermissionsStore.getCollectionWorldPermissions(collectionId)).thenReturn(Success(CollectionPermissions(true, true, true, true, true)))
     Mockito.when(modelPermissionsStore.getAllModelUserPermissions(modelId)).thenReturn(Success(Map[String, ModelPermissions]()))
     Mockito.when(modelPermissionsStore.getAllModelUserPermissions(noModelId)).thenReturn(Success(Map[String, ModelPermissions]()))
     Mockito.when(modelPermissionsStore.getCollectionUserPermissions(collectionId, userId1)).thenReturn(Success(Some(CollectionPermissions(true, true, true, true, true))))

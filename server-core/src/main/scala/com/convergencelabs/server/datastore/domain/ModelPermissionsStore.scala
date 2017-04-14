@@ -152,28 +152,22 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
               Success(ModelPermissions(read, write, remove, manage))
             case None =>
               getCollectionWorldPermissions(collectionId).map { collectionWorld =>
-                collectionWorld match {
-                  case Some(p) =>
-                    val CollectionPermissions(create, read, write, remove, manage) = p
-                    ModelPermissions(read, write, remove, manage)
-                  case None => 
-                    //TODO: Probably need to return an error here
-                    ModelPermissions(false, false, false, false)
-                }
+                val CollectionPermissions(create, read, write, remove, manage) = collectionWorld
+                ModelPermissions(read, write, remove, manage)
               }
           }
       }.get
     }
   }
 
-  def getCollectionWorldPermissions(collectionId: String): Try[Option[CollectionPermissions]] = tryWithDb { db =>
+  def getCollectionWorldPermissions(collectionId: String): Try[CollectionPermissions] = tryWithDb { db =>
     val queryString =
       """SELECT worldPermissions
         |  FROM Collection
         |  WHERE id = :collectionId""".stripMargin
     val params = Map("collectionId" -> collectionId)
-    val result = QueryUtil.lookupOptionalDocument(queryString, params, db)
-    result.map { docToCollectionWorldPermissions(_) }
+    val result = QueryUtil.lookupMandatoryDocument(queryString, params, db)
+    result.map { docToCollectionWorldPermissions(_) }.get
   }
 
   def setCollectionWorldPermissions(collectionId: String, permissions: CollectionPermissions): Try[Unit] = tryWithDb { db =>

@@ -142,7 +142,7 @@ class ModelPermissionsStoreSpec
       "be equal to those just set" in withTestData { provider =>
         val permissions = CollectionPermissions(false, true, false, true, false)
         provider.modelPermissionsStore.setCollectionWorldPermissions(collection1, permissions).get
-        val retrievedPermissions = provider.modelPermissionsStore.getCollectionWorldPermissions(collection1).get.get
+        val retrievedPermissions = provider.modelPermissionsStore.getCollectionWorldPermissions(collection1).get
         retrievedPermissions shouldEqual permissions
       }
 

@@ -22,8 +22,7 @@ import java.time.Instant
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import java.util.Date
 import com.convergencelabs.server.datastore.DatabaseProvider
-import java.util.{List => JavaList}
-
+import java.util.{ List => JavaList }
 
 object ModelSnapshotStore {
   val ClassName = "ModelSnapshot"
@@ -48,7 +47,7 @@ object ModelSnapshotStore {
 
   def modelSnapshotToDoc(modelSnapshot: ModelSnapshot, db: ODatabaseDocumentTx): Try[ODocument] = {
     val md = modelSnapshot.metaData
-    ModelStore.getModelRid(md.fqn.modelId, db) map { modelRid =>
+    ModelStore.getModelRid(md.modelId, db) map { modelRid =>
       val doc = new ODocument(ClassName)
       doc.field(Model, modelRid)
       doc.field(Version, modelSnapshot.metaData.version)
@@ -61,9 +60,7 @@ object ModelSnapshotStore {
   def docToModelSnapshotMetaData(doc: ODocument): ModelSnapshotMetaData = {
     val timestamp: java.util.Date = doc.field(Fields.Timestamp)
     ModelSnapshotMetaData(
-      ModelFqn(
-        doc.field(CollectionId),
-        doc.field(ModelId)),
+      doc.field(ModelId),
       doc.field(Fields.Version),
       Instant.ofEpochMilli(timestamp.getTime))
   }
@@ -79,7 +76,7 @@ class ModelSnapshotStore private[domain] (
   private[this] val dbProvider: DatabaseProvider)
     extends AbstractDatabasePersistence(dbProvider)
     with Logging {
-  
+
   val AllFields = s"version, timestamp, model.collection.id as collectionId, model.id as modelId, data"
   val MetaDataFields = s"version, timestamp, model.collection.id as collectionId, model.id as modelId"
 

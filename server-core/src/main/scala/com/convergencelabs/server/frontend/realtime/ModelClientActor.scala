@@ -380,7 +380,7 @@ class ModelClientActor(
 
     val future = modelManager ? CreateModelRequest(sessionKey, collectionId, modelId, data, overridePermissions, worldPermissions)
     future.mapResponse[CreateModelResponse] onComplete {
-      case Success(ModelCreated(ModelFqn(c, m))) => cb.reply(CreateRealtimeModelSuccessMessage(c, m))
+      case Success(ModelCreated(m)) => cb.reply(CreateRealtimeModelSuccessMessage(m))
       case Success(ModelAlreadyExists)           => cb.expectedError("model_alread_exists", "A model with the specifieid collection and model id already exists")
       case Failure(cause) =>
         log.error(cause, "Unexpected error creating model.")
@@ -424,8 +424,8 @@ class ModelClientActor(
   }
 
   private[this] def onGetModelPermissionsRequest(request: GetModelPermissionsRequestMessage, cb: ReplyCallback): Unit = {
-    val GetModelPermissionsRequestMessage(collectionId, modelId) = request
-    val future = modelManager ? GetModelPermissionsRequest(collectionId, modelId)
+    val GetModelPermissionsRequestMessage(modelId) = request
+    val future = modelManager ? GetModelPermissionsRequest(modelId)
     future.mapResponse[GetModelPermissionsResponse] onComplete {
       case Success(GetModelPermissionsResponse(overridesCollection, world, users)) =>
         val mappedWorld = ModelPermissionsData(world.read, world.write, world.remove, world.manage)

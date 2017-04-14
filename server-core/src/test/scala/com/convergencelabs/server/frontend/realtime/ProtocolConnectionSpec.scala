@@ -40,6 +40,7 @@ class ProtocolConnectionSpec
   val details = "details"
   val collectionId = "c"
   val modelId = "m"
+  val autoCreateId = 1
 
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
@@ -62,7 +63,7 @@ class ProtocolConnectionSpec
 
     "sending a request message" must {
       "send the correct message envelope" in new TestFixture(system) {
-        val toSend = ModelDataRequestMessage(collectionId, modelId)
+        val toSend = AutoCreateModelConfigRequestMessage(autoCreateId)
         connection.request(toSend)
 
         val OutgoingTextMessage(message) = this.connectionActor.expectMsgClass(10 millis, classOf[OutgoingTextMessage])
@@ -233,7 +234,7 @@ class ProtocolConnectionSpec
     "receiving a reply" must {
 
       "ignore when the reply has no request" in new TestFixture(system) {
-        val message = ModelDataResponseMessage(ObjectValue("vid1", Map()), None, None)
+        val message = AutoCreateModelConfigResponseMessage(collectionId, Some(ObjectValue("vid1", Map())), None, None, None)
         val envelope = MessageEnvelope(message, None, Some(1L))
 
         val json = MessageSerializer.writeJson(envelope)
@@ -241,13 +242,13 @@ class ProtocolConnectionSpec
       }
 
       "resolve the request future with the proper message" in new TestFixture(system) {
-        val toSend = ModelDataRequestMessage(collectionId, modelId)
+        val toSend = AutoCreateModelConfigRequestMessage(autoCreateId)
         val f = connection.request(toSend)
 
         val OutgoingTextMessage(message) = this.connectionActor.expectMsgClass(10 millis, classOf[OutgoingTextMessage])
         val sentEnvelope = MessageSerializer.readJson[MessageEnvelope](message)
 
-        val replyMessage = ModelDataResponseMessage(ObjectValue("vid2", Map()), None, None)
+        val replyMessage = AutoCreateModelConfigResponseMessage(collectionId, Some(ObjectValue("vid2", Map())), None, None, None)
         val replyEnvelope = MessageEnvelope(replyMessage, None, sentEnvelope.q)
 
         val replyJson = MessageSerializer.writeJson(replyEnvelope)
@@ -259,7 +260,7 @@ class ProtocolConnectionSpec
       }
 
       "resolve the future with a failure if an error is recieved" in new TestFixture(system) {
-        val toSend = ModelDataRequestMessage(collectionId, modelId)
+        val toSend = AutoCreateModelConfigRequestMessage(autoCreateId)
         val f = connection.request(toSend)
 
         val OutgoingTextMessage(message) = this.connectionActor.expectMsgClass(10 millis, classOf[OutgoingTextMessage])
