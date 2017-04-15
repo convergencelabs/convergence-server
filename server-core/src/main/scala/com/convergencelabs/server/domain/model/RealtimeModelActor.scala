@@ -450,32 +450,21 @@ class RealtimeModelActor(
         val rootObject = modelData.getOrElse(ObjectValue("0:0", Map()))
         val collectionId = config.collectionId
 
-        ModelCreator.canCreate(collectionId, sk, permissionsStore) flatMap { canCreate =>
-          if (canCreate) {
-            log.debug(s"Creating model in database: ${this.modelId}")
-            ModelCreator.createModel(
-              persistenceProvider,
-              Some(sk.uid),
-              collectionId,
-              Some(modelId),
-              rootObject,
-              overridePermissions,
-              worldPermissions,
-              userPermissions) map { _ =>
-                requestModelDataFromDatastore()
-              }
-          } else {
-            val message = s"Can not auto create model because the does not have permissions to create models in the specified collection: ${collectionId}";
-            log.debug(message)
-            handleQuedClientOpenFailureFailure(sk, UnauthorizedException(message))
-            Success(())
+        log.debug(s"Creating model in database: ${this.modelId}")
+        ModelCreator.createModel(
+          persistenceProvider,
+          Some(sk.uid),
+          collectionId,
+          Some(modelId),
+          rootObject,
+          overridePermissions,
+          worldPermissions,
+          userPermissions) map { _ =>
+            requestModelDataFromDatastore()
+          } recover {
+            case cause: Exception =>
+              handleQuedClientOpenFailureFailure(sk, cause)
           }
-        } recover {
-          case cause: Exception =>
-            log.error(cause,
-              s"Unable to initialize the model from a client initializer: $domainFqn/$modelId")
-            handleQuedClientOpenFailureFailure(sk, UnknownErrorResponse("Unexpected error initializing the model."))
-        }
       case None =>
         // Hehre we could not find the opening record, so we don't know who to respond to.
         // all we can really do is log this as an error.

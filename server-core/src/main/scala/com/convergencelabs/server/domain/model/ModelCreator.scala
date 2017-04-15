@@ -8,8 +8,17 @@ import com.convergencelabs.server.domain.model.data.ObjectValue
 import scala.util.Success
 import com.convergencelabs.server.datastore.domain.ModelPermissionsStore
 import com.convergencelabs.server.datastore.domain.CollectionPermissions
+import com.convergencelabs.server.datastore.EntityNotFoundException
+import scala.util.Failure
+import com.convergencelabs.server.datastore.UnauthorizedException
+
+case class CollectionAutoCreateDisabled(message: String) extends Exception(message)
+case class NoCreatePermissions(message: String) extends Exception(message)
 
 object ModelCreator {
+
+  // FIXME we also expose can create, why do we just do that in here and return some
+  // exception if we can't??
   def createModel(
     persistenceProvider: DomainPersistenceProvider,
     username: Option[String],
@@ -19,7 +28,10 @@ object ModelCreator {
     overridePermissions: Option[Boolean],
     worldPermissions: Option[ModelPermissions],
     userPermissions: Option[Map[String, ModelPermissions]]): Try[Model] = {
-    persistenceProvider.collectionStore.ensureCollectionExists(collectionId) flatMap { _ =>
+
+    verifyCanCreate(collectionId, username, persistenceProvider) flatMap { _ =>
+      persistenceProvider.collectionStore.ensureCollectionExists(collectionId)
+    } flatMap { _ =>
       val overrideWorld = overridePermissions.getOrElse(false)
       val worldPerms = worldPermissions.getOrElse(ModelPermissions(false, false, false, false))
       val model = persistenceProvider.modelStore.createModel(collectionId, modelId, data, overrideWorld, worldPerms)
@@ -49,20 +61,38 @@ object ModelCreator {
     }
   }
 
-  def canCreate(collectionId: String, sk: SessionKey, permissionsStore: ModelPermissionsStore): Try[Boolean] = {
-    if (sk.admin) {
-      Success(true)
-    } else {
-      // Eventually we need some sort of domain wide configuration to allow / disallow auto creation of
-      // collections.
-      permissionsStore.getCollectionUserPermissions(collectionId, sk.uid).flatMap { userPermissions =>
-        userPermissions match {
-          case Some(p) =>
-            Success(p)
+  def verifyCanCreate(collectionId: String, username: Option[String], persistenceProvider: DomainPersistenceProvider): Try[Unit] = {
+    persistenceProvider.collectionStore.collectionExists(collectionId) flatMap { exists =>
+      if (exists) {
+        username match {
+          case Some(user) =>
+            persistenceProvider.modelPermissionsStore.getCollectionUserPermissions(collectionId, user).flatMap { userPermissions =>
+              userPermissions match {
+                case Some(p) =>
+                  Success(p)
+                case None =>
+                  persistenceProvider.modelPermissionsStore.getCollectionWorldPermissions(collectionId)
+              }
+            } flatMap { permissions =>
+              if (permissions.create) {
+                Success(())
+              } else {
+                val message = s"Can not auto create model because the does not have permissions to create models in the specified collection: ${collectionId}";
+                Failure(UnauthorizedException(message))
+              }
+            }
           case None =>
-            permissionsStore.getCollectionWorldPermissions(collectionId)
+            Success(())
         }
-      } map (c => c.create)
+      } else {
+        // Eventually we need some sort of domain wide configuration to allow / disallow auto creation of
+        // collections.
+        if (true) {
+          Success(())
+        } else {
+          Failure(CollectionAutoCreateDisabled(s"Can not create model, because the collection %{collectionId} does not exist and auto creation of collections is disabled."))
+        }
+      }
     }
   }
 }

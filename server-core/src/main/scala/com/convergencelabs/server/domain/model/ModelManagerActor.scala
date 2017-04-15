@@ -43,15 +43,15 @@ class ModelManagerActor(
   var persistenceProvider: DomainPersistenceProvider = _
 
   def receive: Receive = {
-    case message: OpenRealtimeModelRequest   => onOpenRealtimeModel(message)
-    case message: CreateModelRequest         => onCreateModelRequest(message)
-    case message: DeleteModelRequest         => onDeleteModelRequest(message)
-    case message: QueryModelsRequest         => onQueryModelsRequest(message)
-    case message: ModelShutdownRequest       => onModelShutdownRequest(message)
+    case message: OpenRealtimeModelRequest => onOpenRealtimeModel(message)
+    case message: CreateModelRequest => onCreateModelRequest(message)
+    case message: DeleteModelRequest => onDeleteModelRequest(message)
+    case message: QueryModelsRequest => onQueryModelsRequest(message)
+    case message: ModelShutdownRequest => onModelShutdownRequest(message)
     case message: GetModelPermissionsRequest => onGetModelPermissions(message)
     case message: SetModelPermissionsRequest => onSetModelPermissions(message)
-    case Terminated(actor)                   => onActorDeath(actor)
-    case message: Any                        => unhandled(message)
+    case Terminated(actor) => onActorDeath(actor)
+    case message: Any => unhandled(message)
   }
 
   private[this] def onOpenRealtimeModel(openRequest: OpenRealtimeModelRequest): Unit = {
@@ -161,8 +161,6 @@ class ModelManagerActor(
     modelActor forward openRequest
   }
 
-  
-
   private[this] def getModelUserPermissions(id: String, collection: String, sk: SessionKey): Try[ModelPermissions] = {
     if (sk.admin) {
       Success(ModelPermissions(true, true, true, true))
@@ -217,34 +215,26 @@ class ModelManagerActor(
     if (collectionId.length == 0) {
       sender ! UnknownErrorResponse("The collecitonId can not be empty when creating a model")
     } else {
-      ModelCreator.canCreate(collectionId, sk, this.persistenceProvider.modelPermissionsStore) flatMap { canCreateModel =>
-        if (canCreateModel) {
-          ModelCreator.createModel(
-            persistenceProvider,
-            Some(sk.uid),
-            collectionId,
-            modelId,
-            data,
-            overridePermissions,
-            worldPermissions, 
-            userPermissions) map { model =>
-              sender ! ModelCreated(model.metaData.modelId)
-              ()
-            }
-        } else {
-          // FIXME I don't think this is doing anything?
-          sender ! UnauthorizedException("Insufficient privileges to create models for this collection")
-          Success(())
+      ModelCreator.createModel(
+        persistenceProvider,
+        Some(sk.uid),
+        collectionId,
+        modelId,
+        data,
+        overridePermissions,
+        worldPermissions,
+        userPermissions) map { model =>
+          sender ! ModelCreated(model.metaData.modelId)
+          ()
+        } recover {
+          case e: DuplicateValueExcpetion =>
+            sender ! ModelAlreadyExists
+          case e: InvalidValueExcpetion =>
+            sender ! UnknownErrorResponse("Could not create model beause it contained an invalid value")
+          case e: Exception =>
+            log.error(e, s"Could not create model: ${collectionId} / ${modelId}")
+            sender ! UnknownErrorResponse("Could not create model: " + e.getMessage)
         }
-      } recover {
-        case e: DuplicateValueExcpetion =>
-          sender ! ModelAlreadyExists
-        case e: InvalidValueExcpetion =>
-          sender ! UnknownErrorResponse("Could not create model beause it contained an invalid value")
-        case e: Exception =>
-          log.error(e, s"Could not create model: ${collectionId} / ${modelId}")
-          sender ! UnknownErrorResponse("Could not create model: " + e.getMessage)
-      }
     }
   }
 
@@ -284,7 +274,7 @@ class ModelManagerActor(
     }
     persistenceProvider.modelStore.queryModels(query, username) match {
       case Success(result) => sender ! QueryModelsResponse(result)
-      case Failure(cause)  => sender ! Status.Failure(cause)
+      case Failure(cause) => sender ! Status.Failure(cause)
     }
   }
 
@@ -316,11 +306,11 @@ class ModelManagerActor(
         (for {
           _ <- overrideCollection match {
             case Some(ov) => persistenceProvider.modelPermissionsStore.setOverrideCollectionPermissions(modelFqn.modelId, ov)
-            case None     => Success(())
+            case None => Success(())
           }
           _ <- world match {
             case Some(perms) => persistenceProvider.modelPermissionsStore.setModelWorldPermissions(modelFqn.modelId, perms)
-            case None        => Success(())
+            case None => Success(())
           }
 
           _ <- if (setAllUsers) {
@@ -378,8 +368,8 @@ object ModelManagerActor {
   val RelativePath = "modelManager"
 
   def props(domainFqn: DomainFqn,
-            protocolConfig: ProtocolConfiguration,
-            persistenceManager: DomainPersistenceManager): Props = Props(
+    protocolConfig: ProtocolConfiguration,
+    persistenceManager: DomainPersistenceManager): Props = Props(
     new ModelManagerActor(
       domainFqn,
       protocolConfig,
