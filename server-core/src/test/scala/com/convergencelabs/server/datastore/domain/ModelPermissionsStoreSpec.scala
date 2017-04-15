@@ -147,7 +147,7 @@ class ModelPermissionsStoreSpec
       }
 
       "fail if collection does not exist" in withTestData { provider =>
-        provider.modelPermissionsStore.getCollectionWorldPermissions(nonExistentCollectionId).get shouldBe None
+        provider.modelPermissionsStore.getCollectionWorldPermissions(nonExistentCollectionId).failure
       }
     }
 

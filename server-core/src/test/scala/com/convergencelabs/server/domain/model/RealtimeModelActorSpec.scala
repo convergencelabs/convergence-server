@@ -35,6 +35,7 @@ import com.convergencelabs.server.datastore.domain.ModelPermissions
 import com.convergencelabs.server.datastore.domain.ModelPermissionsStore
 import com.convergencelabs.server.datastore.domain.CollectionPermissions
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
+import com.convergencelabs.server.datastore.domain.CollectionStore
 
 // FIXME we really only check message types and not data.
 // scalastyle:off magic.number
@@ -97,7 +98,7 @@ class RealtimeModelActorSpec
         realtimeModelActor.tell(OpenRealtimeModelRequest(SessionKey(uid1, session1), Some(modelId), Some(1), client1.ref), client1.ref)
         client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientAutoCreateModelConfigRequest])
         client1.reply("some object") // Any message that is not a ClientModelDataResponse will do here.
-        client1.expectMsgClass(FiniteDuration(200, TimeUnit.MILLISECONDS), classOf[OpenModelFailure])
+        client1.expectMsgClass(FiniteDuration(200, TimeUnit.MILLISECONDS), classOf[UnknownErrorResponse])
       }
 
       "notify all queued clients when data is returned by the first client" in new MockDatabaseWithoutModel {
@@ -260,11 +261,37 @@ class RealtimeModelActorSpec
     val modelData = Model(ModelMetaData(collectionId, modelId, 1L, modelCreateTime, modelModifiedTime, true, modelPermissions), modelJsonData)
     val modelSnapshotTime = Instant.ofEpochMilli(2L)
     val modelSnapshotMetaData = ModelSnapshotMetaData(modelId, 1L, modelSnapshotTime)
+
+    val collectionStore = mock[CollectionStore]
     val modelStore = mock[ModelStore]
     val modelOperationProcessor = mock[ModelOperationProcessor]
     val modelSnapshotStore = mock[ModelSnapshotStore]
     val modelPermissionStore = mock[ModelPermissionsStore]
     val persistenceProvider = mock[DomainPersistenceProvider]
+
+    Mockito.when(persistenceProvider.collectionStore).thenReturn(collectionStore)
+    Mockito.when(persistenceProvider.modelStore).thenReturn(modelStore)
+    Mockito.when(persistenceProvider.modelSnapshotStore).thenReturn(modelSnapshotStore)
+    Mockito.when(persistenceProvider.modelPermissionsStore).thenReturn(modelPermissionStore)
+    Mockito.when(persistenceProvider.modelOperationProcessor).thenReturn(modelOperationProcessor)
+
+    Mockito.when(collectionStore.getOrCreateCollection(collectionId)).thenReturn(Success(Collection(
+      collectionId,
+      collectionId,
+      true,
+      ModelSnapshotConfig(false, false, false, 0, 0, false, false, Duration.ofSeconds(0), Duration.ofSeconds(0)),
+      CollectionPermissions(true, true, true, true, true))))
+    Mockito.when(collectionStore.ensureCollectionExists(Matchers.any())).thenReturn(Success(()))
+      
+    Mockito.when(modelPermissionStore.getCollectionWorldPermissions(collectionId)).thenReturn(Success(CollectionPermissions(true, true, true, true, true)))
+    Mockito.when(modelPermissionStore.getAllCollectionUserPermissions(collectionId)).thenReturn(Success(Map[String, CollectionPermissions]()))
+    Mockito.when(modelPermissionStore.getCollectionUserPermissions(Matchers.any(), Matchers.any())).thenReturn(Success(None))
+    Mockito.when(modelPermissionStore.updateModelUserPermissions(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(Success(()))
+    Mockito.when(modelPermissionStore.updateAllModelUserPermissions(Matchers.any(), Matchers.any())).thenReturn(Success(()))
+    Mockito.when(modelPermissionStore.modelOverridesCollectionPermissions(modelId)).thenReturn(Success(false))
+    Mockito.when(modelPermissionStore.getModelWorldPermissions(modelId)).thenReturn(Success(ModelPermissions(true, true, true, true)))
+    Mockito.when(modelPermissionStore.getAllModelUserPermissions(modelId)).thenReturn(Success(Map[String, ModelPermissions]()))
+    
     val resourceId = "1" + System.nanoTime()
     val modelManagerActor = new TestProbe(system)
     val props = RealtimeModelActor.props(
@@ -280,8 +307,7 @@ class RealtimeModelActorSpec
 
   trait MockDatabaseWithModel extends TestFixture {
     // FIXME: Add the rest of the persistence mocks
-    Mockito.when(persistenceProvider.modelStore).thenReturn(modelStore)
-    Mockito.when(persistenceProvider.modelSnapshotStore).thenReturn(modelSnapshotStore)
+
     Mockito.when(modelStore.modelExists(modelId)).thenReturn(Success(true))
     Mockito.when(modelStore.getModel(modelId)).thenReturn(Success(Some(modelData)))
     Mockito.when(modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelId)).thenReturn(Success(Some(modelSnapshotMetaData)))

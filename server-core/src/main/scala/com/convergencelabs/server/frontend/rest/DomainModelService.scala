@@ -226,7 +226,7 @@ class DomainModelService(
   }
 
   def postModel(domain: DomainFqn, colletionId: String, data: Map[String, Any]): Future[RestResponse] = {
-    // FIXME need top pass ind model pemrissions options.
+    // FIXME need to pass in model permissions options.
     val message = DomainMessage(domain, CreateModel(colletionId, data, None, None, None))
     (domainRestActor ? message).mapTo[ModelFqn] map {
       case ModelFqn(collectionId, modelId) =>
@@ -235,7 +235,7 @@ class DomainModelService(
   }
 
   def putModel(domain: DomainFqn, colletionId: String, modelId: String, data: Map[String, Any]): Future[RestResponse] = {
-    // FIXME need top pass ind model pemrissions options.
+    // FIXME need to pass id model permissions options.
     val message = DomainMessage(domain, CreateOrUpdateModel(colletionId, modelId, data, None, None, None))
     (domainRestActor ? message) map { _ => OkResponse }
   }

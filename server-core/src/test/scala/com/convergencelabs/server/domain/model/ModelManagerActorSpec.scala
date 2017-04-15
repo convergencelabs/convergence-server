@@ -102,7 +102,7 @@ class ModelManagerActorSpec
         Mockito.when(modelSnapshotStore.createSnapshot(Matchers.any()))
           .thenReturn(Success(()))
 
-        modelManagerActor.tell(CreateModelRequest(SessionKey(userId1, sessionId1), cId, Some(mId), data, Some(true), Some(modelPermissions)), client.ref)
+        modelManagerActor.tell(CreateModelRequest(SessionKey(userId1, sessionId1), cId, Some(mId), data, Some(true), Some(modelPermissions), None), client.ref)
         client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelCreated(nonExistentModelFqn.modelId))
       }
 
@@ -114,7 +114,7 @@ class ModelManagerActorSpec
         Mockito.when(modelStore.createModel(cId, Some(mId), data, true, modelPermissions))
           .thenReturn(Failure(DuplicateValueExcpetion("foo")))
 
-        modelManagerActor.tell(CreateModelRequest(SessionKey(userId1, sessionId1), cId, Some(mId), data, Some(true), Some(modelPermissions)), client.ref)
+        modelManagerActor.tell(CreateModelRequest(SessionKey(userId1, sessionId1), cId, Some(mId), data, Some(true), Some(modelPermissions), None), client.ref)
         client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelAlreadyExists)
       }
     }
@@ -211,6 +211,8 @@ class ModelManagerActorSpec
     Mockito.when(modelPermissionsStore.updateModelUserPermissions(noModelId, userId1, ModelPermissions(true, true, true, true))).thenReturn(Success(()))
     Mockito.when(modelPermissionsStore.updateModelUserPermissions(noModelId, userId2, ModelPermissions(true, true, true, true))).thenReturn(Success(()))
 
+    Mockito.when(modelPermissionsStore.updateAllModelUserPermissions(Matchers.any(), Matchers.any())).thenReturn(Success(()))
+    
     val domainPersistence = mock[DomainPersistenceProvider]
     Mockito.when(domainPersistence.modelStore).thenReturn(modelStore)
     Mockito.when(domainPersistence.modelSnapshotStore).thenReturn(modelSnapshotStore)

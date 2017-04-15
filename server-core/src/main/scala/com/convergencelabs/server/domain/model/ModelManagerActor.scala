@@ -211,16 +211,6 @@ class ModelManagerActor(
     }
   }
 
-  private[this] def getSnapshotConfigForModel(collectionId: String): Try[ModelSnapshotConfig] = {
-    persistenceProvider.collectionStore.getOrCreateCollection(collectionId).flatMap { c =>
-      if (c.overrideSnapshotConfig) {
-        Success(c.snapshotConfig)
-      } else {
-        persistenceProvider.configStore.getModelSnapshotConfig()
-      }
-    }
-  }
-
   private[this] def onCreateModelRequest(createRequest: CreateModelRequest): Unit = {
     val CreateModelRequest(sk, collectionId, modelId, data, overridePermissions, worldPermissions, userPermissions) = createRequest
     // FIXME perhaps these should be some expected error type, like InvalidArgument
