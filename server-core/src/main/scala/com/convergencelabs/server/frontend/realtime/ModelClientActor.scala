@@ -176,7 +176,7 @@ class ModelClientActor(
     val askingActor = sender
     val future = context.parent ? AutoCreateModelConfigRequestMessage(autoConfigId)
     future.mapResponse[AutoCreateModelConfigResponseMessage] onComplete {
-      case Success(AutoCreateModelConfigResponseMessage(collection, data, overridePermissions, worldPermissionsData, userPermissionsData)) =>
+      case Success(AutoCreateModelConfigResponseMessage(collection, data, overridePermissions, worldPermissionsData, userPermissionsData, ephemeral)) =>
         val worldPermissions = worldPermissionsData.map(wp => {
           val ModelPermissionsData(read, write, remove, manage) = wp
           ModelPermissions(read, write, remove, manage)
@@ -188,7 +188,7 @@ class ModelClientActor(
               (username, ModelPermissions(read, write, remove, manage))
           }
         }
-        askingActor ! ClientAutoCreateModelConfigResponse(collection, data, overridePermissions, worldPermissions, userPermissions)
+        askingActor ! ClientAutoCreateModelConfigResponse(collection, data, overridePermissions, worldPermissions, userPermissions, ephemeral)
       case Failure(cause) =>
         // forward the failure to the asker, so we fail fast.
         askingActor ! akka.actor.Status.Failure(cause)

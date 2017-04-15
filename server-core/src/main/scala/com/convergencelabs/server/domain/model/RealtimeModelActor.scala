@@ -106,6 +106,7 @@ class RealtimeModelActor(
   private[this] var snapshotConfig: ModelSnapshotConfig = _
   private[this] var latestSnapshot: ModelSnapshotMetaData = _
   private[this] var snapshotCalculator: ModelSnapshotCalculator = _
+  private[this] var ephemeral: Boolean = false
 
   private[this] val operationTransformer = new OperationTransformer(new TransformationFunctionRegistry())
   private[this] val referenceTransformer = new ReferenceTransformer(new TransformationFunctionRegistry())
@@ -442,13 +443,15 @@ class RealtimeModelActor(
     this.queuedOpeningClients.get(sk) match {
       case Some(openRecord) =>
         log.debug(s"Received data for model ${this.modelId} from client")
-        val ClientAutoCreateModelConfigResponse(colleciton, modelData, overridePermissions, worldPermissions, userPermissions) = config
+        val ClientAutoCreateModelConfigResponse(colleciton, modelData, overridePermissions, worldPermissions, userPermissions, ephemeral) = config
 
         val overrideWorld = overridePermissions.getOrElse(false)
         val worldPerms = worldPermissions.getOrElse(ModelPermissions(false, false, false, false))
-        // FIXME see if this is correct? Sepecifically with the id.
+        // FIXME see if this is correct? Specifically with the id.
         val rootObject = modelData.getOrElse(ObjectValue("0:0", Map()))
         val collectionId = config.collectionId
+
+        this.ephemeral = true
 
         log.debug(s"Creating model in database: ${this.modelId}")
         ModelCreator.createModel(
@@ -813,7 +816,15 @@ class RealtimeModelActor(
   }
 
   private def shutdown(): Unit = {
+    log.debug(s"Model ${modelId} is shutting down.")
     this.persistenceStream ! Status.Success("stream complete")
+    if (this.ephemeral) {
+      log.debug(s"Model ${modelId} is ephemeral, so deleting it.")
+      this.modelStore.deleteModel(this.modelId) recover {
+        case cause: Exception =>
+          log.error(cause, "Could not delete ephemeral model")
+      }
+    }
   }
 
   override def postStop(): Unit = {

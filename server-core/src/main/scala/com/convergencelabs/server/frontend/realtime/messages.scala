@@ -93,7 +93,7 @@ case class SetModelPermissionsRequestMessage(
 
 case class ModelsQueryRequestMessage(q: String) extends IncomingModelRequestMessage
 
-case class AutoCreateModelConfigResponseMessage(c: String, d: Option[ObjectValue], v: Option[Boolean], w: Option[ModelPermissionsData], u: Option[Map[String, ModelPermissionsData]]) extends IncomingProtocolResponseMessage
+case class AutoCreateModelConfigResponseMessage(c: String, d: Option[ObjectValue], v: Option[Boolean], w: Option[ModelPermissionsData], u: Option[Map[String, ModelPermissionsData]], e: Option[Boolean]) extends IncomingProtocolResponseMessage
 
 case class PublishReferenceMessage(r: String, d: Option[String], k: String, c: Int, v: Option[List[Any]], s: Option[Long]) extends IncomingModelNormalMessage
 case class UnpublishReferenceMessage(r: String, d: Option[String], k: String) extends IncomingModelNormalMessage

@@ -27,7 +27,7 @@ package model {
   case class CloseRealtimeModelRequest(sk: SessionKey)
   case class OperationSubmission(seqNo: Long, contextVersion: Long, operation: Operation)
   case class ClientAutoCreateModelConfigResponse(collectionId: String, modelData: Option[ObjectValue], overridePermissions: Option[Boolean],
-    worldPermissions: Option[ModelPermissions], userPermissions: Option[Map[String, ModelPermissions]])
+    worldPermissions: Option[ModelPermissions], userPermissions: Option[Map[String, ModelPermissions]], ephemeral: Option[Boolean])
 
   case class GetModelPermissionsRequest(modelId: String)
 
