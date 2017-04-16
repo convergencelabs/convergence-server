@@ -113,14 +113,14 @@ class RealtimeModelActorSpec
 
         // Now mock that the data is there.
         val now = Instant.now()
-        Mockito.when(modelStore.createModel(modelFqn.collectionId, Some(modelFqn.modelId), modelJsonData, true, modelPermissions))
+        Mockito.when(modelStore.createModel(collectionId, Some(modelId), modelJsonData, true, modelPermissions))
           .thenReturn(Success(Model(ModelMetaData(collectionId, modelId, 0L, now, now, true, modelPermissions), modelJsonData)))
         Mockito.when(modelSnapshotStore.createSnapshot(Matchers.any())).thenReturn(Success(()))
         Mockito.when(modelStore.getModel(modelId)).thenReturn(Success(Some(modelData)))
         Mockito.when(modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelId)).thenReturn(Success(Some(modelSnapshotMetaData)))
 
-        client1.reply(ClientAutoCreateModelConfigResponse(collectionId, Some(modelJsonData), Some(true), Some(modelPermissions), None))
-        client2.reply(ClientAutoCreateModelConfigResponse(collectionId, Some(modelJsonData), Some(true), Some(modelPermissions), None))
+        client1.reply(ClientAutoCreateModelConfigResponse(collectionId, Some(modelJsonData), Some(true), Some(modelPermissions), None, None))
+        client2.reply(ClientAutoCreateModelConfigResponse(collectionId, Some(modelJsonData), Some(true), Some(modelPermissions), None, None))
 
         // Verify that both clients got the data.
         client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
@@ -254,7 +254,6 @@ class RealtimeModelActorSpec
 
     val collectionId = "collection"
     val modelId = "model" + System.nanoTime()
-    val modelFqn = ModelFqn(collectionId, modelId)
     val modelJsonData = ObjectValue("vid1", Map("key" -> StringValue("vid2", "value")))
     val modelCreateTime = Instant.ofEpochMilli(2L)
     val modelModifiedTime = Instant.ofEpochMilli(3L)
@@ -282,6 +281,9 @@ class RealtimeModelActorSpec
       ModelSnapshotConfig(false, false, false, 0, 0, false, false, Duration.ofSeconds(0), Duration.ofSeconds(0)),
       CollectionPermissions(true, true, true, true, true))))
     Mockito.when(collectionStore.ensureCollectionExists(Matchers.any())).thenReturn(Success(()))
+    
+    Mockito.when(collectionStore.collectionExists(collectionId))
+      .thenReturn(Success(true))
       
     Mockito.when(modelPermissionStore.getCollectionWorldPermissions(collectionId)).thenReturn(Success(CollectionPermissions(true, true, true, true, true)))
     Mockito.when(modelPermissionStore.getAllCollectionUserPermissions(collectionId)).thenReturn(Success(Map[String, CollectionPermissions]()))

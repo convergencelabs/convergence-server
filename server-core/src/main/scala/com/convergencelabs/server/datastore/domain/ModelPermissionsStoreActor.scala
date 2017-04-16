@@ -1,23 +1,21 @@
 package com.convergencelabs.server.datastore
 
 import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.GetAllModelUserPermissions
+import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.GetModelOverridesPermissions
 import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.GetModelPermissions
 import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.GetModelUserPermissions
 import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.GetModelWorldPermissions
 import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.ModelPermissionsResponse
+import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.ModelUserPermissions
 import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.RemoveModelUserPermissions
+import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.SetModelOverridesPermissions
 import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.SetModelUserPermissions
 import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.SetModelWorldPermissions
-import com.convergencelabs.server.datastore.domain.CollectionStore
 import com.convergencelabs.server.datastore.domain.ModelPermissions
 import com.convergencelabs.server.datastore.domain.ModelPermissionsStore
-import com.convergencelabs.server.domain.model.ModelFqn
 
 import akka.actor.ActorLogging
 import akka.actor.Props
-import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.GetModelOverridesPermissions
-import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.SetModelOverridesPermissions
-import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.ModelUserPermissions
 
 object ModelPermissionsStoreActor {
   def props(modelPermissionsStore: ModelPermissionsStore): Props =
@@ -25,15 +23,15 @@ object ModelPermissionsStoreActor {
 
   sealed trait ModelPermissionsStoreRequest
 
-  case class GetModelOverridesPermissions(modelFqn: ModelFqn) extends ModelPermissionsStoreRequest
-  case class SetModelOverridesPermissions(modelFqn: ModelFqn, overridesPermissions: Boolean) extends ModelPermissionsStoreRequest
-  case class GetModelPermissions(modelFqn: ModelFqn) extends ModelPermissionsStoreRequest
-  case class GetModelWorldPermissions(modelFqn: ModelFqn) extends ModelPermissionsStoreRequest
-  case class SetModelWorldPermissions(modelFqn: ModelFqn, permissions: ModelPermissions) extends ModelPermissionsStoreRequest
-  case class GetAllModelUserPermissions(modelFqn: ModelFqn) extends ModelPermissionsStoreRequest
-  case class GetModelUserPermissions(modelFqn: ModelFqn, username: String) extends ModelPermissionsStoreRequest
-  case class SetModelUserPermissions(modelFqn: ModelFqn, username: String, permissions: ModelPermissions) extends ModelPermissionsStoreRequest
-  case class RemoveModelUserPermissions(modelFqn: ModelFqn, username: String) extends ModelPermissionsStoreRequest
+  case class GetModelOverridesPermissions(modelId: String) extends ModelPermissionsStoreRequest
+  case class SetModelOverridesPermissions(modelId: String, overridesPermissions: Boolean) extends ModelPermissionsStoreRequest
+  case class GetModelPermissions(modelId: String) extends ModelPermissionsStoreRequest
+  case class GetModelWorldPermissions(modelId: String) extends ModelPermissionsStoreRequest
+  case class SetModelWorldPermissions(modelId: String, permissions: ModelPermissions) extends ModelPermissionsStoreRequest
+  case class GetAllModelUserPermissions(modelId: String) extends ModelPermissionsStoreRequest
+  case class GetModelUserPermissions(modelId: String, username: String) extends ModelPermissionsStoreRequest
+  case class SetModelUserPermissions(modelId: String, username: String, permissions: ModelPermissions) extends ModelPermissionsStoreRequest
+  case class RemoveModelUserPermissions(modelId: String, username: String) extends ModelPermissionsStoreRequest
 
   case class ModelUserPermissions(username: String, permissions: ModelPermissions)
   case class ModelPermissionsResponse(overrideWorld: Boolean, worldPermissions: ModelPermissions, userPermissions: List[ModelUserPermissions])
@@ -66,11 +64,11 @@ class ModelPermissionsStoreActor private[datastore] (
     case message: Any => unhandled(message)
   }
 
-  def getModelPermissions(modelFqn: ModelFqn): Unit = {
+  def getModelPermissions(modelId: String): Unit = {
     val result = for {
-      overrideWorld <- modelPermissionsStore.modelOverridesCollectionPermissions(modelFqn.modelId)
-      worldPermissions <- modelPermissionsStore.getModelWorldPermissions(modelFqn.modelId)
-      userPermissions <- modelPermissionsStore.getAllModelUserPermissions(modelFqn.modelId)
+      overrideWorld <- modelPermissionsStore.modelOverridesCollectionPermissions(modelId)
+      worldPermissions <- modelPermissionsStore.getModelWorldPermissions(modelId)
+      userPermissions <- modelPermissionsStore.getAllModelUserPermissions(modelId)
     } yield {
       val userPermissionsList = userPermissions.toList.map {
         case Tuple2(username, permissions) => ModelUserPermissions(username, permissions)
@@ -80,37 +78,37 @@ class ModelPermissionsStoreActor private[datastore] (
     reply(result)
   }
 
-  def modelOverridesCollectionPermissions(modelFqn: ModelFqn): Unit = {
-    reply(modelPermissionsStore.modelOverridesCollectionPermissions(modelFqn.modelId))
+  def modelOverridesCollectionPermissions(modelId: String): Unit = {
+    reply(modelPermissionsStore.modelOverridesCollectionPermissions(modelId))
   }
 
-  def setModelOverridesCollectionPermissions(modelFqn: ModelFqn, overridePermissions: Boolean): Unit = {
-    reply(modelPermissionsStore.setOverrideCollectionPermissions(modelFqn.modelId, overridePermissions))
+  def setModelOverridesCollectionPermissions(modelId: String, overridePermissions: Boolean): Unit = {
+    reply(modelPermissionsStore.setOverrideCollectionPermissions(modelId, overridePermissions))
   }
 
-  def getModelWorldPermissions(modelFqn: ModelFqn): Unit = {
-    reply(modelPermissionsStore.getModelWorldPermissions(modelFqn.modelId))
+  def getModelWorldPermissions(modelId: String): Unit = {
+    reply(modelPermissionsStore.getModelWorldPermissions(modelId))
   }
 
-  def setModelWorldPermissions(modelFqn: ModelFqn, permissions: ModelPermissions): Unit = {
-    reply(modelPermissionsStore.setModelWorldPermissions(modelFqn.modelId, permissions))
+  def setModelWorldPermissions(modelId: String, permissions: ModelPermissions): Unit = {
+    reply(modelPermissionsStore.setModelWorldPermissions(modelId, permissions))
   }
 
-  def getAllModelUserPermissions(modelFqn: ModelFqn): Unit = {
-    reply(modelPermissionsStore.getAllModelUserPermissions(modelFqn.modelId).map(_.toList.map {
+  def getAllModelUserPermissions(modelId: String): Unit = {
+    reply(modelPermissionsStore.getAllModelUserPermissions(modelId).map(_.toList.map {
       case Tuple2(username, permissions) => ModelUserPermissions(username, permissions)
     }))
   }
 
-  def getModelUserPermissions(modelFqn: ModelFqn, username: String): Unit = {
-    reply(modelPermissionsStore.getModelUserPermissions(modelFqn.modelId, username))
+  def getModelUserPermissions(modelId: String, username: String): Unit = {
+    reply(modelPermissionsStore.getModelUserPermissions(modelId, username))
   }
 
-  def setModelUserPermissions(modelFqn: ModelFqn, username: String, permissions: ModelPermissions): Unit = {
-    reply(modelPermissionsStore.updateModelUserPermissions(modelFqn.modelId, username, permissions))
+  def setModelUserPermissions(modelId: String, username: String, permissions: ModelPermissions): Unit = {
+    reply(modelPermissionsStore.updateModelUserPermissions(modelId, username, permissions))
   }
 
-  def removeModelUserPermissions(modelFqn: ModelFqn, username: String): Unit = {
-    reply(modelPermissionsStore.removeModelUserPermissions(modelFqn.modelId, username))
+  def removeModelUserPermissions(modelId: String, username: String): Unit = {
+    reply(modelPermissionsStore.removeModelUserPermissions(modelId, username))
   }
 }

@@ -13,7 +13,6 @@ import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.domain.DomainUser
 import com.convergencelabs.server.domain.DomainUserType
 import com.convergencelabs.server.domain.model.Model
-import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelMetaData
 import com.convergencelabs.server.domain.model.NewModelOperation
 import com.convergencelabs.server.domain.model.data.ArrayValue
@@ -63,7 +62,6 @@ class ModelOperationProcessorSpec
   
   val peopleCollectionId = "people"
   val person1Id = "person1"
-  val person1ModelFqn = ModelFqn(peopleCollectionId, person1Id)
   val person1MetaData = ModelMetaData(
     peopleCollectionId,
     person1Id,
@@ -101,7 +99,6 @@ class ModelOperationProcessorSpec
       StringValue("pp1-email3", "another@email.com")))))
   val person1Model = Model(person1MetaData, person1Data)
 
-  val notFoundFqn = ModelFqn("Does Not", "Exist")
 
   def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProvider(dbProvider)
 

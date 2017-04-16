@@ -1,32 +1,40 @@
 package com.convergencelabs.server.datastore.domain
 
-import com.convergencelabs.server.datastore.domain.ModelPermissionsStore._
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import scala.util.Try
-import com.orientechnologies.orient.core.id.ORID
-import grizzled.slf4j.Logging
-import scala.collection.JavaConverters.seqAsJavaListConverter
+import java.util.ArrayList
+import java.util.{ List => JavaList }
+
+import scala.collection.JavaConverters.asJavaCollectionConverter
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 import scala.collection.JavaConverters.mapAsJavaMapConverter
-import scala.collection.JavaConverters.asJavaCollectionConverter
-import com.orientechnologies.orient.core.index.OCompositeKey
-import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
-import com.orientechnologies.orient.core.record.impl.ODocument
-import java.util.{ List => JavaList }
-import com.orientechnologies.orient.core.metadata.schema.OType
-import java.util.HashSet
-import com.orientechnologies.orient.core.sql.OCommandSQL
-import com.convergencelabs.server.domain.model.ModelFqn
-import com.convergencelabs.server.datastore.QueryUtil
+import scala.collection.JavaConverters.seqAsJavaListConverter
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
+
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.EntityNotFoundException
-import com.orientechnologies.orient.core.db.record.OIdentifiable
-import java.util.ArrayList
+import com.convergencelabs.server.datastore.QueryUtil
+import com.convergencelabs.server.datastore.domain.ModelPermissionsStore.CollectionIndex
+import com.convergencelabs.server.datastore.domain.ModelPermissionsStore.CollectionUserPermissionsClass
+import com.convergencelabs.server.datastore.domain.ModelPermissionsStore.CollectionUserPermissionsIndex
+import com.convergencelabs.server.datastore.domain.ModelPermissionsStore.Fields
+import com.convergencelabs.server.datastore.domain.ModelPermissionsStore.ModelIndex
+import com.convergencelabs.server.datastore.domain.ModelPermissionsStore.ModelUserPermissionsClass
+import com.convergencelabs.server.datastore.domain.ModelPermissionsStore.ModelUserPermissionsIndex
+import com.convergencelabs.server.datastore.domain.ModelPermissionsStore.collectionPermissionToDoc
+import com.convergencelabs.server.datastore.domain.ModelPermissionsStore.docToCollectionPermissions
+import com.convergencelabs.server.datastore.domain.ModelPermissionsStore.docToCollectionWorldPermissions
+import com.convergencelabs.server.datastore.domain.ModelPermissionsStore.docToModelPermissions
+import com.convergencelabs.server.datastore.domain.ModelPermissionsStore.docToWorldPermissions
+import com.convergencelabs.server.datastore.domain.ModelPermissionsStore.modelPermissionToDoc
 import com.orientechnologies.orient.core.db.record.OTrackedList
-import scala.util.Success
-import scala.util.Failure
-import com.orientechnologies.orient.core.index.OIndex
+import com.orientechnologies.orient.core.id.ORID
+import com.orientechnologies.orient.core.index.OCompositeKey
+import com.orientechnologies.orient.core.metadata.schema.OType
+import com.orientechnologies.orient.core.record.impl.ODocument
+import com.orientechnologies.orient.core.sql.OCommandSQL
+
+import grizzled.slf4j.Logging
 
 case class ModelPermissions(read: Boolean, write: Boolean, remove: Boolean, manage: Boolean)
 case class CollectionPermissions(create: Boolean, read: Boolean, write: Boolean, remove: Boolean, manage: Boolean)
@@ -168,6 +176,13 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     val params = Map("collectionId" -> collectionId)
     val result = QueryUtil.lookupMandatoryDocument(queryString, params, db)
     result.map { docToCollectionWorldPermissions(_) }.get
+  }
+  
+  def getCollectionWorldPermissionsForModel(modelId: String): Try[CollectionPermissions] = tryWithDb { db =>
+    val modelDoc = this.getModelRid(modelId).get.getRecord.asInstanceOf[ODocument]
+    val collectionDoc = modelDoc.field("collection", OType.LINK);
+    val world = docToCollectionWorldPermissions(collectionDoc)
+    world
   }
 
   def setCollectionWorldPermissions(collectionId: String, permissions: CollectionPermissions): Try[Unit] = tryWithDb { db =>

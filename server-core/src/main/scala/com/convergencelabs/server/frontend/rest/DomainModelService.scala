@@ -14,7 +14,6 @@ import com.convergencelabs.server.datastore.ModelStoreActor.GetModelsInCollectio
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.RestDomainManagerActor.DomainMessage
 import com.convergencelabs.server.domain.model.Model
-import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelMetaData
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.frontend.rest.DomainModelService.ModelMetaDataResponse
@@ -86,7 +85,7 @@ object DomainModelService {
 
   case class GetModelsResponse(models: List[ModelMetaDataResponse]) extends AbstractSuccessResponse
   case class GetModelResponse(model: ModelResponse) extends AbstractSuccessResponse
-  case class CreateModelResponse(collectionId: String, modelId: String) extends AbstractSuccessResponse
+  case class CreateModelResponse(modelId: String) extends AbstractSuccessResponse
   case class GetModelPermissionsResponse(permissions: ModelPermissionsSummary) extends AbstractSuccessResponse
   case class ModelPermissionsSummary(overrideWorld: Boolean, worldPermissions: ModelPermissions, userPermissions: List[ModelUserPermissions])
   case class GetPermissionsResponse(permissions: Option[ModelPermissions]) extends AbstractSuccessResponse
@@ -122,54 +121,54 @@ class DomainModelService(
           } ~ pathPrefix(Segment) { modelId: String =>
             pathEnd {
               get {
-                complete(getModel(domain, ModelFqn(collectionId, modelId)))
+                complete(getModel(domain, modelId))
               } ~ put {
                 entity(as[Map[String, Any]]) { data =>
                   complete(putModel(domain, collectionId, modelId, data))
                 }
               } ~ delete {
-                complete(deleteModel(domain, collectionId, modelId))
+                complete(deleteModel(domain, modelId))
               }
             } ~ pathPrefix("permissions") {
               pathEnd {
                 get {
-                  complete(getModelPermissions(domain, ModelFqn(collectionId, modelId)))
+                  complete(getModelPermissions(domain, modelId))
                 }
               } ~ pathPrefix("override") {
                 pathEnd {
                   get {
-                    complete(getModelOverridesPermissions(domain, ModelFqn(collectionId, modelId)))
+                    complete(getModelOverridesPermissions(domain, modelId))
                   } ~ put {
                     entity(as[SetOverrideWorldRequest]) { overridesPermissions =>
-                      complete(setModelOverridesPermissions(domain, ModelFqn(collectionId, modelId), overridesPermissions))
+                      complete(setModelOverridesPermissions(domain, modelId, overridesPermissions))
                     }
                   }
                 }
               } ~ pathPrefix("world") {
                 pathEnd {
                   get {
-                    complete(getModelWorldPermissions(domain, ModelFqn(collectionId, modelId)))
+                    complete(getModelWorldPermissions(domain, modelId))
                   } ~ put {
                     entity(as[ModelPermissions]) { permissions =>
-                      complete(setModelWorldPermissions(domain, ModelFqn(collectionId, modelId), permissions))
+                      complete(setModelWorldPermissions(domain, modelId, permissions))
                     }
                   }
                 }
               } ~ pathPrefix("user") {
                 pathEnd {
                   get {
-                    complete(getAllModelUserPermissions(domain, ModelFqn(collectionId, modelId)))
+                    complete(getAllModelUserPermissions(domain, modelId))
                   }
                 } ~ pathPrefix(Segment) { user: String =>
                   pathEnd {
                     get {
-                      complete(getModelUserPermissions(domain, ModelFqn(collectionId, modelId), user))
+                      complete(getModelUserPermissions(domain, modelId, user))
                     } ~ put {
                       entity(as[ModelPermissions]) { permissions =>
-                        complete(setModelUserPermissions(domain, ModelFqn(collectionId, modelId), user, permissions))
+                        complete(setModelUserPermissions(domain, modelId, user, permissions))
                       }
                     } ~ delete {
-                      complete(removeModelUserPermissions(domain, ModelFqn(collectionId, modelId), user))
+                      complete(removeModelUserPermissions(domain, modelId, user))
                     }
                   }
                 }
@@ -208,8 +207,8 @@ class DomainModelService(
       metaData.modifiedTime)
   }
 
-  def getModel(domain: DomainFqn, model: ModelFqn): Future[RestResponse] = {
-    val message = DomainMessage(domain, GetModel(model))
+  def getModel(domain: DomainFqn, modelId: String): Future[RestResponse] = {
+    val message = DomainMessage(domain, GetModel(modelId))
     (domainRestActor ? message).mapTo[Option[Model]] map {
       case Some(model) =>
         val mr = ModelResponse(
@@ -228,9 +227,9 @@ class DomainModelService(
   def postModel(domain: DomainFqn, colletionId: String, data: Map[String, Any]): Future[RestResponse] = {
     // FIXME need to pass in model permissions options.
     val message = DomainMessage(domain, CreateModel(colletionId, data, None, None, None))
-    (domainRestActor ? message).mapTo[ModelFqn] map {
-      case ModelFqn(collectionId, modelId) =>
-        (StatusCodes.Created, CreateModelResponse(collectionId, modelId))
+    (domainRestActor ? message).mapTo[String] map {
+      case modelId: String =>
+        (StatusCodes.Created, CreateModelResponse(modelId))
     }
   }
 
@@ -240,29 +239,29 @@ class DomainModelService(
     (domainRestActor ? message) map { _ => OkResponse }
   }
 
-  def deleteModel(domain: DomainFqn, colletionId: String, modelId: String): Future[RestResponse] = {
-    val message = DomainMessage(domain, DeleteModel(ModelFqn(colletionId, modelId)))
+  def deleteModel(domain: DomainFqn, modelId: String): Future[RestResponse] = {
+    val message = DomainMessage(domain, DeleteModel(modelId))
     (domainRestActor ? message) map { _ => OkResponse }
   }
 
   // Model Permissions
 
-  def getModelOverridesPermissions(domain: DomainFqn, modelFqn: ModelFqn): Future[RestResponse] = {
-    val message = DomainMessage(domain, GetModelOverridesPermissions(modelFqn))
+  def getModelOverridesPermissions(domain: DomainFqn, modelId: String): Future[RestResponse] = {
+    val message = DomainMessage(domain, GetModelOverridesPermissions(modelId))
     (domainRestActor ? message).mapTo[Boolean] map {
       overridesPermissions =>
         (StatusCodes.OK, GetModelOverridesPermissionsResponse(overridesPermissions))
     }
   }
   
-  def setModelOverridesPermissions(domain: DomainFqn, modelFqn: ModelFqn, overridesPermissions: SetOverrideWorldRequest): Future[RestResponse] = {
+  def setModelOverridesPermissions(domain: DomainFqn, modelId: String, overridesPermissions: SetOverrideWorldRequest): Future[RestResponse] = {
     val SetOverrideWorldRequest(overrideWorld) = overridesPermissions
-    val message = DomainMessage(domain, SetModelOverridesPermissions(modelFqn, overrideWorld))
+    val message = DomainMessage(domain, SetModelOverridesPermissions(modelId, overrideWorld))
     (domainRestActor ? message) map { _ => OkResponse }
   }
 
-  def getModelPermissions(domain: DomainFqn, modelFqn: ModelFqn): Future[RestResponse] = {
-    val message = DomainMessage(domain, GetModelPermissions(modelFqn))
+  def getModelPermissions(domain: DomainFqn, modelId: String): Future[RestResponse] = {
+    val message = DomainMessage(domain, GetModelPermissions(modelId))
     (domainRestActor ? message).mapTo[ModelPermissionsResponse] map {
       response =>
         val ModelPermissionsResponse(overridePermissions, world, users) = response
@@ -270,42 +269,42 @@ class DomainModelService(
     }
   }
 
-  def getModelWorldPermissions(domain: DomainFqn, modelFqn: ModelFqn): Future[RestResponse] = {
-    val message = DomainMessage(domain, GetModelWorldPermissions(modelFqn))
+  def getModelWorldPermissions(domain: DomainFqn, modelId: String): Future[RestResponse] = {
+    val message = DomainMessage(domain, GetModelWorldPermissions(modelId))
     (domainRestActor ? message).mapTo[ModelPermissions] map {
       permissions =>
         (StatusCodes.OK, GetPermissionsResponse(Some(permissions)))
     }
   }
 
-  def setModelWorldPermissions(domain: DomainFqn, modelFqn: ModelFqn, permissions: ModelPermissions): Future[RestResponse] = {
-    val message = DomainMessage(domain, SetModelWorldPermissions(modelFqn, permissions))
+  def setModelWorldPermissions(domain: DomainFqn, modelId: String, permissions: ModelPermissions): Future[RestResponse] = {
+    val message = DomainMessage(domain, SetModelWorldPermissions(modelId, permissions))
     (domainRestActor ? message) map { _ => OkResponse }
   }
 
-  def getAllModelUserPermissions(domain: DomainFqn, modelFqn: ModelFqn): Future[RestResponse] = {
-    val message = DomainMessage(domain, GetAllModelUserPermissions(modelFqn))
+  def getAllModelUserPermissions(domain: DomainFqn, modelId: String): Future[RestResponse] = {
+    val message = DomainMessage(domain, GetAllModelUserPermissions(modelId))
     (domainRestActor ? message).mapTo[List[ModelUserPermissions]] map {
       permissions =>
         (StatusCodes.OK, GetAllUserPermissionsResponse(permissions))
     }
   }
 
-  def getModelUserPermissions(domain: DomainFqn, modelFqn: ModelFqn, username: String): Future[RestResponse] = {
-    val message = DomainMessage(domain, GetModelUserPermissions(modelFqn, username))
+  def getModelUserPermissions(domain: DomainFqn, modelId: String, username: String): Future[RestResponse] = {
+    val message = DomainMessage(domain, GetModelUserPermissions(modelId, username))
     (domainRestActor ? message).mapTo[Option[ModelPermissions]] map {
       permissions =>
         (StatusCodes.OK, GetPermissionsResponse(permissions))
     }
   }
 
-  def setModelUserPermissions(domain: DomainFqn, modelFqn: ModelFqn, username: String, permissions: ModelPermissions): Future[RestResponse] = {
-    val message = DomainMessage(domain, SetModelUserPermissions(modelFqn, username, permissions))
+  def setModelUserPermissions(domain: DomainFqn, modelId: String, username: String, permissions: ModelPermissions): Future[RestResponse] = {
+    val message = DomainMessage(domain, SetModelUserPermissions(modelId, username, permissions))
     (domainRestActor ? message) map { _ => OkResponse }
   }
 
-  def removeModelUserPermissions(domain: DomainFqn, modelFqn: ModelFqn, username: String): Future[RestResponse] = {
-    val message = DomainMessage(domain, RemoveModelUserPermissions(modelFqn, username))
+  def removeModelUserPermissions(domain: DomainFqn, modelId: String, username: String): Future[RestResponse] = {
+    val message = DomainMessage(domain, RemoveModelUserPermissions(modelId, username))
     (domainRestActor ? message) map { _ => OkResponse }
   }
 

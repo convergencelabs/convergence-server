@@ -13,7 +13,6 @@ import com.convergencelabs.server.domain.JwtKeyPair
 import com.convergencelabs.server.domain.ModelSnapshotConfig
 import com.convergencelabs.server.domain.model.Collection
 import com.convergencelabs.server.domain.model.Model
-import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelMetaData
 import com.convergencelabs.server.domain.model.ModelOperation
 import com.convergencelabs.server.domain.model.ModelSnapshot

@@ -4,49 +4,21 @@ import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
-import com.convergencelabs.server.domain.model.CloseRealtimeModelRequest
-import com.convergencelabs.server.domain.model.CloseRealtimeModelSuccess
-import com.convergencelabs.server.domain.model.CreateModelRequest
-import com.convergencelabs.server.domain.model.CreateModelResponse
-import com.convergencelabs.server.domain.model.DeleteModelRequest
-import com.convergencelabs.server.domain.model.DeleteModelResponse
-import com.convergencelabs.server.domain.model.ModelAlreadyExists
-import com.convergencelabs.server.domain.model.ModelAlreadyOpen
-import com.convergencelabs.server.domain.model.ModelCreated
-import com.convergencelabs.server.domain.model.ModelDeleted
-import com.convergencelabs.server.domain.model.ModelForceClose
-import com.convergencelabs.server.domain.model.ModelFqn
-import com.convergencelabs.server.domain.model.ModelNotFound
-import com.convergencelabs.server.domain.model.OpenModelResponse
-import com.convergencelabs.server.domain.model.OpenModelSuccess
-import com.convergencelabs.server.domain.model.OpenRealtimeModelRequest
-import com.convergencelabs.server.domain.model.OperationAcknowledgement
-import com.convergencelabs.server.domain.model.OperationSubmission
-import com.convergencelabs.server.domain.model.OutgoingOperation
-import com.convergencelabs.server.domain.model.RealtimeModelClientMessage
-import com.convergencelabs.server.domain.model.RemoteClientClosed
-import com.convergencelabs.server.domain.model.RemoteClientOpened
+
+import com.convergencelabs.server.datastore.SortOrder
+import com.convergencelabs.server.domain.DomainUser
+import com.convergencelabs.server.domain.UserList
+import com.convergencelabs.server.domain.UserLookUp
+import com.convergencelabs.server.domain.UserLookUpField
+import com.convergencelabs.server.domain.UserSearch
 import com.convergencelabs.server.util.concurrent.AskFuture
-import com.convergencelabs.server.util.concurrent.UnexpectedErrorException
+
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
 import akka.actor.Props
-import akka.actor.actorRef2Scala
 import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.server.domain.model.ModelDeletedWhileOpening
-import com.convergencelabs.server.domain.model.ClientDataRequestFailure
-import com.convergencelabs.server.domain.model.NoSuchModel
-import com.convergencelabs.server.domain.UserSearch
-import com.convergencelabs.server.domain.UserList
-import com.convergencelabs.server.domain.UserLookUpField
-import com.convergencelabs.server.datastore.SortOrder
-import com.convergencelabs.server.domain.UserList
-import com.convergencelabs.server.domain.UserList
-import com.convergencelabs.server.domain.DomainUser
-import com.convergencelabs.server.domain.UserLookUp
-import com.convergencelabs.server.domain.DomainUserType
 
 object UserClientActor {
   def props(userServiceActor: ActorRef): Props =

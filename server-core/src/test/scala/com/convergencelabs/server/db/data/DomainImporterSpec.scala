@@ -7,17 +7,20 @@ import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
 
+import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.datastore.SortOrder
+import com.convergencelabs.server.datastore.domain.CollectionPermissions
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.datastore.domain.DomainUserField
+import com.convergencelabs.server.datastore.domain.ModelPermissions
 import com.convergencelabs.server.db.schema.DeltaCategory
+import com.convergencelabs.server.db.schema.TestingSchemaManager
 import com.convergencelabs.server.domain.DomainUser
 import com.convergencelabs.server.domain.DomainUserType
-import com.convergencelabs.server.domain.JwtKeyPair
 import com.convergencelabs.server.domain.JwtAuthKey
+import com.convergencelabs.server.domain.JwtKeyPair
 import com.convergencelabs.server.domain.model.Collection
 import com.convergencelabs.server.domain.model.Model
-import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelMetaData
 import com.convergencelabs.server.domain.model.ModelOperation
 import com.convergencelabs.server.domain.model.ModelSnapshot
@@ -25,13 +28,7 @@ import com.convergencelabs.server.domain.model.ModelSnapshotMetaData
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.model.data.StringValue
 import com.convergencelabs.server.domain.model.ot.AppliedStringInsertOperation
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import com.convergencelabs.server.db.schema.DomainSchemaManager
-import com.convergencelabs.server.db.schema.TestingSchemaManager
-import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.domain.CollectionPermissions
-import com.convergencelabs.server.datastore.domain.ModelPermissions
 
 class DomainImporterSpec extends WordSpecLike with Matchers {
 
@@ -90,7 +87,6 @@ class DomainImporterSpec extends WordSpecLike with Matchers {
 
         val collectionId = "collection1"
         val modelId = "someId"
-        val modelFqn = ModelFqn("collection1", modelId)
 
         val model = provider.modelStore.getModel(modelId).get.value
         model shouldBe Model(
@@ -109,14 +105,14 @@ class DomainImporterSpec extends WordSpecLike with Matchers {
         val operations = provider.modelOperationStore.getOperationsAfterVersion(modelId, 0L).get
         operations.size shouldBe 2
         operations(0) shouldBe ModelOperation(
-          modelFqn.modelId,
+          modelId,
           1L,
           Instant.parse("2016-11-16T17:49:15.233Z"),
           "test1",
           "84hf",
           AppliedStringInsertOperation("vid2", false, 0, "!"))
         operations(1) shouldBe ModelOperation(
-          modelFqn.modelId,
+          modelId,
           2L,
           Instant.parse("2016-11-16T17:49:15.233Z"),
           "test1",
@@ -126,7 +122,7 @@ class DomainImporterSpec extends WordSpecLike with Matchers {
         val snapshot = provider.modelSnapshotStore.getSnapshot(modelId, 1).get.value
         snapshot shouldBe ModelSnapshot(
           ModelSnapshotMetaData(
-            modelFqn.modelId,
+            modelId,
             1L,
             Instant.parse("2016-11-16T17:49:15.233Z")),
           ObjectValue(

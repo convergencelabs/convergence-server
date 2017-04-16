@@ -1,33 +1,34 @@
 package com.convergencelabs.server.datastore.domain
 
-import java.text.SimpleDateFormat
 import java.time.Instant
 
-import org.scalatest.Finders
+import scala.language.postfixOps
+
+import org.json4s.DefaultFormats
+import org.json4s.JArray
+import org.json4s.JBool
+import org.json4s.JField
+import org.json4s.JInt
+import org.json4s.JObject
+import org.json4s.JString
+import org.json4s.jackson.JsonMethods.parse
+import org.json4s.jvalue2extractable
+import org.json4s.jvalue2monadic
+import org.json4s.string2JsonInput
 import org.scalatest.Matchers
-import org.scalatest.OptionValues.convertOptionToValuable
-import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
 
 import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.DuplicateValueExcpetion
-import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.db.schema.DeltaCategory
-import com.convergencelabs.server.domain.model.Model
-import com.convergencelabs.server.domain.model.ModelFqn
-import com.convergencelabs.server.domain.model.ModelMetaData
-import com.convergencelabs.server.domain.model.data.ObjectValue
-import com.convergencelabs.server.domain.model.data.StringValue
-import com.convergencelabs.server.domain.model.data.ArrayValue
-import com.convergencelabs.server.db.data.DomainScriptSerializer
-import com.convergencelabs.server.db.data.DomainImporter
-import org.json4s._
-import org.json4s.jackson.JsonMethods._
-import scala.language.postfixOps
-import com.convergencelabs.server.domain.model.data.BooleanValue
-import com.convergencelabs.server.domain.model.data.DoubleValue
 import com.convergencelabs.server.domain.DomainUser
 import com.convergencelabs.server.domain.DomainUserType
+import com.convergencelabs.server.domain.model.Model
+import com.convergencelabs.server.domain.model.ModelMetaData
+import com.convergencelabs.server.domain.model.data.ArrayValue
+import com.convergencelabs.server.domain.model.data.BooleanValue
+import com.convergencelabs.server.domain.model.data.DoubleValue
+import com.convergencelabs.server.domain.model.data.ObjectValue
+import com.convergencelabs.server.domain.model.data.StringValue
 
 case class ModelStoreQuerySpecStores(collection: CollectionStore, model: ModelStore, user: DomainUserStore, permissions: ModelPermissionsStore)
 

@@ -1,7 +1,5 @@
 package com.convergencelabs.server.datastore
 
-import com.convergencelabs.server.domain.model.ModelFqn
-
 import akka.actor.ActorLogging
 import akka.actor.Props
 import com.convergencelabs.server.datastore.domain.ModelOperationStore
@@ -12,7 +10,7 @@ object ModelOperationStoreActor {
 
   trait ModelOperationStoreRequest
 
-  case class GetOperations(fqn: ModelFqn, first: Long, last: Long) extends ModelOperationStoreRequest
+  case class GetOperations(modelId: String, first: Long, last: Long) extends ModelOperationStoreRequest
 }
 
 class ModelOperationStoreActor private[datastore] (
@@ -24,7 +22,7 @@ class ModelOperationStoreActor private[datastore] (
     case message: Any => unhandled(message)
   }
 
-  def getOperations(fqn: ModelFqn, first: Long, last: Long): Unit = {
-    reply(operationStore.getOperationsInVersionRange(fqn.modelId, first, last))
+  def getOperations(modelId: String, first: Long, last: Long): Unit = {
+    reply(operationStore.getOperationsInVersionRange(modelId, first, last))
   }
 }

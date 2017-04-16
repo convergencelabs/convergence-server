@@ -13,7 +13,6 @@ import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.domain.DomainUser
 import com.convergencelabs.server.domain.DomainUserType
 import com.convergencelabs.server.domain.model.Model
-import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelMetaData
 import com.convergencelabs.server.domain.model.ModelOperation
 import com.convergencelabs.server.domain.model.NewModelOperation
@@ -35,7 +34,6 @@ class ModelOperationStoreSpec
   
   val peopleCollection = "people"
   val modelId1 = "person1"
-  val modelFqn = ModelFqn("people", modelId1)
   val model = Model(
     ModelMetaData(peopleCollection, modelId1, 10L, Instant.now(), Instant.now(), true, modelPermissions),
     ObjectValue("vid", Map()))
@@ -44,7 +42,6 @@ class ModelOperationStoreSpec
   val session = DomainSession(sessionId, testUsername, Instant.now(), None, "jwt", "js", "1.0", "", "127.0.0.1")
 
   val notFoundId = "Exist"
-  val notFoundFqn = ModelFqn("Does Not", notFoundId)
 
   val op1 = AppliedStringInsertOperation("0:0", false, 1, "1")
   val modelOp1 = NewModelOperation(modelId1, 1L, Instant.ofEpochMilli(10), sessionId, op1)
@@ -140,7 +137,7 @@ class ModelOperationStoreSpec
 
   def initCommonData(provider: DomainPersistenceProvider): Unit = {
     provider.userStore.createDomainUser(user).get
-    provider.collectionStore.ensureCollectionExists(modelFqn.collectionId).get
+    provider.collectionStore.ensureCollectionExists(peopleCollection).get
     provider.modelStore.createModel(model).get
     provider.sessionStore.createSession(session).get
   }

@@ -7,7 +7,6 @@ import com.convergencelabs.server.datastore.ModelStoreActor.CreateOrUpdateModel
 import com.convergencelabs.server.datastore.ModelStoreActor.DeleteModel
 import com.convergencelabs.server.datastore.domain.CollectionStore
 import com.convergencelabs.server.datastore.domain.ModelStore
-import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.data.ArrayValue
 import com.convergencelabs.server.domain.model.data.BooleanValue
 import com.convergencelabs.server.domain.model.data.DataValue
@@ -40,9 +39,9 @@ object ModelStoreActor {
 
   case class GetModels(offset: Option[Int], limit: Option[Int]) extends ModelStoreRequest
   case class GetModelsInCollection(collectionId: String, offset: Option[Int], limit: Option[Int]) extends ModelStoreRequest
-  case class GetModel(modelFqn: ModelFqn) extends ModelStoreRequest
+  case class GetModel(modelId: String) extends ModelStoreRequest
 
-  case class DeleteModel(modelFqn: ModelFqn) extends ModelStoreRequest
+  case class DeleteModel(modelId: String) extends ModelStoreRequest
 
   case class CollectionInfo(id: String, name: String)
 }
@@ -75,8 +74,8 @@ class ModelStoreActor private[datastore] (private[this] val persistenceProvider:
     reply(persistenceProvider.modelStore.getAllModelMetaDataInCollection(collectionId, offset, limit))
   }
 
-  def getModel(modelFqn: ModelFqn): Unit = {
-    reply(persistenceProvider.modelStore.getModel(modelFqn.modelId))
+  def getModel(modelId: String): Unit = {
+    reply(persistenceProvider.modelStore.getModel(modelId))
   }
 
   def createModel(
@@ -95,7 +94,7 @@ class ModelStoreActor private[datastore] (private[this] val persistenceProvider:
       root,
       overridePermissions,
       worldPermissions,
-      userPermissions).map(model => ModelFqn(model.metaData.collectionId, model.metaData.modelId))
+      userPermissions).map(model => model.metaData.modelId)
 
     reply(result)
   }
@@ -114,13 +113,13 @@ class ModelStoreActor private[datastore] (private[this] val persistenceProvider:
       userPermissions).recoverWith {
         case e: DuplicateValueExcpetion =>
           persistenceProvider.modelStore.updateModel(modelId, root, worldPermissions)
-      }.map(_ => ModelFqn(collectionId, modelId))
+      }.map(_ => modelId)
     reply(result)
   }
 
-  def deleteModel(modelFqn: ModelFqn): Unit = {
+  def deleteModel(modelId: String): Unit = {
     // FIXME If the model is open this could cause problems.
-    reply(persistenceProvider.modelStore.deleteModel(modelFqn.modelId))
+    reply(persistenceProvider.modelStore.deleteModel(modelId))
   }
 }
 

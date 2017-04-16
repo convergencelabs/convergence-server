@@ -32,7 +32,7 @@ class MessageEnvelopeSpec
       }
 
       "return a success when applying from valid JSON" in {
-        val expected = MessageEnvelope(new AutoCreateModelConfigResponseMessage("collectionId", Some(ObjectValue("id", Map())), None, None, None), None, Some(1L))
+        val expected = MessageEnvelope(new AutoCreateModelConfigResponseMessage("collectionId", Some(ObjectValue("id", Map())), None, None, None, Some(false)), None, Some(1L))
         val json = MessageSerializer.writeJson(expected)
         MessageEnvelope(json).success.value shouldBe expected
       }

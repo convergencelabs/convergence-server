@@ -57,7 +57,7 @@ class ModelManagerActorSpec
     "opening model" must {
       "sucessfully load an unopen model" in new TestFixture {
         val client = new TestProbe(system)
-        modelManagerActor.tell(OpenRealtimeModelRequest(SessionKey(userId1, sessionId1), Some(modelFqn.modelId), Some(1), client.ref), client.ref)
+        modelManagerActor.tell(OpenRealtimeModelRequest(SessionKey(userId1, sessionId1), Some(modelId), Some(1), client.ref), client.ref)
 
         val message = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
         assert(message.modelData == modelData.data)
@@ -68,11 +68,11 @@ class ModelManagerActorSpec
 
       "sucessfully load an open model" in new TestFixture {
         val client1 = new TestProbe(system)
-        modelManagerActor.tell(OpenRealtimeModelRequest(SessionKey(userId1, sessionId1), Some(modelFqn.modelId), Some(1), client1.ref), client1.ref)
+        modelManagerActor.tell(OpenRealtimeModelRequest(SessionKey(userId1, sessionId1), Some(modelId), Some(1), client1.ref), client1.ref)
         client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
 
         val client2 = new TestProbe(system)
-        modelManagerActor.tell(OpenRealtimeModelRequest(SessionKey(userId2, sessionId1), Some(modelFqn.modelId), Some(1), client2.ref), client2.ref)
+        modelManagerActor.tell(OpenRealtimeModelRequest(SessionKey(userId2, sessionId1), Some(modelId), Some(1), client2.ref), client2.ref)
         val response = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
 
         assert(response.modelData == modelData.data)
@@ -83,7 +83,7 @@ class ModelManagerActorSpec
 
       "request data if the model does not exist" in new TestFixture {
         val client1 = new TestProbe(system)
-        modelManagerActor.tell(OpenRealtimeModelRequest(SessionKey(userId1, sessionId1), Some(nonExistentModelFqn.modelId), Some(1), client1.ref), client1.ref)
+        modelManagerActor.tell(OpenRealtimeModelRequest(SessionKey(userId1, sessionId1), Some(noModelId), Some(1), client1.ref), client1.ref)
         val response = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientAutoCreateModelConfigRequest])
       }
     }
@@ -91,30 +91,28 @@ class ModelManagerActorSpec
     "requested to create a model" must {
       "return ModelCreated if the model does not exist" in new TestFixture {
         val client = new TestProbe(system)
-        val ModelFqn(cId, mId) = nonExistentModelFqn
         val data = ObjectValue("", Map())
 
         val now = Instant.now()
 
-        Mockito.when(modelStore.createModel(cId, Some(mId), data, true, modelPermissions))
+        Mockito.when(modelStore.createModel(collectionId, Some(noModelId), data, true, modelPermissions))
           .thenReturn(Success(Model(ModelMetaData(collectionId, noModelId, 0L, now, now, true, modelPermissions), data)))
 
         Mockito.when(modelSnapshotStore.createSnapshot(Matchers.any()))
           .thenReturn(Success(()))
 
-        modelManagerActor.tell(CreateModelRequest(SessionKey(userId1, sessionId1), cId, Some(mId), data, Some(true), Some(modelPermissions), None), client.ref)
-        client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelCreated(nonExistentModelFqn.modelId))
+        modelManagerActor.tell(CreateModelRequest(SessionKey(userId1, sessionId1), collectionId, Some(noModelId), data, Some(true), Some(modelPermissions), None), client.ref)
+        client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelCreated(noModelId))
       }
 
       "return ModelAlreadyExists if the model exists" in new TestFixture {
         val client = new TestProbe(system)
-        val ModelFqn(cId, mId) = modelFqn
         val data = ObjectValue("", Map())
 
-        Mockito.when(modelStore.createModel(cId, Some(mId), data, true, modelPermissions))
+        Mockito.when(modelStore.createModel(collectionId, Some(modelId), data, true, modelPermissions))
           .thenReturn(Failure(DuplicateValueExcpetion("foo")))
 
-        modelManagerActor.tell(CreateModelRequest(SessionKey(userId1, sessionId1), cId, Some(mId), data, Some(true), Some(modelPermissions), None), client.ref)
+        modelManagerActor.tell(CreateModelRequest(SessionKey(userId1, sessionId1), collectionId, Some(modelId), data, Some(true), Some(modelPermissions), None), client.ref)
         client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelAlreadyExists)
       }
     }
@@ -122,23 +120,23 @@ class ModelManagerActorSpec
     "requested to delete a model" must {
       "return ModelDeleted if the model exists" in new TestFixture {
         val client = new TestProbe(system)
-        modelManagerActor.tell(DeleteModelRequest(SessionKey(userId1, sessionId1), modelFqn), client.ref)
+        modelManagerActor.tell(DeleteModelRequest(SessionKey(userId1, sessionId1), modelId), client.ref)
         val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelDeleted)
       }
 
       "return ModelNotFound if the model does not exist" in new TestFixture {
         val client = new TestProbe(system)
-        modelManagerActor.tell(DeleteModelRequest(SessionKey(userId1, sessionId1), nonExistentModelFqn), client.ref)
+        modelManagerActor.tell(DeleteModelRequest(SessionKey(userId1, sessionId1), noModelId), client.ref)
         val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), akka.actor.Status.Failure(EntityNotFoundException()))
       }
     }
-    
+
     "permissions are set to false" must {
       "throw exception on open" in new TestFixture {
-        
+
       }
     }
-    
+
   }
 
   trait TestFixture {
@@ -148,9 +146,7 @@ class ModelManagerActorSpec
     val collectionId = "collection"
 
     val noModelId = "no model"
-    val nonExistentModelFqn = ModelFqn(collectionId, noModelId)
     val modelId = "model"
-    val modelFqn = ModelFqn(collectionId, modelId)
     val modelJsonData = JObject("key" -> JString("value"))
     val modelCreateTime = Instant.ofEpochMilli(2L)
     val modelModifiedTime = Instant.ofEpochMilli(3L)
@@ -191,6 +187,9 @@ class ModelManagerActorSpec
     Mockito.when(collectionStore.ensureCollectionExists(collectionId))
       .thenReturn(Success(()))
 
+    Mockito.when(collectionStore.collectionExists(collectionId))
+      .thenReturn(Success(true))
+
     val modelPermissionsStore = mock[ModelPermissionsStore]
     Mockito.when(modelPermissionsStore.modelOverridesCollectionPermissions(modelId)).thenReturn(Success(true))
     Mockito.when(modelPermissionsStore.modelOverridesCollectionPermissions(noModelId)).thenReturn(Success(true))
@@ -212,7 +211,7 @@ class ModelManagerActorSpec
     Mockito.when(modelPermissionsStore.updateModelUserPermissions(noModelId, userId2, ModelPermissions(true, true, true, true))).thenReturn(Success(()))
 
     Mockito.when(modelPermissionsStore.updateAllModelUserPermissions(Matchers.any(), Matchers.any())).thenReturn(Success(()))
-    
+
     val domainPersistence = mock[DomainPersistenceProvider]
     Mockito.when(domainPersistence.modelStore).thenReturn(modelStore)
     Mockito.when(domainPersistence.modelSnapshotStore).thenReturn(modelSnapshotStore)

@@ -1,28 +1,34 @@
 package com.convergencelabs.server.datastore.domain
 
+import java.time.Instant
+import java.util.Date
 import java.util.{ List => JavaList }
+
+import scala.collection.JavaConversions.asScalaBuffer
+import scala.collection.JavaConverters.asScalaBufferConverter
+import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.collection.immutable.HashMap
 import scala.util.Try
+
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
+import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.datastore.QueryUtil
-import com.convergencelabs.server.domain.model.ModelFqn
+import com.convergencelabs.server.datastore.domain.mapper.ObjectValueMapper.ODocumentToObjectValue
+import com.convergencelabs.server.datastore.domain.mapper.ObjectValueMapper.ObjectValueToODocument
 import com.convergencelabs.server.domain.model.ModelSnapshot
 import com.convergencelabs.server.domain.model.ModelSnapshotMetaData
+import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
+
+import ModelSnapshotStore.Constants.CollectionId
+import ModelSnapshotStore.Constants.ModelId
+import ModelSnapshotStore.Fields.Data
+import ModelSnapshotStore.Fields.Model
+import ModelSnapshotStore.Fields.Timestamp
+import ModelSnapshotStore.Fields.Version
 import grizzled.slf4j.Logging
-import scala.collection.JavaConverters._
-import scala.collection.JavaConversions._
-import com.convergencelabs.server.datastore.domain.mapper.ObjectValueMapper.ODocumentToObjectValue
-import com.convergencelabs.server.datastore.domain.mapper.ObjectValueMapper.ObjectValueToODocument
-import ModelSnapshotStore.Fields._
-import ModelSnapshotStore.Constants._
-import java.time.Instant
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import java.util.Date
-import com.convergencelabs.server.datastore.DatabaseProvider
-import java.util.{ List => JavaList }
 
 object ModelSnapshotStore {
   val ClassName = "ModelSnapshot"

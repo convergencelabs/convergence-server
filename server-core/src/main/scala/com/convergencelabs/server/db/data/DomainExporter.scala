@@ -6,7 +6,6 @@ import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.domain.DomainUser
 import com.convergencelabs.server.domain.JwtAuthKey
 import com.convergencelabs.server.domain.model.Collection
-import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelOperation
 import com.convergencelabs.server.domain.model.ModelSnapshot
 import com.convergencelabs.server.domain.model.data.ArrayValue
@@ -124,19 +123,19 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
     logger.debug("exporting models")
     persistence.modelStore.getAllModelMetaData(None, None).map {
       modelList =>
-        modelList.map(metaData => exportModel(ModelFqn(metaData.collectionId, metaData.modelId)).get)
+        modelList.map(metaData => exportModel(metaData.modelId).get)
     }.get
   }
 
-  private[this] def exportModel(fqn: ModelFqn): Try[CreateModel] = {
+  private[this] def exportModel(modelId: String): Try[CreateModel] = {
     val models = persistence.modelStore
     val opStore = persistence.modelOperationStore
     val snapshotStore = persistence.modelSnapshotStore
 
     for {
-      modelOpt <- models.getModel(fqn.modelId)
-      ops <- opStore.getOperationsAfterVersion(fqn.modelId, 0)
-      snapshots <- snapshotStore.getSnapshots(fqn.modelId)
+      modelOpt <- models.getModel(modelId)
+      ops <- opStore.getOperationsAfterVersion(modelId, 0)
+      snapshots <- snapshotStore.getSnapshots(modelId)
     } yield {
       val model = modelOpt.get
       CreateModel(

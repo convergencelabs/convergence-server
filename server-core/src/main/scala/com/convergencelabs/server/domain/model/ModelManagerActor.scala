@@ -72,70 +72,6 @@ class ModelManagerActor(
         val modelId = UUID.randomUUID().toString()
         createModelActorAndForwarOpenRequest(modelId, openRequest)
     }
-
-    //
-    // OLD CODE
-    //
-    //    this.openRealtimeModels.get(openRequest.modelId) match {
-    //      case Some(modelActor) =>
-    //        // Model already open
-    //        modelActor forward openRequest
-    //      case None =>
-    //        // Model not already open, load it
-    //        val me = this.persistenceProvider.modelStore.modelExists(modelId)
-    //        me flatMap { exists =>
-    //          (if (exists) {
-    //            getModelUserPermissions(modelFqn, sk) map (p => p.read)
-    //          } else {
-    //            canCreate(openRequest.modelFqn.collectionId, openRequest.sk)
-    //          }) map { allowed =>
-    //            (allowed, exists)
-    //          }
-    //        } flatMap {
-    //          case (canOpenModel, modelExists) =>
-    //            if (canOpenModel) {
-    //              val resourceId = "" + nextModelResourceId
-    //              nextModelResourceId += 1
-    //              val collectionId = openRequest.modelFqn.collectionId
-    //
-    //              (for {
-    //                collectionExists <- persistenceProvider.collectionStore.ensureCollectionExists(collectionId)
-    //                snapshotConfig <- getSnapshotConfigForModel(collectionId)
-    //                permissions <- getModelPermissions(openRequest.modelFqn, modelExists)
-    //              } yield {
-    //                val props = RealtimeModelActor.props(
-    //                  self,
-    //                  domainFqn,
-    //                  openRequest.modelFqn,
-    //                  resourceId,
-    //                  persistenceProvider.modelStore,
-    //                  persistenceProvider.modelOperationProcessor,
-    //                  persistenceProvider.modelSnapshotStore,
-    //                  5000, // FIXME hard-coded time.  Should this be part of the protocol?
-    //                  snapshotConfig,
-    //                  permissions)
-    //
-    //                val modelActor = context.actorOf(props, resourceId)
-    //                this.openRealtimeModels += (openRequest.modelFqn -> modelActor)
-    //                this.context.watch(modelActor)
-    //                modelActor forward openRequest
-    //                ()
-    //              })
-    //            } else {
-    //              val message = if (modelExists) {
-    //                "Insufficient privlidges to open the specified model."
-    //              } else {
-    //                "Insufficient privlidges to create the specified model."
-    //              }
-    //              sender ! UnauthorizedException(message)
-    //              Success(())
-    //            }
-    //        } recover {
-    //          case cause: Exception =>
-    //            log.error(cause, s"Error opening model: ${openRequest.modelFqn}")
-    //            sender ! UnknownErrorResponse("Could not open model due to an unexpected server error.")
-    //        }
-    //    }
   }
 
   private[this] def createModelActorAndForwarOpenRequest(modelId: String, openRequest: OpenRealtimeModelRequest): Unit = {
@@ -161,7 +97,7 @@ class ModelManagerActor(
     modelActor forward openRequest
   }
 
-  private[this] def getModelUserPermissions(id: String, collection: String, sk: SessionKey): Try[ModelPermissions] = {
+  private[this] def getModelUserPermissions(id: String, sk: SessionKey): Try[ModelPermissions] = {
     if (sk.admin) {
       Success(ModelPermissions(true, true, true, true))
     } else {
@@ -177,7 +113,7 @@ class ModelManagerActor(
             }
           }
         } else {
-          permissionsStore.getCollectionWorldPermissions(collection).flatMap { collectionPerms =>
+          permissionsStore.getCollectionWorldPermissionsForModel(id).flatMap { collectionPerms =>
             val CollectionPermissions(create, read, write, remove, manage) = collectionPerms
             Success(ModelPermissions(read, write, remove, manage))
           }
@@ -239,19 +175,19 @@ class ModelManagerActor(
   }
 
   private[this] def onDeleteModelRequest(deleteRequest: DeleteModelRequest): Unit = {
-    val DeleteModelRequest(sk, modelFqn) = deleteRequest
+    val DeleteModelRequest(sk, modelId) = deleteRequest
 
-    val canDelete = getModelUserPermissions(modelFqn.modelId, modelFqn.collectionId, sk) map (p => p.remove)
+    val canDelete = getModelUserPermissions(modelId, sk) map (p => p.remove)
 
     canDelete.flatMap { canDelete =>
       if (canDelete) {
-        if (openRealtimeModels.contains(modelFqn.modelId)) {
-          val closed = openRealtimeModels(modelFqn.modelId)
+        if (openRealtimeModels.contains(modelId)) {
+          val closed = openRealtimeModels(modelId)
           closed ! ModelDeleted
-          openRealtimeModels -= modelFqn.modelId
+          openRealtimeModels -= modelId
         }
 
-        persistenceProvider.modelStore.deleteModel(modelFqn.modelId) map { _ =>
+        persistenceProvider.modelStore.deleteModel(modelId) map { _ =>
           sender ! ModelDeleted
           ()
         }
@@ -294,31 +230,30 @@ class ModelManagerActor(
   }
 
   private[this] def onSetModelPermissions(request: SetModelPermissionsRequest): Unit = {
-    val SetModelPermissionsRequest(sk, collectionId, modelId, overrideCollection, world, setAllUsers, users) = request
+    val SetModelPermissionsRequest(sk, modelId, overrideCollection, world, setAllUsers, users) = request
 
-    val canSetPermissions = getModelUserPermissions(collectionId, modelId, sk) map (p => p.manage)
+    val canSetPermissions = getModelUserPermissions(modelId, sk) map (p => p.manage)
 
     canSetPermissions.flatMap { canSet =>
       if (canSet) {
-        val modelFqn = ModelFqn(collectionId, modelId)
         this.openRealtimeModels.get(modelId).foreach { _ forward request }
 
         (for {
           _ <- overrideCollection match {
-            case Some(ov) => persistenceProvider.modelPermissionsStore.setOverrideCollectionPermissions(modelFqn.modelId, ov)
+            case Some(ov) => persistenceProvider.modelPermissionsStore.setOverrideCollectionPermissions(modelId, ov)
             case None => Success(())
           }
           _ <- world match {
-            case Some(perms) => persistenceProvider.modelPermissionsStore.setModelWorldPermissions(modelFqn.modelId, perms)
+            case Some(perms) => persistenceProvider.modelPermissionsStore.setModelWorldPermissions(modelId, perms)
             case None => Success(())
           }
 
           _ <- if (setAllUsers) {
-            persistenceProvider.modelPermissionsStore.deleteAllModelUserPermissions(modelFqn.modelId)
+            persistenceProvider.modelPermissionsStore.deleteAllModelUserPermissions(modelId)
           } else {
             Success(())
           }
-          _ <- persistenceProvider.modelPermissionsStore.updateAllModelUserPermissions(modelFqn.modelId, users)
+          _ <- persistenceProvider.modelPermissionsStore.updateAllModelUserPermissions(modelId, users)
         } yield {
           sender ! (())
 

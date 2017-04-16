@@ -1,29 +1,24 @@
 package com.convergencelabs.server.frontend.realtime
 
-import org.json4s.JsonAST.JNumber
-import org.json4s.JsonAST.JValue
-import org.json4s.JsonAST.JDouble
-import com.convergencelabs.server.domain.model.ot.AppliedOperation
-import com.convergencelabs.server.domain.model.ot.AppliedCompoundOperation
-import com.convergencelabs.server.domain.model.ot.AppliedDiscreteOperation
-import com.convergencelabs.server.domain.model.ot.AppliedStringInsertOperation
-import com.convergencelabs.server.domain.model.ot.AppliedStringRemoveOperation
-import com.convergencelabs.server.domain.model.ot.AppliedStringSetOperation
+import com.convergencelabs.server.domain.model.ModelOperation
 import com.convergencelabs.server.domain.model.ot.AppliedArrayInsertOperation
-import com.convergencelabs.server.domain.model.ot.AppliedArrayRemoveOperation
 import com.convergencelabs.server.domain.model.ot.AppliedArrayMoveOperation
+import com.convergencelabs.server.domain.model.ot.AppliedArrayRemoveOperation
 import com.convergencelabs.server.domain.model.ot.AppliedArrayReplaceOperation
 import com.convergencelabs.server.domain.model.ot.AppliedArraySetOperation
-import com.convergencelabs.server.domain.model.ot.AppliedObjectSetPropertyOperation
+import com.convergencelabs.server.domain.model.ot.AppliedBooleanSetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedCompoundOperation
+import com.convergencelabs.server.domain.model.ot.AppliedDateSetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedDiscreteOperation
+import com.convergencelabs.server.domain.model.ot.AppliedNumberAddOperation
+import com.convergencelabs.server.domain.model.ot.AppliedNumberSetOperation
 import com.convergencelabs.server.domain.model.ot.AppliedObjectAddPropertyOperation
 import com.convergencelabs.server.domain.model.ot.AppliedObjectRemovePropertyOperation
 import com.convergencelabs.server.domain.model.ot.AppliedObjectSetOperation
-import com.convergencelabs.server.domain.model.ot.AppliedNumberAddOperation
-import com.convergencelabs.server.domain.model.ot.AppliedNumberSetOperation
-import com.convergencelabs.server.domain.model.ot.AppliedBooleanSetOperation
-import com.convergencelabs.server.domain.model.ModelOperation
-import com.convergencelabs.server.domain.model.ModelFqn
-import com.convergencelabs.server.domain.model.ot.AppliedDateSetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedObjectSetPropertyOperation
+import com.convergencelabs.server.domain.model.ot.AppliedStringInsertOperation
+import com.convergencelabs.server.domain.model.ot.AppliedStringRemoveOperation
+import com.convergencelabs.server.domain.model.ot.AppliedStringSetOperation
 
 private[realtime] object ModelOperationMapper {
 

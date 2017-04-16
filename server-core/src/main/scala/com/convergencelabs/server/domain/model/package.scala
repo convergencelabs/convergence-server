@@ -1,18 +1,14 @@
 package com.convergencelabs.server.domain
 
-import scala.concurrent.duration.FiniteDuration
-import org.json4s.JsonAST.JValue
-import com.convergencelabs.server.domain.model.ot.Operation
-import akka.actor.ActorRef
-import java.time.Instant
-import java.time.Duration
-import com.convergencelabs.server.domain.model.data.ObjectValue
+import com.convergencelabs.server.datastore.domain.CollectionPermissions
+import com.convergencelabs.server.datastore.domain.ModelPermissions
 import com.convergencelabs.server.domain.model.Collection
-import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.Model
 import com.convergencelabs.server.domain.model.ModelSnapshotMetaData
-import com.convergencelabs.server.datastore.domain.ModelPermissions
-import com.convergencelabs.server.datastore.domain.CollectionPermissions
+import com.convergencelabs.server.domain.model.data.ObjectValue
+import com.convergencelabs.server.domain.model.ot.Operation
+
+import akka.actor.ActorRef
 
 package model {
 
@@ -23,7 +19,7 @@ package model {
   case class OpenRealtimeModelRequest(sk: SessionKey, modelId: Option[String], autoCreateId: Option[Integer], clientActor: ActorRef)
   case class CreateModelRequest(sk: SessionKey, collectionId: String, modelId: Option[String], modelData: ObjectValue,
     overridePermissions: Option[Boolean], worldPermissions: Option[ModelPermissions], userPermissions: Option[Map[String, ModelPermissions]])
-  case class DeleteModelRequest(sk: SessionKey, modelFqn: ModelFqn)
+  case class DeleteModelRequest(sk: SessionKey, modelId: String)
   case class CloseRealtimeModelRequest(sk: SessionKey)
   case class OperationSubmission(seqNo: Long, contextVersion: Long, operation: Operation)
   case class ClientAutoCreateModelConfigResponse(collectionId: String, modelData: Option[ObjectValue], overridePermissions: Option[Boolean],
@@ -35,7 +31,6 @@ package model {
 
   case class SetModelPermissionsRequest(
     sk: SessionKey,
-    collectionId: String,
     modelId: String,
     overrideCollection: Option[Boolean],
     worldPermissions: Option[ModelPermissions],

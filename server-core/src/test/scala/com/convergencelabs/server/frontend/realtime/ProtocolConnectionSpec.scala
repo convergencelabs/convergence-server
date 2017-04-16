@@ -234,7 +234,7 @@ class ProtocolConnectionSpec
     "receiving a reply" must {
 
       "ignore when the reply has no request" in new TestFixture(system) {
-        val message = AutoCreateModelConfigResponseMessage(collectionId, Some(ObjectValue("vid1", Map())), None, None, None)
+        val message = AutoCreateModelConfigResponseMessage(collectionId, Some(ObjectValue("vid1", Map())), None, None, None, None)
         val envelope = MessageEnvelope(message, None, Some(1L))
 
         val json = MessageSerializer.writeJson(envelope)
@@ -248,7 +248,7 @@ class ProtocolConnectionSpec
         val OutgoingTextMessage(message) = this.connectionActor.expectMsgClass(10 millis, classOf[OutgoingTextMessage])
         val sentEnvelope = MessageSerializer.readJson[MessageEnvelope](message)
 
-        val replyMessage = AutoCreateModelConfigResponseMessage(collectionId, Some(ObjectValue("vid2", Map())), None, None, None)
+        val replyMessage = AutoCreateModelConfigResponseMessage(collectionId, Some(ObjectValue("vid2", Map())), None, None, None, None)
         val replyEnvelope = MessageEnvelope(replyMessage, None, sentEnvelope.q)
 
         val replyJson = MessageSerializer.writeJson(replyEnvelope)

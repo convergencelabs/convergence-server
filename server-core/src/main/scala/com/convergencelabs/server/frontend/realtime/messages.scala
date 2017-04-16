@@ -136,8 +136,8 @@ case class ModelPermissionsData(r: Boolean, w: Boolean, d: Boolean, m: Boolean)
 // Historical Model Messages
 ///////////////////////////////////////////////////////////////////////////////
 sealed trait IncomingHistoricalModelRequestMessage extends IncomingProtocolRequestMessage
-case class HistoricalDataRequestMessage(c: String, m: String) extends IncomingHistoricalModelRequestMessage
-case class HistoricalOperationRequestMessage(c: String, m: String, f: Long, l: Long) extends IncomingHistoricalModelRequestMessage
+case class HistoricalDataRequestMessage(m: String) extends IncomingHistoricalModelRequestMessage
+case class HistoricalOperationRequestMessage(m: String, f: Long, l: Long) extends IncomingHistoricalModelRequestMessage
 
 case class HistoricalDataResponseMessage(d: ObjectValue, v: Long, c: Long, m: Long) extends OutgoingProtocolResponseMessage
 case class HistoricalOperationsResponseMessage(o: List[ModelOperationData]) extends OutgoingProtocolResponseMessage

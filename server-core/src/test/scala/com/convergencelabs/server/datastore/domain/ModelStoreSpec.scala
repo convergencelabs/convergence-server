@@ -14,7 +14,6 @@ import com.convergencelabs.server.datastore.DuplicateValueExcpetion
 import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.domain.model.Model
-import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelMetaData
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.model.data.StringValue
@@ -41,7 +40,6 @@ class ModelStoreSpec
   val peopleCollectionId = "people"
 
   val person1Id = "person1"
-  val person1 = ModelFqn(peopleCollectionId, person1Id)
   val person1MetaData = ModelMetaData(
     peopleCollectionId,
     person1Id,
@@ -54,7 +52,6 @@ class ModelStoreSpec
   val person1Model = Model(person1MetaData, person1Data)
 
   val person2Id = "person2"
-  val person2 = ModelFqn(peopleCollectionId, person2Id)
   val person2MetaData = ModelMetaData(
     peopleCollectionId,
     person2Id,
@@ -67,7 +64,6 @@ class ModelStoreSpec
   val person2Model = Model(person2MetaData, person2Data)
 
   val person3Id = "person3"
-  val person3 = ModelFqn(peopleCollectionId, person3Id)
   val person3MetaData = ModelMetaData(
     peopleCollectionId,
     person3Id,
@@ -81,7 +77,6 @@ class ModelStoreSpec
 
   val companyCollectionId = "company"
   val company1Id = "company1"
-  val company1 = ModelFqn(companyCollectionId, company1Id)
   val company1MetaData = ModelMetaData(
     companyCollectionId,
     company1Id,
@@ -94,7 +89,6 @@ class ModelStoreSpec
   val company1Model = Model(company1MetaData, company1Data)
 
   val notRealId = "notRealModel"
-  val nonExsitingFqn = ModelFqn("notRealCollection", "notRealModel")
 
   "An ModelStore" when {
 
@@ -114,7 +108,6 @@ class ModelStoreSpec
     "creating a model" must {
       "create a model that is not a duplicate model fqn" in withPersistenceStore { stores =>
         val modelId = "person4"
-        val modelFqn = ModelFqn(peopleCollectionId, modelId)
 
         val data = ObjectValue(
           "t1-data",
@@ -132,8 +125,8 @@ class ModelStoreSpec
         stores.collection.ensureCollectionExists(peopleCollectionId)
         val data = ObjectValue("t2-data",
           Map(("foo" -> StringValue("t2-foo", "bar"))))
-        stores.model.createModel(person1.collectionId, Some(person1.modelId), data, true, modelPermissions).get
-        stores.model.createModel(person1.collectionId, Some(person1.modelId), data, true, modelPermissions).failure.exception shouldBe a[DuplicateValueExcpetion]
+        stores.model.createModel(peopleCollectionId, Some(person1Id), data, true, modelPermissions).get
+        stores.model.createModel(peopleCollectionId, Some(person1Id), data, true, modelPermissions).failure.exception shouldBe a[DuplicateValueExcpetion]
       }
     }
 
@@ -344,7 +337,7 @@ class ModelStoreSpec
         stores.model.getModel(person3Id).get shouldBe defined
         stores.model.getModel(company1Id).get shouldBe defined
 
-        stores.model.deleteAllModelsInCollection(person1.collectionId).success
+        stores.model.deleteAllModelsInCollection(peopleCollectionId).success
 
         stores.model.getModel(person1Id).get shouldBe None
         stores.model.getModel(person2Id).get shouldBe None
@@ -355,7 +348,7 @@ class ModelStoreSpec
   }
 
   def createAllModels(stores: ModelStoreSpecStores): Unit = {
-    stores.collection.ensureCollectionExists(company1.collectionId)
+    stores.collection.ensureCollectionExists(companyCollectionId)
     stores.model.createModel(company1Model).get
     createAllPersonModels(stores)
   }

@@ -203,7 +203,7 @@ class RealtimeModelActor(
   }
 
   private[this] def onSetPermissionsRequest(request: SetModelPermissionsRequest): Unit = {
-    val SetModelPermissionsRequest(sk, collectionId, modelId, overridePerms, world, setAllUsers, users) = request
+    val SetModelPermissionsRequest(sk, modelId, overridePerms, world, setAllUsers, users) = request
 
     // TODO: Handle else case
     if (getPermissionsForSession(sk).manage) {

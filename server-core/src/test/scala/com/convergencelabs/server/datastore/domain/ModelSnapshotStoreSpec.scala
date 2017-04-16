@@ -11,7 +11,6 @@ import org.scalatest.WordSpecLike
 import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.domain.model.Model
-import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelMetaData
 import com.convergencelabs.server.domain.model.ModelSnapshot
 import com.convergencelabs.server.domain.model.ModelSnapshotMetaData
@@ -33,7 +32,6 @@ class ModelSnapshotStoreSpec
   val CollectionId = "people"
 
   val person1Id = "person1"
-  val person1ModelFqn = ModelFqn(CollectionId, person1Id)
   val person1ModelData = ObjectValue("vid", Map("value" -> DoubleValue("0:1", 1)))
   val person1ModelMetaData = ModelMetaData(CollectionId, person1Id, 10L, Instant.now(), Instant.now(), true, modelPermissions)
   val person1Model = Model(person1ModelMetaData, person1ModelData)
@@ -59,7 +57,6 @@ class ModelSnapshotStoreSpec
   val p1Snapshot20 = ModelSnapshot(p1Snapshot20MetaData, p1Snapshot20Data)
   
   val person2Id = "person2"
-  val person2ModelFqn = ModelFqn(CollectionId, person2Id)
   val person2ModelData = ObjectValue("vid", Map("value" -> DoubleValue("0:1", 1)))
   val person2ModelMetaData = ModelMetaData(CollectionId, person2Id, 10L, Instant.now(), Instant.now(), true, modelPermissions)
   val person2Model = Model(person2ModelMetaData, person2ModelData)
@@ -71,7 +68,6 @@ class ModelSnapshotStoreSpec
   val p2Snapshot1 = ModelSnapshot(p2Snapshot1MetaData, p2Snapshot1Data)
   
   val noPersonId = "noPerson"
-  val nonExistingModelFqn = ModelFqn(CollectionId, noPersonId)
 
   "A ModelSnapshotStore" when {
     "creating a snapshot" must {
@@ -247,7 +243,7 @@ class ModelSnapshotStoreSpec
         provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, None, None).success.value.length shouldBe 3
         provider.modelSnapshotStore.getSnapshotMetaDataForModel(person2Id, None, None).success.value.length shouldBe 1
 
-        provider.modelSnapshotStore.removeAllSnapshotsForCollection(person1ModelFqn.collectionId).success
+        provider.modelSnapshotStore.removeAllSnapshotsForCollection(CollectionId).success
 
         provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, None, None).success.value.length shouldBe 0
         provider.modelSnapshotStore.getSnapshotMetaDataForModel(person2Id, None, None).success.value.length shouldBe 0
@@ -256,7 +252,7 @@ class ModelSnapshotStoreSpec
   }
 
   def initModels(provider: DomainPersistenceProvider): Unit = {
-    provider.collectionStore.ensureCollectionExists(person1ModelFqn.collectionId).get
+    provider.collectionStore.ensureCollectionExists(CollectionId).get
     provider.modelStore.createModel(person1Model).get
     provider.modelStore.createModel(person2Model).get
   }

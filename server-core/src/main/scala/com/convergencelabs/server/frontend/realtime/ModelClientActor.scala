@@ -5,7 +5,12 @@ import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 
+import com.convergencelabs.server.datastore.UnauthorizedException
+import com.convergencelabs.server.datastore.domain.ModelPermissions
+import com.convergencelabs.server.domain.PermissionDeniedException
 import com.convergencelabs.server.domain.model.ClearReference
+import com.convergencelabs.server.domain.model.ClientAutoCreateModelConfigRequest
+import com.convergencelabs.server.domain.model.ClientAutoCreateModelConfigResponse
 import com.convergencelabs.server.domain.model.ClientDataRequestFailure
 import com.convergencelabs.server.domain.model.CloseRealtimeModelRequest
 import com.convergencelabs.server.domain.model.CloseRealtimeModelSuccess
@@ -13,14 +18,17 @@ import com.convergencelabs.server.domain.model.CreateModelRequest
 import com.convergencelabs.server.domain.model.CreateModelResponse
 import com.convergencelabs.server.domain.model.DeleteModelRequest
 import com.convergencelabs.server.domain.model.DeleteModelResponse
+import com.convergencelabs.server.domain.model.GetModelPermissionsRequest
+import com.convergencelabs.server.domain.model.GetModelPermissionsResponse
 import com.convergencelabs.server.domain.model.ModelAlreadyExists
 import com.convergencelabs.server.domain.model.ModelAlreadyOpen
 import com.convergencelabs.server.domain.model.ModelCreated
 import com.convergencelabs.server.domain.model.ModelDeleted
 import com.convergencelabs.server.domain.model.ModelDeletedWhileOpening
 import com.convergencelabs.server.domain.model.ModelForceClose
-import com.convergencelabs.server.domain.model.ModelFqn
 import com.convergencelabs.server.domain.model.ModelNotFound
+import com.convergencelabs.server.domain.model.ModelNotFoundException
+import com.convergencelabs.server.domain.model.ModelPermissionsChanged
 import com.convergencelabs.server.domain.model.NoSuchModel
 import com.convergencelabs.server.domain.model.OpenModelResponse
 import com.convergencelabs.server.domain.model.OpenModelSuccess
@@ -29,6 +37,8 @@ import com.convergencelabs.server.domain.model.OperationAcknowledgement
 import com.convergencelabs.server.domain.model.OperationSubmission
 import com.convergencelabs.server.domain.model.OutgoingOperation
 import com.convergencelabs.server.domain.model.PublishReference
+import com.convergencelabs.server.domain.model.QueryModelsRequest
+import com.convergencelabs.server.domain.model.QueryModelsResponse
 import com.convergencelabs.server.domain.model.RealtimeModelClientMessage
 import com.convergencelabs.server.domain.model.ReferenceState
 import com.convergencelabs.server.domain.model.ReferenceType
@@ -39,31 +49,19 @@ import com.convergencelabs.server.domain.model.RemoteReferencePublished
 import com.convergencelabs.server.domain.model.RemoteReferenceSet
 import com.convergencelabs.server.domain.model.RemoteReferenceUnpublished
 import com.convergencelabs.server.domain.model.SessionKey
+import com.convergencelabs.server.domain.model.SetModelPermissionsRequest
 import com.convergencelabs.server.domain.model.SetReference
 import com.convergencelabs.server.domain.model.UnpublishReference
-import com.convergencelabs.server.domain.model.GetModelPermissionsRequest
-import com.convergencelabs.server.domain.model.GetModelPermissionsResponse
-import com.convergencelabs.server.domain.model.SetModelPermissionsRequest
-import com.convergencelabs.server.domain.PermissionDeniedException
 import com.convergencelabs.server.util.concurrent.AskFuture
-import com.convergencelabs.server.domain.model.ModelNotFoundException
-import com.convergencelabs.server.domain.model.ModelPermissionsChanged
-import com.convergencelabs.server.datastore.domain.ModelPermissions
-import com.convergencelabs.server.domain.model.QueryModelsRequest
-import com.convergencelabs.server.domain.model.QueryModelsResponse
-import com.convergencelabs.server.domain.model.QueryOrderBy
 
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
 import akka.actor.Props
-import akka.actor.actorRef2Scala
-import akka.pattern.ask
-import akka.util.Timeout
 import akka.actor.Terminated
-import com.convergencelabs.server.datastore.UnauthorizedException
-import com.convergencelabs.server.domain.model.ClientAutoCreateModelConfigRequest
-import com.convergencelabs.server.domain.model.ClientAutoCreateModelConfigResponse
+import akka.actor.actorRef2Scala
+import akka.util.Timeout
+import akka.pattern.ask
 
 object ModelClientActor {
   def props(
@@ -395,7 +393,7 @@ class ModelClientActor(
 
   private[this] def onDeleteRealtimeModelRequest(request: DeleteRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
     val DeleteRealtimeModelRequestMessage(collectionId, modelId) = request
-    val future = modelManager ? DeleteModelRequest(sessionKey, ModelFqn(collectionId, modelId))
+    val future = modelManager ? DeleteModelRequest(sessionKey, modelId)
     future.mapResponse[DeleteModelResponse] onComplete {
       case Success(ModelDeleted) =>
         cb.reply(DeleteRealtimeModelSuccessMessage())
@@ -462,7 +460,7 @@ class ModelClientActor(
         })
         (username, p)
     }
-    val message = SetModelPermissionsRequest(sessionKey, collectionId, modelId, overridePermissions, mappedWorld, allUsers, mappedUsers)
+    val message = SetModelPermissionsRequest(sessionKey, modelId, overridePermissions, mappedWorld, allUsers, mappedUsers)
     val future = modelManager ? message
     future onComplete {
       case Success(_) =>
