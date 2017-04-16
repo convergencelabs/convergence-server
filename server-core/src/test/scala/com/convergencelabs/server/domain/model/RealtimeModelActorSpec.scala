@@ -10,7 +10,7 @@ import scala.util.Success
 
 import org.mockito.ArgumentCaptor
 import org.mockito.Matchers
-import org.mockito.Matchers._
+import org.mockito.Matchers.any
 import org.mockito.Mockito
 import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
@@ -134,16 +134,7 @@ class RealtimeModelActorSpec
 
         // Verify that the model and snapshot were created.
         // FIXME use arg capture to match it.
-        verify(modelStore, times(1)).createModel(Matchers.any(), Matchers.any(), Matchers.any(), Matchers.any(), Matchers.any())
-
-        val snapshotCaptor = ArgumentCaptor.forClass(classOf[ModelSnapshot])
-
-        verify(modelSnapshotStore, times(1)).createSnapshot(snapshotCaptor.capture())
-        val capturedData = snapshotCaptor.getValue
-        assert(capturedData.data == modelJsonData)
-        assert(capturedData.metaData.modelId == modelId)
-        assert(capturedData.metaData.version == 0) // since it is newly created.
-        assert(capturedData.metaData.timestamp != 0)
+        verify(modelCreator, times(1)).createModel(any(), any(), any(), any(), any(), any(), any(), any())
       }
     }
 
