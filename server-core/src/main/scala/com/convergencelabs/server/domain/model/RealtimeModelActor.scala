@@ -1,51 +1,46 @@
 package com.convergencelabs.server.domain.model
 
-import akka.actor.{ Props, ActorRef, ActorLogging, Actor }
-import akka.pattern.{ AskTimeoutException, Patterns }
 import java.time.Instant
-import java.time.Duration
-import org.json4s.JsonAST.JValue
+
 import scala.collection.immutable.HashMap
-import scala.concurrent.{ ExecutionContext, Future }
-import com.convergencelabs.server.domain.DomainFqn
-import scala.util.Success
-import scala.util.Failure
-import scala.util.Try
-import scala.concurrent.duration.FiniteDuration
 import scala.compat.Platform
-import scala.util.Success
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 import scala.language.implicitConversions
-import com.convergencelabs.server.domain.ModelSnapshotConfig
-import com.convergencelabs.server.domain.model.ot.TransformationFunctionRegistry
-import com.convergencelabs.server.domain.model.ot.{ UnprocessedOperationEvent, ServerConcurrencyControl }
-import com.convergencelabs.server.domain.model.ot.Operation
-import com.convergencelabs.server.domain.model.ot.OperationTransformer
-import com.convergencelabs.server.datastore.domain.ModelStore
-import com.convergencelabs.server.datastore.domain.ModelSnapshotStore
-import com.convergencelabs.server.datastore.domain.ModelOperationProcessor
-import com.convergencelabs.server.util.concurrent.AskFuture
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
+
 import com.convergencelabs.server.UnknownErrorResponse
-import com.convergencelabs.server.datastore.domain.CollectionStore
-import akka.actor.Terminated
-import org.json4s.JsonAST.JObject
+import com.convergencelabs.server.datastore.domain.CollectionPermissions
+import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
+import com.convergencelabs.server.datastore.domain.ModelPermissions
+import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.ModelSnapshotConfig
+import com.convergencelabs.server.domain.UnauthorizedException
+import com.convergencelabs.server.domain.model.data.ObjectValue
+import com.convergencelabs.server.domain.model.ot.OperationTransformer
+import com.convergencelabs.server.domain.model.ot.ServerConcurrencyControl
+import com.convergencelabs.server.domain.model.ot.TransformationFunctionRegistry
+import com.convergencelabs.server.domain.model.ot.UnprocessedOperationEvent
 import com.convergencelabs.server.domain.model.ot.xform.ReferenceTransformer
-import scala.collection.mutable.ListBuffer
-import com.convergencelabs.server.domain.model.ot.ProcessedOperationEvent
+
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.ActorRef
+import akka.actor.Props
+import akka.actor.Status
+import akka.actor.Terminated
+import akka.pattern.AskTimeoutException
+import akka.pattern.Patterns
+import akka.stream.ActorMaterializer
 import akka.stream.OverflowStrategy
-import akka.stream.scaladsl.Source
 import akka.stream.scaladsl.Flow
 import akka.stream.scaladsl.Sink
-import akka.stream.ActorMaterializer
-import akka.actor.PoisonPill
-import akka.actor.Status
-import com.convergencelabs.server.datastore.domain.ModelPermissions
-import com.convergencelabs.server.datastore.domain.ModelPermissionsStore
-import com.convergencelabs.server.datastore.domain.CollectionPermissions
-import com.convergencelabs.server.datastore.UnauthorizedException
-import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.server.domain.model.data.ObjectValue
+import akka.stream.scaladsl.Source
 
 case class ModelConfigResponse(sk: SessionKey, config: ClientAutoCreateModelConfigResponse)
+case object PermissionsUpdated
 
 /**
  * Provides a factory method for creating the RealtimeModelActor
@@ -90,14 +85,12 @@ class RealtimeModelActor(
   private[this] val modelStore = persistenceProvider.modelStore
   private[this] val modelOperationProcessor = persistenceProvider.modelOperationProcessor
   private[this] val modelSnapshotStore = persistenceProvider.modelSnapshotStore
-  private[this] val permissionsStore = persistenceProvider.modelPermissionsStore
+  private[this] val permissionsResolver = new ModelPermissionResolver()
 
-  private[this] var overrideCollection: Boolean = _
-  private[this] var collectionWorld: CollectionPermissions = _
-  private[this] var collectionUsers: Map[String, CollectionPermissions] = _
-  private[this] var modelWorld: ModelPermissions = _
-  private[this] var modelUsers: Map[String, ModelPermissions] = _
-
+  private[this] var collectionId: String = _
+  
+  private[this] var permissions: RealTimeModelPermissions = _
+  
   private[this] var connectedClients = HashMap[SessionKey, ActorRef]()
   private[this] var clientToSessionId = HashMap[ActorRef, SessionKey]()
   private[this] var queuedOpeningClients = HashMap[SessionKey, OpenRequestRecord]()
@@ -147,7 +140,7 @@ class RealtimeModelActor(
    */
   private[this] def receiveUninitialized: Receive = {
     case request: OpenRealtimeModelRequest => onOpenModelWhileUninitialized(request)
-    case request: SetModelPermissionsRequest => onSetPermissionsRequest(request)
+    case PermissionsUpdated => reloadModelPermissions()
     case unknown: Any => unhandled(unknown)
   }
 
@@ -189,7 +182,7 @@ class RealtimeModelActor(
     case closeRequest: CloseRealtimeModelRequest => onCloseModelRequest(closeRequest)
     case operationSubmission: OperationSubmission => onOperationSubmission(operationSubmission)
     case referenceEvent: ModelReferenceEvent => onReferenceEvent(referenceEvent)
-    case request: SetModelPermissionsRequest => onSetPermissionsRequest(request)
+    case PermissionsUpdated => reloadModelPermissions()
     case snapshotMetaData: ModelSnapshotMetaData => this.latestSnapshot = snapshotMetaData
     case ModelDeleted => handleModelDeletedWhileOpen()
     case terminated: Terminated => handleTerminated(terminated)
@@ -200,71 +193,6 @@ class RealtimeModelActor(
     case dataResponse: ClientAutoCreateModelConfigResponse =>
 
     case unknown: Any => unhandled(unknown)
-  }
-
-  private[this] def onSetPermissionsRequest(request: SetModelPermissionsRequest): Unit = {
-    val SetModelPermissionsRequest(sk, modelId, overridePerms, world, setAllUsers, users) = request
-
-    // TODO: Handle else case
-    if (getPermissionsForSession(sk).manage) {
-      val oldOverrideCollection = overrideCollection
-      val oldModelWorldPermissions = modelWorld
-      val oldUserModelPermissions = modelUsers
-
-      overridePerms.foreach { overrideCollection = _ }
-      world.foreach { modelWorld = _ }
-
-      if (setAllUsers) {
-        val newUsers = scala.collection.mutable.Map[String, ModelPermissions]()
-        users.foreach {
-          case (username, permissions) =>
-            if (permissions.isDefined) {
-              newUsers.put(username, permissions.get)
-            }
-        }
-        modelUsers = newUsers.toMap
-      } else {
-        val newUsers = scala.collection.mutable.Map[String, ModelPermissions](modelUsers.toSeq: _*)
-        users.foreach {
-          case (username, permissions) =>
-            if (permissions.isDefined) {
-              newUsers.put(username, permissions.get)
-            } else {
-              newUsers.remove(username)
-            }
-        }
-        modelUsers = newUsers.toMap
-      }
-
-      this.connectedClients foreach {
-        case (sk, actor) =>
-          val oldPerms = getPermissionsForSession(sk, collectionWorld, collectionUsers, oldOverrideCollection, oldModelWorldPermissions, oldUserModelPermissions)
-          val newPerms = getPermissionsForSession(sk)
-          if (oldPerms != newPerms) {
-            actor ! ModelPermissionsChanged(modelResourceId, newPerms)
-          }
-      }
-    }
-  }
-
-  private[this] def getPermissionsForSession(sk: SessionKey): ModelPermissions = {
-    getPermissionsForSession(sk, collectionWorld, collectionUsers, overrideCollection, modelWorld, modelUsers)
-  }
-
-  private[this] def getPermissionsForSession(
-    sk: SessionKey, cWorld: CollectionPermissions, cUsers: Map[String, CollectionPermissions],
-    overridePerm: Boolean, mWorld: ModelPermissions, mUsers: Map[String, ModelPermissions]): ModelPermissions = {
-    if (sk.admin) {
-      ModelPermissions(true, true, true, true)
-    } else {
-      if (overridePerm) {
-        mUsers.getOrElse(sk.uid, mWorld)
-      } else {
-        val CollectionPermissions(create, read, write, remove, manage) = cUsers.getOrElse(sk.uid, cWorld)
-        ModelPermissions(read, write, remove, manage)
-      }
-    }
-
   }
 
   //
@@ -286,7 +214,7 @@ class RealtimeModelActor(
           case Some(id) =>
             requestAutoCreateConfigFromClient(request.sk, request.clientActor, id)
           case None =>
-            sender ! NoSuchModel
+            sender ! Status.Failure(ModelNotFoundException(modelId))
         }
       case Failure(cause) =>
         log.error(cause, "Unable to determine if a model exists.")
@@ -332,23 +260,13 @@ class RealtimeModelActor(
     } yield {
       (model, snapshotMetaData) match {
         case (Some(m), Some(s)) =>
+          collectionId = m.metaData.collectionId
           (for {
-            overrideCollection <- permissionsStore.modelOverridesCollectionPermissions(modelId)
-            collectionWorld <- permissionsStore.getCollectionWorldPermissions(m.metaData.collectionId)
-            collectionUsers <- permissionsStore.getAllCollectionUserPermissions(m.metaData.collectionId)
-            modelWorld <- permissionsStore.getModelWorldPermissions(modelId)
-            modelUsers <- permissionsStore.getAllModelUserPermissions(modelId)
-            snapshotConfig <- getSnapshotConfigForModel(m.metaData.collectionId)
+            _ <- reloadModelPermissions()
+            snapshotConfig <- getSnapshotConfigForModel(collectionId)
           } yield {
-            this.overrideCollection = overrideCollection
-            this.collectionWorld = collectionWorld
-            this.collectionUsers = collectionUsers
-            this.modelWorld = modelWorld
-            this.modelUsers = modelUsers
-
             this.snapshotConfig = snapshotConfig
             this.snapshotCalculator = new ModelSnapshotCalculator(snapshotConfig)
-
             self ! DatabaseModelResponse(m, s)
           }) recover {
             case cause: Exception =>
@@ -369,6 +287,13 @@ class RealtimeModelActor(
         val message = s"Error getting model data (${this.modelId})"
         log.error(cause, message)
         self ! DatabaseModelFailure(cause)
+    }
+  }
+
+  private[this] def reloadModelPermissions(): Try[Unit] = {
+    this.permissionsResolver.getModelPermissions(modelId, collectionId, persistenceProvider).map { p =>
+      this.permissions = p
+      ()
     }
   }
 
@@ -481,7 +406,7 @@ class RealtimeModelActor(
   private[this] def onOpenModelWhileInitialized(request: OpenRealtimeModelRequest): Unit = {
     // FIXME see below fixme, but also it seems like we check this
     // in the respondToClientOpenRequest?
-    if (getPermissionsForSession(request.sk).read) {
+    if (permissions.resolveSessionPermissions(request.sk).read) {
       val sk = request.sk
       if (connectedClients.contains(sk)) {
         sender ! ModelAlreadyOpen
@@ -507,7 +432,7 @@ class RealtimeModelActor(
    * Lets a client know that the open process has completed successfully.
    */
   private[this] def respondToClientOpenRequest(sk: SessionKey, modelData: Model, requestRecord: OpenRequestRecord): Unit = {
-    if (getPermissionsForSession(sk).read) {
+    if (permissions.resolveSessionPermissions(sk).read) {
       // Inform the concurrency control that we have a new client.
       val contextVersion = modelData.metaData.version
       this.model.clientConnected(sk, contextVersion)
@@ -526,7 +451,7 @@ class RealtimeModelActor(
 
       val referencesBySession = this.model.references()
 
-      val permissions = this.getPermissionsForSession(sk)
+      val permissions = this.permissions.resolveSessionPermissions(sk)
 
       val openModelResponse = OpenModelSuccess(
         self,
@@ -604,11 +529,10 @@ class RealtimeModelActor(
 
   private[this] def onOperationSubmission(request: OperationSubmission): Unit = {
     val sessionKey = this.clientToSessionId.get(sender)
-
     sessionKey match {
       case None => log.warning("Received operation from client for model that is not open!")
       case Some(session) => {
-        if (getPermissionsForSession(session).write) {
+        if (permissions.resolveSessionPermissions(session).write) {
           val unprocessedOpEvent = UnprocessedOperationEvent(
             session,
             request.contextVersion,

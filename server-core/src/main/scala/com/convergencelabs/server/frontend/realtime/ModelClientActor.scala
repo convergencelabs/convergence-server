@@ -5,9 +5,8 @@ import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 
-import com.convergencelabs.server.datastore.UnauthorizedException
 import com.convergencelabs.server.datastore.domain.ModelPermissions
-import com.convergencelabs.server.domain.PermissionDeniedException
+import com.convergencelabs.server.domain.UnauthorizedException
 import com.convergencelabs.server.domain.model.ClearReference
 import com.convergencelabs.server.domain.model.ClientAutoCreateModelConfigRequest
 import com.convergencelabs.server.domain.model.ClientAutoCreateModelConfigResponse
@@ -15,21 +14,14 @@ import com.convergencelabs.server.domain.model.ClientDataRequestFailure
 import com.convergencelabs.server.domain.model.CloseRealtimeModelRequest
 import com.convergencelabs.server.domain.model.CloseRealtimeModelSuccess
 import com.convergencelabs.server.domain.model.CreateModelRequest
-import com.convergencelabs.server.domain.model.CreateModelResponse
 import com.convergencelabs.server.domain.model.DeleteModelRequest
-import com.convergencelabs.server.domain.model.DeleteModelResponse
 import com.convergencelabs.server.domain.model.GetModelPermissionsRequest
 import com.convergencelabs.server.domain.model.GetModelPermissionsResponse
-import com.convergencelabs.server.domain.model.ModelAlreadyExists
 import com.convergencelabs.server.domain.model.ModelAlreadyOpen
-import com.convergencelabs.server.domain.model.ModelCreated
-import com.convergencelabs.server.domain.model.ModelDeleted
 import com.convergencelabs.server.domain.model.ModelDeletedWhileOpening
 import com.convergencelabs.server.domain.model.ModelForceClose
-import com.convergencelabs.server.domain.model.ModelNotFound
 import com.convergencelabs.server.domain.model.ModelNotFoundException
 import com.convergencelabs.server.domain.model.ModelPermissionsChanged
-import com.convergencelabs.server.domain.model.NoSuchModel
 import com.convergencelabs.server.domain.model.OpenModelResponse
 import com.convergencelabs.server.domain.model.OpenModelSuccess
 import com.convergencelabs.server.domain.model.OpenRealtimeModelRequest
@@ -62,6 +54,7 @@ import akka.actor.Terminated
 import akka.actor.actorRef2Scala
 import akka.util.Timeout
 import akka.pattern.ask
+import com.convergencelabs.server.domain.model.ModelAlreadyExistsException
 
 object ModelClientActor {
   def props(
@@ -101,17 +94,17 @@ class ModelClientActor(
   // scalastyle:off cyclomatic.complexity
   private[this] def onOutgoingModelMessage(event: RealtimeModelClientMessage): Unit = {
     event match {
-      case op: OutgoingOperation                                 => onOutgoingOperation(op)
-      case opAck: OperationAcknowledgement                       => onOperationAcknowledgement(opAck)
-      case remoteOpened: RemoteClientOpened                      => onRemoteClientOpened(remoteOpened)
-      case remoteClosed: RemoteClientClosed                      => onRemoteClientClosed(remoteClosed)
-      case foreceClosed: ModelForceClose                         => onModelForceClose(foreceClosed)
+      case op: OutgoingOperation => onOutgoingOperation(op)
+      case opAck: OperationAcknowledgement => onOperationAcknowledgement(opAck)
+      case remoteOpened: RemoteClientOpened => onRemoteClientOpened(remoteOpened)
+      case remoteClosed: RemoteClientClosed => onRemoteClientClosed(remoteClosed)
+      case foreceClosed: ModelForceClose => onModelForceClose(foreceClosed)
       case autoCreateRequest: ClientAutoCreateModelConfigRequest => onAutoCreateModelConfigRequest(autoCreateRequest)
-      case refPublished: RemoteReferencePublished                => onRemoteReferencePublished(refPublished)
-      case refUnpublished: RemoteReferenceUnpublished            => onRemoteReferenceUnpublished(refUnpublished)
-      case refSet: RemoteReferenceSet                            => onRemoteReferenceSet(refSet)
-      case refCleared: RemoteReferenceCleared                    => onRemoteReferenceCleared(refCleared)
-      case permsChanged: ModelPermissionsChanged                 => onModelPermissionsChanged(permsChanged)
+      case refPublished: RemoteReferencePublished => onRemoteReferencePublished(refPublished)
+      case refUnpublished: RemoteReferenceUnpublished => onRemoteReferenceUnpublished(refUnpublished)
+      case refSet: RemoteReferenceSet => onRemoteReferenceSet(refSet)
+      case refCleared: RemoteReferenceCleared => onRemoteReferenceCleared(refCleared)
+      case permsChanged: ModelPermissionsChanged => onModelPermissionsChanged(permsChanged)
     }
   }
   // scalastyle:on cyclomatic.complexity
@@ -232,11 +225,11 @@ class ModelClientActor(
 
   private[this] def onRequestReceived(message: IncomingModelRequestMessage, replyCallback: ReplyCallback): Unit = {
     message match {
-      case openRequest: OpenRealtimeModelRequestMessage            => onOpenRealtimeModelRequest(openRequest, replyCallback)
-      case closeRequest: CloseRealtimeModelRequestMessage          => onCloseRealtimeModelRequest(closeRequest, replyCallback)
-      case createRequest: CreateRealtimeModelRequestMessage        => onCreateRealtimeModelRequest(createRequest, replyCallback)
-      case deleteRequest: DeleteRealtimeModelRequestMessage        => onDeleteRealtimeModelRequest(deleteRequest, replyCallback)
-      case queryRequest: ModelsQueryRequestMessage                 => onModelQueryRequest(queryRequest, replyCallback)
+      case openRequest: OpenRealtimeModelRequestMessage => onOpenRealtimeModelRequest(openRequest, replyCallback)
+      case closeRequest: CloseRealtimeModelRequestMessage => onCloseRealtimeModelRequest(closeRequest, replyCallback)
+      case createRequest: CreateRealtimeModelRequestMessage => onCreateRealtimeModelRequest(createRequest, replyCallback)
+      case deleteRequest: DeleteRealtimeModelRequestMessage => onDeleteRealtimeModelRequest(deleteRequest, replyCallback)
+      case queryRequest: ModelsQueryRequestMessage => onModelQueryRequest(queryRequest, replyCallback)
       case getPermissionRequest: GetModelPermissionsRequestMessage => onGetModelPermissionsRequest(getPermissionRequest, replyCallback)
       case setPermissionRequest: SetModelPermissionsRequestMessage => onSetModelPermissionsRequest(setPermissionRequest, replyCallback)
     }
@@ -244,11 +237,11 @@ class ModelClientActor(
 
   private[this] def onMessageReceived(message: IncomingModelNormalMessage): Unit = {
     message match {
-      case submission: OperationSubmissionMessage        => onOperationSubmission(submission)
-      case publishReference: PublishReferenceMessage     => onPublishReference(publishReference)
+      case submission: OperationSubmissionMessage => onOperationSubmission(submission)
+      case publishReference: PublishReferenceMessage => onPublishReference(publishReference)
       case unpublishReference: UnpublishReferenceMessage => onUnpublishReference(unpublishReference)
-      case setReference: SetReferenceMessage             => onSetReference(setReference)
-      case clearReference: ClearReferenceMessage         => onClearReference(clearReference)
+      case setReference: SetReferenceMessage => onSetReference(setReference)
+      case clearReference: ClearReferenceMessage => onClearReference(clearReference)
     }
   }
 
@@ -337,14 +330,14 @@ class ModelClientActor(
               modelPermissions.manage)))
       case Success(ModelAlreadyOpen) =>
         cb.expectedError("model_already_open", "The requested model is already open by this client.")
-      case Success(NoSuchModel) =>
-        cb.expectedError("no_such_model", "The requested model does not exists, and no initializer was provided.")
       case Success(ModelDeletedWhileOpening) =>
         cb.expectedError("model_deleted", "The requested model was deleted while opening.")
       case Success(ClientDataRequestFailure(message)) =>
         cb.expectedError("data_request_failure", message)
-      case Failure(UnauthorizedException(_, _, _)) =>
-        cb.expectedError("unauthorized", "Insufficient privileges to open the model.")
+      case Failure(ModelNotFoundException(modelId)) =>
+        cb.reply(ModelClientActor.ModelNotFoundError)
+      case Failure(UnauthorizedException(message)) =>
+        cb.reply(ErrorMessages.Unauthorized(message))
       case Failure(cause) =>
         log.error(cause, "Unexpected error opening model.")
         cb.unknownError()
@@ -375,16 +368,18 @@ class ModelClientActor(
       val ModelPermissionsData(read, write, remove, manage) = wp
       ModelPermissions(read, write, remove, manage)
     }
-    
-    val userPermissions = userPermissionsData.map( permsMap => permsMap map { entry =>
+
+    val userPermissions = userPermissionsData.map(permsMap => permsMap map { entry =>
       val ModelPermissionsData(read, write, remove, manage) = entry._2
       (entry._1 -> ModelPermissions(read, write, remove, manage))
     })
 
     val future = modelManager ? CreateModelRequest(sessionKey, collectionId, modelId, data, overridePermissions, worldPermissions, userPermissions)
-    future.mapResponse[CreateModelResponse] onComplete {
-      case Success(ModelCreated(m)) => cb.reply(CreateRealtimeModelSuccessMessage(m))
-      case Success(ModelAlreadyExists)           => cb.expectedError("model_alread_exists", "A model with the specifieid collection and model id already exists")
+    future.mapResponse[String] onComplete {
+      case Success(modelId) =>
+        cb.reply(CreateRealtimeModelSuccessMessage(modelId))
+      case Failure(ModelAlreadyExistsException(modelId)) =>
+        cb.expectedError("model_alread_exists", "A model with the specifieid model id already exists")
       case Failure(cause) =>
         log.error(cause, "Unexpected error creating model.")
         cb.unexpectedError("could not create model")
@@ -394,14 +389,17 @@ class ModelClientActor(
   private[this] def onDeleteRealtimeModelRequest(request: DeleteRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
     val DeleteRealtimeModelRequestMessage(modelId) = request
     val future = modelManager ? DeleteModelRequest(sessionKey, modelId)
-    future.mapResponse[DeleteModelResponse] onComplete {
-      case Success(ModelDeleted) =>
+    future.mapResponse[Unit] onComplete {
+      case Success(()) =>
         cb.reply(DeleteRealtimeModelSuccessMessage())
-      case Success(ModelNotFound) =>
-        cb.reply(ErrorMessage("model_not_found", "A model with the specifieid collection and model id does not exists"))
+      case Failure(ModelNotFoundException(_)) =>
+        cb.reply(ModelClientActor.ModelNotFoundError)
+      case Failure(UnauthorizedException(message)) =>
+        cb.reply(ErrorMessages.Unauthorized(message))
       case Failure(cause) =>
-        log.error(cause, "Unexpected error deleting model.")
-        cb.unexpectedError("could not delete model")
+        val message = "Unexpected error removing model."
+        log.error(cause, message)
+        cb.unexpectedError(message)
     }
   }
 
@@ -428,7 +426,7 @@ class ModelClientActor(
 
   private[this] def onGetModelPermissionsRequest(request: GetModelPermissionsRequestMessage, cb: ReplyCallback): Unit = {
     val GetModelPermissionsRequestMessage(modelId) = request
-    val future = modelManager ? GetModelPermissionsRequest(modelId)
+    val future = modelManager ? GetModelPermissionsRequest(sessionKey, modelId)
     future.mapResponse[GetModelPermissionsResponse] onComplete {
       case Success(GetModelPermissionsResponse(overridesCollection, world, users)) =>
         val mappedWorld = ModelPermissionsData(world.read, world.write, world.remove, world.manage)
@@ -438,11 +436,10 @@ class ModelClientActor(
             (username, ModelPermissionsData(read, write, remove, manage))
         }
         cb.reply(GetModelPermissionsResponseMessage(overridesCollection, mappedWorld, mappedUsers))
-      case Failure(f @ ModelNotFoundException(_, _)) =>
+      case Failure(ModelNotFoundException(_)) =>
         cb.reply(ModelClientActor.ModelNotFoundError)
-      case Failure(f @ PermissionDeniedException(_, _)) =>
-        val error = ErrorMessage("permission_denied", "User must have 'read' permissions to get model permissions");
-        cb.reply(ModelClientActor.ModelNotFoundError)
+      case Failure(UnauthorizedException(message)) =>
+        cb.reply(ErrorMessages.Unauthorized(message))
       case Failure(cause) =>
         log.error(cause, "Unexpected error getting permissions for model.")
         cb.unexpectedError("could get model permissions")
@@ -465,14 +462,14 @@ class ModelClientActor(
     future onComplete {
       case Success(_) =>
         cb.reply(SetModelPermissionsResponseMessage())
-      case Failure(f @ ModelNotFoundException(_, _)) =>
+      case Failure(ModelNotFoundException(_)) =>
         cb.reply(ModelClientActor.ModelNotFoundError)
-      case Failure(f @ PermissionDeniedException(_, _)) =>
-        val error = ErrorMessage("permission_denied", "User must have 'manage' permissions to set model permissions");
-        cb.reply(ModelClientActor.ModelNotFoundError)
+      case Failure(UnauthorizedException(message)) =>
+        cb.reply(ErrorMessages.Unauthorized(message))
       case Failure(cause) =>
-        log.error(cause, "Unexpected error setting permissions for model.")
-        cb.unexpectedError("could set model permissions")
+        val message = "Unexpected error setting permissions for model."
+        log.error(cause, message)
+        cb.unexpectedError(message)
     }
   }
 }

@@ -37,6 +37,7 @@ import akka.actor.OneForOneStrategy
 import akka.actor.SupervisorStrategy._
 import scala.concurrent.duration._
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManager
+import com.convergencelabs.server.domain.model.ModelPermissionResolver
 
 object DomainActor {
   def props(
@@ -80,7 +81,8 @@ class DomainActor(
   private[this] val modelManagerActorRef = context.actorOf(ModelManagerActor.props(
     domainFqn,
     protocolConfig,
-    DomainPersistenceManagerActor),
+    DomainPersistenceManagerActor,
+    new ModelPermissionResolver()),
     ModelManagerActor.RelativePath)
 
   private[this] val userServiceActor = context.actorOf(UserServiceActor.props(

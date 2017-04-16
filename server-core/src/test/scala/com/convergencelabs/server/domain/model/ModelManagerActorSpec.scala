@@ -13,11 +13,12 @@ import scala.util.Success
 
 import org.json4s.JsonAST.JObject
 import org.json4s.JsonAST.JString
-import org.mockito.Matchers
+import org.mockito.Matchers.any
 import org.mockito.Mockito
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.WordSpecLike
 import org.scalatest.mock.MockitoSugar
+import org.scalatest.Matchers._
 
 import com.convergencelabs.server.HeartbeatConfiguration
 import com.convergencelabs.server.ProtocolConfiguration
@@ -40,12 +41,16 @@ import com.convergencelabs.server.util.MockDomainPersistenceManager
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
+import akka.actor.Status
+import com.convergencelabs.server.domain.UnauthorizedException
 
 class ModelManagerActorSpec
     extends TestKit(ActorSystem("ModelManagerActorSpec"))
     with WordSpecLike
     with BeforeAndAfterAll
     with MockitoSugar {
+
+  val timeout = FiniteDuration(1, TimeUnit.SECONDS)
 
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
@@ -98,14 +103,14 @@ class ModelManagerActorSpec
         Mockito.when(modelStore.createModel(collectionId, Some(noModelId), data, true, modelPermissions))
           .thenReturn(Success(Model(ModelMetaData(collectionId, noModelId, 0L, now, now, true, modelPermissions), data)))
 
-        Mockito.when(modelSnapshotStore.createSnapshot(Matchers.any()))
+        Mockito.when(modelSnapshotStore.createSnapshot(any()))
           .thenReturn(Success(()))
 
         modelManagerActor.tell(CreateModelRequest(SessionKey(userId1, sessionId1), collectionId, Some(noModelId), data, Some(true), Some(modelPermissions), None), client.ref)
-        client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelCreated(noModelId))
+        client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), noModelId)
       }
 
-      "return ModelAlreadyExists if the model exists" in new TestFixture {
+      "return ModelAlreadyExistsException if the model exists" in new TestFixture {
         val client = new TestProbe(system)
         val data = ObjectValue("", Map())
 
@@ -113,27 +118,57 @@ class ModelManagerActorSpec
           .thenReturn(Failure(DuplicateValueExcpetion("foo")))
 
         modelManagerActor.tell(CreateModelRequest(SessionKey(userId1, sessionId1), collectionId, Some(modelId), data, Some(true), Some(modelPermissions), None), client.ref)
-        client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelAlreadyExists)
+        client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), Status.Failure(ModelAlreadyExistsException(modelId)))
       }
     }
 
     "requested to delete a model" must {
-      "return ModelDeleted if the model exists" in new TestFixture {
+      "return () if the model exists" in new TestFixture {
         val client = new TestProbe(system)
         modelManagerActor.tell(DeleteModelRequest(SessionKey(userId1, sessionId1), modelId), client.ref)
-        val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelDeleted)
+        val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ())
       }
 
-      "return ModelNotFound if the model does not exist" in new TestFixture {
+      "return ModelNotFoundException if the model does not exist" in new TestFixture {
         val client = new TestProbe(system)
         modelManagerActor.tell(DeleteModelRequest(SessionKey(userId1, sessionId1), noModelId), client.ref)
-        val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), akka.actor.Status.Failure(EntityNotFoundException()))
+        val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), Status.Failure(ModelNotFoundException(noModelId)))
       }
     }
 
-    "permissions are set to false" must {
-      "throw exception on open" in new TestFixture {
+    "getting permissions" must {
+      "respond with a ModelNotFoundException is the model does not exists" in new TestFixture {
+        val client = new TestProbe(system)
+        modelManagerActor.tell(GetModelPermissionsRequest(u1Sk, noModelId), client.ref)
+        val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), Status.Failure(ModelNotFoundException(noModelId)))
+      }
 
+      "respond with a UnauthorizedException if the user doesn't have read permissions" in new TestFixture {
+        Mockito.when(modelPermissionsResolver.getModelUserPermissions(any(), any(), any()))
+          .thenReturn(Success(ModelPermissions(false, true, true, true)))
+        val client = new TestProbe(system)
+        modelManagerActor.tell(GetModelPermissionsRequest(u1Sk, modelId), client.ref)
+        val Status.Failure(cause) = client.expectMsgClass(timeout, classOf[Status.Failure])
+        cause shouldBe a[UnauthorizedException]
+      }
+    }
+
+    "setting permissions" must {
+      "respond with a ModelNotFoundException is the model does not exists" in new TestFixture {
+        val client = new TestProbe(system)
+        val message = SetModelPermissionsRequest(u1Sk, noModelId, None, None, false, Map())
+        modelManagerActor.tell(message, client.ref)
+        val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), Status.Failure(ModelNotFoundException(noModelId)))
+      }
+      
+      "respond with a UnauthorizedException if the user doesn't have manage permissions" in new TestFixture {
+        Mockito.when(modelPermissionsResolver.getModelUserPermissions(any(), any(), any()))
+          .thenReturn(Success(ModelPermissions(true, true, true, false)))
+        val client = new TestProbe(system)
+        val message = SetModelPermissionsRequest(u1Sk, modelId, None, None, false, Map())
+        modelManagerActor.tell(message, client.ref)
+        val Status.Failure(cause) = client.expectMsgClass(timeout, classOf[Status.Failure])
+        cause shouldBe a[UnauthorizedException]
       }
     }
 
@@ -143,6 +178,9 @@ class ModelManagerActorSpec
     val userId1 = "u1";
     val userId2 = "u2";
     val sessionId1 = "1";
+
+    val u1Sk = SessionKey(userId1, sessionId1)
+
     val collectionId = "collection"
 
     val noModelId = "no model"
@@ -210,7 +248,7 @@ class ModelManagerActorSpec
     Mockito.when(modelPermissionsStore.updateModelUserPermissions(noModelId, userId1, ModelPermissions(true, true, true, true))).thenReturn(Success(()))
     Mockito.when(modelPermissionsStore.updateModelUserPermissions(noModelId, userId2, ModelPermissions(true, true, true, true))).thenReturn(Success(()))
 
-    Mockito.when(modelPermissionsStore.updateAllModelUserPermissions(Matchers.any(), Matchers.any())).thenReturn(Success(()))
+    Mockito.when(modelPermissionsStore.updateAllModelUserPermissions(any(), any())).thenReturn(Success(()))
 
     val domainPersistence = mock[DomainPersistenceProvider]
     Mockito.when(domainPersistence.modelStore).thenReturn(modelStore)
@@ -235,7 +273,11 @@ class ModelManagerActorSpec
         5 seconds,
         10 seconds))
 
-    val props = ModelManagerActor.props(domainFqn, protocolConfig, persistenceManager)
+    val modelPermissionsResolver = mock[ModelPermissionResolver]
+    Mockito.when(modelPermissionsResolver.getModelUserPermissions(any(), any(), any()))
+      .thenReturn(Success(ModelPermissions(true, true, true, true)))
+
+    val props = ModelManagerActor.props(domainFqn, protocolConfig, persistenceManager, modelPermissionsResolver)
 
     val modelManagerActor = system.actorOf(props, resourceId)
   }

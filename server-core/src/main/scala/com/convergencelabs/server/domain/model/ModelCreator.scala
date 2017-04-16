@@ -1,16 +1,13 @@
 package com.convergencelabs.server.domain.model
 
+import scala.util.Failure
+import scala.util.Success
 import scala.util.Try
 
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.datastore.domain.ModelPermissions
+import com.convergencelabs.server.domain.UnauthorizedException
 import com.convergencelabs.server.domain.model.data.ObjectValue
-import scala.util.Success
-import com.convergencelabs.server.datastore.domain.ModelPermissionsStore
-import com.convergencelabs.server.datastore.domain.CollectionPermissions
-import com.convergencelabs.server.datastore.EntityNotFoundException
-import scala.util.Failure
-import com.convergencelabs.server.datastore.UnauthorizedException
 
 case class CollectionAutoCreateDisabled(message: String) extends Exception(message)
 case class NoCreatePermissions(message: String) extends Exception(message)

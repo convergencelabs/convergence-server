@@ -41,6 +41,5 @@ package object domain {
   case object AuthenticationFailure extends AuthenticationResponse
   case object AuthenticationError extends AuthenticationResponse
   
-  case class PermissionDeniedException(message: String = "", cause: Throwable = null)
-    extends Exception(message, cause)
+  case class UnauthorizedException(message: String = "") extends Exception(message)
 }

@@ -25,7 +25,7 @@ package model {
   case class ClientAutoCreateModelConfigResponse(collectionId: String, modelData: Option[ObjectValue], overridePermissions: Option[Boolean],
     worldPermissions: Option[ModelPermissions], userPermissions: Option[Map[String, ModelPermissions]], ephemeral: Option[Boolean])
 
-  case class GetModelPermissionsRequest(modelId: String)
+  case class GetModelPermissionsRequest(sk: SessionKey, modelId: String)
 
   case class GetModelPermissionsResponse(overridesCollection: Boolean, worlPermissions: ModelPermissions, userPermissions: Map[String, ModelPermissions])
 
@@ -46,32 +46,16 @@ package model {
   case class ClearReference(id: Option[String], key: String) extends ModelReferenceEvent
   case class UnpublishReference(id: Option[String], key: String) extends ModelReferenceEvent
 
-  case class ModelNotFoundException(message: String = "", cause: Throwable = null)
-    extends Exception(message, cause)
+  case class ModelNotFoundException(modelId: String) extends Exception(s"A model with id '${modelId}' does not exist.")
+  case class ModelAlreadyExistsException(modelId: String) extends Exception(s"A model with id '${modelId}' already exists.")
 
-  sealed trait DeleteModelResponse
-  case object ModelDeleted extends DeleteModelResponse
-  case object ModelNotFound extends DeleteModelResponse
-
-  sealed trait CreateModelResponse
-  case class ModelCreated(id: String) extends CreateModelResponse
-  case object ModelAlreadyExists extends CreateModelResponse
+  case object ModelDeleted
 
   case class CreateCollectionRequest(collection: Collection)
   case class UpdateCollectionRequest(collection: Collection)
   case class DeleteCollectionRequest(collectionId: String)
   case class GetCollectionRequest(collectionId: String)
   case object GetCollectionsRequest
-
-  // TODO this will also need to include the permissions from the collection as well
-  // and we will need to trigger some sort of update when the collection wide
-  // permissions change.
-  case class RealTimeModelPermissions(
-    modelOverridesCollection: Boolean,
-    collectionWorld: CollectionPermissions,
-    collectionUsers: Map[String, CollectionPermissions],
-    modelWorld: ModelPermissions,
-    modelUsers: Map[String, ModelPermissions])
 
   //
   // Incoming Messages From Self
@@ -103,7 +87,6 @@ package model {
   sealed trait OpenModelFailure extends OpenModelResponse
   case object ModelAlreadyOpen extends OpenModelFailure
   case object ModelDeletedWhileOpening extends OpenModelFailure
-  case object NoSuchModel extends OpenModelFailure
   case class ClientDataRequestFailure(message: String) extends OpenModelFailure
 
   case class ModelShutdownRequest(modelId: String)
