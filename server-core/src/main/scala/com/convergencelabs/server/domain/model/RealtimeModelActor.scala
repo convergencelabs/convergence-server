@@ -52,6 +52,8 @@ object RealtimeModelActor {
     modelId: String,
     resourceId: String,
     persistenceProvider: DomainPersistenceProvider,
+    modelPemrissionResolver: ModelPermissionResolver,
+    modelCreator: ModelCreator,
     clientDataResponseTimeout: Long): Props =
     Props(new RealtimeModelActor(
       modelManagerActor,
@@ -59,6 +61,8 @@ object RealtimeModelActor {
       modelId,
       resourceId,
       persistenceProvider,
+      modelPemrissionResolver,
+      modelCreator,
       clientDataResponseTimeout))
 
   def sessionKeyToClientId(sk: SessionKey): String = sk.serialize()
@@ -74,6 +78,8 @@ class RealtimeModelActor(
   private[this] val modelId: String,
   private[this] val modelResourceId: String,
   private[this] val persistenceProvider: DomainPersistenceProvider,
+  private[this] val permissionsResolver: ModelPermissionResolver,
+  private[this] val modelCreator: ModelCreator,
   private[this] val clientDataResponseTimeout: Long)
     extends Actor
     with ActorLogging {
@@ -85,12 +91,11 @@ class RealtimeModelActor(
   private[this] val modelStore = persistenceProvider.modelStore
   private[this] val modelOperationProcessor = persistenceProvider.modelOperationProcessor
   private[this] val modelSnapshotStore = persistenceProvider.modelSnapshotStore
-  private[this] val permissionsResolver = new ModelPermissionResolver()
 
   private[this] var collectionId: String = _
-  
+
   private[this] var permissions: RealTimeModelPermissions = _
-  
+
   private[this] var connectedClients = HashMap[SessionKey, ActorRef]()
   private[this] var clientToSessionId = HashMap[ActorRef, SessionKey]()
   private[this] var queuedOpeningClients = HashMap[SessionKey, OpenRequestRecord]()
@@ -291,10 +296,12 @@ class RealtimeModelActor(
   }
 
   private[this] def reloadModelPermissions(): Try[Unit] = {
-    this.permissionsResolver.getModelPermissions(modelId, collectionId, persistenceProvider).map { p =>
-      this.permissions = p
-      ()
-    }
+    this.permissionsResolver
+      .getModelAndCollectionPermissions(modelId, collectionId, persistenceProvider)
+      .map { p =>
+        this.permissions = p
+        ()
+      }
   }
 
   /**
@@ -379,7 +386,7 @@ class RealtimeModelActor(
         this.ephemeral = true
 
         log.debug(s"Creating model in database: ${this.modelId}")
-        ModelCreator.createModel(
+        modelCreator.createModel(
           persistenceProvider,
           Some(sk.uid),
           collectionId,

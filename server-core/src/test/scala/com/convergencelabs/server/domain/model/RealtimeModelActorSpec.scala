@@ -10,6 +10,7 @@ import scala.util.Success
 
 import org.mockito.ArgumentCaptor
 import org.mockito.Matchers
+import org.mockito.Matchers._
 import org.mockito.Mockito
 import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
@@ -281,10 +282,10 @@ class RealtimeModelActorSpec
       ModelSnapshotConfig(false, false, false, 0, 0, false, false, Duration.ofSeconds(0), Duration.ofSeconds(0)),
       CollectionPermissions(true, true, true, true, true))))
     Mockito.when(collectionStore.ensureCollectionExists(Matchers.any())).thenReturn(Success(()))
-    
+
     Mockito.when(collectionStore.collectionExists(collectionId))
       .thenReturn(Success(true))
-      
+
     Mockito.when(modelPermissionStore.getCollectionWorldPermissions(collectionId)).thenReturn(Success(CollectionPermissions(true, true, true, true, true)))
     Mockito.when(modelPermissionStore.getAllCollectionUserPermissions(collectionId)).thenReturn(Success(Map[String, CollectionPermissions]()))
     Mockito.when(modelPermissionStore.getCollectionUserPermissions(Matchers.any(), Matchers.any())).thenReturn(Success(None))
@@ -293,7 +294,20 @@ class RealtimeModelActorSpec
     Mockito.when(modelPermissionStore.modelOverridesCollectionPermissions(modelId)).thenReturn(Success(false))
     Mockito.when(modelPermissionStore.getModelWorldPermissions(modelId)).thenReturn(Success(ModelPermissions(true, true, true, true)))
     Mockito.when(modelPermissionStore.getAllModelUserPermissions(modelId)).thenReturn(Success(Map[String, ModelPermissions]()))
-    
+
+    val modelPermissionsResolver = mock[ModelPermissionResolver]
+    Mockito.when(modelPermissionsResolver.getModelAndCollectionPermissions(any(), any(), any()))
+      .thenReturn(Success(RealTimeModelPermissions(
+        false,
+        CollectionPermissions(true, true, true, true, true),
+        Map(),
+        ModelPermissions(true, true, true, true),
+        Map())))
+
+    val modelCreator = mock[ModelCreator]
+    Mockito.when(modelCreator.createModel(any(), any(), any(), any(), any(), any(), any(), any()))
+      .thenReturn(Success(modelData))
+
     val resourceId = "1" + System.nanoTime()
     val modelManagerActor = new TestProbe(system)
     val props = RealtimeModelActor.props(
@@ -302,6 +316,8 @@ class RealtimeModelActorSpec
       modelId,
       resourceId,
       persistenceProvider,
+      modelPermissionsResolver,
+      modelCreator,
       100L)
 
     val realtimeModelActor = system.actorOf(props, resourceId)

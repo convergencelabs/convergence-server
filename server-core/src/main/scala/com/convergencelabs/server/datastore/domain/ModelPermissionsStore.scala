@@ -180,7 +180,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
   
   def getCollectionWorldPermissionsForModel(modelId: String): Try[CollectionPermissions] = tryWithDb { db =>
     val modelDoc = this.getModelRid(modelId).get.getRecord.asInstanceOf[ODocument]
-    val collectionDoc = modelDoc.field("collection", OType.LINK);
+    val collectionDoc = modelDoc.field("collection", OType.LINK).asInstanceOf[ODocument];
     val world = docToCollectionWorldPermissions(collectionDoc)
     world
   }

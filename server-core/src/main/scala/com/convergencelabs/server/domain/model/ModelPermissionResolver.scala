@@ -7,6 +7,11 @@ import com.convergencelabs.server.datastore.domain.CollectionPermissions
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.datastore.domain.ModelPermissions
 
+case class ModelPemrissionResult(
+    overrideCollection: Boolean,
+    modelWorld: ModelPermissions,
+    modelUsers: Map[String, ModelPermissions])
+
 class ModelPermissionResolver() {
   def getModelUserPermissions(id: String, sk: SessionKey, persistenceProvider: DomainPersistenceProvider): Try[ModelPermissions] = {
     if (sk.admin) {
@@ -33,7 +38,7 @@ class ModelPermissionResolver() {
     }
   }
 
-  def getModelPermissions(modelId: String, collectionId: String, persistenceProvider: DomainPersistenceProvider): Try[RealTimeModelPermissions] = {
+  def getModelAndCollectionPermissions(modelId: String, collectionId: String, persistenceProvider: DomainPersistenceProvider): Try[RealTimeModelPermissions] = {
     for {
       overrideCollection <- persistenceProvider.modelPermissionsStore.modelOverridesCollectionPermissions(modelId)
       collectionWorld <- persistenceProvider.modelPermissionsStore.getCollectionWorldPermissions(collectionId)
@@ -45,6 +50,19 @@ class ModelPermissionResolver() {
         overrideCollection,
         collectionWorld,
         collectionUsers,
+        modelWorld,
+        modelUsers)
+    }
+  }
+  
+  def getModelPermissions(modelId: String, persistenceProvider: DomainPersistenceProvider): Try[ModelPemrissionResult] = {
+    for {
+      overrideCollection <- persistenceProvider.modelPermissionsStore.modelOverridesCollectionPermissions(modelId)
+      modelWorld <- persistenceProvider.modelPermissionsStore.getModelWorldPermissions(modelId)
+      modelUsers <- persistenceProvider.modelPermissionsStore.getAllModelUserPermissions(modelId)
+    } yield {
+      ModelPemrissionResult(
+        overrideCollection,
         modelWorld,
         modelUsers)
     }

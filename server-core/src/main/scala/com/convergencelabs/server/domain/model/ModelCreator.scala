@@ -12,7 +12,7 @@ import com.convergencelabs.server.domain.model.data.ObjectValue
 case class CollectionAutoCreateDisabled(message: String) extends Exception(message)
 case class NoCreatePermissions(message: String) extends Exception(message)
 
-object ModelCreator {
+class ModelCreator {
 
   // FIXME we also expose can create, why do we just do that in here and return some
   // exception if we can't??

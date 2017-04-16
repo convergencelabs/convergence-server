@@ -48,6 +48,8 @@ object ModelStoreActor {
 
 class ModelStoreActor private[datastore] (private[this] val persistenceProvider: DomainPersistenceProvider)
     extends StoreActor with ActorLogging {
+  
+  val modelCretor = new ModelCreator()
 
   def receive: Receive = {
     case GetModels(offset, limit) =>
@@ -86,7 +88,7 @@ class ModelStoreActor private[datastore] (private[this] val persistenceProvider:
     userPermissions: Option[Map[String, ModelPermissions]]): Unit = {
     val root = ModelDataGenerator(data)
     // FIXME should we have an owner
-    val result = ModelCreator.createModel(
+    val result = modelCretor.createModel(
       persistenceProvider,
       None,
       collectionId,
@@ -102,7 +104,7 @@ class ModelStoreActor private[datastore] (private[this] val persistenceProvider:
   def createOrUpdateModel(collectionId: String, modelId: String, data: Map[String, Any], overridePermissions: Option[Boolean], worldPermissions: Option[ModelPermissions], userPermissions: Option[Map[String, ModelPermissions]]): Unit = {
     //FIXME If the model is open this could cause problems.
     val root = ModelDataGenerator(data)
-    val result = ModelCreator.createModel(
+    val result = modelCretor.createModel(
       persistenceProvider,
       None,
       collectionId,

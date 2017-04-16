@@ -30,19 +30,22 @@ object ModelManagerActor {
   def props(domainFqn: DomainFqn,
     protocolConfig: ProtocolConfiguration,
     persistenceManager: DomainPersistenceManager,
-    modelPermissionResolver: ModelPermissionResolver): Props = Props(
+    modelPermissionResolver: ModelPermissionResolver,
+    modelCreator: ModelCreator): Props = Props(
     new ModelManagerActor(
       domainFqn,
       protocolConfig,
       persistenceManager,
-      modelPermissionResolver))
+      modelPermissionResolver,
+      modelCreator))
 }
 
 class ModelManagerActor(
   private[this] val domainFqn: DomainFqn,
   private[this] val protocolConfig: ProtocolConfiguration,
   private[this] val persistenceManager: DomainPersistenceManager,
-  private[this] val modelPermissionResolver: ModelPermissionResolver)
+  private[this] val modelPermissionResolver: ModelPermissionResolver,
+  private[this] val modelCreator: ModelCreator)
     extends Actor with ActorLogging {
 
   private[this] var openRealtimeModels = Map[String, ActorRef]()
@@ -86,6 +89,8 @@ class ModelManagerActor(
       modelId,
       resourceId,
       persistenceProvider,
+      modelPermissionResolver,
+      modelCreator,
       5000 // FIXME hard-coded time.  Should this be part of the protocol?
       )
 
@@ -103,7 +108,7 @@ class ModelManagerActor(
     if (collectionId.length == 0) {
       sender ! Status.Failure(new IllegalArgumentException("The collecitonId can not be empty when creating a model"))
     } else {
-      ModelCreator.createModel(
+      modelCreator.createModel(
         persistenceProvider,
         Some(sk.uid),
         collectionId,
@@ -162,13 +167,10 @@ class ModelManagerActor(
         modelPermissionResolver.getModelUserPermissions(modelId, sk, persistenceProvider).map(p => p.read).flatMap { canRead =>
           if (canRead) {
             val permissionsStore = persistenceProvider.modelPermissionsStore
-            (for {
-              overrideCollection <- permissionsStore.modelOverridesCollectionPermissions(modelId)
-              modelWorld <- permissionsStore.getModelWorldPermissions(modelId)
-              modelUsers <- permissionsStore.getAllModelUserPermissions(modelId)
-            } yield {
+            modelPermissionResolver.getModelPermissions(modelId, persistenceProvider).map { p =>
+              val ModelPemrissionResult(overrideCollection, modelWorld, modelUsers) = p
               GetModelPermissionsResponse(overrideCollection, modelWorld, modelUsers)
-            })
+            }
           } else {
             val message = "User must have 'read' permissions on the model to get permissions."
             Failure(UnauthorizedException(message))
