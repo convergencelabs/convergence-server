@@ -78,12 +78,17 @@ case class OperationSubmissionMessage(r: String, s: Long, v: Long, o: OperationD
 sealed trait IncomingModelRequestMessage extends IncomingProtocolRequestMessage
 case class OpenRealtimeModelRequestMessage(m: Option[String], a: Option[Integer]) extends IncomingModelRequestMessage
 case class CloseRealtimeModelRequestMessage(r: String) extends IncomingModelRequestMessage
-case class CreateRealtimeModelRequestMessage(c: String, m: Option[String], d: ObjectValue, v: Option[Boolean], w: Option[ModelPermissionsData], u: Option[Map[String, ModelPermissionsData]]) extends IncomingModelRequestMessage
-case class DeleteRealtimeModelRequestMessage(c: String, m: String) extends IncomingModelRequestMessage
+case class CreateRealtimeModelRequestMessage(
+    c: String,
+    m: Option[String],
+    d: ObjectValue,
+    v: Option[Boolean],
+    w: Option[ModelPermissionsData],
+    u: Option[Map[String, ModelPermissionsData]]) extends IncomingModelRequestMessage
+case class DeleteRealtimeModelRequestMessage(m: String) extends IncomingModelRequestMessage
 
 case class GetModelPermissionsRequestMessage(m: String) extends IncomingModelRequestMessage
 case class SetModelPermissionsRequestMessage(
-    c: String, 
     m: String,
     s: Option[Boolean],
     w: Option[ModelPermissionsData],
@@ -139,7 +144,7 @@ sealed trait IncomingHistoricalModelRequestMessage extends IncomingProtocolReque
 case class HistoricalDataRequestMessage(m: String) extends IncomingHistoricalModelRequestMessage
 case class HistoricalOperationRequestMessage(m: String, f: Long, l: Long) extends IncomingHistoricalModelRequestMessage
 
-case class HistoricalDataResponseMessage(d: ObjectValue, v: Long, c: Long, m: Long) extends OutgoingProtocolResponseMessage
+case class HistoricalDataResponseMessage(i: String, d: ObjectValue, v: Long, c: Long, m: Long) extends OutgoingProtocolResponseMessage
 case class HistoricalOperationsResponseMessage(o: List[ModelOperationData]) extends OutgoingProtocolResponseMessage
 
 

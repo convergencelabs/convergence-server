@@ -392,7 +392,7 @@ class ModelClientActor(
   }
 
   private[this] def onDeleteRealtimeModelRequest(request: DeleteRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
-    val DeleteRealtimeModelRequestMessage(collectionId, modelId) = request
+    val DeleteRealtimeModelRequestMessage(modelId) = request
     val future = modelManager ? DeleteModelRequest(sessionKey, modelId)
     future.mapResponse[DeleteModelResponse] onComplete {
       case Success(ModelDeleted) =>
@@ -450,7 +450,7 @@ class ModelClientActor(
   }
 
   private[this] def onSetModelPermissionsRequest(request: SetModelPermissionsRequestMessage, cb: ReplyCallback): Unit = {
-    val SetModelPermissionsRequestMessage(collectionId, modelId, overridePermissions, world, allUsers, users) = request
+    val SetModelPermissionsRequestMessage(modelId, overridePermissions, world, allUsers, users) = request
     val mappedWorld = world map { w => ModelPermissions(w.r, w.w, w.d, w.m) }
     val mappedUsers = users map {
       case (username, permissions) =>

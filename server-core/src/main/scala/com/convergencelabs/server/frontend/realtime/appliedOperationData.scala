@@ -1,13 +1,11 @@
 package com.convergencelabs.server.frontend.realtime
 
-import org.json4s.JsonAST.JValue
-import org.json4s.JsonAST.JArray
-import org.json4s.JsonAST.JObject
-import com.convergencelabs.server.domain.model.data.DataValue
 import java.time.Instant
 
+import com.convergencelabs.server.domain.model.data.DataValue
 
-case class ModelOperationData(c: String, m: String, v: Long, p: Long, u: String, s: String, o: AppliedOperationData)
+
+case class ModelOperationData(m: String, v: Long, p: Long, u: String, s: String, o: AppliedOperationData)
 
 sealed trait AppliedOperationData
 

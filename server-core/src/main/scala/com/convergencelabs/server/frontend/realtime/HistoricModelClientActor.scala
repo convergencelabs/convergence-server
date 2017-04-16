@@ -49,7 +49,7 @@ class HistoricModelClientActor(
 
   private[this] def onRequestReceived(message: IncomingHistoricalModelRequestMessage, replyCallback: ReplyCallback): Unit = {
     message match {
-      case dataRequest: HistoricalDataRequestMessage           => onDataRequest(dataRequest, replyCallback)
+      case dataRequest: HistoricalDataRequestMessage => onDataRequest(dataRequest, replyCallback)
       case operationRequest: HistoricalOperationRequestMessage => onOperationRequest(operationRequest, replyCallback)
     }
   }
@@ -59,6 +59,7 @@ class HistoricModelClientActor(
       case (Success(Some(model))) => {
         cb.reply(
           HistoricalDataResponseMessage(
+            model.metaData.collectionId,
             model.data,
             model.metaData.version,
             model.metaData.createdTime.toEpochMilli,
