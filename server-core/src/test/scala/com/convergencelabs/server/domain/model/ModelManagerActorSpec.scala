@@ -124,10 +124,10 @@ class ModelManagerActorSpec
     }
 
     "requested to delete a model" must {
-      "return () if the model exists" in new TestFixture {
+      "return ModelDeleted if the model exists" in new TestFixture {
         val client = new TestProbe(system)
         modelManagerActor.tell(DeleteModelRequest(SessionKey(userId1, sessionId1), existingModelId), client.ref)
-        val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ())
+        val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelDeleted())
       }
 
       "return ModelNotFoundException if the model does not exist" in new TestFixture {
