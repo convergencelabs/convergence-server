@@ -57,10 +57,10 @@ class ModelStoreActor private[datastore] (private[this] val persistenceProvider:
       getModels(offset, limit)
     case GetModelsInCollection(collectionId, offset, limit) =>
       getModelsInCollection(collectionId, offset, limit)
-    case GetModel(modelFqn) =>
-      getModel(modelFqn)
-    case DeleteModel(modelFqn) =>
-      deleteModel(modelFqn)
+    case GetModel(modelId) =>
+      getModel(modelId)
+    case DeleteModel(modelId) =>
+      deleteModel(modelId)
     case CreateModel(collectionId, data, overridePermissions, worldPermissions, userPermissions) =>
       createModel(collectionId, data, overridePermissions, worldPermissions, userPermissions)
     case CreateOrUpdateModel(collectionId, modelId, data, overridePermissions, worldPermissions, userPermissions) =>

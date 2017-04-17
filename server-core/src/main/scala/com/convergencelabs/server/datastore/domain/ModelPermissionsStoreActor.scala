@@ -42,24 +42,24 @@ class ModelPermissionsStoreActor private[datastore] (
     extends StoreActor with ActorLogging {
 
   def receive: Receive = {
-    case GetModelOverridesPermissions(modelFqn) =>
-      modelOverridesCollectionPermissions(modelFqn)
-    case SetModelOverridesPermissions(modelFqn, overridesPermissions) =>
-      setModelOverridesCollectionPermissions(modelFqn, overridesPermissions)
-    case GetModelPermissions(modelFqn) =>
-      getModelPermissions(modelFqn)
-    case GetModelWorldPermissions(modelFqn) =>
-      getModelWorldPermissions(modelFqn)
-    case SetModelWorldPermissions(modelFqn, permissions) =>
-      setModelWorldPermissions(modelFqn, permissions)
-    case GetAllModelUserPermissions(modelFqn) =>
-      getAllModelUserPermissions(modelFqn)
-    case GetModelUserPermissions(modelFqn, username: String) =>
-      getModelUserPermissions(modelFqn, username)
-    case SetModelUserPermissions(modelFqn, username: String, permissions: ModelPermissions) =>
-      setModelUserPermissions(modelFqn, username, permissions)
-    case RemoveModelUserPermissions(modelFqn, username: String) =>
-      removeModelUserPermissions(modelFqn, username)
+    case GetModelOverridesPermissions(modelId) =>
+      modelOverridesCollectionPermissions(modelId)
+    case SetModelOverridesPermissions(modelId, overridesPermissions) =>
+      setModelOverridesCollectionPermissions(modelId, overridesPermissions)
+    case GetModelPermissions(modelId) =>
+      getModelPermissions(modelId)
+    case GetModelWorldPermissions(modelId) =>
+      getModelWorldPermissions(modelId)
+    case SetModelWorldPermissions(modelId, permissions) =>
+      setModelWorldPermissions(modelId, permissions)
+    case GetAllModelUserPermissions(modelId) =>
+      getAllModelUserPermissions(modelId)
+    case GetModelUserPermissions(modelId, username: String) =>
+      getModelUserPermissions(modelId, username)
+    case SetModelUserPermissions(modelId, username: String, permissions: ModelPermissions) =>
+      setModelUserPermissions(modelId, username, permissions)
+    case RemoveModelUserPermissions(modelId, username: String) =>
+      removeModelUserPermissions(modelId, username)
 
     case message: Any => unhandled(message)
   }

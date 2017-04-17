@@ -18,7 +18,7 @@ class ModelOperationStoreActor private[datastore] (
     extends StoreActor with ActorLogging {
 
   def receive: Receive = {
-    case GetOperations(fqn, first, last) => getOperations(fqn, first, last)
+    case GetOperations(modelId, first, last) => getOperations(modelId, first, last)
     case message: Any => unhandled(message)
   }
 

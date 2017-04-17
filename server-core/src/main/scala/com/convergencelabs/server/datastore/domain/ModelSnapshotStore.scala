@@ -87,7 +87,7 @@ class ModelSnapshotStore private[domain] (
   val MetaDataFields = s"version, timestamp, model.collection.id as collectionId, model.id as modelId"
 
   /**
-   * Creates a new snapshot in the database.  The combination of ModelFqn and
+   * Creates a new snapshot in the database.  The combination of modelId and
    * version must be unique in the database.
    *
    * @param snapshotData The snapshot to create.
@@ -101,7 +101,7 @@ class ModelSnapshotStore private[domain] (
   /**
    * Gets a snapshot for the specified model and version.
    *
-   * @param fqn The model identifier of the snapshot to get.
+   * @param id The model id of the snapshot to get.
    * @param version The version of the snapshot to get.
    *
    * @return Some(SnapshotData) if a snapshot corresponding to the model and
@@ -127,7 +127,7 @@ class ModelSnapshotStore private[domain] (
   /**
    * Gets snapshots for the specified model.
    *
-   * @param fqn The model identifier of the snapshot to get.
+   * @param ud The model id of the snapshot to get.
    * @param version The version of the snapshot to get.
    *
    * @return Some(SnapshotData) if a snapshot corresponding to the model and
@@ -156,7 +156,7 @@ class ModelSnapshotStore private[domain] (
    * Gets a listing of all snapshot meta data for a given model.  The results
    * are sorted in ascending order by version.
    *
-   * @param fqn the ModelFqn of the model to get the meta data for.
+   * @param id The id of the model to get the meta data for.
    * @param limit The maximum number of results to return.  If None, then all results are returned.
    * @param offset The offest into the result list.  If None, the default is 0.
    *
@@ -185,7 +185,7 @@ class ModelSnapshotStore private[domain] (
    * Gets a listing of all snapshot meta data for a given model within time bounds.  The results
    * are sorted in ascending order by version.
    *
-   * @param fqn the ModelFqn of the model to get the meta data for.
+   * @param id The id of the model to get the meta data for.
    * @param startTime The lower time bound (defaults to the unix epoc)
    * @param endTime The upper time bound (defaults to now)
    * @param limit The maximum number of results to return.  If None, then all results are returned.
@@ -220,7 +220,7 @@ class ModelSnapshotStore private[domain] (
   /**
    * Returns the most recent snapshot meta data for the specified model.
    *
-   * @param fqn The ModelFqn of the model to get the latest snapshot meta data for.
+   * @param id The id of the model to get the latest snapshot meta data for.
    *
    * @return the latest snapshot (by version) of the specified model, or None
    * if no snapshots for that model exist.
@@ -269,7 +269,7 @@ class ModelSnapshotStore private[domain] (
   /**
    * Removes a snapshot for a model at a specific version.
    *
-   * @param fqn The ModelFqn of the model to delete the snapshot for.
+   * @param id The id of the model to delete the snapshot for.
    * @param version The version of the snapshot to delete.
    */
   def removeSnapshot(id: String, version: Long): Try[Unit] = tryWithDb { db =>
@@ -291,7 +291,7 @@ class ModelSnapshotStore private[domain] (
   /**
    * Removes all snapshots for a model.
    *
-   * @param fqn The ModelFqn of the model to delete all snapshots for.
+   * @param id The id of the model to delete all snapshots for.
    */
   def removeAllSnapshotsForModel(id: String): Try[Unit] = tryWithDb { db =>
     val query =
