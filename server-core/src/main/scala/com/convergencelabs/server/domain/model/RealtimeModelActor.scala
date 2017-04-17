@@ -157,7 +157,7 @@ class RealtimeModelActor(
       onOpenModelWhileInitializing(request)
     case dataResponse: ModelConfigResponse =>
       onClientAutoCreateModelConfigResponse(dataResponse)
-    case ModelDeleted =>
+    case ModelDeleted() =>
       handleInitializationFailure(ModelDeletedWhileOpening)
     case unknown: Any =>
       unhandled(unknown)

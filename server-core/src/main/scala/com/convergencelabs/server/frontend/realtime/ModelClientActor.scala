@@ -55,6 +55,7 @@ import akka.actor.actorRef2Scala
 import akka.util.Timeout
 import akka.pattern.ask
 import com.convergencelabs.server.domain.model.ModelAlreadyExistsException
+import com.convergencelabs.server.domain.model.ModelDeleted
 
 object ModelClientActor {
   def props(
@@ -389,8 +390,8 @@ class ModelClientActor(
   private[this] def onDeleteRealtimeModelRequest(request: DeleteRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
     val DeleteRealtimeModelRequestMessage(modelId) = request
     val future = modelManager ? DeleteModelRequest(sessionKey, modelId)
-    future.mapResponse[Unit] onComplete {
-      case Success(()) =>
+    future.mapResponse[ModelDeleted] onComplete {
+      case Success(ModelDeleted()) =>
         cb.reply(DeleteRealtimeModelSuccessMessage())
       case Failure(ModelNotFoundException(_)) =>
         cb.reply(ModelClientActor.ModelNotFoundError)

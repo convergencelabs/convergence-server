@@ -22,6 +22,9 @@ import com.convergencelabs.server.frontend.rest.DomainModelService.ModelResponse
 import DomainModelService.CreateModelResponse
 import DomainModelService.GetModelResponse
 import DomainModelService.GetModelsResponse
+import DomainModelService.ModelPut
+import DomainModelService.ModelPost
+
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.model.StatusCodes
@@ -65,8 +68,15 @@ import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.SetModelO
 import com.convergencelabs.server.frontend.rest.DomainModelService.GetModelOverridesPermissionsResponse
 import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.ModelUserPermissions
 
-
 object DomainModelService {
+
+  case class ModelPost(
+    collection: String,
+    data: Map[String, Any])
+
+  case class ModelPut(
+    collection: Option[String],
+    data: Map[String, Any])
 
   case class ModelMetaDataResponse(
     collectionId: String,
@@ -107,69 +117,65 @@ class DomainModelService(
   def route(username: String, domain: DomainFqn): Route = {
     pathPrefix("models") {
       authorizeAsync(canAccessDomain(domain, username)) {
-        (pathEnd & get) {
-          complete(getModels(domain))
-        } ~ pathPrefix(Segment) { collectionId: String =>
+        pathEnd {
+          get {
+            complete(getModels(domain))
+          } ~ post {
+            entity(as[ModelPost]) { modelPost =>
+              complete(postModel(domain, modelPost))
+            }
+          }
+        } ~ pathPrefix(Segment) { modelId: String =>
           pathEnd {
             get {
-              complete(getModelInCollection(domain, collectionId))
-            } ~ post {
-              entity(as[Map[String, Any]]) { data =>
-                complete(postModel(domain, collectionId, data))
+              complete(getModel(domain, modelId))
+            } ~ put {
+              entity(as[ModelPut]) { modelPut =>
+                complete(putModel(domain, modelId, modelPut))
               }
+            } ~ delete {
+              complete(deleteModel(domain, modelId))
             }
-          } ~ pathPrefix(Segment) { modelId: String =>
+          } ~ pathPrefix("permissions") {
             pathEnd {
               get {
-                complete(getModel(domain, modelId))
-              } ~ put {
-                entity(as[Map[String, Any]]) { data =>
-                  complete(putModel(domain, collectionId, modelId, data))
-                }
-              } ~ delete {
-                complete(deleteModel(domain, modelId))
+                complete(getModelPermissions(domain, modelId))
               }
-            } ~ pathPrefix("permissions") {
+            } ~ pathPrefix("override") {
               pathEnd {
                 get {
-                  complete(getModelPermissions(domain, modelId))
-                }
-              } ~ pathPrefix("override") {
-                pathEnd {
-                  get {
-                    complete(getModelOverridesPermissions(domain, modelId))
-                  } ~ put {
-                    entity(as[SetOverrideWorldRequest]) { overridesPermissions =>
-                      complete(setModelOverridesPermissions(domain, modelId, overridesPermissions))
-                    }
+                  complete(getModelOverridesPermissions(domain, modelId))
+                } ~ put {
+                  entity(as[SetOverrideWorldRequest]) { overridesPermissions =>
+                    complete(setModelOverridesPermissions(domain, modelId, overridesPermissions))
                   }
                 }
-              } ~ pathPrefix("world") {
+              }
+            } ~ pathPrefix("world") {
+              pathEnd {
+                get {
+                  complete(getModelWorldPermissions(domain, modelId))
+                } ~ put {
+                  entity(as[ModelPermissions]) { permissions =>
+                    complete(setModelWorldPermissions(domain, modelId, permissions))
+                  }
+                }
+              }
+            } ~ pathPrefix("user") {
+              pathEnd {
+                get {
+                  complete(getAllModelUserPermissions(domain, modelId))
+                }
+              } ~ pathPrefix(Segment) { user: String =>
                 pathEnd {
                   get {
-                    complete(getModelWorldPermissions(domain, modelId))
+                    complete(getModelUserPermissions(domain, modelId, user))
                   } ~ put {
                     entity(as[ModelPermissions]) { permissions =>
-                      complete(setModelWorldPermissions(domain, modelId, permissions))
+                      complete(setModelUserPermissions(domain, modelId, user, permissions))
                     }
-                  }
-                }
-              } ~ pathPrefix("user") {
-                pathEnd {
-                  get {
-                    complete(getAllModelUserPermissions(domain, modelId))
-                  }
-                } ~ pathPrefix(Segment) { user: String =>
-                  pathEnd {
-                    get {
-                      complete(getModelUserPermissions(domain, modelId, user))
-                    } ~ put {
-                      entity(as[ModelPermissions]) { permissions =>
-                        complete(setModelUserPermissions(domain, modelId, user, permissions))
-                      }
-                    } ~ delete {
-                      complete(removeModelUserPermissions(domain, modelId, user))
-                    }
+                  } ~ delete {
+                    complete(removeModelUserPermissions(domain, modelId, user))
                   }
                 }
               }
@@ -224,7 +230,8 @@ class DomainModelService(
     }
   }
 
-  def postModel(domain: DomainFqn, colletionId: String, data: Map[String, Any]): Future[RestResponse] = {
+  def postModel(domain: DomainFqn, model: ModelPost): Future[RestResponse] = {
+    val ModelPost(colletionId, data) = model
     // FIXME need to pass in model permissions options.
     val message = DomainMessage(domain, CreateModel(colletionId, data, None, None, None))
     (domainRestActor ? message).mapTo[String] map {
@@ -233,9 +240,10 @@ class DomainModelService(
     }
   }
 
-  def putModel(domain: DomainFqn, colletionId: String, modelId: String, data: Map[String, Any]): Future[RestResponse] = {
+  def putModel(domain: DomainFqn, modelId: String, modelPut: ModelPut): Future[RestResponse] = {
+    val ModelPut(colleciontId, data) = modelPut
     // FIXME need to pass id model permissions options.
-    val message = DomainMessage(domain, CreateOrUpdateModel(colletionId, modelId, data, None, None, None))
+    val message = DomainMessage(domain, CreateOrUpdateModel(colleciontId, modelId, data, None, None, None))
     (domainRestActor ? message) map { _ => OkResponse }
   }
 
@@ -253,7 +261,7 @@ class DomainModelService(
         (StatusCodes.OK, GetModelOverridesPermissionsResponse(overridesPermissions))
     }
   }
-  
+
   def setModelOverridesPermissions(domain: DomainFqn, modelId: String, overridesPermissions: SetOverrideWorldRequest): Future[RestResponse] = {
     val SetOverrideWorldRequest(overrideWorld) = overridesPermissions
     val message = DomainMessage(domain, SetModelOverridesPermissions(modelId, overrideWorld))

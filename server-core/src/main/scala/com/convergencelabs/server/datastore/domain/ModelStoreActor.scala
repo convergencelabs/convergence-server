@@ -26,6 +26,7 @@ import com.convergencelabs.server.datastore.domain.ModelPermissions
 import com.convergencelabs.server.domain.model.GetModelPermissionsRequest
 import com.convergencelabs.server.domain.model.ModelCreator
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
+import scala.util.Failure
 
 object ModelStoreActor {
   def props(
@@ -34,7 +35,7 @@ object ModelStoreActor {
 
   trait ModelStoreRequest
 
-  case class CreateOrUpdateModel(collectionId: String, modelId: String, data: Map[String, Any], overridePermissions: Option[Boolean], worldPermissions: Option[ModelPermissions], userPermissions: Option[Map[String, ModelPermissions]]) extends ModelStoreRequest
+  case class CreateOrUpdateModel(collectionId: Option[String], modelId: String, data: Map[String, Any], overridePermissions: Option[Boolean], worldPermissions: Option[ModelPermissions], userPermissions: Option[Map[String, ModelPermissions]]) extends ModelStoreRequest
   case class CreateModel(collectionId: String, data: Map[String, Any], overridePermissions: Option[Boolean], worldPermissions: Option[ModelPermissions], userPermissions: Option[Map[String, ModelPermissions]]) extends ModelStoreRequest
 
   case class GetModels(offset: Option[Int], limit: Option[Int]) extends ModelStoreRequest
@@ -48,7 +49,7 @@ object ModelStoreActor {
 
 class ModelStoreActor private[datastore] (private[this] val persistenceProvider: DomainPersistenceProvider)
     extends StoreActor with ActorLogging {
-  
+
   val modelCretor = new ModelCreator()
 
   def receive: Receive = {
@@ -101,21 +102,36 @@ class ModelStoreActor private[datastore] (private[this] val persistenceProvider:
     reply(result)
   }
 
-  def createOrUpdateModel(collectionId: String, modelId: String, data: Map[String, Any], overridePermissions: Option[Boolean], worldPermissions: Option[ModelPermissions], userPermissions: Option[Map[String, ModelPermissions]]): Unit = {
+  def createOrUpdateModel(
+    collectionId: Option[String],
+    modelId: String,
+    data: Map[String, Any],
+    overridePermissions: Option[Boolean],
+    worldPermissions: Option[ModelPermissions],
+    userPermissions: Option[Map[String, ModelPermissions]]): Unit = {
     //FIXME If the model is open this could cause problems.
-    val root = ModelDataGenerator(data)
-    val result = modelCretor.createModel(
-      persistenceProvider,
-      None,
-      collectionId,
-      None,
-      root,
-      overridePermissions,
-      worldPermissions,
-      userPermissions).recoverWith {
-        case e: DuplicateValueExcpetion =>
-          persistenceProvider.modelStore.updateModel(modelId, root, worldPermissions)
-      }.map(_ => modelId)
+    val result = persistenceProvider.modelStore.modelExists(modelId) flatMap { exists =>
+      if (exists) {
+        val root = ModelDataGenerator(data)
+        persistenceProvider.modelStore.updateModel(modelId, root, worldPermissions)
+      } else {
+        collectionId match {
+          case Some(id) =>
+            val root = ModelDataGenerator(data)
+            modelCretor.createModel(
+              persistenceProvider,
+              None,
+              id,
+              Some(modelId),
+              root,
+              overridePermissions,
+              worldPermissions,
+              userPermissions)
+          case None =>
+            Failure(new IllegalArgumentException("A collection must be provided to create a model that does not exist"))
+        }
+      }
+    }
     reply(result)
   }
 

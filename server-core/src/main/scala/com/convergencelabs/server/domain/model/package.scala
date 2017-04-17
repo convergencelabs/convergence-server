@@ -49,7 +49,7 @@ package model {
   case class ModelNotFoundException(modelId: String) extends Exception(s"A model with id '${modelId}' does not exist.")
   case class ModelAlreadyExistsException(modelId: String) extends Exception(s"A model with id '${modelId}' already exists.")
 
-  case object ModelDeleted
+  case class ModelDeleted()
 
   case class CreateCollectionRequest(collection: Collection)
   case class UpdateCollectionRequest(collection: Collection)

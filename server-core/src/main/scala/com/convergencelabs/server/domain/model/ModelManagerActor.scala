@@ -139,7 +139,7 @@ class ModelManagerActor(
             if (canDelete) {
               if (openRealtimeModels.contains(modelId)) {
                 val closed = openRealtimeModels(modelId)
-                closed ! ModelDeleted
+                closed ! ModelDeleted()
                 openRealtimeModels -= modelId
               }
               persistenceProvider.modelStore.deleteModel(modelId)
@@ -152,7 +152,7 @@ class ModelManagerActor(
         Failure(ModelNotFoundException(modelId))
       }
     } map { _ =>
-      sender ! (())
+      sender ! ModelDeleted()
     } recover {
       case cause: Exception =>
         sender ! Status.Failure(cause)
