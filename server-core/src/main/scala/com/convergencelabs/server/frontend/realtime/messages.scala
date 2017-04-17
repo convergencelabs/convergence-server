@@ -119,7 +119,7 @@ case class GetModelPermissionsResponseMessage(o: Boolean, w: ModelPermissionsDat
 case class ModelPermissionsChangedMessage(r: String, p: ModelPermissionsData) extends OutgoingProtocolNormalMessage
 
 case class ModelsQueryResponseMessage(r: List[ModelResult]) extends OutgoingProtocolResponseMessage
-case class ModelResult(l: String, m: String, c: Long, d: Long, v: Long, a: ObjectValue)
+case class ModelResult(l: String, m: String, c: Long, d: Long, v: Long, a: JValue)
 
 case class OperationAcknowledgementMessage(r: String, s: Long, v: Long, p: Long) extends OutgoingProtocolNormalMessage
 case class RemoteOperationMessage(r: String, s: String, v: Long, p: Long, o: OperationData) extends OutgoingProtocolNormalMessage

@@ -56,6 +56,7 @@ import akka.util.Timeout
 import akka.pattern.ask
 import com.convergencelabs.server.domain.model.ModelAlreadyExistsException
 import com.convergencelabs.server.domain.model.ModelDeleted
+import com.convergencelabs.server.frontend.rest.DataValueToJValue
 
 object ModelClientActor {
   def props(
@@ -417,7 +418,7 @@ class ModelClientActor(
               r.metaData.createdTime.toEpochMilli(),
               r.metaData.modifiedTime.toEpochMilli(),
               r.metaData.version,
-              r.data)
+              DataValueToJValue.toJson(r.data))
         }))
       case Failure(cause) =>
         log.error(cause, "Unexpected error deleting model.")
