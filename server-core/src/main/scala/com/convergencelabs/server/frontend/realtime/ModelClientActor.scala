@@ -57,6 +57,7 @@ import akka.pattern.ask
 import com.convergencelabs.server.domain.model.ModelAlreadyExistsException
 import com.convergencelabs.server.domain.model.ModelDeleted
 import com.convergencelabs.server.frontend.rest.DataValueToJValue
+import com.convergencelabs.server.datastore.domain.QueryParsingException
 
 object ModelClientActor {
   def props(
@@ -420,9 +421,12 @@ class ModelClientActor(
               r.metaData.version,
               DataValueToJValue.toJson(r.data))
         }))
+      case Failure(QueryParsingException(message)) =>
+        cb.expectedError("invalid_query", message)
       case Failure(cause) =>
-        log.error(cause, "Unexpected error deleting model.")
-        cb.unexpectedError("could not delete model")
+        val message = "Unexpected error querying models."
+        log.error(cause, message)
+        cb.unexpectedError(message)
     }
   }
 

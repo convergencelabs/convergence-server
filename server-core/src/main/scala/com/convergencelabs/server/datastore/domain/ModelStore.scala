@@ -316,17 +316,15 @@ class ModelStore private[domain] (
   }
 
   def queryModels(query: String, username: Option[String]): Try[List[Model]] = tryWithDb { db =>
-    val select = new QueryParser(query).InputLine.run()
-    val queryResult = select.map(ModelQueryBuilder.queryModels(_, username)) map {
-      queryParams: ModelQueryParameters =>
-        {
-          val query = new OSQLSynchQuery[ODocument](queryParams.query)
-          val result: JavaList[ODocument] = db.command(query).execute(queryParams.params.asJava)
-
-          result.asScala.toList map { ModelStore.docToModel(_) }
-        }
-    }
-    queryResult.get
+    new QueryParser(query).InputLine.run().recoverWith {
+      case cause: Exception =>
+        Failure(QueryParsingException(cause.getMessage))
+    }.map { select =>
+      val queryParams = ModelQueryBuilder.queryModels(select, username)
+      val query = new OSQLSynchQuery[ODocument](queryParams.query)
+      val result: JavaList[ODocument] = db.command(query).execute(queryParams.params.asJava)
+      result.asScala.toList map { ModelStore.docToModel(_) }
+    }.get
   }
 
   def getModelData(id: String): Try[Option[ObjectValue]] = tryWithDb { db =>
@@ -342,3 +340,5 @@ class ModelStore private[domain] (
     }
   }
 }
+
+case class QueryParsingException(message: String) extends Exception(message)
