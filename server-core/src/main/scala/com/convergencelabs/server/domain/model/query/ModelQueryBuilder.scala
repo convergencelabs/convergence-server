@@ -41,13 +41,14 @@ import com.convergencelabs.server.domain.model.query.Ast.ValueTerm
 import com.convergencelabs.server.domain.model.query.Ast.IndexPathElement
 import com.convergencelabs.server.domain.model.query.Ast.PropertyPathElement
 
-case class ModelQueryParameters(query: String, params: Map[String, Any])
+case class ModelQueryParameters(query: String, params: Map[String, Any], as: Map[String, String])
 
 object ModelQueryBuilder {
 
   def queryModels(select: SelectStatement, username: Option[String]): ModelQueryParameters = {
     implicit val params = ScalaMutableMap[String, Any]()
-
+    implicit val as = ScalaMutableMap[String, String]()
+    
     val projectionString =
       if (select.fields.isEmpty) {
         ""
@@ -62,7 +63,7 @@ object ModelQueryBuilder {
         sb.append((select.fields map {
           term =>
             val fieldPath = buildProjectionPath(term.field)
-            s"$fieldPath as ${term.name.getOrElse(buildFieldName(term.field))}"
+            s"$fieldPath as ${addAs(term.name.getOrElse(buildFieldName(term.field)))}"
         }).mkString(", "))
         sb.append(" ")
         sb.toString()
@@ -96,7 +97,7 @@ object ModelQueryBuilder {
 
     val queryString = s"${selectString}${whereString}${permissionString}${orderString}"
 
-    ModelQueryParameters(QueryUtil.buildPagedQuery(queryString, select.limit, select.offset), params.toMap)
+    ModelQueryParameters(QueryUtil.buildPagedQuery(queryString, select.limit, select.offset), params.toMap, as.toMap)
   }
 
   private[this] def buildFieldPath(field: FieldTerm): String = {
@@ -134,9 +135,9 @@ object ModelQueryBuilder {
     sb.append(field.field.property)
     field.subpath.foreach {
       case IndexPathElement(i) =>
-        sb.append("_").append(i.toString)
+        sb.append("[").append(i.toString).append("]")
       case PropertyPathElement(p) =>
-        sb.append("_").append(p)
+        sb.append(".").append(p)
     }
     sb.toString
   }
@@ -200,5 +201,11 @@ object ModelQueryBuilder {
     val param = s"p${params.size}"
     params += param -> value
     s":$param"
+  }
+  
+  private def addAs(value: String)(implicit as: ScalaMutableMap[String, String]): String = {
+    val a = s"a${as.size}"
+    as += a -> value
+    a
   }
 }

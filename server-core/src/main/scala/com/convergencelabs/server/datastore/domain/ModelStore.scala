@@ -352,7 +352,8 @@ class ModelStore private[domain] (
             ModelPermissions(false, false, false, false))
 
           val values = results.asScala.toList map Function.tupled {(field, value) =>
-            (field, DataValueToJValue.toJson(value.asInstanceOf[ODocument].asDataValue))
+            (queryParams.as.get(field).getOrElse(field), 
+                DataValueToJValue.toJson(value.asInstanceOf[ODocument].asDataValue))
           }
           ModelQueryResult(meta, JObject(values))
         }

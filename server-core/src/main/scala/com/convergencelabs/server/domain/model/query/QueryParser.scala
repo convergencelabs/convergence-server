@@ -8,7 +8,7 @@ import scala.util.Try
 
 object QueryParser {
   def main(args: Array[String]): Unit = {
-    val parsed = QueryParser("foo.+child, bar as something").FieldsSection.run().get
+    val parsed = QueryParser("as `123+456`").ProjectionValueName.run().get
     println(parsed)
   }
 
@@ -45,7 +45,7 @@ class QueryParser(val input: ParserInput) extends Parser {
   def ProjectionValue = 
     rule { (FieldValue ~ SkipWS ~ optional(ProjectionValueName)) ~> ((term: FieldTerm, name: Option[String]) => ProjectionTerm(term, name))}
 
-  def ProjectionValueName = rule { "as" ~ SkipWS ~ capture(Field) }
+  def ProjectionValueName: Rule1[String] = rule { "as" ~ SkipWS ~ FieldName }
   
   def FromSection = rule { SkipWS ~ Keyword.From ~ SkipWS }
 
@@ -125,7 +125,6 @@ class QueryParser(val input: ParserInput) extends Parser {
   def HiPrecMathRule: Rule1[ConditionalTerm] = rule {
     (MathParens | Value) ~ SkipWS ~ zeroOrMore(
       '*' ~ Value ~> Multiply |
-        '×' ~ Value ~> Multiply |
         '/' ~ Value ~> Divide |
         '%' ~ Value ~> Mod)
   }
@@ -191,7 +190,9 @@ class QueryParser(val input: ParserInput) extends Parser {
 
   def BooleanValue = rule { (True | False) ~> (BooleanTerm(_)) }
 
-  def Field = rule { oneOrMore(!WhiteSpaceChar ~ !Keywords ~ !ComparisonOperators ~ !MathOperators ~ !Symbols ~ ANY) }
+  def Field = rule {('`' ~ oneOrMore(!'`' ~ ANY) ~ '`') | oneOrMore(!'`' ~ !WhiteSpaceChar ~ !Keywords ~ !ComparisonOperators ~ !MathOperators ~ !Symbols ~ ANY) }
+  
+  def FieldName: Rule1[String] = rule {('`' ~ capture(oneOrMore(!'`' ~ ANY)) ~ '`') | capture(oneOrMore(!WhiteSpaceChar ~ !Keywords ~ !ComparisonOperators ~ !MathOperators ~ !Symbols ~ ANY))}
 
   /////////////////////////////////////////////////////////////////////////////
   // Order By
