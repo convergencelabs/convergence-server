@@ -58,7 +58,7 @@ object ModelQueryBuilder {
         sb.append("version, ")
         sb.append("createdTime, ")
         sb.append("modifiedTime, ")
-        
+
         sb.append((select.fields map {
           term =>
             val fieldPath = buildProjectionPath(term.field)
@@ -114,7 +114,7 @@ object ModelQueryBuilder {
 
     sb.toString
   }
-  
+
   private[this] def buildProjectionPath(field: FieldTerm): String = {
     val sb = new StringBuilder()
     sb.append("data.children.")
@@ -134,9 +134,9 @@ object ModelQueryBuilder {
     sb.append(field.field.property)
     field.subpath.foreach {
       case IndexPathElement(i) =>
-        sb.append("[").append(i.toString).append("]")
+        sb.append("_").append(i.toString)
       case PropertyPathElement(p) =>
-        sb.append(".").append(p)
+        sb.append("_").append(p)
     }
     sb.toString
   }

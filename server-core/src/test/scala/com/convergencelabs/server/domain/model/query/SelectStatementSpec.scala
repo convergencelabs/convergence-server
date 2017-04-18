@@ -136,25 +136,25 @@ class SelectStatementSpec
       "parse a single property" in {
         new QueryParser("test").FieldValue.run().get shouldBe FieldTerm(PropertyPathElement("test"))
       }
-      
+
       "parse a nested string property" in {
-        new QueryParser("test1.test2").FieldValue.run().get shouldBe 
-        FieldTerm(PropertyPathElement("test1"), List(PropertyPathElement("test2")))
+        new QueryParser("test1.test2").FieldValue.run().get shouldBe
+          FieldTerm(PropertyPathElement("test1"), List(PropertyPathElement("test2")))
       }
-      
+
       "parse a nested index" in {
-        new QueryParser("test1[1]").FieldValue.run().get shouldBe 
-        FieldTerm(PropertyPathElement("test1"), List(IndexPathElement(1)))
+        new QueryParser("test1[1]").FieldValue.run().get shouldBe
+          FieldTerm(PropertyPathElement("test1"), List(IndexPathElement(1)))
       }
-      
+
       "parse a nested index followed by aproperty" in {
-        new QueryParser("test1[1].test2").FieldValue.run().get shouldBe 
-        FieldTerm(PropertyPathElement("test1"), List(IndexPathElement(1), PropertyPathElement("test2")))
+        new QueryParser("test1[1].test2").FieldValue.run().get shouldBe
+          FieldTerm(PropertyPathElement("test1"), List(IndexPathElement(1), PropertyPathElement("test2")))
       }
-      
+
       "parse a nested index followed by an index" in {
-        new QueryParser("test1[1][2]").FieldValue.run().get shouldBe 
-        FieldTerm(PropertyPathElement("test1"), List(IndexPathElement(1), IndexPathElement(2)))
+        new QueryParser("test1[1][2]").FieldValue.run().get shouldBe
+          FieldTerm(PropertyPathElement("test1"), List(IndexPathElement(1), IndexPathElement(2)))
       }
     }
 
@@ -198,6 +198,17 @@ class SelectStatementSpec
       "Terminate field name on a symbol" in {
         QueryParser("foo=1").WhereRule.run().get shouldBe
           Equals(FieldTerm(PropertyPathElement("foo")), LongTerm(1))
+      }
+    }
+
+    "parsing a Field Section" must {
+      "correctly parse '.'" in {
+        QueryParser("oField.oField1").FieldsSection.run().get shouldBe
+          List(
+              ProjectionTerm(
+                  FieldTerm(
+                      PropertyPathElement("oField"),
+                      List(PropertyPathElement("oField1"))),None))
       }
     }
 
