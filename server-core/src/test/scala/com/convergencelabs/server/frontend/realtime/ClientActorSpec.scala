@@ -133,7 +133,11 @@ class ClientActorSpec
       p.failure(new IllegalStateException())
     }
 
-    def expectedError(code: String, details: String): Unit = {
+    def expectedError(code: String, message: String, details: Map[String, Any]): Unit = {
+      p.failure(new IllegalStateException())
+    }
+    
+    def expectedError(code: String, message: String): Unit = {
       p.failure(new IllegalStateException())
     }
   }

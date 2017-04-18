@@ -149,8 +149,8 @@ class ProtocolConnection(
         case Some(record) => {
           record.future.cancel()
           envelope.b match {
-            case ErrorMessage(code, details) =>
-              record.promise.failure(new ClientErrorResponseException(code, details))
+            case ErrorMessage(code, message, details) =>
+              record.promise.failure(new ClientErrorResponseException(code, message))
             case _ =>
               // There should be no type on a reply message if it is a successful
               // response.
@@ -184,12 +184,16 @@ class ProtocolConnection(
       unexpectedError("An unkown error has occured")
     }
 
-    def unexpectedError(details: String): Unit = {
-      expectedError("unknown", details)
+    def unexpectedError(message: String): Unit = {
+      expectedError("unknown", message)
     }
-
-    def expectedError(code: String, details: String): Unit = {
-      val errorMessage = ErrorMessage(code, details)
+    
+    def expectedError(code: String, message: String): Unit = {
+      expectedError(code, message, Map())
+    }
+   
+    def expectedError(code: String, message: String, details: Map[String, Any]): Unit = {
+      val errorMessage = ErrorMessage(code, message, details)
 
       val envelope = MessageEnvelope(
         errorMessage,
@@ -204,8 +208,10 @@ class ProtocolConnection(
 trait ReplyCallback {
   def reply(message: OutgoingProtocolResponseMessage): Unit
   def unknownError(): Unit
-  def unexpectedError(details: String): Unit
-  def expectedError(code: String, details: String): Unit
+  def unexpectedError(message: String): Unit
+  def expectedError(code: String, message: String): Unit
+  def expectedError(code: String, message: String, details: Map[String, Any]): Unit
+
 }
 
 case class RequestRecord(id: Long, promise: Promise[IncomingProtocolResponseMessage], future: Cancellable)

@@ -37,7 +37,7 @@ class ProtocolConnectionSpec
 
   val session = "session"
   val code = "code"
-  val details = "details"
+  val errorMessage = "errorMessage"
   val collectionId = "c"
   val modelId = "m"
   val autoCreateId = 1
@@ -154,14 +154,14 @@ class ProtocolConnectionSpec
         val json = MessageSerializer.writeJson(envelope)
         val RequestReceived(m, cb) = connection.onIncomingMessage(json).success.value.value.asInstanceOf[RequestReceived]
 
-        cb.unexpectedError(details)
+        cb.unexpectedError(errorMessage)
 
         val OutgoingTextMessage(replyMessage) = this.connectionActor.expectMsgClass(10 millis, classOf[OutgoingTextMessage])
         val sentEnvelope = MessageSerializer.readJson[MessageEnvelope](replyMessage)
-        val errorMessage = sentEnvelope.b.asInstanceOf[ErrorMessage]
+        val sentMessage = sentEnvelope.b.asInstanceOf[ErrorMessage]
 
-        errorMessage.c shouldBe "unknown"
-        errorMessage.d shouldBe details
+        sentMessage.c shouldBe "unknown"
+        sentMessage.m shouldBe errorMessage
       }
 
       "send a correct reply envelope for an expected error" in new TestFixture(system) {
@@ -171,14 +171,14 @@ class ProtocolConnectionSpec
         val json = MessageSerializer.writeJson(envelope)
         val RequestReceived(m, cb) = connection.onIncomingMessage(json).success.value.value.asInstanceOf[RequestReceived]
 
-        cb.expectedError(code, details)
+        cb.expectedError(code, errorMessage)
 
         val OutgoingTextMessage(replyMessage) = this.connectionActor.expectMsgClass(10 millis, classOf[OutgoingTextMessage])
         val sentEnvelope = MessageSerializer.readJson[MessageEnvelope](replyMessage)
 
-        val errorMessage = sentEnvelope.b.asInstanceOf[ErrorMessage]
-        errorMessage.c shouldBe code
-        errorMessage.d shouldBe details
+        val sentMessage = sentEnvelope.b.asInstanceOf[ErrorMessage]
+        sentMessage.c shouldBe code
+        sentMessage.m shouldBe errorMessage
       }
     }
 
@@ -266,7 +266,7 @@ class ProtocolConnectionSpec
         val OutgoingTextMessage(message) = this.connectionActor.expectMsgClass(10 millis, classOf[OutgoingTextMessage])
         val sentEnvelope = MessageSerializer.readJson[MessageEnvelope](message)
 
-        val replyMessage = ErrorMessage(code, details)
+        val replyMessage = ErrorMessage(code, errorMessage, Map("foo" -> "bar"))
         val replyEnvelope = MessageEnvelope(replyMessage, None, sentEnvelope.q)
 
         val replyJson = MessageSerializer.writeJson(replyEnvelope)
@@ -278,7 +278,7 @@ class ProtocolConnectionSpec
 
         val errorException = cause.asInstanceOf[ClientErrorResponseException]
 
-        errorException.message shouldBe details
+        errorException.message shouldBe errorMessage
       }
     }
   }

@@ -300,7 +300,7 @@ class ClientActor(
       case Success(response) =>
         askingActor ! response
       case Failure(cause) =>
-        this.protocolConnection.send(ErrorMessage("invalid_response", "Error processing a response"))
+        this.protocolConnection.send(ErrorMessage("invalid_response", "Error processing a response", Map()))
         this.connectionActor ! PoisonPill
         this.onConnectionClosed()
     }
