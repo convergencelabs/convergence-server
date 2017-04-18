@@ -45,6 +45,7 @@ import com.convergencelabs.server.domain.model.ModelQueryResult
 import com.convergencelabs.server.frontend.rest.DataValueToJValue
 import org.json4s.JsonAST.JObject
 import com.convergencelabs.server.frontend.realtime.ModelResult
+import org.parboiled2.ParseError
 
 object ModelStore {
   val ModelClass = "Model"
@@ -323,8 +324,9 @@ class ModelStore private[domain] (
 
   def queryModels(query: String, username: Option[String]): Try[List[ModelQueryResult]] = tryWithDb { db =>
     new QueryParser(query).InputLine.run().recoverWith {
-      case cause: Exception =>
-        Failure(QueryParsingException(cause.getMessage))
+      case ParseError(position, principalPosition, traces) =>
+        val index = position.index
+        Failure(QueryParsingException(s"Parse error at position ${index}", query, Some(index)))
     }.map { select =>
       val queryParams = ModelQueryBuilder.queryModels(select, username)
       val query = new OSQLSynchQuery[ODocument](queryParams.query)
@@ -372,4 +374,4 @@ class ModelStore private[domain] (
   }
 }
 
-case class QueryParsingException(message: String) extends Exception(message)
+case class QueryParsingException(message: String, query: String, index: Option[Int]) extends Exception(message)

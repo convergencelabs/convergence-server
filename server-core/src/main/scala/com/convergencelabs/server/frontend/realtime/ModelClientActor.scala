@@ -65,7 +65,7 @@ object ModelClientActor {
     modelManager: ActorRef): Props =
     Props(new ModelClientActor(sk, modelManager))
 
-  val ModelNotFoundError = ErrorMessage("model_not_found", "A model with the specifieid collection and model id does not exist.")
+  val ModelNotFoundError = ErrorMessage("model_not_found", "A model with the specifieid collection and model id does not exist.", Map())
 }
 
 class ModelClientActor(
@@ -361,7 +361,7 @@ class ModelClientActor(
             cb.unexpectedError("could not close model")
         }
       case None =>
-        cb.reply(ErrorMessage("model_not_open", s"the requested model was not open"))
+        cb.expectedError("model_not_open", s"the requested model was not open")
     }
   }
 
@@ -421,8 +421,8 @@ class ModelClientActor(
               r.meta.version,
               r.data)
         }))
-      case Failure(QueryParsingException(message)) =>
-        cb.expectedError("invalid_query", message)
+      case Failure(QueryParsingException(message, query, index)) =>
+        cb.expectedError("invalid_query", message, Map("index" -> index))
       case Failure(cause) =>
         val message = "Unexpected error querying models."
         log.error(cause, message)
