@@ -48,7 +48,27 @@ object ModelQueryBuilder {
   def queryModels(select: SelectStatement, username: Option[String]): ModelQueryParameters = {
     implicit val params = ScalaMutableMap[String, Any]()
 
-    val selectString = s"SELECT FROM Model WHERE ${ModelStore.Fields.Collection}.${ModelStore.Fields.Id} = ${addParam(select.collection)}"
+    val projectionString =
+      if (select.fields.isEmpty) {
+        ""
+      } else {
+        val sb = new StringBuilder()
+        sb.append("collection.id as collectionId, ")
+        sb.append("id, ")
+        sb.append("version, ")
+        sb.append("createdTime, ")
+        sb.append("modifiedTime, ")
+        
+        sb.append((select.fields map {
+          term =>
+            val fieldPath = buildProjectionPath(term.field)
+            s"$fieldPath as ${term.name.getOrElse(buildFieldName(term.field))}"
+        }).mkString(", "))
+        sb.append(" ")
+        sb.toString()
+      }
+
+    val selectString = s"SELECT ${projectionString}FROM Model WHERE ${ModelStore.Fields.Collection}.${ModelStore.Fields.Id} = ${addParam(select.collection)}"
 
     val whereString = (select.where map { where =>
       s" and ${buildExpressionString(where)}"
@@ -56,12 +76,12 @@ object ModelQueryBuilder {
 
     val permissionString = username.map { usr =>
       val userParam = addParam(usr)
-        s""" and ((overridePermissions == true and ((userPermissions contains (user.username = $userParam and permissions.read = true)) or
+      s""" and ((overridePermissions == true and ((userPermissions contains (user.username = $userParam and permissions.read = true)) or
                     (not(userPermissions contains (user.username = $userParam )) and worldPermissions.read = true))) or 
 	               (overridePermissions == false and ((collection.userPermissions contains (user.username = $userParam and permissions.read = true)) or
                     (not(collection.userPermissions contains (user.username = $userParam )) and collection.worldPermissions.read = true))))"""
     }.getOrElse("")
-    
+
     val orderString: String = if (select.orderBy.isEmpty) {
       ""
     } else {
@@ -92,6 +112,32 @@ object ModelQueryBuilder {
 
     sb.append(".value")
 
+    sb.toString
+  }
+  
+  private[this] def buildProjectionPath(field: FieldTerm): String = {
+    val sb = new StringBuilder()
+    sb.append("data.children.")
+    sb.append(field.field.property)
+    field.subpath.foreach {
+      case IndexPathElement(i) =>
+        sb.append(".children").append("[").append(i.toString).append("]")
+      case PropertyPathElement(p) =>
+        sb.append(".children").append(".").append(p)
+    }
+
+    sb.toString
+  }
+
+  private[this] def buildFieldName(field: FieldTerm): String = {
+    val sb = new StringBuilder()
+    sb.append(field.field.property)
+    field.subpath.foreach {
+      case IndexPathElement(i) =>
+        sb.append("[").append(i.toString).append("]")
+      case PropertyPathElement(p) =>
+        sb.append(".").append(p)
+    }
     sb.toString
   }
 

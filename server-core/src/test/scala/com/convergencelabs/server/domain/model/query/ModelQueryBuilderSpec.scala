@@ -15,7 +15,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
 
     "given only a collection" must {
       "return correct ModelQueryParameters" in {
-        val select = SelectStatement(List(), "myCollection",None, List(), None, None)
+        val select = SelectStatement(List(), "myCollection", None, List(), None, None)
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters("SELECT FROM Model WHERE collection.id = :p0", Map("p0" -> "myCollection"))
       }
@@ -50,7 +50,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
     "given 1 order by" must {
       "return correct ModelQueryParameters" in {
         val select = SelectStatement(List(), "myCollection", None, List(
-            OrderBy(FieldTerm(PropertyPathElement("someField")), None)), None, None)
+          OrderBy(FieldTerm(PropertyPathElement("someField")), None)), None, None)
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters(
             "SELECT FROM Model WHERE collection.id = :p0 ORDER BY data.children.someField.value ASC",
@@ -60,8 +60,8 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
     "given multiple order bys" must {
       "return correct ModelQueryParameters" in {
         val select = SelectStatement(List(), "myCollection", None, List(
-            OrderBy(FieldTerm(PropertyPathElement("someField")), Some(Ascending)), 
-            OrderBy(FieldTerm(PropertyPathElement("anotherField")), Some(Descending))), None, None)
+          OrderBy(FieldTerm(PropertyPathElement("someField")), Some(Ascending)),
+          OrderBy(FieldTerm(PropertyPathElement("anotherField")), Some(Descending))), None, None)
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters(
             "SELECT FROM Model WHERE collection.id = :p0 ORDER BY data.children.someField.value ASC, data.children.anotherField.value DESC",
@@ -142,13 +142,27 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
     }
     "given a Add Operater clause" must {
       "return correct ModelQueryParameters" in {
-        val select = SelectStatement(List(), "myCollection", 
-            Some(LessThanOrEqual(FieldTerm(PropertyPathElement("age")), 
-                Add(LongTerm(15), LongTerm(5)))), List(), None, None)
+        val select = SelectStatement(List(), "myCollection",
+          Some(LessThanOrEqual(FieldTerm(PropertyPathElement("age")),
+            Add(LongTerm(15), LongTerm(5)))), List(), None, None)
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters(
             "SELECT FROM Model WHERE collection.id = :p0 and (data.children.age.value <= (:p1 + :p2))",
             Map("p0" -> "myCollection", "p1" -> 15l, "p2" -> 5l))
+      }
+    }
+    "given a projection field without 'as'" must {
+      "return correct ModelQueryParameters" in {
+        val select = SelectStatement(List(ProjectionTerm(FieldTerm(PropertyPathElement("age")), None)), "myCollection", None, List(), None, None)
+        ModelQueryBuilder.queryModels(select, None) shouldBe
+          ModelQueryParameters("SELECT collection.id as collectionId, id, version, createdTime, modifiedTime, data.children.age as age FROM Model WHERE collection.id = :p0", Map("p0" -> "myCollection"))
+      }
+    }
+    "given a projection field with 'as'" must {
+      "return correct ModelQueryParameters" in {
+        val select = SelectStatement(List(ProjectionTerm(FieldTerm(PropertyPathElement("age")), Some("myAge"))), "myCollection", None, List(), None, None)
+        ModelQueryBuilder.queryModels(select, None) shouldBe
+          ModelQueryParameters("SELECT collection.id as collectionId, id, version, createdTime, modifiedTime, data.children.age as myAge FROM Model WHERE collection.id = :p0", Map("p0" -> "myCollection"))
       }
     }
   }

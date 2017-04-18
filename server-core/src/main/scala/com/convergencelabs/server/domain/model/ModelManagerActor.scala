@@ -21,7 +21,7 @@ import akka.actor.Terminated
 
 case class QueryModelsRequest(sk: SessionKey, query: String)
 case class QueryOrderBy(field: String, ascending: Boolean)
-case class QueryModelsResponse(result: List[Model])
+case class QueryModelsResponse(result: List[ModelQueryResult])
 
 object ModelManagerActor {
 

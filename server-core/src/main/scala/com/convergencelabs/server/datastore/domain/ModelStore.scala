@@ -7,6 +7,7 @@ import java.util.UUID
 
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.collection.JavaConverters.mapAsScalaMapConverter
 import scala.util.Failure
 import scala.util.Try
 
@@ -16,6 +17,7 @@ import com.convergencelabs.server.datastore.DuplicateValueExcpetion
 import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.datastore.QueryUtil
 import com.convergencelabs.server.datastore.domain.mapper.ObjectValueMapper.ODocumentToObjectValue
+import com.convergencelabs.server.datastore.domain.mapper.DataValueMapper.ODocumentToDataValue
 import com.convergencelabs.server.domain.model.Model
 import com.convergencelabs.server.domain.model.ModelMetaData
 import com.convergencelabs.server.domain.model.data.ObjectValue
@@ -39,6 +41,10 @@ import ModelStore.Fields.OverridePermissions
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.domain.model.query.QueryParser
 import com.convergencelabs.server.domain.model.query.QueryParser
+import com.convergencelabs.server.domain.model.ModelQueryResult
+import com.convergencelabs.server.frontend.rest.DataValueToJValue
+import org.json4s.JsonAST.JObject
+import com.convergencelabs.server.frontend.realtime.ModelResult
 
 object ModelStore {
   val ModelClass = "Model"
@@ -315,7 +321,7 @@ class ModelStore private[domain] (
     result.asScala.toList map { ModelStore.docToModelMetaData(_) }
   }
 
-  def queryModels(query: String, username: Option[String]): Try[List[Model]] = tryWithDb { db =>
+  def queryModels(query: String, username: Option[String]): Try[List[ModelQueryResult]] = tryWithDb { db =>
     new QueryParser(query).InputLine.run().recoverWith {
       case cause: Exception =>
         Failure(QueryParsingException(cause.getMessage))
@@ -323,7 +329,32 @@ class ModelStore private[domain] (
       val queryParams = ModelQueryBuilder.queryModels(select, username)
       val query = new OSQLSynchQuery[ODocument](queryParams.query)
       val result: JavaList[ODocument] = db.command(query).execute(queryParams.params.asJava)
-      result.asScala.toList map { ModelStore.docToModel(_) }
+      if (select.fields.isEmpty) {
+        result.asScala.toList map { modelDoc =>
+          val model = ModelStore.docToModel(modelDoc)
+          ModelQueryResult(model.metaData, DataValueToJValue.toJson(model.data))
+        }
+      } else {
+        result.asScala.toList map { modelDoc =>
+          val results = modelDoc.toMap()
+          results.remove("@rid")
+          val createdTime = results.remove(CreatedTime).asInstanceOf[Date]
+          val modifiedTime = results.remove(ModifiedTime).asInstanceOf[Date]
+          val meta = ModelMetaData(
+            results.remove("collectionId").asInstanceOf[String],
+            results.remove(Id).asInstanceOf[String],
+            results.remove(Version).asInstanceOf[Long],
+            createdTime.toInstant(),
+            modifiedTime.toInstant(),
+            false,
+            ModelPermissions(false, false, false, false))
+
+          val values = results.asScala.toList map Function.tupled {(field, value) =>
+            (field, DataValueToJValue.toJson(value.asInstanceOf[ODocument].asDataValue))
+          }
+          ModelQueryResult(meta, JObject(values))
+        }
+      }
     }.get
   }
 

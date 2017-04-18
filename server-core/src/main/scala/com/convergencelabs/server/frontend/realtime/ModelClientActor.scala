@@ -414,12 +414,12 @@ class ModelClientActor(
         ModelsQueryResponseMessage(result map {
           r =>
             ModelResult(
-              r.metaData.collectionId,
-              r.metaData.modelId,
-              r.metaData.createdTime.toEpochMilli(),
-              r.metaData.modifiedTime.toEpochMilli(),
-              r.metaData.version,
-              DataValueToJValue.toJson(r.data))
+              r.meta.collectionId,
+              r.meta.modelId,
+              r.meta.createdTime.toEpochMilli(),
+              r.meta.modifiedTime.toEpochMilli(),
+              r.meta.version,
+              r.data)
         }))
       case Failure(QueryParsingException(message)) =>
         cb.expectedError("invalid_query", message)

@@ -17,6 +17,8 @@ import com.convergencelabs.server.domain.model.Model
 import com.convergencelabs.server.domain.model.ModelMetaData
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.model.data.StringValue
+import com.convergencelabs.server.domain.model.ModelQueryResult
+import com.convergencelabs.server.frontend.rest.DataValueToJValue
 
 case class ModelStoreSpecStores(collection: CollectionStore, model: ModelStore, permissions: ModelPermissionsStore)
 
@@ -267,42 +269,55 @@ class ModelStoreSpec
         createAllModels(stores)
 
         val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId", None).get
-        list.toSet shouldBe Set(person1Model, person2Model, person3Model)
+        list.toSet shouldBe Set(
+            ModelQueryResult(person1MetaData, DataValueToJValue.toJson(person1Data)), 
+            ModelQueryResult(person2MetaData, DataValueToJValue.toJson(person2Data)), 
+            ModelQueryResult(person3MetaData, DataValueToJValue.toJson(person3Data)))
       }
 
       "return correct models if a limit is provided" in withPersistenceStore { stores =>
         createAllModels(stores)
 
         val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId ORDER BY name ASC LIMIT 2", None).get
-        list.toSet shouldBe Set(person1Model, person2Model)
+        list.toSet shouldBe Set(
+            ModelQueryResult(person1MetaData, DataValueToJValue.toJson(person1Data)), 
+            ModelQueryResult(person2MetaData, DataValueToJValue.toJson(person2Data)))
       }
 
       "return correct models if an offset is provided" in withPersistenceStore { stores =>
         createAllModels(stores)
 
         val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId ORDER BY name ASC OFFSET 1", None).get
-        list.toSet shouldBe Set(person2Model, person3Model)
+        list.toSet shouldBe Set(
+            ModelQueryResult(person2MetaData, DataValueToJValue.toJson(person2Data)), 
+            ModelQueryResult(person3MetaData, DataValueToJValue.toJson(person3Data)))
       }
 
       "return correct models if an offset and limit is provided" in withPersistenceStore { stores =>
         createAllModels(stores)
 
         val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId ORDER BY name ASC LIMIT 1 OFFSET 1", None).get
-        list shouldBe List(person2Model)
+        list shouldBe List(ModelQueryResult(person2MetaData, DataValueToJValue.toJson(person2Data)))
       }
 
       "return models in correct order if orderBy ASC is provided" in withPersistenceStore { stores =>
         createAllModels(stores)
 
         val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId ORDER BY name ASC", None).get
-        list shouldBe List(person1Model, person2Model, person3Model)
+        list shouldBe List(
+            ModelQueryResult(person1MetaData, DataValueToJValue.toJson(person1Data)), 
+            ModelQueryResult(person2MetaData, DataValueToJValue.toJson(person2Data)), 
+            ModelQueryResult(person3MetaData, DataValueToJValue.toJson(person3Data)))
       }
 
       "return models in correct order if orderBy DESC is provided" in withPersistenceStore { stores =>
         createAllModels(stores)
 
         val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId ORDER BY name DESC", None).get
-        list shouldBe List(person3Model, person2Model, person1Model)
+        list shouldBe List(
+            ModelQueryResult(person3MetaData, DataValueToJValue.toJson(person3Data)), 
+            ModelQueryResult(person2MetaData, DataValueToJValue.toJson(person2Data)), 
+            ModelQueryResult(person1MetaData, DataValueToJValue.toJson(person1Data)))
       }
     }
 
