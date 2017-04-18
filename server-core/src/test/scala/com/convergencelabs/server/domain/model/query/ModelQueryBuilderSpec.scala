@@ -15,14 +15,14 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
 
     "given only a collection" must {
       "return correct ModelQueryParameters" in {
-        val select = SelectStatement("myCollection", None, List(), None, None)
+        val select = SelectStatement(List(), "myCollection",None, List(), None, None)
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters("SELECT FROM Model WHERE collection.id = :p0", Map("p0" -> "myCollection"))
       }
     }
     "given a limit" must {
       "return correct ModelQueryParameters" in {
-        val select = SelectStatement("myCollection", None, List(), Some(5), None)
+        val select = SelectStatement(List(), "myCollection", None, List(), Some(5), None)
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters(
             "SELECT FROM Model WHERE collection.id = :p0 LIMIT 5",
@@ -31,7 +31,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
     }
     "given an offset" must {
       "return correct ModelQueryParameters" in {
-        val select = SelectStatement("myCollection", None, List(), None, Some(5))
+        val select = SelectStatement(List(), "myCollection", None, List(), None, Some(5))
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters(
             "SELECT FROM Model WHERE collection.id = :p0 SKIP 5",
@@ -40,7 +40,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
     }
     "given a limit and offset" must {
       "return correct ModelQueryParameters" in {
-        val select = SelectStatement("myCollection", None, List(), Some(4), Some(5))
+        val select = SelectStatement(List(), "myCollection", None, List(), Some(4), Some(5))
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters(
             "SELECT FROM Model WHERE collection.id = :p0 SKIP 5 LIMIT 4",
@@ -49,7 +49,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
     }
     "given 1 order by" must {
       "return correct ModelQueryParameters" in {
-        val select = SelectStatement("myCollection", None, List(
+        val select = SelectStatement(List(), "myCollection", None, List(
             OrderBy(FieldTerm(PropertyPathElement("someField")), None)), None, None)
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters(
@@ -59,7 +59,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
     }
     "given multiple order bys" must {
       "return correct ModelQueryParameters" in {
-        val select = SelectStatement("myCollection", None, List(
+        val select = SelectStatement(List(), "myCollection", None, List(
             OrderBy(FieldTerm(PropertyPathElement("someField")), Some(Ascending)), 
             OrderBy(FieldTerm(PropertyPathElement("anotherField")), Some(Descending))), None, None)
         ModelQueryBuilder.queryModels(select, None) shouldBe
@@ -70,7 +70,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
     }
     "given a equals where clause" must {
       "return correct ModelQueryParameters" in {
-        val select = SelectStatement("myCollection", Some(Equals(FieldTerm(PropertyPathElement("name")), StringTerm("Alice"))), List(), None, None)
+        val select = SelectStatement(List(), "myCollection", Some(Equals(FieldTerm(PropertyPathElement("name")), StringTerm("Alice"))), List(), None, None)
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters(
             "SELECT FROM Model WHERE collection.id = :p0 and (data.children.name.value = :p1)",
@@ -79,7 +79,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
     }
     "given a NotEquals where clause" must {
       "return correct ModelQueryParameters" in {
-        val select = SelectStatement("myCollection", Some(NotEquals(FieldTerm(PropertyPathElement("name")), StringTerm("Alice"))), List(), None, None)
+        val select = SelectStatement(List(), "myCollection", Some(NotEquals(FieldTerm(PropertyPathElement("name")), StringTerm("Alice"))), List(), None, None)
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters(
             "SELECT FROM Model WHERE collection.id = :p0 and (data.children.name.value != :p1)",
@@ -88,7 +88,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
     }
     "given a GreaterThan where clause" must {
       "return correct ModelQueryParameters" in {
-        val select = SelectStatement("myCollection", Some(GreaterThan(FieldTerm(PropertyPathElement("age")), DoubleTerm(15))), List(), None, None)
+        val select = SelectStatement(List(), "myCollection", Some(GreaterThan(FieldTerm(PropertyPathElement("age")), DoubleTerm(15))), List(), None, None)
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters(
             "SELECT FROM Model WHERE collection.id = :p0 and (data.children.age.value > :p1)",
@@ -97,7 +97,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
     }
     "given a LessThan where clause" must {
       "return correct ModelQueryParameters" in {
-        val select = SelectStatement("myCollection", Some(LessThan(FieldTerm(PropertyPathElement("age")), LongTerm(15))), List(), None, None)
+        val select = SelectStatement(List(), "myCollection", Some(LessThan(FieldTerm(PropertyPathElement("age")), LongTerm(15))), List(), None, None)
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters(
             "SELECT FROM Model WHERE collection.id = :p0 and (data.children.age.value < :p1)",
@@ -106,7 +106,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
     }
     "given a LessThanOrEqual where clause" must {
       "return correct ModelQueryParameters" in {
-        val select = SelectStatement("myCollection", Some(LessThanOrEqual(FieldTerm(PropertyPathElement("age")), LongTerm(15))), List(), None, None)
+        val select = SelectStatement(List(), "myCollection", Some(LessThanOrEqual(FieldTerm(PropertyPathElement("age")), LongTerm(15))), List(), None, None)
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters(
             "SELECT FROM Model WHERE collection.id = :p0 and (data.children.age.value <= :p1)",
@@ -115,7 +115,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
     }
     "given a GreaterThanOrEqual where clause" must {
       "return correct ModelQueryParameters" in {
-        val select = SelectStatement("myCollection", Some(GreaterThanOrEqual(FieldTerm(PropertyPathElement("age")), LongTerm(15))), List(), None, None)
+        val select = SelectStatement(List(), "myCollection", Some(GreaterThanOrEqual(FieldTerm(PropertyPathElement("age")), LongTerm(15))), List(), None, None)
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters(
             "SELECT FROM Model WHERE collection.id = :p0 and (data.children.age.value >= :p1)",
@@ -124,7 +124,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
     }
     "given an In where clause" must {
       "return correct ModelQueryParameters" in {
-        val select = SelectStatement("myCollection", Some(In("name", List("Alice", "Bob"))), List(), None, None)
+        val select = SelectStatement(List(), "myCollection", Some(In("name", List("Alice", "Bob"))), List(), None, None)
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters(
             "SELECT FROM Model WHERE collection.id = :p0 and (data.name in :p1)",
@@ -133,7 +133,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
     }
     "given a Like where clause" must {
       "return correct ModelQueryParameters" in {
-        val select = SelectStatement("myCollection", Some(Like("name", "Ali%")), List(), None, None)
+        val select = SelectStatement(List(), "myCollection", Some(Like("name", "Ali%")), List(), None, None)
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters(
             "SELECT FROM Model WHERE collection.id = :p0 and (data.name like :p1)",
@@ -142,7 +142,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
     }
     "given a Add Operater clause" must {
       "return correct ModelQueryParameters" in {
-        val select = SelectStatement("myCollection", 
+        val select = SelectStatement(List(), "myCollection", 
             Some(LessThanOrEqual(FieldTerm(PropertyPathElement("age")), 
                 Add(LongTerm(15), LongTerm(5)))), List(), None, None)
         ModelQueryBuilder.queryModels(select, None) shouldBe

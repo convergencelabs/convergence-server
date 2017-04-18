@@ -1,7 +1,8 @@
 package com.convergencelabs.server.domain.model.query
 
 object Ast {  
-  case class SelectStatement( 
+  case class SelectStatement(
+    fields: List[ProjectionTerm],
     collection: String,  
     where: Option[WhereExpression],  
     orderBy: List[OrderBy],
@@ -24,6 +25,9 @@ object Ast {
   case class GreaterThanOrEqual(lhs: ConditionalTerm, rhs: ConditionalTerm) extends ConditionalExpression  
   case class In(field: String, value: List[Any]) extends ConditionalExpression 
   case class Like(field: String, value: String) extends ConditionalExpression 
+  
+  
+  case class ProjectionTerm(field: FieldTerm, name: Option[String])
   
  
   sealed trait ConditionalTerm 

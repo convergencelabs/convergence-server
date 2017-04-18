@@ -203,15 +203,16 @@ class SelectStatementSpec
 
     "parsing a SELECT Statement" must {
       "parse SELECT FROM collection" in {
-        QueryParser.parse("SELECT FROM collection").get shouldBe SelectStatement("collection", None, List(), None, None)
+        QueryParser.parse("SELECT FROM collection").get shouldBe SelectStatement(List(), "collection", None, List(), None, None)
       }
 
       "parse SELECT * FROM collection" in {
-        QueryParser.parse("SELECT * FROM collection").get shouldBe SelectStatement("collection", None, List(), None, None)
+        QueryParser.parse("SELECT * FROM collection").get shouldBe SelectStatement(List(), "collection", None, List(), None, None)
       }
 
       "parse SELECT * FROM collection WHERE foo = 1" in {
         QueryParser.parse("SELECT * FROM collection WHERE foo = 1").get shouldBe SelectStatement(
+          List(),
           "collection",
           Some(Equals(FieldTerm(PropertyPathElement("foo")), LongTerm(1))),
           List(),
@@ -221,6 +222,7 @@ class SelectStatementSpec
 
       "parse SELECT * FROM collection WHERE foo = 1 LIMIT 3 OFFSET 10" in {
         QueryParser.parse("SELECT * FROM collection WHERE foo = 1 LIMIT 3 OFFSET 10").get shouldBe SelectStatement(
+          List(),
           "collection",
           Some(Equals(FieldTerm(PropertyPathElement("foo")), LongTerm(1))),
           List(),
@@ -230,6 +232,7 @@ class SelectStatementSpec
 
       "parse SELECT * FROM collection WHERE foo = 1 ORDER BY bar LIMIT 3 OFFSET 10" in {
         QueryParser.parse("SELECT * FROM collection WHERE foo = 1 ORDER BY bar LIMIT 3 OFFSET 10").get shouldBe SelectStatement(
+          List(),
           "collection",
           Some(Equals(FieldTerm(PropertyPathElement("foo")), LongTerm(1))),
           List(OrderBy(FieldTerm(PropertyPathElement("bar")), None)),

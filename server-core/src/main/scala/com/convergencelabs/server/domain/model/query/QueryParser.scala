@@ -7,6 +7,11 @@ import javax.swing.text.html.CSS.StringValue
 import scala.util.Try
 
 object QueryParser {
+  def main(args: Array[String]): Unit = {
+    val parsed = QueryParser("foo.+child, bar as something").FieldsSection.run().get
+    println(parsed)
+  }
+
   def apply(input: ParserInput): QueryParser = {
     new QueryParser(input)
   }
@@ -27,13 +32,21 @@ class QueryParser(val input: ParserInput) extends Parser {
       WhereSection ~
       OrderBySection ~
       LimitSection ~
-      OffsetSection ~> (SelectStatement(_, _, _, _, _))
+      OffsetSection ~> (SelectStatement(_, _, _, _, _, _))
   }
 
   def SelectSection = rule { SkipWS ~ Keyword.Select ~ SkipWS }
 
-  def FieldsSection = rule { optional(SkipWS ~ "*" ~ SkipWS) }
+  def FieldsSection = rule {
+    (SkipWS ~ '*' ~ SkipWS) ~> (() => List[ProjectionTerm]()) |
+      SkipWS ~ zeroOrMore(ProjectionValue).separatedBy(",") ~> ((s: Seq[ProjectionTerm]) => s.toList) ~ SkipWS
+  }
+  
+  def ProjectionValue = 
+    rule { (FieldValue ~ SkipWS ~ optional(ProjectionValueName)) ~> ((term: FieldTerm, name: Option[String]) => ProjectionTerm(term, name))}
 
+  def ProjectionValueName = rule { "as" ~ SkipWS ~ capture(Field) }
+  
   def FromSection = rule { SkipWS ~ Keyword.From ~ SkipWS }
 
   def CollectionSection = rule { SkipWS ~ capture(oneOrMore(!WhiteSpaceChar ~ ANY)) ~ SkipWS }
@@ -262,9 +275,11 @@ class QueryParser(val input: ParserInput) extends Parser {
     val LeftBracket = "["
     val RightBracket = "]"
     val Dot = "."
+    val Comma = ","
   }
 
-  def Symbols = rule { Symbol.LeftParen | Symbol.RightParen | Symbol.LeftBracket | Symbol.RightBracket | Symbol.Dot }
+  def Symbols = rule { Symbol.LeftParen | Symbol.RightParen | Symbol.LeftBracket | Symbol.RightBracket | Symbol.Dot | Symbol.Comma }
 
   def Keywords = rule { Keyword.Select | Keyword.From | Keyword.Limit | Keyword.Offset | Keyword.Where }
+
 }
