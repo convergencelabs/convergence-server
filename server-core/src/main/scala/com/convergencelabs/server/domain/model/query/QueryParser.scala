@@ -8,7 +8,7 @@ import scala.util.Try
 
 object QueryParser {
   def main(args: Array[String]): Unit = {
-    val parsed = QueryParser("as `123+456`").ProjectionValueName.run().get
+    val parsed = QueryParser("as a123456 ").ProjectionValueName.run().get
     println(parsed)
   }
 
@@ -192,7 +192,7 @@ class QueryParser(val input: ParserInput) extends Parser {
 
   def Field = rule {('`' ~ oneOrMore(!'`' ~ ANY) ~ '`') | oneOrMore(!'`' ~ !WhiteSpaceChar ~ !Keywords ~ !ComparisonOperators ~ !MathOperators ~ !Symbols ~ ANY) }
   
-  def FieldName: Rule1[String] = rule {('`' ~ capture(oneOrMore(!'`' ~ ANY)) ~ '`') | capture(oneOrMore(!WhiteSpaceChar ~ !Keywords ~ !ComparisonOperators ~ !MathOperators ~ !Symbols ~ ANY))}
+  def FieldName: Rule1[String] = rule {('`' ~ capture(oneOrMore(!'`' ~ ANY)) ~ '`') | (capture(CharPredicate.Alpha ~ oneOrMore(CharPredicate.AlphaNum)) ~ oneOrMore(' '))}
 
   /////////////////////////////////////////////////////////////////////////////
   // Order By
