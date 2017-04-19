@@ -283,6 +283,22 @@ class SelectStatementSpec
       "fail if select doesn't have a space after it" in {
         an [ParseError] should be thrownBy QueryParser.parse("SELECTFROM collection").get
       }
+      
+      "fail without space after or" in {
+        an [ParseError] should be thrownBy QueryParser("SELECT * FROM collection WHERE foo = 1 ORbar = 2").WhereRule.run().get
+      }
+      
+      "fail without space after and" in {
+        an [ParseError] should be thrownBy QueryParser("SELECT * FROM collection WHERE foo = 1 ANDbar = 2").WhereRule.run().get
+      }
+      
+      "fail without space before or" in {
+        an [ParseError] should be thrownBy QueryParser("SELECT * FROM collection WHERE foo = 1OR bar = 2").WhereRule.run().get
+      }
+      
+      "fail without space before and" in {
+        an [ParseError] should be thrownBy QueryParser("SELECT * FROM collection WHERE foo = 1AND bar = 2").WhereRule.run().get
+      }
     }
   }
 }

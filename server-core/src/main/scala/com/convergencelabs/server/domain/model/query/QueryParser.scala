@@ -3,7 +3,6 @@ package com.convergencelabs.server.domain.model.query
 import com.convergencelabs.server.domain.model.query.Ast._
 import org.parboiled2._
 import scala.annotation.switch
-import javax.swing.text.html.CSS.StringValue
 import scala.util.Try
 
 object QueryParser {
@@ -52,7 +51,7 @@ class QueryParser(val input: ParserInput) extends Parser {
   def CollectionSection = rule { capture(oneOrMore(!WhiteSpaceChar ~ ANY)) ~ SkipWS }
 
   def WhereSection: Rule1[Option[WhereExpression]] = rule {
-    Keyword.Where ~ WhereRule ~> (Some(_)) | (!Keyword.Where ~> (() => push(None)))
+    Keyword.Where ~ RequireWS ~ WhereRule ~> (Some(_)) | (!Keyword.Where ~> (() => push(None)))
   }
 
   def LimitSection: Rule1[Option[Int]] = rule {
