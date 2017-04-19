@@ -4,6 +4,8 @@ import org.scalatest.WordSpec
 import org.scalatest.Matchers
 
 import Ast._
+import scala.reflect.macros.ParseException
+import org.parboiled2.ParseError
 
 class SelectStatementSpec
     extends WordSpec
@@ -98,6 +100,10 @@ class SelectStatementSpec
         new QueryParser("ORDER BY foo").OrderBySection.run().get shouldBe
           List(OrderBy(FieldTerm(PropertyPathElement("foo")), None))
       }
+      
+      "fail to parse order by with no space after by" in {
+        an [ParseError] should be thrownBy new QueryParser("ORDER BYfoo DESC").OrderBySection.run().get
+      }
     }
 
     "parsing a ConditionalRule" must {
@@ -156,6 +162,11 @@ class SelectStatementSpec
         new QueryParser("test1[1][2]").FieldValue.run().get shouldBe
           FieldTerm(PropertyPathElement("test1"), List(IndexPathElement(1), IndexPathElement(2)))
       }
+
+      "parse all special characters in escaped field name" in {
+        new QueryParser("`~!@#$%^&*()_+=-?/><,.:;{}[]|\\/`").FieldValue.run().get shouldBe
+          FieldTerm(PropertyPathElement("`~!@#$%^&*()_+=-?/><,.:;{}[]|\\/`"), List())
+      }
     }
 
     "parsing a Where Expression" must {
@@ -205,10 +216,28 @@ class SelectStatementSpec
       "correctly parse '.'" in {
         QueryParser("oField.oField1").FieldsSection.run().get shouldBe
           List(
-              ProjectionTerm(
-                  FieldTerm(
-                      PropertyPathElement("oField"),
-                      List(PropertyPathElement("oField1"))),None))
+            ProjectionTerm(
+              FieldTerm(
+                PropertyPathElement("oField"),
+                List(PropertyPathElement("oField1"))), None))
+      }
+    }
+
+    "parsing a ProjectionValueName Section" must {
+      "parse out field name" in {
+        QueryParser("as blah ").ProjectionValueName.run().get shouldBe "blah"
+      }
+      "parse out field name with camelcase as" in {
+        QueryParser("aS blah ").ProjectionValueName.run().get shouldBe "blah"
+      }
+      "parse without space at end of section if using ticks" in {
+        QueryParser("as `blah`").ProjectionValueName.run().get shouldBe "blah"
+      }
+      "fail without space at end of section if not using ticks" in {
+        an [ParseError] should be thrownBy QueryParser("as blah").ProjectionValueName.run().get
+      }
+      "fail without space between as and field name" in {
+        an [ParseError] should be thrownBy QueryParser("asblah").ProjectionValueName.run().get
       }
     }
 
@@ -249,6 +278,10 @@ class SelectStatementSpec
           List(OrderBy(FieldTerm(PropertyPathElement("bar")), None)),
           Some(3),
           Some(10))
+      }
+      
+      "fail if select doesn't have a space after it" in {
+        an [ParseError] should be thrownBy QueryParser.parse("SELECTFROM collection").get
       }
     }
   }

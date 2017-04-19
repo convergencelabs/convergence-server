@@ -35,38 +35,42 @@ class QueryParser(val input: ParserInput) extends Parser {
       OffsetSection ~> (SelectStatement(_, _, _, _, _, _))
   }
 
-  def SelectSection = rule { SkipWS ~ Keyword.Select ~ SkipWS }
+  def SelectSection = rule { SkipWS ~ Keyword.Select ~ RequireWS }
 
   def FieldsSection = rule {
-    (SkipWS ~ '*' ~ SkipWS) ~> (() => List[ProjectionTerm]()) |
+    ('*' ~ RequireWS) ~> (() => List[ProjectionTerm]()) |
       SkipWS ~ zeroOrMore(ProjectionValue).separatedBy(",") ~> ((s: Seq[ProjectionTerm]) => s.toList) ~ SkipWS
   }
-  
-  def ProjectionValue = 
-    rule { (FieldValue ~ SkipWS ~ optional(ProjectionValueName)) ~> ((term: FieldTerm, name: Option[String]) => ProjectionTerm(term, name))}
 
-  def ProjectionValueName: Rule1[String] = rule { "as" ~ SkipWS ~ FieldName }
-  
-  def FromSection = rule { SkipWS ~ Keyword.From ~ SkipWS }
+  def ProjectionValue =
+    rule { (FieldValue ~ SkipWS ~ optional(ProjectionValueName)) ~> ((term: FieldTerm, name: Option[String]) => ProjectionTerm(term, name)) }
 
-  def CollectionSection = rule { SkipWS ~ capture(oneOrMore(!WhiteSpaceChar ~ ANY)) ~ SkipWS }
+  def ProjectionValueName: Rule1[String] = rule { Keyword.AS ~ RequireWS ~ FieldName }
+
+  def FromSection = rule { Keyword.From ~ RequireWS }
+
+  def CollectionSection = rule { capture(oneOrMore(!WhiteSpaceChar ~ ANY)) ~ SkipWS }
 
   def WhereSection: Rule1[Option[WhereExpression]] = rule {
-    Keyword.Where ~ WhereRule ~> (Some(_)) | push(None)
+    Keyword.Where ~ WhereRule ~> (Some(_)) | (!Keyword.Where ~> (() => push(None)))
   }
 
   def LimitSection: Rule1[Option[Int]] = rule {
     SkipWS ~ Keyword.Limit ~
-      SkipWS ~ capture(oneOrMore(CharPredicate.Digit)) ~> ((str: String) => Some(str.toInt)) | push(None)
+      RequireWS ~ capture(oneOrMore(CharPredicate.Digit)) ~> ((str: String) => Some(str.toInt)) |
+      SkipWS ~ !Keyword.Limit ~> (() => push(None))
   }
 
   def OffsetSection: Rule1[Option[Int]] = rule {
     SkipWS ~ Keyword.Offset ~
-      SkipWS ~ capture(oneOrMore(CharPredicate.Digit)) ~> ((str: String) => Some(str.toInt)) | push(None)
+      RequireWS ~ capture(oneOrMore(CharPredicate.Digit)) ~> ((str: String) => Some(str.toInt)) |
+      SkipWS ~ !Keyword.Offset ~> (() => push(None))
   }
 
   def OrderBySection: Rule1[List[OrderBy]] = rule {
-    ignoreCase("order by") ~ oneOrMore(OrderByRule).separatedBy(",") ~> ((s: Seq[OrderBy]) => s.toList) | push(List())
+    SkipWS ~ Keyword.ORDERBY ~
+      RequireWS ~ oneOrMore(OrderByRule).separatedBy(",") ~> ((s: Seq[OrderBy]) => s.toList) |
+      SkipWS ~ !Keyword.ORDERBY ~> (() => List[OrderBy]())
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -190,9 +194,9 @@ class QueryParser(val input: ParserInput) extends Parser {
 
   def BooleanValue = rule { (True | False) ~> (BooleanTerm(_)) }
 
-  def Field = rule {('`' ~ oneOrMore(!'`' ~ ANY) ~ '`') | oneOrMore(!'`' ~ !WhiteSpaceChar ~ !Keywords ~ !ComparisonOperators ~ !MathOperators ~ !Symbols ~ ANY) }
-  
-  def FieldName: Rule1[String] = rule {('`' ~ capture(oneOrMore(!'`' ~ ANY)) ~ '`') | (capture(CharPredicate.Alpha ~ oneOrMore(CharPredicate.AlphaNum)) ~ oneOrMore(' '))}
+  def Field = rule { ('`' ~ oneOrMore(!'`' ~ ANY) ~ '`') | oneOrMore(!'`' ~ !WhiteSpaceChar ~ !Keywords ~ !ComparisonOperators ~ !MathOperators ~ !Symbols ~ ANY) }
+
+  def FieldName: Rule1[String] = rule { ('`' ~ capture(oneOrMore(!'`' ~ ANY)) ~ '`') | (capture(CharPredicate.Alpha ~ oneOrMore(CharPredicate.AlphaNum)) ~ RequireWS) }
 
   /////////////////////////////////////////////////////////////////////////////
   // Order By
@@ -228,6 +232,7 @@ class QueryParser(val input: ParserInput) extends Parser {
   val WhiteSpaceChar = CharPredicate(" \n\r\t\f")
 
   def SkipWS = rule(zeroOrMore(WhiteSpaceChar))
+  def RequireWS = rule(oneOrMore(WhiteSpaceChar))
 
   /////////////////////////////////////////////////////////////////////////////
   // Constants and Keywords
@@ -263,6 +268,8 @@ class QueryParser(val input: ParserInput) extends Parser {
     def Offset = rule { ignoreCase("offset") }
     def Where = rule { ignoreCase("where") }
     def From = rule { ignoreCase("from") }
+    def AS = rule { ignoreCase("as") }
+    def ORDERBY = rule { ignoreCase("order by") }
 
     def And = rule { ignoreCase("and") }
     def Or = rule { ignoreCase("or") }
@@ -282,5 +289,4 @@ class QueryParser(val input: ParserInput) extends Parser {
   def Symbols = rule { Symbol.LeftParen | Symbol.RightParen | Symbol.LeftBracket | Symbol.RightBracket | Symbol.Dot | Symbol.Comma }
 
   def Keywords = rule { Keyword.Select | Keyword.From | Keyword.Limit | Keyword.Offset | Keyword.Where }
-
 }
