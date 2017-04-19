@@ -48,7 +48,7 @@ object ModelQueryBuilder {
   def queryModels(select: SelectStatement, username: Option[String]): ModelQueryParameters = {
     implicit val params = ScalaMutableMap[String, Any]()
     implicit val as = ScalaMutableMap[String, String]()
-    
+
     val projectionString =
       if (select.fields.isEmpty) {
         ""
@@ -101,30 +101,19 @@ object ModelQueryBuilder {
   }
 
   private[this] def buildFieldPath(field: FieldTerm): String = {
-    val sb = new StringBuilder()
-    sb.append("data.children.")
-    sb.append(field.field.property)
-    field.subpath.foreach {
-      case IndexPathElement(i) =>
-        sb.append(".children").append("[").append(i.toString).append("]")
-      case PropertyPathElement(p) =>
-        sb.append(".children").append(".").append(p)
-    }
-
-    sb.append(".value")
-
-    sb.toString
+    s"${buildProjectionPath(field)}.value"
   }
 
   private[this] def buildProjectionPath(field: FieldTerm): String = {
     val sb = new StringBuilder()
-    sb.append("data.children.")
+    sb.append("data.children[`")
     sb.append(field.field.property)
+    sb.append("`]")
     field.subpath.foreach {
       case IndexPathElement(i) =>
         sb.append(".children").append("[").append(i.toString).append("]")
       case PropertyPathElement(p) =>
-        sb.append(".children").append(".").append(p)
+        sb.append(".children").append("[`").append(p).append("`]")
     }
 
     sb.toString
@@ -159,14 +148,14 @@ object ModelQueryBuilder {
 
   private[this] def buildConditionalExpressionString(expression: ConditionalExpression)(implicit params: ScalaMutableMap[String, Any]): String = {
     expression match {
-      case Equals(lhs, rhs)                    => s"(${buildTermString(lhs)} = ${buildTermString(rhs)})"
-      case NotEquals(lhs, rhs)                 => s"(${buildTermString(lhs)} != ${buildTermString(rhs)})"
-      case GreaterThan(lhs, rhs)               => s"(${buildTermString(lhs)} > ${buildTermString(rhs)})"
-      case LessThan(lhs, rhs)                  => s"(${buildTermString(lhs)} < ${buildTermString(rhs)})"
-      case LessThanOrEqual(lhs, rhs)           => s"(${buildTermString(lhs)} <= ${buildTermString(rhs)})"
-      case GreaterThanOrEqual(lhs, rhs)        => s"(${buildTermString(lhs)} >= ${buildTermString(rhs)})"
-      case In(field: String, value: List[Any]) => s"(data.${field} in ${addParam(value.asJava)})"
-      case Like(field: String, value: String)  => s"(data.${field} like ${addParam(value)})"
+      case Equals(lhs, rhs)             => s"(${buildTermString(lhs)} = ${buildTermString(rhs)})"
+      case NotEquals(lhs, rhs)          => s"(${buildTermString(lhs)} != ${buildTermString(rhs)})"
+      case GreaterThan(lhs, rhs)        => s"(${buildTermString(lhs)} > ${buildTermString(rhs)})"
+      case LessThan(lhs, rhs)           => s"(${buildTermString(lhs)} < ${buildTermString(rhs)})"
+      case LessThanOrEqual(lhs, rhs)    => s"(${buildTermString(lhs)} <= ${buildTermString(rhs)})"
+      case GreaterThanOrEqual(lhs, rhs) => s"(${buildTermString(lhs)} >= ${buildTermString(rhs)})"
+      case In(field, value)             => s"(${buildFieldPath(field)} in ${addParam(value.asJava)})"
+      case Like(field, value)           => s"(${buildFieldPath(field)} like ${addParam(value)})"
     }
   }
 
@@ -202,7 +191,7 @@ object ModelQueryBuilder {
     params += param -> value
     s":$param"
   }
-  
+
   private def addAs(value: String)(implicit as: ScalaMutableMap[String, String]): String = {
     val a = s"a${as.size}"
     as += a -> value

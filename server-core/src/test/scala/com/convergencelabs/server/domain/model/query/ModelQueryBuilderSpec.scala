@@ -53,7 +53,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
           OrderBy(FieldTerm(PropertyPathElement("someField")), None)), None, None)
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters(
-            "SELECT FROM Model WHERE collection.id = :p0 ORDER BY data.children.someField.value ASC",
+            "SELECT FROM Model WHERE collection.id = :p0 ORDER BY data.children[`someField`].value ASC",
             Map("p0" -> "myCollection"), Map())
       }
     }
@@ -64,7 +64,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
           OrderBy(FieldTerm(PropertyPathElement("anotherField")), Some(Descending))), None, None)
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters(
-            "SELECT FROM Model WHERE collection.id = :p0 ORDER BY data.children.someField.value ASC, data.children.anotherField.value DESC",
+            "SELECT FROM Model WHERE collection.id = :p0 ORDER BY data.children[`someField`].value ASC, data.children[`anotherField`].value DESC",
             Map("p0" -> "myCollection"), Map())
       }
     }
@@ -73,7 +73,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
         val select = SelectStatement(List(), "myCollection", Some(Equals(FieldTerm(PropertyPathElement("name")), StringTerm("Alice"))), List(), None, None)
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters(
-            "SELECT FROM Model WHERE collection.id = :p0 and (data.children.name.value = :p1)",
+            "SELECT FROM Model WHERE collection.id = :p0 and (data.children[`name`].value = :p1)",
             Map("p0" -> "myCollection", "p1" -> "Alice"), Map())
       }
     }
@@ -82,7 +82,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
         val select = SelectStatement(List(), "myCollection", Some(NotEquals(FieldTerm(PropertyPathElement("name")), StringTerm("Alice"))), List(), None, None)
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters(
-            "SELECT FROM Model WHERE collection.id = :p0 and (data.children.name.value != :p1)",
+            "SELECT FROM Model WHERE collection.id = :p0 and (data.children[`name`].value != :p1)",
             Map("p0" -> "myCollection", "p1" -> "Alice"), Map())
       }
     }
@@ -91,7 +91,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
         val select = SelectStatement(List(), "myCollection", Some(GreaterThan(FieldTerm(PropertyPathElement("age")), DoubleTerm(15))), List(), None, None)
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters(
-            "SELECT FROM Model WHERE collection.id = :p0 and (data.children.age.value > :p1)",
+            "SELECT FROM Model WHERE collection.id = :p0 and (data.children[`age`].value > :p1)",
             Map("p0" -> "myCollection", "p1" -> 15d), Map())
       }
     }
@@ -100,7 +100,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
         val select = SelectStatement(List(), "myCollection", Some(LessThan(FieldTerm(PropertyPathElement("age")), LongTerm(15))), List(), None, None)
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters(
-            "SELECT FROM Model WHERE collection.id = :p0 and (data.children.age.value < :p1)",
+            "SELECT FROM Model WHERE collection.id = :p0 and (data.children[`age`].value < :p1)",
             Map("p0" -> "myCollection", "p1" -> 15l), Map())
       }
     }
@@ -109,7 +109,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
         val select = SelectStatement(List(), "myCollection", Some(LessThanOrEqual(FieldTerm(PropertyPathElement("age")), LongTerm(15))), List(), None, None)
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters(
-            "SELECT FROM Model WHERE collection.id = :p0 and (data.children.age.value <= :p1)",
+            "SELECT FROM Model WHERE collection.id = :p0 and (data.children[`age`].value <= :p1)",
             Map("p0" -> "myCollection", "p1" -> 15l), Map())
       }
     }
@@ -118,25 +118,25 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
         val select = SelectStatement(List(), "myCollection", Some(GreaterThanOrEqual(FieldTerm(PropertyPathElement("age")), LongTerm(15))), List(), None, None)
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters(
-            "SELECT FROM Model WHERE collection.id = :p0 and (data.children.age.value >= :p1)",
+            "SELECT FROM Model WHERE collection.id = :p0 and (data.children[`age`].value >= :p1)",
             Map("p0" -> "myCollection", "p1" -> 15l), Map())
       }
     }
     "given an In where clause" must {
       "return correct ModelQueryParameters" in {
-        val select = SelectStatement(List(), "myCollection", Some(In("name", List("Alice", "Bob"))), List(), None, None)
+        val select = SelectStatement(List(), "myCollection", Some(In(FieldTerm(PropertyPathElement("name")), List("Alice", "Bob"))), List(), None, None)
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters(
-            "SELECT FROM Model WHERE collection.id = :p0 and (data.name in :p1)",
+            "SELECT FROM Model WHERE collection.id = :p0 and (data.children[`name`].value in :p1)",
             Map("p0" -> "myCollection", "p1" -> List("Alice", "Bob").asJava), Map())
       }
     }
     "given a Like where clause" must {
       "return correct ModelQueryParameters" in {
-        val select = SelectStatement(List(), "myCollection", Some(Like("name", "Ali%")), List(), None, None)
+        val select = SelectStatement(List(), "myCollection", Some(Like(FieldTerm(PropertyPathElement("name")), "Ali%")), List(), None, None)
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters(
-            "SELECT FROM Model WHERE collection.id = :p0 and (data.name like :p1)",
+            "SELECT FROM Model WHERE collection.id = :p0 and (data.children[`name`].value like :p1)",
             Map("p0" -> "myCollection", "p1" -> "Ali%"), Map())
       }
     }
@@ -147,7 +147,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
             Add(LongTerm(15), LongTerm(5)))), List(), None, None)
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters(
-            "SELECT FROM Model WHERE collection.id = :p0 and (data.children.age.value <= (:p1 + :p2))",
+            "SELECT FROM Model WHERE collection.id = :p0 and (data.children[`age`].value <= (:p1 + :p2))",
             Map("p0" -> "myCollection", "p1" -> 15l, "p2" -> 5l), Map())
       }
     }
@@ -156,7 +156,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
         val select = SelectStatement(List(ProjectionTerm(FieldTerm(PropertyPathElement("age")), None)), "myCollection", None, List(), None, None)
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters(
-              "SELECT collection.id as collectionId, id, version, createdTime, modifiedTime, data.children.age as a0 FROM Model WHERE collection.id = :p0", 
+              "SELECT collection.id as collectionId, id, version, createdTime, modifiedTime, data.children[`age`] as a0 FROM Model WHERE collection.id = :p0", 
               Map("p0" -> "myCollection"), Map("a0" -> "age"))
       }
     }
@@ -165,7 +165,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
         val select = SelectStatement(List(ProjectionTerm(FieldTerm(PropertyPathElement("age")), Some("myAge"))), "myCollection", None, List(), None, None)
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters(
-              "SELECT collection.id as collectionId, id, version, createdTime, modifiedTime, data.children.age as a0 FROM Model WHERE collection.id = :p0", 
+              "SELECT collection.id as collectionId, id, version, createdTime, modifiedTime, data.children[`age`] as a0 FROM Model WHERE collection.id = :p0", 
               Map("p0" -> "myCollection"), Map("a0" -> "myAge"))
       }
     }
