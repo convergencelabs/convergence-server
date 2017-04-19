@@ -24,7 +24,7 @@ object Ast {
   case class LessThanOrEqual(lhs: ConditionalTerm, rhs: ConditionalTerm) extends ConditionalExpression  
   case class GreaterThanOrEqual(lhs: ConditionalTerm, rhs: ConditionalTerm) extends ConditionalExpression  
   case class In(field: FieldTerm, value: List[Any]) extends ConditionalExpression 
-  case class Like(field: FieldTerm, value: String) extends ConditionalExpression 
+  case class Like(field: FieldTerm, value: StringTerm) extends ConditionalExpression 
   
   
   case class ProjectionTerm(field: FieldTerm, name: Option[String])

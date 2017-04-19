@@ -148,14 +148,14 @@ object ModelQueryBuilder {
 
   private[this] def buildConditionalExpressionString(expression: ConditionalExpression)(implicit params: ScalaMutableMap[String, Any]): String = {
     expression match {
-      case Equals(lhs, rhs)             => s"(${buildTermString(lhs)} = ${buildTermString(rhs)})"
-      case NotEquals(lhs, rhs)          => s"(${buildTermString(lhs)} != ${buildTermString(rhs)})"
-      case GreaterThan(lhs, rhs)        => s"(${buildTermString(lhs)} > ${buildTermString(rhs)})"
-      case LessThan(lhs, rhs)           => s"(${buildTermString(lhs)} < ${buildTermString(rhs)})"
-      case LessThanOrEqual(lhs, rhs)    => s"(${buildTermString(lhs)} <= ${buildTermString(rhs)})"
-      case GreaterThanOrEqual(lhs, rhs) => s"(${buildTermString(lhs)} >= ${buildTermString(rhs)})"
-      case In(field, value)             => s"(${buildFieldPath(field)} in ${addParam(value.asJava)})"
-      case Like(field, value)           => s"(${buildFieldPath(field)} like ${addParam(value)})"
+      case Equals(lhs, rhs)               => s"(${buildTermString(lhs)} = ${buildTermString(rhs)})"
+      case NotEquals(lhs, rhs)            => s"(${buildTermString(lhs)} != ${buildTermString(rhs)})"
+      case GreaterThan(lhs, rhs)          => s"(${buildTermString(lhs)} > ${buildTermString(rhs)})"
+      case LessThan(lhs, rhs)             => s"(${buildTermString(lhs)} < ${buildTermString(rhs)})"
+      case LessThanOrEqual(lhs, rhs)      => s"(${buildTermString(lhs)} <= ${buildTermString(rhs)})"
+      case GreaterThanOrEqual(lhs, rhs)   => s"(${buildTermString(lhs)} >= ${buildTermString(rhs)})"
+      case In(field, value)               => s"(${buildFieldPath(field)} in ${addParam(value.asJava)})"
+      case Like(field, StringTerm(value)) => s"(${buildFieldPath(field)} like ${addParam(value)})"
     }
   }
 

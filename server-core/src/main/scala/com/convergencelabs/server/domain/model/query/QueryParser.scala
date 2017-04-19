@@ -107,12 +107,17 @@ class QueryParser(val input: ParserInput) extends Parser {
 
   def ConditionalRule: Rule1[WhereExpression] = rule {
     LowPrecMathRule ~ SkipWS ~ (
-      "=" ~ LowPrecMathRule ~> Equals |
-      "!=" ~ LowPrecMathRule ~> NotEquals |
-      ">" ~ LowPrecMathRule ~> GreaterThan |
-      "<" ~ LowPrecMathRule ~> LessThan |
-      ">=" ~ LowPrecMathRule ~> GreaterThanOrEqual |
-      "<=" ~ LowPrecMathRule ~> LessThanOrEqual)
+      ComparisonOperator.Eq ~ LowPrecMathRule ~> Equals |
+      ComparisonOperator.Ne ~ LowPrecMathRule ~> NotEquals |
+      ComparisonOperator.Gt ~ LowPrecMathRule ~> GreaterThan |
+      ComparisonOperator.Lt ~ LowPrecMathRule ~> LessThan |
+      ComparisonOperator.Ge ~ LowPrecMathRule ~> GreaterThanOrEqual |
+      ComparisonOperator.Le ~ LowPrecMathRule ~> LessThanOrEqual) |
+      LikeRule
+  }
+
+  def LikeRule = rule {
+    FieldValue ~ ignoreCase(ComparisonOperator.Like) ~ SkipWS ~ StringValue ~> Like
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -257,6 +262,7 @@ class QueryParser(val input: ParserInput) extends Parser {
     val Lt = "<"
     val Ge = ">="
     val Le = "<="
+    val Like = "like"
   }
 
   def ComparisonOperators = rule { ComparisonOperator.Eq | ComparisonOperator.Ne | ComparisonOperator.Gt | ComparisonOperator.Lt | ComparisonOperator.Ge | ComparisonOperator.Le }

@@ -136,6 +136,11 @@ class SelectStatementSpec
         QueryParser("true >= bar").ConditionalRule.run().get shouldBe
           GreaterThanOrEqual(BooleanTerm(true), FieldTerm(PropertyPathElement("bar")))
       }
+      
+      "Correctly parse a like expression" in {
+        QueryParser("test like 'test'").ConditionalRule.run().get shouldBe
+          Like(FieldTerm(PropertyPathElement("test")), StringTerm("test"))
+      }
     }
 
     "parsing a property path" must {

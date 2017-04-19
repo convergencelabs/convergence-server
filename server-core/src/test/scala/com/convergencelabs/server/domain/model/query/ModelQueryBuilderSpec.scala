@@ -133,7 +133,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
     }
     "given a Like where clause" must {
       "return correct ModelQueryParameters" in {
-        val select = SelectStatement(List(), "myCollection", Some(Like(FieldTerm(PropertyPathElement("name")), "Ali%")), List(), None, None)
+        val select = SelectStatement(List(), "myCollection", Some(Like(FieldTerm(PropertyPathElement("name")), StringTerm("Ali%"))), List(), None, None)
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters(
             "SELECT FROM Model WHERE collection.id = :p0 and (data.children[`name`].value like :p1)",
