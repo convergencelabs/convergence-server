@@ -28,16 +28,17 @@ object QueryUtil extends Logging {
   }
 
   def getRidFromIndex(indexName: String, key: Any, db: ODatabaseDocumentTx): Try[ORID] = {
-    val index = db.getMetadata.getIndexManager.getIndex(indexName).asInstanceOf[OIndex[OIdentifiable]]
     Try {
-      val oid: OIdentifiable = index.get(key)
-      Option(oid) match {
-        case Some(o) =>
-          o.getIdentity
-        case None =>
-          throw new EntityNotFoundException
+      getOptionalRidFromIndex(indexName, key, db).getOrElse {
+        throw new EntityNotFoundException
       }
     }
+  }
+
+  def getOptionalRidFromIndex(indexName: String, key: Any, db: ODatabaseDocumentTx): Option[ORID] = {
+    val index = db.getMetadata.getIndexManager.getIndex(indexName).asInstanceOf[OIndex[OIdentifiable]]
+    val oid: OIdentifiable = index.get(key)
+    Option(oid) map { o => o.getIdentity }
   }
 
   def query(q: String, p: Map[String, Any], db: ODatabaseDocumentTx): List[ODocument] = {
