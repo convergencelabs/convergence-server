@@ -66,6 +66,14 @@ class ModelPermissionsStoreSpec
       "fail if model does not exist" in withTestData { provider =>
         an[IllegalStateException] should be thrownBy provider.modelPermissionsStore.getAllModelUserPermissions(nonRealId).get
       }
+      
+      "contain all those just set via update all" in withTestData { provider =>
+        val permissions = ModelPermissions(true, false, true, false)
+        provider.modelPermissionsStore.updateAllModelUserPermissions(model1, Map(model1 -> Some(permissions))).get
+        provider.modelPermissionsStore.updateAllModelUserPermissions(model1, Map(model2 -> Some(permissions))).get
+        val retrievedPermissions = provider.modelPermissionsStore.getAllModelUserPermissions(model1).get
+        retrievedPermissions shouldEqual Map(model1 -> permissions, model2 -> permissions)
+      }
     }
 
     "deleting a model user permissions" must {
