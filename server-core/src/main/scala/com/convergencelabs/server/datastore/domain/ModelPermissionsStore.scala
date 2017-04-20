@@ -35,6 +35,7 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.datastore.EntityNotFoundException
 
 case class ModelPermissions(read: Boolean, write: Boolean, remove: Boolean, manage: Boolean)
 case class CollectionPermissions(create: Boolean, read: Boolean, write: Boolean, remove: Boolean, manage: Boolean)
@@ -177,7 +178,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     val result = QueryUtil.lookupMandatoryDocument(queryString, params, db)
     result.map { docToCollectionWorldPermissions(_) }.get
   }
-  
+
   def getCollectionWorldPermissionsForModel(modelId: String): Try[CollectionPermissions] = tryWithDb { db =>
     val modelDoc = this.getModelRid(modelId).get.getRecord.asInstanceOf[ODocument]
     val collectionDoc = modelDoc.field("collection", OType.LINK).asInstanceOf[ODocument];
@@ -385,12 +386,9 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
       case (username, permissions) =>
         val userRID = DomainUserStore.getUserRid(username, db).get
         val key = new OCompositeKey(List(userRID, modelRID).asJava)
-        val modelPermissionRID = getModelUserPermissionsRid(id, username)
+        val modelPermissionRID =
 
-        // FIXME we probably need some other method that returns an option.
-        // This is not as clean using a try.
-        modelPermissionRID match {
-          case Success(rid) =>
+          getModelUserPermissionsRid(id, username) map { rid =>
             val modelPermissionRecord = rid.getRecord[ODocument]
             permissions match {
               case Some(permissions) =>
@@ -398,17 +396,18 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
                 modelPermissionRecord.save()
               case None => modelPermissionRecord.delete()
             }
-          case Failure(e) =>
-            permissions match {
-              case Some(permissions) =>
-                val modelPermissionsDoc = db.newInstance(ModelUserPermissionsClass)
-                modelPermissionsDoc.field(Fields.Model, modelRID)
-                modelPermissionsDoc.field(Fields.User, userRID)
-                modelPermissionsDoc.field(Fields.Permissions, modelPermissionToDoc(permissions))
-                modelPermissionsDoc.save()
-              case None => Failure(e)
-            }
-        }
+          } recover {
+            case e: EntityNotFoundException =>
+              permissions match {
+                case Some(permissions) =>
+                  val modelPermissionsDoc = db.newInstance(ModelUserPermissionsClass)
+                  modelPermissionsDoc.field(Fields.Model, modelRID)
+                  modelPermissionsDoc.field(Fields.User, userRID)
+                  modelPermissionsDoc.field(Fields.Permissions, modelPermissionToDoc(permissions))
+                  modelPermissionsDoc.save()
+                case None => Failure(e)
+              }
+          }
     }
 
     val queryString =
