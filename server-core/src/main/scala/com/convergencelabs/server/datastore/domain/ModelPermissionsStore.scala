@@ -409,12 +409,12 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
               }
           }
     }
-
+    
     val queryString =
       """update Model 
           |  set userPermissions = (select from ModelUserPermissions 
           |                                 where model.id = :modelId) 
-          |  where id = :modelId and collection.id = :collectionId""".stripMargin
+          |  where id = :modelId""".stripMargin
 
     val command = new OCommandSQL(queryString)
     val params = Map("modelId" -> id)
