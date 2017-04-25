@@ -516,7 +516,7 @@ class RealtimeModelActor(
    * Determines if there are no more clients connected and if so request to shutdown.
    */
   private[this] def checkForConnectionsAndClose(): Unit = {
-    if (connectedClients.isEmpty || queuedOpeningClients.isEmpty) {
+    if (connectedClients.isEmpty && queuedOpeningClients.isEmpty) {
       log.debug("All clients closed the model, requesting shutdown")
       modelManagerActor ! new ModelShutdownRequest(this.modelId)
     }
