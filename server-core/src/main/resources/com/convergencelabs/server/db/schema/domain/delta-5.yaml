@@ -83,7 +83,7 @@ changes:
     name: ChatUserRemoved
     superclass: ChatChannelEvent
     properties:
-      - {name: userAdded, type: Link, linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: userRemoved, type: Link, linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
 
 ########## ChatNameChanged Class ##########
 
