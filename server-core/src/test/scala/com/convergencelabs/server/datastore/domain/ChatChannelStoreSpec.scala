@@ -27,24 +27,25 @@ class ChatChannelStoreSpec
   "A ChatChannelStore" when {
     "creating a chat channel" must {
       "return the id if provided" in withTestData { provider =>
-        val id = provider.chatChannelStore.createChatChannel(Some(channel1Id), ChannelType.Direct, "", "").get
+        val id = provider.chatChannelStore.createChatChannel(Some(channel1Id), ChannelType.Direct, false, "", "").get
         id shouldEqual channel1Id
       }
 
       "return a generated id if none is provided" in withTestData { provider =>
-        val id = provider.chatChannelStore.createChatChannel(None, ChannelType.Direct, "", "").get
+        val id = provider.chatChannelStore.createChatChannel(None, ChannelType.Direct, false, "", "").get
         id shouldEqual firstId          
       }
       
       "throw exception if id is duplicate" in withTestData { provider =>
-        provider.chatChannelStore.createChatChannel(Some(channel1Id), ChannelType.Direct, "", "").get
-        an[ORecordDuplicatedException] should be thrownBy provider.chatChannelStore.createChatChannel(Some(channel1Id), ChannelType.Direct, "", "").get   
+        provider.chatChannelStore.createChatChannel(Some(channel1Id), ChannelType.Direct, false, "", "").get
+        an[ORecordDuplicatedException] should be thrownBy provider.chatChannelStore.createChatChannel(
+            Some(channel1Id), ChannelType.Direct, false, "", "").get   
       }
     }
     
     "getting a chat channel" must {
       "return chat channel for valid id" in withTestData { provider =>
-        val id = provider.chatChannelStore.createChatChannel(Some(channel1Id), ChannelType.Direct, "testName", "testTopic").get
+        val id = provider.chatChannelStore.createChatChannel(Some(channel1Id), ChannelType.Direct, false, "testName", "testTopic").get
         val chatChannel = provider.chatChannelStore.getChatChannel(id).get
         chatChannel.id shouldEqual id
         chatChannel.name shouldEqual "testName"

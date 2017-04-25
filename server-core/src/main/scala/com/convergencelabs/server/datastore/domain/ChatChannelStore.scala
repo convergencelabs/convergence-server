@@ -34,6 +34,7 @@ case class ChatChannel(
   id: String,
   channelType: String,
   created: Instant,
+  isPrivate: Boolean,
   name: String,
   topic: String)
 
@@ -94,12 +95,12 @@ object ChatChannelStore {
     val ChatChannel = "ChatChannel"
     val ChatChannelEvent = "ChatChannelEvent"
     val ChatMessageEvent = "ChatMessageEvent"
-    val ChatUserJoinedEvent = "ChatUserJoined"
-    val ChatUserLeftEvent = "ChatUserLeft"
-    val ChatUserAddedEvent = "ChatUserAdded"
-    val ChatUserRemovedEvent = "ChatUserRemoved"
-    val ChatNameChangedEvent = "ChatNameChanged"
-    val ChatTopicChangedEvent = "ChatTopicChanged"
+    val ChatUserJoinedEvent = "ChatUserJoinedEvent"
+    val ChatUserLeftEvent = "ChatUserLeftEvent"
+    val ChatUserAddedEvent = "ChatUserAddedEvent"
+    val ChatUserRemovedEvent = "ChatUserRemovedEvent"
+    val ChatNameChangedEvent = "ChatNameChangedEvent"
+    val ChatTopicChangedEvent = "ChatTopicChangedEvent"
     val ChatChannelMember = "ChatChannelMember"
   }
 
@@ -132,6 +133,7 @@ object ChatChannelStore {
     val Id = "id"
     val Type = "type"
     val Created = "created"
+    val Private = "private"
     val Name = "name"
     val Topic = "topic"
     val Members = "members"
@@ -157,6 +159,7 @@ object ChatChannelStore {
       doc.field(Fields.Id),
       doc.field(Fields.Type),
       created.toInstant(),
+      doc.field(Fields.Private),
       doc.field(Fields.Name),
       doc.field(Fields.Topic))
   }
@@ -166,6 +169,7 @@ object ChatChannelStore {
     doc.field(Fields.Id, chatChannel.id)
     doc.field(Fields.Type, chatChannel.channelType)
     doc.field(Fields.Created, Date.from(chatChannel.created))
+    doc.field(Fields.Private, chatChannel.isPrivate)
     doc.field(Fields.Name, chatChannel.name)
     doc.field(Fields.Topic, chatChannel.topic)
     doc.field(Fields.Members, new HashSet[ORID]())
@@ -213,11 +217,12 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
     }.get
   }
 
-  def createChatChannel(id: Option[String], channelType: ChannelType.Value, name: String, topic: String): Try[String] = tryWithDb { db =>
+  def createChatChannel(id: Option[String], channelType: ChannelType.Value, isPrivate: Boolean, name: String, topic: String): Try[String] = tryWithDb { db =>
     val channelId = id.getOrElse {
       "#" + db.getMetadata.getSequenceLibrary.getSequence(Sequences.ChatChannelId).next()
     }
-    val doc = chatChannelToDoc(ChatChannel(channelId, channelTypeString(channelType), Instant.now(), name, topic))
+    val doc = chatChannelToDoc(
+        ChatChannel(channelId, channelTypeString(channelType), Instant.now(), isPrivate, name, topic))
     db.save(doc)
     channelId
   }
