@@ -113,12 +113,60 @@ object MessageType extends Enumeration {
   val PresenceUnsubscribe = 411
   
   // Chat
-  val JoinRoomRequest = 500
-  val JoinRoomResponse = 501
-  val LeaveRoom = 502
-  val PublishChatMessage = 503
+  val CreateChatChannelRequest = 500
+  val CreateChatChannelResponse = 501
 
-  val UserJoinedRoom = 504
-  val UserLeftRoom = 505
-  val ChatMessagePublished = 506
+  val RemoveChatChannelRequest = 502
+  val RemoveChatChannelResponse = 503
+  val ChatChannelRemoved = 504
+
+  val GetChatChannelsRequest = 505
+  val GetChatChannelsResponse = 506
+
+  val GetDirectChatChannelsRequest = 507
+  val GetDirectChatChannelsResponse = 508
+
+  val GetJoinedChatChannelsRequest = 509
+  val GetJoinedChatChannelsResponse = 510
+
+  val SearchChatChannelsRequest = 511
+  val SearchChatChannelsResponse = 512
+
+  val JoinChatChannelRequest = 513
+  val JoinChatChannelResponse = 514
+  val UserJoinedChatChannel = 515
+
+  val LeaveChatChannelRequest = 516
+  val LeaveChatChannelResponse = 517
+  val UserLeftChatChannel = 518
+
+  val AddUserToChatChannelRequest = 519
+  val AddUserToChatChannelResponse = 520
+  val UserAddedToChatChannel = 521
+
+  val RemoveUserFromChatChannelRequest = 522
+  val RemoveUserFromChatChannelResponse = 523
+  val UserRemovedFromChatChannel = 524
+
+  val ChatChannelJoined = 525
+  val ChatChannelLeft = 526
+
+  val SetChatChannelNameRequest = 527
+  val SetChatChannelNameResponse = 528
+  val ChatChannelNameChanged = 529
+
+  val SetChatChannelTopicRequest = 530
+  val SetChatChannelTopicResponse = 531
+  val ChatChannelTopicChanged = 532
+
+  val MarkChatChannelEventsSeenRequest = 533
+  val MarkChatChannelEventsSeenResponse = 534
+  val ChatChannelEventsMarkedSeen = 535
+
+  val PublishChatMessageRequest = 536
+  val PublishChatMessageResponse = 537
+  val RemoteChatMessage = 538
+
+  val GetChatChannelHistoryRequest = 539
+  val GetChatChannelHistoryResponse = 540
 }

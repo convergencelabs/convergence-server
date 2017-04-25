@@ -67,7 +67,6 @@ case class AnonymousAuthRequestMessage(d: Option[String]) extends Authentication
 
 case class AuthenticationResponseMessage(s: Boolean, n: Option[String], e: Option[String], p: Option[Map[String, Any]]) extends OutgoingProtocolResponseMessage
 
-
 ///////////////////////////////////////////////////////////////////////////////
 // Model Messages
 ///////////////////////////////////////////////////////////////////////////////
@@ -79,22 +78,21 @@ sealed trait IncomingModelRequestMessage extends IncomingProtocolRequestMessage
 case class OpenRealtimeModelRequestMessage(m: Option[String], a: Option[Integer]) extends IncomingModelRequestMessage
 case class CloseRealtimeModelRequestMessage(r: String) extends IncomingModelRequestMessage
 case class CreateRealtimeModelRequestMessage(
-    c: String,
-    m: Option[String],
-    d: ObjectValue,
-    v: Option[Boolean],
-    w: Option[ModelPermissionsData],
-    u: Option[Map[String, ModelPermissionsData]]) extends IncomingModelRequestMessage
+  c: String,
+  m: Option[String],
+  d: ObjectValue,
+  v: Option[Boolean],
+  w: Option[ModelPermissionsData],
+  u: Option[Map[String, ModelPermissionsData]]) extends IncomingModelRequestMessage
 case class DeleteRealtimeModelRequestMessage(m: String) extends IncomingModelRequestMessage
 
 case class GetModelPermissionsRequestMessage(m: String) extends IncomingModelRequestMessage
 case class SetModelPermissionsRequestMessage(
-    m: String,
-    s: Option[Boolean],
-    w: Option[ModelPermissionsData],
-    a: Boolean,
-    u: Map[String, Option[ModelPermissionsData]]
-    ) extends IncomingModelRequestMessage
+  m: String,
+  s: Option[Boolean],
+  w: Option[ModelPermissionsData],
+  a: Boolean,
+  u: Map[String, Option[ModelPermissionsData]]) extends IncomingModelRequestMessage
 
 case class ModelsQueryRequestMessage(q: String) extends IncomingModelRequestMessage
 
@@ -146,7 +144,6 @@ case class HistoricalOperationRequestMessage(m: String, f: Long, l: Long) extend
 
 case class HistoricalDataResponseMessage(i: String, d: ObjectValue, v: Long, c: Long, m: Long) extends OutgoingProtocolResponseMessage
 case class HistoricalOperationsResponseMessage(o: List[ModelOperationData]) extends OutgoingProtocolResponseMessage
-
 
 ///////////////////////////////////////////////////////////////////////////////
 // User Messages
@@ -204,16 +201,95 @@ case class PresenceStateRemovedMessage(u: String, k: List[String]) extends Outgo
 case class PresenceStateClearedMessage(u: String) extends OutgoingProtocolNormalMessage
 case class PresenceAvailabilityChangedMessage(u: String, a: Boolean) extends OutgoingProtocolNormalMessage
 
+///////////////////////////////////////////////////////////////////////////////
+// Chat Messages
+///////////////////////////////////////////////////////////////////////////////
+
 sealed trait IncomingChatMessage
 sealed trait IncomingChatRequestMessage extends IncomingChatMessage with IncomingProtocolRequestMessage
-case class JoinChatRoomRequestMessage(r: String) extends IncomingChatRequestMessage
-
-case class JoinChatRoomResponseMessage(p: List[String], c: Long, l: Long) extends OutgoingProtocolResponseMessage
-
 sealed trait IncomingChatNormalMessage extends IncomingChatMessage with IncomingProtocolNormalMessage
-case class LeftChatRoomMessage(r: String) extends IncomingChatNormalMessage
-case class PublishedChatMessage(r: String, m: String) extends IncomingChatNormalMessage
 
-case class UserJoinedRoomMessage(r: String, u: String, s: String, p: Long) extends OutgoingProtocolNormalMessage
-case class UserLeftRoomMessage(r: String, u: String, s: String, p: Long) extends OutgoingProtocolNormalMessage
-case class UserChatMessage(r: String, u: String, s: String, m: String, p: Long) extends OutgoingProtocolNormalMessage
+// Messages
+case class PublishChatRequestMessage(i: String, m: String) extends IncomingChatRequestMessage
+case class PublishChatResponseMessage() extends OutgoingProtocolResponseMessage
+
+case class RemoteChatMessage(i: String, e: Long, p: Long, s: String, m: String) extends OutgoingProtocolNormalMessage
+
+// Create
+case class CreateChatChannelRequestMessage(i: Option[String], e: String, n: Option[String], c: Option[String],
+  p: Option[Boolean], m: Option[List[String]]) extends IncomingChatRequestMessage
+case class CreateChatChannelResponseMessage(i: String) extends OutgoingProtocolResponseMessage
+
+// Remove
+case class RemoveChatChannelRequestMessage(i: String) extends IncomingChatRequestMessage
+case class RemoveChatChannelResponseMessage() extends OutgoingProtocolResponseMessage
+case class ChatChannelRemovedMessage(i: String) extends OutgoingProtocolNormalMessage
+
+// Join / Add
+case class JoinChatChannelRequestMessage(i: String) extends IncomingChatRequestMessage
+case class JoinChatChannelResponseMessage() extends OutgoingProtocolResponseMessage
+case class UserJoinedChatChannelMessage(i: String, n: Long, p: Long, u: String) extends OutgoingProtocolNormalMessage
+
+case class AddUserToChatChannelRequestMessage(i: String, u: String) extends IncomingChatRequestMessage
+case class AddUserToChatChannelResponseMessage() extends OutgoingProtocolResponseMessage
+case class UserAddedToChatChannelMessage(i: String, n: Long, p: Long, u: String, b: String) extends OutgoingProtocolNormalMessage
+
+case class ChatChannelJoinedMessage(i: String) extends OutgoingProtocolNormalMessage
+
+// Leave / Remove
+case class LeaveChatChannelRequestMessage(i: String) extends IncomingChatRequestMessage
+case class LeaveChatChannelResponseMessage() extends OutgoingProtocolResponseMessage
+case class UserLeftChatChannelMessage(i: String, n: Long, p: Long, u: String) extends OutgoingProtocolNormalMessage
+
+case class RemoveUserFromChatChannelRequestMessage(i: String, u: String) extends IncomingChatRequestMessage
+case class RemoveUserFromChatChannelResponseMessage() extends OutgoingProtocolResponseMessage
+case class UserRemovedFromChatChannelMessage(i: String, n: Long, p: Long, u: String, b: String) extends OutgoingProtocolNormalMessage
+
+case class ChatChannelLeftMessage(i: String) extends OutgoingProtocolNormalMessage
+
+// Set Name
+case class SetChatChannelNameRequestMessage(i: String, n: String) extends IncomingChatRequestMessage
+case class SetChatChannelNameResponseMessage() extends OutgoingProtocolResponseMessage
+case class ChatChannelNameSetMessage(i: String, n: String) extends OutgoingProtocolNormalMessage
+
+// Set Topic
+case class SetChatChannelTopicRequestMessage(i: String, c: String) extends IncomingChatRequestMessage
+case class SetChatChannelTopicResponseMessage() extends OutgoingProtocolResponseMessage
+case class ChatChannelTopicSetMessage(i: String, c: String) extends OutgoingProtocolNormalMessage
+
+// Set Seen
+case class MarkChatChannelEventsSeenRequestMessage(i: String, e: Long) extends IncomingChatRequestMessage
+case class MarkChatChannelEventsSeenResponseMessage() extends OutgoingProtocolResponseMessage
+case class ChatChannelEventsMarkedSeenMessage(i: String, e: Long) extends OutgoingProtocolNormalMessage
+
+// Get, History, and Search
+case class GetJoinedChatChannelsRequestMessage() extends IncomingChatRequestMessage
+case class GetJoinedChatChannelsResponseMessage(c: List[ChatChannelInfoData]) extends OutgoingProtocolResponseMessage
+
+case class GetChatChannelsRequestMessage(i: List[String]) extends IncomingChatRequestMessage
+case class GetChatChannelsResponseMessage(c: List[ChatChannelInfoData]) extends OutgoingProtocolResponseMessage
+
+case class GetDirectChannelsRequestMessage(u: List[String]) extends IncomingChatRequestMessage
+case class GetDirectChannelsResponseMessage(c: List[ChatChannelInfoData]) extends OutgoingProtocolResponseMessage
+
+case class ChatChannelHistoryRequestMessage(i: String, l: Option[Int], o: Option[Int], f: Option[Boolean], e: List[String]) extends IncomingChatRequestMessage
+case class ChatChannelHistoryResponseMessage(e: List[ChatHistoryEventData]) extends OutgoingProtocolResponseMessage
+ 
+case class ChatChannelInfoData(
+  i: String,
+  p: String,
+  cm: String,
+  n: String,
+  o: String,
+  c: Long,
+  l: Long,
+  ec: Long,
+  uc: Long,
+  m: List[String])
+
+trait ChatHistoryEventData {
+  val e: String
+  val n: Int
+  val p: Long
+  val u: String
+}
