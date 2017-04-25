@@ -38,12 +38,10 @@ class ChatClientActor(chatServiceActor: ActorRef, sk: SessionKey) extends Actor 
     case RequestReceived(message, replyPromise) if message.isInstanceOf[IncomingChatRequestMessage] =>
       onRequestReceived(message.asInstanceOf[IncomingChatRequestMessage], replyPromise)
 
-    case UserJoined(roomId, sk, timestamp) =>
-      context.parent ! UserJoinedRoomMessage(roomId, sk.uid, sk.serialize(), timestamp)
-    case UserLeft(roomId, sk, timestamp) =>
-      context.parent ! UserLeftRoomMessage(roomId, sk.uid, sk.serialize(), timestamp)
-    case UserMessage(roomId, sk, message, timestamp) =>
-      context.parent ! UserChatMessage(roomId, sk.uid, sk.serialize(), message, timestamp)
+    case UserMessage(channelId, sk, message, timestamp) =>
+      val eventNo = 0L // FIXME
+      context.parent ! RemoteChatMessage(channelId, eventNo, timestamp, sk.serialize(), message)
+    // FIXME handle outgoing messages
 
     case x: Any => unhandled(x)
   }
@@ -53,36 +51,110 @@ class ChatClientActor(chatServiceActor: ActorRef, sk: SessionKey) extends Actor 
   //
 
   def onMessageReceived(message: IncomingChatNormalMessage): Unit = {
-    message match {
-      case LeftChatRoomMessage(roomId) =>
-        onLeft(roomId)
-      case PublishedChatMessage(roomId, message) =>
-        onChatMessage(roomId, message)
-    }
+    // FISME
+    ???
   }
 
   def onRequestReceived(message: IncomingChatRequestMessage, replyCallback: ReplyCallback): Unit = {
     message match {
-      case JoinChatRoomRequestMessage(roomId) => onJoined(roomId, replyCallback)
+      case message: CreateChatChannelRequestMessage =>
+        onCreateChannel(message)
+      case message: RemoveChatChannelRequestMessage =>
+        onRemoveChannel(message)
+      case message: JoinChatChannelRequestMessage =>
+        onJoinChannel(message)
+      case message: LeaveChatChannelRequestMessage =>
+        onLeaveChannel(message)
+      case message: AddUserToChatChannelRequestMessage =>
+        onAddUserToChannel(message)
+      case message: RemoveUserFromChatChannelRequestMessage =>
+        onRemoveUserFromChannel(message)
+      case message: SetChatChannelNameRequestMessage =>
+        onSetChatChannelName(message)
+      case message: SetChatChannelTopicRequestMessage =>
+        onSetChatChannelTopic(message)
+      case message: MarkChatChannelEventsSeenRequestMessage =>
+        onMarkEventsSeen(message)
+      case message: GetChatChannelsRequestMessage =>
+        onGetChannels(message)
+      case message: GetJoinedChatChannelsRequestMessage =>
+        onGetJoinedChannels()
+      case message: GetDirectChannelsRequestMessage =>
+        onGetDirect(message)
+      case message: ChatChannelHistoryRequestMessage =>
+        onGetHistory(message)
+      case message: PublishChatRequestMessage =>
+        onPublishMessage(message)
     }
   }
 
-  def onJoined(roomId: String, cb: ReplyCallback): Unit = {
-    val future = this.chatServiceActor ? JoinRoomRequest(self, roomId, sk)
-
-    future.mapResponse[JoinRoomResponse] onComplete {
-      case Success(JoinRoomResponse(members, count, lastMessage)) =>
-        cb.reply(JoinChatRoomResponseMessage(members.map { _.serialize() }, count, lastMessage))
-      case Failure(cause) =>
-        cb.unexpectedError("could not join activity")
-    }
+  def onCreateChannel(message: CreateChatChannelRequestMessage): Unit = {
+    val CreateChatChannelRequestMessage(channelId, channelType, name, topic, privateChannel, members) = message;
+    ???
   }
 
-  def onLeft(roomId: String): Unit = {
-    this.chatServiceActor ! LeaveRoom(self, roomId)
+  def onRemoveChannel(message: RemoveChatChannelRequestMessage): Unit = {
+    val RemoveChatChannelRequestMessage(channelId) = message;
+    ???
   }
 
-  def onChatMessage(roomId: String, message: String): Unit = {
-    this.chatServiceActor ! SendMessage(self, roomId, message)
+  def onJoinChannel(message: JoinChatChannelRequestMessage): Unit = {
+    val JoinChatChannelRequestMessage(channelId) = message;
+    ???
   }
+
+  def onLeaveChannel(message: LeaveChatChannelRequestMessage): Unit = {
+    val LeaveChatChannelRequestMessage(channelId) = message;
+    ???
+  }
+
+  def onAddUserToChannel(message: AddUserToChatChannelRequestMessage): Unit = {
+    val AddUserToChatChannelRequestMessage(channelId, username) = message;
+    ???
+  }
+
+  def onRemoveUserFromChannel(message: RemoveUserFromChatChannelRequestMessage): Unit = {
+    val RemoveUserFromChatChannelRequestMessage(channelId, username) = message;
+    ???
+  }
+
+  def onSetChatChannelName(message: SetChatChannelNameRequestMessage): Unit = {
+    val SetChatChannelNameRequestMessage(channelId, name) = message;
+    ???
+  }
+
+  def onSetChatChannelTopic(message: SetChatChannelTopicRequestMessage): Unit = {
+    val SetChatChannelTopicRequestMessage(channelId, topic) = message;
+    ???
+  }
+
+  def onMarkEventsSeen(message: MarkChatChannelEventsSeenRequestMessage): Unit = {
+    val MarkChatChannelEventsSeenRequestMessage(channelId, eventNumber) = message;
+    ???
+  }
+
+  def onGetChannels(message: GetChatChannelsRequestMessage): Unit = {
+    val GetChatChannelsRequestMessage(ids) = message;
+    ???
+  }
+
+  def onGetDirect(message: GetDirectChannelsRequestMessage): Unit = {
+    val GetDirectChannelsRequestMessage(usernames) = message;
+    ???
+  }
+
+  def onGetJoinedChannels(): Unit = {
+    ???
+  }
+
+  def onGetHistory(message: ChatChannelHistoryRequestMessage): Unit = {
+    val ChatChannelHistoryRequestMessage(channleId, limit, offset, forward, events) = message;
+    ???
+  }
+
+  def onPublishMessage(message: PublishChatRequestMessage): Unit = {
+    val PublishChatRequestMessage(channeId, msg) = message;
+    ???
+  }
+
 }

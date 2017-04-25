@@ -88,12 +88,20 @@ object MessageSerializer {
     MessageType.ReferenceUnpublished -> classOf[RemoteReferenceUnpublishedMessage],
     MessageType.ReferenceSet -> classOf[RemoteReferenceSetMessage],
     MessageType.ReferenceCleared -> classOf[RemoteReferenceClearedMessage],
-    
+
     MessageType.GetModelPermissionsRequest -> classOf[GetModelPermissionsRequestMessage],
     MessageType.GetModelPermissionsResponse -> classOf[GetModelPermissionsResponseMessage],
     MessageType.SetModelPermissionsRequest -> classOf[SetModelPermissionsRequestMessage],
     MessageType.SetModelPermissionsResponse -> classOf[SetModelPermissionsResponseMessage],
     MessageType.ModelPermissionsChanged -> classOf[ModelPermissionsChangedMessage],
+
+    MessageType.ModelsQueryRequest -> classOf[ModelsQueryRequestMessage],
+    MessageType.ModelsQueryResponse -> classOf[ModelsQueryResponseMessage],
+
+    MessageType.HistoricalDataRequest -> classOf[HistoricalDataRequestMessage],
+    MessageType.HistoricalDataResponse -> classOf[HistoricalDataResponseMessage],
+    MessageType.HistoricalOperationsRequest -> classOf[HistoricalOperationRequestMessage],
+    MessageType.HistoricalOperationsResponse -> classOf[HistoricalOperationsResponseMessage],
 
     MessageType.UserLookUpRequest -> classOf[UserLookUpMessage],
     MessageType.UserSearchRequest -> classOf[UserSearchMessage],
@@ -123,21 +131,54 @@ object MessageSerializer {
     MessageType.PresenceSubscribeResponse -> classOf[SubscribePresenceResponseMessage],
     MessageType.PresenceUnsubscribe -> classOf[UnsubscribePresenceMessage],
 
-    MessageType.JoinRoomRequest -> classOf[JoinChatRoomRequestMessage],
-    MessageType.JoinRoomResponse -> classOf[JoinChatRoomResponseMessage],
-    MessageType.LeaveRoom -> classOf[LeftChatRoomMessage],
-    MessageType.PublishChatMessage -> classOf[PublishedChatMessage],
-    MessageType.UserJoinedRoom -> classOf[UserJoinedRoomMessage],
-    MessageType.UserLeftRoom -> classOf[UserLeftRoomMessage],
-    MessageType.ChatMessagePublished -> classOf[UserChatMessage],
+    MessageType.CreateChatChannelRequest -> classOf[CreateChatChannelRequestMessage],
+    MessageType.CreateChatChannelResponse -> classOf[CreateChatChannelResponseMessage],
+    MessageType.RemoveChatChannelRequest -> classOf[RemoveChatChannelRequestMessage],
+    MessageType.RemoveChatChannelResponse -> classOf[RemoveChatChannelResponseMessage],
 
-    MessageType.ModelsQueryRequest -> classOf[ModelsQueryRequestMessage],
-    MessageType.ModelsQueryResponse -> classOf[ModelsQueryResponseMessage],
+    MessageType.JoinChatChannelRequest -> classOf[JoinChatChannelRequestMessage],
+    MessageType.JoinChatChannelResponse -> classOf[JoinChatChannelResponseMessage],
+    MessageType.UserJoinedChatChannel -> classOf[UserJoinedChatChannelMessage],
 
-    MessageType.HistoricalDataRequest -> classOf[HistoricalDataRequestMessage],
-    MessageType.HistoricalDataResponse -> classOf[HistoricalDataResponseMessage],
-    MessageType.HistoricalOperationsRequest -> classOf[HistoricalOperationRequestMessage],
-    MessageType.HistoricalOperationsResponse -> classOf[HistoricalOperationsResponseMessage]),
+    MessageType.LeaveChatChannelRequest -> classOf[LeaveChatChannelRequestMessage],
+    MessageType.LeaveChatChannelResponse -> classOf[LeaveChatChannelResponseMessage],
+    MessageType.UserLeftChatChannel -> classOf[UserLeftChatChannelMessage],
+
+    MessageType.AddUserToChatChannelRequest -> classOf[AddUserToChatChannelRequestMessage],
+    MessageType.AddUserToChatChannelResponse -> classOf[AddUserToChatChannelResponseMessage],
+    MessageType.UserAddedToChatChannel -> classOf[UserAddedToChatChannelMessage],
+
+    MessageType.RemoveUserFromChatChannelRequest -> classOf[RemoveUserFromChatChannelRequestMessage],
+    MessageType.RemoveUserFromChatChannelResponse -> classOf[RemoveUserFromChatChannelResponseMessage],
+    MessageType.UserRemovedFromChatChannel -> classOf[UserRemovedFromChatChannelMessage],
+
+    MessageType.PublishChatMessageRequest -> classOf[PublishChatRequestMessage],
+    MessageType.PublishChatMessageResponse -> classOf[PublishChatResponseMessage],
+    MessageType.RemoteChatMessage -> classOf[RemoteChatMessage],
+
+    MessageType.SetChatChannelNameRequest -> classOf[SetChatChannelNameRequestMessage],
+    MessageType.SetChatChannelNameResponse -> classOf[SetChatChannelNameResponseMessage],
+    MessageType.ChatChannelNameChanged -> classOf[ChatChannelNameSetMessage],
+
+    MessageType.SetChatChannelTopicRequest -> classOf[SetChatChannelTopicRequestMessage],
+    MessageType.SetChatChannelTopicResponse -> classOf[SetChatChannelTopicResponseMessage],
+    MessageType.ChatChannelTopicChanged -> classOf[ChatChannelTopicSetMessage],
+
+    MessageType.MarkChatChannelEventsSeenRequest -> classOf[MarkChatChannelEventsSeenRequestMessage],
+    MessageType.MarkChatChannelEventsSeenResponse -> classOf[MarkChatChannelEventsSeenResponseMessage],
+    MessageType.ChatChannelEventsMarkedSeen -> classOf[ChatChannelEventsMarkedSeenMessage],
+
+    MessageType.GetJoinedChatChannelsRequest -> classOf[GetJoinedChatChannelsRequestMessage],
+    MessageType.GetJoinedChatChannelsResponse -> classOf[GetJoinedChatChannelsResponseMessage],
+
+    MessageType.GetChatChannelsRequest -> classOf[GetChatChannelsRequestMessage],
+    MessageType.GetChatChannelsResponse -> classOf[GetChatChannelsResponseMessage],
+
+    MessageType.GetDirectChatChannelsRequest -> classOf[GetDirectChannelsRequestMessage],
+    MessageType.GetDirectChatChannelsResponse -> classOf[GetDirectChannelsResponseMessage],
+    
+    MessageType.GetChatChannelHistoryRequest -> classOf[ChatChannelHistoryRequestMessage],
+    MessageType.GetChatChannelHistoryResponse -> classOf[ChatChannelHistoryResponseMessage]),
 
     DefaultFormats.withTypeHintFieldName("?") + new OperationSerializer() + new AppliedOperationSerializer() + DataValueTypeHints + DataValueFieldSerializer + instantSerializer)
 
