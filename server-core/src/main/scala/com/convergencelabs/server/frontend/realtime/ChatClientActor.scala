@@ -139,7 +139,7 @@ class ChatClientActor(chatServiceActor: ActorRef, sk: SessionKey) extends Actor 
   }
 
   def onGetDirect(message: GetDirectChannelsRequestMessage): Unit = {
-    val GetDirectChannelsRequestMessage(usernames) = message;
+    val GetDirectChannelsRequestMessage(usernameLists) = message;
     ???
   }
 
