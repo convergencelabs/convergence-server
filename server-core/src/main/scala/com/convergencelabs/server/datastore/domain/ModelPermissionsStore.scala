@@ -191,6 +191,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     val permissionsDoc = collectionPermissionToDoc(permissions)
     collectionDoc.field(Fields.World, permissionsDoc, OType.EMBEDDED)
     collectionDoc.save()
+    ()
   }
 
   def getAllCollectionUserPermissions(collectionId: String): Try[Map[String, CollectionPermissions]] = tryWithDb { db =>
@@ -221,6 +222,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     val command = new OCommandSQL(queryString)
     val params = Map("collectionId" -> collectionId)
     db.command(command).execute(params.asJava)
+    ()
   }
 
   def updateAllCollectionUserPermissions(collectionId: String, userPermissions: Map[String, Option[CollectionPermissions]]): Try[Unit] = tryWithDb { db =>
@@ -330,6 +332,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
   def setOverrideCollectionPermissions(id: String, overridePermissions: Boolean): Try[Unit] = tryWithDb { db =>
     val modelDoc = getModelRid(id).get.getRecord[ODocument]
     modelDoc.field(Fields.OverridePermissions, overridePermissions).save()
+    ()
   }
 
   def getModelWorldPermissions(id: String): Try[ModelPermissions] = tryWithDb { db =>
@@ -347,6 +350,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     val permissionsDoc = modelPermissionToDoc(permissions)
     modelDoc.field(Fields.World, permissionsDoc, OType.EMBEDDED)
     modelDoc.save()
+    ()
   }
 
   def getAllModelUserPermissions(id: String): Try[Map[String, ModelPermissions]] = tryWithDb { db =>
@@ -377,6 +381,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     val command = new OCommandSQL(queryString)
     val params = Map("modelId" -> id)
     db.command(command).execute(params.asJava)
+    ()
   }
 
   def updateAllModelUserPermissions(id: String, userPermissions: Map[String, Option[ModelPermissions]]): Try[Unit] = tryWithDb { db =>
