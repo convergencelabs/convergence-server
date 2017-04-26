@@ -11,12 +11,12 @@ import akka.actor.Props
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator.Publish
 
-object ChatRelayActor {
+object ChatServiceActor {
 
   val RelativePath = "chatRelayService"
 
   def props(domainFqn: DomainFqn): Props = Props(
-    new ChatRelayActor(domainFqn))
+    new ChatServiceActor(domainFqn))
 
   // Incoming Messages
   case class CreateChannelRequest(channelId: Option[String], channelType: String, 
@@ -62,9 +62,9 @@ object ChatRelayActor {
   }
 }
 
-class ChatRelayActor private[domain] (domainFqn: DomainFqn) extends Actor with ActorLogging {
+class ChatServiceActor private[domain] (domainFqn: DomainFqn) extends Actor with ActorLogging {
 
-  import ChatRelayActor._
+  import ChatServiceActor._
 
   val mediator = DistributedPubSub(context.system).mediator
   
