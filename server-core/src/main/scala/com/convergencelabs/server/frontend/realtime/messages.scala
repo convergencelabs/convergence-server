@@ -213,7 +213,7 @@ sealed trait IncomingChatNormalMessage extends IncomingChatMessage with Incoming
 case class PublishChatRequestMessage(i: String, m: String) extends IncomingChatRequestMessage
 case class PublishChatResponseMessage() extends OutgoingProtocolResponseMessage
 
-case class RemoteChatMessage(i: String, e: Long, p: Long, s: String, m: String) extends OutgoingProtocolNormalMessage
+case class RemoteChatMessageMessage(i: String, e: Long, p: Long, s: String, m: String) extends OutgoingProtocolNormalMessage
     
 // Create
 case class CreateChatChannelRequestMessage(i: Option[String], e: String, s: String, n: Option[String], c: Option[String],

@@ -53,7 +53,7 @@ object ChatServiceActor {
   case class ChannelLeft(channelId: String, username: String)
   case class ChannelRemoved(channelId: String)
 
-  case class RemoteChatMessge(channelId: String, eventNumber: Long, timestamp: Instant, sk: SessionKey, message: String)
+  case class RemoteChatMessage(channelId: String, eventNumber: Long, timestamp: Instant, sk: SessionKey, message: String)
   
   
 

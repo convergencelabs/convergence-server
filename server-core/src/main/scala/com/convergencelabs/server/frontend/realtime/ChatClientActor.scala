@@ -14,13 +14,7 @@ import akka.actor.actorRef2Scala
 import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.server.domain.model.SessionKey
-import com.convergencelabs.server.domain.ChatServiceActor.UserJoined
-import com.convergencelabs.server.domain.ChatServiceActor.UserLeft
-import com.convergencelabs.server.domain.ChatServiceActor.UserMessage
-import com.convergencelabs.server.domain.ChatServiceActor.LeaveRoom
-import com.convergencelabs.server.domain.ChatServiceActor.SendMessage
-import com.convergencelabs.server.domain.ChatServiceActor.JoinRoomRequest
-import com.convergencelabs.server.domain.ChatServiceActor.JoinRoomResponse
+import com.convergencelabs.server.domain.ChatServiceActor.RemoteChatMessage
 
 object ChatClientActor {
   def props(chatServiceActor: ActorRef, sk: SessionKey): Props =
@@ -38,9 +32,9 @@ class ChatClientActor(chatServiceActor: ActorRef, sk: SessionKey) extends Actor 
     case RequestReceived(message, replyPromise) if message.isInstanceOf[IncomingChatRequestMessage] =>
       onRequestReceived(message.asInstanceOf[IncomingChatRequestMessage], replyPromise)
 
-    case UserMessage(channelId, sk, message, timestamp) =>
+    case RemoteChatMessage(channelId, eventNo, timestamp, sk, message) =>
       val eventNo = 0L // FIXME
-      context.parent ! RemoteChatMessage(channelId, eventNo, timestamp, sk.serialize(), message)
+      context.parent ! RemoteChatMessageMessage(channelId, eventNo, timestamp.toEpochMilli(), sk.serialize(), message)
     // FIXME handle outgoing messages
 
     case x: Any => unhandled(x)
