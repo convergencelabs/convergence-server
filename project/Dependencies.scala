@@ -19,7 +19,9 @@ object Dependencies {
     val akkaCluster        = "com.typesafe.akka"        % "akka-cluster_2.11"             % Versions.akka               // Apache 2.0
     val akkaSlf4j          = "com.typesafe.akka"        % "akka-slf4j_2.11"               % Versions.akka               // Apache 2.0
     val akkaClusterTools   = "com.typesafe.akka"        %% "akka-cluster-tools"           % Versions.akka               // Apache 2.0
-    val akkaCore = Seq(akkaActor, akkaCluster, akkaClusterTools, akkaSlf4j)
+    val akkaPersistence    = "com.typesafe.akka"        %% "akka-persistence"             % Versions.akka               // Apache 2.0
+    val akkaSharding       = "com.typesafe.akka"        %% "akka-cluster-sharding"        % Versions.akka               // Apache 2.0
+    val akkaCore = Seq(akkaActor, akkaCluster, akkaClusterTools, akkaSlf4j, akkaPersistence, akkaSharding)
     
     val akkaHttp           = "com.typesafe.akka"        %% "akka-http"                    % Versions.akkaHttp
     val akkaHttpTest       = "com.typesafe.akka"        %% "akka-http-testkit"            % Versions.akkaHttp
