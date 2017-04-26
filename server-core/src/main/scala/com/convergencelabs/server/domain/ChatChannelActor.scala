@@ -81,7 +81,7 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
   // Default recieve will be called the firs time
   def receive: Receive = {
     case message: ChatChannelMessage =>
-      initialize().map(_ => handleChatMessage(_))
+      initialize(message.channelId).map(_ => handleChatMessage(_))
     case unhandled: Any => this.unhandled(unhandled)
   }
 
@@ -182,12 +182,12 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
     ???
   }
 
-  private[this] def initialize(): Try[Unit] = {
+  private[this] def initialize(channelId: String): Try[Unit] = {
     // Load crap from the database?
     // Where do I get the chat channel store from?
     this.channelState = Some(
         ChatChannelState(
-            "id", 
+            channelId, 
             "group", 
             Instant.now(), 
             false, 
