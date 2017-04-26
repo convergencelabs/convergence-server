@@ -78,10 +78,10 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
   // Here None signifies that the channel does not exist.
   var channelState: Option[ChatChannelState] = None
 
-  // Default recieve will be called the firs time
+  // Default recieve will be called the first time
   def receive: Receive = {
     case message: ChatChannelMessage =>
-      initialize(message.channelId).map(_ => handleChatMessage(_))
+      initialize(message.channelId).map(_ => handleChatMessage(message))
     case unhandled: Any => this.unhandled(unhandled)
   }
 
