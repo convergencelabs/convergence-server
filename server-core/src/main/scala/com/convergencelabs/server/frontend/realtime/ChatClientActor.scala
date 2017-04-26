@@ -14,7 +14,7 @@ import akka.actor.actorRef2Scala
 import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.server.domain.model.SessionKey
-import com.convergencelabs.server.domain.ChatServiceActor.RemoteChatMessage
+import com.convergencelabs.server.domain.ChatChannelActor.RemoteChatMessage
 
 object ChatClientActor {
   def props(chatServiceActor: ActorRef, sk: SessionKey): Props =

@@ -99,9 +99,9 @@ class DomainActor(
     domainFqn),
     PresenceServiceActor.RelativePath)
 
-  private[this] val chatServiceActor = context.actorOf(ChatServiceActor.props(
+  private[this] val chatChannelLookupActor = context.actorOf(ChatChannelLookupActor.props(
     domainFqn),
-    ChatServiceActor.RelativePath)
+    ChatChannelLookupActor.RelativePath)
 
   private[this] var authenticator: AuthenticationHandler = _
 
@@ -179,7 +179,7 @@ class DomainActor(
         userServiceActor,
         activityServiceActor,
         presenceServiceActor,
-        chatServiceActor)
+        chatChannelLookupActor)
     } recover {
       case cause: Exception =>
         log.error(cause, "Could not connect to domain database")
