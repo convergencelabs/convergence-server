@@ -13,6 +13,7 @@ import akka.cluster.pubsub.DistributedPubSubMediator.Publish
 import com.convergencelabs.server.datastore.domain.ChatChannelEvent
 import scala.util.Try
 import scala.util.Success
+import akka.actor.Status
 
 object ChatChannelActor {
 
@@ -81,16 +82,23 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
   // Default recieve will be called the first time
   def receive: Receive = {
     case message: ChatChannelMessage =>
-      initialize(message.channelId).map(_ => handleChatMessage(message))
+      initialize(message.channelId)
+        .recover { case cause: Exception => this.unexpectedError(message, cause) }
+        .flatMap(_ => handleChatMessage(message))
+        .recover { case cause: Exception => this.unexpectedError(message, cause) }
+
     case unhandled: Any => this.unhandled(unhandled)
   }
 
   def receiveWhenInitizlized: Receive = {
-    case message: ChatChannelMessage => handleChatMessage(message)
-    case unhandled: Any => this.unhandled(unhandled)
+    case message: ChatChannelMessage =>
+      handleChatMessage(message)
+      .recover { case cause: Exception => this.unexpectedError(message, cause) }
+    case unhandled: Any =>
+      this.unhandled(unhandled)
   }
 
-  def handleChatMessage: PartialFunction[ChatChannelMessage, Unit] = {
+  def handleChatMessage: PartialFunction[ChatChannelMessage, Try[Unit]] = {
     case message: CreateChannelRequest =>
       onCreateChannel(message)
     case message: RemoveChannelRequest =>
@@ -115,59 +123,72 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
       onPublishMessage(message)
   }
 
-  def onCreateChannel(message: CreateChannelRequest): Unit = {
+  def onCreateChannel(message: CreateChannelRequest): Try[Unit] = {
     val CreateChannelRequest(channelId, channelType, channelMembership, name, topic, members) = message;
     ???
   }
 
-  def onRemoveChannel(message: RemoveChannelRequest): Unit = {
+  def onRemoveChannel(message: RemoveChannelRequest): Try[Unit] = {
     val RemoveChannelRequest(channelId, username) = message;
     ???
   }
 
-  def onJoinChannel(message: JoinChannelRequest): Unit = {
+  def onJoinChannel(message: JoinChannelRequest): Try[Unit] = {
     val JoinChannelRequest(channelId, username) = message;
     ???
   }
 
-  def onLeaveChannel(message: LeaveChannelRequest): Unit = {
+  def onLeaveChannel(message: LeaveChannelRequest): Try[Unit] = {
     val LeaveChannelRequest(channelId, username) = message;
     ???
   }
 
-  def onAddUserToChannel(message: AddUserToChannelRequest): Unit = {
+  def onAddUserToChannel(message: AddUserToChannelRequest): Try[Unit] = {
     val AddUserToChannelRequest(channelId, username, addedBy) = message;
     ???
   }
 
-  def onRemoveUserFromChannel(message: RemoveUserFromChannelRequest): Unit = {
+  def onRemoveUserFromChannel(message: RemoveUserFromChannelRequest): Try[Unit] = {
     val RemoveUserFromChannelRequest(channelId, username, removedBy) = message;
     ???
   }
 
-  def onSetChatChannelName(message: SetChannelNameRequest): Unit = {
+  def onSetChatChannelName(message: SetChannelNameRequest): Try[Unit] = {
     val SetChannelNameRequest(channelId, name, setBy) = message;
     ???
   }
 
-  def onSetChatChannelTopic(message: SetChannelTopicRequest): Unit = {
+  def onSetChatChannelTopic(message: SetChannelTopicRequest): Try[Unit] = {
     val SetChannelTopicRequest(channelId, topic, setBy) = message;
     ???
   }
 
-  def onMarkEventsSeen(message: MarkChannelEventsSeenRequest): Unit = {
+  def onMarkEventsSeen(message: MarkChannelEventsSeenRequest): Try[Unit] = {
     val MarkChannelEventsSeenRequest(channelId, eventNumber, username) = message;
     ???
   }
 
-  def onGetHistory(message: ChannelHistoryRequest): Unit = {
+  def onGetHistory(message: ChannelHistoryRequest): Try[Unit] = {
     val ChannelHistoryRequest(username, channleId, limit, offset, forward, events) = message;
     ???
   }
 
-  def onPublishMessage(message: PublishChatMessageRequest): Unit = {
+  def onPublishMessage(message: PublishChatMessageRequest): Try[Unit] = {
     val PublishChatMessageRequest(sk, channeId, msg) = message;
     ???
+  }
+
+  def unexpectedError(message: ChatChannelMessage, cause: Exception): Unit = {
+    // this can only be an initialization excpetion, so we need to
+    // reply back that something bad happened. I suppose in reality
+    // we would want to know if this was a request message, if not then
+    // perhaps we don't need to reply. We probably can refine the sealed
+    // traits above to let us know if we need to do this or not.
+    cause match {
+      case cause: Exception =>
+        sender ! Status.Failure(cause)
+        ()
+    }
   }
 
   private[this] def broadcastToChannel(channelId: String, message: AnyRef) {
@@ -186,16 +207,16 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
     // Load crap from the database?
     // Where do I get the chat channel store from?
     this.channelState = Some(
-        ChatChannelState(
-            channelId, 
-            "group", 
-            Instant.now(), 
-            false, 
-            "myname", 
-            "mytopic", 
-            Instant.now(), 
-            7, 
-            Set("michael", "cameron")))
+      ChatChannelState(
+        channelId,
+        "group",
+        Instant.now(),
+        false,
+        "myname",
+        "mytopic",
+        Instant.now(),
+        7,
+        Set("michael", "cameron")))
     context.become(receiveWhenInitizlized)
     Success(())
   }
