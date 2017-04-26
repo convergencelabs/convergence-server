@@ -83,7 +83,6 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
   def receive: Receive = {
     case message: ChatChannelMessage =>
       initialize(message.channelId)
-        .recover { case cause: Exception => this.unexpectedError(message, cause) }
         .flatMap(_ => handleChatMessage(message))
         .recover { case cause: Exception => this.unexpectedError(message, cause) }
 
@@ -93,7 +92,7 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
   def receiveWhenInitizlized: Receive = {
     case message: ChatChannelMessage =>
       handleChatMessage(message)
-      .recover { case cause: Exception => this.unexpectedError(message, cause) }
+        .recover { case cause: Exception => this.unexpectedError(message, cause) }
     case unhandled: Any =>
       this.unhandled(unhandled)
   }
