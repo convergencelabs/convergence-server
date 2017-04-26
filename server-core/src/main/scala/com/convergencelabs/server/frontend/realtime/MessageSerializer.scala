@@ -154,7 +154,7 @@ object MessageSerializer {
 
     MessageType.PublishChatMessageRequest -> classOf[PublishChatRequestMessage],
     MessageType.PublishChatMessageResponse -> classOf[PublishChatResponseMessage],
-    MessageType.RemoteChatMessage -> classOf[RemoteChatMessage],
+    MessageType.RemoteChatMessage -> classOf[RemoteChatMessageMessage],
 
     MessageType.SetChatChannelNameRequest -> classOf[SetChatChannelNameRequestMessage],
     MessageType.SetChatChannelNameResponse -> classOf[SetChatChannelNameResponseMessage],
