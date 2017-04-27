@@ -14,6 +14,8 @@ import com.convergencelabs.server.datastore.domain.ChatUserAddedEvent
 import com.convergencelabs.server.datastore.domain.ChatUserRemovedEvent
 import com.convergencelabs.server.datastore.domain.ChatNameChangedEvent
 import com.convergencelabs.server.datastore.domain.ChatTopicChangedEvent
+import com.convergencelabs.server.datastore.domain.ChatMessageEvent
+import com.convergencelabs.server.frontend.realtime.ChatChannelRemovedMessage
 
 case class ChatMessageProcessingResult(response: Option[Any], broadcastMessages: List[Any], state: Option[ChatChannelState])
 
@@ -98,7 +100,12 @@ class ChatChannelManager(
 
   def onRemoveChannel(message: RemoveChannelRequest, state: ChatChannelState): Try[ChatMessageProcessingResult] = {
     val RemoveChannelRequest(channelId, username) = message;
-    ???
+    channelStore.removeChatChannel(channelId) map { _ =>
+      ChatMessageProcessingResult(
+        Some(()),
+        List(ChatChannelRemovedMessage(channelId)),
+        None)
+    }
   }
 
   def onJoinChannel(message: JoinChannelRequest, state: ChatChannelState): Try[ChatMessageProcessingResult] = {
@@ -114,19 +121,20 @@ class ChatChannelManager(
       val eventNo = state.lastEventNumber + 1
       val timestamp = Instant.now()
 
-      val newState = state.copy(lastEventNumber = eventNo, lastEventTime = timestamp, members = newMembers)
-
       val event = ChatUserJoinedEvent(eventNo, channelId, username, timestamp)
 
-      channelStore.addChatUserJoinedEvent(event)
-      channelStore.addChatChannelMember(channelId, username, None)
+      for {
+        _ <- channelStore.addChatUserJoinedEvent(event)
+        _ <- channelStore.addChatChannelMember(channelId, username, None)
+      } yield {
+        val newState = state.copy(lastEventNumber = eventNo, lastEventTime = timestamp, members = newMembers)
+        this.state = Some(newState)
 
-      this.state = Some(newState)
-
-      Success(ChatMessageProcessingResult(
-        Some(()),
-        List(UserJoinedChannel(channelId, eventNo, timestamp, username)),
-        Some(newState)))
+        ChatMessageProcessingResult(
+          Some(()),
+          List(UserJoinedChannel(channelId, eventNo, timestamp, username)),
+          Some(newState))
+      }
     }
   }
 
@@ -138,22 +146,22 @@ class ChatChannelManager(
       val eventNo = state.lastEventNumber + 1
       val timestamp = Instant.now()
 
-      val newState = state.copy(lastEventNumber = eventNo, lastEventTime = timestamp, members = newMembers)
-
       val event = ChatUserLeftEvent(eventNo, channelId, username, timestamp)
 
-      channelStore.addChatUserLeftEvent(event)
-      channelStore.removeChatChannelMember(channelId, username)
+      for {
+        _ <- channelStore.addChatUserLeftEvent(event)
+        _ <- channelStore.removeChatChannelMember(channelId, username)
+      } yield {
+        val newState = state.copy(lastEventNumber = eventNo, lastEventTime = timestamp, members = newMembers)
+        this.state = Some(newState)
 
-      this.state = Some(newState)
-
-      Success(ChatMessageProcessingResult(
-        Some(()),
-        List(UserLeftChannel(channelId, eventNo, timestamp, username)),
-        Some(newState)))
+        ChatMessageProcessingResult(
+          Some(()),
+          List(UserLeftChannel(channelId, eventNo, timestamp, username)),
+          Some(newState))
+      }
     } else {
-      // TODO: Add channel not already joined exception
-      Failure(ChannelAlreadyJoinedException(channelId))
+      Failure(ChannelNotJoinedException(channelId))
     }
   }
 
@@ -167,19 +175,19 @@ class ChatChannelManager(
       val eventNo = state.lastEventNumber + 1
       val timestamp = Instant.now()
 
-      val newState = state.copy(lastEventNumber = eventNo, lastEventTime = timestamp, members = newMembers)
-
       val event = ChatUserAddedEvent(eventNo, channelId, addedBy, timestamp, username)
+      for {
+        _ <- channelStore.addChatUserAddedEvent(event)
+        _ <- channelStore.addChatChannelMember(channelId, username, None)
+      } yield {
+        val newState = state.copy(lastEventNumber = eventNo, lastEventTime = timestamp, members = newMembers)
+        this.state = Some(newState)
 
-      channelStore.addChatUserAddedEvent(event)
-      channelStore.addChatChannelMember(channelId, username, None)
-
-      this.state = Some(newState)
-
-      Success(ChatMessageProcessingResult(
-        Some(()),
-        List(UserAddedToChannel(channelId, eventNo, timestamp, username, addedBy)),
-        Some(newState)))
+        ChatMessageProcessingResult(
+          Some(()),
+          List(UserAddedToChannel(channelId, eventNo, timestamp, username, addedBy)),
+          Some(newState))
+      }
     }
   }
 
@@ -191,23 +199,23 @@ class ChatChannelManager(
       val eventNo = state.lastEventNumber + 1
       val timestamp = Instant.now()
 
-      val newState = state.copy(lastEventNumber = eventNo, lastEventTime = timestamp, members = newMembers)
-
       val event = ChatUserRemovedEvent(eventNo, channelId, removedBy, timestamp, username)
 
-      channelStore.addChatUserRemovedEvent(event)
-      channelStore.addChatChannelMember(channelId, username, None)
+      for {
+        _ <- channelStore.addChatUserRemovedEvent(event)
+        _ <- channelStore.addChatChannelMember(channelId, username, None)
+      } yield {
+        val newState = state.copy(lastEventNumber = eventNo, lastEventTime = timestamp, members = newMembers)
+        this.state = Some(newState)
 
-      this.state = Some(newState)
-
-      Success(ChatMessageProcessingResult(
-        Some(()),
-        List(UserRemovedFromChannel(channelId, eventNo, timestamp, username, removedBy)),
-        Some(newState)))
+        ChatMessageProcessingResult(
+          Some(()),
+          List(UserRemovedFromChannel(channelId, eventNo, timestamp, username, removedBy)),
+          Some(newState))
+      }
 
     } else {
-      // TODO: Add channel not already joined exception
-      Failure(ChannelAlreadyJoinedException(channelId))
+      Failure(ChannelNotJoinedException(channelId))
     }
   }
 
@@ -216,19 +224,20 @@ class ChatChannelManager(
     val eventNo = state.lastEventNumber + 1
     val timestamp = Instant.now()
 
-    val newState = state.copy(lastEventNumber = eventNo, lastEventTime = timestamp, name = name)
-
     val event = ChatNameChangedEvent(eventNo, channelId, username, timestamp, name)
 
-    channelStore.addChatNameChangedEvent(event)
-    channelStore.updateChatChannel(channelId, Some(name), None)
+    for {
+      _ <- channelStore.addChatNameChangedEvent(event)
+      _ <- channelStore.updateChatChannel(channelId, Some(name), None)
+    } yield {
+      val newState = state.copy(lastEventNumber = eventNo, lastEventTime = timestamp, name = name)
+      this.state = Some(newState)
 
-    this.state = Some(newState)
-
-    Success(ChatMessageProcessingResult(
-      Some(()),
-      List(ChannelNameChanged(channelId, eventNo, timestamp, username, name)),
-      Some(newState)))
+      ChatMessageProcessingResult(
+        Some(()),
+        List(ChannelNameChanged(channelId, eventNo, timestamp, username, name)),
+        Some(newState))
+    }
   }
 
   def onSetChatChannelTopic(message: SetChannelTopicRequest, state: ChatChannelState): Try[ChatMessageProcessingResult] = {
@@ -236,40 +245,63 @@ class ChatChannelManager(
     val eventNo = state.lastEventNumber + 1
     val timestamp = Instant.now()
 
-    val newState = state.copy(lastEventNumber = eventNo, lastEventTime = timestamp, topic = topic)
-
     val event = ChatTopicChangedEvent(eventNo, channelId, username, timestamp, topic)
 
-    channelStore.addChatTopicChangedEvent(event)
-    channelStore.updateChatChannel(channelId, None, Some(topic))
-
-    this.state = Some(newState)
-
-    Success(ChatMessageProcessingResult(
-      Some(()),
-      List(ChannelTopicChanged(channelId, eventNo, timestamp, username, topic)),
-      Some(newState)))
+    for {
+      _ <- channelStore.addChatTopicChangedEvent(event)
+      _ <- channelStore.updateChatChannel(channelId, None, Some(topic))
+    } yield {
+      val newState = state.copy(lastEventNumber = eventNo, lastEventTime = timestamp, topic = topic)
+      this.state = Some(newState)
+      ChatMessageProcessingResult(
+        Some(()),
+        List(ChannelTopicChanged(channelId, eventNo, timestamp, username, topic)),
+        Some(newState))
+    }
   }
 
   def onMarkEventsSeen(message: MarkChannelEventsSeenRequest, state: ChatChannelState): Try[ChatMessageProcessingResult] = {
     val MarkChannelEventsSeenRequest(channelId, eventNumber, username) = message;
-    ???
+    channelStore.markSeen(channelId, username, eventNumber) map { _ =>
+      ChatMessageProcessingResult(
+        Some(()),
+        List(),
+        None)
+    }
   }
 
   def onGetHistory(message: ChannelHistoryRequest, state: ChatChannelState): Try[ChatMessageProcessingResult] = {
     val ChannelHistoryRequest(username, channleId, limit, offset, forward, events) = message;
-    ???
+    channelStore.getChatChannelEvents(channelId, offset, limit) map { events =>
+      ChatMessageProcessingResult(
+        Some(ChannelHistoryResponse(events)),
+        List(),
+        None)
+    }
   }
 
   def onPublishMessage(message: PublishChatMessageRequest, state: ChatChannelState): Try[ChatMessageProcessingResult] = {
-    val PublishChatMessageRequest(sk, channeId, msg) = message;
-    ???
+    val PublishChatMessageRequest(channeId, msg, sk) = message;
+    val eventNo = state.lastEventNumber + 1
+    val timestamp = Instant.now()
+
+    val event = ChatMessageEvent(eventNo, channelId, sk.uid, timestamp, msg)
+
+    channelStore.addChatMessageEvent(event).map { _ =>
+      val newState = state.copy(lastEventNumber = eventNo, lastEventTime = timestamp)
+      this.state = Some(newState)
+
+      ChatMessageProcessingResult(
+        Some(()),
+        List(RemoteChatMessage(channelId, eventNo, timestamp, sk, msg)),
+        Some(newState))
+    }
   }
 
   private def assertChannelExists(state: Option[ChatChannelState]): Try[ChatChannelState] = {
     state match {
       case Some(state) => Success(state)
-      case None        => Failure(ChannelNotFoundException(channelId))
+      case None => Failure(ChannelNotFoundException(channelId))
     }
   }
 }

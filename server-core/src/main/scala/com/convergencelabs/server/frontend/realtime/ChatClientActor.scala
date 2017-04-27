@@ -9,8 +9,6 @@ import com.convergencelabs.server.domain.ChatChannelActor
 import com.convergencelabs.server.domain.ChatChannelMessages.AddUserToChannelRequest
 import com.convergencelabs.server.domain.ChatChannelMessages.ChannelAlreadyExistsException
 import com.convergencelabs.server.domain.ChatChannelMessages.ChannelAlreadyJoinedException
-import com.convergencelabs.server.domain.ChatChannelMessages.ChannelJoined
-import com.convergencelabs.server.domain.ChatChannelMessages.ChannelLeft
 import com.convergencelabs.server.domain.ChatChannelMessages.ChannelNotFoundException
 import com.convergencelabs.server.domain.ChatChannelMessages.ChannelNotJoinedException
 import com.convergencelabs.server.domain.ChatChannelMessages.ChannelRemoved
@@ -80,7 +78,7 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
         context.parent ! RemoteChatMessageMessage(channelId, eventNumber, timestamp.toEpochMilli(), sk.serialize(), message)
 
       case UserJoinedChannel(channelId, eventNumber, timestamp, username) =>
-        context.parent ! UserJoinedChatChannelMessage(channelId, eventNumber, timestamp.toEpochMilli(), username)
+          context.parent ! UserJoinedChatChannelMessage(channelId, eventNumber, timestamp.toEpochMilli(), username)
 
       case UserLeftChannel(channelId, eventNumber, timestamp, username) =>
         context.parent ! UserLeftChatChannelMessage(channelId, eventNumber, timestamp.toEpochMilli(), username)
@@ -90,12 +88,6 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
 
       case UserRemovedFromChannel(channelId, eventNumber, timestamp, username, removedBy) =>
         context.parent ! UserRemovedFromChatChannelMessage(channelId, eventNumber, timestamp.toEpochMilli(), username, removedBy)
-
-      case ChannelJoined(channelId) =>
-        context.parent ! ChatChannelJoinedMessage(channelId)
-
-      case ChannelLeft(channelId) =>
-        context.parent ! ChatChannelLeftMessage(channelId)
 
       case ChannelRemoved(channelId) =>
         context.parent ! ChatChannelRemovedMessage(channelId)
@@ -198,7 +190,7 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
 
   def onPublishMessage(message: PublishChatRequestMessage, cb: ReplyCallback): Unit = {
     val PublishChatRequestMessage(channelId, msg) = message;
-    val request = PublishChatMessageRequest(channelId, sk, msg)
+    val request = PublishChatMessageRequest(channelId, msg, sk)
     handleSimpleChannelRequest(request, { () => PublishChatResponseMessage() }, cb)
   }
 

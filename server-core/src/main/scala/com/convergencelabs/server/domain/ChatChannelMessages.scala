@@ -29,9 +29,9 @@ object ChatChannelMessages {
   case class SetChannelTopicRequest(channelId: String, topic: String, setBy: String) extends ExistingChannelMessage
   case class MarkChannelEventsSeenRequest(channelId: String, eventNumber: Long, username: String) extends ExistingChannelMessage
 
-  case class PublishChatMessageRequest(channelId: String, sk: SessionKey, message: String) extends ExistingChannelMessage
+  case class PublishChatMessageRequest(channelId: String, message: String, sk: SessionKey) extends ExistingChannelMessage
 
-  case class ChannelHistoryRequest(channelId: String, username: String, limit: Option[Int], offset: Option[Int],
+  case class ChannelHistoryRequest(channelId: String, username: String, limit: Option[Long], offset: Option[Long],
     forward: Option[Boolean], events: List[String]) extends ExistingChannelMessage
   case class ChannelHistoryResponse(events: List[ChatChannelEvent])
 
@@ -44,8 +44,6 @@ object ChatChannelMessages {
   case class ChannelNameChanged(channelId: String, eventNumber: Long, timestamp: Instant, name: String, setBy: String)
   case class ChannelTopicChanged(channelId: String, eventNumber: Long, timestamp: Instant, topic: String, setBy: String)
 
-  case class ChannelJoined(channelId: String) extends ChatChannelBroadcastMessage
-  case class ChannelLeft(channelId: String) extends ChatChannelBroadcastMessage
   case class ChannelRemoved(channelId: String) extends ChatChannelBroadcastMessage
   
   case class RemoteChatMessage(channelId: String, eventNumber: Long, timestamp: Instant, sk: SessionKey, message: String) extends ChatChannelBroadcastMessage

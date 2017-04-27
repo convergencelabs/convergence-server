@@ -148,25 +148,22 @@ object MessageType extends Enumeration {
   val RemoveUserFromChatChannelResponse = 523
   val UserRemovedFromChatChannel = 524
 
-  val ChatChannelJoined = 525
-  val ChatChannelLeft = 526
+  val SetChatChannelNameRequest = 525
+  val SetChatChannelNameResponse = 526
+  val ChatChannelNameChanged = 527
 
-  val SetChatChannelNameRequest = 527
-  val SetChatChannelNameResponse = 528
-  val ChatChannelNameChanged = 529
+  val SetChatChannelTopicRequest = 528
+  val SetChatChannelTopicResponse = 529
+  val ChatChannelTopicChanged = 530
 
-  val SetChatChannelTopicRequest = 530
-  val SetChatChannelTopicResponse = 531
-  val ChatChannelTopicChanged = 532
+  val MarkChatChannelEventsSeenRequest = 531
+  val MarkChatChannelEventsSeenResponse = 532
+  val ChatChannelEventsMarkedSeen = 533
 
-  val MarkChatChannelEventsSeenRequest = 533
-  val MarkChatChannelEventsSeenResponse = 534
-  val ChatChannelEventsMarkedSeen = 535
+  val PublishChatMessageRequest = 534
+  val PublishChatMessageResponse = 535
+  val RemoteChatMessage = 536
 
-  val PublishChatMessageRequest = 536
-  val PublishChatMessageResponse = 537
-  val RemoteChatMessage = 538
-
-  val GetChatChannelHistoryRequest = 539
-  val GetChatChannelHistoryResponse = 540
+  val GetChatChannelHistoryRequest = 537
+  val GetChatChannelHistoryResponse = 548
 }
