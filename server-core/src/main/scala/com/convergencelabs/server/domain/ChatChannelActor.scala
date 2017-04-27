@@ -6,9 +6,7 @@ import scala.concurrent.duration.DurationInt
 import scala.util.Failure
 import scala.util.Try
 
-import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
-import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 
 import akka.actor.Actor
 import akka.actor.ActorLogging
@@ -65,7 +63,7 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
   // Default recieve will be called the first time
   //  override def receiveCommand: Receive = {
   override def receive: Receive = {
-    case message: ChatChannelMessage =>
+    case message: ExistingChannelMessage =>
       initialize(message.channelId)
         .flatMap { _ =>
           log.debug(s"Chat Channel Actor initialized processing message: '${domainFqn}/${message.channelId}'")
@@ -87,14 +85,14 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
   }
 
   def receiveWhenInitialized: Receive = {
-    case message: ChatChannelMessage =>
+    case message: ExistingChannelMessage =>
       processChatMessage(message)
         .recover { case cause: Exception => this.unexpectedError(message, cause) }
     case other: Any =>
       this.receiveCommon(other)
   }
 
-  def processChatMessage(message: ChatChannelMessage): Try[Unit] = {
+  def processChatMessage(message: ExistingChannelMessage): Try[Unit] = {
     this.channelManager match {
       case Some(manager) =>
         manager.handleChatMessage(message) map { result =>
@@ -144,12 +142,17 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
   }
 
   private[this] def broadcastToChannel(message: Any): Unit = {
-    // FIXME pattern match, etc.
-    val members = this.channelManager.get.state().get.members
-    members.foreach { member =>
-      val topic = ChatChannelActor.getChatUsernameTopicName(member)
-      mediator ! Publish(topic, message)
+    this.channelManager match {
+      case Some(mgr) =>
+        val members = mgr.state().members
+        members.foreach { member =>
+          val topic = ChatChannelActor.getChatUsernameTopicName(member)
+          mediator ! Publish(topic, message)
+        }
+      case None =>
+        // FIXME Explode? We are corrupted somehow?
     }
+
   }
 
   private[this] def updateState(state: ChatChannelState): Unit = {
