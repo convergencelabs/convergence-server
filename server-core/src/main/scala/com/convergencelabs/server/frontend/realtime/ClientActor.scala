@@ -243,6 +243,7 @@ class ClientActor(
     this.sessionId = sk.serialize();
     this.modelClient = context.actorOf(ModelClientActor.props(sk, modelManagerActor))
     this.userClient = context.actorOf(UserClientActor.props(userServiceActor))
+    this.chatClient = context.actorOf(ChatClientActor.props(chatLookupActor, chatChannelActor, sk))
     this.activityClient = context.actorOf(ActivityClientActor.props(activityServiceActor, sk))
     this.presenceClient = context.actorOf(PresenceClientActor.props(presenceServiceActor, sk))
     this.historyClient = context.actorOf(HistoricModelClientActor.props(sk, domainFqn));

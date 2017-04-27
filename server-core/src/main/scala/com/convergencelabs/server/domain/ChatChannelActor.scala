@@ -46,8 +46,8 @@ object ChatChannelActor {
 
   // Incoming Messages
   case class CreateChannelRequest(channelId: String, channelType: String,
-                                  channelMembership: String, name: Option[String], topic: Option[String],
-                                  members: List[String]) extends ChatChannelMessage
+    channelMembership: String, name: Option[String], topic: Option[String],
+    members: List[String]) extends ChatChannelMessage
   case class CreateChannelResponse(channelId: String) extends ChatChannelMessage
 
   case class RemoveChannelRequest(channelId: String, username: String) extends ChatChannelMessage
@@ -64,7 +64,7 @@ object ChatChannelActor {
   case class PublishChatMessageRequest(channelId: String, sk: SessionKey, message: String) extends ChatChannelMessage
 
   case class ChannelHistoryRequest(channelId: String, username: String, limit: Option[Int], offset: Option[Int],
-                                   forward: Option[Boolean], events: List[String]) extends ChatChannelMessage
+    forward: Option[Boolean], events: List[String]) extends ChatChannelMessage
   case class ChannelHistoryResponse(events: List[ChatChannelEvent])
 
   // Outgoing Broadcast Messages 
@@ -89,14 +89,16 @@ object ChatChannelActor {
   }
 }
 
-class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends PersistentActor with ActorLogging {
+class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with ActorLogging {
   import akka.cluster.sharding.ShardRegion.Passivate
   import ChatChannelActor._
+
+  log.debug(s"Chat Channel Actor starting in domain: '${domainFqn}'")
 
   // TODO: Load from configuration 
   context.setReceiveTimeout(120.seconds)
 
-  override def persistenceId: String = "ChatChannel-" + self.path.name
+  //  override def persistenceId: String = "ChatChannel-" + self.path.name
 
   val mediator = DistributedPubSub(context.system).mediator
 
@@ -106,27 +108,44 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Persistent
 
   def updateState(state: ChatChannelActorState): Unit = channelActorState = state
 
-  override def receiveRecover: Receive = {
-    case state: ChatChannelActorState =>
-      channelActorState = state
-      state.status match {
-        case ActorStatus.Initialized => context.become(receiveWhenInitialized)
-      }
-  }
+  //  override def receiveRecover: Receive = {
+  //    case state: ChatChannelActorState =>
+  //      channelActorState = state
+  //      state.status match {
+  //        case ActorStatus.Initialized => context.become(receiveWhenInitialized)
+  //      }
+  //  }
 
   // Default recieve will be called the first time
-  override def receiveCommand: Receive = {
+  //  override def receiveCommand: Receive = {
+  override def receive: Receive = {
     case message: ChatChannelMessage =>
       initialize(message.channelId)
-        .flatMap(_ => handleChatMessage(message))
+        .flatMap { _ =>
+          log.debug(s"Chat Channel Actor initialized processing message: '${domainFqn}/${message.channelId}'")
+          handleChatMessage(message)
+        }
         .recover { case cause: Exception => this.unexpectedError(message, cause) }
-    case ReceiveTimeout ⇒ context.parent ! Passivate(stopMessage = Stop)
-    case Stop           ⇒ context.stop(self)
-    case unhandled: Any => this.unhandled(unhandled)
+    case ReceiveTimeout =>
+      this.onReceiveTimeout()
+    case Stop =>
+      onStop()
+    case unhandled: Any =>
+      this.unhandled(unhandled)
+  }
+
+  private[this] def onReceiveTimeout(): Unit = {
+    log.debug("Receive timeout reached, asking shard region to passivate")
+    context.parent ! Passivate(stopMessage = Stop)
+  }
+
+  private[this] def onStop(): Unit = {
+    log.debug("Receive stop signal shutting down")
+    context.stop(self)
   }
 
   private[this] def initialize(channelId: String): Try[Unit] = {
-    
+    log.debug(s"Chat Channel Actor starting: '${domainFqn}/${channelId}'")
     // Load crap from the database?
     // Where do I get the chat channel store from?
     this.channelActorState = ChatChannelActorState(ActorStatus.Initialized, Some(
@@ -140,7 +159,7 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Persistent
         Instant.now(),
         7,
         Set("michael", "cameron"))))
-    persist(channelActorState)(updateState)
+    //    persist(channelActorState)(updateState)
     context.become(receiveWhenInitialized)
     Success(())
   }
@@ -150,11 +169,9 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Persistent
       handleChatMessage(message)
         .recover { case cause: Exception => this.unexpectedError(message, cause) }
     case ReceiveTimeout =>
-      context.parent ! Passivate(stopMessage = Stop)
+      this.onReceiveTimeout()
     case Stop =>
-
-      context.stop(self)
-
+      onStop()
     case unhandled: Any =>
       this.unhandled(unhandled)
   }
@@ -194,9 +211,11 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Persistent
     ???
   }
 
-  def onJoinChannel(message: JoinChannelRequest): Try[Unit] = {
+  def onJoinChannel(message: JoinChannelRequest): Try[Unit] = Try {
     val JoinChannelRequest(channelId, username) = message;
-    ???
+    log.debug(message.toString())
+    sender ! (())
+    ()
   }
 
   def onLeaveChannel(message: LeaveChannelRequest): Try[Unit] = {

@@ -247,5 +247,6 @@ class DomainActor(
   override def postStop(): Unit = {
     log.debug(s"Domain(${domainFqn}) received shutdown command.  Shutting down.")
     domainPersistenceManager.releasePersistenceProvider(self, context, domainFqn)
+    chatChannelRegion ! ShardRegion.GracefulShutdown
   }
 }

@@ -18,6 +18,7 @@ import com.convergencelabs.server.domain.ChatChannelActor.RemoteChatMessage
 import com.convergencelabs.server.domain.DomainFqn
 import akka.cluster.sharding.ClusterSharding
 import com.convergencelabs.server.domain.ChatChannelActor
+import com.convergencelabs.server.domain.ChatChannelActor.JoinChannelRequest
 
 object ChatClientActor {
   def props(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk: SessionKey): Props =
@@ -48,7 +49,7 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
   //
 
   def onMessageReceived(message: IncomingChatNormalMessage): Unit = {
-    // FISME
+    // FIXME
     ???
   }
 
@@ -59,7 +60,7 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
       case message: RemoveChatChannelRequestMessage =>
         onRemoveChannel(message)
       case message: JoinChatChannelRequestMessage =>
-        onJoinChannel(message)
+        onJoinChannel(message, replyCallback)
       case message: LeaveChatChannelRequestMessage =>
         onLeaveChannel(message)
       case message: AddUserToChatChannelRequestMessage =>
@@ -95,9 +96,14 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
     ???
   }
 
-  def onJoinChannel(message: JoinChatChannelRequestMessage): Unit = {
+  def onJoinChannel(message: JoinChatChannelRequestMessage, cb: ReplyCallback): Unit = {
     val JoinChatChannelRequestMessage(channelId) = message;
-    ???
+    chatChannelActor.ask(JoinChannelRequest(channelId, sk.uid)) onComplete { 
+      case Success(()) =>
+        cb.reply(JoinChatChannelResponseMessage())
+      case Failure(cause) =>
+        cb.unexpectedError(cause.getMessage)
+    }
   }
 
   def onLeaveChannel(message: LeaveChatChannelRequestMessage): Unit = {
