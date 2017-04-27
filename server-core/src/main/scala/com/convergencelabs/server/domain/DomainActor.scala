@@ -13,7 +13,6 @@ import com.convergencelabs.server.datastore.domain.DomainPersistenceManager
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.datastore.domain.DomainSession
-import com.convergencelabs.server.domain.ChatChannelMessages.ChatChannelMessage
 import com.convergencelabs.server.domain.model.ModelCreator
 import com.convergencelabs.server.domain.model.ModelManagerActor
 import com.convergencelabs.server.domain.model.ModelPermissionResolver

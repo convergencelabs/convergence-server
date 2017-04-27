@@ -9,16 +9,15 @@ object ChatChannelMessages {
 
   case class CreateChannelRequest(channelId: Option[String], channelType: String,
     channelMembership: String, name: Option[String], topic: Option[String],
-    members: List[String]) extends ChatChannelMessage
+    members: List[String])
 
-  sealed trait ChatChannelMessage
+  case class CreateChannelResponse(channelId: String)
 
-  sealed trait ExistingChannelMessage extends ChatChannelMessage {
+  sealed trait ExistingChannelMessage {
     val channelId: String
   }
 
   // Incoming Messages
-  case class CreateChannelResponse(channelId: String)
 
   case class RemoveChannelRequest(channelId: String, username: String) extends ExistingChannelMessage
 

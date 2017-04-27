@@ -1,6 +1,6 @@
 package com.convergencelabs.server.domain
 
-import com.convergencelabs.server.domain.ChatChannelMessages.ChatChannelMessage
+import com.convergencelabs.server.domain.ChatChannelMessages.ExistingChannelMessage
 
 import akka.cluster.sharding.ShardRegion
 
@@ -13,12 +13,12 @@ object ChatChannelSharding {
   val numberOfShards = 100
   
   val extractEntityId: ShardRegion.ExtractEntityId = {
-    case msg: ChatChannelMessage ⇒ 
+    case msg: ExistingChannelMessage ⇒ 
       (msg.channelId, msg)
   }
  
   val extractShardId: ShardRegion.ExtractShardId = {
-    case msg: ChatChannelMessage => 
+    case msg: ExistingChannelMessage => 
       Math.abs(msg.channelId.hashCode % numberOfShards).toString
   }
 }

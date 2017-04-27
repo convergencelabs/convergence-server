@@ -69,7 +69,7 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
           log.debug(s"Chat Channel Actor initialized processing message: '${domainFqn}/${message.channelId}'")
           processChatMessage(message)
         }
-        .recover { case cause: Exception => this.unexpectedError(message, cause) }
+        .recover { case cause: Exception => this.unexpectedError(cause) }
     case other: Any =>
       this.receiveCommon(other)
   }
@@ -87,7 +87,7 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
   def receiveWhenInitialized: Receive = {
     case message: ExistingChannelMessage =>
       processChatMessage(message)
-        .recover { case cause: Exception => this.unexpectedError(message, cause) }
+        .recover { case cause: Exception => this.unexpectedError(cause) }
     case other: Any =>
       this.receiveCommon(other)
   }
@@ -133,7 +133,7 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
     context.stop(self)
   }
 
-  private[this] def unexpectedError(message: ChatChannelMessage, cause: Exception): Unit = {
+  private[this] def unexpectedError(cause: Exception): Unit = {
     cause match {
       case cause: Exception =>
         sender ! Status.Failure(cause)
