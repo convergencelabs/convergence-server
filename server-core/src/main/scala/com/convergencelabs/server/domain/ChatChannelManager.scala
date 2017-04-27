@@ -6,12 +6,11 @@ import scala.util.Try
 
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 
-case class ChatMessageResult(response: Option[Any], state: Option[ChatChannelState])
+case class ChatMessageResult(response: Option[Any], broadcastMessages: List[Any], state: Option[ChatChannelState])
 
 class ChatChannelManager(
     private[this] val channelId: String,
-    private[this] val persistence: DomainPersistenceProvider,
-    private[this] val messagePublisher: ChatMessageBroadcaster) {
+    private[this] val persistence: DomainPersistenceProvider) {
   import ChatChannelMessages._
 
   def handleChatMessage(message: ChatChannelMessage, state: Option[ChatChannelState]): Try[ChatMessageResult] = {
@@ -63,8 +62,14 @@ class ChatChannelManager(
       Failure(ChannelAlreadyJoinedException(channelId))
     } else {
       val newMembers = members + username
+      val newState = state.copy(members = newMembers)
+      // TODO need help function to set new event number and last event time
+      
       // update the database, potentially, we could do this async.
-      Success(ChatMessageResult(Some(()), Some(state.copy(members = newMembers))))
+      val eventNo = state.lastEventNumber
+      val time = state.lastEventTime
+      
+      Success(ChatMessageResult(Some(()), List(UserJoinedChannel(channelId, eventNo, time, username)), Some(state)))
     }
   }
 

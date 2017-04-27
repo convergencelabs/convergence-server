@@ -15,11 +15,16 @@ import akka.actor.ActorLogging
 import akka.actor.ReceiveTimeout
 import akka.actor.Status
 import akka.cluster.pubsub.DistributedPubSub
+import akka.cluster.pubsub.DistributedPubSubMediator.Publish
 
 object ChatChannelActor {
 
   object ActorStatus extends Enumeration {
     val Initialized, NotInitialized = Value
+  }
+
+  def getChatUsernameTopicName(username: String): String = {
+    return s"chat-user-${username}"
   }
 
   case class ChatChannelActorState(status: ActorStatus.Value, state: Option[ChatChannelState])
@@ -84,7 +89,7 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
       // FIXME we probably want a get channel optional...
       // FIXME should we get a method that returns everyting below?
 
-      this.channelManager = Some(new ChatChannelManager(channelId, provider, new ChatMessageBroadcaster(mediator)))
+      this.channelManager = Some(new ChatChannelManager(channelId, provider))
 
       provider.chatChannelStore.getChatChannel(channelId) map { channel =>
         // FIXME don't have members?
@@ -128,14 +133,15 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
     this.channelManager match {
       case Some(manager) =>
         manager.handleChatMessage(message, this.channelActorState.state) map { result =>
-          result.response foreach (response => sender ! response)
           result.state foreach (updateState(_))
+          result.response foreach (response => sender ! response)
+          result.broadcastMessages foreach (broadcastToChannel(_))
         } recover {
           case cause: ChannelNotFoundException =>
             // It seems like there is no reason to stay up, at this point.
             context.parent ! Passivate(stopMessage = Stop)
             sender ! Status.Failure(cause)
-            
+
           case ChatChannelException(cause) =>
             sender ! Status.Failure(cause)
         }
@@ -169,6 +175,15 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
       case cause: Exception =>
         sender ! Status.Failure(cause)
         ()
+    }
+  }
+
+  private[this] def broadcastToChannel(message: Any): Unit = {
+    // FIXME pattern match
+    val members = this.channelActorState.state.get.members
+    members.foreach { member =>
+      val topic = ChatChannelActor.getChatUsernameTopicName(member)
+      mediator ! Publish(topic, message)
     }
   }
 
