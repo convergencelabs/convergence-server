@@ -1,25 +1,24 @@
 package com.convergencelabs.server.domain
 
 import java.time.Instant
+
 import scala.concurrent.duration.DurationInt
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
+
+import com.convergencelabs.server.datastore.EntityNotFoundException
+import com.convergencelabs.server.datastore.domain.ChatChannelEvent
+import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.domain.model.SessionKey
 
 import akka.actor.Actor
 import akka.actor.ActorLogging
-import akka.actor.Props
+import akka.actor.ReceiveTimeout
+import akka.actor.Status
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator.Publish
-import com.convergencelabs.server.datastore.domain.ChatChannelEvent
-import scala.util.Try
-import scala.util.Success
-import akka.actor.Status
-import akka.persistence.PersistentActor
-import com.convergencelabs.server.datastore.domain.ChatChannelStore
-import org.jboss.netty.channel.ChannelState
-import akka.actor.ReceiveTimeout
-import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
-import com.convergencelabs.server.datastore.EntityNotFoundException
 
 object ChatChannelActor {
 
@@ -46,47 +45,58 @@ object ChatChannelActor {
     val channelId: String
   }
 
+  sealed trait ExistingChannelMessage extends ChatChannelMessage
+
   case object Stop
 
   // Incoming Messages
   case class CreateChannelRequest(channelId: String, channelType: String,
     channelMembership: String, name: Option[String], topic: Option[String],
     members: List[String]) extends ChatChannelMessage
-  case class CreateChannelResponse(channelId: String) extends ChatChannelMessage
+  case class CreateChannelResponse(channelId: String)
 
-  case class RemoveChannelRequest(channelId: String, username: String) extends ChatChannelMessage
+  case class RemoveChannelRequest(channelId: String, username: String) extends ExistingChannelMessage
 
-  case class JoinChannelRequest(channelId: String, username: String) extends ChatChannelMessage
-  case class LeaveChannelRequest(channelId: String, username: String) extends ChatChannelMessage
-  case class AddUserToChannelRequest(channelId: String, username: String, addedBy: String) extends ChatChannelMessage
-  case class RemoveUserFromChannelRequest(channelId: String, username: String, removedBy: String) extends ChatChannelMessage
+  case class JoinChannelRequest(channelId: String, username: String) extends ExistingChannelMessage
+  case class LeaveChannelRequest(channelId: String, username: String) extends ExistingChannelMessage
+  case class AddUserToChannelRequest(channelId: String, username: String, addedBy: String) extends ExistingChannelMessage
+  case class RemoveUserFromChannelRequest(channelId: String, username: String, removedBy: String) extends ExistingChannelMessage
 
-  case class SetChannelNameRequest(channelId: String, name: String, setBy: String) extends ChatChannelMessage
-  case class SetChannelTopicRequest(channelId: String, topic: String, setBy: String) extends ChatChannelMessage
-  case class MarkChannelEventsSeenRequest(channelId: String, eventNumber: Long, username: String) extends ChatChannelMessage
+  case class SetChannelNameRequest(channelId: String, name: String, setBy: String) extends ExistingChannelMessage
+  case class SetChannelTopicRequest(channelId: String, topic: String, setBy: String) extends ExistingChannelMessage
+  case class MarkChannelEventsSeenRequest(channelId: String, eventNumber: Long, username: String) extends ExistingChannelMessage
 
-  case class PublishChatMessageRequest(channelId: String, sk: SessionKey, message: String) extends ChatChannelMessage
+  case class PublishChatMessageRequest(channelId: String, sk: SessionKey, message: String) extends ExistingChannelMessage
 
   case class ChannelHistoryRequest(channelId: String, username: String, limit: Option[Int], offset: Option[Int],
-    forward: Option[Boolean], events: List[String]) extends ChatChannelMessage
+    forward: Option[Boolean], events: List[String]) extends ExistingChannelMessage
   case class ChannelHistoryResponse(events: List[ChatChannelEvent])
 
   // Outgoing Broadcast Messages 
-  case class UserJoinedChannel(channelId: String, eventNumber: Long, timestamp: Instant, username: String) extends ChatChannelMessage
-  case class UserLeftChannel(channelId: String, eventNumber: Long, timestamp: Instant, username: String) extends ChatChannelMessage
-  case class UserAddedToChannel(channelId: String, eventNumber: Long, timestamp: Instant, username: String, addedBy: String) extends ChatChannelMessage
-  case class UserRemovedFromChannel(channelId: String, eventNumber: Long, timestamp: Instant, username: String, removedBy: String) extends ChatChannelMessage
+  case class UserJoinedChannel(channelId: String, eventNumber: Long, timestamp: Instant, username: String)
+  case class UserLeftChannel(channelId: String, eventNumber: Long, timestamp: Instant, username: String)
+  case class UserAddedToChannel(channelId: String, eventNumber: Long, timestamp: Instant, username: String, addedBy: String)
+  case class UserRemovedFromChannel(channelId: String, eventNumber: Long, timestamp: Instant, username: String, removedBy: String)
 
-  case class ChannelJoined(channelId: String, username: String) extends ChatChannelMessage
-  case class ChannelLeft(channelId: String, username: String) extends ChatChannelMessage
-  case class ChannelRemoved(channelId: String) extends ChatChannelMessage
+  case class ChannelJoined(channelId: String, username: String)
+  case class ChannelLeft(channelId: String, username: String)
+  case class ChannelRemoved(channelId: String)
 
-  case class RemoteChatMessage(channelId: String, eventNumber: Long, timestamp: Instant, sk: SessionKey, message: String) extends ChatChannelMessage
+  case class RemoteChatMessage(channelId: String, eventNumber: Long, timestamp: Instant, sk: SessionKey, message: String)
 
   // Exceptions
   case class ChannelNotJoinedException(channelId: String) extends Exception()
+  case class ChannelAlreadyJoinedException(channelId: String) extends Exception()
   case class ChannelNotFoundException(channelId: String) extends Exception()
   case class ChannelAlreadyExistsException(channelId: String) extends Exception()
+
+  object ChatChannelException {
+    def apply(t: Throwable): Boolean = t match {
+      case _: ChannelNotJoinedException | _: ChannelAlreadyJoinedException | _: ChannelNotFoundException | _: ChannelAlreadyExistsException => true
+      case _ => false
+    }
+    def unapply(t: Throwable): Option[Throwable] = if (apply(t)) Some(t) else None
+  }
 
   def getChatUsernameTopicName(username: String): String = {
     return s"chat-user-${username}"
@@ -94,8 +104,8 @@ object ChatChannelActor {
 }
 
 class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with ActorLogging {
-  import akka.cluster.sharding.ShardRegion.Passivate
   import ChatChannelActor._
+  import akka.cluster.sharding.ShardRegion.Passivate
 
   log.debug(s"Chat Channel Actor starting in domain: '${domainFqn}'")
 
@@ -106,10 +116,11 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
 
   val mediator = DistributedPubSub(context.system).mediator
 
-  // FIXME this is not really the right object, I need membership info also.
   // Here None signifies that the channel does not exist.
   var channelActorState: ChatChannelActorState = ChatChannelActorState(ActorStatus.NotInitialized, None)
+  var channelId: String = _
 
+  // FIXME what is the point of this method?
   def updateState(state: ChatChannelActorState): Unit = channelActorState = state
 
   //  override def receiveRecover: Receive = {
@@ -145,11 +156,12 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
 
   private[this] def onStop(): Unit = {
     log.debug("Receive stop signal shutting down")
-    DomainPersistenceProvider.releasePersistenceProvider(self, context, domainFqn)
+    DomainPersistenceManagerActor.releasePersistenceProvider(self, context, domainFqn)
     context.stop(self)
   }
 
   private[this] def initialize(channelId: String): Try[Unit] = {
+    this.channelId = channelId
     log.debug(s"Chat Channel Actor starting: '${domainFqn}/${channelId}'")
     DomainPersistenceManagerActor.acquirePersistenceProvider(self, context, domainFqn) flatMap { provider =>
       persistence = provider
@@ -198,29 +210,41 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
       this.unhandled(unhandled)
   }
 
-  def handleChatMessage: PartialFunction[ChatChannelMessage, Try[Unit]] = {
-    case message: CreateChannelRequest =>
-      onCreateChannel(message)
-    case message: RemoveChannelRequest =>
-      onRemoveChannel(message)
-    case message: JoinChannelRequest =>
-      onJoinChannel(message)
-    case message: LeaveChannelRequest =>
-      onLeaveChannel(message)
-    case message: AddUserToChannelRequest =>
-      onAddUserToChannel(message)
-    case message: RemoveUserFromChannelRequest =>
-      onRemoveUserFromChannel(message)
-    case message: SetChannelNameRequest =>
-      onSetChatChannelName(message)
-    case message: SetChannelTopicRequest =>
-      onSetChatChannelTopic(message)
-    case message: MarkChannelEventsSeenRequest =>
-      onMarkEventsSeen(message)
-    case message: ChannelHistoryRequest =>
-      onGetHistory(message)
-    case message: PublishChatMessageRequest =>
-      onPublishMessage(message)
+  def handleChatMessage(message: ChatChannelMessage): Try[Unit] = {
+    (message match {
+      case message: CreateChannelRequest =>
+        onCreateChannel(message)
+      case other: ExistingChannelMessage =>
+        assertChannelExists() flatMap { state =>
+          other match {
+            case message: RemoveChannelRequest =>
+              onRemoveChannel(message)
+            case message: JoinChannelRequest =>
+              onJoinChannel(message, state)
+            case message: LeaveChannelRequest =>
+              onLeaveChannel(message)
+            case message: AddUserToChannelRequest =>
+              onAddUserToChannel(message)
+            case message: RemoveUserFromChannelRequest =>
+              onRemoveUserFromChannel(message)
+            case message: SetChannelNameRequest =>
+              onSetChatChannelName(message)
+            case message: SetChannelTopicRequest =>
+              onSetChatChannelTopic(message)
+            case message: MarkChannelEventsSeenRequest =>
+              onMarkEventsSeen(message)
+            case message: ChannelHistoryRequest =>
+              onGetHistory(message)
+            case message: PublishChatMessageRequest =>
+              onPublishMessage(message)
+          }
+        }
+    }) map { message => 
+      sender ! message
+    } recover {
+      case ChatChannelException(cause) =>
+        sender ! Status.Failure(cause)
+    }
   }
 
   def onCreateChannel(message: CreateChannelRequest): Try[Unit] = {
@@ -233,11 +257,17 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
     ???
   }
 
-  def onJoinChannel(message: JoinChannelRequest): Try[Unit] = Try {
+  def onJoinChannel(message: JoinChannelRequest, state: ChatChannelState): Try[Unit] = {
     val JoinChannelRequest(channelId, username) = message;
-    log.debug(message.toString())
-    sender ! (())
-    ()
+    val members = state.members
+    if (members contains username) {
+      Failure(ChannelAlreadyJoinedException(channelId))
+    } else {
+      val newMembers = members + username
+      // update the database, potentially, we could do this async.
+      updateState(state.copy(members = newMembers))
+      Success(())
+    }
   }
 
   def onLeaveChannel(message: LeaveChannelRequest): Try[Unit] = {
@@ -301,8 +331,19 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
     }
   }
 
+  private def assertChannelExists(): Try[ChatChannelState] = {
+    this.channelActorState.state match {
+      case Some(state) => Success(state)
+      case None => Failure(ChannelNotFoundException(channelId))
+    }
+  }
+
   private[this] def getChatChannelMembers(channelId: String): List[String] = {
     ???
+  }
+
+  private[this] def updateState(state: ChatChannelState): Unit = {
+    this.channelActorState.copy(state = Some(state))
   }
 
 }

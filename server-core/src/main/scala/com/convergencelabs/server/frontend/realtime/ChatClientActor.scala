@@ -19,6 +19,7 @@ import com.convergencelabs.server.domain.DomainFqn
 import akka.cluster.sharding.ClusterSharding
 import com.convergencelabs.server.domain.ChatChannelActor
 import com.convergencelabs.server.domain.ChatChannelActor.JoinChannelRequest
+import com.convergencelabs.server.domain.ChatChannelActor.ChannelNotFoundException
 
 object ChatClientActor {
   def props(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk: SessionKey): Props =
@@ -101,6 +102,8 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
     chatChannelActor.ask(JoinChannelRequest(channelId, sk.uid)) onComplete { 
       case Success(()) =>
         cb.reply(JoinChatChannelResponseMessage())
+      case Failure(ChannelNotFoundException(_)) => 
+        cb.expectedError("channel_not_found", s"A channel with id '${channelId}' does not exist.")
       case Failure(cause) =>
         cb.unexpectedError(cause.getMessage)
     }
