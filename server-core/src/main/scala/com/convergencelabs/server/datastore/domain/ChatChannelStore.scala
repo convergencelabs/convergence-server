@@ -248,123 +248,137 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
     }
   }
 
-  def addChatMessageEvent(channelId: String, username: String, message: String): Try[Unit] = tryWithDb { db =>
+  def addChatMessageEvent(event: ChatMessageEvent): Try[Unit] = tryWithDb { db =>
+    val ChatMessageEvent(eventNo, channel, user, timestamp, message) = event
     val queryStirng =
       """INSERT INTO ChatMessageEvent SET
-        |  eventNo = (SELECT max(eventNo) + 1 FROM ChatChannelEvent WHERE channel.id = :channelId),
+        |  eventNo = :eventNo,
         |  channel = (SELECT FROM ChatChannel WHERE id = :channelId),
         |  user = (SELECT FROM User WHERE username = :username),
         |  timestamp = :timestamp,
         |  message = :message""".stripMargin
     val query = new OCommandSQL(queryStirng)
     val params = Map(
-        "channelId" -> channelId, 
-        "username" -> username, 
-        "timestamp" -> Date.from(Instant.now()),
+        "eventNo" -> eventNo, 
+        "channelId" -> channel, 
+        "username" -> user, 
+        "timestamp" -> Date.from(timestamp),
         "message" -> message)
     db.command(query).execute(params.asJava)
     Unit
   }
   
-  def addChatUserJoinedEvent(channelId: String, username: String): Try[Unit] = tryWithDb { db =>
+  def addChatUserJoinedEvent(event: ChatUserJoinedEvent): Try[Unit] = tryWithDb { db =>
+    val ChatUserJoinedEvent(eventNo, channel, user, timestamp) = event
     val queryStirng =
       """INSERT INTO ChatUserJoinedEvent SET
-        |  eventNo = (SELECT max(eventNo) + 1 FROM ChatChannelEvent WHERE channel.id = :channelId),
+        |  eventNo = :eventNo,
         |  channel = (SELECT FROM ChatChannel WHERE id = :channelId),
         |  user = (SELECT FROM User WHERE username = :username),
         |  timestamp = :timestamp""".stripMargin
     val query = new OCommandSQL(queryStirng)
     val params = Map(
-        "channelId" -> channelId, 
-        "username" -> username, 
-        "timestamp" -> Date.from(Instant.now()))
+        "eventNo" -> eventNo,
+        "channelId" -> channel, 
+        "username" -> user, 
+        "timestamp" -> Date.from(timestamp))
     db.command(query).execute(params.asJava)
     Unit
   }
   
-  def addChatUserLeftEvent(channelId: String, username: String): Try[Unit] = tryWithDb { db =>
+  def addChatUserLeftEvent(event: ChatUserLeftEvent): Try[Unit] = tryWithDb { db =>
+    val ChatUserLeftEvent(eventNo, channel, user, timestamp) = event
     val queryStirng =
       """INSERT INTO ChatUserLeftEvent SET
-        |  eventNo = (SELECT max(eventNo) + 1 FROM ChatChannelEvent WHERE channel.id = :channelId),
+        |  eventNo = :eventNo,
         |  channel = (SELECT FROM ChatChannel WHERE id = :channelId),
         |  user = (SELECT FROM User WHERE username = :username),
         |  timestamp = :timestamp""".stripMargin
     val query = new OCommandSQL(queryStirng)
     val params = Map(
-        "channelId" -> channelId, 
-        "username" -> username, 
-        "timestamp" -> Date.from(Instant.now()))
+        "eventNo" -> eventNo, 
+        "channelId" -> channel, 
+        "username" -> user, 
+        "timestamp" -> Date.from(timestamp))
     db.command(query).execute(params.asJava)
     Unit
   }
   
-  def addChatUserAddedEvent(channelId: String, username: String, userAdded: String): Try[Unit] = tryWithDb { db =>
+  def addChatUserAddedEvent(event: ChatUserAddedEvent): Try[Unit] = tryWithDb { db =>
+    val ChatUserAddedEvent(eventNo, channel, user, timestamp, userAdded) = event
     val queryStirng =
       """INSERT INTO ChatUserAddedEvent SET
-        |  eventNo = (SELECT max(eventNo) + 1 FROM ChatChannelEvent WHERE channel.id = :channelId),
+        |  eventNo = :eventNo,
         |  channel = (SELECT FROM ChatChannel WHERE id = :channelId),
         |  user = (SELECT FROM User WHERE username = :username),
         |  timestamp = :timestamp,
-        |  userAdded = :userAdded""".stripMargin
+        |  userAdded = (SELECT FROM User WHERE username = :userAdded)""".stripMargin
     val query = new OCommandSQL(queryStirng)
     val params = Map(
-        "channelId" -> channelId, 
-        "username" -> username, 
-        "timestamp" -> Date.from(Instant.now()),
+        "eventNo" -> eventNo, 
+        "channelId" -> channel, 
+        "username" -> user, 
+        "timestamp" -> Date.from(timestamp),
         "userAdded" -> userAdded)
     db.command(query).execute(params.asJava)
     Unit
   }
   
-  def addChatUserRemovedEvent(channelId: String, username: String, userRemoved: String): Try[Unit] = tryWithDb { db =>
+  def addChatUserRemovedEvent(event: ChatUserRemovedEvent): Try[Unit] = tryWithDb { db =>
+    val ChatUserRemovedEvent(eventNo, channel, user, timestamp, userRemoved) = event
     val queryStirng =
       """INSERT INTO ChatUserRemovedEvent SET
-        |  eventNo = (SELECT max(eventNo) + 1 FROM ChatChannelEvent WHERE channel.id = :channelId),
+        |  eventNo = :eventNo,
         |  channel = (SELECT FROM ChatChannel WHERE id = :channelId),
         |  user = (SELECT FROM User WHERE username = :username),
         |  timestamp = :timestamp,
-        |  userAdded = :userAdded""".stripMargin
+        |  userAdded = (SELECT FROM User WHERE username = :userRemoved)""".stripMargin
     val query = new OCommandSQL(queryStirng)
     val params = Map(
-        "channelId" -> channelId, 
-        "username" -> username, 
-        "timestamp" -> Date.from(Instant.now()),
+        "eventNo" -> eventNo, 
+        "channelId" -> channel, 
+        "username" -> user, 
+        "timestamp" -> Date.from(timestamp),
         "userRemoved" -> userRemoved)
     db.command(query).execute(params.asJava)
     Unit
   }
   
-  def addChatNameChangedEvent(channelId: String, username: String, name: String): Try[Unit] = tryWithDb { db =>
+  def addChatNameChangedEvent(event: ChatNameChangedEvent): Try[Unit] = tryWithDb { db =>
+    val ChatNameChangedEvent(eventNo, channel, user, timestamp, name) = event
     val queryStirng =
       """INSERT INTO ChatNameChangedEvent SET
-        |  eventNo = (SELECT max(eventNo) + 1 FROM ChatChannelEvent WHERE channel.id = :channelId),
+        |  eventNo = :eventNo,
         |  channel = (SELECT FROM ChatChannel WHERE id = :channelId),
         |  user = (SELECT FROM User WHERE username = :username),
         |  timestamp = :timestamp,
         |  name = :name""".stripMargin
     val query = new OCommandSQL(queryStirng)
     val params = Map(
-        "channelId" -> channelId, 
-        "username" -> username, 
-        "timestamp" -> Date.from(Instant.now()),
+        "eventNo" -> eventNo, 
+        "channelId" -> channel, 
+        "username" -> user, 
+        "timestamp" -> Date.from(timestamp),
         "name" -> name)
     db.command(query).execute(params.asJava)
     Unit
   }
   
-  def addChatTopicChangedEvent(channelId: String, username: String, topic: String): Try[Unit] = tryWithDb { db =>
+  def addChatTopicChangedEvent(event: ChatTopicChangedEvent): Try[Unit] = tryWithDb { db =>
+    val ChatTopicChangedEvent(eventNo, channel, user, timestamp, topic) = event
     val queryStirng =
       """INSERT INTO ChatTopicChangedEvent SET
-        |  eventNo = (SELECT max(eventNo) + 1 FROM ChatChannelEvent WHERE channel.id = :channelId),
+        |  eventNo = :eventNo,
         |  channel = (SELECT FROM ChatChannel WHERE id = :channelId),
         |  user = (SELECT FROM User WHERE username = :username),
         |  timestamp = :timestamp,
         |  topic = :topic""".stripMargin
     val query = new OCommandSQL(queryStirng)
     val params = Map(
-        "channelId" -> channelId, 
-        "username" -> username, 
-        "timestamp" -> Date.from(Instant.now()),
+        "eventNo" -> eventNo, 
+        "channelId" -> channel, 
+        "username" -> user, 
+        "timestamp" -> Date.from(timestamp),
         "topic" -> topic)
     db.command(query).execute(params.asJava)
     Unit
