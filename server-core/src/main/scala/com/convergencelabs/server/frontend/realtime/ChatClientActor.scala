@@ -5,9 +5,30 @@ import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 
+import com.convergencelabs.server.domain.ChatChannelActor
+import com.convergencelabs.server.domain.ChatChannelMessages.AddUserToChannelRequest
+import com.convergencelabs.server.domain.ChatChannelMessages.ChannelAlreadyExistsException
+import com.convergencelabs.server.domain.ChatChannelMessages.ChannelAlreadyJoinedException
+import com.convergencelabs.server.domain.ChatChannelMessages.ChannelJoined
+import com.convergencelabs.server.domain.ChatChannelMessages.ChannelLeft
 import com.convergencelabs.server.domain.ChatChannelMessages.ChannelNotFoundException
+import com.convergencelabs.server.domain.ChatChannelMessages.ChannelNotJoinedException
+import com.convergencelabs.server.domain.ChatChannelMessages.ChannelRemoved
+import com.convergencelabs.server.domain.ChatChannelMessages.ChatChannelBroadcastMessage
+import com.convergencelabs.server.domain.ChatChannelMessages.ChatChannelException
 import com.convergencelabs.server.domain.ChatChannelMessages.JoinChannelRequest
+import com.convergencelabs.server.domain.ChatChannelMessages.LeaveChannelRequest
+import com.convergencelabs.server.domain.ChatChannelMessages.MarkChannelEventsSeenRequest
+import com.convergencelabs.server.domain.ChatChannelMessages.PublishChatMessageRequest
 import com.convergencelabs.server.domain.ChatChannelMessages.RemoteChatMessage
+import com.convergencelabs.server.domain.ChatChannelMessages.RemoveChannelRequest
+import com.convergencelabs.server.domain.ChatChannelMessages.RemoveUserFromChannelRequest
+import com.convergencelabs.server.domain.ChatChannelMessages.SetChannelNameRequest
+import com.convergencelabs.server.domain.ChatChannelMessages.SetChannelTopicRequest
+import com.convergencelabs.server.domain.ChatChannelMessages.UserAddedToChannel
+import com.convergencelabs.server.domain.ChatChannelMessages.UserJoinedChannel
+import com.convergencelabs.server.domain.ChatChannelMessages.UserLeftChannel
+import com.convergencelabs.server.domain.ChatChannelMessages.UserRemovedFromChannel
 import com.convergencelabs.server.domain.model.SessionKey
 
 import akka.actor.Actor
@@ -15,20 +36,11 @@ import akka.actor.ActorLogging
 import akka.actor.ActorRef
 import akka.actor.Props
 import akka.actor.actorRef2Scala
-import akka.util.Timeout
-import akka.pattern.ask
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator.Subscribe
-import com.convergencelabs.server.domain.ChatChannelActor
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
-import com.convergencelabs.server.domain.ChatChannelMessages.UserJoinedChannel
-import com.convergencelabs.server.domain.ChatChannelMessages.UserLeftChannel
-import com.convergencelabs.server.domain.ChatChannelMessages.ChatChannelBroadcastMessage
-import com.convergencelabs.server.domain.ChatChannelMessages.UserAddedToChannel
-import com.convergencelabs.server.domain.ChatChannelMessages.UserRemovedFromChannel
-import com.convergencelabs.server.domain.ChatChannelMessages.ChannelJoined
-import com.convergencelabs.server.domain.ChatChannelMessages.ChannelLeft
-import com.convergencelabs.server.domain.ChatChannelMessages.ChannelRemoved
+import akka.pattern.ask
+import akka.util.Timeout
 
 object ChatClientActor {
   def props(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk: SessionKey): Props =
@@ -81,10 +93,10 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
 
       case ChannelJoined(channelId) =>
         context.parent ! ChatChannelJoinedMessage(channelId)
-        
+
       case ChannelLeft(channelId) =>
         context.parent ! ChatChannelLeftMessage(channelId)
-        
+
       case ChannelRemoved(channelId) =>
         context.parent ! ChatChannelRemovedMessage(channelId)
     }
@@ -103,31 +115,31 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
       case message: CreateChatChannelRequestMessage =>
         onCreateChannel(message)
       case message: RemoveChatChannelRequestMessage =>
-        onRemoveChannel(message)
+        onRemoveChannel(message, replyCallback)
       case message: JoinChatChannelRequestMessage =>
         onJoinChannel(message, replyCallback)
       case message: LeaveChatChannelRequestMessage =>
-        onLeaveChannel(message)
+        onLeaveChannel(message, replyCallback)
       case message: AddUserToChatChannelRequestMessage =>
-        onAddUserToChannel(message)
+        onAddUserToChannel(message, replyCallback)
       case message: RemoveUserFromChatChannelRequestMessage =>
-        onRemoveUserFromChannel(message)
+        onRemoveUserFromChannel(message, replyCallback)
       case message: SetChatChannelNameRequestMessage =>
-        onSetChatChannelName(message)
+        onSetChatChannelName(message, replyCallback)
       case message: SetChatChannelTopicRequestMessage =>
-        onSetChatChannelTopic(message)
+        onSetChatChannelTopic(message, replyCallback)
       case message: MarkChatChannelEventsSeenRequestMessage =>
-        onMarkEventsSeen(message)
+        onMarkEventsSeen(message, replyCallback)
       case message: GetChatChannelsRequestMessage =>
-        onGetChannels(message)
+        onGetChannels(message, replyCallback)
       case message: GetJoinedChatChannelsRequestMessage =>
-        onGetJoinedChannels()
+        onGetJoinedChannels(replyCallback)
       case message: GetDirectChannelsRequestMessage =>
-        onGetDirect(message)
+        onGetDirect(message, replyCallback)
       case message: ChatChannelHistoryRequestMessage =>
-        onGetHistory(message)
+        onGetHistory(message, replyCallback)
       case message: PublishChatRequestMessage =>
-        onPublishMessage(message)
+        onPublishMessage(message, replyCallback)
     }
   }
 
@@ -136,74 +148,112 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
     ???
   }
 
-  def onRemoveChannel(message: RemoveChatChannelRequestMessage): Unit = {
+  def onRemoveChannel(message: RemoveChatChannelRequestMessage, cb: ReplyCallback): Unit = {
     val RemoveChatChannelRequestMessage(channelId) = message;
-    ???
+    val request = RemoveChannelRequest(channelId, sk.uid)
+    handleSimpleChannelRequest(request, { () => RemoveChatChannelResponseMessage() }, cb)
   }
 
   def onJoinChannel(message: JoinChatChannelRequestMessage, cb: ReplyCallback): Unit = {
     val JoinChatChannelRequestMessage(channelId) = message;
-    chatChannelActor.ask(JoinChannelRequest(channelId, sk.uid)).mapTo[Unit].onComplete {
+    val request = JoinChannelRequest(channelId, sk.uid)
+    handleSimpleChannelRequest(request, { () => JoinChatChannelResponseMessage() }, cb)
+  }
+
+  def onLeaveChannel(message: LeaveChatChannelRequestMessage, cb: ReplyCallback): Unit = {
+    val LeaveChatChannelRequestMessage(channelId) = message;
+    val request = LeaveChannelRequest(channelId, sk.uid)
+    handleSimpleChannelRequest(request, { () => LeaveChatChannelResponseMessage() }, cb)
+  }
+
+  def onAddUserToChannel(message: AddUserToChatChannelRequestMessage, cb: ReplyCallback): Unit = {
+    val AddUserToChatChannelRequestMessage(channelId, userToAdd) = message;
+    val request = AddUserToChannelRequest(channelId, userToAdd, sk.uid)
+    handleSimpleChannelRequest(request, { () => AddUserToChatChannelResponseMessage() }, cb)
+  }
+
+  def onRemoveUserFromChannel(message: RemoveUserFromChatChannelRequestMessage, cb: ReplyCallback): Unit = {
+    val RemoveUserFromChatChannelRequestMessage(channelId, userToRemove) = message;
+    val request = RemoveUserFromChannelRequest(channelId, userToRemove, sk.uid)
+    handleSimpleChannelRequest(request, { () => RemoveUserFromChatChannelResponseMessage() }, cb)
+  }
+
+  def onSetChatChannelName(message: SetChatChannelNameRequestMessage, cb: ReplyCallback): Unit = {
+    val SetChatChannelNameRequestMessage(channelId, name) = message;
+    val request = SetChannelNameRequest(channelId, name, sk.uid)
+    handleSimpleChannelRequest(request, { () => SetChatChannelNameResponseMessage() }, cb)
+  }
+
+  def onSetChatChannelTopic(message: SetChatChannelTopicRequestMessage, cb: ReplyCallback): Unit = {
+    val SetChatChannelTopicRequestMessage(channelId, topic) = message;
+    val request = SetChannelTopicRequest(channelId, topic, sk.uid)
+    handleSimpleChannelRequest(request, { () => SetChatChannelTopicResponseMessage() }, cb)
+  }
+
+  def onMarkEventsSeen(message: MarkChatChannelEventsSeenRequestMessage, cb: ReplyCallback): Unit = {
+    val MarkChatChannelEventsSeenRequestMessage(channelId, eventNumber) = message;
+    val request = MarkChannelEventsSeenRequest(channelId, eventNumber, sk.uid)
+    handleSimpleChannelRequest(request, { () => MarkChatChannelEventsSeenResponseMessage() }, cb)
+  }
+
+  def onPublishMessage(message: PublishChatRequestMessage, cb: ReplyCallback): Unit = {
+    val PublishChatRequestMessage(channelId, msg) = message;
+    val request = PublishChatMessageRequest(channelId, sk, msg)
+    handleSimpleChannelRequest(request, { () => PublishChatResponseMessage() }, cb)
+  }
+
+  def onGetChannels(message: GetChatChannelsRequestMessage, cb: ReplyCallback): Unit = {
+    val GetChatChannelsRequestMessage(ids) = message;
+    ???
+  }
+
+  def onGetDirect(message: GetDirectChannelsRequestMessage, cb: ReplyCallback): Unit = {
+    val GetDirectChannelsRequestMessage(usernameLists) = message;
+    ???
+  }
+
+  def onGetJoinedChannels(cb: ReplyCallback): Unit = {
+    ???
+  }
+
+  def onGetHistory(message: ChatChannelHistoryRequestMessage, cb: ReplyCallback): Unit = {
+    val ChatChannelHistoryRequestMessage(channleId, limit, offset, forward, events) = message;
+    ???
+  }
+
+  private[this] def handleSimpleChannelRequest(request: Any, response: () => OutgoingProtocolResponseMessage, cb: ReplyCallback): Unit = {
+    chatChannelActor.ask(request).mapTo[Unit] onComplete {
       case Success(()) =>
-        cb.reply(JoinChatChannelResponseMessage())
-      case Failure(ChannelNotFoundException(_)) =>
-        cb.expectedError("channel_not_found", s"A channel with id '${channelId}' does not exist.")
+        cb.reply(response())
+      case Failure(ChatChannelException(cause)) =>
+        handleChatChannelException(cause, cb)
       case Failure(cause) =>
         cb.unexpectedError(cause.getMessage)
     }
   }
 
-  def onLeaveChannel(message: LeaveChatChannelRequestMessage): Unit = {
-    val LeaveChatChannelRequestMessage(channelId) = message;
-    ???
-  }
-
-  def onAddUserToChannel(message: AddUserToChatChannelRequestMessage): Unit = {
-    val AddUserToChatChannelRequestMessage(channelId, username) = message;
-    ???
-  }
-
-  def onRemoveUserFromChannel(message: RemoveUserFromChatChannelRequestMessage): Unit = {
-    val RemoveUserFromChatChannelRequestMessage(channelId, username) = message;
-    ???
-  }
-
-  def onSetChatChannelName(message: SetChatChannelNameRequestMessage): Unit = {
-    val SetChatChannelNameRequestMessage(channelId, name) = message;
-    ???
-  }
-
-  def onSetChatChannelTopic(message: SetChatChannelTopicRequestMessage): Unit = {
-    val SetChatChannelTopicRequestMessage(channelId, topic) = message;
-    ???
-  }
-
-  def onMarkEventsSeen(message: MarkChatChannelEventsSeenRequestMessage): Unit = {
-    val MarkChatChannelEventsSeenRequestMessage(channelId, eventNumber) = message;
-    ???
-  }
-
-  def onGetChannels(message: GetChatChannelsRequestMessage): Unit = {
-    val GetChatChannelsRequestMessage(ids) = message;
-    ???
-  }
-
-  def onGetDirect(message: GetDirectChannelsRequestMessage): Unit = {
-    val GetDirectChannelsRequestMessage(usernameLists) = message;
-    ???
-  }
-
-  def onGetJoinedChannels(): Unit = {
-    ???
-  }
-
-  def onGetHistory(message: ChatChannelHistoryRequestMessage): Unit = {
-    val ChatChannelHistoryRequestMessage(channleId, limit, offset, forward, events) = message;
-    ???
-  }
-
-  def onPublishMessage(message: PublishChatRequestMessage): Unit = {
-    val PublishChatRequestMessage(channeId, msg) = message;
-    ???
+  private[this] def handleChatChannelException(cause: ChatChannelException, cb: ReplyCallback): Unit = {
+    cause match {
+      case ChannelNotFoundException(channelId) =>
+        cb.expectedError(
+          "channel_not_found",
+          s"Could not complete the request because a channel with id '${channelId}' does not exist.",
+          Map("channelId" -> channelId))
+      case ChannelNotJoinedException(channelId) =>
+        cb.expectedError(
+          "channel_not_joined",
+          s"Could not complete the request the user is not joined to the channel: '${channelId}'",
+          Map("channelId" -> channelId))
+      case ChannelAlreadyExistsException(channelId) =>
+        cb.expectedError(
+          "channel_already_exists",
+          s"Could not complete the request because a channel with id '${channelId}' aready exists.",
+          Map("channelId" -> channelId))
+      case ChannelAlreadyJoinedException(channelId) =>
+        cb.expectedError(
+          "channel_already_joined",
+          s"Could not complete the request the user is already joined to the channel: '${channelId}'",
+          Map("channelId" -> channelId))
+    }
   }
 }

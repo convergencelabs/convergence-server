@@ -49,16 +49,17 @@ object ChatChannelMessages {
   case class RemoteChatMessage(channelId: String, eventNumber: Long, timestamp: Instant, sk: SessionKey, message: String) extends ChatChannelBroadcastMessage
 
   // Exceptions
-  case class ChannelNotJoinedException(channelId: String) extends Exception()
-  case class ChannelAlreadyJoinedException(channelId: String) extends Exception()
-  case class ChannelNotFoundException(channelId: String) extends Exception()
-  case class ChannelAlreadyExistsException(channelId: String) extends Exception()
+  sealed abstract class ChatChannelException() extends Exception()
+  case class ChannelNotJoinedException(channelId: String) extends ChatChannelException()
+  case class ChannelAlreadyJoinedException(channelId: String) extends ChatChannelException() 
+  case class ChannelNotFoundException(channelId: String) extends ChatChannelException()
+  case class ChannelAlreadyExistsException(channelId: String) extends ChatChannelException()
 
   object ChatChannelException {
     def apply(t: Throwable): Boolean = t match {
-      case _: ChannelNotJoinedException | _: ChannelAlreadyJoinedException | _: ChannelNotFoundException | _: ChannelAlreadyExistsException => true
+      case _: ChatChannelException => true
       case _ => false
     }
-    def unapply(t: Throwable): Option[Throwable] = if (apply(t)) Some(t) else None
+    def unapply(t: Throwable): Option[ChatChannelException] = if (apply(t)) Some(t.asInstanceOf[ChatChannelException]) else None
   }
 }
