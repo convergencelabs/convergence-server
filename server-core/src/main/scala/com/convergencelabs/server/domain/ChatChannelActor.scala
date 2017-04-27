@@ -1,7 +1,7 @@
 package com.convergencelabs.server.domain
 
 import java.time.Instant
-
+import scala.concurrent.duration.DurationInt
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.domain.model.SessionKey
 
@@ -14,20 +14,43 @@ import com.convergencelabs.server.datastore.domain.ChatChannelEvent
 import scala.util.Try
 import scala.util.Success
 import akka.actor.Status
+import akka.persistence.PersistentActor
+import com.convergencelabs.server.datastore.domain.ChatChannelStore
+import org.jboss.netty.channel.ChannelState
+import akka.actor.ReceiveTimeout
 
 object ChatChannelActor {
 
-  def props(domainFqn: DomainFqn): Props = Props(
-    new ChatChannelActor(domainFqn))
+  def props(domainFqn: DomainFqn, chatChannelStore: ChatChannelStore): Props = Props(
+    new ChatChannelActor(domainFqn, chatChannelStore))
+
+  object ActorStatus extends Enumeration {
+    val Initialized, NotInitialized = Value
+  }
+
+  case class ChatChannelState(
+    id: String,
+    channelType: String, // make enum?
+    created: Instant,
+    isPrivate: Boolean,
+    name: String,
+    topic: String,
+    lastEventTime: Instant,
+    lastEventNumber: Long,
+    members: Set[String])
+
+  case class ChatChannelActorState(status: ActorStatus.Value, state: Option[ChatChannelState])
 
   sealed trait ChatChannelMessage {
     val channelId: String
   }
 
+  case object Stop
+
   // Incoming Messages
   case class CreateChannelRequest(channelId: String, channelType: String,
-    channelMembership: String, name: Option[String], topic: Option[String],
-    members: List[String]) extends ChatChannelMessage
+                                  channelMembership: String, name: Option[String], topic: Option[String],
+                                  members: List[String]) extends ChatChannelMessage
   case class CreateChannelResponse(channelId: String) extends ChatChannelMessage
 
   case class RemoveChannelRequest(channelId: String, username: String) extends ChatChannelMessage
@@ -44,7 +67,7 @@ object ChatChannelActor {
   case class PublishChatMessageRequest(channelId: String, sk: SessionKey, message: String) extends ChatChannelMessage
 
   case class ChannelHistoryRequest(channelId: String, username: String, limit: Option[Int], offset: Option[Int],
-    forward: Option[Boolean], events: List[String]) extends ChatChannelMessage
+                                   forward: Option[Boolean], events: List[String]) extends ChatChannelMessage
   case class ChannelHistoryResponse(events: List[ChatChannelEvent])
 
   // Outgoing Broadcast Messages 
@@ -69,30 +92,67 @@ object ChatChannelActor {
   }
 }
 
-class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with ActorLogging {
-
+class ChatChannelActor private[domain] (domainFqn: DomainFqn, chatChannelStore: ChatChannelStore) extends PersistentActor with ActorLogging {
+  import akka.cluster.sharding.ShardRegion.Passivate
   import ChatChannelActor._
+
+  // TODO: Load from configuration 
+  context.setReceiveTimeout(120.seconds)
+  
+  override def persistenceId: String = "ChatChannel-" + self.path.name
 
   val mediator = DistributedPubSub(context.system).mediator
 
   // FIXME this is not really the right object, I need membership info also.
   // Here None signifies that the channel does not exist.
-  var channelState: Option[ChatChannelState] = None
+  var channelActorState: ChatChannelActorState = ChatChannelActorState(ActorStatus.NotInitialized, None)
+
+  def updateState(state: ChatChannelActorState): Unit = channelActorState = state
+
+  override def receiveRecover: Receive = {
+    case state: ChatChannelActorState =>
+      channelActorState = state
+      state.status match {
+        case ActorStatus.Initialized => context.become(receiveWhenInitialized)
+      }
+  }
 
   // Default recieve will be called the first time
-  def receive: Receive = {
+  override def receiveCommand: Receive = {
     case message: ChatChannelMessage =>
       initialize(message.channelId)
         .flatMap(_ => handleChatMessage(message))
         .recover { case cause: Exception => this.unexpectedError(message, cause) }
-
+    case ReceiveTimeout ⇒ context.parent ! Passivate(stopMessage = Stop)
+    case Stop           ⇒ context.stop(self)
     case unhandled: Any => this.unhandled(unhandled)
   }
 
-  def receiveWhenInitizlized: Receive = {
+  private[this] def initialize(channelId: String): Try[Unit] = {
+    // Load crap from the database?
+    // Where do I get the chat channel store from?
+    this.channelActorState = ChatChannelActorState(ActorStatus.Initialized, Some(
+      ChatChannelState(
+        channelId,
+        "group",
+        Instant.now(),
+        false,
+        "myname",
+        "mytopic",
+        Instant.now(),
+        7,
+        Set("michael", "cameron"))))
+    persist(channelActorState)(updateState)
+    context.become(receiveWhenInitialized)
+    Success(())
+  }
+
+  def receiveWhenInitialized: Receive = {
     case message: ChatChannelMessage =>
       handleChatMessage(message)
         .recover { case cause: Exception => this.unexpectedError(message, cause) }
+    case ReceiveTimeout ⇒ context.parent ! Passivate(stopMessage = Stop)
+    case Stop           ⇒ context.stop(self)
     case unhandled: Any =>
       this.unhandled(unhandled)
   }
@@ -202,36 +262,26 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
     ???
   }
 
-  private[this] def initialize(channelId: String): Try[Unit] = {
-    // Load crap from the database?
-    // Where do I get the chat channel store from?
-    this.channelState = Some(
-      ChatChannelState(
-        channelId,
-        "group",
-        Instant.now(),
-        false,
-        "myname",
-        "mytopic",
-        Instant.now(),
-        7,
-        Set("michael", "cameron")))
-    context.become(receiveWhenInitizlized)
-    Success(())
-  }
-
-  case class ChatChannelState(
-    id: String,
-    channelType: String, // make enum?
-    created: Instant,
-    isPrivate: Boolean,
-    name: String,
-    topic: String,
-    lastEventTime: Instant,
-    lastEventNumber: Long,
-    membrers: Set[String])
-
 }
 
+// TODO: Where to init the cluster and how to pass store
+
+//    val extractEntityId: ShardRegion.ExtractEntityId = {
+//      case msg: ChatChannelMessage ⇒ (msg.channelId, msg)
+//    }
+//
+//    val numberOfShards = 100
+//
+//    val extractShardId: ShardRegion.ExtractShardId = {
+//      // FIXME: Calculate this correctly
+//      case msg: ChatChannelMessage ⇒ (1 % numberOfShards).toString
+//    }
+//
+//    val chatChannelRegion: ActorRef = ClusterSharding(system).start(
+//      typeName = "ChatChannel",
+//      entityProps = Props[ChatChannelActor],
+//      settings = ClusterShardingSettings(system),
+//      extractEntityId = extractEntityId,
+//      extractShardId = extractShardId)
 
 
