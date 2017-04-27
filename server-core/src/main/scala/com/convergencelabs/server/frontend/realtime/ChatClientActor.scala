@@ -9,11 +9,15 @@ import com.convergencelabs.server.domain.ChatChannelActor
 import com.convergencelabs.server.domain.ChatChannelMessages.AddUserToChannelRequest
 import com.convergencelabs.server.domain.ChatChannelMessages.ChannelAlreadyExistsException
 import com.convergencelabs.server.domain.ChatChannelMessages.ChannelAlreadyJoinedException
+import com.convergencelabs.server.domain.ChatChannelMessages.ChannelNameChanged
 import com.convergencelabs.server.domain.ChatChannelMessages.ChannelNotFoundException
 import com.convergencelabs.server.domain.ChatChannelMessages.ChannelNotJoinedException
 import com.convergencelabs.server.domain.ChatChannelMessages.ChannelRemoved
+import com.convergencelabs.server.domain.ChatChannelMessages.ChannelTopicChanged
 import com.convergencelabs.server.domain.ChatChannelMessages.ChatChannelBroadcastMessage
 import com.convergencelabs.server.domain.ChatChannelMessages.ChatChannelException
+import com.convergencelabs.server.domain.ChatChannelMessages.CreateChannelRequest
+import com.convergencelabs.server.domain.ChatChannelMessages.CreateChannelResponse
 import com.convergencelabs.server.domain.ChatChannelMessages.JoinChannelRequest
 import com.convergencelabs.server.domain.ChatChannelMessages.LeaveChannelRequest
 import com.convergencelabs.server.domain.ChatChannelMessages.MarkChannelEventsSeenRequest
@@ -39,8 +43,6 @@ import akka.cluster.pubsub.DistributedPubSubMediator.Subscribe
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
 import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.server.domain.ChatChannelMessages.CreateChannelRequest
-import com.convergencelabs.server.domain.ChatChannelMessages.CreateChannelResponse
 
 object ChatClientActor {
   def props(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk: SessionKey): Props =
@@ -80,7 +82,7 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
         context.parent ! RemoteChatMessageMessage(channelId, eventNumber, timestamp.toEpochMilli(), sk.serialize(), message)
 
       case UserJoinedChannel(channelId, eventNumber, timestamp, username) =>
-          context.parent ! UserJoinedChatChannelMessage(channelId, eventNumber, timestamp.toEpochMilli(), username)
+        context.parent ! UserJoinedChatChannelMessage(channelId, eventNumber, timestamp.toEpochMilli(), username)
 
       case UserLeftChannel(channelId, eventNumber, timestamp, username) =>
         context.parent ! UserLeftChatChannelMessage(channelId, eventNumber, timestamp.toEpochMilli(), username)
@@ -93,6 +95,12 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
 
       case ChannelRemoved(channelId) =>
         context.parent ! ChatChannelRemovedMessage(channelId)
+
+      case ChannelNameChanged(channelId, eventNumber, timestamp, name, setBy) =>
+        context.parent ! ChatChannelNameSetMessage(channelId, eventNumber, timestamp.toEpochMilli, setBy, name)
+        
+      case ChannelTopicChanged(channelId, eventNumber, timestamp, name, setBy) =>
+        context.parent ! ChatChannelTopicSetMessage(channelId, eventNumber, timestamp.toEpochMilli, setBy, name)
     }
   }
 

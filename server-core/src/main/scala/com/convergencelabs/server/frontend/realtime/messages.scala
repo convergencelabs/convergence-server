@@ -250,12 +250,12 @@ case class ChatChannelLeftMessage(i: String) extends OutgoingProtocolNormalMessa
 // Set Name
 case class SetChatChannelNameRequestMessage(i: String, n: String) extends IncomingChatRequestMessage
 case class SetChatChannelNameResponseMessage() extends OutgoingProtocolResponseMessage
-case class ChatChannelNameSetMessage(i: String, n: String) extends OutgoingProtocolNormalMessage
+case class ChatChannelNameSetMessage(i: String, e: Long, p: Long, u: String, n: String) extends OutgoingProtocolNormalMessage
 
 // Set Topic
 case class SetChatChannelTopicRequestMessage(i: String, c: String) extends IncomingChatRequestMessage
 case class SetChatChannelTopicResponseMessage() extends OutgoingProtocolResponseMessage
-case class ChatChannelTopicSetMessage(i: String, c: String) extends OutgoingProtocolNormalMessage
+case class ChatChannelTopicSetMessage(i: String, e: Long, p: Long, u: String, c: String) extends OutgoingProtocolNormalMessage
 
 // Set Seen
 case class MarkChatChannelEventsSeenRequestMessage(i: String, e: Long) extends IncomingChatRequestMessage
