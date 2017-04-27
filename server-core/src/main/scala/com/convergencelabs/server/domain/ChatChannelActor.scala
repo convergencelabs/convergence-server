@@ -79,9 +79,6 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
   private[this] def initialize(channelId: String): Try[Unit] = {
     log.debug(s"Chat Channel Actor starting: '${domainFqn}/${channelId}'")
     DomainPersistenceManagerActor.acquirePersistenceProvider(self, context, domainFqn) flatMap { provider =>
-      // FIXME we probably want a get channel optional...
-      // FIXME should we get a method that returns everyting below?
-      
       ChatChannelManager.create(channelId, provider.chatChannelStore) map { manager =>
         this.channelManager = Some(manager)
         context.become(receiveWhenInitialized)
