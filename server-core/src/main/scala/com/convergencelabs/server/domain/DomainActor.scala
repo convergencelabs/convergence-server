@@ -39,6 +39,10 @@ import scala.concurrent.duration._
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManager
 import com.convergencelabs.server.domain.model.ModelPermissionResolver
 import com.convergencelabs.server.domain.model.ModelCreator
+import akka.cluster.sharding.ShardRegion
+import com.convergencelabs.server.domain.ChatChannelActor.ChatChannelMessage
+import akka.cluster.sharding.ClusterSharding
+import akka.cluster.sharding.ClusterShardingSettings
 
 object DomainActor {
   def props(
@@ -69,13 +73,13 @@ class DomainActor(
   log.debug(s"Domain startting up: ${domainFqn}")
 
   override val supervisorStrategy =
-  OneForOneStrategy(maxNrOfRetries = 10, withinTimeRange = 1.minute) {
-    case e: Throwable          => {
-      log.error(e, s"Actor at '${sender.path}' threw error")
-      Resume
+    OneForOneStrategy(maxNrOfRetries = 10, withinTimeRange = 1.minute) {
+      case e: Throwable => {
+        log.error(e, s"Actor at '${sender.path}' threw error")
+        Resume
+      }
     }
-  }
-  
+
   private[this] var persistenceProvider: DomainPersistenceProvider = _
   private[this] implicit val ec = context.dispatcher
 
@@ -103,6 +107,24 @@ class DomainActor(
     domainFqn),
     ChatChannelLookupActor.RelativePath)
 
+  val extractEntityId: ShardRegion.ExtractEntityId = {
+    case msg: ChatChannelMessage ⇒ (msg.channelId, msg)
+  }
+
+  val numberOfShards = 100
+
+  val extractShardId: ShardRegion.ExtractShardId = {
+    // FIXME: Calculate this correctly
+    case msg: ChatChannelMessage ⇒ (1 % numberOfShards).toString
+  }
+
+  val chatChannelRegion: ActorRef = ClusterSharding(context.system).start(
+    typeName = s"ChatChannelRegion-${domainFqn.namespace}:${domainFqn.domainId}",
+    entityProps = Props(classOf[ChatChannelActor], domainFqn),
+    settings = ClusterShardingSettings(context.system),
+    extractEntityId = extractEntityId,
+    extractShardId = extractShardId)
+
   private[this] var authenticator: AuthenticationHandler = _
 
   log.debug(s"Domain start up complete: ${domainFqn}")
@@ -111,11 +133,11 @@ class DomainActor(
   private[this] val authenticatedClients = mutable.Map[ActorRef, String]()
 
   def receive: Receive = {
-    case message: HandshakeRequest => onHandshakeRequest(message)
+    case message: HandshakeRequest      => onHandshakeRequest(message)
     case message: AuthenticationRequest => onAuthenticationRequest(message)
-    case message: ClientDisconnected => onClientDisconnect(message)
-    case Terminated(client) => handleDeathWatch(client)
-    case message: Any => unhandled(message)
+    case message: ClientDisconnected    => onClientDisconnect(message)
+    case Terminated(client)             => handleDeathWatch(client)
+    case message: Any                   => unhandled(message)
   }
 
   private[this] def handleDeathWatch(actorRef: ActorRef): Unit = {
@@ -132,10 +154,10 @@ class DomainActor(
     authenticator.authenticate(message.credentials) onComplete {
       case Success(AuthenticationSuccess(username, sk)) =>
         log.debug("Authenticated user successfully, creating session")
-        
+
         val method = message.credentials match {
-          case x: JwtAuthRequest => "jwt"
-          case x: PasswordAuthRequest => "password"
+          case x: JwtAuthRequest       => "jwt"
+          case x: PasswordAuthRequest  => "password"
           case x: AnonymousAuthRequest => "anonymous"
         }
 
@@ -151,8 +173,8 @@ class DomainActor(
           message.remoteAddress)
 
         persistenceProvider.sessionStore.createSession(session) map { _ =>
-            authenticatedClients += (message.clientActor -> sk.sid)
-            asker ! AuthenticationSuccess(username, sk)
+          authenticatedClients += (message.clientActor -> sk.sid)
+          asker ! AuthenticationSuccess(username, sk)
         } recover {
           case cause: Exception =>
             log.error(cause, "Unable to authenticate user because a session could not be created")
@@ -179,7 +201,8 @@ class DomainActor(
         userServiceActor,
         activityServiceActor,
         presenceServiceActor,
-        chatChannelLookupActor)
+        chatChannelLookupActor,
+        chatChannelRegion)
     } recover {
       case cause: Exception =>
         log.error(cause, "Could not connect to domain database")

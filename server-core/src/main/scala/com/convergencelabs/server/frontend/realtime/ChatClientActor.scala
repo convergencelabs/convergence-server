@@ -15,17 +15,20 @@ import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.server.domain.model.SessionKey
 import com.convergencelabs.server.domain.ChatChannelActor.RemoteChatMessage
+import com.convergencelabs.server.domain.DomainFqn
+import akka.cluster.sharding.ClusterSharding
+import com.convergencelabs.server.domain.ChatChannelActor
 
 object ChatClientActor {
-  def props(chatServiceActor: ActorRef, sk: SessionKey): Props =
-    Props(new ChatClientActor(chatServiceActor, sk))
+  def props(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk: SessionKey): Props =
+    Props(new ChatClientActor(chatLookupActor, chatChannelActor, sk))
 }
 
-class ChatClientActor(chatServiceActor: ActorRef, sk: SessionKey) extends Actor with ActorLogging {
+class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk: SessionKey) extends Actor with ActorLogging {
 
   implicit val timeout = Timeout(5 seconds)
   implicit val ec = context.dispatcher
-
+  
   def receive: Receive = {
     case MessageReceived(message) if message.isInstanceOf[IncomingChatNormalMessage] =>
       onMessageReceived(message.asInstanceOf[IncomingChatNormalMessage])
@@ -150,5 +153,4 @@ class ChatClientActor(chatServiceActor: ActorRef, sk: SessionKey) extends Actor 
     val PublishChatRequestMessage(channeId, msg) = message;
     ???
   }
-
 }

@@ -9,6 +9,7 @@ import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.domain.DomainUser
 import com.convergencelabs.server.domain.DomainUserType
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
+import com.convergencelabs.server.datastore.EntityNotFoundException
 
 class ChatChannelStoreSpec
     extends PersistenceStoreSpec[DomainPersistenceProvider](DeltaCategory.Domain)
@@ -18,9 +19,9 @@ class ChatChannelStoreSpec
   val user1 = "user1"
   val user2 = "user2"
   val user3 = "user3"
-  
+
   val channel1Id = "channel1"
-  val firstId ="#1"
+  val firstId = "#1"
 
   def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProvider(dbProvider)
 
@@ -33,16 +34,16 @@ class ChatChannelStoreSpec
 
       "return a generated id if none is provided" in withTestData { provider =>
         val id = provider.chatChannelStore.createChatChannel(None, ChannelType.Direct, false, "", "").get
-        id shouldEqual firstId          
+        id shouldEqual firstId
       }
-      
+
       "throw exception if id is duplicate" in withTestData { provider =>
         provider.chatChannelStore.createChatChannel(Some(channel1Id), ChannelType.Direct, false, "", "").get
         an[ORecordDuplicatedException] should be thrownBy provider.chatChannelStore.createChatChannel(
-            Some(channel1Id), ChannelType.Direct, false, "", "").get   
+          Some(channel1Id), ChannelType.Direct, false, "", "").get
       }
     }
-    
+
     "getting a chat channel" must {
       "return chat channel for valid id" in withTestData { provider =>
         val id = provider.chatChannelStore.createChatChannel(Some(channel1Id), ChannelType.Direct, false, "testName", "testTopic").get
@@ -51,6 +52,10 @@ class ChatChannelStoreSpec
         chatChannel.name shouldEqual "testName"
         chatChannel.topic shouldEqual "testTopic"
         chatChannel.channelType shouldEqual "direct"
+      }
+
+      "throw error for invalid id" in withTestData { provider =>
+        an[EntityNotFoundException] should be thrownBy provider.chatChannelStore.getChatChannel("does_not_exist").get
       }
     }
   }

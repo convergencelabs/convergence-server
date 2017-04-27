@@ -21,9 +21,6 @@ import akka.actor.ReceiveTimeout
 
 object ChatChannelActor {
 
-  def props(domainFqn: DomainFqn, chatChannelStore: ChatChannelStore): Props = Props(
-    new ChatChannelActor(domainFqn, chatChannelStore))
-
   object ActorStatus extends Enumeration {
     val Initialized, NotInitialized = Value
   }
@@ -92,13 +89,13 @@ object ChatChannelActor {
   }
 }
 
-class ChatChannelActor private[domain] (domainFqn: DomainFqn, chatChannelStore: ChatChannelStore) extends PersistentActor with ActorLogging {
+class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends PersistentActor with ActorLogging {
   import akka.cluster.sharding.ShardRegion.Passivate
   import ChatChannelActor._
 
   // TODO: Load from configuration 
   context.setReceiveTimeout(120.seconds)
-  
+
   override def persistenceId: String = "ChatChannel-" + self.path.name
 
   val mediator = DistributedPubSub(context.system).mediator
@@ -129,6 +126,7 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn, chatChannelStore: 
   }
 
   private[this] def initialize(channelId: String): Try[Unit] = {
+    
     // Load crap from the database?
     // Where do I get the chat channel store from?
     this.channelActorState = ChatChannelActorState(ActorStatus.Initialized, Some(
@@ -151,8 +149,12 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn, chatChannelStore: 
     case message: ChatChannelMessage =>
       handleChatMessage(message)
         .recover { case cause: Exception => this.unexpectedError(message, cause) }
-    case ReceiveTimeout ⇒ context.parent ! Passivate(stopMessage = Stop)
-    case Stop           ⇒ context.stop(self)
+    case ReceiveTimeout =>
+      context.parent ! Passivate(stopMessage = Stop)
+    case Stop =>
+
+      context.stop(self)
+
     case unhandled: Any =>
       this.unhandled(unhandled)
   }
@@ -266,22 +268,6 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn, chatChannelStore: 
 
 // TODO: Where to init the cluster and how to pass store
 
-//    val extractEntityId: ShardRegion.ExtractEntityId = {
-//      case msg: ChatChannelMessage ⇒ (msg.channelId, msg)
-//    }
-//
-//    val numberOfShards = 100
-//
-//    val extractShardId: ShardRegion.ExtractShardId = {
-//      // FIXME: Calculate this correctly
-//      case msg: ChatChannelMessage ⇒ (1 % numberOfShards).toString
-//    }
-//
-//    val chatChannelRegion: ActorRef = ClusterSharding(system).start(
-//      typeName = "ChatChannel",
-//      entityProps = Props[ChatChannelActor],
-//      settings = ClusterShardingSettings(system),
-//      extractEntityId = extractEntityId,
-//      extractShardId = extractShardId)
+
 
 
