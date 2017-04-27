@@ -18,6 +18,8 @@ import akka.persistence.PersistentActor
 import com.convergencelabs.server.datastore.domain.ChatChannelStore
 import org.jboss.netty.channel.ChannelState
 import akka.actor.ReceiveTimeout
+import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
+import com.convergencelabs.server.datastore.EntityNotFoundException
 
 object ChatChannelActor {
 
@@ -35,6 +37,8 @@ object ChatChannelActor {
     lastEventTime: Instant,
     lastEventNumber: Long,
     members: Set[String])
+
+  var persistence: DomainPersistenceProvider = _
 
   case class ChatChannelActorState(status: ActorStatus.Value, state: Option[ChatChannelState])
 
@@ -141,27 +145,45 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
 
   private[this] def onStop(): Unit = {
     log.debug("Receive stop signal shutting down")
+    DomainPersistenceProvider.releasePersistenceProvider(self, context, domainFqn)
     context.stop(self)
   }
 
   private[this] def initialize(channelId: String): Try[Unit] = {
     log.debug(s"Chat Channel Actor starting: '${domainFqn}/${channelId}'")
-    // Load crap from the database?
-    // Where do I get the chat channel store from?
-    this.channelActorState = ChatChannelActorState(ActorStatus.Initialized, Some(
-      ChatChannelState(
-        channelId,
-        "group",
-        Instant.now(),
-        false,
-        "myname",
-        "mytopic",
-        Instant.now(),
-        7,
-        Set("michael", "cameron"))))
-    //    persist(channelActorState)(updateState)
-    context.become(receiveWhenInitialized)
-    Success(())
+    DomainPersistenceManagerActor.acquirePersistenceProvider(self, context, domainFqn) flatMap { provider =>
+      persistence = provider
+      // FIXME we probably want a get channel optional...
+      // FIXME should we get a method that returns everyting below?
+
+      provider.chatChannelStore.getChatChannel(channelId) map { channel =>
+        // FIXME don't have members?
+        val members = Set("michael", "cameron")
+        // FIXME don't have the sequence number?
+        val maxEvent = 7L
+        // FIXME don't have the last event time
+        val lastTime = Instant.now()
+
+        this.channelActorState = ChatChannelActorState(ActorStatus.Initialized, Some(
+          ChatChannelState(
+            channelId,
+            channel.channelType,
+            channel.created,
+            channel.isPrivate,
+            channel.name,
+            channel.topic,
+            lastTime,
+            maxEvent,
+            members)))
+        //    persist(channelActorState)(updateState)
+        ()
+      } recover {
+        case cause: EntityNotFoundException =>
+          this.channelActorState = ChatChannelActorState(ActorStatus.Initialized, None)
+      } map { _ =>
+        context.become(receiveWhenInitialized)
+      }
+    }
   }
 
   def receiveWhenInitialized: Receive = {
