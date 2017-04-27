@@ -22,17 +22,16 @@ case class ChatMessageProcessingResult(response: Option[Any], broadcastMessages:
 
 object ChatChannelManager {
   def create(channelId: String, chatChannelStore: ChatChannelStore): Try[ChatChannelManager] = {
-    // FIXME we probably want a get channel optional...
-    // FIXME should we get a method that returns everyting below?
-    chatChannelStore.getChatChannel(channelId) map { channel =>
-      // FIXME don't have members?
-      val members = Set("michael", "cameron")
-      // FIXME don't have the sequence number?
+    
+    (for {
+      channel <- chatChannelStore.getChatChannel(channelId)
+      members <- chatChannelStore.getChatChannelMembers(channelId)
+    } yield {
       val maxEvent = 7L
       // FIXME don't have the last event time
       val lastTime = Instant.now()
 
-      ChatChannelState(
+      val state = ChatChannelState(
         channelId,
         channel.channelType,
         channel.created,
@@ -42,12 +41,12 @@ object ChatChannelManager {
         lastTime,
         maxEvent,
         members)
-    } recoverWith {
+      
+      new ChatChannelManager(channelId, state, chatChannelStore)
+    })recoverWith {
       case cause: EntityNotFoundException =>
         Failure(ChannelNotFoundException(channelId))
-    } map { state =>
-      new ChatChannelManager(channelId, state, chatChannelStore)
-    }
+    } 
   }
 }
 

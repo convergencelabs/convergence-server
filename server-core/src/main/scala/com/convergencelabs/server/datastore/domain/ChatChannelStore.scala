@@ -385,6 +385,13 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
     db.command(query).execute(params.asJava)
     Unit
   }
+  
+  def getChatChannelMembers(channelId: String): Try[Set[String]] = tryWithDb { db =>
+    val queryString = "SELECT user.username as member FROM ChatChannelMember WHERE channel.id = :channelId"
+    val params = Map("channelId" -> channelId)
+    val result = QueryUtil.query(queryString,  params, db)
+    result.map { doc => doc.field("member") }.toSet
+  }
 
   def addChatChannelMember(channelId: String, username: String, seen: Option[Long]): Try[Unit] = tryWithDb { db =>
     for {
