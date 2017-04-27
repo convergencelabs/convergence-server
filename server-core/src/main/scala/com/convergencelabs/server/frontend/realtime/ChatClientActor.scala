@@ -4,22 +4,19 @@ import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
-import com.convergencelabs.server.util.concurrent.AskFuture
-import com.convergencelabs.server.util.concurrent.UnexpectedErrorException
+
+import com.convergencelabs.server.domain.ChatChannelMessages.ChannelNotFoundException
+import com.convergencelabs.server.domain.ChatChannelMessages.JoinChannelRequest
+import com.convergencelabs.server.domain.ChatChannelMessages.RemoteChatMessage
+import com.convergencelabs.server.domain.model.SessionKey
+
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
 import akka.actor.Props
 import akka.actor.actorRef2Scala
-import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.server.domain.model.SessionKey
-import com.convergencelabs.server.domain.ChatChannelActor.RemoteChatMessage
-import com.convergencelabs.server.domain.DomainFqn
-import akka.cluster.sharding.ClusterSharding
-import com.convergencelabs.server.domain.ChatChannelActor
-import com.convergencelabs.server.domain.ChatChannelActor.JoinChannelRequest
-import com.convergencelabs.server.domain.ChatChannelActor.ChannelNotFoundException
+import akka.pattern.ask
 
 object ChatClientActor {
   def props(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk: SessionKey): Props =
@@ -30,7 +27,7 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
 
   implicit val timeout = Timeout(5 seconds)
   implicit val ec = context.dispatcher
-  
+
   def receive: Receive = {
     case MessageReceived(message) if message.isInstanceOf[IncomingChatNormalMessage] =>
       onMessageReceived(message.asInstanceOf[IncomingChatNormalMessage])
@@ -99,10 +96,10 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
 
   def onJoinChannel(message: JoinChatChannelRequestMessage, cb: ReplyCallback): Unit = {
     val JoinChatChannelRequestMessage(channelId) = message;
-    chatChannelActor.ask(JoinChannelRequest(channelId, sk.uid)) onComplete { 
+    chatChannelActor.ask(JoinChannelRequest(channelId, sk.uid)).mapTo[Unit].onComplete {
       case Success(()) =>
         cb.reply(JoinChatChannelResponseMessage())
-      case Failure(ChannelNotFoundException(_)) => 
+      case Failure(ChannelNotFoundException(_)) =>
         cb.expectedError("channel_not_found", s"A channel with id '${channelId}' does not exist.")
       case Failure(cause) =>
         cb.unexpectedError(cause.getMessage)

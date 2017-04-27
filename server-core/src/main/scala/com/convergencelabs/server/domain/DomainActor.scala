@@ -1,48 +1,33 @@
 package com.convergencelabs.server.domain
 
+import java.time.Instant
+
 import scala.collection.mutable
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.FiniteDuration
+import scala.util.Failure
+import scala.util.Success
+
+import com.convergencelabs.server.ProtocolConfiguration
+import com.convergencelabs.server.datastore.domain.DomainPersistenceManager
+import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
+import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
+import com.convergencelabs.server.datastore.domain.DomainSession
+import com.convergencelabs.server.domain.ChatChannelMessages.ChatChannelMessage
+import com.convergencelabs.server.domain.model.ModelCreator
+import com.convergencelabs.server.domain.model.ModelManagerActor
+import com.convergencelabs.server.domain.model.ModelPermissionResolver
+
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
-import akka.actor.Props
-import akka.actor.Cancellable
-import com.convergencelabs.server.domain.model.ModelManagerActor
-import com.convergencelabs.server.ProtocolConfiguration
-import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.FiniteDuration
-import org.jose4j.jwt.consumer.JwtConsumerBuilder
-import org.jose4j.jwt.consumer.InvalidJwtException
-import java.io.IOException
-import org.jose4j.jwt.MalformedClaimException
-import scala.collection.mutable.ListBuffer
-import org.jose4j.jwt.JwtClaims
-import java.security.PublicKey
-import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
-import scala.util.Success
-import scala.util.Failure
-import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
-import akka.pattern.Patterns
-import com.convergencelabs.server.datastore.domain.AcquireDomainPersistence
-import akka.util.Timeout
-import scala.concurrent.Await
-import com.convergencelabs.server.datastore.domain.DomainPersistenceResponse
-import com.convergencelabs.server.datastore.domain.PersistenceProviderReference
-import com.convergencelabs.server.datastore.domain.PersistenceProviderUnavailable
-import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
-import scala.util.Try
-import akka.actor.Terminated
-import java.time.Instant
-import com.convergencelabs.server.datastore.domain.DomainSession
 import akka.actor.OneForOneStrategy
-import akka.actor.SupervisorStrategy._
-import scala.concurrent.duration._
-import com.convergencelabs.server.datastore.domain.DomainPersistenceManager
-import com.convergencelabs.server.domain.model.ModelPermissionResolver
-import com.convergencelabs.server.domain.model.ModelCreator
-import akka.cluster.sharding.ShardRegion
-import com.convergencelabs.server.domain.ChatChannelActor.ChatChannelMessage
+import akka.actor.Props
+import akka.actor.SupervisorStrategy.Resume
+import akka.actor.Terminated
 import akka.cluster.sharding.ClusterSharding
 import akka.cluster.sharding.ClusterShardingSettings
+import akka.cluster.sharding.ShardRegion
 
 object DomainActor {
   def props(
