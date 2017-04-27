@@ -17,6 +17,18 @@ import akka.actor.Props
 import akka.actor.actorRef2Scala
 import akka.util.Timeout
 import akka.pattern.ask
+import akka.cluster.pubsub.DistributedPubSub
+import akka.cluster.pubsub.DistributedPubSubMediator.Subscribe
+import com.convergencelabs.server.domain.ChatChannelActor
+import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
+import com.convergencelabs.server.domain.ChatChannelMessages.UserJoinedChannel
+import com.convergencelabs.server.domain.ChatChannelMessages.UserLeftChannel
+import com.convergencelabs.server.domain.ChatChannelMessages.ChatChannelBroadcastMessage
+import com.convergencelabs.server.domain.ChatChannelMessages.UserAddedToChannel
+import com.convergencelabs.server.domain.ChatChannelMessages.UserRemovedFromChannel
+import com.convergencelabs.server.domain.ChatChannelMessages.ChannelJoined
+import com.convergencelabs.server.domain.ChatChannelMessages.ChannelLeft
+import com.convergencelabs.server.domain.ChatChannelMessages.ChannelRemoved
 
 object ChatClientActor {
   def props(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk: SessionKey): Props =
@@ -28,18 +40,54 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
   implicit val timeout = Timeout(5 seconds)
   implicit val ec = context.dispatcher
 
+  val mediator = DistributedPubSub(context.system).mediator
+  val chatTopicName = ChatChannelActor.getChatUsernameTopicName(sk.uid)
+
+  mediator ! Subscribe(chatTopicName, self)
+
   def receive: Receive = {
+    case SubscribeAck(Subscribe(chatTopicName, _, _)) ⇒
+      log.debug("Subscribe to chat channel for user")
+
     case MessageReceived(message) if message.isInstanceOf[IncomingChatNormalMessage] =>
       onMessageReceived(message.asInstanceOf[IncomingChatNormalMessage])
     case RequestReceived(message, replyPromise) if message.isInstanceOf[IncomingChatRequestMessage] =>
       onRequestReceived(message.asInstanceOf[IncomingChatRequestMessage], replyPromise)
 
-    case RemoteChatMessage(channelId, eventNo, timestamp, sk, message) =>
-      val eventNo = 0L // FIXME
-      context.parent ! RemoteChatMessageMessage(channelId, eventNo, timestamp.toEpochMilli(), sk.serialize(), message)
-    // FIXME handle outgoing messages
+    case message: ChatChannelBroadcastMessage =>
+      handleBroadcastMessage(message)
 
-    case x: Any => unhandled(x)
+    case x: Any =>
+      unhandled(x)
+  }
+
+  private[this] def handleBroadcastMessage(message: ChatChannelBroadcastMessage): Unit = {
+    message match {
+      // Broadcast messages
+      case RemoteChatMessage(channelId, eventNumber, timestamp, sk, message) =>
+        context.parent ! RemoteChatMessageMessage(channelId, eventNumber, timestamp.toEpochMilli(), sk.serialize(), message)
+
+      case UserJoinedChannel(channelId, eventNumber, timestamp, username) =>
+        context.parent ! UserJoinedChatChannelMessage(channelId, eventNumber, timestamp.toEpochMilli(), username)
+
+      case UserLeftChannel(channelId, eventNumber, timestamp, username) =>
+        context.parent ! UserLeftChatChannelMessage(channelId, eventNumber, timestamp.toEpochMilli(), username)
+
+      case UserAddedToChannel(channelId, eventNumber, timestamp, username, addedBy) =>
+        context.parent ! UserAddedToChatChannelMessage(channelId, eventNumber, timestamp.toEpochMilli(), username, addedBy)
+
+      case UserRemovedFromChannel(channelId, eventNumber, timestamp, username, removedBy) =>
+        context.parent ! UserRemovedFromChatChannelMessage(channelId, eventNumber, timestamp.toEpochMilli(), username, removedBy)
+
+      case ChannelJoined(channelId) =>
+        context.parent ! ChatChannelJoinedMessage(channelId)
+        
+      case ChannelLeft(channelId) =>
+        context.parent ! ChatChannelLeftMessage(channelId)
+        
+      case ChannelRemoved(channelId) =>
+        context.parent ! ChatChannelRemovedMessage(channelId)
+    }
   }
 
   //
@@ -47,8 +95,7 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
   //
 
   def onMessageReceived(message: IncomingChatNormalMessage): Unit = {
-    // FIXME
-    ???
+    log.error("Chat channel actor received a non-request message")
   }
 
   def onRequestReceived(message: IncomingChatRequestMessage, replyCallback: ReplyCallback): Unit = {

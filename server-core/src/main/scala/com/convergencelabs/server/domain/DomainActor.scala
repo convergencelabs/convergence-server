@@ -92,23 +92,12 @@ class DomainActor(
     domainFqn),
     ChatChannelLookupActor.RelativePath)
 
-  val extractEntityId: ShardRegion.ExtractEntityId = {
-    case msg: ChatChannelMessage ⇒ (msg.channelId, msg)
-  }
-
-  val numberOfShards = 100
-
-  val extractShardId: ShardRegion.ExtractShardId = {
-    // FIXME: Calculate this correctly
-    case msg: ChatChannelMessage ⇒ (1 % numberOfShards).toString
-  }
-
-  val chatChannelRegion: ActorRef = ClusterSharding(context.system).start(
-    typeName = s"ChatChannelRegion-${domainFqn.namespace}:${domainFqn.domainId}",
+  private[this] val chatChannelRegion: ActorRef = ClusterSharding(context.system).start(
+    typeName = ChatChannelSharding.calculateRegionName(domainFqn),
     entityProps = Props(classOf[ChatChannelActor], domainFqn),
     settings = ClusterShardingSettings(context.system),
-    extractEntityId = extractEntityId,
-    extractShardId = extractShardId)
+    extractEntityId = ChatChannelSharding.extractEntityId,
+    extractShardId = ChatChannelSharding.extractShardId)
 
   private[this] var authenticator: AuthenticationHandler = _
 
