@@ -10,6 +10,13 @@ import akka.actor.ActorLogging
 import akka.actor.Props
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator.Publish
+import com.convergencelabs.server.domain.ChatChannelMessages.CreateChannelRequest
+import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
+import com.convergencelabs.server.datastore.domain.ChatChannelStore
+import scala.util.control.NonFatal
+import com.convergencelabs.server.datastore.domain.ChatChannelStore.ChannelType
+import com.convergencelabs.server.domain.ChatChannelMessages.CreateChannelResponse
+import akka.actor.Status
 
 object ChatChannelLookupActor {
 
@@ -27,15 +34,37 @@ class ChatChannelLookupActor private[domain] (domainFqn: DomainFqn) extends Acto
 
   import ChatChannelLookupActor._
 
-  val mediator = DistributedPubSub(context.system).mediator
+  var chatChannelStore: ChatChannelStore = _
 
   def receive: Receive = {
+    case message: CreateChannelRequest =>
+      onCreateChannel(message)
     case message: GetChannelsRequest =>
       onGetChannels(message)
     case message: GetJoinedChannelsRequest =>
       onGetJoinedChannels(message)
     case message: GetDirectChannelsRequest =>
       onGetDirect(message)
+  }
+
+  def onCreateChannel(message: CreateChannelRequest): Unit = {
+    val CreateChannelRequest(channelId, channelType, channelMembership, name, topic, members) = message
+    ChannelType.withNameOpt(channelType) match {
+      case Some(ct) =>
+        val isPrivate = channelMembership.toLowerCase match {
+          case "private" => true
+          case _ => false
+        }
+
+        this.chatChannelStore.createChatChannel(channelId, ct, isPrivate, name.getOrElse(""), topic.getOrElse("")) map { channelId =>
+          sender ! CreateChannelResponse(channelId)
+        } recover {
+          case NonFatal(cause) =>
+            sender ! Status.Failure(cause)
+        }
+      case None =>
+        sender ! Status.Failure(new IllegalArgumentException(s"Invalid channel type: ${channelType}"))
+    }
   }
 
   def onGetChannels(message: GetChannelsRequest): Unit = {
@@ -51,5 +80,15 @@ class ChatChannelLookupActor private[domain] (domainFqn: DomainFqn) extends Acto
   def onGetJoinedChannels(message: GetJoinedChannelsRequest): Unit = {
     val GetJoinedChannelsRequest(username) = message
     ???
+  }
+
+  override def preStart(): Unit = {
+    DomainPersistenceManagerActor.acquirePersistenceProvider(self, context, domainFqn) map { provider =>
+      chatChannelStore = provider.chatChannelStore
+      ()
+    } recover {
+      case NonFatal(cause) =>
+        throw cause
+    }
   }
 }

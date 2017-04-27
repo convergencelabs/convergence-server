@@ -6,16 +6,18 @@ import com.convergencelabs.server.datastore.domain.ChatChannelEvent
 import com.convergencelabs.server.domain.model.SessionKey
 
 object ChatChannelMessages {
-  sealed trait ChatChannelMessage {
+
+  case class CreateChannelRequest(channelId: Option[String], channelType: String,
+    channelMembership: String, name: Option[String], topic: Option[String],
+    members: List[String]) extends ChatChannelMessage
+
+  sealed trait ChatChannelMessage
+
+  sealed trait ExistingChannelMessage extends ChatChannelMessage {
     val channelId: String
   }
 
-  sealed trait ExistingChannelMessage extends ChatChannelMessage
-
   // Incoming Messages
-  case class CreateChannelRequest(channelId: String, channelType: String,
-    channelMembership: String, name: Option[String], topic: Option[String],
-    members: List[String]) extends ChatChannelMessage
   case class CreateChannelResponse(channelId: String)
 
   case class RemoveChannelRequest(channelId: String, username: String) extends ExistingChannelMessage
@@ -45,13 +47,13 @@ object ChatChannelMessages {
   case class ChannelTopicChanged(channelId: String, eventNumber: Long, timestamp: Instant, topic: String, setBy: String)
 
   case class ChannelRemoved(channelId: String) extends ChatChannelBroadcastMessage
-  
+
   case class RemoteChatMessage(channelId: String, eventNumber: Long, timestamp: Instant, sk: SessionKey, message: String) extends ChatChannelBroadcastMessage
 
   // Exceptions
   sealed abstract class ChatChannelException() extends Exception()
   case class ChannelNotJoinedException(channelId: String) extends ChatChannelException()
-  case class ChannelAlreadyJoinedException(channelId: String) extends ChatChannelException() 
+  case class ChannelAlreadyJoinedException(channelId: String) extends ChatChannelException()
   case class ChannelNotFoundException(channelId: String) extends ChatChannelException()
   case class ChannelAlreadyExistsException(channelId: String) extends ChatChannelException()
 

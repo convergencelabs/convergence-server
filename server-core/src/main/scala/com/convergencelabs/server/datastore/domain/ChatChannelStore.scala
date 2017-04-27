@@ -121,6 +121,8 @@ object ChatChannelStore {
   
   object ChannelType extends Enumeration {
     val Group, Room, Direct = Value
+    
+    def withNameOpt(s: String): Option[Value] = values.find(_.toString.toLowerCase() == s.toLowerCase())
   }
 
   def channelTypeString(channelType: ChannelType.Value): String = channelType match {

@@ -39,6 +39,8 @@ import akka.cluster.pubsub.DistributedPubSubMediator.Subscribe
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
 import akka.pattern.ask
 import akka.util.Timeout
+import com.convergencelabs.server.domain.ChatChannelMessages.CreateChannelRequest
+import com.convergencelabs.server.domain.ChatChannelMessages.CreateChannelResponse
 
 object ChatClientActor {
   def props(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk: SessionKey): Props =
@@ -105,7 +107,7 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
   def onRequestReceived(message: IncomingChatRequestMessage, replyCallback: ReplyCallback): Unit = {
     message match {
       case message: CreateChatChannelRequestMessage =>
-        onCreateChannel(message)
+        onCreateChannel(message, replyCallback)
       case message: RemoveChatChannelRequestMessage =>
         onRemoveChannel(message, replyCallback)
       case message: JoinChatChannelRequestMessage =>
@@ -135,9 +137,16 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
     }
   }
 
-  def onCreateChannel(message: CreateChatChannelRequestMessage): Unit = {
+  def onCreateChannel(message: CreateChatChannelRequestMessage, cb: ReplyCallback): Unit = {
     val CreateChatChannelRequestMessage(channelId, channelType, name, topic, privateChannel, members) = message;
-    ???
+    val request = CreateChannelRequest(channelId, channelType, name, topic, privateChannel, members.getOrElse(List()))
+    chatLookupActor.ask(request).mapTo[CreateChannelResponse] onComplete {
+      case Success(response) =>
+      case Failure(ChatChannelException(cause)) =>
+        this.handleChatChannelException(cause, cb)
+      case Failure(cause) =>
+        cb.unexpectedError(cause.getMessage)
+    }
   }
 
   def onRemoveChannel(message: RemoveChatChannelRequestMessage, cb: ReplyCallback): Unit = {
