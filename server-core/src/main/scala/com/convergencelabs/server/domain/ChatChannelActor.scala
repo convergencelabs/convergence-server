@@ -19,15 +19,9 @@ import akka.cluster.pubsub.DistributedPubSubMediator.Publish
 
 object ChatChannelActor {
 
-  object ActorStatus extends Enumeration {
-    val Initialized, NotInitialized = Value
-  }
-
   def getChatUsernameTopicName(username: String): String = {
     return s"chat-user-${username}"
   }
-
-  case class ChatChannelActorState(status: ActorStatus.Value, state: Option[ChatChannelState])
 
   case object Stop
 }
@@ -58,7 +52,6 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
   val mediator = DistributedPubSub(context.system).mediator
 
   // Here None signifies that the channel does not exist.
-  var channelActorState: ChatChannelActorState = ChatChannelActorState(ActorStatus.NotInitialized, None)
   var channelManager: Option[ChatChannelManager] = None
 
   //  override def receiveRecover: Receive = {
@@ -88,34 +81,9 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
     DomainPersistenceManagerActor.acquirePersistenceProvider(self, context, domainFqn) flatMap { provider =>
       // FIXME we probably want a get channel optional...
       // FIXME should we get a method that returns everyting below?
-
-      this.channelManager = Some(new ChatChannelManager(channelId, provider))
-
-      provider.chatChannelStore.getChatChannel(channelId) map { channel =>
-        // FIXME don't have members?
-        val members = Set("michael", "cameron")
-        // FIXME don't have the sequence number?
-        val maxEvent = 7L
-        // FIXME don't have the last event time
-        val lastTime = Instant.now()
-
-        this.channelActorState = ChatChannelActorState(ActorStatus.Initialized, Some(
-          ChatChannelState(
-            channelId,
-            channel.channelType,
-            channel.created,
-            channel.isPrivate,
-            channel.name,
-            channel.topic,
-            lastTime,
-            maxEvent,
-            members)))
-        //    persist(channelActorState)(updateState)
-        ()
-      } recover {
-        case cause: EntityNotFoundException =>
-          this.channelActorState = ChatChannelActorState(ActorStatus.Initialized, None)
-      } map { _ =>
+      
+      ChatChannelManager.create(channelId, provider.chatChannelStore) map { manager =>
+        this.channelManager = Some(manager)
         context.become(receiveWhenInitialized)
       }
     }
@@ -132,7 +100,7 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
   def processChatMessage(message: ChatChannelMessage): Try[Unit] = {
     this.channelManager match {
       case Some(manager) =>
-        manager.handleChatMessage(message, this.channelActorState.state) map { result =>
+        manager.handleChatMessage(message) map { result =>
           result.state foreach (updateState(_))
           result.response foreach (response => sender ! response)
           result.broadcastMessages foreach (broadcastToChannel(_))
@@ -179,8 +147,8 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
   }
 
   private[this] def broadcastToChannel(message: Any): Unit = {
-    // FIXME pattern match
-    val members = this.channelActorState.state.get.members
+    // FIXME pattern match, etc.
+    val members = this.channelManager.get.state().get.members
     members.foreach { member =>
       val topic = ChatChannelActor.getChatUsernameTopicName(member)
       mediator ! Publish(topic, message)
@@ -188,8 +156,6 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
   }
 
   private[this] def updateState(state: ChatChannelState): Unit = {
-    updateState(this.channelActorState.copy(state = Some(state)))
+    // FIXME TODO
   }
-
-  def updateState(state: ChatChannelActorState): Unit = channelActorState = state
 }

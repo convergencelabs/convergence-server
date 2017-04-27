@@ -1,19 +1,59 @@
 package com.convergencelabs.server.domain
 
+import java.time.Instant
+
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
-import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
+import com.convergencelabs.server.datastore.EntityNotFoundException
+import com.convergencelabs.server.datastore.domain.ChatChannelStore
 
 case class ChatMessageProcessingResult(response: Option[Any], broadcastMessages: List[Any], state: Option[ChatChannelState])
 
+object ChatChannelManager {
+  def create(channelId: String, chatChannelStore: ChatChannelStore): Try[ChatChannelManager] = {
+    // FIXME we probably want a get channel optional...
+    // FIXME should we get a method that returns everyting below?
+    chatChannelStore.getChatChannel(channelId) map { channel =>
+      // FIXME don't have members?
+      val members = Set("michael", "cameron")
+      // FIXME don't have the sequence number?
+      val maxEvent = 7L
+      // FIXME don't have the last event time
+      val lastTime = Instant.now()
+
+      Some(
+        ChatChannelState(
+          channelId,
+          channel.channelType,
+          channel.created,
+          channel.isPrivate,
+          channel.name,
+          channel.topic,
+          lastTime,
+          maxEvent,
+          members))
+    } recover {
+      case cause: EntityNotFoundException =>
+        None
+    } map { state =>
+      new ChatChannelManager(channelId, state, chatChannelStore)
+    }
+  }
+}
+
 class ChatChannelManager(
     private[this] val channelId: String,
-    private[this] val persistence: DomainPersistenceProvider) {
+    private[this] var state: Option[ChatChannelState],
+    private[this] val channelStore: ChatChannelStore) {
   import ChatChannelMessages._
 
-  def handleChatMessage(message: ChatChannelMessage, state: Option[ChatChannelState]): Try[ChatMessageProcessingResult] = {
+  def state(): Option[ChatChannelState] = {
+    state
+  }
+
+  def handleChatMessage(message: ChatChannelMessage): Try[ChatMessageProcessingResult] = {
     (message match {
       case message: CreateChannelRequest =>
         onCreateChannel(message)
@@ -64,12 +104,17 @@ class ChatChannelManager(
       val newMembers = members + username
       val newState = state.copy(members = newMembers)
       // TODO need help function to set new event number and last event time
-      
+
       // update the database, potentially, we could do this async.
       val eventNo = state.lastEventNumber
       val time = state.lastEventTime
-      
-      Success(ChatMessageProcessingResult(Some(()), List(UserJoinedChannel(channelId, eventNo, time, username)), Some(state)))
+
+      this.state = Some(state)
+
+      Success(ChatMessageProcessingResult(
+        Some(()),
+        List(UserJoinedChannel(channelId, eventNo, time, username)),
+        Some(state)))
     }
   }
 
