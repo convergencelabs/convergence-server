@@ -48,8 +48,6 @@ object ChatChannelMessages {
   case class ChannelLeft(channelId: String) extends ChatChannelBroadcastMessage
   case class ChannelRemoved(channelId: String) extends ChatChannelBroadcastMessage
   
-
-
   case class RemoteChatMessage(channelId: String, eventNumber: Long, timestamp: Instant, sk: SessionKey, message: String) extends ChatChannelBroadcastMessage
 
   // Exceptions
