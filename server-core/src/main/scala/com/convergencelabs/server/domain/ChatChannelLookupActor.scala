@@ -19,6 +19,7 @@ import com.convergencelabs.server.domain.ChatChannelMessages.CreateChannelRespon
 import akka.actor.Status
 import com.convergencelabs.server.datastore.domain.ChatCreatedEvent
 import com.convergencelabs.server.datastore.domain.ChatChannelInfo
+import scala.util.Failure
 
 object ChatChannelLookupActor {
 
@@ -29,10 +30,10 @@ object ChatChannelLookupActor {
 
   case class GetChannelsRequest(ids: List[String], username: String)
   case class GetChannelsResponse(channels: List[ChatChannelInfo])
-  
+
   case class GetJoinedChannelsRequest(username: String)
   case class GetJoinedChannelsResponse(channels: List[ChatChannelInfo])
-  
+
   case class GetDirectChannelsRequest(username: String, userLists: List[List[String]])
   case class GetDirectChannelsResponse(channels: List[ChatChannelInfo])
 }
@@ -79,7 +80,14 @@ class ChatChannelLookupActor private[domain] (domainFqn: DomainFqn) extends Acto
 
   def onGetChannels(message: GetChannelsRequest): Unit = {
     val GetChannelsRequest(ids, username) = message
-    ???
+    // TODO support multiple.
+    val id = ids(0)
+    chatChannelStore.getChatChannelInfo(id).map { info =>
+      sender ! GetChannelsResponse(List(info))
+    } recover {
+      case cause: Exception =>
+        sender ! Status.Failure(cause)
+    }
   }
 
   def onGetDirect(message: GetDirectChannelsRequest): Unit = {
