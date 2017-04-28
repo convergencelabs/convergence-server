@@ -86,9 +86,9 @@ class ChatChannelStoreSpec
         chatChannelInfo.members shouldEqual members
       }
 
-//      "throw error for invalid id" in withTestData { provider =>
-//        an[EntityNotFoundException] should be thrownBy provider.chatChannelStore.getChatChannelInfo("does_not_exist").get
-//      }
+      "throw error for invalid id" in withTestData { provider =>
+        an[EntityNotFoundException] should be thrownBy provider.chatChannelStore.getChatChannelInfo("does_not_exist").get
+      }
     }
     
     "getting chat channel members" must {
@@ -98,6 +98,16 @@ class ChatChannelStoreSpec
         members shouldEqual Set(user1, user2)
       }
     }
+    
+   "creating chat channel events" must {
+       "successfully create all chat events" in withTestData { provider =>
+        val id = provider.chatChannelStore.createChatChannel(Some(channel1Id), ChannelType.Direct, false, "testName", "testTopic", Some(Set(user1, user2))).get
+        provider.chatChannelStore.addChatCreatedEvent(ChatCreatedEvent(0, id, user1, Instant.now(), "testName", "testTopic", Set(user1, user2))).get
+        provider.chatChannelStore.addChatMessageEvent(ChatMessageEvent(1, id, user2, Instant.now(), "some message")).get
+        val events = provider.chatChannelStore.getChatChannelEvents(id, None, None).get
+        events.size shouldEqual 2
+      }
+   }
   }
 
   def withTestData(testCode: DomainPersistenceProvider => Any): Unit = {

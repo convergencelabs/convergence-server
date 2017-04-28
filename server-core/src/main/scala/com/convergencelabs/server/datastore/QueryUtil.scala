@@ -84,7 +84,7 @@ object QueryUtil extends Logging {
         logger.error(MultipleElementsMessage)
         Failure(new IllegalStateException(MultipleElementsMessage))
       case Nil =>
-        Failure(new IllegalStateException("Entity not found"))
+        Failure(new EntityNotFoundException)
     }
   }
 

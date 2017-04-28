@@ -217,8 +217,9 @@ object ChatChannelStore {
       case Classes.ChatCreatedEvent =>
         val name: String = doc.field(Fields.Name)
         val topic: String = doc.field(Fields.Topic)
-        val members: JavaSet[String] = doc.field("user.username")
-        ChatCreatedEvent(eventNo, channel, user, timestamp.toInstant(), name, topic, members.asScala.toSet)
+        val members: JavaSet[ODocument] = doc.field("members")
+        val usernames: Set[String] = members.asScala.toSet.map { doc: ODocument => doc.field("username").asInstanceOf[String] }
+        ChatCreatedEvent(eventNo, channel, user, timestamp.toInstant(), name, topic, usernames)
       case Classes.ChatMessageEvent =>
         val message: String = doc.field(Fields.Message)
         ChatMessageEvent(eventNo, channel, user, timestamp.toInstant(), message)
