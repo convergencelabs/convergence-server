@@ -37,16 +37,16 @@ class ChatChannelStoreSpec
         val id = provider.chatChannelStore.createChatChannel(None, ChannelType.Direct, false, "", "", None).get
         id shouldEqual firstId
       }
-      
+
       "throw exception if id is duplicate" in withTestData { provider =>
         provider.chatChannelStore.createChatChannel(Some(channel1Id), ChannelType.Direct, false, "", "", None).get
         an[ORecordDuplicatedException] should be thrownBy provider.chatChannelStore.createChatChannel(
           Some(channel1Id), ChannelType.Direct, false, "", "", None).get
       }
-      
+
       "not create channel if members are invalid" in withTestData { provider =>
         provider.chatChannelStore.createChatChannel(
-            Some(channel1Id), ChannelType.Direct, false, "", "", Some(Set(user1, "does_not_exist"))).get
+          Some(channel1Id), ChannelType.Direct, false, "", "", Some(Set(user1, "does_not_exist"))).get
         an[EntityNotFoundException] should be thrownBy provider.chatChannelStore.getChatChannel("does_not_exist").get
       }
     }
@@ -65,17 +65,17 @@ class ChatChannelStoreSpec
         an[EntityNotFoundException] should be thrownBy provider.chatChannelStore.getChatChannel("does_not_exist").get
       }
     }
-    
+
     "getting a chat channel info" must {
       "return chat channel for valid id" in withTestData { provider =>
         val name = "testName"
         val topic = "testTopic"
         val members = Set(user1, user2)
         val timestamp = Instant.now()
-        
+
         val id = provider.chatChannelStore.createChatChannel(Some(channel1Id), ChannelType.Direct, false, name, topic, Some(members)).get
         provider.chatChannelStore.addChatCreatedEvent(ChatCreatedEvent(0, id, user1, timestamp, name, topic, members)).get
-        
+
         val chatChannelInfo = provider.chatChannelStore.getChatChannelInfo(id).get
         chatChannelInfo.id shouldEqual id
         chatChannelInfo.name shouldEqual "testName"
@@ -90,7 +90,7 @@ class ChatChannelStoreSpec
         an[EntityNotFoundException] should be thrownBy provider.chatChannelStore.getChatChannelInfo("does_not_exist").get
       }
     }
-    
+
     "getting chat channel members" must {
       "return the correct users after a create" in withTestData { provider =>
         val id = provider.chatChannelStore.createChatChannel(Some(channel1Id), ChannelType.Direct, false, "testName", "testTopic", Some(Set(user1, user2))).get
@@ -98,16 +98,22 @@ class ChatChannelStoreSpec
         members shouldEqual Set(user1, user2)
       }
     }
-    
-   "creating chat channel events" must {
-       "successfully create all chat events" in withTestData { provider =>
+
+    "creating chat channel events" must {
+      "successfully create all chat events" in withTestData { provider =>
         val id = provider.chatChannelStore.createChatChannel(Some(channel1Id), ChannelType.Direct, false, "testName", "testTopic", Some(Set(user1, user2))).get
         provider.chatChannelStore.addChatCreatedEvent(ChatCreatedEvent(0, id, user1, Instant.now(), "testName", "testTopic", Set(user1, user2))).get
         provider.chatChannelStore.addChatMessageEvent(ChatMessageEvent(1, id, user2, Instant.now(), "some message")).get
+        provider.chatChannelStore.addChatNameChangedEvent(ChatNameChangedEvent(2, id, user2, Instant.now(), "new name")).get
+        provider.chatChannelStore.addChatTopicChangedEvent(ChatTopicChangedEvent(3, id, user2, Instant.now(), "new topic")).get
+        provider.chatChannelStore.addChatUserLeftEvent(ChatUserLeftEvent(4, id, user3, Instant.now())).get
+        provider.chatChannelStore.addChatUserJoinedEvent(ChatUserJoinedEvent(5, id, user3, Instant.now())).get
+        provider.chatChannelStore.addChatUserRemovedEvent(ChatUserRemovedEvent(6, id, user2, Instant.now(), user1)).get
+        provider.chatChannelStore.addChatUserAddedEvent(ChatUserAddedEvent(7, id, user2, Instant.now(), user1)).get
         val events = provider.chatChannelStore.getChatChannelEvents(id, None, None).get
-        events.size shouldEqual 2
+        events.size shouldEqual 8
       }
-   }
+    }
   }
 
   def withTestData(testCode: DomainPersistenceProvider => Any): Unit = {

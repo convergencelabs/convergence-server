@@ -228,10 +228,10 @@ object ChatChannelStore {
       case Classes.ChatUserLeftEvent =>
         ChatUserLeftEvent(eventNo, channel, user, timestamp.toInstant())
       case Classes.ChatUserAddedEvent =>
-        val userAdded: String = doc.field(Fields.UserAdded)
+        val userAdded: String = doc.field("userAdded.username")
         ChatUserAddedEvent(eventNo, channel, user, timestamp.toInstant(), userAdded)
       case Classes.ChatUserRemovedEvent =>
-        val userRemoved: String = doc.field(Fields.UserRemoved)
+        val userRemoved: String = doc.field("userRemoved.username")
         ChatUserRemovedEvent(eventNo, channel, user, timestamp.toInstant(), userRemoved)
       case Classes.ChatTopicChangedEvent =>
         val topic: String = doc.field(Fields.Topic)
@@ -437,7 +437,7 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
         |  channel = (SELECT FROM ChatChannel WHERE id = :channelId),
         |  user = (SELECT FROM User WHERE username = :username),
         |  timestamp = :timestamp,
-        |  userAdded = (SELECT FROM User WHERE username = :userRemoved)""".stripMargin
+        |  userRemoved = (SELECT FROM User WHERE username = :userRemoved)""".stripMargin
     val query = new OCommandSQL(queryStirng)
     val params = Map(
       "eventNo" -> eventNo,
