@@ -5,7 +5,14 @@ import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 
+import com.convergencelabs.server.datastore.domain.ChatChannelEvent
 import com.convergencelabs.server.domain.ChatChannelActor
+import com.convergencelabs.server.domain.ChatChannelLookupActor.GetChannelsRequest
+import com.convergencelabs.server.domain.ChatChannelLookupActor.GetChannelsResponse
+import com.convergencelabs.server.domain.ChatChannelLookupActor.GetDirectChannelsRequest
+import com.convergencelabs.server.domain.ChatChannelLookupActor.GetDirectChannelsResponse
+import com.convergencelabs.server.domain.ChatChannelLookupActor.GetJoinedChannelsRequest
+import com.convergencelabs.server.domain.ChatChannelLookupActor.GetJoinedChannelsResponse
 import com.convergencelabs.server.domain.ChatChannelMessages.AddUserToChannelRequest
 import com.convergencelabs.server.domain.ChatChannelMessages.ChannelAlreadyExistsException
 import com.convergencelabs.server.domain.ChatChannelMessages.ChannelAlreadyJoinedException
@@ -18,6 +25,8 @@ import com.convergencelabs.server.domain.ChatChannelMessages.ChatChannelBroadcas
 import com.convergencelabs.server.domain.ChatChannelMessages.ChatChannelException
 import com.convergencelabs.server.domain.ChatChannelMessages.CreateChannelRequest
 import com.convergencelabs.server.domain.ChatChannelMessages.CreateChannelResponse
+import com.convergencelabs.server.domain.ChatChannelMessages.GetChannelHistoryRequest
+import com.convergencelabs.server.domain.ChatChannelMessages.GetChannelHistoryResponse
 import com.convergencelabs.server.domain.ChatChannelMessages.JoinChannelRequest
 import com.convergencelabs.server.domain.ChatChannelMessages.LeaveChannelRequest
 import com.convergencelabs.server.domain.ChatChannelMessages.MarkChannelEventsSeenRequest
@@ -43,6 +52,7 @@ import akka.cluster.pubsub.DistributedPubSubMediator.Subscribe
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
 import akka.pattern.ask
 import akka.util.Timeout
+import com.convergencelabs.server.datastore.domain.ChatChannelInfo
 
 object ChatClientActor {
   def props(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk: SessionKey): Props =
@@ -98,7 +108,7 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
 
       case ChannelNameChanged(channelId, eventNumber, timestamp, name, setBy) =>
         context.parent ! ChatChannelNameSetMessage(channelId, eventNumber, timestamp.toEpochMilli, setBy, name)
-        
+
       case ChannelTopicChanged(channelId, eventNumber, timestamp, name, setBy) =>
         context.parent ! ChatChannelTopicSetMessage(channelId, eventNumber, timestamp.toEpochMilli, setBy, name)
     }
@@ -215,21 +225,49 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
 
   def onGetChannels(message: GetChatChannelsRequestMessage, cb: ReplyCallback): Unit = {
     val GetChatChannelsRequestMessage(ids) = message;
-    ???
+    val request = GetChannelsRequest(ids, sk.uid)
+    chatLookupActor.ask(request).mapTo[GetChannelsResponse] onComplete {
+      case Success(GetChannelsResponse(channels)) =>
+        val info = channels.map(toChannelInfoData(_))
+        cb.reply(GetChatChannelsResponseMessage(info))
+      case Failure(cause) => 
+        handleUnexpectedError(request, cause, cb)
+    }
   }
 
   def onGetDirect(message: GetDirectChannelsRequestMessage, cb: ReplyCallback): Unit = {
     val GetDirectChannelsRequestMessage(usernameLists) = message;
-    ???
+    val request = GetDirectChannelsRequest(sk.uid, usernameLists)
+    chatLookupActor.ask(request).mapTo[GetDirectChannelsResponse] onComplete {
+      case Success(GetDirectChannelsResponse(channels)) =>
+        val info = channels.map(toChannelInfoData(_))
+        cb.reply(GetChatChannelsResponseMessage(info))
+      case Failure(cause) => 
+        handleUnexpectedError(request, cause, cb)
+    }
   }
 
   def onGetJoinedChannels(cb: ReplyCallback): Unit = {
-    ???
+    val request = GetJoinedChannelsRequest(sk.uid)
+    chatLookupActor.ask(request).mapTo[GetJoinedChannelsResponse] onComplete {
+      case Success(GetJoinedChannelsResponse(channels)) =>
+        val info = channels.map(toChannelInfoData(_))
+        cb.reply(GetChatChannelsResponseMessage(info))
+      case Failure(cause) => 
+        handleUnexpectedError(request, cause, cb)
+    }
   }
 
   def onGetHistory(message: ChatChannelHistoryRequestMessage, cb: ReplyCallback): Unit = {
-    val ChatChannelHistoryRequestMessage(channleId, limit, offset, forward, events) = message;
-    ???
+    val ChatChannelHistoryRequestMessage(channelId, limit, offset, forward, events) = message;
+    val request = GetChannelHistoryRequest(channelId, sk.uid, limit, offset, forward, events)
+    chatChannelActor.ask(request).mapTo[GetChannelHistoryResponse] onComplete {
+      case Success(GetChannelHistoryResponse(events)) =>
+        val eventData = events.map(toChannelEventDatat(_))
+        cb.reply(ChatChannelHistoryResponseMessage(eventData))
+      case Failure(cause) => 
+        handleUnexpectedError(request, cause, cb)
+    }
   }
 
   private[this] def handleSimpleChannelRequest(request: Any, response: () => OutgoingProtocolResponseMessage, cb: ReplyCallback): Unit = {
@@ -239,9 +277,13 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
       case Failure(ChatChannelException(cause)) =>
         handleChatChannelException(cause, cb)
       case Failure(cause) =>
-        log.error(cause, "Unexpected error processing chat request" + request)
-        cb.unexpectedError("Unexpected error processing chat request")
+        handleUnexpectedError(request, cause, cb)
     }
+  }
+
+  private[this] def handleUnexpectedError(request: Any, cause: Throwable, cb: ReplyCallback): Unit = {
+    log.error(cause, "Unexpected error processing chat request" + request)
+    cb.unexpectedError("Unexpected error processing chat request")
   }
 
   private[this] def handleChatChannelException(cause: ChatChannelException, cb: ReplyCallback): Unit = {
@@ -267,5 +309,13 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
           s"Could not complete the request the user is already joined to the channel: '${channelId}'",
           Map("channelId" -> channelId))
     }
+  }
+  
+  private[this] def toChannelInfoData(state: ChatChannelInfo): ChatChannelInfoData = {
+    ???
+  }
+  
+  private[this] def toChannelEventDatat(event: ChatChannelEvent): ChatChannelEventData = {
+    ???
   }
 }

@@ -32,10 +32,10 @@ object ChatChannelMessages {
 
   case class PublishChatMessageRequest(channelId: String, message: String, sk: SessionKey) extends ExistingChannelMessage
 
-  case class ChannelHistoryRequest(channelId: String, username: String, limit: Option[Long], offset: Option[Long],
+  case class GetChannelHistoryRequest(channelId: String, username: String, limit: Option[Long], offset: Option[Long],
     forward: Option[Boolean], events: List[String]) extends ExistingChannelMessage
-  case class ChannelHistoryResponse(events: List[ChatChannelEvent])
-
+  case class GetChannelHistoryResponse(events: List[ChatChannelEvent])
+  
   // Outgoing Broadcast Messages 
   sealed trait ChatChannelBroadcastMessage
   case class UserJoinedChannel(channelId: String, eventNumber: Long, timestamp: Instant, username: String) extends ChatChannelBroadcastMessage
