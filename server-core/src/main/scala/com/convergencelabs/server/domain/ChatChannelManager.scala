@@ -77,7 +77,7 @@ class ChatChannelManager(
         onSetChatChannelTopic(message, state)
       case message: MarkChannelEventsSeenRequest =>
         onMarkEventsSeen(message, state)
-      case message: ChannelHistoryRequest =>
+      case message: GetChannelHistoryRequest =>
         onGetHistory(message, state)
       case message: PublishChatMessageRequest =>
         onPublishMessage(message, state)
@@ -256,11 +256,11 @@ class ChatChannelManager(
     }
   }
 
-  def onGetHistory(message: ChannelHistoryRequest, state: ChatChannelState): Try[ChatMessageProcessingResult] = {
-    val ChannelHistoryRequest(username, channleId, limit, offset, forward, events) = message;
+  def onGetHistory(message: GetChannelHistoryRequest, state: ChatChannelState): Try[ChatMessageProcessingResult] = {
+    val GetChannelHistoryRequest(username, channleId, limit, offset, forward, events) = message;
     channelStore.getChatChannelEvents(channelId, offset, limit) map { events =>
       ChatMessageProcessingResult(
-        Some(ChannelHistoryResponse(events)),
+        Some(GetChannelHistoryResponse(events)),
         List(),
         None)
     }
