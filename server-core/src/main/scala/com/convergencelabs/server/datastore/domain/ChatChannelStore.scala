@@ -9,6 +9,7 @@ import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.collection.JavaConverters.asScalaSetConverter
+import scala.collection.JavaConverters.setAsJavaSetConverter
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
@@ -245,33 +246,33 @@ object ChatChannelStore {
 class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
 
   def getChatChannelInfo(channelId: String): Try[ChatChannelInfo] = tryWithDb { db =>
-    ???
-//    val queryString =
-//      """SELECT 
-//        |  channel.id as id, channel.type as type, channel.created as created, 
-//        |  channel.private as private, channel.name as name, channel.topic as topic,
-//        |  channel.members.user.username as members, eventNo, timestamp
-//        |  FROM ChatChannelEvent 
-//        |  WHERE channel.id = :channelId
-//        |  ORDER BY eventNo Desc
-//        |  LIMIT 1""".stripMargin
-//
-//    val params = Map("channelId" -> channelId)
-//    val result = QueryUtil.lookupMandatoryDocument(queryString, params, db)
-//    result.map {
-//      doc =>
-//        val id: String = doc.field("id")
-//        val channelType: String = doc.field("type")
-//        val created: Date = doc.field("created")
-//        val isPrivate: Boolean = doc.field("private")
-//        val name: String = doc.field("name")
-//        val topic: String = doc.field("topic")
-//        val members: JavaList[String] = doc.field("members")
-//        val lastEventNo: Long = doc.field("eventNo")
-//        val lastEventTime: Date = doc.field("timestamp")
-//        ChatChannelInfo(id, channelType, created.toInstant(), isPrivate, name, topic,
-//          members.asScala.toSet, lastEventNo, lastEventTime.toInstant())
-//    }.get
+    val queryString =
+      """SELECT 
+        |  channel.id as id, channel.type as type, channel.created as created, 
+        |  channel.private as private, channel.name as name, channel.topic as topic,
+        |  channel.members as members, eventNo, timestamp
+        |  FROM ChatChannelEvent 
+        |  WHERE channel.id = :channelId
+        |  ORDER BY eventNo Desc
+        |  LIMIT 1""".stripMargin
+
+    val params = Map("channelId" -> channelId)
+    val result = QueryUtil.lookupMandatoryDocument(queryString, params, db)
+    result.map {
+      doc =>
+        val id: String = doc.field("id")
+        val channelType: String = doc.field("type")
+        val created: Date = doc.field("created")
+        val isPrivate: Boolean = doc.field("private")
+        val name: String = doc.field("name")
+        val topic: String = doc.field("topic")
+        val members: JavaSet[ODocument] = doc.field("members")
+        val usernames: Set[String] = members.asScala.map(member => member.field("user.username").asInstanceOf[String]).toSet
+        val lastEventNo: Long = doc.field("eventNo")
+        val lastEventTime: Date = doc.field("timestamp")
+        ChatChannelInfo(id, channelType, created.toInstant(), isPrivate, name, topic,
+          usernames, lastEventNo, lastEventTime.toInstant())
+    }.get
   }
 
   def getChatChannel(channelId: String): Try[ChatChannel] = tryWithDb { db =>
@@ -322,6 +323,12 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
 
   def addChatCreatedEvent(event: ChatCreatedEvent): Try[Unit] = tryWithDb { db =>
     val ChatCreatedEvent(eventNo, channel, user, timestamp, name, topic, members) = event
+    
+    val memberQueryString = "SELECT FROM User WHERE username IN :members"
+    val memberParams = Map("members" -> members.asJavaCollection)
+    val users: Set[ODocument] = QueryUtil.query(memberQueryString, memberParams, db).toSet
+    
+    
     val queryStirng =
       """INSERT INTO ChatCreatedEvent SET
         |  eventNo = :eventNo,
@@ -330,7 +337,7 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
         |  timestamp = :timestamp,
         |  name = :name,
         |  topic = :topic,
-        |  members = (SELECT FROM User Where username IN :members )""".stripMargin
+        |  members = :members""".stripMargin
     val query = new OCommandSQL(queryStirng)
     val params = Map(
       "eventNo" -> eventNo,
@@ -339,7 +346,7 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
       "timestamp" -> Date.from(timestamp),
       "name" -> name,
       "topic" -> topic,
-      "members" -> members)
+      "members" -> users.asJava)
     db.command(query).execute(params.asJava)
     ()
   }
