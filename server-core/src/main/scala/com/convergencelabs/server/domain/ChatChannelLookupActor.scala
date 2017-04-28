@@ -18,6 +18,7 @@ import com.convergencelabs.server.datastore.domain.ChatChannelStore.ChannelType
 import com.convergencelabs.server.domain.ChatChannelMessages.CreateChannelResponse
 import akka.actor.Status
 import com.convergencelabs.server.datastore.domain.ChatCreatedEvent
+import com.convergencelabs.server.datastore.domain.ChatChannelInfo
 
 object ChatChannelLookupActor {
 
@@ -26,9 +27,14 @@ object ChatChannelLookupActor {
   def props(domainFqn: DomainFqn): Props = Props(
     new ChatChannelLookupActor(domainFqn))
 
-  case class GetChannelsRequest(username: String)
+  case class GetChannelsRequest(ids: List[String], username: String)
+  case class GetChannelsResponse(channels: List[ChatChannelInfo])
+  
   case class GetJoinedChannelsRequest(username: String)
+  case class GetJoinedChannelsResponse(channels: List[ChatChannelInfo])
+  
   case class GetDirectChannelsRequest(username: String, userLists: List[List[String]])
+  case class GetDirectChannelsResponse(channels: List[ChatChannelInfo])
 }
 
 class ChatChannelLookupActor private[domain] (domainFqn: DomainFqn) extends Actor with ActorLogging {
@@ -72,7 +78,7 @@ class ChatChannelLookupActor private[domain] (domainFqn: DomainFqn) extends Acto
   }
 
   def onGetChannels(message: GetChannelsRequest): Unit = {
-    val GetChannelsRequest(username) = message
+    val GetChannelsRequest(ids, username) = message
     ???
   }
 
