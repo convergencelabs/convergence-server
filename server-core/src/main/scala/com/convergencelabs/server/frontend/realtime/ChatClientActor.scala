@@ -149,11 +149,13 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
     val CreateChatChannelRequestMessage(channelId, channelType, name, topic, privateChannel, members) = message;
     val request = CreateChannelRequest(channelId, channelType, name, topic, privateChannel, members.getOrElse(List()))
     chatLookupActor.ask(request).mapTo[CreateChannelResponse] onComplete {
-      case Success(response) =>
+      case Success(CreateChannelResponse(channelId)) =>
+        cb.reply(CreateChatChannelResponseMessage(channelId))
       case Failure(ChatChannelException(cause)) =>
         this.handleChatChannelException(cause, cb)
       case Failure(cause) =>
-        cb.unexpectedError(cause.getMessage)
+        log.error(cause, "could not create channel: " + message)
+        cb.unexpectedError("An unexcpeected error occurred creating the chat channel")
     }
   }
 
@@ -237,7 +239,8 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
       case Failure(ChatChannelException(cause)) =>
         handleChatChannelException(cause, cb)
       case Failure(cause) =>
-        cb.unexpectedError(cause.getMessage)
+        log.error(cause, "Unexpected error processing chat request" + request)
+        cb.unexpectedError("Unexpected error processing chat request")
     }
   }
 
