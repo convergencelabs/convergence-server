@@ -17,31 +17,17 @@ import com.convergencelabs.server.datastore.domain.ChatUserLeftEvent
 import com.convergencelabs.server.datastore.domain.ChatUserRemovedEvent
 import com.convergencelabs.server.domain.ChatChannelMessages.ChannelNotFoundException
 import com.convergencelabs.server.frontend.realtime.ChatChannelRemovedMessage
+import com.convergencelabs.server.datastore.domain.ChatChannelInfo
 
 case class ChatMessageProcessingResult(response: Option[Any], broadcastMessages: List[Any], state: Option[ChatChannelState])
 
 object ChatChannelManager {
   def create(channelId: String, chatChannelStore: ChatChannelStore): Try[ChatChannelManager] = {
-    (for {
-      channel <- chatChannelStore.getChatChannel(channelId)
-      members <- chatChannelStore.getChatChannelMembers(channelId)
-      lastEvent <- chatChannelStore.getChatChannelEvents(channelId, Some(0), Some(1))
-    } yield {
-      val (maxEvent, lastTime) = lastEvent.headOption.map(event => (event.eventNo, event.timestamp)).getOrElse((0L, channel.created))
-
-      val state = ChatChannelState(
-        channelId,
-        channel.channelType,
-        channel.created,
-        channel.isPrivate,
-        channel.name,
-        channel.topic,
-        lastTime,
-        maxEvent,
-        members)
-
+    chatChannelStore.getChatChannelInfo(channelId) map { info =>
+      val ChatChannelInfo(id, channelType, created, isPrivate, name, topic, members, lastEventNo, lastEventTime) = info
+      val state = ChatChannelState(id, channelType, created, isPrivate, name, topic, lastEventTime, lastEventNo, members)
       new ChatChannelManager(channelId, state, chatChannelStore)
-    }) recoverWith {
+    } recoverWith {
       case cause: EntityNotFoundException =>
         Failure(ChannelNotFoundException(channelId))
     }

@@ -97,7 +97,10 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
     message match {
       // Broadcast messages
       case RemoteChatMessage(channelId, eventNumber, timestamp, sk, message) =>
-        context.parent ! RemoteChatMessageMessage(channelId, eventNumber, timestamp.toEpochMilli(), sk.serialize(), message)
+        if (this.sk != sk) {
+          // We don't need to send this back to ourselves.
+          context.parent ! RemoteChatMessageMessage(channelId, eventNumber, timestamp.toEpochMilli(), sk.serialize(), message)
+        }
 
       case UserJoinedChannel(channelId, eventNumber, timestamp, username) =>
         context.parent ! UserJoinedChatChannelMessage(channelId, eventNumber, timestamp.toEpochMilli(), username)
