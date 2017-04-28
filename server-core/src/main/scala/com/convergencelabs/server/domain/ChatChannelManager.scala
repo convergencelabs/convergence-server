@@ -22,7 +22,6 @@ case class ChatMessageProcessingResult(response: Option[Any], broadcastMessages:
 
 object ChatChannelManager {
   def create(channelId: String, chatChannelStore: ChatChannelStore): Try[ChatChannelManager] = {
-    
     (for {
       channel <- chatChannelStore.getChatChannel(channelId)
       members <- chatChannelStore.getChatChannelMembers(channelId)
@@ -40,12 +39,12 @@ object ChatChannelManager {
         lastTime,
         maxEvent,
         members)
-      
+
       new ChatChannelManager(channelId, state, chatChannelStore)
-    })recoverWith {
+    }) recoverWith {
       case cause: EntityNotFoundException =>
         Failure(ChannelNotFoundException(channelId))
-    } 
+    }
   }
 }
 

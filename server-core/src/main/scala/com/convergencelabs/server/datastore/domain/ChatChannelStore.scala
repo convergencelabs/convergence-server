@@ -120,7 +120,7 @@ object ChatChannelStore {
   object Classes {
     val ChatChannel = "ChatChannel"
     val ChatChannelEvent = "ChatChannelEvent"
-    val ChatCreateEvent = "ChatCreateEvent"
+    val ChatCreatedEvent = "ChatCreatedEvent"
     val ChatMessageEvent = "ChatMessageEvent"
     val ChatUserJoinedEvent = "ChatUserJoinedEvent"
     val ChatUserLeftEvent = "ChatUserLeftEvent"
@@ -214,7 +214,7 @@ object ChatChannelStore {
     val className = doc.getClassName
 
     className match {
-      case Classes.ChatCreateEvent =>
+      case Classes.ChatCreatedEvent =>
         val name: String = doc.field(Fields.Name)
         val topic: String = doc.field(Fields.Topic)
         val members: JavaSet[String] = doc.field("user.username")
@@ -238,7 +238,8 @@ object ChatChannelStore {
       case Classes.ChatNameChangedEvent =>
         val name: String = doc.field(Fields.Name)
         ChatNameChangedEvent(eventNo, channel, user, timestamp.toInstant(), name)
-      case _ => ??? // TODO: Handle unknown event class 
+      case _ => 
+        throw new IllegalArgumentException(s"Unknown Chat Channel Event class name: ${className}")
     }
   }
 }

@@ -14,6 +14,7 @@ import akka.actor.ReceiveTimeout
 import akka.actor.Status
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator.Publish
+import scala.util.control.NonFatal
 
 object ChatChannelActor {
 
@@ -75,12 +76,19 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
   }
 
   private[this] def initialize(channelId: String): Try[Unit] = {
-    log.debug(s"Chat Channel Actor starting: '${domainFqn}/${channelId}'")
+    log.debug(s"Chat Channel Actor initializing: '${domainFqn}/${channelId}'")
     DomainPersistenceManagerActor.acquirePersistenceProvider(self, context, domainFqn) flatMap { provider =>
-      ChatChannelManager.create(channelId, provider.chatChannelStore) map { manager =>
-        this.channelManager = Some(manager)
-        context.become(receiveWhenInitialized)
-      }
+      log.debug(s"Chat Channel aquired persistence, creating channel manager: '${domainFqn}/${channelId}'")
+      ChatChannelManager.create(channelId, provider.chatChannelStore)
+    } map { manager =>
+      log.debug(s"Chat Channel Channel manager created: '${domainFqn}/${channelId}'")
+      this.channelManager = Some(manager)
+      context.become(receiveWhenInitialized)
+      ()
+    } recoverWith { 
+      case NonFatal(cause) =>
+        log.debug(s"error initializing chat channel: '${domainFqn}/${channelId}'")
+        Failure(cause)
     }
   }
 
@@ -150,7 +158,7 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
           mediator ! Publish(topic, message)
         }
       case None =>
-        // FIXME Explode? We are corrupted somehow?
+      // FIXME Explode? We are corrupted somehow?
     }
 
   }

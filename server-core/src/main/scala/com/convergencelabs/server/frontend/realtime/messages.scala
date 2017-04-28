@@ -284,12 +284,21 @@ case class ChatChannelInfoData(
   c: Long,
   l: Long,
   ec: Long,
-  uc: Long,
-  m: List[String])
+  ls: Long,
+  m: Set[String])
 
-trait ChatChannelEventData {
-  val e: String
-  val n: Int
+sealed trait ChatChannelEventData {
+  val i: String
+  val n: Long
   val p: Long
   val u: String
 }
+
+case class ChatCreatedEventData(i: String, n: Long, p: Long, u: String, a: String, o: String, m: Set[String]) extends ChatChannelEventData { val t = 0 }
+case class ChatMessageEventData(i: String, n: Long, p: Long, u: String, m: String) extends ChatChannelEventData { val t = 0 }
+case class ChatUserJoinedEventData(i: String, n: Long, p: Long, u: String) extends ChatChannelEventData { val t = 1 }
+case class ChatUserLeftEventData(i: String, n: Long, p: Long, u: String) extends ChatChannelEventData { val t = 2 }
+case class ChatUserAddedEventData(i: String, n: Long, p: Long, u: String, b: String) extends ChatChannelEventData { val t = 3 }
+case class ChatUserRemovedEventData(i: String, n: Long, p: Long, u: String, b: String) extends ChatChannelEventData { val t = 4 }
+case class ChatNameChangedEventData(i: String, n: Long, p: Long, u: String, a: String) extends ChatChannelEventData { val t = 5 }
+case class ChatTopicChangedEventData(i: String, n: Long, p: Long, u: String, o: String) extends ChatChannelEventData { val t = 6 }

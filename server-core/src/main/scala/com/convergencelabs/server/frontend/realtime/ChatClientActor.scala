@@ -53,6 +53,14 @@ import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
 import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.server.datastore.domain.ChatChannelInfo
+import com.convergencelabs.server.datastore.domain.ChatCreatedEvent
+import com.convergencelabs.server.datastore.domain.ChatMessageEvent
+import com.convergencelabs.server.datastore.domain.ChatUserJoinedEvent
+import com.convergencelabs.server.datastore.domain.ChatUserLeftEvent
+import com.convergencelabs.server.datastore.domain.ChatUserAddedEvent
+import com.convergencelabs.server.datastore.domain.ChatUserRemovedEvent
+import com.convergencelabs.server.datastore.domain.ChatNameChangedEvent
+import com.convergencelabs.server.datastore.domain.ChatTopicChangedEvent
 
 object ChatClientActor {
   def props(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk: SessionKey): Props =
@@ -230,7 +238,7 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
       case Success(GetChannelsResponse(channels)) =>
         val info = channels.map(toChannelInfoData(_))
         cb.reply(GetChatChannelsResponseMessage(info))
-      case Failure(cause) => 
+      case Failure(cause) =>
         handleUnexpectedError(request, cause, cb)
     }
   }
@@ -242,7 +250,7 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
       case Success(GetDirectChannelsResponse(channels)) =>
         val info = channels.map(toChannelInfoData(_))
         cb.reply(GetChatChannelsResponseMessage(info))
-      case Failure(cause) => 
+      case Failure(cause) =>
         handleUnexpectedError(request, cause, cb)
     }
   }
@@ -253,7 +261,7 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
       case Success(GetJoinedChannelsResponse(channels)) =>
         val info = channels.map(toChannelInfoData(_))
         cb.reply(GetChatChannelsResponseMessage(info))
-      case Failure(cause) => 
+      case Failure(cause) =>
         handleUnexpectedError(request, cause, cb)
     }
   }
@@ -265,7 +273,7 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
       case Success(GetChannelHistoryResponse(events)) =>
         val eventData = events.map(toChannelEventDatat(_))
         cb.reply(ChatChannelHistoryResponseMessage(eventData))
-      case Failure(cause) => 
+      case Failure(cause) =>
         handleUnexpectedError(request, cause, cb)
     }
   }
@@ -310,12 +318,32 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
           Map("channelId" -> channelId))
     }
   }
-  
-  private[this] def toChannelInfoData(state: ChatChannelInfo): ChatChannelInfoData = {
-    ???
+
+  private[this] def toChannelInfoData(info: ChatChannelInfo): ChatChannelInfoData = {
+    val ChatChannelInfo(id, channelType, created, isPrivate, name, topic, members, lastEventNo, lastEventTime) = info
+    val membership = isPrivate match {
+      case true => "private"
+      case false => "public"
+    }
+    ChatChannelInfoData(id, channelType, membership, name, topic, created.toEpochMilli, lastEventTime.toEpochMilli, lastEventNo, lastEventNo, members)
   }
-  
-  private[this] def toChannelEventDatat(event: ChatChannelEvent): ChatChannelEventData = {
-    ???
+
+  private[this] def toChannelEventDatat: PartialFunction[ChatChannelEvent, ChatChannelEventData] = {
+    case ChatCreatedEvent(eventNo, channel, user, timestamp, name, topic, members) =>
+      ChatCreatedEventData(channel, eventNo, timestamp.toEpochMilli, user, name, topic, members)
+    case ChatMessageEvent(eventNo, channel, user, timestamp, message) =>
+      ChatMessageEventData(channel, eventNo, timestamp.toEpochMilli, user, message)
+    case ChatUserJoinedEvent(eventNo, channel, user, timestamp) =>
+      ChatUserJoinedEventData(channel, eventNo, timestamp.toEpochMilli, user)
+    case ChatUserLeftEvent(eventNo, channel, user, timestamp) =>
+      ChatUserLeftEventData(channel, eventNo, timestamp.toEpochMilli, user)
+    case ChatUserAddedEvent(eventNo, channel, user, timestamp, addedUser) =>
+      ChatUserAddedEventData(channel, eventNo, timestamp.toEpochMilli, addedUser, user)
+    case ChatUserRemovedEvent(eventNo, channel, user, timestamp, removedUser) =>
+      ChatUserRemovedEventData(channel, eventNo, timestamp.toEpochMilli, removedUser, user)
+    case ChatNameChangedEvent(eventNo, channel, user, timestamp, name) =>
+      ChatNameChangedEventData(channel, eventNo, timestamp.toEpochMilli, user, name)
+    case ChatTopicChangedEvent(eventNo, channel, user, timestamp, topic) =>
+      ChatTopicChangedEventData(channel, eventNo, timestamp.toEpochMilli, user, topic)
   }
 }
