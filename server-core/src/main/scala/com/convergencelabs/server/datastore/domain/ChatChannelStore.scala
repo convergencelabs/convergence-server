@@ -294,7 +294,7 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
         "topic" -> topic,
         "members" -> members)
     db.command(query).execute(params.asJava)
-    Unit
+    ()
   }
   
   
@@ -315,7 +315,7 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
         "timestamp" -> Date.from(timestamp),
         "message" -> message)
     db.command(query).execute(params.asJava)
-    Unit
+    ()
   }
   
   def addChatUserJoinedEvent(event: ChatUserJoinedEvent): Try[Unit] = tryWithDb { db =>
@@ -333,7 +333,7 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
         "username" -> user, 
         "timestamp" -> Date.from(timestamp))
     db.command(query).execute(params.asJava)
-    Unit
+    ()
   }
   
   def addChatUserLeftEvent(event: ChatUserLeftEvent): Try[Unit] = tryWithDb { db =>
@@ -351,7 +351,7 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
         "username" -> user, 
         "timestamp" -> Date.from(timestamp))
     db.command(query).execute(params.asJava)
-    Unit
+    ()
   }
   
   def addChatUserAddedEvent(event: ChatUserAddedEvent): Try[Unit] = tryWithDb { db =>
@@ -371,7 +371,7 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
         "timestamp" -> Date.from(timestamp),
         "userAdded" -> userAdded)
     db.command(query).execute(params.asJava)
-    Unit
+    ()
   }
   
   def addChatUserRemovedEvent(event: ChatUserRemovedEvent): Try[Unit] = tryWithDb { db =>
@@ -391,7 +391,7 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
         "timestamp" -> Date.from(timestamp),
         "userRemoved" -> userRemoved)
     db.command(query).execute(params.asJava)
-    Unit
+    ()
   }
   
   def addChatNameChangedEvent(event: ChatNameChangedEvent): Try[Unit] = tryWithDb { db =>
@@ -411,7 +411,7 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
         "timestamp" -> Date.from(timestamp),
         "name" -> name)
     db.command(query).execute(params.asJava)
-    Unit
+    ()
   }
   
   def addChatTopicChangedEvent(event: ChatTopicChangedEvent): Try[Unit] = tryWithDb { db =>
@@ -431,14 +431,14 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
         "timestamp" -> Date.from(timestamp),
         "topic" -> topic)
     db.command(query).execute(params.asJava)
-    Unit
+    ()
   }
   
   def getChatChannelMembers(channelId: String): Try[Set[String]] = tryWithDb { db =>
     val queryString = "SELECT user.username as member FROM ChatChannelMember WHERE channel.id = :channelId"
     val params = Map("channelId" -> channelId)
     val result = QueryUtil.query(queryString,  params, db)
-    result.map { doc => doc.field("member") }.toSet
+    result.map { doc => doc.field("member").asInstanceOf[String] }.toSet
   }
 
 //  def addAllChatChannelMembers(channelId: String, usernames: List[String], seen: Option[Long]): Try[Unit] = tryWithDb { db =>
@@ -448,9 +448,9 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
 //      userRid <- DomainUserStore.getUserRid(username, db)
 //    } yield {
 //      val doc = new ODocument(Classes.ChatChannelMember)
-//      doc.fields(Fields.Channel, channelRid)
-//      doc.fields(Fields.User, userRid)
-//      doc.fields(Fields.Seen, seenVal)
+//      doc.field(Fields.Channel, channelRid)
+//      doc.field(Fields.User, userRid)
+//      doc.field(Fields.Seen, seenVal)
 //      db.save(doc)
 //
 //      val channelDoc = channelRid.getRecord[ODocument]
@@ -468,9 +468,9 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
       userRid <- DomainUserStore.getUserRid(username, db)
     } yield {
       val doc = new ODocument(Classes.ChatChannelMember)
-      doc.fields(Fields.Channel, channelRid)
-      doc.fields(Fields.User, userRid)
-      doc.fields(Fields.Seen, seen.getOrElse(0))
+      doc.field(Fields.Channel, channelRid)
+      doc.field(Fields.User, userRid)
+      doc.field(Fields.Seen, seen.getOrElse(0))
       db.save(doc)
 
       val channelDoc = channelRid.getRecord[ODocument]
