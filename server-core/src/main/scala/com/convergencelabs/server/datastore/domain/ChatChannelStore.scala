@@ -196,8 +196,8 @@ object ChatChannelStore {
 
   def docToChatChannelEvent(doc: ODocument): ChatChannelEvent = {
     val eventNo: Long = doc.field(Fields.EventNo)
-    val channel: String = doc.field(Fields.Channel)
-    val user: String = doc.field(Fields.User)
+    val channel: String = doc.field("channel.id")
+    val user: String = doc.field("user.username")
     val timestamp: Date = doc.field(Fields.Timestamp, OType.DATETIME)
 
     val className = doc.getClassName
