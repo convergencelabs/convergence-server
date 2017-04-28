@@ -15,6 +15,7 @@ import akka.actor.Status
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator.Publish
 import scala.util.control.NonFatal
+import akka.actor.ActorRef
 
 object ChatChannelActor {
 
@@ -43,15 +44,16 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
 
   log.debug(s"Chat Channel Actor starting in domain: '${domainFqn}'")
 
-  // TODO: Load from configuration 
-  context.setReceiveTimeout(120.seconds)
-
   //  override def persistenceId: String = "ChatChannel-" + self.path.name
 
   val mediator = DistributedPubSub(context.system).mediator
 
   // Here None signifies that the channel does not exist.
   var channelManager: Option[ChatChannelManager] = None
+
+  // Used for rooms only
+  var connectedClients: Set[ActorRef] = Set()
+  var connectedUserCount: Map[String, Int] = Map()
 
   //  override def receiveRecover: Receive = {
   //    case state: ChatChannelActorState =>
@@ -68,7 +70,7 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
       initialize(message.channelId)
         .flatMap { _ =>
           log.debug(s"Chat Channel Actor initialized processing message: '${domainFqn}/${message.channelId}'")
-          processChatMessage(message)
+          processChannelMessage(message)
         }
         .recover { case cause: Exception => this.unexpectedError(cause) }
     case other: Any =>
@@ -83,24 +85,99 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
     } map { manager =>
       log.debug(s"Chat Channel Channel manager created: '${domainFqn}/${channelId}'")
       this.channelManager = Some(manager)
-      context.become(receiveWhenInitialized)
+      if (manager.isRoom) {
+        context.become(receiveRoomMessages)
+      } else {
+        // TODO: Load from configuration 
+        context.setReceiveTimeout(120.seconds)
+        context.become(receiveChannelMessages)
+      }
       ()
-    } recoverWith { 
+    } recoverWith {
       case NonFatal(cause) =>
         log.debug(s"error initializing chat channel: '${domainFqn}/${channelId}'")
         Failure(cause)
     }
   }
 
-  def receiveWhenInitialized: Receive = {
+  def receiveRoomMessages: Receive = {
     case message: ExistingChannelMessage =>
-      processChatMessage(message)
+      processRoomMessage(message)
         .recover { case cause: Exception => this.unexpectedError(cause) }
     case other: Any =>
       this.receiveCommon(other)
   }
 
-  def processChatMessage(message: ExistingChannelMessage): Try[Unit] = {
+  def processRoomMessage(message: ExistingChannelMessage): Try[Unit] = {
+    message match {
+      case message: JoinChannelRequest =>
+        if (connectedClients.contains(sender)) {
+          // FIXME: Handler session already joined error
+          ???
+        } else {
+          connectedClients += sender
+          if (connectedUserCount.contains(message.username)) {
+            connectedUserCount += message.username -> (connectedUserCount(message.username) + 1)
+            ???
+          } else {
+            connectedUserCount += message.username -> 1
+            sendRoomMessageToManager(message)
+          }
+        }
+      case message: LeaveChannelRequest =>
+        if (connectedClients.contains(sender)) {
+          connectedClients -= sender
+          connectedUserCount.get(message.username) match {
+            case Some(count) if (count == 1) =>
+              connectedUserCount -= message.username
+              sendRoomMessageToManager(message)
+            case Some(count) =>
+              connectedUserCount += message.username -> (connectedUserCount(message.username) - 1)
+              ???
+            case None =>
+              // FIXME: handle error
+              ???
+          }
+        } else {
+          // FIXME: Handler session not joined error
+          ???
+        }
+      case message: AddUserToChannelRequest      => ??? // FIXME: Is this supported or do we just throw an error
+      case message: RemoveUserFromChannelRequest => ??? // FIXME: Is this supported or do we just throw an error
+      case _                                     => sendRoomMessageToManager(message)
+    }
+  }
+
+  def sendRoomMessageToManager(message: ExistingChannelMessage): Try[Unit] = {
+    this.channelManager match {
+      case Some(manager) =>
+        manager.handleChatMessage(message) map { result =>
+          result.state foreach (updateState(_))
+          result.response foreach (response => sender ! response)
+          result.broadcastMessages foreach (broadcastToRoom(_))
+        } recover {
+          case cause: ChannelNotFoundException =>
+            // It seems like there is no reason to stay up, at this point.
+            context.parent ! Passivate(stopMessage = Stop)
+            sender ! Status.Failure(cause)
+
+          case ChatChannelException(cause) =>
+            sender ! Status.Failure(cause)
+        }
+      case None =>
+        Failure(new IllegalStateException("Can't process chat message with no chat channel manager set."))
+    }
+  }
+
+  def receiveChannelMessages: Receive = {
+    case message: ExistingChannelMessage =>
+      processChannelMessage(message)
+        .recover { case cause: Exception => this.unexpectedError(cause) }
+    case other: Any =>
+      this.receiveCommon(other)
+  }
+
+  def processChannelMessage(message: ExistingChannelMessage): Try[Unit] = {
     this.channelManager match {
       case Some(manager) =>
         manager.handleChatMessage(message) map { result =>
@@ -160,7 +237,12 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
       case None =>
       // FIXME Explode? We are corrupted somehow?
     }
+  }
 
+  private[this] def broadcastToRoom(message: Any): Unit = {
+    connectedClients.foreach(client => {
+      // FIXME: Send message to client 
+    })
   }
 
   private[this] def updateState(state: ChatChannelState): Unit = {

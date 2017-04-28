@@ -39,11 +39,14 @@ class ChatChannelManager(
     private[this] var state: ChatChannelState,
     private[this] val channelStore: ChatChannelStore) {
   import ChatChannelMessages._
+  
+  val isRoom: Boolean = state.channelType.equals("room")
 
   def state(): ChatChannelState = {
     state
   }
 
+  // FIXME: Don't add users for rooms to database
   def handleChatMessage(message: ExistingChannelMessage): Try[ChatMessageProcessingResult] = {
     message match {
       case message: RemoveChannelRequest =>
