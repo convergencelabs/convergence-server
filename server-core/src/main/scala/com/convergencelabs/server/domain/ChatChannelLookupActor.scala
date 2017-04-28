@@ -58,7 +58,7 @@ class ChatChannelLookupActor private[domain] (domainFqn: DomainFqn) extends Acto
         }
 
         (for {
-          id <- this.chatChannelStore.createChatChannel(channelId, ct, isPrivate, name.getOrElse(""), topic.getOrElse(""))
+          id <- this.chatChannelStore.createChatChannel(channelId, ct, isPrivate, name.getOrElse(""), topic.getOrElse(""), Some(members))
           _ <- this.chatChannelStore.addChatCreatedEvent(ChatCreatedEvent(0, id, createdBy, Instant.now(), name.getOrElse(""), topic.getOrElse(""), members))
         } yield {
           sender ! CreateChannelResponse(id)

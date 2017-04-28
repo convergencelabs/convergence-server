@@ -28,25 +28,31 @@ class ChatChannelStoreSpec
   "A ChatChannelStore" when {
     "creating a chat channel" must {
       "return the id if provided" in withTestData { provider =>
-        val id = provider.chatChannelStore.createChatChannel(Some(channel1Id), ChannelType.Direct, false, "", "").get
+        val id = provider.chatChannelStore.createChatChannel(Some(channel1Id), ChannelType.Direct, false, "", "", Some(Set(user1, user2))).get
         id shouldEqual channel1Id
       }
 
       "return a generated id if none is provided" in withTestData { provider =>
-        val id = provider.chatChannelStore.createChatChannel(None, ChannelType.Direct, false, "", "").get
+        val id = provider.chatChannelStore.createChatChannel(None, ChannelType.Direct, false, "", "", None).get
         id shouldEqual firstId
       }
-
+      
       "throw exception if id is duplicate" in withTestData { provider =>
-        provider.chatChannelStore.createChatChannel(Some(channel1Id), ChannelType.Direct, false, "", "").get
+        provider.chatChannelStore.createChatChannel(Some(channel1Id), ChannelType.Direct, false, "", "", None).get
         an[ORecordDuplicatedException] should be thrownBy provider.chatChannelStore.createChatChannel(
-          Some(channel1Id), ChannelType.Direct, false, "", "").get
+          Some(channel1Id), ChannelType.Direct, false, "", "", None).get
+      }
+      
+      "not create channel if members are invalid" in withTestData { provider =>
+        provider.chatChannelStore.createChatChannel(
+            Some(channel1Id), ChannelType.Direct, false, "", "", Some(Set(user1, "does_not_exist"))).get
+        an[EntityNotFoundException] should be thrownBy provider.chatChannelStore.getChatChannel("does_not_exist").get
       }
     }
 
     "getting a chat channel" must {
       "return chat channel for valid id" in withTestData { provider =>
-        val id = provider.chatChannelStore.createChatChannel(Some(channel1Id), ChannelType.Direct, false, "testName", "testTopic").get
+        val id = provider.chatChannelStore.createChatChannel(Some(channel1Id), ChannelType.Direct, false, "testName", "testTopic", Some(Set(user1, user2))).get
         val chatChannel = provider.chatChannelStore.getChatChannel(id).get
         chatChannel.id shouldEqual id
         chatChannel.name shouldEqual "testName"
@@ -56,6 +62,14 @@ class ChatChannelStoreSpec
 
       "throw error for invalid id" in withTestData { provider =>
         an[EntityNotFoundException] should be thrownBy provider.chatChannelStore.getChatChannel("does_not_exist").get
+      }
+    }
+    
+    "getting chat channel members" must {
+      "return the correct users after a create" in withTestData { provider =>
+        val id = provider.chatChannelStore.createChatChannel(Some(channel1Id), ChannelType.Direct, false, "testName", "testTopic", Some(Set(user1, user2))).get
+        val members = provider.chatChannelStore.getChatChannelMembers(channel1Id).get
+        members shouldEqual Set(user1, user2)
       }
     }
   }
