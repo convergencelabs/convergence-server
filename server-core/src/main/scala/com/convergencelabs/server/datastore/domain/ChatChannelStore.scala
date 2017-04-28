@@ -38,7 +38,12 @@ case class ChatChannel(
   name: String,
   topic: String)
 
-sealed trait ChatChannelEvent
+sealed trait ChatChannelEvent {
+  val eventNo: Long
+  val channel: String
+  val user: String
+  val timestamp: Instant
+}
 
 case class ChatMessageEvent(
   eventNo: Long,

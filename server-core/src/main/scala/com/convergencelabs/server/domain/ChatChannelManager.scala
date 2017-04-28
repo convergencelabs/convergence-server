@@ -26,10 +26,9 @@ object ChatChannelManager {
     (for {
       channel <- chatChannelStore.getChatChannel(channelId)
       members <- chatChannelStore.getChatChannelMembers(channelId)
+      lastEvent <- chatChannelStore.getChatChannelEvents(channelId, Some(0), Some(1))
     } yield {
-      val maxEvent = 7L
-      // FIXME don't have the last event time
-      val lastTime = Instant.now()
+      val (maxEvent, lastTime) = lastEvent.headOption.map(event => (event.eventNo, event.timestamp)).getOrElse((0L, channel.created))
 
       val state = ChatChannelState(
         channelId,
