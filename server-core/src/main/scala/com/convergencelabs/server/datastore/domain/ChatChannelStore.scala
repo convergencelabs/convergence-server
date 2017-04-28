@@ -45,6 +45,16 @@ sealed trait ChatChannelEvent {
   val timestamp: Instant
 }
 
+case class ChatCreatedEvent(
+  eventNo: Long,
+  channel: String,
+  user: String,
+  timestamp: Instant,
+  name: String,
+  topic: String,
+  members: Set[String]) extends ChatChannelEvent
+
+
 case class ChatMessageEvent(
   eventNo: Long,
   channel: String,
@@ -99,6 +109,7 @@ object ChatChannelStore {
   object Classes {
     val ChatChannel = "ChatChannel"
     val ChatChannelEvent = "ChatChannelEvent"
+    val ChatCreateEvent = "ChatCreateEvent"
     val ChatMessageEvent = "ChatMessageEvent"
     val ChatUserJoinedEvent = "ChatUserJoinedEvent"
     val ChatUserLeftEvent = "ChatUserLeftEvent"
@@ -192,6 +203,11 @@ object ChatChannelStore {
     val className = doc.getClassName
 
     className match {
+      case Classes.ChatCreateEvent =>
+        val name: String = doc.field(Fields.Name)
+        val topic: String = doc.field(Fields.Topic)
+        val members: JavaSet[String] = doc.field("user.username")
+        ChatCreatedEvent(eventNo, channel, user, timestamp.toInstant(), name, topic, members.asScala.toSet)
       case Classes.ChatMessageEvent =>
         val message: String = doc.field(Fields.Message)
         ChatMessageEvent(eventNo, channel, user, timestamp.toInstant(), message)
@@ -255,6 +271,33 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
     }
   }
 
+  // TODO: All of the events are very similar, need to abstract some of each of these methods
+  
+  def addChatCreatedEvent(event: ChatCreatedEvent): Try[Unit] = tryWithDb { db =>
+    val ChatCreatedEvent(eventNo, channel, user, timestamp, name, topic, members) = event
+    val queryStirng =
+      """INSERT INTO ChatCreatedEvent SET
+        |  eventNo = :eventNo,
+        |  channel = (SELECT FROM ChatChannel WHERE id = :channelId),
+        |  user = (SELECT FROM User WHERE username = :username),
+        |  timestamp = :timestamp,
+        |  name = :name,
+        |  topic = :topic,
+        |  members = (SELECT FROM User Where username IN :members )""".stripMargin
+    val query = new OCommandSQL(queryStirng)
+    val params = Map(
+        "eventNo" -> eventNo, 
+        "channelId" -> channel, 
+        "username" -> user, 
+        "timestamp" -> Date.from(timestamp),
+        "name" -> name,
+        "topic" -> topic,
+        "members" -> members)
+    db.command(query).execute(params.asJava)
+    Unit
+  }
+  
+  
   def addChatMessageEvent(event: ChatMessageEvent): Try[Unit] = tryWithDb { db =>
     val ChatMessageEvent(eventNo, channel, user, timestamp, message) = event
     val queryStirng =
@@ -398,6 +441,27 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
     result.map { doc => doc.field("member") }.toSet
   }
 
+//  def addAllChatChannelMembers(channelId: String, usernames: List[String], seen: Option[Long]): Try[Unit] = tryWithDb { db =>
+//    val seenVal = seen.getOrElse(0)
+//    for {
+//      channelRid <- getChatChannelRid(channelId)
+//      userRid <- DomainUserStore.getUserRid(username, db)
+//    } yield {
+//      val doc = new ODocument(Classes.ChatChannelMember)
+//      doc.fields(Fields.Channel, channelRid)
+//      doc.fields(Fields.User, userRid)
+//      doc.fields(Fields.Seen, seenVal)
+//      db.save(doc)
+//
+//      val channelDoc = channelRid.getRecord[ODocument]
+//      val members: JavaSet[ORID] = channelDoc.field(Fields.Members)
+//      members.add(doc.getIdentity)
+//      channelDoc.field(Fields.Members, members)
+//      channelDoc.save()
+//      ()
+//    }
+//  }
+  
   def addChatChannelMember(channelId: String, username: String, seen: Option[Long]): Try[Unit] = tryWithDb { db =>
     for {
       channelRid <- getChatChannelRid(channelId)
