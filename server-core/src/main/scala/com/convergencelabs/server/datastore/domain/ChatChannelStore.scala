@@ -38,6 +38,17 @@ case class ChatChannel(
   name: String,
   topic: String)
 
+case class ChatChannelInfo(
+  id: String,
+  channelType: String,
+  created: Instant,
+  isPrivate: Boolean,
+  name: String,
+  topic: String,
+  members: Set[String],
+  lastEventNo: Long,
+  lastEventTime: Instant)
+
 sealed trait ChatChannelEvent {
   val eventNo: Long
   val channel: String
@@ -233,12 +244,43 @@ object ChatChannelStore {
 
 class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
 
+  def getChatChannelInfo(channelId: String): Try[ChatChannelInfo] = tryWithDb { db =>
+    ???
+//    val queryString =
+//      """SELECT 
+//        |  channel.id as id, channel.type as type, channel.created as created, 
+//        |  channel.private as private, channel.name as name, channel.topic as topic,
+//        |  channel.members.user.username as members, eventNo, timestamp
+//        |  FROM ChatChannelEvent 
+//        |  WHERE channel.id = :channelId
+//        |  ORDER BY eventNo Desc
+//        |  LIMIT 1""".stripMargin
+//
+//    val params = Map("channelId" -> channelId)
+//    val result = QueryUtil.lookupMandatoryDocument(queryString, params, db)
+//    result.map {
+//      doc =>
+//        val id: String = doc.field("id")
+//        val channelType: String = doc.field("type")
+//        val created: Date = doc.field("created")
+//        val isPrivate: Boolean = doc.field("private")
+//        val name: String = doc.field("name")
+//        val topic: String = doc.field("topic")
+//        val members: JavaList[String] = doc.field("members")
+//        val lastEventNo: Long = doc.field("eventNo")
+//        val lastEventTime: Date = doc.field("timestamp")
+//        ChatChannelInfo(id, channelType, created.toInstant(), isPrivate, name, topic,
+//          members.asScala.toSet, lastEventNo, lastEventTime.toInstant())
+//    }.get
+  }
+
   def getChatChannel(channelId: String): Try[ChatChannel] = tryWithDb { db =>
     getChatChannelRid(channelId).map { rid =>
       docToChatChannel(rid.getRecord[ODocument])
     }.get
   }
 
+  // FIXME: Pass in create time
   def createChatChannel(id: Option[String], channelType: ChannelType.Value, isPrivate: Boolean, name: String, topic: String, members: Option[Set[String]]): Try[String] = tryWithDb { db =>
     // FIXME: return failure if addAllChatChannelMembers fails
     db.begin()

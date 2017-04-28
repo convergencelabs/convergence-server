@@ -10,6 +10,7 @@ import com.convergencelabs.server.domain.DomainUser
 import com.convergencelabs.server.domain.DomainUserType
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import com.convergencelabs.server.datastore.EntityNotFoundException
+import java.time.Instant
 
 class ChatChannelStoreSpec
     extends PersistenceStoreSpec[DomainPersistenceProvider](DeltaCategory.Domain)
@@ -64,6 +65,30 @@ class ChatChannelStoreSpec
         an[EntityNotFoundException] should be thrownBy provider.chatChannelStore.getChatChannel("does_not_exist").get
       }
     }
+    
+//    "getting a chat channel info" must {
+//      "return chat channel for valid id" in withTestData { provider =>
+//        val name = "testName"
+//        val topic = "testTopic"
+//        val members = Set(user1, user2)
+//        val timestamp = Instant.now()
+//        
+//        val id = provider.chatChannelStore.createChatChannel(Some(channel1Id), ChannelType.Direct, false, name, topic, Some(members)).get
+//        provider.chatChannelStore.addChatCreatedEvent(ChatCreatedEvent(0, id, user1, timestamp, name, topic, members))
+//        
+//        val chatChannelInfo = provider.chatChannelStore.getChatChannelInfo(id).get
+//        chatChannelInfo.id shouldEqual id
+//        chatChannelInfo.name shouldEqual "testName"
+//        chatChannelInfo.topic shouldEqual "testTopic"
+//        chatChannelInfo.channelType shouldEqual "direct"
+//        chatChannelInfo.lastEventNo shouldEqual 0L
+//        chatChannelInfo.lastEventTime shouldEqual timestamp
+//      }
+//
+//      "throw error for invalid id" in withTestData { provider =>
+//        an[EntityNotFoundException] should be thrownBy provider.chatChannelStore.getChatChannelInfo("does_not_exist").get
+//      }
+//    }
     
     "getting chat channel members" must {
       "return the correct users after a create" in withTestData { provider =>
