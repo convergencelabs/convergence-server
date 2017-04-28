@@ -147,7 +147,7 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
 
   def onCreateChannel(message: CreateChatChannelRequestMessage, cb: ReplyCallback): Unit = {
     val CreateChatChannelRequestMessage(channelId, channelType, name, topic, privateChannel, members) = message;
-    val request = CreateChannelRequest(channelId, channelType, name, topic, privateChannel, members.getOrElse(List()))
+    val request = CreateChannelRequest(channelId, channelType, name, topic, privateChannel, members.getOrElse(Set()), sk.uid)
     chatLookupActor.ask(request).mapTo[CreateChannelResponse] onComplete {
       case Success(response) =>
       case Failure(ChatChannelException(cause)) =>

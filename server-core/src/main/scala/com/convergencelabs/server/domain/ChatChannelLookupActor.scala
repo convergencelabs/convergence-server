@@ -17,6 +17,7 @@ import scala.util.control.NonFatal
 import com.convergencelabs.server.datastore.domain.ChatChannelStore.ChannelType
 import com.convergencelabs.server.domain.ChatChannelMessages.CreateChannelResponse
 import akka.actor.Status
+import com.convergencelabs.server.datastore.domain.ChatCreatedEvent
 
 object ChatChannelLookupActor {
 
@@ -48,7 +49,7 @@ class ChatChannelLookupActor private[domain] (domainFqn: DomainFqn) extends Acto
   }
 
   def onCreateChannel(message: CreateChannelRequest): Unit = {
-    val CreateChannelRequest(channelId, channelType, channelMembership, name, topic, members) = message
+    val CreateChannelRequest(channelId, channelType, channelMembership, name, topic, members, createdBy) = message
     ChannelType.withNameOpt(channelType) match {
       case Some(ct) =>
         val isPrivate = channelMembership.toLowerCase match {
@@ -56,9 +57,12 @@ class ChatChannelLookupActor private[domain] (domainFqn: DomainFqn) extends Acto
           case _ => false
         }
 
-        this.chatChannelStore.createChatChannel(channelId, ct, isPrivate, name.getOrElse(""), topic.getOrElse("")) map { channelId =>
-          sender ! CreateChannelResponse(channelId)
-        } recover {
+        (for {
+          id <- this.chatChannelStore.createChatChannel(channelId, ct, isPrivate, name.getOrElse(""), topic.getOrElse(""))
+          _ <- this.chatChannelStore.addChatCreatedEvent(ChatCreatedEvent(0, id, createdBy, Instant.now(), name.getOrElse(""), topic.getOrElse(""), members))
+        } yield {
+          sender ! CreateChannelResponse(id)
+        }) recover {
           case NonFatal(cause) =>
             sender ! Status.Failure(cause)
         }

@@ -9,7 +9,7 @@ object ChatChannelMessages {
 
   case class CreateChannelRequest(channelId: Option[String], channelType: String,
     channelMembership: String, name: Option[String], topic: Option[String],
-    members: List[String])
+    members: Set[String], createdBy: String)
 
   case class CreateChannelResponse(channelId: String)
 

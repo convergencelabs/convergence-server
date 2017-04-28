@@ -217,7 +217,7 @@ case class RemoteChatMessageMessage(i: String, e: Long, p: Long, s: String, m: S
     
 // Create
 case class CreateChatChannelRequestMessage(i: Option[String], e: String, p: String, n: Option[String], c: Option[String],
-  m: Option[List[String]]) extends IncomingChatRequestMessage
+  m: Option[Set[String]]) extends IncomingChatRequestMessage
 case class CreateChatChannelResponseMessage(i: String) extends OutgoingProtocolResponseMessage
 
 // Remove
