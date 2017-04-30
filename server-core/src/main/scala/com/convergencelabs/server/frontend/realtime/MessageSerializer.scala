@@ -178,7 +178,10 @@ object MessageSerializer {
     MessageType.GetDirectChatChannelsResponse -> classOf[GetDirectChannelsResponseMessage],
     
     MessageType.GetChatChannelHistoryRequest -> classOf[ChatChannelHistoryRequestMessage],
-    MessageType.GetChatChannelHistoryResponse -> classOf[ChatChannelHistoryResponseMessage]),
+    MessageType.GetChatChannelHistoryResponse -> classOf[ChatChannelHistoryResponseMessage],
+    
+    MessageType.ChatChannelExistsRequest -> classOf[ChatChannelsExistsRequestMessage],
+    MessageType.ChatChannelExistsResponse -> classOf[ChatChannelsExistsResponseMessage]),
 
     DefaultFormats.withTypeHintFieldName("?") + new OperationSerializer() + new AppliedOperationSerializer() + DataValueTypeHints + DataValueFieldSerializer + instantSerializer)
 

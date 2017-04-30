@@ -6,7 +6,18 @@ import scala.util.Failure
 import scala.util.Success
 
 import com.convergencelabs.server.datastore.domain.ChatChannelEvent
+import com.convergencelabs.server.datastore.domain.ChatChannelInfo
+import com.convergencelabs.server.datastore.domain.ChatCreatedEvent
+import com.convergencelabs.server.datastore.domain.ChatMessageEvent
+import com.convergencelabs.server.datastore.domain.ChatNameChangedEvent
+import com.convergencelabs.server.datastore.domain.ChatTopicChangedEvent
+import com.convergencelabs.server.datastore.domain.ChatUserAddedEvent
+import com.convergencelabs.server.datastore.domain.ChatUserJoinedEvent
+import com.convergencelabs.server.datastore.domain.ChatUserLeftEvent
+import com.convergencelabs.server.datastore.domain.ChatUserRemovedEvent
 import com.convergencelabs.server.domain.chat.ChatChannelActor
+import com.convergencelabs.server.domain.chat.ChatChannelLookupActor.ChannelsExistsRequest
+import com.convergencelabs.server.domain.chat.ChatChannelLookupActor.ChannelsExistsResponse
 import com.convergencelabs.server.domain.chat.ChatChannelLookupActor.GetChannelsRequest
 import com.convergencelabs.server.domain.chat.ChatChannelLookupActor.GetChannelsResponse
 import com.convergencelabs.server.domain.chat.ChatChannelLookupActor.GetDirectChannelsRequest
@@ -27,6 +38,7 @@ import com.convergencelabs.server.domain.chat.ChatChannelMessages.CreateChannelR
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.CreateChannelResponse
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetChannelHistoryRequest
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetChannelHistoryResponse
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.InvalidChannelMessageExcpetion
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.JoinChannelRequest
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.LeaveChannelRequest
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.MarkChannelEventsSeenRequest
@@ -50,19 +62,8 @@ import akka.actor.actorRef2Scala
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator.Subscribe
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
-import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.server.datastore.domain.ChatChannelInfo
-import com.convergencelabs.server.datastore.domain.ChatCreatedEvent
-import com.convergencelabs.server.datastore.domain.ChatMessageEvent
-import com.convergencelabs.server.datastore.domain.ChatUserJoinedEvent
-import com.convergencelabs.server.datastore.domain.ChatUserLeftEvent
-import com.convergencelabs.server.datastore.domain.ChatUserAddedEvent
-import com.convergencelabs.server.datastore.domain.ChatUserRemovedEvent
-import com.convergencelabs.server.datastore.domain.ChatNameChangedEvent
-import com.convergencelabs.server.datastore.domain.ChatTopicChangedEvent
-import com.convergencelabs.server.domain.chat.ChatChannelActor
-import com.convergencelabs.server.domain.chat.ChatChannelMessages.InvalidChannelMessageExcpetion
+import akka.pattern.ask
 
 object ChatClientActor {
   def props(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk: SessionKey): Props =
@@ -165,6 +166,8 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
         onGetHistory(message, replyCallback)
       case message: PublishChatRequestMessage =>
         onPublishMessage(message, replyCallback)
+      case message: ChatChannelsExistsRequestMessage =>
+        onChannelsExist(message, replyCallback)
     }
   }
 
@@ -234,6 +237,17 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
     val PublishChatRequestMessage(channelId, msg) = message;
     val request = PublishChatMessageRequest(channelId, msg, sk)
     handleSimpleChannelRequest(request, { () => PublishChatResponseMessage() }, cb)
+  }
+  
+  def onChannelsExist(message: ChatChannelsExistsRequestMessage, cb: ReplyCallback): Unit = {
+    val ChatChannelsExistsRequestMessage(channelIds) = message;
+    val request = ChannelsExistsRequest(channelIds, sk.uid)
+    chatLookupActor.ask(request).mapTo[ChannelsExistsResponse] onComplete {
+      case Success(ChannelsExistsResponse(channels)) =>
+        cb.reply(ChatChannelsExistsResponseMessage(channels))
+      case Failure(cause) =>
+        handleUnexpectedError(request, cause, cb)
+    }
   }
 
   def onGetChannels(message: GetChatChannelsRequestMessage, cb: ReplyCallback): Unit = {

@@ -18,6 +18,8 @@ import akka.actor.ActorLogging
 import akka.actor.Props
 import akka.actor.Status
 import akka.actor.actorRef2Scala
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.ChannelNotFoundException
+import com.convergencelabs.server.datastore.EntityNotFoundException
 
 object ChatChannelLookupActor {
 
@@ -28,6 +30,9 @@ object ChatChannelLookupActor {
 
   case class GetChannelsRequest(ids: List[String], username: String)
   case class GetChannelsResponse(channels: List[ChatChannelInfo])
+
+  case class ChannelsExistsRequest(ids: List[String], username: String)
+  case class ChannelsExistsResponse(channels: List[Boolean])
 
   case class GetJoinedChannelsRequest(username: String)
   case class GetJoinedChannelsResponse(channels: List[ChatChannelInfo])
@@ -51,6 +56,8 @@ class ChatChannelLookupActor private[domain] (domainFqn: DomainFqn) extends Acto
       onGetJoinedChannels(message)
     case message: GetDirectChannelsRequest =>
       onGetDirect(message)
+    case message: ChannelsExistsRequest =>
+      onExists(message)
   }
 
   def onCreateChannel(message: CreateChannelRequest): Unit = {
@@ -83,6 +90,21 @@ class ChatChannelLookupActor private[domain] (domainFqn: DomainFqn) extends Acto
     chatChannelStore.getChatChannelInfo(id).map { info =>
       sender ! GetChannelsResponse(List(info))
     } recover {
+      case cause: Exception =>
+        sender ! Status.Failure(cause)
+    }
+  }
+
+  def onExists(message: ChannelsExistsRequest): Unit = {
+    val ChannelsExistsRequest(ids, username) = message
+    // TODO support multiple.
+    // FIXME this should be an option or something.
+    val id = ids(0)
+    chatChannelStore.getChatChannelInfo(id).map { info =>
+      sender ! ChannelsExistsResponse(List(true))
+    } recover {
+      case cause: EntityNotFoundException =>
+        sender ! ChannelsExistsResponse(List(false))
       case cause: Exception =>
         sender ! Status.Failure(cause)
     }
