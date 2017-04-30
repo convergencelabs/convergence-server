@@ -107,6 +107,8 @@ object MessageSerializer {
     MessageType.UserSearchRequest -> classOf[UserSearchMessage],
     MessageType.UserListResponse -> classOf[UserListMessage],
 
+    // Activity
+    
     MessageType.ActivityParticipantsRequest -> classOf[ActivityParticipantsRequestMessage],
     MessageType.ActivityParticipantsResponse -> classOf[ActivityParticipantsResponseMessage],
     MessageType.ActivityJoinRequest -> classOf[ActivityJoinMessage],
@@ -121,6 +123,8 @@ object MessageSerializer {
     MessageType.ActivityRemoteStateRemoved -> classOf[ActivityRemoteStateRemovedMessage],
     MessageType.ActivityRemoteStateCleared -> classOf[ActivityRemoteStateClearedMessage],
 
+    // Presence
+    
     MessageType.PresenceSetState -> classOf[PresenceSetStateMessage],
     MessageType.PresenceClearState -> classOf[PresenceClearStateMessage],
     MessageType.PresenceStateSet -> classOf[PresenceStateSetMessage],
@@ -131,6 +135,8 @@ object MessageSerializer {
     MessageType.PresenceSubscribeResponse -> classOf[SubscribePresenceResponseMessage],
     MessageType.PresenceUnsubscribe -> classOf[UnsubscribePresenceMessage],
 
+    // CHAT
+    
     MessageType.CreateChatChannelRequest -> classOf[CreateChatChannelRequestMessage],
     MessageType.CreateChatChannelResponse -> classOf[CreateChatChannelResponseMessage],
     MessageType.RemoveChatChannelRequest -> classOf[RemoveChatChannelRequestMessage],

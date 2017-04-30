@@ -135,7 +135,6 @@ object ChatChannelStore {
 
   object Indexes {
     val ChatChannel_Id = "ChatChannel.id"
-    val ChatChannel_Name_Type = "ChatChannel.name_type"
 
     val ChatChannelEvent_EventNo_Channel = "ChatChannelEvent.channel_eventNo"
     val ChatChannelEvent_Channel = "ChatChannelEvent.channel"
