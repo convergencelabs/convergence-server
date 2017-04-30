@@ -80,7 +80,7 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
       this.channelManager = Some(manager)
       manager.state().channelType match {
         case "room" =>
-          this.messageHelper = Some(new ChatRoomMessagingHelper())
+          this.messageHelper = Some(new ChatRoomMessagingHelper(manager, context))
         case "group" =>
           context.setReceiveTimeout(120.seconds)
           this.messageHelper = Some(new GroupChannelMessagingHelper(manager, context))
