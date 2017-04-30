@@ -28,7 +28,7 @@ trait ChatMessagingHelper {
   def boradcast(message: Any): Unit
 }
 
-class ChatRoomMessagingHelper(channelManager: ChatChannelManager, context: ActorContext) extends ChatMessagingHelper {
+class ChatRoomMessagingHelper(channelManager: ChatChannelStateManager, context: ActorContext) extends ChatMessagingHelper {
   val chatRoomSessionManager = new ChatRoomSessionManager()
   
   context.system.actorOf(Props(new Watcher()))
@@ -46,6 +46,7 @@ class ChatRoomMessagingHelper(channelManager: ChatChannelManager, context: Actor
     val pass = message match {
       case JoinChannelRequest(channelId, sk, client) =>
         chatRoomSessionManager.join(sk, client)
+        
       case LeaveChannelRequest(channelId, sk, client) =>
         chatRoomSessionManager.leave(sk)
         // TODO maybe make this a call back
@@ -61,7 +62,7 @@ class ChatRoomMessagingHelper(channelManager: ChatChannelManager, context: Actor
 
     pass match {
       case true => Left(message)
-      case false => Right(())
+      case false => Right()
     }
   }
 
@@ -86,7 +87,7 @@ class ChatRoomMessagingHelper(channelManager: ChatChannelManager, context: Actor
   }
 }
 
-abstract class MembershipChannelMessageHelper(channelManager: ChatChannelManager, context: ActorContext) extends ChatMessagingHelper {
+abstract class MembershipChannelMessageHelper(channelManager: ChatChannelStateManager, context: ActorContext) extends ChatMessagingHelper {
   val mediator = DistributedPubSub(context.system).mediator
 
   def validateMessage(message: ExistingChannelMessage): Try[ExistingChannelMessage]
@@ -102,7 +103,7 @@ abstract class MembershipChannelMessageHelper(channelManager: ChatChannelManager
   }
 }
 
-class DirectChannelMessagingHelper(channelManager: ChatChannelManager, context: ActorContext)
+class DirectChannelMessagingHelper(channelManager: ChatChannelStateManager, context: ActorContext)
     extends MembershipChannelMessageHelper(channelManager, context) {
 
   def validateMessage(message: ExistingChannelMessage): Try[ExistingChannelMessage] = {
@@ -121,7 +122,7 @@ class DirectChannelMessagingHelper(channelManager: ChatChannelManager, context: 
   }
 }
 
-class GroupChannelMessagingHelper(channelManager: ChatChannelManager, context: ActorContext)
+class GroupChannelMessagingHelper(channelManager: ChatChannelStateManager, context: ActorContext)
     extends MembershipChannelMessageHelper(channelManager, context) {
   def validateMessage(message: ExistingChannelMessage): Try[ExistingChannelMessage] = Success(message)
 }

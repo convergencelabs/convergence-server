@@ -227,7 +227,7 @@ case class ChatChannelRemovedMessage(i: String) extends OutgoingProtocolNormalMe
 
 // Join / Add
 case class JoinChatChannelRequestMessage(i: String) extends IncomingChatRequestMessage
-case class JoinChatChannelResponseMessage() extends OutgoingProtocolResponseMessage
+case class JoinChatChannelResponseMessage(c: ChatChannelInfoData) extends OutgoingProtocolResponseMessage
 case class UserJoinedChatChannelMessage(i: String, n: Long, p: Long, u: String) extends OutgoingProtocolNormalMessage
 
 case class AddUserToChatChannelRequestMessage(i: String, u: String) extends IncomingChatRequestMessage

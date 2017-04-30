@@ -54,7 +54,7 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
   log.debug(s"Chat Channel Actor starting in domain: '${domainFqn}'")
 
   // Here None signifies that the channel does not exist.
-  var channelManager: Option[ChatChannelManager] = None
+  var channelManager: Option[ChatChannelStateManager] = None
   var messageHelper: Option[ChatMessagingHelper] = None
 
   // Default recieve will be called the first time
@@ -74,7 +74,7 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
     log.debug(s"Chat Channel Actor initializing: '${domainFqn}/${channelId}'")
     DomainPersistenceManagerActor.acquirePersistenceProvider(self, context, domainFqn) flatMap { provider =>
       log.debug(s"Chat Channel aquired persistence, creating channel manager: '${domainFqn}/${channelId}'")
-      ChatChannelManager.create(channelId, provider.chatChannelStore)
+      ChatChannelStateManager.create(channelId, provider.chatChannelStore)
     } map { manager =>
       log.debug(s"Chat Channel Channel manager created: '${domainFqn}/${channelId}'")
       this.channelManager = Some(manager)
@@ -136,7 +136,7 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
     }
   }
 
-  private[this] def getHelpers(): Try[(ChatChannelManager, ChatMessagingHelper)] = {
+  private[this] def getHelpers(): Try[(ChatChannelStateManager, ChatMessagingHelper)] = {
     (this.channelManager, this.messageHelper) match {
       case (Some(cm), Some(mh)) => Success((cm, mh))
       case _ => Failure(new IllegalStateException("Message Helper and Channel Manager must be set to process messages"))

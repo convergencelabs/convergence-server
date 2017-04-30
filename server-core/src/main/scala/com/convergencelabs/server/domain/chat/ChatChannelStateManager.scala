@@ -18,15 +18,16 @@ import com.convergencelabs.server.datastore.domain.ChatUserRemovedEvent
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.ChannelNotFoundException
 import com.convergencelabs.server.frontend.realtime.ChatChannelRemovedMessage
 import com.convergencelabs.server.datastore.domain.ChatChannelInfo
+import com.convergencelabs.server.domain.model.SessionKey
 
 case class ChatMessageProcessingResult(response: Option[Any], broadcastMessages: List[Any], state: Option[ChatChannelState])
 
-object ChatChannelManager {
-  def create(channelId: String, chatChannelStore: ChatChannelStore): Try[ChatChannelManager] = {
+object ChatChannelStateManager {
+  def create(channelId: String, chatChannelStore: ChatChannelStore): Try[ChatChannelStateManager] = {
     chatChannelStore.getChatChannelInfo(channelId) map { info =>
       val ChatChannelInfo(id, channelType, created, isPrivate, name, topic, members, lastEventNo, lastEventTime) = info
       val state = ChatChannelState(id, channelType, created, isPrivate, name, topic, lastEventTime, lastEventNo, members)
-      new ChatChannelManager(channelId, state, chatChannelStore)
+      new ChatChannelStateManager(channelId, state, chatChannelStore)
     } recoverWith {
       case cause: EntityNotFoundException =>
         Failure(ChannelNotFoundException(channelId))
@@ -34,43 +35,43 @@ object ChatChannelManager {
   }
 }
 
-class ChatChannelManager(
+class ChatChannelStateManager(
     private[this] val channelId: String,
     private[this] var state: ChatChannelState,
     private[this] val channelStore: ChatChannelStore) {
-  import ChatChannelMessages._
   
+  import ChatChannelMessages._
+
   def state(): ChatChannelState = {
     state
   }
 
   def handleChatMessage(message: ExistingChannelMessage): Try[ChatMessageProcessingResult] = {
     message match {
-      case message: RemoveChannelRequest =>
-        onRemoveChannel(message)
+      case RemoveChannelRequest(channelId, username) =>
+        onRemoveChannel(channelId, username)
       case JoinChannelRequest(channelId, sk, client) =>
         onJoinChannel(sk.uid)
       case LeaveChannelRequest(channelId, sk, client) =>
         onLeaveChannel(sk.uid)
-      case message: AddUserToChannelRequest =>
-        onAddUserToChannel(message)
-      case message: RemoveUserFromChannelRequest =>
-        onRemoveUserFromChannel(message)
-      case message: SetChannelNameRequest =>
-        onSetChatChannelName(message)
-      case message: SetChannelTopicRequest =>
-        onSetChatChannelTopic(message)
-      case message: MarkChannelEventsSeenRequest =>
-        onMarkEventsSeen(message)
-      case message: GetChannelHistoryRequest =>
-        onGetHistory(message)
-      case message: PublishChatMessageRequest =>
-        onPublishMessage(message)
+      case AddUserToChannelRequest(channelId: String, username: String, addedBy: String) =>
+        onAddUserToChannel(channelId, username, addedBy)
+      case RemoveUserFromChannelRequest(channelId, username, removedBy) =>
+        onRemoveUserFromChannel(channelId, username, removedBy)
+      case SetChannelNameRequest(channelId, name, setBy) =>
+        onSetChatChannelName(channelId, name, setBy)
+      case SetChannelTopicRequest(channelId, topic, setBy) =>
+        onSetChatChannelTopic(channelId, topic, setBy)
+      case MarkChannelEventsSeenRequest(channelId, eventNumber, username) =>
+        onMarkEventsSeen(channelId, eventNumber, username)
+      case GetChannelHistoryRequest(username, channleId, limit, offset, forward, events) =>
+        onGetHistory(username, channleId, limit, offset, forward, events)
+      case PublishChatMessageRequest(channelId, message, sk) =>
+        onPublishMessage(channelId, message, sk)
     }
   }
 
-  def onRemoveChannel(message: RemoveChannelRequest): Try[ChatMessageProcessingResult] = {
-    val RemoveChannelRequest(channelId, username) = message;
+  def onRemoveChannel(channelId: String, username: String): Try[ChatMessageProcessingResult] = {
     channelStore.removeChatChannel(channelId) map { _ =>
       ChatMessageProcessingResult(
         Some(()),
@@ -101,11 +102,17 @@ class ChatChannelManager(
         this.state = newState
 
         ChatMessageProcessingResult(
-          Some(()),
+          Some(createJoinResponse()),
           List(UserJoinedChannel(channelId, eventNo, timestamp, username)),
           Some(newState))
       }
     }
+  }
+
+  def createJoinResponse(): JoinChannelResponse = {
+    val ChatChannelState(id, channelType, created, isPrivate, name, topic, lastEventTime, lastEventNo, members) = state
+    val info = ChatChannelInfo(id, channelType, created, isPrivate, name, topic, members, lastEventNo, lastEventTime)
+    JoinChannelResponse(info)
   }
 
   def onLeaveChannel(username: String): Try[ChatMessageProcessingResult] = {
@@ -134,8 +141,7 @@ class ChatChannelManager(
     }
   }
 
-  def onAddUserToChannel(message: AddUserToChannelRequest): Try[ChatMessageProcessingResult] = {
-    val AddUserToChannelRequest(channelId, username, addedBy) = message;
+  def onAddUserToChannel(channelId: String, username: String, addedBy: String): Try[ChatMessageProcessingResult] = {
     val members = state.members
     if (members contains username) {
       Failure(ChannelAlreadyJoinedException(channelId))
@@ -160,8 +166,7 @@ class ChatChannelManager(
     }
   }
 
-  def onRemoveUserFromChannel(message: RemoveUserFromChannelRequest): Try[ChatMessageProcessingResult] = {
-    val RemoveUserFromChannelRequest(channelId, username, removedBy) = message;
+  def onRemoveUserFromChannel(channelId: String, username: String, removedBy: String): Try[ChatMessageProcessingResult] = {
     val members = state.members
     if (members contains username) {
       val newMembers = members - username
@@ -188,12 +193,11 @@ class ChatChannelManager(
     }
   }
 
-  def onSetChatChannelName(message: SetChannelNameRequest): Try[ChatMessageProcessingResult] = {
-    val SetChannelNameRequest(channelId, name, username) = message;
+  def onSetChatChannelName(channelId: String, name: String, setBy: String): Try[ChatMessageProcessingResult] = {
     val eventNo = state.lastEventNumber + 1
     val timestamp = Instant.now()
 
-    val event = ChatNameChangedEvent(eventNo, channelId, username, timestamp, name)
+    val event = ChatNameChangedEvent(eventNo, channelId, setBy, timestamp, name)
 
     for {
       _ <- channelStore.addChatNameChangedEvent(event)
@@ -204,17 +208,16 @@ class ChatChannelManager(
 
       ChatMessageProcessingResult(
         Some(()),
-        List(ChannelNameChanged(channelId, eventNo, timestamp, username, name)),
+        List(ChannelNameChanged(channelId, eventNo, timestamp, setBy, name)),
         Some(newState))
     }
   }
 
-  def onSetChatChannelTopic(message: SetChannelTopicRequest): Try[ChatMessageProcessingResult] = {
-    val SetChannelTopicRequest(channelId, topic, username) = message;
+  def onSetChatChannelTopic(channelId: String, topic: String, setBy: String): Try[ChatMessageProcessingResult] = {
     val eventNo = state.lastEventNumber + 1
     val timestamp = Instant.now()
 
-    val event = ChatTopicChangedEvent(eventNo, channelId, username, timestamp, topic)
+    val event = ChatTopicChangedEvent(eventNo, channelId, setBy, timestamp, topic)
 
     for {
       _ <- channelStore.addChatTopicChangedEvent(event)
@@ -224,13 +227,12 @@ class ChatChannelManager(
       this.state = newState
       ChatMessageProcessingResult(
         Some(()),
-        List(ChannelTopicChanged(channelId, eventNo, timestamp, username, topic)),
+        List(ChannelTopicChanged(channelId, eventNo, timestamp, setBy, topic)),
         Some(newState))
     }
   }
 
-  def onMarkEventsSeen(message: MarkChannelEventsSeenRequest): Try[ChatMessageProcessingResult] = {
-    val MarkChannelEventsSeenRequest(channelId, eventNumber, username) = message;
+  def onMarkEventsSeen(channelId: String, eventNumber: Long, username: String): Try[ChatMessageProcessingResult] = {
     channelStore.markSeen(channelId, username, eventNumber) map { _ =>
       ChatMessageProcessingResult(
         Some(()),
@@ -239,8 +241,8 @@ class ChatChannelManager(
     }
   }
 
-  def onGetHistory(message: GetChannelHistoryRequest): Try[ChatMessageProcessingResult] = {
-    val GetChannelHistoryRequest(username, channleId, limit, offset, forward, events) = message;
+  def onGetHistory(channelId: String, username: String, limit: Option[Long], offset: Option[Long],
+    forward: Option[Boolean], events: List[String]): Try[ChatMessageProcessingResult] = {
     channelStore.getChatChannelEvents(channelId, offset, limit) map { events =>
       ChatMessageProcessingResult(
         Some(GetChannelHistoryResponse(events)),
@@ -249,12 +251,11 @@ class ChatChannelManager(
     }
   }
 
-  def onPublishMessage(message: PublishChatMessageRequest): Try[ChatMessageProcessingResult] = {
-    val PublishChatMessageRequest(channeId, msg, sk) = message;
+  def onPublishMessage(channelId: String, message: String, sk: SessionKey): Try[ChatMessageProcessingResult] = {
     val eventNo = state.lastEventNumber + 1
     val timestamp = Instant.now()
 
-    val event = ChatMessageEvent(eventNo, channelId, sk.uid, timestamp, msg)
+    val event = ChatMessageEvent(eventNo, channelId, sk.uid, timestamp, message)
 
     channelStore.addChatMessageEvent(event).map { _ =>
       val newState = state.copy(lastEventNumber = eventNo, lastEventTime = timestamp)
@@ -262,11 +263,11 @@ class ChatChannelManager(
 
       ChatMessageProcessingResult(
         Some(()),
-        List(RemoteChatMessage(channelId, eventNo, timestamp, sk, msg)),
+        List(RemoteChatMessage(channelId, eventNo, timestamp, sk, message)),
         Some(newState))
     }
   }
-  
+
   def removeAllMembers(): Unit = {
     this.state().members.foreach(username => {
       this.channelStore.removeChatChannelMember(channelId, username)

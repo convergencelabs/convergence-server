@@ -40,6 +40,7 @@ import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetChannelHist
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetChannelHistoryResponse
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.InvalidChannelMessageExcpetion
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.JoinChannelRequest
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.JoinChannelResponse
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.LeaveChannelRequest
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.MarkChannelEventsSeenRequest
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.PublishChatMessageRequest
@@ -62,8 +63,9 @@ import akka.actor.actorRef2Scala
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator.Subscribe
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
-import akka.util.Timeout
 import akka.pattern.ask
+import akka.util.Timeout
+
 
 object ChatClientActor {
   def props(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk: SessionKey): Props =
@@ -71,7 +73,7 @@ object ChatClientActor {
 }
 
 class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk: SessionKey) extends Actor with ActorLogging {
-
+  // FIXME hardcoded
   implicit val timeout = Timeout(5 seconds)
   implicit val ec = context.dispatcher
 
@@ -194,7 +196,14 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
   def onJoinChannel(message: JoinChatChannelRequestMessage, cb: ReplyCallback): Unit = {
     val JoinChatChannelRequestMessage(channelId) = message;
     val request = JoinChannelRequest(channelId, sk, self)
-    handleSimpleChannelRequest(request, { () => JoinChatChannelResponseMessage() }, cb)
+    chatChannelActor.ask(request).mapTo[JoinChannelResponse] onComplete {
+      case Success(JoinChannelResponse(info)) =>
+        cb.reply(JoinChatChannelResponseMessage(toChannelInfoData(info)))
+      case Failure(cause: ChatChannelException) =>
+        handleChatChannelException(cause, cb)
+      case Failure(cause) =>
+        handleUnexpectedError(request, cause, cb)
+    }
   }
 
   def onLeaveChannel(message: LeaveChatChannelRequestMessage, cb: ReplyCallback): Unit = {

@@ -3,7 +3,9 @@ package com.convergencelabs.server.domain.chat
 import java.time.Instant
 
 import com.convergencelabs.server.datastore.domain.ChatChannelEvent
+import com.convergencelabs.server.datastore.domain.ChatChannelInfo
 import com.convergencelabs.server.domain.model.SessionKey
+
 import akka.actor.ActorRef
 
 object ChatChannelMessages {
@@ -23,6 +25,8 @@ object ChatChannelMessages {
   case class RemoveChannelRequest(channelId: String, username: String) extends ExistingChannelMessage
 
   case class JoinChannelRequest(channelId: String, sk: SessionKey, client: ActorRef) extends ExistingChannelMessage
+  case class JoinChannelResponse(info: ChatChannelInfo)
+  
   case class LeaveChannelRequest(channelId: String, sk: SessionKey,  client: ActorRef) extends ExistingChannelMessage
   case class AddUserToChannelRequest(channelId: String, username: String, addedBy: String) extends ExistingChannelMessage
   case class RemoveUserFromChannelRequest(channelId: String, username: String, removedBy: String) extends ExistingChannelMessage
