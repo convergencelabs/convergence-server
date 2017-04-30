@@ -86,7 +86,11 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
           manager.removeAllMembers()
         case "group" =>
           context.setReceiveTimeout(120.seconds)
-          this.messageProcessor = Some(new GroupChatMessageProcessor(manager, context))
+          if (manager.state().isPrivate) {
+            this.messageProcessor = Some(new PrivateChannelMessageProcessor(manager, context))
+          } else {
+            this.messageProcessor = Some(new PublicChannelMessageProcessor(manager, context))
+          }
         case "direct" =>
           context.setReceiveTimeout(120.seconds)
           this.messageProcessor = Some(new DirectChatMessageProcessor(manager, context))
@@ -113,7 +117,7 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
     (for {
       messageProcessor <- this.messageProcessor match {
         case Some(mp) => Success(mp)
-        case _ => Failure(new IllegalStateException("The message processor must be set before processing messages"))
+        case _        => Failure(new IllegalStateException("The message processor must be set before processing messages"))
       }
       _ <- messageProcessor.processChatMessage(message) map { result =>
         result.response foreach (response => sender ! response)
