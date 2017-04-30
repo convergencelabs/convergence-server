@@ -265,12 +265,12 @@ class ClientActor(
         case Success(HandshakeFailure(code, details)) => {
           cb.reply(HandshakeResponseMessage(false, Some(ErrorData(code, details)), Some(true), None))
           this.connectionActor ! CloseConnection
-          context.stop(self)
+          self ! PoisonPill
         }
         case Failure(cause) => {
           cb.reply(HandshakeResponseMessage(false, Some(ErrorData("unknown", "uknown error")), Some(true), None))
           this.connectionActor ! CloseConnection
-          context.stop(self)
+          self ! PoisonPill
         }
       }
     }
