@@ -1,9 +1,10 @@
-package com.convergencelabs.server.domain
+package com.convergencelabs.server.domain.chat
 
 import java.time.Instant
 
 import com.convergencelabs.server.datastore.domain.ChatChannelEvent
 import com.convergencelabs.server.domain.model.SessionKey
+import akka.actor.ActorRef
 
 object ChatChannelMessages {
 
@@ -21,8 +22,8 @@ object ChatChannelMessages {
 
   case class RemoveChannelRequest(channelId: String, username: String) extends ExistingChannelMessage
 
-  case class JoinChannelRequest(channelId: String, username: String) extends ExistingChannelMessage
-  case class LeaveChannelRequest(channelId: String, username: String) extends ExistingChannelMessage
+  case class JoinChannelRequest(channelId: String, sk: SessionKey, client: ActorRef) extends ExistingChannelMessage
+  case class LeaveChannelRequest(channelId: String, sk: SessionKey,  client: ActorRef) extends ExistingChannelMessage
   case class AddUserToChannelRequest(channelId: String, username: String, addedBy: String) extends ExistingChannelMessage
   case class RemoveUserFromChannelRequest(channelId: String, username: String, removedBy: String) extends ExistingChannelMessage
 
@@ -50,17 +51,10 @@ object ChatChannelMessages {
   case class RemoteChatMessage(channelId: String, eventNumber: Long, timestamp: Instant, sk: SessionKey, message: String) extends ChatChannelBroadcastMessage
 
   // Exceptions
-  sealed abstract class ChatChannelException() extends Exception()
-  case class ChannelNotJoinedException(channelId: String) extends ChatChannelException()
-  case class ChannelAlreadyJoinedException(channelId: String) extends ChatChannelException()
-  case class ChannelNotFoundException(channelId: String) extends ChatChannelException()
-  case class ChannelAlreadyExistsException(channelId: String) extends ChatChannelException()
-
-  object ChatChannelException {
-    def apply(t: Throwable): Boolean = t match {
-      case _: ChatChannelException => true
-      case _ => false
-    }
-    def unapply(t: Throwable): Option[ChatChannelException] = if (apply(t)) Some(t.asInstanceOf[ChatChannelException]) else None
-  }
+  sealed abstract class ChatChannelException(message: String) extends Exception(message)
+  case class ChannelNotJoinedException(channelId: String) extends ChatChannelException("")
+  case class ChannelAlreadyJoinedException(channelId: String) extends ChatChannelException("")
+  case class ChannelNotFoundException(channelId: String) extends ChatChannelException("")
+  case class ChannelAlreadyExistsException(channelId: String) extends ChatChannelException("")
+  case class InvalidChannelMessageExcpetion(message: String) extends ChatChannelException(message)  
 }

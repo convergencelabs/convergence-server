@@ -27,6 +27,9 @@ import akka.actor.Terminated
 import akka.cluster.sharding.ClusterSharding
 import akka.cluster.sharding.ClusterShardingSettings
 import akka.cluster.sharding.ShardRegion
+import com.convergencelabs.server.domain.chat.ChatChannelLookupActor
+import com.convergencelabs.server.domain.chat.ChatChannelActor
+import com.convergencelabs.server.domain.chat.ChatChannelSharding
 
 object DomainActor {
   def props(

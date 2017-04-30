@@ -1,4 +1,4 @@
-package com.convergencelabs.server.domain
+package com.convergencelabs.server.domain.chat
 
 import java.time.Instant
 
@@ -15,7 +15,7 @@ import com.convergencelabs.server.datastore.domain.ChatUserAddedEvent
 import com.convergencelabs.server.datastore.domain.ChatUserJoinedEvent
 import com.convergencelabs.server.datastore.domain.ChatUserLeftEvent
 import com.convergencelabs.server.datastore.domain.ChatUserRemovedEvent
-import com.convergencelabs.server.domain.ChatChannelMessages.ChannelNotFoundException
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.ChannelNotFoundException
 import com.convergencelabs.server.frontend.realtime.ChatChannelRemovedMessage
 import com.convergencelabs.server.datastore.domain.ChatChannelInfo
 
@@ -40,13 +40,10 @@ class ChatChannelManager(
     private[this] val channelStore: ChatChannelStore) {
   import ChatChannelMessages._
   
-  val isRoom: Boolean = state.channelType.equals("room")
-
   def state(): ChatChannelState = {
     state
   }
 
-  // FIXME: Don't add users for rooms to database
   def handleChatMessage(message: ExistingChannelMessage): Try[ChatMessageProcessingResult] = {
     message match {
       case message: RemoveChannelRequest =>
@@ -83,7 +80,8 @@ class ChatChannelManager(
   }
 
   def onJoinChannel(message: JoinChannelRequest, state: ChatChannelState): Try[ChatMessageProcessingResult] = {
-    val JoinChannelRequest(channelId, username) = message;
+    val JoinChannelRequest(channelId, sk, client) = message;
+    val username = sk.uid
     val members = state.members
     if (members contains username) {
       Failure(ChannelAlreadyJoinedException(channelId))
@@ -113,7 +111,8 @@ class ChatChannelManager(
   }
 
   def onLeaveChannel(message: LeaveChannelRequest, state: ChatChannelState): Try[ChatMessageProcessingResult] = {
-    val LeaveChannelRequest(channelId, username) = message;
+    val LeaveChannelRequest(channelId, sk, client) = message;
+    val username = sk.uid
     val members = state.members
     if (members contains username) {
       val newMembers = members - username

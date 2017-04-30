@@ -1,6 +1,7 @@
-package com.convergencelabs.server.domain
+package com.convergencelabs.server.domain.chat
 
-import com.convergencelabs.server.domain.ChatChannelMessages.ExistingChannelMessage
+import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.ExistingChannelMessage
 
 import akka.cluster.sharding.ShardRegion
 

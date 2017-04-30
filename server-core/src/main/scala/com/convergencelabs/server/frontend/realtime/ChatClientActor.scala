@@ -6,40 +6,40 @@ import scala.util.Failure
 import scala.util.Success
 
 import com.convergencelabs.server.datastore.domain.ChatChannelEvent
-import com.convergencelabs.server.domain.ChatChannelActor
-import com.convergencelabs.server.domain.ChatChannelLookupActor.GetChannelsRequest
-import com.convergencelabs.server.domain.ChatChannelLookupActor.GetChannelsResponse
-import com.convergencelabs.server.domain.ChatChannelLookupActor.GetDirectChannelsRequest
-import com.convergencelabs.server.domain.ChatChannelLookupActor.GetDirectChannelsResponse
-import com.convergencelabs.server.domain.ChatChannelLookupActor.GetJoinedChannelsRequest
-import com.convergencelabs.server.domain.ChatChannelLookupActor.GetJoinedChannelsResponse
-import com.convergencelabs.server.domain.ChatChannelMessages.AddUserToChannelRequest
-import com.convergencelabs.server.domain.ChatChannelMessages.ChannelAlreadyExistsException
-import com.convergencelabs.server.domain.ChatChannelMessages.ChannelAlreadyJoinedException
-import com.convergencelabs.server.domain.ChatChannelMessages.ChannelNameChanged
-import com.convergencelabs.server.domain.ChatChannelMessages.ChannelNotFoundException
-import com.convergencelabs.server.domain.ChatChannelMessages.ChannelNotJoinedException
-import com.convergencelabs.server.domain.ChatChannelMessages.ChannelRemoved
-import com.convergencelabs.server.domain.ChatChannelMessages.ChannelTopicChanged
-import com.convergencelabs.server.domain.ChatChannelMessages.ChatChannelBroadcastMessage
-import com.convergencelabs.server.domain.ChatChannelMessages.ChatChannelException
-import com.convergencelabs.server.domain.ChatChannelMessages.CreateChannelRequest
-import com.convergencelabs.server.domain.ChatChannelMessages.CreateChannelResponse
-import com.convergencelabs.server.domain.ChatChannelMessages.GetChannelHistoryRequest
-import com.convergencelabs.server.domain.ChatChannelMessages.GetChannelHistoryResponse
-import com.convergencelabs.server.domain.ChatChannelMessages.JoinChannelRequest
-import com.convergencelabs.server.domain.ChatChannelMessages.LeaveChannelRequest
-import com.convergencelabs.server.domain.ChatChannelMessages.MarkChannelEventsSeenRequest
-import com.convergencelabs.server.domain.ChatChannelMessages.PublishChatMessageRequest
-import com.convergencelabs.server.domain.ChatChannelMessages.RemoteChatMessage
-import com.convergencelabs.server.domain.ChatChannelMessages.RemoveChannelRequest
-import com.convergencelabs.server.domain.ChatChannelMessages.RemoveUserFromChannelRequest
-import com.convergencelabs.server.domain.ChatChannelMessages.SetChannelNameRequest
-import com.convergencelabs.server.domain.ChatChannelMessages.SetChannelTopicRequest
-import com.convergencelabs.server.domain.ChatChannelMessages.UserAddedToChannel
-import com.convergencelabs.server.domain.ChatChannelMessages.UserJoinedChannel
-import com.convergencelabs.server.domain.ChatChannelMessages.UserLeftChannel
-import com.convergencelabs.server.domain.ChatChannelMessages.UserRemovedFromChannel
+import com.convergencelabs.server.domain.chat.ChatChannelActor
+import com.convergencelabs.server.domain.chat.ChatChannelLookupActor.GetChannelsRequest
+import com.convergencelabs.server.domain.chat.ChatChannelLookupActor.GetChannelsResponse
+import com.convergencelabs.server.domain.chat.ChatChannelLookupActor.GetDirectChannelsRequest
+import com.convergencelabs.server.domain.chat.ChatChannelLookupActor.GetDirectChannelsResponse
+import com.convergencelabs.server.domain.chat.ChatChannelLookupActor.GetJoinedChannelsRequest
+import com.convergencelabs.server.domain.chat.ChatChannelLookupActor.GetJoinedChannelsResponse
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.AddUserToChannelRequest
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.ChannelAlreadyExistsException
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.ChannelAlreadyJoinedException
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.ChannelNameChanged
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.ChannelNotFoundException
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.ChannelNotJoinedException
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.ChannelRemoved
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.ChannelTopicChanged
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.ChatChannelBroadcastMessage
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.ChatChannelException
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.CreateChannelRequest
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.CreateChannelResponse
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetChannelHistoryRequest
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetChannelHistoryResponse
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.JoinChannelRequest
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.LeaveChannelRequest
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.MarkChannelEventsSeenRequest
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.PublishChatMessageRequest
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.RemoteChatMessage
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.RemoveChannelRequest
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.RemoveUserFromChannelRequest
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.SetChannelNameRequest
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.SetChannelTopicRequest
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.UserAddedToChannel
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.UserJoinedChannel
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.UserLeftChannel
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.UserRemovedFromChannel
 import com.convergencelabs.server.domain.model.SessionKey
 
 import akka.actor.Actor
@@ -61,6 +61,8 @@ import com.convergencelabs.server.datastore.domain.ChatUserAddedEvent
 import com.convergencelabs.server.datastore.domain.ChatUserRemovedEvent
 import com.convergencelabs.server.datastore.domain.ChatNameChangedEvent
 import com.convergencelabs.server.datastore.domain.ChatTopicChangedEvent
+import com.convergencelabs.server.domain.chat.ChatChannelActor
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.InvalidChannelMessageExcpetion
 
 object ChatClientActor {
   def props(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk: SessionKey): Props =
@@ -172,7 +174,7 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
     chatLookupActor.ask(request).mapTo[CreateChannelResponse] onComplete {
       case Success(CreateChannelResponse(channelId)) =>
         cb.reply(CreateChatChannelResponseMessage(channelId))
-      case Failure(ChatChannelException(cause)) =>
+      case Failure(cause: ChatChannelException) =>
         this.handleChatChannelException(cause, cb)
       case Failure(cause) =>
         log.error(cause, "could not create channel: " + message)
@@ -188,13 +190,13 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
 
   def onJoinChannel(message: JoinChatChannelRequestMessage, cb: ReplyCallback): Unit = {
     val JoinChatChannelRequestMessage(channelId) = message;
-    val request = JoinChannelRequest(channelId, sk.uid)
+    val request = JoinChannelRequest(channelId, sk, self)
     handleSimpleChannelRequest(request, { () => JoinChatChannelResponseMessage() }, cb)
   }
 
   def onLeaveChannel(message: LeaveChatChannelRequestMessage, cb: ReplyCallback): Unit = {
     val LeaveChatChannelRequestMessage(channelId) = message;
-    val request = LeaveChannelRequest(channelId, sk.uid)
+    val request = LeaveChannelRequest(channelId, sk, self)
     handleSimpleChannelRequest(request, { () => LeaveChatChannelResponseMessage() }, cb)
   }
 
@@ -285,7 +287,7 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
     chatChannelActor.ask(request).mapTo[Unit] onComplete {
       case Success(()) =>
         cb.reply(response())
-      case Failure(ChatChannelException(cause)) =>
+      case Failure(cause: ChatChannelException) =>
         handleChatChannelException(cause, cb)
       case Failure(cause) =>
         handleUnexpectedError(request, cause, cb)
@@ -319,6 +321,11 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
           "channel_already_joined",
           s"Could not complete the request the user is already joined to the channel: '${channelId}'",
           Map("channelId" -> channelId))
+      case InvalidChannelMessageExcpetion(message) =>
+        cb.expectedError(
+          "invalid_channel_message",
+          s"The message that was sent was not valid for this type of channel: '${message}'",
+          Map())
     }
   }
 

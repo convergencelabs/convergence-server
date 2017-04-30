@@ -1,25 +1,23 @@
-package com.convergencelabs.server.domain
+package com.convergencelabs.server.domain.chat
 
 import java.time.Instant
 
-import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.server.domain.model.SessionKey
+import scala.util.control.NonFatal
+
+import com.convergencelabs.server.datastore.domain.ChatChannelInfo
+import com.convergencelabs.server.datastore.domain.ChatChannelStore
+import com.convergencelabs.server.datastore.domain.ChatChannelStore.ChannelType
+import com.convergencelabs.server.datastore.domain.ChatCreatedEvent
+import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
+import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.CreateChannelRequest
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.CreateChannelResponse
 
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.Props
-import akka.cluster.pubsub.DistributedPubSub
-import akka.cluster.pubsub.DistributedPubSubMediator.Publish
-import com.convergencelabs.server.domain.ChatChannelMessages.CreateChannelRequest
-import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
-import com.convergencelabs.server.datastore.domain.ChatChannelStore
-import scala.util.control.NonFatal
-import com.convergencelabs.server.datastore.domain.ChatChannelStore.ChannelType
-import com.convergencelabs.server.domain.ChatChannelMessages.CreateChannelResponse
 import akka.actor.Status
-import com.convergencelabs.server.datastore.domain.ChatCreatedEvent
-import com.convergencelabs.server.datastore.domain.ChatChannelInfo
-import scala.util.Failure
+import akka.actor.actorRef2Scala
 
 object ChatChannelLookupActor {
 
