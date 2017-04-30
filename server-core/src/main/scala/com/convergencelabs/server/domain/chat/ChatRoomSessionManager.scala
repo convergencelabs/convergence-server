@@ -20,6 +20,12 @@ class ChatRoomSessionManager {
     this.clients += client
     newSessions.size == 1
   }
+  
+  def remove(username: String): Unit = {
+    this.userSessionMap.get(username) foreach { sessions => 
+      sessions.foreach(leave(_))
+    }
+  }
 
   def leave(sk: SessionKey): Boolean = {
     val client = this.sessionClientMap.get(sk).getOrElse {

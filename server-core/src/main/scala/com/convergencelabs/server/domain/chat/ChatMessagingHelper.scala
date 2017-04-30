@@ -30,7 +30,7 @@ class ChatRoomMessagingHelper(channelManager: ChatChannelManager, context: Actor
   val chatRoomSessionManager = new ChatRoomSessionManager()
 
   context.system.actorOf(Props[Watcher])
-  
+
   def validateMessage(message: ExistingChannelMessage): Try[ExistingChannelMessage] = {
     message match {
       case _: AddUserToChannelRequest =>
@@ -46,6 +46,9 @@ class ChatRoomMessagingHelper(channelManager: ChatChannelManager, context: Actor
         chatRoomSessionManager.join(sk, client)
       case LeaveChannelRequest(channelId, sk, client) =>
         chatRoomSessionManager.leave(sk)
+      case RemoveUserFromChannelRequest(channelId, username, removedBy) =>
+        chatRoomSessionManager.remove(username)
+        true
       case _ =>
         true
     }
@@ -69,7 +72,7 @@ class ChatRoomMessagingHelper(channelManager: ChatChannelManager, context: Actor
       case Terminated(client) =>
         val generateMessage = chatRoomSessionManager.leave(client)
         if (generateMessage) {
-          chatRoomSessionManager.getSession(client).foreach{ sk => 
+          chatRoomSessionManager.getSession(client).foreach { sk =>
             channelManager.onLeaveChannel(sk.uid)
           }
         }
