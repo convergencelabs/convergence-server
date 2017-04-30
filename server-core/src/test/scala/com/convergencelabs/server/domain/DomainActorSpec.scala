@@ -23,10 +23,11 @@ import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
 import scala.util.Success
+import com.typesafe.config.ConfigFactory
 
 @RunWith(classOf[JUnitRunner])
 class DomainActorSpec
-    extends TestKit(ActorSystem("DomainActorSpec"))
+    extends TestKit(ActorSystem("DomainActorSpec", ConfigFactory.parseResources("cluster-application.conf")))
     with WordSpecLike
     with BeforeAndAfterAll
     with MockitoSugar {
