@@ -81,6 +81,9 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
       manager.state().channelType match {
         case "room" =>
           this.messageHelper = Some(new ChatRoomMessagingHelper(manager, context))
+          // this would only need to happen if a previous instance of this room crashed without 
+          // cleaning up properly.
+          manager.removeAllMembers()
         case "group" =>
           context.setReceiveTimeout(120.seconds)
           this.messageHelper = Some(new GroupChannelMessagingHelper(manager, context))
@@ -111,13 +114,14 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
       (cm, mh) <- getHelpers()
       _ <- mh.validateMessage(message)
       _ <- mh.preProcessMessage(message) match {
-        case Some(message) =>
+        case Left(message) =>
           cm.handleChatMessage(message) map { result =>
             result.response foreach (response => sender ! response)
             result.broadcastMessages foreach (mh.boradcast(_))
             ()
           }
-        case None =>
+        case Right(response) =>
+          sender ! response
           Success(())
       }
     } yield {
@@ -156,6 +160,11 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
   private[this] def onStop(): Unit = {
     log.debug("Receive stop signal shutting down")
     DomainPersistenceManagerActor.releasePersistenceProvider(self, context, domainFqn)
+    channelManager.foreach { cm =>
+      if (cm.state().channelType == "room") {
+        cm.removeAllMembers()
+      }
+    }
     context.stop(self)
   }
 

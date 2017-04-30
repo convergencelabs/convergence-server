@@ -18,18 +18,20 @@ import akka.actor.Actor
 import akka.actor.Terminated
 import akka.actor.ActorRef
 import akka.actor.Props
+import akka.cluster.sharding.ShardRegion.Passivate
+import com.convergencelabs.server.domain.chat.ChatChannelActor.Stop
 
 trait ChatMessagingHelper {
 
   def validateMessage(message: ExistingChannelMessage): Try[ExistingChannelMessage]
-  def preProcessMessage(message: ExistingChannelMessage): Option[ExistingChannelMessage]
+  def preProcessMessage(message: ExistingChannelMessage): Either[ExistingChannelMessage, Any]
   def boradcast(message: Any): Unit
 }
 
 class ChatRoomMessagingHelper(channelManager: ChatChannelManager, context: ActorContext) extends ChatMessagingHelper {
   val chatRoomSessionManager = new ChatRoomSessionManager()
-
-  context.system.actorOf(Props[Watcher])
+  
+  context.system.actorOf(Props(new Watcher()))
 
   def validateMessage(message: ExistingChannelMessage): Try[ExistingChannelMessage] = {
     message match {
@@ -40,12 +42,16 @@ class ChatRoomMessagingHelper(channelManager: ChatChannelManager, context: Actor
     }
   }
 
-  def preProcessMessage(message: ExistingChannelMessage): Option[ExistingChannelMessage] = {
+  def preProcessMessage(message: ExistingChannelMessage): Either[ExistingChannelMessage, Any] = {
     val pass = message match {
       case JoinChannelRequest(channelId, sk, client) =>
         chatRoomSessionManager.join(sk, client)
       case LeaveChannelRequest(channelId, sk, client) =>
         chatRoomSessionManager.leave(sk)
+        // TODO maybe make this a call back
+        if (channelManager.state().members.isEmpty) {
+          context.parent ! Passivate(stopMessage = Stop)
+        }
       case RemoveUserFromChannelRequest(channelId, username, removedBy) =>
         chatRoomSessionManager.remove(username)
         true
@@ -54,8 +60,8 @@ class ChatRoomMessagingHelper(channelManager: ChatChannelManager, context: Actor
     }
 
     pass match {
-      case true => Some(message)
-      case false => None
+      case true => Left(message)
+      case false => Right(())
     }
   }
 
@@ -65,7 +71,7 @@ class ChatRoomMessagingHelper(channelManager: ChatChannelManager, context: Actor
     })
   }
 
-  class Watcher extends Actor {
+  class Watcher() extends Actor {
     def receive = {
       case client: ActorRef =>
         context.watch(client)
@@ -85,7 +91,7 @@ abstract class MembershipChannelMessageHelper(channelManager: ChatChannelManager
 
   def validateMessage(message: ExistingChannelMessage): Try[ExistingChannelMessage]
 
-  def preProcessMessage(message: ExistingChannelMessage): Option[ExistingChannelMessage] = Some(message)
+  def preProcessMessage(message: ExistingChannelMessage): Either[ExistingChannelMessage, Any] = Left(message)
 
   def boradcast(message: Any): Unit = {
     val members = channelManager.state().members

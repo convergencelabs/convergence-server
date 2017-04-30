@@ -266,11 +266,12 @@ class ChatChannelManager(
         Some(newState))
     }
   }
-
-  private def assertChannelExists(state: Option[ChatChannelState]): Try[ChatChannelState] = {
-    state match {
-      case Some(state) => Success(state)
-      case None => Failure(ChannelNotFoundException(channelId))
-    }
+  
+  def removeAllMembers(): Unit = {
+    this.state().members.foreach(username => {
+      this.channelStore.removeChatChannelMember(channelId, username)
+    })
+    state = state.copy(members = Set())
   }
+
 }
