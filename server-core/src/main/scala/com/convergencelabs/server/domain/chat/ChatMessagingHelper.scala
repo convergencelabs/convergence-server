@@ -14,6 +14,10 @@ import com.convergencelabs.server.domain.chat.ChatChannelMessages.RemoveUserFrom
 import akka.actor.ActorContext
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator.Publish
+import akka.actor.Actor
+import akka.actor.Terminated
+import akka.actor.ActorRef
+import akka.actor.Props
 
 trait ChatMessagingHelper {
 
@@ -22,7 +26,11 @@ trait ChatMessagingHelper {
   def boradcast(message: Any): Unit
 }
 
-class ChatRoomMessagingHelper extends ChatMessagingHelper {
+class ChatRoomMessagingHelper(channelManager: ChatChannelManager, context: ActorContext) extends ChatMessagingHelper {
+  val chatRoomSessionManager = new ChatRoomSessionManager()
+
+  context.system.actorOf(Props[Watcher])
+  
   def validateMessage(message: ExistingChannelMessage): Try[ExistingChannelMessage] = {
     message match {
       case _: AddUserToChannelRequest =>
@@ -31,8 +39,6 @@ class ChatRoomMessagingHelper extends ChatMessagingHelper {
         Success(message)
     }
   }
-
-  val chatRoomSessionManager = new ChatRoomSessionManager()
 
   def preProcessMessage(message: ExistingChannelMessage): Option[ExistingChannelMessage] = {
     val pass = message match {
@@ -54,6 +60,20 @@ class ChatRoomMessagingHelper extends ChatMessagingHelper {
     chatRoomSessionManager.connectedClients().foreach(client => {
       client ! message
     })
+  }
+
+  class Watcher extends Actor {
+    def receive = {
+      case client: ActorRef =>
+        context.watch(client)
+      case Terminated(client) =>
+        val generateMessage = chatRoomSessionManager.leave(client)
+        if (generateMessage) {
+          chatRoomSessionManager.getSession(client).foreach{ sk => 
+            channelManager.onLeaveChannel(sk.uid)
+          }
+        }
+    }
   }
 }
 
