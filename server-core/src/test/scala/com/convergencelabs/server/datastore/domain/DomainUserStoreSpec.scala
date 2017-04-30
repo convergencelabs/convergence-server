@@ -15,11 +15,11 @@ import com.convergencelabs.server.datastore.domain.DomainUserStore.UpdateDomainU
 import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.domain.DomainUser
 import com.convergencelabs.server.domain.DomainUserType
-import com.convergencelabs.server.datastore.DuplicateValueExcpetion
+import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.InvalidValueExcpetion
 import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.datastore.EntityNotFoundException
-import com.convergencelabs.server.datastore.DuplicateValueExcpetion
+import com.convergencelabs.server.datastore.DuplicateValueException
 
 class DomainUserStoreSpec
     extends PersistenceStoreSpec[DomainUserStore](DeltaCategory.Domain)
@@ -52,13 +52,13 @@ class DomainUserStoreSpec
         store.createNormalDomainUser(User10).success
 
         val duplicate = CreateNormalDomainUser(User10.username, User11.firstName, User11.lastName, User11.displayName, User11.email)
-        store.createNormalDomainUser(duplicate).failure.exception shouldBe a[DuplicateValueExcpetion]
+        store.createNormalDomainUser(duplicate).failure.exception shouldBe a[DuplicateValueException]
       }
 
       "not allow duplicate emails" in withPersistenceStore { store =>
         store.createNormalDomainUser(User10).success
         val duplicate = CreateNormalDomainUser(User11.username, User11.firstName, User11.lastName, User11.displayName, User10.email)
-        store.createNormalDomainUser(duplicate).failure.exception shouldBe a[DuplicateValueExcpetion]
+        store.createNormalDomainUser(duplicate).failure.exception shouldBe a[DuplicateValueException]
       }
 
       "allow duplicate null emails" in withPersistenceStore { store =>
@@ -124,7 +124,7 @@ class DomainUserStoreSpec
         store.createNormalDomainUser(User10).get
         store.createNormalDomainUser(User11).get
         val original2Dup = UpdateDomainUser(User11.username, User11.firstName, User11.lastName, User11.displayName, User10.email)
-        store.updateDomainUser(original2Dup).failure.exception shouldBe a[DuplicateValueExcpetion]
+        store.updateDomainUser(original2Dup).failure.exception shouldBe a[DuplicateValueException]
       }
 
       "not allow setting duplicate username" in withPersistenceStore { store =>
@@ -132,7 +132,7 @@ class DomainUserStoreSpec
         initUsers(store)
         store.createNormalDomainUser(User11).get
         val original2Dup = UpdateDomainUser(User10.username, User11.firstName, User11.lastName, User11.displayName, User11.email)
-        val result = store.updateDomainUser(original2Dup).failure.exception shouldBe a[DuplicateValueExcpetion]
+        val result = store.updateDomainUser(original2Dup).failure.exception shouldBe a[DuplicateValueException]
       }
 
       "throw exception if user does not exist" in withPersistenceStore { store =>

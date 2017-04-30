@@ -86,7 +86,7 @@ class DomainStoreSpec
 
       "return a DuplicateValueExcpetion if the domain exists" in withTestData { stores =>
         stores.domain.createDomain(ns1d1, "", Username)
-        stores.domain.createDomain(ns1d1, "Test Domain 1", Username).failure.exception shouldBe a[DuplicateValueExcpetion]
+        stores.domain.createDomain(ns1d1, "Test Domain 1", Username).failure.exception shouldBe a[DuplicateValueException]
       }
       
       "fail if the owner does not exist" in withTestData { stores =>

@@ -10,7 +10,7 @@ import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
 
 import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.DuplicateValueExcpetion
+import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.domain.model.Model
@@ -128,7 +128,7 @@ class ModelStoreSpec
         val data = ObjectValue("t2-data",
           Map(("foo" -> StringValue("t2-foo", "bar"))))
         stores.model.createModel(peopleCollectionId, Some(person1Id), data, true, modelPermissions).get
-        stores.model.createModel(peopleCollectionId, Some(person1Id), data, true, modelPermissions).failure.exception shouldBe a[DuplicateValueExcpetion]
+        stores.model.createModel(peopleCollectionId, Some(person1Id), data, true, modelPermissions).failure.exception shouldBe a[DuplicateValueException]
       }
     }
 

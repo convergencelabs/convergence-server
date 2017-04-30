@@ -20,7 +20,7 @@ import akka.actor.Status
 import akka.actor.actorRef2Scala
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.ChannelNotFoundException
 import com.convergencelabs.server.datastore.EntityNotFoundException
-import com.convergencelabs.server.datastore.DuplicateValueExcpetion
+import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.ChannelAlreadyExistsException
 
 object ChatChannelLookupActor {
@@ -77,7 +77,7 @@ class ChatChannelLookupActor private[domain] (domainFqn: DomainFqn) extends Acto
         } yield {
           sender ! CreateChannelResponse(id)
         }) recover {
-          case e: DuplicateValueExcpetion =>
+          case e: DuplicateValueException =>
             // FIXME how to deal with this? The channel id should only conflict if it was
             // defined by the user.
             val cId = channelId.get

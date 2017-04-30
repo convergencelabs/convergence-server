@@ -161,7 +161,7 @@ class DomainStore(dbProvider: DatabaseProvider)
   private[this] def handleDuplicateValue[T](e: ORecordDuplicatedException):  Try[T] = {
       e.getIndexName match {
         case DomainStore.DomainNamespaceIdIndex =>
-          Failure(DuplicateValueExcpetion("namespace_id"))
+          Failure(DuplicateValueException("namespace_id"))
         case _ =>
           Failure(e)
       }

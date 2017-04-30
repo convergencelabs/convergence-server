@@ -320,9 +320,9 @@ class UserStore(
   private[this] def handleDuplicateValue[T](e: ORecordDuplicatedException): Try[T] = {
     e.getIndexName match {
       case UserStore.UsernameIndex =>
-        Failure(DuplicateValueExcpetion(Username))
+        Failure(DuplicateValueException(Username))
       case UserStore.EmailIndex =>
-        Failure(DuplicateValueExcpetion(UserStore.Fields.Email))
+        Failure(DuplicateValueException(UserStore.Fields.Email))
       case _ =>
         Failure(e)
     }

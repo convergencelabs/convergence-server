@@ -12,7 +12,7 @@ import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.domain.ModelSnapshotConfig
 import com.convergencelabs.server.domain.model.Collection
-import com.convergencelabs.server.datastore.DuplicateValueExcpetion
+import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.EntityNotFoundException
 
 // scalastyle:off magic.number
@@ -76,7 +76,7 @@ class CollectionStoreSpec
 
       "not create a collection that is not a duplicate collection id" in withPersistenceStore { store =>
         store.createCollection(copmanyCollection).success
-        store.createCollection(copmanyCollection).failure.exception shouldBe a[DuplicateValueExcpetion]
+        store.createCollection(copmanyCollection).failure.exception shouldBe a[DuplicateValueException]
       }
     }
 
@@ -119,7 +119,7 @@ class CollectionStoreSpec
         store.createCollection(copmanyCollection)
         val existing = store.getCollection(peopleCollectionId).get.value
         val updated = existing.copy(id = copmanyCollection.id)
-        store.updateCollection(existing.id, updated).failure.exception shouldBe a[DuplicateValueExcpetion]
+        store.updateCollection(existing.id, updated).failure.exception shouldBe a[DuplicateValueException]
       }
       
 

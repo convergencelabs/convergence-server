@@ -64,7 +64,7 @@ class DomainDatabaseStoreSpec
       "disallow duplicate entries for the same domain" in withTestData { stores =>
         val database = DomainDatabase(ns1d1, db1, username, password, adminUsername, adminPassword)
         stores.domainDatabase.createDomainDatabase(database).get
-        stores.domainDatabase.createDomainDatabase(database).failure.exception shouldBe a[DuplicateValueExcpetion]
+        stores.domainDatabase.createDomainDatabase(database).failure.exception shouldBe a[DuplicateValueException]
       }
     }
   }

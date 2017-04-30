@@ -11,6 +11,7 @@ import com.convergencelabs.server.domain.DomainUserType
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import com.convergencelabs.server.datastore.EntityNotFoundException
 import java.time.Instant
+import com.convergencelabs.server.datastore.DuplicateValueException
 
 class ChatChannelStoreSpec
     extends PersistenceStoreSpec[DomainPersistenceProvider](DeltaCategory.Domain)
@@ -40,7 +41,7 @@ class ChatChannelStoreSpec
 
       "throw exception if id is duplicate" in withTestData { provider =>
         provider.chatChannelStore.createChatChannel(Some(channel1Id), ChannelType.Direct, false, "", "", None).get
-        an[ORecordDuplicatedException] should be thrownBy provider.chatChannelStore.createChatChannel(
+        an[DuplicateValueException] should be thrownBy provider.chatChannelStore.createChatChannel(
           Some(channel1Id), ChannelType.Direct, false, "", "", None).get
       }
 

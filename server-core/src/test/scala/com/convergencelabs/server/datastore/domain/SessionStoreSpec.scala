@@ -9,7 +9,7 @@ import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
 
 import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.DuplicateValueExcpetion
+import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.domain.SessionStore.SessionQueryType
 import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.domain.DomainUser
@@ -52,7 +52,7 @@ class SessionStoreSpec
       "disallow duplicate session Ids" in withTestData { provider =>
         val session = DomainSession(sessionId, username, Instant.now(), Some(Instant.now()), authMethod, client, clientVersion, "", remoteHost)
         provider.sessionStore.createSession(session).get
-        provider.sessionStore.createSession(session).failure.exception shouldBe a[DuplicateValueExcpetion]
+        provider.sessionStore.createSession(session).failure.exception shouldBe a[DuplicateValueException]
       }
     }
 

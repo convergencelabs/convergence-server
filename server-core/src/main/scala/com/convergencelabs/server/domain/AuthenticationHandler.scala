@@ -17,7 +17,7 @@ import org.bouncycastle.openssl.PEMParser
 import org.jose4j.jwt.JwtClaims
 import org.jose4j.jwt.consumer.JwtConsumerBuilder
 
-import com.convergencelabs.server.datastore.DuplicateValueExcpetion
+import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.InvalidValueExcpetion
 import com.convergencelabs.server.datastore.domain.DomainConfigStore
 import com.convergencelabs.server.datastore.domain.DomainUserStore
@@ -160,7 +160,7 @@ class AuthenticationHandler(
         createUserFromJWT(jwtClaims, admin) flatMap { _ =>
           authSuccess(resolvedUsername)
         } recoverWith {
-          case e: DuplicateValueExcpetion =>
+          case e: DuplicateValueException =>
             // The duplicate value case is when a race condition occurs between when we looked up the
             // user and then tried to create them.
             logger.warn("Attempted to auto create user, but user already exists, returning auth success.")

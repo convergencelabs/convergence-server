@@ -9,7 +9,7 @@ import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.datastore.DeltaHistoryStore
 import com.convergencelabs.server.datastore.DomainStore
 import com.convergencelabs.server.datastore.DomainStoreActor
-import com.convergencelabs.server.datastore.DuplicateValueExcpetion
+import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.datastore.InvalidValueExcpetion
 import com.convergencelabs.server.datastore.PermissionsStoreActor
@@ -70,7 +70,7 @@ class ConvergenceRestFrontEnd(
   implicit val defaultRequestTimeout = Timeout(20 seconds)
 
   val exceptionHandler: ExceptionHandler = ExceptionHandler {
-    case e: DuplicateValueExcpetion =>
+    case e: DuplicateValueException =>
       complete(duplicateResponse(e.field))
 
     case e: InvalidValueExcpetion =>

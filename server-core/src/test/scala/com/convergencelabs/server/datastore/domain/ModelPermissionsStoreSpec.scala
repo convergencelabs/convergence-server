@@ -36,7 +36,7 @@ class ModelPermissionsStoreSpec
       }
 
       "fail if model does not exist" in withTestData { provider =>
-        an[IllegalStateException] should be thrownBy provider.modelPermissionsStore.getModelWorldPermissions(nonRealId).get 
+        an[EntityNotFoundException] should be thrownBy provider.modelPermissionsStore.getModelWorldPermissions(nonRealId).get 
         }
     }
 
@@ -64,7 +64,7 @@ class ModelPermissionsStoreSpec
       }
 
       "fail if model does not exist" in withTestData { provider =>
-        an[IllegalStateException] should be thrownBy provider.modelPermissionsStore.getAllModelUserPermissions(nonRealId).get
+        an[EntityNotFoundException] should be thrownBy provider.modelPermissionsStore.getAllModelUserPermissions(nonRealId).get
       }
       
       "contain all those just set via update all" in withTestData { provider =>

@@ -94,7 +94,7 @@ class RegistrationStore private[datastore] (
   private[this] def handleDuplicateValue[T](e: ORecordDuplicatedException): Try[T] = {
     e.getIndexName match {
       case EmailIndex =>
-        Failure(DuplicateValueExcpetion(Email))
+        Failure(DuplicateValueException(Email))
       case _ =>
         Failure(e)
     }

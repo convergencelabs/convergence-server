@@ -6,7 +6,7 @@ import scala.util.Failure
 import scala.util.Success
 
 import com.convergencelabs.server.ProtocolConfiguration
-import com.convergencelabs.server.datastore.DuplicateValueExcpetion
+import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManager
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.domain.DomainFqn
@@ -120,7 +120,7 @@ class ModelManagerActor(
           sender ! model.metaData.modelId
           ()
         } recover {
-          case e: DuplicateValueExcpetion =>
+          case e: DuplicateValueException =>
             sender ! Status.Failure(ModelAlreadyExistsException(modelId.getOrElse("???")))
           case e: Exception =>
             log.error(e, s"Could not create model: ${modelId}")

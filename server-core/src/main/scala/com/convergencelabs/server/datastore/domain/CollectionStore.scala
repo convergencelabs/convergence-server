@@ -11,7 +11,7 @@ import scala.language.postfixOps
 
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.DuplicateValueExcpetion
+import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.datastore.QueryUtil
 import com.convergencelabs.server.datastore.domain.mapper.ModelSnapshotConfigMapper.ModelSnapshotConfigToODocument
@@ -193,7 +193,7 @@ class CollectionStore private[domain] (dbProvider: DatabaseProvider, modelStore:
   private[this] def handleDuplicateValue[T](e: ORecordDuplicatedException): Try[T] = {
     e.getIndexName match {
       case CollectionStore.CollectionIdIndex =>
-        Failure(DuplicateValueExcpetion(CollectionStore.Id))
+        Failure(DuplicateValueException(CollectionStore.Id))
       case _ =>
         Failure(e)
     }

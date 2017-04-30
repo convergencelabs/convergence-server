@@ -31,7 +31,7 @@ import java.time.Instant
 import java.util.Date
 import java.util.HashSet
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
-import com.convergencelabs.server.datastore.DuplicateValueExcpetion
+import com.convergencelabs.server.datastore.DuplicateValueException
 
 case class ChatChannel(
   id: String,
@@ -304,7 +304,7 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
     case e: ORecordDuplicatedException =>
       e.getIndexName match {
         case ChatChannelStore.Indexes.ChatChannel_Id =>
-          Failure(DuplicateValueExcpetion("id"))
+          Failure(DuplicateValueException("id"))
         case _ =>
           Failure(e)
       }

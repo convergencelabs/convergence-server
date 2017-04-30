@@ -70,8 +70,8 @@ class UserStoreSpec
         store.createUser(TestUser2, password).get
         val update = TestUser2.copy(email = TestUser.email)
         val exception = store.updateUser(update).failure.exception
-        exception shouldBe a[DuplicateValueExcpetion]
-        exception.asInstanceOf[DuplicateValueExcpetion].field shouldBe UserStore.Fields.Email
+        exception shouldBe a[DuplicateValueException]
+        exception.asInstanceOf[DuplicateValueException].field shouldBe UserStore.Fields.Email
       }
     }
 

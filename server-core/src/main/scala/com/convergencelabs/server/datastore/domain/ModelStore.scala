@@ -13,7 +13,7 @@ import scala.util.Try
 
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.DuplicateValueExcpetion
+import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.datastore.QueryUtil
 import com.convergencelabs.server.datastore.domain.mapper.ObjectValueMapper.ODocumentToObjectValue
@@ -368,7 +368,7 @@ class ModelStore private[domain] (
   private[this] def handleDuplicateValue[T](e: ORecordDuplicatedException): Try[T] = {
     e.getIndexName match {
       case ModelStore.ModelCollectionIdIndex =>
-        Failure(DuplicateValueExcpetion("id_collection"))
+        Failure(DuplicateValueException("id_collection"))
       case _ =>
         Failure(e)
     }

@@ -14,7 +14,7 @@ import scala.util.Try
 
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.DuplicateValueExcpetion
+import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.datastore.QueryUtil
 import com.convergencelabs.server.datastore.SortOrder
@@ -463,9 +463,9 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
   private[this] def handleDuplicateValue[T](e: ORecordDuplicatedException): Try[T] = {
     e.getIndexName match {
       case DomainUserStore.UsernameIndex =>
-        Failure(DuplicateValueExcpetion(DomainUserStore.Fields.Username))
+        Failure(DuplicateValueException(DomainUserStore.Fields.Username))
       case DomainUserStore.EmailIndex =>
-        Failure(DuplicateValueExcpetion(DomainUserStore.Fields.Email))
+        Failure(DuplicateValueException(DomainUserStore.Fields.Email))
       case _ =>
         Failure(e)
     }

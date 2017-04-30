@@ -23,7 +23,7 @@ import org.scalatest.Matchers._
 
 import com.convergencelabs.server.HeartbeatConfiguration
 import com.convergencelabs.server.ProtocolConfiguration
-import com.convergencelabs.server.datastore.DuplicateValueExcpetion
+import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.datastore.domain.CollectionPermissions
 import com.convergencelabs.server.datastore.domain.CollectionStore
@@ -116,7 +116,7 @@ class ModelManagerActorSpec
         val data = ObjectValue("", Map())
 
         Mockito.when(modelStore.createModel(collectionId, Some(existingModelId), data, true, modelPermissions))
-          .thenReturn(Failure(DuplicateValueExcpetion("foo")))
+          .thenReturn(Failure(DuplicateValueException("foo")))
 
         modelManagerActor.tell(CreateModelRequest(SessionKey(userId1, sessionId1), collectionId, Some(existingModelId), data, Some(true), Some(modelPermissions), None), client.ref)
         client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), Status.Failure(ModelAlreadyExistsException(existingModelId)))
@@ -292,7 +292,7 @@ class ModelManagerActorSpec
 
     val modelCreator = mock[ModelCreator]
     Mockito.when(modelCreator.createModel(any(), any(), any(), meq(Some(existingModelId)), any(), any(), any(), any()))
-      .thenReturn(Failure(DuplicateValueExcpetion("")))
+      .thenReturn(Failure(DuplicateValueException("")))
     Mockito.when(modelCreator.createModel(any(), any(), any(), meq(Some(noModelId)), any(), any(), any(), any()))
       .thenReturn(Success(newModel))
 

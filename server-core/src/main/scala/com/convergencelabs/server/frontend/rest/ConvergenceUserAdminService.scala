@@ -30,7 +30,7 @@ import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.post
 import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.server.datastore.DuplicateValueExcpetion
+import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.InvalidValueExcpetion
 import akka.http.scaladsl.server.ExceptionHandler
 
