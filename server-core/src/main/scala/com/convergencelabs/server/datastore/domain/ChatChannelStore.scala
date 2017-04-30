@@ -30,6 +30,8 @@ import com.convergencelabs.server.datastore.EntityNotFoundException
 import java.time.Instant
 import java.util.Date
 import java.util.HashSet
+import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
+import com.convergencelabs.server.datastore.DuplicateValueExcpetion
 
 case class ChatChannel(
   id: String,
@@ -153,8 +155,8 @@ object ChatChannelStore {
   }
 
   def channelTypeString(channelType: ChannelType.Value): String = channelType match {
-    case ChannelType.Group  => "group"
-    case ChannelType.Room   => "room"
+    case ChannelType.Group => "group"
+    case ChannelType.Room => "room"
     case ChannelType.Direct => "direct"
   }
 
@@ -239,7 +241,7 @@ object ChatChannelStore {
       case Classes.ChatNameChangedEvent =>
         val name: String = doc.field(Fields.Name)
         ChatNameChangedEvent(eventNo, channel, user, timestamp.toInstant(), name)
-      case _ => 
+      case _ =>
         throw new IllegalArgumentException(s"Unknown Chat Channel Event class name: ${className}")
     }
   }
@@ -284,7 +286,8 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
   }
 
   // FIXME: Pass in create time
-  def createChatChannel(id: Option[String], channelType: ChannelType.Value, isPrivate: Boolean, name: String, topic: String, members: Option[Set[String]]): Try[String] = tryWithDb { db =>
+  def createChatChannel(id: Option[String], channelType: ChannelType.Value, 
+      isPrivate: Boolean, name: String, topic: String, members: Option[Set[String]]): Try[String] = tryWithDb { db =>
     // FIXME: return failure if addAllChatChannelMembers fails
     db.begin()
     val channelId = id.getOrElse {
@@ -298,6 +301,14 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
     }
     db.commit()
     channelId
+  } recoverWith {
+    case e: ORecordDuplicatedException =>
+      e.getIndexName match {
+        case ChatChannelStore.Indexes.ChatChannel_Id =>
+          Failure(DuplicateValueExcpetion("id"))
+        case _ =>
+          Failure(e)
+      }
   }
 
   def updateChatChannel(channelId: String, name: Option[String], topic: Option[String]): Try[Unit] = tryWithDb { db =>
@@ -325,12 +336,11 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
 
   def addChatCreatedEvent(event: ChatCreatedEvent): Try[Unit] = tryWithDb { db =>
     val ChatCreatedEvent(eventNo, channel, user, timestamp, name, topic, members) = event
-    
+
     val memberQueryString = "SELECT FROM User WHERE username IN :members"
     val memberParams = Map("members" -> members.asJavaCollection)
     val users: Set[ODocument] = QueryUtil.query(memberQueryString, memberParams, db).toSet
-    
-    
+
     val queryStirng =
       """INSERT INTO ChatCreatedEvent SET
         |  eventNo = :eventNo,

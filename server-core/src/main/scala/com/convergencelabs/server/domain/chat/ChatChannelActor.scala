@@ -55,9 +55,9 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
 
   // Here None signifies that the channel does not exist.
   var channelManager: Option[ChatChannelStateManager] = None
-  var messageHelper: Option[ChatMessagingHelper] = None
+  var messageProcessor: Option[ChatChannelMessageProcessor] = None
 
-  // Default recieve will be called the first time
+  // Default receive will be called the first time
   override def receive: Receive = {
     case message: ExistingChannelMessage =>
       initialize(message.channelId)
@@ -80,16 +80,16 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
       this.channelManager = Some(manager)
       manager.state().channelType match {
         case "room" =>
-          this.messageHelper = Some(new ChatRoomMessagingHelper(manager, context))
+          this.messageProcessor = Some(new ChatRoomMessageProcessor(manager, context))
           // this would only need to happen if a previous instance of this room crashed without 
           // cleaning up properly.
           manager.removeAllMembers()
         case "group" =>
           context.setReceiveTimeout(120.seconds)
-          this.messageHelper = Some(new GroupChannelMessagingHelper(manager, context))
+          this.messageProcessor = Some(new GroupChatMessageProcessor(manager, context))
         case "direct" =>
           context.setReceiveTimeout(120.seconds)
-          this.messageHelper = Some(new DirectChannelMessagingHelper(manager, context))
+          this.messageProcessor = Some(new DirectChatMessageProcessor(manager, context))
       }
 
       context.become(receiveWhenInitiazlied)
@@ -111,18 +111,14 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
 
   private[this] def processChannelMessage(message: ExistingChannelMessage): Try[Unit] = {
     (for {
-      (cm, mh) <- getHelpers()
-      _ <- mh.validateMessage(message)
-      _ <- mh.preProcessMessage(message) match {
-        case Left(message) =>
-          cm.handleChatMessage(message) map { result =>
-            result.response foreach (response => sender ! response)
-            result.broadcastMessages foreach (mh.boradcast(_))
-            ()
-          }
-        case Right(response) =>
-          sender ! response
-          Success(())
+      messageProcessor <- this.messageProcessor match {
+        case Some(mp) => Success(mp)
+        case _ => Failure(new IllegalStateException("The message processor must be set before processing messages"))
+      }
+      _ <- messageProcessor.processChatMessage(message) map { result =>
+        result.response foreach (response => sender ! response)
+        result.broadcastMessages foreach (messageProcessor.boradcast(_))
+        ()
       }
     } yield {
     }).recover {
@@ -133,13 +129,6 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
 
       case cause: Exception =>
         sender ! Status.Failure(cause)
-    }
-  }
-
-  private[this] def getHelpers(): Try[(ChatChannelStateManager, ChatMessagingHelper)] = {
-    (this.channelManager, this.messageHelper) match {
-      case (Some(cm), Some(mh)) => Success((cm, mh))
-      case _ => Failure(new IllegalStateException("Message Helper and Channel Manager must be set to process messages"))
     }
   }
 
