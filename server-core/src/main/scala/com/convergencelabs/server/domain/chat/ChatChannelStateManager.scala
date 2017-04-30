@@ -176,7 +176,7 @@ class ChatChannelStateManager(
     channelStore.markSeen(channelId, username, eventNumber)
   }
 
-  def onGetHistory(channelId: String, username: String, limit: Option[Long], offset: Option[Long],
+  def onGetHistory(channelId: String, username: String, limit: Option[Int], offset: Option[Int],
     forward: Option[Boolean], events: List[String]): Try[List[ChatChannelEvent]] = {
     channelStore.getChatChannelEvents(channelId, offset, limit)
   }

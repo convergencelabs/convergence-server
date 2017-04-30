@@ -37,7 +37,7 @@ object ChatChannelMessages {
 
   case class PublishChatMessageRequest(channelId: String, message: String, sk: SessionKey) extends ExistingChannelMessage
 
-  case class GetChannelHistoryRequest(channelId: String, username: String, limit: Option[Long], offset: Option[Long],
+  case class GetChannelHistoryRequest(channelId: String, username: String, limit: Option[Int], offset: Option[Int],
     forward: Option[Boolean], events: List[String]) extends ExistingChannelMessage
   case class GetChannelHistoryResponse(events: List[ChatChannelEvent])
   

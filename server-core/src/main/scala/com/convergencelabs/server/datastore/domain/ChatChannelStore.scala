@@ -577,12 +577,11 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
     }
   }
 
-  def getChatChannelEvents(channelId: String, offset: Option[Long], limit: Option[Long]): Try[List[ChatChannelEvent]] = tryWithDb { db =>
-    val queryString = "SELECT FROM ChatChannelEvent WHERE channel.id = :channelId ORDER BY eventNo DESC"
-    val limitString = limit.map(l => s"LIMIT $l").getOrElse("")
-    val offsetString = offset.map(o => s"SKIP $o").getOrElse("")
+  def getChatChannelEvents(channelId: String, offset: Option[Int], limit: Option[Int]): Try[List[ChatChannelEvent]] = tryWithDb { db =>
+    val baseQuery = "SELECT FROM ChatChannelEvent WHERE channel.id = :channelId ORDER BY eventNo DESC"
+    val query = QueryUtil.buildPagedQuery(baseQuery, limit, offset)
     val params = Map("channelId" -> channelId)
-    val result = QueryUtil.query(s"$queryString $limitString $offsetString", params, db)
+    val result = QueryUtil.query(query, params, db)
     result.map { doc => docToChatChannelEvent(doc) }
   }
 

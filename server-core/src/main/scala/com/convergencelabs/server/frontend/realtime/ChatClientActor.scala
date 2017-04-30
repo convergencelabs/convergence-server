@@ -309,7 +309,8 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
   private[this] def handleSimpleChannelRequest(request: Any, response: () => OutgoingProtocolResponseMessage, cb: ReplyCallback): Unit = {
     chatChannelActor.ask(request).mapTo[Unit] onComplete {
       case Success(()) =>
-        cb.reply(response())
+        val r = response()
+        cb.reply(r)
       case Failure(cause: ChatChannelException) =>
         handleChatChannelException(cause, cb)
       case Failure(cause) =>
