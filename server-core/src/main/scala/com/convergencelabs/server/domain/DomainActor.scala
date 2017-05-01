@@ -94,12 +94,13 @@ class DomainActor(
     domainFqn),
     ChatChannelLookupActor.RelativePath)
 
-  private[this] val chatChannelRegion: ActorRef = ClusterSharding(context.system).start(
-    typeName = ChatChannelSharding.calculateRegionName(domainFqn),
-    entityProps = Props(classOf[ChatChannelActor], domainFqn),
-    settings = ClusterShardingSettings(context.system),
-    extractEntityId = ChatChannelSharding.extractEntityId,
-    extractShardId = ChatChannelSharding.extractShardId)
+  private[this] val chatChannelRegion: ActorRef =
+    ClusterSharding(context.system).start(
+      typeName = ChatChannelSharding.calculateRegionName(domainFqn),
+      entityProps = Props(classOf[ChatChannelActor], domainFqn),
+      settings = ClusterShardingSettings(context.system),
+      extractEntityId = ChatChannelSharding.extractEntityId,
+      extractShardId = ChatChannelSharding.extractShardId)
 
   private[this] var authenticator: AuthenticationHandler = _
 
@@ -109,11 +110,11 @@ class DomainActor(
   private[this] val authenticatedClients = mutable.Map[ActorRef, String]()
 
   def receive: Receive = {
-    case message: HandshakeRequest      => onHandshakeRequest(message)
+    case message: HandshakeRequest => onHandshakeRequest(message)
     case message: AuthenticationRequest => onAuthenticationRequest(message)
-    case message: ClientDisconnected    => onClientDisconnect(message)
-    case Terminated(client)             => handleDeathWatch(client)
-    case message: Any                   => unhandled(message)
+    case message: ClientDisconnected => onClientDisconnect(message)
+    case Terminated(client) => handleDeathWatch(client)
+    case message: Any => unhandled(message)
   }
 
   private[this] def handleDeathWatch(actorRef: ActorRef): Unit = {
@@ -132,8 +133,8 @@ class DomainActor(
         log.debug("Authenticated user successfully, creating session")
 
         val method = message.credentials match {
-          case x: JwtAuthRequest       => "jwt"
-          case x: PasswordAuthRequest  => "password"
+          case x: JwtAuthRequest => "jwt"
+          case x: PasswordAuthRequest => "password"
           case x: AnonymousAuthRequest => "anonymous"
         }
 

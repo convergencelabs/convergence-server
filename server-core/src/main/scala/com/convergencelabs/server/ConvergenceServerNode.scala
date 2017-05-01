@@ -72,7 +72,6 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
     val roles = config.getAnyRefList("akka.cluster.roles").asScala.toList
 
     if (roles.contains("backend") || roles.contains("restFrontend")) {
-
       val orientDbConfig = config.getConfig("convergence.orient-db")
       val baseUri = orientDbConfig.getString("db-uri")
 
@@ -204,12 +203,12 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
 
   def attemptConnect(uri: String, adminUser: String, adminPassword: String, retryDelay: Duration) = {
     Try(new OServerAdmin(uri).connect(adminUser, adminPassword)) match {
-      case Success(serverAdmin) => Some(serverAdmin)
-      case Failure(e) => {
+      case Success(serverAdmin) => 
+        Some(serverAdmin)
+      case Failure(e) => 
         logger.warn(s"Unable to connect to OrientDB, retrying in ${retryDelay.toMillis()}ms")
         Thread.sleep(retryDelay.toMillis())
         None
-      }
     }
   }
 
@@ -241,15 +240,13 @@ private class SimpleClusterListener extends Actor with ActorLogging {
   override def postStop(): Unit = cluster.unsubscribe(self)
 
   def receive: Receive = {
-    case MemberUp(member) => {
+    case MemberUp(member) =>
       log.debug(s"Member with role '${member.roles}' is Up: ${member.address}")
-    }
-    case UnreachableMember(member) => {
+    case UnreachableMember(member) =>
       log.debug("Member detected as unreachable: {}", member)
-    }
-    case MemberRemoved(member, previousStatus) => {
+    case MemberRemoved(member, previousStatus) =>
       log.debug("Member is Removed: {} after {}", member.address, previousStatus)
-    }
-    case _: MemberEvent => // ignore
+    case msg: MemberEvent =>
+      log.debug(msg.toString)
   }
 }
