@@ -337,7 +337,7 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
     val ChatCreatedEvent(eventNo, channel, user, timestamp, name, topic, members) = event
 
     val memberQueryString = "SELECT FROM User WHERE username IN :members"
-    val memberParams = Map("members" -> members.asJavaCollection)
+    val memberParams = Map("members" -> members.asJava)
     val users: Set[ODocument] = QueryUtil.query(memberQueryString, memberParams, db).toSet
 
     val queryStirng =
