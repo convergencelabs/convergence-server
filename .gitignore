@@ -12,3 +12,5 @@ target
 server-tools/convergence.json.gz
 server-tools/domain.json.gz
 server-core/.tmpBin
+
+*.mdb
