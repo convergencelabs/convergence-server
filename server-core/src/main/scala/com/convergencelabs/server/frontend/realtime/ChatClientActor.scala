@@ -66,7 +66,6 @@ import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
 import akka.pattern.ask
 import akka.util.Timeout
 
-
 object ChatClientActor {
   def props(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk: SessionKey): Props =
     Props(new ChatClientActor(chatLookupActor, chatChannelActor, sk))
@@ -247,7 +246,7 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
     val request = PublishChatMessageRequest(channelId, msg, sk)
     handleSimpleChannelRequest(request, { () => PublishChatResponseMessage() }, cb)
   }
-  
+
   def onChannelsExist(message: ChatChannelsExistsRequestMessage, cb: ReplyCallback): Unit = {
     val ChatChannelsExistsRequestMessage(channelIds) = message;
     val request = ChannelsExistsRequest(channelIds, sk.uid)
@@ -296,7 +295,8 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
 
   def onGetHistory(message: ChatChannelHistoryRequestMessage, cb: ReplyCallback): Unit = {
     val ChatChannelHistoryRequestMessage(channelId, limit, offset, forward, eventFilter) = message;
-    val request = GetChannelHistoryRequest(channelId, sk.uid, limit, offset, forward, eventFilter)
+    val mappedEvents = eventFilter.map(_.map(toChannelEventCode(_)))
+    val request = GetChannelHistoryRequest(channelId, sk.uid, limit, offset, forward, mappedEvents)
     chatChannelActor.ask(request).mapTo[GetChannelHistoryResponse] onComplete {
       case Success(GetChannelHistoryResponse(events)) =>
         val eventData = events.map(toChannelEventDatat(_))
@@ -364,20 +364,31 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
 
   private[this] def toChannelEventDatat: PartialFunction[ChatChannelEvent, ChatChannelEventData] = {
     case ChatCreatedEvent(eventNo, channel, user, timestamp, name, topic, members) =>
-      ChatCreatedEventData(channel, eventNo, timestamp.toEpochMilli, user, name, topic, members, 1)
+      ChatCreatedEventData(channel, eventNo, timestamp.toEpochMilli, user, name, topic, members, 0)
     case ChatMessageEvent(eventNo, channel, user, timestamp, message) =>
-      ChatMessageEventData(channel, eventNo, timestamp.toEpochMilli, user, message, 2)
+      ChatMessageEventData(channel, eventNo, timestamp.toEpochMilli, user, message, 1)
     case ChatUserJoinedEvent(eventNo, channel, user, timestamp) =>
-      ChatUserJoinedEventData(channel, eventNo, timestamp.toEpochMilli, user, 3)
+      ChatUserJoinedEventData(channel, eventNo, timestamp.toEpochMilli, user, 2)
     case ChatUserLeftEvent(eventNo, channel, user, timestamp) =>
-      ChatUserLeftEventData(channel, eventNo, timestamp.toEpochMilli, user, 4)
+      ChatUserLeftEventData(channel, eventNo, timestamp.toEpochMilli, user, 3)
     case ChatUserAddedEvent(eventNo, channel, user, timestamp, addedUser) =>
-      ChatUserAddedEventData(channel, eventNo, timestamp.toEpochMilli, addedUser, user, 5)
+      ChatUserAddedEventData(channel, eventNo, timestamp.toEpochMilli, addedUser, user, 4)
     case ChatUserRemovedEvent(eventNo, channel, user, timestamp, removedUser) =>
-      ChatUserRemovedEventData(channel, eventNo, timestamp.toEpochMilli, removedUser, user, 6)
+      ChatUserRemovedEventData(channel, eventNo, timestamp.toEpochMilli, removedUser, user, 5)
     case ChatNameChangedEvent(eventNo, channel, user, timestamp, name) =>
-      ChatNameChangedEventData(channel, eventNo, timestamp.toEpochMilli, user, name, 7)
+      ChatNameChangedEventData(channel, eventNo, timestamp.toEpochMilli, user, name, 6)
     case ChatTopicChangedEvent(eventNo, channel, user, timestamp, topic) =>
-      ChatTopicChangedEventData(channel, eventNo, timestamp.toEpochMilli, user, topic, 8)
+      ChatTopicChangedEventData(channel, eventNo, timestamp.toEpochMilli, user, topic, 7)
+  }
+
+  private[this] def toChannelEventCode: PartialFunction[Int, String] = {
+    case 0 => "created"
+    case 1 => "message"
+    case 2 => "user_joined"
+    case 3 => "user_left"
+    case 4 => "user_added"
+    case 5 => "user_removed"
+    case 6 => "name_changed"
+    case 7 => "topic_changed"
   }
 }
