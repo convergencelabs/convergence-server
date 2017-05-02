@@ -272,7 +272,7 @@ case class GetChatChannelsResponseMessage(c: List[ChatChannelInfoData]) extends 
 case class GetDirectChannelsRequestMessage(u: List[List[String]]) extends IncomingChatRequestMessage
 case class GetDirectChannelsResponseMessage(c: List[ChatChannelInfoData]) extends OutgoingProtocolResponseMessage
 
-case class ChatChannelHistoryRequestMessage(i: String, l: Option[Int], o: Option[Int], f: Option[Boolean], e: List[String]) extends IncomingChatRequestMessage
+case class ChatChannelHistoryRequestMessage(i: String, l: Option[Int], o: Option[Int], f: Option[Boolean], e: Option[List[String]]) extends IncomingChatRequestMessage
 case class ChatChannelHistoryResponseMessage(e: List[ChatChannelEventData]) extends OutgoingProtocolResponseMessage
 
 case class ChatChannelsExistsRequestMessage(i: List[String]) extends IncomingChatRequestMessage
@@ -297,11 +297,11 @@ sealed trait ChatChannelEventData {
   val u: String
 }
 
-case class ChatCreatedEventData(i: String, n: Long, p: Long, u: String, a: String, o: String, m: Set[String]) extends ChatChannelEventData { val t = 0 }
-case class ChatMessageEventData(i: String, n: Long, p: Long, u: String, m: String) extends ChatChannelEventData { val t = 0 }
-case class ChatUserJoinedEventData(i: String, n: Long, p: Long, u: String) extends ChatChannelEventData { val t = 1 }
-case class ChatUserLeftEventData(i: String, n: Long, p: Long, u: String) extends ChatChannelEventData { val t = 2 }
-case class ChatUserAddedEventData(i: String, n: Long, p: Long, u: String, b: String) extends ChatChannelEventData { val t = 3 }
-case class ChatUserRemovedEventData(i: String, n: Long, p: Long, u: String, b: String) extends ChatChannelEventData { val t = 4 }
-case class ChatNameChangedEventData(i: String, n: Long, p: Long, u: String, a: String) extends ChatChannelEventData { val t = 5 }
-case class ChatTopicChangedEventData(i: String, n: Long, p: Long, u: String, o: String) extends ChatChannelEventData { val t = 6 }
+case class ChatCreatedEventData(i: String, n: Long, p: Long, u: String, a: String, o: String, m: Set[String], e: Int) extends ChatChannelEventData
+case class ChatMessageEventData(i: String, n: Long, p: Long, u: String, m: String, e: Int) extends ChatChannelEventData
+case class ChatUserJoinedEventData(i: String, n: Long, p: Long, u: String, e: Int) extends ChatChannelEventData
+case class ChatUserLeftEventData(i: String, n: Long, p: Long, u: String, e: Int) extends ChatChannelEventData
+case class ChatUserAddedEventData(i: String, n: Long, p: Long, u: String, b: String, e: Int) extends ChatChannelEventData
+case class ChatUserRemovedEventData(i: String, n: Long, p: Long, u: String, b: String, e: Int) extends ChatChannelEventData
+case class ChatNameChangedEventData(i: String, n: Long, p: Long, u: String, a: String, e: Int) extends ChatChannelEventData
+case class ChatTopicChangedEventData(i: String, n: Long, p: Long, u: String, o: String, e: Int) extends ChatChannelEventData

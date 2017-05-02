@@ -577,11 +577,21 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
     }
   }
 
-  def getChatChannelEvents(channelId: String, offset: Option[Int], limit: Option[Int]): Try[List[ChatChannelEvent]] = tryWithDb { db =>
-    val baseQuery = "SELECT FROM ChatChannelEvent WHERE channel.id = :channelId ORDER BY eventNo DESC"
+  def getChatChannelEvents(channelId: String, eventTypes: Option[List[String]], offset: Option[Int], limit: Option[Int]): Try[List[ChatChannelEvent]] = tryWithDb { db =>
+    val params = scala.collection.mutable.Map[String, Any]("channelId" -> channelId)
+    
+    val eventTypesClause = eventTypes.getOrElse(List()) match {
+      case Nil => 
+        ""
+      case types =>
+        params("types") = types.map(getClassName(_)).filter(_.isDefined).map(_.get).asJava
+        "AND @class IN :types"
+    }
+    
+    val baseQuery = s"SELECT FROM ChatChannelEvent WHERE channel.id = :channelId ${eventTypesClause} ORDER BY eventNo DESC"
     val query = QueryUtil.buildPagedQuery(baseQuery, limit, offset)
-    val params = Map("channelId" -> channelId)
-    val result = QueryUtil.query(query, params, db)
+    
+    val result = QueryUtil.query(query, params.toMap, db)
     result.map { doc => docToChatChannelEvent(doc) }
   }
 
@@ -594,5 +604,17 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
     val userRID = DomainUserStore.getUserRid(username, db).get
     val key = new OCompositeKey(List(userRID, channelRID).asJava)
     QueryUtil.getRidFromIndex(Indexes.ChatChannelMember_Channel_User, key, db).get
+  }
+  
+  def getClassName: PartialFunction[String, Option[String]] = {
+    case "message" => Some(Classes.ChatMessageEvent) 
+    case "created" => Some(Classes.ChatCreatedEvent)
+    case "user_joined" => Some(Classes.ChatUserJoinedEvent)
+    case "user_left" => Some(Classes.ChatUserLeftEvent)
+    case "user_added" => Some(Classes.ChatUserAddedEvent)
+    case "user_removed" => Some(Classes.ChatUserRemovedEvent)
+    case "name_changed" => Some(Classes.ChatNameChangedEvent)
+    case "topic_changed" => Some(Classes.ChatTopicChangedEvent)
+    case _ => None
   }
 }

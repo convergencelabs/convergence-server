@@ -295,8 +295,8 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
   }
 
   def onGetHistory(message: ChatChannelHistoryRequestMessage, cb: ReplyCallback): Unit = {
-    val ChatChannelHistoryRequestMessage(channelId, limit, offset, forward, events) = message;
-    val request = GetChannelHistoryRequest(channelId, sk.uid, limit, offset, forward, events)
+    val ChatChannelHistoryRequestMessage(channelId, limit, offset, forward, eventFilter) = message;
+    val request = GetChannelHistoryRequest(channelId, sk.uid, limit, offset, forward, eventFilter)
     chatChannelActor.ask(request).mapTo[GetChannelHistoryResponse] onComplete {
       case Success(GetChannelHistoryResponse(events)) =>
         val eventData = events.map(toChannelEventDatat(_))
@@ -364,20 +364,20 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
 
   private[this] def toChannelEventDatat: PartialFunction[ChatChannelEvent, ChatChannelEventData] = {
     case ChatCreatedEvent(eventNo, channel, user, timestamp, name, topic, members) =>
-      ChatCreatedEventData(channel, eventNo, timestamp.toEpochMilli, user, name, topic, members)
+      ChatCreatedEventData(channel, eventNo, timestamp.toEpochMilli, user, name, topic, members, 1)
     case ChatMessageEvent(eventNo, channel, user, timestamp, message) =>
-      ChatMessageEventData(channel, eventNo, timestamp.toEpochMilli, user, message)
+      ChatMessageEventData(channel, eventNo, timestamp.toEpochMilli, user, message, 2)
     case ChatUserJoinedEvent(eventNo, channel, user, timestamp) =>
-      ChatUserJoinedEventData(channel, eventNo, timestamp.toEpochMilli, user)
+      ChatUserJoinedEventData(channel, eventNo, timestamp.toEpochMilli, user, 3)
     case ChatUserLeftEvent(eventNo, channel, user, timestamp) =>
-      ChatUserLeftEventData(channel, eventNo, timestamp.toEpochMilli, user)
+      ChatUserLeftEventData(channel, eventNo, timestamp.toEpochMilli, user, 4)
     case ChatUserAddedEvent(eventNo, channel, user, timestamp, addedUser) =>
-      ChatUserAddedEventData(channel, eventNo, timestamp.toEpochMilli, addedUser, user)
+      ChatUserAddedEventData(channel, eventNo, timestamp.toEpochMilli, addedUser, user, 5)
     case ChatUserRemovedEvent(eventNo, channel, user, timestamp, removedUser) =>
-      ChatUserRemovedEventData(channel, eventNo, timestamp.toEpochMilli, removedUser, user)
+      ChatUserRemovedEventData(channel, eventNo, timestamp.toEpochMilli, removedUser, user, 6)
     case ChatNameChangedEvent(eventNo, channel, user, timestamp, name) =>
-      ChatNameChangedEventData(channel, eventNo, timestamp.toEpochMilli, user, name)
+      ChatNameChangedEventData(channel, eventNo, timestamp.toEpochMilli, user, name, 7)
     case ChatTopicChangedEvent(eventNo, channel, user, timestamp, topic) =>
-      ChatTopicChangedEventData(channel, eventNo, timestamp.toEpochMilli, user, topic)
+      ChatTopicChangedEventData(channel, eventNo, timestamp.toEpochMilli, user, topic, 8)
   }
 }
