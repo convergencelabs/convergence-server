@@ -1,0 +1,18 @@
+version: 6
+description: Schema to add groups
+changes:
+
+########## Group Class ##########
+
+  - action: CreateClass
+    name: Group
+    properties:
+      - {name: id,          type: String,                     constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: description, type: String,                     constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: members,     type: LinkSet, linkedClass: User, constraints: {mandatory: true, notNull: true}}
+
+  - action: CreateIndex
+    className: Group
+    name: Group.id
+    type: UniqueHashIndex
+    properties: [id]
