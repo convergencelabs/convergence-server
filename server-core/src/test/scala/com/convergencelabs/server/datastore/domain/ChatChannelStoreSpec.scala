@@ -111,7 +111,7 @@ class ChatChannelStoreSpec
         provider.chatChannelStore.addChatUserJoinedEvent(ChatUserJoinedEvent(5, id, user3, Instant.now())).get
         provider.chatChannelStore.addChatUserRemovedEvent(ChatUserRemovedEvent(6, id, user2, Instant.now(), user1)).get
         provider.chatChannelStore.addChatUserAddedEvent(ChatUserAddedEvent(7, id, user2, Instant.now(), user1)).get
-        val events = provider.chatChannelStore.getChatChannelEvents(id, None, None, None).get
+        val events = provider.chatChannelStore.getChatChannelEvents(id, None, None, None, None).get
         events.size shouldEqual 8
       }
     }
