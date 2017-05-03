@@ -285,8 +285,8 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
   }
 
   // FIXME: Pass in create time
-  def createChatChannel(id: Option[String], channelType: ChannelType.Value, 
-      isPrivate: Boolean, name: String, topic: String, members: Option[Set[String]]): Try[String] = tryWithDb { db =>
+  def createChatChannel(id: Option[String], channelType: ChannelType.Value,
+    isPrivate: Boolean, name: String, topic: String, members: Option[Set[String]]): Try[String] = tryWithDb { db =>
     // FIXME: return failure if addAllChatChannelMembers fails
     db.begin()
     val channelId = id.getOrElse {
@@ -577,22 +577,37 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
     }
   }
 
-  def getChatChannelEvents(channelId: String, eventTypes: Option[List[String]], offset: Option[Int], limit: Option[Int]): Try[List[ChatChannelEvent]] = tryWithDb { db =>
+  def getChatChannelEvents(channelId: String, eventTypes: Option[List[String]], startEvent: Option[Int], limit: Option[Int], forward: Option[Boolean]): Try[List[ChatChannelEvent]] = tryWithDb { db =>
     val params = scala.collection.mutable.Map[String, Any]("channelId" -> channelId)
-    
+
     val eventTypesClause = eventTypes.getOrElse(List()) match {
-      case Nil => 
+      case Nil =>
         ""
       case types =>
         params("types") = types.map(getClassName(_)).filter(_.isDefined).map(_.get).asJava
         "AND @class IN :types"
     }
+
+    val fwd = forward.getOrElse(false)
+    val eventNoClaue = startEvent map { eventNo =>
+      val operator = fwd match {
+        case true => ">="
+        case false => "<="
+      }
+      params("startEventNo") = eventNo
+      s" AND eventNo ${operator} :startEventNo"
+    } getOrElse ("")
+
+    val orderBy = fwd match {
+      case true => "ASC"
+      case false => "DESC"
+    }
     
-    val baseQuery = s"SELECT FROM ChatChannelEvent WHERE channel.id = :channelId ${eventTypesClause} ORDER BY eventNo DESC"
-    val query = QueryUtil.buildPagedQuery(baseQuery, limit, offset)
-    
+    val baseQuery = s"SELECT FROM ChatChannelEvent WHERE channel.id = :channelId ${eventTypesClause} ${eventNoClaue} ORDER BY eventNo ${orderBy}"
+    val query = QueryUtil.buildPagedQuery(baseQuery, Some(limit.getOrElse(50)), Some(0))
+
     val result = QueryUtil.query(query, params.toMap, db)
-    result.map { doc => docToChatChannelEvent(doc) }
+    result.map { doc => docToChatChannelEvent(doc) }.sortWith((e1, e2) => e1.eventNo < e2.eventNo)
   }
 
   def getChatChannelRid(channelId: String): Try[ORID] = tryWithDb { db =>
@@ -605,9 +620,9 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
     val key = new OCompositeKey(List(userRID, channelRID).asJava)
     QueryUtil.getRidFromIndex(Indexes.ChatChannelMember_Channel_User, key, db).get
   }
-  
+
   def getClassName: PartialFunction[String, Option[String]] = {
-    case "message" => Some(Classes.ChatMessageEvent) 
+    case "message" => Some(Classes.ChatMessageEvent)
     case "created" => Some(Classes.ChatCreatedEvent)
     case "user_joined" => Some(Classes.ChatUserJoinedEvent)
     case "user_left" => Some(Classes.ChatUserLeftEvent)

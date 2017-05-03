@@ -178,7 +178,7 @@ class ChatChannelStateManager(
 
   def onGetHistory(channelId: String, username: String, limit: Option[Int], offset: Option[Int],
     forward: Option[Boolean], eventFilter: Option[List[String]]): Try[List[ChatChannelEvent]] = {
-    channelStore.getChatChannelEvents(channelId, eventFilter, offset, limit)
+    channelStore.getChatChannelEvents(channelId, eventFilter, offset, limit, forward)
   }
 
   def onPublishMessage(channelId: String, message: String, sk: SessionKey): Try[ChatMessageEvent] = {
