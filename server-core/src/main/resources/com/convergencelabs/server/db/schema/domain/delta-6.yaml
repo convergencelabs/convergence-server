@@ -2,18 +2,18 @@ version: 6
 description: Schema to add groups
 changes:
 
-########## Group Class ##########
+########## UserGroup Class ##########
 
   - action: CreateClass
-    name: Group
+    name: UserGroup
     properties:
       - {name: id,          type: String,                     constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: description, type: String,                     constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: members,     type: LinkSet, linkedClass: User, constraints: {mandatory: true, notNull: true}}
 
   - action: CreateIndex
-    className: Group
-    name: Group.id
+    className: UserGroup
+    name: UserGroup.id
     type: UniqueHashIndex
     properties: [id]
 
@@ -23,13 +23,6 @@ changes:
   - action: CreateClass
     name: Permission
     properties:
+      - {name: assignment, type: Link,   constraints: {notNull: true, readOnly: true}}
       - {name: appliesTo,  type: Link,   constraints: {notNull: true, readOnly: true}}
       - {name: permission, type: String, constraints: {mandatory: true, notNull: true, readOnly: true}}
-    
- ########## PermissionAssignment Class ##########
-
-  - action: CreateClass
-    name: PermissionAssignment
-    properties:
-      - {name: assignment, type: Link,                          constraints: {notNull: true, readOnly: true}}
-      - {name: permission, type: Link, linkedClass: Permission, constraints: {mandatory: true, notNull: true, readOnly: true}}

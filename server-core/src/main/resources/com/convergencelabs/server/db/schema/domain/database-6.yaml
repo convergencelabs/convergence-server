@@ -1,4 +1,4 @@
-version: 5
+version: 6
 changes:
 
 ########## DateTimeFormat ##########
@@ -740,21 +740,30 @@ changes:
     type: NotUniqueHashIndex
     properties: [channel]
 
+########## UserGroup Class ##########
+
+  - action: CreateClass
+    name: UserGroup
+    properties:
+      - {name: id,          type: String,                     constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: description, type: String,                     constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: members,     type: LinkSet, linkedClass: User, constraints: {mandatory: true, notNull: true}}
+
+  - action: CreateIndex
+    className: UserGroup
+    name: UserGroup.id
+    type: UniqueHashIndex
+    properties: [id]
+
+
 ########## Permission Class ##########
 
   - action: CreateClass
     name: Permission
     properties:
+      - {name: assignment, type: Link,   constraints: {notNull: true, readOnly: true}}
       - {name: appliesTo,  type: Link,   constraints: {notNull: true, readOnly: true}}
       - {name: permission, type: String, constraints: {mandatory: true, notNull: true, readOnly: true}}
-    
- ########## PermissionAssignment Class ##########
-
-  - action: CreateClass
-    name: PermissionAssignment
-    properties:
-      - {name: assignment, type: Link,                          constraints: {notNull: true, readOnly: true}}
-      - {name: permission, type: Link, linkedClass: Permission, constraints: {mandatory: true, notNull: true, readOnly: true}}
 
 ########## Sequences ##########
 
