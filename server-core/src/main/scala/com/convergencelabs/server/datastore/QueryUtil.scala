@@ -105,6 +105,19 @@ object QueryUtil extends Logging {
     val results: JavaList[ODocument] = db.command(q).execute(params.asJava)
     QueryUtil.enforceSingletonResultList(results)
   }
+  
+  def updateSingleDoc(query: String, params: Map[String, Any], db: ODatabaseDocumentTx): Try[Unit] = {
+    val q = new OSQLSynchQuery[ODocument](query)
+    val count: Int = db.command(q).execute(params.asJava)
+    count match {
+      case 0 =>
+        Failure(EntityNotFoundException())
+      case 1 =>
+        Success(())
+      case _ =>
+        Failure(new IllegalStateException(MultipleElementsMessage))
+    }
+  }
 
   def mapSingletonList[T, L](list: JavaList[L])(m: L => T): Option[T] = {
     list.asScala.toList match {
