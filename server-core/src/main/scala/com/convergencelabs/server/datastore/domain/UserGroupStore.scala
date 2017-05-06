@@ -23,6 +23,7 @@ import com.orientechnologies.orient.core.metadata.schema.OType
 
 case class UserGroup(id: String, description: String, members: Set[String])
 case class UserGroupInfo(id: String, description: String)
+case class UserGroupSummary(id: String, description: String, memberCount: Int)
 
 object UserGroupStore {
 
@@ -157,6 +158,16 @@ class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProv
   def getUserGroup(id: String): Try[Option[UserGroup]] = tryWithDb { db =>
     val params = Map("id" -> id)
     QueryUtil.lookupOptionalDocument("SELECT FROM UserGroup WHERE id = :id", params, db) map { docToGroup(_) }
+  }
+
+  def getUserGroupSummary(id: String): Try[Option[UserGroupSummary]] = tryWithDb { db =>
+    val params = Map("id" -> id)
+    QueryUtil.lookupOptionalDocument("SELECT id, description, memvers.size() as size FROM UserGroup WHERE id = :id", params, db) map { doc =>
+      UserGroupSummary(
+        doc.field("id"),
+        doc.field("description"),
+        doc.field("size"))
+    }
   }
 
   def getUserGroups(filter: Option[String], offset: Option[Int], limit: Option[Int]): Try[List[UserGroup]] = tryWithDb { db =>
