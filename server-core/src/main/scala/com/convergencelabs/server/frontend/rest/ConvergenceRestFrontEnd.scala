@@ -33,17 +33,17 @@ import akka.http.scaladsl.server.Directive.addDirectiveApply
 import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
 import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
 import akka.http.scaladsl.server.Directives.complete
-import akka.http.scaladsl.server.Directives.handleExceptions
 import akka.http.scaladsl.server.Directives.extractRequest
 import akka.http.scaladsl.server.Directives.extractUri
+import akka.http.scaladsl.server.Directives.handleExceptions
 import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.ExceptionHandler
 import akka.http.scaladsl.server.RouteResult.route2HandlerFlow
 import akka.http.scaladsl.server.directives.SecurityDirectives.authenticateBasic
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
-import ch.megard.akka.http.cors.CorsDirectives.cors
-import ch.megard.akka.http.cors.CorsSettings
+import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
+import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import grizzled.slf4j.Logging
 
 object ConvergenceRestFrontEnd {

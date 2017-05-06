@@ -15,14 +15,8 @@ import com.convergencelabs.server.datastore.AuthStoreActor.TokenExpirationSucces
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
-import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
-import akka.http.scaladsl.server.Directives.handleWith
-import akka.http.scaladsl.server.Directives.pathEnd
-import akka.http.scaladsl.server.Directives.pathPrefix
-import akka.http.scaladsl.server.Directives.post
-import akka.pattern.ask
 import akka.util.Timeout
+import akka.pattern.ask
 
 case class TokenResponse(token: String, expiration: Long) extends AbstractSuccessResponse
 case class ExpirationResponse(valid: Boolean, username: Option[String], delta: Option[Long]) extends AbstractSuccessResponse
@@ -32,6 +26,8 @@ class AuthService(
   private[this] val authActor: ActorRef,
   private[this] val defaultTimeout: Timeout)
     extends JsonSupport {
+
+  import akka.http.scaladsl.server.Directives._
 
   implicit val ec = executionContext
   implicit val t = defaultTimeout
@@ -67,12 +63,12 @@ class AuthService(
     (authActor ? req).mapTo[TokenExpirationResponse].map {
       case TokenExpirationSuccess(username, exprieDelta) =>
         (StatusCodes.OK, ExpirationResponse(true, Some(username), Some(exprieDelta.toMillis())))
-      case TokenExpirationFailure => 
+      case TokenExpirationFailure =>
         (StatusCodes.OK, ExpirationResponse(false, None, None))
     }
   }
-  
-    def invalidateToken(req: InvalidateTokenRequest): Future[RestResponse] = {
+
+  def invalidateToken(req: InvalidateTokenRequest): Future[RestResponse] = {
     (authActor ? req).map {
       _ => OkResponse
     }

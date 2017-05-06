@@ -27,7 +27,7 @@ object Dependencies {
     val akkaHttpTest       = "com.typesafe.akka"        %% "akka-http-testkit"            % Versions.akkaHttp
 
     val akkaHttpJson4s     = "de.heikoseeberger"        % "akka-http-json4s_2.11"         % "1.5.3"
-    val akkaHttpCors       = "ch.megard"                %% "akka-http-cors"                % "0.1.0"
+    val akkaHttpCors       = "ch.megard"                %% "akka-http-cors"               % "0.2.1"
     
 
     // Orient DB Dependencies
