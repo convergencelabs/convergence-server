@@ -21,6 +21,7 @@ object UserGroupStoreActor {
   case class GetUserGroup(id: String) extends UserGroupStoreRequest
   case class GetUserGroupSummary(id: String) extends UserGroupStoreRequest
   case class GetUserGroups(filter: Option[String], offset: Option[Int], limit: Option[Int]) extends UserGroupStoreRequest
+  case class GetUserGroupSummaries(filter: Option[String], offset: Option[Int], limit: Option[Int]) extends UserGroupStoreRequest
 }
 
 class UserGroupStoreActor private[datastore] (private[this] val groupStore: UserGroupStore)
@@ -44,6 +45,7 @@ class UserGroupStoreActor private[datastore] (private[this] val groupStore: User
       case message: GetUserGroup => getUserGroup(message)
       case message: GetUserGroups => getUserGroups(message)
       case message: GetUserGroupSummary => getUserGroupSummary(message)
+      case message: GetUserGroupSummaries => getUserGroupSummaries(message)
     }
   }
 
@@ -80,6 +82,11 @@ class UserGroupStoreActor private[datastore] (private[this] val groupStore: User
   def getUserGroupSummary(message: GetUserGroupSummary): Unit = {
     val GetUserGroupSummary(id) = message
     reply(groupStore.getUserGroupSummary(id))
+  }
+  
+  def getUserGroupSummaries(message: GetUserGroupSummaries): Unit = {
+    val GetUserGroupSummaries(filter, offset, limit) = message
+    reply(groupStore.getUserGroupSummaries(filter, offset, limit))
   }
   
   def addUserToGroup(message: AddUserToGroup): Unit = {

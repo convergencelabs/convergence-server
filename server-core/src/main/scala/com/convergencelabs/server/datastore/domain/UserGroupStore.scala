@@ -170,6 +170,23 @@ class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProv
     }
   }
 
+  def getUserGroupSummaries(filter: Option[String], offset: Option[Int], limit: Option[Int]): Try[List[UserGroupSummary]] = tryWithDb { db =>
+    val params = scala.collection.mutable.Map[String, Any]()
+    val where = filter.map { f =>
+      params("filter") = s"%${f}%"
+      "WHERE id LIKE :filter || description LIKE :filter"
+    } getOrElse ("")
+
+    val baseQuery = s"SELECT id, description, memvers.size() as size ${where} ORDER BY id ASC"
+    val query = QueryUtil.buildPagedQuery(baseQuery, limit, offset)
+    QueryUtil.query(query, params.toMap, db).map { doc =>
+      UserGroupSummary(
+        doc.field("id"),
+        doc.field("description"),
+        doc.field("size"))
+    }
+  }
+
   def getUserGroups(filter: Option[String], offset: Option[Int], limit: Option[Int]): Try[List[UserGroup]] = tryWithDb { db =>
     val params = scala.collection.mutable.Map[String, Any]()
     val where = filter.map { f =>

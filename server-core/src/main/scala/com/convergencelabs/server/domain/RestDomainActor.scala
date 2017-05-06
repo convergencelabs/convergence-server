@@ -37,6 +37,8 @@ import com.convergencelabs.server.datastore.SessionStoreActor.SessionStoreReques
 import com.convergencelabs.server.datastore.SessionStoreActor
 import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.ModelPermissionsStoreRequest
 import com.convergencelabs.server.datastore.ModelPermissionsStoreActor
+import com.convergencelabs.server.datastore.UserGroupStoreActor.UserGroupStoreRequest
+import com.convergencelabs.server.datastore.UserGroupStoreActor
 
 object RestDomainActor {
   def props(domainFqn: DomainFqn): Props = Props(new RestDomainActor(domainFqn))
@@ -56,6 +58,7 @@ class RestDomainActor(domainFqn: DomainFqn) extends Actor with ActorLogging {
   private[this] var keyStoreActor: ActorRef = _
   private[this] var sessionStoreActor: ActorRef = _
   private[this] var configStoreActor: ActorRef = _
+  private[this] var groupStoreActor: ActorRef = _
   private[this] var domainConfigStore: DomainConfigStore = _
 
   val MaxShutdownWaitTime = Duration.fromNanos(
@@ -66,6 +69,8 @@ class RestDomainActor(domainFqn: DomainFqn) extends Actor with ActorLogging {
       getAdminToken(convergenceUsername)
     case message: UserStoreRequest =>
       userStoreActor forward message
+    case message: UserGroupStoreRequest =>
+      groupStoreActor forward message
     case message: CollectionStoreRequest =>
       collectionStoreActor forward message
     case message: ModelStoreRequest =>
@@ -126,6 +131,7 @@ class RestDomainActor(domainFqn: DomainFqn) extends Actor with ActorLogging {
         modelPermissionsStoreActor = context.actorOf(ModelPermissionsStoreActor.props(provider.modelPermissionsStore))
         keyStoreActor = context.actorOf(JwtAuthKeyStoreActor.props(provider.jwtAuthKeyStore))
         sessionStoreActor = context.actorOf(SessionStoreActor.props(provider.sessionStore))
+        groupStoreActor = context.actorOf(UserGroupStoreActor.props(provider.userGroupStore))
 
       case Failure(cause) =>
         log.error(cause, "Unable to obtain a domain persistence provider.")

@@ -70,6 +70,7 @@ class DomainService(
 
   val domainConfigService = new DomainConfigService(ec, authorizationActor, domainManagerActor, t)
   val domainUserService = new DomainUserService(ec, authorizationActor, domainManagerActor, t)
+  val domainUserGroupService = new UserGroupService(ec, authorizationActor, domainManagerActor, t)
   val domainStatsService = new DomainStatsService(ec, authorizationActor, domainManagerActor, t)
   val domainCollectionService = new DomainCollectionService(ec, authorizationActor, domainManagerActor, t)
   val domainSessionService = new DomainSessionService(ec, authorizationActor, domainManagerActor, t)
@@ -116,7 +117,8 @@ class DomainService(
             domainConfigService.route(username, domain) ~
             domainStatsService.route(username, domain) ~
             domainSecurityService.route(username, domain) ~
-            domainSessionService.route(username, domain)
+            domainSessionService.route(username, domain) ~
+            domainUserGroupService.route(username, domain)
         }
       }
     }

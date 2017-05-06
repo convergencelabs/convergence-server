@@ -9,6 +9,8 @@ class DomainPersistenceProvider(val dbProvider: DatabaseProvider) extends Abstra
 
   val userStore = new DomainUserStore(dbProvider)
   
+  val userGroupStore = new UserGroupStore(dbProvider)
+  
   val sessionStore = new SessionStore(dbProvider)
 
   val jwtAuthKeyStore = new JwtAuthKeyStore(dbProvider)
