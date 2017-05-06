@@ -1,6 +1,5 @@
 package com.convergencelabs.server.datastore.domain
 
-import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
@@ -8,71 +7,161 @@ import org.scalatest.WordSpecLike
 
 import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.datastore.DuplicateValueException
+import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.domain.DomainUser
 import com.convergencelabs.server.domain.DomainUserType
-import com.convergencelabs.server.datastore.EntityNotFoundException
 
 class UserGroupStoreSpec
     extends PersistenceStoreSpec[(UserGroupStore, DomainUserStore)](DeltaCategory.Domain)
     with WordSpecLike
     with Matchers {
-  
+
   val User1 = DomainUser(DomainUserType.Normal, "test1", Some("Test"), Some("One"), Some("Test One"), Some("test1@example.com"))
   val User2 = DomainUser(DomainUserType.Normal, "test2", Some("Test"), Some("Two"), Some("Test Two"), Some("test2@example.com"))
   val User3 = DomainUser(DomainUserType.Normal, "test3", Some("Test"), Some("Three"), Some("Test Two"), Some("test3@example.com"))
 
+  val group1 = UserGroup("id1", "group 1", Set(User1.username, User2.username))
+  val duplicateGroup = UserGroup("id1", "duplicate id", Set("test1", "test2"))
+  val group2 = UserGroup("id2", "group 2", Set(User2.username))
 
-  val newGroup = UserGroup("id1", "group 1", Set(User1.username, User2.username))
-  val duplicateGroup = UserGroup("id1", "duplicate id",  Set("test1", "test2"))
-  val group2 = UserGroup("id2", "group 2", Set(User2.username, User3.username))
-
-  def createStore(dbProvider: DatabaseProvider): (UserGroupStore, DomainUserStore)
-  = (new UserGroupStore(dbProvider), new DomainUserStore(dbProvider))
+  def createStore(dbProvider: DatabaseProvider): (UserGroupStore, DomainUserStore) = (new UserGroupStore(dbProvider), new DomainUserStore(dbProvider))
 
   "A UserGroupStore" when {
     "creating a user group" must {
       "be able to get the user group that was created" in withUsers { store =>
-        store.createUserGroup(newGroup).get
-        val queried = store.getGroup(newGroup.id).get.value
-        queried shouldBe newGroup
+        store.createUserGroup(group1).get
+        val queried = store.getUserGroup(group1.id).get.value
+        queried shouldBe group1
       }
 
       "disallow duplicate ids" in withUsers { store =>
-        store.createUserGroup(newGroup).get
+        store.createUserGroup(group1).get
         store.createUserGroup(duplicateGroup).failure.exception shouldBe a[DuplicateValueException]
       }
-      
+
       "disallow creating a group with an unknown user" in withUsers { store =>
         store.createUserGroup(UserGroup("id1", "group 1", Set("test1", "unknown"))).failure.exception shouldBe a[EntityNotFoundException]
+      }
+    }
+    
+    "getting a UserGroup" must {
+      "should return none for a group that doesn't exists" in withUsers { store =>
+        store.getUserGroup("no group").get shouldBe None
+      }
+    }
+
+    "deleted a user group" must {
+      "delete an existing group" in withUsers { store =>
+        store.createUserGroup(group1).get
+        store.getUserGroup(group1.id).get.value shouldBe group1
+        store.deleteUserGroup(group1.id).get
+        store.getUserGroup(group1.id).get shouldBe None
+      }
+      
+      "fail with EntityNotFound for a group that does not exists" in withUsers { store =>
+        store.deleteUserGroup("foo").failure.exception shouldBe a[EntityNotFoundException]
       }
     }
 
     "updating a user group" must {
       "correctly update only the specified id" in withUsers { store =>
-        store.createUserGroup(newGroup).get
+        store.createUserGroup(group1).get
         store.createUserGroup(group2).get
-        val updated = newGroup.copy(description = "test")
-        store.updateUserGroup(newGroup.id, updated).get
-        val updatedRead = store.getGroup(newGroup.id).get.value
+        val updated = group1.copy(description = "test")
+        store.updateUserGroup(group1.id, updated).get
+        val updatedRead = store.getUserGroup(group1.id).get.value
         updatedRead shouldBe updated
-        
-        val group2dRead = store.getGroup(group2.id).get.value
+
+        val group2dRead = store.getUserGroup(group2.id).get.value
         group2dRead shouldBe group2
       }
-      
+
       "correctly update with a new id" in withUsers { store =>
-//        store.createUserGroup(newGroup).get
-//        val updated = newGroup.copy(id = "test")
-//        store.updateUserGroup(newGroup.id, updated)
-//        
-//        store.getGroup(newGroup.id).get shouldBe None
-//        val updatedRead = store.getGroup(updated.id).get.value
-//        updatedRead shouldBe updated
+        store.createUserGroup(group1).get
+        val updated = group1.copy(id = "test")
+        println(updated)
+        store.updateUserGroup(group1.id, updated).get
+
+        val updatedRead = store.getUserGroup(updated.id).get.value
+        updatedRead shouldBe updated
+
+        store.getUserGroup(group1.id).get shouldBe None
+      }
+
+      "not allow changing the id to an existin id" in withUsers { store =>
+        store.createUserGroup(group1).get
+        store.createUserGroup(group2).get
+        val updated = group1.copy(id = group2.id)
+        store.updateUserGroup(group1.id, updated).failure.exception shouldBe a[DuplicateValueException]
+      }
+    }
+    
+    "adding a user" must {
+      "add a user that is not already a member" in withUsers { store =>
+        store.createUserGroup(group1).get
+        store.createUserGroup(group2).get
+        
+        val expected = group1.copy(members = (group1.members + User3.username) )
+        store.addUserToGroup(group1.id, User3.username)
+        val updatedRead = store.getUserGroup(group1.id).get.value
+        updatedRead shouldBe expected
+
+        // make sure we didn't add to anyone other group.
+        store.getUserGroup(group2.id).get.value shouldBe group2
+      }
+      
+      "ingore adding a user that is not already" in withUsers { store =>
+        store.createUserGroup(group1).get
+        
+        store.addUserToGroup(group1.id, User1.username)
+        val updatedRead = store.getUserGroup(group1.id).get.value
+        updatedRead shouldBe group1
+      }
+      
+      "fail with EntityNotFound for a user that does not exist" in withUsers { store =>
+        store.createUserGroup(group1).get
+        store.addUserToGroup(group1.id, "no one").failure.exception shouldBe a[EntityNotFoundException]
+      }
+      
+      "fail with EntityNotFound for a group that does not exist" in withUsers { store =>
+        store.addUserToGroup("no group", User1.username).failure.exception shouldBe a[EntityNotFoundException]
+      }
+    }
+    
+    "removing a user" must {
+      "remove a user that is not already a member" in withUsers { store =>
+        store.createUserGroup(group1).get
+        store.createUserGroup(group2).get
+        
+        val expected = group1.copy(members = (group1.members - User2.username) )
+        store.removeUserFromGroup(group1.id, User2.username)
+        val updatedRead = store.getUserGroup(group1.id).get.value
+        updatedRead shouldBe expected
+
+        // make sure we didn't add to anyone other group.
+        store.getUserGroup(group2.id).get.value shouldBe group2
+      }
+      
+      "ingore removing a user that is not already" in withUsers { store =>
+        store.createUserGroup(group1).get
+        
+        store.removeUserFromGroup(group1.id, "")
+        val updatedRead = store.getUserGroup(group1.id).get.value
+        updatedRead shouldBe group1
+      }
+      
+      "fail with EntityNotFound for a user that does not exist" in withUsers { store =>
+        store.createUserGroup(group1).get
+        store.removeUserFromGroup(group1.id, "no one").failure.exception shouldBe a[EntityNotFoundException]
+      }
+      
+      "fail with EntityNotFound for a group that does not exist" in withUsers { store =>
+        store.removeUserFromGroup("no group", User1.username).failure.exception shouldBe a[EntityNotFoundException]
       }
     }
   }
-  
+
   def withUsers(testCode: UserGroupStore => Any): Unit = {
     super.withPersistenceStore { stores =>
       val userStore = stores._2

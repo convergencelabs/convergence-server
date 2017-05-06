@@ -49,11 +49,11 @@ class UserGroupStoreActor private[datastore] (private[this] val groupStore: User
 
   def getUserGroup(message: GetUserGroup): Unit = {
     val GetUserGroup(id) = message
-    reply(groupStore.getGroup(id))
+    reply(groupStore.getUserGroup(id))
   }
 
   def getUserGroups(message: GetUserGroups): Unit = {
     val GetUserGroups(filter, offset, limit) = message
-    reply(groupStore.getGroups(filter, offset, limit))
+    reply(groupStore.getUserGroups(filter, offset, limit))
   }
 }

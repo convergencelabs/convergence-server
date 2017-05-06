@@ -745,7 +745,7 @@ changes:
   - action: CreateClass
     name: UserGroup
     properties:
-      - {name: id,          type: String,                     constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: id,          type: String,                     constraints: {mandatory: true, notNull: true}}
       - {name: description, type: String,                     constraints: {mandatory: true, notNull: true}}
       - {name: members,     type: LinkSet, linkedClass: User, constraints: {mandatory: true, notNull: true}}
 

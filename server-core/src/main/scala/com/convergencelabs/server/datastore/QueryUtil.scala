@@ -17,6 +17,7 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 
 import grizzled.slf4j.Logging
+import com.orientechnologies.orient.core.sql.OCommandSQL
 
 object QueryUtil extends Logging {
   private[this] val MultipleElementsMessage = "Only exepected one element in the result list, but more than one returned."
@@ -99,15 +100,9 @@ object QueryUtil extends Logging {
     val results: JavaList[ODocument] = db.command(q).execute(params.asJava)
     QueryUtil.enforceSingletonResultList(results)
   }
-
-  def updateDocument(query: String, params: Map[String, Any], db: ODatabaseDocumentTx): Option[ODocument] = {
-    val q = new OSQLSynchQuery[ODocument](query)
-    val results: JavaList[ODocument] = db.command(q).execute(params.asJava)
-    QueryUtil.enforceSingletonResultList(results)
-  }
   
   def updateSingleDoc(query: String, params: Map[String, Any], db: ODatabaseDocumentTx): Try[Unit] = {
-    val q = new OSQLSynchQuery[ODocument](query)
+    val q = new OCommandSQL(query)
     val count: Int = db.command(q).execute(params.asJava)
     count match {
       case 0 =>

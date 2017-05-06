@@ -22,6 +22,7 @@ import grizzled.slf4j.Logging
 import com.orientechnologies.orient.core.metadata.schema.OType
 
 case class UserGroup(id: String, description: String, members: Set[String])
+case class UserGroupInfo(id: String, description: String)
 
 object UserGroupStore {
 
@@ -53,7 +54,7 @@ object UserGroupStore {
   def docToGroup(doc: ODocument): UserGroup = {
     val members: JavaSet[ODocument] = doc.field("members", OType.LINKSET)
     val membersScala = members.toSet
-    
+
     UserGroup(
       doc.field(Fields.Id),
       doc.field(Fields.Description),
@@ -87,12 +88,38 @@ class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProv
     }
   }
 
+  def updateUserGroupInfo(currentId: String, info: UserGroupInfo): Try[Unit] = tryWithDb { db =>
+    val UserGroupInfo(id, description) = info
+    val params = Map("id" -> currentId)
+    QueryUtil.lookupMandatoryDocument("SELECT FROM UserGroup WHERE id = :id", params, db).map { doc =>
+      doc.field(Fields.Id, id)
+      doc.field(Fields.Description, description)
+      ()
+    }.get
+  } recoverWith {
+    case e: ORecordDuplicatedException => handleDuplicateValue(e)
+  }
+
   def updateUserGroup(currentId: String, update: UserGroup): Try[Unit] = tryWithDb { db =>
     val updatedDoc = groupToDoc(update, db)
     val params = Map("id" -> currentId)
     QueryUtil.lookupMandatoryDocument("SELECT FROM UserGroup WHERE id = :id", params, db).map { doc =>
       doc.merge(updatedDoc, false, false)
-      db.save(doc)
+      doc.save()
+      ()
+    }.get
+  } recoverWith {
+    case e: ORecordDuplicatedException => handleDuplicateValue(e)
+  }
+
+  def setGroupMembers(currentId: String, members: Set[String]): Try[Unit] = tryWithDb { db =>
+    val params = Map("id" -> currentId)
+    QueryUtil.lookupMandatoryDocument("SELECT FROM UserGroup WHERE id = :id", params, db).map { doc =>
+      val memberRids = members.map { m =>
+        DomainUserStore.getUserRid(m, db).get
+      }
+      doc.field("members", memberRids.asJava)
+      doc.save()
       ()
     }.get
   }
@@ -109,7 +136,7 @@ class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProv
       }.recoverWith {
         case cause: EntityNotFoundException =>
           Failure(new EntityNotFoundException(s"Could not add user to group, becase the group does not exists: ${id}"))
-      }
+      }.get
   }
 
   def removeUserFromGroup(id: String, username: String): Try[Unit] = tryWithDb { db =>
@@ -124,15 +151,15 @@ class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProv
       }.recoverWith {
         case cause: EntityNotFoundException =>
           Failure(new EntityNotFoundException(s"Could not remove user from group, becase the group does not exists: ${id}"))
-      }
+      }.get
   }
 
-  def getGroup(id: String): Try[Option[UserGroup]] = tryWithDb { db =>
+  def getUserGroup(id: String): Try[Option[UserGroup]] = tryWithDb { db =>
     val params = Map("id" -> id)
     QueryUtil.lookupOptionalDocument("SELECT FROM UserGroup WHERE id = :id", params, db) map { docToGroup(_) }
   }
 
-  def getGroups(filter: Option[String], offset: Option[Int], limit: Option[Int]): Try[List[UserGroup]] = tryWithDb { db =>
+  def getUserGroups(filter: Option[String], offset: Option[Int], limit: Option[Int]): Try[List[UserGroup]] = tryWithDb { db =>
     val params = scala.collection.mutable.Map[String, Any]()
     val where = filter.map { f =>
       params("filter") = s"%${f}%"
