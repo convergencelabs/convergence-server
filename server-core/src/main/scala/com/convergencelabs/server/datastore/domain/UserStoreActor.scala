@@ -1,9 +1,8 @@
 package com.convergencelabs.server.datastore
 
-import com.convergencelabs.server.datastore.UserStoreActor.DeleteDomainUser
-import com.convergencelabs.server.datastore.UserStoreActor.GetUserByUsername
-import com.convergencelabs.server.datastore.UserStoreActor.SetPassword
-import com.convergencelabs.server.datastore.UserStoreActor.UpdateUser
+import scala.util.Success
+
+import com.convergencelabs.server.datastore.domain.DomainUserField
 import com.convergencelabs.server.datastore.domain.DomainUserStore
 import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateNormalDomainUser
 import com.convergencelabs.server.datastore.domain.DomainUserStore.UpdateDomainUser
@@ -11,10 +10,6 @@ import com.convergencelabs.server.datastore.domain.DomainUserStore.UpdateDomainU
 import UserStoreActor.CreateUser
 import akka.actor.ActorLogging
 import akka.actor.Props
-import scala.util.Success
-import com.convergencelabs.server.datastore.UserStoreActor.GetUsers
-import com.convergencelabs.server.datastore.domain.DomainUserField
-import com.convergencelabs.server.domain.model.query.Ast.OrderBy
 
 object UserStoreActor {
   def props(userStore: DomainUserStore): Props = Props(new UserStoreActor(userStore))
@@ -42,19 +37,30 @@ object UserStoreActor {
   case class SetPassword(
     uid: String,
     password: String) extends UserStoreRequest
+
+  case class FindUser(filter: String, exclude: Option[List[String]], offset: Option[Int], limit: Option[Int]) extends UserStoreRequest
 }
 
 class UserStoreActor private[datastore] (private[this] val userStore: DomainUserStore)
     extends StoreActor with ActorLogging {
 
+  import UserStoreActor._
+
   def receive: Receive = {
-    case message: GetUserByUsername => getUserByUsername(message)
-    case message: CreateUser        => createUser(message)
-    case message: DeleteDomainUser  => deleteUser(message)
-    case message: UpdateUser        => updateUser(message)
-    case message: SetPassword       => setPassword(message)
-    case message: GetUsers          => getAllUsers(message)
-    case message: Any               => unhandled(message)
+    case message: UserStoreRequest => onUserStoreRequest(message)
+    case message: Any => unhandled(message)
+  }
+
+  def onUserStoreRequest(message: UserStoreRequest): Unit = {
+    message match {
+      case message: GetUserByUsername => getUserByUsername(message)
+      case message: CreateUser => createUser(message)
+      case message: DeleteDomainUser => deleteUser(message)
+      case message: UpdateUser => updateUser(message)
+      case message: SetPassword => setPassword(message)
+      case message: GetUsers => getAllUsers(message)
+      case message: FindUser => findUser(message)
+    }
   }
 
   def getAllUsers(message: GetUsers): Unit = {
@@ -71,6 +77,11 @@ class UserStoreActor private[datastore] (private[this] val userStore: DomainUser
       case None =>
         reply(userStore.getAllDomainUsers(Some(DomainUserField.Username), Some(SortOrder.Ascending), limit, offset))
     }
+  }
+  
+  def findUser(message: FindUser): Unit = {
+    val FindUser(search, exclude, limit, offset) = message
+    reply(userStore.findUser(search, exclude.getOrElse(List()), offset.getOrElse(0), limit.getOrElse(10)))
   }
 
   def createUser(message: CreateUser): Unit = {

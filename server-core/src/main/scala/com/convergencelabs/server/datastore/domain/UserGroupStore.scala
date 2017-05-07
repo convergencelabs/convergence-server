@@ -95,6 +95,7 @@ class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProv
     QueryUtil.lookupMandatoryDocument("SELECT FROM UserGroup WHERE id = :id", params, db).map { doc =>
       doc.field(Fields.Id, id)
       doc.field(Fields.Description, description)
+      doc.save()
       ()
     }.get
   } recoverWith {
@@ -159,10 +160,19 @@ class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProv
     val params = Map("id" -> id)
     QueryUtil.lookupOptionalDocument("SELECT FROM UserGroup WHERE id = :id", params, db) map { docToGroup(_) }
   }
+  
+  def getUserGroupInfo(id: String): Try[Option[UserGroupInfo]] = tryWithDb { db =>
+    val params = Map("id" -> id)
+    QueryUtil.lookupOptionalDocument("SELECT id, description FROM UserGroup WHERE id = :id", params, db) map {  doc =>
+      UserGroupInfo(
+        doc.field("id"),
+        doc.field("description"))
+    }
+  }
 
   def getUserGroupSummary(id: String): Try[Option[UserGroupSummary]] = tryWithDb { db =>
     val params = Map("id" -> id)
-    QueryUtil.lookupOptionalDocument("SELECT id, description, memvers.size() as size FROM UserGroup WHERE id = :id", params, db) map { doc =>
+    QueryUtil.lookupOptionalDocument("SELECT id, description, members.size() as size FROM UserGroup WHERE id = :id", params, db) map { doc =>
       UserGroupSummary(
         doc.field("id"),
         doc.field("description"),
@@ -177,7 +187,7 @@ class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProv
       "WHERE id LIKE :filter || description LIKE :filter"
     } getOrElse ("")
 
-    val baseQuery = s"SELECT id, description, memvers.size() as size ${where} ORDER BY id ASC"
+    val baseQuery = s"SELECT id, description, members.size() as size FROM UserGroup ${where} ORDER BY id ASC"
     val query = QueryUtil.buildPagedQuery(baseQuery, limit, offset)
     QueryUtil.query(query, params.toMap, db).map { doc =>
       UserGroupSummary(

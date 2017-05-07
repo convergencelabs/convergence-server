@@ -368,6 +368,49 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
     result.asScala.toList.map { DomainUserStore.docToDomainUser(_) }
   }
 
+  def findUser(
+    search: String,
+    exclude: List[String],
+    offset: Int,
+    limit: Int): Try[List[DomainUser]] = tryWithDb { db =>
+
+    var excplicitResults = List[DomainUser]()
+
+    if (!exclude.contains(search)) {
+      this.getDomainUserByUsername(search).get foreach { user =>
+        excplicitResults = user :: excplicitResults
+      }
+
+      this.getDomainUserByEmail(search).get
+        .filter(!excplicitResults.contains(_))
+        .foreach { user =>
+          excplicitResults = user :: excplicitResults
+        }
+    }
+
+    val params = scala.collection.mutable.Map[String, Any](
+      "search" -> ("%" + search + "%"),
+      "exclude" -> exclude.asJava)
+
+    val baseQuery = """
+      |SELECT *, username.length() as size
+      |FROM User
+      |WHERE
+      |  userType = 'normal' AND
+      |  username NOT IN :exclude AND
+      |  (username LIKE :search OR 
+      |  email LIKE :search OR
+      |  displayName LIKE :search)
+      |ORDER BY size ASC, username ASC""".stripMargin
+
+    val query = QueryUtil.buildPagedQuery(baseQuery, Some(limit - excplicitResults.size), Some(offset))
+    val searched = QueryUtil.query(query, params.toMap, db)
+      .map(DomainUserStore.docToDomainUser(_))
+      .filter(!excplicitResults.contains(_))
+
+    excplicitResults ::: searched
+  }
+
   /**
    * Set the password for an existing user by uid.
    *

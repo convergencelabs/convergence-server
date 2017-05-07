@@ -6,6 +6,7 @@ import scala.util.Try
 
 import com.convergencelabs.server.datastore.UserStoreActor.CreateUser
 import com.convergencelabs.server.datastore.UserStoreActor.DeleteDomainUser
+import com.convergencelabs.server.datastore.UserStoreActor.FindUser
 import com.convergencelabs.server.datastore.UserStoreActor.GetUserByUsername
 import com.convergencelabs.server.datastore.UserStoreActor.GetUsers
 import com.convergencelabs.server.datastore.UserStoreActor.SetPassword
@@ -14,46 +15,12 @@ import com.convergencelabs.server.domain.AuthorizationActor.ConvergenceAuthorize
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.DomainUser
 import com.convergencelabs.server.domain.RestDomainManagerActor.DomainMessage
-import com.convergencelabs.server.frontend.rest.DomainUserService.CreateUserRequest
-import com.convergencelabs.server.frontend.rest.DomainUserService.CreateUserResponse
-import com.convergencelabs.server.frontend.rest.DomainUserService.GetUserRestResponse
-import com.convergencelabs.server.frontend.rest.DomainUserService.SetPasswordRequest
-import com.convergencelabs.server.frontend.rest.DomainUserService.UpdateUserRequest
 
-import DomainUserService.GetUsersRestResponse
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.server.Directive.addByNameNullaryApply
-import akka.http.scaladsl.server.Directive.addDirectiveApply
-import akka.http.scaladsl.server.Directives.Segment
-import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
-import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
-import akka.http.scaladsl.server.Directives._string2NR
-import akka.http.scaladsl.server.Directives.as
-import akka.http.scaladsl.server.Directives.authorizeAsync
-import akka.http.scaladsl.server.Directives.complete
-import akka.http.scaladsl.server.Directives.delete
-import akka.http.scaladsl.server.Directives.entity
-import akka.http.scaladsl.server.Directives.get
-import akka.http.scaladsl.server.Directives.parameters
-import akka.http.scaladsl.server.Directives.pathEnd
-import akka.http.scaladsl.server.Directives.pathPrefix
-import akka.http.scaladsl.server.Directives.post
-import akka.http.scaladsl.server.Directives.put
 import akka.http.scaladsl.server.Route
-import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.server.domain.model.query.Ast.OrderBy
-import com.convergencelabs.server.datastore.domain.DomainUserField
-import com.convergencelabs.server.datastore.SortOrder
-
-case class DomainUserData(
-  username: String,
-  firstName: Option[String],
-  lastName: Option[String],
-  displayName: Option[String],
-  email: Option[String])
 
 object DomainUserService {
   case class CreateUserRequest(username: String, firstName: Option[String], lastName: Option[String], displayName: Option[String], email: Option[String], password: Option[String])
@@ -66,7 +33,14 @@ object DomainUserService {
     displayName: Option[String],
     email: Option[String])
   case class SetPasswordRequest(password: String)
+  case class UserLookupRequest(filter: String, exclude: Option[List[String]], offset: Option[Int], limit: Option[Int])
 
+  case class DomainUserData(
+    username: String,
+    firstName: Option[String],
+    lastName: Option[String],
+    displayName: Option[String],
+    email: Option[String])
 }
 
 class DomainUserService(
@@ -78,10 +52,12 @@ class DomainUserService(
 
   implicit val ec = executionContext
   implicit val t = defaultTimeout
-//    orderBy: Option[DomainUserField.Field],
-//    sortOrder: Option[SortOrder.Value],
-//    limit: Option[Int],
-//    offset: Option[Int]
+  
+  import DomainUserService._
+  import akka.http.scaladsl.server.Directive._
+  import akka.http.scaladsl.server.Directives._
+  import akka.pattern.ask
+
   def route(convergenceUsername: String, domain: DomainFqn): Route = {
     pathPrefix("users") {
       pathEnd {
@@ -127,11 +103,34 @@ class DomainUserService(
           }
         }
       }
-    }
+    } ~ pathPrefix("user-lookup") {
+        pathEnd {
+          post {
+            entity(as[UserLookupRequest]) { request =>
+              authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
+                complete(findUser(domain, request))
+              }
+            }
+          } ~ post {
+            entity(as[CreateUserRequest]) { request =>
+              authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
+                complete(createUserRequest(request, domain))
+              }
+            }
+          }
+        }
+      }
   }
 
   def getAllUsersRequest(domain: DomainFqn, filter: Option[String], limit: Option[Int], offset: Option[Int]): Future[RestResponse] = {
     (domainRestActor ? DomainMessage(domain, GetUsers(filter, limit, offset))).mapTo[List[DomainUser]] map
+      (users => (StatusCodes.OK, GetUsersRestResponse(users.map(toUserData(_)))))
+  }
+
+  def findUser(domain: DomainFqn, request: UserLookupRequest): Future[RestResponse] = {
+    val UserLookupRequest(filter, excludes, offset, limit) = request
+    val findUser = FindUser(filter, excludes, offset, limit)
+    (domainRestActor ? DomainMessage(domain, findUser)).mapTo[List[DomainUser]] map
       (users => (StatusCodes.OK, GetUsersRestResponse(users.map(toUserData(_)))))
   }
 
