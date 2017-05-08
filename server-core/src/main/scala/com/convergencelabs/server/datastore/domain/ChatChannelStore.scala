@@ -310,25 +310,39 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
       }
   }
 
+  def getDirectChatChannelInfoByUsers(users: List[String]): Try[Option[ChatChannelInfo]] = tryWithDb { db =>
+    val query =
+      """
+       |SELECT 
+       |  id 
+       |FROM ChatChannel 
+       |WHERE 
+       |  members CONTAINSALL (user.username IN :usernames) AND
+       |  members.size() = :size AND 
+       |  type='direct'""".stripMargin
+
+    val params = Map("usernames" -> users.asJava, "size" -> users.size)
+    QueryUtil.lookupOptionalDocument(query, params, db).flatMap { doc =>
+      val id: String = doc.field("id")
+      Some(this.getChatChannelInfo(id).get)
+    }
+  }
+
   def updateChatChannel(channelId: String, name: Option[String], topic: Option[String]): Try[Unit] = tryWithDb { db =>
-    for {
-      channelRid <- getChatChannelRid(channelId)
-    } yield {
+    getChatChannelRid(channelId).map { channelRid =>
       val doc = channelRid.getRecord[ODocument]
       name.foreach(doc.field(Fields.Name, _))
       topic.foreach(doc.field(Fields.Topic, _))
       doc.save()
       ()
-    }
+    }.get
   }
 
   def removeChatChannel(channelId: String): Try[Unit] = tryWithDb { db =>
-    for {
-      channelRid <- getChatChannelRid(channelId)
-    } yield {
+    getChatChannelRid(channelId).map { channelRid =>
       channelRid.getRecord[ODocument].delete()
       ()
-    }
+    }.get
   }
 
   // TODO: All of the events are very similar, need to abstract some of each of these methods
@@ -602,7 +616,7 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
       case true => "ASC"
       case false => "DESC"
     }
-    
+
     val baseQuery = s"SELECT FROM ChatChannelEvent WHERE channel.id = :channelId ${eventTypesClause} ${eventNoClaue} ORDER BY eventNo ${orderBy}"
     val query = QueryUtil.buildPagedQuery(baseQuery, Some(limit.getOrElse(50)), Some(0))
 

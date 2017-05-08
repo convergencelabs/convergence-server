@@ -22,6 +22,9 @@ import com.convergencelabs.server.domain.chat.ChatChannelMessages.ChannelNotFoun
 import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.ChannelAlreadyExistsException
+import scala.util.Try
+import scala.util.Success
+import scala.util.Failure
 
 object ChatChannelLookupActor {
 
@@ -71,12 +74,9 @@ class ChatChannelLookupActor private[domain] (domainFqn: DomainFqn) extends Acto
           case _ => false
         }
 
-        (for {
-          id <- this.chatChannelStore.createChatChannel(channelId, ct, isPrivate, name.getOrElse(""), topic.getOrElse(""), Some(members))
-          _ <- this.chatChannelStore.addChatCreatedEvent(ChatCreatedEvent(0, id, createdBy, Instant.now(), name.getOrElse(""), topic.getOrElse(""), members))
-        } yield {
+        createChannel(channelId, ct, isPrivate, name, topic, members, createdBy) map { id =>
           sender ! CreateChannelResponse(id)
-        }) recover {
+        } recover {
           case e: DuplicateValueException =>
             // FIXME how to deal with this? The channel id should only conflict if it was
             // defined by the user.
@@ -119,12 +119,57 @@ class ChatChannelLookupActor private[domain] (domainFqn: DomainFqn) extends Acto
 
   def onGetDirect(message: GetDirectChannelsRequest): Unit = {
     val GetDirectChannelsRequest(username, usernameLists) = message;
-    ???
+    // TODO support multiple
+    val usernames = usernameLists(0)
+    chatChannelStore.getDirectChatChannelInfoByUsers(usernames) flatMap {
+      _ match {
+        case Some(c) =>
+          // The channel exists, just return it.
+          Success(c)
+        case None =>
+          // Does not exists, so create it.
+          createChannel(None, ChannelType.Direct, true, None, None, usernames.toSet, "") flatMap { channelId =>
+            // Create was successful, now let's just get the channel.
+            chatChannelStore.getChatChannelInfo(channelId)
+          } recoverWith {
+            case DuplicateValueException(ChatChannelStore.Fields.Members, _, _) =>
+              // The channel already exists based on the members, this must have been a race condition.
+              // So just try to get it again
+              chatChannelStore.getDirectChatChannelInfoByUsers(usernames) flatMap {
+                _ match {
+                  case Some(c) =>
+                    // Yup it's there.
+                    Success(c)
+                  case None =>
+                    // We are now in a bizaro world where we are told the channel exists, but can 
+                    // not look it up.
+                    Failure(new IllegalStateException("Can not create direct channel, due to an unexpected error"))
+                }
+              }
+          }
+      }
+    } map { channel =>
+      sender ! GetDirectChannelsResponse(List(channel))
+    }
   }
 
   def onGetJoinedChannels(message: GetJoinedChannelsRequest): Unit = {
     val GetJoinedChannelsRequest(username) = message
     ???
+  }
+
+  private[this] def createChannel(
+    channelId: Option[String],
+    ct: ChannelType.Value,
+    isPrivate: Boolean,
+    name: Option[String],
+    topic: Option[String],
+    members: Set[String],
+    createdBy: String): Try[String] = {
+    for {
+      id <- this.chatChannelStore.createChatChannel(channelId, ct, isPrivate, name.getOrElse(""), topic.getOrElse(""), Some(members))
+      _ <- this.chatChannelStore.addChatCreatedEvent(ChatCreatedEvent(0, id, createdBy, Instant.now(), name.getOrElse(""), topic.getOrElse(""), members))
+    } yield (id)
   }
 
   override def preStart(): Unit = {
