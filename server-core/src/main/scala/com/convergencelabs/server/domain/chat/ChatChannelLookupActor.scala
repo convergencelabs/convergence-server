@@ -155,7 +155,12 @@ class ChatChannelLookupActor private[domain] (domainFqn: DomainFqn) extends Acto
 
   def onGetJoinedChannels(message: GetJoinedChannelsRequest): Unit = {
     val GetJoinedChannelsRequest(username) = message
-    ???
+    this.chatChannelStore.getJoinedChannels(username) map { channels =>
+      sender ! GetJoinedChannelsResponse(channels)
+    } recover {
+      case cause: Exception =>
+      sender ! Status.Failure(cause)
+    }
   }
 
   private[this] def createChannel(

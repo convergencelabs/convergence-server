@@ -78,7 +78,11 @@ object QueryUtil extends Logging {
   }
 
   def enforceSingleResult[T](list: JavaList[T]): Try[T] = {
-    list.asScala.toList match {
+    enforceSingleResult(list.asScala.toList)
+  }
+  
+  def enforceSingleResult[T](list: List[T]): Try[T] = {
+    list match {
       case first :: Nil =>
         Success(first)
       case first :: rest =>

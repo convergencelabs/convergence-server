@@ -249,18 +249,24 @@ object ChatChannelStore {
 class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
 
   def getChatChannelInfo(channelId: String): Try[ChatChannelInfo] = tryWithDb { db =>
+    getChatChannelInfo(List(channelId)).flatMap { results =>
+      QueryUtil.enforceSingleResult(results)
+    }.get
+  }
+
+  def getChatChannelInfo(channelId: List[String]): Try[List[ChatChannelInfo]] = tryWithDb { db =>
     val queryString =
       """SELECT 
         |  channel.id as id, channel.type as type, channel.created as created, 
         |  channel.private as private, channel.name as name, channel.topic as topic,
         |  channel.members as members, eventNo, timestamp
         |  FROM ChatChannelEvent 
-        |  WHERE channel.id = :channelId
+        |  WHERE channel.id IN :channelIds
         |  ORDER BY eventNo Desc
         |  LIMIT 1""".stripMargin
 
-    val params = Map("channelId" -> channelId)
-    val result = QueryUtil.lookupMandatoryDocument(queryString, params, db)
+    val params = Map("channelIds" -> channelId.asJava)
+    val result = QueryUtil.query(queryString, params, db)
     result.map {
       doc =>
         val id: String = doc.field("id")
@@ -275,7 +281,7 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
         val lastEventTime: Date = doc.field("timestamp")
         ChatChannelInfo(id, channelType, created.toInstant(), isPrivate, name, topic,
           usernames, lastEventNo, lastEventTime.toInstant())
-    }.get
+    }
   }
 
   def getChatChannel(channelId: String): Try[ChatChannel] = tryWithDb { db =>
@@ -311,6 +317,8 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
   }
 
   def getDirectChatChannelInfoByUsers(users: List[String]): Try[Option[ChatChannelInfo]] = tryWithDb { db =>
+    // TODO is there a better way to do this using ChatChannelMember class, like maybe with 
+    // a group by / count WHERE'd on the Channel Link?
     val query =
       """
        |SELECT 
@@ -321,11 +329,27 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
        |  members.size() = :size AND 
        |  type='direct'""".stripMargin
 
+    // TODO is there a way to do this in one step not two?
     val params = Map("usernames" -> users.asJava, "size" -> users.size)
     QueryUtil.lookupOptionalDocument(query, params, db).flatMap { doc =>
       val id: String = doc.field("id")
       Some(this.getChatChannelInfo(id).get)
     }
+  }
+
+  def getJoinedChannels(username: String): Try[List[ChatChannelInfo]] = tryWithDb { db =>
+    val query =
+      """
+       |SELECT 
+       |  channel.id as channelId
+       |FROM ChatChannelMember
+       |WHERE 
+       |  user.username = :username AND 
+       |  type='group'""".stripMargin
+
+    val params = Map("username" -> username)
+    val ids:List[String] = QueryUtil.query(query, params, db) map { _.field("channelId").asInstanceOf[String] }
+    this.getChatChannelInfo(ids).get
   }
 
   def updateChatChannel(channelId: String, name: Option[String], topic: Option[String]): Try[Unit] = tryWithDb { db =>
