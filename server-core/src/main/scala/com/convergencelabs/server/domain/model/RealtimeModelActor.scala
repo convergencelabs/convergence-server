@@ -383,7 +383,7 @@ class RealtimeModelActor(
         val rootObject = modelData.getOrElse(ObjectValue("0:0", Map()))
         val collectionId = config.collectionId
 
-        this.ephemeral = true
+        this.ephemeral = ephemeral.getOrElse(false)
 
         log.debug(s"Creating model in database: ${this.modelId}")
         modelCreator.createModel(
