@@ -28,4 +28,6 @@ class DomainPersistenceProvider(val dbProvider: DatabaseProvider) extends Abstra
   val modelPermissionsStore = new ModelPermissionsStore(dbProvider)
   
   val chatChannelStore = new ChatChannelStore(dbProvider)
+  
+  val permissionsStore = new PermissionsStore(dbProvider)
 }
