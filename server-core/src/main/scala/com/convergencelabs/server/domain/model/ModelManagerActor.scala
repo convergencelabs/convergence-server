@@ -209,7 +209,7 @@ class ModelManagerActor(
               }
               _ <- persistenceProvider.modelPermissionsStore.updateAllModelUserPermissions(modelId, users)
             } yield {
-              this.openRealtimeModels.get(modelId).foreach { _ forward request }
+              this.openRealtimeModels.get(modelId).foreach { _ ! PermissionsUpdated }
               ()
             })
           } else {
