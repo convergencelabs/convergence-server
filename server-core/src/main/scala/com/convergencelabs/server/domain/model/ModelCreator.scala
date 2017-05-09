@@ -74,7 +74,7 @@ class ModelCreator {
               if (permissions.create) {
                 Success(())
               } else {
-                val message = s"Can not auto create model because the does not have permissions to create models in the specified collection: ${collectionId}";
+                val message = s"Can not auto create model because the user does not have permissions to create models in the specified collection: ${collectionId}";
                 Failure(UnauthorizedException(message))
               }
             }
