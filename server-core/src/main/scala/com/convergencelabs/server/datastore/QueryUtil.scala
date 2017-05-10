@@ -18,6 +18,7 @@ import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 
 import grizzled.slf4j.Logging
 import com.orientechnologies.orient.core.sql.OCommandSQL
+import com.orientechnologies.orient.core.command.script.OCommandScript
 
 object QueryUtil extends Logging {
   private[this] val MultipleElementsMessage = "Only exepected one element in the result list, but more than one returned."
@@ -116,6 +117,17 @@ object QueryUtil extends Logging {
       case _ =>
         Failure(new IllegalStateException(MultipleElementsMessage))
     }
+  }
+  
+  def command(query: String, params: Map[String, Any], db: ODatabaseDocumentTx): Try[Int] = Try {
+    val q = new OCommandSQL(query)
+    val count: Int = db.command(q).execute(params.asJava)
+    count
+  }
+  
+  def commandScript(command: String, params: Map[String, Any], db: ODatabaseDocumentTx): Try[Unit] = Try {
+    val q = new OCommandScript("sql", command)
+    db.command(q).execute(params.asJava)
   }
 
   def mapSingletonList[T, L](list: JavaList[L])(m: L => T): Option[T] = {
