@@ -11,6 +11,7 @@ import com.convergencelabs.server.domain.DomainUser
 import com.convergencelabs.server.domain.DomainUserType
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.datastore.domain.ChatChannelStore.ChannelType
+import java.time.Instant
 
 class PermissionsStoreSpec
     extends PersistenceStoreSpec[DomainPersistenceProvider](DeltaCategory.Domain)
@@ -190,8 +191,10 @@ class PermissionsStoreSpec
       provider.userGroupStore.createUserGroup(userGroup1).get
       provider.userGroupStore.createUserGroup(userGroup2).get
 
-      provider.chatChannelStore.createChatChannel(Some(channel1), ChannelType.Group, false, "name", "topic", Some(Set(user1, user2, user3))).get
-      provider.chatChannelStore.createChatChannel(Some(channel2), ChannelType.Group, false, "name", "topic", Some(Set(user1, user2, user3))).get
+      provider.chatChannelStore.createChatChannel(
+          Some(channel1), ChannelType.Group, Instant.now(), false, "name", "topic", Some(Set(user1, user2, user3)), user1).get
+      provider.chatChannelStore.createChatChannel(
+          Some(channel2), ChannelType.Group, Instant.now(), false, "name", "topic", Some(Set(user1, user2, user3)), user1).get
 
       testCode(provider)
     }

@@ -151,6 +151,18 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
     ()
   }
 
+  def removeDeltaHistoryForDomain(domainFqn: DomainFqn): Try[Unit] = tryWithDb { db =>
+    // TODO see if there is a way to do this without expand?
+    val query =
+      """
+        |BEGIN
+        |let domain = SELECT expand(rid) FROM INDEX:Domain.namespace_id WHERE KEY = [:namespace, :id]
+        |DELETE FROM DomainDeltaHistory WHERE domain = first($domain)
+        |COMMIT""".stripMargin
+    val params = Map("namespace" -> domainFqn.namespace, "id" -> domainFqn.domainId)
+    QueryUtil.commandScript(query, params, db)
+  }
+
   def getDomainDeltaHistory(domainFqn: DomainFqn, deltaNo: Int): Try[Option[DomainDeltaHistory]] = tryWithDb { db =>
     val DomainFqn(namespace, domainId) = domainFqn
 
@@ -160,8 +172,9 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
     if (deltaIndex.contains(deltaNo)) {
       val deltaORID = deltaIndex.get(deltaNo).asInstanceOf[OIdentifiable].getIdentity
       DomainStore.getDomainRid(domainFqn, db).map { domainORID =>
-        if (deltaHistoryIndex.contains(deltaORID)) {
-          val doc: ODocument = deltaHistoryIndex.get(deltaORID).asInstanceOf[OIdentifiable].getRecord.asInstanceOf[ODocument]
+        val deltaHistoryKey = List(domainORID, deltaORID).asJava
+        if (deltaHistoryIndex.contains(deltaHistoryKey)) {
+          val doc: ODocument = deltaHistoryIndex.get(deltaHistoryKey).asInstanceOf[OIdentifiable].getRecord.asInstanceOf[ODocument]
           val deltaDoc: ODocument = doc.field(Fields.Delta)
 
           val deltaNo: Int = deltaDoc.field(Fields.DeltaNo)

@@ -2,6 +2,7 @@ package com.convergencelabs.server.datastore.domain
 
 import org.scalatest.Matchers
 import org.scalatest.WordSpecLike
+import org.scalatest.OptionValues._
 
 import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.datastore.domain.ChatChannelStore.ChannelType
@@ -30,31 +31,35 @@ class ChatChannelStoreSpec
   "A ChatChannelStore" when {
     "creating a chat channel" must {
       "return the id if provided" in withTestData { provider =>
-        val id = provider.chatChannelStore.createChatChannel(Some(channel1Id), ChannelType.Direct, false, "", "", Some(Set(user1, user2))).get
+        val id = provider.chatChannelStore.createChatChannel(
+          Some(channel1Id), ChannelType.Direct, Instant.now(), false, "", "", Some(Set(user1, user2)), user1).get
         id shouldEqual channel1Id
       }
 
       "return a generated id if none is provided" in withTestData { provider =>
-        val id = provider.chatChannelStore.createChatChannel(None, ChannelType.Direct, false, "", "", None).get
+        val id = provider.chatChannelStore.createChatChannel(
+          None, ChannelType.Direct, Instant.now(), false, "", "", None, user1).get
         id shouldEqual firstId
       }
 
       "throw exception if id is duplicate" in withTestData { provider =>
-        provider.chatChannelStore.createChatChannel(Some(channel1Id), ChannelType.Direct, false, "", "", None).get
+        provider.chatChannelStore.createChatChannel(
+          Some(channel1Id), ChannelType.Direct, Instant.now(), false, "", "", None, user1).get
         an[DuplicateValueException] should be thrownBy provider.chatChannelStore.createChatChannel(
-          Some(channel1Id), ChannelType.Direct, false, "", "", None).get
+          Some(channel1Id), ChannelType.Direct, Instant.now(), false, "", "", None, user1).get
       }
 
       "not create channel if members are invalid" in withTestData { provider =>
         provider.chatChannelStore.createChatChannel(
-          Some(channel1Id), ChannelType.Direct, false, "", "", Some(Set(user1, "does_not_exist"))).get
+          Some(channel1Id), ChannelType.Direct, Instant.now(), false, "", "", Some(Set(user1, "does_not_exist")), user1).get
         an[EntityNotFoundException] should be thrownBy provider.chatChannelStore.getChatChannel("does_not_exist").get
       }
     }
 
     "getting a chat channel" must {
       "return chat channel for valid id" in withTestData { provider =>
-        val id = provider.chatChannelStore.createChatChannel(Some(channel1Id), ChannelType.Direct, false, "testName", "testTopic", Some(Set(user1, user2))).get
+        val id = provider.chatChannelStore.createChatChannel(
+          Some(channel1Id), ChannelType.Direct, Instant.now(), false, "testName", "testTopic", Some(Set(user1, user2)), user1).get
         val chatChannel = provider.chatChannelStore.getChatChannel(id).get
         chatChannel.id shouldEqual id
         chatChannel.name shouldEqual "testName"
@@ -74,8 +79,8 @@ class ChatChannelStoreSpec
         val members = Set(user1, user2)
         val timestamp = Instant.now()
 
-        val id = provider.chatChannelStore.createChatChannel(Some(channel1Id), ChannelType.Direct, false, name, topic, Some(members)).get
-        provider.chatChannelStore.addChatCreatedEvent(ChatCreatedEvent(0, id, user1, timestamp, name, topic, members)).get
+        val id = provider.chatChannelStore.createChatChannel(
+          Some(channel1Id), ChannelType.Direct, Instant.now(), false, name, topic, Some(members), user1).get
 
         val chatChannelInfo = provider.chatChannelStore.getChatChannelInfo(id).get
         chatChannelInfo.id shouldEqual id
@@ -94,16 +99,42 @@ class ChatChannelStoreSpec
 
     "getting chat channel members" must {
       "return the correct users after a create" in withTestData { provider =>
-        val id = provider.chatChannelStore.createChatChannel(Some(channel1Id), ChannelType.Direct, false, "testName", "testTopic", Some(Set(user1, user2))).get
+        val id = provider.chatChannelStore.createChatChannel(
+          Some(channel1Id), ChannelType.Direct, Instant.now(), false, "testName", "testTopic", Some(Set(user1, user2)), user1).get
         val members = provider.chatChannelStore.getChatChannelMembers(channel1Id).get
         members shouldEqual Set(user1, user2)
       }
     }
 
+    "getting a direct chat channel by its members" must {
+      "return the correct chat channel" in withTestData { provider =>
+        val members = Set(user1, user2)
+        val id = provider.chatChannelStore.createChatChannel(
+          Some(channel1Id), ChannelType.Direct, Instant.now(), false, "testName", "testTopic", Some(members), user1).get
+        val info = provider.chatChannelStore.getDirectChatChannelInfoByUsers(members).get.value
+        info.id shouldBe id
+      }
+    }
+
+    "getting joined channels" must {
+      "return the correct chat channels" in withTestData { provider =>
+        val id1 = provider.chatChannelStore.createChatChannel(
+          None, ChannelType.Group, Instant.now(), false, "test1", "testTopic", Some(Set(user1, user2)), user1).get
+        val id2 = provider.chatChannelStore.createChatChannel(
+          None, ChannelType.Group, Instant.now(), false, "test2", "testTopic", Some(Set(user1, user3)), user1).get
+        val id3 = provider.chatChannelStore.createChatChannel(
+          None, ChannelType.Group, Instant.now(), false, "test3", "testTopic", Some(Set(user2, user3)), user1).get
+
+        val joined = provider.chatChannelStore.getJoinedChannels(user1).get
+        
+        joined.map(i => i.id).toSet shouldBe Set(id1, id2)
+      }
+    }
+
     "creating chat channel events" must {
       "successfully create all chat events" in withTestData { provider =>
-        val id = provider.chatChannelStore.createChatChannel(Some(channel1Id), ChannelType.Direct, false, "testName", "testTopic", Some(Set(user1, user2))).get
-        provider.chatChannelStore.addChatCreatedEvent(ChatCreatedEvent(0, id, user1, Instant.now(), "testName", "testTopic", Set(user1, user2))).get
+        val id = provider.chatChannelStore.createChatChannel(
+          Some(channel1Id), ChannelType.Direct, Instant.now(), false, "testName", "testTopic", Some(Set(user1, user2)), user1).get
         provider.chatChannelStore.addChatMessageEvent(ChatMessageEvent(1, id, user2, Instant.now(), "some message")).get
         provider.chatChannelStore.addChatNameChangedEvent(ChatNameChangedEvent(2, id, user2, Instant.now(), "new name")).get
         provider.chatChannelStore.addChatTopicChangedEvent(ChatTopicChangedEvent(3, id, user2, Instant.now(), "new topic")).get

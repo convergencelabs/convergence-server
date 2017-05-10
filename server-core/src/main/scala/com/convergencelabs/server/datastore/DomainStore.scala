@@ -64,6 +64,7 @@ object DomainStore {
     getDomainRid(domainFqn.namespace, domainFqn.domainId, db)
   }
 
+  // FIXME use index. This is silly.
   def getDomainRid(namespace: String, domainId: String, db: ODatabaseDocumentTx): Try[ORID] = {
     val query = "SELECT @rid as rid FROM Domain WHERE id = :id AND namespace = :namespace"
     val params = Map("id" -> domainId, "namespace" -> namespace)

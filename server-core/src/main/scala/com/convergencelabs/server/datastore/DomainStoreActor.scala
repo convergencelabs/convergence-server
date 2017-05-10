@@ -38,6 +38,7 @@ class DomainStoreActor private[datastore] (
 
   private[this] val domainStore: DomainStore = new DomainStore(dbProvider)
   private[this] val domainDatabaseStore: DomainDatabaseStore = new DomainDatabaseStore(dbProvider)
+  private[this] val deltaHistoryStore: DeltaHistoryStore = new DeltaHistoryStore(dbProvider)
   private[this] implicit val ec = context.system.dispatcher
 
   def receive: Receive = {
@@ -115,7 +116,7 @@ class DomainStoreActor private[datastore] (
     val domainFqn = DomainFqn(namespace, domainId)
     deleteDomain(domainFqn)
   }
-  
+
   def deleteDomain(domainFqn: DomainFqn): Try[Unit] = {
     (for {
       domain <- domainStore.getDomainByFqn(domainFqn)
@@ -130,21 +131,21 @@ class DomainStoreActor private[datastore] (
             case Success(_) =>
               log.debug(s"Domain database deleted: ${domainDatabase.database}")
 
+              log.debug(s"Removing domain delta history: ${domainFqn}")
+              deltaHistoryStore.removeDeltaHistoryForDomain(domainFqn)
+                .map(_ => log.debug(s"Domain database delta history removed: ${domainFqn}"))
+                .failed.map(cause => log.error(cause, s"Error deleting domain history history: ${domainFqn}"))
+
               log.debug(s"Removing domain database record: ${domainFqn}")
-              domainDatabaseStore.removeDomainDatabase(domainFqn) match {
-                case Success(_) =>
-                  log.debug(s"Domain database record removed: ${domainFqn}")
-                case Failure(cause) =>
-                  log.error(cause, s"Error deleting domain database record: ${domainFqn}")
-              }
-              
+              domainDatabaseStore.removeDomainDatabase(domainFqn)
+                .map(_ => log.debug(s"Domain database record removed: ${domainFqn}"))
+                .failed.map(cause => log.error(cause, s"Error deleting domain database record: ${domainFqn}"))
+
               log.debug(s"Removing domain record: ${domainFqn}")
-              domainStore.removeDomain(domainFqn) match {
-                case Success(_) =>
-                  log.debug(s"Domain record removed: ${domainFqn}")
-                case Failure(cause) =>
-                  log.error(cause, s"Error deleting domain record: ${domainFqn}")
-              }
+              domainStore.removeDomain(domainFqn)
+                .map(_ => log.debug(s"Domain record removed: ${domainFqn}"))
+                .failed.map(cause => log.error(cause, s"Error deleting domain record: ${domainFqn}"))
+
             case Failure(f) =>
               log.error(f, s"Could not desstroy domain database: ${domainFqn}")
           }

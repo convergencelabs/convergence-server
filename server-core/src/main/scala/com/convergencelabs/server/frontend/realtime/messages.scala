@@ -269,7 +269,7 @@ case class GetJoinedChatChannelsResponseMessage(c: List[ChatChannelInfoData]) ex
 case class GetChatChannelsRequestMessage(i: List[String]) extends IncomingChatRequestMessage
 case class GetChatChannelsResponseMessage(c: List[ChatChannelInfoData]) extends OutgoingProtocolResponseMessage
 
-case class GetDirectChannelsRequestMessage(u: List[List[String]]) extends IncomingChatRequestMessage
+case class GetDirectChannelsRequestMessage(u: List[Set[String]]) extends IncomingChatRequestMessage
 case class GetDirectChannelsResponseMessage(c: List[ChatChannelInfoData]) extends OutgoingProtocolResponseMessage
 
 case class ChatChannelHistoryRequestMessage(i: String, l: Option[Int], s: Option[Int], f: Option[Boolean], e: Option[List[Int]]) extends IncomingChatRequestMessage
