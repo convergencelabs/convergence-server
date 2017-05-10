@@ -42,7 +42,7 @@ object ChatChannelLookupActor {
   case class GetJoinedChannelsRequest(username: String)
   case class GetJoinedChannelsResponse(channels: List[ChatChannelInfo])
 
-  case class GetDirectChannelsRequest(username: String, userLists: List[List[String]])
+  case class GetDirectChannelsRequest(username: String, userLists: List[Set[String]])
   case class GetDirectChannelsResponse(channels: List[ChatChannelInfo])
 }
 
@@ -159,7 +159,7 @@ class ChatChannelLookupActor private[domain] (domainFqn: DomainFqn) extends Acto
       sender ! GetJoinedChannelsResponse(channels)
     } recover {
       case cause: Exception =>
-      sender ! Status.Failure(cause)
+        sender ! Status.Failure(cause)
     }
   }
 
@@ -171,10 +171,9 @@ class ChatChannelLookupActor private[domain] (domainFqn: DomainFqn) extends Acto
     topic: Option[String],
     members: Set[String],
     createdBy: String): Try[String] = {
-    for {
-      id <- this.chatChannelStore.createChatChannel(channelId, ct, isPrivate, name.getOrElse(""), topic.getOrElse(""), Some(members))
-      _ <- this.chatChannelStore.addChatCreatedEvent(ChatCreatedEvent(0, id, createdBy, Instant.now(), name.getOrElse(""), topic.getOrElse(""), members))
-    } yield (id)
+
+    this.chatChannelStore.createChatChannel(
+      channelId, ct, Instant.now(), isPrivate, name.getOrElse(""), topic.getOrElse(""), Some(members), createdBy)
   }
 
   override def preStart(): Unit = {

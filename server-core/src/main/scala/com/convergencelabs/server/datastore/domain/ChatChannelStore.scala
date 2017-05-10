@@ -256,14 +256,17 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
 
   def getChatChannelInfo(channelId: List[String]): Try[List[ChatChannelInfo]] = tryWithDb { db =>
     val queryString =
-      """SELECT 
-        |  channel.id as id, channel.type as type, channel.created as created, 
+      """
+        |SELECT 
+        |  channel.id as id, channel.type as type, channel.created as created,
         |  channel.private as private, channel.name as name, channel.topic as topic,
         |  channel.members as members, eventNo, timestamp
-        |  FROM ChatChannelEvent 
-        |  WHERE channel.id IN :channelIds
-        |  ORDER BY eventNo Desc
-        |  LIMIT 1""".stripMargin
+        |FROM
+        |  ChatChannelEvent 
+        |WHERE
+        |  channel.id IN :channelIds
+        |ORDER BY eventNo Desc
+        |LIMIT 1""".stripMargin
 
     val params = Map("channelIds" -> channelId.asJava)
     val result = QueryUtil.query(queryString, params, db)
@@ -290,20 +293,29 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
     }.get
   }
 
-  // FIXME: Pass in create time
-  def createChatChannel(id: Option[String], channelType: ChannelType.Value,
-    isPrivate: Boolean, name: String, topic: String, members: Option[Set[String]]): Try[String] = tryWithDb { db =>
+  def createChatChannel(
+    id: Option[String],
+    channelType: ChannelType.Value,
+    creationTime: Instant,
+    isPrivate: Boolean,
+    name: String,
+    topic: String,
+    members: Option[Set[String]],
+    createdBy: String): Try[String] = tryWithDb { db =>
     // FIXME: return failure if addAllChatChannelMembers fails
     db.begin()
     val channelId = id.getOrElse {
       "#" + db.getMetadata.getSequenceLibrary.getSequence(Sequences.ChatChannelId).next()
     }
-    val doc = chatChannelToDoc(ChatChannel(channelId, channelTypeString(channelType), Instant.now(), isPrivate, name, topic))
+    val doc = chatChannelToDoc(ChatChannel(channelId, channelTypeString(channelType), creationTime, isPrivate, name, topic))
     db.save(doc)
 
     members.foreach { username =>
       addAllChatChannelMembers(channelId, username, None).get
     }
+
+    this.addChatCreatedEvent(ChatCreatedEvent(0, channelId, createdBy, creationTime, name, topic, members.getOrElse(Set()))).get
+    
     db.commit()
     channelId
   } recoverWith {
@@ -316,7 +328,7 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
       }
   }
 
-  def getDirectChatChannelInfoByUsers(users: List[String]): Try[Option[ChatChannelInfo]] = tryWithDb { db =>
+  def getDirectChatChannelInfoByUsers(users: Set[String]): Try[Option[ChatChannelInfo]] = tryWithDb { db =>
     // TODO is there a better way to do this using ChatChannelMember class, like maybe with 
     // a group by / count WHERE'd on the Channel Link?
     val query =
@@ -348,7 +360,7 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
        |  type='group'""".stripMargin
 
     val params = Map("username" -> username)
-    val ids:List[String] = QueryUtil.query(query, params, db) map { _.field("channelId").asInstanceOf[String] }
+    val ids: List[String] = QueryUtil.query(query, params, db) map { _.field("channelId").asInstanceOf[String] }
     this.getChatChannelInfo(ids).get
   }
 
