@@ -312,10 +312,8 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
     members.foreach { username =>
       addAllChatChannelMembers(channelId, username, None).get
     }
-
-    this.addChatCreatedEvent(ChatCreatedEvent(0, channelId, createdBy, creationTime, name, topic, members.getOrElse(Set()))).get
-    
     db.commit()
+    this.addChatCreatedEvent(ChatCreatedEvent(0, channelId, createdBy, creationTime, name, topic, members.getOrElse(Set()))).get
     channelId
   } recoverWith {
     case e: ORecordDuplicatedException =>
