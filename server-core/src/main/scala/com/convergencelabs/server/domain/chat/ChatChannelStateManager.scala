@@ -37,6 +37,7 @@ object ChatChannelStateManager {
   }
 
   object ChatPermissions {
+    val CreateChannel = "create_chat_channel"
     val RemoveChannel = "remove_chat_channel"
     val JoinChannel = "join_chat_channel"
     val LeaveChannel = "leave_chat_channel"

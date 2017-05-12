@@ -77,6 +77,22 @@ object PermissionsStore {
 
 class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
 
+  def hasPermission(username: String, permission: String): Try[Boolean] = tryWithDb { db =>
+    val userRID = DomainUserStore.getUserRid(username, db).get
+    val queryString =
+      """SELECT count(*) as count
+        |  FROM Permission
+        |  WHERE not(forRecord is DEFINED) AND
+        |        permission = :permission AND
+        |    (not(assignedTo is DEFINED) OR
+        |     assignedTo = :user OR
+        |     (assignedTo.@class instanceof 'UserGroup' AND assignedTo.members contains :user))""".stripMargin
+    val params = Map("user" -> userRID, "permission" -> permission)
+    val result = QueryUtil.lookupMandatoryDocument(queryString, params, db).get
+    val count: Long = result.field("count")
+    count > 0
+  }
+  
   def hasPermission(username: String, forRecord: ORID, permission: String): Try[Boolean] = tryWithDb { db =>
     val userRID = DomainUserStore.getUserRid(username, db).get
     val queryString =
