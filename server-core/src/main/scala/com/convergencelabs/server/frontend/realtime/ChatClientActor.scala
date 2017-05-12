@@ -65,6 +65,9 @@ import akka.cluster.pubsub.DistributedPubSubMediator.Subscribe
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
 import akka.pattern.ask
 import akka.util.Timeout
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.AddChatPermissionsRequest
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.RemoveChatPermissionsRequest
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.SetChatPermissionsRequest
 
 object ChatClientActor {
   def props(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk: SessionKey): Props =
@@ -169,12 +172,18 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
         onPublishMessage(message, replyCallback)
       case message: ChatChannelsExistsRequestMessage =>
         onChannelsExist(message, replyCallback)
+      case message: AddChatPermissionsRequestMessage =>
+        onAddChatPermissions(message, replyCallback)
+      case message: RemoveChatPermissionsRequestMessage =>
+        onRemoveChatPermissions(message, replyCallback)
+      case message: SetChatPermissionsRequestMessage =>
+        onSetChatPermissions(message, replyCallback)
     }
   }
 
   def onCreateChannel(message: CreateChatChannelRequestMessage, cb: ReplyCallback): Unit = {
     val CreateChatChannelRequestMessage(channelId, channelType, name, topic, privateChannel, members) = message;
-    val request = CreateChannelRequest(channelId, channelType, name, topic, privateChannel, members.getOrElse(Set()), sk.uid)
+    val request = CreateChannelRequest(channelId, sk, channelType, name, topic, privateChannel, members.getOrElse(Set()))
     chatLookupActor.ask(request).mapTo[CreateChannelResponse] onComplete {
       case Success(CreateChannelResponse(channelId)) =>
         cb.reply(CreateChatChannelResponseMessage(channelId))
@@ -188,7 +197,7 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
 
   def onRemoveChannel(message: RemoveChatChannelRequestMessage, cb: ReplyCallback): Unit = {
     val RemoveChatChannelRequestMessage(channelId) = message;
-    val request = RemoveChannelRequest(channelId, sk.uid)
+    val request = RemoveChannelRequest(channelId, sk)
     handleSimpleChannelRequest(request, { () => RemoveChatChannelResponseMessage() }, cb)
   }
 
@@ -213,43 +222,61 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
 
   def onAddUserToChannel(message: AddUserToChatChannelRequestMessage, cb: ReplyCallback): Unit = {
     val AddUserToChatChannelRequestMessage(channelId, userToAdd) = message;
-    val request = AddUserToChannelRequest(channelId, userToAdd, sk.uid)
+    val request = AddUserToChannelRequest(channelId, sk, userToAdd)
     handleSimpleChannelRequest(request, { () => AddUserToChatChannelResponseMessage() }, cb)
   }
 
   def onRemoveUserFromChannel(message: RemoveUserFromChatChannelRequestMessage, cb: ReplyCallback): Unit = {
     val RemoveUserFromChatChannelRequestMessage(channelId, userToRemove) = message;
-    val request = RemoveUserFromChannelRequest(channelId, userToRemove, sk.uid)
+    val request = RemoveUserFromChannelRequest(channelId, sk, userToRemove)
     handleSimpleChannelRequest(request, { () => RemoveUserFromChatChannelResponseMessage() }, cb)
   }
 
   def onSetChatChannelName(message: SetChatChannelNameRequestMessage, cb: ReplyCallback): Unit = {
     val SetChatChannelNameRequestMessage(channelId, name) = message;
-    val request = SetChannelNameRequest(channelId, name, sk.uid)
+    val request = SetChannelNameRequest(channelId, sk, name)
     handleSimpleChannelRequest(request, { () => SetChatChannelNameResponseMessage() }, cb)
   }
 
   def onSetChatChannelTopic(message: SetChatChannelTopicRequestMessage, cb: ReplyCallback): Unit = {
     val SetChatChannelTopicRequestMessage(channelId, topic) = message;
-    val request = SetChannelTopicRequest(channelId, topic, sk.uid)
+    val request = SetChannelTopicRequest(channelId, sk, topic)
     handleSimpleChannelRequest(request, { () => SetChatChannelTopicResponseMessage() }, cb)
   }
 
   def onMarkEventsSeen(message: MarkChatChannelEventsSeenRequestMessage, cb: ReplyCallback): Unit = {
     val MarkChatChannelEventsSeenRequestMessage(channelId, eventNumber) = message;
-    val request = MarkChannelEventsSeenRequest(channelId, eventNumber, sk.uid)
+    val request = MarkChannelEventsSeenRequest(channelId, sk, eventNumber)
     handleSimpleChannelRequest(request, { () => MarkChatChannelEventsSeenResponseMessage() }, cb)
+  }
+  
+  def onAddChatPermissions(message: AddChatPermissionsRequestMessage, cb: ReplyCallback): Unit = {
+    val AddChatPermissionsRequestMessage(channelId, username, permissions) = message;
+    val request = AddChatPermissionsRequest(channelId, sk, username, permissions)
+    handleSimpleChannelRequest(request, { () => AddChatPermissionsReponseMessage() }, cb)
+  }
+  
+  def onRemoveChatPermissions(message: RemoveChatPermissionsRequestMessage, cb: ReplyCallback): Unit = {
+    val RemoveChatPermissionsRequestMessage(channelId, username, permissions) = message;
+    val request = RemoveChatPermissionsRequest(channelId, sk, username, permissions)
+    handleSimpleChannelRequest(request, { () => RemoveChatPermissionsReponseMessage() }, cb)
+  }
+  
+  def onSetChatPermissions(message: SetChatPermissionsRequestMessage, cb: ReplyCallback): Unit = {
+    val SetChatPermissionsRequestMessage(channelId, username, permissions) = message;
+    val request = SetChatPermissionsRequest(channelId, sk, username, permissions)
+    handleSimpleChannelRequest(request, { () => SetChatPermissionsReponseMessage() }, cb)
   }
 
   def onPublishMessage(message: PublishChatRequestMessage, cb: ReplyCallback): Unit = {
     val PublishChatRequestMessage(channelId, msg) = message;
-    val request = PublishChatMessageRequest(channelId, msg, sk)
+    val request = PublishChatMessageRequest(channelId, sk, msg)
     handleSimpleChannelRequest(request, { () => PublishChatResponseMessage() }, cb)
   }
 
   def onChannelsExist(message: ChatChannelsExistsRequestMessage, cb: ReplyCallback): Unit = {
     val ChatChannelsExistsRequestMessage(channelIds) = message;
-    val request = ChannelsExistsRequest(channelIds, sk.uid)
+    val request = ChannelsExistsRequest(sk, channelIds)
     chatLookupActor.ask(request).mapTo[ChannelsExistsResponse] onComplete {
       case Success(ChannelsExistsResponse(channels)) =>
         cb.reply(ChatChannelsExistsResponseMessage(channels))
@@ -260,7 +287,7 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
 
   def onGetChannels(message: GetChatChannelsRequestMessage, cb: ReplyCallback): Unit = {
     val GetChatChannelsRequestMessage(ids) = message;
-    val request = GetChannelsRequest(ids, sk.uid)
+    val request = GetChannelsRequest(sk, ids)
     chatLookupActor.ask(request).mapTo[GetChannelsResponse] onComplete {
       case Success(GetChannelsResponse(channels)) =>
         val info = channels.map(toChannelInfoData(_))
@@ -296,7 +323,7 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
   def onGetHistory(message: ChatChannelHistoryRequestMessage, cb: ReplyCallback): Unit = {
     val ChatChannelHistoryRequestMessage(channelId, limit, offset, forward, eventFilter) = message;
     val mappedEvents = eventFilter.map(_.map(toChannelEventCode(_)))
-    val request = GetChannelHistoryRequest(channelId, sk.uid, limit, offset, forward, mappedEvents)
+    val request = GetChannelHistoryRequest(channelId, sk, limit, offset, forward, mappedEvents)
     chatChannelActor.ask(request).mapTo[GetChannelHistoryResponse] onComplete {
       case Success(GetChannelHistoryResponse(events)) =>
         val eventData = events.map(toChannelEventDatat(_))
@@ -356,7 +383,7 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
   private[this] def toChannelInfoData(info: ChatChannelInfo): ChatChannelInfoData = {
     val ChatChannelInfo(id, channelType, created, isPrivate, name, topic, members, lastEventNo, lastEventTime) = info
     val membership = isPrivate match {
-      case true => "private"
+      case true  => "private"
       case false => "public"
     }
     ChatChannelInfoData(id, channelType, membership, name, topic, created.toEpochMilli, lastEventTime.toEpochMilli, lastEventNo, lastEventNo, members)

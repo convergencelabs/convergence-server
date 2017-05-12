@@ -10,9 +10,8 @@ import akka.actor.ActorRef
 
 object ChatChannelMessages {
 
-  case class CreateChannelRequest(channelId: Option[String], channelType: String,
-    channelMembership: String, name: Option[String], topic: Option[String],
-    members: Set[String], createdBy: String)
+  case class CreateChannelRequest(channelId: Option[String], sk: SessionKey, channelType: String,
+    channelMembership: String, name: Option[String], topic: Option[String], members: Set[String])
 
   case class CreateChannelResponse(channelId: String)
 
@@ -22,26 +21,26 @@ object ChatChannelMessages {
 
   // Incoming Messages
 
-  case class RemoveChannelRequest(channelId: String, username: String) extends ExistingChannelMessage
+  case class RemoveChannelRequest(channelId: String, sk: SessionKey) extends ExistingChannelMessage
 
   case class JoinChannelRequest(channelId: String, sk: SessionKey, client: ActorRef) extends ExistingChannelMessage
   case class JoinChannelResponse(info: ChatChannelInfo)
   
-  case class LeaveChannelRequest(channelId: String, sk: SessionKey,  client: ActorRef) extends ExistingChannelMessage
-  case class AddUserToChannelRequest(channelId: String, username: String, addedBy: String) extends ExistingChannelMessage
-  case class RemoveUserFromChannelRequest(channelId: String, username: String, removedBy: String) extends ExistingChannelMessage
+  case class LeaveChannelRequest(channelId: String, sk: SessionKey, client: ActorRef) extends ExistingChannelMessage
+  case class AddUserToChannelRequest(channelId: String, sk: SessionKey, username: String) extends ExistingChannelMessage
+  case class RemoveUserFromChannelRequest(channelId: String, sk: SessionKey, username: String) extends ExistingChannelMessage
 
-  case class SetChannelNameRequest(channelId: String, name: String, setBy: String) extends ExistingChannelMessage
-  case class SetChannelTopicRequest(channelId: String, topic: String, setBy: String) extends ExistingChannelMessage
-  case class MarkChannelEventsSeenRequest(channelId: String, eventNumber: Long, username: String) extends ExistingChannelMessage
+  case class SetChannelNameRequest(channelId: String, sk: SessionKey, name: String) extends ExistingChannelMessage
+  case class SetChannelTopicRequest(channelId: String, sk: SessionKey, topic: String) extends ExistingChannelMessage
+  case class MarkChannelEventsSeenRequest(channelId: String, sk: SessionKey, eventNumber: Long) extends ExistingChannelMessage
 
-  case class PublishChatMessageRequest(channelId: String, message: String, sk: SessionKey) extends ExistingChannelMessage
+  case class PublishChatMessageRequest(channelId: String, sk: SessionKey, message: String) extends ExistingChannelMessage
   
-  case class AddChatPermissionsRequest(channelId: String, sk: SessionKey, permissions: List[String]) extends ExistingChannelMessage
-  case class RemoveChatPermissionsRequest(channelId: String, sk: SessionKey, permissions: List[String]) extends ExistingChannelMessage
-  case class SetChatPermissionsRequest(channelId: String, sk: SessionKey, permissions: List[String]) extends ExistingChannelMessage
+  case class AddChatPermissionsRequest(channelId: String, sk: SessionKey, username: String, permissions: Set[String]) extends ExistingChannelMessage
+  case class RemoveChatPermissionsRequest(channelId: String, sk: SessionKey, username: String, permissions: Set[String]) extends ExistingChannelMessage
+  case class SetChatPermissionsRequest(channelId: String, sk: SessionKey, username: String, permissions: Set[String]) extends ExistingChannelMessage
 
-  case class GetChannelHistoryRequest(channelId: String, username: String, limit: Option[Int], offset: Option[Int],
+  case class GetChannelHistoryRequest(channelId: String, sk: SessionKey, limit: Option[Int], offset: Option[Int],
     forward: Option[Boolean], eventFilter: Option[List[String]]) extends ExistingChannelMessage
   case class GetChannelHistoryResponse(events: List[ChatChannelEvent])
   

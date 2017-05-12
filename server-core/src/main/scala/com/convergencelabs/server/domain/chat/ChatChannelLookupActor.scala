@@ -28,6 +28,7 @@ import scala.util.Failure
 import com.convergencelabs.server.datastore.domain.PermissionsStore
 import com.convergencelabs.server.domain.UnauthorizedException
 import com.convergencelabs.server.domain.chat.ChatChannelStateManager._
+import com.convergencelabs.server.domain.model.SessionKey
 
 object ChatChannelLookupActor {
 
@@ -36,10 +37,10 @@ object ChatChannelLookupActor {
   def props(domainFqn: DomainFqn): Props = Props(
     new ChatChannelLookupActor(domainFqn))
 
-  case class GetChannelsRequest(ids: List[String], username: String)
+  case class GetChannelsRequest(sk: SessionKey, ids: List[String])
   case class GetChannelsResponse(channels: List[ChatChannelInfo])
 
-  case class ChannelsExistsRequest(ids: List[String], username: String)
+  case class ChannelsExistsRequest(sk: SessionKey, ids: List[String])
   case class ChannelsExistsResponse(channels: List[Boolean])
 
   case class GetJoinedChannelsRequest(username: String)
@@ -72,8 +73,8 @@ class ChatChannelLookupActor private[domain] (domainFqn: DomainFqn) extends Acto
   }
 
   def onCreateChannel(message: CreateChannelRequest): Unit = {
-    val CreateChannelRequest(channelId, channelType, channelMembership, name, topic, members, createdBy) = message
-    hasPermission(createdBy, ChatPermissions.RemoveChannel).map { _ =>
+    val CreateChannelRequest(channelId, sk, channelType, channelMembership, name, topic, members) = message
+    hasPermission(sk, ChatPermissions.CreateChannel).map { _ =>
       ChannelType.withNameOpt(channelType) match {
         case Some(ct) =>
           val isPrivate = channelMembership.toLowerCase match {
@@ -81,9 +82,13 @@ class ChatChannelLookupActor private[domain] (domainFqn: DomainFqn) extends Acto
             case _         => false
           }
 
-          createChannel(channelId, ct, isPrivate, name, topic, members, createdBy) map { id =>
+          (for {
+            id <- createChannel(channelId, ct, isPrivate, name, topic, members, sk.uid)
+            forRecord <- chatChannelStore.getChatChannelRid(id)
+            _ <- permissionsStore.addUserPermissions(ChatChannelStateManager.AllChatPermissions, sk.uid, Some(forRecord))
+          } yield {
             sender ! CreateChannelResponse(id)
-          } recover {
+          }) recover {
             case e: DuplicateValueException =>
               // FIXME how to deal with this? The channel id should only conflict if it was
               // defined by the user.
@@ -100,14 +105,14 @@ class ChatChannelLookupActor private[domain] (domainFqn: DomainFqn) extends Acto
   }
 
   def onGetChannels(message: GetChannelsRequest): Unit = {
-    val GetChannelsRequest(ids, username) = message
+    val GetChannelsRequest(sk, ids) = message
     // TODO support multiple.
     val id = ids(0)
     chatChannelStore.getChatChannelInfo(id).map { info =>
       if (info.isPrivate) {
         sender ! GetChannelsResponse(List(info))
       } else {
-        hasPermission(username, ChatPermissions.JoinChannel).map { _ =>
+        hasPermission(sk, ChatPermissions.JoinChannel).map { _ =>
           sender ! GetChannelsResponse(List(info))
         }
       } recover {
@@ -123,7 +128,7 @@ class ChatChannelLookupActor private[domain] (domainFqn: DomainFqn) extends Acto
   }
 
   def onExists(message: ChannelsExistsRequest): Unit = {
-    val ChannelsExistsRequest(ids, username) = message
+    val ChannelsExistsRequest(sk, ids) = message
     // TODO support multiple.
     // FIXME this should be an option or something.
     val id = ids(0)
@@ -131,7 +136,7 @@ class ChatChannelLookupActor private[domain] (domainFqn: DomainFqn) extends Acto
       if (info.isPrivate) {
         sender ! ChannelsExistsResponse(List(true))
       } else {
-        hasPermission(username, ChatPermissions.JoinChannel).map { _ =>
+        hasPermission(sk, ChatPermissions.JoinChannel).map { _ =>
           sender ! ChannelsExistsResponse(List(true))
         } recover {
           case cause: UnauthorizedException =>
@@ -218,24 +223,32 @@ class ChatChannelLookupActor private[domain] (domainFqn: DomainFqn) extends Acto
     }
   }
 
-  private[this] def hasPermission(username: String, permission: String): Try[Unit] = {
+  private[this] def hasPermission(sk: SessionKey, permission: String): Try[Unit] = {
     Success(())
-    //    for {
-    //      hasPermission <- permissionsStore.hasPermission(username, permission)
-    //    } yield {
-    //      if (!hasPermission) {
-    //        Failure(UnauthorizedException("Not authorized"))
+    //    if (sk.admin) {
+    //      Success(())
+    //    } else {
+    //      for {
+    //        hasPermission <- permissionsStore.hasPermission(username, permission)
+    //      } yield {
+    //        if (!hasPermission) {
+    //          Failure(UnauthorizedException("Not authorized"))
+    //        }
     //      }
     //    }
   }
 
-  private[this] def hasPermission(username: String, channelId: String, permission: String): Try[Unit] = {
-    for {
-      channelRid <- chatChannelStore.getChatChannelRid(channelId)
-      hasPermission <- permissionsStore.hasPermission(username, channelRid, permission)
-    } yield {
-      if (!hasPermission) {
-        Failure(UnauthorizedException("Not authorized"))
+  private[this] def hasPermission(sk: SessionKey, channelId: String, permission: String): Try[Unit] = {
+    if (sk.admin) {
+      Success(())
+    } else {
+      for {
+        channelRid <- chatChannelStore.getChatChannelRid(channelId)
+        hasPermission <- permissionsStore.hasPermission(sk.uid, channelRid, permission)
+      } yield {
+        if (!hasPermission) {
+          Failure(UnauthorizedException("Not authorized"))
+        }
       }
     }
   }

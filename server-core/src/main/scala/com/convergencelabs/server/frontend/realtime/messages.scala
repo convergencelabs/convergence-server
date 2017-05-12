@@ -262,6 +262,16 @@ case class MarkChatChannelEventsSeenRequestMessage(i: String, e: Long) extends I
 case class MarkChatChannelEventsSeenResponseMessage() extends OutgoingProtocolResponseMessage
 case class ChatChannelEventsMarkedSeenMessage(i: String, e: Long) extends OutgoingProtocolNormalMessage
 
+// Set Permissions
+case class AddChatPermissionsRequestMessage(i: String, u: String, p: Set[String]) extends IncomingChatRequestMessage
+case class AddChatPermissionsReponseMessage() extends OutgoingProtocolResponseMessage
+
+case class RemoveChatPermissionsRequestMessage(i: String, u: String, p: Set[String]) extends IncomingChatRequestMessage
+case class RemoveChatPermissionsReponseMessage() extends OutgoingProtocolResponseMessage
+
+case class SetChatPermissionsRequestMessage(i: String, u: String, p: Set[String]) extends IncomingChatRequestMessage
+case class SetChatPermissionsReponseMessage() extends OutgoingProtocolResponseMessage
+
 // Get, History, and Search
 case class GetJoinedChatChannelsRequestMessage() extends IncomingChatRequestMessage
 case class GetJoinedChatChannelsResponseMessage(c: List[ChatChannelInfoData]) extends OutgoingProtocolResponseMessage
