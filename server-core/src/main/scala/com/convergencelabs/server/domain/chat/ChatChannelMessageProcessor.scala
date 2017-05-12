@@ -137,22 +137,22 @@ abstract class ChatChannelMessageProcessor(stateManager: ChatChannelStateManager
   }
 
   def onAddPermissionsMessage(message: AddChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
-    val AddChatPermissionsRequest(channelId, sk, username, permissions) = message;
-    stateManager.onAddPermissions(channelId, sk, username, permissions) map { _ =>
+    val AddChatPermissionsRequest(channelId, sk, world, user, group) = message;
+    stateManager.onAddPermissions(channelId, sk, world, user, group) map { _ =>
       ChatMessageProcessingResult(Some(()), List())
     }
   }
 
   def onRemovePermissionsMessage(message: RemoveChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
-    val RemoveChatPermissionsRequest(channelId, sk, username, permissions) = message;
-    stateManager.onRemovePermissions(channelId, sk, username, permissions) map { _ =>
+    val RemoveChatPermissionsRequest(channelId, sk, world, user, group) = message;
+    stateManager.onRemovePermissions(channelId, sk, world, user, group) map { _ =>
       ChatMessageProcessingResult(Some(()), List())
     }
   }
 
   def onSetPermissionsMessage(message: SetChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
-    val SetChatPermissionsRequest(channelId, sk, username, permissions) = message;
-    stateManager.onAddPermissions(channelId, sk, username, permissions) map { _ =>
+    val SetChatPermissionsRequest(channelId, sk, world, user, group) = message;
+    stateManager.onAddPermissions(channelId, sk, world, user, group) map { _ =>
       ChatMessageProcessingResult(Some(()), List())
     }
   }

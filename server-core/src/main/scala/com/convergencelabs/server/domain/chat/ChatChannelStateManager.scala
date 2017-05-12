@@ -22,6 +22,7 @@ import com.convergencelabs.server.domain.model.SessionKey
 import com.convergencelabs.server.datastore.domain.ChatChannelEvent
 import com.convergencelabs.server.datastore.domain.PermissionsStore
 import com.convergencelabs.server.domain.chat.ChatChannelStateManager.ChatPermissions
+import com.convergencelabs.server.domain.chat.ChatChannelStateManager.DefaultChatPermissions
 import com.convergencelabs.server.domain.UnauthorizedException
 
 object ChatChannelStateManager {
@@ -35,6 +36,8 @@ object ChatChannelStateManager {
         Failure(ChannelNotFoundException(channelId))
     }
   }
+
+  // TODO: Move these somewhere else
 
   object ChatPermissions {
     val CreateChannel = "create_chat_channel"
@@ -51,6 +54,8 @@ object ChatChannelStateManager {
   val AllChatPermissions = Set(ChatPermissions.CreateChannel, ChatPermissions.RemoveChannel, ChatPermissions.JoinChannel,
     ChatPermissions.LeaveChannel, ChatPermissions.AddUser, ChatPermissions.RemoveUser,
     ChatPermissions.SetName, ChatPermissions.SetTopic, ChatPermissions.Manage)
+
+  val DefaultChatPermissions = Set(ChatPermissions.JoinChannel, ChatPermissions.LeaveChannel)
 }
 
 class ChatChannelStateManager(
@@ -134,6 +139,8 @@ class ChatChannelStateManager(
         for {
           _ <- channelStore.addChatUserAddedEvent(event)
           _ <- channelStore.addChatChannelMember(channelId, username, None)
+          channel <- channelStore.getChatChannelRid(channelId)
+          _ <- permissionsStore.addUserPermissions(DefaultChatPermissions, username, Some(channel))
         } yield {
           val newState = state.copy(lastEventNumber = eventNo, lastEventTime = timestamp, members = newMembers)
           this.state = newState
@@ -235,26 +242,62 @@ class ChatChannelStateManager(
     }
   }
 
-  def onAddPermissions(channelId: String, sk: SessionKey, username: String, permissions: Set[String]): Try[Unit] = {
+  def onAddPermissions(channelId: String, sk: SessionKey, world: Set[String], user: Set[UserPermissions], group: Set[GroupPermissions]): Try[Unit] = {
     hasPermission(sk, ChatPermissions.Manage).map { _ =>
-      channelStore.getChatChannelRid(channelId) flatMap { channel =>
-        permissionsStore.addUserPermissions(permissions, username, Some(channel))
+      for {
+        channel <- channelStore.getChatChannelRid(channelId)
+      } yield {
+        permissionsStore.addWorldPermissions(world, Some(channel)).get
+
+        user foreach {
+          case UserPermissions(username, permissions) =>
+            permissionsStore.addUserPermissions(permissions, username, Some(channel)).get
+        }
+
+        group foreach {
+          case GroupPermissions(group, permissions) =>
+            permissionsStore.addGroupPermissions(permissions, group, Some(channel)).get
+        }
       }
     }
   }
 
-  def onRemovePermissions(channelId: String, sk: SessionKey, username: String, permissions: Set[String]): Try[Unit] = {
+  def onRemovePermissions(channelId: String, sk: SessionKey, world: Set[String], user: Set[UserPermissions], group: Set[GroupPermissions]): Try[Unit] = {
     hasPermission(sk, ChatPermissions.Manage).map { _ =>
-      channelStore.getChatChannelRid(channelId) flatMap { channel =>
-        permissionsStore.removeUserPermissions(permissions, username, Some(channel))
+      for {
+        channel <- channelStore.getChatChannelRid(channelId)
+      } yield {
+        permissionsStore.removeWorldPermissions(world, Some(channel)).get
+
+        user foreach {
+          case UserPermissions(username, permissions) =>
+            permissionsStore.removeUserPermissions(permissions, username, Some(channel)).get
+        }
+
+        group foreach {
+          case GroupPermissions(group, permissions) =>
+            permissionsStore.removeGroupPermissions(permissions, group, Some(channel)).get
+        }
       }
     }
   }
 
-  def onSetPermissions(channelId: String, sk: SessionKey, username: String, permissions: Set[String]): Try[Unit] = {
+  def onSetPermissions(channelId: String, sk: SessionKey, world: Set[String], user: Set[UserPermissions], group: Set[GroupPermissions]): Try[Unit] = {
     hasPermission(sk, ChatPermissions.Manage).map { _ =>
-      channelStore.getChatChannelRid(channelId) flatMap { channel =>
-        permissionsStore.setUserPermissions(permissions, username, Some(channel))
+      for {
+        channel <- channelStore.getChatChannelRid(channelId)
+      } yield {
+        permissionsStore.setWorldPermissions(world, Some(channel)).get
+
+        user foreach {
+          case UserPermissions(username, permissions) =>
+            permissionsStore.setUserPermissions(permissions, username, Some(channel)).get
+        }
+
+        group foreach {
+          case GroupPermissions(group, permissions) =>
+            permissionsStore.setGroupPermissions(permissions, group, Some(channel)).get
+        }
       }
     }
   }

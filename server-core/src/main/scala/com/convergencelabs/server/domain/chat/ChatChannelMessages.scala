@@ -36,9 +36,12 @@ object ChatChannelMessages {
 
   case class PublishChatMessageRequest(channelId: String, sk: SessionKey, message: String) extends ExistingChannelMessage
   
-  case class AddChatPermissionsRequest(channelId: String, sk: SessionKey, username: String, permissions: Set[String]) extends ExistingChannelMessage
-  case class RemoveChatPermissionsRequest(channelId: String, sk: SessionKey, username: String, permissions: Set[String]) extends ExistingChannelMessage
-  case class SetChatPermissionsRequest(channelId: String, sk: SessionKey, username: String, permissions: Set[String]) extends ExistingChannelMessage
+  case class UserPermissions(username: String, p: Set[String])
+  case class GroupPermissions(groupId: String, p: Set[String])
+  
+  case class AddChatPermissionsRequest(channelId: String, sk: SessionKey, world: Set[String], user: Set[UserPermissions], group: Set[GroupPermissions]) extends ExistingChannelMessage
+  case class RemoveChatPermissionsRequest(channelId: String, sk: SessionKey, world: Set[String], user: Set[UserPermissions], group: Set[GroupPermissions]) extends ExistingChannelMessage
+  case class SetChatPermissionsRequest(channelId: String, sk: SessionKey, world: Set[String], user: Set[UserPermissions], group: Set[GroupPermissions]) extends ExistingChannelMessage
 
   case class GetChannelHistoryRequest(channelId: String, sk: SessionKey, limit: Option[Int], offset: Option[Int],
     forward: Option[Boolean], eventFilter: Option[List[String]]) extends ExistingChannelMessage
