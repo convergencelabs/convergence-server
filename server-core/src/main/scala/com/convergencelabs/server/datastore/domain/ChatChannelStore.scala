@@ -264,8 +264,9 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
         |FROM
         |  ChatChannelEvent 
         |WHERE
-        |  channel.id IN :channelIds AND
-        |  eventNo = 0""".stripMargin
+        |  channel.id IN :channelIds
+        |ORDER BY eventNo DESC
+        |LIMIT 1""".stripMargin
 
     val params = Map("channelIds" -> channelId.asJava)
     val result = QueryUtil.query(queryString, params, db)
