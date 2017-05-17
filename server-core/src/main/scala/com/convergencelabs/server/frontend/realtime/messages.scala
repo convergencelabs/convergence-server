@@ -264,17 +264,38 @@ case class ChatChannelEventsMarkedSeenMessage(i: String, e: Long) extends Outgoi
 
 // Set Permissions
 
-case class UserPermissionsData(username: String, p: Set[String])
-case class GroupPermissionsData(groupId: String, p: Set[String])
+sealed trait IncomingPermissionsMessage {
+  val p: IdType.Value
+}
+sealed trait IncomingPermissionsRequestMessage extends IncomingPermissionsMessage with IncomingProtocolRequestMessage
 
-case class AddChatPermissionsRequestMessage(i: String, w: Set[String], u: Set[UserPermissionsData], g: Set[GroupPermissionsData]) extends IncomingChatRequestMessage
-case class AddChatPermissionsReponseMessage() extends OutgoingProtocolResponseMessage
+case class AddPermissionsRequestMessage(p: IdType.Value, i: Any, w: Set[String], u: Map[String, Set[String]], g: Map[String, Set[String]]) extends IncomingPermissionsRequestMessage
+case class AddPermissionsReponseMessage() extends OutgoingProtocolResponseMessage
 
-case class RemoveChatPermissionsRequestMessage(i: String, w: Set[String], u: Set[UserPermissionsData], g: Set[GroupPermissionsData]) extends IncomingChatRequestMessage
-case class RemoveChatPermissionsReponseMessage() extends OutgoingProtocolResponseMessage
+case class RemovePermissionsRequestMessage(p: IdType.Value, i: Any, w: Set[String], u: Map[String, Set[String]], g: Map[String, Set[String]]) extends IncomingPermissionsRequestMessage
+case class RemovePermissionsReponseMessage() extends OutgoingProtocolResponseMessage
 
-case class SetChatPermissionsRequestMessage(i: String, w: Set[String], u: Set[UserPermissionsData], g: Set[GroupPermissionsData]) extends IncomingChatRequestMessage
-case class SetChatPermissionsReponseMessage() extends OutgoingProtocolResponseMessage
+case class SetPermissionsRequestMessage(p: IdType.Value, i: Any, w: Set[String], u: Map[String, Set[String]], g: Map[String, Set[String]]) extends IncomingPermissionsRequestMessage
+case class SetPermissionsReponseMessage() extends OutgoingProtocolResponseMessage
+
+case class GetClientPermissionsRequestMessage(p: IdType.Value, i: Any) extends IncomingPermissionsRequestMessage
+case class GetClientPermissionsReponseMessage(p: Set[String]) extends OutgoingProtocolResponseMessage
+
+case class GetWorldPermissionsRequestMessage(p: IdType.Value, i: Any) extends IncomingPermissionsRequestMessage
+case class GetWorldPermissionsReponseMessage(u: Map[String, Set[String]]) extends OutgoingProtocolResponseMessage
+
+case class GetAllUserPermissionsRequestMessage(p: IdType.Value, i: Any) extends IncomingPermissionsRequestMessage
+case class GetAllUserPermissionsReponseMessage(u: Map[String, Set[String]]) extends OutgoingProtocolResponseMessage
+
+case class GetAllGroupPermissionsRequestMessage(p: IdType.Value, i: Any) extends IncomingPermissionsRequestMessage
+case class GetAllGroupPermissionsReponseMessage(g: Map[String, Set[String]]) extends OutgoingProtocolResponseMessage
+
+case class GetUserPermissionsRequestMessage(p: IdType.Value, i: Any, u: String) extends IncomingPermissionsRequestMessage
+case class GetUserPermissionsReponseMessage(p: Set[String]) extends OutgoingProtocolResponseMessage
+
+case class GetGroupPermissionsRequestMessage(p: IdType.Value, i: Any, u: String) extends IncomingPermissionsRequestMessage
+case class GetGroupPermissionsReponseMessage(p: Set[String]) extends OutgoingProtocolResponseMessage
+
 
 // Get, History, and Search
 case class GetJoinedChatChannelsRequestMessage() extends IncomingChatRequestMessage

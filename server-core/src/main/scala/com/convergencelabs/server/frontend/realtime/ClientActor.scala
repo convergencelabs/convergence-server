@@ -74,7 +74,7 @@ class ClientActor(
       log.debug("Client handshaked timeout")
       Option(connectionActor) match {
         case Some(connection) => connection ! CloseConnection
-        case None =>
+        case None             =>
       }
       context.stop(self)
     }
@@ -128,14 +128,14 @@ class ClientActor(
   }
 
   private[this] def receiveOutgoing: Receive = {
-    case message: OutgoingProtocolNormalMessage => onOutgoingMessage(message)
+    case message: OutgoingProtocolNormalMessage  => onOutgoingMessage(message)
     case message: OutgoingProtocolRequestMessage => onOutgoingRequest(message)
   }
 
   private[this] def receiveCommon: Receive = {
-    case WebSocketClosed => onConnectionClosed()
+    case WebSocketClosed       => onConnectionClosed()
     case WebSocketError(cause) => onConnectionError(cause)
-    case x: Any => invalidMessage(x)
+    case x: Any                => invalidMessage(x)
   }
 
   private[this] val receiveHandshakeSuccess: Receive = {
@@ -311,9 +311,9 @@ class ClientActor(
   private[this] def onMessageReceived(message: MessageReceived): Unit = {
     message match {
       case MessageReceived(x) if x.isInstanceOf[IncomingModelNormalMessage] => modelClient.forward(message)
-      case MessageReceived(x) if x.isInstanceOf[IncomingActivityMessage] => activityClient.forward(message)
-      case MessageReceived(x) if x.isInstanceOf[IncomingPresenceMessage] => presenceClient.forward(message)
-      case MessageReceived(x) if x.isInstanceOf[IncomingChatMessage] => chatClient.forward(message)
+      case MessageReceived(x) if x.isInstanceOf[IncomingActivityMessage]    => activityClient.forward(message)
+      case MessageReceived(x) if x.isInstanceOf[IncomingPresenceMessage]    => presenceClient.forward(message)
+      case MessageReceived(x) if x.isInstanceOf[IncomingChatMessage]        => chatClient.forward(message)
     }
   }
 
@@ -331,6 +331,11 @@ class ClientActor(
         chatClient.forward(message)
       case RequestReceived(x, _) if x.isInstanceOf[IncomingHistoricalModelRequestMessage] =>
         historyClient.forward(message)
+      case RequestReceived(x, _) if x.isInstanceOf[IncomingPermissionsMessage] =>
+        val idType: IdType.Value = x.asInstanceOf[IncomingPermissionsMessage].p
+        if(idType == IdType.Chat) {
+          chatClient.forward(message)
+        }
     }
   }
 

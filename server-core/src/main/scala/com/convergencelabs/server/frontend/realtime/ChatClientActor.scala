@@ -70,6 +70,8 @@ import com.convergencelabs.server.domain.chat.ChatChannelMessages.RemoveChatPerm
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.SetChatPermissionsRequest
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.GroupPermissions
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.UserPermissions
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetClientChatPermissionsRequest
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetClientChatPermissionsResponse
 
 object ChatClientActor {
   def props(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk: SessionKey): Props =
@@ -94,6 +96,8 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
       onMessageReceived(message.asInstanceOf[IncomingChatNormalMessage])
     case RequestReceived(message, replyPromise) if message.isInstanceOf[IncomingChatRequestMessage] =>
       onRequestReceived(message.asInstanceOf[IncomingChatRequestMessage], replyPromise)
+    case RequestReceived(message, replyPromise) if message.isInstanceOf[IncomingPermissionsRequestMessage] =>
+      onPermissionsRequestReceived(message.asInstanceOf[IncomingPermissionsRequestMessage], replyPromise)
 
     case message: ChatChannelBroadcastMessage =>
       handleBroadcastMessage(message)
@@ -174,12 +178,24 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
         onPublishMessage(message, replyCallback)
       case message: ChatChannelsExistsRequestMessage =>
         onChannelsExist(message, replyCallback)
-      case message: AddChatPermissionsRequestMessage =>
+    }
+  }
+
+  def onPermissionsRequestReceived(message: IncomingPermissionsRequestMessage, replyCallback: ReplyCallback): Unit = {
+    message match {
+      case message: AddPermissionsRequestMessage =>
         onAddChatPermissions(message, replyCallback)
-      case message: RemoveChatPermissionsRequestMessage =>
+      case message: RemovePermissionsRequestMessage =>
         onRemoveChatPermissions(message, replyCallback)
-      case message: SetChatPermissionsRequestMessage =>
+      case message: SetPermissionsRequestMessage =>
         onSetChatPermissions(message, replyCallback)
+      case message: GetClientPermissionsRequestMessage =>
+        onGetClientChatPermissions(message, replyCallback)
+      case message: GetWorldPermissionsRequestMessage    => ???
+      case message: GetAllUserPermissionsRequestMessage  => ???
+      case message: GetUserPermissionsRequestMessage     => ???
+      case message: GetAllGroupPermissionsRequestMessage => ???
+      case message: GetGroupPermissionsRequestMessage    => ???
     }
   }
 
@@ -252,40 +268,55 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
     handleSimpleChannelRequest(request, { () => MarkChatChannelEventsSeenResponseMessage() }, cb)
   }
 
-  def onAddChatPermissions(message: AddChatPermissionsRequestMessage, cb: ReplyCallback): Unit = {
-    val AddChatPermissionsRequestMessage(channelId, world, user, group) = message;
+  def onAddChatPermissions(message: AddPermissionsRequestMessage, cb: ReplyCallback): Unit = {
+    val AddPermissionsRequestMessage(idType, id, world, user, group) = message;
     val groupPermissions = group map {
-      case GroupPermissionsData(groupId, permissions) => GroupPermissions(groupId, permissions)
+      case (groupId, permissions) => GroupPermissions(groupId, permissions)
     }
+
     val userPermissions = user map {
-      case UserPermissionsData(username, permissions) => UserPermissions(username, permissions)
+      case (username, permissions) => UserPermissions(username, permissions)
     }
-    val request = AddChatPermissionsRequest(channelId, sk, world, userPermissions, groupPermissions)
-    handleSimpleChannelRequest(request, { () => AddChatPermissionsReponseMessage() }, cb)
+
+    val request = AddChatPermissionsRequest(id.asInstanceOf[String], sk, world, userPermissions.toSet, groupPermissions.toSet)
+    handleSimpleChannelRequest(request, { () => AddPermissionsReponseMessage() }, cb)
   }
 
-  def onRemoveChatPermissions(message: RemoveChatPermissionsRequestMessage, cb: ReplyCallback): Unit = {
-    val RemoveChatPermissionsRequestMessage(channelId, world, user, group) = message;
+  def onRemoveChatPermissions(message: RemovePermissionsRequestMessage, cb: ReplyCallback): Unit = {
+    val RemovePermissionsRequestMessage(idType, id, world, user, group) = message;
     val groupPermissions = group map {
-      case GroupPermissionsData(groupId, permissions) => GroupPermissions(groupId, permissions)
+      case (groupId, permissions) => GroupPermissions(groupId, permissions)
     }
     val userPermissions = user map {
-      case UserPermissionsData(username, permissions) => UserPermissions(username, permissions)
+      case (username, permissions) => UserPermissions(username, permissions)
     }
-    val request = RemoveChatPermissionsRequest(channelId, sk, world, userPermissions, groupPermissions)
-    handleSimpleChannelRequest(request, { () => RemoveChatPermissionsReponseMessage() }, cb)
+    val request = RemoveChatPermissionsRequest(id.asInstanceOf[String], sk, world, userPermissions.toSet, groupPermissions.toSet)
+    handleSimpleChannelRequest(request, { () => RemovePermissionsReponseMessage() }, cb)
   }
 
-  def onSetChatPermissions(message: SetChatPermissionsRequestMessage, cb: ReplyCallback): Unit = {
-    val SetChatPermissionsRequestMessage(channelId, world, user, group) = message;
+  def onSetChatPermissions(message: SetPermissionsRequestMessage, cb: ReplyCallback): Unit = {
+    val SetPermissionsRequestMessage(idType, id, world, user, group) = message;
     val groupPermissions = group map {
-      case GroupPermissionsData(groupId, permissions) => GroupPermissions(groupId, permissions)
+      case (groupId, permissions) => GroupPermissions(groupId, permissions)
     }
     val userPermissions = user map {
-      case UserPermissionsData(username, permissions) => UserPermissions(username, permissions)
+      case (username, permissions) => UserPermissions(username, permissions)
     }
-    val request = SetChatPermissionsRequest(channelId, sk, world, userPermissions, groupPermissions)
-    handleSimpleChannelRequest(request, { () => SetChatPermissionsReponseMessage() }, cb)
+    val request = SetChatPermissionsRequest(id.asInstanceOf[String], sk, world, userPermissions.toSet, groupPermissions.toSet)
+    handleSimpleChannelRequest(request, { () => SetPermissionsReponseMessage() }, cb)
+  }
+
+  def onGetClientChatPermissions(message: GetClientPermissionsRequestMessage, cb: ReplyCallback): Unit = {
+    val GetClientPermissionsRequestMessage(idType, id) = message;
+    val request = GetClientChatPermissionsRequest(id.asInstanceOf[String], sk)
+    chatChannelActor.ask(request).mapTo[GetClientChatPermissionsResponse] onComplete {
+      case Success(GetClientChatPermissionsResponse(permissions)) =>
+        cb.reply(GetClientPermissionsReponseMessage(permissions))
+      case Failure(cause: ChatChannelException) =>
+        handleChatChannelException(cause, cb)
+      case Failure(cause) =>
+        handleUnexpectedError(request, cause, cb)
+    }
   }
 
   def onPublishMessage(message: PublishChatRequestMessage, cb: ReplyCallback): Unit = {
