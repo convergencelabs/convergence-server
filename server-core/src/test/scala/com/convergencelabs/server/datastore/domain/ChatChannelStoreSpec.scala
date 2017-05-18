@@ -80,7 +80,7 @@ class ChatChannelStoreSpec
         val timestamp = Instant.now()
 
         val id = provider.chatChannelStore.createChatChannel(
-          Some(channel1Id), ChannelType.Direct, Instant.now(), false, name, topic, Some(members), user1).get
+          Some(channel1Id), ChannelType.Direct, timestamp, false, name, topic, Some(members), user1).get
 
         val chatChannelInfo = provider.chatChannelStore.getChatChannelInfo(id).get
         chatChannelInfo.id shouldEqual id
@@ -88,6 +88,27 @@ class ChatChannelStoreSpec
         chatChannelInfo.topic shouldEqual "testTopic"
         chatChannelInfo.channelType shouldEqual "direct"
         chatChannelInfo.lastEventNo shouldEqual 0L
+        chatChannelInfo.lastEventTime shouldEqual timestamp
+        chatChannelInfo.members shouldEqual members
+      }
+      
+      "return the correct max event no" in withTestData { provider =>
+        val name = "testName"
+        val topic = "testTopic"
+        val members = Set(user1)
+        val timestamp = Instant.now()
+
+        val id = provider.chatChannelStore.createChatChannel(
+          Some(channel1Id), ChannelType.Group, timestamp, false, name, topic, Some(members), user1).get
+          
+        provider.chatChannelStore.addChatMessageEvent(ChatMessageEvent(1, id, user1, timestamp, "foo"))
+        val chatChannelInfo = provider.chatChannelStore.getChatChannelInfo(id).get
+        
+        chatChannelInfo.id shouldEqual id
+        chatChannelInfo.name shouldEqual "testName"
+        chatChannelInfo.topic shouldEqual "testTopic"
+        chatChannelInfo.channelType shouldEqual "group"
+        chatChannelInfo.lastEventNo shouldEqual 1L
         chatChannelInfo.lastEventTime shouldEqual timestamp
         chatChannelInfo.members shouldEqual members
       }

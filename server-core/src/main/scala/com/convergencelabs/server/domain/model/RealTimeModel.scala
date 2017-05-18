@@ -125,6 +125,9 @@ class RealTimeModel(
     // FIXME  We need to validate the operation (id != null for example)
     val preprocessed = unprocessed.copy(operation = noOpObsoleteOperations(unprocessed.operation))
     val processed = cc.processRemoteOperation(preprocessed)
+    // FIXME this isn't quite right, if applying the operation fails, just rolling back
+    // the CC may not be enough, especially in the case of a compound operation, 
+    // we may have partially mutated the model.
     applyOpperation(processed.operation) match {
       case Success(appliedOperation) =>
         cc.commit()
@@ -154,13 +157,15 @@ class RealTimeModel(
   private[this] def applyOpperation(op: Operation): Try[AppliedOperation] = {
     op match {
       case c: CompoundOperation =>
-        val appliedOperations = c.operations map { o =>
-          applyDiscreteOperation(o) match {
-            case Failure(f) => throw f
-            case Success(appliedOp: AppliedOperation) => appliedOp
+        Try {
+          val appliedOperations = c.operations map { o =>
+            applyDiscreteOperation(o) match {
+              case Failure(f) => throw f
+              case Success(appliedOp: AppliedOperation) => appliedOp
+            }
           }
+          AppliedCompoundOperation(appliedOperations)
         }
-        Success(AppliedCompoundOperation(appliedOperations))
       case d: DiscreteOperation =>
         applyDiscreteOperation(d)
     }
@@ -176,7 +181,7 @@ class RealTimeModel(
               case publish: PublishReference =>
                 realTimeValue.processReferenceEvent(publish, sk)
                 val PublishReference(id, key, refType, values, contextVersion) = publish
-                
+
                 (values, contextVersion) match {
                   case (Some(values), Some(contextVersion)) =>
                     val refVal: ReferenceValue = ReferenceValue(id, key, refType, values, contextVersion)
@@ -189,7 +194,7 @@ class RealTimeModel(
                         None
                     }
                   case _ =>
-                    Some(RemoteReferencePublished(this.resourceId, sk, id, key,refType, None))
+                    Some(RemoteReferencePublished(this.resourceId, sk, id, key, refType, None))
                 }
 
               case unpublish: UnpublishReference =>
@@ -233,7 +238,7 @@ class RealTimeModel(
               case _ =>
                 Some(RemoteReferencePublished(resourceId, sk, id, key, refType, None))
             }
-            
+
           case unpublish: UnpublishReference =>
             elementReferenceManager.handleReferenceEvent(unpublish, sk)
             val UnpublishReference(id, key) = unpublish

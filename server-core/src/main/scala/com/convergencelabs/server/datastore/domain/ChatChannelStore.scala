@@ -255,17 +255,19 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
   }
 
   def getChatChannelInfo(channelId: List[String]): Try[List[ChatChannelInfo]] = tryWithDb { db =>
+    // FIXME is this the best way to do this?
     val queryString =
       """
         |SELECT 
+        |  max(eventNo) as eventNo, max(timestamp) as timestamp,
         |  channel.id as id, channel.type as type, channel.created as created,
         |  channel.private as private, channel.name as name, channel.topic as topic,
-        |  channel.members as members, eventNo, timestamp
+        |  channel.members as members
         |FROM
         |  ChatChannelEvent 
         |WHERE
-        |  channel.id IN :channelIds AND
-        |  eventNo = 0""".stripMargin
+        |  channel.id IN :channelIds
+        |GROUP BY (channel)""".stripMargin
 
     val params = Map("channelIds" -> channelId.asJava)
     val result = QueryUtil.query(queryString, params, db)
