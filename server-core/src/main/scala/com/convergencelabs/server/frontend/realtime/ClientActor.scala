@@ -242,7 +242,7 @@ class ClientActor(
     val InternalAuthSuccess(username, sk, presence, cb) = message
     this.sessionId = sk.serialize();
     this.modelClient = context.actorOf(ModelClientActor.props(sk, modelManagerActor))
-    this.userClient = context.actorOf(UserClientActor.props(userServiceActor))
+    this.userClient = context.actorOf(IdentityClientActor.props(userServiceActor))
     this.chatClient = context.actorOf(ChatClientActor.props(chatLookupActor, chatChannelActor, sk))
     this.activityClient = context.actorOf(ActivityClientActor.props(activityServiceActor, sk))
     this.presenceClient = context.actorOf(PresenceClientActor.props(presenceServiceActor, sk))
@@ -321,7 +321,7 @@ class ClientActor(
     message match {
       case RequestReceived(x, _) if x.isInstanceOf[IncomingModelRequestMessage] =>
         modelClient.forward(message)
-      case RequestReceived(x, _) if x.isInstanceOf[IncomingUserMessage] =>
+      case RequestReceived(x, _) if x.isInstanceOf[IncomingIdentityMessage] =>
         userClient.forward(message)
       case RequestReceived(x, _) if x.isInstanceOf[IncomingActivityMessage] =>
         activityClient.forward(message)
