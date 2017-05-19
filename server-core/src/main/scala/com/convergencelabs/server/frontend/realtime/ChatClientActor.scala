@@ -72,6 +72,17 @@ import com.convergencelabs.server.domain.chat.ChatChannelMessages.GroupPermissio
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.UserPermissions
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetClientChatPermissionsRequest
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetClientChatPermissionsResponse
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetWorldChatPermissionsRequest
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetWorldChatPermissionsResponse
+import com.convergencelabs.server.frontend.rest.DomainModelService.GetAllUserPermissionsResponse
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetAllUserChatPermissionsRequest
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetAllUserChatPermissionsResponse
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetAllGroupChatPermissionsRequest
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetAllGroupChatPermissionsResponse
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetUserChatPermissionsRequest
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetUserChatPermissionsResponse
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetGroupChatPermissionsRequest
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetGroupChatPermissionsResponse
 
 object ChatClientActor {
   def props(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk: SessionKey): Props =
@@ -191,11 +202,16 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
         onSetChatPermissions(message, replyCallback)
       case message: GetClientPermissionsRequestMessage =>
         onGetClientChatPermissions(message, replyCallback)
-      case message: GetWorldPermissionsRequestMessage    => ???
-      case message: GetAllUserPermissionsRequestMessage  => ???
-      case message: GetUserPermissionsRequestMessage     => ???
-      case message: GetAllGroupPermissionsRequestMessage => ???
-      case message: GetGroupPermissionsRequestMessage    => ???
+      case message: GetWorldPermissionsRequestMessage =>
+        onGetWorldPermissions(message, replyCallback)
+      case message: GetAllUserPermissionsRequestMessage =>
+        onGetAllUserPermissions(message, replyCallback)
+      case message: GetUserPermissionsRequestMessage =>
+        onGetUserPermissions(message, replyCallback)
+      case message: GetAllGroupPermissionsRequestMessage =>
+        onGetAllGroupPermissions(message, replyCallback)
+      case message: GetGroupPermissionsRequestMessage =>
+        onGetGroupPermissions(message, replyCallback)
     }
   }
 
@@ -278,7 +294,7 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
       case (username, permissions) => UserPermissions(username, permissions)
     }
 
-    val request = AddChatPermissionsRequest(id.asInstanceOf[String], sk, world, userPermissions.toSet, groupPermissions.toSet)
+    val request = AddChatPermissionsRequest(id, sk, world, userPermissions.toSet, groupPermissions.toSet)
     handleSimpleChannelRequest(request, { () => AddPermissionsReponseMessage() }, cb)
   }
 
@@ -290,7 +306,7 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
     val userPermissions = user map {
       case (username, permissions) => UserPermissions(username, permissions)
     }
-    val request = RemoveChatPermissionsRequest(id.asInstanceOf[String], sk, world, userPermissions.toSet, groupPermissions.toSet)
+    val request = RemoveChatPermissionsRequest(id, sk, world, userPermissions.toSet, groupPermissions.toSet)
     handleSimpleChannelRequest(request, { () => RemovePermissionsReponseMessage() }, cb)
   }
 
@@ -302,16 +318,81 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
     val userPermissions = user map {
       case (username, permissions) => UserPermissions(username, permissions)
     }
-    val request = SetChatPermissionsRequest(id.asInstanceOf[String], sk, world, userPermissions.toSet, groupPermissions.toSet)
+    val request = SetChatPermissionsRequest(id, sk, world, userPermissions.toSet, groupPermissions.toSet)
     handleSimpleChannelRequest(request, { () => SetPermissionsReponseMessage() }, cb)
   }
 
   def onGetClientChatPermissions(message: GetClientPermissionsRequestMessage, cb: ReplyCallback): Unit = {
     val GetClientPermissionsRequestMessage(idType, id) = message;
-    val request = GetClientChatPermissionsRequest(id.asInstanceOf[String], sk)
+    val request = GetClientChatPermissionsRequest(id, sk)
     chatChannelActor.ask(request).mapTo[GetClientChatPermissionsResponse] onComplete {
       case Success(GetClientChatPermissionsResponse(permissions)) =>
         cb.reply(GetClientPermissionsReponseMessage(permissions))
+      case Failure(cause: ChatChannelException) =>
+        handleChatChannelException(cause, cb)
+      case Failure(cause) =>
+        handleUnexpectedError(request, cause, cb)
+    }
+  }
+  
+  def onGetWorldPermissions(message: GetWorldPermissionsRequestMessage, cb: ReplyCallback): Unit = {
+    val GetWorldPermissionsRequestMessage(idType, id) = message;
+    val request = GetWorldChatPermissionsRequest(id, sk)
+    chatChannelActor.ask(request).mapTo[GetWorldChatPermissionsResponse] onComplete {
+      case Success(GetWorldChatPermissionsResponse(permissions)) =>
+        cb.reply(GetWorldPermissionsReponseMessage(permissions))
+      case Failure(cause: ChatChannelException) =>
+        handleChatChannelException(cause, cb)
+      case Failure(cause) =>
+        handleUnexpectedError(request, cause, cb)
+    }
+  }
+  
+  def onGetAllUserPermissions(message: GetAllUserPermissionsRequestMessage, cb: ReplyCallback): Unit = {
+    val GetAllUserPermissionsRequestMessage(idType, id) = message;
+    val request = GetAllUserChatPermissionsRequest(id, sk)
+    chatChannelActor.ask(request).mapTo[GetAllUserChatPermissionsResponse] onComplete {
+      case Success(GetAllUserChatPermissionsResponse(users)) =>
+        cb.reply(GetAllUserPermissionsReponseMessage(users))
+      case Failure(cause: ChatChannelException) =>
+        handleChatChannelException(cause, cb)
+      case Failure(cause) =>
+        handleUnexpectedError(request, cause, cb)
+    }
+  }
+  
+  def onGetAllGroupPermissions(message: GetAllGroupPermissionsRequestMessage, cb: ReplyCallback): Unit = {
+    val GetAllGroupPermissionsRequestMessage(idType, id) = message;
+    val request = GetAllGroupChatPermissionsRequest(id, sk)
+    chatChannelActor.ask(request).mapTo[GetAllGroupChatPermissionsResponse] onComplete {
+      case Success(GetAllGroupChatPermissionsResponse(groups)) =>
+        cb.reply(GetAllGroupPermissionsReponseMessage(groups))
+      case Failure(cause: ChatChannelException) =>
+        handleChatChannelException(cause, cb)
+      case Failure(cause) =>
+        handleUnexpectedError(request, cause, cb)
+    }
+  }
+  
+  def onGetUserPermissions(message: GetUserPermissionsRequestMessage, cb: ReplyCallback): Unit = {
+    val GetUserPermissionsRequestMessage(idType, id, username) = message;
+    val request = GetUserChatPermissionsRequest(id, username, sk)
+    chatChannelActor.ask(request).mapTo[GetUserChatPermissionsResponse] onComplete {
+      case Success(GetUserChatPermissionsResponse(permissions)) =>
+        cb.reply(GetUserPermissionsReponseMessage(permissions))
+      case Failure(cause: ChatChannelException) =>
+        handleChatChannelException(cause, cb)
+      case Failure(cause) =>
+        handleUnexpectedError(request, cause, cb)
+    }
+  }
+  
+  def onGetGroupPermissions(message: GetGroupPermissionsRequestMessage, cb: ReplyCallback): Unit = {
+    val GetGroupPermissionsRequestMessage(idType, id, groupId) = message;
+    val request = GetGroupChatPermissionsRequest(id, groupId, sk)
+    chatChannelActor.ask(request).mapTo[GetGroupChatPermissionsResponse] onComplete {
+      case Success(GetGroupChatPermissionsResponse(permissions)) =>
+        cb.reply(GetGroupPermissionsReponseMessage(permissions))
       case Failure(cause: ChatChannelException) =>
         handleChatChannelException(cause, cb)
       case Failure(cause) =>

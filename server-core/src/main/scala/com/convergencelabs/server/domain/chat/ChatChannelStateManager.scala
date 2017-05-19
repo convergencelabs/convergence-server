@@ -23,7 +23,10 @@ import com.convergencelabs.server.datastore.domain.ChatChannelEvent
 import com.convergencelabs.server.datastore.domain.PermissionsStore
 import com.convergencelabs.server.domain.chat.ChatChannelStateManager.ChatPermissions
 import com.convergencelabs.server.domain.chat.ChatChannelStateManager.DefaultChatPermissions
+import com.convergencelabs.server.domain.chat.ChatChannelStateManager.AllChatChannelPermissions
 import com.convergencelabs.server.domain.UnauthorizedException
+import com.convergencelabs.server.datastore.domain.UserPermission
+import com.convergencelabs.server.datastore.domain.GroupPermission
 
 object ChatChannelStateManager {
   def create(channelId: String, chatChannelStore: ChatChannelStore, permissionsStore: PermissionsStore): Try[ChatChannelStateManager] = {
@@ -51,9 +54,11 @@ object ChatChannelStateManager {
     val Manage = "manage_chat_permissions"
   }
 
-  val AllChatPermissions = Set(ChatPermissions.CreateChannel, ChatPermissions.RemoveChannel, ChatPermissions.JoinChannel,
+  val AllChatChannelPermissions = Set(ChatPermissions.RemoveChannel, ChatPermissions.JoinChannel,
     ChatPermissions.LeaveChannel, ChatPermissions.AddUser, ChatPermissions.RemoveUser,
     ChatPermissions.SetName, ChatPermissions.SetTopic, ChatPermissions.Manage)
+
+  val AllChatPermissions = AllChatChannelPermissions + ChatPermissions.CreateChannel
 
   val DefaultChatPermissions = Set(ChatPermissions.JoinChannel, ChatPermissions.LeaveChannel)
 }
@@ -300,6 +305,31 @@ class ChatChannelStateManager(
         }
       }
     }
+  }
+
+  def onGetClientPermissions(channelId: String, sk: SessionKey): Try[Set[String]] = {
+    channelStore.getChatChannelRid(channelId) flatMap { permissionsStore.getAggregateUserPermissions(sk.uid, _, AllChatChannelPermissions) }
+  }
+
+  def onGetWorldPermissions(channelId: String, sk: SessionKey): Try[Set[String]] = {
+    val worldPermissions = channelStore.getChatChannelRid(channelId) flatMap { channel => permissionsStore.getWorldPermissions(Some(channel)) }
+    worldPermissions map { permissions => permissions.map { _.permission } }
+  }
+
+  def onGetAllUserPermissions(channelId: String, sk: SessionKey): Try[Set[UserPermission]] = {
+    channelStore.getChatChannelRid(channelId) flatMap { channel => permissionsStore.getAllUserPermissions(Some(channel)) }
+  }
+
+  def onGetAllGroupPermissions(channelId: String, sk: SessionKey): Try[Set[GroupPermission]] = {
+    channelStore.getChatChannelRid(channelId) flatMap { channel => permissionsStore.getAllGroupPermissions(Some(channel)) }
+  }
+
+  def onGetUserPermissions(channelId: String, username: String, sk: SessionKey): Try[Set[String]] = {
+     channelStore.getChatChannelRid(channelId) flatMap { channel => permissionsStore.getUserPermissions(username, Some(channel)) }
+  }
+
+  def onGetGroupPermissions(channelId: String, groupId: String, sk: SessionKey): Try[Set[String]] = {
+    channelStore.getChatChannelRid(channelId) flatMap { channel => permissionsStore.getGroupPermissions(groupId, Some(channel)) }
   }
 
   def removeAllMembers(): Unit = {

@@ -83,7 +83,7 @@ object PermissionsStore {
 }
 
 class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
-
+  
   def hasPermission(username: String, permission: String): Try[Boolean] = tryWithDb { db =>
     val userRID = DomainUserStore.getUserRid(username, db).get
     val queryString =
@@ -116,20 +116,6 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
     count > 0
   }
 
-  def hasPermissions(username: String, forRecord: ORID, permissions: Set[String]): Try[Boolean] = tryWithDb { db =>
-    val userRID = DomainUserStore.getUserRid(username, db).get
-    val queryString =
-      """SELECT permission
-        |  FROM Permission
-        |  WHERE forRecord = :forRecord AND
-        |    (not(assignedTo is DEFINED) OR
-        |     assignedTo = :user OR
-        |     (assignedTo.@class instanceof 'UserGroup' AND assignedTo.members contains :user))""".stripMargin
-    val params = Map("user" -> userRID, "forRecord" -> forRecord)
-    val results = QueryUtil.query(queryString, params, db)
-    ???
-  }
-
   def permissionExists(permission: String, assignedTo: Option[ORID], forRecord: Option[ORID]): Try[Boolean] = tryWithDb { db =>
     var params = Map[String, Any]("permission" -> permission)
 
@@ -147,6 +133,21 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
     }
 
     QueryUtil.hasResults(sb.toString(), params, db)
+  }
+  
+  def getAggregateUserPermissions(username: String, forRecord: ORID, forPermissions: Set[String]): Try[Set[String]] = tryWithDb { db =>
+    val userRID = DomainUserStore.getUserRid(username, db).get
+    val queryString =
+      """SELECT permission
+        |  FROM Permission
+        |  WHERE forRecord = :forRecord AND
+        |    permission in :permissions AND
+        |    (not(assignedTo is DEFINED) OR
+        |     assignedTo = :user OR
+        |     (assignedTo.@class instanceof 'UserGroup' AND assignedTo.members contains :user))""".stripMargin
+    val params = Map("user" -> userRID, "forRecord" -> forRecord, "permissions" -> forPermissions)
+    val results = QueryUtil.query(queryString, params, db)
+    results.map { _.field(Fields.Permission).asInstanceOf[String] }.toSet
   }
 
   def addWorldPermissions(permissions: Set[String], forRecord: Option[ORID]): Try[Unit] = tryWithDb { db =>
@@ -244,7 +245,7 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
     results.map { docToWorldPermission(_) }.toSet
   }
 
-  def getGroupPermissions(forRecord: Option[ORID]): Try[Set[GroupPermission]] = tryWithDb { db =>
+  def getAllGroupPermissions(forRecord: Option[ORID]): Try[Set[GroupPermission]] = tryWithDb { db =>
     var params = Map[String, Any]()
 
     val sb = new StringBuilder
@@ -255,7 +256,7 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
     results.map { docToGroupPermission(_) }.toSet
   }
 
-  def getUserPermissions(forRecord: Option[ORID]): Try[Set[UserPermission]] = tryWithDb { db =>
+  def getAllUserPermissions(forRecord: Option[ORID]): Try[Set[UserPermission]] = tryWithDb { db =>
     var params = Map[String, Any]()
 
     val sb = new StringBuilder
@@ -264,6 +265,32 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
 
     val results = QueryUtil.query(sb.toString(), params, db)
     results.map { docToUserPermission(_) }.toSet
+  }
+  
+   def getGroupPermissions(groupId: String, forRecord: Option[ORID]): Try[Set[String]] = tryWithDb { db =>
+    val groupRid = UserGroupStore.getGroupRid(groupId, db).get 
+     
+    var params = Map[String, Any]("group" -> groupRid)
+
+    val sb = new StringBuilder
+    sb.append("SELECT FROM Permission WHERE assignedTo = :group AND ")
+    params = addOptionFieldParam(sb, params, Fields.ForRecord, forRecord)
+
+    val results = QueryUtil.query(sb.toString(), params, db)
+    results.map { _.field(Fields.Permission).asInstanceOf[String] }.toSet
+  }
+
+  def getUserPermissions(username: String, forRecord: Option[ORID]): Try[Set[String]] = tryWithDb { db =>
+    val userRID = DomainUserStore.getUserRid(username, db).get
+    
+    var params = Map[String, Any]("user" -> userRID)
+
+    val sb = new StringBuilder
+    sb.append("SELECT permission FROM Permission WHERE assignedTo = :user AND ")
+    params = addOptionFieldParam(sb, params, Fields.ForRecord, forRecord)
+
+    val results = QueryUtil.query(sb.toString(), params, db)
+    results.map { _.field(Fields.Permission).asInstanceOf[String] }.toSet
   }
 
   def getAllPermissions(forRecord: Option[ORID]): Try[Set[Permission]] = tryWithDb { db =>

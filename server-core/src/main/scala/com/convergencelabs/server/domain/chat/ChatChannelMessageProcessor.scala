@@ -32,6 +32,18 @@ import com.convergencelabs.server.frontend.realtime.ChatChannelRemovedMessage
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.AddChatPermissionsRequest
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.RemoveChatPermissionsRequest
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.SetChatPermissionsRequest
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetClientChatPermissionsRequest
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetClientChatPermissionsResponse
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetWorldChatPermissionsRequest
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetWorldChatPermissionsResponse
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetAllUserChatPermissionsRequest
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetAllUserChatPermissionsResponse
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetAllGroupChatPermissionsRequest
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetAllGroupChatPermissionsResponse
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetUserChatPermissionsRequest
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetUserChatPermissionsResponse
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetGroupChatPermissionsRequest
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetGroupChatPermissionsResponse
 
 case class ChatMessageProcessingResult(response: Option[Any], broadcastMessages: List[Any])
 
@@ -39,19 +51,25 @@ abstract class ChatChannelMessageProcessor(stateManager: ChatChannelStateManager
 
   def processChatMessage(message: ExistingChannelMessage): Try[ChatMessageProcessingResult] = {
     message match {
-      case message: RemoveChannelRequest         => onRemoveChannel(message)
-      case message: JoinChannelRequest           => onJoinChannel(message)
-      case message: LeaveChannelRequest          => onLeaveChannel(message)
-      case message: AddUserToChannelRequest      => onAddUserToChannel(message)
-      case message: RemoveUserFromChannelRequest => onRemoveUserFromChannel(message)
-      case message: SetChannelNameRequest        => onSetChatChannelName(message)
-      case message: SetChannelTopicRequest       => onSetChatChannelTopic(message)
-      case message: MarkChannelEventsSeenRequest => onMarkEventsSeen(message)
-      case message: GetChannelHistoryRequest     => onGetHistory(message)
-      case message: PublishChatMessageRequest    => onPublishMessage(message)
-      case message: AddChatPermissionsRequest    => onAddPermissionsMessage(message)
-      case message: RemoveChatPermissionsRequest => onRemovePermissionsMessage(message)
-      case message: SetChatPermissionsRequest    => onSetPermissionsMessage(message)
+      case message: RemoveChannelRequest              => onRemoveChannel(message)
+      case message: JoinChannelRequest                => onJoinChannel(message)
+      case message: LeaveChannelRequest               => onLeaveChannel(message)
+      case message: AddUserToChannelRequest           => onAddUserToChannel(message)
+      case message: RemoveUserFromChannelRequest      => onRemoveUserFromChannel(message)
+      case message: SetChannelNameRequest             => onSetChatChannelName(message)
+      case message: SetChannelTopicRequest            => onSetChatChannelTopic(message)
+      case message: MarkChannelEventsSeenRequest      => onMarkEventsSeen(message)
+      case message: GetChannelHistoryRequest          => onGetHistory(message)
+      case message: PublishChatMessageRequest         => onPublishMessage(message)
+      case message: AddChatPermissionsRequest         => onAddPermissionsMessage(message)
+      case message: RemoveChatPermissionsRequest      => onRemovePermissionsMessage(message)
+      case message: SetChatPermissionsRequest         => onSetPermissionsMessage(message)
+      case message: GetClientChatPermissionsRequest   => onGetClientPermissions(message)
+      case message: GetWorldChatPermissionsRequest    => onGetWorldPermissions(message)
+      case message: GetAllUserChatPermissionsRequest  => onGetAllUserPermissions(message)
+      case message: GetAllGroupChatPermissionsRequest => onGetAllGroupPermissions(message)
+      case message: GetUserChatPermissionsRequest     => onGetUserPermissions(message)
+      case message: GetGroupChatPermissionsRequest    => onGetGroupPermissions(message)
     }
   }
 
@@ -152,8 +170,52 @@ abstract class ChatChannelMessageProcessor(stateManager: ChatChannelStateManager
 
   def onSetPermissionsMessage(message: SetChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
     val SetChatPermissionsRequest(channelId, sk, world, user, group) = message;
-    stateManager.onAddPermissions(channelId, sk, world, user, group) map { _ =>
+    stateManager.onSetPermissions(channelId, sk, world, user, group) map { _ =>
       ChatMessageProcessingResult(Some(()), List())
+    }
+  }
+
+  def onGetClientPermissions(message: GetClientChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
+    val GetClientChatPermissionsRequest(channelId, sk) = message;
+    stateManager.onGetClientPermissions(channelId, sk) map { permissions =>
+      ChatMessageProcessingResult(Some(GetClientChatPermissionsResponse(permissions)), List())
+    }
+  }
+
+  def onGetWorldPermissions(message: GetWorldChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
+    val GetWorldChatPermissionsRequest(channelId, sk) = message;
+    stateManager.onGetWorldPermissions(channelId, sk) map { permissions =>
+      ChatMessageProcessingResult(Some(GetWorldChatPermissionsResponse(permissions)), List())
+    }
+  }
+
+  def onGetAllUserPermissions(message: GetAllUserChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
+    val GetAllUserChatPermissionsRequest(channelId, sk) = message;
+    stateManager.onGetAllUserPermissions(channelId, sk) map { permissions =>
+      val map = permissions.groupBy { _.user } map { case (user, userPermissions) => (user.username -> userPermissions.map { _.permission }) }
+      ChatMessageProcessingResult(Some(GetAllUserChatPermissionsResponse(map)), List())
+    }
+  }
+
+  def onGetAllGroupPermissions(message: GetAllGroupChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
+    val GetAllGroupChatPermissionsRequest(channelId, sk) = message;
+    stateManager.onGetAllGroupPermissions(channelId, sk) map { permissions =>
+      val map = permissions.groupBy { _.group } map { case (group, groupPermissions) => (group.id -> groupPermissions.map { _.permission }) }
+      ChatMessageProcessingResult(Some(GetAllGroupChatPermissionsResponse(map)), List())
+    }
+  }
+
+  def onGetUserPermissions(message: GetUserChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
+    val GetUserChatPermissionsRequest(channelId, username, sk) = message;
+    stateManager.onGetUserPermissions(channelId, username, sk) map { permissions =>
+      ChatMessageProcessingResult(Some(GetUserChatPermissionsResponse(permissions)), List())
+    }
+  }
+
+  def onGetGroupPermissions(message: GetGroupChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
+    val GetGroupChatPermissionsRequest(channelId, groupId, sk) = message;
+    stateManager.onGetGroupPermissions(channelId, groupId, sk) map { permissions =>
+      ChatMessageProcessingResult(Some(GetGroupChatPermissionsResponse(permissions)), List())
     }
   }
 
