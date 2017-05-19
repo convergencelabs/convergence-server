@@ -19,20 +19,26 @@ import akka.actor.ActorRef
 import akka.actor.Props
 import akka.pattern.ask
 import akka.util.Timeout
+import com.convergencelabs.server.domain.UserGroupsRequest
+import com.convergencelabs.server.domain.UserGroupsResponse
+import com.convergencelabs.server.datastore.EntityNotFoundException
+import com.convergencelabs.server.datastore.domain.UserGroup
+import com.convergencelabs.server.domain.UserGroupsForUsersRequest
+import com.convergencelabs.server.domain.UserGroupsForUsersResponse
 
-object UserClientActor {
+object IdentityClientActor {
   def props(userServiceActor: ActorRef): Props =
-    Props(new UserClientActor(userServiceActor))
+    Props(new IdentityClientActor(userServiceActor))
 }
 
-class UserClientActor(userServiceActor: ActorRef) extends Actor with ActorLogging {
+class IdentityClientActor(userServiceActor: ActorRef) extends Actor with ActorLogging {
 
   implicit val timeout = Timeout(5 seconds)
   implicit val ec = context.dispatcher
 
   def receive: Receive = {
-    case RequestReceived(message, replyPromise) if message.isInstanceOf[IncomingUserMessage] =>
-      onRequestReceived(message.asInstanceOf[IncomingUserMessage], replyPromise)
+    case RequestReceived(message, replyPromise) if message.isInstanceOf[IncomingIdentityMessage] =>
+      onRequestReceived(message.asInstanceOf[IncomingIdentityMessage], replyPromise)
     case x: Any => unhandled(x)
   }
 
@@ -40,14 +46,16 @@ class UserClientActor(userServiceActor: ActorRef) extends Actor with ActorLoggin
   // Incoming Messages
   //
 
-  def onRequestReceived(message: IncomingUserMessage, replyCallback: ReplyCallback): Unit = {
+  def onRequestReceived(message: IncomingIdentityMessage, replyCallback: ReplyCallback): Unit = {
     message match {
       case userSearch: UserSearchMessage => onUserSearch(userSearch, replyCallback)
       case userLookUp: UserLookUpMessage => onUserLookUp(userLookUp, replyCallback)
+      case userGroups: UserGroupsRequestMessage => onUserGroupsRequest(userGroups, replyCallback)
+      case userGroupsForUser: UserGroupsForUsersRequestMessage => onUserGroupsForUsersRequest(userGroupsForUser, replyCallback)
     }
   }
 
-  def onUserSearch(request: UserSearchMessage, cb: ReplyCallback): Unit = {
+  private[this] def onUserSearch(request: UserSearchMessage, cb: ReplyCallback): Unit = {
     val UserSearchMessage(fieldCodes, value, offset, limit, orderFieldCode, sortCode) = request
 
     val fields = fieldCodes.map { x => mapUserField(x) }
@@ -69,7 +77,7 @@ class UserClientActor(userServiceActor: ActorRef) extends Actor with ActorLoggin
     }
   }
 
-  def onUserLookUp(request: UserLookUpMessage, cb: ReplyCallback): Unit = {
+  private[this] def onUserLookUp(request: UserLookUpMessage, cb: ReplyCallback): Unit = {
     val UserLookUpMessage(fieldCode, values) = request
     val field = mapUserField(fieldCode)
     val future = this.userServiceActor ? UserLookUp(field, values)
@@ -88,6 +96,35 @@ class UserClientActor(userServiceActor: ActorRef) extends Actor with ActorLoggin
       case UserFieldCodes.LastName => UserLookUpField.LastName
       case UserFieldCodes.DisplayName => UserLookUpField.DisplayName
       case UserFieldCodes.Email => UserLookUpField.Email
+    }
+  }
+
+  private[this] def onUserGroupsRequest(request: UserGroupsRequestMessage, cb: ReplyCallback): Unit = {
+    val UserGroupsRequestMessage(ids) = request;
+    val message = UserGroupsRequest(ids)
+    this.userServiceActor.ask(message).mapTo[UserGroupsResponse] onComplete {
+      case Success(UserGroupsResponse(groups)) =>
+        val groupData = groups.map { case UserGroup(id, desc, memebers) => UserGroupData(id, desc, memebers) }
+        cb.reply(UserGroupsResponseMessage(groupData))
+      case Failure(EntityNotFoundException(_, _)) =>
+        cb.expectedError("group_not_found", "error getting groups")
+      case Failure(cause) =>
+        // FIXME maybe handle entity not found
+        cb.unexpectedError("error getting groups")
+    }
+  }
+
+  private[this] def onUserGroupsForUsersRequest(request: UserGroupsForUsersRequestMessage, cb: ReplyCallback): Unit = {
+    val UserGroupsForUsersRequestMessage(usernames) = request;
+    val message = UserGroupsForUsersRequest(usernames)
+    this.userServiceActor.ask(message).mapTo[UserGroupsForUsersResponse] onComplete {
+      case Success(UserGroupsForUsersResponse(groups)) =>
+        cb.reply(UserGroupsForUsersResponseMessage(groups))
+      case Failure(EntityNotFoundException(_, _)) =>
+        cb.expectedError("user_not_found", "error getting groups")
+      case Failure(cause) =>
+        // FIXME maybe handle entity not found
+        cb.unexpectedError("error getting groups for users")
     }
   }
 

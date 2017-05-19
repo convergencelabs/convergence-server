@@ -78,9 +78,9 @@ class DomainActor(
     new ModelCreator()),
     ModelManagerActor.RelativePath)
 
-  private[this] val userServiceActor = context.actorOf(UserServiceActor.props(
+  private[this] val userServiceActor = context.actorOf(IdentityServiceActor.props(
     domainFqn),
-    UserServiceActor.RelativePath)
+    IdentityServiceActor.RelativePath)
 
   private[this] val activityServiceActor = context.actorOf(ActivityServiceActor.props(
     domainFqn),

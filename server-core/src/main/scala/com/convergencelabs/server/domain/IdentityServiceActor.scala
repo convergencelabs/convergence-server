@@ -1,37 +1,41 @@
 package com.convergencelabs.server.domain
 
+import scala.util.Failure
+import scala.util.Success
+
+import com.convergencelabs.server.UnknownErrorResponse
+import com.convergencelabs.server.datastore.SortOrder
+import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
+import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
+import com.convergencelabs.server.datastore.domain.DomainUserField
+
 import akka.actor.Actor
 import akka.actor.ActorLogging
-import com.convergencelabs.server.datastore.domain.DomainUserStore
-import com.convergencelabs.server.datastore.domain.DomainUserField
-import com.convergencelabs.server.datastore.SortOrder
-import scala.util.Failure
-import com.convergencelabs.server.UnknownErrorResponse
-import scala.util.Success
-import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 import akka.actor.Props
+import com.convergencelabs.server.datastore.domain.UserGroup
+import akka.actor.Status
 
-object UserServiceActor {
+object IdentityServiceActor {
 
   val RelativePath = "userService"
 
   def props(domainFqn: DomainFqn): Props = Props(
-    new UserServiceActor(domainFqn))
+    new IdentityServiceActor(domainFqn))
 }
 
-class UserServiceActor private[domain] (domainFqn: DomainFqn) extends Actor with ActorLogging {
+class IdentityServiceActor private[domain] (domainFqn: DomainFqn) extends Actor with ActorLogging {
 
   var persistenceProvider: DomainPersistenceProvider = _
 
   def receive: Receive = {
     case s: UserSearch => searchUsers(s)
     case l: UserLookUp => lookUpUsers(l)
+    case message: UserGroupsRequest => getUserGroups(message)
+    case message: UserGroupsForUsersRequest => getUserGroupsForUser(message)
     case x: Any => unhandled(x)
   }
 
-  def searchUsers(criteria: UserSearch): Unit = {
-
+  private[this] def searchUsers(criteria: UserSearch): Unit = {
     val searchString = criteria.searchValue
     val fields = criteria.fields.map { f => converField(f) }
     val order = criteria.order.map { x => converField(x) }
@@ -45,7 +49,7 @@ class UserServiceActor private[domain] (domainFqn: DomainFqn) extends Actor with
     }
   }
 
-  def lookUpUsers(criteria: UserLookUp): Unit = {
+  private[this] def lookUpUsers(criteria: UserLookUp): Unit = {
     val users = criteria.field match {
       case UserLookUpField.Username =>
         persistenceProvider.userStore.getDomainUsersByUsername(criteria.values)
@@ -61,7 +65,32 @@ class UserServiceActor private[domain] (domainFqn: DomainFqn) extends Actor with
     }
   }
 
-  def converField(field: UserLookUpField.Value): DomainUserField.Field = {
+  private[this] def getUserGroups(request: UserGroupsRequest): Unit = {
+    val UserGroupsRequest(ids) = request;
+    (ids match {
+      case Some(idList) =>
+        persistenceProvider.userGroupStore.getUserGroupsById(idList)
+      case None =>
+        persistenceProvider.userGroupStore.getUserGroups(None, None, None)
+    }) match {
+      case Success(groups) =>
+        sender ! UserGroupsResponse(groups)
+      case Failure(cause) =>
+        sender ! Status.Failure(cause)
+    }
+  }
+
+  private[this] def getUserGroupsForUser(request: UserGroupsForUsersRequest): Unit = {
+    val UserGroupsForUsersRequest(usernames) = request;
+    persistenceProvider.userGroupStore.getUserGroupIdsForUsers(usernames) match {
+      case Success(result) =>
+        sender ! UserGroupsForUsersResponse(result)
+      case Failure(cause) =>
+        sender ! Status.Failure(cause)
+    }
+  }
+
+  private[this] def converField(field: UserLookUpField.Value): DomainUserField.Field = {
     field match {
       case UserLookUpField.Username => DomainUserField.Username
       case UserLookUpField.FirstName => DomainUserField.FirstName
@@ -97,3 +126,9 @@ case class UserSearch(
   sort: Option[SortOrder.Value])
 
 case class UserList(users: List[DomainUser])
+
+case class UserGroupsRequest(ids: Option[List[String]])
+case class UserGroupsResponse(groups: List[UserGroup])
+
+case class UserGroupsForUsersRequest(usernames: List[String])
+case class UserGroupsForUsersResponse(groups: Map[String, List[String]])
