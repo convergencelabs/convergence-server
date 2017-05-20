@@ -186,6 +186,10 @@ class AuthenticationHandlerSpec()
     Mockito.when(userStore.validateCredentials(authfailureUser, authfailurePassword)).thenReturn(Failure(new IllegalStateException()))
     Mockito.when(userStore.domainUserExists(authfailureUser)).thenReturn(Success(false))
 
+    Mockito.when(userStore.domainUserExists(existingUserName)).thenReturn(Success(true))
+    
+    Mockito.when(userStore.updateDomainUser(MockitoMatchers.any())).thenReturn(Success(()))
+    
     val userGroupStore = mock[UserGroupStore]
     Mockito.when(userGroupStore.setGroupsForUser(MockitoMatchers.any(), MockitoMatchers.any())).thenReturn(Success(()))
     
