@@ -160,10 +160,31 @@ class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProv
     val params = Map("id" -> id)
     QueryUtil.lookupOptionalDocument("SELECT FROM UserGroup WHERE id = :id", params, db) map { docToGroup(_) }
   }
-  
+
+  def getUserGroupsById(ids: List[String]): Try[List[UserGroup]] = tryWithDb { db =>
+    val params = Map("ids" -> ids.asJava)
+    val results = QueryUtil.query("SELECT FROM UserGroup WHERE id IN :ids", params, db) map { docToGroup(_) }
+    val mapped: Map[String, UserGroup] = results.map(a => a.id -> a)(collection.breakOut)
+    val orderedList = ids.map(id => mapped.get(id).getOrElse(throw new EntityNotFoundException("id")))
+    orderedList
+  }
+
+  def getUserGroupIdsForUsers(usernames: List[String]): Try[Map[String, List[String]]] = tryWithDb { db =>
+    val result: Map[String, List[String]] = usernames
+      .map(username => username -> this.getUserGroupIdsForUser(username).get)(collection.breakOut)
+    result
+  }
+
+  def getUserGroupIdsForUser(username: String): Try[List[String]] = tryWithDb { db =>
+    DomainUserStore.getUserRid(username, db).map { userRid =>
+      val params = Map("user" -> userRid)
+      QueryUtil.query("SELECT id FROM UserGroup WHERE :user IN members", params, db).map(_.field("id").asInstanceOf[String])
+    }.get
+  }
+
   def getUserGroupInfo(id: String): Try[Option[UserGroupInfo]] = tryWithDb { db =>
     val params = Map("id" -> id)
-    QueryUtil.lookupOptionalDocument("SELECT id, description FROM UserGroup WHERE id = :id", params, db) map {  doc =>
+    QueryUtil.lookupOptionalDocument("SELECT id, description FROM UserGroup WHERE id = :id", params, db) map { doc =>
       UserGroupInfo(
         doc.field("id"),
         doc.field("description"))

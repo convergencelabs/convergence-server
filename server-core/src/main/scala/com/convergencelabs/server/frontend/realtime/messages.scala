@@ -146,16 +146,24 @@ case class HistoricalDataResponseMessage(i: String, d: ObjectValue, v: Long, c: 
 case class HistoricalOperationsResponseMessage(o: List[ModelOperationData]) extends OutgoingProtocolResponseMessage
 
 ///////////////////////////////////////////////////////////////////////////////
-// User Messages
+// Identity Messages
 ///////////////////////////////////////////////////////////////////////////////
 
-sealed trait IncomingUserMessage
-case class UserLookUpMessage(f: Int, v: List[String]) extends IncomingProtocolRequestMessage with IncomingUserMessage
+sealed trait IncomingIdentityMessage
+case class UserLookUpMessage(f: Int, v: List[String]) extends IncomingProtocolRequestMessage with IncomingIdentityMessage
 case class UserSearchMessage(f: List[Int], v: String, o: Option[Int], l: Option[Int], r: Option[Int], s: Option[Int])
-  extends IncomingProtocolRequestMessage with IncomingUserMessage
+  extends IncomingProtocolRequestMessage with IncomingIdentityMessage
 
 case class UserListMessage(u: List[DomainUserData]) extends OutgoingProtocolResponseMessage
 case class DomainUserData(t: String, n: String, f: Option[String], l: Option[String], d: Option[String], e: Option[String])
+
+case class UserGroupsRequestMessage(i: Option[List[String]]) extends IncomingProtocolRequestMessage with IncomingIdentityMessage
+case class UserGroupsResponseMessage(g: List[UserGroupData]) extends OutgoingProtocolResponseMessage
+
+case class UserGroupsForUsersRequestMessage(u: List[String]) extends IncomingProtocolRequestMessage with IncomingIdentityMessage
+case class UserGroupsForUsersResponseMessage(g: Map[String, List[String]]) extends OutgoingProtocolResponseMessage
+
+case class UserGroupData(i: String, d: String, m: Set[String])
 
 ///////////////////////////////////////////////////////////////////////////////
 // Activity Messages

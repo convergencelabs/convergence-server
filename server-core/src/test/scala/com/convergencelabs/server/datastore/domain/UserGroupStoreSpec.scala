@@ -22,7 +22,7 @@ class UserGroupStoreSpec
   val User3 = DomainUser(DomainUserType.Normal, "test3", Some("Test"), Some("Three"), Some("Test Two"), Some("test3@example.com"))
 
   val group1 = UserGroup("id1", "group 1", Set(User1.username, User2.username))
-  val duplicateGroup = UserGroup("id1", "duplicate id", Set("test1", "test2"))
+  val duplicateGroup = UserGroup(group1.id, "duplicate id", Set(User1.username, User2.username))
   val group2 = UserGroup("id2", "group 2", Set(User2.username))
 
   def createStore(dbProvider: DatabaseProvider): (UserGroupStore, DomainUserStore) = (new UserGroupStore(dbProvider), new DomainUserStore(dbProvider))
@@ -158,6 +158,53 @@ class UserGroupStoreSpec
       
       "fail with EntityNotFound for a group that does not exist" in withUsers { store =>
         store.removeUserFromGroup("no group", User1.username).failure.exception shouldBe a[EntityNotFoundException]
+      }
+    }
+    
+    "getting groups by ids" must {
+      "return correct groups with valid ids" in withUsers { store =>
+        store.createUserGroup(group1).get
+        store.createUserGroup(group2).get
+        
+        store.getUserGroupsById(List(group1.id, group2.id)).get shouldBe List(group1, group2)
+      }
+      
+      "fail with EntityNotFound if a non-existant group id is in the list" in withUsers { store =>
+        store.createUserGroup(group1).get
+        store.createUserGroup(group2).get
+        store.getUserGroupsById(List(group1.id, "no group", group2.id)).failure.exception shouldBe a[EntityNotFoundException]
+      }
+    }
+    
+    "getting group ids for a user" must {
+      "return correct groups with valid ids" in withUsers { store =>
+        store.createUserGroup(group1).get
+        store.createUserGroup(group2).get
+        
+        store.getUserGroupIdsForUser(User1.username).get shouldBe List(group1.id)
+        store.getUserGroupIdsForUser(User2.username).get.toSet shouldBe Set(group1.id, group2.id)
+        store.getUserGroupIdsForUser(User3.username).get shouldBe List()
+      }
+      
+      "fail with EntityNotFound if a non-existant group id is in the list" in withUsers { store =>
+        store.getUserGroupIdsForUser("no user").failure.exception shouldBe a[EntityNotFoundException]
+      }
+    }
+    
+    "getting group ids for a users" must {
+      "return correct groups with valid ids" in withUsers { store =>
+        store.createUserGroup(group1).get
+        store.createUserGroup(group2).get
+        
+        val map = store.getUserGroupIdsForUsers(List(User1.username, User2.username, User3.username)).get
+        map.size shouldBe 3
+        map.get(User1.username).get shouldBe List(group1.id)
+        map.get(User2.username).get.toSet shouldBe Set(group1.id, group2.id)
+        map.get(User3.username).get shouldBe List()
+      }
+      
+      "fail with EntityNotFound if a non-existant group id is in the list" in withUsers { store =>
+        store.getUserGroupIdsForUsers(List(User1.username, "no user")).failure.exception shouldBe a[EntityNotFoundException]
       }
     }
   }
