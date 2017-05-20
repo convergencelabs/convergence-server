@@ -287,38 +287,50 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
   def onAddChatPermissions(message: AddPermissionsRequestMessage, cb: ReplyCallback): Unit = {
     val AddPermissionsRequestMessage(idType, id, world, user, group) = message;
     val groupPermissions = group map {
-      case (groupId, permissions) => GroupPermissions(groupId, permissions)
+      _.map {
+        case (groupId, permissions) => GroupPermissions(groupId, permissions)
+      }
     }
 
     val userPermissions = user map {
-      case (username, permissions) => UserPermissions(username, permissions)
+      _.map {
+        case (username, permissions) => UserPermissions(username, permissions)
+      }
     }
 
-    val request = AddChatPermissionsRequest(id, sk, world, userPermissions.toSet, groupPermissions.toSet)
+    val request = AddChatPermissionsRequest(id, sk, world, userPermissions.map(_.toSet), groupPermissions.map(_.toSet))
     handleSimpleChannelRequest(request, { () => AddPermissionsReponseMessage() }, cb)
   }
 
   def onRemoveChatPermissions(message: RemovePermissionsRequestMessage, cb: ReplyCallback): Unit = {
     val RemovePermissionsRequestMessage(idType, id, world, user, group) = message;
     val groupPermissions = group map {
-      case (groupId, permissions) => GroupPermissions(groupId, permissions)
+      _.map {
+        case (groupId, permissions) => GroupPermissions(groupId, permissions)
+      }
     }
     val userPermissions = user map {
-      case (username, permissions) => UserPermissions(username, permissions)
+      _.map {
+        case (username, permissions) => UserPermissions(username, permissions)
+      }
     }
-    val request = RemoveChatPermissionsRequest(id, sk, world, userPermissions.toSet, groupPermissions.toSet)
+    val request = RemoveChatPermissionsRequest(id, sk, world, userPermissions.map(_.toSet), groupPermissions.map(_.toSet))
     handleSimpleChannelRequest(request, { () => RemovePermissionsReponseMessage() }, cb)
   }
 
   def onSetChatPermissions(message: SetPermissionsRequestMessage, cb: ReplyCallback): Unit = {
     val SetPermissionsRequestMessage(idType, id, world, user, group) = message;
     val groupPermissions = group map {
-      case (groupId, permissions) => GroupPermissions(groupId, permissions)
+      _.map {
+        case (groupId, permissions) => GroupPermissions(groupId, permissions)
+      }
     }
     val userPermissions = user map {
-      case (username, permissions) => UserPermissions(username, permissions)
+      _.map {
+        case (username, permissions) => UserPermissions(username, permissions)
+      }
     }
-    val request = SetChatPermissionsRequest(id, sk, world, userPermissions.toSet, groupPermissions.toSet)
+    val request = SetChatPermissionsRequest(id, sk, world, userPermissions.map(_.toSet), groupPermissions.map(_.toSet))
     handleSimpleChannelRequest(request, { () => SetPermissionsReponseMessage() }, cb)
   }
 
@@ -334,7 +346,7 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
         handleUnexpectedError(request, cause, cb)
     }
   }
-  
+
   def onGetWorldPermissions(message: GetWorldPermissionsRequestMessage, cb: ReplyCallback): Unit = {
     val GetWorldPermissionsRequestMessage(idType, id) = message;
     val request = GetWorldChatPermissionsRequest(id, sk)
@@ -347,7 +359,7 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
         handleUnexpectedError(request, cause, cb)
     }
   }
-  
+
   def onGetAllUserPermissions(message: GetAllUserPermissionsRequestMessage, cb: ReplyCallback): Unit = {
     val GetAllUserPermissionsRequestMessage(idType, id) = message;
     val request = GetAllUserChatPermissionsRequest(id, sk)
@@ -360,7 +372,7 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
         handleUnexpectedError(request, cause, cb)
     }
   }
-  
+
   def onGetAllGroupPermissions(message: GetAllGroupPermissionsRequestMessage, cb: ReplyCallback): Unit = {
     val GetAllGroupPermissionsRequestMessage(idType, id) = message;
     val request = GetAllGroupChatPermissionsRequest(id, sk)
@@ -373,7 +385,7 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
         handleUnexpectedError(request, cause, cb)
     }
   }
-  
+
   def onGetUserPermissions(message: GetUserPermissionsRequestMessage, cb: ReplyCallback): Unit = {
     val GetUserPermissionsRequestMessage(idType, id, username) = message;
     val request = GetUserChatPermissionsRequest(id, username, sk)
@@ -386,7 +398,7 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
         handleUnexpectedError(request, cause, cb)
     }
   }
-  
+
   def onGetGroupPermissions(message: GetGroupPermissionsRequestMessage, cb: ReplyCallback): Unit = {
     val GetGroupPermissionsRequestMessage(idType, id, groupId) = message;
     val request = GetGroupChatPermissionsRequest(id, groupId, sk)

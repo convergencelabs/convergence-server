@@ -247,61 +247,73 @@ class ChatChannelStateManager(
     }
   }
 
-  def onAddPermissions(channelId: String, sk: SessionKey, world: Set[String], user: Set[UserPermissions], group: Set[GroupPermissions]): Try[Unit] = {
+  def onAddPermissions(channelId: String, sk: SessionKey, world: Option[Set[String]], user: Option[Set[UserPermissions]], group: Option[Set[GroupPermissions]]): Try[Unit] = {
     hasPermission(sk, ChatPermissions.Manage).map { _ =>
       for {
         channel <- channelStore.getChatChannelRid(channelId)
       } yield {
-        permissionsStore.addWorldPermissions(world, Some(channel)).get
+        world map { permissionsStore.addWorldPermissions(_, Some(channel)).get }
 
-        user foreach {
-          case UserPermissions(username, permissions) =>
-            permissionsStore.addUserPermissions(permissions, username, Some(channel)).get
+        user map {
+          _ foreach {
+            case UserPermissions(username, permissions) =>
+              permissionsStore.addUserPermissions(permissions, username, Some(channel)).get
+          }
         }
 
-        group foreach {
-          case GroupPermissions(group, permissions) =>
-            permissionsStore.addGroupPermissions(permissions, group, Some(channel)).get
+        group map {
+          _ foreach {
+            case GroupPermissions(group, permissions) =>
+              permissionsStore.addGroupPermissions(permissions, group, Some(channel)).get
+          }
         }
       }
     }
   }
 
-  def onRemovePermissions(channelId: String, sk: SessionKey, world: Set[String], user: Set[UserPermissions], group: Set[GroupPermissions]): Try[Unit] = {
+  def onRemovePermissions(channelId: String, sk: SessionKey, world: Option[Set[String]], user: Option[Set[UserPermissions]], group: Option[Set[GroupPermissions]]): Try[Unit] = {
     hasPermission(sk, ChatPermissions.Manage).map { _ =>
       for {
         channel <- channelStore.getChatChannelRid(channelId)
       } yield {
-        permissionsStore.removeWorldPermissions(world, Some(channel)).get
+        world map { permissionsStore.removeWorldPermissions(_, Some(channel)).get }
 
-        user foreach {
-          case UserPermissions(username, permissions) =>
-            permissionsStore.removeUserPermissions(permissions, username, Some(channel)).get
+        user map {
+          _ foreach {
+            case UserPermissions(username, permissions) =>
+              permissionsStore.removeUserPermissions(permissions, username, Some(channel)).get
+          }
         }
 
-        group foreach {
-          case GroupPermissions(group, permissions) =>
-            permissionsStore.removeGroupPermissions(permissions, group, Some(channel)).get
+        group map {
+          _ foreach {
+            case GroupPermissions(group, permissions) =>
+              permissionsStore.removeGroupPermissions(permissions, group, Some(channel)).get
+          }
         }
       }
     }
   }
 
-  def onSetPermissions(channelId: String, sk: SessionKey, world: Set[String], user: Set[UserPermissions], group: Set[GroupPermissions]): Try[Unit] = {
+  def onSetPermissions(channelId: String, sk: SessionKey, world: Option[Set[String]], user: Option[Set[UserPermissions]], group: Option[Set[GroupPermissions]]): Try[Unit] = {
     hasPermission(sk, ChatPermissions.Manage).map { _ =>
       for {
         channel <- channelStore.getChatChannelRid(channelId)
       } yield {
-        permissionsStore.setWorldPermissions(world, Some(channel)).get
+        world map { permissionsStore.setWorldPermissions(_, Some(channel)).get }
 
-        user foreach {
-          case UserPermissions(username, permissions) =>
-            permissionsStore.setUserPermissions(permissions, username, Some(channel)).get
+        user map {
+          _ foreach {
+            case UserPermissions(username, permissions) =>
+              permissionsStore.setUserPermissions(permissions, username, Some(channel)).get
+          }
         }
 
-        group foreach {
-          case GroupPermissions(group, permissions) =>
-            permissionsStore.setGroupPermissions(permissions, group, Some(channel)).get
+        group map {
+          _ foreach {
+            case GroupPermissions(group, permissions) =>
+              permissionsStore.setGroupPermissions(permissions, group, Some(channel)).get
+          }
         }
       }
     }
@@ -325,7 +337,7 @@ class ChatChannelStateManager(
   }
 
   def onGetUserPermissions(channelId: String, username: String, sk: SessionKey): Try[Set[String]] = {
-     channelStore.getChatChannelRid(channelId) flatMap { channel => permissionsStore.getUserPermissions(username, Some(channel)) }
+    channelStore.getChatChannelRid(channelId) flatMap { channel => permissionsStore.getUserPermissions(username, Some(channel)) }
   }
 
   def onGetGroupPermissions(channelId: String, groupId: String, sk: SessionKey): Try[Set[String]] = {

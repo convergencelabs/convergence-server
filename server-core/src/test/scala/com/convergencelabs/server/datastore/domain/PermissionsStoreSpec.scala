@@ -142,7 +142,7 @@ class PermissionsStoreSpec
         val channel = provider.chatChannelStore.getChatChannelRid(channel1).get
         provider.permissionsStore.addUserPermissions(Set(permission1, permission2), user1, None).get
         provider.permissionsStore.addUserPermissions(Set(permission3), user2, None).get
-        val globalPermissions = provider.permissionsStore.getUserPermissions(None).get
+        val globalPermissions = provider.permissionsStore.getAllUserPermissions(None).get
         globalPermissions shouldBe Set(UserPermission(domainUser1, permission1),
           UserPermission(domainUser1, permission2),
           UserPermission(domainUser2, permission3))
@@ -152,7 +152,7 @@ class PermissionsStoreSpec
         val channel2Rid = provider.chatChannelStore.getChatChannelRid(channel2).get
         provider.permissionsStore.addUserPermissions(Set(permission1, permission2), user1, Some(channelRid)).get
         provider.permissionsStore.addUserPermissions(Set(permission3), user2, Some(channel2Rid)).get
-        val worldPermissions = provider.permissionsStore.getUserPermissions(Some(channelRid)).get
+        val worldPermissions = provider.permissionsStore.getAllUserPermissions(Some(channelRid)).get
         worldPermissions shouldBe Set(UserPermission(domainUser1, permission1), UserPermission(domainUser1, permission2))
       }
       
@@ -160,7 +160,7 @@ class PermissionsStoreSpec
         val channel = provider.chatChannelStore.getChatChannelRid(channel1).get
         provider.permissionsStore.addGroupPermissions(Set(permission1, permission2), group1, None).get
         provider.permissionsStore.addGroupPermissions(Set(permission3), group2, None).get
-        val globalPermissions = provider.permissionsStore.getGroupPermissions(None).get
+        val globalPermissions = provider.permissionsStore.getAllGroupPermissions(None).get
         globalPermissions shouldBe Set(GroupPermission(userGroup1, permission1),
           GroupPermission(userGroup1, permission2),
           GroupPermission(userGroup2, permission3))
@@ -170,7 +170,7 @@ class PermissionsStoreSpec
         val channel2Rid = provider.chatChannelStore.getChatChannelRid(channel2).get
         provider.permissionsStore.addGroupPermissions(Set(permission1, permission2), group1, Some(channelRid)).get
         provider.permissionsStore.addGroupPermissions(Set(permission3), group2, Some(channel2Rid)).get
-        val worldPermissions = provider.permissionsStore.getGroupPermissions(Some(channelRid)).get
+        val worldPermissions = provider.permissionsStore.getAllGroupPermissions(Some(channelRid)).get
         worldPermissions shouldBe Set(GroupPermission(userGroup1, permission1), GroupPermission(userGroup1, permission2))
       }
     }

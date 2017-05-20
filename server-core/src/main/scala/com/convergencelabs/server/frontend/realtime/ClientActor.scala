@@ -332,10 +332,10 @@ class ClientActor(
       case RequestReceived(x, _) if x.isInstanceOf[IncomingHistoricalModelRequestMessage] =>
         historyClient.forward(message)
       case RequestReceived(x, _) if x.isInstanceOf[IncomingPermissionsMessage] =>
-        val idType: IdType.Value = x.asInstanceOf[IncomingPermissionsMessage].p
-        if(idType == IdType.Chat) {
+//        val idType: IdType.Value = x.asInstanceOf[IncomingPermissionsMessage].p
+//        if(idType == IdType.Chat) {
           chatClient.forward(message)
-        }
+//        }
     }
   }
 

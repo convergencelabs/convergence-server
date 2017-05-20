@@ -16,6 +16,8 @@ import org.json4s.JsonAST.JDouble
 import org.json4s.JsonAST.JDecimal
 import java.util.Date
 import java.util.TimeZone
+import org.json4s.ext.EnumNameSerializer
+import org.json4s.ext.EnumSerializer
 
 object MessageSerializer {
 
@@ -201,9 +203,10 @@ object MessageSerializer {
     MessageType.GetClientPermissionsRequest -> classOf[GetClientPermissionsRequestMessage],
     MessageType.GetClientPermissionsResponse -> classOf[GetClientPermissionsReponseMessage]),
 
-    DefaultFormats.withTypeHintFieldName("?") + new OperationSerializer() + new AppliedOperationSerializer() + DataValueTypeHints + DataValueFieldSerializer + instantSerializer)
+    DefaultFormats.withTypeHintFieldName("?") + new OperationSerializer() + new AppliedOperationSerializer() +
+      DataValueTypeHints + DataValueFieldSerializer + instantSerializer)
 
-  private[this] implicit val formats = DefaultFormats + incomingMessageSerializer
+  private[this] implicit val formats = DefaultFormats + new EnumSerializer(IdType) + incomingMessageSerializer
 
   def writeJson(a: MessageEnvelope): String = {
     write(a)
