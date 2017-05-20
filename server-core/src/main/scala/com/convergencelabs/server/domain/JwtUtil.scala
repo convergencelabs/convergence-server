@@ -5,14 +5,36 @@ import java.io.StringWriter
 import scala.reflect.ClassTag
 import scala.util.Try
 
+import java.util.{List => JavaList}
+
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter
 import org.jose4j.jwk.RsaJsonWebKey
 import org.jose4j.jwk.RsaJwkGenerator
 import org.jose4j.jwt.JwtClaims
 
-object JwtUtil {
+import scala.collection.JavaConverters.asScalaBufferConverter
 
+case class JwtInfo(
+  usrname: String,
+  firstName: Option[String],
+  lastName: Option[String],
+  displayName: Option[String],
+  email: Option[String],
+  groups: Option[Set[String]])
+
+object JwtUtil {
+  
   val KeyBits = 2048
+
+  def parseClaims(jwtClaims: JwtClaims): JwtInfo = {
+    val username = jwtClaims.getSubject()
+    val firstName = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.FirstName)
+    val lastName = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.LastName)
+    val displayName = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.DisplayName)
+    val email = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.Email)
+    val groups = JwtUtil.getClaim[JavaList[String]](jwtClaims, JwtClaimConstants.Groups).map(_.asScala.toSet)
+    JwtInfo(username, firstName, lastName, displayName, email, groups)
+  }
 
   def getClaim[T](jwtClaims: JwtClaims, claim: String)(implicit tag: ClassTag[T]): Option[T] = {
     if (jwtClaims.hasClaim(claim)) {

@@ -6,6 +6,9 @@ import org.scalatest.Matchers
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.WordSpec
 
+import scala.collection.JavaConverters.asScalaBufferConverter
+import java.util.{ List => JavaList }
+
 class JwtUtilSpec
     extends WordSpec
     with Matchers {
@@ -31,6 +34,13 @@ class JwtUtilSpec
         val claim = "correctType"
         claims.setClaim(claim, value)
         JwtUtil.getClaim[String](claims, claim).value shouldBe value
+      }
+    }
+
+    "getting a claim with a list" must {
+      "parse the correct java list" in {
+        val claims = JwtClaims.parse("{ \"key\": [\"a\", \"b\"] }")
+        JwtUtil.getClaim[JavaList[String]](claims, "key").value.asScala.toList shouldBe List("a", "b")
       }
     }
   }

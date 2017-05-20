@@ -131,4 +131,4 @@ case class UserGroupsRequest(ids: Option[List[String]])
 case class UserGroupsResponse(groups: List[UserGroup])
 
 case class UserGroupsForUsersRequest(usernames: List[String])
-case class UserGroupsForUsersResponse(groups: Map[String, List[String]])
+case class UserGroupsForUsersResponse(groups: Map[String, Set[String]])

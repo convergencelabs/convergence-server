@@ -214,6 +214,7 @@ class DomainActor(
           provider.configStore,
           provider.jwtAuthKeyStore,
           provider.userStore,
+          provider.userGroupStore,
           provider.sessionStore,
           context.dispatcher)
       case Failure(cause) =>

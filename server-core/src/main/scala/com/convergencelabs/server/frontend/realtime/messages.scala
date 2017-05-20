@@ -161,7 +161,7 @@ case class UserGroupsRequestMessage(i: Option[List[String]]) extends IncomingPro
 case class UserGroupsResponseMessage(g: List[UserGroupData]) extends OutgoingProtocolResponseMessage
 
 case class UserGroupsForUsersRequestMessage(u: List[String]) extends IncomingProtocolRequestMessage with IncomingIdentityMessage
-case class UserGroupsForUsersResponseMessage(g: Map[String, List[String]]) extends OutgoingProtocolResponseMessage
+case class UserGroupsForUsersResponseMessage(g: Map[String, Set[String]]) extends OutgoingProtocolResponseMessage
 
 case class UserGroupData(i: String, d: String, m: Set[String])
 

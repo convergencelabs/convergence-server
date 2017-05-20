@@ -17,6 +17,7 @@ import org.jose4j.jws.AlgorithmIdentifiers
 import org.jose4j.jws.JsonWebSignature
 import org.jose4j.jwt.JwtClaims
 import org.mockito.Mockito
+import org.mockito.{Matchers => MockitoMatchers}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.Matchers
 import org.scalatest.WordSpecLike
@@ -32,6 +33,7 @@ import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
 import com.convergencelabs.server.datastore.domain.SessionStore
+import com.convergencelabs.server.datastore.domain.UserGroupStore
 
 class AuthenticationHandlerSpec()
     extends TestKit(ActorSystem("AuthManagerActorSpec"))
@@ -147,7 +149,6 @@ class AuthenticationHandlerSpec()
     
     
     val userStore = mock[DomainUserStore]
-
     Mockito.when(userStore.domainUserExists(existingUserName)).thenReturn(Success(true))
     Mockito.when(userStore.adminUserExists(existingUserName)).thenReturn(Success(true))
     Mockito.when(userStore.getDomainUserByUsername(existingUserName)).thenReturn(Success(Some(existingUser)))
@@ -185,6 +186,9 @@ class AuthenticationHandlerSpec()
     Mockito.when(userStore.validateCredentials(authfailureUser, authfailurePassword)).thenReturn(Failure(new IllegalStateException()))
     Mockito.when(userStore.domainUserExists(authfailureUser)).thenReturn(Success(false))
 
+    val userGroupStore = mock[UserGroupStore]
+    Mockito.when(userGroupStore.setGroupsForUser(MockitoMatchers.any(), MockitoMatchers.any())).thenReturn(Success(()))
+    
     val domainConfigStore = mock[DomainConfigStore]
     Mockito.when(domainConfigStore.isAnonymousAuthEnabled()).thenReturn(Success(true))
 
@@ -220,7 +224,7 @@ class AuthenticationHandlerSpec()
     val missingKey = "missingKey"
     Mockito.when(keyStore.getKey(missingKey)).thenReturn(Success(None))
 
-    val authHandler = new AuthenticationHandler(domainConfigStore, keyStore, userStore, sessionStore, system.dispatcher)
+    val authHandler = new AuthenticationHandler(domainConfigStore, keyStore, userStore, userGroupStore, sessionStore, system.dispatcher)
   }
 
 }

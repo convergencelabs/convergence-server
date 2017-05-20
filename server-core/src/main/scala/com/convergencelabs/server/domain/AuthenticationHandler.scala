@@ -29,6 +29,8 @@ import com.convergencelabs.server.util.concurrent.FutureUtils.tryToFuture
 
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.datastore.domain.SessionStore
+import com.convergencelabs.server.datastore.domain.DomainUserStore.UpdateDomainUser
+import com.convergencelabs.server.datastore.domain.UserGroupStore
 
 object AuthenticationHandler {
   val AdminKeyId = "ConvergenceAdminKey"
@@ -39,17 +41,18 @@ class AuthenticationHandler(
   private[this] val domainConfigStore: DomainConfigStore,
   private[this] val keyStore: JwtAuthKeyStore,
   private[this] val userStore: DomainUserStore,
+  private[this] val userGroupStore: UserGroupStore,
   private[this] val sessionStore: SessionStore,
   private[this] implicit val ec: ExecutionContext)
     extends Logging {
 
   def authenticate(request: AuthetncationCredentials): Future[AuthenticationResponse] = {
     request match {
-      case message: PasswordAuthRequest => 
+      case message: PasswordAuthRequest =>
         authenticatePassword(message)
-      case message: JwtAuthRequest => 
+      case message: JwtAuthRequest =>
         authenticateToken(message)
-      case message: AnonymousAuthRequest => 
+      case message: AnonymousAuthRequest =>
         authenticateAnonymous(message)
     }
   }
@@ -63,7 +66,7 @@ class AuthenticationHandler(
         Success(AuthenticationFailure)
       case true =>
         debug("Anonymous auth is enabled, creating anonymous user...")
-        userStore.createAnonymousDomainUser(displayName) flatMap { username => authSuccess(username) }
+        userStore.createAnonymousDomainUser(displayName) flatMap { username => authSuccess(username, false) }
     } recover {
       case cause: Exception =>
         error("Anonymous authentication error", cause)
@@ -140,7 +143,7 @@ class AuthenticationHandler(
       case true => userStore.adminUserExists(username)
       case false => userStore.domainUserExists(username)
     }
-    
+
     val resolvedUsername = admin match {
       case true => DomainUserStore.adminUsername(username)
       case false => username
@@ -149,22 +152,18 @@ class AuthenticationHandler(
     exists.flatMap {
       case true =>
         logger.debug("User specificed in token already exists, returning auth success.")
-        // FIXME We need to update the users info based on any provided claims.
-        if(admin) {
-          authSuccessAdmin(resolvedUsername)
-        } else {
-          authSuccess(resolvedUsername)
-        }
+        this.updateUserFromJwt(jwtClaims, admin)
+        authSuccess(resolvedUsername, admin)
       case false =>
         logger.debug("User specificed in token does not exist exist, creating.")
         createUserFromJWT(jwtClaims, admin) flatMap { _ =>
-          authSuccess(resolvedUsername)
+          authSuccess(resolvedUsername, admin)
         } recoverWith {
           case e: DuplicateValueException =>
             // The duplicate value case is when a race condition occurs between when we looked up the
             // user and then tried to create them.
             logger.warn("Attempted to auto create user, but user already exists, returning auth success.")
-            authSuccess(resolvedUsername)
+            authSuccess(resolvedUsername, admin)
           case e: InvalidValueExcpetion =>
             Failure(new IllegalArgumentException("Lazy creation of user based on JWT authentication failed: {$username}", e))
         }
@@ -175,30 +174,42 @@ class AuthenticationHandler(
     }.get
   }
 
-  private[this] def authSuccessAdmin(username: String): Try[AuthenticationResponse] = {
+  private[this] def authSuccess(username: String, admin: Boolean): Try[AuthenticationResponse] = {
     sessionStore.nextSessionId map { id =>
-      AuthenticationSuccess(username, SessionKey(username, id, true))
+      AuthenticationSuccess(username, SessionKey(username, id, admin))
     }
   }
-  
-  private[this] def authSuccess(username: String): Try[AuthenticationResponse] = {
-    sessionStore.nextSessionId map { id =>
-      AuthenticationSuccess(username, SessionKey(username, id))
+
+  private[this] def updateUserFromJwt(jwtClaims: JwtClaims, admin: Boolean): Try[Unit] = {
+    val JwtInfo(username, firstName, lastName, displayName, email, groups) = JwtUtil.parseClaims(jwtClaims)
+    if (admin) {
+      Success(())
+    } else {
+      val update = UpdateDomainUser(username, firstName, lastName, displayName, email)
+      for {
+        _ <- userStore.updateDomainUser(update)
+        _ <- groups match {
+          case Some(g) => userGroupStore.setGroupsForUser(username, g)
+          case None => Success(())
+        }
+      } yield (())
     }
   }
 
   private[this] def createUserFromJWT(jwtClaims: JwtClaims, admin: Boolean): Try[String] = {
-    val username = jwtClaims.getSubject()
+    val JwtInfo(username, firstName, lastName, displayName, email, groups) = JwtUtil.parseClaims(jwtClaims)
     admin match {
       case true =>
         userStore.createAdminDomainUser(username)
       case false =>
-        val firstName = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.FirstName)
-        val lastName = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.LastName)
-        val displayName = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.DisplayName)
-        val email = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.Email)
         val newUser = CreateNormalDomainUser(username, firstName, lastName, displayName, email)
-        userStore.createNormalDomainUser(newUser)
+        for {
+          username <- userStore.createNormalDomainUser(newUser)
+          _ <- groups match {
+            case Some(g) => userGroupStore.setGroupsForUser(username, g)
+            case None => Success(())
+          }
+        } yield (username)
     }
   }
 

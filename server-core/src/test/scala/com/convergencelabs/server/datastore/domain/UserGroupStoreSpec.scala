@@ -24,6 +24,7 @@ class UserGroupStoreSpec
   val group1 = UserGroup("id1", "group 1", Set(User1.username, User2.username))
   val duplicateGroup = UserGroup(group1.id, "duplicate id", Set(User1.username, User2.username))
   val group2 = UserGroup("id2", "group 2", Set(User2.username))
+  val group3 = UserGroup("id3", "group 3", Set())
 
   def createStore(dbProvider: DatabaseProvider): (UserGroupStore, DomainUserStore) = (new UserGroupStore(dbProvider), new DomainUserStore(dbProvider))
 
@@ -181,9 +182,9 @@ class UserGroupStoreSpec
         store.createUserGroup(group1).get
         store.createUserGroup(group2).get
         
-        store.getUserGroupIdsForUser(User1.username).get shouldBe List(group1.id)
-        store.getUserGroupIdsForUser(User2.username).get.toSet shouldBe Set(group1.id, group2.id)
-        store.getUserGroupIdsForUser(User3.username).get shouldBe List()
+        store.getUserGroupIdsForUser(User1.username).get shouldBe Set(group1.id)
+        store.getUserGroupIdsForUser(User2.username).get shouldBe Set(group1.id, group2.id)
+        store.getUserGroupIdsForUser(User3.username).get shouldBe Set()
       }
       
       "fail with EntityNotFound if a non-existant group id is in the list" in withUsers { store =>
@@ -198,13 +199,30 @@ class UserGroupStoreSpec
         
         val map = store.getUserGroupIdsForUsers(List(User1.username, User2.username, User3.username)).get
         map.size shouldBe 3
-        map.get(User1.username).get shouldBe List(group1.id)
-        map.get(User2.username).get.toSet shouldBe Set(group1.id, group2.id)
-        map.get(User3.username).get shouldBe List()
+        map.get(User1.username).get shouldBe Set(group1.id)
+        map.get(User2.username).get shouldBe Set(group1.id, group2.id)
+        map.get(User3.username).get shouldBe Set()
       }
       
       "fail with EntityNotFound if a non-existant group id is in the list" in withUsers { store =>
         store.getUserGroupIdsForUsers(List(User1.username, "no user")).failure.exception shouldBe a[EntityNotFoundException]
+      }
+    }
+    
+    "setting groups for a user" must {
+      "correctly set groups for a user with no existing groups" in withUsers { store =>
+        store.createUserGroup(group1).get
+        store.createUserGroup(group2).get
+        store.setGroupsForUser(User3.username, Set(group1.id, group2.id)).get
+        store.getUserGroupIdsForUser(User3.username).get shouldBe Set(group1.id, group2.id)
+      }
+      
+      "correctly set groups for a user with existing groups" in withUsers { store =>
+        store.createUserGroup(group1).get
+        store.createUserGroup(group2).get
+        store.createUserGroup(group3).get
+        store.setGroupsForUser(User1.username, Set(group3.id)).get
+        store.getUserGroupIdsForUser(User1.username).get shouldBe Set(group3.id)
       }
     }
   }

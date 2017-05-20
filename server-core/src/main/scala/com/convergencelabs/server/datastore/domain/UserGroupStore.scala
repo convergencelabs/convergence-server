@@ -141,6 +141,30 @@ class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProv
       }.get
   }
 
+  def setGroupsForUser(username: String, groups: Set[String]): Try[Unit] = tryWithDb { db =>
+    // TODO this approach will ignore setting a group that doesn't exist. Is this ok?
+    DomainUserStore.getUserRid(username, db)
+      .recoverWith {
+        case cause: EntityNotFoundException =>
+          Failure(new EntityNotFoundException(s"Could not remove user from group, becase the user does not exists: ${username}"))
+      }.flatMap { userRid =>
+        val params = Map("user" -> userRid, "groups" -> groups.asJava)
+        val deleteCommand = """
+          |UPDATE UserGroup
+          |REMOVE members = :user
+          |WHERE 
+          |  :user IN members AND
+          |  id NOT IN :groups""".stripMargin
+        QueryUtil.command(deleteCommand, params, db).flatMap { _ =>
+          val addCommand = """
+            | UPDATE UserGroup
+            | ADD members = :user
+            | WHERE id IN :groups""".stripMargin
+          QueryUtil.command(addCommand, params, db)
+        }
+      }.get
+  }
+
   def removeUserFromGroup(id: String, username: String): Try[Unit] = tryWithDb { db =>
     DomainUserStore.getUserRid(username, db)
       .recoverWith {
@@ -169,16 +193,16 @@ class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProv
     orderedList
   }
 
-  def getUserGroupIdsForUsers(usernames: List[String]): Try[Map[String, List[String]]] = tryWithDb { db =>
-    val result: Map[String, List[String]] = usernames
+  def getUserGroupIdsForUsers(usernames: List[String]): Try[Map[String, Set[String]]] = tryWithDb { db =>
+    val result: Map[String, Set[String]] = usernames
       .map(username => username -> this.getUserGroupIdsForUser(username).get)(collection.breakOut)
     result
   }
 
-  def getUserGroupIdsForUser(username: String): Try[List[String]] = tryWithDb { db =>
+  def getUserGroupIdsForUser(username: String): Try[Set[String]] = tryWithDb { db =>
     DomainUserStore.getUserRid(username, db).map { userRid =>
       val params = Map("user" -> userRid)
-      QueryUtil.query("SELECT id FROM UserGroup WHERE :user IN members", params, db).map(_.field("id").asInstanceOf[String])
+      QueryUtil.query("SELECT id FROM UserGroup WHERE :user IN members", params, db).map(_.field("id").asInstanceOf[String]).toSet
     }.get
   }
 

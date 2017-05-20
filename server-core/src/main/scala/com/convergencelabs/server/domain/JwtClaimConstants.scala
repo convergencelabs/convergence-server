@@ -5,6 +5,7 @@ object JwtClaimConstants {
   val LastName = "lastName";
   val DisplayName = "lastName";
   val Email = "email";
+  val Groups = "groups";
 }
 
 object JwtConstants {
