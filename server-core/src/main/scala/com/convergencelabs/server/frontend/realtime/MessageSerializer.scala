@@ -16,6 +16,8 @@ import org.json4s.JsonAST.JDouble
 import org.json4s.JsonAST.JDecimal
 import java.util.Date
 import java.util.TimeZone
+import org.json4s.ext.EnumNameSerializer
+import org.json4s.ext.EnumSerializer
 
 object MessageSerializer {
 
@@ -108,7 +110,7 @@ object MessageSerializer {
     MessageType.UserListResponse -> classOf[UserListMessage],
 
     // Activity
-    
+
     MessageType.ActivityParticipantsRequest -> classOf[ActivityParticipantsRequestMessage],
     MessageType.ActivityParticipantsResponse -> classOf[ActivityParticipantsResponseMessage],
     MessageType.ActivityJoinRequest -> classOf[ActivityJoinMessage],
@@ -124,7 +126,7 @@ object MessageSerializer {
     MessageType.ActivityRemoteStateCleared -> classOf[ActivityRemoteStateClearedMessage],
 
     // Presence
-    
+
     MessageType.PresenceSetState -> classOf[PresenceSetStateMessage],
     MessageType.PresenceClearState -> classOf[PresenceClearStateMessage],
     MessageType.PresenceStateSet -> classOf[PresenceStateSetMessage],
@@ -136,7 +138,7 @@ object MessageSerializer {
     MessageType.PresenceUnsubscribe -> classOf[UnsubscribePresenceMessage],
 
     // CHAT
-    
+
     MessageType.CreateChatChannelRequest -> classOf[CreateChatChannelRequestMessage],
     MessageType.CreateChatChannelResponse -> classOf[CreateChatChannelResponseMessage],
     MessageType.RemoveChatChannelRequest -> classOf[RemoveChatChannelRequestMessage],
@@ -182,16 +184,29 @@ object MessageSerializer {
 
     MessageType.GetDirectChatChannelsRequest -> classOf[GetDirectChannelsRequestMessage],
     MessageType.GetDirectChatChannelsResponse -> classOf[GetDirectChannelsResponseMessage],
-    
+
     MessageType.GetChatChannelHistoryRequest -> classOf[ChatChannelHistoryRequestMessage],
     MessageType.GetChatChannelHistoryResponse -> classOf[ChatChannelHistoryResponseMessage],
-    
+
     MessageType.ChatChannelExistsRequest -> classOf[ChatChannelsExistsRequestMessage],
-    MessageType.ChatChannelExistsResponse -> classOf[ChatChannelsExistsResponseMessage]),
+    MessageType.ChatChannelExistsResponse -> classOf[ChatChannelsExistsResponseMessage],
 
-    DefaultFormats.withTypeHintFieldName("?") + new OperationSerializer() + new AppliedOperationSerializer() + DataValueTypeHints + DataValueFieldSerializer + instantSerializer)
+    MessageType.AddPermissionsRequest -> classOf[AddPermissionsRequestMessage],
+    MessageType.AddPermissionsResponse -> classOf[AddPermissionsReponseMessage],
 
-  private[this] implicit val formats = DefaultFormats + incomingMessageSerializer
+    MessageType.RemovePermissionsRequest -> classOf[RemovePermissionsRequestMessage],
+    MessageType.RemovePermissionsResponse -> classOf[RemovePermissionsReponseMessage],
+
+    MessageType.SetPermissionsRequest -> classOf[SetPermissionsRequestMessage],
+    MessageType.SetPermissionsResponse -> classOf[SetPermissionsReponseMessage],
+
+    MessageType.GetClientPermissionsRequest -> classOf[GetClientPermissionsRequestMessage],
+    MessageType.GetClientPermissionsResponse -> classOf[GetClientPermissionsReponseMessage]),
+
+    DefaultFormats.withTypeHintFieldName("?") + new OperationSerializer() + new AppliedOperationSerializer() +
+      DataValueTypeHints + DataValueFieldSerializer + instantSerializer)
+
+  private[this] implicit val formats = DefaultFormats + new EnumSerializer(IdType) + incomingMessageSerializer
 
   def writeJson(a: MessageEnvelope): String = {
     write(a)

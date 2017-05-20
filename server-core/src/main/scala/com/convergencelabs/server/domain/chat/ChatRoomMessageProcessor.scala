@@ -80,7 +80,7 @@ class ChatRoomMessageProcessor(
         val generateMessage = chatRoomSessionManager.leave(client)
         if (generateMessage) {
           chatRoomSessionManager.getSession(client).foreach { sk =>
-            stateManager.onLeaveChannel(sk.uid)
+            stateManager.onLeaveChannel(sk)
           }
         }
     }
