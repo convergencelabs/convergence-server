@@ -74,7 +74,7 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
     log.debug(s"Chat Channel Actor initializing: '${domainFqn}/${channelId}'")
     DomainPersistenceManagerActor.acquirePersistenceProvider(self, context, domainFqn) flatMap { provider =>
       log.debug(s"Chat Channel aquired persistence, creating channel manager: '${domainFqn}/${channelId}'")
-      ChatChannelStateManager.create(channelId, provider.chatChannelStore)
+      ChatChannelStateManager.create(channelId, provider.chatChannelStore, provider.permissionsStore)
     } map { manager =>
       log.debug(s"Chat Channel Channel manager created: '${domainFqn}/${channelId}'")
       this.channelManager = Some(manager)

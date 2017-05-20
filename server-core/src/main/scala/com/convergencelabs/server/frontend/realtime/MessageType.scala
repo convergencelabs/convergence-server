@@ -169,4 +169,32 @@ object MessageType extends Enumeration {
 
   val GetChatChannelHistoryRequest = 539
   val GetChatChannelHistoryResponse = 540
+  
+  // Permissions
+  val GetClientPermissionsRequest = 601
+  val GetClientPermissionsResponse = 602
+  
+  val AddPermissionsRequest = 603
+  val AddPermissionsResponse = 604
+  
+  val RemovePermissionsRequest = 605
+  val RemovePermissionsResponse = 606
+  
+  val SetPermissionsRequest = 607
+  val SetPermissionsResponse = 608
+  
+  val GetWorldPermissionsRequest = 609
+  val GetWorldPermissionsResponse = 610
+  
+  val GetAllUserPermissionsRequest = 611
+  val GetAllUserPermissionsResponse = 612
+  
+  val GetUserPermissionsRequest = 613
+  val GetUserPermissionsResponse = 614
+  
+  val GetAllGroupPermissionsRequest = 615
+  val GetAllGroupPermissionsResponse = 616
+  
+  val GetGroupPermissionsRequest = 617
+  val GetGroupPermissionsResponse = 618
 }
