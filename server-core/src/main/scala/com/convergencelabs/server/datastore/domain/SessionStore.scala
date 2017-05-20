@@ -61,9 +61,7 @@ object SessionStore {
       doc.field(Fields.Id, sl.id)
       doc.field(Fields.User, userLink)
       doc.field(Fields.Connected, Date.from(sl.connected))
-      sl.disconnected foreach { date =>
-        doc.field(Fields.Disconnected, Date.from(date))
-      }
+      sl.disconnected.foreach(d => doc.field(Fields.Disconnected, Date.from(d)))
       doc.field(Fields.AuthMethod, sl.authMethod)
       doc.field(Fields.Client, sl.client)
       doc.field(Fields.ClientVersion, sl.clientVersion)
@@ -197,12 +195,7 @@ class SessionStore(dbProvider: DatabaseProvider)
   def setSessionDisconneted(sessionId: String, disconnectedTime: Instant): Try[Unit] = tryWithDb { db =>
     val query = "UPDATE DomainSession SET disconnected = :disconnected WHERE id = :sessionId"
     val params = Map("disconnected" -> Date.from(disconnectedTime), "sessionId" -> sessionId)
-    db.command(new OCommandSQL(query)).execute(params.asJava).asInstanceOf[Int] match {
-      case 0 =>
-        throw EntityNotFoundException()
-      case _ =>
-        ()
-    }
+    QueryUtil.updateSingleDoc(query, params, db).get
   }
 
   private def getSessionTypeClause(sessionType: SessionQueryType.Value): Option[String] = {
