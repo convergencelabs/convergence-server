@@ -32,7 +32,7 @@ object QueryUtil extends Logging {
   def getRidFromIndex(indexName: String, key: Any, db: ODatabaseDocumentTx): Try[ORID] = {
     Try {
       getOptionalRidFromIndex(indexName, key, db).getOrElse {
-        throw new EntityNotFoundException
+        throw EntityNotFoundException(entityId = Some(key))
       }
     }
   }
@@ -90,7 +90,7 @@ object QueryUtil extends Logging {
         logger.error(MultipleElementsMessage)
         Failure(new IllegalStateException(MultipleElementsMessage))
       case Nil =>
-        Failure(new EntityNotFoundException)
+        Failure(EntityNotFoundException())
     }
   }
 

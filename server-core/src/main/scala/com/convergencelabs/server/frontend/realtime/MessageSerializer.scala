@@ -105,9 +105,15 @@ object MessageSerializer {
     MessageType.HistoricalOperationsRequest -> classOf[HistoricalOperationRequestMessage],
     MessageType.HistoricalOperationsResponse -> classOf[HistoricalOperationsResponseMessage],
 
+    // Identity
+
     MessageType.UserLookUpRequest -> classOf[UserLookUpMessage],
     MessageType.UserSearchRequest -> classOf[UserSearchMessage],
     MessageType.UserListResponse -> classOf[UserListMessage],
+    MessageType.UserGroupsRequest -> classOf[UserGroupsRequestMessage],
+    MessageType.UserGroupsResponse -> classOf[UserGroupsResponseMessage],
+    MessageType.UserGroupsForUsersRequest -> classOf[UserGroupsForUsersRequestMessage],
+    MessageType.UserGroupsForUsersResponse -> classOf[UserGroupsForUsersResponseMessage],
 
     // Activity
 

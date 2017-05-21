@@ -73,6 +73,12 @@ object MessageType extends Enumeration {
   val UserSearchRequest = 201
   val UserListResponse = 202
   
+  val UserGroupsRequest = 203
+  val UserGroupsResponse = 204
+  
+  val UserGroupsForUsersRequest = 205
+  val UserGroupsForUsersResponse = 206
+
   // Activity
   val ActivityParticipantsRequest = 300
   val ActivityParticipantsResponse = 301

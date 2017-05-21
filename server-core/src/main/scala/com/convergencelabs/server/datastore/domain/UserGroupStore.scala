@@ -169,14 +169,18 @@ class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProv
     DomainUserStore.getUserRid(username, db)
       .recoverWith {
         case cause: EntityNotFoundException =>
-          Failure(new EntityNotFoundException(s"Could not remove user from group, becase the user does not exists: ${username}"))
+          Failure(EntityNotFoundException(
+              s"Could not remove user from group, becase the user does not exists: ${username}",
+              Some(username)))
       }.flatMap { userRid =>
         val query = "UPDATE UserGroup REMOVE members = :user WHERE id = :id"
         val params = Map("user" -> userRid, "id" -> id)
         QueryUtil.updateSingleDoc(query, params, db)
       }.recoverWith {
         case cause: EntityNotFoundException =>
-          Failure(new EntityNotFoundException(s"Could not remove user from group, becase the group does not exists: ${id}"))
+          Failure(EntityNotFoundException(
+              s"Could not remove user from group, becase the group does not exists: ${id}",
+              Some(id)))
       }.get
   }
 
@@ -189,7 +193,7 @@ class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProv
     val params = Map("ids" -> ids.asJava)
     val results = QueryUtil.query("SELECT FROM UserGroup WHERE id IN :ids", params, db) map { docToGroup(_) }
     val mapped: Map[String, UserGroup] = results.map(a => a.id -> a)(collection.breakOut)
-    val orderedList = ids.map(id => mapped.get(id).getOrElse(throw new EntityNotFoundException("id")))
+    val orderedList = ids.map(id => mapped.get(id).getOrElse(throw EntityNotFoundException(entityId = Some(id))))
     orderedList
   }
 
@@ -203,6 +207,9 @@ class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProv
     DomainUserStore.getUserRid(username, db).map { userRid =>
       val params = Map("user" -> userRid)
       QueryUtil.query("SELECT id FROM UserGroup WHERE :user IN members", params, db).map(_.field("id").asInstanceOf[String]).toSet
+    }.recoverWith {
+      case cause: EntityNotFoundException =>
+        Failure(EntityNotFoundException(entityId = Some(username)))
     }.get
   }
 

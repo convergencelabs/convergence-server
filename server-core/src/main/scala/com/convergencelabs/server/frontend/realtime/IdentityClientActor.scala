@@ -73,7 +73,9 @@ class IdentityClientActor(userServiceActor: ActorRef) extends Actor with ActorLo
         val userData = users.map { x => mapDomainUser(x) }
         cb.reply(UserListMessage(userData))
       case Failure(cause) =>
-        cb.unexpectedError("could not lookup users")
+        val message = "Unexpected error searching users."
+        log.error(cause, message)
+        cb.unexpectedError(message)
     }
   }
 
@@ -85,7 +87,10 @@ class IdentityClientActor(userServiceActor: ActorRef) extends Actor with ActorLo
       case Success(UserList(users)) =>
         val userData = users.map { x => mapDomainUser(x) }
         cb.reply(UserListMessage(userData))
-      case Failure(cause) => cb.unexpectedError("could not lookup users")
+      case Failure(cause) => 
+        val message = "Unexpected error looking up users."
+        log.error(cause, message)
+        cb.unexpectedError(message)
     }
   }
 
@@ -106,11 +111,15 @@ class IdentityClientActor(userServiceActor: ActorRef) extends Actor with ActorLo
       case Success(UserGroupsResponse(groups)) =>
         val groupData = groups.map { case UserGroup(id, desc, memebers) => UserGroupData(id, desc, memebers) }
         cb.reply(UserGroupsResponseMessage(groupData))
-      case Failure(EntityNotFoundException(_, _)) =>
-        cb.expectedError("group_not_found", "error getting groups")
+      case Failure(EntityNotFoundException(_, Some(groupId))) =>
+        cb.expectedError(
+            "group_not_found", 
+            s"Could not get groups because at least one group did not exist: ${groupId}", 
+            Map("id" -> groupId))
       case Failure(cause) =>
-        // FIXME maybe handle entity not found
-        cb.unexpectedError("error getting groups")
+        val message = "Unexpected error getting groups."
+        log.error(cause, message)
+        cb.unexpectedError(message)
     }
   }
 
@@ -120,11 +129,15 @@ class IdentityClientActor(userServiceActor: ActorRef) extends Actor with ActorLo
     this.userServiceActor.ask(message).mapTo[UserGroupsForUsersResponse] onComplete {
       case Success(UserGroupsForUsersResponse(groups)) =>
         cb.reply(UserGroupsForUsersResponseMessage(groups))
-      case Failure(EntityNotFoundException(_, _)) =>
-        cb.expectedError("user_not_found", "error getting groups")
+      case Failure(EntityNotFoundException(_, Some(userId))) =>
+        cb.expectedError(
+            "user_not_found",
+            s"Could not get groups because at least one user did not exist: ${userId}", 
+            Map("id" -> userId))
       case Failure(cause) =>
-        // FIXME maybe handle entity not found
-        cb.unexpectedError("error getting groups for users")
+        val message = "Unexpected error getting groups for users."
+        log.error(cause, message)
+        cb.unexpectedError(message)
     }
   }
 
