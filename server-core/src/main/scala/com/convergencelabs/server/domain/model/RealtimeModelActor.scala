@@ -296,11 +296,33 @@ class RealtimeModelActor(
   }
 
   private[this] def reloadModelPermissions(): Try[Unit] = {
+    // Build a map of all current permissions so we can detect what changes.
+    val currentPerms = this.connectedClients.map {
+      case (sk, client) =>
+        val sessionPerms = this.permissions.resolveSessionPermissions(sk)
+        (sk, sessionPerms)
+    }
+
     this.permissionsResolver
       .getModelAndCollectionPermissions(modelId, collectionId, persistenceProvider)
       .map { p =>
         this.permissions = p
+
+        // Fire of an update to any client whose permissions have changed.
+        this.connectedClients.foreach {
+          case (sk, client) =>
+            val current = this.permissions.resolveSessionPermissions(sk)
+            val previous = currentPerms.get(sk)
+            if (current != previous) {
+              val message = ModelPermissionsChanged(this.modelResourceId, current)
+              client ! message
+            }
+        }
         ()
+      }.recover {
+        case cause: Exception =>
+          log.error(cause, "Error updating permissions")
+          this.forceCloseAllAfterError("Error updating permissions")
       }
   }
 
