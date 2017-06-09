@@ -112,13 +112,13 @@ class RealtimeModelActor(
   implicit val materializer = ActorMaterializer()
   val persistenceStream = Flow[NewModelOperation]
     .map { modelOperation =>
-      modelOperationProcessor.processModelOperation(modelOperation) match {
-        case Failure(f) =>
+      modelOperationProcessor.processModelOperation(modelOperation).recover {
+        case cause: Exception =>
           // FIXME this is probably altering state outside of the thread.
           // probably need to send a message.
-          this.log.error(f, "Error applying operation: " + modelOperation)
-          this.forceCloseAllAfterError("persistence error")
-        case _ =>
+          this.log.error(cause, "Error applying operation: " + modelOperation)
+          this.forceCloseAllAfterError("There was an unexpected persistence error applying an operation.")
+          ()
       }
     }.to(Sink.onComplete {
       case Success(_) =>
@@ -129,7 +129,7 @@ class RealtimeModelActor(
         // FIXME this is probably altering state outside of the thread.
         // probably need to send a message.
         log.error(f, "Persistence stream completed with an error")
-        this.forceCloseAllAfterError("persitence error")
+        this.forceCloseAllAfterError("There was an unexpected persitence error.")
         this.context.stop(self)
     }).runWith(Source
       .actorRef[NewModelOperation](bufferSize = 1000, OverflowStrategy.fail))

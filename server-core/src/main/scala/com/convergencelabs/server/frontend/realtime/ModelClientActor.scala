@@ -116,7 +116,7 @@ class ModelClientActor(
     log.error("Model actor unexpectedly terminated.")
     openRealtimeModels.find(_._2 == actor) map {
       case (resourceId, ref) =>
-        closeModel(resourceId, "unknown server error")
+        closeModel(resourceId, "The model was unexpectedly closed by the server.")
     }
   }
 
@@ -251,8 +251,13 @@ class ModelClientActor(
   private[this] def onOperationSubmission(message: OperationSubmissionMessage): Unit = {
     val OperationSubmissionMessage(resourceId, seqNo, version, operation) = message
     val submission = OperationSubmission(seqNo, version, OperationMapper.mapIncoming(operation))
-    val modelActor = openRealtimeModels(resourceId)
-    modelActor ! submission
+    openRealtimeModels.get(resourceId) match {
+      case Some(modelActor) =>
+        modelActor ! submission
+      case None =>
+        log.warning("Recieved an operation submissions for a resource id that does not exists.")
+        sender ! ErrorMessage("model_not_open", "An operation message was received for a model that is not open", Map())
+    }
   }
 
   private[this] def onPublishReference(message: PublishReferenceMessage): Unit = {
@@ -260,23 +265,38 @@ class ModelClientActor(
     val mappedType = ReferenceType.map(refType)
     val values = valueOption.map { mapIncomingReferenceValue(mappedType, _) }
     val publishReference = PublishReference(id, key, mappedType, values, version)
-    val modelActor = openRealtimeModels(resourceId)
-    modelActor ! publishReference
+    openRealtimeModels.get(resourceId) match {
+      case Some(modelActor) =>
+        modelActor ! publishReference
+      case None =>
+        log.warning("Recieved a reference publish message for a resource id that does not exists.")
+        sender ! ErrorMessage("model_not_open", "An reference message was received for a model that is not open", Map())
+    }
   }
 
   def onUnpublishReference(message: UnpublishReferenceMessage): Unit = {
     val UnpublishReferenceMessage(resourceId, id, key) = message
     val unpublishReference = UnpublishReference(id, key)
-    val modelActor = openRealtimeModels(resourceId)
-    modelActor ! unpublishReference
+    openRealtimeModels.get(resourceId) match {
+      case Some(modelActor) =>
+        modelActor ! unpublishReference
+      case None =>
+        log.warning("Recieved a reference unpublish message for a resource id that does not exists.")
+        sender ! ErrorMessage("model_not_open", "An reference message was received for a model that is not open", Map())
+    }
   }
 
   private[this] def onSetReference(message: SetReferenceMessage): Unit = {
     val SetReferenceMessage(resourceId, id, key, refType, values, version) = message
     val mappedType = ReferenceType.map(refType)
     val setReference = SetReference(id, key, mappedType, mapIncomingReferenceValue(mappedType, values), version)
-    val modelActor = openRealtimeModels(resourceId)
-    modelActor ! setReference
+    openRealtimeModels.get(resourceId) match {
+      case Some(modelActor) =>
+        modelActor ! setReference
+      case None =>
+        log.warning("Recieved a reference set message for a resource id that does not exists.")
+        sender ! ErrorMessage("model_not_open", "An reference message was received for a model that is not open", Map())
+    }
   }
 
   private[this] def mapIncomingReferenceValue(refType: ReferenceType.Value, values: List[Any]): List[Any] = {
@@ -296,8 +316,13 @@ class ModelClientActor(
   private[this] def onClearReference(message: ClearReferenceMessage): Unit = {
     val ClearReferenceMessage(resourceId, id, key) = message
     val clearReference = ClearReference(id, key)
-    val modelActor = openRealtimeModels(resourceId)
-    modelActor ! clearReference
+    openRealtimeModels.get(resourceId) match {
+      case Some(modelActor) =>
+        modelActor ! clearReference
+      case None =>
+        log.warning("Recieved a reference clear message for a resource id that does not exists.")
+        sender ! ErrorMessage("model_not_open", "An reference message was received for a model that is not open", Map())
+    }
   }
 
   private[this] def onOpenRealtimeModelRequest(request: OpenRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
@@ -383,6 +408,8 @@ class ModelClientActor(
         cb.reply(CreateRealtimeModelSuccessMessage(modelId))
       case Failure(ModelAlreadyExistsException(modelId)) =>
         cb.expectedError("model_alread_exists", "A model with the specifieid model id already exists")
+      case Failure(UnauthorizedException(message)) =>
+        cb.reply(ErrorMessages.Unauthorized(message))
       case Failure(cause) =>
         log.error(cause, "Unexpected error creating model.")
         cb.unexpectedError("could not create model")

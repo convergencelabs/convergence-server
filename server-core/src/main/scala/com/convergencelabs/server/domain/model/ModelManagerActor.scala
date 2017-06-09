@@ -121,7 +121,9 @@ class ModelManagerActor(
           ()
         } recover {
           case e: DuplicateValueException =>
-            sender ! Status.Failure(ModelAlreadyExistsException(modelId.getOrElse("???")))
+            sender ! Status.Failure(ModelAlreadyExistsException(modelId.getOrElse("could not determine model id	")))
+          case e: UnauthorizedException =>
+            sender ! Status.Failure(e)
           case e: Exception =>
             log.error(e, s"Could not create model: ${modelId}")
             sender ! Status.Failure(e)
