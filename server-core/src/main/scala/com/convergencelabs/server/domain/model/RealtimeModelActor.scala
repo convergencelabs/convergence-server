@@ -101,6 +101,8 @@ class RealtimeModelActor(
   private[this] var queuedOpeningClients = HashMap[SessionKey, OpenRequestRecord]()
 
   private[this] var model: RealTimeModel = _
+  private[this] var metaData: ModelMetaData = _
+
   private[this] var snapshotConfig: ModelSnapshotConfig = _
   private[this] var latestSnapshot: ModelSnapshotMetaData = _
   private[this] var snapshotCalculator: ModelSnapshotCalculator = _
@@ -307,6 +309,8 @@ class RealtimeModelActor(
       .getModelAndCollectionPermissions(modelId, collectionId, persistenceProvider)
       .map { p =>
         this.permissions = p
+        
+        this.metaData = this.metaData.copy(overridePermissions = p.overrideCollection, worldPermissions = p.modelWorld)
 
         // Fire of an update to any client whose permissions have changed.
         this.connectedClients.foreach {
@@ -334,6 +338,7 @@ class RealtimeModelActor(
     try {
       latestSnapshot = response.snapshotMetaData
       val modelData = response.modelData
+      this.metaData = response.modelData.metaData
 
       val startTime = Platform.currentTime
       val concurrencyControl = new ServerConcurrencyControl(
@@ -440,17 +445,8 @@ class RealtimeModelActor(
       if (connectedClients.contains(sk)) {
         sender ! ModelAlreadyOpen
       } else {
-        // FIXME do we need to do this? Seems like we have this in memory??
-        modelStore.getModel(modelId) match {
-          case Success(Some(modelData)) =>
-            respondToClientOpenRequest(sk, modelData, OpenRequestRecord(request.clientActor, sender()))
-          case Success(None) =>
-            log.error(s"Could not find model data in the database for an open model: ${modelId}")
-            sender ! UnknownErrorResponse("could not open model")
-          case Failure(cause) =>
-            log.error(cause, s"Could not get model data from the database for model: ${modelId}")
-            sender ! UnknownErrorResponse("could not open model")
-        }
+        val model = Model(this.metaData, this.model.data.dataValue())
+        respondToClientOpenRequest(sk, model, OpenRequestRecord(request.clientActor, sender()))
       }
     } else {
       sender ! Status.Failure(UnauthorizedException("Insufficient privileges to open model"))
@@ -570,7 +566,13 @@ class RealtimeModelActor(
           transformAndApplyOperation(session, unprocessedOpEvent) match {
             case Success(outgoinOperation) =>
               broadcastOperation(session, outgoinOperation, request.seqNo)
-              if (snapshotRequired()) { executeSnapshot() }
+              this.metaData = this.metaData.copy(
+                version = outgoinOperation.contextVersion,
+                modifiedTime = Instant.ofEpochMilli(outgoinOperation.timestamp))
+                
+              if (snapshotRequired()) {
+                executeSnapshot()
+              }
             case Failure(error) =>
               log.error(error, s"Error applying operation to model, kicking client from model: ${request}");
               forceClosedModel(
