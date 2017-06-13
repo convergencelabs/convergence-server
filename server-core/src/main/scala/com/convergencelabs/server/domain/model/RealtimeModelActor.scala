@@ -41,6 +41,7 @@ import akka.stream.scaladsl.Source
 
 case class ModelConfigResponse(sk: SessionKey, config: ClientAutoCreateModelConfigResponse)
 case object PermissionsUpdated
+case class OperationCommitted(version: Long)
 
 /**
  * Provides a factory method for creating the RealtimeModelActor
@@ -110,11 +111,18 @@ class RealtimeModelActor(
 
   private[this] val operationTransformer = new OperationTransformer(new TransformationFunctionRegistry())
   private[this] val referenceTransformer = new ReferenceTransformer(new TransformationFunctionRegistry())
+  
+  private[this] var committedVersion: Long = _
 
   implicit val materializer = ActorMaterializer()
   val persistenceStream = Flow[NewModelOperation]
     .map { modelOperation =>
-      modelOperationProcessor.processModelOperation(modelOperation).recover {
+      modelOperationProcessor.processModelOperation(modelOperation)
+      .map { _ =>
+        self ! OperationCommitted(modelOperation.version)
+        ()
+      }
+      .recover {
         case cause: Exception =>
           // FIXME this is probably altering state outside of the thread.
           // probably need to send a message.
@@ -194,6 +202,7 @@ class RealtimeModelActor(
     case ModelDeleted => handleModelDeletedWhileOpen()
     case terminated: Terminated => handleTerminated(terminated)
     case ModelShutdown => shutdown()
+    case OperationCommitted(version) => commitVersion(version)
 
     // This can happen if we asked several clients for the data.  The first
     // one will be handled, but the rest will come in an simply be ignored.
@@ -340,7 +349,8 @@ class RealtimeModelActor(
       val modelData = response.modelData
       this.metaData = response.modelData.metaData
 
-      val startTime = Platform.currentTime
+      this.committedVersion = modelData.metaData.version
+      
       val concurrencyControl = new ServerConcurrencyControl(
         operationTransformer,
         referenceTransformer,
@@ -534,8 +544,9 @@ class RealtimeModelActor(
    * Determines if there are no more clients connected and if so request to shutdown.
    */
   private[this] def checkForConnectionsAndClose(): Unit = {
-    if (connectedClients.isEmpty && queuedOpeningClients.isEmpty) {
-      log.debug("All clients closed the model, requesting shutdown")
+    // No one is connected, no one is connecting, and the all of the operations have been committed.
+    if (connectedClients.isEmpty && queuedOpeningClients.isEmpty && this.model.contextVersion() == this.committedVersion) {
+      log.debug("All clients closed the model, no one is opening it, and all operations are committed, requesting shutdown")
       modelManagerActor ! new ModelShutdownRequest(this.modelId)
     }
   }
@@ -699,6 +710,15 @@ class RealtimeModelActor(
       } else {
         persistenceProvider.configStore.getModelSnapshotConfig()
       }
+    }
+  }
+  
+  private[this] def commitVersion(version: Long): Unit = {
+    if (version != this.committedVersion + 1) {
+      forceCloseAllAfterError(s"The commited version ($version) was not what was expected (${this.committedVersion + 1}).")
+    } else {
+      this.committedVersion = version
+      this.checkForConnectionsAndClose()
     }
   }
 
