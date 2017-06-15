@@ -60,7 +60,12 @@ package model {
   //
   // Incoming Messages From Self
   //
-  case class DatabaseModelResponse(modelData: Model, snapshotMetaData: ModelSnapshotMetaData)
+  case class DatabaseModelResponse(
+      modelData: Model, 
+      snapshotMetaData: ModelSnapshotMetaData, 
+      snapshotConfig: ModelSnapshotConfig,
+      permissions: RealTimeModelPermissions)
+      
   case class DatabaseModelFailure(cause: Throwable)
 
   //

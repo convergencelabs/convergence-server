@@ -111,25 +111,25 @@ class RealtimeModelActor(
 
   private[this] val operationTransformer = new OperationTransformer(new TransformationFunctionRegistry())
   private[this] val referenceTransformer = new ReferenceTransformer(new TransformationFunctionRegistry())
-  
+
   private[this] var committedVersion: Long = _
 
   implicit val materializer = ActorMaterializer()
   val persistenceStream = Flow[NewModelOperation]
     .map { modelOperation =>
       modelOperationProcessor.processModelOperation(modelOperation)
-      .map { _ =>
-        self ! OperationCommitted(modelOperation.version)
-        ()
-      }
-      .recover {
-        case cause: Exception =>
-          // FIXME this is probably altering state outside of the thread.
-          // probably need to send a message.
-          this.log.error(cause, "Error applying operation: " + modelOperation)
-          this.forceCloseAllAfterError("There was an unexpected persistence error applying an operation.")
+        .map { _ =>
+          self ! OperationCommitted(modelOperation.version)
           ()
-      }
+        }
+        .recover {
+          case cause: Exception =>
+            // FIXME this is probably altering state outside of the thread.
+            // probably need to send a message.
+            this.log.error(cause, "Error applying operation: " + modelOperation)
+            this.forceCloseAllAfterError("There was an unexpected persistence error applying an operation.")
+            ()
+        }
     }.to(Sink.onComplete {
       case Success(_) =>
         // Note when we shut down we complete the persistence stream.
@@ -140,7 +140,9 @@ class RealtimeModelActor(
         // probably need to send a message.
         log.error(f, "Persistence stream completed with an error")
         this.forceCloseAllAfterError("There was an unexpected persitence error.")
-        this.context.stop(self)
+
+        // if the stream was closed because the parent actor died, the this.conext might be null.
+        Option(this.context).foreach(c => c.stop(self))
     }).runWith(Source
       .actorRef[NewModelOperation](bufferSize = 1000, OverflowStrategy.fail))
 
@@ -278,12 +280,10 @@ class RealtimeModelActor(
         case (Some(m), Some(s)) =>
           collectionId = m.metaData.collectionId
           (for {
-            _ <- reloadModelPermissions()
+            permissions <- this.permissionsResolver.getModelAndCollectionPermissions(modelId, collectionId, persistenceProvider)
             snapshotConfig <- getSnapshotConfigForModel(collectionId)
           } yield {
-            this.snapshotConfig = snapshotConfig
-            this.snapshotCalculator = new ModelSnapshotCalculator(snapshotConfig)
-            self ! DatabaseModelResponse(m, s)
+            self ! DatabaseModelResponse(m, s, snapshotConfig, permissions)
           }) recover {
             case cause: Exception =>
               val message = s"Error getting model permissions (${this.modelId})"
@@ -318,7 +318,7 @@ class RealtimeModelActor(
       .getModelAndCollectionPermissions(modelId, collectionId, persistenceProvider)
       .map { p =>
         this.permissions = p
-        
+
         this.metaData = this.metaData.copy(overridePermissions = p.overrideCollection, worldPermissions = p.modelWorld)
 
         // Fire of an update to any client whose permissions have changed.
@@ -344,17 +344,21 @@ class RealtimeModelActor(
    * complete the initialization process.
    */
   private[this] def onDatabaseModelResponse(response: DatabaseModelResponse): Unit = {
-    try {
-      latestSnapshot = response.snapshotMetaData
-      val modelData = response.modelData
-      this.metaData = response.modelData.metaData
+    val DatabaseModelResponse(modelData, snapshotMetaData, snapshotConfig, permissions) = response
 
-      this.committedVersion = modelData.metaData.version
-      
+    try {
+      this.permissions = permissions
+      this.latestSnapshot = snapshotMetaData
+      this.metaData = modelData.metaData
+      this.snapshotConfig = snapshotConfig
+      this.snapshotCalculator = new ModelSnapshotCalculator(snapshotConfig)
+
+      this.committedVersion = this.metaData.version
+
       val concurrencyControl = new ServerConcurrencyControl(
         operationTransformer,
         referenceTransformer,
-        modelData.metaData.version)
+        this.metaData.version)
 
       this.model = new RealTimeModel(
         modelId,
@@ -578,9 +582,9 @@ class RealtimeModelActor(
             case Success(outgoinOperation) =>
               broadcastOperation(session, outgoinOperation, request.seqNo)
               this.metaData = this.metaData.copy(
-                version = outgoinOperation.contextVersion,
+                version = outgoinOperation.contextVersion + 1, // TODO should we get this from the CC?
                 modifiedTime = Instant.ofEpochMilli(outgoinOperation.timestamp))
-                
+
               if (snapshotRequired()) {
                 executeSnapshot()
               }
@@ -659,7 +663,7 @@ class RealtimeModelActor(
     }
   }
 
-  private[this] def snapshotRequired(): Boolean = snapshotCalculator.snapshotRequired(
+  private[this] def snapshotRequired(): Boolean = this.snapshotCalculator.snapshotRequired(
     latestSnapshot.version,
     model.contextVersion(),
     latestSnapshot.timestamp,
@@ -712,7 +716,7 @@ class RealtimeModelActor(
       }
     }
   }
-  
+
   private[this] def commitVersion(version: Long): Unit = {
     if (version != this.committedVersion + 1) {
       forceCloseAllAfterError(s"The commited version ($version) was not what was expected (${this.committedVersion + 1}).")

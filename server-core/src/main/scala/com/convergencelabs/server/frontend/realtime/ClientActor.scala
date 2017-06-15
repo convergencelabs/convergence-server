@@ -211,19 +211,15 @@ class ClientActor(
     // FIXME if authentication fails we should probably stop the actor
     // and or shut down the connection?
     authFuture.mapResponse[AuthenticationResponse] onComplete {
-      case Success(AuthenticationSuccess(username, sk)) => {
+      case Success(AuthenticationSuccess(username, sk)) =>
         getPresenceAfterAuth(username, sk, cb)
-      }
-      case Success(AuthenticationFailure) => {
+      case Success(AuthenticationFailure) =>
         cb.reply(AuthenticationResponseMessage(false, None, None, None))
-      }
-      case Success(AuthenticationError) => {
+      case Success(AuthenticationError) =>
         cb.reply(AuthenticationResponseMessage(false, None, None, None)) // TODO do we want this to go back to the client as something else?
-      }
-      case Failure(cause) => {
+      case Failure(cause) =>
         log.error(cause, "Error authenticating user")
         cb.reply(AuthenticationResponseMessage(false, None, None, None))
-      }
     }
   }
 
