@@ -51,7 +51,7 @@ class ModelOperationProcessor private[domain] (
   val Index = "index"
 
   def processModelOperation(modelOperation: NewModelOperation): Try[Unit] = tryWithDb { db =>
-    // TODO this should all be in a transaction, but orientdb has a problem with this.
+    // TODO this should all be in a transaction, but OrientDB has a problem with this.
 
     // Apply the op.
     applyOperationToModel(modelOperation.modelId, modelOperation.op, db).flatMap { _ =>
@@ -95,41 +95,26 @@ class ModelOperationProcessor private[domain] (
   }
   // scalastyle:on cyclomatic.complexity
 
+  //
+  // Array Operations
+  //
   private[this] def applyArrayInsertOperation(modelId: String, operation: AppliedArrayInsertOperation, db: ODatabaseDocumentTx): Unit = {
     val value = OrientDataValueBuilder.dataValueToODocument(operation.value, getModelRid(modelId, db))
     value.save()
 
-    val queryString =
-      s"""UPDATE ArrayValue SET
-             |  children = arrayInsert(children, :index, :value)
-             |WHERE
-             |  id = :id AND
-             |  model.id = :modelId""".stripMargin
-    val updateCommand = new OCommandSQL(queryString)
-    val params = Map(
-      Id -> operation.id,
-      ModelId -> modelId,
-      Index -> operation.index,
-      Value -> value)
-    db.command(updateCommand).execute(params.asJava)
+    val script = createUpdate("UPDATE ArrayValue SET children = arrayInsert(children, :index, :value)")
+    val params = Map(Id -> operation.id, ModelId -> modelId, Index -> operation.index, Value -> value)
+    QueryUtil.updateSingleDocWithScript(script, params, db).get
     ()
   }
 
   private[this] def applyArrayRemoveOperation(
     modelId: String, operation: AppliedArrayRemoveOperation, db: ODatabaseDocumentTx): Unit = {
-    val queryString =
-      s"""UPDATE ArrayValue SET
-         |  children = arrayRemove(children, :index)
-         |WHERE
-         |  id = :id AND
-         |  model.id = :modelId""".stripMargin
-    val updateCommand = new OCommandSQL(queryString)
-    val params = Map(
-      Id -> operation.id,
-      ModelId -> modelId,
-      Index -> operation.index)
-    db.command(updateCommand).execute(params.asJava)
-    db.commit()
+
+    val script = createUpdate("UPDATE ArrayValue SET children = arrayRemove(children, :index)")
+    val params = Map(Id -> operation.id, ModelId -> modelId, Index -> operation.index)
+    QueryUtil.updateSingleDocWithScript(script, params, db).get
+    ()
   }
 
   private[this] def applyArrayReplaceOperation(
@@ -138,37 +123,16 @@ class ModelOperationProcessor private[domain] (
     value.save()
     db.commit()
 
-    val queryString =
-      s"""UPDATE ArrayValue SET
-             |  children = arrayReplace(children, :index, :value)
-             |WHERE
-             |  model.id = :modelId""".stripMargin
-    val updateCommand = new OCommandSQL(queryString)
-
-    val params = Map(
-      Id -> operation.id,
-      ModelId -> modelId,
-      Index -> operation.index,
-      Value -> value)
-    db.command(updateCommand).execute(params.asJava)
+    val script = createUpdate("UPDATE ArrayValue SET children = arrayReplace(children, :index, :value)")
+    val params = Map(Id -> operation.id, ModelId -> modelId, Index -> operation.index, Value -> value)
+    QueryUtil.updateSingleDocWithScript(script, params, db).get
     ()
   }
 
   private[this] def applyArrayMoveOperation(modelId: String, operation: AppliedArrayMoveOperation, db: ODatabaseDocumentTx): Unit = {
-    val queryString =
-      s"""UPDATE ArrayValue SET
-         |  children = arrayMove(children, :fromIndex, :toIndex)
-         |WHERE
-         |  id = :id AND
-         |  model.id = :modelId""".stripMargin
-    val updateCommand = new OCommandSQL(queryString)
-    val params = Map(
-      Id -> operation.id,
-      ModelId -> modelId,
-      "fromIndex" -> operation.fromIndex,
-      "toIndex" -> operation.toIndex)
-    db.command(updateCommand).execute(params.asJava)
-    db.commit()
+    val script = createUpdate("UPDATE ArrayValue SET children = arrayMove(children, :fromIndex, :toIndex)")
+    val params = Map(Id -> operation.id, ModelId -> modelId, "fromIndex" -> operation.fromIndex, "toIndex" -> operation.toIndex)
+    QueryUtil.updateSingleDocWithScript(script, params, db).get
     ()
   }
 
@@ -177,37 +141,25 @@ class ModelOperationProcessor private[domain] (
     children.foreach { child => child.save() }
     db.commit()
 
-    val script =
-      """BEGIN;
-        |LET model = SELECT rid FROM index:Model.id WHERE key = :modelId;
-        |UPDATE ArrayValue SET children = :value WHERE id = :id AND model = first($model).rid;
-        |COMMIT;""".stripMargin
+    val script = createUpdate("UPDATE ArrayValue SET children = :value")
     val params = Map(Id -> operation.id, ModelId -> modelId, Value -> children.asJava)
-    
+
     QueryUtil.updateSingleDocWithScript(script, params, db).get
     db.commit()
     ()
   }
 
+  //
+  // Object Operations
+  //
   private[this] def applyObjectAddPropertyOperation(modelId: String, operation: AppliedObjectAddPropertyOperation, db: ODatabaseDocumentTx): Unit = {
     val value = OrientDataValueBuilder.dataValueToODocument(operation.value, getModelRid(modelId, db))
     value.save()
     db.commit()
 
-    val queryString =
-      s"""UPDATE ObjectValue PUT
-             |  children = :property, :value
-             |WHERE
-             |  id = :id AND
-             |  model.id = :modelId""".stripMargin
-    val updateCommand = new OCommandSQL(queryString)
-    val params = Map(
-      Id -> operation.id,
-      ModelId -> modelId,
-      Value -> value,
-      "property" -> operation.property)
-    db.command(updateCommand).execute(params.asJava)
-    db.commit()
+    val script = createUpdate("UPDATE ObjectValue PUT children = :property, :value")
+    val params = Map(Id -> operation.id, ModelId -> modelId, Value -> value, "property" -> operation.property)
+    QueryUtil.updateSingleDocWithScript(script, params, db).get
     ()
   }
 
@@ -217,37 +169,17 @@ class ModelOperationProcessor private[domain] (
     value.save()
     db.commit()
 
-    val queryString =
-      s"""UPDATE ObjectValue PUT
-             |  children = :property, :value
-             |WHERE
-             |  id = :id AND
-             |  model.id = :modelId""".stripMargin
-    val updateCommand = new OCommandSQL(queryString)
-    val params = Map(
-      Id -> operation.id,
-      ModelId -> modelId,
-      Value -> value,
-      "property" -> operation.property)
-    db.command(updateCommand).execute(params.asJava)
-    db.commit()
+    val script = createUpdate("UPDATE ObjectValue PUT children = :property, :value")
+    val params = Map(Id -> operation.id, ModelId -> modelId, Value -> value, "property" -> operation.property)
+    QueryUtil.updateSingleDocWithScript(script, params, db).get
     ()
   }
 
   private[this] def applyObjectRemovePropertyOperation(modelId: String, operation: AppliedObjectRemovePropertyOperation, db: ODatabaseDocumentTx): Unit = {
-    val queryString =
-      s"""UPDATE ObjectValue REMOVE
-         |  children = :property
-         |WHERE
-         |  id = :id AND
-         |  model.id = :modelId""".stripMargin
-    val updateCommand = new OCommandSQL(queryString)
-    val params = Map(
-      Id -> operation.id,
-      ModelId -> modelId,
-      "property" -> operation.property)
-    db.command(updateCommand).execute(params.asJava)
-    db.commit()
+    val script = createUpdate("UPDATE ObjectValue REMOVE children = :property")
+    val params = Map(Id -> operation.id, ModelId -> modelId, "property" -> operation.property)
+    QueryUtil.updateSingleDocWithScript(script, params, db).get
+    ()
   }
 
   private[this] def applyObjectSetOperation(modelId: String, operation: AppliedObjectSetOperation, db: ODatabaseDocumentTx): Unit = {
@@ -255,30 +187,16 @@ class ModelOperationProcessor private[domain] (
     children.values foreach { child => child.save() }
     db.commit()
 
-    val queryString =
-      s"""UPDATE ObjectValue SET
-             |  children = :value
-             |WHERE
-             |  id = :id AND
-             |  model.id = :modelId""".stripMargin
-    val updateCommand = new OCommandSQL(queryString)
-    val params = Map(
-      Id -> operation.id,
-      ModelId -> modelId,
-      Value -> children.asJava)
-    db.command(updateCommand).execute(params.asJava)
-    db.commit()
+    val script = createUpdate("UPDATE ObjectValue SET children = :value")
+    val params = Map(Id -> operation.id, ModelId -> modelId, Value -> children.asJava)
+    QueryUtil.updateSingleDocWithScript(script, params, db).get
     ()
   }
 
+  //
+  // String Operations
+  //
   private[this] def applyStringInsertOperation(modelId: String, operation: AppliedStringInsertOperation, db: ODatabaseDocumentTx): Unit = {
-    val queryString =
-      s"""UPDATE StringValue SET
-         |  value = value.left(:index).append(:value).append(value.substring(:index))
-         |WHERE
-         |  id = :id AND
-         |  model.id = :modelId""".stripMargin
-
     // FIXME remove this when the following orient issue is resolved
     // https://github.com/orientechnologies/orientdb/issues/6250
     val hackValue = if (OIOUtils.isStringContent(operation.value)) {
@@ -289,109 +207,70 @@ class ModelOperationProcessor private[domain] (
       operation.value
     }
 
-    val updateCommand = new OCommandSQL(queryString)
-    val params = Map(
-      Id -> operation.id,
-      ModelId -> modelId,
-      Index -> operation.index,
-      Value -> hackValue)
-    db.command(updateCommand).execute(params.asJava)
-    db.commit()
+    val script = createUpdate("UPDATE StringValue SET value = value.left(:index).append(:value).append(value.substring(:index))")
+    val params = Map(Id -> operation.id, ModelId -> modelId, Index -> operation.index, Value -> hackValue)
+    QueryUtil.updateSingleDocWithScript(script, params, db).get
     ()
   }
 
   private[this] def applyStringRemoveOperation(modelId: String, operation: AppliedStringRemoveOperation, db: ODatabaseDocumentTx): Unit = {
+    val script = createUpdate("UPDATE StringValue SET value = value.left(:index).append(value.substring(:endLength))")
     val endLength = operation.index + operation.length
-    val queryString =
-      s"""UPDATE StringValue SET
-         |  value = value.left(:index).append(value.substring(:endLength))
-         |WHERE
-         |  id = :id AND
-         |  model.id = :modelId""".stripMargin
-    val updateCommand = new OCommandSQL(queryString)
-    val params = Map(
-      Id -> operation.id,
-      ModelId -> modelId,
-      Index -> operation.index,
-      "endLength" -> endLength)
-    db.command(updateCommand).execute(params.asJava)
-    db.commit()
+    val params = Map(Id -> operation.id, ModelId -> modelId, Index -> operation.index, "endLength" -> endLength)
+    QueryUtil.updateSingleDocWithScript(script, params, db).get
+    ()
   }
 
   private[this] def applyStringSetOperation(modelId: String, operation: AppliedStringSetOperation, db: ODatabaseDocumentTx): Unit = {
-    val queryString =
-      s"""UPDATE StringValue SET
-         |  value = :value
-         |WHERE
-         |  id = :id AND
-         |  model.id = :modelId""".stripMargin
-    val updateCommand = new OCommandSQL(queryString)
-    val params = Map(
-      Id -> operation.id,
-      ModelId -> modelId,
-      Value -> operation.value)
-    db.command(updateCommand).execute(params.asJava)
-    db.commit()
+    val script = createUpdate("UPDATE StringValue SET value = :value")
+    val params = Map(Id -> operation.id, ModelId -> modelId, Value -> operation.value)
+    QueryUtil.updateSingleDocWithScript(script, params, db).get
+    ()
   }
 
+  //
+  // Number Operations
+  //
   private[this] def applyNumberAddOperation(modelId: String, operation: AppliedNumberAddOperation, db: ODatabaseDocumentTx): Unit = {
     val value = operation.value
-    val queryString =
-      s"""UPDATE DoubleValue SET
-         |  value = eval('value + $value')
-         |WHERE
-         |  id = :id AND
-         |  model.id = :modelId""".stripMargin
-    val updateCommand = new OCommandSQL(queryString)
-    val params = Map(
-      Id -> operation.id,
-      ModelId -> modelId)
-    db.command(updateCommand).execute(params.asJava)
+    val script = createUpdate(s"UPDATE DoubleValue SET value = eval('value + $value')")
+    val params = Map(Id -> operation.id, ModelId -> modelId)
+    QueryUtil.updateSingleDocWithScript(script, params, db).get
+    ()
   }
 
   private[this] def applyNumberSetOperation(modelId: String, operation: AppliedNumberSetOperation, db: ODatabaseDocumentTx): Unit = {
-    val queryString =
-      s"""UPDATE DoubleValue SET
-         |  value = :value
-         |WHERE
-         |  id = :id AND
-         |  model.id = :modelId""".stripMargin
-    val updateCommand = new OCommandSQL(queryString)
-    val params = Map(
-      Id -> operation.id,
-      ModelId -> modelId,
-      Value -> operation.value)
-    db.command(updateCommand).execute(params.asJava)
+    val script = createUpdate("UPDATE DoubleValue SET value = :value")
+    val params = Map(Id -> operation.id, ModelId -> modelId, Value -> operation.value)
+    QueryUtil.updateSingleDocWithScript(script, params, db).get
+    ()
   }
 
+  //
+  // Boolean Operations
+  //
   private[this] def applyBooleanSetOperation(modelId: String, operation: AppliedBooleanSetOperation, db: ODatabaseDocumentTx): Unit = {
-    val queryString =
-      s"""UPDATE BooleanValue SET
-         |  value = :value
-         |WHERE
-         |  id = :id AND
-         |  model.id = :modelId""".stripMargin
-    val updateCommand = new OCommandSQL(queryString)
-    val params = Map(
-      Id -> operation.id,
-      ModelId -> modelId,
-      Value -> operation.value)
-    db.command(updateCommand).execute(params.asJava)
+    val script = createUpdate("UPDATE BooleanValue SET value = :value")
+    val params = Map(Id -> operation.id, ModelId -> modelId, Value -> operation.value)
+    QueryUtil.updateSingleDocWithScript(script, params, db).get
+    ()
   }
 
+  //
+  // Date Operations
+  //
   private[this] def applyDateSetOperation(modelId: String, operation: AppliedDateSetOperation, db: ODatabaseDocumentTx): Unit = {
-    val queryString =
-      s"""UPDATE DateValue SET
-         |  value = :value
-         |WHERE
-         |  id = :id AND
-         |  model.id = :modelId""".stripMargin
-    val updateCommand = new OCommandSQL(queryString)
-    val params = Map(
-      Id -> operation.id,
-      ModelId -> modelId,
-      Value -> Date.from(operation.value))
-    db.command(updateCommand).execute(params.asJava)
+    val script = createUpdate("UPDATE DateValue SET value = :value")
+    val params = Map(Id -> operation.id, ModelId -> modelId, Value -> Date.from(operation.value))
+    QueryUtil.updateSingleDocWithScript(script, params, db).get
+    ()
+  }
+  
+  private[this] def createUpdate(updateClause: String): String = {
+    s"""BEGIN;
+        |LET model = SELECT rid FROM index:Model.id WHERE key = :modelId;
+        |$updateClause WHERE id = :id AND model = first($$model).rid;
+        |COMMIT;""".stripMargin
   }
 
   private[this] def getModelRid(modelId: String, db: ODatabaseDocumentTx): ORID = {

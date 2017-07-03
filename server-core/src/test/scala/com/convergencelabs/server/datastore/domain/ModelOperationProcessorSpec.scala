@@ -353,7 +353,7 @@ class ModelOperationProcessorSpec
         val newDate = Instant.now()
         val op = AppliedDateSetOperation(bornVID, false, newDate, Some(bornDate))
         val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, op)
-        provider.modelOperationProcessor.processModelOperation(modelOp)
+        provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(bornField) shouldBe DateValue(bornVID, newDate)
