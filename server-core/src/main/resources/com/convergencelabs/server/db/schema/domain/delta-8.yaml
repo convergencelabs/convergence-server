@@ -1,0 +1,11 @@
+version: 8
+description: Added index on DataValue id and model.
+changes:
+
+########## DataValue Class ##########
+
+  - action: CreateIndex
+    className: DataValue
+    name: DataValue.id_model
+    type: UniqueHashIndex
+    properties: [id, model]

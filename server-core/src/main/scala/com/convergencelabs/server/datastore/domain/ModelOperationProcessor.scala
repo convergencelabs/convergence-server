@@ -1,6 +1,5 @@
 package com.convergencelabs.server.datastore.domain
 
-import java.time.Instant
 import java.util.Date
 
 import scala.collection.JavaConverters.mapAsJavaMapConverter
@@ -17,6 +16,7 @@ import com.convergencelabs.server.domain.model.ot.AppliedArrayReplaceOperation
 import com.convergencelabs.server.domain.model.ot.AppliedArraySetOperation
 import com.convergencelabs.server.domain.model.ot.AppliedBooleanSetOperation
 import com.convergencelabs.server.domain.model.ot.AppliedCompoundOperation
+import com.convergencelabs.server.domain.model.ot.AppliedDateSetOperation
 import com.convergencelabs.server.domain.model.ot.AppliedDiscreteOperation
 import com.convergencelabs.server.domain.model.ot.AppliedNumberAddOperation
 import com.convergencelabs.server.domain.model.ot.AppliedNumberSetOperation
@@ -29,13 +29,13 @@ import com.convergencelabs.server.domain.model.ot.AppliedStringInsertOperation
 import com.convergencelabs.server.domain.model.ot.AppliedStringRemoveOperation
 import com.convergencelabs.server.domain.model.ot.AppliedStringSetOperation
 import com.orientechnologies.common.io.OIOUtils
+import com.orientechnologies.orient.core.command.script.OCommandScript
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.sql.OCommandSQL
 
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.datastore.EntityNotFoundException
-import com.convergencelabs.server.domain.model.ot.AppliedDateSetOperation
+import com.convergencelabs.server.datastore.QueryUtil
 
 class ModelOperationProcessor private[domain] (
   private[this] val dbProvider: DatabaseProvider,
@@ -61,8 +61,9 @@ class ModelOperationProcessor private[domain] (
       // Update the model metadata
       modelStore.updateModelOnOperation(modelOperation.modelId, modelOperation.timestamp)
     }.get
+
   }
-  
+
   // scalastyle:off cyclomatic.complexity
   private[this] def applyOperationToModel(modelId: String, operation: AppliedOperation, db: ODatabaseDocumentTx): Try[Unit] = Try {
     operation match {
@@ -88,7 +89,7 @@ class ModelOperationProcessor private[domain] (
       case op: AppliedNumberSetOperation => applyNumberSetOperation(modelId, op, db)
 
       case op: AppliedBooleanSetOperation => applyBooleanSetOperation(modelId, op, db)
-      
+
       case op: AppliedDateSetOperation => applyDateSetOperation(modelId, op, db)
     }
   }
@@ -176,18 +177,16 @@ class ModelOperationProcessor private[domain] (
     children.foreach { child => child.save() }
     db.commit()
 
+    val script =
+      """BEGIN;
+        |LET model = SELECT rid FROM index:Model.id WHERE key = :modelId;
+        |UPDATE ArrayValue SET children = :value WHERE id = :id AND model = first($model).rid;
+        |COMMIT;""".stripMargin
     val params = Map(Id -> operation.id, ModelId -> modelId, Value -> children.asJava)
-    val queryString =
-      s"""UPDATE ArrayValue
-             |SET
-             |  children = :value
-             |WHERE
-             |  id = : id AND
-             |  model.id = :modelId""".stripMargin
-    val updateCommand = new OCommandSQL(queryString)
-    db.command(updateCommand).execute(params.asJava)
+    
+    QueryUtil.updateSingleDocWithScript(script, params, db).get
     db.commit()
-    Unit
+    ()
   }
 
   private[this] def applyObjectAddPropertyOperation(modelId: String, operation: AppliedObjectAddPropertyOperation, db: ODatabaseDocumentTx): Unit = {
@@ -379,7 +378,7 @@ class ModelOperationProcessor private[domain] (
       Value -> operation.value)
     db.command(updateCommand).execute(params.asJava)
   }
-  
+
   private[this] def applyDateSetOperation(modelId: String, operation: AppliedDateSetOperation, db: ODatabaseDocumentTx): Unit = {
     val queryString =
       s"""UPDATE DateValue SET

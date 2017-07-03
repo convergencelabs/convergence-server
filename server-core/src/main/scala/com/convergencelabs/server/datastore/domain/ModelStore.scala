@@ -100,10 +100,7 @@ object ModelStore {
   }
 
   def getModelRid(id: String, db: ODatabaseDocumentTx): Try[ORID] = {
-
-    val query = "SELECT @RID as rid FROM Model WHERE id = :id"
-    val params = Map("id" -> id)
-    QueryUtil.lookupMandatoryDocument(query, params, db) map { _.eval("rid").asInstanceOf[ORID] }
+    QueryUtil.getRidFromIndex(ModelIdIndex, id, db)
   }
 }
 

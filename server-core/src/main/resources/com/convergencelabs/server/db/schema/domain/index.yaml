@@ -1,4 +1,4 @@
-preReleaseVersion: 7
+preReleaseVersion: 8
 releasedVersion: 7
 deltas:
   1: {delta: 0767bdd9177d2a0171142e4602c24bb8336621e5392e135f06913ddbbf04d8dc, database: a637bc1e5f5152637303a828a8482ebb899fc29660f32845fa5f300264b0e912}

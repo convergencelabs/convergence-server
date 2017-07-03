@@ -119,6 +119,19 @@ object QueryUtil extends Logging {
     }
   }
   
+  def updateSingleDocWithScript(query: String, params: Map[String, Any], db: ODatabaseDocumentTx): Try[Unit] = {
+    val q = new OCommandScript(query)
+    val count: Int = db.command(q).execute(params.asJava)
+    count match {
+      case 0 =>
+        Failure(EntityNotFoundException())
+      case 1 =>
+        Success(())
+      case _ =>
+        Failure(new IllegalStateException(MultipleElementsMessage))
+    }
+  }
+  
   def command(query: String, params: Map[String, Any], db: ODatabaseDocumentTx): Try[Int] = Try {
     val q = new OCommandSQL(query)
     val count: Int = db.command(q).execute(params.asJava)
