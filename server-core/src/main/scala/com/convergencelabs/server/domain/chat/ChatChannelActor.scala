@@ -80,7 +80,7 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
       this.channelManager = Some(manager)
       manager.state().channelType match {
         case "room" =>
-          this.messageProcessor = Some(new ChatRoomMessageProcessor(manager, context))
+          this.messageProcessor = Some(new ChatRoomMessageProcessor(channelId, manager, context))
           // this would only need to happen if a previous instance of this room crashed without 
           // cleaning up properly.
           manager.removeAllMembers()

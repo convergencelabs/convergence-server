@@ -44,6 +44,7 @@ import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetUserChatPer
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetUserChatPermissionsResponse
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetGroupChatPermissionsRequest
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetGroupChatPermissionsResponse
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.UserLeftChannel
 
 case class ChatMessageProcessingResult(response: Option[Any], broadcastMessages: List[Any])
 
@@ -89,7 +90,7 @@ abstract class ChatChannelMessageProcessor(stateManager: ChatChannelStateManager
       case ChatUserLeftEvent(eventNo, channelId, username, timestamp) =>
         ChatMessageProcessingResult(
           Some(()),
-          List(UserJoinedChannel(channelId, eventNo, timestamp, username)))
+          List(UserLeftChannel(channelId, eventNo, timestamp, username)))
     }
   }
 

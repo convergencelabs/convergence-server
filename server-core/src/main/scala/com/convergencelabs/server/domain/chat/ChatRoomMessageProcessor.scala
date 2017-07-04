@@ -17,15 +17,19 @@ import akka.actor.ActorRef
 import akka.actor.Props
 import akka.actor.Terminated
 import akka.cluster.sharding.ShardRegion.Passivate
+import akka.actor.ActorLogging
+import grizzled.slf4j.Logging
 
 class ChatRoomMessageProcessor(
+  channelId: String,
   stateManager: ChatChannelStateManager,
   context: ActorContext)
-    extends ChatChannelMessageProcessor(stateManager) {
-  
+    extends ChatChannelMessageProcessor(stateManager)
+    with Logging {
+
   val chatRoomSessionManager = new ChatRoomSessionManager()
 
-  context.system.actorOf(Props(new Watcher()))
+  val watcher = context.system.actorOf(Props(new Watcher()))
 
   override def processChatMessage(message: ExistingChannelMessage): Try[ChatMessageProcessingResult] = {
     message match {
@@ -38,6 +42,9 @@ class ChatRoomMessageProcessor(
 
   override def onJoinChannel(message: JoinChannelRequest): Try[ChatMessageProcessingResult] = {
     val JoinChannelRequest(channelId, sk, client) = message
+    logger.debug("Client joined chat room")
+    watcher.tell(client, Actor.noSender)
+
     chatRoomSessionManager.join(sk, client) match {
       case true =>
         // First session in, process the join request normally
@@ -50,6 +57,7 @@ class ChatRoomMessageProcessor(
 
   override def onLeaveChannel(message: LeaveChannelRequest): Try[ChatMessageProcessingResult] = {
     val LeaveChannelRequest(channelId, sk, client) = message
+    logger.debug("Client joined chat room")
     val result = chatRoomSessionManager.leave(sk) match {
       case true =>
         super.onLeaveChannel(message)
@@ -72,16 +80,16 @@ class ChatRoomMessageProcessor(
     })
   }
 
-  class Watcher() extends Actor {
+  class Watcher() extends Actor with ActorLogging {
     def receive = {
       case client: ActorRef =>
         context.watch(client)
       case Terminated(client) =>
-        val generateMessage = chatRoomSessionManager.leave(client)
-        if (generateMessage) {
-          chatRoomSessionManager.getSession(client).foreach { sk =>
-            stateManager.onLeaveChannel(sk)
-          }
+        context.unwatch(client)
+        chatRoomSessionManager.getSession(client).foreach { sk =>
+          // TODO This is a little sloppy since we will send a message to the client, which we already know is gone.
+          val syntheticMessage = LeaveChannelRequest(channelId, sk, client)
+          processChatMessage(syntheticMessage)
         }
     }
   }
