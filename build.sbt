@@ -7,6 +7,7 @@ val commonSettings = Seq(
   scalaVersion := "2.11.8",
   scalacOptions := Seq("-deprecation", "-feature"),
   fork := true,
+  javaOptions += "-XX:MaxDirectMemorySize=16384m",
   publishTo := {
     val nexus = "https://nexus.convergencelabs.tech/repository/"
     if (isSnapshot.value)
