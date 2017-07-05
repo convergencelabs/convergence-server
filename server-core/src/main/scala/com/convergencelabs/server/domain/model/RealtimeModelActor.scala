@@ -112,7 +112,7 @@ class RealtimeModelActor(
   private[this] val operationTransformer = new OperationTransformer(new TransformationFunctionRegistry())
   private[this] val referenceTransformer = new ReferenceTransformer(new TransformationFunctionRegistry())
 
-  private[this] var committedVersion: Long = _
+  private[this] var committedVersion: Long = 0
 
   implicit val materializer = ActorMaterializer()
   val persistenceStream = Flow[NewModelOperation]

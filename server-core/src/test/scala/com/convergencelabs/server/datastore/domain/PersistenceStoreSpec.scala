@@ -22,26 +22,23 @@ abstract class PersistenceStoreSpec[S](category: DeltaCategory.Value) {
     // make sure no accidental collisions
     val dbName = getClass.getSimpleName
     val uri = s"memory:${dbName}${nextDbId()}"
-    
+
     val db = new ODatabaseDocumentTx(uri)
     db.activateOnCurrentThread()
     db.create()
 
-    val dbProvider = DatabaseProvider(db)
-
-    val mgr = new TestingSchemaManager(db, category, true)
-    mgr.install().get
-
-    val store = createStore(DatabaseProvider(db))
-
     try {
+      val dbProvider = DatabaseProvider(db)
+      val mgr = new TestingSchemaManager(db, category, true)
+      mgr.install().get
+      val store = createStore(DatabaseProvider(db))
       testCode(store)
     } finally {
       db.activateOnCurrentThread()
       db.drop() // Drop will close and drop
     }
   }
-  
+
   def nextDbId(): Int = {
     dbCounter.getAndIncrement()
   }
