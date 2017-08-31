@@ -102,8 +102,9 @@ class ProtocolConnection(
       case Success(envelope) =>
         handleValidMessage(envelope)
       case Failure(cause) =>
-        logger.error(cause)
-        Failure(new IllegalArgumentException(s"Could not parse JSON message $json"))
+        val message = s"Could not parse incoming protocol message: $json"
+        logger.error(message, cause)
+        Failure(new IllegalArgumentException(message))
     }
   }
 

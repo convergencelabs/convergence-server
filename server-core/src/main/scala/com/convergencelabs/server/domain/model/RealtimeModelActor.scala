@@ -184,7 +184,7 @@ class RealtimeModelActor(
     case dataResponse: DatabaseModelResponse =>
       onDatabaseModelResponse(dataResponse)
     case DatabaseModelFailure(cause) =>
-      handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
+      handleInitializationFailure(UnknownErrorResponse("Unexpected persistence error initializing the model."))
     case ModelDeleted =>
       handleInitializationFailure(ModelDeletedWhileOpening)
     case dataResponse: ClientAutoCreateModelConfigResponse =>
@@ -734,7 +734,7 @@ class RealtimeModelActor(
    * Kicks all clients out of the model.
    */
   private[this] def forceCloseAllAfterError(reason: String): Unit = {
-    log.debug("Force closing all clients after an internal error")
+    log.debug(s"Force closing all clients after an internal error: $reason")
     connectedClients foreach {
       case (clientId, actor) => forceClosedModel(clientId, reason, false)
     }

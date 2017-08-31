@@ -41,7 +41,7 @@ object Utils {
       case JInt(x)    => x.doubleValue()
       case JDouble(x) => x
       case JLong(x)   => x.doubleValue()
-      case _          => throw new IllegalArgumentException("invlid number type")
+      case _          => throw new IllegalArgumentException("invalid number type")
     }
   }
 
@@ -49,7 +49,7 @@ object Utils {
     value match {
       case JInt(x) => Instant.ofEpochMilli(x.longValue())
       case JLong(x) => Instant.ofEpochMilli(x.longValue())
-      case _        => throw new IllegalArgumentException("invlid date type")
+      case _        => throw new IllegalArgumentException("invalid date type")
     }
   }
 }
@@ -107,6 +107,8 @@ class OperationSerializer extends CustomSerializer[OperationData](format => ({
   case JObject(List((T, JInt(Big(OperationType.StringValue))), (D, JString(id)), (N, JBool(noOp)), (V, JString(value)))) =>
     StringSetOperationData(id, noOp, value)
 
+    // FIXME we should enhance the pattern matching here to make sure V is what we expect. Right now
+    // we are getting an exception in jnumberToDouble.
   case JObject(List((T, JInt(Big(OperationType.NumberAdd))), (D, JString(id)), (N, JBool(noOp)), (V, value))) =>
     NumberAddOperationData(id, noOp, jnumberToDouble(value))
   case JObject(List((T, JInt(Big(OperationType.NumberValue))), (D, JString(id)), (N, JBool(noOp)), (V, value))) =>
