@@ -184,6 +184,7 @@ class RealtimeModelActor(
     case dataResponse: DatabaseModelResponse =>
       onDatabaseModelResponse(dataResponse)
     case DatabaseModelFailure(cause) =>
+      log.error(cause, "Database Model Failure")
       handleInitializationFailure(UnknownErrorResponse("Unexpected persistence error initializing the model."))
     case ModelDeleted =>
       handleInitializationFailure(ModelDeletedWhileOpening)
