@@ -46,6 +46,7 @@ import com.convergencelabs.server.frontend.rest.DataValueToJValue
 import org.json4s.JsonAST.JObject
 import com.convergencelabs.server.frontend.realtime.ModelResult
 import org.parboiled2.ParseError
+import com.orientechnologies.orient.core.db.record.OIdentifiable
 
 object ModelStore {
   val ModelClass = "Model"
@@ -95,7 +96,10 @@ object ModelStore {
   }
 
   def docToModel(doc: ODocument): Model = {
-    val data: ODocument = doc.field("data");
+    // TODO This can be cleaned up.. it seems like in some cases we are getting an ORecordId back
+    // and in other cases an ODocument. This handles both cases.  We should figure out what
+    // is supposed to come back and why it might be coming back as the other.
+    val data: ODocument = doc.field("data").asInstanceOf[OIdentifiable].getRecord[ODocument];
     Model(docToModelMetaData(doc), data.asObjectValue)
   }
 
