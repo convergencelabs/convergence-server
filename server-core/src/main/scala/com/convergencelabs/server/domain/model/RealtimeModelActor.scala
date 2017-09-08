@@ -224,19 +224,24 @@ class RealtimeModelActor(
    * method is called, the actor will be an in initializing state.
    */
   private[this] def onOpenModelWhileUninitialized(request: OpenRealtimeModelRequest): Unit = {
+    log.debug(s"Handling a request to open the model while it is uninitialized: ${domainFqn}/${modelId}")
     queuedOpeningClients += (request.sk -> OpenRequestRecord(request.clientActor, sender()))
-    modelStore.modelExists(modelId) match {
-      case Success(true) =>
+    modelStore.modelExists(modelId) map { exists =>
+      if (exists) {
+        log.debug(s"Model exists: ${domainFqn}/${modelId}")
         requestModelDataFromDatastore()
-      case Success(false) =>
+      } else {
+        log.debug(s"Model does not exist: ${domainFqn}/${modelId}")
         request.autoCreateId match {
           case Some(id) =>
             requestAutoCreateConfigFromClient(request.sk, request.clientActor, id)
           case None =>
             sender ! Status.Failure(ModelNotFoundException(modelId))
         }
-      case Failure(cause) =>
-        log.error(cause, "Unable to determine if a model exists.")
+      }
+    } recover {
+      case cause =>
+        log.error(cause, s"Unable to determine if a model exists: ${domainFqn}/${modelId}")
         handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
     }
   }
@@ -246,20 +251,25 @@ class RealtimeModelActor(
    * already initializing.
    */
   private[this] def onOpenModelWhileInitializing(request: OpenRealtimeModelRequest): Unit = {
+    log.debug(s"Handling a request to open the model while it is already initialiaing: ${domainFqn}/${modelId}")
     // We know we are already INITIALIZING.  This means we are at least the second client
     // to open the model before it was fully initialized.
     queuedOpeningClients += (request.sk -> OpenRequestRecord(request.clientActor, sender()))
 
     // If we are persistent, then the data is already loading, so there is nothing to do.
-    // However, if we are not persistent, we have already asked the previous opening client
+    // However, if we are not persistent, we have already asked the previous opening clients
     // for the data, but we will ask this client too, in case the others fail.
-    modelStore.modelExists(modelId) match {
-      case Success(false) =>
-        // Otherwise this client has nothing for us, but there is at least one
-        // other client in the mix.
+    modelStore.modelExists(modelId) map { exists =>
+      if (!exists) {
+        // If there is an auto create id we can ask this client for data.  If there isn't an auto create
+        // id, we can't ask them, but that is ok since we assume the previous client supplied the data
+        // else it would have bomed out.
         request.autoCreateId.foreach((id) => requestAutoCreateConfigFromClient(request.sk, request.clientActor, id))
-      case Success(true) => // No action required
-      case Failure(cause) =>
+      }
+      // Else no action required, the model must have been persistent, which means we are in the process of
+      // loading it from the database.
+    } recover {
+      case cause =>
         log.error(cause,
           s"Unable to determine if model exists while handling an open request for an initializing model: $domainFqn/$modelId")
         handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
@@ -271,7 +281,8 @@ class RealtimeModelActor(
    */
   private[this] def requestModelDataFromDatastore(): Unit = {
     context.become(receiveInitializingFromDatabase)
-    log.debug(s"Opening model from database: ${this.modelId}")
+    log.debug(s"Requesting model data from the database: ${domainFqn}/${modelId}")
+    
     //    Future {
     (for {
       snapshotMetaData <- modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelId)
@@ -301,7 +312,7 @@ class RealtimeModelActor(
       }
     }) recover {
       case cause: Exception =>
-        val message = s"Error getting model data (${this.modelId})"
+        val message = s"Error getting model data (${domainFqn}/${modelId})"
         log.error(cause, message)
         self ! DatabaseModelFailure(cause)
     }
@@ -388,18 +399,21 @@ class RealtimeModelActor(
    * Asynchronously requests the model data from the connecting client.
    */
   private[this] def requestAutoCreateConfigFromClient(sk: SessionKey, clientActor: ActorRef, autoCreateId: Int): Unit = {
+    log.debug(s"Requesting model config data from client: ${domainFqn}/${modelId}")
+    
     val future = Patterns.ask(clientActor, ClientAutoCreateModelConfigRequest(autoCreateId), clientDataResponseTimeout)
     val askingActor = sender
 
     future.mapTo[ClientAutoCreateModelConfigResponse] onComplete {
       case Success(response) =>
+        log.debug(s"Model config data received from client: ${domainFqn}/${modelId}")
         self ! ModelConfigResponse(sk, response)
       case Failure(cause) => cause match {
         case e: AskTimeoutException =>
-          log.debug("A timeout occured waiting for the client to respond with model data.")
+          log.debug(s"A timeout occured waiting for the client to respond with model data: ${domainFqn}/${modelId}")
           this.handleQuedClientOpenFailureFailure(sk, ClientDataRequestFailure("The client did not correctly respond with data, while initializing a new model."))
         case e: Exception =>
-          log.error(e, "Uknnown exception processing model data response.")
+          log.error(e, s"Uknnown exception processing model config data response: ${domainFqn}/${modelId}")
           this.handleQuedClientOpenFailureFailure(sk, UnknownErrorResponse(e.getMessage))
       }
     }
@@ -416,7 +430,7 @@ class RealtimeModelActor(
 
     this.queuedOpeningClients.get(sk) match {
       case Some(openRecord) =>
-        log.debug(s"Received data for model ${this.modelId} from client")
+        log.debug(s"Received config data for model from client: ${domainFqn}/${modelId}")
         val ClientAutoCreateModelConfigResponse(colleciton, modelData, overridePermissions, worldPermissions, userPermissions, ephemeral) = config
 
         val overrideWorld = overridePermissions.getOrElse(false)
@@ -453,6 +467,8 @@ class RealtimeModelActor(
    * Handles a request to open the model, when the model is already initialized.
    */
   private[this] def onOpenModelWhileInitialized(request: OpenRealtimeModelRequest): Unit = {
+    log.debug(s"Handling a request to open the model while it is initialized: ${domainFqn}/${modelId}")
+    
     // FIXME see below fixme, but also it seems like we check this
     // in the respondToClientOpenRequest?
     if (permissions.resolveSessionPermissions(request.sk).read) {
@@ -698,7 +714,7 @@ class RealtimeModelActor(
       case snapshotMetaData: ModelSnapshotMetaData =>
         // Send the snapshot back to the model so it knows when the snapshot was actually taken.
         self ! snapshotMetaData
-        log.debug(s"Snapshot successfully taken for '${modelId}' " +
+        log.debug(s"Snapshot successfully taken for model: '${domainFqn}/${modelId}' " +
           s"at version: ${snapshotMetaData.version}, timestamp: ${snapshotMetaData.timestamp}")
     }
 
@@ -796,19 +812,21 @@ class RealtimeModelActor(
   }
 
   private def shutdown(): Unit = {
-    log.debug(s"Model ${modelId} is shutting down.")
+    log.debug(s"Model is shutting down: ${domainFqn}/${modelId}")
     this.persistenceStream ! Status.Success("stream complete")
     if (this.ephemeral) {
-      log.debug(s"Model ${modelId} is ephemeral, so deleting it.")
+      log.debug(s"Model is ephemeral, so deleting it: ${domainFqn}/${modelId}")
       this.modelStore.deleteModel(this.modelId) recover {
         case cause: Exception =>
-          log.error(cause, "Could not delete ephemeral model")
+          log.error(cause, "Error deleting ephemeral model")
+      } map { _ =>
+        log.debug(s"Ephemeral model deleted: ${domainFqn}/${modelId}")
       }
     }
   }
 
   override def postStop(): Unit = {
-    log.debug("Realtime Model({}/{}) stopped", domainFqn, modelId)
+    log.debug(s"Realtime Model stopped: ${domainFqn}/${modelId}", domainFqn, modelId)
     connectedClients = HashMap()
   }
 
