@@ -245,10 +245,22 @@ class ModelManagerActor(
     }
   }
 
+  // FIXME I think we have a race condition here, where a new client could have an in flight open
+  // request to this model, while it is being told to shut down. Not sure what to do about this.
   private[this] def onModelShutdownRequest(shutdownRequest: ModelShutdownRequest): Unit = {
-    val modelId = shutdownRequest.modelId
+    val ModelShutdownRequest(modelId, ephemeral) = shutdownRequest
     openRealtimeModels.get(modelId) map (_ ! ModelShutdown)
     openRealtimeModels -= (modelId)
+    
+    if (ephemeral) {
+      log.debug(s"Shutting down an ephemeral model, so deleting it: ${domainFqn}/${modelId}")
+      persistenceProvider.modelStore.deleteModel(modelId) recover {
+        case cause: Exception =>
+          log.error(cause, "Error deleting ephemeral model")
+      } map { _ =>
+        log.debug(s"Ephemeral model deleted: ${domainFqn}/${modelId}")
+      }
+    }
   }
 
   private[this] def onActorDeath(actor: ActorRef): Unit = {

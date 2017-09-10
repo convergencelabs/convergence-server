@@ -229,20 +229,25 @@ class ModelStore private[domain] (
   }
 
   def deleteModel(id: String): Try[Unit] = tryWithDb { db =>
-    operationStore.deleteAllOperationsForModel(id).flatMap { _ =>
-      snapshotStore.removeAllSnapshotsForModel(id)
-    }.flatMap { _ =>
-      deleteDataValuesForModel(id)
-    }.map { _ =>
-      val command = new OCommandSQL("DELETE FROM Model WHERE id = :id")
-      val params = Map(Id -> id)
-      db.command(command).execute(params.asJava).asInstanceOf[Int] match {
-        case 1 =>
-          ()
-        case _ =>
-          throw EntityNotFoundException()
-      }
-    }.get
+    (for {
+      _ <- operationStore.deleteAllOperationsForModel(id)
+      _ <- snapshotStore.removeAllSnapshotsForModel(id)
+      _ <- deleteDataValuesForModel(id)
+      _ <- deleteModelRecord(id)
+    } yield {
+      ()
+    }).get
+  }
+
+  def deleteModelRecord(id: String): Try[Unit] = tryWithDb { db =>
+    val command = new OCommandSQL("DELETE FROM Model WHERE id = :id")
+    val params = Map(Id -> id)
+    db.command(command).execute(params.asJava).asInstanceOf[Int] match {
+      case 1 =>
+        ()
+      case _ =>
+        throw EntityNotFoundException()
+    }
   }
 
   def deleteDataValuesForModel(id: String): Try[Unit] = tryWithDb { db =>
@@ -352,9 +357,9 @@ class ModelStore private[domain] (
             false,
             ModelPermissions(false, false, false, false))
 
-          val values = results.asScala.toList map Function.tupled {(field, value) =>
-            (queryParams.as.get(field).getOrElse(field), 
-                DataValueToJValue.toJson(value.asInstanceOf[ODocument].asDataValue))
+          val values = results.asScala.toList map Function.tupled { (field, value) =>
+            (queryParams.as.get(field).getOrElse(field),
+              DataValueToJValue.toJson(value.asInstanceOf[ODocument].asDataValue))
           }
           ModelQueryResult(meta, JObject(values))
         }

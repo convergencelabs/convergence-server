@@ -568,7 +568,7 @@ class RealtimeModelActor(
     // No one is connected, no one is connecting, and the all of the operations have been committed.
     if (connectedClients.isEmpty && queuedOpeningClients.isEmpty && this.model.contextVersion() == this.committedVersion) {
       log.debug("All clients closed the model, no one is opening it, and all operations are committed, requesting shutdown")
-      modelManagerActor ! new ModelShutdownRequest(this.modelId)
+      modelManagerActor ! new ModelShutdownRequest(this.modelId, this.ephemeral)
     }
   }
 
@@ -814,19 +814,10 @@ class RealtimeModelActor(
   private def shutdown(): Unit = {
     log.debug(s"Model is shutting down: ${domainFqn}/${modelId}")
     this.persistenceStream ! Status.Success("stream complete")
-    if (this.ephemeral) {
-      log.debug(s"Model is ephemeral, so deleting it: ${domainFqn}/${modelId}")
-      this.modelStore.deleteModel(this.modelId) recover {
-        case cause: Exception =>
-          log.error(cause, "Error deleting ephemeral model")
-      } map { _ =>
-        log.debug(s"Ephemeral model deleted: ${domainFqn}/${modelId}")
-      }
-    }
   }
 
   override def postStop(): Unit = {
-    log.debug(s"Realtime Model stopped: ${domainFqn}/${modelId}", domainFqn, modelId)
+    log.debug("Realtime Model stopped: {}/{}", domainFqn, modelId)
     connectedClients = HashMap()
   }
 

@@ -94,7 +94,7 @@ package model {
   case object ModelDeletedWhileOpening extends OpenModelFailure
   case class ClientDataRequestFailure(message: String) extends OpenModelFailure
 
-  case class ModelShutdownRequest(modelId: String)
+  case class ModelShutdownRequest(modelId: String, ephemeral: Boolean)
   case class CloseRealtimeModelSuccess()
 
   trait RealtimeModelClientMessage
