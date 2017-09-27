@@ -25,12 +25,20 @@ import akka.actor.Props
 import akka.actor.actorRef2Scala
 import akka.pattern.ask
 import akka.util.Timeout
+import akka.http.scaladsl.model.HttpResponse
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.HttpRequest
+import akka.stream.ActorMaterializer
+import akka.stream.ActorMaterializerSettings
+import akka.http.scaladsl.model.HttpMethod
+import akka.http.scaladsl.model.HttpMethods
+import scala.xml.Utility
 
 object RegistrationActor {
   def props(dbProvider: DatabaseProvider, userManager: ActorRef): Props = Props(new RegistrationActor(dbProvider, userManager))
 
   case class RegisterUser(username: String, fname: String, lname: String, email: String, password: String, token: String)
-  case class RequestRegistration(fname: String, lname: String, email: String, reason: String)
+  case class RequestRegistration(fname: String, lname: String, email: String, company: Option[String], title: Option[String], reason: String)
   case class ApproveRegistration(token: String)
   case class RejectRegistration(token: String)
   case class RegistrationInfoRequest(token: String)
@@ -48,7 +56,13 @@ class RegistrationActor private[datastore] (dbProvider: DatabaseProvider, userMa
   private[this] val registrationBaseUrl = context.system.settings.config.getString("convergence.registration-base-url")
   private[this] val adminUiServerUrl = context.system.settings.config.getString("convergence.admin-ui-url")
 
+  private[this] val zohoEnabled = context.system.settings.config.getBoolean("convergence.zoho.enabled")
+  private[this] val zohoAuthToken = context.system.settings.config.getString("convergence.zoho.auth-token")
+  private[this] val zohoUtil = new ZohoUtility(zohoAuthToken, context.system, context.dispatcher)
+
   private[this] val registrationStore = new RegistrationStore(dbProvider)
+
+  final implicit val materializer: ActorMaterializer = ActorMaterializer(ActorMaterializerSettings(context.system))
 
   def receive: Receive = {
     case message: RegisterUser => registerUser(message)
@@ -68,12 +82,12 @@ class RegistrationActor private[datastore] (dbProvider: DatabaseProvider, userMa
         (userManager ? req) onComplete {
           case Success(_) =>
             log.debug(s"User ${username} created, removing registration entry.")
-            
+
             registrationStore.removeRegistration(token).recover {
               case cause: Exception =>
                 log.error(cause, s"Could not remove registration request entry for: {$email}")
             }
-            
+
             origSender ! Success(())
 
             val welcomeTxt = if (fname != null && fname.nonEmpty) s"${fname}, welcome" else "Welcome"
@@ -92,6 +106,17 @@ class RegistrationActor private[datastore] (dbProvider: DatabaseProvider, userMa
               case Failure(cause) =>
                 log.error(cause, s"Could not send registration approval notification email for: {$email}")
             }
+
+            if (zohoEnabled) {
+              log.debug(s"Converting Zoho Lead to Contact for email: ${email}")
+
+              zohoUtil.convertLead(email) onComplete {
+                case Success(_) =>
+                  log.debug(s"Zoho lead converted for email: ${email}")
+                case Failure(cause) =>
+                  log.error(cause, s"Could not convert Zoho Lead for email: {$email}")
+              }
+            }
             ()
           case Failure(cause) =>
             log.error(cause, s"Could not create user: ${username}")
@@ -106,7 +131,7 @@ class RegistrationActor private[datastore] (dbProvider: DatabaseProvider, userMa
   }
 
   def requestRegistration(message: RequestRegistration): Unit = {
-    val RequestRegistration(fname, lname, email, reason) = message
+    val RequestRegistration(fname, lname, email, company, title, reason) = message
     log.debug(s"Processing registration request for email: ${email}")
     val result = registrationStore.addRegistration(fname, lname, email, reason) map { token =>
       val bodyContent = templates.email.internal.txt.registrationRequest(token, fname, lname, email, reason, registrationBaseUrl)
@@ -122,6 +147,18 @@ class RegistrationActor private[datastore] (dbProvider: DatabaseProvider, userMa
           log.debug(s"Sent email internal registration notification for '${email}' to: ${regEmail}")
         case Failure(cause) =>
           log.error(cause, s"Could not send internal registration notification email for: {$email}")
+      }
+
+      if (zohoEnabled) {
+        log.debug(s"Creating Zoho Lead for email: ${email}")
+        val lead = ZohoUtility.Lead(fname, lname, email, company, title, reason)
+
+        zohoUtil.createLead(lead) onComplete {
+          case Success(_) =>
+            log.debug(s"Zoho lead created for email: ${email}")
+          case Failure(cause) =>
+            log.error(cause, s"Could not create Zoho Lead for email: {$email}")
+        }
       }
       ()
     } map { _ =>
@@ -176,6 +213,17 @@ class RegistrationActor private[datastore] (dbProvider: DatabaseProvider, userMa
       } onFailure {
         case cause: Exception =>
           log.error(cause, "Could not send registration approval message to: ${email}")
+      }
+
+      if (zohoEnabled) {
+        log.debug(s"Approving Zoho Lead for email: ${email}")
+
+        zohoUtil.approveLead(email) onComplete {
+          case Success(_) =>
+            log.debug(s"Zoho lead approved for email: ${email}")
+          case Failure(cause) =>
+            log.error(cause, s"Could not approve Zoho Lead for email: {$email}")
+        }
       }
       ()
     }

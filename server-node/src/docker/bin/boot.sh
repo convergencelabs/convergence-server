@@ -30,6 +30,9 @@ require_env_var "$admin_ui_url" "admin_ui_url"
 require_env_var "$registration_base_url" "registration_base_url"
 require_env_var "$randomize_db_credentials" "randomize_db_credentials"
 
+require_env_var "$zoho_enabled" "zoho_enabled"
+require_env_var "$zoho_auth_token" "zoho_auth_token"
+
 echo "All required variables are set.  Booting."
 echo ""
 

@@ -33,7 +33,7 @@ import akka.util.Timeout
 import grizzled.slf4j.Logging
 
 case class Registration(username: String, fname: String, lname: String, email: String, password: String, token: String)
-case class RegistrationRequest(fname: String, lname: String, email: String, reason: String)
+case class RegistrationRequest(fname: String, lname: String, email: String, company: Option[String], title: Option[String], reason: String)
 case class RegistrationApproval(token: String)
 case class RegistrationRejection(token: String)
 case class TokenInfo(firstName: String, lastName: String, email: String)
@@ -97,9 +97,9 @@ class RegistrationService(
   }
 
   def registrationRequest(req: RegistrationRequest): Future[RestResponse] = {
-    val RegistrationRequest(fname, lname, email, reason) = req
+    val RegistrationRequest(fname, lname, email, company, title, reason) = req
     logger.debug(s"Received a registration request for: ${email}")
-    val message = RequestRegistration(fname, lname, email, reason)
+    val message = RequestRegistration(fname, lname, email, company, title, reason)
     
     (registrationActor ? message) map { _ => CreateRestResponse }
   }
