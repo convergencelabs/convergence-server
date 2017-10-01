@@ -420,6 +420,32 @@ class ModelOperationProcessorSpec
     }
 
     "removing data" must {
+      "remove a single object when issuing an ObjectSetProperty on a string field" in withTestData { provider =>
+        vidExists(fnameVID, provider.dbProvider).get shouldBe true
+
+        val op = AppliedObjectSetPropertyOperation(person1VID, false, fnameField, StringValue("pp1-fnbob", "bob"), Some(StringValue("oldId", "oldVal")))
+        val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, op)
+        provider.modelOperationProcessor.processModelOperation(modelOp).get
+
+        vidExists(fnameVID, provider.dbProvider).get shouldBe false
+      }
+      
+      "remove recursively object when issuing an ObjectSetProperty on an array field" in withTestData { provider =>
+        vidExists(emailsVID, provider.dbProvider).get shouldBe true
+        vidExists(email1VID, provider.dbProvider).get shouldBe true
+        vidExists(email2VID, provider.dbProvider).get shouldBe true
+        vidExists(email3VID, provider.dbProvider).get shouldBe true
+
+        val op = AppliedObjectSetPropertyOperation(person1VID, false, emailsField, StringValue("pp1-fnbob", "bob"), Some(StringValue("oldId", "oldVal")))
+        val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, op)
+        provider.modelOperationProcessor.processModelOperation(modelOp).get
+
+        vidExists(emailsVID, provider.dbProvider).get shouldBe false
+        vidExists(email1VID, provider.dbProvider).get shouldBe false
+        vidExists(email2VID, provider.dbProvider).get shouldBe false
+        vidExists(email3VID, provider.dbProvider).get shouldBe false
+      }
+      
       "remove a single object when issuing an ObjectRemoveProperty on a string field" in withTestData { provider =>
         vidExists(fnameVID, provider.dbProvider).get shouldBe true
 
@@ -480,6 +506,19 @@ class ModelOperationProcessorSpec
 
       vidsAllExist(List(email2VID, email3VID), provider.dbProvider).get shouldBe true
       vidsNoneExist(List(email1VID), provider.dbProvider).get shouldBe true
+    }
+
+    "Remove child datavalues on an ArraySet" in withTestData { provider =>
+      vidExists(emailsVID, provider.dbProvider).get shouldBe true
+      vidsAllExist(List(email1VID, email2VID, email3VID), provider.dbProvider).get shouldBe true
+
+      val setValue = List(StringValue("as-sv", "someValue"), StringValue("as-sov", "someOtherValue"))
+      val op = AppliedArraySetOperation(emailsVID, false, setValue, Some(List[DataValue]()))
+      val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, op)
+      provider.modelOperationProcessor.processModelOperation(modelOp).get
+
+      vidExists(emailsVID, provider.dbProvider).get shouldBe true
+      vidsNoneExist(List(email1VID, email2VID, email3VID), provider.dbProvider).get shouldBe true
     }
   }
 
