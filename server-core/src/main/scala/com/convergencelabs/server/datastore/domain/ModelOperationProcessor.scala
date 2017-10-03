@@ -37,12 +37,21 @@ import com.orientechnologies.orient.core.sql.OCommandSQL
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.datastore.QueryUtil
 
+object ModelOperationProcessor {
+  sealed trait DataValueDeleteStrategy
+  case class DeleteObjectKey(key: String) extends DataValueDeleteStrategy
+  case class DeleteArrayIndex(index: Int) extends DataValueDeleteStrategy
+  case object DeleteAllChildren extends DataValueDeleteStrategy
+}
+
 class ModelOperationProcessor private[domain] (
   private[this] val dbProvider: DatabaseProvider,
   private[this] val modelOpStore: ModelOperationStore,
   private[this] val modelStore: ModelStore)
     extends AbstractDatabasePersistence(dbProvider)
     with Logging {
+
+  import ModelOperationProcessor._
 
   val Id = "id";
   val CollectionId = "collectionId"
@@ -102,7 +111,7 @@ class ModelOperationProcessor private[domain] (
     val value = OrientDataValueBuilder.dataValueToODocument(operation.value, getModelRid(modelId, db))
     value.save()
 
-    val script = createUpdate("UPDATE ArrayValue SET children = arrayInsert(children, :index, :value)")
+    val script = createUpdate("SET children = arrayInsert(children, :index, :value)", None)
     val params = Map(Id -> operation.id, ModelId -> modelId, Index -> operation.index, Value -> value)
     QueryUtil.updateSingleDocWithScript(script, params, db).get
     ()
@@ -111,7 +120,7 @@ class ModelOperationProcessor private[domain] (
   private[this] def applyArrayRemoveOperation(
     modelId: String, operation: AppliedArrayRemoveOperation, db: ODatabaseDocumentTx): Unit = {
 
-    val script = createUpdate("UPDATE ArrayValue SET children = arrayRemove(children, :index)")
+    val script = createUpdate("SET children = arrayRemove(children, :index)", Some(DeleteArrayIndex(operation.index)))
     val params = Map(Id -> operation.id, ModelId -> modelId, Index -> operation.index)
     QueryUtil.updateSingleDocWithScript(script, params, db).get
     ()
@@ -123,14 +132,14 @@ class ModelOperationProcessor private[domain] (
     value.save()
     db.commit()
 
-    val script = createUpdate("UPDATE ArrayValue SET children = arrayReplace(children, :index, :value)")
+    val script = createUpdate("SET children = arrayReplace(children, :index, :value)", Some(DeleteArrayIndex(operation.index)))
     val params = Map(Id -> operation.id, ModelId -> modelId, Index -> operation.index, Value -> value)
     QueryUtil.updateSingleDocWithScript(script, params, db).get
     ()
   }
 
   private[this] def applyArrayMoveOperation(modelId: String, operation: AppliedArrayMoveOperation, db: ODatabaseDocumentTx): Unit = {
-    val script = createUpdate("UPDATE ArrayValue SET children = arrayMove(children, :fromIndex, :toIndex)")
+    val script = createUpdate("SET children = arrayMove(children, :fromIndex, :toIndex)", None)
     val params = Map(Id -> operation.id, ModelId -> modelId, "fromIndex" -> operation.fromIndex, "toIndex" -> operation.toIndex)
     QueryUtil.updateSingleDocWithScript(script, params, db).get
     ()
@@ -141,7 +150,7 @@ class ModelOperationProcessor private[domain] (
     children.foreach { child => child.save() }
     db.commit()
 
-    val script = createUpdate("UPDATE ArrayValue SET children = :value")
+    val script = createUpdate("SET children = :value", Some(DeleteAllChildren))
     val params = Map(Id -> operation.id, ModelId -> modelId, Value -> children.asJava)
 
     QueryUtil.updateSingleDocWithScript(script, params, db).get
@@ -157,7 +166,7 @@ class ModelOperationProcessor private[domain] (
     value.save()
     db.commit()
 
-    val script = createUpdate("UPDATE ObjectValue PUT children = :property, :value")
+    val script = createUpdate("PUT children = :property, :value", None)
     val params = Map(Id -> operation.id, ModelId -> modelId, Value -> value, "property" -> operation.property)
     QueryUtil.updateSingleDocWithScript(script, params, db).get
     ()
@@ -169,14 +178,14 @@ class ModelOperationProcessor private[domain] (
     value.save()
     db.commit()
 
-    val script = createUpdate("UPDATE ObjectValue PUT children = :property, :value")
+    val script = createUpdate("PUT children = :property, :value", Some(DeleteObjectKey(operation.property)))
     val params = Map(Id -> operation.id, ModelId -> modelId, Value -> value, "property" -> operation.property)
     QueryUtil.updateSingleDocWithScript(script, params, db).get
     ()
   }
 
   private[this] def applyObjectRemovePropertyOperation(modelId: String, operation: AppliedObjectRemovePropertyOperation, db: ODatabaseDocumentTx): Unit = {
-    val script = createUpdate("UPDATE ObjectValue REMOVE children = :property")
+    val script = createUpdate("REMOVE children = :property", Some(DeleteObjectKey(operation.property)))
     val params = Map(Id -> operation.id, ModelId -> modelId, "property" -> operation.property)
     QueryUtil.updateSingleDocWithScript(script, params, db).get
     ()
@@ -187,7 +196,7 @@ class ModelOperationProcessor private[domain] (
     children.values foreach { child => child.save() }
     db.commit()
 
-    val script = createUpdate("UPDATE ObjectValue SET children = :value")
+    val script = createUpdate("SET children = :value", Some(DeleteAllChildren))
     val params = Map(Id -> operation.id, ModelId -> modelId, Value -> children.asJava)
     QueryUtil.updateSingleDocWithScript(script, params, db).get
     ()
@@ -207,14 +216,14 @@ class ModelOperationProcessor private[domain] (
       operation.value
     }
 
-    val script = createUpdate("UPDATE StringValue SET value = value.left(:index).append(:value).append(value.substring(:index))")
+    val script = createUpdate("SET value = value.left(:index).append(:value).append(value.substring(:index))", None)
     val params = Map(Id -> operation.id, ModelId -> modelId, Index -> operation.index, Value -> hackValue)
     QueryUtil.updateSingleDocWithScript(script, params, db).get
     ()
   }
 
   private[this] def applyStringRemoveOperation(modelId: String, operation: AppliedStringRemoveOperation, db: ODatabaseDocumentTx): Unit = {
-    val script = createUpdate("UPDATE StringValue SET value = value.left(:index).append(value.substring(:endLength))")
+    val script = createUpdate("SET value = value.left(:index).append(value.substring(:endLength))", None)
     val endLength = operation.index + operation.length
     val params = Map(Id -> operation.id, ModelId -> modelId, Index -> operation.index, "endLength" -> endLength)
     QueryUtil.updateSingleDocWithScript(script, params, db).get
@@ -222,7 +231,7 @@ class ModelOperationProcessor private[domain] (
   }
 
   private[this] def applyStringSetOperation(modelId: String, operation: AppliedStringSetOperation, db: ODatabaseDocumentTx): Unit = {
-    val script = createUpdate("UPDATE StringValue SET value = :value")
+    val script = createUpdate("SET value = :value", None)
     val params = Map(Id -> operation.id, ModelId -> modelId, Value -> operation.value)
     QueryUtil.updateSingleDocWithScript(script, params, db).get
     ()
@@ -233,14 +242,14 @@ class ModelOperationProcessor private[domain] (
   //
   private[this] def applyNumberAddOperation(modelId: String, operation: AppliedNumberAddOperation, db: ODatabaseDocumentTx): Unit = {
     val value = operation.value
-    val script = createUpdate(s"UPDATE DoubleValue SET value = eval('value + $value')")
+    val script = createUpdate(s"SET value = eval('value + $value')", None)
     val params = Map(Id -> operation.id, ModelId -> modelId)
     QueryUtil.updateSingleDocWithScript(script, params, db).get
     ()
   }
 
   private[this] def applyNumberSetOperation(modelId: String, operation: AppliedNumberSetOperation, db: ODatabaseDocumentTx): Unit = {
-    val script = createUpdate("UPDATE DoubleValue SET value = :value")
+    val script = createUpdate("SET value = :value", None)
     val params = Map(Id -> operation.id, ModelId -> modelId, Value -> operation.value)
     QueryUtil.updateSingleDocWithScript(script, params, db).get
     ()
@@ -250,7 +259,7 @@ class ModelOperationProcessor private[domain] (
   // Boolean Operations
   //
   private[this] def applyBooleanSetOperation(modelId: String, operation: AppliedBooleanSetOperation, db: ODatabaseDocumentTx): Unit = {
-    val script = createUpdate("UPDATE BooleanValue SET value = :value")
+    val script = createUpdate("SET value = :value", None)
     val params = Map(Id -> operation.id, ModelId -> modelId, Value -> operation.value)
     QueryUtil.updateSingleDocWithScript(script, params, db).get
     ()
@@ -260,17 +269,44 @@ class ModelOperationProcessor private[domain] (
   // Date Operations
   //
   private[this] def applyDateSetOperation(modelId: String, operation: AppliedDateSetOperation, db: ODatabaseDocumentTx): Unit = {
-    val script = createUpdate("UPDATE DateValue SET value = :value")
+    val script = createUpdate("SET value = :value", None)
     val params = Map(Id -> operation.id, ModelId -> modelId, Value -> Date.from(operation.value))
     QueryUtil.updateSingleDocWithScript(script, params, db).get
     ()
   }
-  
-  private[this] def createUpdate(updateClause: String): String = {
-    s"""BEGIN;
-        |LET model = SELECT rid FROM index:Model.id WHERE key = :modelId;
-        |$updateClause WHERE id = :id AND model = first($$model).rid;
-        |COMMIT;""".stripMargin
+
+  private[this] def createUpdate(updateClause: String, deleteStrategy: Option[DataValueDeleteStrategy]): String = {
+    // In Orient DB 2.x you can't create an index that spans classes. So we can't have
+    // an index that would speed up getting the data value id, and a model id, e.g.
+    // WHERE id = :id AND model.id = :modelId. Therefore we do this in two steps, looking
+    // up the model first, from it's index, and then the DataValue next using the id and
+    // model fields on the data value class itself, which is indexed.
+
+    val (childrenSelector, deleteCommand) = deleteStrategy map {
+      case DeleteAllChildren => 
+        "children"
+      case DeleteObjectKey(childPath) =>
+        s"children[`${childPath}`]"
+      case DeleteArrayIndex(index) =>
+        s"children[${index}]"
+    } map { path =>
+      (
+        s"LET childrenToDelete = SELECT expand($path) FROM $$dv;",
+        "DELETE FROM (TRAVERSE children FROM $childrenToDelete);"
+        )  
+    } getOrElse (("", ""))
+
+    s"""
+      |BEGIN;
+      |LET models = SELECT rid FROM index:Model.id WHERE key = :modelId;
+      |LET model = $$models[0].rid;
+      |LET dvs = SELECT @rid FROM DataValue WHERE id =:id AND model = $$model;
+      |LET dv = $$dvs[0].rid;
+      |${childrenSelector}
+      |LET result = UPDATE $$dv ${updateClause};
+      |${deleteCommand}
+      |RETURN $$result;
+      |COMMIT;""".stripMargin
   }
 
   private[this] def getModelRid(modelId: String, db: ODatabaseDocumentTx): ORID = {
