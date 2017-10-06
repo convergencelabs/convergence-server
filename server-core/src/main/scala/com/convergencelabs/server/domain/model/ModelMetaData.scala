@@ -10,4 +10,5 @@ case class ModelMetaData(
   createdTime: Instant,
   modifiedTime: Instant,
   overridePermissions: Boolean,
-  worldPermissions: ModelPermissions)
+  worldPermissions: ModelPermissions,
+  valuePrefix: Long)

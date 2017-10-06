@@ -34,7 +34,7 @@ class ModelCreator {
       val model = persistenceProvider.modelStore.createModel(collectionId, modelId, data, overrideWorld, worldPerms)
       model
     } flatMap { model =>
-      val ModelMetaData(model.metaData.collectionId, model.metaData.modelId, version, created, modified, overworldPermissions, worldPermissions) = model.metaData
+      val ModelMetaData(model.metaData.collectionId, model.metaData.modelId, version, created, modified, overworldPermissions, worldPermissions, model.metaData.valuePrefix) = model.metaData
       val snapshot = ModelSnapshot(ModelSnapshotMetaData(model.metaData.modelId, version, created), model.data)
       persistenceProvider.modelSnapshotStore.createSnapshot(snapshot) flatMap { _ =>
         username match {

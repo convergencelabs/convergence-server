@@ -1,0 +1,12 @@
+version: 9
+description: Model Value Id Prefix
+changes:
+
+########## Model Changes ##########
+
+  - action: RunSQLCommand
+    command: "UPDATE Model SET valuePrefix = 1" 
+
+  - action: AddProperty
+    className: Model
+    property: {name: valuePrefix, type: Long, constraints: {mandatory: true, notNull: true, readOnly: false}}

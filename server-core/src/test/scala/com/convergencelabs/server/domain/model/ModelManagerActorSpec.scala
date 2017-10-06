@@ -102,7 +102,7 @@ class ModelManagerActorSpec
         val now = Instant.now()
 
         Mockito.when(modelStore.createModel(collectionId, Some(noModelId), data, true, modelPermissions))
-          .thenReturn(Success(Model(ModelMetaData(collectionId, noModelId, 0L, now, now, true, modelPermissions), data)))
+          .thenReturn(Success(Model(ModelMetaData(collectionId, noModelId, 0L, now, now, true, modelPermissions, 1), data)))
 
         Mockito.when(modelSnapshotStore.createSnapshot(any()))
           .thenReturn(Success(()))
@@ -205,8 +205,8 @@ class ModelManagerActorSpec
     val modelJsonData = JObject("key" -> JString("value"))
     val modelCreateTime = Instant.ofEpochMilli(2L)
     val modelModifiedTime = Instant.ofEpochMilli(3L)
-    val existingModel = Model(ModelMetaData(collectionId, existingModelId, 1L, modelCreateTime, modelModifiedTime, true, modelPermissions), ObjectValue("", Map()))
-    val newModel = Model(ModelMetaData(collectionId, noModelId, 1L, modelCreateTime, modelModifiedTime, true, modelPermissions), ObjectValue("", Map()))
+    val existingModel = Model(ModelMetaData(collectionId, existingModelId, 1L, modelCreateTime, modelModifiedTime, true, modelPermissions, 1), ObjectValue("", Map()))
+    val newModel = Model(ModelMetaData(collectionId, noModelId, 1L, modelCreateTime, modelModifiedTime, true, modelPermissions, 1), ObjectValue("", Map()))
 
     val modelSnapshotTime = Instant.ofEpochMilli(2L)
     val modelSnapshotMetaData = ModelSnapshotMetaData(existingModelId, 1L, modelSnapshotTime)
