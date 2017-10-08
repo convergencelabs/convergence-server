@@ -8,9 +8,6 @@ import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.CreateCo
 import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.DeleteConvergenceUserRequest
 import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUser
 import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUsers
-import com.convergencelabs.server.frontend.rest.ConvergenceUserAdminService.CreateUserRequest
-import com.convergencelabs.server.frontend.rest.ConvergenceUserAdminService.GetUserResponse
-import com.convergencelabs.server.frontend.rest.ConvergenceUserAdminService.GetUsersResponse
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
@@ -27,23 +24,30 @@ import akka.http.scaladsl.server.Directives.handleWith
 import akka.http.scaladsl.server.Directives.handleExceptions
 import akka.http.scaladsl.server.Directives.pathEnd
 import akka.http.scaladsl.server.Directives.pathPrefix
+import akka.http.scaladsl.server.Directives.path
 import akka.http.scaladsl.server.Directives.post
+import akka.http.scaladsl.server.Directives.entity
+import akka.http.scaladsl.server.Directives.as
 import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.InvalidValueExcpetion
 import akka.http.scaladsl.server.ExceptionHandler
+import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.SetPasswordRequest
 
 object ConvergenceUserAdminService {
   case class CreateUserRequest(username: String, firstName: String, lastName: String, displayName: String, email: String, password: String)
   case class GetUsersResponse(users: List[User]) extends AbstractSuccessResponse
   case class GetUserResponse(user: Option[User]) extends AbstractSuccessResponse
+  case class PasswordData(password: String)
 }
 
 class ConvergenceUserAdminService(
     private[this] val executionContext: ExecutionContext,
     private[this] val userManagerActor: ActorRef,
     private[this] val defaultTimeout: Timeout) extends JsonSupport {
+  
+  import com.convergencelabs.server.frontend.rest.ConvergenceUserAdminService._
 
   implicit val ec = executionContext
   implicit val t = defaultTimeout
@@ -62,6 +66,12 @@ class ConvergenceUserAdminService(
             complete(deleteConvergenceUserRequest(username))
           } ~ get {
             complete(getUser(username))
+          }
+        } ~ path("password") {
+          post {
+            entity(as[PasswordData]) { request =>
+              complete(setUserPassword(username, request))
+            }
           }
         }
       }
@@ -87,5 +97,11 @@ class ConvergenceUserAdminService(
   def getUser(username: String): Future[RestResponse] = {
     (userManagerActor ? GetConvergenceUser(username)).mapTo[Option[User]] map
       (user => (StatusCodes.OK, GetUserResponse(user)))
+  }
+  
+  def setUserPassword(username: String, passwordData: PasswordData ): Future[RestResponse] = {
+    val PasswordData(password) = passwordData
+    (userManagerActor ? SetPasswordRequest(username, password)).mapTo[Unit] map
+      (_ => OkResponse)
   }
 }

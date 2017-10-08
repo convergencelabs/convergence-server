@@ -1,4 +1,4 @@
-package com.convergencelabs.server.domain
+ package com.convergencelabs.server.domain
 
 import com.convergencelabs.server.datastore.domain.CollectionPermissions
 import com.convergencelabs.server.datastore.domain.ModelPermissions

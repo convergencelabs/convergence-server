@@ -11,10 +11,12 @@ import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.CreateCo
 import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.DeleteConvergenceUserRequest
 import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUser
 import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUsers
+import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.SetPasswordRequest
+import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.UpdateConvergenceUserRequest
 import com.convergencelabs.server.datastore.DomainStoreActor.CreateDomainRequest
 import com.convergencelabs.server.datastore.DomainStoreActor.DeleteDomainsForUserRequest
+import com.convergencelabs.server.datastore.UserStore.User
 import com.convergencelabs.server.util.concurrent.FutureUtils
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.typesafe.config.Config
 
 import akka.actor.ActorLogging
@@ -22,11 +24,8 @@ import akka.actor.ActorRef
 import akka.actor.Props
 import akka.actor.Status
 import akka.actor.actorRef2Scala
-import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.server.domain.DomainDatabase
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor._
-import com.convergencelabs.server.datastore.UserStore.User
+import akka.pattern.ask
 
 object ConvergenceUserManagerActor {
   def props(dbProvider: DatabaseProvider, domainStoreActor: ActorRef): Props =
@@ -56,14 +55,21 @@ class ConvergenceUserManagerActor private[datastore] (
   private[this] val userStore: UserStore = new UserStore(dbProvider, tokenDuration)
 
   def receive: Receive = {
-    case message: CreateConvergenceUserRequest => createConvergenceUser(message)
-    case message: DeleteConvergenceUserRequest => deleteConvergenceUser(message)
-    case message: GetConvergenceUser => getConvergenceUser(message)
-    case message: GetConvergenceUsers => getConvergenceUsers(message)
-    case message: UpdateConvergenceUserRequest => updateConvergenceUser(message)
-    case message: SetPasswordRequest => setUserPassword(message)
-    case message: Any => unhandled(message)
-    
+    case message: CreateConvergenceUserRequest =>
+      createConvergenceUser(message)
+    case message: DeleteConvergenceUserRequest =>
+      deleteConvergenceUser(message)
+    case message: GetConvergenceUser =>
+      getConvergenceUser(message)
+    case message: GetConvergenceUsers =>
+      getConvergenceUsers(message)
+    case message: UpdateConvergenceUserRequest =>
+      updateConvergenceUser(message)
+    case message: SetPasswordRequest =>
+      setUserPassword(message)
+    case message: Any =>
+      unhandled(message)
+
   }
 
   def createConvergenceUser(message: CreateConvergenceUserRequest): Unit = {
@@ -71,13 +77,13 @@ class ConvergenceUserManagerActor private[datastore] (
     val origSender = sender
     userStore.createUser(User(username, email, firstName, lastName, displayName), password) map { _ =>
       origSender ! (())
-      
+
       log.debug("User created.  Creating domains")
       FutureUtils.seqFutures(autoCreateConfigs) { config =>
         createDomain(
-            username, config.getString("id"), 
-            config.getString("displayName"),
-            config.getBoolean("anonymousAuth"))
+          username, config.getString("id"),
+          config.getString("displayName"),
+          config.getBoolean("anonymousAuth"))
       }
     } recover {
       case e: Throwable =>
@@ -103,14 +109,14 @@ class ConvergenceUserManagerActor private[datastore] (
 
     reply(result)
   }
-  
+
   def updateConvergenceUser(message: UpdateConvergenceUserRequest): Unit = {
     val UpdateConvergenceUserRequest(username, email, firstName, lastName, displayName) = message;
     log.debug(s"Updating user: ${username}")
     val update = User(username, email, firstName, lastName, displayName)
     reply(userStore.updateUser(update))
   }
-  
+
   def setUserPassword(message: SetPasswordRequest): Unit = {
     val SetPasswordRequest(username, password) = message;
     log.debug(s"Setting the password for user: ${username}")
