@@ -71,6 +71,7 @@ package model {
   //
   // Outgoing Messages
   //
+  // TODO: Modify value prefix to be a long
   sealed trait OpenModelResponse
   case class OpenModelSuccess(
     realtimeModelActor: ActorRef,

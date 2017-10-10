@@ -30,14 +30,8 @@ import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
 import ModelStore.Constants.CollectionId
-import ModelStore.Fields.Collection
-import ModelStore.Fields.CreatedTime
-import ModelStore.Fields.Data
-import ModelStore.Fields.Id
-import ModelStore.Fields.ModifiedTime
-import ModelStore.Fields.Version
-import ModelStore.Fields.WorldPermissions
-import ModelStore.Fields.OverridePermissions
+import ModelStore.Fields._
+
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.domain.model.query.QueryParser
 import com.convergencelabs.server.domain.model.query.QueryParser
@@ -67,6 +61,7 @@ object ModelStore {
     val ModifiedTime = "modifiedTime"
     val OverridePermissions = "overridePermissions"
     val WorldPermissions = "worldPermissions"
+    val ValuePrefix = "valuePrefix"
   }
 
   private val FindModel = "SELECT * FROM Model WHERE id = :id"
@@ -92,7 +87,8 @@ object ModelStore {
       createdTime.toInstant(),
       modifiedTime.toInstant(),
       doc.field(OverridePermissions),
-      worldPermissions)
+      worldPermissions,
+      doc.field(ValuePrefix))
   }
 
   def docToModel(doc: ODocument): Model = {
@@ -132,6 +128,7 @@ class ModelStore private[domain] (
     val modifiedTime = createdTime
     val version = 1
     val computedModelId = modelId.getOrElse(UUID.randomUUID().toString)
+    val valuePrefix = 1
 
     val model = Model(
       ModelMetaData(
@@ -141,7 +138,8 @@ class ModelStore private[domain] (
         createdTime,
         modifiedTime,
         overridePermissions,
-        worldPermissions),
+        worldPermissions,
+        valuePrefix),
       data)
 
     this.createModel(model) map (_ => model)
@@ -156,6 +154,7 @@ class ModelStore private[domain] (
     val data = model.data
     val overrridePermissions = model.metaData.overridePermissions
     val worldPermissions = model.metaData.worldPermissions
+    val valuePrefix = model.metaData.valuePrefix
 
     CollectionStore.getCollectionRid(collectionId, db)
       .recoverWith {
@@ -172,6 +171,7 @@ class ModelStore private[domain] (
         modelDoc.field(CreatedTime, Date.from(createdTime))
         modelDoc.field(ModifiedTime, Date.from(modifiedTime))
         modelDoc.field(OverridePermissions, overrridePermissions)
+        modelDoc.field(ValuePrefix, valuePrefix)
 
         val worldPermsDoc = ModelPermissionsStore.modelPermissionToDoc(worldPermissions)
         modelDoc.field(WorldPermissions, worldPermsDoc, OType.EMBEDDED)
@@ -225,6 +225,24 @@ class ModelStore private[domain] (
         throw EntityNotFoundException()
       case _ =>
         ()
+    }
+  }
+  
+  //TODO: This should probably be handled in a model shutdown routine so that we only update it once with the final value 
+  def setNextPrefixValue(id: String, value: Long): Try[Unit] = tryWithDb { db =>
+    val queryString =
+      """UPDATE Model SET
+        |  valuePrefix = :valuePrefix
+        |WHERE id = :id""".stripMargin
+
+    val updateCommand = new OCommandSQL(queryString)
+
+    val params = Map(Id -> id, ValuePrefix -> value)
+
+    db.command(updateCommand).execute(params.asJava).asInstanceOf[Int] match {
+      case 0 =>
+        throw EntityNotFoundException()
+      case _ =>
     }
   }
 
@@ -355,7 +373,8 @@ class ModelStore private[domain] (
             createdTime.toInstant(),
             modifiedTime.toInstant(),
             false,
-            ModelPermissions(false, false, false, false))
+            ModelPermissions(false, false, false, false),
+            results.remove(ValuePrefix).asInstanceOf[Long])
 
           val values = results.asScala.toList map Function.tupled { (field, value) =>
             (queryParams.as.get(field).getOrElse(field),

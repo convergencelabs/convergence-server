@@ -1,5 +1,6 @@
 package com.convergencelabs.server.domain.model
 
+import java.lang.{ Long => JavaLong }
 import java.time.Instant
 
 import scala.collection.immutable.HashMap
@@ -103,6 +104,7 @@ class RealtimeModelActor(
 
   private[this] var model: RealTimeModel = _
   private[this] var metaData: ModelMetaData = _
+  private[this] var valuePrefix: Long = _
 
   private[this] var snapshotConfig: ModelSnapshotConfig = _
   private[this] var latestSnapshot: ModelSnapshotMetaData = _
@@ -362,6 +364,7 @@ class RealtimeModelActor(
       this.permissions = permissions
       this.latestSnapshot = snapshotMetaData
       this.metaData = modelData.metaData
+      this.valuePrefix = modelData.metaData.valuePrefix
       this.snapshotConfig = snapshotConfig
       this.snapshotCalculator = new ModelSnapshotCalculator(snapshotConfig)
 
@@ -508,16 +511,20 @@ class RealtimeModelActor(
       val referencesBySession = this.model.references()
 
       val permissions = this.permissions.resolveSessionPermissions(sk)
-
+      
+      
       val openModelResponse = OpenModelSuccess(
         self,
         modelResourceId,
-        sk.serialize(), // TODO eventually we want to use some other smaller value.
+        JavaLong.toString(valuePrefix, 36),
         metaData,
         connectedClients.keySet,
         referencesBySession,
         modelData.data,
         permissions)
+        
+      valuePrefix = valuePrefix + 1
+      modelStore.setNextPrefixValue(modelId, valuePrefix)
 
       requestRecord.askingActor ! openModelResponse
 

@@ -49,7 +49,8 @@ class ModelStoreSpec
     Instant.ofEpochMilli(df.parse("2015-10-20T01:00:00.000+0000").getTime),
     Instant.ofEpochMilli(df.parse("2015-10-20T12:00:00.000+0000").getTime),
     true,
-    modelPermissions)
+    modelPermissions,
+    1)
   val person1Data = ObjectValue("0:0", Map("name" -> StringValue("0:1", "person1")))
   val person1Model = Model(person1MetaData, person1Data)
 
@@ -61,7 +62,8 @@ class ModelStoreSpec
     Instant.ofEpochMilli(df.parse("2015-10-20T02:00:00.000+0000").getTime),
     Instant.ofEpochMilli(df.parse("2015-10-20T02:00:00.000+0000").getTime),
     true,
-    modelPermissions)
+    modelPermissions,
+    1)
   val person2Data = ObjectValue("1:0", Map("name" -> StringValue("1:1", "person2")))
   val person2Model = Model(person2MetaData, person2Data)
 
@@ -73,7 +75,8 @@ class ModelStoreSpec
     Instant.ofEpochMilli(df.parse("2015-10-20T03:00:00.000+0000").getTime),
     Instant.ofEpochMilli(df.parse("2015-10-20T03:00:00.000+0000").getTime),
     true,
-    modelPermissions)
+    modelPermissions,
+    1)
   val person3Data = ObjectValue("2:0", Map("name" -> StringValue("2:1", "person3")))
   val person3Model = Model(person3MetaData, person3Data)
 
@@ -86,7 +89,8 @@ class ModelStoreSpec
     Instant.ofEpochMilli(df.parse("2015-10-20T04:00:00.000+0000").getTime),
     Instant.ofEpochMilli(df.parse("2015-10-20T04:00:00.000+0000").getTime),
     true,
-    modelPermissions)
+    modelPermissions,
+    1)
   val company1Data = ObjectValue("3:0", Map("name" -> StringValue("3:1", "company")))
   val company1Model = Model(company1MetaData, company1Data)
 

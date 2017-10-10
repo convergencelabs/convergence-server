@@ -71,7 +71,8 @@ class ModelOperationProcessorSpec
     Instant.now(),
     Instant.now(),
     true,
-    modelPermissions)
+    modelPermissions,
+    1)
 
   val person1VID = "pp1-data"
   val fnameVID = "pp1-fname"
