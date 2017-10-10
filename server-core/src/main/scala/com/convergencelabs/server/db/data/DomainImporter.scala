@@ -182,7 +182,7 @@ class DomainImporter(
   }
 
   //FIXME: import permissions
-  //FIXME: Add value prefix
+  //FIXME: Add value prefix to data we import
   def createModel(modelData: CreateModel): Unit = {
     val data = createDataValue(modelData.data).asInstanceOf[ObjectValue]
     val model = Model(

@@ -1,5 +1,6 @@
 package com.convergencelabs.server.domain.model
 
+import java.lang.{ Long => JavaLong }
 import java.time.Instant
 
 import scala.collection.immutable.HashMap
@@ -515,7 +516,7 @@ class RealtimeModelActor(
       val openModelResponse = OpenModelSuccess(
         self,
         modelResourceId,
-        valuePrefix.toString(),
+        JavaLong.toString(valuePrefix, 36),
         metaData,
         connectedClients.keySet,
         referencesBySession,
@@ -523,7 +524,7 @@ class RealtimeModelActor(
         permissions)
         
       valuePrefix = valuePrefix + 1
-      modelStore.incrementPrefixValue(modelId)
+      modelStore.setNextPrefixValue(modelId, valuePrefix)
 
       requestRecord.askingActor ! openModelResponse
 

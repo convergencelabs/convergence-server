@@ -229,15 +229,15 @@ class ModelStore private[domain] (
   }
   
   //TODO: This should probably be handled in a model shutdown routine so that we only update it once with the final value 
-  def incrementPrefixValue(id: String): Try[Unit] = tryWithDb { db =>
+  def setNextPrefixValue(id: String, value: Long): Try[Unit] = tryWithDb { db =>
     val queryString =
       """UPDATE Model SET
-        |  valuePrefix = eval('valuePrefix + 1')
+        |  valuePrefix = :valuePrefix
         |WHERE id = :id""".stripMargin
 
     val updateCommand = new OCommandSQL(queryString)
 
-    val params = Map(Id -> id)
+    val params = Map(Id -> id, ValuePrefix -> value)
 
     db.command(updateCommand).execute(params.asJava).asInstanceOf[Int] match {
       case 0 =>
