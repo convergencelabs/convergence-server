@@ -303,9 +303,8 @@ class ModelOperationProcessor private[domain] (
       |LET dvs = SELECT @rid FROM DataValue WHERE id =:id AND model = $$model;
       |LET dv = $$dvs[0].rid;
       |${childrenSelector}
-      |LET result = UPDATE $$dv ${updateClause};
       |${deleteCommand}
-      |RETURN $$result;
+      |UPDATE $$dv ${updateClause};
       |COMMIT;""".stripMargin
   }
 
