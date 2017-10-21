@@ -18,6 +18,7 @@ import akka.actor.ActorRef
 import akka.actor.Props
 import akka.actor.Status
 import akka.actor.Terminated
+import com.convergencelabs.server.domain.model.RealtimeModelActor.ModelShutdown
 
 case class QueryModelsRequest(sk: SessionKey, query: String)
 case class QueryOrderBy(field: String, ascending: Boolean)

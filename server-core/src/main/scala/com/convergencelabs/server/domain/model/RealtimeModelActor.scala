@@ -4,7 +4,6 @@ import java.lang.{ Long => JavaLong }
 import java.time.Instant
 
 import scala.collection.immutable.HashMap
-import scala.compat.Platform
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.language.implicitConversions
@@ -13,7 +12,6 @@ import scala.util.Success
 import scala.util.Try
 
 import com.convergencelabs.server.UnknownErrorResponse
-import com.convergencelabs.server.datastore.domain.CollectionPermissions
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.datastore.domain.ModelPermissions
 import com.convergencelabs.server.domain.DomainFqn
@@ -34,15 +32,9 @@ import akka.actor.Status
 import akka.actor.Terminated
 import akka.pattern.AskTimeoutException
 import akka.pattern.Patterns
-import akka.stream.ActorMaterializer
-import akka.stream.OverflowStrategy
-import akka.stream.scaladsl.Flow
-import akka.stream.scaladsl.Sink
-import akka.stream.scaladsl.Source
 
 case class ModelConfigResponse(sk: SessionKey, config: ClientAutoCreateModelConfigResponse)
 case object PermissionsUpdated
-case class OperationCommitted(version: Long)
 
 /**
  * Provides a factory method for creating the RealtimeModelActor
@@ -67,7 +59,16 @@ object RealtimeModelActor {
       modelCreator,
       clientDataResponseTimeout))
 
-  def sessionKeyToClientId(sk: SessionKey): String = sk.serialize()
+  case object ModelShutdown
+  case class OperationCommitted(version: Long)
+  case class ForceClose(reason: String)
+  case object StreamCompleted
+  case object StreamFailure
+
+  private object ErrorCodes extends Enumeration {
+    val Unknown = "unknown"
+    val ModelDeleted = "model_deleted"
+  }
 }
 
 /**
@@ -86,12 +87,13 @@ class RealtimeModelActor(
     extends Actor
     with ActorLogging {
 
+  import RealtimeModelActor._
+
   // This sets the actor dispatcher as an implicit execution context.  This way we
   // don't have to pass this argument to futures.
   private[this] implicit val ec: ExecutionContext = context.dispatcher
 
   private[this] val modelStore = persistenceProvider.modelStore
-  private[this] val modelOperationProcessor = persistenceProvider.modelOperationProcessor
   private[this] val modelSnapshotStore = persistenceProvider.modelSnapshotStore
 
   private[this] var collectionId: String = _
@@ -116,37 +118,7 @@ class RealtimeModelActor(
 
   private[this] var committedVersion: Long = 0
 
-  implicit val materializer = ActorMaterializer()
-  val persistenceStream = Flow[NewModelOperation]
-    .map { modelOperation =>
-      modelOperationProcessor.processModelOperation(modelOperation)
-        .map { _ =>
-          self ! OperationCommitted(modelOperation.version)
-          ()
-        }
-        .recover {
-          case cause: Exception =>
-            // FIXME this is probably altering state outside of the thread.
-            // probably need to send a message.
-            this.log.error(cause, "Error applying operation: " + modelOperation)
-            this.forceCloseAllAfterError("There was an unexpected persistence error applying an operation.")
-            ()
-        }
-    }.to(Sink.onComplete {
-      case Success(_) =>
-        // Note when we shut down we complete the persistence stream.
-        // So after that is done, we kill ourselves.
-        this.context.stop(self)
-      case Failure(f) =>
-        // FIXME this is probably altering state outside of the thread.
-        // probably need to send a message.
-        log.error(f, "Persistence stream completed with an error")
-        this.forceCloseAllAfterError("There was an unexpected persitence error.")
-
-        // if the stream was closed because the parent actor died, the this.conext might be null.
-        Option(this.context).foreach(c => c.stop(self))
-    }).runWith(Source
-      .actorRef[NewModelOperation](bufferSize = 1000, OverflowStrategy.fail))
+  private[this] val persistenceStream = new RealtimeModelPersistenceStream(self, context.system, persistenceProvider.modelOperationProcessor)
 
   //
   // Receive methods
@@ -191,7 +163,8 @@ class RealtimeModelActor(
     case ModelDeleted =>
       handleInitializationFailure(ModelDeletedWhileOpening)
     case dataResponse: ClientAutoCreateModelConfigResponse =>
-    case unknown: Any => unhandled(unknown)
+    case unknown: Any =>
+      unhandled(unknown)
   }
 
   /**
@@ -208,12 +181,24 @@ class RealtimeModelActor(
     case terminated: Terminated => handleTerminated(terminated)
     case ModelShutdown => shutdown()
     case OperationCommitted(version) => commitVersion(version)
-
+    case StreamFailure =>
+      this.forceCloseAllAfterError("There was an unexpected persitence error.")
+    case dataResponse: ClientAutoCreateModelConfigResponse =>
     // This can happen if we asked several clients for the data.  The first
     // one will be handled, but the rest will come in an simply be ignored.
-    case dataResponse: ClientAutoCreateModelConfigResponse =>
-
     case unknown: Any => unhandled(unknown)
+  }
+
+  /**
+   * Handles messages once the model has been completely initialized.
+   */
+  private[this] def receiveShuttingDown: Receive = {
+    case StreamCompleted =>
+      this.context.stop(self)
+    case StreamFailure =>
+      this.context.stop(self)
+    case unknown: Any =>
+      unhandled(unknown)
   }
 
   //
@@ -284,7 +269,7 @@ class RealtimeModelActor(
   private[this] def requestModelDataFromDatastore(): Unit = {
     context.become(receiveInitializingFromDatabase)
     log.debug(s"Requesting model data from the database: ${domainFqn}/${modelId}")
-    
+
     //    Future {
     (for {
       snapshotMetaData <- modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelId)
@@ -403,7 +388,7 @@ class RealtimeModelActor(
    */
   private[this] def requestAutoCreateConfigFromClient(sk: SessionKey, clientActor: ActorRef, autoCreateId: Int): Unit = {
     log.debug(s"Requesting model config data from client: ${domainFqn}/${modelId}")
-    
+
     val future = Patterns.ask(clientActor, ClientAutoCreateModelConfigRequest(autoCreateId), clientDataResponseTimeout)
     val askingActor = sender
 
@@ -471,7 +456,7 @@ class RealtimeModelActor(
    */
   private[this] def onOpenModelWhileInitialized(request: OpenRealtimeModelRequest): Unit = {
     log.debug(s"Handling a request to open the model while it is initialized: ${domainFqn}/${modelId}")
-    
+
     // FIXME see below fixme, but also it seems like we check this
     // in the respondToClientOpenRequest?
     if (permissions.resolveSessionPermissions(request.sk).read) {
@@ -494,7 +479,7 @@ class RealtimeModelActor(
     if (permissions.resolveSessionPermissions(sk).read) {
       // Inform the concurrency control that we have a new client.
       val contextVersion = modelData.metaData.version
-      this.model.clientConnected(sk, contextVersion)
+      this.model.clientConnected(sk.serialize(), contextVersion)
       connectedClients += (sk -> requestRecord.clientActor)
       clientToSessionId += (requestRecord.clientActor -> sk)
 
@@ -511,8 +496,7 @@ class RealtimeModelActor(
       val referencesBySession = this.model.references()
 
       val permissions = this.permissions.resolveSessionPermissions(sk)
-      
-      
+
       val openModelResponse = OpenModelSuccess(
         self,
         modelResourceId,
@@ -522,7 +506,7 @@ class RealtimeModelActor(
         referencesBySession,
         modelData.data,
         permissions)
-        
+
       valuePrefix = valuePrefix + 1
       modelStore.setNextPrefixValue(modelId, valuePrefix)
 
@@ -598,7 +582,7 @@ class RealtimeModelActor(
       case Some(session) => {
         if (permissions.resolveSessionPermissions(session).write) {
           val unprocessedOpEvent = UnprocessedOperationEvent(
-            session,
+            session.serialize(),
             request.contextVersion,
             request.operation)
 
@@ -637,7 +621,7 @@ class RealtimeModelActor(
     val timestamp = Instant.now()
     this.model.processOperationEvent(unprocessedOpEvent).map {
       case (processedOpEvent, appliedOp) =>
-        persistenceStream ! NewModelOperation(
+        persistenceStream.streamActor ! NewModelOperation(
           modelId,
           processedOpEvent.resultingVersion,
           timestamp,
@@ -787,7 +771,7 @@ class RealtimeModelActor(
     val closedActor = connectedClients(sk)
     connectedClients -= sk
     clientToSessionId -= closedActor
-    this.model.clientDisconnected(sk)
+    this.model.clientDisconnected(sk.serialize())
     context.unwatch(closedActor)
 
     if (notifyOthers) {
@@ -797,7 +781,7 @@ class RealtimeModelActor(
       connectedClients.values foreach { client => client ! closedMessage }
     }
 
-    return closedActor
+    closedActor
   }
 
   /**
@@ -820,22 +804,14 @@ class RealtimeModelActor(
 
   private def shutdown(): Unit = {
     log.debug(s"Model is shutting down: ${domainFqn}/${modelId}")
-    this.persistenceStream ! Status.Success("stream complete")
+    this.persistenceStream.streamActor ! Status.Success("stream complete")
+    this.context.become(receiveShuttingDown)
   }
 
   override def postStop(): Unit = {
     log.debug("Realtime Model stopped: {}/{}", domainFqn, modelId)
     connectedClients = HashMap()
   }
-
-  private[this] implicit def toClientId(sk: SessionKey): String = s"${sk.uid}:${sk.sid}"
-}
-
-case object ModelShutdown
-
-private object ErrorCodes extends Enumeration {
-  val Unknown = "unknown"
-  val ModelDeleted = "model_deleted"
 }
 
 case class SessionKey(uid: String, sid: String, admin: Boolean = false) {
