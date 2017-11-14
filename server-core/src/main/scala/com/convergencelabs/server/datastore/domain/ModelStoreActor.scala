@@ -34,15 +34,8 @@ object ModelStoreActor {
     Props(new ModelStoreActor(persistenceProvider))
 
   trait ModelStoreRequest
-
-  case class CreateOrUpdateModel(collectionId: Option[String], modelId: String, data: Map[String, Any], overridePermissions: Option[Boolean], worldPermissions: Option[ModelPermissions], userPermissions: Option[Map[String, ModelPermissions]]) extends ModelStoreRequest
-  case class CreateModel(collectionId: String, data: Map[String, Any], overridePermissions: Option[Boolean], worldPermissions: Option[ModelPermissions], userPermissions: Option[Map[String, ModelPermissions]]) extends ModelStoreRequest
-
   case class GetModels(offset: Option[Int], limit: Option[Int]) extends ModelStoreRequest
   case class GetModelsInCollection(collectionId: String, offset: Option[Int], limit: Option[Int]) extends ModelStoreRequest
-  case class GetModel(modelId: String) extends ModelStoreRequest
-
-  case class DeleteModel(modelId: String) extends ModelStoreRequest
 
   case class CollectionInfo(id: String, name: String)
 }

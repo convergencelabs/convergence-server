@@ -14,7 +14,7 @@ import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.datastore.domain.DomainSession
 import com.convergencelabs.server.domain.model.ModelCreator
-import com.convergencelabs.server.domain.model.ModelManagerActor
+import com.convergencelabs.server.domain.model.ModelQueryManagerActor
 import com.convergencelabs.server.domain.model.ModelPermissionResolver
 
 import akka.actor.Actor

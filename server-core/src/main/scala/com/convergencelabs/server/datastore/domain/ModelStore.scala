@@ -119,7 +119,7 @@ class ModelStore private[domain] (
 
   def createModel(
     collectionId: String,
-    modelId: Option[String],
+    modelId: String,
     data: ObjectValue,
     overridePermissions: Boolean,
     worldPermissions: ModelPermissions): Try[Model] = {
@@ -127,13 +127,12 @@ class ModelStore private[domain] (
     val createdTime = Instant.now()
     val modifiedTime = createdTime
     val version = 1
-    val computedModelId = modelId.getOrElse(UUID.randomUUID().toString)
     val valuePrefix = 1
 
     val model = Model(
       ModelMetaData(
         collectionId,
-        computedModelId,
+        modelId,
         version,
         createdTime,
         modifiedTime,

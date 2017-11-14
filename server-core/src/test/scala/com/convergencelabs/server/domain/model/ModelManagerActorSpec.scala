@@ -296,7 +296,7 @@ class ModelManagerActorSpec
     Mockito.when(modelCreator.createModel(any(), any(), any(), meq(Some(noModelId)), any(), any(), any(), any()))
       .thenReturn(Success(newModel))
 
-    val props = ModelManagerActor.props(domainFqn, protocolConfig, persistenceManager, modelPermissionsResolver, modelCreator)
+    val props = ModelQueryManagerActor.props(domainFqn, protocolConfig, persistenceManager, modelPermissionsResolver, modelCreator)
 
     val modelManagerActor = system.actorOf(props, resourceId)
   }

@@ -13,7 +13,7 @@ node {
             sbtTools.pull()
   
             docker.image(sbtTools.imageName()).inside("-e nexus_realm='Sonatype Nexus Repository Manager' -e nexus_host=nexus.convergencelabs.tech -e nexus_user=$NEXUS_USER -e nexus_password=$NEXUS_PASSWORD") {
-  		    stage 'Configure'
+  		      stage 'Configure'
               sh '/usr/local/bin/confd -onetime -backend env'
   		
               stage 'Compile'
@@ -22,7 +22,7 @@ node {
               stage 'Test'
               sh 'sbt -d -J-Xmx3G -J-Xss5M test'
   		  
-  		    stage 'Package'
+  		      stage 'Package'
               sh 'sbt package'
             
               stage 'Publish'
