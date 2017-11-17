@@ -4,6 +4,8 @@ import scala.util.Failure
 import scala.util.Success
 
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManager
+import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
+import com.convergencelabs.server.domain.DomainFqn
 
 import akka.actor.Actor
 import akka.actor.ActorLogging
@@ -55,7 +57,7 @@ class ModelQueryManagerActor(
   }
 
   override def postStop(): Unit = {
-    log.debug("ModelManagerActor({}) received shutdown command.  Shutting down all Realtime Models.", this.domainFqn)
+    log.debug("ModelQueryManagerActor({}) shutting down.", this.domainFqn)
     persistenceManager.releasePersistenceProvider(self, context, domainFqn)
   }
 

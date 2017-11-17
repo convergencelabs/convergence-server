@@ -52,11 +52,13 @@ object RealtimeModelActor {
   def props(
     persistenceProvider: DomainPersistenceProvider,
     modelPemrissionResolver: ModelPermissionResolver,
+    modelCreator: ModelCreator,
     clientDataResponseTimeout: Long,
     receiveTimeout: Duration): Props =
     Props(new RealtimeModelActor(
       persistenceProvider,
       modelPemrissionResolver,
+      modelCreator,
       clientDataResponseTimeout,
       receiveTimeout))
 
@@ -79,6 +81,7 @@ object RealtimeModelActor {
 class RealtimeModelActor(
   private[this] val persistenceProvider: DomainPersistenceProvider,
   private[this] val permissionsResolver: ModelPermissionResolver,
+  private[this] val modelCreator: ModelCreator,
   private[this] val clientDataResponseTimeout: Long,
   private[this] val receiveTimeout: Duration)
     extends Actor
@@ -238,7 +241,7 @@ class RealtimeModelActor(
       context,
       new EventHandler {
         def onInitializationError(): Unit = {
-
+          becomeClosed();
         }
 
         def onClientOpened(clientActor: ActorRef): Unit = {
@@ -249,7 +252,7 @@ class RealtimeModelActor(
         }
 
         def closeModel() = {
-
+          becomeClosed();
         }
       })
     this._modelManager = Some(mm)
@@ -368,7 +371,7 @@ class RealtimeModelActor(
         }
       } else {
         val root = ModelDataGenerator(data)
-        ModelCreator.createModel(
+        modelCreator.createModel(
           persistenceProvider,
           None,
           collectionId,
@@ -392,7 +395,7 @@ class RealtimeModelActor(
     if (collectionId.length == 0) {
       sender ! Status.Failure(new IllegalArgumentException("The collecitonId can not be empty when creating a model"))
     } else {
-      ModelCreator.createModel(
+      modelCreator.createModel(
         persistenceProvider,
         sk.map(_.uid),
         collectionId,
