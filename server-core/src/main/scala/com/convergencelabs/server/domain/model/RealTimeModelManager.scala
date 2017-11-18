@@ -38,7 +38,6 @@ object RealTimeModelManager {
   val DatabaseInitializationFailure = UnknownErrorResponse("Unexpected persistence error initializing the model.")
 
   trait EventHandler {
-    def onInitialized(): Unit
     def onInitializationError(): Unit
     def onClientOpened(clientActor: ActorRef): Unit
     def onClientClosed(clientActor: ActorRef): Unit

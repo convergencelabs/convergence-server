@@ -16,18 +16,18 @@ case class QueryModelsRequest(sk: SessionKey, query: String)
 case class QueryOrderBy(field: String, ascending: Boolean)
 case class QueryModelsResponse(result: List[ModelQueryResult])
 
-object ModelQueryManagerActor {
+object ModelLookupActor {
 
-  val RelativePath = "modelQueryManager"
+  val RelativePath = "modelLookupManager"
 
   def props(domainFqn: DomainFqn,
     persistenceManager: DomainPersistenceManager): Props = Props(
-    new ModelQueryManagerActor(
+    new ModelLookupActor(
       domainFqn,
       persistenceManager))
 }
 
-class ModelQueryManagerActor(
+class ModelLookupActor(
   private[this] val domainFqn: DomainFqn,
   private[this] val persistenceManager: DomainPersistenceManager)
     extends Actor with ActorLogging {

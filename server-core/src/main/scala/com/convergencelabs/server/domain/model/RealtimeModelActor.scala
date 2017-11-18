@@ -237,7 +237,7 @@ class RealtimeModelActor(
       modelPermissionResolver,
       Timeout(clientDataResponseTimeout),
       context,
-      new EventHandler {
+      new EventHandler() {
         def onInitializationError(): Unit = {
           becomeClosed();
         }

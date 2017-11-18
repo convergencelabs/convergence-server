@@ -72,6 +72,23 @@ import java.util.UUID
 import com.convergencelabs.server.datastore.domain.ModelDataGenerator
 import com.convergencelabs.server.domain.model.CreateOrUpdateRealtimeModel
 import com.convergencelabs.server.domain.model.DeleteRealtimeModel
+import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.datastore.domain.ModelPermissions
+import com.convergencelabs.server.domain.model.data.ObjectValue
+import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.model.Model
+import com.convergencelabs.server.domain.model.ModelMetaData
+import com.convergencelabs.server.datastore.domain.ModelPermissions
+import com.convergencelabs.server.domain.model.data.ObjectValue
+import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.model.Model
+import com.convergencelabs.server.domain.model.ModelMetaData
+import com.convergencelabs.server.datastore.domain.ModelPermissions
+import com.convergencelabs.server.domain.model.data.ObjectValue
+import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.model.Model
+import com.convergencelabs.server.domain.model.ModelMetaData
+import com.convergencelabs.server.datastore.domain.ModelPermissions
 
 object DomainModelService {
 
@@ -113,13 +130,12 @@ class DomainModelService(
   private[this] val executionContext: ExecutionContext,
   private[this] val authorizationActor: ActorRef,
   private[this] val domainRestActor: ActorRef,
-  private[this] val defaultTimeout: Timeout,
-  private[this] val modelClusterRegion: ActorRef)
+  private[this] val modelClusterRegion: ActorRef,
+  private[this] val defaultTimeout: Timeout)
     extends JsonSupport {
 
   implicit val ec = executionContext
   implicit val t = defaultTimeout
-  
 
   def route(username: String, domain: DomainFqn): Route = {
     pathPrefix("models") {
@@ -239,7 +255,7 @@ class DomainModelService(
 
   def postModel(domain: DomainFqn, model: ModelPost): Future[RestResponse] = {
     val ModelPost(colletionId, data) = model
-    
+
     // FIXME abstract this.
     val modelId = UUID.randomUUID().toString()
     val objectValue = ModelDataGenerator(data)

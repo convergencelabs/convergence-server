@@ -14,7 +14,7 @@ import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.datastore.domain.DomainSession
 import com.convergencelabs.server.domain.model.ModelCreator
-import com.convergencelabs.server.domain.model.ModelQueryManagerActor
+import com.convergencelabs.server.domain.model.ModelLookupActor
 import com.convergencelabs.server.domain.model.ModelPermissionResolver
 
 import akka.actor.Actor
@@ -71,10 +71,10 @@ class DomainActor(
   private[this] var persistenceProvider: DomainPersistenceProvider = _
   private[this] implicit val ec = context.dispatcher
 
-  private[this] val modelQueryManagerActorRef = context.actorOf(ModelQueryManagerActor.props(
+  private[this] val modelQueryManagerActorRef = context.actorOf(ModelLookupActor.props(
     domainFqn,
     DomainPersistenceManagerActor),
-    ModelQueryManagerActor.RelativePath)
+    ModelLookupActor.RelativePath)
 
   private[this] val userServiceActor = context.actorOf(IdentityServiceActor.props(
     domainFqn),

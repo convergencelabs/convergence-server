@@ -75,7 +75,7 @@ class DomainService(
   val domainStatsService = new DomainStatsService(ec, authorizationActor, domainManagerActor, t)
   val domainCollectionService = new DomainCollectionService(ec, authorizationActor, domainManagerActor, t)
   val domainSessionService = new DomainSessionService(ec, authorizationActor, domainManagerActor, t)
-  val domainModelService = new DomainModelService(ec, authorizationActor, domainManagerActor, t)
+  val domainModelService = new DomainModelService(ec, authorizationActor, domainManagerActor, modelClusterRegion, t)
   val domainKeyService = new DomainKeyService(ec, authorizationActor, domainManagerActor, t)
   val domainAdminTokenService = new DomainAdminTokenService(ec, authorizationActor, domainManagerActor, t)
   val domainSecurityService = new DomainSecurityService(ec, authorizationActor, permissionStoreActor, t)
