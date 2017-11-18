@@ -72,7 +72,7 @@ class ConvergenceRestFrontEnd(
   implicit val ec = system.dispatcher
   implicit val defaultRequestTimeout = Timeout(20 seconds)
   
-  private[this] val modelClusterRegion: ActorRef = RealtimeModelSharding.region(system)
+  private[this] val modelClusterRegion: ActorRef = RealtimeModelSharding.shardRegion(system)
 
   val exceptionHandler: ExceptionHandler = ExceptionHandler {
     case e: DuplicateValueException =>
