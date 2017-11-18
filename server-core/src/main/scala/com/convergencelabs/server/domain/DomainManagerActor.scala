@@ -25,6 +25,7 @@ import com.convergencelabs.server.domain.model.ModelCreator
 import akka.cluster.sharding.ClusterShardingSettings
 import com.convergencelabs.server.domain.model.RealtimeModelActor
 import scala.concurrent.duration.FiniteDuration
+import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 
 object DomainManagerActor {
   val RelativeActorPath = "domainManager"
@@ -67,6 +68,7 @@ class DomainManagerActor(
       entityProps = RealtimeModelActor.props(
         new ModelPermissionResolver(),
         new ModelCreator(),
+        DomainPersistenceManagerActor,
         FiniteDuration(10, TimeUnit.SECONDS),
         FiniteDuration(10, TimeUnit.SECONDS)),
       settings = ClusterShardingSettings(context.system),

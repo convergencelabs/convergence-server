@@ -25,7 +25,7 @@ class ModelOperationStoreSpec
     with WordSpecLike
     with Matchers {
 
-  def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProvider(dbProvider)
+  def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProviderImpl(dbProvider)
 
   val testUsername = "test"
   val user = DomainUser(DomainUserType.Normal, testUsername, None, None, None, None)

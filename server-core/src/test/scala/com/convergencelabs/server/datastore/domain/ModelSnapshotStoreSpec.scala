@@ -25,7 +25,7 @@ class ModelSnapshotStoreSpec
     with Matchers {
 
   override def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider =
-    new DomainPersistenceProvider(dbProvider)
+    new DomainPersistenceProviderImpl(dbProvider)
 
   val modelPermissions = ModelPermissions(true, true, true, true)
   

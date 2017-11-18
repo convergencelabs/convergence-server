@@ -38,7 +38,6 @@ case class CreateRealtimeModel(
     userPermissions: Option[Map[String, ModelPermissions]],
     sk: Option[SessionKey]) extends StatelessModelMessage
 
-case class UpdateRealtimeModel(domainFqn: DomainFqn, modelId: String, sk: Option[SessionKey]) extends StatelessModelMessage
 case class DeleteRealtimeModel(domainFqn: DomainFqn, modelId: String, sk: Option[SessionKey]) extends StatelessModelMessage
 
 // Incoming Permissions Messages

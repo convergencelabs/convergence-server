@@ -22,6 +22,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import grizzled.slf4j.Logging
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.convergencelabs.server.datastore.domain.DomainPersistenceProviderImpl
 
 class ConvergenceImporter(
     private[this] val dbBaseUri: String,
@@ -82,7 +83,7 @@ class ConvergenceImporter(
               val db = new ODatabaseDocumentTx(s"${dbBaseUri}/${dbInfo.database}")
               db.open(dbInfo.username, dbInfo.password)
                 
-              val provider = new DomainPersistenceProvider(DatabaseProvider(db))
+              val provider = new DomainPersistenceProviderImpl(DatabaseProvider(db))
               val domainImporter = new DomainImporter(provider, script)
               domainImporter.importDomain() map { _ =>
                 logger.debug("Domain import successful.")

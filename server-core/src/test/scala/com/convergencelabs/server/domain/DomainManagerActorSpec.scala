@@ -26,6 +26,7 @@ import akka.testkit.TestKit
 import akka.testkit.TestProbe
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManager
 import com.convergencelabs.server.util.MockDomainPersistenceManager
+import com.convergencelabs.server.util.MockDomainPersistenceProvider
 
 class DomainManagerActorSpec()
     extends TestKit(ActorSystem("DomainManagerActorSpec", ConfigFactory.parseResources("cluster-application.conf")))
@@ -74,10 +75,8 @@ class DomainManagerActorSpec()
     Mockito.when(domainStore.domainExists(domainFqn)).thenReturn(Success(true))
     Mockito.when(domainStore.domainExists(nonExistingDomain)).thenReturn(Success(false))
 
-    val provider = mock[DomainPersistenceProvider]
-    Mockito.when(provider.validateConnection()).thenReturn(Success(()))
+    val provider = new MockDomainPersistenceProvider()
     val persistenceManager = new MockDomainPersistenceManager(Map(domainFqn -> provider))
-
 
     val protocolConfig = ProtocolConfiguration(
       2 seconds,

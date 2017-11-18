@@ -42,6 +42,7 @@ import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.domain.ModelDataGenerator
 import akka.util.Timeout
 import scala.concurrent.duration.FiniteDuration
+import com.convergencelabs.server.datastore.domain.DomainPersistenceManager
 
 case class ModelConfigResponse(sk: SessionKey, config: ClientAutoCreateModelConfigResponse)
 case object PermissionsUpdated
@@ -54,11 +55,13 @@ object RealtimeModelActor {
   def props(
     modelPemrissionResolver: ModelPermissionResolver,
     modelCreator: ModelCreator,
+    persistenceManager: DomainPersistenceManager,
     clientDataResponseTimeout: FiniteDuration,
     receiveTimeout: FiniteDuration): Props =
     Props(new RealtimeModelActor(
       modelPemrissionResolver,
       modelCreator,
+      persistenceManager,
       clientDataResponseTimeout,
       receiveTimeout))
 
@@ -81,6 +84,7 @@ object RealtimeModelActor {
 class RealtimeModelActor(
   private[this] val modelPermissionResolver: ModelPermissionResolver,
   private[this] val modelCreator: ModelCreator,
+  private[this] val persistenceManager: DomainPersistenceManager,
   private[this] val clientDataResponseTimeout: FiniteDuration,
   private[this] val receiveTimeout: FiniteDuration)
     extends Actor
@@ -150,7 +154,19 @@ class RealtimeModelActor(
         this.deleteModel(msg)
       case msg: CreateOrUpdateRealtimeModel =>
         this.createOrUpdateModel(msg)
+      case msg: GetModelPermissionsRequest =>
+        this.getModelPermissions(msg)
+      case msg: SetModelPermissionsRequest =>
+        this.setModelPermissions(msg)
     }
+  }
+  
+  private[this] def getModelPermissions(msg: GetModelPermissionsRequest): Unit ={
+    
+  }
+  
+  private[this] def setModelPermissions(msg: SetModelPermissionsRequest): Unit ={
+    
   }
 
   private def handleRealtimeMessage(msg: RealTimeModelMessage): Unit = {
@@ -203,7 +219,7 @@ class RealtimeModelActor(
 
   private[this] def initialize(msg: ModelMessage): Try[Unit] = {
     log.debug(s"Real Time Model Actor initializing: '{}/{}'", msg.domainFqn, msg.modelId)
-    DomainPersistenceManagerActor.acquirePersistenceProvider(self, context, domainFqn) map { provider =>
+    persistenceManager.acquirePersistenceProvider(self, context, domainFqn) map { provider =>
       this._persistenceProvider = Some(provider)
       this._domainFqn = Some(msg.domainFqn)
       this._modelId = Some(msg.modelId)
@@ -362,7 +378,7 @@ class RealtimeModelActor(
       if (exists) {
         this._modelManager match {
           case Some(m) =>
-            Failure(new RuntimeException("Can not update an open model"))
+            Failure(new RuntimeException("Cannot update an open model"))
           case None =>
             persistenceProvider.modelStore.updateModel(modelId, data, worldPermissions)
         }

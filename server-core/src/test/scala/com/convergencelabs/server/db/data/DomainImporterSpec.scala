@@ -29,6 +29,7 @@ import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.model.data.StringValue
 import com.convergencelabs.server.domain.model.ot.AppliedStringInsertOperation
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.convergencelabs.server.datastore.domain.DomainPersistenceProviderImpl
 
 class DomainImporterSpec extends WordSpecLike with Matchers {
 
@@ -46,7 +47,7 @@ class DomainImporterSpec extends WordSpecLike with Matchers {
         val upgrader = new TestingSchemaManager(db, DeltaCategory.Domain, true)
         upgrader.install()
 
-        val provider = new DomainPersistenceProvider(dbPool)
+        val provider = new DomainPersistenceProviderImpl(dbPool)
         provider.validateConnection().success
         
         val serializer = new DomainScriptSerializer()

@@ -37,6 +37,9 @@ import com.convergencelabs.server.datastore.domain.ModelPermissionsStore
 import com.convergencelabs.server.datastore.domain.CollectionPermissions
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.datastore.domain.CollectionStore
+import com.convergencelabs.server.util.MockDomainPersistenceProvider
+import com.convergencelabs.server.util.MockDomainPersistenceProvider
+import com.convergencelabs.server.util.MockDomainPersistenceManager
 
 // scalastyle:off magic.number
 class RealtimeModelActorSpec
@@ -397,9 +400,13 @@ class RealtimeModelActorSpec
     Mockito.when(modelCreator.createModel(any(), any(), any(), any(), any(), any(), any(), any()))
       .thenReturn(Success(modelData))
 
+    val domainPersistence = new MockDomainPersistenceProvider()
+    val persistenceManager = new MockDomainPersistenceManager(Map(domainFqn -> domainPersistence))
+
     val props = RealtimeModelActor.props(
       new ModelPermissionResolver(),
       new ModelCreator(),
+      persistenceManager,
       FiniteDuration(100, TimeUnit.MILLISECONDS),
       FiniteDuration(100, TimeUnit.MILLISECONDS))
 

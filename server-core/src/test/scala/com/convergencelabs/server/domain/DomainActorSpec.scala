@@ -24,6 +24,7 @@ import akka.testkit.TestKit
 import akka.testkit.TestProbe
 import scala.util.Success
 import com.typesafe.config.ConfigFactory
+import com.convergencelabs.server.util.MockDomainPersistenceProvider
 
 @RunWith(classOf[JUnitRunner])
 class DomainActorSpec
@@ -62,9 +63,7 @@ class DomainActorSpec
   trait TestFixture {
     val domainFqn = DomainFqn("convergence", "default")
 
-    val provider = mock[DomainPersistenceProvider]
-    Mockito.when(provider.validateConnection()).thenReturn(Success(()))
-    
+    val provider = new MockDomainPersistenceProvider()
     val persistenceManager = new MockDomainPersistenceManager(Map(domainFqn -> provider))
 
     val domainManagerActor = new TestProbe(system)

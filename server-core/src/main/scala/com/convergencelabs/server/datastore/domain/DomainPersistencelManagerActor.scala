@@ -71,7 +71,7 @@ class DomainPersistenceManagerActor(
     domainDatabaseStore: DomainDatabaseStore) extends Actor with ActorLogging {
 
   private[this] var refernceCounts = Map[DomainFqn, Int]()
-  private[this] var providers = Map[DomainFqn, DomainPersistenceProvider]()
+  private[this] var providers = Map[DomainFqn, DomainPersistenceProviderImpl]()
   private[this] var providersByActor = Map[ActorRef, List[DomainFqn]]()
 
   override def receive: Receive = {
@@ -163,7 +163,7 @@ class DomainPersistenceManagerActor(
           1,
           64)
         log.debug(s"Creating new connection pool for '${domainFqn}': ${pool.getUrl}")
-        val provider = new DomainPersistenceProvider(DatabaseProvider(pool))
+        val provider = new DomainPersistenceProviderImpl(DatabaseProvider(pool))
         provider.validateConnection() flatMap { _ =>
           log.debug(s"Successfully created connection pool for '${domainFqn}': ${pool.getUrl}")
           providers = providers + (domainFqn -> provider)

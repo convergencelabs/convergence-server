@@ -24,7 +24,7 @@ class ModelPermissionsStoreSpec
   val nonExistentCollectionId = "not_real"
   val nonRealId = "not_real"
 
-  def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProvider(dbProvider)
+  def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProviderImpl(dbProvider)
 
   "A ModelPermissionsStore" when {
     "retrieving the model world permissions" must {
