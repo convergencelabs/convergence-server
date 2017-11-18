@@ -85,13 +85,20 @@ import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetGroupChatPe
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetGroupChatPermissionsResponse
 
 object ChatClientActor {
-  def props(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk: SessionKey): Props =
-    Props(new ChatClientActor(chatLookupActor, chatChannelActor, sk))
+  def props(
+    chatLookupActor: ActorRef,
+    chatChannelActor: ActorRef,
+    sk: SessionKey,
+    requestTimeout: Timeout): Props =
+    Props(new ChatClientActor(chatLookupActor, chatChannelActor, sk, requestTimeout))
 }
 
-class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk: SessionKey) extends Actor with ActorLogging {
-  // FIXME hardcoded
-  implicit val timeout = Timeout(5 seconds)
+class ChatClientActor(
+    chatLookupActor: ActorRef,
+    chatChannelActor: ActorRef,
+    sk: SessionKey,
+    implicit val requestTimeout: Timeout) extends Actor with ActorLogging {
+
   implicit val ec = context.dispatcher
 
   val mediator = DistributedPubSub(context.system).mediator
@@ -103,12 +110,12 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
     case SubscribeAck(Subscribe(chatTopicName, _, _)) ⇒
       log.debug("Subscribe to chat channel for user")
 
-    case MessageReceived(message) if message.isInstanceOf[IncomingChatNormalMessage] =>
-      onMessageReceived(message.asInstanceOf[IncomingChatNormalMessage])
-    case RequestReceived(message, replyPromise) if message.isInstanceOf[IncomingChatRequestMessage] =>
-      onRequestReceived(message.asInstanceOf[IncomingChatRequestMessage], replyPromise)
-    case RequestReceived(message, replyPromise) if message.isInstanceOf[IncomingPermissionsRequestMessage] =>
-      onPermissionsRequestReceived(message.asInstanceOf[IncomingPermissionsRequestMessage], replyPromise)
+    case MessageReceived(message: IncomingChatNormalMessage) =>
+      onMessageReceived(message)
+    case RequestReceived(message: IncomingChatRequestMessage, replyPromise) =>
+      onRequestReceived(message, replyPromise)
+    case RequestReceived(message: IncomingPermissionsRequestMessage, replyPromise) =>
+      onPermissionsRequestReceived(message, replyPromise)
 
     case message: ChatChannelBroadcastMessage =>
       handleBroadcastMessage(message)
@@ -527,7 +534,7 @@ class ChatClientActor(chatLookupActor: ActorRef, chatChannelActor: ActorRef, sk:
   private[this] def toChannelInfoData(info: ChatChannelInfo): ChatChannelInfoData = {
     val ChatChannelInfo(id, channelType, created, isPrivate, name, topic, members, lastEventNo, lastEventTime) = info
     val membership = isPrivate match {
-      case true  => "private"
+      case true => "private"
       case false => "public"
     }
     ChatChannelInfoData(id, channelType, membership, name, topic, created.toEpochMilli, lastEventTime.toEpochMilli, lastEventNo, lastEventNo, members)

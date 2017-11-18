@@ -63,7 +63,7 @@ class ClientActor(
   type MessageHandler = PartialFunction[ProtocolMessageEvent, Unit]
 
   // FIXME hard-coded (used for auth and handshake)
-  private[this] implicit val requestTimeout = Timeout(5 seconds)
+  private[this] implicit val requestTimeout = Timeout(protocolConfig.defaultRequestTimeout)
   private[this] implicit val ec = context.dispatcher
 
   private[this] var connectionActor: ActorRef = _
@@ -74,7 +74,7 @@ class ClientActor(
       log.debug("Client handshaked timeout")
       Option(connectionActor) match {
         case Some(connection) => connection ! CloseConnection
-        case None             =>
+        case None =>
       }
       context.stop(self)
     }
@@ -89,7 +89,7 @@ class ClientActor(
   private[this] var historyClient: ActorRef = _
 
   private[this] var domainActor: Option[ActorRef] = None
-  private[this] var modelManagerActor: ActorRef = _
+  private[this] var modelQueryActor: ActorRef = _
   private[this] var userServiceActor: ActorRef = _
   private[this] var activityServiceActor: ActorRef = _
   private[this] var presenceServiceActor: ActorRef = _
@@ -128,14 +128,14 @@ class ClientActor(
   }
 
   private[this] def receiveOutgoing: Receive = {
-    case message: OutgoingProtocolNormalMessage  => onOutgoingMessage(message)
+    case message: OutgoingProtocolNormalMessage => onOutgoingMessage(message)
     case message: OutgoingProtocolRequestMessage => onOutgoingRequest(message)
   }
 
   private[this] def receiveCommon: Receive = {
-    case WebSocketClosed       => onConnectionClosed()
+    case WebSocketClosed => onConnectionClosed()
     case WebSocketError(cause) => onConnectionError(cause)
-    case x: Any                => invalidMessage(x)
+    case x: Any => invalidMessage(x)
   }
 
   private[this] val receiveHandshakeSuccess: Receive = {
@@ -237,9 +237,9 @@ class ClientActor(
   private[this] def handleAuthenticationSuccess(message: InternalAuthSuccess): Unit = {
     val InternalAuthSuccess(username, sk, presence, cb) = message
     this.sessionId = sk.serialize();
-    this.modelClient = context.actorOf(ModelClientActor.props(sk, modelManagerActor))
+    this.modelClient = context.actorOf(ModelClientActor.props(domainFqn, sk, modelQueryActor, requestTimeout))
     this.userClient = context.actorOf(IdentityClientActor.props(userServiceActor))
-    this.chatClient = context.actorOf(ChatClientActor.props(chatLookupActor, chatChannelActor, sk))
+    this.chatClient = context.actorOf(ChatClientActor.props(chatLookupActor, chatChannelActor, sk, requestTimeout))
     this.activityClient = context.actorOf(ActivityClientActor.props(activityServiceActor, sk))
     this.presenceClient = context.actorOf(PresenceClientActor.props(presenceServiceActor, sk))
     this.historyClient = context.actorOf(HistoricModelClientActor.props(sk, domainFqn));
@@ -273,10 +273,11 @@ class ClientActor(
   }
 
   private[this] def handleHandshakeSuccess(success: InternalHandshakeSuccess): Unit = {
-    val InternalHandshakeSuccess(HandshakeSuccess(domainActor, modelManagerActor, userActor, activityActor, presenceActor, chatLookupActor, chatChannelActor),
+    val InternalHandshakeSuccess(HandshakeSuccess(
+        domainActor, modelQueryActor, userActor, activityActor, presenceActor, chatLookupActor, chatChannelActor),
       cb) = success
     this.domainActor = Some(domainActor)
-    this.modelManagerActor = modelManagerActor
+    this.modelQueryActor = modelQueryActor
     this.userServiceActor = userActor
     this.activityServiceActor = activityActor
     this.presenceServiceActor = presenceActor
@@ -306,30 +307,30 @@ class ClientActor(
 
   private[this] def onMessageReceived(message: MessageReceived): Unit = {
     message match {
-      case MessageReceived(x) if x.isInstanceOf[IncomingModelNormalMessage] => modelClient.forward(message)
-      case MessageReceived(x) if x.isInstanceOf[IncomingActivityMessage]    => activityClient.forward(message)
-      case MessageReceived(x) if x.isInstanceOf[IncomingPresenceMessage]    => presenceClient.forward(message)
-      case MessageReceived(x) if x.isInstanceOf[IncomingChatMessage]        => chatClient.forward(message)
+      case MessageReceived(x: IncomingModelNormalMessage) => modelClient.forward(message)
+      case MessageReceived(x: IncomingActivityMessage) => activityClient.forward(message)
+      case MessageReceived(x: IncomingPresenceMessage) => presenceClient.forward(message)
+      case MessageReceived(x: IncomingChatMessage) => chatClient.forward(message)
     }
   }
 
   private[this] def onRequestReceived(message: RequestReceived): Unit = {
     message match {
-      case RequestReceived(x, _) if x.isInstanceOf[IncomingModelRequestMessage] =>
+      case RequestReceived(x: IncomingModelRequestMessage, _) =>
         modelClient.forward(message)
-      case RequestReceived(x, _) if x.isInstanceOf[IncomingIdentityMessage] =>
+      case RequestReceived(x: IncomingIdentityMessage, _) =>
         userClient.forward(message)
-      case RequestReceived(x, _) if x.isInstanceOf[IncomingActivityMessage] =>
+      case RequestReceived(x: IncomingActivityMessage, _) =>
         activityClient.forward(message)
-      case RequestReceived(x, _) if x.isInstanceOf[IncomingPresenceMessage] =>
+      case RequestReceived(x: IncomingPresenceMessage, _) =>
         presenceClient.forward(message)
-      case RequestReceived(x, _) if x.isInstanceOf[IncomingChatMessage] =>
+      case RequestReceived(x: IncomingChatMessage, _) =>
         chatClient.forward(message)
-      case RequestReceived(x, _) if x.isInstanceOf[IncomingHistoricalModelRequestMessage] =>
+      case RequestReceived(x: IncomingHistoricalModelRequestMessage, _) =>
         historyClient.forward(message)
-      case RequestReceived(x, _) if x.isInstanceOf[IncomingPermissionsMessage] =>
-        val idType: IdType.Value = IdType(x.asInstanceOf[IncomingPermissionsMessage].p)
-        if(idType == IdType.Chat) {
+      case RequestReceived(x: IncomingPermissionsMessage, _) =>
+        val idType: IdType.Value = IdType(x.p)
+        if (idType == IdType.Chat) {
           chatClient.forward(message)
         }
     }

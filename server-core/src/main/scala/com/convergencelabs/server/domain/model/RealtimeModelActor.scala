@@ -40,6 +40,8 @@ import akka.cluster.sharding.ShardRegion.Passivate
 import akka.actor.ReceiveTimeout
 import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.domain.ModelDataGenerator
+import akka.util.Timeout
+import scala.concurrent.duration.FiniteDuration
 
 case class ModelConfigResponse(sk: SessionKey, config: ClientAutoCreateModelConfigResponse)
 case object PermissionsUpdated
@@ -50,13 +52,11 @@ case class ClientOpenFailure(sk: SessionKey, response: AnyRef)
  */
 object RealtimeModelActor {
   def props(
-    persistenceProvider: DomainPersistenceProvider,
     modelPemrissionResolver: ModelPermissionResolver,
     modelCreator: ModelCreator,
-    clientDataResponseTimeout: Long,
-    receiveTimeout: Duration): Props =
+    clientDataResponseTimeout: FiniteDuration,
+    receiveTimeout: FiniteDuration): Props =
     Props(new RealtimeModelActor(
-      persistenceProvider,
       modelPemrissionResolver,
       modelCreator,
       clientDataResponseTimeout,
@@ -79,11 +79,10 @@ object RealtimeModelActor {
  * realtime model.
  */
 class RealtimeModelActor(
-  private[this] val persistenceProvider: DomainPersistenceProvider,
-  private[this] val permissionsResolver: ModelPermissionResolver,
+  private[this] val modelPermissionResolver: ModelPermissionResolver,
   private[this] val modelCreator: ModelCreator,
-  private[this] val clientDataResponseTimeout: Long,
-  private[this] val receiveTimeout: Duration)
+  private[this] val clientDataResponseTimeout: FiniteDuration,
+  private[this] val receiveTimeout: FiniteDuration)
     extends Actor
     with ActorLogging {
 
@@ -93,7 +92,6 @@ class RealtimeModelActor(
   private[this] var _domainFqn: Option[DomainFqn] = None
   private[this] var _modelId: Option[String] = None
   private[this] var _modelManager: Option[RealTimeModelManager] = None
-  private[this] val modelPermissionResolver = new ModelPermissionResolver()
 
   //
   // Receive methods
@@ -199,7 +197,7 @@ class RealtimeModelActor(
     throw new IllegalStateException("Can not access domainFqn before the model is initialized.")
   }
 
-  private[this] def persisteneProvider = this._persistenceProvider.getOrElse {
+  private[this] def persistenceProvider = this._persistenceProvider.getOrElse {
     throw new IllegalStateException("Can not access persistenceProvider before the model is initialized.")
   }
 
@@ -236,8 +234,8 @@ class RealtimeModelActor(
       domainFqn,
       modelId,
       persistenceProvider,
-      permissionsResolver,
-      clientDataResponseTimeout,
+      modelPermissionResolver,
+      Timeout(clientDataResponseTimeout),
       context,
       new EventHandler {
         def onInitializationError(): Unit = {
@@ -362,21 +360,19 @@ class RealtimeModelActor(
     val CreateOrUpdateRealtimeModel(domainFqn, modelId, collectionId, data, overridePermissions, worldPermissions, userPermissions, sk) = msg
     persistenceProvider.modelStore.modelExists(modelId) flatMap { exists =>
       if (exists) {
-        val root = ModelDataGenerator(data)
         this._modelManager match {
           case Some(m) =>
             Failure(new RuntimeException("Can not update an open model"))
           case None =>
-            persistenceProvider.modelStore.updateModel(modelId, root, worldPermissions)
+            persistenceProvider.modelStore.updateModel(modelId, data, worldPermissions)
         }
       } else {
-        val root = ModelDataGenerator(data)
         modelCreator.createModel(
           persistenceProvider,
           None,
           collectionId,
           modelId,
-          root,
+          data,
           overridePermissions,
           worldPermissions,
           userPermissions)
@@ -429,16 +425,16 @@ class RealtimeModelActor(
           case None =>
             Success(true)
         }) flatMap { canDelete =>
-            if (canDelete) {
-              this._modelManager.map { m =>
-                m.modelDeleted()
-              }
-              persistenceProvider.modelStore.deleteModel(modelId)
-            } else {
-              val message = "User must have 'remove' permissions on the model to remove it."
-              Failure(UnauthorizedException(message))
+          if (canDelete) {
+            this._modelManager.map { m =>
+              m.modelDeleted()
             }
+            persistenceProvider.modelStore.deleteModel(modelId)
+          } else {
+            val message = "User must have 'remove' permissions on the model to remove it."
+            Failure(UnauthorizedException(message))
           }
+        }
       } else {
         Failure(ModelNotFoundException(modelId))
       }

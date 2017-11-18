@@ -17,6 +17,14 @@ import akka.actor.Cancellable
 import akka.actor.PoisonPill
 import akka.actor.Props
 import akka.cluster.Cluster
+import akka.cluster.sharding.ClusterSharding
+import com.convergencelabs.server.domain.model.RealtimeModelSharding
+import java.util.concurrent.TimeUnit
+import com.convergencelabs.server.domain.model.ModelPermissionResolver
+import com.convergencelabs.server.domain.model.ModelCreator
+import akka.cluster.sharding.ClusterShardingSettings
+import com.convergencelabs.server.domain.model.RealtimeModelActor
+import scala.concurrent.duration.FiniteDuration
 
 object DomainManagerActor {
   val RelativeActorPath = "domainManager"
@@ -48,6 +56,22 @@ class DomainManagerActor(
   private[this] val actorsToDomainFqn = mutable.HashMap[ActorRef, DomainFqn]()
   private[this] val domainFqnToActor = mutable.HashMap[DomainFqn, ActorRef]()
   private[this] val shudownRequests = mutable.Map[DomainFqn, Cancellable]()
+
+  // TODO Eventually this should probably go somewhere else. We are going to have lots of
+  // cluster regions to deal with. Eventually event the domains, so perhaps this actor
+  // just boots up the clusters?
+  private[this] val realtimeModelSharding = new RealtimeModelSharding()
+  private[this] val modelClusterRegion: ActorRef =
+    ClusterSharding(context.system).start(
+      typeName = RealtimeModelSharding.RegionName,
+      entityProps = RealtimeModelActor.props(
+        new ModelPermissionResolver(),
+        new ModelCreator(),
+        FiniteDuration(10, TimeUnit.SECONDS),
+        FiniteDuration(10, TimeUnit.SECONDS)),
+      settings = ClusterShardingSettings(context.system),
+      extractEntityId = realtimeModelSharding.extractEntityId,
+      extractShardId = realtimeModelSharding.extractShardId)
 
   log.debug("DomainManager started.")
 

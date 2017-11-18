@@ -18,12 +18,10 @@ case class QueryModelsResponse(result: List[ModelQueryResult])
 
 object ModelQueryManagerActor {
 
-  val RelativePath = "modelManager"
+  val RelativePath = "modelQueryManager"
 
   def props(domainFqn: DomainFqn,
-    persistenceManager: DomainPersistenceManager,
-    modelPermissionResolver: ModelPermissionResolver,
-    modelCreator: ModelCreator): Props = Props(
+    persistenceManager: DomainPersistenceManager): Props = Props(
     new ModelQueryManagerActor(
       domainFqn,
       persistenceManager))

@@ -12,17 +12,11 @@ import com.convergencelabs.server.domain.model.ClientAutoCreateModelConfigReques
 import com.convergencelabs.server.domain.model.ClientAutoCreateModelConfigResponse
 import com.convergencelabs.server.domain.model.ClientDataRequestFailure
 import com.convergencelabs.server.domain.model.CloseRealtimeModelRequest
-import com.convergencelabs.server.domain.model.CloseRealtimeModelSuccess
-import com.convergencelabs.server.domain.model.CreateModelRequest
-import com.convergencelabs.server.domain.model.DeleteModelRequest
 import com.convergencelabs.server.domain.model.GetModelPermissionsRequest
 import com.convergencelabs.server.domain.model.GetModelPermissionsResponse
-import com.convergencelabs.server.domain.model.ModelAlreadyOpen
-import com.convergencelabs.server.domain.model.ModelDeletedWhileOpening
 import com.convergencelabs.server.domain.model.ModelForceClose
 import com.convergencelabs.server.domain.model.ModelNotFoundException
 import com.convergencelabs.server.domain.model.ModelPermissionsChanged
-import com.convergencelabs.server.domain.model.OpenModelResponse
 import com.convergencelabs.server.domain.model.OpenModelSuccess
 import com.convergencelabs.server.domain.model.OpenRealtimeModelRequest
 import com.convergencelabs.server.domain.model.OperationAcknowledgement
@@ -55,29 +49,41 @@ import akka.actor.actorRef2Scala
 import akka.util.Timeout
 import akka.pattern.ask
 import com.convergencelabs.server.domain.model.ModelAlreadyExistsException
-import com.convergencelabs.server.domain.model.ModelDeleted
 import com.convergencelabs.server.frontend.rest.DataValueToJValue
 import com.convergencelabs.server.datastore.domain.QueryParsingException
+import com.convergencelabs.server.domain.DomainFqn
+import akka.cluster.sharding.ClusterSharding
+import com.convergencelabs.server.domain.model.RealtimeModelSharding
+import java.util.UUID
+import com.convergencelabs.server.datastore.domain.QueryParsingException
+import com.convergencelabs.server.domain.model.ModelDeletedWhileOpeningException
+import com.convergencelabs.server.domain.model.ModelAlreadyOpenException
+import com.convergencelabs.server.domain.model.CreateRealtimeModel
+import com.convergencelabs.server.domain.model.DeleteRealtimeModel
 
 object ModelClientActor {
   def props(
+    domainFqn: DomainFqn,
     sk: SessionKey,
-    modelManager: ActorRef): Props =
-    Props(new ModelClientActor(sk, modelManager))
+    modelQueryActor: ActorRef,
+    requestTimeout: Timeout): Props =
+    Props(new ModelClientActor(domainFqn, sk, modelQueryActor, requestTimeout))
 
   val ModelNotFoundError = ErrorMessage("model_not_found", "A model with the specifieid collection and model id does not exist.", Map())
 }
 
 class ModelClientActor(
-  sessionKey: SessionKey,
-  modelManager: ActorRef)
+  private[this] val domainFqn: DomainFqn,
+  private[this] implicit val sessionKey: SessionKey,
+  private[this] val modelQueryActor: ActorRef,
+  private[this] implicit val requestTimeout: Timeout)
     extends Actor with ActorLogging {
 
-  private[this] var openRealtimeModels = Map[String, ActorRef]()
-
-  // FIXME hardcoded
-  private[this] implicit val timeout = Timeout(5 seconds)
+  private[this] var nextResourceId = 0;
+  private[this] var resourceIdToModelId = Map[String, String]()
   private[this] implicit val ec = context.dispatcher
+
+  private[this] val modelClusterRegion: ActorRef = ClusterSharding(this.context.system).shardRegion(RealtimeModelSharding.RegionName)
 
   def receive: Receive = {
     case MessageReceived(message) if message.isInstanceOf[IncomingModelNormalMessage] =>
@@ -86,9 +92,8 @@ class ModelClientActor(
       onRequestReceived(message.asInstanceOf[IncomingModelRequestMessage], replyPromise)
     case message: RealtimeModelClientMessage =>
       onOutgoingModelMessage(message)
-    case Terminated(ref) =>
-      onActorDeath(ref)
-    case x: Any => unhandled(x)
+    case x: Any =>
+      unhandled(x)
   }
 
   //
@@ -111,14 +116,6 @@ class ModelClientActor(
     }
   }
   // scalastyle:on cyclomatic.complexity
-
-  private[this] def onActorDeath(actor: ActorRef): Unit = {
-    log.error("Model actor unexpectedly terminated.")
-    openRealtimeModels.find(_._2 == actor) map {
-      case (resourceId, ref) =>
-        closeModel(resourceId, "The model was unexpectedly closed by the server.")
-    }
-  }
 
   private[this] def onOutgoingOperation(op: OutgoingOperation): Unit = {
     val OutgoingOperation(resoruceId, sessionKey, contextVersion, timestamp, operation) = op
@@ -148,7 +145,6 @@ class ModelClientActor(
   private[this] def onModelPermissionsChanged(permsChanged: ModelPermissionsChanged): Unit = {
     val ModelPermissionsChanged(resourceId, permissions) = permsChanged
     val ModelPermissions(read, write, remove, manage) = permissions
-
     context.parent ! ModelPermissionsChangedMessage(
       resourceId,
       ModelPermissionsData(read, write, remove, manage))
@@ -156,12 +152,7 @@ class ModelClientActor(
 
   private[this] def onModelForceClose(forceClose: ModelForceClose): Unit = {
     val ModelForceClose(resourceId, reason) = forceClose
-    closeModel(resourceId, reason)
-  }
-
-  private[this] def closeModel(resourceId: String, reason: String): Unit = {
-    openRealtimeModels.get(resourceId) map (this.context.unwatch(_))
-    openRealtimeModels -= resourceId
+    resourceIdToModelId -= resourceId
     context.parent ! ModelForceCloseMessage(resourceId, reason)
   }
 
@@ -250,10 +241,10 @@ class ModelClientActor(
 
   private[this] def onOperationSubmission(message: OperationSubmissionMessage): Unit = {
     val OperationSubmissionMessage(resourceId, seqNo, version, operation) = message
-    val submission = OperationSubmission(seqNo, version, OperationMapper.mapIncoming(operation))
-    openRealtimeModels.get(resourceId) match {
-      case Some(modelActor) =>
-        modelActor ! submission
+    resourceIdToModelId.get(resourceId) match {
+      case Some(modelId) =>
+        val submission = OperationSubmission(domainFqn, modelId, seqNo, version, OperationMapper.mapIncoming(operation))
+        modelClusterRegion ! submission
       case None =>
         log.warning("Recieved an operation submissions for a resource id that does not exists.")
         sender ! ErrorMessage("model_not_open", "An operation message was received for a model that is not open", Map())
@@ -264,10 +255,10 @@ class ModelClientActor(
     val PublishReferenceMessage(resourceId, id, key, refType, valueOption, version) = message
     val mappedType = ReferenceType.map(refType)
     val values = valueOption.map { mapIncomingReferenceValue(mappedType, _) }
-    val publishReference = PublishReference(id, key, mappedType, values, version)
-    openRealtimeModels.get(resourceId) match {
-      case Some(modelActor) =>
-        modelActor ! publishReference
+    resourceIdToModelId.get(resourceId) match {
+      case Some(modelId) =>
+        val publishReference = PublishReference(domainFqn, modelId, id, key, mappedType, values, version)
+        modelClusterRegion ! publishReference
       case None =>
         log.warning("Recieved a reference publish message for a resource id that does not exists.")
         sender ! ErrorMessage("model_not_open", "An reference message was received for a model that is not open", Map())
@@ -276,10 +267,10 @@ class ModelClientActor(
 
   def onUnpublishReference(message: UnpublishReferenceMessage): Unit = {
     val UnpublishReferenceMessage(resourceId, id, key) = message
-    val unpublishReference = UnpublishReference(id, key)
-    openRealtimeModels.get(resourceId) match {
-      case Some(modelActor) =>
-        modelActor ! unpublishReference
+    resourceIdToModelId.get(resourceId) match {
+      case Some(modelId) =>
+        val unpublishReference = UnpublishReference(domainFqn, modelId, id, key)
+        modelClusterRegion ! unpublishReference
       case None =>
         log.warning("Recieved a reference unpublish message for a resource id that does not exists.")
         sender ! ErrorMessage("model_not_open", "An reference message was received for a model that is not open", Map())
@@ -289,10 +280,10 @@ class ModelClientActor(
   private[this] def onSetReference(message: SetReferenceMessage): Unit = {
     val SetReferenceMessage(resourceId, id, key, refType, values, version) = message
     val mappedType = ReferenceType.map(refType)
-    val setReference = SetReference(id, key, mappedType, mapIncomingReferenceValue(mappedType, values), version)
-    openRealtimeModels.get(resourceId) match {
-      case Some(modelActor) =>
-        modelActor ! setReference
+    resourceIdToModelId.get(resourceId) match {
+      case Some(modelId) =>
+        val setReference = SetReference(domainFqn, modelId, id, key, mappedType, mapIncomingReferenceValue(mappedType, values), version)
+        modelClusterRegion ! setReference
       case None =>
         log.warning("Recieved a reference set message for a resource id that does not exists.")
         sender ! ErrorMessage("model_not_open", "An reference message was received for a model that is not open", Map())
@@ -315,10 +306,10 @@ class ModelClientActor(
 
   private[this] def onClearReference(message: ClearReferenceMessage): Unit = {
     val ClearReferenceMessage(resourceId, id, key) = message
-    val clearReference = ClearReference(id, key)
-    openRealtimeModels.get(resourceId) match {
-      case Some(modelActor) =>
-        modelActor ! clearReference
+    resourceIdToModelId.get(resourceId) match {
+      case Some(modelId) =>
+        val clearReference = ClearReference(domainFqn, modelId, id, key)
+        modelClusterRegion ! clearReference
       case None =>
         log.warning("Recieved a reference clear message for a resource id that does not exists.")
         sender ! ErrorMessage("model_not_open", "An reference message was received for a model that is not open", Map())
@@ -326,12 +317,17 @@ class ModelClientActor(
   }
 
   private[this] def onOpenRealtimeModelRequest(request: OpenRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
-    val future = modelManager ? OpenRealtimeModelRequest(
-      sessionKey, request.m, request.a, self)
-    future.mapResponse[OpenModelResponse] onComplete {
-      case Success(OpenModelSuccess(realtimeModelActor, modelResourceId, valueIdPrefix, metaData, connectedClients, references, modelData, modelPermissions)) =>
-        openRealtimeModels += (modelResourceId -> realtimeModelActor)
-        this.context.watch(realtimeModelActor)
+    val OpenRealtimeModelRequestMessage(optionalModelId, autoCreateId) = request
+    
+    val modelId = optionalModelId.getOrElse {
+      UUID.randomUUID().toString()
+    }
+    
+    val future = modelClusterRegion ? OpenRealtimeModelRequest(domainFqn, modelId, autoCreateId, sessionKey, self)
+    future.mapResponse[OpenModelSuccess] onComplete {
+      case Success(OpenModelSuccess(valueIdPrefix, metaData, connectedClients, references, modelData, modelPermissions)) =>
+        val resourceId = nextResourceId();
+        resourceIdToModelId += (resourceId -> modelId)
         val convertedReferences = references.map { ref =>
           val ReferenceState(sessionId, valueId, key, refType, values) = ref
           val mappedType = ReferenceType.map(refType)
@@ -340,10 +336,10 @@ class ModelClientActor(
         }.toSet
         cb.reply(
           OpenRealtimeModelResponseMessage(
-            modelResourceId,
+            resourceId,
             metaData.id,
             metaData.collection,
-            valueIdPrefix,
+            java.lang.Long.toString(valueIdPrefix, 36),
             metaData.version,
             metaData.createdTime.toEpochMilli,
             metaData.modifiedTime.toEpochMilli,
@@ -356,11 +352,11 @@ class ModelClientActor(
               modelPermissions.write,
               modelPermissions.remove,
               modelPermissions.manage)))
-      case Success(ModelAlreadyOpen) =>
+      case Failure(ModelAlreadyOpenException()) =>
         cb.expectedError("model_already_open", "The requested model is already open by this client.")
-      case Success(ModelDeletedWhileOpening) =>
+      case Failure(ModelDeletedWhileOpeningException()) =>
         cb.expectedError("model_deleted", "The requested model was deleted while opening.")
-      case Success(ClientDataRequestFailure(message)) =>
+      case Failure(ClientDataRequestFailure(message)) =>
         cb.expectedError("data_request_failure", message)
       case Failure(ModelNotFoundException(modelId)) =>
         cb.reply(ModelClientActor.ModelNotFoundError)
@@ -373,13 +369,13 @@ class ModelClientActor(
   }
 
   private[this] def onCloseRealtimeModelRequest(request: CloseRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
-    openRealtimeModels.get(request.r) match {
-      case Some(modelActor) =>
-        val future = modelActor ? CloseRealtimeModelRequest(sessionKey)
-        future.mapResponse[CloseRealtimeModelSuccess] onComplete {
-          case Success(CloseRealtimeModelSuccess()) =>
-            this.context.unwatch(modelActor)
-            openRealtimeModels -= request.r
+    val CloseRealtimeModelRequestMessage(resourceId) = request
+    resourceIdToModelId.get(request.r) match {
+      case Some(modelId) =>
+        val future = modelClusterRegion ? CloseRealtimeModelRequest(domainFqn, modelId, sessionKey)
+        future.mapResponse[Unit] onComplete {
+          case Success(()) =>
+            resourceIdToModelId -= resourceId
             cb.reply(CloseRealTimeModelSuccessMessage())
           case Failure(cause) =>
             log.error(cause, "Unexpected error closing model.")
@@ -391,7 +387,7 @@ class ModelClientActor(
   }
 
   private[this] def onCreateRealtimeModelRequest(request: CreateRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
-    val CreateRealtimeModelRequestMessage(collectionId, modelId, data, overridePermissions, worldPermissionsData, userPermissionsData) = request
+    val CreateRealtimeModelRequestMessage(collectionId, optionalModelId, data, overridePermissions, worldPermissionsData, userPermissionsData) = request
     val worldPermissions = worldPermissionsData.map { wp =>
       val ModelPermissionsData(read, write, remove, manage) = wp
       ModelPermissions(read, write, remove, manage)
@@ -401,8 +397,11 @@ class ModelClientActor(
       val ModelPermissionsData(read, write, remove, manage) = entry._2
       (entry._1 -> ModelPermissions(read, write, remove, manage))
     })
+    
+    // FIXME make a utility for this.
+    val modelId = optionalModelId.getOrElse(UUID.randomUUID().toString())
 
-    val future = modelManager ? CreateModelRequest(sessionKey, collectionId, modelId, data, overridePermissions, worldPermissions, userPermissions)
+    val future = modelClusterRegion ? CreateRealtimeModel(domainFqn, modelId, collectionId, data, overridePermissions, worldPermissions, userPermissions, Some(sessionKey))
     future.mapResponse[String] onComplete {
       case Success(modelId) =>
         cb.reply(CreateRealtimeModelSuccessMessage(modelId))
@@ -418,9 +417,9 @@ class ModelClientActor(
 
   private[this] def onDeleteRealtimeModelRequest(request: DeleteRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
     val DeleteRealtimeModelRequestMessage(modelId) = request
-    val future = modelManager ? DeleteModelRequest(sessionKey, modelId)
-    future.mapResponse[ModelDeleted] onComplete {
-      case Success(ModelDeleted()) =>
+    val future = modelClusterRegion ? DeleteRealtimeModel(domainFqn, modelId, Some(sessionKey))
+    future.mapResponse[Unit] onComplete {
+      case Success(()) =>
         cb.reply(DeleteRealtimeModelSuccessMessage())
       case Failure(ModelNotFoundException(_)) =>
         cb.reply(ModelClientActor.ModelNotFoundError)
@@ -435,7 +434,7 @@ class ModelClientActor(
 
   private[this] def onModelQueryRequest(request: ModelsQueryRequestMessage, cb: ReplyCallback): Unit = {
     val ModelsQueryRequestMessage(query) = request
-    val future = modelManager ? QueryModelsRequest(sessionKey, query)
+    val future = modelQueryActor ? QueryModelsRequest(sessionKey, query)
     future.mapResponse[QueryModelsResponse] onComplete {
       case Success(QueryModelsResponse(result)) => cb.reply(
         ModelsQueryResponseMessage(result map {
@@ -459,7 +458,7 @@ class ModelClientActor(
 
   private[this] def onGetModelPermissionsRequest(request: GetModelPermissionsRequestMessage, cb: ReplyCallback): Unit = {
     val GetModelPermissionsRequestMessage(modelId) = request
-    val future = modelManager ? GetModelPermissionsRequest(sessionKey, modelId)
+    val future = modelClusterRegion ? GetModelPermissionsRequest(domainFqn, modelId, sessionKey)
     future.mapResponse[GetModelPermissionsResponse] onComplete {
       case Success(GetModelPermissionsResponse(overridesCollection, world, users)) =>
         val mappedWorld = ModelPermissionsData(world.read, world.write, world.remove, world.manage)
@@ -490,8 +489,9 @@ class ModelClientActor(
         })
         (username, p)
     }
-    val message = SetModelPermissionsRequest(sessionKey, modelId, overridePermissions, mappedWorld, allUsers, mappedUsers)
-    val future = modelManager ? message
+    
+    val message = SetModelPermissionsRequest(domainFqn, modelId, sessionKey, overridePermissions, mappedWorld, allUsers, mappedUsers)
+    val future = modelClusterRegion ? message
     future onComplete {
       case Success(_) =>
         cb.reply(SetModelPermissionsResponseMessage())
@@ -504,5 +504,11 @@ class ModelClientActor(
         log.error(cause, message)
         cb.unexpectedError(message)
     }
+  }
+  
+  def nextResourceId(): String = {
+    val id = nextResourceId.toString();
+    nextResourceId += 1;
+    return id;
   }
 }

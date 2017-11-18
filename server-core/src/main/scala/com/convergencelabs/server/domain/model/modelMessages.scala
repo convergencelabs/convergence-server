@@ -22,7 +22,7 @@ case class CreateOrUpdateRealtimeModel(
     domainFqn: DomainFqn,
     modelId: String, 
     collectionId: String,
-    data: Map[String, Any], 
+    data: ObjectValue, 
     overridePermissions: Option[Boolean], 
     worldPermissions: Option[ModelPermissions], 
     userPermissions: Option[Map[String, ModelPermissions]],
@@ -32,7 +32,7 @@ case class CreateRealtimeModel(
     domainFqn: DomainFqn,
     modelId: String,
     collectionId: String, 
-    data: Map[String, Any], 
+    data: ObjectValue, 
     overridePermissions: Option[Boolean], 
     worldPermissions: Option[ModelPermissions], 
     userPermissions: Option[Map[String, ModelPermissions]],
@@ -56,7 +56,7 @@ case class SetModelPermissionsRequest(
 // Messages targeted specifically at "open" models.
 //
 sealed trait RealTimeModelMessage extends ModelMessage
-case class OpenRealtimeModelRequest(domainFqn: DomainFqn, modelId: String, sk: SessionKey, autoCreateId: Option[Integer], clientActor: ActorRef) extends RealTimeModelMessage
+case class OpenRealtimeModelRequest(domainFqn: DomainFqn, modelId: String, autoCreateId: Option[Integer], sk: SessionKey, clientActor: ActorRef) extends RealTimeModelMessage
 case class CloseRealtimeModelRequest(domainFqn: DomainFqn, modelId: String, sk: SessionKey) extends RealTimeModelMessage
 case class OperationSubmission(domainFqn: DomainFqn, modelId: String, seqNo: Long, contextVersion: Long, operation: Operation) extends RealTimeModelMessage
 
@@ -79,7 +79,6 @@ trait RealtimeModelClientMessage {
 }
 
 case class OpenModelSuccess(
-    modelId: String,
     valuePrefix: Long,
     metaData: OpenModelMetaData,
     connectedClients: Set[SessionKey],

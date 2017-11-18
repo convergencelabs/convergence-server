@@ -30,6 +30,9 @@ import akka.pattern.Patterns
 import grizzled.slf4j.Logging
 import akka.actor.ActorContext
 import akka.persistence.SnapshotMetadata
+import scala.concurrent.duration.Duration
+import akka.util.Timeout
+import scala.concurrent.duration.FiniteDuration
 
 object RealTimeModelManager {
   val DatabaseInitializationFailure = UnknownErrorResponse("Unexpected persistence error initializing the model.")
@@ -55,7 +58,7 @@ class RealTimeModelManager(
     private[this] val modelId: String,
     private[this] val persistenceProvider: DomainPersistenceProvider,
     private[this] val permissionsResolver: ModelPermissionResolver,
-    private[this] val clientDataResponseTimeout: Long,
+    private[this] val clientDataResponseTimeout: Timeout,
     private[this] val context: ActorContext,
     private[this] val eventHandler: RealTimeModelManager.EventHandler) extends Logging {
 
@@ -397,7 +400,6 @@ class RealTimeModelManager(
       val referencesBySession = this.model.references()
       val permissions = this.permissions.resolveSessionPermissions(sk)
       val openModelResponse = OpenModelSuccess(
-        modelId,
         valuePrefix,
         metaData,
         connectedClients.keySet,

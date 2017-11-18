@@ -30,6 +30,7 @@ import akka.cluster.sharding.ShardRegion
 import com.convergencelabs.server.domain.chat.ChatChannelLookupActor
 import com.convergencelabs.server.domain.chat.ChatChannelActor
 import com.convergencelabs.server.domain.chat.ChatChannelSharding
+import com.convergencelabs.server.domain.model.RealtimeModelActor
 
 object DomainActor {
   def props(
@@ -70,13 +71,10 @@ class DomainActor(
   private[this] var persistenceProvider: DomainPersistenceProvider = _
   private[this] implicit val ec = context.dispatcher
 
-  private[this] val modelManagerActorRef = context.actorOf(ModelManagerActor.props(
+  private[this] val modelQueryManagerActorRef = context.actorOf(ModelQueryManagerActor.props(
     domainFqn,
-    protocolConfig,
-    DomainPersistenceManagerActor,
-    new ModelPermissionResolver(),
-    new ModelCreator()),
-    ModelManagerActor.RelativePath)
+    DomainPersistenceManagerActor),
+    ModelQueryManagerActor.RelativePath)
 
   private[this] val userServiceActor = context.actorOf(IdentityServiceActor.props(
     domainFqn),
@@ -174,7 +172,7 @@ class DomainActor(
       context.watch(message.clientActor)
       sender ! HandshakeSuccess(
         self,
-        modelManagerActorRef,
+        modelQueryManagerActorRef,
         userServiceActor,
         activityServiceActor,
         presenceServiceActor,

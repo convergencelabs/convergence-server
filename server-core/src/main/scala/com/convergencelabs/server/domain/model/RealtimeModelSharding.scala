@@ -2,8 +2,12 @@ package com.convergencelabs.server.domain.model
 
 import akka.cluster.sharding.ShardRegion
 
-class RealTimeModelSharding(val numberOfShards: Int = 100) {
-  
+object RealtimeModelSharding {
+  val RegionName = "RealtimeModelShard"
+}
+
+class RealtimeModelSharding(val numberOfShards: Int = 100) {
+
   val extractEntityId: ShardRegion.ExtractEntityId = {
     case msg: RealTimeModelMessage ⇒ 
       (s"${msg.domainFqn.namespace}::${msg.domainFqn.domainId}::${msg.modelId}", msg)
