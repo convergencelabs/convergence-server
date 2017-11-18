@@ -219,7 +219,7 @@ class RealtimeModelActor(
 
   private[this] def initialize(msg: ModelMessage): Try[Unit] = {
     log.debug(s"Real Time Model Actor initializing: '{}/{}'", msg.domainFqn, msg.modelId)
-    persistenceManager.acquirePersistenceProvider(self, context, domainFqn) map { provider =>
+    persistenceManager.acquirePersistenceProvider(self, context, msg.domainFqn) map { provider =>
       this._persistenceProvider = Some(provider)
       this._domainFqn = Some(msg.domainFqn)
       this._modelId = Some(msg.modelId)
@@ -234,13 +234,13 @@ class RealtimeModelActor(
   }
 
   private def shutdown(): Unit = {
-    log.debug(s"Model is shutting down: ${domainFqn}/${modelId}")
+    log.debug(s"Model is shutting down: ${_domainFqn.getOrElse("")}/${_modelId.getOrElse("")}")
     this.modelManager.shutdown()
     this.context.become(receiveShuttingDown)
   }
 
   override def postStop(): Unit = {
-    log.debug("Realtime Model stopped: {}/{}", domainFqn, modelId)
+    log.debug("Realtime Model stopped: {}/{}", _domainFqn.getOrElse(""), _modelId.getOrElse(""))
   }
 
   private[this] def becomeOpened(): Unit = {

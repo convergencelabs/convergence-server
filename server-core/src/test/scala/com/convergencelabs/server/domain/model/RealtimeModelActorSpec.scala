@@ -296,13 +296,14 @@ class RealtimeModelActorSpec
         //        cause shouldBe a[UnauthorizedException]
       }
 
-      //      "respond with a GetModelPermissionsResponse if the model exists and the user has read permissions" in new TestFixture {
-      //        Mockito.when(modelPermissionsResolver.getModelPermissions(any(), any())).thenReturn(
-      //            Success(ModelPemrissionResult(false, ModelPermissions(true, true, true, true), Map())))
-      //            
-      //        val client = new TestProbe(system)
-      //        modelManagerActor.tell(GetModelPermissionsRequest(u1Sk, existingModelId), client.ref)
-      //        val response = client.expectMsgClass(timeout, classOf[GetModelPermissionsResponse])
+      "respond with a GetModelPermissionsResponse if the model exists and the user has read permissions" in new TestFixture {
+        //        Mockito.when(modelPermissionsResolver.getModelPermissions(any(), any())).thenReturn(
+        //            Success(ModelPemrissionResult(false, ModelPermissions(true, true, true, true), Map())))
+        //            
+        //        val client = new TestProbe(system)
+        //        modelManagerActor.tell(GetModelPermissionsRequest(u1Sk, existingModelId), client.ref)
+        //        val response = client.expectMsgClass(timeout, classOf[GetModelPermissionsResponse])
+      }
     }
   }
 
@@ -414,27 +415,25 @@ class RealtimeModelActorSpec
   }
 
   trait MockDatabaseWithModel extends TestFixture {
-    // FIXME: Add the rest of the persistence mocks
-
-    Mockito.when(modelStore.modelExists(modelId)).thenReturn(Success(true))
-    Mockito.when(modelStore.getModel(modelId)).thenReturn(Success(Some(modelData)))
-    Mockito.when(modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelId)).thenReturn(Success(Some(modelSnapshotMetaData)))
+    //    Mockito.when(modelStore.modelExists(modelId)).thenReturn(Success(true))
+    //    Mockito.when(modelStore.getModel(modelId)).thenReturn(Success(Some(modelData)))
+    //    Mockito.when(modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelId)).thenReturn(Success(Some(modelSnapshotMetaData)))
   }
 
   trait OneOpenClient extends MockDatabaseWithModel {
-    val client1 = new TestProbe(system)
-    realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), skU1S1, client1.ref), client1.ref)
-    val client1OpenResponse = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
+    //    val client1 = new TestProbe(system)
+    //    realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), skU1S1, client1.ref), client1.ref)
+    //    val client1OpenResponse = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
   }
 
   trait TwoOpenClients extends OneOpenClient {
-    val client2 = new TestProbe(system)
-    realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), SessionKey(uid2, session1), client2.ref), client2.ref)
-    val client2OpenResponse = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
-    client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[RemoteClientOpened])
+    //    val client2 = new TestProbe(system)
+    //    realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), SessionKey(uid2, session1), client2.ref), client2.ref)
+    //    val client2OpenResponse = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
+    //    client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[RemoteClientOpened])
   }
 
   trait MockDatabaseWithoutModel extends TestFixture {
-    Mockito.when(modelStore.modelExists(modelId)).thenReturn(Success(false))
+    //    Mockito.when(modelStore.modelExists(modelId)).thenReturn(Success(false))
   }
 }
