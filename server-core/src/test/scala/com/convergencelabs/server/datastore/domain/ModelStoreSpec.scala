@@ -120,7 +120,7 @@ class ModelStoreSpec
           Map(("foo" -> StringValue("t1-foo", "bar"))))
 
         stores.collection.ensureCollectionExists(peopleCollectionId)
-        stores.model.createModel(peopleCollectionId, Some(modelId), data, true, modelPermissions).get
+        stores.model.createModel(peopleCollectionId, modelId, data, true, modelPermissions).get
         val model = stores.model.getModel(modelId).get.value
         model.metaData.modelId shouldBe modelId
         model.metaData.version shouldBe 1
@@ -131,8 +131,8 @@ class ModelStoreSpec
         stores.collection.ensureCollectionExists(peopleCollectionId)
         val data = ObjectValue("t2-data",
           Map(("foo" -> StringValue("t2-foo", "bar"))))
-        stores.model.createModel(peopleCollectionId, Some(person1Id), data, true, modelPermissions).get
-        stores.model.createModel(peopleCollectionId, Some(person1Id), data, true, modelPermissions).failure.exception shouldBe a[DuplicateValueException]
+        stores.model.createModel(peopleCollectionId, person1Id, data, true, modelPermissions).get
+        stores.model.createModel(peopleCollectionId, person1Id, data, true, modelPermissions).failure.exception shouldBe a[DuplicateValueException]
       }
     }
 
