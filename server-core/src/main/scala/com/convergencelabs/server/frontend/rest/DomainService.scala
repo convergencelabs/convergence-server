@@ -62,6 +62,7 @@ class DomainService(
   private[this] val domainStoreActor: ActorRef,
   private[this] val domainManagerActor: ActorRef,
   private[this] val permissionStoreActor: ActorRef,
+  private[this] val modelClusterRegion: ActorRef,
   private[this] val defaultTimeout: Timeout)
     extends JsonSupport {
 

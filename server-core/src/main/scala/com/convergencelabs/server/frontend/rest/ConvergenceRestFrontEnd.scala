@@ -45,6 +45,9 @@ import akka.util.Timeout
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import grizzled.slf4j.Logging
+import akka.actor.ActorRef
+import akka.cluster.sharding.ClusterSharding
+import com.convergencelabs.server.domain.model.RealtimeModelSharding
 
 object ConvergenceRestFrontEnd {
   val ConvergenceCorsSettings = CorsSettings.defaultSettings.copy(
@@ -68,6 +71,8 @@ class ConvergenceRestFrontEnd(
   implicit val materializer = ActorMaterializer()
   implicit val ec = system.dispatcher
   implicit val defaultRequestTimeout = Timeout(20 seconds)
+  
+  private[this] val modelClusterRegion: ActorRef = RealtimeModelSharding.region(system)
 
   val exceptionHandler: ExceptionHandler = ExceptionHandler {
     case e: DuplicateValueException =>
@@ -133,7 +138,7 @@ class ConvergenceRestFrontEnd(
     val authService = new AuthService(ec, authActor, defaultRequestTimeout)
     val authenticator = new Authenticator(authActor, defaultRequestTimeout, ec)
     val registrationService = new RegistrationService(ec, registrationActor, defaultRequestTimeout, registrationBaseUrl)
-    val domainService = new DomainService(ec, authorizationActor, domainActor, domainManagerActor, permissionStoreActor, defaultRequestTimeout)
+    val domainService = new DomainService(ec, authorizationActor, domainActor, domainManagerActor, permissionStoreActor, modelClusterRegion, defaultRequestTimeout)
     val profileService = new ProfileService(ec, convergenceUserActor, defaultRequestTimeout)
     val passwordService = new PasswordService(ec, convergenceUserActor, defaultRequestTimeout)
     val keyGenService = new KeyGenService(ec)

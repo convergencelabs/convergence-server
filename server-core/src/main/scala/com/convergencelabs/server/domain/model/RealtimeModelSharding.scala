@@ -1,9 +1,13 @@
 package com.convergencelabs.server.domain.model
 
 import akka.cluster.sharding.ShardRegion
+import akka.cluster.sharding.ClusterSharding
+import akka.actor.ActorSystem
 
 object RealtimeModelSharding {
   val RegionName = "RealtimeModelShard"
+  
+  def shardRegion(system: ActorSystem) = ClusterSharding(system).shardRegion(RegionName)
 }
 
 class RealtimeModelSharding(val numberOfShards: Int = 100) {

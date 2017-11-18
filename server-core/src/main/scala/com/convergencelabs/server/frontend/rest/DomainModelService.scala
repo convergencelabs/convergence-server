@@ -5,10 +5,6 @@ import java.time.Instant
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
-import com.convergencelabs.server.datastore.ModelStoreActor.CreateModel
-import com.convergencelabs.server.datastore.ModelStoreActor.CreateOrUpdateModel
-import com.convergencelabs.server.datastore.ModelStoreActor.DeleteModel
-import com.convergencelabs.server.datastore.ModelStoreActor.GetModel
 import com.convergencelabs.server.datastore.ModelStoreActor.GetModels
 import com.convergencelabs.server.datastore.ModelStoreActor.GetModelsInCollection
 import com.convergencelabs.server.domain.DomainFqn
@@ -67,6 +63,15 @@ import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.GetModelO
 import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.SetModelOverridesPermissions
 import com.convergencelabs.server.frontend.rest.DomainModelService.GetModelOverridesPermissionsResponse
 import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.ModelUserPermissions
+import com.convergencelabs.server.domain.model.CreateRealtimeModel
+import com.convergencelabs.server.domain.model.GetRealtimeModel
+import akka.cluster.sharding.ClusterSharding
+import com.convergencelabs.server.domain.model.RealtimeModelSharding
+import com.convergencelabs.server.domain.DomainFqn
+import java.util.UUID
+import com.convergencelabs.server.datastore.domain.ModelDataGenerator
+import com.convergencelabs.server.domain.model.CreateOrUpdateRealtimeModel
+import com.convergencelabs.server.domain.model.DeleteRealtimeModel
 
 object DomainModelService {
 
@@ -75,7 +80,7 @@ object DomainModelService {
     data: Map[String, Any])
 
   case class ModelPut(
-    collection: Option[String],
+    collection: String,
     data: Map[String, Any])
 
   case class ModelMetaDataResponse(
@@ -108,11 +113,13 @@ class DomainModelService(
   private[this] val executionContext: ExecutionContext,
   private[this] val authorizationActor: ActorRef,
   private[this] val domainRestActor: ActorRef,
-  private[this] val defaultTimeout: Timeout)
+  private[this] val defaultTimeout: Timeout,
+  private[this] val modelClusterRegion: ActorRef)
     extends JsonSupport {
 
   implicit val ec = executionContext
   implicit val t = defaultTimeout
+  
 
   def route(username: String, domain: DomainFqn): Route = {
     pathPrefix("models") {
@@ -214,7 +221,7 @@ class DomainModelService(
   }
 
   def getModel(domain: DomainFqn, modelId: String): Future[RestResponse] = {
-    val message = DomainMessage(domain, GetModel(modelId))
+    val message = DomainMessage(domain, GetRealtimeModel(domain, modelId, None))
     (domainRestActor ? message).mapTo[Option[Model]] map {
       case Some(model) =>
         val mr = ModelResponse(
@@ -232,9 +239,13 @@ class DomainModelService(
 
   def postModel(domain: DomainFqn, model: ModelPost): Future[RestResponse] = {
     val ModelPost(colletionId, data) = model
+    
+    // FIXME abstract this.
+    val modelId = UUID.randomUUID().toString()
+    val objectValue = ModelDataGenerator(data)
     // FIXME need to pass in model permissions options.
-    val message = DomainMessage(domain, CreateModel(colletionId, data, None, None, None))
-    (domainRestActor ? message).mapTo[String] map {
+    val message = CreateRealtimeModel(domain, modelId, colletionId, objectValue, None, None, None, None)
+    (modelClusterRegion ? message).mapTo[String] map {
       case modelId: String =>
         (StatusCodes.Created, CreateModelResponse(modelId))
     }
@@ -242,14 +253,15 @@ class DomainModelService(
 
   def putModel(domain: DomainFqn, modelId: String, modelPut: ModelPut): Future[RestResponse] = {
     val ModelPut(colleciontId, data) = modelPut
+    val objectValue = ModelDataGenerator(data)
     // FIXME need to pass id model permissions options.
-    val message = DomainMessage(domain, CreateOrUpdateModel(colleciontId, modelId, data, None, None, None))
-    (domainRestActor ? message) map { _ => OkResponse }
+    val message = CreateOrUpdateRealtimeModel(domain, modelId, colleciontId, objectValue, None, None, None, None)
+    (modelClusterRegion ? message) map { _ => OkResponse }
   }
 
   def deleteModel(domain: DomainFqn, modelId: String): Future[RestResponse] = {
-    val message = DomainMessage(domain, DeleteModel(modelId))
-    (domainRestActor ? message) map { _ => OkResponse }
+    val message = DeleteRealtimeModel(domain, modelId, None)
+    (modelClusterRegion ? message) map { _ => OkResponse }
   }
 
   // Model Permissions

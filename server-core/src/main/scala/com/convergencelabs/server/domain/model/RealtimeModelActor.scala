@@ -396,7 +396,7 @@ class RealtimeModelActor(
         sk.map(_.uid),
         collectionId,
         modelId,
-        ModelDataGenerator(data),
+        data,
         overridePermissions,
         worldPermissions,
         userPermissions) map { model =>
