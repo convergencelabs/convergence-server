@@ -43,6 +43,7 @@ import com.convergencelabs.server.datastore.domain.ModelDataGenerator
 import akka.util.Timeout
 import scala.concurrent.duration.FiniteDuration
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManager
+import akka.actor.PoisonPill
 
 case class ModelConfigResponse(sk: SessionKey, config: ClientAutoCreateModelConfigResponse)
 case object PermissionsUpdated
@@ -65,10 +66,8 @@ object RealtimeModelActor {
       clientDataResponseTimeout,
       receiveTimeout))
 
-  case object ModelShutdown
   case class OperationCommitted(version: Long)
   case class ForceClose(reason: String)
-  case object StreamCompleted
   case object StreamFailure
 
   private object ErrorCodes extends Enumeration {
@@ -131,19 +130,17 @@ class RealtimeModelActor(
 
     case terminated: Terminated =>
       modelManager.handleTerminated(terminated)
-      
+
     // FIXME
-    case ModelShutdown =>
-      shutdown()
     case OperationCommitted(version) =>
       modelManager.commitVersion(version)
     case StreamFailure =>
       modelManager.forceCloseAllAfterError("There was an unexpected persitence error.")
     case dataResponse: ModelConfigResponse =>
       modelManager.onClientAutoCreateModelConfigResponse(dataResponse)
-    case ClientOpenFailure(sk, response) => 
-        modelManager.handleQueuedClientOpenFailureFailure(sk, response)
-        
+    case ClientOpenFailure(sk, response) =>
+      modelManager.handleQueuedClientOpenFailureFailure(sk, response)
+
     case unknown: Any =>
       unhandled(unknown)
   }
@@ -196,15 +193,6 @@ class RealtimeModelActor(
       unhandled(msg)
   }
 
-  private[this] def receiveShuttingDown: Receive = {
-    case StreamCompleted =>
-      this.context.stop(self)
-    case StreamFailure =>
-      this.context.stop(self)
-    case unknown: Any =>
-      unhandled(unknown)
-  }
-
   private[this] def modelManager: RealTimeModelManager = this._modelManager.getOrElse {
     throw new IllegalStateException("The model manager can not be access when the model is not open.")
   }
@@ -235,16 +223,6 @@ class RealtimeModelActor(
         log.debug(s"Error initializing Real Time Model Actor: '{}/{}'", domainFqn, modelId)
         Failure(cause)
     }
-  }
-
-  private def shutdown(): Unit = {
-    log.debug(s"Model is shutting down: ${_domainFqn.getOrElse("")}/${_modelId.getOrElse("")}")
-    this.modelManager.shutdown()
-    this.context.become(receiveShuttingDown)
-  }
-
-  override def postStop(): Unit = {
-    log.debug("Realtime Model stopped: {}/{}", _domainFqn.getOrElse(""), _modelId.getOrElse(""))
   }
 
   private[this] def becomeOpened(): Unit = {
@@ -286,7 +264,7 @@ class RealtimeModelActor(
 
   private[this] def passivate(): Unit = {
     log.debug("Model '{}/{}' passivating.", modelId, domainFqn)
-    this.context.parent ! Passivate
+    this.context.parent ! Passivate(stopMessage = PoisonPill)
     this.context.setReceiveTimeout(Duration.Undefined)
     this.context.become(receivePassivating)
   }
@@ -464,6 +442,16 @@ class RealtimeModelActor(
       case cause: Exception =>
         sender ! Status.Failure(cause)
         ()
+    }
+  }
+  
+  override def postStop(): Unit = {
+    this._domainFqn match {
+      case Some(d) =>
+        log.debug("Realtime Model stopped: {}/{}", domainFqn, modelId)
+        persistenceManager.releasePersistenceProvider(self, context, domainFqn)
+      case None =>
+        log.debug("Uninitialized Model stopped")
     }
   }
 }

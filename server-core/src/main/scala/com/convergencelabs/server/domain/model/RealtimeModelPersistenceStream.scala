@@ -10,7 +10,6 @@ import com.convergencelabs.server.datastore.domain.ModelStore
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.model.RealtimeModelActor.ForceClose
 import com.convergencelabs.server.domain.model.RealtimeModelActor.OperationCommitted
-import com.convergencelabs.server.domain.model.RealtimeModelActor.StreamCompleted
 import com.convergencelabs.server.domain.model.RealtimeModelActor.StreamFailure
 
 import akka.actor.ActorRef
@@ -52,8 +51,7 @@ class RealtimeModelPersistenceStream(
       }.to(Sink.onComplete {
         case Success(_) =>
           // Note when we shut down we complete the persistence stream.
-          // So after that is done, we kill ourselves.
-          model ! StreamCompleted
+          debug(s"Persistence stream completed successfully ${domainFqn}/${modelId}")
         case Failure(f) =>
           // FIXME this is probably altering state outside of the thread.
           // probably need to send a message.

@@ -32,7 +32,7 @@ class ModelCreator {
     } flatMap { _ =>
       val overrideWorld = overridePermissions.getOrElse(false)
       val worldPerms = worldPermissions.getOrElse(ModelPermissions(false, false, false, false))
-      val model = persistenceProvider.modelStore.createModel(collectionId, modelId, data, overrideWorld, worldPerms)
+      val model = persistenceProvider.modelStore.createModel(modelId, collectionId, data, overrideWorld, worldPerms)
       model
     } flatMap { model =>
       val ModelMetaData(model.metaData.collectionId, model.metaData.modelId, version, created, modified, overworldPermissions, worldPermissions, model.metaData.valuePrefix) = model.metaData

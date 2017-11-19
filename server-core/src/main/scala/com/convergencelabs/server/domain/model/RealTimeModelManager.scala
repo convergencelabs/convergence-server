@@ -469,6 +469,7 @@ class RealTimeModelManager(
       Option(this.model).map { m => m.contextVersion() == this.committedVersion }.getOrElse(true)) {
       debug("All clients closed the model, no one is opening it, and all operations are committed, requesting shutdown")
       eventHandler.closeModel()
+      this.persistenceStream.streamActor ! Status.Success("stream complete")
     }
   }
 
@@ -689,10 +690,6 @@ class RealTimeModelManager(
     queuedOpeningClients.get(sk) foreach (openRequest => openRequest.askingActor ! response)
     queuedOpeningClients -= sk
     checkForConnectionsAndClose()
-  }
-
-  def shutdown(): Unit = {
-    this.persistenceStream.streamActor ! Status.Success("stream complete")
   }
 
   private[this] def setState(state: State.Value): Unit = {
