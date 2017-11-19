@@ -163,11 +163,71 @@ class RealtimeModelActor(
   }
 
   private[this] def getModelPermissions(msg: GetModelPermissionsRequest): Unit = {
-    ??? // FIXME
+    val GetModelPermissionsRequest(domainFqn, modelId, sk) = msg
+    persistenceProvider.modelStore.modelExists(modelId).flatMap { exists =>
+      if (exists) {
+        modelPermissionResolver.getModelUserPermissions(modelId, sk, persistenceProvider).map(p => p.read).flatMap { canRead =>
+          if (canRead) {
+            val permissionsStore = persistenceProvider.modelPermissionsStore
+            modelPermissionResolver.getModelPermissions(modelId, persistenceProvider).map { p =>
+              val ModelPemrissionResult(overrideCollection, modelWorld, modelUsers) = p
+              GetModelPermissionsResponse(overrideCollection, modelWorld, modelUsers)
+            }
+          } else {
+            val message = "User must have 'read' permissions on the model to get permissions."
+            Failure(UnauthorizedException(message))
+          }
+        }
+      } else {
+        Failure(ModelNotFoundException(modelId))
+      }
+    } map { response =>
+      sender ! response
+    } recover {
+      case cause: Exception =>
+        sender ! Status.Failure(cause)
+        ()
+    }
   }
 
   private[this] def setModelPermissions(msg: SetModelPermissionsRequest): Unit = {
-    ??? // FIXME
+    val SetModelPermissionsRequest(domainFqn, modelId, sk, overrideCollection, world, setAllUsers, users) = msg
+    persistenceProvider.modelStore.modelExists(modelId).flatMap { exists =>
+      if (exists) {
+        modelPermissionResolver.getModelUserPermissions(modelId, sk, persistenceProvider).map(p => p.manage).flatMap { canSet =>
+          if (canSet) {
+            (for {
+              _ <- overrideCollection match {
+                case Some(ov) => persistenceProvider.modelPermissionsStore.setOverrideCollectionPermissions(modelId, ov)
+                case None => Success(())
+              }
+              _ <- world match {
+                case Some(perms) => persistenceProvider.modelPermissionsStore.setModelWorldPermissions(modelId, perms)
+                case None => Success(())
+              }
+              _ <- setAllUsers match {
+                case true => persistenceProvider.modelPermissionsStore.deleteAllModelUserPermissions(modelId)
+                case falese => Success(())
+              }
+              _ <- persistenceProvider.modelPermissionsStore.updateAllModelUserPermissions(modelId, users)
+            } yield {
+              this._modelManager.foreach { m => m.reloadModelPermissions() }
+              ()
+            })
+          } else {
+            Failure(UnauthorizedException("User must have 'manage' permissions on the model to set permissions"))
+          }
+        }
+      } else {
+        Failure(ModelNotFoundException(modelId))
+      }
+    } map { _ =>
+      sender ! (())
+    } recover {
+      case cause: Exception =>
+        sender ! Status.Failure(cause)
+        ()
+    }
   }
 
   private def handleRealtimeMessage(msg: RealTimeModelMessage): Unit = {
@@ -412,6 +472,7 @@ class RealtimeModelActor(
   }
 
   private[this] def deleteModel(deleteRequest: DeleteRealtimeModel): Unit = {
+    // FIXME I don't think we need to check exists first.
     val DeleteRealtimeModel(domainFqn, modelId, sk) = deleteRequest
     persistenceProvider.modelStore.modelExists(modelId).flatMap { exists =>
       if (exists) {

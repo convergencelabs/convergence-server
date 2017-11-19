@@ -48,6 +48,7 @@ import com.convergencelabs.server.domain.model.ot.ObjectRemovePropertyOperation
 import scala.util.Failure
 import akka.actor.ActorRef
 import com.convergencelabs.server.datastore.DuplicateValueException
+import com.convergencelabs.server.domain.UnauthorizedException
 
 // scalastyle:off magic.number
 class RealtimeModelActorSpec
@@ -123,7 +124,6 @@ class RealtimeModelActorSpec
         client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientAutoCreateModelConfigRequest])
 
         // Now mock that the data is there.
-        val now = Instant.now()
         Mockito.when(persistenceProvider.modelStore.createModel(modelId, collectionId, modelJsonData, true, modelPermissions))
           .thenReturn(Success(Model(ModelMetaData(collectionId, modelId, 0L, now, now, true, modelPermissions, 1), modelJsonData)))
         Mockito.when(persistenceProvider.modelSnapshotStore.createSnapshot(Matchers.any())).thenReturn(Success(()))
@@ -254,9 +254,15 @@ class RealtimeModelActorSpec
         val client = new TestProbe(system)
         val data = ObjectValue("", Map())
 
-        val now = Instant.now()
-
-        Mockito.when(persistenceProvider.modelStore.createModel(collectionId, noModelId, data, true, modelPermissions))
+        Mockito.when(modelCreator.createModel(
+          any(),
+          any(),
+          Matchers.eq(collectionId),
+          Matchers.eq(noModelId),
+          Matchers.eq(data),
+          any(),
+          any(),
+          any()))
           .thenReturn(Success(Model(ModelMetaData(collectionId, noModelId, 0L, now, now, true, modelPermissions, 1), data)))
 
         Mockito.when(persistenceProvider.modelSnapshotStore.createSnapshot(any())).thenReturn(Success(()))
@@ -274,33 +280,33 @@ class RealtimeModelActorSpec
     }
 
     "requested to delete a model" must {
-      "return ModelDeleted if the model exists" in new TestFixture {
-        //        val client = new TestProbe(system)
-        //        modelManagerActor.tell(DeleteModelRequest(SessionKey(userId1, sessionId1), existingModelId), client.ref)
-        //        val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelDeleted())
+      "return Success if the model exists" in new MockDatabaseWithModel {
+        val client = new TestProbe(system)
+        realtimeModelActor.tell(DeleteRealtimeModel(domainFqn, modelId, None), client.ref)
+        val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ())
       }
 
       "return ModelNotFoundException if the model does not exist" in new TestFixture {
-        //        val client = new TestProbe(system)
-        //        modelManagerActor.tell(DeleteModelRequest(SessionKey(userId1, sessionId1), noModelId), client.ref)
-        //        val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), Status.Failure(ModelNotFoundException(noModelId)))
+        val client = new TestProbe(system)
+        realtimeModelActor.tell(DeleteRealtimeModel(domainFqn, noModelId, Some(skU1S1)), client.ref)
+        val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), Status.Failure(ModelNotFoundException(noModelId)))
       }
     }
 
     "getting permissions" must {
       "respond with a ModelNotFoundException is the model does not exists" in new TestFixture {
-        //        val client = new TestProbe(system)
-        //        modelManagerActor.tell(GetModelPermissionsRequest(u1Sk, noModelId), client.ref)
-        //        val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), Status.Failure(ModelNotFoundException(noModelId)))
+        val client = new TestProbe(system)
+        realtimeModelActor.tell(GetModelPermissionsRequest(domainFqn, noModelId, skU1S1), client.ref)
+        val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), Status.Failure(ModelNotFoundException(noModelId)))
       }
 
       "respond with a UnauthorizedException if the user doesn't have read permissions" in new TestFixture {
-        //        Mockito.when(modelPermissionsResolver.getModelUserPermissions(any(), any(), any()))
-        //          .thenReturn(Success(ModelPermissions(false, true, true, true)))
-        //        val client = new TestProbe(system)
-        //        modelManagerActor.tell(GetModelPermissionsRequest(u1Sk, existingModelId), client.ref)
-        //        val Status.Failure(cause) = client.expectMsgClass(timeout, classOf[Status.Failure])
-        //        cause shouldBe a[UnauthorizedException]
+        Mockito.when(modelPermissionsResolver.getModelUserPermissions(any(), any(), any()))
+          .thenReturn(Success(ModelPermissions(false, true, true, true)))
+        val client = new TestProbe(system)
+        realtimeModelActor.tell(GetModelPermissionsRequest(domainFqn, modelId, skU1S1), client.ref)
+        val Status.Failure(cause) = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Status.Failure])
+        cause shouldBe a[UnauthorizedException]
       }
 
       "respond with a GetModelPermissionsResponse if the model exists and the user has read permissions" in new TestFixture {
@@ -349,6 +355,8 @@ class RealtimeModelActorSpec
     val session1 = "s1"
     val session2 = "s2"
 
+    val now = Instant.now()
+
     val skU1S1 = SessionKey(uid1, session1)
 
     val modelPermissions = ModelPermissions(true, true, true, true)
@@ -362,8 +370,6 @@ class RealtimeModelActorSpec
     val modelSnapshotTime = Instant.ofEpochMilli(2L)
     val modelSnapshotMetaData = ModelSnapshotMetaData(modelId, 1L, modelSnapshotTime)
 
-    val noModelId = "non existent model"
-
     val persistenceProvider = new MockDomainPersistenceProvider()
     val persistenceManager = new MockDomainPersistenceManager(Map(domainFqn -> persistenceProvider))
 
@@ -375,8 +381,7 @@ class RealtimeModelActorSpec
       CollectionPermissions(true, true, true, true, true))))
     Mockito.when(persistenceProvider.collectionStore.ensureCollectionExists(Matchers.any())).thenReturn(Success(()))
 
-    Mockito.when(persistenceProvider.collectionStore.collectionExists(collectionId))
-      .thenReturn(Success(true))
+    Mockito.when(persistenceProvider.collectionStore.collectionExists(collectionId)).thenReturn(Success(true))
 
     Mockito.when(persistenceProvider.modelPermissionsStore.getCollectionWorldPermissions(collectionId)).thenReturn(Success(CollectionPermissions(true, true, true, true, true)))
     Mockito.when(persistenceProvider.modelPermissionsStore.getAllCollectionUserPermissions(collectionId)).thenReturn(Success(Map[String, CollectionPermissions]()))
@@ -396,9 +401,10 @@ class RealtimeModelActorSpec
         ModelPermissions(true, true, true, true),
         Map())))
 
+    val noModelId = "non existent model"
+    Mockito.when(persistenceProvider.modelStore.modelExists(noModelId)).thenReturn(Success(false))
+
     val modelCreator = mock[ModelCreator]
-    Mockito.when(modelCreator.createModel(any(), any(), any(), any(), any(), any(), any(), any()))
-      .thenReturn(Success(modelData))
 
     val mockCluster = TestProbe()
     val props = RealtimeModelActor.props(
@@ -413,15 +419,11 @@ class RealtimeModelActorSpec
 
   trait MockDatabaseWithModel extends TestFixture {
     Mockito.when(persistenceProvider.modelStore.modelExists(modelId)).thenReturn(Success(true))
-    Mockito.when(persistenceProvider.modelStore.createModel(
-        Matchers.any(), 
-        Matchers.eq(modelId), 
-        Matchers.any(),
-        Matchers.any(),
-        Matchers.any()))
-          .thenReturn(Failure(DuplicateValueException("modelId")))
-          
-    Mockito.when(persistenceProvider.modelStore.modelExists(noModelId)).thenReturn(Success(false))
+    Mockito.when(modelCreator.createModel(any(), any(), Matchers.eq(collectionId), Matchers.eq(modelId), any(), any(), any(), any()))
+      .thenReturn(Failure(DuplicateValueException("modelId")))
+
+    Mockito.when(persistenceProvider.modelStore.deleteModel(modelId)).thenReturn(Success(()))
+
     Mockito.when(persistenceProvider.modelStore.getModel(modelId)).thenReturn(Success(Some(modelData)))
     Mockito.when(persistenceProvider.modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelId)).thenReturn(Success(Some(modelSnapshotMetaData)))
   }
@@ -440,6 +442,18 @@ class RealtimeModelActorSpec
   }
 
   trait MockDatabaseWithoutModel extends TestFixture {
+    // Now mock that the data is there.
+    Mockito.when(modelCreator.createModel(
+      any(),
+      any(),
+      Matchers.eq(collectionId),
+      Matchers.eq(modelId),
+      Matchers.eq(modelJsonData),
+      any(),
+      any(),
+      any()))
+      .thenReturn(Success(Model(ModelMetaData(collectionId, noModelId, 0L, now, now, true, modelPermissions, 1), modelJsonData)))
+
     Mockito.when(persistenceProvider.modelStore.modelExists(modelId)).thenReturn(Success(false))
   }
 }

@@ -573,7 +573,7 @@ class RealTimeModelManager(
         forceClosedModel(sk, "invalid reference event", true)
     }
   }
-
+  
   private[this] def broacastToAllOthers(message: Any, origin: SessionKey): Unit = {
     connectedClients.filter(p => p._1 != origin) foreach {
       case (sk, clientActor) => clientActor ! message
