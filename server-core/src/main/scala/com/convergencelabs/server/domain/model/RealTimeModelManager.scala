@@ -107,9 +107,12 @@ class RealTimeModelManager(
 
   def onOpenRealtimeModelRequest(request: OpenRealtimeModelRequest, replyTo: ActorRef) {
     state match {
-      case State.Uninitialized => onOpenModelWhileUninitialized(request, replyTo)
-      case State.Initializing => onOpenModelWhileInitializing(request, replyTo)
-      case State.Initialized => onOpenModelWhileInitialized(request, replyTo)
+      case State.Uninitialized =>
+        onOpenModelWhileUninitialized(request, replyTo)
+      case State.Initializing =>
+        onOpenModelWhileInitializing(request, replyTo)
+      case State.Initialized =>
+        onOpenModelWhileInitialized(request, replyTo)
     }
   }
 
@@ -120,6 +123,8 @@ class RealTimeModelManager(
    */
   def onOpenModelWhileUninitialized(request: OpenRealtimeModelRequest, replyTo: ActorRef): Unit = {
     debug(s"Handling a request to open the model while it is uninitialized: ${domainFqn}/${modelId}")
+    setState(State.Initializing)
+    
     queuedOpeningClients += (request.sk -> OpenRequestRecord(request.clientActor, replyTo))
     modelStore.modelExists(modelId) map { exists =>
       if (exists) {
@@ -135,7 +140,6 @@ class RealTimeModelManager(
             eventHandler.closeModel()
         }
       }
-      this.state = State.Initializing
     } recover {
       case cause =>
         error(s"Unable to determine if a model exists: ${domainFqn}/${modelId}", cause)
@@ -148,29 +152,33 @@ class RealTimeModelManager(
    * already initializing.
    */
   def onOpenModelWhileInitializing(request: OpenRealtimeModelRequest, replyTo: ActorRef): Unit = {
-    debug(s"Handling a request to open the model while it is already initialiaing: ${domainFqn}/${modelId}")
-    // We know we are already INITIALIZING.  This means we are at least the second client
-    // to open the model before it was fully initialized.
-    queuedOpeningClients += (request.sk -> OpenRequestRecord(request.clientActor, replyTo))
+    if (queuedOpeningClients.contains(request.sk)) {
+      replyTo ! Status.Failure(new ModelAlreadyOpeningException())
+    } else {
+      debug(s"Handling a request to open the model while it is already initializing: ${domainFqn}/${modelId}")
+      // We know we are already INITIALIZING.  This means we are at least the second client
+      // to open the model before it was fully initialized.
+      queuedOpeningClients += (request.sk -> OpenRequestRecord(request.clientActor, replyTo))
 
-    // If we are persistent, then the data is already loading, so there is nothing to do.
-    // However, if we are not persistent, we have already asked the previous opening clients
-    // for the data, but we will ask this client too, in case the others fail.
-    modelStore.modelExists(modelId) map { exists =>
-      if (!exists) {
-        // If there is an auto create id we can ask this client for data.  If there isn't an auto create
-        // id, we can't ask them, but that is ok since we assume the previous client supplied the data
-        // else it would have bomed out.
-        request.autoCreateId.foreach((id) => requestAutoCreateConfigFromClient(request.sk, request.clientActor, id))
+      // If we are persistent, then the data is already loading, so there is nothing to do.
+      // However, if we are not persistent, we have already asked the previous opening clients
+      // for the data, but we will ask this client too, in case the others fail.
+      modelStore.modelExists(modelId) map { exists =>
+        if (!exists) {
+          // If there is an auto create id we can ask this client for data.  If there isn't an auto create
+          // id, we can't ask them, but that is ok since we assume the previous client supplied the data
+          // else it would have bomed out.
+          request.autoCreateId.foreach((id) => requestAutoCreateConfigFromClient(request.sk, request.clientActor, id))
+        }
+        // Else no action required, the model must have been persistent, which means we are in the process of
+        // loading it from the database.
+      } recover {
+        case cause =>
+          error(
+            s"Unable to determine if model exists while handling an open request for an initializing model: $domainFqn/$modelId",
+            cause)
+          handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
       }
-      // Else no action required, the model must have been persistent, which means we are in the process of
-      // loading it from the database.
-    } recover {
-      case cause =>
-        error(
-          s"Unable to determine if model exists while handling an open request for an initializing model: $domainFqn/$modelId",
-          cause)
-        handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
     }
   }
 
@@ -257,6 +265,8 @@ class RealTimeModelManager(
     snapshotConfig: ModelSnapshotConfig,
     permissions: RealTimeModelPermissions): Unit = {
 
+    debug(s"Model loaded from database ${this.domainFqn}/${this.modelId}")
+
     try {
       this.permissions = permissions
       this.latestSnapshot = snapshotMetaData
@@ -284,9 +294,8 @@ class RealTimeModelManager(
       }
 
       //TODO: verify that at least one client was actually added
-
       this.queuedOpeningClients = HashMap[SessionKey, OpenRequestRecord]()
-      this.state = State.Initialized
+      setState(State.Initialized)
     } catch {
       case cause: Exception =>
         error(
@@ -380,6 +389,7 @@ class RealTimeModelManager(
    * Lets a client know that the open process has completed successfully.
    */
   private[this] def respondToClientOpenRequest(sk: SessionKey, modelData: Model, requestRecord: OpenRequestRecord): Unit = {
+    debug("Responding to client open request: " + sk)
     if (permissions.resolveSessionPermissions(sk).read) {
       // Inform the concurrency control that we have a new client.
       val contextVersion = modelData.metaData.version
@@ -663,8 +673,8 @@ class RealTimeModelManager(
    * Informs all clients that the model could not be initialized.
    */
   def handleInitializationFailure(response: AnyRef): Unit = {
+    setState(State.Uninitialized)
     queuedOpeningClients.values foreach { openRequest =>
-      println(openRequest)
       openRequest.askingActor ! response
     }
     queuedOpeningClients = HashMap[SessionKey, OpenRequestRecord]()
@@ -683,5 +693,10 @@ class RealTimeModelManager(
 
   def shutdown(): Unit = {
     this.persistenceStream.streamActor ! Status.Success("stream complete")
+  }
+
+  private[this] def setState(state: State.Value): Unit = {
+    debug("Setting state: " + state)
+    this.state = state
   }
 }

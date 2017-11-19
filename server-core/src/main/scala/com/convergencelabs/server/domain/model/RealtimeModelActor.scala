@@ -262,14 +262,12 @@ class RealtimeModelActor(
         def onInitializationError(): Unit = {
           becomeClosed();
         }
-
         def onClientOpened(clientActor: ActorRef): Unit = {
           context.watch(clientActor)
         }
         def onClientClosed(clientActor: ActorRef): Unit = {
           context.unwatch(clientActor)
         }
-
         def closeModel() = {
           becomeClosed();
         }

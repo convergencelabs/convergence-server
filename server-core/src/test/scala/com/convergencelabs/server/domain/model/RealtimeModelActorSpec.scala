@@ -42,6 +42,7 @@ import com.convergencelabs.server.util.MockDomainPersistenceProvider
 import com.convergencelabs.server.util.MockDomainPersistenceProvider
 import com.convergencelabs.server.util.MockDomainPersistenceManager
 import akka.actor.Status
+import akka.cluster.sharding.ShardRegion.Passivate
 
 // scalastyle:off magic.number
 class RealtimeModelActorSpec
@@ -95,7 +96,7 @@ class RealtimeModelActorSpec
         val client1 = new TestProbe(system)
         realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), skU1S1, client1.ref), client1.ref)
         client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientAutoCreateModelConfigRequest])
-        val ClientDataRequestFailure(message)  = client1.expectMsgClass(FiniteDuration(200, TimeUnit.MILLISECONDS), classOf[ClientDataRequestFailure])
+        val ClientDataRequestFailure(message) = client1.expectMsgClass(FiniteDuration(200, TimeUnit.MILLISECONDS), classOf[ClientDataRequestFailure])
       }
 
       "reject a client that responds with the wrong message in request to data" in new MockDatabaseWithoutModel {
@@ -157,41 +158,42 @@ class RealtimeModelActorSpec
 
     "closing a closed a model" must {
       "acknowledge the close" in new MockDatabaseWithModel with OneOpenClient {
-        //        realtimeModelActor.tell(CloseRealtimeModelRequest(sk1), client1.ref)
-        //        val closeAck = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[CloseRealtimeModelSuccess])
+        realtimeModelActor.tell(CloseRealtimeModelRequest(domainFqn, modelId, skU1S1), client1.ref)
+        val closeAck = client1.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ())
       }
 
       "respond with an error for an invalid cId" in new MockDatabaseWithModel with OneOpenClient {
-        //        realtimeModelActor.tell(CloseRealtimeModelRequest(SessionKey(uid1, "invalidCId")), client1.ref)
-        //        client1.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ModelNotOpened)
+        realtimeModelActor.tell(CloseRealtimeModelRequest(domainFqn, modelId, SessionKey(uid1, "invalidCId")), client1.ref)
+         val Status.Failure(cause) = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Status.Failure])
+        cause shouldBe a[ModelNotOpenException]
       }
 
       "notify other connected clients" in new MockDatabaseWithModel {
-        //        val client1 = new TestProbe(system)
-        //        val client2 = new TestProbe(system)
-        //
-        //        realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), skU1S1, client1.ref), client1.ref)
-        //        var client1Response = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
-        //
-        //        realtimeModelActor.tell(OpenRealtimeModelRequest(SessionKey(uid2, session2), Some(modelId), Some(1), client2.ref), client2.ref)
-        //        var client2Response = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
-        //
-        //        client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[RemoteClientOpened])
-        //
-        //        realtimeModelActor.tell(CloseRealtimeModelRequest(SessionKey(uid2, session2)), client2.ref)
-        //        val closeAck = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[CloseRealtimeModelSuccess])
-        //
-        //        client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[RemoteClientClosed])
+        val client1 = new TestProbe(system)
+        val client2 = new TestProbe(system)
+
+        realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), skU1S1, client1.ref), client1.ref)
+        var client1Response = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
+
+        realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), SessionKey(uid2, session2), client2.ref), client2.ref)
+        var client2Response = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
+
+        client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[RemoteClientOpened])
+
+        realtimeModelActor.tell(CloseRealtimeModelRequest(domainFqn, modelId, SessionKey(uid2, session2)), client2.ref)
+        val closeAck = client2.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ())
+
+        client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[RemoteClientClosed])
       }
 
       "notify domain when last client disconnects" in new MockDatabaseWithModel {
-        //        val client1 = new TestProbe(system)
-        //
-        //        realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), skU1S1, client1.ref), client1.ref)
-        //        var client1Response = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
-        //        realtimeModelActor.tell(CloseRealtimeModelRequest(sk1), client1.ref)
-        //        val closeAck = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[CloseRealtimeModelSuccess])
-        //        modelManagerActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ModelShutdownRequest])
+        val client1 = new TestProbe(system)
+
+        realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), skU1S1, client1.ref), client1.ref)
+        var client1Response = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
+        realtimeModelActor.tell(CloseRealtimeModelRequest(domainFqn, modelId, skU1S1), client1.ref)
+        val closeAck = client1.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ())
+        mockCluster.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), Passivate)
       }
     }
 
@@ -393,6 +395,7 @@ class RealtimeModelActorSpec
     Mockito.when(modelCreator.createModel(any(), any(), any(), any(), any(), any(), any(), any()))
       .thenReturn(Success(modelData))
 
+    val mockCluster = TestProbe()
     val props = RealtimeModelActor.props(
       new ModelPermissionResolver(),
       modelCreator,
@@ -400,7 +403,7 @@ class RealtimeModelActorSpec
       FiniteDuration(100, TimeUnit.MILLISECONDS),
       FiniteDuration(100, TimeUnit.MILLISECONDS))
 
-    val realtimeModelActor = system.actorOf(props)
+    val realtimeModelActor = mockCluster.childActorOf(props)
   }
 
   trait MockDatabaseWithModel extends TestFixture {

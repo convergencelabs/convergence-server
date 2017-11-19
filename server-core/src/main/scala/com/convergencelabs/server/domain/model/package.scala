@@ -26,6 +26,7 @@ package model {
   case object GetCollectionsRequest
 
   case class ModelAlreadyOpenException() extends RuntimeException()
+  case class ModelAlreadyOpeningException() extends RuntimeException()
   case class ModelNotOpenException() extends RuntimeException()
   case class ModelDeletedWhileOpeningException() extends RuntimeException()
   case class ClientDataRequestFailure(message: String) extends RuntimeException(message)
