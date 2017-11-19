@@ -131,6 +131,8 @@ class RealtimeModelActor(
 
     case terminated: Terminated =>
       modelManager.handleTerminated(terminated)
+      
+    // FIXME
     case ModelShutdown =>
       shutdown()
     case OperationCommitted(version) =>
@@ -139,7 +141,9 @@ class RealtimeModelActor(
       modelManager.forceCloseAllAfterError("There was an unexpected persitence error.")
     case dataResponse: ModelConfigResponse =>
       modelManager.onClientAutoCreateModelConfigResponse(dataResponse)
-
+    case ClientOpenFailure(sk, response) => 
+        modelManager.handleQueuedClientOpenFailureFailure(sk, response)
+        
     case unknown: Any =>
       unhandled(unknown)
   }
@@ -160,13 +164,13 @@ class RealtimeModelActor(
         this.setModelPermissions(msg)
     }
   }
-  
-  private[this] def getModelPermissions(msg: GetModelPermissionsRequest): Unit ={
-    
+
+  private[this] def getModelPermissions(msg: GetModelPermissionsRequest): Unit = {
+    ??? // FIXME
   }
-  
-  private[this] def setModelPermissions(msg: SetModelPermissionsRequest): Unit ={
-    
+
+  private[this] def setModelPermissions(msg: SetModelPermissionsRequest): Unit = {
+    ??? // FIXME
   }
 
   private def handleRealtimeMessage(msg: RealTimeModelMessage): Unit = {
@@ -251,6 +255,7 @@ class RealtimeModelActor(
       modelId,
       persistenceProvider,
       modelPermissionResolver,
+      modelCreator,
       Timeout(clientDataResponseTimeout),
       context,
       new EventHandler() {
