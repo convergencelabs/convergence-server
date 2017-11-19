@@ -300,7 +300,7 @@ class RealtimeModelActorSpec
         val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), Status.Failure(ModelNotFoundException(noModelId)))
       }
 
-      "respond with a UnauthorizedException if the user doesn't have read permissions" in new TestFixture {
+      "respond with a UnauthorizedException if the user doesn't have read permissions" in new MockDatabaseWithModel {
         Mockito.when(modelPermissionsResolver.getModelUserPermissions(any(), any(), any()))
           .thenReturn(Success(ModelPermissions(false, true, true, true)))
         val client = new TestProbe(system)
@@ -309,39 +309,42 @@ class RealtimeModelActorSpec
         cause shouldBe a[UnauthorizedException]
       }
 
-      "respond with a GetModelPermissionsResponse if the model exists and the user has read permissions" in new TestFixture {
-        //        Mockito.when(modelPermissionsResolver.getModelPermissions(any(), any())).thenReturn(
-        //            Success(ModelPemrissionResult(false, ModelPermissions(true, true, true, true), Map())))
-        //            
-        //        val client = new TestProbe(system)
-        //        modelManagerActor.tell(GetModelPermissionsRequest(u1Sk, existingModelId), client.ref)
-        //        val response = client.expectMsgClass(timeout, classOf[GetModelPermissionsResponse])
+      "respond with a GetModelPermissionsResponse if the model exists and the user has read permissions" in new MockDatabaseWithModel {
+        Mockito.when(modelPermissionsResolver.getModelPermissions(any(), any())).thenReturn(
+          Success(ModelPemrissionResult(false, ModelPermissions(true, true, true, true), Map())))
+        Mockito.when(modelPermissionsResolver.getModelUserPermissions(any(), any(), any()))
+          .thenReturn(Success(ModelPermissions(true, true, true, true)))
+        val client = new TestProbe(system)
+        realtimeModelActor.tell(GetModelPermissionsRequest(domainFqn, modelId, skU1S1), client.ref)
+        val response = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[GetModelPermissionsResponse])
       }
     }
 
     "setting permissions" must {
       "respond with a ModelNotFoundException is the model does not exists" in new TestFixture {
-        //        val client = new TestProbe(system)
-        //        val message = SetModelPermissionsRequest(u1Sk, noModelId, None, None, false, Map())
-        //        modelManagerActor.tell(message, client.ref)
-        //        val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), Status.Failure(ModelNotFoundException(noModelId)))
+        val client = new TestProbe(system)
+        val message = SetModelPermissionsRequest(domainFqn, noModelId, skU1S1, None, None, false, Map())
+        realtimeModelActor.tell(message, client.ref)
+        val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), Status.Failure(ModelNotFoundException(noModelId)))
       }
 
-      "respond with a UnauthorizedException if the user doesn't have manage permissions" in new TestFixture {
-        //        Mockito.when(modelPermissionsResolver.getModelUserPermissions(any(), any(), any()))
-        //          .thenReturn(Success(ModelPermissions(true, true, true, false)))
-        //        val client = new TestProbe(system)
-        //        val message = SetModelPermissionsRequest(u1Sk, existingModelId, None, None, false, Map())
-        //        modelManagerActor.tell(message, client.ref)
-        //        val Status.Failure(cause) = client.expectMsgClass(timeout, classOf[Status.Failure])
-        //        cause shouldBe a[UnauthorizedException]
+      "respond with a UnauthorizedException if the user doesn't have manage permissions" in new MockDatabaseWithModel {
+        Mockito.when(modelPermissionsResolver.getModelUserPermissions(any(), any(), any()))
+          .thenReturn(Success(ModelPermissions(true, true, true, false)))
+        val client = new TestProbe(system)
+        val message = SetModelPermissionsRequest(domainFqn, modelId, skU1S1, None, None, false, Map())
+        realtimeModelActor.tell(message, client.ref)
+        val Status.Failure(cause) = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Status.Failure])
+        cause shouldBe a[UnauthorizedException]
       }
 
-      "respond with () if the model exists and the user has manage permissions" in new TestFixture {
-        //        val client = new TestProbe(system)
-        //        val message = SetModelPermissionsRequest(u1Sk, existingModelId, None, None, false, Map())
-        //        modelManagerActor.tell(message, client.ref)
-        //        val response = client.expectMsg(timeout, ())
+      "respond with () if the model exists and the user has manage permissions" in new MockDatabaseWithModel {
+        val client = new TestProbe(system)
+        Mockito.when(modelPermissionsResolver.getModelUserPermissions(any(), any(), any()))
+          .thenReturn(Success(ModelPermissions(true, true, true, true)))
+        val message = SetModelPermissionsRequest(domainFqn, modelId, skU1S1, None, None, false, Map())
+        realtimeModelActor.tell(message, client.ref)
+        val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ())
       }
     }
   }
@@ -408,7 +411,7 @@ class RealtimeModelActorSpec
 
     val mockCluster = TestProbe()
     val props = RealtimeModelActor.props(
-      new ModelPermissionResolver(),
+      modelPermissionsResolver,
       modelCreator,
       persistenceManager,
       FiniteDuration(100, TimeUnit.MILLISECONDS),
