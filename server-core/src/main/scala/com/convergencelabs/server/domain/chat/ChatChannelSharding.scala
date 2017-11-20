@@ -26,6 +26,15 @@ object ChatChannelSharding {
       extractEntityId = config.extractEntityId,
       extractShardId = config.extractShardId)
   }
+  
+  def startProxy(system: ActorSystem, shards: Int): ActorRef = {
+    val config = new ChatChannelSharding(shards)
+    ClusterSharding(system).startProxy(
+      typeName = ChatChannelSharding.RegionName,
+      role = None,
+      extractEntityId = config.extractEntityId,
+      extractShardId = config.extractShardId)
+  }
 }
 
 // TODO make the number of shards configurable in the application config.

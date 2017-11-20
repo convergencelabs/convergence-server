@@ -37,8 +37,15 @@ import com.convergencelabs.server.datastore.PermissionsStore
 import com.convergencelabs.server.datastore.Permission
 import com.convergencelabs.server.datastore.Role
 import com.convergencelabs.server.util.SystemOutRedirector
+import akka.cluster.sharding.ClusterSharding
+import com.convergencelabs.server.domain.DomainActorSharding
+import com.convergencelabs.server.domain.model.RealtimeModelSharding
+import com.convergencelabs.server.domain.chat.ChatChannelSharding
 
 object ConvergenceServerNode extends Logging {
+  
+  val ActorSystemName = "Convergence"
+  
   def main(args: Array[String]): Unit = {
     try {
       SystemOutRedirector.setOutAndErrToLog();
@@ -63,11 +70,15 @@ object ConvergenceServerNode extends Logging {
 
 class ConvergenceServerNode(private[this] val config: Config) extends Logging {
 
-  var nodeSystem: Option[ActorSystem] = None
+  var system: Option[ActorSystem] = None
+  var cluster: Option[Cluster] = None
 
   def start(): Unit = {
-    val system = ActorSystem("Convergence", config)
-    system.actorOf(Props[SimpleClusterListener], name = "clusterListener")
+    val system = ActorSystem(ConvergenceServerNode.ActorSystemName, config)
+    val cluster = Cluster(system)
+    this.cluster = Some(cluster)
+
+    system.actorOf(Props(new SimpleClusterListener(cluster)), name = "clusterListener")
 
     val roles = config.getAnyRefList("akka.cluster.roles").asScala.toList
 
@@ -92,11 +103,11 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
 
       // FIXME figure out what the partitions and pool size should be
       val dbPool = new OPartitionedDatabasePool(
-          fullUri, 
-          username, 
-          password,
-          1,
-          64)
+        fullUri,
+        username,
+        password,
+        1,
+        64)
       val dbProvider = DatabaseProvider(dbPool)
 
       val domainDatabaseStore = new DomainDatabaseStore(dbProvider)
@@ -108,6 +119,12 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
         info("Starting up backend node.")
         val backend = new BackendNode(system, dbProvider)
         backend.start()
+      } else {
+        // TODO Re-factor This
+        val shards = 100
+        DomainActorSharding.startProxy(system, shards)
+        RealtimeModelSharding.startProxy(system, shards)
+        ChatChannelSharding.startProxy(system, shards)
       }
 
       if (roles.contains("restFrontend")) {
@@ -127,7 +144,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
       realTimeFrontEnd.start()
     }
 
-    this.nodeSystem = Some(system)
+    this.system = Some(system)
   }
 
   def bootstrapConvergenceDB(
@@ -203,9 +220,9 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
 
   def attemptConnect(uri: String, adminUser: String, adminPassword: String, retryDelay: Duration) = {
     Try(new OServerAdmin(uri).connect(adminUser, adminPassword)) match {
-      case Success(serverAdmin) => 
+      case Success(serverAdmin) =>
         Some(serverAdmin)
-      case Failure(e) => 
+      case Failure(e) =>
         logger.warn(s"Unable to connect to OrientDB, retrying in ${retryDelay.toMillis()}ms")
         Thread.sleep(retryDelay.toMillis())
         None
@@ -214,21 +231,18 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
 
   def stop(): Unit = {
     logger.info(s"Stopping the convergence server node")
-    nodeSystem match {
-      case Some(system) =>
-        system.terminate()
-        logger.info(s"Actor system terminated")
-      case None =>
+    
+    system foreach { s =>
+      s.terminate()
+      logger.info(s"Actor system terminated")
     }
+
+    cluster.foreach(c => c.leave(c.selfAddress))
   }
 
 }
 
-private class SimpleClusterListener extends Actor with ActorLogging {
-
-  val cluster = Cluster(context.system)
-
-  // subscribe to cluster changes, re-subscribe when restart
+private class SimpleClusterListener(cluster: Cluster) extends Actor with ActorLogging {
   override def preStart(): Unit = {
     cluster.subscribe(
       self,

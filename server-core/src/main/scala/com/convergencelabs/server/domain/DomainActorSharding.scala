@@ -19,6 +19,15 @@ object DomainActorSharding {
       extractEntityId = config.extractEntityId,
       extractShardId = config.extractShardId)
   }
+  
+  def startProxy(system: ActorSystem, shards: Int): ActorRef = {
+    val config = new DomainActorSharding(shards)
+    ClusterSharding(system).startProxy(
+      typeName = DomainActorSharding.RegionName,
+      role = None,
+      extractEntityId = config.extractEntityId,
+      extractShardId = config.extractShardId)
+  }
 }
 
 class DomainActorSharding(val numberOfShards: Int = 100) {

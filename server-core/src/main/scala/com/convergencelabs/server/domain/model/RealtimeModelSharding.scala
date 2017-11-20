@@ -22,6 +22,14 @@ object RealtimeModelSharding {
       extractEntityId = config.extractEntityId,
       extractShardId = config.extractShardId)
   }
+  def startProxy(system: ActorSystem, shards: Int): ActorRef = {
+    val config = new RealtimeModelSharding(shards)
+    ClusterSharding(system).startProxy(
+      typeName = RealtimeModelSharding.RegionName,
+      role = None,
+      extractEntityId = config.extractEntityId,
+      extractShardId = config.extractShardId)
+  }
 }
 
 class RealtimeModelSharding(val numberOfShards: Int = 100) {

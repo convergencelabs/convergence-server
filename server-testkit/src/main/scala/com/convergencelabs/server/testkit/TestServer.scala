@@ -11,28 +11,35 @@ import com.typesafe.config.ConfigFactory
 
 import grizzled.slf4j.Logging
 import java.io.InputStreamReader
+import com.typesafe.config.Config
+import com.typesafe.config.ConfigValueFactory
 
 object TestServer {
   def main(args: Array[String]): Unit = {
-    val server = new TestServer("/convergence-application.conf")
+    val server = new TestServer()
     server.start()
   }
 }
 
-class TestServer(configFile: String) extends Logging {
+class TestServer() extends Logging {
 
   val persistent = java.lang.Boolean.getBoolean("convergence.test-server.persistent")
   val odbTarget = new File("target/orientdb/databases")
 
-  val reader = new InputStreamReader(getClass.getResourceAsStream(configFile))
-  val config = ConfigFactory.parseReader(reader)
-  val server = new ConvergenceServerNode(config)
+  
+  val seed = new ConvergenceServerNode(parseConfig("/convergence-application-seed.conf", 2551))
+  val backend = new ConvergenceServerNode(parseConfig("/convergence-application-backend.conf", 2552))
+  val frontend = new ConvergenceServerNode(parseConfig("/convergence-application-frontend.conf", 2553))
+  
   val oriendDb = new EmbeddedOrientDB(odbTarget.getAbsolutePath, persistent)
 
   def start(): Unit = {
     logger.info("Test server starting up")
     oriendDb.start()
-    server.start()
+    seed.start()
+    backend.start()
+    frontend.start()
+    
     logger.info("Test server started.")
     var line = scala.io.StdIn.readLine()
     while (line.trim() != "exit") {
@@ -44,7 +51,15 @@ class TestServer(configFile: String) extends Logging {
 
   def stop(): Unit = {
     logger.info("Test server shutting down.")
-    server.stop()
+    seed.stop()
+    backend.stop()
+    frontend.stop()
     oriendDb.stop()
+  }
+  
+  def parseConfig(configFile: String, port: Int): Config = {
+    val reader = new InputStreamReader(getClass.getResourceAsStream(configFile))
+    val config = ConfigFactory.parseReader(reader).withValue("akka.remote.netty.tcp.port", ConfigValueFactory.fromAnyRef(port))
+    config
   }
 }

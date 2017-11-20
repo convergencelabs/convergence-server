@@ -41,7 +41,7 @@ class BackendNodeActor(
   private[this] val persistenceManager: DomainPersistenceManager)
     extends Actor with ActorLogging {
 
-  log.debug("DomainManagerActor starting up with address: " + self.path)
+  log.debug("BackendNodeActor starting up with address: " + self.path)
 
   private[this] val cluster = Cluster(context.system)
   private[this] implicit val ec = context.dispatcher
@@ -66,7 +66,7 @@ class BackendNodeActor(
       clientDataResponseTimeout,
       receiveTimeout))
 
-  log.debug("DomainManager started.")
+  log.debug("BackendNodeActor started.")
 
   def receive: Receive = {
     case message: Any => unhandled(message)
