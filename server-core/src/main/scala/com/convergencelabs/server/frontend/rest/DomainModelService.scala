@@ -1,35 +1,55 @@
 package com.convergencelabs.server.frontend.rest
 
 import java.time.Instant
+import java.util.UUID
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
+import scala.util.Try
 
+import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.GetAllModelUserPermissions
+import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.GetModelOverridesPermissions
+import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.GetModelPermissions
+import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.GetModelUserPermissions
+import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.GetModelWorldPermissions
+import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.ModelPermissionsResponse
+import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.ModelUserPermissions
+import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.RemoveModelUserPermissions
+import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.SetModelOverridesPermissions
+import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.SetModelUserPermissions
+import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.SetModelWorldPermissions
 import com.convergencelabs.server.datastore.ModelStoreActor.GetModels
 import com.convergencelabs.server.datastore.ModelStoreActor.GetModelsInCollection
+import com.convergencelabs.server.datastore.domain.ModelDataGenerator
+import com.convergencelabs.server.datastore.domain.ModelPermissions
+import com.convergencelabs.server.domain.AuthorizationActor.ConvergenceAuthorizedRequest
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.RestDomainManagerActor.DomainMessage
+import com.convergencelabs.server.domain.model.CreateOrUpdateRealtimeModel
+import com.convergencelabs.server.domain.model.CreateRealtimeModel
+import com.convergencelabs.server.domain.model.DeleteRealtimeModel
+import com.convergencelabs.server.domain.model.GetRealtimeModel
 import com.convergencelabs.server.domain.model.Model
 import com.convergencelabs.server.domain.model.ModelMetaData
 import com.convergencelabs.server.domain.model.data.ObjectValue
+import com.convergencelabs.server.frontend.rest.DomainModelService.GetAllUserPermissionsResponse
+import com.convergencelabs.server.frontend.rest.DomainModelService.GetModelOverridesPermissionsResponse
+import com.convergencelabs.server.frontend.rest.DomainModelService.GetModelPermissionsResponse
+import com.convergencelabs.server.frontend.rest.DomainModelService.GetPermissionsResponse
 import com.convergencelabs.server.frontend.rest.DomainModelService.ModelMetaDataResponse
+import com.convergencelabs.server.frontend.rest.DomainModelService.ModelPermissionsSummary
 import com.convergencelabs.server.frontend.rest.DomainModelService.ModelResponse
-
-import DomainModelService.CreateModelResponse
-import DomainModelService.GetModelResponse
-import DomainModelService.GetModelsResponse
-import DomainModelService.ModelPut
-import DomainModelService.ModelPost
+import com.convergencelabs.server.frontend.rest.DomainModelService.SetOverrideWorldRequest
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
 import akka.http.scaladsl.server.Directive.addDirectiveApply
-import akka.http.scaladsl.server.Directives.Segment
 import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
 import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
-import akka.http.scaladsl.server.Directives.as
+import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.server.Directives.authorizeAsync
 import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Directives.delete
 import akka.http.scaladsl.server.Directives.entity
@@ -38,57 +58,9 @@ import akka.http.scaladsl.server.Directives.pathEnd
 import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.post
 import akka.http.scaladsl.server.Directives.put
-import akka.http.scaladsl.server.Directives.authorizeAsync
 import akka.http.scaladsl.server.Route
-
-import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.server.domain.AuthorizationActor.ConvergenceAuthorizedRequest
-import scala.util.Try
-import com.convergencelabs.server.datastore.domain.ModelPermissions
-import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.GetModelPermissions
-import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.ModelPermissionsResponse
-import com.convergencelabs.server.frontend.rest.DomainModelService.GetModelPermissionsResponse
-import com.convergencelabs.server.frontend.rest.DomainModelService.SetOverrideWorldRequest
-import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.GetModelWorldPermissions
-import com.convergencelabs.server.frontend.rest.DomainModelService.GetPermissionsResponse
-import com.convergencelabs.server.frontend.rest.DomainModelService.ModelPermissionsSummary
-import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.SetModelWorldPermissions
-import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.SetModelUserPermissions
-import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.RemoveModelUserPermissions
-import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.GetModelUserPermissions
-import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.GetAllModelUserPermissions
-import com.convergencelabs.server.frontend.rest.DomainModelService.GetAllUserPermissionsResponse
-import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.GetModelOverridesPermissions
-import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.SetModelOverridesPermissions
-import com.convergencelabs.server.frontend.rest.DomainModelService.GetModelOverridesPermissionsResponse
-import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.ModelUserPermissions
-import com.convergencelabs.server.domain.model.CreateRealtimeModel
-import com.convergencelabs.server.domain.model.GetRealtimeModel
-import akka.cluster.sharding.ClusterSharding
-import com.convergencelabs.server.domain.model.RealtimeModelSharding
-import com.convergencelabs.server.domain.DomainFqn
-import java.util.UUID
-import com.convergencelabs.server.datastore.domain.ModelDataGenerator
-import com.convergencelabs.server.domain.model.CreateOrUpdateRealtimeModel
-import com.convergencelabs.server.domain.model.DeleteRealtimeModel
-import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.datastore.domain.ModelPermissions
-import com.convergencelabs.server.domain.model.data.ObjectValue
-import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.model.Model
-import com.convergencelabs.server.domain.model.ModelMetaData
-import com.convergencelabs.server.datastore.domain.ModelPermissions
-import com.convergencelabs.server.domain.model.data.ObjectValue
-import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.model.Model
-import com.convergencelabs.server.domain.model.ModelMetaData
-import com.convergencelabs.server.datastore.domain.ModelPermissions
-import com.convergencelabs.server.domain.model.data.ObjectValue
-import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.model.Model
-import com.convergencelabs.server.domain.model.ModelMetaData
-import com.convergencelabs.server.datastore.domain.ModelPermissions
+import akka.pattern.ask
 
 object DomainModelService {
 
@@ -133,6 +105,8 @@ class DomainModelService(
   private[this] val modelClusterRegion: ActorRef,
   private[this] val defaultTimeout: Timeout)
     extends JsonSupport {
+  
+  import DomainModelService._
 
   implicit val ec = executionContext
   implicit val t = defaultTimeout

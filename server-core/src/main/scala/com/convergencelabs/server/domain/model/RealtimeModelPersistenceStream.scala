@@ -23,7 +23,7 @@ import grizzled.slf4j.Logging
 
 object RealtimeModelPersistenceStream {
   sealed trait ModelPersistenceCommand
-  case class ProcessOperatio(op: NewModelOperation) extends ModelPersistenceCommand
+  case class ProcessOperation(op: NewModelOperation) extends ModelPersistenceCommand
   case object ExecuteSnapshot extends ModelPersistenceCommand
 }
 
@@ -44,7 +44,7 @@ class RealtimeModelPersistenceStream(
   val streamActor: ActorRef =
     Flow[ModelPersistenceCommand]
       .map {
-        case ProcessOperatio(modelOperation) =>
+        case ProcessOperation(modelOperation) =>
           processOperation(modelOperation)
         case ExecuteSnapshot =>
           executeSnapshot()

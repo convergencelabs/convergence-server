@@ -22,7 +22,9 @@ import com.convergencelabs.server.db.schema.DatabaseManager
 import com.convergencelabs.server.db.schema.DatabaseManagerActor
 import com.convergencelabs.server.domain.AuthorizationActor
 import com.convergencelabs.server.domain.RestDomainManagerActor
+import com.convergencelabs.server.domain.model.RealtimeModelSharding
 
+import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.HttpMethods
@@ -45,9 +47,6 @@ import akka.util.Timeout
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import grizzled.slf4j.Logging
-import akka.actor.ActorRef
-import akka.cluster.sharding.ClusterSharding
-import com.convergencelabs.server.domain.model.RealtimeModelSharding
 
 object ConvergenceRestFrontEnd {
   val ConvergenceCorsSettings = CorsSettings.defaultSettings.copy(

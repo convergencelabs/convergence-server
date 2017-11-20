@@ -46,7 +46,6 @@ import com.convergencelabs.server.datastore.domain.DomainPersistenceManager
 import akka.actor.PoisonPill
 
 case class ModelConfigResponse(sk: SessionKey, config: ClientAutoCreateModelConfigResponse)
-case object PermissionsUpdated
 case class ClientOpenFailure(sk: SessionKey, response: AnyRef)
 
 /**

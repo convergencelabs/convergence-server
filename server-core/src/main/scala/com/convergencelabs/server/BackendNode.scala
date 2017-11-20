@@ -4,11 +4,11 @@ import scala.language.postfixOps
 
 import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.datastore.DomainStore
+import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 import com.convergencelabs.server.domain.DomainManagerActor
 
 import akka.actor.ActorSystem
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 
 class BackendNode(system: ActorSystem, dbProvider: DatabaseProvider) extends Logging {
 
@@ -26,6 +26,7 @@ class BackendNode(system: ActorSystem, dbProvider: DatabaseProvider) extends Log
       protocolConfig,
       DomainPersistenceManagerActor),
       DomainManagerActor.RelativeActorPath)
+
 
     logger.info("Backend Node started up.")
   }

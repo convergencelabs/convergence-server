@@ -11,9 +11,7 @@ import com.convergencelabs.server.domain.AuthenticationResponse
 import com.convergencelabs.server.domain.AuthenticationSuccess
 import com.convergencelabs.server.domain.ClientDisconnected
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.HandshakeFailure
 import com.convergencelabs.server.domain.HandshakeRequest
-import com.convergencelabs.server.domain.HandshakeResponse
 import com.convergencelabs.server.domain.HandshakeSuccess
 import com.convergencelabs.server.domain.PasswordAuthRequest
 import com.convergencelabs.server.domain.JwtAuthRequest
@@ -36,6 +34,7 @@ import com.convergencelabs.server.domain.PresenceServiceActor.UserPresence
 import com.convergencelabs.server.domain.AuthenticationRequest
 import akka.http.scaladsl.model.RemoteAddress
 import com.convergencelabs.server.domain.AuthenticationRequest
+import com.convergencelabs.server.domain.HandshakeFailureException
 
 object ClientActor {
   def props(
@@ -94,7 +93,6 @@ class ClientActor(
   private[this] var activityServiceActor: ActorRef = _
   private[this] var presenceServiceActor: ActorRef = _
   private[this] var chatLookupActor: ActorRef = _
-  private[this] var chatChannelActor: ActorRef = _
   private[this] var sessionId: String = _
 
   private[this] var protocolConnection: ProtocolConnection = _
@@ -199,6 +197,7 @@ class ClientActor(
     }
 
     val authRequest = AuthenticationRequest(
+      domainFqn,
       self,
       remoteHost.toString,
       "javascript",
@@ -239,7 +238,7 @@ class ClientActor(
     this.sessionId = sk.serialize();
     this.modelClient = context.actorOf(ModelClientActor.props(domainFqn, sk, modelQueryActor, requestTimeout))
     this.userClient = context.actorOf(IdentityClientActor.props(userServiceActor))
-    this.chatClient = context.actorOf(ChatClientActor.props(chatLookupActor, chatChannelActor, sk, requestTimeout))
+    this.chatClient = context.actorOf(ChatClientActor.props(domainFqn, chatLookupActor, sk, requestTimeout))
     this.activityClient = context.actorOf(ActivityClientActor.props(activityServiceActor, sk))
     this.presenceClient = context.actorOf(PresenceClientActor.props(presenceServiceActor, sk))
     this.historyClient = context.actorOf(HistoricModelClientActor.props(sk, domainFqn));
@@ -254,11 +253,11 @@ class ClientActor(
     val canceled = handshakeTimeoutTask.cancel()
     if (canceled) {
       val future = domainManager ? HandshakeRequest(domainFqn, self, request.r, request.k)
-      future.mapResponse[HandshakeResponse] onComplete {
-        case Success(success) if success.isInstanceOf[HandshakeSuccess] => {
-          self ! InternalHandshakeSuccess(success.asInstanceOf[HandshakeSuccess], cb)
+      future.mapResponse[HandshakeSuccess] onComplete {
+        case Success(success) => {
+          self ! InternalHandshakeSuccess(success, cb)
         }
-        case Success(HandshakeFailure(code, details)) => {
+        case Failure(HandshakeFailureException(code, details)) => {
           cb.reply(HandshakeResponseMessage(false, Some(ErrorData(code, details)), Some(true), None))
           this.connectionActor ! CloseConnection
           self ! PoisonPill
@@ -273,8 +272,9 @@ class ClientActor(
   }
 
   private[this] def handleHandshakeSuccess(success: InternalHandshakeSuccess): Unit = {
+    // FIXME we don't need the domain actor
     val InternalHandshakeSuccess(HandshakeSuccess(
-        domainActor, modelQueryActor, userActor, activityActor, presenceActor, chatLookupActor, chatChannelActor),
+      domainActor, modelQueryActor, userActor, activityActor, presenceActor, chatLookupActor),
       cb) = success
     this.domainActor = Some(domainActor)
     this.modelQueryActor = modelQueryActor
@@ -282,7 +282,6 @@ class ClientActor(
     this.activityServiceActor = activityActor
     this.presenceServiceActor = presenceActor
     this.chatLookupActor = chatLookupActor
-    this.chatChannelActor = chatChannelActor
     cb.reply(HandshakeResponseMessage(true, None, None, Some(ProtocolConfigData(true))))
     this.messageHandler = handleAuthentationMessage
     context.become(receiveWhileAuthenticating)
@@ -338,13 +337,13 @@ class ClientActor(
 
   private[this] def onConnectionClosed(): Unit = {
     log.info(s"Connection Closed: ${sessionId}")
-    domainActor.foreach { _ ! ClientDisconnected(sessionId) }
+    domainActor.foreach { _ ! ClientDisconnected(domainFqn, sessionId) }
     context.stop(self)
   }
 
   private[this] def onConnectionError(cause: Throwable): Unit = {
     log.debug("Connection Error: " + cause.getMessage)
-    domainActor.foreach { _ ! ClientDisconnected(sessionId) }
+    domainActor.foreach { _ ! ClientDisconnected(domainFqn, sessionId) }
     context.stop(self)
   }
 

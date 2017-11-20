@@ -7,30 +7,22 @@ import com.convergencelabs.server.domain.model.SessionKey
 
 package object domain {
 
-  case class HandshakeRequest(domainFqn: DomainFqn, clientActor: ActorRef, reconnect: Boolean, reconnectToken: Option[String])
-
-  sealed trait HandshakeResponse
-  case class HandshakeSuccess(
-    domainActor: ActorRef,
-    modelManager: ActorRef,
-    userService: ActorRef,
-    activityService: ActorRef,
-    presenceService: ActorRef,
-    chatLookupService: ActorRef,
-    chatChannelService: ActorRef) extends HandshakeResponse
-  case class HandshakeFailure(code: String, details: String) extends HandshakeResponse
-
-  case class ClientDisconnected(sessionId: String)
-  case class DomainShutdownRequest(domainFqn: DomainFqn)
-
+  sealed trait DomainMessage {
+    val domainFqn: DomainFqn
+  }
+  
+  case class HandshakeRequest(domainFqn: DomainFqn, clientActor: ActorRef, reconnect: Boolean, reconnectToken: Option[String]) extends DomainMessage
   case class AuthenticationRequest(
+      domainFqn: DomainFqn,
      clientActor: ActorRef,
      remoteAddress: String,
      client: String,
      clientVersion: String,
      clientMetaData: String,
      credentials: AuthetncationCredentials
-  )
+  ) extends DomainMessage
+  
+  case class ClientDisconnected(domainFqn: DomainFqn, sessionId: String) extends DomainMessage
   
   sealed trait AuthetncationCredentials
   case class PasswordAuthRequest(username: String, password: String) extends AuthetncationCredentials
@@ -43,4 +35,14 @@ package object domain {
   case object AuthenticationError extends AuthenticationResponse
   
   case class UnauthorizedException(message: String = "") extends Exception(message)
+  
+   case class HandshakeSuccess(
+    domainActor: ActorRef,
+    modelManager: ActorRef,
+    userService: ActorRef,
+    activityService: ActorRef,
+    presenceService: ActorRef,
+    chatLookupService: ActorRef)
+    
+  case class HandshakeFailureException(code: String, details: String) extends RuntimeException(details)
 }

@@ -20,7 +20,6 @@ import com.convergencelabs.server.HeartbeatConfiguration
 import com.convergencelabs.server.ProtocolConfiguration
 import com.convergencelabs.server.domain.AuthenticationSuccess
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.HandshakeFailure
 import com.convergencelabs.server.domain.HandshakeRequest
 import com.convergencelabs.server.domain.HandshakeSuccess
 import com.convergencelabs.server.domain.PasswordAuthRequest
@@ -98,7 +97,7 @@ class ClientActorSpec
 
     domainManagerActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeRequest])
     domainManagerActor.reply(
-        HandshakeSuccess(domainActor.ref, modelManagerActor.ref, userServiceActor.ref, activityServiceActor.ref, presenceServiceActor.ref, chatLookupActor.ref, chatChannelActor.ref))
+        HandshakeSuccess(domainActor.ref, modelManagerActor.ref, userServiceActor.ref, activityServiceActor.ref, presenceServiceActor.ref, chatLookupActor.ref))
     Await.result(handshakeCallback.result, 250 millis)
   }
 

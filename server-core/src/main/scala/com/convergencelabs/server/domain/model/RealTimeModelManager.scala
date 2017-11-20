@@ -33,6 +33,8 @@ import akka.persistence.SnapshotMetadata
 import scala.concurrent.duration.Duration
 import akka.util.Timeout
 import scala.concurrent.duration.FiniteDuration
+import com.convergencelabs.server.domain.model.RealtimeModelPersistenceStream.ProcessOperation
+import com.convergencelabs.server.datastore.domain.ModelDataGenerator
 
 object RealTimeModelManager {
   val DatabaseInitializationFailure = UnknownErrorResponse("Unexpected persistence error initializing the model.")
@@ -311,7 +313,7 @@ class RealTimeModelManager(
   private[this] def requestAutoCreateConfigFromClient(sk: SessionKey, clientActor: ActorRef, autoCreateId: Int): Unit = {
     debug(s"Requesting model config data from client: ${domainFqn}/${modelId}")
 
-    val future = Patterns.ask(clientActor, ClientAutoCreateModelConfigRequest(autoCreateId), clientDataResponseTimeout)
+    val future = Patterns.ask(clientActor, ClientAutoCreateModelConfigRequest(modelId, autoCreateId), clientDataResponseTimeout)
     future.mapTo[ClientAutoCreateModelConfigResponse] onComplete {
       case Success(response) =>
         debug(s"Model config data received from client: ${domainFqn}/${modelId}")
@@ -341,8 +343,7 @@ class RealTimeModelManager(
 
           val overrideWorld = overridePermissions.getOrElse(false)
           val worldPerms = worldPermissions.getOrElse(ModelPermissions(false, false, false, false))
-          // FIXME see if this is correct? Specifically with the id.
-          val rootObject = modelData.getOrElse(ObjectValue("0:0", Map()))
+          val rootObject = modelData.getOrElse(ModelDataGenerator(Map()))
           val collectionId = config.collectionId
 
           this.ephemeral = ephemeral.getOrElse(false)
@@ -530,12 +531,12 @@ class RealTimeModelManager(
     val timestamp = Instant.now()
     this.model.processOperationEvent(unprocessedOpEvent).map {
       case (processedOpEvent, appliedOp) =>
-        persistenceStream.streamActor ! NewModelOperation(
+        persistenceStream.streamActor ! ProcessOperation(NewModelOperation(
           modelId,
           processedOpEvent.resultingVersion,
           timestamp,
           sk.sid,
-          appliedOp)
+          appliedOp))
 
         OutgoingOperation(
           modelId,
@@ -693,7 +694,6 @@ class RealTimeModelManager(
   }
 
   private[this] def setState(state: State.Value): Unit = {
-    debug("Setting state: " + state)
     this.state = state
   }
 }

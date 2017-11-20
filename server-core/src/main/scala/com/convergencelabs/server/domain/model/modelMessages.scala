@@ -73,9 +73,7 @@ sealed trait InternalRealTimeModelMessage
 //
 // Outgoing Messages to the client actor
 //  
-trait RealtimeModelClientMessage {
-  val modelId: String
-}
+
 
 case class OpenModelSuccess(
     valuePrefix: Long,
@@ -86,6 +84,11 @@ case class OpenModelSuccess(
     modelPermissions: ModelPermissions)
     
 case class GetModelPermissionsResponse(overridesCollection: Boolean, worlPermissions: ModelPermissions, userPermissions: Map[String, ModelPermissions])
+
+
+trait RealtimeModelClientMessage {
+  val modelId: String
+}
 
 case class OperationAcknowledgement(modelId: String, seqNo: Long, contextVersion: Long, timestamp: Long) extends RealtimeModelClientMessage
 case class OutgoingOperation(
@@ -98,7 +101,7 @@ case class RemoteClientClosed(modelId: String, sk: SessionKey) extends RealtimeM
 case class RemoteClientOpened(modelId: String, sk: SessionKey) extends RealtimeModelClientMessage
 case class ModelForceClose(modelId: String, reason: String) extends RealtimeModelClientMessage
 case class ModelPermissionsChanged(modelId: String, permissions: ModelPermissions) extends RealtimeModelClientMessage
-case class ClientAutoCreateModelConfigRequest(autoConfigId: Integer)
+case class ClientAutoCreateModelConfigRequest(modelId: String, autoConfigId: Integer) extends RealtimeModelClientMessage
 
 sealed trait RemoteReferenceEvent extends RealtimeModelClientMessage
 case class RemoteReferencePublished(

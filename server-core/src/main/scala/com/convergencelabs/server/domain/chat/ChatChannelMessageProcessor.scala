@@ -75,7 +75,7 @@ abstract class ChatChannelMessageProcessor(stateManager: ChatChannelStateManager
   }
 
   def onJoinChannel(message: JoinChannelRequest): Try[ChatMessageProcessingResult] = {
-    val JoinChannelRequest(channelId, sk, client) = message
+    val JoinChannelRequest(domainFqn, channelId, sk, client) = message
     stateManager.onJoinChannel(sk) map {
       case ChatUserJoinedEvent(eventNo, channelId, username, timestamp) =>
         ChatMessageProcessingResult(
@@ -85,7 +85,7 @@ abstract class ChatChannelMessageProcessor(stateManager: ChatChannelStateManager
   }
 
   def onLeaveChannel(message: LeaveChannelRequest): Try[ChatMessageProcessingResult] = {
-    val LeaveChannelRequest(channelId, sk, client) = message
+    val LeaveChannelRequest(domainFqn, channelId, sk, client) = message
     stateManager.onLeaveChannel(sk) map {
       case ChatUserLeftEvent(eventNo, channelId, username, timestamp) =>
         ChatMessageProcessingResult(
@@ -95,7 +95,7 @@ abstract class ChatChannelMessageProcessor(stateManager: ChatChannelStateManager
   }
 
   def onAddUserToChannel(message: AddUserToChannelRequest): Try[ChatMessageProcessingResult] = {
-    val AddUserToChannelRequest(channelId, sk, username) = message;
+    val AddUserToChannelRequest(domainFqn, channelId, sk, username) = message;
     stateManager.onAddUserToChannel(channelId, sk, username) map {
       case ChatUserAddedEvent(eventNo, channelId, addedBy, timestamp, username) =>
         ChatMessageProcessingResult(Some(()), List(UserAddedToChannel(channelId, eventNo, timestamp, username, addedBy)))
@@ -103,7 +103,7 @@ abstract class ChatChannelMessageProcessor(stateManager: ChatChannelStateManager
   }
 
   def onRemoveUserFromChannel(message: RemoveUserFromChannelRequest): Try[ChatMessageProcessingResult] = {
-    val RemoveUserFromChannelRequest(channelId, sk, username) = message;
+    val RemoveUserFromChannelRequest(domainFqn, channelId, sk, username) = message;
     stateManager.onRemoveUserFromChannel(channelId, sk, username) map {
       case ChatUserRemovedEvent(eventNo, channelId, removedBy, timestamp, username) =>
         ChatMessageProcessingResult(Some(()), List(UserAddedToChannel(channelId, eventNo, timestamp, username, removedBy)))
@@ -111,7 +111,7 @@ abstract class ChatChannelMessageProcessor(stateManager: ChatChannelStateManager
   }
 
   def onSetChatChannelName(message: SetChannelNameRequest): Try[ChatMessageProcessingResult] = {
-    val SetChannelNameRequest(channelId, sk, name) = message;
+    val SetChannelNameRequest(domainFqn, channelId, sk, name) = message;
     stateManager.onSetChatChannelName(channelId, sk, name) map {
       case ChatNameChangedEvent(eventNo, channelId, setBy, timestamp, topic) =>
         ChatMessageProcessingResult(Some(()), List(ChannelNameChanged(channelId, eventNo, timestamp, setBy, topic)))
@@ -119,7 +119,7 @@ abstract class ChatChannelMessageProcessor(stateManager: ChatChannelStateManager
   }
 
   def onSetChatChannelTopic(message: SetChannelTopicRequest): Try[ChatMessageProcessingResult] = {
-    val SetChannelTopicRequest(channelId, sk, topic) = message;
+    val SetChannelTopicRequest(domainFqn, channelId, sk, topic) = message;
     stateManager.onSetChatChannelTopic(channelId, sk, topic) map {
       case ChatTopicChangedEvent(eventNo, channelId, setBy, timestamp, topic) =>
         ChatMessageProcessingResult(Some(()), List(ChannelTopicChanged(channelId, eventNo, timestamp, setBy, topic)))
@@ -127,21 +127,21 @@ abstract class ChatChannelMessageProcessor(stateManager: ChatChannelStateManager
   }
 
   def onMarkEventsSeen(message: MarkChannelEventsSeenRequest): Try[ChatMessageProcessingResult] = {
-    val MarkChannelEventsSeenRequest(channelId, sk, eventNumber) = message;
+    val MarkChannelEventsSeenRequest(domainFqn, channelId, sk, eventNumber) = message;
     stateManager.onMarkEventsSeen(channelId, sk, eventNumber) map { _ =>
       ChatMessageProcessingResult(Some(()), List())
     }
   }
 
   def onGetHistory(message: GetChannelHistoryRequest): Try[ChatMessageProcessingResult] = {
-    val GetChannelHistoryRequest(channelId, sk, limit, offset, forward, eventFilter) = message;
+    val GetChannelHistoryRequest(domainFqn, channelId, sk, limit, offset, forward, eventFilter) = message;
     stateManager.onGetHistory(channelId, sk.uid, limit, offset, forward, eventFilter) map { events =>
       ChatMessageProcessingResult(Some(GetChannelHistoryResponse(events)), List())
     }
   }
 
   def onPublishMessage(message: PublishChatMessageRequest): Try[ChatMessageProcessingResult] = {
-    val PublishChatMessageRequest(channelId, sk, msg) = message;
+    val PublishChatMessageRequest(domainFqn, channelId, sk, msg) = message;
     stateManager.onPublishMessage(channelId, sk, msg) map {
       case ChatMessageEvent(eventNo, channelId, sk.uid, timestamp, msg) =>
         ChatMessageProcessingResult(Some(()), List(RemoteChatMessage(channelId, eventNo, timestamp, sk, msg)))
@@ -149,49 +149,49 @@ abstract class ChatChannelMessageProcessor(stateManager: ChatChannelStateManager
   }
 
   def onRemoveChannel(message: RemoveChannelRequest): Try[ChatMessageProcessingResult] = {
-    val RemoveChannelRequest(channelId, sk) = message;
+    val RemoveChannelRequest(domainFqn, channelId, sk) = message;
     stateManager.onRemoveChannel(channelId, sk) map { _ =>
       ChatMessageProcessingResult(Some(()), List(ChatChannelRemovedMessage(channelId)))
     }
   }
 
   def onAddPermissionsMessage(message: AddChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
-    val AddChatPermissionsRequest(channelId, sk, world, user, group) = message;
+    val AddChatPermissionsRequest(domainFqn, channelId, sk, world, user, group) = message;
     stateManager.onAddPermissions(channelId, sk, world, user, group) map { _ =>
       ChatMessageProcessingResult(Some(()), List())
     }
   }
 
   def onRemovePermissionsMessage(message: RemoveChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
-    val RemoveChatPermissionsRequest(channelId, sk, world, user, group) = message;
+    val RemoveChatPermissionsRequest(domainFqn, channelId, sk, world, user, group) = message;
     stateManager.onRemovePermissions(channelId, sk, world, user, group) map { _ =>
       ChatMessageProcessingResult(Some(()), List())
     }
   }
 
   def onSetPermissionsMessage(message: SetChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
-    val SetChatPermissionsRequest(channelId, sk, world, user, group) = message;
+    val SetChatPermissionsRequest(domainFqn, channelId, sk, world, user, group) = message;
     stateManager.onSetPermissions(channelId, sk, world, user, group) map { _ =>
       ChatMessageProcessingResult(Some(()), List())
     }
   }
 
   def onGetClientPermissions(message: GetClientChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
-    val GetClientChatPermissionsRequest(channelId, sk) = message;
+    val GetClientChatPermissionsRequest(domainFqn, channelId, sk) = message;
     stateManager.onGetClientPermissions(channelId, sk) map { permissions =>
       ChatMessageProcessingResult(Some(GetClientChatPermissionsResponse(permissions)), List())
     }
   }
 
   def onGetWorldPermissions(message: GetWorldChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
-    val GetWorldChatPermissionsRequest(channelId, sk) = message;
+    val GetWorldChatPermissionsRequest(domainFqn, channelId, sk) = message;
     stateManager.onGetWorldPermissions(channelId, sk) map { permissions =>
       ChatMessageProcessingResult(Some(GetWorldChatPermissionsResponse(permissions)), List())
     }
   }
 
   def onGetAllUserPermissions(message: GetAllUserChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
-    val GetAllUserChatPermissionsRequest(channelId, sk) = message;
+    val GetAllUserChatPermissionsRequest(domainFqn, channelId, sk) = message;
     stateManager.onGetAllUserPermissions(channelId, sk) map { permissions =>
       val map = permissions.groupBy { _.user } map { case (user, userPermissions) => (user.username -> userPermissions.map { _.permission }) }
       ChatMessageProcessingResult(Some(GetAllUserChatPermissionsResponse(map)), List())
@@ -199,7 +199,7 @@ abstract class ChatChannelMessageProcessor(stateManager: ChatChannelStateManager
   }
 
   def onGetAllGroupPermissions(message: GetAllGroupChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
-    val GetAllGroupChatPermissionsRequest(channelId, sk) = message;
+    val GetAllGroupChatPermissionsRequest(domainFqn, channelId, sk) = message;
     stateManager.onGetAllGroupPermissions(channelId, sk) map { permissions =>
       val map = permissions.groupBy { _.group } map { case (group, groupPermissions) => (group.id -> groupPermissions.map { _.permission }) }
       ChatMessageProcessingResult(Some(GetAllGroupChatPermissionsResponse(map)), List())
@@ -207,14 +207,14 @@ abstract class ChatChannelMessageProcessor(stateManager: ChatChannelStateManager
   }
 
   def onGetUserPermissions(message: GetUserChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
-    val GetUserChatPermissionsRequest(channelId, username, sk) = message;
+    val GetUserChatPermissionsRequest(domainFqn, channelId, username, sk) = message;
     stateManager.onGetUserPermissions(channelId, username, sk) map { permissions =>
       ChatMessageProcessingResult(Some(GetUserChatPermissionsResponse(permissions)), List())
     }
   }
 
   def onGetGroupPermissions(message: GetGroupChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
-    val GetGroupChatPermissionsRequest(channelId, groupId, sk) = message;
+    val GetGroupChatPermissionsRequest(domainFqn, channelId, groupId, sk) = message;
     stateManager.onGetGroupPermissions(channelId, groupId, sk) map { permissions =>
       ChatMessageProcessingResult(Some(GetGroupChatPermissionsResponse(permissions)), List())
     }

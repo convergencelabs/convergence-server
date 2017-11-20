@@ -18,7 +18,6 @@ import akka.actor.PoisonPill
 import akka.actor.Props
 import akka.cluster.Cluster
 import akka.cluster.sharding.ClusterSharding
-import com.convergencelabs.server.domain.model.RealtimeModelSharding
 import java.util.concurrent.TimeUnit
 import com.convergencelabs.server.domain.model.ModelPermissionResolver
 import com.convergencelabs.server.domain.model.ModelCreator
@@ -26,6 +25,10 @@ import akka.cluster.sharding.ClusterShardingSettings
 import com.convergencelabs.server.domain.model.RealtimeModelActor
 import scala.concurrent.duration.FiniteDuration
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
+import com.convergencelabs.server.domain.chat.ChatChannelSharding
+import com.convergencelabs.server.domain.model.RealtimeModelSharding
+import com.convergencelabs.server.domain.chat.ChatChannelActor
+import akka.cluster.sharding.ShardRegion
 
 object DomainManagerActor {
   val RelativeActorPath = "domainManager"
@@ -51,112 +54,36 @@ class DomainManagerActor(
   private[this] val cluster = Cluster(context.system)
   private[this] implicit val ec = context.dispatcher
 
-  private[this] val domainShutdownDelay = Duration.fromNanos(
-    context.system.settings.config.getDuration("convergence.domain-shutdown-delay").toNanos)
+  // TODO make this configurable
+  val shardCount = 100
+  
+  private[this] val chatChannelRegion: ActorRef = 
+    ChatChannelSharding.start(context.system, shardCount, Props(classOf[ChatChannelActor]))
 
-  private[this] val actorsToDomainFqn = mutable.HashMap[ActorRef, DomainFqn]()
-  private[this] val domainFqnToActor = mutable.HashMap[DomainFqn, ActorRef]()
-  private[this] val shudownRequests = mutable.Map[DomainFqn, Cancellable]()
+  private[this] val domainReqion: ActorRef =
+    DomainActorSharding.start(context.system, shardCount, DomainActor.props(
+      protocolConfig, persistenceManager, FiniteDuration(10, TimeUnit.SECONDS)))
 
-  // TODO Eventually this should probably go somewhere else. We are going to have lots of
-  // cluster regions to deal with. Eventually event the domains, so perhaps this actor
-  // just boots up the clusters?
-  private[this] val realtimeModelSharding = new RealtimeModelSharding()
-  private[this] val modelClusterRegion: ActorRef =
-    ClusterSharding(context.system).start(
-      typeName = RealtimeModelSharding.RegionName,
-      entityProps = RealtimeModelActor.props(
-        new ModelPermissionResolver(),
-        new ModelCreator(),
-        DomainPersistenceManagerActor,
-        FiniteDuration(10, TimeUnit.SECONDS),
-        FiniteDuration(10, TimeUnit.SECONDS)),
-      settings = ClusterShardingSettings(context.system),
-      extractEntityId = realtimeModelSharding.extractEntityId,
-      extractShardId = realtimeModelSharding.extractShardId)
+  val clientDataResponseTimeout = FiniteDuration(10, TimeUnit.SECONDS)
+  val receiveTimeout = FiniteDuration(10, TimeUnit.SECONDS)
+  private[this] val realtimeModelSharding: ActorRef =
+    RealtimeModelSharding.start(context.system, shardCount, RealtimeModelActor.props(
+      new ModelPermissionResolver(),
+      new ModelCreator(),
+      DomainPersistenceManagerActor,
+      clientDataResponseTimeout,
+      receiveTimeout))
 
   log.debug("DomainManager started.")
 
   def receive: Receive = {
-    case handshake: HandshakeRequest => onHandshakeRequest(handshake)
-    case shutdownRequest: DomainShutdownRequest => onDomainShutdownRequest(shutdownRequest)
-    case shutdownApproval: DomainShutdownApproval => onDomainShutdownApproval(shutdownApproval)
     case message: Any => unhandled(message)
-  }
-
-  private[this] def onHandshakeRequest(request: HandshakeRequest): Unit = {
-    val domainFqn = request.domainFqn
-    if (this.domainFqnToActor.contains(domainFqn)) {
-      log.debug("Client connected to loaded domain '{}'.", domainFqn)
-      // If this domain was going to be closing, cancel the close request.
-      if (shudownRequests.contains(domainFqn)) {
-        log.debug(s"Canceling request to close domain: ${domainFqn}")
-        shudownRequests(domainFqn).cancel()
-        shudownRequests.remove(domainFqn)
-      }
-      domainFqnToActor(domainFqn) forward request
-    } else {
-      handleClientOpeningClosedDomain(domainFqn, request)
-    }
-  }
-
-  private[this] def handleClientOpeningClosedDomain(domainFqn: DomainFqn, request: HandshakeRequest): Unit = {
-    openClosedDomain(domainFqn) match {
-      case Success(None) =>
-        log.debug("Client connected to non-existent domain '{}'", domainFqn)
-        sender ! HandshakeFailure("domain_does_not_exists", "The domain does not exist")
-      case Success(Some(domainActor)) =>
-        log.debug("Client connected to unloaded domain '{}', loaded it.", domainFqn)
-        domainActor forward request
-      case Failure(cause) =>
-        log.error(cause, "Unknown error handshaking")
-        sender ! HandshakeFailure("unknown", "unknown error handshaking")
-    }
-  }
-
-  private[this] def openClosedDomain(domainFqn: DomainFqn): Try[Option[ActorRef]] = {
-    domainStore.getDomainByFqn(domainFqn) flatMap {
-      case Some(domainConfig) => {
-        val domainActor = context.actorOf(DomainActor.props(
-          self,
-          domainConfig.domainFqn,
-          protocolConfig,
-          domainShutdownDelay,
-          persistenceManager))
-        actorsToDomainFqn(domainActor) = domainFqn
-        domainFqnToActor(domainFqn) = domainActor
-        Success(Some(domainActor))
-      }
-      case None => Success(None)
-    }
-  }
-
-  private[this] def onDomainShutdownRequest(request: DomainShutdownRequest): Unit = {
-    log.debug(s"Shutdown request received for domain: ${request.domainFqn}")
-    val shutdownTask = context.system.scheduler.scheduleOnce(
-      domainShutdownDelay,
-      self,
-      DomainShutdownApproval(request.domainFqn))
-    this.shudownRequests(request.domainFqn) = shutdownTask
-  }
-
-  private[this] def onDomainShutdownApproval(approval: DomainShutdownApproval): Unit = {
-    // If the map doesn't contain the request, that means that it was canceled
-    if (shudownRequests.contains(approval.domainFqn)) {
-      log.debug(s"Shutdown request approved for domain: ${approval.domainFqn}")
-      val domainFqn = approval.domainFqn
-      log.debug("Shutting down domain '{}'", domainFqn)
-      shudownRequests.remove(approval.domainFqn)
-      val domainActor = domainFqnToActor(domainFqn)
-      domainFqnToActor.remove(domainFqn)
-      actorsToDomainFqn.remove(domainActor)
-      domainActor ! PoisonPill
-    }
   }
 
   override def postStop(): Unit = {
     log.debug("DomainManager shutdown.")
+    chatChannelRegion ! ShardRegion.GracefulShutdown
+    domainReqion ! ShardRegion.GracefulShutdown
+    realtimeModelSharding ! ShardRegion.GracefulShutdown
   }
 }
-
-private case class DomainShutdownApproval(domainFqn: DomainFqn)
