@@ -69,7 +69,6 @@ class ClientActorSpec
         0 seconds))
 
     val props = ClientActor.props(
-      domainManagerActor.ref,
       domainFqn,
       protoConfig,
       IP(ip=InetAddress.getLocalHost),

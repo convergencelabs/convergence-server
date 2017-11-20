@@ -90,7 +90,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
         }
       }
 
-      // FIXME figure out what the partitions and pool size shuold be
+      // FIXME figure out what the partitions and pool size should be
       val dbPool = new OPartitionedDatabasePool(
           fullUri, 
           username, 

@@ -30,7 +30,6 @@ case class IncomingTextMessage(message: String)
 case class OutgoingTextMessage(message: String)
 
 class WebSocketService(
-  private[this] val domainManager: ActorRef,
   private[this] val protocolConfig: ProtocolConfiguration,
   private[this] implicit val fm: Materializer,
   private[this] implicit val system: ActorSystem)
@@ -75,7 +74,6 @@ class WebSocketService(
 
   private[this] def createFlowForConnection(namespace: String, domain: String, remoteAddress: RemoteAddress, ua: String): Flow[IncomingTextMessage, OutgoingTextMessage, Any] = {
     val clientActor = system.actorOf(ClientActor.props(
-      domainManager,
       DomainFqn(namespace, domain),
       protocolConfig,
       remoteAddress,

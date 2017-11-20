@@ -5,7 +5,7 @@ import scala.concurrent.Future
 
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.RestDomainActor.AdminTokenRequest
-import com.convergencelabs.server.domain.RestDomainManagerActor.DomainMessage
+import com.convergencelabs.server.domain.RestDomainManagerActor.DomainRestMessage
 import com.convergencelabs.server.frontend.rest.DomainAdminTokenService.AdminTokenRestResponse
 
 import akka.actor.ActorRef
@@ -47,7 +47,7 @@ class DomainAdminTokenService(
   }
 
   def getAdminToken(domain: DomainFqn, username: String): Future[RestResponse] = {
-    val message = DomainMessage(domain, AdminTokenRequest(username))
+    val message = DomainRestMessage(domain, AdminTokenRequest(username))
     (domainRestActor ? message).mapTo[String] map {
       case token: String => (StatusCodes.OK, AdminTokenRestResponse(token))
     }

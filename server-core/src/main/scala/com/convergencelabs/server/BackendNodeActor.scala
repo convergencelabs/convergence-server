@@ -1,27 +1,15 @@
-package com.convergencelabs.server.domain
+package com.convergencelabs.server
 
-import scala.collection.mutable
-import scala.concurrent.duration.Duration
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-
-import com.convergencelabs.server.ProtocolConfiguration
 import com.convergencelabs.server.datastore.DomainStore
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManager
-
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
-import akka.actor.Cancellable
-import akka.actor.PoisonPill
 import akka.actor.Props
 import akka.cluster.Cluster
-import akka.cluster.sharding.ClusterSharding
 import java.util.concurrent.TimeUnit
 import com.convergencelabs.server.domain.model.ModelPermissionResolver
 import com.convergencelabs.server.domain.model.ModelCreator
-import akka.cluster.sharding.ClusterShardingSettings
 import com.convergencelabs.server.domain.model.RealtimeModelActor
 import scala.concurrent.duration.FiniteDuration
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
@@ -29,21 +17,25 @@ import com.convergencelabs.server.domain.chat.ChatChannelSharding
 import com.convergencelabs.server.domain.model.RealtimeModelSharding
 import com.convergencelabs.server.domain.chat.ChatChannelActor
 import akka.cluster.sharding.ShardRegion
+import akka.actor.actorRef2Scala
+import com.convergencelabs.server.domain.DomainActor
+import com.convergencelabs.server.domain.DomainActorSharding
+import com.convergencelabs.server.domain.chat.ChatChannelActor
 
-object DomainManagerActor {
-  val RelativeActorPath = "domainManager"
+object BackendNodeActor {
+  val RelativeActorPath = "backendNodeActor"
 
   def props(
     domainStore: DomainStore,
     protocolConfig: ProtocolConfiguration,
     persistenceManager: DomainPersistenceManager): Props = Props(
-    new DomainManagerActor(
+    new BackendNodeActor(
       domainStore,
       protocolConfig,
       persistenceManager))
 }
 
-class DomainManagerActor(
+class BackendNodeActor(
   private[this] val domainStore: DomainStore,
   private[this] val protocolConfig: ProtocolConfiguration,
   private[this] val persistenceManager: DomainPersistenceManager)

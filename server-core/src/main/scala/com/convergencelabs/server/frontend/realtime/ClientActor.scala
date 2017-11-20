@@ -35,16 +35,15 @@ import com.convergencelabs.server.domain.AuthenticationRequest
 import akka.http.scaladsl.model.RemoteAddress
 import com.convergencelabs.server.domain.AuthenticationRequest
 import com.convergencelabs.server.domain.HandshakeFailureException
+import com.convergencelabs.server.domain.DomainActorSharding
 
 object ClientActor {
   def props(
-    domainManager: ActorRef,
     domainFqn: DomainFqn,
     protocolConfig: ProtocolConfiguration,
     remoteHost: RemoteAddress,
     userAgent: String): Props = Props(
     new ClientActor(
-      domainManager,
       domainFqn,
       protocolConfig,
       remoteHost,
@@ -52,7 +51,6 @@ object ClientActor {
 }
 
 class ClientActor(
-  private[this] val domainManager: ActorRef,
   private[this] val domainFqn: DomainFqn,
   private[this] val protocolConfig: ProtocolConfiguration,
   private[this] val remoteHost: RemoteAddress,
@@ -96,6 +94,8 @@ class ClientActor(
   private[this] var sessionId: String = _
 
   private[this] var protocolConnection: ProtocolConnection = _
+  
+  private[this] val domainRegion = DomainActorSharding.shardRegion(context.system)
 
   def receive: Receive = receiveWhileConnecting
 
@@ -252,7 +252,7 @@ class ClientActor(
     log.debug("handhsaking with domain")
     val canceled = handshakeTimeoutTask.cancel()
     if (canceled) {
-      val future = domainManager ? HandshakeRequest(domainFqn, self, request.r, request.k)
+      val future = domainRegion ? HandshakeRequest(domainFqn, self, request.r, request.k)
       future.mapResponse[HandshakeSuccess] onComplete {
         case Success(success) => {
           self ! InternalHandshakeSuccess(success, cb)

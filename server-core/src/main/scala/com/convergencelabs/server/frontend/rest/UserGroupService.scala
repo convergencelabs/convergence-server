@@ -16,7 +16,7 @@ import com.convergencelabs.server.datastore.domain.UserGroup
 import com.convergencelabs.server.datastore.domain.UserGroupSummary
 import com.convergencelabs.server.domain.AuthorizationActor.ConvergenceAuthorizedRequest
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.RestDomainManagerActor.DomainMessage
+import com.convergencelabs.server.domain.RestDomainManagerActor.DomainRestMessage
 import com.convergencelabs.server.frontend.rest.UserGroupService.UserGroupData
 
 import akka.actor.ActorRef
@@ -143,11 +143,11 @@ class UserGroupService(
   def getUserGroups(domain: DomainFqn, resultType: Option[String], filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
     resultType.getOrElse("all") match {
       case "all" =>
-        val message = DomainMessage(domain, GetUserGroups(filter, offset, limit))
+        val message = DomainRestMessage(domain, GetUserGroups(filter, offset, limit))
         (domainRestActor ? message).mapTo[List[UserGroup]] map (groups =>
           (StatusCodes.OK, GetUserGroupsResponse(groups.map(groupToUserGroupData(_)))))
       case "summary" =>
-        val message = DomainMessage(domain, GetUserGroupSummaries(None, limit, offset))
+        val message = DomainRestMessage(domain, GetUserGroupSummaries(None, limit, offset))
         (domainRestActor ? message).mapTo[List[UserGroupSummary]] map (groups =>
           (StatusCodes.OK, GetUserGroupSummaryResponse(groups.map { c =>
             val UserGroupSummary(id, desc, count) = c
@@ -159,7 +159,7 @@ class UserGroupService(
   }
 
   def getUserGroup(domain: DomainFqn, groupId: String): Future[RestResponse] = {
-    val message = DomainMessage(domain, GetUserGroup(groupId))
+    val message = DomainRestMessage(domain, GetUserGroup(groupId))
     (domainRestActor ? message).mapTo[Option[UserGroup]] map {
       case Some(group) => (StatusCodes.OK, GetUserGroupResponse(groupToUserGroupData(group)))
       case None => NotFoundError
@@ -167,7 +167,7 @@ class UserGroupService(
   }
 
   def getUserGroupMembers(domain: DomainFqn, groupId: String): Future[RestResponse] = {
-    val message = DomainMessage(domain, GetUserGroup(groupId))
+    val message = DomainRestMessage(domain, GetUserGroup(groupId))
     (domainRestActor ? message).mapTo[Option[UserGroup]] map {
       case Some(UserGroup(_, _, members)) => (StatusCodes.OK, GetUserGroupMembersResponse(members))
       case None => NotFoundError
@@ -175,7 +175,7 @@ class UserGroupService(
   }
 
   def getUserGroupInfo(domain: DomainFqn, groupId: String): Future[RestResponse] = {
-    val message = DomainMessage(domain, GetUserGroupInfo(groupId))
+    val message = DomainRestMessage(domain, GetUserGroupInfo(groupId))
     (domainRestActor ? message).mapTo[Option[UserGroupInfo]] map {
       case Some(UserGroupInfo(id, description)) =>
         (StatusCodes.OK, GetUserGroupInfoResponse(UserGroupInfoData(id, description)))
@@ -187,34 +187,34 @@ class UserGroupService(
   def updateUserGroupInfo(domain: DomainFqn, groupId: String, infoData: UserGroupInfoData): Future[RestResponse] = {
     val UserGroupInfoData(id, description) = infoData
     val info = UserGroupInfo(id, description)
-    val message = DomainMessage(domain, UpdateUserGroupInfo(groupId, info))
+    val message = DomainRestMessage(domain, UpdateUserGroupInfo(groupId, info))
     (domainRestActor ? message).mapTo[Unit] map { _ => OkResponse }
   }
 
   def addUserToGroup(domain: DomainFqn, groupId: String, username: String): Future[RestResponse] = {
-    val message = DomainMessage(domain, AddUserToGroup(groupId, username))
+    val message = DomainRestMessage(domain, AddUserToGroup(groupId, username))
     (domainRestActor ? message).mapTo[Unit] map (_ => OkResponse)
   }
 
   def removeUserFromGroup(domain: DomainFqn, groupId: String, username: String): Future[RestResponse] = {
-    val message = DomainMessage(domain, RemoveUserFromGroup(groupId, username))
+    val message = DomainRestMessage(domain, RemoveUserFromGroup(groupId, username))
     (domainRestActor ? message).mapTo[Unit] map (_ => OkResponse)
   }
 
   def createUserGroup(domain: DomainFqn, groupData: UserGroupData): Future[RestResponse] = {
     val group = this.groupDataToUserGroup(groupData)
-    val message = DomainMessage(domain, CreateUserGroup(group))
+    val message = DomainRestMessage(domain, CreateUserGroup(group))
     (domainRestActor ? message) map { _ => CreateRestResponse }
   }
 
   def updateUserGroup(domain: DomainFqn, groupId: String, groupData: UserGroupData): Future[RestResponse] = {
     val group = this.groupDataToUserGroup(groupData)
-    val message = DomainMessage(domain, UpdateUserGroup(groupId, group))
+    val message = DomainRestMessage(domain, UpdateUserGroup(groupId, group))
     (domainRestActor ? message) map { _ => OkResponse }
   }
 
   def deleteUserGroup(domain: DomainFqn, groupId: String): Future[RestResponse] = {
-    val message = DomainMessage(domain, DeleteUserGroup(groupId))
+    val message = DomainRestMessage(domain, DeleteUserGroup(groupId))
     (domainRestActor ? message) map { _ => OkResponse }
   }
 

@@ -24,7 +24,7 @@ import com.convergencelabs.server.datastore.domain.ModelDataGenerator
 import com.convergencelabs.server.datastore.domain.ModelPermissions
 import com.convergencelabs.server.domain.AuthorizationActor.ConvergenceAuthorizedRequest
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.RestDomainManagerActor.DomainMessage
+import com.convergencelabs.server.domain.RestDomainManagerActor.DomainRestMessage
 import com.convergencelabs.server.domain.model.CreateOrUpdateRealtimeModel
 import com.convergencelabs.server.domain.model.CreateRealtimeModel
 import com.convergencelabs.server.domain.model.DeleteRealtimeModel
@@ -184,7 +184,7 @@ class DomainModelService(
   }
 
   def getModels(domain: DomainFqn): Future[RestResponse] = {
-    val message = DomainMessage(domain, GetModels(None, None))
+    val message = DomainRestMessage(domain, GetModels(None, None))
     (domainRestActor ? message).mapTo[List[ModelMetaData]] map {
       _.map(mapMetaData(_))
     } map {
@@ -193,7 +193,7 @@ class DomainModelService(
   }
 
   def getModelInCollection(domain: DomainFqn, collectionId: String): Future[RestResponse] = {
-    val message = DomainMessage(domain, GetModelsInCollection(collectionId, None, None))
+    val message = DomainRestMessage(domain, GetModelsInCollection(collectionId, None, None))
     (domainRestActor ? message).mapTo[List[ModelMetaData]] map {
       _.map(mapMetaData(_))
     } map {
@@ -211,7 +211,7 @@ class DomainModelService(
   }
 
   def getModel(domain: DomainFqn, modelId: String): Future[RestResponse] = {
-    val message = DomainMessage(domain, GetRealtimeModel(domain, modelId, None))
+    val message = DomainRestMessage(domain, GetRealtimeModel(domain, modelId, None))
     (domainRestActor ? message).mapTo[Option[Model]] map {
       case Some(model) =>
         val mr = ModelResponse(
@@ -257,7 +257,7 @@ class DomainModelService(
   // Model Permissions
 
   def getModelOverridesPermissions(domain: DomainFqn, modelId: String): Future[RestResponse] = {
-    val message = DomainMessage(domain, GetModelOverridesPermissions(modelId))
+    val message = DomainRestMessage(domain, GetModelOverridesPermissions(modelId))
     (domainRestActor ? message).mapTo[Boolean] map {
       overridesPermissions =>
         (StatusCodes.OK, GetModelOverridesPermissionsResponse(overridesPermissions))
@@ -266,12 +266,12 @@ class DomainModelService(
 
   def setModelOverridesPermissions(domain: DomainFqn, modelId: String, overridesPermissions: SetOverrideWorldRequest): Future[RestResponse] = {
     val SetOverrideWorldRequest(overrideWorld) = overridesPermissions
-    val message = DomainMessage(domain, SetModelOverridesPermissions(modelId, overrideWorld))
+    val message = DomainRestMessage(domain, SetModelOverridesPermissions(modelId, overrideWorld))
     (domainRestActor ? message) map { _ => OkResponse }
   }
 
   def getModelPermissions(domain: DomainFqn, modelId: String): Future[RestResponse] = {
-    val message = DomainMessage(domain, GetModelPermissions(modelId))
+    val message = DomainRestMessage(domain, GetModelPermissions(modelId))
     (domainRestActor ? message).mapTo[ModelPermissionsResponse] map {
       response =>
         val ModelPermissionsResponse(overridePermissions, world, users) = response
@@ -280,7 +280,7 @@ class DomainModelService(
   }
 
   def getModelWorldPermissions(domain: DomainFqn, modelId: String): Future[RestResponse] = {
-    val message = DomainMessage(domain, GetModelWorldPermissions(modelId))
+    val message = DomainRestMessage(domain, GetModelWorldPermissions(modelId))
     (domainRestActor ? message).mapTo[ModelPermissions] map {
       permissions =>
         (StatusCodes.OK, GetPermissionsResponse(Some(permissions)))
@@ -288,12 +288,12 @@ class DomainModelService(
   }
 
   def setModelWorldPermissions(domain: DomainFqn, modelId: String, permissions: ModelPermissions): Future[RestResponse] = {
-    val message = DomainMessage(domain, SetModelWorldPermissions(modelId, permissions))
+    val message = DomainRestMessage(domain, SetModelWorldPermissions(modelId, permissions))
     (domainRestActor ? message) map { _ => OkResponse }
   }
 
   def getAllModelUserPermissions(domain: DomainFqn, modelId: String): Future[RestResponse] = {
-    val message = DomainMessage(domain, GetAllModelUserPermissions(modelId))
+    val message = DomainRestMessage(domain, GetAllModelUserPermissions(modelId))
     (domainRestActor ? message).mapTo[List[ModelUserPermissions]] map {
       permissions =>
         (StatusCodes.OK, GetAllUserPermissionsResponse(permissions))
@@ -301,7 +301,7 @@ class DomainModelService(
   }
 
   def getModelUserPermissions(domain: DomainFqn, modelId: String, username: String): Future[RestResponse] = {
-    val message = DomainMessage(domain, GetModelUserPermissions(modelId, username))
+    val message = DomainRestMessage(domain, GetModelUserPermissions(modelId, username))
     (domainRestActor ? message).mapTo[Option[ModelPermissions]] map {
       permissions =>
         (StatusCodes.OK, GetPermissionsResponse(permissions))
@@ -309,12 +309,12 @@ class DomainModelService(
   }
 
   def setModelUserPermissions(domain: DomainFqn, modelId: String, username: String, permissions: ModelPermissions): Future[RestResponse] = {
-    val message = DomainMessage(domain, SetModelUserPermissions(modelId, username, permissions))
+    val message = DomainRestMessage(domain, SetModelUserPermissions(modelId, username, permissions))
     (domainRestActor ? message) map { _ => OkResponse }
   }
 
   def removeModelUserPermissions(domain: DomainFqn, modelId: String, username: String): Future[RestResponse] = {
-    val message = DomainMessage(domain, RemoveModelUserPermissions(modelId, username))
+    val message = DomainRestMessage(domain, RemoveModelUserPermissions(modelId, username))
     (domainRestActor ? message) map { _ => OkResponse }
   }
 

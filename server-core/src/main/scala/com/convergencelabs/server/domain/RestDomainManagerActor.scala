@@ -10,9 +10,6 @@ import scala.util.Success
 import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.datastore.DomainStore
 import com.convergencelabs.server.domain.RestDomainActor.Shutdown
-import com.convergencelabs.server.domain.RestDomainManagerActor.DomainMessage
-import com.convergencelabs.server.domain.RestDomainManagerActor.ScheduledShutdown
-import com.convergencelabs.server.domain.RestDomainManagerActor.ShutdownDomain
 
 import akka.actor.Actor
 import akka.actor.ActorLogging
@@ -27,13 +24,15 @@ object RestDomainManagerActor {
 
   val RelativeActorPath = "restDomainManager"
 
-  case class DomainMessage(domainFqn: DomainFqn, message: Any)
+  case class DomainRestMessage(domainFqn: DomainFqn, message: Any)
   case class ScheduledShutdown(cancellable: Cancellable, lastMessageTime: Instant)
   case class ShutdownDomain(domainFqn: DomainFqn)
 }
 
 class RestDomainManagerActor(dbProvider: DatabaseProvider)
     extends Actor with ActorLogging {
+  
+  import RestDomainManagerActor._
 
   private[this] val cluster = Cluster(context.system)
   private[this] implicit val ec = context.dispatcher
@@ -48,12 +47,12 @@ class RestDomainManagerActor(dbProvider: DatabaseProvider)
   private[this] val scheduledShutdowns = mutable.Map[DomainFqn, ScheduledShutdown]()
 
   def receive: Receive = {
-    case message: DomainMessage => onDomainMessage(message)
+    case message: DomainRestMessage => onDomainMessage(message)
     case message: ShutdownDomain => onShutdownDomain(message)
     case message: Any => unhandled(message)
   }
 
-  private[this] def onDomainMessage(message: DomainMessage): Unit = {
+  private[this] def onDomainMessage(message: DomainRestMessage): Unit = {
     val domainFqn = message.domainFqn
     if (domainFqnToActor.contains(domainFqn)) {
       scheduledShutdowns(domainFqn).cancellable.cancel()

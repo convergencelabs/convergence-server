@@ -81,7 +81,7 @@ class DomainPersistenceManagerActor(
   }
 
   private[this] def onAcquire(domainFqn: DomainFqn, requestor: ActorRef): Unit = {
-    log.debug(s"Acquiring domain persistence for ${domainFqn} by ${requestor.path}")
+    log.debug(s"Acquiring domain persistence for ${domainFqn} for ${requestor.path}")
     val p = providers.get(domainFqn) match {
       case Some(provider) => Success(provider)
       case None => createProvider(domainFqn)
@@ -110,7 +110,7 @@ class DomainPersistenceManagerActor(
   }
 
   private[this] def onRelease(domainFqn: DomainFqn): Unit = {
-    log.debug(s"Releasing domain persistence: ${domainFqn}")
+    log.debug(s"Releasing domain persistence for ${domainFqn} for ${sender.path}")
     decrementCount(domainFqn)
 
     providersByActor.get(sender) match {

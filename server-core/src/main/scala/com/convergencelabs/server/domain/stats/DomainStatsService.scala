@@ -5,7 +5,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.RestDomainManagerActor.DomainMessage
+import com.convergencelabs.server.domain.RestDomainManagerActor.DomainRestMessage
 import com.convergencelabs.server.domain.stats.DomainStatsActor.DomainStats
 import com.convergencelabs.server.domain.stats.DomainStatsActor.GetStats
 import com.convergencelabs.server.frontend.rest.DomainStatsService.GetStatsResponse
@@ -50,7 +50,7 @@ class DomainStatsService(
   }
 
   def getStats(domain: DomainFqn): Future[RestResponse] = {
-    (domainRestActor ? DomainMessage(domain, GetStats)).mapTo[DomainStats] map 
+    (domainRestActor ? DomainRestMessage(domain, GetStats)).mapTo[DomainStats] map 
     (stats => (StatusCodes.OK, GetStatsResponse(stats)))
   }
 }

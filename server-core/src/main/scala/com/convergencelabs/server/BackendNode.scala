@@ -5,13 +5,16 @@ import scala.language.postfixOps
 import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.datastore.DomainStore
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
-import com.convergencelabs.server.domain.DomainManagerActor
 
+import akka.actor.ActorRef
 import akka.actor.ActorSystem
+import akka.actor.PoisonPill
 import grizzled.slf4j.Logging
 
 class BackendNode(system: ActorSystem, dbProvider: DatabaseProvider) extends Logging {
 
+  var actor: Option[ActorRef] = None
+  
   def start(): Unit = {
     logger.info("Backend Node starting up.")
 
@@ -21,17 +24,16 @@ class BackendNode(system: ActorSystem, dbProvider: DatabaseProvider) extends Log
 
     val protocolConfig = ProtocolConfigUtil.loadConfig(system.settings.config)
 
-    system.actorOf(DomainManagerActor.props(
+    actor = Some(system.actorOf(BackendNodeActor.props(
       domainStore,
       protocolConfig,
       DomainPersistenceManagerActor),
-      DomainManagerActor.RelativeActorPath)
-
+      BackendNodeActor.RelativeActorPath))
 
     logger.info("Backend Node started up.")
   }
 
   def stop(): Unit = {
-
+    actor.foreach(_ ! PoisonPill)
   }
 }

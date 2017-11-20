@@ -13,7 +13,7 @@ import com.convergencelabs.server.datastore.domain.DomainSession
 import com.convergencelabs.server.datastore.domain.SessionStore.SessionQueryType
 import com.convergencelabs.server.domain.AuthorizationActor.ConvergenceAuthorizedRequest
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.RestDomainManagerActor.DomainMessage
+import com.convergencelabs.server.domain.RestDomainManagerActor.DomainRestMessage
 import com.convergencelabs.server.frontend.rest.DomainSessionService.DomainSessionData
 import com.convergencelabs.server.frontend.rest.DomainSessionService.GetSessionResponse
 import com.convergencelabs.server.frontend.rest.DomainSessionService.GetSessionsResponse
@@ -127,13 +127,13 @@ class DomainSessionService(
       st,
       limit,
       offset)
-    val message = DomainMessage(domain, getMessage)
+    val message = DomainRestMessage(domain, getMessage)
     (domainRestActor ? message).mapTo[List[DomainSession]] map (sessions =>
       (StatusCodes.OK, GetSessionsResponse(sessions.map(sessionToSessionData(_)))))
   }
 
   def getSession(domain: DomainFqn, sessionId: String): Future[RestResponse] = {
-    val message = DomainMessage(domain, GetSession(sessionId))
+    val message = DomainRestMessage(domain, GetSession(sessionId))
     (domainRestActor ? message).mapTo[Option[DomainSession]] map {
       case Some(sessions) => (StatusCodes.OK, GetSessionResponse(sessionToSessionData(sessions)))
       case None => NotFoundError

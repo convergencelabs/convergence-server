@@ -11,7 +11,7 @@ import com.convergencelabs.server.datastore.UserStoreActor.SetPassword
 import com.convergencelabs.server.datastore.UserStoreActor.UpdateUser
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.DomainUser
-import com.convergencelabs.server.domain.RestDomainManagerActor.DomainMessage
+import com.convergencelabs.server.domain.RestDomainManagerActor.DomainRestMessage
 import com.convergencelabs.server.frontend.rest.DomainUserService.CreateUserRequest
 import com.convergencelabs.server.frontend.rest.DomainUserService.CreateUserResponse
 import com.convergencelabs.server.frontend.rest.DomainUserService.GetUserRestResponse

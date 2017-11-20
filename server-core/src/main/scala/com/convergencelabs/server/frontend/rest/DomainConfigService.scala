@@ -5,7 +5,7 @@ import scala.concurrent.Future
 
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.DomainUser
-import com.convergencelabs.server.domain.RestDomainManagerActor.DomainMessage
+import com.convergencelabs.server.domain.RestDomainManagerActor.DomainRestMessage
 
 import DomainUserService.GetUsersRestResponse
 import akka.actor.ActorRef
@@ -101,18 +101,18 @@ class DomainConfigService(
   }
 
   def getAnonymousAuthEnabled(domain: DomainFqn): Future[RestResponse] = {
-    val message = DomainMessage(domain, GetAnonymousAuth)
+    val message = DomainRestMessage(domain, GetAnonymousAuth)
     (domainRestActor ? message).mapTo[Boolean] map
       (enabled => (StatusCodes.OK, AnonymousAuthResponse(enabled)))
   }
 
   def setAnonymousAuthEnabled(domain: DomainFqn, request: AnonymousAuthPut): Future[RestResponse] = {
-    val message = DomainMessage(domain, SetAnonymousAuth(request.enabled))
+    val message = DomainRestMessage(domain, SetAnonymousAuth(request.enabled))
     (domainRestActor ? message) map (_ => OkResponse)
   }
 
   def getModelSnapshotPolicy(domain: DomainFqn): Future[RestResponse] = {
-    val message = DomainMessage(domain, GetModelSnapshotPolicy)
+    val message = DomainRestMessage(domain, GetModelSnapshotPolicy)
     (domainRestActor ? message).mapTo[ModelSnapshotConfig] map { config =>
       val ModelSnapshotConfig(
         snapshotsEnabled,
@@ -164,7 +164,7 @@ class DomainConfigService(
           Duration.ofMillis(maximumTimeInterval)
           )
   
-    val message = DomainMessage(domain, SetModelSnapshotPolicy(policy))
+    val message = DomainRestMessage(domain, SetModelSnapshotPolicy(policy))
     (domainRestActor ? message) map (_ => OkResponse)
   }
 
