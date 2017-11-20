@@ -86,6 +86,8 @@ class DomainActor(
   private[this] def receiveUninitialized: Receive = {
     case msg: DomainMessage =>
       initialize(msg).map(_ => receiveInitialized(msg))
+    case ReceiveTimeout =>
+      passivate()
     case unknown: Any =>
       unhandled(unknown)
   }
@@ -99,6 +101,8 @@ class DomainActor(
       onClientDisconnect(message)
     case Terminated(client) =>
       handleDeathWatch(client)
+    case ReceiveTimeout =>
+      passivate()
     case message: Any =>
       unhandled(message)
   }
@@ -196,8 +200,6 @@ class DomainActor(
     }
     if (connectedClients.isEmpty) {
       log.debug(s"Last client disconnected from domain: ${domainFqn}")
-      context.parent ! Passivate(stopMessage = PoisonPill)
-      this.context.become(receivePassivating)
       this.context.setReceiveTimeout(this.receiveTimeout)
     }
   }
@@ -268,12 +270,15 @@ class DomainActor(
     throw new IllegalStateException("Can not access children before the domain is initialized.")
   }
 
+  def passivate(): Unit = {
+    context.parent ! Passivate(stopMessage = PoisonPill)
+    this.context.become(receivePassivating)
+    domainPersistenceManager.releasePersistenceProvider(self, context, domainFqn)
+  }
+
   override def postStop(): Unit = {
     this._domainFqn.foreach { d =>
-      log.debug(s"DomainActor shutting down: {}", d)
-      domainPersistenceManager.releasePersistenceProvider(self, context, d)
+      log.debug(s"DomainActor shut down: {}", d)
     }
   }
 }
-
-
