@@ -85,7 +85,6 @@ case class OpenModelSuccess(
     
 case class GetModelPermissionsResponse(overridesCollection: Boolean, worlPermissions: ModelPermissions, userPermissions: Map[String, ModelPermissions])
 
-
 trait RealtimeModelClientMessage {
   val modelId: String
 }

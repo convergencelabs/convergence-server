@@ -15,6 +15,8 @@ import com.convergencelabs.server.domain.chat.ChatChannelMessages.ExistingChanne
 
 object ChatChannelSharding {
   val RegionName = "ChatChannelShardRegion"
+  val ClusterRoleName = "backend"
+  
   def shardRegion(system: ActorSystem) = ClusterSharding(system).shardRegion(RegionName)
   
   def start(system: ActorSystem, shards: Int, props: Props): ActorRef = {
@@ -22,7 +24,7 @@ object ChatChannelSharding {
     ClusterSharding(system).start(
       typeName = ChatChannelSharding.RegionName,
       entityProps = props,
-      settings = ClusterShardingSettings(system),
+      settings = ClusterShardingSettings(system).withRole(ClusterRoleName),
       extractEntityId = config.extractEntityId,
       extractShardId = config.extractShardId)
   }
@@ -31,7 +33,7 @@ object ChatChannelSharding {
     val config = new ChatChannelSharding(shards)
     ClusterSharding(system).startProxy(
       typeName = ChatChannelSharding.RegionName,
-      role = None,
+      role = Some("backend"),
       extractEntityId = config.extractEntityId,
       extractShardId = config.extractShardId)
   }

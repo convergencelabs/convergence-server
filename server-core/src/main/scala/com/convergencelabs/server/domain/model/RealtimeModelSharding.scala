@@ -12,13 +12,15 @@ import java.util.concurrent.TimeUnit
 
 object RealtimeModelSharding {
   val RegionName = "RealtimeModelShard"
+  val ClusterRoleName = "backend"
+  
   def shardRegion(system: ActorSystem) = ClusterSharding(system).shardRegion(RegionName)
   def start(system: ActorSystem, shards: Int, props: Props): ActorRef = {
     val config = new RealtimeModelSharding(shards)
     ClusterSharding(system).start(
       typeName = RealtimeModelSharding.RegionName,
       entityProps = props,
-      settings = ClusterShardingSettings(system),
+      settings = ClusterShardingSettings(system).withRole(ClusterRoleName),
       extractEntityId = config.extractEntityId,
       extractShardId = config.extractShardId)
   }
@@ -26,7 +28,7 @@ object RealtimeModelSharding {
     val config = new RealtimeModelSharding(shards)
     ClusterSharding(system).startProxy(
       typeName = RealtimeModelSharding.RegionName,
-      role = None,
+      role = Some(ClusterRoleName),
       extractEntityId = config.extractEntityId,
       extractShardId = config.extractShardId)
   }
