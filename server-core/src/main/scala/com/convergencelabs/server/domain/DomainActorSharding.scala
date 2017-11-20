@@ -24,7 +24,7 @@ object DomainActorSharding {
     val config = new DomainActorSharding(shards)
     ClusterSharding(system).startProxy(
       typeName = DomainActorSharding.RegionName,
-      role = None,
+      role = Some("backend"),
       extractEntityId = config.extractEntityId,
       extractShardId = config.extractShardId)
   }

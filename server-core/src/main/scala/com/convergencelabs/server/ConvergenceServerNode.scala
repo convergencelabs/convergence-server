@@ -70,14 +70,17 @@ object ConvergenceServerNode extends Logging {
 
 class ConvergenceServerNode(private[this] val config: Config) extends Logging {
 
-  var system: Option[ActorSystem] = None
-  var cluster: Option[Cluster] = None
+  private[this] var system: Option[ActorSystem] = None
+  private[this] var cluster: Option[Cluster] = None
+  private[this] var backend: Option[BackendNode] = None
+  private[this] var rest: Option[ConvergenceRestFrontEnd] = None
+  private[this] var realtime: Option[ConvergenceRealTimeFrontend] = None
 
   def start(): Unit = {
     val system = ActorSystem(ConvergenceServerNode.ActorSystemName, config)
     val cluster = Cluster(system)
     this.cluster = Some(cluster)
-
+    
     system.actorOf(Props(new SimpleClusterListener(cluster)), name = "clusterListener")
 
     val roles = config.getAnyRefList("akka.cluster.roles").asScala.toList
@@ -119,6 +122,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
         info("Starting up backend node.")
         val backend = new BackendNode(system, dbProvider)
         backend.start()
+        this.backend = Some(backend)
       } else {
         // TODO Re-factor This
         val shards = 100
@@ -133,6 +137,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
         val port = config.getInt("convergence.rest.port")
         val restFrontEnd = new ConvergenceRestFrontEnd(system, host, port, dbProvider)
         restFrontEnd.start()
+        this.rest = Some(restFrontEnd)
       }
     }
 
@@ -142,12 +147,13 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
       val port = config.getInt("convergence.websocket.port")
       val realTimeFrontEnd = new ConvergenceRealTimeFrontend(system, host, port)
       realTimeFrontEnd.start()
+      this.realtime = Some(realTimeFrontEnd)
     }
 
     this.system = Some(system)
   }
 
-  def bootstrapConvergenceDB(
+  private[this] def bootstrapConvergenceDB(
     uri: String,
     convergenceDbConfig: Config,
     orientDbConfig: Config): Try[Unit] = Try {
@@ -218,7 +224,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
     ()
   }
 
-  def attemptConnect(uri: String, adminUser: String, adminPassword: String, retryDelay: Duration) = {
+  private[this] def attemptConnect(uri: String, adminUser: String, adminPassword: String, retryDelay: Duration) = {
     Try(new OServerAdmin(uri).connect(adminUser, adminPassword)) match {
       case Success(serverAdmin) =>
         Some(serverAdmin)
@@ -238,8 +244,11 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
     }
 
     cluster.foreach(c => c.leave(c.selfAddress))
+    
+    this.backend.foreach(backend => backend.stop())
+    this.rest.foreach(rest => rest.stop())
+    this.realtime.foreach(realtime => realtime.stop())
   }
-
 }
 
 private class SimpleClusterListener(cluster: Cluster) extends Actor with ActorLogging {

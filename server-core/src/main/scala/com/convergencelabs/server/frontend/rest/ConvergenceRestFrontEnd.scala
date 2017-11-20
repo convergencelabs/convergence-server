@@ -47,6 +47,8 @@ import akka.util.Timeout
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import grizzled.slf4j.Logging
+import scala.util.Success
+import scala.util.Failure
 
 object ConvergenceRestFrontEnd {
   val ConvergenceCorsSettings = CorsSettings.defaultSettings.copy(
@@ -70,6 +72,8 @@ class ConvergenceRestFrontEnd(
   implicit val materializer = ActorMaterializer()
   implicit val ec = system.dispatcher
   implicit val defaultRequestTimeout = Timeout(20 seconds)
+  
+  var binding: Option[Http.ServerBinding] = None
   
   private[this] val modelClusterRegion: ActorRef = RealtimeModelSharding.shardRegion(system)
 
@@ -176,7 +180,18 @@ class ConvergenceRestFrontEnd(
     }
 
     // Now we start up the server
-    val bindingFuture = Http().bindAndHandle(route, interface, port)
-    logger.info(s"Convergence Rest Front End listening at http://${interface}:${port}/")
+    val bindingFuture = Http().bindAndHandle(route, interface, port).onComplete {
+      case Success(b) ⇒
+        this.binding = Some(b)
+        val localAddress = b.localAddress
+        logger.info(s"Rest Front End started up on port http://${interface}:${port}.")
+      case Failure(e) ⇒
+        logger.info(s"Rest Front End Binding failed with ${e.getMessage}")
+        system.terminate()
+    }
+  }
+  
+  def stop(): Unit = {
+    this.binding foreach { b => b.unbind() } 
   }
 }

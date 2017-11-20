@@ -8,5 +8,6 @@
   <Loggers>
     <Root level="warn"><AppenderRef ref="Console"/></Root>
     <Logger name="com.convergencelabs" level="debug" />
+    <Logger name="akka.cluster" level="trace" />
   </Loggers>
 </Configuration>

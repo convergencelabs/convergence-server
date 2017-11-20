@@ -52,9 +52,6 @@ class ConvergenceRealTimeFrontend(
   }
 
   def stop(): Unit = {
-    this.binding match {
-      case Some(binding) => binding.unbind()
-      case None =>
-    }
+    this.binding foreach { b => b.unbind() } 
   }
 }
