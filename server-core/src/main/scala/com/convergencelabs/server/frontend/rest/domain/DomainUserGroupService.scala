@@ -20,7 +20,7 @@ import com.convergencelabs.server.datastore.domain.UserGroupSummary
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.rest.AuthorizationActor.ConvergenceAuthorizedRequest
 import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
-import com.convergencelabs.server.frontend.rest.UserGroupService.UserGroupData
+import com.convergencelabs.server.frontend.rest.DomainUserGroupService.UserGroupData
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
@@ -46,7 +46,7 @@ import akka.http.scaladsl.server.PathMatchers.Segment
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 
-object UserGroupService {
+object DomainUserGroupService {
   case class GetUserGroupsResponse(groups: List[UserGroupData]) extends AbstractSuccessResponse
   case class GetUserGroupResponse(group: UserGroupData) extends AbstractSuccessResponse
   case class GetUserGroupInfoResponse(group: UserGroupInfoData) extends AbstractSuccessResponse
@@ -59,18 +59,15 @@ object UserGroupService {
   case class UserGroupInfoData(id: String, description: String)
 }
 
-class UserGroupService(
+class DomainUserGroupService(
   private[this] val executionContext: ExecutionContext,
-  private[this] val authorizationActor: ActorRef,
-  private[this] val domainRestActor: ActorRef,
-  private[this] val defaultTimeout: Timeout)
-    extends JsonSupport {
+  private[this] val timeout: Timeout,
+  private[this] val authActor: ActorRef,
+  private[this] val domainRestActor: ActorRef)
+    extends DomainRestService(executionContext, timeout, authActor) {
 
-  import UserGroupService._
+  import DomainUserGroupService._
   import akka.pattern.ask
-
-  implicit val ec = executionContext
-  implicit val t = defaultTimeout
 
   def route(username: String, domain: DomainFqn): Route = {
     pathPrefix("groups") {
@@ -216,12 +213,6 @@ class UserGroupService(
   def deleteUserGroup(domain: DomainFqn, groupId: String): Future[RestResponse] = {
     val message = DomainRestMessage(domain, DeleteUserGroup(groupId))
     (domainRestActor ? message) map { _ => OkResponse }
-  }
-
-  // Permission Checks
-
-  def canAccessDomain(domainFqn: DomainFqn, username: String): Future[Boolean] = {
-    (authorizationActor ? ConvergenceAuthorizedRequest(username, domainFqn, Set("domain-access"))).mapTo[Try[Boolean]].map(_.get)
   }
 
   def groupDataToUserGroup(groupData: UserGroupData): UserGroup = {

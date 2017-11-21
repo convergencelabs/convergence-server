@@ -1,42 +1,45 @@
-package com.convergencelabs.server.frontend.rest
+package com.convergencelabs.server.frontend.rest.domain
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
+import scala.util.Try
 
 import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.rest.AuthorizationActor.ConvergenceAuthorizedRequest
 import com.convergencelabs.server.domain.rest.RestDomainActor.AdminTokenRequest
-import com.convergencelabs.server.frontend.rest.DomainAdminTokenService.AdminTokenRestResponse
+import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
+import com.convergencelabs.server.frontend.rest.AbstractSuccessResponse
+import com.convergencelabs.server.frontend.rest.JsonSupport
+import com.convergencelabs.server.frontend.rest.RestResponse
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
+import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
 import akka.http.scaladsl.server.Directives.authorizeAsync
-import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.server.Directives.complete
+import akka.http.scaladsl.server.Directives.get
+import akka.http.scaladsl.server.Directives.pathEnd
+import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Route
-import akka.pattern.ask
 import akka.util.Timeout
-import scala.util.Try
-import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
-import com.convergencelabs.server.domain.rest.AuthorizationActor.ConvergenceAuthorizedRequest
+import com.convergencelabs.server.frontend.rest.DomainRestService
 
 object DomainAdminTokenService {
   case class AdminTokenRestResponse(token: String) extends AbstractSuccessResponse
 }
 
 class DomainAdminTokenService(
-  private[this] val executionContext: ExecutionContext,
-  private[this] val authorizationActor: ActorRef,
-  private[this] val domainRestActor: ActorRef,
-  private[this] val defaultTimeout: Timeout)
-    extends JsonSupport {
+  executionContext: ExecutionContext,
+  timeout: Timeout,
+  authActor: ActorRef,
+  private[this] val domainRestActor: ActorRef)
+    extends DomainRestService(executionContext, timeout, authActor) {
 
   import DomainAdminTokenService._
   import akka.pattern.ask
   
-  implicit val ec = executionContext
-  implicit val t = defaultTimeout
-
   def route(username: String, domain: DomainFqn): Route = {
     pathPrefix("adminToken") {
       pathEnd {
@@ -54,11 +57,5 @@ class DomainAdminTokenService(
     (domainRestActor ? message).mapTo[String] map {
       case token: String => (StatusCodes.OK, AdminTokenRestResponse(token))
     }
-  }
-
-  // Permission Checks
-
-  def canAccessDomain(domainFqn: DomainFqn, username: String): Future[Boolean] = {
-    (authorizationActor ? ConvergenceAuthorizedRequest(username, domainFqn, Set("domain-access"))).mapTo[Try[Boolean]].map(_.get)
   }
 }

@@ -94,17 +94,15 @@ object DomainModelService {
 
 class DomainModelService(
   private[this] val executionContext: ExecutionContext,
-  private[this] val authorizationActor: ActorRef,
+  private[this] val timeout: Timeout,
+  private[this] val authActor: ActorRef,
   private[this] val domainRestActor: ActorRef,
-  private[this] val modelClusterRegion: ActorRef,
-  private[this] val defaultTimeout: Timeout)
-    extends JsonSupport {
+  private[this] val modelClusterRegion: ActorRef)
+    extends DomainRestService(executionContext, timeout, authActor) {
   
   import DomainModelService._
+  
   import akka.pattern.ask
-
-  implicit val ec = executionContext
-  implicit val t = defaultTimeout
 
   def route(username: String, domain: DomainFqn): Route = {
     pathPrefix("models") {
@@ -311,11 +309,5 @@ class DomainModelService(
   def removeModelUserPermissions(domain: DomainFqn, modelId: String, username: String): Future[RestResponse] = {
     val message = DomainRestMessage(domain, RemoveModelUserPermissions(modelId, username))
     (domainRestActor ? message) map { _ => OkResponse }
-  }
-
-  // Permission Checks
-
-  def canAccessDomain(domainFqn: DomainFqn, username: String): Future[Boolean] = {
-    (authorizationActor ? ConvergenceAuthorizedRequest(username, domainFqn, Set("domain-access"))).mapTo[Try[Boolean]].map(_.get)
   }
 }

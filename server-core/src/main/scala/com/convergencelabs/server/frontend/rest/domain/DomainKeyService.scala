@@ -47,16 +47,13 @@ object DomainKeyService {
 
 class DomainKeyService(
   private[this] val executionContext: ExecutionContext,
-  private[this] val authorizationActor: ActorRef,
-  private[this] val domainRestActor: ActorRef,
-  private[this] val defaultTimeout: Timeout)
-    extends JsonSupport {
+  private[this] val timeout: Timeout,
+  private[this] val authActor: ActorRef,
+  private[this] val domainRestActor: ActorRef)
+    extends DomainRestService(executionContext, timeout, authActor) {
 
   import akka.pattern.ask
   
-  implicit val ec = executionContext
-  implicit val t = defaultTimeout
-
   def route(username: String, domain: DomainFqn): Route = {
     pathPrefix("keys") {
       pathEnd {
@@ -122,11 +119,5 @@ class DomainKeyService(
     (domainRestActor ? DomainRestMessage(domain, DeleteDomainApiKey(keyId))) map { _ =>
       OkResponse
     }
-  }
-
-  // Permission Checks
-
-  def canAccessDomain(domainFqn: DomainFqn, username: String): Future[Boolean] = {
-    (authorizationActor ? ConvergenceAuthorizedRequest(username, domainFqn, Set("domain-access"))).mapTo[Try[Boolean]].map(_.get)
   }
 }

@@ -37,6 +37,8 @@ import akka.http.scaladsl.server.directives.OnSuccessMagnet.apply
 import akka.pattern.ask
 import akka.util.Timeout
 import scala.util.Try
+import com.convergencelabs.server.frontend.rest.domain.DomainAdminTokenService
+import com.convergencelabs.server.frontend.rest.domain.DomainStatsService
 
 object DomainService {
   case class DomainsResponse(domains: List[DomainInfo]) extends AbstractSuccessResponse
@@ -68,16 +70,16 @@ class DomainService(
   implicit val ec = executionContext
   implicit val t = defaultTimeout
 
-  val domainConfigService = new DomainConfigService(ec, authorizationActor, domainManagerActor, t)
-  val domainUserService = new DomainUserService(ec, authorizationActor, domainManagerActor, t)
-  val domainUserGroupService = new UserGroupService(ec, authorizationActor, domainManagerActor, t)
-  val domainStatsService = new DomainStatsService(ec, authorizationActor, domainManagerActor, t)
-  val domainCollectionService = new DomainCollectionService(ec, authorizationActor, domainManagerActor, t)
-  val domainSessionService = new DomainSessionService(ec, authorizationActor, domainManagerActor, t)
-  val domainModelService = new DomainModelService(ec, authorizationActor, domainManagerActor, modelClusterRegion, t)
-  val domainKeyService = new DomainKeyService(ec, authorizationActor, domainManagerActor, t)
-  val domainAdminTokenService = new DomainAdminTokenService(ec, authorizationActor, domainManagerActor, t)
-  val domainSecurityService = new DomainSecurityService(ec, authorizationActor, permissionStoreActor, t)
+  val domainConfigService = new DomainConfigService(ec, t, authorizationActor, domainManagerActor)
+  val domainUserService = new DomainUserService(ec, t, authorizationActor, domainManagerActor)
+  val domainUserGroupService = new DomainUserGroupService(ec, t, authorizationActor, domainManagerActor)
+  val domainStatsService = new DomainStatsService(ec, t, authorizationActor, domainManagerActor)
+  val domainCollectionService = new DomainCollectionService(ec, t, authorizationActor, domainManagerActor)
+  val domainSessionService = new DomainSessionService(ec, t, authorizationActor, domainManagerActor)
+  val domainModelService = new DomainModelService(ec, t, authorizationActor, domainManagerActor, modelClusterRegion)
+  val domainKeyService = new DomainKeyService(ec, t, authorizationActor, domainManagerActor)
+  val domainAdminTokenService = new DomainAdminTokenService(ec, t, authorizationActor, domainManagerActor)
+  val domainSecurityService = new DomainSecurityService(ec, t, authorizationActor, permissionStoreActor)
 
   val route = { username: String =>
     pathPrefix("domains") {

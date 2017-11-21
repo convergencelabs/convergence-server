@@ -18,7 +18,6 @@ import com.convergencelabs.server.domain.rest.AuthorizationActor.ConvergenceAuth
 import com.convergencelabs.server.datastore.domain.SessionStoreActor.GetSession
 import com.convergencelabs.server.datastore.domain.SessionStoreActor.GetSessions
 
-
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.model.StatusCodes
@@ -55,13 +54,10 @@ object DomainSessionService {
 
 class DomainSessionService(
   private[this] val executionContext: ExecutionContext,
-  private[this] val authorizationActor: ActorRef,
-  private[this] val domainRestActor: ActorRef,
-  private[this] val defaultTimeout: Timeout)
-    extends JsonSupport {
-
-  implicit val ec = executionContext
-  implicit val t = defaultTimeout
+  private[this] val timeout: Timeout,
+  private[this] val authActor: ActorRef,
+  private[this] val domainRestActor: ActorRef)
+    extends DomainRestService(executionContext, timeout, authActor) {
 
   def route(username: String, domain: DomainFqn): Route = {
     pathPrefix("sessions") {
@@ -163,11 +159,5 @@ class DomainSessionService(
       clientVersion,
       clientMetaData,
       remoteHost)
-  }
-
-  // Permission Checks
-
-  def canAccessDomain(domainFqn: DomainFqn, username: String): Future[Boolean] = {
-    (authorizationActor ? ConvergenceAuthorizedRequest(username, domainFqn, Set("domain-access"))).mapTo[Try[Boolean]].map(_.get)
   }
 }

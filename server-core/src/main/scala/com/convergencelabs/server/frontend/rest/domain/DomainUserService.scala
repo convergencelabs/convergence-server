@@ -2,20 +2,23 @@ package com.convergencelabs.server.frontend.rest
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
-import scala.util.Try
 
-import com.convergencelabs.server.datastore.domain.UserStoreActor._
-import com.convergencelabs.server.datastore.domain.UserStoreActor
+import com.convergencelabs.server.datastore.domain.UserStoreActor.CreateUser
+import com.convergencelabs.server.datastore.domain.UserStoreActor.DeleteDomainUser
+import com.convergencelabs.server.datastore.domain.UserStoreActor.FindUser
+import com.convergencelabs.server.datastore.domain.UserStoreActor.GetUserByUsername
+import com.convergencelabs.server.datastore.domain.UserStoreActor.GetUsers
+import com.convergencelabs.server.datastore.domain.UserStoreActor.SetPassword
+import com.convergencelabs.server.datastore.domain.UserStoreActor.UpdateUser
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.DomainUser
+import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
-import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
-import com.convergencelabs.server.domain.rest.AuthorizationActor.ConvergenceAuthorizedRequest
 
 object DomainUserService {
   case class CreateUserRequest(username: String, firstName: Option[String], lastName: Option[String], displayName: Option[String], email: Option[String], password: Option[String])
@@ -40,14 +43,11 @@ object DomainUserService {
 
 class DomainUserService(
   private[this] val executionContext: ExecutionContext,
-  private[this] val authorizationActor: ActorRef,
-  private[this] val domainRestActor: ActorRef,
-  private[this] val defaultTimeout: Timeout)
-    extends JsonSupport {
+  private[this] val timeout: Timeout,
+  private[this] val authActor: ActorRef,
+  private[this] val domainRestActor: ActorRef)
+    extends DomainRestService(executionContext, timeout, authActor) {
 
-  implicit val ec = executionContext
-  implicit val t = defaultTimeout
-  
   import DomainUserService._
   import akka.http.scaladsl.server.Directive._
   import akka.http.scaladsl.server.Directives._
@@ -99,22 +99,22 @@ class DomainUserService(
         }
       }
     } ~ pathPrefix("user-lookup") {
-        pathEnd {
-          post {
-            entity(as[UserLookupRequest]) { request =>
-              authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
-                complete(findUser(domain, request))
-              }
+      pathEnd {
+        post {
+          entity(as[UserLookupRequest]) { request =>
+            authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
+              complete(findUser(domain, request))
             }
-          } ~ post {
-            entity(as[CreateUserRequest]) { request =>
-              authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
-                complete(createUserRequest(request, domain))
-              }
+          }
+        } ~ post {
+          entity(as[CreateUserRequest]) { request =>
+            authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
+              complete(createUserRequest(request, domain))
             }
           }
         }
       }
+    }
   }
 
   def getAllUsersRequest(domain: DomainFqn, filter: Option[String], limit: Option[Int], offset: Option[Int]): Future[RestResponse] = {
@@ -162,11 +162,5 @@ class DomainUserService(
   private[this] def toUserData(user: DomainUser): DomainUserData = {
     val DomainUser(userType, username, firstName, lastName, displayName, email) = user
     DomainUserData(username, firstName, lastName, displayName, email)
-  }
-
-  // Permission Checks
-
-  def canAccessDomain(domainFqn: DomainFqn, username: String): Future[Boolean] = {
-    (authorizationActor ? ConvergenceAuthorizedRequest(username, domainFqn, Set("domain-access"))).mapTo[Try[Boolean]].map(_.get)
   }
 }

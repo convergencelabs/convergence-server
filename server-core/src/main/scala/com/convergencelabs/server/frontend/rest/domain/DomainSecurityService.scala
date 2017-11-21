@@ -44,16 +44,14 @@ object DomainSecurityService {
 
 class DomainSecurityService(
     private[this] val executionContext: ExecutionContext,
-    private[this] val authorizationActor: ActorRef,
-    private[this] val permissionStoreActor: ActorRef,
-    private[this] val defaultTimeout: Timeout) extends JsonSupport {
+    private[this] val timeout: Timeout,
+    private[this] val authActor: ActorRef,
+    private[this] val permissionStoreActor: ActorRef) 
+    extends DomainRestService(executionContext, timeout, authActor) {
 
   import akka.pattern.ask
   import DomainSecurityService._
   
-  implicit val ec = executionContext
-  implicit val t = defaultTimeout
-
   def route(convergenceUsername: String, domain: DomainFqn): Route = {
     pathPrefix("permissions") {
       pathPrefix("roles") {
@@ -119,9 +117,5 @@ class DomainSecurityService(
 
   def canAdministerDomain(domainFqn: DomainFqn, username: String): Future[Boolean] = {
     (authorizationActor ? ConvergenceAuthorizedRequest(username, domainFqn, Set("manage-permissions"))).mapTo[Try[Boolean]].map(_.get)
-  }
-
-  def canAccessDomain(domainFqn: DomainFqn, username: String): Future[Boolean] = {
-    (authorizationActor ? ConvergenceAuthorizedRequest(username, domainFqn, Set("domain-access"))).mapTo[Try[Boolean]].map(_.get)
   }
 }

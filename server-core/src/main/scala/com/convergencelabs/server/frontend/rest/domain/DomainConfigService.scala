@@ -58,16 +58,13 @@ object DomainConfigService {
 
 class DomainConfigService(
   private[this] val executionContext: ExecutionContext,
-  private[this] val authorizationActor: ActorRef,
-  private[this] val domainRestActor: ActorRef,
-  private[this] val defaultTimeout: Timeout)
-    extends JsonSupport {
-  
+  private[this] val timeout: Timeout,
+  private[this] val authActor: ActorRef,
+  private[this] val domainRestActor: ActorRef)
+    extends DomainRestService(executionContext, timeout, authActor) {
+
   import DomainConfigService._
   import akka.pattern.ask
-
-  implicit val ec = executionContext
-  implicit val t = defaultTimeout
 
   def route(username: String, domain: DomainFqn): Route = {
     pathPrefix("config") {
@@ -140,37 +137,30 @@ class DomainConfigService(
 
   def setModelSnapshotPolicy(domain: DomainFqn, policyData: ModelSnapshotPolicyData): Future[RestResponse] = {
     val ModelSnapshotPolicyData(
+      snapshotsEnabled,
+      triggerByVersion,
+      maximumVersionInterval,
+      limitByVersion,
+      minimumVersionInterval,
+      triggerByTime,
+      maximumTimeInterval,
+      limitByTime,
+      minimumTimeInterval
+      ) = policyData;
+
+    val policy =
+      ModelSnapshotConfig(
         snapshotsEnabled,
         triggerByVersion,
-        maximumVersionInterval,
         limitByVersion,
         minimumVersionInterval,
+        maximumVersionInterval,
         triggerByTime,
-        maximumTimeInterval,
         limitByTime,
-        minimumTimeInterval
-        ) = policyData;
-    
-      val policy = 
-        ModelSnapshotConfig(
-          snapshotsEnabled,
-          triggerByVersion,
-          limitByVersion,
-          minimumVersionInterval,
-          maximumVersionInterval,
-          triggerByTime,
-          limitByTime,
-          Duration.ofMillis(minimumTimeInterval),
-          Duration.ofMillis(maximumTimeInterval)
-          )
-  
+        Duration.ofMillis(minimumTimeInterval),
+        Duration.ofMillis(maximumTimeInterval))
+
     val message = DomainRestMessage(domain, SetModelSnapshotPolicy(policy))
     (domainRestActor ? message) map (_ => OkResponse)
-  }
-
-  // Permission Checks
-
-  def canAccessDomain(domainFqn: DomainFqn, username: String): Future[Boolean] = {
-    (authorizationActor ? ConvergenceAuthorizedRequest(username, domainFqn, Set("domain-access"))).mapTo[Try[Boolean]].map(_.get)
   }
 }
