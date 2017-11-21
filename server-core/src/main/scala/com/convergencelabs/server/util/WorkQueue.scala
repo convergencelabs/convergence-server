@@ -3,17 +3,17 @@ package com.convergencelabs.server.util
 import akka.actor.ActorRef
 
 trait WorkQueue {
-  def scheduleWork(work: Unit => Any)
+  def scheduleWork(work: () => Any)
 }
 
 object ActorWorkQueue {
-  case class DoWork(work: Unit => Any)
+  case class DoWork(work: () => Any)
 }
 
 class ActorWorkQueue(actor: ActorRef) extends WorkQueue {
   import ActorWorkQueue._
 
-  def scheduleWork(work: Unit => Any): Unit = {
+  def scheduleWork(work: () => Any): Unit = {
     actor ! DoWork(work)
   }
 

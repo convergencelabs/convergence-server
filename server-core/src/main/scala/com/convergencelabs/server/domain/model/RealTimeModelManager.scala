@@ -77,7 +77,7 @@ class RealTimeModelManager(
   
   val persistence = persistenceFactory.create(new PersistenceEventHanlder() {
     def onError(message: String): Unit = {
-      workQueue.scheduleWork(_ => forceCloseAllAfterError(message))
+      workQueue.scheduleWork(() => forceCloseAllAfterError(message))
     }
     
     def onClosed(): Unit = {
@@ -85,11 +85,11 @@ class RealTimeModelManager(
     }
 
     def onOperationCommited(version: Long): Unit = {
-      workQueue.scheduleWork(_ => commitVersion(version))
+      workQueue.scheduleWork(() => commitVersion(version))
     }
 
     def onOperationError(message: String): Unit = {
-      workQueue.scheduleWork(_ => forceCloseAllAfterError(message))
+      workQueue.scheduleWork(() => forceCloseAllAfterError(message))
     }
   });
 
@@ -337,19 +337,19 @@ class RealTimeModelManager(
     future.mapTo[ClientAutoCreateModelConfigResponse] onComplete {
       case Success(response) =>
         debug(s"Model config data received from client: ${domainFqn}/${modelId}")
-        workQueue.scheduleWork { _ =>
+        workQueue.scheduleWork { () =>
           onClientAutoCreateModelConfigResponse(sk, response)
         }
       case Failure(cause) => cause match {
         case e: AskTimeoutException =>
           debug(s"A timeout occured waiting for the client to respond with model data: ${domainFqn}/${modelId}")
-          workQueue.scheduleWork { _ =>
+          workQueue.scheduleWork { () =>
             handleQueuedClientOpenFailureFailure(sk,
               ClientDataRequestFailure("The client did not correctly respond with data, while initializing a new model."))
           }
         case e: Exception =>
           error(s"Uknnown exception processing model config data response: ${domainFqn}/${modelId}", e)
-          workQueue.scheduleWork { _ =>
+          workQueue.scheduleWork { () =>
             handleQueuedClientOpenFailureFailure(sk,
               UnknownErrorResponse(e.getMessage))
           }

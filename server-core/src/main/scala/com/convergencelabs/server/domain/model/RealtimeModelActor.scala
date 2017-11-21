@@ -26,6 +26,7 @@ import akka.actor.Terminated
 import akka.cluster.sharding.ShardRegion.Passivate
 import akka.util.Timeout
 import com.convergencelabs.server.util.ActorWorkQueue
+import com.convergencelabs.server.util.ActorWorkQueue.DoWork
 
 /**
  * Provides a factory method for creating the RealtimeModelActor
@@ -101,6 +102,9 @@ class RealtimeModelActor(
 
     case msg: RealTimeModelMessage =>
       handleRealtimeMessage(msg)
+      
+    case DoWork(work) =>
+      work()
 
     case terminated: Terminated =>
       modelManager.handleTerminated(terminated)
