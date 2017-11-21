@@ -1,42 +1,47 @@
 package com.convergencelabs.server.frontend.rest
 
+import java.time.Duration
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
+import scala.util.Try
 
-import com.convergencelabs.server.datastore.CollectionStoreActor.CreateCollection
-import com.convergencelabs.server.datastore.CollectionStoreActor.UpdateCollection
-import com.convergencelabs.server.datastore.CollectionStoreActor.DeleteCollection
-import com.convergencelabs.server.datastore.CollectionStoreActor.GetCollection
-import com.convergencelabs.server.datastore.CollectionStoreActor.GetCollections
+import com.convergencelabs.server.datastore.domain.CollectionPermissions
+import com.convergencelabs.server.datastore.domain.CollectionStore.CollectionSummary
+import com.convergencelabs.server.datastore.domain.CollectionStoreActor.CreateCollection
+import com.convergencelabs.server.datastore.domain.CollectionStoreActor.DeleteCollection
+import com.convergencelabs.server.datastore.domain.CollectionStoreActor.GetCollection
+import com.convergencelabs.server.datastore.domain.CollectionStoreActor.GetCollectionSummaries
+import com.convergencelabs.server.datastore.domain.CollectionStoreActor.GetCollections
+import com.convergencelabs.server.datastore.domain.CollectionStoreActor.UpdateCollection
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.RestDomainManagerActor.DomainRestMessage
+import com.convergencelabs.server.domain.ModelSnapshotConfig
 import com.convergencelabs.server.domain.model.Collection
-
-import DomainCollectionService.GetCollectionResponse
-import DomainCollectionService.GetCollectionsResponse
-import DomainCollectionService.CollectionData
-import DomainCollectionService.CollectionPermissionsData
+import com.convergencelabs.server.domain.rest.AuthorizationActor.ConvergenceAuthorizedRequest
+import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
+import com.convergencelabs.server.frontend.rest.DomainConfigService.ModelSnapshotPolicyData
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
 import akka.http.scaladsl.server.Directive.addDirectiveApply
+import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
+import akka.http.scaladsl.server.Directives._string2NR
+import akka.http.scaladsl.server.Directives.as
 import akka.http.scaladsl.server.Directives.authorizeAsync
-import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.server.Directives.complete
+import akka.http.scaladsl.server.Directives.delete
+import akka.http.scaladsl.server.Directives.entity
+import akka.http.scaladsl.server.Directives.get
+import akka.http.scaladsl.server.Directives.parameters
+import akka.http.scaladsl.server.Directives.pathEnd
+import akka.http.scaladsl.server.Directives.pathPrefix
+import akka.http.scaladsl.server.Directives.post
+import akka.http.scaladsl.server.Directives.put
+import akka.http.scaladsl.server.Directives.Segment
 import akka.http.scaladsl.server.Route
-import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.server.domain.AuthorizationActor.ConvergenceAuthorizedRequest
-import scala.util.Try
-import com.convergencelabs.server.frontend.rest.DomainConfigService.ModelSnapshotPolicyData
-import com.convergencelabs.server.domain.ModelSnapshotConfig
-import java.time.Duration
-import com.convergencelabs.server.datastore.domain.CollectionPermissions
-import com.convergencelabs.server.datastore.CollectionStoreActor.GetCollectionSummaries
-import com.convergencelabs.server.datastore.domain.CollectionStore.CollectionSummary
-import com.convergencelabs.server.frontend.rest.DomainCollectionService.GetCollectionSummaryResponse
-import com.convergencelabs.server.frontend.rest.DomainCollectionService.CollectionSummaryData
 
 object DomainCollectionService {
   case class GetCollectionsResponse(collections: List[CollectionData]) extends AbstractSuccessResponse
@@ -63,6 +68,9 @@ class DomainCollectionService(
   private[this] val defaultTimeout: Timeout)
     extends JsonSupport {
 
+  import DomainCollectionService._
+  import akka.pattern.ask
+  
   implicit val ec = executionContext
   implicit val t = defaultTimeout
 

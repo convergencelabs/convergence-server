@@ -41,11 +41,12 @@ import akka.cluster.sharding.ClusterSharding
 import com.convergencelabs.server.domain.DomainActorSharding
 import com.convergencelabs.server.domain.model.RealtimeModelSharding
 import com.convergencelabs.server.domain.chat.ChatChannelSharding
+import com.convergencelabs.server.domain.rest.RestDomainActorSharding
 
 object ConvergenceServerNode extends Logging {
-  
+
   val ActorSystemName = "Convergence"
-  
+
   def main(args: Array[String]): Unit = {
     try {
       SystemOutRedirector.setOutAndErrToLog();
@@ -80,12 +81,12 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
     val system = ActorSystem(ConvergenceServerNode.ActorSystemName, config)
     val cluster = Cluster(system)
     this.cluster = Some(cluster)
-    
+
     system.actorOf(Props(new SimpleClusterListener(cluster)), name = "clusterListener")
 
     val roles = config.getAnyRefList("akka.cluster.roles").asScala.toList
 
-    if (roles.contains("backend") || roles.contains("restFrontend")) {
+    if (roles.contains("backend")) {
       val orientDbConfig = config.getConfig("convergence.orient-db")
       val baseUri = orientDbConfig.getString("db-uri")
 
@@ -123,22 +124,23 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
         val backend = new BackendNode(system, dbProvider)
         backend.start()
         this.backend = Some(backend)
-      } else {
-        // TODO Re-factor This
-        val shards = 100
-        DomainActorSharding.startProxy(system, shards)
-        RealtimeModelSharding.startProxy(system, shards)
-        ChatChannelSharding.startProxy(system, shards)
       }
+    } else {
+      // TODO Re-factor This to some setting in the config
+      val shards = 100
+      DomainActorSharding.startProxy(system, shards)
+      RealtimeModelSharding.startProxy(system, shards)
+      ChatChannelSharding.startProxy(system, shards)
+      RestDomainActorSharding.startProxy(system, shards)
+    }
 
-      if (roles.contains("restFrontend")) {
-        info("Starting up rest front end.")
-        val host = config.getString("convergence.rest.host")
-        val port = config.getInt("convergence.rest.port")
-        val restFrontEnd = new ConvergenceRestFrontEnd(system, host, port, dbProvider)
-        restFrontEnd.start()
-        this.rest = Some(restFrontEnd)
-      }
+    if (roles.contains("restFrontend")) {
+      info("Starting up rest front end.")
+      val host = config.getString("convergence.rest.host")
+      val port = config.getInt("convergence.rest.port")
+      val restFrontEnd = new ConvergenceRestFrontEnd(system, host, port)
+      restFrontEnd.start()
+      this.rest = Some(restFrontEnd)
     }
 
     if (roles.contains("realTimeFrontend")) {
@@ -237,14 +239,14 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
 
   def stop(): Unit = {
     logger.info(s"Stopping the convergence server node")
-    
+
     system foreach { s =>
       s.terminate()
       logger.info(s"Actor system terminated")
     }
 
     cluster.foreach(c => c.leave(c.selfAddress))
-    
+
     this.backend.foreach(backend => backend.stop())
     this.rest.foreach(rest => rest.stop())
     this.realtime.foreach(realtime => realtime.stop())

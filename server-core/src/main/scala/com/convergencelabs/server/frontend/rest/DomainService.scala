@@ -10,11 +10,9 @@ import com.convergencelabs.server.datastore.DomainStoreActor.ListDomainsRequest
 import com.convergencelabs.server.datastore.DomainStoreActor.UpdateDomainRequest
 import com.convergencelabs.server.domain.Domain
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.RestAuthnorizationActor.AuthorizationDenied
-import com.convergencelabs.server.domain.RestAuthnorizationActor.AuthorizationFailure
-import com.convergencelabs.server.domain.RestAuthnorizationActor.AuthorizationGranted
-import com.convergencelabs.server.domain.RestAuthnorizationActor.AuthorizationResult
-import com.convergencelabs.server.domain.RestAuthnorizationActor.DomainAuthorization
+import com.convergencelabs.server.datastore.PermissionsProfile
+import com.convergencelabs.server.datastore.PermissionsStoreActor.GetPermissionsProfileRequest
+import com.convergencelabs.server.domain.rest.AuthorizationActor.ConvergenceAuthorizedRequest
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
@@ -38,23 +36,22 @@ import akka.http.scaladsl.server.directives.FutureDirectives.onSuccess
 import akka.http.scaladsl.server.directives.OnSuccessMagnet.apply
 import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.server.datastore.PermissionsProfile
-import com.convergencelabs.server.datastore.PermissionsStoreActor.GetPermissionsProfileRequest
-import com.convergencelabs.server.domain.AuthorizationActor.ConvergenceAuthorizedRequest
 import scala.util.Try
 
-case class DomainsResponse(domains: List[DomainInfo]) extends AbstractSuccessResponse
-case class DomainResponse(domain: DomainInfo) extends AbstractSuccessResponse
+object DomainService {
+  case class DomainsResponse(domains: List[DomainInfo]) extends AbstractSuccessResponse
+  case class DomainResponse(domain: DomainInfo) extends AbstractSuccessResponse
 
-case class DomainInfo(
-  displayName: String,
-  namespace: String,
-  domainId: String,
-  owner: String,
-  status: String)
+  case class DomainInfo(
+    displayName: String,
+    namespace: String,
+    domainId: String,
+    owner: String,
+    status: String)
 
-case class CreateDomainRestRequest(namespace: Option[String], domainId: String, displayName: String)
-case class UpdateDomainRestRequest(displayName: String)
+  case class CreateDomainRestRequest(namespace: Option[String], domainId: String, displayName: String)
+  case class UpdateDomainRestRequest(displayName: String)
+}
 
 class DomainService(
   private[this] val executionContext: ExecutionContext,
@@ -65,6 +62,8 @@ class DomainService(
   private[this] val modelClusterRegion: ActorRef,
   private[this] val defaultTimeout: Timeout)
     extends JsonSupport {
+
+  import DomainService._
 
   implicit val ec = executionContext
   implicit val t = defaultTimeout

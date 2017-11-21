@@ -1,8 +1,7 @@
-package com.convergencelabs.server.datastore
+package com.convergencelabs.server.datastore.domain
 
-import com.convergencelabs.server.datastore.domain.UserGroup
-import com.convergencelabs.server.datastore.domain.UserGroupInfo
-import com.convergencelabs.server.datastore.domain.UserGroupStore
+
+import com.convergencelabs.server.datastore.StoreActor
 
 import akka.actor.ActorLogging
 import akka.actor.Props

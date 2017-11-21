@@ -4,23 +4,18 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.util.Try
 
-import com.convergencelabs.server.datastore.UserStoreActor.CreateUser
-import com.convergencelabs.server.datastore.UserStoreActor.DeleteDomainUser
-import com.convergencelabs.server.datastore.UserStoreActor.FindUser
-import com.convergencelabs.server.datastore.UserStoreActor.GetUserByUsername
-import com.convergencelabs.server.datastore.UserStoreActor.GetUsers
-import com.convergencelabs.server.datastore.UserStoreActor.SetPassword
-import com.convergencelabs.server.datastore.UserStoreActor.UpdateUser
-import com.convergencelabs.server.domain.AuthorizationActor.ConvergenceAuthorizedRequest
+import com.convergencelabs.server.datastore.domain.UserStoreActor._
+import com.convergencelabs.server.datastore.domain.UserStoreActor
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.DomainUser
-import com.convergencelabs.server.domain.RestDomainManagerActor.DomainRestMessage
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
+import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
+import com.convergencelabs.server.domain.rest.AuthorizationActor.ConvergenceAuthorizedRequest
 
 object DomainUserService {
   case class CreateUserRequest(username: String, firstName: Option[String], lastName: Option[String], displayName: Option[String], email: Option[String], password: Option[String])

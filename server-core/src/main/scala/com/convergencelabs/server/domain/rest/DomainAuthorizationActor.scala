@@ -1,29 +1,20 @@
-package com.convergencelabs.server.domain
+package com.convergencelabs.server.domain.rest
 
-import scala.util.Success
+import scala.language.postfixOps
 
+import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.datastore.DomainStore
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
+import com.convergencelabs.server.datastore.PermissionsStore
+import com.convergencelabs.server.domain.DomainFqn
 
-import RestAuthnorizationActor.DomainAuthorization
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.Props
-import scala.concurrent.Future
-import scala.concurrent.duration.DurationInt
-import scala.language.postfixOps
-import com.convergencelabs.server.domain.RestAuthnorizationActor.AuthorizationGranted
-import com.convergencelabs.server.domain.RestAuthnorizationActor.AuthorizationDenied
-import com.convergencelabs.server.domain.RestAuthnorizationActor.AuthorizationFailure
-import com.convergencelabs.server.datastore.PermissionsStore
-import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.domain.AuthorizationActor.ConvergenceAuthorizedRequest
-import akka.util.Timeout
 
 object AuthorizationActor {
   def props(dbProvider: DatabaseProvider): Props = Props(new AuthorizationActor(dbProvider))
 
-  val RelativeActorPath = "convergenceAuthorization"
+  val RelativePath = "AuthorizationActor"
 
   sealed trait AuthorizationRequest
   case class ConvergenceAuthorizedRequest(username: String, domain: DomainFqn, permission: Set[String])
@@ -32,8 +23,7 @@ object AuthorizationActor {
 class AuthorizationActor(private[this] val dbProvider: DatabaseProvider)
     extends Actor with ActorLogging {
 
-  private[this] implicit val requstTimeout = Timeout(2 seconds)
-  private[this] implicit val exectionContext = context.dispatcher
+  import AuthorizationActor._
   
   private[this] val domainStore: DomainStore = new DomainStore(dbProvider)
   private[this] val permissionsStore: PermissionsStore = new PermissionsStore(dbProvider)
@@ -45,7 +35,7 @@ class AuthorizationActor(private[this] val dbProvider: DatabaseProvider)
 
   private[this] def onConvergenceAuthorizedRequest(message: ConvergenceAuthorizedRequest): Unit = {
     val ConvergenceAuthorizedRequest(username, domain, permissions) = message
-    val authorized = for {
+    for {
       owner <- domainStore.getDomainByFqn(domain) map { domain =>
         domain match {
           case Some(domain) if domain.owner == username => true
@@ -54,8 +44,9 @@ class AuthorizationActor(private[this] val dbProvider: DatabaseProvider)
       }
 
       hasPermission <- permissionsStore.getAllUserPermissions(username, domain).map(_.map(_.id)).map { permissions.subsetOf(_) }
-    } yield owner || hasPermission
-    
-    sender ! authorized
+    } yield {
+      val authorized = owner || hasPermission
+      sender ! authorized 
+    }
   }
 }

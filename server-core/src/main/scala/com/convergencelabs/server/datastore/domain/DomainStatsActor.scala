@@ -1,17 +1,13 @@
-package com.convergencelabs.server.domain.stats
+package com.convergencelabs.server.datastore.domain
 
 import scala.util.Try
 
-import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.server.domain.stats.DomainStatsActor.DomainStats
-import com.convergencelabs.server.domain.stats.DomainStatsActor.GetStats
-import com.convergencelabs.server.util.TryWithResource
+import com.convergencelabs.server.datastore.domain.SessionStore.SessionQueryType
 
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.Props
 import akka.actor.actorRef2Scala
-import com.convergencelabs.server.datastore.domain.SessionStore.SessionQueryType
 
 object DomainStatsActor {
   def props(persistence: DomainPersistenceProvider): Props =
@@ -26,6 +22,8 @@ object DomainStatsActor {
 class DomainStatsActor(
     persistence: DomainPersistenceProvider) extends Actor with ActorLogging {
 
+  import DomainStatsActor._
+  
   def receive: Receive = {
     case GetStats => getStats()
     case message: Any => unhandled(message)

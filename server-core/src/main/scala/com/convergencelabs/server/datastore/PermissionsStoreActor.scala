@@ -31,6 +31,8 @@ import com.convergencelabs.server.datastore.PermissionsStoreActor.SetRolesReques
 import com.convergencelabs.server.datastore.PermissionsStoreActor.GetUserPermissionsRequest
 
 object PermissionsStoreActor {
+  val RelativePath = "PermissionsStoreActor"
+  
   def props(dbProvider: DatabaseProvider): Props = Props(new PermissionsStoreActor(dbProvider))
 
   case class CreatePermissionRequest(permission: Permission)

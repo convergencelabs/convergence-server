@@ -1,15 +1,12 @@
 package com.convergencelabs.server.frontend.rest
 
-import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
-
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.RestDomainManagerActor.DomainRestMessage
-import com.convergencelabs.server.domain.stats.DomainStatsActor.DomainStats
-import com.convergencelabs.server.domain.stats.DomainStatsActor.GetStats
+import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
+import com.convergencelabs.server.datastore.domain.DomainStatsActor.DomainStats
+import com.convergencelabs.server.datastore.domain.DomainStatsActor.GetStats
 import com.convergencelabs.server.frontend.rest.DomainStatsService.GetStatsResponse
-
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.model.StatusCodes
@@ -19,7 +16,6 @@ import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Directives.get
 import akka.http.scaladsl.server.Directives.pathEnd
 import akka.http.scaladsl.server.Directives.pathPrefix
-import akka.http.scaladsl.server.Directives.authorizeAsync
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.util.Timeout

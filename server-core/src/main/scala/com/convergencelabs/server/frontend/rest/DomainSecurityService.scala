@@ -2,57 +2,37 @@ package com.convergencelabs.server.frontend.rest
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
+import scala.util.Try
 
-import com.convergencelabs.server.datastore.UserStoreActor.CreateUser
-import com.convergencelabs.server.datastore.UserStoreActor.DeleteDomainUser
-import com.convergencelabs.server.datastore.UserStoreActor.GetUserByUsername
-import com.convergencelabs.server.datastore.UserStoreActor.GetUsers
-import com.convergencelabs.server.datastore.UserStoreActor.SetPassword
-import com.convergencelabs.server.datastore.UserStoreActor.UpdateUser
+import com.convergencelabs.server.datastore.EntityNotFoundException
+import com.convergencelabs.server.datastore.Permission
+import com.convergencelabs.server.datastore.PermissionsStoreActor.GetAllUserRolesRequest
+import com.convergencelabs.server.datastore.PermissionsStoreActor.GetUserPermissionsRequest
+import com.convergencelabs.server.datastore.PermissionsStoreActor.GetUserRolesRequest
+import com.convergencelabs.server.datastore.PermissionsStoreActor.SetRolesRequest
+import com.convergencelabs.server.datastore.UserRoles
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.DomainUser
-import com.convergencelabs.server.domain.RestDomainManagerActor.DomainRestMessage
-import com.convergencelabs.server.frontend.rest.DomainUserService.CreateUserRequest
-import com.convergencelabs.server.frontend.rest.DomainUserService.CreateUserResponse
-import com.convergencelabs.server.frontend.rest.DomainUserService.GetUserRestResponse
-import com.convergencelabs.server.frontend.rest.DomainUserService.SetPasswordRequest
-import com.convergencelabs.server.frontend.rest.DomainUserService.UpdateUserRequest
+import com.convergencelabs.server.domain.rest.AuthorizationActor.ConvergenceAuthorizedRequest
 
-import DomainUserService.GetUsersRestResponse
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
 import akka.http.scaladsl.server.Directive.addDirectiveApply
-import akka.http.scaladsl.server.Directives.Segment
 import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
 import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
 import akka.http.scaladsl.server.Directives.as
+import akka.http.scaladsl.server.Directives.authorizeAsync
 import akka.http.scaladsl.server.Directives.complete
-import akka.http.scaladsl.server.Directives.delete
 import akka.http.scaladsl.server.Directives.entity
 import akka.http.scaladsl.server.Directives.get
 import akka.http.scaladsl.server.Directives.pathEnd
 import akka.http.scaladsl.server.Directives.pathPrefix
-import akka.http.scaladsl.server.Directives.post
 import akka.http.scaladsl.server.Directives.put
-import akka.http.scaladsl.server.Directives.authorizeAsync
+import akka.http.scaladsl.server.Directives.Segment
 import akka.http.scaladsl.server.Route
-import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.server.domain.AuthorizationActor.ConvergenceAuthorizedRequest
-import scala.util.Try
-import com.convergencelabs.server.datastore.PermissionsStoreActor.GetAllUserRolesRequest
-import com.convergencelabs.server.datastore.UserRoles
-import com.convergencelabs.server.frontend.rest.DomainSecurityService.GetAllUserRolesRestResponse
-import com.convergencelabs.server.frontend.rest.DomainSecurityService.GetUserRolesRestResponse
-import com.convergencelabs.server.frontend.rest.DomainSecurityService.SetUserRolesRequest
-import com.convergencelabs.server.datastore.PermissionsStoreActor.GetUserRolesRequest
-import com.convergencelabs.server.datastore.PermissionsStoreActor.SetRolesRequest
-import com.convergencelabs.server.datastore.PermissionsStoreActor.GetUserPermissionsRequest
-import com.convergencelabs.server.datastore.Permission
-import com.convergencelabs.server.frontend.rest.DomainSecurityService.GetUserPermissionsRestResponse
-import com.convergencelabs.server.datastore.EntityNotFoundException
+
 
 object DomainSecurityService {
   case class SetUserRolesRequest(roles: List[String])
@@ -68,6 +48,9 @@ class DomainSecurityService(
     private[this] val permissionStoreActor: ActorRef,
     private[this] val defaultTimeout: Timeout) extends JsonSupport {
 
+  import akka.pattern.ask
+  import DomainSecurityService._
+  
   implicit val ec = executionContext
   implicit val t = defaultTimeout
 

@@ -1,9 +1,7 @@
-package com.convergencelabs.server.datastore
+package com.convergencelabs.server.datastore.domain
 
 import scala.util.Success
 
-import com.convergencelabs.server.datastore.domain.CollectionStore
-import com.convergencelabs.server.datastore.domain.ModelStore
 import com.convergencelabs.server.domain.model.data.ArrayValue
 import com.convergencelabs.server.domain.model.data.BooleanValue
 import com.convergencelabs.server.domain.model.data.DataValue
@@ -17,11 +15,10 @@ import ModelStoreActor.GetModelsInCollection
 import akka.actor.ActorLogging
 import akka.actor.Props
 import java.time.Instant
-import com.convergencelabs.server.datastore.domain.ModelPermissions
 import com.convergencelabs.server.domain.model.GetModelPermissionsRequest
 import com.convergencelabs.server.domain.model.ModelCreator
-import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import scala.util.Failure
+import com.convergencelabs.server.datastore.StoreActor
 
 object ModelStoreActor {
   def props(
@@ -38,6 +35,7 @@ object ModelStoreActor {
 class ModelStoreActor private[datastore] (private[this] val persistenceProvider: DomainPersistenceProvider)
     extends StoreActor with ActorLogging {
 
+  import ModelStoreActor._
 
   def receive: Receive = {
     case GetModels(offset, limit) =>
@@ -45,7 +43,7 @@ class ModelStoreActor private[datastore] (private[this] val persistenceProvider:
     case GetModelsInCollection(collectionId, offset, limit) =>
       getModelsInCollection(collectionId, offset, limit)
 
-    case message: Any => 
+    case message: Any =>
       unhandled(message)
   }
 

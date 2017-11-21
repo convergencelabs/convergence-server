@@ -1,13 +1,12 @@
-package com.convergencelabs.server.datastore
+package com.convergencelabs.server.datastore.domain
 
 import scala.util.Success
 
-import com.convergencelabs.server.datastore.domain.DomainUserField
-import com.convergencelabs.server.datastore.domain.DomainUserStore
+import com.convergencelabs.server.datastore.SortOrder
+import com.convergencelabs.server.datastore.StoreActor
 import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateNormalDomainUser
 import com.convergencelabs.server.datastore.domain.DomainUserStore.UpdateDomainUser
 
-import UserStoreActor.CreateUser
 import akka.actor.ActorLogging
 import akka.actor.Props
 

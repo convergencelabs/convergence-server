@@ -7,16 +7,17 @@ import scala.concurrent.Future
 import scala.language.postfixOps
 import scala.util.Try
 
-import com.convergencelabs.server.datastore.SessionStoreActor.GetSession
-import com.convergencelabs.server.datastore.SessionStoreActor.GetSessions
 import com.convergencelabs.server.datastore.domain.DomainSession
 import com.convergencelabs.server.datastore.domain.SessionStore.SessionQueryType
-import com.convergencelabs.server.domain.AuthorizationActor.ConvergenceAuthorizedRequest
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.RestDomainManagerActor.DomainRestMessage
 import com.convergencelabs.server.frontend.rest.DomainSessionService.DomainSessionData
 import com.convergencelabs.server.frontend.rest.DomainSessionService.GetSessionResponse
 import com.convergencelabs.server.frontend.rest.DomainSessionService.GetSessionsResponse
+import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
+import com.convergencelabs.server.domain.rest.AuthorizationActor.ConvergenceAuthorizedRequest
+import com.convergencelabs.server.datastore.domain.SessionStoreActor.GetSession
+import com.convergencelabs.server.datastore.domain.SessionStoreActor.GetSessions
+
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply

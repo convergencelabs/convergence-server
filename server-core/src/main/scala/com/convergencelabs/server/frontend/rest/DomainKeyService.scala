@@ -1,17 +1,19 @@
 package com.convergencelabs.server.frontend.rest
 
-import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
+import scala.util.Try
 
-import com.convergencelabs.server.datastore.JwtAuthKeyStoreActor.CreateDomainApiKey
-import com.convergencelabs.server.datastore.JwtAuthKeyStoreActor.DeleteDomainApiKey
-import com.convergencelabs.server.datastore.JwtAuthKeyStoreActor.GetDomainApiKey
-import com.convergencelabs.server.datastore.JwtAuthKeyStoreActor.GetDomainApiKeys
-import com.convergencelabs.server.datastore.JwtAuthKeyStoreActor.UpdateDomainApiKey
 import com.convergencelabs.server.datastore.domain.JwtAuthKeyStore.KeyInfo
+import com.convergencelabs.server.datastore.domain.JwtAuthKeyStoreActor.CreateDomainApiKey
+import com.convergencelabs.server.datastore.domain.JwtAuthKeyStoreActor.DeleteDomainApiKey
+import com.convergencelabs.server.datastore.domain.JwtAuthKeyStoreActor.GetDomainApiKey
+import com.convergencelabs.server.datastore.domain.JwtAuthKeyStoreActor.GetDomainApiKeys
+import com.convergencelabs.server.datastore.domain.JwtAuthKeyStoreActor.UpdateDomainApiKey
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.RestDomainManagerActor.DomainRestMessage
+import com.convergencelabs.server.domain.JwtAuthKey
+import com.convergencelabs.server.domain.rest.AuthorizationActor.ConvergenceAuthorizedRequest
+import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
 import com.convergencelabs.server.frontend.rest.DomainKeyService.UpdateInfo
 
 import DomainKeyService.GetKeyRestResponse
@@ -21,10 +23,10 @@ import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
 import akka.http.scaladsl.server.Directive.addDirectiveApply
-import akka.http.scaladsl.server.Directives.Segment
 import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
 import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
 import akka.http.scaladsl.server.Directives.as
+import akka.http.scaladsl.server.Directives.authorizeAsync
 import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Directives.delete
 import akka.http.scaladsl.server.Directives.entity
@@ -33,13 +35,9 @@ import akka.http.scaladsl.server.Directives.pathEnd
 import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.post
 import akka.http.scaladsl.server.Directives.put
-import akka.http.scaladsl.server.Directives.authorizeAsync
+import akka.http.scaladsl.server.Directives.Segment
 import akka.http.scaladsl.server.Route
-import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.server.domain.JwtAuthKey
-import com.convergencelabs.server.domain.AuthorizationActor.ConvergenceAuthorizedRequest
-import scala.util.Try
 
 object DomainKeyService {
   case class GetKeysRestResponse(keys: List[JwtAuthKey]) extends AbstractSuccessResponse
@@ -54,6 +52,8 @@ class DomainKeyService(
   private[this] val defaultTimeout: Timeout)
     extends JsonSupport {
 
+  import akka.pattern.ask
+  
   implicit val ec = executionContext
   implicit val t = defaultTimeout
 

@@ -4,19 +4,22 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.util.Try
 
-import com.convergencelabs.server.datastore.UserGroupStoreActor.AddUserToGroup
-import com.convergencelabs.server.datastore.UserGroupStoreActor.CreateUserGroup
-import com.convergencelabs.server.datastore.UserGroupStoreActor.DeleteUserGroup
-import com.convergencelabs.server.datastore.UserGroupStoreActor.GetUserGroup
-import com.convergencelabs.server.datastore.UserGroupStoreActor.GetUserGroupSummaries
-import com.convergencelabs.server.datastore.UserGroupStoreActor.GetUserGroups
-import com.convergencelabs.server.datastore.UserGroupStoreActor.RemoveUserFromGroup
-import com.convergencelabs.server.datastore.UserGroupStoreActor.UpdateUserGroup
 import com.convergencelabs.server.datastore.domain.UserGroup
+import com.convergencelabs.server.datastore.domain.UserGroupInfo
+import com.convergencelabs.server.datastore.domain.UserGroupStoreActor.AddUserToGroup
+import com.convergencelabs.server.datastore.domain.UserGroupStoreActor.CreateUserGroup
+import com.convergencelabs.server.datastore.domain.UserGroupStoreActor.DeleteUserGroup
+import com.convergencelabs.server.datastore.domain.UserGroupStoreActor.GetUserGroup
+import com.convergencelabs.server.datastore.domain.UserGroupStoreActor.GetUserGroupInfo
+import com.convergencelabs.server.datastore.domain.UserGroupStoreActor.GetUserGroupSummaries
+import com.convergencelabs.server.datastore.domain.UserGroupStoreActor.GetUserGroups
+import com.convergencelabs.server.datastore.domain.UserGroupStoreActor.RemoveUserFromGroup
+import com.convergencelabs.server.datastore.domain.UserGroupStoreActor.UpdateUserGroup
+import com.convergencelabs.server.datastore.domain.UserGroupStoreActor.UpdateUserGroupInfo
 import com.convergencelabs.server.datastore.domain.UserGroupSummary
-import com.convergencelabs.server.domain.AuthorizationActor.ConvergenceAuthorizedRequest
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.RestDomainManagerActor.DomainRestMessage
+import com.convergencelabs.server.domain.rest.AuthorizationActor.ConvergenceAuthorizedRequest
+import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
 import com.convergencelabs.server.frontend.rest.UserGroupService.UserGroupData
 
 import akka.actor.ActorRef
@@ -34,18 +37,14 @@ import akka.http.scaladsl.server.Directives.delete
 import akka.http.scaladsl.server.Directives.entity
 import akka.http.scaladsl.server.Directives.get
 import akka.http.scaladsl.server.Directives.parameters
+import akka.http.scaladsl.server.Directives.path
 import akka.http.scaladsl.server.Directives.pathEnd
 import akka.http.scaladsl.server.Directives.pathPrefix
-import akka.http.scaladsl.server.Directives.path
 import akka.http.scaladsl.server.Directives.post
 import akka.http.scaladsl.server.Directives.put
 import akka.http.scaladsl.server.PathMatchers.Segment
 import akka.http.scaladsl.server.Route
-import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.server.datastore.domain.UserGroupInfo
-import com.convergencelabs.server.datastore.UserGroupStoreActor.GetUserGroupInfo
-import com.convergencelabs.server.datastore.UserGroupStoreActor.UpdateUserGroupInfo
 
 object UserGroupService {
   case class GetUserGroupsResponse(groups: List[UserGroupData]) extends AbstractSuccessResponse
@@ -68,6 +67,7 @@ class UserGroupService(
     extends JsonSupport {
 
   import UserGroupService._
+  import akka.pattern.ask
 
   implicit val ec = executionContext
   implicit val t = defaultTimeout

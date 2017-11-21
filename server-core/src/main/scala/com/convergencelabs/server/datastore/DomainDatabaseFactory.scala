@@ -1,21 +1,15 @@
 package com.convergencelabs.server.datastore
 
-import java.util.Set
+import scala.util.Failure
+import scala.util.Success
 import scala.util.Try
+
+import com.convergencelabs.server.domain.DomainDatabase
 import com.convergencelabs.server.domain.DomainFqn
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import com.orientechnologies.orient.core.index.OCompositeKey
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import DomainDatabaseFactory._
-import scala.collection.JavaConversions._
-import com.orientechnologies.orient.core.index.OIndexCursor
-import scala.collection.mutable.MutableList
-import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.metadata.schema.OType
-import scala.util.Success
-import scala.util.Failure
-import com.convergencelabs.server.frontend.rest.DomainInfo
-import com.convergencelabs.server.domain.DomainDatabase
+import com.orientechnologies.orient.core.record.impl.ODocument
 
 object DomainDatabaseFactory {
   val DBDomainIdIndex = "Domain.namespace_id"

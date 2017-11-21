@@ -5,7 +5,6 @@ import scala.concurrent.Future
 
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.DomainUser
-import com.convergencelabs.server.domain.RestDomainManagerActor.DomainRestMessage
 
 import DomainUserService.GetUsersRestResponse
 import akka.actor.ActorRef
@@ -33,15 +32,13 @@ import akka.util.Timeout
 import com.convergencelabs.server.frontend.rest.DomainConfigService.AnonymousAuthPut
 import com.convergencelabs.server.frontend.rest.DomainConfigService.ModelSnapshotPolicyData
 import com.convergencelabs.server.frontend.rest.DomainConfigService.ModelSnapshotPolicyResponse
-import com.convergencelabs.server.datastore.ConfigStoreActor.GetAnonymousAuth
 import com.convergencelabs.server.frontend.rest.DomainConfigService.AnonymousAuthResponse
-import com.convergencelabs.server.datastore.ConfigStoreActor.SetAnonymousAuth
-import com.convergencelabs.server.domain.AuthorizationActor.ConvergenceAuthorizedRequest
 import scala.util.Try
 import com.convergencelabs.server.domain.ModelSnapshotConfig
 import java.time.Duration
-import com.convergencelabs.server.datastore.ConfigStoreActor.SetModelSnapshotPolicy
-import com.convergencelabs.server.datastore.ConfigStoreActor.GetModelSnapshotPolicy
+import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
+import com.convergencelabs.server.datastore.domain.ConfigStoreActor._
+import com.convergencelabs.server.domain.rest.AuthorizationActor.ConvergenceAuthorizedRequest
 
 object DomainConfigService {
   case class AnonymousAuthPut(enabled: Boolean)
@@ -65,6 +62,9 @@ class DomainConfigService(
   private[this] val domainRestActor: ActorRef,
   private[this] val defaultTimeout: Timeout)
     extends JsonSupport {
+  
+  import DomainConfigService._
+  import akka.pattern.ask
 
   implicit val ec = executionContext
   implicit val t = defaultTimeout

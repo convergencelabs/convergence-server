@@ -4,8 +4,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.RestDomainActor.AdminTokenRequest
-import com.convergencelabs.server.domain.RestDomainManagerActor.DomainRestMessage
+import com.convergencelabs.server.domain.rest.RestDomainActor.AdminTokenRequest
 import com.convergencelabs.server.frontend.rest.DomainAdminTokenService.AdminTokenRestResponse
 
 import akka.actor.ActorRef
@@ -17,8 +16,9 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.server.domain.AuthorizationActor.ConvergenceAuthorizedRequest
 import scala.util.Try
+import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
+import com.convergencelabs.server.domain.rest.AuthorizationActor.ConvergenceAuthorizedRequest
 
 object DomainAdminTokenService {
   case class AdminTokenRestResponse(token: String) extends AbstractSuccessResponse
@@ -31,6 +31,9 @@ class DomainAdminTokenService(
   private[this] val defaultTimeout: Timeout)
     extends JsonSupport {
 
+  import DomainAdminTokenService._
+  import akka.pattern.ask
+  
   implicit val ec = executionContext
   implicit val t = defaultTimeout
 

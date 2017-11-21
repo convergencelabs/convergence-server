@@ -1,21 +1,9 @@
-package com.convergencelabs.server.datastore
+package com.convergencelabs.server.datastore.domain
 
-import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.GetAllModelUserPermissions
-import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.GetModelOverridesPermissions
-import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.GetModelPermissions
-import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.GetModelUserPermissions
-import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.GetModelWorldPermissions
-import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.ModelPermissionsResponse
-import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.ModelUserPermissions
-import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.RemoveModelUserPermissions
-import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.SetModelOverridesPermissions
-import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.SetModelUserPermissions
-import com.convergencelabs.server.datastore.ModelPermissionsStoreActor.SetModelWorldPermissions
-import com.convergencelabs.server.datastore.domain.ModelPermissions
-import com.convergencelabs.server.datastore.domain.ModelPermissionsStore
 
 import akka.actor.ActorLogging
 import akka.actor.Props
+import com.convergencelabs.server.datastore.StoreActor
 
 object ModelPermissionsStoreActor {
   def props(modelPermissionsStore: ModelPermissionsStore): Props =
@@ -40,6 +28,8 @@ object ModelPermissionsStoreActor {
 class ModelPermissionsStoreActor private[datastore] (
   private[this] val modelPermissionsStore: ModelPermissionsStore)
     extends StoreActor with ActorLogging {
+  
+  import ModelPermissionsStoreActor._
 
   def receive: Receive = {
     case GetModelOverridesPermissions(modelId) =>

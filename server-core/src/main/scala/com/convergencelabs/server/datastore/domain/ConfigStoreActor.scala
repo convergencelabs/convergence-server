@@ -1,14 +1,10 @@
-package com.convergencelabs.server.datastore
+package com.convergencelabs.server.datastore.domain
 
-import com.convergencelabs.server.datastore.ConfigStoreActor.GetAnonymousAuth
-import com.convergencelabs.server.datastore.ConfigStoreActor.SetAnonymousAuth
-import com.convergencelabs.server.datastore.ConfigStoreActor.GetModelSnapshotPolicy
-import com.convergencelabs.server.datastore.ConfigStoreActor.SetModelSnapshotPolicy
-import com.convergencelabs.server.datastore.domain.DomainConfigStore
+import com.convergencelabs.server.datastore.StoreActor
+import com.convergencelabs.server.domain.ModelSnapshotConfig
 
 import akka.actor.ActorLogging
 import akka.actor.Props
-import com.convergencelabs.server.domain.ModelSnapshotConfig
 
 object ConfigStoreActor {
   def props(store: DomainConfigStore): Props = Props(new ConfigStoreActor(store))
@@ -22,6 +18,8 @@ object ConfigStoreActor {
 
 class ConfigStoreActor private[datastore] (private[this] val store: DomainConfigStore)
     extends StoreActor with ActorLogging {
+  
+  import ConfigStoreActor._
 
   def receive: Receive = {
     case GetAnonymousAuth => getAnonymousAuthEnabled()

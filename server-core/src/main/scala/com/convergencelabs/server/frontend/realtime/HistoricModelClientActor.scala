@@ -5,13 +5,15 @@ import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 
-import com.convergencelabs.server.datastore.ModelOperationStoreActor
-import com.convergencelabs.server.datastore.ModelOperationStoreActor.GetOperations
-import com.convergencelabs.server.datastore.ModelStoreActor
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
+import com.convergencelabs.server.datastore.domain.ModelOperationStoreActor
+import com.convergencelabs.server.datastore.domain.ModelOperationStoreActor.GetOperations
+import com.convergencelabs.server.datastore.domain.ModelStoreActor
 import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.model.GetRealtimeModel
 import com.convergencelabs.server.domain.model.Model
 import com.convergencelabs.server.domain.model.ModelOperation
+import com.convergencelabs.server.domain.model.RealtimeModelSharding
 import com.convergencelabs.server.domain.model.SessionKey
 import com.convergencelabs.server.util.concurrent.AskFuture
 
@@ -20,9 +22,6 @@ import akka.actor.ActorLogging
 import akka.actor.ActorRef
 import akka.actor.Props
 import akka.util.Timeout
-import akka.pattern.ask
-import com.convergencelabs.server.domain.model.GetRealtimeModel
-import com.convergencelabs.server.domain.model.RealtimeModelSharding
 
 object HistoricModelClientActor {
   def props(
@@ -36,6 +35,8 @@ class HistoricModelClientActor(
   domainFqn: DomainFqn)
     extends Actor with ActorLogging {
 
+  import akka.pattern.ask
+  
   private[this] implicit val timeout = Timeout(5 seconds)
   private[this] implicit val ec = context.dispatcher
 
