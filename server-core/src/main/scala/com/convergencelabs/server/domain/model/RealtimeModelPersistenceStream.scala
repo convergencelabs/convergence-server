@@ -8,9 +8,6 @@ import com.convergencelabs.server.datastore.domain.ModelOperationProcessor
 import com.convergencelabs.server.datastore.domain.ModelSnapshotStore
 import com.convergencelabs.server.datastore.domain.ModelStore
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.model.RealtimeModelActor.ForceClose
-import com.convergencelabs.server.domain.model.RealtimeModelActor.OperationCommitted
-import com.convergencelabs.server.domain.model.RealtimeModelActor.StreamFailure
 
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
@@ -20,28 +17,63 @@ import akka.stream.scaladsl.Flow
 import akka.stream.scaladsl.Sink
 import akka.stream.scaladsl.Source
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.domain.model.RealtimeModelPersistence.PersistenceEventHanlder
+import akka.actor.Status
+
+trait RealtimeModelPersistenceFactory {
+  def create(handler: PersistenceEventHanlder): RealtimeModelPersistence;
+}
+
+object RealtimeModelPersistence {
+  trait PersistenceEventHanlder {
+    def onError(message: String): Unit
+    def onClosed(): Unit
+    def onOperationCommited(version: Long): Unit
+    def onOperationError(message: String): Unit
+  }
+}
+
+trait RealtimeModelPersistence {
+  def processOperation(op: NewModelOperation): Unit
+  def executeSnapshot(): Unit
+  def close(): Unit
+}
 
 object RealtimeModelPersistenceStream {
   sealed trait ModelPersistenceCommand
   case class ProcessOperation(op: NewModelOperation) extends ModelPersistenceCommand
   case object ExecuteSnapshot extends ModelPersistenceCommand
+
 }
 
 class RealtimeModelPersistenceStream(
+  private[this] val handler: PersistenceEventHanlder,
   private[this] val domainFqn: DomainFqn,
   private[this] val modelId: String,
-  private[this] val model: ActorRef,
   private[this] implicit val system: ActorSystem,
   private[this] val modelStore: ModelStore,
   private[this] val modelSnapshotStore: ModelSnapshotStore,
   private[this] val modelOperationProcessor: ModelOperationProcessor)
-    extends Logging {
+    extends RealtimeModelPersistence
+    with Logging {
 
   import RealtimeModelPersistenceStream._
 
-  implicit val materializer = ActorMaterializer()
+  private[this] implicit val materializer = ActorMaterializer()
 
-  val streamActor: ActorRef =
+  def processOperation(op: NewModelOperation): Unit = {
+    streamActor ! ProcessOperation(op)
+  }
+
+  def executeSnapshot(): Unit = {
+    streamActor ! ExecuteSnapshot
+  }
+
+  def close(): Unit = {
+    streamActor ! Status.Success(())
+  }
+
+  private[this] val streamActor: ActorRef =
     Flow[ModelPersistenceCommand]
       .map {
         case ProcessOperation(modelOperation) =>
@@ -52,29 +84,30 @@ class RealtimeModelPersistenceStream(
         case Success(_) =>
           // Note when we shut down we complete the persistence stream.
           debug(s"Persistence stream completed successfully ${domainFqn}/${modelId}")
+          handler.onClosed()
         case Failure(f) =>
           // FIXME this is probably altering state outside of the thread.
           // probably need to send a message.
           error("Persistence stream completed with an error", f)
-          model ! StreamFailure
+          handler.onError("There was an unexpected error in the persistence stream")
       }).runWith(Source
         .actorRef[ModelPersistenceCommand](bufferSize = 1000, OverflowStrategy.fail))
 
-  private[this] def processOperation(modelOperation: NewModelOperation): Unit = {
+  private[this] def onProcessOperation(modelOperation: NewModelOperation): Unit = {
     modelOperationProcessor.processModelOperation(modelOperation)
       .map { _ =>
-        model ! OperationCommitted(modelOperation.version)
+        handler.onOperationCommited(modelOperation.version)
       }
       .recover {
         case cause: Exception =>
           // FIXME this is probably altering state outside of the thread.
           // probably need to send a message.
           error(s"Error applying operation: ${modelOperation}", cause)
-          model ! ForceClose("There was an unexpected persistence error applying an operation.")
+          handler.onOperationError("There was an unexpected persistence error applying an operation.")
       }
   }
 
-  private[this] def executeSnapshot(): Unit = {
+  private[this] def onExecuteSnapshot(): Unit = {
     Try {
       // FIXME: Handle Failure from try and None from option.
       val modelData = modelStore.getModel(this.modelId).get.get
@@ -94,5 +127,19 @@ class RealtimeModelPersistenceStream(
       case cause: Throwable =>
         error(s"Error taking snapshot of model (${modelId})", cause)
     }
+  }
+}
+
+class RealtimeModelPersistenceStreamFactory(
+  private[this] val domainFqn: DomainFqn,
+  private[this] val modelId: String,
+  private[this] implicit val system: ActorSystem,
+  private[this] val modelStore: ModelStore,
+  private[this] val modelSnapshotStore: ModelSnapshotStore,
+  private[this] val modelOperationProcessor: ModelOperationProcessor)
+    extends RealtimeModelPersistenceFactory {
+
+  def create(handler: PersistenceEventHanlder): RealtimeModelPersistence = {
+    new RealtimeModelPersistenceStream(handler, domainFqn, modelId, system, modelStore, modelSnapshotStore, modelOperationProcessor)
   }
 }

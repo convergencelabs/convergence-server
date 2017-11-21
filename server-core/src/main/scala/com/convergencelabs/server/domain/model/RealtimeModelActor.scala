@@ -1,52 +1,31 @@
 package com.convergencelabs.server.domain.model
 
-import java.lang.{ Long => JavaLong }
-import java.time.Instant
-
-import scala.collection.immutable.HashMap
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
+import scala.concurrent.duration.Duration
+import scala.concurrent.duration.FiniteDuration
 import scala.language.implicitConversions
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
+import scala.util.control.NonFatal
 
-import com.convergencelabs.server.UnknownErrorResponse
+import com.convergencelabs.server.datastore.DuplicateValueException
+import com.convergencelabs.server.datastore.domain.DomainPersistenceManager
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.server.datastore.domain.ModelPermissions
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.ModelSnapshotConfig
 import com.convergencelabs.server.domain.UnauthorizedException
-import com.convergencelabs.server.domain.model.data.ObjectValue
-import com.convergencelabs.server.domain.model.ot.OperationTransformer
-import com.convergencelabs.server.domain.model.ot.ServerConcurrencyControl
-import com.convergencelabs.server.domain.model.ot.TransformationFunctionRegistry
-import com.convergencelabs.server.domain.model.ot.UnprocessedOperationEvent
-import com.convergencelabs.server.domain.model.ot.xform.ReferenceTransformer
+import com.convergencelabs.server.domain.model.RealTimeModelManager.EventHandler
 
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
+import akka.actor.PoisonPill
 import akka.actor.Props
+import akka.actor.ReceiveTimeout
 import akka.actor.Status
 import akka.actor.Terminated
-import akka.pattern.AskTimeoutException
-import akka.pattern.Patterns
-import com.convergencelabs.server.domain.model.RealTimeModelManager.EventHandler
-import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
-import scala.util.control.NonFatal
-import scala.concurrent.duration.Duration
 import akka.cluster.sharding.ShardRegion.Passivate
-import akka.actor.ReceiveTimeout
-import com.convergencelabs.server.datastore.DuplicateValueException
-import com.convergencelabs.server.datastore.domain.ModelDataGenerator
 import akka.util.Timeout
-import scala.concurrent.duration.FiniteDuration
-import com.convergencelabs.server.datastore.domain.DomainPersistenceManager
-import akka.actor.PoisonPill
-
-case class ModelConfigResponse(sk: SessionKey, config: ClientAutoCreateModelConfigResponse)
-case class ClientOpenFailure(sk: SessionKey, response: AnyRef)
+import com.convergencelabs.server.util.ActorWorkQueue
 
 /**
  * Provides a factory method for creating the RealtimeModelActor
@@ -64,10 +43,6 @@ object RealtimeModelActor {
       persistenceManager,
       clientDataResponseTimeout,
       receiveTimeout))
-
-  case class OperationCommitted(version: Long)
-  case class ForceClose(reason: String)
-  case object StreamFailure
 
   private object ErrorCodes extends Enumeration {
     val Unknown = "unknown"
@@ -129,16 +104,6 @@ class RealtimeModelActor(
 
     case terminated: Terminated =>
       modelManager.handleTerminated(terminated)
-
-    // FIXME
-    case OperationCommitted(version) =>
-      modelManager.commitVersion(version)
-    case StreamFailure =>
-      modelManager.forceCloseAllAfterError("There was an unexpected persitence error.")
-    case dataResponse: ModelConfigResponse =>
-      modelManager.onClientAutoCreateModelConfigResponse(dataResponse)
-    case ClientOpenFailure(sk, response) =>
-      modelManager.handleQueuedClientOpenFailureFailure(sk, response)
 
     case unknown: Any =>
       unhandled(unknown)
@@ -286,8 +251,17 @@ class RealtimeModelActor(
 
   private[this] def becomeOpened(): Unit = {
     log.debug("Model '{}/{}' becoming open.", domainFqn, modelId)
+    val persistenceFactory = new RealtimeModelPersistenceStreamFactory(
+      domainFqn,
+      modelId,
+      context.system,
+      persistenceProvider.modelStore,
+      persistenceProvider.modelSnapshotStore,
+      persistenceProvider.modelOperationProcessor)
+
     val mm = new RealTimeModelManager(
-      self,
+      persistenceFactory,
+      new ActorWorkQueue(self),
       domainFqn,
       modelId,
       persistenceProvider,
@@ -504,7 +478,7 @@ class RealtimeModelActor(
         ()
     }
   }
-  
+
   override def postStop(): Unit = {
     this._domainFqn match {
       case Some(d) =>
