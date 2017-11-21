@@ -176,7 +176,7 @@ class ConvergenceRestFrontEnd(
         RoundRobinGroup(Nil),
         ClusterRouterGroupSettings(
           totalInstances = 100, routeesPaths = List(path),
-          allowLocalRoutees = true, useRole = Some("backend"))).props(),
+          allowLocalRoutees = true, useRoles = Set("backend"))).props(),
       name = name)
   }
 
