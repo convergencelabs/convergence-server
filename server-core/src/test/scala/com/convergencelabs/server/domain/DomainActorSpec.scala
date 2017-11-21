@@ -47,17 +47,6 @@ class DomainActorSpec
         assert(domainActor == response.domainActor)
       }
     }
-
-    "receiving a client disconnect" must {
-      "send a domain shutdown request when the last client disconnects" in new TestFixture {
-        val client = new TestProbe(system)
-        domainActor.tell(HandshakeRequest(domainFqn, client.ref, false, None), client.ref)
-        val response = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeSuccess])
-
-        domainActor.tell(ClientDisconnected(domainFqn, "sessionId"), client.ref)
-        var request = parent.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Passivate])
-      }
-    }
   }
 
   trait TestFixture {
