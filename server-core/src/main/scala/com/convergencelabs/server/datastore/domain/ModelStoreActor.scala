@@ -21,6 +21,8 @@ import scala.util.Failure
 import com.convergencelabs.server.datastore.StoreActor
 
 object ModelStoreActor {
+  def RelativePath = "ModelStoreActor"
+  
   def props(
     persistenceProvider: DomainPersistenceProvider): Props =
     Props(new ModelStoreActor(persistenceProvider))

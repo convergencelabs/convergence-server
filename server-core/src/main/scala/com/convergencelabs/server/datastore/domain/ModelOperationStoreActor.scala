@@ -6,6 +6,8 @@ import akka.actor.ActorLogging
 import akka.actor.Props
 
 object ModelOperationStoreActor {
+  val RelativePath = "ModelOperationStoreActor"
+  
   def props(operationStore: ModelOperationStore): Props = Props(new ModelOperationStoreActor(operationStore))
 
   trait ModelOperationStoreRequest

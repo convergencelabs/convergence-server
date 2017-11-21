@@ -30,10 +30,15 @@ import akka.actor.Status
 import akka.actor.SupervisorStrategy.Resume
 import akka.actor.Terminated
 import akka.cluster.sharding.ShardRegion.Passivate
+import com.convergencelabs.server.datastore.domain.ModelStoreActor
+import com.convergencelabs.server.datastore.domain.ModelOperationStore
+import com.convergencelabs.server.datastore.domain.ModelOperationStoreActor
 
 object DomainActor {
   case class DomainActorChildren(
     modelQueryManagerActor: ActorRef,
+    modelStoreActor: ActorRef,
+    operationStoreActor: ActorRef,
     userServiceActor: ActorRef,
     activityServiceActor: ActorRef,
     presenceServiceActor: ActorRef,
@@ -177,6 +182,8 @@ class DomainActor(
       sender ! HandshakeSuccess(
         self,
         this.children.modelQueryManagerActor,
+        this.children.modelStoreActor,
+        this.children.operationStoreActor,
         this.children.userServiceActor,
         this.children.activityServiceActor,
         this.children.presenceServiceActor,
@@ -238,8 +245,14 @@ class DomainActor(
         domainFqn),
         ChatChannelLookupActor.RelativePath)
 
+      val modelStoreActor = context.actorOf(ModelStoreActor.props(provider), ModelStoreActor.RelativePath)
+      
+      val operationStoreActor = context.actorOf(ModelOperationStoreActor.props(provider.modelOperationStore), ModelOperationStoreActor.RelativePath)
+
       this._children = Some(DomainActorChildren(
         modelQueryManagerActor,
+        modelStoreActor,
+        operationStoreActor,
         userServiceActor,
         activityServiceActor,
         presenceServiceActor,

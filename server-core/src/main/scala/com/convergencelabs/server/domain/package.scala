@@ -38,7 +38,9 @@ package object domain {
   
    case class HandshakeSuccess(
     domainActor: ActorRef,
-    modelManager: ActorRef,
+    modelQueryActor: ActorRef,
+    modelStoreActor: ActorRef,
+    operationStoreActor: ActorRef,
     userService: ActorRef,
     activityService: ActorRef,
     presenceService: ActorRef,

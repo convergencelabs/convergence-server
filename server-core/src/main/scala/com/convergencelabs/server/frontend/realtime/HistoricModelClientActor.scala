@@ -26,23 +26,24 @@ import akka.util.Timeout
 object HistoricModelClientActor {
   def props(
     sk: SessionKey,
-    domainFqn: DomainFqn): Props =
-    Props(new HistoricModelClientActor(sk, domainFqn))
+    domainFqn: DomainFqn,
+    modelStoreActor: ActorRef,
+    operationStoreActor: ActorRef): Props =
+    Props(new HistoricModelClientActor(sk, domainFqn, modelStoreActor, operationStoreActor))
 }
 
 class HistoricModelClientActor(
-  sessionKey: SessionKey,
-  domainFqn: DomainFqn)
+  private[this] val sessionKey: SessionKey,
+  private[this] val domainFqn: DomainFqn,
+  private[this] val modelStoreActor: ActorRef,
+  private[this] val operationStoreActor: ActorRef)
     extends Actor with ActorLogging {
 
   import akka.pattern.ask
-  
+
   private[this] implicit val timeout = Timeout(5 seconds)
   private[this] implicit val ec = context.dispatcher
 
-  private var modelStoreActor: ActorRef = _
-  private var operationStoreActor: ActorRef = _
-  
   private[this] val modelClusterRegion: ActorRef = RealtimeModelSharding.shardRegion(this.context.system)
 
   def receive: Receive = {
@@ -90,19 +91,5 @@ class HistoricModelClientActor(
         cb.unknownError()
       }
     }
-  }
-
-  override def preStart(): Unit = {
-    DomainPersistenceManagerActor.acquirePersistenceProvider(self, context, domainFqn) match {
-      case Success(provider) =>
-        modelStoreActor = context.actorOf(ModelStoreActor.props(provider))
-        operationStoreActor = context.actorOf(ModelOperationStoreActor.props(provider.modelOperationStore))
-      case Failure(cause) =>
-        log.error(cause, "Unable to obtain a domain persistence provider.")
-    }
-  }
-
-  override def postStop(): Unit = {
-    DomainPersistenceManagerActor.releasePersistenceProvider(self, context, domainFqn)
   }
 }

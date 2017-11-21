@@ -87,6 +87,8 @@ class ClientActor(
 
   private[this] var domainActor: Option[ActorRef] = None
   private[this] var modelQueryActor: ActorRef = _
+  private[this] var modelStoreActor: ActorRef = _
+  private[this] var operationStoreActor: ActorRef = _
   private[this] var userServiceActor: ActorRef = _
   private[this] var activityServiceActor: ActorRef = _
   private[this] var presenceServiceActor: ActorRef = _
@@ -241,7 +243,7 @@ class ClientActor(
     this.chatClient = context.actorOf(ChatClientActor.props(domainFqn, chatLookupActor, sk, requestTimeout))
     this.activityClient = context.actorOf(ActivityClientActor.props(activityServiceActor, sk))
     this.presenceClient = context.actorOf(PresenceClientActor.props(presenceServiceActor, sk))
-    this.historyClient = context.actorOf(HistoricModelClientActor.props(sk, domainFqn));
+    this.historyClient = context.actorOf(HistoricModelClientActor.props(sk, domainFqn, modelStoreActor, operationStoreActor));
     this.messageHandler = handleMessagesWhenAuthenticated
 
     cb.reply(AuthenticationResponseMessage(true, Some(username), Some(sk.serialize()), Some(presence.state)))
@@ -274,9 +276,11 @@ class ClientActor(
   private[this] def handleHandshakeSuccess(success: InternalHandshakeSuccess): Unit = {
     // FIXME we don't need the domain actor
     val InternalHandshakeSuccess(HandshakeSuccess(
-      domainActor, modelQueryActor, userActor, activityActor, presenceActor, chatLookupActor),
+      domainActor, modelQueryActor, modelStoreActor, operationStoreActor, userActor, activityActor, presenceActor, chatLookupActor),
       cb) = success
     this.domainActor = Some(domainActor)
+    this.modelStoreActor = modelStoreActor
+    this.operationStoreActor = operationStoreActor
     this.modelQueryActor = modelQueryActor
     this.userServiceActor = userActor
     this.activityServiceActor = activityActor
