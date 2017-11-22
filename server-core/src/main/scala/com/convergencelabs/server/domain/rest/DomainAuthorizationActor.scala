@@ -10,6 +10,7 @@ import com.convergencelabs.server.domain.DomainFqn
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.Props
+import akka.actor.Status
 
 object AuthorizationActor {
   def props(dbProvider: DatabaseProvider): Props = Props(new AuthorizationActor(dbProvider))
@@ -35,7 +36,7 @@ class AuthorizationActor(private[this] val dbProvider: DatabaseProvider)
 
   private[this] def onConvergenceAuthorizedRequest(message: ConvergenceAuthorizedRequest): Unit = {
     val ConvergenceAuthorizedRequest(username, domain, permissions) = message
-    for {
+    (for {
       owner <- domainStore.getDomainByFqn(domain) map { domain =>
         domain match {
           case Some(domain) if domain.owner == username => true
@@ -46,7 +47,10 @@ class AuthorizationActor(private[this] val dbProvider: DatabaseProvider)
       hasPermission <- permissionsStore.getAllUserPermissions(username, domain).map(_.map(_.id)).map { permissions.subsetOf(_) }
     } yield {
       val authorized = owner || hasPermission
-      sender ! authorized 
+      sender ! authorized
+    }) recover {
+      case cause: Exception =>
+        sender ! Status.Failure(cause)
     }
   }
 }

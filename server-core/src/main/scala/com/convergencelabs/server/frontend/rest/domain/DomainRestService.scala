@@ -29,6 +29,6 @@ class DomainRestService(
 
   def checkPermission(domainFqn: DomainFqn, username: String, permissions: Set[String]): Future[Boolean] = {
     val message = ConvergenceAuthorizedRequest(username, domainFqn, permissions)
-    (authorizationActor ? message).mapTo[Try[Boolean]].map(_.get)
+    (authorizationActor ? message).mapTo[Boolean]
   }
 }
