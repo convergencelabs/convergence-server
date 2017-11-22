@@ -2,12 +2,12 @@ package com.convergencelabs.server.frontend.rest
 
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
+import scala.util.Failure
+import scala.util.Success
 
 import com.convergencelabs.server.datastore.AuthStoreActor
 import com.convergencelabs.server.datastore.ConvergenceUserManagerActor
 import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.DeltaHistoryStore
-import com.convergencelabs.server.datastore.DomainStore
 import com.convergencelabs.server.datastore.DomainStoreActor
 import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.EntityNotFoundException
@@ -16,14 +16,15 @@ import com.convergencelabs.server.datastore.PermissionsStoreActor
 import com.convergencelabs.server.datastore.RegistrationActor
 import com.convergencelabs.server.db.data.ConvergenceImportService
 import com.convergencelabs.server.db.data.ConvergenceImporterActor
-import com.convergencelabs.server.db.provision.DomainProvisioner
-import com.convergencelabs.server.db.provision.DomainProvisionerActor
-import com.convergencelabs.server.db.schema.DatabaseManager
 import com.convergencelabs.server.db.schema.DatabaseManagerActor
-import com.convergencelabs.server.domain.AuthorizationActor
-import com.convergencelabs.server.domain.RestDomainManagerActor
+import com.convergencelabs.server.domain.model.RealtimeModelSharding
+import com.convergencelabs.server.domain.rest.AuthorizationActor
+import com.convergencelabs.server.domain.rest.RestDomainActorSharding
 
+import akka.actor.ActorRef
 import akka.actor.ActorSystem
+import akka.cluster.routing.ClusterRouterGroup
+import akka.cluster.routing.ClusterRouterGroupSettings
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.HttpMethods
 import akka.http.scaladsl.model.HttpResponse
@@ -40,6 +41,7 @@ import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.ExceptionHandler
 import akka.http.scaladsl.server.RouteResult.route2HandlerFlow
 import akka.http.scaladsl.server.directives.SecurityDirectives.authenticateBasic
+import akka.routing.RoundRobinGroup
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
@@ -60,14 +62,18 @@ object ConvergenceRestFrontEnd {
 class ConvergenceRestFrontEnd(
   val system: ActorSystem,
   val interface: String,
-  val port: Int,
-  val convergenceDbProvider: DatabaseProvider)
+  val port: Int)
     extends Logging with JsonSupport {
 
   implicit val s = system
   implicit val materializer = ActorMaterializer()
   implicit val ec = system.dispatcher
   implicit val defaultRequestTimeout = Timeout(20 seconds)
+
+  var binding: Option[Http.ServerBinding] = None
+
+  private[this] val modelClusterRegion: ActorRef = RealtimeModelSharding.shardRegion(system)
+  private[this] val restDomainActorRegion: ActorRef = RestDomainActorSharding.shardRegion(system)
 
   val exceptionHandler: ExceptionHandler = ExceptionHandler {
     case e: DuplicateValueException =>
@@ -87,53 +93,23 @@ class ConvergenceRestFrontEnd(
   }
 
   def start(): Unit = {
-    // FIXME this is a hack all of this should be a rest backend
-    val orientDbConfig = system.settings.config.getConfig("convergence.orient-db")
-    val convergenceDbConfig = system.settings.config.getConfig("convergence.convergence-database")
-    val domainPreRelease = system.settings.config.getBoolean("convergence.domain-databases.pre-release")
-
-    // FIXME remove this eventually
-    val historyStore = new DeltaHistoryStore(convergenceDbProvider)
-
-    val domainProvisioner = new DomainProvisioner(
-      historyStore,
-      orientDbConfig.getString("db-uri"),
-      orientDbConfig.getString("admin-username"),
-      orientDbConfig.getString("admin-password"),
-      domainPreRelease)
-
-    val provisionerActor = system.actorOf(DomainProvisionerActor.props(domainProvisioner), DomainProvisionerActor.RelativePath)
-
-    val domainActor = system.actorOf(DomainStoreActor.props(convergenceDbProvider, provisionerActor))
-
-    val importerActor = system.actorOf(ConvergenceImporterActor.props(
-      orientDbConfig.getString("db-uri"),
-      convergenceDbProvider,
-      domainActor), ConvergenceImporterActor.RelativePath)
-
-    val authActor = system.actorOf(AuthStoreActor.props(convergenceDbProvider))
-    val userManagerActor = system.actorOf(ConvergenceUserManagerActor.props(convergenceDbProvider, domainActor))
-    val registrationActor = system.actorOf(RegistrationActor.props(convergenceDbProvider, userManagerActor))
-    val domainManagerActor = system.actorOf(RestDomainManagerActor.props(convergenceDbProvider))
-    val authorizationActor = system.actorOf(AuthorizationActor.props(convergenceDbProvider))
-    val permissionStoreActor = system.actorOf(PermissionsStoreActor.props(convergenceDbProvider))
-
-    // FIXME should this take an actor ref instead?
-    val domainStore = new DomainStore(convergenceDbProvider)
-    val convergenceUserActor = system.actorOf(ConvergenceUserManagerActor.props(convergenceDbProvider, domainActor))
-
-    val databaseManager = new DatabaseManager(orientDbConfig.getString("db-uri"), convergenceDbProvider, convergenceDbConfig)
-    val databaseManagerActor = system.actorOf(DatabaseManagerActor.props(databaseManager))
-
-    // Down to here
 
     val registrationBaseUrl = system.settings.config.getString("convergence.registration-base-url")
 
-    // These are the rest services
-    val authService = new AuthService(ec, authActor, defaultRequestTimeout)
-    val authenticator = new Authenticator(authActor, defaultRequestTimeout, ec)
+    val authStoreActor = createRouter("/user/" + AuthStoreActor.RelativePath, "authStoreActor")
+    val convergenceUserActor = createRouter("/user/" + ConvergenceUserManagerActor.RelativePath, "convergenceUserActor")
+    val registrationActor = createRouter("/user/" + RegistrationActor.RelativePath, "registrationActor")
+    val databaseManagerActor = createRouter("/user/" + DatabaseManagerActor.RelativePath, "databaseManagerActor")
+    val importerActor = createRouter("/user/" + ConvergenceImporterActor.RelativePath, "importerActor")
+    val authorizationActor = createRouter("/user/" + AuthorizationActor.RelativePath, "authorizationActor")
+    val permissionStoreActor = createRouter("/user/" + PermissionsStoreActor.RelativePath, "permissionStoreActor")
+
+    // The Rest Services
+
+    // All of these services are global to the system and outside of the domain.
+    val authService = new AuthService(ec, authStoreActor, defaultRequestTimeout)
+    val authenticator = new Authenticator(authStoreActor, defaultRequestTimeout, ec)
     val registrationService = new RegistrationService(ec, registrationActor, defaultRequestTimeout, registrationBaseUrl)
-    val domainService = new DomainService(ec, authorizationActor, domainActor, domainManagerActor, permissionStoreActor, defaultRequestTimeout)
     val profileService = new ProfileService(ec, convergenceUserActor, defaultRequestTimeout)
     val passwordService = new PasswordService(ec, convergenceUserActor, defaultRequestTimeout)
     val keyGenService = new KeyGenService(ec)
@@ -142,6 +118,17 @@ class ConvergenceRestFrontEnd(
     val convergenceUserService = new ConvergenceUserService(ec, convergenceUserActor, defaultRequestTimeout)
     val convergenceImportService = new ConvergenceImportService(ec, importerActor, defaultRequestTimeout)
     val databaseManagerService = new DatabaseManagerRestService(ec, databaseManagerActor, defaultRequestTimeout)
+
+    // This handles all of the domains specific stuff
+    val domainStoreActor = createRouter("/user/" + DomainStoreActor.RelativePath, "domainStoreActor")
+    
+    val domainService = new DomainService(ec, 
+        authorizationActor, 
+        domainStoreActor,
+        restDomainActorRegion, 
+        permissionStoreActor, 
+        modelClusterRegion, 
+        defaultRequestTimeout)
 
     val adminsConfig = system.settings.config.getConfig("convergence.convergence-admins")
 
@@ -172,7 +159,28 @@ class ConvergenceRestFrontEnd(
     }
 
     // Now we start up the server
-    val bindingFuture = Http().bindAndHandle(route, interface, port)
-    logger.info(s"Convergence Rest Front End listening at http://${interface}:${port}/")
+    val bindingFuture = Http().bindAndHandle(route, interface, port).onComplete {
+      case Success(b) ⇒
+        this.binding = Some(b)
+        val localAddress = b.localAddress
+        logger.info(s"Rest Front End started up on port http://${interface}:${port}.")
+      case Failure(e) ⇒
+        logger.info(s"Rest Front End Binding failed with ${e.getMessage}")
+        system.terminate()
+    }
+  }
+
+  def createRouter(path: String, name: String): ActorRef = {
+    system.actorOf(
+      ClusterRouterGroup(
+        RoundRobinGroup(Nil),
+        ClusterRouterGroupSettings(
+          totalInstances = 100, routeesPaths = List(path),
+          allowLocalRoutees = true, useRoles = Set("backend"))).props(),
+      name = name)
+  }
+
+  def stop(): Unit = {
+    this.binding foreach { b => b.unbind() }
   }
 }

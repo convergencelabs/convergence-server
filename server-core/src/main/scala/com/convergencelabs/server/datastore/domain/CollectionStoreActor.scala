@@ -1,16 +1,12 @@
-package com.convergencelabs.server.datastore
+package com.convergencelabs.server.datastore.domain
 
-import com.convergencelabs.server.datastore.CollectionStoreActor.CreateCollection
-import com.convergencelabs.server.datastore.CollectionStoreActor.DeleteCollection
-import com.convergencelabs.server.datastore.CollectionStoreActor.UpdateCollection
-import com.convergencelabs.server.datastore.domain.CollectionStore
+import com.convergencelabs.server.datastore.StoreActor
 import com.convergencelabs.server.domain.model.Collection
 
 import CollectionStoreActor.GetCollection
 import CollectionStoreActor.GetCollections
 import akka.actor.ActorLogging
 import akka.actor.Props
-import com.convergencelabs.server.datastore.CollectionStoreActor.GetCollectionSummaries
 
 object CollectionStoreActor {
   def props(collectionStore: CollectionStore): Props = Props(new CollectionStoreActor(collectionStore))
@@ -28,6 +24,8 @@ class CollectionStoreActor private[datastore] (
   private[this] val collectionStore: CollectionStore)
     extends StoreActor with ActorLogging {
 
+  import CollectionStoreActor._
+  
   def receive: Receive = {
     case GetCollections(offset, limit)  => getCollections(offset, limit)
     case GetCollectionSummaries(offset, limit)  => getCollectionSummaries(offset, limit)

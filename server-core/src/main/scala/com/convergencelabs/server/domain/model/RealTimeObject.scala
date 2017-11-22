@@ -51,11 +51,11 @@ class RealTimeObject(
   }
 
   def data(): Map[String, _] = {
-    childValues.mapValues { child => child.data() }
+    childValues.map { case (k, v) => k -> v.data() }
   }
   
   def dataValue(): ObjectValue = {
-    ObjectValue(id, childValues.mapValues { child => child.dataValue()})
+    ObjectValue(id, childValues.map { case (k, v) => k -> v.dataValue() })
   }
 
   protected def child(childPath: Any): Try[Option[RealTimeValue]] = {

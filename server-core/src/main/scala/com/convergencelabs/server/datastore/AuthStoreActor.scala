@@ -67,6 +67,8 @@ class AuthStoreActor private[datastore] (
 }
 
 object AuthStoreActor {
+  val RelativePath = "AuthStoreActor"
+  
   def props(dbProvider: DatabaseProvider): Props = Props(new AuthStoreActor(dbProvider))
 
   case class AuthRequest(username: String, password: String)

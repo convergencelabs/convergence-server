@@ -20,7 +20,6 @@ import com.convergencelabs.server.HeartbeatConfiguration
 import com.convergencelabs.server.ProtocolConfiguration
 import com.convergencelabs.server.domain.AuthenticationSuccess
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.HandshakeFailure
 import com.convergencelabs.server.domain.HandshakeRequest
 import com.convergencelabs.server.domain.HandshakeSuccess
 import com.convergencelabs.server.domain.PasswordAuthRequest
@@ -70,7 +69,6 @@ class ClientActorSpec
         0 seconds))
 
     val props = ClientActor.props(
-      domainManagerActor.ref,
       domainFqn,
       protoConfig,
       IP(ip=InetAddress.getLocalHost),
@@ -84,6 +82,8 @@ class ClientActorSpec
   class HandshookClient(system: ActorSystem) extends TestFixture(system: ActorSystem) {
     val domainActor = new TestProbe(system)
     val modelManagerActor = new TestProbe(system)
+    val modelStoreActor = new TestProbe(system)
+    val operationStoreActor = new TestProbe(system)
     val userServiceActor = new TestProbe(system)
     val activityServiceActor = new TestProbe(system)
     val presenceServiceActor = new TestProbe(system)
@@ -98,7 +98,7 @@ class ClientActorSpec
 
     domainManagerActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeRequest])
     domainManagerActor.reply(
-        HandshakeSuccess(domainActor.ref, modelManagerActor.ref, userServiceActor.ref, activityServiceActor.ref, presenceServiceActor.ref, chatLookupActor.ref, chatChannelActor.ref))
+        HandshakeSuccess(domainActor.ref, modelManagerActor.ref, modelStoreActor.ref, operationStoreActor.ref, userServiceActor.ref, activityServiceActor.ref, presenceServiceActor.ref, chatLookupActor.ref))
     Await.result(handshakeCallback.result, 250 millis)
   }
 

@@ -25,6 +25,7 @@ import DomainProvisioner.StorageMode
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.datastore.DeltaHistoryStore
+import com.convergencelabs.server.datastore.domain.DomainPersistenceProviderImpl
 
 object DomainProvisioner {
   val DefaultSnapshotConfig = ModelSnapshotConfig(
@@ -144,7 +145,7 @@ class DomainProvisioner(
     val db = new ODatabaseDocumentTx(uri)
     db.open(username, password)
     val povider = DatabaseProvider(db)
-    val persistenceProvider = new DomainPersistenceProvider(povider)
+    val persistenceProvider = new DomainPersistenceProviderImpl(povider)
     persistenceProvider.validateConnection() map (_ => persistenceProvider)
   } flatMap {
     persistenceProvider =>

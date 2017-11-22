@@ -31,7 +31,7 @@ class SessionStoreSpec
   val clientVersion = "1.0"
   val remoteHost = "127.0.0.1"
 
-  def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProvider(dbProvider)
+  def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProviderImpl(dbProvider)
 
   "A SessionStore" when {
     "creating a session" must {

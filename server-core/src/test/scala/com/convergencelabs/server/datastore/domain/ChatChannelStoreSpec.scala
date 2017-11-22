@@ -26,7 +26,7 @@ class ChatChannelStoreSpec
   val channel1Id = "channel1"
   val firstId = "#1"
 
-  def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProvider(dbProvider)
+  def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProviderImpl(dbProvider)
 
   "A ChatChannelStore" when {
     "creating a chat channel" must {

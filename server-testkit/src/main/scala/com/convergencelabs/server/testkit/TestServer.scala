@@ -8,32 +8,45 @@ import com.orientechnologies.orient.core.command.OCommandOutputListener
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.orientechnologies.orient.core.db.tool.ODatabaseImport
 import com.typesafe.config.ConfigFactory
+import scala.collection.JavaConversions._
 
 import grizzled.slf4j.Logging
 import java.io.InputStreamReader
+import com.typesafe.config.Config
+import com.typesafe.config.ConfigValueFactory
 
 object TestServer {
   def main(args: Array[String]): Unit = {
-    val server = new TestServer("/convergence-application.conf")
+    val server = new TestServer()
     server.start()
   }
 }
 
-class TestServer(configFile: String) extends Logging {
+class TestServer() extends Logging {
 
   val persistent = java.lang.Boolean.getBoolean("convergence.test-server.persistent")
   val odbTarget = new File("target/orientdb/databases")
 
-  val reader = new InputStreamReader(getClass.getResourceAsStream(configFile))
-  val config = ConfigFactory.parseReader(reader)
-  val server = new ConvergenceServerNode(config)
+  val seed = new ConvergenceServerNode(
+    createConfig("/convergence-application.conf", 2551, List("seed")))
+  val backend = new ConvergenceServerNode(
+    createConfig("/convergence-application.conf", 2552, List("backend")))
+  val frontend = new ConvergenceServerNode(
+    createConfig("/convergence-application.conf", 2553, List("realTimeFrontend", "restFrontend")))
+
   val oriendDb = new EmbeddedOrientDB(odbTarget.getAbsolutePath, persistent)
 
   def start(): Unit = {
     logger.info("Test server starting up")
+
     oriendDb.start()
-    server.start()
+
+    seed.start()
+    backend.start()
+    frontend.start()
+
     logger.info("Test server started.")
+
     var line = scala.io.StdIn.readLine()
     while (line.trim() != "exit") {
       line = scala.io.StdIn.readLine()
@@ -44,7 +57,17 @@ class TestServer(configFile: String) extends Logging {
 
   def stop(): Unit = {
     logger.info("Test server shutting down.")
-    server.stop()
     oriendDb.stop()
+    seed.stop()
+    backend.stop()
+    frontend.stop()
+    oriendDb.stop()
+  }
+
+  def createConfig(configFile: String, port: Int, roles: List[String]): Config = {
+    val reader = new InputStreamReader(getClass.getResourceAsStream(configFile))
+    ConfigFactory.parseReader(reader)
+      .withValue("akka.remote.netty.tcp.port", ConfigValueFactory.fromAnyRef(port))
+      .withValue("akka.cluster.roles", ConfigValueFactory.fromIterable(roles))
   }
 }

@@ -17,6 +17,7 @@ import akka.actor.ActorRef
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.datastore.DomainDatabaseFactory
+import com.convergencelabs.server.datastore.domain.DomainPersistenceProviderImpl
 
 class ConvergenceExporter(
     private[this] val dbBaseUri: String,
@@ -65,7 +66,7 @@ class ConvergenceExporter(
       _.map { case domain =>
         // FIXME error handling
         val pool = dbFactory.getDomainDatabasePool(domain.domainFqn).get
-        val provider = new DomainPersistenceProvider(DatabaseProvider(pool))
+        val provider = new DomainPersistenceProviderImpl(DatabaseProvider(pool))
         val exporter = new DomainExporter(provider)
         // FIXME error handling
         val domainScript = exporter.exportDomain().get

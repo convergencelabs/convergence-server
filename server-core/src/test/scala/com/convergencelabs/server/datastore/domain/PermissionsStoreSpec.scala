@@ -40,7 +40,7 @@ class PermissionsStoreSpec
   val permission2 = "permission2"
   val permission3 = "permission3"
 
-  def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProvider(dbProvider)
+  def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProviderImpl(dbProvider)
 
   "A PermissionsStore" when {
     "creating a permission" must {

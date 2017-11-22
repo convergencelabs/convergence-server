@@ -4,6 +4,7 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
+import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.chat.ChatChannelActor.Stop
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.AddUserToChannelRequest
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.ExistingChannelMessage
@@ -13,14 +14,15 @@ import com.convergencelabs.server.domain.chat.ChatChannelMessages.LeaveChannelRe
 
 import akka.actor.Actor
 import akka.actor.ActorContext
+import akka.actor.ActorLogging
 import akka.actor.ActorRef
 import akka.actor.Props
 import akka.actor.Terminated
 import akka.cluster.sharding.ShardRegion.Passivate
-import akka.actor.ActorLogging
 import grizzled.slf4j.Logging
 
 class ChatRoomMessageProcessor(
+  domainFqn: DomainFqn,
   channelId: String,
   stateManager: ChatChannelStateManager,
   context: ActorContext)
@@ -41,7 +43,7 @@ class ChatRoomMessageProcessor(
   }
 
   override def onJoinChannel(message: JoinChannelRequest): Try[ChatMessageProcessingResult] = {
-    val JoinChannelRequest(channelId, sk, client) = message
+    val JoinChannelRequest(domainFqn, channelId, sk, client) = message
     logger.debug("Client joined chat room")
     watcher.tell(client, Actor.noSender)
 
@@ -56,7 +58,7 @@ class ChatRoomMessageProcessor(
   }
 
   override def onLeaveChannel(message: LeaveChannelRequest): Try[ChatMessageProcessingResult] = {
-    val LeaveChannelRequest(channelId, sk, client) = message
+    val LeaveChannelRequest(domainFqn, channelId, sk, client) = message
     logger.debug("Client joined chat room")
     val result = chatRoomSessionManager.leave(sk) match {
       case true =>
@@ -88,7 +90,7 @@ class ChatRoomMessageProcessor(
         context.unwatch(client)
         chatRoomSessionManager.getSession(client).foreach { sk =>
           // TODO This is a little sloppy since we will send a message to the client, which we already know is gone.
-          val syntheticMessage = LeaveChannelRequest(channelId, sk, client)
+          val syntheticMessage = LeaveChannelRequest(domainFqn, channelId, sk, client)
           processChatMessage(syntheticMessage)
         }
     }

@@ -19,6 +19,7 @@ import akka.actor.ActorLogging
 import akka.actor.ActorRef
 import akka.actor.Props
 import akka.actor.actorRef2Scala
+import com.convergencelabs.server.datastore.domain.DomainPersistenceProviderImpl
 
 class ConvergenceImporterActor(
     private[this] val dbBaseUri: String,
@@ -70,7 +71,7 @@ class ConvergenceImporterActor(
   private[this] def importDomain(fqn: DomainFqn, script: DomainScript): Unit = {
     domainDbProvider.getDomainDatabasePool(fqn) foreach {
       domainPool =>
-        val provider = new DomainPersistenceProvider(dbProvider)
+        val provider = new DomainPersistenceProviderImpl(dbProvider)
         val domainImporter = new DomainImporter(provider, script)
         // FIXME handle error
         domainImporter.importDomain()
@@ -82,7 +83,7 @@ class ConvergenceImporterActor(
     log.debug(s"Exporting domain: ${fqn.namespace}/${fqn.domainId}")
     domainDbProvider.getDomainDatabasePool(fqn) foreach {
       domainPool =>
-        val provider = new DomainPersistenceProvider(dbProvider)
+        val provider = new DomainPersistenceProviderImpl(dbProvider)
         val domainExporter = new DomainExporter(provider)
         // FIXME handle error
         domainExporter.exportDomain() match {

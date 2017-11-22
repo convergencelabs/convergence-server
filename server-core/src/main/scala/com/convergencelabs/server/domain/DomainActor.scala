@@ -3,46 +3,55 @@ package com.convergencelabs.server.domain
 import java.time.Instant
 
 import scala.collection.mutable
+import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Failure
 import scala.util.Success
+import scala.util.Try
+import scala.util.control.NonFatal
 
 import com.convergencelabs.server.ProtocolConfiguration
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManager
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.datastore.domain.DomainSession
-import com.convergencelabs.server.domain.model.ModelCreator
-import com.convergencelabs.server.domain.model.ModelManagerActor
-import com.convergencelabs.server.domain.model.ModelPermissionResolver
+import com.convergencelabs.server.domain.chat.ChatChannelLookupActor
+import com.convergencelabs.server.domain.model.ModelLookupActor
 
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
 import akka.actor.OneForOneStrategy
+import akka.actor.PoisonPill
 import akka.actor.Props
+import akka.actor.ReceiveTimeout
+import akka.actor.Status
 import akka.actor.SupervisorStrategy.Resume
 import akka.actor.Terminated
-import akka.cluster.sharding.ClusterSharding
-import akka.cluster.sharding.ClusterShardingSettings
-import akka.cluster.sharding.ShardRegion
-import com.convergencelabs.server.domain.chat.ChatChannelLookupActor
-import com.convergencelabs.server.domain.chat.ChatChannelActor
-import com.convergencelabs.server.domain.chat.ChatChannelSharding
+import akka.cluster.sharding.ShardRegion.Passivate
+import com.convergencelabs.server.datastore.domain.ModelStoreActor
+import com.convergencelabs.server.datastore.domain.ModelOperationStore
+import com.convergencelabs.server.datastore.domain.ModelOperationStoreActor
 
 object DomainActor {
+  case class DomainActorChildren(
+    modelQueryManagerActor: ActorRef,
+    modelStoreActor: ActorRef,
+    operationStoreActor: ActorRef,
+    userServiceActor: ActorRef,
+    activityServiceActor: ActorRef,
+    presenceServiceActor: ActorRef,
+    chatChannelLookupActor: ActorRef)
+
   def props(
-    domainManagerActor: ActorRef,
-    domainFqn: DomainFqn,
     protocolConfig: ProtocolConfiguration,
-    shutdownDelay: FiniteDuration,
-    domainPersistenceManager: DomainPersistenceManager): Props = Props(
+    domainPersistenceManager: DomainPersistenceManager,
+    receiveTimeout: FiniteDuration): Props = Props(
     new DomainActor(
-      domainManagerActor,
-      domainFqn,
       protocolConfig,
-      domainPersistenceManager))
+      domainPersistenceManager,
+      receiveTimeout))
 }
 
 /**
@@ -50,14 +59,13 @@ object DomainActor {
  * all actor that comprise the services provided by a particular domain.
  */
 class DomainActor(
-  domainManagerActor: ActorRef,
-  domainFqn: DomainFqn,
-  protocolConfig: ProtocolConfiguration,
-  domainPersistenceManager: DomainPersistenceManager)
+  private[this] val protocolConfig: ProtocolConfiguration,
+  private[this] val domainPersistenceManager: DomainPersistenceManager,
+  private[this] val receiveTimeout: FiniteDuration)
     extends Actor
     with ActorLogging {
 
-  log.debug(s"Domain startting up: ${domainFqn}")
+  import DomainActor._
 
   override val supervisorStrategy =
     OneForOneStrategy(maxNrOfRetries = 10, withinTimeRange = 1.minute) {
@@ -67,54 +75,51 @@ class DomainActor(
       }
     }
 
-  private[this] var persistenceProvider: DomainPersistenceProvider = _
   private[this] implicit val ec = context.dispatcher
-
-  private[this] val modelManagerActorRef = context.actorOf(ModelManagerActor.props(
-    domainFqn,
-    protocolConfig,
-    DomainPersistenceManagerActor,
-    new ModelPermissionResolver(),
-    new ModelCreator()),
-    ModelManagerActor.RelativePath)
-
-  private[this] val userServiceActor = context.actorOf(IdentityServiceActor.props(
-    domainFqn),
-    IdentityServiceActor.RelativePath)
-
-  private[this] val activityServiceActor = context.actorOf(ActivityServiceActor.props(
-    domainFqn),
-    ActivityServiceActor.RelativePath)
-
-  private[this] val presenceServiceActor = context.actorOf(PresenceServiceActor.props(
-    domainFqn),
-    PresenceServiceActor.RelativePath)
-
-  private[this] val chatChannelLookupActor = context.actorOf(ChatChannelLookupActor.props(
-    domainFqn),
-    ChatChannelLookupActor.RelativePath)
-
-  private[this] val chatChannelRegion: ActorRef =
-    ClusterSharding(context.system).start(
-      typeName = ChatChannelSharding.calculateRegionName(domainFqn),
-      entityProps = Props(classOf[ChatChannelActor], domainFqn),
-      settings = ClusterShardingSettings(context.system),
-      extractEntityId = ChatChannelSharding.extractEntityId,
-      extractShardId = ChatChannelSharding.extractShardId)
-
-  private[this] var authenticator: AuthenticationHandler = _
-
-  log.debug(s"Domain start up complete: ${domainFqn}")
-
   private[this] val connectedClients = mutable.Set[ActorRef]()
   private[this] val authenticatedClients = mutable.Map[ActorRef, String]()
 
-  def receive: Receive = {
-    case message: HandshakeRequest => onHandshakeRequest(message)
-    case message: AuthenticationRequest => onAuthenticationRequest(message)
-    case message: ClientDisconnected => onClientDisconnect(message)
-    case Terminated(client) => handleDeathWatch(client)
-    case message: Any => unhandled(message)
+  private[this] var _domainFqn: Option[DomainFqn] = None
+  private[this] var _persistenceProvider: Option[DomainPersistenceProvider] = None
+  private[this] var _authenticator: Option[AuthenticationHandler] = None
+  private[this] var _children: Option[DomainActorChildren] = None
+
+  this.context.setReceiveTimeout(this.receiveTimeout)
+
+  def receive: Receive = receiveUninitialized
+
+  private[this] def receiveUninitialized: Receive = {
+    case msg: DomainMessage =>
+      initialize(msg).map(_ => receiveInitialized(msg))
+    case ReceiveTimeout =>
+      passivate()
+    case unknown: Any =>
+      unhandled(unknown)
+  }
+
+  def receiveInitialized: Receive = {
+    case message: HandshakeRequest =>
+      onHandshakeRequest(message)
+    case message: AuthenticationRequest =>
+      onAuthenticationRequest(message)
+    case message: ClientDisconnected =>
+      onClientDisconnect(message)
+    case Terminated(client) =>
+      handleDeathWatch(client)
+    case ReceiveTimeout =>
+      passivate()
+    case message: Any =>
+      unhandled(message)
+  }
+
+  private[this] def receivePassivating: Receive = {
+    case msg: ReceiveTimeout =>
+    // ignore
+    case msg: DomainMessage =>
+      // Forward this back to the shard region, it will be handled by the next actor that is stood up.
+      this.context.parent.forward(msg)
+    case msg: Any =>
+      unhandled(msg)
   }
 
   private[this] def handleDeathWatch(actorRef: ActorRef): Unit = {
@@ -170,20 +175,23 @@ class DomainActor(
 
   private[this] def onHandshakeRequest(message: HandshakeRequest): Unit = {
     persistenceProvider.validateConnection() map { _ =>
+      this.context.setReceiveTimeout(Duration.Inf)
+
       connectedClients += message.clientActor
       context.watch(message.clientActor)
       sender ! HandshakeSuccess(
         self,
-        modelManagerActorRef,
-        userServiceActor,
-        activityServiceActor,
-        presenceServiceActor,
-        chatChannelLookupActor,
-        chatChannelRegion)
+        this.children.modelQueryManagerActor,
+        this.children.modelStoreActor,
+        this.children.operationStoreActor,
+        this.children.userServiceActor,
+        this.children.activityServiceActor,
+        this.children.presenceServiceActor,
+        this.children.chatChannelLookupActor)
     } recover {
       case cause: Exception =>
         log.error(cause, "Could not connect to domain database")
-        sender ! HandshakeFailure("domain_unavailable", "Could not connect to database.")
+        sender ! Status.Failure(HandshakeFailureException("domain_unavailable", "Could not connect to database."))
     }
   }
 
@@ -199,32 +207,91 @@ class DomainActor(
     }
     if (connectedClients.isEmpty) {
       log.debug(s"Last client disconnected from domain: ${domainFqn}")
-      domainManagerActor ! DomainShutdownRequest(domainFqn)
+      this.context.setReceiveTimeout(this.receiveTimeout)
     }
   }
 
-  override def preStart(): Unit = {
-    val p = domainPersistenceManager.acquirePersistenceProvider(
-      self, context, domainFqn)
+  private[this] def initialize(msg: DomainMessage): Try[Unit] = {
+    log.debug(s"DomainActor initializing: '{}'", msg.domainFqn)
+    domainPersistenceManager.acquirePersistenceProvider(self, context, msg.domainFqn) map { provider =>
+      this._persistenceProvider = Some(provider)
+      this._domainFqn = Some(msg.domainFqn)
+      this._authenticator = Some(new AuthenticationHandler(
+        provider.configStore,
+        provider.jwtAuthKeyStore,
+        provider.userStore,
+        provider.userGroupStore,
+        provider.sessionStore,
+        context.dispatcher))
 
-    p match {
-      case Success(provider) =>
-        this.persistenceProvider = provider
-        authenticator = new AuthenticationHandler(
-          provider.configStore,
-          provider.jwtAuthKeyStore,
-          provider.userStore,
-          provider.userGroupStore,
-          provider.sessionStore,
-          context.dispatcher)
-      case Failure(cause) =>
-        log.error(cause, "Unable to obtain a domain persistence provider.")
+      val modelQueryManagerActor = context.actorOf(ModelLookupActor.props(
+        domainFqn,
+        DomainPersistenceManagerActor),
+        ModelLookupActor.RelativePath)
+
+      val userServiceActor = context.actorOf(IdentityServiceActor.props(
+        domainFqn),
+        IdentityServiceActor.RelativePath)
+
+      val activityServiceActor = context.actorOf(ActivityServiceActor.props(
+        domainFqn),
+        ActivityServiceActor.RelativePath)
+
+      val presenceServiceActor = context.actorOf(PresenceServiceActor.props(
+        domainFqn),
+        PresenceServiceActor.RelativePath)
+
+      val chatChannelLookupActor = context.actorOf(ChatChannelLookupActor.props(
+        domainFqn),
+        ChatChannelLookupActor.RelativePath)
+
+      val modelStoreActor = context.actorOf(ModelStoreActor.props(provider), ModelStoreActor.RelativePath)
+      
+      val operationStoreActor = context.actorOf(ModelOperationStoreActor.props(provider.modelOperationStore), ModelOperationStoreActor.RelativePath)
+
+      this._children = Some(DomainActorChildren(
+        modelQueryManagerActor,
+        modelStoreActor,
+        operationStoreActor,
+        userServiceActor,
+        activityServiceActor,
+        presenceServiceActor,
+        chatChannelLookupActor))
+      context.become(receiveInitialized)
+      log.debug(s"DomainActor initialized: {}", domainFqn)
+      ()
+    } recoverWith {
+      case NonFatal(cause) =>
+        log.debug(s"Error initializing DomainActor: {}", domainFqn)
+        Failure(cause)
     }
+  }
+
+  private[this] def persistenceProvider = this._persistenceProvider.getOrElse {
+    throw new IllegalStateException("Can not access persistenceProvider before the domain is initialized.")
+  }
+
+  private[this] def domainFqn = this._domainFqn.getOrElse {
+    throw new IllegalStateException("Can not access domainFqn before the domain is initialized.")
+  }
+
+  private[this] def authenticator = this._authenticator.getOrElse {
+    throw new IllegalStateException("Can not access authenticator before the domain is initialized.")
+  }
+
+  private[this] def children = this._children.getOrElse {
+    throw new IllegalStateException("Can not access children before the domain is initialized.")
+  }
+
+  def passivate(): Unit = {
+    context.parent ! Passivate(stopMessage = PoisonPill)
+    this.context.become(receivePassivating)
+    domainPersistenceManager.releasePersistenceProvider(self, context, domainFqn)
   }
 
   override def postStop(): Unit = {
-    log.debug(s"Domain(${domainFqn}) received shutdown command.  Shutting down.")
-    domainPersistenceManager.releasePersistenceProvider(self, context, domainFqn)
-    chatChannelRegion ! ShardRegion.GracefulShutdown
+    this._domainFqn.foreach { d =>
+      log.debug(s"DomainActor shut down: {}", d)
+    }
   }
 }

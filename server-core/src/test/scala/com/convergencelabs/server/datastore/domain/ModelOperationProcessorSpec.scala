@@ -109,7 +109,7 @@ class ModelOperationProcessorSpec
       StringValue(email3VID, "another@email.com")))))
   val person1Model = Model(person1MetaData, person1Data)
 
-  def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProvider(dbProvider)
+  def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProviderImpl(dbProvider)
 
   "A ModelOperationProcessor" when {
 

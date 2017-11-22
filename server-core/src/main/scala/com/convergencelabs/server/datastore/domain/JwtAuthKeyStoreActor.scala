@@ -1,15 +1,10 @@
-package com.convergencelabs.server.datastore
+package com.convergencelabs.server.datastore.domain
 
-import com.convergencelabs.server.datastore.domain.JwtAuthKeyStore
 import com.convergencelabs.server.datastore.domain.JwtAuthKeyStore.KeyInfo
 
-import JwtAuthKeyStoreActor.CreateDomainApiKey
-import JwtAuthKeyStoreActor.DeleteDomainApiKey
-import JwtAuthKeyStoreActor.GetDomainApiKey
-import JwtAuthKeyStoreActor.GetDomainApiKeys
-import JwtAuthKeyStoreActor.UpdateDomainApiKey
 import akka.actor.ActorLogging
 import akka.actor.Props
+import com.convergencelabs.server.datastore.StoreActor
 
 object JwtAuthKeyStoreActor {
   def props(keyStore: JwtAuthKeyStore): Props = Props(new JwtAuthKeyStoreActor(keyStore))
@@ -24,6 +19,8 @@ object JwtAuthKeyStoreActor {
 
 class JwtAuthKeyStoreActor private[datastore] (private[this] val keyStore: JwtAuthKeyStore)
     extends StoreActor with ActorLogging {
+  
+  import JwtAuthKeyStoreActor._
 
   def receive: Receive = {
     case GetDomainApiKeys(offset, limit) => getKeys(offset, limit)

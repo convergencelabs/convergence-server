@@ -28,6 +28,8 @@ import akka.util.Timeout
 import akka.pattern.ask
 
 object ConvergenceUserManagerActor {
+  val RelativePath = "ConvergenceUserManagerActor"
+  
   def props(dbProvider: DatabaseProvider, domainStoreActor: ActorRef): Props =
     Props(new ConvergenceUserManagerActor(dbProvider, domainStoreActor))
 

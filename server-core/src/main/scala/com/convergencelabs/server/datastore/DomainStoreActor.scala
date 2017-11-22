@@ -192,6 +192,8 @@ class DomainStoreActor private[datastore] (
 }
 
 object DomainStoreActor {
+  val RelativePath = "DomainStoreActor"
+  
   def props(dbProvider: DatabaseProvider,
     provisionerActor: ActorRef): Props =
     Props(new DomainStoreActor(dbProvider, provisionerActor))

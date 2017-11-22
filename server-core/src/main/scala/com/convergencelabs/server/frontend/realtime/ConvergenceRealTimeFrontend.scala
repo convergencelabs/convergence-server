@@ -24,9 +24,6 @@ class ConvergenceRealTimeFrontend(
 
   private[this] val protoConfig = ProtocolConfigUtil.loadConfig(system.settings.config)
 
-  private[this] val inbox = Inbox.create(system)
-  private[this] val connectionManager = system.actorOf(RealTimeFrontEndActor.props(inbox.getRef(), protoConfig), "connectionManager")
-
   implicit val dispatcher = system.dispatcher
   implicit val s = system
 
@@ -36,35 +33,25 @@ class ConvergenceRealTimeFrontend(
     logger.info(s"Realtime Front End starting up on port $websocketPort.")
     val wsTimeout = system.settings.config.getDuration("akka.http.server.idle-timeout")
     logger.info(s"Web Socket Timeout set to: $wsTimeout.")
-    
-    val timeout = FiniteDuration(5, TimeUnit.SECONDS)
-    inbox.receive(timeout) match {
-      case StartUpComplete(domainManager) => {
-        implicit val materializer = ActorMaterializer()
+    implicit val materializer = ActorMaterializer()
 
-        val service = new WebSocketService(
-          domainManager,
-          protoConfig,
-          materializer,
-          system)
+    val service = new WebSocketService(
+      protoConfig,
+      materializer,
+      system)
 
-        Http().bindAndHandle(service.route, interface, websocketPort).onComplete {
-          case Success(b) ⇒
-            this.binding = Some(b)
-            val localAddress = b.localAddress
-            logger.info(s"Realtime Front End started up on port $websocketPort.")
-          case Failure(e) ⇒
-            logger.info(s"Binding failed with ${e.getMessage}")
-            system.terminate()
-        }
-      }
+    Http().bindAndHandle(service.route, interface, websocketPort).onComplete {
+      case Success(b) ⇒
+        this.binding = Some(b)
+        val localAddress = b.localAddress
+        logger.info(s"Realtime Front End started up on port $websocketPort.")
+      case Failure(e) ⇒
+        logger.info(s"Binding failed with ${e.getMessage}")
+        system.terminate()
     }
   }
 
   def stop(): Unit = {
-    this.binding match {
-      case Some(binding) => binding.unbind()
-      case None =>
-    }
+    this.binding foreach { b => b.unbind() } 
   }
 }

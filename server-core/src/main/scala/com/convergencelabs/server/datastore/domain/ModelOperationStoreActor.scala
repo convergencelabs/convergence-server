@@ -1,11 +1,13 @@
-package com.convergencelabs.server.datastore
+package com.convergencelabs.server.datastore.domain
+
+import com.convergencelabs.server.datastore.StoreActor
 
 import akka.actor.ActorLogging
 import akka.actor.Props
-import com.convergencelabs.server.datastore.domain.ModelOperationStore
-import com.convergencelabs.server.datastore.ModelOperationStoreActor.GetOperations
 
 object ModelOperationStoreActor {
+  val RelativePath = "ModelOperationStoreActor"
+  
   def props(operationStore: ModelOperationStore): Props = Props(new ModelOperationStoreActor(operationStore))
 
   trait ModelOperationStoreRequest
@@ -16,7 +18,7 @@ object ModelOperationStoreActor {
 class ModelOperationStoreActor private[datastore] (
   private[this] val operationStore: ModelOperationStore)
     extends StoreActor with ActorLogging {
-
+  import ModelOperationStoreActor._
   def receive: Receive = {
     case GetOperations(modelId, first, last) => getOperations(modelId, first, last)
     case message: Any => unhandled(message)

@@ -24,6 +24,8 @@ import akka.testkit.TestKit
 import akka.testkit.TestProbe
 import scala.util.Success
 import com.typesafe.config.ConfigFactory
+import com.convergencelabs.server.util.MockDomainPersistenceProvider
+import akka.cluster.sharding.ShardRegion.Passivate
 
 @RunWith(classOf[JUnitRunner])
 class DomainActorSpec
@@ -45,29 +47,13 @@ class DomainActorSpec
         assert(domainActor == response.domainActor)
       }
     }
-
-    "receiving a client disconnect" must {
-      "send a domain shutdown request when the last client disconnects" in new TestFixture {
-        val client = new TestProbe(system)
-        domainActor.tell(HandshakeRequest(domainFqn, client.ref, false, None), client.ref)
-        val response = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeSuccess])
-
-        domainActor.tell(ClientDisconnected("sessionId"), client.ref)
-        var request = domainManagerActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[DomainShutdownRequest])
-        assert(domainFqn == request.domainFqn)
-      }
-    }
   }
 
   trait TestFixture {
     val domainFqn = DomainFqn("convergence", "default")
 
-    val provider = mock[DomainPersistenceProvider]
-    Mockito.when(provider.validateConnection()).thenReturn(Success(()))
-    
+    val provider = new MockDomainPersistenceProvider()
     val persistenceManager = new MockDomainPersistenceManager(Map(domainFqn -> provider))
-
-    val domainManagerActor = new TestProbe(system)
 
     val protocolConfig = ProtocolConfiguration(
       2 seconds,
@@ -77,13 +63,13 @@ class DomainActorSpec
         0 seconds,
         0 seconds))
 
-    val props = DomainActor.props(
-      domainManagerActor.ref,
-      domainFqn,
-      protocolConfig,
-      10 seconds,
-      persistenceManager)
+    val parent = new TestProbe(system)
 
-    val domainActor = system.actorOf(props)
+    val props = DomainActor.props(
+      protocolConfig,
+      persistenceManager,
+      FiniteDuration(10, TimeUnit.SECONDS))
+
+    val domainActor = parent.childActorOf(props)
   }
 }

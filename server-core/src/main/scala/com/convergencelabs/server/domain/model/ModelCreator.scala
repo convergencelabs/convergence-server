@@ -8,19 +8,20 @@ import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.datastore.domain.ModelPermissions
 import com.convergencelabs.server.domain.UnauthorizedException
 import com.convergencelabs.server.domain.model.data.ObjectValue
+import java.util.UUID
 
 case class CollectionAutoCreateDisabled(message: String) extends Exception(message)
 case class NoCreatePermissions(message: String) extends Exception(message)
 
 class ModelCreator {
+  
+  def generateModelId(): String= UUID.randomUUID().toString
 
-  // FIXME we also expose can create, why do we just do that in here and return some
-  // exception if we can't??
   def createModel(
     persistenceProvider: DomainPersistenceProvider,
     username: Option[String],
     collectionId: String,
-    modelId: Option[String],
+    modelId: String,
     data: ObjectValue,
     overridePermissions: Option[Boolean],
     worldPermissions: Option[ModelPermissions],
@@ -31,7 +32,7 @@ class ModelCreator {
     } flatMap { _ =>
       val overrideWorld = overridePermissions.getOrElse(false)
       val worldPerms = worldPermissions.getOrElse(ModelPermissions(false, false, false, false))
-      val model = persistenceProvider.modelStore.createModel(collectionId, modelId, data, overrideWorld, worldPerms)
+      val model = persistenceProvider.modelStore.createModel(modelId, collectionId, data, overrideWorld, worldPerms)
       model
     } flatMap { model =>
       val ModelMetaData(model.metaData.collectionId, model.metaData.modelId, version, created, modified, overworldPermissions, worldPermissions, model.metaData.valuePrefix) = model.metaData

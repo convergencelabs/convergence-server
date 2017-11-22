@@ -35,6 +35,8 @@ import akka.http.scaladsl.model.HttpMethods
 import scala.xml.Utility
 
 object RegistrationActor {
+  val RelativePath = "RegistrationActor"
+  
   def props(dbProvider: DatabaseProvider, userManager: ActorRef): Props = Props(new RegistrationActor(dbProvider, userManager))
 
   case class RegisterUser(username: String, fname: String, lname: String, email: String, password: String, token: String)

@@ -46,12 +46,13 @@ case class ChatChannelState(
   lastEventNumber: Long,
   members: Set[String])
 
-class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with ActorLogging {
+class ChatChannelActor private[domain]() extends Actor with ActorLogging {
   import ChatChannelActor._
   import ChatChannelMessages._
   import akka.cluster.sharding.ShardRegion.Passivate
 
-  log.debug(s"Chat Channel Actor starting in domain: '${domainFqn}'")
+  
+  var domainFqn: DomainFqn = _
 
   // Here None signifies that the channel does not exist.
   var channelManager: Option[ChatChannelStateManager] = None
@@ -60,7 +61,7 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
   // Default receive will be called the first time
   override def receive: Receive = {
     case message: ExistingChannelMessage =>
-      initialize(message.channelId)
+      initialize(message)
         .flatMap { _ =>
           log.debug(s"Chat Channel Actor initialized processing message: '${domainFqn}/${message.channelId}'")
           processChannelMessage(message)
@@ -70,7 +71,10 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
       this.receiveCommon(other)
   }
 
-  private[this] def initialize(channelId: String): Try[Unit] = {
+  private[this] def initialize(message: ExistingChannelMessage): Try[Unit] = {
+    this.domainFqn = message.domainFqn
+    val channelId = message.channelId
+    
     log.debug(s"Chat Channel Actor initializing: '${domainFqn}/${channelId}'")
     DomainPersistenceManagerActor.acquirePersistenceProvider(self, context, domainFqn) flatMap { provider =>
       log.debug(s"Chat Channel aquired persistence, creating channel manager: '${domainFqn}/${channelId}'")
@@ -80,7 +84,7 @@ class ChatChannelActor private[domain] (domainFqn: DomainFqn) extends Actor with
       this.channelManager = Some(manager)
       manager.state().channelType match {
         case "room" =>
-          this.messageProcessor = Some(new ChatRoomMessageProcessor(channelId, manager, context))
+          this.messageProcessor = Some(new ChatRoomMessageProcessor(domainFqn, channelId, manager, context))
           // this would only need to happen if a previous instance of this room crashed without 
           // cleaning up properly.
           manager.removeAllMembers()

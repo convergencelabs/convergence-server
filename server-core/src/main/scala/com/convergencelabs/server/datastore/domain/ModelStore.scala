@@ -118,8 +118,8 @@ class ModelStore private[domain] (
   }
 
   def createModel(
+    modelId: String,
     collectionId: String,
-    modelId: Option[String],
     data: ObjectValue,
     overridePermissions: Boolean,
     worldPermissions: ModelPermissions): Try[Model] = {
@@ -127,13 +127,12 @@ class ModelStore private[domain] (
     val createdTime = Instant.now()
     val modifiedTime = createdTime
     val version = 1
-    val computedModelId = modelId.getOrElse(UUID.randomUUID().toString)
     val valuePrefix = 1
 
     val model = Model(
       ModelMetaData(
         collectionId,
-        computedModelId,
+        modelId,
         version,
         createdTime,
         modifiedTime,
@@ -227,7 +226,7 @@ class ModelStore private[domain] (
         ()
     }
   }
-  
+
   //TODO: This should probably be handled in a model shutdown routine so that we only update it once with the final value 
   def setNextPrefixValue(id: String, value: Long): Try[Unit] = tryWithDb { db =>
     val queryString =
