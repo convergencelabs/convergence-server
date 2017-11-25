@@ -102,7 +102,7 @@ class RealtimeModelActor(
 
     case msg: RealTimeModelMessage =>
       handleRealtimeMessage(msg)
-      
+
     case DoWork(work) =>
       work()
 
@@ -379,10 +379,24 @@ class RealtimeModelActor(
   }
 
   def getModel(msg: GetRealtimeModel): Unit = {
-    val GetRealtimeModel(domainFqn, modelId, sk) = msg
-    // FIXME look at the real time. look at the sk.
-    persistenceProvider.modelStore.getModel(modelId) map { result =>
-      sender ! result
+    val GetRealtimeModel(domainFqn, getModelId, sk) = msg
+    log.debug("Getting model: {}, {}", domainFqn, getModelId)
+    (sk match {
+      case Some(sk) =>
+        modelPermissionResolver.getModelUserPermissions(getModelId, sk, persistenceProvider)
+          .map { p => p.read }
+      case None =>
+        Success(true)
+    }) flatMap { canRead =>
+      if (canRead) {
+        // FIXME we could dump this into a future to get it of the actor thread.
+        persistenceProvider.modelStore.getModel(getModelId)
+      } else {
+        val message = "User must have 'read' permissions on the model to get it."
+        Failure(UnauthorizedException(message))
+      }
+    } map { model =>
+      sender ! model
     } recover {
       case cause: Exception =>
         sender ! Status.Failure(cause)
@@ -422,6 +436,7 @@ class RealtimeModelActor(
 
   private[this] def createModel(msg: CreateRealtimeModel): Unit = {
     val CreateRealtimeModel(domainFqn, modelId, collectionId, data, overridePermissions, worldPermissions, userPermissions, sk) = msg
+    log.debug("Creating model: {}, {}", domainFqn, modelId)
     if (collectionId.length == 0) {
       sender ! Status.Failure(new IllegalArgumentException("The collecitonId can not be empty when creating a model"))
     } else {
@@ -434,6 +449,7 @@ class RealtimeModelActor(
         overridePermissions,
         worldPermissions,
         userPermissions) map { model =>
+          log.debug("Model created: {}, {}", domainFqn, modelId)
           sender ! model.metaData.modelId
           ()
         } recover {

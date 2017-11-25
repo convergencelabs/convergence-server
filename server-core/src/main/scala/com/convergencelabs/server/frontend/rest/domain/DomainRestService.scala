@@ -2,7 +2,6 @@ package com.convergencelabs.server.frontend.rest
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
-import scala.util.Try
 
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.rest.AuthorizationActor.ConvergenceAuthorizedRequest
@@ -29,6 +28,6 @@ class DomainRestService(
 
   def checkPermission(domainFqn: DomainFqn, username: String, permissions: Set[String]): Future[Boolean] = {
     val message = ConvergenceAuthorizedRequest(username, domainFqn, permissions)
-    (authorizationActor ? message).mapTo[Try[Boolean]].map(_.get)
+    (authorizationActor ? message).mapTo[Boolean]
   }
 }
