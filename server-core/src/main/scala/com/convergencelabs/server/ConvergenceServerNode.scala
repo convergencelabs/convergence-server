@@ -44,6 +44,12 @@ import com.convergencelabs.server.domain.chat.ChatChannelSharding
 import com.convergencelabs.server.domain.rest.RestDomainActorSharding
 
 object ConvergenceServerNode extends Logging {
+  
+  object Roles {
+    val Backend = "backend"
+    val RestFrontend = "restFrontend"
+    val RealtimeFrontend = "realTimeFrontend"
+  }
 
   val ActorSystemName = "Convergence"
 
@@ -70,6 +76,8 @@ object ConvergenceServerNode extends Logging {
 }
 
 class ConvergenceServerNode(private[this] val config: Config) extends Logging {
+  
+  import ConvergenceServerNode.Roles._
 
   private[this] var system: Option[ActorSystem] = None
   private[this] var cluster: Option[Cluster] = None
@@ -86,7 +94,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
 
     val roles = config.getAnyRefList("akka.cluster.roles").asScala.toList
 
-    if (roles.contains("backend")) {
+    if (roles.contains(Backend)) {
       val orientDbConfig = config.getConfig("convergence.orient-db")
       val baseUri = orientDbConfig.getString("db-uri")
 
@@ -96,6 +104,9 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
       val username = convergenceDbConfig.getString("username")
       val password = convergenceDbConfig.getString("password")
 
+      // TODO this only works is there is one ConvergenceServerNode with
+      // backend. This is fine for development, which is the only place this
+      // should exist, but it would be nice to do this elsewhere.
       if (convergenceDbConfig.hasPath("auto-install")) {
         if (convergenceDbConfig.getBoolean("auto-install.enabled")) {
           bootstrapConvergenceDB(fullUri, convergenceDbConfig, orientDbConfig) recover {
@@ -125,7 +136,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
         backend.start()
         this.backend = Some(backend)
       }
-    } else {
+    } else if (roles.contains(RestFrontend) || roles.contains(RealtimeFrontend)) {
       // TODO Re-factor This to some setting in the config
       val shards = 100
       DomainActorSharding.startProxy(system, shards)
@@ -134,8 +145,8 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
       RestDomainActorSharding.startProxy(system, shards)
     }
 
-    if (roles.contains("restFrontend")) {
-      info("Starting up rest front end.")
+    if (roles.contains(RestFrontend)) {
+      info("Role 'restFronend' configured on node, starting up rest front end.")
       val host = config.getString("convergence.rest.host")
       val port = config.getInt("convergence.rest.port")
       val restFrontEnd = new ConvergenceRestFrontEnd(system, host, port)
@@ -143,8 +154,8 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
       this.rest = Some(restFrontEnd)
     }
 
-    if (roles.contains("realTimeFrontend")) {
-      info("Starting up realtime front end.")
+    if (roles.contains(RealtimeFrontend)) {
+      info("Role 'realTimeFrontend' configured on node, starting up realtime front end.")
       val host = config.getString("convergence.websocket.host")
       val port = config.getInt("convergence.websocket.port")
       val realTimeFrontEnd = new ConvergenceRealTimeFrontend(system, host, port)

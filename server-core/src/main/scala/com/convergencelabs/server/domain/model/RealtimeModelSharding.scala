@@ -37,12 +37,12 @@ object RealtimeModelSharding {
 class RealtimeModelSharding(val numberOfShards: Int = 100) {
 
   val extractEntityId: ShardRegion.ExtractEntityId = {
-    case msg: RealTimeModelMessage ⇒
+    case msg: ModelMessage ⇒
       (s"${msg.domainFqn.namespace}::${msg.domainFqn.domainId}::${msg.modelId}", msg)
   }
 
   val extractShardId: ShardRegion.ExtractShardId = {
-    case msg: RealTimeModelMessage =>
+    case msg: ModelMessage =>
       Math.abs(msg.domainFqn.hashCode + msg.modelId.hashCode % numberOfShards).toString
   }
 }

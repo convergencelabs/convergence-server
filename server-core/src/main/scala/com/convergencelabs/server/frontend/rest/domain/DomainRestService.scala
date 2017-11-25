@@ -2,7 +2,6 @@ package com.convergencelabs.server.frontend.rest
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
-import scala.util.Try
 
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.rest.AuthorizationActor.ConvergenceAuthorizedRequest

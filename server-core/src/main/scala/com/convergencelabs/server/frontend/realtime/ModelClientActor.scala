@@ -400,7 +400,7 @@ class ModelClientActor(
     resourceIdToModelId.get(request.r) match {
       case Some(modelId) =>
         val future = modelClusterRegion ? CloseRealtimeModelRequest(domainFqn, modelId, sessionKey)
-        future.mapResponse[Unit] onComplete {
+        future.mapTo[Unit] onComplete {
           case Success(()) =>
             resourceIdToModelId -= resourceId
             modelIdToResourceId -= modelId
@@ -446,7 +446,7 @@ class ModelClientActor(
   private[this] def onDeleteRealtimeModelRequest(request: DeleteRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
     val DeleteRealtimeModelRequestMessage(modelId) = request
     val future = modelClusterRegion ? DeleteRealtimeModel(domainFqn, modelId, Some(sessionKey))
-    future.mapResponse[Unit] onComplete {
+    future.mapTo[Unit] onComplete {
       case Success(()) =>
         cb.reply(DeleteRealtimeModelSuccessMessage())
       case Failure(ModelNotFoundException(_)) =>

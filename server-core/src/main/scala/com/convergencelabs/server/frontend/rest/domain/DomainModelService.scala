@@ -204,8 +204,8 @@ class DomainModelService(
   }
 
   def getModel(domain: DomainFqn, modelId: String): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, GetRealtimeModel(domain, modelId, None))
-    (domainRestActor ? message).mapTo[Option[Model]] map {
+    val message = GetRealtimeModel(domain, modelId, None)
+    (modelClusterRegion ? message).mapTo[Option[Model]] map {
       case Some(model) =>
         val mr = ModelResponse(
           model.metaData.collectionId,

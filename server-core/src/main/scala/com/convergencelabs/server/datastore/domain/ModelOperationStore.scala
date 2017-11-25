@@ -90,7 +90,7 @@ class ModelOperationStore private[domain] (dbProvider: DatabaseProvider)
     val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
 
     result.asScala.toList match {
-      case doc :: Nil => Some(doc.field("max", OType.LONG))
+      case doc :: Nil => Option(doc.field("max", OType.LONG))
       case _ => None
     }
   }
@@ -107,7 +107,7 @@ class ModelOperationStore private[domain] (dbProvider: DatabaseProvider)
     val params = Map(ModelId -> id, "time" -> new java.util.Date(time.toEpochMilli()))
     val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
     result.asScala.toList match {
-      case doc :: rest => Some(doc.field("max", OType.LONG))
+      case doc :: rest => Option(doc.field("max", OType.LONG))
       case Nil => None
     }
   }
