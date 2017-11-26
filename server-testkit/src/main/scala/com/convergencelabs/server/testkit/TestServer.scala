@@ -30,9 +30,9 @@ class TestServer() extends Logging {
   val seed = new ConvergenceServerNode(
     createConfig("/convergence-application.conf", 2551, List("seed")))
   val backend = new ConvergenceServerNode(
-    createConfig("/convergence-application.conf", 2552, List("backend")))
+    createConfig("/convergence-application.conf", 2552, List(ConvergenceServerNode.Roles.Backend)))
   val frontend = new ConvergenceServerNode(
-    createConfig("/convergence-application.conf", 2553, List("realTimeFrontend", "restFrontend")))
+    createConfig("/convergence-application.conf", 2553, List(ConvergenceServerNode.Roles.RealtimeFrontend, ConvergenceServerNode.Roles.RestFrontend)))
 
   val oriendDb = new EmbeddedOrientDB(odbTarget.getAbsolutePath, persistent)
 

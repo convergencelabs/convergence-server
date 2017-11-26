@@ -42,13 +42,14 @@ import com.convergencelabs.server.domain.DomainActorSharding
 import com.convergencelabs.server.domain.model.RealtimeModelSharding
 import com.convergencelabs.server.domain.chat.ChatChannelSharding
 import com.convergencelabs.server.domain.rest.RestDomainActorSharding
+import akka.actor.Address
 
 object ConvergenceServerNode extends Logging {
-  
+
   object Roles {
     val Backend = "backend"
     val RestFrontend = "restFrontend"
-    val RealtimeFrontend = "realTimeFrontend"
+    val RealtimeFrontend = "realtimeFrontend"
   }
 
   val ActorSystemName = "Convergence"
@@ -76,7 +77,7 @@ object ConvergenceServerNode extends Logging {
 }
 
 class ConvergenceServerNode(private[this] val config: Config) extends Logging {
-  
+
   import ConvergenceServerNode.Roles._
 
   private[this] var system: Option[ActorSystem] = None
@@ -87,83 +88,138 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
 
   def start(): Unit = {
     val system = ActorSystem(ConvergenceServerNode.ActorSystemName, config)
+    this.system = Some(system)
+    
     val cluster = Cluster(system)
     this.cluster = Some(cluster)
-
+    
     system.actorOf(Props(new SimpleClusterListener(cluster)), name = "clusterListener")
 
-    val roles = config.getAnyRefList("akka.cluster.roles").asScala.toList
+    (for {
+      _ <- joinSeedNodesIfRequired(cluster)
+      roles <- getRoles()
+    } yield {
 
-    if (roles.contains(Backend)) {
-      val orientDbConfig = config.getConfig("convergence.orient-db")
-      val baseUri = orientDbConfig.getString("db-uri")
+      if (roles.contains(Backend)) {
+        val orientDbConfig = config.getConfig("convergence.orient-db")
+        val baseUri = orientDbConfig.getString("db-uri")
 
-      val convergenceDbConfig = config.getConfig("convergence.convergence-database")
-      val fullUri = baseUri + "/" + convergenceDbConfig.getString("database")
+        val convergenceDbConfig = config.getConfig("convergence.convergence-database")
+        val fullUri = baseUri + "/" + convergenceDbConfig.getString("database")
 
-      val username = convergenceDbConfig.getString("username")
-      val password = convergenceDbConfig.getString("password")
+        val username = convergenceDbConfig.getString("username")
+        val password = convergenceDbConfig.getString("password")
 
-      // TODO this only works is there is one ConvergenceServerNode with
-      // backend. This is fine for development, which is the only place this
-      // should exist, but it would be nice to do this elsewhere.
-      if (convergenceDbConfig.hasPath("auto-install")) {
-        if (convergenceDbConfig.getBoolean("auto-install.enabled")) {
-          bootstrapConvergenceDB(fullUri, convergenceDbConfig, orientDbConfig) recover {
-            case cause: Exception =>
-              logger.error("Could not bootstrap database", cause)
+        // TODO this only works is there is one ConvergenceServerNode with
+        // backend. This is fine for development, which is the only place this
+        // should exist, but it would be nice to do this elsewhere.
+        if (convergenceDbConfig.hasPath("auto-install")) {
+          if (convergenceDbConfig.getBoolean("auto-install.enabled")) {
+            bootstrapConvergenceDB(fullUri, convergenceDbConfig, orientDbConfig) recover {
+              case cause: Exception =>
+                logger.error("Could not bootstrap database", cause)
+            }
           }
         }
+
+        // FIXME figure out what the partitions and pool size should be
+        val dbPool = new OPartitionedDatabasePool(
+          fullUri,
+          username,
+          password,
+          1,
+          64)
+        val dbProvider = DatabaseProvider(dbPool)
+
+        val domainDatabaseStore = new DomainDatabaseStore(dbProvider)
+        system.actorOf(
+          DomainPersistenceManagerActor.props(baseUri, domainDatabaseStore),
+          DomainPersistenceManagerActor.RelativePath)
+
+        if (roles.contains("backend")) {
+          info("Starting up backend node.")
+          val backend = new BackendNode(system, dbProvider)
+          backend.start()
+          this.backend = Some(backend)
+        }
+      } else if (roles.contains(RestFrontend) || roles.contains(RealtimeFrontend)) {
+        // TODO Re-factor This to some setting in the config
+        val shards = 100
+        DomainActorSharding.startProxy(system, shards)
+        RealtimeModelSharding.startProxy(system, shards)
+        ChatChannelSharding.startProxy(system, shards)
+        RestDomainActorSharding.startProxy(system, shards)
       }
 
-      // FIXME figure out what the partitions and pool size should be
-      val dbPool = new OPartitionedDatabasePool(
-        fullUri,
-        username,
-        password,
-        1,
-        64)
-      val dbProvider = DatabaseProvider(dbPool)
-
-      val domainDatabaseStore = new DomainDatabaseStore(dbProvider)
-      system.actorOf(
-        DomainPersistenceManagerActor.props(baseUri, domainDatabaseStore),
-        DomainPersistenceManagerActor.RelativePath)
-
-      if (roles.contains("backend")) {
-        info("Starting up backend node.")
-        val backend = new BackendNode(system, dbProvider)
-        backend.start()
-        this.backend = Some(backend)
+      if (roles.contains(RestFrontend)) {
+        info("Role 'restFronend' configured on node, starting up rest front end.")
+        val host = config.getString("convergence.rest.host")
+        val port = config.getInt("convergence.rest.port")
+        val restFrontEnd = new ConvergenceRestFrontEnd(system, host, port)
+        restFrontEnd.start()
+        this.rest = Some(restFrontEnd)
       }
-    } else if (roles.contains(RestFrontend) || roles.contains(RealtimeFrontend)) {
-      // TODO Re-factor This to some setting in the config
-      val shards = 100
-      DomainActorSharding.startProxy(system, shards)
-      RealtimeModelSharding.startProxy(system, shards)
-      ChatChannelSharding.startProxy(system, shards)
-      RestDomainActorSharding.startProxy(system, shards)
-    }
 
-    if (roles.contains(RestFrontend)) {
-      info("Role 'restFronend' configured on node, starting up rest front end.")
-      val host = config.getString("convergence.rest.host")
-      val port = config.getInt("convergence.rest.port")
-      val restFrontEnd = new ConvergenceRestFrontEnd(system, host, port)
-      restFrontEnd.start()
-      this.rest = Some(restFrontEnd)
+      if (roles.contains(RealtimeFrontend)) {
+        info("Role 'realTimeFrontend' configured on node, starting up realtime front end.")
+        val host = config.getString("convergence.websocket.host")
+        val port = config.getInt("convergence.websocket.port")
+        val realTimeFrontEnd = new ConvergenceRealTimeFrontend(system, host, port)
+        realTimeFrontEnd.start()
+        this.realtime = Some(realTimeFrontEnd)
+      }
+    }) recover {
+      case cause: Throwable =>
+        this.system.foreach(s => s.terminate())
+        logger.error("Could not start the server, process will terminate", cause)
     }
+  }
 
-    if (roles.contains(RealtimeFrontend)) {
-      info("Role 'realTimeFrontend' configured on node, starting up realtime front end.")
-      val host = config.getString("convergence.websocket.host")
-      val port = config.getInt("convergence.websocket.port")
-      val realTimeFrontEnd = new ConvergenceRealTimeFrontend(system, host, port)
-      realTimeFrontEnd.start()
-      this.realtime = Some(realTimeFrontEnd)
+  private[this] def getRoles(): Try[List[String]] = {
+    val configRoles = config.getStringList("akka.cluster.roles").asScala.toList
+    val roles = if (configRoles.isEmpty) {
+      Option(System.getenv().get("CLUSTER_ROLES")) match {
+        case Some(rolesEnv) =>
+          rolesEnv.split(",").toList map (_.trim)
+        case None =>
+          List()
+      }
+    } else {
+      configRoles
     }
+    
+    if (roles.isEmpty) {
+      Failure(new IllegalStateException("No cluster roles were specified. At least one role is required"))
+    } else {
+      Success(roles)
+    }
+  }
 
-    this.system = Some(system)
+  private[this] def joinSeedNodesIfRequired(cluster: Cluster): Try[Unit] = {
+    val configuredSeeds = config.getAnyRefList("akka.cluster.roles").asScala.toList
+
+    if (configuredSeeds.isEmpty) {
+      logger.debug("Node seed nodes specified in the config. Looking for an environment variable")
+      Option(System.getenv().get("SEED_NODES")) match {
+        case Some(seedNodesEnv) =>
+          val seedNodes = seedNodesEnv.split(",").toList
+          val addresses = seedNodes.map { hostname =>
+            Address("akka.tcp", ConvergenceServerNode.ActorSystemName, hostname.trim, 2551)
+          }
+
+          if (addresses.isEmpty) {
+            Failure(new IllegalStateException("No seed nodes specified in environment variable"))
+          } else {
+            cluster.joinSeedNodes(addresses)
+            Success(())
+          }
+        case None =>
+          Failure(new IllegalStateException("No seed nodes in config or environment."))
+      }
+    } else {
+      logger.debug("Seed nodes found in akka cluster config.")
+      Success(())
+    }
   }
 
   private[this] def bootstrapConvergenceDB(
