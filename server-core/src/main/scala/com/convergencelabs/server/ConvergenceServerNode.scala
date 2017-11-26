@@ -65,7 +65,7 @@ object ConvergenceServerNode extends Logging {
         error(s"Config file not found: ${configFile.getAbsolutePath}")
       } else {
         info(s"Starting up with config file: ${configFile.getAbsolutePath}")
-        val config = ConfigFactory.parseFile(configFile)
+        val config = ConfigFactory.parseFile(configFile).resolve()
         val server = new ConvergenceServerNode(config)
         server.start()
       }
