@@ -44,6 +44,9 @@ import akka.cluster.ClusterEvent.MemberUp
 import akka.cluster.ClusterEvent.UnreachableMember
 import grizzled.slf4j.Logging
 
+import org.apache.logging.log4j.core.LoggerContext
+import org.apache.logging.log4j.LogManager
+
 object ConvergenceServerNode extends Logging {
 
   object Roles {
@@ -55,6 +58,7 @@ object ConvergenceServerNode extends Logging {
   object Environment {
     val AkkaClusterRoles = "AKKA_CLUSTER_ROLES"
     val AkkaClusterSeedNodes = "AKKA_CLUSTER_SEED_NODES"
+    val Log4jConfigFile = "LOG4J_CONFIG_FILE"
   }
 
   object AkkaConfig {
@@ -68,6 +72,7 @@ object ConvergenceServerNode extends Logging {
     SystemOutRedirector.setOutAndErrToLog();
 
     (for {
+      _ <- configureLogging()
       configFile <- getConfigFile(args)
       config <- preprocessConfig(ConfigFactory.parseFile(configFile))
       _ <- validateSeedNodes(config)
@@ -156,6 +161,25 @@ object ConvergenceServerNode extends Logging {
         s"or the environment variable '${ConvergenceServerNode.Environment.AkkaClusterSeedNodes}"))
     } else {
       Success(())
+    }
+  }
+
+  def configureLogging(): Try[Unit] = {
+    Try {
+      Option(System.getenv().get(Environment.Log4jConfigFile)) match {
+        case Some(path) =>
+          info(s"${Environment.Log4jConfigFile} is set. Attempting to load logging config from: ${path}")
+          val context = LogManager.getContext(false).asInstanceOf[org.apache.logging.log4j.core.LoggerContext]
+          val file = new File(path)
+          if (file.canRead()) {
+            info(s"Config file exists. Loading")
+            // this will force a reconfiguration
+            context.setConfigLocation(file.toURI());
+          } else {
+            warn("Log4j config file '${path}' does not exist. Ignoring.")
+          }
+        case None =>
+      }
     }
   }
 }

@@ -24,6 +24,8 @@ object TestServer {
 
 class TestServer() extends Logging {
 
+  ConvergenceServerNode.configureLogging()
+  
   val persistent = java.lang.Boolean.getBoolean("convergence.test-server.persistent")
   val odbTarget = new File("target/orientdb/databases")
 
@@ -70,4 +72,6 @@ class TestServer() extends Logging {
       .withValue("akka.remote.netty.tcp.port", ConfigValueFactory.fromAnyRef(port))
       .withValue("akka.cluster.roles", ConfigValueFactory.fromIterable(roles))
   }
+  
+  
 }
