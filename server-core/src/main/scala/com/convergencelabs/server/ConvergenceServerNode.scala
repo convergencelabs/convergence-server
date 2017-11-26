@@ -87,6 +87,9 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
   private[this] var realtime: Option[ConvergenceRealTimeFrontend] = None
 
   def start(): Unit = {
+    info("Convergence Server Node starting up...")
+    debug("Convergence Server Node config:\n" + config)
+    
     val system = ActorSystem(ConvergenceServerNode.ActorSystemName, config)
     this.system = Some(system)
     
@@ -227,7 +230,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
     uri: String,
     convergenceDbConfig: Config,
     orientDbConfig: Config): Try[Unit] = Try {
-    logger.info("Attempting to connect to OrientDB for the first time")
+    logger.info("auto-install is configured, attempting to connect to OrientDB to determin if the convergence database is installed.")
 
     val username = convergenceDbConfig.getString("username")
     val password = convergenceDbConfig.getString("password")
@@ -241,7 +244,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
 
     val connectTries = Iterator.continually(attemptConnect(uri, serverAdminUsername, serverAdminPassword, retryDelay))
     val serverAdmin = connectTries.dropWhile(_.isEmpty).next().get
-    logger.info("Connected to OrientDB with Server Admin")
+    
     logger.info("Checking for convergence database")
     if (!serverAdmin.existsDatabase()) {
       logger.info("Covergence database does not exists.  Creating.")
@@ -295,8 +298,11 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
   }
 
   private[this] def attemptConnect(uri: String, adminUser: String, adminPassword: String, retryDelay: Duration) = {
+    info(s"Attempting to connect to OrientDB at uri: ${uri}")
+    
     Try(new OServerAdmin(uri).connect(adminUser, adminPassword)) match {
       case Success(serverAdmin) =>
+        logger.info("Connected to OrientDB with Server Admin")
         Some(serverAdmin)
       case Failure(e) =>
         logger.warn(s"Unable to connect to OrientDB, retrying in ${retryDelay.toMillis()}ms")
