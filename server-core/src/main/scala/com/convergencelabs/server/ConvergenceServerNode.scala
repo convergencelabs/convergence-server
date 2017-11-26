@@ -203,7 +203,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
     val configuredSeeds = config.getAnyRefList("akka.cluster.roles").asScala.toList
 
     if (configuredSeeds.isEmpty) {
-      logger.debug("Node seed nodes specified in the config. Looking for an environment variable")
+      logger.debug("No seed nodes specified in the akka config. Looking for an environment variable")
       Option(System.getenv().get("SEED_NODES")) match {
         case Some(seedNodesEnv) =>
           val seedNodes = seedNodesEnv.split(",").toList
@@ -291,7 +291,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
 
       dbProvider.shutdown()
     } else {
-      logger.info("Convergence database exists.")
+      logger.info("Convergence database already exists.")
       serverAdmin.close()
     }
     ()
@@ -305,14 +305,14 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
         logger.info("Connected to OrientDB with Server Admin")
         Some(serverAdmin)
       case Failure(e) =>
-        logger.warn(s"Unable to connect to OrientDB, retrying in ${retryDelay.toMillis()}ms")
+        logger.error(s"Unable to connect to OrientDB, retrying in ${retryDelay.toMillis()}ms", e)
         Thread.sleep(retryDelay.toMillis())
         None
     }
   }
 
   def stop(): Unit = {
-    logger.info(s"Stopping the convergence server node")
+    logger.info(s"Stopping the Convergence Server Node")
 
     system foreach { s =>
       s.terminate()
