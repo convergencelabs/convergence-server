@@ -99,6 +99,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
       _ <- joinSeedNodesIfRequired(cluster)
       roles <- getRoles()
     } yield {
+      info(s"Convergnece Server Roles: ${roles.mkString(", ")}")
 
       if (roles.contains(Backend)) {
         val orientDbConfig = config.getConfig("convergence.orient-db")
@@ -137,7 +138,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
           DomainPersistenceManagerActor.RelativePath)
 
         if (roles.contains("backend")) {
-          info("Starting up backend node.")
+          info("Role 'backend' configured on node, starting up backend.")
           val backend = new BackendNode(system, dbProvider)
           backend.start()
           this.backend = Some(backend)
@@ -161,7 +162,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
       }
 
       if (roles.contains(RealtimeFrontend)) {
-        info("Role 'realTimeFrontend' configured on node, starting up realtime front end.")
+        info("Role 'realtimeFrontend' configured on node, starting up realtime front end.")
         val host = config.getString("convergence.websocket.host")
         val port = config.getInt("convergence.websocket.port")
         val realTimeFrontEnd = new ConvergenceRealTimeFrontend(system, host, port)
