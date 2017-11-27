@@ -77,17 +77,14 @@ class RealtimeModelPersistenceStream(
     Flow[ModelPersistenceCommand]
       .map {
         case ProcessOperation(modelOperation) =>
-          processOperation(modelOperation)
+          onProcessOperation(modelOperation)
         case ExecuteSnapshot =>
-          executeSnapshot()
+          onExecuteSnapshot()
       }.to(Sink.onComplete {
         case Success(_) =>
-          // Note when we shut down we complete the persistence stream.
           debug(s"Persistence stream completed successfully ${domainFqn}/${modelId}")
           handler.onClosed()
         case Failure(f) =>
-          // FIXME this is probably altering state outside of the thread.
-          // probably need to send a message.
           error("Persistence stream completed with an error", f)
           handler.onError("There was an unexpected error in the persistence stream")
       }).runWith(Source
@@ -100,8 +97,6 @@ class RealtimeModelPersistenceStream(
       }
       .recover {
         case cause: Exception =>
-          // FIXME this is probably altering state outside of the thread.
-          // probably need to send a message.
           error(s"Error applying operation: ${modelOperation}", cause)
           handler.onOperationError("There was an unexpected persistence error applying an operation.")
       }
