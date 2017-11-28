@@ -25,8 +25,8 @@ import akka.actor.Status
 import akka.actor.Terminated
 import akka.cluster.sharding.ShardRegion.Passivate
 import akka.util.Timeout
-import com.convergencelabs.server.util.ActorWorkQueue
-import com.convergencelabs.server.util.ActorWorkQueue.DoWork
+import com.convergencelabs.server.util.ActorBackedEventLoop
+import com.convergencelabs.server.util.ActorBackedEventLoop.DoWork
 
 /**
  * Provides a factory method for creating the RealtimeModelActor
@@ -265,7 +265,7 @@ class RealtimeModelActor(
 
     val mm = new RealTimeModelManager(
       persistenceFactory,
-      new ActorWorkQueue(self),
+      new ActorBackedEventLoop(self),
       domainFqn,
       modelId,
       persistenceProvider,

@@ -14,6 +14,7 @@ import grizzled.slf4j.Logging
 import java.io.InputStreamReader
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigValueFactory
+import org.apache.logging.log4j.LogManager
 
 object TestServer {
   def main(args: Array[String]): Unit = {
@@ -25,7 +26,7 @@ object TestServer {
 class TestServer() extends Logging {
 
   ConvergenceServerNode.configureLogging()
-  
+
   val persistent = java.lang.Boolean.getBoolean("convergence.test-server.persistent")
   val odbTarget = new File("target/orientdb/databases")
 
@@ -48,13 +49,18 @@ class TestServer() extends Logging {
     frontend.start()
 
     logger.info("Test server started.")
-
-    var line = scala.io.StdIn.readLine()
-    while (line.trim() != "exit") {
-      line = scala.io.StdIn.readLine()
+    
+    scala.sys.addShutdownHook {
+      this.stop()
     }
-    this.stop()
-    sys.exit()
+    
+    var done = false
+    do {
+      val line = scala.io.StdIn.readLine()
+      done = line.trim() == "exit"
+    } while (!done)
+    
+    sys.exit(0)
   }
 
   def stop(): Unit = {
@@ -64,6 +70,7 @@ class TestServer() extends Logging {
     backend.stop()
     frontend.stop()
     oriendDb.stop()
+    LogManager.shutdown();
   }
 
   def createConfig(configFile: String, port: Int, roles: List[String]): Config = {
@@ -72,6 +79,4 @@ class TestServer() extends Logging {
       .withValue("akka.remote.netty.tcp.port", ConfigValueFactory.fromAnyRef(port))
       .withValue("akka.cluster.roles", ConfigValueFactory.fromIterable(roles))
   }
-  
-  
 }

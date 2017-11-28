@@ -30,7 +30,7 @@ import akka.pattern.AskTimeoutException
 import akka.pattern.Patterns
 import akka.util.Timeout
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.util.WorkQueue
+import com.convergencelabs.server.util.EventLoop
 import com.convergencelabs.server.domain.model.RealtimeModelPersistence.PersistenceEventHanlder
 
 object RealTimeModelManager {
@@ -61,7 +61,7 @@ object RealTimeModelManager {
 
 class RealTimeModelManager(
     private[this] val persistenceFactory: RealtimeModelPersistenceFactory,
-    private[this] val workQueue: WorkQueue,
+    private[this] val workQueue: EventLoop,
     private[this] val domainFqn: DomainFqn,
     private[this] val modelId: String,
     private[this] val persistenceProvider: DomainPersistenceProvider,
@@ -77,7 +77,9 @@ class RealTimeModelManager(
   
   val persistence = persistenceFactory.create(new PersistenceEventHanlder() {
     def onError(message: String): Unit = {
-      workQueue.scheduleWork(() => forceCloseAllAfterError(message))
+      workQueue.schedule { 
+        forceCloseAllAfterError(message)
+      }
     }
     
     def onClosed(): Unit = {
@@ -85,11 +87,15 @@ class RealTimeModelManager(
     }
 
     def onOperationCommited(version: Long): Unit = {
-      workQueue.scheduleWork(() => commitVersion(version))
+      workQueue.schedule { 
+        commitVersion(version)
+      }
     }
 
     def onOperationError(message: String): Unit = {
-      workQueue.scheduleWork(() => forceCloseAllAfterError(message))
+      workQueue.schedule {
+        forceCloseAllAfterError(message)
+      }
     }
   });
 
@@ -337,19 +343,19 @@ class RealTimeModelManager(
     future.mapTo[ClientAutoCreateModelConfigResponse] onComplete {
       case Success(response) =>
         debug(s"Model config data received from client: ${domainFqn}/${modelId}")
-        workQueue.scheduleWork { () =>
+        workQueue.schedule { () =>
           onClientAutoCreateModelConfigResponse(sk, response)
         }
       case Failure(cause) => cause match {
         case e: AskTimeoutException =>
           debug(s"A timeout occured waiting for the client to respond with model data: ${domainFqn}/${modelId}")
-          workQueue.scheduleWork { () =>
+          workQueue.schedule { () =>
             handleQueuedClientOpenFailureFailure(sk,
               ClientDataRequestFailure("The client did not correctly respond with data, while initializing a new model."))
           }
         case e: Exception =>
           error(s"Uknnown exception processing model config data response: ${domainFqn}/${modelId}", e)
-          workQueue.scheduleWork { () =>
+          workQueue.schedule { () =>
             handleQueuedClientOpenFailureFailure(sk,
               UnknownErrorResponse(e.getMessage))
           }

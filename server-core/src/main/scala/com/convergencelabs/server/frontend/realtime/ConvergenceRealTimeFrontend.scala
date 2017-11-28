@@ -15,6 +15,7 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.RouteResult.route2HandlerFlow
 import akka.stream.ActorMaterializer
 import grizzled.slf4j.Logging
+import scala.concurrent.Await
 
 class ConvergenceRealTimeFrontend(
   private[this] val system: ActorSystem,
@@ -52,6 +53,11 @@ class ConvergenceRealTimeFrontend(
   }
 
   def stop(): Unit = {
-    this.binding foreach { b => b.unbind() } 
+    logger.info("Convergence Realtime Frontend shutting down.")
+    this.binding foreach { b =>
+       val f = b.unbind()
+       Await.result(f, FiniteDuration(10, TimeUnit.SECONDS))
+       logger.info("Convergence Realtime Frontend shut down.")
+    }
   }
 }

@@ -9,7 +9,7 @@ object Dependencies {
     val akka      = "2.5.7"
     val akkaHttp  = "10.0.5"
     val orientDb  = "2.2.30"
-    val log4j     = "2.4.1"
+    val log4j     = "2.10.0"
   }
 
   object Compile {

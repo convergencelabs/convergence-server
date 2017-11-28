@@ -46,6 +46,9 @@ import grizzled.slf4j.Logging
 
 import org.apache.logging.log4j.core.LoggerContext
 import org.apache.logging.log4j.LogManager
+import scala.concurrent.Await
+import scala.concurrent.duration.FiniteDuration
+import java.util.concurrent.TimeUnit
 
 object ConvergenceServerNode extends Logging {
 
@@ -68,8 +71,14 @@ object ConvergenceServerNode extends Logging {
 
   val ActorSystemName = "Convergence"
 
+  var server: Option[ConvergenceServerNode] = None
+  
   def main(args: Array[String]): Unit = {
     SystemOutRedirector.setOutAndErrToLog();
+
+    scala.sys.addShutdownHook {
+      this.stop()
+    }
 
     (for {
       _ <- configureLogging()
@@ -78,12 +87,16 @@ object ConvergenceServerNode extends Logging {
       _ <- validateSeedNodes(config)
       _ <- validateRoles(config)
     } yield {
-      val server = new ConvergenceServerNode(config)
-      server.start()
+      server = Some(new ConvergenceServerNode(config).start())
     }).recover {
       case cause: Throwable =>
         logger.error("Could not start Convergence Server Node", cause)
     }
+  }
+
+  private[this] def stop(): Unit = {
+    server.foreach(_.stop())
+    LogManager.shutdown()
   }
 
   private[this] def getConfigFile(args: Array[String]): Try[File] = {
@@ -194,7 +207,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
   private[this] var rest: Option[ConvergenceRestFrontEnd] = None
   private[this] var realtime: Option[ConvergenceRealTimeFrontend] = None
 
-  def start(): Unit = {
+  def start(): ConvergenceServerNode = {
     info("Convergence Server Node starting up...")
     debug("Convergence Server Node config:\n" + config)
 
@@ -277,6 +290,8 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
       realTimeFrontEnd.start()
       this.realtime = Some(realTimeFrontEnd)
     }
+    
+    this
   }
 
   private[this] def bootstrapConvergenceDB(
@@ -367,16 +382,19 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
   def stop(): Unit = {
     logger.info(s"Stopping the Convergence Server Node")
 
-    system foreach { s =>
-      s.terminate()
-      logger.info(s"Actor system terminated")
-    }
-
-    cluster.foreach(c => c.leave(c.selfAddress))
-
     this.backend.foreach(backend => backend.stop())
     this.rest.foreach(rest => rest.stop())
     this.realtime.foreach(realtime => realtime.stop())
+
+    logger.info(s"Leaving the cluster.")
+    cluster.foreach(c => c.leave(c.selfAddress))
+
+    system foreach { s =>
+      logger.info(s"Terminating actor system.")
+      s.terminate()
+      Await.result(s.whenTerminated, FiniteDuration(5, TimeUnit.SECONDS))
+      logger.info(s"Actor system terminated.")
+    }
   }
 }
 

@@ -1,13 +1,16 @@
 package com.convergencelabs.server.frontend.rest
 
+import java.util.concurrent.TimeUnit
+
+import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 
 import com.convergencelabs.server.datastore.AuthStoreActor
 import com.convergencelabs.server.datastore.ConvergenceUserManagerActor
-import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.datastore.DomainStoreActor
 import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.EntityNotFoundException
@@ -121,14 +124,14 @@ class ConvergenceRestFrontEnd(
 
     // This handles all of the domains specific stuff
     val domainStoreActor = createRouter("/user/" + DomainStoreActor.RelativePath, "domainStoreActor")
-    
-    val domainService = new DomainService(ec, 
-        authorizationActor, 
-        domainStoreActor,
-        restDomainActorRegion, 
-        permissionStoreActor, 
-        modelClusterRegion, 
-        defaultRequestTimeout)
+
+    val domainService = new DomainService(ec,
+      authorizationActor,
+      domainStoreActor,
+      restDomainActorRegion,
+      permissionStoreActor,
+      modelClusterRegion,
+      defaultRequestTimeout)
 
     val adminsConfig = system.settings.config.getConfig("convergence.convergence-admins")
 
@@ -181,6 +184,11 @@ class ConvergenceRestFrontEnd(
   }
 
   def stop(): Unit = {
-    this.binding foreach { b => b.unbind() }
+    logger.info("Convergence Rest Frontend shutting down.")
+    this.binding foreach { b =>
+       val f = b.unbind()
+       Await.result(f, FiniteDuration(10, TimeUnit.SECONDS))
+       logger.info("Convergence Rest Frontend shut down.")
+    }
   }
 }
