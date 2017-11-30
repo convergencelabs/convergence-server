@@ -9,7 +9,7 @@ node {
   
         gitlabCommitStatus {
           docker.withRegistry('https://nexus.convergencelabs.tech:18443/', 'NexusRepo') {
-            docker.image('sbt-tools:0.7.1').inside("-e nexus_realm='Sonatype Nexus Repository Manager' -e nexus_host=nexus.convergencelabs.tech -e nexus_user=$NEXUS_USER -e nexus_password=$NEXUS_PASSWORD") {
+            docker.image('sbt-tools:0.7.1').inside("-e nexus_realm='Sonatype Nexus Repository Manager' -e nexus_host=nexus.convergencelabs.tech -e nexus_user=$NEXUS_USER -e nexus_password=$NEXUS_PASSWORD") {
   		      stage 'Configure'
               sh '/usr/local/bin/confd -onetime -backend env'
   		
