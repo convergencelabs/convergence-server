@@ -3,13 +3,14 @@ node {
     notifyFor() {
       deleteDir()
       withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'NexusRepo', usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PASSWORD']]) {
-  
+       
         stage 'Checkout'
         checkout scm
   
         gitlabCommitStatus {
           docker.withRegistry('https://nexus.convergencelabs.tech:18443/', 'NexusRepo') {
-            docker.image('sbt-tools:0.7.2').inside("-e nexus_realm='Sonatype Nexus Repository Manager' -e nexus_host=nexus.convergencelabs.tech -e nexus_user=$NEXUS_USER -e nexus_password=$NEXUS_PASSWORD") {
+            docker.image('sbt-tools:0.7.2')
+              .inside("-e nexus_realm='Sonatype Nexus Repository Manager' -e nexus_host=nexus.convergencelabs.tech -e nexus_user=$NEXUS_USER -e nexus_password=$NEXUS_PASSWORD") {
   		      stage 'Configure'
               sh '/usr/local/bin/confd -onetime -backend env'
   		
@@ -25,31 +26,29 @@ node {
               stage 'Publish'
               sh 'sbt publish'
   
-              stage 'Server Node Pack'
+              stage 'Sbt Pack'
               sh 'sbt serverNode/pack'
             }
           }
-  
-          stage 'Server Node Docker (Dev)'
-          echo "Current build number is ${env.BUILD_NUMBER}"
-  
+          
+          stage 'Docker Build'
           sh '''
-            echo "Creating docker target directory"
             cp -a server-node/src/docker/ server-node/target/docker
             cp -a server-node/target/pack server-node/target/docker/pack
-  
-            echo "Logging in to docker"
-            docker login -u $NEXUS_USER -p $NEXUS_PASSWORD nexus.convergencelabs.tech:18444
-  
-            echo "Building the container"
-            docker build -t nexus.convergencelabs.tech:18444/convergence-server-node server-node/target/docker 
-  
-            echo "Publishing the container"
-            docker push nexus.convergencelabs.tech:18444/convergence-server-node
           '''
-         }
-       }
-       deleteDir()
-     }
-   }
- }
+          
+          dir(server-node/target/docker)
+          def img = docker.build("convergence-server-node")
+       
+          stage 'Docker Push'
+          docker.withRegistry('https://nexus.convergencelabs.tech:18444', 'NexusRepo') {
+            img.push("build${env.BUILD_NUMBER}")
+            img.push("${commit_id}")
+            img.push("latest")
+          }
+        }
+      }
+      deleteDir()
+    }
+  }
+}
