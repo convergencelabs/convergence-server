@@ -44,7 +44,7 @@ node {
             cp -a server-node/target/pack server-node/target/docker/pack
             '''
           
-            dir(server-node/target/docker)
+            dir("server-node/target/docker")
             def img = docker.build("convergence-server-node")
           }
        
