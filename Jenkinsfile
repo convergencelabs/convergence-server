@@ -32,7 +32,7 @@ node {
                 sh 'sbt publish'
               }
   
-              stage 'Sbt Pack' {
+              stage('Sbt Pack') {
                 sh 'sbt serverNode/pack'
               }
             }
