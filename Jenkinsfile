@@ -38,6 +38,7 @@ node {
             }
           }
           
+          def img
           stage('Docker Build') { 
             sh '''
             cp -a server-node/src/docker/ server-node/target/docker
@@ -45,7 +46,7 @@ node {
             '''
           
             dir("server-node/target/docker")
-            def img = docker.build("convergence-server-node")
+            img = docker.build("convergence-server-node")
           }
        
           stage('Docker Push') { 
