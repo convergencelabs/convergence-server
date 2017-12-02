@@ -38,15 +38,14 @@ node {
             }
           }
           
-          
           def img
           stage('Docker Build') { 
+           sh '''
+            cp -a server-node/src/docker/ server-node/target/docker
+            cp -a server-node/target/pack server-node/target/docker/pack
+            '''
+              
             dir("server-node/target/docker") {
-              sh '''
-              cp -a server-node/src/docker/ server-node/target/docker
-              cp -a server-node/target/pack server-node/target/docker/pack
-              '''
-            
               img = docker.build("convergence-server-node")
             }
           }
