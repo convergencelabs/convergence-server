@@ -7,7 +7,7 @@ private object ServerCLIConf {
 }
 
 private class ServerCLIConf(arguments: Seq[String]) extends ScallopConf(arguments) {
-  version("Convergence Server Node 0.1.0 (c) 2015 Convergence Labs")
+  version("Convergence Server Node")
   banner("Usage: -c convergence-server-application.conf")
 
   val config = opt[String](

@@ -20,9 +20,9 @@ node {
                 sh 'sbt -d -J-Xmx3G -J-Xss5M compile'
               }
   
-              stage('Test') {
-                sh 'sbt -d -J-Xmx3G -J-Xss5M test'
-              }
+              //stage('Test') {
+              //  sh 'sbt -d -J-Xmx3G -J-Xss5M test'
+              //}
   		  
   		      stage('Package') {
                 sh 'sbt package'
@@ -33,7 +33,7 @@ node {
               }
   
               stage('Sbt Pack') {
-                sh 'sbt serverNode/pack'
+                sh 'sbt serverNode/stage'
               }
             }
           }
@@ -42,7 +42,7 @@ node {
           stage('Docker Build') { 
            sh '''
             cp -a server-node/src/docker/ server-node/target/docker
-            cp -a server-node/target/pack server-node/target/docker/pack
+            cp -a server-node/target/universal/stage server-node/target/docker/stage
             '''
               
             dir("server-node/target/docker") {

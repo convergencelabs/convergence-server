@@ -1,5 +1,6 @@
 import Dependencies.Compile._
 import Dependencies.Test._
+import _root_.com.typesafe.sbt.packager.universal.UniversalPlugin.autoImport._
 import java.io.File
 
 val commonSettings = Seq(
@@ -80,12 +81,9 @@ val serverNode = (project in file("server-node"))
   .configs(Configs.all: _*)
   .settings(commonSettings: _*)
   .settings(
-    packSettings ++ 
-    Seq(
-	  packJvmOpts := Map("server-node" -> Seq("-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager")),
-      packMain := Map("server-node" -> "com.convergencelabs.server.ConvergenceServerNode")
-    )
+    mainClass in Compile := Some("com.convergencelabs.server.ConvergenceServerNode")
   )
+  .enablePlugins(JavaAppPackaging)
   .settings(
     name := "convergence-server-node",
     publishArtifact in (Compile, packageBin) := false, 
@@ -105,7 +103,7 @@ val serverNode = (project in file("server-node"))
 	  "docker build -t nexus.convergencelabs.tech:18443/convergence-server-node:latest server-node/target/docker/" !
 	}
   )
-  .settings(dockerBuild <<= (dockerBuild dependsOn pack))  
+  .settings(dockerBuild <<= (dockerBuild dependsOn stage))  
   .dependsOn(serverCore)
 
 val testkit = (project in file("server-testkit")).
