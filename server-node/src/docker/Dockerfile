@@ -1,4 +1,4 @@
-FROM java:openjdk-8-jre-alpine
+FROM openjdk:8u151-jdk
 
 ADD stage /opt/convergence
 RUN chmod +x /opt/convergence/bin/convergence-server-node
