@@ -261,7 +261,7 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
     dbCounter += 1
 
     // FIXME see https://github.com/orientechnologies/orientdb/issues/5146
-    ODatabaseRecordThreadLocal.INSTANCE
+    ODatabaseRecordThreadLocal.instance() 
 
     val db = new ODatabaseDocumentTx(uri)
     db.activateOnCurrentThread()
