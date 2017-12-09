@@ -29,7 +29,7 @@ class ModelDataGenerator() {
 
   private[this] def map(value: Any): DataValue = {
     value match {
-      case obj: Map[Any, Any] =>
+      case obj: Map[Any, Any] @ unchecked =>
         if (obj.contains("$convergenceType")) {
           DateValue(nextId(), Instant.parse(obj.get("value").toString()))
         } else {
