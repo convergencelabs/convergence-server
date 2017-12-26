@@ -209,7 +209,6 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
 
   def start(): ConvergenceServerNode = {
     info("Convergence Server Node starting up...")
-    debug("Convergence Server Node config:\n" + config)
 
     val system = ActorSystem(ConvergenceServerNode.ActorSystemName, config)
     this.system = Some(system)

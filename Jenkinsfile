@@ -28,11 +28,11 @@ node {
                 sh 'sbt package'
               }
             
-              stage('Publish') { 
-                sh 'sbt publish'
-              }
+              //stage('Publish') { 
+              //  sh 'sbt publish'
+              //}
   
-              stage('Sbt Pack') {
+              stage('SBT Native') {
                 sh 'sbt serverNode/stage'
               }
             }
