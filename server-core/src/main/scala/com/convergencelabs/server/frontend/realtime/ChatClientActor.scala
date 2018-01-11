@@ -499,7 +499,7 @@ class ChatClientActor(
   }
 
   private[this] def handleUnexpectedError(request: Any, cause: Throwable, cb: ReplyCallback): Unit = {
-    log.error(cause, "Unexpected error processing chat request" + request)
+    log.error(cause, "Unexpected error processing chat request " + request)
     cb.unexpectedError("Unexpected error processing chat request")
   }
 

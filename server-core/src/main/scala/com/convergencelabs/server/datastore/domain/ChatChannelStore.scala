@@ -316,6 +316,7 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
     }
     db.commit()
     this.addChatCreatedEvent(ChatCreatedEvent(0, channelId, createdBy, creationTime, name, topic, members.getOrElse(Set()))).get
+    db.commit()
     channelId
   } recoverWith {
     case e: ORecordDuplicatedException =>
@@ -408,7 +409,10 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
       "name" -> name,
       "topic" -> topic,
       "members" -> users.asJava)
-    db.command(query).execute(params.asJava)
+    
+    // FIXME we need a way to make sure that the event actually got saved. The result should be the
+    // created ODocument we need to make sure.
+    db.command(query).execute(params.asJava).asInstanceOf[ODocument]
     ()
   }
 

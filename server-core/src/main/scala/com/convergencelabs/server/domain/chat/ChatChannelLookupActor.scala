@@ -155,8 +155,11 @@ class ChatChannelLookupActor private[domain] (domainFqn: DomainFqn) extends Acto
 
   def onGetDirect(message: GetDirectChannelsRequest): Unit = {
     val GetDirectChannelsRequest(username, usernameLists) = message;
-    // TODO support multiple
-    val usernames = usernameLists(0)
+    // FIXME support multiple channel requests.
+    
+    // The channel must contain the user who is looking it up and any other users
+    val usernames = (usernameLists(0) + username)
+    
     chatChannelStore.getDirectChatChannelInfoByUsers(usernames) flatMap {
       _ match {
         case Some(c) =>
@@ -164,7 +167,7 @@ class ChatChannelLookupActor private[domain] (domainFqn: DomainFqn) extends Acto
           Success(c)
         case None =>
           // Does not exists, so create it.
-          createChannel(None, ChannelType.Direct, true, None, None, usernames.toSet, "") flatMap { channelId =>
+          createChannel(None, ChannelType.Direct, true, None, None, usernames.toSet, username) flatMap { channelId =>
             // Create was successful, now let's just get the channel.
             chatChannelStore.getChatChannelInfo(channelId)
           } recoverWith {
@@ -186,6 +189,9 @@ class ChatChannelLookupActor private[domain] (domainFqn: DomainFqn) extends Acto
       }
     } map { channel =>
       sender ! GetDirectChannelsResponse(List(channel))
+    } recover {
+      case cause: Throwable =>
+        sender ! Status.Failure(cause)
     }
   }
 
