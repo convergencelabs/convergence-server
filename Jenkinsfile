@@ -1,65 +1,46 @@
-node {
-  ansiColor('xterm') {
-    notifyFor() {
-      deleteDir()
-      withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'NexusRepo', usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PASSWORD']]) {
-        def scmVars
-        stage('Checkout') {
-          scmVars = checkout scm
-        }
+sbtPod { label ->
+  def containerName = "convergence-server-node"
   
-        gitlabCommitStatus {
-          docker.withRegistry('https://nexus.convergencelabs.tech:18443/', 'NexusRepo') {
-            docker.image('sbt-tools:0.7.3')
-              .inside("-e nexus_realm='Sonatype Nexus Repository Manager' -e nexus_host=nexus.convergencelabs.tech -e nexus_user=$NEXUS_USER -e nexus_password=$NEXUS_PASSWORD") {
-  		      stage('Configure') {
-                sh '/usr/local/bin/confd -onetime -backend env'
-              }
-  		
-              stage('Compile') {
-                sh 'sbt -d -J-Xmx3G -J-Xss5M compile'
-              }
-  
-              //stage('Test') {
-              //  sh 'sbt -d -J-Xmx3G -J-Xss5M test'
-              //}
-  		  
-  		      stage('Package') {
-                sh 'sbt package'
-              }
-            
-              //stage('Publish') { 
-              //  sh 'sbt publish'
-              //}
-  
-              stage('SBT Native') {
-                sh 'sbt serverNode/stage'
-              }
-            }
-          }
-          
-          def img
-          stage('Docker Build') { 
-           sh '''
-            cp -a server-node/src/docker/ server-node/target/docker
-            cp -a server-node/target/universal/stage server-node/target/docker/stage
-            '''
-              
-            dir("server-node/target/docker") {
-              img = docker.build("convergence-server-node")
-            }
-          }
-       
-          stage('Docker Push') { 
-            docker.withRegistry('https://nexus.convergencelabs.tech:18444', 'NexusRepo') {
-              img.push("build${env.BUILD_NUMBER}")
-              img.push("${scmVars.GIT_COMMIT}")
-              img.push("latest")
-            }
-          }
+  runInNode(label) {
+    injectIvyCredentials()
+      
+    stage('Compile') { 
+      container('sbt') {
+        sh 'sbt -d -J-Xmx3G -J-Xss5M compile'
+      }
+    }
+    
+    stage('Test') {
+      container('sbt') {
+        sh 'sbt -d -J-Xmx3G -J-Xss5M test'
+      }
+    }
+    
+    stage('Package') {
+      container('sbt') {
+        sh 'sbt serverNode/stage'
+      }
+    }
+    
+    stage('Docker Prep') { 
+      sh '''
+      cp -a server-node/src/docker/ server-node/target/docker
+      cp -a server-node/target/universal/stage server-node/target/docker/stage
+      '''
+    }
+    
+    stage('Docker Build') {
+      container('docker') {
+        dir('server-node/target/docker') {
+          dockerBuild(containerName)
         }
       }
-      deleteDir()
+    }
+
+    stage('Docker Push') {
+      container('docker') {
+        dockerPush(containerName, ["latest", env.GIT_COMMIT])
+      }
     }
   }
 }
