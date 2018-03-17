@@ -16,8 +16,7 @@ val commonSettings = Seq(
     else
       Some("releases"  at nexus + "maven-releases")
   },
-  credentials += Credentials(Path.userHome / ".ivy2" / ".credentials"),
-  resolvers += "Maven Public" at "https://nexus.convergencelabs.tech/repository/maven-public"
+  credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
  )
 
  val serverOt = (project in file("server-ot")).
