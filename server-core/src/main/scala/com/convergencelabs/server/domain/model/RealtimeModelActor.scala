@@ -293,14 +293,14 @@ class RealtimeModelActor(
   }
 
   private[this] def becomeClosed(): Unit = {
-    log.debug("Model '{}/{}' becoming closed.", domainFqn, modelId)
+    log.debug("Realtime Model '{}/{}' becoming closed.", domainFqn, modelId)
     this._modelManager = None
     this.context.become(receiveClosed)
     this.context.setReceiveTimeout(this.receiveTimeout)
   }
 
   private[this] def passivate(): Unit = {
-    log.debug("Model '{}/{}' passivating.", modelId, domainFqn)
+    log.debug("Realtime Model '{}/{}' passivating.", modelId, domainFqn)
     this.context.parent ! Passivate(stopMessage = PoisonPill)
     this.context.setReceiveTimeout(Duration.Undefined)
     this.context.become(receivePassivating)
