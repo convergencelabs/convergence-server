@@ -15,8 +15,7 @@ val commonSettings = Seq(
       Some("snapshots" at nexus + "maven-snapshots/") 
     else
       Some("releases"  at nexus + "maven-releases")
-  },
-  credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
+  }
  )
 
  val serverOt = (project in file("server-ot")).
