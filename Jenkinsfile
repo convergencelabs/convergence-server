@@ -2,22 +2,19 @@ sbtPod { label ->
   def containerName = "convergence-server-node"
   
   runInNode(label) {
-    injectIvyCredentials()
       
-    stage('Compile') { 
-      container('sbt') {
+    container('sbt') {
+      injectIvyCredentials()
+      
+      stage('Compile') {   
         sh 'sbt -d -J-Xmx3G -J-Xss5M compile'
       }
-    }
-    
-    stage('Test') {
-      container('sbt') {
+      
+      stage('Test') {
         sh 'sbt -d -J-Xmx3G -J-Xss5M test'
       }
-    }
-    
-    stage('Package') {
-      container('sbt') {
+      
+      stage('Package') {
         sh 'sbt serverNode/stage'
       }
     }
