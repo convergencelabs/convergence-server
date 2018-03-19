@@ -10,7 +10,7 @@ val commonSettings = Seq(
   fork := true,
   javaOptions += "-XX:MaxDirectMemorySize=16384m",
   publishTo := {
-    val nexus = "https://nexus.convergencelabs.tech/repository/"
+    val nexus = "https://nexus.dev.int.convergencelabs.tech/repository/"
     if (isSnapshot.value)
       Some("snapshots" at nexus + "maven-snapshots/") 
     else

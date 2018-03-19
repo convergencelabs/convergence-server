@@ -6,7 +6,7 @@ sbtPod { label ->
     container('sbt') {
       injectIvyCredentials()
       
-      stage('Compile') {   
+      stage('Compile') {
         sh 'sbt -d -J-Xmx3G -J-Xss5M compile'
       }
       
