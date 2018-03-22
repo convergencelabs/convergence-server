@@ -11,5 +11,9 @@ changes:
       - {name: token,      type: String,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: expireTime, type: DateTime,                    constraints: {mandatory: true, notNull: true}} 
     
-    
+  - action: CreateIndex
+    className: UserReconectToken
+    name: UserReconectToken.token
+    type: UniqueHashIndex
+    properties: [token]    
     
