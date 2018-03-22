@@ -32,6 +32,8 @@ import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
 import grizzled.slf4j.Logging
+import java.time.Duration
+import java.util.UUID
 
 object DomainUserStore {
 
@@ -39,6 +41,7 @@ object DomainUserStore {
 
   val UsernameIndex = "User.username"
   val EmailIndex = "User.email"
+  val ReconnectTokenIndex = "UserReconnectToken.token"
 
   val AdminUserPrefeix = "admin:"
   val AnonymousUserPrefeix = "anonymous:"
@@ -120,7 +123,12 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
   val UserType = "userType"
   val AnonymousUsernameSeq = "anonymousUsernameSeq"
   val UsernameIndex = "User.username"
+  val ReconnectTokenIndex = "UserReconnectToken.token"
   val LastLogin = "lastLogin"
+  val Token = "token"
+  val ExpireTime = "expireTime"
+  
+  val reconnectTokenDuration = Duration.ofHours(24)
 
   /**
    * Creates a new domain user in the system, and optionally set a password.
@@ -478,6 +486,47 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
         }
       case None =>
         false
+    }
+  }
+  
+  def createReconnectToken(username: String): Try[String] = tryWithDb { db =>
+    val expiration = Instant.now().plus(reconnectTokenDuration)
+    val token = UUID.randomUUID().toString()
+    val queryStirng =
+      """INSERT INTO UserReconnectToken SET
+        |  user = (SELECT FROM User WHERE username = :username),
+        |  token = :token,
+        |  expireTime = :expireTime""".stripMargin
+    val query = new OCommandSQL(queryStirng)
+    val params = Map(Username -> username, Token -> token, ExpireTime -> Date.from(expiration))
+    db.command(query).execute(params.asJava)
+    token
+  }
+
+  def removeReconnectToken(token: String): Try[Unit] = tryWithDb { db =>
+    val queryStirng = "DELETE FROM UserReconnectToken WHERE token = :token"
+    val query = new OCommandSQL(queryStirng)
+    val params = Map(Token -> token)
+    db.command(query).execute(params.asJava)
+    Unit
+  }
+
+  def validateReconnectToken(token: String): Try[Option[String]] = tryWithDb { db =>
+    val index = db.getMetadata.getIndexManager.getIndex(ReconnectTokenIndex)
+    if (index.contains(token)) {
+      val record: ODocument = index.get(token).asInstanceOf[OIdentifiable].getRecord[ODocument]
+      val expireTime: Date = record.field(ExpireTime, OType.DATETIME)
+      val expireInstant: Instant = expireTime.toInstant()
+      if (Instant.now().isBefore(expireInstant)) {
+        val username: String = record.field(Username)
+        val newExpiration = Instant.now().plus(reconnectTokenDuration)
+        record.field(ExpireTime, Date.from(newExpiration)).save()
+        Some(username)
+      } else {
+        None
+      }
+    } else {
+      None
     }
   }
 

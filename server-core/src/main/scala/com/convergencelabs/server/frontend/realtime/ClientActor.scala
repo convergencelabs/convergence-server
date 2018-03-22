@@ -36,6 +36,7 @@ import akka.http.scaladsl.model.RemoteAddress
 import com.convergencelabs.server.domain.AuthenticationRequest
 import com.convergencelabs.server.domain.HandshakeFailureException
 import com.convergencelabs.server.domain.DomainActorSharding
+import com.convergencelabs.server.domain.ReconnectTokenAuthRequest
 
 object ClientActor {
   def props(
@@ -94,6 +95,7 @@ class ClientActor(
   private[this] var presenceServiceActor: ActorRef = _
   private[this] var chatLookupActor: ActorRef = _
   private[this] var sessionId: String = _
+  private[this] var recconectToken: String = _
 
   private[this] var protocolConnection: ProtocolConnection = _
   
@@ -194,6 +196,8 @@ class ClientActor(
         PasswordAuthRequest(username, password)
       case TokenAuthRequestMessage(token) =>
         JwtAuthRequest(token)
+      case ReconnectTokenAuthRequestMessage(token) => 
+        ReconnectTokenAuthRequest(token)
       case AnonymousAuthRequestMessage(displayName) =>
         AnonymousAuthRequest(displayName)
     }
@@ -212,8 +216,8 @@ class ClientActor(
     // FIXME if authentication fails we should probably stop the actor
     // and or shut down the connection?
     authFuture.mapResponse[AuthenticationResponse] onComplete {
-      case Success(AuthenticationSuccess(username, sk)) =>
-        getPresenceAfterAuth(username, sk, cb)
+      case Success(AuthenticationSuccess(username, sk, reconnectToken)) =>
+        getPresenceAfterAuth(username, sk, reconnectToken, cb)
       case Success(AuthenticationFailure) =>
         cb.reply(AuthenticationResponseMessage(false, None, None, None))
       case Success(AuthenticationError) =>
@@ -224,11 +228,11 @@ class ClientActor(
     }
   }
 
-  private[this] def getPresenceAfterAuth(username: String, sk: SessionKey, cb: ReplyCallback) {
+  private[this] def getPresenceAfterAuth(username: String, sk: SessionKey, reconnectToken: String,  cb: ReplyCallback) {
     val future = this.presenceServiceActor ? PresenceRequest(List(username))
     future.mapTo[List[UserPresence]] onComplete {
       case Success(first :: nil) =>
-        self ! InternalAuthSuccess(username, sk, first, cb)
+        self ! InternalAuthSuccess(username, sk, reconnectToken, first, cb)
       case _ =>
         cb.reply(AuthenticationResponseMessage(false, None, None, None))
     }
@@ -236,8 +240,9 @@ class ClientActor(
   }
 
   private[this] def handleAuthenticationSuccess(message: InternalAuthSuccess): Unit = {
-    val InternalAuthSuccess(username, sk, presence, cb) = message
+    val InternalAuthSuccess(username, sk, recconectToken, presence, cb) = message
     this.sessionId = sk.serialize();
+    this.recconectToken = recconectToken;
     this.modelClient = context.actorOf(ModelClientActor.props(domainFqn, sk, modelQueryActor, requestTimeout))
     this.userClient = context.actorOf(IdentityClientActor.props(userServiceActor))
     this.chatClient = context.actorOf(ChatClientActor.props(domainFqn, chatLookupActor, sk, requestTimeout))
@@ -365,5 +370,5 @@ class ClientActor(
   }
 }
 
-case class InternalAuthSuccess(username: String, sk: SessionKey, presence: UserPresence, cb: ReplyCallback)
+case class InternalAuthSuccess(username: String, sk: SessionKey, reconnectToken: String, presence: UserPresence, cb: ReplyCallback)
 case class InternalHandshakeSuccess(handshakeSuccess: HandshakeSuccess, cb: ReplyCallback)

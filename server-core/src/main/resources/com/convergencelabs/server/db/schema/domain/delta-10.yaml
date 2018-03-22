@@ -1,0 +1,15 @@
+version: 10
+description: Added UserReconnectToken Class
+changes:
+
+########## UserReconnectToken Class ##########
+
+  - action: CreateClass
+    name: UserReconectToken
+    properties:
+      - {name: user,       type: Link,     linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: token,      type: String,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: expireTime, type: DateTime,                    constraints: {mandatory: true, notNull: true}} 
+    
+    
+    

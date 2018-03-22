@@ -52,6 +52,8 @@ class AuthenticationHandler(
         authenticatePassword(message)
       case message: JwtAuthRequest =>
         authenticateToken(message)
+      case message: ReconnectTokenAuthRequest =>
+        authenticateReconnectToken(message)
       case message: AnonymousAuthRequest =>
         authenticateAnonymous(message)
     }
@@ -66,7 +68,7 @@ class AuthenticationHandler(
         Success(AuthenticationFailure)
       case true =>
         debug("Anonymous auth is enabled, creating anonymous user...")
-        userStore.createAnonymousDomainUser(displayName) flatMap { username => authSuccess(username, false) }
+        userStore.createAnonymousDomainUser(displayName) flatMap { username => authSuccess(username, false, None) }
     } recover {
       case cause: Exception =>
         error("Anonymous authentication error", cause)
@@ -80,10 +82,10 @@ class AuthenticationHandler(
     logger.debug("Authenticating by username and password")
     val response = userStore.validateCredentials(authRequest.username, authRequest.password) match {
       case Success(true) => {
-        sessionStore.nextSessionId match {
-          case Success(sessionId) =>
+        authSuccess(authRequest.username, false, None) match {
+          case Success(authSuccessResponse) =>
             updateLastLogin(authRequest.username, DomainUserType.Normal)
-            AuthenticationSuccess(authRequest.username, SessionKey(authRequest.username, sessionId))
+            authSuccessResponse
           case Failure(cause) => {
             logger.error("Unable to authenticate a user", cause)
             AuthenticationError
@@ -153,17 +155,17 @@ class AuthenticationHandler(
       case true =>
         logger.debug("User specificed in token already exists, returning auth success.")
         this.updateUserFromJwt(jwtClaims, admin)
-        authSuccess(resolvedUsername, admin)
+        authSuccess(resolvedUsername, admin, None)
       case false =>
         logger.debug("User specificed in token does not exist exist, creating.")
         createUserFromJWT(jwtClaims, admin) flatMap { _ =>
-          authSuccess(resolvedUsername, admin)
+          authSuccess(resolvedUsername, admin, None)
         } recoverWith {
           case e: DuplicateValueException =>
             // The duplicate value case is when a race condition occurs between when we looked up the
             // user and then tried to create them.
             logger.warn("Attempted to auto create user, but user already exists, returning auth success.")
-            authSuccess(resolvedUsername, admin)
+            authSuccess(resolvedUsername, admin, None)
           case e: InvalidValueExcpetion =>
             Failure(new IllegalArgumentException("Lazy creation of user based on JWT authentication failed: {$username}", e))
         }
@@ -173,10 +175,43 @@ class AuthenticationHandler(
         AuthenticationError
     }.get
   }
+  
+  private[this] def authenticateReconnectToken(reconnectRequest: ReconnectTokenAuthRequest): Future[AuthenticationResponse] = {
+    Future[AuthenticationResponse] {
+      userStore.validateReconnectToken(reconnectRequest.token)  match {
+        case Success(username) =>
+          if(username.isDefined) {
+            authSuccess(username.get, false, Some(reconnectRequest.token)) match {
+              case Success(authSuccessResponse) =>
+                authSuccessResponse
+              case Failure(cause) =>
+                logger.error("Unable to authenticate a user", cause)
+                AuthenticationError
+            }
+          } else {
+            AuthenticationError
+          }
+        case Failure(cause) =>
+          logger.error("Unable to validate Token", cause)
+          AuthenticationError
+      }
+    }
+  }
 
-  private[this] def authSuccess(username: String, admin: Boolean): Try[AuthenticationResponse] = {
+  private[this] def authSuccess(username: String, admin: Boolean, reconnectToken: Option[String]): Try[AuthenticationResponse] = {
     sessionStore.nextSessionId map { id =>
-      AuthenticationSuccess(username, SessionKey(username, id, admin))
+      reconnectToken match {
+        case Some(reconnectToken) => 
+          AuthenticationSuccess(username, SessionKey(username, id, admin), reconnectToken)
+        case None => 
+          userStore.createReconnectToken(username) match {
+            case Success(token) => 
+              AuthenticationSuccess(username, SessionKey(username, id, admin), token)
+            case Failure(error) =>
+              logger.error("Unable to create reconnect token", error)
+              AuthenticationSuccess(username, SessionKey(username, id, admin), "-1")
+          }
+      }
     }
   }
 
