@@ -492,20 +492,20 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
   def createReconnectToken(username: String): Try[String] = tryWithDb { db =>
     val expiration = Instant.now().plus(reconnectTokenDuration)
     val token = UUID.randomUUID().toString()
-    val queryStirng =
+    val queryString =
       """INSERT INTO UserReconnectToken SET
         |  user = (SELECT FROM User WHERE username = :username),
         |  token = :token,
         |  expireTime = :expireTime""".stripMargin
-    val query = new OCommandSQL(queryStirng)
+    val query = new OCommandSQL(queryString)
     val params = Map(Username -> username, Token -> token, ExpireTime -> Date.from(expiration))
     db.command(query).execute(params.asJava)
     token
   }
 
   def removeReconnectToken(token: String): Try[Unit] = tryWithDb { db =>
-    val queryStirng = "DELETE FROM UserReconnectToken WHERE token = :token"
-    val query = new OCommandSQL(queryStirng)
+    val queryString = "DELETE FROM UserReconnectToken WHERE token = :token"
+    val query = new OCommandSQL(queryString)
     val params = Map(Token -> token)
     db.command(query).execute(params.asJava)
     Unit
