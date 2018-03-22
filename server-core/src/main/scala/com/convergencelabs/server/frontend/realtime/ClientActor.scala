@@ -95,7 +95,7 @@ class ClientActor(
   private[this] var presenceServiceActor: ActorRef = _
   private[this] var chatLookupActor: ActorRef = _
   private[this] var sessionId: String = _
-  private[this] var recconectToken: String = _
+  private[this] var reconnectToken: String = _
 
   private[this] var protocolConnection: ProtocolConnection = _
   
@@ -240,9 +240,9 @@ class ClientActor(
   }
 
   private[this] def handleAuthenticationSuccess(message: InternalAuthSuccess): Unit = {
-    val InternalAuthSuccess(username, sk, recconectToken, presence, cb) = message
+    val InternalAuthSuccess(username, sk, reconnectToken, presence, cb) = message
     this.sessionId = sk.serialize();
-    this.recconectToken = recconectToken;
+    this.reconnectToken = reconnectToken;
     this.modelClient = context.actorOf(ModelClientActor.props(domainFqn, sk, modelQueryActor, requestTimeout))
     this.userClient = context.actorOf(IdentityClientActor.props(userServiceActor))
     this.chatClient = context.actorOf(ChatClientActor.props(domainFqn, chatLookupActor, sk, requestTimeout))
@@ -341,6 +341,8 @@ class ClientActor(
         if (idType == IdType.Chat) {
           chatClient.forward(message)
         }
+      case RequestReceived(x: IncomingClientRequestMessage, replyCallback) =>
+        replyCallback.reply(ReconnectTokenResponseMessage(this.reconnectToken))
     }
   }
 

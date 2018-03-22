@@ -68,6 +68,11 @@ case class AnonymousAuthRequestMessage(d: Option[String]) extends Authentication
 
 case class AuthenticationResponseMessage(s: Boolean, n: Option[String], e: Option[String], p: Option[Map[String, Any]]) extends OutgoingProtocolResponseMessage
 
+
+sealed trait IncomingClientRequestMessage extends IncomingProtocolRequestMessage
+case object ReconnectTokenRequestMessage extends IncomingClientRequestMessage
+case class ReconnectTokenResponseMessage(r: String) extends OutgoingProtocolResponseMessage
+
 ///////////////////////////////////////////////////////////////////////////////
 // Model Messages
 ///////////////////////////////////////////////////////////////////////////////
