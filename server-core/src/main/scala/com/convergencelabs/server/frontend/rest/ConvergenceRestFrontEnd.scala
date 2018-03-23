@@ -44,6 +44,7 @@ import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.ExceptionHandler
 import akka.http.scaladsl.server.RouteResult.route2HandlerFlow
 import akka.http.scaladsl.server.directives.SecurityDirectives.authenticateBasic
+import akka.http.scaladsl.server.directives.SecurityDirectives.authorize
 import akka.routing.RoundRobinGroup
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
@@ -96,7 +97,7 @@ class ConvergenceRestFrontEnd(
   }
 
   def start(): Unit = {
-
+    val masterAdminToken = system.settings.config.getString("convergence.master-admin-rest-token")
     val registrationBaseUrl = system.settings.config.getString("convergence.registration-base-url")
 
     val authStoreActor = createRouter("/user/" + AuthStoreActor.RelativePath, "authStoreActor")
@@ -111,7 +112,7 @@ class ConvergenceRestFrontEnd(
 
     // All of these services are global to the system and outside of the domain.
     val authService = new AuthService(ec, authStoreActor, defaultRequestTimeout)
-    val authenticator = new Authenticator(authStoreActor, defaultRequestTimeout, ec)
+    val authenticator = new Authenticator(authStoreActor, masterAdminToken, defaultRequestTimeout, ec)
     val registrationService = new RegistrationService(ec, registrationActor, defaultRequestTimeout, registrationBaseUrl)
     val profileService = new ProfileService(ec, convergenceUserActor, defaultRequestTimeout)
     val passwordService = new PasswordService(ec, convergenceUserActor, defaultRequestTimeout)
@@ -133,8 +134,6 @@ class ConvergenceRestFrontEnd(
       modelClusterRegion,
       defaultRequestTimeout)
 
-    val adminsConfig = system.settings.config.getConfig("convergence.convergence-admins")
-
     val route = cors(ConvergenceRestFrontEnd.ConvergenceCorsSettings) {
       handleExceptions(exceptionHandler) {
         // All request are under the "rest" path.
@@ -152,10 +151,12 @@ class ConvergenceRestFrontEnd(
               }
             }
         } ~ pathPrefix("admin") {
-          authenticateBasic(realm = "convergence admin", AdminAuthenticator.authenticate(adminsConfig)) { adminUser =>
-            convergenceUserAdminService.route(adminUser) ~
-              convergenceImportService.route(adminUser) ~
-              databaseManagerService.route(adminUser)
+          extractRequest { request =>
+            authenticator.requireAuthenticatedAdmin(request) { adminUser =>
+              convergenceUserAdminService.route(adminUser) ~
+                convergenceImportService.route(adminUser) ~
+                databaseManagerService.route(adminUser)
+            }
           }
         } ~ registrationService.route
       }
@@ -186,9 +187,9 @@ class ConvergenceRestFrontEnd(
   def stop(): Unit = {
     logger.info("Convergence Rest Frontend shutting down.")
     this.binding foreach { b =>
-       val f = b.unbind()
-       Await.result(f, FiniteDuration(10, TimeUnit.SECONDS))
-       logger.info("Convergence Rest Frontend shut down.")
+      val f = b.unbind()
+      Await.result(f, FiniteDuration(10, TimeUnit.SECONDS))
+      logger.info("Convergence Rest Frontend shut down.")
     }
   }
 }

@@ -31,6 +31,7 @@ case class AuthenticationFailed(ok: Boolean, error: String) extends ResponseMess
  */
 class Authenticator(
   private[this] val authActor: ActorRef,
+  private[this] val masterAdminToken: String,
   private[this] val timeout: Timeout,
   private[this] val executionContext: ExecutionContext)
     extends JsonSupport {
@@ -40,14 +41,15 @@ class Authenticator(
 
   def requireAuthenticated(request: HttpRequest): Directive1[String] = {
     request.header[Authorization] match {
-      case Some(Authorization(GenericHttpCredentials("token", _, params))) if params.keySet == Set("") =>
+      case Some(Authorization(GenericHttpCredentials("Token", _, params))) if params.keySet == Set("") =>
         onSuccess(validateToken(params(""))).flatMap {
           case Some(username) =>
             provide(username)
           case None =>
             complete(AuthFailureError)
         }
-      case _ => complete(AuthFailureError)
+      case _ => 
+        complete(AuthFailureError)
     }
   }
 
@@ -57,6 +59,20 @@ class Authenticator(
         Some(username)
       case ValidateFailure =>
         None
+    }
+  }
+
+  def requireAuthenticatedAdmin(request: HttpRequest): Directive1[String] = {
+    request.header[Authorization] match {
+      case Some(Authorization(GenericHttpCredentials("Token", _, params))) if params.keySet == Set("") =>
+        (masterAdminToken == params("")) match {
+          case true =>
+            provide("admin")
+          case false =>
+            complete(AuthFailureError)
+        }
+      case _ => 
+        complete(AuthFailureError)
     }
   }
 }

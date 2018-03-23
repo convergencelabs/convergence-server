@@ -78,5 +78,6 @@ class TestServer() extends Logging {
     ConfigFactory.parseReader(reader)
       .withValue("akka.remote.netty.tcp.port", ConfigValueFactory.fromAnyRef(port))
       .withValue("akka.cluster.roles", ConfigValueFactory.fromIterable(roles))
+      .resolve()
   }
 }

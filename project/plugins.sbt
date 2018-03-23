@@ -1,5 +1,3 @@
-resolvers += "sonatype-releases" at "https://oss.sonatype.org/content/repositories/releases/"
-
 addSbtPlugin("com.typesafe.sbt" % "sbt-native-packager" % "1.3.1")
 addSbtPlugin("com.typesafe.sbt" % "sbt-twirl" % "1.1.1")
 addSbtPlugin("com.typesafe.sbteclipse" % "sbteclipse-plugin" % "5.1.0")
