@@ -1,9 +1,11 @@
 package com.convergencelabs.server.datastore.domain
 
 import java.lang.{ Long => JavaLong }
+import java.time.Duration
 import java.time.Instant
 import java.util.Date
 import java.util.{ List => JavaList }
+import java.util.UUID
 
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.mapAsJavaMapConverter
@@ -32,8 +34,6 @@ import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
 import grizzled.slf4j.Logging
-import java.time.Duration
-import java.util.UUID
 
 object DomainUserStore {
 
@@ -46,6 +46,8 @@ object DomainUserStore {
   val AdminUserPrefeix = "admin:"
   val AnonymousUserPrefeix = "anonymous:"
 
+  val UserDoesNotExistMessage = "User does not exist"
+
   object Fields {
     val UserType = "userType"
     val Username = "username"
@@ -56,18 +58,18 @@ object DomainUserStore {
   }
 
   case class CreateNormalDomainUser(
-    username: String,
-    firstName: Option[String],
-    lastName: Option[String],
+    username:    String,
+    firstName:   Option[String],
+    lastName:    Option[String],
     displayName: Option[String],
-    email: Option[String])
+    email:       Option[String])
 
   case class UpdateDomainUser(
-    username: String,
-    firstName: Option[String],
-    lastName: Option[String],
+    username:    String,
+    firstName:   Option[String],
+    lastName:    Option[String],
     displayName: Option[String],
-    email: Option[String])
+    email:       Option[String])
 
   def adminUsername(convergneceUsername: String): String = {
     AdminUserPrefeix + convergneceUsername
@@ -115,8 +117,8 @@ object DomainUserStore {
  * @param dbPool The database pool to use.
  */
 class DomainUserStore private[domain] (private[this] val dbProvider: DatabaseProvider)
-    extends AbstractDatabasePersistence(dbProvider)
-    with Logging {
+  extends AbstractDatabasePersistence(dbProvider)
+  with Logging {
 
   val Username = "username"
   val Password = "password"
@@ -127,7 +129,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
   val LastLogin = "lastLogin"
   val Token = "token"
   val ExpireTime = "expireTime"
-  
+
   val reconnectTokenDuration = Duration.ofHours(24)
 
   /**
@@ -319,7 +321,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
     result.asScala.toList match {
       case doc :: Nil => true
-      case _ => false
+      case _          => false
     }
   }
 
@@ -332,10 +334,10 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
    * @param offset The offset into the ordering to start returning entries.  Defaults to 0.
    */
   def getAllDomainUsers(
-    orderBy: Option[DomainUserField.Field],
+    orderBy:   Option[DomainUserField.Field],
     sortOrder: Option[SortOrder.Value],
-    limit: Option[Int],
-    offset: Option[Int]): Try[List[DomainUser]] = tryWithDb { db =>
+    limit:     Option[Int],
+    offset:    Option[Int]): Try[List[DomainUser]] = tryWithDb { db =>
 
     val order = orderBy.getOrElse(DomainUserField.Username)
     val sort = sortOrder.getOrElse(SortOrder.Descending)
@@ -347,12 +349,12 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
   }
 
   def searchUsersByFields(
-    fields: List[DomainUserField.Field],
+    fields:       List[DomainUserField.Field],
     searchString: String,
-    orderBy: Option[DomainUserField.Field],
-    sortOrder: Option[SortOrder.Value],
-    limit: Option[Int],
-    offset: Option[Int]): Try[List[DomainUser]] = tryWithDb { db =>
+    orderBy:      Option[DomainUserField.Field],
+    sortOrder:    Option[SortOrder.Value],
+    limit:        Option[Int],
+    offset:       Option[Int]): Try[List[DomainUser]] = tryWithDb { db =>
 
     val baseQuery = "SELECT * FROM User"
     val whereTerms = ListBuffer[String]()
@@ -377,10 +379,10 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
   }
 
   def findUser(
-    search: String,
+    search:  String,
     exclude: List[String],
-    offset: Int,
-    limit: Int): Try[List[DomainUser]] = tryWithDb { db =>
+    offset:  Int,
+    limit:   Int): Try[List[DomainUser]] = tryWithDb { db =>
 
     var excplicitResults = List[DomainUser]()
 
@@ -440,7 +442,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
     val params = Map(Username -> username)
     QueryUtil.lookupOptionalDocument(query, params, db) match {
       case None =>
-        throw new EntityNotFoundException()
+        throw new EntityNotFoundException(DomainUserStore.UserDoesNotExistMessage)
       case Some(ridDoc) =>
         val rid = ridDoc.field("rid").asInstanceOf[ODocument].getIdentity
         val query = "SELECT * FROM UserCredential WHERE user = :user"
@@ -488,19 +490,26 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
         false
     }
   }
-  
+
   def createReconnectToken(username: String): Try[String] = tryWithDb { db =>
-    val expiration = Instant.now().plus(reconnectTokenDuration)
-    val token = UUID.randomUUID().toString()
-    val queryString =
-      """INSERT INTO UserReconnectToken SET
-        |  user = (SELECT FROM User WHERE username = :username),
+    val index = db.getMetadata.getIndexManager.getIndex(UsernameIndex)
+    if (index.contains(username)) {
+      val userORID = index.get(username).asInstanceOf[OIdentifiable].getIdentity
+      val expiration = Instant.now().plus(reconnectTokenDuration)
+      val token = UUID.randomUUID().toString()
+      val queryString =
+        """INSERT INTO UserReconnectToken SET
+        |  user = :user,
         |  token = :token,
         |  expireTime = :expireTime""".stripMargin
-    val query = new OCommandSQL(queryString)
-    val params = Map(Username -> username, Token -> token, ExpireTime -> Date.from(expiration))
-    db.command(query).execute(params.asJava)
-    token
+      val query = new OCommandSQL(queryString)
+      val params = Map("user" -> userORID, Token -> token, ExpireTime -> Date.from(expiration))
+      db.command(query).execute(params.asJava)
+      token
+    } else {
+      throw new EntityNotFoundException(DomainUserStore.UserDoesNotExistMessage)
+    }
+
   }
 
   def removeReconnectToken(token: String): Try[Unit] = tryWithDb { db =>
@@ -518,7 +527,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
       val expireTime: Date = record.field(ExpireTime, OType.DATETIME)
       val expireInstant: Instant = expireTime.toInstant()
       if (Instant.now().isBefore(expireInstant)) {
-        val username: String = record.field(Username)
+        val username: String = record.field("user.username")
         val newExpiration = Instant.now().plus(reconnectTokenDuration)
         record.field(ExpireTime, Date.from(newExpiration)).save()
         Some(username)
@@ -531,12 +540,10 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
   }
 
   def setLastLogin(username: String, userType: DomainUserType.Value, instant: Instant): Try[Unit] = tryWithDb { db =>
-    val index = db.getMetadata.getIndexManager.getIndex(UsernameIndex)
-    if (index.contains(username)) {
-      val record: ODocument = index.get(username).asInstanceOf[OIdentifiable].getRecord[ODocument]
+    getUserRecord(username).map { record =>
       record.field(LastLogin, Date.from(instant)).save()
+      Unit
     }
-    Unit
   }
 
   def getNormalUserCount(): Try[Long] = tryWithDb { db =>
@@ -560,6 +567,15 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
         Failure(DuplicateValueException(DomainUserStore.Fields.Email))
       case _ =>
         Failure(e)
+    }
+  }
+
+  private[this] def getUserRecord(username: String): Try[ODocument] = tryWithDb { db =>
+    val index = db.getMetadata.getIndexManager.getIndex(UsernameIndex)
+    if (index.contains(username)) {
+      index.get(username).asInstanceOf[OIdentifiable].getRecord[ODocument]
+    } else {
+      throw new EntityNotFoundException(DomainUserStore.UserDoesNotExistMessage)
     }
   }
 }
