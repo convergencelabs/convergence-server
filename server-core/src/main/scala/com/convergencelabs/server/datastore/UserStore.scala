@@ -151,8 +151,9 @@ class UserStore(
     QueryUtil.mapSingletonList(results) { UserStore.docToUser(_) }
   }
 
+  // TODO add an ordering ability.
   def getUsers(filter: Option[String], limit: Option[Int], offset: Option[Int]): Try[List[User]] = tryWithDb { db =>
-    val baseQuery = "SELECT FROM User" + filter.map(_ => " WHERE username LIKE :searchString").getOrElse("")
+    val baseQuery = "SELECT FROM User" + filter.map(_ => " WHERE username LIKE :searchString ORDER BY username").getOrElse(" ORDER BY username")
     val query = QueryUtil.buildPagedQuery(baseQuery, limit, offset)
     val params = filter match {
       case Some(searchFilter) =>

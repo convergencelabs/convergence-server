@@ -20,7 +20,7 @@ package object rest {
     def error: String
   }
 
-  case class ErrorResponse(error: String) extends AbstractErrorResponse
+  case class ErrorResponse(error: String, message: Option[String]) extends AbstractErrorResponse
 
   
   case class DuplicateError(val field: String) extends AbstractErrorResponse {
@@ -40,8 +40,9 @@ package object rest {
 
   val OkResponse: RestResponse = (StatusCodes.OK, SuccessRestResponse())
   val CreateRestResponse: RestResponse = (StatusCodes.Created, SuccessRestResponse())
-  val InternalServerError: RestResponse = (StatusCodes.InternalServerError, ErrorResponse("internal_server_error"))
-  val NotFoundError: RestResponse = (StatusCodes.NotFound, ErrorResponse("not_found_error"))
-  val AuthFailureError: RestResponse = (StatusCodes.Unauthorized, ErrorResponse("unauthorized"))
-  val ForbiddenError: RestResponse = (StatusCodes.Forbidden, ErrorResponse("forbidden"))
+  val InternalServerError: RestResponse = (StatusCodes.InternalServerError, ErrorResponse("internal_server_error", None))
+  val NotFoundError: RestResponse = (StatusCodes.NotFound, ErrorResponse("not_found_error", None))
+  val AuthFailureError: RestResponse = (StatusCodes.Unauthorized, ErrorResponse("unauthorized", None))
+  val ForbiddenError: RestResponse = (StatusCodes.Forbidden, ErrorResponse("forbidden", None))
+  val MalformedRequestContent: RestResponse = (StatusCodes.BadRequest, ErrorResponse("malformed_request_content", None))
 }

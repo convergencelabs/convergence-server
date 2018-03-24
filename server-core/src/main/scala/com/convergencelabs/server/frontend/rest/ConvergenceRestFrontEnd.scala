@@ -51,6 +51,8 @@ import akka.util.Timeout
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import grizzled.slf4j.Logging
+import akka.http.scaladsl.server.RejectionHandler
+import akka.http.scaladsl.server.MalformedRequestContentRejection
 
 object ConvergenceRestFrontEnd {
   val ConvergenceCorsSettings = CorsSettings.defaultSettings.copy(
@@ -92,7 +94,7 @@ class ConvergenceRestFrontEnd(
     case e: Exception =>
       extractUri { uri =>
         logger.error(s"Error handling rest call: ${uri}", e)
-        complete(HttpResponse(StatusCodes.InternalServerError, entity = "There was an internal server error."))
+        complete(InternalServerError)
       }
   }
 
@@ -133,6 +135,17 @@ class ConvergenceRestFrontEnd(
       permissionStoreActor,
       modelClusterRegion,
       defaultRequestTimeout)
+
+    implicit def rejectionHandler = RejectionHandler
+      .newBuilder()
+      .handle {
+        case MalformedRequestContentRejection(message, throwable) =>
+          complete(ErrorResponse("malformed_request_content", Some(message)))
+        case e: Any =>
+          logger.error("An unexpected rejection occured" + e)
+          complete(InternalServerError)
+      }
+    .result()
 
     val route = cors(ConvergenceRestFrontEnd.ConvergenceCorsSettings) {
       handleExceptions(exceptionHandler) {

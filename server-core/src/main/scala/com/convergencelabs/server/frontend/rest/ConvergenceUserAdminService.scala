@@ -48,6 +48,8 @@ class ConvergenceUserAdminService(
     private[this] val defaultTimeout: Timeout) extends JsonSupport {
   
   import com.convergencelabs.server.frontend.rest.ConvergenceUserAdminService._
+  import akka.http.scaladsl.server.Directive._
+  import akka.http.scaladsl.server.Directives._
 
   implicit val ec = executionContext
   implicit val t = defaultTimeout
@@ -56,7 +58,9 @@ class ConvergenceUserAdminService(
     pathPrefix("users") {
       pathEnd {
         get {
-          complete(getUsersRequest())
+          parameters("filter".?, "limit".as[Int].?, "offset".as[Int].?) { (filter, limit, offset) =>
+            complete(getUsersRequest(filter, limit, offset))
+          }
         } ~ post {
           handleWith(createConvergenceUserRequest)
         }
@@ -89,8 +93,8 @@ class ConvergenceUserAdminService(
     (userManagerActor ? message) map { _ => CreateRestResponse }
   }
 
-  def getUsersRequest(): Future[RestResponse] = {
-    (userManagerActor ? GetConvergenceUsers(None, None, None)).mapTo[List[User]] map
+  def getUsersRequest(filter: Option[String], limit: Option[Int], offset: Option[Int]): Future[RestResponse] = {
+    (userManagerActor ? GetConvergenceUsers(filter, limit, offset)).mapTo[List[User]] map
       (users => (StatusCodes.OK, GetUsersResponse(users)))
   }
 
