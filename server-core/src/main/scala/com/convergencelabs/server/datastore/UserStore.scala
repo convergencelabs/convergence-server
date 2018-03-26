@@ -4,7 +4,6 @@ import java.time.Duration
 import java.time.Instant
 import java.util.Date
 import java.util.{ List => JavaList }
-import java.util.UUID
 
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.mapAsJavaMapConverter
@@ -12,6 +11,8 @@ import scala.util.Failure
 import scala.util.Try
 
 import com.convergencelabs.server.datastore.domain.PasswordUtil
+import com.convergencelabs.server.util.RandomStringGenerator
+
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.id.ORID
@@ -20,10 +21,12 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
+
 import UserStore.User
 
 import UserStore.Fields.Username
 import grizzled.slf4j.Logging
+
 
 object UserStore {
   val ClassName = "User"
@@ -102,6 +105,8 @@ class UserStore(
 
   val UsernameIndex = "User.username"
   val LastLogin = "lastLogin"
+  
+  val sessionTokeGenerator = new RandomStringGenerator(32)
 
   def createUser(user: User, password: String): Try[Unit] = {
     createUserWithPasswordHash(user, PasswordUtil.hashPassword(password))
@@ -239,7 +244,7 @@ class UserStore(
         PasswordUtil.checkPassword(password, pwhash) match {
           case true => {
             val username: String = doc.field(Username)
-            val token = UUID.randomUUID().toString()
+            val token = sessionTokeGenerator.nextString()
             val expiration = Instant.now().plus(tokenValidityDuration)
             createToken(username, token, expiration)
             setLastLogin(username, Instant.now())

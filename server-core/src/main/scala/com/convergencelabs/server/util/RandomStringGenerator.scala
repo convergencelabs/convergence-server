@@ -10,6 +10,7 @@ object RandomStringGenerator {
   val LowerCaseLetters = UpperCaseLetters.toLowerCase(Locale.ROOT);
   val Digits = "0123456789";
   val AlphaNumeric = UpperCaseLetters + LowerCaseLetters + Digits;
+  val Base64 = AlphaNumeric + "/" + "+"
 }
 
 class RandomStringGenerator(
@@ -30,14 +31,17 @@ class RandomStringGenerator(
   private[this] val buf = new Array[Char](length);
   private[this] val chars = symbols.toCharArray();
 
-  def this(length: Int, random: Random) {
-    this(length, random, RandomStringGenerator.AlphaNumeric);
+  def this(length: Int, symbols: String) {
+    this(length, new SecureRandom(), symbols);
   }
-
+  
+  def this(length: Int, random: Random) {
+    this(length, random, RandomStringGenerator.Base64);
+  }
+  
   def this(length: Int) {
     this(length, new SecureRandom());
   }
-
  
   def nextString(): String = {
     for (idx <- 0 to buf.length - 1) {

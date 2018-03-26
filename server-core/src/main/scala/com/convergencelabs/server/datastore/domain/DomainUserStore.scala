@@ -5,7 +5,6 @@ import java.time.Duration
 import java.time.Instant
 import java.util.Date
 import java.util.{ List => JavaList }
-import java.util.UUID
 
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.mapAsJavaMapConverter
@@ -34,6 +33,7 @@ import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.util.RandomStringGenerator
 
 object DomainUserStore {
 
@@ -130,7 +130,10 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
   val Token = "token"
   val ExpireTime = "expireTime"
 
+  // TODO make this configurable.
   val reconnectTokenDuration = Duration.ofHours(24)
+  
+  val reconnectTokenGenerator = new RandomStringGenerator(32)
 
   /**
    * Creates a new domain user in the system, and optionally set a password.
@@ -496,7 +499,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
     if (index.contains(username)) {
       val userORID = index.get(username).asInstanceOf[OIdentifiable].getIdentity
       val expiration = Instant.now().plus(reconnectTokenDuration)
-      val token = UUID.randomUUID().toString()
+      val token = reconnectTokenGenerator.nextString()
       val queryString =
         """INSERT INTO UserReconnectToken SET
         |  user = :user,
