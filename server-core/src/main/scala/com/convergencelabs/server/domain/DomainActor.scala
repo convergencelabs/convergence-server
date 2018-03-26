@@ -134,11 +134,12 @@ class DomainActor(
     val connected = Instant.now()
 
     authenticator.authenticate(message.credentials) onComplete {
-      case Success(AuthenticationSuccess(username, sk)) =>
+      case Success(AuthenticationSuccess(username, sk, recconectToken)) =>
         log.debug("Authenticated user successfully, creating session")
 
         val method = message.credentials match {
           case x: JwtAuthRequest => "jwt"
+          case x: ReconnectTokenAuthRequest => "reconnect"
           case x: PasswordAuthRequest => "password"
           case x: AnonymousAuthRequest => "anonymous"
         }
@@ -156,7 +157,7 @@ class DomainActor(
 
         persistenceProvider.sessionStore.createSession(session) map { _ =>
           authenticatedClients += (message.clientActor -> sk.sid)
-          asker ! AuthenticationSuccess(username, sk)
+          asker ! AuthenticationSuccess(username, sk, recconectToken)
         } recover {
           case cause: Exception =>
             log.error(cause, "Unable to authenticate user because a session could not be created")

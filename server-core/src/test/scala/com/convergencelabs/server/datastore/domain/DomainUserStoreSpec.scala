@@ -250,6 +250,19 @@ class DomainUserStoreSpec
         store.setLastLogin(User1.username, DomainUserType.Normal, Instant.now()).get
       }
     }
+    
+    "creating a reconnect token" must {
+      "correctly create a valid token" in withPersistenceStore { store =>
+        initUsers(store)
+        
+        val token = store.createReconnectToken(User0.username).get
+        store.validateReconnectToken(token).get.value shouldBe User0.username
+      }
+
+      "throw exception if user does not exist" in withPersistenceStore { store =>
+        store.createReconnectToken("DoesNotExist").failure.exception shouldBe a[EntityNotFoundException]
+      }
+    }
   }
 
   def initUsers(store: DomainUserStore): Unit = {

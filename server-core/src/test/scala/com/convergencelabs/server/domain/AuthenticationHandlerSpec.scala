@@ -51,7 +51,7 @@ class AuthenticationHandlerSpec()
       "authetnicate successfully for a correct username and password" in new TestFixture {
         val f = authHandler.authenticate(PasswordAuthRequest(existingUserName, existingCorrectPassword))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
-        result shouldBe AuthenticationSuccess(existingUserName, SessionKey(existingUserName, "1"))
+        result shouldBe AuthenticationSuccess(existingUserName, SessionKey(existingUserName, "1"), "123")
       }
 
       "Fail authetnication for an incorrect username and password" in new TestFixture {
@@ -77,7 +77,7 @@ class AuthenticationHandlerSpec()
       "successfully authenticate a user with a valid key" in new TestFixture {
         val f = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(existingUserName, enabledKey.id)))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
-        result shouldBe AuthenticationSuccess(existingUserName, SessionKey(existingUserName, "1"))
+        result shouldBe AuthenticationSuccess(existingUserName, SessionKey(existingUserName, "1"), "123")
       }
 
       "return an authentication failure for a non-existent key" in new TestFixture {
@@ -102,13 +102,13 @@ class AuthenticationHandlerSpec()
         val f = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(existingUserName, AuthenticationHandler.AdminKeyId)))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
         val expectedUsername = DomainUserStore.adminUsername(existingUserName)
-        result shouldBe AuthenticationSuccess(expectedUsername, SessionKey(expectedUsername, "1", true))
+        result shouldBe AuthenticationSuccess(expectedUsername, SessionKey(expectedUsername, "1", true), "123")
       }
 
       "return an authentication success lazily created user" in new TestFixture {
         val f = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(lazyUserName, enabledKey.id)))
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
-        result shouldBe AuthenticationSuccess(lazyUserName, SessionKey(lazyUserName, "1"))
+        result shouldBe AuthenticationSuccess(lazyUserName, SessionKey(lazyUserName, "1"), "123")
       }
 
       "return an authentication failure when the user can't be looked up" in new TestFixture {
@@ -149,6 +149,9 @@ class AuthenticationHandlerSpec()
     
     
     val userStore = mock[DomainUserStore]
+    
+    Mockito.when(userStore.createReconnectToken(MockitoMatchers.any())).thenReturn(Success("123"))
+    
     Mockito.when(userStore.domainUserExists(existingUserName)).thenReturn(Success(true))
     Mockito.when(userStore.adminUserExists(existingUserName)).thenReturn(Success(true))
     Mockito.when(userStore.getDomainUserByUsername(existingUserName)).thenReturn(Success(Some(existingUser)))

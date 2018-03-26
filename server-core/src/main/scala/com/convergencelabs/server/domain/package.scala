@@ -27,10 +27,11 @@ package object domain {
   sealed trait AuthetncationCredentials
   case class PasswordAuthRequest(username: String, password: String) extends AuthetncationCredentials
   case class JwtAuthRequest(jwt: String) extends AuthetncationCredentials
+  case class ReconnectTokenAuthRequest(token: String) extends AuthetncationCredentials
   case class AnonymousAuthRequest(displayName: Option[String]) extends AuthetncationCredentials
 
   sealed trait AuthenticationResponse
-  case class AuthenticationSuccess(username: String, sk: SessionKey) extends AuthenticationResponse
+  case class AuthenticationSuccess(username: String, sk: SessionKey, reconnectToken: String) extends AuthenticationResponse
   case object AuthenticationFailure extends AuthenticationResponse
   case object AuthenticationError extends AuthenticationResponse
   
