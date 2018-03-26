@@ -7,12 +7,6 @@ import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.CreateConvergenceUserRequest
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.DeleteConvergenceUserRequest
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUser
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUsers
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.SetPasswordRequest
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.UpdateConvergenceUserRequest
 import com.convergencelabs.server.datastore.DomainStoreActor.CreateDomainRequest
 import com.convergencelabs.server.datastore.DomainStoreActor.DeleteDomainsForUserRequest
 import com.convergencelabs.server.datastore.UserStore.User
@@ -26,6 +20,7 @@ import akka.actor.Status
 import akka.actor.actorRef2Scala
 import akka.util.Timeout
 import akka.pattern.ask
+import com.convergencelabs.server.util.RandomStringGenerator
 
 object ConvergenceUserManagerActor {
   val RelativePath = "ConvergenceUserManagerActor"
@@ -39,6 +34,11 @@ object ConvergenceUserManagerActor {
   case class DeleteConvergenceUserRequest(username: String)
   case class GetConvergenceUser(username: String)
   case class GetConvergenceUsers(filter: Option[String], limit: Option[Int], offset: Option[Int])
+  
+  case class GetUserApiKeyRequest(username: String)
+  case class RegenerateUserApiKeyRequest(username: String)
+  case class ClearUserApiKeyRequest(username: String)
+  case class UserApiKeyResponse(apiKey: String)
 }
 
 class ConvergenceUserManagerActor private[datastore] (
@@ -46,6 +46,8 @@ class ConvergenceUserManagerActor private[datastore] (
   private[this] val domainStoreActor: ActorRef)
     extends StoreActor
     with ActorLogging {
+  
+  import ConvergenceUserManagerActor._
 
   // FIXME: Read this from configuration
   private[this] implicit val requstTimeout = Timeout(2 seconds)
@@ -55,6 +57,8 @@ class ConvergenceUserManagerActor private[datastore] (
   private[this] val autoCreateConfigs: List[Config] = context.system.settings.config.getConfigList("convergence.auto-create-domains").asScala.toList
   private[this] val tokenDuration = context.system.settings.config.getDuration("convergence.rest.auth-token-expiration")
   private[this] val userStore: UserStore = new UserStore(dbProvider, tokenDuration)
+  
+  private[this] val apiKeyGen = new RandomStringGenerator(32)
 
   def receive: Receive = {
     case message: CreateConvergenceUserRequest =>
@@ -69,6 +73,12 @@ class ConvergenceUserManagerActor private[datastore] (
       updateConvergenceUser(message)
     case message: SetPasswordRequest =>
       setUserPassword(message)
+    case message: GetUserApiKeyRequest =>
+      getUserApiKey(message)
+    case message: RegenerateUserApiKeyRequest =>
+      regenerateUserApiKey(message)
+      case message: ClearUserApiKeyRequest =>
+      clearUserApiKey(message)
     case message: Any =>
       unhandled(message)
 
@@ -123,6 +133,24 @@ class ConvergenceUserManagerActor private[datastore] (
     val SetPasswordRequest(username, password) = message;
     log.debug(s"Setting the password for user: ${username}")
     reply(userStore.setUserPassword(username, password))
+  }
+  
+  def getUserApiKey(message: GetUserApiKeyRequest): Unit = {
+    val GetUserApiKeyRequest(username) = message;
+    val result = userStore.getUserApiKey(username);
+    reply(result)
+  }
+  
+  def regenerateUserApiKey(message: RegenerateUserApiKeyRequest): Unit = {
+    val RegenerateUserApiKeyRequest(username) = message;
+    log.debug(s"Regenerating the api key for user: ${username}")
+    val key = apiKeyGen.nextString()
+    reply(userStore.setUserApiKey(username, key).map(_ => key))
+  }
+  
+  def clearUserApiKey(message: ClearUserApiKeyRequest): Unit = {
+    val ClearUserApiKeyRequest(username) = message;
+    reply(userStore.clearUserApiKey(username))
   }
 
   private[this] def createDomain(username: String, id: String, displayName: String, anonymousAuth: Boolean): Future[Any] = {

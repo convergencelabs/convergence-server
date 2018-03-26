@@ -109,18 +109,18 @@ class UserStoreSpec
       "return true and a uid for a valid token" in withPersistenceStore { store =>
         store.createUser(TestUser, password).get
         store.createToken(username, DummyToken, Instant.now().plusSeconds(100)) // scalastyle:ignore magic.number
-        store.validateToken(DummyToken).success.value shouldBe Some(username)
+        store.validateUserSessionToken(DummyToken).success.value shouldBe Some(username)
       }
 
       "return false and None for an expired token" in withPersistenceStore { store =>
         store.createUser(TestUser, password).get
         val expireTime = Instant.now().minusSeconds(1)
         store.createToken(username, DummyToken, expireTime)
-        store.validateToken(DummyToken).success.value shouldBe None
+        store.validateUserSessionToken(DummyToken).success.value shouldBe None
       }
 
       "return false and None for an invalid token" in withPersistenceStore { store =>
-        store.validateToken(DummyToken).success.value shouldBe None
+        store.validateUserSessionToken(DummyToken).success.value shouldBe None
       }
     }
   }

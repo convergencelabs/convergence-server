@@ -3,10 +3,8 @@ package com.convergencelabs.server.frontend.rest
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
-import com.convergencelabs.server.datastore.AuthStoreActor.ValidateFailure
-import com.convergencelabs.server.datastore.AuthStoreActor.ValidateRequest
-import com.convergencelabs.server.datastore.AuthStoreActor.ValidateResponse
-import com.convergencelabs.server.datastore.AuthStoreActor.ValidateSuccess
+import com.convergencelabs.server.datastore.AuthStoreActor.ValidateSessionTokenRequest
+import com.convergencelabs.server.datastore.AuthStoreActor.ValidateUserApiKeyRequest
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
@@ -20,7 +18,6 @@ import akka.http.scaladsl.server.directives.BasicDirectives.provide
 import akka.http.scaladsl.server.directives.FutureDirectives.onSuccess
 import akka.http.scaladsl.server.directives.OnSuccessMagnet.apply
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
-import akka.pattern.ask
 import akka.util.Timeout
 
 case class AuthenticationFailed(ok: Boolean, error: String) extends ResponseMessage
@@ -36,42 +33,51 @@ class Authenticator(
   private[this] val executionContext: ExecutionContext)
     extends JsonSupport {
 
+  import akka.pattern.ask
+
   private[this] implicit val ec = executionContext
   private[this] implicit val t = timeout
 
-  def requireAuthenticated(request: HttpRequest): Directive1[String] = {
+  def requireAuthenticatedUser(request: HttpRequest): Directive1[String] = {
     request.header[Authorization] match {
-      case Some(Authorization(GenericHttpCredentials("Token", _, params))) if params.keySet == Set("") =>
-        onSuccess(validateToken(params(""))).flatMap {
+      case Some(Authorization(GenericHttpCredentials("SessionToken", _, params))) if params.keySet == Set("") =>
+        onSuccess(validateSessionToken(params(""))).flatMap {
           case Some(username) =>
             provide(username)
           case None =>
             complete(AuthFailureError)
         }
-      case _ => 
+
+      case Some(Authorization(GenericHttpCredentials("UserApiKey", _, params))) if params.keySet == Set("") =>
+        onSuccess(validateUserApiKey(params(""))).flatMap {
+          case Some(username) =>
+            provide(username)
+          case None =>
+            complete(AuthFailureError)
+        }
+      case _ =>
         complete(AuthFailureError)
     }
   }
 
-  private[this] def validateToken(token: String): Future[Option[String]] = {
-    (authActor ? ValidateRequest(token)).mapTo[ValidateResponse] map {
-      case ValidateSuccess(username) =>
-        Some(username)
-      case ValidateFailure =>
-        None
-    }
+  private[this] def validateSessionToken(token: String): Future[Option[String]] = {
+    (authActor ? ValidateSessionTokenRequest(token)).mapTo[Option[String]]
+  }
+
+  private[this] def validateUserApiKey(token: String): Future[Option[String]] = {
+    (authActor ? ValidateUserApiKeyRequest(token)).mapTo[Option[String]]
   }
 
   def requireAuthenticatedAdmin(request: HttpRequest): Directive1[String] = {
     request.header[Authorization] match {
-      case Some(Authorization(GenericHttpCredentials("Token", _, params))) if params.keySet == Set("") =>
+      case Some(Authorization(GenericHttpCredentials("AdminToken", _, params))) if params.keySet == Set("") =>
         (masterAdminToken == params("")) match {
           case true =>
             provide("admin")
           case false =>
             complete(AuthFailureError)
         }
-      case _ => 
+      case _ =>
         complete(AuthFailureError)
     }
   }

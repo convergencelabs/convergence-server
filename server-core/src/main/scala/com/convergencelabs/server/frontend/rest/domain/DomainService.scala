@@ -39,6 +39,8 @@ import akka.util.Timeout
 import scala.util.Try
 import com.convergencelabs.server.frontend.rest.domain.DomainAdminTokenService
 import com.convergencelabs.server.frontend.rest.domain.DomainStatsService
+import scala.util.Success
+import scala.util.Failure
 
 object DomainService {
   case class DomainsResponse(domains: List[DomainInfo]) extends AbstractSuccessResponse
@@ -168,8 +170,8 @@ class DomainService(
   }
 
   // Permission Checks
-
   def canAccessDomain(domainFqn: DomainFqn, username: String): Future[Boolean] = {
-    (authorizationActor ? ConvergenceAuthorizedRequest(username, domainFqn, Set("domain-access"))).mapTo[Try[Boolean]].map(_.get)
+    val message = ConvergenceAuthorizedRequest(username, domainFqn, Set("domain-access"))
+    (authorizationActor ? message).mapTo[Boolean]
   }
 }

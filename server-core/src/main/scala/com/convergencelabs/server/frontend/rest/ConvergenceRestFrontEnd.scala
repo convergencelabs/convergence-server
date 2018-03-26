@@ -53,6 +53,7 @@ import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import grizzled.slf4j.Logging
 import akka.http.scaladsl.server.RejectionHandler
 import akka.http.scaladsl.server.MalformedRequestContentRejection
+import akka.http.scaladsl.server.AuthorizationFailedRejection
 
 object ConvergenceRestFrontEnd {
   val ConvergenceCorsSettings = CorsSettings.defaultSettings.copy(
@@ -117,6 +118,7 @@ class ConvergenceRestFrontEnd(
     val authenticator = new Authenticator(authStoreActor, masterAdminToken, defaultRequestTimeout, ec)
     val registrationService = new RegistrationService(ec, registrationActor, defaultRequestTimeout, registrationBaseUrl)
     val profileService = new ProfileService(ec, convergenceUserActor, defaultRequestTimeout)
+    val apiKeyService = new UserApiKeyService(ec, convergenceUserActor, defaultRequestTimeout)
     val passwordService = new PasswordService(ec, convergenceUserActor, defaultRequestTimeout)
     val keyGenService = new KeyGenService(ec)
 
@@ -141,11 +143,13 @@ class ConvergenceRestFrontEnd(
       .handle {
         case MalformedRequestContentRejection(message, throwable) =>
           complete(ErrorResponse("malformed_request_content", Some(message)))
-        case e: Any =>
-          logger.error("An unexpected rejection occured" + e)
-          complete(InternalServerError)
+        case AuthorizationFailedRejection =>
+          complete(ForbiddenError)
+//        case e: Any =>
+//          logger.error("An unexpected rejection occured: " + e)
+//          complete(InternalServerError)
       }
-    .result()
+      .result()
 
     val route = cors(ConvergenceRestFrontEnd.ConvergenceCorsSettings) {
       handleExceptions(exceptionHandler) {
@@ -155,10 +159,11 @@ class ConvergenceRestFrontEnd(
           authService.route ~
             // Everything else must be authenticated
             extractRequest { request =>
-              authenticator.requireAuthenticated(request) { username =>
+              authenticator.requireAuthenticatedUser(request) { username =>
                 domainService.route(username) ~
                   keyGenService.route() ~
                   profileService.route(username) ~
+                  apiKeyService.route(username) ~
                   passwordService.route(username) ~
                   convergenceUserService.route(username)
               }

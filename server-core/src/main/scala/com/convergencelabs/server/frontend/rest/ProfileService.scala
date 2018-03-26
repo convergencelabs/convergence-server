@@ -43,7 +43,7 @@ class ProfileService(
       } ~
       put {
         entity(as[UpdateProfileRequest]) { profile =>
-        complete(updateProfile(username, profile))
+          complete(updateProfile(username, profile))
         }
       }
     }
