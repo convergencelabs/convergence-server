@@ -84,7 +84,19 @@ class UserStoreSpec
       }
 
       "return a failure if user does not exist" in withPersistenceStore { store =>
-        store.setUserPassword("DoesNotExist", "doesn't matter").failed.get shouldBe a[IllegalArgumentException]
+        store.setUserPassword("DoesNotExist", "doesn't matter").failed.get shouldBe a[EntityNotFoundException]
+      }
+    }
+    
+    "getting a user's password hash" must {
+      "return a hash for an existing user." in withPersistenceStore { store =>
+        val password = "newPasswordToSet"
+        store.createUser(TestUser, password).get
+        store.getUserPasswordHash(username).get shouldBe defined
+      }
+
+      "return None if user does not exist" in withPersistenceStore { store =>
+        store.getUserPasswordHash("DoesNotExist").get shouldBe None
       }
     }
 

@@ -17,20 +17,20 @@ package object rest {
 
   abstract class AbstractErrorResponse() extends ResponseMessage {
     val ok = false
-    def error: String
+    def error_code: String
   }
 
-  case class ErrorResponse(error: String, message: Option[String]) extends AbstractErrorResponse
+  case class ErrorResponse(error_code: String, error_message: Option[String]) extends AbstractErrorResponse
 
   
   case class DuplicateError(val field: String) extends AbstractErrorResponse {
-    val error = "duplicate_error"
+    val error_code = "duplicate_error"
   }
   
   def duplicateResponse(field: String): RestResponse = (StatusCodes.Conflict, DuplicateError(field))
   
   case class InvalidValueError(field: String) extends AbstractErrorResponse {
-    val error = "invalid_value_error"
+    val error_code = "invalid_value_error"
   }
   
   def invalidValueResponse(field: String): RestResponse = (StatusCodes.BadRequest, InvalidValueError(field))

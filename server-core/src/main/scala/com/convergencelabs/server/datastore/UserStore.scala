@@ -27,7 +27,6 @@ import UserStore.User
 import UserStore.Fields.Username
 import grizzled.slf4j.Logging
 
-
 object UserStore {
   val ClassName = "User"
 
@@ -105,7 +104,7 @@ class UserStore(
 
   val UsernameIndex = "User.username"
   val LastLogin = "lastLogin"
-  
+
   val sessionTokeGenerator = new RandomStringGenerator(32)
 
   def createUser(user: User, password: String): Try[Unit] = {
@@ -204,25 +203,23 @@ class UserStore(
    * @param password The new password to use for internal authentication
    */
   def setUserPassword(username: String, password: String): Try[Unit] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT * FROM UserCredential WHERE user.username = :username")
+    val query = "SELECT * FROM UserCredential WHERE user.username = :username"
     val params = Map(Username -> username)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
-    QueryUtil.enforceSingletonResultList(result) match {
-      case Some(doc) =>
-        doc.field(Password, PasswordUtil.hashPassword(password))
-        db.save(doc)
-        Unit
-      case None =>
-        throw new EntityNotFoundException("User not found when setting password.")
-    }
+    QueryUtil.lookupMandatoryDocument(query, params, db).map { doc =>
+      doc.field(Password, PasswordUtil.hashPassword(password))
+      db.save(doc)
+      ()
+    }.recoverWith {
+      case cause: EntityNotFoundException =>
+        Failure(new EntityNotFoundException("User not found when setting password."))
+    }.get
   }
 
   def getUserPasswordHash(username: String): Try[Option[String]] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT * FROM UserCredential WHERE user.username = :username")
+    val query = "SELECT * FROM UserCredential WHERE user.username = :username"
     val params = Map(Username -> username)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.enforceSingletonResultList(result) flatMap { doc => Option(doc.field(Password)) }
+    QueryUtil.lookupOptionalDocument(query, params, db).flatMap(doc => Option(doc.field(Password).asInstanceOf[String]) )
   }
 
   /**
