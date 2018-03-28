@@ -82,7 +82,7 @@ object AuthStoreActor {
 
   sealed trait AuthResponse
   case class AuthSuccess(token: String, expiration: Duration) extends AuthResponse
-  case class AuthFailure() extends AuthResponse
+  case object AuthFailure extends AuthResponse
 
   case class LoginRequest(username: String, password: String)
 
