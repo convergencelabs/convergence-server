@@ -100,7 +100,7 @@ class ConvergenceRestFrontEnd(
   }
 
   def start(): Unit = {
-    val masterAdminToken = system.settings.config.getString("convergence.master-admin-rest-token")
+    val masterAdminToken = system.settings.config.getString("convergence.master-admin-api-key")
     val registrationBaseUrl = system.settings.config.getString("convergence.registration-base-url")
 
     val authStoreActor = createRouter("/user/" + AuthStoreActor.RelativePath, "authStoreActor")
