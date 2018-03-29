@@ -55,7 +55,7 @@ class DomainKeyService(
   import akka.pattern.ask
   
   def route(username: String, domain: DomainFqn): Route = {
-    pathPrefix("keys") {
+    pathPrefix("jwtAuthKeys") {
       pathEnd {
         get {
           authorizeAsync(canAccessDomain(domain, username)) {

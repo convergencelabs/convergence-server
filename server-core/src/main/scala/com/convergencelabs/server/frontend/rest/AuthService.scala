@@ -24,8 +24,8 @@ object AuthService {
   case class SessionTokenResponse(token: String, expiration: Long) extends AbstractSuccessResponse
   case class ExpirationResponse(valid: Boolean, username: Option[String], delta: Option[Long]) extends AbstractSuccessResponse
   case class UserApiKeyResponse(apiKey: String) extends AbstractSuccessResponse
-  val NoApiKeyResponse: RestResponse = (StatusCodes.Unauthorized, 
-      ErrorResponse("no_api_key_for_user", Some("Can not login beause the user does not have an API key configured.")))
+  val NoApiKeyResponse: RestResponse = (StatusCodes.Unauthorized,
+    ErrorResponse("no_api_key_for_user", Some("Can not login beause the user does not have an API key configured.")))
 }
 
 class AuthService(
@@ -41,27 +41,18 @@ class AuthService(
   implicit val t = defaultTimeout
 
   val route = pathPrefix("auth") {
-    pathEnd {
-      post {
-        handleWith(authRequest)
+    (path("login") & post) {
+      handleWith(authRequest)
+    } ~
+      (path("validate") & post) {
+        handleWith(tokenExprirationCheck)
+      } ~
+      (path("logout") & post) {
+        handleWith(invalidateToken)
+      } ~
+      (path("apiKey") & post) {
+        handleWith(login)
       }
-    } ~ pathPrefix("check") {
-      pathEnd {
-        post {
-          handleWith(tokenExprirationCheck)
-        }
-      }
-    } ~ pathPrefix("invalidate") {
-      pathEnd {
-        post {
-          handleWith(invalidateToken)
-        }
-      }
-    }
-  } ~ path("login") {
-    post {
-      handleWith(login)
-    }
   }
 
   def authRequest(req: AuthRequest): Future[RestResponse] = {

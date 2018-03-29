@@ -145,38 +145,45 @@ class ConvergenceRestFrontEnd(
           complete(ErrorResponse("malformed_request_content", Some(message)))
         case AuthorizationFailedRejection =>
           complete(ForbiddenError)
-//        case e: Any =>
-//          logger.error("An unexpected rejection occured: " + e)
-//          complete(InternalServerError)
+        //        case e: Any =>
+        //          logger.error("An unexpected rejection occured: " + e)
+        //          complete(InternalServerError)
       }
       .result()
 
     val route = cors(ConvergenceRestFrontEnd.ConvergenceCorsSettings) {
       handleExceptions(exceptionHandler) {
-        // All request are under the "rest" path.
-        pathPrefix("rest") {
-          // You can call the auth service without being authenticated
+        pathPrefix("v1") {
+          // Authentication services can be called without being authenticated
           authService.route ~
-            // Everything else must be authenticated
+            // User registration services can be called without being authenticated
+            registrationService.route ~
+            // These URLs must be authenticated as an admin user.
+            pathPrefix("admin") {
+              extractRequest { request =>
+                authenticator.requireAuthenticatedAdmin(request) { adminUser =>
+                  convergenceUserAdminService.route(adminUser) ~
+                    convergenceImportService.route(adminUser) ~
+                    databaseManagerService.route(adminUser)
+                }
+              }
+            } ~
+            // Everything else must be authenticated as a convergence user.
             extractRequest { request =>
               authenticator.requireAuthenticatedUser(request) { username =>
                 domainService.route(username) ~
-                  keyGenService.route() ~
-                  profileService.route(username) ~
-                  apiKeyService.route(username) ~
-                  passwordService.route(username) ~
-                  convergenceUserService.route(username)
+                  convergenceUserService.route(username) ~
+                  pathPrefix("util") {
+                    keyGenService.route()
+                  } ~
+                  pathPrefix("user") {
+                    profileService.route(username) ~
+                      apiKeyService.route(username) ~
+                      passwordService.route(username)
+                  }
               }
             }
-        } ~ pathPrefix("admin") {
-          extractRequest { request =>
-            authenticator.requireAuthenticatedAdmin(request) { adminUser =>
-              convergenceUserAdminService.route(adminUser) ~
-                convergenceImportService.route(adminUser) ~
-                databaseManagerService.route(adminUser)
-            }
-          }
-        } ~ registrationService.route
+        }
       }
     }
 

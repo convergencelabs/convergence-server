@@ -70,7 +70,7 @@ class Authenticator(
 
   def requireAuthenticatedAdmin(request: HttpRequest): Directive1[String] = {
     request.header[Authorization] match {
-      case Some(Authorization(GenericHttpCredentials("MasterApiKey", _, params))) if params.keySet == Set("") =>
+      case Some(Authorization(GenericHttpCredentials("MasterAdminApiKey", _, params))) if params.keySet == Set("") =>
         (masterAdminToken == params("")) match {
           case true =>
             provide("admin")
