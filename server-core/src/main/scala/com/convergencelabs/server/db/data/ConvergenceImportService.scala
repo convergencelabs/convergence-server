@@ -56,15 +56,17 @@ class ConvergenceImportService(
   implicit val t = defaultTimeout
 
   val route = { adminUser: String =>
-    (post & pathPrefix("import")) {
-      path("convergence") {
-        handleWith(importConvergence)
-      }
-    } ~ (get & pathPrefix("export")) {
-      path("domain" / Segment / Segment) { (namespace, domainId) =>
-        complete(exportDomain(namespace, domainId))
-      } ~ path("convergence" / Segment) { (username) =>
-        complete(exportUser(username))
+    pathPrefix("data") {
+      (post & pathPrefix("import")) {
+        path("convergence") {
+          handleWith(importConvergence)
+        }
+      } ~ (get & pathPrefix("export")) {
+        path("domain" / Segment / Segment) { (namespace, domainId) =>
+          complete(exportDomain(namespace, domainId))
+        } ~ path("convergence" / Segment) { (username) =>
+          complete(exportUser(username))
+        }
       }
     }
   }
