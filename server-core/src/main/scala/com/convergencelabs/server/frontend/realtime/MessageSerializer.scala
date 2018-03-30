@@ -55,7 +55,11 @@ object MessageSerializer {
     MessageType.PasswordAuthRequest -> classOf[PasswordAuthRequestMessage],
     MessageType.TokenAuthRequest -> classOf[TokenAuthRequestMessage],
     MessageType.AnonymousAuthRequest -> classOf[AnonymousAuthRequestMessage],
+    MessageType.ReconnectAuthRequest -> classOf[ReconnectTokenAuthRequestMessage],
     MessageType.AuthenticationResponse -> classOf[AuthenticationResponseMessage],
+    
+    MessageType.ReconnectTokenRequest -> classOf[ReconnectTokenRequestMessage],
+    MessageType.ReconnectTokenResponse -> classOf[ReconnectTokenResponseMessage],
 
     MessageType.CreateRealTimeModelRequest -> classOf[CreateRealtimeModelRequestMessage],
     MessageType.CreateRealTimeModelResponse -> classOf[CreateRealtimeModelSuccessMessage],
