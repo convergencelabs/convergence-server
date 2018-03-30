@@ -16,7 +16,7 @@ class AuthStoreActor private[datastore] (
 
   import AuthStoreActor._
 
-  val tokenDuration = context.system.settings.config.getDuration("convergence.rest.auth-token-expiration")
+  val tokenDuration = context.system.settings.config.getDuration("convergence.rest.session-token-expiration")
 
   private[this] val userStore: UserStore = new UserStore(dbProvider, tokenDuration)
 
