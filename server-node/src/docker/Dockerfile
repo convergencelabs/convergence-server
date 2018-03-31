@@ -1,5 +1,7 @@
 FROM openjdk:8u151-jdk
 
+RUN mkdir /etc/convergence/
+
 ADD stage /opt/convergence
 RUN chmod +x /opt/convergence/bin/convergence-server-node
 

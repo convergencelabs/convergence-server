@@ -113,7 +113,10 @@ object ConvergenceServerNode extends Logging {
   }
 
   private[this] def preprocessConfig(config: Config): Try[Config] = {
-    Success(preProcessRoles(preprocessSeedNodes(config)).resolve())
+    // This includes the reference.conf with the defaults.
+    val preProcessed = preProcessRoles(preprocessSeedNodes(config))
+    val loaded = ConfigFactory.load(preProcessed)
+    Success(loaded)
   }
 
   private[this] def preprocessSeedNodes(configFile: Config): Config = {
