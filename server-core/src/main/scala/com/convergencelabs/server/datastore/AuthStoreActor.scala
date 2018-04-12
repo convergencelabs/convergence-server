@@ -1,11 +1,5 @@
 package com.convergencelabs.server.datastore
 
-import com.convergencelabs.server.datastore.AuthStoreActor.AuthFailure
-import com.convergencelabs.server.datastore.AuthStoreActor.AuthRequest
-import com.convergencelabs.server.datastore.AuthStoreActor.AuthSuccess
-import com.convergencelabs.server.datastore.AuthStoreActor.ValidateFailure
-import com.convergencelabs.server.datastore.AuthStoreActor.ValidateRequest
-import com.convergencelabs.server.datastore.AuthStoreActor.ValidateSuccess
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 
 import akka.actor.ActorLogging
@@ -13,9 +7,6 @@ import akka.actor.Props
 import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
 import java.time.Instant
-import com.convergencelabs.server.datastore.AuthStoreActor.TokenExpirationRequest
-import com.convergencelabs.server.datastore.AuthStoreActor.TokenExpirationSuccess
-import com.convergencelabs.server.datastore.AuthStoreActor.TokenExpirationFailure
 import java.time.Duration
 import com.convergencelabs.server.datastore.AuthStoreActor.InvalidateTokenRequest
 
@@ -23,16 +14,27 @@ class AuthStoreActor private[datastore] (
   private[this] val dbProvider: DatabaseProvider)
     extends StoreActor with ActorLogging {
 
-  val tokenDuration = context.system.settings.config.getDuration("convergence.rest.auth-token-expiration")
+  import AuthStoreActor._
+
+  val tokenDuration = context.system.settings.config.getDuration("convergence.rest.session-token-expiration")
 
   private[this] val userStore: UserStore = new UserStore(dbProvider, tokenDuration)
 
   def receive: Receive = {
-    case authRequest: AuthRequest                       => authenticateUser(authRequest)
-    case validateRequest: ValidateRequest               => validateToken(validateRequest)
-    case tokenExpirationRequest: TokenExpirationRequest => expirationRequest(tokenExpirationRequest)
-    case invalidateTokenRequest: InvalidateTokenRequest => invalidateToken(invalidateTokenRequest)
-    case message: Any                                   => unhandled(message)
+    case authRequest: AuthRequest =>
+      authenticateUser(authRequest)
+    case loginRequest: LoginRequest =>
+      login(loginRequest)
+    case validateRequest: ValidateSessionTokenRequest =>
+      validateSessionToken(validateRequest)
+    case validateApiKeyRequest: ValidateUserApiKeyRequest =>
+      validateUserApiKey(validateApiKeyRequest)
+    case tokenExpirationRequest: GetSessionTokenExpirationRequest =>
+      getSessionTokenExpiration(tokenExpirationRequest)
+    case invalidateTokenRequest: InvalidateTokenRequest =>
+      invalidateToken(invalidateTokenRequest)
+    case message: Any =>
+      unhandled(message)
   }
 
   private[this] def authenticateUser(authRequest: AuthRequest): Unit = {
@@ -45,20 +47,25 @@ class AuthStoreActor private[datastore] (
     }
   }
 
-  private[this] def validateToken(validateRequest: ValidateRequest): Unit = {
-    mapAndReply(userStore.validateToken(validateRequest.token)) {
-      case Some(username) => ValidateSuccess(username)
-      case None           => ValidateFailure
-    }
+  private[this] def login(loginRequest: LoginRequest): Unit = {
+    reply(userStore.login(loginRequest.username, loginRequest.password))
   }
 
-  private[this] def expirationRequest(tokenExpirationRequest: TokenExpirationRequest): Unit = {
-    mapAndReply(userStore.expirationCheck(tokenExpirationRequest.token)) {
-      case Some((username, expiration)) =>
+  private[this] def validateSessionToken(validateRequest: ValidateSessionTokenRequest): Unit = {
+    reply(userStore.validateUserSessionToken(validateRequest.token))
+  }
+  
+  private[this] def validateUserApiKey(validateRequest: ValidateUserApiKeyRequest): Unit = {
+    reply(userStore.validateUserApiKey(validateRequest.apiKey))
+  }
+
+  private[this] def getSessionTokenExpiration(tokenExpirationRequest: GetSessionTokenExpirationRequest): Unit = {
+    val result = userStore.expirationCheck(tokenExpirationRequest.token).map(_.map {
+      case (username, expiration) =>
         val now = Instant.now()
-        TokenExpirationSuccess(username, Duration.between(now, expiration))
-      case None => TokenExpirationFailure
-    }
+        SessionTokenExpiration(username, Duration.between(now, expiration))
+    })
+    reply(result)
   }
 
   private[this] def invalidateToken(invalidateTokenRequest: InvalidateTokenRequest): Unit = {
@@ -68,7 +75,7 @@ class AuthStoreActor private[datastore] (
 
 object AuthStoreActor {
   val RelativePath = "AuthStoreActor"
-  
+
   def props(dbProvider: DatabaseProvider): Props = Props(new AuthStoreActor(dbProvider))
 
   case class AuthRequest(username: String, password: String)
@@ -77,17 +84,13 @@ object AuthStoreActor {
   case class AuthSuccess(token: String, expiration: Duration) extends AuthResponse
   case object AuthFailure extends AuthResponse
 
-  case class ValidateRequest(token: String)
+  case class LoginRequest(username: String, password: String)
 
-  sealed trait ValidateResponse
-  case class ValidateSuccess(username: String) extends ValidateResponse
-  case object ValidateFailure extends ValidateResponse
+  case class ValidateSessionTokenRequest(token: String)
+  case class ValidateUserApiKeyRequest(apiKey: String)
 
-  case class TokenExpirationRequest(token: String)
-
-  sealed trait TokenExpirationResponse
-  case class TokenExpirationSuccess(username: String, expiration: Duration) extends TokenExpirationResponse
-  case object TokenExpirationFailure extends TokenExpirationResponse
+  case class GetSessionTokenExpirationRequest(token: String)
+  case class SessionTokenExpiration(username: String, expiration: Duration)
 
   case class InvalidateTokenRequest(token: String)
 }

@@ -151,7 +151,7 @@ class DomainUserGroupService(
             UserGroupSummaryData(id, desc, count)
           })))
       case t =>
-        Future.successful((StatusCodes.BadRequest, ErrorResponse(s"Invalid type: $t")))
+        Future.successful((StatusCodes.BadRequest, ErrorResponse("invalid_type", Some(s"Invalid type: $t"))))
     }
   }
 

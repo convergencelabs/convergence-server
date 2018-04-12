@@ -28,11 +28,11 @@ import akka.http.scaladsl.server.Directives.entity
 import akka.http.scaladsl.server.Directives.get
 import akka.http.scaladsl.server.Directives.pathEnd
 import akka.http.scaladsl.server.Directives.pathPrefix
+import akka.http.scaladsl.server.Directives.path
 import akka.http.scaladsl.server.Directives.put
 import akka.http.scaladsl.server.Directives.Segment
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
-
 
 object DomainSecurityService {
   case class SetUserRolesRequest(roles: List[String])
@@ -43,46 +43,38 @@ object DomainSecurityService {
 }
 
 class DomainSecurityService(
-    private[this] val executionContext: ExecutionContext,
-    private[this] val timeout: Timeout,
-    private[this] val authActor: ActorRef,
-    private[this] val permissionStoreActor: ActorRef) 
+  private[this] val executionContext: ExecutionContext,
+  private[this] val timeout: Timeout,
+  private[this] val authActor: ActorRef,
+  private[this] val permissionStoreActor: ActorRef)
     extends DomainRestService(executionContext, timeout, authActor) {
 
   import akka.pattern.ask
   import DomainSecurityService._
-  
+
   def route(convergenceUsername: String, domain: DomainFqn): Route = {
-    pathPrefix("permissions") {
+    pathPrefix("security") {
       pathPrefix("roles") {
-        pathEnd {
+        (pathEnd & get) {
+          authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
+            complete(getAllUserRolesRequest(domain))
+          }
+        } ~ path(Segment) { username =>
           get {
             authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
-              complete(getAllUserRolesRequest(domain))
+              complete(getRolesByUsername(username, domain))
             }
-          }
-        } ~ pathPrefix(Segment) { username =>
-          pathEnd {
-            get {
-              authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
-                complete(getRolesByUsername(username, domain))
-              }
-            } ~ put {
-              entity(as[SetUserRolesRequest]) { request =>
-                authorizeAsync(canAdministerDomain(domain, convergenceUsername)) {
-                  complete(setUserRolesRequest(username, request, domain))
-                }
+          } ~ put {
+            entity(as[SetUserRolesRequest]) { request =>
+              authorizeAsync(canAdministerDomain(domain, convergenceUsername)) {
+                complete(setUserRolesRequest(username, request, domain))
               }
             }
           }
         }
-      } ~ pathPrefix(Segment) { username =>
-        pathEnd {
-          get {
-            authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
-              complete(getPermissionsByUsername(username, domain))
-            }
-          }
+      } ~ (path("permissions" / Segment) & get) { username =>
+        authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
+          complete(getPermissionsByUsername(username, domain))
         }
       }
     }
@@ -111,11 +103,5 @@ class DomainSecurityService(
     (permissionStoreActor ? message) map { _ => OkResponse } recover {
       case _: EntityNotFoundException => NotFoundError
     }
-  }
-
-  // Permission Checks
-
-  def canAdministerDomain(domainFqn: DomainFqn, username: String): Future[Boolean] = {
-    (authorizationActor ? ConvergenceAuthorizedRequest(username, domainFqn, Set("manage-permissions"))).mapTo[Try[Boolean]].map(_.get)
   }
 }

@@ -27,6 +27,7 @@ import akka.http.scaladsl.server.Directives.get
 import akka.http.scaladsl.server.Directives.handleWith
 import akka.http.scaladsl.server.Directives.pathEnd
 import akka.http.scaladsl.server.Directives.pathPrefix
+import akka.http.scaladsl.server.Directives.path
 import akka.http.scaladsl.server.Directives.post
 import akka.pattern.ask
 import akka.util.Timeout
@@ -51,47 +52,21 @@ class RegistrationService(
   implicit val t = defaultTimeout
 
   val route = pathPrefix("registration") {
-    pathPrefix("register") {
-      post {
-        handleWith(registration)
-      }
-    } ~ pathPrefix("request") {
-      pathEnd {
-        post {
-          handleWith(registrationRequest)
-        }
-      }
-    } ~ pathPrefix("approve") {
-      pathEnd {
-        post {
-          handleWith(registrationApprove)
-        }
-      }
-    } ~ pathPrefix("reject") {
-      pathEnd {
-        post {
-          handleWith(registrationReject)
-        }
-      }
-    } ~ pathPrefix("info") {
-      pathPrefix(Segment) { token =>
-        pathEnd {
-          get {
-            complete(registrationInfo(token))
-          }
-        }
-      }
-    } ~ pathPrefix("approvalForm") {
-      pathPrefix(Segment) { token =>
-        pathEnd {
-          get {
-            complete {
-              HttpResponse(entity = HttpEntity(
-                ContentType.WithCharset(MediaTypes.`text/html`, HttpCharsets.`UTF-8`),
-                getApprovalHtml(token)))
-            }
-          }
-        }
+    (path("register") & post) {
+      handleWith(registration)
+    } ~ (path("request") & post) {
+      handleWith(registrationRequest)
+    } ~ (path("approve") & post) {
+      handleWith(registrationApprove)
+    } ~ (path("reject") & post) {
+      handleWith(registrationReject)
+    } ~ (path("info" / Segment) & get) { token =>
+      complete(registrationInfo(token))
+    } ~ (path("approvalForm" / Segment) & get) { token =>
+      complete {
+        HttpResponse(entity = HttpEntity(
+          ContentType.WithCharset(MediaTypes.`text/html`, HttpCharsets.`UTF-8`),
+          getApprovalHtml(token)))
       }
     }
   }
@@ -100,7 +75,7 @@ class RegistrationService(
     val RegistrationRequest(fname, lname, email, company, title, reason) = req
     logger.debug(s"Received a registration request for: ${email}")
     val message = RequestRegistration(fname, lname, email, company, title, reason)
-    
+
     (registrationActor ? message) map { _ => CreateRestResponse }
   }
 

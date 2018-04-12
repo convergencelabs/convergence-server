@@ -25,13 +25,15 @@ class AuthorizationActor(private[this] val dbProvider: DatabaseProvider)
     extends Actor with ActorLogging {
 
   import AuthorizationActor._
-  
+
   private[this] val domainStore: DomainStore = new DomainStore(dbProvider)
   private[this] val permissionsStore: PermissionsStore = new PermissionsStore(dbProvider)
 
   def receive: Receive = {
-    case message: ConvergenceAuthorizedRequest => onConvergenceAuthorizedRequest(message)
-    case x: Any                                => unhandled(x)
+    case message: ConvergenceAuthorizedRequest =>
+      onConvergenceAuthorizedRequest(message)
+    case x: Any =>
+      unhandled(x)
   }
 
   private[this] def onConvergenceAuthorizedRequest(message: ConvergenceAuthorizedRequest): Unit = {
@@ -40,7 +42,7 @@ class AuthorizationActor(private[this] val dbProvider: DatabaseProvider)
       owner <- domainStore.getDomainByFqn(domain) map { domain =>
         domain match {
           case Some(domain) if domain.owner == username => true
-          case _                                        => false
+          case _ => false
         }
       }
 

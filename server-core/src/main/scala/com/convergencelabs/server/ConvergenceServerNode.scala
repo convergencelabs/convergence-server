@@ -2,12 +2,17 @@ package com.convergencelabs.server
 
 import java.io.File
 import java.time.Duration
+import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.seqAsJavaListConverter
+import scala.concurrent.Await
+import scala.concurrent.duration.FiniteDuration
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
+
+import org.apache.logging.log4j.LogManager
 
 import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.datastore.DeltaHistoryStore
@@ -44,12 +49,6 @@ import akka.cluster.ClusterEvent.MemberUp
 import akka.cluster.ClusterEvent.UnreachableMember
 import grizzled.slf4j.Logging
 
-import org.apache.logging.log4j.core.LoggerContext
-import org.apache.logging.log4j.LogManager
-import scala.concurrent.Await
-import scala.concurrent.duration.FiniteDuration
-import java.util.concurrent.TimeUnit
-
 object ConvergenceServerNode extends Logging {
 
   object Roles {
@@ -59,8 +58,8 @@ object ConvergenceServerNode extends Logging {
   }
 
   object Environment {
-    val AkkaClusterRoles = "AKKA_CLUSTER_ROLES"
-    val AkkaClusterSeedNodes = "AKKA_CLUSTER_SEED_NODES"
+    val ServerRoles = "SERVER_ROLES"
+    val ClusterSeedNodes = "CLUSTER_SEED_NODES"
     val Log4jConfigFile = "LOG4J_CONFIG_FILE"
   }
 
@@ -114,14 +113,17 @@ object ConvergenceServerNode extends Logging {
   }
 
   private[this] def preprocessConfig(config: Config): Try[Config] = {
-    Success(preProcessRoles(preprocessSeedNodes(config)).resolve())
+    // This includes the reference.conf with the defaults.
+    val preProcessed = preProcessRoles(preprocessSeedNodes(config))
+    val loaded = ConfigFactory.load(preProcessed)
+    Success(loaded)
   }
 
   private[this] def preprocessSeedNodes(configFile: Config): Config = {
     val configuredSeeds = configFile.getAnyRefList(AkkaConfig.AkkaClusterSeedNodes).asScala.toList
     if (configuredSeeds.isEmpty) {
       logger.debug("No seed nodes specified in the akka config. Looking for an environment variable")
-      Option(System.getenv().get(Environment.AkkaClusterSeedNodes)) match {
+      Option(System.getenv().get(Environment.ClusterSeedNodes)) match {
         case Some(seedNodesEnv) =>
           val seedNodes = seedNodesEnv.split(",").toList
           val seedsAddresses = seedNodes.map { hostname =>
@@ -140,7 +142,7 @@ object ConvergenceServerNode extends Logging {
   private[this] def preProcessRoles(configFile: Config): Config = {
     val rolesInConfig = configFile.getStringList("akka.cluster.roles").asScala.toList
     if (rolesInConfig.isEmpty) {
-      Option(System.getenv().get(Environment.AkkaClusterRoles)) match {
+      Option(System.getenv().get(Environment.ServerRoles)) match {
         case Some(rolesEnv) =>
           val roles = rolesEnv.split(",").toList map (_.trim)
           val updated = configFile.withValue("akka.cluster.roles", ConfigValueFactory.fromIterable(roles.asJava))
@@ -159,7 +161,7 @@ object ConvergenceServerNode extends Logging {
       Failure(
         new IllegalStateException("No cluster roles were defined. " +
           s"Cluster roles must be defined in either the config '${ConvergenceServerNode.AkkaConfig.AkkaClusterRoles}s', " +
-          s"or the environment variable '${ConvergenceServerNode.Environment.AkkaClusterRoles}'"))
+          s"or the environment variable '${ConvergenceServerNode.Environment.ServerRoles}'"))
 
     } else {
       Success(())
@@ -171,7 +173,7 @@ object ConvergenceServerNode extends Logging {
     if (configuredSeeds.isEmpty) {
       Failure(new IllegalStateException("No akka cluster seed nodes specified." +
         s"seed nodes must be specificed in the akka config '${ConvergenceServerNode.AkkaConfig.AkkaClusterSeedNodes}' " +
-        s"or the environment variable '${ConvergenceServerNode.Environment.AkkaClusterSeedNodes}"))
+        s"or the environment variable '${ConvergenceServerNode.Environment.ClusterSeedNodes}"))
     } else {
       Success(())
     }
@@ -283,8 +285,8 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
 
     if (roles.contains(RealtimeFrontend)) {
       info("Role 'realtimeFrontend' configured on node, starting up realtime front end.")
-      val host = config.getString("convergence.websocket.host")
-      val port = config.getInt("convergence.websocket.port")
+      val host = config.getString("convergence.realtime.host")
+      val port = config.getInt("convergence.realtime.port")
       val realTimeFrontEnd = new ConvergenceRealTimeFrontend(system, host, port)
       realTimeFrontEnd.start()
       this.realtime = Some(realTimeFrontEnd)

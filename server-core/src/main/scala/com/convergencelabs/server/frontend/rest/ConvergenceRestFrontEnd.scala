@@ -44,12 +44,16 @@ import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.ExceptionHandler
 import akka.http.scaladsl.server.RouteResult.route2HandlerFlow
 import akka.http.scaladsl.server.directives.SecurityDirectives.authenticateBasic
+import akka.http.scaladsl.server.directives.SecurityDirectives.authorize
 import akka.routing.RoundRobinGroup
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import grizzled.slf4j.Logging
+import akka.http.scaladsl.server.RejectionHandler
+import akka.http.scaladsl.server.MalformedRequestContentRejection
+import akka.http.scaladsl.server.AuthorizationFailedRejection
 
 object ConvergenceRestFrontEnd {
   val ConvergenceCorsSettings = CorsSettings.defaultSettings.copy(
@@ -91,13 +95,13 @@ class ConvergenceRestFrontEnd(
     case e: Exception =>
       extractUri { uri =>
         logger.error(s"Error handling rest call: ${uri}", e)
-        complete(HttpResponse(StatusCodes.InternalServerError, entity = "There was an internal server error."))
+        complete(InternalServerError)
       }
   }
 
   def start(): Unit = {
-
-    val registrationBaseUrl = system.settings.config.getString("convergence.registration-base-url")
+    val masterAdminToken = system.settings.config.getString("convergence.rest.master-admin-api-key")
+    val registrationBaseUrl = system.settings.config.getString("convergence.registration.registration-rest-base-url")
 
     val authStoreActor = createRouter("/user/" + AuthStoreActor.RelativePath, "authStoreActor")
     val convergenceUserActor = createRouter("/user/" + ConvergenceUserManagerActor.RelativePath, "convergenceUserActor")
@@ -111,9 +115,10 @@ class ConvergenceRestFrontEnd(
 
     // All of these services are global to the system and outside of the domain.
     val authService = new AuthService(ec, authStoreActor, defaultRequestTimeout)
-    val authenticator = new Authenticator(authStoreActor, defaultRequestTimeout, ec)
+    val authenticator = new Authenticator(authStoreActor, masterAdminToken, defaultRequestTimeout, ec)
     val registrationService = new RegistrationService(ec, registrationActor, defaultRequestTimeout, registrationBaseUrl)
     val profileService = new ProfileService(ec, convergenceUserActor, defaultRequestTimeout)
+    val apiKeyService = new UserApiKeyService(ec, convergenceUserActor, defaultRequestTimeout)
     val passwordService = new PasswordService(ec, convergenceUserActor, defaultRequestTimeout)
     val keyGenService = new KeyGenService(ec)
 
@@ -133,31 +138,52 @@ class ConvergenceRestFrontEnd(
       modelClusterRegion,
       defaultRequestTimeout)
 
-    val adminsConfig = system.settings.config.getConfig("convergence.convergence-admins")
+    implicit def rejectionHandler = RejectionHandler
+      .newBuilder()
+      .handle {
+        case MalformedRequestContentRejection(message, throwable) =>
+          complete(ErrorResponse("malformed_request_content", Some(message)))
+        case AuthorizationFailedRejection =>
+          complete(ForbiddenError)
+        //        case e: Any =>
+        //          logger.error("An unexpected rejection occured: " + e)
+        //          complete(InternalServerError)
+      }
+      .result()
 
     val route = cors(ConvergenceRestFrontEnd.ConvergenceCorsSettings) {
       handleExceptions(exceptionHandler) {
-        // All request are under the "rest" path.
-        pathPrefix("rest") {
-          // You can call the auth service without being authenticated
+        pathPrefix("v1") {
+          // Authentication services can be called without being authenticated
           authService.route ~
-            // Everything else must be authenticated
+            // User registration services can be called without being authenticated
+            registrationService.route ~
+            // These URLs must be authenticated as an admin user.
+            pathPrefix("admin") {
+              extractRequest { request =>
+                authenticator.requireAuthenticatedAdmin(request) { adminUser =>
+                  convergenceUserAdminService.route(adminUser) ~
+                    convergenceImportService.route(adminUser) ~
+                    databaseManagerService.route(adminUser)
+                }
+              }
+            } ~
+            // Everything else must be authenticated as a convergence user.
             extractRequest { request =>
-              authenticator.requireAuthenticated(request) { username =>
+              authenticator.requireAuthenticatedUser(request) { username =>
                 domainService.route(username) ~
-                  keyGenService.route() ~
-                  profileService.route(username) ~
-                  passwordService.route(username) ~
-                  convergenceUserService.route(username)
+                  convergenceUserService.route(username) ~
+                  pathPrefix("util") {
+                    keyGenService.route()
+                  } ~
+                  pathPrefix("user") {
+                    profileService.route(username) ~
+                      apiKeyService.route(username) ~
+                      passwordService.route(username)
+                  }
               }
             }
-        } ~ pathPrefix("admin") {
-          authenticateBasic(realm = "convergence admin", AdminAuthenticator.authenticate(adminsConfig)) { adminUser =>
-            convergenceUserAdminService.route(adminUser) ~
-              convergenceImportService.route(adminUser) ~
-              databaseManagerService.route(adminUser)
-          }
-        } ~ registrationService.route
+        }
       }
     }
 
@@ -186,9 +212,9 @@ class ConvergenceRestFrontEnd(
   def stop(): Unit = {
     logger.info("Convergence Rest Frontend shutting down.")
     this.binding foreach { b =>
-       val f = b.unbind()
-       Await.result(f, FiniteDuration(10, TimeUnit.SECONDS))
-       logger.info("Convergence Rest Frontend shut down.")
+      val f = b.unbind()
+      Await.result(f, FiniteDuration(10, TimeUnit.SECONDS))
+      logger.info("Convergence Rest Frontend shut down.")
     }
   }
 }

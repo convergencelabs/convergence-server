@@ -31,11 +31,11 @@ class TestServer() extends Logging {
   val odbTarget = new File("target/orientdb/databases")
 
   val seed = new ConvergenceServerNode(
-    createConfig("/convergence-application.conf", 2551, List("seed")))
+    createConfig("/convergence-server.conf", 2551, List("seed")))
   val backend = new ConvergenceServerNode(
-    createConfig("/convergence-application.conf", 2552, List(ConvergenceServerNode.Roles.Backend)))
+    createConfig("/convergence-server.conf", 2552, List(ConvergenceServerNode.Roles.Backend)))
   val frontend = new ConvergenceServerNode(
-    createConfig("/convergence-application.conf", 2553, List(ConvergenceServerNode.Roles.RealtimeFrontend, ConvergenceServerNode.Roles.RestFrontend)))
+    createConfig("/convergence-server.conf", 2553, List(ConvergenceServerNode.Roles.RealtimeFrontend, ConvergenceServerNode.Roles.RestFrontend)))
 
   val oriendDb = new EmbeddedOrientDB(odbTarget.getAbsolutePath, persistent)
 
@@ -75,8 +75,10 @@ class TestServer() extends Logging {
 
   def createConfig(configFile: String, port: Int, roles: List[String]): Config = {
     val reader = new InputStreamReader(getClass.getResourceAsStream(configFile))
-    ConfigFactory.parseReader(reader)
+    val parsed = ConfigFactory.parseReader(reader)
       .withValue("akka.remote.netty.tcp.port", ConfigValueFactory.fromAnyRef(port))
       .withValue("akka.cluster.roles", ConfigValueFactory.fromIterable(roles))
+      
+    ConfigFactory.load(parsed)
   }
 }

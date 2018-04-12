@@ -25,7 +25,11 @@ class DomainRestService(
   def canAccessDomain(domainFqn: DomainFqn, username: String): Future[Boolean] = {
     checkPermission(domainFqn, username, Set("domain-access"))
   }
-
+  
+  def canAdministerDomain(domainFqn: DomainFqn, username: String): Future[Boolean] = {
+    checkPermission(domainFqn, username, Set("manage-permissions"))
+  }
+  
   def checkPermission(domainFqn: DomainFqn, username: String, permissions: Set[String]): Future[Boolean] = {
     val message = ConvergenceAuthorizedRequest(username, domainFqn, permissions)
     (authorizationActor ? message).mapTo[Boolean]

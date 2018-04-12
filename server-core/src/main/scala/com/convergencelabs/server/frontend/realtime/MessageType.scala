@@ -12,9 +12,13 @@ object MessageType extends Enumeration {
   val PasswordAuthRequest = 5
   val TokenAuthRequest = 6
   val AnonymousAuthRequest = 7
+  val ReconnectAuthRequest = 8
   
   val AuthenticationResponse = 10
 
+  val ReconnectTokenRequest = 20
+  val ReconnectTokenResponse = 21
+  
   // Models
   val OpenRealTimeModelRequest = 100
   val OpenRealTimeModelResponse = 101

@@ -12,9 +12,9 @@ val commonSettings = Seq(
   publishTo := {
     val nexus = "https://nexus.dev.int.convergencelabs.tech/repository/"
     if (isSnapshot.value)
-      Some("snapshots" at nexus + "maven-snapshots/") 
+      Some("snapshots" at nexus + "maven-convergence-snapshots") 
     else
-      Some("releases"  at nexus + "maven-releases")
+      Some("releases"  at nexus + "maven-convergence-releases")
   }
  )
 

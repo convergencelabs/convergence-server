@@ -37,9 +37,9 @@ class WebSocketService(
     with Logging {
 
   private[this] val config = system.settings.config
-  private[this] val maxFrames = config.getInt("convergence.websocket.max-frames")
+  private[this] val maxFrames = config.getInt("convergence.realtime.websocket.max-frames")
   private[this] val maxStreamDuration = Duration.fromNanos(
-    config.getDuration("convergence.websocket.max-stream-duration").toNanos)
+    config.getDuration("convergence.realtime.websocket.max-stream-duration").toNanos)
 
   private[this] implicit val ec = system.dispatcher
 

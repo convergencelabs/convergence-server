@@ -8,14 +8,14 @@ private object ServerCLIConf {
 
 private class ServerCLIConf(arguments: Seq[String]) extends ScallopConf(arguments) {
   version("Convergence Server Node")
-  banner("Usage: -c convergence-server-application.conf")
+  banner("Usage: -c convergence-server.conf")
 
   val config = opt[String](
     short = 'c',
     argName = "config",
-    descr = "The locatin of the source folder",
+    descr = "The locatin of the server configuration file",
     required = false,
-    default = Some("config/convergence-server-application.conf"))
+    default = Some("/etc/convergence/convergence-server.conf"))
     
     verify()
 }

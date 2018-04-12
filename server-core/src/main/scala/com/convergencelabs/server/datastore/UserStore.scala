@@ -4,7 +4,6 @@ import java.time.Duration
 import java.time.Instant
 import java.util.Date
 import java.util.{ List => JavaList }
-import java.util.UUID
 
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.mapAsJavaMapConverter
@@ -12,6 +11,8 @@ import scala.util.Failure
 import scala.util.Try
 
 import com.convergencelabs.server.datastore.domain.PasswordUtil
+import com.convergencelabs.server.util.RandomStringGenerator
+
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.id.ORID
@@ -20,6 +21,7 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
+
 import UserStore.User
 
 import UserStore.Fields.Username
@@ -37,6 +39,7 @@ object UserStore {
     val FirstName = "firstName"
     val LastName = "lastName"
     val DisplayName = "displayName"
+    val ApiKey = "apiKey"
   }
 
   def docToUser(doc: ODocument): User = {
@@ -70,6 +73,11 @@ object UserStore {
     firstName: String,
     lastName: String,
     displayName: String)
+
+  sealed trait LoginResult
+  case class LoginSuccessful(apiKey: String) extends LoginResult
+  case object InvalidCredentials extends LoginResult
+  case object NoApiKeyForUser extends LoginResult
 }
 
 /**
@@ -87,12 +95,17 @@ class UserStore(
     extends AbstractDatabasePersistence(dbProvider)
     with Logging {
 
+  import UserStore._
+
   val Password = "password"
   val Token = "token"
+  val ApiKey = "apiKey"
   val ExpireTime = "expireTime"
 
   val UsernameIndex = "User.username"
   val LastLogin = "lastLogin"
+
+  val sessionTokeGenerator = new RandomStringGenerator(32)
 
   def createUser(user: User, password: String): Try[Unit] = {
     createUserWithPasswordHash(user, PasswordUtil.hashPassword(password))
@@ -151,8 +164,9 @@ class UserStore(
     QueryUtil.mapSingletonList(results) { UserStore.docToUser(_) }
   }
 
+  // TODO add an ordering ability.
   def getUsers(filter: Option[String], limit: Option[Int], offset: Option[Int]): Try[List[User]] = tryWithDb { db =>
-    val baseQuery = "SELECT FROM User" + filter.map(_ => " WHERE username LIKE :searchString").getOrElse("")
+    val baseQuery = "SELECT FROM User" + filter.map(_ => " WHERE username LIKE :searchString ORDER BY username").getOrElse(" ORDER BY username")
     val query = QueryUtil.buildPagedQuery(baseQuery, limit, offset)
     val params = filter match {
       case Some(searchFilter) =>
@@ -189,24 +203,23 @@ class UserStore(
    * @param password The new password to use for internal authentication
    */
   def setUserPassword(username: String, password: String): Try[Unit] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT * FROM UserCredential WHERE user.username = :username")
+    val query = "SELECT * FROM UserCredential WHERE user.username = :username"
     val params = Map(Username -> username)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
 
-    QueryUtil.enforceSingletonResultList(result) match {
-      case Some(doc) =>
-        doc.field(Password, PasswordUtil.hashPassword(password))
-        db.save(doc)
-        Unit
-      case None => throw new IllegalArgumentException("User not found when setting password.")
-    }
+    QueryUtil.lookupMandatoryDocument(query, params, db).map { doc =>
+      doc.field(Password, PasswordUtil.hashPassword(password))
+      db.save(doc)
+      ()
+    }.recoverWith {
+      case cause: EntityNotFoundException =>
+        Failure(new EntityNotFoundException("User not found when setting password."))
+    }.get
   }
 
   def getUserPasswordHash(username: String): Try[Option[String]] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT * FROM UserCredential WHERE user.username = :username")
+    val query = "SELECT * FROM UserCredential WHERE user.username = :username"
     val params = Map(Username -> username)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.enforceSingletonResultList(result) flatMap { doc => Option(doc.field(Password)) }
+    QueryUtil.lookupOptionalDocument(query, params, db).flatMap(doc => Option(doc.field(Password).asInstanceOf[String]) )
   }
 
   /**
@@ -228,7 +241,7 @@ class UserStore(
         PasswordUtil.checkPassword(password, pwhash) match {
           case true => {
             val username: String = doc.field(Username)
-            val token = UUID.randomUUID().toString()
+            val token = sessionTokeGenerator.nextString()
             val expiration = Instant.now().plus(tokenValidityDuration)
             createToken(username, token, expiration)
             setLastLogin(username, Instant.now())
@@ -240,6 +253,45 @@ class UserStore(
       case None =>
         None
     }
+  }
+
+  def login(username: String, password: String) = tryWithDb { db =>
+    val query = "SELECT password, user.apiKey AS apiKey FROM UserCredential WHERE user.username = :username"
+    val params = Map(Username -> username)
+    QueryUtil.lookupOptionalDocument(query, params, db) map { doc =>
+      val pwhash: String = doc.field(Password)
+      PasswordUtil.checkPassword(password, pwhash) match {
+        case true =>
+          Option(doc.field("apiKey").asInstanceOf[String]) map { token =>
+            LoginSuccessful(token)
+          } getOrElse {
+            NoApiKeyForUser
+          }
+        case false =>
+          InvalidCredentials
+      }
+    } getOrElse {
+      InvalidCredentials
+    }.asInstanceOf[LoginResult]
+  }
+
+  def getUserApiKey(username: String) = tryWithDb { db =>
+    val query = "SELECT apiKey FROM User WHERE username = :username"
+    val params = Map(Username -> username)
+    val key = QueryUtil.lookupMandatoryDocument(query, params, db)
+      .map(doc => doc.field(Fields.ApiKey).asInstanceOf[String]).get
+    Option(key)
+  }
+
+  def setUserApiKey(username: String, apiKey: String) = tryWithDb { db =>
+    val query = "UPDATE User SET apiKey = :apiKey WHERE username = :username"
+    val params = Map(ApiKey -> apiKey, Username -> username)
+    QueryUtil.updateSingleDoc(query, params, db).get
+    ()
+  }
+
+  def clearUserApiKey(username: String) = tryWithDb { db =>
+    this.setUserApiKey(username, null).get
   }
 
   def createToken(username: String, token: String, expiration: Instant): Try[Unit] = tryWithDb { db =>
@@ -262,7 +314,7 @@ class UserStore(
     Unit
   }
 
-  def validateToken(token: String): Try[Option[String]] = tryWithDb { db =>
+  def validateUserSessionToken(token: String): Try[Option[String]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT user.username AS username, expireTime FROM UserAuthToken WHERE token = :token")
     val params = Map(Token -> token)
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
@@ -280,6 +332,16 @@ class UserStore(
           None
         }
       case None => None
+    }
+  }
+
+  def validateUserApiKey(apiKey: String): Try[Option[String]] = tryWithDb { db =>
+    val query = "SELECT username FROM User WHERE apiKey = :apiKey"
+    val params = Map(ApiKey -> apiKey)
+
+    QueryUtil.lookupOptionalDocument(query, params, db) map { doc =>
+      val username: String = doc.field(Username)
+      username
     }
   }
 

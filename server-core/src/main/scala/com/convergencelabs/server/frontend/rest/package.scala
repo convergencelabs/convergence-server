@@ -17,20 +17,20 @@ package object rest {
 
   abstract class AbstractErrorResponse() extends ResponseMessage {
     val ok = false
-    def error: String
+    def error_code: String
   }
 
-  case class ErrorResponse(error: String) extends AbstractErrorResponse
+  case class ErrorResponse(error_code: String, error_message: Option[String]) extends AbstractErrorResponse
 
   
   case class DuplicateError(val field: String) extends AbstractErrorResponse {
-    val error = "duplicate_error"
+    val error_code = "duplicate_error"
   }
   
   def duplicateResponse(field: String): RestResponse = (StatusCodes.Conflict, DuplicateError(field))
   
   case class InvalidValueError(field: String) extends AbstractErrorResponse {
-    val error = "invalid_value_error"
+    val error_code = "invalid_value_error"
   }
   
   def invalidValueResponse(field: String): RestResponse = (StatusCodes.BadRequest, InvalidValueError(field))
@@ -40,8 +40,9 @@ package object rest {
 
   val OkResponse: RestResponse = (StatusCodes.OK, SuccessRestResponse())
   val CreateRestResponse: RestResponse = (StatusCodes.Created, SuccessRestResponse())
-  val InternalServerError: RestResponse = (StatusCodes.InternalServerError, ErrorResponse("internal_server_error"))
-  val NotFoundError: RestResponse = (StatusCodes.NotFound, ErrorResponse("not_found_error"))
-  val AuthFailureError: RestResponse = (StatusCodes.Unauthorized, ErrorResponse("unauthorized"))
-  val ForbiddenError: RestResponse = (StatusCodes.Forbidden, ErrorResponse("forbidden"))
+  val InternalServerError: RestResponse = (StatusCodes.InternalServerError, ErrorResponse("internal_server_error", None))
+  val NotFoundError: RestResponse = (StatusCodes.NotFound, ErrorResponse("not_found_error", None))
+  val AuthFailureError: RestResponse = (StatusCodes.Unauthorized, ErrorResponse("unauthorized", None))
+  val ForbiddenError: RestResponse = (StatusCodes.Forbidden, ErrorResponse("forbidden", None))
+  val MalformedRequestContent: RestResponse = (StatusCodes.BadRequest, ErrorResponse("malformed_request_content", None))
 }

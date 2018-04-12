@@ -34,8 +34,10 @@ import com.convergencelabs.server.datastore.InvalidValueExcpetion
 import akka.http.scaladsl.server.ExceptionHandler
 
 object ConvergenceUserService {
-  case class GetUsersResponse(users: List[User]) extends AbstractSuccessResponse
-  case class GetUserResponse(user: Option[User]) extends AbstractSuccessResponse
+  case class GetUsersResponse(users: List[UserPublicData]) extends AbstractSuccessResponse
+  case class GetUserResponse(user: Option[UserPublicData]) extends AbstractSuccessResponse
+  
+  case class UserPublicData(username: String, displayName: String)
 }
 
 class ConvergenceUserService(
@@ -67,12 +69,16 @@ class ConvergenceUserService(
   }
 
   def getUsersRequest(filter: Option[String], limit: Option[Int], offset: Option[Int]): Future[RestResponse] = {
-    (userManagerActor ? GetConvergenceUsers(filter, limit, offset)).mapTo[List[User]] map
-      (users => (StatusCodes.OK, GetUsersResponse(users)))
+    (userManagerActor ? GetConvergenceUsers(filter, limit, offset)).mapTo[List[User]] map { users => 
+      val publicData = users.map { case User(username, email, firstName, lastName, displayName) => UserPublicData(username, displayName)}
+      (StatusCodes.OK, GetUsersResponse(publicData))
+    }
   }
 
   def getUser(username: String): Future[RestResponse] = {
-    (userManagerActor ? GetConvergenceUser(username)).mapTo[Option[User]] map
-      (user => (StatusCodes.OK, GetUserResponse(user)))
+    (userManagerActor ? GetConvergenceUser(username)).mapTo[Option[User]] map { user =>
+       val publicUser = user.map { case User(username, email, firstName, lastName, displayName) => UserPublicData(username, displayName) }
+      (StatusCodes.OK, GetUserResponse(publicUser))
+    }
   }
 }

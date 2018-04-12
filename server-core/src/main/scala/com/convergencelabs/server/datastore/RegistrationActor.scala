@@ -55,9 +55,11 @@ class RegistrationActor private[datastore] (dbProvider: DatabaseProvider, userMa
 
   private[this] val smtpConfig: Config = context.system.settings.config.getConfig("convergence.smtp")
 
-  private[this] val registrationBaseUrl = context.system.settings.config.getString("convergence.registration-base-url")
-  private[this] val adminUiServerUrl = context.system.settings.config.getString("convergence.admin-ui-url")
+  private[this] val registrationBaseUrl = context.system.settings.config.getString("convergence.registration.registration-rest-base-url")
+  private[this] val adminUiServerUrl = context.system.settings.config.getString("convergence.registration.admin-console-url")
 
+  private[this] val zohoConfig = context.system.settings.config.getConfig("convergence.zoho")
+  
   private[this] val zohoEnabled = context.system.settings.config.getBoolean("convergence.zoho.enabled")
   private[this] val zohoAuthToken = context.system.settings.config.getString("convergence.zoho.auth-token")
   private[this] val zohoUtil = new ZohoUtility(zohoAuthToken, context.system, context.dispatcher)

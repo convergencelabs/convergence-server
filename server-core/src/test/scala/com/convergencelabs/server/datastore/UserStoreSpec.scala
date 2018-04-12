@@ -84,7 +84,19 @@ class UserStoreSpec
       }
 
       "return a failure if user does not exist" in withPersistenceStore { store =>
-        store.setUserPassword("DoesNotExist", "doesn't matter").failed.get shouldBe a[IllegalArgumentException]
+        store.setUserPassword("DoesNotExist", "doesn't matter").failed.get shouldBe a[EntityNotFoundException]
+      }
+    }
+    
+    "getting a user's password hash" must {
+      "return a hash for an existing user." in withPersistenceStore { store =>
+        val password = "newPasswordToSet"
+        store.createUser(TestUser, password).get
+        store.getUserPasswordHash(username).get shouldBe defined
+      }
+
+      "return None if user does not exist" in withPersistenceStore { store =>
+        store.getUserPasswordHash("DoesNotExist").get shouldBe None
       }
     }
 
@@ -109,18 +121,18 @@ class UserStoreSpec
       "return true and a uid for a valid token" in withPersistenceStore { store =>
         store.createUser(TestUser, password).get
         store.createToken(username, DummyToken, Instant.now().plusSeconds(100)) // scalastyle:ignore magic.number
-        store.validateToken(DummyToken).success.value shouldBe Some(username)
+        store.validateUserSessionToken(DummyToken).success.value shouldBe Some(username)
       }
 
       "return false and None for an expired token" in withPersistenceStore { store =>
         store.createUser(TestUser, password).get
         val expireTime = Instant.now().minusSeconds(1)
         store.createToken(username, DummyToken, expireTime)
-        store.validateToken(DummyToken).success.value shouldBe None
+        store.validateUserSessionToken(DummyToken).success.value shouldBe None
       }
 
       "return false and None for an invalid token" in withPersistenceStore { store =>
-        store.validateToken(DummyToken).success.value shouldBe None
+        store.validateUserSessionToken(DummyToken).success.value shouldBe None
       }
     }
   }

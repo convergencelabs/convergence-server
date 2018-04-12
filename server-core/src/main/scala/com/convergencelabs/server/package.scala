@@ -20,7 +20,7 @@ package object server {
 
   object ProtocolConfigUtil {
     def loadConfig(config: Config): ProtocolConfiguration = {
-      val protoConfig = config.getConfig("convergence.protocol")
+      val protoConfig = config.getConfig("convergence.realtime.protocol")
       ProtocolConfiguration(
         Duration.fromNanos(protoConfig.getDuration("handshake-timeout").toNanos()),
         Duration.fromNanos(protoConfig.getDuration("default-request-timeout").toNanos()),

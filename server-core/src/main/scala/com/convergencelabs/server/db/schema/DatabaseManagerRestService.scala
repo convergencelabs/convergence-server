@@ -55,21 +55,23 @@ class DatabaseManagerRestService(
   implicit val t = defaultTimeout
 
   val route = { adminUser: String =>
-    (post & pathPrefix("upgrade")) {
-      path("convergence") {
-        handleWith(upgradeConvergence)
-      } ~ path("domains") { 
-        handleWith(upgradeDomains)
-      } ~ path("domain" / Segment / Segment) { (namespace, domainId) =>
-        entity(as[UpgradeRequest]) { request =>
-          complete(upgradeDomain(namespace, domainId, request))
+    pathPrefix("schema") {
+      (post & pathPrefix("upgrade")) {
+        path("convergence") {
+          handleWith(upgradeConvergence)
+        } ~ path("domains") {
+          handleWith(upgradeDomains)
+        } ~ path("domain" / Segment / Segment) { (namespace, domainId) =>
+          entity(as[UpgradeRequest]) { request =>
+            complete(upgradeDomain(namespace, domainId, request))
+          }
         }
-      }
-    } ~ (get & pathPrefix("version")) {
-      path("convergence") {
-        complete(getConvergenceVersion())
-      } ~ path("domain" / Segment / Segment) { (namespace, domainId) =>
-        complete(getDomainVersion(namespace, domainId))
+      } ~ (get & pathPrefix("version")) {
+        path("convergence") {
+          complete(getConvergenceVersion())
+        } ~ path("domain" / Segment / Segment) { (namespace, domainId) =>
+          complete(getDomainVersion(namespace, domainId))
+        }
       }
     }
   }
