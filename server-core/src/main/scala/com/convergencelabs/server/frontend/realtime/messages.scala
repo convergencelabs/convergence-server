@@ -66,12 +66,8 @@ case class TokenAuthRequestMessage(k: String) extends AuthenticationRequestMessa
 case class ReconnectTokenAuthRequestMessage(k: String) extends AuthenticationRequestMessage
 case class AnonymousAuthRequestMessage(d: Option[String]) extends AuthenticationRequestMessage
 
-case class AuthenticationResponseMessage(s: Boolean, n: Option[String], e: Option[String], p: Option[Map[String, Any]]) extends OutgoingProtocolResponseMessage
+case class AuthenticationResponseMessage(s: Boolean, n: Option[String], e: Option[String], k: Option[String], p: Option[Map[String, Any]]) extends OutgoingProtocolResponseMessage
 
-
-sealed trait IncomingClientRequestMessage extends IncomingProtocolRequestMessage
-case class ReconnectTokenRequestMessage() extends IncomingClientRequestMessage
-case class ReconnectTokenResponseMessage(k: String) extends OutgoingProtocolResponseMessage
 
 ///////////////////////////////////////////////////////////////////////////////
 // Model Messages

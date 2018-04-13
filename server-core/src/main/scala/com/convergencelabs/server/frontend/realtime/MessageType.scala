@@ -15,9 +15,6 @@ object MessageType extends Enumeration {
   val ReconnectAuthRequest = 8
   
   val AuthenticationResponse = 10
-
-  val ReconnectTokenRequest = 20
-  val ReconnectTokenResponse = 21
   
   // Models
   val OpenRealTimeModelRequest = 100
