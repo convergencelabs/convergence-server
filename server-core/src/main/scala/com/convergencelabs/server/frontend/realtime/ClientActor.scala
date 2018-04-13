@@ -219,12 +219,12 @@ class ClientActor(
       case Success(AuthenticationSuccess(username, sk, reconnectToken)) =>
         getPresenceAfterAuth(username, sk, reconnectToken, cb)
       case Success(AuthenticationFailure) =>
-        cb.reply(AuthenticationResponseMessage(false, None, None, None))
+        cb.reply(AuthenticationResponseMessage(false, None, None, None, None))
       case Success(AuthenticationError) =>
-        cb.reply(AuthenticationResponseMessage(false, None, None, None)) // TODO do we want this to go back to the client as something else?
+        cb.reply(AuthenticationResponseMessage(false, None, None, None, None)) // TODO do we want this to go back to the client as something else?
       case Failure(cause) =>
         log.error(cause, "Error authenticating user")
-        cb.reply(AuthenticationResponseMessage(false, None, None, None))
+        cb.reply(AuthenticationResponseMessage(false, None, None, None, None))
     }
   }
 
@@ -234,7 +234,7 @@ class ClientActor(
       case Success(first :: nil) =>
         self ! InternalAuthSuccess(username, sk, reconnectToken, first, cb)
       case _ =>
-        cb.reply(AuthenticationResponseMessage(false, None, None, None))
+        cb.reply(AuthenticationResponseMessage(false, None, None, None, None))
     }
 
   }
@@ -251,7 +251,7 @@ class ClientActor(
     this.historyClient = context.actorOf(HistoricModelClientActor.props(sk, domainFqn, modelStoreActor, operationStoreActor));
     this.messageHandler = handleMessagesWhenAuthenticated
 
-    cb.reply(AuthenticationResponseMessage(true, Some(username), Some(sk.serialize()), Some(presence.state)))
+    cb.reply(AuthenticationResponseMessage(true, Some(username), Some(sk.serialize()), Some(reconnectToken), Some(presence.state)))
     context.become(receiveWhileAuthenticated)
   }
 
@@ -341,8 +341,6 @@ class ClientActor(
         if (idType == IdType.Chat) {
           chatClient.forward(message)
         }
-      case RequestReceived(x: IncomingClientRequestMessage, replyCallback) =>
-        replyCallback.reply(ReconnectTokenResponseMessage(this.reconnectToken))
     }
   }
 
