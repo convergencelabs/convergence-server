@@ -99,6 +99,7 @@ class RealtimeModelPersistenceStream(
         case cause: Exception =>
           error(s"Error applying operation: ${modelOperation}", cause)
           handler.onOperationError("There was an unexpected persistence error applying an operation.")
+          ()
       }
   }
 
