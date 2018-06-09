@@ -106,6 +106,8 @@ class RealTimeArray(
     childValues = childValues.patch(index, List(), 1)
     this.updateIndices(index, childValues.length - 1)
     
+    oldChild.detach()
+    
     AppliedArrayRemoveOperation(id, noOp, index, Some(oldChild.dataValue()))
   }
 
@@ -114,6 +116,8 @@ class RealTimeArray(
     val oldChild = childValues(index)
     val child = this.model.createValue(value, Some(this), Some(parentField))
     childValues = childValues.patch(index, List(child), 1)
+    
+    oldChild.detach()
     
     AppliedArrayReplaceOperation(id, noOp, index, value, Some(oldChild.dataValue()))
   }
@@ -131,6 +135,9 @@ class RealTimeArray(
   def processSetValueOperation(op: ArraySetOperation): AppliedArraySetOperation = {
     val ArraySetOperation(id, noOp, value) = op
     val oldValue = dataValue()
+    
+    this.detachChildren()
+    
     var i = 0;
     childValues = value.map {
       v => this.model.createValue(v, Some(this), Some({ i += 1; i }))
@@ -144,7 +151,7 @@ class RealTimeArray(
     }
   }
 
-  def detachChildren(): Unit = {
-    childValues.foreach({ child => child.detach() })
+  override def detachChildren(): Unit = {
+    childValues.foreach(_.detach())
   }
 }

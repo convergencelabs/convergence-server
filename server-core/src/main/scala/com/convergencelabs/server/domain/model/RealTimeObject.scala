@@ -101,6 +101,8 @@ class RealTimeObject(
       case x: PropertyRemoveAware => x.handlePropertyRemove(op.property)
     }
     
+    child.detach()
+    
     AppliedObjectRemovePropertyOperation(id, noOp, property, Some(child.dataValue()))
   }
 
@@ -114,15 +116,27 @@ class RealTimeObject(
     val child = this.model.createValue(op.value, Some(this), Some(property))
     childValues = childValues + (property -> child)
     
+    child.detach()
+    
     AppliedObjectSetPropertyOperation(id, noOp, property, value, Some(oldChild.dataValue()))
   }
 
   def processSetValueOperation(op: ObjectSetOperation): AppliedObjectSetOperation = {
     val ObjectSetOperation(id, noOp, value) = op
     val oldValue = dataValue()
+    
+    this.detachChildren()
+    
     childValues = op.value.map {
       case (k, v) => (k, this.model.createValue(v, Some(this), Some(k)))
     }.toMap
+    
     AppliedObjectSetOperation(id, noOp, value, Some(oldValue.children))
+  }
+  
+  override def detachChildren(): Unit = {
+    this.childValues.foreach{
+      case (_, v) => v.detach()
+    }
   }
 }

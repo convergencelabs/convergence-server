@@ -39,7 +39,7 @@ abstract class RealTimeValue(
   }
   
   def detach(): Unit = {
-    for (listener <- listeners) listener(id)
+    listeners.foreach(_(id))
     model.unregisterValue(this)
   }
 

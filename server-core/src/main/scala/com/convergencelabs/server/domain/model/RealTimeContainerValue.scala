@@ -18,9 +18,11 @@ abstract class RealTimeContainerValue(
   protected def child(childPath: Any): Try[Option[RealTimeValue]]
 
   override def detach(): Unit = {
-    this.children.foreach { child => child.detach }
+    this.detachChildren()
     super.detach()
   }
+  
+  def detachChildren(): Unit;
 
   def children(): List[RealTimeValue]
 
@@ -28,4 +30,6 @@ abstract class RealTimeContainerValue(
     this.children.foreach { child => child.sessionDisconnected(sessionId) }
     super.sessionDisconnected(sessionId)
   }
+  
+  
 }
