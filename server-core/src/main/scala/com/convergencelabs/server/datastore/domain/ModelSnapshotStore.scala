@@ -4,9 +4,7 @@ import java.time.Instant
 import java.util.Date
 import java.util.{ List => JavaList }
 
-import scala.collection.JavaConversions.asScalaBuffer
-import scala.collection.JavaConverters.asScalaBufferConverter
-import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.collection.JavaConverters._
 import scala.collection.immutable.HashMap
 import scala.util.Try
 
@@ -145,7 +143,7 @@ class ModelSnapshotStore private[domain] (
       ModelId -> id)
 
     val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    result.toList map { ModelSnapshotStore.docToModelSnapshot(_) }
+    result.asScala.toList map { ModelSnapshotStore.docToModelSnapshot(_) }
   }
 
   /////////////////////////////////////////////////////////////////////////////

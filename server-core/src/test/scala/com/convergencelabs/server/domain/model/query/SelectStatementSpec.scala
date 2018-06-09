@@ -198,9 +198,8 @@ class SelectStatementSpec
           Not(Equals(FieldTerm(PropertyPathElement("foo")), LongTerm(1)))
       }
 
-      "Apply not with  parens" in {
+      "Apply not with parens" in {
         val result = QueryParser("NOT (foo = 1)").WhereRule.run().get
-        println(result)
         result shouldBe Not(Equals(FieldTerm(PropertyPathElement("foo")), LongTerm(1)))
       }
 

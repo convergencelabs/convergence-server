@@ -27,7 +27,7 @@ private[ot] object ArrayMoveMoveTF extends OperationTransformationFunction[Array
   def transform(s: ArrayMoveOperation, c: ArrayMoveOperation): (ArrayMoveOperation, ArrayMoveOperation) = {
     val sMoveType = ArrayMoveHelper.getMoveDirection(s)
     val cMoveType = ArrayMoveHelper.getMoveDirection(c)
-
+    
     (sMoveType, cMoveType) match {
       case (Forward, Forward) =>
         transformServerForwardMoveWithClientForwardMove(s, c)
@@ -47,6 +47,8 @@ private[ot] object ArrayMoveMoveTF extends OperationTransformationFunction[Array
         transformServerIdentityMoveWithClientBackwardMove(s, c)
       case (Identity, Identity) =>
         transformServerIdentityMoveWithClientIdentityMove(s, c)
+      case pair =>
+        throw new IllegalArgumentException("Invalid move combination" + pair)
     }
   }
 

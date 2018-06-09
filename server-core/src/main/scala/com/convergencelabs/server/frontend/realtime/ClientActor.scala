@@ -56,7 +56,7 @@ class ClientActor(
   private[this] val protocolConfig: ProtocolConfiguration,
   private[this] val remoteHost: RemoteAddress,
   private[this] val userAgent: String)
-    extends Actor with ActorLogging {
+  extends Actor with ActorLogging {
 
   type MessageHandler = PartialFunction[ProtocolMessageEvent, Unit]
 
@@ -98,7 +98,7 @@ class ClientActor(
   private[this] var reconnectToken: String = _
 
   private[this] var protocolConnection: ProtocolConnection = _
-  
+
   private[this] val domainRegion = DomainActorSharding.shardRegion(context.system)
 
   def receive: Receive = receiveWhileConnecting
@@ -196,7 +196,7 @@ class ClientActor(
         PasswordAuthRequest(username, password)
       case TokenAuthRequestMessage(token) =>
         JwtAuthRequest(token)
-      case ReconnectTokenAuthRequestMessage(token) => 
+      case ReconnectTokenAuthRequestMessage(token) =>
         ReconnectTokenAuthRequest(token)
       case AnonymousAuthRequestMessage(displayName) =>
         AnonymousAuthRequest(displayName)
@@ -228,7 +228,7 @@ class ClientActor(
     }
   }
 
-  private[this] def getPresenceAfterAuth(username: String, sk: SessionKey, reconnectToken: String,  cb: ReplyCallback) {
+  private[this] def getPresenceAfterAuth(username: String, sk: SessionKey, reconnectToken: String, cb: ReplyCallback) {
     val future = this.presenceServiceActor ? PresenceRequest(List(username))
     future.mapTo[List[UserPresence]] onComplete {
       case Success(first :: nil) =>
@@ -315,10 +315,16 @@ class ClientActor(
 
   private[this] def onMessageReceived(message: MessageReceived): Unit = {
     message match {
-      case MessageReceived(x: IncomingModelNormalMessage) => modelClient.forward(message)
-      case MessageReceived(x: IncomingActivityMessage) => activityClient.forward(message)
-      case MessageReceived(x: IncomingPresenceMessage) => presenceClient.forward(message)
-      case MessageReceived(x: IncomingChatMessage) => chatClient.forward(message)
+      case MessageReceived(x: IncomingModelNormalMessage) =>
+        modelClient.forward(message)
+      case MessageReceived(x: IncomingActivityMessage) =>
+        activityClient.forward(message)
+      case MessageReceived(x: IncomingPresenceMessage) =>
+        presenceClient.forward(message)
+      case MessageReceived(x: IncomingChatMessage) =>
+        chatClient.forward(message)
+      case message: Any =>
+        // TODO send an error back
     }
   }
 
@@ -341,6 +347,8 @@ class ClientActor(
         if (idType == IdType.Chat) {
           chatClient.forward(message)
         }
+      case message: Any =>
+        // TODO send an error back
     }
   }
 

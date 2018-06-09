@@ -211,10 +211,10 @@ class RegistrationActor private[datastore] (dbProvider: DatabaseProvider, userMa
       approvalEmail.setSubject(s"Your Convergence account request has been approved")
       approvalEmail.addTo(email)
 
-      Future {
+      (Future {
         approvalEmail.send()
         log.debug(s"Sent registration approval email to: ${email}")
-      } onFailure {
+      }).failed.foreach {
         case cause: Exception =>
           log.error(cause, "Could not send registration approval message to: ${email}")
       }

@@ -12,7 +12,7 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.Finders
 import org.scalatest.WordSpecLike
 import org.scalatest.junit.JUnitRunner
-import org.scalatest.mock.MockitoSugar
+import org.scalatest.mockito.MockitoSugar
 
 import com.convergencelabs.server.HeartbeatConfiguration
 import com.convergencelabs.server.ProtocolConfiguration

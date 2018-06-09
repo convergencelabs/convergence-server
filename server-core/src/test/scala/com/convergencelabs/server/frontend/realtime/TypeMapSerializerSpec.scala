@@ -12,7 +12,7 @@ import org.json4s.JsonDSL.int2jvalue
 import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.WordSpecLike
-import org.scalatest.mock.MockitoSugar
+import org.scalatest.mockito.MockitoSugar
 import org.json4s.JsonAST.JString
 import org.json4s.reflect.Reflector
 import org.json4s.`package`.MappingException

@@ -11,7 +11,7 @@ import org.mockito.Mockito
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.Finders
 import org.scalatest.WordSpecLike
-import org.scalatest.mock.MockitoSugar
+import org.scalatest.mockito.MockitoSugar
 
 import com.convergencelabs.server.db.provision.DomainProvisionerActor.DomainProvisioned
 import com.convergencelabs.server.db.provision.DomainProvisionerActor.ProvisionDomain

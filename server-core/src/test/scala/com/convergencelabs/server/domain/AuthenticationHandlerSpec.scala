@@ -21,7 +21,7 @@ import org.mockito.{Matchers => MockitoMatchers}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.Matchers
 import org.scalatest.WordSpecLike
-import org.scalatest.mock.MockitoSugar
+import org.scalatest.mockito.MockitoSugar
 
 import com.convergencelabs.server.datastore.domain.DomainConfigStore
 import com.convergencelabs.server.datastore.domain.DomainUserStore

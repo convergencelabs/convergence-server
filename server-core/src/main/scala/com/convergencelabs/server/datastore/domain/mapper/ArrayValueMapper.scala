@@ -2,7 +2,7 @@ package com.convergencelabs.server.datastore.domain.mapper
 
 import java.util.{ List => JavaList }
 
-import scala.collection.JavaConversions.asScalaBuffer
+import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.language.implicitConversions
 
@@ -38,7 +38,7 @@ object ArrayValueMapper extends ODocumentMapper {
 
     val id = doc.field(Fields.Id).asInstanceOf[String]
     val children: JavaList[OIdentifiable] = doc.field(Fields.Children);
-    val dataValues = children map {v => v.getRecord[ODocument].asDataValue}
+    val dataValues = children.asScala map {v => v.getRecord[ODocument].asDataValue}
     ArrayValue(id, dataValues.toList)
   }
 

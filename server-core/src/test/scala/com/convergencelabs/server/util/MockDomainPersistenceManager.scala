@@ -12,7 +12,7 @@ import com.convergencelabs.server.domain.DomainFqn
 import akka.actor.ActorContext
 import akka.actor.ActorRef
 import com.convergencelabs.server.datastore.domain.CollectionStore
-import org.scalatest.mock.MockitoSugar
+import org.scalatest.mockito.MockitoSugar
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.datastore.domain.DomainConfigStore
 import com.convergencelabs.server.datastore.domain.ChatChannelStore

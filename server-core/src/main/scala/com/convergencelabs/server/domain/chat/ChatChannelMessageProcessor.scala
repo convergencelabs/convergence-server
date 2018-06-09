@@ -143,7 +143,7 @@ abstract class ChatChannelMessageProcessor(stateManager: ChatChannelStateManager
   def onPublishMessage(message: PublishChatMessageRequest): Try[ChatMessageProcessingResult] = {
     val PublishChatMessageRequest(domainFqn, channelId, sk, msg) = message;
     stateManager.onPublishMessage(channelId, sk, msg) map {
-      case ChatMessageEvent(eventNo, channelId, sk.uid, timestamp, msg) =>
+      case ChatMessageEvent(eventNo, channelId, uid, timestamp, msg) =>
         ChatMessageProcessingResult(Some(()), List(RemoteChatMessage(channelId, eventNo, timestamp, sk, msg)))
     }
   }
