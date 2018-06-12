@@ -6,7 +6,7 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.util.Try
 
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.metadata.function.OFunction
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.metadata.schema.OProperty
@@ -17,10 +17,10 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 
 object DatabaseDeltaProcessor {
-  def apply(delta: Delta, db: ODatabaseDocumentTx): Try[Unit] = new DatabaseDeltaProcessor(delta, db).apply()
+  def apply(delta: Delta, db: ODatabaseDocument): Try[Unit] = new DatabaseDeltaProcessor(delta, db).apply()
 }
 
-class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocumentTx) {
+class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocument) {
 
   private var deferedLinkedProperties = Map[OProperty, String]();
 
@@ -191,7 +191,7 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocumentTx) {
 
   private def applyRunSQLCommand(runSQLCommand: RunSQLCommand): Unit = {
     val RunSQLCommand(command) = runSQLCommand
-    db.command(new OCommandSQL(command)).execute()
+    db.execute("sql", command, Map())
   }
 
   private def applyCreateFunction(createFunction: CreateFunction): Unit = {

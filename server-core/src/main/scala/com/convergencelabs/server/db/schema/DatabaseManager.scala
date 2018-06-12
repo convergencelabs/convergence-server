@@ -4,8 +4,8 @@ import scala.util.Failure
 import scala.util.Try
 
 import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.DeltaHistoryStore
-import com.convergencelabs.server.datastore.DomainDatabaseFactory
+import com.convergencelabs.server.datastore.convergnece.DeltaHistoryStore
+import com.convergencelabs.server.datastore.convergnece.DomainDatabaseFactory
 import com.convergencelabs.server.domain.DomainFqn
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 

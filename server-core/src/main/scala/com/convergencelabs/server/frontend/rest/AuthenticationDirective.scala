@@ -3,8 +3,8 @@ package com.convergencelabs.server.frontend.rest
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
-import com.convergencelabs.server.datastore.AuthStoreActor.ValidateSessionTokenRequest
-import com.convergencelabs.server.datastore.AuthStoreActor.ValidateUserApiKeyRequest
+import com.convergencelabs.server.datastore.convergnece.AuthStoreActor.ValidateSessionTokenRequest
+import com.convergencelabs.server.datastore.convergnece.AuthStoreActor.ValidateUserApiKeyRequest
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply

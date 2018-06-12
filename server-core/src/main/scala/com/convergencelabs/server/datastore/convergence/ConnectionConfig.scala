@@ -1,4 +1,4 @@
-package com.convergencelabs.server.datastore
+package com.convergencelabs.server.datastore.convergence
 
 case class ConnectionConfig(
   minClientPingInterval: Int,

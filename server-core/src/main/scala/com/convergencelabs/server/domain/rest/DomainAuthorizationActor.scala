@@ -3,7 +3,7 @@ package com.convergencelabs.server.domain.rest
 import scala.language.postfixOps
 
 import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.DomainStore
+import com.convergencelabs.server.datastore.convergnece.DomainStore
 import com.convergencelabs.server.datastore.PermissionsStore
 import com.convergencelabs.server.domain.DomainFqn
 

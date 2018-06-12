@@ -3,18 +3,18 @@ package com.convergencelabs.server.frontend.rest
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
-import com.convergencelabs.server.datastore.AuthStoreActor.AuthRequest
-import com.convergencelabs.server.datastore.AuthStoreActor.AuthSuccess
-import com.convergencelabs.server.datastore.AuthStoreActor.InvalidateTokenRequest
-import com.convergencelabs.server.datastore.AuthStoreActor.SessionTokenExpiration
-import com.convergencelabs.server.datastore.AuthStoreActor.GetSessionTokenExpirationRequest
+import com.convergencelabs.server.datastore.convergnece.AuthStoreActor.AuthRequest
+import com.convergencelabs.server.datastore.convergnece.AuthStoreActor.AuthSuccess
+import com.convergencelabs.server.datastore.convergnece.AuthStoreActor.InvalidateTokenRequest
+import com.convergencelabs.server.datastore.convergnece.AuthStoreActor.SessionTokenExpiration
+import com.convergencelabs.server.datastore.convergnece.AuthStoreActor.GetSessionTokenExpirationRequest
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.model.StatusCodes
 import akka.util.Timeout
 import akka.pattern.ask
-import com.convergencelabs.server.datastore.AuthStoreActor.LoginRequest
-import com.convergencelabs.server.datastore.AuthStoreActor.AuthResponse
+import com.convergencelabs.server.datastore.convergnece.AuthStoreActor.LoginRequest
+import com.convergencelabs.server.datastore.convergnece.AuthStoreActor.AuthResponse
 import com.convergencelabs.server.datastore.UserStore.LoginSuccessful
 import com.convergencelabs.server.datastore.UserStore.LoginResult
 import com.convergencelabs.server.datastore.UserStore.InvalidCredentials

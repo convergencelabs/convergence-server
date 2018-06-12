@@ -73,16 +73,18 @@ class JwtAuthKeyStore private[datastore] (
     val queryString = "SELECT * FROM JwtAuthKey ORDER BY id ASC"
     val pageQuery = QueryUtil.buildPagedQuery(queryString, limit, offset)
     val query = new OSQLSynchQuery[ODocument](pageQuery)
-    val result: JavaList[ODocument] = db.command(query).execute()
-    result.asScala.toList map { JwtAuthKeyStore.docToJwtAuthKey(_) }
+//    val result: JavaList[ODocument] = db.command(query).execute()
+//    result.asScala.toList map { JwtAuthKeyStore.docToJwtAuthKey(_) }
+    ???
   }
 
   def getKey(id: String): Try[Option[JwtAuthKey]] = tryWithDb { db =>
     val queryString = "SELECT * FROM JwtAuthKey WHERE id = :id"
     val query = new OSQLSynchQuery[ODocument](queryString)
     val params = Map(Id -> id)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.mapSingletonList(result) { JwtAuthKeyStore.docToJwtAuthKey(_) }
+//    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
+//    QueryUtil.mapSingletonList(result) { JwtAuthKeyStore.docToJwtAuthKey(_) }
+    ???
   }
 
   def createKey(key: KeyInfo): Try[Unit] = {
@@ -107,30 +109,32 @@ class JwtAuthKeyStore private[datastore] (
     val queryString = "SELECT FROM JwtAuthKey WHERE id = :id"
     val query = new OSQLSynchQuery[ODocument](queryString)
     val params = Map(Id -> keyId)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-
-    QueryUtil.enforceSingletonResultList(result) match {
-      case Some(doc) => {
-        doc.merge(updatedDoc, false, false)
-        db.save(doc)
-        ()
-      }
-      case None =>
-        throw EntityNotFoundException()
-    }
+//    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
+//
+//    QueryUtil.enforceSingletonResultList(result) match {
+//      case Some(doc) => {
+//        doc.merge(updatedDoc, false, false)
+//        db.save(doc)
+//        ()
+//      }
+//      case None =>
+//        throw EntityNotFoundException()
+//    }
+    ???
   }
 
   def deleteKey(id: String): Try[Unit] = tryWithDb { db =>
     val queryString = "DELETE FROM JwtAuthKey WHERE id = :id"
     val command = new OCommandSQL(queryString)
     val params = Map(Id -> id)
-    val deleted: Int = db.command(command).execute(params.asJava)
-    deleted match {
-      case 1 =>
-        ()
-      case _ => 
-        throw EntityNotFoundException()
-    }
+//    val deleted: Int = db.command(command).execute(params.asJava)
+//    deleted match {
+//      case 1 =>
+//        ()
+//      case _ => 
+//        throw EntityNotFoundException()
+//    }
+    ???
   }
 
   private[this] def handleDuplicateValue[T](e: ORecordDuplicatedException): Try[T] = {

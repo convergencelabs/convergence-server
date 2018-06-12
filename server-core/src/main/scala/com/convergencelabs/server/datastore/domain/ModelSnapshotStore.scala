@@ -118,8 +118,9 @@ class ModelSnapshotStore private[domain] (
       ModelId -> id,
       Version -> version)
 
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.mapSingletonList(result) { ModelSnapshotStore.docToModelSnapshot(_) }
+//    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
+//    QueryUtil.mapSingletonList(result) { ModelSnapshotStore.docToModelSnapshot(_) }
+      ???
   }
 
   /**
@@ -142,8 +143,9 @@ class ModelSnapshotStore private[domain] (
     val params = HashMap(
       ModelId -> id)
 
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    result.asScala.toList map { ModelSnapshotStore.docToModelSnapshot(_) }
+//    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
+//    result.asScala.toList map { ModelSnapshotStore.docToModelSnapshot(_) }
+      ???
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -175,8 +177,9 @@ class ModelSnapshotStore private[domain] (
     val params = HashMap(
       ModelId -> id)
 
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    result.asScala.toList.map { ModelSnapshotStore.docToModelSnapshotMetaData(_) }
+//    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
+//    result.asScala.toList.map { ModelSnapshotStore.docToModelSnapshotMetaData(_) }
+      ???
   }
 
   /**
@@ -211,8 +214,9 @@ class ModelSnapshotStore private[domain] (
       "startTime" -> new java.util.Date(startTime.getOrElse(0L)),
       "endTime" -> new java.util.Date(endTime.getOrElse(Long.MaxValue)))
 
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    result.asScala.toList.map { ModelSnapshotStore.docToModelSnapshotMetaData(_) }
+//    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
+//    result.asScala.toList.map { ModelSnapshotStore.docToModelSnapshotMetaData(_) }
+      ???
   }
 
   /**
@@ -234,8 +238,9 @@ class ModelSnapshotStore private[domain] (
     val query = new OSQLSynchQuery[ODocument](queryString)
     val params = HashMap(
       ModelId -> id)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.mapSingletonList(result) { ModelSnapshotStore.docToModelSnapshotMetaData(_) }
+//    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
+//    QueryUtil.mapSingletonList(result) { ModelSnapshotStore.docToModelSnapshotMetaData(_) }
+      ???
   }
 
   def getClosestSnapshotByVersion(id: String, version: Long): Try[Option[ModelSnapshot]] = tryWithDb { db =>
@@ -256,8 +261,9 @@ class ModelSnapshotStore private[domain] (
     val params = HashMap(
       ModelId -> id,
       Version -> version)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.mapSingletonList(result) { ModelSnapshotStore.docToModelSnapshot(_) }
+//    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
+//    QueryUtil.mapSingletonList(result) { ModelSnapshotStore.docToModelSnapshot(_) }
+      ???
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -277,12 +283,11 @@ class ModelSnapshotStore private[domain] (
         |  model.id = :modelId AND
         |  version = :version""".stripMargin
 
-    val command = new OCommandSQL(query);
     val params = HashMap(
       ModelId -> id,
       Version -> version)
 
-    db.command(command).execute(params.asJava)
+    db.command(query, params.asJava)
     Unit
   }
 
@@ -297,9 +302,8 @@ class ModelSnapshotStore private[domain] (
         |WHERE
         |  model.id = :modelId""".stripMargin
 
-    val command = new OCommandSQL(query);
     val params = HashMap(ModelId -> id)
-    db.command(command).execute(params.asJava)
+    db.command(query, params.asJava)
     Unit
   }
 
@@ -310,9 +314,8 @@ class ModelSnapshotStore private[domain] (
    */
   def removeAllSnapshotsForCollection(collectionId: String): Try[Unit] = tryWithDb { db =>
     val query = "DELETE FROM ModelSnapshot WHERE model.collection.id = :collectionId"
-    val command = new OCommandSQL(query);
     val params = HashMap(CollectionId -> collectionId)
-    db.command(command).execute(params.asJava)
+    db.command(query, params.asJava)
     Unit
   }
 }

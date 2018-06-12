@@ -10,8 +10,8 @@ import com.convergencelabs.server.datastore.DomainStoreActor.ListDomainsRequest
 import com.convergencelabs.server.datastore.DomainStoreActor.UpdateDomainRequest
 import com.convergencelabs.server.domain.Domain
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.datastore.PermissionsProfile
-import com.convergencelabs.server.datastore.PermissionsStoreActor.GetPermissionsProfileRequest
+import com.convergencelabs.server.datastore.convergnece.PermissionsProfile
+import com.convergencelabs.server.datastore.convergnece.PermissionsStoreActor.GetPermissionsProfileRequest
 import com.convergencelabs.server.domain.rest.AuthorizationActor.ConvergenceAuthorizedRequest
 
 import akka.actor.ActorRef

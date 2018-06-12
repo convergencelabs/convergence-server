@@ -1,4 +1,4 @@
-package com.convergencelabs.server.datastore
+package com.convergencelabs.server.datastore.convergence
 
 import java.time.Instant
 import com.convergencelabs.server.domain.DomainFqn

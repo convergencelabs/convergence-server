@@ -4,10 +4,7 @@ import java.lang.{ Long => JavaLong }
 import java.time.Duration
 import java.time.Instant
 import java.util.Date
-import java.util.{ List => JavaList }
 
-import scala.collection.JavaConverters.asScalaBufferConverter
-import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.collection.mutable.ListBuffer
 import scala.util.Failure
@@ -23,17 +20,18 @@ import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateNormalD
 import com.convergencelabs.server.datastore.domain.DomainUserStore.UpdateDomainUser
 import com.convergencelabs.server.domain.DomainUser
 import com.convergencelabs.server.domain.DomainUserType
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.convergencelabs.server.util.RandomStringGenerator
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.metadata.schema.OType
+import com.orientechnologies.orient.core.record.OElement
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.util.RandomStringGenerator
 
 object DomainUserStore {
 
@@ -79,7 +77,7 @@ object DomainUserStore {
     AnonymousUserPrefeix + username
   }
 
-  def getUserRid(username: String, db: ODatabaseDocumentTx): Try[ORID] = {
+  def getUserRid(username: String, db: ODatabaseDocument): Try[ORID] = {
     val query = "SELECT @RID as rid FROM User WHERE username = :username"
     val params = Map("username" -> username)
     QueryUtil.lookupMandatoryDocument(query, params, db) map { _.eval("rid").asInstanceOf[ORID] }
@@ -210,13 +208,14 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
   def deleteDomainUser(username: String): Try[Unit] = tryWithDb { db =>
     val command = new OCommandSQL("DELETE FROM User WHERE username = :username AND userType = 'normal'")
     val params = Map(Username -> username)
-    val count: Int = db.command(command).execute(params.asJava)
-    count match {
-      case 0 =>
-        throw EntityNotFoundException()
-      case _ =>
-        ()
-    }
+//    val count: Int = db.command(command).execute(params.asJava)
+//    count match {
+//      case 0 =>
+//        throw EntityNotFoundException()
+//      case _ =>
+//        ()
+//    }
+    ???
   }
 
   /**
@@ -226,23 +225,24 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
    * @param domainUser The user to update.
    */
   def updateDomainUser(update: UpdateDomainUser): Try[Unit] = tryWithDb { db =>
-    val UpdateDomainUser(username, firstName, lastName, displayName, email) = update;
-    val domainUser = DomainUser(DomainUserType.Normal, username, firstName, lastName, displayName, email)
-
-    val updatedDoc = DomainUserStore.domainUserToDoc(domainUser)
-
-    val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username = :username AND userType = 'normal'")
-    val params = Map(Username -> domainUser.username)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-
-    QueryUtil.enforceSingletonResultList(result) match {
-      case Some(doc) =>
-        doc.merge(updatedDoc, false, false)
-        db.save(doc)
-        ()
-      case None =>
-        throw EntityNotFoundException()
-    }
+//    val UpdateDomainUser(username, firstName, lastName, displayName, email) = update;
+//    val domainUser = DomainUser(DomainUserType.Normal, username, firstName, lastName, displayName, email)
+//
+//    val updatedDoc = DomainUserStore.domainUserToDoc(domainUser)
+//
+//    val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username = :username AND userType = 'normal'")
+//    val params = Map(Username -> domainUser.username)
+//    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
+//
+//    QueryUtil.enforceSingletonResultList(result) match {
+//      case Some(doc) =>
+//        doc.merge(updatedDoc, false, false)
+//        db.save(doc)
+//        ()
+//      case None =>
+//        throw EntityNotFoundException()
+//    }
+    ???
   } recoverWith {
     case e: ORecordDuplicatedException => handleDuplicateValue(e)
   }
@@ -257,8 +257,9 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
   def getDomainUserByUsername(username: String): Try[Option[DomainUser]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username = :username")
     val params = Map(Username -> username)
-    val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.mapSingletonList(results) { DomainUserStore.docToDomainUser(_) }
+//    val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
+//    QueryUtil.mapSingletonList(results) { DomainUserStore.docToDomainUser(_) }
+    ???
   }
 
   /**
@@ -271,8 +272,9 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
   def getDomainUsersByUsername(usernames: List[String]): Try[List[DomainUser]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username in :usernames")
     val params = Map("usernames" -> usernames.asJava)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    result.asScala.toList.map { DomainUserStore.docToDomainUser(_) }
+//    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
+//    result.asScala.toList.map { DomainUserStore.docToDomainUser(_) }
+    ???
   }
 
   /**
@@ -285,8 +287,9 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
   def getDomainUserByEmail(email: String): Try[Option[DomainUser]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE email = :email AND userType = 'normal'")
     val params = Map("email" -> email)
-    val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    QueryUtil.mapSingletonList(results) { DomainUserStore.docToDomainUser(_) }
+//    val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
+//    QueryUtil.mapSingletonList(results) { DomainUserStore.docToDomainUser(_) }
+    ???
   }
 
   /**
@@ -299,8 +302,9 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
   def getDomainUsersByEmail(emails: List[String]): Try[List[DomainUser]] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE email in :emails AND userType = 'normal'")
     val params = Map("emails" -> emails.asJava)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    result.asScala.toList.map { DomainUserStore.docToDomainUser(_) }
+//    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
+//    result.asScala.toList.map { DomainUserStore.docToDomainUser(_) }
+    ???
   }
 
   /**
@@ -321,11 +325,12 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
   private[this] def userExists(username: String, userType: DomainUserType.Value): Try[Boolean] = tryWithDb { db =>
     val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username = :username AND userType = :userType")
     val params = Map(Username -> username, UserType -> userType.toString.toLowerCase)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    result.asScala.toList match {
-      case doc :: Nil => true
-      case _          => false
-    }
+//    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
+//    result.asScala.toList match {
+//      case doc :: Nil => true
+//      case _          => false
+//    }
+    ???
   }
 
   /**
@@ -345,10 +350,11 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
     val order = orderBy.getOrElse(DomainUserField.Username)
     val sort = sortOrder.getOrElse(SortOrder.Descending)
     val baseQuery = s"SELECT * FROM User WHERE userType = 'normal' ORDER BY $order $sort"
-    val query = new OSQLSynchQuery[ODocument](QueryUtil.buildPagedQuery(baseQuery, limit, offset))
-    val result: JavaList[ODocument] = db.command(query).execute()
-
-    result.asScala.toList.map { DomainUserStore.docToDomainUser(_) }
+//    val query = new OSQLSynchQuery[ODocument](QueryUtil.buildPagedQuery(baseQuery, limit, offset))
+//    val result: JavaList[ODocument] = db.command(query).execute()
+//
+//    result.asScala.toList.map { DomainUserStore.docToDomainUser(_) }
+    ???
   }
 
   def searchUsersByFields(
@@ -375,10 +381,11 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
     val pagedQuery = QueryUtil.buildPagedQuery(baseQuery + whereClause + orderByClause, limit, offset)
     val query = new OSQLSynchQuery[ODocument](pagedQuery)
 
-    val params = Map("searchString" -> ("%" + searchString + "%"))
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-
-    result.asScala.toList.map { DomainUserStore.docToDomainUser(_) }
+//    val params = Map("searchString" -> ("%" + searchString + "%"))
+//    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
+//
+//    result.asScala.toList.map { DomainUserStore.docToDomainUser(_) }
+    ???
   }
 
   def findUser(
@@ -451,11 +458,11 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
         val query = "SELECT * FROM UserCredential WHERE user = :user"
         val params = Map("user" -> rid)
         val doc = QueryUtil.lookupOptionalDocument(query, params, db).getOrElse {
-          val newDoc = db.newInstance("UserCredential")
-          newDoc.field("user", rid, OType.LINK)
+          val newDoc: OElement = db.newInstance("UserCredential")
+          newDoc.setProperty("user", rid, OType.LINK)
           newDoc
         }
-        doc.field(Password, passwordHash)
+        doc.setProperty(Password, passwordHash)
         db.save(doc)
         ()
     }
@@ -507,8 +514,9 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
         |  expireTime = :expireTime""".stripMargin
       val query = new OCommandSQL(queryString)
       val params = Map("user" -> userORID, Token -> token, ExpireTime -> Date.from(expiration))
-      db.command(query).execute(params.asJava)
-      token
+//      db.command(query).execute(params.asJava)
+//      token
+      ???
     } else {
       throw new EntityNotFoundException(DomainUserStore.UserDoesNotExistMessage)
     }
@@ -519,7 +527,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
     val queryString = "DELETE FROM UserReconnectToken WHERE token = :token"
     val query = new OCommandSQL(queryString)
     val params = Map(Token -> token)
-    db.command(query).execute(params.asJava)
+//    db.command(query).execute(params.asJava)
     Unit
   }
 

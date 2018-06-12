@@ -219,9 +219,8 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     val queryString =
       """DELETE FROM CollectionUserPermissions
         |  WHERE collection.id = :collectionId""".stripMargin
-    val command = new OCommandSQL(queryString)
     val params = Map("collectionId" -> collectionId)
-    db.command(command).execute(params.asJava)
+    db.command(queryString, params.asJava)
     ()
   }
 
@@ -261,9 +260,8 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
           |                                 where  collection.id = :collectionId) 
           |  where id = :collectionId""".stripMargin
 
-    val command = new OCommandSQL(queryString)
     val params = Map("collectionId" -> collectionId)
-    db.command(command).execute(params.asJava)
+    db.command(queryString, params.asJava)
     ()
   }
 
@@ -378,9 +376,8 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     val queryString =
       """DELETE FROM ModelUserPermissions
         |  WHERE model.id = :modelId""".stripMargin
-    val command = new OCommandSQL(queryString)
     val params = Map("modelId" -> id)
-    db.command(command).execute(params.asJava)
+    db.command(queryString, params.asJava)
     ()
   }
 
@@ -421,9 +418,8 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
           |                                 where model.id = :modelId) 
           |  where id = :modelId""".stripMargin
 
-    val command = new OCommandSQL(queryString)
     val params = Map("modelId" -> id)
-    db.command(command).execute(params.asJava)
+    db.command(queryString, params.asJava)
     ()
   }
 

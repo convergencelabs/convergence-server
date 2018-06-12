@@ -24,7 +24,7 @@ import DomainProvisioner.OrientDefaultWriter
 import DomainProvisioner.StorageMode
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.DeltaHistoryStore
+import com.convergencelabs.server.datastore.convergnece.DeltaHistoryStore
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProviderImpl
 
 object DomainProvisioner {

@@ -1,4 +1,6 @@
-package com.convergencelabs.server.datastore
+package com.convergencelabs.server.datastore.convergence
+
+import com.convergencelabs.server.datastore.convergence.PermissionsStore.Role
 
 class PermissionsProfile(private[this] val roles: Set[Role]) {
   

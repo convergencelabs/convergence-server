@@ -1,40 +1,23 @@
-package com.convergencelabs.server.datastore
+package com.convergencelabs.server.datastore.convergence
 
-import scala.collection.JavaConverters.asScalaBufferConverter
-import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
-import scala.util.Failure
-import scala.util.Success
 
-import com.convergencelabs.server.util.concurrent.FutureUtils
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import com.typesafe.config.Config
+import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.datastore.StoreActor
+import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.datastore.convergence.PermissionsStore.Permission
+import com.convergencelabs.server.datastore.convergence.PermissionsStore.Role
 
 import akka.actor.ActorLogging
-import akka.actor.ActorRef
 import akka.actor.Props
-import akka.actor.Status
-import akka.actor.actorRef2Scala
-import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.server.domain.DomainDatabase
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor._
-import com.convergencelabs.server.datastore.UserStore.User
-import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.datastore.PermissionsStoreActor.CreatePermissionRequest
-import com.convergencelabs.server.datastore.PermissionsStoreActor.CreateRoleRequest
-import com.convergencelabs.server.datastore.PermissionsStoreActor.GetPermissionsProfileRequest
-import com.convergencelabs.server.datastore.PermissionsStoreActor.GetAllUserRolesRequest
-import com.convergencelabs.server.datastore.PermissionsStoreActor.GetUserRolesRequest
-import com.convergencelabs.server.datastore.PermissionsStoreActor.SetRolesRequest
-import com.convergencelabs.server.datastore.PermissionsStoreActor.GetUserPermissionsRequest
 
 object PermissionsStoreActor {
   val RelativePath = "PermissionsStoreActor"
   
   def props(dbProvider: DatabaseProvider): Props = Props(new PermissionsStoreActor(dbProvider))
-
+  
   case class CreatePermissionRequest(permission: Permission)
   case class CreateRoleRequest(role: Role)
   case class SetRolesRequest(username: String, domainFqn: DomainFqn, roles: List[String])
@@ -48,6 +31,8 @@ object PermissionsStoreActor {
 class PermissionsStoreActor private[datastore] (private[this] val dbProvider: DatabaseProvider) extends StoreActor
     with ActorLogging {
 
+  import PermissionsStoreActor._
+  
   // FIXME: Read this from configuration
   private[this] implicit val requstTimeout = Timeout(2 seconds)
   private[this] implicit val exectionContext = context.dispatcher

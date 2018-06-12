@@ -1,4 +1,4 @@
-package com.convergencelabs.server.datastore
+package com.convergencelabs.server.datastore.convergence
 
 import java.util.UUID
 
@@ -7,12 +7,6 @@ import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 
-import com.convergencelabs.server.datastore.DomainStoreActor.CreateDomainRequest
-import com.convergencelabs.server.datastore.DomainStoreActor.DeleteDomainRequest
-import com.convergencelabs.server.datastore.DomainStoreActor.DeleteDomainsForUserRequest
-import com.convergencelabs.server.datastore.DomainStoreActor.GetDomainRequest
-import com.convergencelabs.server.datastore.DomainStoreActor.ListDomainsRequest
-import com.convergencelabs.server.datastore.DomainStoreActor.UpdateDomainRequest
 import com.convergencelabs.server.db.provision.DomainProvisionerActor.DestroyDomain
 import com.convergencelabs.server.db.provision.DomainProvisionerActor.DomainProvisioned
 import com.convergencelabs.server.db.provision.DomainProvisionerActor.ProvisionDomain
@@ -28,12 +22,33 @@ import akka.actor.actorRef2Scala
 import akka.pattern.ask
 import akka.util.Timeout
 import scala.util.Try
+import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.datastore.StoreActor
+import com.convergencelabs.server.datastore.EntityNotFoundException
+
+
+object DomainStoreActor {
+  val RelativePath = "DomainStoreActor"
+  
+  def props(dbProvider: DatabaseProvider,
+    provisionerActor: ActorRef): Props =
+    Props(new DomainStoreActor(dbProvider, provisionerActor))
+
+  case class CreateDomainRequest(namespace: String, domainId: String, displayName: String, owner: String, anonymousAuth: Boolean)
+  case class UpdateDomainRequest(namespace: String, domainId: String, displayName: String)
+  case class DeleteDomainRequest(namespace: String, domainId: String)
+  case class GetDomainRequest(namespace: String, domainId: String)
+  case class ListDomainsRequest(username: String)
+  case class DeleteDomainsForUserRequest(username: String)
+}
 
 class DomainStoreActor private[datastore] (
   private[this] val dbProvider: DatabaseProvider,
   private[this] val domainProvisioner: ActorRef)
     extends StoreActor with ActorLogging {
 
+  import DomainStoreActor._
+  
   private[this] val RandomizeCredentials = context.system.settings.config.getBoolean("convergence.domain-databases.randomize-credentials")
 
   private[this] val domainStore: DomainStore = new DomainStore(dbProvider)
@@ -189,19 +204,4 @@ class DomainStoreActor private[datastore] (
   def listDomains(listRequest: ListDomainsRequest): Unit = {
     reply(domainStore.getDomainsByAccess(listRequest.username))
   }
-}
-
-object DomainStoreActor {
-  val RelativePath = "DomainStoreActor"
-  
-  def props(dbProvider: DatabaseProvider,
-    provisionerActor: ActorRef): Props =
-    Props(new DomainStoreActor(dbProvider, provisionerActor))
-
-  case class CreateDomainRequest(namespace: String, domainId: String, displayName: String, owner: String, anonymousAuth: Boolean)
-  case class UpdateDomainRequest(namespace: String, domainId: String, displayName: String)
-  case class DeleteDomainRequest(namespace: String, domainId: String)
-  case class GetDomainRequest(namespace: String, domainId: String)
-  case class ListDomainsRequest(username: String)
-  case class DeleteDomainsForUserRequest(username: String)
 }

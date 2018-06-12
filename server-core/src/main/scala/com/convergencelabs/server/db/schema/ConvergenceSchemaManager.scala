@@ -6,12 +6,12 @@ import scala.util.Try
 
 import org.apache.commons.lang3.exception.ExceptionUtils
 
-import com.convergencelabs.server.datastore.DeltaHistoryStore
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import com.convergencelabs.server.datastore.ConvergenceDelta
-import com.convergencelabs.server.datastore.ConvergenceDeltaHistory
+import com.convergencelabs.server.datastore.convergnece.DeltaHistoryStore
+import com.convergencelabs.server.datastore.convergnece.ConvergenceDelta
+import com.convergencelabs.server.datastore.convergnece.ConvergenceDeltaHistory
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 
-class ConvergenceSchemaManager(db: ODatabaseDocumentTx, historyStore: DeltaHistoryStore, preRelease: Boolean)
+class ConvergenceSchemaManager(db: ODatabaseDocument, historyStore: DeltaHistoryStore, preRelease: Boolean)
     extends AbstractSchemaManager(db, preRelease: Boolean) {
 
   def getCurrentVersion(): Try[Int] = {

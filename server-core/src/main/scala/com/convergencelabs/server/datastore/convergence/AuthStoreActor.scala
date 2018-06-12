@@ -1,14 +1,35 @@
-package com.convergencelabs.server.datastore
+package com.convergencelabs.server.datastore.convergence
 
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
+import java.time.Duration
+import java.time.Instant
+
+import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.datastore.StoreActor
 
 import akka.actor.ActorLogging
 import akka.actor.Props
-import scala.concurrent.duration.FiniteDuration
-import java.util.concurrent.TimeUnit
-import java.time.Instant
-import java.time.Duration
-import com.convergencelabs.server.datastore.AuthStoreActor.InvalidateTokenRequest
+
+object AuthStoreActor {
+  val RelativePath = "AuthStoreActor"
+
+  def props(dbProvider: DatabaseProvider): Props = Props(new AuthStoreActor(dbProvider))
+
+  case class AuthRequest(username: String, password: String)
+
+  sealed trait AuthResponse
+  case class AuthSuccess(token: String, expiration: Duration) extends AuthResponse
+  case object AuthFailure extends AuthResponse
+
+  case class LoginRequest(username: String, password: String)
+
+  case class ValidateSessionTokenRequest(token: String)
+  case class ValidateUserApiKeyRequest(apiKey: String)
+
+  case class GetSessionTokenExpirationRequest(token: String)
+  case class SessionTokenExpiration(username: String, expiration: Duration)
+
+  case class InvalidateTokenRequest(token: String)
+}
 
 class AuthStoreActor private[datastore] (
   private[this] val dbProvider: DatabaseProvider)
@@ -71,26 +92,4 @@ class AuthStoreActor private[datastore] (
   private[this] def invalidateToken(invalidateTokenRequest: InvalidateTokenRequest): Unit = {
     reply(userStore.removeToken(invalidateTokenRequest.token))
   }
-}
-
-object AuthStoreActor {
-  val RelativePath = "AuthStoreActor"
-
-  def props(dbProvider: DatabaseProvider): Props = Props(new AuthStoreActor(dbProvider))
-
-  case class AuthRequest(username: String, password: String)
-
-  sealed trait AuthResponse
-  case class AuthSuccess(token: String, expiration: Duration) extends AuthResponse
-  case object AuthFailure extends AuthResponse
-
-  case class LoginRequest(username: String, password: String)
-
-  case class ValidateSessionTokenRequest(token: String)
-  case class ValidateUserApiKeyRequest(apiKey: String)
-
-  case class GetSessionTokenExpirationRequest(token: String)
-  case class SessionTokenExpiration(username: String, expiration: Duration)
-
-  case class InvalidateTokenRequest(token: String)
 }

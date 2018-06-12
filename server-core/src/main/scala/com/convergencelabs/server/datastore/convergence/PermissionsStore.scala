@@ -1,36 +1,26 @@
-package com.convergencelabs.server.datastore
+package com.convergencelabs.server.datastore.convergence
 
-import com.convergencelabs.server.datastore.PermissionsStore._
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import scala.util.Try
-import com.orientechnologies.orient.core.id.ORID
-import grizzled.slf4j.Logging
-import scala.collection.JavaConverters.seqAsJavaListConverter
-import scala.collection.JavaConverters.collectionAsScalaIterableConverter
-import scala.collection.JavaConverters.mapAsJavaMapConverter
-import com.orientechnologies.orient.core.index.OCompositeKey
-import com.convergencelabs.server.domain.DomainFqn
-import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
-import com.orientechnologies.orient.core.record.impl.ODocument
-import java.util.{ List => JavaList }
-import com.orientechnologies.orient.core.metadata.schema.OType
 import java.util.HashSet
-import com.orientechnologies.orient.core.sql.OCommandSQL
+import java.util.{ List => JavaList }
 
-case class Permission(id: String, name: String, description: String)
-case class Role(name: String, permissions: List[String], description: String)
-case class UserRoles(username: String, roles: Set[String])
+import scala.collection.JavaConverters.collectionAsScalaIterableConverter
+import scala.collection.JavaConverters.seqAsJavaListConverter
+import scala.util.Try
+
+import com.convergencelabs.server.datastore.AbstractDatabasePersistence
+import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.datastore.OrientDBUtil
+import com.convergencelabs.server.domain.DomainFqn
+import com.orientechnologies.orient.core.id.ORID
+import com.orientechnologies.orient.core.record.impl.ODocument
+
+import grizzled.slf4j.Logging
 
 object PermissionsStore {
-  val PermissionClassName = "Permission"
-  val RoleClassName = "Role"
-  val UserDomainRoleClassName = "UserDomainRole"
 
-  val PermissionIndex = "Permission.id"
-  val RoleIndex = "Role.id"
-
-  val UsernameIndex = "User.username"
-  val DomainNamespaceIdIndex = "Domain.namespace_id"
+  case class Permission(id: String, name: String, description: String)
+  case class Role(name: String, permissions: List[String], description: String)
+  case class UserRoles(username: String, roles: Set[String])
 
   object Fields {
     val ID = "id"
@@ -75,18 +65,19 @@ object PermissionsStore {
  * @param dbPool The database pool to use.
  */
 class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
+  import PermissionsStore._
 
   def hasBeenSetup() = tryWithDb { db =>
-    db.getMetadata.getIndexManager.getIndex(PermissionIndex).getSize > 0
+    db.getMetadata.getIndexManager.getIndex(Schema.Permission.Indices.Id).getSize > 0
   }
 
   def createPermission(permission: Permission): Try[Unit] = tryWithDb { db =>
     val Permission(id, name, description) = permission
 
-    val permissionDoc = db.newInstance(PermissionClassName)
-    permissionDoc.field(Fields.ID, id)
-    permissionDoc.field(Fields.Name, name)
-    permissionDoc.field(Fields.Description, description)
+    val permissionDoc: ODocument = db.newInstance(Schema.Permission.Class)
+    permissionDoc.setProperty(Fields.ID, id)
+    permissionDoc.setProperty(Fields.Name, name)
+    permissionDoc.setProperty(Fields.Description, description)
     permissionDoc.save()
   }
 
@@ -95,10 +86,10 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
 
     val orids = Try(permissions.map { id => getPermissionRid(id) }.map { _.get }).get
 
-    val roleDoc = db.newInstance(RoleClassName)
-    roleDoc.field(Fields.Name, name)
-    roleDoc.field(Fields.Permissions, orids.asJava)
-    roleDoc.field(Fields.Description, description)
+    val roleDoc: ODocument = db.newInstance(Schema.Role.Class)
+    roleDoc.setProperty(Fields.Name, name)
+    roleDoc.setProperty(Fields.Permissions, orids.asJava)
+    roleDoc.setProperty(Fields.Description, description)
     roleDoc.save()
   }
 
@@ -109,103 +100,96 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
 
     // TODO: Do these two steps in a transaction
     // Delete roles for that user
-    val queryString =
+    val query =
       """DELETE FROM UserDomainRole
         |WHERE
         |  user.username = :username AND
         |  domain.namespace = :namespace AND
         |  domain.id = :domainId""".stripMargin
 
-    val command = new OCommandSQL(queryString)
     val params = Map("username" -> username, "namespace" -> domainFqn.namespace, "domainId" -> domainFqn.domainId)
-    db.command(command).execute(params.asJava)
+    OrientDBUtil.command(db, query, params)
 
     // Add new roles
     roleOrids.foreach {
       roleOrid =>
-        val userDomainRoleDoc = db.newInstance(UserDomainRoleClassName)
-        userDomainRoleDoc.field(Fields.User, userOrid)
-        userDomainRoleDoc.field(Fields.Domain, domainOrid)
-        userDomainRoleDoc.field(Fields.Role, roleOrid)
+        val userDomainRoleDoc: ODocument = db.newInstance(Schema.UserDomainRole.Class)
+        userDomainRoleDoc.setProperty(Fields.User, userOrid)
+        userDomainRoleDoc.setProperty(Fields.Domain, domainOrid)
+        userDomainRoleDoc.setProperty(Fields.Role, roleOrid)
         userDomainRoleDoc.save()
     }
   }
 
-  def getAllUserPermissions(username: String, domainFqn: DomainFqn): Try[Set[Permission]] = tryWithDb { db =>
-    val queryString =
+  def getAllUserPermissions(username: String, domainFqn: DomainFqn): Try[Set[Permission]] = withDb { db =>
+    val query =
       """SELECT expand(set(role.permissions))
         |  FROM UserDomainRole
         |  WHERE user.username = :username AND
         |    domain.namespace = :namespace AND
         |    domain.id = :domainId""".stripMargin
-    val query = new OSQLSynchQuery[ODocument](queryString)
     val params = Map("username" -> username, "namespace" -> domainFqn.namespace, "domainId" -> domainFqn.domainId)
-    val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    val resultList = results.asScala.toList
-    resultList.map { docToPermission(_) }.toSet
+    OrientDBUtil
+      .query(db, query, params)
+      .map(_.map(docToPermission(_)).toSet)
   }
 
-  def getUserRolePermissions(username: String, domainFqn: DomainFqn): Try[Set[Role]] = tryWithDb { db =>
-    val queryString =
+  def getUserRolePermissions(username: String, domainFqn: DomainFqn): Try[Set[Role]] = withDb { db =>
+    val query =
       """SELECT expand(role)
         |  FROM UserDomainRole
         |  WHERE user.username = :username AND
         |    domain.namespace = :namespace AND
         |    domain.id = :domainId""".stripMargin
-    val query = new OSQLSynchQuery[ODocument](queryString)
     val params = Map("username" -> username, "namespace" -> domainFqn.namespace, "domainId" -> domainFqn.domainId)
-    val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    val resultList = results.asScala.toSet
-    resultList.map { docToRole(_) }
+    OrientDBUtil
+      .query(db, query, params)
+      .map(_.map(docToRole(_)).toSet)
   }
 
-  def getAllUserRoles(domainFqn: DomainFqn): Try[Set[UserRoles]] = tryWithDb { db =>
-    val queryString =
+  def getAllUserRoles(domainFqn: DomainFqn): Try[Set[UserRoles]] = withDb { db =>
+    val query =
       """SELECT user.username, set(role.name) AS roles
         |  FROM UserDomainRole
         |  WHERE domain.namespace = :namespace AND
         |    domain.id = :domainId 
         |  GROUP BY user.username""".stripMargin
-    val query = new OSQLSynchQuery[ODocument](queryString)
     val params = Map("namespace" -> domainFqn.namespace, "domainId" -> domainFqn.domainId)
-    val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    val resultList = results.asScala.toSet
-    resultList.map {
-      result =>
+    OrientDBUtil
+      .query(db, query, params)
+      .map(_.map(result => {
         val user: String = result.field("user")
         val roles: HashSet[String] = result.field("roles")
         UserRoles(user, roles.asScala.toSet)
-    }
+      }).toSet)
   }
 
-  def getUserRoles(username: String, domainFqn: DomainFqn): Try[UserRoles] = tryWithDb { db =>
-    val queryString =
+  def getUserRoles(username: String, domainFqn: DomainFqn): Try[UserRoles] = withDb { db =>
+    val query =
       """SELECT role.name as name
         |  FROM UserDomainRole
         |  WHERE user.username = :username AND
         |    domain.namespace = :namespace AND
         |    domain.id = :domainId""".stripMargin
-    val query = new OSQLSynchQuery[ODocument](queryString)
     val params = Map("username" -> username, "namespace" -> domainFqn.namespace, "domainId" -> domainFqn.domainId)
-    val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    val resultList = results.asScala.toSet
-    UserRoles(username, resultList.map { result => result.field("name").asInstanceOf[String] })
+    OrientDBUtil
+      .query(db, query, params)
+      .map(list => UserRoles(username, list.map(result => result.getProperty("name").asInstanceOf[String]).toSet))
   }
 
-  def getPermissionRid(id: String): Try[ORID] = tryWithDb { db =>
-    QueryUtil.getRidFromIndex(PermissionIndex, id, db).get
+  def getPermissionRid(id: String): Try[ORID] = withDb { db =>
+    OrientDBUtil.getIdentityFromSingleValueIndex(db, Schema.Permission.Indices.Id, id)
   }
 
-  def getRolesRid(name: String): Try[ORID] = tryWithDb { db =>
-    QueryUtil.getRidFromIndex(RoleIndex, name, db).get
+  def getRolesRid(name: String): Try[ORID] = withDb { db =>
+    OrientDBUtil.getIdentityFromSingleValueIndex(db, Schema.Role.Indices.Id, name)
   }
 
-  def getUserRid(username: String): Try[ORID] = tryWithDb { db =>
-    QueryUtil.getRidFromIndex(UsernameIndex, username, db).get
+  def getUserRid(username: String): Try[ORID] = withDb { db =>
+    OrientDBUtil.getIdentityFromSingleValueIndex(db, Schema.User.Indices.Username, username)
   }
 
-  def getDomainRid(namespace: String, domainId: String): Try[ORID] = tryWithDb { db =>
-    val key = new OCompositeKey(List(namespace, domainId).asJava)
-    QueryUtil.getRidFromIndex(DomainNamespaceIdIndex, key, db).get
+  def getDomainRid(namespace: String, domainId: String): Try[ORID] = withDb { db =>
+    OrientDBUtil.getIdentityFromSingleValueIndex(db, Schema.Domain.Indices.NamespaceId, List(namespace, domainId))
   }
 }

@@ -1,16 +1,13 @@
 package com.convergencelabs.server.db.schema
 
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import com.convergencelabs.server.datastore.DeltaHistoryStore
-import scala.util.Try
-import scala.util.Success
 import scala.util.Failure
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import com.convergencelabs.server.datastore.DeltaHistoryStore
+import scala.util.Try
+
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
+
 import grizzled.slf4j.Logging
 
-abstract class AbstractSchemaManager(db: ODatabaseDocumentTx, preRelease: Boolean) extends Logging {
+abstract class AbstractSchemaManager(db: ODatabaseDocument, preRelease: Boolean) extends Logging {
 
   def install(): Try[Unit] = {
     loadManifest().flatMap { manifest =>

@@ -37,7 +37,7 @@ class DomainConfigStore (dbProvider: DatabaseProvider)
       tokenKeyPair: JwtKeyPair, 
       modelSnapshotConfig: ModelSnapshotConfig,
       anonymousAuthEnabled: Boolean): Try[Unit] = tryWithDb { db =>
-    db.command(new OCommandSQL("DELETE FROM DomainConfig")).execute()
+    db.command("DELETE FROM DomainConfig")
 
     val doc = db.newInstance("DomainConfig")
     doc.field(Fields.ModelSnapshotConfig, modelSnapshotConfig.asODocument, OType.EMBEDDED)
@@ -49,39 +49,40 @@ class DomainConfigStore (dbProvider: DatabaseProvider)
   }
   
   def isInitialized(): Try[Boolean] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT count(*) AS count FROM DomainConfig")
-    val result: JavaList[ODocument] = db.command(query).execute()
-    val count: Long = result.get(0).field("count", OType.LONG)
-    count == 1;
+//    val result: JavaList[ODocument] = db.query("SELECT count(*) AS count FROM DomainConfig")
+//    val count: Long = result.get(0).field("count", OType.LONG)
+//    count == 1;
+    ???
   }
 
   def isAnonymousAuthEnabled(): Try[Boolean] = tryWithDb { db =>
     val queryString = s"SELECT ${Fields.AnonymousAuth} FROM DomainConfig"
-    val query = new OSQLSynchQuery[ODocument](queryString)
-    val result: JavaList[ODocument] = db.command(query).execute()
-    QueryUtil.mapSingletonList(result) { doc =>
-      val enabled: Boolean = doc.field(Fields.AnonymousAuth, OType.BOOLEAN)
-      enabled
-    }.get
+//    val result: JavaList[ODocument] = db.query(queryString)
+//    QueryUtil.mapSingletonList(result) { doc =>
+//      val enabled: Boolean = doc.field(Fields.AnonymousAuth, OType.BOOLEAN)
+//      enabled
+//    }.get
+    ???
   }
 
   def setAnonymousAuthEnabled(enabled: Boolean): Try[Unit] = tryWithDb { db =>
     val updateString = s"UPDATE DomainConfig SET ${Fields.AnonymousAuth} = :anonymousAuth"
     val query = new OCommandSQL(updateString)
     val params = Map("anonymousAuth" -> enabled)
-    val updated: Int = db.command(query).execute(params.asJava)
-    require(updated == 1)
+//    val updated: Int = db.command(query, params.asJava)
+//    require(updated == 1)
     Unit
+    
   }
 
   def getModelSnapshotConfig(): Try[ModelSnapshotConfig] = tryWithDb { db =>
-    val queryString = "SELECT modelSnapshotConfig FROM DomainConfig"
-    val query = new OSQLSynchQuery[ODocument](queryString)
-    val result: JavaList[ODocument] = db.command(query).execute()
-    QueryUtil.mapSingletonList(result) { doc =>
-      val configDoc: ODocument = doc.field("modelSnapshotConfig", OType.EMBEDDED)
-      configDoc.asModelSnapshotConfig
-    }.get
+//    val queryString = "SELECT modelSnapshotConfig FROM DomainConfig"
+//    val result: JavaList[ODocument] = db.command(queryString)
+//    QueryUtil.mapSingletonList(result) { doc =>
+//      val configDoc: ODocument = doc.field("modelSnapshotConfig", OType.EMBEDDED)
+//      configDoc.asModelSnapshotConfig
+//    }.get
+    ???
   }
 
   def setModelSnapshotConfig(modelSnapshotConfig: ModelSnapshotConfig): Try[Unit] = tryWithDb { db =>
@@ -92,43 +93,45 @@ class DomainConfigStore (dbProvider: DatabaseProvider)
     //    val updated: Int = db.command(query).execute(params.asJava)
     //    require(updated == 1)
     //    Unit
-    val queryString = "SELECT FROM DomainConfig"
-    val query = new OSQLSynchQuery[ODocument](queryString)
-    val result: JavaList[ODocument] = db.command(query).execute()
-    QueryUtil.enforceSingletonResultList(result) match {
-      case Some(doc) =>
-        val configDoc = modelSnapshotConfig.asODocument
-        doc.field("modelSnapshotConfig", configDoc)
-        doc.save()
-        Unit
-      case None =>
-        throw new IllegalStateException("DomainConfig not found")
-    }
+    
+//    val queryString = "SELECT FROM DomainConfig"
+//    val result: JavaList[ODocument] = db.command(queryString)
+//    QueryUtil.enforceSingletonResultList(result) match {
+//      case Some(doc) =>
+//        val configDoc = modelSnapshotConfig.asODocument
+//        doc.field("modelSnapshotConfig", configDoc)
+//        doc.save()
+//        Unit
+//      case None =>
+//        throw new IllegalStateException("DomainConfig not found")
+//    }
+    ???
   }
 
   def getAdminKeyPair(): Try[JwtKeyPair] = tryWithDb { db =>
-    val queryString = "SELECT adminPublicKey, adminPrivateKey FROM DomainConfig"
-    val query = new OSQLSynchQuery[ODocument](queryString)
-    val result: JavaList[ODocument] = db.command(query).execute()
-
-    QueryUtil.mapSingletonList(result) { doc =>
-      JwtKeyPair(
-        doc.field("adminPublicKey", OType.STRING),
-        doc.field("adminPrivateKey", OType.STRING))
-    }.get
+//    val queryString = "SELECT adminPublicKey, adminPrivateKey FROM DomainConfig"
+//    val result: JavaList[ODocument] = db.query(queryString)
+//
+//    QueryUtil.mapSingletonList(result) { doc =>
+//      JwtKeyPair(
+//        doc.field("adminPublicKey", OType.STRING),
+//        doc.field("adminPrivateKey", OType.STRING))
+//    }.get
+    ???
   }
 
   def setAdminKeyPair(pair: JwtKeyPair): Try[Unit] = tryWithDb { db =>
-    val queryString = """
-      |UPDATE
-      |  DomainConfig
-      |SET
-      |  adminPublicKey = :publicKey, 
-      |  adminPrivateKey = :privateKey""".stripMargin
-    val command = new OCommandSQL(queryString)
-
-    val params = Map("publicKey" -> pair.publicKey, "privateKey" -> pair.privateKey).asJava
-    db.command(command).execute(params)
-    ()
+//    val queryString = """
+//      |UPDATE
+//      |  DomainConfig
+//      |SET
+//      |  adminPublicKey = :publicKey, 
+//      |  adminPrivateKey = :privateKey""".stripMargin
+//    val command = new OCommandSQL(queryString)
+//
+//    val params = Map("publicKey" -> pair.publicKey, "privateKey" -> pair.privateKey).asJava
+//    db.command(command, params.asJava)
+//    ()
+    ???
   }
 }

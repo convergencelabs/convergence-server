@@ -13,6 +13,7 @@ import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.domain.Domain
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.DomainStatus
+import com.convergencelabs.server.datastore.convergnece.DomainStore
 
 object DomainStoreSpec {
   case class SpecStores(user: UserStore, domain: DomainStore)

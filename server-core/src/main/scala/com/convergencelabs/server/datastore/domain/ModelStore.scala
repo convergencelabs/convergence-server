@@ -219,12 +219,13 @@ class ModelStore private[domain] (
       Id -> id,
       "timestamp" -> Date.from(timestamp))
 
-    db.command(updateCommand).execute(params.asJava).asInstanceOf[Int] match {
-      case 0 =>
-        throw EntityNotFoundException()
-      case _ =>
-        ()
-    }
+//    db.command(updateCommand).execute(params.asJava).asInstanceOf[Int] match {
+//      case 0 =>
+//        throw EntityNotFoundException()
+//      case _ =>
+//        ()
+//    }
+      ???
   }
 
   //TODO: This should probably be handled in a model shutdown routine so that we only update it once with the final value 
@@ -238,11 +239,12 @@ class ModelStore private[domain] (
 
     val params = Map(Id -> id, ValuePrefix -> value)
 
-    db.command(updateCommand).execute(params.asJava).asInstanceOf[Int] match {
-      case 0 =>
-        throw EntityNotFoundException()
-      case _ =>
-    }
+//    db.command(updateCommand).execute(params.asJava).asInstanceOf[Int] match {
+//      case 0 =>
+//        throw EntityNotFoundException()
+//      case _ =>
+//    }
+    ???
   }
 
   def deleteModel(id: String): Try[Unit] = tryWithDb { db =>
@@ -259,18 +261,19 @@ class ModelStore private[domain] (
   def deleteModelRecord(id: String): Try[Unit] = tryWithDb { db =>
     val command = new OCommandSQL("DELETE FROM Model WHERE id = :id")
     val params = Map(Id -> id)
-    db.command(command).execute(params.asJava).asInstanceOf[Int] match {
-      case 1 =>
-        ()
-      case _ =>
-        throw EntityNotFoundException()
-    }
+//    db.command(command).execute(params.asJava).asInstanceOf[Int] match {
+//      case 1 =>
+//        ()
+//      case _ =>
+//        throw EntityNotFoundException()
+//    }
+    ???
   }
 
   def deleteDataValuesForModel(id: String): Try[Unit] = tryWithDb { db =>
-    val command = new OCommandSQL("DELETE FROM DataValue WHERE model.id = :id")
+    val query = "DELETE FROM DataValue WHERE model.id = :id"
     val params = Map(Id -> id)
-    db.command(command).execute(params.asJava).asInstanceOf[Int]
+    db.command(query, params.asJava).asInstanceOf[Int]
     ()
   }
 
@@ -281,17 +284,16 @@ class ModelStore private[domain] (
       deleteDataValuesForCollection(collectionId, db)
     }.map { _ =>
       val queryString = "DELETE FROM Model WHERE collection.id = :collectionId"
-      val command = new OCommandSQL(queryString)
       val params = Map(CollectionId -> collectionId)
-      db.command(command).execute(params.asJava)
+      db.command(queryString, params.asJava)
       ()
     }.get
   }
 
   def deleteDataValuesForCollection(collectionId: String, db: ODatabaseDocumentTx): Try[Unit] = Try {
-    val command = new OCommandSQL("DELETE FROM DataValue WHERE model.collection.id = :collectionId")
+    val command = "DELETE FROM DataValue WHERE model.collection.id = :collectionId"
     val params = Map(CollectionId -> collectionId)
-    db.command(command).execute(params.asJava).asInstanceOf[Int]
+    db.command(command, params.asJava).asInstanceOf[Int]
     ()
   }
 
@@ -323,8 +325,9 @@ class ModelStore private[domain] (
 
     val query = new OSQLSynchQuery[ODocument](pagedQuery)
     val params = Map(CollectionId -> collectionId)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    result.asScala.toList map { ModelStore.docToModelMetaData(_) }
+//    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
+//    result.asScala.toList map { ModelStore.docToModelMetaData(_) }
+    ???
   }
 
   // TODO implement orderBy and ascending / descending
@@ -341,8 +344,9 @@ class ModelStore private[domain] (
 
     val pageQuery = QueryUtil.buildPagedQuery(queryString, limit, offset)
     val query = new OSQLSynchQuery[ODocument](pageQuery)
-    val result: JavaList[ODocument] = db.command(query).execute()
-    result.asScala.toList map { ModelStore.docToModelMetaData(_) }
+//    val result: JavaList[ODocument] = db.command(query).execute()
+//    result.asScala.toList map { ModelStore.docToModelMetaData(_) }
+    ???
   }
 
   def queryModels(query: String, username: Option[String]): Try[List[ModelQueryResult]] = tryWithDb { db =>
@@ -351,37 +355,38 @@ class ModelStore private[domain] (
         val index = position.index
         Failure(QueryParsingException(s"Parse error at position ${index}", query, Some(index)))
     }.map { select =>
-      val queryParams = ModelQueryBuilder.queryModels(select, username)
-      val query = new OSQLSynchQuery[ODocument](queryParams.query)
-      val result: JavaList[ODocument] = db.command(query).execute(queryParams.params.asJava)
-      if (select.fields.isEmpty) {
-        result.asScala.toList map { modelDoc =>
-          val model = ModelStore.docToModel(modelDoc)
-          ModelQueryResult(model.metaData, DataValueToJValue.toJson(model.data))
-        }
-      } else {
-        result.asScala.toList map { modelDoc =>
-          val results = modelDoc.toMap()
-          results.remove("@rid")
-          val createdTime = results.remove(CreatedTime).asInstanceOf[Date]
-          val modifiedTime = results.remove(ModifiedTime).asInstanceOf[Date]
-          val meta = ModelMetaData(
-            results.remove("collectionId").asInstanceOf[String],
-            results.remove(Id).asInstanceOf[String],
-            results.remove(Version).asInstanceOf[Long],
-            createdTime.toInstant(),
-            modifiedTime.toInstant(),
-            false,
-            ModelPermissions(false, false, false, false),
-            results.remove(ValuePrefix).asInstanceOf[Long])
-
-          val values = results.asScala.toList map Function.tupled { (field, value) =>
-            (queryParams.as.get(field).getOrElse(field),
-              DataValueToJValue.toJson(value.asInstanceOf[ODocument].asDataValue))
-          }
-          ModelQueryResult(meta, JObject(values))
-        }
-      }
+//      val queryParams = ModelQueryBuilder.queryModels(select, username)
+//      val query = new OSQLSynchQuery[ODocument](queryParams.query)
+//      val result: JavaList[ODocument] = db.command(query).execute(queryParams.params.asJava)
+//      if (select.fields.isEmpty) {
+//        result.asScala.toList map { modelDoc =>
+//          val model = ModelStore.docToModel(modelDoc)
+//          ModelQueryResult(model.metaData, DataValueToJValue.toJson(model.data))
+//        }
+//      } else {
+//        result.asScala.toList map { modelDoc =>
+//          val results = modelDoc.toMap()
+//          results.remove("@rid")
+//          val createdTime = results.remove(CreatedTime).asInstanceOf[Date]
+//          val modifiedTime = results.remove(ModifiedTime).asInstanceOf[Date]
+//          val meta = ModelMetaData(
+//            results.remove("collectionId").asInstanceOf[String],
+//            results.remove(Id).asInstanceOf[String],
+//            results.remove(Version).asInstanceOf[Long],
+//            createdTime.toInstant(),
+//            modifiedTime.toInstant(),
+//            false,
+//            ModelPermissions(false, false, false, false),
+//            results.remove(ValuePrefix).asInstanceOf[Long])
+//
+//          val values = results.asScala.toList map Function.tupled { (field, value) =>
+//            (queryParams.as.get(field).getOrElse(field),
+//              DataValueToJValue.toJson(value.asInstanceOf[ODocument].asDataValue))
+//          }
+//          ModelQueryResult(meta, JObject(values))
+//        }
+//      }
+      ???
     }.get
   }
 

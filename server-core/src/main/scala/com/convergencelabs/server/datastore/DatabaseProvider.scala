@@ -1,34 +1,36 @@
 package com.convergencelabs.server.datastore
 
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import com.convergencelabs.server.util.TryWithResource
 import scala.util.Try
 
+import com.convergencelabs.server.util.TryWithResource
+import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
+import com.orientechnologies.orient.core.db.ODatabasePool
+
 object DatabaseProvider {
-  def apply(db: ODatabaseDocumentTx): DatabaseProvider = {
+  def apply(db: ODatabaseDocument): DatabaseProvider = {
     new SingleDatabaseProvider(db)
   }
   
-  def apply(dbPool: OPartitionedDatabasePool): DatabaseProvider = {
+  def apply(dbPool: ODatabasePool): DatabaseProvider = {
     new PooledDatabaseProvider(dbPool)
   }
 }
 
 trait DatabaseProvider {
-  def tryWithDatabase[B](f: (ODatabaseDocumentTx) => B): Try[B]
-  def withDatabase[B](f: (ODatabaseDocumentTx) => Try[B]): Try[B]
+  def tryWithDatabase[B](f: (ODatabaseDocument) => B): Try[B]
+  def withDatabase[B](f: (ODatabaseDocument) => Try[B]): Try[B]
   def validateConnection(): Try[Unit]
   def shutdown(): Unit
 }
 
-class SingleDatabaseProvider(db: ODatabaseDocumentTx) extends DatabaseProvider {
-  def tryWithDatabase[B](f: (ODatabaseDocumentTx) => B ): Try[B] = Try {
+class SingleDatabaseProvider(db: ODatabaseDocument) extends DatabaseProvider {
+  def tryWithDatabase[B](f: (ODatabaseDocument) => B ): Try[B] = Try {
     db.activateOnCurrentThread()
     f(db)
   }
   
-  def withDatabase[B](f: (ODatabaseDocumentTx) => Try[B] ): Try[B] = {
+  def withDatabase[B](f: (ODatabaseDocument) => Try[B] ): Try[B] = {
     db.activateOnCurrentThread()
     f(db)
   }
@@ -44,14 +46,14 @@ class SingleDatabaseProvider(db: ODatabaseDocumentTx) extends DatabaseProvider {
   }
 }
 
-class PooledDatabaseProvider(dbPool: OPartitionedDatabasePool) extends DatabaseProvider {
-  def tryWithDatabase[B](f: (ODatabaseDocumentTx) => B ): Try[B] = {
+class PooledDatabaseProvider(dbPool: ODatabasePool) extends DatabaseProvider {
+  def tryWithDatabase[B](f: (ODatabaseDocument) => B ): Try[B] = {
     TryWithResource(dbPool.acquire()) { db =>
       f(db)
     }
   }
   
-  def withDatabase[B](f: (ODatabaseDocumentTx) => Try[B] ): Try[B] = {
+  def withDatabase[B](f: (ODatabaseDocument) => Try[B] ): Try[B] = {
     TryWithResource(dbPool.acquire()) { db =>
       f(db).get
     }

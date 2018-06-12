@@ -1,4 +1,4 @@
-package com.convergencelabs.server.datastore
+package com.convergencelabs.server.datastore.convergence
 
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.concurrent.Future
@@ -7,9 +7,10 @@ import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 
-import com.convergencelabs.server.datastore.DomainStoreActor.CreateDomainRequest
-import com.convergencelabs.server.datastore.DomainStoreActor.DeleteDomainsForUserRequest
-import com.convergencelabs.server.datastore.UserStore.User
+import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.datastore.StoreActor
+import com.convergencelabs.server.datastore.convergence.UserStore.User
+import com.convergencelabs.server.util.RandomStringGenerator
 import com.convergencelabs.server.util.concurrent.FutureUtils
 import com.typesafe.config.Config
 
@@ -19,8 +20,9 @@ import akka.actor.Props
 import akka.actor.Status
 import akka.actor.actorRef2Scala
 import akka.util.Timeout
-import akka.pattern.ask
-import com.convergencelabs.server.util.RandomStringGenerator
+import com.convergencelabs.server.datastore.convergence.DomainStoreActor.DeleteDomainsForUserRequest
+import com.convergencelabs.server.datastore.convergence.DomainStoreActor.CreateDomainRequest
+
 
 object ConvergenceUserManagerActor {
   val RelativePath = "ConvergenceUserManagerActor"
@@ -48,6 +50,7 @@ class ConvergenceUserManagerActor private[datastore] (
     with ActorLogging {
   
   import ConvergenceUserManagerActor._
+  import akka.pattern.ask
 
   // FIXME: Read this from configuration
   private[this] implicit val requstTimeout = Timeout(2 seconds)

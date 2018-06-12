@@ -4,17 +4,19 @@ import java.util.{ List => JavaList }
 
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.collection.mutable.Buffer
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
 import com.orientechnologies.orient.core.command.script.OCommandScript
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.index.OIndex
+import com.orientechnologies.orient.core.record.OElement
 import com.orientechnologies.orient.core.record.impl.ODocument
-import com.orientechnologies.orient.core.sql.OCommandSQL
+import com.orientechnologies.orient.core.sql.executor.OResultSet
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 
 import grizzled.slf4j.Logging
@@ -22,13 +24,13 @@ import grizzled.slf4j.Logging
 object QueryUtil extends Logging {
   private[this] val MultipleElementsMessage = "Only exepected one element in the result list, but more than one returned."
 
-  def getFromIndex(indexName: String, key: Any, db: ODatabaseDocumentTx): Option[ODocument] = {
+  def getFromIndex(indexName: String, key: Any, db: ODatabaseDocument): Option[ODocument] = {
     val index = db.getMetadata.getIndexManager.getIndex(indexName).asInstanceOf[OIndex[OIdentifiable]]
     val oid: OIdentifiable = index.get(key)
     Option(oid) map { _.getRecord.asInstanceOf[ODocument] }
   }
 
-  def getRidFromIndex(indexName: String, key: Any, db: ODatabaseDocumentTx): Try[ORID] = {
+  def getRidFromIndex(indexName: String, key: Any, db: ODatabaseDocument): Try[ORID] = {
     Try {
       getOptionalRidFromIndex(indexName, key, db).getOrElse {
         throw EntityNotFoundException(entityId = Some(key))
@@ -36,22 +38,32 @@ object QueryUtil extends Logging {
     }
   }
 
-  def getOptionalRidFromIndex(indexName: String, key: Any, db: ODatabaseDocumentTx): Option[ORID] = {
+  def getOptionalRidFromIndex(indexName: String, key: Any, db: ODatabaseDocument): Option[ORID] = {
     val index = db.getMetadata.getIndexManager.getIndex(indexName).asInstanceOf[OIndex[OIdentifiable]]
     val oid: OIdentifiable = index.get(key)
     Option(oid) map { o => o.getIdentity }
   }
 
-  def query(q: String, p: Map[String, Any], db: ODatabaseDocumentTx): List[ODocument] = {
-    val query = new OSQLSynchQuery[ODocument](q)
-    val result: JavaList[ODocument] = db.command(query).execute(p.asJava)
-    result.asScala.toList
+  def query(q: String, p: Map[String, Any], db: ODatabaseDocument): List[ODocument] = {
+    val rs = db.command(q, p.asJava)
+    this.resultSetToList(rs)
+  }
+  
+  def resultSetToList(rs: OResultSet): List[ODocument] = {
+    val docs = Buffer[ODocument]()
+    while (rs.hasNext()) {
+      docs += rs.next.toElement.asInstanceOf[ODocument]
+    }
+    
+    rs.close();
+    
+    docs.toList
   }
 
-  def hasResults(q: String, p: Map[String, Any], db: ODatabaseDocumentTx): Boolean = {
+  def hasResults(q: String, p: Map[String, Any], db: ODatabaseDocument): Boolean = {
     val query = new OSQLSynchQuery[ODocument](q)
-    val result: JavaList[ODocument] = db.command(query).execute(p.asJava)
-    !result.isEmpty
+    val resultSet =  db.command(q, p.asJava)
+    !resultSetToList(resultSet).isEmpty
   }
 
   def buildPagedQuery(baseQuery: String, limit: Option[Int], offset: Option[Int]): String = {
@@ -66,7 +78,11 @@ object QueryUtil extends Logging {
   }
 
   def enforceSingletonResultList[T](list: JavaList[T]): Option[T] = {
-    list.asScala.toList match {
+    this.enforceSingletonResultList(list.asScala.toList)
+  }
+  
+  def enforceSingletonResultList[T](list: List[T]): Option[T] = {
+    list match {
       case first :: Nil =>
         Some(first)
       case first :: rest =>
@@ -93,21 +109,21 @@ object QueryUtil extends Logging {
     }
   }
 
-  def lookupMandatoryDocument(query: String, params: Map[String, Any], db: ODatabaseDocumentTx): Try[ODocument] = {
-    val q = new OSQLSynchQuery[ODocument](query)
-    val results = db.command(q).execute(params.asJava).asInstanceOf[JavaList[ODocument]]
-    QueryUtil.enforceSingleResult(results)
+  def lookupMandatoryDocument(query: String, params: Map[String, Any], db: ODatabaseDocument): Try[ODocument] = {
+    val rs = db.query(query, params.asJava)
+    val resultList = resultSetToList(rs)
+    QueryUtil.enforceSingleResult(resultList)
   }
 
-  def lookupOptionalDocument(query: String, params: Map[String, Any], db: ODatabaseDocumentTx): Option[ODocument] = {
-    val q = new OSQLSynchQuery[ODocument](query)
-    val results: JavaList[ODocument] = db.command(q).execute(params.asJava)
-    QueryUtil.enforceSingletonResultList(results)
+  def lookupOptionalDocument(query: String, params: Map[String, Any], db: ODatabaseDocument): Option[ODocument] = {
+    val rs = db.query(query, params.asJava)
+    val resultList = resultSetToList(rs)
+    QueryUtil.enforceSingletonResultList(resultList)
   }
   
-  def updateSingleDoc(query: String, params: Map[String, Any], db: ODatabaseDocumentTx): Try[Unit] = {
-    val q = new OCommandSQL(query)
-    val count: Int = db.command(q).execute(params.asJava)
+  def updateSingleDoc(query: String, params: Map[String, Any], db: ODatabaseDocument): Try[Unit] = {
+    val rs: OResultSet = db.command(query, params.asJava)
+    val count = 1
     count match {
       case 0 =>
         Failure(EntityNotFoundException())
@@ -118,9 +134,10 @@ object QueryUtil extends Logging {
     }
   }
   
-  def updateSingleDocWithScript(query: String, params: Map[String, Any], db: ODatabaseDocumentTx): Try[Unit] = {
-    val q = new OCommandScript(query)
-    val count: Int = db.command(q).execute(params.asJava)
+  def updateSingleDocWithScript(query: String, params: Map[String, Any], db: ODatabaseDocument): Try[Unit] = {
+    val q = new OCommandScript()
+    val rs: OResultSet = db.command(query, params.asJava)
+    val count = 1
     count match {
       case 0 =>
         Failure(EntityNotFoundException())
@@ -131,15 +148,14 @@ object QueryUtil extends Logging {
     }
   }
   
-  def command(query: String, params: Map[String, Any], db: ODatabaseDocumentTx): Try[Int] = Try {
-    val q = new OCommandSQL(query)
-    val count: Int = db.command(q).execute(params.asJava)
-    count
+  def command(query: String, params: Map[String, Any], db: ODatabaseDocument): Try[Int] = Try {
+    val result: OResultSet = db.command(query, params.asJava)
+    1
   }
   
-  def commandScript(command: String, params: Map[String, Any], db: ODatabaseDocumentTx): Try[Unit] = Try {
-    val q = new OCommandScript("sql", command)
-    db.command(q).execute(params.asJava)
+  def commandScript(command: String, params: Map[String, Any], db: ODatabaseDocument): Try[Unit] = Try {
+    db.execute("sql", command, params.asJava)
+    ()
   }
 
   def mapSingletonList[T, L](list: JavaList[L])(m: L => T): Option[T] = {

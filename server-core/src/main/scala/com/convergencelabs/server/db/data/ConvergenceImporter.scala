@@ -10,7 +10,7 @@ import scala.util.Try
 
 import com.convergencelabs.server.datastore.UserStore.User
 import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.DomainStore
+import com.convergencelabs.server.datastore.convergnece.DomainStore
 import com.convergencelabs.server.datastore.DomainStoreActor.CreateDomainRequest
 import com.convergencelabs.server.datastore.UserStore
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider

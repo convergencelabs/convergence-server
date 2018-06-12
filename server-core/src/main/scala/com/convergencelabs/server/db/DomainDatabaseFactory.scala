@@ -3,13 +3,14 @@ package com.convergencelabs.server.datastore
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-
 import com.convergencelabs.server.domain.DomainDatabase
 import com.convergencelabs.server.domain.DomainFqn
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
+import com.convergencelabs.server.datastore.convergence.DomainDatabaseStore
+import com.convergencelabs.server.datastore.convergence.DomainStore
 
 object DomainDatabaseFactory {
   val DBDomainIdIndex = "Domain.namespace_id"
@@ -17,13 +18,15 @@ object DomainDatabaseFactory {
 
 class DomainDatabaseFactory(url: String, convergenceDbProvider: DatabaseProvider) {
 
+  val orientDb = new Orie
   val domainDatabaseStore = new DomainDatabaseStore(convergenceDbProvider)
 
-  def getDomainAdminDatabase(fqn: DomainFqn): Try[ODatabaseDocumentTx] = {
+  def getDomainAdminDatabase(fqn: DomainFqn): Try[ODatabaseDocument] = {
     getDomainInfo(fqn) map {
       domainInfo =>
-        def db = new ODatabaseDocumentTx(s"${url}/${domainInfo.database}")
-        db.open(domainInfo.adminUsername, domainInfo.adminPassword).asInstanceOf[ODatabaseDocumentTx]
+        
+        def db = new ODatabaseDocument(s"${url}/${domainInfo.database}")
+        db.open(domainInfo.adminUsername, domainInfo.adminPassword).asInstanceOf[ODatabaseDocument]
     }
   }
 
@@ -34,10 +37,10 @@ class DomainDatabaseFactory(url: String, convergenceDbProvider: DatabaseProvider
     }
   }
 
-  def getDomainDatabase(fqn: DomainFqn): Try[ODatabaseDocumentTx] = {
+  def getDomainDatabase(fqn: DomainFqn): Try[ODatabaseDocument] = {
     getDomainInfo(fqn) map {
       domainInfo =>
-        new ODatabaseDocumentTx(s"${url}/${domainInfo.database}").open(domainInfo.username, domainInfo.password)
+        new ODatabaseDocument(s"${url}/${domainInfo.database}").open(domainInfo.username, domainInfo.password)
     }
   }
 

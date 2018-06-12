@@ -87,12 +87,13 @@ class ModelOperationStore private[domain] (dbProvider: DatabaseProvider)
 
     val query = new OSQLSynchQuery[ODocument](queryString)
     val params = Map(ModelId -> id)
-    val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
-
-    result.asScala.toList match {
-      case doc :: Nil => Option(doc.field("max", OType.LONG))
-      case _ => None
-    }
+//    val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
+//
+//    result.asScala.toList match {
+//      case doc :: Nil => Option(doc.field("max", OType.LONG))
+//      case _ => None
+//    }
+    ???
   }
 
   def getVersionAtOrBeforeTime(id: String, time: Instant): Try[Option[Long]] = tryWithDb { db =>
@@ -105,11 +106,12 @@ class ModelOperationStore private[domain] (dbProvider: DatabaseProvider)
 
     val query = new OSQLSynchQuery[ODocument](queryString)
     val params = Map(ModelId -> id, "time" -> new java.util.Date(time.toEpochMilli()))
-    val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
-    result.asScala.toList match {
-      case doc :: rest => Option(doc.field("max", OType.LONG))
-      case Nil => None
-    }
+//    val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
+//    result.asScala.toList match {
+//      case doc :: rest => Option(doc.field("max", OType.LONG))
+//      case Nil => None
+//    }
+    ???
   }
   
   def getModelOperation(id: String, version: Long): Try[Option[ModelOperation]] = tryWithDb { db =>
@@ -134,8 +136,9 @@ class ModelOperationStore private[domain] (dbProvider: DatabaseProvider)
 
     val query = new OSQLSynchQuery[ODocument](queryString)
     val params = Map(ModelId -> id, "version" -> version)
-    val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
-    result.asScala.toList map { ModelOperationStore.docToModelOperation(_) }
+//    val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
+//    result.asScala.toList map { ModelOperationStore.docToModelOperation(_) }
+    ???
   }
 
   def getOperationsAfterVersion(id: String, version: Long, limit: Int): Try[List[ModelOperation]] = tryWithDb { db =>
@@ -152,8 +155,9 @@ class ModelOperationStore private[domain] (dbProvider: DatabaseProvider)
       ModelId -> id,
       "version" -> version,
       "limit" -> limit)
-    val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
-    result.asScala.toList map { ModelOperationStore.docToModelOperation(_) }
+//    val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
+//    result.asScala.toList map { ModelOperationStore.docToModelOperation(_) }
+      ???
   }
 
   def getOperationsInVersionRange(id: String, firstVersion: Long, lastVersion: Long): Try[List[ModelOperation]] = tryWithDb { db =>
@@ -171,8 +175,9 @@ class ModelOperationStore private[domain] (dbProvider: DatabaseProvider)
       ModelId -> id,
       "firstVersion" -> firstVersion,
       "lastVersion" -> lastVersion)
-    val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
-    result.asScala.toList map { ModelOperationStore.docToModelOperation(_) }
+//    val result: java.util.List[ODocument] = db.command(query).execute(params.asJava)
+//    result.asScala.toList map { ModelOperationStore.docToModelOperation(_) }
+      ???
   }
 
   def deleteAllOperationsForModel(id: String): Try[Unit] = tryWithDb { db =>
@@ -183,7 +188,7 @@ class ModelOperationStore private[domain] (dbProvider: DatabaseProvider)
 
     val params = Map(ModelId -> id)
     val command = new OCommandSQL(commandString)
-    db.command(command).execute(params.asJava)
+//    db.command(command).execute(params.asJava)
     ()
   }
 
@@ -195,7 +200,7 @@ class ModelOperationStore private[domain] (dbProvider: DatabaseProvider)
 
     val params = Map(CollectionId -> collectionId)
     val command = new OCommandSQL(commandString)
-    db.command(command).execute(params.asJava)
+    //db.command(command).execute(params.asJava)
     ()
   }
 

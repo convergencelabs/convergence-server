@@ -7,13 +7,13 @@ import scala.util.Try
 
 import org.apache.commons.lang3.exception.ExceptionUtils
 
-import com.convergencelabs.server.datastore.DeltaHistoryStore
+import com.convergencelabs.server.datastore.convergnece.DeltaHistoryStore
 import com.convergencelabs.server.domain.DomainFqn
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.datastore.DomainDeltaHistory
-import com.convergencelabs.server.datastore.DomainDelta
+import com.convergencelabs.server.datastore.convergnece.DomainDeltaHistory
+import com.convergencelabs.server.datastore.convergnece.DomainDelta
 
 class DomainSchemaManager(
   domainFqn: DomainFqn,

@@ -8,7 +8,7 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
-import com.convergencelabs.server.datastore.DomainDatabaseStore
+import com.convergencelabs.server.datastore.convergnece.DomainDatabaseStore
 import com.convergencelabs.server.domain.DomainFqn
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 

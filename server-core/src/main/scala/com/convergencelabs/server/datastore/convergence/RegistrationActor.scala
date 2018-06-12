@@ -1,4 +1,4 @@
-package com.convergencelabs.server.datastore
+package com.convergencelabs.server.datastore.convergence
 
 import java.net.URLEncoder
 
@@ -8,13 +8,6 @@ import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.CreateConvergenceUserRequest
-import com.convergencelabs.server.datastore.RegistrationActor.ApproveRegistration
-import com.convergencelabs.server.datastore.RegistrationActor.RegisterUser
-import com.convergencelabs.server.datastore.RegistrationActor.RegistrationInfo
-import com.convergencelabs.server.datastore.RegistrationActor.RegistrationInfoRequest
-import com.convergencelabs.server.datastore.RegistrationActor.RejectRegistration
-import com.convergencelabs.server.datastore.RegistrationActor.RequestRegistration
 import com.convergencelabs.server.util.EmailUtilities
 import com.convergencelabs.templates
 import com.typesafe.config.Config
@@ -33,6 +26,11 @@ import akka.stream.ActorMaterializerSettings
 import akka.http.scaladsl.model.HttpMethod
 import akka.http.scaladsl.model.HttpMethods
 import scala.xml.Utility
+import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.datastore.StoreActor
+import com.convergencelabs.server.datastore.ZohoUtility
+import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.CreateConvergenceUserRequest
+import com.convergencelabs.server.datastore.EntityNotFoundException
 
 object RegistrationActor {
   val RelativePath = "RegistrationActor"
@@ -49,6 +47,8 @@ object RegistrationActor {
 
 class RegistrationActor private[datastore] (dbProvider: DatabaseProvider, userManager: ActorRef) extends StoreActor with ActorLogging {
 
+  import RegistrationActor._
+  
   // FIXME: Read this from configuration
   private[this] implicit val requstTimeout = Timeout(15 seconds)
   private[this] implicit val exectionContext = context.dispatcher

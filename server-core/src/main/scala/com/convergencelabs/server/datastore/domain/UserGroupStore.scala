@@ -82,13 +82,14 @@ class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProv
   def deleteUserGroup(id: String): Try[Unit] = tryWithDb { db =>
     val command = new OCommandSQL("DELETE FROM UserGroup WHERE id = :id")
     val params = Map("id" -> id)
-    val count: Int = db.command(command).execute(params.asJava)
-    count match {
-      case 0 =>
-        throw EntityNotFoundException()
-      case _ =>
-        ()
-    }
+//    val count: Int = db.command(command).execute(params.asJava)
+//    count match {
+//      case 0 =>
+//        throw EntityNotFoundException()
+//      case _ =>
+//        ()
+//    }
+    ???
   }
 
   def updateUserGroupInfo(currentId: String, info: UserGroupInfo): Try[Unit] = tryWithDb { db =>

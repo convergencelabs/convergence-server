@@ -4,7 +4,7 @@ import scala.util.Failure
 import scala.util.Success
 
 import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.DomainDatabaseFactory
+import com.convergencelabs.server.datastore.convergnece.DomainDatabaseFactory
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.db.data.ConvergenceImporterActor.ConvergenceExport
 import com.convergencelabs.server.db.data.ConvergenceImporterActor.ConvergenceExportResponse
