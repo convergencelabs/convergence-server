@@ -63,8 +63,8 @@ object OrientDBUtil {
     TryWithResource(rs)(resultSetToDocList(_)) flatMap (assertZeroOrOneDoc(_))
   }
 
-  def mutateOneDocument(db: ODatabaseDocument, query: String, params: Map[String, Any] = Map()): Try[Unit] = {
-    val rs: OResultSet = db.command(query, params.asJava)
+  def mutateOneDocument(db: ODatabaseDocument, command: String, params: Map[String, Any] = Map()): Try[Unit] = {
+    val rs: OResultSet = db.command(command, params.asJava)
     TryWithResource(rs)(assertOneMutatedDoc(_))
   }
 

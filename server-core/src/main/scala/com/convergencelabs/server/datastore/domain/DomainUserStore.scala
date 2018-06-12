@@ -14,7 +14,6 @@ import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.EntityNotFoundException
-import com.convergencelabs.server.datastore.QueryUtil
 import com.convergencelabs.server.datastore.SortOrder
 import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateNormalDomainUser
 import com.convergencelabs.server.datastore.domain.DomainUserStore.UpdateDomainUser
@@ -32,14 +31,9 @@ import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.datastore.OrientDBUtil
 
 object DomainUserStore {
-
-  val ClassName = "User"
-
-  val UsernameIndex = "User.username"
-  val EmailIndex = "User.email"
-  val ReconnectTokenIndex = "UserReconnectToken.token"
 
   val AdminUserPrefeix = "admin:"
   val AnonymousUserPrefeix = "anonymous:"
@@ -56,18 +50,18 @@ object DomainUserStore {
   }
 
   case class CreateNormalDomainUser(
-    username:    String,
-    firstName:   Option[String],
-    lastName:    Option[String],
+    username: String,
+    firstName: Option[String],
+    lastName: Option[String],
     displayName: Option[String],
-    email:       Option[String])
+    email: Option[String])
 
   case class UpdateDomainUser(
-    username:    String,
-    firstName:   Option[String],
-    lastName:    Option[String],
+    username: String,
+    firstName: Option[String],
+    lastName: Option[String],
     displayName: Option[String],
-    email:       Option[String])
+    email: Option[String])
 
   def adminUsername(convergneceUsername: String): String = {
     AdminUserPrefeix + convergneceUsername
@@ -78,32 +72,35 @@ object DomainUserStore {
   }
 
   def getUserRid(username: String, db: ODatabaseDocument): Try[ORID] = {
-    val query = "SELECT @RID as rid FROM User WHERE username = :username"
-    val params = Map("username" -> username)
-    QueryUtil.lookupMandatoryDocument(query, params, db) map { _.eval("rid").asInstanceOf[ORID] }
+    OrientDBUtil.getIdentityFromSingleValueIndex(db, Schema.Classes.User.Indices.Username, username)
   }
 
   def domainUserToDoc(obj: DomainUser): ODocument = {
-    val doc = new ODocument(ClassName)
-    doc.field(Fields.UserType, obj.userType.toString.toLowerCase)
-    doc.field(Fields.Username, obj.username)
-    obj.firstName.map { doc.field(Fields.FirstName, _) }
-    obj.lastName.map { doc.field(Fields.LastName, _) }
-    obj.displayName.map { doc.field(Fields.DisplayName, _) }
-    obj.email.map { doc.field(Fields.Email, _) }
+    val doc = new ODocument(Schema.Classes.User.Class)
+    doc.setProperty(Fields.UserType, obj.userType.toString.toLowerCase)
+    doc.setProperty(Fields.Username, obj.username)
+    obj.firstName.map(doc.setProperty(Fields.FirstName, _))
+    obj.lastName.map(doc.setProperty(Fields.LastName, _))
+    obj.displayName.map(doc.setProperty(Fields.DisplayName, _))
+    obj.email.map(doc.setProperty(Fields.Email, _))
     doc
   }
 
   def docToDomainUser(doc: ODocument): DomainUser = {
     DomainUser(
-      DomainUserType.withNameOpt(doc.field(Fields.UserType)).get,
-      doc.field(Fields.Username),
-      Option(doc.field(Fields.FirstName)),
-      Option(doc.field(Fields.LastName)),
-      Option(doc.field(Fields.DisplayName)),
-      Option(doc.field(Fields.Email)))
+      DomainUserType.withNameOpt(doc.getProperty(Fields.UserType)).get,
+      doc.getProperty(Fields.Username),
+      Option(doc.getProperty(Fields.FirstName)),
+      Option(doc.getProperty(Fields.LastName)),
+      Option(doc.getProperty(Fields.DisplayName)),
+      Option(doc.getProperty(Fields.Email)))
   }
 }
+
+// FIXME there is some odd things in this class around how we search for things using
+// normal / non normal users. It's not consistent. For example could a non-normal
+// user have the same email as a normal one. Are we assuming user names are alway
+// unique because we prefix the ones that are not? etc/
 
 /**
  * Manages the persistence of Domain Users.  This class manages both user profile records
@@ -130,7 +127,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
 
   // TODO make this configurable.
   val reconnectTokenDuration = Duration.ofHours(24)
-  
+
   val reconnectTokenGenerator = new RandomStringGenerator(32)
 
   /**
@@ -196,26 +193,17 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
     db.save(userDoc)
 
     domainUser.username
-  } recoverWith {
-    case e: ORecordDuplicatedException => handleDuplicateValue(e)
-  }
+  } recoverWith (handleDuplicateValue)
 
   /**
    * Deletes a single domain user by uid.
    *
    * @param the uid of the user to delete.
    */
-  def deleteDomainUser(username: String): Try[Unit] = tryWithDb { db =>
-    val command = new OCommandSQL("DELETE FROM User WHERE username = :username AND userType = 'normal'")
+  def deleteDomainUser(username: String): Try[Unit] = withDb { db =>
+    val command = "DELETE FROM User WHERE username = :username AND userType = 'normal'"
     val params = Map(Username -> username)
-//    val count: Int = db.command(command).execute(params.asJava)
-//    count match {
-//      case 0 =>
-//        throw EntityNotFoundException()
-//      case _ =>
-//        ()
-//    }
-    ???
+    OrientDBUtil.mutateOneDocument(db, command, params)
   }
 
   /**
@@ -224,28 +212,18 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
    *
    * @param domainUser The user to update.
    */
-  def updateDomainUser(update: UpdateDomainUser): Try[Unit] = tryWithDb { db =>
-//    val UpdateDomainUser(username, firstName, lastName, displayName, email) = update;
-//    val domainUser = DomainUser(DomainUserType.Normal, username, firstName, lastName, displayName, email)
-//
-//    val updatedDoc = DomainUserStore.domainUserToDoc(domainUser)
-//
-//    val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username = :username AND userType = 'normal'")
-//    val params = Map(Username -> domainUser.username)
-//    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-//
-//    QueryUtil.enforceSingletonResultList(result) match {
-//      case Some(doc) =>
-//        doc.merge(updatedDoc, false, false)
-//        db.save(doc)
-//        ()
-//      case None =>
-//        throw EntityNotFoundException()
-//    }
-    ???
-  } recoverWith {
-    case e: ORecordDuplicatedException => handleDuplicateValue(e)
-  }
+  def updateDomainUser(update: UpdateDomainUser): Try[Unit] = withDb { db =>
+    val UpdateDomainUser(username, firstName, lastName, displayName, email) = update;
+    val domainUser = DomainUser(DomainUserType.Normal, username, firstName, lastName, displayName, email)
+
+    val query = "SELECT FROM User WHERE username = :username AND userType = 'normal'"
+    val params = Map(Username -> domainUser.username)
+    OrientDBUtil.getDocument(db, query, params).map { doc =>
+      val updatedDoc = DomainUserStore.domainUserToDoc(domainUser)
+      doc.merge(updatedDoc, false, false)
+      db.save(doc)
+    }
+  } recoverWith (handleDuplicateValue)
 
   /**
    * Gets a single domain user by username.
@@ -254,12 +232,10 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
    *
    * @return Some(DomainUser) if a user with the specified username exists, or None if no such user exists.
    */
-  def getDomainUserByUsername(username: String): Try[Option[DomainUser]] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username = :username")
-    val params = Map(Username -> username)
-//    val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
-//    QueryUtil.mapSingletonList(results) { DomainUserStore.docToDomainUser(_) }
-    ???
+  def getDomainUserByUsername(username: String): Try[Option[DomainUser]] = withDb { db =>
+    OrientDBUtil
+      .findDocumentFromSingleValueIndex(db, Schema.Classes.User.Indices.Username, username)
+      .map(_.map(DomainUserStore.docToDomainUser(_)))
   }
 
   /**
@@ -269,12 +245,12 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
    *
    * @return A list of users matching the list of supplied usernames.
    */
-  def getDomainUsersByUsername(usernames: List[String]): Try[List[DomainUser]] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username in :usernames")
+  def getDomainUsersByUsername(usernames: List[String]): Try[List[DomainUser]] = withDb { db =>
+    val query = "SELECT FROM User WHERE username in :usernames"
     val params = Map("usernames" -> usernames.asJava)
-//    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-//    result.asScala.toList.map { DomainUserStore.docToDomainUser(_) }
-    ???
+    OrientDBUtil
+      .query(db, query, params)
+      .map(_.map(DomainUserStore.docToDomainUser(_)))
   }
 
   /**
@@ -284,12 +260,13 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
    *
    * @return Some(DomainUser) if a user with the specified email exists, or None if no such user exists.
    */
-  def getDomainUserByEmail(email: String): Try[Option[DomainUser]] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE email = :email AND userType = 'normal'")
+  def getDomainUserByEmail(email: String): Try[Option[DomainUser]] = withDb { db =>
+    // FIXME do we need to check for normal here?
+    val query = "SELECT FROM User WHERE email = :email AND userType = 'normal'"
     val params = Map("email" -> email)
-//    val results: JavaList[ODocument] = db.command(query).execute(params.asJava)
-//    QueryUtil.mapSingletonList(results) { DomainUserStore.docToDomainUser(_) }
-    ???
+    OrientDBUtil
+      .findDocument(db, query, params)
+      .map(_.map(DomainUserStore.docToDomainUser(_)))
   }
 
   /**
@@ -299,12 +276,12 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
    *
    * @return A list of users matching the list of supplied emails.
    */
-  def getDomainUsersByEmail(emails: List[String]): Try[List[DomainUser]] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE email in :emails AND userType = 'normal'")
+  def getDomainUsersByEmail(emails: List[String]): Try[List[DomainUser]] = withDb { db =>
+    val query = "SELECT FROM User WHERE email in :emails AND userType = 'normal'"
     val params = Map("emails" -> emails.asJava)
-//    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-//    result.asScala.toList.map { DomainUserStore.docToDomainUser(_) }
-    ???
+    OrientDBUtil
+      .query(db, query, params)
+      .map(_.map(DomainUserStore.docToDomainUser(_)))
   }
 
   /**
@@ -322,15 +299,12 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
     this.userExists(DomainUserStore.adminUsername(username), DomainUserType.Admin)
   }
 
-  private[this] def userExists(username: String, userType: DomainUserType.Value): Try[Boolean] = tryWithDb { db =>
-    val query = new OSQLSynchQuery[ODocument]("SELECT FROM User WHERE username = :username AND userType = :userType")
+  private[this] def userExists(username: String, userType: DomainUserType.Value): Try[Boolean] = withDb { db =>
+    val query = "SELECT FROM User WHERE username = :username AND userType = :userType"
     val params = Map(Username -> username, UserType -> userType.toString.toLowerCase)
-//    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-//    result.asScala.toList match {
-//      case doc :: Nil => true
-//      case _          => false
-//    }
-    ???
+    OrientDBUtil
+      .query(db, query, params)
+      .map(!_.isEmpty)
   }
 
   /**
@@ -342,28 +316,27 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
    * @param offset The offset into the ordering to start returning entries.  Defaults to 0.
    */
   def getAllDomainUsers(
-    orderBy:   Option[DomainUserField.Field],
+    orderBy: Option[DomainUserField.Field],
     sortOrder: Option[SortOrder.Value],
-    limit:     Option[Int],
-    offset:    Option[Int]): Try[List[DomainUser]] = tryWithDb { db =>
+    limit: Option[Int],
+    offset: Option[Int]): Try[List[DomainUser]] = withDb { db =>
 
     val order = orderBy.getOrElse(DomainUserField.Username)
     val sort = sortOrder.getOrElse(SortOrder.Descending)
     val baseQuery = s"SELECT * FROM User WHERE userType = 'normal' ORDER BY $order $sort"
-//    val query = new OSQLSynchQuery[ODocument](QueryUtil.buildPagedQuery(baseQuery, limit, offset))
-//    val result: JavaList[ODocument] = db.command(query).execute()
-//
-//    result.asScala.toList.map { DomainUserStore.docToDomainUser(_) }
-    ???
+    val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
+    OrientDBUtil
+      .query(db, query)
+      .map(_.map(DomainUserStore.docToDomainUser(_)))
   }
 
   def searchUsersByFields(
-    fields:       List[DomainUserField.Field],
+    fields: List[DomainUserField.Field],
     searchString: String,
-    orderBy:      Option[DomainUserField.Field],
-    sortOrder:    Option[SortOrder.Value],
-    limit:        Option[Int],
-    offset:       Option[Int]): Try[List[DomainUser]] = tryWithDb { db =>
+    orderBy: Option[DomainUserField.Field],
+    sortOrder: Option[SortOrder.Value],
+    limit: Option[Int],
+    offset: Option[Int]): Try[List[DomainUser]] = withDb { db =>
 
     val baseQuery = "SELECT * FROM User"
     val whereTerms = ListBuffer[String]()
@@ -378,41 +351,42 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
     val sort = sortOrder.getOrElse(SortOrder.Descending)
     val orderByClause = s" ORDER BY $order $sort"
 
-    val pagedQuery = QueryUtil.buildPagedQuery(baseQuery + whereClause + orderByClause, limit, offset)
-    val query = new OSQLSynchQuery[ODocument](pagedQuery)
-
-//    val params = Map("searchString" -> ("%" + searchString + "%"))
-//    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-//
-//    result.asScala.toList.map { DomainUserStore.docToDomainUser(_) }
-    ???
+    val query = OrientDBUtil.buildPagedQuery(baseQuery + whereClause + orderByClause, limit, offset)
+    OrientDBUtil
+      .query(db, query)
+      .map(_.map(DomainUserStore.docToDomainUser(_)))
   }
 
   def findUser(
-    search:  String,
+    search: String,
     exclude: List[String],
-    offset:  Int,
-    limit:   Int): Try[List[DomainUser]] = tryWithDb { db =>
+    offset: Int,
+    limit: Int): Try[List[DomainUser]] = withDb { db =>
 
-    var excplicitResults = List[DomainUser]()
+    // This is a bit hacky, there is a more idiomatic way to do this
+    Try {
+      var excplicitResults = List[DomainUser]()
 
-    if (!exclude.contains(search)) {
-      this.getDomainUserByUsername(search).get foreach { user =>
-        excplicitResults = user :: excplicitResults
-      }
-
-      this.getDomainUserByEmail(search).get
-        .filter(!excplicitResults.contains(_))
-        .foreach { user =>
+      if (!exclude.contains(search)) {
+        this.getDomainUserByUsername(search).get foreach { user =>
           excplicitResults = user :: excplicitResults
         }
-    }
 
-    val params = scala.collection.mutable.Map[String, Any](
-      "search" -> ("%" + search + "%"),
-      "exclude" -> exclude.asJava)
+        this.getDomainUserByEmail(search).get
+          .filter(!excplicitResults.contains(_))
+          .foreach { user =>
+            excplicitResults = user :: excplicitResults
+          }
+      }
 
-    val baseQuery = """
+      excplicitResults
+    } flatMap { excplicitResults =>
+
+      val params = scala.collection.mutable.Map[String, Any](
+        "search" -> ("%" + search + "%"),
+        "exclude" -> exclude.asJava)
+
+      val baseQuery = """
       |SELECT *, username.length() as size
       |FROM User
       |WHERE
@@ -423,12 +397,13 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
       |  displayName LIKE :search)
       |ORDER BY size ASC, username ASC""".stripMargin
 
-    val query = QueryUtil.buildPagedQuery(baseQuery, Some(limit - excplicitResults.size), Some(offset))
-    val searched = QueryUtil.query(query, params.toMap, db)
-      .map(DomainUserStore.docToDomainUser(_))
-      .filter(!excplicitResults.contains(_))
-
-    excplicitResults ::: searched
+      val query = OrientDBUtil.buildPagedQuery(baseQuery, Some(limit - excplicitResults.size), Some(offset))
+      OrientDBUtil
+        .query(db, query)
+        .map(_.map(DomainUserStore.docToDomainUser(_)))
+        .filter(!excplicitResults.contains(_))
+        .map(excplicitResults ::: _)
+    }
   }
 
   /**
@@ -447,33 +422,35 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
    * @param username The unique username of the user.
    * @param password The new password to use for internal authentication
    */
-  def setDomainUserPasswordHash(username: String, passwordHash: String): Try[Unit] = tryWithDb { db =>
+  def setDomainUserPasswordHash(username: String, passwordHash: String): Try[Unit] = withDb { db =>
+    // FIXME use index.
     val query = "SELECT @rid as rid FROM User WHERE username = :username AND userType = 'normal'"
     val params = Map(Username -> username)
-    QueryUtil.lookupOptionalDocument(query, params, db) match {
-      case None =>
-        throw new EntityNotFoundException(DomainUserStore.UserDoesNotExistMessage)
-      case Some(ridDoc) =>
+    OrientDBUtil
+      .getDocument(db, query, params)
+      .flatMap { ridDoc =>
         val rid = ridDoc.field("rid").asInstanceOf[ODocument].getIdentity
         val query = "SELECT * FROM UserCredential WHERE user = :user"
         val params = Map("user" -> rid)
-        val doc = QueryUtil.lookupOptionalDocument(query, params, db).getOrElse {
+        OrientDBUtil.findDocument(db, query, params).map(_.getOrElse {
           val newDoc: OElement = db.newInstance("UserCredential")
           newDoc.setProperty("user", rid, OType.LINK)
           newDoc
+        })
+      } flatMap { doc =>
+        Try {
+          doc.setProperty(Password, passwordHash)
+          db.save(doc)
         }
-        doc.setProperty(Password, passwordHash)
-        db.save(doc)
-        ()
-    }
+      }
   }
 
-  def getDomainUserPasswordHash(username: String): Try[Option[String]] = tryWithDb { db =>
+  def getDomainUserPasswordHash(username: String): Try[Option[String]] = withDb { db =>
     val query = "SELECT * FROM UserCredential WHERE user.username = :username AND user.userType = 'normal'"
     val params = Map(Username -> username)
-    QueryUtil.lookupOptionalDocument(query, params, db) flatMap {
-      doc => Option(doc.field(Password))
-    }
+    OrientDBUtil
+      .findDocument(db, query, params)
+      .map(_.flatMap(doc => Option(doc.getProperty(Password))))
   }
 
   /**
@@ -484,110 +461,103 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
    *
    * @return true if the username and password match, false otherwise.
    */
-  def validateCredentials(username: String, password: String): Try[Boolean] = tryWithDb { db =>
+  def validateCredentials(username: String, password: String): Try[Boolean] = withDb { db =>
     val query = "SELECT password FROM UserCredential WHERE user.username = :username AND user.userType = 'normal'"
     val params = Map(Username -> username)
-    QueryUtil.lookupOptionalDocument(query, params, db) match {
-      case Some(doc) =>
-        val storedHash: String = doc.field(Password, OType.STRING)
-        Option(storedHash) match {
-          case Some(hash) =>
-            PasswordUtil.checkPassword(password, hash)
+    OrientDBUtil
+      .findDocument(db, query, params)
+      .map(_.map { doc =>
+        Option(doc.getProperty(Password).asInstanceOf[String])
+          .map(PasswordUtil.checkPassword(password, _))
+          .getOrElse(false)
+      }.getOrElse(false))
+  }
+
+  def createReconnectToken(username: String): Try[String] = withDb { db =>
+    OrientDBUtil
+      .findIdentityFromSingleValueIndex(db, Schema.Classes.User.Indices.Username, username)
+      .flatMap {
+        _ match {
+          case Some(userORID) =>
+            val expiration = Instant.now().plus(reconnectTokenDuration)
+            val token = reconnectTokenGenerator.nextString()
+            val command =
+              """INSERT INTO UserReconnectToken SET
+                |  user = :user,
+                |  token = :token,
+                |  expireTime = :expireTime""".stripMargin
+            val params = Map("user" -> userORID, Token -> token, ExpireTime -> Date.from(expiration))
+            OrientDBUtil
+              .mutateOneDocument(db, command, params)
+              .map(_ => token)
           case None =>
-            false
+            Failure(new EntityNotFoundException(DomainUserStore.UserDoesNotExistMessage))
         }
-      case None =>
-        false
-    }
-  }
-
-  def createReconnectToken(username: String): Try[String] = tryWithDb { db =>
-    val index = db.getMetadata.getIndexManager.getIndex(UsernameIndex)
-    if (index.contains(username)) {
-      val userORID = index.get(username).asInstanceOf[OIdentifiable].getIdentity
-      val expiration = Instant.now().plus(reconnectTokenDuration)
-      val token = reconnectTokenGenerator.nextString()
-      val queryString =
-        """INSERT INTO UserReconnectToken SET
-        |  user = :user,
-        |  token = :token,
-        |  expireTime = :expireTime""".stripMargin
-      val query = new OCommandSQL(queryString)
-      val params = Map("user" -> userORID, Token -> token, ExpireTime -> Date.from(expiration))
-//      db.command(query).execute(params.asJava)
-//      token
-      ???
-    } else {
-      throw new EntityNotFoundException(DomainUserStore.UserDoesNotExistMessage)
-    }
-
-  }
-
-  def removeReconnectToken(token: String): Try[Unit] = tryWithDb { db =>
-    val queryString = "DELETE FROM UserReconnectToken WHERE token = :token"
-    val query = new OCommandSQL(queryString)
-    val params = Map(Token -> token)
-//    db.command(query).execute(params.asJava)
-    Unit
-  }
-
-  def validateReconnectToken(token: String): Try[Option[String]] = tryWithDb { db =>
-    val index = db.getMetadata.getIndexManager.getIndex(ReconnectTokenIndex)
-    if (index.contains(token)) {
-      val record: ODocument = index.get(token).asInstanceOf[OIdentifiable].getRecord[ODocument]
-      val expireTime: Date = record.field(ExpireTime, OType.DATETIME)
-      val expireInstant: Instant = expireTime.toInstant()
-      if (Instant.now().isBefore(expireInstant)) {
-        val username: String = record.field("user.username")
-        val newExpiration = Instant.now().plus(reconnectTokenDuration)
-        record.field(ExpireTime, Date.from(newExpiration)).save()
-        Some(username)
-      } else {
-        None
       }
-    } else {
-      None
-    }
   }
 
-  def setLastLogin(username: String, userType: DomainUserType.Value, instant: Instant): Try[Unit] = tryWithDb { db =>
-    getUserRecord(username).map { record =>
-      record.field(LastLogin, Date.from(instant)).save()
-      Unit
-    }
+  def removeReconnectToken(token: String): Try[Unit] = withDb { db =>
+    val command = "DELETE FROM UserReconnectToken WHERE token = :token"
+    val params = Map(Token -> token)
+    OrientDBUtil.mutateOneDocument(db, command, params)
   }
 
-  def getNormalUserCount(): Try[Long] = tryWithDb { db =>
+  def validateReconnectToken(token: String): Try[Option[String]] = withDb { db =>
+    OrientDBUtil
+      .findDocumentFromSingleValueIndex(db, Schema.Classes.UserReconnectToken.Indices.Token, token)
+      .map(_.flatMap { record =>
+        val expireTime: Date = record.getProperty(ExpireTime)
+        val expireInstant: Instant = expireTime.toInstant()
+        if (Instant.now().isBefore(expireInstant)) {
+          val username: String = record.field("user.username")
+          val newExpiration = Instant.now().plus(reconnectTokenDuration)
+          record.field(ExpireTime, Date.from(newExpiration)).save()
+          Some(username)
+        } else {
+          None
+        }
+      })
+  }
+
+  def setLastLogin(username: String, userType: DomainUserType.Value, instant: Instant): Try[Unit] = withDb { db =>
+    OrientDBUtil
+      .getDocumentFromSingleValueIndex(db, Schema.Classes.User.Indices.Username, username)
+      .flatMap { record =>
+        Try {
+          record.field(LastLogin, Date.from(instant)).save()
+          ()
+        }
+      }
+  }
+
+  def getNormalUserCount(): Try[Long] = withDb { db =>
     val query = "SELECT count(username) as count FROM User WHERE userType = 'normal'"
-    QueryUtil.lookupMandatoryDocument(query, Map(), db).map { _.field("count").asInstanceOf[Long] }.get
+    OrientDBUtil
+      .getDocument(db, query)
+      .map(_.field("count").asInstanceOf[Long])
   }
 
-  def nextAnonymousUsername: Try[String] = tryWithDb { db =>
+  def nextAnonymousUsername: Try[String] = withDb { db =>
+    // FIXME this does not seem to work.
     //val seq = db.getMetadata().getSequenceLibrary().getSequence(AnonymousUsernameSeq)
     //val next = seq.next()
     val query = "SELECT sequence('anonymousUsernameSeq').next() as next"
-    val next = QueryUtil.lookupMandatoryDocument(query, Map(), db).map { _.field("next").asInstanceOf[Long] }.get
-    JavaLong.toString(next, 36)
+    OrientDBUtil
+      .getDocument(db, query)
+      .map(_.field("next").asInstanceOf[Long])
+      .map(JavaLong.toString(_, 36))
   }
 
-  private[this] def handleDuplicateValue[T](e: ORecordDuplicatedException): Try[T] = {
-    e.getIndexName match {
-      case DomainUserStore.UsernameIndex =>
-        Failure(DuplicateValueException(DomainUserStore.Fields.Username))
-      case DomainUserStore.EmailIndex =>
-        Failure(DuplicateValueException(DomainUserStore.Fields.Email))
-      case _ =>
-        Failure(e)
-    }
-  }
-
-  private[this] def getUserRecord(username: String): Try[ODocument] = tryWithDb { db =>
-    val index = db.getMetadata.getIndexManager.getIndex(UsernameIndex)
-    if (index.contains(username)) {
-      index.get(username).asInstanceOf[OIdentifiable].getRecord[ODocument]
-    } else {
-      throw new EntityNotFoundException(DomainUserStore.UserDoesNotExistMessage)
-    }
+  private[this] def handleDuplicateValue[T](): PartialFunction[Throwable, Try[T]] = {
+    case e: ORecordDuplicatedException =>
+      e.getIndexName match {
+        case Schema.Classes.User.Indices.Username =>
+          Failure(DuplicateValueException(DomainUserStore.Fields.Username))
+        case Schema.Classes.User.Indices.Email =>
+          Failure(DuplicateValueException(DomainUserStore.Fields.Email))
+        case _ =>
+          Failure(e)
+      }
   }
 }
 

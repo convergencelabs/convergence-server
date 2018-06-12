@@ -8,7 +8,6 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
-import com.convergencelabs.server.datastore.convergnece.DomainDatabaseStore
 import com.convergencelabs.server.domain.DomainFqn
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 
@@ -24,6 +23,7 @@ import akka.pattern.Patterns
 import akka.util.Timeout
 import com.convergencelabs.server.datastore.DatabaseProvider
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.datastore.convergence.DomainDatabaseStore
 
 trait DomainPersistenceManager {
   def acquirePersistenceProvider(requestor: ActorRef, context: ActorContext, domainFqn: DomainFqn): Try[DomainPersistenceProvider]
