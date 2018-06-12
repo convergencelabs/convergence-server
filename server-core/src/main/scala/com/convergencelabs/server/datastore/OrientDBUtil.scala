@@ -53,22 +53,22 @@ object OrientDBUtil {
     TryWithResource(db.execute("sql", query, params.asJava))(resultSetToDocList(_))
   }
 
-  def getDocument(db: ODatabaseDocument, query: String, params: Map[String, Any]): Try[ODocument] = {
+  def getDocument(db: ODatabaseDocument, query: String, params: Map[String, Any] = Map()): Try[ODocument] = {
     val rs = db.query(query, params.asJava)
     TryWithResource(rs)(resultSetToDocList(_)) flatMap (assertOneDoc(_))
   }
 
-  def findDocument(db: ODatabaseDocument, query: String, params: Map[String, Any]): Try[Option[ODocument]] = {
+  def findDocument(db: ODatabaseDocument, query: String, params: Map[String, Any] = Map()): Try[Option[ODocument]] = {
     val rs = db.query(query, params.asJava)
     TryWithResource(rs)(resultSetToDocList(_)) flatMap (assertZeroOrOneDoc(_))
   }
 
-  def mutateOneDocument(db: ODatabaseDocument, query: String, params: Map[String, Any]): Try[Unit] = {
+  def mutateOneDocument(db: ODatabaseDocument, query: String, params: Map[String, Any] = Map()): Try[Unit] = {
     val rs: OResultSet = db.command(query, params.asJava)
     TryWithResource(rs)(assertOneMutatedDoc(_))
   }
 
-  def updateDocumentWithScript(db: ODatabaseDocument, script: String, params: Map[String, Any]): Try[Unit] = {
+  def updateDocumentWithScript(db: ODatabaseDocument, script: String, params: Map[String, Any] = Map()): Try[Unit] = {
     val rs: OResultSet = db.execute("sql", script, params.asJava)
     TryWithResource(rs)(assertOneMutatedDoc(_))
   }
@@ -102,6 +102,18 @@ object OrientDBUtil {
 
   def findIdentityFromSingleValueIndex(db: ODatabaseDocument, index: String, key: Any): Try[Option[ORID]] = {
     Try(Option(db.getMetadata.getIndexManager.getIndex(index).get(key).asInstanceOf[OIdentifiable]).map(_.getIdentity))
+  }
+  
+  def getDocumentFromSingleValueIndex(db: ODatabaseDocument, index: String, keys: List[_]): Try[ODocument] = {
+    this.getDocumentFromSingleValueIndex(db, index, new OCompositeKey(keys.asJava))
+  }
+  
+  def getDocumentFromSingleValueIndex(db: ODatabaseDocument, index: String, key: Any): Try[ODocument] = {
+    findDocumentFromSingleValueIndex(db, index, key)
+    .flatMap(_ match {
+        case Some(doc) => Success(doc)
+        case None => Failure(EntityNotFoundException())
+      })
   }
 
   def findDocumentFromSingleValueIndex(db: ODatabaseDocument, index: String, keys: List[_]): Try[Option[ODocument]] = {

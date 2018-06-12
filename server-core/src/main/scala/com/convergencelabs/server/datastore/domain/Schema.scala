@@ -11,6 +11,14 @@ object Schema {
 
   object Classes {
 
+    object Collection {
+      val Class = "Collection"
+      
+      object Indices {
+        val Id = "Collection.id"
+      }
+    }
+
     object ChatChannel {
       val Class = "ChatChannel"
 

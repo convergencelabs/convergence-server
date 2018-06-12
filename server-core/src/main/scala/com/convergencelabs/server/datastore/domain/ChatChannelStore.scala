@@ -1,14 +1,12 @@
 package com.convergencelabs.server.datastore.domain
 
-import java.util.ArrayList
-import java.util.{ List => JavaList }
+import java.time.Instant
+import java.util.Date
+import java.util.HashSet
 import java.util.{ Set => JavaSet }
 
-import scala.collection.JavaConverters.asJavaCollectionConverter
-import scala.collection.JavaConverters.collectionAsScalaIterableConverter
-import scala.collection.JavaConverters.mapAsJavaMapConverter
-import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.collection.JavaConverters.asScalaSetConverter
+import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.collection.JavaConverters.setAsJavaSetConverter
 import scala.util.Failure
 import scala.util.Success
@@ -16,26 +14,21 @@ import scala.util.Try
 
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.QueryUtil
-import com.orientechnologies.orient.core.db.record.OTrackedList
+import com.convergencelabs.server.datastore.DuplicateValueException
+import com.convergencelabs.server.datastore.OrientDBUtil
+import com.convergencelabs.server.datastore.domain.ChatChannelStore.ChannelType
+import com.convergencelabs.server.datastore.domain.ChatChannelStore.Fields
+import com.convergencelabs.server.datastore.domain.ChatChannelStore.channelTypeString
+import com.convergencelabs.server.datastore.domain.ChatChannelStore.chatChannelToDoc
+import com.convergencelabs.server.datastore.domain.ChatChannelStore.docToChatChannel
+import com.convergencelabs.server.datastore.domain.ChatChannelStore.docToChatChannelEvent
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.index.OCompositeKey
-import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
-import com.orientechnologies.orient.core.sql.OCommandSQL
-import com.convergencelabs.server.datastore.domain.ChatChannelStore._
+import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.datastore.EntityNotFoundException
-import java.time.Instant
-import java.util.Date
-import java.util.HashSet
-import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
-import com.convergencelabs.server.datastore.DuplicateValueException
-import com.orientechnologies.orient.core.record.OElement
-import com.convergencelabs.server.datastore.OrientDBUtil
-import com.orientechnologies.orient.core.db.ODatabase
-import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 
 case class ChatChannel(
   id: String,
@@ -657,7 +650,7 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
     val channelRID = getChatChannelRid(channelId).get
     val userRID = DomainUserStore.getUserRid(username, db).get
     val key = new OCompositeKey(List(userRID, channelRID).asJava)
-    OrientDBUtil.getIdentityFromSingleValueIndex(db, Schema.Classes.ChatChannelMember.Indices.Channel_User, key).get
+    OrientDBUtil.getIdentityFromSingleValueIndex(db, Schema.Classes.ChatChannelMember.Indices.Channel_User, key)
   }
 
   def getClassName: PartialFunction[String, Option[String]] = {
