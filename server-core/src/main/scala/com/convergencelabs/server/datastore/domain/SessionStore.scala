@@ -14,7 +14,7 @@ import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.datastore.QueryUtil
 import com.convergencelabs.server.datastore.domain.SessionStore.SessionQueryType
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
@@ -51,7 +51,7 @@ object SessionStore {
     val RemoteHost = "remoteHost"
   }
 
-  def sessionToDoc(sl: DomainSession, db: ODatabaseDocumentTx): Try[ODocument] = {
+  def sessionToDoc(sl: DomainSession, db: ODatabaseDocument): Try[ODocument] = {
     DomainUserStore.getUserRid(sl.username, db).recoverWith {
       case cause: Exception =>
         Failure(new IllegalArgumentException(
@@ -88,7 +88,7 @@ object SessionStore {
       doc.field(Fields.RemoteHost))
   }
 
-  def getDomainSessionRid(id: String, db: ODatabaseDocumentTx): Try[ORID] = {
+  def getDomainSessionRid(id: String, db: ODatabaseDocument): Try[ORID] = {
     val query = "SELECT @RID as rid FROM DomainSession WHERE id = :id"
     val params = Map("id" -> id)
     QueryUtil.lookupMandatoryDocument(query, params, db) map { _.eval("rid").asInstanceOf[ORID] }

@@ -11,30 +11,6 @@ object Schema {
 
   object Classes {
 
-    object User {
-      val Class = "User"
-      object Indices {
-        val Username = "User.username"
-        val Email = "User.email"
-      }
-    }
-
-    object UserReconnectToken {
-      val Class = "UserReconnectToken"
-
-      object Indices {
-        val Token = "UserReconnectToken.token"
-      }
-    }
-
-    object Collection {
-      val Class = "Collection"
-
-      object Indices {
-        val Id = "Collection.id"
-      }
-    }
-
     object ChatChannel {
       val Class = "ChatChannel"
 

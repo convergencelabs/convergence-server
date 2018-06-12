@@ -20,8 +20,12 @@ object OrientDBUtil {
 
   val CountField = "count"
 
-  def query(db: ODatabaseDocument, query: String, params: Map[_, _] = Map()): Try[List[ODocument]] = {
+  def query(db: ODatabaseDocument, query: String, params: Map[String, Any] = Map()): Try[List[ODocument]] = {
     TryWithResource(db.query(query, params.asJava))(resultSetToDocList(_))
+  }
+  
+  def queryAndMap[T](db: ODatabaseDocument, query: String, params: Map[String, Any] = Map())(m: ODocument => T): Try[List[T]] = {
+    this.query(db, query, params).map(_.map(m(_)))
   }
 
   /**
@@ -30,26 +34,26 @@ object OrientDBUtil {
    * set produced by the command, and that the result set contains a 'count'
    * field indicating the number of mutated records.
    */
-  def command(db: ODatabaseDocument, query: String, params: Map[_, _] = Map()): Try[Int] = {
-    Try(db.command(query, params.asJava)).flatMap { rs =>
+  def command(db: ODatabaseDocument, command: String, params: Map[String, Any] = Map()): Try[Int] = {
+    Try(db.command(command, params.asJava)).flatMap { rs =>
       if (rs.hasNext()) {
         val element = rs.next.toElement
         if (rs.hasNext()) {
-          Failure(new DatabaseCommandException(query, params, "The result set unexpectedly contained more than one result"))
+          Failure(new DatabaseCommandException(command, params, "The result set unexpectedly contained more than one result"))
         } else {
           rs.close()
           val count: Int = element.getProperty(CountField)
           Option(count)
             .map(Success(_))
-            .getOrElse(Failure(new DatabaseCommandException(query, params, "'count' field was not present in result set")))
+            .getOrElse(Failure(new DatabaseCommandException(command, params, "'count' field was not present in result set")))
         }
       } else {
-        Failure(new DatabaseCommandException(query, params, "No ResultSet was returned from the command"))
+        Failure(new DatabaseCommandException(command, params, "No ResultSet was returned from the command"))
       }
     }
   }
   
-  def execute(db: ODatabaseDocument, query: String, params: Map[_, _] = Map()): Try[List[ODocument]] = {
+  def execute(db: ODatabaseDocument, query: String, params: Map[String, Any] = Map()): Try[List[ODocument]] = {
     TryWithResource(db.execute("sql", query, params.asJava))(resultSetToDocList(_))
   }
 
@@ -62,13 +66,17 @@ object OrientDBUtil {
     val rs = db.query(query, params.asJava)
     TryWithResource(rs)(resultSetToDocList(_)) flatMap (assertZeroOrOneDoc(_))
   }
+  
+  def findDocumentAndMap[T](db: ODatabaseDocument, query: String, params: Map[String, Any] = Map())(m: ODocument => T): Try[Option[T]] = {
+    this.findDocument(db, query, params).map(_.map(m(_)))
+  }
 
   def mutateOneDocument(db: ODatabaseDocument, command: String, params: Map[String, Any] = Map()): Try[Unit] = {
     val rs: OResultSet = db.command(command, params.asJava)
     TryWithResource(rs)(assertOneMutatedDoc(_))
   }
 
-  def updateDocumentWithScript(db: ODatabaseDocument, script: String, params: Map[String, Any] = Map()): Try[Unit] = {
+  def mutateOneDocumentWithScript(db: ODatabaseDocument, script: String, params: Map[String, Any] = Map()): Try[Unit] = {
     val rs: OResultSet = db.execute("sql", script, params.asJava)
     TryWithResource(rs)(assertOneMutatedDoc(_))
   }

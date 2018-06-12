@@ -5,7 +5,6 @@ import java.util.Date
 import java.util.{ List => JavaList }
 
 import scala.collection.JavaConverters._
-import scala.collection.immutable.HashMap
 import scala.util.Try
 
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
@@ -15,28 +14,16 @@ import com.convergencelabs.server.datastore.domain.mapper.ObjectValueMapper.ODoc
 import com.convergencelabs.server.datastore.domain.mapper.ObjectValueMapper.ObjectValueToODocument
 import com.convergencelabs.server.domain.model.ModelSnapshot
 import com.convergencelabs.server.domain.model.ModelSnapshotMetaData
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 
-import ModelSnapshotStore.Constants.CollectionId
-import ModelSnapshotStore.Constants.ModelId
-import ModelSnapshotStore.Fields.Data
-import ModelSnapshotStore.Fields.Model
-import ModelSnapshotStore.Fields.Timestamp
-import ModelSnapshotStore.Fields.Version
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.datastore.OrientDBUtil
 
 object ModelSnapshotStore {
-  val ClassName = "ModelSnapshot"
-
-  object Fields {
-    val Model = "model"
-    val Version = "version"
-    val Timestamp = "timestamp"
-    val Data = "data"
-  }
+  import schema.DomainSchema._
 
   object Constants {
     val CollectionId = "collectionId"
@@ -44,28 +31,28 @@ object ModelSnapshotStore {
   }
 
   def docToModelSnapshot(doc: ODocument): ModelSnapshot = {
-    val dataDoc: ODocument = doc.field(Fields.Data)
+    val dataDoc: ODocument = doc.field(Classes.ModelSnapshot.Fields.Data)
     val data = dataDoc.asObjectValue
     ModelSnapshot(docToModelSnapshotMetaData(doc), data)
   }
 
-  def modelSnapshotToDoc(modelSnapshot: ModelSnapshot, db: ODatabaseDocumentTx): Try[ODocument] = {
+  def modelSnapshotToDoc(modelSnapshot: ModelSnapshot, db: ODatabaseDocument): Try[ODocument] = {
     val md = modelSnapshot.metaData
     ModelStore.getModelRid(md.modelId, db) map { modelRid =>
-      val doc = new ODocument(ClassName)
-      doc.field(Model, modelRid)
-      doc.field(Version, modelSnapshot.metaData.version)
-      doc.field(Timestamp, new Date(modelSnapshot.metaData.timestamp.toEpochMilli()))
-      doc.field(Data, modelSnapshot.data.asODocument)
+      val doc = new ODocument(Classes.ModelSnapshot.ClassName)
+      doc.field(Classes.ModelSnapshot.Fields.Model, modelRid)
+      doc.field(Classes.ModelSnapshot.Fields.Version, modelSnapshot.metaData.version)
+      doc.field(Classes.ModelSnapshot.Fields.Timestamp, new Date(modelSnapshot.metaData.timestamp.toEpochMilli()))
+      doc.field(Classes.ModelSnapshot.Fields.Data, modelSnapshot.data.asODocument)
       doc
     }
   }
 
   def docToModelSnapshotMetaData(doc: ODocument): ModelSnapshotMetaData = {
-    val timestamp: java.util.Date = doc.field(Fields.Timestamp)
+    val timestamp: java.util.Date = doc.field(Classes.ModelSnapshot.Fields.Timestamp)
     ModelSnapshotMetaData(
-      doc.field(ModelId),
-      doc.field(Fields.Version),
+      doc.field(Constants.ModelId),
+      doc.field(Classes.ModelSnapshot.Fields.Version),
       Instant.ofEpochMilli(timestamp.getTime))
   }
 }
@@ -78,8 +65,11 @@ object ModelSnapshotStore {
  */
 class ModelSnapshotStore private[domain] (
   private[this] val dbProvider: DatabaseProvider)
-    extends AbstractDatabasePersistence(dbProvider)
-    with Logging {
+  extends AbstractDatabasePersistence(dbProvider)
+  with Logging {
+
+  import schema.DomainSchema._
+  import ModelSnapshotStore._
 
   val AllFields = s"version, timestamp, model.collection.id as collectionId, model.id as modelId, data"
   val MetaDataFields = s"version, timestamp, model.collection.id as collectionId, model.id as modelId"
@@ -90,10 +80,10 @@ class ModelSnapshotStore private[domain] (
    *
    * @param snapshotData The snapshot to create.
    */
-  def createSnapshot(modelSnapshot: ModelSnapshot): Try[Unit] = tryWithDb { db =>
-    val doc = ModelSnapshotStore.modelSnapshotToDoc(modelSnapshot, db).get
-    db.save(doc)
-    ()
+  def createSnapshot(modelSnapshot: ModelSnapshot): Try[Unit] = withDb { db =>
+    ModelSnapshotStore
+      .modelSnapshotToDoc(modelSnapshot, db)
+      .flatMap(doc => Try(db.save(doc)))
   }
 
   /**
@@ -105,22 +95,10 @@ class ModelSnapshotStore private[domain] (
    * @return Some(SnapshotData) if a snapshot corresponding to the model and
    * version if it exists, or None if it does not.
    */
-  def getSnapshot(id: String, version: Long): Try[Option[ModelSnapshot]] = tryWithDb { db =>
-    val queryString =
-      s"""SELECT ${AllFields}
-        |FROM ModelSnapshot
-        |WHERE
-        |  model.id = :modelId AND
-        |  version = :version""".stripMargin
-
-    val query = new OSQLSynchQuery[ODocument](queryString)
-    val params = HashMap(
-      ModelId -> id,
-      Version -> version)
-
-//    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-//    QueryUtil.mapSingletonList(result) { ModelSnapshotStore.docToModelSnapshot(_) }
-      ???
+  def getSnapshot(id: String, version: Long): Try[Option[ModelSnapshot]] = withDb { db =>
+    val query = s"SELECT ${AllFields} FROM ModelSnapshot WHERE model.id = :modelId AND version = :version"
+    val params = Map(Constants.ModelId -> id, Classes.ModelSnapshot.Fields.Version -> version)
+    OrientDBUtil.findDocumentAndMap(db, query, params)(ModelSnapshotStore.docToModelSnapshot(_))
   }
 
   /**
@@ -132,20 +110,10 @@ class ModelSnapshotStore private[domain] (
    * @return Some(SnapshotData) if a snapshot corresponding to the model and
    * version if it exists, or None if it does not.
    */
-  def getSnapshots(id: String): Try[List[ModelSnapshot]] = tryWithDb { db =>
-    val queryString =
-      s"""SELECT ${AllFields}
-        |FROM ModelSnapshot
-        |WHERE
-        |  model.id = :modelId""".stripMargin
-
-    val query = new OSQLSynchQuery[ODocument](queryString)
-    val params = HashMap(
-      ModelId -> id)
-
-//    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-//    result.asScala.toList map { ModelSnapshotStore.docToModelSnapshot(_) }
-      ???
+  def getSnapshots(id: String): Try[List[ModelSnapshot]] = withDb { db =>
+    val query = "SELECT ${AllFields} FROM ModelSnapshot WHERE model.id = :modelId"
+    val params = Map(Constants.ModelId -> id)
+    OrientDBUtil.queryAndMap(db, query, params)(docToModelSnapshot(_))
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -158,28 +126,23 @@ class ModelSnapshotStore private[domain] (
    *
    * @param id The id of the model to get the meta data for.
    * @param limit The maximum number of results to return.  If None, then all results are returned.
-   * @param offset The offest into the result list.  If None, the default is 0.
+   * @param offset The offset into the result list.  If None, the default is 0.
    *
    * @return A list of (paged) meta data for the specified model.
    */
   def getSnapshotMetaDataForModel(
     id: String,
     limit: Option[Int],
-    offset: Option[Int]): Try[List[ModelSnapshotMetaData]] = tryWithDb { db =>
+    offset: Option[Int]): Try[List[ModelSnapshotMetaData]] = withDb { db =>
     val baseQuery =
       s"""SELECT ${MetaDataFields}
         |FROM ModelSnapshot
         |WHERE
         |  model.id = :modelId
         |ORDER BY version ASC""".stripMargin
-
-    val query = new OSQLSynchQuery[ODocument](QueryUtil.buildPagedQuery(baseQuery, limit, offset))
-    val params = HashMap(
-      ModelId -> id)
-
-//    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-//    result.asScala.toList.map { ModelSnapshotStore.docToModelSnapshotMetaData(_) }
-      ???
+    val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
+    val params = Map(Constants.ModelId -> id)
+    OrientDBUtil.queryAndMap(db, query, params)(docToModelSnapshotMetaData(_))
   }
 
   /**
@@ -199,7 +162,7 @@ class ModelSnapshotStore private[domain] (
     startTime: Option[Long],
     endTime: Option[Long],
     limit: Option[Int],
-    offset: Option[Int]): Try[List[ModelSnapshotMetaData]] = tryWithDb { db =>
+    offset: Option[Int]): Try[List[ModelSnapshotMetaData]] = withDb { db =>
     val baseQuery =
       s"""SELECT ${MetaDataFields}
         |FROM ModelSnapshot
@@ -208,15 +171,12 @@ class ModelSnapshotStore private[domain] (
         |  timestamp BETWEEN :startTime AND :endTime
         |ORDER BY version ASC""".stripMargin
 
-    val query = new OSQLSynchQuery[ODocument](QueryUtil.buildPagedQuery(baseQuery, limit, offset))
-    val params = HashMap(
-      ModelId -> id,
+    val query = QueryUtil.buildPagedQuery(baseQuery, limit, offset)
+    val params = Map(
+      Constants.ModelId -> id,
       "startTime" -> new java.util.Date(startTime.getOrElse(0L)),
       "endTime" -> new java.util.Date(endTime.getOrElse(Long.MaxValue)))
-
-//    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-//    result.asScala.toList.map { ModelSnapshotStore.docToModelSnapshotMetaData(_) }
-      ???
+    OrientDBUtil.queryAndMap(db, query, params)(docToModelSnapshotMetaData(_))
   }
 
   /**
@@ -227,24 +187,19 @@ class ModelSnapshotStore private[domain] (
    * @return the latest snapshot (by version) of the specified model, or None
    * if no snapshots for that model exist.
    */
-  def getLatestSnapshotMetaDataForModel(id: String): Try[Option[ModelSnapshotMetaData]] = tryWithDb { db =>
-    val queryString =
+  def getLatestSnapshotMetaDataForModel(id: String): Try[Option[ModelSnapshotMetaData]] = withDb { db =>
+    val query =
       s"""SELECT ${MetaDataFields}
         |FROM ModelSnapshot
         |WHERE
         |  model.id = :modelId
         |ORDER BY version DESC LIMIT 1""".stripMargin
-
-    val query = new OSQLSynchQuery[ODocument](queryString)
-    val params = HashMap(
-      ModelId -> id)
-//    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-//    QueryUtil.mapSingletonList(result) { ModelSnapshotStore.docToModelSnapshotMetaData(_) }
-      ???
+    val params = Map(Constants.ModelId -> id)
+    OrientDBUtil.findDocumentAndMap(db, query, params)(docToModelSnapshotMetaData(_))
   }
 
-  def getClosestSnapshotByVersion(id: String, version: Long): Try[Option[ModelSnapshot]] = tryWithDb { db =>
-    val queryString =
+  def getClosestSnapshotByVersion(id: String, version: Long): Try[Option[ModelSnapshot]] = withDb { db =>
+    val query =
       s"""SELECT
         |  abs(eval('$$current.version - $version')) as abs_delta,
         |  eval('$$current.version - $version') as delta,
@@ -256,14 +211,8 @@ class ModelSnapshotStore private[domain] (
         |  abs_delta ASC,
         |  delta DESC
         |LIMIT 1""".stripMargin
-
-    val query = new OSQLSynchQuery[ODocument](queryString)
-    val params = HashMap(
-      ModelId -> id,
-      Version -> version)
-//    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-//    QueryUtil.mapSingletonList(result) { ModelSnapshotStore.docToModelSnapshot(_) }
-      ???
+    val params = Map(Constants.ModelId -> id, Classes.ModelSnapshot.Fields.Version -> version)
+    OrientDBUtil.findDocumentAndMap(db, query, params)(docToModelSnapshot(_))
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -276,19 +225,10 @@ class ModelSnapshotStore private[domain] (
    * @param id The id of the model to delete the snapshot for.
    * @param version The version of the snapshot to delete.
    */
-  def removeSnapshot(id: String, version: Long): Try[Unit] = tryWithDb { db =>
-    val query =
-      """DELETE FROM ModelSnapshot
-        |WHERE
-        |  model.id = :modelId AND
-        |  version = :version""".stripMargin
-
-    val params = HashMap(
-      ModelId -> id,
-      Version -> version)
-
-    db.command(query, params.asJava)
-    Unit
+  def removeSnapshot(id: String, version: Long): Try[Unit] = withDb { db =>
+    val command = "DELETE FROM ModelSnapshot WHERE model.id = :modelId AND version = :version"
+    val params = Map(Constants.ModelId -> id, Classes.ModelSnapshot.Fields.Version -> version)
+    OrientDBUtil.mutateOneDocument(db, command, params)
   }
 
   /**
@@ -296,15 +236,10 @@ class ModelSnapshotStore private[domain] (
    *
    * @param id The id of the model to delete all snapshots for.
    */
-  def removeAllSnapshotsForModel(id: String): Try[Unit] = tryWithDb { db =>
-    val query =
-      """DELETE FROM ModelSnapshot
-        |WHERE
-        |  model.id = :modelId""".stripMargin
-
-    val params = HashMap(ModelId -> id)
-    db.command(query, params.asJava)
-    Unit
+  def removeAllSnapshotsForModel(id: String): Try[Unit] = withDb { db =>
+    val command = "DELETE FROM ModelSnapshot WHERE model.id = :modelId"
+    val params = Map(Constants.ModelId -> id)
+    OrientDBUtil.command(db, command, params).map(_ => ())
   }
 
   /**
@@ -312,10 +247,9 @@ class ModelSnapshotStore private[domain] (
    *
    * @param collectionId The collection id of the collection to remove snapshots for.
    */
-  def removeAllSnapshotsForCollection(collectionId: String): Try[Unit] = tryWithDb { db =>
-    val query = "DELETE FROM ModelSnapshot WHERE model.collection.id = :collectionId"
-    val params = HashMap(CollectionId -> collectionId)
-    db.command(query, params.asJava)
-    Unit
+  def removeAllSnapshotsForCollection(collectionId: String): Try[Unit] = withDb { db =>
+    val command = "DELETE FROM ModelSnapshot WHERE model.collection.id = :collectionId"
+    val params = Map(Constants.CollectionId -> collectionId)
+    OrientDBUtil.command(db, command, params).map(_ => ())
   }
 }

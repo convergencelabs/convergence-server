@@ -29,6 +29,8 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
+import com.convergencelabs.server.datastore.domain.schema.DomainUserClass._
+import schema.DomainSchema._
 
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.datastore.OrientDBUtil
@@ -39,15 +41,6 @@ object DomainUserStore {
   val AnonymousUserPrefeix = "anonymous:"
 
   val UserDoesNotExistMessage = "User does not exist"
-
-  object Fields {
-    val UserType = "userType"
-    val Username = "username"
-    val FirstName = "firstName"
-    val LastName = "lastName"
-    val DisplayName = "displayName"
-    val Email = "email"
-  }
 
   case class CreateNormalDomainUser(
     username: String,
@@ -72,11 +65,11 @@ object DomainUserStore {
   }
 
   def getUserRid(username: String, db: ODatabaseDocument): Try[ORID] = {
-    OrientDBUtil.getIdentityFromSingleValueIndex(db, Schema.Classes.User.Indices.Username, username)
+    OrientDBUtil.getIdentityFromSingleValueIndex(db, Indices.Username, username)
   }
 
   def domainUserToDoc(obj: DomainUser): ODocument = {
-    val doc = new ODocument(Schema.Classes.User.Class)
+    val doc = new ODocument(ClassName)
     doc.setProperty(Fields.UserType, obj.userType.toString.toLowerCase)
     doc.setProperty(Fields.Username, obj.username)
     obj.firstName.map(doc.setProperty(Fields.FirstName, _))
@@ -115,15 +108,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
   extends AbstractDatabasePersistence(dbProvider)
   with Logging {
 
-  val Username = "username"
   val Password = "password"
-  val UserType = "userType"
-  val AnonymousUsernameSeq = "anonymousUsernameSeq"
-  val UsernameIndex = "User.username"
-  val ReconnectTokenIndex = "UserReconnectToken.token"
-  val LastLogin = "lastLogin"
-  val Token = "token"
-  val ExpireTime = "expireTime"
 
   // TODO make this configurable.
   val reconnectTokenDuration = Duration.ofHours(24)
@@ -202,7 +187,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
    */
   def deleteDomainUser(username: String): Try[Unit] = withDb { db =>
     val command = "DELETE FROM User WHERE username = :username AND userType = 'normal'"
-    val params = Map(Username -> username)
+    val params = Map(Fields.Username -> username)
     OrientDBUtil.mutateOneDocument(db, command, params)
   }
 
@@ -217,7 +202,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
     val domainUser = DomainUser(DomainUserType.Normal, username, firstName, lastName, displayName, email)
 
     val query = "SELECT FROM User WHERE username = :username AND userType = 'normal'"
-    val params = Map(Username -> domainUser.username)
+    val params = Map(Fields.Username -> domainUser.username)
     OrientDBUtil.getDocument(db, query, params).map { doc =>
       val updatedDoc = DomainUserStore.domainUserToDoc(domainUser)
       doc.merge(updatedDoc, false, false)
@@ -234,7 +219,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
    */
   def getDomainUserByUsername(username: String): Try[Option[DomainUser]] = withDb { db =>
     OrientDBUtil
-      .findDocumentFromSingleValueIndex(db, Schema.Classes.User.Indices.Username, username)
+      .findDocumentFromSingleValueIndex(db, Indices.Username, username)
       .map(_.map(DomainUserStore.docToDomainUser(_)))
   }
 
@@ -301,7 +286,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
 
   private[this] def userExists(username: String, userType: DomainUserType.Value): Try[Boolean] = withDb { db =>
     val query = "SELECT FROM User WHERE username = :username AND userType = :userType"
-    val params = Map(Username -> username, UserType -> userType.toString.toLowerCase)
+    val params = Map(Fields.Username -> username, Fields.UserType -> userType.toString.toLowerCase)
     OrientDBUtil
       .query(db, query, params)
       .map(!_.isEmpty)
@@ -425,7 +410,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
   def setDomainUserPasswordHash(username: String, passwordHash: String): Try[Unit] = withDb { db =>
     // FIXME use index.
     val query = "SELECT @rid as rid FROM User WHERE username = :username AND userType = 'normal'"
-    val params = Map(Username -> username)
+    val params = Map(Fields.Username -> username)
     OrientDBUtil
       .getDocument(db, query, params)
       .flatMap { ridDoc =>
@@ -447,7 +432,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
 
   def getDomainUserPasswordHash(username: String): Try[Option[String]] = withDb { db =>
     val query = "SELECT * FROM UserCredential WHERE user.username = :username AND user.userType = 'normal'"
-    val params = Map(Username -> username)
+    val params = Map(Fields.Username -> username)
     OrientDBUtil
       .findDocument(db, query, params)
       .map(_.flatMap(doc => Option(doc.getProperty(Password))))
@@ -463,7 +448,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
    */
   def validateCredentials(username: String, password: String): Try[Boolean] = withDb { db =>
     val query = "SELECT password FROM UserCredential WHERE user.username = :username AND user.userType = 'normal'"
-    val params = Map(Username -> username)
+    val params = Map(Fields.Username -> username)
     OrientDBUtil
       .findDocument(db, query, params)
       .map(_.map { doc =>
@@ -475,7 +460,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
 
   def createReconnectToken(username: String): Try[String] = withDb { db =>
     OrientDBUtil
-      .findIdentityFromSingleValueIndex(db, Schema.Classes.User.Indices.Username, username)
+      .findIdentityFromSingleValueIndex(db, Indices.Username, username)
       .flatMap {
         _ match {
           case Some(userORID) =>
@@ -486,7 +471,10 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
                 |  user = :user,
                 |  token = :token,
                 |  expireTime = :expireTime""".stripMargin
-            val params = Map("user" -> userORID, Token -> token, ExpireTime -> Date.from(expiration))
+            val params = Map(
+                Classes.UserReconnectToken.Fields.User -> userORID, 
+                Classes.UserReconnectToken.Fields.Token -> token, 
+                Classes.UserReconnectToken.Fields.ExpireTime -> Date.from(expiration))
             OrientDBUtil
               .mutateOneDocument(db, command, params)
               .map(_ => token)
@@ -498,20 +486,21 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
 
   def removeReconnectToken(token: String): Try[Unit] = withDb { db =>
     val command = "DELETE FROM UserReconnectToken WHERE token = :token"
-    val params = Map(Token -> token)
+    val params = Map(Classes.UserReconnectToken.Fields.Token  -> token)
     OrientDBUtil.mutateOneDocument(db, command, params)
   }
 
   def validateReconnectToken(token: String): Try[Option[String]] = withDb { db =>
     OrientDBUtil
-      .findDocumentFromSingleValueIndex(db, Schema.Classes.UserReconnectToken.Indices.Token, token)
+      .findDocumentFromSingleValueIndex(db, Classes.UserReconnectToken.Indices.Token, token)
       .map(_.flatMap { record =>
-        val expireTime: Date = record.getProperty(ExpireTime)
+        val expireTime: Date = record.getProperty(Classes.UserReconnectToken.Fields.ExpireTime)
         val expireInstant: Instant = expireTime.toInstant()
         if (Instant.now().isBefore(expireInstant)) {
-          val username: String = record.field("user.username")
+          val username: String = record.getProperty("user.username")
           val newExpiration = Instant.now().plus(reconnectTokenDuration)
-          record.field(ExpireTime, Date.from(newExpiration)).save()
+          record.setProperty(Classes.UserReconnectToken.Fields.ExpireTime, Date.from(newExpiration))
+          record.save()
           Some(username)
         } else {
           None
@@ -521,10 +510,11 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
 
   def setLastLogin(username: String, userType: DomainUserType.Value, instant: Instant): Try[Unit] = withDb { db =>
     OrientDBUtil
-      .getDocumentFromSingleValueIndex(db, Schema.Classes.User.Indices.Username, username)
+      .getDocumentFromSingleValueIndex(db, Indices.Username, username)
       .flatMap { record =>
         Try {
-          record.field(LastLogin, Date.from(instant)).save()
+          record.setProperty(Fields.LastLogin, Date.from(instant))
+          record.save()
           ()
         }
       }
@@ -551,10 +541,10 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
   private[this] def handleDuplicateValue[T](): PartialFunction[Throwable, Try[T]] = {
     case e: ORecordDuplicatedException =>
       e.getIndexName match {
-        case Schema.Classes.User.Indices.Username =>
-          Failure(DuplicateValueException(DomainUserStore.Fields.Username))
-        case Schema.Classes.User.Indices.Email =>
-          Failure(DuplicateValueException(DomainUserStore.Fields.Email))
+        case Indices.Username =>
+          Failure(DuplicateValueException(Fields.Username))
+        case Indices.Email =>
+          Failure(DuplicateValueException(Fields.Email))
         case _ =>
           Failure(e)
       }

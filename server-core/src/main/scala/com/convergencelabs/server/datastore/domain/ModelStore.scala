@@ -21,7 +21,7 @@ import com.convergencelabs.server.datastore.domain.mapper.DataValueMapper.ODocum
 import com.convergencelabs.server.domain.model.Model
 import com.convergencelabs.server.domain.model.ModelMetaData
 import com.convergencelabs.server.domain.model.data.ObjectValue
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
@@ -66,12 +66,12 @@ object ModelStore {
 
   private val FindModel = "SELECT * FROM Model WHERE id = :id"
 
-  def getModelDocument(id: String, db: ODatabaseDocumentTx): Try[ODocument] = {
+  def getModelDocument(id: String, db: ODatabaseDocument): Try[ODocument] = {
     val params = Map("id" -> id)
     QueryUtil.lookupMandatoryDocument(FindModel, params, db)
   }
 
-  private def getModelDoc(id: String, db: ODatabaseDocumentTx): Option[ODocument] = {
+  private def getModelDoc(id: String, db: ODatabaseDocument): Option[ODocument] = {
     val params = Map("id" -> id)
     QueryUtil.lookupOptionalDocument(FindModel, params, db)
   }
@@ -99,7 +99,7 @@ object ModelStore {
     Model(docToModelMetaData(doc), data.asObjectValue)
   }
 
-  def getModelRid(id: String, db: ODatabaseDocumentTx): Try[ORID] = {
+  def getModelRid(id: String, db: ODatabaseDocument): Try[ORID] = {
     QueryUtil.getRidFromIndex(ModelIdIndex, id, db)
   }
 }
@@ -290,7 +290,7 @@ class ModelStore private[domain] (
     }.get
   }
 
-  def deleteDataValuesForCollection(collectionId: String, db: ODatabaseDocumentTx): Try[Unit] = Try {
+  def deleteDataValuesForCollection(collectionId: String, db: ODatabaseDocument): Try[Unit] = Try {
     val command = "DELETE FROM DataValue WHERE model.collection.id = :collectionId"
     val params = Map(CollectionId -> collectionId)
     db.command(command, params.asJava).asInstanceOf[Int]

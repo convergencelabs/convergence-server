@@ -29,13 +29,13 @@ import com.convergencelabs.server.domain.model.ot.AppliedStringInsertOperation
 import com.convergencelabs.server.domain.model.ot.AppliedStringRemoveOperation
 import com.convergencelabs.server.domain.model.ot.AppliedStringSetOperation
 import com.orientechnologies.common.io.OIOUtils
-import com.orientechnologies.orient.core.command.script.OCommandScript
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.id.ORID
-import com.orientechnologies.orient.core.sql.OCommandSQL
 
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.datastore.QueryUtil
+import com.convergencelabs.server.datastore.OrientDBUtil
+import com.convergencelabs.server.datastore.AbstractDatabasePersistence
+import scala.util.Success
 
 object ModelOperationProcessor {
   sealed trait DataValueDeleteStrategy
@@ -48,8 +48,8 @@ class ModelOperationProcessor private[domain] (
   private[this] val dbProvider: DatabaseProvider,
   private[this] val modelOpStore: ModelOperationStore,
   private[this] val modelStore: ModelStore)
-    extends AbstractDatabasePersistence(dbProvider)
-    with Logging {
+  extends AbstractDatabasePersistence(dbProvider)
+  with Logging {
 
   import ModelOperationProcessor._
 
@@ -74,10 +74,18 @@ class ModelOperationProcessor private[domain] (
   }
 
   // scalastyle:off cyclomatic.complexity
-  private[this] def applyOperationToModel(modelId: String, operation: AppliedOperation, db: ODatabaseDocumentTx): Try[Unit] = Try {
+  private[this] def applyOperationToModel(modelId: String, operation: AppliedOperation, db: ODatabaseDocument): Try[Unit] = {
     operation match {
-      case op: AppliedCompoundOperation => op.operations foreach { o => applyOperationToModel(modelId, o, db) }
-      case op: AppliedDiscreteOperation if op.noOp => // Do nothing since this is a noOp
+      case op: AppliedCompoundOperation =>
+        // Apply all operations in the compound op.
+        // FIXME this should happen in a transaction
+        Try(op.operations foreach { o => applyOperationToModel(modelId, o, db).get })
+
+      case op: AppliedDiscreteOperation if op.noOp =>
+        // Do nothing since this is a noOp
+        Success(())
+
+      // Actual Operation Handling
 
       case op: AppliedArrayInsertOperation => applyArrayInsertOperation(modelId, op, db)
       case op: AppliedArrayRemoveOperation => applyArrayRemoveOperation(modelId, op, db)
@@ -107,105 +115,116 @@ class ModelOperationProcessor private[domain] (
   //
   // Array Operations
   //
-  private[this] def applyArrayInsertOperation(modelId: String, operation: AppliedArrayInsertOperation, db: ODatabaseDocumentTx): Unit = {
-    val value = OrientDataValueBuilder.dataValueToODocument(operation.value, getModelRid(modelId, db))
-    value.save()
-
-    val script = createUpdate("SET children = arrayInsert(children, :index, :value)", None)
-    val params = Map(Id -> operation.id, ModelId -> modelId, Index -> operation.index, Value -> value)
-    QueryUtil.updateSingleDocWithScript(script, params, db).get
-    ()
+  private[this] def applyArrayInsertOperation(modelId: String, operation: AppliedArrayInsertOperation, db: ODatabaseDocument): Try[Unit] = {
+    Try {
+      val value = OrientDataValueBuilder.dataValueToODocument(operation.value, getModelRid(modelId, db))
+      value.save()
+      value
+    } flatMap { value =>
+      val script = createUpdate("SET children = arrayInsert(children, :index, :value)", None)
+      val params = Map(Id -> operation.id, ModelId -> modelId, Index -> operation.index, Value -> value)
+      OrientDBUtil.mutateOneDocumentWithScript(db, script, params)
+    }
   }
 
   private[this] def applyArrayRemoveOperation(
-    modelId: String, operation: AppliedArrayRemoveOperation, db: ODatabaseDocumentTx): Unit = {
+    modelId: String, operation: AppliedArrayRemoveOperation, db: ODatabaseDocument): Try[Unit] = {
 
     val script = createUpdate("SET children = arrayRemove(children, :index)", Some(DeleteArrayIndex(operation.index)))
     val params = Map(Id -> operation.id, ModelId -> modelId, Index -> operation.index)
-    QueryUtil.updateSingleDocWithScript(script, params, db).get
-    ()
+    OrientDBUtil.mutateOneDocumentWithScript(db, script, params)
   }
 
   private[this] def applyArrayReplaceOperation(
-    modelId: String, operation: AppliedArrayReplaceOperation, db: ODatabaseDocumentTx): Unit = {
-    val value = OrientDataValueBuilder.dataValueToODocument(operation.value, getModelRid(modelId, db))
-    value.save()
-    db.commit()
-
-    val script = createUpdate("SET children = arrayReplace(children, :index, :value)", Some(DeleteArrayIndex(operation.index)))
-    val params = Map(Id -> operation.id, ModelId -> modelId, Index -> operation.index, Value -> value)
-    QueryUtil.updateSingleDocWithScript(script, params, db).get
-    ()
+    modelId: String, operation: AppliedArrayReplaceOperation, db: ODatabaseDocument): Try[Unit] = {
+    Try {
+      val value = OrientDataValueBuilder.dataValueToODocument(operation.value, getModelRid(modelId, db))
+      value.save()
+      db.commit()
+      value
+    } flatMap { value =>
+      val script = createUpdate("SET children = arrayReplace(children, :index, :value)", Some(DeleteArrayIndex(operation.index)))
+      val params = Map(Id -> operation.id, ModelId -> modelId, Index -> operation.index, Value -> value)
+      OrientDBUtil.mutateOneDocumentWithScript(db, script, params)
+    }
   }
 
-  private[this] def applyArrayMoveOperation(modelId: String, operation: AppliedArrayMoveOperation, db: ODatabaseDocumentTx): Unit = {
+  private[this] def applyArrayMoveOperation(modelId: String, operation: AppliedArrayMoveOperation, db: ODatabaseDocument): Try[Unit] = {
     val script = createUpdate("SET children = arrayMove(children, :fromIndex, :toIndex)", None)
     val params = Map(Id -> operation.id, ModelId -> modelId, "fromIndex" -> operation.fromIndex, "toIndex" -> operation.toIndex)
-    QueryUtil.updateSingleDocWithScript(script, params, db).get
-    ()
+    OrientDBUtil.mutateOneDocumentWithScript(db, script, params)
   }
 
-  private[this] def applyArraySetOperation(modelId: String, operation: AppliedArraySetOperation, db: ODatabaseDocumentTx): Unit = {
-    val children = operation.value map (v => OrientDataValueBuilder.dataValueToODocument(v, getModelRid(modelId, db)))
-    children.foreach { child => child.save() }
-    db.commit()
+  private[this] def applyArraySetOperation(modelId: String, operation: AppliedArraySetOperation, db: ODatabaseDocument): Try[Unit] = {
+    Try {
+      val children = operation.value map (v => OrientDataValueBuilder.dataValueToODocument(v, getModelRid(modelId, db)))
+      children.foreach { child => child.save() }
+      db.commit()
+      children
+    } flatMap { children =>
+      val script = createUpdate("SET children = :value", Some(DeleteAllChildren))
+      val params = Map(Id -> operation.id, ModelId -> modelId, Value -> children.asJava)
 
-    val script = createUpdate("SET children = :value", Some(DeleteAllChildren))
-    val params = Map(Id -> operation.id, ModelId -> modelId, Value -> children.asJava)
-
-    QueryUtil.updateSingleDocWithScript(script, params, db).get
-    db.commit()
-    ()
+      OrientDBUtil
+        .mutateOneDocumentWithScript(db, script, params)
+        .flatMap(_ => Try(db.commit()))
+    }
   }
 
   //
   // Object Operations
   //
-  private[this] def applyObjectAddPropertyOperation(modelId: String, operation: AppliedObjectAddPropertyOperation, db: ODatabaseDocumentTx): Unit = {
-    val value = OrientDataValueBuilder.dataValueToODocument(operation.value, getModelRid(modelId, db))
-    value.save()
-    db.commit()
+  private[this] def applyObjectAddPropertyOperation(modelId: String, operation: AppliedObjectAddPropertyOperation, db: ODatabaseDocument): Try[Unit] = {
+    Try {
+      val value = OrientDataValueBuilder.dataValueToODocument(operation.value, getModelRid(modelId, db))
+      value.save()
+      db.commit()
+      value
+    } flatMap { value =>
 
-    val script = createUpdate("PUT children = :property, :value", None)
-    val params = Map(Id -> operation.id, ModelId -> modelId, Value -> value, "property" -> operation.property)
-    QueryUtil.updateSingleDocWithScript(script, params, db).get
-    ()
+      val script = createUpdate("PUT children = :property, :value", None)
+      val params = Map(Id -> operation.id, ModelId -> modelId, Value -> value, "property" -> operation.property)
+      OrientDBUtil.mutateOneDocumentWithScript(db, script, params)
+    }
   }
 
   private[this] def applyObjectSetPropertyOperation(
-    modelId: String, operation: AppliedObjectSetPropertyOperation, db: ODatabaseDocumentTx): Unit = {
-    val value = OrientDataValueBuilder.dataValueToODocument(operation.value, getModelRid(modelId, db))
-    value.save()
-    db.commit()
-
-    val script = createUpdate("PUT children = :property, :value", Some(DeleteObjectKey(operation.property)))
-    val params = Map(Id -> operation.id, ModelId -> modelId, Value -> value, "property" -> operation.property)
-    QueryUtil.updateSingleDocWithScript(script, params, db).get
-    ()
+    modelId: String, operation: AppliedObjectSetPropertyOperation, db: ODatabaseDocument): Try[Unit] = {
+    Try {
+      val value = OrientDataValueBuilder.dataValueToODocument(operation.value, getModelRid(modelId, db))
+      value.save()
+      db.commit()
+      value
+    } flatMap { value =>
+      val script = createUpdate("PUT children = :property, :value", Some(DeleteObjectKey(operation.property)))
+      val params = Map(Id -> operation.id, ModelId -> modelId, Value -> value, "property" -> operation.property)
+      OrientDBUtil.mutateOneDocumentWithScript(db, script, params)
+    }
   }
 
-  private[this] def applyObjectRemovePropertyOperation(modelId: String, operation: AppliedObjectRemovePropertyOperation, db: ODatabaseDocumentTx): Unit = {
+  private[this] def applyObjectRemovePropertyOperation(modelId: String, operation: AppliedObjectRemovePropertyOperation, db: ODatabaseDocument): Try[Unit] = {
     val script = createUpdate("REMOVE children = :property", Some(DeleteObjectKey(operation.property)))
     val params = Map(Id -> operation.id, ModelId -> modelId, "property" -> operation.property)
-    QueryUtil.updateSingleDocWithScript(script, params, db).get
-    ()
+    OrientDBUtil.mutateOneDocumentWithScript(db, script, params)
   }
 
-  private[this] def applyObjectSetOperation(modelId: String, operation: AppliedObjectSetOperation, db: ODatabaseDocumentTx): Unit = {
-    val children = operation.value map { case (k, v) => (k, OrientDataValueBuilder.dataValueToODocument(v, getModelRid(modelId, db))) }
-    children.values foreach { child => child.save() }
-    db.commit()
-
-    val script = createUpdate("SET children = :value", Some(DeleteAllChildren))
-    val params = Map(Id -> operation.id, ModelId -> modelId, Value -> children.asJava)
-    QueryUtil.updateSingleDocWithScript(script, params, db).get
-    ()
+  private[this] def applyObjectSetOperation(modelId: String, operation: AppliedObjectSetOperation, db: ODatabaseDocument): Try[Unit] = {
+    Try {
+      val children = operation.value map { case (k, v) => (k, OrientDataValueBuilder.dataValueToODocument(v, getModelRid(modelId, db))) }
+      children.values foreach { child => child.save() }
+      db.commit()
+      children
+    } flatMap { children =>
+      val script = createUpdate("SET children = :value", Some(DeleteAllChildren))
+      val params = Map(Id -> operation.id, ModelId -> modelId, Value -> children.asJava)
+      OrientDBUtil.mutateOneDocumentWithScript(db, script, params)
+    }
   }
 
   //
   // String Operations
   //
-  private[this] def applyStringInsertOperation(modelId: String, operation: AppliedStringInsertOperation, db: ODatabaseDocumentTx): Unit = {
+  private[this] def applyStringInsertOperation(modelId: String, operation: AppliedStringInsertOperation, db: ODatabaseDocument): Try[Unit] = {
     // FIXME remove this when the following orient issue is resolved
     // https://github.com/orientechnologies/orientdb/issues/6250
     val hackValue = if (OIOUtils.isStringContent(operation.value)) {
@@ -218,61 +237,54 @@ class ModelOperationProcessor private[domain] (
 
     val script = createUpdate("SET value = value.left(:index).append(:value).append(value.substring(:index))", None)
     val params = Map(Id -> operation.id, ModelId -> modelId, Index -> operation.index, Value -> hackValue)
-    QueryUtil.updateSingleDocWithScript(script, params, db).get
-    ()
+    OrientDBUtil.mutateOneDocumentWithScript(db, script, params)
   }
 
-  private[this] def applyStringRemoveOperation(modelId: String, operation: AppliedStringRemoveOperation, db: ODatabaseDocumentTx): Unit = {
+  private[this] def applyStringRemoveOperation(modelId: String, operation: AppliedStringRemoveOperation, db: ODatabaseDocument): Try[Unit] = {
     val script = createUpdate("SET value = value.left(:index).append(value.substring(:endLength))", None)
     val endLength = operation.index + operation.length
     val params = Map(Id -> operation.id, ModelId -> modelId, Index -> operation.index, "endLength" -> endLength)
-    QueryUtil.updateSingleDocWithScript(script, params, db).get
-    ()
+    OrientDBUtil.mutateOneDocumentWithScript(db, script, params)
   }
 
-  private[this] def applyStringSetOperation(modelId: String, operation: AppliedStringSetOperation, db: ODatabaseDocumentTx): Unit = {
+  private[this] def applyStringSetOperation(modelId: String, operation: AppliedStringSetOperation, db: ODatabaseDocument): Try[Unit] = {
     val script = createUpdate("SET value = :value", None)
     val params = Map(Id -> operation.id, ModelId -> modelId, Value -> operation.value)
-    QueryUtil.updateSingleDocWithScript(script, params, db).get
-    ()
+    OrientDBUtil.mutateOneDocumentWithScript(db, script, params)
   }
 
   //
   // Number Operations
   //
-  private[this] def applyNumberAddOperation(modelId: String, operation: AppliedNumberAddOperation, db: ODatabaseDocumentTx): Unit = {
+  private[this] def applyNumberAddOperation(modelId: String, operation: AppliedNumberAddOperation, db: ODatabaseDocument): Try[Unit] = {
     val value = operation.value
     val script = createUpdate(s"SET value = eval('value + $value')", None)
     val params = Map(Id -> operation.id, ModelId -> modelId)
-    QueryUtil.updateSingleDocWithScript(script, params, db).get
-    ()
+    OrientDBUtil.mutateOneDocumentWithScript(db, script, params)
   }
 
-  private[this] def applyNumberSetOperation(modelId: String, operation: AppliedNumberSetOperation, db: ODatabaseDocumentTx): Unit = {
+  private[this] def applyNumberSetOperation(modelId: String, operation: AppliedNumberSetOperation, db: ODatabaseDocument): Try[Unit] = {
     val script = createUpdate("SET value = :value", None)
     val params = Map(Id -> operation.id, ModelId -> modelId, Value -> operation.value)
-    QueryUtil.updateSingleDocWithScript(script, params, db).get
-    ()
+    OrientDBUtil.mutateOneDocumentWithScript(db, script, params)
   }
 
   //
   // Boolean Operations
   //
-  private[this] def applyBooleanSetOperation(modelId: String, operation: AppliedBooleanSetOperation, db: ODatabaseDocumentTx): Unit = {
+  private[this] def applyBooleanSetOperation(modelId: String, operation: AppliedBooleanSetOperation, db: ODatabaseDocument): Try[Unit] = {
     val script = createUpdate("SET value = :value", None)
     val params = Map(Id -> operation.id, ModelId -> modelId, Value -> operation.value)
-    QueryUtil.updateSingleDocWithScript(script, params, db).get
-    ()
+    OrientDBUtil.mutateOneDocumentWithScript(db, script, params)
   }
 
   //
   // Date Operations
   //
-  private[this] def applyDateSetOperation(modelId: String, operation: AppliedDateSetOperation, db: ODatabaseDocumentTx): Unit = {
+  private[this] def applyDateSetOperation(modelId: String, operation: AppliedDateSetOperation, db: ODatabaseDocument): Try[Unit] = {
     val script = createUpdate("SET value = :value", None)
     val params = Map(Id -> operation.id, ModelId -> modelId, Value -> Date.from(operation.value))
-    QueryUtil.updateSingleDocWithScript(script, params, db).get
-    ()
+    OrientDBUtil.mutateOneDocumentWithScript(db, script, params)
   }
 
   private[this] def createUpdate(updateClause: String, deleteStrategy: Option[DataValueDeleteStrategy]): String = {
@@ -283,7 +295,7 @@ class ModelOperationProcessor private[domain] (
     // model fields on the data value class itself, which is indexed.
 
     val (childrenSelector, deleteCommand) = deleteStrategy map {
-      case DeleteAllChildren => 
+      case DeleteAllChildren =>
         "children"
       case DeleteObjectKey(childPath) =>
         s"children[`${childPath}`]"
@@ -292,8 +304,7 @@ class ModelOperationProcessor private[domain] (
     } map { path =>
       (
         s"LET childrenToDelete = SELECT expand($path) FROM $$dv;",
-        "DELETE FROM (TRAVERSE children FROM $childrenToDelete);"
-        )  
+        "DELETE FROM (TRAVERSE children FROM $childrenToDelete);")
     } getOrElse (("", ""))
 
     s"""
@@ -308,7 +319,7 @@ class ModelOperationProcessor private[domain] (
       |COMMIT;""".stripMargin
   }
 
-  private[this] def getModelRid(modelId: String, db: ODatabaseDocumentTx): ORID = {
+  private[this] def getModelRid(modelId: String, db: ODatabaseDocument): ORID = {
     ModelStore.getModelRid(modelId, db).get
   }
 }
