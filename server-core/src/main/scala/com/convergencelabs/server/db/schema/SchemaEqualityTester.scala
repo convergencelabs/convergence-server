@@ -4,7 +4,7 @@ import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.asScalaSetConverter
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.index.OIndex
 import com.orientechnologies.orient.core.metadata.function.OFunction
 import com.orientechnologies.orient.core.metadata.schema.OClass
@@ -14,14 +14,14 @@ import com.orientechnologies.orient.core.metadata.sequence.OSequence
 import grizzled.slf4j.Logging
 
 object SchemaEqualityTester extends Logging {
-  def assertEqual(db1: ODatabaseDocumentTx, db2: ODatabaseDocumentTx): Unit = {
+  def assertEqual(db1: ODatabaseDocument, db2: ODatabaseDocument): Unit = {
     assertFunctionsEqual(db1, db2)
     assertSequencesEqual(db1, db2)
     assertClassesEqual(db1, db2)
     assertIndexesEqual(db1, db2)
   }
 
-  private[this] def assertFunctionsEqual(db1: ODatabaseDocumentTx, db2: ODatabaseDocumentTx): Unit = {
+  private[this] def assertFunctionsEqual(db1: ODatabaseDocument, db2: ODatabaseDocument): Unit = {
     val functionLibrary1 = db1.getMetadata.getFunctionLibrary
     val functionLibrary2 = db2.getMetadata.getFunctionLibrary
 
@@ -43,7 +43,7 @@ object SchemaEqualityTester extends Logging {
     assume(function1.isIdempotent == function2.isIdempotent, "Function idempotence for ${function1.getName} is not the same!")
   }
 
-  private[this] def assertIndexesEqual(db1: ODatabaseDocumentTx, db2: ODatabaseDocumentTx): Unit = {
+  private[this] def assertIndexesEqual(db1: ODatabaseDocument, db2: ODatabaseDocument): Unit = {
     val indexManager1 = db1.getMetadata.getIndexManager
     val indexManager2 = db2.getMetadata.getIndexManager
 
@@ -57,7 +57,7 @@ object SchemaEqualityTester extends Logging {
     }
   }
 
-  private[this] def assertSequencesEqual(db1: ODatabaseDocumentTx, db2: ODatabaseDocumentTx): Unit = {
+  private[this] def assertSequencesEqual(db1: ODatabaseDocument, db2: ODatabaseDocument): Unit = {
     val sequenceLibrary1 = db1.getMetadata.getSequenceLibrary
     val sequenceLibrary2 = db2.getMetadata.getSequenceLibrary
 
@@ -85,7 +85,7 @@ object SchemaEqualityTester extends Logging {
     assume(seq1.getDocument.field("incr") == seq2.getDocument.field("incr"), s"Sequence increment for ${seq1.getName} is not the same!")
   }
 
-  private[this] def assertClassesEqual(db1: ODatabaseDocumentTx, db2: ODatabaseDocumentTx): Unit = {
+  private[this] def assertClassesEqual(db1: ODatabaseDocument, db2: ODatabaseDocument): Unit = {
     val schema1 = db1.getMetadata.getSchema
     val schema2 = db2.getMetadata.getSchema
 
