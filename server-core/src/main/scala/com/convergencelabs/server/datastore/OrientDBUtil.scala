@@ -61,7 +61,7 @@ object OrientDBUtil {
     val rs = db.query(query, params.asJava)
     TryWithResource(rs)(resultSetToDocList(_)) flatMap (assertOneDoc(_))
   }
-
+  
   def findDocument(db: ODatabaseDocument, query: String, params: Map[String, Any] = Map()): Try[Option[ODocument]] = {
     val rs = db.query(query, params.asJava)
     TryWithResource(rs)(resultSetToDocList(_)) flatMap (assertZeroOrOneDoc(_))

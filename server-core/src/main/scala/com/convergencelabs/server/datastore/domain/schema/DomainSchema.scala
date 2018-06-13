@@ -2,6 +2,7 @@ package com.convergencelabs.server.datastore.domain.schema
 
 object DomainSchema {
   object Classes {
+    val Permission = PermissionClass
     val JwtAuthKey = JwtAuthKeyClass
     val User = UserClass
     val UserReconnectToken = UserReconnectTokenClass

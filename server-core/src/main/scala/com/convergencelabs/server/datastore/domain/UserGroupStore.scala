@@ -14,7 +14,7 @@ import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.datastore.QueryUtil
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
@@ -37,13 +37,13 @@ object UserGroupStore {
     val Description = "description"
   }
 
-  def getGroupRid(id: String, db: ODatabaseDocumentTx): Try[ORID] = {
+  def getGroupRid(id: String, db: ODatabaseDocument): Try[ORID] = {
     val query = "SELECT @RID as rid FROM UserGroup WHERE id = :id"
     val params = Map("id" -> id)
     QueryUtil.lookupMandatoryDocument(query, params, db) map { _.eval("rid").asInstanceOf[ORID] }
   }
 
-  def groupToDoc(group: UserGroup, db: ODatabaseDocumentTx): ODocument = {
+  def groupToDoc(group: UserGroup, db: ODatabaseDocument): ODocument = {
     val UserGroup(id, description, members) = group
     val doc = new ODocument(ClassName)
     doc.field(Fields.Id, id)
