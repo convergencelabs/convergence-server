@@ -12,7 +12,6 @@ import org.scalatest.OptionValues
 import org.scalatest.WordSpecLike
 
 import com.convergencelabs.server.db.DatabaseProvider
-import com.convergencelabs.server.datastore.QueryUtil
 import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.domain.DomainUser
 import com.convergencelabs.server.domain.DomainUserType
@@ -44,6 +43,8 @@ import com.convergencelabs.server.domain.model.ot.AppliedObjectSetPropertyOperat
 import com.convergencelabs.server.domain.model.ot.AppliedStringInsertOperation
 import com.convergencelabs.server.domain.model.ot.AppliedStringRemoveOperation
 import com.convergencelabs.server.domain.model.ot.AppliedStringSetOperation
+import com.convergencelabs.server.datastore.OrientDBUtil
+import scala.util.Success
 
 // scalastyle:off magic.number multiple.string.literals
 class ModelOperationProcessorSpec
@@ -524,10 +525,10 @@ class ModelOperationProcessorSpec
   }
 
   def vidExists(vid: String, dbProvider: DatabaseProvider): Try[Boolean] = {
-    dbProvider.tryWithDatabase { db =>
+    dbProvider.withDatabase { db =>
       val query = "SELECT * FROM DataValue WHERE id = :id"
       val params = Map("id" -> vid)
-      QueryUtil.lookupOptionalDocument(query, params, db).map(_ => true).getOrElse(false)
+      OrientDBUtil.getDocument(db, query, params).map(_ => true).orElse(Success(false))
     }
   }
 

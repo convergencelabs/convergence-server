@@ -69,13 +69,14 @@ class ConvergenceImporterActor(
   }
 
   private[this] def importDomain(fqn: DomainFqn, script: DomainScript): Unit = {
+    // FIXME should this be a flatMap or something?
     domainDbProvider.getDomainDatabasePool(fqn) foreach {
       domainPool =>
-        val provider = new DomainPersistenceProviderImpl(dbProvider)
+        val provider = new DomainPersistenceProviderImpl(domainPool)
         val domainImporter = new DomainImporter(provider, script)
         // FIXME handle error
         domainImporter.importDomain()
-        domainPool.close()
+        domainPool.shutdown()
     }
   }
 
@@ -83,7 +84,7 @@ class ConvergenceImporterActor(
     log.debug(s"Exporting domain: ${fqn.namespace}/${fqn.domainId}")
     domainDbProvider.getDomainDatabasePool(fqn) foreach {
       domainPool =>
-        val provider = new DomainPersistenceProviderImpl(dbProvider)
+        val provider = new DomainPersistenceProviderImpl(domainPool)
         val domainExporter = new DomainExporter(provider)
         // FIXME handle error
         domainExporter.exportDomain() match {
@@ -92,7 +93,7 @@ class ConvergenceImporterActor(
           case Failure(f) =>
             sender ! akka.actor.Status.Failure(f)
         }
-        domainPool.close()
+        domainPool.shutdown()
     }
   }
 }

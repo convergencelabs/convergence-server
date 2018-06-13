@@ -67,8 +67,8 @@ object DomainPersistenceManagerActor extends DomainPersistenceManager with Loggi
 }
 
 class DomainPersistenceManagerActor(
-    baseDbUri: String,
-    domainDatabaseStore: DomainDatabaseStore) extends Actor with ActorLogging {
+  baseDbUri: String,
+  domainDatabaseStore: DomainDatabaseStore) extends Actor with ActorLogging {
 
   private[this] var refernceCounts = Map[DomainFqn, Int]()
   private[this] var providers = Map[DomainFqn, DomainPersistenceProviderImpl]()
@@ -155,17 +155,19 @@ class DomainPersistenceManagerActor(
     log.debug(s"Creating new persistence provider: ${domainFqn}")
     domainDatabaseStore.getDomainDatabase(domainFqn) flatMap {
       case Some(domainInfo) =>
-        
+
         log.debug(s"Creating new connection pool for '${domainFqn}': ${baseDbUri}/${domainInfo.database}")
-        
+
         // FIXME need to fiugre out how to configure pool sizes.
         val dbProvider = new PooledDatabaseProvider(baseDbUri, domainInfo.database, domainInfo.username, domainInfo.password)
         val provider = new DomainPersistenceProviderImpl(dbProvider)
-        provider.validateConnection() flatMap { _ =>
-          log.debug(s"Successfully created connection pool for '${domainFqn}':  ${baseDbUri}/${domainInfo.database}")
-          providers = providers + (domainFqn -> provider)
-          Success(provider)
-        }
+        dbProvider.connect()
+          .flatMap(_ => provider.validateConnection())
+          .flatMap { _ =>
+            log.debug(s"Successfully created connection pool for '${domainFqn}':  ${baseDbUri}/${domainInfo.database}")
+            providers = providers + (domainFqn -> provider)
+            Success(provider)
+          }
       case None =>
         val message = s"Error looking up the domain record for $domainFqn, when initializing a domain persistence provider."
         Failure(new IllegalStateException(message))

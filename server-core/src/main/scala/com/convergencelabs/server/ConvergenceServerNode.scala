@@ -252,6 +252,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
 
       // FIXME figure out how to set the pool size
       val dbProvider = new PooledDatabaseProvider(baseUri, convergenceDatabase, username, password)
+      dbProvider.connect().get
 
       val domainDatabaseStore = new DomainDatabaseStore(dbProvider)
       system.actorOf(

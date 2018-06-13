@@ -9,14 +9,14 @@ import org.scalatest.WordSpecLike
 
 import com.convergencelabs.server.datastore.convergence.ConvergenceDelta
 import com.convergencelabs.server.datastore.convergence.ConvergenceDeltaHistory
-import com.convergencelabs.server.db.DatabaseProvider
-import com.convergenconvergence.celabs.server.datastore.DeltaHistoryStore
+import com.convergencelabs.server.datastore.convergence.DeltaHistoryStore
 import com.convergencelabs.server.datastore.convergence.DomainDelta
-import com.convergencelabs.server.datastore.convergence.DomainDeltaHistconvergence.ory
-import com.convergencelabs.server.datastore.DomainStore
-import com.convergencelabs.server.datastore.UserStore
-import com.convergencelabs.server.datastore.UserStore.User
+import com.convergencelabs.server.datastore.convergence.DomainDeltaHistory
+import com.convergencelabs.server.datastore.convergence.DomainStore
+import com.convergencelabs.server.datastore.convergence.UserStore
+import com.convergencelabs.server.datastore.convergence.UserStore.User
 import com.convergencelabs.server.datastore.domain.PersistenceStoreSpec
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.domain.DomainFqn
 
 object DeltaHistoryStoreSpec {

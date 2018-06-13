@@ -65,8 +65,8 @@ class ConvergenceExporter(
     domainStore.getDomainsByOwner(username) map {
       _.map { case domain =>
         // FIXME error handling
-        val pool = dbFactory.getDomainDatabasePool(domain.domainFqn).get
-        val provider = new DomainPersistenceProviderImpl(DatabaseProvider(pool))
+        val dbProvider = dbFactory.getDomainDatabasePool(domain.domainFqn).get
+        val provider = new DomainPersistenceProviderImpl(dbProvider)
         val exporter = new DomainExporter(provider)
         // FIXME error handling
         val domainScript = exporter.exportDomain().get

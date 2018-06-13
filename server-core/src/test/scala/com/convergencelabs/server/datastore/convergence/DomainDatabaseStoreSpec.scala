@@ -1,19 +1,19 @@
-package com.convergencelabs.server.datastore
+package com.convergencelabs.server.datastore.convergence
 
 import java.time.Duration
 
 import org.scalatest.Matchers
-import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
+import org.scalatest.TryValues.convertTryToSuccessOrFailure
 
-import com.convergencelabs.server.datastore.DomainDatabaseStoreSpec.SpecStores
-import com.convergencelabs.server.datastore.UserStore.User
+import com.convergencelabs.server.datastore.DuplicateValueException
+import com.convergencelabs.server.datastore.convergence.DomainDatabaseStoreSpec.SpecStores
+import com.convergencelabs.server.datastore.convergence.UserStore.User
 import com.convergencelabs.server.datastore.domain.PersistenceStoreSpec
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.db.schema.DeltaCategory
-import com.convergencelabs.server.domain.DomainDatabase
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.datastore.convergence.DomainDatabaseStore
-import com.convergencelabs.server.datastore.convergence.DomainStore
+import com.convergencelabs.server.domain.DomainDatabase
 
 object DomainDatabaseStoreSpec {
   case class SpecStores(

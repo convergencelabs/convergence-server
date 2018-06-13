@@ -12,18 +12,23 @@ import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.convergencelabs.server.db.schema.TestingSchemaManager
 import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProviderImpl
+import com.orientechnologies.orient.core.db.OrientDB
+import com.orientechnologies.orient.core.db.OrientDBConfig
+import com.convergencelabs.server.db.ConnectedSingleDatabaseProvider
+import com.orientechnologies.orient.core.db.ODatabaseType
 
 class DomainImportExportSpec extends WordSpecLike with Matchers {
 
   "A DomainImport and Export" must {
     "import the correct data" in {
-      val url = "memory:DomainImporterSpec-" + System.nanoTime()
+      val dbName = "DomainImporterSpec-" + System.nanoTime()
 
-      val db = new ODatabaseDocumentTx(url)
+      val orientDB = new OrientDB("memory:DomainImporterSpec", "root", "password", OrientDBConfig.defaultConfig());
+      orientDB.create(dbName, ODatabaseType.MEMORY);
+      val db = orientDB.open(dbName, "admin", "admin")
       db.activateOnCurrentThread()
-      db.create()
 
-      val dbPool = DatabaseProvider(db)
+      val dbPool = new ConnectedSingleDatabaseProvider(db)
 
       val upgrader = new TestingSchemaManager(db, DeltaCategory.Domain, true)
       upgrader.install()
@@ -51,6 +56,10 @@ class DomainImportExportSpec extends WordSpecLike with Matchers {
       importModels.toSet shouldBe exportModels.toSet
       importUsers.value.toSet should be(exportUsers.value.toSet)
       importSessions.value.toSet should be(exportSessions.value.toSet)
+
+      dbPool.shutdown()
+      orientDB.drop(dbName)
+      orientDB.close()
     }
   }
 }

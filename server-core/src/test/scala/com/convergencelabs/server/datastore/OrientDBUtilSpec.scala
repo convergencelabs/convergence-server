@@ -1,19 +1,16 @@
 package com.convergencelabs.server.datastore
 
-import java.util.ArrayList
-
-import org.scalatest.Finders
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
 
-import com.orientechnologies.orient.core.record.impl.ODocument
-import com.orientechnologies.orient.core.db.document.ODatabaseDocument
+import com.convergencelabs.server.util.TryWithResource
+import com.orientechnologies.orient.core.db.ODatabaseType
 import com.orientechnologies.orient.core.db.OrientDB
 import com.orientechnologies.orient.core.db.OrientDBConfig
-import com.orientechnologies.orient.core.db.ODatabaseType
-import com.convergencelabs.server.util.TryWithResource
-import org.scalatest.BeforeAndAfterAll
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.record.OElement
+import com.orientechnologies.orient.core.record.impl.ODocument
 
 // scalastyle:off multiple.string.literals
 class OrientDBUtilSpec

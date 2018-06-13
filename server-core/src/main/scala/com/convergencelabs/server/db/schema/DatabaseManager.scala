@@ -15,9 +15,9 @@ import com.orientechnologies.orient.core.db.OrientDBConfig
 import com.orientechnologies.orient.core.db.OrientDB
 
 class DatabaseManager(
-    databaseUrl: String,
-    convergenceDbProvider: DatabaseProvider,
-    dbConfig: Config) extends Logging {
+  databaseUrl: String,
+  convergenceDbProvider: DatabaseProvider,
+  dbConfig: Config) extends Logging {
 
   private[this] val deltaHistoryStore = new DeltaHistoryStore(convergenceDbProvider)
   private[this] val domainProvider = new DomainDatabaseFactory(databaseUrl, convergenceDbProvider)
@@ -91,10 +91,9 @@ class DatabaseManager(
   }
 
   private[this] def withDomainDatabase[T](fqn: DomainFqn)(f: (ODatabaseDocument) => Try[T]): Try[T] = {
-    domainProvider.getDomainAdminDatabase(fqn) flatMap { db =>
-      val result = f(db)
-      db.activateOnCurrentThread()
-      db.close()
+    domainProvider.getDomainAdminDatabase(fqn) flatMap { dbProvider =>
+      val result = dbProvider.withDatabase(f(_))
+      dbProvider.shutdown()
       result
     }
   }

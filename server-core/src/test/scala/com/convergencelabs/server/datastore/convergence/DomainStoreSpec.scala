@@ -1,4 +1,4 @@
-package com.convergencelabs.server.datastore
+package com.convergencelabs.server.datastore.convergence
 
 import java.time.Duration
 
@@ -7,13 +7,15 @@ import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
 
-import com.convergencelabs.server.datastore.UserStore.User
+import com.convergencelabs.server.datastore.convergence.UserStore.User
 import com.convergencelabs.server.datastore.domain.PersistenceStoreSpec
 import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.domain.Domain
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.DomainStatus
-import com.convergencelabs.server.datastore.convergence.DomainStore
+import com.convergencelabs.server.db.DatabaseProvider
+import com.convergencelabs.server.datastore.DuplicateValueException
+import com.convergencelabs.server.datastore.EntityNotFoundException
 
 object DomainStoreSpec {
   case class SpecStores(user: UserStore, domain: DomainStore)

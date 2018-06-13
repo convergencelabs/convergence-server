@@ -1,4 +1,4 @@
-package com.convergencelabs.server.datastore
+package com.convergencelabs.server.datastore.convergence
 
 import java.time.Duration
 import java.time.Instant
@@ -11,7 +11,10 @@ import org.scalatest.WordSpecLike
 
 import com.convergencelabs.server.datastore.domain.PersistenceStoreSpec
 import com.convergencelabs.server.db.schema.DeltaCategory
-import com.convergencelabs.server.datastore.UserStore.User
+import com.convergencelabs.server.datastore.convergence.UserStore.User
+import com.convergencelabs.server.db.DatabaseProvider
+import com.convergencelabs.server.datastore.EntityNotFoundException
+import com.convergencelabs.server.datastore.DuplicateValueException
 
 class UserStoreSpec
     extends PersistenceStoreSpec[UserStore](DeltaCategory.Convergence)

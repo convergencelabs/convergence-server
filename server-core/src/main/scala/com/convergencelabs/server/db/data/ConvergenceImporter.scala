@@ -23,13 +23,15 @@ import akka.util.Timeout
 import grizzled.slf4j.Logging
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProviderImpl
+import com.convergencelabs.server.db.PooledDatabaseProvider
+import com.convergencelabs.server.db.SingleDatabaseProvider
 
 class ConvergenceImporter(
-    private[this] val dbBaseUri: String,
-    private[this] val convergenceDbProvider: DatabaseProvider,
-    private[this] val domainStoreActor: ActorRef,
-    private[this] val data: ConvergenceScript,
-    private[this] implicit val ec: ExecutionContext) extends Logging {
+  private[this] val dbBaseUri: String,
+  private[this] val convergenceDbProvider: DatabaseProvider,
+  private[this] val domainStoreActor: ActorRef,
+  private[this] val data: ConvergenceScript,
+  private[this] implicit val ec: ExecutionContext) extends Logging {
 
   def importData(): Try[Unit] = {
     importUsers() flatMap (_ =>
@@ -48,7 +50,7 @@ class ConvergenceImporter(
           userData.firstName.getOrElse(""),
           userData.lastName.getOrElse(""),
           userData.displayName.getOrElse(""))
-          userData.password.passwordType match {
+        userData.password.passwordType match {
           case "plaintext" =>
             userStore.createUser(user, userData.password.value).get
           case "hash" =>
@@ -79,21 +81,23 @@ class ConvergenceImporter(
             logger.debug(s"Domain database provisioned successfuly: ${domainData.namespace}/${domainData.id}")
             domainData.dataImport map { script =>
               logger.debug(s"Importing data for domain: ${domainData.namespace}/${domainData.id}")
-              
-              val db = new ODatabaseDocument(s"${dbBaseUri}/${dbInfo.database}")
-              db.open(dbInfo.username, dbInfo.password)
-                
-              val provider = new DomainPersistenceProviderImpl(DatabaseProvider(db))
+
+              val dbProvider = new SingleDatabaseProvider(dbBaseUri, dbInfo.database, dbInfo.username, dbInfo.password)
+              val provider = new DomainPersistenceProviderImpl(dbProvider)
               val domainImporter = new DomainImporter(provider, script)
-              domainImporter.importDomain() map { _ =>
-                logger.debug("Domain import successful.")
-                db.close()
-              } recoverWith {
-                case cause: Exception =>
-                  db.close()
-                  logger.error("Domain import failed", cause)
-                  Failure(cause)
-              }
+              dbProvider
+                .connect()
+                .flatMap(_ => domainImporter.importDomain())
+                .map { _ =>
+                  logger.debug("Domain import successful.")
+                  dbProvider.shutdown()
+                }
+                .recoverWith {
+                  case cause: Exception =>
+                    dbProvider.shutdown()
+                    logger.error("Domain import failed", cause)
+                    Failure(cause)
+                }
             } orElse {
               logger.debug("No data to import, domain provisioing complete")
               None
