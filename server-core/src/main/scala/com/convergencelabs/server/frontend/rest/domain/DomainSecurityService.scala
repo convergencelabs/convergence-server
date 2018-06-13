@@ -5,12 +5,12 @@ import scala.concurrent.Future
 import scala.util.Try
 
 import com.convergencelabs.server.datastore.EntityNotFoundException
-import com.convergencelabs.server.datastore.Permission
-import com.convergencelabs.server.datastore.convergnece.PermissionsStoreActor.GetAllUserRolesRequest
-import com.convergencelabs.server.datastore.convergnece.PermissionsStoreActor.GetUserPermissionsRequest
-import com.convergencelabs.server.datastore.convergnece.PermissionsStoreActor.GetUserRolesRequest
-import com.convergencelabs.server.datastore.convergnece.PermissionsStoreActor.SetRolesRequest
-import com.convergencelabs.server.datastore.UserRoles
+import com.convergencelabs.server.datastore.convergence.PermissionsStore.Permission
+import com.convergencelabs.server.datastore.convergence.PermissionsStoreActor.GetAllUserRolesRequest
+import com.convergencelabs.server.datastore.convergence.PermissionsStoreActor.GetUserPermissionsRequest
+import com.convergencelabs.server.datastore.convergence.PermissionsStoreActor.GetUserRolesRequest
+import com.convergencelabs.server.datastore.convergence.PermissionsStoreActor.SetRolesRequest
+import com.convergencelabs.server.datastore.convergence.PermissionsStore.UserRoles
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.rest.AuthorizationActor.ConvergenceAuthorizedRequest
 

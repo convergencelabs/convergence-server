@@ -8,7 +8,6 @@ import scala.util.Failure
 import scala.util.Try
 
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.server.datastore.DatabaseProvider
 import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.datastore.OrientDBUtil
@@ -23,6 +22,7 @@ import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.db.DatabaseProvider
 
 object UserStore {
 
@@ -157,7 +157,7 @@ class UserStore(
       case Some(searchFilter) =>
         Map("searchString" -> s"%${searchFilter}%")
       case None =>
-        Map()
+        Map().asInstanceOf[Map[String, Any]]
     }
 
     OrientDBUtil.query(db, query, params).map(docs => docs.map(UserStore.docToUser(_)))

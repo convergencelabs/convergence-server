@@ -3,11 +3,13 @@ package com.convergencelabs.server.frontend.rest
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
-import com.convergencelabs.server.datastore.UserStore.User
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.CreateConvergenceUserRequest
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.DeleteConvergenceUserRequest
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUser
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUsers
+import com.convergencelabs.server.datastore.convergence.UserStore.User
+import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.CreateConvergenceUserRequest
+import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.DeleteConvergenceUserRequest
+import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.GetConvergenceUser
+import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.GetConvergenceUsers
+import com.convergencelabs.server.datastore.DuplicateValueException
+import com.convergencelabs.server.datastore.InvalidValueExcpetion
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
@@ -29,8 +31,6 @@ import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.post
 import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.server.datastore.DuplicateValueException
-import com.convergencelabs.server.datastore.InvalidValueExcpetion
 import akka.http.scaladsl.server.ExceptionHandler
 
 object ConvergenceUserService {

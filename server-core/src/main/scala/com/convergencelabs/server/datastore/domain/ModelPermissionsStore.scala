@@ -12,8 +12,7 @@ import scala.util.Success
 import scala.util.Try
 
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.QueryUtil
+import com.convergencelabs.server.db.DatabaseProvider
 import com.orientechnologies.orient.core.db.record.OTrackedList
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.index.OCompositeKey

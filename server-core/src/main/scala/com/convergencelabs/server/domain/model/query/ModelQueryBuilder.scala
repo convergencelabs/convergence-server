@@ -1,45 +1,42 @@
 package com.convergencelabs.server.datastore.domain
 
-import scala.collection.mutable.{ Map => ScalaMutableMap }
 import scala.collection.JavaConverters.seqAsJavaListConverter
+import scala.collection.mutable.{ Map => ScalaMutableMap }
 
-import ModelStore.Constants.CollectionId
-import ModelStore.Fields.Collection
-
-import com.convergencelabs.server.domain.model.query.Ast.SelectStatement
-import com.convergencelabs.server.domain.model.query.Ast.WhereExpression
-import com.convergencelabs.server.domain.model.query.Ast.OrderBy
-import com.convergencelabs.server.domain.model.query.Ast.Ascending
-import com.convergencelabs.server.domain.model.query.Ast.Descending
-import com.convergencelabs.server.domain.model.query.Ast.LogicalExpression
-import com.convergencelabs.server.domain.model.query.Ast.ConditionalExpression
+import com.convergencelabs.server.datastore.OrientDBUtil
+import com.convergencelabs.server.datastore.domain.schema.DomainSchema
+import com.convergencelabs.server.domain.model.query.Ast.Add
 import com.convergencelabs.server.domain.model.query.Ast.And
-import com.convergencelabs.server.domain.model.query.Ast.Or
-import com.convergencelabs.server.domain.model.query.Ast.Not
+import com.convergencelabs.server.domain.model.query.Ast.Ascending
+import com.convergencelabs.server.domain.model.query.Ast.BooleanTerm
+import com.convergencelabs.server.domain.model.query.Ast.ConditionalExpression
+import com.convergencelabs.server.domain.model.query.Ast.ConditionalTerm
+import com.convergencelabs.server.domain.model.query.Ast.Descending
+import com.convergencelabs.server.domain.model.query.Ast.Divide
+import com.convergencelabs.server.domain.model.query.Ast.DoubleTerm
 import com.convergencelabs.server.domain.model.query.Ast.Equals
-import com.convergencelabs.server.domain.model.query.Ast.NotEquals
+import com.convergencelabs.server.domain.model.query.Ast.FieldTerm
 import com.convergencelabs.server.domain.model.query.Ast.GreaterThan
-import com.convergencelabs.server.domain.model.query.Ast.LessThan
-import com.convergencelabs.server.domain.model.query.Ast.LessThanOrEqual
 import com.convergencelabs.server.domain.model.query.Ast.GreaterThanOrEqual
 import com.convergencelabs.server.domain.model.query.Ast.In
-import com.convergencelabs.server.domain.model.query.Ast.Like
-import com.convergencelabs.server.domain.model.query.Ast.ConditionalTerm
-import com.convergencelabs.server.domain.model.query.Ast.MathematicalOperator
-import com.convergencelabs.server.domain.model.query.Ast.DoubleTerm
-import com.convergencelabs.server.domain.model.query.Ast.FieldTerm
-import com.convergencelabs.server.domain.model.query.Ast.LongTerm
-import com.convergencelabs.server.domain.model.query.Ast.StringTerm
-import com.convergencelabs.server.domain.model.query.Ast.BooleanTerm
-import com.convergencelabs.server.domain.model.query.Ast.Add
-import com.convergencelabs.server.domain.model.query.Ast.Subtract
-import com.convergencelabs.server.domain.model.query.Ast.Divide
-import com.convergencelabs.server.domain.model.query.Ast.Multiply
-import com.convergencelabs.server.domain.model.query.Ast.Mod
-import com.convergencelabs.server.datastore.QueryUtil
-import com.convergencelabs.server.domain.model.query.Ast.ValueTerm
 import com.convergencelabs.server.domain.model.query.Ast.IndexPathElement
+import com.convergencelabs.server.domain.model.query.Ast.LessThan
+import com.convergencelabs.server.domain.model.query.Ast.LessThanOrEqual
+import com.convergencelabs.server.domain.model.query.Ast.Like
+import com.convergencelabs.server.domain.model.query.Ast.LogicalExpression
+import com.convergencelabs.server.domain.model.query.Ast.LongTerm
+import com.convergencelabs.server.domain.model.query.Ast.MathematicalOperator
+import com.convergencelabs.server.domain.model.query.Ast.Mod
+import com.convergencelabs.server.domain.model.query.Ast.Multiply
+import com.convergencelabs.server.domain.model.query.Ast.Not
+import com.convergencelabs.server.domain.model.query.Ast.NotEquals
+import com.convergencelabs.server.domain.model.query.Ast.Or
 import com.convergencelabs.server.domain.model.query.Ast.PropertyPathElement
+import com.convergencelabs.server.domain.model.query.Ast.SelectStatement
+import com.convergencelabs.server.domain.model.query.Ast.StringTerm
+import com.convergencelabs.server.domain.model.query.Ast.Subtract
+import com.convergencelabs.server.domain.model.query.Ast.ValueTerm
+import com.convergencelabs.server.domain.model.query.Ast.WhereExpression
 
 case class ModelQueryParameters(query: String, params: Map[String, Any], as: Map[String, String])
 
@@ -69,7 +66,7 @@ object ModelQueryBuilder {
         sb.toString()
       }
 
-    val selectString = s"SELECT ${projectionString}FROM Model WHERE ${ModelStore.Fields.Collection}.${ModelStore.Fields.Id} = ${addParam(select.collection)}"
+    val selectString = s"SELECT ${projectionString}FROM Model WHERE ${DomainSchema.Classes.Model.Fields.Collection}.${DomainSchema.Classes.Model.Fields.Id} = ${addParam(select.collection)}"
 
     val whereString = (select.where map { where =>
       s" and ${buildExpressionString(where)}"
@@ -97,7 +94,7 @@ object ModelQueryBuilder {
 
     val queryString = s"${selectString}${whereString}${permissionString}${orderString}"
 
-    ModelQueryParameters(QueryUtil.buildPagedQuery(queryString, select.limit, select.offset), params.toMap, as.toMap)
+    ModelQueryParameters(OrientDBUtil.buildPagedQuery(queryString, select.limit, select.offset), params.toMap, as.toMap)
   }
 
   private[this] def buildFieldPath(field: FieldTerm): String = {

@@ -7,7 +7,7 @@ import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 
-import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.datastore.StoreActor
 import com.convergencelabs.server.datastore.convergence.UserStore.User
 import com.convergencelabs.server.util.RandomStringGenerator

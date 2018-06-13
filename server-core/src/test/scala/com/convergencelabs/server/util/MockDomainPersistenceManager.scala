@@ -26,7 +26,7 @@ import com.convergencelabs.server.datastore.domain.ModelSnapshotStore
 import com.convergencelabs.server.datastore.domain.ModelStore
 import com.convergencelabs.server.datastore.domain.ModelOperationProcessor
 import com.convergencelabs.server.datastore.domain.PermissionsStore
-import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.db.DatabaseProvider
 
 class MockDomainPersistenceManager(val mockProviders: Map[DomainFqn, MockDomainPersistenceProvider]) extends DomainPersistenceManager {
 

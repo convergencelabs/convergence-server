@@ -4,7 +4,7 @@ import scala.util.Failure
 import scala.util.Try
 
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.OrientDBUtil
 import com.convergencelabs.server.domain.DomainDatabase

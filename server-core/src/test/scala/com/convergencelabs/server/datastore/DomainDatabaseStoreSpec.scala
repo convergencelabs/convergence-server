@@ -12,8 +12,8 @@ import com.convergencelabs.server.datastore.domain.PersistenceStoreSpec
 import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.domain.DomainDatabase
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.datastore.convergnece.DomainDatabaseStore
-import com.convergencelabs.server.datastore.convergnece.DomainStore
+import com.convergencelabs.server.datastore.convergence.DomainDatabaseStore
+import com.convergencelabs.server.datastore.convergence.DomainStore
 
 object DomainDatabaseStoreSpec {
   case class SpecStores(

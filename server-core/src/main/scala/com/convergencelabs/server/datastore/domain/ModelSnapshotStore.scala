@@ -8,8 +8,7 @@ import scala.collection.JavaConverters._
 import scala.util.Try
 
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.QueryUtil
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.datastore.domain.mapper.ObjectValueMapper.ODocumentToObjectValue
 import com.convergencelabs.server.datastore.domain.mapper.ObjectValueMapper.ObjectValueToODocument
 import com.convergencelabs.server.domain.model.ModelSnapshot
@@ -171,7 +170,7 @@ class ModelSnapshotStore private[domain] (
         |  timestamp BETWEEN :startTime AND :endTime
         |ORDER BY version ASC""".stripMargin
 
-    val query = QueryUtil.buildPagedQuery(baseQuery, limit, offset)
+    val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
     val params = Map(
       Constants.ModelId -> id,
       "startTime" -> new java.util.Date(startTime.getOrElse(0L)),

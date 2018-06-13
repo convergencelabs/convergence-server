@@ -8,11 +8,11 @@ import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Try
 
-import com.convergencelabs.server.datastore.UserStore.User
-import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.convergnece.DomainStore
-import com.convergencelabs.server.datastore.DomainStoreActor.CreateDomainRequest
-import com.convergencelabs.server.datastore.UserStore
+import com.convergencelabs.server.datastore.convergence.UserStore.User
+import com.convergencelabs.server.db.DatabaseProvider
+import com.convergencelabs.server.datastore.convergence.DomainStore
+import com.convergencelabs.server.datastore.convergence.DomainStoreActor.CreateDomainRequest
+import com.convergencelabs.server.datastore.convergence.UserStore
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.domain.DomainDatabase
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
@@ -21,7 +21,7 @@ import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.util.Timeout
 import grizzled.slf4j.Logging
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProviderImpl
 
 class ConvergenceImporter(
@@ -80,7 +80,7 @@ class ConvergenceImporter(
             domainData.dataImport map { script =>
               logger.debug(s"Importing data for domain: ${domainData.namespace}/${domainData.id}")
               
-              val db = new ODatabaseDocumentTx(s"${dbBaseUri}/${dbInfo.database}")
+              val db = new ODatabaseDocument(s"${dbBaseUri}/${dbInfo.database}")
               db.open(dbInfo.username, dbInfo.password)
                 
               val provider = new DomainPersistenceProviderImpl(DatabaseProvider(db))

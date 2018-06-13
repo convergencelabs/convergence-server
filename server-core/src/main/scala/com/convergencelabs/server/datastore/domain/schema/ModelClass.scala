@@ -5,6 +5,7 @@ object ModelClass extends OrientDBClass {
 
   object Indices {
     val Id = "Model.id"
+    val CollectionId = "Model.collection_id"
   }
 
   object Fields {

@@ -22,7 +22,7 @@ import akka.actor.actorRef2Scala
 import akka.pattern.ask
 import akka.util.Timeout
 import scala.util.Try
-import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.datastore.StoreActor
 import com.convergencelabs.server.datastore.EntityNotFoundException
 

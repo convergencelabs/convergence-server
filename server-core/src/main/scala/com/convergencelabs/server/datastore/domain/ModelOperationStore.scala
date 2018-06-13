@@ -8,8 +8,7 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.util.Try
 
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.QueryUtil
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.datastore.domain.mapper.OrientDBOperationMapper
 import com.convergencelabs.server.domain.model.ModelOperation
 import com.convergencelabs.server.domain.model.NewModelOperation

@@ -9,7 +9,6 @@ import scala.util.Success
 import scala.util.Try
 
 import com.convergencelabs.server.domain.DomainFqn
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 
 import akka.actor.Actor
 import akka.actor.ActorContext
@@ -21,9 +20,10 @@ import akka.actor.Terminated
 import akka.actor.actorRef2Scala
 import akka.pattern.Patterns
 import akka.util.Timeout
-import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.db.DatabaseProvider
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.datastore.convergence.DomainDatabaseStore
+import com.convergencelabs.server.db.PooledDatabaseProvider
 
 trait DomainPersistenceManager {
   def acquirePersistenceProvider(requestor: ActorRef, context: ActorContext, domainFqn: DomainFqn): Try[DomainPersistenceProvider]
@@ -155,17 +155,14 @@ class DomainPersistenceManagerActor(
     log.debug(s"Creating new persistence provider: ${domainFqn}")
     domainDatabaseStore.getDomainDatabase(domainFqn) flatMap {
       case Some(domainInfo) =>
-        // FIXME we should make this configurable
-        val pool = new OPartitionedDatabasePool(
-          s"${baseDbUri}/${domainInfo.database}",
-          domainInfo.username,
-          domainInfo.password,
-          1,
-          64)
-        log.debug(s"Creating new connection pool for '${domainFqn}': ${pool.getUrl}")
-        val provider = new DomainPersistenceProviderImpl(DatabaseProvider(pool))
+        
+        log.debug(s"Creating new connection pool for '${domainFqn}': ${baseDbUri}/${domainInfo.database}")
+        
+        // FIXME need to fiugre out how to configure pool sizes.
+        val dbProvider = new PooledDatabaseProvider(baseDbUri, domainInfo.database, domainInfo.username, domainInfo.password)
+        val provider = new DomainPersistenceProviderImpl(dbProvider)
         provider.validateConnection() flatMap { _ =>
-          log.debug(s"Successfully created connection pool for '${domainFqn}': ${pool.getUrl}")
+          log.debug(s"Successfully created connection pool for '${domainFqn}':  ${baseDbUri}/${domainInfo.database}")
           providers = providers + (domainFqn -> provider)
           Success(provider)
         }

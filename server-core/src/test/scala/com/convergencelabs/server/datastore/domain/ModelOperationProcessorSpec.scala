@@ -11,7 +11,7 @@ import org.scalatest.Matchers
 import org.scalatest.OptionValues
 import org.scalatest.WordSpecLike
 
-import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.datastore.QueryUtil
 import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.domain.DomainUser

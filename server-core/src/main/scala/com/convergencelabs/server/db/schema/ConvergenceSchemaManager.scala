@@ -6,9 +6,9 @@ import scala.util.Try
 
 import org.apache.commons.lang3.exception.ExceptionUtils
 
-import com.convergencelabs.server.datastore.convergnece.DeltaHistoryStore
-import com.convergencelabs.server.datastore.convergnece.ConvergenceDelta
-import com.convergencelabs.server.datastore.convergnece.ConvergenceDeltaHistory
+import com.convergencelabs.server.datastore.convergence.ConvergenceDelta
+import com.convergencelabs.server.datastore.convergence.ConvergenceDeltaHistory
+import com.convergencelabs.server.datastore.convergence.DeltaHistoryStore
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 
 class ConvergenceSchemaManager(db: ODatabaseDocument, historyStore: DeltaHistoryStore, preRelease: Boolean)

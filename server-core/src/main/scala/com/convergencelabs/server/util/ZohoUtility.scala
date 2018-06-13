@@ -1,4 +1,4 @@
-package com.convergencelabs.server.datastore
+package com.convergencelabs.server.util
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future

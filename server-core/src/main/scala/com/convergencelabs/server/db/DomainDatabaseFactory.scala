@@ -1,4 +1,4 @@
-package com.convergencelabs.server.datastore
+package com.convergencelabs.server.db
 
 import scala.util.Failure
 import scala.util.Success
@@ -11,6 +11,7 @@ import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.convergencelabs.server.datastore.convergence.DomainDatabaseStore
 import com.convergencelabs.server.datastore.convergence.DomainStore
+import com.convergencelabs.server.datastore.OrientDBUtil
 
 object DomainDatabaseFactory {
   val DBDomainIdIndex = "Domain.namespace_id"
@@ -24,7 +25,7 @@ class DomainDatabaseFactory(url: String, convergenceDbProvider: DatabaseProvider
   def getDomainAdminDatabase(fqn: DomainFqn): Try[ODatabaseDocument] = {
     getDomainInfo(fqn) map {
       domainInfo =>
-        
+
         def db = new ODatabaseDocument(s"${url}/${domainInfo.database}")
         db.open(domainInfo.adminUsername, domainInfo.adminPassword).asInstanceOf[ODatabaseDocument]
     }
@@ -54,8 +55,9 @@ class DomainDatabaseFactory(url: String, convergenceDbProvider: DatabaseProvider
   def getDomains(): Try[List[DomainFqn]] = {
     convergenceDbProvider.tryWithDatabase { db =>
       val query = "SELECT namespace, id FROM Domain"
-      val oDocs: List[ODocument] = QueryUtil.query(query, Map(), db)
-      oDocs.map { oDoc => DomainFqn(oDoc.field(DomainStore.Fields.Namespace, OType.STRING), oDoc.field(DomainStore.Fields.Id, OType.STRING)) }
+      OrientDBUtil.query(db, query).map { oDocs =>
+        oDocs.map { oDoc => DomainFqn(oDoc.field(DomainStore.Fields.Namespace, OType.STRING), oDoc.field(DomainStore.Fields.Id, OType.STRING)) }
+      }.get
     }
   }
 

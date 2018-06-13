@@ -3,7 +3,8 @@ package com.convergencelabs.server.frontend.rest
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUser
+import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.GetConvergenceUser
+import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.SetPasswordRequest
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
@@ -20,7 +21,6 @@ import akka.http.scaladsl.server.Directives.pathEnd
 import akka.http.scaladsl.server.Directives._
 import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.SetPasswordRequest
 import grizzled.slf4j.Logging
 
 case class PasswordSetRequest(password: String)

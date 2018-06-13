@@ -3,22 +3,21 @@ package com.convergencelabs.server.frontend.rest
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
-import com.convergencelabs.server.datastore.convergnece.AuthStoreActor.AuthRequest
-import com.convergencelabs.server.datastore.convergnece.AuthStoreActor.AuthSuccess
-import com.convergencelabs.server.datastore.convergnece.AuthStoreActor.InvalidateTokenRequest
-import com.convergencelabs.server.datastore.convergnece.AuthStoreActor.SessionTokenExpiration
-import com.convergencelabs.server.datastore.convergnece.AuthStoreActor.GetSessionTokenExpirationRequest
+import com.convergencelabs.server.datastore.convergence.AuthStoreActor.AuthRequest
+import com.convergencelabs.server.datastore.convergence.AuthStoreActor.AuthResponse
+import com.convergencelabs.server.datastore.convergence.AuthStoreActor.AuthSuccess
+import com.convergencelabs.server.datastore.convergence.AuthStoreActor.GetSessionTokenExpirationRequest
+import com.convergencelabs.server.datastore.convergence.AuthStoreActor.InvalidateTokenRequest
+import com.convergencelabs.server.datastore.convergence.AuthStoreActor.LoginRequest
+import com.convergencelabs.server.datastore.convergence.AuthStoreActor.SessionTokenExpiration
+import com.convergencelabs.server.datastore.convergence.UserStore.InvalidCredentials
+import com.convergencelabs.server.datastore.convergence.UserStore.LoginResult
+import com.convergencelabs.server.datastore.convergence.UserStore.LoginSuccessful
+import com.convergencelabs.server.datastore.convergence.UserStore.NoApiKeyForUser
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.model.StatusCodes
 import akka.util.Timeout
-import akka.pattern.ask
-import com.convergencelabs.server.datastore.convergnece.AuthStoreActor.LoginRequest
-import com.convergencelabs.server.datastore.convergnece.AuthStoreActor.AuthResponse
-import com.convergencelabs.server.datastore.UserStore.LoginSuccessful
-import com.convergencelabs.server.datastore.UserStore.LoginResult
-import com.convergencelabs.server.datastore.UserStore.InvalidCredentials
-import com.convergencelabs.server.datastore.UserStore.NoApiKeyForUser
 
 object AuthService {
   case class SessionTokenResponse(token: String, expiration: Long) extends AbstractSuccessResponse
@@ -34,8 +33,9 @@ class AuthService(
   private[this] val defaultTimeout: Timeout)
     extends JsonSupport {
 
-  import akka.http.scaladsl.server.Directives._
   import AuthService._
+  import akka.http.scaladsl.server.Directives._
+  import akka.pattern.ask
 
   implicit val ec = executionContext
   implicit val t = defaultTimeout

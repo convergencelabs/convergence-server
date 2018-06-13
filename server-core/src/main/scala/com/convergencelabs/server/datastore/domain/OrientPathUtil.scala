@@ -1,9 +1,11 @@
 package com.convergencelabs.server.datastore.domain
 
+import com.convergencelabs.server.datastore.domain.schema.DomainSchema
+
 object OrientPathUtil {
   def toOrientPath(path: List[Any]): String = {
     val pathBuilder = new StringBuilder()
-    pathBuilder.append(ModelStore.Fields.Data)
+    pathBuilder.append(DomainSchema.Classes.Model.Fields.Data)
     path.foreach { p =>
       p match {
         case p: Int => pathBuilder.append(s"[$p]")

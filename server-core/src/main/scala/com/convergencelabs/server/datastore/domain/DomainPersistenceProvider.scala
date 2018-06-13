@@ -1,7 +1,7 @@
 package com.convergencelabs.server.datastore.domain
 
 import com.convergencelabs.server.datastore.AbstractPersistenceProvider
-import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.db.DatabaseProvider
 import scala.util.Try
 
 trait DomainPersistenceProvider {

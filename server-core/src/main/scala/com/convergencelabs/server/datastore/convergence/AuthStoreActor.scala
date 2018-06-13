@@ -3,7 +3,7 @@ package com.convergencelabs.server.datastore.convergence
 import java.time.Duration
 import java.time.Instant
 
-import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.datastore.StoreActor
 
 import akka.actor.ActorLogging

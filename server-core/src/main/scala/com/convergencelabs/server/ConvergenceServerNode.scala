@@ -14,7 +14,8 @@ import scala.util.Try
 
 import org.apache.logging.log4j.LogManager
 
-import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.db.PooledDatabaseProvider
+import com.convergencelabs.server.db.SingleDatabaseProvider
 import com.convergencelabs.server.datastore.convergence.DeltaHistoryStore
 import com.convergencelabs.server.datastore.convergence.DomainDatabaseStore
 import com.convergencelabs.server.datastore.convergence.PermissionsStore
@@ -49,6 +50,7 @@ import akka.cluster.ClusterEvent.MemberRemoved
 import akka.cluster.ClusterEvent.MemberUp
 import akka.cluster.ClusterEvent.UnreachableMember
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.db.ConnectedSingleDatabaseProvider
 
 object ConvergenceServerNode extends Logging {
 
@@ -249,9 +251,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
       val orientDb = new OrientDB(baseUri, OrientDBConfig.defaultConfig())
 
       // FIXME figure out how to set the pool size
-      val dbPool = new ODatabasePool(orientDb, convergenceDatabase, username, password)
-
-      val dbProvider = DatabaseProvider(dbPool)
+      val dbProvider = new PooledDatabaseProvider(baseUri, convergenceDatabase, username, password)
 
       val domainDatabaseStore = new DomainDatabaseStore(dbProvider)
       system.actorOf(
@@ -339,7 +339,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
       adminUser.save()
 
       logger.info("Installing schema.")
-      val dbProvider = DatabaseProvider(db)
+      val dbProvider = new ConnectedSingleDatabaseProvider(db)
       val deltaHistoryStore = new DeltaHistoryStore(dbProvider)
       dbProvider.tryWithDatabase { db =>
         val schemaManager = new ConvergenceSchemaManager(db, deltaHistoryStore, preRelease)

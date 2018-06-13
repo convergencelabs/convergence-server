@@ -7,12 +7,12 @@ import org.scalatest.Matchers
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.WordSpecLike
 
-import com.convergencelabs.server.datastore.convergnece.ConvergenceDelta
-import com.convergencelabs.server.datastore.convergnece.ConvergenceDeltaHistory
-import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergenconvergnece.celabs.server.datastore.DeltaHistoryStore
-import com.convergencelabs.server.datastore.convergnece.DomainDelta
-import com.convergencelabs.server.datastore.convergnece.DomainDeltaHistconvergnece.ory
+import com.convergencelabs.server.datastore.convergence.ConvergenceDelta
+import com.convergencelabs.server.datastore.convergence.ConvergenceDeltaHistory
+import com.convergencelabs.server.db.DatabaseProvider
+import com.convergenconvergence.celabs.server.datastore.DeltaHistoryStore
+import com.convergencelabs.server.datastore.convergence.DomainDelta
+import com.convergencelabs.server.datastore.convergence.DomainDeltaHistconvergence.ory
 import com.convergencelabs.server.datastore.DomainStore
 import com.convergencelabs.server.datastore.UserStore
 import com.convergencelabs.server.datastore.UserStore.User

@@ -11,7 +11,7 @@ import scala.util.Failure
 import scala.util.Try
 
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.datastore.SortOrder
@@ -57,8 +57,8 @@ object DomainUserStore {
     displayName: Option[String],
     email: Option[String])
 
-  def adminUsername(convergneceUsername: String): String = {
-    AdminUserPrefeix + convergneceUsername
+  def adminUsername(convergenceUsername: String): String = {
+    AdminUserPrefeix + convergenceUsername
   }
 
   def anonymousUsername(username: String): String = {

@@ -10,7 +10,7 @@ import com.convergencelabs.server.db.schema.DeltaCategory
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.convergencelabs.server.db.schema.TestingSchemaManager
-import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProviderImpl
 
 class DomainImportExportSpec extends WordSpecLike with Matchers {

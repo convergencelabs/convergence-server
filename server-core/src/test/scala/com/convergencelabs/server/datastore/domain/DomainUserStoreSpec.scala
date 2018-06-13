@@ -8,7 +8,7 @@ import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
 
-import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.datastore.SortOrder
 import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateNormalDomainUser
 import com.convergencelabs.server.datastore.domain.DomainUserStore.UpdateDomainUser

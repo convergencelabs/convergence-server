@@ -8,15 +8,15 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
-import com.convergencelabs.server.datastore.convergnece.DomainStore
-import com.convergencelabs.server.datastore.UserStore
+import com.convergencelabs.server.datastore.convergence.DomainStore
+import com.convergencelabs.server.datastore.convergence.UserStore
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 
 import akka.actor.ActorRef
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.serveconvergnece.r.datastore.DomainDatabaseFactory
+import com.convergencelabs.server.db.DatabaseProvider
+import com.convergencelabs.server.db.DomainDatabaseFactory
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProviderImpl
 
 class ConvergenceExporter(

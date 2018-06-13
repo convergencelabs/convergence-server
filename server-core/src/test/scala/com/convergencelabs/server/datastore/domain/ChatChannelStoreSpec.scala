@@ -4,7 +4,7 @@ import org.scalatest.Matchers
 import org.scalatest.WordSpecLike
 import org.scalatest.OptionValues._
 
-import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.datastore.domain.ChatChannelStore.ChannelType
 import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.domain.DomainUser

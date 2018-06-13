@@ -14,7 +14,7 @@ import com.convergencelabs.server.domain.JwtUtil
 import com.convergencelabs.server.domain.ModelSnapshotConfig
 import com.orientechnologies.orient.client.remote.OServerAdmin
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 
 import DomainProvisioner.DBType
 import DomainProvisioner.DefaultSnapshotConfig
@@ -23,8 +23,8 @@ import DomainProvisioner.OrientDefaultReader
 import DomainProvisioner.OrientDefaultWriter
 import DomainProvisioner.StorageMode
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.convergnece.DeltaHistoryStore
+import com.convergencelabs.server.db.DatabaseProvider
+import com.convergencelabs.server.datastore.convergence.DeltaHistoryStore
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProviderImpl
 
 object DomainProvisioner {
@@ -68,7 +68,7 @@ class DomainProvisioner(
     createDatabase(dbUri) flatMap { _ =>
       setAdminCredentials(dbUri, dbAdminUsername, dbAdminPassword)
     } flatMap { _ =>
-      val db = new ODatabaseDocumentTx(dbUri)
+      val db = new ODatabaseDocument(dbUri)
       db.open(dbAdminUsername, dbAdminPassword)
       val povider = DatabaseProvider(db)
       val result = configureNonAdminUsers(povider, dbUsername, dbPassword) flatMap { _ =>
@@ -96,7 +96,7 @@ class DomainProvisioner(
     // Orient DB has three default users. admin, reader and writer. They all 
     // get created with their passwords equal to their usernames. We want
     // to change the admin and writer and delete the reader.
-    val db = new ODatabaseDocumentTx(dbUri)
+    val db = new ODatabaseDocument(dbUri)
     db.open(dbRootUsername, dbRootPasword)
 
     // Change the admin username / password and then reconnect
@@ -142,7 +142,7 @@ class DomainProvisioner(
 
   private[this] def initDomain(uri: String, username: String, password: String, anonymousAuth: Boolean): Try[Unit] = {
     logger.debug(s"Connecting as normal user to initialize domain: ${uri}")
-    val db = new ODatabaseDocumentTx(uri)
+    val db = new ODatabaseDocument(uri)
     db.open(username, password)
     val povider = DatabaseProvider(db)
     val persistenceProvider = new DomainPersistenceProviderImpl(povider)

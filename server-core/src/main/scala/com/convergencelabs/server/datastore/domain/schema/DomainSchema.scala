@@ -6,6 +6,7 @@ object DomainSchema {
     val Permission = PermissionClass
     val JwtAuthKey = JwtAuthKeyClass
     val User = UserClass
+    val UserGroup = UserGroupClass
     val UserReconnectToken = UserReconnectTokenClass
     val Model = ModelClass
     val ModelSnapshot = ModelSnapshotClass

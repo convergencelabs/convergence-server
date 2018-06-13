@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
 
-import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.datastore.convergence.AuthStoreActor
 import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor
 import com.convergencelabs.server.datastore.convergence.DeltaHistoryStore

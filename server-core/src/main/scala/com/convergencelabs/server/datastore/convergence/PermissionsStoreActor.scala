@@ -3,7 +3,7 @@ package com.convergencelabs.server.datastore.convergence
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
-import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.datastore.StoreActor
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.datastore.convergence.PermissionsStore.Permission

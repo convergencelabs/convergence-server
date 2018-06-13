@@ -8,7 +8,7 @@ import org.scalatest.OptionValues
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
 
-import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.domain.SessionStore.SessionQueryType
 import com.convergencelabs.server.db.schema.DeltaCategory

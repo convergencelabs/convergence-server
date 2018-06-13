@@ -26,9 +26,9 @@ import akka.stream.ActorMaterializerSettings
 import akka.http.scaladsl.model.HttpMethod
 import akka.http.scaladsl.model.HttpMethods
 import scala.xml.Utility
-import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.datastore.StoreActor
-import com.convergencelabs.server.datastore.ZohoUtility
+import com.convergencelabs.server.util.ZohoUtility
 import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.CreateConvergenceUserRequest
 import com.convergencelabs.server.datastore.EntityNotFoundException
 

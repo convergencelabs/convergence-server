@@ -9,7 +9,7 @@ import com.convergencelabs.server.datastore.UserStore.User
 import com.convergencelabs.server.datastore.domain.PersistenceStoreSpec
 import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.datastore.convergnece.DomainStore
+import com.convergencelabs.server.datastore.convergence.DomainStore
 
 case class PermissionStoreSpecStores(permissionStore: PermissionsStore, userStore: UserStore, domainStore: DomainStore)
 

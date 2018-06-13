@@ -5,7 +5,7 @@ import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.orientechnologies.orient.core.db.tool.ODatabaseImport
 import com.orientechnologies.orient.core.command.OCommandOutputListener
 import com.orientechnologies.common.log.OLogManager
-import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.db.schema.ConvergenceSchemaManager
 import com.convergencelabs.server.db.schema.TestingSchemaManager

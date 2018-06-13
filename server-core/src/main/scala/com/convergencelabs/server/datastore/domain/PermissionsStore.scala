@@ -6,7 +6,7 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.collection.JavaConverters.setAsJavaSetConverter
 import scala.collection.JavaConverters.seqAsJavaListConverter
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.datastore.domain.PermissionsStore._
 import com.convergencelabs.server.domain.DomainUser
 import com.orientechnologies.orient.core.id.ORID
@@ -34,13 +34,12 @@ object PermissionsStore {
   import schema.DomainSchema._
 
   def docToPermission(doc: ODocument): Permission = {
-
     if (doc.containsField(Classes.Permission.Fields.AssignedTo)) {
       val assignedTo: ODocument = doc.field(Classes.Permission.Fields.AssignedTo)
       assignedTo.getClassName match {
         case Classes.User.ClassName =>
           docToUserPermission(doc)
-        case UserGroupStore.ClassName =>
+        case Classes.UserGroup.ClassName =>
           docToGroupPermission(doc)
         case default =>
           throw new IllegalStateException("Unsupported Permissions Assignment")
