@@ -2,6 +2,7 @@ package com.convergencelabs.server.datastore.domain.schema
 
 object DomainSchema {
   object Classes {
+    val DomainSession = DomainSessionClass
     val Permission = PermissionClass
     val JwtAuthKey = JwtAuthKeyClass
     val User = UserClass
@@ -18,5 +19,6 @@ object DomainSchema {
   object Sequences {
     val AnonymousUsername = "anonymousUsernameSeq"
     val ChatChannelId = "chatChannelIdSeq"
+    val SessionSeq = "SESSIONSEQ"
   }
 }
