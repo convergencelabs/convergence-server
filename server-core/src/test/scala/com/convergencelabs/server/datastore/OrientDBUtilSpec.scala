@@ -27,7 +27,7 @@ class OrientDBUtilSpec
   val Key1 = "key1"
   val Key2 = "key2"
 
-  val orientDB: OrientDB = new OrientDB("memory:QueryUtilSpec", OrientDBConfig.defaultConfig());
+  val orientDB: OrientDB = new OrientDB("memory:OrientDBUtilSpec", OrientDBConfig.defaultConfig());
   
   override def afterAll() = {
     orientDB.close()

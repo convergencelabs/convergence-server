@@ -79,7 +79,7 @@ class CollectionStore private[domain] (dbProvider: DatabaseProvider, modelStore:
   def collectionExists(id: String): Try[Boolean] = withDb { db =>
     val query = "SELECT id FROM Collection WHERE id = :id"
     val params = Map(Fields.Id -> id)
-    OrientDBUtil.query(db, query, params).map(_.isEmpty)
+    OrientDBUtil.query(db, query, params).map(!_.isEmpty)
   }
 
   //TODO: Do we need to be passing permissions in here

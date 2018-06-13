@@ -18,19 +18,19 @@ abstract class PersistenceStoreSpec[S](category: DeltaCategory.Value) {
   protected def createStore(dbProvider: DatabaseProvider): S
 
   private[this] val dbCounter = new AtomicInteger(1)
+  
+  val orientDB: OrientDB = new OrientDB("memory:PersistenceStoreSpec", OrientDBConfig.defaultConfig());
 
   def withPersistenceStore(testCode: S => Any): Unit = {
     // make sure no accidental collisions
     val dbName = s"${getClass.getSimpleName}${nextDbId()}"
 
     // TODO we could probably cache this in a before / after all.
-    val orientDB = new OrientDB("memory:", "root", "password", OrientDBConfig.defaultConfig());
     orientDB.create(dbName, ODatabaseType.MEMORY);
     val db = orientDB.open(dbName, "admin", "admin")
     val dbProvider = new ConnectedSingleDatabaseProvider(db)
 
     try {
-
       dbProvider.connect().get
       val mgr = new TestingSchemaManager(db, category, true)
       mgr.install().get
@@ -39,7 +39,6 @@ abstract class PersistenceStoreSpec[S](category: DeltaCategory.Value) {
     } finally {
       dbProvider.shutdown()
       orientDB.drop(dbName)
-      orientDB.close()
     }
   }
 
