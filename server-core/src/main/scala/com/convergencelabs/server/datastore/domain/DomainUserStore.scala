@@ -29,13 +29,14 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
-import com.convergencelabs.server.datastore.domain.schema.DomainUserClass._
-import schema.DomainSchema._
+
+
 
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.datastore.OrientDBUtil
 
 object DomainUserStore {
+  import schema.UserClass._
 
   val AdminUserPrefeix = "admin:"
   val AnonymousUserPrefeix = "anonymous:"
@@ -107,6 +108,9 @@ object DomainUserStore {
 class DomainUserStore private[domain] (private[this] val dbProvider: DatabaseProvider)
   extends AbstractDatabasePersistence(dbProvider)
   with Logging {
+  
+  import schema.UserClass._
+  import schema.DomainSchema._
 
   val Password = "password"
 
