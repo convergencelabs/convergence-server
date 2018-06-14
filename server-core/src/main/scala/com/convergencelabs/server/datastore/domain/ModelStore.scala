@@ -62,7 +62,7 @@ object ModelStore {
     val modifiedTime: Date = doc.getProperty(Fields.ModifiedTime)
     val worldPermissions = ModelPermissionsStore.docToModelPermissions(doc.getProperty(Fields.WorldPermissions))
     ModelMetaData(
-      doc.getProperty("collection.id"),
+      doc.eval("collection.id").asInstanceOf[String],
       doc.getProperty(Fields.Id),
       doc.getProperty(Fields.Version),
       createdTime.toInstant(),
@@ -76,7 +76,7 @@ object ModelStore {
     // TODO This can be cleaned up.. it seems like in some cases we are getting an ORecordId back
     // and in other cases an ODocument. This handles both cases.  We should figure out what
     // is supposed to come back and why it might be coming back as the other.
-    val data: ODocument = doc.getProperty("data").asInstanceOf[OIdentifiable].getRecord[ODocument];
+    val data: ODocument = doc.getProperty(Fields.Data).asInstanceOf[OIdentifiable].getRecord[ODocument];
     Model(docToModelMetaData(doc), data.asObjectValue)
   }
 
@@ -96,11 +96,20 @@ class ModelStore private[domain] (
   import ModelStore._
 
   def modelExists(id: String): Try[Boolean] = withDb { db =>
-    val query = "SELECT count(id) FROM Model where id = :id"
+    val query = "SELECT count(*) as count FROM Model where id = :id"
     val params = Map("id" -> id)
+    // FIXME this should be using get document when this ODB bug is fixed
+    // https://github.com/orientechnologies/orientdb/issues/8328
     OrientDBUtil
-      .getDocument(db, query, params)
-      .map(doc => doc.getProperty("count").asInstanceOf[Long] > 0)
+      .query(db, query, params)
+      .map { rs =>
+         if (rs.isEmpty) {
+           false
+         } else {
+           val doc = rs(0)
+           doc.getProperty("count").asInstanceOf[Long] > 0
+         }
+      }
   }
 
   def createModel(
@@ -322,6 +331,8 @@ class ModelStore private[domain] (
       e.getIndexName match {
         case Indices.Id =>
           Failure(DuplicateValueException(Fields.Id))
+        case Indices.Collection_Id =>
+          Failure(DuplicateValueException("collection, id"))
         case _ =>
           Failure(e)
       }

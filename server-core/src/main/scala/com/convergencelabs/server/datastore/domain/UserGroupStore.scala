@@ -129,18 +129,18 @@ class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProv
       }
   }
 
-  def addUserToGroup(id: String, username: String): Try[Unit] = withDb { db =>
+  def addUserToGroup(groupId: String, username: String): Try[Unit] = withDb { db =>
     DomainUserStore.getUserRid(username, db)
       .recoverWith {
         case cause: EntityNotFoundException =>
-          Failure(new EntityNotFoundException(s"Could not add user to group, becase the user does not exists: ${username}"))
+          Failure(new EntityNotFoundException(s"Could not add user to group, because the user does not exists: ${username}"))
       }.flatMap { userRid =>
-        val command = "UPDATE UserGroup ADD members = :user WHERE id = :id"
-        val params = Map("user" -> userRid, "id" -> id)
+        val command = "UPDATE UserGroup SET members = members || :user WHERE id = :id"
+        val params = Map("user" -> userRid, "id" -> groupId)
         OrientDBUtil.mutateOneDocument(db, command, params)
       }.recoverWith {
         case cause: EntityNotFoundException =>
-          Failure(new EntityNotFoundException(s"Could not add user to group, becase the group does not exists: ${id}"))
+          Failure(new EntityNotFoundException(s"Could not add user to group, because the group does not exists: ${groupId}"))
       }
   }
 
@@ -154,7 +154,7 @@ class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProv
         val params = Map("user" -> userRid, "groups" -> groups.asJava)
         val command = "UPDATE UserGroup REMOVE members = :user WHERE :user IN members AND id NOT IN :groups"
         OrientDBUtil.command(db, command, params).flatMap { _ =>
-          val addCommand = "UPDATE UserGroup ADD members = :user WHERE id IN :groups"
+          val addCommand = "UPDATE UserGroup SET members = members || :user WHERE id IN :groups"
           OrientDBUtil.command(db, addCommand, params).map(_ => ())
         }
       }

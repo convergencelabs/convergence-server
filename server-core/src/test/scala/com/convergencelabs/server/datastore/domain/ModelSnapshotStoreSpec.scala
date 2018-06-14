@@ -84,26 +84,26 @@ class ModelSnapshotStoreSpec
         provider.modelSnapshotStore.createSnapshot(created).success
 
         val queried = provider.modelSnapshotStore.getSnapshot(person1Id, version)
-        queried.success.value.value shouldBe created
+        queried.get.value shouldBe created
       }
     }
 
     "when getting a specific snapshot" must {
       "return the correct snapshot when one exists" in withPersistenceStore { provider =>
         createSnapshots(provider)
-        val queried = provider.modelSnapshotStore.getSnapshot(person1Id, 1L).success.value
+        val queried = provider.modelSnapshotStore.getSnapshot(person1Id, 1L).get
         queried.value shouldBe p1Snapshot1
       }
 
       "return None when the specified version does not exist" in withPersistenceStore { provider =>
         createSnapshots(provider)
-        val queried = provider.modelSnapshotStore.getSnapshot(person1Id, 5L).success.value
+        val queried = provider.modelSnapshotStore.getSnapshot(person1Id, 5L).get
         queried shouldBe None
       }
 
       "return None when the specified model does not exist" in withPersistenceStore { provider =>
         createSnapshots(provider)
-        val queried = provider.modelSnapshotStore.getSnapshot(noPersonId, 1L).success.value
+        val queried = provider.modelSnapshotStore.getSnapshot(noPersonId, 1L).get
         queried shouldBe None
       }
     }
@@ -111,7 +111,7 @@ class ModelSnapshotStoreSpec
     "when getting all snapshot meta data" must {
       "return all meta data in proper order when no limit or offest is provided" in withPersistenceStore { provider =>
         createSnapshots(provider)
-        val metaData = provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, None, None).success.value
+        val metaData = provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, None, None).get
         metaData.length shouldBe 3
         metaData(0).version shouldBe p1Snapshot1Version
         metaData(1).version shouldBe p1Snapshot10Version
@@ -120,7 +120,7 @@ class ModelSnapshotStoreSpec
 
       "correctly limit the number of results with no offset" in withPersistenceStore { provider =>
         createSnapshots(provider)
-        val metaData = provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, Some(2), None).success.value
+        val metaData = provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, Some(2), None).get
         metaData.length shouldBe 2
         metaData(0).version shouldBe p1Snapshot1Version
         metaData(1).version shouldBe p1Snapshot10Version
@@ -128,7 +128,7 @@ class ModelSnapshotStoreSpec
 
       "correctly limit the number of results with an offset" in withPersistenceStore { provider =>
         createSnapshots(provider)
-        val metaData = provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, Some(2), Some(1)).success.value
+        val metaData = provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, Some(2), Some(1)).get
         metaData.length shouldBe 2
         metaData(0).version shouldBe p1Snapshot10Version
         metaData(1).version shouldBe p1Snapshot20Version
@@ -136,7 +136,7 @@ class ModelSnapshotStoreSpec
 
       "correctly offset the results with no limit" in withPersistenceStore { provider =>
         createSnapshots(provider)
-        val metaData = provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, None, Some(1)).success.value
+        val metaData = provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, None, Some(1)).get
         metaData.length shouldBe 2
         metaData(0).version shouldBe p1Snapshot10Version
         metaData(1).version shouldBe p1Snapshot20Version
@@ -144,7 +144,7 @@ class ModelSnapshotStoreSpec
 
       "return an empty list for a non-existent model" in withPersistenceStore { provider =>
         createSnapshots(provider)
-        val metaData = provider.modelSnapshotStore.getSnapshotMetaDataForModel(noPersonId, None, None).success.value
+        val metaData = provider.modelSnapshotStore.getSnapshotMetaDataForModel(noPersonId, None, None).get
         metaData shouldBe List()
       }
     }
@@ -152,7 +152,7 @@ class ModelSnapshotStoreSpec
     "when getting snapshots by time" must {
       "return all snapshots if no time or limit-offset" in withPersistenceStore { provider =>
         createSnapshots(provider)
-        val metaDataList = provider.modelSnapshotStore.getSnapshotMetaDataForModelByTime(person1Id, None, None, None, None).success.value
+        val metaDataList = provider.modelSnapshotStore.getSnapshotMetaDataForModelByTime(person1Id, None, None, None, None).get
         metaDataList.length shouldBe 3
         metaDataList(0).version shouldBe p1Snapshot1Version
         metaDataList(1).version shouldBe p1Snapshot10Version
@@ -162,7 +162,7 @@ class ModelSnapshotStoreSpec
       "return all snapshots with all encopmasing time bounds and no limit-offset" in withPersistenceStore { provider =>
         createSnapshots(provider)
         val metaDataList = provider.modelSnapshotStore.getSnapshotMetaDataForModelByTime(
-          person1Id, Some(p1Snapshot1Date.toEpochMilli), Some(p1Snapshot20Date.toEpochMilli), None, None).success.value
+          person1Id, Some(p1Snapshot1Date.toEpochMilli), Some(p1Snapshot20Date.toEpochMilli), None, None).get
         metaDataList.length shouldBe 3
         metaDataList(0).version shouldBe p1Snapshot1Version
         metaDataList(1).version shouldBe p1Snapshot10Version
@@ -173,13 +173,13 @@ class ModelSnapshotStoreSpec
     "when getting the latest snapshot for a model" must {
       "return the correct meta data for a model with snapshots" in withPersistenceStore { provider =>
         createSnapshots(provider)
-        val metaData = provider.modelSnapshotStore.getLatestSnapshotMetaDataForModel(person1Id).success.value
+        val metaData = provider.modelSnapshotStore.getLatestSnapshotMetaDataForModel(person1Id).get
         metaData.value.version shouldBe p1Snapshot20Version
       }
 
       "return None when the specified model does not exist" in withPersistenceStore { provider =>
         createSnapshots(provider)
-        val queried = provider.modelSnapshotStore.getSnapshot(noPersonId, 1L).success.value
+        val queried = provider.modelSnapshotStore.getSnapshot(noPersonId, 1L).get
         queried shouldBe None
       }
     }
@@ -187,19 +187,19 @@ class ModelSnapshotStoreSpec
     "when getting the closest snapshot to a version for a model" must {
       "return the higher version when it is the closest" in withPersistenceStore { provider =>
         createSnapshots(provider)
-        val snapshotData = provider.modelSnapshotStore.getClosestSnapshotByVersion(person1Id, 18).success.value
+        val snapshotData = provider.modelSnapshotStore.getClosestSnapshotByVersion(person1Id, 18).get
         snapshotData.value.metaData.version shouldBe p1Snapshot20Version
       }
 
       "return the lower version when it is the closest" in withPersistenceStore { provider =>
         createSnapshots(provider)
-        val snapshotData = provider.modelSnapshotStore.getClosestSnapshotByVersion(person1Id, 14).success.value
+        val snapshotData = provider.modelSnapshotStore.getClosestSnapshotByVersion(person1Id, 14).get
         snapshotData.value.metaData.version shouldBe p1Snapshot10Version
       }
 
       "return the higher version when the requested version is equidistant from a higerh and lower snapshot" in withPersistenceStore { provider =>
         createSnapshots(provider)
-        val snapshotData = provider.modelSnapshotStore.getClosestSnapshotByVersion(person1Id, 15).success.value
+        val snapshotData = provider.modelSnapshotStore.getClosestSnapshotByVersion(person1Id, 15).get
         snapshotData.value.metaData.version shouldBe p1Snapshot20Version
       }
     }
@@ -207,19 +207,19 @@ class ModelSnapshotStoreSpec
     "when removing a single snapshot by model and version" must {
       "remove the specified snapshot and no others" in withPersistenceStore { provider =>
         createSnapshots(provider)
-        provider.modelSnapshotStore.getSnapshot(person1Id, p1Snapshot1Version).success.value shouldBe defined
+        provider.modelSnapshotStore.getSnapshot(person1Id, p1Snapshot1Version).get shouldBe defined
         provider.modelSnapshotStore.removeSnapshot(person1Id, p1Snapshot1Version)
-        provider.modelSnapshotStore.getSnapshot(person1Id, p1Snapshot1Version).success.value shouldBe None
+        provider.modelSnapshotStore.getSnapshot(person1Id, p1Snapshot1Version).get shouldBe None
 
         // Ensure no others were deleted from the desired model
-        val person1MetaData = provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, None, None).success.value
+        val person1MetaData = provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, None, None).get
         person1MetaData.length shouldBe 2
 
         person1MetaData(0).version shouldBe p1Snapshot10Version
         person1MetaData(1).version shouldBe p1Snapshot20Version
 
         // Ensure no others were deleted from the other model
-        val person2MetaData = provider.modelSnapshotStore.getSnapshotMetaDataForModel(person2Id, None, None).success.value
+        val person2MetaData = provider.modelSnapshotStore.getSnapshotMetaDataForModel(person2Id, None, None).get
         person2MetaData.length shouldBe 1
       }
     }
@@ -227,12 +227,12 @@ class ModelSnapshotStoreSpec
     "when removing all snapshots by model and version" must {
       "remove the snapshots for the specified model and no others" in withPersistenceStore { provider =>
         createSnapshots(provider)
-        provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, None, None).success.value.length shouldBe 3
+        provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, None, None).get.length shouldBe 3
         provider.modelSnapshotStore.removeAllSnapshotsForModel(person1Id)
-        provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, None, None).success.value.length shouldBe 0
+        provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, None, None).get.length shouldBe 0
 
         // Ensure no others were deleted from the other model
-        provider.modelSnapshotStore.getSnapshotMetaDataForModel(person2Id, None, None).success.value.length shouldBe 1
+        provider.modelSnapshotStore.getSnapshotMetaDataForModel(person2Id, None, None).get.length shouldBe 1
       }
     }
 
@@ -240,13 +240,13 @@ class ModelSnapshotStoreSpec
       "remove all snapshots for all models in a collection" in withPersistenceStore { provider =>
         createSnapshots(provider)
         
-        provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, None, None).success.value.length shouldBe 3
-        provider.modelSnapshotStore.getSnapshotMetaDataForModel(person2Id, None, None).success.value.length shouldBe 1
+        provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, None, None).get.length shouldBe 3
+        provider.modelSnapshotStore.getSnapshotMetaDataForModel(person2Id, None, None).get.length shouldBe 1
 
         provider.modelSnapshotStore.removeAllSnapshotsForCollection(CollectionId).success
 
-        provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, None, None).success.value.length shouldBe 0
-        provider.modelSnapshotStore.getSnapshotMetaDataForModel(person2Id, None, None).success.value.length shouldBe 0
+        provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, None, None).get.length shouldBe 0
+        provider.modelSnapshotStore.getSnapshotMetaDataForModel(person2Id, None, None).get.length shouldBe 0
       }
     }
   }
@@ -259,9 +259,9 @@ class ModelSnapshotStoreSpec
 
   def createSnapshots(provider: DomainPersistenceProvider): Unit = {
     initModels(provider)
-    provider.modelSnapshotStore.createSnapshot(p1Snapshot1).success
-    provider.modelSnapshotStore.createSnapshot(p1Snapshot10).success
-    provider.modelSnapshotStore.createSnapshot(p1Snapshot20).success
-    provider.modelSnapshotStore.createSnapshot(p2Snapshot1).success
+    provider.modelSnapshotStore.createSnapshot(p1Snapshot1).get
+    provider.modelSnapshotStore.createSnapshot(p1Snapshot10).get
+    provider.modelSnapshotStore.createSnapshot(p1Snapshot20).get
+    provider.modelSnapshotStore.createSnapshot(p2Snapshot1).get
   }
 }

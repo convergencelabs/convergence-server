@@ -143,7 +143,7 @@ class DomainUserStoreSpec
         initUsers(store)
         val update = UpdateDomainUser(User1.username, Some("f"), Some("l"), Some("d"), Some("e"))
         val updated = DomainUser(DomainUserType.Normal, User1.username, Some("f"), Some("l"), Some("d"), Some("e"))
-        store.updateDomainUser(update).success
+        store.updateDomainUser(update).get
         val queried = store.getDomainUserByUsername(User1.username).get.get
         queried shouldBe updated
       }

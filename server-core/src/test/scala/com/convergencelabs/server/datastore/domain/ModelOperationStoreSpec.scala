@@ -71,7 +71,7 @@ class ModelOperationStoreSpec
         initCommonData(provider)
         provider.modelOperationStore.createModelOperation(modelOp1).get
         provider.modelOperationStore.createModelOperation(modelOp15).get
-        provider.modelOperationStore.getMaxVersion(modelId1).success.get.get shouldBe 15
+        provider.modelOperationStore.getMaxVersion(modelId1).get.get shouldBe 15
       }
 
       "return None if the model has no operation history" in withPersistenceStore { provider =>

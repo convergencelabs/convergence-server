@@ -90,7 +90,7 @@ class UserGroupStoreSpec
         store.getUserGroup(group1.id).get shouldBe None
       }
 
-      "not allow changing the id to an existin id" in withUsers { store =>
+      "not allow changing the id to an existing id" in withUsers { store =>
         store.createUserGroup(group1).get
         store.createUserGroup(group2).get
         val updated = group1.copy(id = group2.id)
@@ -104,7 +104,7 @@ class UserGroupStoreSpec
         store.createUserGroup(group2).get
         
         val expected = group1.copy(members = (group1.members + User3.username) )
-        store.addUserToGroup(group1.id, User3.username)
+        store.addUserToGroup(group1.id, User3.username).get
         val updatedRead = store.getUserGroup(group1.id).get.value
         updatedRead shouldBe expected
 

@@ -211,6 +211,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
       val updatedDoc = DomainUserStore.domainUserToDoc(domainUser)
       doc.merge(updatedDoc, false, false)
       db.save(doc)
+      ()
     }
   } recoverWith (handleDuplicateValue)
 
@@ -342,7 +343,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
 
     val query = OrientDBUtil.buildPagedQuery(baseQuery + whereClause + orderByClause, limit, offset)
     OrientDBUtil
-      .query(db, query)
+      .query(db, query, Map("searchString" -> s"%${searchString}%"))
       .map(_.map(DomainUserStore.docToDomainUser(_)))
   }
 
@@ -430,6 +431,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
         Try {
           doc.setProperty(Password, passwordHash)
           db.save(doc)
+          ()
         }
       }
   }
@@ -480,7 +482,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
                 Classes.UserReconnectToken.Fields.Token -> token, 
                 Classes.UserReconnectToken.Fields.ExpireTime -> Date.from(expiration))
             OrientDBUtil
-              .mutateOneDocument(db, command, params)
+              .command(db, command, params)
               .map(_ => token)
           case None =>
             Failure(new EntityNotFoundException(DomainUserStore.UserDoesNotExistMessage))
@@ -501,7 +503,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
         val expireTime: Date = record.getProperty(Classes.UserReconnectToken.Fields.ExpireTime)
         val expireInstant: Instant = expireTime.toInstant()
         if (Instant.now().isBefore(expireInstant)) {
-          val username: String = record.getProperty("user.username")
+          val username: String = record.eval("user.username").toString()
           val newExpiration = Instant.now().plus(reconnectTokenDuration)
           record.setProperty(Classes.UserReconnectToken.Fields.ExpireTime, Date.from(newExpiration))
           record.save()

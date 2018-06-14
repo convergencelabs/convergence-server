@@ -51,11 +51,11 @@ object ModelOperationStore {
     val op = OrientDBOperationMapper.oDocumentToOperation(opDoc)
 
     ModelOperation(
-      doc.getProperty("model.id"),
+      doc.eval("model.id").toString(),
       doc.getProperty(Fields.Version),
       timestamp,
-      doc.getProperty("session.user.username"),
-      doc.getProperty("session.id"),
+      doc.eval("session.user.username").toString(),
+      doc.eval("session.id").toString(),
       op)
   }
 }
@@ -67,7 +67,7 @@ class ModelOperationStore private[domain] (dbProvider: DatabaseProvider)
   import ModelOperationStore._
 
   def getMaxVersion(id: String): Try[Option[Long]] = withDb { db =>
-    val query = "SELECT max(version) FROM ModelOperation WHERE model.id = :modelId"
+    val query = "SELECT max(version) as max FROM ModelOperation WHERE model.id = :modelId"
     val params = Map(Constants.ModelId -> id)
     OrientDBUtil
       .findDocument(db, query, params)
@@ -75,7 +75,7 @@ class ModelOperationStore private[domain] (dbProvider: DatabaseProvider)
   }
 
   def getVersionAtOrBeforeTime(id: String, time: Instant): Try[Option[Long]] = withDb { db =>
-    val query = "SELECT max(version) FROM ModelOperation WHERE model.id = :modelId AND timestamp <= :time"
+    val query = "SELECT max(version) as max FROM ModelOperation WHERE model.id = :modelId AND timestamp <= :time"
     val params = Map(Constants.ModelId -> id, "time" -> new java.util.Date(time.toEpochMilli()))
     OrientDBUtil
       .findDocument(db, query, params)

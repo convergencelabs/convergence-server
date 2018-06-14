@@ -2,27 +2,23 @@ package com.convergencelabs.server.datastore.domain
 
 import java.time.Instant
 import java.util.Date
-import java.util.{ List => JavaList }
 
-import scala.collection.JavaConverters._
 import scala.util.Try
 
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.server.db.DatabaseProvider
+import com.convergencelabs.server.datastore.OrientDBUtil
 import com.convergencelabs.server.datastore.domain.mapper.ObjectValueMapper.ODocumentToObjectValue
 import com.convergencelabs.server.datastore.domain.mapper.ObjectValueMapper.ObjectValueToODocument
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.domain.model.ModelSnapshot
 import com.convergencelabs.server.domain.model.ModelSnapshotMetaData
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.record.impl.ODocument
-import com.orientechnologies.orient.core.sql.OCommandSQL
-import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.datastore.OrientDBUtil
 
 object ModelSnapshotStore {
-  import schema.DomainSchema._
+  import com.convergencelabs.server.datastore.domain.schema.DomainSchema._
 
   object Constants {
     val CollectionId = "collectionId"
@@ -30,28 +26,30 @@ object ModelSnapshotStore {
   }
 
   def docToModelSnapshot(doc: ODocument): ModelSnapshot = {
-    val dataDoc: ODocument = doc.field(Classes.ModelSnapshot.Fields.Data)
+    val dataDoc: ODocument = doc.getProperty(Classes.ModelSnapshot.Fields.Data)
     val data = dataDoc.asObjectValue
     ModelSnapshot(docToModelSnapshotMetaData(doc), data)
   }
 
   def modelSnapshotToDoc(modelSnapshot: ModelSnapshot, db: ODatabaseDocument): Try[ODocument] = {
     val md = modelSnapshot.metaData
-    ModelStore.getModelRid(md.modelId, db) map { modelRid =>
-      val doc = new ODocument(Classes.ModelSnapshot.ClassName)
-      doc.field(Classes.ModelSnapshot.Fields.Model, modelRid)
-      doc.field(Classes.ModelSnapshot.Fields.Version, modelSnapshot.metaData.version)
-      doc.field(Classes.ModelSnapshot.Fields.Timestamp, new Date(modelSnapshot.metaData.timestamp.toEpochMilli()))
-      doc.field(Classes.ModelSnapshot.Fields.Data, modelSnapshot.data.asODocument)
-      doc
+    ModelStore.getModelRid(md.modelId, db).flatMap { modelRid =>
+      Try {
+        val doc: ODocument = db.newInstance(Classes.ModelSnapshot.ClassName)
+        doc.setProperty(Classes.ModelSnapshot.Fields.Model, modelRid)
+        doc.setProperty(Classes.ModelSnapshot.Fields.Version, modelSnapshot.metaData.version)
+        doc.setProperty(Classes.ModelSnapshot.Fields.Timestamp, new Date(modelSnapshot.metaData.timestamp.toEpochMilli()))
+        doc.setProperty(Classes.ModelSnapshot.Fields.Data, modelSnapshot.data.asODocument)
+        doc
+      }
     }
   }
 
   def docToModelSnapshotMetaData(doc: ODocument): ModelSnapshotMetaData = {
-    val timestamp: java.util.Date = doc.field(Classes.ModelSnapshot.Fields.Timestamp)
+    val timestamp: java.util.Date = doc.getProperty(Classes.ModelSnapshot.Fields.Timestamp)
     ModelSnapshotMetaData(
-      doc.field(Constants.ModelId),
-      doc.field(Classes.ModelSnapshot.Fields.Version),
+      doc.getProperty(Constants.ModelId),
+      doc.getProperty(Classes.ModelSnapshot.Fields.Version),
       Instant.ofEpochMilli(timestamp.getTime))
   }
 }
@@ -67,8 +65,8 @@ class ModelSnapshotStore private[domain] (
   extends AbstractDatabasePersistence(dbProvider)
   with Logging {
 
-  import schema.DomainSchema._
   import ModelSnapshotStore._
+  import com.convergencelabs.server.datastore.domain.schema.DomainSchema._
 
   val AllFields = s"version, timestamp, model.collection.id as collectionId, model.id as modelId, data"
   val MetaDataFields = s"version, timestamp, model.collection.id as collectionId, model.id as modelId"
@@ -80,9 +78,11 @@ class ModelSnapshotStore private[domain] (
    * @param snapshotData The snapshot to create.
    */
   def createSnapshot(modelSnapshot: ModelSnapshot): Try[Unit] = withDb { db =>
-    ModelSnapshotStore
-      .modelSnapshotToDoc(modelSnapshot, db)
-      .flatMap(doc => Try(db.save(doc)))
+    modelSnapshotToDoc(modelSnapshot, db)
+      .flatMap(doc => Try {
+        db.save(doc)
+        ()
+      })
   }
 
   /**
@@ -200,8 +200,8 @@ class ModelSnapshotStore private[domain] (
   def getClosestSnapshotByVersion(id: String, version: Long): Try[Option[ModelSnapshot]] = withDb { db =>
     val query =
       s"""SELECT
-        |  abs(eval('$$current.version - $version')) as abs_delta,
-        |  eval('$$current.version - $version') as delta,
+        |  abs($$current.version - $version) as abs_delta,
+        |  $$current.version - $version as delta,
         |  ${AllFields}
         |FROM ModelSnapshot
         |WHERE

@@ -58,13 +58,15 @@ object OrientDBUtil {
   }
 
   def getDocument(db: ODatabaseDocument, query: String, params: Map[String, Any] = Map()): Try[ODocument] = {
-    val rs = db.query(query, params.asJava)
-    TryWithResource(rs)(resultSetToDocList(_)) flatMap (assertOneDoc(_))
+    Try(db.query(query, params.asJava))
+      .flatMap( (rs: OResultSet) => TryWithResource(rs)(resultSetToDocList(_)))
+      .flatMap(assertOneDoc(_))
   }
 
   def findDocument(db: ODatabaseDocument, query: String, params: Map[String, Any] = Map()): Try[Option[ODocument]] = {
-    val rs = db.query(query, params.asJava)
-    TryWithResource(rs)(resultSetToDocList(_)) flatMap (assertZeroOrOneDoc(_))
+    Try(db.query(query, params.asJava))
+      .flatMap( (rs: OResultSet) => TryWithResource(rs)(resultSetToDocList(_)))
+      .flatMap(assertZeroOrOneDoc(_))
   }
 
   def findDocumentAndMap[T](db: ODatabaseDocument, query: String, params: Map[String, Any] = Map())(m: ODocument => T): Try[Option[T]] = {
@@ -72,13 +74,13 @@ object OrientDBUtil {
   }
 
   def mutateOneDocument(db: ODatabaseDocument, command: String, params: Map[String, Any] = Map()): Try[Unit] = {
-    val rs: OResultSet = db.command(command, params.asJava)
-    TryWithResource(rs)(assertOneMutatedDoc(_).get)
+    Try(db.command(command, params.asJava))
+      .flatMap( (rs: OResultSet) => TryWithResource(rs)(assertOneMutatedDoc(_).get))
   }
 
   def mutateOneDocumentWithScript(db: ODatabaseDocument, script: String, params: Map[String, Any] = Map()): Try[Unit] = {
-    val rs: OResultSet = db.execute("sql", script, params.asJava)
-    TryWithResource(rs)(assertOneMutatedDoc(_).get)
+    Try(db.execute("sql", script, params.asJava))
+      .flatMap( (rs: OResultSet) => TryWithResource(rs)(assertOneMutatedDoc(_).get))
   }
 
   /////////////////////////////////////////////////////////////////////////////

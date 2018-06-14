@@ -28,7 +28,7 @@ object UserStore {
 
   object Fields {
     val Username = "username"
-    val Password = "username"
+    val Password = "password"
     val Email = "email"
     val FirstName = "firstName"
     val LastName = "lastName"
@@ -194,9 +194,11 @@ class UserStore(
   }
 
   def getUserPasswordHash(username: String): Try[Option[String]] = withDb { db =>
+    val query = "SELECT * FROM UserCredential WHERE user.username = :username"
+    val params = Map(Fields.Username -> username)
     OrientDBUtil
-      .getDocument(db, "SELECT * FROM UserCredential WHERE user.username = :username", Map(Fields.Username -> username))
-      .map(doc => Option(doc.getProperty(Fields.Password).asInstanceOf[String]))
+      .findDocument(db, query, params)
+      .map(_.flatMap(doc => Option(doc.getProperty(Fields.Password).asInstanceOf[String])))
   }
 
   /**

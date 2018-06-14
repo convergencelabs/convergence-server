@@ -29,6 +29,8 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.datastore.EntityNotFoundException
+import com.convergencelabs.server.datastore.MultipleValuesException
 
 case class ChatChannel(
   id: String,
@@ -218,8 +220,12 @@ object ChatChannelStore {
 class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
 
   def getChatChannelInfo(channelId: String): Try[ChatChannelInfo] = {
-    getChatChannelInfo(List(channelId)).map { results =>
-      results(0)
+    getChatChannelInfo(List(channelId)).flatMap {
+      _ match {
+        case first :: Nil => Success(first)
+        case Nil => Failure(EntityNotFoundException())
+        case _ => Failure(MultipleValuesException())
+      }
     }
   }
 
@@ -258,7 +264,9 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
   }
 
   def getChatChannel(channelId: String): Try[ChatChannel] = {
-    getChatChannelRid(channelId).map(rid => docToChatChannel(rid.getRecord[ODocument]))
+    getChatChannelRid(channelId)
+      .flatMap(rid => Try(rid.getRecord[ODocument]))
+      .map(docToChatChannel(_))
   }
 
   def createChatChannel(

@@ -15,9 +15,9 @@ import java.time.Instant
 import com.convergencelabs.server.datastore.DuplicateValueException
 
 class ChatChannelStoreSpec
-    extends PersistenceStoreSpec[DomainPersistenceProvider](DeltaCategory.Domain)
-    with WordSpecLike
-    with Matchers {
+  extends PersistenceStoreSpec[DomainPersistenceProvider](DeltaCategory.Domain)
+  with WordSpecLike
+  with Matchers {
 
   val user1 = "user1"
   val user2 = "user2"
@@ -50,9 +50,13 @@ class ChatChannelStoreSpec
       }
 
       "not create channel if members are invalid" in withTestData { provider =>
-        provider.chatChannelStore.createChatChannel(
-          Some(channel1Id), ChannelType.Direct, Instant.now(), false, "", "", Some(Set(user1, "does_not_exist")), user1).get
-        an[EntityNotFoundException] should be thrownBy provider.chatChannelStore.getChatChannel("does_not_exist").get
+
+        an[EntityNotFoundException] should be thrownBy {
+          provider.chatChannelStore.createChatChannel(
+            Some(channel1Id), ChannelType.Direct, Instant.now(), false, "", "", Some(Set(user1, "does_not_exist")), user1).get
+        }
+
+        an[EntityNotFoundException] should be thrownBy { provider.chatChannelStore.getChatChannel("does_not_exist").get }
       }
     }
 
@@ -91,7 +95,7 @@ class ChatChannelStoreSpec
         chatChannelInfo.lastEventTime shouldEqual timestamp
         chatChannelInfo.members shouldEqual members
       }
-      
+
       "return the correct max event no" in withTestData { provider =>
         val name = "testName"
         val topic = "testTopic"
@@ -100,10 +104,10 @@ class ChatChannelStoreSpec
 
         val id = provider.chatChannelStore.createChatChannel(
           Some(channel1Id), ChannelType.Group, timestamp, false, name, topic, Some(members), user1).get
-          
+
         provider.chatChannelStore.addChatMessageEvent(ChatMessageEvent(1, id, user1, timestamp, "foo"))
         val chatChannelInfo = provider.chatChannelStore.getChatChannelInfo(id).get
-        
+
         chatChannelInfo.id shouldEqual id
         chatChannelInfo.name shouldEqual "testName"
         chatChannelInfo.topic shouldEqual "testTopic"
@@ -147,7 +151,7 @@ class ChatChannelStoreSpec
           None, ChannelType.Group, Instant.now(), false, "test3", "testTopic", Some(Set(user2, user3)), user1).get
 
         val joined = provider.chatChannelStore.getJoinedChannels(user1).get
-        
+
         joined.map(i => i.id).toSet shouldBe Set(id1, id2)
       }
     }
