@@ -3,81 +3,68 @@ package com.convergencelabs.server.domain.model
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-import org.json4s.JsonAST.JArray
-import org.json4s.JsonAST.JBool
-import org.json4s.JsonAST.JDouble
-import org.json4s.JsonAST.JNull
-import org.json4s.JsonAST.JObject
-import org.json4s.JsonAST.JString
-import org.json4s.JsonAST.JValue
-import com.convergencelabs.server.domain.model.ot.CompoundOperation
-import com.convergencelabs.server.domain.model.ot.DiscreteOperation
-import com.convergencelabs.server.domain.model.ot.Operation
-import com.convergencelabs.server.domain.model.ot.ServerConcurrencyControl
-import com.convergencelabs.server.domain.model.ot.UnprocessedOperationEvent
-import com.convergencelabs.server.domain.model.ot.ProcessedOperationEvent
-import java.time.Instant
-import com.convergencelabs.server.datastore.domain.ModelOperationProcessor
-import scala.util.Success
-import scala.collection.immutable.HashMap
-import com.convergencelabs.server.domain.model.ot.CompoundOperation
-import org.json4s.JsonAST.JInt
-import com.convergencelabs.server.domain.model.data.StringValue
-import com.convergencelabs.server.domain.model.data.DataValue
-import com.convergencelabs.server.domain.model.data.DoubleValue
-import com.convergencelabs.server.domain.model.data.BooleanValue
-import com.convergencelabs.server.domain.model.data.ObjectValue
+
+import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.model.data.ArrayValue
+import com.convergencelabs.server.domain.model.data.BooleanValue
+import com.convergencelabs.server.domain.model.data.DataValue
+import com.convergencelabs.server.domain.model.data.DateValue
+import com.convergencelabs.server.domain.model.data.DoubleValue
 import com.convergencelabs.server.domain.model.data.NullValue
-import com.convergencelabs.server.domain.model.reference.ModelReference
-import com.convergencelabs.server.domain.model.reference.IndexReference
-import com.convergencelabs.server.domain.model.reference.RangeReference
-import com.convergencelabs.server.domain.model.reference.ModelReference
-import com.convergencelabs.server.domain.model.reference.ElementReferenceManager
-import com.convergencelabs.server.domain.model.reference.ElementReference
-import com.convergencelabs.server.domain.model.ot.AppliedOperation
-import com.convergencelabs.server.domain.model.ot.AppliedCompoundOperation
-import com.convergencelabs.server.domain.model.ot.AppliedDiscreteOperation
-import com.convergencelabs.server.domain.model.ot.AppliedStringRemoveOperation
-import com.convergencelabs.server.domain.model.ot.AppliedStringInsertOperation
-import com.convergencelabs.server.domain.model.ot.AppliedStringSetOperation
-import com.convergencelabs.server.domain.model.ot.AppliedObjectSetPropertyOperation
-import com.convergencelabs.server.domain.model.ot.AppliedObjectRemovePropertyOperation
-import com.convergencelabs.server.domain.model.ot.AppliedObjectSetOperation
-import com.convergencelabs.server.domain.model.ot.ObjectAddPropertyOperation
-import com.convergencelabs.server.domain.model.ot.AppliedObjectAddPropertyOperation
-import com.convergencelabs.server.domain.model.ot.AppliedNumberAddOperation
-import com.convergencelabs.server.domain.model.ot.AppliedNumberSetOperation
-import com.convergencelabs.server.domain.model.ot.AppliedBooleanSetOperation
+import com.convergencelabs.server.domain.model.data.ObjectValue
+import com.convergencelabs.server.domain.model.data.StringValue
 import com.convergencelabs.server.domain.model.ot.AppliedArrayInsertOperation
+import com.convergencelabs.server.domain.model.ot.AppliedArrayMoveOperation
 import com.convergencelabs.server.domain.model.ot.AppliedArrayRemoveOperation
 import com.convergencelabs.server.domain.model.ot.AppliedArrayReplaceOperation
-import com.convergencelabs.server.domain.model.ot.AppliedArrayMoveOperation
 import com.convergencelabs.server.domain.model.ot.AppliedArraySetOperation
-import com.convergencelabs.server.domain.model.ot.StringRemoveOperation
-import com.convergencelabs.server.domain.model.ot.StringInsertOperation
-import com.convergencelabs.server.domain.model.ot.StringSetOperation
-import com.convergencelabs.server.domain.model.ot.ObjectSetPropertyOperation
-import com.convergencelabs.server.domain.model.ot.ObjectRemovePropertyOperation
-import com.convergencelabs.server.domain.model.ot.ObjectSetOperation
-import com.convergencelabs.server.domain.model.ot.NumberAddOperation
-import com.convergencelabs.server.domain.model.ot.NumberSetOperation
-import com.convergencelabs.server.domain.model.ot.BooleanSetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedBooleanSetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedCompoundOperation
+import com.convergencelabs.server.domain.model.ot.AppliedDateSetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedDiscreteOperation
+import com.convergencelabs.server.domain.model.ot.AppliedNumberAddOperation
+import com.convergencelabs.server.domain.model.ot.AppliedNumberSetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedObjectAddPropertyOperation
+import com.convergencelabs.server.domain.model.ot.AppliedObjectRemovePropertyOperation
+import com.convergencelabs.server.domain.model.ot.AppliedObjectSetOperation
+import com.convergencelabs.server.domain.model.ot.AppliedObjectSetPropertyOperation
+import com.convergencelabs.server.domain.model.ot.AppliedOperation
+import com.convergencelabs.server.domain.model.ot.AppliedStringInsertOperation
+import com.convergencelabs.server.domain.model.ot.AppliedStringRemoveOperation
+import com.convergencelabs.server.domain.model.ot.AppliedStringSetOperation
 import com.convergencelabs.server.domain.model.ot.ArrayInsertOperation
+import com.convergencelabs.server.domain.model.ot.ArrayMoveOperation
 import com.convergencelabs.server.domain.model.ot.ArrayRemoveOperation
 import com.convergencelabs.server.domain.model.ot.ArrayReplaceOperation
-import com.convergencelabs.server.domain.model.ot.ArrayMoveOperation
 import com.convergencelabs.server.domain.model.ot.ArraySetOperation
-import com.convergencelabs.server.domain.model.data.DateValue
+import com.convergencelabs.server.domain.model.ot.BooleanSetOperation
+import com.convergencelabs.server.domain.model.ot.CompoundOperation
 import com.convergencelabs.server.domain.model.ot.DateSetOperation
-import com.convergencelabs.server.domain.model.ot.AppliedDateSetOperation
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.model.ot.DiscreteOperation
+import com.convergencelabs.server.domain.model.ot.NumberAddOperation
+import com.convergencelabs.server.domain.model.ot.NumberSetOperation
+import com.convergencelabs.server.domain.model.ot.ObjectAddPropertyOperation
+import com.convergencelabs.server.domain.model.ot.ObjectRemovePropertyOperation
+import com.convergencelabs.server.domain.model.ot.ObjectSetOperation
+import com.convergencelabs.server.domain.model.ot.ObjectSetPropertyOperation
+import com.convergencelabs.server.domain.model.ot.Operation
+import com.convergencelabs.server.domain.model.ot.ProcessedOperationEvent
+import com.convergencelabs.server.domain.model.ot.ServerConcurrencyControl
+import com.convergencelabs.server.domain.model.ot.StringInsertOperation
+import com.convergencelabs.server.domain.model.ot.StringRemoveOperation
+import com.convergencelabs.server.domain.model.ot.StringSetOperation
+import com.convergencelabs.server.domain.model.ot.UnprocessedOperationEvent
+import com.convergencelabs.server.domain.model.reference.ElementReference
+import com.convergencelabs.server.domain.model.reference.ElementReferenceManager
+import com.convergencelabs.server.domain.model.reference.IndexReference
+import com.convergencelabs.server.domain.model.reference.ModelReference
+import com.convergencelabs.server.domain.model.reference.RangeReference
 
 class RealTimeModel(
-    private[this] val domainFqn: DomainFqn,
-    private[this] val modelId: String,
-    private[this] val cc: ServerConcurrencyControl,
-    private val obj: ObjectValue) {
+  private[this] val domainFqn: DomainFqn,
+  private[this] val modelId: String,
+  private[this] val cc: ServerConcurrencyControl,
+  private val obj: ObjectValue) extends RealTimeValueFactory {
 
   val idToValue = collection.mutable.HashMap[String, RealTimeValue]()
   val elementReferenceManager = new ElementReferenceManager(this, List(ReferenceType.Element))
@@ -98,28 +85,14 @@ class RealTimeModel(
     this.elementReferenceManager.sessionDisconnected(sk)
   }
 
-  def registerValue(realTimeValue: RealTimeValue): Unit = {
-    this.idToValue += (realTimeValue.id -> realTimeValue)
-  }
-
-  def unregisterValue(realTimeValue: RealTimeValue): Unit = {
-    this.idToValue -= realTimeValue.id
-  }
-
-  def createValue(
+  override def createValue(
     value: DataValue,
     parent: Option[RealTimeContainerValue],
     parentField: Option[Any]): RealTimeValue = {
-    value match {
-      case v: StringValue => new RealTimeString(v, this, parent, parentField)
-      case v: DoubleValue => new RealTimeDouble(v, this, parent, parentField)
-      case v: BooleanValue => new RealTimeBoolean(v, this, parent, parentField)
-      case v: ObjectValue => new RealTimeObject(v, this, parent, parentField)
-      case v: ArrayValue => new RealTimeArray(v, this, parent, parentField)
-      case v: NullValue => new RealTimeNull(v, this, parent, parentField)
-      case v: DateValue => new RealTimeDate(v, this, parent, parentField)
-      case _ => throw new IllegalArgumentException("Unsupported type: " + value)
-    }
+    val result = super.createValue(value, parent, parentField)
+    this.registerValue(result)
+    result.addDetachListener(_ => this.unregisterValue(result))
+    result
   }
 
   def processOperationEvent(unprocessed: UnprocessedOperationEvent): Try[(ProcessedOperationEvent, AppliedOperation)] = {
@@ -127,7 +100,7 @@ class RealTimeModel(
     val preprocessed = unprocessed.copy(operation = noOpObsoleteOperations(unprocessed.operation))
     val processed = cc.processRemoteOperation(preprocessed)
     // FIXME this isn't quite right, if applying the operation fails, just rolling back
-    // the CC may not be enough, especially in the case of a compound operation, 
+    // the CC may not be enough, especially in the case of a compound operation,
     // we may have partially mutated the model.
     applyOpperation(processed.operation) match {
       case Success(appliedOperation) =>
@@ -137,6 +110,14 @@ class RealTimeModel(
         cc.rollback()
         Failure(f)
     }
+  }
+
+  private[this] def registerValue(realTimeValue: RealTimeValue): Unit = {
+    this.idToValue += (realTimeValue.id -> realTimeValue)
+  }
+
+  private[this] def unregisterValue(realTimeValue: RealTimeValue): Unit = {
+    this.idToValue -= realTimeValue.id
   }
 
   private[this] def noOpObsoleteOperations(op: Operation): Operation = {

@@ -73,7 +73,7 @@ class ElementReferenceManager(
         vids filter { source.idToValue.contains(_) }
         
         for (vid <- vids) {
-          source.idToValue(vid).addListener(reference.handleElementDetached)
+          source.idToValue(vid).addDetachListener(reference.handleElementDetached)
         }
         
         reference.set(vids)
