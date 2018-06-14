@@ -4,8 +4,8 @@ object ModelUserPermissionsClass extends OrientDBClass {
   val ClassName = "ModelUserPermissions"
 
   object Fields {
-    val Model = "id"
-    val User = "name"
+    val Model = "model"
+    val User = "user"
     val Permissions = "permissions"
   }
 

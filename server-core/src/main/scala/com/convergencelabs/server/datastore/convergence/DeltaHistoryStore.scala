@@ -57,7 +57,12 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
   def getConvergenceDeltaHistory(deltaNo: Int): Try[Option[ConvergenceDeltaHistory]] = withDb { db =>
     OrientDBUtil
       .findIdentityFromSingleValueIndex(db, Schema.ConvergenceDelta.Indices.DeltaNo, deltaNo)
-      .flatMap(deltaORID => OrientDBUtil.findDocumentFromSingleValueIndex(db, Schema.ConvergenceDeltaHistory.Indices.Delta, deltaORID))
+      .flatMap(_ match {
+        case Some(deltaORID) =>
+          OrientDBUtil.findDocumentFromSingleValueIndex(db, Schema.ConvergenceDeltaHistory.Indices.Delta, deltaORID)
+        case None =>
+          Success(None)
+      })
       .map(_.map { doc =>
         val deltaDoc: ODocument = doc.getProperty(Fields.Delta)
 
@@ -114,15 +119,9 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
   }
 
   def removeDeltaHistoryForDomain(domainFqn: DomainFqn): Try[Unit] = withDb { db =>
-    // TODO see if there is a way to do this without expand?
-    val query =
-      """
-        |BEGIN
-        |let domain = SELECT expand(rid) FROM INDEX:Domain.namespace_id WHERE KEY = [:namespace, :id]
-        |DELETE FROM DomainDeltaHistory WHERE domain = first($domain)
-        |COMMIT""".stripMargin
+    val query = "DELETE FROM DomainDeltaHistory WHERE domain IN (SELECT rid FROM INDEX:Domain.namespace_id WHERE KEY = [:namespace, :id])";
     val params = Map("namespace" -> domainFqn.namespace, "id" -> domainFqn.domainId)
-    OrientDBUtil.execute(db, query, params).map(_ => ())
+    OrientDBUtil.command(db, query, params).map(_ => ())
   }
 
   def getDomainDeltaHistory(domainFqn: DomainFqn, deltaNo: Int): Try[Option[DomainDeltaHistory]] = withDb { db =>
@@ -131,7 +130,14 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
     for {
       deltaORID <- OrientDBUtil.findIdentityFromSingleValueIndex(db, Schema.DomainDelta.Indices.DeltaNo, deltaNo)
       domainORID <- DomainStore.getDomainRid(domainFqn, db)
-      doc <- OrientDBUtil.findDocumentFromSingleValueIndex(db, Schema.DomainDeltaHistory.Indices.DomainDelta, List(domainORID, deltaORID))
+      doc <- {
+        deltaORID match {
+          case Some(deltaORID) =>
+            OrientDBUtil.findDocumentFromSingleValueIndex(db, Schema.DomainDeltaHistory.Indices.DomainDelta, List(domainORID, deltaORID))
+          case None =>
+            Success(None)
+        }
+      }
     } yield {
       doc.map { doc =>
         val deltaDoc: ODocument = doc.field(Fields.Delta)

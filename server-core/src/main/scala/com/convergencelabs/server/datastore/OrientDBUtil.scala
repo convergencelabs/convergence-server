@@ -1,7 +1,6 @@
 package com.convergencelabs.server.datastore
 
-import scala.collection.JavaConverters.mapAsJavaMapConverter
-import scala.collection.JavaConverters.seqAsJavaListConverter
+import scala.collection.JavaConverters._
 import scala.collection.mutable.Buffer
 import scala.util.Failure
 import scala.util.Success
@@ -15,6 +14,8 @@ import com.orientechnologies.orient.core.metadata.security.OIdentity
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.index.OCompositeKey
+import com.orientechnologies.orient.core.command.script.OCommandScript
+import com.orientechnologies.orient.core.command.OCommandRequest
 
 object OrientDBUtil {
 
@@ -53,19 +54,23 @@ object OrientDBUtil {
     }
   }
 
-  def execute(db: ODatabaseDocument, query: String, params: Map[String, Any] = Map()): Try[List[ODocument]] = {
-    TryWithResource(db.execute("sql", query, params.asJava))(resultSetToDocList(_))
+  def executeMutation(db: ODatabaseDocument, script: String, params: Map[String, Any] = Map()): Try[Long] = {
+    Try(db.execute("sql", script, params)).flatMap(getMutationCount(_))
+  }
+
+  def execute(db: ODatabaseDocument, script: String, params: Map[String, Any] = Map()): Try[List[ODocument]] = {
+    TryWithResource(db.execute("sql", script, params.asJava))(resultSetToDocList(_))
   }
 
   def getDocument(db: ODatabaseDocument, query: String, params: Map[String, Any] = Map()): Try[ODocument] = {
     Try(db.query(query, params.asJava))
-      .flatMap( (rs: OResultSet) => TryWithResource(rs)(resultSetToDocList(_)))
+      .flatMap((rs: OResultSet) => TryWithResource(rs)(resultSetToDocList(_)))
       .flatMap(assertOneDoc(_))
   }
 
   def findDocument(db: ODatabaseDocument, query: String, params: Map[String, Any] = Map()): Try[Option[ODocument]] = {
     Try(db.query(query, params.asJava))
-      .flatMap( (rs: OResultSet) => TryWithResource(rs)(resultSetToDocList(_)))
+      .flatMap((rs: OResultSet) => TryWithResource(rs)(resultSetToDocList(_)))
       .flatMap(assertZeroOrOneDoc(_))
   }
 
@@ -75,12 +80,12 @@ object OrientDBUtil {
 
   def mutateOneDocument(db: ODatabaseDocument, command: String, params: Map[String, Any] = Map()): Try[Unit] = {
     Try(db.command(command, params.asJava))
-      .flatMap( (rs: OResultSet) => TryWithResource(rs)(assertOneMutatedDoc(_).get))
+      .flatMap((rs: OResultSet) => TryWithResource(rs)(assertOneMutatedDoc(_).get))
   }
 
   def mutateOneDocumentWithScript(db: ODatabaseDocument, script: String, params: Map[String, Any] = Map()): Try[Unit] = {
     Try(db.execute("sql", script, params.asJava))
-      .flatMap( (rs: OResultSet) => TryWithResource(rs)(assertOneMutatedDoc(_).get))
+      .flatMap((rs: OResultSet) => TryWithResource(rs)(assertOneMutatedDoc(_).get))
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -195,15 +200,21 @@ object OrientDBUtil {
     }
   }
 
-  private[this] def assertOneMutatedDoc(rs: OResultSet) = {
+  private[this] def getMutationCount(rs: OResultSet): Try[Long] = Try {
     val count: Long = rs.next().getProperty(CountField)
-    count match {
-      case 0 =>
-        Failure(EntityNotFoundException())
-      case 1 =>
-        Success(())
-      case _ =>
-        Failure(MultipleValuesException())
+    count
+  }
+
+  private[this] def assertOneMutatedDoc(rs: OResultSet): Try[Unit] = {
+    getMutationCount(rs).flatMap { count =>
+      count match {
+        case 0 =>
+          Failure(EntityNotFoundException())
+        case 1 =>
+          Success(())
+        case _ =>
+          Failure(MultipleValuesException())
+      }
     }
   }
 

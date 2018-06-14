@@ -121,7 +121,7 @@ class ModelStoreQuerySpec extends PersistenceStoreSpec[ModelStoreQuerySpecStores
     "projection is used" must {
       "return correct fields when projection is used" in withPersistenceStore { stores =>
         createModels(stores)
-        val list = stores.model.queryModels("SELECT sField FROM collection1 where bField = false ORDER BY sField ASC", None).get
+        val list = stores.model.queryModels("SELECT sField FROM collection1 WHERE bField = false ORDER BY sField ASC", None).get
         list.map { _.meta.modelId } shouldEqual (List("model2"))
         list.map { _.data } shouldEqual List(JObject(List(("sField",JString("myString2")))))
       }

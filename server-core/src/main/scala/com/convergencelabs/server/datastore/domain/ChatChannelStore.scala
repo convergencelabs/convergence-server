@@ -246,8 +246,7 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
 
     val params = Map("channelIds" -> channelId.asJava)
     OrientDBUtil
-      .query(db, query, params)
-      .map(_.map { doc =>
+      .queryAndMap(db, query, params) { doc =>
         val id: String = doc.getProperty("id")
         val channelType: String = doc.getProperty("type")
         val created: Date = doc.getProperty("created")
@@ -260,7 +259,7 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
         val lastEventTime: Date = doc.getProperty("timestamp")
         ChatChannelInfo(id, channelType, created.toInstant(), isPrivate, name, topic,
           usernames, lastEventNo, lastEventTime.toInstant())
-      })
+      }
   }
 
   def getChatChannel(channelId: String): Try[ChatChannel] = {
@@ -423,7 +422,6 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
     OrientDBUtil
       .command(db, query, params)
       .map(_ => ())
-
   }
 
   def addChatUserJoinedEvent(event: ChatUserJoinedEvent): Try[Unit] = withDb { db =>
@@ -547,8 +545,8 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
     val params = Map("channelId" -> channelId)
 
     OrientDBUtil
-      .query(db, query, params)
-      .map(_.map(_.getProperty("member").asInstanceOf[String]).toSet)
+      .queryAndMap(db, query, params)(_.getProperty("member").asInstanceOf[String])
+      .map(_.toSet)
   }
 
   def addAllChatChannelMembers(channelId: String, usernames: Set[String], seen: Option[Long]): Try[Unit] = withDb { db =>

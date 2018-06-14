@@ -257,16 +257,17 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
             existingPermissions.save()
             ()
           case None =>
-            val newPermissions: ODocument = db.newInstance(Classes.CollectionPermissions.ClassName)
+            val newPermissions: ODocument = db.newInstance(Classes.CollectionUserPermissions.ClassName)
             newPermissions.setProperty(Classes.CollectionUserPermissions.Fields.Collection, collectionRid)
             newPermissions.setProperty(Classes.CollectionUserPermissions.Fields.User, userRid)
             newPermissions.setProperty(Classes.CollectionUserPermissions.Fields.Permissions, collectionPermissionToDoc(permissions))
+            newPermissions.save()
 
             val collection = collectionRid.getRecord[ODocument]
             val userPermissions =
               Option(collection.getProperty(Classes.Collection.Fields.UserPermissions).asInstanceOf[JavaList[ODocument]])
                 .getOrElse(new ArrayList[ODocument]().asInstanceOf[JavaList[ODocument]])
-            userPermissions.add(0, newPermissions.save())
+            userPermissions.add(0, newPermissions)
             collection.setProperty(Classes.Collection.Fields.UserPermissions, userPermissions)
             collection.save()
             ()
@@ -291,7 +292,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
             false
           }
         }
-        collection.setProperty(Classes.Collection.Fields.UserPermissions, newPermissions.asJavaCollection)
+        collection.setProperty(Classes.Collection.Fields.UserPermissions, new ArrayList(newPermissions.asJavaCollection))
         collection.save()
         ()
       }
@@ -370,8 +371,8 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
       }
   }
 
-  def updateAllModelUserPermissions(id: String, userPermissions: Map[String, Option[ModelPermissions]]): Try[Unit] = tryWithDb { db =>
-    ModelStore.getModelRid(id, db).flatMap { modelRid =>
+  def updateAllModelUserPermissions(modelId: String, userPermissions: Map[String, Option[ModelPermissions]]): Try[Unit] = tryWithDb { db =>
+    ModelStore.getModelRid(modelId, db).flatMap { modelRid =>
       Try(userPermissions.map {
         case (username, permissions) =>
           for {
@@ -410,41 +411,45 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
       }.foreach(_.get))
     }.flatMap { _ =>
       val command = "UPDATE Model SET userPermissions = (SELECT FROM ModelUserPermissions WHERE model.id = :modelId) WHERE id = :modelId"
-      val params = Map("modelId" -> id)
+      val params = Map("modelId" -> modelId)
       OrientDBUtil.command(db, command, params).map(_ => ())
     }
   }
 
-  def getModelUserPermissions(id: String, username: String): Try[Option[ModelPermissions]] = withDb { db =>
+  def getModelUserPermissions(modelId: String, username: String): Try[Option[ModelPermissions]] = withDb { db =>
     val query = "SELECT permissions FROM ModelUserPermissions WHERE model.id = :modelId AND user.username = :username"
-    val params = Map("modelId" -> id, "username" -> username)
+    val params = Map("modelId" -> modelId, "username" -> username)
     OrientDBUtil
       .findDocument(db, query, params)
       .map(_.map(doc => docToModelPermissions(doc.getProperty(Classes.ModelUserPermissions.Fields.Permissions).asInstanceOf[ODocument])))
   }
 
-  def updateModelUserPermissions(id: String, username: String, permissions: ModelPermissions): Try[Unit] = tryWithDb { db =>
+  def updateModelUserPermissions(modelId: String, username: String, permissions: ModelPermissions): Try[Unit] = tryWithDb { db =>
     for {
-      modelRID <- ModelStore.getModelRid(id, db)
+      modelRID <- ModelStore.getModelRid(modelId, db)
       userRID <- DomainUserStore.getUserRid(username, db)
       userModelPermissions <- OrientDBUtil.findDocumentFromSingleValueIndex(db, Classes.ModelUserPermissions.Indices.User_Model, List(userRID, modelRID))
       result <- Try {
         userModelPermissions match {
           case Some(exisitingPermissions) =>
-            exisitingPermissions.field(Classes.ModelUserPermissions.Fields.Permissions, modelPermissionToDoc(permissions))
+            // This user already has permissions for this model set, so we just need to update them.
+            exisitingPermissions.setProperty(Classes.ModelUserPermissions.Fields.Permissions, modelPermissionToDoc(permissions))
             exisitingPermissions.save()
             ()
           case None =>
+            // This user does not already have permissions for this model, so we need to
+            // create the user permission object persist it and also add it to the model
             val newPermissions: ODocument = db.newInstance(Classes.ModelUserPermissions.ClassName)
-            newPermissions.field(Classes.ModelUserPermissions.Fields.Model, modelRID)
-            newPermissions.field(Classes.ModelUserPermissions.Fields.User, userRID)
-            newPermissions.field(Classes.ModelUserPermissions.Fields.Permissions, modelPermissionToDoc(permissions))
+            newPermissions.setProperty(Classes.ModelUserPermissions.Fields.Model, modelRID)
+            newPermissions.setProperty(Classes.ModelUserPermissions.Fields.User, userRID)
+            newPermissions.setProperty(Classes.ModelUserPermissions.Fields.Permissions, modelPermissionToDoc(permissions))
+            newPermissions.save()
 
             val model = modelRID.getRecord[ODocument]
             val currentPermissions = model.getProperty(Classes.Model.Fields.UserPermissions).asInstanceOf[JavaList[ODocument]]
             val userPermissions = Option(currentPermissions).getOrElse(new ArrayList[ODocument]())
-            userPermissions.add(0, newPermissions.save())
-            model.field(Classes.Model.Fields.UserPermissions, userPermissions)
+            userPermissions.add(0, newPermissions)
+            model.setProperty(Classes.Model.Fields.UserPermissions, userPermissions)
             model.save()
             ()
         }
@@ -468,7 +473,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
             false
           }
         }
-        model.setProperty(Classes.Model.Fields.UserPermissions, newPermissions.asJavaCollection)
+        model.setProperty(Classes.Model.Fields.UserPermissions, new ArrayList(newPermissions.asJavaCollection))
         model.save()
         ()
       }

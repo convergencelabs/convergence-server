@@ -96,20 +96,39 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
 
   def hasPermission(username: String, forRecord: ORID, permission: String): Try[Boolean] = withDb { db =>
     DomainUserStore.getUserRid(username, db).flatMap { userRID =>
+      // There are three conditions that must be matched in order to find permissions
+      // that allow this action to happen:
+      //   1. We must match the permission exactly
+      //   2. We must match permissions with this specific forRecord and permissions 
+      //      that don't have a forRecord defined, since those are global permissions
+      //      that apply to all records that permission applies to.
+      //   3. We much permissions that don't have an assignedTo field since those are
+      //      world permissions. If there is an assignedTo value then the assigned to
+      //      value can be this users, or a group this user belongs to.
+      
       val query =
         """SELECT count(*) as count
         |  FROM Permission
-        |  WHERE (forRecord = :forRecord OR not(forRecord is DEFINED)) AND
-        |        permission = :permission AND
-        |    (not(assignedTo is DEFINED) OR
-        |     assignedTo = :user OR
-        |     (assignedTo.@class instanceof 'UserGroup' AND assignedTo.members contains :user))""".stripMargin
+        |  WHERE 
+        |    permission = :permission AND
+        |    (not(forRecord is DEFINED) OR forRecord = :forRecord) AND
+        |    (
+        |      not(assignedTo is DEFINED) OR
+        |      assignedTo = :user OR
+        |      (assignedTo.@class INSTANCEOF 'UserGroup' AND assignedTo.members CONTAINS :user)
+        |    )""".stripMargin
       val params = Map("user" -> userRID, "forRecord" -> forRecord, "permission" -> permission)
+      // FIXME use getDocument once the OrientDB bug is fixed for count returning no rows.
       OrientDBUtil
-        .getDocument(db, query, params)
-        .map { doc =>
-          val count: Long = doc.getProperty("count")
-          count > 0
+        .findDocument(db, query, params)
+        .map {
+          _ match {
+            case Some(doc) =>
+              val count: Long = doc.getProperty("count")
+              count > 0
+            case None =>
+              false
+          }
         }
     }
   }
@@ -132,7 +151,7 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
 
     val query = sb.toString()
     OrientDBUtil
-      .getDocument(db, query, params.toMap)
+      .getDocument(db, query, params)
       .map { doc =>
         val count: Long = doc.getProperty("count")
         count > 0
@@ -189,9 +208,9 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
     UserGroupStore.getGroupRid(groupId, db).flatMap { groupRid =>
       Try(permissions.map { permission =>
         val doc: ODocument = db.newInstance(Classes.Permission.ClassName)
-        doc.field(Classes.Permission.Fields.Permission, permission)
-        doc.field(Classes.Permission.Fields.AssignedTo, groupRid)
-        forRecord.foreach { doc.field(Classes.Permission.Fields.ForRecord, _) }
+        doc.setProperty(Classes.Permission.Fields.Permission, permission)
+        doc.setProperty(Classes.Permission.Fields.AssignedTo, groupRid)
+        forRecord.foreach(doc.setProperty(Classes.Permission.Fields.ForRecord, _))
         doc.save().getIdentity
       }).flatMap(permissionRids =>
         forRecord match {
@@ -280,7 +299,7 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
     var params = Map[String, Any]()
 
     val sb = new StringBuilder
-    sb.append("SELECT FROM Permission WHERE assignedTo is DEFINED AND assignedTo.@class instanceof 'User' AND ")
+    sb.append("SELECT FROM Permission WHERE (assignedTo is DEFINED) AND (assignedTo.@class instanceof 'User') AND ")
     params = addOptionFieldParam(sb, params, Classes.Permission.Fields.ForRecord, forRecord)
 
     OrientDBUtil
@@ -330,9 +349,10 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
 
   private[this] def addPermissionsToSet(forRecord: ORID, permissions: Set[ORID]): Try[Unit] = tryWithDb { db =>
     val forDoc = forRecord.getRecord[ODocument]
-    val permissions: JavaSet[ORID] = forDoc.field(Classes.Permission.Fields.Permissions)
-    permissions.addAll(permissions)
-    forDoc.field(Classes.Permission.Fields.Permissions, permissions)
+    val existingPermissions = Option(forDoc.getProperty(Classes.Permission.Fields.Permissions).asInstanceOf[JavaSet[ORID]])
+      .getOrElse(new HashSet[ORID].asInstanceOf[JavaSet[ORID]])
+    permissions.foreach(existingPermissions.add(_))
+    forDoc.setProperty(Classes.Permission.Fields.Permissions, existingPermissions)
     forDoc.save()
     ()
   }
@@ -350,7 +370,7 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
     var vParams = params
     rid match {
       case Some(rid) =>
-        sb.append(s"$field = :$field")
+        sb.append(s"($field = :$field)")
         vParams += field -> rid
       case None =>
         sb.append(s"not($field is DEFINED)")

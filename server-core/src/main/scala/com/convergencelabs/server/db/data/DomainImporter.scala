@@ -85,7 +85,7 @@ class DomainImporter(
     } flatMap { _ =>
       createModels()
     } map { _ =>
-      logger.debug("Done importting domain data")
+      logger.debug("Done importing domain data")
     }
   }
 

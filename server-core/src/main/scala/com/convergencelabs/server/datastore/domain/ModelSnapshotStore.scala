@@ -110,7 +110,7 @@ class ModelSnapshotStore private[domain] (
    * version if it exists, or None if it does not.
    */
   def getSnapshots(id: String): Try[List[ModelSnapshot]] = withDb { db =>
-    val query = "SELECT ${AllFields} FROM ModelSnapshot WHERE model.id = :modelId"
+    val query = s"SELECT ${AllFields} FROM ModelSnapshot WHERE model.id = :modelId"
     val params = Map(Constants.ModelId -> id)
     OrientDBUtil.queryAndMap(db, query, params)(docToModelSnapshot(_))
   }
