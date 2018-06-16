@@ -55,7 +55,7 @@ object OrientDBUtil {
   }
 
   def executeMutation(db: ODatabaseDocument, script: String, params: Map[String, Any] = Map()): Try[Long] = {
-    Try(db.execute("sql", script, params)).flatMap(getMutationCount(_))
+    Try(db.execute("sql", script, params.asJava)).flatMap(getMutationCount(_))
   }
 
   def execute(db: ODatabaseDocument, script: String, params: Map[String, Any] = Map()): Try[List[ODocument]] = {

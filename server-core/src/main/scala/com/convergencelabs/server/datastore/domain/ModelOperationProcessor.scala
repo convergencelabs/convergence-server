@@ -4,9 +4,11 @@ import java.util.Date
 
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.collection.JavaConverters.seqAsJavaListConverter
+import scala.util.Success
 import scala.util.Try
 
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
+import com.convergencelabs.server.datastore.OrientDBUtil
 import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.domain.model.NewModelOperation
 import com.convergencelabs.server.domain.model.ot.AppliedArrayInsertOperation
@@ -31,13 +33,9 @@ import com.convergencelabs.server.domain.model.ot.AppliedStringSetOperation
 import com.orientechnologies.common.io.OIOUtils
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.id.ORID
+import com.orientechnologies.orient.core.record.impl.ODocument
 
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.datastore.OrientDBUtil
-import com.convergencelabs.server.datastore.AbstractDatabasePersistence
-import scala.util.Success
-import com.orientechnologies.orient.core.record.impl.ODocument
-import scala.collection.JavaConverters
 
 object ModelOperationProcessor {
   sealed trait DataValueDeleteStrategy
