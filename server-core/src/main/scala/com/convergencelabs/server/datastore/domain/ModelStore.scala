@@ -288,6 +288,7 @@ class ModelStore private[domain] (
         Failure(QueryParsingException(s"Parse error at position ${index}", query, Some(index)))
     }.flatMap { select =>
       val ModelQueryParameters(query, params, as) = ModelQueryBuilder.queryModels(select, username)
+      println(query)
       OrientDBUtil.query(db, query, params).map { result =>
         if (select.fields.isEmpty) {
           result.map { modelDoc =>

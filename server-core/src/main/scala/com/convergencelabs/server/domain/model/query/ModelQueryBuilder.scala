@@ -103,14 +103,14 @@ object ModelQueryBuilder {
 
   private[this] def buildProjectionPath(field: FieldTerm): String = {
     val sb = new StringBuilder()
-    sb.append("data.children[`")
+    sb.append("data.children.`")
     sb.append(field.field.property)
-    sb.append("`]")
+    sb.append("`")
     field.subpath.foreach {
       case IndexPathElement(i) =>
         sb.append(".children").append("[").append(i.toString).append("]")
       case PropertyPathElement(p) =>
-        sb.append(".children").append("[`").append(p).append("`]")
+        sb.append(".children").append(".`").append(p).append("`")
     }
 
     sb.toString
