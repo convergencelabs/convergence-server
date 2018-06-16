@@ -41,7 +41,8 @@ object ModelOperationProcessor {
   sealed trait DataValueDeleteStrategy
   case class DeleteObjectKey(key: String) extends DataValueDeleteStrategy
   case class DeleteArrayIndex(index: Int) extends DataValueDeleteStrategy
-  case object DeleteAllChildren extends DataValueDeleteStrategy
+  case object DeleteAllArrayChildren extends DataValueDeleteStrategy
+  case object DeleteAllObjectChildren extends DataValueDeleteStrategy
 }
 
 class ModelOperationProcessor private[domain] (
@@ -157,12 +158,20 @@ class ModelOperationProcessor private[domain] (
 
   private[this] def applyArraySetOperation(modelId: String, operation: AppliedArraySetOperation, db: ODatabaseDocument): Try[Unit] = {
     Try {
-      val children = operation.value map (v => OrientDataValueBuilder.dataValueToODocument(v, getModelRid(modelId, db)))
-      children.foreach { child => child.save() }
-      db.commit()
-      children
+      if (operation.value.length > 0) {
+        val modelRid = getModelRid(modelId, db)
+        val children = operation.value map { v =>
+          val doc = OrientDataValueBuilder.dataValueToODocument(v, modelRid)
+          doc.save()
+          doc
+        }
+        db.commit()
+        children
+      } else {
+        List()
+      }
     } flatMap { children =>
-      val script = createUpdate("SET children = :value", Some(DeleteAllChildren))
+      val script = createUpdate("SET children = :value", Some(DeleteAllArrayChildren))
       val params = Map(Id -> operation.id, ModelId -> modelId, Value -> children.asJava)
 
       OrientDBUtil
@@ -202,7 +211,8 @@ class ModelOperationProcessor private[domain] (
   }
 
   private[this] def applyObjectRemovePropertyOperation(modelId: String, operation: AppliedObjectRemovePropertyOperation, db: ODatabaseDocument): Try[Unit] = {
-    val script = createUpdate("REMOVE children = :property", Some(DeleteObjectKey(operation.property)))
+    // FIXME potential SQL injection due to string concatenation.
+    val script = createUpdate(s"REMOVE children.`${operation.property}`", Some(DeleteObjectKey(operation.property)))
     val params = Map(Id -> operation.id, ModelId -> modelId, "property" -> operation.property)
     OrientDBUtil.executeMutation(db, script, params).map(_ => ())
   }
@@ -224,7 +234,7 @@ class ModelOperationProcessor private[domain] (
         Map[String, ODocument]()
       }
     } flatMap { children =>
-      val script = createUpdate("SET children = :value", Some(DeleteAllChildren))
+      val script = createUpdate("SET children = :value", Some(DeleteAllObjectChildren))
       val childMap = new java.util.HashMap[String, ODocument](children.asJava)
       val params = Map(Id -> operation.id, ModelId -> modelId, Value -> childMap)
       OrientDBUtil.executeMutation(db, script, params).map(_ => ())
@@ -306,10 +316,12 @@ class ModelOperationProcessor private[domain] (
     // model fields on the data value class itself, which is indexed.
 
     val deleteCommand = deleteStrategy map {
-      case DeleteAllChildren =>
+      case DeleteAllArrayChildren =>
         "children"
+      case DeleteAllObjectChildren =>
+        "children.values()"
       case DeleteObjectKey(childPath) =>
-        s"children[`${childPath}`]"
+        s"children.`${childPath}`"
       case DeleteArrayIndex(index) =>
         s"children[${index}]"
     } map { path =>
