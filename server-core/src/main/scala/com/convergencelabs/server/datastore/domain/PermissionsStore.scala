@@ -79,11 +79,14 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
       val query =
         """SELECT count(*) as count
         |  FROM Permission
-        |  WHERE not(forRecord is DEFINED) AND
-        |        permission = :permission AND
-        |    (not(assignedTo is DEFINED) OR
-        |     assignedTo = :user OR
-        |     (assignedTo.@class instanceof 'UserGroup' AND assignedTo.members contains :user))""".stripMargin
+        |  WHERE
+        |    permission = :permission AND 
+        |    not(forRecord is DEFINED) AND
+        |    (
+        |      not(assignedTo is DEFINED) OR
+        |      assignedTo = :user OR
+        |      (assignedTo.@class = 'UserGroup' AND assignedTo.members CONTAINS :user)
+        |    )""".stripMargin
       val params = Map("user" -> userRID, "permission" -> permission)
       OrientDBUtil
         .getDocument(db, query, params)
@@ -115,7 +118,7 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
         |    (
         |      not(assignedTo is DEFINED) OR
         |      assignedTo = :user OR
-        |      (assignedTo.@class INSTANCEOF 'UserGroup' AND assignedTo.members CONTAINS :user)
+        |      (assignedTo.@class = 'UserGroup' AND assignedTo.members CONTAINS :user)
         |    )""".stripMargin
       val params = Map("user" -> userRID, "forRecord" -> forRecord, "permission" -> permission)
       // FIXME use getDocument once the OrientDB bug is fixed for count returning no rows.
@@ -165,9 +168,11 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
         |  FROM Permission
         |  WHERE forRecord = :forRecord AND
         |    permission in :permissions AND
-        |    (not(assignedTo is DEFINED) OR
-        |     assignedTo = :user OR
-        |     (assignedTo.@class instanceof 'UserGroup' AND assignedTo.members contains :user))""".stripMargin
+        |    (
+        |      not(assignedTo is DEFINED) OR
+        |      assignedTo = :user OR
+        |      (assignedTo.@class = 'UserGroup' AND assignedTo.members CONTAINS :user)
+        |    )""".stripMargin
       val params = Map("user" -> userRID, "forRecord" -> forRecord, "permissions" -> forPermissions)
       OrientDBUtil
         .queryAndMap(db, query, params)(_.getProperty(Classes.Permission.Fields.Permission).asInstanceOf[String])
@@ -287,7 +292,7 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
     var params = Map[String, Any]()
 
     val sb = new StringBuilder
-    sb.append("SELECT FROM Permission WHERE assignedTo is DEFINED AND assignedTo.@class instanceof 'UserGroup' AND ")
+    sb.append("SELECT FROM Permission WHERE assignedTo is DEFINED AND assignedTo.@class = 'UserGroup' AND ")
     params = addOptionFieldParam(sb, params, Classes.Permission.Fields.ForRecord, forRecord)
 
     OrientDBUtil
@@ -299,7 +304,7 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
     var params = Map[String, Any]()
 
     val sb = new StringBuilder
-    sb.append("SELECT FROM Permission WHERE (assignedTo is DEFINED) AND (assignedTo.@class instanceof 'User') AND ")
+    sb.append("SELECT FROM Permission WHERE (assignedTo is DEFINED) AND (assignedTo.@class = 'User') AND ")
     params = addOptionFieldParam(sb, params, Classes.Permission.Fields.ForRecord, forRecord)
 
     OrientDBUtil

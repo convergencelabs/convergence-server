@@ -36,22 +36,22 @@ object PermissionsStore {
 
   def docToPermission(doc: ODocument): Permission = {
     Permission(
-      doc.field(Fields.ID),
-      doc.field(Fields.Name),
-      doc.field(Fields.Description))
+      doc.getProperty(Fields.ID),
+      doc.getProperty(Fields.Name),
+      doc.getProperty(Fields.Description))
   }
 
   def docToRole(doc: ODocument): Role = {
-    val permissionDocs: JavaList[ODocument] = doc.field(Fields.Permissions)
+    val permissionDocs: JavaList[ODocument] = doc.getProperty(Fields.Permissions)
     val permissions = permissionDocs.asScala.map { permisionDoc =>
-      val permission: String = permisionDoc.field(Fields.ID)
+      val permission: String = permisionDoc.getProperty(Fields.ID)
       permission
     }.toList
 
     Role(
-      doc.field(Fields.Name),
+      doc.getProperty(Fields.Name),
       permissions,
-      doc.field(Fields.Description))
+      doc.getProperty(Fields.Description))
   }
 }
 
@@ -149,7 +149,7 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
 
   def getAllUserRoles(domainFqn: DomainFqn): Try[Set[UserRoles]] = withDb { db =>
     val query =
-      """SELECT user.username, set(role.name) AS roles
+      """SELECT user.username as username, set(role.name) AS roles
         |  FROM UserDomainRole
         |  WHERE domain.namespace = :namespace AND
         |    domain.id = :domainId 
@@ -158,8 +158,8 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
     OrientDBUtil
       .query(db, query, params)
       .map(_.map(result => {
-        val user: String = result.field("user")
-        val roles: HashSet[String] = result.field("roles")
+        val user: String = result.getProperty("username")
+        val roles: HashSet[String] = result.getProperty("roles")
         UserRoles(user, roles.asScala.toSet)
       }).toSet)
   }
