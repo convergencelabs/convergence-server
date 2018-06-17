@@ -31,16 +31,28 @@ class Authenticator(
   private[this] val masterAdminToken: String,
   private[this] val timeout: Timeout,
   private[this] val executionContext: ExecutionContext)
-    extends JsonSupport {
+  extends JsonSupport {
 
   import akka.pattern.ask
 
   private[this] implicit val ec = executionContext
   private[this] implicit val t = timeout
+  
+  private[this] val MasterAdminApiKeyScheme = "MasterAdminApiKey"
+  private[this] val SessionTokenScheme = "SessionToken"
+  private[this] val UserApiKeyScheme = "UserApiKey"
 
   def requireAuthenticatedUser(request: HttpRequest): Directive1[String] = {
     request.header[Authorization] match {
-      case Some(Authorization(GenericHttpCredentials("SessionToken", _, params))) if params.keySet == Set("") =>
+        case Some(Authorization(GenericHttpCredentials(SessionTokenScheme, token, _))) if token != "" && Option(token).isDefined =>
+        onSuccess(validateSessionToken(token)).flatMap {
+          case Some(username) =>
+            provide(username)
+          case None =>
+            complete(AuthFailureError)
+        }
+        
+      case Some(Authorization(GenericHttpCredentials(SessionTokenScheme, _, params))) if params.keySet == Set("") =>
         onSuccess(validateSessionToken(params(""))).flatMap {
           case Some(username) =>
             provide(username)
@@ -48,7 +60,15 @@ class Authenticator(
             complete(AuthFailureError)
         }
 
-      case Some(Authorization(GenericHttpCredentials("UserApiKey", _, params))) if params.keySet == Set("") =>
+      case Some(Authorization(GenericHttpCredentials(UserApiKeyScheme, token, _))) if token != "" && Option(token).isDefined =>
+        onSuccess(validateUserApiKey(token)).flatMap {
+          case Some(username) =>
+            provide(username)
+          case None =>
+            complete(AuthFailureError)
+        }
+        
+        case Some(Authorization(GenericHttpCredentials(UserApiKeyScheme, _, params))) if params.keySet == Set("") =>
         onSuccess(validateUserApiKey(params(""))).flatMap {
           case Some(username) =>
             provide(username)
@@ -70,7 +90,14 @@ class Authenticator(
 
   def requireAuthenticatedAdmin(request: HttpRequest): Directive1[String] = {
     request.header[Authorization] match {
-      case Some(Authorization(GenericHttpCredentials("MasterAdminApiKey", _, params))) if params.keySet == Set("") =>
+      case Some(Authorization(GenericHttpCredentials(MasterAdminApiKeyScheme, token, _))) if token != "" && Option(token).isDefined =>
+        token == masterAdminToken match {
+          case true =>
+            provide("admin")
+          case false =>
+            complete(AuthFailureError)
+        }
+      case Some(Authorization(GenericHttpCredentials(MasterAdminApiKeyScheme, _, params))) if params.keySet == Set("") =>
         (masterAdminToken == params("")) match {
           case true =>
             provide("admin")
