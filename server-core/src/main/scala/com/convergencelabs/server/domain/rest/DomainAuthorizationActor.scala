@@ -2,9 +2,9 @@ package com.convergencelabs.server.domain.rest
 
 import scala.language.postfixOps
 
-import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.DomainStore
-import com.convergencelabs.server.datastore.PermissionsStore
+import com.convergencelabs.server.db.DatabaseProvider
+import com.convergencelabs.server.datastore.convergence.DomainStore
+import com.convergencelabs.server.datastore.convergence.PermissionsStore
 import com.convergencelabs.server.domain.DomainFqn
 
 import akka.actor.Actor

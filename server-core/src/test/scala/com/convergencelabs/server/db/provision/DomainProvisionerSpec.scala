@@ -7,7 +7,7 @@ import com.convergencelabs.server.util.EmbeddedOrientDB
 import com.convergencelabs.server.domain.DomainFqn
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import org.scalatest.mockito.MockitoSugar
-import com.convergencelabs.server.datastore.DeltaHistoryStore
+import com.convergencelabs.server.datastore.convergence.DeltaHistoryStore
 import org.mockito.Mockito
 import org.mockito.Matchers
 import scala.util.Success

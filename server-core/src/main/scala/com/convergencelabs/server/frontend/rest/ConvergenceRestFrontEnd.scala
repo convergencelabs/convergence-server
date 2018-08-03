@@ -9,14 +9,14 @@ import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 
-import com.convergencelabs.server.datastore.AuthStoreActor
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor
-import com.convergencelabs.server.datastore.DomainStoreActor
+import com.convergencelabs.server.datastore.convergence.AuthStoreActor
+import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor
+import com.convergencelabs.server.datastore.convergence.DomainStoreActor
 import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.datastore.InvalidValueExcpetion
-import com.convergencelabs.server.datastore.PermissionsStoreActor
-import com.convergencelabs.server.datastore.RegistrationActor
+import com.convergencelabs.server.datastore.convergence.PermissionsStoreActor
+import com.convergencelabs.server.datastore.convergence.RegistrationActor
 import com.convergencelabs.server.db.data.ConvergenceImportService
 import com.convergencelabs.server.db.data.ConvergenceImporterActor
 import com.convergencelabs.server.db.schema.DatabaseManagerActor

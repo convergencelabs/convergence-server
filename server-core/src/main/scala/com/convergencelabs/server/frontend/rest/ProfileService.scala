@@ -3,9 +3,9 @@ package com.convergencelabs.server.frontend.rest
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUser
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.UpdateConvergenceUserRequest
-import com.convergencelabs.server.datastore.UserStore.User
+import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.GetConvergenceUser
+import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.UpdateConvergenceUserRequest
+import com.convergencelabs.server.datastore.convergence.UserStore.User
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply

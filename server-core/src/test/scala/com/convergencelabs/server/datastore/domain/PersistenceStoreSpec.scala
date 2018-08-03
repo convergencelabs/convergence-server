@@ -1,15 +1,16 @@
 package com.convergencelabs.server.datastore.domain
 
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import com.orientechnologies.orient.core.db.tool.ODatabaseImport
-import com.orientechnologies.orient.core.command.OCommandOutputListener
-import com.orientechnologies.common.log.OLogManager
-import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.db.schema.DeltaCategory
-import com.convergencelabs.server.db.schema.ConvergenceSchemaManager
-import com.convergencelabs.server.db.schema.TestingSchemaManager
 import java.util.concurrent.atomic.AtomicInteger
+
+import com.convergencelabs.server.db.ConnectedSingleDatabaseProvider
+import com.convergencelabs.server.db.DatabaseProvider
+import com.convergencelabs.server.db.schema.DeltaCategory
+import com.convergencelabs.server.db.schema.TestingSchemaManager
+import com.orientechnologies.common.log.OLogManager
+import com.orientechnologies.orient.core.command.OCommandOutputListener
+import com.orientechnologies.orient.core.db.ODatabaseType
+import com.orientechnologies.orient.core.db.OrientDB
+import com.orientechnologies.orient.core.db.OrientDBConfig
 
 abstract class PersistenceStoreSpec[S](category: DeltaCategory.Value) {
   OLogManager.instance().setConsoleLevel("WARNING")
@@ -17,25 +18,27 @@ abstract class PersistenceStoreSpec[S](category: DeltaCategory.Value) {
   protected def createStore(dbProvider: DatabaseProvider): S
 
   private[this] val dbCounter = new AtomicInteger(1)
+  
+  val orientDB: OrientDB = new OrientDB("memory:PersistenceStoreSpec", OrientDBConfig.defaultConfig());
 
   def withPersistenceStore(testCode: S => Any): Unit = {
     // make sure no accidental collisions
-    val dbName = getClass.getSimpleName
-    val uri = s"memory:${dbName}${nextDbId()}"
+    val dbName = s"${getClass.getSimpleName}${nextDbId()}"
 
-    val db = new ODatabaseDocumentTx(uri)
-    db.activateOnCurrentThread()
-    db.create()
+    // TODO we could probably cache this in a before / after all.
+    orientDB.create(dbName, ODatabaseType.MEMORY);
+    val db = orientDB.open(dbName, "admin", "admin")
+    val dbProvider = new ConnectedSingleDatabaseProvider(db)
 
     try {
-      val dbProvider = DatabaseProvider(db)
+      dbProvider.connect().get
       val mgr = new TestingSchemaManager(db, category, true)
       mgr.install().get
-      val store = createStore(DatabaseProvider(db))
+      val store = createStore(dbProvider)
       testCode(store)
     } finally {
-      db.activateOnCurrentThread()
-      db.drop() // Drop will close and drop
+      dbProvider.shutdown()
+      orientDB.drop(dbName)
     }
   }
 

@@ -12,25 +12,21 @@ import scala.util.Failure
 import scala.util.Try
 
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.EntityNotFoundException
-import com.convergencelabs.server.datastore.QueryUtil
 import com.convergencelabs.server.datastore.domain.mapper.ObjectValueMapper.ODocumentToObjectValue
 import com.convergencelabs.server.datastore.domain.mapper.DataValueMapper.ODocumentToDataValue
 import com.convergencelabs.server.domain.model.Model
 import com.convergencelabs.server.domain.model.ModelMetaData
 import com.convergencelabs.server.domain.model.data.ObjectValue
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
-
-import ModelStore.Constants.CollectionId
-import ModelStore.Fields._
 
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.domain.model.query.QueryParser
@@ -41,66 +37,51 @@ import org.json4s.JsonAST.JObject
 import com.convergencelabs.server.frontend.realtime.ModelResult
 import org.parboiled2.ParseError
 import com.orientechnologies.orient.core.db.record.OIdentifiable
+import com.convergencelabs.server.datastore.OrientDBUtil
 
 object ModelStore {
-  val ModelClass = "Model"
-  val ModelCollectionIdIndex = "Model.collection_id"
-  val ModelIdIndex = "Model.id"
+
+  import schema.ModelClass._
 
   object Constants {
     val CollectionId = "collectionId"
   }
 
-  object Fields {
-    val ModelClass = "Model"
-    val Data = "data"
-    val Collection = "collection"
-    val Id = "id"
-    val Version = "version"
-    val CreatedTime = "createdTime"
-    val ModifiedTime = "modifiedTime"
-    val OverridePermissions = "overridePermissions"
-    val WorldPermissions = "worldPermissions"
-    val ValuePrefix = "valuePrefix"
-  }
-
   private val FindModel = "SELECT * FROM Model WHERE id = :id"
 
-  def getModelDocument(id: String, db: ODatabaseDocumentTx): Try[ODocument] = {
-    val params = Map("id" -> id)
-    QueryUtil.lookupMandatoryDocument(FindModel, params, db)
+  def getModelDocument(id: String, db: ODatabaseDocument): Try[ODocument] = {
+    OrientDBUtil.getDocumentFromSingleValueIndex(db, Indices.Id, id)
   }
 
-  private def getModelDoc(id: String, db: ODatabaseDocumentTx): Option[ODocument] = {
-    val params = Map("id" -> id)
-    QueryUtil.lookupOptionalDocument(FindModel, params, db)
+  private def findModelDocument(id: String, db: ODatabaseDocument): Try[Option[ODocument]] = {
+    OrientDBUtil.findDocumentFromSingleValueIndex(db, Indices.Id, id)
   }
 
   def docToModelMetaData(doc: ODocument): ModelMetaData = {
-    val createdTime: Date = doc.field(CreatedTime, OType.DATETIME)
-    val modifiedTime: Date = doc.field(ModifiedTime, OType.DATETIME)
-    val worldPermissions = ModelPermissionsStore.docToModelPermissions(doc.field(WorldPermissions))
+    val createdTime: Date = doc.getProperty(Fields.CreatedTime)
+    val modifiedTime: Date = doc.getProperty(Fields.ModifiedTime)
+    val worldPermissions = ModelPermissionsStore.docToModelPermissions(doc.getProperty(Fields.WorldPermissions))
     ModelMetaData(
-      doc.field("collection.id"),
-      doc.field(Id),
-      doc.field(Version, OType.LONG),
+      doc.eval("collection.id").asInstanceOf[String],
+      doc.getProperty(Fields.Id),
+      doc.getProperty(Fields.Version),
       createdTime.toInstant(),
       modifiedTime.toInstant(),
-      doc.field(OverridePermissions),
+      doc.getProperty(Fields.OverridePermissions),
       worldPermissions,
-      doc.field(ValuePrefix))
+      doc.getProperty(Fields.ValuePrefix))
   }
 
   def docToModel(doc: ODocument): Model = {
     // TODO This can be cleaned up.. it seems like in some cases we are getting an ORecordId back
     // and in other cases an ODocument. This handles both cases.  We should figure out what
     // is supposed to come back and why it might be coming back as the other.
-    val data: ODocument = doc.field("data").asInstanceOf[OIdentifiable].getRecord[ODocument];
+    val data: ODocument = doc.getProperty(Fields.Data).asInstanceOf[OIdentifiable].getRecord[ODocument];
     Model(docToModelMetaData(doc), data.asObjectValue)
   }
 
-  def getModelRid(id: String, db: ODatabaseDocumentTx): Try[ORID] = {
-    QueryUtil.getRidFromIndex(ModelIdIndex, id, db)
+  def getModelRid(id: String, db: ODatabaseDocument): Try[ORID] = {
+    OrientDBUtil.getIdentityFromSingleValueIndex(db, Indices.Id, id)
   }
 }
 
@@ -108,13 +89,27 @@ class ModelStore private[domain] (
   dbProvider: DatabaseProvider,
   operationStore: ModelOperationStore,
   snapshotStore: ModelSnapshotStore)
-    extends AbstractDatabasePersistence(dbProvider)
-    with Logging {
+  extends AbstractDatabasePersistence(dbProvider)
+  with Logging {
 
-  def modelExists(id: String): Try[Boolean] = tryWithDb { db =>
-    val query = "SELECT id FROM Model where id = :id"
+  import schema.ModelClass._
+  import ModelStore._
+
+  def modelExists(id: String): Try[Boolean] = withDb { db =>
+    val query = "SELECT count(*) as count FROM Model where id = :id"
     val params = Map("id" -> id)
-    QueryUtil.hasResults(query, params, db)
+    // FIXME this should be using get document when this ODB bug is fixed
+    // https://github.com/orientechnologies/orientdb/issues/8328
+    OrientDBUtil
+      .query(db, query, params)
+      .map { rs =>
+         if (rs.isEmpty) {
+           false
+         } else {
+           val doc = rs(0)
+           doc.getProperty("count").asInstanceOf[Long] > 0
+         }
+      }
   }
 
   def createModel(
@@ -163,20 +158,20 @@ class ModelStore private[domain] (
           Failure(new IllegalArgumentException(message))
       }.map { collectionRid =>
         db.begin()
-        val modelDoc = new ODocument(ModelStore.ModelClass)
-        modelDoc.field(Collection, collectionRid)
-        modelDoc.field(Id, modelId)
-        modelDoc.field(Version, version)
-        modelDoc.field(CreatedTime, Date.from(createdTime))
-        modelDoc.field(ModifiedTime, Date.from(modifiedTime))
-        modelDoc.field(OverridePermissions, overrridePermissions)
-        modelDoc.field(ValuePrefix, valuePrefix)
+        val modelDoc: ODocument = db.newInstance(ClassName)
+        modelDoc.setProperty(Fields.Collection, collectionRid)
+        modelDoc.setProperty(Fields.Id, modelId)
+        modelDoc.setProperty(Fields.Version, version)
+        modelDoc.setProperty(Fields.CreatedTime, Date.from(createdTime))
+        modelDoc.setProperty(Fields.ModifiedTime, Date.from(modifiedTime))
+        modelDoc.setProperty(Fields.OverridePermissions, overrridePermissions)
+        modelDoc.setProperty(Fields.ValuePrefix, valuePrefix)
 
         val worldPermsDoc = ModelPermissionsStore.modelPermissionToDoc(worldPermissions)
-        modelDoc.field(WorldPermissions, worldPermsDoc, OType.EMBEDDED)
+        modelDoc.setProperty(Fields.WorldPermissions, worldPermsDoc, OType.EMBEDDED)
 
         val dataDoc = OrientDataValueBuilder.objectValueToODocument(data, modelDoc)
-        modelDoc.field(Data, dataDoc, OType.LINK)
+        modelDoc.setProperty(Fields.Data, dataDoc, OType.LINK)
 
         // FIXME what about the user permissions LINKLIST?
 
@@ -185,217 +180,163 @@ class ModelStore private[domain] (
         db.commit()
         ()
       }.get
-  } recoverWith {
-    case e: ORecordDuplicatedException => handleDuplicateValue(e)
-  }
+  } recoverWith (handleDuplicateValue)
 
   //FIXME: Add in overridePermissions flag
   def updateModel(id: String, data: ObjectValue, worldPermissions: Option[ModelPermissions]): Try[Unit] = tryWithDb { db =>
-    ModelStore.getModelDoc(id, db) match {
-      case Some(doc) =>
-        deleteDataValuesForModel(id).map { _ =>
-          val dataValueDoc = OrientDataValueBuilder.dataValueToODocument(data, doc)
-          doc.field(Data, dataValueDoc)
-          val worldPermissionsDoc = worldPermissions.map { ModelPermissionsStore.modelPermissionToDoc(_) }
-          doc.field(WorldPermissions, worldPermissions)
-          doc.save()
-          ()
-        }.get
-      case None =>
-        throw EntityNotFoundException()
-    }
-  }
-
-  def updateModelOnOperation(id: String, timestamp: Instant): Try[Unit] = tryWithDb { db =>
-    val queryString =
-      """UPDATE Model SET
-        |  version = eval('version + 1'),
-        |  modifiedTime = :timestamp
-        |WHERE id = :id""".stripMargin
-
-    val updateCommand = new OCommandSQL(queryString)
-
-    val params = Map(
-      Id -> id,
-      "timestamp" -> Date.from(timestamp))
-
-    db.command(updateCommand).execute(params.asJava).asInstanceOf[Int] match {
-      case 0 =>
-        throw EntityNotFoundException()
-      case _ =>
+    getModelDocument(id, db).flatMap { doc =>
+      deleteDataValuesForModel(id).map { _ =>
+        val dataValueDoc = OrientDataValueBuilder.dataValueToODocument(data, doc)
+        doc.setProperty(Fields.Data, dataValueDoc)
+        val worldPermissionsDoc = worldPermissions.map(ModelPermissionsStore.modelPermissionToDoc(_))
+        doc.setProperty(Fields.WorldPermissions, worldPermissions)
+        doc.save()
         ()
+      }
     }
   }
 
-  //TODO: This should probably be handled in a model shutdown routine so that we only update it once with the final value 
-  def setNextPrefixValue(id: String, value: Long): Try[Unit] = tryWithDb { db =>
-    val queryString =
-      """UPDATE Model SET
-        |  valuePrefix = :valuePrefix
-        |WHERE id = :id""".stripMargin
-
-    val updateCommand = new OCommandSQL(queryString)
-
-    val params = Map(Id -> id, ValuePrefix -> value)
-
-    db.command(updateCommand).execute(params.asJava).asInstanceOf[Int] match {
-      case 0 =>
-        throw EntityNotFoundException()
-      case _ =>
-    }
+  def updateModelOnOperation(id: String, timestamp: Instant): Try[Unit] = withDb { db =>
+    val command = "UPDATE Model SET version = eval('version + 1'), modifiedTime = :timestamp WHERE id = :id"
+    val params = Map(Fields.Id -> id, "timestamp" -> Date.from(timestamp))
+    OrientDBUtil.mutateOneDocument(db, command, params)
   }
 
-  def deleteModel(id: String): Try[Unit] = tryWithDb { db =>
-    (for {
+  //TODO: This should probably be handled in a model shutdown routine so that we only update it once with the final value
+  def setNextPrefixValue(id: String, value: Long): Try[Unit] = withDb { db =>
+    val command = "UPDATE Model SET valuePrefix = :valuePrefix WHERE id = :id"
+    val params = Map(Fields.Id -> id, Fields.ValuePrefix -> value)
+    OrientDBUtil.mutateOneDocument(db, command, params)
+  }
+
+  def deleteModel(id: String): Try[Unit] = withDb { db =>
+    for {
       _ <- operationStore.deleteAllOperationsForModel(id)
       _ <- snapshotStore.removeAllSnapshotsForModel(id)
       _ <- deleteDataValuesForModel(id)
       _ <- deleteModelRecord(id)
-    } yield {
-      ()
-    }).get
+    } yield (())
   }
 
-  def deleteModelRecord(id: String): Try[Unit] = tryWithDb { db =>
-    val command = new OCommandSQL("DELETE FROM Model WHERE id = :id")
-    val params = Map(Id -> id)
-    db.command(command).execute(params.asJava).asInstanceOf[Int] match {
-      case 1 =>
-        ()
-      case _ =>
-        throw EntityNotFoundException()
-    }
+  def deleteModelRecord(id: String): Try[Unit] = withDb { db =>
+    val command = "DELETE FROM Model WHERE id = :id"
+    val params = Map(Fields.Id -> id)
+    OrientDBUtil.mutateOneDocument(db, command, params)
   }
 
-  def deleteDataValuesForModel(id: String): Try[Unit] = tryWithDb { db =>
-    val command = new OCommandSQL("DELETE FROM DataValue WHERE model.id = :id")
-    val params = Map(Id -> id)
-    db.command(command).execute(params.asJava).asInstanceOf[Int]
-    ()
+  def deleteDataValuesForModel(id: String): Try[Unit] = withDb { db =>
+    val command = "DELETE FROM DataValue WHERE model.id = :id"
+    val params = Map(Fields.Id -> id)
+    OrientDBUtil.command(db, command, params).map(_ => ())
   }
 
-  def deleteAllModelsInCollection(collectionId: String): Try[Unit] = tryWithDb { db =>
+  def deleteAllModelsInCollection(collectionId: String): Try[Unit] = withDb { db =>
     operationStore.deleteAllOperationsForCollection(collectionId).flatMap { _ =>
       snapshotStore.removeAllSnapshotsForCollection(collectionId)
     }.flatMap { _ =>
       deleteDataValuesForCollection(collectionId, db)
-    }.map { _ =>
-      val queryString = "DELETE FROM Model WHERE collection.id = :collectionId"
-      val command = new OCommandSQL(queryString)
-      val params = Map(CollectionId -> collectionId)
-      db.command(command).execute(params.asJava)
-      ()
-    }.get
+    }.flatMap { _ =>
+      val command = "DELETE FROM Model WHERE collection.id = :collectionId"
+      val params = Map(Constants.CollectionId -> collectionId)
+      OrientDBUtil.command(db, command, params).map(_ => ())
+    }
   }
 
-  def deleteDataValuesForCollection(collectionId: String, db: ODatabaseDocumentTx): Try[Unit] = Try {
-    val command = new OCommandSQL("DELETE FROM DataValue WHERE model.collection.id = :collectionId")
-    val params = Map(CollectionId -> collectionId)
-    db.command(command).execute(params.asJava).asInstanceOf[Int]
-    ()
+  def deleteDataValuesForCollection(collectionId: String, db: ODatabaseDocument): Try[Unit] = {
+    val command = "DELETE FROM DataValue WHERE model.collection.id = :collectionId"
+    val params = Map(Constants.CollectionId -> collectionId)
+    OrientDBUtil.command(db, command, params).map(_ => ())
   }
 
-  def getModel(id: String): Try[Option[Model]] = tryWithDb { db =>
-    ModelStore.getModelDoc(id, db) map (ModelStore.docToModel(_))
+  def getModel(id: String): Try[Option[Model]] = withDb { db =>
+    ModelStore
+      .findModelDocument(id, db)
+      .map(_.map(ModelStore.docToModel(_)))
   }
 
-  def getModelMetaData(id: String): Try[Option[ModelMetaData]] = tryWithDb { db =>
-    ModelStore.getModelDoc(id, db) map (ModelStore.docToModelMetaData(_))
+  def getModelMetaData(id: String): Try[Option[ModelMetaData]] = withDb { db =>
+    ModelStore
+      .findModelDocument(id, db)
+      .map(_.map(ModelStore.docToModelMetaData(_)))
   }
 
   def getAllModelMetaDataInCollection(
     collectionId: String,
     offset: Option[Int],
-    limit: Option[Int]): Try[List[ModelMetaData]] = tryWithDb { db =>
+    limit: Option[Int]): Try[List[ModelMetaData]] = withDb { db =>
 
-    val queryString =
-      s"""SELECT *
-         |FROM Model
-         |WHERE
-         |  collection.id = :collectionId
-         |ORDER BY
-         |  id ASC""".stripMargin
-
-    val pagedQuery = QueryUtil.buildPagedQuery(
-      queryString,
-      limit,
-      offset)
-
-    val query = new OSQLSynchQuery[ODocument](pagedQuery)
-    val params = Map(CollectionId -> collectionId)
-    val result: JavaList[ODocument] = db.command(query).execute(params.asJava)
-    result.asScala.toList map { ModelStore.docToModelMetaData(_) }
+    val baseQuery = "SELECT FROM Model WHERE collection.id = :collectionId ORDER BY id ASC"
+    val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
+    val params = Map(Constants.CollectionId -> collectionId)
+    OrientDBUtil.queryAndMap(db, query, params)(docToModelMetaData(_))
   }
 
   // TODO implement orderBy and ascending / descending
   def getAllModelMetaData(
     offset: Option[Int],
-    limit: Option[Int]): Try[List[ModelMetaData]] = tryWithDb { db =>
+    limit: Option[Int]): Try[List[ModelMetaData]] = withDb { db =>
 
-    val queryString =
-      s"""SELECT *
-        |FROM Model
-        |ORDER BY
-        |  collection.id ASC,
-        |  id ASC""".stripMargin
-
-    val pageQuery = QueryUtil.buildPagedQuery(queryString, limit, offset)
-    val query = new OSQLSynchQuery[ODocument](pageQuery)
-    val result: JavaList[ODocument] = db.command(query).execute()
-    result.asScala.toList map { ModelStore.docToModelMetaData(_) }
+    val baseQuery = "SELECT FROM Model ORDER BY collection.id ASC, id ASC"
+    val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
+    OrientDBUtil.queryAndMap(db, query)(docToModelMetaData(_))
   }
 
-  def queryModels(query: String, username: Option[String]): Try[List[ModelQueryResult]] = tryWithDb { db =>
+  def queryModels(query: String, username: Option[String]): Try[List[ModelQueryResult]] = withDb { db =>
     new QueryParser(query).InputLine.run().recoverWith {
       case ParseError(position, principalPosition, traces) =>
         val index = position.index
         Failure(QueryParsingException(s"Parse error at position ${index}", query, Some(index)))
-    }.map { select =>
-      val queryParams = ModelQueryBuilder.queryModels(select, username)
-      val query = new OSQLSynchQuery[ODocument](queryParams.query)
-      val result: JavaList[ODocument] = db.command(query).execute(queryParams.params.asJava)
-      if (select.fields.isEmpty) {
-        result.asScala.toList map { modelDoc =>
-          val model = ModelStore.docToModel(modelDoc)
-          ModelQueryResult(model.metaData, DataValueToJValue.toJson(model.data))
-        }
-      } else {
-        result.asScala.toList map { modelDoc =>
-          val results = modelDoc.toMap()
-          results.remove("@rid")
-          val createdTime = results.remove(CreatedTime).asInstanceOf[Date]
-          val modifiedTime = results.remove(ModifiedTime).asInstanceOf[Date]
-          val meta = ModelMetaData(
-            results.remove("collectionId").asInstanceOf[String],
-            results.remove(Id).asInstanceOf[String],
-            results.remove(Version).asInstanceOf[Long],
-            createdTime.toInstant(),
-            modifiedTime.toInstant(),
-            false,
-            ModelPermissions(false, false, false, false),
-            results.remove(ValuePrefix).asInstanceOf[Long])
-
-          val values = results.asScala.toList map Function.tupled { (field, value) =>
-            (queryParams.as.get(field).getOrElse(field),
-              DataValueToJValue.toJson(value.asInstanceOf[ODocument].asDataValue))
+    }.flatMap { select =>
+      val ModelQueryParameters(query, params, as) = ModelQueryBuilder.queryModels(select, username)
+      println(query)
+      OrientDBUtil.query(db, query, params).map { result =>
+        if (select.fields.isEmpty) {
+          result.map { modelDoc =>
+            val model = ModelStore.docToModel(modelDoc)
+            ModelQueryResult(model.metaData, DataValueToJValue.toJson(model.data))
           }
-          ModelQueryResult(meta, JObject(values))
+        } else {
+          result.map { modelDoc =>
+            val results = modelDoc.toMap()
+            results.remove("@rid")
+            val createdTime = results.remove(Fields.CreatedTime).asInstanceOf[Date]
+            val modifiedTime = results.remove(Fields.ModifiedTime).asInstanceOf[Date]
+            val meta = ModelMetaData(
+              results.remove("collectionId").asInstanceOf[String],
+              results.remove(Fields.Id).asInstanceOf[String],
+              results.remove(Fields.Version).asInstanceOf[Long],
+              createdTime.toInstant(),
+              modifiedTime.toInstant(),
+              false,
+              ModelPermissions(false, false, false, false),
+              results.remove(Fields.ValuePrefix).asInstanceOf[Long])
+
+            val values = results.asScala.toList map Function.tupled { (field, value) =>
+              (as.get(field).getOrElse(field), DataValueToJValue.toJson(value.asInstanceOf[ODocument].asDataValue))
+            }
+            ModelQueryResult(meta, JObject(values))
+          }
         }
       }
-    }.get
-  }
-
-  def getModelData(id: String): Try[Option[ObjectValue]] = tryWithDb { db =>
-    ModelStore.getModelDoc(id, db) map (doc => doc.field(Data).asInstanceOf[ODocument].asObjectValue)
-  }
-
-  private[this] def handleDuplicateValue[T](e: ORecordDuplicatedException): Try[T] = {
-    e.getIndexName match {
-      case ModelStore.ModelCollectionIdIndex =>
-        Failure(DuplicateValueException("id_collection"))
-      case _ =>
-        Failure(e)
     }
+  }
+
+  def getModelData(id: String): Try[Option[ObjectValue]] = withDb { db =>
+    ModelStore
+      .findModelDocument(id, db)
+      .map(_.map(doc => doc.getProperty(Fields.Data).asInstanceOf[ODocument].asObjectValue))
+  }
+
+  private[this] def handleDuplicateValue[T](): PartialFunction[Throwable, Try[T]] = {
+    case e: ORecordDuplicatedException =>
+      e.getIndexName match {
+        case Indices.Id =>
+          Failure(DuplicateValueException(Fields.Id))
+        case Indices.Collection_Id =>
+          Failure(DuplicateValueException("collection, id"))
+        case _ =>
+          Failure(e)
+      }
   }
 }
 

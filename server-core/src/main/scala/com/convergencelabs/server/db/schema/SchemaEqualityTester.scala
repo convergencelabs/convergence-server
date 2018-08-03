@@ -4,7 +4,7 @@ import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.asScalaSetConverter
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.index.OIndex
 import com.orientechnologies.orient.core.metadata.function.OFunction
 import com.orientechnologies.orient.core.metadata.schema.OClass
@@ -14,14 +14,14 @@ import com.orientechnologies.orient.core.metadata.sequence.OSequence
 import grizzled.slf4j.Logging
 
 object SchemaEqualityTester extends Logging {
-  def assertEqual(db1: ODatabaseDocumentTx, db2: ODatabaseDocumentTx): Unit = {
+  def assertEqual(db1: ODatabaseDocument, db2: ODatabaseDocument): Unit = {
     assertFunctionsEqual(db1, db2)
     assertSequencesEqual(db1, db2)
     assertClassesEqual(db1, db2)
     assertIndexesEqual(db1, db2)
   }
 
-  private[this] def assertFunctionsEqual(db1: ODatabaseDocumentTx, db2: ODatabaseDocumentTx): Unit = {
+  private[this] def assertFunctionsEqual(db1: ODatabaseDocument, db2: ODatabaseDocument): Unit = {
     val functionLibrary1 = db1.getMetadata.getFunctionLibrary
     val functionLibrary2 = db2.getMetadata.getFunctionLibrary
 
@@ -30,7 +30,8 @@ object SchemaEqualityTester extends Logging {
     assume(functions == functions2, "Databases have different functions!")
 
     functions.foreach { function =>
-      assertFunctionEqual(functionLibrary1.getFunction(function),
+      assertFunctionEqual(
+        functionLibrary1.getFunction(function),
         functionLibrary2.getFunction(function))
     }
   }
@@ -43,7 +44,7 @@ object SchemaEqualityTester extends Logging {
     assume(function1.isIdempotent == function2.isIdempotent, "Function idempotence for ${function1.getName} is not the same!")
   }
 
-  private[this] def assertIndexesEqual(db1: ODatabaseDocumentTx, db2: ODatabaseDocumentTx): Unit = {
+  private[this] def assertIndexesEqual(db1: ODatabaseDocument, db2: ODatabaseDocument): Unit = {
     val indexManager1 = db1.getMetadata.getIndexManager
     val indexManager2 = db2.getMetadata.getIndexManager
 
@@ -57,7 +58,7 @@ object SchemaEqualityTester extends Logging {
     }
   }
 
-  private[this] def assertSequencesEqual(db1: ODatabaseDocumentTx, db2: ODatabaseDocumentTx): Unit = {
+  private[this] def assertSequencesEqual(db1: ODatabaseDocument, db2: ODatabaseDocument): Unit = {
     val sequenceLibrary1 = db1.getMetadata.getSequenceLibrary
     val sequenceLibrary2 = db2.getMetadata.getSequenceLibrary
 
@@ -73,8 +74,8 @@ object SchemaEqualityTester extends Logging {
     assume(index1.getName == index2.getName, "Index name is not the same!")
     assume(index1.getType == index2.getType, "Index type for ${index1.getName} is not the same!")
     assume(
-        index1.getDefinition.getFields.asScala.toSet == index2.getDefinition.getFields.asScala.toSet, 
-        "Index fields for ${index1.getName} is not the same!")
+      index1.getDefinition.getFields.asScala.toSet == index2.getDefinition.getFields.asScala.toSet,
+      "Index fields for ${index1.getName} is not the same!")
   }
 
   private[this] def assertSequenceEqual(seq1: OSequence, seq2: OSequence): Unit = {
@@ -85,7 +86,7 @@ object SchemaEqualityTester extends Logging {
     assume(seq1.getDocument.field("incr") == seq2.getDocument.field("incr"), s"Sequence increment for ${seq1.getName} is not the same!")
   }
 
-  private[this] def assertClassesEqual(db1: ODatabaseDocumentTx, db2: ODatabaseDocumentTx): Unit = {
+  private[this] def assertClassesEqual(db1: ODatabaseDocument, db2: ODatabaseDocument): Unit = {
     val schema1 = db1.getMetadata.getSchema
     val schema2 = db2.getMetadata.getSchema
 
@@ -114,22 +115,31 @@ object SchemaEqualityTester extends Logging {
 
   private[this] def assertPropertyEqual(prop1: OProperty, prop2: OProperty): Unit = {
     val customKeys1 = prop1.getCustomKeys.asScala.toSet
+    val propName = s"${prop1.getOwnerClass}.${prop1.getName}"
 
-    assume(prop1.getName == prop2.getName, "Property name is not the same!")
-      assume(prop1.getMin == prop2.getMin, s"Property min for ${prop1.getName} is not the same!")
-      assume(prop1.getMax == prop2.getMax, s"Property max for ${prop1.getName} is not the same!")
-      assume(prop1.isMandatory == prop2.isMandatory, s"Property mandatory flag for ${prop1.getName} is not the same!")
-      assume(prop1.isReadonly == prop2.isReadonly, s"Property readOnly flag for ${prop1.getName} is not the same!")
-      assume(prop1.isNotNull == prop2.isNotNull, s"Property notNull flag for ${prop1.getName} is not the same!")
-      assume(prop1.getDefaultValue == prop2.getDefaultValue, s"Property defaultValue for ${prop1.getName} is not the same!")
-      assume(prop1.getRegexp == prop2.getRegexp, s"Property regexp for ${prop1.getName} is not the same!")
-      assume(customKeys1 == prop2.getCustomKeys.asScala.toSet, s"Property custom keys for ${prop1.getName} is not the same!")
-      assume(customKeys1.forall { key => prop1.getCustom(key) == prop2.getCustom(key) }, s"Property custom keys for ${prop1.getName} is not the same!")
-      assume(prop1.getCollate == prop2.getCollate, s"Property collate type for ${prop1.getName} is not the same!")
-      assume(prop1.getType == prop2.getType, s"Property type for ${prop1.getName} is not the same!")
-      assume(prop1.getLinkedType == prop2.getLinkedType, s"Property linked type for ${prop1.getName} is not the same!")
-      
-      assume((Option(prop1.getLinkedClass) map { lc: OClass => lc.getName }) == (Option(prop2.getLinkedClass) map { lc: OClass => lc.getName }), 
-          s"Property linked class for ${prop1.getName} is not the same!")
+    assumeEquals(prop1.getName, prop2.getName, "name")
+    assumeEquals(prop1.getMin, prop2.getMin, s"${propName}.max")
+    assumeEquals(prop1.getMax, prop2.getMax, s"${propName}.max")
+    assumeEquals(prop1.isMandatory, prop2.isMandatory, s"${propName}.mandatory")
+    assumeEquals(prop1.isReadonly, prop2.isReadonly, s"${propName}.readOnly")
+    assumeEquals(prop1.isNotNull, prop2.isNotNull, s"${propName}.notNull")
+    assumeEquals(prop1.getDefaultValue, prop2.getDefaultValue, s"${propName}.defaultValue")
+    assumeEquals(prop1.getRegexp, prop2.getRegexp, s"${propName}.regexp")
+    assumeEquals(customKeys1, prop2.getCustomKeys.asScala.toSet, s"${propName}.customKeys")
+    customKeys1.foreach { key =>
+      assumeEquals(prop1.getCustom(key), prop2.getCustom(key), s"${propName}.customKeys[$key]")
+    }
+    assumeEquals(prop1.getCollate, prop2.getCollate, s"${propName}.collate")
+    assumeEquals(prop1.getType, prop2.getType, s"${propName}.type")
+    assumeEquals(prop1.getLinkedType, prop2.getLinkedType, s"Property linked type for ${propName} is not the same!")
+    assume(
+      (Option(prop1.getLinkedClass) map { lc: OClass => lc.getName }) == (Option(prop2.getLinkedClass) map { lc: OClass => lc.getName }),
+      s"Property linked class for ${propName} is not the same!")
+  }
+
+  def assumeEquals(a: Any, b: Any, label: => String): Unit = {
+    assume(a == b, {
+      s"Values for $label where not the same. ${a} is not equal to ${b}"
+    })
   }
 }

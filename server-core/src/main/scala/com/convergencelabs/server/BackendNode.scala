@@ -5,9 +5,19 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
 
-import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.DomainStore
+import com.convergencelabs.server.db.DatabaseProvider
+import com.convergencelabs.server.datastore.convergence.AuthStoreActor
+import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor
+import com.convergencelabs.server.datastore.convergence.DeltaHistoryStore
+import com.convergencelabs.server.datastore.convergence.DomainStoreActor
+import com.convergencelabs.server.datastore.convergence.PermissionsStoreActor
+import com.convergencelabs.server.datastore.convergence.RegistrationActor
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
+import com.convergencelabs.server.db.data.ConvergenceImporterActor
+import com.convergencelabs.server.db.provision.DomainProvisioner
+import com.convergencelabs.server.db.provision.DomainProvisionerActor
+import com.convergencelabs.server.db.schema.DatabaseManager
+import com.convergencelabs.server.db.schema.DatabaseManagerActor
 import com.convergencelabs.server.domain.DomainActor
 import com.convergencelabs.server.domain.DomainActorSharding
 import com.convergencelabs.server.domain.chat.ChatChannelActor
@@ -16,26 +26,15 @@ import com.convergencelabs.server.domain.model.ModelCreator
 import com.convergencelabs.server.domain.model.ModelPermissionResolver
 import com.convergencelabs.server.domain.model.RealtimeModelActor
 import com.convergencelabs.server.domain.model.RealtimeModelSharding
+import com.convergencelabs.server.domain.rest.AuthorizationActor
+import com.convergencelabs.server.domain.rest.RestDomainActor
+import com.convergencelabs.server.domain.rest.RestDomainActorSharding
 
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.actor.Props
 import akka.cluster.sharding.ShardRegion
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.datastore.DeltaHistoryStore
-import com.convergencelabs.server.db.provision.DomainProvisioner
-import com.convergencelabs.server.db.provision.DomainProvisionerActor
-import com.convergencelabs.server.datastore.DomainStoreActor
-import com.convergencelabs.server.db.data.ConvergenceImporterActor
-import com.convergencelabs.server.datastore.AuthStoreActor
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor
-import com.convergencelabs.server.datastore.RegistrationActor
-import com.convergencelabs.server.domain.rest.AuthorizationActor
-import com.convergencelabs.server.datastore.PermissionsStoreActor
-import com.convergencelabs.server.db.schema.DatabaseManager
-import com.convergencelabs.server.db.schema.DatabaseManagerActor
-import com.convergencelabs.server.domain.rest.RestDomainActorSharding
-import com.convergencelabs.server.domain.rest.RestDomainActor
 
 class BackendNode(system: ActorSystem, convergenceDbProvider: DatabaseProvider) extends Logging {
 

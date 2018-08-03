@@ -10,11 +10,10 @@ import scala.util.Failure
 import scala.util.Try
 
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.EntityNotFoundException
-import com.convergencelabs.server.datastore.QueryUtil
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
@@ -22,40 +21,43 @@ import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.datastore.OrientDBUtil
 
 case class UserGroup(id: String, description: String, members: Set[String])
 case class UserGroupInfo(id: String, description: String)
 case class UserGroupSummary(id: String, description: String, memberCount: Int)
 
 object UserGroupStore {
+  import schema.UserGroupClass._
 
-  val ClassName = "UserGroup"
-  val GroupIdIndex = "UserGroup.id"
-
-  object Fields {
-    val Id = "id"
-    val Description = "description"
-  }
-
-  def getGroupRid(id: String, db: ODatabaseDocumentTx): Try[ORID] = {
+  def getGroupRid(id: String, db: ODatabaseDocument): Try[ORID] = {
+    // FIXME use index
     val query = "SELECT @RID as rid FROM UserGroup WHERE id = :id"
     val params = Map("id" -> id)
-    QueryUtil.lookupMandatoryDocument(query, params, db) map { _.eval("rid").asInstanceOf[ORID] }
+    OrientDBUtil
+      .getDocument(db, query, params)
+      .map(_.eval("rid").asInstanceOf[ORID])
   }
 
-  def groupToDoc(group: UserGroup, db: ODatabaseDocumentTx): ODocument = {
-    val UserGroup(id, description, members) = group
-    val doc = new ODocument(ClassName)
-    doc.field(Fields.Id, id)
-    doc.field(Fields.Description, description)
-    val memberRids = members.map { m =>
-      DomainUserStore.getUserRid(m, db).get
+  def groupToDoc(group: UserGroup, db: ODatabaseDocument): Try[ODocument] = {
+    Try {
+      val UserGroup(id, description, members) = group
+      val doc: ODocument = db.newInstance(ClassName)
+      doc.setProperty(Fields.Id, id)
+      doc.setProperty(Fields.Description, description)
+
+      val memberRids = members.map { m =>
+        DomainUserStore.getUserRid(m, db).get
+      }
+
+      doc.setProperty(Fields.Members, memberRids.asJava)
+
+      doc
     }
-    doc.field("members", memberRids.asJava)
   }
 
   def docToGroup(doc: ODocument): UserGroup = {
-    val members: JavaSet[ODocument] = doc.field("members", OType.LINKSET)
+    val members: JavaSet[ODocument] = doc.getProperty(Fields.Members)
     val membersScala = members.asScala.toSet
 
     UserGroup(
@@ -66,84 +68,83 @@ object UserGroupStore {
 }
 
 class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProvider)
-    extends AbstractDatabasePersistence(dbProvider)
-    with Logging {
+  extends AbstractDatabasePersistence(dbProvider)
+  with Logging {
 
   import UserGroupStore._
+  import schema.UserGroupClass._
 
-  def createUserGroup(group: UserGroup): Try[Unit] = tryWithDb { db =>
-    val userDoc = groupToDoc(group, db)
-    db.save(userDoc)
-    ()
-  } recoverWith {
-    case e: ORecordDuplicatedException => handleDuplicateValue(e)
+  def createUserGroup(group: UserGroup): Try[Unit] = withDb { db =>
+    groupToDoc(group, db)
+      .flatMap { userDoc =>
+        Try {
+          db.save(userDoc)
+          ()
+        }
+      } recoverWith (handleDuplicateValue)
   }
 
-  def deleteUserGroup(id: String): Try[Unit] = tryWithDb { db =>
-    val command = new OCommandSQL("DELETE FROM UserGroup WHERE id = :id")
+  def deleteUserGroup(id: String): Try[Unit] = withDb { db =>
+    val command = "DELETE FROM UserGroup WHERE id = :id"
     val params = Map("id" -> id)
-    val count: Int = db.command(command).execute(params.asJava)
-    count match {
-      case 0 =>
-        throw EntityNotFoundException()
-      case _ =>
-        ()
-    }
+    OrientDBUtil.mutateOneDocument(db, command, params)
   }
 
-  def updateUserGroupInfo(currentId: String, info: UserGroupInfo): Try[Unit] = tryWithDb { db =>
+  def updateUserGroupInfo(currentId: String, info: UserGroupInfo): Try[Unit] = withDb { db =>
     val UserGroupInfo(id, description) = info
     val params = Map("id" -> currentId)
-    QueryUtil.lookupMandatoryDocument("SELECT FROM UserGroup WHERE id = :id", params, db).map { doc =>
-      doc.field(Fields.Id, id)
-      doc.field(Fields.Description, description)
-      doc.save()
-      ()
-    }.get
-  } recoverWith {
-    case e: ORecordDuplicatedException => handleDuplicateValue(e)
+    val query = "SELECT FROM UserGroup WHERE id = :id"
+    OrientDBUtil
+      .getDocument(db, query, params)
+      .map { doc =>
+        doc.setProperty(Fields.Id, id)
+        doc.setProperty(Fields.Description, description)
+        doc.save()
+        ()
+      } recoverWith (handleDuplicateValue)
   }
 
-  def updateUserGroup(currentId: String, update: UserGroup): Try[Unit] = tryWithDb { db =>
-    val updatedDoc = groupToDoc(update, db)
-    val params = Map("id" -> currentId)
-    QueryUtil.lookupMandatoryDocument("SELECT FROM UserGroup WHERE id = :id", params, db).map { doc =>
-      doc.merge(updatedDoc, false, false)
-      doc.save()
-      ()
-    }.get
-  } recoverWith {
-    case e: ORecordDuplicatedException => handleDuplicateValue(e)
+  def updateUserGroup(groupId: String, update: UserGroup): Try[Unit] = withDb { db =>
+    groupToDoc(update, db).flatMap { updatedDoc =>
+      OrientDBUtil
+        .getDocumentFromSingleValueIndex(db, Indices.Id, groupId)
+        .map { doc =>
+          doc.merge(updatedDoc, false, false)
+          doc.save()
+          ()
+        }
+    } recoverWith (handleDuplicateValue)
   }
 
-  def setGroupMembers(currentId: String, members: Set[String]): Try[Unit] = tryWithDb { db =>
-    val params = Map("id" -> currentId)
-    QueryUtil.lookupMandatoryDocument("SELECT FROM UserGroup WHERE id = :id", params, db).map { doc =>
-      val memberRids = members.map { m =>
-        DomainUserStore.getUserRid(m, db).get
+  def setGroupMembers(groupId: String, members: Set[String]): Try[Unit] = withDb { db =>
+    OrientDBUtil
+      .getDocumentFromSingleValueIndex(db, Indices.Id, groupId)
+      .flatMap { doc =>
+        Try {
+          val memberRids = members.map(m => DomainUserStore.getUserRid(m, db).get)
+          doc.field("members", memberRids.asJava)
+          doc.save()
+          ()
+        }
       }
-      doc.field("members", memberRids.asJava)
-      doc.save()
-      ()
-    }.get
   }
 
-  def addUserToGroup(id: String, username: String): Try[Unit] = tryWithDb { db =>
+  def addUserToGroup(groupId: String, username: String): Try[Unit] = withDb { db =>
     DomainUserStore.getUserRid(username, db)
       .recoverWith {
         case cause: EntityNotFoundException =>
-          Failure(new EntityNotFoundException(s"Could not add user to group, becase the user does not exists: ${username}"))
+          Failure(new EntityNotFoundException(s"Could not add user to group, because the user does not exists: ${username}"))
       }.flatMap { userRid =>
-        val query = "UPDATE UserGroup ADD members = :user WHERE id = :id"
-        val params = Map("user" -> userRid, "id" -> id)
-        QueryUtil.updateSingleDoc(query, params, db)
+        val command = "UPDATE UserGroup SET members = members || :user WHERE id = :id"
+        val params = Map("user" -> userRid, "id" -> groupId)
+        OrientDBUtil.mutateOneDocument(db, command, params)
       }.recoverWith {
         case cause: EntityNotFoundException =>
-          Failure(new EntityNotFoundException(s"Could not add user to group, becase the group does not exists: ${id}"))
-      }.get
+          Failure(new EntityNotFoundException(s"Could not add user to group, because the group does not exists: ${groupId}"))
+      }
   }
 
-  def setGroupsForUser(username: String, groups: Set[String]): Try[Unit] = tryWithDb { db =>
+  def setGroupsForUser(username: String, groups: Set[String]): Try[Unit] = withDb { db =>
     // TODO this approach will ignore setting a group that doesn't exist. Is this ok?
     DomainUserStore.getUserRid(username, db)
       .recoverWith {
@@ -151,52 +152,49 @@ class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProv
           Failure(new EntityNotFoundException(s"Could not remove user from group, becase the user does not exists: ${username}"))
       }.flatMap { userRid =>
         val params = Map("user" -> userRid, "groups" -> groups.asJava)
-        val deleteCommand = """
-          |UPDATE UserGroup
-          |REMOVE members = :user
-          |WHERE 
-          |  :user IN members AND
-          |  id NOT IN :groups""".stripMargin
-        QueryUtil.command(deleteCommand, params, db).flatMap { _ =>
-          val addCommand = """
-            | UPDATE UserGroup
-            | ADD members = :user
-            | WHERE id IN :groups""".stripMargin
-          QueryUtil.command(addCommand, params, db)
+        val command = "UPDATE UserGroup REMOVE members = :user WHERE :user IN members AND id NOT IN :groups"
+        OrientDBUtil.command(db, command, params).flatMap { _ =>
+          val addCommand = "UPDATE UserGroup SET members = members || :user WHERE id IN :groups"
+          OrientDBUtil.command(db, addCommand, params).map(_ => ())
         }
-      }.get
+      }
   }
 
-  def removeUserFromGroup(id: String, username: String): Try[Unit] = tryWithDb { db =>
+  def removeUserFromGroup(id: String, username: String): Try[Unit] = withDb { db =>
     DomainUserStore.getUserRid(username, db)
       .recoverWith {
         case cause: EntityNotFoundException =>
           Failure(EntityNotFoundException(
-              s"Could not remove user from group, becase the user does not exists: ${username}",
-              Some(username)))
+            s"Could not remove user from group, becase the user does not exists: ${username}",
+            Some(username)))
       }.flatMap { userRid =>
         val query = "UPDATE UserGroup REMOVE members = :user WHERE id = :id"
         val params = Map("user" -> userRid, "id" -> id)
-        QueryUtil.updateSingleDoc(query, params, db)
+        OrientDBUtil.mutateOneDocument(db, query, params)
       }.recoverWith {
         case cause: EntityNotFoundException =>
           Failure(EntityNotFoundException(
-              s"Could not remove user from group, becase the group does not exists: ${id}",
-              Some(id)))
-      }.get
+            s"Could not remove user from group, becase the group does not exists: ${id}",
+            Some(id)))
+      }
   }
 
-  def getUserGroup(id: String): Try[Option[UserGroup]] = tryWithDb { db =>
+  def getUserGroup(id: String): Try[Option[UserGroup]] = withDb { db =>
+    val query = "SELECT FROM UserGroup WHERE id = :id"
     val params = Map("id" -> id)
-    QueryUtil.lookupOptionalDocument("SELECT FROM UserGroup WHERE id = :id", params, db) map { docToGroup(_) }
+    OrientDBUtil.findDocumentAndMap(db, query, params)(docToGroup(_))
   }
 
-  def getUserGroupsById(ids: List[String]): Try[List[UserGroup]] = tryWithDb { db =>
+  def getUserGroupsById(ids: List[String]): Try[List[UserGroup]] = withDb { db =>
+    val query = "SELECT FROM UserGroup WHERE id IN :ids"
     val params = Map("ids" -> ids.asJava)
-    val results = QueryUtil.query("SELECT FROM UserGroup WHERE id IN :ids", params, db) map { docToGroup(_) }
-    val mapped: Map[String, UserGroup] = results.map(a => a.id -> a)(collection.breakOut)
-    val orderedList = ids.map(id => mapped.get(id).getOrElse(throw EntityNotFoundException(entityId = Some(id))))
-    orderedList
+    OrientDBUtil
+      .queryAndMap(db, query, params)(docToGroup(_))
+      .map { results =>
+        val mapped: Map[String, UserGroup] = results.map(a => a.id -> a)(collection.breakOut)
+        val orderedList = ids.map(id => mapped.get(id).getOrElse(throw EntityNotFoundException(entityId = Some(id))))
+        orderedList
+      }
   }
 
   def getUserGroupIdsForUsers(usernames: List[String]): Try[Map[String, Set[String]]] = tryWithDb { db =>
@@ -205,28 +203,33 @@ class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProv
     result
   }
 
-  def getUserGroupIdsForUser(username: String): Try[Set[String]] = tryWithDb { db =>
-    DomainUserStore.getUserRid(username, db).map { userRid =>
+  def getUserGroupIdsForUser(username: String): Try[Set[String]] = withDb { db =>
+    DomainUserStore.getUserRid(username, db).flatMap { userRid =>
+      val query = "SELECT id FROM UserGroup WHERE :user IN members"
       val params = Map("user" -> userRid)
-      QueryUtil.query("SELECT id FROM UserGroup WHERE :user IN members", params, db).map(_.field("id").asInstanceOf[String]).toSet
+      OrientDBUtil
+        .queryAndMap(db, query, params)(_.field("id").asInstanceOf[String])
+        .map(_.toSet)
     }.recoverWith {
       case cause: EntityNotFoundException =>
         Failure(EntityNotFoundException(entityId = Some(username)))
-    }.get
+    }
   }
 
-  def getUserGroupInfo(id: String): Try[Option[UserGroupInfo]] = tryWithDb { db =>
+  def getUserGroupInfo(id: String): Try[Option[UserGroupInfo]] = withDb { db =>
+    val query = "SELECT id, description FROM UserGroup WHERE id = :id"
     val params = Map("id" -> id)
-    QueryUtil.lookupOptionalDocument("SELECT id, description FROM UserGroup WHERE id = :id", params, db) map { doc =>
+    OrientDBUtil.findDocumentAndMap(db, query, params) { doc =>
       UserGroupInfo(
         doc.field("id"),
         doc.field("description"))
     }
   }
 
-  def getUserGroupSummary(id: String): Try[Option[UserGroupSummary]] = tryWithDb { db =>
+  def getUserGroupSummary(id: String): Try[Option[UserGroupSummary]] = withDb { db =>
+    val query = "SELECT id, description, members.size() as size FROM UserGroup WHERE id = :id"
     val params = Map("id" -> id)
-    QueryUtil.lookupOptionalDocument("SELECT id, description, members.size() as size FROM UserGroup WHERE id = :id", params, db) map { doc =>
+    OrientDBUtil.findDocumentAndMap(db, query, params) { doc =>
       UserGroupSummary(
         doc.field("id"),
         doc.field("description"),
@@ -234,7 +237,7 @@ class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProv
     }
   }
 
-  def getUserGroupSummaries(filter: Option[String], offset: Option[Int], limit: Option[Int]): Try[List[UserGroupSummary]] = tryWithDb { db =>
+  def getUserGroupSummaries(filter: Option[String], offset: Option[Int], limit: Option[Int]): Try[List[UserGroupSummary]] = withDb { db =>
     val params = scala.collection.mutable.Map[String, Any]()
     val where = filter.map { f =>
       params("filter") = s"%${f}%"
@@ -242,16 +245,17 @@ class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProv
     } getOrElse ("")
 
     val baseQuery = s"SELECT id, description, members.size() as size FROM UserGroup ${where} ORDER BY id ASC"
-    val query = QueryUtil.buildPagedQuery(baseQuery, limit, offset)
-    QueryUtil.query(query, params.toMap, db).map { doc =>
-      UserGroupSummary(
-        doc.field("id"),
-        doc.field("description"),
-        doc.field("size"))
-    }
+    val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
+    OrientDBUtil
+      .queryAndMap(db, query) { doc =>
+        UserGroupSummary(
+          doc.field("id"),
+          doc.field("description"),
+          doc.field("size"))
+      }
   }
 
-  def getUserGroups(filter: Option[String], offset: Option[Int], limit: Option[Int]): Try[List[UserGroup]] = tryWithDb { db =>
+  def getUserGroups(filter: Option[String], offset: Option[Int], limit: Option[Int]): Try[List[UserGroup]] = withDb { db =>
     val params = scala.collection.mutable.Map[String, Any]()
     val where = filter.map { f =>
       params("filter") = s"%${f}%"
@@ -259,23 +263,30 @@ class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProv
     } getOrElse ("")
 
     val baseQuery = s"SELECT FROM UserGroup ${where} ORDER BY id ASC"
-    val query = QueryUtil.buildPagedQuery(baseQuery, limit, offset)
-    QueryUtil.query(query, params.toMap, db).map { docToGroup(_) }
+    val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
+    OrientDBUtil.queryAndMap(db, query, params.toMap)(docToGroup(_))
   }
 
-  def userGroupExists(id: String): Try[Boolean] = tryWithDb { db =>
-    QueryUtil.query("SELECT id FROM UserGroup WHERE id = :id", Map("id" -> id), db) match {
-      case doc :: Nil => true
-      case _ => false
-    }
+  def userGroupExists(id: String): Try[Boolean] = withDb { db =>
+    val query = "SELECT id FROM UserGroup WHERE id = :id"
+    val params = Map("id" -> id)
+    OrientDBUtil
+      .query(db, query, params)
+      .map {
+        _ match {
+          case doc :: Nil => true
+          case _ => false
+        }
+      }
   }
 
-  private[this] def handleDuplicateValue[T](e: ORecordDuplicatedException): Try[T] = {
-    e.getIndexName match {
-      case UserGroupStore.GroupIdIndex =>
-        Failure(DuplicateValueException(UserGroupStore.Fields.Id))
-      case _ =>
-        Failure(e)
-    }
+  private[this] def handleDuplicateValue[T](): PartialFunction[Throwable, Try[T]] = {
+    case e: ORecordDuplicatedException =>
+      e.getIndexName match {
+        case Indices.Id =>
+          Failure(DuplicateValueException(Fields.Id))
+        case _ =>
+          Failure(e)
+      }
   }
 }

@@ -12,7 +12,7 @@ class SchemaEqualitySpec
   val dbName = getClass.getSimpleName
 
   "Schema Equality" when {
-    "comparing latest convergence schema" must {
+    "comparing pre-released convergence schema" must {
       "return no error if schemas are the same" in withDatabases { (db1, db2) =>
         val manifest = DeltaManager.convergenceManifest().get
         val maxVersion = manifest.maxPreReleaseVersion()
@@ -32,7 +32,7 @@ class SchemaEqualitySpec
         SchemaEqualityTester.assertEqual(db1, db2)
       }
     }
-    "comparing pre-release convergence schema" must {
+    "comparing released convergence schema" must {
       "return no error if schemas are the same" in withDatabases { (db1, db2) =>
         val manifest = DeltaManager.convergenceManifest().get
         val maxVersion = manifest.maxReleasedVersion()
@@ -53,7 +53,7 @@ class SchemaEqualitySpec
       }
     }
 
-    "comparing latest domain schema" must {
+    "comparing pre-released domain schema" must {
       "return no error if schemas are the same" in withDatabases { (db1, db2) =>
         val manifest = DeltaManager.domainManifest().get
         val maxVersion = manifest.maxPreReleaseVersion()
@@ -73,7 +73,8 @@ class SchemaEqualitySpec
         SchemaEqualityTester.assertEqual(db1, db2)
       }
     }
-    "comparing pre-release domain schema" must {
+    
+    "comparing released domain schema" must {
       "return no error if schemas are the same" in withDatabases { (db1, db2) =>
         val manifest = DeltaManager.domainManifest().get
         val maxVersion = manifest.maxReleasedVersion()

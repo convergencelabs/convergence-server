@@ -14,12 +14,13 @@ import scala.util.Try
 
 import org.apache.logging.log4j.LogManager
 
-import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.DeltaHistoryStore
-import com.convergencelabs.server.datastore.DomainDatabaseStore
-import com.convergencelabs.server.datastore.Permission
-import com.convergencelabs.server.datastore.PermissionsStore
-import com.convergencelabs.server.datastore.Role
+import com.convergencelabs.server.db.PooledDatabaseProvider
+import com.convergencelabs.server.db.SingleDatabaseProvider
+import com.convergencelabs.server.datastore.convergence.DeltaHistoryStore
+import com.convergencelabs.server.datastore.convergence.DomainDatabaseStore
+import com.convergencelabs.server.datastore.convergence.PermissionsStore
+import com.convergencelabs.server.datastore.convergence.PermissionsStore.Permission
+import com.convergencelabs.server.datastore.convergence.PermissionsStore.Role
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 import com.convergencelabs.server.db.schema.ConvergenceSchemaManager
 import com.convergencelabs.server.domain.DomainActorSharding
@@ -29,9 +30,10 @@ import com.convergencelabs.server.domain.rest.RestDomainActorSharding
 import com.convergencelabs.server.frontend.realtime.ConvergenceRealTimeFrontend
 import com.convergencelabs.server.frontend.rest.ConvergenceRestFrontEnd
 import com.convergencelabs.server.util.SystemOutRedirector
-import com.orientechnologies.orient.client.remote.OServerAdmin
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.orientechnologies.orient.core.db.ODatabasePool
+import com.orientechnologies.orient.core.db.ODatabaseType
+import com.orientechnologies.orient.core.db.OrientDB
+import com.orientechnologies.orient.core.db.OrientDBConfig
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import com.typesafe.config.ConfigValueFactory
@@ -48,6 +50,7 @@ import akka.cluster.ClusterEvent.MemberRemoved
 import akka.cluster.ClusterEvent.MemberUp
 import akka.cluster.ClusterEvent.UnreachableMember
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.db.ConnectedSingleDatabaseProvider
 
 object ConvergenceServerNode extends Logging {
 
@@ -71,7 +74,7 @@ object ConvergenceServerNode extends Logging {
   val ActorSystemName = "Convergence"
 
   var server: Option[ConvergenceServerNode] = None
-  
+
   def main(args: Array[String]): Unit = {
     SystemOutRedirector.setOutAndErrToLog();
 
@@ -228,7 +231,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
       val baseUri = orientDbConfig.getString("db-uri")
 
       val convergenceDbConfig = config.getConfig("convergence.convergence-database")
-      val fullUri = baseUri + "/" + convergenceDbConfig.getString("database")
+      val convergenceDatabase = convergenceDbConfig.getString("database")
 
       val username = convergenceDbConfig.getString("username")
       val password = convergenceDbConfig.getString("password")
@@ -238,21 +241,18 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
       // should exist, but it would be nice to do this elsewhere.
       if (convergenceDbConfig.hasPath("auto-install")) {
         if (convergenceDbConfig.getBoolean("auto-install.enabled")) {
-          bootstrapConvergenceDB(fullUri, convergenceDbConfig, orientDbConfig) recover {
+          bootstrapConvergenceDB(baseUri, convergenceDatabase, convergenceDbConfig, orientDbConfig) recover {
             case cause: Exception =>
               logger.error("Could not bootstrap database", cause)
           }
         }
       }
 
-      // FIXME figure out what the partitions and pool size should be
-      val dbPool = new OPartitionedDatabasePool(
-        fullUri,
-        username,
-        password,
-        1,
-        64)
-      val dbProvider = DatabaseProvider(dbPool)
+      val orientDb = new OrientDB(baseUri, OrientDBConfig.defaultConfig())
+
+      // FIXME figure out how to set the pool size
+      val dbProvider = new PooledDatabaseProvider(baseUri, convergenceDatabase, username, password)
+      dbProvider.connect().get
 
       val domainDatabaseStore = new DomainDatabaseStore(dbProvider)
       system.actorOf(
@@ -291,12 +291,13 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
       realTimeFrontEnd.start()
       this.realtime = Some(realTimeFrontEnd)
     }
-    
+
     this
   }
 
   private[this] def bootstrapConvergenceDB(
     uri: String,
+    convergenceDatabase: String,
     convergenceDbConfig: Config,
     orientDbConfig: Config): Try[Unit] = Try {
     logger.info("auto-install is configured, attempting to connect to OrientDB to determin if the convergence database is installed.")
@@ -312,16 +313,15 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
     val serverAdminPassword = orientDbConfig.getString("admin-password")
 
     val connectTries = Iterator.continually(attemptConnect(uri, serverAdminUsername, serverAdminPassword, retryDelay))
-    val serverAdmin = connectTries.dropWhile(_.isEmpty).next().get
+    val orientDb = connectTries.dropWhile(_.isEmpty).next().get
 
     logger.info("Checking for convergence database")
-    if (!serverAdmin.existsDatabase()) {
+    if (!orientDb.exists(convergenceDatabase)) {
       logger.info("Covergence database does not exists.  Creating.")
-      serverAdmin.createDatabase("document", "plocal").close()
+      orientDb.create(convergenceDatabase, ODatabaseType.PLOCAL)
       logger.info("Covergence database created, connecting as default admin user")
 
-      val db = new ODatabaseDocumentTx(uri)
-      db.open("admin", "admin")
+      val db = orientDb.open(convergenceDatabase, "admin", "admin")
       logger.info("Connected to convergence database.")
 
       logger.info("Deleting default 'reader' user.")
@@ -340,7 +340,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
       adminUser.save()
 
       logger.info("Installing schema.")
-      val dbProvider = DatabaseProvider(db)
+      val dbProvider = new ConnectedSingleDatabaseProvider(db)
       val deltaHistoryStore = new DeltaHistoryStore(dbProvider)
       dbProvider.tryWithDatabase { db =>
         val schemaManager = new ConvergenceSchemaManager(db, deltaHistoryStore, preRelease)
@@ -361,18 +361,18 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
       dbProvider.shutdown()
     } else {
       logger.info("Convergence database already exists.")
-      serverAdmin.close()
+      orientDb.close()
     }
     ()
   }
 
-  private[this] def attemptConnect(uri: String, adminUser: String, adminPassword: String, retryDelay: Duration) = {
+  private[this] def attemptConnect(uri: String, adminUser: String, adminPassword: String, retryDelay: Duration): Option[OrientDB] = {
     info(s"Attempting to connect to OrientDB at uri: ${uri}")
 
-    Try(new OServerAdmin(uri).connect(adminUser, adminPassword)) match {
-      case Success(serverAdmin) =>
+    Try(new OrientDB(uri, adminUser, adminPassword, OrientDBConfig.defaultConfig())) match {
+      case Success(orientDb) =>
         logger.info("Connected to OrientDB with Server Admin")
-        Some(serverAdmin)
+        Some(orientDb)
       case Failure(e) =>
         logger.error(s"Unable to connect to OrientDB, retrying in ${retryDelay.toMillis()}ms", e)
         Thread.sleep(retryDelay.toMillis())

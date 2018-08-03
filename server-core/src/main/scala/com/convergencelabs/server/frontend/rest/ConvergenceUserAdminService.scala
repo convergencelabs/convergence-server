@@ -3,11 +3,12 @@ package com.convergencelabs.server.frontend.rest
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
-import com.convergencelabs.server.datastore.UserStore.User
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.CreateConvergenceUserRequest
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.DeleteConvergenceUserRequest
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUser
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetConvergenceUsers
+import com.convergencelabs.server.datastore.convergence.UserStore.User
+import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.CreateConvergenceUserRequest
+import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.DeleteConvergenceUserRequest
+import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.GetConvergenceUser
+import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.GetConvergenceUsers
+import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.SetPasswordRequest
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
@@ -33,7 +34,7 @@ import akka.util.Timeout
 import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.InvalidValueExcpetion
 import akka.http.scaladsl.server.ExceptionHandler
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.SetPasswordRequest
+
 
 object ConvergenceUserAdminService {
   case class CreateUserRequest(username: String, firstName: String, lastName: String, displayName: String, email: String, password: String)

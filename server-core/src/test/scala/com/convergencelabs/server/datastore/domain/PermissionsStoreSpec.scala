@@ -4,7 +4,7 @@ import org.scalatest.Matchers
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
 
-import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.domain.DomainUser
@@ -14,12 +14,13 @@ import com.convergencelabs.server.datastore.domain.ChatChannelStore.ChannelType
 import java.time.Instant
 
 class PermissionsStoreSpec
-    extends PersistenceStoreSpec[DomainPersistenceProvider](DeltaCategory.Domain)
-    with WordSpecLike
-    with Matchers {
+  extends PersistenceStoreSpec[DomainPersistenceProvider](DeltaCategory.Domain)
+  with WordSpecLike
+  with Matchers {
 
   val channel1 = "channel1"
   val channel2 = "channel2"
+
   val user1 = "user1"
   val user2 = "user2"
   val user3 = "user3"
@@ -30,7 +31,7 @@ class PermissionsStoreSpec
 
   val group1 = "group1"
   val group2 = "group2"
-  
+
   val userGroup1 = UserGroup(group1, group1, Set(user1, user2))
   val userGroup2 = UserGroup(group2, group2, Set(user2, user3))
 
@@ -80,7 +81,7 @@ class PermissionsStoreSpec
         hasPermission shouldBe false
       }
 
-      "return true when global permission is set" in withTestData { provider =>
+      "return true when global world permission is set" in withTestData { provider =>
         val channel = provider.chatChannelStore.getChatChannelRid(channel1).get
         provider.permissionsStore.addWorldPermissions(Set(permission1), None).get
         val hasPermission = provider.permissionsStore.hasPermission(user1, channel, permission1).get
@@ -94,7 +95,7 @@ class PermissionsStoreSpec
         hasPermission shouldBe true
       }
 
-      "return true when group permission is set" in withTestData { provider =>
+      "return true when group permission is set globally" in withTestData { provider =>
         val channel = provider.chatChannelStore.getChatChannelRid(channel1).get
         provider.permissionsStore.addGroupPermissions(Set(permission1), group1, None).get
         val hasPermission = provider.permissionsStore.hasPermission(user1, channel, permission1).get
@@ -129,6 +130,7 @@ class PermissionsStoreSpec
         val globalPermissions = provider.permissionsStore.getWorldPermissions(None).get
         globalPermissions shouldBe Set(WorldPermission(permission1), WorldPermission(permission2))
       }
+
       "return correct world permissions for channel" in withTestData { provider =>
         val channelRid = provider.chatChannelStore.getChatChannelRid(channel1).get
         val channel2Rid = provider.chatChannelStore.getChatChannelRid(channel2).get
@@ -143,7 +145,8 @@ class PermissionsStoreSpec
         provider.permissionsStore.addUserPermissions(Set(permission1, permission2), user1, None).get
         provider.permissionsStore.addUserPermissions(Set(permission3), user2, None).get
         val globalPermissions = provider.permissionsStore.getAllUserPermissions(None).get
-        globalPermissions shouldBe Set(UserPermission(domainUser1, permission1),
+        globalPermissions shouldBe Set(
+          UserPermission(domainUser1, permission1),
           UserPermission(domainUser1, permission2),
           UserPermission(domainUser2, permission3))
       }
@@ -155,13 +158,14 @@ class PermissionsStoreSpec
         val worldPermissions = provider.permissionsStore.getAllUserPermissions(Some(channelRid)).get
         worldPermissions shouldBe Set(UserPermission(domainUser1, permission1), UserPermission(domainUser1, permission2))
       }
-      
+
       "return correct group permissions" in withTestData { provider =>
         val channel = provider.chatChannelStore.getChatChannelRid(channel1).get
         provider.permissionsStore.addGroupPermissions(Set(permission1, permission2), group1, None).get
         provider.permissionsStore.addGroupPermissions(Set(permission3), group2, None).get
         val globalPermissions = provider.permissionsStore.getAllGroupPermissions(None).get
-        globalPermissions shouldBe Set(GroupPermission(userGroup1, permission1),
+        globalPermissions shouldBe Set(
+          GroupPermission(userGroup1, permission1),
           GroupPermission(userGroup1, permission2),
           GroupPermission(userGroup2, permission3))
       }
@@ -186,9 +190,9 @@ class PermissionsStoreSpec
       provider.userGroupStore.createUserGroup(userGroup2).get
 
       provider.chatChannelStore.createChatChannel(
-          Some(channel1), ChannelType.Group, Instant.now(), false, "name", "topic", Some(Set(user1, user2, user3)), user1).get
+        Some(channel1), ChannelType.Group, Instant.now(), false, "name", "topic", Some(Set(user1, user2, user3)), user1).get
       provider.chatChannelStore.createChatChannel(
-          Some(channel2), ChannelType.Group, Instant.now(), false, "name", "topic", Some(Set(user1, user2, user3)), user1).get
+        Some(channel2), ChannelType.Group, Instant.now(), false, "name", "topic", Some(Set(user1, user2, user3)), user1).get
 
       testCode(provider)
     }

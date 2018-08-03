@@ -8,7 +8,7 @@ object Dependencies {
   object Versions {
     val akka      = "2.5.13"
     val akkaHttp  = "10.1.0"
-    val orientDb  = "2.2.30"
+    val orientDb  = "3.0.2"
     val log4j     = "2.10.0"
   }
 

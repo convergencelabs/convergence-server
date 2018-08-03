@@ -3,9 +3,9 @@ package com.convergencelabs.server.frontend.rest
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.GetUserApiKeyRequest
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.RegenerateUserApiKeyRequest
-import com.convergencelabs.server.datastore.ConvergenceUserManagerActor.ClearUserApiKeyRequest
+import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.GetUserApiKeyRequest
+import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.RegenerateUserApiKeyRequest
+import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.ClearUserApiKeyRequest
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply

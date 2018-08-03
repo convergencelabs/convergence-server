@@ -3,12 +3,12 @@ package com.convergencelabs.server.db.schema
 import scala.util.Success
 import scala.util.Try
 
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 
 import grizzled.slf4j.Logging
 
 class TestingSchemaManager(
-  db: ODatabaseDocumentTx,
+  db: ODatabaseDocument,
   deltaCategory: DeltaCategory.Value,
   preRelease: Boolean)
     extends AbstractSchemaManager(db, preRelease)

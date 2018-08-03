@@ -11,8 +11,7 @@ import org.scalatest.Matchers
 import org.scalatest.OptionValues
 import org.scalatest.WordSpecLike
 
-import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.QueryUtil
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.domain.DomainUser
 import com.convergencelabs.server.domain.DomainUserType
@@ -44,13 +43,15 @@ import com.convergencelabs.server.domain.model.ot.AppliedObjectSetPropertyOperat
 import com.convergencelabs.server.domain.model.ot.AppliedStringInsertOperation
 import com.convergencelabs.server.domain.model.ot.AppliedStringRemoveOperation
 import com.convergencelabs.server.domain.model.ot.AppliedStringSetOperation
+import com.convergencelabs.server.datastore.OrientDBUtil
+import scala.util.Success
 
 // scalastyle:off magic.number multiple.string.literals
 class ModelOperationProcessorSpec
-    extends PersistenceStoreSpec[DomainPersistenceProvider](DeltaCategory.Domain)
-    with WordSpecLike
-    with OptionValues
-    with Matchers {
+  extends PersistenceStoreSpec[DomainPersistenceProvider](DeltaCategory.Domain)
+  with WordSpecLike
+  with OptionValues
+  with Matchers {
 
   val username = "test"
   val user = DomainUser(DomainUserType.Normal, username, None, None, None, None)
@@ -430,7 +431,7 @@ class ModelOperationProcessorSpec
 
         vidExists(fnameVID, provider.dbProvider).get shouldBe false
       }
-      
+
       "remove recursively object when issuing an ObjectSetProperty on an array field" in withTestData { provider =>
         vidExists(emailsVID, provider.dbProvider).get shouldBe true
         vidExists(email1VID, provider.dbProvider).get shouldBe true
@@ -446,7 +447,7 @@ class ModelOperationProcessorSpec
         vidExists(email2VID, provider.dbProvider).get shouldBe false
         vidExists(email3VID, provider.dbProvider).get shouldBe false
       }
-      
+
       "remove a single object when issuing an ObjectRemoveProperty on a string field" in withTestData { provider =>
         vidExists(fnameVID, provider.dbProvider).get shouldBe true
 
@@ -472,62 +473,62 @@ class ModelOperationProcessorSpec
         vidExists(email2VID, provider.dbProvider).get shouldBe false
         vidExists(email3VID, provider.dbProvider).get shouldBe false
       }
-    }
 
-    "Remove all previous object values in an ObjectSet" in withTestData { provider =>
-      val childrenVids = person1Data.children.values.toList.map(_.id) ++ List(email1VID, email2VID, email2VID)
-      vidsAllExist(childrenVids, provider.dbProvider).get shouldBe true
+      "Remove all previous object values in an ObjectSet" in withTestData { provider =>
+        val childrenVids = person1Data.children.values.toList.map(_.id) ++ List(email1VID, email2VID, email2VID)
+        vidsAllExist(childrenVids, provider.dbProvider).get shouldBe true
 
-      val replacePerson = Map("fname" -> StringValue("pp1-fnbob", "bob"), "lname" -> StringValue("pp1-lnsmith", "smith"))
-      val op = AppliedObjectSetOperation(person1VID, false, replacePerson, Some(Map("fname" -> StringValue("oldId1", "yo"), "lname" -> StringValue("oldId2", "yoyo"))))
-      val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, op)
-      provider.modelOperationProcessor.processModelOperation(modelOp).get
+        val replacePerson = Map("fname" -> StringValue("pp1-fnbob", "bob"), "lname" -> StringValue("pp1-lnsmith", "smith"))
+        val op = AppliedObjectSetOperation(person1VID, false, replacePerson, Some(Map("fname" -> StringValue("oldId1", "yo"), "lname" -> StringValue("oldId2", "yoyo"))))
+        val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, op)
+        provider.modelOperationProcessor.processModelOperation(modelOp).get
 
-      vidsNoneExist(childrenVids, provider.dbProvider).get shouldBe true
-    }
+        vidsNoneExist(childrenVids, provider.dbProvider).get shouldBe true
+      }
 
-    "Remove a datavalue on an ArrayRemove" in withTestData { provider =>
-      vidsAllExist(List(email1VID, email2VID, email3VID), provider.dbProvider).get shouldBe true
+      "Remove a datavalue on an ArrayRemove" in withTestData { provider =>
+        vidsAllExist(List(email1VID, email2VID, email3VID), provider.dbProvider).get shouldBe true
 
-      val op = AppliedArrayRemoveOperation(emailsVID, false, 0, Some(StringValue("oldId", "removedValue")))
-      val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, op)
-      provider.modelOperationProcessor.processModelOperation(modelOp).get
+        val op = AppliedArrayRemoveOperation(emailsVID, false, 0, Some(StringValue("oldId", "removedValue")))
+        val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, op)
+        provider.modelOperationProcessor.processModelOperation(modelOp).get
 
-      vidsAllExist(List(email2VID, email3VID), provider.dbProvider).get shouldBe true
-      vidsNoneExist(List(email1VID), provider.dbProvider).get shouldBe true
-    }
+        vidsAllExist(List(email2VID, email3VID), provider.dbProvider).get shouldBe true
+        vidsNoneExist(List(email1VID), provider.dbProvider).get shouldBe true
+      }
 
-    "Remove a datavalue on an ArrayReplace" in withTestData { provider =>
-      vidsAllExist(List(email1VID, email2VID, email3VID), provider.dbProvider).get shouldBe true
+      "Remove a datavalue on an ArrayReplace" in withTestData { provider =>
+        vidsAllExist(List(email1VID, email2VID, email3VID), provider.dbProvider).get shouldBe true
 
-      val replaceVal = ObjectValue("art-data", Map("field1" -> StringValue("art-f1", "someValue"), "field2" -> DoubleValue("art-f2", 5)))
-      val op = AppliedArrayReplaceOperation(emailsVID, false, 0, replaceVal, Some(StringValue("oldId", "removedValue")))
-      val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, op)
-      provider.modelOperationProcessor.processModelOperation(modelOp).get
+        val replaceVal = ObjectValue("art-data", Map("field1" -> StringValue("art-f1", "someValue"), "field2" -> DoubleValue("art-f2", 5)))
+        val op = AppliedArrayReplaceOperation(emailsVID, false, 0, replaceVal, Some(StringValue("oldId", "removedValue")))
+        val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, op)
+        provider.modelOperationProcessor.processModelOperation(modelOp).get
 
-      vidsAllExist(List(email2VID, email3VID), provider.dbProvider).get shouldBe true
-      vidsNoneExist(List(email1VID), provider.dbProvider).get shouldBe true
-    }
+        vidsAllExist(List(email2VID, email3VID), provider.dbProvider).get shouldBe true
+        vidsNoneExist(List(email1VID), provider.dbProvider).get shouldBe true
+      }
 
-    "Remove child datavalues on an ArraySet" in withTestData { provider =>
-      vidExists(emailsVID, provider.dbProvider).get shouldBe true
-      vidsAllExist(List(email1VID, email2VID, email3VID), provider.dbProvider).get shouldBe true
+      "Remove child datavalues on an ArraySet" in withTestData { provider =>
+        vidExists(emailsVID, provider.dbProvider).get shouldBe true
+        vidsAllExist(List(email1VID, email2VID, email3VID), provider.dbProvider).get shouldBe true
 
-      val setValue = List(StringValue("as-sv", "someValue"), StringValue("as-sov", "someOtherValue"))
-      val op = AppliedArraySetOperation(emailsVID, false, setValue, Some(List[DataValue]()))
-      val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, op)
-      provider.modelOperationProcessor.processModelOperation(modelOp).get
+        val setValue = List(StringValue("as-sv", "someValue"), StringValue("as-sov", "someOtherValue"))
+        val op = AppliedArraySetOperation(emailsVID, false, setValue, Some(List[DataValue]()))
+        val modelOp = NewModelOperation(person1Id, startingVersion, Instant.now(), sid, op)
+        provider.modelOperationProcessor.processModelOperation(modelOp).get
 
-      vidExists(emailsVID, provider.dbProvider).get shouldBe true
-      vidsNoneExist(List(email1VID, email2VID, email3VID), provider.dbProvider).get shouldBe true
+        vidExists(emailsVID, provider.dbProvider).get shouldBe true
+        vidsNoneExist(List(email1VID, email2VID, email3VID), provider.dbProvider).get shouldBe true
+      }
     }
   }
 
   def vidExists(vid: String, dbProvider: DatabaseProvider): Try[Boolean] = {
-    dbProvider.tryWithDatabase { db =>
+    dbProvider.withDatabase { db =>
       val query = "SELECT * FROM DataValue WHERE id = :id"
       val params = Map("id" -> vid)
-      QueryUtil.lookupOptionalDocument(query, params, db).map(_ => true).getOrElse(false)
+      OrientDBUtil.getDocument(db, query, params).map(_ => true).orElse(Success(false))
     }
   }
 
