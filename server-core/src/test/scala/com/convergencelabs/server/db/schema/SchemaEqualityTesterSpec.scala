@@ -77,7 +77,7 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
         an [AssertionError] should be thrownBy SchemaEqualityTester.assertEqual(db1, db2)
       }
 
-      "return error iffunction name is different" in {
+      "return error if function name is different" in {
         val delta1 = Delta(1, Some("Description"),
           List(CreateFunction("MyFunction1",
             "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;",
@@ -96,7 +96,7 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
         an [AssertionError] should be thrownBy SchemaEqualityTester.assertEqual(db1, db2)
       }
 
-      "return error iffunction parameters are different" in {
+      "return error if function parameters are different" in {
         val delta1 = Delta(1, Some("Description"),
           List(CreateFunction("MyFunction",
             "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;",
@@ -115,7 +115,7 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
         an [AssertionError] should be thrownBy SchemaEqualityTester.assertEqual(db1, db2)
       }
 
-      "return error ifone function has a different language" in {
+      "return error if one function has a different language" in {
         val delta1 = Delta(1, Some("Description"),
           List(CreateFunction("MyFunction",
             "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;",
@@ -134,7 +134,7 @@ class SchemaEqualityTesterSpec extends WordSpecLike with Matchers with BeforeAnd
         an [AssertionError] should be thrownBy SchemaEqualityTester.assertEqual(db1, db2)
       }
 
-      "return error ifone function is idempotent and the other is not" in {
+      "return error if one function is idempotent and the other is not" in {
         val delta1 = Delta(1, Some("Description"),
           List(CreateFunction("MyFunction",
             "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;",

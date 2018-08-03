@@ -3,7 +3,7 @@ package com.convergencelabs.server.domain.model
 import org.junit.runner.RunWith
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
-import org.scalatest.mock.MockitoSugar
+import org.scalatest.mockito.MockitoSugar
 import org.scalatest.junit.JUnitRunner
 
 import com.convergencelabs.server.domain.model.data.BooleanValue

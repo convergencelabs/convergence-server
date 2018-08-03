@@ -74,7 +74,7 @@ class ConvergenceImporter(
         logger.debug(s"Requesting domain provisioning for: ${domainData.namespace}/${domainData.id}")
         val response = (domainStoreActor ? domainCreateRequest).mapTo[DomainDatabase]
 
-        response onSuccess {
+        response.foreach {
           case dbInfo =>
             logger.debug(s"Domain database provisioned successfuly: ${domainData.namespace}/${domainData.id}")
             domainData.dataImport map { script =>
@@ -100,7 +100,7 @@ class ConvergenceImporter(
             }
         }
 
-        response onFailure {
+        response.failed.foreach {
           case cause: Exception =>
             logger.error("Domain provisioing failed", cause)
         }

@@ -2,23 +2,22 @@ package com.convergencelabs.server.datastore
 
 import java.util.{ List => JavaList }
 
-import scala.collection.JavaConversions.asScalaBuffer
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
+import com.orientechnologies.orient.core.command.script.OCommandScript
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.index.OIndex
 import com.orientechnologies.orient.core.record.impl.ODocument
+import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 
 import grizzled.slf4j.Logging
-import com.orientechnologies.orient.core.sql.OCommandSQL
-import com.orientechnologies.orient.core.command.script.OCommandScript
 
 object QueryUtil extends Logging {
   private[this] val MultipleElementsMessage = "Only exepected one element in the result list, but more than one returned."
@@ -46,7 +45,7 @@ object QueryUtil extends Logging {
   def query(q: String, p: Map[String, Any], db: ODatabaseDocumentTx): List[ODocument] = {
     val query = new OSQLSynchQuery[ODocument](q)
     val result: JavaList[ODocument] = db.command(query).execute(p.asJava)
-    result.toList
+    result.asScala.toList
   }
 
   def hasResults(q: String, p: Map[String, Any], db: ODatabaseDocumentTx): Boolean = {

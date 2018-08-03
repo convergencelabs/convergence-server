@@ -18,7 +18,7 @@ import org.mockito.Matchers.{ eq => meq }
 import org.mockito.Mockito
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.WordSpecLike
-import org.scalatest.mock.MockitoSugar
+import org.scalatest.mockito.MockitoSugar
 import org.scalatest.Matchers._
 
 import com.convergencelabs.server.HeartbeatConfiguration

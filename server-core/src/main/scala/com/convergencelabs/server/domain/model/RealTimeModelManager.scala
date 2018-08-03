@@ -267,7 +267,7 @@ class RealTimeModelManager(
           case (sk, client) =>
             val current = this.permissions.resolveSessionPermissions(sk)
             val previous = currentPerms.get(sk)
-            if (current != previous) {
+            if (Some(current) != previous) {
               val message = ModelPermissionsChanged(this.modelId, current)
               client ! message
             }

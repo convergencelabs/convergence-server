@@ -16,7 +16,7 @@ import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.WordSpecLike
-import org.scalatest.mock.MockitoSugar
+import org.scalatest.mockito.MockitoSugar
 import org.scalatest.Matchers._
 
 import com.convergencelabs.server.UnknownErrorResponse

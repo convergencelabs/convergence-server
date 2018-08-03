@@ -6,7 +6,7 @@ import org.scalatest.WordSpec
 import com.convergencelabs.server.util.EmbeddedOrientDB
 import com.convergencelabs.server.domain.DomainFqn
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import org.scalatest.mock.MockitoSugar
+import org.scalatest.mockito.MockitoSugar
 import com.convergencelabs.server.datastore.DeltaHistoryStore
 import org.mockito.Mockito
 import org.mockito.Matchers

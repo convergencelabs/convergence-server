@@ -18,6 +18,7 @@ import org.json4s.JsonAST.JNothing
 import org.json4s.JsonAST.JNull
 import org.json4s.JsonAST.JObject
 import org.json4s.JsonAST.JValue
+import org.json4s.JsonAST.JSet
 import org.json4s.jackson.Serialization.read
 import org.json4s.jvalue2monadic
 import org.scalatest.FunSpec
@@ -163,6 +164,7 @@ class OTFTestHarnessSpec extends FunSpec {
       case JNull => NullValue(valueId)
       case JNothing => NullValue(valueId)
       case JArray(arr) => ArrayValue(valueId, arr.map { v => mapToDataValue(v) })
+      case JSet(set) => ArrayValue(valueId, set.toList.map { v => mapToDataValue(v) })
       case JObject(fields) => ObjectValue(valueId, fields.toMap.mapValues { v => mapToDataValue(v) })
     }
   }

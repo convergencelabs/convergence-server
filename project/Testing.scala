@@ -5,6 +5,8 @@ object Testing {
 
   import BuildKeys._
   import Configs._
+  
+  val scoverageVersion = "1.3.1"
 
   private lazy val testSettings = Seq(
     fork in Test := true,
@@ -16,8 +18,8 @@ object Testing {
     parallelExecution in IntegrationTest := false,
     scalaSource in IntegrationTest := baseDirectory.value / "src/it/scala",
     libraryDependencies ++= Seq(
-      "org.scoverage" % ("scalac-scoverage-runtime" + "_" + scalaBinaryVersion.value) % "1.1.1" % "test" intransitive(),
-      "org.scoverage" % ("scalac-scoverage-plugin" + "_" + scalaBinaryVersion.value) % "1.1.1" % "test" intransitive()
+      "org.scoverage" % ("scalac-scoverage-runtime" + "_" + scalaBinaryVersion.value) % scoverageVersion % "test" intransitive(),
+      "org.scoverage" % ("scalac-scoverage-plugin" + "_" + scalaBinaryVersion.value) % scoverageVersion % "test" intransitive()
     )
   )
 
@@ -26,8 +28,8 @@ object Testing {
     parallelExecution in EndToEndTest := false,
     scalaSource in EndToEndTest := baseDirectory.value / "src/e2e/scala",
     libraryDependencies ++= Seq(
-      "org.scoverage" % ("scalac-scoverage-runtime" + "_" + scalaBinaryVersion.value) % "1.1.1" % "test" intransitive(),
-      "org.scoverage" % ("scalac-scoverage-plugin" + "_" + scalaBinaryVersion.value) % "1.1.1" % "test" intransitive()
+      "org.scoverage" % ("scalac-scoverage-runtime" + "_" + scalaBinaryVersion.value) % scoverageVersion % "test" intransitive(),
+      "org.scoverage" % ("scalac-scoverage-plugin" + "_" + scalaBinaryVersion.value) % scoverageVersion % "test" intransitive()
     )
   )
 
