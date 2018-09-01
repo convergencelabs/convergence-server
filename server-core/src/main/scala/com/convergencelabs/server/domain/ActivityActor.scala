@@ -28,7 +28,7 @@ object ActivityActor {
 }
 
 private[domain] class ActivityActor(private[this] val activityId: String)
-    extends Actor with ActorLogging {
+  extends Actor with ActorLogging {
 
   private[this] var joinedClients = Map[ActorRef, SessionKey]()
   private[this] var joinedSessions = Map[SessionKey, ActorRef]()
@@ -65,21 +65,21 @@ private[domain] class ActivityActor(private[this] val activityId: String)
       case Some(x) =>
         throw new IllegalStateException("Session already joined")
       case None =>
+        this.joinedSessions += (sk -> client)
+        this.joinedClients += (client -> sk)
+        this.stateMap.join(sk)
+
         state.foreach {
           case (k, v) =>
             this.stateMap.setState(sk, k, v)
         }
 
+        context.watch(client)
+
         val message = ActivitySessionJoined(activityId, sk, state)
         joinedSessions.values filter (_ != client) foreach (_ ! message)
 
-        this.joinedSessions += (sk -> client)
-        this.joinedClients += (client -> sk)
-        this.stateMap.join(sk)
-
-        context.watch(client)
-
-      sender ! ActivityJoinResponse(stateMap.getState())
+        sender ! ActivityJoinResponse(stateMap.getState())
     }
   }
 
@@ -100,7 +100,7 @@ private[domain] class ActivityActor(private[this] val activityId: String)
     this.stateMap.leave(sk)
     this.joinedSessions -= sk
     this.joinedClients -= leaver
-    
+
     this.context.unwatch(leaver)
   }
 
@@ -116,8 +116,8 @@ private[domain] class ActivityActor(private[this] val activityId: String)
       joinedSessions.values.filter(_ != setter) foreach (_ ! message)
     }
   }
-  
-    private[this] def removeState(sk: SessionKey, keys: List[String]): Unit = {
+
+  private[this] def removeState(sk: SessionKey, keys: List[String]): Unit = {
     if (isJoined(sk)) {
       keys foreach (stateMap.clearState(sk, _))
       val clearer = this.joinedSessions(sk)
