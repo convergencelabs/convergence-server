@@ -39,6 +39,7 @@ import com.convergencelabs.server.domain.model.SetModelPermissionsRequest
 import com.convergencelabs.server.domain.model.SetReference
 import com.convergencelabs.server.domain.model.UnpublishReference
 import com.convergencelabs.server.util.concurrent.AskFuture
+import com.convergencelabs.server.frontend.realtime.ImplicitMessageConversions._
 
 import akka.actor.Actor
 import akka.actor.ActorLogging
@@ -61,6 +62,46 @@ import com.convergencelabs.server.domain.model.CreateRealtimeModel
 import com.convergencelabs.server.domain.model.DeleteRealtimeModel
 import com.convergencelabs.server.util.BiMap
 import com.convergencelabs.server.domain.model.RealtimeModelSharding
+import convergence.protocol.Incoming
+import convergence.protocol.Model
+import convergence.protocol.Request
+import convergence.protocol.connection.ErrorMessage
+import convergence.protocol.model.GetModelPermissionsRequestMessage
+import convergence.protocol.model.OpenRealtimeModelResponseMessage
+import convergence.protocol.references.RemoteReferenceSetMessage
+import convergence.protocol.references.SetReferenceMessage
+import convergence.protocol.model.RemoteClientOpenedMessage
+import convergence.protocol.model.SetModelPermissionsResponseMessage
+import convergence.protocol.references.PublishReferenceMessage
+import convergence.protocol.model.OpenModelData
+import convergence.protocol.operations.OperationAcknowledgementMessage
+import convergence.protocol.model.CloseRealTimeModelSuccessMessage
+import convergence.protocol.references.UnpublishReferenceMessage
+import convergence.protocol.model.ModelForceCloseMessage
+import convergence.protocol.model.SetModelPermissionsRequestMessage
+import convergence.protocol.references.ClearReferenceMessage
+import convergence.protocol.model.AutoCreateModelConfigResponseMessage
+import convergence.protocol.model.ModelPermissionsData
+import convergence.protocol.model.GetModelPermissionsResponseMessage
+import convergence.protocol.model.ModelsQueryRequestMessage
+import convergence.protocol.model.RemoteClientClosedMessage
+import convergence.protocol.references.RemoteReferenceUnpublishedMessage
+import convergence.protocol.model.ModelResult
+import convergence.protocol.model.ModelPermissionsChangedMessage
+import convergence.protocol.model.CreateRealtimeModelRequestMessage
+import convergence.protocol.model.ModelsQueryResponseMessage
+import convergence.protocol.operations.RemoteOperationMessage
+import convergence.protocol.references.RemoteReferencePublishedMessage
+import convergence.protocol.model.OpenRealtimeModelRequestMessage
+import convergence.protocol.operations.OperationSubmissionMessage
+import convergence.protocol.model.CreateRealtimeModelSuccessMessage
+import convergence.protocol.model.DeleteRealtimeModelRequestMessage
+import convergence.protocol.model.DeleteRealtimeModelSuccessMessage
+import convergence.protocol.model.CloseRealtimeModelRequestMessage
+import convergence.protocol.model.AutoCreateModelConfigRequestMessage
+import convergence.protocol.references.RemoteReferenceClearedMessage
+import com.sun.org.apache.xml.internal.security.signature.reference.ReferenceData
+import com.convergencelabs.server.frontend.realtime.ImplicitMessageConversions._
 
 object ModelClientActor {
   def props(
@@ -90,10 +131,10 @@ class ModelClientActor(
   private[this] val modelClusterRegion: ActorRef = RealtimeModelSharding.shardRegion(context.system)
 
   def receive: Receive = {
-    case MessageReceived(message) if message.isInstanceOf[IncomingModelNormalMessage] =>
-      onMessageReceived(message.asInstanceOf[IncomingModelNormalMessage])
-    case RequestReceived(message, replyPromise) if message.isInstanceOf[IncomingModelRequestMessage] =>
-      onRequestReceived(message.asInstanceOf[IncomingModelRequestMessage], replyPromise)
+    case MessageReceived(message) if message.isInstanceOf[Incoming with Model] =>
+      onMessageReceived(message.asInstanceOf[Incoming with Model])
+    case RequestReceived(message, replyPromise) if message.isInstanceOf[Request with Model] =>
+      onRequestReceived(message.asInstanceOf[Request with Model], replyPromise)
     case message: RealtimeModelClientMessage =>
       onOutgoingModelMessage(message)
     case x: Any =>
@@ -126,9 +167,9 @@ class ModelClientActor(
     resourceId(modelId) foreach { resoruceId =>
       context.parent ! RemoteOperationMessage(
         resoruceId,
-        sessionKey.serialize(),
+        Some(sessionKey),
         contextVersion,
-        timestamp,
+        Some(timestamp),
         OperationMapper.mapOutgoing(operation))
     }
   }
@@ -136,21 +177,21 @@ class ModelClientActor(
   private[this] def onOperationAcknowledgement(opAck: OperationAcknowledgement): Unit = {
     val OperationAcknowledgement(modelId, seqNo, version, timestamp) = opAck
     resourceId(modelId) foreach { resourceId =>
-      context.parent ! OperationAcknowledgementMessage(resourceId, seqNo, version, timestamp)
+      context.parent ! OperationAcknowledgementMessage(resourceId, seqNo, version, Some(timestamp))
     }
   }
 
   private[this] def onRemoteClientOpened(opened: RemoteClientOpened): Unit = {
     val RemoteClientOpened(modelId, sk) = opened
     resourceId(modelId) foreach { resourceId =>
-      context.parent ! RemoteClientOpenedMessage(resourceId, sk.serialize())
+      context.parent ! RemoteClientOpenedMessage(resourceId, Some(sk))
     }
   }
 
   private[this] def onRemoteClientClosed(closed: RemoteClientClosed): Unit = {
     val RemoteClientClosed(modelId, sk) = closed
     resourceId(modelId) foreach { resourceId =>
-      context.parent ! RemoteClientClosedMessage(resourceId, sk.serialize())
+      context.parent ! RemoteClientClosedMessage(resourceId, Some(sk))
     }
   }
 
@@ -158,9 +199,7 @@ class ModelClientActor(
     val ModelPermissionsChanged(modelId, permissions) = permsChanged
     resourceId(modelId) foreach { resourceId =>
       val ModelPermissions(read, write, remove, manage) = permissions
-      context.parent ! ModelPermissionsChangedMessage(
-        resourceId,
-        ModelPermissionsData(read, write, remove, manage))
+      context.parent ! ModelPermissionsChangedMessage(resourceId, Some(permissions))
     }
   }
 
@@ -169,14 +208,14 @@ class ModelClientActor(
     resourceId(modelId) foreach { resourceId =>
       modelIdToResourceId -= modelId
       resourceIdToModelId -= resourceId
-      context.parent ! ModelForceCloseMessage(resourceId, reason)
+      context.parent ! ModelForceCloseMessage(resourceId, Some(reason))
     }
   }
 
   private[this] def onAutoCreateModelConfigRequest(autoConfigRequest: ClientAutoCreateModelConfigRequest): Unit = {
     val ClientAutoCreateModelConfigRequest(modelId, autoConfigId) = autoConfigRequest
     val askingActor = sender
-    val future = context.parent ? AutoCreateModelConfigRequestMessage(autoConfigId)
+    val future = context.parent ? AutoCreateModelConfigRequestMessage(autoConfigId.toString())
     future.mapResponse[AutoCreateModelConfigResponseMessage] onComplete {
       case Success(AutoCreateModelConfigResponseMessage(collection, data, overridePermissions, worldPermissionsData, userPermissionsData, ephemeral)) =>
         val worldPermissions = worldPermissionsData.map(wp => {
@@ -198,26 +237,26 @@ class ModelClientActor(
   }
 
   private[this] def onRemoteReferencePublished(refPublished: RemoteReferencePublished): Unit = {
-    val RemoteReferencePublished(modelId, sessionId, id, key, refType, values) = refPublished
+    val RemoteReferencePublished(modelId, session, id, key, refType, values) = refPublished
     resourceId(modelId) foreach { resourceId =>
       val mappedValue = values.map { _.map { v => mapOutgoingReferenceValue(refType, v) } }
-      context.parent ! RemoteReferencePublishedMessage(resourceId, sessionId, id, key, ReferenceType.map(refType), mappedValue)
+      context.parent ! RemoteReferencePublishedMessage(resourceId, Some(session), id, key, refType, mappedValue)
     }
   }
 
   private[this] def onRemoteReferenceUnpublished(refUnpublished: RemoteReferenceUnpublished): Unit = {
-    val RemoteReferenceUnpublished(modelId, sessionId, id, key) = refUnpublished
+    val RemoteReferenceUnpublished(modelId, session, id, key) = refUnpublished
     resourceId(modelId) foreach { resourceId =>
-      context.parent ! RemoteReferenceUnpublishedMessage(resourceId, sessionId, id, key)
+      context.parent ! RemoteReferenceUnpublishedMessage(resourceId, Some(session), id, key)
     }
   }
 
   private[this] def onRemoteReferenceSet(refSet: RemoteReferenceSet): Unit = {
-    val RemoteReferenceSet(modelId, sessionId, id, key, refType, values) = refSet
+    val RemoteReferenceSet(modelId, session, id, key, refType, values) = refSet
     resourceId(modelId) foreach { resourceId =>
       val mappedType = ReferenceType.map(refType)
       val mappedValue = values.map { v => mapOutgoingReferenceValue(refType, v) }
-      context.parent ! RemoteReferenceSetMessage(resourceId, sessionId, id, key, mappedType, mappedValue)
+      context.parent ! RemoteReferenceSetMessage(resourceId, Some(session), id, key, mappedType, mappedValue)
     }
   }
 

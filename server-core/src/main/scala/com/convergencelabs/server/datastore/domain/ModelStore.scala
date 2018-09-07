@@ -38,7 +38,6 @@ import com.convergencelabs.server.domain.model.query.QueryParser
 import com.convergencelabs.server.domain.model.ModelQueryResult
 import com.convergencelabs.server.frontend.rest.DataValueToJValue
 import org.json4s.JsonAST.JObject
-import com.convergencelabs.server.frontend.realtime.ModelResult
 import org.parboiled2.ParseError
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 
@@ -368,7 +367,7 @@ class ModelStore private[domain] (
           val meta = ModelMetaData(
             results.remove("collectionId").asInstanceOf[String],
             results.remove(Id).asInstanceOf[String],
-            results.remove(Version).asInstanceOf[Long],
+            results.remove(Version).asInstanceOf[Int],
             createdTime.toInstant(),
             modifiedTime.toInstant(),
             false,

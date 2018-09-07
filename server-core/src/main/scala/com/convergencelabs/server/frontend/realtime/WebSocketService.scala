@@ -10,7 +10,7 @@ import com.convergencelabs.server.domain.DomainFqn
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.ws.Message
-import akka.http.scaladsl.model.ws.TextMessage
+import akka.http.scaladsl.model.ws.BinaryMessage
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
 import akka.http.scaladsl.server.Directive.addDirectiveApply
 import akka.http.scaladsl.server.Directives
@@ -25,9 +25,10 @@ import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import grizzled.slf4j.Logging
 import akka.http.scaladsl.model.RemoteAddress
+import akka.util.ByteString
 
-case class IncomingTextMessage(message: String)
-case class OutgoingTextMessage(message: String)
+case class IncomingBinaryMessage(message: Array[Byte])
+case class OutgoingBinaryMessage(message: Array[Byte])
 
 class WebSocketService(
   private[this] val protocolConfig: ProtocolConfiguration,
@@ -58,21 +59,21 @@ class WebSocketService(
     logger.info(s"New web socket connection for $namespace/$domain")
     Flow[Message]
       .collect {
-        case TextMessage.Strict(msg) ⇒ Future.successful(IncomingTextMessage(msg))
-        case TextMessage.Streamed(stream) ⇒ stream
+        case BinaryMessage.Strict(msg) ⇒ Future.successful(IncomingBinaryMessage(msg.toArray))
+        case BinaryMessage.Streamed(stream) ⇒ stream
           .limit(maxFrames)
           .completionTimeout(maxStreamDuration)
           .runFold("")(_ + _)
-          .flatMap(msg => Future.successful(IncomingTextMessage(msg)))
+          .flatMap(msg => Future.successful(IncomingBinaryMessage(ByteString(msg).toArray)))
       }
       .mapAsync(parallelism = 3)(identity)
       .via(createFlowForConnection(namespace, domain, remoteAddress, ua))
       .map {
-        case OutgoingTextMessage(msg) ⇒ TextMessage.Strict(msg)
+        case OutgoingBinaryMessage(msg) ⇒ BinaryMessage.Strict(ByteString.fromArray(msg))
       }
   }
 
-  private[this] def createFlowForConnection(namespace: String, domain: String, remoteAddress: RemoteAddress, ua: String): Flow[IncomingTextMessage, OutgoingTextMessage, Any] = {
+  private[this] def createFlowForConnection(namespace: String, domain: String, remoteAddress: RemoteAddress, ua: String): Flow[IncomingBinaryMessage, OutgoingBinaryMessage, Any] = {
     val clientActor = system.actorOf(ClientActor.props(
       DomainFqn(namespace, domain),
       protocolConfig,
@@ -84,7 +85,7 @@ class WebSocketService(
     // This is how we route messages that are coming in.  Basically we route them
     // to the connection actor and, when the flow is completed (e.g. the web socket is
     // closed) we send a WebSocketClosed case object, which the connection can listen for.
-    val in = Flow[IncomingTextMessage].to(Sink.actorRef[IncomingTextMessage](connection, WebSocketClosed))
+    val in = Flow[IncomingBinaryMessage].to(Sink.actorRef[IncomingBinaryMessage](connection, WebSocketClosed))
 
     // This is where outgoing messages will go.  Basically we create an actor based
     // source for messages.  This creates an ActorRef that you can send messages to
@@ -93,7 +94,7 @@ class WebSocketService(
     // actor.  We can send an actor ref (in a message) to the connection actor.  This is
     // how the connection actor will get a reference to the actor that it needs to sent 
     // messages to.
-    val out = Source.actorRef[OutgoingTextMessage](500, OverflowStrategy.fail).mapMaterializedValue({ ref =>
+    val out = Source.actorRef[OutgoingBinaryMessage](500, OverflowStrategy.fail).mapMaterializedValue({ ref =>
       connection ! WebSocketOpened(ref)
     })
 

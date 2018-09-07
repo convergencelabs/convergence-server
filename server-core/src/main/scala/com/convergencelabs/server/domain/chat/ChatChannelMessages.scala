@@ -79,16 +79,16 @@ object ChatChannelMessages {
 
   // Outgoing Broadcast Messages 
   sealed trait ChatChannelBroadcastMessage
-  case class UserJoinedChannel(channelId: String, eventNumber: Long, timestamp: Instant, username: String) extends ChatChannelBroadcastMessage
-  case class UserLeftChannel(channelId: String, eventNumber: Long, timestamp: Instant, username: String) extends ChatChannelBroadcastMessage
-  case class UserAddedToChannel(channelId: String, eventNumber: Long, timestamp: Instant, username: String, addedBy: String) extends ChatChannelBroadcastMessage
-  case class UserRemovedFromChannel(channelId: String, eventNumber: Long, timestamp: Instant, username: String, removedBy: String) extends ChatChannelBroadcastMessage
-  case class ChannelNameChanged(channelId: String, eventNumber: Long, timestamp: Instant, name: String, setBy: String) extends ChatChannelBroadcastMessage
-  case class ChannelTopicChanged(channelId: String, eventNumber: Long, timestamp: Instant, topic: String, setBy: String) extends ChatChannelBroadcastMessage
+  case class UserJoinedChannel(channelId: String, eventNumber: Int, timestamp: Instant, username: String) extends ChatChannelBroadcastMessage
+  case class UserLeftChannel(channelId: String, eventNumber: Int, timestamp: Instant, username: String) extends ChatChannelBroadcastMessage
+  case class UserAddedToChannel(channelId: String, eventNumber: Int, timestamp: Instant, username: String, addedBy: String) extends ChatChannelBroadcastMessage
+  case class UserRemovedFromChannel(channelId: String, eventNumber: Int, timestamp: Instant, username: String, removedBy: String) extends ChatChannelBroadcastMessage
+  case class ChannelNameChanged(channelId: String, eventNumber: Int, timestamp: Instant, name: String, setBy: String) extends ChatChannelBroadcastMessage
+  case class ChannelTopicChanged(channelId: String, eventNumber: Int, timestamp: Instant, topic: String, setBy: String) extends ChatChannelBroadcastMessage
 
   case class ChannelRemoved(channelId: String) extends ChatChannelBroadcastMessage
 
-  case class RemoteChatMessage(channelId: String, eventNumber: Long, timestamp: Instant, sk: SessionKey, message: String) extends ChatChannelBroadcastMessage
+  case class RemoteChatMessage(channelId: String, eventNumber: Int, timestamp: Instant, sk: SessionKey, message: String) extends ChatChannelBroadcastMessage
 
   // Exceptions
   sealed abstract class ChatChannelException(message: String) extends Exception(message)

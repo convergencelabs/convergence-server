@@ -535,7 +535,7 @@ class RealTimeModelManager(
               broadcastOperation(session, outgoinOperation, request.seqNo)
               this.metaData = this.metaData.copy(
                 version = outgoinOperation.contextVersion + 1,
-                modifiedTime = Instant.ofEpochMilli(outgoinOperation.timestamp))
+                modifiedTime = outgoinOperation.timestamp)
 
               if (snapshotRequired()) {
                 executeSnapshot()
@@ -575,8 +575,8 @@ class RealTimeModelManager(
         OutgoingOperation(
           modelId,
           sk,
-          processedOpEvent.contextVersion,
-          timestamp.toEpochMilli(),
+          processedOpEvent.contextVersion.toInt, // TODO: Update Int to Long or the other way
+          timestamp,
           processedOpEvent.operation)
     }
   }
@@ -588,7 +588,7 @@ class RealTimeModelManager(
   private[this] def broadcastOperation(sk: SessionKey, outgoingOperation: OutgoingOperation, originSeqNo: Long): Unit = {
     // Ack the sender
     connectedClients(sk) ! OperationAcknowledgement(
-      modelId, originSeqNo, outgoingOperation.contextVersion, outgoingOperation.timestamp)
+      modelId, originSeqNo.toInt, outgoingOperation.contextVersion, outgoingOperation.timestamp)
 
     broacastToAllOthers(outgoingOperation, sk)
   }
@@ -598,7 +598,7 @@ class RealTimeModelManager(
   //
   def onReferenceEvent(request: ModelReferenceEvent, clientActor: ActorRef): Unit = {
     val sk = this.clientToSessionId(clientActor)
-    this.model.processReferenceEvent(request, sk.serialize()) match {
+    this.model.processReferenceEvent(request, sk) match {
       case Success(Some(event)) =>
         broacastToAllOthers(event, sk)
       case Success(None) =>

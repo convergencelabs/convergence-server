@@ -23,6 +23,22 @@ import com.convergencelabs.server.domain.PresenceServiceActor.UnsubscribePresenc
 import com.convergencelabs.server.domain.PresenceServiceActor.UserConnected
 import com.convergencelabs.server.domain.PresenceServiceActor.UserPresenceAvailability
 import com.convergencelabs.server.domain.PresenceServiceActor.UserPresenceClearState
+import convergence.protocol.Presence
+import convergence.protocol.Incoming
+import convergence.protocol.Request
+import convergence.protocol.presence.PresenceStateSetMessage
+import convergence.protocol.presence.PresenceStateRemovedMessage
+import convergence.protocol.presence.PresenceStateClearedMessage
+import convergence.protocol.presence.PresenceAvailabilityChangedMessage
+import convergence.protocol.presence.PresenceSetStateMessage
+import convergence.protocol.presence.PresenceRemoveStateMessage
+import convergence.protocol.presence.PresenceClearStateMessage
+import convergence.protocol.presence.UnsubscribePresenceMessage
+import convergence.protocol.presence.PresenceRequestMessage
+import convergence.protocol.presence.SubscribePresenceRequestMessage
+import convergence.protocol.presence.PresenceResponseMessage
+import convergence.protocol.presence.SubscribePresenceResponseMessage
+import com.convergencelabs.server.frontend.realtime.ImplicitMessageConversions._
 
 object PresenceClientActor {
   def props(presenceServiceActor: ActorRef, sk: SessionKey): Props =
@@ -38,10 +54,10 @@ class PresenceClientActor(presenceServiceActor: ActorRef, sk: SessionKey) extend
   presenceServiceActor ! UserConnected(sk.uid, self)
 
   def receive: Receive = {
-    case MessageReceived(message) if message.isInstanceOf[IncomingPresenceNormalMessage] =>
-      onMessageReceived(message.asInstanceOf[IncomingPresenceNormalMessage])
-    case RequestReceived(message, replyPromise) if message.isInstanceOf[IncomingPresenceRequestMessage] =>
-      onRequestReceived(message.asInstanceOf[IncomingPresenceRequestMessage], replyPromise)
+    case MessageReceived(message) if message.isInstanceOf[Incoming with Presence] =>
+      onMessageReceived(message.asInstanceOf[Incoming with Presence])
+    case RequestReceived(message, replyPromise) if message.isInstanceOf[Request with Presence] =>
+      onRequestReceived(message.asInstanceOf[Request with Presence], replyPromise)
 
     // TODO: Add available messages
     case UserPresenceSetState(username, state) =>
@@ -60,7 +76,7 @@ class PresenceClientActor(presenceServiceActor: ActorRef, sk: SessionKey) extend
   // Incoming Messages
   //
 
-  def onMessageReceived(message: IncomingPresenceNormalMessage): Unit = {
+  def onMessageReceived(message: Incoming with Presence): Unit = {
     message match {
       case setState: PresenceSetStateMessage => onPresenceStateSet(setState)
       case removeState: PresenceRemoveStateMessage => onPresenceStateRemoved(removeState)
@@ -76,7 +92,7 @@ class PresenceClientActor(presenceServiceActor: ActorRef, sk: SessionKey) extend
 
   def onPresenceStateRemoved(message: PresenceRemoveStateMessage): Unit = {
     val PresenceRemoveStateMessage(keys) = message
-    this.presenceServiceActor ! UserPresenceRemoveState(sk.uid, keys)
+    this.presenceServiceActor ! UserPresenceRemoveState(sk.uid, keys.toList)
   }
 
   def onPresenceStateCleared(): Unit = {
@@ -88,7 +104,7 @@ class PresenceClientActor(presenceServiceActor: ActorRef, sk: SessionKey) extend
     this.presenceServiceActor ! UnsubscribePresence(subUsername, self)
   }
 
-  def onRequestReceived(message: IncomingPresenceRequestMessage, replyCallback: ReplyCallback): Unit = {
+  def onRequestReceived(message: Request with Presence, replyCallback: ReplyCallback): Unit = {
     message match {
       case presenceReq: PresenceRequestMessage => onPresenceRequest(presenceReq, replyCallback)
       case subscribeReq: SubscribePresenceRequestMessage => onSubscribeRequest(subscribeReq, replyCallback)
@@ -97,11 +113,11 @@ class PresenceClientActor(presenceServiceActor: ActorRef, sk: SessionKey) extend
 
   def onPresenceRequest(request: PresenceRequestMessage, cb: ReplyCallback): Unit = {
     val PresenceRequestMessage(usernames) = request
-    val future = this.presenceServiceActor ? PresenceRequest(usernames)
+    val future = this.presenceServiceActor ? PresenceRequest(usernames.toList)
 
     future.mapResponse[List[UserPresence]] onComplete {
       case Success(userPresences) =>
-        cb.reply(PresenceResponseMessage(userPresences))
+        cb.reply(PresenceResponseMessage(userPresences.toSeq.map(userPresenceToMessage(_))))
       case Failure(cause) =>
         cb.unexpectedError("Could not retrieve presence")
     }
@@ -109,11 +125,11 @@ class PresenceClientActor(presenceServiceActor: ActorRef, sk: SessionKey) extend
 
   def onSubscribeRequest(request: SubscribePresenceRequestMessage, cb: ReplyCallback): Unit = {
     val SubscribePresenceRequestMessage(usernames) = request
-    val future = this.presenceServiceActor ? SubscribePresence(usernames, self)
+    val future = this.presenceServiceActor ? SubscribePresence(usernames.toList, self)
 
     future.mapResponse[List[UserPresence]] onComplete {
       case Success(userPresences) =>
-        cb.reply(SubscribePresenceResponseMessage(userPresences))
+        cb.reply(SubscribePresenceResponseMessage(userPresences.toSeq.map(userPresenceToMessage(_))))
       case Failure(cause) =>
         cb.unexpectedError("Could not subscribe to presence")
     }

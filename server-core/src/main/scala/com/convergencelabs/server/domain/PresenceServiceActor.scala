@@ -18,11 +18,11 @@ object PresenceServiceActor {
     new PresenceServiceActor(domainFqn))
 
   case class PresenceRequest(usernames: List[String])
-  case class UserPresence(username: String, available: Boolean, state: Map[String, Any], clients: Set[ActorRef])
+  case class UserPresence(username: String, available: Boolean, state: Map[String, String], clients: Set[ActorRef])
 
   case class UserConnected(username: String, client: ActorRef)
   
-  case class UserPresenceSetState(username: String, state: Map[String, Any])
+  case class UserPresenceSetState(username: String, state: Map[String, String])
   case class UserPresenceRemoveState(username: String, keys: List[String])
   case class UserPresenceClearState(username: String)
   case class UserPresenceAvailability(username: String, available: Boolean)
@@ -99,7 +99,7 @@ class PresenceServiceActor private[domain] (domainFqn: DomainFqn) extends Actor 
     }
   }
 
-  private[this] def setState(username: String, state: Map[String, Any]): Unit = {
+  private[this] def setState(username: String, state: Map[String, String]): Unit = {
     this.presences.get(username) match {
       case Some(presence) =>
         state foreach { case (k, v) =>

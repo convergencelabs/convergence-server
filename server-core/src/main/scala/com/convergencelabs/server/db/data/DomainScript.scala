@@ -52,7 +52,7 @@ case class CreateCollection(id: String, name: String, overrideSnapshotConfig: Bo
 case class CreateModel(
   id: String,
   collection: String,
-  version: Long,
+  version: Int,
   created: Instant,
   modified: Instant,
   data: CreateObjectValue,

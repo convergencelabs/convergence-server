@@ -57,10 +57,10 @@ abstract class RealTimeValue(
     this.referenceManager.sessionDisconnected(sessionId)
   }
 
-  def processReferenceEvent(event: ModelReferenceEvent, sessionId: String): Try[Unit] = Try {
+  def processReferenceEvent(event: ModelReferenceEvent, sessionKey: SessionKey): Try[Unit] = Try {
     if (this.validReferenceTypes.isEmpty) {
       throw new IllegalArgumentException("This value does not allow references")
     }
-    this.referenceManager.handleReferenceEvent(event, sessionId)
+    this.referenceManager.handleReferenceEvent(event, sessionKey.toString())
   }
 }

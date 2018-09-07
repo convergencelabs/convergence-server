@@ -173,7 +173,7 @@ class RealTimeModel(
   }
 
   // fixme: refactor this
-  def processReferenceEvent(event: ModelReferenceEvent, sk: String): Try[Option[RemoteReferenceEvent]] = Try {
+  def processReferenceEvent(event: ModelReferenceEvent, sk: SessionKey): Try[Option[RemoteReferenceEvent]] = Try {
     event.id match {
       case Some(id) =>
         idToValue.get(id) match {
@@ -186,7 +186,7 @@ class RealTimeModel(
                 (values, contextVersion) match {
                   case (Some(values), Some(contextVersion)) =>
                     val refVal: ReferenceValue = ReferenceValue(id, key, refType, values, contextVersion)
-                    this.cc.processRemoteReferenceSet(sk, refVal) match {
+                    this.cc.processRemoteReferenceSet(sk.toString(), refVal) match {
                       case Some(xformed) =>
                         val setRef: SetReference = SetReference(domainFqn, this.modelId, xformed.id, xformed.key, xformed.referenceType, xformed.values, xformed.contextVersion)
                         realTimeValue.processReferenceEvent(setRef, sk)
@@ -205,7 +205,7 @@ class RealTimeModel(
               case set: SetReference =>
                 //TODO: Added ReferenceValue to move ot packages into separate project and need to evaluate usage here
                 val refVal: ReferenceValue = ReferenceValue(set.id, set.key, set.referenceType, set.values, set.contextVersion)
-                this.cc.processRemoteReferenceSet(sk, refVal) match {
+                this.cc.processRemoteReferenceSet(sk.toString(), refVal) match {
                   case Some(xformed) =>
                     val setRef: SetReference = SetReference(domainFqn, modelId, xformed.id, xformed.key, xformed.referenceType, xformed.values, xformed.contextVersion)
                     realTimeValue.processReferenceEvent(setRef, sk)
@@ -228,30 +228,30 @@ class RealTimeModel(
         // This handles element references which have no id.
         event match {
           case publish: PublishReference =>
-            elementReferenceManager.handleReferenceEvent(publish, sk)
+            elementReferenceManager.handleReferenceEvent(publish, sk.toString())
             val PublishReference(_, _, id, key, refType, values, contextVersion) = publish
             (values, contextVersion) match {
               case (Some(values), Some(contextVersion)) =>
                 val xformedValue = values.asInstanceOf[List[String]] filter { idToValue.contains(_) }
                 val xformedSet = SetReference(domainFqn, modelId, id, key, refType, xformedValue, contextVersion)
-                elementReferenceManager.handleReferenceEvent(xformedSet, sk)
+                elementReferenceManager.handleReferenceEvent(xformedSet, sk.toString())
                 Some(RemoteReferencePublished(modelId, sk, id, key, refType, Some(xformedValue)))
               case _ =>
                 Some(RemoteReferencePublished(modelId, sk, id, key, refType, None))
             }
 
           case unpublish: UnpublishReference =>
-            elementReferenceManager.handleReferenceEvent(unpublish, sk)
+            elementReferenceManager.handleReferenceEvent(unpublish, sk.toString())
             val UnpublishReference(_, _, id, key) = unpublish
             Some(RemoteReferenceUnpublished(modelId, sk, id, key))
           case set: SetReference =>
             val SetReference(d, m, id, key, refType, values, version) = set
             val xformedValue = values.asInstanceOf[List[String]] filter { idToValue.contains(_) }
             val xformedSet = SetReference(d, m, id, key, refType, xformedValue, version)
-            elementReferenceManager.handleReferenceEvent(xformedSet, sk)
+            elementReferenceManager.handleReferenceEvent(xformedSet, sk.toString())
             Some(RemoteReferenceSet(modelId, sk, id, key, refType, xformedValue))
           case cleared: ClearReference =>
-            elementReferenceManager.handleReferenceEvent(cleared, sk)
+            elementReferenceManager.handleReferenceEvent(cleared, sk.toString())
             val ClearReference(_, _, id, key) = cleared
             Some(RemoteReferenceCleared(modelId, sk, id, key))
         }

@@ -20,10 +20,10 @@ class ConnectionActor(clientActor: ActorRef) extends Actor with ActorLogging {
   var socketActor: Option[ActorRef] = None
 
   def receive: Receive = {
-    case incoming: IncomingTextMessage ⇒
+    case incoming: IncomingBinaryMessage ⇒
       clientActor ! incoming
 
-    case outgoing: OutgoingTextMessage =>
+    case outgoing: OutgoingBinaryMessage =>
       socketActor.get ! outgoing
 
     case WebSocketOpened(ref) =>

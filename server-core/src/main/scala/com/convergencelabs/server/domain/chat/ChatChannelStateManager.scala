@@ -7,6 +7,8 @@ import scala.util.Success
 import scala.util.Try
 
 import com.convergencelabs.server.datastore.EntityNotFoundException
+import com.convergencelabs.server.datastore.domain.ChatChannelEvent
+import com.convergencelabs.server.datastore.domain.ChatChannelInfo
 import com.convergencelabs.server.datastore.domain.ChatChannelStore
 import com.convergencelabs.server.datastore.domain.ChatMessageEvent
 import com.convergencelabs.server.datastore.domain.ChatNameChangedEvent
@@ -15,18 +17,15 @@ import com.convergencelabs.server.datastore.domain.ChatUserAddedEvent
 import com.convergencelabs.server.datastore.domain.ChatUserJoinedEvent
 import com.convergencelabs.server.datastore.domain.ChatUserLeftEvent
 import com.convergencelabs.server.datastore.domain.ChatUserRemovedEvent
-import com.convergencelabs.server.domain.chat.ChatChannelMessages.ChannelNotFoundException
-import com.convergencelabs.server.frontend.realtime.ChatChannelRemovedMessage
-import com.convergencelabs.server.datastore.domain.ChatChannelInfo
-import com.convergencelabs.server.domain.model.SessionKey
-import com.convergencelabs.server.datastore.domain.ChatChannelEvent
+import com.convergencelabs.server.datastore.domain.GroupPermission
 import com.convergencelabs.server.datastore.domain.PermissionsStore
+import com.convergencelabs.server.datastore.domain.UserPermission
+import com.convergencelabs.server.domain.UnauthorizedException
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.ChannelNotFoundException
+import com.convergencelabs.server.domain.chat.ChatChannelStateManager.AllChatChannelPermissions
 import com.convergencelabs.server.domain.chat.ChatChannelStateManager.ChatPermissions
 import com.convergencelabs.server.domain.chat.ChatChannelStateManager.DefaultChatPermissions
-import com.convergencelabs.server.domain.chat.ChatChannelStateManager.AllChatChannelPermissions
-import com.convergencelabs.server.domain.UnauthorizedException
-import com.convergencelabs.server.datastore.domain.UserPermission
-import com.convergencelabs.server.datastore.domain.GroupPermission
+import com.convergencelabs.server.domain.model.SessionKey
 
 object ChatChannelStateManager {
   def create(channelId: String, chatChannelStore: ChatChannelStore, permissionsStore: PermissionsStore): Try[ChatChannelStateManager] = {

@@ -27,6 +27,23 @@ import com.convergencelabs.server.domain.ActivityServiceActor.ActivityLeave
 import com.convergencelabs.server.domain.ActivityServiceActor.ActivityRemoteStateRemoved
 import com.convergencelabs.server.domain.ActivityServiceActor.ActivityRemoveState
 import com.convergencelabs.server.domain.ActivityServiceActor.ActivityJoinResponse
+import convergence.protocol.Incoming
+import convergence.protocol.Activity
+import convergence.protocol.Request
+import convergence.protocol.activity.ActivitySessionJoinedMessage
+import convergence.protocol.activity.ActivitySessionLeftMessage
+import convergence.protocol.activity.ActivityRemoteStateSetMessage
+import convergence.protocol.activity.ActivityRemoteStateRemovedMessage
+import convergence.protocol.activity.ActivityRemoteStateClearedMessage
+import convergence.protocol.activity.ActivityLeaveMessage
+import convergence.protocol.activity.ActivitySetStateMessage
+import convergence.protocol.activity.ActivityRemoveStateMessage
+import convergence.protocol.activity.ActivityClearStateMessage
+import convergence.protocol.activity.ActivityJoinMessage
+import convergence.protocol.activity.ActivityParticipantsRequestMessage
+import convergence.protocol.activity.ActivityParticipantsResponseMessage
+import convergence.protocol.activity.ActivityState
+import convergence.protocol.activity.ActivityJoinResponseMessage
 
 object ActivityClientActor {
   def props(activityServiceActor: ActorRef, sk: SessionKey): Props =
@@ -39,21 +56,26 @@ class ActivityClientActor(activityServiceActor: ActorRef, sk: SessionKey) extend
   implicit val ec = context.dispatcher
 
   def receive: Receive = {
-    case MessageReceived(message) if message.isInstanceOf[IncomingActivityNormalMessage] =>
-      onMessageReceived(message.asInstanceOf[IncomingActivityNormalMessage])
-    case RequestReceived(message, replyPromise) if message.isInstanceOf[IncomingActivityRequestMessage] =>
-      onRequestReceived(message.asInstanceOf[IncomingActivityRequestMessage], replyPromise)
+    case MessageReceived(message) if message.isInstanceOf[Incoming with Activity] =>
+      onMessageReceived(message.asInstanceOf[Incoming with Activity])
+    case RequestReceived(message, replyPromise) if message.isInstanceOf[Request with Activity] =>
+      onRequestReceived(message.asInstanceOf[Request with Activity], replyPromise)
 
-    case ActivitySessionJoined(activityId, sk, state) =>
-      context.parent ! ActivitySessionJoinedMessage(activityId, sk.serialize(), state)
-    case ActivitySessionLeft(activityId, sk) =>
-      context.parent ! ActivitySessionLeftMessage(activityId, sk.serialize())
-    case ActivityRemoteStateSet(activityId, sk, state) =>
-      context.parent ! ActivityRemoteStateSetMessage(activityId, sk.serialize(), state)
-    case ActivityRemoteStateRemoved(activityId, sk, keys) =>
-      context.parent ! ActivityRemoteStateRemovedMessage(activityId, sk.serialize(), keys)
-    case ActivityRemoteStateCleared(activityId, sk) =>
-      context.parent ! ActivityRemoteStateClearedMessage(activityId, sk.serialize())
+    case ActivitySessionJoined(activityId, SessionKey(uid, sid, admin), state) =>
+      context.parent ! ActivitySessionJoinedMessage(activityId, 
+          Some(convergence.protocol.authentication.SessionKey(uid, sid)), state)
+    case ActivitySessionLeft(activityId, SessionKey(uid, sid, admin)) =>
+      context.parent ! ActivitySessionLeftMessage(activityId, 
+          Some(convergence.protocol.authentication.SessionKey(uid, sid)))
+    case ActivityRemoteStateSet(activityId, SessionKey(uid, sid, admin), state) =>
+      context.parent ! ActivityRemoteStateSetMessage(activityId, 
+          Some(convergence.protocol.authentication.SessionKey(uid, sid)), state)
+    case ActivityRemoteStateRemoved(activityId, SessionKey(uid, sid, admin), keys) =>
+      context.parent ! ActivityRemoteStateRemovedMessage(activityId, 
+          Some(convergence.protocol.authentication.SessionKey(uid, sid)), keys)
+    case ActivityRemoteStateCleared(activityId, SessionKey(uid, sid, admin)) =>
+      context.parent ! ActivityRemoteStateClearedMessage(activityId, 
+          Some(convergence.protocol.authentication.SessionKey(uid, sid)))
 
     case x: Any => unhandled(x)
   }
@@ -62,7 +84,7 @@ class ActivityClientActor(activityServiceActor: ActorRef, sk: SessionKey) extend
   // Incoming Messages
   //
 
-  def onMessageReceived(message: IncomingActivityNormalMessage): Unit = {
+  def onMessageReceived(message: Incoming with Activity): Unit = {
     message match {
       case leave: ActivityLeaveMessage             => onActivityLeave(leave)
       case setState: ActivitySetStateMessage       => onActivityStateSet(setState)
@@ -78,7 +100,7 @@ class ActivityClientActor(activityServiceActor: ActorRef, sk: SessionKey) extend
 
   def onActivityStateRemoved(message: ActivityRemoveStateMessage): Unit = {
     val ActivityRemoveStateMessage(id, keys) = message
-    this.activityServiceActor ! ActivityRemoveState(id, sk, keys)
+    this.activityServiceActor ! ActivityRemoveState(id, sk, keys.toList)
   }
 
   def onActivityStateCleared(message: ActivityClearStateMessage): Unit = {
@@ -86,7 +108,7 @@ class ActivityClientActor(activityServiceActor: ActorRef, sk: SessionKey) extend
     this.activityServiceActor ! ActivityClearState(id, sk)
   }
 
-  def onRequestReceived(message: IncomingActivityRequestMessage, replyCallback: ReplyCallback): Unit = {
+  def onRequestReceived(message: Request with Activity, replyCallback: ReplyCallback): Unit = {
     message match {
       case join: ActivityJoinMessage                       => onActivityJoin(join, replyCallback)
       case participant: ActivityParticipantsRequestMessage => onParticipantsRequest(participant, replyCallback)
@@ -100,7 +122,7 @@ class ActivityClientActor(activityServiceActor: ActorRef, sk: SessionKey) extend
     future.mapResponse[ActivityParticipants] onComplete {
       case Success(ActivityParticipants(state)) =>
         cb.reply(ActivityParticipantsResponseMessage(state.map({
-          case (k, v) => (k.serialize() -> v)
+          case (k, v) => (k.serialize() -> ActivityState(v))
         })))
       case Failure(cause) =>
         cb.unexpectedError("could not get participants")
@@ -114,7 +136,7 @@ class ActivityClientActor(activityServiceActor: ActorRef, sk: SessionKey) extend
     future.mapResponse[ActivityJoinResponse] onComplete {
       case Success(ActivityJoinResponse(state)) =>
         cb.reply(ActivityJoinResponseMessage(state.map({
-          case (k, v) => (k.serialize() -> v)
+          case (k, v) => (k.serialize() -> ActivityState(v))
         })))
       case Failure(cause) =>
         cb.unexpectedError("could not join activity")

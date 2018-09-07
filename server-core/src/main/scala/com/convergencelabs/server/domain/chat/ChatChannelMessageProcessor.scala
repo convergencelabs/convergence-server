@@ -28,7 +28,6 @@ import com.convergencelabs.server.domain.chat.ChatChannelMessages.SetChannelName
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.SetChannelTopicRequest
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.UserAddedToChannel
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.UserJoinedChannel
-import com.convergencelabs.server.frontend.realtime.ChatChannelRemovedMessage
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.AddChatPermissionsRequest
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.RemoveChatPermissionsRequest
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.SetChatPermissionsRequest
@@ -45,6 +44,7 @@ import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetUserChatPer
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetGroupChatPermissionsRequest
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetGroupChatPermissionsResponse
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.UserLeftChannel
+import convergence.protocol.chat.ChatChannelRemovedMessage
 
 case class ChatMessageProcessingResult(response: Option[Any], broadcastMessages: List[Any])
 

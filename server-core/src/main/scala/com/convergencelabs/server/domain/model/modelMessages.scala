@@ -5,6 +5,7 @@ import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.model.ot.Operation
 import com.convergencelabs.server.datastore.domain.ModelPermissions
 import com.convergencelabs.server.domain.model.data.ObjectValue
+import java.time.Instant
 
 sealed trait ModelMessage {
   val domainFqn: DomainFqn
@@ -89,12 +90,12 @@ trait RealtimeModelClientMessage {
   val modelId: String
 }
 
-case class OperationAcknowledgement(modelId: String, seqNo: Long, contextVersion: Long, timestamp: Long) extends RealtimeModelClientMessage
+case class OperationAcknowledgement(modelId: String, seqNo: Int, contextVersion: Int, timestamp: Instant) extends RealtimeModelClientMessage
 case class OutgoingOperation(
   modelId: String,
   sessionKey: SessionKey,
-  contextVersion: Long,
-  timestamp: Long,
+  contextVersion: Int,
+  timestamp: Instant,
   operation: Operation) extends RealtimeModelClientMessage
 case class RemoteClientClosed(modelId: String, sk: SessionKey) extends RealtimeModelClientMessage
 case class RemoteClientOpened(modelId: String, sk: SessionKey) extends RealtimeModelClientMessage
@@ -104,9 +105,9 @@ case class ClientAutoCreateModelConfigRequest(modelId: String, autoConfigId: Int
 
 sealed trait RemoteReferenceEvent extends RealtimeModelClientMessage
 case class RemoteReferencePublished(
-  modelId: String, sessionId: String, id: Option[String], key: String,
+  modelId: String, session: SessionKey, id: Option[String], key: String,
   referenceType: ReferenceType.Value, values: Option[List[Any]]) extends RemoteReferenceEvent
-case class RemoteReferenceSet(modelId: String, sessionId: String, id: Option[String], key: String,
+case class RemoteReferenceSet(modelId: String, session: SessionKey, id: Option[String], key: String,
   referenceType: ReferenceType.Value, value: List[Any]) extends RemoteReferenceEvent
-case class RemoteReferenceCleared(modelId: String, sessionId: String, id: Option[String], key: String) extends RemoteReferenceEvent
-case class RemoteReferenceUnpublished(modelId: String, sessionId: String, id: Option[String], key: String) extends RemoteReferenceEvent
+case class RemoteReferenceCleared(modelId: String, session: SessionKey, id: Option[String], key: String) extends RemoteReferenceEvent
+case class RemoteReferenceUnpublished(modelId: String, session: SessionKey, id: Option[String], key: String) extends RemoteReferenceEvent

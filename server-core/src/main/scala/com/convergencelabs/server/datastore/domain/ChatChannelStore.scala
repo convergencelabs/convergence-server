@@ -49,18 +49,18 @@ case class ChatChannelInfo(
   name: String,
   topic: String,
   members: Set[String],
-  lastEventNo: Long,
+  lastEventNo: Int,
   lastEventTime: Instant)
 
 sealed trait ChatChannelEvent {
-  val eventNo: Long
+  val eventNo: Int
   val channel: String
   val user: String
   val timestamp: Instant
 }
 
 case class ChatCreatedEvent(
-  eventNo: Long,
+  eventNo: Int,
   channel: String,
   user: String,
   timestamp: Instant,
@@ -69,53 +69,53 @@ case class ChatCreatedEvent(
   members: Set[String]) extends ChatChannelEvent
 
 case class ChatMessageEvent(
-  eventNo: Long,
+  eventNo: Int,
   channel: String,
   user: String,
   timestamp: Instant,
   message: String) extends ChatChannelEvent
 
 case class ChatUserJoinedEvent(
-  eventNo: Long,
+  eventNo: Int,
   channel: String,
   user: String,
   timestamp: Instant) extends ChatChannelEvent
 
 case class ChatUserLeftEvent(
-  eventNo: Long,
+  eventNo: Int,
   channel: String,
   user: String,
   timestamp: Instant) extends ChatChannelEvent
 
 case class ChatUserAddedEvent(
-  eventNo: Long,
+  eventNo: Int,
   channel: String,
   user: String,
   timestamp: Instant,
   userAdded: String) extends ChatChannelEvent
 
 case class ChatUserRemovedEvent(
-  eventNo: Long,
+  eventNo: Int,
   channel: String,
   user: String,
   timestamp: Instant,
   userRemoved: String) extends ChatChannelEvent
 
 case class ChatNameChangedEvent(
-  eventNo: Long,
+  eventNo: Int,
   channel: String,
   user: String,
   timestamp: Instant,
   name: String) extends ChatChannelEvent
 
 case class ChatTopicChangedEvent(
-  eventNo: Long,
+  eventNo: Int,
   channel: String,
   user: String,
   timestamp: Instant,
   topic: String) extends ChatChannelEvent
 
-case class ChatChannelMember(channel: String, user: String, seen: Long)
+case class ChatChannelMember(channel: String, user: String, seen: Int)
 
 object ChatChannelStore {
 
@@ -207,7 +207,7 @@ object ChatChannelStore {
   }
 
   def docToChatChannelEvent(doc: ODocument): ChatChannelEvent = {
-    val eventNo: Long = doc.field(Fields.EventNo)
+    val eventNo: Int = doc.field(Fields.EventNo)
     val channel: String = doc.field("channel.id")
     val user: String = doc.field("user.username")
     val timestamp: Date = doc.field(Fields.Timestamp, OType.DATETIME)
@@ -281,7 +281,7 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
         val topic: String = doc.field("topic")
         val members: JavaSet[ODocument] = doc.field("members")
         val usernames: Set[String] = members.asScala.map(member => member.field("user.username").asInstanceOf[String]).toSet
-        val lastEventNo: Long = doc.field("eventNo")
+        val lastEventNo: Int = doc.field("eventNo")
         val lastEventTime: Date = doc.field("timestamp")
         ChatChannelInfo(id, channelType, created.toInstant(), isPrivate, name, topic,
           usernames, lastEventNo, lastEventTime.toInstant())

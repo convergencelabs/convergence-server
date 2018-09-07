@@ -37,6 +37,29 @@ import com.convergencelabs.server.domain.AuthenticationRequest
 import com.convergencelabs.server.domain.HandshakeFailureException
 import com.convergencelabs.server.domain.DomainActorSharding
 import com.convergencelabs.server.domain.ReconnectTokenAuthRequest
+import convergence.protocol.Outgoing
+import convergence.protocol.Request
+import convergence.protocol.connection.HandshakeRequestMessage
+import scalapb.GeneratedMessage
+import convergence.protocol.Authentication
+import convergence.protocol.authentication.PasswordAuthRequestMessage
+import convergence.protocol.authentication.TokenAuthRequestMessage
+import convergence.protocol.authentication.ReconnectTokenAuthRequestMessage
+import convergence.protocol.authentication.AnonymousAuthRequestMessage
+import convergence.protocol.authentication.AuthenticationResponseMessage
+import convergence.protocol.connection.HandshakeResponseMessage.ErrorData
+import convergence.protocol.connection.HandshakeResponseMessage
+import convergence.protocol.Response
+import convergence.protocol.connection.ErrorMessage
+import convergence.protocol.Model
+import convergence.protocol.Incoming
+import convergence.protocol.Activity
+import convergence.protocol.Presence
+import convergence.protocol.Chat
+import convergence.protocol.Identity
+import convergence.protocol.Historical
+import convergence.protocol.Permissions
+import convergence.protocol.connection.HandshakeResponseMessage.ProtocolConfigData
 
 object ClientActor {
   def props(
@@ -118,7 +141,7 @@ class ClientActor(
   }
 
   private[this] def receiveIncomingTextMessage: Receive = {
-    case IncomingTextMessage(message) =>
+    case IncomingBinaryMessage(message) =>
       this.protocolConnection.onIncomingMessage(message) match {
         case Success(Some(event)) =>
           messageHandler(event)
@@ -130,8 +153,8 @@ class ClientActor(
   }
 
   private[this] def receiveOutgoing: Receive = {
-    case message: OutgoingProtocolNormalMessage => onOutgoingMessage(message)
-    case message: OutgoingProtocolRequestMessage => onOutgoingRequest(message)
+    case message: Outgoing => onOutgoingMessage(message)
+    case message: Request => onOutgoingRequest(message)
   }
 
   private[this] def receiveCommon: Receive = {
@@ -176,21 +199,21 @@ class ClientActor(
   }
 
   private[this] def handleAuthentationMessage: MessageHandler = {
-    case RequestReceived(message, replyCallback) if message.isInstanceOf[AuthenticationRequestMessage] => {
-      authenticate(message.asInstanceOf[AuthenticationRequestMessage], replyCallback)
+    case RequestReceived(message, replyCallback) if message.isInstanceOf[GeneratedMessage with Request with Authentication] => {
+      authenticate(message.asInstanceOf[GeneratedMessage with Request with Authentication], replyCallback)
     }
     case x: Any => invalidMessage(x)
   }
 
   private[this] def handleMessagesWhenAuthenticated: MessageHandler = {
     case RequestReceived(message, replyPromise) if message.isInstanceOf[HandshakeRequestMessage] => invalidMessage(message)
-    case RequestReceived(message, replyPromise) if message.isInstanceOf[AuthenticationRequestMessage] => invalidMessage(message)
+    case RequestReceived(message, replyPromise) if message.isInstanceOf[GeneratedMessage with Request with Authentication] => invalidMessage(message)
 
     case message: MessageReceived => onMessageReceived(message)
     case message: RequestReceived => onRequestReceived(message)
   }
 
-  private[this] def authenticate(requestMessage: AuthenticationRequestMessage, cb: ReplyCallback): Unit = {
+  private[this] def authenticate(requestMessage: GeneratedMessage with Request with Authentication, cb: ReplyCallback): Unit = {
     val authCredentials = requestMessage match {
       case PasswordAuthRequestMessage(username, password) =>
         PasswordAuthRequest(username, password)
@@ -219,12 +242,12 @@ class ClientActor(
       case Success(AuthenticationSuccess(username, sk, reconnectToken)) =>
         getPresenceAfterAuth(username, sk, reconnectToken, cb)
       case Success(AuthenticationFailure) =>
-        cb.reply(AuthenticationResponseMessage(false, None, None, None, None))
+        cb.reply(AuthenticationResponseMessage(false, None, None, None, Map()))
       case Success(AuthenticationError) =>
-        cb.reply(AuthenticationResponseMessage(false, None, None, None, None)) // TODO do we want this to go back to the client as something else?
+        cb.reply(AuthenticationResponseMessage(false, None, None, None, Map())) // TODO do we want this to go back to the client as something else?
       case Failure(cause) =>
         log.error(cause, "Error authenticating user")
-        cb.reply(AuthenticationResponseMessage(false, None, None, None, None))
+        cb.reply(AuthenticationResponseMessage(false, None, None, None, Map()))
     }
   }
 
@@ -234,7 +257,7 @@ class ClientActor(
       case Success(first :: nil) =>
         self ! InternalAuthSuccess(username, sk, reconnectToken, first, cb)
       case _ =>
-        cb.reply(AuthenticationResponseMessage(false, None, None, None, None))
+        cb.reply(AuthenticationResponseMessage(false, None, None, None, Map()))
     }
 
   }
@@ -251,7 +274,7 @@ class ClientActor(
     this.historyClient = context.actorOf(HistoricModelClientActor.props(sk, domainFqn, modelStoreActor, operationStoreActor));
     this.messageHandler = handleMessagesWhenAuthenticated
 
-    cb.reply(AuthenticationResponseMessage(true, Some(username), Some(sk.serialize()), Some(reconnectToken), Some(presence.state)))
+    cb.reply(AuthenticationResponseMessage(true, Some(username), Some(convergence.protocol.authentication.SessionKey(sk.uid, sk.sid)), Some(reconnectToken), presence.state))
     context.become(receiveWhileAuthenticated)
   }
 
@@ -259,18 +282,18 @@ class ClientActor(
     log.debug("handhsaking with domain")
     val canceled = handshakeTimeoutTask.cancel()
     if (canceled) {
-      val future = domainRegion ? HandshakeRequest(domainFqn, self, request.r, request.k)
+      val future = domainRegion ? HandshakeRequest(domainFqn, self, request.reconnect, request.reconnectToken)
       future.mapResponse[HandshakeSuccess] onComplete {
         case Success(success) => {
           self ! InternalHandshakeSuccess(success, cb)
         }
         case Failure(HandshakeFailureException(code, details)) => {
-          cb.reply(HandshakeResponseMessage(false, Some(ErrorData(code, details)), Some(true), None))
+          cb.reply(HandshakeResponseMessage(false, Some(ErrorData(code, details)), Some(true)))
           this.connectionActor ! CloseConnection
           self ! PoisonPill
         }
         case Failure(cause) => {
-          cb.reply(HandshakeResponseMessage(false, Some(ErrorData("unknown", "uknown error")), Some(true), None))
+          cb.reply(HandshakeResponseMessage(false, Some(ErrorData("unknown", "uknown error")), Some(true)))
           this.connectionActor ! CloseConnection
           self ! PoisonPill
         }
@@ -291,19 +314,19 @@ class ClientActor(
     this.activityServiceActor = activityActor
     this.presenceServiceActor = presenceActor
     this.chatLookupActor = chatLookupActor
-    cb.reply(HandshakeResponseMessage(true, None, None, Some(ProtocolConfigData(true))))
+    cb.reply(HandshakeResponseMessage(true, None, None))
     this.messageHandler = handleAuthentationMessage
     context.become(receiveWhileAuthenticating)
   }
 
-  private[this] def onOutgoingMessage(message: OutgoingProtocolNormalMessage): Unit = {
+  private[this] def onOutgoingMessage(message: Outgoing): Unit = {
     protocolConnection.send(message)
   }
 
-  private[this] def onOutgoingRequest(message: OutgoingProtocolRequestMessage): Unit = {
+  private[this] def onOutgoingRequest(message: Request): Unit = {
     val askingActor = sender
     val f = protocolConnection.request(message)
-    f.mapTo[IncomingProtocolResponseMessage] onComplete {
+    f.mapTo[Response] onComplete {
       case Success(response) =>
         askingActor ! response
       case Failure(cause) =>
@@ -315,32 +338,33 @@ class ClientActor(
 
   private[this] def onMessageReceived(message: MessageReceived): Unit = {
     message match {
-      case MessageReceived(x: IncomingModelNormalMessage) => modelClient.forward(message)
-      case MessageReceived(x: IncomingActivityMessage) => activityClient.forward(message)
-      case MessageReceived(x: IncomingPresenceMessage) => presenceClient.forward(message)
-      case MessageReceived(x: IncomingChatMessage) => chatClient.forward(message)
+      case MessageReceived(x: Model) => modelClient.forward(message)
+      case MessageReceived(x: Activity) => activityClient.forward(message)
+      case MessageReceived(x: Presence) => presenceClient.forward(message)
+      case MessageReceived(x: Chat) => chatClient.forward(message)
     }
   }
 
   private[this] def onRequestReceived(message: RequestReceived): Unit = {
     message match {
-      case RequestReceived(x: IncomingModelRequestMessage, _) =>
+      case RequestReceived(x: Model, _) =>
         modelClient.forward(message)
-      case RequestReceived(x: IncomingIdentityMessage, _) =>
+      case RequestReceived(x: Identity, _) =>
         userClient.forward(message)
-      case RequestReceived(x: IncomingActivityMessage, _) =>
+      case RequestReceived(x: Activity, _) =>
         activityClient.forward(message)
-      case RequestReceived(x: IncomingPresenceMessage, _) =>
+      case RequestReceived(x: Presence, _) =>
         presenceClient.forward(message)
-      case RequestReceived(x: IncomingChatMessage, _) =>
+      case RequestReceived(x: Chat, _) =>
         chatClient.forward(message)
-      case RequestReceived(x: IncomingHistoricalModelRequestMessage, _) =>
+      case RequestReceived(x: Historical, _) =>
         historyClient.forward(message)
-      case RequestReceived(x: IncomingPermissionsMessage, _) =>
-        val idType: IdType.Value = IdType(x.p)
-        if (idType == IdType.Chat) {
+      case RequestReceived(x: Permissions, _) =>
+//        TODO: Determine better way to do this
+//        val idType: IdType.Value = IdType(x.p)
+//        if (idType == IdType.Chat) {
           chatClient.forward(message)
-        }
+//        }
     }
   }
 

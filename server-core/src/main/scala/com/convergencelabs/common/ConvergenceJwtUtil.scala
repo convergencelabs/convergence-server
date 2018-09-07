@@ -23,6 +23,8 @@ import ConvergenceJwtUtil.DefaultExpirationMinutes
 import ConvergenceJwtUtil.DefaultNotBeforeMinutes
 import com.convergencelabs.server.domain.JwtClaimConstants
 import com.convergencelabs.server.domain.JwtConstants
+import convergence.protocol.connection.PingMessage
+import convergence.protocol.message.MessageEnvelope
 
 object ConvergenceJwtUtil {
 
@@ -53,6 +55,11 @@ object ConvergenceJwtUtil {
     val privateKey = keyFactory.generatePrivate(privateKeySpec)
     new ConvergenceJwtUtil(keyId, privateKey)
   }
+  
+   def main(args: Array[String]): Unit = {
+     val message = PingMessage()
+     val envelope = MessageEnvelope().withPing(message);
+   }
 }
 
 class ConvergenceJwtUtil(

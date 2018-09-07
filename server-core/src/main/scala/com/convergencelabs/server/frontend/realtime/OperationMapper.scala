@@ -22,6 +22,24 @@ import org.json4s.JsonAST.JNumber
 import org.json4s.JsonAST.JValue
 import org.json4s.JsonAST.JDouble
 import com.convergencelabs.server.domain.model.ot.DateSetOperation
+import convergence.protocol.operations.ArrayReplaceOperationData
+import convergence.protocol.operations.ArraySetOperationData
+import convergence.protocol.operations.ObjectAddPropertyOperationData
+import convergence.protocol.operations.CompoundOperationData
+import convergence.protocol.operations.DateSetOperationData
+import convergence.protocol.operations.ArrayMoveOperationData
+import convergence.protocol.operations.ArrayRemoveOperationData
+import convergence.protocol.operations.ObjectSetPropertyOperationData
+import convergence.protocol.operations.ObjectSetOperationData
+import convergence.protocol.operations.StringInsertOperationData
+import convergence.protocol.operations.StringRemoveOperationData
+import convergence.protocol.operations.NumberSetOperationData
+import convergence.protocol.operations.BooleanSetOperationData
+import convergence.protocol.operations.ObjectRemovePropertyOperationData
+import convergence.protocol.operations.NumberAddOperationData
+import convergence.protocol.operations.ArrayInsertOperationData
+import convergence.protocol.operations.StringSetOperationData
+import convergence.protocol.operations.DiscreteOperationData
 
 private[realtime] object OperationMapper {
 

@@ -5,10 +5,8 @@ import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 
-import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 import com.convergencelabs.server.datastore.domain.ModelOperationStoreActor
 import com.convergencelabs.server.datastore.domain.ModelOperationStoreActor.GetOperations
-import com.convergencelabs.server.datastore.domain.ModelStoreActor
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.model.GetRealtimeModel
 import com.convergencelabs.server.domain.model.Model
@@ -22,6 +20,13 @@ import akka.actor.ActorLogging
 import akka.actor.ActorRef
 import akka.actor.Props
 import akka.util.Timeout
+import convergence.protocol.Historical
+import convergence.protocol.Request
+import convergence.protocol.model.HistoricalDataRequestMessage
+import convergence.protocol.model.HistoricalOperationRequestMessage
+import convergence.protocol.model.HistoricalOperationsResponseMessage
+import convergence.protocol.model.HistoricalDataResponseMessage
+import com.convergencelabs.server.frontend.realtime.ImplicitMessageConversions._
 
 object HistoricModelClientActor {
   def props(
@@ -47,12 +52,12 @@ class HistoricModelClientActor(
   private[this] val modelClusterRegion: ActorRef = RealtimeModelSharding.shardRegion(this.context.system)
 
   def receive: Receive = {
-    case RequestReceived(message, replyPromise) if message.isInstanceOf[IncomingHistoricalModelRequestMessage] =>
-      onRequestReceived(message.asInstanceOf[IncomingHistoricalModelRequestMessage], replyPromise)
+    case RequestReceived(message, replyPromise) if message.isInstanceOf[Request with Historical] =>
+      onRequestReceived(message.asInstanceOf[Request with Historical], replyPromise)
     case x: Any => unhandled(x)
   }
 
-  private[this] def onRequestReceived(message: IncomingHistoricalModelRequestMessage, replyCallback: ReplyCallback): Unit = {
+  private[this] def onRequestReceived(message: Request with Historical, replyCallback: ReplyCallback): Unit = {
     message match {
       case dataRequest: HistoricalDataRequestMessage => onDataRequest(dataRequest, replyCallback)
       case operationRequest: HistoricalOperationRequestMessage => onOperationRequest(operationRequest, replyCallback)
@@ -60,15 +65,15 @@ class HistoricModelClientActor(
   }
 
   private[this] def onDataRequest(request: HistoricalDataRequestMessage, cb: ReplyCallback): Unit = {
-    (modelClusterRegion ? GetRealtimeModel(domainFqn, request.m, None)).mapResponse[Option[Model]] onComplete {
+    (modelClusterRegion ? GetRealtimeModel(domainFqn, request.modelId, None)).mapResponse[Option[Model]] onComplete {
       case (Success(Some(model))) => {
         cb.reply(
           HistoricalDataResponseMessage(
             model.metaData.collectionId,
-            model.data,
+            Some(model.data),
             model.metaData.version,
-            model.metaData.createdTime.toEpochMilli,
-            model.metaData.modifiedTime.toEpochMilli))
+            Some(model.metaData.createdTime),
+            Some(model.metaData.modifiedTime)))
       }
       case Success(None) => {
         cb.expectedError("model_not_found", "The model does not exist")

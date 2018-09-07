@@ -60,7 +60,7 @@ private[domain] class ActivityActor(private[this] val activityId: String)
     this.joinedSessions.contains(sk)
   }
 
-  private[this] def join(sk: SessionKey, state: Map[String, Any], client: ActorRef): Unit = {
+  private[this] def join(sk: SessionKey, state: Map[String, String], client: ActorRef): Unit = {
     this.joinedSessions.get(sk) match {
       case Some(x) =>
         throw new IllegalStateException("Session already joined")
@@ -104,10 +104,10 @@ private[domain] class ActivityActor(private[this] val activityId: String)
     this.context.unwatch(leaver)
   }
 
-  private[this] def setState(sk: SessionKey, state: Map[String, Any]): Unit = {
+  private[this] def setState(sk: SessionKey, state: Map[String, String]): Unit = {
     if (isJoined(sk)) {
       state.foreach {
-        case (key: String, value: Any) =>
+        case (key: String, value: String) =>
           stateMap.setState(sk, key, value)
       }
 
@@ -146,9 +146,9 @@ private[domain] class ActivityActor(private[this] val activityId: String)
 }
 
 class ActivityStateMap {
-  private[this] var state = Map[SessionKey, Map[String, Any]]()
+  private[this] var state = Map[SessionKey, Map[String, String]]()
 
-  def setState(sk: SessionKey, key: String, value: Any): Unit = {
+  def setState(sk: SessionKey, key: String, value: String): Unit = {
     val sessionState = state(sk)
     state += (sk -> (sessionState + (key -> value)))
   }
@@ -158,12 +158,12 @@ class ActivityStateMap {
     state += (sk -> (sessionState - key))
   }
 
-  def getState(): Map[SessionKey, Map[String, Any]] = {
+  def getState(): Map[SessionKey, Map[String, String]] = {
     state
   }
 
   def join(sk: SessionKey): Unit = {
-    state += (sk -> Map[String, Any]())
+    state += (sk -> Map[String, String]())
   }
 
   def leave(sk: SessionKey): Unit = {
