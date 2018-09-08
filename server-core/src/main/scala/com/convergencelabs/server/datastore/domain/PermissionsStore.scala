@@ -102,13 +102,13 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
       // There are three conditions that must be matched in order to find permissions
       // that allow this action to happen:
       //   1. We must match the permission exactly
-      //   2. We must match permissions with this specific forRecord and permissions 
+      //   2. We must match permissions with this specific forRecord and permissions
       //      that don't have a forRecord defined, since those are global permissions
       //      that apply to all records that permission applies to.
       //   3. We much permissions that don't have an assignedTo field since those are
       //      world permissions. If there is an assignedTo value then the assigned to
       //      value can be this users, or a group this user belongs to.
-      
+
       val query =
         """SELECT count(*) as count
         |  FROM Permission
@@ -121,18 +121,9 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
         |      (assignedTo.@class = 'UserGroup' AND assignedTo.members CONTAINS :user)
         |    )""".stripMargin
       val params = Map("user" -> userRID, "forRecord" -> forRecord, "permission" -> permission)
-      // FIXME use getDocument once the OrientDB bug is fixed for count returning no rows.
       OrientDBUtil
-        .findDocument(db, query, params)
-        .map {
-          _ match {
-            case Some(doc) =>
-              val count: Long = doc.getProperty("count")
-              count > 0
-            case None =>
-              false
-          }
-        }
+        .getDocument(db, query, params)
+        .map(doc => doc.getProperty("count").asInstanceOf[Long] > 0)
     }
   }
 

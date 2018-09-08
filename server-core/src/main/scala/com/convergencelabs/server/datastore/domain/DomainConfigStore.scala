@@ -46,10 +46,7 @@ class DomainConfigStore(dbProvider: DatabaseProvider)
   def isInitialized(): Try[Boolean] = withDb { db =>
     OrientDBUtil
       .getDocument(db, "SELECT count(*) AS count FROM DomainConfig")
-      .map { result =>
-        val count: Long = result.getProperty("count")
-        count == 1;
-      }
+      .map(_.getProperty("count").asInstanceOf[Long] == 1)
   }
 
   def isAnonymousAuthEnabled(): Try[Boolean] = withDb { db =>

@@ -98,18 +98,9 @@ class ModelStore private[domain] (
   def modelExists(id: String): Try[Boolean] = withDb { db =>
     val query = "SELECT count(*) as count FROM Model where id = :id"
     val params = Map("id" -> id)
-    // FIXME this should be using get document when this ODB bug is fixed
-    // https://github.com/orientechnologies/orientdb/issues/8328
     OrientDBUtil
-      .query(db, query, params)
-      .map { rs =>
-         if (rs.isEmpty) {
-           false
-         } else {
-           val doc = rs(0)
-           doc.getProperty("count").asInstanceOf[Long] > 0
-         }
-      }
+      .getDocument(db, query, params)
+      .map(_.getProperty("count").asInstanceOf[Long] > 0)
   }
 
   def createModel(
