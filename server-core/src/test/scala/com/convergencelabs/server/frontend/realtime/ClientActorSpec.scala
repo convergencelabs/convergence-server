@@ -85,7 +85,6 @@ class ClientActorSpec
     val modelStoreActor = new TestProbe(system)
     val operationStoreActor = new TestProbe(system)
     val userServiceActor = new TestProbe(system)
-    val activityServiceActor = new TestProbe(system)
     val presenceServiceActor = new TestProbe(system)
     val chatLookupActor = new TestProbe(system)
     val chatChannelActor = new TestProbe(system)
@@ -98,7 +97,7 @@ class ClientActorSpec
 
     domainManagerActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeRequest])
     domainManagerActor.reply(
-        HandshakeSuccess(domainActor.ref, modelManagerActor.ref, modelStoreActor.ref, operationStoreActor.ref, userServiceActor.ref, activityServiceActor.ref, presenceServiceActor.ref, chatLookupActor.ref))
+        HandshakeSuccess(domainActor.ref, modelManagerActor.ref, modelStoreActor.ref, operationStoreActor.ref, userServiceActor.ref, presenceServiceActor.ref, chatLookupActor.ref))
     Await.result(handshakeCallback.result, 250 millis)
   }
 

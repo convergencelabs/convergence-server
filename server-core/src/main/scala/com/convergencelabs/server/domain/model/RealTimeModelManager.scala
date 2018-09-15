@@ -192,7 +192,7 @@ class RealTimeModelManager(
         if (!exists) {
           // If there is an auto create id we can ask this client for data.  If there isn't an auto create
           // id, we can't ask them, but that is ok since we assume the previous client supplied the data
-          // else it would have bomed out.
+          // else it would have bombed out.
           request.autoCreateId.foreach((id) => requestAutoCreateConfigFromClient(request.sk, request.clientActor, id))
         }
         // Else no action required, the model must have been persistent, which means we are in the process of
@@ -351,13 +351,12 @@ class RealTimeModelManager(
           debug(s"A timeout occured waiting for the client to respond with model data: ${domainFqn}/${modelId}")
           workQueue.schedule {
             handleQueuedClientOpenFailureFailure(sk,
-              ClientDataRequestFailure("The client did not correctly respond with data, while initializing a new model."))
+              ClientDataRequestFailure("The client did not respond in time with model data, while initializing a new model."))
           }
         case e: Exception =>
           error(s"Uknnown exception processing model config data response: ${domainFqn}/${modelId}", e)
           workQueue.schedule {
-            handleQueuedClientOpenFailureFailure(sk,
-              UnknownErrorResponse(e.getMessage))
+            handleQueuedClientOpenFailureFailure(sk, UnknownErrorResponse(e.getMessage))
           }
       }
     }

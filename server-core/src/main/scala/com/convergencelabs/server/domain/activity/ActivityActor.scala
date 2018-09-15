@@ -1,47 +1,53 @@
-package com.convergencelabs.server.domain
+package com.convergencelabs.server.domain.activity
+
+import com.convergencelabs.server.actor.ShardedActor
+import com.convergencelabs.server.domain.model.SessionKey
 
 import akka.actor.ActorLogging
-import akka.actor.Actor
 import akka.actor.ActorRef
-import akka.actor.Props
-
-import com.convergencelabs.server.domain.model.SessionKey
-import com.convergencelabs.server.domain.ActivityServiceActor.ActivitySessionJoined
-import com.convergencelabs.server.domain.ActivityServiceActor.ActivitySessionLeft
-import com.convergencelabs.server.domain.ActivityServiceActor.ActivityRemoteStateSet
-import com.convergencelabs.server.domain.ActivityServiceActor.ActivityRemoteStateCleared
-import com.convergencelabs.server.domain.ActivityServiceActor.ActivitySetState
-import com.convergencelabs.server.domain.ActivityServiceActor.ActivityClearState
 import akka.actor.Status
 import akka.actor.Terminated
-import com.convergencelabs.server.domain.ActivityServiceActor.ActivityParticipantsRequest
-import com.convergencelabs.server.domain.ActivityServiceActor.ActivityParticipants
-import com.convergencelabs.server.domain.ActivityServiceActor.ActivityLeave
-import com.convergencelabs.server.domain.ActivityServiceActor.ActivityRemoveState
-import com.convergencelabs.server.domain.ActivityServiceActor.ActivityRemoteStateRemoved
-import com.convergencelabs.server.domain.ActivityServiceActor.ActivityJoinRequest
-import com.convergencelabs.server.domain.ActivityServiceActor.ActivityJoinResponse
+import com.convergencelabs.server.domain.DomainFqn
 
-object ActivityActor {
-  def props(activityId: String): Props = Props(
-    new ActivityActor(activityId))
-}
+class ActivityActor()
+  extends ShardedActor(classOf[IncomingActivityMessage])
+  with ActorLogging {
 
-private[domain] class ActivityActor(private[this] val activityId: String)
-  extends Actor with ActorLogging {
+  /**
+   * Will be initialized on the first message inside the initialize method.
+   */
+  private[this] var activityId: String = _
+  private[this] var domain: DomainFqn = _
 
   private[this] var joinedClients = Map[ActorRef, SessionKey]()
   private[this] var joinedSessions = Map[SessionKey, ActorRef]()
   private[this] var stateMap = new ActivityStateMap()
 
-  def receive: Receive = {
-    case ActivityParticipantsRequest(id) => participantsRequest()
-    case ActivityJoinRequest(id, sk, state, client) => join(sk, state, client)
-    case ActivityLeave(id, sk) => leave(sk)
-    case ActivitySetState(id, sk, state) => setState(sk, state)
-    case ActivityRemoveState(id, sk, keys) => removeState(sk, keys)
-    case ActivityClearState(id, sk) => clearState(sk)
-    case Terminated(actor) => handleClientDeath(actor)
+  override def initialize(message: IncomingActivityMessage): Unit = {
+    this.activityId = message.activityId
+    this.domain = message.domain
+    log.debug( s"${activityToString} initiaizlized")
+  }
+
+  override def receiveInitialized: Receive = {
+    case ActivityParticipantsRequest(domain, id) =>
+      participantsRequest()
+    case ActivityJoinRequest(domain, id, sk, state, client) =>
+      join(sk, state, client)
+    case ActivityLeave(domain, id, sk) =>
+      leave(sk)
+    case ActivitySetState(domain, id, sk, state) =>
+      setState(sk, state)
+    case ActivityRemoveState(domain, id, sk, keys) =>
+      removeState(sk, keys)
+    case ActivityClearState(domain, id, sk) =>
+      clearState(sk)
+    case Terminated(actor) =>
+      handleClientDeath(actor)
+  }
+  
+  override def postStop(): Unit = {
+    log.debug(s"${activityToString} stopped")
   }
 
   private[this] def isEmpty(): Boolean = {
@@ -63,7 +69,7 @@ private[domain] class ActivityActor(private[this] val activityId: String)
   private[this] def join(sk: SessionKey, state: Map[String, Any], client: ActorRef): Unit = {
     this.joinedSessions.get(sk) match {
       case Some(x) =>
-        throw new IllegalStateException("Session already joined")
+        this.sender ! Status.Failure(ActivityAlreadyJoinedException(this.activityId))
       case None =>
         this.joinedSessions += (sk -> client)
         this.joinedClients += (client -> sk)
@@ -85,10 +91,9 @@ private[domain] class ActivityActor(private[this] val activityId: String)
 
   private[this] def leave(sk: SessionKey): Unit = {
     if (!isJoined(sk)) {
-      throw throw new IllegalStateException("Session be joined to activity in order to leave.")
+      this.sender ! Status.Failure(ActivityNotJoinedException(this.activityId))
     } else {
       leaveHelper(sk)
-      //sender ! ActivityLeaveSuccess()
     }
   }
 
@@ -102,6 +107,10 @@ private[domain] class ActivityActor(private[this] val activityId: String)
     this.joinedClients -= leaver
 
     this.context.unwatch(leaver)
+
+    if (this.joinedSessions.isEmpty) {
+      this.passivate()
+    }
   }
 
   private[this] def setState(sk: SessionKey, state: Map[String, Any]): Unit = {
@@ -137,36 +146,13 @@ private[domain] class ActivityActor(private[this] val activityId: String)
   private[this] def handleClientDeath(actor: ActorRef): Unit = {
     this.joinedClients.get(actor) match {
       case Some(sk) =>
-        log.debug(s"Client with session ${sk.serialize()} was stopped.  Leaving activity.")
+        log.debug(s"Client with session ${sk.serialize()} was terminated.  Leaving activity.")
         this.leaveHelper(sk)
       case None =>
         log.warning("Deathwatch on a client was triggered for an actor that did not have thi activity open")
     }
   }
-}
-
-class ActivityStateMap {
-  private[this] var state = Map[SessionKey, Map[String, Any]]()
-
-  def setState(sk: SessionKey, key: String, value: Any): Unit = {
-    val sessionState = state(sk)
-    state += (sk -> (sessionState + (key -> value)))
-  }
-
-  def clearState(sk: SessionKey, key: String): Unit = {
-    val sessionState = state(sk)
-    state += (sk -> (sessionState - key))
-  }
-
-  def getState(): Map[SessionKey, Map[String, Any]] = {
-    state
-  }
-
-  def join(sk: SessionKey): Unit = {
-    state += (sk -> Map[String, Any]())
-  }
-
-  def leave(sk: SessionKey): Unit = {
-    state -= sk
-  }
+  
+  private[this] def activityToString() =
+    s"Activity(${domain.namespace}/${domain.domainId}/${this.activityId})"
 }

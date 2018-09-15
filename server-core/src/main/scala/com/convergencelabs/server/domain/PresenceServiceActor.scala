@@ -10,6 +10,10 @@ import akka.actor.Props
 import com.convergencelabs.server.util.SubscriptionMap
 import akka.actor.Terminated
 
+// FIXME This entire actor needs to be re-designed. This does not scale at all
+// we probably need to store presence state / data in the database so that
+// this can become stateless. Then we can use distributed pub-sub as mechanism
+// for persistence subscriptions.
 object PresenceServiceActor {
 
   val RelativePath = "presenceService"

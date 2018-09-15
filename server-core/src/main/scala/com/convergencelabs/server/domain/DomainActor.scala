@@ -40,7 +40,6 @@ object DomainActor {
     modelStoreActor: ActorRef,
     operationStoreActor: ActorRef,
     userServiceActor: ActorRef,
-    activityServiceActor: ActorRef,
     presenceServiceActor: ActorRef,
     chatChannelLookupActor: ActorRef)
 
@@ -186,7 +185,6 @@ class DomainActor(
         this.children.modelStoreActor,
         this.children.operationStoreActor,
         this.children.userServiceActor,
-        this.children.activityServiceActor,
         this.children.presenceServiceActor,
         this.children.chatChannelLookupActor)
     } recover {
@@ -234,10 +232,6 @@ class DomainActor(
         domainFqn),
         IdentityServiceActor.RelativePath)
 
-      val activityServiceActor = context.actorOf(ActivityServiceActor.props(
-        domainFqn),
-        ActivityServiceActor.RelativePath)
-
       val presenceServiceActor = context.actorOf(PresenceServiceActor.props(
         domainFqn),
         PresenceServiceActor.RelativePath)
@@ -255,7 +249,6 @@ class DomainActor(
         modelStoreActor,
         operationStoreActor,
         userServiceActor,
-        activityServiceActor,
         presenceServiceActor,
         chatChannelLookupActor))
       context.become(receiveInitialized)

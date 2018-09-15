@@ -37,6 +37,7 @@ import com.convergencelabs.server.domain.AuthenticationRequest
 import com.convergencelabs.server.domain.HandshakeFailureException
 import com.convergencelabs.server.domain.DomainActorSharding
 import com.convergencelabs.server.domain.ReconnectTokenAuthRequest
+import com.convergencelabs.server.domain.activity.ActivityActorSharding
 
 object ClientActor {
   def props(
@@ -91,7 +92,6 @@ class ClientActor(
   private[this] var modelStoreActor: ActorRef = _
   private[this] var operationStoreActor: ActorRef = _
   private[this] var userServiceActor: ActorRef = _
-  private[this] var activityServiceActor: ActorRef = _
   private[this] var presenceServiceActor: ActorRef = _
   private[this] var chatLookupActor: ActorRef = _
   private[this] var sessionId: String = _
@@ -246,7 +246,10 @@ class ClientActor(
     this.modelClient = context.actorOf(ModelClientActor.props(domainFqn, sk, modelQueryActor, requestTimeout))
     this.userClient = context.actorOf(IdentityClientActor.props(userServiceActor))
     this.chatClient = context.actorOf(ChatClientActor.props(domainFqn, chatLookupActor, sk, requestTimeout))
-    this.activityClient = context.actorOf(ActivityClientActor.props(activityServiceActor, sk))
+    this.activityClient = context.actorOf(ActivityClientActor.props(
+        ActivityActorSharding.shardRegion(this.context.system), 
+        domainFqn,
+        sk))
     this.presenceClient = context.actorOf(PresenceClientActor.props(presenceServiceActor, sk))
     this.historyClient = context.actorOf(HistoricModelClientActor.props(sk, domainFqn, modelStoreActor, operationStoreActor));
     this.messageHandler = handleMessagesWhenAuthenticated
@@ -281,14 +284,13 @@ class ClientActor(
   private[this] def handleHandshakeSuccess(success: InternalHandshakeSuccess): Unit = {
     // FIXME we don't need the domain actor
     val InternalHandshakeSuccess(HandshakeSuccess(
-      domainActor, modelQueryActor, modelStoreActor, operationStoreActor, userActor, activityActor, presenceActor, chatLookupActor),
+      domainActor, modelQueryActor, modelStoreActor, operationStoreActor, userActor, presenceActor, chatLookupActor),
       cb) = success
     this.domainActor = Some(domainActor)
     this.modelStoreActor = modelStoreActor
     this.operationStoreActor = operationStoreActor
     this.modelQueryActor = modelQueryActor
     this.userServiceActor = userActor
-    this.activityServiceActor = activityActor
     this.presenceServiceActor = presenceActor
     this.chatLookupActor = chatLookupActor
     cb.reply(HandshakeResponseMessage(true, None, None, Some(ProtocolConfigData(true))))

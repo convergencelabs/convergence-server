@@ -51,6 +51,7 @@ import akka.cluster.ClusterEvent.MemberUp
 import akka.cluster.ClusterEvent.UnreachableMember
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.db.ConnectedSingleDatabaseProvider
+import com.convergencelabs.server.domain.activity.ActivityActorSharding
 
 object ConvergenceServerNode extends Logging {
 
@@ -272,6 +273,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
       RealtimeModelSharding.startProxy(system, shards)
       ChatChannelSharding.startProxy(system, shards)
       RestDomainActorSharding.startProxy(system, shards)
+      ActivityActorSharding.startProxy(system, shards)
     }
 
     if (roles.contains(RestFrontend)) {

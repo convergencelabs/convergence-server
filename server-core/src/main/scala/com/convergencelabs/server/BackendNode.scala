@@ -35,9 +35,11 @@ import akka.actor.ActorSystem
 import akka.actor.Props
 import akka.cluster.sharding.ShardRegion
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.domain.activity.ActivityActorSharding
 
 class BackendNode(system: ActorSystem, convergenceDbProvider: DatabaseProvider) extends Logging {
 
+  private[this] var activityShardRegion: Option[ActorRef] = None
   private[this] var chatChannelRegion: Option[ActorRef] = None
   private[this] var domainReqion: Option[ActorRef] = None
   private[this] var realtimeModelRegion: Option[ActorRef] = None
@@ -55,6 +57,9 @@ class BackendNode(system: ActorSystem, convergenceDbProvider: DatabaseProvider) 
     val shardCount = 100
 
     // Realtime Stuff
+    activityShardRegion =
+      Some(ActivityActorSharding.start(system, shardCount))
+      
     chatChannelRegion =
       Some(ChatChannelSharding.start(system, shardCount, Props(classOf[ChatChannelActor])))
 
@@ -111,6 +116,7 @@ class BackendNode(system: ActorSystem, convergenceDbProvider: DatabaseProvider) 
 
   def stop(): Unit = {
     logger.info("Convergenc backend shutting down.")
+    activityShardRegion.foreach(_ ! ShardRegion.GracefulShutdown)
     chatChannelRegion.foreach(_ ! ShardRegion.GracefulShutdown)
     domainReqion.foreach(_ ! ShardRegion.GracefulShutdown)
     realtimeModelRegion.foreach(_ ! ShardRegion.GracefulShutdown)
