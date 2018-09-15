@@ -47,8 +47,8 @@ class WebSocketService(
     get {
       path("domain" / Segment / Segment) { (namespace, domain) =>
         extractClientIP { ip =>
-          headerValueByName("User-Agent") { ua =>
-            handleWebSocketMessages(realTimeDomainFlow(namespace, domain, ip, ua))
+          optionalHeaderValueByName("User-Agent") { ua =>
+            handleWebSocketMessages(realTimeDomainFlow(namespace, domain, ip, ua.getOrElse("")))
           }
         }
       }

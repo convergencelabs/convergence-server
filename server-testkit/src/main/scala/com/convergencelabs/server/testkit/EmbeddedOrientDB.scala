@@ -8,6 +8,7 @@ import com.orientechnologies.orient.server.config.OServerEntryConfiguration
 import grizzled.slf4j.Logging
 import com.orientechnologies.orient.core.db.OrientDB
 import com.orientechnologies.orient.core.db.OrientDBConfig
+import java.io.FileInputStream
 
 class EmbeddedOrientDB(dataPath: String, persistent: Boolean) extends Logging {
   val server = OServerMain.create(false)
@@ -24,9 +25,13 @@ class EmbeddedOrientDB(dataPath: String, persistent: Boolean) extends Logging {
     if (!odbTarget.exists()) {
       odbTarget.mkdirs()
     }
+    
+    //Set OrientDB home to current directory
+    val orientdbHome = new File("").getAbsolutePath(); 
+    System.setProperty("ORIENTDB_HOME", orientdbHome);
 
-    val configFile = getClass.getResourceAsStream("/orientdb-server-config.xml")
-    val serverCfg = new OServerConfigurationManager(configFile);
+    val configFile = new File("./src/orientdb/config/orientdb-server-config.xml")
+    val serverCfg = new OServerConfigurationManager(configFile)
     val config = serverCfg.getConfiguration()
     val properties = config.properties.toList filter { _.name != "server.database.path" }
     val withData = properties ++ List(new OServerEntryConfiguration("server.database.path", odbTarget.getAbsolutePath))

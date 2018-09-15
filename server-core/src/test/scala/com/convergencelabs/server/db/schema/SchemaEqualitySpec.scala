@@ -3,6 +3,10 @@ package com.convergencelabs.server.db.schema
 import org.scalatest.WordSpecLike
 import org.scalatest.Matchers
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.orientechnologies.orient.core.db.OrientDB
+import com.orientechnologies.orient.core.db.OrientDBConfig
+import com.orientechnologies.orient.core.db.ODatabaseType
+import com.orientechnologies.orient.core.db.ODatabaseSession
 
 class SchemaEqualitySpec
     extends WordSpecLike
@@ -96,25 +100,31 @@ class SchemaEqualitySpec
     }
   }
 
-  def withDatabases(testCode: (ODatabaseDocumentTx, ODatabaseDocumentTx) => Any): Unit = {
-    val uri1 = s"memory:${dbName}${dbCounter}"
+  def withDatabases(testCode: (ODatabaseSession, ODatabaseSession) => Any): Unit = {
+    val odb = new OrientDB("memory:", "admin", "admin", OrientDBConfig.defaultConfig())    
+    val dbName1 = s"${dbName}${dbCounter}"
     dbCounter += 1
-    val db1 = new ODatabaseDocumentTx(uri1)
-    db1.activateOnCurrentThread()
-    db1.create()
+    
+    odb.create(dbName1, ODatabaseType.MEMORY)
+    val db1 = odb.open(dbName1, "admin", "admin")
 
-    val uri2 = s"memory:${dbName}${dbCounter}"
+    val dbName2 = s"${dbName}${dbCounter}"
     dbCounter += 1
-    val db2 = new ODatabaseDocumentTx(uri2)
-    db2.activateOnCurrentThread()
-    db2.create()
+
+    odb.create(dbName2, ODatabaseType.MEMORY)
+    val db2 = odb.open(dbName2, "admin", "admin")
 
     testCode(db1, db2)
 
     db1.activateOnCurrentThread()
-    db1.drop()
-
+    db1.close()
+    
     db2.activateOnCurrentThread()
-    db2.drop()
+    db2.close()
+    
+    odb.drop(dbName1)
+    odb.drop(dbName2)
+    
+    odb.close()
   }
 }

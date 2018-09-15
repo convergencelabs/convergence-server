@@ -25,6 +25,9 @@ import DomainProvisioner.OrientDefaultReader
 import DomainProvisioner.OrientDefaultWriter
 import DomainProvisioner.StorageMode
 import grizzled.slf4j.Logging
+import com.orientechnologies.orient.core.metadata.security.ORule
+import com.orientechnologies.orient.core.metadata.sequence.OSequence
+import com.orientechnologies.orient.core.metadata.security.ORole
 
 object DomainProvisioner {
   val DefaultSnapshotConfig = ModelSnapshotConfig(
@@ -118,6 +121,11 @@ class DomainProvisioner(
       normalUser.setName(dbUsername)
       normalUser.setPassword(dbPassword)
       normalUser.save()
+      
+      // FIXME work around for this: https://github.com/orientechnologies/orientdb/issues/8535
+      val writer = db.getMetadata().getSecurity().getRole("writer");
+      writer.addRule(ORule.ResourceGeneric.CLASS, OSequence.CLASS_NAME, ORole.PERMISSION_READ + ORole.PERMISSION_UPDATE);
+      writer.save();
 
       logger.debug(s"Deleting 'reader' user credentials: ${dbBaseUri}/${db.getName}")
       // Delete the reader user since we do not need it.

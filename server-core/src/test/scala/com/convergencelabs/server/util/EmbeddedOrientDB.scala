@@ -9,7 +9,6 @@ import grizzled.slf4j.Logging
 
 class EmbeddedOrientDB(dataPath: String, persistent: Boolean) extends Logging {
   val server = OServerMain.create(false)
-  val admin = new OServerAdmin("remote:localhost")
 
   val odbTarget = new File(dataPath)
 
@@ -32,7 +31,6 @@ class EmbeddedOrientDB(dataPath: String, persistent: Boolean) extends Logging {
     server.startup(config)
     server.activate()
     
-    admin.connect("root", "password")
     logger.info(s"OrientDB started at path: ${server.getDatabaseDirectory}")
   }
 
