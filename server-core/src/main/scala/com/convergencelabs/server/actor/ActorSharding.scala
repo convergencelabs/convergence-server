@@ -16,14 +16,14 @@ abstract class ActorSharding(
     this.start(system, numberOfShards, List())
   }
   
-  def start(system: ActorSystem, numberOfShards: Int, args: List[Any] ): ActorRef = {
+  def start(system: ActorSystem, numberOfShards: Int, args: List[Any]): ActorRef = {
     val settings = ClusterShardingSettings
       .create(system)
       .withRole(this.systemRole);
-
+    
     val sharedRegion = ClusterSharding.get(system).start(
       this.shardName,
-      Props(this.actorClass, args),
+      Props(this.actorClass, args:_*),
       settings,
       this.extractEntityId,
       this.extractShardId(numberOfShards))

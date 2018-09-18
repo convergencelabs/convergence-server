@@ -48,22 +48,25 @@ class BackendNode(system: ActorSystem, convergenceDbProvider: DatabaseProvider) 
     val domainPreRelease = system.settings.config.getBoolean("convergence.domain-databases.pre-release")
 
     val protocolConfig = ProtocolConfigUtil.loadConfig(system.settings.config)
-    
+
     // TODO make this a config
     val shardCount = 100
 
     // Realtime Subsystem
     activityShardRegion =
       Some(ActivityActorSharding.start(system, shardCount))
-      
+
     chatChannelRegion =
       Some(ChatChannelSharding.start(system, shardCount))
 
     domainReqion =
       Some(DomainActorSharding.start(
-          system, 
-          shardCount, 
-          List(protocolConfig, DomainPersistenceManagerActor, FiniteDuration(10, TimeUnit.SECONDS))))
+        system,
+        shardCount,
+        List(
+          protocolConfig,
+          DomainPersistenceManagerActor,
+          FiniteDuration(10, TimeUnit.SECONDS))))
 
     val clientDataResponseTimeout = FiniteDuration(10, TimeUnit.SECONDS)
     val receiveTimeout = FiniteDuration(10, TimeUnit.SECONDS)
@@ -77,7 +80,7 @@ class BackendNode(system: ActorSystem, convergenceDbProvider: DatabaseProvider) 
 
     // Rest Subsystem
 
-    // Import, export, and domain / database provisioning        
+    // Import, export, and domain / database provisioning
     val historyStore = new DeltaHistoryStore(convergenceDbProvider)
     val domainProvisioner = new DomainProvisioner(
       historyStore,
@@ -92,7 +95,7 @@ class BackendNode(system: ActorSystem, convergenceDbProvider: DatabaseProvider) 
     val databaseManagerActor = system.actorOf(DatabaseManagerActor.props(databaseManager), DatabaseManagerActor.RelativePath)
 
     val domainStoreActor = system.actorOf(DomainStoreActor.props(convergenceDbProvider, provisionerActor), DomainStoreActor.RelativePath)
-     val importerActor = system.actorOf(ConvergenceImporterActor.props(
+    val importerActor = system.actorOf(ConvergenceImporterActor.props(
       orientDbConfig.getString("db-uri"),
       convergenceDbProvider,
       domainStoreActor), ConvergenceImporterActor.RelativePath)
@@ -102,13 +105,13 @@ class BackendNode(system: ActorSystem, convergenceDbProvider: DatabaseProvider) 
     val authStoreActor = system.actorOf(AuthStoreActor.props(convergenceDbProvider), AuthStoreActor.RelativePath)
     val registrationActor = system.actorOf(RegistrationActor.props(convergenceDbProvider, userManagerActor), RegistrationActor.RelativePath)
     val convergenceUserActor = system.actorOf(ConvergenceUserManagerActor.props(convergenceDbProvider, domainStoreActor), ConvergenceUserManagerActor.RelativePath)
-    
+
     val authorizationActor = system.actorOf(AuthorizationActor.props(convergenceDbProvider), AuthorizationActor.RelativePath)
     val permissionStoreActor = system.actorOf(PermissionsStoreActor.props(convergenceDbProvider), PermissionsStoreActor.RelativePath)
-    
+
     val domainRestSharding =
       Some(RestDomainActorSharding.start(system, shardCount, RestDomainActor.props(DomainPersistenceManagerActor, receiveTimeout)))
-      
+
     logger.info("Backend Node started up.")
   }
 

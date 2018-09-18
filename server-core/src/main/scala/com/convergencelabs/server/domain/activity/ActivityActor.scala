@@ -1,13 +1,20 @@
 package com.convergencelabs.server.domain.activity
 
 import com.convergencelabs.server.actor.ShardedActor
+import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.model.SessionKey
 
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
 import akka.actor.Status
 import akka.actor.Terminated
-import com.convergencelabs.server.domain.DomainFqn
+import akka.actor.Props
+
+object ActivityActor {
+  def props(): Props = {
+    Props(new ActivityActor())
+  }
+}
 
 class ActivityActor()
   extends ShardedActor(classOf[IncomingActivityMessage])
