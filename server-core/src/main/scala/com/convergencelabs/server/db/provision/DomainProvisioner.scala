@@ -74,8 +74,11 @@ class DomainProvisioner(
         .flatMap(_ => configureNonAdminUsers(provider, dbUsername, dbPassword))
         .flatMap(_ => installSchema(domainFqn, provider, preRelease))
 
+      // We need to do this no matter what, so we grab the result above, shut down
+      // and then return the result.
       logger.debug(s"Disconnecting as admin user: ${dbBaseUri}/${dbName}")
       provider.shutdown()
+
       result
     } flatMap { _ =>
       initDomain(dbName, dbUsername, dbPassword, anonymousAuth)

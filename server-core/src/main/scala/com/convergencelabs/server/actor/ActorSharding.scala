@@ -10,16 +10,20 @@ import akka.cluster.sharding.ShardRegion
 abstract class ActorSharding(
   val shardName:      String,
   val systemRole:     String,
-  val actorProps:     Props) {
+  val actorClass:     Class[_]) {
 
   def start(system: ActorSystem, numberOfShards: Int): ActorRef = {
+    this.start(system, numberOfShards, List())
+  }
+  
+  def start(system: ActorSystem, numberOfShards: Int, args: List[Any] ): ActorRef = {
     val settings = ClusterShardingSettings
       .create(system)
       .withRole(this.systemRole);
 
     val sharedRegion = ClusterSharding.get(system).start(
       this.shardName,
-      this.actorProps,
+      Props(this.actorClass, args),
       settings,
       this.extractEntityId,
       this.extractShardId(numberOfShards))

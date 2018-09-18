@@ -9,7 +9,7 @@ import akka.cluster.sharding.ShardRegion
 object ActivityActorSharding extends ActorSharding(
     "ActivityActorShardRegion",
     "backend",
-    Props(classOf[ActivityActor])){
+    classOf[ActivityActor]){
   
   override def extractEntityId: ShardRegion.ExtractEntityId = {
     case msg: IncomingActivityMessage ⇒ 

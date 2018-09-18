@@ -11,7 +11,10 @@ import akka.actor.ActorLogging
 import akka.actor.Props
 import akka.actor.actorRef2Scala
 
-class DomainProvisionerActor(private[this] val provisioner: DomainProvisioner) extends Actor with ActorLogging {
+class DomainProvisionerActor(private[this] val provisioner: DomainProvisioner) 
+  extends Actor 
+  with ActorLogging {
+  
   def receive: Receive = {
     case provision: ProvisionDomain => provisionDomain(provision)
     case destroy: DestroyDomain => destroyDomain(destroy)
@@ -26,6 +29,7 @@ class DomainProvisionerActor(private[this] val provisioner: DomainProvisioner) e
       currentSender ! DomainProvisioned()
     } recover {
       case cause: Exception =>
+        log.error(cause, s"Error provisioning domain: ${fqn}")
         currentSender ! akka.actor.Status.Failure(cause)
     }
   }

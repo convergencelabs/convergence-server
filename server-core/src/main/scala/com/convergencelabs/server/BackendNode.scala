@@ -5,7 +5,6 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
 
-import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.datastore.convergence.AuthStoreActor
 import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor
 import com.convergencelabs.server.datastore.convergence.DeltaHistoryStore
@@ -13,18 +12,17 @@ import com.convergencelabs.server.datastore.convergence.DomainStoreActor
 import com.convergencelabs.server.datastore.convergence.PermissionsStoreActor
 import com.convergencelabs.server.datastore.convergence.RegistrationActor
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.db.data.ConvergenceImporterActor
 import com.convergencelabs.server.db.provision.DomainProvisioner
 import com.convergencelabs.server.db.provision.DomainProvisionerActor
 import com.convergencelabs.server.db.schema.DatabaseManager
 import com.convergencelabs.server.db.schema.DatabaseManagerActor
-import com.convergencelabs.server.domain.DomainActor
 import com.convergencelabs.server.domain.DomainActorSharding
-import com.convergencelabs.server.domain.chat.ChatChannelActor
+import com.convergencelabs.server.domain.activity.ActivityActorSharding
 import com.convergencelabs.server.domain.chat.ChatChannelSharding
 import com.convergencelabs.server.domain.model.ModelCreator
 import com.convergencelabs.server.domain.model.ModelPermissionResolver
-import com.convergencelabs.server.domain.model.RealtimeModelActor
 import com.convergencelabs.server.domain.model.RealtimeModelSharding
 import com.convergencelabs.server.domain.rest.AuthorizationActor
 import com.convergencelabs.server.domain.rest.RestDomainActor
@@ -32,10 +30,8 @@ import com.convergencelabs.server.domain.rest.RestDomainActorSharding
 
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
-import akka.actor.Props
 import akka.cluster.sharding.ShardRegion
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.domain.activity.ActivityActorSharding
 
 class BackendNode(system: ActorSystem, convergenceDbProvider: DatabaseProvider) extends Logging {
 
@@ -56,28 +52,30 @@ class BackendNode(system: ActorSystem, convergenceDbProvider: DatabaseProvider) 
     // TODO make this a config
     val shardCount = 100
 
-    // Realtime Stuff
+    // Realtime Subsystem
     activityShardRegion =
       Some(ActivityActorSharding.start(system, shardCount))
       
     chatChannelRegion =
-      Some(ChatChannelSharding.start(system, shardCount, Props(classOf[ChatChannelActor])))
+      Some(ChatChannelSharding.start(system, shardCount))
 
     domainReqion =
-      Some(DomainActorSharding.start(system, shardCount, DomainActor.props(
-        protocolConfig, DomainPersistenceManagerActor, FiniteDuration(10, TimeUnit.SECONDS))))
+      Some(DomainActorSharding.start(
+          system, 
+          shardCount, 
+          List(protocolConfig, DomainPersistenceManagerActor, FiniteDuration(10, TimeUnit.SECONDS))))
 
     val clientDataResponseTimeout = FiniteDuration(10, TimeUnit.SECONDS)
     val receiveTimeout = FiniteDuration(10, TimeUnit.SECONDS)
     realtimeModelRegion =
-      Some(RealtimeModelSharding.start(system, shardCount, RealtimeModelActor.props(
+      Some(RealtimeModelSharding.start(system, shardCount, List(
         new ModelPermissionResolver(),
         new ModelCreator(),
         DomainPersistenceManagerActor,
         clientDataResponseTimeout,
         receiveTimeout)))
 
-    // Rest Stuff
+    // Rest Subsystem
 
     // Import, export, and domain / database provisioning        
     val historyStore = new DeltaHistoryStore(convergenceDbProvider)
