@@ -1,5 +1,5 @@
 #!/bin/bash
-sbt -d -J-Xmx3G -J-Xss5M clean compile serverNode/stage
+sbt -J-Xmx3G -J-Xss5M clean compile serverNode/stage
 
 cp -a server-node/src/docker/ server-node/target/docker
 cp -a server-node/target/universal/stage server-node/target/docker/stage
