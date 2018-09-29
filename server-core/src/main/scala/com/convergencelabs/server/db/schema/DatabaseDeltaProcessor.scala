@@ -16,6 +16,7 @@ import com.orientechnologies.orient.core.metadata.sequence.OSequence.SEQUENCE_TY
 import com.orientechnologies.orient.core.record.impl.ODocument
 
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.util.SafeTry
 
 object DatabaseDeltaProcessor {
   def apply(delta: Delta, db: ODatabaseDocument): Try[Unit] = new DatabaseDeltaProcessor(delta, db).apply()
@@ -25,7 +26,7 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocument) extends Loggin
 
   private[this] var deferedLinkedProperties = Map[OProperty, String]();
 
-  def apply(): Try[Unit] = Try {
+  def apply(): Try[Unit] = SafeTry {
     debug(s"Applying database delta: ${delta.version}")
 
     db.activateOnCurrentThread()
@@ -103,7 +104,7 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocument) extends Loggin
     val Property(name, orientType, linkedType, linkedClass, constraints) = property
     val oProp: OProperty = (linkedType, linkedClass) match {
       case (None, None) =>
-        // lot linked
+        // not linked
         oClass.createProperty(name, toOType(orientType))
       case (Some(typeName), None) =>
         // orientType

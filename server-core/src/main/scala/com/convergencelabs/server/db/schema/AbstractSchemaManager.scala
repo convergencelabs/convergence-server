@@ -35,7 +35,7 @@ abstract class AbstractSchemaManager(db: ODatabaseDocument, preRelease: Boolean)
   }
 
   def upgrade(version: Int): Try[Unit] = {
-    loadManifest().flatMap { executeUpgrade(_, version) }
+    loadManifest().flatMap(executeUpgrade(_, version))
   }
 
   private[this] def executeUpgrade(manifest: DeltaManifest, version: Int): Try[Unit] = {
@@ -47,14 +47,13 @@ abstract class AbstractSchemaManager(db: ODatabaseDocument, preRelease: Boolean)
       } else {
         logger.debug(s"Executing database upgrade from ${currentVersion} to ${version}")
         Try {
-          for {
+          for (
             v <- (currentVersion + 1) to version
-          } yield {
+          ) yield (
             manifest.getIncrementalDelta(v).flatMap(applyDelta(_)).get
-          }
+          )
         }
       }
-
     }
   }
 
