@@ -24,7 +24,7 @@ class ConvergenceSchemaManager(db: ODatabaseDocument, historyStore: DeltaHistory
     this.historyStore.saveConvergenceDeltaHistory(history)
   }
 
-  def recordDeltaFailure(delta: DeltaScript, cause: Exception): Unit = {
+  def recordDeltaFailure(delta: DeltaScript, cause: Throwable): Unit = {
     val cd = ConvergenceDelta(delta.delta.version, delta.rawScript)
     val message = ExceptionUtils.getStackTrace(cause)
     val history = ConvergenceDeltaHistory(cd, DeltaHistoryStore.Status.Error, Some(message), Instant.now())

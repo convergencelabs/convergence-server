@@ -31,13 +31,13 @@ class DomainSchemaManager(
     val dd = DomainDelta(delta.delta.version, delta.rawScript)
     val history = DomainDeltaHistory(domainFqn, dd, DeltaHistoryStore.Status.Success, None, Instant.now())
     this.historyStore.saveDomainDeltaHistory(history) recoverWith {
-      case cause: Exception =>
+      case cause: Throwable =>
         logger.error(s"Error creating delta history record for successful domain delta: \n${history}", cause)
         Failure(cause)
     }
   }
 
-  def recordDeltaFailure(delta: DeltaScript, cause: Exception): Unit = {
+  def recordDeltaFailure(delta: DeltaScript, cause: Throwable): Unit = {
     logger.error("Unable to upgrade database", cause)
     val message = ExceptionUtils.getStackTrace(cause)
     val dd = DomainDelta(delta.delta.version, delta.rawScript)

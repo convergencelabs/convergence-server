@@ -9,8 +9,12 @@ import grizzled.slf4j.Logging
 import com.orientechnologies.orient.core.db.OrientDB
 import com.orientechnologies.orient.core.db.OrientDBConfig
 import java.io.FileInputStream
+import com.orientechnologies.common.log.OLogManager
 
 class EmbeddedOrientDB(dataPath: String, persistent: Boolean) extends Logging {
+  OLogManager.instance().setWarnEnabled(false);
+  OLogManager.instance().setConsoleLevel("SEVERE");
+  
   val server = OServerMain.create(false)
 
   val odbTarget = new File(dataPath)

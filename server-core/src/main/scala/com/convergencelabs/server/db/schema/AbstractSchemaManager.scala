@@ -60,14 +60,14 @@ abstract class AbstractSchemaManager(db: ODatabaseDocument, preRelease: Boolean)
   def applyDelta(delta: DeltaScript): Try[Unit] = {
     logger.debug(s"Applying delta: ${delta.delta.version}")
     DatabaseDeltaProcessor.apply(delta.delta, db) recoverWith {
-      case cause: Exception =>
+      case cause: Throwable =>
         logger.error(s"Delta ${delta.delta.version} failed", cause)
         recordDeltaFailure(delta, cause)
         Failure(cause)
     } flatMap { _ =>
       logger.debug(s"Delta ${delta.delta.version} applied successfully.")
       recordDeltaSuccess(delta) recoverWith {
-        case cause: Exception =>
+        case cause: Throwable =>
           logger.error(s"Storing Delta ${delta.delta.version} Success failed", cause)
           Failure(cause)
       }
@@ -78,7 +78,7 @@ abstract class AbstractSchemaManager(db: ODatabaseDocument, preRelease: Boolean)
 
   def recordDeltaSuccess(delta: DeltaScript): Try[Unit]
 
-  def recordDeltaFailure(delta: DeltaScript, cause: Exception): Unit
+  def recordDeltaFailure(delta: DeltaScript, cause: Throwable): Unit
 
   def loadManifest(): Try[DeltaManifest]
 }

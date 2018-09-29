@@ -6,6 +6,7 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.util.Try
 
+import com.convergencelabs.server.util.SafeTry
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.metadata.function.OFunction
 import com.orientechnologies.orient.core.metadata.schema.OClass
@@ -16,7 +17,6 @@ import com.orientechnologies.orient.core.metadata.sequence.OSequence.SEQUENCE_TY
 import com.orientechnologies.orient.core.record.impl.ODocument
 
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.util.SafeTry
 
 object DatabaseDeltaProcessor {
   def apply(delta: Delta, db: ODatabaseDocument): Try[Unit] = new DatabaseDeltaProcessor(delta, db).apply()
@@ -110,8 +110,7 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocument) extends Loggin
         // orientType
         oClass.createProperty(name, toOType(orientType), toOType(typeName))
       case (None, Some(className)) =>
-        val linkedClass = Option(db.getMetadata.getSchema.getClass(className))
-        linkedClass match {
+        Option(db.getMetadata.getSchema.getClass(className)) match {
           case Some(c) =>
             // Already defined, create it now with the link
             oClass.createProperty(name, toOType(orientType), c)
