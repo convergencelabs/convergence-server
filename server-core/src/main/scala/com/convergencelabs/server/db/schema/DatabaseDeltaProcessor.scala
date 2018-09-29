@@ -45,7 +45,7 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocument) extends Loggin
     (())
   } recoverWith {
     case cause: Throwable =>
-      debug(s"Applying delta ${delta.version} to database failed")
+      error(s"Applying delta ${delta.version} to database failed", cause)
       Failure(cause)
   }
 
