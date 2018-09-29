@@ -4,6 +4,7 @@ import java.util.ArrayList
 
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.collection.JavaConverters.seqAsJavaListConverter
+import scala.util.Failure
 import scala.util.Try
 
 import com.convergencelabs.server.util.SafeTry
@@ -27,11 +28,11 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocument) extends Loggin
   private[this] var deferedLinkedProperties = Map[OProperty, String]();
 
   def apply(): Try[Unit] = SafeTry {
-    debug(s"Applying database delta: ${delta.version}")
+    debug(s"Applying delta: ${delta.version} to database")
 
     db.activateOnCurrentThread()
 
-    debug(s"Applying ${delta.changes.size} changes for database delta ${delta.version}")
+    debug(s"Applying ${delta.changes.size} changes for delta ${delta.version}")
     delta.changes foreach (change => applyChange(change))
 
     debug(s"Processing linked classes")
@@ -40,8 +41,12 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocument) extends Loggin
     debug(s"Reloading database metadata")
     db.getMetadata.reload()
 
-    debug(s"Databese delta ${delta.version} applied")
+    debug(s"Finished applying delta ${delta.version} to database")
     (())
+  } recoverWith {
+    case cause: Throwable =>
+      debug(s"Applying delta ${delta.version} to database failed")
+      Failure(cause)
   }
 
   private[this] def applyChange(change: Change): Unit = {

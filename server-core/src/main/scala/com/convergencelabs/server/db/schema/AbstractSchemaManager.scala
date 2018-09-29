@@ -61,11 +61,11 @@ abstract class AbstractSchemaManager(db: ODatabaseDocument, preRelease: Boolean)
     logger.debug(s"Applying delta: ${delta.delta.version}")
     DatabaseDeltaProcessor.apply(delta.delta, db) recoverWith {
       case cause: Throwable =>
-        logger.error(s"Delta ${delta.delta.version} failed", cause)
+        logger.error(s"Error applying Delta ${delta.delta.version}", cause)
         recordDeltaFailure(delta, cause)
         Failure(cause)
     } flatMap { _ =>
-      logger.debug(s"Delta ${delta.delta.version} applied successfully.")
+      logger.debug(s"Delta ${delta.delta.version} applied successfully")
       recordDeltaSuccess(delta) recoverWith {
         case cause: Throwable =>
           logger.error(s"Storing Delta ${delta.delta.version} Success failed", cause)
