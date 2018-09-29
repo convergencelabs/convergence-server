@@ -21,7 +21,7 @@ class TestingSchemaManager(
   def recordDeltaSuccess(delta: DeltaScript): Try[Unit] = Try {
   }
 
-  def recordDeltaFailure(delta: DeltaScript, cause: Exception): Unit = {
+  def recordDeltaFailure(delta: DeltaScript, cause: Throwable): Unit = {
   }
 
   def loadManifest(): Try[DeltaManifest] = {
