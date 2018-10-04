@@ -284,12 +284,19 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
     }
     val doc = chatChannelToDoc(ChatChannel(channelId, channelTypeString(channelType), creationTime, isPrivate, name, topic))
     db.save(doc)
-
+    db.commit()
+    
     members.foreach { username =>
       addAllChatChannelMembers(channelId, username, None).get
     }
+    
+    // FIXME why is this needed? It seems like the above might put another db into the active thread.
+    db.activateOnCurrentThread()
+    
     db.commit()
     this.addChatCreatedEvent(ChatCreatedEvent(0, channelId, createdBy, creationTime, name, topic, members.getOrElse(Set()))).get
+    
+    db.activateOnCurrentThread()
     db.commit()
     channelId
   } recoverWith {

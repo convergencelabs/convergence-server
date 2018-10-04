@@ -30,15 +30,13 @@ class DomainStatsActor(
   }
 
   def getStats(): Unit = {
-    val foo = for {
+    (for {
       sessionCount <- persistence.sessionStore.getConnectedSessionsCount(SessionQueryType.NonAdmin)
       userCount <- persistence.userStore.getNormalUserCount()
       dbSize <- getDatabaseSize()
     } yield {
       sender ! DomainStats(sessionCount, userCount, dbSize)
-    }
-    
-    foo recover {
+    }) recover {
       case cause: Exception =>
         sender ! akka.actor.Status.Failure(cause)
     }

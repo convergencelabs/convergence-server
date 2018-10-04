@@ -153,11 +153,11 @@ class AuthenticationHandler(
 
     exists.flatMap {
       case true =>
-        logger.debug("User specificed in token already exists, returning auth success.")
+        logger.debug("User specificed in JWT already exists, returning auth success.")
         this.updateUserFromJwt(jwtClaims, admin)
         authSuccess(resolvedUsername, admin, None)
       case false =>
-        logger.debug("User specificed in token does not exist exist, creating.")
+        logger.debug("User specificed in JWT does not exist exist, auto creating user.")
         createUserFromJWT(jwtClaims, admin) flatMap { _ =>
           authSuccess(resolvedUsername, admin, None)
         } recoverWith {
