@@ -7,7 +7,7 @@ import com.convergencelabs.server.datastore.domain.SessionStore.SessionQueryType
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.Props
-import akka.actor.actorRef2Scala
+import akka.actor.Status
 
 object DomainStatsActor {
   def props(persistence: DomainPersistenceProvider): Props =
@@ -38,7 +38,7 @@ class DomainStatsActor(
       sender ! DomainStats(sessionCount, userCount, dbSize)
     }) recover {
       case cause: Exception =>
-        sender ! akka.actor.Status.Failure(cause)
+        sender ! Status.Failure(cause)
     }
   }
 

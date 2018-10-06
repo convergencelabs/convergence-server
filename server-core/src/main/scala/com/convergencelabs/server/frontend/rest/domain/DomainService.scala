@@ -61,7 +61,7 @@ class DomainService(
   private[this] val executionContext: ExecutionContext,
   private[this] val authorizationActor: ActorRef,
   private[this] val domainStoreActor: ActorRef,
-  private[this] val domainManagerActor: ActorRef,
+  private[this] val domainManagerActor: ActorRef, // RestDomainActor
   private[this] val permissionStoreActor: ActorRef,
   private[this] val modelClusterRegion: ActorRef,
   private[this] val defaultTimeout: Timeout)

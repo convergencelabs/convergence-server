@@ -66,6 +66,7 @@ object DomainUserStore {
   }
 
   def getUserRid(username: String, db: ODatabaseDocument): Try[ORID] = {
+    db.activateOnCurrentThread()
     OrientDBUtil.getIdentityFromSingleValueIndex(db, Indices.Username, username)
   }
 
