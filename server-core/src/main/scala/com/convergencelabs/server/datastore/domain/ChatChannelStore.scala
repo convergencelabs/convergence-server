@@ -230,10 +230,8 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
     }
   }
 
-  def getChatChannelInfo(channelId: List[String]): Try[List[ChatChannelInfo]] = withDb { db =>
-    // FIXME is this the best way to do this?
-    val query =
-      """
+  private[this] val GetChatChannelInfoQuery =
+    """
         |SELECT 
         |  max(eventNo) as eventNo, max(timestamp) as timestamp,
         |  channel.id as id, channel.type as type, channel.created as created,
@@ -245,22 +243,31 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
         |  channel.id IN :channelIds
         |GROUP BY (channel)""".stripMargin
 
+  def getChatChannelInfo(channelId: List[String]): Try[List[ChatChannelInfo]] = withDb { db =>
     val params = Map("channelIds" -> channelId.asJava)
-    OrientDBUtil
-      .queryAndMap(db, query, params) { doc =>
-        val id: String = doc.getProperty("id")
-        val channelType: String = doc.getProperty("type")
-        val created: Date = doc.getProperty("created")
-        val isPrivate: Boolean = doc.getProperty("private")
-        val name: String = doc.getProperty("name")
-        val topic: String = doc.getProperty("topic")
-        val members: JavaSet[OIdentifiable] = doc.getProperty("members")
-        val usernames: Set[String] = members.asScala.map(member => member.getRecord.asInstanceOf[ODocument].field("user.username").asInstanceOf[String]).toSet
-        val lastEventNo: Long = doc.getProperty("eventNo")
-        val lastEventTime: Date = doc.getProperty("timestamp")
-        ChatChannelInfo(id, channelType, created.toInstant(), isPrivate, name, topic,
-          usernames, lastEventNo, lastEventTime.toInstant())
-      }
+    OrientDBUtil.queryAndMap(db, GetChatChannelInfoQuery, params) { doc =>
+      val id: String = doc.getProperty("id")
+      val channelType: String = doc.getProperty("type")
+      val created: Instant = doc.getProperty("created").asInstanceOf[Date].toInstant()
+      val isPrivate: Boolean = doc.getProperty("private")
+      val name: String = doc.getProperty("name")
+      val topic: String = doc.getProperty("topic")
+      val members: JavaSet[OIdentifiable] = doc.getProperty("members")
+      val usernames: Set[String] = members.asScala.map(member =>
+        member.getRecord.asInstanceOf[ODocument].field("user.username").asInstanceOf[String]).toSet
+      val lastEventNo: Long = doc.getProperty("eventNo")
+      val lastEventTime: Instant = doc.getProperty("timestamp").asInstanceOf[Date].toInstant()
+      ChatChannelInfo(
+        id,
+        channelType,
+        created,
+        isPrivate,
+        name,
+        topic,
+        usernames,
+        lastEventNo,
+        lastEventTime)
+    }
   }
 
   def getChatChannel(channelId: String): Try[ChatChannel] = {
@@ -286,17 +293,17 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
     val doc = chatChannelToDoc(ChatChannel(channelId, channelTypeString(channelType), creationTime, isPrivate, name, topic))
     db.save(doc)
     db.commit()
-    
+
     members.foreach { username =>
       addAllChatChannelMembers(channelId, username, None).get
     }
-    
+
     // FIXME why is this needed? It seems like the above might put another db into the active thread.
     db.activateOnCurrentThread()
-    
+
     db.commit()
     this.addChatCreatedEvent(ChatCreatedEvent(0, channelId, createdBy, creationTime, name, topic, members.getOrElse(Set()))).get
-    
+
     db.activateOnCurrentThread()
     db.commit()
     channelId
@@ -663,7 +670,7 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
   def getChatChannelMemberRid(channelId: String, username: String): Try[ORID] = withDb { db =>
     val channelRID = getChatChannelRid(channelId).get
     val userRID = DomainUserStore.getUserRid(username, db).get
-    val key = new OCompositeKey(List(userRID, channelRID).asJava)
+    val key = List(channelRID, userRID)
     OrientDBUtil.getIdentityFromSingleValueIndex(db, Schema.Classes.ChatChannelMember.Indices.Channel_User, key)
   }
 
