@@ -11,20 +11,12 @@ import scala.util.control.NonFatal
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.ChannelNotFoundException
-import com.convergencelabs.server.domain.chat.ChatChannelMessages.ChatChannelException
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.ExistingChannelMessage
-import com.convergencelabs.server.domain.chat.ChatChannelMessages.JoinChannelRequest
-import com.convergencelabs.server.domain.chat.ChatChannelMessages.LeaveChannelRequest
 
 import akka.actor.Actor
-import akka.actor.ActorContext
 import akka.actor.ActorLogging
 import akka.actor.ReceiveTimeout
 import akka.actor.Status
-import akka.cluster.pubsub.DistributedPubSub
-import akka.cluster.pubsub.DistributedPubSubMediator.Publish
-import com.convergencelabs.server.domain.chat.ChatChannelMessages.AddUserToChannelRequest
-import com.convergencelabs.server.domain.chat.ChatChannelMessages.RemoveUserFromChannelRequest
 
 object ChatChannelActor {
 
