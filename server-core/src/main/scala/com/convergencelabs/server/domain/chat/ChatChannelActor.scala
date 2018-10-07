@@ -96,7 +96,7 @@ class ChatChannelActor private[domain]() extends Actor with ActorLogging {
       ()
     } recoverWith {
       case NonFatal(cause) =>
-        log.debug(s"error initializing chat channel: '${domainFqn}/${channelId}'")
+        log.error(cause, s"error initializing chat channel: '${domainFqn}/${channelId}'")
         Failure(cause)
     }
   }
@@ -128,6 +128,7 @@ class ChatChannelActor private[domain]() extends Actor with ActorLogging {
         sender ! Status.Failure(cause)
 
       case cause: Exception =>
+        log.error(cause, "Error processing chat message")
         sender ! Status.Failure(cause)
     }
   }
