@@ -60,6 +60,8 @@ class RealtimeModelPersistenceStream(
   import RealtimeModelPersistenceStream._
 
   private[this] implicit val materializer = ActorMaterializer()
+  
+  debug(s"Persistence stream started ${domainFqn}/${modelId}")
 
   def processOperation(op: NewModelOperation): Unit = {
     streamActor ! ProcessOperation(op)
@@ -84,19 +86,17 @@ class RealtimeModelPersistenceStream(
         case Success(_) =>
           debug(s"Persistence stream completed successfully ${domainFqn}/${modelId}")
           handler.onClosed()
-        case Failure(f) =>
-          error("Persistence stream completed with an error", f)
+        case Failure(cause) =>
+          error("Persistence stream completed with an error", cause)
           handler.onError("There was an unexpected error in the persistence stream")
       }).runWith(Source
         .actorRef[ModelPersistenceCommand](bufferSize = 1000, OverflowStrategy.fail))
 
   private[this] def onProcessOperation(modelOperation: NewModelOperation): Unit = {
     modelOperationProcessor.processModelOperation(modelOperation)
-      .map { _ =>
-        handler.onOperationCommited(modelOperation.version)
-      }
+      .map (_ => handler.onOperationCommited(modelOperation.version))
       .recover {
-        case cause: Exception =>
+        case cause: Throwable =>
           error(s"Error applying operation: ${modelOperation}", cause)
           handler.onOperationError("There was an unexpected persistence error applying an operation.")
           ()

@@ -39,7 +39,9 @@ object ModelOperationStore {
       doc.setProperty(Fields.Version, opEvent.version, OType.LONG)
       doc.setProperty(Fields.Timestamp, Date.from(opEvent.timestamp), OType.DATETIME)
       doc.setProperty(Fields.Session, session, OType.LINK)
-      doc.setProperty(Fields.Operation, OrientDBOperationMapper.operationToODocument(opEvent.op))
+
+      val opDoc = OrientDBOperationMapper.operationToODocument(opEvent.op)
+      doc.setProperty(Fields.Operation, opDoc, OType.LINK)
       doc
     }
   }

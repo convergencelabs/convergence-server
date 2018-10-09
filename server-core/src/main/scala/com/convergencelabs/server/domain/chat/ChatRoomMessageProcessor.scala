@@ -63,7 +63,7 @@ class ChatRoomMessageProcessor(
       case true =>
         super.onLeaveChannel(message)
       case false =>
-        // Use has more sessions, so no need to broadcast anything, or change state
+        // User has more sessions, so no need to broadcast anything, or change state
         Success(ChatMessageProcessingResult(Some(()), List()))
     }
 
