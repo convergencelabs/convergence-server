@@ -41,7 +41,7 @@ package object rest {
   val OkResponse: RestResponse = (StatusCodes.OK, SuccessRestResponse())
   val CreateRestResponse: RestResponse = (StatusCodes.Created, SuccessRestResponse())
   val InternalServerError: RestResponse = (StatusCodes.InternalServerError, ErrorResponse("internal_server_error", None))
-  val NotFoundError: RestResponse = (StatusCodes.NotFound, ErrorResponse("not_found_error", None))
+  val NotFoundError: RestResponse = (StatusCodes.NotFound, ErrorResponse("not_found", None))
   val AuthFailureError: RestResponse = (StatusCodes.Unauthorized, ErrorResponse("unauthorized", None))
   val ForbiddenError: RestResponse = (StatusCodes.Forbidden, ErrorResponse("forbidden", None))
   val MalformedRequestContent: RestResponse = (StatusCodes.BadRequest, ErrorResponse("malformed_request_content", None))

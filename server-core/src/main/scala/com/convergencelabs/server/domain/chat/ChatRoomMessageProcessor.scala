@@ -29,9 +29,8 @@ class ChatRoomMessageProcessor(
     extends ChatChannelMessageProcessor(stateManager)
     with Logging {
 
-  val chatRoomSessionManager = new ChatRoomSessionManager()
-
-  val watcher = context.system.actorOf(Props(new Watcher()))
+  private[this] val chatRoomSessionManager = new ChatRoomSessionManager()
+  private[this] val watcher = context.system.actorOf(Props(new Watcher()))
 
   override def processChatMessage(message: ExistingChannelMessage): Try[ChatMessageProcessingResult] = {
     message match {
@@ -44,7 +43,7 @@ class ChatRoomMessageProcessor(
 
   override def onJoinChannel(message: JoinChannelRequest): Try[ChatMessageProcessingResult] = {
     val JoinChannelRequest(domainFqn, channelId, sk, client) = message
-    logger.debug("Client joined chat room")
+    logger.debug(s"Client(${sk}) joined chat room: ${channelId}")
     watcher.tell(client, Actor.noSender)
 
     chatRoomSessionManager.join(sk, client) match {
@@ -59,12 +58,12 @@ class ChatRoomMessageProcessor(
 
   override def onLeaveChannel(message: LeaveChannelRequest): Try[ChatMessageProcessingResult] = {
     val LeaveChannelRequest(domainFqn, channelId, sk, client) = message
-    logger.debug("Client joined chat room")
+    logger.debug(s"Client(${sk}) left chat room: ${channelId}")
     val result = chatRoomSessionManager.leave(sk) match {
       case true =>
         super.onLeaveChannel(message)
       case false =>
-        // Use has more sessions, so no need to broadcast anything, or change state
+        // User has more sessions, so no need to broadcast anything, or change state
         Success(ChatMessageProcessingResult(Some(()), List()))
     }
 
@@ -82,6 +81,10 @@ class ChatRoomMessageProcessor(
     })
   }
 
+  /**
+   * A helper actor that watches chat clients and helps notify us that a client
+   * has left.
+   */
   class Watcher() extends Actor with ActorLogging {
     def receive = {
       case client: ActorRef =>
@@ -91,7 +94,10 @@ class ChatRoomMessageProcessor(
         chatRoomSessionManager.getSession(client).foreach { sk =>
           // TODO This is a little sloppy since we will send a message to the client, which we already know is gone.
           val syntheticMessage = LeaveChannelRequest(domainFqn, channelId, sk, client)
-          processChatMessage(syntheticMessage)
+          processChatMessage(syntheticMessage) recover {
+            case cause: Throwable => 
+              log.error(cause, "Error leaving channel after clinet actor terminated")
+          }
         }
     }
   }

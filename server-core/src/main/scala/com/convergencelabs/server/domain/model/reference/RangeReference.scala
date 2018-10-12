@@ -12,7 +12,6 @@ class RangeReference(
     with PositionalReorderAware {
 
   def handlePositionalInsert(index: Int, length: Int): Unit = {
-    println("Here: " + values.toString())
     this.values = this.values.map { v =>
       val xFormed = IndexTransformer.handleInsert(List(v._1, v._2), index, length)
       (xFormed(0), xFormed(1))

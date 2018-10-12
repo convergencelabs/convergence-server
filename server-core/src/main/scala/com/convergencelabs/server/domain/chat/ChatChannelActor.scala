@@ -11,20 +11,12 @@ import scala.util.control.NonFatal
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.ChannelNotFoundException
-import com.convergencelabs.server.domain.chat.ChatChannelMessages.ChatChannelException
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.ExistingChannelMessage
-import com.convergencelabs.server.domain.chat.ChatChannelMessages.JoinChannelRequest
-import com.convergencelabs.server.domain.chat.ChatChannelMessages.LeaveChannelRequest
 
 import akka.actor.Actor
-import akka.actor.ActorContext
 import akka.actor.ActorLogging
 import akka.actor.ReceiveTimeout
 import akka.actor.Status
-import akka.cluster.pubsub.DistributedPubSub
-import akka.cluster.pubsub.DistributedPubSubMediator.Publish
-import com.convergencelabs.server.domain.chat.ChatChannelMessages.AddUserToChannelRequest
-import com.convergencelabs.server.domain.chat.ChatChannelMessages.RemoveUserFromChannelRequest
 
 object ChatChannelActor {
 
@@ -46,12 +38,11 @@ case class ChatChannelState(
   lastEventNumber: Long,
   members: Set[String])
 
-class ChatChannelActor private[domain]() extends Actor with ActorLogging {
+class ChatChannelActor private[domain] () extends Actor with ActorLogging {
   import ChatChannelActor._
   import ChatChannelMessages._
   import akka.cluster.sharding.ShardRegion.Passivate
 
-  
   var domainFqn: DomainFqn = _
 
   // Here None signifies that the channel does not exist.
@@ -74,7 +65,7 @@ class ChatChannelActor private[domain]() extends Actor with ActorLogging {
   private[this] def initialize(message: ExistingChannelMessage): Try[Unit] = {
     this.domainFqn = message.domainFqn
     val channelId = message.channelId
-    
+
     log.debug(s"Chat Channel Actor initializing: '${domainFqn}/${channelId}'")
     DomainPersistenceManagerActor.acquirePersistenceProvider(self, context, domainFqn) flatMap { provider =>
       log.debug(s"Chat Channel aquired persistence, creating channel manager: '${domainFqn}/${channelId}'")
@@ -85,7 +76,7 @@ class ChatChannelActor private[domain]() extends Actor with ActorLogging {
       manager.state().channelType match {
         case "room" =>
           this.messageProcessor = Some(new ChatRoomMessageProcessor(domainFqn, channelId, manager, context))
-          // this would only need to happen if a previous instance of this room crashed without 
+          // this would only need to happen if a previous instance of this room crashed without
           // cleaning up properly.
           manager.removeAllMembers()
         case "group" =>
@@ -104,7 +95,7 @@ class ChatChannelActor private[domain]() extends Actor with ActorLogging {
       ()
     } recoverWith {
       case NonFatal(cause) =>
-        log.debug(s"error initializing chat channel: '${domainFqn}/${channelId}'")
+        log.error(cause, s"error initializing chat channel: '${domainFqn}/${channelId}'")
         Failure(cause)
     }
   }
@@ -121,21 +112,21 @@ class ChatChannelActor private[domain]() extends Actor with ActorLogging {
     (for {
       messageProcessor <- this.messageProcessor match {
         case Some(mp) => Success(mp)
-        case _        => Failure(new IllegalStateException("The message processor must be set before processing messages"))
+        case None => Failure(new IllegalStateException("The message processor must be set before processing messages"))
       }
       _ <- messageProcessor.processChatMessage(message) map { result =>
         result.response foreach (response => sender ! response)
         result.broadcastMessages foreach (messageProcessor.boradcast(_))
         ()
       }
-    } yield {
-    }).recover {
+    } yield (())).recover {
       case cause: ChannelNotFoundException =>
         // It seems like there is no reason to stay up, at this point.
         context.parent ! Passivate(stopMessage = Stop)
         sender ! Status.Failure(cause)
 
       case cause: Exception =>
+        log.error(cause, "Error processing chat message")
         sender ! Status.Failure(cause)
     }
   }

@@ -64,8 +64,8 @@ object Schema {
       val Class = "ChatChannelMember"
 
       object Indices {
-        val Channel_User = "ChatChannelMember_channel_user"
-        val Channel = "ChatChannelMember_channel"
+        val Channel_User = "ChatChannelMember.channel_user"
+        val Channel = "ChatChannelMember.channel"
       }
     }
   }

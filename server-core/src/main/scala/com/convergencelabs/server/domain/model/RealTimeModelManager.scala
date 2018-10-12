@@ -83,7 +83,7 @@ class RealTimeModelManager(
     }
     
     def onClosed(): Unit = {
-      
+      // No-Op
     }
 
     def onOperationCommited(version: Long): Unit = {
