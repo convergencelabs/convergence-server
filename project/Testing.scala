@@ -5,7 +5,7 @@ object Testing {
 
   import BuildKeys._
   import Configs._
-  
+
   val scoverageVersion = "1.3.1"
 
   private lazy val testSettings = Seq(
@@ -33,10 +33,5 @@ object Testing {
     )
   )
 
-  lazy val settings = testSettings ++ itSettings ++ e2eSettings ++ Seq(
-    testAll := (),
-    testAll <<= testAll.dependsOn(test in Test),
-    testAll <<= testAll.dependsOn(test in IntegrationTest),
-    testAll <<= testAll.dependsOn(test in EndToEndTest)
-  )
+  lazy val settings = testSettings ++ itSettings ++ e2eSettings
 }

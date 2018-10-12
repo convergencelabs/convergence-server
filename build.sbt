@@ -12,7 +12,7 @@ val commonSettings = Seq(
   publishTo := {
     val nexus = "https://nexus.dev.int.convergencelabs.tech/repository/"
     if (isSnapshot.value)
-      Some("snapshots" at nexus + "maven-convergence-snapshots") 
+      Some("snapshots" at nexus + "maven-convergence-snapshots")
     else
       Some("releases"  at nexus + "maven-convergence-releases")
   }
@@ -24,11 +24,11 @@ val commonSettings = Seq(
   settings(Testing.settings: _*).
   settings(
     name := "convergence-server-ot",
-    libraryDependencies ++= 
-      orientDb ++ 
-      loggingAll ++ 
+    libraryDependencies ++=
+      orientDb ++
+      loggingAll ++
       Seq(
-        json4s, 
+        json4s,
         commonsLang,
         jose4j,
         bouncyCastle,
@@ -37,7 +37,7 @@ val commonSettings = Seq(
       ) ++
       testingCore
   )
- 
+
 val serverCore = (project in file("server-core")).
   enablePlugins(SbtTwirl).
   configs(Configs.all: _*).
@@ -45,13 +45,13 @@ val serverCore = (project in file("server-core")).
   settings(Testing.settings: _*).
   settings(
     name := "convergence-server-core",
-    libraryDependencies ++= 
-      akkaCore ++ 
-      orientDb ++ 
-      loggingAll ++ 
+    libraryDependencies ++=
+      akkaCore ++
+      orientDb ++
+      loggingAll ++
       Seq(
         akkaHttp,
-        json4s, 
+        json4s,
         jacksonYaml,
         json4sExt,
         akkaHttpJson4s,
@@ -62,7 +62,7 @@ val serverCore = (project in file("server-core")).
         bouncyCastle,
         scrypt,
         netty,
-        javaWebsockets, 
+        javaWebsockets,
         scallop,
         parboiled,
         "org.scala-lang" % "scala-reflect" % scalaVersion.value
@@ -71,8 +71,8 @@ val serverCore = (project in file("server-core")).
       testingCore ++
       testingAkka
   ).dependsOn(serverOt)
-  
-  
+
+
 
 val serverNode = (project in file("server-node"))
   .configs(Configs.all: _*)
@@ -83,10 +83,10 @@ val serverNode = (project in file("server-node"))
   .enablePlugins(JavaAppPackaging)
   .settings(
     name := "convergence-server-node",
-    publishArtifact in (Compile, packageBin) := false, 
-    publishArtifact in (Compile, packageDoc) := false, 
+    publishArtifact in (Compile, packageBin) := false,
+    publishArtifact in (Compile, packageDoc) := false,
     publishArtifact in (Compile, packageSrc) := false
-  ) 
+  )
   .dependsOn(serverCore)
 
 val testkit = (project in file("server-testkit")).
@@ -95,16 +95,16 @@ val testkit = (project in file("server-testkit")).
   settings(Testing.settings: _*).
   settings(
     name := "convergence-server-testkit",
-    libraryDependencies ++= 
-    akkaCore ++ 
-    orientDb ++ 
+    libraryDependencies ++=
+    akkaCore ++
+    orientDb ++
     Seq(orientDbServer, orientDbStudio) ++
     loggingAll ++
     testingCore ++
     Seq(javaWebsockets)
   )
   .dependsOn(serverCore)
-  
+
 val e2eTests = (project in file("server-e2e-tests")).
   configs(Configs.all: _*).
   settings(commonSettings: _*).
@@ -112,7 +112,7 @@ val e2eTests = (project in file("server-e2e-tests")).
   settings(
     name := "convergence-server-e2e-tests",
     //unmanagedSourceDirectories in Compile += baseDirectory.value / "src/e2e/scala",
-    libraryDependencies ++= 
+    libraryDependencies ++=
       loggingAll ++
       testingCore
   ).
@@ -129,4 +129,3 @@ val root = (project in file(".")).
     publishArtifact in (Compile, packageSrc) := false
   ).
   aggregate(serverOt, serverCore, serverNode, testkit, e2eTests)
-  
