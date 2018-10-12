@@ -63,7 +63,6 @@ class TestServer() extends Logging {
 
   def stop(): Unit = {
     logger.info("Test server shutting down.")
-    oriendDb.stop()
     seed.stop()
     backend.stop()
     frontend.stop()

@@ -11,23 +11,36 @@ import com.orientechnologies.orient.core.command.OCommandOutputListener
 import com.orientechnologies.orient.core.db.ODatabaseType
 import com.orientechnologies.orient.core.db.OrientDB
 import com.orientechnologies.orient.core.db.OrientDBConfig
+import org.scalatest.WordSpec
+import org.scalatest.Matchers
+import org.scalatest.BeforeAndAfterAll
 
-abstract class PersistenceStoreSpec[S](category: DeltaCategory.Value) {
+object PersistenceStoreSpec {
+  val OrientDBAdmin = "admin"
+}
+
+abstract class PersistenceStoreSpec[S](category: DeltaCategory.Value)
+  extends WordSpec
+  with Matchers
+  with BeforeAndAfterAll {
+  
+  import PersistenceStoreSpec._
+  
   OLogManager.instance().setConsoleLevel("WARNING")
 
-  protected def createStore(dbProvider: DatabaseProvider): S
-
   private[this] val dbCounter = new AtomicInteger(1)
-  
-  val orientDB: OrientDB = new OrientDB("memory:PersistenceStoreSpec", OrientDBConfig.defaultConfig());
+  private[this] val orientDB: OrientDB = new OrientDB(s"memory:${getClass.getSimpleName}", OrientDBConfig.defaultConfig());
 
+  override protected def afterAll() = {
+    orientDB.close();
+  }
+  
   def withPersistenceStore(testCode: S => Any): Unit = {
     // make sure no accidental collisions
-    val dbName = s"${getClass.getSimpleName}${nextDbId()}"
+    val dbName = s"${getClass.getSimpleName}${nextDbId}"
 
-    // TODO we could probably cache this in a before / after all.
     orientDB.create(dbName, ODatabaseType.MEMORY);
-    val db = orientDB.open(dbName, "admin", "admin")
+    val db = orientDB.open(dbName, OrientDBAdmin, OrientDBAdmin)
     val dbProvider = new ConnectedSingleDatabaseProvider(db)
 
     try {
@@ -42,12 +55,9 @@ abstract class PersistenceStoreSpec[S](category: DeltaCategory.Value) {
     }
   }
 
-  def nextDbId(): Int = {
+  private[this] def nextDbId(): Int = {
     dbCounter.getAndIncrement()
   }
-
-  object CommandListener extends OCommandOutputListener() {
-    def onMessage(iText: String): Unit = {
-    }
-  }
+  
+  protected def createStore(dbProvider: DatabaseProvider): S
 }
