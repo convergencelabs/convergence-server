@@ -132,7 +132,8 @@ class ClientActor(
   }
 
   private[this] def receiveCommon: Receive = {
-    case WebSocketClosed => 
+    case WebSocketClosed =>
+      log.debug(s"Web socket closed for ${domainFqn}/${sessionId}")
       onConnectionClosed()
     case WebSocketError(cause) => 
       onConnectionError(cause)
