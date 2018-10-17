@@ -9,6 +9,8 @@ import akka.actor.ActorRef
 import akka.actor.Status
 import akka.actor.Terminated
 import akka.actor.Props
+import scala.util.Try
+import scala.util.Success
 
 object ActivityActor {
   def props(): Props = {
@@ -30,10 +32,11 @@ class ActivityActor()
   private[this] var joinedSessions = Map[SessionKey, ActorRef]()
   private[this] var stateMap = new ActivityStateMap()
 
-  override def initialize(message: IncomingActivityMessage): Unit = {
+  override def initialize(message: IncomingActivityMessage): Try[Unit] = {
     this.activityId = message.activityId
     this.domain = message.domain
     log.debug( s"${activityToString} initiaizlized")
+    Success(())
   }
 
   override def receiveInitialized: Receive = {

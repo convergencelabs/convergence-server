@@ -226,7 +226,7 @@ class RealTimeModelManager(
           } yield {
             this.onDatabaseModelResponse(m, s, snapshotConfig, permissions)
           }) recover {
-            case cause: Exception =>
+            case cause: Throwable =>
               val message = s"Error getting model permissions (${this.modelId})"
               error(message, cause)
               this.handleInitializationFailure(DatabaseInitializationFailure)
@@ -240,7 +240,7 @@ class RealTimeModelManager(
           this.handleInitializationFailure(DatabaseInitializationFailure)
       }
     }) recover {
-      case cause: Exception =>
+      case cause: Throwable =>
         val message = s"Error getting model data (${domainFqn}/${modelId})"
         error(message, cause)
         this.handleInitializationFailure(DatabaseInitializationFailure)

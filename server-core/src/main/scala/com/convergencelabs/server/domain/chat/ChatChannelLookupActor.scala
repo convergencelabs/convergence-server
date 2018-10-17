@@ -258,4 +258,9 @@ class ChatChannelLookupActor private[domain] (domainFqn: DomainFqn) extends Acto
       }
     }
   }
+  
+  override def postStop(): Unit = {
+    log.debug("ChatChannelLookupActor({}) shut down.", this.domainFqn)
+    DomainPersistenceManagerActor.releasePersistenceProvider(self, context, this.domainFqn)
+  }
 }
