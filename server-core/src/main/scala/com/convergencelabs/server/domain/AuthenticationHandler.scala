@@ -38,6 +38,7 @@ object AuthenticationHandler {
 }
 
 class AuthenticationHandler(
+  private[this] val domainFqn: DomainFqn,
   private[this] val domainConfigStore: DomainConfigStore,
   private[this] val keyStore: JwtAuthKeyStore,
   private[this] val userStore: DomainUserStore,
@@ -61,17 +62,17 @@ class AuthenticationHandler(
 
   private[this] def authenticateAnonymous(authRequest: AnonymousAuthRequest): Future[AuthenticationResponse] = {
     val AnonymousAuthRequest(displayName) = authRequest;
-    debug(s"Processing anonymous authentication request with display name: ${displayName}")
+    debug(s"${domainFqn}: Processing anonymous authentication request with display name: ${displayName}")
     val result = domainConfigStore.isAnonymousAuthEnabled() flatMap {
       case false =>
-        debug("Anonymous auth is disabled, so returning AuthenticationFailure")
+        debug(s"${domainFqn}: Anonymous auth is disabled, so returning AuthenticationFailure")
         Success(AuthenticationFailure)
       case true =>
-        debug("Anonymous auth is enabled, creating anonymous user...")
+        debug(s"${domainFqn}: Anonymous auth is enabled, creating anonymous user...")
         userStore.createAnonymousDomainUser(displayName) flatMap { username => authSuccess(username, false, None) }
     } recover {
-      case cause: Exception =>
-        error("Anonymous authentication error", cause)
+      case cause: Throwable =>
+        error(s"${domainFqn}: Anonymous authentication error", cause)
         AuthenticationError
     }
 
@@ -79,7 +80,7 @@ class AuthenticationHandler(
   }
 
   private[this] def authenticatePassword(authRequest: PasswordAuthRequest): Future[AuthenticationResponse] = {
-    logger.debug("Authenticating by username and password")
+    logger.debug(s"${domainFqn}: Authenticating by username and password")
     val response = userStore.validateCredentials(authRequest.username, authRequest.password) match {
       case Success(true) => {
         authSuccess(authRequest.username, false, None) match {
@@ -87,7 +88,7 @@ class AuthenticationHandler(
             updateLastLogin(authRequest.username, DomainUserType.Normal)
             authSuccessResponse
           case Failure(cause) => {
-            logger.error("Unable to authenticate a user", cause)
+            logger.error(s"${domainFqn}: Unable to authenticate a user", cause)
             AuthenticationError
           }
         }
@@ -95,7 +96,7 @@ class AuthenticationHandler(
       case Success(false) =>
         AuthenticationFailure
       case Failure(cause) => {
-        logger.error("Unable to authenticate a user", cause)
+        logger.error(s"${domainFqn}: Unable to authenticate a user", cause)
         AuthenticationError
       }
     }
@@ -120,7 +121,7 @@ class AuthenticationHandler(
         case Some((publicKey, admin)) =>
           authenticateTokenWithPublicKey(authRequest, publicKey, admin)
         case None =>
-          logger.warn(s"Request to authenticate via token, with an invalid keyId: ${keyId}")
+          logger.warn(s"${domainFqn}: Request to authenticate via token, with an invalid keyId: ${keyId}")
           AuthenticationFailure
       }
     }
@@ -153,25 +154,25 @@ class AuthenticationHandler(
 
     exists.flatMap {
       case true =>
-        logger.debug("User specificed in JWT already exists, returning auth success.")
+        logger.debug(s"${domainFqn}: User specificed in JWT already exists, returning auth success.")
         this.updateUserFromJwt(jwtClaims, admin)
         authSuccess(resolvedUsername, admin, None)
       case false =>
-        logger.debug("User specificed in JWT does not exist exist, auto creating user.")
+        logger.debug(s"${domainFqn}: User specificed in JWT does not exist exist, auto creating user.")
         createUserFromJWT(jwtClaims, admin) flatMap { _ =>
           authSuccess(resolvedUsername, admin, None)
         } recoverWith {
           case e: DuplicateValueException =>
             // The duplicate value case is when a race condition occurs between when we looked up the
             // user and then tried to create them.
-            logger.warn("Attempted to auto create user, but user already exists, returning auth success.")
+            logger.warn(s"${domainFqn}: Attempted to auto create user, but user already exists, returning auth success.")
             authSuccess(resolvedUsername, admin, None)
           case e: InvalidValueExcpetion =>
-            Failure(new IllegalArgumentException("Lazy creation of user based on JWT authentication failed: {$username}", e))
+            Failure(new IllegalArgumentException(s"${domainFqn}: Lazy creation of user based on JWT authentication failed: {$username}", e))
         }
     }.recover {
       case cause: Exception =>
-        logger.error("Unable to authenticate a user via token.", cause)
+        logger.error(s"${domainFqn}: Unable to authenticate a user via token.", cause)
         AuthenticationError
     }.get
   }
@@ -185,14 +186,14 @@ class AuthenticationHandler(
               case Success(authSuccessResponse) =>
                 authSuccessResponse
               case Failure(cause) =>
-                logger.error("Unable to authenticate a user", cause)
+                logger.error(s"${domainFqn}: Unable to authenticate a user via reconnect token.", cause)
                 AuthenticationError
             }
           } else {
             AuthenticationError
           }
         case Failure(cause) =>
-          logger.error("Unable to validate Token", cause)
+          logger.error(s"${domainFqn}: Unable to validate reconnect token.", cause)
           AuthenticationError
       }
     }
@@ -208,7 +209,7 @@ class AuthenticationHandler(
             case Success(token) => 
               AuthenticationSuccess(username, SessionKey(username, id, admin), token)
             case Failure(error) =>
-              logger.error("Unable to create reconnect token", error)
+              logger.error(s"${domainFqn}: Unable to create reconnect token", error)
               AuthenticationSuccess(username, SessionKey(username, id, admin), "-1")
           }
       }
@@ -253,7 +254,7 @@ class AuthenticationHandler(
       domainConfigStore.getAdminKeyPair() match {
         case Success(keyPair) => (Some(keyPair.publicKey), true)
         case _ =>
-          logger.error("Unabled to load admin key for domain")
+          logger.error(s"${domainFqn}: Unabled to load admin key for domain")
           (None, false)
       }
     } else {
@@ -270,7 +271,7 @@ class AuthenticationHandler(
         Some((keyFactory.generatePublic(spec), admin))
       }.recoverWith {
         case e: Throwable =>
-          logger.warn("Unabled to decode jwt public key: " + e.getMessage)
+          logger.warn(s"${domainFqn}: Unabled to decode jwt public key: " + e.getMessage)
           Success(None)
       }.get
     }

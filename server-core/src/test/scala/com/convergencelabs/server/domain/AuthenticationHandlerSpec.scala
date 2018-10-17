@@ -231,7 +231,7 @@ class AuthenticationHandlerSpec()
     val missingKey = "missingKey"
     Mockito.when(keyStore.getKey(missingKey)).thenReturn(Success(None))
 
-    val authHandler = new AuthenticationHandler(domainConfigStore, keyStore, userStore, userGroupStore, sessionStore, system.dispatcher)
+    val authHandler = new AuthenticationHandler(domainFqn, domainConfigStore, keyStore, userStore, userGroupStore, sessionStore, system.dispatcher)
   }
 
 }

@@ -81,7 +81,7 @@ class DomainPersistenceManagerActor(
   }
 
   private[this] def onAcquire(domainFqn: DomainFqn, requestor: ActorRef): Unit = {
-    log.debug(s"Acquiring domain persistence for ${domainFqn} for ${requestor.path}")
+    log.debug(s"${domainFqn}: Acquiring domain persistence for ${requestor.path}")
     val p = providers.get(domainFqn) match {
       case Some(provider) => Success(provider)
       case None => createProvider(domainFqn)
@@ -103,14 +103,14 @@ class DomainPersistenceManagerActor(
         sender ! PersistenceProviderReference(provider)
       }
       case Failure(cause) => {
-        log.debug("Unable obtain a persistence provider")
+        log.debug(s"${domainFqn}: Unable obtain a persistence provider")
         sender ! PersistenceProviderUnavailable(cause)
       }
     }
   }
 
   private[this] def onRelease(domainFqn: DomainFqn): Unit = {
-    log.debug(s"Releasing domain persistence for ${domainFqn} for ${sender.path}")
+    log.debug(s"${domainFqn}: Releasing domain persistence for ${sender.path}")
     decrementCount(domainFqn)
 
     providersByActor.get(sender) match {
@@ -128,7 +128,7 @@ class DomainPersistenceManagerActor(
   }
 
   private[this] def onActorDeath(actor: ActorRef): Unit = {
-    log.debug(s"Unregistering persistence providers for died actor: ${actor.path}")
+    log.debug(s"Unregistering all persistence providers for died actor: ${actor.path}")
     providersByActor.get(actor) foreach (acquiredProviders => {
       acquiredProviders foreach (domainFqn => {
         decrementCount(domainFqn)
@@ -152,11 +152,11 @@ class DomainPersistenceManagerActor(
   }
 
   private[this] def createProvider(domainFqn: DomainFqn): Try[DomainPersistenceProvider] = {
-    log.debug(s"Creating new persistence provider: ${domainFqn}")
+    log.debug(s"${domainFqn}: Creating new persistence provider")
     domainDatabaseStore.getDomainDatabase(domainFqn) flatMap {
       case Some(domainInfo) =>
 
-        log.debug(s"Creating new connection pool for '${domainFqn}': ${baseDbUri}/${domainInfo.database}")
+        log.debug(s"${domainFqn}: Creating new connection pool: ${baseDbUri}/${domainInfo.database}")
 
         // FIXME need to fiugre out how to configure pool sizes.
         val dbProvider = new PooledDatabaseProvider(baseDbUri, domainInfo.database, domainInfo.username, domainInfo.password)
@@ -169,7 +169,7 @@ class DomainPersistenceManagerActor(
             Success(provider)
           }
       case None =>
-        val message = s"Error looking up the domain record for $domainFqn, when initializing a domain persistence provider."
+        val message = s"${domainFqn}: Error looking up the domain record when initializing a domain persistence provider."
         Failure(new IllegalStateException(message))
     }
   }
@@ -177,13 +177,13 @@ class DomainPersistenceManagerActor(
   private[this] def shutdownPool(domainFqn: DomainFqn): Unit = {
     providers.get(domainFqn) match {
       case Some(provider) => {
-        log.debug(s"Shutting down persistence provider: ${domainFqn}")
+        log.debug(s"${domainFqn}: Shutting down persistence provider")
         providers = providers - domainFqn
         refernceCounts = refernceCounts - domainFqn
         provider.shutdown()
       }
       case None => {
-        log.warning(s"Attempted to shutdown a persistence provider that was not open: ${domainFqn}")
+        log.warning(s"${domainFqn}: Attempted to shutdown a persistence provider that was not open")
       }
     }
   }

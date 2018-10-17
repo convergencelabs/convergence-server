@@ -111,7 +111,7 @@ class DomainActor(
 
     authenticator.authenticate(message.credentials) onComplete {
       case Success(AuthenticationSuccess(username, sk, recconectToken)) =>
-        log.debug("Authenticated user successfully, creating session")
+        log.debug(s"${domainFqn}: Authenticated user successfully, creating session")
 
         val method = message.credentials match {
           case x: JwtAuthRequest => "jwt"
@@ -136,7 +136,7 @@ class DomainActor(
           asker ! AuthenticationSuccess(username, sk, recconectToken)
         } recover {
           case cause: Exception =>
-            log.error(cause, "Unable to authenticate user because a session could not be created")
+            log.error(cause, s"${domainFqn} Unable to authenticate user because a session could not be created.")
             asker ! AuthenticationFailure
         }
       case Success(AuthenticationFailure) =>
@@ -152,7 +152,7 @@ class DomainActor(
 
   private[this] def onHandshakeRequest(message: HandshakeRequest): Unit = {
     persistenceProvider.validateConnection() map { _ =>
-      this.context.setReceiveTimeout(Duration.Inf)
+      this.context.setReceiveTimeout(Duration.Undefined)
 
       connectedClients += message.clientActor
       context.watch(message.clientActor)
@@ -165,7 +165,7 @@ class DomainActor(
         this.children.chatChannelLookupActor)
     } recover {
       case cause: Throwable =>
-        log.error(cause, "Could not connect to domain database")
+        log.error(cause, s"${domainFqn}: Could not connect to domain database")
         sender ! Status.Failure(HandshakeFailureException("domain_unavailable", "Could not connect to database."))
     }
   }
@@ -178,24 +178,25 @@ class DomainActor(
     connectedClients.remove(client)
     
     authenticatedClients.get(client) foreach { sessionId =>
-      log.debug(s"Client disconnecting: ${sessionId}")
+      log.debug(s"${domainFqn}: Client disconnecting: ${sessionId}")
       persistenceProvider.sessionStore.setSessionDisconneted(sessionId, Instant.now())
     }
     
     if (connectedClients.isEmpty) {
-      log.debug(s"Last client disconnected from domain: ${domainFqn}")
+      log.debug(s"${domainFqn}: Last client disconnected from domain.")
       this.context.setReceiveTimeout(this.receiveTimeout)
     }
   }
 
   override def initialize(msg: DomainMessage): Try[Unit] = {
-    log.debug(s"DomainActor initializing: '{}'", msg.domainFqn)
+    log.debug(s"${msg.domainFqn}: DomainActor initializing.")
 
     this._domainFqn = Some(msg.domainFqn)
 
     domainPersistenceManager.acquirePersistenceProvider(self, context, msg.domainFqn) map { provider =>
       this._persistenceProvider = Some(provider)
       this._authenticator = Some(new AuthenticationHandler(
+        msg.domainFqn,
         provider.configStore,
         provider.jwtAuthKeyStore,
         provider.userStore,
@@ -238,11 +239,11 @@ class DomainActor(
 
       this.context.setReceiveTimeout(this.receiveTimeout)
 
-      log.debug(s"DomainActor initialized: {}", domainFqn)
+      log.debug(s"${domainFqn}: DomainActor initialized")
       ()
     } recoverWith {
       case cause: Throwable =>
-        log.debug(s"Error initializing DomainActor: {}", domainFqn)
+        log.debug(s"${domainFqn}: Error initializing DomainActor")
         Failure(cause)
     }
   }
@@ -270,7 +271,7 @@ class DomainActor(
 
   override def postStop(): Unit = {
     this._domainFqn match {
-      case Some(d) => log.debug(s"DomainActor shut down: {}", d)
+      case Some(d) => log.debug(s"${d}: DomainActor shut down")
       case None => log.warning("Uninitialized DomainActor shut down")
     }
   }

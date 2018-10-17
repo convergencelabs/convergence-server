@@ -15,12 +15,13 @@ import com.convergencelabs.server.datastore.domain.ModelPermissions
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.ModelSnapshotConfig
 import com.convergencelabs.server.domain.UnauthorizedException
-import com.convergencelabs.server.domain.model.RealtimeModelPersistenceStream.ProcessOperation
+import com.convergencelabs.server.domain.model.RealtimeModelPersistence.PersistenceEventHanlder
 import com.convergencelabs.server.domain.model.ot.OperationTransformer
 import com.convergencelabs.server.domain.model.ot.ServerConcurrencyControl
 import com.convergencelabs.server.domain.model.ot.TransformationFunctionRegistry
 import com.convergencelabs.server.domain.model.ot.UnprocessedOperationEvent
 import com.convergencelabs.server.domain.model.ot.xform.ReferenceTransformer
+import com.convergencelabs.server.util.EventLoop
 
 import akka.actor.ActorContext
 import akka.actor.ActorRef
@@ -30,8 +31,6 @@ import akka.pattern.AskTimeoutException
 import akka.pattern.Patterns
 import akka.util.Timeout
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.util.EventLoop
-import com.convergencelabs.server.domain.model.RealtimeModelPersistence.PersistenceEventHanlder
 
 object RealTimeModelManager {
   val DatabaseInitializationFailure = UnknownErrorResponse("Unexpected persistence error initializing the model.")
@@ -370,7 +369,7 @@ class RealTimeModelManager(
     if (this.state == State.Initializing) {
       this.queuedOpeningClients.get(sk) match {
         case Some(openRecord) =>
-          debug(s"Received config data for model from client: ${domainFqn}/${modelId}")
+          debug(s"Processing config data for model from client: ${domainFqn}/${modelId}")
           val ClientAutoCreateModelConfigResponse(colleciton, modelData, overridePermissions, worldPermissions, userPermissions, ephemeral) = config
 
           val overrideWorld = overridePermissions.getOrElse(false)
@@ -381,6 +380,7 @@ class RealTimeModelManager(
           this.ephemeral = ephemeral.getOrElse(false)
 
           debug(s"Creating model in database: ${this.modelId}")
+
           modelCreator.createModel(
             persistenceProvider,
             Some(sk.uid),

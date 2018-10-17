@@ -6,27 +6,23 @@ import scala.language.implicitConversions
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-import scala.util.control.NonFatal
 
+import com.convergencelabs.server.actor.ShardedActor
 import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManager
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.UnauthorizedException
 import com.convergencelabs.server.domain.model.RealTimeModelManager.EventHandler
+import com.convergencelabs.server.util.ActorBackedEventLoop
+import com.convergencelabs.server.util.ActorBackedEventLoop.TaskScheduled
 
-import akka.actor.Actor
-import akka.actor.ActorLogging
 import akka.actor.ActorRef
-import akka.actor.PoisonPill
 import akka.actor.Props
 import akka.actor.ReceiveTimeout
 import akka.actor.Status
 import akka.actor.Terminated
-import akka.cluster.sharding.ShardRegion.Passivate
 import akka.util.Timeout
-import com.convergencelabs.server.util.ActorBackedEventLoop
-import com.convergencelabs.server.util.ActorBackedEventLoop.DoWork
 
 /**
  * Provides a factory method for creating the RealtimeModelActor
@@ -61,8 +57,7 @@ class RealtimeModelActor(
   private[this] val persistenceManager: DomainPersistenceManager,
   private[this] val clientDataResponseTimeout: FiniteDuration,
   private[this] val receiveTimeout: FiniteDuration)
-    extends Actor
-    with ActorLogging {
+    extends ShardedActor(classOf[ModelMessage]) {
 
   import RealtimeModelActor._
 
@@ -75,14 +70,7 @@ class RealtimeModelActor(
   // Receive methods
   //
 
-  def receive: Receive = receiveUninitialized
-
-  private[this] def receiveUninitialized: Receive = {
-    case msg: ModelMessage =>
-      initialize(msg).map(_ => receiveClosed(msg))
-    case unknown: Any =>
-      unhandled(unknown)
-  }
+  override def receiveInitialized = this.receiveClosed
 
   private[this] def receiveClosed: Receive = {
     case msg: ReceiveTimeout =>
@@ -103,8 +91,8 @@ class RealtimeModelActor(
     case msg: RealTimeModelMessage =>
       handleRealtimeMessage(msg)
 
-    case DoWork(work) =>
-      work()
+    case TaskScheduled(task) =>
+      task()
 
     case terminated: Terminated =>
       modelManager.handleTerminated(terminated)
@@ -152,7 +140,7 @@ class RealtimeModelActor(
     } map { response =>
       sender ! response
     } recover {
-      case cause: Exception =>
+      case cause: Throwable =>
         sender ! Status.Failure(cause)
         ()
     }
@@ -192,7 +180,7 @@ class RealtimeModelActor(
     } map { _ =>
       sender ! (())
     } recover {
-      case cause: Exception =>
+      case cause: Throwable =>
         sender ! Status.Failure(cause)
         ()
     }
@@ -211,16 +199,6 @@ class RealtimeModelActor(
     }
   }
 
-  private[this] def receivePassivating: Receive = {
-    case msg: ReceiveTimeout =>
-    // ignore
-    case msg: RealTimeModelMessage =>
-      // Forward this back to the shard region, it will be handled by the next actor that is stood up.
-      this.context.parent.forward(msg)
-    case msg: Any =>
-      unhandled(msg)
-  }
-
   private[this] def modelManager: RealTimeModelManager = this._modelManager.getOrElse {
     throw new IllegalStateException("The model manager can not be access when the model is not open.")
   }
@@ -237,24 +215,24 @@ class RealtimeModelActor(
     throw new IllegalStateException("Can not access persistenceProvider before the model is initialized.")
   }
 
-  private[this] def initialize(msg: ModelMessage): Try[Unit] = {
+  override protected def initialize(msg: ModelMessage): Try[Unit] = {
     log.debug(s"Real Time Model Actor initializing: '{}/{}'", msg.domainFqn, msg.modelId)
     persistenceManager.acquirePersistenceProvider(self, context, msg.domainFqn) map { provider =>
       this._persistenceProvider = Some(provider)
       this._domainFqn = Some(msg.domainFqn)
       this._modelId = Some(msg.modelId)
       log.debug(s"Real Time Model Actor aquired persistence: '{}/{}'", domainFqn, modelId)
-      context.become(receiveClosed)
+      this.becomeClosed()
       ()
     } recoverWith {
-      case NonFatal(cause) =>
+      case cause: Throwable =>
         log.debug(s"Error initializing Real Time Model Actor: '{}/{}'", domainFqn, modelId)
         Failure(cause)
     }
   }
 
   private[this] def becomeOpened(): Unit = {
-    log.debug("Model '{}/{}' becoming open.", domainFqn, modelId)
+    log.debug("RealtimeModelActor '{}/{}' becoming open.", domainFqn, modelId)
     val persistenceFactory = new RealtimeModelPersistenceStreamFactory(
       domainFqn,
       modelId,
@@ -293,17 +271,16 @@ class RealtimeModelActor(
   }
 
   private[this] def becomeClosed(): Unit = {
-    log.debug("Realtime Model '{}/{}' becoming closed.", domainFqn, modelId)
+    log.debug("RealtimeModelActor '{}/{}' becoming closed.", domainFqn, modelId)
     this._modelManager = None
     this.context.become(receiveClosed)
     this.context.setReceiveTimeout(this.receiveTimeout)
   }
 
-  private[this] def passivate(): Unit = {
-    log.debug("Realtime Model '{}/{}' passivating.", modelId, domainFqn)
-    this.context.parent ! Passivate(stopMessage = PoisonPill)
+  override def passivate(): Unit = {
+    log.debug("RealtimeModelActor '{}/{}' passivating.", domainFqn, modelId)
     this.context.setReceiveTimeout(Duration.Undefined)
-    this.context.become(receivePassivating)
+    super.passivate()
   }
 
   //

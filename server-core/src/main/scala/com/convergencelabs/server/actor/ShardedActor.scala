@@ -1,10 +1,11 @@
 package com.convergencelabs.server.actor
 
+import scala.util.Try
+
 import akka.actor.Actor
+import akka.actor.ActorLogging
 import akka.actor.PoisonPill
 import akka.cluster.sharding.ShardRegion.Passivate
-import scala.util.Try
-import akka.actor.ActorLogging
 
 abstract class ShardedActor[T](
   private[this] val messageClass: Class[T])
@@ -23,15 +24,15 @@ abstract class ShardedActor[T](
   }
 
   protected def passivate(): Unit = {
-    this.context.parent.tell(Passivate(PoisonPill), this.self)
+    this.context.parent ! Passivate(PoisonPill)
     this.context.become(this.receivePassivating)
   }
 
   private[this] def recevieInitialMessage(message: T): Unit = {
     this.initialize(message)
       .map(_ => {
-        this.receiveInitialized(message)
         this.context.become(this.receiveInitialized)
+        this.receiveInitialized(message)
       })
       .recover {
         case cause: Throwable =>

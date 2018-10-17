@@ -68,7 +68,7 @@ class ClientActor(
   // FIXME this should probably be for handshake and auth.
   private[this] val handshakeTimeoutTask =
     context.system.scheduler.scheduleOnce(protocolConfig.handshakeTimeout) {
-      log.debug("Client handshaked timeout")
+      log.debug(s"${domainFqn}: Client handshaked timeout")
       Option(connectionActor) match {
         case Some(connection) => connection ! CloseConnection
         case None =>
@@ -133,7 +133,7 @@ class ClientActor(
 
   private[this] def receiveCommon: Receive = {
     case WebSocketClosed =>
-      log.debug(s"Web socket closed for ${domainFqn}/${sessionId}")
+      log.debug(s"${domainFqn}: Web socket closed for session: ${sessionId}")
       onConnectionClosed()
     case WebSocketError(cause) => 
       onConnectionError(cause)
@@ -222,7 +222,7 @@ class ClientActor(
       case Success(AuthenticationError) =>
         cb.reply(AuthenticationResponseMessage(false, None, None, None, None)) // TODO do we want this to go back to the client as something else?
       case Failure(cause) =>
-        log.error(cause, "Error authenticating user")
+        log.error(cause, s"Error authenticating user for domain ${domainFqn}")
         cb.reply(AuthenticationResponseMessage(false, None, None, None, None))
     }
   }
@@ -260,11 +260,11 @@ class ClientActor(
   private[this] def handshake(request: HandshakeRequestMessage, cb: ReplyCallback): Unit = {
     val canceled = handshakeTimeoutTask.cancel()
     if (canceled) {
-      log.debug(s"Handhsaking with domain: ${domainFqn}")
+      log.debug(s"${domainFqn}: Handhsaking with DomainActor")
       val future = domainRegion ? HandshakeRequest(domainFqn, self, request.r, request.k)
       future.mapResponse[HandshakeSuccess] onComplete {
         case Success(success) => {
-          log.debug(s"Handhsake success: ${domainFqn}")
+          log.debug(s"${domainFqn}: Handhsake success")
           self ! InternalHandshakeSuccess(success, cb)
         }
         case  Failure(cause @ HandshakeFailureException(code, details)) => {
@@ -274,14 +274,14 @@ class ClientActor(
           self ! PoisonPill
         }
         case Failure(cause) => {
-          log.error(cause, s"Error handshaking with domain ${domainFqn}")
+          log.error(cause, s"${domainFqn}: Error handshaking with DomainActor")
           cb.reply(HandshakeResponseMessage(false, Some(ErrorData("unknown", "uknown error")), Some(true), None))
           this.connectionActor ! CloseConnection
           self ! PoisonPill
         }
       }
     } else {
-      log.debug(s"Not handhsaking with domain because handshake timeout was not canceledxx: ${domainFqn}")
+      log.debug(s"${domainFqn}: Not handhsaking with domain because handshake timeout occured")
     }
   }
 
@@ -295,7 +295,7 @@ class ClientActor(
     this.userServiceActor = userActor
     this.presenceServiceActor = presenceActor
     this.chatLookupActor = chatLookupActor
-    log.debug(s"Sending handshake response to client: ${domainFqn}")
+    log.debug(s"${domainFqn}: Sending handshake response to client")
     cb.reply(HandshakeResponseMessage(true, None, None, Some(ProtocolConfigData(true))))
     this.messageHandler = handleAuthentationMessage
     context.become(receiveWhileAuthenticating)
@@ -358,19 +358,19 @@ class ClientActor(
   }
 
   private[this] def onConnectionClosed(): Unit = {
-    log.info(s"Connection Closed for ${domainFqn}/${sessionId}")
+    log.info(s"${domainFqn}: Connection Closed for session: ${sessionId}")
     domainRegion ! ClientDisconnected(domainFqn, self)
     context.stop(self)
   }
 
   private[this] def onConnectionError(cause: Throwable): Unit = {
-    log.debug(s"Connection Error for ${domainFqn}/${sessionId}: " + cause.getMessage)
+    log.debug(s"${domainFqn}: Connection Error for: ${sessionId} - " + cause.getMessage)
     domainRegion ! ClientDisconnected(domainFqn, self)
     context.stop(self)
   }
 
   private[this] def invalidMessage(message: Any): Unit = {
-    log.error("Invalid message: " + message)
+    log.error(s"${domainFqn}: Invalid message: '${message}'")
     connectionActor ! CloseConnection
     context.stop(self)
   }

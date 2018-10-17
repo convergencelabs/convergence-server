@@ -3,17 +3,17 @@ package com.convergencelabs.server.util
 import akka.actor.ActorRef
 
 trait EventLoop {
-  def schedule(work: => Unit)
+  def schedule(task: => Unit)
 }
 
 object ActorBackedEventLoop {
-  case class DoWork(work: () => Unit)
+  case class TaskScheduled(task: () => Unit)
 }
 
 class ActorBackedEventLoop(actor: ActorRef) extends EventLoop {
   import ActorBackedEventLoop._
 
-  def schedule(work: => Unit): Unit = {
-    actor ! DoWork((() => work))
+  def schedule(task: => Unit): Unit = {
+    actor ! TaskScheduled((() => task))
   }
 }
