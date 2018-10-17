@@ -116,7 +116,7 @@ class BackendNode(system: ActorSystem, convergenceDbProvider: DatabaseProvider) 
   }
 
   def stop(): Unit = {
-    logger.info("Convergenc backend shutting down.")
+    logger.info("Convergence Backend Node shutting down.")
     activityShardRegion.foreach(_ ! ShardRegion.GracefulShutdown)
     chatChannelRegion.foreach(_ ! ShardRegion.GracefulShutdown)
     domainReqion.foreach(_ ! ShardRegion.GracefulShutdown)

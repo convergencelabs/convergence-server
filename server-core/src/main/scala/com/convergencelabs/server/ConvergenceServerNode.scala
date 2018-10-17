@@ -80,6 +80,7 @@ object ConvergenceServerNode extends Logging {
     SystemOutRedirector.setOutAndErrToLog();
 
     scala.sys.addShutdownHook {
+      logger.info("JVM Shutdown Hook Invoked, stopping services")
       this.stop()
     }
 
@@ -395,7 +396,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
     system foreach { s =>
       logger.info(s"Terminating actor system.")
       s.terminate()
-      Await.result(s.whenTerminated, FiniteDuration(5, TimeUnit.SECONDS))
+      Await.result(s.whenTerminated, FiniteDuration(10, TimeUnit.SECONDS))
       logger.info(s"Actor system terminated.")
     }
   }

@@ -259,25 +259,30 @@ class ClientActor(
   }
 
   private[this] def handshake(request: HandshakeRequestMessage, cb: ReplyCallback): Unit = {
-    log.debug("handhsaking with domain")
     val canceled = handshakeTimeoutTask.cancel()
     if (canceled) {
+      log.debug(s"Handhsaking with domain: ${domainFqn}")
       val future = domainRegion ? HandshakeRequest(domainFqn, self, request.r, request.k)
       future.mapResponse[HandshakeSuccess] onComplete {
         case Success(success) => {
+          log.debug(s"Handhsaking success: ${domainFqn}")
           self ! InternalHandshakeSuccess(success, cb)
         }
-        case Failure(HandshakeFailureException(code, details)) => {
+        case  Failure(cause @ HandshakeFailureException(code, details)) => {
+          log.error(cause, s"Error handshaking with domain ${domainFqn}: {code: '${code}', details: '${details}'}")
           cb.reply(HandshakeResponseMessage(false, Some(ErrorData(code, details)), Some(true), None))
           this.connectionActor ! CloseConnection
           self ! PoisonPill
         }
         case Failure(cause) => {
+          log.error(cause, s"Error handshaking with domain ${domainFqn}")
           cb.reply(HandshakeResponseMessage(false, Some(ErrorData("unknown", "uknown error")), Some(true), None))
           this.connectionActor ! CloseConnection
           self ! PoisonPill
         }
       }
+    } else {
+      log.debug(s"Not handhsaking with domain because handshake timeout was not canceledxx: ${domainFqn}")
     }
   }
 

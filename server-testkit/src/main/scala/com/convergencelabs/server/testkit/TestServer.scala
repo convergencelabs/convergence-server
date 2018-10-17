@@ -49,6 +49,7 @@ class TestServer() extends Logging {
     logger.info("Test server started.")
     
     scala.sys.addShutdownHook {
+      logger.info("Test server JVM Shutdown Hook called.")
       this.stop()
     }
     
