@@ -17,7 +17,7 @@ case class AuthenticationRequest(
   clientMetaData: String,
   credentials:    AuthetncationCredentials) extends DomainMessage
 
-case class ClientDisconnected(domainFqn: DomainFqn, sessionId: String) extends DomainMessage
+case class ClientDisconnected(domainFqn: DomainFqn, clientActor: ActorRef) extends DomainMessage
 
 sealed trait AuthetncationCredentials
 case class PasswordAuthRequest(username: String, password: String) extends AuthetncationCredentials
@@ -33,7 +33,6 @@ case object AuthenticationError extends AuthenticationResponse
 case class UnauthorizedException(message: String = "") extends Exception(message)
 
 case class HandshakeSuccess(
-  domainActor:         ActorRef,
   modelQueryActor:     ActorRef,
   modelStoreActor:     ActorRef,
   operationStoreActor: ActorRef,

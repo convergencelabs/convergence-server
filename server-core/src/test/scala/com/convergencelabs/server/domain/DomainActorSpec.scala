@@ -44,7 +44,6 @@ class DomainActorSpec
         val client = new TestProbe(system)
         domainActor.tell(HandshakeRequest(domainFqn, client.ref, false, None), client.ref)
         val response = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeSuccess])
-        assert(domainActor == response.domainActor)
       }
     }
   }

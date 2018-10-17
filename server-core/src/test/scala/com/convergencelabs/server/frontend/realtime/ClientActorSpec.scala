@@ -97,7 +97,7 @@ class ClientActorSpec
 
     domainManagerActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeRequest])
     domainManagerActor.reply(
-        HandshakeSuccess(domainActor.ref, modelManagerActor.ref, modelStoreActor.ref, operationStoreActor.ref, userServiceActor.ref, presenceServiceActor.ref, chatLookupActor.ref))
+        HandshakeSuccess(modelManagerActor.ref, modelStoreActor.ref, operationStoreActor.ref, userServiceActor.ref, presenceServiceActor.ref, chatLookupActor.ref))
     Await.result(handshakeCallback.result, 250 millis)
   }
 

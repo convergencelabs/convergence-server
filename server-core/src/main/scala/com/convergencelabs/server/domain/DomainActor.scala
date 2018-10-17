@@ -157,7 +157,6 @@ class DomainActor(
       connectedClients += message.clientActor
       context.watch(message.clientActor)
       sender ! HandshakeSuccess(
-        self,
         this.children.modelQueryManagerActor,
         this.children.modelStoreActor,
         this.children.operationStoreActor,
@@ -165,22 +164,24 @@ class DomainActor(
         this.children.presenceServiceActor,
         this.children.chatChannelLookupActor)
     } recover {
-      case cause: Exception =>
+      case cause: Throwable =>
         log.error(cause, "Could not connect to domain database")
         sender ! Status.Failure(HandshakeFailureException("domain_unavailable", "Could not connect to database."))
     }
   }
 
   private[this] def onClientDisconnect(message: ClientDisconnected): Unit = {
-    log.debug(s"Client disconnecting: ${message.sessionId}")
-    removeClient(sender())
+    removeClient(message.clientActor)
   }
 
   private[this] def removeClient(client: ActorRef): Unit = {
     connectedClients.remove(client)
+    
     authenticatedClients.get(client) foreach { sessionId =>
+      log.debug(s"Client disconnecting: ${sessionId}")
       persistenceProvider.sessionStore.setSessionDisconneted(sessionId, Instant.now())
     }
+    
     if (connectedClients.isEmpty) {
       log.debug(s"Last client disconnected from domain: ${domainFqn}")
       this.context.setReceiveTimeout(this.receiveTimeout)
