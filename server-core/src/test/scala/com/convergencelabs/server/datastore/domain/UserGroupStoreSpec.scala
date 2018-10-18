@@ -81,7 +81,7 @@ class UserGroupStoreSpec
       "correctly update with a new id" in withUsers { store =>
         store.createUserGroup(group1).get
         val updated = group1.copy(id = "test")
-        println(updated)
+        
         store.updateUserGroup(group1.id, updated).get
 
         val updatedRead = store.getUserGroup(updated.id).get.value

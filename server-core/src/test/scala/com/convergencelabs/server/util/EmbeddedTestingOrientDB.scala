@@ -1,19 +1,26 @@
 package com.convergencelabs.server.util
 
 import java.io.File
-import com.orientechnologies.orient.client.remote.OServerAdmin
-import com.orientechnologies.orient.server.OServerMain
+
+import com.orientechnologies.common.log.OLogManager
+import com.orientechnologies.orient.server.OServer
 import com.orientechnologies.orient.server.config.OServerConfigurationManager
 import com.orientechnologies.orient.server.config.OServerEntryConfiguration
+
 import grizzled.slf4j.Logging
 
-class EmbeddedOrientDB(dataPath: String, persistent: Boolean) extends Logging {
-  val server = OServerMain.create(false)
+class EmbeddedTestingOrientDB(dataPath: String, persistent: Boolean) extends Logging {
+  OLogManager.instance().setWarnEnabled(false);
+  OLogManager.instance().setConsoleLevel("SEVERE");
+  OLogManager.instance().setFileLevel("SEVERE");
+
+  val server = new OServer(false)
 
   val odbTarget = new File(dataPath)
 
   def start(): Unit = {
     logger.info("Starting up embedded OrientDB")
+
     if (!persistent && odbTarget.exists()) {
       deleteDirectory(odbTarget)
     }
@@ -30,13 +37,19 @@ class EmbeddedOrientDB(dataPath: String, persistent: Boolean) extends Logging {
     config.properties = withData.toArray
     server.startup(config)
     server.activate()
-    
+
     logger.info(s"OrientDB started at path: ${server.getDatabaseDirectory}")
   }
 
   def stop(): Unit = {
+    logger.info(s"Stopping OrientDB")
     server.shutdown()
+    server.waitForShutdown()
+    server.getDatabases.close()
+    logger.info(s"OrientDB Stopped")
+    
     if (!persistent) {
+      logger.info(s"Deleting OrientDB database directory: ${server.getDatabaseDirectory}")
       deleteDirectory(odbTarget)
     }
   }

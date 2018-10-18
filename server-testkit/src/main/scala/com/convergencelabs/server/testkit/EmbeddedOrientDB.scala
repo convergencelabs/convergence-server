@@ -1,26 +1,24 @@
 package com.convergencelabs.server.testkit
 
 import java.io.File
-import com.orientechnologies.orient.client.remote.OServerAdmin
-import com.orientechnologies.orient.server.OServerMain
+
+import com.orientechnologies.common.log.OLogManager
+import com.orientechnologies.orient.server.OServer
 import com.orientechnologies.orient.server.config.OServerConfigurationManager
 import com.orientechnologies.orient.server.config.OServerEntryConfiguration
+
 import grizzled.slf4j.Logging
-import com.orientechnologies.orient.core.db.OrientDB
-import com.orientechnologies.orient.core.db.OrientDBConfig
-import java.io.FileInputStream
-import com.orientechnologies.common.log.OLogManager
 
 class EmbeddedOrientDB(dataPath: String, persistent: Boolean) extends Logging {
   OLogManager.instance().setWarnEnabled(false);
   OLogManager.instance().setConsoleLevel("SEVERE");
   
-  val server = OServerMain.create(false)
+  val server = new OServer()
 
   val odbTarget = new File(dataPath)
 
   def start(): Unit = {
-    logger.info("Starting up embedded OrientDB")
+    logger.info("Starting up Embedded OrientDB")
     if (!persistent && odbTarget.exists()) {
       logger.info("Removing old data, because the server is set to non-persistent.")
       deleteDirectory(odbTarget)
@@ -43,7 +41,7 @@ class EmbeddedOrientDB(dataPath: String, persistent: Boolean) extends Logging {
     server.startup(config)
     server.activate()
     
-    logger.info(s"OrientDB started at path: ${server.getDatabaseDirectory}")
+    logger.info(s"Embedded OrientDB started at path: ${server.getDatabaseDirectory}")
   }
 
   def stop(): Unit = {

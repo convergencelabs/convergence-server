@@ -140,7 +140,7 @@
     </users>
     <properties>
         <entry name="profiler.enabled" value="false"/>
-	    <entry name="log.console.level" value="ERROR" />
-	    <entry name="log.file.level" value="ERROR" />
+	    <entry name="log.console.level" value="SEVERE" />
+	    <entry name="log.file.level" value="SEVERE"/>
     </properties>
 </orient-server>
