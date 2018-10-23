@@ -60,18 +60,19 @@ class ModelOperationProcessor private[domain] (
   val Value = "value"
   val Index = "index"
 
-  def processModelOperation(modelOperation: NewModelOperation): Try[Unit] = tryWithDb { db =>
+  def processModelOperation(modelOperation: NewModelOperation): Try[Unit] = withDb { db =>
     // TODO this should all be in a transaction, but OrientDB has a problem with this.
 
-    // Apply the op.
-    applyOperationToModel(modelOperation.modelId, modelOperation.op, db).flatMap { _ =>
-      // Persist the operation
-      modelOpStore.createModelOperation(modelOperation)
-    }.flatMap { _ =>
-      // Update the model metadata
-      modelStore.updateModelOnOperation(modelOperation.modelId, modelOperation.timestamp)
-    }.get
-
+    for {
+      // 1. Apply the operation to the actual model.
+      _ <- applyOperationToModel(modelOperation.modelId, modelOperation.op, db)
+      
+      // 2. Persist the operation to the Operation History
+      _ <- modelOpStore.createModelOperation(modelOperation)
+      
+      // 3. Update the model version and time stamp
+      _ <- modelStore.updateModelOnOperation(modelOperation.modelId, modelOperation.timestamp)
+    } yield (())
   }
 
   // scalastyle:off cyclomatic.complexity

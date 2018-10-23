@@ -31,6 +31,7 @@ import grizzled.slf4j.Logging
 import com.convergencelabs.server.datastore.domain.SessionStore
 import com.convergencelabs.server.datastore.domain.DomainUserStore.UpdateDomainUser
 import com.convergencelabs.server.datastore.domain.UserGroupStore
+import com.convergencelabs.server.datastore.domain.schema.DomainSchema
 
 object AuthenticationHandler {
   val AdminKeyId = "ConvergenceAdminKey"
@@ -45,14 +46,14 @@ class AuthenticationHandler(
   private[this] val userGroupStore: UserGroupStore,
   private[this] val sessionStore: SessionStore,
   private[this] implicit val ec: ExecutionContext)
-    extends Logging {
+  extends Logging {
 
   def authenticate(request: AuthetncationCredentials): Future[AuthenticationResponse] = {
     request match {
       case message: PasswordAuthRequest =>
         authenticatePassword(message)
       case message: JwtAuthRequest =>
-        authenticateToken(message)
+        authenticateJwt(message)
       case message: ReconnectTokenAuthRequest =>
         authenticateReconnectToken(message)
       case message: AnonymousAuthRequest =>
@@ -104,7 +105,7 @@ class AuthenticationHandler(
     Future.successful(response)
   }
 
-  private[this] def authenticateToken(authRequest: JwtAuthRequest): Future[AuthenticationResponse] = {
+  private[this] def authenticateJwt(authRequest: JwtAuthRequest): Future[AuthenticationResponse] = {
     Future[AuthenticationResponse] {
       // This implements a two pass approach to be able to get the key id.
       val firstPassJwtConsumer = new JwtConsumerBuilder()
@@ -119,7 +120,7 @@ class AuthenticationHandler(
 
       getJWTPublicKey(keyId) match {
         case Some((publicKey, admin)) =>
-          authenticateTokenWithPublicKey(authRequest, publicKey, admin)
+          authenticateJwtWithPublicKey(authRequest, publicKey, admin)
         case None =>
           logger.warn(s"${domainFqn}: Request to authenticate via token, with an invalid keyId: ${keyId}")
           AuthenticationFailure
@@ -127,7 +128,7 @@ class AuthenticationHandler(
     }
   }
 
-  private[this] def authenticateTokenWithPublicKey(authRequest: JwtAuthRequest, publicKey: PublicKey, admin: Boolean): AuthenticationResponse = {
+  private[this] def authenticateJwtWithPublicKey(authRequest: JwtAuthRequest, publicKey: PublicKey, admin: Boolean): AuthenticationResponse = {
     val jwtConsumer = new JwtConsumerBuilder()
       .setRequireExpirationTime()
       .setAllowedClockSkewInSeconds(AuthenticationHandler.AllowedClockSkew)
@@ -163,10 +164,15 @@ class AuthenticationHandler(
           authSuccess(resolvedUsername, admin, None)
         } recoverWith {
           case e: DuplicateValueException =>
-            // The duplicate value case is when a race condition occurs between when we looked up the
-            // user and then tried to create them.
-            logger.warn(s"${domainFqn}: Attempted to auto create user, but user already exists, returning auth success.")
-            authSuccess(resolvedUsername, admin, None)
+            if (e.field == DomainSchema.Classes.User.Fields.Username) {
+              // The duplicate value case is when a race condition occurs between when we looked up the
+              // user and then tried to create them.
+              logger.warn(s"${domainFqn}: Attempted to auto create user, but user already exists, returning auth success.")
+              authSuccess(resolvedUsername, admin, None)
+            } else {
+              logger.warn(s"${domainFqn}: Attempted to auto create user, but the email specified in the JWT is already registered.")
+              Success(AuthenticationError)
+            }
           case e: InvalidValueExcpetion =>
             Failure(new IllegalArgumentException(s"${domainFqn}: Lazy creation of user based on JWT authentication failed: {$username}", e))
         }
@@ -176,12 +182,12 @@ class AuthenticationHandler(
         AuthenticationError
     }.get
   }
-  
+
   private[this] def authenticateReconnectToken(reconnectRequest: ReconnectTokenAuthRequest): Future[AuthenticationResponse] = {
     Future[AuthenticationResponse] {
-      userStore.validateReconnectToken(reconnectRequest.token)  match {
+      userStore.validateReconnectToken(reconnectRequest.token) match {
         case Success(username) =>
-          if(username.isDefined) {
+          if (username.isDefined) {
             authSuccess(username.get, false, Some(reconnectRequest.token)) match {
               case Success(authSuccessResponse) =>
                 authSuccessResponse
@@ -202,11 +208,11 @@ class AuthenticationHandler(
   private[this] def authSuccess(username: String, admin: Boolean, reconnectToken: Option[String]): Try[AuthenticationResponse] = {
     sessionStore.nextSessionId map { id =>
       reconnectToken match {
-        case Some(reconnectToken) => 
+        case Some(reconnectToken) =>
           AuthenticationSuccess(username, SessionKey(username, id, admin), reconnectToken)
-        case None => 
+        case None =>
           userStore.createReconnectToken(username) match {
-            case Success(token) => 
+            case Success(token) =>
               AuthenticationSuccess(username, SessionKey(username, id, admin), token)
             case Failure(error) =>
               logger.error(s"${domainFqn}: Unable to create reconnect token", error)

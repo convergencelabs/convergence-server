@@ -34,6 +34,8 @@ import akka.testkit.TestKit
 import akka.testkit.TestProbe
 import com.convergencelabs.server.datastore.domain.SessionStore
 import com.convergencelabs.server.datastore.domain.UserGroupStore
+import com.convergencelabs.server.datastore.DuplicateValueException
+import com.convergencelabs.server.datastore.domain.schema.DomainSchema
 
 class AuthenticationHandlerSpec()
     extends TestKit(ActorSystem("AuthManagerActorSpec"))
@@ -122,6 +124,13 @@ class AuthenticationHandlerSpec()
         val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
         result shouldBe AuthenticationError
       }
+      
+      "return an authentication failure when a new user has a duplicate email." in new TestFixture {
+        val f = authHandler.authenticate(JwtAuthRequest(
+            JwtGenerator.generate(duplicateEmailJwtUser.username, enabledKey.id, Map(JwtClaimConstants.Email -> duplicateEmailJwtUser.email.get))))
+        val result = Await.result(f, FiniteDuration(1000, TimeUnit.SECONDS))
+        result shouldBe AuthenticationError
+      }
     }
   }
 
@@ -130,7 +139,7 @@ class AuthenticationHandlerSpec()
     
     val sessionId = 0
     val existingUserName = "existing"
-    val existingUser = DomainUser(DomainUserType.Normal, existingUserName, None, None, None, None)
+    val existingUser = DomainUser(DomainUserType.Normal, existingUserName, None, None, None, Some("existing@example.com"))
 
     val existingCorrectPassword = "correct"
     val existingIncorrectPassword = "incorrect"
@@ -184,9 +193,12 @@ class AuthenticationHandlerSpec()
     Mockito.when(userStore.domainUserExists(brokenLazyUsername)).thenReturn(Success(false))
     Mockito.when(userStore.adminUserExists(brokenLazyUsername)).thenReturn(Success(false))
 
+    val duplicateEmailJwtUser = CreateNormalDomainUser(brokenLazyUsername, None, None, None, Some("test@example.com"))
+    Mockito.when(userStore.createNormalDomainUser(duplicateEmailJwtUser)).thenReturn(Failure(new DuplicateValueException(DomainSchema.Classes.User.Fields.Email)))
+    
     val authfailureUser = "authFailureUser"
     val authfailurePassword = "authFailurePassword"
-    Mockito.when(userStore.validateCredentials(authfailureUser, authfailurePassword)).thenReturn(Failure(new IllegalStateException()))
+    Mockito.when(userStore.validateCredentials(authfailureUser, authfailurePassword)).thenReturn(Failure(new IllegalStateException("Induced filure in testing")))
     Mockito.when(userStore.domainUserExists(authfailureUser)).thenReturn(Success(false))
 
     Mockito.when(userStore.domainUserExists(existingUserName)).thenReturn(Success(true))
@@ -238,7 +250,7 @@ class AuthenticationHandlerSpec()
 
 object JwtGenerator {
 
-  def generate(username: String, keyId: String): String = {
+  def generate(username: String, keyId: String, claims: Map[String, Any] = Map()): String = {
 
     val pemReader = new PemReader(new StringReader(KeyConstants.PrivateKey))
     val obj = pemReader.readPemObject()
@@ -256,6 +268,10 @@ object JwtGenerator {
     jwtClaims.setIssuedAtToNow()
     jwtClaims.setNotBeforeMinutesInThePast(10) // scalastyle:ignore magic.number
 
+    claims.foreach { case (k, v) =>
+       jwtClaims.setClaim(k, v)  
+    }
+    
     // Add claims the user is providing.
     jwtClaims.setSubject(username)
 

@@ -182,7 +182,7 @@ class ProtocolConnection(
     }
 
     def unknownError(): Unit = {
-      unexpectedError("An unkown error has occured")
+      unexpectedError("An unknown error has occurred")
     }
 
     def unexpectedError(message: String): Unit = {

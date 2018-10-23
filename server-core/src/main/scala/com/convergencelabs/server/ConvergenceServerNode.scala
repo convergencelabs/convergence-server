@@ -223,7 +223,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
     val cluster = Cluster(system)
     this.cluster = Some(cluster)
 
-    system.actorOf(Props(new SimpleClusterListener(cluster)), name = "clusterListener")
+    system.actorOf(Props(new ClusterListener(cluster)), name = "clusterListener")
 
     val roles = config.getStringList(ConvergenceServerNode.AkkaConfig.AkkaClusterRoles).asScala.toList
     info(s"Convergnece Server Roles: ${roles.mkString(", ")}")
@@ -402,7 +402,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
   }
 }
 
-private class SimpleClusterListener(cluster: Cluster) extends Actor with ActorLogging {
+private class ClusterListener(cluster: Cluster) extends Actor with ActorLogging {
   override def preStart(): Unit = {
     cluster.subscribe(
       self,

@@ -221,12 +221,12 @@ class RealtimeModelActor(
       this._persistenceProvider = Some(provider)
       this._domainFqn = Some(msg.domainFqn)
       this._modelId = Some(msg.modelId)
-      log.debug(s"Real Time Model Actor aquired persistence: '{}/{}'", domainFqn, modelId)
+      log.debug(s"RealtimeModelActor '{}/{}' acquired persistence", domainFqn, modelId)
       this.becomeClosed()
       ()
     } recoverWith {
       case cause: Throwable =>
-        log.debug(s"Error initializing Real Time Model Actor: '{}/{}'", domainFqn, modelId)
+        log.debug(s"RealtimeModelActor '{}/{}' could not acquire persistence", domainFqn, modelId)
         Failure(cause)
     }
   }
