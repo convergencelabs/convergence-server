@@ -37,7 +37,7 @@ object OrientDBUtil {
    */
   def command(db: ODatabaseDocument, command: String, params: Map[String, Any] = Map()): Try[Long] = {
     Try(db.command(command, params.asJava)).flatMap { rs =>
-      if (rs.hasNext()) {
+      val result = if (rs.hasNext()) {
         val element = rs.next.toElement
         if (rs.hasNext()) {
           Failure(new DatabaseCommandException(command, params, "The result set unexpectedly contained more than one result"))
@@ -51,6 +51,10 @@ object OrientDBUtil {
       } else {
         Failure(new DatabaseCommandException(command, params, "No ResultSet was returned from the command"))
       }
+      
+      rs.close()
+      
+      result
     }
   }
 
@@ -202,6 +206,7 @@ object OrientDBUtil {
 
   private[this] def getMutationCount(rs: OResultSet): Try[Long] = Try {
     val count: Long = rs.next().getProperty(CountField)
+    rs.close()
     count
   }
 
@@ -224,6 +229,7 @@ object OrientDBUtil {
       val doc = rs.next.toElement.asInstanceOf[ODocument]
       docs.append(doc)
     }
+    rs.close()
     docs.toList
   }
 }

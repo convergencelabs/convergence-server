@@ -4,6 +4,7 @@ import java.util.Date
 
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.collection.JavaConverters.seqAsJavaListConverter
+import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
@@ -61,18 +62,24 @@ class ModelOperationProcessor private[domain] (
   val Index = "index"
 
   def processModelOperation(modelOperation: NewModelOperation): Try[Unit] = withDb { db =>
-    // TODO this should all be in a transaction, but OrientDB has a problem with this.
-
-    for {
+    db.begin()
+    (for {
       // 1. Apply the operation to the actual model.
       _ <- applyOperationToModel(modelOperation.modelId, modelOperation.op, db)
       
       // 2. Persist the operation to the Operation History
-      _ <- modelOpStore.createModelOperation(modelOperation)
+      _ <- modelOpStore.createModelOperation(modelOperation, Some(db))
       
       // 3. Update the model version and time stamp
-      _ <- modelStore.updateModelOnOperation(modelOperation.modelId, modelOperation.timestamp)
-    } yield (())
+      _ <- modelStore.updateModelOnOperation(modelOperation.modelId, modelOperation.version, modelOperation.timestamp, Some(db))
+    } yield {
+      db.commit()
+      ()
+    }).recoverWith {
+      case cause: Throwable =>
+        db.rollback()
+        Failure(cause)
+    }
   }
 
   // scalastyle:off cyclomatic.complexity
@@ -80,7 +87,6 @@ class ModelOperationProcessor private[domain] (
     operation match {
       case op: AppliedCompoundOperation =>
         // Apply all operations in the compound op.
-        // FIXME this should happen in a transaction
         Try(op.operations foreach { o => applyOperationToModel(modelId, o, db).get })
 
       case op: AppliedDiscreteOperation if op.noOp =>
@@ -142,7 +148,6 @@ class ModelOperationProcessor private[domain] (
     Try {
       val value = OrientDataValueBuilder.dataValueToODocument(operation.value, getModelRid(modelId, db))
       value.save()
-      db.commit()
       value
     } flatMap { value =>
       val script = createUpdate("SET children = arrayReplace(children, :index, :value)", Some(DeleteArrayIndex(operation.index)))
@@ -166,7 +171,6 @@ class ModelOperationProcessor private[domain] (
           doc.save()
           doc
         }
-        db.commit()
         children
       } else {
         List()
@@ -177,7 +181,6 @@ class ModelOperationProcessor private[domain] (
 
       OrientDBUtil
       OrientDBUtil.executeMutation(db, script, params).map(_ => ())
-        .flatMap(_ => Try(db.commit()))
     }
   }
 
@@ -188,7 +191,6 @@ class ModelOperationProcessor private[domain] (
     Try {
       val value = OrientDataValueBuilder.dataValueToODocument(operation.value, getModelRid(modelId, db))
       value.save()
-      db.commit()
       value
     } flatMap { value =>
       val script = createUpdate("SET children[:property] = :value", None)
@@ -202,7 +204,6 @@ class ModelOperationProcessor private[domain] (
     Try {
       val value = OrientDataValueBuilder.dataValueToODocument(operation.value, getModelRid(modelId, db))
       value.save()
-      db.commit()
       value
     } flatMap { value =>
       val script = createUpdate("SET children[:property] = :value", Some(DeleteObjectKey(operation.property)))
@@ -229,7 +230,6 @@ class ModelOperationProcessor private[domain] (
             (k, dvDoc)
         }
 
-        db.commit()
         children
       } else {
         Map[String, ODocument]()
@@ -331,14 +331,12 @@ class ModelOperationProcessor private[domain] (
          |DELETE FROM (SELECT expand($$allChildrenToDelete));"""
     } getOrElse ("")
 
-    s"""|BEGIN;
-        |LET models = SELECT FROM index:Model.id WHERE key = :modelId;
+    s"""|LET models = SELECT FROM index:Model.id WHERE key = :modelId;
         |LET model = $$models[0].rid;
         |LET dvs = SELECT FROM DataValue WHERE id = :id AND model = $$model;
         |LET dv = $$dvs[0];
         |${deleteCommand}
-        |UPDATE (SELECT expand($$dv)) ${updateClause};
-        |COMMIT;""".stripMargin
+        |UPDATE (SELECT expand($$dv)) ${updateClause};""".stripMargin
   }
 
   private[this] def getModelRid(modelId: String, db: ODatabaseDocument): ORID = {

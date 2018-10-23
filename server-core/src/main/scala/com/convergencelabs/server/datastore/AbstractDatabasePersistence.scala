@@ -2,8 +2,8 @@ package com.convergencelabs.server.datastore
 
 import scala.util.Try
 
-import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.convergencelabs.server.db.DatabaseProvider
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 
 abstract class AbstractDatabasePersistence(dbProvider: DatabaseProvider) {
   protected def tryWithDb[B](block: ODatabaseDocument => B): Try[B] =
@@ -11,4 +11,12 @@ abstract class AbstractDatabasePersistence(dbProvider: DatabaseProvider) {
 
   protected def withDb[B](block: ODatabaseDocument => Try[B]): Try[B] =
     dbProvider.withDatabase(block)
+
+  protected def withDb[B](db: Option[ODatabaseDocument])(block: ODatabaseDocument => Try[B]): Try[B] =
+    db match {
+      case Some(db) =>
+        block(db)
+      case None =>
+        dbProvider.withDatabase(block)
+    }
 }

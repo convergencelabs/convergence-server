@@ -23,11 +23,11 @@ object Dependencies {
     val akkaSharding       = "com.typesafe.akka"        %% "akka-cluster-sharding"        % Versions.akka               // Apache 2.0
     val akkaCore = Seq(akkaActor, akkaCluster, akkaClusterTools, akkaSlf4j, akkaPersistence, akkaSharding)
 
-    val akkaHttp           = "com.typesafe.akka"        %% "akka-http"                    % Versions.akkaHttp
-    val akkaHttpTest       = "com.typesafe.akka"        %% "akka-http-testkit"            % Versions.akkaHttp
+    val akkaHttp           = "com.typesafe.akka"        %% "akka-http"                    % Versions.akkaHttp           // Apache 2.0
+    val akkaHttpTest       = "com.typesafe.akka"        %% "akka-http-testkit"            % Versions.akkaHttp           // Apache 2.0
 
-    val akkaHttpJson4s     = "de.heikoseeberger"        %% "akka-http-json4s"             % "1.15.0"
-    val akkaHttpCors       = "ch.megard"                %% "akka-http-cors"               % "0.2.1"
+    val akkaHttpJson4s     = "de.heikoseeberger"        %% "akka-http-json4s"             % "1.15.0"                    // Apache 2.0
+    val akkaHttpCors       = "ch.megard"                %% "akka-http-cors"               % "0.2.1"                     // Apache 2.0
 
 
     // Orient DB Dependencies
@@ -55,13 +55,13 @@ object Dependencies {
     val javaWebsockets     = "org.java-websocket"       % "Java-WebSocket"                % "1.3.0"                     // MIT
 
     //Command Line Parser
-    val scallop            = "org.rogach"               %% "scallop"                        % "2.0.5"                     // MIT
+    val scallop            = "org.rogach"               %% "scallop"                        % "2.0.5"                   // MIT
 
     // MISC
-    val commonsLang        = "org.apache.commons"       % "commons-lang3"                   % "3.4"                       // Apache 2.0
-    val commonsEmail       = "org.apache.commons"       % "commons-email"                   % "1.4"                       // Apache 2.0
-    val json4s             = "org.json4s"               %% "json4s-jackson"                 % "3.5.4"                     // Apache 2.0
-    val json4sExt          = "org.json4s"               %% "json4s-ext"                     % "3.5.4"                     // Apache 2.0
+    val commonsLang        = "org.apache.commons"       % "commons-lang3"                   % "3.4"                     // Apache 2.0
+    val commonsEmail       = "org.apache.commons"       % "commons-email"                   % "1.4"                     // Apache 2.0
+    val json4s             = "org.json4s"               %% "json4s-jackson"                 % "3.5.4"                   // Apache 2.0
+    val json4sExt          = "org.json4s"               %% "json4s-ext"                     % "3.5.4"                   // Apache 2.0
     val jacksonYaml        = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-yaml" % "2.7.4"
     val parboiled          = "org.parboiled"           %% "parboiled"                       % "2.1.4"
   }
@@ -79,7 +79,7 @@ object Dependencies {
     val akkaMockScheduler = "com.miguno.akka"             %% "akka-mock-scheduler"         % "0.5.1"             % TestSpecifier // Apache 2.0
     val scalatest         = "org.scalatest"               %% "scalatest"                   % "3.0.5"             % TestSpecifier // Apaceh 2.0
     val mockito           = "org.mockito"                 % "mockito-all"                  % "2.0.2-beta"        % TestSpecifier // MIT
-    val junit             = "junit"                       % "junit"                        % "4.12"              % TestSpecifier //EPL 1.0
+    val junit             = "junit"                       % "junit"                        % "4.12"              % TestSpecifier // EPL 1.0
     val testingCore = Seq(scalatest, mockito, junit)
     val testingAkka = testingCore ++ Seq(akkaTestKit, akkaMockScheduler)
   }

@@ -155,7 +155,8 @@ class ModelOperationStore private[domain] (dbProvider: DatabaseProvider)
     OrientDBUtil.command(db, command, params).map(_ => ())
   }
 
-  def createModelOperation(modelOperation: NewModelOperation): Try[Unit] = withDb { db =>
+  
+  def createModelOperation(modelOperation: NewModelOperation, db: Option[ODatabaseDocument] = None): Try[Unit] = withDb(db) { db => 
     ModelOperationStore.modelOperationToDoc(modelOperation, db).flatMap(doc => Try(doc.save()))
   }
 }

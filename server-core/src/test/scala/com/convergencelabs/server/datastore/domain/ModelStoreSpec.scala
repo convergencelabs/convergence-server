@@ -240,7 +240,7 @@ class ModelStoreSpec
       "increment the version by 1" in withPersistenceStore { stores =>
         stores.collection.ensureCollectionExists(peopleCollectionId)
         stores.model.createModel(person1Model).get
-        stores.model.updateModelOnOperation(person1Id, Instant.now())
+        stores.model.updateModelOnOperation(person1Id, person1Model.metaData.version + 1, Instant.now())
 
         val modelAfter = stores.model.getModel(person1Id).get.get
         modelAfter.metaData.version shouldBe person1Model.metaData.version + 1
@@ -250,7 +250,7 @@ class ModelStoreSpec
         stores.collection.ensureCollectionExists(peopleCollectionId)
         val modelBefore = stores.model.createModel(person1Model).get
         val timeStamp = Instant.now()
-        stores.model.updateModelOnOperation(person1Id, timeStamp)
+        stores.model.updateModelOnOperation(person1Id, person1Model.metaData.version + 1, timeStamp)
 
         val modelAfter = stores.model.getModel(person1Id).get.get
         modelAfter.metaData.modifiedTime shouldBe timeStamp
@@ -259,7 +259,7 @@ class ModelStoreSpec
       "leave all other data instact" in withPersistenceStore { stores =>
         stores.collection.ensureCollectionExists(peopleCollectionId)
         stores.model.createModel(person1Model).get
-        stores.model.updateModelOnOperation(person1Id, Instant.now())
+        stores.model.updateModelOnOperation(person1Id, person1Model.metaData.version + 1, Instant.now())
 
         val modelAfter = stores.model.getModel(person1Id).get.get
         modelAfter.metaData.createdTime shouldBe person1Model.metaData.createdTime

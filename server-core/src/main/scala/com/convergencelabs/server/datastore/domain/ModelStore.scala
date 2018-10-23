@@ -2,46 +2,38 @@ package com.convergencelabs.server.datastore.domain
 
 import java.time.Instant
 import java.util.Date
-import java.util.{ List => JavaList }
-import java.util.UUID
 
-import scala.collection.JavaConverters.asScalaBufferConverter
-import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.collection.JavaConverters.mapAsScalaMapConverter
 import scala.util.Failure
 import scala.util.Try
 
+import org.json4s.JsonAST.JObject
+import org.parboiled2.ParseError
+
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.datastore.DuplicateValueException
-import com.convergencelabs.server.datastore.EntityNotFoundException
-import com.convergencelabs.server.datastore.domain.mapper.ObjectValueMapper.ODocumentToObjectValue
+import com.convergencelabs.server.datastore.OrientDBUtil
 import com.convergencelabs.server.datastore.domain.mapper.DataValueMapper.ODocumentToDataValue
+import com.convergencelabs.server.datastore.domain.mapper.ObjectValueMapper.ODocumentToObjectValue
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.domain.model.Model
 import com.convergencelabs.server.domain.model.ModelMetaData
+import com.convergencelabs.server.domain.model.ModelQueryResult
 import com.convergencelabs.server.domain.model.data.ObjectValue
+import com.convergencelabs.server.domain.model.query.QueryParser
+import com.convergencelabs.server.frontend.rest.DataValueToJValue
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
+import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
-import com.orientechnologies.orient.core.sql.OCommandSQL
-import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.domain.model.query.QueryParser
-import com.convergencelabs.server.domain.model.query.QueryParser
-import com.convergencelabs.server.domain.model.ModelQueryResult
-import com.convergencelabs.server.frontend.rest.DataValueToJValue
-import org.json4s.JsonAST.JObject
-import com.convergencelabs.server.frontend.realtime.ModelResult
-import org.parboiled2.ParseError
-import com.orientechnologies.orient.core.db.record.OIdentifiable
-import com.convergencelabs.server.datastore.OrientDBUtil
 
 object ModelStore {
 
-  import schema.ModelClass._
+  import com.convergencelabs.server.datastore.domain.schema.ModelClass._
 
   object Constants {
     val CollectionId = "collectionId"
@@ -92,8 +84,8 @@ class ModelStore private[domain] (
   extends AbstractDatabasePersistence(dbProvider)
   with Logging {
 
-  import schema.ModelClass._
   import ModelStore._
+  import com.convergencelabs.server.datastore.domain.schema.ModelClass._
 
   def modelExists(id: String): Try[Boolean] = withDb { db =>
     val query = "SELECT count(*) as count FROM Model where id = :id"
@@ -187,9 +179,9 @@ class ModelStore private[domain] (
     }
   }
 
-  def updateModelOnOperation(id: String, timestamp: Instant): Try[Unit] = withDb { db =>
-    val command = "UPDATE Model SET version = eval('version + 1'), modifiedTime = :timestamp WHERE id = :id"
-    val params = Map(Fields.Id -> id, "timestamp" -> Date.from(timestamp))
+  def updateModelOnOperation(id: String, version: Long, timestamp: Instant, db: Option[ODatabaseDocument] = None): Try[Unit] = withDb(db) { db =>
+    val command = "UPDATE Model SET version = :version, modifiedTime = :modifiedTime WHERE id = :id"
+    val params = Map(Fields.Id -> id, Fields.ModifiedTime -> Date.from(timestamp), Fields.Version -> version)
     OrientDBUtil.mutateOneDocument(db, command, params)
   }
 
