@@ -3,6 +3,7 @@ package com.convergencelabs.server.datastore.domain
 import scala.util.Try
 
 import com.convergencelabs.server.datastore.domain.SessionStore.SessionQueryType
+import com.convergencelabs.server.util.concurrent.UnexpectedErrorException
 
 import akka.actor.Actor
 import akka.actor.ActorLogging
@@ -38,7 +39,7 @@ class DomainStatsActor(
       sender ! DomainStats(sessionCount, userCount, dbSize)
     }) recover {
       case cause: Exception =>
-        sender ! Status.Failure(cause)
+        sender ! Status.Failure(new UnexpectedErrorException("Unexpected error getting domain stats"))
     }
   }
 

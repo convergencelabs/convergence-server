@@ -131,7 +131,7 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
     var params = Map[String, Any]("permission" -> permission)
 
     val sb = new StringBuilder
-    sb.append("SELECT count(permission) FROM Permission WHERE permission = :permission ")
+    sb.append("SELECT count(*) FROM Permission WHERE permission = :permission ")
 
     assignedTo.foreach { assignedTo =>
       sb.append("AND assignedTo = :assignedTo ")

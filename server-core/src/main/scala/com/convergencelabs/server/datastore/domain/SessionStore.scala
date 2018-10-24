@@ -179,7 +179,7 @@ class SessionStore(dbProvider: DatabaseProvider)
 
   def getConnectedSessionsCount(sessionType: SessionQueryType.Value): Try[Long] = withDb { db =>
     val typeWhere = this.getSessionTypeClause(sessionType).map(t => s"AND ${t} ").getOrElse("")
-    val query = s"SELECT count(id) as count FROM DomainSession WHERE disconnected IS NOT DEFINED ${typeWhere}"
+    val query = s"SELECT count(*) as count FROM DomainSession WHERE disconnected IS NOT DEFINED ${typeWhere}"
     OrientDBUtil
       .getDocument(db, query, Map())
       .map(_.field("count").asInstanceOf[Long])

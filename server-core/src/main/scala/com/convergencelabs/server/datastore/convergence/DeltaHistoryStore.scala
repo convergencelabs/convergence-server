@@ -91,7 +91,7 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
     OrientDBUtil
       .findDocument(
         db,
-        "SELECT if(count(status) > 0, false, true) as healthy FROM ConvergenceDeltaHistory WHERE status = :status",
+        "SELECT if(count(*) > 0, false, true) as healthy FROM ConvergenceDeltaHistory WHERE status = :status",
         Map("status" -> Status.Error))
       .map(_.map(_.field("healthy").asInstanceOf[Boolean]).getOrElse(true))
   }
@@ -173,7 +173,7 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
   def isDomainDBHealthy(domainFqn: DomainFqn): Try[Boolean] = withDb { db =>
     val DomainFqn(namespace, domainId) = domainFqn
     val query =
-      s"""SELECT if(count(status) > 0, false, true) as healthy
+      s"""SELECT if(count(*) > 0, false, true) as healthy
         |FROM ${Schema.DomainDeltaHistory.Class}
         |WHERE
         |  domain.namespace = :namespace AND

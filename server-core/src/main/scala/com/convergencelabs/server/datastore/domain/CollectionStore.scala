@@ -150,7 +150,7 @@ class CollectionStore private[domain] (dbProvider: DatabaseProvider, modelStore:
     val collectionsQuery = OrientDBUtil.buildPagedQuery(queryString, limit, offset)
     OrientDBUtil.query(db, collectionsQuery, Map()).flatMap { allCollections =>
       // FIXME this seems to get all collections. We need to mat
-      val modelCountQuery = "SELECT count(id) as count, collection.id as collectionId FROM Model GROUP BY (collection)"
+      val modelCountQuery = "SELECT count(*) as count, collection.id as collectionId FROM Model GROUP BY (collection)"
       OrientDBUtil.query(db, modelCountQuery, Map()).map { modelsPerCollection =>
         val modelCounts = modelsPerCollection.map(t => (t.field("collectionId").asInstanceOf[String] -> t.field("count"))) toMap
 

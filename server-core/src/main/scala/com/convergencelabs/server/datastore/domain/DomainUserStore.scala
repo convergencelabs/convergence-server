@@ -528,7 +528,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
   }
 
   def getNormalUserCount(): Try[Long] = withDb { db =>
-    val query = "SELECT count(username) as count FROM User WHERE userType = 'normal'"
+    val query = "SELECT count(*) as count FROM User WHERE userType = 'normal'"
     OrientDBUtil
       .getDocument(db, query)
       .map(_.field("count").asInstanceOf[Long])
