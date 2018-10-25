@@ -16,6 +16,8 @@ import com.convergencelabs.server.domain.UnauthorizedException
 import com.convergencelabs.server.domain.model.RealTimeModelManager.EventHandler
 import com.convergencelabs.server.util.ActorBackedEventLoop
 import com.convergencelabs.server.util.ActorBackedEventLoop.TaskScheduled
+import com.convergencelabs.server.actor.ShardedActorStatUpPlan
+import com.convergencelabs.server.actor.StartUpRequired
 
 import akka.actor.ActorRef
 import akka.actor.Props
@@ -215,24 +217,24 @@ class RealtimeModelActor(
     throw new IllegalStateException("Can not access persistenceProvider before the model is initialized.")
   }
 
-  override protected def initialize(msg: ModelMessage): Try[Unit] = {
-    log.debug(s"Real Time Model Actor initializing: '{}/{}'", msg.domainFqn, msg.modelId)
+  override protected def initialize(msg: ModelMessage): Try[ShardedActorStatUpPlan] = {
+    log.debug(s"RealtimeModelActor '{}/{}': Inititializing", msg.domainFqn, msg.modelId)
     persistenceManager.acquirePersistenceProvider(self, context, msg.domainFqn) map { provider =>
       this._persistenceProvider = Some(provider)
       this._domainFqn = Some(msg.domainFqn)
       this._modelId = Some(msg.modelId)
-      log.debug(s"RealtimeModelActor '{}/{}' acquired persistence", domainFqn, modelId)
+      log.debug(s"RealtimeModelActor '{}/{}': Acquired persistence", domainFqn, modelId)
       this.becomeClosed()
-      ()
+      StartUpRequired
     } recoverWith {
       case cause: Throwable =>
-        log.debug(s"RealtimeModelActor '{}/{}' could not acquire persistence", domainFqn, modelId)
+        log.debug(s"RealtimeModelActor '{}/{}': Could not acquire persistence", domainFqn, modelId)
         Failure(cause)
     }
   }
 
   private[this] def becomeOpened(): Unit = {
-    log.debug("RealtimeModelActor '{}/{}' becoming open.", domainFqn, modelId)
+    log.debug("RealtimeModelActor '{}/{}': Becoming open.", domainFqn, modelId)
     val persistenceFactory = new RealtimeModelPersistenceStreamFactory(
       domainFqn,
       modelId,
@@ -271,14 +273,14 @@ class RealtimeModelActor(
   }
 
   private[this] def becomeClosed(): Unit = {
-    log.debug("RealtimeModelActor '{}/{}' becoming closed.", domainFqn, modelId)
+    log.debug("RealtimeModelActor '{}/{}': Becoming closed.", domainFqn, modelId)
     this._modelManager = None
     this.context.become(receiveClosed)
     this.context.setReceiveTimeout(this.receiveTimeout)
   }
 
   override def passivate(): Unit = {
-    log.debug("RealtimeModelActor '{}/{}' passivating.", domainFqn, modelId)
+    log.debug("RealtimeModelActor '{}/{}': Passivating.", domainFqn, modelId)
     this.context.setReceiveTimeout(Duration.Undefined)
     super.passivate()
   }

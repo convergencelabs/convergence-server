@@ -211,7 +211,6 @@ class RealTimeModelManager(
    */
   def requestModelDataFromDatastore(): Unit = {
     debug(s"${domainFqn}/${modelId}: Requesting model data from the database.")
-
     (for {
       snapshotMetaData <- modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelId)
       model <- modelStore.getModel(modelId)
@@ -233,13 +232,13 @@ class RealTimeModelManager(
         case _ =>
           val mMessage = model.map(_ => "found").getOrElse("not found")
           val sMessage = snapshotMetaData.map(_ => "found").getOrElse("not found")
-          val message = s"Error getting model data (${this.modelId}): model: ${mMessage}, snapshot: ${sMessage}"
+          val message = s"${domainFqn}/${modelId}: Error getting model data: model: ${mMessage}, snapshot: ${sMessage}"
           val cause = new IllegalStateException(message)
           error(message, cause)
           this.handleInitializationFailure(DatabaseInitializationFailure)
       }
     }) recover {
-      case cause: Throwable =>
+      case cause =>
         error(s"${domainFqn}/${modelId}: Error getting model data.", cause)
         this.handleInitializationFailure(DatabaseInitializationFailure)
     }
@@ -257,7 +256,6 @@ class RealTimeModelManager(
       .getModelAndCollectionPermissions(modelId, collectionId, persistenceProvider)
       .map { p =>
         this.permissions = p
-
         this.metaData = this.metaData.copy(overridePermissions = p.overrideCollection, worldPermissions = p.modelWorld)
 
         // Fire of an update to any client whose permissions have changed.
@@ -272,7 +270,7 @@ class RealTimeModelManager(
         }
         ()
       }.recover {
-        case cause: Exception =>
+        case cause =>
           error(s"${domainFqn}/${modelId}: Error updating permissions", cause)
           this.forceCloseAllAfterError("Error updating permissions")
       }
@@ -323,9 +321,9 @@ class RealTimeModelManager(
       }
       setState(State.Initialized)
     } catch {
-      case cause: Exception =>
+      case cause: Throwable =>
         error(
-          s"${domainFqn}/${modelId}: Unable to initialize the model from a the database.",
+          s"${domainFqn}/${modelId}: Unable to initialize the model from the database.",
           cause)
         handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
     }
@@ -351,7 +349,7 @@ class RealTimeModelManager(
             handleQueuedClientOpenFailureFailure(sk,
               ClientDataRequestFailure("The client did not respond in time with model data, while initializing a new model."))
           }
-        case e: Exception =>
+        case e: Throwable =>
           error(s"${domainFqn}/${modelId}: Uknnown exception processing model config data response.", e)
           workQueue.schedule {
             handleQueuedClientOpenFailureFailure(sk, UnknownErrorResponse(e.getMessage))

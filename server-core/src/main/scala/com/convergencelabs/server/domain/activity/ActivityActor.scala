@@ -1,16 +1,19 @@
 package com.convergencelabs.server.domain.activity
 
+import scala.util.Success
+import scala.util.Try
+
 import com.convergencelabs.server.actor.ShardedActor
+import com.convergencelabs.server.actor.ShardedActorStatUpPlan
+import com.convergencelabs.server.actor.StartUpRequired
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.model.SessionKey
 
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
+import akka.actor.Props
 import akka.actor.Status
 import akka.actor.Terminated
-import akka.actor.Props
-import scala.util.Try
-import scala.util.Success
 
 object ActivityActor {
   def props(): Props = {
@@ -32,11 +35,11 @@ class ActivityActor()
   private[this] var joinedSessions = Map[SessionKey, ActorRef]()
   private[this] var stateMap = new ActivityStateMap()
 
-  override def initialize(message: IncomingActivityMessage): Try[Unit] = {
+  override def initialize(message: IncomingActivityMessage): Try[ShardedActorStatUpPlan] = {
     this.activityId = message.activityId
     this.domain = message.domain
     log.debug( s"${activityToString} initiaizlized")
-    Success(())
+    Success(StartUpRequired)
   }
 
   override def receiveInitialized: Receive = {

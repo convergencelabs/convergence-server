@@ -9,31 +9,29 @@ import scala.concurrent.duration.FiniteDuration
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-import scala.util.control.NonFatal
 
 import com.convergencelabs.server.ProtocolConfiguration
+import com.convergencelabs.server.actor.ShardedActor
+import com.convergencelabs.server.actor.ShardedActorStatUpPlan
+import com.convergencelabs.server.actor.StartUpNotRequired
+import com.convergencelabs.server.actor.StartUpRequired
+import com.convergencelabs.server.datastore.domain.DomainNotFoundException
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManager
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.datastore.domain.DomainSession
+import com.convergencelabs.server.datastore.domain.ModelOperationStoreActor
+import com.convergencelabs.server.datastore.domain.ModelStoreActor
 import com.convergencelabs.server.domain.chat.ChatChannelLookupActor
 import com.convergencelabs.server.domain.model.ModelLookupActor
 
-import akka.actor.Actor
-import akka.actor.ActorLogging
 import akka.actor.ActorRef
 import akka.actor.OneForOneStrategy
-import akka.actor.PoisonPill
 import akka.actor.Props
 import akka.actor.ReceiveTimeout
 import akka.actor.Status
 import akka.actor.SupervisorStrategy.Resume
 import akka.actor.Terminated
-import akka.cluster.sharding.ShardRegion.Passivate
-import com.convergencelabs.server.datastore.domain.ModelStoreActor
-import com.convergencelabs.server.datastore.domain.ModelOperationStore
-import com.convergencelabs.server.datastore.domain.ModelOperationStoreActor
-import com.convergencelabs.server.actor.ShardedActor
 
 object DomainActor {
   case class DomainActorChildren(
@@ -188,7 +186,7 @@ class DomainActor(
     }
   }
 
-  override def initialize(msg: DomainMessage): Try[Unit] = {
+  override def initialize(msg: DomainMessage): Try[ShardedActorStatUpPlan] = {
     log.debug(s"${msg.domainFqn}: DomainActor initializing.")
 
     this._domainFqn = Some(msg.domainFqn)
@@ -240,8 +238,20 @@ class DomainActor(
       this.context.setReceiveTimeout(this.receiveTimeout)
 
       log.debug(s"${domainFqn}: DomainActor initialized")
-      ()
+      StartUpRequired
     } recoverWith {
+      // This is a special case, we know the domain was not found. In theory this
+      // should have been a handshake message, and we want to respond.
+      case cause: DomainNotFoundException =>
+        msg match {
+          case msg: HandshakeRequest =>
+            sender ! Status.Failure(HandshakeFailureException(
+                "domain_not_found", 
+                s"The domain '${msg.domainFqn.namespace}/${msg.domainFqn.domainId}' does not exist."))
+          case _ =>
+            log.warning(s"${domainFqn}: The domain was not found, but also the first message to the domain was not a handshake, so son't know how to respond.")
+        }
+        Success(StartUpNotRequired)
       case cause: Throwable =>
         log.debug(s"${domainFqn}: Error initializing DomainActor")
         Failure(cause)

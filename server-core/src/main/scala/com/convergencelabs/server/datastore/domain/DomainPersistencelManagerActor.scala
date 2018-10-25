@@ -24,6 +24,7 @@ import com.convergencelabs.server.db.DatabaseProvider
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.datastore.convergence.DomainDatabaseStore
 import com.convergencelabs.server.db.PooledDatabaseProvider
+import akka.actor.Status
 
 trait DomainPersistenceManager {
   def acquirePersistenceProvider(requestor: ActorRef, context: ActorContext, domainFqn: DomainFqn): Try[DomainPersistenceProvider]
@@ -43,21 +44,18 @@ object DomainPersistenceManagerActor extends DomainPersistenceManager with Loggi
     requestor.root / "user" / RelativePath
   }
 
-  def acquirePersistenceProvider(requestor: ActorRef, context: ActorContext, domainFqn: DomainFqn): Try[DomainPersistenceProvider] = Try({
+  def acquirePersistenceProvider(requestor: ActorRef, context: ActorContext, domainFqn: DomainFqn): Try[DomainPersistenceProvider] = {
     val path = DomainPersistenceManagerActor.getLocalInstancePath(requestor.path)
     val selection = context.actorSelection(path)
 
     val message = AcquireDomainPersistence(domainFqn, requestor)
     val timeout = Timeout(persistenceProviderTimeout, TimeUnit.SECONDS)
     debug(s"Sending message to aquire domain persistence for ${domainFqn} by ${requestor.path}")
-    val f = Patterns.ask(selection, message, timeout).mapTo[DomainPersistenceResponse]
-    val result = Await.result(f, FiniteDuration(persistenceProviderTimeout, TimeUnit.SECONDS))
-
-    result match {
-      case PersistenceProviderReference(persistenceProvider) => persistenceProvider
-      case PersistenceProviderUnavailable(cause) => throw cause
+    Try {
+      val f = Patterns.ask(selection, message, timeout).mapTo[DomainPersistenceProvider]
+      Await.result(f, FiniteDuration(persistenceProviderTimeout, TimeUnit.SECONDS))
     }
-  })
+  }
 
   def releasePersistenceProvider(requestor: ActorRef, context: ActorContext, domainFqn: DomainFqn): Unit = {
     val path = DomainPersistenceManagerActor.getLocalInstancePath(requestor.path)
@@ -75,20 +73,20 @@ class DomainPersistenceManagerActor(
   private[this] var providersByActor = Map[ActorRef, List[DomainFqn]]()
 
   override def receive: Receive = {
-    case AcquireDomainPersistence(domainFqn, requestor) => onAcquire(domainFqn, requestor)
-    case ReleaseDomainPersistence(domainFqn) => onRelease(domainFqn)
-    case Terminated(actor) => onActorDeath(actor)
+    case AcquireDomainPersistence(domainFqn, requestor) =>
+      onAcquire(domainFqn, requestor)
+    case ReleaseDomainPersistence(domainFqn) =>
+      onRelease(domainFqn)
+    case Terminated(actor) =>
+      onActorDeath(actor)
   }
 
   private[this] def onAcquire(domainFqn: DomainFqn, requestor: ActorRef): Unit = {
     log.debug(s"${domainFqn}: Acquiring domain persistence for ${requestor.path}")
-    val p = providers.get(domainFqn) match {
-      case Some(provider) => Success(provider)
-      case None => createProvider(domainFqn)
-    }
-
-    p match {
-      case Success(provider) => {
+    providers.get(domainFqn)
+      .map(Success(_))
+      .getOrElse(createProvider(domainFqn))
+      .map { provider =>
         val newCount = refernceCounts.getOrElse(domainFqn, 0) + 1
         refernceCounts = refernceCounts + (domainFqn -> newCount)
 
@@ -100,30 +98,30 @@ class DomainPersistenceManagerActor(
           context.watch(requestor)
         }
 
-        sender ! PersistenceProviderReference(provider)
+        sender ! provider
+      } recover {
+        case cause: DomainNotFoundException =>
+          sender ! Status.Failure(cause)
+        case cause: Throwable => {
+          log.error(s"${domainFqn}: Unable obtain a persistence provider", cause)
+          sender ! Status.Failure(cause)
+        }
       }
-      case Failure(cause) => {
-        log.debug(s"${domainFqn}: Unable obtain a persistence provider")
-        sender ! PersistenceProviderUnavailable(cause)
-      }
-    }
   }
 
   private[this] def onRelease(domainFqn: DomainFqn): Unit = {
     log.debug(s"${domainFqn}: Releasing domain persistence for ${sender.path}")
     decrementCount(domainFqn)
 
-    providersByActor.get(sender) match {
-      case Some(pools) =>
-        val newPools = pools diff List(domainFqn)
-        if (newPools.length == 0) {
-          providersByActor = providersByActor - sender
-          // This actor no longer has any connections open.
-          context.unwatch(sender)
-        } else {
-          providersByActor = providersByActor + (sender -> newPools)
-        }
-      case None =>
+    providersByActor.get(sender) map { pools =>
+      val newPools = pools diff List(domainFqn)
+      if (newPools.length == 0) {
+        providersByActor = providersByActor - sender
+        // This actor no longer has any connections open.
+        context.unwatch(sender)
+      } else {
+        providersByActor = providersByActor + (sender -> newPools)
+      }
     }
   }
 
@@ -158,7 +156,7 @@ class DomainPersistenceManagerActor(
 
         log.debug(s"${domainFqn}: Creating new connection pool: ${baseDbUri}/${domainInfo.database}")
 
-        // FIXME need to fiugre out how to configure pool sizes.
+        // FIXME need to figure out how to configure pool sizes.
         val dbProvider = new PooledDatabaseProvider(baseDbUri, domainInfo.database, domainInfo.username, domainInfo.password)
         val provider = new DomainPersistenceProviderImpl(dbProvider)
         dbProvider.connect()
@@ -169,8 +167,8 @@ class DomainPersistenceManagerActor(
             Success(provider)
           }
       case None =>
-        val message = s"${domainFqn}: Error looking up the domain record when initializing a domain persistence provider."
-        Failure(new IllegalStateException(message))
+        log.debug(s"${domainFqn}: Requested to look up a domain that does not exist.")
+        Failure(DomainNotFoundException(domainFqn))
     }
   }
 
@@ -189,9 +187,7 @@ class DomainPersistenceManagerActor(
   }
 }
 
+case class DomainNotFoundException(domainFqn: DomainFqn) extends Exception(s"The requested domain does not exist: ${domainFqn}")
+
 case class AcquireDomainPersistence(domainFqn: DomainFqn, requestor: ActorRef)
 case class ReleaseDomainPersistence(domainFqn: DomainFqn)
-
-sealed trait DomainPersistenceResponse
-case class PersistenceProviderReference(persistenceProvider: DomainPersistenceProvider) extends DomainPersistenceResponse
-case class PersistenceProviderUnavailable(cuase: Throwable) extends DomainPersistenceResponse

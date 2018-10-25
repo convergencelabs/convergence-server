@@ -376,7 +376,7 @@ class ModelClientActor(
               modelPermissions.remove,
               modelPermissions.manage)))
       case Failure(ModelAlreadyOpenException()) =>
-        cb.expectedError("model_already_open", "The requested model is already open by this client.")
+        cb.expectedError("model_already_open", s"The requested model is already open by this client.")
       case Failure(ModelDeletedWhileOpeningException()) =>
         cb.expectedError("model_deleted", "The requested model was deleted while opening.")
       case Failure(ClientDataRequestFailure(message)) =>
@@ -386,7 +386,7 @@ class ModelClientActor(
       case Failure(UnauthorizedException(message)) =>
         cb.reply(ErrorMessages.Unauthorized(message))
       case Failure(cause) =>
-        log.error(cause, s"${domainFqn}: Unexpected error opening model.")
+        log.error(cause, s"${domainFqn}/${modelId}: Unexpected error opening model.")
         cb.unknownError()
     }
   }

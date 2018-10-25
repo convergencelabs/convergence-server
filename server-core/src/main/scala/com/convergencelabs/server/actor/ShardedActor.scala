@@ -16,11 +16,11 @@ abstract class ShardedActor[T](
 
   private[this] def receiveUninitialized: Receive = {
     case msg if messageClass.isInstance(msg) => recevieInitialMessage(msg.asInstanceOf[T])
-    case _                                   => this.unhandled(_)
+    case _ => this.unhandled(_)
   }
 
   private[this] def receivePassivating: Receive = {
-    case msg if messageClass.isInstance(msg)  => this.context.parent.forward(msg)
+    case msg if messageClass.isInstance(msg) => this.context.parent.forward(msg)
   }
 
   protected def passivate(): Unit = {
@@ -30,9 +30,12 @@ abstract class ShardedActor[T](
 
   private[this] def recevieInitialMessage(message: T): Unit = {
     this.initialize(message)
-      .map(_ => {
-        this.context.become(this.receiveInitialized)
-        this.receiveInitialized(message)
+      .map(_ match {
+        case StartUpRequired =>
+          this.context.become(this.receiveInitialized)
+          this.receiveInitialized(message)
+        case StartUpNotRequired =>
+          this.context.stop(this.self)
       })
       .recover {
         case cause: Throwable =>
@@ -43,5 +46,9 @@ abstract class ShardedActor[T](
 
   protected def receiveInitialized: Receive
 
-  protected def initialize(message: T): Try[Unit]
+  protected def initialize(message: T): Try[ShardedActorStatUpPlan]
 }
+
+sealed trait ShardedActorStatUpPlan
+case object StartUpRequired extends ShardedActorStatUpPlan
+case object StartUpNotRequired extends ShardedActorStatUpPlan

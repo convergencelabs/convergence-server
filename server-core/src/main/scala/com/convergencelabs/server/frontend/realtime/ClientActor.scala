@@ -76,8 +76,6 @@ class ClientActor(
       context.stop(self)
     }
 
-  private[this] val connectionManager = context.parent
-
   private[this] var modelClient: ActorRef = _
   private[this] var userClient: ActorRef = _
   private[this] var activityClient: ActorRef = _
@@ -267,9 +265,9 @@ class ClientActor(
           log.debug(s"${domainFqn}: Handhsake success")
           self ! InternalHandshakeSuccess(success, cb)
         }
-        case  Failure(cause @ HandshakeFailureException(code, details)) => {
-          log.error(cause, s"Handshake failure ${domainFqn}: {code: '${code}', details: '${details}'}")
-          cb.reply(HandshakeResponseMessage(false, Some(ErrorData(code, details)), Some(true), None))
+        case Failure(HandshakeFailureException(code, details)) => {
+          log.debug(s"${domainFqn}: Handshake failure: {code: '${code}', details: '${details}'}")
+          cb.reply(HandshakeResponseMessage(false, Some(ErrorData(code, details)), Some(false), None))
           this.connectionActor ! CloseConnection
           self ! PoisonPill
         }
