@@ -114,7 +114,7 @@ class DomainPersistenceManagerActor(
         case cause: DomainNotFoundException =>
           sender ! Status.Failure(cause)
         case cause: Throwable => {
-          log.error(s"${domainFqn}: Unable obtain a persistence provider", cause)
+          log.error(cause, s"${domainFqn}: Unable obtain a persistence provider")
           sender ! Status.Failure(cause)
         }
       }
