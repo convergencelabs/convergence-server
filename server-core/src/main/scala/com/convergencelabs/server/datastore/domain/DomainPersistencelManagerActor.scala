@@ -9,6 +9,7 @@ import scala.util.Success
 import scala.util.Try
 
 import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.db.provision.DomainProvisionerActor._
 
 import akka.actor.Actor
 import akka.actor.ActorContext
@@ -25,6 +26,8 @@ import grizzled.slf4j.Logging
 import com.convergencelabs.server.datastore.convergence.DomainDatabaseStore
 import com.convergencelabs.server.db.PooledDatabaseProvider
 import akka.actor.Status
+import akka.cluster.pubsub.DistributedPubSub
+import akka.cluster.pubsub.DistributedPubSubMediator.Subscribe
 
 trait DomainPersistenceManager {
   def acquirePersistenceProvider(requestor: ActorRef, context: ActorContext, domainFqn: DomainFqn): Try[DomainPersistenceProvider]
@@ -72,11 +75,19 @@ class DomainPersistenceManagerActor(
   private[this] var providers = Map[DomainFqn, DomainPersistenceProviderImpl]()
   private[this] var providersByActor = Map[ActorRef, List[DomainFqn]]()
 
+  val mediator = DistributedPubSub(context.system).mediator
+
+  // TODO we could specifically subscribe to a topic when it is acquired
+  // if we find that to many messages are going all over the place.
+  mediator ! Subscribe(DomainLifecycleTopic, self)
+
   override def receive: Receive = {
     case AcquireDomainPersistence(domainFqn, requestor) =>
       onAcquire(domainFqn, requestor)
     case ReleaseDomainPersistence(domainFqn) =>
       onRelease(domainFqn)
+    case DomainDeleted(domainFqn) =>
+      this.onDomainDeleted(domainFqn)
     case Terminated(actor) =>
       onActorDeath(actor)
   }
@@ -169,6 +180,13 @@ class DomainPersistenceManagerActor(
       case None =>
         log.debug(s"${domainFqn}: Requested to look up a domain that does not exist.")
         Failure(DomainNotFoundException(domainFqn))
+    }
+  }
+
+  private[this] def onDomainDeleted(domainFqn: DomainFqn): Unit = {
+    if (providers.contains(domainFqn)) {
+      log.debug(s"${domainFqn}: Domain deleted, shutting down connection pool")
+      shutdownPool(domainFqn)
     }
   }
 

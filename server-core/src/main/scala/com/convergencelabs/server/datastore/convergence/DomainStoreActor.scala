@@ -142,7 +142,7 @@ class DomainStoreActor private[datastore] (
           log.debug(s"Deleting domain database for ${domainFqn}: ${domainDatabase.database}")
 
           implicit val requstTimeout = Timeout(4 minutes) // FXIME hard-coded timeout
-          (domainProvisioner ? DestroyDomain(domainDatabase.database)) onComplete {
+          (domainProvisioner ? DestroyDomain(domainFqn, domainDatabase.database)) onComplete {
             case Success(_) =>
               log.debug(s"Domain database deleted: ${domainDatabase.database}")
 

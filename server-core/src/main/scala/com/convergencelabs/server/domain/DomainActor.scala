@@ -22,6 +22,7 @@ import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.datastore.domain.DomainSession
 import com.convergencelabs.server.datastore.domain.ModelOperationStoreActor
 import com.convergencelabs.server.datastore.domain.ModelStoreActor
+import com.convergencelabs.server.db.provision.DomainProvisionerActor._
 import com.convergencelabs.server.domain.chat.ChatChannelLookupActor
 import com.convergencelabs.server.domain.model.ModelLookupActor
 
@@ -32,6 +33,10 @@ import akka.actor.ReceiveTimeout
 import akka.actor.Status
 import akka.actor.SupervisorStrategy.Resume
 import akka.actor.Terminated
+import akka.cluster.pubsub.DistributedPubSub
+import akka.cluster.pubsub.DistributedPubSubMediator.Subscribe
+import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
+import com.convergencelabs.server.db.provision.DomainProvisionerActor.DomainDeleted
 
 object DomainActor {
   case class DomainActorChildren(
@@ -81,6 +86,8 @@ class DomainActor(
   private[this] var _authenticator: Option[AuthenticationHandler] = None
   private[this] var _children: Option[DomainActorChildren] = None
 
+  val mediator = DistributedPubSub(context.system).mediator
+
   def receiveInitialized: Receive = {
     case message: HandshakeRequest =>
       onHandshakeRequest(message)
@@ -92,6 +99,10 @@ class DomainActor(
       handleDeathWatch(client)
     case ReceiveTimeout =>
       passivate()
+    case SubscribeAck(_) =>
+    // no-op
+    case DomainDeleted(domainFqn) =>
+      domainDeleted()
     case message: Any =>
       unhandled(message)
   }
@@ -174,12 +185,12 @@ class DomainActor(
 
   private[this] def removeClient(client: ActorRef): Unit = {
     connectedClients.remove(client)
-    
+
     authenticatedClients.get(client) foreach { sessionId =>
       log.debug(s"${domainFqn}: Client disconnecting: ${sessionId}")
       persistenceProvider.sessionStore.setSessionDisconneted(sessionId, Instant.now())
     }
-    
+
     if (connectedClients.isEmpty) {
       log.debug(s"${domainFqn}: Last client disconnected from domain.")
       this.context.setReceiveTimeout(this.receiveTimeout)
@@ -191,6 +202,8 @@ class DomainActor(
 
     this._domainFqn = Some(msg.domainFqn)
 
+    mediator ! Subscribe(domainTopic(domainFqn), self)
+    
     domainPersistenceManager.acquirePersistenceProvider(self, context, msg.domainFqn) map { provider =>
       this._persistenceProvider = Some(provider)
       this._authenticator = Some(new AuthenticationHandler(
@@ -246,8 +259,8 @@ class DomainActor(
         msg match {
           case msg: HandshakeRequest =>
             sender ! Status.Failure(HandshakeFailureException(
-                "domain_not_found", 
-                s"The domain '${msg.domainFqn.namespace}/${msg.domainFqn.domainId}' does not exist."))
+              "domain_not_found",
+              s"The domain '${msg.domainFqn.namespace}/${msg.domainFqn.domainId}' does not exist."))
           case _ =>
             log.warning(s"${domainFqn}: The domain was not found, but also the first message to the domain was not a handshake, so son't know how to respond.")
         }
@@ -272,6 +285,11 @@ class DomainActor(
 
   private[this] def children = this._children.getOrElse {
     throw new IllegalStateException("Can not access children before the domain is initialized.")
+  }
+  
+  private[this] def domainDeleted(): Unit = {
+    log.error(s"${domainFqn}: Domain deleted shutting down")
+    context.stop(self)
   }
 
   override def passivate(): Unit = {

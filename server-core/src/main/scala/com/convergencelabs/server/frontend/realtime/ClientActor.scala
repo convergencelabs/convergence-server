@@ -5,6 +5,8 @@ import scala.util.Failure
 import scala.util.Success
 
 import com.convergencelabs.server.ProtocolConfiguration
+import com.convergencelabs.server.db.provision.DomainProvisionerActor.DomainDeleted
+import com.convergencelabs.server.db.provision.DomainProvisionerActor.domainTopic
 import com.convergencelabs.server.domain.AnonymousAuthRequest
 import com.convergencelabs.server.domain.AuthenticationError
 import com.convergencelabs.server.domain.AuthenticationFailure
@@ -32,6 +34,9 @@ import akka.actor.ActorRef
 import akka.actor.PoisonPill
 import akka.actor.Props
 import akka.actor.actorRef2Scala
+import akka.cluster.pubsub.DistributedPubSub
+import akka.cluster.pubsub.DistributedPubSubMediator.Subscribe
+import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
 import akka.http.scaladsl.model.RemoteAddress
 import akka.util.Timeout
 
@@ -64,6 +69,9 @@ class ClientActor(
   private[this] implicit val ec = context.dispatcher
 
   private[this] var connectionActor: ActorRef = _
+  
+  val mediator = DistributedPubSub(context.system).mediator
+  mediator ! Subscribe(domainTopic(domainFqn), self)
 
   // FIXME this should probably be for handshake and auth.
   private[this] val handshakeTimeoutTask =
@@ -96,7 +104,7 @@ class ClientActor(
 
   private[this] val domainRegion = DomainActorSharding.shardRegion(context.system)
 
-  def receive: Receive = receiveWhileConnecting
+  def receive: Receive = receiveWhileConnecting orElse receiveCommon
 
   private[this] def receiveWhileConnecting: Receive = {
     case WebSocketOpened(connectionActor) =>
@@ -108,8 +116,6 @@ class ClientActor(
         context.system.scheduler,
         context.dispatcher)
       context.become(receiveWhileHandshaking)
-    case x: Any =>
-      invalidMessage(x)
   }
 
   private[this] def receiveIncomingTextMessage: Receive = {
@@ -135,7 +141,12 @@ class ClientActor(
       onConnectionClosed()
     case WebSocketError(cause) => 
       onConnectionError(cause)
-    case x: Any => invalidMessage(x)
+    case SubscribeAck(_) =>
+      // no-op
+    case DomainDeleted(domainFqn) =>
+      domainDeleted()
+    case x: Any =>
+      invalidMessage(x)
   }
 
   private[this] val receiveHandshakeSuccess: Receive = {
@@ -369,6 +380,12 @@ class ClientActor(
 
   private[this] def invalidMessage(message: Any): Unit = {
     log.error(s"${domainFqn}: Invalid message: '${message}'")
+    connectionActor ! CloseConnection
+    context.stop(self)
+  }
+  
+  private[this] def domainDeleted(): Unit = {
+    log.error(s"${domainFqn}: Domain deleted shutting down")
     connectionActor ! CloseConnection
     context.stop(self)
   }
