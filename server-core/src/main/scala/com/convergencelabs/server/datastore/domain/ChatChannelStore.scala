@@ -2,7 +2,6 @@ package com.convergencelabs.server.datastore.domain
 
 import java.time.Instant
 import java.util.Date
-import java.util.HashSet
 import java.util.{ Set => JavaSet }
 
 import scala.collection.JavaConverters.asScalaSetConverter
@@ -13,8 +12,9 @@ import scala.util.Success
 import scala.util.Try
 
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.datastore.DuplicateValueException
+import com.convergencelabs.server.datastore.EntityNotFoundException
+import com.convergencelabs.server.datastore.MultipleValuesException
 import com.convergencelabs.server.datastore.OrientDBUtil
 import com.convergencelabs.server.datastore.domain.ChatChannelStore.ChannelType
 import com.convergencelabs.server.datastore.domain.ChatChannelStore.Fields
@@ -22,16 +22,15 @@ import com.convergencelabs.server.datastore.domain.ChatChannelStore.channelTypeS
 import com.convergencelabs.server.datastore.domain.ChatChannelStore.chatChannelToDoc
 import com.convergencelabs.server.datastore.domain.ChatChannelStore.docToChatChannel
 import com.convergencelabs.server.datastore.domain.ChatChannelStore.docToChatChannelEvent
+import com.convergencelabs.server.datastore.domain.schema.DomainSchema
+import com.convergencelabs.server.db.DatabaseProvider
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
+import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.id.ORID
-import com.orientechnologies.orient.core.index.OCompositeKey
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.datastore.EntityNotFoundException
-import com.convergencelabs.server.datastore.MultipleValuesException
-import com.orientechnologies.orient.core.db.record.OIdentifiable
 
 case class ChatChannel(
   id: String,
@@ -119,6 +118,8 @@ case class ChatChannelMember(channel: String, user: String, seen: Long)
 
 object ChatChannelStore {
 
+  import com.convergencelabs.server.datastore.domain.schema.DomainSchema._
+
   object ChannelType extends Enumeration {
     val Group, Room, Direct = Value
 
@@ -167,14 +168,14 @@ object ChatChannelStore {
   }
 
   def chatChannelToDoc(chatChannel: ChatChannel): ODocument = {
-    val doc = new ODocument(Schema.Classes.ChatChannel.Class)
+    val doc = new ODocument(Classes.ChatChannel.ClassName)
     doc.setProperty(Fields.Id, chatChannel.id)
     doc.setProperty(Fields.Type, chatChannel.channelType)
     doc.setProperty(Fields.Created, Date.from(chatChannel.created))
     doc.setProperty(Fields.Private, chatChannel.isPrivate)
     doc.setProperty(Fields.Name, chatChannel.name)
     doc.setProperty(Fields.Topic, chatChannel.topic)
-    doc.setProperty(Fields.Members, new HashSet[ORID]())
+    doc.setProperty(Fields.Members, new java.util.HashSet[ORID]())
     doc
   }
 
@@ -187,29 +188,29 @@ object ChatChannelStore {
     val className = doc.getClassName
 
     className match {
-      case Schema.Classes.ChatCreatedEvent.Class =>
+      case Classes.ChatCreatedEvent.ClassName =>
         val name: String = doc.getProperty(Fields.Name)
         val topic: String = doc.getProperty(Fields.Topic)
         val members: JavaSet[ODocument] = doc.getProperty("members")
         val usernames: Set[String] = members.asScala.toSet.map { doc: ODocument => doc.getProperty("username").asInstanceOf[String] }
         ChatCreatedEvent(eventNo, channel, user, timestamp.toInstant(), name, topic, usernames)
-      case Schema.Classes.ChatMessageEvent.Class =>
+      case Classes.ChatMessageEvent.ClassName =>
         val message: String = doc.getProperty(Fields.Message)
         ChatMessageEvent(eventNo, channel, user, timestamp.toInstant(), message)
-      case Schema.Classes.ChatUserJoinedEvent.Class =>
+      case Classes.ChatUserJoinedEvent.ClassName =>
         ChatUserJoinedEvent(eventNo, channel, user, timestamp.toInstant())
-      case Schema.Classes.ChatUserLeftEvent.Class =>
+      case Classes.ChatUserLeftEvent.ClassName =>
         ChatUserLeftEvent(eventNo, channel, user, timestamp.toInstant())
-      case Schema.Classes.ChatUserAddedEvent.Class =>
+      case Classes.ChatUserAddedEvent.ClassName =>
         val userAdded: String = doc.getProperty("userAdded.username")
         ChatUserAddedEvent(eventNo, channel, user, timestamp.toInstant(), userAdded)
-      case Schema.Classes.ChatUserRemovedEvent.Class =>
+      case Classes.ChatUserRemovedEvent.ClassName =>
         val userRemoved: String = doc.getProperty("userRemoved.username")
         ChatUserRemovedEvent(eventNo, channel, user, timestamp.toInstant(), userRemoved)
-      case Schema.Classes.ChatTopicChangedEvent.Class =>
+      case Classes.ChatTopicChangedEvent.ClassName =>
         val topic: String = doc.getProperty(Fields.Topic)
         ChatTopicChangedEvent(eventNo, channel, user, timestamp.toInstant(), topic)
-      case Schema.Classes.ChatNameChangedEvent.Class =>
+      case Classes.ChatNameChangedEvent.ClassName =>
         val name: String = doc.getProperty(Fields.Name)
         ChatNameChangedEvent(eventNo, channel, user, timestamp.toInstant(), name)
       case _ =>
@@ -219,6 +220,7 @@ object ChatChannelStore {
 }
 
 class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
+  import com.convergencelabs.server.datastore.domain.schema.DomainSchema._
 
   def getChatChannelInfo(channelId: String): Try[ChatChannelInfo] = {
     getChatChannelInfo(List(channelId)).flatMap {
@@ -231,17 +233,16 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
   }
 
   private[this] val GetChatChannelInfoQuery =
-    """
-        |SELECT 
-        |  max(eventNo) as eventNo, max(timestamp) as timestamp,
-        |  channel.id as id, channel.type as type, channel.created as created,
-        |  channel.private as private, channel.name as name, channel.topic as topic,
-        |  channel.members as members
-        |FROM
-        |  ChatChannelEvent 
-        |WHERE
-        |  channel.id IN :channelIds
-        |GROUP BY (channel)""".stripMargin
+    """|SELECT 
+       |  max(eventNo) as eventNo, max(timestamp) as timestamp,
+       |  channel.id as id, channel.type as type, channel.created as created,
+       |  channel.private as private, channel.name as name, channel.topic as topic,
+       |  channel.members as members
+       |FROM
+       |  ChatChannelEvent 
+       |WHERE
+       |  channel.id IN :channelIds
+       |GROUP BY (channel)""".stripMargin
 
   def getChatChannelInfo(channelId: List[String]): Try[List[ChatChannelInfo]] = withDb { db =>
     val params = Map("channelIds" -> channelId.asJava)
@@ -288,7 +289,7 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
     // FIXME: return failure if addAllChatChannelMembers fails
     db.begin()
     val channelId = id.getOrElse {
-      "#" + db.getMetadata.getSequenceLibrary.getSequence(Schema.Sequences.ChatChannelId).next()
+      "#" + OrientDBUtil.sequenceNext(db, DomainSchema.Sequences.ChatChannelId).get
     }
     val doc = chatChannelToDoc(ChatChannel(channelId, channelTypeString(channelType), creationTime, isPrivate, name, topic))
     db.save(doc)
@@ -310,7 +311,7 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
   } recoverWith {
     case e: ORecordDuplicatedException =>
       e.getIndexName match {
-        case Schema.Classes.ChatChannel.Indices.Id =>
+        case DomainSchema.Classes.ChatChannel.Indices.Id =>
           Failure(DuplicateValueException("id"))
         case _ =>
           Failure(e)
@@ -588,7 +589,7 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
   }
 
   private[this] def addChatChannelMemeber(db: ODatabaseDocument, channelRid: ORID, userRid: ORID, seen: Option[Long]): Try[Unit] = Try {
-    val doc = db.newElement(Schema.Classes.ChatChannelMember.Class)
+    val doc = db.newElement(Classes.ChatChannelMember.ClassName)
     doc.setProperty(Fields.Channel, channelRid)
     doc.setProperty(Fields.User, userRid)
     doc.setProperty(Fields.Seen, seen.getOrElse(0))
@@ -664,25 +665,25 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
   }
 
   def getChatChannelRid(channelId: String): Try[ORID] = withDb { db =>
-    OrientDBUtil.getIdentityFromSingleValueIndex(db, Schema.Classes.ChatChannel.Indices.Id, channelId)
+    OrientDBUtil.getIdentityFromSingleValueIndex(db, Classes.ChatChannel.Indices.Id, channelId)
   }
 
   def getChatChannelMemberRid(channelId: String, username: String): Try[ORID] = withDb { db =>
     val channelRID = getChatChannelRid(channelId).get
     val userRID = DomainUserStore.getUserRid(username, db).get
     val key = List(channelRID, userRID)
-    OrientDBUtil.getIdentityFromSingleValueIndex(db, Schema.Classes.ChatChannelMember.Indices.Channel_User, key)
+    OrientDBUtil.getIdentityFromSingleValueIndex(db, Classes.ChatChannelMember.Indices.Channel_User, key)
   }
 
   def getClassName: PartialFunction[String, Option[String]] = {
-    case "message" => Some(Schema.Classes.ChatMessageEvent.Class)
-    case "created" => Some(Schema.Classes.ChatCreatedEvent.Class)
-    case "user_joined" => Some(Schema.Classes.ChatUserJoinedEvent.Class)
-    case "user_left" => Some(Schema.Classes.ChatUserLeftEvent.Class)
-    case "user_added" => Some(Schema.Classes.ChatUserAddedEvent.Class)
-    case "user_removed" => Some(Schema.Classes.ChatUserRemovedEvent.Class)
-    case "name_changed" => Some(Schema.Classes.ChatNameChangedEvent.Class)
-    case "topic_changed" => Some(Schema.Classes.ChatTopicChangedEvent.Class)
+    case "message" => Some(Classes.ChatMessageEvent.ClassName)
+    case "created" => Some(Classes.ChatCreatedEvent.ClassName)
+    case "user_joined" => Some(Classes.ChatUserJoinedEvent.ClassName)
+    case "user_left" => Some(Classes.ChatUserLeftEvent.ClassName)
+    case "user_added" => Some(Classes.ChatUserAddedEvent.ClassName)
+    case "user_removed" => Some(Classes.ChatUserRemovedEvent.ClassName)
+    case "name_changed" => Some(Classes.ChatNameChangedEvent.ClassName)
+    case "topic_changed" => Some(Classes.ChatTopicChangedEvent.ClassName)
     case _ => None
   }
 }

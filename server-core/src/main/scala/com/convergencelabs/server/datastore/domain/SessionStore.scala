@@ -18,6 +18,7 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.datastore.domain.schema.DomainSchema
 
 case class DomainSession(
   id: String,
@@ -36,7 +37,7 @@ object SessionStore {
 
   def sessionToDoc(sl: DomainSession, db: ODatabaseDocument): Try[ODocument] = {
     DomainUserStore.getUserRid(sl.username, db).recoverWith {
-      case cause: Exception =>
+      case cause: Throwable =>
         Failure(new IllegalArgumentException(
           s"Could not create/update session because the user could not be found: ${sl.username}"))
     }.map { userLink =>
@@ -94,17 +95,11 @@ class SessionStore(dbProvider: DatabaseProvider)
   import schema.DomainSessionClass._
 
   def nextSessionId: Try[String] = withDb { db =>
-    //    val seq = db.getMetadata().getSequenceLibrary().getSequence(SessionSeq)
-    //    JavaLong.toString(seq.next(), 36)
-    val query = "SELECT sequence('SESSIONSEQ').next() as next"
-    OrientDBUtil
-      .getDocument(db, query)
-      .map(_.getProperty("next").asInstanceOf[Long])
-      .map(JavaLong.toString(_, 36))
+    OrientDBUtil.sequenceNext(db, DomainSchema.Sequences.SessionSeq) map (JavaLong.toString(_, 36))
   }
 
   def createSession(session: DomainSession): Try[Unit] = withDb { db =>
-    SessionStore.sessionToDoc(session, db).flatMap { doc =>
+    sessionToDoc(session, db).flatMap { doc =>
       Try {
         db.save(doc)
         ()

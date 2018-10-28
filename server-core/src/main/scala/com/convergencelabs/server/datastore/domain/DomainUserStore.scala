@@ -34,6 +34,7 @@ import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.datastore.OrientDBUtil
+import com.convergencelabs.server.datastore.domain.schema.DomainSchema
 
 object DomainUserStore {
   import schema.UserClass._
@@ -535,14 +536,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
   }
 
   def nextAnonymousUsername: Try[String] = withDb { db =>
-    // FIXME this does not seem to work.
-    //val seq = db.getMetadata().getSequenceLibrary().getSequence(AnonymousUsernameSeq)
-    //val next = seq.next()
-    val query = "SELECT sequence('anonymousUsernameSeq').next() as next"
-    OrientDBUtil
-      .getDocument(db, query)
-      .map(_.field("next").asInstanceOf[Long])
-      .map(JavaLong.toString(_, 36))
+    OrientDBUtil.sequenceNext(db, DomainSchema.Sequences.AnonymousUsername) map (JavaLong.toString(_, 36))
   }
 
   private[this] def handleDuplicateValue[T](): PartialFunction[Throwable, Try[T]] = {

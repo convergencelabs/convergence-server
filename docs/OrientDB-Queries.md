@@ -69,3 +69,9 @@ ORDER BY
   domain.namespace,
   domain.id;
 ```
+
+# Get Model As JSON
+```
+SELECT @this.toJson('fetchPlan:*:-1') FROM Model WHERE id = '38ofdPySe';
+SELECT @this.toJson('fetchPlan:*:-1') FROM Model WHERE id = 'my-test-id';
+```

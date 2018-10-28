@@ -62,20 +62,23 @@ class ModelOperationProcessor private[domain] (
   val Index = "index"
 
   def processModelOperation(modelOperation: NewModelOperation): Try[Unit] = withDb { db =>
-    db.begin()
+
     (for {
+      // Begin Transaction
+      // _ <- Try(db.begin())
+
       // 1. Apply the operation to the actual model.
       _ <- applyOperationToModel(modelOperation.modelId, modelOperation.op, db)
-      
+
       // 2. Persist the operation to the Operation History
       _ <- modelOpStore.createModelOperation(modelOperation, Some(db))
-      
+
       // 3. Update the model version and time stamp
       _ <- modelStore.updateModelOnOperation(modelOperation.modelId, modelOperation.version, modelOperation.timestamp, Some(db))
-    } yield {
-      db.commit()
-      ()
-    }).recoverWith {
+
+      // Commit Transaction
+      // _ <- Try(db.commit())
+    } yield (())).recoverWith {
       case cause: Throwable =>
         db.rollback()
         Failure(cause)
