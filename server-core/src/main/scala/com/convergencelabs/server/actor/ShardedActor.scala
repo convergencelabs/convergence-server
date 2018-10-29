@@ -4,49 +4,86 @@ import scala.util.Try
 
 import akka.actor.Actor
 import akka.actor.ActorLogging
-import akka.actor.PoisonPill
 import akka.cluster.sharding.ShardRegion.Passivate
+
+case object ShardedActorStop;
+
+object ShardedActor {
+  val Uninitialied = "<uninitialized>"
+}
 
 abstract class ShardedActor[T](
   private[this] val messageClass: Class[T])
   extends Actor
   with ActorLogging {
+  
+  import ShardedActor._
+
+  protected var identityString = this.calculateIdentityString(Uninitialied)
 
   override def receive(): Receive = receiveUninitialized
 
   private[this] def receiveUninitialized: Receive = {
-    case msg if messageClass.isInstance(msg) => recevieInitialMessage(msg.asInstanceOf[T])
-    case _ => this.unhandled(_)
+    case msg if messageClass.isInstance(msg) =>
+      recevieInitialMessage(msg.asInstanceOf[T])
+    case _ =>
+      this.unhandled(_)
   }
 
   private[this] def receivePassivating: Receive = {
-    case msg if messageClass.isInstance(msg) => this.context.parent.forward(msg)
+    case ShardedActorStop =>
+      this.onStop()
+    case msg if messageClass.isInstance(msg) =>
+      this.context.parent.forward(msg)
   }
 
   protected def passivate(): Unit = {
-    this.context.parent ! Passivate(PoisonPill)
+    log.debug(s"${identityString}: Passivating")
+    this.context.parent ! Passivate(stopMessage = ShardedActorStop)
     this.context.become(this.receivePassivating)
   }
 
   private[this] def recevieInitialMessage(message: T): Unit = {
-    this.initialize(message)
+    this.setIdentityData(message)
+      .flatMap { identity =>
+        this.identityString = calculateIdentityString(identity)
+        log.debug(s"${identityString}: Initializing.")
+        this.initialize(message)
+      }
       .map(_ match {
         case StartUpRequired =>
+          log.debug(s"${identityString}: Initialized, startting up.")
           this.context.become(this.receiveInitialized)
           this.receiveInitialized(message)
         case StartUpNotRequired =>
-          this.context.stop(this.self)
+          log.debug(s"${identityString}: Initialized, but no start up required, passivating.")
+          this.passivate()
       })
       .recover {
         case cause: Throwable =>
           log.error(cause, s"Error initializing SharededActor on first message: ${message}")
-          this.context.stop(this.self)
+          this.passivate()
       }
   }
 
-  protected def receiveInitialized: Receive
+  private[this] def calculateIdentityString(identifier: String): String = {
+    s"${this.getClass.getSimpleName}(${identifier})"
+  }
+
+  private[this] def onStop(): Unit = {
+    log.debug(s"${identityString}: Received ShardedActorStop message, stopping.")
+    this.context.stop(self)
+  }
+
+  override def postStop(): Unit = {
+    log.debug(s"${identityString}: stopped")
+  }
+
+  protected def setIdentityData(message: T): Try[String];
 
   protected def initialize(message: T): Try[ShardedActorStatUpPlan]
+
+  protected def receiveInitialized: Receive
 }
 
 sealed trait ShardedActorStatUpPlan

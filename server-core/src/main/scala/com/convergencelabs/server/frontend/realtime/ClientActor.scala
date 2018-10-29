@@ -244,7 +244,6 @@ class ClientActor(
       case _ =>
         cb.reply(AuthenticationResponseMessage(false, None, None, None, None))
     }
-
   }
 
   private[this] def handleAuthenticationSuccess(message: InternalAuthSuccess): Unit = {

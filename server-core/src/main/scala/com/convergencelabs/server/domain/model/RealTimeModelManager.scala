@@ -495,7 +495,6 @@ class RealTimeModelManager(
    * Determines if there are no more clients connected and if so request to shutdown.
    */
   private[this] def checkForConnectionsAndClose(): Unit = {
-
     state match {
       case State.Uninitialized =>
         // We just close immediately.

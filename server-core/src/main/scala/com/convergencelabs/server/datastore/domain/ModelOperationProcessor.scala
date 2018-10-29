@@ -62,7 +62,6 @@ class ModelOperationProcessor private[domain] (
   val Index = "index"
 
   def processModelOperation(modelOperation: NewModelOperation): Try[Unit] = withDb { db =>
-
     (for {
       // Begin Transaction
       // _ <- Try(db.begin())

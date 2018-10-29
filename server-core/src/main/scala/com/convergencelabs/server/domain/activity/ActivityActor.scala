@@ -35,10 +35,13 @@ class ActivityActor()
   private[this] var joinedSessions = Map[SessionKey, ActorRef]()
   private[this] var stateMap = new ActivityStateMap()
 
-  override def initialize(message: IncomingActivityMessage): Try[ShardedActorStatUpPlan] = {
+  override protected def setIdentityData(message: IncomingActivityMessage): Try[String] = {
     this.activityId = message.activityId
     this.domain = message.domain
-    log.debug( s"${activityToString} initiaizlized")
+    Success(s"${domain.namespace}/${domain.domainId}/${this.activityId}")
+  }
+
+  override def initialize(message: IncomingActivityMessage): Try[ShardedActorStatUpPlan] = {
     Success(StartUpRequired)
   }
 
@@ -57,10 +60,6 @@ class ActivityActor()
       clearState(sk)
     case Terminated(actor) =>
       handleClientDeath(actor)
-  }
-  
-  override def postStop(): Unit = {
-    log.debug(s"${activityToString} stopped")
   }
 
   private[this] def isEmpty(): Boolean = {
@@ -159,13 +158,10 @@ class ActivityActor()
   private[this] def handleClientDeath(actor: ActorRef): Unit = {
     this.joinedClients.get(actor) match {
       case Some(sk) =>
-        log.debug(s"Client with session ${sk.serialize()} was terminated.  Leaving activity.")
+        log.debug(s"${identityString}: Client with session ${sk.serialize()} was terminated.  Leaving activity.")
         this.leaveHelper(sk)
       case None =>
-        log.warning("Deathwatch on a client was triggered for an actor that did not have thi activity open")
+        log.warning(s"${identityString}: Deathwatch on a client was triggered for an actor that did not have thi activity open")
     }
   }
-  
-  private[this] def activityToString() =
-    s"Activity(${domain.namespace}/${domain.domainId}/${this.activityId})"
 }

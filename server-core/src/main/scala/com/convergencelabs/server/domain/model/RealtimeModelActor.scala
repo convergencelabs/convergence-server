@@ -59,7 +59,7 @@ class RealtimeModelActor(
   private[this] val persistenceManager: DomainPersistenceManager,
   private[this] val clientDataResponseTimeout: FiniteDuration,
   private[this] val receiveTimeout: FiniteDuration)
-    extends ShardedActor(classOf[ModelMessage]) {
+  extends ShardedActor(classOf[ModelMessage]) {
 
   import RealtimeModelActor._
 
@@ -217,24 +217,27 @@ class RealtimeModelActor(
     throw new IllegalStateException("Can not access persistenceProvider before the model is initialized.")
   }
 
+  override protected def setIdentityData(message: ModelMessage): Try[String] = {
+    this._domainFqn = Some(message.domainFqn)
+    this._modelId = Some(message.modelId)
+    Success(s"${message.domainFqn.namespace}/${message.domainFqn.domainId}/${message.modelId}")
+  }
+
   override protected def initialize(msg: ModelMessage): Try[ShardedActorStatUpPlan] = {
-    log.debug(s"RealtimeModelActor '{}/{}': Inititializing", msg.domainFqn, msg.modelId)
     persistenceManager.acquirePersistenceProvider(self, context, msg.domainFqn) map { provider =>
       this._persistenceProvider = Some(provider)
-      this._domainFqn = Some(msg.domainFqn)
-      this._modelId = Some(msg.modelId)
-      log.debug(s"RealtimeModelActor '{}/{}': Acquired persistence", domainFqn, modelId)
+      log.debug(s"${identityString}: Acquired persistence")
       this.becomeClosed()
       StartUpRequired
     } recoverWith {
       case cause: Throwable =>
-        log.debug(s"RealtimeModelActor '{}/{}': Could not acquire persistence", domainFqn, modelId)
+        log.debug(s"${identityString}: Could not acquire persistence")
         Failure(cause)
     }
   }
 
   private[this] def becomeOpened(): Unit = {
-    log.debug("RealtimeModelActor '{}/{}': Becoming open.", domainFqn, modelId)
+    log.debug(s"${identityString}: Becoming open.")
     val persistenceFactory = new RealtimeModelPersistenceStreamFactory(
       domainFqn,
       modelId,
@@ -273,14 +276,13 @@ class RealtimeModelActor(
   }
 
   private[this] def becomeClosed(): Unit = {
-    log.debug("RealtimeModelActor '{}/{}': Becoming closed.", domainFqn, modelId)
+    log.debug(s"${identityString}: Becoming closed.")
     this._modelManager = None
     this.context.become(receiveClosed)
     this.context.setReceiveTimeout(this.receiveTimeout)
   }
 
   override def passivate(): Unit = {
-    log.debug("RealtimeModelActor '{}/{}': Passivating.", domainFqn, modelId)
     this.context.setReceiveTimeout(Duration.Undefined)
     super.passivate()
   }
@@ -359,7 +361,7 @@ class RealtimeModelActor(
 
   def getModel(msg: GetRealtimeModel): Unit = {
     val GetRealtimeModel(domainFqn, getModelId, sk) = msg
-    log.debug("Getting model: {}, {}", domainFqn, getModelId)
+    log.debug(s"${identityString}: Getting model")
     (sk match {
       case Some(sk) =>
         modelPermissionResolver.getModelUserPermissions(getModelId, sk, persistenceProvider)
@@ -415,7 +417,7 @@ class RealtimeModelActor(
 
   private[this] def createModel(msg: CreateRealtimeModel): Unit = {
     val CreateRealtimeModel(domainFqn, modelId, collectionId, data, overridePermissions, worldPermissions, userPermissions, sk) = msg
-    log.debug("Creating model: {}, {}", domainFqn, modelId)
+    log.debug(s"${identityString}: Creating model.")
     if (collectionId.length == 0) {
       sender ! Status.Failure(new IllegalArgumentException("The collecitonId can not be empty when creating a model"))
     } else {
@@ -428,7 +430,7 @@ class RealtimeModelActor(
         overridePermissions,
         worldPermissions,
         userPermissions) map { model =>
-          log.debug("Model created: {}, {}", domainFqn, modelId)
+          log.debug(s"${identityString}: Model created.")
           sender ! model.metaData.modelId
           ()
         } recover {
@@ -479,12 +481,9 @@ class RealtimeModelActor(
   }
 
   override def postStop(): Unit = {
-    this._domainFqn match {
-      case Some(d) =>
-        log.debug("Realtime Model stopped: {}/{}", domainFqn, modelId)
-        persistenceManager.releasePersistenceProvider(self, context, domainFqn)
-      case None =>
-        log.debug("Uninitialized Model stopped")
+    super.postStop()
+    this._domainFqn foreach { d =>
+      persistenceManager.releasePersistenceProvider(self, context, domainFqn)
     }
   }
 }
