@@ -6,6 +6,10 @@ import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.cluster.sharding.ShardRegion.Passivate
 
+sealed trait ShardedActorStatUpPlan
+case object StartUpRequired extends ShardedActorStatUpPlan
+case object StartUpNotRequired extends ShardedActorStatUpPlan
+
 case object ShardedActorStop;
 
 object ShardedActor {
@@ -16,12 +20,18 @@ abstract class ShardedActor[T](
   private[this] val messageClass: Class[T])
   extends Actor
   with ActorLogging {
-  
+
   import ShardedActor._
 
   protected var identityString = this.calculateIdentityString(Uninitialied)
 
   override def receive(): Receive = receiveUninitialized
+
+  protected def passivate(): Unit = {
+    log.debug(s"${identityString}: Passivating")
+    this.context.parent ! Passivate(stopMessage = ShardedActorStop)
+    this.context.become(this.receivePassivating)
+  }
 
   private[this] def receiveUninitialized: Receive = {
     case msg if messageClass.isInstance(msg) =>
@@ -35,12 +45,6 @@ abstract class ShardedActor[T](
       this.onStop()
     case msg if messageClass.isInstance(msg) =>
       this.context.parent.forward(msg)
-  }
-
-  protected def passivate(): Unit = {
-    log.debug(s"${identityString}: Passivating")
-    this.context.parent ! Passivate(stopMessage = ShardedActorStop)
-    this.context.become(this.receivePassivating)
   }
 
   private[this] def recevieInitialMessage(message: T): Unit = {
@@ -76,7 +80,7 @@ abstract class ShardedActor[T](
   }
 
   override def postStop(): Unit = {
-    log.debug(s"${identityString}: stopped")
+    log.debug(s"${identityString}: Stopped")
   }
 
   protected def setIdentityData(message: T): Try[String];
@@ -85,7 +89,3 @@ abstract class ShardedActor[T](
 
   protected def receiveInitialized: Receive
 }
-
-sealed trait ShardedActorStatUpPlan
-case object StartUpRequired extends ShardedActorStatUpPlan
-case object StartUpNotRequired extends ShardedActorStatUpPlan

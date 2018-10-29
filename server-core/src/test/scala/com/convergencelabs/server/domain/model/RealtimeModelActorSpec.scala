@@ -49,6 +49,7 @@ import scala.util.Failure
 import akka.actor.ActorRef
 import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.domain.UnauthorizedException
+import com.convergencelabs.server.actor.ShardedActorStop
 
 // scalastyle:off magic.number
 class RealtimeModelActorSpec
@@ -198,7 +199,7 @@ class RealtimeModelActorSpec
         var client1Response = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
         realtimeModelActor.tell(CloseRealtimeModelRequest(domainFqn, modelId, skU1S1), client1.ref)
         val closeAck = client1.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ())
-        mockCluster.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), Passivate(PoisonPill))
+        mockCluster.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), Passivate(ShardedActorStop))
       }
     }
 
