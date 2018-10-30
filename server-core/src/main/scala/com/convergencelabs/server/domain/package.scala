@@ -28,7 +28,8 @@ case class AnonymousAuthRequest(displayName: Option[String]) extends Authetncati
 sealed trait AuthenticationResponse
 case class AuthenticationSuccess(username: String, sk: SessionKey, reconnectToken: String) extends AuthenticationResponse
 case object AuthenticationFailure extends AuthenticationResponse
-case object AuthenticationError extends AuthenticationResponse
+
+case class AuthenticationError(message: String = "", cause: Throwable) extends Exception(message, cause)
 
 case class UnauthorizedException(message: String = "") extends Exception(message)
 

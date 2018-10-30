@@ -66,41 +66,33 @@ class AuthenticationHandler(
     debug(s"${domainFqn}: Processing anonymous authentication request with display name: ${displayName}")
     domainConfigStore.isAnonymousAuthEnabled() flatMap {
       case false =>
-        debug(s"${domainFqn}: Anonymous auth is disabled, so returning AuthenticationFailure")
+        debug(s"${domainFqn}: Anonymous auth is disabled; returning AuthenticationFailure.")
         Success(AuthenticationFailure)
       case true =>
-        debug(s"${domainFqn}: Anonymous auth is enabled, creating anonymous user...")
+        debug(s"${domainFqn}: Anonymous auth is enabled; creating anonymous user.")
         userStore.createAnonymousDomainUser(displayName) flatMap { username =>
           debug(s"${domainFqn}: Anonymous user created: ${username}")
           authSuccess(username, false, None)
         }
-    } recover {
+    } recoverWith {
       case cause: Throwable =>
-        error(s"${domainFqn}: Anonymous authentication error", cause)
-        AuthenticationError
+        Failure(AuthenticationError(s"${domainFqn}: Anonymous authentication error", cause))
     }
   }
 
   private[this] def authenticatePassword(authRequest: PasswordAuthRequest): Try[AuthenticationResponse] = {
     logger.debug(s"${domainFqn}: Authenticating by username and password")
-    userStore.validateCredentials(authRequest.username, authRequest.password) match {
-      case Success(true) => {
-        authSuccess(authRequest.username, false, None) match {
-          case Success(authSuccessResponse) =>
-            updateLastLogin(authRequest.username, DomainUserType.Normal)
-            Success(authSuccessResponse)
-          case Failure(cause) => {
-            logger.error(s"${domainFqn}: Unable to authenticate a user", cause)
-            Success(AuthenticationError)
-          }
+    userStore.validateCredentials(authRequest.username, authRequest.password) flatMap {
+      case true =>
+        authSuccess(authRequest.username, false, None) map { response =>
+          updateLastLogin(response.username, DomainUserType.Normal)
+          response
         }
-      }
-      case Success(false) =>
+      case false =>
         Success(AuthenticationFailure)
-      case Failure(cause) => {
-        logger.error(s"${domainFqn}: Unable to authenticate a user", cause)
-        Success(AuthenticationError)
-      }
+    } recoverWith {
+      case cause: Throwable =>
+        Failure(AuthenticationError(s"${domainFqn}: Unable to authenticate a user", cause))
     }
   }
 
@@ -150,16 +142,13 @@ class AuthenticationHandler(
       case false => username
     }
 
-    exists.flatMap {
+    exists flatMap {
       case true =>
         logger.debug(s"${domainFqn}: User specificed in JWT already exists, returning auth success.")
-        this.updateUserFromJwt(jwtClaims, admin)
-        authSuccess(resolvedUsername, admin, None)
+        updateUserFromJwt(jwtClaims, admin)
       case false =>
         logger.debug(s"${domainFqn}: User specificed in JWT does not exist exist, auto creating user.")
-        createUserFromJWT(jwtClaims, admin) flatMap { _ =>
-          authSuccess(resolvedUsername, admin, None)
-        } recoverWith {
+        createUserFromJWT(jwtClaims, admin) recoverWith {
           case e: DuplicateValueException =>
             if (e.field == DomainSchema.Classes.User.Fields.Username) {
               // The duplicate value case is when a race condition occurs between when we looked up the
@@ -168,39 +157,35 @@ class AuthenticationHandler(
               authSuccess(resolvedUsername, admin, None)
             } else {
               logger.warn(s"${domainFqn}: Attempted to auto create user, but the email specified in the JWT is already registered.")
-              Success(AuthenticationError)
+              Failure(new IllegalArgumentException("Attempted to auto create user, but the email specified in the JWT is already registered."))
             }
           case e: InvalidValueExcpetion =>
             Failure(new IllegalArgumentException(s"${domainFqn}: Lazy creation of user based on JWT authentication failed: {$username}", e))
         }
-    }.recover {
+    } flatMap { _ =>
+      authSuccess(resolvedUsername, admin, None) map { response =>
+        updateLastLogin(response.username, DomainUserType.Normal)
+        response
+      }
+    } recoverWith {
       case cause: Exception =>
-        logger.error(s"${domainFqn}: Unable to authenticate a user via token.", cause)
-        AuthenticationError
+        Failure(AuthenticationError(s"${domainFqn}: Unable to authenticate a user via token.", cause))
     }
   }
 
   private[this] def authenticateReconnectToken(reconnectRequest: ReconnectTokenAuthRequest): Try[AuthenticationResponse] = {
-    userStore.validateReconnectToken(reconnectRequest.token) match {
-      case Success(username) =>
-        if (username.isDefined) {
-          authSuccess(username.get, false, Some(reconnectRequest.token)) match {
-            case Success(authSuccessResponse) =>
-              Success(authSuccessResponse)
-            case Failure(cause) =>
-              logger.error(s"${domainFqn}: Unable to authenticate a user via reconnect token.", cause)
-              Success(AuthenticationError)
-          }
-        } else {
-          Success(AuthenticationError)
-        }
-      case Failure(cause) =>
-        logger.error(s"${domainFqn}: Unable to validate reconnect token.", cause)
-        Success(AuthenticationError)
+    userStore.validateReconnectToken(reconnectRequest.token) flatMap {
+      case Some(username) =>
+        authSuccess(username, false, Some(reconnectRequest.token))
+      case None =>
+        Success(AuthenticationFailure)
+    } recoverWith {
+      case cause =>
+        Failure(AuthenticationError(s"${domainFqn}: Unable to authenticate a user via reconnect token.", cause))
     }
   }
 
-  private[this] def authSuccess(username: String, admin: Boolean, reconnectToken: Option[String]): Try[AuthenticationResponse] = {
+  private[this] def authSuccess(username: String, admin: Boolean, reconnectToken: Option[String]): Try[AuthenticationSuccess] = {
     logger.debug(s"${domainFqn}: Creating session after authenication success.")
     sessionStore.nextSessionId flatMap { id =>
       reconnectToken match {
@@ -282,6 +267,8 @@ class AuthenticationHandler(
   }
 
   private[this] def updateLastLogin(username: String, userType: DomainUserType.Value): Unit = {
-    userStore.setLastLogin(username, userType, Instant.now())
+    userStore.setLastLogin(username, userType, Instant.now()) recover {
+      case e => logger.warn("Unable to update last login time for user.", e)
+    }
   }
 }

@@ -77,14 +77,14 @@ class DomainActor(
       }
     }
 
-  private[this] implicit val ec = context.dispatcher
   private[this] val connectedClients = mutable.Set[ActorRef]()
   private[this] val authenticatedClients = mutable.Map[ActorRef, String]()
 
-  private[this] var _domainFqn: Option[DomainFqn] = None
-  private[this] var _persistenceProvider: Option[DomainPersistenceProvider] = None
-  private[this] var _authenticator: Option[AuthenticationHandler] = None
-  private[this] var _children: Option[DomainActorChildren] = None
+  // This is the state that will be set during the initialize method
+  private[this] var domainFqn: DomainFqn = _
+  private[this] var persistenceProvider: DomainPersistenceProvider = _
+  private[this] var authenticator: AuthenticationHandler = _
+  private[this] var children: DomainActorChildren = _
 
   val mediator = DistributedPubSub(context.system).mediator
 
@@ -96,7 +96,7 @@ class DomainActor(
     case message: ClientDisconnected =>
       onClientDisconnect(message)
     case Terminated(client) =>
-      handleDeathWatch(client)
+      handleActorTermination(client)
     case ReceiveTimeout =>
       onReceiveTimeout()
     case SubscribeAck(_) =>
@@ -107,76 +107,13 @@ class DomainActor(
       unhandled(message)
   }
 
-  private[this] def onReceiveTimeout(): Unit = {
-    log.debug(s"${identityString}: Receive timeout triggered, passivating")
-    this.context.setReceiveTimeout(Duration.Undefined)
-    passivate()
-  }
-
-  private[this] def handleDeathWatch(actorRef: ActorRef): Unit = {
-    if (this.connectedClients.contains(actorRef)) {
-      log.debug(s"${identityString}: ClientActor Terminated without cleanly disconnecting. Removing it from the Domain.")
-      removeClient(actorRef)
-    }
-  }
-
-  private[this] def onAuthenticationRequest(message: AuthenticationRequest): Unit = {
-    log.debug(s"${identityString}: Processing authentication request: ${message.credentials.getClass.getSimpleName}")
-    
-    val asker = sender
-    val connected = Instant.now()
-
-    authenticator.authenticate(message.credentials) match {
-      case Success(AuthenticationSuccess(username, sk, recconectToken)) =>
-        log.debug(s"${identityString}: Authenticated user successfully, creating session")
-
-        val method = message.credentials match {
-          case x: JwtAuthRequest => "jwt"
-          case x: ReconnectTokenAuthRequest => "reconnect"
-          case x: PasswordAuthRequest => "password"
-          case x: AnonymousAuthRequest => "anonymous"
-        }
-
-        val session = DomainSession(
-          sk.sid,
-          username,
-          connected,
-          None,
-          method,
-          message.client,
-          message.clientVersion,
-          message.clientMetaData,
-          message.remoteAddress)
-          
-        persistenceProvider.sessionStore.createSession(session) map { _ =>
-          log.debug(s"${identityString}: Session created replying to ClientActor")
-          authenticatedClients += (message.clientActor -> sk.sid)
-          asker ! AuthenticationSuccess(username, sk, recconectToken)
-        } recover {
-          case cause: Exception =>
-            log.error(cause, s"${identityString} Unable to authenticate user because a session could not be created.")
-            asker ! AuthenticationFailure
-        }
-      case Success(AuthenticationFailure) =>
-        log.debug(s"${identityString}: AuthenticationFailure")
-        asker ! AuthenticationFailure
-
-      case Success(AuthenticationError) =>
-        log.debug(s"${identityString}: AuthenticationError")
-        asker ! AuthenticationError
-
-      case Failure(e) =>
-        log.error(e, s"There was an error authenticating the client")
-        asker ! AuthenticationFailure
-    }
-  }
-
   private[this] def onHandshakeRequest(message: HandshakeRequest): Unit = {
     persistenceProvider.validateConnection() map { _ =>
       this.context.setReceiveTimeout(Duration.Undefined)
 
-      connectedClients += message.clientActor
+      connectedClients.add(message.clientActor)
       context.watch(message.clientActor)
+
       sender ! HandshakeSuccess(
         this.children.modelQueryManagerActor,
         this.children.modelStoreActor,
@@ -188,6 +125,75 @@ class DomainActor(
       case cause: Throwable =>
         log.error(cause, s"${identityString}: Could not connect to domain database")
         sender ! Status.Failure(HandshakeFailureException("domain_unavailable", "Could not connect to database."))
+    }
+  }
+
+  private[this] def onAuthenticationRequest(message: AuthenticationRequest): Unit = {
+    log.debug(s"${identityString}: Processing authentication request: ${message.credentials.getClass.getSimpleName}")
+
+    val asker = sender
+    val connected = Instant.now()
+
+    // FIXME Remove this try
+    try {
+      authenticator.authenticate(message.credentials) map {
+        case AuthenticationSuccess(username, sk, recconectToken) =>
+          log.debug(s"${identityString}: Authenticated user successfully, creating session")
+
+          val method = message.credentials match {
+            case x: JwtAuthRequest => "jwt"
+            case x: ReconnectTokenAuthRequest => "reconnect"
+            case x: PasswordAuthRequest => "password"
+            case x: AnonymousAuthRequest => "anonymous"
+          }
+
+          val session = DomainSession(
+            sk.sid,
+            username,
+            connected,
+            None,
+            method,
+            message.client,
+            message.clientVersion,
+            message.clientMetaData,
+            message.remoteAddress)
+
+          persistenceProvider.sessionStore.createSession(session) map { _ =>
+            log.debug(s"${identityString}: Session created replying to ClientActor")
+            authenticatedClients.put(message.clientActor, sk.sid)
+            asker ! AuthenticationSuccess(username, sk, recconectToken)
+          } recover {
+            case cause: Throwable =>
+              log.error(cause, s"${identityString} Unable to authenticate user because a session could not be created.")
+              asker ! AuthenticationFailure
+              ()
+          }
+        case AuthenticationFailure =>
+          log.debug(s"${identityString}: AuthenticationFailure")
+          asker ! AuthenticationFailure
+          ()
+      } recover {
+        case e: Throwable =>
+          log.error(e, s"There was an error authenticating the client")
+          asker ! AuthenticationFailure
+          ()
+      }
+    } catch {
+      case e: Throwable =>
+        log.error(e, s"There was an error authenticating the client")
+    }
+    
+    log.debug(s"${identityString}: Done processing authentication request: ${message.credentials.getClass.getSimpleName}")
+  }
+
+  //
+  // Termination and Disconnection
+  //
+
+  private[this] def handleActorTermination(actorRef: ActorRef): Unit = {
+    if (this.connectedClients.contains(actorRef)) {
+      log.debug(s"${identityString}: ClientActor Terminated without cleanly disconnecting. Removing it from the Domain.")
+      removeClient(actorRef)
     }
   }
 
@@ -204,7 +210,7 @@ class DomainActor(
       case None =>
         log.debug(s"${identityString}: Disconnecting unathenticated clienmt.")
     }
-    
+
     connectedClients.remove(client)
 
     if (connectedClients.isEmpty) {
@@ -213,8 +219,32 @@ class DomainActor(
     }
   }
 
+  //
+  // Shutdown and passivation
+  //
+
+  private[this] def onReceiveTimeout(): Unit = {
+    log.debug(s"${identityString}: Receive timeout triggered, passivating")
+    this.context.setReceiveTimeout(Duration.Undefined)
+    passivate()
+  }
+
+  override def passivate(): Unit = {
+    super.passivate()
+    Option(this.domainFqn).foreach(domainPersistenceManager.releasePersistenceProvider(self, context, _))
+  }
+
+  private[this] def domainDeleted(): Unit = {
+    log.error(s"${identityString}: Domain deleted, immediately passivating.")
+    passivate()
+  }
+
+  //
+  // Initialization
+  //
+
   override protected def setIdentityData(message: DomainMessage): Try[String] = {
-    this._domainFqn = Some(message.domainFqn)
+    this.domainFqn = message.domainFqn
     Success(s"${message.domainFqn.namespace}/${message.domainFqn.domainId}")
   }
 
@@ -225,15 +255,15 @@ class DomainActor(
     domainPersistenceManager.acquirePersistenceProvider(self, context, msg.domainFqn) map { provider =>
       log.warning(s"${identityString}: Aquired domain persistence provider")
 
-      this._persistenceProvider = Some(provider)
-      this._authenticator = Some(new AuthenticationHandler(
+      this.persistenceProvider = provider
+      this.authenticator = new AuthenticationHandler(
         msg.domainFqn,
         provider.configStore,
         provider.jwtAuthKeyStore,
         provider.userStore,
         provider.userGroupStore,
         provider.sessionStore,
-        context.dispatcher))
+        context.dispatcher)
 
       val modelQueryManagerActor = context.actorOf(
         ModelLookupActor.props(
@@ -260,13 +290,13 @@ class DomainActor(
 
       val operationStoreActor = context.actorOf(ModelOperationStoreActor.props(provider.modelOperationStore), ModelOperationStoreActor.RelativePath)
 
-      this._children = Some(DomainActorChildren(
+      this.children = DomainActorChildren(
         modelQueryManagerActor,
         modelStoreActor,
         operationStoreActor,
         userServiceActor,
         presenceServiceActor,
-        chatChannelLookupActor))
+        chatChannelLookupActor)
 
       // The idea here is to set the receive timeout in case we don't
       // get a valid handshake. Realistically, the handshake should
@@ -291,31 +321,5 @@ class DomainActor(
       case cause: Throwable =>
         Failure(cause)
     }
-  }
-
-  private[this] def persistenceProvider = this._persistenceProvider.getOrElse {
-    throw new IllegalStateException("Can not access persistenceProvider before the domain is initialized.")
-  }
-
-  private[this] def domainFqn = this._domainFqn.getOrElse {
-    throw new IllegalStateException("Can not access domainFqn before the domain is initialized.")
-  }
-
-  private[this] def authenticator = this._authenticator.getOrElse {
-    throw new IllegalStateException("Can not access authenticator before the domain is initialized.")
-  }
-
-  private[this] def children = this._children.getOrElse {
-    throw new IllegalStateException("Can not access children before the domain is initialized.")
-  }
-
-  private[this] def domainDeleted(): Unit = {
-    log.error(s"${identityString}: Domain deleted immediately passivating")
-    passivate()
-  }
-
-  override def passivate(): Unit = {
-    super.passivate()
-    this._domainFqn.foreach(domainFqn => domainPersistenceManager.releasePersistenceProvider(self, context, domainFqn))
   }
 }

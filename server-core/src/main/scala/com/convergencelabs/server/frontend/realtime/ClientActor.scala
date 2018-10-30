@@ -282,9 +282,6 @@ class ClientActor(
         getPresenceAfterAuth(username, sk, reconnectToken, cb)
       case Success(AuthenticationFailure) =>
         cb.reply(AuthenticationResponseMessage(false, None, None, None, None))
-      case Success(AuthenticationError) =>
-        // TODO do we want this to go back to the client as something else?
-        cb.reply(AuthenticationResponseMessage(false, None, None, None, None)) 
       case Failure(cause) =>
         log.error(cause, s"Error authenticating user for domain ${domainFqn}")
         cb.reply(AuthenticationResponseMessage(false, None, None, None, None))

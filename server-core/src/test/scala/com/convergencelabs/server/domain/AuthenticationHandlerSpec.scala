@@ -22,6 +22,7 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.Matchers
 import org.scalatest.WordSpecLike
 import org.scalatest.mockito.MockitoSugar
+import org.scalatest.TryValues._
 
 import com.convergencelabs.server.datastore.domain.DomainConfigStore
 import com.convergencelabs.server.datastore.domain.DomainUserStore
@@ -66,8 +67,8 @@ class AuthenticationHandlerSpec()
       }
 
       "return an authenticatoin error when validating the cretentials fails" in new TestFixture {
-        val result = authHandler.authenticate(PasswordAuthRequest(authfailureUser, authfailurePassword)).get
-        result shouldBe AuthenticationError
+        val result = authHandler.authenticate(PasswordAuthRequest(authfailureUser, authfailurePassword)).failure.exception
+        result shouldBe an[AuthenticationError]
       }
     }
 
@@ -104,19 +105,24 @@ class AuthenticationHandlerSpec()
       }
 
       "return an authentication failure when the user can't be looked up" in new TestFixture {
-        val result = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(brokenUserName, enabledKey.id))).get
-        result shouldBe AuthenticationError
+        val result = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(brokenUserName, enabledKey.id))).failure.exception
+        result shouldBe an[AuthenticationError]
       }
 
       "return an authentication failure when the user can't be created" in new TestFixture {
-        val result = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(brokenLazyUsername, enabledKey.id))).get
-        result shouldBe AuthenticationError
+        val authRequest = JwtAuthRequest(JwtGenerator.generate(brokenLazyUsername, enabledKey.id))
+        val result = authHandler.authenticate(authRequest).failure.exception
+        result shouldBe an[AuthenticationError]
       }
       
       "return an authentication failure when a new user has a duplicate email." in new TestFixture {
-        val result = authHandler.authenticate(JwtAuthRequest(
-            JwtGenerator.generate(duplicateEmailJwtUser.username, enabledKey.id, Map(JwtClaimConstants.Email -> duplicateEmailJwtUser.email.get)))).get
-        result shouldBe AuthenticationError
+        val jwt = JwtGenerator.generate(
+            duplicateEmailJwtUser.username, 
+            enabledKey.id, 
+            Map(JwtClaimConstants.Email -> duplicateEmailJwtUser.email.get))
+        val authRequest = JwtAuthRequest(jwt)
+        val result = authHandler.authenticate(authRequest).failure.exception
+        result shouldBe an[AuthenticationError]
       }
     }
   }
@@ -159,6 +165,8 @@ class AuthenticationHandlerSpec()
     Mockito.when(userStore.validateCredentials(existingUserName, existingCorrectPassword)).thenReturn(Success(true))
     Mockito.when(userStore.validateCredentials(existingUserName, existingIncorrectPassword)).thenReturn(Success(false))
     Mockito.when(userStore.validateCredentials(nonExistingUser, "")).thenReturn(Success(false))
+    
+    Mockito.when(userStore.setLastLogin(MockitoMatchers.any(), MockitoMatchers.any(), MockitoMatchers.any())).thenReturn(Success(()))
 
     val lazyUserName = "newUserName"
     val lazyUser = CreateNormalDomainUser(lazyUserName, None, None, None, None)
