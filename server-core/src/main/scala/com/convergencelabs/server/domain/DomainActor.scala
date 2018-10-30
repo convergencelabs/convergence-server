@@ -126,7 +126,7 @@ class DomainActor(
     val asker = sender
     val connected = Instant.now()
 
-    authenticator.authenticate(message.credentials) onComplete {
+    authenticator.authenticate(message.credentials) match {
       case Success(AuthenticationSuccess(username, sk, recconectToken)) =>
         log.debug(s"${identityString}: Authenticated user successfully, creating session")
 
@@ -147,7 +147,6 @@ class DomainActor(
           message.clientVersion,
           message.clientMetaData,
           message.remoteAddress)
-
           
         persistenceProvider.sessionStore.createSession(session) map { _ =>
           log.debug(s"${identityString}: Session created replying to ClientActor")

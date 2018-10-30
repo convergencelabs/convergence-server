@@ -48,7 +48,7 @@ class AuthenticationHandler(
   private[this] implicit val ec: ExecutionContext)
   extends Logging {
 
-  def authenticate(request: AuthetncationCredentials): Future[AuthenticationResponse] = {
+  def authenticate(request: AuthetncationCredentials): Try[AuthenticationResponse] = {
     request match {
       case message: PasswordAuthRequest =>
         authenticatePassword(message)
@@ -61,10 +61,10 @@ class AuthenticationHandler(
     }
   }
 
-  private[this] def authenticateAnonymous(authRequest: AnonymousAuthRequest): Future[AuthenticationResponse] = {
+  private[this] def authenticateAnonymous(authRequest: AnonymousAuthRequest): Try[AuthenticationResponse] = {
     val AnonymousAuthRequest(displayName) = authRequest;
     debug(s"${domainFqn}: Processing anonymous authentication request with display name: ${displayName}")
-    val result = domainConfigStore.isAnonymousAuthEnabled() flatMap {
+    domainConfigStore.isAnonymousAuthEnabled() flatMap {
       case false =>
         debug(s"${domainFqn}: Anonymous auth is disabled, so returning AuthenticationFailure")
         Success(AuthenticationFailure)
@@ -79,59 +79,53 @@ class AuthenticationHandler(
         error(s"${domainFqn}: Anonymous authentication error", cause)
         AuthenticationError
     }
-
-    tryToFuture(result)
   }
 
-  private[this] def authenticatePassword(authRequest: PasswordAuthRequest): Future[AuthenticationResponse] = {
+  private[this] def authenticatePassword(authRequest: PasswordAuthRequest): Try[AuthenticationResponse] = {
     logger.debug(s"${domainFqn}: Authenticating by username and password")
-    val response = userStore.validateCredentials(authRequest.username, authRequest.password) match {
+    userStore.validateCredentials(authRequest.username, authRequest.password) match {
       case Success(true) => {
         authSuccess(authRequest.username, false, None) match {
           case Success(authSuccessResponse) =>
             updateLastLogin(authRequest.username, DomainUserType.Normal)
-            authSuccessResponse
+            Success(authSuccessResponse)
           case Failure(cause) => {
             logger.error(s"${domainFqn}: Unable to authenticate a user", cause)
-            AuthenticationError
+            Success(AuthenticationError)
           }
         }
       }
       case Success(false) =>
-        AuthenticationFailure
+        Success(AuthenticationFailure)
       case Failure(cause) => {
         logger.error(s"${domainFqn}: Unable to authenticate a user", cause)
-        AuthenticationError
-      }
-    }
-
-    Future.successful(response)
-  }
-
-  private[this] def authenticateJwt(authRequest: JwtAuthRequest): Future[AuthenticationResponse] = {
-    Future[AuthenticationResponse] {
-      // This implements a two pass approach to be able to get the key id.
-      val firstPassJwtConsumer = new JwtConsumerBuilder()
-        .setSkipAllValidators()
-        .setDisableRequireSignature()
-        .setSkipSignatureVerification()
-        .build()
-
-      val jwtContext = firstPassJwtConsumer.process(authRequest.jwt)
-      val objects = jwtContext.getJoseObjects()
-      val keyId = objects.get(0).getKeyIdHeaderValue()
-
-      getJWTPublicKey(keyId) match {
-        case Some((publicKey, admin)) =>
-          authenticateJwtWithPublicKey(authRequest, publicKey, admin)
-        case None =>
-          logger.warn(s"${domainFqn}: Request to authenticate via token, with an invalid keyId: ${keyId}")
-          AuthenticationFailure
+        Success(AuthenticationError)
       }
     }
   }
 
-  private[this] def authenticateJwtWithPublicKey(authRequest: JwtAuthRequest, publicKey: PublicKey, admin: Boolean): AuthenticationResponse = {
+  private[this] def authenticateJwt(authRequest: JwtAuthRequest): Try[AuthenticationResponse] = {
+    // This implements a two pass approach to be able to get the key id.
+    val firstPassJwtConsumer = new JwtConsumerBuilder()
+      .setSkipAllValidators()
+      .setDisableRequireSignature()
+      .setSkipSignatureVerification()
+      .build()
+
+    val jwtContext = firstPassJwtConsumer.process(authRequest.jwt)
+    val objects = jwtContext.getJoseObjects()
+    val keyId = objects.get(0).getKeyIdHeaderValue()
+
+    getJWTPublicKey(keyId) match {
+      case Some((publicKey, admin)) =>
+        authenticateJwtWithPublicKey(authRequest, publicKey, admin)
+      case None =>
+        logger.warn(s"${domainFqn}: Request to authenticate via token, with an invalid keyId: ${keyId}")
+        Success(AuthenticationFailure)
+    }
+  }
+
+  private[this] def authenticateJwtWithPublicKey(authRequest: JwtAuthRequest, publicKey: PublicKey, admin: Boolean): Try[AuthenticationResponse] = {
     val jwtConsumer = new JwtConsumerBuilder()
       .setRequireExpirationTime()
       .setAllowedClockSkewInSeconds(AuthenticationHandler.AllowedClockSkew)
@@ -183,28 +177,26 @@ class AuthenticationHandler(
       case cause: Exception =>
         logger.error(s"${domainFqn}: Unable to authenticate a user via token.", cause)
         AuthenticationError
-    }.get
+    }
   }
 
-  private[this] def authenticateReconnectToken(reconnectRequest: ReconnectTokenAuthRequest): Future[AuthenticationResponse] = {
-    Future[AuthenticationResponse] {
-      userStore.validateReconnectToken(reconnectRequest.token) match {
-        case Success(username) =>
-          if (username.isDefined) {
-            authSuccess(username.get, false, Some(reconnectRequest.token)) match {
-              case Success(authSuccessResponse) =>
-                authSuccessResponse
-              case Failure(cause) =>
-                logger.error(s"${domainFqn}: Unable to authenticate a user via reconnect token.", cause)
-                AuthenticationError
-            }
-          } else {
-            AuthenticationError
+  private[this] def authenticateReconnectToken(reconnectRequest: ReconnectTokenAuthRequest): Try[AuthenticationResponse] = {
+    userStore.validateReconnectToken(reconnectRequest.token) match {
+      case Success(username) =>
+        if (username.isDefined) {
+          authSuccess(username.get, false, Some(reconnectRequest.token)) match {
+            case Success(authSuccessResponse) =>
+              Success(authSuccessResponse)
+            case Failure(cause) =>
+              logger.error(s"${domainFqn}: Unable to authenticate a user via reconnect token.", cause)
+              Success(AuthenticationError)
           }
-        case Failure(cause) =>
-          logger.error(s"${domainFqn}: Unable to validate reconnect token.", cause)
-          AuthenticationError
-      }
+        } else {
+          Success(AuthenticationError)
+        }
+      case Failure(cause) =>
+        logger.error(s"${domainFqn}: Unable to validate reconnect token.", cause)
+        Success(AuthenticationError)
     }
   }
 
