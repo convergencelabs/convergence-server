@@ -70,7 +70,10 @@ class AuthenticationHandler(
         Success(AuthenticationFailure)
       case true =>
         debug(s"${domainFqn}: Anonymous auth is enabled, creating anonymous user...")
-        userStore.createAnonymousDomainUser(displayName) flatMap { username => authSuccess(username, false, None) }
+        userStore.createAnonymousDomainUser(displayName) flatMap { username =>
+          debug(s"${domainFqn}: Anonymous user created: ${username}")
+          authSuccess(username, false, None)
+        }
     } recover {
       case cause: Throwable =>
         error(s"${domainFqn}: Anonymous authentication error", cause)
@@ -206,15 +209,18 @@ class AuthenticationHandler(
   }
 
   private[this] def authSuccess(username: String, admin: Boolean, reconnectToken: Option[String]): Try[AuthenticationResponse] = {
-    sessionStore.nextSessionId map { id =>
+    logger.debug(s"${domainFqn}: Creating session after authenication success.")
+    sessionStore.nextSessionId flatMap { id =>
       reconnectToken match {
         case Some(reconnectToken) =>
-          AuthenticationSuccess(username, SessionKey(username, id, admin), reconnectToken)
+          Success(AuthenticationSuccess(username, SessionKey(username, id, admin), reconnectToken))
         case None =>
-          userStore.createReconnectToken(username) match {
-            case Success(token) =>
-              AuthenticationSuccess(username, SessionKey(username, id, admin), token)
-            case Failure(error) =>
+          logger.debug(s"${domainFqn}: Creating reconnect token.")
+          userStore.createReconnectToken(username) map { token =>
+            logger.debug(s"${domainFqn}: Returning auth success.")
+            AuthenticationSuccess(username, SessionKey(username, id, admin), token)
+          } recover {
+            case error: Throwable =>
               logger.error(s"${domainFqn}: Unable to create reconnect token", error)
               AuthenticationSuccess(username, SessionKey(username, id, admin), "-1")
           }
