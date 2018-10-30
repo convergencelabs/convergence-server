@@ -53,10 +53,10 @@ class DomainConfigStore(dbProvider: DatabaseProvider)
     val query = s"SELECT ${Fields.AnonymousAuth} FROM DomainConfig"
     OrientDBUtil
       .getDocument(db, query)
-      .map { doc =>
-        val enabled: Boolean = doc.field(Fields.AnonymousAuth, OType.BOOLEAN)
-        enabled
-      }
+      .flatMap(doc => Try {
+        val anonymouAuth: Boolean = doc.getProperty(Fields.AnonymousAuth)
+        anonymouAuth
+      })
   }
 
   def setAnonymousAuthEnabled(enabled: Boolean): Try[Unit] = tryWithDb { db =>
