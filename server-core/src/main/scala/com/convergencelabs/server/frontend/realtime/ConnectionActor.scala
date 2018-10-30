@@ -5,6 +5,7 @@ import akka.actor.ActorLogging
 import akka.actor.ActorRef
 import akka.actor.PoisonPill
 import akka.actor.Props
+import akka.actor.Terminated
 import akka.actor.actorRef2Scala
 
 case object WebSocketClosed
@@ -19,15 +20,17 @@ object ConnectionActor {
 class ConnectionActor(clientActor: ActorRef) extends Actor with ActorLogging {
   var socketActor: Option[ActorRef] = None
 
+  this.context.watch(clientActor)
+
   def receive: Receive = {
     case incoming: IncomingTextMessage ⇒
       clientActor ! incoming
 
     case outgoing: OutgoingTextMessage =>
-      socketActor.get ! outgoing
+      socketActor.foreach(_ ! outgoing)
 
-    case WebSocketOpened(ref) =>
-      socketActor = Some(ref)
+    case WebSocketOpened(actor) =>
+      socketActor = Some(actor)
       clientActor ! WebSocketOpened(self)
 
     case WebSocketClosed =>
@@ -41,7 +44,14 @@ class ConnectionActor(clientActor: ActorRef) extends Actor with ActorLogging {
       this.context.stop(self)
 
     case CloseConnection =>
-      socketActor.get ! PoisonPill
+      closeConnection()
+
+    case Terminated(actor) if actor == clientActor =>
+      closeConnection()
+  }
+  
+  private[this] def closeConnection(): Unit = {
+    socketActor.foreach(_ ! PoisonPill)
       this.context.stop(self)
   }
 }

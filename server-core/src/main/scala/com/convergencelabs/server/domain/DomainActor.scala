@@ -121,6 +121,8 @@ class DomainActor(
   }
 
   private[this] def onAuthenticationRequest(message: AuthenticationRequest): Unit = {
+    log.debug(s"${identityString}: Processing authentication request: ${message.credentials.getClass.getSimpleName}")
+    
     val asker = sender
     val connected = Instant.now()
 
@@ -146,7 +148,9 @@ class DomainActor(
           message.clientMetaData,
           message.remoteAddress)
 
+          
         persistenceProvider.sessionStore.createSession(session) map { _ =>
+          log.debug(s"${identityString}: Session created replying to ClientActor")
           authenticatedClients += (message.clientActor -> sk.sid)
           asker ! AuthenticationSuccess(username, sk, recconectToken)
         } recover {
@@ -155,12 +159,15 @@ class DomainActor(
             asker ! AuthenticationFailure
         }
       case Success(AuthenticationFailure) =>
+        log.debug(s"${identityString}: AuthenticationFailure")
         asker ! AuthenticationFailure
 
       case Success(AuthenticationError) =>
+        log.debug(s"${identityString}: AuthenticationError")
         asker ! AuthenticationError
 
       case Failure(e) =>
+        log.error(e, s"There was an error authenticating the client")
         asker ! AuthenticationFailure
     }
   }
@@ -186,16 +193,20 @@ class DomainActor(
   }
 
   private[this] def onClientDisconnect(message: ClientDisconnected): Unit = {
+    log.debug(s"${identityString}: Recevied ClientDisconnected message, disconnecting client")
     removeClient(message.clientActor)
   }
 
   private[this] def removeClient(client: ActorRef): Unit = {
-    connectedClients.remove(client)
-
-    authenticatedClients.remove(client) foreach { sessionId =>
-      log.debug(s"${identityString}: Client disconnecting: ${sessionId}")
-      persistenceProvider.sessionStore.setSessionDisconneted(sessionId, Instant.now())
+    authenticatedClients.remove(client) match {
+      case Some(sessionId) =>
+        log.debug(s"${identityString}: Disconnecting authenticated client : ${sessionId}")
+        persistenceProvider.sessionStore.setSessionDisconneted(sessionId, Instant.now())
+      case None =>
+        log.debug(s"${identityString}: Disconnecting unathenticated clienmt.")
     }
+    
+    connectedClients.remove(client)
 
     if (connectedClients.isEmpty) {
       log.debug(s"${identityString}: Last client disconnected from domain, setting receive timeout for passivation.")

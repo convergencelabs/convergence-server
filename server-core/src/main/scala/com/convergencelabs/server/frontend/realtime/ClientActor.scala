@@ -104,6 +104,9 @@ class ClientActor(
 
   private[this] val domainRegion = DomainActorSharding.shardRegion(context.system)
 
+  //
+  // Receive methods
+  //
   def receive: Receive = receiveWhileConnecting orElse receiveCommon
 
   private[this] def receiveWhileConnecting: Receive = {
@@ -137,7 +140,7 @@ class ClientActor(
 
   private[this] def receiveCommon: Receive = {
     case WebSocketClosed =>
-      log.debug(s"${domainFqn}: Web socket closed for session: ${sessionId}")
+      log.debug(s"${domainFqn}: WebSocketClosed for session: ${sessionId}")
       onConnectionClosed()
     case WebSocketError(cause) => 
       onConnectionError(cause)
@@ -198,72 +201,10 @@ class ClientActor(
     case message: RequestReceived => onRequestReceived(message)
   }
 
-  private[this] def authenticate(requestMessage: AuthenticationRequestMessage, cb: ReplyCallback): Unit = {
-    val authCredentials = requestMessage match {
-      case PasswordAuthRequestMessage(username, password) =>
-        PasswordAuthRequest(username, password)
-      case TokenAuthRequestMessage(token) =>
-        JwtAuthRequest(token)
-      case ReconnectTokenAuthRequestMessage(token) =>
-        ReconnectTokenAuthRequest(token)
-      case AnonymousAuthRequestMessage(displayName) =>
-        AnonymousAuthRequest(displayName)
-    }
-
-    val authRequest = AuthenticationRequest(
-      domainFqn,
-      self,
-      remoteHost.toString,
-      "javascript",
-      "unknown",
-      userAgent,
-      authCredentials)
-
-    val authFuture = this.domainRegion ? authRequest
-
-    // FIXME if authentication fails we should probably stop the actor
-    // and or shut down the connection?
-    authFuture.mapResponse[AuthenticationResponse] onComplete {
-      case Success(AuthenticationSuccess(username, sk, reconnectToken)) =>
-        getPresenceAfterAuth(username, sk, reconnectToken, cb)
-      case Success(AuthenticationFailure) =>
-        cb.reply(AuthenticationResponseMessage(false, None, None, None, None))
-      case Success(AuthenticationError) =>
-        cb.reply(AuthenticationResponseMessage(false, None, None, None, None)) // TODO do we want this to go back to the client as something else?
-      case Failure(cause) =>
-        log.error(cause, s"Error authenticating user for domain ${domainFqn}")
-        cb.reply(AuthenticationResponseMessage(false, None, None, None, None))
-    }
-  }
-
-  private[this] def getPresenceAfterAuth(username: String, sk: SessionKey, reconnectToken: String, cb: ReplyCallback) {
-    val future = this.presenceServiceActor ? PresenceRequest(List(username))
-    future.mapTo[List[UserPresence]] onComplete {
-      case Success(first :: nil) =>
-        self ! InternalAuthSuccess(username, sk, reconnectToken, first, cb)
-      case _ =>
-        cb.reply(AuthenticationResponseMessage(false, None, None, None, None))
-    }
-  }
-
-  private[this] def handleAuthenticationSuccess(message: InternalAuthSuccess): Unit = {
-    val InternalAuthSuccess(username, sk, reconnectToken, presence, cb) = message
-    this.sessionId = sk.serialize();
-    this.reconnectToken = reconnectToken;
-    this.modelClient = context.actorOf(ModelClientActor.props(domainFqn, sk, modelQueryActor, requestTimeout))
-    this.userClient = context.actorOf(IdentityClientActor.props(userServiceActor))
-    this.chatClient = context.actorOf(ChatClientActor.props(domainFqn, chatLookupActor, sk, requestTimeout))
-    this.activityClient = context.actorOf(ActivityClientActor.props(
-        ActivityActorSharding.shardRegion(this.context.system), 
-        domainFqn,
-        sk))
-    this.presenceClient = context.actorOf(PresenceClientActor.props(presenceServiceActor, sk))
-    this.historyClient = context.actorOf(HistoricModelClientActor.props(sk, domainFqn, modelStoreActor, operationStoreActor));
-    this.messageHandler = handleMessagesWhenAuthenticated
-
-    cb.reply(AuthenticationResponseMessage(true, Some(username), Some(sk.serialize()), Some(reconnectToken), Some(presence.state)))
-    context.become(receiveWhileAuthenticated)
-  }
+  
+  //
+  // Handshaking
+  //
 
   private[this] def handshake(request: HandshakeRequestMessage, cb: ReplyCallback): Unit = {
     val canceled = handshakeTimeoutTask.cancel()
@@ -308,6 +249,80 @@ class ClientActor(
     this.messageHandler = handleAuthentationMessage
     context.become(receiveWhileAuthenticating)
   }
+  
+  //
+  // Authentication
+  //
+  
+  private[this] def authenticate(requestMessage: AuthenticationRequestMessage, cb: ReplyCallback): Unit = {
+    val authCredentials = requestMessage match {
+      case PasswordAuthRequestMessage(username, password) =>
+        PasswordAuthRequest(username, password)
+      case TokenAuthRequestMessage(token) =>
+        JwtAuthRequest(token)
+      case ReconnectTokenAuthRequestMessage(token) =>
+        ReconnectTokenAuthRequest(token)
+      case AnonymousAuthRequestMessage(displayName) =>
+        AnonymousAuthRequest(displayName)
+    }
+
+    val authRequest = AuthenticationRequest(
+      domainFqn,
+      self,
+      remoteHost.toString,
+      "javascript",
+      "unknown",
+      userAgent,
+      authCredentials)
+
+    // FIXME if authentication fails we should probably stop the actor
+    // and or shut down the connection?
+    (this.domainRegion ? authRequest).mapResponse[AuthenticationResponse] onComplete {
+      case Success(AuthenticationSuccess(username, sk, reconnectToken)) =>
+        getPresenceAfterAuth(username, sk, reconnectToken, cb)
+      case Success(AuthenticationFailure) =>
+        cb.reply(AuthenticationResponseMessage(false, None, None, None, None))
+      case Success(AuthenticationError) =>
+        // TODO do we want this to go back to the client as something else?
+        cb.reply(AuthenticationResponseMessage(false, None, None, None, None)) 
+      case Failure(cause) =>
+        log.error(cause, s"Error authenticating user for domain ${domainFqn}")
+        cb.reply(AuthenticationResponseMessage(false, None, None, None, None))
+    }
+  }
+
+  private[this] def getPresenceAfterAuth(username: String, sk: SessionKey, reconnectToken: String, cb: ReplyCallback) {
+    val future = this.presenceServiceActor ? PresenceRequest(List(username))
+    future.mapTo[List[UserPresence]] onComplete {
+      case Success(first :: nil) =>
+        self ! InternalAuthSuccess(username, sk, reconnectToken, first, cb)
+      case _ =>
+        cb.reply(AuthenticationResponseMessage(false, None, None, None, None))
+    }
+  }
+
+  private[this] def handleAuthenticationSuccess(message: InternalAuthSuccess): Unit = {
+    val InternalAuthSuccess(username, sk, reconnectToken, presence, cb) = message
+    this.sessionId = sk.serialize();
+    this.reconnectToken = reconnectToken;
+    this.modelClient = context.actorOf(ModelClientActor.props(domainFqn, sk, modelQueryActor, requestTimeout))
+    this.userClient = context.actorOf(IdentityClientActor.props(userServiceActor))
+    this.chatClient = context.actorOf(ChatClientActor.props(domainFqn, chatLookupActor, sk, requestTimeout))
+    this.activityClient = context.actorOf(ActivityClientActor.props(
+        ActivityActorSharding.shardRegion(this.context.system), 
+        domainFqn,
+        sk))
+    this.presenceClient = context.actorOf(PresenceClientActor.props(presenceServiceActor, sk))
+    this.historyClient = context.actorOf(HistoricModelClientActor.props(sk, domainFqn, modelStoreActor, operationStoreActor));
+    this.messageHandler = handleMessagesWhenAuthenticated
+
+    cb.reply(AuthenticationResponseMessage(true, Some(username), Some(sk.serialize()), Some(reconnectToken), Some(presence.state)))
+    context.become(receiveWhileAuthenticated)
+  }
+  
+  //
+  // Incoming / Outgoing Messages
+  //
 
   private[this] def onOutgoingMessage(message: OutgoingProtocolNormalMessage): Unit = {
     protocolConnection.send(message)
@@ -364,9 +379,13 @@ class ClientActor(
         // TODO send an error back
     }
   }
+  
+  //
+  // Error handling
+  //
 
   private[this] def onConnectionClosed(): Unit = {
-    log.info(s"${domainFqn}: Connection Closed for session: ${sessionId}")
+    log.info(s"${domainFqn}: Sending disconnect to domain and stopping: ${sessionId}")
     domainRegion ! ClientDisconnected(domainFqn, self)
     context.stop(self)
   }
@@ -390,6 +409,7 @@ class ClientActor(
   }
 
   override def postStop(): Unit = {
+    log.debug(s"ClientActor(${domainFqn}/${this.sessionId}): Stopped")
     if (!handshakeTimeoutTask.isCancelled) {
       handshakeTimeoutTask.cancel()
     }

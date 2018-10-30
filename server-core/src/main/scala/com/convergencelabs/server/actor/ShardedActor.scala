@@ -56,7 +56,7 @@ abstract class ShardedActor[T](
       }
       .map(_ match {
         case StartUpRequired =>
-          log.debug(s"${identityString}: Initialized, startting up.")
+          log.debug(s"${identityString}: Initialized, starting up.")
           this.context.become(this.receiveInitialized)
           this.receiveInitialized(message)
         case StartUpNotRequired =>
