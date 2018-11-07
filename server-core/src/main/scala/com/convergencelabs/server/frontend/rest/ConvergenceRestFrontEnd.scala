@@ -90,7 +90,7 @@ class ConvergenceRestFrontEnd(
       complete(invalidValueResponse(e.field))
 
     case e: EntityNotFoundException =>
-      complete(NotFoundError)
+      complete(notFoundResponse())
 
     case e: Exception =>
       extractUri { uri =>

@@ -101,7 +101,7 @@ class DomainSecurityService(
     val SetUserRolesRequest(roles) = updateRequest
     val message = SetRolesRequest(username, domain, roles)
     (permissionStoreActor ? message) map { _ => OkResponse } recover {
-      case _: EntityNotFoundException => NotFoundError
+      case _: EntityNotFoundException => notFoundResponse()
     }
   }
 }

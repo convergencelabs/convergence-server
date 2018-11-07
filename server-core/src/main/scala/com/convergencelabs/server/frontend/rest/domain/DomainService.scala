@@ -155,7 +155,7 @@ class DomainService(
           domain.owner,
           domain.status.toString())))
       case None =>
-        NotFoundError
+        notFoundResponse()
     }
   }
 

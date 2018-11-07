@@ -55,6 +55,7 @@ import akka.http.scaladsl.server.Directives.put
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
+import com.convergencelabs.server.domain.model.ModelNotFoundException
 
 object DomainModelService {
 
@@ -98,10 +99,10 @@ class DomainModelService(
   private[this] val authActor: ActorRef,
   private[this] val domainRestActor: ActorRef,
   private[this] val modelClusterRegion: ActorRef)
-    extends DomainRestService(executionContext, timeout, authActor) {
-  
+  extends DomainRestService(executionContext, timeout, authActor) {
+
   import DomainModelService._
-  
+
   import akka.pattern.ask
 
   def route(username: String, domain: DomainFqn): Route = {
@@ -216,7 +217,7 @@ class DomainModelService(
           model.data)
         (StatusCodes.OK, GetModelResponse(mr))
       case None =>
-        NotFoundError
+        notFound(modelId)
     }
   }
 
@@ -244,7 +245,10 @@ class DomainModelService(
 
   def deleteModel(domain: DomainFqn, modelId: String): Future[RestResponse] = {
     val message = DeleteRealtimeModel(domain, modelId, None)
-    (modelClusterRegion ? message) map { _ => OkResponse }
+    (modelClusterRegion ? message) map { _ => OkResponse } recover {
+      case cause: ModelNotFoundException =>
+        notFound(modelId)
+    }
   }
 
   // Model Permissions
@@ -309,5 +313,9 @@ class DomainModelService(
   def removeModelUserPermissions(domain: DomainFqn, modelId: String, username: String): Future[RestResponse] = {
     val message = DomainRestMessage(domain, RemoveModelUserPermissions(modelId, username))
     (domainRestActor ? message) map { _ => OkResponse }
+  }
+  
+  private[this] def notFound(modelId: String): RestResponse = {
+    notFoundResponse(Some(s"A model with id '${modelId}' does not exist."))
   }
 }

@@ -18,31 +18,25 @@ package object rest {
   abstract class AbstractErrorResponse() extends ResponseMessage {
     val ok = false
     def error_code: String
+    def error_message: Option[String]
+    def error_details: Option[Map[String, Any]]
   }
 
-  case class ErrorResponse(error_code: String, error_message: Option[String]) extends AbstractErrorResponse
+  case class ErrorResponse(
+    error_code: String,
+    error_message: Option[String] = None,
+    error_details: Option[Map[String, Any]] = None) extends AbstractErrorResponse
 
-  
-  case class DuplicateError(val field: String) extends AbstractErrorResponse {
-    val error_code = "duplicate_error"
-  }
-  
-  def duplicateResponse(field: String): RestResponse = (StatusCodes.Conflict, DuplicateError(field))
-  
-  case class InvalidValueError(field: String) extends AbstractErrorResponse {
-    val error_code = "invalid_value_error"
-  }
-  
-  def invalidValueResponse(field: String): RestResponse = (StatusCodes.BadRequest, InvalidValueError(field))
-  
-  
   type RestResponse = (StatusCode, ResponseMessage)
 
   val OkResponse: RestResponse = (StatusCodes.OK, SuccessRestResponse())
   val CreateRestResponse: RestResponse = (StatusCodes.Created, SuccessRestResponse())
-  val InternalServerError: RestResponse = (StatusCodes.InternalServerError, ErrorResponse("internal_server_error", None))
-  val NotFoundError: RestResponse = (StatusCodes.NotFound, ErrorResponse("not_found", None))
-  val AuthFailureError: RestResponse = (StatusCodes.Unauthorized, ErrorResponse("unauthorized", None))
-  val ForbiddenError: RestResponse = (StatusCodes.Forbidden, ErrorResponse("forbidden", None))
-  val MalformedRequestContent: RestResponse = (StatusCodes.BadRequest, ErrorResponse("malformed_request_content", None))
+  val InternalServerError: RestResponse = (StatusCodes.InternalServerError, ErrorResponse("internal_server_error"))
+  val AuthFailureError: RestResponse = (StatusCodes.Unauthorized, ErrorResponse("unauthorized"))
+  val ForbiddenError: RestResponse = (StatusCodes.Forbidden, ErrorResponse("forbidden"))
+  val MalformedRequestContent: RestResponse = (StatusCodes.BadRequest, ErrorResponse("malformed_request_content"))
+
+  def duplicateResponse(field: String): RestResponse = (StatusCodes.Conflict, ErrorResponse("duplicate_error", None, Some(Map("field" -> field))))
+  def invalidValueResponse(field: String): RestResponse = (StatusCodes.BadRequest, ErrorResponse("invalid_value_error", None, Some(Map("field" -> field))))
+  def notFoundResponse(message: Option[String] = None): RestResponse = (StatusCodes.NotFound, ErrorResponse("not_found", message))
 }

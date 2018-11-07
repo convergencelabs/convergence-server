@@ -55,7 +55,7 @@ class ProfileService(
       case Some(User(username, email, firstName, lastName, displayName)) =>
         (StatusCodes.OK, UserProfileResponse(CovergenceUserProfile(username, email, firstName, lastName, displayName)))
       case None =>
-        NotFoundError
+        notFoundResponse()
     }
   }
   

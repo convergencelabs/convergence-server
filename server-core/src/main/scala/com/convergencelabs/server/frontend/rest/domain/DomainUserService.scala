@@ -151,7 +151,7 @@ class DomainUserService(
       case Some(user) =>
         (StatusCodes.OK, GetUserRestResponse(toUserData(user)))
       case None =>
-        NotFoundError
+        notFoundResponse()
     }
   }
 

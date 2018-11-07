@@ -97,7 +97,7 @@ class DomainKeyService(
   def getKey(domain: DomainFqn, keyId: String): Future[RestResponse] = {
     (domainRestActor ? DomainRestMessage(domain, GetDomainApiKey(keyId))).mapTo[Option[JwtAuthKey]] map {
       case Some(key) => (StatusCodes.OK, GetKeyRestResponse(key))
-      case None      => NotFoundError
+      case None      => notFoundResponse()
     }
   }
 
