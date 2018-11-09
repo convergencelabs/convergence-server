@@ -15,6 +15,8 @@ import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.record.impl.ODocument
 
 import grizzled.slf4j.Logging
+import com.orientechnologies.orient.core.db.ODatabaseSession
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 
 object PermissionsStore {
 
@@ -84,7 +86,7 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
   def createRole(role: Role): Try[Unit] = tryWithDb { db =>
     val Role(name, permissions, description) = role
 
-    val orids = Try(permissions.map { id => getPermissionRid(id) }.map { _.get }).get
+    val orids = Try(permissions.map { id => getPermissionRid(id, db) }.map { _.get }).get
 
     val roleDoc: ODocument = db.newInstance(Schema.Role.Class)
     roleDoc.setProperty(Fields.Name, name)
@@ -94,11 +96,12 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
   }
 
   def setUserRoles(username: String, domainFqn: DomainFqn, roles: List[String]): Try[Unit] = tryWithDb { db =>
-    val userOrid = getUserRid(username).get
-    val domainOrid = getDomainRid(domainFqn.namespace, domainFqn.domainId).get
-    val roleOrids = roles.map { getRolesRid(_).get }
+    val userOrid = UserStore.getUserRid(username, db).get
+    val domainOrid = DomainStore.getDomainRid(domainFqn.namespace, domainFqn.domainId, db).get
+    val roleOrids = roles.map { getRolesRid(_, db).get }
 
-    // TODO: Do these two steps in a transaction
+    // FIXME: Do these two steps in a transaction
+    
     // Delete roles for that user
     val query =
       """DELETE FROM UserDomainRole
@@ -177,19 +180,11 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
       .map(list => UserRoles(username, list.map(result => result.getProperty("name").asInstanceOf[String]).toSet))
   }
 
-  def getPermissionRid(id: String): Try[ORID] = withDb { db =>
+  private[this] def getPermissionRid(id: String, db: ODatabaseDocument): Try[ORID] = {
     OrientDBUtil.getIdentityFromSingleValueIndex(db, Schema.Permission.Indices.Id, id)
   }
 
-  def getRolesRid(name: String): Try[ORID] = withDb { db =>
+  private[this] def getRolesRid(name: String, db: ODatabaseDocument): Try[ORID] = {
     OrientDBUtil.getIdentityFromSingleValueIndex(db, Schema.Role.Indices.Id, name)
-  }
-
-  def getUserRid(username: String): Try[ORID] = withDb { db =>
-    OrientDBUtil.getIdentityFromSingleValueIndex(db, Schema.User.Indices.Username, username)
-  }
-
-  def getDomainRid(namespace: String, domainId: String): Try[ORID] = withDb { db =>
-    OrientDBUtil.getIdentityFromSingleValueIndex(db, Schema.Domain.Indices.NamespaceId, List(namespace, domainId))
   }
 }
