@@ -192,6 +192,12 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
    * @param the uid of the user to delete.
    */
   def deleteDomainUser(username: String): Try[Unit] = withDb { db =>
+    // FIXME
+    // 1. Need to find any model permissions for this user.
+    // 2. need to find any model with permissions for this user.
+    // 3. need to delete the model permissions from those models.
+    // 4. need to delete the model permissions
+    // 5. need to delete the user.
     val command = "DELETE FROM User WHERE username = :username AND userType = 'normal'"
     val params = Map(Fields.Username -> username)
     OrientDBUtil.mutateOneDocument(db, command, params)

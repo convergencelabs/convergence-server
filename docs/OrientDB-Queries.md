@@ -75,3 +75,8 @@ ORDER BY
 SELECT @this.toJson('fetchPlan:*:-1') FROM Model WHERE id = '38ofdPySe';
 SELECT @this.toJson('fetchPlan:*:-1') FROM Model WHERE id = 'my-test-id';
 ```
+
+# Find Model Permissions Where User is Gone
+```
+SELECT * FROM `ModelUserPermissions` WHERE user.username IS NULL;
+```

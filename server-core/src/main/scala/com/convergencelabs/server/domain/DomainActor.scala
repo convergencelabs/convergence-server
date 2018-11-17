@@ -251,9 +251,9 @@ class DomainActor(
   override def initialize(msg: DomainMessage): Try[ShardedActorStatUpPlan] = {
     mediator ! Subscribe(domainTopic(domainFqn), self)
 
-    log.warning(s"${identityString}: Aquiring domain persistence provider")
+    log.debug(s"${identityString}: Aquiring domain persistence provider")
     domainPersistenceManager.acquirePersistenceProvider(self, context, msg.domainFqn) map { provider =>
-      log.warning(s"${identityString}: Aquired domain persistence provider")
+      log.debug(s"${identityString}: Aquired domain persistence provider")
 
       this.persistenceProvider = provider
       this.authenticator = new AuthenticationHandler(

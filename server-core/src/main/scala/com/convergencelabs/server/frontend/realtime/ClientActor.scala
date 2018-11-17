@@ -382,7 +382,7 @@ class ClientActor(
   //
 
   private[this] def onConnectionClosed(): Unit = {
-    log.info(s"${domainFqn}: Sending disconnect to domain and stopping: ${sessionId}")
+    log.debug(s"${domainFqn}: Sending disconnect to domain and stopping: ${sessionId}")
     domainRegion ! ClientDisconnected(domainFqn, self)
     context.stop(self)
   }

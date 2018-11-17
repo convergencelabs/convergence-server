@@ -25,6 +25,8 @@ import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.datastore.OrientDBUtil
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.convergencelabs.server.datastore.domain.ModelPermissionsStoreActor.ModelUserPermissions
+import com.orientechnologies.orient.core.db.record.OIdentifiable
+import com.orientechnologies.orient.core.record.OElement
 
 case class ModelPermissions(read: Boolean, write: Boolean, remove: Boolean, manage: Boolean)
 case class CollectionPermissions(create: Boolean, read: Boolean, write: Boolean, remove: Boolean, manage: Boolean)
@@ -345,9 +347,10 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
         Option(modelDoc.getProperty(Classes.Model.Fields.UserPermissions).asInstanceOf[JavaList[ODocument]])
           .map { userPermissions =>
             userPermissions.asScala.map { userPermission =>
-              val user: ODocument = userPermission.field(Classes.ModelUserPermissions.Fields.User, OType.LINK)
-              val username: String = user.field(Classes.User.Fields.Username)
-              val permissions = docToModelPermissions(userPermission.field(Classes.ModelUserPermissions.Fields.Permissions))
+              val userRecord: OIdentifiable = userPermission.getProperty(Classes.ModelUserPermissions.Fields.User)
+              val user: OElement = userRecord.getRecord[OElement]
+              val username: String = user.getProperty(Classes.User.Fields.Username)
+              val permissions = docToModelPermissions(userPermission.getProperty(Classes.ModelUserPermissions.Fields.Permissions))
               (username -> permissions)
             }.toMap
           }
@@ -396,10 +399,10 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
                 case None =>
                   permissions match {
                     case Some(permissions) =>
-                      val newPermissions: ODocument = db.newInstance(Classes.ModelUserPermissions.ClassName)
-                      newPermissions.field(Classes.ModelUserPermissions.Fields.Model, modelRid, OType.LINK)
-                      newPermissions.field(Classes.ModelUserPermissions.Fields.User, userRid, OType.LINK)
-                      newPermissions.field(Classes.ModelUserPermissions.Fields.Permissions, modelPermissionToDoc(permissions), OType.EMBEDDED)
+                      val newPermissions: OElement = db.newElement(Classes.ModelUserPermissions.ClassName)
+                      newPermissions.setProperty(Classes.ModelUserPermissions.Fields.Model, modelRid, OType.LINK)
+                      newPermissions.setProperty(Classes.ModelUserPermissions.Fields.User, userRid, OType.LINK)
+                      newPermissions.setProperty(Classes.ModelUserPermissions.Fields.Permissions, modelPermissionToDoc(permissions), OType.EMBEDDED)
                       newPermissions.save()
                       ()
                     case None =>
@@ -439,15 +442,15 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
           case None =>
             // This user does not already have permissions for this model, so we need to
             // create the user permission object persist it and also add it to the model
-            val newPermissions: ODocument = db.newInstance(Classes.ModelUserPermissions.ClassName)
+            val newPermissions: OElement = db.newElement(Classes.ModelUserPermissions.ClassName)
             newPermissions.setProperty(Classes.ModelUserPermissions.Fields.Model, modelRID)
             newPermissions.setProperty(Classes.ModelUserPermissions.Fields.User, userRID)
             newPermissions.setProperty(Classes.ModelUserPermissions.Fields.Permissions, modelPermissionToDoc(permissions))
             newPermissions.save()
 
-            val model = modelRID.getRecord[ODocument]
-            val currentPermissions = model.getProperty(Classes.Model.Fields.UserPermissions).asInstanceOf[JavaList[ODocument]]
-            val userPermissions = Option(currentPermissions).getOrElse(new ArrayList[ODocument]())
+            val model = modelRID.getRecord[OElement]
+            val currentPermissions = model.getProperty(Classes.Model.Fields.UserPermissions).asInstanceOf[JavaList[OElement]]
+            val userPermissions = Option(currentPermissions).getOrElse(new ArrayList[OElement]())
             userPermissions.add(0, newPermissions)
             model.setProperty(Classes.Model.Fields.UserPermissions, userPermissions)
             model.save()
