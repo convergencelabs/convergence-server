@@ -425,7 +425,7 @@ class RealTimeModelManager(
     if (permissions.resolveSessionPermissions(sk).read) {
       // Inform the concurrency control that we have a new client.
       val contextVersion = modelData.metaData.version
-      this.model.clientConnected(sk.serialize(), contextVersion)
+      this.model.clientConnected(sk, contextVersion)
       connectedClients += (sk -> requestRecord.clientActor)
       clientToSessionId += (requestRecord.clientActor -> sk)
 
@@ -708,7 +708,7 @@ class RealTimeModelManager(
     val closedActor = connectedClients(sk)
     connectedClients -= sk
     clientToSessionId -= closedActor
-    this.model.clientDisconnected(sk.serialize())
+    this.model.clientDisconnected(sk)
     eventHandler.onClientClosed(closedActor)
 
     if (notifyOthers) {

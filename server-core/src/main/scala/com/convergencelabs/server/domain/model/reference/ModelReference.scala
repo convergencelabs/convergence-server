@@ -1,8 +1,10 @@
 package com.convergencelabs.server.domain.model.reference
 
+import com.convergencelabs.server.domain.model.SessionKey
+
 abstract class ModelReference[T](
     val modelValue: Any,
-    val sessionId: String,
+    val session: SessionKey,
     val key: String) {
 
   protected var values: List[T] = List()

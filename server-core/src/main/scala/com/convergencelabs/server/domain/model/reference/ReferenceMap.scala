@@ -1,22 +1,23 @@
 package com.convergencelabs.server.domain.model.reference
 
 import scala.collection.mutable.ListBuffer
+import com.convergencelabs.server.domain.model.SessionKey
 
 class ReferenceMap {
 
   // stored by sessionId first, then key.
   private[this] val references =
-    collection.mutable.Map[String, collection.mutable.Map[String, ModelReference[_]]]()
+    collection.mutable.Map[SessionKey, collection.mutable.Map[String, ModelReference[_]]]()
 
   def put(reference: ModelReference[_]): Unit = {
-    val sessionId: String = reference.sessionId
+    val session: SessionKey = reference.session
     val key: String = reference.key;
 
-    val sessionRefs = this.references.get(sessionId) match {
+    val sessionRefs = this.references.get(session) match {
       case Some(map) => map
       case None =>
-        this.references(sessionId) = collection.mutable.Map[String, ModelReference[_]]()
-        this.references(sessionId)
+        this.references(session) = collection.mutable.Map[String, ModelReference[_]]()
+        this.references(session)
     }
 
     if (sessionRefs.contains(key)) {
@@ -26,8 +27,8 @@ class ReferenceMap {
     sessionRefs(key) = reference
   }
 
-  def get(sessionId: String, key: String): Option[ModelReference[_]] = {
-    this.references.get(sessionId).flatMap { sr => sr.get(key) }
+  def get(session: SessionKey, key: String): Option[ModelReference[_]] = {
+    this.references.get(session).flatMap { sr => sr.get(key) }
   }
 
   def getAll(): Set[ModelReference[_]] = {
@@ -46,15 +47,15 @@ class ReferenceMap {
     this.references.clear()
   }
 
-  def remove(sessionId: String, key: String): Option[ModelReference[_]] = {
-    val result = this.get(sessionId, key)
+  def remove(session: SessionKey, key: String): Option[ModelReference[_]] = {
+    val result = this.get(session, key)
     if (result.isDefined) {
-      references(sessionId) -= key
+      references(session) -= key
     }
     result
   }
 
-  def removeBySession(sessionId: String): Unit = {
-    references -= sessionId
+  def removeBySession(session: SessionKey): Unit = {
+    references -= session
   }
 }

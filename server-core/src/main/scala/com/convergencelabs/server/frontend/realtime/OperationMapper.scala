@@ -114,7 +114,7 @@ private[realtime] object OperationMapper {
   }
 
   def mapOutgoingCompound(op: CompoundOperation): CompoundOperationData = {
-    CompoundOperationData(op.operations.map(opData => mapOutgoing(opData).asInstanceOf[DiscreteOperationData]))
+    CompoundOperationData(op.operations.map(opData => mapOutgoingDiscrete(opData)))
   }
 
   // scalastyle:off cyclomatic.complexity

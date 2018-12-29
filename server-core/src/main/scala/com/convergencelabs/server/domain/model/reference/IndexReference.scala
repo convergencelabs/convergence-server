@@ -1,12 +1,13 @@
 package com.convergencelabs.server.domain.model.reference
 
 import com.convergencelabs.server.domain.model.ot.xform.IndexTransformer
+import com.convergencelabs.server.domain.model.SessionKey
 
 class IndexReference(
   source: Any,
-  sessionId: String,
+  session: SessionKey,
   key: String)
-    extends ModelReference[Int](source, sessionId, key)
+    extends ModelReference[Int](source, session, key)
     with PositionalInsertAware
     with PositionalRemoveAware
     with PositionalReorderAware {

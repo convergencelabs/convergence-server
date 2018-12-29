@@ -10,6 +10,7 @@ import com.convergencelabs.server.domain.model.UnpublishReference
 import ReferenceManager.ReferenceDoesNotExist
 import com.convergencelabs.server.domain.model.RealTimeValue
 import com.convergencelabs.server.domain.model.RealTimeModel
+import com.convergencelabs.server.domain.model.SessionKey
 
 object ElementReferenceManager {
   val ReferenceDoesNotExist = "Reference does not exist"
@@ -23,42 +24,42 @@ class ElementReferenceManager(
   
   def referenceMap(): ReferenceMap = rm
 
-  def handleReferenceEvent(event: ModelReferenceEvent, sessionId: String): Unit = {
+  def handleReferenceEvent(event: ModelReferenceEvent, session: SessionKey): Unit = {
     event match {
-      case publish: PublishReference => this.handleReferencePublished(publish, sessionId)
-      case unpublish: UnpublishReference => this.handleReferenceUnpublished(unpublish, sessionId)
-      case set: SetReference => this.handleReferenceSet(set, sessionId)
-      case cleared: ClearReference => this.handleReferenceCleared(cleared, sessionId)
+      case publish: PublishReference => this.handleReferencePublished(publish, session)
+      case unpublish: UnpublishReference => this.handleReferenceUnpublished(unpublish, session)
+      case set: SetReference => this.handleReferenceSet(set, session)
+      case cleared: ClearReference => this.handleReferenceCleared(cleared, session)
     }
   }
 
-  def sessionDisconnected(sessionId: String): Unit = {
-    this.rm.removeBySession(sessionId)
+  def sessionDisconnected(session: SessionKey): Unit = {
+    this.rm.removeBySession(session)
   }
 
-  private[this] def handleReferencePublished(event: PublishReference, sessionId: String): Unit = {
+  private[this] def handleReferencePublished(event: PublishReference, session: SessionKey): Unit = {
     if (!this.validTypes.contains(event.referenceType)) {
       throw new IllegalArgumentException(s"Invalid reference type: ${event.referenceType}")
     }
 
     val reference = event.referenceType match {
       case ReferenceType.Element =>
-        new ElementReference(this.source, sessionId, event.key)
+        new ElementReference(this.source, session, event.key)
     }
 
     this.referenceMap.put(reference)
   }
 
-  private[this] def handleReferenceUnpublished(event: UnpublishReference, sessionId: String): Unit = {
-    this.rm.remove(sessionId, event.key) match {
+  private[this] def handleReferenceUnpublished(event: UnpublishReference, session: SessionKey): Unit = {
+    this.rm.remove(session, event.key) match {
       case Some(reference) =>
       case None =>
         throw new IllegalArgumentException(ReferenceDoesNotExist)
     }
   }
 
-  private[this] def handleReferenceCleared(event: ClearReference, sessionId: String): Unit = {
-    this.rm.get(sessionId, event.key) match {
+  private[this] def handleReferenceCleared(event: ClearReference, session: SessionKey): Unit = {
+    this.rm.get(session, event.key) match {
       case Some(reference) =>
         reference.clear()
       case None =>
@@ -66,8 +67,8 @@ class ElementReferenceManager(
     }
   }
 
-  private[this] def handleReferenceSet(event: SetReference, sessionId: String): Unit = {
-    this.rm.get(sessionId, event.key) match {
+  private[this] def handleReferenceSet(event: SetReference, session: SessionKey): Unit = {
+    this.rm.get(session, event.key) match {
       case Some(reference: ElementReference) =>
         val vids = event.values.asInstanceOf[List[String]]
         vids filter { source.idToValue.contains(_) }

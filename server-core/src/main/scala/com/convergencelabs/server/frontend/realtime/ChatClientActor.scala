@@ -520,7 +520,7 @@ class ChatClientActor(
 
   def onGetDirect(message: GetDirectChannelsRequestMessage, cb: ReplyCallback): Unit = {
     val GetDirectChannelsRequestMessage(usernameLists) = message;
-    val request = GetDirectChannelsRequest(sk.uid, usernameLists)
+    val request = GetDirectChannelsRequest(sk.uid, usernameLists.map(_.strings.toSet).toList)
     chatLookupActor.ask(request).mapTo[GetDirectChannelsResponse] onComplete {
       case Success(GetDirectChannelsResponse(channels)) =>
         val info = channels.map(channelInfoToMessage(_))
@@ -544,7 +544,7 @@ class ChatClientActor(
   def onGetHistory(message: ChatChannelHistoryRequestMessage, cb: ReplyCallback): Unit = {
     val ChatChannelHistoryRequestMessage(channelId, limit, offset, forward, eventFilter) = message;
     val mappedEvents = eventFilter.map(toChannelEventCode(_))
-    val request = GetChannelHistoryRequest(domainFqn, channelId, sk, Some(limit), Some(offset), Some(forward), Some(mappedEvents.toList))
+    val request = GetChannelHistoryRequest(domainFqn, channelId, sk, limit, offset, forward, Some(mappedEvents.toList))
     chatChannelActor.ask(request).mapTo[GetChannelHistoryResponse] onComplete {
       case Success(GetChannelHistoryResponse(events)) =>
         val eventData = events.map(channelEventToMessage(_))

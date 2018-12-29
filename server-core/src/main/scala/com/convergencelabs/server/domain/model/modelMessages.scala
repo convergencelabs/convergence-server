@@ -36,7 +36,7 @@ case class CreateRealtimeModel(
     data: ObjectValue, 
     overridePermissions: Option[Boolean], 
     worldPermissions: Option[ModelPermissions], 
-    userPermissions: Option[Map[String, ModelPermissions]],
+    userPermissions: Map[String, ModelPermissions],
     sk: Option[SessionKey]) extends StatelessModelMessage
 
 case class DeleteRealtimeModel(domainFqn: DomainFqn, modelId: String, sk: Option[SessionKey]) extends StatelessModelMessage
@@ -50,7 +50,8 @@ case class SetModelPermissionsRequest(
   overrideCollection: Option[Boolean],
   worldPermissions: Option[ModelPermissions],
   setAllUsers: Boolean,
-  userPermissions: Map[String, Option[ModelPermissions]]) extends StatelessModelMessage
+  aadedUserPermissions: Map[String, ModelPermissions],
+  removedUserPermissions: List[String]) extends StatelessModelMessage
 
 //
 // Messages targeted specifically at "open" models.
@@ -64,8 +65,8 @@ sealed trait ModelReferenceEvent extends RealTimeModelMessage {
   val id: Option[String]
 }
 
-case class PublishReference(domainFqn: DomainFqn, modelId: String, id: Option[String], key: String, referenceType: ReferenceType.Value, values: Option[List[Any]], contextVersion: Option[Long]) extends ModelReferenceEvent
-case class SetReference(domainFqn: DomainFqn, modelId: String, id: Option[String], key: String, referenceType: ReferenceType.Value, values: List[Any], contextVersion: Long) extends ModelReferenceEvent
+case class PublishReference(domainFqn: DomainFqn, modelId: String, id: Option[String], key: String, referenceType: ReferenceType.Value, values: List[Any], contextVersion: Option[Int]) extends ModelReferenceEvent
+case class SetReference(domainFqn: DomainFqn, modelId: String, id: Option[String], key: String, referenceType: ReferenceType.Value, values: List[Any], contextVersion: Int) extends ModelReferenceEvent
 case class ClearReference(domainFqn: DomainFqn, modelId: String, id: Option[String], key: String) extends ModelReferenceEvent
 case class UnpublishReference(domainFqn: DomainFqn, modelId: String, id: Option[String], key: String) extends ModelReferenceEvent
 

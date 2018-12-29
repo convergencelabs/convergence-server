@@ -75,12 +75,12 @@ class RealTimeModel(
     this.cc.contextVersion
   }
 
-  def clientConnected(sk: String, contextVersion: Long): Unit = {
-    this.cc.trackClient(sk, contextVersion)
+  def clientConnected(sk: SessionKey, contextVersion: Long): Unit = {
+    this.cc.trackClient(sk.serialize(), contextVersion)
   }
 
-  def clientDisconnected(sk: String): Unit = {
-    this.cc.untrackClient(sk)
+  def clientDisconnected(sk: SessionKey): Unit = {
+    this.cc.untrackClient(sk.serialize())
     this.data.sessionDisconnected(sk)
     this.elementReferenceManager.sessionDisconnected(sk)
   }
@@ -209,30 +209,30 @@ class RealTimeModel(
         // This handles element references which have no id.
         event match {
           case publish: PublishReference =>
-            elementReferenceManager.handleReferenceEvent(publish, sk.toString())
+            elementReferenceManager.handleReferenceEvent(publish, sk)
             val PublishReference(_, _, id, key, refType, values, contextVersion) = publish
             (values, contextVersion) match {
               case (Some(values), Some(contextVersion)) =>
                 val xformedValue = values.asInstanceOf[List[String]] filter { idToValue.contains(_) }
                 val xformedSet = SetReference(domainFqn, modelId, id, key, refType, xformedValue, contextVersion)
-                elementReferenceManager.handleReferenceEvent(xformedSet, sk.toString())
+                elementReferenceManager.handleReferenceEvent(xformedSet, sk)
                 Some(RemoteReferencePublished(modelId, sk, id, key, refType, Some(xformedValue)))
               case _ =>
                 Some(RemoteReferencePublished(modelId, sk, id, key, refType, None))
             }
 
           case unpublish: UnpublishReference =>
-            elementReferenceManager.handleReferenceEvent(unpublish, sk.toString())
+            elementReferenceManager.handleReferenceEvent(unpublish, sk)
             val UnpublishReference(_, _, id, key) = unpublish
             Some(RemoteReferenceUnpublished(modelId, sk, id, key))
           case set: SetReference =>
             val SetReference(d, m, id, key, refType, values, version) = set
             val xformedValue = values.asInstanceOf[List[String]] filter { idToValue.contains(_) }
             val xformedSet = SetReference(d, m, id, key, refType, xformedValue, version)
-            elementReferenceManager.handleReferenceEvent(xformedSet, sk.toString())
+            elementReferenceManager.handleReferenceEvent(xformedSet, sk)
             Some(RemoteReferenceSet(modelId, sk, id, key, refType, xformedValue))
           case cleared: ClearReference =>
-            elementReferenceManager.handleReferenceEvent(cleared, sk.toString())
+            elementReferenceManager.handleReferenceEvent(cleared, sk)
             val ClearReference(_, _, id, key) = cleared
             Some(RemoteReferenceCleared(modelId, sk, id, key))
         }
@@ -292,7 +292,7 @@ class RealTimeModel(
     }
 
     ReferenceState(
-      r.sessionId,
+      r.session,
       r.modelValue match {
         case value: RealTimeValue =>
           Some(value.id)

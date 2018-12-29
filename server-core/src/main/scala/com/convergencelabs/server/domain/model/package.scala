@@ -34,7 +34,7 @@ package model {
   case class ModelShutdownRequest(modelId: String, ephemeral: Boolean)
   
   case class ReferenceState(
-    sessionId: String,
+    session: SessionKey,
     valueId: Option[String],
     key: String,
     referenceType: ReferenceType.Value,

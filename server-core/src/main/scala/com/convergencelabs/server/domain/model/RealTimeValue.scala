@@ -55,15 +55,15 @@ abstract class RealTimeValue(
     this.referenceManager.referenceMap().getAll()
   }
 
-  def sessionDisconnected(sessionId: String): Unit = {
-    this.referenceManager.sessionDisconnected(sessionId)
+  def sessionDisconnected(sk: SessionKey): Unit = {
+    this.referenceManager.sessionDisconnected(sk)
   }
 
-  def processReferenceEvent(event: ModelReferenceEvent, sessionKey: SessionKey): Try[Unit] = {
+  def processReferenceEvent(event: ModelReferenceEvent, sk: SessionKey): Try[Unit] = {
     if (this.validReferenceTypes.isEmpty) {
       Failure(new IllegalArgumentException("This RealTimeValue does not allow references"))
     } else {
-      this.referenceManager.handleReferenceEvent(event, sessionKey.toString())
+      this.referenceManager.handleReferenceEvent(event, sk)
     }
   }
   

@@ -25,6 +25,7 @@ import akka.actor.ReceiveTimeout
 import akka.actor.Status
 import akka.actor.Terminated
 import akka.util.Timeout
+import com.convergencelabs.server.datastore.domain.ModelPermissions
 
 /**
  * Provides a factory method for creating the RealtimeModelActor
@@ -149,7 +150,10 @@ class RealtimeModelActor(
   }
 
   private[this] def setModelPermissions(msg: SetModelPermissionsRequest): Unit = {
-    val SetModelPermissionsRequest(domainFqn, modelId, sk, overrideCollection, world, setAllUsers, users) = msg
+    val SetModelPermissionsRequest(domainFqn, modelId, sk, overrideCollection, world, setAllUsers, addedUsers, removedUsers) = msg
+    val users = scala.collection.mutable.Map[String, Option[ModelPermissions]]()
+    users ++= addedUsers.mapValues(Some(_))
+    removedUsers.foreach(username => users += (username -> None))
     persistenceProvider.modelStore.modelExists(modelId).flatMap { exists =>
       if (exists) {
         modelPermissionResolver.getModelUserPermissions(modelId, sk, persistenceProvider).map(p => p.manage).flatMap { canSet =>
@@ -167,7 +171,7 @@ class RealtimeModelActor(
                 case true => persistenceProvider.modelPermissionsStore.deleteAllModelUserPermissions(modelId)
                 case falese => Success(())
               }
-              _ <- persistenceProvider.modelPermissionsStore.updateAllModelUserPermissions(modelId, users)
+              _ <- persistenceProvider.modelPermissionsStore.updateAllModelUserPermissions(modelId, users.toMap)
             } yield {
               this._modelManager.foreach { m => m.reloadModelPermissions() }
               ()

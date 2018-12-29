@@ -25,7 +25,7 @@ class ModelCreator {
     data: ObjectValue,
     overridePermissions: Option[Boolean],
     worldPermissions: Option[ModelPermissions],
-    userPermissions: Option[Map[String, ModelPermissions]]): Try[Model] = {
+    userPermissions: Map[String, ModelPermissions]): Try[Model] = {
 
     verifyCanCreate(collectionId, username, persistenceProvider) flatMap { _ =>
       persistenceProvider.collectionStore.ensureCollectionExists(collectionId)
@@ -50,7 +50,7 @@ class ModelCreator {
             Success(())
         }
       } flatMap { _ =>
-        val userPerms = userPermissions.getOrElse(Map()).map { entry => (entry._1 -> Some(entry._2)) }
+        val userPerms = userPermissions.mapValues(Some(_))
         persistenceProvider
           .modelPermissionsStore
           .updateAllModelUserPermissions(model.metaData.modelId, userPerms)

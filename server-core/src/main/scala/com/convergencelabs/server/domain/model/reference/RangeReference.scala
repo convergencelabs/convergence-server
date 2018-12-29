@@ -1,12 +1,13 @@
 package com.convergencelabs.server.domain.model.reference
 
 import com.convergencelabs.server.domain.model.ot.xform.IndexTransformer
+import com.convergencelabs.server.domain.model.SessionKey
 
 class RangeReference(
   modelValue: Any,
-  sessionId: String,
+  session: SessionKey,
   key: String)
-    extends ModelReference[(Int, Int)](modelValue, sessionId, key)
+    extends ModelReference[(Int, Int)](modelValue, session, key)
     with PositionalInsertAware
     with PositionalRemoveAware
     with PositionalReorderAware {

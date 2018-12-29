@@ -6,9 +6,9 @@ import com.convergencelabs.server.domain.model.ot.xform.IndexTransformer
 
 class ElementReference(
   source: Any,
-  sessionId: String,
+  session: SessionKey,
   key: String)
-    extends ModelReference[String](source, sessionId, key) {
+    extends ModelReference[String](source, session, key) {
 
   def handleElementDetached(vid: String): Unit = {
     this.values filter(!_.equals(vid))
