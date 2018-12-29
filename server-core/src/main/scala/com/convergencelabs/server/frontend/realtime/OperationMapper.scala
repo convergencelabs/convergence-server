@@ -40,52 +40,76 @@ import io.convergence.proto.operations.NumberAddOperationData
 import io.convergence.proto.operations.ArrayInsertOperationData
 import io.convergence.proto.operations.StringSetOperationData
 import io.convergence.proto.operations.DiscreteOperationData
+import io.convergence.proto.operations.OperationData
+import ImplicitMessageConversions._
 
 private[realtime] object OperationMapper {
 
   def mapIncoming(op: OperationData): Operation = {
-    op match {
-      case operation: CompoundOperationData => mapIncomingCompound(operation)
-      case operation: DiscreteOperationData => mapIncomingDiscrete(operation)
+    op.operation match {
+      case OperationData.Operation.CompoundOperation(operation) => 
+        mapIncomingCompound(operation)
+      case OperationData.Operation.DiscreteOperation(operation) => 
+        mapIncomingDiscrete(operation)
     }
   }
 
   def mapIncomingCompound(op: CompoundOperationData): CompoundOperation = {
-    CompoundOperation(op.o.map(opData => mapIncoming(opData).asInstanceOf[DiscreteOperation]))
+    CompoundOperation(op.operations.map(opData => mapIncomingDiscrete(opData)).toList)
   }
 
   // scalastyle:off cyclomatic.complexity
+  // FIXME handle missing values.
   def mapIncomingDiscrete(op: DiscreteOperationData): DiscreteOperation = {
-    op match {
-      case StringInsertOperationData(id, noOp, index, value) => StringInsertOperation(id, noOp, index, value)
-      case StringRemoveOperationData(id, noOp, index, value) => StringRemoveOperation(id, noOp, index, value)
-      case StringSetOperationData(id, noOp, value) => StringSetOperation(id, noOp, value)
+    op.operation match {
+      case DiscreteOperationData.Operation.StringInsertOperation(StringInsertOperationData(id, noOp, index, value)) =>
+        StringInsertOperation(id, noOp, index, value)
+      case DiscreteOperationData.Operation.StringRemoveOperation(StringRemoveOperationData(id, noOp, index, value)) =>
+        StringRemoveOperation(id, noOp, index, value)
+      case DiscreteOperationData.Operation.StringSetOperation(StringSetOperationData(id, noOp, value)) =>
+        StringSetOperation(id, noOp, value)
 
-      case ArrayInsertOperationData(id, noOp, idx, newVal) => ArrayInsertOperation(id, noOp, idx, newVal)
-      case ArrayRemoveOperationData(id, noOp, idx) => ArrayRemoveOperation(id, noOp, idx)
-      case ArrayMoveOperationData(id, noOp, fromIdx, toIdx) => ArrayMoveOperation(id, noOp, fromIdx, toIdx)
-      case ArrayReplaceOperationData(id, noOp, idx, newVal) => ArrayReplaceOperation(id, noOp, idx, newVal)
-      case ArraySetOperationData(id, noOp, array) => ArraySetOperation(id, noOp, array)
-
-      case ObjectSetPropertyOperationData(id, noOp, prop, newVal) => ObjectSetPropertyOperation(id, noOp, prop, newVal)
-      case ObjectAddPropertyOperationData(id, noOp, prop, newVal) => ObjectAddPropertyOperation(id, noOp, prop, newVal)
-      case ObjectRemovePropertyOperationData(id, noOp, prop) => ObjectRemovePropertyOperation(id, noOp, prop)
-      case ObjectSetOperationData(id, noOp, objectData) => ObjectSetOperation(id, noOp, objectData)
-
-      case NumberAddOperationData(id, noOp, delta) => NumberAddOperation(id, noOp, delta)
-      case NumberSetOperationData(id, noOp, number) => NumberSetOperation(id, noOp, number)
-
-      case BooleanSetOperationData(id, noOp, value) => BooleanSetOperation(id, noOp, value)
       
-      case DateSetOperationData(id, noOp, value) => DateSetOperation(id, noOp, value)
+      case DiscreteOperationData.Operation.ArrayInsertOperation(ArrayInsertOperationData(id, noOp, idx, newVal)) => 
+        ArrayInsertOperation(id, noOp, idx, newVal.get)
+      case DiscreteOperationData.Operation.ArrayRemoveOperation(ArrayRemoveOperationData(id, noOp, idx)) => 
+        ArrayRemoveOperation(id, noOp, idx)
+      case DiscreteOperationData.Operation.ArrayMoveOperation(ArrayMoveOperationData(id, noOp, fromIdx, toIdx)) =>
+        ArrayMoveOperation(id, noOp, fromIdx, toIdx)
+      case DiscreteOperationData.Operation.ArrayReplaceOperation(ArrayReplaceOperationData(id, noOp, idx, newVal)) =>
+        ArrayReplaceOperation(id, noOp, idx, newVal.get)
+      case DiscreteOperationData.Operation.ArraySetOperation(ArraySetOperationData(id, noOp, array)) => 
+        ArraySetOperation(id, noOp, array.map(messageToDataValue(_)).toList)
+
+      case DiscreteOperationData.Operation.ObjectSetPropertyOperation(ObjectSetPropertyOperationData(id, noOp, prop, newVal)) =>
+        ObjectSetPropertyOperation(id, noOp, prop, newVal.get)
+      case DiscreteOperationData.Operation.ObjectAddPropertyOperation(ObjectAddPropertyOperationData(id, noOp, prop, newVal)) =>
+        ObjectAddPropertyOperation(id, noOp, prop, newVal.get)
+      case DiscreteOperationData.Operation.ObjectRemovePropertyOperation(ObjectRemovePropertyOperationData(id, noOp, prop)) =>
+        ObjectRemovePropertyOperation(id, noOp, prop)
+      case DiscreteOperationData.Operation.ObjectSetOperation(ObjectSetOperationData(id, noOp, objectData)) => 
+        ObjectSetOperation(id, noOp, objectData.mapValues(messageToDataValue(_)))
+
+      case DiscreteOperationData.Operation.NumberAddOperation(NumberAddOperationData(id, noOp, delta)) =>
+        NumberAddOperation(id, noOp, delta)
+      case DiscreteOperationData.Operation.NumberSetOperation(NumberSetOperationData(id, noOp, number)) =>
+        NumberSetOperation(id, noOp, number)
+
+      case DiscreteOperationData.Operation.BooleanSetOperation(BooleanSetOperationData(id, noOp, value)) =>
+        BooleanSetOperation(id, noOp, value)
+
+      case DiscreteOperationData.Operation.DateSetOperation(DateSetOperationData(id, noOp, value)) =>
+        DateSetOperation(id, noOp, value.get)
     }
   }
   // scalastyle:on cyclomatic.complexity
 
   def mapOutgoing(op: Operation): OperationData = {
     op match {
-      case operation: CompoundOperation => mapOutgoingCompound(operation)
-      case operation: DiscreteOperation => mapOutgoingDiscrete(operation)
+      case operation: CompoundOperation => 
+        OperationData().withCompoundOperation(mapOutgoingCompound(operation))
+      case operation: DiscreteOperation => 
+        OperationData().withDiscreteOperation(mapOutgoingDiscrete(operation))
     }
   }
 
@@ -96,27 +120,43 @@ private[realtime] object OperationMapper {
   // scalastyle:off cyclomatic.complexity
   def mapOutgoingDiscrete(op: DiscreteOperation): DiscreteOperationData = {
     op match {
-      case StringInsertOperation(id, noOp, index, value) => StringInsertOperationData(id, noOp, index, value)
-      case StringRemoveOperation(id, noOp, index, value) => StringRemoveOperationData(id, noOp, index, value)
-      case StringSetOperation(id, noOp, value) => StringSetOperationData(id, noOp, value)
+      case StringInsertOperation(id, noOp, index, value) => 
+        DiscreteOperationData().withStringInsertOperation(StringInsertOperationData(id, noOp, index, value))
+      case StringRemoveOperation(id, noOp, index, value) => 
+        DiscreteOperationData().withStringRemoveOperation(StringRemoveOperationData(id, noOp, index, value))
+      case StringSetOperation(id, noOp, value) => 
+        DiscreteOperationData().withStringSetOperation(StringSetOperationData(id, noOp, value))
 
-      case ArrayInsertOperation(id, noOp, idx, newVal) => ArrayInsertOperationData(id, noOp, idx, newVal)
-      case ArrayRemoveOperation(id, noOp, idx) => ArrayRemoveOperationData(id, noOp, idx)
-      case ArrayMoveOperation(id, noOp, fromIdx, toIdx) => ArrayMoveOperationData(id, noOp, fromIdx, toIdx)
-      case ArrayReplaceOperation(id, noOp, idx, newVal) => ArrayReplaceOperationData(id, noOp, idx, newVal)
-      case ArraySetOperation(id, noOp, array) => ArraySetOperationData(id, noOp, array)
+      case ArrayInsertOperation(id, noOp, idx, newVal) =>
+        DiscreteOperationData().withArrayInsertOperation(ArrayInsertOperationData(id, noOp, idx, Some(newVal)))
+      case ArrayRemoveOperation(id, noOp, idx) => 
+        DiscreteOperationData().withArrayRemoveOperation(ArrayRemoveOperationData(id, noOp, idx))
+      case ArrayMoveOperation(id, noOp, fromIdx, toIdx) =>
+        DiscreteOperationData().withArrayMoveOperation(ArrayMoveOperationData(id, noOp, fromIdx, toIdx))
+      case ArrayReplaceOperation(id, noOp, idx, newVal) =>
+        DiscreteOperationData().withArrayReplaceOperation(ArrayReplaceOperationData(id, noOp, idx, Some(newVal)))
+      case ArraySetOperation(id, noOp, array) => 
+        DiscreteOperationData().withArraySetOperation(ArraySetOperationData(id, noOp, array.map(dataValueToMessage(_))))
 
-      case ObjectSetPropertyOperation(id, noOp, prop, newVal) => ObjectSetPropertyOperationData(id, noOp, prop, newVal)
-      case ObjectAddPropertyOperation(id, noOp, prop, newVal) => ObjectAddPropertyOperationData(id, noOp, prop, newVal)
-      case ObjectRemovePropertyOperation(id, noOp, prop) => ObjectRemovePropertyOperationData(id, noOp, prop)
-      case ObjectSetOperation(id, noOp, objectData) => ObjectSetOperationData(id, noOp, objectData)
+      case ObjectSetPropertyOperation(id, noOp, prop, newVal) => 
+        DiscreteOperationData().withObjectSetPropertyOperation(ObjectSetPropertyOperationData(id, noOp, prop, Some(newVal)))
+      case ObjectAddPropertyOperation(id, noOp, prop, newVal) => 
+        DiscreteOperationData().withObjectAddPropertyOperation(ObjectAddPropertyOperationData(id, noOp, prop, Some(newVal)))
+      case ObjectRemovePropertyOperation(id, noOp, prop) => 
+        DiscreteOperationData().withObjectRemovePropertyOperation(ObjectRemovePropertyOperationData(id, noOp, prop))
+      case ObjectSetOperation(id, noOp, objectData) => 
+        DiscreteOperationData().withObjectSetOperation(ObjectSetOperationData(id, noOp, objectData.mapValues(dataValueToMessage(_))))
 
-      case NumberAddOperation(id, noOp, delta) => NumberAddOperationData(id, noOp, delta)
-      case NumberSetOperation(id, noOp, number) => NumberSetOperationData(id, noOp, number)
+      case NumberAddOperation(id, noOp, delta) => 
+        DiscreteOperationData().withNumberAddOperation(NumberAddOperationData(id, noOp, delta))
+      case NumberSetOperation(id, noOp, number) => 
+        DiscreteOperationData().withNumberSetOperation(NumberSetOperationData(id, noOp, number))
 
-      case BooleanSetOperation(id, noOp, value) => BooleanSetOperationData(id, noOp, value)
-      
-      case DateSetOperation(id, noOp, value) => DateSetOperationData(id, noOp, value)
+      case BooleanSetOperation(id, noOp, value) => 
+        DiscreteOperationData().withBooleanSetOperation(BooleanSetOperationData(id, noOp, value))
+
+      case DateSetOperation(id, noOp, value) => 
+        DiscreteOperationData().withDateSetOperation(DateSetOperationData(id, noOp, Some(value)))
     }
   }
   // scalastyle:on cyclomatic.complexity
