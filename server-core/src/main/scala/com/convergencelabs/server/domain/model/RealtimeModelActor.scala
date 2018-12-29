@@ -324,46 +324,6 @@ class RealtimeModelActor(
     }
   }
 
-  private[this] def onSetModelPermissions(request: SetModelPermissionsRequest): Unit = {
-    val SetModelPermissionsRequest(domainFqn, modelId, sk, overrideCollection, world, setAllUsers, users) = request
-    persistenceProvider.modelStore.modelExists(modelId).flatMap { exists =>
-      if (exists) {
-        modelPermissionResolver.getModelUserPermissions(modelId, sk, persistenceProvider).map(p => p.manage).flatMap { canSet =>
-          if (canSet) {
-            (for {
-              _ <- overrideCollection match {
-                case Some(ov) => persistenceProvider.modelPermissionsStore.setOverrideCollectionPermissions(modelId, ov)
-                case None => Success(())
-              }
-              _ <- world match {
-                case Some(perms) => persistenceProvider.modelPermissionsStore.setModelWorldPermissions(modelId, perms)
-                case None => Success(())
-              }
-              _ <- setAllUsers match {
-                case true => persistenceProvider.modelPermissionsStore.deleteAllModelUserPermissions(modelId)
-                case falese => Success(())
-              }
-              _ <- persistenceProvider.modelPermissionsStore.updateAllModelUserPermissions(modelId, users)
-            } yield {
-              this._modelManager.map(_.reloadModelPermissions())
-              ()
-            })
-          } else {
-            Failure(UnauthorizedException("User must have 'manage' permissions on the model to set permissions"))
-          }
-        }
-      } else {
-        Failure(ModelNotFoundException(modelId))
-      }
-    } map { _ =>
-      sender ! (())
-    } recover {
-      case cause: Exception =>
-        sender ! Status.Failure(cause)
-        ()
-    }
-  }
-
   def getModel(msg: GetRealtimeModel): Unit = {
     val GetRealtimeModel(domainFqn, getModelId, sk) = msg
     log.debug(s"${identityString}: Getting model")
@@ -409,7 +369,7 @@ class RealtimeModelActor(
           data,
           overridePermissions,
           worldPermissions,
-          userPermissions)
+          userPermissions.get)
       }
     } map { _ =>
       sender ! (())

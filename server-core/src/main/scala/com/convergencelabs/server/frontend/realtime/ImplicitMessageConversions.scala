@@ -35,7 +35,6 @@ import com.convergencelabs.server.datastore.domain.ModelPermissions
 import io.convergence.proto.model.ModelPermissionsData
 import com.convergencelabs.server.domain.PresenceServiceActor.UserPresence
 import com.convergencelabs.server.domain.model.ReferenceType
-import io.convergence.proto.references.{ReferenceType => ProtoReferenceType}
 
 object ImplicitMessageConversions {
   implicit def sessionKeyToMessage(sessionKey: SessionKey) = io.convergence.proto.authentication.SessionKey(sessionKey.uid, sessionKey.sid)
