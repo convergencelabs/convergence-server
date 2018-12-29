@@ -5,7 +5,7 @@ import java.io.File
 
 val commonSettings = Seq(
   organization := "com.convergencelabs",
-  scalaVersion := "2.11.8",
+  scalaVersion := "2.12.6",
   scalacOptions := Seq("-deprecation", "-feature"),
   fork := true,
   javaOptions += "-XX:MaxDirectMemorySize=16384m",
@@ -44,7 +44,6 @@ val serverCore = (project in file("server-core")).
   settings(commonSettings: _*).
   settings(Testing.settings: _*).
   settings(
-   // unmanagedSourceDirectories in Compile += baseDirectory.value / "target" / "scala-2.11" / "twirl" / "main",
     name := "convergence-server-core",
     libraryDependencies ++=
       akkaCore ++
@@ -52,7 +51,7 @@ val serverCore = (project in file("server-core")).
       loggingAll ++
       Seq(
         scalapb,
-        convergenceMessages,
+        convergenceProto,
         akkaHttp,
         json4s,
         jacksonYaml,
@@ -75,8 +74,6 @@ val serverCore = (project in file("server-core")).
       testingAkka
   ).dependsOn(serverOt)
 
-
-lazy val dockerBuild = taskKey[Unit]("docker-build")
 val serverNode = (project in file("server-node"))
   .configs(Configs.all: _*)
   .settings(commonSettings: _*)
@@ -90,20 +87,6 @@ val serverNode = (project in file("server-node"))
     publishArtifact in (Compile, packageDoc) := false,
     publishArtifact in (Compile, packageSrc) := false
   )
-  .settings(
-    dockerBuild := {
-	  val dockerSrc = new File("server-node/src/docker")
-	  val dockerTarget = new File("server-node/target/docker")
-	  val packSrc = new File("server-node/target/pack")
-	  val packTarget = new File("server-node/target/docker/pack")
-
-	  IO.copyDirectory(dockerSrc, dockerTarget, true, false)
-	  IO.copyDirectory(packSrc, packTarget, true, false)
-
-	  "docker build -t nexus.convergencelabs.tech:18443/convergence-server-node:latest server-node/target/docker/" !
-	}
-  )
-  .settings(dockerBuild <<= (dockerBuild dependsOn stage))
   .dependsOn(serverCore)
 
 val testkit = (project in file("server-testkit")).

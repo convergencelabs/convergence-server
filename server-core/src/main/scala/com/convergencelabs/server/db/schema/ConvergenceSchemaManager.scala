@@ -6,12 +6,12 @@ import scala.util.Try
 
 import org.apache.commons.lang3.exception.ExceptionUtils
 
-import com.convergencelabs.server.datastore.DeltaHistoryStore
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import com.convergencelabs.server.datastore.ConvergenceDelta
-import com.convergencelabs.server.datastore.ConvergenceDeltaHistory
+import com.convergencelabs.server.datastore.convergence.ConvergenceDelta
+import com.convergencelabs.server.datastore.convergence.ConvergenceDeltaHistory
+import com.convergencelabs.server.datastore.convergence.DeltaHistoryStore
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 
-class ConvergenceSchemaManager(db: ODatabaseDocumentTx, historyStore: DeltaHistoryStore, preRelease: Boolean)
+class ConvergenceSchemaManager(db: ODatabaseDocument, historyStore: DeltaHistoryStore, preRelease: Boolean)
     extends AbstractSchemaManager(db, preRelease: Boolean) {
 
   def getCurrentVersion(): Try[Int] = {
@@ -24,7 +24,7 @@ class ConvergenceSchemaManager(db: ODatabaseDocumentTx, historyStore: DeltaHisto
     this.historyStore.saveConvergenceDeltaHistory(history)
   }
 
-  def recordDeltaFailure(delta: DeltaScript, cause: Exception): Unit = {
+  def recordDeltaFailure(delta: DeltaScript, cause: Throwable): Unit = {
     val cd = ConvergenceDelta(delta.delta.version, delta.rawScript)
     val message = ExceptionUtils.getStackTrace(cause)
     val history = ConvergenceDeltaHistory(cd, DeltaHistoryStore.Status.Error, Some(message), Instant.now())

@@ -13,6 +13,8 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 
 import DataValueMapper.DataValueToODocument
 import DataValueMapper.ODocumentToDataValue
+import com.orientechnologies.orient.core.sql.executor.OResult
+import com.orientechnologies.orient.core.id.ORecordId
 
 object ObjectValueMapper extends ODocumentMapper {
 
@@ -36,9 +38,18 @@ object ObjectValueMapper extends ODocumentMapper {
   private[domain] implicit def oDocumentToObjectValue(doc: ODocument): ObjectValue = {
     validateDocumentClass(doc, DocumentClassName, OpDocumentClassName)
 
-    val id = doc.field(Fields.Id).asInstanceOf[String]
-    val children: JavaMap[String, OIdentifiable] = doc.field(Fields.Children);
-    val dataValues = children.asScala map { case (k, v) => (k, v.getRecord[ODocument].asDataValue) }
+    val id = doc.getProperty(Fields.Id).asInstanceOf[String]
+    val children: JavaMap[String, Any] = doc.getProperty(Fields.Children)
+    val dataValues = children.asScala map {
+      case (k, v) =>
+        if (v.isInstanceOf[OResult]) {
+          (k, v.asInstanceOf[OResult].toElement.asInstanceOf[ODocument].asDataValue)
+        } else if (v.isInstanceOf[ORecordId]) {
+          (k, v.asInstanceOf[ORecordId].getRecord.asInstanceOf[ODocument].asDataValue)
+        } else {
+          (k, v.asInstanceOf[ODocument].asDataValue)
+        }
+    }
 
     ObjectValue(id, dataValues.toMap)
   }

@@ -159,7 +159,7 @@ class DomainUserGroupService(
     val message = DomainRestMessage(domain, GetUserGroup(groupId))
     (domainRestActor ? message).mapTo[Option[UserGroup]] map {
       case Some(group) => (StatusCodes.OK, GetUserGroupResponse(groupToUserGroupData(group)))
-      case None => NotFoundError
+      case None => notFoundResponse()
     }
   }
 
@@ -167,7 +167,7 @@ class DomainUserGroupService(
     val message = DomainRestMessage(domain, GetUserGroup(groupId))
     (domainRestActor ? message).mapTo[Option[UserGroup]] map {
       case Some(UserGroup(_, _, members)) => (StatusCodes.OK, GetUserGroupMembersResponse(members))
-      case None => NotFoundError
+      case None => notFoundResponse()
     }
   }
 
@@ -177,7 +177,7 @@ class DomainUserGroupService(
       case Some(UserGroupInfo(id, description)) =>
         (StatusCodes.OK, GetUserGroupInfoResponse(UserGroupInfoData(id, description)))
       case None => 
-        NotFoundError
+        notFoundResponse()
     }
   }
   

@@ -8,15 +8,15 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
-import com.convergencelabs.server.datastore.DomainStore
-import com.convergencelabs.server.datastore.UserStore
+import com.convergencelabs.server.datastore.convergence.DomainStore
+import com.convergencelabs.server.datastore.convergence.UserStore
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 
 import akka.actor.ActorRef
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.DomainDatabaseFactory
+import com.convergencelabs.server.db.DatabaseProvider
+import com.convergencelabs.server.db.DomainDatabaseFactory
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProviderImpl
 
 class ConvergenceExporter(
@@ -65,8 +65,8 @@ class ConvergenceExporter(
     domainStore.getDomainsByOwner(username) map {
       _.map { case domain =>
         // FIXME error handling
-        val pool = dbFactory.getDomainDatabasePool(domain.domainFqn).get
-        val provider = new DomainPersistenceProviderImpl(DatabaseProvider(pool))
+        val dbProvider = dbFactory.getDomainDatabasePool(domain.domainFqn).get
+        val provider = new DomainPersistenceProviderImpl(dbProvider)
         val exporter = new DomainExporter(provider)
         // FIXME error handling
         val domainScript = exporter.exportDomain().get

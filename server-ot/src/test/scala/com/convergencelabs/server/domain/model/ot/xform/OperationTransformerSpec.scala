@@ -10,7 +10,7 @@ import org.mockito.Mockito.when
 import org.mockito.Mockito
 import org.mockito.Matchers.any
 import org.mockito.Matchers.anyObject
-import org.scalatest.mock.MockitoSugar
+import org.scalatest.mockito.MockitoSugar
 
 // scalastyle:off multiple.string.literals
 class OperationTransformerSpec

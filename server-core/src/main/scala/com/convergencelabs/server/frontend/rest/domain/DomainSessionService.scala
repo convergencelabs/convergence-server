@@ -133,7 +133,7 @@ class DomainSessionService(
     val message = DomainRestMessage(domain, GetSession(sessionId))
     (domainRestActor ? message).mapTo[Option[DomainSession]] map {
       case Some(sessions) => (StatusCodes.OK, GetSessionResponse(sessionToSessionData(sessions)))
-      case None => NotFoundError
+      case None => notFoundResponse()
     }
   }
 

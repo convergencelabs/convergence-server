@@ -7,16 +7,16 @@ import org.scalatest.Matchers
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.WordSpecLike
 
-import com.convergencelabs.server.datastore.ConvergenceDelta
-import com.convergencelabs.server.datastore.ConvergenceDeltaHistory
-import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.DeltaHistoryStore
-import com.convergencelabs.server.datastore.DomainDelta
-import com.convergencelabs.server.datastore.DomainDeltaHistory
-import com.convergencelabs.server.datastore.DomainStore
-import com.convergencelabs.server.datastore.UserStore
-import com.convergencelabs.server.datastore.UserStore.User
+import com.convergencelabs.server.datastore.convergence.ConvergenceDelta
+import com.convergencelabs.server.datastore.convergence.ConvergenceDeltaHistory
+import com.convergencelabs.server.datastore.convergence.DeltaHistoryStore
+import com.convergencelabs.server.datastore.convergence.DomainDelta
+import com.convergencelabs.server.datastore.convergence.DomainDeltaHistory
+import com.convergencelabs.server.datastore.convergence.DomainStore
+import com.convergencelabs.server.datastore.convergence.UserStore
+import com.convergencelabs.server.datastore.convergence.UserStore.User
 import com.convergencelabs.server.datastore.domain.PersistenceStoreSpec
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.domain.DomainFqn
 
 object DeltaHistoryStoreSpec {

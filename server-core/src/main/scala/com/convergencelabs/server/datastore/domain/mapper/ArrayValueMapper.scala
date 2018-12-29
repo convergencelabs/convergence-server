@@ -2,7 +2,7 @@ package com.convergencelabs.server.datastore.domain.mapper
 
 import java.util.{ List => JavaList }
 
-import scala.collection.JavaConversions.asScalaBuffer
+import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.language.implicitConversions
 
@@ -13,6 +13,7 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 
 import DataValueMapper.DataValueToODocument
 import DataValueMapper.ODocumentToDataValue
+import com.orientechnologies.orient.core.sql.executor.OResult
 
 object ArrayValueMapper extends ODocumentMapper {
 
@@ -24,7 +25,7 @@ object ArrayValueMapper extends ODocumentMapper {
     val ArrayValue(id, children) = obj
     val doc = new ODocument(OpDocumentClassName)
     doc.field(Fields.Id, id)
-    val docChildren = children map{v => v.asODocument}
+    val docChildren = children map { v => v.asODocument }
     doc.field(Fields.Children, docChildren.asJava)
     doc
   }
@@ -37,14 +38,19 @@ object ArrayValueMapper extends ODocumentMapper {
     validateDocumentClass(doc, DocumentClassName, OpDocumentClassName)
 
     val id = doc.field(Fields.Id).asInstanceOf[String]
-    val children: JavaList[OIdentifiable] = doc.field(Fields.Children);
-    val dataValues = children map {v => v.getRecord[ODocument].asDataValue}
+    val children: JavaList[Any] = doc.field(Fields.Children);
+    val dataValues = children.asScala map { v =>
+      if (v.isInstanceOf[OResult]) {
+        v.asInstanceOf[OResult].toElement.asInstanceOf[ODocument].asDataValue
+      } else {
+        v.asInstanceOf[ODocument].asDataValue
+      }
+    }
     ArrayValue(id, dataValues.toList)
   }
 
   private[domain] val DocumentClassName = "ArrayValue"
   private[domain] val OpDocumentClassName = "ArrayOpValue"
-
 
   private[domain] object Fields {
     val Id = "id"

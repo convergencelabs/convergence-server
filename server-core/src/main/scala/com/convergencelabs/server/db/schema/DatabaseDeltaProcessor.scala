@@ -4,9 +4,11 @@ import java.util.ArrayList
 
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.collection.JavaConverters.seqAsJavaListConverter
+import scala.util.Failure
 import scala.util.Try
 
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.convergencelabs.server.util.SafeTry
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.metadata.function.OFunction
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.metadata.schema.OProperty
@@ -14,24 +16,40 @@ import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.metadata.sequence.OSequence
 import com.orientechnologies.orient.core.metadata.sequence.OSequence.SEQUENCE_TYPE
 import com.orientechnologies.orient.core.record.impl.ODocument
-import com.orientechnologies.orient.core.sql.OCommandSQL
+
+import grizzled.slf4j.Logging
 
 object DatabaseDeltaProcessor {
-  def apply(delta: Delta, db: ODatabaseDocumentTx): Try[Unit] = new DatabaseDeltaProcessor(delta, db).apply()
+  def apply(delta: Delta, db: ODatabaseDocument): Try[Unit] = new DatabaseDeltaProcessor(delta, db).apply()
 }
 
-class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocumentTx) {
+class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocument) extends Logging {
 
-  private var deferedLinkedProperties = Map[OProperty, String]();
+  private[this] var deferedLinkedProperties = Map[OProperty, String]();
 
-  def apply(): Try[Unit] = Try {
+  def apply(): Try[Unit] = SafeTry {
+    debug(s"Applying delta: ${delta.version} to database")
+
     db.activateOnCurrentThread()
-    delta.changes foreach { change => applyChange(change) }
+
+    debug(s"Applying ${delta.changes.size} changes for delta ${delta.version}")
+    delta.changes foreach (change => applyChange(change))
+
+    debug(s"Processing linked classes")
     processDeferedLinkedClasses()
+
+    debug(s"Reloading database metadata")
     db.getMetadata.reload()
+
+    debug(s"Finished applying delta ${delta.version} to database")
+    (())
+  } recoverWith {
+    case cause: Throwable =>
+      error(s"Applying delta ${delta.version} to database failed", cause)
+      Failure(cause)
   }
 
-  private def applyChange(change: Change): Unit = {
+  private[this] def applyChange(change: Change): Unit = {
     change match {
       case createClass: CreateClass => applyCreateClass(createClass)
       case alterClass: AlterClass => applyAlterClass(alterClass)
@@ -50,9 +68,9 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocumentTx) {
     }
   }
 
-  private def applyCreateClass(createClass: CreateClass): Unit = {
+  private[this] def applyCreateClass(createClass: CreateClass): Unit = {
     val CreateClass(name, superclass, isAbstract, properties) = createClass
-    val sClass = superclass.map { db.getMetadata.getSchema.getClass(_) }
+    val sClass = superclass.map(db.getMetadata.getSchema.getClass(_))
 
     val newClass = (isAbstract, sClass) match {
       case (Some(true), Some(oClass)) => db.getMetadata.getSchema.createAbstractClass(name, oClass)
@@ -61,13 +79,13 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocumentTx) {
       case (_, None) => db.getMetadata.getSchema.createClass(name)
     }
 
-    properties foreach { addProperty(newClass, _) }
+    properties foreach (addProperty(newClass, _))
   }
 
-  private def applyAlterClass(alterClass: AlterClass): Unit = {
+  private[this] def applyAlterClass(alterClass: AlterClass): Unit = {
     val AlterClass(name, newName, superclass) = alterClass
     val oClass: OClass = db.getMetadata.getSchema.getClass(name)
-    newName.foreach { oClass.setName(_) }
+    newName.foreach(oClass.setName(_))
     superclass.foreach { supName =>
       val superClass: OClass = db.getMetadata.getSchema.getClass(supName)
       val arrayList = new ArrayList[OClass]()
@@ -76,29 +94,28 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocumentTx) {
     }
   }
 
-  private def applyDropClass(dropClass: DropClass): Unit = {
+  private[this] def applyDropClass(dropClass: DropClass): Unit = {
     val DropClass(name) = dropClass
     db.getMetadata.getSchema.dropClass(name)
   }
 
-  private def applyAddProperty(addProperty: AddProperty): Unit = {
+  private[this] def applyAddProperty(addProperty: AddProperty): Unit = {
     val AddProperty(className, property) = addProperty
     val oClass: OClass = db.getMetadata.getSchema.getClass(className)
     this.addProperty(oClass, property)
   }
 
-  private def addProperty(oClass: OClass, property: Property): Unit = {
+  private[this] def addProperty(oClass: OClass, property: Property): Unit = {
     val Property(name, orientType, linkedType, linkedClass, constraints) = property
     val oProp: OProperty = (linkedType, linkedClass) match {
       case (None, None) =>
-        // lot linked
+        // not linked
         oClass.createProperty(name, toOType(orientType))
       case (Some(typeName), None) =>
         // orientType
         oClass.createProperty(name, toOType(orientType), toOType(typeName))
       case (None, Some(className)) =>
-        val linkedClass = Option(db.getMetadata.getSchema.getClass(className))
-        linkedClass match {
+        Option(db.getMetadata.getSchema.getClass(className)) match {
           case Some(c) =>
             // Already defined, create it now with the link
             oClass.createProperty(name, toOType(orientType), c)
@@ -112,15 +129,15 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocumentTx) {
       case (Some(t), Some(c)) =>
         throw new IllegalArgumentException("Can not specify both a linked class and linked type")
     }
-    constraints.foreach { setConstraints(oProp, _) }
+    constraints.foreach(setConstraints(oProp, _))
   }
 
-  private def applyAlterProperty(alterProperty: AlterProperty): Unit = {
+  private[this] def applyAlterProperty(alterProperty: AlterProperty): Unit = {
     val AlterProperty(className, name, PropertyOptions(newName, orientType, linkedType, linkedClass, constraints)) = alterProperty
     val oClass: OClass = db.getMetadata.getSchema.getClass(className)
     val oProp: OProperty = oClass.getProperty(name)
-    newName.foreach { oProp.setName(_) }
-    orientType.foreach { oType => oProp.setType(toOType(oType)) }
+    newName.foreach(oProp.setName(_))
+    orientType.foreach(oType => oProp.setType(toOType(oType)))
 
     // FIXME at type, check to make sure both not set.
     linkedClass.foreach { linkedClass =>
@@ -128,28 +145,28 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocumentTx) {
       oProp.setLinkedClass(clazz)
     }
 
-    constraints.foreach { setConstraints(oProp, _) }
+    constraints.foreach(setConstraints(oProp, _))
   }
 
-  private def setConstraints(oProp: OProperty, constraints: Constraints): Unit = {
-    constraints.min.foreach { oProp.setMin(_) }
-    constraints.max.foreach { oProp.setMax(_) }
-    constraints.mandatory.foreach { oProp.setMandatory(_) }
-    constraints.readOnly.foreach { oProp.setReadonly(_) }
-    constraints.notNull.foreach { oProp.setNotNull(_) }
-    constraints.regex.foreach { oProp.setRegexp(_) }
-    constraints.collate.foreach { oProp.setCollate(_) }
-    constraints.custom.foreach { cutomProp => oProp.setCustom(cutomProp.name, cutomProp.value) }
-    constraints.default.foreach { oProp.setDefaultValue(_) }
+  private[this] def setConstraints(oProp: OProperty, constraints: Constraints): Unit = {
+    constraints.min.foreach(oProp.setMin(_))
+    constraints.max.foreach(oProp.setMax(_))
+    constraints.mandatory.foreach(oProp.setMandatory(_))
+    constraints.readOnly.foreach(oProp.setReadonly(_))
+    constraints.notNull.foreach(oProp.setNotNull(_))
+    constraints.regex.foreach(oProp.setRegexp(_))
+    constraints.collate.foreach(oProp.setCollate(_))
+    constraints.custom.foreach(cutomProp => oProp.setCustom(cutomProp.name, cutomProp.value))
+    constraints.default.foreach(oProp.setDefaultValue(_))
   }
 
-  private def applyDropProperty(dropProperty: DropProperty): Unit = {
+  private[this] def applyDropProperty(dropProperty: DropProperty): Unit = {
     val DropProperty(className, name) = dropProperty
     val oClass: OClass = db.getMetadata.getSchema.getClass(className)
     oClass.dropProperty(name)
   }
 
-  private def applyCreateIndex(createIndex: CreateIndex): Unit = {
+  private[this] def applyCreateIndex(createIndex: CreateIndex): Unit = {
     val CreateIndex(className, name, indexType, properties, metaData) = createIndex
     val oClass: OClass = db.getMetadata.getSchema.getClass(className)
 
@@ -163,20 +180,20 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocumentTx) {
     val index = oClass.createIndex(name, toOIndexType(indexType).toString, null, metaDataDoc, properties: _*)
   }
 
-  private def applyDropIndex(dropIndex: DropIndex): Unit = {
+  private[this] def applyDropIndex(dropIndex: DropIndex): Unit = {
     val DropIndex(name) = dropIndex
     db.getMetadata.getIndexManager.dropIndex(name)
   }
 
-  private def applyCreateSequence(createSequence: CreateSequence): Unit = {
+  private[this] def applyCreateSequence(createSequence: CreateSequence): Unit = {
     val CreateSequence(name, sType, start, increment, cacheSize) = createSequence
     val sequenceLibrary = db.getMetadata.getSequenceLibrary
 
     val params = new OSequence.CreateParams()
     params.setStart(0).setIncrement(1)
-    start.foreach { params.setStart(_) }
-    increment.foreach { params.setIncrement(_) }
-    cacheSize.foreach { params.setCacheSize(_) }
+    start.foreach(params.setStart(_))
+    increment.foreach(params.setIncrement(_))
+    cacheSize.foreach(params.setCacheSize(_))
 
     sequenceLibrary.createSequence(name, sType match {
       case SequenceType.Cached => SEQUENCE_TYPE.CACHED
@@ -184,17 +201,17 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocumentTx) {
     }, params);
   }
 
-  private def applyDropSequence(dropSequence: DropSequence): Unit = {
+  private[this] def applyDropSequence(dropSequence: DropSequence): Unit = {
     val DropSequence(name) = dropSequence
     db.getMetadata.getSequenceLibrary.dropSequence(name)
   }
 
-  private def applyRunSQLCommand(runSQLCommand: RunSQLCommand): Unit = {
+  private[this] def applyRunSQLCommand(runSQLCommand: RunSQLCommand): Unit = {
     val RunSQLCommand(command) = runSQLCommand
-    db.command(new OCommandSQL(command)).execute()
+    db.execute("sql", command, new java.util.HashMap())
   }
 
-  private def applyCreateFunction(createFunction: CreateFunction): Unit = {
+  private[this] def applyCreateFunction(createFunction: CreateFunction): Unit = {
     val CreateFunction(name, code, parameters, language, idempotent) = createFunction
     val function: OFunction = db.getMetadata.getFunctionLibrary.createFunction(name)
 
@@ -205,7 +222,7 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocumentTx) {
     function.save()
   }
 
-  private def applyAlterFunction(alterFunction: AlterFunction): Unit = {
+  private[this] def applyAlterFunction(alterFunction: AlterFunction): Unit = {
     val AlterFunction(name, newName, code, parameters, language, idempotent) = alterFunction
     val function: OFunction = db.getMetadata.getFunctionLibrary.getFunction(name)
 
@@ -217,12 +234,12 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocumentTx) {
     function.save()
   }
 
-  private def applyDropFunction(dropFunction: DropFunction): Unit = {
+  private[this] def applyDropFunction(dropFunction: DropFunction): Unit = {
     val DropFunction(name) = dropFunction
     db.getMetadata.getFunctionLibrary.dropFunction(name)
   }
 
-  private def toOType(orientType: OrientType.Value): OType = {
+  private[this] def toOType(orientType: OrientType.Value): OType = {
     orientType match {
       case OrientType.Boolean => OType.BOOLEAN
       case OrientType.Integer => OType.INTEGER
@@ -251,7 +268,7 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocumentTx) {
     }
   }
 
-  private def toOIndexType(indexType: IndexType.Value): OClass.INDEX_TYPE = {
+  private[this] def toOIndexType(indexType: IndexType.Value): OClass.INDEX_TYPE = {
     indexType match {
       case IndexType.Unique => OClass.INDEX_TYPE.UNIQUE
       case IndexType.NotUnique => OClass.INDEX_TYPE.NOTUNIQUE
@@ -266,14 +283,15 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocumentTx) {
     }
   }
 
-  private def processDeferedLinkedClasses(): Unit = {
+  private[this] def processDeferedLinkedClasses(): Unit = {
     deferedLinkedProperties map {
       case (prop, className) =>
         Option(db.getMetadata().getSchema().getClass(className)) match {
           case Some(linkedClass) =>
             prop.setLinkedClass(linkedClass)
           case None =>
-            throw new IllegalStateException("Could not set linked class because the class does not exist ${}")
+            throw new IllegalStateException(
+              s"Could not set linked class because the class does not exist: ${className}")
         }
     }
   }

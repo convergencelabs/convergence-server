@@ -5,7 +5,7 @@ import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
 
-import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.db.schema.DeltaCategory
@@ -81,7 +81,7 @@ class UserGroupStoreSpec
       "correctly update with a new id" in withUsers { store =>
         store.createUserGroup(group1).get
         val updated = group1.copy(id = "test")
-        println(updated)
+        
         store.updateUserGroup(group1.id, updated).get
 
         val updatedRead = store.getUserGroup(updated.id).get.value
@@ -90,7 +90,7 @@ class UserGroupStoreSpec
         store.getUserGroup(group1.id).get shouldBe None
       }
 
-      "not allow changing the id to an existin id" in withUsers { store =>
+      "not allow changing the id to an existing id" in withUsers { store =>
         store.createUserGroup(group1).get
         store.createUserGroup(group2).get
         val updated = group1.copy(id = group2.id)
@@ -104,7 +104,7 @@ class UserGroupStoreSpec
         store.createUserGroup(group2).get
         
         val expected = group1.copy(members = (group1.members + User3.username) )
-        store.addUserToGroup(group1.id, User3.username)
+        store.addUserToGroup(group1.id, User3.username).get
         val updatedRead = store.getUserGroup(group1.id).get.value
         updatedRead shouldBe expected
 

@@ -10,6 +10,7 @@ import com.convergencelabs.server.domain.model.UnpublishReference
 import ReferenceManager.ReferenceDoesNotExist
 import com.convergencelabs.server.domain.model.RealTimeValue
 import com.convergencelabs.server.domain.model.RealTimeValue
+import scala.util.Try
 
 object ReferenceManager {
   val ReferenceDoesNotExist = "Reference does not exist"
@@ -23,7 +24,7 @@ class ReferenceManager(
 
   def referenceMap(): ReferenceMap = rm
 
-  def handleReferenceEvent(event: ModelReferenceEvent, sessionId: String): Unit = {
+  def handleReferenceEvent(event: ModelReferenceEvent, sessionId: String): Try[Unit] = {
     event match {
       case publish: PublishReference => this.handleReferencePublished(publish, sessionId)
       case unpublish: UnpublishReference => this.handleReferenceUnpublished(unpublish, sessionId)
@@ -36,7 +37,7 @@ class ReferenceManager(
     this.rm.removeBySession(sessionId)
   }
 
-  private[this] def handleReferencePublished(event: PublishReference, sessionId: String): Unit = {
+  private[this] def handleReferencePublished(event: PublishReference, sessionId: String): Try[Unit] = Try {
     if (!this.validTypes.contains(event.referenceType)) {
       throw new IllegalArgumentException(s"Invalid reference type: ${event.referenceType}")
     }
@@ -53,7 +54,7 @@ class ReferenceManager(
     this.referenceMap.put(reference)
   }
 
-  private[this] def handleReferenceUnpublished(event: UnpublishReference, sessionId: String): Unit = {
+  private[this] def handleReferenceUnpublished(event: UnpublishReference, sessionId: String): Try[Unit] = Try {
     this.rm.remove(sessionId, event.key) match {
       case Some(reference) =>
       case None =>
@@ -61,7 +62,7 @@ class ReferenceManager(
     }
   }
 
-  private[this] def handleReferenceCleared(event: ClearReference, sessionId: String): Unit = {
+  private[this] def handleReferenceCleared(event: ClearReference, sessionId: String): Try[Unit] = Try {
     this.rm.get(sessionId, event.key) match {
       case Some(reference) =>
         reference.clear()
@@ -70,7 +71,7 @@ class ReferenceManager(
     }
   }
 
-  private[this] def handleReferenceSet(event: SetReference, sessionId: String): Unit = {
+  private[this] def handleReferenceSet(event: SetReference, sessionId: String): Try[Unit] = Try {
     this.rm.get(sessionId, event.key) match {
       case Some(reference: IndexReference) =>
         reference.set(event.values.asInstanceOf[List[Int]])

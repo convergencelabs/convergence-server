@@ -1,30 +1,23 @@
 package com.convergencelabs.common
 
 import java.io.File
+import java.io.FileReader
+import java.io.Reader
 import java.io.StringReader
 import java.security.KeyFactory
 import java.security.PrivateKey
 import java.security.Security
 import java.security.spec.PKCS8EncodedKeySpec
-import java.util.Map.Entry
+
+import scala.util.Try
 
 import org.bouncycastle.jce.provider.BouncyCastleProvider
-import org.bouncycastle.util.io.pem.PemObject
 import org.bouncycastle.util.io.pem.PemReader
 import org.jose4j.jws.AlgorithmIdentifiers
 import org.jose4j.jws.JsonWebSignature
 import org.jose4j.jwt.JwtClaims
-import org.jose4j.lang.JoseException
-import scala.util.Try
-import java.io.Reader
-import java.io.FileReader
 
-import ConvergenceJwtUtil.DefaultExpirationMinutes
-import ConvergenceJwtUtil.DefaultNotBeforeMinutes
-import com.convergencelabs.server.domain.JwtClaimConstants
 import com.convergencelabs.server.domain.JwtConstants
-import convergence.protocol.connection.PingMessage
-import convergence.protocol.message.MessageEnvelope
 
 object ConvergenceJwtUtil {
 
@@ -55,16 +48,13 @@ object ConvergenceJwtUtil {
     val privateKey = keyFactory.generatePrivate(privateKeySpec)
     new ConvergenceJwtUtil(keyId, privateKey)
   }
-  
-   def main(args: Array[String]): Unit = {
-     val message = PingMessage()
-     val envelope = MessageEnvelope().withPing(message);
-   }
 }
 
 class ConvergenceJwtUtil(
     private[this] val keyId: String,
     private[this] val privateKey: PrivateKey) {
+  
+  import ConvergenceJwtUtil._
 
   var expirationMinutes = DefaultExpirationMinutes
   var notBeforeMinutes = DefaultNotBeforeMinutes

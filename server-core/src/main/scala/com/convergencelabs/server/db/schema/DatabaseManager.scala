@@ -3,19 +3,21 @@ package com.convergencelabs.server.db.schema
 import scala.util.Failure
 import scala.util.Try
 
-import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.DeltaHistoryStore
-import com.convergencelabs.server.datastore.DomainDatabaseFactory
+import com.convergencelabs.server.db.DatabaseProvider
+import com.convergencelabs.server.datastore.convergence.DeltaHistoryStore
+import com.convergencelabs.server.db.DomainDatabaseFactory
 import com.convergencelabs.server.domain.DomainFqn
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 
 import grizzled.slf4j.Logging
 import com.typesafe.config.Config
+import com.orientechnologies.orient.core.db.OrientDBConfig
+import com.orientechnologies.orient.core.db.OrientDB
 
 class DatabaseManager(
-    databaseUrl: String,
-    convergenceDbProvider: DatabaseProvider,
-    dbConfig: Config) extends Logging {
+  databaseUrl: String,
+  convergenceDbProvider: DatabaseProvider,
+  dbConfig: Config) extends Logging {
 
   private[this] val deltaHistoryStore = new DeltaHistoryStore(convergenceDbProvider)
   private[this] val domainProvider = new DomainDatabaseFactory(databaseUrl, convergenceDbProvider)
@@ -81,30 +83,28 @@ class DatabaseManager(
     }
   }
 
-  def upgradeDomainToNextVersion(db: ODatabaseDocumentTx, fqn: DomainFqn, preRelease: Boolean): Try[Unit] = {
+  def upgradeDomainToNextVersion(db: ODatabaseDocument, fqn: DomainFqn, preRelease: Boolean): Try[Unit] = {
     deltaHistoryStore.getDomainDBVersion(fqn) flatMap { version =>
       val schemaManger = new DomainSchemaManager(fqn, db, deltaHistoryStore, preRelease)
       schemaManger.upgrade(version + 1)
     }
   }
 
-  private[this] def withDomainDatabase[T](fqn: DomainFqn)(f: (ODatabaseDocumentTx) => Try[T]): Try[T] = {
-    domainProvider.getDomainAdminDatabase(fqn) flatMap { db =>
-      val result = f(db)
-      db.activateOnCurrentThread()
-      db.close()
+  private[this] def withDomainDatabase[T](fqn: DomainFqn)(f: (ODatabaseDocument) => Try[T]): Try[T] = {
+    domainProvider.getDomainAdminDatabase(fqn) flatMap { dbProvider =>
+      val result = dbProvider.withDatabase(f(_))
+      dbProvider.shutdown()
       result
     }
   }
 
-  private[this] def withConvergenceDatabase[T](f: (ODatabaseDocumentTx) => Try[T]): Try[T] = {
+  private[this] def withConvergenceDatabase[T](f: (ODatabaseDocument) => Try[T]): Try[T] = {
     val username = dbConfig.getString("admin-username")
     val password = dbConfig.getString("admin-password")
     val database = dbConfig.getString("database")
 
-    val convergenceUrl = s"${databaseUrl}/${database}"
-    val db = new ODatabaseDocumentTx(convergenceUrl)
-    db.open(username, password)
+    val orientDb = new OrientDB(databaseUrl, OrientDBConfig.defaultConfig())
+    val db = orientDb.open(database, username, password)
 
     db.activateOnCurrentThread()
     val result = f(db)

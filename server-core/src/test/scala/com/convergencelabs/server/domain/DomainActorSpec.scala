@@ -12,7 +12,7 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.Finders
 import org.scalatest.WordSpecLike
 import org.scalatest.junit.JUnitRunner
-import org.scalatest.mock.MockitoSugar
+import org.scalatest.mockito.MockitoSugar
 
 import com.convergencelabs.server.HeartbeatConfiguration
 import com.convergencelabs.server.ProtocolConfiguration
@@ -44,7 +44,6 @@ class DomainActorSpec
         val client = new TestProbe(system)
         domainActor.tell(HandshakeRequest(domainFqn, client.ref, false, None), client.ref)
         val response = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeSuccess])
-        assert(domainActor == response.domainActor)
       }
     }
   }

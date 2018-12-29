@@ -14,14 +14,7 @@
     <user name="root" password="password" resources="*" />
   </users>
   <properties>
-    <entry name="orientdb.www.path" value="/target/www/" />
-    <entry name="orientdb.config.file" value="test-server/orientdb-server-config.xml" />
-    
-    <entry name="server.cache.staticResources" value="false" />
-    
-    <entry name="log.console.level" value="WARNING" />
-    <entry name="log.file.level" value="WARNING" />
-    
-    <entry name="plugin.dynamic" value="false" />
+    <entry name="log.console.level" value="SEVERE" />
+    <entry name="log.file.level" value="SEVERE" />
   </properties>
 </orient-server>

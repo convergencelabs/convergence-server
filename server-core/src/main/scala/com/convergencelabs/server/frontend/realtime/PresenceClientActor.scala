@@ -23,21 +23,21 @@ import com.convergencelabs.server.domain.PresenceServiceActor.UnsubscribePresenc
 import com.convergencelabs.server.domain.PresenceServiceActor.UserConnected
 import com.convergencelabs.server.domain.PresenceServiceActor.UserPresenceAvailability
 import com.convergencelabs.server.domain.PresenceServiceActor.UserPresenceClearState
-import convergence.protocol.Presence
-import convergence.protocol.Incoming
-import convergence.protocol.Request
-import convergence.protocol.presence.PresenceStateSetMessage
-import convergence.protocol.presence.PresenceStateRemovedMessage
-import convergence.protocol.presence.PresenceStateClearedMessage
-import convergence.protocol.presence.PresenceAvailabilityChangedMessage
-import convergence.protocol.presence.PresenceSetStateMessage
-import convergence.protocol.presence.PresenceRemoveStateMessage
-import convergence.protocol.presence.PresenceClearStateMessage
-import convergence.protocol.presence.UnsubscribePresenceMessage
-import convergence.protocol.presence.PresenceRequestMessage
-import convergence.protocol.presence.SubscribePresenceRequestMessage
-import convergence.protocol.presence.PresenceResponseMessage
-import convergence.protocol.presence.SubscribePresenceResponseMessage
+import io.convergence.proto.Presence
+import io.convergence.proto.Incoming
+import io.convergence.proto.Request
+import io.convergence.proto.presence.PresenceStateSetMessage
+import io.convergence.proto.presence.PresenceStateRemovedMessage
+import io.convergence.proto.presence.PresenceStateClearedMessage
+import io.convergence.proto.presence.PresenceAvailabilityChangedMessage
+import io.convergence.proto.presence.PresenceSetStateMessage
+import io.convergence.proto.presence.PresenceRemoveStateMessage
+import io.convergence.proto.presence.PresenceClearStateMessage
+import io.convergence.proto.presence.UnsubscribePresenceMessage
+import io.convergence.proto.presence.PresenceRequestMessage
+import io.convergence.proto.presence.SubscribePresenceRequestMessage
+import io.convergence.proto.presence.PresenceResponseMessage
+import io.convergence.proto.presence.SubscribePresenceResponseMessage
 import com.convergencelabs.server.frontend.realtime.ImplicitMessageConversions._
 
 object PresenceClientActor {

@@ -10,6 +10,10 @@ import com.orientechnologies.orient.core.metadata.sequence.OSequence.SEQUENCE_TY
 import com.orientechnologies.orient.core.metadata.function.OFunction
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
 import com.orientechnologies.orient.core.db.ODatabaseRecordThreadLocal
+import com.orientechnologies.orient.core.db.OrientDB
+import com.orientechnologies.orient.core.db.OrientDBConfig
+import com.orientechnologies.orient.core.db.ODatabaseType
+import com.orientechnologies.orient.core.db.ODatabasePool
 
 class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
   OLogManager.instance().setConsoleLevel("WARNING")
@@ -250,31 +254,28 @@ class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
         db.close()
       }
     }
-
   }
 
   var dbCounter = 0
-  def withDb(testCode: OPartitionedDatabasePool => Any): Unit = {
+  def withDb(testCode: ODatabasePool => Any): Unit = {
     // make sure no accidental collisions
-    val dbName = getClass.getSimpleName
-    val uri = s"memory:${dbName}${dbCounter}"
+    val dbName = getClass.getSimpleName + dbCounter
     dbCounter += 1
 
     // FIXME see https://github.com/orientechnologies/orientdb/issues/5146
     ODatabaseRecordThreadLocal.instance() 
 
-    val db = new ODatabaseDocumentTx(uri)
-    db.activateOnCurrentThread()
-    db.create()
-
-    val dbPool = new OPartitionedDatabasePool(uri, "admin", "admin")
+    val odb = new OrientDB("memory:", "admin", "admin", OrientDBConfig.defaultConfig())
+    odb.create(dbName, ODatabaseType.MEMORY)
+    
+    val dbPool = new ODatabasePool(odb, dbName, "admin", "admin")
 
     try {
       testCode(dbPool)
     } finally {
       dbPool.close()
-      db.activateOnCurrentThread()
-      db.drop() // Drop will close and drop
+      odb.drop(dbName)
+      odb.close()
     }
   }
 }

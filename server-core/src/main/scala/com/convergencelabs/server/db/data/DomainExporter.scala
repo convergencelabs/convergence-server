@@ -45,7 +45,7 @@ import com.convergencelabs.server.datastore.domain.SessionStore.SessionQueryType
 class DomainExporter(private[this] val persistence: DomainPersistenceProvider) extends Logging {
 
   def exportDomain(): Try[DomainScript] = {
-    logger.debug("Importing domain data")
+    logger.debug("Exporting domain data")
     for {
       config <- exportConfig()
       jwtKeys <- exportJwtAuthKeys()
@@ -54,13 +54,13 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
       collections <- exportCollections()
       models <- exportModels()
     } yield {
-      logger.debug("Done importting domain data")
+      logger.debug("Done importing domain data")
       DomainScript(config, Some(jwtKeys), Some(users), Some(sessions), Some(collections), Some(models))
     }
   }
 
   private[this] def exportConfig(): Try[SetDomainConfig] = {
-    logger.debug("Setting domain configuration")
+    logger.debug("Getting domain configuration")
     val config = persistence.configStore
 
     for {

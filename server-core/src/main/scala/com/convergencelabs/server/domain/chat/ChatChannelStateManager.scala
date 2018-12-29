@@ -27,6 +27,9 @@ import com.convergencelabs.server.domain.chat.ChatChannelStateManager.ChatPermis
 import com.convergencelabs.server.domain.chat.ChatChannelStateManager.DefaultChatPermissions
 import com.convergencelabs.server.domain.model.SessionKey
 
+import grizzled.slf4j.Logging
+
+
 object ChatChannelStateManager {
   def create(channelId: String, chatChannelStore: ChatChannelStore, permissionsStore: PermissionsStore): Try[ChatChannelStateManager] = {
     chatChannelStore.getChatChannelInfo(channelId) map { info =>
@@ -66,7 +69,7 @@ class ChatChannelStateManager(
     private[this] val channelId: String,
     private[this] var state: ChatChannelState,
     private[this] val channelStore: ChatChannelStore,
-    private[this] val permissionsStore: PermissionsStore) {
+    private[this] val permissionsStore: PermissionsStore) extends Logging {
 
   import ChatChannelMessages._
 
@@ -345,7 +348,10 @@ class ChatChannelStateManager(
 
   def removeAllMembers(): Unit = {
     this.state().members.foreach(username => {
-      this.channelStore.removeChatChannelMember(channelId, username)
+      this.channelStore.removeChatChannelMember(channelId, username) recover {
+        case cause: Throwable =>
+          error("Error removing chat channel member", cause)
+      }
     })
     state = state.copy(members = Set())
   }

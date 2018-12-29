@@ -8,7 +8,7 @@ import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
 
-import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.datastore.SortOrder
 import com.convergencelabs.server.datastore.domain.DomainUserStore.CreateNormalDomainUser
 import com.convergencelabs.server.datastore.domain.DomainUserStore.UpdateDomainUser
@@ -143,7 +143,7 @@ class DomainUserStoreSpec
         initUsers(store)
         val update = UpdateDomainUser(User1.username, Some("f"), Some("l"), Some("d"), Some("e"))
         val updated = DomainUser(DomainUserType.Normal, User1.username, Some("f"), Some("l"), Some("d"), Some("e"))
-        store.updateDomainUser(update).success
+        store.updateDomainUser(update).get
         val queried = store.getDomainUserByUsername(User1.username).get.get
         queried shouldBe updated
       }

@@ -6,8 +6,7 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.collection.JavaConverters.setAsJavaSetConverter
 import scala.collection.JavaConverters.seqAsJavaListConverter
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.QueryUtil
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.datastore.domain.PermissionsStore._
 import com.convergencelabs.server.domain.DomainUser
 import com.orientechnologies.orient.core.id.ORID
@@ -20,6 +19,8 @@ import java.util.HashSet
 import java.util.function.Predicate
 import com.orientechnologies.orient.core.sql.parser.ORid
 import com.orientechnologies.orient.core.index.OCompositeKey
+import com.convergencelabs.server.datastore.OrientDBUtil
+import scala.util.Success
 
 sealed trait Permission {
   val permission: String
@@ -30,301 +31,342 @@ case class GroupPermission(group: UserGroup, permission: String) extends Permiss
 case class WorldPermission(permission: String) extends Permission
 
 object PermissionsStore {
-  val PermissionClass = "Permission"
-  val PermissionIndex = "Permission.assignedTo_forRecord_permission"
-
-  object Fields {
-    val AssignedTo = "assignedTo"
-    val ForRecord = "forRecord"
-    val Permission = "permission"
-
-    val Permissions = "permissions"
-  }
+  import schema.DomainSchema._
 
   def docToPermission(doc: ODocument): Permission = {
-
-    if (doc.containsField("assignedTo")) {
-      val assignedTo: ODocument = doc.field(Fields.AssignedTo)
+    if (doc.containsField(Classes.Permission.Fields.AssignedTo)) {
+      val assignedTo: ODocument = doc.field(Classes.Permission.Fields.AssignedTo)
       assignedTo.getClassName match {
-        case DomainUserStore.ClassName =>
+        case Classes.User.ClassName =>
           docToUserPermission(doc)
-        case UserGroupStore.ClassName =>
+        case Classes.UserGroup.ClassName =>
           docToGroupPermission(doc)
         case default =>
           throw new IllegalStateException("Unsupported Permissions Assignment")
       }
     } else {
-      val permission: String = doc.field(Fields.Permission)
+      val permission: String = doc.field(Classes.Permission.Fields.Permission)
       WorldPermission(permission)
     }
   }
 
   def docToWorldPermission(doc: ODocument): WorldPermission = {
-    val permission: String = doc.field(Fields.Permission)
-
+    val permission: String = doc.field(Classes.Permission.Fields.Permission)
     WorldPermission(permission)
   }
 
   def docToGroupPermission(doc: ODocument): GroupPermission = {
-    val permission: String = doc.field(Fields.Permission)
-    val assignedTo: ODocument = doc.field(Fields.AssignedTo)
+    val permission: String = doc.field(Classes.Permission.Fields.Permission)
+    val assignedTo: ODocument = doc.field(Classes.Permission.Fields.AssignedTo)
     val group: UserGroup = UserGroupStore.docToGroup(assignedTo)
-
     GroupPermission(group, permission)
   }
 
   def docToUserPermission(doc: ODocument): UserPermission = {
-    val permission: String = doc.field(Fields.Permission)
-    val assignedTo: ODocument = doc.field(Fields.AssignedTo)
+    val permission: String = doc.field(Classes.Permission.Fields.Permission)
+    val assignedTo: ODocument = doc.field(Classes.Permission.Fields.AssignedTo)
     val user: DomainUser = DomainUserStore.docToDomainUser(assignedTo)
-
     UserPermission(user, permission)
   }
 }
 
 class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
-  
-  def hasPermission(username: String, permission: String): Try[Boolean] = tryWithDb { db =>
-    val userRID = DomainUserStore.getUserRid(username, db).get
-    val queryString =
-      """SELECT count(*) as count
+
+  import schema.DomainSchema._
+
+  def hasPermission(username: String, permission: String): Try[Boolean] = withDb { db =>
+    DomainUserStore.getUserRid(username, db).flatMap { userRID =>
+      val query =
+        """SELECT count(*) as count
         |  FROM Permission
-        |  WHERE not(forRecord is DEFINED) AND
-        |        permission = :permission AND
-        |    (not(assignedTo is DEFINED) OR
-        |     assignedTo = :user OR
-        |     (assignedTo.@class instanceof 'UserGroup' AND assignedTo.members contains :user))""".stripMargin
-    val params = Map("user" -> userRID, "permission" -> permission)
-    val result = QueryUtil.lookupMandatoryDocument(queryString, params, db).get
-    val count: Long = result.field("count")
-    count > 0
+        |  WHERE
+        |    permission = :permission AND 
+        |    not(forRecord is DEFINED) AND
+        |    (
+        |      not(assignedTo is DEFINED) OR
+        |      assignedTo = :user OR
+        |      (assignedTo.@class = 'UserGroup' AND assignedTo.members CONTAINS :user)
+        |    )""".stripMargin
+      val params = Map("user" -> userRID, "permission" -> permission)
+      OrientDBUtil
+        .getDocument(db, query, params)
+        .map { doc =>
+          val count: Long = doc.getProperty("count")
+          count > 0
+        }
+    }
   }
 
-  def hasPermission(username: String, forRecord: ORID, permission: String): Try[Boolean] = tryWithDb { db =>
-    val userRID = DomainUserStore.getUserRid(username, db).get
-    val queryString =
-      """SELECT count(*) as count
+  def hasPermission(username: String, forRecord: ORID, permission: String): Try[Boolean] = withDb { db =>
+    DomainUserStore.getUserRid(username, db).flatMap { userRID =>
+      // There are three conditions that must be matched in order to find permissions
+      // that allow this action to happen:
+      //   1. We must match the permission exactly
+      //   2. We must match permissions with this specific forRecord and permissions
+      //      that don't have a forRecord defined, since those are global permissions
+      //      that apply to all records that permission applies to.
+      //   3. We much permissions that don't have an assignedTo field since those are
+      //      world permissions. If there is an assignedTo value then the assigned to
+      //      value can be this users, or a group this user belongs to.
+
+      val query =
+        """SELECT count(*) as count
         |  FROM Permission
-        |  WHERE (forRecord = :forRecord OR not(forRecord is DEFINED)) AND
-        |        permission = :permission AND
-        |    (not(assignedTo is DEFINED) OR
-        |     assignedTo = :user OR
-        |     (assignedTo.@class instanceof 'UserGroup' AND assignedTo.members contains :user))""".stripMargin
-    val params = Map("user" -> userRID, "forRecord" -> forRecord, "permission" -> permission)
-    val result = QueryUtil.lookupMandatoryDocument(queryString, params, db).get
-    val count: Long = result.field("count")
-    count > 0
+        |  WHERE 
+        |    permission = :permission AND
+        |    (not(forRecord is DEFINED) OR forRecord = :forRecord) AND
+        |    (
+        |      not(assignedTo is DEFINED) OR
+        |      assignedTo = :user OR
+        |      (assignedTo.@class = 'UserGroup' AND assignedTo.members CONTAINS :user)
+        |    )""".stripMargin
+      val params = Map("user" -> userRID, "forRecord" -> forRecord, "permission" -> permission)
+      OrientDBUtil
+        .getDocument(db, query, params)
+        .map(doc => doc.getProperty("count").asInstanceOf[Long] > 0)
+    }
   }
 
-  def permissionExists(permission: String, assignedTo: Option[ORID], forRecord: Option[ORID]): Try[Boolean] = tryWithDb { db =>
+  def permissionExists(permission: String, assignedTo: Option[ORID], forRecord: Option[ORID]): Try[Boolean] = withDb { db =>
     var params = Map[String, Any]("permission" -> permission)
 
     val sb = new StringBuilder
-    sb.append("SELECT permission FROM Permission WHERE permission = :permission ")
+    sb.append("SELECT count(*) FROM Permission WHERE permission = :permission ")
 
     assignedTo.foreach { assignedTo =>
       sb.append("AND assignedTo = :assignedTo ")
-      params += Fields.AssignedTo -> assignedTo
+      params += Classes.Permission.Fields.AssignedTo -> assignedTo
     }
 
     forRecord.foreach { forRecord =>
       sb.append("AND forRecord = :forRecord")
-      params += Fields.ForRecord -> forRecord
+      params += Classes.Permission.Fields.ForRecord -> forRecord
     }
 
-    QueryUtil.hasResults(sb.toString(), params, db)
+    val query = sb.toString()
+    OrientDBUtil
+      .getDocument(db, query, params)
+      .map { doc =>
+        val count: Long = doc.getProperty("count")
+        count > 0
+      }
   }
-  
-  def getAggregateUserPermissions(username: String, forRecord: ORID, forPermissions: Set[String]): Try[Set[String]] = tryWithDb { db =>
-    val userRID = DomainUserStore.getUserRid(username, db).get
-    val queryString =
-      """SELECT permission
+
+  def getAggregateUserPermissions(username: String, forRecord: ORID, forPermissions: Set[String]): Try[Set[String]] = withDb { db =>
+    DomainUserStore.getUserRid(username, db).flatMap { userRID =>
+      val query =
+        """SELECT permission
         |  FROM Permission
         |  WHERE forRecord = :forRecord AND
         |    permission in :permissions AND
-        |    (not(assignedTo is DEFINED) OR
-        |     assignedTo = :user OR
-        |     (assignedTo.@class instanceof 'UserGroup' AND assignedTo.members contains :user))""".stripMargin
-    val params = Map("user" -> userRID, "forRecord" -> forRecord, "permissions" -> forPermissions)
-    val results = QueryUtil.query(queryString, params, db)
-    results.map { _.field(Fields.Permission).asInstanceOf[String] }.toSet
-  }
-
-  def addWorldPermissions(permissions: Set[String], forRecord: Option[ORID]): Try[Unit] = tryWithDb { db =>
-    val permissionRids = permissions.map { permission =>
-      val doc = new ODocument(PermissionClass)
-      doc.field(Fields.Permission, permission)
-      forRecord.foreach { doc.field(Fields.ForRecord, _) }
-      doc.save().getIdentity
+        |    (
+        |      not(assignedTo is DEFINED) OR
+        |      assignedTo = :user OR
+        |      (assignedTo.@class = 'UserGroup' AND assignedTo.members CONTAINS :user)
+        |    )""".stripMargin
+      val params = Map("user" -> userRID, "forRecord" -> forRecord, "permissions" -> forPermissions)
+      OrientDBUtil
+        .queryAndMap(db, query, params)(_.getProperty(Classes.Permission.Fields.Permission).asInstanceOf[String])
+        .map(_.toSet)
     }
-    forRecord.foreach { addPermissionsToSet(_, permissionRids) }
   }
 
-  def addUserPermissions(permissions: Set[String], username: String, forRecord: Option[ORID]): Try[Unit] = tryWithDb { db =>
-    val userRid = DomainUserStore.getUserRid(username, db).get
-
-    val permissionRids = permissions.map { permission =>
-      val doc = new ODocument(PermissionClass)
-      doc.field(Fields.Permission, permission)
-      doc.field(Fields.AssignedTo, userRid)
-      forRecord.foreach { doc.field(Fields.ForRecord, _) }
+  def addWorldPermissions(permissions: Set[String], forRecord: Option[ORID]): Try[Unit] = withDb { db =>
+    Try(permissions.map { permission =>
+      val doc: ODocument = db.newInstance(Classes.Permission.ClassName)
+      doc.field(Classes.Permission.Fields.Permission, permission)
+      forRecord.foreach(doc.field(Classes.Permission.Fields.ForRecord, _))
       doc.save().getIdentity
-    }
-
-    forRecord.foreach { addPermissionsToSet(_, permissionRids) }
+    }).flatMap(permissionRids =>
+      forRecord match {
+        case Some(fr) => addPermissionsToSet(fr, permissionRids)
+        case None => Success(())
+      })
   }
 
-  def addGroupPermissions(permissions: Set[String], groupId: String, forRecord: Option[ORID]): Try[Unit] = tryWithDb { db =>
-    val groupRid = UserGroupStore.getGroupRid(groupId, db).get
-
-    val permissionRids = permissions.map { permission =>
-      val doc = new ODocument(PermissionClass)
-      doc.field(Fields.Permission, permission)
-      doc.field(Fields.AssignedTo, groupRid)
-      forRecord.foreach { doc.field(Fields.ForRecord, _) }
-      doc.save().getIdentity
+  def addUserPermissions(permissions: Set[String], username: String, forRecord: Option[ORID]): Try[Unit] = withDb { db =>
+    DomainUserStore.getUserRid(username, db).flatMap { userRid =>
+      Try(permissions.map { permission =>
+        val doc: ODocument = db.newInstance(Classes.Permission.ClassName)
+        doc.field(Classes.Permission.Fields.Permission, permission)
+        doc.field(Classes.Permission.Fields.AssignedTo, userRid)
+        forRecord.foreach(doc.field(Classes.Permission.Fields.ForRecord, _))
+        doc.save().getIdentity
+      }).flatMap(permissionRids =>
+        forRecord match {
+          case Some(fr) => addPermissionsToSet(fr, permissionRids)
+          case None => Success(())
+        })
     }
-
-    forRecord.foreach { addPermissionsToSet(_, permissionRids) }
   }
 
-  def removeWorldPermissions(permissions: Set[String], forRecord: Option[ORID]): Try[Unit] = tryWithDb { db =>
+  def addGroupPermissions(permissions: Set[String], groupId: String, forRecord: Option[ORID]): Try[Unit] = withDb { db =>
+    UserGroupStore.getGroupRid(groupId, db).flatMap { groupRid =>
+      Try(permissions.map { permission =>
+        val doc: ODocument = db.newInstance(Classes.Permission.ClassName)
+        doc.setProperty(Classes.Permission.Fields.Permission, permission)
+        doc.setProperty(Classes.Permission.Fields.AssignedTo, groupRid)
+        forRecord.foreach(doc.setProperty(Classes.Permission.Fields.ForRecord, _))
+        doc.save().getIdentity
+      }).flatMap(permissionRids =>
+        forRecord match {
+          case Some(fr) => addPermissionsToSet(fr, permissionRids)
+          case None => Success(())
+        })
+    }
+  }
+
+  def removeWorldPermissions(permissions: Set[String], forRecord: Option[ORID]): Try[Unit] =
     removePermissions(permissions, None, forRecord)
-  }
 
-  def removeUserPermissions(permissions: Set[String], username: String, forRecord: Option[ORID]): Try[Unit] = tryWithDb { db =>
-    val userRid = DomainUserStore.getUserRid(username, db).get
-    removePermissions(permissions, Some(userRid), forRecord)
-  }
-
-  def removeGroupPermissions(permissions: Set[String], groupId: String, forRecord: Option[ORID]): Try[Unit] = tryWithDb { db =>
-    val groupRid = UserGroupStore.getGroupRid(groupId, db).get
-    removePermissions(permissions, Some(groupRid), forRecord)
-  }
-
-  def removePermissions(permissions: Set[String], assignedTo: Option[ORID], forRecord: Option[ORID]): Try[Unit] = tryWithDb { db =>
-    val permissionRids = permissions map { getPermissionRid(_, assignedTo, forRecord).get }
-
-    forRecord foreach { forRecord =>
-      val forDoc = forRecord.getRecord[ODocument]
-      val permissions: JavaSet[ORID] = forDoc.field(Fields.Permissions)
-      permissions.removeAll(permissions)
-      forDoc.field(Fields.Permissions, permissions)
+  def removeUserPermissions(permissions: Set[String], username: String, forRecord: Option[ORID]): Try[Unit] = withDb { db =>
+    DomainUserStore.getUserRid(username, db).flatMap { userRid =>
+      removePermissions(permissions, Some(userRid), forRecord)
     }
-    
-    permissionRids foreach { db.delete(_) }
   }
 
-  def setWorldPermissions(permissions: Set[String], forRecord: Option[ORID]): Try[Unit] = tryWithDb { db =>
+  def removeGroupPermissions(permissions: Set[String], groupId: String, forRecord: Option[ORID]): Try[Unit] = withDb { db =>
+    UserGroupStore.getGroupRid(groupId, db).flatMap { groupRid =>
+      removePermissions(permissions, Some(groupRid), forRecord)
+    }
+  }
+
+  def removePermissions(permissions: Set[String], assignedTo: Option[ORID], forRecord: Option[ORID]): Try[Unit] = withDb { db =>
+    Try(permissions.map(getPermissionRid(_, assignedTo, forRecord).get)).flatMap { permissionRids =>
+      (forRecord match {
+        case Some(fr) =>
+          Try {
+            val forDoc = fr.getRecord[ODocument]
+            val permissions: JavaSet[ORID] = forDoc.field(Classes.Permission.Fields.Permissions)
+            permissions.removeAll(permissions)
+            forDoc.field(Classes.Permission.Fields.Permissions, permissions)
+            forDoc.save()
+          }
+        case None => Success(())
+      }).flatMap { _ =>
+        Try {
+          permissionRids foreach { db.delete(_) }
+        }
+      }
+    }
+  }
+
+  def setWorldPermissions(permissions: Set[String], forRecord: Option[ORID]): Try[Unit] =
     removePermissions(permissions: Set[String], None, forRecord)
-    addWorldPermissions(permissions, forRecord)
+      .flatMap(_ => addWorldPermissions(permissions, forRecord))
+
+  def setUserPermissions(permissions: Set[String], username: String, forRecord: Option[ORID]): Try[Unit] = withDb { db =>
+    DomainUserStore.getUserRid(username, db)
+      .flatMap(userRid => removePermissions(permissions: Set[String], Some(userRid), forRecord))
+      .flatMap(_ => addUserPermissions(permissions, username, forRecord))
   }
 
-  def setUserPermissions(permissions: Set[String], username: String, forRecord: Option[ORID]): Try[Unit] = tryWithDb { db =>
-    val userRid = DomainUserStore.getUserRid(username, db).get
-
-    removePermissions(permissions: Set[String], Some(userRid), forRecord)
-    addUserPermissions(permissions, username, forRecord)
+  def setGroupPermissions(permissions: Set[String], groupId: String, forRecord: Option[ORID]): Try[Unit] = withDb { db =>
+    UserGroupStore.getGroupRid(groupId, db)
+      .flatMap(groupRid => removePermissions(permissions: Set[String], Some(groupRid), forRecord))
+      .flatMap(_ => addGroupPermissions(permissions, groupId, forRecord))
   }
 
-  def setGroupPermissions(permissions: Set[String], groupId: String, forRecord: Option[ORID]): Try[Unit] = tryWithDb { db =>
-    val groupRid = UserGroupStore.getGroupRid(groupId, db).get
-
-    removePermissions(permissions: Set[String], Some(groupRid), forRecord)
-    addGroupPermissions(permissions, groupId, forRecord)
-  }
-
-  def getWorldPermissions(forRecord: Option[ORID]): Try[Set[WorldPermission]] = tryWithDb { db =>
+  def getWorldPermissions(forRecord: Option[ORID]): Try[Set[WorldPermission]] = withDb { db =>
     var params = Map[String, Any]()
 
     val sb = new StringBuilder
     sb.append("SELECT permission FROM Permission WHERE not(assignedTo is DEFINED) AND ")
-    params = addOptionFieldParam(sb, params, Fields.ForRecord, forRecord)
+    params = addOptionFieldParam(sb, params, Classes.Permission.Fields.ForRecord, forRecord)
 
-    val results = QueryUtil.query(sb.toString(), params, db)
-    results.map { docToWorldPermission(_) }.toSet
+    OrientDBUtil
+      .queryAndMap(db, sb.toString(), params)(docToWorldPermission(_))
+      .map(_.toSet)
   }
 
-  def getAllGroupPermissions(forRecord: Option[ORID]): Try[Set[GroupPermission]] = tryWithDb { db =>
+  def getAllGroupPermissions(forRecord: Option[ORID]): Try[Set[GroupPermission]] = withDb { db =>
     var params = Map[String, Any]()
 
     val sb = new StringBuilder
-    sb.append("SELECT FROM Permission WHERE assignedTo is DEFINED AND assignedTo.@class instanceof 'UserGroup' AND ")
-    params = addOptionFieldParam(sb, params, Fields.ForRecord, forRecord)
+    sb.append("SELECT FROM Permission WHERE assignedTo is DEFINED AND assignedTo.@class = 'UserGroup' AND ")
+    params = addOptionFieldParam(sb, params, Classes.Permission.Fields.ForRecord, forRecord)
 
-    val results = QueryUtil.query(sb.toString(), params, db)
-    results.map { docToGroupPermission(_) }.toSet
+    OrientDBUtil
+      .queryAndMap(db, sb.toString(), params)(docToGroupPermission(_))
+      .map(_.toSet)
   }
 
-  def getAllUserPermissions(forRecord: Option[ORID]): Try[Set[UserPermission]] = tryWithDb { db =>
+  def getAllUserPermissions(forRecord: Option[ORID]): Try[Set[UserPermission]] = withDb { db =>
     var params = Map[String, Any]()
 
     val sb = new StringBuilder
-    sb.append("SELECT FROM Permission WHERE assignedTo is DEFINED AND assignedTo.@class instanceof 'User' AND ")
-    params = addOptionFieldParam(sb, params, Fields.ForRecord, forRecord)
+    sb.append("SELECT FROM Permission WHERE (assignedTo is DEFINED) AND (assignedTo.@class = 'User') AND ")
+    params = addOptionFieldParam(sb, params, Classes.Permission.Fields.ForRecord, forRecord)
 
-    val results = QueryUtil.query(sb.toString(), params, db)
-    results.map { docToUserPermission(_) }.toSet
+    OrientDBUtil
+      .queryAndMap(db, sb.toString(), params)(docToUserPermission(_))
+      .map(_.toSet)
   }
-  
-   def getGroupPermissions(groupId: String, forRecord: Option[ORID]): Try[Set[String]] = tryWithDb { db =>
-    val groupRid = UserGroupStore.getGroupRid(groupId, db).get 
-     
+
+  def getGroupPermissions(groupId: String, forRecord: Option[ORID]): Try[Set[String]] = withDb { db =>
+    val groupRid = UserGroupStore.getGroupRid(groupId, db).get
+
     var params = Map[String, Any]("group" -> groupRid)
 
     val sb = new StringBuilder
     sb.append("SELECT FROM Permission WHERE assignedTo = :group AND ")
-    params = addOptionFieldParam(sb, params, Fields.ForRecord, forRecord)
+    params = addOptionFieldParam(sb, params, Classes.Permission.Fields.ForRecord, forRecord)
 
-    val results = QueryUtil.query(sb.toString(), params, db)
-    results.map { _.field(Fields.Permission).asInstanceOf[String] }.toSet
+    OrientDBUtil
+      .queryAndMap(db, sb.toString(), params)(_.field(Classes.Permission.Fields.Permission).asInstanceOf[String])
+      .map(_.toSet)
   }
 
-  def getUserPermissions(username: String, forRecord: Option[ORID]): Try[Set[String]] = tryWithDb { db =>
+  def getUserPermissions(username: String, forRecord: Option[ORID]): Try[Set[String]] = withDb { db =>
     val userRID = DomainUserStore.getUserRid(username, db).get
-    
+
     var params = Map[String, Any]("user" -> userRID)
 
     val sb = new StringBuilder
     sb.append("SELECT permission FROM Permission WHERE assignedTo = :user AND ")
-    params = addOptionFieldParam(sb, params, Fields.ForRecord, forRecord)
+    params = addOptionFieldParam(sb, params, Classes.Permission.Fields.ForRecord, forRecord)
 
-    val results = QueryUtil.query(sb.toString(), params, db)
-    results.map { _.field(Fields.Permission).asInstanceOf[String] }.toSet
+    OrientDBUtil
+      .queryAndMap(db, sb.toString(), params)(_.field(Classes.Permission.Fields.Permission).asInstanceOf[String])
+      .map(_.toSet)
   }
 
-  def getAllPermissions(forRecord: Option[ORID]): Try[Set[Permission]] = tryWithDb { db =>
+  def getAllPermissions(forRecord: Option[ORID]): Try[Set[Permission]] = withDb { db =>
     var params = Map[String, Any]()
 
     val sb = new StringBuilder
     sb.append("SELECT FROM Permission WHERE ")
-    params = addOptionFieldParam(sb, params, Fields.ForRecord, forRecord)
+    params = addOptionFieldParam(sb, params, Classes.Permission.Fields.ForRecord, forRecord)
 
-    val results = QueryUtil.query(sb.toString(), params, db)
-    results.map { docToPermission(_) }.toSet
+    OrientDBUtil
+      .queryAndMap(db, sb.toString(), params)(docToPermission(_))
+      .map(_.toSet)
   }
 
   private[this] def addPermissionsToSet(forRecord: ORID, permissions: Set[ORID]): Try[Unit] = tryWithDb { db =>
     val forDoc = forRecord.getRecord[ODocument]
-    val permissions: JavaSet[ORID] = forDoc.field(Fields.Permissions)
-    permissions.addAll(permissions)
-    forDoc.field(Fields.Permissions, permissions)
+    val existingPermissions = Option(forDoc.getProperty(Classes.Permission.Fields.Permissions).asInstanceOf[JavaSet[ORID]])
+      .getOrElse(new HashSet[ORID].asInstanceOf[JavaSet[ORID]])
+    permissions.foreach(existingPermissions.add(_))
+    forDoc.setProperty(Classes.Permission.Fields.Permissions, existingPermissions)
     forDoc.save()
     ()
   }
 
-  def getPermissionRid(permission: String, assignedTo: Option[ORID], forRecord: Option[ORID]): Try[ORID] = tryWithDb { db =>
+  def getPermissionRid(permission: String, assignedTo: Option[ORID], forRecord: Option[ORID]): Try[ORID] = withDb { db =>
     val assignedToRID = assignedTo.getOrElse(null)
     val forRecordRID = forRecord.getOrElse(null)
-    val key = new OCompositeKey(List(assignedToRID, forRecordRID, permission).asJava)
-    QueryUtil.getRidFromIndex(PermissionIndex, key, db).get
+    OrientDBUtil.getIdentityFromSingleValueIndex(
+      db,
+      Classes.Permission.Indices.AssignedTo_ForRecord_Permission,
+      List(assignedToRID, forRecordRID, permission))
   }
 
   private[this] def addOptionFieldParam(sb: StringBuilder, params: Map[String, Any], field: String, rid: Option[ORID]): Map[String, Any] = {
     var vParams = params
     rid match {
       case Some(rid) =>
-        sb.append(s"$field = :$field")
+        sb.append(s"($field = :$field)")
         vParams += field -> rid
       case None =>
         sb.append(s"not($field is DEFINED)")

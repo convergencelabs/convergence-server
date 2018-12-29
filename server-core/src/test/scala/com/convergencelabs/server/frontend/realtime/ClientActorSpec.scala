@@ -15,7 +15,7 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.Finders
 import org.scalatest.WordSpecLike
 import org.scalatest.junit.JUnitRunner
-import org.scalatest.mock.MockitoSugar
+import org.scalatest.mockito.MockitoSugar
 import com.convergencelabs.server.HeartbeatConfiguration
 import com.convergencelabs.server.ProtocolConfiguration
 import com.convergencelabs.server.domain.AuthenticationSuccess
@@ -85,7 +85,6 @@ class ClientActorSpec
     val modelStoreActor = new TestProbe(system)
     val operationStoreActor = new TestProbe(system)
     val userServiceActor = new TestProbe(system)
-    val activityServiceActor = new TestProbe(system)
     val presenceServiceActor = new TestProbe(system)
     val chatLookupActor = new TestProbe(system)
     val chatChannelActor = new TestProbe(system)
@@ -98,7 +97,7 @@ class ClientActorSpec
 
     domainManagerActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeRequest])
     domainManagerActor.reply(
-        HandshakeSuccess(domainActor.ref, modelManagerActor.ref, modelStoreActor.ref, operationStoreActor.ref, userServiceActor.ref, activityServiceActor.ref, presenceServiceActor.ref, chatLookupActor.ref))
+        HandshakeSuccess(modelManagerActor.ref, modelStoreActor.ref, operationStoreActor.ref, userServiceActor.ref, presenceServiceActor.ref, chatLookupActor.ref))
     Await.result(handshakeCallback.result, 250 millis)
   }
 

@@ -4,9 +4,9 @@ import org.mockito.Mockito.inOrder
 import org.mockito.Mockito.spy
 import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
-import org.scalatest.Finders
 import org.scalatest.WordSpec
-import org.scalatest.mock.MockitoSugar
+import org.scalatest.mockito.MockitoSugar
+
 import com.convergencelabs.server.domain.model.ot.xform.ReferenceTransformer
 
 // scalastyle:off magic.number multiple.string.literals

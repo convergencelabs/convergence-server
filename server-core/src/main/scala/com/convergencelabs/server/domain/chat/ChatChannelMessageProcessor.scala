@@ -44,7 +44,7 @@ import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetUserChatPer
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetGroupChatPermissionsRequest
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.GetGroupChatPermissionsResponse
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.UserLeftChannel
-import convergence.protocol.chat.ChatChannelRemovedMessage
+import com.convergencelabs.server.domain.chat.ChatChannelMessages.ChannelRemoved
 
 case class ChatMessageProcessingResult(response: Option[Any], broadcastMessages: List[Any])
 
@@ -143,7 +143,7 @@ abstract class ChatChannelMessageProcessor(stateManager: ChatChannelStateManager
   def onPublishMessage(message: PublishChatMessageRequest): Try[ChatMessageProcessingResult] = {
     val PublishChatMessageRequest(domainFqn, channelId, sk, msg) = message;
     stateManager.onPublishMessage(channelId, sk, msg) map {
-      case ChatMessageEvent(eventNo, channelId, sk.uid, timestamp, msg) =>
+      case ChatMessageEvent(eventNo, channelId, uid, timestamp, msg) =>
         ChatMessageProcessingResult(Some(()), List(RemoteChatMessage(channelId, eventNo, timestamp, sk, msg)))
     }
   }
@@ -151,7 +151,7 @@ abstract class ChatChannelMessageProcessor(stateManager: ChatChannelStateManager
   def onRemoveChannel(message: RemoveChannelRequest): Try[ChatMessageProcessingResult] = {
     val RemoveChannelRequest(domainFqn, channelId, sk) = message;
     stateManager.onRemoveChannel(channelId, sk) map { _ =>
-      ChatMessageProcessingResult(Some(()), List(ChatChannelRemovedMessage(channelId)))
+      ChatMessageProcessingResult(Some(()), List(ChannelRemoved(channelId)))
     }
   }
 

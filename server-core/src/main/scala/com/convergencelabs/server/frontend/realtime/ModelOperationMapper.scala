@@ -19,29 +19,29 @@ import com.convergencelabs.server.domain.model.ot.AppliedObjectSetPropertyOperat
 import com.convergencelabs.server.domain.model.ot.AppliedStringInsertOperation
 import com.convergencelabs.server.domain.model.ot.AppliedStringRemoveOperation
 import com.convergencelabs.server.domain.model.ot.AppliedStringSetOperation
-import convergence.protocol.operations.applied.AppliedDiscreteOperationData
-import convergence.protocol.operations.applied.AppliedArrayInsertOperationData
-import convergence.protocol.operations.applied.AppliedCompoundOperationData
-import convergence.protocol.operations.applied.AppliedStringSetOperationData
-import convergence.protocol.operations.applied.AppliedStringInsertOperationData
-import convergence.protocol.operations.applied.AppliedNumberAddOperationData
-import convergence.protocol.operations.applied.AppliedArrayReplaceOperationData
-import convergence.protocol.operations.applied.AppliedArrayRemoveOperationData
-import convergence.protocol.operations.applied.AppliedObjectSetPropertyOperationData
-import convergence.protocol.operations.applied.AppliedStringRemoveOperationData
-import convergence.protocol.operations.applied.AppliedObjectRemovePropertyOperationData
-import convergence.protocol.operations.applied.AppliedNumberSetOperationData
-import convergence.protocol.operations.applied.AppliedBooleanSetOperationData
-import convergence.protocol.operations.applied.AppliedArrayMoveOperationData
-import convergence.protocol.operations.applied.AppliedObjectAddPropertyOperationData
-import convergence.protocol.operations.applied.AppliedObjectSetOperationData
-import convergence.protocol.operations.applied.AppliedDateSetOperationData
-import convergence.protocol.model.ModelOperationData
-import convergence.protocol.operations.applied.AppliedArraySetOperationData
-import convergence.protocol.operations.applied.AppliedDiscreteOperationData
+import io.convergence.proto.operations.applied.AppliedDiscreteOperationData
+import io.convergence.proto.operations.applied.AppliedArrayInsertOperationData
+import io.convergence.proto.operations.applied.AppliedCompoundOperationData
+import io.convergence.proto.operations.applied.AppliedStringSetOperationData
+import io.convergence.proto.operations.applied.AppliedStringInsertOperationData
+import io.convergence.proto.operations.applied.AppliedNumberAddOperationData
+import io.convergence.proto.operations.applied.AppliedArrayReplaceOperationData
+import io.convergence.proto.operations.applied.AppliedArrayRemoveOperationData
+import io.convergence.proto.operations.applied.AppliedObjectSetPropertyOperationData
+import io.convergence.proto.operations.applied.AppliedStringRemoveOperationData
+import io.convergence.proto.operations.applied.AppliedObjectRemovePropertyOperationData
+import io.convergence.proto.operations.applied.AppliedNumberSetOperationData
+import io.convergence.proto.operations.applied.AppliedBooleanSetOperationData
+import io.convergence.proto.operations.applied.AppliedArrayMoveOperationData
+import io.convergence.proto.operations.applied.AppliedObjectAddPropertyOperationData
+import io.convergence.proto.operations.applied.AppliedObjectSetOperationData
+import io.convergence.proto.operations.applied.AppliedDateSetOperationData
+import io.convergence.proto.model.ModelOperationData
+import io.convergence.proto.operations.applied.AppliedArraySetOperationData
+import io.convergence.proto.operations.applied.AppliedDiscreteOperationData
 import com.google.protobuf.timestamp.Timestamp
-import convergence.protocol.authentication.SessionKey
-import convergence.protocol.operations.applied.AppliedOperationData
+import io.convergence.proto.authentication.SessionKey
+import io.convergence.proto.operations.applied.AppliedOperationData
 import com.convergencelabs.server.domain.model.ModelOperation
 import com.convergencelabs.server.domain.model.data.DataValue
 
@@ -87,7 +87,7 @@ private[realtime] object ModelOperationMapper {
   }
   // scalastyle:on cyclomatic.complexity
 
-  def matOutgoingDataValue(dataValue: DataValue): convergence.protocol.operations.DataValue = {
+  def matOutgoingDataValue(dataValue: DataValue): io.convergence.proto.operations.DataValue = {
     ???
   }
 }

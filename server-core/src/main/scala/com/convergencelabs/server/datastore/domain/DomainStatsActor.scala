@@ -3,11 +3,12 @@ package com.convergencelabs.server.datastore.domain
 import scala.util.Try
 
 import com.convergencelabs.server.datastore.domain.SessionStore.SessionQueryType
+import com.convergencelabs.server.util.concurrent.UnexpectedErrorException
 
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.Props
-import akka.actor.actorRef2Scala
+import akka.actor.Status
 
 object DomainStatsActor {
   def props(persistence: DomainPersistenceProvider): Props =
@@ -30,17 +31,15 @@ class DomainStatsActor(
   }
 
   def getStats(): Unit = {
-    val foo = for {
+    (for {
       sessionCount <- persistence.sessionStore.getConnectedSessionsCount(SessionQueryType.NonAdmin)
       userCount <- persistence.userStore.getNormalUserCount()
       dbSize <- getDatabaseSize()
     } yield {
       sender ! DomainStats(sessionCount, userCount, dbSize)
-    }
-    
-    foo recover {
+    }) recover {
       case cause: Exception =>
-        sender ! akka.actor.Status.Failure(cause)
+        sender ! Status.Failure(new UnexpectedErrorException("Unexpected error getting domain stats"))
     }
   }
 

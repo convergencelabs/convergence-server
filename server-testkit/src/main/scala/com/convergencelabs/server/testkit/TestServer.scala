@@ -1,20 +1,18 @@
 package com.convergencelabs.server.testkit
 
 import java.io.File
+import java.io.InputStreamReader
+
+import scala.collection.JavaConverters.seqAsJavaListConverter
+
+import org.apache.logging.log4j.LogManager
 
 import com.convergencelabs.server.ConvergenceServerNode
-import com.orientechnologies.common.log.OLogManager
-import com.orientechnologies.orient.core.command.OCommandOutputListener
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import com.orientechnologies.orient.core.db.tool.ODatabaseImport
+import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
-import scala.collection.JavaConversions._
+import com.typesafe.config.ConfigValueFactory
 
 import grizzled.slf4j.Logging
-import java.io.InputStreamReader
-import com.typesafe.config.Config
-import com.typesafe.config.ConfigValueFactory
-import org.apache.logging.log4j.LogManager
 
 object TestServer {
   def main(args: Array[String]): Unit = {
@@ -51,6 +49,7 @@ class TestServer() extends Logging {
     logger.info("Test server started.")
     
     scala.sys.addShutdownHook {
+      logger.info("Test server JVM Shutdown Hook called.")
       this.stop()
     }
     
@@ -65,7 +64,6 @@ class TestServer() extends Logging {
 
   def stop(): Unit = {
     logger.info("Test server shutting down.")
-    oriendDb.stop()
     seed.stop()
     backend.stop()
     frontend.stop()
@@ -77,7 +75,7 @@ class TestServer() extends Logging {
     val reader = new InputStreamReader(getClass.getResourceAsStream(configFile))
     val parsed = ConfigFactory.parseReader(reader)
       .withValue("akka.remote.netty.tcp.port", ConfigValueFactory.fromAnyRef(port))
-      .withValue("akka.cluster.roles", ConfigValueFactory.fromIterable(roles))
+      .withValue("akka.cluster.roles", ConfigValueFactory.fromIterable(roles.asJava))
       
     ConfigFactory.load(parsed)
   }

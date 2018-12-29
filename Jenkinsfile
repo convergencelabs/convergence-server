@@ -7,11 +7,11 @@ sbtPod { label ->
       injectIvyCredentials()
       
       stage('Compile') {
-        sh 'sbt -d -J-Xmx3G -J-Xss5M compile'
+        sh 'sbt -J-Xmx3G -J-Xss5M compile'
       }
       
       stage('Test') {
-        sh 'sbt -d -J-Xmx3G -J-Xss5M test'
+        sh 'sbt -J-Xmx3G -J-Xss5M test'
       }
       
       stage('Package') {

@@ -56,7 +56,7 @@ case class SetModelPermissionsRequest(
 // Messages targeted specifically at "open" models.
 //
 sealed trait RealTimeModelMessage extends ModelMessage
-case class OpenRealtimeModelRequest(domainFqn: DomainFqn, modelId: String, autoCreateId: Option[Integer], sk: SessionKey, clientActor: ActorRef) extends RealTimeModelMessage
+case class OpenRealtimeModelRequest(domainFqn: DomainFqn, modelId: String, autoCreateId: Option[Int], sk: SessionKey, clientActor: ActorRef) extends RealTimeModelMessage
 case class CloseRealtimeModelRequest(domainFqn: DomainFqn, modelId: String, sk: SessionKey) extends RealTimeModelMessage
 case class OperationSubmission(domainFqn: DomainFqn, modelId: String, seqNo: Long, contextVersion: Long, operation: Operation) extends RealTimeModelMessage
 

@@ -20,12 +20,12 @@ import akka.actor.ActorLogging
 import akka.actor.ActorRef
 import akka.actor.Props
 import akka.util.Timeout
-import convergence.protocol.Historical
-import convergence.protocol.Request
-import convergence.protocol.model.HistoricalDataRequestMessage
-import convergence.protocol.model.HistoricalOperationRequestMessage
-import convergence.protocol.model.HistoricalOperationsResponseMessage
-import convergence.protocol.model.HistoricalDataResponseMessage
+import io.convergence.proto.Historical
+import io.convergence.proto.Request
+import io.convergence.proto.model.HistoricalDataRequestMessage
+import io.convergence.proto.model.HistoricalOperationRequestMessage
+import io.convergence.proto.model.HistoricalOperationsResponseMessage
+import io.convergence.proto.model.HistoricalDataResponseMessage
 import com.convergencelabs.server.frontend.realtime.ImplicitMessageConversions._
 
 object HistoricModelClientActor {

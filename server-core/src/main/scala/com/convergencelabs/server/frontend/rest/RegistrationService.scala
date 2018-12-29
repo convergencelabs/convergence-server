@@ -4,12 +4,12 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.language.postfixOps
 
-import com.convergencelabs.server.datastore.RegistrationActor.ApproveRegistration
-import com.convergencelabs.server.datastore.RegistrationActor.RegisterUser
-import com.convergencelabs.server.datastore.RegistrationActor.RegistrationInfo
-import com.convergencelabs.server.datastore.RegistrationActor.RegistrationInfoRequest
-import com.convergencelabs.server.datastore.RegistrationActor.RejectRegistration
-import com.convergencelabs.server.datastore.RegistrationActor.RequestRegistration
+import com.convergencelabs.server.datastore.convergence.RegistrationActor.ApproveRegistration
+import com.convergencelabs.server.datastore.convergence.RegistrationActor.RegisterUser
+import com.convergencelabs.server.datastore.convergence.RegistrationActor.RegistrationInfo
+import com.convergencelabs.server.datastore.convergence.RegistrationActor.RegistrationInfoRequest
+import com.convergencelabs.server.datastore.convergence.RegistrationActor.RejectRegistration
+import com.convergencelabs.server.datastore.convergence.RegistrationActor.RequestRegistration
 import com.convergencelabs.templates.html
 
 import akka.actor.ActorRef

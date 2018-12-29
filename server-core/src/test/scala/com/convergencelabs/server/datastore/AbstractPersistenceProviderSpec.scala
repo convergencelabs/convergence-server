@@ -2,12 +2,12 @@ package com.convergencelabs.server.datastore
 
 import scala.util.Failure
 import scala.util.Success
-
 import org.mockito.Mockito
-import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
-import org.scalatest.mock.MockitoSugar
+import org.scalatest.mockito.MockitoSugar
+import com.convergencelabs.server.db.DatabaseProvider
+import org.scalactic.source.Position.apply
 
 class AbstractPersistenceProviderSpec extends WordSpec with MockitoSugar with Matchers {
   "A AbstractPersistenceProvider" when {

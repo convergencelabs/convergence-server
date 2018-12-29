@@ -17,25 +17,24 @@ import akka.actor.Cancellable
 import akka.actor.Scheduler
 import akka.actor.actorRef2Scala
 import grizzled.slf4j.Logging
-import convergence.protocol.Outgoing
+import io.convergence.proto.Outgoing
 import scalapb.GeneratedMessage
-import convergence.protocol.Request
-import convergence.protocol.Response
-import convergence.protocol.Incoming
-import convergence.protocol.message.MessageEnvelope.Body
-import convergence.protocol.connection._
-import convergence.protocol.model._
-import convergence.protocol.activity._
-import convergence.protocol.authentication._
-import convergence.protocol.model._
-import convergence.protocol.message._
-import convergence.protocol.chat._
-import convergence.protocol.permissions._
-import convergence.protocol.presence._
-import convergence.protocol.references._
-import convergence.protocol.identity._
-import convergence.protocol.operations._
-
+import io.convergence.proto.Request
+import io.convergence.proto.Response
+import io.convergence.proto.Incoming
+import io.convergence.proto.message.MessageEnvelope.Body
+import io.convergence.proto.connection._
+import io.convergence.proto.model._
+import io.convergence.proto.activity._
+import io.convergence.proto.authentication._
+import io.convergence.proto.model._
+import io.convergence.proto.message._
+import io.convergence.proto.chat._
+import io.convergence.proto.permissions._
+import io.convergence.proto.presence._
+import io.convergence.proto.references._
+import io.convergence.proto.identity._
+import io.convergence.proto.operations._
 
 sealed trait ProtocolMessageEvent {
   def message: Incoming
@@ -69,7 +68,7 @@ class ProtocolConnection(
   def send(message: Outgoing): Unit = {
     val envelope = message match {
       case message: ActivitySessionJoinedMessage =>
-        convergence.protocol.message.MessageEnvelope()
+        io.convergence.proto.message.MessageEnvelope()
       case _ =>
         ???
     }
@@ -99,7 +98,7 @@ class ProtocolConnection(
 
     val envelope = message match {
       case message: AutoCreateModelConfigRequestMessage =>
-        convergence.protocol.message.MessageEnvelope()
+        io.convergence.proto.message.MessageEnvelope()
       case _ =>
         ???
     }
@@ -117,7 +116,7 @@ class ProtocolConnection(
     }
   }
 
-  def sendMessage(envelope: convergence.protocol.message.MessageEnvelope): Unit = {
+  def sendMessage(envelope: io.convergence.proto.message.MessageEnvelope): Unit = {
     val bytes = envelope.toByteArray
     connectionActor ! OutgoingBinaryMessage(bytes)
     if (!envelope.body.isPing && !envelope.body.isPong) {
@@ -130,7 +129,7 @@ class ProtocolConnection(
       heartbeatHelper.messageReceived()
     }
 
-    convergence.protocol.message.MessageEnvelope.validate(message) match {
+    io.convergence.proto.message.MessageEnvelope.validate(message) match {
       case Success(envelope) =>
         handleValidMessage(envelope)
       case Failure(cause) =>
@@ -141,7 +140,7 @@ class ProtocolConnection(
   }
 
   // scalastyle:off cyclomatic.complexity
-  private def handleValidMessage(envelope: convergence.protocol.message.MessageEnvelope): Try[Option[ProtocolMessageEvent]] = Try {
+  private def handleValidMessage(envelope: io.convergence.proto.message.MessageEnvelope): Try[Option[ProtocolMessageEvent]] = Try {
     if (!envelope.body.isPing && !envelope.body.isPong) {
       logger.trace("R: " + envelope)
     }
@@ -458,12 +457,12 @@ class ProtocolConnection(
   }
 
   private[this] def onPing(): Unit = {
-    sendMessage(convergence.protocol.message.MessageEnvelope().withPong(PongMessage()))
+    sendMessage(io.convergence.proto.message.MessageEnvelope().withPong(PongMessage()))
   }
 
   private[this] def handleHeartbeat: PartialFunction[HeartbeatEvent, Unit] = {
     case PingRequest =>
-      sendMessage(convergence.protocol.message.MessageEnvelope().withPing(PingMessage()))
+      sendMessage(io.convergence.proto.message.MessageEnvelope().withPing(PingMessage()))
     case PongTimeout =>
       clientActor ! PongTimeout
   }
@@ -474,7 +473,7 @@ class ProtocolConnection(
     }
 
     def unknownError(): Unit = {
-      unexpectedError("An unkown error has occured")
+      unexpectedError("An unknown error has occurred")
     }
 
     def unexpectedError(message: String): Unit = {

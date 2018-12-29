@@ -21,7 +21,8 @@ import org.mockito.{Matchers => MockitoMatchers}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.Matchers
 import org.scalatest.WordSpecLike
-import org.scalatest.mock.MockitoSugar
+import org.scalatest.mockito.MockitoSugar
+import org.scalatest.TryValues._
 
 import com.convergencelabs.server.datastore.domain.DomainConfigStore
 import com.convergencelabs.server.datastore.domain.DomainUserStore
@@ -34,6 +35,8 @@ import akka.testkit.TestKit
 import akka.testkit.TestProbe
 import com.convergencelabs.server.datastore.domain.SessionStore
 import com.convergencelabs.server.datastore.domain.UserGroupStore
+import com.convergencelabs.server.datastore.DuplicateValueException
+import com.convergencelabs.server.datastore.domain.schema.DomainSchema
 
 class AuthenticationHandlerSpec()
     extends TestKit(ActorSystem("AuthManagerActorSpec"))
@@ -49,78 +52,77 @@ class AuthenticationHandlerSpec()
   "A AuthenticationHandler" when {
     "authenticating a user by password" must {
       "authetnicate successfully for a correct username and password" in new TestFixture {
-        val f = authHandler.authenticate(PasswordAuthRequest(existingUserName, existingCorrectPassword))
-        val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
+        val result = authHandler.authenticate(PasswordAuthRequest(existingUserName, existingCorrectPassword)).get
         result shouldBe AuthenticationSuccess(existingUserName, SessionKey(existingUserName, "1"), "123")
       }
 
       "Fail authetnication for an incorrect username and password" in new TestFixture {
-        val f = authHandler.authenticate(PasswordAuthRequest(existingUserName, existingIncorrectPassword))
-        val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
+        val result = authHandler.authenticate(PasswordAuthRequest(existingUserName, existingIncorrectPassword)).get
         result shouldBe AuthenticationFailure
       }
 
       "fail authenticatoin for a user that does not exist" in new TestFixture {
-        val f = authHandler.authenticate(PasswordAuthRequest(nonExistingUser, ""))
-        val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
+        val result = authHandler.authenticate(PasswordAuthRequest(nonExistingUser, "")).get
         result shouldBe AuthenticationFailure
       }
 
       "return an authenticatoin error when validating the cretentials fails" in new TestFixture {
-        val f = authHandler.authenticate(PasswordAuthRequest(authfailureUser, authfailurePassword))
-        val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
-        result shouldBe AuthenticationError
+        val result = authHandler.authenticate(PasswordAuthRequest(authfailureUser, authfailurePassword)).failure.exception
+        result shouldBe an[AuthenticationError]
       }
     }
 
     "authenticating a user by token" must {
       "successfully authenticate a user with a valid key" in new TestFixture {
-        val f = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(existingUserName, enabledKey.id)))
-        val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
+        val result = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(existingUserName, enabledKey.id))).get
         result shouldBe AuthenticationSuccess(existingUserName, SessionKey(existingUserName, "1"), "123")
       }
 
       "return an authentication failure for a non-existent key" in new TestFixture {
-        val f = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(existingUserName, missingKey)))
-        val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
+        val result = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(existingUserName, missingKey))).get
         result shouldBe AuthenticationFailure
       }
 
       "return an authentication failure for a disabled key" in new TestFixture {
-        val f = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(existingUserName, disabledKey.id)))
-        val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
+        val result = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(existingUserName, disabledKey.id))).get
         result shouldBe AuthenticationFailure
       }
 
       "return an authentication failure for an invalid key" in new TestFixture {
-        val f = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(existingUserName, invalidKey.id)))
-        val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
+        val result = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(existingUserName, invalidKey.id))).get
         result shouldBe AuthenticationFailure
       }
 
       "return an authentication success for the admin key" in new TestFixture {
-        val f = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(existingUserName, AuthenticationHandler.AdminKeyId)))
-        val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
+        val result = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(existingUserName, AuthenticationHandler.AdminKeyId))).get
         val expectedUsername = DomainUserStore.adminUsername(existingUserName)
         result shouldBe AuthenticationSuccess(expectedUsername, SessionKey(expectedUsername, "1", true), "123")
       }
 
       "return an authentication success lazily created user" in new TestFixture {
-        val f = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(lazyUserName, enabledKey.id)))
-        val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
+        val result = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(lazyUserName, enabledKey.id))).get
         result shouldBe AuthenticationSuccess(lazyUserName, SessionKey(lazyUserName, "1"), "123")
       }
 
       "return an authentication failure when the user can't be looked up" in new TestFixture {
-        val f = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(brokenUserName, enabledKey.id)))
-        val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
-        result shouldBe AuthenticationError
+        val result = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(brokenUserName, enabledKey.id))).failure.exception
+        result shouldBe an[AuthenticationError]
       }
 
       "return an authentication failure when the user can't be created" in new TestFixture {
-        val f = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(brokenLazyUsername, enabledKey.id)))
-        val result = Await.result(f, FiniteDuration(1, TimeUnit.SECONDS))
-        result shouldBe AuthenticationError
+        val authRequest = JwtAuthRequest(JwtGenerator.generate(brokenLazyUsername, enabledKey.id))
+        val result = authHandler.authenticate(authRequest).failure.exception
+        result shouldBe an[AuthenticationError]
+      }
+      
+      "return an authentication failure when a new user has a duplicate email." in new TestFixture {
+        val jwt = JwtGenerator.generate(
+            duplicateEmailJwtUser.username, 
+            enabledKey.id, 
+            Map(JwtClaimConstants.Email -> duplicateEmailJwtUser.email.get))
+        val authRequest = JwtAuthRequest(jwt)
+        val result = authHandler.authenticate(authRequest).failure.exception
+        result shouldBe an[AuthenticationError]
       }
     }
   }
@@ -130,7 +132,7 @@ class AuthenticationHandlerSpec()
     
     val sessionId = 0
     val existingUserName = "existing"
-    val existingUser = DomainUser(DomainUserType.Normal, existingUserName, None, None, None, None)
+    val existingUser = DomainUser(DomainUserType.Normal, existingUserName, None, None, None, Some("existing@example.com"))
 
     val existingCorrectPassword = "correct"
     val existingIncorrectPassword = "incorrect"
@@ -163,6 +165,8 @@ class AuthenticationHandlerSpec()
     Mockito.when(userStore.validateCredentials(existingUserName, existingCorrectPassword)).thenReturn(Success(true))
     Mockito.when(userStore.validateCredentials(existingUserName, existingIncorrectPassword)).thenReturn(Success(false))
     Mockito.when(userStore.validateCredentials(nonExistingUser, "")).thenReturn(Success(false))
+    
+    Mockito.when(userStore.setLastLogin(MockitoMatchers.any(), MockitoMatchers.any(), MockitoMatchers.any())).thenReturn(Success(()))
 
     val lazyUserName = "newUserName"
     val lazyUser = CreateNormalDomainUser(lazyUserName, None, None, None, None)
@@ -184,9 +188,12 @@ class AuthenticationHandlerSpec()
     Mockito.when(userStore.domainUserExists(brokenLazyUsername)).thenReturn(Success(false))
     Mockito.when(userStore.adminUserExists(brokenLazyUsername)).thenReturn(Success(false))
 
+    val duplicateEmailJwtUser = CreateNormalDomainUser(brokenLazyUsername, None, None, None, Some("test@example.com"))
+    Mockito.when(userStore.createNormalDomainUser(duplicateEmailJwtUser)).thenReturn(Failure(new DuplicateValueException(DomainSchema.Classes.User.Fields.Email)))
+    
     val authfailureUser = "authFailureUser"
     val authfailurePassword = "authFailurePassword"
-    Mockito.when(userStore.validateCredentials(authfailureUser, authfailurePassword)).thenReturn(Failure(new IllegalStateException()))
+    Mockito.when(userStore.validateCredentials(authfailureUser, authfailurePassword)).thenReturn(Failure(new IllegalStateException("Induced filure in testing")))
     Mockito.when(userStore.domainUserExists(authfailureUser)).thenReturn(Success(false))
 
     Mockito.when(userStore.domainUserExists(existingUserName)).thenReturn(Success(true))
@@ -231,14 +238,14 @@ class AuthenticationHandlerSpec()
     val missingKey = "missingKey"
     Mockito.when(keyStore.getKey(missingKey)).thenReturn(Success(None))
 
-    val authHandler = new AuthenticationHandler(domainConfigStore, keyStore, userStore, userGroupStore, sessionStore, system.dispatcher)
+    val authHandler = new AuthenticationHandler(domainFqn, domainConfigStore, keyStore, userStore, userGroupStore, sessionStore, system.dispatcher)
   }
 
 }
 
 object JwtGenerator {
 
-  def generate(username: String, keyId: String): String = {
+  def generate(username: String, keyId: String, claims: Map[String, Any] = Map()): String = {
 
     val pemReader = new PemReader(new StringReader(KeyConstants.PrivateKey))
     val obj = pemReader.readPemObject()
@@ -256,6 +263,10 @@ object JwtGenerator {
     jwtClaims.setIssuedAtToNow()
     jwtClaims.setNotBeforeMinutesInThePast(10) // scalastyle:ignore magic.number
 
+    claims.foreach { case (k, v) =>
+       jwtClaims.setClaim(k, v)  
+    }
+    
     // Add claims the user is providing.
     jwtClaims.setSubject(username)
 

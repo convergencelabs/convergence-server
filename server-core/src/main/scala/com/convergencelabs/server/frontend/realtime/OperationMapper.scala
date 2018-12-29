@@ -22,24 +22,24 @@ import org.json4s.JsonAST.JNumber
 import org.json4s.JsonAST.JValue
 import org.json4s.JsonAST.JDouble
 import com.convergencelabs.server.domain.model.ot.DateSetOperation
-import convergence.protocol.operations.ArrayReplaceOperationData
-import convergence.protocol.operations.ArraySetOperationData
-import convergence.protocol.operations.ObjectAddPropertyOperationData
-import convergence.protocol.operations.CompoundOperationData
-import convergence.protocol.operations.DateSetOperationData
-import convergence.protocol.operations.ArrayMoveOperationData
-import convergence.protocol.operations.ArrayRemoveOperationData
-import convergence.protocol.operations.ObjectSetPropertyOperationData
-import convergence.protocol.operations.ObjectSetOperationData
-import convergence.protocol.operations.StringInsertOperationData
-import convergence.protocol.operations.StringRemoveOperationData
-import convergence.protocol.operations.NumberSetOperationData
-import convergence.protocol.operations.BooleanSetOperationData
-import convergence.protocol.operations.ObjectRemovePropertyOperationData
-import convergence.protocol.operations.NumberAddOperationData
-import convergence.protocol.operations.ArrayInsertOperationData
-import convergence.protocol.operations.StringSetOperationData
-import convergence.protocol.operations.DiscreteOperationData
+import io.convergence.proto.operations.ArrayReplaceOperationData
+import io.convergence.proto.operations.ArraySetOperationData
+import io.convergence.proto.operations.ObjectAddPropertyOperationData
+import io.convergence.proto.operations.CompoundOperationData
+import io.convergence.proto.operations.DateSetOperationData
+import io.convergence.proto.operations.ArrayMoveOperationData
+import io.convergence.proto.operations.ArrayRemoveOperationData
+import io.convergence.proto.operations.ObjectSetPropertyOperationData
+import io.convergence.proto.operations.ObjectSetOperationData
+import io.convergence.proto.operations.StringInsertOperationData
+import io.convergence.proto.operations.StringRemoveOperationData
+import io.convergence.proto.operations.NumberSetOperationData
+import io.convergence.proto.operations.BooleanSetOperationData
+import io.convergence.proto.operations.ObjectRemovePropertyOperationData
+import io.convergence.proto.operations.NumberAddOperationData
+import io.convergence.proto.operations.ArrayInsertOperationData
+import io.convergence.proto.operations.StringSetOperationData
+import io.convergence.proto.operations.DiscreteOperationData
 
 private[realtime] object OperationMapper {
 

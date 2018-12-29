@@ -127,7 +127,7 @@ class DomainCollectionService(
     val message = DomainRestMessage(domain, GetCollection(collectionId))
     (domainRestActor ? message).mapTo[Option[Collection]] map {
       case Some(collection) => (StatusCodes.OK, GetCollectionResponse(collectionToCollectionData(collection)))
-      case None => NotFoundError
+      case None => notFoundResponse()
     }
   }
 

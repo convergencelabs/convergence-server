@@ -1,16 +1,13 @@
 package com.convergencelabs.server.db.schema
 
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import com.convergencelabs.server.datastore.DeltaHistoryStore
-import scala.util.Try
-import scala.util.Success
 import scala.util.Failure
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import com.convergencelabs.server.datastore.DeltaHistoryStore
+import scala.util.Try
+
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
+
 import grizzled.slf4j.Logging
 
-abstract class AbstractSchemaManager(db: ODatabaseDocumentTx, preRelease: Boolean) extends Logging {
+abstract class AbstractSchemaManager(db: ODatabaseDocument, preRelease: Boolean) extends Logging {
 
   def install(): Try[Unit] = {
     loadManifest().flatMap { manifest =>
@@ -38,7 +35,7 @@ abstract class AbstractSchemaManager(db: ODatabaseDocumentTx, preRelease: Boolea
   }
 
   def upgrade(version: Int): Try[Unit] = {
-    loadManifest().flatMap { executeUpgrade(_, version) }
+    loadManifest().flatMap(executeUpgrade(_, version))
   }
 
   private[this] def executeUpgrade(manifest: DeltaManifest, version: Int): Try[Unit] = {
@@ -50,25 +47,30 @@ abstract class AbstractSchemaManager(db: ODatabaseDocumentTx, preRelease: Boolea
       } else {
         logger.debug(s"Executing database upgrade from ${currentVersion} to ${version}")
         Try {
-          for {
+          for (
             v <- (currentVersion + 1) to version
-          } yield {
+          ) yield (
             manifest.getIncrementalDelta(v).flatMap(applyDelta(_)).get
-          }
+          )
         }
       }
-
     }
   }
 
   def applyDelta(delta: DeltaScript): Try[Unit] = {
     logger.debug(s"Applying delta: ${delta.delta.version}")
     DatabaseDeltaProcessor.apply(delta.delta, db) recoverWith {
-      case cause: Exception =>
+      case cause: Throwable =>
+        logger.error(s"Error applying Delta ${delta.delta.version}", cause)
         recordDeltaFailure(delta, cause)
         Failure(cause)
     } flatMap { _ =>
-      recordDeltaSuccess(delta)
+      logger.debug(s"Delta ${delta.delta.version} applied successfully")
+      recordDeltaSuccess(delta) recoverWith {
+        case cause: Throwable =>
+          logger.error(s"Storing Delta ${delta.delta.version} Success failed", cause)
+          Failure(cause)
+      }
     }
   }
 
@@ -76,7 +78,7 @@ abstract class AbstractSchemaManager(db: ODatabaseDocumentTx, preRelease: Boolea
 
   def recordDeltaSuccess(delta: DeltaScript): Try[Unit]
 
-  def recordDeltaFailure(delta: DeltaScript, cause: Exception): Unit
+  def recordDeltaFailure(delta: DeltaScript, cause: Throwable): Unit
 
   def loadManifest(): Try[DeltaManifest]
 }

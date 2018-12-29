@@ -14,86 +14,86 @@ import com.convergencelabs.server.domain.model.data.StringValue
 import com.convergencelabs.server.domain.model.data.DateValue
 import com.convergencelabs.server.datastore.domain.ChatChannelInfo
 import com.convergencelabs.server.datastore.domain.ChatCreatedEvent
-import convergence.protocol.chat.ChatCreatedEventData
+import io.convergence.proto.chat.ChatCreatedEventData
 import com.convergencelabs.server.datastore.domain.ChatMessageEvent
 import com.convergencelabs.server.datastore.domain.ChatUserJoinedEvent
-import convergence.protocol.chat.ChatUserJoinedEventData
+import io.convergence.proto.chat.ChatUserJoinedEventData
 import com.convergencelabs.server.datastore.domain.ChatUserLeftEvent
-import convergence.protocol.chat.ChatUserLeftEventData
+import io.convergence.proto.chat.ChatUserLeftEventData
 import com.convergencelabs.server.datastore.domain.ChatUserAddedEvent
-import convergence.protocol.chat.ChatUserAddedEventData
+import io.convergence.proto.chat.ChatUserAddedEventData
 import com.convergencelabs.server.datastore.domain.ChatUserRemovedEvent
-import convergence.protocol.chat.ChatUserRemovedEventData
+import io.convergence.proto.chat.ChatUserRemovedEventData
 import com.convergencelabs.server.datastore.domain.ChatNameChangedEvent
-import convergence.protocol.chat.ChatNameChangedEventData
+import io.convergence.proto.chat.ChatNameChangedEventData
 import com.convergencelabs.server.datastore.domain.ChatTopicChangedEvent
-import convergence.protocol.chat.ChatTopicChangedEventData
-import convergence.protocol.chat.ChatMessageEventData
+import io.convergence.proto.chat.ChatTopicChangedEventData
+import io.convergence.proto.chat.ChatMessageEventData
 import com.convergencelabs.server.datastore.domain.ChatChannelEvent
-import convergence.protocol.chat.ChatChannelEventData
+import io.convergence.proto.chat.ChatChannelEventData
 import com.convergencelabs.server.datastore.domain.ModelPermissions
-import convergence.protocol.model.ModelPermissionsData
+import io.convergence.proto.model.ModelPermissionsData
 import com.convergencelabs.server.domain.PresenceServiceActor.UserPresence
 
 object ImplicitMessageConversions {
-  implicit def sessionKeyToMessage(sessionKey: SessionKey) = convergence.protocol.authentication.SessionKey(sessionKey.uid, sessionKey.sid)
+  implicit def sessionKeyToMessage(sessionKey: SessionKey) = io.convergence.proto.authentication.SessionKey(sessionKey.uid, sessionKey.sid)
   implicit def instanceToTimestamp(instant: Instant) = Timestamp(instant.getEpochSecond, instant.getNano)
   implicit def timestampToInstant(timestamp: Timestamp) = Instant.ofEpochSecond(timestamp.seconds, timestamp.nanos)
 
-  implicit def dataValueToMessage(dataValue: DataValue): convergence.protocol.operations.DataValue =
+  implicit def dataValueToMessage(dataValue: DataValue): io.convergence.proto.operations.DataValue =
     dataValue match {
-      case value: ObjectValue  => convergence.protocol.operations.DataValue().withObjectValue(objectValueToMessage(value))
-      case value: ArrayValue   => convergence.protocol.operations.DataValue().withArrayValue(arrayValueToMessage(value))
-      case value: BooleanValue => convergence.protocol.operations.DataValue().withBooleanValue(booleanValueToMessage(value))
-      case value: DoubleValue  => convergence.protocol.operations.DataValue().withDoubleValue(doubleValueToMessage(value))
-      case value: NullValue    => convergence.protocol.operations.DataValue().withNullValue(nullValueToMessage(value))
-      case value: StringValue  => convergence.protocol.operations.DataValue().withStringValue(stringValueToMessage(value))
-      case value: DateValue    => convergence.protocol.operations.DataValue().withDateValue(dateValueToMessage(value))
+      case value: ObjectValue  => io.convergence.proto.operations.DataValue().withObjectValue(objectValueToMessage(value))
+      case value: ArrayValue   => io.convergence.proto.operations.DataValue().withArrayValue(arrayValueToMessage(value))
+      case value: BooleanValue => io.convergence.proto.operations.DataValue().withBooleanValue(booleanValueToMessage(value))
+      case value: DoubleValue  => io.convergence.proto.operations.DataValue().withDoubleValue(doubleValueToMessage(value))
+      case value: NullValue    => io.convergence.proto.operations.DataValue().withNullValue(nullValueToMessage(value))
+      case value: StringValue  => io.convergence.proto.operations.DataValue().withStringValue(stringValueToMessage(value))
+      case value: DateValue    => io.convergence.proto.operations.DataValue().withDateValue(dateValueToMessage(value))
     }
 
   implicit def objectValueToMessage(objectValue: ObjectValue) =
-    convergence.protocol.operations.ObjectValue(
+    io.convergence.proto.operations.ObjectValue(
       objectValue.id,
       objectValue.children map {
         case (key, value) => (key, dataValueToMessage(value))
       })
 
-  implicit def arrayValueToMessage(arrayValue: ArrayValue) = convergence.protocol.operations.ArrayValue(arrayValue.id, arrayValue.children.map(dataValueToMessage))
-  implicit def booleanValueToMessage(booleanValue: BooleanValue) = convergence.protocol.operations.BooleanValue(booleanValue.id, booleanValue.value)
-  implicit def doubleValueToMessage(doubleValue: DoubleValue) = convergence.protocol.operations.DoubleValue(doubleValue.id, doubleValue.value)
-  implicit def nullValueToMessage(nullValue: NullValue) = convergence.protocol.operations.NullValue(nullValue.id)
-  implicit def stringValueToMessage(stringValue: StringValue) = convergence.protocol.operations.StringValue(stringValue.id, stringValue.value)
-  implicit def dateValueToMessage(dateValue: DateValue) = convergence.protocol.operations.DateValue(dateValue.id, Some(instanceToTimestamp(dateValue.value)))
+  implicit def arrayValueToMessage(arrayValue: ArrayValue) = io.convergence.proto.operations.ArrayValue(arrayValue.id, arrayValue.children.map(dataValueToMessage))
+  implicit def booleanValueToMessage(booleanValue: BooleanValue) = io.convergence.proto.operations.BooleanValue(booleanValue.id, booleanValue.value)
+  implicit def doubleValueToMessage(doubleValue: DoubleValue) = io.convergence.proto.operations.DoubleValue(doubleValue.id, doubleValue.value)
+  implicit def nullValueToMessage(nullValue: NullValue) = io.convergence.proto.operations.NullValue(nullValue.id)
+  implicit def stringValueToMessage(stringValue: StringValue) = io.convergence.proto.operations.StringValue(stringValue.id, stringValue.value)
+  implicit def dateValueToMessage(dateValue: DateValue) = io.convergence.proto.operations.DateValue(dateValue.id, Some(instanceToTimestamp(dateValue.value)))
 
   
-  implicit def messageToDataValue(dataValue: convergence.protocol.operations.DataValue): DataValue =
+  implicit def messageToDataValue(dataValue: io.convergence.proto.operations.DataValue): DataValue =
     dataValue.value match {
-      case convergence.protocol.operations.DataValue.Value.ObjectValue(value)  => messageToObjectValue(value)
-      case convergence.protocol.operations.DataValue.Value.ArrayValue(value)   => messageToArrayValue(value)
-      case convergence.protocol.operations.DataValue.Value.BooleanValue(value) => messageToBooleanValue(value)
-      case convergence.protocol.operations.DataValue.Value.DoubleValue(value)  => messageToDoubleValue(value)
-      case convergence.protocol.operations.DataValue.Value.NullValue(value)    => messageToNullValue(value)
-      case convergence.protocol.operations.DataValue.Value.StringValue(value)  => messageToStringValue(value)
-      case convergence.protocol.operations.DataValue.Value.DateValue(value)    => messageToDateValue(value)
+      case io.convergence.proto.operations.DataValue.Value.ObjectValue(value)  => messageToObjectValue(value)
+      case io.convergence.proto.operations.DataValue.Value.ArrayValue(value)   => messageToArrayValue(value)
+      case io.convergence.proto.operations.DataValue.Value.BooleanValue(value) => messageToBooleanValue(value)
+      case io.convergence.proto.operations.DataValue.Value.DoubleValue(value)  => messageToDoubleValue(value)
+      case io.convergence.proto.operations.DataValue.Value.NullValue(value)    => messageToNullValue(value)
+      case io.convergence.proto.operations.DataValue.Value.StringValue(value)  => messageToStringValue(value)
+      case io.convergence.proto.operations.DataValue.Value.DateValue(value)    => messageToDateValue(value)
     }
   
-  implicit def messageToObjectValue(objectValue: convergence.protocol.operations.ObjectValue) =
+  implicit def messageToObjectValue(objectValue: io.convergence.proto.operations.ObjectValue) =
     ObjectValue(
         objectValue.id,
         objectValue.children map {
           case (key, value) => (key, messageToDataValue(value))
         })
         
-  implicit def messageToArrayValue(arrayValue: convergence.protocol.operations.ArrayValue) = ArrayValue(arrayValue.id, arrayValue.children.map(messageToDataValue).toList)
-  implicit def messageToBooleanValue(booleanValue: convergence.protocol.operations.BooleanValue) = BooleanValue(booleanValue.id, booleanValue.value)
-  implicit def messageToDoubleValue(doubleValue: convergence.protocol.operations.DoubleValue) = DoubleValue(doubleValue.id, doubleValue.value)
-  implicit def messageToNullValue(nullValue: convergence.protocol.operations.NullValue) = NullValue(nullValue.id)
-  implicit def messageToStringValue(stringValue: convergence.protocol.operations.StringValue) = StringValue(stringValue.id, stringValue.value)
-  implicit def messageToDateValue(dateValue: convergence.protocol.operations.DateValue) = DateValue(dateValue.id, timestampToInstant(dateValue.value.get))
+  implicit def messageToArrayValue(arrayValue: io.convergence.proto.operations.ArrayValue) = ArrayValue(arrayValue.id, arrayValue.children.map(messageToDataValue).toList)
+  implicit def messageToBooleanValue(booleanValue: io.convergence.proto.operations.BooleanValue) = BooleanValue(booleanValue.id, booleanValue.value)
+  implicit def messageToDoubleValue(doubleValue: io.convergence.proto.operations.DoubleValue) = DoubleValue(doubleValue.id, doubleValue.value)
+  implicit def messageToNullValue(nullValue: io.convergence.proto.operations.NullValue) = NullValue(nullValue.id)
+  implicit def messageToStringValue(stringValue: io.convergence.proto.operations.StringValue) = StringValue(stringValue.id, stringValue.value)
+  implicit def messageToDateValue(dateValue: io.convergence.proto.operations.DateValue) = DateValue(dateValue.id, timestampToInstant(dateValue.value.get))
   
   
   implicit def channelInfoToMessage(info: ChatChannelInfo) =
-    convergence.protocol.chat.ChatChannelInfoData(info.id, info.channelType, info.isPrivate match {
+    io.convergence.proto.chat.ChatChannelInfoData(info.id, info.channelType, info.isPrivate match {
       case true  => "private"
       case false => "public"
     }, info.name, info.topic, Some(info.created), Some(info.lastEventTime), info.lastEventNo, info.members.toSeq)
@@ -128,7 +128,7 @@ object ImplicitMessageConversions {
   implicit def modelPermissionsToMessage(permissions: ModelPermissions) =
     ModelPermissionsData(permissions.read, permissions.write, permissions.remove, permissions.manage)
     
-  implicit def userPresenceToMessage(userPresence: UserPresence) = convergence.protocol.presence.UserPresence(userPresence.username, userPresence.available, userPresence.state)
+  implicit def userPresenceToMessage(userPresence: UserPresence) = io.convergence.proto.presence.UserPresence(userPresence.username, userPresence.available, userPresence.state)
 }
 
 

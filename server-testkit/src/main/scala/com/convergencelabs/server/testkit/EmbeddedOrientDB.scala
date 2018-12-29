@@ -1,20 +1,24 @@
 package com.convergencelabs.server.testkit
 
 import java.io.File
-import com.orientechnologies.orient.client.remote.OServerAdmin
-import com.orientechnologies.orient.server.OServerMain
+
+import com.orientechnologies.common.log.OLogManager
+import com.orientechnologies.orient.server.OServer
 import com.orientechnologies.orient.server.config.OServerConfigurationManager
 import com.orientechnologies.orient.server.config.OServerEntryConfiguration
+
 import grizzled.slf4j.Logging
 
 class EmbeddedOrientDB(dataPath: String, persistent: Boolean) extends Logging {
-  val server = OServerMain.create(false)
-  val admin = new OServerAdmin("remote:localhost")
+  OLogManager.instance().setWarnEnabled(false);
+  OLogManager.instance().setConsoleLevel("SEVERE");
+  
+  val server = new OServer()
 
   val odbTarget = new File(dataPath)
 
   def start(): Unit = {
-    logger.info("Starting up embedded OrientDB")
+    logger.info("Starting up Embedded OrientDB")
     if (!persistent && odbTarget.exists()) {
       logger.info("Removing old data, because the server is set to non-persistent.")
       deleteDirectory(odbTarget)
@@ -23,9 +27,13 @@ class EmbeddedOrientDB(dataPath: String, persistent: Boolean) extends Logging {
     if (!odbTarget.exists()) {
       odbTarget.mkdirs()
     }
+    
+    //Set OrientDB home to current directory
+    val orientdbHome = new File("").getAbsolutePath(); 
+    System.setProperty("ORIENTDB_HOME", orientdbHome);
 
-    val configFile = getClass.getResourceAsStream("/orientdb-server-config.xml")
-    val serverCfg = new OServerConfigurationManager(configFile);
+    val configFile = new File("./src/orientdb/config/orientdb-server-config.xml")
+    val serverCfg = new OServerConfigurationManager(configFile)
     val config = serverCfg.getConfiguration()
     val properties = config.properties.toList filter { _.name != "server.database.path" }
     val withData = properties ++ List(new OServerEntryConfiguration("server.database.path", odbTarget.getAbsolutePath))
@@ -33,8 +41,7 @@ class EmbeddedOrientDB(dataPath: String, persistent: Boolean) extends Logging {
     server.startup(config)
     server.activate()
     
-    admin.connect("root", "password")
-    logger.info(s"OrientDB started at path: ${server.getDatabaseDirectory}")
+    logger.info(s"Embedded OrientDB started at path: ${server.getDatabaseDirectory}")
   }
 
   def stop(): Unit = {

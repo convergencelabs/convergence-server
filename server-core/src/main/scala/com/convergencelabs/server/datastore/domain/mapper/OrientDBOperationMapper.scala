@@ -142,8 +142,10 @@ object OrientDBOperationMapper {
       case op: AppliedNumberAddOperation => op.asODocument
       case op: AppliedNumberSetOperation => op.asODocument
 
+      // Boolean Operations
       case op: AppliedBooleanSetOperation => op.asODocument
       
+      // Date Operations
       case op: AppliedDateSetOperation => op.asODocument
     }
   }

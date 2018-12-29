@@ -1,6 +1,6 @@
 package com.convergencelabs.server.frontend.realtime
 
-import convergence.protocol.connection.ErrorMessage
+import io.convergence.proto.connection.ErrorMessage
 
 object ErrorMessages {
   def Unauthorized(message: String): ErrorMessage = {

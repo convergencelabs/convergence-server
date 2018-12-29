@@ -1,37 +1,36 @@
 package com.convergencelabs.server.datastore.domain
 
-import java.util.ArrayList
-import java.util.{ List => JavaList }
+import java.time.Instant
+import java.util.Date
 import java.util.{ Set => JavaSet }
 
-import scala.collection.JavaConverters.asJavaCollectionConverter
-import scala.collection.JavaConverters.collectionAsScalaIterableConverter
-import scala.collection.JavaConverters.mapAsJavaMapConverter
-import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.collection.JavaConverters.asScalaSetConverter
+import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.collection.JavaConverters.setAsJavaSetConverter
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.QueryUtil
-import com.orientechnologies.orient.core.db.record.OTrackedList
+import com.convergencelabs.server.datastore.DuplicateValueException
+import com.convergencelabs.server.datastore.EntityNotFoundException
+import com.convergencelabs.server.datastore.MultipleValuesException
+import com.convergencelabs.server.datastore.OrientDBUtil
+import com.convergencelabs.server.datastore.domain.ChatChannelStore.ChannelType
+import com.convergencelabs.server.datastore.domain.ChatChannelStore.Fields
+import com.convergencelabs.server.datastore.domain.ChatChannelStore.channelTypeString
+import com.convergencelabs.server.datastore.domain.ChatChannelStore.chatChannelToDoc
+import com.convergencelabs.server.datastore.domain.ChatChannelStore.docToChatChannel
+import com.convergencelabs.server.datastore.domain.ChatChannelStore.docToChatChannelEvent
+import com.convergencelabs.server.datastore.domain.schema.DomainSchema
+import com.convergencelabs.server.db.DatabaseProvider
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
+import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.id.ORID
-import com.orientechnologies.orient.core.index.OCompositeKey
-import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
-import com.orientechnologies.orient.core.sql.OCommandSQL
-import com.convergencelabs.server.datastore.domain.ChatChannelStore._
+import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.datastore.EntityNotFoundException
-import java.time.Instant
-import java.util.Date
-import java.util.HashSet
-import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
-import com.convergencelabs.server.datastore.DuplicateValueException
 
 case class ChatChannel(
   id: String,
@@ -119,33 +118,7 @@ case class ChatChannelMember(channel: String, user: String, seen: Int)
 
 object ChatChannelStore {
 
-  object Classes {
-    val ChatChannel = "ChatChannel"
-    val ChatChannelEvent = "ChatChannelEvent"
-    val ChatCreatedEvent = "ChatCreatedEvent"
-    val ChatMessageEvent = "ChatMessageEvent"
-    val ChatUserJoinedEvent = "ChatUserJoinedEvent"
-    val ChatUserLeftEvent = "ChatUserLeftEvent"
-    val ChatUserAddedEvent = "ChatUserAddedEvent"
-    val ChatUserRemovedEvent = "ChatUserRemovedEvent"
-    val ChatNameChangedEvent = "ChatNameChangedEvent"
-    val ChatTopicChangedEvent = "ChatTopicChangedEvent"
-    val ChatChannelMember = "ChatChannelMember"
-  }
-
-  object Indexes {
-    val ChatChannel_Id = "ChatChannel.id"
-
-    val ChatChannelEvent_EventNo_Channel = "ChatChannelEvent.channel_eventNo"
-    val ChatChannelEvent_Channel = "ChatChannelEvent.channel"
-
-    val ChatChannelMember_Channel_User = "ChatChannelMember_channel_user"
-    val ChatChannelMember_Channel = "ChatChannelMember_channel"
-  }
-
-  object Sequences {
-    val ChatChannelId = "chatChannelIdSeq"
-  }
+  import com.convergencelabs.server.datastore.domain.schema.DomainSchema._
 
   object ChannelType extends Enumeration {
     val Group, Room, Direct = Value
@@ -183,62 +156,62 @@ object ChatChannelStore {
   }
 
   def docToChatChannel(doc: ODocument): ChatChannel = {
-    val created: Date = doc.field(Fields.Created, OType.DATETIME)
+    val created: Date = doc.getProperty(Fields.Created)
 
     ChatChannel(
-      doc.field(Fields.Id),
-      doc.field(Fields.Type),
+      doc.getProperty(Fields.Id),
+      doc.getProperty(Fields.Type),
       created.toInstant(),
-      doc.field(Fields.Private),
-      doc.field(Fields.Name),
-      doc.field(Fields.Topic))
+      doc.getProperty(Fields.Private),
+      doc.getProperty(Fields.Name),
+      doc.getProperty(Fields.Topic))
   }
 
   def chatChannelToDoc(chatChannel: ChatChannel): ODocument = {
-    val doc = new ODocument(Classes.ChatChannel)
-    doc.field(Fields.Id, chatChannel.id)
-    doc.field(Fields.Type, chatChannel.channelType)
-    doc.field(Fields.Created, Date.from(chatChannel.created))
-    doc.field(Fields.Private, chatChannel.isPrivate)
-    doc.field(Fields.Name, chatChannel.name)
-    doc.field(Fields.Topic, chatChannel.topic)
-    doc.field(Fields.Members, new HashSet[ORID]())
+    val doc = new ODocument(Classes.ChatChannel.ClassName)
+    doc.setProperty(Fields.Id, chatChannel.id)
+    doc.setProperty(Fields.Type, chatChannel.channelType)
+    doc.setProperty(Fields.Created, Date.from(chatChannel.created))
+    doc.setProperty(Fields.Private, chatChannel.isPrivate)
+    doc.setProperty(Fields.Name, chatChannel.name)
+    doc.setProperty(Fields.Topic, chatChannel.topic)
+    doc.setProperty(Fields.Members, new java.util.HashSet[ORID]())
     doc
   }
 
   def docToChatChannelEvent(doc: ODocument): ChatChannelEvent = {
-    val eventNo: Int = doc.field(Fields.EventNo)
-    val channel: String = doc.field("channel.id")
-    val user: String = doc.field("user.username")
-    val timestamp: Date = doc.field(Fields.Timestamp, OType.DATETIME)
+    val eventNo: Int = doc.getProperty(Fields.EventNo)
+    val channel: String = doc.getProperty("channel.id")
+    val user: String = doc.getProperty("user.username")
+    val timestamp: Date = doc.getProperty(Fields.Timestamp)
 
     val className = doc.getClassName
 
     className match {
-      case Classes.ChatCreatedEvent =>
-        val name: String = doc.field(Fields.Name)
-        val topic: String = doc.field(Fields.Topic)
-        val members: JavaSet[ODocument] = doc.field("members")
-        val usernames: Set[String] = members.asScala.toSet.map { doc: ODocument => doc.field("username").asInstanceOf[String] }
+      case Classes.ChatCreatedEvent.ClassName =>
+        val name: String = doc.getProperty(Fields.Name)
+        val topic: String = doc.getProperty(Fields.Topic)
+        val members: JavaSet[ODocument] = doc.getProperty("members")
+        val usernames: Set[String] = members.asScala.toSet.map { doc: ODocument => doc.getProperty("username").asInstanceOf[String] }
         ChatCreatedEvent(eventNo, channel, user, timestamp.toInstant(), name, topic, usernames)
-      case Classes.ChatMessageEvent =>
-        val message: String = doc.field(Fields.Message)
+      case Classes.ChatMessageEvent.ClassName =>
+        val message: String = doc.getProperty(Fields.Message)
         ChatMessageEvent(eventNo, channel, user, timestamp.toInstant(), message)
-      case Classes.ChatUserJoinedEvent =>
+      case Classes.ChatUserJoinedEvent.ClassName =>
         ChatUserJoinedEvent(eventNo, channel, user, timestamp.toInstant())
-      case Classes.ChatUserLeftEvent =>
+      case Classes.ChatUserLeftEvent.ClassName =>
         ChatUserLeftEvent(eventNo, channel, user, timestamp.toInstant())
-      case Classes.ChatUserAddedEvent =>
-        val userAdded: String = doc.field("userAdded.username")
+      case Classes.ChatUserAddedEvent.ClassName =>
+        val userAdded: String = doc.getProperty("userAdded.username")
         ChatUserAddedEvent(eventNo, channel, user, timestamp.toInstant(), userAdded)
-      case Classes.ChatUserRemovedEvent =>
-        val userRemoved: String = doc.field("userRemoved.username")
+      case Classes.ChatUserRemovedEvent.ClassName =>
+        val userRemoved: String = doc.getProperty("userRemoved.username")
         ChatUserRemovedEvent(eventNo, channel, user, timestamp.toInstant(), userRemoved)
-      case Classes.ChatTopicChangedEvent =>
-        val topic: String = doc.field(Fields.Topic)
+      case Classes.ChatTopicChangedEvent.ClassName =>
+        val topic: String = doc.getProperty(Fields.Topic)
         ChatTopicChangedEvent(eventNo, channel, user, timestamp.toInstant(), topic)
-      case Classes.ChatNameChangedEvent =>
-        val name: String = doc.field(Fields.Name)
+      case Classes.ChatNameChangedEvent.ClassName =>
+        val name: String = doc.getProperty(Fields.Name)
         ChatNameChangedEvent(eventNo, channel, user, timestamp.toInstant(), name)
       case _ =>
         throw new IllegalArgumentException(s"Unknown Chat Channel Event class name: ${className}")
@@ -247,51 +220,62 @@ object ChatChannelStore {
 }
 
 class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
+  import com.convergencelabs.server.datastore.domain.schema.DomainSchema._
 
-  def getChatChannelInfo(channelId: String): Try[ChatChannelInfo] = tryWithDb { db =>
-    getChatChannelInfo(List(channelId)).flatMap { results =>
-      QueryUtil.enforceSingleResult(results)
-    }.get
-  }
-
-  def getChatChannelInfo(channelId: List[String]): Try[List[ChatChannelInfo]] = tryWithDb { db =>
-    // FIXME is this the best way to do this?
-    val queryString =
-      """
-        |SELECT 
-        |  max(eventNo) as eventNo, max(timestamp) as timestamp,
-        |  channel.id as id, channel.type as type, channel.created as created,
-        |  channel.private as private, channel.name as name, channel.topic as topic,
-        |  channel.members as members
-        |FROM
-        |  ChatChannelEvent 
-        |WHERE
-        |  channel.id IN :channelIds
-        |GROUP BY (channel)""".stripMargin
-
-    val params = Map("channelIds" -> channelId.asJava)
-    val result = QueryUtil.query(queryString, params, db)
-    result.map {
-      doc =>
-        val id: String = doc.field("id")
-        val channelType: String = doc.field("type")
-        val created: Date = doc.field("created")
-        val isPrivate: Boolean = doc.field("private")
-        val name: String = doc.field("name")
-        val topic: String = doc.field("topic")
-        val members: JavaSet[ODocument] = doc.field("members")
-        val usernames: Set[String] = members.asScala.map(member => member.field("user.username").asInstanceOf[String]).toSet
-        val lastEventNo: Int = doc.field("eventNo")
-        val lastEventTime: Date = doc.field("timestamp")
-        ChatChannelInfo(id, channelType, created.toInstant(), isPrivate, name, topic,
-          usernames, lastEventNo, lastEventTime.toInstant())
+  def getChatChannelInfo(channelId: String): Try[ChatChannelInfo] = {
+    getChatChannelInfo(List(channelId)).flatMap {
+      _ match {
+        case first :: Nil => Success(first)
+        case Nil => Failure(EntityNotFoundException())
+        case _ => Failure(MultipleValuesException())
+      }
     }
   }
 
-  def getChatChannel(channelId: String): Try[ChatChannel] = tryWithDb { db =>
-    getChatChannelRid(channelId).map { rid =>
-      docToChatChannel(rid.getRecord[ODocument])
-    }.get
+  private[this] val GetChatChannelInfoQuery =
+    """|SELECT 
+       |  max(eventNo) as eventNo, max(timestamp) as timestamp,
+       |  channel.id as id, channel.type as type, channel.created as created,
+       |  channel.private as private, channel.name as name, channel.topic as topic,
+       |  channel.members as members
+       |FROM
+       |  ChatChannelEvent 
+       |WHERE
+       |  channel.id IN :channelIds
+       |GROUP BY (channel)""".stripMargin
+
+  def getChatChannelInfo(channelId: List[String]): Try[List[ChatChannelInfo]] = withDb { db =>
+    val params = Map("channelIds" -> channelId.asJava)
+
+    OrientDBUtil.queryAndMap(db, GetChatChannelInfoQuery, params) { doc =>
+      val id: String = doc.getProperty("id")
+      val channelType: String = doc.getProperty("type")
+      val created: Instant = doc.getProperty("created").asInstanceOf[Date].toInstant()
+      val isPrivate: Boolean = doc.getProperty("private")
+      val name: String = doc.getProperty("name")
+      val topic: String = doc.getProperty("topic")
+      val members: JavaSet[OIdentifiable] = doc.getProperty("members")
+      val usernames: Set[String] = members.asScala.map(member =>
+        member.getRecord.asInstanceOf[ODocument].field("user.username").asInstanceOf[String]).toSet
+      val lastEventNo: Int = doc.getProperty("eventNo")
+      val lastEventTime: Instant = doc.getProperty("timestamp").asInstanceOf[Date].toInstant()
+      ChatChannelInfo(
+        id,
+        channelType,
+        created,
+        isPrivate,
+        name,
+        topic,
+        usernames,
+        lastEventNo,
+        lastEventTime)
+    }
+  }
+
+  def getChatChannel(channelId: String): Try[ChatChannel] = {
+    getChatChannelRid(channelId)
+      .flatMap(rid => Try(rid.getRecord[ODocument]))
+      .map(docToChatChannel(_))
   }
 
   def createChatChannel(
@@ -306,30 +290,37 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
     // FIXME: return failure if addAllChatChannelMembers fails
     db.begin()
     val channelId = id.getOrElse {
-      "#" + db.getMetadata.getSequenceLibrary.getSequence(Sequences.ChatChannelId).next()
+      "#" + OrientDBUtil.sequenceNext(db, DomainSchema.Sequences.ChatChannelId).get
     }
     val doc = chatChannelToDoc(ChatChannel(channelId, channelTypeString(channelType), creationTime, isPrivate, name, topic))
     db.save(doc)
+    db.commit()
 
     members.foreach { username =>
       addAllChatChannelMembers(channelId, username, None).get
     }
+
+    // FIXME why is this needed? It seems like the above might put another db into the active thread.
+    db.activateOnCurrentThread()
+
     db.commit()
     this.addChatCreatedEvent(ChatCreatedEvent(0, channelId, createdBy, creationTime, name, topic, members.getOrElse(Set()))).get
+
+    db.activateOnCurrentThread()
     db.commit()
     channelId
   } recoverWith {
     case e: ORecordDuplicatedException =>
       e.getIndexName match {
-        case ChatChannelStore.Indexes.ChatChannel_Id =>
+        case DomainSchema.Classes.ChatChannel.Indices.Id =>
           Failure(DuplicateValueException("id"))
         case _ =>
           Failure(e)
       }
   }
 
-  def getDirectChatChannelInfoByUsers(users: Set[String]): Try[Option[ChatChannelInfo]] = tryWithDb { db =>
-    // TODO is there a better way to do this using ChatChannelMember class, like maybe with 
+  def getDirectChatChannelInfoByUsers(users: Set[String]): Try[Option[ChatChannelInfo]] = withDb { db =>
+    // TODO is there a better way to do this using ChatChannelMember class, like maybe with
     // a group by / count WHERE'd on the Channel Link?
     val query =
       """
@@ -343,13 +334,20 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
 
     // TODO is there a way to do this in one step not two?
     val params = Map("usernames" -> users.asJava, "size" -> users.size)
-    QueryUtil.lookupOptionalDocument(query, params, db).flatMap { doc =>
-      val id: String = doc.field("id")
-      Some(this.getChatChannelInfo(id).get)
-    }
+    OrientDBUtil
+      .findDocument(db, query, params)
+      .flatMap {
+        _ match {
+          case Some(doc) =>
+            val id: String = doc.getProperty("id")
+            this.getChatChannelInfo(id).map(Some(_))
+          case None =>
+            Success(None)
+        }
+      }
   }
 
-  def getJoinedChannels(username: String): Try[List[ChatChannelInfo]] = tryWithDb { db =>
+  def getJoinedChannels(username: String): Try[List[ChatChannelInfo]] = withDb { db =>
     val query =
       """
        |SELECT 
@@ -359,40 +357,46 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
        |WHERE 
        |  user.username = :username AND 
        |  channel.type='group'""".stripMargin
-
     val params = Map("username" -> username)
-    val ids: List[String] = QueryUtil.query(query, params, db) map { _.field("channelId").asInstanceOf[String] }
-    this.getChatChannelInfo(ids).get
+    OrientDBUtil
+      .query(db, query, params)
+      .flatMap(docs => getChatChannelInfo(docs.map(_.getProperty("channelId").asInstanceOf[String])))
   }
 
-  def updateChatChannel(channelId: String, name: Option[String], topic: Option[String]): Try[Unit] = tryWithDb { db =>
-    getChatChannelRid(channelId).map { channelRid =>
-      val doc = channelRid.getRecord[ODocument]
-      name.foreach(doc.field(Fields.Name, _))
-      topic.foreach(doc.field(Fields.Topic, _))
-      doc.save()
-      ()
-    }.get
+  def updateChatChannel(channelId: String, name: Option[String], topic: Option[String]): Try[Unit] = {
+    getChatChannelRid(channelId).flatMap { channelRid =>
+      Try {
+        val doc = channelRid.getRecord[ODocument]
+        name.foreach(doc.field(Fields.Name, _))
+        topic.foreach(doc.field(Fields.Topic, _))
+        doc.save()
+        ()
+      }
+    }
   }
 
-  def removeChatChannel(channelId: String): Try[Unit] = tryWithDb { db =>
-    getChatChannelRid(channelId).map { channelRid =>
-      channelRid.getRecord[ODocument].delete()
-      ()
-    }.get
+  def removeChatChannel(channelId: String): Try[Unit] = {
+    getChatChannelRid(channelId).flatMap { channelRid =>
+      Try {
+        channelRid.getRecord[ODocument].delete()
+        ()
+      }
+    }
   }
 
   // TODO: All of the events are very similar, need to abstract some of each of these methods
 
-  def addChatCreatedEvent(event: ChatCreatedEvent): Try[Unit] = tryWithDb { db =>
+  def addChatCreatedEvent(event: ChatCreatedEvent): Try[Unit] = withDb { db =>
     val ChatCreatedEvent(eventNo, channel, user, timestamp, name, topic, members) = event
 
     val memberQueryString = "SELECT FROM User WHERE username IN :members"
     val memberParams = Map("members" -> members.asJava)
-    val users: Set[ODocument] = QueryUtil.query(memberQueryString, memberParams, db).toSet
-
-    val queryStirng =
-      """INSERT INTO ChatCreatedEvent SET
+    OrientDBUtil
+      .query(db, memberQueryString, memberParams)
+      .map(_.toSet)
+      .flatMap { users =>
+        val query =
+          """INSERT INTO ChatCreatedEvent SET
         |  eventNo = :eventNo,
         |  channel = (SELECT FROM ChatChannel WHERE id = :channelId),
         |  user = (SELECT FROM User WHERE username = :username),
@@ -400,238 +404,234 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
         |  name = :name,
         |  topic = :topic,
         |  members = :members""".stripMargin
-    val query = new OCommandSQL(queryStirng)
-    val params = Map(
-      "eventNo" -> eventNo,
-      "channelId" -> channel,
-      "username" -> user,
-      "timestamp" -> Date.from(timestamp),
-      "name" -> name,
-      "topic" -> topic,
-      "members" -> users.asJava)
-    
-    // FIXME we need a way to make sure that the event actually got saved. The result should be the
-    // created ODocument we need to make sure.
-    db.command(query).execute(params.asJava).asInstanceOf[ODocument]
-    ()
+        val params = Map(
+          "eventNo" -> eventNo,
+          "channelId" -> channel,
+          "username" -> user,
+          "timestamp" -> Date.from(timestamp),
+          "name" -> name,
+          "topic" -> topic,
+          "members" -> users.asJava)
+
+        // FIXME we need a way to make sure that the event actually got saved. The result should be the
+        // created ODocument we need to make sure.
+        OrientDBUtil
+          .command(db, query, params)
+          .map(_ => ())
+      }
   }
 
-  def addChatMessageEvent(event: ChatMessageEvent): Try[Unit] = tryWithDb { db =>
+  def addChatMessageEvent(event: ChatMessageEvent): Try[Unit] = withDb { db =>
     val ChatMessageEvent(eventNo, channel, user, timestamp, message) = event
-    val queryStirng =
+    val query =
       """INSERT INTO ChatMessageEvent SET
         |  eventNo = :eventNo,
         |  channel = (SELECT FROM ChatChannel WHERE id = :channelId),
         |  user = (SELECT FROM User WHERE username = :username),
         |  timestamp = :timestamp,
         |  message = :message""".stripMargin
-    val query = new OCommandSQL(queryStirng)
     val params = Map(
       "eventNo" -> eventNo,
       "channelId" -> channel,
       "username" -> user,
       "timestamp" -> Date.from(timestamp),
       "message" -> message)
-    db.command(query).execute(params.asJava)
-    ()
+    OrientDBUtil
+      .command(db, query, params)
+      .map(_ => ())
   }
 
-  def addChatUserJoinedEvent(event: ChatUserJoinedEvent): Try[Unit] = tryWithDb { db =>
+  def addChatUserJoinedEvent(event: ChatUserJoinedEvent): Try[Unit] = withDb { db =>
     val ChatUserJoinedEvent(eventNo, channel, user, timestamp) = event
-    val queryStirng =
+    val query =
       """INSERT INTO ChatUserJoinedEvent SET
         |  eventNo = :eventNo,
         |  channel = (SELECT FROM ChatChannel WHERE id = :channelId),
         |  user = (SELECT FROM User WHERE username = :username),
         |  timestamp = :timestamp""".stripMargin
-    val query = new OCommandSQL(queryStirng)
     val params = Map(
       "eventNo" -> eventNo,
       "channelId" -> channel,
       "username" -> user,
       "timestamp" -> Date.from(timestamp))
-    db.command(query).execute(params.asJava)
-    ()
+    OrientDBUtil
+      .command(db, query, params)
+      .map(_ => ())
   }
 
-  def addChatUserLeftEvent(event: ChatUserLeftEvent): Try[Unit] = tryWithDb { db =>
+  def addChatUserLeftEvent(event: ChatUserLeftEvent): Try[Unit] = withDb { db =>
     val ChatUserLeftEvent(eventNo, channel, user, timestamp) = event
-    val queryStirng =
+    val query =
       """INSERT INTO ChatUserLeftEvent SET
         |  eventNo = :eventNo,
         |  channel = (SELECT FROM ChatChannel WHERE id = :channelId),
         |  user = (SELECT FROM User WHERE username = :username),
         |  timestamp = :timestamp""".stripMargin
-    val query = new OCommandSQL(queryStirng)
     val params = Map(
       "eventNo" -> eventNo,
       "channelId" -> channel,
       "username" -> user,
       "timestamp" -> Date.from(timestamp))
-    db.command(query).execute(params.asJava)
-    ()
+    OrientDBUtil
+      .command(db, query, params)
+      .map(_ => ())
   }
 
-  def addChatUserAddedEvent(event: ChatUserAddedEvent): Try[Unit] = tryWithDb { db =>
+  def addChatUserAddedEvent(event: ChatUserAddedEvent): Try[Unit] = withDb { db =>
     val ChatUserAddedEvent(eventNo, channel, user, timestamp, userAdded) = event
-    val queryStirng =
+    val query =
       """INSERT INTO ChatUserAddedEvent SET
         |  eventNo = :eventNo,
         |  channel = (SELECT FROM ChatChannel WHERE id = :channelId),
         |  user = (SELECT FROM User WHERE username = :username),
         |  timestamp = :timestamp,
         |  userAdded = (SELECT FROM User WHERE username = :userAdded)""".stripMargin
-    val query = new OCommandSQL(queryStirng)
     val params = Map(
       "eventNo" -> eventNo,
       "channelId" -> channel,
       "username" -> user,
       "timestamp" -> Date.from(timestamp),
       "userAdded" -> userAdded)
-    db.command(query).execute(params.asJava)
-    ()
+    OrientDBUtil
+      .command(db, query, params)
+      .map(_ => ())
   }
 
-  def addChatUserRemovedEvent(event: ChatUserRemovedEvent): Try[Unit] = tryWithDb { db =>
+  def addChatUserRemovedEvent(event: ChatUserRemovedEvent): Try[Unit] = withDb { db =>
     val ChatUserRemovedEvent(eventNo, channel, user, timestamp, userRemoved) = event
-    val queryStirng =
+    val query =
       """INSERT INTO ChatUserRemovedEvent SET
         |  eventNo = :eventNo,
         |  channel = (SELECT FROM ChatChannel WHERE id = :channelId),
         |  user = (SELECT FROM User WHERE username = :username),
         |  timestamp = :timestamp,
         |  userRemoved = (SELECT FROM User WHERE username = :userRemoved)""".stripMargin
-    val query = new OCommandSQL(queryStirng)
     val params = Map(
       "eventNo" -> eventNo,
       "channelId" -> channel,
       "username" -> user,
       "timestamp" -> Date.from(timestamp),
       "userRemoved" -> userRemoved)
-    db.command(query).execute(params.asJava)
-    ()
+    OrientDBUtil
+      .command(db, query, params)
+      .map(_ => ())
   }
 
-  def addChatNameChangedEvent(event: ChatNameChangedEvent): Try[Unit] = tryWithDb { db =>
+  def addChatNameChangedEvent(event: ChatNameChangedEvent): Try[Unit] = withDb { db =>
     val ChatNameChangedEvent(eventNo, channel, user, timestamp, name) = event
-    val queryStirng =
+    val query =
       """INSERT INTO ChatNameChangedEvent SET
         |  eventNo = :eventNo,
         |  channel = (SELECT FROM ChatChannel WHERE id = :channelId),
         |  user = (SELECT FROM User WHERE username = :username),
         |  timestamp = :timestamp,
         |  name = :name""".stripMargin
-    val query = new OCommandSQL(queryStirng)
     val params = Map(
       "eventNo" -> eventNo,
       "channelId" -> channel,
       "username" -> user,
       "timestamp" -> Date.from(timestamp),
       "name" -> name)
-    db.command(query).execute(params.asJava)
-    ()
+    OrientDBUtil
+      .command(db, query, params)
+      .map(_ => ())
   }
 
-  def addChatTopicChangedEvent(event: ChatTopicChangedEvent): Try[Unit] = tryWithDb { db =>
+  def addChatTopicChangedEvent(event: ChatTopicChangedEvent): Try[Unit] = withDb { db =>
     val ChatTopicChangedEvent(eventNo, channel, user, timestamp, topic) = event
-    val queryStirng =
+    val query =
       """INSERT INTO ChatTopicChangedEvent SET
         |  eventNo = :eventNo,
         |  channel = (SELECT FROM ChatChannel WHERE id = :channelId),
         |  user = (SELECT FROM User WHERE username = :username),
         |  timestamp = :timestamp,
         |  topic = :topic""".stripMargin
-    val query = new OCommandSQL(queryStirng)
     val params = Map(
       "eventNo" -> eventNo,
       "channelId" -> channel,
       "username" -> user,
       "timestamp" -> Date.from(timestamp),
       "topic" -> topic)
-    db.command(query).execute(params.asJava)
-    ()
+    OrientDBUtil
+      .command(db, query, params)
+      .map(_ => ())
   }
 
-  def getChatChannelMembers(channelId: String): Try[Set[String]] = tryWithDb { db =>
-    val queryString = "SELECT user.username as member FROM ChatChannelMember WHERE channel.id = :channelId"
+  def getChatChannelMembers(channelId: String): Try[Set[String]] = withDb { db =>
+    val query = "SELECT user.username as member FROM ChatChannelMember WHERE channel.id = :channelId"
     val params = Map("channelId" -> channelId)
-    val result = QueryUtil.query(queryString, params, db)
-    result.map { doc => doc.field("member").asInstanceOf[String] }.toSet
+
+    OrientDBUtil
+      .queryAndMap(db, query, params)(_.getProperty("member").asInstanceOf[String])
+      .map(_.toSet)
   }
 
-  def addAllChatChannelMembers(channelId: String, usernames: Set[String], seen: Option[Long]): Try[Unit] = tryWithDb { db =>
+  def addAllChatChannelMembers(channelId: String, usernames: Set[String], seen: Option[Long]): Try[Unit] = withDb { db =>
     val seenVal = seen.getOrElse(0)
-    for {
-      channelRid <- getChatChannelRid(channelId)
-    } yield {
-      usernames.foreach { username =>
-        for {
-          userRid <- DomainUserStore.getUserRid(username, db)
-        } yield {
-          val doc = new ODocument(Classes.ChatChannelMember)
-          doc.field(Fields.Channel, channelRid)
-          doc.field(Fields.User, userRid)
-          doc.field(Fields.Seen, seenVal)
-          db.save(doc)
-
-          val channelDoc = channelRid.getRecord[ODocument]
-          val members: JavaSet[ORID] = channelDoc.field(Fields.Members)
-          members.add(doc.getIdentity)
-          channelDoc.field(Fields.Members, members)
-          channelDoc.save()
-          ()
+    // FIXME we should do all of this in a transaction so they all succeed or fail
+    getChatChannelRid(channelId)
+      .flatMap { channelRid =>
+        val results = usernames.map { username =>
+          DomainUserStore.getUserRid(username, db)
+            .flatMap(userRid => addChatChannelMemeber(db, channelRid, userRid, seen))
         }
+
+        Try(results.map(_.get)).map(_ => ())
       }
-    }
   }
 
-  def addChatChannelMember(channelId: String, username: String, seen: Option[Long]): Try[Unit] = tryWithDb { db =>
+  def addChatChannelMember(channelId: String, username: String, seen: Option[Long]): Try[Unit] = withDb { db =>
     for {
       channelRid <- getChatChannelRid(channelId)
       userRid <- DomainUserStore.getUserRid(username, db)
     } yield {
-      val doc = new ODocument(Classes.ChatChannelMember)
-      doc.field(Fields.Channel, channelRid)
-      doc.field(Fields.User, userRid)
-      doc.field(Fields.Seen, seen.getOrElse(0))
-      db.save(doc)
-
-      val channelDoc = channelRid.getRecord[ODocument]
-      val members: JavaSet[ORID] = channelDoc.field(Fields.Members)
-      members.add(doc.getIdentity)
-      channelDoc.field(Fields.Members, members)
-      channelDoc.save()
-      ()
+      addChatChannelMemeber(db, channelRid, userRid, seen)
     }
   }
 
-  def removeChatChannelMember(channelId: String, username: String): Try[Unit] = tryWithDb { db =>
+  private[this] def addChatChannelMemeber(db: ODatabaseDocument, channelRid: ORID, userRid: ORID, seen: Option[Long]): Try[Unit] = Try {
+    val doc = db.newElement(Classes.ChatChannelMember.ClassName)
+    doc.setProperty(Fields.Channel, channelRid)
+    doc.setProperty(Fields.User, userRid)
+    doc.setProperty(Fields.Seen, seen.getOrElse(0))
+    db.save(doc)
+
+    val channelDoc = channelRid.getRecord[ODocument]
+    val members: JavaSet[ORID] = channelDoc.field(Fields.Members)
+    members.add(doc.getIdentity)
+    channelDoc.field(Fields.Members, members)
+    channelDoc.save()
+  }
+
+  def removeChatChannelMember(channelId: String, username: String): Try[Unit] = withDb { db =>
     for {
       channelRid <- getChatChannelRid(channelId)
       memberRid <- getChatChannelMemberRid(channelId, username)
     } yield {
-      val channelDoc = channelRid.getRecord[ODocument]
-      val members: JavaSet[ORID] = channelDoc.field(Fields.Members)
-      members.remove(memberRid)
-      channelDoc.field(Fields.Members, members)
-      channelDoc.save()
-      memberRid.getRecord[ODocument].delete()
-      ()
+      Try {
+        val channelDoc = channelRid.getRecord[ODocument]
+        val members: JavaSet[ORID] = channelDoc.field(Fields.Members)
+        members.remove(memberRid)
+        channelDoc.field(Fields.Members, members)
+        channelDoc.save()
+        memberRid.getRecord[ODocument].delete()
+        ()
+      }
     }
   }
 
   def markSeen(channelId: String, username: String, seen: Long): Try[Unit] = tryWithDb { db =>
-    for {
-      memberRid <- getChatChannelMemberRid(channelId, username)
-    } yield {
-      val doc = memberRid.getRecord[ODocument]
-      doc.field(Fields.Seen, seen)
-      doc.save()
-      ()
+    getChatChannelMemberRid(channelId, username).flatMap { memberRid =>
+      Try {
+        val doc = memberRid.getRecord[ODocument]
+        doc.field(Fields.Seen, seen)
+        doc.save()
+        ()
+      }
     }
   }
 
-  def getChatChannelEvents(channelId: String, eventTypes: Option[List[String]], startEvent: Option[Int], limit: Option[Int], forward: Option[Boolean]): Try[List[ChatChannelEvent]] = tryWithDb { db =>
+  def getChatChannelEvents(channelId: String, eventTypes: Option[List[String]], startEvent: Option[Int], limit: Option[Int], forward: Option[Boolean]): Try[List[ChatChannelEvent]] = withDb { db =>
     val params = scala.collection.mutable.Map[String, Any]("channelId" -> channelId)
 
     val eventTypesClause = eventTypes.getOrElse(List()) match {
@@ -658,32 +658,33 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
     }
 
     val baseQuery = s"SELECT FROM ChatChannelEvent WHERE channel.id = :channelId ${eventTypesClause} ${eventNoClaue} ORDER BY eventNo ${orderBy}"
-    val query = QueryUtil.buildPagedQuery(baseQuery, Some(limit.getOrElse(50)), Some(0))
+    val query = OrientDBUtil.buildPagedQuery(baseQuery, Some(limit.getOrElse(50)), Some(0))
 
-    val result = QueryUtil.query(query, params.toMap, db)
-    result.map { doc => docToChatChannelEvent(doc) }.sortWith((e1, e2) => e1.eventNo < e2.eventNo)
+    OrientDBUtil
+      .query(db, query, params.toMap)
+      .map(_.map(docToChatChannelEvent(_)).sortWith((e1, e2) => e1.eventNo < e2.eventNo))
   }
 
-  def getChatChannelRid(channelId: String): Try[ORID] = tryWithDb { db =>
-    QueryUtil.getRidFromIndex(Indexes.ChatChannel_Id, channelId, db).get
+  def getChatChannelRid(channelId: String): Try[ORID] = withDb { db =>
+    OrientDBUtil.getIdentityFromSingleValueIndex(db, Classes.ChatChannel.Indices.Id, channelId)
   }
 
-  def getChatChannelMemberRid(channelId: String, username: String): Try[ORID] = tryWithDb { db =>
+  def getChatChannelMemberRid(channelId: String, username: String): Try[ORID] = withDb { db =>
     val channelRID = getChatChannelRid(channelId).get
     val userRID = DomainUserStore.getUserRid(username, db).get
-    val key = new OCompositeKey(List(userRID, channelRID).asJava)
-    QueryUtil.getRidFromIndex(Indexes.ChatChannelMember_Channel_User, key, db).get
+    val key = List(channelRID, userRID)
+    OrientDBUtil.getIdentityFromSingleValueIndex(db, Classes.ChatChannelMember.Indices.Channel_User, key)
   }
 
   def getClassName: PartialFunction[String, Option[String]] = {
-    case "message" => Some(Classes.ChatMessageEvent)
-    case "created" => Some(Classes.ChatCreatedEvent)
-    case "user_joined" => Some(Classes.ChatUserJoinedEvent)
-    case "user_left" => Some(Classes.ChatUserLeftEvent)
-    case "user_added" => Some(Classes.ChatUserAddedEvent)
-    case "user_removed" => Some(Classes.ChatUserRemovedEvent)
-    case "name_changed" => Some(Classes.ChatNameChangedEvent)
-    case "topic_changed" => Some(Classes.ChatTopicChangedEvent)
+    case "message" => Some(Classes.ChatMessageEvent.ClassName)
+    case "created" => Some(Classes.ChatCreatedEvent.ClassName)
+    case "user_joined" => Some(Classes.ChatUserJoinedEvent.ClassName)
+    case "user_left" => Some(Classes.ChatUserLeftEvent.ClassName)
+    case "user_added" => Some(Classes.ChatUserAddedEvent.ClassName)
+    case "user_removed" => Some(Classes.ChatUserRemovedEvent.ClassName)
+    case "name_changed" => Some(Classes.ChatNameChangedEvent.ClassName)
+    case "topic_changed" => Some(Classes.ChatTopicChangedEvent.ClassName)
     case _ => None
   }
 }

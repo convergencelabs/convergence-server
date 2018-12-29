@@ -8,11 +8,11 @@ import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Try
 
-import com.convergencelabs.server.datastore.UserStore.User
-import com.convergencelabs.server.datastore.DatabaseProvider
-import com.convergencelabs.server.datastore.DomainStore
-import com.convergencelabs.server.datastore.DomainStoreActor.CreateDomainRequest
-import com.convergencelabs.server.datastore.UserStore
+import com.convergencelabs.server.datastore.convergence.UserStore.User
+import com.convergencelabs.server.db.DatabaseProvider
+import com.convergencelabs.server.datastore.convergence.DomainStore
+import com.convergencelabs.server.datastore.convergence.DomainStoreActor.CreateDomainRequest
+import com.convergencelabs.server.datastore.convergence.UserStore
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.domain.DomainDatabase
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
@@ -21,15 +21,17 @@ import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.util.Timeout
 import grizzled.slf4j.Logging
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProviderImpl
+import com.convergencelabs.server.db.PooledDatabaseProvider
+import com.convergencelabs.server.db.SingleDatabaseProvider
 
 class ConvergenceImporter(
-    private[this] val dbBaseUri: String,
-    private[this] val convergenceDbProvider: DatabaseProvider,
-    private[this] val domainStoreActor: ActorRef,
-    private[this] val data: ConvergenceScript,
-    private[this] implicit val ec: ExecutionContext) extends Logging {
+  private[this] val dbBaseUri: String,
+  private[this] val convergenceDbProvider: DatabaseProvider,
+  private[this] val domainStoreActor: ActorRef,
+  private[this] val data: ConvergenceScript,
+  private[this] implicit val ec: ExecutionContext) extends Logging {
 
   def importData(): Try[Unit] = {
     importUsers() flatMap (_ =>
@@ -48,7 +50,7 @@ class ConvergenceImporter(
           userData.firstName.getOrElse(""),
           userData.lastName.getOrElse(""),
           userData.displayName.getOrElse(""))
-          userData.password.passwordType match {
+        userData.password.passwordType match {
           case "plaintext" =>
             userStore.createUser(user, userData.password.value).get
           case "hash" =>
@@ -74,33 +76,35 @@ class ConvergenceImporter(
         logger.debug(s"Requesting domain provisioning for: ${domainData.namespace}/${domainData.id}")
         val response = (domainStoreActor ? domainCreateRequest).mapTo[DomainDatabase]
 
-        response onSuccess {
+        response.foreach {
           case dbInfo =>
             logger.debug(s"Domain database provisioned successfuly: ${domainData.namespace}/${domainData.id}")
             domainData.dataImport map { script =>
               logger.debug(s"Importing data for domain: ${domainData.namespace}/${domainData.id}")
-              
-              val db = new ODatabaseDocumentTx(s"${dbBaseUri}/${dbInfo.database}")
-              db.open(dbInfo.username, dbInfo.password)
-                
-              val provider = new DomainPersistenceProviderImpl(DatabaseProvider(db))
+
+              val dbProvider = new SingleDatabaseProvider(dbBaseUri, dbInfo.database, dbInfo.username, dbInfo.password)
+              val provider = new DomainPersistenceProviderImpl(dbProvider)
               val domainImporter = new DomainImporter(provider, script)
-              domainImporter.importDomain() map { _ =>
-                logger.debug("Domain import successful.")
-                db.close()
-              } recoverWith {
-                case cause: Exception =>
-                  db.close()
-                  logger.error("Domain import failed", cause)
-                  Failure(cause)
-              }
+              dbProvider
+                .connect()
+                .flatMap(_ => domainImporter.importDomain())
+                .map { _ =>
+                  logger.debug("Domain import successful.")
+                  dbProvider.shutdown()
+                }
+                .recoverWith {
+                  case cause: Exception =>
+                    dbProvider.shutdown()
+                    logger.error("Domain import failed", cause)
+                    Failure(cause)
+                }
             } orElse {
               logger.debug("No data to import, domain provisioing complete")
               None
             }
         }
 
-        response onFailure {
+        response.failed.foreach {
           case cause: Exception =>
             logger.error("Domain provisioing failed", cause)
         }

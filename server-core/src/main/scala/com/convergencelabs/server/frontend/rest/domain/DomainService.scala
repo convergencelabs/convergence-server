@@ -2,17 +2,22 @@ package com.convergencelabs.server.frontend.rest
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
+import scala.util.Try
+import scala.util.Success
+import scala.util.Failure
 
-import com.convergencelabs.server.datastore.DomainStoreActor.CreateDomainRequest
-import com.convergencelabs.server.datastore.DomainStoreActor.DeleteDomainRequest
-import com.convergencelabs.server.datastore.DomainStoreActor.GetDomainRequest
-import com.convergencelabs.server.datastore.DomainStoreActor.ListDomainsRequest
-import com.convergencelabs.server.datastore.DomainStoreActor.UpdateDomainRequest
+import com.convergencelabs.server.datastore.convergence.DomainStoreActor.CreateDomainRequest
+import com.convergencelabs.server.datastore.convergence.DomainStoreActor.DeleteDomainRequest
+import com.convergencelabs.server.datastore.convergence.DomainStoreActor.GetDomainRequest
+import com.convergencelabs.server.datastore.convergence.DomainStoreActor.ListDomainsRequest
+import com.convergencelabs.server.datastore.convergence.DomainStoreActor.UpdateDomainRequest
+import com.convergencelabs.server.datastore.convergence.PermissionsProfile
+import com.convergencelabs.server.datastore.convergence.PermissionsStoreActor.GetPermissionsProfileRequest
 import com.convergencelabs.server.domain.Domain
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.datastore.PermissionsProfile
-import com.convergencelabs.server.datastore.PermissionsStoreActor.GetPermissionsProfileRequest
 import com.convergencelabs.server.domain.rest.AuthorizationActor.ConvergenceAuthorizedRequest
+import com.convergencelabs.server.frontend.rest.domain.DomainAdminTokenService
+import com.convergencelabs.server.frontend.rest.domain.DomainStatsService
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
@@ -36,11 +41,6 @@ import akka.http.scaladsl.server.directives.FutureDirectives.onSuccess
 import akka.http.scaladsl.server.directives.OnSuccessMagnet.apply
 import akka.pattern.ask
 import akka.util.Timeout
-import scala.util.Try
-import com.convergencelabs.server.frontend.rest.domain.DomainAdminTokenService
-import com.convergencelabs.server.frontend.rest.domain.DomainStatsService
-import scala.util.Success
-import scala.util.Failure
 
 object DomainService {
   case class DomainsResponse(domains: List[DomainInfo]) extends AbstractSuccessResponse
@@ -61,7 +61,7 @@ class DomainService(
   private[this] val executionContext: ExecutionContext,
   private[this] val authorizationActor: ActorRef,
   private[this] val domainStoreActor: ActorRef,
-  private[this] val domainManagerActor: ActorRef,
+  private[this] val domainManagerActor: ActorRef, // RestDomainActor
   private[this] val permissionStoreActor: ActorRef,
   private[this] val modelClusterRegion: ActorRef,
   private[this] val defaultTimeout: Timeout)
@@ -155,7 +155,7 @@ class DomainService(
           domain.owner,
           domain.status.toString())))
       case None =>
-        NotFoundError
+        notFoundResponse()
     }
   }
 

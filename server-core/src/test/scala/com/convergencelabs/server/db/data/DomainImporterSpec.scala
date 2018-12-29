@@ -7,7 +7,7 @@ import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
 
-import com.convergencelabs.server.datastore.DatabaseProvider
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.datastore.SortOrder
 import com.convergencelabs.server.datastore.domain.CollectionPermissions
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
@@ -28,21 +28,24 @@ import com.convergencelabs.server.domain.model.ModelSnapshotMetaData
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.model.data.StringValue
 import com.convergencelabs.server.domain.model.ot.AppliedStringInsertOperation
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProviderImpl
+import com.convergencelabs.server.db.ConnectedSingleDatabaseProvider
+import com.orientechnologies.orient.core.db.OrientDBConfig
+import com.orientechnologies.orient.core.db.OrientDB
+import com.orientechnologies.orient.core.db.ODatabaseType
 
 class DomainImporterSpec extends WordSpecLike with Matchers {
 
   "A DomainImporterSpec" when {
     "importing" must {
       "import the correct data" in {
-        val url = "memory:DomainImporterSpec-" + System.nanoTime()
-        
-        val db = new ODatabaseDocumentTx(url)
+        val dbName = "DomainImporterSpec-" + System.nanoTime()
+        val orientDB = new OrientDB("memory:DomainImporterSpec", "root", "password", OrientDBConfig.defaultConfig());
+        orientDB.create(dbName, ODatabaseType.MEMORY);
+        val db = orientDB.open(dbName, "admin", "admin")
         db.activateOnCurrentThread()
-        db.create()
 
-        val dbPool = DatabaseProvider(db)
+        val dbPool = new ConnectedSingleDatabaseProvider(db)
 
         val upgrader = new TestingSchemaManager(db, DeltaCategory.Domain, true)
         upgrader.install()
@@ -131,8 +134,9 @@ class DomainImporterSpec extends WordSpecLike with Matchers {
             "vid1",
             Map("myString" -> StringValue("vid2", "my string"))))
         
-        db.activateOnCurrentThread()
-        db.drop()
+        dbPool.shutdown()
+        orientDB.drop(dbName)
+        orientDB.close()
       }
     }
   }
