@@ -128,7 +128,7 @@ class ActivityActor()
   private[this] def setState(sk: SessionKey, state: Map[String, String]): Unit = {
     if (isJoined(sk)) {
       state.foreach {
-        case (key: String, value: String) =>
+        case (key: String, value: Any) =>
           stateMap.setState(sk, key, value)
       }
 

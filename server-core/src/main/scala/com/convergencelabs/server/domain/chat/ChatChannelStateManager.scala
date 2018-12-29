@@ -29,7 +29,6 @@ import com.convergencelabs.server.domain.model.SessionKey
 
 import grizzled.slf4j.Logging
 
-
 object ChatChannelStateManager {
   def create(channelId: String, chatChannelStore: ChatChannelStore, permissionsStore: PermissionsStore): Try[ChatChannelStateManager] = {
     chatChannelStore.getChatChannelInfo(channelId) map { info =>

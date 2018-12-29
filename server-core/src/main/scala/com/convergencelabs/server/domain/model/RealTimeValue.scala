@@ -1,6 +1,7 @@
 package com.convergencelabs.server.domain.model
 
 import scala.util.Failure
+import scala.util.Success
 import scala.util.Try
 
 import com.convergencelabs.server.domain.model.data.DataValue

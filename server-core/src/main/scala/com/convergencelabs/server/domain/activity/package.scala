@@ -11,6 +11,7 @@ sealed trait IncomingActivityMessage {
 }
 
 case class ActivityParticipantsRequest(domain: DomainFqn, activityId: String) extends IncomingActivityMessage
+
 case class ActivityJoinRequest(domain: DomainFqn, activityId: String, sk: SessionKey, state: Map[String, String], actorRef: ActorRef) extends IncomingActivityMessage
 case class ActivityLeave(domain: DomainFqn, activityId: String, sk: SessionKey) extends IncomingActivityMessage
 

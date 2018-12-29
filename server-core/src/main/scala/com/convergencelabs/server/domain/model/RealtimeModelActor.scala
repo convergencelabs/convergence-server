@@ -18,6 +18,7 @@ import com.convergencelabs.server.util.ActorBackedEventLoop
 import com.convergencelabs.server.util.ActorBackedEventLoop.TaskScheduled
 import com.convergencelabs.server.actor.ShardedActorStatUpPlan
 import com.convergencelabs.server.actor.StartUpRequired
+import com.convergencelabs.server.datastore.domain.ModelPermissions
 
 import akka.actor.ActorRef
 import akka.actor.Props
@@ -25,7 +26,7 @@ import akka.actor.ReceiveTimeout
 import akka.actor.Status
 import akka.actor.Terminated
 import akka.util.Timeout
-import com.convergencelabs.server.datastore.domain.ModelPermissions
+
 
 /**
  * Provides a factory method for creating the RealtimeModelActor
