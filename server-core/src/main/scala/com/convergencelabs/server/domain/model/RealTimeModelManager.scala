@@ -388,7 +388,7 @@ class RealTimeModelManager(
             rootObject,
             overridePermissions,
             worldPermissions,
-            userPermissions) map { _ =>
+            userPermissions.get) map { _ =>
               requestModelDataFromDatastore()
             } recover {
               case cause: Exception =>
