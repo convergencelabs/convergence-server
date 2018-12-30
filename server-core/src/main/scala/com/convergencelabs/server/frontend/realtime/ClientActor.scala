@@ -53,7 +53,7 @@ import io.convergence.proto.authentication.AuthenticationResponseMessage
 import io.convergence.proto.connection.HandshakeResponseMessage.ErrorData
 import io.convergence.proto.connection.HandshakeResponseMessage
 import io.convergence.proto.Response
-import io.convergence.proto.connection.ErrorMessage
+import io.convergence.proto.common.ErrorMessage
 import io.convergence.proto.Model
 import io.convergence.proto.Incoming
 import io.convergence.proto.Activity
@@ -160,8 +160,8 @@ class ClientActor(
   }
 
   private[this] def receiveOutgoing: Receive = {
-    case message: Outgoing => onOutgoingMessage(message)
-    case message: Request => onOutgoingRequest(message)
+    case message: GeneratedMessage with Outgoing => onOutgoingMessage(message)
+    case message: GeneratedMessage with Request => onOutgoingRequest(message)
   }
 
   private[this] def receiveCommon: Receive = {
@@ -244,14 +244,14 @@ class ClientActor(
         }
         case Failure(HandshakeFailureException(code, details)) => {
           log.debug(s"${domainFqn}: Handshake failure: {code: '${code}', details: '${details}'}")
-          cb.reply(HandshakeResponseMessage(false, Some(ErrorData(code, details)), Some(false)))
+          cb.reply(HandshakeResponseMessage(false, Some(ErrorData(code, details)), false))
 
           this.connectionActor ! CloseConnection
           self ! PoisonPill
         }
         case Failure(cause) => {
           log.error(cause, s"${domainFqn}: Error handshaking with DomainActor")
-          cb.reply(HandshakeResponseMessage(false, Some(ErrorData("unknown", "uknown error")), Some(true)))
+          cb.reply(HandshakeResponseMessage(false, Some(ErrorData("unknown", "uknown error")), true))
           this.connectionActor ! CloseConnection
           self ! PoisonPill
         }
@@ -274,7 +274,7 @@ class ClientActor(
     log.debug(s"${domainFqn}: Sending handshake response to client")
 
     // FIXME Protocol Config??
-    cb.reply(HandshakeResponseMessage(true, None, None))
+    cb.reply(HandshakeResponseMessage(true, None, true))
 
     this.messageHandler = handleAuthentationMessage
     context.become(receiveWhileAuthenticating)
@@ -352,11 +352,11 @@ class ClientActor(
   // Incoming / Outgoing Messages
   //
 
-  private[this] def onOutgoingMessage(message: Outgoing): Unit = {
+  private[this] def onOutgoingMessage(message: GeneratedMessage with Outgoing): Unit = {
     protocolConnection.send(message)
   }
 
-  private[this] def onOutgoingRequest(message: Request): Unit = {
+  private[this] def onOutgoingRequest(message: GeneratedMessage with Request): Unit = {
     val askingActor = sender
     val f = protocolConnection.request(message)
     f.mapTo[Response] onComplete {

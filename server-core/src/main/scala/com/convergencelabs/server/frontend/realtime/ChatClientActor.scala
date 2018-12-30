@@ -156,6 +156,7 @@ import com.convergencelabs.server.frontend.realtime.ImplicitMessageConversions._
 import io.convergence.proto.permissions.PermissionsSet
 import io.convergence.proto.permissions.GetWorldPermissionsResponseMessage
 import io.convergence.proto.Response
+import scalapb.GeneratedMessage
 
 object ChatClientActor {
   def props(
@@ -555,7 +556,7 @@ class ChatClientActor(
     }
   }
 
-  private[this] def handleSimpleChannelRequest(request: Any, response: () => Response, cb: ReplyCallback): Unit = {
+  private[this] def handleSimpleChannelRequest(request: Any, response: () => GeneratedMessage with Response, cb: ReplyCallback): Unit = {
     chatChannelActor.ask(request).mapTo[Unit] onComplete {
       case Success(()) =>
         val r = response()

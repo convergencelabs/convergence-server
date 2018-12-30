@@ -74,7 +74,7 @@ import com.convergencelabs.server.domain.model.RealtimeModelSharding
 import io.convergence.proto.Incoming
 import io.convergence.proto.Model
 import io.convergence.proto.Request
-import io.convergence.proto.connection.ErrorMessage
+import io.convergence.proto.common.ErrorMessage
 import io.convergence.proto.model.GetModelPermissionsRequestMessage
 import io.convergence.proto.model.OpenRealtimeModelResponseMessage
 import io.convergence.proto.references.RemoteReferenceSetMessage
@@ -233,7 +233,7 @@ class ModelClientActor(
   private[this] def onAutoCreateModelConfigRequest(autoConfigRequest: ClientAutoCreateModelConfigRequest): Unit = {
     val ClientAutoCreateModelConfigRequest(modelId, autoConfigId) = autoConfigRequest
     val askingActor = sender
-    val future = context.parent ? AutoCreateModelConfigRequestMessage(autoConfigId.toString())
+    val future = context.parent ? AutoCreateModelConfigRequestMessage(autoConfigId)
     future.mapResponse[AutoCreateModelConfigResponseMessage] onComplete {
       case Success(AutoCreateModelConfigResponseMessage(collection, data, overridePermissions, worldPermissionsData, userPermissionsData, ephemeral)) =>
         val worldPermissions = worldPermissionsData.map {
@@ -546,10 +546,10 @@ class ModelClientActor(
               Some(r.meta.createdTime),
               Some(r.meta.modifiedTime),
               r.meta.version,
-              Some(objectValueToMessage(r.data)))
+              Some(JsonProtoConverter.toStruct(r.data)))
         }))
       case Failure(QueryParsingException(message, query, index)) =>
-        cb.expectedError("invalid_query", message, Map("index" -> index))
+        cb.expectedError("invalid_query", message, Map("index" -> index.toString))
       case Failure(cause) =>
         log.error(cause, s"${domainFqn}: Unexpected error querying models.")
         cb.unexpectedError("Unexpected error querying models.")

@@ -127,7 +127,7 @@ class IdentityClientActor(userServiceActor: ActorRef) extends Actor with ActorLo
         cb.expectedError(
             "group_not_found", 
             s"Could not get groups because at least one group did not exist: ${groupId}", 
-            Map("id" -> groupId))
+            Map("id" -> groupId.toString))
       case Failure(cause) =>
         val message = "Unexpected error getting groups."
         log.error(cause, message)
@@ -150,7 +150,7 @@ class IdentityClientActor(userServiceActor: ActorRef) extends Actor with ActorLo
         cb.expectedError(
             "user_not_found",
             s"Could not get groups because at least one user did not exist: ${userId}", 
-            Map("id" -> userId))
+            Map("id" -> userId.toString))
       case Failure(cause) =>
         val message = "Unexpected error getting groups for users."
         log.error(cause, message)

@@ -51,6 +51,9 @@ private[realtime] object OperationMapper {
         mapIncomingCompound(operation)
       case OperationData.Operation.DiscreteOperation(operation) => 
         mapIncomingDiscrete(operation)
+      case OperationData.Operation.Empty =>
+        // FIXME handle empty
+        ???
     }
   }
 
@@ -69,7 +72,6 @@ private[realtime] object OperationMapper {
       case DiscreteOperationData.Operation.StringSetOperation(StringSetOperationData(id, noOp, value)) =>
         StringSetOperation(id, noOp, value)
 
-      
       case DiscreteOperationData.Operation.ArrayInsertOperation(ArrayInsertOperationData(id, noOp, idx, newVal)) => 
         ArrayInsertOperation(id, noOp, idx, newVal.get)
       case DiscreteOperationData.Operation.ArrayRemoveOperation(ArrayRemoveOperationData(id, noOp, idx)) => 
@@ -100,6 +102,10 @@ private[realtime] object OperationMapper {
 
       case DiscreteOperationData.Operation.DateSetOperation(DateSetOperationData(id, noOp, value)) =>
         DateSetOperation(id, noOp, value.get)
+        
+      case DiscreteOperationData.Operation.Empty =>
+        // FIXME handle error
+        ???
     }
   }
   // scalastyle:on cyclomatic.complexity

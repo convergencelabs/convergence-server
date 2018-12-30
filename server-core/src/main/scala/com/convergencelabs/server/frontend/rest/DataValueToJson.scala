@@ -19,6 +19,10 @@ import com.convergencelabs.server.domain.model.data.DateValue
 import org.json4s.JsonAST.JLong
 
 object DataValueToJValue {
+  val ConvergenceTypeFlag = "$$convergence_type"
+
+  val DateTypeValue = "date";
+
   def toJson(dataValue: DataValue): JValue = {
     dataValue match {
       case NullValue(_) =>
@@ -35,9 +39,10 @@ object DataValueToJValue {
       case ArrayValue(_, v) =>
         val values = v map (v => toJson(v))
         JArray(values)
-        // TODO: Determine correct way to do this mapping
       case DateValue(_, v) =>
-        JLong(v.toEpochMilli())
+        JObject(
+          (ConvergenceTypeFlag -> JString(DateTypeValue)),
+          (DateTypeValue -> JDouble(v.toEpochMilli())))
     }
   }
 }

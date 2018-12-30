@@ -276,7 +276,7 @@ class ModelStore private[domain] (
         if (select.fields.isEmpty) {
           result.map { modelDoc =>
             val model = ModelStore.docToModel(modelDoc)
-            ModelQueryResult(model.metaData, DataValueToJValue.toJson(model.data))
+            ModelQueryResult(model.metaData, DataValueToJValue.toJson(model.data).asInstanceOf[JObject])
           }
         } else {
           result.map { modelDoc =>

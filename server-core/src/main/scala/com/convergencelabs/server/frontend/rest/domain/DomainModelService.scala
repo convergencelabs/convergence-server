@@ -228,7 +228,7 @@ class DomainModelService(
     val modelId = UUID.randomUUID().toString()
     val objectValue = ModelDataGenerator(data)
     // FIXME need to pass in model permissions options.
-    val message = CreateRealtimeModel(domain, modelId, colletionId, objectValue, None, None, None, None)
+    val message = CreateRealtimeModel(domain, modelId, colletionId, objectValue, None, None, Map(), None)
     (modelClusterRegion ? message).mapTo[String] map {
       case modelId: String =>
         (StatusCodes.Created, CreateModelResponse(modelId))
