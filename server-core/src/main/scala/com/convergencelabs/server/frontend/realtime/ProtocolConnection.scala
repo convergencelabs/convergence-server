@@ -134,12 +134,12 @@ class ProtocolConnection(
   }
 
   // scalastyle:off cyclomatic.complexity
-  private def handleValidMessage(envelope: ConvergenceMessage): Try[Option[ProtocolMessageEvent]] = Try {
-    if (!envelope.body.isPing && !envelope.body.isPong) {
-      logger.trace("R: " + envelope)
+  private def handleValidMessage(convergenceMessage: ConvergenceMessage): Try[Option[ProtocolMessageEvent]] = Try {
+    if (!convergenceMessage.body.isPing && !convergenceMessage.body.isPong) {
+      logger.trace("R: " + convergenceMessage)
     }
 
-    ConvergenceMessageBodyUtils.fromBody(envelope.body) match {
+    ConvergenceMessageBodyUtils.fromBody(convergenceMessage.body) match {
       case _: PingMessage =>
         onPing()
         None
@@ -148,17 +148,17 @@ class ProtocolConnection(
         None
 
       case message: Incoming with Request =>
-        Some(RequestReceived(message, new ReplyCallbackImpl(envelope.requestId.get)))
+        Some(RequestReceived(message, new ReplyCallbackImpl(convergenceMessage.requestId.get)))
 
       case message: Incoming with Response =>
-        onReply(message, envelope.responseId.get)
+        onReply(message, convergenceMessage.responseId.get)
         None
 
       case message: Incoming =>
         Some(MessageReceived(message))
 
       case _ =>
-        throw new IllegalArgumentException("Invalid message: " + envelope)
+        throw new IllegalArgumentException("Invalid message: " + convergenceMessage)
     }
   }
   // scalastyle:on cyclomatic.complexity

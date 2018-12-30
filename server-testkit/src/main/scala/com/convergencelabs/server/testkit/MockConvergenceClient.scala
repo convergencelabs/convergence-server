@@ -14,15 +14,18 @@ import org.java_websocket.drafts.Draft_17
 import org.java_websocket.handshake.ServerHandshake
 
 import grizzled.slf4j.Logging
-import io.convergence.proto.message.ConvergenceMessage
 import scalapb.GeneratedMessage
 import io.convergence.proto.Outgoing
 import io.convergence.proto.Request
 import io.convergence.proto.Response
+import java.nio.ByteBuffer
+import com.convergencelabs.server.frontend.realtime.ConvergenceMessageBodyUtils
+import io.convergence.proto.message.ConvergenceMessage
+import io.convergence.proto.connection.PongMessage
 
 class MockConvergenceClient(serverUri: String)
-    extends WebSocketClient(new URI(serverUri), new Draft_17())
-    with Logging {
+  extends WebSocketClient(new URI(serverUri), new Draft_17())
+  with Logging {
 
   private val queue = new LinkedBlockingDeque[ConvergenceMessage]()
 
@@ -30,7 +33,7 @@ class MockConvergenceClient(serverUri: String)
     logger.info("Connecting...")
     super.connect()
   }
-  
+
   override def onOpen(handshakedata: ServerHandshake): Unit = {
     logger.info("Connection opened")
   }
@@ -40,67 +43,76 @@ class MockConvergenceClient(serverUri: String)
   }
 
   def sendNormal(message: GeneratedMessage with Outgoing): ConvergenceMessage = {
-    val envelope = ConvergenceMessage(message, None, None)
-    sendMessage(envelope)
-    envelope
+    val convergenceMessage = ConvergenceMessage()
+      .withBody(ConvergenceMessageBodyUtils.toBody(message))
+    sendMessage(convergenceMessage)
+    convergenceMessage
   }
 
-  var reqId = 0L
+  var reqId = 0
 
   def sendRequest(message: GeneratedMessage with Request): ConvergenceMessage = {
-    val envelope = ConvergenceMessage(message, Some(reqId), None)
-    sendMessage(envelope)
+    val convergenceMessage = ConvergenceMessage()
+      .withBody(ConvergenceMessageBodyUtils.toBody(message))
+      .withRequestId(reqId)
+    sendMessage(convergenceMessage)
     reqId = reqId + 1
-    envelope
+    convergenceMessage
   }
 
-  def sendResponse(reqId: Long, message: GeneratedMessage with Response): ConvergenceMessage = {
-    val envelope = ConvergenceMessage(message, None, Some(reqId))
-    sendMessage(envelope)
-    envelope
+  def sendResponse(reqId: Int, message: GeneratedMessage with Response): ConvergenceMessage = {
+    val convergenceMessage = ConvergenceMessage()
+      .withBody(ConvergenceMessageBodyUtils.toBody(message))
+      .withResponseId(reqId)
+    sendMessage(convergenceMessage)
+    convergenceMessage
   }
 
   def sendMessage(message: ConvergenceMessage): Unit = {
-    val json = MessageSerializer.writeJson(message)
-    send(json)
-    logger.warn("SEND: " + json)
+    val bytes = message.toByteArray
+    send(bytes)
+    logger.debug("SEND: " + message)
+  }
+  
+  override def onMessage(message: String): Unit = {
+    throw new UnsupportedOperationException("The convergence protocol does not support text messages")
   }
 
-  override def onMessage(message: String): Unit = {
-    logger.warn("RCV : " + message)
-    ConvergenceMessage(message) match {
-      case Success(envelope) => {
-        envelope.b match {
-          case p: PingMessage => onPing()
-          case p: PongMessage => {}
-          case _ => queue.add(envelope)
-        }
-      }
-      case Failure(e) => throw e
+  override def onMessage(bytes: ByteBuffer): Unit = {
+    val received = ConvergenceMessage.parseFrom(bytes.array())
+    logger.debug("RCV : " + received)
+
+    if (received.body.isPing) {
+      onPing()
+    } else if (received.body.isPong) {
+      // no-op
+    } else {
+      this.queue.add(received)
     }
   }
 
   def onPing(): Unit = {
-    sendMessage(ConvergenceMessage(PongMessage(), None, None))
+    sendMessage(ConvergenceMessage().withPong(PongMessage()))
   }
 
   override def onError(ex: Exception): Unit = {
-    logger.info("an error occurred:" + ex);
+    logger.error("an error occurred", ex);
   }
 
   def expectMessage(max: FiniteDuration): ConvergenceMessage = receiveOne(max)
-  
-  def expectMessageClass[C <: ProtocolMessage](max: FiniteDuration, c: Class[C]): (C, ConvergenceMessage) =
+
+  def expectMessageClass[C <: GeneratedMessage](max: FiniteDuration, c: Class[C]): (C, ConvergenceMessage) =
     expectMessageClass_internal(max, c)
 
-  private def expectMessageClass_internal[C <: ProtocolMessage](max: FiniteDuration, c: Class[C]): (C, ConvergenceMessage) = {
-    val envelope = receiveOne(max)
-    assert(envelope ne null, s"timeout ($max) during expectMsgClass waiting for $c")
+  private def expectMessageClass_internal[C <: GeneratedMessage](max: FiniteDuration, c: Class[C]): (C, ConvergenceMessage) = {
+    val convergenceMessage = receiveOne(max)
+    assert(convergenceMessage != null, s"timeout ($max) during expectMsgClass waiting for $c")
 
-    val message = envelope.b
-    assert(c isInstance message, s"expected $c, found ${message.getClass}")
+    val body = ConvergenceMessageBodyUtils.fromBody(convergenceMessage.body)
 
-    (message.asInstanceOf[C], envelope)
+    assert(c isInstance body, s"expected $c, found ${body.getClass}")
+
+    (body.asInstanceOf[C], convergenceMessage)
   }
 
   def receiveOne(max: Duration): ConvergenceMessage = {
