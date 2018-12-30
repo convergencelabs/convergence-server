@@ -555,7 +555,7 @@ class ChatClientActor(
     }
   }
 
-  private[this] def handleSimpleChannelRequest(request: Any, response: () => Response with Chat, cb: ReplyCallback): Unit = {
+  private[this] def handleSimpleChannelRequest(request: Any, response: () => Response, cb: ReplyCallback): Unit = {
     chatChannelActor.ask(request).mapTo[Unit] onComplete {
       case Success(()) =>
         val r = response()
