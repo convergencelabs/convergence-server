@@ -62,6 +62,8 @@ import io.convergence.proto.Chat
 import io.convergence.proto.Identity
 import io.convergence.proto.Historical
 import io.convergence.proto.Permissions
+import io.convergence.proto.PermissionRequest
+import io.convergence.proto.permissions.PermissionType
 import io.convergence.proto.connection.HandshakeResponseMessage.ProtocolConfigData
 
 object ClientActor {
@@ -396,9 +398,9 @@ class ClientActor(
         chatClient.forward(message)
       case RequestReceived(x: Historical, _) =>
         historyClient.forward(message)
-      case RequestReceived(x: Permissions, _) =>
-        val idType: IdType.Value = IdType(x.p)
-        if (idType == IdType.Chat) {
+      case RequestReceived(x: PermissionRequest, _) =>
+        val idType = x.idType
+        if (idType == PermissionType.CHAT) {
           chatClient.forward(message)
         }
       case message: Any =>

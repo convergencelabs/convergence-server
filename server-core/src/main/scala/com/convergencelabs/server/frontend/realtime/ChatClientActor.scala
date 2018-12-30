@@ -91,13 +91,13 @@ import io.convergence.proto.Permissions
 import io.convergence.proto.permissions.GetGroupPermissionsRequestMessage
 import io.convergence.proto.permissions.AddPermissionsRequestMessage
 import io.convergence.proto.permissions.GetClientPermissionsRequestMessage
-import io.convergence.proto.permissions.AddPermissionsReponseMessage
+import io.convergence.proto.permissions.AddPermissionsResponseMessage
 import io.convergence.proto.chat.PublishChatRequestMessage
-import io.convergence.proto.permissions.GetClientPermissionsReponseMessage
+import io.convergence.proto.permissions.GetClientPermissionsResponseMessage
 import io.convergence.proto.chat.ChatChannelRemovedMessage
 import io.convergence.proto.chat.ChatChannelTopicSetMessage
 import io.convergence.proto.chat.ChatChannelInfoData
-import io.convergence.proto.permissions.GetUserPermissionsReponseMessage
+import io.convergence.proto.permissions.GetUserPermissionsResponseMessage
 import io.convergence.proto.chat.ChatTopicChangedEventData
 import io.convergence.proto.chat.UserJoinedChatChannelMessage
 import io.convergence.proto.chat.ChatChannelHistoryRequestMessage
@@ -121,7 +121,7 @@ import io.convergence.proto.chat.PublishChatResponseMessage
 import io.convergence.proto.permissions.GetWorldPermissionsRequestMessage
 import io.convergence.proto.chat.SetChatChannelTopicRequestMessage
 import io.convergence.proto.chat.ChatCreatedEventData
-import io.convergence.proto.permissions.RemovePermissionsReponseMessage
+import io.convergence.proto.permissions.RemovePermissionsResponseMessage
 import io.convergence.proto.chat.AddUserToChatChannelResponseMessage
 import io.convergence.proto.chat.UserAddedToChatChannelMessage
 import io.convergence.proto.chat.CreateChatChannelResponseMessage
@@ -135,15 +135,15 @@ import io.convergence.proto.chat.SetChatChannelNameResponseMessage
 import io.convergence.proto.chat.ChatUserRemovedEventData
 import io.convergence.proto.chat.ChatUserAddedEventData
 import io.convergence.proto.chat.MarkChatChannelEventsSeenResponseMessage
-import io.convergence.proto.permissions.GetAllUserPermissionsReponseMessage
-import io.convergence.proto.permissions.SetPermissionsReponseMessage
-import io.convergence.proto.permissions.GetAllGroupPermissionsReponseMessage
+import io.convergence.proto.permissions.GetAllUserPermissionsResponseMessage
+import io.convergence.proto.permissions.SetPermissionsResponseMessage
+import io.convergence.proto.permissions.GetAllGroupPermissionsResponseMessage
 import io.convergence.proto.chat.ChatMessageEventData
 import io.convergence.proto.chat.UserLeftChatChannelMessage
 import io.convergence.proto.chat.GetChatChannelsResponseMessage
 import io.convergence.proto.chat.RemoveUserFromChatChannelRequestMessage
 import io.convergence.proto.permissions.RemovePermissionsRequestMessage
-import io.convergence.proto.permissions.GetGroupPermissionsReponseMessage
+import io.convergence.proto.permissions.GetGroupPermissionsResponseMessage
 import io.convergence.proto.chat.UserRemovedFromChatChannelMessage
 import io.convergence.proto.chat.SetChatChannelTopicResponseMessage
 import io.convergence.proto.chat.ChatNameChangedEventData
@@ -385,7 +385,7 @@ class ChatClientActor(
     }
 
     val request = AddChatPermissionsRequest(domainFqn, id, sk, Some(world.toSet), Some(userPermissions.toSet), Some(groupPermissions.toSet))
-    handleSimpleChannelRequest(request, { () => AddPermissionsReponseMessage() }, cb)
+    handleSimpleChannelRequest(request, { () => AddPermissionsResponseMessage() }, cb)
   }
 
   def onRemoveChatPermissions(message: RemovePermissionsRequestMessage, cb: ReplyCallback): Unit = {
@@ -397,7 +397,7 @@ class ChatClientActor(
         case (username, permissions) => UserPermissions(username, permissions.permissions.toSet)
     }
     val request = RemoveChatPermissionsRequest(domainFqn, id, sk, Some(world.toSet), Some(userPermissions.toSet), Some(groupPermissions.toSet))
-    handleSimpleChannelRequest(request, { () => RemovePermissionsReponseMessage() }, cb)
+    handleSimpleChannelRequest(request, { () => RemovePermissionsResponseMessage() }, cb)
   }
 
   def onSetChatPermissions(message: SetPermissionsRequestMessage, cb: ReplyCallback): Unit = {
@@ -409,7 +409,7 @@ class ChatClientActor(
         case (username, permissions) => UserPermissions(username, permissions.permissions.toSet)
     }
     val request = SetChatPermissionsRequest(domainFqn, id, sk, Some(world.toSet), Some(userPermissions.toSet), Some(groupPermissions.toSet))
-    handleSimpleChannelRequest(request, { () => SetPermissionsReponseMessage() }, cb)
+    handleSimpleChannelRequest(request, { () => SetPermissionsResponseMessage() }, cb)
   }
 
   def onGetClientChatPermissions(message: GetClientPermissionsRequestMessage, cb: ReplyCallback): Unit = {
@@ -417,7 +417,7 @@ class ChatClientActor(
     val request = GetClientChatPermissionsRequest(domainFqn, id, sk)
     chatChannelActor.ask(request).mapTo[GetClientChatPermissionsResponse] onComplete {
       case Success(GetClientChatPermissionsResponse(permissions)) =>
-        cb.reply(GetClientPermissionsReponseMessage(permissions.toSeq))
+        cb.reply(GetClientPermissionsResponseMessage(permissions.toSeq))
       case Failure(cause: ChatChannelException) =>
         handleChatChannelException(cause, cb)
       case Failure(cause) =>
@@ -443,7 +443,7 @@ class ChatClientActor(
     val request = GetAllUserChatPermissionsRequest(domainFqn, id, sk)
     chatChannelActor.ask(request).mapTo[GetAllUserChatPermissionsResponse] onComplete {
       case Success(GetAllUserChatPermissionsResponse(users)) =>
-        cb.reply(GetAllUserPermissionsReponseMessage(users map {case (key, value) => (key, PermissionsSet(value.toSeq))}))
+        cb.reply(GetAllUserPermissionsResponseMessage(users map {case (key, value) => (key, PermissionsSet(value.toSeq))}))
       case Failure(cause: ChatChannelException) =>
         handleChatChannelException(cause, cb)
       case Failure(cause) =>
@@ -456,7 +456,7 @@ class ChatClientActor(
     val request = GetAllGroupChatPermissionsRequest(domainFqn, id, sk)
     chatChannelActor.ask(request).mapTo[GetAllGroupChatPermissionsResponse] onComplete {
       case Success(GetAllGroupChatPermissionsResponse(groups)) =>
-        cb.reply(GetAllGroupPermissionsReponseMessage(groups map {case (key, value) => (key, PermissionsSet(value.toSeq))}))
+        cb.reply(GetAllGroupPermissionsResponseMessage(groups map {case (key, value) => (key, PermissionsSet(value.toSeq))}))
       case Failure(cause: ChatChannelException) =>
         handleChatChannelException(cause, cb)
       case Failure(cause) =>
@@ -469,7 +469,7 @@ class ChatClientActor(
     val request = GetUserChatPermissionsRequest(domainFqn, id, username, sk)
     chatChannelActor.ask(request).mapTo[GetUserChatPermissionsResponse] onComplete {
       case Success(GetUserChatPermissionsResponse(permissions)) =>
-        cb.reply(GetUserPermissionsReponseMessage(permissions.toSeq))
+        cb.reply(GetUserPermissionsResponseMessage(permissions.toSeq))
       case Failure(cause: ChatChannelException) =>
         handleChatChannelException(cause, cb)
       case Failure(cause) =>
@@ -482,7 +482,7 @@ class ChatClientActor(
     val request = GetGroupChatPermissionsRequest(domainFqn, id, groupId, sk)
     chatChannelActor.ask(request).mapTo[GetGroupChatPermissionsResponse] onComplete {
       case Success(GetGroupChatPermissionsResponse(permissions)) =>
-        cb.reply(GetGroupPermissionsReponseMessage(permissions.toSeq))
+        cb.reply(GetGroupPermissionsResponseMessage(permissions.toSeq))
       case Failure(cause: ChatChannelException) =>
         handleChatChannelException(cause, cb)
       case Failure(cause) =>
