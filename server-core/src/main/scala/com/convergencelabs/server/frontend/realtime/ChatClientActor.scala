@@ -154,6 +154,7 @@ import io.convergence.proto.chat.ChatChannelEventData
 import com.google.protobuf.timestamp.Timestamp
 import com.convergencelabs.server.frontend.realtime.ImplicitMessageConversions._
 import io.convergence.proto.permissions.PermissionsSet
+import io.convergence.proto.permissions.GetWorldPermissionsResponseMessage
 import io.convergence.proto.Response
 
 object ChatClientActor {
@@ -429,7 +430,7 @@ class ChatClientActor(
     val request = GetWorldChatPermissionsRequest(domainFqn, id, sk)
     chatChannelActor.ask(request).mapTo[GetWorldChatPermissionsResponse] onComplete {
       case Success(GetWorldChatPermissionsResponse(permissions)) =>
-        cb.reply(GetWorldPermissionsReponseMessage(permissions.toSeq))
+        cb.reply(GetWorldPermissionsResponseMessage(permissions.toSeq))
       case Failure(cause: ChatChannelException) =>
         handleChatChannelException(cause, cb)
       case Failure(cause) =>
