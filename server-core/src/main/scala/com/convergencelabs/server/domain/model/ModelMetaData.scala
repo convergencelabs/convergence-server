@@ -6,7 +6,7 @@ import com.convergencelabs.server.datastore.domain.ModelPermissions
 case class ModelMetaData(
   collectionId: String,
   modelId: String,
-  version: Int,
+  version: Long,
   createdTime: Instant,
   modifiedTime: Instant,
   overridePermissions: Boolean,

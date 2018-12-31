@@ -73,22 +73,22 @@ object ChatChannelMessages {
   case class GetGroupChatPermissionsRequest(domainFqn: DomainFqn, channelId: String, groupId: String, sk: SessionKey) extends ExistingChannelMessage
   case class GetGroupChatPermissionsResponse(permissions: Set[String])
 
-  case class GetChannelHistoryRequest(domainFqn: DomainFqn, channelId: String, sk: SessionKey, limit: Option[Int], offset: Option[Int],
+  case class GetChannelHistoryRequest(domainFqn: DomainFqn, channelId: String, sk: SessionKey, limit: Option[Int], startEvent: Option[Long],
     forward: Option[Boolean], eventFilter: Option[List[String]]) extends ExistingChannelMessage
   case class GetChannelHistoryResponse(events: List[ChatChannelEvent])
 
   // Outgoing Broadcast Messages 
   sealed trait ChatChannelBroadcastMessage
-  case class UserJoinedChannel(channelId: String, eventNumber: Int, timestamp: Instant, username: String) extends ChatChannelBroadcastMessage
-  case class UserLeftChannel(channelId: String, eventNumber: Int, timestamp: Instant, username: String) extends ChatChannelBroadcastMessage
-  case class UserAddedToChannel(channelId: String, eventNumber: Int, timestamp: Instant, username: String, addedBy: String) extends ChatChannelBroadcastMessage
+  case class UserJoinedChannel(channelId: String, eventNumber: Long, timestamp: Instant, username: String) extends ChatChannelBroadcastMessage
+  case class UserLeftChannel(channelId: String, eventNumber: Long, timestamp: Instant, username: String) extends ChatChannelBroadcastMessage
+  case class UserAddedToChannel(channelId: String, eventNumber: Long, timestamp: Instant, username: String, addedBy: String) extends ChatChannelBroadcastMessage
   case class UserRemovedFromChannel(channelId: String, eventNumber: Int, timestamp: Instant, username: String, removedBy: String) extends ChatChannelBroadcastMessage
-  case class ChannelNameChanged(channelId: String, eventNumber: Int, timestamp: Instant, name: String, setBy: String) extends ChatChannelBroadcastMessage
-  case class ChannelTopicChanged(channelId: String, eventNumber: Int, timestamp: Instant, topic: String, setBy: String) extends ChatChannelBroadcastMessage
+  case class ChannelNameChanged(channelId: String, eventNumber: Long, timestamp: Instant, name: String, setBy: String) extends ChatChannelBroadcastMessage
+  case class ChannelTopicChanged(channelId: String, eventNumber: Long, timestamp: Instant, topic: String, setBy: String) extends ChatChannelBroadcastMessage
 
   case class ChannelRemoved(channelId: String) extends ChatChannelBroadcastMessage
 
-  case class RemoteChatMessage(channelId: String, eventNumber: Int, timestamp: Instant, sk: SessionKey, message: String) extends ChatChannelBroadcastMessage
+  case class RemoteChatMessage(channelId: String, eventNumber: Long, timestamp: Instant, sk: SessionKey, message: String) extends ChatChannelBroadcastMessage
 
   // Exceptions
   sealed abstract class ChatChannelException(message: String) extends Exception(message)

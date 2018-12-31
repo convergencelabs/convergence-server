@@ -29,7 +29,7 @@ import akka.actor.ActorRef
 import akka.actor.Props
 import akka.util.Timeout
 
-import io.convergence.proto.Incoming
+import io.convergence.proto.Normal
 import io.convergence.proto.Activity
 import io.convergence.proto.Request
 import io.convergence.proto.activity.ActivitySessionJoinedMessage
@@ -59,8 +59,8 @@ class ActivityClientActor(activityServiceActor: ActorRef, domain: DomainFqn, sk:
   implicit val ec = context.dispatcher
 
   def receive: Receive = {
-    case MessageReceived(message) if message.isInstanceOf[Incoming with Activity] =>
-      onMessageReceived(message.asInstanceOf[Incoming with Activity])
+    case MessageReceived(message) if message.isInstanceOf[Normal with Activity] =>
+      onMessageReceived(message.asInstanceOf[Normal with Activity])
     case RequestReceived(message, replyPromise) if message.isInstanceOf[Request with Activity] =>
       onRequestReceived(message.asInstanceOf[Request with Activity], replyPromise)
 
@@ -87,7 +87,7 @@ class ActivityClientActor(activityServiceActor: ActorRef, domain: DomainFqn, sk:
   // Incoming Messages
   //
 
-  def onMessageReceived(message: Incoming with Activity): Unit = {
+  def onMessageReceived(message: Normal with Activity): Unit = {
     message match {
       case leave: ActivityLeaveMessage             => onActivityLeave(leave)
       case setState: ActivitySetStateMessage       => onActivityStateSet(setState)

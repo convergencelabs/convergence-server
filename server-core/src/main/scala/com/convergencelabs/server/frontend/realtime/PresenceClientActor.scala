@@ -24,7 +24,7 @@ import com.convergencelabs.server.domain.PresenceServiceActor.UserConnected
 import com.convergencelabs.server.domain.PresenceServiceActor.UserPresenceAvailability
 import com.convergencelabs.server.domain.PresenceServiceActor.UserPresenceClearState
 import io.convergence.proto.Presence
-import io.convergence.proto.Incoming
+import io.convergence.proto.Normal
 import io.convergence.proto.Request
 import io.convergence.proto.presence.PresenceStateSetMessage
 import io.convergence.proto.presence.PresenceStateRemovedMessage
@@ -54,8 +54,8 @@ class PresenceClientActor(presenceServiceActor: ActorRef, sk: SessionKey) extend
   presenceServiceActor ! UserConnected(sk.uid, self)
 
   def receive: Receive = {
-    case MessageReceived(message) if message.isInstanceOf[Incoming with Presence] =>
-      onMessageReceived(message.asInstanceOf[Incoming with Presence])
+    case MessageReceived(message) if message.isInstanceOf[Normal with Presence] =>
+      onMessageReceived(message.asInstanceOf[Normal with Presence])
     case RequestReceived(message, replyPromise) if message.isInstanceOf[Request with Presence] =>
       onRequestReceived(message.asInstanceOf[Request with Presence], replyPromise)
 
@@ -76,7 +76,7 @@ class PresenceClientActor(presenceServiceActor: ActorRef, sk: SessionKey) extend
   // Incoming Messages
   //
 
-  def onMessageReceived(message: Incoming with Presence): Unit = {
+  def onMessageReceived(message: Normal with Presence): Unit = {
     message match {
       case setState: PresenceSetStateMessage => onPresenceStateSet(setState)
       case removeState: PresenceRemoveStateMessage => onPresenceStateRemoved(removeState)

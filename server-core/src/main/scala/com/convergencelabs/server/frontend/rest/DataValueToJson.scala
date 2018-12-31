@@ -23,6 +23,10 @@ object DataValueToJValue {
 
   val DateTypeValue = "date";
 
+  def toJOject(objectValue: ObjectValue): JObject = {
+    toJson(objectValue).asInstanceOf[JObject]
+  }
+
   def toJson(dataValue: DataValue): JValue = {
     dataValue match {
       case NullValue(_) =>

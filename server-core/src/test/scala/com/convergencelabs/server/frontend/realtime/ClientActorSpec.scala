@@ -34,6 +34,11 @@ import com.convergencelabs.server.domain.model.SessionKey
 import akka.http.scaladsl.model.RemoteAddress
 import java.net.InetAddress
 import akka.http.scaladsl.model.RemoteAddress.IP
+import io.convergence.proto.connection.HandshakeRequestMessage
+import io.convergence.proto.authentication.PasswordAuthRequestMessage
+import io.convergence.proto.authentication.AuthenticationResponseMessage
+import scalapb.GeneratedMessage
+import io.convergence.proto.Response
 
 // scalastyle:off magic.number
 @RunWith(classOf[JUnitRunner])
@@ -112,17 +117,18 @@ class ClientActorSpec
     domainActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[PasswordAuthRequest])
     domainActor.reply(AuthenticationSuccess("test", SessionKey("test", "0"), "123"))
 
-    val AuthenticationResponseMessage(ok, Some(username), Some(session), Some(RecconnectToken), Some(state)) = Await.result(authCallback.result, 250 millis)
+    val AuthenticationResponseMessage(ok, Some(username), Some(session), Some(RecconnectToken), state) = 
+      Await.result(authCallback.result, 250 millis).asInstanceOf[AuthenticationResponseMessage]
   }
 
   class TestReplyCallback() extends ReplyCallback {
-    val p = Promise[OutgoingProtocolResponseMessage]
+    val p = Promise[GeneratedMessage with Response]
 
-    def result(): Future[OutgoingProtocolResponseMessage] = {
+    def result(): Future[GeneratedMessage with Response] = {
       p.future
     }
 
-    def reply(message: OutgoingProtocolResponseMessage): Unit = {
+    def reply(message: GeneratedMessage with Response): Unit = {
       p.success(message)
     }
 
@@ -134,7 +140,7 @@ class ClientActorSpec
       p.failure(new IllegalStateException())
     }
 
-    def expectedError(code: String, message: String, details: Map[String, Any]): Unit = {
+    def expectedError(code: String, message: String, details: Map[String, String]): Unit = {
       p.failure(new IllegalStateException())
     }
     

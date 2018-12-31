@@ -126,13 +126,13 @@ class RealtimeModelActorSpec
 
         // Now mock that the data is there.
         Mockito.when(persistenceProvider.modelStore.createModel(modelId, collectionId, modelJsonData, true, modelPermissions))
-          .thenReturn(Success(Model(ModelMetaData(collectionId, modelId, 0L, now, now, true, modelPermissions, 1), modelJsonData)))
+          .thenReturn(Success(Model(ModelMetaData(collectionId, modelId, 0, now, now, true, modelPermissions, 1), modelJsonData)))
         Mockito.when(persistenceProvider.modelSnapshotStore.createSnapshot(Matchers.any())).thenReturn(Success(()))
         Mockito.when(persistenceProvider.modelStore.getModel(modelId)).thenReturn(Success(Some(modelData)))
         Mockito.when(persistenceProvider.modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelId)).thenReturn(Success(Some(modelSnapshotMetaData)))
 
-        client1.reply(ClientAutoCreateModelConfigResponse(collectionId, Some(modelJsonData), Some(true), Some(modelPermissions), None, None))
-        client2.reply(ClientAutoCreateModelConfigResponse(collectionId, Some(modelJsonData), Some(true), Some(modelPermissions), None, None))
+        client1.reply(ClientAutoCreateModelConfigResponse(collectionId, Some(modelJsonData), Some(true), Some(modelPermissions), Map(), None))
+        client2.reply(ClientAutoCreateModelConfigResponse(collectionId, Some(modelJsonData), Some(true), Some(modelPermissions), Map(), None))
 
         // Verify that both clients got the data.
         client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
@@ -206,13 +206,13 @@ class RealtimeModelActorSpec
     "receiving an operation" must {
       "send an ack back to the submitting client" in new OneOpenClient {
         Mockito.when(persistenceProvider.modelOperationProcessor.processModelOperation(Matchers.any())).thenReturn(Success(()))
-        realtimeModelActor.tell(OperationSubmission(domainFqn, modelId, 0L, modelData.metaData.version, ObjectAddPropertyOperation("", false, "foo", NullValue(""))), client1.ref)
+        realtimeModelActor.tell(OperationSubmission(domainFqn, modelId, 0, modelData.metaData.version, ObjectAddPropertyOperation("", false, "foo", NullValue(""))), client1.ref)
         val opAck = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OperationAcknowledgement])
       }
 
       "send an operation to other connected clients" in new TwoOpenClients {
         Mockito.when(persistenceProvider.modelOperationProcessor.processModelOperation(Matchers.any())).thenReturn(Success(()))
-        realtimeModelActor.tell(OperationSubmission(domainFqn, modelId, 0L, modelData.metaData.version, ObjectAddPropertyOperation("", false, "foo", NullValue(""))), client1.ref)
+        realtimeModelActor.tell(OperationSubmission(domainFqn, modelId, 0, modelData.metaData.version, ObjectAddPropertyOperation("", false, "foo", NullValue(""))), client1.ref)
         val opAck = client1.expectMsgClass(FiniteDuration(120, TimeUnit.SECONDS), classOf[OperationAcknowledgement])
 
         client2.expectMsgClass(FiniteDuration(120, TimeUnit.SECONDS), classOf[OutgoingOperation])
@@ -224,7 +224,7 @@ class RealtimeModelActorSpec
           Matchers.any())).thenReturn(Failure(new IllegalArgumentException("Induced Exception for test: Invalid Operation")))
 
         realtimeModelActor.tell(OperationSubmission(domainFqn, modelId,
-          0L,
+          0,
           modelData.metaData.version,
           badOp), client1.ref)
 
@@ -234,7 +234,7 @@ class RealtimeModelActorSpec
 
       "close a client that submits an invalid version" in new TwoOpenClients {
         val badOp = ObjectRemovePropertyOperation(modelJsonData.id, false, "not real")
-        realtimeModelActor.tell(OperationSubmission(domainFqn, modelId, 100L, modelData.metaData.version, badOp), client1.ref)
+        realtimeModelActor.tell(OperationSubmission(domainFqn, modelId, 100, modelData.metaData.version, badOp), client1.ref)
 
         client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[RemoteClientClosed])
         client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ModelForceClose])
@@ -264,10 +264,10 @@ class RealtimeModelActorSpec
           any(),
           any(),
           any()))
-          .thenReturn(Success(Model(ModelMetaData(collectionId, noModelId, 0L, now, now, true, modelPermissions, 1), data)))
+          .thenReturn(Success(Model(ModelMetaData(collectionId, noModelId, 0, now, now, true, modelPermissions, 1), data)))
 
         Mockito.when(persistenceProvider.modelSnapshotStore.createSnapshot(any())).thenReturn(Success(()))
-        realtimeModelActor.tell(CreateRealtimeModel(domainFqn, noModelId, collectionId, data, Some(true), Some(modelPermissions), None, Some(skU1S1)), client.ref)
+        realtimeModelActor.tell(CreateRealtimeModel(domainFqn, noModelId, collectionId, data, Some(true), Some(modelPermissions), Map(), Some(skU1S1)), client.ref)
         client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), noModelId)
       }
 
@@ -275,7 +275,7 @@ class RealtimeModelActorSpec
         val client = new TestProbe(system)
         val data = ObjectValue("", Map())
 
-        realtimeModelActor.tell(CreateRealtimeModel(domainFqn, modelId, collectionId, data, Some(true), Some(modelPermissions), None, Some(skU1S1)), client.ref)
+        realtimeModelActor.tell(CreateRealtimeModel(domainFqn, modelId, collectionId, data, Some(true), Some(modelPermissions), Map(), Some(skU1S1)), client.ref)
         client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), Status.Failure(ModelAlreadyExistsException(modelId)))
       }
     }
@@ -324,7 +324,7 @@ class RealtimeModelActorSpec
     "setting permissions" must {
       "respond with a ModelNotFoundException is the model does not exists" in new TestFixture {
         val client = new TestProbe(system)
-        val message = SetModelPermissionsRequest(domainFqn, noModelId, skU1S1, None, None, false, Map())
+        val message = SetModelPermissionsRequest(domainFqn, noModelId, skU1S1, None, None, false, Map(), List())
         realtimeModelActor.tell(message, client.ref)
         val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), Status.Failure(ModelNotFoundException(noModelId)))
       }
@@ -333,7 +333,7 @@ class RealtimeModelActorSpec
         Mockito.when(modelPermissionsResolver.getModelUserPermissions(any(), any(), any()))
           .thenReturn(Success(ModelPermissions(true, true, true, false)))
         val client = new TestProbe(system)
-        val message = SetModelPermissionsRequest(domainFqn, modelId, skU1S1, None, None, false, Map())
+        val message = SetModelPermissionsRequest(domainFqn, modelId, skU1S1, None, None, false, Map(), List())
         realtimeModelActor.tell(message, client.ref)
         val Status.Failure(cause) = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Status.Failure])
         cause shouldBe a[UnauthorizedException]
@@ -343,7 +343,7 @@ class RealtimeModelActorSpec
         val client = new TestProbe(system)
         Mockito.when(modelPermissionsResolver.getModelUserPermissions(any(), any(), any()))
           .thenReturn(Success(ModelPermissions(true, true, true, true)))
-        val message = SetModelPermissionsRequest(domainFqn, modelId, skU1S1, None, None, false, Map())
+        val message = SetModelPermissionsRequest(domainFqn, modelId, skU1S1, None, None, false, Map(), List())
         realtimeModelActor.tell(message, client.ref)
         val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ())
       }
@@ -370,7 +370,7 @@ class RealtimeModelActorSpec
     val modelJsonData = ObjectValue("vid1", Map("key" -> StringValue("vid2", "value")))
     val modelCreateTime = Instant.ofEpochMilli(2L)
     val modelModifiedTime = Instant.ofEpochMilli(3L)
-    val modelData = Model(ModelMetaData(collectionId, modelId, 1L, modelCreateTime, modelModifiedTime, true, modelPermissions, 1), modelJsonData)
+    val modelData = Model(ModelMetaData(collectionId, modelId, 1, modelCreateTime, modelModifiedTime, true, modelPermissions, 1), modelJsonData)
     val modelSnapshotTime = Instant.ofEpochMilli(2L)
     val modelSnapshotMetaData = ModelSnapshotMetaData(modelId, 1L, modelSnapshotTime)
 
@@ -456,7 +456,7 @@ class RealtimeModelActorSpec
       any(),
       any(),
       any()))
-      .thenReturn(Success(Model(ModelMetaData(collectionId, noModelId, 0L, now, now, true, modelPermissions, 1), modelJsonData)))
+      .thenReturn(Success(Model(ModelMetaData(collectionId, noModelId, 0, now, now, true, modelPermissions, 1), modelJsonData)))
 
     Mockito.when(persistenceProvider.modelStore.modelExists(modelId)).thenReturn(Success(false))
   }

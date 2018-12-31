@@ -95,33 +95,33 @@ object ImplicitMessageConversions {
     io.convergence.proto.chat.ChatChannelInfoData(info.id, info.channelType, info.isPrivate match {
       case true => "private"
       case false => "public"
-    }, info.name, info.topic, Some(info.created), Some(info.lastEventTime), info.lastEventNo, info.members.toSeq)
+    }, info.name, info.topic, Some(info.created), Some(info.lastEventTime), info.lastEventNumber, info.members.toSeq)
 
   implicit def channelEventToMessage(event: ChatChannelEvent): ChatChannelEventData = event match {
-    case ChatCreatedEvent(eventNo, channel, user, timestamp, name, topic, members) =>
+    case ChatCreatedEvent(eventNumber, channel, user, timestamp, name, topic, members) =>
       ChatChannelEventData().withCreated(
-        ChatCreatedEventData(channel, eventNo, Some(timestamp), user, name, topic, members.toSeq));
-    case ChatMessageEvent(eventNo, channel, user, timestamp, message) =>
+        ChatCreatedEventData(channel, eventNumber, Some(timestamp), user, name, topic, members.toSeq));
+    case ChatMessageEvent(eventNumber, channel, user, timestamp, message) =>
       ChatChannelEventData().withMessage(
-        ChatMessageEventData(channel, eventNo, Some(timestamp), user, message))
-    case ChatUserJoinedEvent(eventNo, channel, user, timestamp) =>
+        ChatMessageEventData(channel, eventNumber, Some(timestamp), user, message))
+    case ChatUserJoinedEvent(eventNumber, channel, user, timestamp) =>
       ChatChannelEventData().withUserJoined(
-        ChatUserJoinedEventData(channel, eventNo, Some(timestamp), user))
-    case ChatUserLeftEvent(eventNo, channel, user, timestamp) =>
+        ChatUserJoinedEventData(channel, eventNumber, Some(timestamp), user))
+    case ChatUserLeftEvent(eventNumber, channel, user, timestamp) =>
       ChatChannelEventData().withUserLeft(
-        ChatUserLeftEventData(channel, eventNo, Some(timestamp), user))
-    case ChatUserAddedEvent(eventNo, channel, user, timestamp, addedUser) =>
+        ChatUserLeftEventData(channel, eventNumber, Some(timestamp), user))
+    case ChatUserAddedEvent(eventNumber, channel, user, timestamp, addedUser) =>
       ChatChannelEventData().withUserAdded(
-        ChatUserAddedEventData(channel, eventNo, Some(timestamp), addedUser, user))
-    case ChatUserRemovedEvent(eventNo, channel, user, timestamp, removedUser) =>
+        ChatUserAddedEventData(channel, eventNumber, Some(timestamp), addedUser, user))
+    case ChatUserRemovedEvent(eventNumber, channel, user, timestamp, removedUser) =>
       ChatChannelEventData().withUserRemoved(
-        ChatUserRemovedEventData(channel, eventNo, Some(timestamp), removedUser, user))
-    case ChatNameChangedEvent(eventNo, channel, user, timestamp, name) =>
+        ChatUserRemovedEventData(channel, eventNumber, Some(timestamp), removedUser, user))
+    case ChatNameChangedEvent(eventNumber, channel, user, timestamp, name) =>
       ChatChannelEventData().withNameChanged(
-        ChatNameChangedEventData(channel, eventNo, Some(timestamp), user, name))
-    case ChatTopicChangedEvent(eventNo, channel, user, timestamp, topic) =>
+        ChatNameChangedEventData(channel, eventNumber, Some(timestamp), user, name))
+    case ChatTopicChangedEvent(eventNumber, channel, user, timestamp, topic) =>
       ChatChannelEventData().withTopicChanged(
-        ChatTopicChangedEventData(channel, eventNo, Some(timestamp), user, topic))
+        ChatTopicChangedEventData(channel, eventNumber, Some(timestamp), user, topic))
   }
 
   implicit def modelPermissionsToMessage(permissions: ModelPermissions) =

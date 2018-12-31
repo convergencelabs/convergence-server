@@ -1,10 +1,8 @@
 package com.convergencelabs.server.frontend.realtime
 
-import io.convergence.proto.Outgoing
 import scalapb.GeneratedMessage
 import io.convergence.proto.Request
 import io.convergence.proto.Response
-import io.convergence.proto.Incoming
 import io.convergence.proto.message.ConvergenceMessage.Body
 import io.convergence.proto.connection._
 import io.convergence.proto.model._
@@ -23,7 +21,7 @@ import io.convergence.proto.operations._
 
 object ConvergenceMessageBodyUtils {
   def fromBody(body: Body): GeneratedMessage = {
-    body.value match {
+    body match {
       case Body.Error(message) => message
       case Body.Ping(message) => message
       case Body.Pong(message) => message
@@ -149,7 +147,8 @@ object ConvergenceMessageBodyUtils {
       case Body.GetAllGroupPermissionsResponse(message) => message
       case Body.GetGroupPermissionsRequest(message) => message
       case Body.GetGroupPermissionsResponse(message) => message
-      case default => ???
+      case default =>
+        throw new IllegalArgumentException("Unkonwn message body type: " + default)
     }
   }
 

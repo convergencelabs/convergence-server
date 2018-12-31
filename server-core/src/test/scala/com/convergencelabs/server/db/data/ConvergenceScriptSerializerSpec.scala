@@ -64,7 +64,7 @@ class ConvergenceScriptSerializerSpec extends WordSpecLike with Matchers {
           CreateModel(
             "someId",
             "collection1",
-            2L,
+            2,
             Instant.parse("2016-11-16T17:49:15.233Z"),
             Instant.parse("2016-11-16T17:49:15.233Z"),
             CreateObjectValue(

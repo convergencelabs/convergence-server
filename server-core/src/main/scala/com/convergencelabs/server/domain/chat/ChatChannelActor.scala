@@ -35,7 +35,7 @@ case class ChatChannelState(
   name: String,
   topic: String,
   lastEventTime: Instant,
-  lastEventNumber: Int,
+  lastEventNumber: Long,
   members: Set[String])
 
 class ChatChannelActor private[domain] () extends Actor with ActorLogging {

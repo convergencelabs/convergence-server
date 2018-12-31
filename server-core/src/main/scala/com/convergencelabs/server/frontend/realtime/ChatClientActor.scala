@@ -84,7 +84,7 @@ import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
 import akka.util.Timeout
 import akka.pattern.ask
 import com.convergencelabs.server.domain.chat.ChatChannelSharding
-import io.convergence.proto.Incoming
+import io.convergence.proto.Normal
 import io.convergence.proto.Chat
 import io.convergence.proto.Request
 import io.convergence.proto.Permissions
@@ -186,7 +186,7 @@ class ChatClientActor(
     case SubscribeAck(Subscribe(chatTopicName, _, _)) ⇒
       log.debug("Subscribe to chat channel for user")
 
-    case MessageReceived(message: Incoming with Chat) =>
+    case MessageReceived(message: Normal with Chat) =>
       onMessageReceived(message)
     case RequestReceived(message: Request with Chat, replyPromise) =>
       onRequestReceived(message, replyPromise)
@@ -244,7 +244,7 @@ class ChatClientActor(
   // Incoming Messages
   //
 
-  def onMessageReceived(message: Incoming with Chat): Unit = {
+  def onMessageReceived(message: Normal with Chat): Unit = {
     log.error("Chat channel actor received a non-request message")
   }
 
@@ -544,9 +544,9 @@ class ChatClientActor(
   }
 
   def onGetHistory(message: ChatChannelHistoryRequestMessage, cb: ReplyCallback): Unit = {
-    val ChatChannelHistoryRequestMessage(channelId, limit, offset, forward, eventFilter) = message;
+    val ChatChannelHistoryRequestMessage(channelId, limit, startEvent, forward, eventFilter) = message;
     val mappedEvents = eventFilter.map(toChannelEventCode(_))
-    val request = GetChannelHistoryRequest(domainFqn, channelId, sk, limit, offset, forward, Some(mappedEvents.toList))
+    val request = GetChannelHistoryRequest(domainFqn, channelId, sk, limit, startEvent, forward, Some(mappedEvents.toList))
     chatChannelActor.ask(request).mapTo[GetChannelHistoryResponse] onComplete {
       case Success(GetChannelHistoryResponse(events)) =>
         val eventData = events.map(channelEventToMessage(_))

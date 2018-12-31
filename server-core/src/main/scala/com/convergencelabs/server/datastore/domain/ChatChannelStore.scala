@@ -48,18 +48,18 @@ case class ChatChannelInfo(
   name: String,
   topic: String,
   members: Set[String],
-  lastEventNo: Int,
+  lastEventNumber: Long,
   lastEventTime: Instant)
 
 sealed trait ChatChannelEvent {
-  val eventNo: Int
+  val eventNumber: Long
   val channel: String
   val user: String
   val timestamp: Instant
 }
 
 case class ChatCreatedEvent(
-  eventNo: Int,
+  eventNumber: Long,
   channel: String,
   user: String,
   timestamp: Instant,
@@ -68,53 +68,53 @@ case class ChatCreatedEvent(
   members: Set[String]) extends ChatChannelEvent
 
 case class ChatMessageEvent(
-  eventNo: Int,
+  eventNumber: Long,
   channel: String,
   user: String,
   timestamp: Instant,
   message: String) extends ChatChannelEvent
 
 case class ChatUserJoinedEvent(
-  eventNo: Int,
+  eventNumber: Long,
   channel: String,
   user: String,
   timestamp: Instant) extends ChatChannelEvent
 
 case class ChatUserLeftEvent(
-  eventNo: Int,
+  eventNumber: Long,
   channel: String,
   user: String,
   timestamp: Instant) extends ChatChannelEvent
 
 case class ChatUserAddedEvent(
-  eventNo: Int,
+  eventNumber: Long,
   channel: String,
   user: String,
   timestamp: Instant,
   userAdded: String) extends ChatChannelEvent
 
 case class ChatUserRemovedEvent(
-  eventNo: Int,
+  eventNumber: Long,
   channel: String,
   user: String,
   timestamp: Instant,
   userRemoved: String) extends ChatChannelEvent
 
 case class ChatNameChangedEvent(
-  eventNo: Int,
+  eventNumber: Long,
   channel: String,
   user: String,
   timestamp: Instant,
   name: String) extends ChatChannelEvent
 
 case class ChatTopicChangedEvent(
-  eventNo: Int,
+  eventNumber: Long,
   channel: String,
   user: String,
   timestamp: Instant,
   topic: String) extends ChatChannelEvent
 
-case class ChatChannelMember(channel: String, user: String, seen: Int)
+case class ChatChannelMember(channel: String, user: String, seen: Long)
 
 object ChatChannelStore {
 
@@ -180,7 +180,7 @@ object ChatChannelStore {
   }
 
   def docToChatChannelEvent(doc: ODocument): ChatChannelEvent = {
-    val eventNo: Int = doc.getProperty(Fields.EventNo)
+    val eventNo: Long = doc.getProperty(Fields.EventNo)
     val channel: String = doc.getProperty("channel.id")
     val user: String = doc.getProperty("user.username")
     val timestamp: Date = doc.getProperty(Fields.Timestamp)
@@ -257,7 +257,7 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
       val members: JavaSet[OIdentifiable] = doc.getProperty("members")
       val usernames: Set[String] = members.asScala.map(member =>
         member.getRecord.asInstanceOf[ODocument].field("user.username").asInstanceOf[String]).toSet
-      val lastEventNo: Int = doc.getProperty("eventNo")
+      val lastEventNo: Long = doc.getProperty("eventNo")
       val lastEventTime: Instant = doc.getProperty("timestamp").asInstanceOf[Date].toInstant()
       ChatChannelInfo(
         id,
@@ -631,7 +631,7 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
     }
   }
 
-  def getChatChannelEvents(channelId: String, eventTypes: Option[List[String]], startEvent: Option[Int], limit: Option[Int], forward: Option[Boolean]): Try[List[ChatChannelEvent]] = withDb { db =>
+  def getChatChannelEvents(channelId: String, eventTypes: Option[List[String]], startEvent: Option[Long], limit: Option[Int], forward: Option[Boolean]): Try[List[ChatChannelEvent]] = withDb { db =>
     val params = scala.collection.mutable.Map[String, Any]("channelId" -> channelId)
 
     val eventTypesClause = eventTypes.getOrElse(List()) match {
@@ -662,7 +662,7 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
 
     OrientDBUtil
       .query(db, query, params.toMap)
-      .map(_.map(docToChatChannelEvent(_)).sortWith((e1, e2) => e1.eventNo < e2.eventNo))
+      .map(_.map(docToChatChannelEvent(_)).sortWith((e1, e2) => e1.eventNumber < e2.eventNumber))
   }
 
   def getChatChannelRid(channelId: String): Try[ORID] = withDb { db =>

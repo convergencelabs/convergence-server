@@ -287,7 +287,7 @@ class ModelStore private[domain] (
             val meta = ModelMetaData(
               results.remove("collectionId").asInstanceOf[String],
               results.remove(Fields.Id).asInstanceOf[String],
-              results.remove(Fields.Version).asInstanceOf[Int],
+              results.remove(Fields.Version).asInstanceOf[Long],
               createdTime.toInstant(),
               modifiedTime.toInstant(),
               false,

@@ -5,7 +5,7 @@ import com.convergencelabs.server.domain.model.ot.AppliedOperation
 
 case class ModelOperation(
   modelId: String,
-  version: Int,
+  version: Long,
   timestamp: Instant,
   username: String,
   sessionId: String,

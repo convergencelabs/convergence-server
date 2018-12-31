@@ -134,8 +134,8 @@ abstract class ChatChannelMessageProcessor(stateManager: ChatChannelStateManager
   }
 
   def onGetHistory(message: GetChannelHistoryRequest): Try[ChatMessageProcessingResult] = {
-    val GetChannelHistoryRequest(domainFqn, channelId, sk, limit, offset, forward, eventFilter) = message;
-    stateManager.onGetHistory(channelId, sk.uid, limit, offset, forward, eventFilter) map { events =>
+    val GetChannelHistoryRequest(domainFqn, channelId, sk, limit, startEvent, forward, eventFilter) = message;
+    stateManager.onGetHistory(channelId, sk.uid, limit, startEvent, forward, eventFilter) map { events =>
       ChatMessageProcessingResult(Some(GetChannelHistoryResponse(events)), List())
     }
   }

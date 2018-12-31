@@ -5,6 +5,6 @@ import java.time.Instant
 case class OpenModelMetaData(
   id: String,
   collection: String,
-  version: Int,
+  version: Long,
   createdTime: Instant,
   modifiedTime: Instant)

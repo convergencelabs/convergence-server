@@ -15,7 +15,7 @@ import org.java_websocket.handshake.ServerHandshake
 
 import grizzled.slf4j.Logging
 import scalapb.GeneratedMessage
-import io.convergence.proto.Outgoing
+import io.convergence.proto.Normal
 import io.convergence.proto.Request
 import io.convergence.proto.Response
 import java.nio.ByteBuffer
@@ -42,7 +42,7 @@ class MockConvergenceClient(serverUri: String)
     logger.info("closed with exit code " + code + " additional info: " + reason);
   }
 
-  def sendNormal(message: GeneratedMessage with Outgoing): ConvergenceMessage = {
+  def sendNormal(message: GeneratedMessage with Normal): ConvergenceMessage = {
     val convergenceMessage = ConvergenceMessage()
       .withBody(ConvergenceMessageBodyUtils.toBody(message))
     sendMessage(convergenceMessage)

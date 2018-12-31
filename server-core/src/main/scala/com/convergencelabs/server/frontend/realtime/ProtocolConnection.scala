@@ -17,11 +17,10 @@ import akka.actor.Cancellable
 import akka.actor.Scheduler
 import akka.actor.actorRef2Scala
 import grizzled.slf4j.Logging
-import io.convergence.proto.Outgoing
 import scalapb.GeneratedMessage
 import io.convergence.proto.Request
 import io.convergence.proto.Response
-import io.convergence.proto.Incoming
+import io.convergence.proto.Normal
 import io.convergence.proto.message.ConvergenceMessage.Body
 import io.convergence.proto.connection._
 import io.convergence.proto.model._
@@ -38,11 +37,11 @@ import io.convergence.proto.identity._
 import io.convergence.proto.operations._
 
 sealed trait ProtocolMessageEvent {
-  def message: Incoming
+  def message: GeneratedMessage
 }
 
-case class MessageReceived(message: GeneratedMessage with Incoming) extends ProtocolMessageEvent
-case class RequestReceived(message: GeneratedMessage with Incoming with Request, replyCallback: ReplyCallback) extends ProtocolMessageEvent
+case class MessageReceived(message: GeneratedMessage with Normal) extends ProtocolMessageEvent
+case class RequestReceived(message: GeneratedMessage with Request, replyCallback: ReplyCallback) extends ProtocolMessageEvent
 
 class ProtocolConnection(
   private[this] val clientActor: ActorRef,
@@ -66,7 +65,7 @@ class ProtocolConnection(
   var nextRequestId = 0
   val requests = mutable.Map[Long, RequestRecord]()
 
-  def send(message: GeneratedMessage with Outgoing): Unit = {
+  def send(message: GeneratedMessage with Normal): Unit = {
     val body = ConvergenceMessageBodyUtils.toBody(message)
     val convergenceMessage = ConvergenceMessage().withBody(body)
     sendMessage(convergenceMessage)
@@ -123,7 +122,7 @@ class ProtocolConnection(
       heartbeatHelper.messageReceived()
     }
 
-    io.convergence.proto.message.ConvergenceMessage.validate(message) match {
+    ConvergenceMessage.validate(message) match {
       case Success(envelope) =>
         handleValidMessage(envelope)
       case Failure(cause) =>
@@ -147,14 +146,22 @@ class ProtocolConnection(
         // No Opo
         None
 
-      case message: Incoming with Request =>
+      case message: Request =>
         Some(RequestReceived(message, new ReplyCallbackImpl(convergenceMessage.requestId.get)))
 
-      case message: Incoming with Response =>
+      case message: Response =>
         onReply(message, convergenceMessage.responseId.get)
         None
 
-      case message: Incoming =>
+      case message: Normal =>
+        if (convergenceMessage.requestId.isDefined) {
+          throw new IllegalArgumentException("A normal message cannot have a requestId")
+        }
+        
+        if (convergenceMessage.responseId.isDefined) {
+          throw new IllegalArgumentException("A normal message cannot have a responseId")
+        }
+        
         Some(MessageReceived(message))
 
       case _ =>

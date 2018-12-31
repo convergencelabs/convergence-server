@@ -26,7 +26,7 @@ import com.convergencelabs.server.datastore.domain.UserGroup
 import com.convergencelabs.server.domain.UserGroupsForUsersRequest
 import com.convergencelabs.server.domain.UserGroupsForUsersResponse
 import io.convergence.proto.Identity
-import io.convergence.proto.Incoming
+import io.convergence.proto.Normal
 import io.convergence.proto.identity.UserSearchMessage
 import io.convergence.proto.identity.UserGroupData
 import io.convergence.proto.identity.UserGroupsResponseMessage
@@ -49,7 +49,7 @@ class IdentityClientActor(userServiceActor: ActorRef) extends Actor with ActorLo
   implicit val ec = context.dispatcher
 
   def receive: Receive = {
-    case RequestReceived(message, replyPromise) if message.isInstanceOf[Incoming with Identity] =>
+    case RequestReceived(message, replyPromise) if message.isInstanceOf[Normal with Identity] =>
       onRequestReceived(message.asInstanceOf[Request with Identity], replyPromise)
     case x: Any => unhandled(x)
   }

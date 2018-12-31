@@ -35,7 +35,7 @@ class ModelOperationStoreSpec
   val peopleCollection = "people"
   val modelId1 = "person1"
   val model = Model(
-    ModelMetaData(peopleCollection, modelId1, 10L, Instant.now(), Instant.now(), true, modelPermissions, 1),
+    ModelMetaData(peopleCollection, modelId1, 10, Instant.now(), Instant.now(), true, modelPermissions, 1),
     ObjectValue("vid", Map()))
 
   val sessionId = "test:1"
@@ -45,11 +45,11 @@ class ModelOperationStoreSpec
 
   val op1 = AppliedStringInsertOperation("0:0", false, 1, "1")
   val modelOp1 = NewModelOperation(modelId1, 1L, Instant.ofEpochMilli(10), sessionId, op1)
-  val modelOp1Expected = ModelOperation(modelId1, 1L, Instant.ofEpochMilli(10), testUsername, sessionId, op1)
+  val modelOp1Expected = ModelOperation(modelId1, 1, Instant.ofEpochMilli(10), testUsername, sessionId, op1)
 
   val op15 = AppliedStringInsertOperation("0:0", false, 2, "2")
   val modelOp15 = NewModelOperation(modelId1, 15L, Instant.ofEpochMilli(10), sessionId, op15)
-  val modelOp15Expected = ModelOperation(modelId1, 15L, Instant.ofEpochMilli(10), testUsername, sessionId, op15)
+  val modelOp15Expected = ModelOperation(modelId1, 15, Instant.ofEpochMilli(10), testUsername, sessionId, op15)
 
   "A ModelOperationStore" when {
     "creating a ModelOperation" must {

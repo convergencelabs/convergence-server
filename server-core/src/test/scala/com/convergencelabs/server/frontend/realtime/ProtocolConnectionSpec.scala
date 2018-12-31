@@ -17,7 +17,6 @@ import org.scalatest.mockito.MockitoSugar
 
 import com.convergencelabs.server.HeartbeatConfiguration
 import com.convergencelabs.server.ProtocolConfiguration
-import com.convergencelabs.server.domain.model.data.ObjectValue
 
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
@@ -31,6 +30,11 @@ import io.convergence.proto.connection.HandshakeRequestMessage
 import io.convergence.proto.operations.OperationSubmissionMessage
 import io.convergence.proto.connection.HandshakeResponseMessage
 import io.convergence.proto.model.AutoCreateModelConfigResponseMessage
+import io.convergence.proto.operations.ObjectValue
+import io.convergence.proto.connection.PingMessage
+import io.convergence.proto.connection.PongMessage
+import io.convergence.proto.operations.CompoundOperationData
+import io.convergence.proto.operations.OperationData
 
 // scalastyle:off magic.number
 class ProtocolConnectionSpec
@@ -65,10 +69,8 @@ class ProtocolConnectionSpec
         val OutgoingBinaryMessage(message) = this.connectionActor.expectMsgClass(10 millis, classOf[OutgoingBinaryMessage])
 
         val convergenceMessage = ConvergenceMessage.parseFrom(message)
-        val sentAck = convergenceMessage.body.operationAck
-        sentAck shouldBe defined
-
-        sentAck shouldBe toSend
+        convergenceMessage.body.operationAck shouldBe defined
+        convergenceMessage.getOperationAck shouldBe toSend
       }
     }
 
@@ -81,7 +83,7 @@ class ProtocolConnectionSpec
         val convergenceMessage = ConvergenceMessage.parseFrom(message)
 
         convergenceMessage.requestId shouldBe defined
-        convergenceMessage.body.modelAutoCreateConfigRequest shouldBe toSend
+        convergenceMessage.getModelAutoCreateConfigRequest shouldBe toSend
       }
     }
 
@@ -89,11 +91,11 @@ class ProtocolConnectionSpec
       "emit a request received event" in new TestFixture(system) {
         val handshake = HandshakeRequestMessage(false, None)
         val message = ConvergenceMessage()
-          .withRequestId(1L)
+          .withRequestId(1)
           .withHandshakeRequest(handshake)
         val bytes = message.toByteArray
 
-        val RequestReceived(request, r) = connection.onIncomingMessage(bytes).success.value.value.asInstanceOf[RequestReceived]
+        val RequestReceived(request, r) = connection.onIncomingMessage(bytes).get.value.asInstanceOf[RequestReceived]
         request shouldBe handshake
       }
     }
@@ -104,19 +106,28 @@ class ProtocolConnectionSpec
       }
 
       "emit a message received event" in new TestFixture(system) {
-        val opSubmission = OperationSubmissionMessage(session, 1L, 2L, CompoundOperationData(List()))
+        val opSubmission = OperationSubmissionMessage()
+          .withResourceId("r")
+          .withSequenceNumber(1)
+          .withVersion(2)
+          .withOperation(OperationData().withCompoundOperation(CompoundOperationData(List())))
         val message = ConvergenceMessage()
           .withOperationSubmission(opSubmission)
 
         val bytes = message.toByteArray
-        val MessageReceived(received) = connection.onIncomingMessage(bytes).success.value.value.asInstanceOf[MessageReceived]
-        received shouldBe message
+        val MessageReceived(received) = connection.onIncomingMessage(bytes).get.value.asInstanceOf[MessageReceived]
+        received shouldBe opSubmission
       }
 
-      "emit a error event and abort the connection if a message with a request Id" in new TestFixture(system) {
-        val opSubmission = OperationSubmissionMessage(session, 1L, 2L, CompoundOperationData(List()))
+      "emit a error event and abort the connection if a normal message has a request Id" in new TestFixture(system) {
+        val opSubmission = OperationSubmissionMessage()
+          .withResourceId("r")
+          .withSequenceNumber(1)
+          .withVersion(2)
+          .withOperation(OperationData().withCompoundOperation(CompoundOperationData(List())))
+
         val message = ConvergenceMessage()
-          .withRequestId(1L)
+          .withRequestId(1)
           .withOperationSubmission(opSubmission)
         val bytes = message.toByteArray
 
@@ -143,28 +154,28 @@ class ProtocolConnectionSpec
       "send a correct reply envelope for a success" in new TestFixture(system) {
         val handshake = HandshakeRequestMessage(false, None)
         val message = ConvergenceMessage()
-          .withRequestId(1L)
+          .withRequestId(1)
           .withHandshakeRequest(handshake)
 
         val bytes = message.toByteArray
         val RequestReceived(m, cb) = connection.onIncomingMessage(bytes).success.value.value.asInstanceOf[RequestReceived]
 
-        val response = HandshakeResponseMessage(true, None, None, None)
+        val response = HandshakeResponseMessage().withSuccess(true)
         cb.reply(response)
 
         val expectedResponseEnvelope = ConvergenceMessage()
-          .withResponseId(1L)
+          .withResponseId(1)
           .withHandshakeResponse(response)
 
         val OutgoingBinaryMessage(replyMessage) = this.connectionActor.expectMsgClass(10 millis, classOf[OutgoingBinaryMessage])
-        val convergenceMessage = ConvergenceMessage.parseFrom(message)
+        val convergenceMessage = ConvergenceMessage.parseFrom(replyMessage)
         convergenceMessage shouldBe expectedResponseEnvelope
       }
 
       "send a correct reply envelope for an unexpected error" in new TestFixture(system) {
         val message = HandshakeRequestMessage(false, None)
         val envelope = ConvergenceMessage()
-          .withRequestId(1L)
+          .withRequestId(1)
           .withHandshakeRequest(message)
 
         val bytes = envelope.toByteArray
@@ -173,17 +184,17 @@ class ProtocolConnectionSpec
         cb.unexpectedError(errorMessage)
 
         val OutgoingBinaryMessage(replyMessage) = this.connectionActor.expectMsgClass(10 millis, classOf[OutgoingBinaryMessage])
-        val convergenceMessage = ConvergenceMessage.parseFrom(message)
+        val convergenceMessage = ConvergenceMessage.parseFrom(replyMessage)
 
         convergenceMessage.body.error shouldBe defined
-        convergenceMessage.body.error.code shouldBe "unknown"
-        convergenceMessage.body.error.message shouldBe errorMessage
+        convergenceMessage.getError.code shouldBe "unknown"
+        convergenceMessage.getError.message shouldBe errorMessage
       }
 
       "send a correct reply envelope for an expected error" in new TestFixture(system) {
         val handshakeRequest = HandshakeRequestMessage(false, None)
         val sentMessage = ConvergenceMessage()
-          .withRequetsId(1L)
+          .withRequestId(1)
           .withHandshakeRequest(handshakeRequest)
 
         val bytes = sentMessage.toByteArray
@@ -192,11 +203,11 @@ class ProtocolConnectionSpec
         cb.expectedError(code, errorMessage)
 
         val OutgoingBinaryMessage(replyMessage) = this.connectionActor.expectMsgClass(10 millis, classOf[OutgoingBinaryMessage])
-        val convergenceMessage = ConvergenceMessage.parseFrom(message)
+        val convergenceMessage = ConvergenceMessage.parseFrom(replyMessage)
 
         convergenceMessage.body.error shouldBe defined
-        convergenceMessage.body.error.code shouldBe code
-        convergenceMessage.body.error.message shouldBe errorMessage
+        convergenceMessage.getError.code shouldBe code
+        convergenceMessage.getError.message shouldBe errorMessage
       }
     }
 
@@ -221,9 +232,10 @@ class ProtocolConnectionSpec
           system.dispatcher)
 
         val OutgoingBinaryMessage(replyMessage) = connectionActor.expectMsgClass(100 millis, classOf[OutgoingBinaryMessage])
-        val convergenceMessage = ConvergenceMessage.parseFrom(message)
+        val convergenceMessage = ConvergenceMessage.parseFrom(replyMessage)
 
-        convergenceMessage shouldBe ConvergenceMessage().withPing(PingMessage())
+        val exepcted = ConvergenceMessage().withPing(PingMessage())
+        convergenceMessage shouldBe exepcted
       }
 
       "timeout within the specified interval" in {
@@ -252,9 +264,12 @@ class ProtocolConnectionSpec
     "receiving a reply" must {
 
       "ignore when the reply has no request" in new TestFixture(system) {
-        val autoCreate = AutoCreateModelConfigResponseMessage(collectionId, Some(ObjectValue("vid1", Map())), None, None, None, None)
+        val autoCreate = AutoCreateModelConfigResponseMessage()
+          .withCollection(collectionId)
+          .withData(ObjectValue("vid1", Map()))
+
         val sentMessage = ConvergenceMessage()
-          .withResponseId(1L)
+          .withResponseId(1)
           .withModelAutoCreateConfigResponse(autoCreate)
 
         val bytes = sentMessage.toByteArray
@@ -268,9 +283,11 @@ class ProtocolConnectionSpec
         val OutgoingBinaryMessage(message) = this.connectionActor.expectMsgClass(10 millis, classOf[OutgoingBinaryMessage])
         val convergenceMessage = ConvergenceMessage.parseFrom(message)
 
-        val replyMessage = AutoCreateModelConfigResponseMessage(collectionId, Some(ObjectValue("vid2", Map())), None, None, None, None)
+        val replyMessage = AutoCreateModelConfigResponseMessage()
+          .withCollection(collectionId)
+          .withData(ObjectValue("vid2", Map()))
         val replyEnvelope = ConvergenceMessage()
-          .withResponseId(convergenceMessage.requestId)
+          .withResponseId(convergenceMessage.getRequestId)
           .withModelAutoCreateConfigResponse(replyMessage)
 
         connection.onIncomingMessage(replyEnvelope.toByteArray).success.value shouldBe None
@@ -289,7 +306,7 @@ class ProtocolConnectionSpec
 
         val replyMessage = ErrorMessage(code, errorMessage, Map("foo" -> "bar"))
         val replyEnvelope = ConvergenceMessage()
-          .withResponseId(convergenceMessage.requestId)
+          .withResponseId(convergenceMessage.getRequestId)
           .withError(replyMessage)
 
         connection.onIncomingMessage(replyEnvelope.toByteArray).success.value shouldBe None

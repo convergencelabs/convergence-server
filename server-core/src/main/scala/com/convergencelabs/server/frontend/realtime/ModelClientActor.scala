@@ -71,7 +71,7 @@ import com.convergencelabs.server.domain.model.DeleteRealtimeModel
 import com.convergencelabs.server.util.BiMap
 import com.convergencelabs.server.domain.model.RealtimeModelSharding
 
-import io.convergence.proto.Incoming
+import io.convergence.proto.Normal
 import io.convergence.proto.Model
 import io.convergence.proto.Request
 import io.convergence.proto.common.ErrorMessage
@@ -149,8 +149,8 @@ class ModelClientActor(
   private[this] val modelClusterRegion: ActorRef = RealtimeModelSharding.shardRegion(context.system)
 
   def receive: Receive = {
-    case MessageReceived(message) if message.isInstanceOf[Incoming with Model] =>
-      onMessageReceived(message.asInstanceOf[Incoming with Model])
+    case MessageReceived(message) if message.isInstanceOf[Normal with Model] =>
+      onMessageReceived(message.asInstanceOf[Normal with Model])
     case RequestReceived(message, replyPromise) if message.isInstanceOf[Request with Model] =>
       onRequestReceived(message.asInstanceOf[Request with Model], replyPromise)
     case message: RealtimeModelClientMessage =>
@@ -251,7 +251,7 @@ class ModelClientActor(
           data.map(messageToObjectValue(_)),
           overridePermissions,
           worldPermissions,
-          Some(userPermissions),
+          userPermissions,
           ephemeral)
       case Failure(cause) =>
         // forward the failure to the asker, so we fail fast.
@@ -337,7 +337,7 @@ class ModelClientActor(
     }
   }
 
-  private[this] def onMessageReceived(message: Incoming with Model): Unit = {
+  private[this] def onMessageReceived(message: Normal with Model): Unit = {
     message match {
       case submission: OperationSubmissionMessage => onOperationSubmission(submission)
       case publishReference: PublishReferenceMessage => onPublishReference(publishReference)

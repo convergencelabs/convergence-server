@@ -91,7 +91,7 @@ class ChatChannelStoreSpec
         chatChannelInfo.name shouldEqual "testName"
         chatChannelInfo.topic shouldEqual "testTopic"
         chatChannelInfo.channelType shouldEqual "direct"
-        chatChannelInfo.lastEventNo shouldEqual 0L
+        chatChannelInfo.lastEventNumber shouldEqual 0L
         chatChannelInfo.lastEventTime shouldEqual timestamp
         chatChannelInfo.members shouldEqual members
       }
@@ -112,7 +112,7 @@ class ChatChannelStoreSpec
         chatChannelInfo.name shouldEqual "testName"
         chatChannelInfo.topic shouldEqual "testTopic"
         chatChannelInfo.channelType shouldEqual "group"
-        chatChannelInfo.lastEventNo shouldEqual 1L
+        chatChannelInfo.lastEventNumber shouldEqual 1L
         chatChannelInfo.lastEventTime shouldEqual timestamp
         chatChannelInfo.members shouldEqual members
       }

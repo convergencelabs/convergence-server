@@ -274,9 +274,9 @@ class ModelStoreSpec
 
         val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId", None).get
         list.toSet shouldBe Set(
-            ModelQueryResult(person1MetaData, DataValueToJValue.toJson(person1Data)), 
-            ModelQueryResult(person2MetaData, DataValueToJValue.toJson(person2Data)), 
-            ModelQueryResult(person3MetaData, DataValueToJValue.toJson(person3Data)))
+            ModelQueryResult(person1MetaData, DataValueToJValue.toJOject(person1Data)), 
+            ModelQueryResult(person2MetaData, DataValueToJValue.toJOject(person2Data)), 
+            ModelQueryResult(person3MetaData, DataValueToJValue.toJOject(person3Data)))
       }
 
       "return correct models if a limit is provided" in withPersistenceStore { stores =>
@@ -284,8 +284,8 @@ class ModelStoreSpec
 
         val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId ORDER BY name ASC LIMIT 2", None).get
         list.toSet shouldBe Set(
-            ModelQueryResult(person1MetaData, DataValueToJValue.toJson(person1Data)), 
-            ModelQueryResult(person2MetaData, DataValueToJValue.toJson(person2Data)))
+            ModelQueryResult(person1MetaData, DataValueToJValue.toJOject(person1Data)), 
+            ModelQueryResult(person2MetaData, DataValueToJValue.toJOject(person2Data)))
       }
 
       "return correct models if an offset is provided" in withPersistenceStore { stores =>
@@ -293,15 +293,15 @@ class ModelStoreSpec
 
         val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId ORDER BY name ASC OFFSET 1", None).get
         list.toSet shouldBe Set(
-            ModelQueryResult(person2MetaData, DataValueToJValue.toJson(person2Data)), 
-            ModelQueryResult(person3MetaData, DataValueToJValue.toJson(person3Data)))
+            ModelQueryResult(person2MetaData, DataValueToJValue.toJOject(person2Data)), 
+            ModelQueryResult(person3MetaData, DataValueToJValue.toJOject(person3Data)))
       }
 
       "return correct models if an offset and limit is provided" in withPersistenceStore { stores =>
         createAllModels(stores)
 
         val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId ORDER BY name ASC LIMIT 1 OFFSET 1", None).get
-        list shouldBe List(ModelQueryResult(person2MetaData, DataValueToJValue.toJson(person2Data)))
+        list shouldBe List(ModelQueryResult(person2MetaData, DataValueToJValue.toJOject(person2Data)))
       }
 
       "return models in correct order if orderBy ASC is provided" in withPersistenceStore { stores =>
@@ -309,9 +309,9 @@ class ModelStoreSpec
 
         val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId ORDER BY name ASC", None).get
         list shouldBe List(
-            ModelQueryResult(person1MetaData, DataValueToJValue.toJson(person1Data)), 
-            ModelQueryResult(person2MetaData, DataValueToJValue.toJson(person2Data)), 
-            ModelQueryResult(person3MetaData, DataValueToJValue.toJson(person3Data)))
+            ModelQueryResult(person1MetaData, DataValueToJValue.toJOject(person1Data)), 
+            ModelQueryResult(person2MetaData, DataValueToJValue.toJOject(person2Data)), 
+            ModelQueryResult(person3MetaData, DataValueToJValue.toJOject(person3Data)))
       }
 
       "return models in correct order if orderBy DESC is provided" in withPersistenceStore { stores =>
@@ -319,9 +319,9 @@ class ModelStoreSpec
 
         val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId ORDER BY name DESC", None).get
         list shouldBe List(
-            ModelQueryResult(person3MetaData, DataValueToJValue.toJson(person3Data)), 
-            ModelQueryResult(person2MetaData, DataValueToJValue.toJson(person2Data)), 
-            ModelQueryResult(person1MetaData, DataValueToJValue.toJson(person1Data)))
+            ModelQueryResult(person3MetaData, DataValueToJValue.toJOject(person3Data)), 
+            ModelQueryResult(person2MetaData, DataValueToJValue.toJOject(person2Data)), 
+            ModelQueryResult(person1MetaData, DataValueToJValue.toJOject(person1Data)))
       }
     }
 

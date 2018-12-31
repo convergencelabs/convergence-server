@@ -40,7 +40,6 @@ import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
 import akka.http.scaladsl.model.RemoteAddress
 import akka.util.Timeout
 
-import io.convergence.proto.Outgoing
 import io.convergence.proto.Request
 import io.convergence.proto.connection.HandshakeRequestMessage
 import scalapb.GeneratedMessage
@@ -55,7 +54,7 @@ import io.convergence.proto.connection.HandshakeResponseMessage
 import io.convergence.proto.Response
 import io.convergence.proto.common.ErrorMessage
 import io.convergence.proto.Model
-import io.convergence.proto.Incoming
+import io.convergence.proto.Normal
 import io.convergence.proto.Activity
 import io.convergence.proto.Presence
 import io.convergence.proto.Chat
@@ -160,7 +159,7 @@ class ClientActor(
   }
 
   private[this] def receiveOutgoing: Receive = {
-    case message: GeneratedMessage with Outgoing => onOutgoingMessage(message)
+    case message: GeneratedMessage with Normal => onOutgoingMessage(message)
     case message: GeneratedMessage with Request => onOutgoingRequest(message)
   }
 
@@ -352,7 +351,7 @@ class ClientActor(
   // Incoming / Outgoing Messages
   //
 
-  private[this] def onOutgoingMessage(message: GeneratedMessage with Outgoing): Unit = {
+  private[this] def onOutgoingMessage(message: GeneratedMessage with Normal): Unit = {
     protocolConnection.send(message)
   }
 
