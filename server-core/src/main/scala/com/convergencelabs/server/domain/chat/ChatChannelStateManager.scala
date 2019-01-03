@@ -28,12 +28,14 @@ import com.convergencelabs.server.domain.chat.ChatChannelStateManager.DefaultCha
 import com.convergencelabs.server.domain.model.SessionKey
 
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.datastore.domain.ChatChannelMember
 
 object ChatChannelStateManager {
   def create(channelId: String, chatChannelStore: ChatChannelStore, permissionsStore: PermissionsStore): Try[ChatChannelStateManager] = {
     chatChannelStore.getChatChannelInfo(channelId) map { info =>
-      val ChatChannelInfo(id, channelType, created, isPrivate, name, topic, members, lastEventNo, lastEventTime) = info
-      val state = ChatChannelState(id, channelType, created, isPrivate, name, topic, lastEventTime, lastEventNo, members)
+      val ChatChannelInfo(id, channelType, created, isPrivate, name, topic, lastEventNo, lastEventTime, members) = info
+      val memberMap = members.map(member => (member.username, member)).toMap
+      val state = ChatChannelState(id, channelType, created, isPrivate, name, topic, lastEventTime, lastEventNo, memberMap)
       new ChatChannelStateManager(channelId, state, chatChannelStore, permissionsStore)
     } recoverWith {
       case cause: EntityNotFoundException =>
@@ -65,10 +67,10 @@ object ChatChannelStateManager {
 }
 
 class ChatChannelStateManager(
-    private[this] val channelId: String,
-    private[this] var state: ChatChannelState,
-    private[this] val channelStore: ChatChannelStore,
-    private[this] val permissionsStore: PermissionsStore) extends Logging {
+  private[this] val channelId: String,
+  private[this] var state: ChatChannelState,
+  private[this] val channelStore: ChatChannelStore,
+  private[this] val permissionsStore: PermissionsStore) extends Logging {
 
   import ChatChannelMessages._
 
@@ -88,7 +90,7 @@ class ChatChannelStateManager(
       if (members contains sk.uid) {
         Failure(ChannelAlreadyJoinedException(channelId))
       } else {
-        val newMembers = members + sk.uid
+        val newMembers = members + (sk.uid -> ChatChannelMember(channelId, sk.uid, 0))
 
         val eventNo = state.lastEventNumber + 1
         val timestamp = Instant.now()
@@ -137,7 +139,7 @@ class ChatChannelStateManager(
       if (members contains username) {
         Failure(ChannelAlreadyJoinedException(channelId))
       } else {
-        val newMembers = members + username
+        val newMembers = members + (username -> ChatChannelMember(channelId, username, 0))
         val eventNo = state.lastEventNumber + 1
         val timestamp = Instant.now()
 
@@ -220,6 +222,9 @@ class ChatChannelStateManager(
 
   def onMarkEventsSeen(channelId: String, sk: SessionKey, eventNumber: Long): Try[Unit] = {
     if (state.members contains sk.uid) {
+      val newMembers = state.members + (sk.uid -> ChatChannelMember(channelId, sk.uid, eventNumber))
+      val newState = state.copy(members = newMembers)
+      this.state = newState
       channelStore.markSeen(channelId, sk.uid, eventNumber)
     } else {
       Failure(UnauthorizedException("Not authorized"))
@@ -227,7 +232,7 @@ class ChatChannelStateManager(
   }
 
   def onGetHistory(channelId: String, username: String, limit: Option[Int], startEvent: Option[Long],
-                   forward: Option[Boolean], eventFilter: Option[List[String]]): Try[List[ChatChannelEvent]] = {
+    forward: Option[Boolean], eventFilter: Option[List[String]]): Try[List[ChatChannelEvent]] = {
     channelStore.getChatChannelEvents(channelId, eventFilter, startEvent, limit, forward)
   }
 
@@ -346,13 +351,13 @@ class ChatChannelStateManager(
   }
 
   def removeAllMembers(): Unit = {
-    this.state().members.foreach(username => {
-      this.channelStore.removeChatChannelMember(channelId, username) recover {
+    this.state().members.values.foreach(member => {
+      this.channelStore.removeChatChannelMember(channelId, member.username) recover {
         case cause: Throwable =>
           error("Error removing chat channel member", cause)
       }
     })
-    state = state.copy(members = Set())
+    state = state.copy(members = Map())
   }
 
   private[this] def hasPermission(sk: SessionKey, permission: String): Try[Unit] = {

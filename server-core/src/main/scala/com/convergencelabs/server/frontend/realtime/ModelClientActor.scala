@@ -81,11 +81,10 @@ import io.convergence.proto.references.RemoteReferenceSetMessage
 import io.convergence.proto.references.SetReferenceMessage
 import io.convergence.proto.model.RemoteClientOpenedMessage
 import io.convergence.proto.model.SetModelPermissionsResponseMessage
-import io.convergence.proto.references.PublishReferenceMessage
-import io.convergence.proto.model.OpenModelData
+import io.convergence.proto.references.ShareReferenceMessage
 import io.convergence.proto.operations.OperationAcknowledgementMessage
 import io.convergence.proto.model.CloseRealTimeModelSuccessMessage
-import io.convergence.proto.references.UnpublishReferenceMessage
+import io.convergence.proto.references.UnshareReferenceMessage
 import io.convergence.proto.model.ModelForceCloseMessage
 import io.convergence.proto.model.SetModelPermissionsRequestMessage
 import io.convergence.proto.references.ClearReferenceMessage
@@ -94,14 +93,15 @@ import io.convergence.proto.model.ModelPermissionsData
 import io.convergence.proto.model.GetModelPermissionsResponseMessage
 import io.convergence.proto.model.ModelsQueryRequestMessage
 import io.convergence.proto.model.RemoteClientClosedMessage
-import io.convergence.proto.references.RemoteReferenceUnpublishedMessage
+import io.convergence.proto.references.RemoteReferenceUnsharedMessage
 import io.convergence.proto.model.ModelResult
 import io.convergence.proto.model.ModelPermissionsChangedMessage
 import io.convergence.proto.model.CreateRealtimeModelRequestMessage
 import io.convergence.proto.model.ModelsQueryResponseMessage
 import io.convergence.proto.operations.RemoteOperationMessage
-import io.convergence.proto.references.RemoteReferencePublishedMessage
+import io.convergence.proto.references.RemoteReferenceSharedMessage
 import io.convergence.proto.model.OpenRealtimeModelRequestMessage
+import io.convergence.proto.model.OpenRealtimeModelResponseMessage.ReferenceData
 import io.convergence.proto.operations.OperationSubmissionMessage
 import io.convergence.proto.model.CreateRealtimeModelSuccessMessage
 import io.convergence.proto.model.DeleteRealtimeModelRequestMessage
@@ -109,7 +109,6 @@ import io.convergence.proto.model.DeleteRealtimeModelSuccessMessage
 import io.convergence.proto.model.CloseRealtimeModelRequestMessage
 import io.convergence.proto.model.AutoCreateModelConfigRequestMessage
 import io.convergence.proto.references.RemoteReferenceClearedMessage
-import io.convergence.proto.references.ReferenceData
 import io.convergence.proto.references.ReferenceValues
 import io.convergence.proto.references.IndexRangeList
 import io.convergence.proto.references.IndexRange
@@ -185,7 +184,7 @@ class ModelClientActor(
     resourceId(modelId) foreach { resoruceId =>
       context.parent ! RemoteOperationMessage(
         resoruceId,
-        Some(sessionKey),
+        sessionKey.sid,
         contextVersion,
         Some(timestamp),
         Some(OperationMapper.mapOutgoing(operation)))
@@ -202,14 +201,14 @@ class ModelClientActor(
   private[this] def onRemoteClientOpened(opened: RemoteClientOpened): Unit = {
     val RemoteClientOpened(modelId, sk) = opened
     resourceId(modelId) foreach { resourceId =>
-      context.parent ! RemoteClientOpenedMessage(resourceId, Some(sk))
+      context.parent ! RemoteClientOpenedMessage(resourceId, sk.sid)
     }
   }
 
   private[this] def onRemoteClientClosed(closed: RemoteClientClosed): Unit = {
     val RemoteClientClosed(modelId, sk) = closed
     resourceId(modelId) foreach { resourceId =>
-      context.parent ! RemoteClientClosedMessage(resourceId, Some(sk))
+      context.parent ! RemoteClientClosedMessage(resourceId, sk.sid)
     }
   }
 
@@ -249,10 +248,10 @@ class ModelClientActor(
         askingActor ! ClientAutoCreateModelConfigResponse(
           collection,
           data.map(messageToObjectValue(_)),
-          overridePermissions,
+          Some(overridePermissions),
           worldPermissions,
           userPermissions,
-          ephemeral)
+          Some(ephemeral))
       case Failure(cause) =>
         // forward the failure to the asker, so we fail fast.
         askingActor ! akka.actor.Status.Failure(cause)
@@ -260,25 +259,25 @@ class ModelClientActor(
   }
 
   private[this] def onRemoteReferencePublished(refPublished: RemoteReferencePublished): Unit = {
-    val RemoteReferencePublished(modelId, session, id, key, refType, values) = refPublished
+    val RemoteReferencePublished(modelId, session, valueId, key, refType, values) = refPublished
     resourceId(modelId) foreach { resourceId =>
       val references = mapOutgoingReferenceValue(refType, values)
-      context.parent ! RemoteReferencePublishedMessage(resourceId, Some(session), id, key, Some(references))
+      context.parent ! RemoteReferenceSharedMessage(resourceId, valueId, key, Some(references), session.sid)
     }
   }
 
   private[this] def onRemoteReferenceUnpublished(refUnpublished: RemoteReferenceUnpublished): Unit = {
-    val RemoteReferenceUnpublished(modelId, session, id, key) = refUnpublished
+    val RemoteReferenceUnpublished(modelId, session, valueId, key) = refUnpublished
     resourceId(modelId) foreach { resourceId =>
-      context.parent ! RemoteReferenceUnpublishedMessage(resourceId, Some(session), id, key)
+      context.parent ! RemoteReferenceUnsharedMessage(resourceId, valueId, key, session.sid)
     }
   }
 
   private[this] def onRemoteReferenceSet(refSet: RemoteReferenceSet): Unit = {
-    val RemoteReferenceSet(modelId, session, id, key, refType, values) = refSet
+    val RemoteReferenceSet(modelId, session, valueId, key, refType, values) = refSet
     resourceId(modelId) foreach { resourceId =>
       val references = mapOutgoingReferenceValue(refType, values)
-      context.parent ! RemoteReferenceSetMessage(resourceId, Some(session), id, key, Some(references))
+      context.parent ! RemoteReferenceSetMessage(resourceId, valueId, key, Some(references), session.sid)
     }
   }
 
@@ -288,8 +287,8 @@ class ModelClientActor(
         val indices = values.asInstanceOf[List[Int]]
         ReferenceValues().withIndices(Int32List(indices))
       case ReferenceType.Range =>
-        val ranges = values.asInstanceOf[List[(Int, Int)]].map { 
-          case (from,to) => IndexRange(from, to)
+        val ranges = values.asInstanceOf[List[(Int, Int)]].map {
+          case (from, to) => IndexRange(from, to)
         }
         ReferenceValues().withRanges(IndexRangeList(ranges))
       case ReferenceType.Property =>
@@ -306,7 +305,7 @@ class ModelClientActor(
       case ReferenceValues.Values.Indices(Int32List(indices)) =>
         (ReferenceType.Index, indices.toList)
       case ReferenceValues.Values.Ranges(IndexRangeList(ranges)) =>
-        (ReferenceType.Range, ranges.map(r => (r.fromIndex, r.toIndex)).toList)
+        (ReferenceType.Range, ranges.map(r => (r.startIndex, r.endIndex)).toList)
       case ReferenceValues.Values.Properties(StringList(proeprties)) =>
         (ReferenceType.Property, proeprties.toList)
       case ReferenceValues.Values.Elements(StringList(elements)) =>
@@ -315,9 +314,9 @@ class ModelClientActor(
   }
 
   private[this] def onRemoteReferenceCleared(refCleared: RemoteReferenceCleared): Unit = {
-    val RemoteReferenceCleared(modelId, session, path, key) = refCleared
+    val RemoteReferenceCleared(modelId, session, valueId, key) = refCleared
     resourceId(modelId) foreach { resourceId =>
-      context.parent ! RemoteReferenceClearedMessage(resourceId, Some(session), path, key)
+      context.parent ! RemoteReferenceClearedMessage(resourceId, valueId, key, session.sid)
     }
   }
 
@@ -340,8 +339,8 @@ class ModelClientActor(
   private[this] def onMessageReceived(message: Normal with Model): Unit = {
     message match {
       case submission: OperationSubmissionMessage => onOperationSubmission(submission)
-      case publishReference: PublishReferenceMessage => onPublishReference(publishReference)
-      case unpublishReference: UnpublishReferenceMessage => onUnpublishReference(unpublishReference)
+      case publishReference: ShareReferenceMessage => onPublishReference(publishReference)
+      case unpublishReference: UnshareReferenceMessage => onUnpublishReference(unpublishReference)
       case setReference: SetReferenceMessage => onSetReference(setReference)
       case clearReference: ClearReferenceMessage => onClearReference(clearReference)
     }
@@ -352,7 +351,7 @@ class ModelClientActor(
     resourceIdToModelId.get(resourceId) match {
       case Some(modelId) =>
         val submission = OperationSubmission(
-            domainFqn, modelId, seqNo, version, OperationMapper.mapIncoming(operation.get))
+          domainFqn, modelId, seqNo, version, OperationMapper.mapIncoming(operation.get))
         modelClusterRegion ! submission
       case None =>
         log.warning(s"${domainFqn}: Recieved an operation submissions for a resource id that does not exists.")
@@ -360,8 +359,8 @@ class ModelClientActor(
     }
   }
 
-  private[this] def onPublishReference(message: PublishReferenceMessage): Unit = {
-    val PublishReferenceMessage(resourceId, id, key, references, version) = message
+  private[this] def onPublishReference(message: ShareReferenceMessage): Unit = {
+    val ShareReferenceMessage(resourceId, id, key, references, version) = message
     val (refType, values) = mapIncomingReference(references.get)
     resourceIdToModelId.get(resourceId) match {
       case Some(modelId) =>
@@ -373,8 +372,8 @@ class ModelClientActor(
     }
   }
 
-  def onUnpublishReference(message: UnpublishReferenceMessage): Unit = {
-    val UnpublishReferenceMessage(resourceId, id, key) = message
+  def onUnpublishReference(message: UnshareReferenceMessage): Unit = {
+    val UnshareReferenceMessage(resourceId, id, key) = message
     resourceIdToModelId.get(resourceId) match {
       case Some(modelId) =>
         val unpublishReference = UnpublishReference(domainFqn, modelId, id, key)
@@ -428,7 +427,7 @@ class ModelClientActor(
         val convertedReferences = references.map {
           case ReferenceState(session, valueId, key, refType, values) =>
             val referenceValues = mapOutgoingReferenceValue(refType, values)
-            ReferenceData(Some(session), valueId, key, Some(referenceValues))
+            ReferenceData(session.sid, valueId, key, Some(referenceValues))
         }
 
         cb.reply(
@@ -440,10 +439,9 @@ class ModelClientActor(
             metaData.version,
             Some(metaData.createdTime),
             Some(metaData.modifiedTime),
-            Some(OpenModelData(
-              Some(modelData),
-              connectedClients.map(s => sessionKeyToMessage(s)).toSeq,
-              convertedReferences.toSeq)),
+            Some(modelData),
+            connectedClients.map(s => s.sid).toSeq,
+            convertedReferences.toSeq,
             Some(ModelPermissionsData(
               modelPermissions.read,
               modelPermissions.write,
@@ -500,7 +498,7 @@ class ModelClientActor(
       modelId,
       collectionId,
       data.get,
-      overridePermissions,
+      Some(overridePermissions),
       worldPermissions,
       userPermissions,
       Some(sessionKey))
@@ -586,7 +584,7 @@ class ModelClientActor(
       domainFqn,
       modelId,
       sessionKey,
-      overridePermissions,
+      Some(overridePermissions),
       mappedWorld,
       setAllUsers,
       mappedAddedUsers,

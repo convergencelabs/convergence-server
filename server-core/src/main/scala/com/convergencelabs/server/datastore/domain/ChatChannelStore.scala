@@ -47,9 +47,9 @@ case class ChatChannelInfo(
   isPrivate: Boolean,
   name: String,
   topic: String,
-  members: Set[String],
   lastEventNumber: Long,
-  lastEventTime: Instant)
+  lastEventTime: Instant,
+  members: Set[ChatChannelMember])
 
 sealed trait ChatChannelEvent {
   val eventNumber: Long
@@ -114,7 +114,7 @@ case class ChatTopicChangedEvent(
   timestamp: Instant,
   topic: String) extends ChatChannelEvent
 
-case class ChatChannelMember(channel: String, user: String, seen: Long)
+case class ChatChannelMember(channel: String, username: String, seen: Long)
 
 object ChatChannelStore {
 
@@ -234,9 +234,14 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
 
   private[this] val GetChatChannelInfoQuery =
     """|SELECT 
-       |  max(eventNo) as eventNo, max(timestamp) as timestamp,
-       |  channel.id as id, channel.type as type, channel.created as created,
-       |  channel.private as private, channel.name as name, channel.topic as topic,
+       |  max(eventNo) as eventNo, 
+       |  max(timestamp) as timestamp,
+       |  channel.id as id, 
+       |  channel.type as type, 
+       |  channel.created as created,
+       |  channel.private as private,
+       |  channel.name as name, 
+       |  channel.topic as topic,
        |  channel.members as members
        |FROM
        |  ChatChannelEvent 
@@ -255,8 +260,12 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
       val name: String = doc.getProperty("name")
       val topic: String = doc.getProperty("topic")
       val members: JavaSet[OIdentifiable] = doc.getProperty("members")
-      val usernames: Set[String] = members.asScala.map(member =>
-        member.getRecord.asInstanceOf[ODocument].field("user.username").asInstanceOf[String]).toSet
+      val chatChannelMemebers: Set[ChatChannelMember] = members.asScala.map(member => {
+        val doc = member.getRecord.asInstanceOf[ODocument]
+        val username = doc.eval("user.username").asInstanceOf[String]
+        val seen = doc.getProperty("seen").asInstanceOf[Long]
+        ChatChannelMember(id, username, seen)
+      }).toSet
       val lastEventNo: Long = doc.getProperty("eventNo")
       val lastEventTime: Instant = doc.getProperty("timestamp").asInstanceOf[Date].toInstant()
       ChatChannelInfo(
@@ -266,9 +275,9 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
         isPrivate,
         name,
         topic,
-        usernames,
         lastEventNo,
-        lastEventTime)
+        lastEventTime,
+        chatChannelMemebers)
     }
   }
 

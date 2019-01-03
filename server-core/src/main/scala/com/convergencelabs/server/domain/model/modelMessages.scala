@@ -65,8 +65,8 @@ sealed trait ModelReferenceEvent extends RealTimeModelMessage {
   val id: Option[String]
 }
 
-case class PublishReference(domainFqn: DomainFqn, modelId: String, id: Option[String], key: String, referenceType: ReferenceType.Value, values: List[Any], contextVersion: Option[Int]) extends ModelReferenceEvent
-case class SetReference(domainFqn: DomainFqn, modelId: String, id: Option[String], key: String, referenceType: ReferenceType.Value, values: List[Any], contextVersion: Int) extends ModelReferenceEvent
+case class PublishReference(domainFqn: DomainFqn, modelId: String, id: Option[String], key: String, referenceType: ReferenceType.Value, values: List[Any], contextVersion: Long) extends ModelReferenceEvent
+case class SetReference(domainFqn: DomainFqn, modelId: String, id: Option[String], key: String, referenceType: ReferenceType.Value, values: List[Any], contextVersion: Long) extends ModelReferenceEvent
 case class ClearReference(domainFqn: DomainFqn, modelId: String, id: Option[String], key: String) extends ModelReferenceEvent
 case class UnpublishReference(domainFqn: DomainFqn, modelId: String, id: Option[String], key: String) extends ModelReferenceEvent
 

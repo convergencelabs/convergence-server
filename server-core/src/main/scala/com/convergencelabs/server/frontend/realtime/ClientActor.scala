@@ -45,10 +45,12 @@ import io.convergence.proto.connection.HandshakeRequestMessage
 import scalapb.GeneratedMessage
 import io.convergence.proto.Authentication
 import io.convergence.proto.authentication.PasswordAuthRequestMessage
-import io.convergence.proto.authentication.TokenAuthRequestMessage
+import io.convergence.proto.authentication.JwtAuthRequestMessage
 import io.convergence.proto.authentication.ReconnectTokenAuthRequestMessage
 import io.convergence.proto.authentication.AnonymousAuthRequestMessage
 import io.convergence.proto.authentication.AuthenticationResponseMessage
+import io.convergence.proto.authentication.AuthSuccess
+import io.convergence.proto.authentication.AuthFailure
 import io.convergence.proto.connection.HandshakeResponseMessage.ErrorData
 import io.convergence.proto.connection.HandshakeResponseMessage
 import io.convergence.proto.Response
@@ -64,6 +66,8 @@ import io.convergence.proto.Permissions
 import io.convergence.proto.PermissionRequest
 import io.convergence.proto.permissions.PermissionType
 import io.convergence.proto.connection.HandshakeResponseMessage.ProtocolConfigData
+import io.convergence.proto.authentication.AuthenticationRequestMessage
+import io.convergence.proto.authentication.AuthenticationRequestMessage
 
 object ClientActor {
   def props(
@@ -212,8 +216,8 @@ class ClientActor(
   }
 
   private[this] def handleAuthentationMessage: MessageHandler = {
-    case RequestReceived(message, replyCallback) if message.isInstanceOf[GeneratedMessage with Request with Authentication] => {
-      authenticate(message.asInstanceOf[GeneratedMessage with Request with Authentication], replyCallback)
+    case RequestReceived(message, replyCallback) if message.isInstanceOf[AuthenticationRequestMessage] => {
+      authenticate(message.asInstanceOf[AuthenticationRequestMessage], replyCallback)
     }
     case x: Any => invalidMessage(x)
   }
@@ -283,15 +287,15 @@ class ClientActor(
   // Authentication
   //
 
-  private[this] def authenticate(requestMessage: GeneratedMessage with Request with Authentication, cb: ReplyCallback): Unit = {
-    val authCredentials = requestMessage match {
-      case PasswordAuthRequestMessage(username, password) =>
+  private[this] def authenticate(requestMessage: AuthenticationRequestMessage, cb: ReplyCallback): Unit = {
+    val authCredentials = requestMessage.auth match {
+      case AuthenticationRequestMessage.Auth.Password(PasswordAuthRequestMessage(username, password)) =>
         PasswordAuthRequest(username, password)
-      case TokenAuthRequestMessage(token) =>
-        JwtAuthRequest(token)
-      case ReconnectTokenAuthRequestMessage(token) =>
+      case AuthenticationRequestMessage.Auth.Jwt(JwtAuthRequestMessage(jwt)) =>
+        JwtAuthRequest(jwt)
+      case AuthenticationRequestMessage.Auth.Reconnect(ReconnectTokenAuthRequestMessage(token)) =>
         ReconnectTokenAuthRequest(token)
-      case AnonymousAuthRequestMessage(displayName) =>
+      case AuthenticationRequestMessage.Auth.Anonymous(AnonymousAuthRequestMessage(displayName)) =>
         AnonymousAuthRequest(displayName)
     }
 
@@ -310,10 +314,10 @@ class ClientActor(
       case Success(AuthenticationSuccess(username, sk, reconnectToken)) =>
         getPresenceAfterAuth(username, sk, reconnectToken, cb)
       case Success(AuthenticationFailure) =>
-        cb.reply(AuthenticationResponseMessage(false, None, None, None, Map()))
+        cb.reply(AuthenticationResponseMessage().withFailure(AuthFailure("")))
       case Failure(cause) =>
         log.error(cause, s"Error authenticating user for domain ${domainFqn}")
-        cb.reply(AuthenticationResponseMessage(false, None, None, None, Map()))
+        cb.reply(AuthenticationResponseMessage().withFailure(AuthFailure("")))
     }
   }
 
@@ -323,7 +327,7 @@ class ClientActor(
       case Success(first :: nil) =>
         self ! InternalAuthSuccess(username, sk, reconnectToken, first, cb)
       case _ =>
-        cb.reply(AuthenticationResponseMessage(false, None, None, None, Map()))
+        cb.reply(AuthenticationResponseMessage().withFailure(AuthFailure("")))
     }
   }
 
@@ -342,7 +346,8 @@ class ClientActor(
     this.historyClient = context.actorOf(HistoricModelClientActor.props(sk, domainFqn, modelStoreActor, operationStoreActor));
     this.messageHandler = handleMessagesWhenAuthenticated
 
-    cb.reply(AuthenticationResponseMessage(true, Some(username), Some(io.convergence.proto.authentication.SessionKey(sk.uid, sk.sid)), Some(reconnectToken), presence.state))
+    val response = AuthenticationResponseMessage().withSuccess(AuthSuccess(username, sk.sid, reconnectToken,presence.state))
+    cb.reply(response)
 
     context.become(receiveWhileAuthenticated)
   }

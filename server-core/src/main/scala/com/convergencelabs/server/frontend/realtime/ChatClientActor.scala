@@ -208,7 +208,8 @@ class ChatClientActor(
           // We don't need to send this back to ourselves.9
           context.parent ! RemoteChatMessageMessage(channelId, eventNumber, 
               Some(Timestamp(timestamp.getEpochSecond, timestamp.getNano)), 
-              Some(io.convergence.proto.authentication.SessionKey(sk.uid, sk.sid)), message)
+              sk.sid, 
+              message)
         }
 
       case UserJoinedChannel(channelId, eventNumber, timestamp, username) =>
@@ -306,9 +307,9 @@ class ChatClientActor(
     }
   }
 
-  def onCreateChannel(message: CreateChatChannelRequestMessage, cb: ReplyCallback): Unit = {
-    val CreateChatChannelRequestMessage(channelId, channelType, name, topic, privateChannel, members) = message;
-    val request = CreateChannelRequest(channelId, sk, channelType, name, topic, privateChannel, members.toSet)
+  def onCreateChannel(message: CreateChatChannelRequestMessage, cb: ReplyCallback): Unit = {   
+    val CreateChatChannelRequestMessage(channelId, channelType, channelMembership, name, topic, members) = message;
+    val request = CreateChannelRequest(channelId, sk, channelType, channelMembership, Some(name), Some(topic), members.toSet)
     chatLookupActor.ask(request).mapTo[CreateChannelResponse] onComplete {
       case Success(CreateChannelResponse(channelId)) =>
         cb.reply(CreateChatChannelResponseMessage(channelId))
@@ -331,7 +332,7 @@ class ChatClientActor(
     val request = JoinChannelRequest(domainFqn, channelId, sk, self)
     chatChannelActor.ask(request).mapTo[JoinChannelResponse] onComplete {
       case Success(JoinChannelResponse(info)) =>
-        cb.reply(JoinChatChannelResponseMessage(Some(info)))
+        cb.reply(JoinChatChannelResponseMessage(Some(channelInfoToMessage(info))))
       case Failure(cause: ChatChannelException) =>
         handleChatChannelException(cause, cb)
       case Failure(cause) =>
@@ -522,7 +523,7 @@ class ChatClientActor(
 
   def onGetDirect(message: GetDirectChannelsRequestMessage, cb: ReplyCallback): Unit = {
     val GetDirectChannelsRequestMessage(usernameLists) = message;
-    val request = GetDirectChannelsRequest(sk.uid, usernameLists.map(_.strings.toSet).toList)
+    val request = GetDirectChannelsRequest(sk.uid, usernameLists.map(_.values.toSet).toList)
     chatLookupActor.ask(request).mapTo[GetDirectChannelsResponse] onComplete {
       case Success(GetDirectChannelsResponse(channels)) =>
         val info = channels.map(channelInfoToMessage(_))
@@ -545,8 +546,7 @@ class ChatClientActor(
 
   def onGetHistory(message: ChatChannelHistoryRequestMessage, cb: ReplyCallback): Unit = {
     val ChatChannelHistoryRequestMessage(channelId, limit, startEvent, forward, eventFilter) = message;
-    val mappedEvents = eventFilter.map(toChannelEventCode(_))
-    val request = GetChannelHistoryRequest(domainFqn, channelId, sk, limit, startEvent, forward, Some(mappedEvents.toList))
+    val request = GetChannelHistoryRequest(domainFqn, channelId, sk, limit, startEvent, forward, Some(eventFilter.toList))
     chatChannelActor.ask(request).mapTo[GetChannelHistoryResponse] onComplete {
       case Success(GetChannelHistoryResponse(events)) =>
         val eventData = events.map(channelEventToMessage(_))
@@ -602,7 +602,6 @@ class ChatClientActor(
           Map())
     }
   }
-
 
   private[this] def toChannelEventCode: PartialFunction[Int, String] = {
     case 0 => "created"

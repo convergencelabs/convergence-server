@@ -24,7 +24,7 @@ import io.convergence.proto.operations.applied.AppliedArrayInsertOperationData
 import io.convergence.proto.operations.applied.AppliedCompoundOperationData
 import io.convergence.proto.operations.applied.AppliedStringSetOperationData
 import io.convergence.proto.operations.applied.AppliedStringInsertOperationData
-import io.convergence.proto.operations.applied.AppliedNumberAddOperationData
+import io.convergence.proto.operations.applied.AppliedNumberDeltaOperationData
 import io.convergence.proto.operations.applied.AppliedArrayReplaceOperationData
 import io.convergence.proto.operations.applied.AppliedArrayRemoveOperationData
 import io.convergence.proto.operations.applied.AppliedObjectSetPropertyOperationData
@@ -41,7 +41,6 @@ import io.convergence.proto.operations.applied.AppliedArraySetOperationData
 import io.convergence.proto.operations.applied.AppliedDiscreteOperationData
 import io.convergence.proto.operations.applied.AppliedOperationData
 import com.google.protobuf.timestamp.Timestamp
-import io.convergence.proto.authentication.SessionKey
 import com.convergencelabs.server.domain.model.ModelOperation
 import com.convergencelabs.server.domain.model.data.DataValue
 import ImplicitMessageConversions._
@@ -49,7 +48,7 @@ import ImplicitMessageConversions._
 private[realtime] object ModelOperationMapper {
 
   def mapOutgoing(modelOp: ModelOperation): ModelOperationData = {
-    val ModelOperation(modelId, version, timestamp, username, sid, op) = modelOp
+    val ModelOperation(modelId, version, timestamp, username, sessionId, op) = modelOp
     val mappedOp = op match {
       case operation: AppliedCompoundOperation =>
         AppliedOperationData().withCompoundOperation(mapOutgoingCompound(operation))
@@ -60,8 +59,7 @@ private[realtime] object ModelOperationMapper {
       modelId,
       version,
       Some(Timestamp(timestamp.getEpochSecond, timestamp.getNano)),
-      username,
-      Some(SessionKey(username, sid)),
+      sessionId,
       Some(mappedOp))
   }
 
@@ -106,7 +104,7 @@ private[realtime] object ModelOperationMapper {
           oldValue.getOrElse(Map()).mapValues(dataValueToMessage(_))))
 
       case AppliedNumberAddOperation(id, noOp, delta) =>
-        AppliedDiscreteOperationData().withNumberAddOperation(AppliedNumberAddOperationData(id, noOp, delta))
+        AppliedDiscreteOperationData().withNumberDeltaOperation(AppliedNumberDeltaOperationData(id, noOp, delta))
       case AppliedNumberSetOperation(id, noOp, number, oldValue) =>
         AppliedDiscreteOperationData().withNumberSetOperation(AppliedNumberSetOperationData(id, noOp, number, oldValue.get))
 

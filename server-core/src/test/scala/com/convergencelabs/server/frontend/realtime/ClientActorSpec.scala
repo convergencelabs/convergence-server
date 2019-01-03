@@ -8,7 +8,6 @@ import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
 import org.junit.runner.RunWith
-import org.mockito.Matchers
 import org.mockito.Mockito
 import org.mockito.Mockito.times
 import org.scalatest.BeforeAndAfterAll
@@ -16,6 +15,7 @@ import org.scalatest.Finders
 import org.scalatest.WordSpecLike
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.mockito.MockitoSugar
+import org.scalatest.Matchers
 import com.convergencelabs.server.HeartbeatConfiguration
 import com.convergencelabs.server.ProtocolConfiguration
 import com.convergencelabs.server.domain.AuthenticationSuccess
@@ -37,16 +37,23 @@ import akka.http.scaladsl.model.RemoteAddress.IP
 import io.convergence.proto.connection.HandshakeRequestMessage
 import io.convergence.proto.authentication.PasswordAuthRequestMessage
 import io.convergence.proto.authentication.AuthenticationResponseMessage
-import scalapb.GeneratedMessage
+import io.convergence.proto.authentication.AuthenticationRequestMessage
+import io.convergence.proto.authentication.AuthSuccess
 import io.convergence.proto.Response
+
+import scalapb.GeneratedMessage
+
+
+
 
 // scalastyle:off magic.number
 @RunWith(classOf[JUnitRunner])
 class ClientActorSpec
-    extends TestKit(ActorSystem("ClientActorSpec"))
-    with WordSpecLike
-    with BeforeAndAfterAll
-    with MockitoSugar {
+  extends TestKit(ActorSystem("ClientActorSpec"))
+  with WordSpecLike
+  with BeforeAndAfterAll
+  with MockitoSugar 
+  with Matchers {
 
   val SessionId = "sessionId"
   val RecconnectToken = "secconnectToken"
@@ -76,7 +83,7 @@ class ClientActorSpec
     val props = ClientActor.props(
       domainFqn,
       protoConfig,
-      IP(ip=InetAddress.getLocalHost),
+      IP(ip = InetAddress.getLocalHost),
       "")
 
     val clientActor = system.actorOf(props)
@@ -102,12 +109,13 @@ class ClientActorSpec
 
     domainManagerActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeRequest])
     domainManagerActor.reply(
-        HandshakeSuccess(modelManagerActor.ref, modelStoreActor.ref, operationStoreActor.ref, userServiceActor.ref, presenceServiceActor.ref, chatLookupActor.ref))
+      HandshakeSuccess(modelManagerActor.ref, modelStoreActor.ref, operationStoreActor.ref, userServiceActor.ref, presenceServiceActor.ref, chatLookupActor.ref))
     Await.result(handshakeCallback.result, 250 millis)
   }
 
   class AuthenticatedClient(system: ActorSystem) extends HandshookClient(system: ActorSystem) {
-    val authRequestMessage = PasswordAuthRequestMessage("testuser", "testpass")
+    val authRequestMessage = AuthenticationRequestMessage()
+      .withPassword(PasswordAuthRequestMessage("testuser", "testpass"))
 
     val authCallback = new TestReplyCallback()
     val authEvent = RequestReceived(authRequestMessage, authCallback)
@@ -117,8 +125,9 @@ class ClientActorSpec
     domainActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[PasswordAuthRequest])
     domainActor.reply(AuthenticationSuccess("test", SessionKey("test", "0"), "123"))
 
-    val AuthenticationResponseMessage(ok, Some(username), Some(session), Some(RecconnectToken), state) = 
-      Await.result(authCallback.result, 250 millis).asInstanceOf[AuthenticationResponseMessage]
+    val authResponse = Await.result(authCallback.result, 250 millis).asInstanceOf[AuthenticationResponseMessage]
+    authResponse.response.isSuccess shouldBe true
+    val AuthSuccess(username, sessionId, reconnectToken, presenceState) = authResponse.getSuccess
   }
 
   class TestReplyCallback() extends ReplyCallback {
@@ -143,7 +152,7 @@ class ClientActorSpec
     def expectedError(code: String, message: String, details: Map[String, String]): Unit = {
       p.failure(new IllegalStateException())
     }
-    
+
     def expectedError(code: String, message: String): Unit = {
       p.failure(new IllegalStateException())
     }

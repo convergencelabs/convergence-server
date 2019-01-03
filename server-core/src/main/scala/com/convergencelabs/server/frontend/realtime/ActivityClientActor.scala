@@ -41,7 +41,7 @@ import io.convergence.proto.activity.ActivityLeaveMessage
 import io.convergence.proto.activity.ActivitySetStateMessage
 import io.convergence.proto.activity.ActivityRemoveStateMessage
 import io.convergence.proto.activity.ActivityClearStateMessage
-import io.convergence.proto.activity.ActivityJoinMessage
+import io.convergence.proto.activity.ActivityJoinRequestMessage
 import io.convergence.proto.activity.ActivityParticipantsRequestMessage
 import io.convergence.proto.activity.ActivityParticipantsResponseMessage
 import io.convergence.proto.activity.ActivityState
@@ -54,7 +54,7 @@ object ActivityClientActor {
 
 class ActivityClientActor(activityServiceActor: ActorRef, domain: DomainFqn, sk: SessionKey) extends Actor with ActorLogging {
   import akka.pattern.ask
-  
+
   implicit val timeout = Timeout(5 seconds)
   implicit val ec = context.dispatcher
 
@@ -65,20 +65,15 @@ class ActivityClientActor(activityServiceActor: ActorRef, domain: DomainFqn, sk:
       onRequestReceived(message.asInstanceOf[Request with Activity], replyPromise)
 
     case ActivitySessionJoined(activityId, SessionKey(uid, sid, admin), state) =>
-      context.parent ! ActivitySessionJoinedMessage(activityId, 
-          Some(io.convergence.proto.authentication.SessionKey(uid, sid)), state)
+      context.parent ! ActivitySessionJoinedMessage(activityId, sid, state)
     case ActivitySessionLeft(activityId, SessionKey(uid, sid, admin)) =>
-      context.parent ! ActivitySessionLeftMessage(activityId, 
-          Some(io.convergence.proto.authentication.SessionKey(uid, sid)))
+      context.parent ! ActivitySessionLeftMessage(activityId, sid)
     case ActivityRemoteStateSet(activityId, SessionKey(uid, sid, admin), state) =>
-      context.parent ! ActivityRemoteStateSetMessage(activityId, 
-          Some(io.convergence.proto.authentication.SessionKey(uid, sid)), state)
+      context.parent ! ActivityRemoteStateSetMessage(activityId, sid, state)
     case ActivityRemoteStateRemoved(activityId, SessionKey(uid, sid, admin), keys) =>
-      context.parent ! ActivityRemoteStateRemovedMessage(activityId, 
-          Some(io.convergence.proto.authentication.SessionKey(uid, sid)), keys)
+      context.parent ! ActivityRemoteStateRemovedMessage(activityId, sid, keys)
     case ActivityRemoteStateCleared(activityId, SessionKey(uid, sid, admin)) =>
-      context.parent ! ActivityRemoteStateClearedMessage(activityId, 
-          Some(io.convergence.proto.authentication.SessionKey(uid, sid)))
+      context.parent ! ActivityRemoteStateClearedMessage(activityId, sid)
 
     case x: Any => unhandled(x)
   }
@@ -89,10 +84,10 @@ class ActivityClientActor(activityServiceActor: ActorRef, domain: DomainFqn, sk:
 
   def onMessageReceived(message: Normal with Activity): Unit = {
     message match {
-      case leave: ActivityLeaveMessage             => onActivityLeave(leave)
-      case setState: ActivitySetStateMessage       => onActivityStateSet(setState)
+      case leave: ActivityLeaveMessage => onActivityLeave(leave)
+      case setState: ActivitySetStateMessage => onActivityStateSet(setState)
       case removeState: ActivityRemoveStateMessage => onActivityStateRemoved(removeState)
-      case clearState: ActivityClearStateMessage   => onActivityStateCleared(clearState)
+      case clearState: ActivityClearStateMessage => onActivityStateCleared(clearState)
     }
   }
 
@@ -113,7 +108,7 @@ class ActivityClientActor(activityServiceActor: ActorRef, domain: DomainFqn, sk:
 
   def onRequestReceived(message: Request with Activity, replyCallback: ReplyCallback): Unit = {
     message match {
-      case join: ActivityJoinMessage                       => onActivityJoin(join, replyCallback)
+      case join: ActivityJoinRequestMessage => onActivityJoin(join, replyCallback)
       case participant: ActivityParticipantsRequestMessage => onParticipantsRequest(participant, replyCallback)
     }
   }
@@ -132,8 +127,8 @@ class ActivityClientActor(activityServiceActor: ActorRef, domain: DomainFqn, sk:
     }
   }
 
-  def onActivityJoin(request: ActivityJoinMessage, cb: ReplyCallback): Unit = {
-    val ActivityJoinMessage(activityId, state) = request
+  def onActivityJoin(request: ActivityJoinRequestMessage, cb: ReplyCallback): Unit = {
+    val ActivityJoinRequestMessage(activityId, state) = request
     val future = this.activityServiceActor ? ActivityJoinRequest(domain, activityId, sk, state, self)
 
     future.mapResponse[ActivityJoinResponse] onComplete {

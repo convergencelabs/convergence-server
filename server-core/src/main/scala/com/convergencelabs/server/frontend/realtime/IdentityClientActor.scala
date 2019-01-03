@@ -37,6 +37,8 @@ import io.convergence.proto.identity.UserGroupsForUsersResponseMessage
 import io.convergence.proto.identity.UserLookUpMessage
 import io.convergence.proto.identity.DomainUserData
 import io.convergence.proto.Request
+import io.convergence.proto.common.StringList
+import io.convergence.proto.identity.UserField
 
 object IdentityClientActor {
   def props(userServiceActor: ActorRef): Props =
@@ -68,17 +70,17 @@ class IdentityClientActor(userServiceActor: ActorRef) extends Actor with ActorLo
   }
 
   private[this] def onUserSearch(request: UserSearchMessage, cb: ReplyCallback): Unit = {
-    val UserSearchMessage(fieldCodes, value, offset, limit, orderFieldCode, sortCode) = request
+    val UserSearchMessage(fieldCodes, value, offset, limit, orderField, ascending) = request
 
     val fields = fieldCodes.map { x => mapUserField(x) }
-    val orderBy = orderFieldCode.map { x => mapUserField(x) }
-    val sort = sortCode.map {
-      case 0 => SortOrder.Ascending
+    val orderBy = mapUserField(orderField)
+    val sort = ascending match {
+      case true => SortOrder.Ascending
       case _ => SortOrder.Descending
     }
 
     val future = this.userServiceActor ?
-      UserSearch(fields.toList, value, offset, limit, orderBy, sort)
+      UserSearch(fields.toList, value, offset, limit, Some(orderBy), Some(sort))
 
     future.mapResponse[UserList] onComplete {
       case Success(UserList(users)) =>
@@ -106,13 +108,13 @@ class IdentityClientActor(userServiceActor: ActorRef) extends Actor with ActorLo
     }
   }
 
-  private[this] def mapUserField(fieldCode: Int): UserLookUpField.Value = {
+  private[this] def mapUserField(fieldCode: UserField): UserLookUpField.Value = {
     fieldCode match {
-      case UserFieldCodes.Username => UserLookUpField.Username
-      case UserFieldCodes.FirstName => UserLookUpField.FirstName
-      case UserFieldCodes.LastName => UserLookUpField.LastName
-      case UserFieldCodes.DisplayName => UserLookUpField.DisplayName
-      case UserFieldCodes.Email => UserLookUpField.Email
+      case UserField.USERNAME => UserLookUpField.Username
+      case UserField.FIRST_NAME => UserLookUpField.FirstName
+      case UserField.LAST_NAME => UserLookUpField.LastName
+      case UserField.DISPLAY_NAME => UserLookUpField.DisplayName
+      case UserField.EMAIL => UserLookUpField.Email
     }
   }
 
@@ -141,8 +143,8 @@ class IdentityClientActor(userServiceActor: ActorRef) extends Actor with ActorLo
     this.userServiceActor.ask(message).mapTo[UserGroupsForUsersResponse] onComplete {
       case Success(UserGroupsForUsersResponse(groups)) =>
         val mapped = groups.map{case (username, groups) => {
-          val gl = UserGroupsForUsersResponseMessage.GroupList()
-          gl.addAllGroups(groups)
+          val gl = StringList()
+          gl.addAllValues(groups)
           (username, gl)
         }}
         cb.reply(UserGroupsForUsersResponseMessage(mapped))

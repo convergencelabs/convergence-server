@@ -36,7 +36,7 @@ import io.convergence.proto.operations.StringRemoveOperationData
 import io.convergence.proto.operations.NumberSetOperationData
 import io.convergence.proto.operations.BooleanSetOperationData
 import io.convergence.proto.operations.ObjectRemovePropertyOperationData
-import io.convergence.proto.operations.NumberAddOperationData
+import io.convergence.proto.operations.NumberDeltaOperationData
 import io.convergence.proto.operations.ArrayInsertOperationData
 import io.convergence.proto.operations.StringSetOperationData
 import io.convergence.proto.operations.DiscreteOperationData
@@ -92,7 +92,7 @@ private[realtime] object OperationMapper {
       case DiscreteOperationData.Operation.ObjectSetOperation(ObjectSetOperationData(id, noOp, objectData)) => 
         ObjectSetOperation(id, noOp, objectData.mapValues(messageToDataValue(_)))
 
-      case DiscreteOperationData.Operation.NumberAddOperation(NumberAddOperationData(id, noOp, delta)) =>
+      case DiscreteOperationData.Operation.NumberDeltaOperation(NumberDeltaOperationData(id, noOp, delta)) =>
         NumberAddOperation(id, noOp, delta)
       case DiscreteOperationData.Operation.NumberSetOperation(NumberSetOperationData(id, noOp, number)) =>
         NumberSetOperation(id, noOp, number)
@@ -154,7 +154,7 @@ private[realtime] object OperationMapper {
         DiscreteOperationData().withObjectSetOperation(ObjectSetOperationData(id, noOp, objectData.mapValues(dataValueToMessage(_))))
 
       case NumberAddOperation(id, noOp, delta) => 
-        DiscreteOperationData().withNumberAddOperation(NumberAddOperationData(id, noOp, delta))
+        DiscreteOperationData().withNumberDeltaOperation(NumberDeltaOperationData(id, noOp, delta))
       case NumberSetOperation(id, noOp, number) => 
         DiscreteOperationData().withNumberSetOperation(NumberSetOperationData(id, noOp, number))
 

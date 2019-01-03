@@ -31,13 +31,13 @@ import io.convergence.proto.chat.ChatTopicChangedEventData
 import io.convergence.proto.chat.ChatMessageEventData
 import com.convergencelabs.server.datastore.domain.ChatChannelEvent
 import io.convergence.proto.chat.ChatChannelEventData
+import io.convergence.proto.chat.ChatChannelMemberData
 import com.convergencelabs.server.datastore.domain.ModelPermissions
 import io.convergence.proto.model.ModelPermissionsData
 import com.convergencelabs.server.domain.PresenceServiceActor.UserPresence
 import com.convergencelabs.server.domain.model.ReferenceType
 
 object ImplicitMessageConversions {
-  implicit def sessionKeyToMessage(sessionKey: SessionKey) = io.convergence.proto.authentication.SessionKey(sessionKey.uid, sessionKey.sid)
   implicit def instanceToTimestamp(instant: Instant) = Timestamp(instant.getEpochSecond, instant.getNano)
   implicit def timestampToInstant(timestamp: Timestamp) = Instant.ofEpochSecond(timestamp.seconds, timestamp.nanos)
 
@@ -92,10 +92,18 @@ object ImplicitMessageConversions {
   implicit def messageToDateValue(dateValue: io.convergence.proto.operations.DateValue) = DateValue(dateValue.id, timestampToInstant(dateValue.value.get))
 
   implicit def channelInfoToMessage(info: ChatChannelInfo) =
-    io.convergence.proto.chat.ChatChannelInfoData(info.id, info.channelType, info.isPrivate match {
-      case true => "private"
-      case false => "public"
-    }, info.name, info.topic, Some(info.created), Some(info.lastEventTime), info.lastEventNumber, info.members.toSeq)
+    io.convergence.proto.chat.ChatChannelInfoData(
+      info.id, info.channelType,
+      info.isPrivate match {
+        case true => "private"
+        case false => "public"
+      }, 
+      info.name, 
+      info.topic, 
+      Some(info.created),
+      Some(info.lastEventTime), 
+      info.lastEventNumber,
+      info.members.map(member => ChatChannelMemberData(member.username, member.seen)).toSeq)
 
   implicit def channelEventToMessage(event: ChatChannelEvent): ChatChannelEventData = event match {
     case ChatCreatedEvent(eventNumber, channel, user, timestamp, name, topic, members) =>

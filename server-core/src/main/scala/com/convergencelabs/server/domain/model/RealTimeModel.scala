@@ -164,19 +164,14 @@ class RealTimeModel(
                 realTimeValue.processReferenceEvent(publish, sk)
                 val PublishReference(domainFqn, _, id, key, refType, values, contextVersion) = publish
 
-                (values, contextVersion) match {
-                  case (values, Some(contextVersion)) =>
-                    val refVal: ReferenceValue = ReferenceValue(id, key, refType, values, contextVersion)
-                    this.cc.processRemoteReferenceSet(sk.toString(), refVal) match {
-                      case Some(xformed) =>
-                        val setRef: SetReference = SetReference(domainFqn, this.modelId, xformed.id, xformed.key, xformed.referenceType, xformed.values, xformed.contextVersion.toInt)
-                        realTimeValue.processReferenceEvent(setRef, sk)
-                        Some(RemoteReferencePublished(this.modelId, sk, setRef.id, setRef.key, setRef.referenceType, Some(setRef.values)))
-                      case None =>
-                        None
-                    }
-                  case _ =>
-                    (Some(RemoteReferencePublished(modelId, sk, id, key, refType, None)))
+                val refVal: ReferenceValue = ReferenceValue(id, key, refType, values, contextVersion)
+                this.cc.processRemoteReferenceSet(sk.toString(), refVal) match {
+                  case Some(xformed) =>
+                    val setRef: SetReference = SetReference(domainFqn, this.modelId, xformed.id, xformed.key, xformed.referenceType, xformed.values, xformed.contextVersion.toInt)
+                    realTimeValue.processReferenceEvent(setRef, sk)
+                    Some(RemoteReferencePublished(this.modelId, sk, setRef.id, setRef.key, setRef.referenceType, Some(setRef.values)))
+                  case None =>
+                    None
                 }
 
               case unpublish: UnpublishReference =>
@@ -211,15 +206,10 @@ class RealTimeModel(
           case publish: PublishReference =>
             elementReferenceManager.handleReferenceEvent(publish, sk)
             val PublishReference(_, _, id, key, refType, values, contextVersion) = publish
-            (values, contextVersion) match {
-              case (values, Some(contextVersion)) =>
-                val xformedValue = values.asInstanceOf[List[String]] filter { idToValue.contains(_) }
-                val xformedSet = SetReference(domainFqn, modelId, id, key, refType, xformedValue, contextVersion)
-                elementReferenceManager.handleReferenceEvent(xformedSet, sk)
-                Some(RemoteReferencePublished(modelId, sk, id, key, refType, Some(xformedValue)))
-              case _ =>
-                Some(RemoteReferencePublished(modelId, sk, id, key, refType, None))
-            }
+            val xformedValue = values.asInstanceOf[List[String]] filter { idToValue.contains(_) }
+            val xformedSet = SetReference(domainFqn, modelId, id, key, refType, xformedValue, contextVersion)
+            elementReferenceManager.handleReferenceEvent(xformedSet, sk)
+            Some(RemoteReferencePublished(modelId, sk, id, key, refType, Some(xformedValue)))
 
           case unpublish: UnpublishReference =>
             elementReferenceManager.handleReferenceEvent(unpublish, sk)

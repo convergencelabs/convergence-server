@@ -93,7 +93,9 @@ class ChatChannelStoreSpec
         chatChannelInfo.channelType shouldEqual "direct"
         chatChannelInfo.lastEventNumber shouldEqual 0L
         chatChannelInfo.lastEventTime shouldEqual timestamp
-        chatChannelInfo.members shouldEqual members
+        chatChannelInfo.members shouldEqual Set(
+          ChatChannelMember(channel1Id, user1, 0),
+          ChatChannelMember(channel1Id, user2, 0))
       }
 
       "return the correct max event no" in withTestData { provider =>
@@ -114,7 +116,7 @@ class ChatChannelStoreSpec
         chatChannelInfo.channelType shouldEqual "group"
         chatChannelInfo.lastEventNumber shouldEqual 1L
         chatChannelInfo.lastEventTime shouldEqual timestamp
-        chatChannelInfo.members shouldEqual members
+        chatChannelInfo.members shouldEqual Set(ChatChannelMember(channel1Id, user1, 0))
       }
 
       "throw error for invalid id" in withTestData { provider =>

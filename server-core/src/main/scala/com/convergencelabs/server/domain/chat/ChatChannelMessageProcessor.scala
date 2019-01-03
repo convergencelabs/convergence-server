@@ -222,7 +222,7 @@ abstract class ChatChannelMessageProcessor(stateManager: ChatChannelStateManager
 
   def createJoinResponse(): JoinChannelResponse = {
     val ChatChannelState(id, channelType, created, isPrivate, name, topic, lastEventTime, lastEventNo, members) = stateManager.state()
-    val info = ChatChannelInfo(id, channelType, created, isPrivate, name, topic, members, lastEventNo, lastEventTime)
+    val info = ChatChannelInfo(id, channelType, created, isPrivate, name, topic, lastEventNo, lastEventTime, members.values.toSet)
     JoinChannelResponse(info)
   }
 

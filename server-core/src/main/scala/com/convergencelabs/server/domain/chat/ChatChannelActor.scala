@@ -17,6 +17,7 @@ import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ReceiveTimeout
 import akka.actor.Status
+import com.convergencelabs.server.datastore.domain.ChatChannelMember
 
 object ChatChannelActor {
 
@@ -36,7 +37,7 @@ case class ChatChannelState(
   topic: String,
   lastEventTime: Instant,
   lastEventNumber: Long,
-  members: Set[String])
+  members: Map[String, ChatChannelMember])
 
 class ChatChannelActor private[domain] () extends Actor with ActorLogging {
   import ChatChannelActor._

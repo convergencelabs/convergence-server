@@ -100,8 +100,8 @@ class PresenceClientActor(presenceServiceActor: ActorRef, sk: SessionKey) extend
   }
 
   def onUnsubscribePresence(message: UnsubscribePresenceMessage): Unit = {
-    val UnsubscribePresenceMessage(subUsername) = message
-    this.presenceServiceActor ! UnsubscribePresence(subUsername, self)
+    val UnsubscribePresenceMessage(usernames) = message
+    this.presenceServiceActor ! UnsubscribePresence(usernames.toList, self)
   }
 
   def onRequestReceived(message: Request with Presence, replyCallback: ReplyCallback): Unit = {

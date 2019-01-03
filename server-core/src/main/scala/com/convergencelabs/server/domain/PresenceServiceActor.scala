@@ -32,7 +32,7 @@ object PresenceServiceActor {
   case class UserPresenceAvailability(username: String, available: Boolean)
 
   case class SubscribePresence(usernames: List[String], client: ActorRef)
-  case class UnsubscribePresence(username: String, client: ActorRef)
+  case class UnsubscribePresence(username: List[String], client: ActorRef)
 }
 
 class PresenceServiceActor private[domain] (domainFqn: DomainFqn) extends Actor with ActorLogging {
@@ -58,8 +58,8 @@ class PresenceServiceActor private[domain] (domainFqn: DomainFqn) extends Actor 
       clearState(username)
     case SubscribePresence(usernames, client) =>
       subscribe(usernames, client)
-    case UnsubscribePresence(username, client) =>
-      unsubscribe(username, client)
+    case UnsubscribePresence(usernames, client) =>
+      unsubscribe(usernames, client)
     case Terminated(client) =>
       handleDeathwatch(client)
   }
@@ -144,8 +144,8 @@ class PresenceServiceActor private[domain] (domainFqn: DomainFqn) extends Actor 
     sender ! lookupPresence(usernames)
   }
 
-  private[this] def unsubscribe(username: String, client: ActorRef): Unit = {
-    this.subscriptions.unsubscribe(client, username)
+  private[this] def unsubscribe(usernames: List[String], client: ActorRef): Unit = {
+    usernames.foreach(username => this.subscriptions.unsubscribe(client, username))
   }
 
   private[this] def lookupPresence(usernames: List[String]): List[UserPresence] = {
