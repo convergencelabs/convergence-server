@@ -26,6 +26,7 @@ import scala.concurrent.duration.Duration
 import grizzled.slf4j.Logging
 import akka.http.scaladsl.model.RemoteAddress
 import akka.util.ByteString
+import akka.util.ByteStringBuilder
 
 case class IncomingBinaryMessage(message: Array[Byte])
 case class OutgoingBinaryMessage(message: Array[Byte])
@@ -34,8 +35,8 @@ class WebSocketService(
   private[this] val protocolConfig: ProtocolConfiguration,
   private[this] implicit val fm: Materializer,
   private[this] implicit val system: ActorSystem)
-    extends Directives
-    with Logging {
+  extends Directives
+  with Logging {
 
   private[this] val config = system.settings.config
   private[this] val maxFrames = config.getInt("convergence.realtime.websocket.max-frames")
@@ -59,12 +60,15 @@ class WebSocketService(
     logger.info(s"New web socket connection for $namespace/$domain")
     Flow[Message]
       .collect {
-        case BinaryMessage.Strict(msg) ⇒ Future.successful(IncomingBinaryMessage(msg.toArray))
-        case BinaryMessage.Streamed(stream) ⇒ stream
-          .limit(maxFrames)
-          .completionTimeout(maxStreamDuration)
-          .runFold("")(_ + _)
-          .flatMap(msg => Future.successful(IncomingBinaryMessage(ByteString(msg).toArray)))
+        case BinaryMessage.Strict(msg) =>
+          Future.successful(IncomingBinaryMessage(msg.toArray))
+        case BinaryMessage.Streamed(stream) ⇒
+          stream
+            .limit(maxFrames)
+            .completionTimeout(maxStreamDuration)
+            .runFold(new ByteStringBuilder())((b, e) => b.append(e))
+            .map(b ⇒ b.result)
+            .flatMap(msg => Future.successful(IncomingBinaryMessage(msg.toArray)))
       }
       .mapAsync(parallelism = 3)(identity)
       .via(createFlowForConnection(namespace, domain, remoteAddress, ua))
@@ -92,7 +96,7 @@ class WebSocketService(
     // and then will be spit out the flow.  However to get access to this you must
     // materialize the source.  By materializing it we get a reference to the underlying
     // actor.  We can send an actor ref (in a message) to the connection actor.  This is
-    // how the connection actor will get a reference to the actor that it needs to sent 
+    // how the connection actor will get a reference to the actor that it needs to sent
     // messages to.
     val out = Source.actorRef[OutgoingBinaryMessage](500, OverflowStrategy.fail).mapMaterializedValue({ ref =>
       connection ! WebSocketOpened(ref)

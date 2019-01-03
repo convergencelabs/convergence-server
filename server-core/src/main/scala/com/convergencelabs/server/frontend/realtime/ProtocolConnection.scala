@@ -86,7 +86,7 @@ class ProtocolConnection(
           }
           case _ =>
           // Race condition where the reply just came in under the wire.
-          // no action requried.
+          // no action required.
         }
       })
     })
@@ -118,7 +118,7 @@ class ProtocolConnection(
   }
 
   def onIncomingMessage(message: Array[Byte]): Try[Option[ProtocolMessageEvent]] = {
-    if (protocolConfig.heartbeatConfig.enabled) {
+      if (protocolConfig.heartbeatConfig.enabled) {
       heartbeatHelper.messageReceived()
     }
 

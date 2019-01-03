@@ -150,7 +150,7 @@ class ClientActor(
       context.become(receiveWhileHandshaking)
   }
 
-  private[this] def receiveIncomingTextMessage: Receive = {
+  private[this] def receiveIncomingBinaryMessage: Receive = {
     case IncomingBinaryMessage(message) =>
       this.protocolConnection.onIncomingMessage(message) match {
         case Success(Some(event)) =>
@@ -188,7 +188,7 @@ class ClientActor(
 
   private[this] val receiveWhileHandshaking =
     receiveHandshakeSuccess orElse
-      receiveIncomingTextMessage orElse
+      receiveIncomingBinaryMessage orElse
       receiveCommon
 
   private[this] val receiveAuthentiationSuccess: Receive = {
@@ -198,11 +198,11 @@ class ClientActor(
 
   private[this] val receiveWhileAuthenticating =
     receiveAuthentiationSuccess orElse
-      receiveIncomingTextMessage orElse
+      receiveIncomingBinaryMessage orElse
       receiveCommon
 
   private[this] val receiveWhileAuthenticated =
-    receiveIncomingTextMessage orElse
+    receiveIncomingBinaryMessage orElse
       receiveOutgoing orElse
       receiveCommon
 
