@@ -32,7 +32,22 @@ class IdentityServiceActor private[domain] (domainFqn: DomainFqn) extends Actor 
     case l: UserLookUp => lookUpUsers(l)
     case message: UserGroupsRequest => getUserGroups(message)
     case message: UserGroupsForUsersRequest => getUserGroupsForUser(message)
+    case message: IdentityResolutionRequest => resolveIdentities(message)
     case x: Any => unhandled(x)
+  }
+
+  private[this] def resolveIdentities(message: IdentityResolutionRequest): Unit = {
+    (for {
+      sessions <- persistenceProvider.sessionStore.getSessions(message.sessionIds)
+      sesionMap <- Success(sessions.map(session => (session.id, session.username)).toMap)
+      users <- persistenceProvider.userStore.getDomainUsersByUsername(
+        (message.usernames ++ (sessions.map(_.username))).toList)
+    } yield {
+      IdentityResolutionResponse(sesionMap, users.toSet)
+    }) match {
+      case Success(message) => sender ! message
+      case Failure(e) => sender ! Status.Failure(e)
+    }
   }
 
   private[this] def searchUsers(criteria: UserSearch): Unit = {
@@ -45,7 +60,7 @@ class IdentityServiceActor private[domain] (domainFqn: DomainFqn) extends Actor 
 
     persistenceProvider.userStore.searchUsersByFields(fields, searchString, order, sortOrder, limit, offset) match {
       case Success(users) => sender ! UserList(users)
-      case Failure(e) => sender ! UnknownErrorResponse("Unable to get users")
+      case Failure(e) => sender ! Status.Failure(e)
     }
   }
 
@@ -132,3 +147,6 @@ case class UserGroupsResponse(groups: List[UserGroup])
 
 case class UserGroupsForUsersRequest(usernames: List[String])
 case class UserGroupsForUsersResponse(groups: Map[String, Set[String]])
+
+case class IdentityResolutionRequest(sessionIds: Set[String], usernames: Set[String])
+case class IdentityResolutionResponse(sessionMap: Map[String, String], users: Set[DomainUser])

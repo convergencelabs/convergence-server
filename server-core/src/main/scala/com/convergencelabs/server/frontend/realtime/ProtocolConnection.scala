@@ -90,7 +90,7 @@ class ProtocolConnection(
         }
       })
     })
-    
+
     val body = ConvergenceMessageBodyUtils.toBody(message)
     val convergenceMessage = ConvergenceMessage()
       .withRequestId(requestId)
@@ -109,16 +109,20 @@ class ProtocolConnection(
     }
   }
 
-  def sendMessage(envelope: io.convergence.proto.message.ConvergenceMessage): Unit = {
-    val bytes = envelope.toByteArray
+  def sendMessage(convergenceMessage: ConvergenceMessage): Unit = {
+    clientActor ! SendUnprocessedMessage(convergenceMessage)
+  }
+  
+  def serializeAndSend(convergenceMessage: ConvergenceMessage): Unit = {
+    val bytes = convergenceMessage.toByteArray
     connectionActor ! OutgoingBinaryMessage(bytes)
-    if (!envelope.body.isPing && !envelope.body.isPong) {
-      logger.trace("S: " + envelope)
+    if (!convergenceMessage.body.isPing && !convergenceMessage.body.isPong) {
+      logger.trace("SND: " + convergenceMessage)
     }
   }
 
   def onIncomingMessage(message: Array[Byte]): Try[Option[ProtocolMessageEvent]] = {
-      if (protocolConfig.heartbeatConfig.enabled) {
+    if (protocolConfig.heartbeatConfig.enabled) {
       heartbeatHelper.messageReceived()
     }
 
@@ -135,7 +139,7 @@ class ProtocolConnection(
   // scalastyle:off cyclomatic.complexity
   private def handleValidMessage(convergenceMessage: ConvergenceMessage): Try[Option[ProtocolMessageEvent]] = Try {
     if (!convergenceMessage.body.isPing && !convergenceMessage.body.isPong) {
-      logger.trace("R: " + convergenceMessage)
+      logger.trace("RCV: " + convergenceMessage)
     }
 
     ConvergenceMessageBodyUtils.fromBody(convergenceMessage.body) match {
@@ -143,7 +147,7 @@ class ProtocolConnection(
         onPing()
         None
       case _: PongMessage =>
-        // No Opo
+        // No-Op
         None
 
       case message: Request =>
@@ -157,11 +161,11 @@ class ProtocolConnection(
         if (convergenceMessage.requestId.isDefined) {
           throw new IllegalArgumentException("A normal message cannot have a requestId")
         }
-        
+
         if (convergenceMessage.responseId.isDefined) {
           throw new IllegalArgumentException("A normal message cannot have a responseId")
         }
-        
+
         Some(MessageReceived(message))
 
       case _ =>
@@ -176,10 +180,7 @@ class ProtocolConnection(
     }
   }
 
-  
-
   private[this] def onReply(message: GeneratedMessage with Response, responseId: Int): Unit = {
-
     requests.synchronized({
       requests.remove(responseId) match {
         case Some(record) => {
@@ -201,12 +202,12 @@ class ProtocolConnection(
   }
 
   private[this] def onPing(): Unit = {
-    sendMessage(io.convergence.proto.message.ConvergenceMessage().withPong(PongMessage()))
+    sendMessage(ConvergenceMessage().withPong(PongMessage()))
   }
 
   private[this] def handleHeartbeat: PartialFunction[HeartbeatEvent, Unit] = {
     case PingRequest =>
-      sendMessage(io.convergence.proto.message.ConvergenceMessage().withPing(PingMessage()))
+      sendMessage(ConvergenceMessage().withPing(PingMessage()))
     case PongTimeout =>
       clientActor ! PongTimeout
   }

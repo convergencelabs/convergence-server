@@ -18,7 +18,6 @@ import io.convergence.proto.references._
 import io.convergence.proto.identity._
 import io.convergence.proto.operations._
 
-
 object ConvergenceMessageBodyUtils {
   def fromBody(body: Body): GeneratedMessage = {
     body match {
@@ -29,6 +28,7 @@ object ConvergenceMessageBodyUtils {
       case Body.HandshakeResponse(message) => message
       case Body.AuthenticationRequest(message) => message
       case Body.AuthenticationResponse(message) => message
+      // Model
       case Body.OpenRealTimeModelRequest(message) => message
       case Body.OpenRealTimeModelResponse(message) => message
       case Body.CloseRealTimeModelRequest(message) => message
@@ -59,6 +59,12 @@ object ConvergenceMessageBodyUtils {
       case Body.HistoricalDataResponse(message) => message
       case Body.HistoricalOperationsRequest(message) => message
       case Body.HistoricalOperationsResponse(message) => message
+      case Body.GetModelPermissionsRequest(message) => message
+      case Body.GetModelPermissionsResponse(message) => message
+      case Body.SetModelPermissionsRequest(message) => message
+      case Body.SetModelPermissionsResponse(message) => message
+      case Body.ModelPermissionsChanged(message) => message
+      // Identity
       case Body.UserLookUpRequest(message) => message
       case Body.UserSearchRequest(message) => message
       case Body.UserListResponse(message) => message
@@ -66,6 +72,7 @@ object ConvergenceMessageBodyUtils {
       case Body.UserGroupsResponse(message) => message
       case Body.UserGroupsForUsersRequest(message) => message
       case Body.UserGroupsForUsersResponse(message) => message
+      // Activity
       case Body.ActivityParticipantsRequest(message) => message
       case Body.ActivityParticipantsResponse(message) => message
       case Body.ActivityJoinRequest(message) => message
@@ -79,15 +86,19 @@ object ConvergenceMessageBodyUtils {
       case Body.ActivityRemoteStateSet(message) => message
       case Body.ActivityRemoteStateRemoved(message) => message
       case Body.ActivityRemoteStateCleared(message) => message
+      // Presence
       case Body.PresenceSetState(message) => message
       case Body.PresenceClearState(message) => message
+      case Body.PresenceRemoveState(message) => message
       case Body.PresenceStateSet(message) => message
       case Body.PresenceStateCleared(message) => message
+      case Body.PresenceStateRemoved(message) => message
       case Body.PresenceRequest(message) => message
       case Body.PresenceResponse(message) => message
       case Body.PresenceSubscribeRequest(message) => message
       case Body.PresenceSubscribeResponse(message) => message
       case Body.PresenceUnsubscribe(message) => message
+      case Body.PresenceAvailabilityChanged(message) => message
       case Body.CreateChatChannelRequest(message) => message
       case Body.CreateChatChannelResponse(message) => message
       case Body.RemoveChatChannelRequest(message) => message
@@ -126,6 +137,7 @@ object ConvergenceMessageBodyUtils {
       case Body.RemoteChatMessage(message) => message
       case Body.GetChatChannelHistoryRequest(message) => message
       case Body.GetChatChannelHistoryResponse(message) => message
+      case Body.ChatChannelRemoved(message) => message
       case Body.GetClientPermissionsRequest(message) => message
       case Body.GetClientPermissionsResponse(message) => message
       case Body.AddPermissionsRequest(message) => message
@@ -144,8 +156,7 @@ object ConvergenceMessageBodyUtils {
       case Body.GetAllGroupPermissionsResponse(message) => message
       case Body.GetGroupPermissionsRequest(message) => message
       case Body.GetGroupPermissionsResponse(message) => message
-      case default =>
-        throw new IllegalArgumentException("Unkonwn message body type: " + default)
+      case Body.Empty => ???
     }
   }
 
@@ -158,6 +169,7 @@ object ConvergenceMessageBodyUtils {
       case message: HandshakeResponseMessage => Body.HandshakeResponse(message)
       case message: AuthenticationRequestMessage => Body.AuthenticationRequest(message)
       case message: AuthenticationResponseMessage => Body.AuthenticationResponse(message)
+      // Model
       case message: OpenRealtimeModelRequestMessage => Body.OpenRealTimeModelRequest(message)
       case message: OpenRealtimeModelResponseMessage => Body.OpenRealTimeModelResponse(message)
       case message: CloseRealtimeModelRequestMessage => Body.CloseRealTimeModelRequest(message)
@@ -188,6 +200,12 @@ object ConvergenceMessageBodyUtils {
       case message: HistoricalDataResponseMessage => Body.HistoricalDataResponse(message)
       case message: HistoricalOperationRequestMessage => Body.HistoricalOperationsRequest(message)
       case message: HistoricalOperationsResponseMessage => Body.HistoricalOperationsResponse(message)
+      case message: GetModelPermissionsRequestMessage => Body.GetModelPermissionsRequest(message)
+      case message: GetModelPermissionsResponseMessage => Body.GetModelPermissionsResponse(message)
+      case message: SetModelPermissionsRequestMessage => Body.SetModelPermissionsRequest(message)
+      case message: SetModelPermissionsResponseMessage => Body.SetModelPermissionsResponse(message)
+      case message: ModelPermissionsChangedMessage => Body.ModelPermissionsChanged(message)
+      // Identity
       case message: UserLookUpMessage => Body.UserLookUpRequest(message)
       case message: UserSearchMessage => Body.UserSearchRequest(message)
       case message: UserListMessage => Body.UserListResponse(message)
@@ -195,6 +213,7 @@ object ConvergenceMessageBodyUtils {
       case message: UserGroupsResponseMessage => Body.UserGroupsResponse(message)
       case message: UserGroupsForUsersRequestMessage => Body.UserGroupsForUsersRequest(message)
       case message: UserGroupsForUsersResponseMessage => Body.UserGroupsForUsersResponse(message)
+      // Activity
       case message: ActivityParticipantsRequestMessage => Body.ActivityParticipantsRequest(message)
       case message: ActivityParticipantsResponseMessage => Body.ActivityParticipantsResponse(message)
       case message: ActivityJoinRequestMessage => Body.ActivityJoinRequest(message)
@@ -208,15 +227,20 @@ object ConvergenceMessageBodyUtils {
       case message: ActivityRemoteStateSetMessage => Body.ActivityRemoteStateSet(message)
       case message: ActivityRemoteStateRemovedMessage => Body.ActivityRemoteStateRemoved(message)
       case message: ActivityRemoteStateClearedMessage => Body.ActivityRemoteStateCleared(message)
+      // Presence
       case message: PresenceSetStateMessage => Body.PresenceSetState(message)
       case message: PresenceClearStateMessage => Body.PresenceClearState(message)
+      case message: PresenceRemoveStateMessage => Body.PresenceRemoveState(message)
       case message: PresenceStateSetMessage => Body.PresenceStateSet(message)
       case message: PresenceStateClearedMessage => Body.PresenceStateCleared(message)
+      case message: PresenceStateRemovedMessage => Body.PresenceStateRemoved(message)
       case message: PresenceRequestMessage => Body.PresenceRequest(message)
       case message: PresenceResponseMessage => Body.PresenceResponse(message)
       case message: SubscribePresenceRequestMessage => Body.PresenceSubscribeRequest(message)
       case message: SubscribePresenceResponseMessage => Body.PresenceSubscribeResponse(message)
       case message: UnsubscribePresenceMessage => Body.PresenceUnsubscribe(message)
+      case message: PresenceAvailabilityChangedMessage => Body.PresenceAvailabilityChanged(message)
+      // Chat
       case message: CreateChatChannelRequestMessage => Body.CreateChatChannelRequest(message)
       case message: CreateChatChannelResponseMessage => Body.CreateChatChannelResponse(message)
       case message: RemoveChatChannelRequestMessage => Body.RemoveChatChannelRequest(message)
@@ -255,6 +279,8 @@ object ConvergenceMessageBodyUtils {
       case message: RemoteChatMessageMessage => Body.RemoteChatMessage(message)
       case message: ChatChannelHistoryRequestMessage => Body.GetChatChannelHistoryRequest(message)
       case message: ChatChannelHistoryResponseMessage => Body.GetChatChannelHistoryResponse(message)
+      case message: ChatChannelRemovedMessage => Body.ChatChannelRemoved(message)
+      // Permissions
       case message: GetClientPermissionsRequestMessage => Body.GetClientPermissionsRequest(message)
       case message: GetClientPermissionsResponseMessage => Body.GetClientPermissionsResponse(message)
       case message: AddPermissionsRequestMessage => Body.AddPermissionsRequest(message)
@@ -273,7 +299,6 @@ object ConvergenceMessageBodyUtils {
       case message: GetAllGroupPermissionsResponseMessage => Body.GetAllGroupPermissionsResponse(message)
       case message: GetGroupPermissionsRequestMessage => Body.GetGroupPermissionsRequest(message)
       case message: GetGroupPermissionsResponseMessage => Body.GetGroupPermissionsResponse(message)
-      case default => ???
     }
   }
 }

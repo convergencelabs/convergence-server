@@ -240,18 +240,19 @@ class ModelClientActor(
             ModelPermissions(read, write, remove, manage)
         }
 
-        val userPermissions = userPermissionsData.mapValues {
-          case ModelPermissionsData(read, write, remove, manage) =>
-            ModelPermissions(read, write, remove, manage)
+        val userPermissions = userPermissionsData.map {
+          case (username, ModelPermissionsData(read, write, remove, manage)) =>
+            (username, ModelPermissions(read, write, remove, manage))
         }
 
-        askingActor ! ClientAutoCreateModelConfigResponse(
+        val response = ClientAutoCreateModelConfigResponse(
           collection,
           data.map(messageToObjectValue(_)),
           Some(overridePermissions),
           worldPermissions,
-          userPermissions,
+          userPermissions.toMap,
           Some(ephemeral))
+        askingActor ! response
       case Failure(cause) =>
         // forward the failure to the asker, so we fail fast.
         askingActor ! akka.actor.Status.Failure(cause)
@@ -310,6 +311,8 @@ class ModelClientActor(
         (ReferenceType.Property, proeprties.toList)
       case ReferenceValues.Values.Elements(StringList(elements)) =>
         (ReferenceType.Element, elements.toList)
+      case ReferenceValues.Values.Empty =>
+        ???
     }
   }
 

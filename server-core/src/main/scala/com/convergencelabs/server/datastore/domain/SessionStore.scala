@@ -19,6 +19,7 @@ import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.datastore.domain.schema.DomainSchema
+import scala.collection.JavaConverters._
 
 case class DomainSession(
   id: String,
@@ -119,6 +120,12 @@ class SessionStore(dbProvider: DatabaseProvider)
     OrientDBUtil.queryAndMap(db, query, Map())(SessionStore.docToSession(_))
   }
 
+  private[this] val GetSessionsQuery = "SELECT * FROM DomainSession WHERE id IN :ids"
+  def getSessions(sessionIds: Set[String]): Try[List[DomainSession]] = withDb { db =>
+    val params = Map("ids" -> sessionIds.toList.asJava)
+    OrientDBUtil.queryAndMap(db, GetSessionsQuery, params)(SessionStore.docToSession(_))
+  }
+  
   def getSessions(
     sessionId: Option[String],
     username: Option[String],

@@ -68,6 +68,7 @@ import io.convergence.proto.permissions.PermissionType
 import io.convergence.proto.connection.HandshakeResponseMessage.ProtocolConfigData
 import io.convergence.proto.authentication.AuthenticationRequestMessage
 import io.convergence.proto.authentication.AuthenticationRequestMessage
+import io.convergence.proto.message.ConvergenceMessage
 
 object ClientActor {
   def props(
@@ -123,13 +124,14 @@ class ClientActor(
   private[this] var modelQueryActor: ActorRef = _
   private[this] var modelStoreActor: ActorRef = _
   private[this] var operationStoreActor: ActorRef = _
-  private[this] var userServiceActor: ActorRef = _
+  private[this] var identityServiceActor: ActorRef = _
   private[this] var presenceServiceActor: ActorRef = _
   private[this] var chatLookupActor: ActorRef = _
   private[this] var sessionId: String = _
   private[this] var reconnectToken: String = _
 
   private[this] var protocolConnection: ProtocolConnection = _
+  private[this] var identityCacheManager: IdentityCacheManager = _
 
   private[this] val domainRegion = DomainActorSharding.shardRegion(context.system)
 
@@ -150,7 +152,7 @@ class ClientActor(
       context.become(receiveWhileHandshaking)
   }
 
-  private[this] def receiveIncomingBinaryMessage: Receive = {
+  private[this] def receiveCommon: Receive = {
     case IncomingBinaryMessage(message) =>
       this.protocolConnection.onIncomingMessage(message) match {
         case Success(Some(event)) =>
@@ -160,14 +162,14 @@ class ClientActor(
         case Failure(cause) =>
           invalidMessage(cause)
       }
-  }
-
-  private[this] def receiveOutgoing: Receive = {
-    case message: GeneratedMessage with Normal => onOutgoingMessage(message)
-    case message: GeneratedMessage with Request => onOutgoingRequest(message)
-  }
-
-  private[this] def receiveCommon: Receive = {
+    case SendUnprocessedMessage(convergenceMessage) =>
+      identityCacheManager.onConvergenceMessage(convergenceMessage)
+    case SendProcessedMessage(convergenceMessage) =>
+      this.protocolConnection.serializeAndSend(convergenceMessage)
+    case message: GeneratedMessage with Normal =>
+      onOutgoingMessage(message)
+    case message: GeneratedMessage with Request =>
+      onOutgoingRequest(message)
     case WebSocketClosed =>
       log.debug(s"${domainFqn}: WebSocketClosed for session: ${sessionId}")
       onConnectionClosed()
@@ -188,7 +190,6 @@ class ClientActor(
 
   private[this] val receiveWhileHandshaking =
     receiveHandshakeSuccess orElse
-      receiveIncomingBinaryMessage orElse
       receiveCommon
 
   private[this] val receiveAuthentiationSuccess: Receive = {
@@ -198,13 +199,10 @@ class ClientActor(
 
   private[this] val receiveWhileAuthenticating =
     receiveAuthentiationSuccess orElse
-      receiveIncomingBinaryMessage orElse
       receiveCommon
 
   private[this] val receiveWhileAuthenticated =
-    receiveIncomingBinaryMessage orElse
-      receiveOutgoing orElse
-      receiveCommon
+    receiveCommon
 
   private[this] var messageHandler: MessageHandler = handleHandshakeMessage
 
@@ -266,15 +264,17 @@ class ClientActor(
 
   private[this] def handleHandshakeSuccess(success: InternalHandshakeSuccess): Unit = {
     val InternalHandshakeSuccess(HandshakeSuccess(
-      modelQueryActor, modelStoreActor, operationStoreActor, userActor, presenceActor, chatLookupActor),
+      modelQueryActor, modelStoreActor, operationStoreActor, identityActor, presenceActor, chatLookupActor),
       cb) = success
     this.modelStoreActor = modelStoreActor
     this.operationStoreActor = operationStoreActor
     this.modelQueryActor = modelQueryActor
-    this.userServiceActor = userActor
+    this.identityServiceActor = identityActor
     this.presenceServiceActor = presenceActor
     this.chatLookupActor = chatLookupActor
     log.debug(s"${domainFqn}: Sending handshake response to client")
+
+    this.identityCacheManager = new IdentityCacheManager(self, identityActor, requestTimeout, this.context.dispatcher)
 
     // FIXME Protocol Config??
     cb.reply(HandshakeResponseMessage(true, None, true))
@@ -288,35 +288,41 @@ class ClientActor(
   //
 
   private[this] def authenticate(requestMessage: AuthenticationRequestMessage, cb: ReplyCallback): Unit = {
-    val authCredentials = requestMessage.auth match {
+    (requestMessage.auth match {
       case AuthenticationRequestMessage.Auth.Password(PasswordAuthRequestMessage(username, password)) =>
-        PasswordAuthRequest(username, password)
+        Some(PasswordAuthRequest(username, password))
       case AuthenticationRequestMessage.Auth.Jwt(JwtAuthRequestMessage(jwt)) =>
-        JwtAuthRequest(jwt)
+        Some(JwtAuthRequest(jwt))
       case AuthenticationRequestMessage.Auth.Reconnect(ReconnectTokenAuthRequestMessage(token)) =>
-        ReconnectTokenAuthRequest(token)
+        Some(ReconnectTokenAuthRequest(token))
       case AuthenticationRequestMessage.Auth.Anonymous(AnonymousAuthRequestMessage(displayName)) =>
-        AnonymousAuthRequest(displayName)
-    }
+        Some(AnonymousAuthRequest(displayName))
+      case AuthenticationRequestMessage.Auth.Empty =>
+        None
+    }) match {
+      case Some(authCredentials) =>
+        val authRequest = AuthenticationRequest(
+          domainFqn,
+          self,
+          remoteHost.toString,
+          "javascript",
+          "unknown",
+          userAgent,
+          authCredentials)
 
-    val authRequest = AuthenticationRequest(
-      domainFqn,
-      self,
-      remoteHost.toString,
-      "javascript",
-      "unknown",
-      userAgent,
-      authCredentials)
-
-    // FIXME if authentication fails we should probably stop the actor
-    // and or shut down the connection?
-    (this.domainRegion ? authRequest).mapResponse[AuthenticationResponse] onComplete {
-      case Success(AuthenticationSuccess(username, sk, reconnectToken)) =>
-        getPresenceAfterAuth(username, sk, reconnectToken, cb)
-      case Success(AuthenticationFailure) =>
-        cb.reply(AuthenticationResponseMessage().withFailure(AuthFailure("")))
-      case Failure(cause) =>
-        log.error(cause, s"Error authenticating user for domain ${domainFqn}")
+        // FIXME if authentication fails we should probably stop the actor
+        // and or shut down the connection?
+        (this.domainRegion ? authRequest).mapResponse[AuthenticationResponse] onComplete {
+          case Success(AuthenticationSuccess(username, sk, reconnectToken)) =>
+            getPresenceAfterAuth(username, sk, reconnectToken, cb)
+          case Success(AuthenticationFailure) =>
+            cb.reply(AuthenticationResponseMessage().withFailure(AuthFailure("")))
+          case Failure(cause) =>
+            log.error(cause, s"Error authenticating user for domain ${domainFqn}")
+            cb.reply(AuthenticationResponseMessage().withFailure(AuthFailure("")))
+        }
+      case None =>
+        log.error("Invalid authentication message: {}", requestMessage)
         cb.reply(AuthenticationResponseMessage().withFailure(AuthFailure("")))
     }
   }
@@ -336,7 +342,7 @@ class ClientActor(
     this.sessionId = sk.serialize();
     this.reconnectToken = reconnectToken;
     this.modelClient = context.actorOf(ModelClientActor.props(domainFqn, sk, modelQueryActor, requestTimeout))
-    this.userClient = context.actorOf(IdentityClientActor.props(userServiceActor))
+    this.userClient = context.actorOf(IdentityClientActor.props(identityServiceActor))
     this.chatClient = context.actorOf(ChatClientActor.props(domainFqn, chatLookupActor, sk, requestTimeout))
     this.activityClient = context.actorOf(ActivityClientActor.props(
       ActivityActorSharding.shardRegion(this.context.system),
@@ -346,7 +352,7 @@ class ClientActor(
     this.historyClient = context.actorOf(HistoricModelClientActor.props(sk, domainFqn, modelStoreActor, operationStoreActor));
     this.messageHandler = handleMessagesWhenAuthenticated
 
-    val response = AuthenticationResponseMessage().withSuccess(AuthSuccess(username, sk.sid, reconnectToken,presence.state))
+    val response = AuthenticationResponseMessage().withSuccess(AuthSuccess(username, sk.sid, reconnectToken, presence.state))
     cb.reply(response)
 
     context.become(receiveWhileAuthenticated)
@@ -449,5 +455,7 @@ class ClientActor(
   }
 }
 
+case class SendUnprocessedMessage(message: ConvergenceMessage)
+case class SendProcessedMessage(message: ConvergenceMessage)
 case class InternalAuthSuccess(username: String, sk: SessionKey, reconnectToken: String, presence: UserPresence, cb: ReplyCallback)
 case class InternalHandshakeSuccess(handshakeSuccess: HandshakeSuccess, cb: ReplyCallback)

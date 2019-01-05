@@ -84,7 +84,7 @@ class IdentityClientActor(userServiceActor: ActorRef) extends Actor with ActorLo
 
     future.mapResponse[UserList] onComplete {
       case Success(UserList(users)) =>
-        val userData = users.map { x => mapDomainUser(x) }
+        val userData = users.map(ImplicitMessageConversions.mapDomainUser(_))
         cb.reply(UserListMessage(userData))
       case Failure(cause) =>
         val message = "Unexpected error searching users."
@@ -99,7 +99,7 @@ class IdentityClientActor(userServiceActor: ActorRef) extends Actor with ActorLo
     val future = this.userServiceActor ? UserLookUp(field, values.toList)
     future.mapResponse[UserList] onComplete {
       case Success(UserList(users)) =>
-        val userData = users.map { x => mapDomainUser(x) }
+        val userData = users.map(ImplicitMessageConversions.mapDomainUser(_))
         cb.reply(UserListMessage(userData))
       case Failure(cause) => 
         val message = "Unexpected error looking up users."
@@ -115,6 +115,8 @@ class IdentityClientActor(userServiceActor: ActorRef) extends Actor with ActorLo
       case UserField.LAST_NAME => UserLookUpField.LastName
       case UserField.DISPLAY_NAME => UserLookUpField.DisplayName
       case UserField.EMAIL => UserLookUpField.Email
+      case UserField.FIELD_NOT_SET | UserField.Unrecognized(_) =>
+        ???
     }
   }
 
@@ -158,19 +160,5 @@ class IdentityClientActor(userServiceActor: ActorRef) extends Actor with ActorLo
         log.error(cause, message)
         cb.unexpectedError(message)
     }
-  }
-
-  private[this] def mapDomainUser(user: DomainUser): DomainUserData = {
-    val DomainUser(userType, username, firstname, lastName, displayName, email) = user
-    DomainUserData(userType.toString(), username, firstname, lastName, displayName, email)
-  }
-
-  private[this] object UserFieldCodes extends Enumeration {
-    val UserId = 0;
-    val Username = 1;
-    val FirstName = 2;
-    val LastName = 3;
-    val DisplayName = 4;
-    val Email = 5;
   }
 }
