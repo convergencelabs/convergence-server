@@ -109,7 +109,7 @@ class ProtocolConnection(
     }
   }
 
-  def sendMessage(convergenceMessage: ConvergenceMessage): Unit = {
+  private[this] def sendMessage(convergenceMessage: ConvergenceMessage): Unit = {
     clientActor ! SendUnprocessedMessage(convergenceMessage)
   }
   
@@ -202,12 +202,12 @@ class ProtocolConnection(
   }
 
   private[this] def onPing(): Unit = {
-    sendMessage(ConvergenceMessage().withPong(PongMessage()))
+    this.serializeAndSend(ConvergenceMessage().withPong(PongMessage()))
   }
 
   private[this] def handleHeartbeat: PartialFunction[HeartbeatEvent, Unit] = {
     case PingRequest =>
-      sendMessage(ConvergenceMessage().withPing(PingMessage()))
+      this.serializeAndSend(ConvergenceMessage().withPing(PingMessage()))
     case PongTimeout =>
       clientActor ! PongTimeout
   }

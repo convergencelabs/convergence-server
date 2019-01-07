@@ -66,11 +66,14 @@ class ProtocolConnectionSpec
         val toSend = OperationAcknowledgementMessage("id1", 4, 5, Some(Timestamp(10)))
         connection.send(toSend)
 
-        val OutgoingBinaryMessage(message) = this.connectionActor.expectMsgClass(10 millis, classOf[OutgoingBinaryMessage])
+        val SendUnprocessedMessage(convergenceMessage) = this.clientActor.expectMsgClass(10 millis, classOf[SendUnprocessedMessage])
+        connection.serializeAndSend(convergenceMessage)
 
-        val convergenceMessage = ConvergenceMessage.parseFrom(message)
-        convergenceMessage.body.operationAck shouldBe defined
-        convergenceMessage.getOperationAck shouldBe toSend
+        val OutgoingBinaryMessage(message) = this.connectionActor.expectMsgClass(10 millis, classOf[OutgoingBinaryMessage])
+        val sentMessage = ConvergenceMessage.parseFrom(message)
+
+        sentMessage.body.operationAck shouldBe defined
+        sentMessage.getOperationAck shouldBe toSend
       }
     }
 
@@ -79,11 +82,14 @@ class ProtocolConnectionSpec
         val toSend = AutoCreateModelConfigRequestMessage(autoCreateId)
         connection.request(toSend)
 
-        val OutgoingBinaryMessage(message) = this.connectionActor.expectMsgClass(10 millis, classOf[OutgoingBinaryMessage])
-        val convergenceMessage = ConvergenceMessage.parseFrom(message)
+        val SendUnprocessedMessage(convergenceMessage) = this.clientActor.expectMsgClass(10 millis, classOf[SendUnprocessedMessage])
+        connection.serializeAndSend(convergenceMessage)
 
-        convergenceMessage.requestId shouldBe defined
-        convergenceMessage.getModelAutoCreateConfigRequest shouldBe toSend
+        val OutgoingBinaryMessage(sentBytes) = this.connectionActor.expectMsgClass(10 millis, classOf[OutgoingBinaryMessage])
+        val sentMessage = ConvergenceMessage.parseFrom(sentBytes)
+
+        sentMessage.requestId shouldBe defined
+        sentMessage.getModelAutoCreateConfigRequest shouldBe toSend
       }
     }
 
@@ -167,9 +173,12 @@ class ProtocolConnectionSpec
           .withResponseId(1)
           .withHandshakeResponse(response)
 
-        val OutgoingBinaryMessage(replyMessage) = this.connectionActor.expectMsgClass(10 millis, classOf[OutgoingBinaryMessage])
-        val convergenceMessage = ConvergenceMessage.parseFrom(replyMessage)
-        convergenceMessage shouldBe expectedResponseEnvelope
+        val SendUnprocessedMessage(convergenceMessage) = this.clientActor.expectMsgClass(10 millis, classOf[SendUnprocessedMessage])
+        connection.serializeAndSend(convergenceMessage)
+
+        val OutgoingBinaryMessage(sentBytes) = this.connectionActor.expectMsgClass(10 millis, classOf[OutgoingBinaryMessage])
+        val sentMessage = ConvergenceMessage.parseFrom(sentBytes)
+        sentMessage shouldBe expectedResponseEnvelope
       }
 
       "send a correct reply envelope for an unexpected error" in new TestFixture(system) {
@@ -183,12 +192,15 @@ class ProtocolConnectionSpec
 
         cb.unexpectedError(errorMessage)
 
-        val OutgoingBinaryMessage(replyMessage) = this.connectionActor.expectMsgClass(10 millis, classOf[OutgoingBinaryMessage])
-        val convergenceMessage = ConvergenceMessage.parseFrom(replyMessage)
+        val SendUnprocessedMessage(convergenceMessage) = this.clientActor.expectMsgClass(10 millis, classOf[SendUnprocessedMessage])
+        connection.serializeAndSend(convergenceMessage)
 
-        convergenceMessage.body.error shouldBe defined
-        convergenceMessage.getError.code shouldBe "unknown"
-        convergenceMessage.getError.message shouldBe errorMessage
+        val OutgoingBinaryMessage(sentBytes) = this.connectionActor.expectMsgClass(10 millis, classOf[OutgoingBinaryMessage])
+        val sentMessage = ConvergenceMessage.parseFrom(sentBytes)
+
+        sentMessage.body.error shouldBe defined
+        sentMessage.getError.code shouldBe "unknown"
+        sentMessage.getError.message shouldBe errorMessage
       }
 
       "send a correct reply envelope for an expected error" in new TestFixture(system) {
@@ -202,12 +214,15 @@ class ProtocolConnectionSpec
 
         cb.expectedError(code, errorMessage)
 
-        val OutgoingBinaryMessage(replyMessage) = this.connectionActor.expectMsgClass(10 millis, classOf[OutgoingBinaryMessage])
-        val convergenceMessage = ConvergenceMessage.parseFrom(replyMessage)
+        val SendUnprocessedMessage(convergenceMessage) = this.clientActor.expectMsgClass(10 millis, classOf[SendUnprocessedMessage])
+        connection.serializeAndSend(convergenceMessage)
 
-        convergenceMessage.body.error shouldBe defined
-        convergenceMessage.getError.code shouldBe code
-        convergenceMessage.getError.message shouldBe errorMessage
+        val OutgoingBinaryMessage(sentBytes) = this.connectionActor.expectMsgClass(10 millis, classOf[OutgoingBinaryMessage])
+        val sentError = ConvergenceMessage.parseFrom(sentBytes)
+
+        sentError.body.error shouldBe defined
+        sentError.getError.code shouldBe code
+        sentError.getError.message shouldBe errorMessage
       }
     }
 
@@ -280,14 +295,17 @@ class ProtocolConnectionSpec
         val toSend = AutoCreateModelConfigRequestMessage(autoCreateId)
         val f = connection.request(toSend)
 
-        val OutgoingBinaryMessage(message) = this.connectionActor.expectMsgClass(10 millis, classOf[OutgoingBinaryMessage])
-        val convergenceMessage = ConvergenceMessage.parseFrom(message)
+        val SendUnprocessedMessage(convergenceMessage) = this.clientActor.expectMsgClass(10 millis, classOf[SendUnprocessedMessage])
+        connection.serializeAndSend(convergenceMessage)
+
+        val OutgoingBinaryMessage(sentBytes) = this.connectionActor.expectMsgClass(10 millis, classOf[OutgoingBinaryMessage])
+        val sentMessage = ConvergenceMessage.parseFrom(sentBytes)
 
         val replyMessage = AutoCreateModelConfigResponseMessage()
           .withCollection(collectionId)
           .withData(ObjectValue("vid2", Map()))
         val replyEnvelope = ConvergenceMessage()
-          .withResponseId(convergenceMessage.getRequestId)
+          .withResponseId(sentMessage.getRequestId)
           .withModelAutoCreateConfigResponse(replyMessage)
 
         connection.onIncomingMessage(replyEnvelope.toByteArray).success.value shouldBe None
@@ -301,12 +319,15 @@ class ProtocolConnectionSpec
         val toSend = AutoCreateModelConfigRequestMessage(autoCreateId)
         val f = connection.request(toSend)
 
-        val OutgoingBinaryMessage(message) = this.connectionActor.expectMsgClass(10 millis, classOf[OutgoingBinaryMessage])
-        val convergenceMessage = ConvergenceMessage.parseFrom(message)
+        val SendUnprocessedMessage(convergenceMessage) = this.clientActor.expectMsgClass(10 millis, classOf[SendUnprocessedMessage])
+        connection.serializeAndSend(convergenceMessage)
+
+        val OutgoingBinaryMessage(sentBytes) = this.connectionActor.expectMsgClass(10 millis, classOf[OutgoingBinaryMessage])
+        val sentMessage = ConvergenceMessage.parseFrom(sentBytes)
 
         val replyMessage = ErrorMessage(code, errorMessage, Map("foo" -> "bar"))
         val replyEnvelope = ConvergenceMessage()
-          .withResponseId(convergenceMessage.getRequestId)
+          .withResponseId(sentMessage.getRequestId)
           .withError(replyMessage)
 
         connection.onIncomingMessage(replyEnvelope.toByteArray).success.value shouldBe None
