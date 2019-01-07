@@ -14,6 +14,7 @@ import akka.actor.ActorLogging
 import akka.actor.Props
 import com.convergencelabs.server.datastore.domain.UserGroup
 import akka.actor.Status
+import com.convergencelabs.server.datastore.EntityNotFoundException
 
 object IdentityServiceActor {
 
@@ -30,10 +31,30 @@ class IdentityServiceActor private[domain] (domainFqn: DomainFqn) extends Actor 
   def receive: Receive = {
     case s: UserSearch => searchUsers(s)
     case l: UserLookUp => lookUpUsers(l)
+    case GetUsersByUsername(usernames) => getUsersByUsername(usernames)
+    case GetUserByUsername(username) => getUserByUsername(username)
     case message: UserGroupsRequest => getUserGroups(message)
     case message: UserGroupsForUsersRequest => getUserGroupsForUser(message)
     case message: IdentityResolutionRequest => resolveIdentities(message)
     case x: Any => unhandled(x)
+  }
+
+  private[this] def getUsersByUsername(usernames: List[String]): Unit = {
+    persistenceProvider.userStore.getDomainUsersByUsername(usernames) match {
+      case Success(users) => sender ! users
+      case Failure(e) => sender ! Status.Failure(e)
+    }
+  }
+
+  private[this] def getUserByUsername(username: String): Unit = {
+    persistenceProvider.userStore.getDomainUserByUsername(username).map {
+      _ match {
+        case Some(user) => sender ! user
+        case None => sender ! Status.Failure(EntityNotFoundException())
+      }
+    } recover {
+      case cause => sender ! Status.Failure(cause)
+    }
   }
 
   private[this] def resolveIdentities(message: IdentityResolutionRequest): Unit = {
@@ -129,6 +150,9 @@ class IdentityServiceActor private[domain] (domainFqn: DomainFqn) extends Actor 
 object UserLookUpField extends Enumeration {
   val Username, FirstName, LastName, DisplayName, Email = Value
 }
+
+case class GetUsersByUsername(usernames: List[String])
+case class GetUserByUsername(username: String)
 
 case class UserLookUp(field: UserLookUpField.Value, values: List[String])
 

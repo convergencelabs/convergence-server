@@ -1,14 +1,15 @@
 package com.convergencelabs.server.frontend.realtime
 
+import scala.concurrent.Future
 import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 
 import com.convergencelabs.server.ProtocolConfiguration
+import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.db.provision.DomainProvisionerActor.DomainDeleted
 import com.convergencelabs.server.db.provision.DomainProvisionerActor.domainTopic
 import com.convergencelabs.server.domain.AnonymousAuthRequest
-import com.convergencelabs.server.domain.AuthenticationError
 import com.convergencelabs.server.domain.AuthenticationFailure
 import com.convergencelabs.server.domain.AuthenticationRequest
 import com.convergencelabs.server.domain.AuthenticationResponse
@@ -16,6 +17,8 @@ import com.convergencelabs.server.domain.AuthenticationSuccess
 import com.convergencelabs.server.domain.ClientDisconnected
 import com.convergencelabs.server.domain.DomainActorSharding
 import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainUser
+import com.convergencelabs.server.domain.GetUserByUsername
 import com.convergencelabs.server.domain.HandshakeFailureException
 import com.convergencelabs.server.domain.HandshakeRequest
 import com.convergencelabs.server.domain.HandshakeSuccess
@@ -39,36 +42,32 @@ import akka.cluster.pubsub.DistributedPubSubMediator.Subscribe
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
 import akka.http.scaladsl.model.RemoteAddress
 import akka.util.Timeout
-
-import io.convergence.proto.Request
-import io.convergence.proto.connection.HandshakeRequestMessage
-import scalapb.GeneratedMessage
+import io.convergence.proto.Activity
 import io.convergence.proto.Authentication
-import io.convergence.proto.authentication.PasswordAuthRequestMessage
-import io.convergence.proto.authentication.JwtAuthRequestMessage
-import io.convergence.proto.authentication.ReconnectTokenAuthRequestMessage
-import io.convergence.proto.authentication.AnonymousAuthRequestMessage
-import io.convergence.proto.authentication.AuthenticationResponseMessage
-import io.convergence.proto.authentication.AuthSuccess
-import io.convergence.proto.authentication.AuthFailure
-import io.convergence.proto.connection.HandshakeResponseMessage.ErrorData
-import io.convergence.proto.connection.HandshakeResponseMessage
-import io.convergence.proto.Response
-import io.convergence.proto.common.ErrorMessage
+import io.convergence.proto.Chat
+import io.convergence.proto.Historical
+import io.convergence.proto.Identity
 import io.convergence.proto.Model
 import io.convergence.proto.Normal
-import io.convergence.proto.Activity
-import io.convergence.proto.Presence
-import io.convergence.proto.Chat
-import io.convergence.proto.Identity
-import io.convergence.proto.Historical
-import io.convergence.proto.Permissions
 import io.convergence.proto.PermissionRequest
-import io.convergence.proto.permissions.PermissionType
-import io.convergence.proto.connection.HandshakeResponseMessage.ProtocolConfigData
+import io.convergence.proto.Presence
+import io.convergence.proto.Request
+import io.convergence.proto.Response
+import io.convergence.proto.authentication.AnonymousAuthRequestMessage
+import io.convergence.proto.authentication.AuthFailure
+import io.convergence.proto.authentication.AuthSuccess
 import io.convergence.proto.authentication.AuthenticationRequestMessage
-import io.convergence.proto.authentication.AuthenticationRequestMessage
+import io.convergence.proto.authentication.AuthenticationResponseMessage
+import io.convergence.proto.authentication.JwtAuthRequestMessage
+import io.convergence.proto.authentication.PasswordAuthRequestMessage
+import io.convergence.proto.authentication.ReconnectTokenAuthRequestMessage
+import io.convergence.proto.common.ErrorMessage
+import io.convergence.proto.connection.HandshakeRequestMessage
+import io.convergence.proto.connection.HandshakeResponseMessage
+import io.convergence.proto.connection.HandshakeResponseMessage.ErrorData
 import io.convergence.proto.message.ConvergenceMessage
+import io.convergence.proto.permissions.PermissionType
+import scalapb.GeneratedMessage
 
 object ClientActor {
   def props(
@@ -328,17 +327,28 @@ class ClientActor(
   }
 
   private[this] def getPresenceAfterAuth(username: String, sk: SessionKey, reconnectToken: String, cb: ReplyCallback) {
-    val future = this.presenceServiceActor ? PresenceRequest(List(username))
-    future.mapTo[List[UserPresence]] onComplete {
-      case Success(first :: nil) =>
-        self ! InternalAuthSuccess(username, sk, reconnectToken, first, cb)
-      case _ =>
+    (for {
+      // TODO imeplement a metnod that just gets one.
+      presence <- (this.presenceServiceActor ? PresenceRequest(List(username)))
+        .mapTo[List[UserPresence]]
+        .flatMap { p =>
+          p match {
+            case first :: nil => Future.successful(first)
+            case _ => Future.failed(EntityNotFoundException())
+          }
+        }
+      user <- (this.identityServiceActor ? GetUserByUsername(username)).mapTo[DomainUser]
+    } yield {
+      self ! InternalAuthSuccess(user, sk, reconnectToken, presence, cb)
+    }).recover {
+      case cause =>
+        log.error(cause, "Error getting user data after successful authentication")
         cb.reply(AuthenticationResponseMessage().withFailure(AuthFailure("")))
     }
   }
 
   private[this] def handleAuthenticationSuccess(message: InternalAuthSuccess): Unit = {
-    val InternalAuthSuccess(username, sk, reconnectToken, presence, cb) = message
+    val InternalAuthSuccess(user, sk, reconnectToken, presence, cb) = message
     this.sessionId = sk.serialize();
     this.reconnectToken = reconnectToken;
     this.modelClient = context.actorOf(ModelClientActor.props(domainFqn, sk, modelQueryActor, requestTimeout))
@@ -352,7 +362,8 @@ class ClientActor(
     this.historyClient = context.actorOf(HistoricModelClientActor.props(sk, domainFqn, modelStoreActor, operationStoreActor));
     this.messageHandler = handleMessagesWhenAuthenticated
 
-    val response = AuthenticationResponseMessage().withSuccess(AuthSuccess(username, sk.sid, reconnectToken, presence.state))
+    val response = AuthenticationResponseMessage().withSuccess(AuthSuccess(
+      Some(ImplicitMessageConversions.mapDomainUser(user)), sk.sid, reconnectToken, presence.state))
     cb.reply(response)
 
     context.become(receiveWhileAuthenticated)
@@ -457,5 +468,5 @@ class ClientActor(
 
 case class SendUnprocessedMessage(message: ConvergenceMessage)
 case class SendProcessedMessage(message: ConvergenceMessage)
-case class InternalAuthSuccess(username: String, sk: SessionKey, reconnectToken: String, presence: UserPresence, cb: ReplyCallback)
+case class InternalAuthSuccess(user: DomainUser, sk: SessionKey, reconnectToken: String, presence: UserPresence, cb: ReplyCallback)
 case class InternalHandshakeSuccess(handshakeSuccess: HandshakeSuccess, cb: ReplyCallback)
