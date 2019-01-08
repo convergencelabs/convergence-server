@@ -162,7 +162,10 @@ class ClientActor(
           invalidMessage(cause)
       }
     case SendUnprocessedMessage(convergenceMessage) =>
-      identityCacheManager.onConvergenceMessage(convergenceMessage)
+      Option(identityCacheManager) match {
+        case Some(icm) => icm.onConvergenceMessage(convergenceMessage)
+        case _ => this.protocolConnection.serializeAndSend(convergenceMessage)
+      }
     case SendProcessedMessage(convergenceMessage) =>
       this.protocolConnection.serializeAndSend(convergenceMessage)
     case message: GeneratedMessage with Normal =>
@@ -462,7 +465,7 @@ class ClientActor(
     if (!handshakeTimeoutTask.isCancelled) {
       handshakeTimeoutTask.cancel()
     }
-    protocolConnection.dispose()
+    Option(protocolConnection).map(_.dispose())
   }
 }
 

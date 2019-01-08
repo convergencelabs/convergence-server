@@ -105,10 +105,10 @@ case class ModelPermissionsChanged(modelId: String, permissions: ModelPermission
 case class ClientAutoCreateModelConfigRequest(modelId: String, autoConfigId: Integer) extends RealtimeModelClientMessage
 
 sealed trait RemoteReferenceEvent extends RealtimeModelClientMessage
-case class RemoteReferencePublished(
+case class RemoteReferenceShared(
   modelId: String, session: SessionKey, id: Option[String], key: String,
-  referenceType: ReferenceType.Value, values: Option[List[Any]]) extends RemoteReferenceEvent
+  referenceType: ReferenceType.Value, values: List[Any]) extends RemoteReferenceEvent
 case class RemoteReferenceSet(modelId: String, session: SessionKey, id: Option[String], key: String,
   referenceType: ReferenceType.Value, value: List[Any]) extends RemoteReferenceEvent
 case class RemoteReferenceCleared(modelId: String, session: SessionKey, id: Option[String], key: String) extends RemoteReferenceEvent
-case class RemoteReferenceUnpublished(modelId: String, session: SessionKey, id: Option[String], key: String) extends RemoteReferenceEvent
+case class RemoteReferenceUnshared(modelId: String, session: SessionKey, id: Option[String], key: String) extends RemoteReferenceEvent

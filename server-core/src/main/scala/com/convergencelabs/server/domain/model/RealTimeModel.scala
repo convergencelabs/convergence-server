@@ -165,11 +165,11 @@ class RealTimeModel(
                 val PublishReference(domainFqn, _, id, key, refType, values, contextVersion) = publish
 
                 val refVal: ReferenceValue = ReferenceValue(id, key, refType, values, contextVersion)
-                this.cc.processRemoteReferenceSet(sk.toString(), refVal) match {
+                this.cc.processRemoteReferenceSet(sk.serialize(), refVal) match {
                   case Some(xformed) =>
                     val setRef: SetReference = SetReference(domainFqn, this.modelId, xformed.id, xformed.key, xformed.referenceType, xformed.values, xformed.contextVersion.toInt)
                     realTimeValue.processReferenceEvent(setRef, sk)
-                    Some(RemoteReferencePublished(this.modelId, sk, setRef.id, setRef.key, setRef.referenceType, Some(setRef.values)))
+                    Some(RemoteReferenceShared(this.modelId, sk, setRef.id, setRef.key, setRef.referenceType, setRef.values))
                   case None =>
                     None
                 }
@@ -177,11 +177,11 @@ class RealTimeModel(
               case unpublish: UnpublishReference =>
                 realTimeValue.processReferenceEvent(unpublish, sk)
                 val UnpublishReference(domain, modelId, id, key) = unpublish
-                Some(RemoteReferenceUnpublished(modelId, sk, id, key))
+                Some(RemoteReferenceUnshared(modelId, sk, id, key))
               case set: SetReference =>
                 //TODO: Added ReferenceValue to move ot packages into separate project and need to evaluate usage here
                 val refVal: ReferenceValue = ReferenceValue(set.id, set.key, set.referenceType, set.values, set.contextVersion)
-                this.cc.processRemoteReferenceSet(sk.toString(), refVal) match {
+                this.cc.processRemoteReferenceSet(sk.serialize(), refVal) match {
                   case Some(xformed) =>
                     val setRef: SetReference = SetReference(domainFqn, modelId, xformed.id, xformed.key, xformed.referenceType, xformed.values, xformed.contextVersion.toInt)
                     realTimeValue.processReferenceEvent(setRef, sk)
@@ -209,12 +209,12 @@ class RealTimeModel(
             val xformedValue = values.asInstanceOf[List[String]] filter { idToValue.contains(_) }
             val xformedSet = SetReference(domainFqn, modelId, id, key, refType, xformedValue, contextVersion)
             elementReferenceManager.handleReferenceEvent(xformedSet, sk)
-            Some(RemoteReferencePublished(modelId, sk, id, key, refType, Some(xformedValue)))
+            Some(RemoteReferenceShared(modelId, sk, id, key, refType, xformedValue))
 
           case unpublish: UnpublishReference =>
             elementReferenceManager.handleReferenceEvent(unpublish, sk)
             val UnpublishReference(_, _, id, key) = unpublish
-            Some(RemoteReferenceUnpublished(modelId, sk, id, key))
+            Some(RemoteReferenceUnshared(modelId, sk, id, key))
           case set: SetReference =>
             val SetReference(d, m, id, key, refType, values, version) = set
             val xformedValue = values.asInstanceOf[List[String]] filter { idToValue.contains(_) }

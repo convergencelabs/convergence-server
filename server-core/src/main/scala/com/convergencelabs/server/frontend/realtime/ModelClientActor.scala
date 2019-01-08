@@ -40,9 +40,9 @@ import com.convergencelabs.server.domain.model.ReferenceType
 import com.convergencelabs.server.domain.model.RemoteClientClosed
 import com.convergencelabs.server.domain.model.RemoteClientOpened
 import com.convergencelabs.server.domain.model.RemoteReferenceCleared
-import com.convergencelabs.server.domain.model.RemoteReferencePublished
+import com.convergencelabs.server.domain.model.RemoteReferenceShared
 import com.convergencelabs.server.domain.model.RemoteReferenceSet
-import com.convergencelabs.server.domain.model.RemoteReferenceUnpublished
+import com.convergencelabs.server.domain.model.RemoteReferenceUnshared
 import com.convergencelabs.server.domain.model.SessionKey
 import com.convergencelabs.server.domain.model.SetModelPermissionsRequest
 import com.convergencelabs.server.domain.model.SetReference
@@ -170,8 +170,8 @@ class ModelClientActor(
       case remoteClosed: RemoteClientClosed => onRemoteClientClosed(remoteClosed)
       case foreceClosed: ModelForceClose => onModelForceClose(foreceClosed)
       case autoCreateRequest: ClientAutoCreateModelConfigRequest => onAutoCreateModelConfigRequest(autoCreateRequest)
-      case refPublished: RemoteReferencePublished => onRemoteReferencePublished(refPublished)
-      case refUnpublished: RemoteReferenceUnpublished => onRemoteReferenceUnpublished(refUnpublished)
+      case refPublished: RemoteReferenceShared => onRemoteReferencePublished(refPublished)
+      case refUnpublished: RemoteReferenceUnshared => onRemoteReferenceUnpublished(refUnpublished)
       case refSet: RemoteReferenceSet => onRemoteReferenceSet(refSet)
       case refCleared: RemoteReferenceCleared => onRemoteReferenceCleared(refCleared)
       case permsChanged: ModelPermissionsChanged => onModelPermissionsChanged(permsChanged)
@@ -259,16 +259,16 @@ class ModelClientActor(
     }
   }
 
-  private[this] def onRemoteReferencePublished(refPublished: RemoteReferencePublished): Unit = {
-    val RemoteReferencePublished(modelId, session, valueId, key, refType, values) = refPublished
+  private[this] def onRemoteReferencePublished(refPublished: RemoteReferenceShared): Unit = {
+    val RemoteReferenceShared(modelId, session, valueId, key, refType, values) = refPublished
     resourceId(modelId) foreach { resourceId =>
       val references = mapOutgoingReferenceValue(refType, values)
       context.parent ! RemoteReferenceSharedMessage(resourceId, valueId, key, Some(references), session.sid)
     }
   }
 
-  private[this] def onRemoteReferenceUnpublished(refUnpublished: RemoteReferenceUnpublished): Unit = {
-    val RemoteReferenceUnpublished(modelId, session, valueId, key) = refUnpublished
+  private[this] def onRemoteReferenceUnpublished(refUnpublished: RemoteReferenceUnshared): Unit = {
+    val RemoteReferenceUnshared(modelId, session, valueId, key) = refUnpublished
     resourceId(modelId) foreach { resourceId =>
       context.parent ! RemoteReferenceUnsharedMessage(resourceId, valueId, key, session.sid)
     }
