@@ -37,6 +37,7 @@ import akka.actor.Terminated
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator.Subscribe
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
+import com.convergencelabs.server.domain.presence.PresenceServiceActor
 
 object DomainActor {
   case class DomainActorChildren(

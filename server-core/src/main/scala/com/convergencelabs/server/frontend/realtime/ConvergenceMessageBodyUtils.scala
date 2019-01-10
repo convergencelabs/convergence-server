@@ -28,6 +28,7 @@ object ConvergenceMessageBodyUtils {
       case Body.HandshakeResponse(message) => message
       case Body.AuthenticationRequest(message) => message
       case Body.AuthenticationResponse(message) => message
+      case Body.IdentityCacheUpdate(message) => message
       // Model
       case Body.OpenRealTimeModelRequest(message) => message
       case Body.OpenRealTimeModelResponse(message) => message
@@ -169,6 +170,7 @@ object ConvergenceMessageBodyUtils {
       case message: HandshakeResponseMessage => Body.HandshakeResponse(message)
       case message: AuthenticationRequestMessage => Body.AuthenticationRequest(message)
       case message: AuthenticationResponseMessage => Body.AuthenticationResponse(message)
+      case message: IdentityCacheUpdateMessage => Body.IdentityCacheUpdate(message)
       // Model
       case message: OpenRealtimeModelRequestMessage => Body.OpenRealTimeModelRequest(message)
       case message: OpenRealtimeModelResponseMessage => Body.OpenRealTimeModelResponse(message)

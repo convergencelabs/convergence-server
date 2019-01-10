@@ -52,25 +52,44 @@ abstract class ChatChannelMessageProcessor(stateManager: ChatChannelStateManager
 
   def processChatMessage(message: ExistingChannelMessage): Try[ChatMessageProcessingResult] = {
     message match {
-      case message: RemoveChannelRequest              => onRemoveChannel(message)
-      case message: JoinChannelRequest                => onJoinChannel(message)
-      case message: LeaveChannelRequest               => onLeaveChannel(message)
-      case message: AddUserToChannelRequest           => onAddUserToChannel(message)
-      case message: RemoveUserFromChannelRequest      => onRemoveUserFromChannel(message)
-      case message: SetChannelNameRequest             => onSetChatChannelName(message)
-      case message: SetChannelTopicRequest            => onSetChatChannelTopic(message)
-      case message: MarkChannelEventsSeenRequest      => onMarkEventsSeen(message)
-      case message: GetChannelHistoryRequest          => onGetHistory(message)
-      case message: PublishChatMessageRequest         => onPublishMessage(message)
-      case message: AddChatPermissionsRequest         => onAddPermissionsMessage(message)
-      case message: RemoveChatPermissionsRequest      => onRemovePermissionsMessage(message)
-      case message: SetChatPermissionsRequest         => onSetPermissionsMessage(message)
-      case message: GetClientChatPermissionsRequest   => onGetClientPermissions(message)
-      case message: GetWorldChatPermissionsRequest    => onGetWorldPermissions(message)
-      case message: GetAllUserChatPermissionsRequest  => onGetAllUserPermissions(message)
-      case message: GetAllGroupChatPermissionsRequest => onGetAllGroupPermissions(message)
-      case message: GetUserChatPermissionsRequest     => onGetUserPermissions(message)
-      case message: GetGroupChatPermissionsRequest    => onGetGroupPermissions(message)
+      case message: RemoveChannelRequest =>
+        onRemoveChannel(message)
+      case message: JoinChannelRequest =>
+        onJoinChannel(message)
+      case message: LeaveChannelRequest =>
+        onLeaveChannel(message)
+      case message: AddUserToChannelRequest =>
+        onAddUserToChannel(message)
+      case message: RemoveUserFromChannelRequest =>
+        onRemoveUserFromChannel(message)
+      case message: SetChannelNameRequest =>
+        onSetChatChannelName(message)
+      case message: SetChannelTopicRequest =>
+        onSetChatChannelTopic(message)
+      case message: MarkChannelEventsSeenRequest =>
+        onMarkEventsSeen(message)
+      case message: GetChannelHistoryRequest =>
+        onGetHistory(message)
+      case message: PublishChatMessageRequest =>
+        onPublishMessage(message)
+      case message: AddChatPermissionsRequest =>
+        onAddPermissionsMessage(message)
+      case message: RemoveChatPermissionsRequest =>
+        onRemovePermissionsMessage(message)
+      case message: SetChatPermissionsRequest =>
+        onSetPermissionsMessage(message)
+      case message: GetClientChatPermissionsRequest =>
+        onGetClientPermissions(message)
+      case message: GetWorldChatPermissionsRequest =>
+        onGetWorldPermissions(message)
+      case message: GetAllUserChatPermissionsRequest =>
+        onGetAllUserPermissions(message)
+      case message: GetAllGroupChatPermissionsRequest =>
+        onGetAllGroupPermissions(message)
+      case message: GetUserChatPermissionsRequest =>
+        onGetUserPermissions(message)
+      case message: GetGroupChatPermissionsRequest =>
+        onGetGroupPermissions(message)
     }
   }
 

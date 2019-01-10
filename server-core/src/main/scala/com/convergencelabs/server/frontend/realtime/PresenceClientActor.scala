@@ -4,41 +4,41 @@ import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
+
+import com.convergencelabs.server.domain.model.SessionKey
+import com.convergencelabs.server.domain.presence.PresenceRequest
+import com.convergencelabs.server.domain.presence.SubscribePresence
+import com.convergencelabs.server.domain.presence.UnsubscribePresence
+import com.convergencelabs.server.domain.presence.UserConnected
+import com.convergencelabs.server.domain.presence.UserPresence
+import com.convergencelabs.server.domain.presence.UserPresenceAvailability
+import com.convergencelabs.server.domain.presence.UserPresenceClearState
+import com.convergencelabs.server.domain.presence.UserPresenceRemoveState
+import com.convergencelabs.server.domain.presence.UserPresenceSetState
+import com.convergencelabs.server.frontend.realtime.ImplicitMessageConversions.userPresenceToMessage
 import com.convergencelabs.server.util.concurrent.AskFuture
-import com.convergencelabs.server.util.concurrent.UnexpectedErrorException
+
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
 import akka.actor.Props
 import akka.actor.actorRef2Scala
-import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.server.domain.model.SessionKey
-import com.convergencelabs.server.domain.PresenceServiceActor.PresenceRequest
-import com.convergencelabs.server.domain.PresenceServiceActor.UserPresence
-import com.convergencelabs.server.domain.PresenceServiceActor.SubscribePresence
-import com.convergencelabs.server.domain.PresenceServiceActor.UserPresenceSetState
-import com.convergencelabs.server.domain.PresenceServiceActor.UserPresenceRemoveState
-import com.convergencelabs.server.domain.PresenceServiceActor.UnsubscribePresence
-import com.convergencelabs.server.domain.PresenceServiceActor.UserConnected
-import com.convergencelabs.server.domain.PresenceServiceActor.UserPresenceAvailability
-import com.convergencelabs.server.domain.PresenceServiceActor.UserPresenceClearState
-import io.convergence.proto.Presence
 import io.convergence.proto.Normal
+import io.convergence.proto.Presence
 import io.convergence.proto.Request
-import io.convergence.proto.presence.PresenceStateSetMessage
-import io.convergence.proto.presence.PresenceStateRemovedMessage
-import io.convergence.proto.presence.PresenceStateClearedMessage
 import io.convergence.proto.presence.PresenceAvailabilityChangedMessage
-import io.convergence.proto.presence.PresenceSetStateMessage
-import io.convergence.proto.presence.PresenceRemoveStateMessage
 import io.convergence.proto.presence.PresenceClearStateMessage
-import io.convergence.proto.presence.UnsubscribePresenceMessage
+import io.convergence.proto.presence.PresenceRemoveStateMessage
 import io.convergence.proto.presence.PresenceRequestMessage
-import io.convergence.proto.presence.SubscribePresenceRequestMessage
 import io.convergence.proto.presence.PresenceResponseMessage
+import io.convergence.proto.presence.PresenceSetStateMessage
+import io.convergence.proto.presence.PresenceStateClearedMessage
+import io.convergence.proto.presence.PresenceStateRemovedMessage
+import io.convergence.proto.presence.PresenceStateSetMessage
+import io.convergence.proto.presence.SubscribePresenceRequestMessage
 import io.convergence.proto.presence.SubscribePresenceResponseMessage
-import com.convergencelabs.server.frontend.realtime.ImplicitMessageConversions._
+import io.convergence.proto.presence.UnsubscribePresenceMessage
 
 object PresenceClientActor {
   def props(presenceServiceActor: ActorRef, sk: SessionKey): Props =
@@ -48,6 +48,7 @@ object PresenceClientActor {
 //  TODO: Add connect / disconnect logic
 class PresenceClientActor(presenceServiceActor: ActorRef, sk: SessionKey) extends Actor with ActorLogging {
 
+  import akka.pattern.ask
   implicit val timeout = Timeout(5 seconds)
   implicit val ec = context.dispatcher
 
@@ -61,7 +62,7 @@ class PresenceClientActor(presenceServiceActor: ActorRef, sk: SessionKey) extend
 
     // TODO: Add available messages
     case UserPresenceSetState(username, state) =>
-      context.parent ! PresenceStateSetMessage(username, state)
+      context.parent ! PresenceStateSetMessage(username, JsonProtoConverter.jValueMapToValueMap(state))
     case UserPresenceRemoveState(username, keys) =>
       context.parent ! PresenceStateRemovedMessage(username, keys)
     case UserPresenceClearState(username) =>
@@ -87,7 +88,7 @@ class PresenceClientActor(presenceServiceActor: ActorRef, sk: SessionKey) extend
 
   def onPresenceStateSet(message: PresenceSetStateMessage): Unit = {
     val PresenceSetStateMessage(state) = message
-    this.presenceServiceActor ! UserPresenceSetState(sk.uid, state)
+    this.presenceServiceActor ! UserPresenceSetState(sk.uid, JsonProtoConverter.valueMapToJValueMap(state))
   }
 
   def onPresenceStateRemoved(message: PresenceRemoveStateMessage): Unit = {

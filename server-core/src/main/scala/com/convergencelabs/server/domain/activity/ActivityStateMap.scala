@@ -1,29 +1,29 @@
 package com.convergencelabs.server.domain.activity
 
-import com.convergencelabs.server.domain.model.SessionKey
+import org.json4s.JsonAST.JValue
 
 class ActivityStateMap private[activity] () {
-  private[this] var state = Map[SessionKey, Map[String, String]]()
+  private[this] var state = Map[String, Map[String, JValue]]()
 
-  def setState(sk: SessionKey, key: String, value: String): Unit = {
-    val sessionState = state(sk)
-    state += (sk -> (sessionState + (key -> value)))
+  def setState(sessionId: String, key: String, value: JValue): Unit = {
+    val sessionState = state(sessionId)
+    state += (sessionId -> (sessionState + (key -> value)))
   }
 
-  def clearState(sk: SessionKey, key: String): Unit = {
-    val sessionState = state(sk)
-    state += (sk -> (sessionState - key))
+  def clearState(sessionId: String, key: String): Unit = {
+    val sessionState = state(sessionId)
+    state += (sessionId -> (sessionState - key))
   }
 
-  def getState(): Map[SessionKey, Map[String, String]] = {
+  def getState(): Map[String, Map[String, JValue]] = {
     state
   }
 
-  def join(sk: SessionKey): Unit = {
-    state += (sk -> Map[String, String]())
+  def join(sessionId: String): Unit = {
+    state += (sessionId -> Map[String, JValue]())
   }
 
-  def leave(sk: SessionKey): Unit = {
-    state -= sk
+  def leave(sessionId: String): Unit = {
+    state -= sessionId
   }
 }

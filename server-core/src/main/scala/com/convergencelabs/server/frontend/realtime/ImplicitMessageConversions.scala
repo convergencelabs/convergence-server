@@ -1,43 +1,44 @@
 package com.convergencelabs.server.frontend.realtime
 
-import scala.language.implicitConversions
-import com.convergencelabs.server.domain.model.SessionKey
 import java.time.Instant
-import com.google.protobuf.timestamp.Timestamp
-import com.convergencelabs.server.domain.model.data.ObjectValue
-import com.convergencelabs.server.domain.model.data.DataValue
-import com.convergencelabs.server.domain.model.data.ArrayValue
-import com.convergencelabs.server.domain.model.data.BooleanValue
-import com.convergencelabs.server.domain.model.data.DoubleValue
-import com.convergencelabs.server.domain.model.data.NullValue
-import com.convergencelabs.server.domain.model.data.StringValue
-import com.convergencelabs.server.domain.model.data.DateValue
+
+import scala.language.implicitConversions
+
+import com.convergencelabs.server.datastore.domain.ChatChannelEvent
 import com.convergencelabs.server.datastore.domain.ChatChannelInfo
 import com.convergencelabs.server.datastore.domain.ChatCreatedEvent
-import io.convergence.proto.chat.ChatCreatedEventData
 import com.convergencelabs.server.datastore.domain.ChatMessageEvent
-import com.convergencelabs.server.datastore.domain.ChatUserJoinedEvent
-import io.convergence.proto.chat.ChatUserJoinedEventData
-import com.convergencelabs.server.datastore.domain.ChatUserLeftEvent
-import io.convergence.proto.chat.ChatUserLeftEventData
-import com.convergencelabs.server.datastore.domain.ChatUserAddedEvent
-import io.convergence.proto.chat.ChatUserAddedEventData
-import com.convergencelabs.server.datastore.domain.ChatUserRemovedEvent
-import io.convergence.proto.chat.ChatUserRemovedEventData
 import com.convergencelabs.server.datastore.domain.ChatNameChangedEvent
-import io.convergence.proto.chat.ChatNameChangedEventData
 import com.convergencelabs.server.datastore.domain.ChatTopicChangedEvent
-import io.convergence.proto.chat.ChatTopicChangedEventData
-import io.convergence.proto.chat.ChatMessageEventData
-import com.convergencelabs.server.datastore.domain.ChatChannelEvent
+import com.convergencelabs.server.datastore.domain.ChatUserAddedEvent
+import com.convergencelabs.server.datastore.domain.ChatUserJoinedEvent
+import com.convergencelabs.server.datastore.domain.ChatUserLeftEvent
+import com.convergencelabs.server.datastore.domain.ChatUserRemovedEvent
+import com.convergencelabs.server.datastore.domain.ModelPermissions
+import com.convergencelabs.server.domain.DomainUser
+import com.convergencelabs.server.domain.model.data.ArrayValue
+import com.convergencelabs.server.domain.model.data.BooleanValue
+import com.convergencelabs.server.domain.model.data.DataValue
+import com.convergencelabs.server.domain.model.data.DateValue
+import com.convergencelabs.server.domain.model.data.DoubleValue
+import com.convergencelabs.server.domain.model.data.NullValue
+import com.convergencelabs.server.domain.model.data.ObjectValue
+import com.convergencelabs.server.domain.model.data.StringValue
+import com.convergencelabs.server.domain.presence.UserPresence
+import com.google.protobuf.timestamp.Timestamp
+
 import io.convergence.proto.chat.ChatChannelEventData
 import io.convergence.proto.chat.ChatChannelMemberData
-import com.convergencelabs.server.datastore.domain.ModelPermissions
-import io.convergence.proto.model.ModelPermissionsData
-import com.convergencelabs.server.domain.PresenceServiceActor.UserPresence
-import com.convergencelabs.server.domain.model.ReferenceType
-import com.convergencelabs.server.domain.DomainUser
+import io.convergence.proto.chat.ChatCreatedEventData
+import io.convergence.proto.chat.ChatMessageEventData
+import io.convergence.proto.chat.ChatNameChangedEventData
+import io.convergence.proto.chat.ChatTopicChangedEventData
+import io.convergence.proto.chat.ChatUserAddedEventData
+import io.convergence.proto.chat.ChatUserJoinedEventData
+import io.convergence.proto.chat.ChatUserLeftEventData
+import io.convergence.proto.chat.ChatUserRemovedEventData
 import io.convergence.proto.identity.DomainUserData
+import io.convergence.proto.model.ModelPermissionsData
 
 object ImplicitMessageConversions {
   implicit def instanceToTimestamp(instant: Instant) = Timestamp(instant.getEpochSecond, instant.getNano)
@@ -77,6 +78,7 @@ object ImplicitMessageConversions {
       case io.convergence.proto.operations.DataValue.Value.NullValue(value)    => messageToNullValue(value)
       case io.convergence.proto.operations.DataValue.Value.StringValue(value)  => messageToStringValue(value)
       case io.convergence.proto.operations.DataValue.Value.DateValue(value)    => messageToDateValue(value)
+      case io.convergence.proto.operations.DataValue.Value.Empty    => ???
     }
 
   implicit def messageToObjectValue(objectValue: io.convergence.proto.operations.ObjectValue) =
@@ -137,7 +139,8 @@ object ImplicitMessageConversions {
   implicit def modelPermissionsToMessage(permissions: ModelPermissions) =
     ModelPermissionsData(permissions.read, permissions.write, permissions.remove, permissions.manage)
 
-  implicit def userPresenceToMessage(userPresence: UserPresence) = io.convergence.proto.presence.UserPresence(userPresence.username, userPresence.available, userPresence.state)
+  implicit def userPresenceToMessage(userPresence: UserPresence) = 
+    io.convergence.proto.presence.UserPresence(userPresence.username, userPresence.available, JsonProtoConverter.jValueMapToValueMap(userPresence.state))
 
   def mapDomainUser(user: DomainUser): DomainUserData = {
     val DomainUser(userType, username, firstname, lastName, displayName, email) = user

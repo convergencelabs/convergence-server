@@ -5,7 +5,6 @@ import scala.util.Success
 import scala.util.Try
 
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.chat.ChatChannelActor.Stop
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.AddUserToChannelRequest
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.ExistingChannelMessage
 import com.convergencelabs.server.domain.chat.ChatChannelMessages.InvalidChannelMessageExcpetion
@@ -18,13 +17,13 @@ import akka.actor.ActorLogging
 import akka.actor.ActorRef
 import akka.actor.Props
 import akka.actor.Terminated
-import akka.cluster.sharding.ShardRegion.Passivate
 import grizzled.slf4j.Logging
 
 class ChatRoomMessageProcessor(
   domainFqn: DomainFqn,
   channelId: String,
   stateManager: ChatChannelStateManager,
+  private[this] val onEmpty: () => Unit,
   context: ActorContext)
     extends ChatChannelMessageProcessor(stateManager)
     with Logging {
@@ -67,9 +66,9 @@ class ChatRoomMessageProcessor(
         Success(ChatMessageProcessingResult(Some(()), List()))
     }
 
-    // TODO maybe make this a call back
     if (stateManager.state().members.isEmpty) {
-      context.parent ! Passivate(stopMessage = Stop)
+      this.debug("Last session left chat room, requesting passivation")
+      this.onEmpty()
     }
 
     result

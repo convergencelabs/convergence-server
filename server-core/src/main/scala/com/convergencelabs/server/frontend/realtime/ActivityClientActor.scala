@@ -64,16 +64,16 @@ class ActivityClientActor(activityServiceActor: ActorRef, domain: DomainFqn, sk:
     case RequestReceived(message, replyPromise) if message.isInstanceOf[Request with Activity] =>
       onRequestReceived(message.asInstanceOf[Request with Activity], replyPromise)
 
-    case ActivitySessionJoined(activityId, SessionKey(uid, sid, admin), state) =>
-      context.parent ! ActivitySessionJoinedMessage(activityId, sid, state)
-    case ActivitySessionLeft(activityId, SessionKey(uid, sid, admin)) =>
-      context.parent ! ActivitySessionLeftMessage(activityId, sid)
-    case ActivityRemoteStateSet(activityId, SessionKey(uid, sid, admin), state) =>
-      context.parent ! ActivityRemoteStateSetMessage(activityId, sid, state)
-    case ActivityRemoteStateRemoved(activityId, SessionKey(uid, sid, admin), keys) =>
-      context.parent ! ActivityRemoteStateRemovedMessage(activityId, sid, keys)
-    case ActivityRemoteStateCleared(activityId, SessionKey(uid, sid, admin)) =>
-      context.parent ! ActivityRemoteStateClearedMessage(activityId, sid)
+    case ActivitySessionJoined(activityId, sessionId, state) =>
+      context.parent ! ActivitySessionJoinedMessage(activityId, sessionId, JsonProtoConverter.jValueMapToValueMap(state))
+    case ActivitySessionLeft(activityId, sessionId) =>
+      context.parent ! ActivitySessionLeftMessage(activityId, sessionId)
+    case ActivityRemoteStateSet(activityId, sessionId, state) =>
+      context.parent ! ActivityRemoteStateSetMessage(activityId, sessionId, JsonProtoConverter.jValueMapToValueMap(state))
+    case ActivityRemoteStateRemoved(activityId, sessionId, keys) =>
+      context.parent ! ActivityRemoteStateRemovedMessage(activityId, sessionId, keys)
+    case ActivityRemoteStateCleared(activityId, sessionId) =>
+      context.parent ! ActivityRemoteStateClearedMessage(activityId, sessionId)
 
     case x: Any => unhandled(x)
   }
@@ -93,17 +93,17 @@ class ActivityClientActor(activityServiceActor: ActorRef, domain: DomainFqn, sk:
 
   def onActivityStateSet(message: ActivitySetStateMessage): Unit = {
     val ActivitySetStateMessage(id, state) = message
-    this.activityServiceActor ! ActivitySetState(domain, id, sk, state)
+    this.activityServiceActor ! ActivitySetState(domain, id, sk.sid, JsonProtoConverter.valueMapToJValueMap(state))
   }
 
   def onActivityStateRemoved(message: ActivityRemoveStateMessage): Unit = {
     val ActivityRemoveStateMessage(id, keys) = message
-    this.activityServiceActor ! ActivityRemoveState(domain, id, sk, keys.toList)
+    this.activityServiceActor ! ActivityRemoveState(domain, id, sk.sid, keys.toList)
   }
 
   def onActivityStateCleared(message: ActivityClearStateMessage): Unit = {
     val ActivityClearStateMessage(id) = message
-    this.activityServiceActor ! ActivityClearState(domain, id, sk)
+    this.activityServiceActor ! ActivityClearState(domain, id, sk.sid)
   }
 
   def onRequestReceived(message: Request with Activity, replyCallback: ReplyCallback): Unit = {
@@ -119,9 +119,9 @@ class ActivityClientActor(activityServiceActor: ActorRef, domain: DomainFqn, sk:
 
     future.mapResponse[ActivityParticipants] onComplete {
       case Success(ActivityParticipants(state)) =>
-        cb.reply(ActivityParticipantsResponseMessage(state.map({
-          case (k, v) => (k.serialize() -> ActivityState(v))
-        })))
+        cb.reply(ActivityParticipantsResponseMessage(state.map {
+          case (k, v) => (k -> ActivityState(JsonProtoConverter.jValueMapToValueMap(v)))
+        }))
       case Failure(cause) =>
         cb.unexpectedError("could not get participants")
     }
@@ -129,13 +129,14 @@ class ActivityClientActor(activityServiceActor: ActorRef, domain: DomainFqn, sk:
 
   def onActivityJoin(request: ActivityJoinRequestMessage, cb: ReplyCallback): Unit = {
     val ActivityJoinRequestMessage(activityId, state) = request
-    val future = this.activityServiceActor ? ActivityJoinRequest(domain, activityId, sk, state, self)
+    val message = ActivityJoinRequest(domain, activityId, sk.sid, JsonProtoConverter.valueMapToJValueMap(state), self)
+    val future = this.activityServiceActor ? message
 
     future.mapResponse[ActivityJoinResponse] onComplete {
       case Success(ActivityJoinResponse(state)) =>
-        cb.reply(ActivityJoinResponseMessage(state.map({
-          case (k, v) => (k.serialize() -> ActivityState(v))
-        })))
+        cb.reply(ActivityJoinResponseMessage(state.map {
+          case (k, v) => (k -> ActivityState(JsonProtoConverter.jValueMapToValueMap(v)))
+        }))
       case Failure(cause) =>
         cb.unexpectedError("could not join activity")
     }
@@ -143,6 +144,6 @@ class ActivityClientActor(activityServiceActor: ActorRef, domain: DomainFqn, sk:
 
   def onActivityLeave(request: ActivityLeaveMessage): Unit = {
     val ActivityLeaveMessage(activityId) = request
-    this.activityServiceActor ! ActivityLeave(domain, activityId, sk)
+    this.activityServiceActor ! ActivityLeave(domain, activityId, sk.sid)
   }
 }

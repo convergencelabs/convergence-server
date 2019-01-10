@@ -11,6 +11,7 @@ import com.convergencelabs.server.util.SubscriptionMap
 import akka.actor.Terminated
 import com.convergencelabs.server.domain.DomainFqn
 import akka.cluster.pubsub.DistributedPubSub
+import org.json4s.JsonAST.JValue
 
 // FIXME This entire actor needs to be re-designed. This does not scale at all
 // we probably need to store presence state / data in the database so that
@@ -50,8 +51,8 @@ class PresenceServiceActor private[domain] (domainFqn: DomainFqn) extends Actor 
       clearState(username)
     case SubscribePresence(usernames, client) =>
       subscribe(usernames, client)
-    case UnsubscribePresence(username, client) =>
-      unsubscribe(username, client)
+    case UnsubscribePresence(usernames, client) =>
+      unsubscribe(usernames, client)
     case Terminated(client) =>
       handleDeathwatch(client)
   }
@@ -95,7 +96,7 @@ class PresenceServiceActor private[domain] (domainFqn: DomainFqn) extends Actor 
     }
   }
 
-  private[this] def setState(username: String, state: Map[String, Any]): Unit = {
+  private[this] def setState(username: String, state: Map[String, JValue]): Unit = {
     this.presences.get(username) match {
       case Some(presence) =>
         state foreach { case (k, v) =>
@@ -136,8 +137,8 @@ class PresenceServiceActor private[domain] (domainFqn: DomainFqn) extends Actor 
     sender ! lookupPresence(usernames)
   }
 
-  private[this] def unsubscribe(username: String, client: ActorRef): Unit = {
-    this.subscriptions.unsubscribe(client, username)
+  private[this] def unsubscribe(usernames: List[String], client: ActorRef): Unit = {
+    usernames.foreach(username => this.subscriptions.unsubscribe(client, username))
   }
 
   private[this] def lookupPresence(usernames: List[String]): List[UserPresence] = {

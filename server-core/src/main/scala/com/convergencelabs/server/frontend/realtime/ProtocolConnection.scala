@@ -117,7 +117,7 @@ class ProtocolConnection(
     val bytes = convergenceMessage.toByteArray
     connectionActor ! OutgoingBinaryMessage(bytes)
     if (!convergenceMessage.body.isPing && !convergenceMessage.body.isPong) {
-      logger.trace("SND: " + convergenceMessage)
+      logger.debug("SND: " + convergenceMessage)
     }
   }
 
@@ -139,7 +139,7 @@ class ProtocolConnection(
   // scalastyle:off cyclomatic.complexity
   private def handleValidMessage(convergenceMessage: ConvergenceMessage): Try[Option[ProtocolMessageEvent]] = Try {
     if (!convergenceMessage.body.isPing && !convergenceMessage.body.isPong) {
-      logger.trace("RCV: " + convergenceMessage)
+      logger.debug("RCV: " + convergenceMessage)
     }
 
     ConvergenceMessageBodyUtils.fromBody(convergenceMessage.body) match {

@@ -550,10 +550,12 @@ class ChatClientActor(
     chatChannelActor.ask(request).mapTo[GetChannelHistoryResponse] onComplete {
       case Success(GetChannelHistoryResponse(events)) =>
         val eventData = events.map(channelEventToMessage(_))
-        cb.reply(ChatChannelHistoryResponseMessage(eventData.toSeq))
+        val reply = ChatChannelHistoryResponseMessage(eventData.toSeq)
+        cb.reply(reply)
       case Failure(cause) =>
         handleUnexpectedError(request, cause, cb)
     }
+    ()
   }
 
   private[this] def handleSimpleChannelRequest(request: Any, response: () => GeneratedMessage with Response, cb: ReplyCallback): Unit = {

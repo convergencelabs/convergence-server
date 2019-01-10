@@ -56,7 +56,7 @@ class TestServer() extends Logging {
     var done = false
     do {
       val line = scala.io.StdIn.readLine()
-      done = line.trim() == "exit"
+      done = Option(line).isEmpty || line.trim() == "exit"
     } while (!done)
     
     sys.exit(0)

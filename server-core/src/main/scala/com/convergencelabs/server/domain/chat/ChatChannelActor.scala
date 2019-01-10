@@ -18,6 +18,9 @@ import akka.actor.ActorLogging
 import akka.actor.ReceiveTimeout
 import akka.actor.Status
 import com.convergencelabs.server.datastore.domain.ChatChannelMember
+import com.convergencelabs.server.actor.ShardedActor
+import com.convergencelabs.server.actor.StartUpRequired
+import com.convergencelabs.server.actor.ShardedActorStatUpPlan
 
 object ChatChannelActor {
 
@@ -39,35 +42,24 @@ case class ChatChannelState(
   lastEventNumber: Long,
   members: Map[String, ChatChannelMember])
 
-class ChatChannelActor private[domain] () extends Actor with ActorLogging {
+class ChatChannelActor private[domain] () extends ShardedActor(classOf[ExistingChannelMessage]) {
   import ChatChannelActor._
   import ChatChannelMessages._
-  import akka.cluster.sharding.ShardRegion.Passivate
 
   var domainFqn: DomainFqn = _
+  var channelId: String = _
 
   // Here None signifies that the channel does not exist.
   var channelManager: Option[ChatChannelStateManager] = None
   var messageProcessor: Option[ChatChannelMessageProcessor] = None
 
-  // Default receive will be called the first time
-  override def receive: Receive = {
-    case message: ExistingChannelMessage =>
-      initialize(message)
-        .flatMap { _ =>
-          log.debug(s"Chat Channel Actor initialized processing message: '${domainFqn}/${message.channelId}'")
-          processChannelMessage(message)
-        }
-        .recover { case cause: Exception => this.unexpectedError(cause) }
-    case other: Any =>
-      this.receiveCommon(other)
+  protected def setIdentityData(message: ExistingChannelMessage): Try[String] = {
+    this.domainFqn = message.domainFqn
+    this.channelId = message.channelId
+    Success(s"${domainFqn.namespace}/${domainFqn.domainId}/${this.channelId}")
   }
 
-  private[this] def initialize(message: ExistingChannelMessage): Try[Unit] = {
-    this.domainFqn = message.domainFqn
-    val channelId = message.channelId
-
-    log.debug(s"Chat Channel Actor initializing: '${domainFqn}/${channelId}'")
+  protected def initialize(message: ExistingChannelMessage): Try[ShardedActorStatUpPlan] = {
     DomainPersistenceManagerActor.acquirePersistenceProvider(self, context, domainFqn) flatMap { provider =>
       log.debug(s"Chat Channel aquired persistence, creating channel manager: '${domainFqn}/${channelId}'")
       ChatChannelStateManager.create(channelId, provider.chatChannelStore, provider.permissionsStore)
@@ -76,7 +68,7 @@ class ChatChannelActor private[domain] () extends Actor with ActorLogging {
       this.channelManager = Some(manager)
       manager.state().channelType match {
         case "room" =>
-          this.messageProcessor = Some(new ChatRoomMessageProcessor(domainFqn, channelId, manager, context))
+          this.messageProcessor = Some(new ChatRoomMessageProcessor(domainFqn, channelId, manager, () => this.passivate(), context))
           // this would only need to happen if a previous instance of this room crashed without
           // cleaning up properly.
           manager.removeAllMembers()
@@ -91,9 +83,7 @@ class ChatChannelActor private[domain] () extends Actor with ActorLogging {
           context.setReceiveTimeout(120.seconds)
           this.messageProcessor = Some(new DirectChatMessageProcessor(manager, context))
       }
-
-      context.become(receiveWhenInitiazlied)
-      ()
+      StartUpRequired
     } recoverWith {
       case NonFatal(cause) =>
         log.error(cause, s"error initializing chat channel: '${domainFqn}/${channelId}'")
@@ -101,12 +91,14 @@ class ChatChannelActor private[domain] () extends Actor with ActorLogging {
     }
   }
 
-  def receiveWhenInitiazlied: Receive = {
+  def receiveInitialized: Receive = {
     case message: ExistingChannelMessage =>
       processChannelMessage(message)
         .recover { case cause: Exception => this.unexpectedError(cause) }
-    case other: Any =>
-      this.receiveCommon(other)
+    case ReceiveTimeout =>
+      this.onReceiveTimeout()
+    case unhandled: Any =>
+      this.unhandled(unhandled)
   }
 
   private[this] def processChannelMessage(message: ExistingChannelMessage): Try[Unit] = {
@@ -116,6 +108,7 @@ class ChatChannelActor private[domain] () extends Actor with ActorLogging {
         case None => Failure(new IllegalStateException("The message processor must be set before processing messages"))
       }
       _ <- messageProcessor.processChatMessage(message) map { result =>
+        // FIXME we have a message ordering issue here where the broadcast message will go first to the joining actor.
         result.response foreach (response => sender ! response)
         result.broadcastMessages foreach (messageProcessor.boradcast(_))
         ()
@@ -123,7 +116,7 @@ class ChatChannelActor private[domain] () extends Actor with ActorLogging {
     } yield (())).recover {
       case cause: ChannelNotFoundException =>
         // It seems like there is no reason to stay up, at this point.
-        context.parent ! Passivate(stopMessage = Stop)
+        this.passivate()
         sender ! Status.Failure(cause)
 
       case cause: Exception =>
@@ -132,29 +125,19 @@ class ChatChannelActor private[domain] () extends Actor with ActorLogging {
     }
   }
 
-  private[this] def receiveCommon: PartialFunction[Any, Unit] = {
-    case ReceiveTimeout =>
-      this.onReceiveTimeout()
-    case Stop =>
-      onStop()
-    case unhandled: Any =>
-      this.unhandled(unhandled)
-  }
-
   private[this] def onReceiveTimeout(): Unit = {
     log.debug("Receive timeout reached, asking shard region to passivate")
-    context.parent ! Passivate(stopMessage = Stop)
+    this.passivate()
   }
 
-  private[this] def onStop(): Unit = {
-    log.debug("Receive stop signal shutting down")
+  private[this] def postStop(): Unit = {
+    super.postStop()
     DomainPersistenceManagerActor.releasePersistenceProvider(self, context, domainFqn)
     channelManager.foreach { cm =>
       if (cm.state().channelType == "room") {
         cm.removeAllMembers()
       }
     }
-    context.stop(self)
   }
 
   private[this] def unexpectedError(cause: Exception): Unit = {

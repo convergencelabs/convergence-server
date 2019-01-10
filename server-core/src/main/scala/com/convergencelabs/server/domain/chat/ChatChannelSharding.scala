@@ -17,6 +17,6 @@ object ChatChannelSharding extends ActorSharding(
  
   override def extractShardId(numberOfShards: Int): ShardRegion.ExtractShardId = {
     case msg: ExistingChannelMessage => 
-      Math.abs(msg.domainFqn.domainId.hashCode + msg.domainFqn.namespace.hashCode + msg.channelId.hashCode % numberOfShards).toString
+      Math.abs((msg.domainFqn.domainId.hashCode + msg.domainFqn.namespace.hashCode + msg.channelId.hashCode) % numberOfShards).toString
   }
 }

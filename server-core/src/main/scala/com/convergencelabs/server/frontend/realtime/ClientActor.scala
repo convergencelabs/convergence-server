@@ -24,11 +24,11 @@ import com.convergencelabs.server.domain.HandshakeRequest
 import com.convergencelabs.server.domain.HandshakeSuccess
 import com.convergencelabs.server.domain.JwtAuthRequest
 import com.convergencelabs.server.domain.PasswordAuthRequest
-import com.convergencelabs.server.domain.PresenceServiceActor.PresenceRequest
-import com.convergencelabs.server.domain.PresenceServiceActor.UserPresence
 import com.convergencelabs.server.domain.ReconnectTokenAuthRequest
 import com.convergencelabs.server.domain.activity.ActivityActorSharding
 import com.convergencelabs.server.domain.model.SessionKey
+import com.convergencelabs.server.domain.presence.PresenceRequest
+import com.convergencelabs.server.domain.presence.UserPresence
 import com.convergencelabs.server.util.concurrent.AskFuture
 
 import akka.actor.Actor
@@ -125,13 +125,12 @@ class ClientActor(
   private[this] var operationStoreActor: ActorRef = _
   private[this] var identityServiceActor: ActorRef = _
   private[this] var presenceServiceActor: ActorRef = _
+  private[this] var identityCacheManager: ActorRef = _
   private[this] var chatLookupActor: ActorRef = _
   private[this] var sessionId: String = _
   private[this] var reconnectToken: String = _
 
   private[this] var protocolConnection: ProtocolConnection = _
-  private[this] var identityCacheManager: IdentityCacheManager = _
-
   private[this] val domainRegion = DomainActorSharding.shardRegion(context.system)
 
   //
@@ -163,7 +162,7 @@ class ClientActor(
       }
     case SendUnprocessedMessage(convergenceMessage) =>
       Option(identityCacheManager) match {
-        case Some(icm) => icm.onConvergenceMessage(convergenceMessage)
+        case Some(icm) => icm ! convergenceMessage
         case _ => this.protocolConnection.serializeAndSend(convergenceMessage)
       }
     case SendProcessedMessage(convergenceMessage) =>
@@ -276,7 +275,7 @@ class ClientActor(
     this.chatLookupActor = chatLookupActor
     log.debug(s"${domainFqn}: Sending handshake response to client")
 
-    this.identityCacheManager = new IdentityCacheManager(self, identityActor, requestTimeout, this.context.dispatcher)
+    this.identityCacheManager = context.actorOf(IdentityCacheManager.props(self, identityActor, requestTimeout))
 
     // FIXME Protocol Config??
     cb.reply(HandshakeResponseMessage(true, None, true))
@@ -366,7 +365,7 @@ class ClientActor(
     this.messageHandler = handleMessagesWhenAuthenticated
 
     val response = AuthenticationResponseMessage().withSuccess(AuthSuccess(
-      Some(ImplicitMessageConversions.mapDomainUser(user)), sk.sid, reconnectToken, presence.state))
+      Some(ImplicitMessageConversions.mapDomainUser(user)), sk.sid, reconnectToken, JsonProtoConverter.jValueMapToValueMap(presence.state)))
     cb.reply(response)
 
     context.become(receiveWhileAuthenticated)
