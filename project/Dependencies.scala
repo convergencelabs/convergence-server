@@ -35,7 +35,6 @@ object Dependencies {
     val akkaHttpJson4s     = "de.heikoseeberger"        %% "akka-http-json4s"             % "1.15.0"                    // Apache 2.0
     val akkaHttpCors       = "ch.megard"                %% "akka-http-cors"               % "0.2.1"                     // Apache 2.0
 
-
     // Orient DB Dependencies
     val orientDbClient     = "com.orientechnologies"    % "orientdb-client"              % Versions.orientDb           // Apache 2.0
     val orientDbCore       = "com.orientechnologies"    % "orientdb-core"                % Versions.orientDb           // Apache 2.0

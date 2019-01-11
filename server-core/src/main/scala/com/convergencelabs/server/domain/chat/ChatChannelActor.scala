@@ -27,8 +27,6 @@ object ChatChannelActor {
   def getChatUsernameTopicName(username: String): String = {
     return s"chat-user-${username}"
   }
-
-  case object Stop
 }
 
 case class ChatChannelState(
@@ -130,7 +128,7 @@ class ChatChannelActor private[domain] () extends ShardedActor(classOf[ExistingC
     this.passivate()
   }
 
-  private[this] def postStop(): Unit = {
+  override def postStop(): Unit = {
     super.postStop()
     DomainPersistenceManagerActor.releasePersistenceProvider(self, context, domainFqn)
     channelManager.foreach { cm =>
