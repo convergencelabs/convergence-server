@@ -81,7 +81,7 @@ val serverNode = (project in file("server-node"))
   .settings(
     mainClass in Compile := Some("com.convergencelabs.server.ConvergenceServerNode")
   )
-  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(JavaAppPackaging, UniversalDeployPlugin)
   .settings(
     name := "convergence-server-node",
     publishArtifact in (Compile, packageBin) := false,
