@@ -181,8 +181,8 @@ object ChatChannelStore {
 
   def docToChatChannelEvent(doc: ODocument): ChatChannelEvent = {
     val eventNo: Long = doc.getProperty(Fields.EventNo)
-    val channel: String = doc.getProperty("channel.id")
-    val user: String = doc.getProperty("user.username")
+    val channel = doc.eval("channel.id").asInstanceOf[String]
+    val user = doc.eval("user.username").asInstanceOf[String]
     val timestamp: Date = doc.getProperty(Fields.Timestamp)
 
     val className = doc.getClassName
@@ -202,10 +202,10 @@ object ChatChannelStore {
       case Classes.ChatUserLeftEvent.ClassName =>
         ChatUserLeftEvent(eventNo, channel, user, timestamp.toInstant())
       case Classes.ChatUserAddedEvent.ClassName =>
-        val userAdded: String = doc.getProperty("userAdded.username")
+        val userAdded = doc.eval("userAdded.username").asInstanceOf[String]
         ChatUserAddedEvent(eventNo, channel, user, timestamp.toInstant(), userAdded)
       case Classes.ChatUserRemovedEvent.ClassName =>
-        val userRemoved: String = doc.getProperty("userRemoved.username")
+        val userRemoved = doc.eval("userRemoved.username").asInstanceOf[String]
         ChatUserRemovedEvent(eventNo, channel, user, timestamp.toInstant(), userRemoved)
       case Classes.ChatTopicChangedEvent.ClassName =>
         val topic: String = doc.getProperty(Fields.Topic)
@@ -255,7 +255,7 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
       val topic: String = doc.getProperty("topic")
       val members: JavaSet[OIdentifiable] = doc.getProperty("members")
       val usernames: Set[String] = members.asScala.map(member =>
-        member.getRecord.asInstanceOf[ODocument].field("user.username").asInstanceOf[String]).toSet
+        member.getRecord.asInstanceOf[ODocument].eval("user.username").asInstanceOf[String]).toSet
       val lastEventNo: Long = doc.getProperty("eventNo")
       val lastEventTime: Instant = doc.getProperty("timestamp").asInstanceOf[Date].toInstant()
       ChatChannelInfo(
