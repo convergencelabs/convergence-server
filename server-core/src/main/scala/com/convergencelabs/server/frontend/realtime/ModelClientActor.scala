@@ -490,8 +490,10 @@ class ModelClientActor(
     val worldPermissions = worldPermissionsData.map(w =>
       ModelPermissions(w.read, w.write, w.remove, w.manage))
 
-    val userPermissions = userPermissionsData.mapValues(p =>
-      ModelPermissions(p.read, p.write, p.remove, p.manage))
+    val userPermissions = userPermissionsData.map {
+      case (username, p) =>
+        (username, ModelPermissions(p.read, p.write, p.remove, p.manage))
+    }
 
     // FIXME make a utility for this.
     val modelId = optionalModelId.getOrElse(UUID.randomUUID().toString())
@@ -563,9 +565,9 @@ class ModelClientActor(
     future.mapResponse[GetModelPermissionsResponse] onComplete {
       case Success(GetModelPermissionsResponse(overridesCollection, world, users)) =>
         val mappedWorld = ModelPermissionsData(world.read, world.write, world.remove, world.manage)
-        val mappedUsers = users mapValues {
-          case ModelPermissions(read, write, remove, manage) =>
-            ModelPermissionsData(read, write, remove, manage)
+        val mappedUsers = users map {
+          case (username, ModelPermissions(read, write, remove, manage)) =>
+            (username, ModelPermissionsData(read, write, remove, manage))
         }
         cb.reply(GetModelPermissionsResponseMessage(overridesCollection, Some(mappedWorld), mappedUsers))
       case Failure(ModelNotFoundException(_)) =>
@@ -581,7 +583,7 @@ class ModelClientActor(
   private[this] def onSetModelPermissionsRequest(request: SetModelPermissionsRequestMessage, cb: ReplyCallback): Unit = {
     val SetModelPermissionsRequestMessage(modelId, overridePermissions, world, setAllUsers, addedUsers, removedUsers) = request
     val mappedWorld = world map (w => ModelPermissions(w.read, w.write, w.remove, w.manage))
-    val mappedAddedUsers = addedUsers.mapValues(p => ModelPermissions(p.read, p.write, p.remove, p.manage))
+    val mappedAddedUsers = addedUsers.map { case (username, p) => (username, ModelPermissions(p.read, p.write, p.remove, p.manage)) }
 
     val message = SetModelPermissionsRequest(
       domainFqn,
