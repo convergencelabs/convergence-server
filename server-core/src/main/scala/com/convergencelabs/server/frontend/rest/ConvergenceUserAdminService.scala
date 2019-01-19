@@ -38,8 +38,8 @@ import akka.http.scaladsl.server.ExceptionHandler
 
 object ConvergenceUserAdminService {
   case class CreateUserRequest(username: String, firstName: String, lastName: String, displayName: String, email: String, password: String)
-  case class GetUsersResponse(users: List[User]) extends AbstractSuccessResponse
-  case class GetUserResponse(user: Option[User]) extends AbstractSuccessResponse
+  case class GetUsersResponse(users: List[User])
+  case class GetUserResponse(user: Option[User])
   case class PasswordData(password: String)
 }
 
@@ -86,22 +86,22 @@ class ConvergenceUserAdminService(
   def createConvergenceUserRequest(createRequest: CreateUserRequest): Future[RestResponse] = {
     val CreateUserRequest(username, firstName, lastName, displayName, email, password) = createRequest
     val message = CreateConvergenceUserRequest(username, email, firstName, lastName, displayName, password)
-    (userManagerActor ? message) map { _ => CreateRestResponse }
+    (userManagerActor ? message) map { _ => CreatedResponse }
   }
 
   def deleteConvergenceUserRequest(username: String): Future[RestResponse] = {
     val message = DeleteConvergenceUserRequest(username)
-    (userManagerActor ? message) map { _ => CreateRestResponse }
+    (userManagerActor ? message) map { _ => CreatedResponse }
   }
 
   def getUsersRequest(filter: Option[String], limit: Option[Int], offset: Option[Int]): Future[RestResponse] = {
     (userManagerActor ? GetConvergenceUsers(filter, limit, offset)).mapTo[List[User]] map
-      (users => (StatusCodes.OK, GetUsersResponse(users)))
+      (users => okResponse(GetUsersResponse(users)))
   }
 
   def getUser(username: String): Future[RestResponse] = {
     (userManagerActor ? GetConvergenceUser(username)).mapTo[Option[User]] map
-      (user => (StatusCodes.OK, GetUserResponse(user)))
+      (user => okResponse(GetUserResponse(user)))
   }
   
   def setUserPassword(username: String, passwordData: PasswordData ): Future[RestResponse] = {

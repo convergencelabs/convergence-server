@@ -24,7 +24,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 
 case class CovergenceUserProfile(username: String, email: String, firstName: String, lastName: String, displayName: String)
-case class UserProfileResponse(profile: CovergenceUserProfile) extends AbstractSuccessResponse
+case class UserProfileResponse(profile: CovergenceUserProfile)
 case class UpdateProfileRequest(email: String, firstName: String, lastName: String, displayName: String)
 
 class ProfileService(
@@ -53,7 +53,7 @@ class ProfileService(
     val message = GetConvergenceUser(username)
     (convergenceUserActor ? message).mapTo[Option[User]].map {
       case Some(User(username, email, firstName, lastName, displayName)) =>
-        (StatusCodes.OK, UserProfileResponse(CovergenceUserProfile(username, email, firstName, lastName, displayName)))
+        okResponse(UserProfileResponse(CovergenceUserProfile(username, email, firstName, lastName, displayName)))
       case None =>
         notFoundResponse()
     }

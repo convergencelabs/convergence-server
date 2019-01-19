@@ -38,7 +38,7 @@ import grizzled.slf4j.Logging
 
 object DatabaseManagerRestService {
   case class UpgradeRequest(version: Option[Int], preRelease: Option[Boolean])
-  case class VersionResponse(databaseVersion: Int) extends AbstractSuccessResponse
+  case class VersionResponse(databaseVersion: Int)
 }
 
 class DatabaseManagerRestService(
@@ -108,14 +108,14 @@ class DatabaseManagerRestService(
   def getConvergenceVersion(): Future[RestResponse] = {
     val message = GetConvergenceVersion
     (databaseManager ? message).mapTo[Int].map { version =>
-      (StatusCodes.OK, VersionResponse(version))
+      okResponse(VersionResponse(version))
     }
   }
 
   def getDomainVersion(namespace: String, domainId: String): Future[RestResponse] = {
     val message = GetDomainVersion(DomainFqn(namespace, domainId))
     (databaseManager ? message).mapTo[Int].map { version =>
-      (StatusCodes.OK, VersionResponse(version))
+      okResponse(VersionResponse(version))
     }
   }
 

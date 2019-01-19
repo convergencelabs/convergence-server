@@ -1,49 +1,38 @@
 package com.convergencelabs.server.frontend.rest
 
+import java.time.Duration
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
+import com.convergencelabs.server.datastore.domain.ConfigStoreActor.GetAnonymousAuth
+import com.convergencelabs.server.datastore.domain.ConfigStoreActor.GetModelSnapshotPolicy
+import com.convergencelabs.server.datastore.domain.ConfigStoreActor.SetAnonymousAuth
+import com.convergencelabs.server.datastore.domain.ConfigStoreActor.SetModelSnapshotPolicy
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.DomainUser
+import com.convergencelabs.server.domain.ModelSnapshotConfig
+import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
 
-import DomainUserService.GetUsersRestResponse
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
-import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
 import akka.http.scaladsl.server.Directive.addDirectiveApply
-import akka.http.scaladsl.server.Directives.Segment
 import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
 import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
 import akka.http.scaladsl.server.Directives.as
+import akka.http.scaladsl.server.Directives.authorizeAsync
 import akka.http.scaladsl.server.Directives.complete
-import akka.http.scaladsl.server.Directives.delete
 import akka.http.scaladsl.server.Directives.entity
 import akka.http.scaladsl.server.Directives.get
-import akka.http.scaladsl.server.Directives.pathEnd
-import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.path
-import akka.http.scaladsl.server.Directives.post
+import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.put
-import akka.http.scaladsl.server.Directives.authorizeAsync
 import akka.http.scaladsl.server.Route
-import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.server.frontend.rest.DomainConfigService.AnonymousAuthPut
-import com.convergencelabs.server.frontend.rest.DomainConfigService.ModelSnapshotPolicyData
-import com.convergencelabs.server.frontend.rest.DomainConfigService.ModelSnapshotPolicyResponse
-import com.convergencelabs.server.frontend.rest.DomainConfigService.AnonymousAuthResponse
-import scala.util.Try
-import com.convergencelabs.server.domain.ModelSnapshotConfig
-import java.time.Duration
-import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
-import com.convergencelabs.server.datastore.domain.ConfigStoreActor._
-import com.convergencelabs.server.domain.rest.AuthorizationActor.ConvergenceAuthorizedRequest
 
 object DomainConfigService {
   case class AnonymousAuthPut(enabled: Boolean)
-  case class AnonymousAuthResponse(enabled: Boolean) extends AbstractSuccessResponse
-  case class ModelSnapshotPolicyResponse(policy: ModelSnapshotPolicyData) extends AbstractSuccessResponse
+  case class AnonymousAuthResponse(enabled: Boolean)
   case class ModelSnapshotPolicyData(
     snapshotsEnabled: Boolean,
     triggerByVersion: Boolean,
@@ -100,7 +89,7 @@ class DomainConfigService(
   def getAnonymousAuthEnabled(domain: DomainFqn): Future[RestResponse] = {
     val message = DomainRestMessage(domain, GetAnonymousAuth)
     (domainRestActor ? message).mapTo[Boolean] map
-      (enabled => (StatusCodes.OK, AnonymousAuthResponse(enabled)))
+      (enabled => okResponse(AnonymousAuthResponse(enabled)))
   }
 
   def setAnonymousAuthEnabled(domain: DomainFqn, request: AnonymousAuthPut): Future[RestResponse] = {
@@ -121,8 +110,7 @@ class DomainConfigService(
         limitByTime,
         minimumTimeInterval,
         maximumTimeInterval) = config;
-      (StatusCodes.OK, ModelSnapshotPolicyResponse(
-        ModelSnapshotPolicyData(
+      okResponse(ModelSnapshotPolicyData(
           snapshotsEnabled,
           triggerByVersion,
           maximumVersionInterval,
@@ -131,7 +119,7 @@ class DomainConfigService(
           triggerByTime,
           maximumTimeInterval.toMillis,
           limitByTime,
-          minimumTimeInterval.toMillis)))
+          minimumTimeInterval.toMillis))
     }
   }
 

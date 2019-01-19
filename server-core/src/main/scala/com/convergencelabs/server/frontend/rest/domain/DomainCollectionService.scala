@@ -44,8 +44,8 @@ import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 
 object DomainCollectionService {
-  case class GetCollectionsResponse(collections: List[CollectionData]) extends AbstractSuccessResponse
-  case class GetCollectionResponse(collection: CollectionData) extends AbstractSuccessResponse
+  case class GetCollectionsResponse(collections: List[CollectionData])
+  case class GetCollectionResponse(collection: CollectionData)
   case class CollectionPermissionsData(read: Boolean, write: Boolean, remove: Boolean, manage: Boolean, create: Boolean)
   case class CollectionData(
     id: String,
@@ -54,7 +54,7 @@ object DomainCollectionService {
     overrideSnapshotConfig: Boolean,
     snapshotConfig: ModelSnapshotPolicyData)
 
-  case class GetCollectionSummaryResponse(collections: List[CollectionSummaryData]) extends AbstractSuccessResponse
+  case class GetCollectionSummaryResponse(collections: List[CollectionSummaryData])
   case class CollectionSummaryData(
     id: String,
     description: String,
@@ -120,13 +120,13 @@ class DomainCollectionService(
   def getCollections(domain: DomainFqn): Future[RestResponse] = {
     val message = DomainRestMessage(domain, GetCollections(None, None))
     (domainRestActor ? message).mapTo[List[Collection]] map (collections =>
-      (StatusCodes.OK, GetCollectionsResponse(collections.map(collectionToCollectionData(_)))))
+      okResponse(GetCollectionsResponse(collections.map(collectionToCollectionData(_)))))
   }
 
   def getCollection(domain: DomainFqn, collectionId: String): Future[RestResponse] = {
     val message = DomainRestMessage(domain, GetCollection(collectionId))
     (domainRestActor ? message).mapTo[Option[Collection]] map {
-      case Some(collection) => (StatusCodes.OK, GetCollectionResponse(collectionToCollectionData(collection)))
+      case Some(collection) => okResponse(GetCollectionResponse(collectionToCollectionData(collection)))
       case None => notFoundResponse()
     }
   }
@@ -134,7 +134,7 @@ class DomainCollectionService(
   def createCollection(domain: DomainFqn, collectionData: CollectionData): Future[RestResponse] = {
     val collection = this.collectionDataToCollection(collectionData)
     val message = DomainRestMessage(domain, CreateCollection(collection))
-    (domainRestActor ? message) map { _ => CreateRestResponse }
+    (domainRestActor ? message) map { _ => CreatedResponse }
   }
 
   def updateCollection(domain: DomainFqn, collectionId: String, collectionData: CollectionData): Future[RestResponse] = {
@@ -151,7 +151,7 @@ class DomainCollectionService(
   def getCollectionSummaries(domain: DomainFqn, limit: Option[Int], offset: Option[Int]): Future[RestResponse] = {
     val message = DomainRestMessage(domain, GetCollectionSummaries(limit, offset))
     (domainRestActor ? message).mapTo[List[CollectionSummary]] map (collections =>
-      (StatusCodes.OK, GetCollectionSummaryResponse(collections.map { c =>
+      okResponse(GetCollectionSummaryResponse(collections.map { c =>
         val CollectionSummary(id, desc, count) = c
         CollectionSummaryData(id, desc, count)
       })))

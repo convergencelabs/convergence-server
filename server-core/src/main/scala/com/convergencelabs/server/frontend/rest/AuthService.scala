@@ -20,9 +20,9 @@ import akka.http.scaladsl.model.StatusCodes
 import akka.util.Timeout
 
 object AuthService {
-  case class SessionTokenResponse(token: String, expiration: Long) extends AbstractSuccessResponse
-  case class ExpirationResponse(valid: Boolean, username: Option[String], delta: Option[Long]) extends AbstractSuccessResponse
-  case class UserApiKeyResponse(apiKey: String) extends AbstractSuccessResponse
+  case class SessionTokenResponse(token: String, expiration: Long)
+  case class ExpirationResponse(valid: Boolean, username: Option[String], delta: Option[Long])
+  case class UserApiKeyResponse(apiKey: String)
   val NoApiKeyResponse: RestResponse = (StatusCodes.Unauthorized,
     ErrorResponse("no_api_key_for_user", Some("Can not login beause the user does not have an API key configured.")))
 }
@@ -58,7 +58,7 @@ class AuthService(
   def authRequest(req: AuthRequest): Future[RestResponse] = {
     (authActor ? req).mapTo[AuthResponse].map {
       case AuthSuccess(token, expiration) =>
-        (StatusCodes.OK, SessionTokenResponse(token, expiration.toMillis()))
+        okResponse(SessionTokenResponse(token, expiration.toMillis()))
       case _ =>
         AuthFailureError
     }
@@ -67,7 +67,7 @@ class AuthService(
   def login(req: LoginRequest): Future[RestResponse] = {
     (authActor ? req).mapTo[LoginResult].map {
       case LoginSuccessful(apiKey) =>
-        (StatusCodes.OK, UserApiKeyResponse(apiKey))
+        okResponse(UserApiKeyResponse(apiKey))
       case InvalidCredentials =>
         AuthFailureError
       case NoApiKeyForUser =>
@@ -78,9 +78,9 @@ class AuthService(
   def tokenExprirationCheck(req: GetSessionTokenExpirationRequest): Future[RestResponse] = {
     (authActor ? req).mapTo[Option[SessionTokenExpiration]].map {
       case Some(SessionTokenExpiration(username, exprieDelta)) =>
-        (StatusCodes.OK, ExpirationResponse(true, Some(username), Some(exprieDelta.toMillis())))
+        okResponse(ExpirationResponse(true, Some(username), Some(exprieDelta.toMillis())))
       case _None =>
-        (StatusCodes.OK, ExpirationResponse(false, None, None))
+        okResponse(ExpirationResponse(false, None, None))
     }
   }
 

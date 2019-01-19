@@ -20,8 +20,6 @@ import akka.http.scaladsl.server.directives.OnSuccessMagnet.apply
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
 import akka.util.Timeout
 
-case class AuthenticationFailed(ok: Boolean, error: String) extends ResponseMessage
-
 /**
  * This class provides a helper directive to authenticate users and validate
  * tokens

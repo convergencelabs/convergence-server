@@ -30,6 +30,7 @@ import com.convergencelabs.server.domain.model.GetRealtimeModel
 import com.convergencelabs.server.domain.model.Model
 import com.convergencelabs.server.domain.model.ModelMetaData
 import com.convergencelabs.server.domain.model.data.ObjectValue
+import com.convergencelabs.server.domain.model.ModelNotFoundException
 import com.convergencelabs.server.domain.rest.AuthorizationActor.ConvergenceAuthorizedRequest
 import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
 import com.convergencelabs.server.frontend.rest.DomainModelService.ModelMetaDataResponse
@@ -55,7 +56,7 @@ import akka.http.scaladsl.server.Directives.put
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
-import com.convergencelabs.server.domain.model.ModelNotFoundException
+
 
 object DomainModelService {
 
@@ -82,14 +83,14 @@ object DomainModelService {
     modifiedTime: Instant,
     data: ObjectValue)
 
-  case class GetModelsResponse(models: List[ModelMetaDataResponse]) extends AbstractSuccessResponse
-  case class GetModelResponse(model: ModelResponse) extends AbstractSuccessResponse
-  case class CreateModelResponse(modelId: String) extends AbstractSuccessResponse
-  case class GetModelPermissionsResponse(permissions: ModelPermissionsSummary) extends AbstractSuccessResponse
+  case class GetModelsResponse(models: List[ModelMetaDataResponse])
+  case class GetModelResponse(model: ModelResponse)
+  case class CreateModelResponse(modelId: String)
+  case class GetModelPermissionsResponse(permissions: ModelPermissionsSummary)
   case class ModelPermissionsSummary(overrideWorld: Boolean, worldPermissions: ModelPermissions, userPermissions: List[ModelUserPermissions])
-  case class GetPermissionsResponse(permissions: Option[ModelPermissions]) extends AbstractSuccessResponse
-  case class GetAllUserPermissionsResponse(userPermissions: List[ModelUserPermissions]) extends AbstractSuccessResponse
-  case class GetModelOverridesPermissionsResponse(overrideWorld: Boolean) extends AbstractSuccessResponse
+  case class GetPermissionsResponse(permissions: Option[ModelPermissions])
+  case class GetAllUserPermissionsResponse(userPermissions: List[ModelUserPermissions])
+  case class GetModelOverridesPermissionsResponse(overrideWorld: Boolean)
   case class SetOverrideWorldRequest(overrideWorld: Boolean)
 }
 
@@ -182,7 +183,7 @@ class DomainModelService(
     (domainRestActor ? message).mapTo[List[ModelMetaData]] map {
       _.map(mapMetaData(_))
     } map {
-      models => (StatusCodes.OK, GetModelsResponse(models))
+      models => okResponse(GetModelsResponse(models))
     }
   }
 
@@ -191,7 +192,7 @@ class DomainModelService(
     (domainRestActor ? message).mapTo[List[ModelMetaData]] map {
       _.map(mapMetaData(_))
     } map {
-      models => (StatusCodes.OK, GetModelsResponse(models))
+      models => okResponse(GetModelsResponse(models))
     }
   }
 
@@ -215,7 +216,7 @@ class DomainModelService(
           model.metaData.createdTime,
           model.metaData.modifiedTime,
           model.data)
-        (StatusCodes.OK, GetModelResponse(mr))
+        okResponse(GetModelResponse(mr))
       case None =>
         notFound(modelId)
     }
@@ -231,7 +232,7 @@ class DomainModelService(
     val message = CreateRealtimeModel(domain, modelId, colletionId, objectValue, None, None, Map(), None)
     (modelClusterRegion ? message).mapTo[String] map {
       case modelId: String =>
-        (StatusCodes.Created, CreateModelResponse(modelId))
+        createdResponse(CreateModelResponse(modelId))
     }
   }
 
@@ -257,7 +258,7 @@ class DomainModelService(
     val message = DomainRestMessage(domain, GetModelOverridesPermissions(modelId))
     (domainRestActor ? message).mapTo[Boolean] map {
       overridesPermissions =>
-        (StatusCodes.OK, GetModelOverridesPermissionsResponse(overridesPermissions))
+        okResponse(GetModelOverridesPermissionsResponse(overridesPermissions))
     }
   }
 
@@ -272,7 +273,7 @@ class DomainModelService(
     (domainRestActor ? message).mapTo[ModelPermissionsResponse] map {
       response =>
         val ModelPermissionsResponse(overridePermissions, world, users) = response
-        (StatusCodes.OK, GetModelPermissionsResponse(ModelPermissionsSummary(overridePermissions, world, users)))
+        okResponse(GetModelPermissionsResponse(ModelPermissionsSummary(overridePermissions, world, users)))
     }
   }
 
@@ -280,7 +281,7 @@ class DomainModelService(
     val message = DomainRestMessage(domain, GetModelWorldPermissions(modelId))
     (domainRestActor ? message).mapTo[ModelPermissions] map {
       permissions =>
-        (StatusCodes.OK, GetPermissionsResponse(Some(permissions)))
+        okResponse(GetPermissionsResponse(Some(permissions)))
     }
   }
 
@@ -293,7 +294,7 @@ class DomainModelService(
     val message = DomainRestMessage(domain, GetAllModelUserPermissions(modelId))
     (domainRestActor ? message).mapTo[List[ModelUserPermissions]] map {
       permissions =>
-        (StatusCodes.OK, GetAllUserPermissionsResponse(permissions))
+        okResponse(GetAllUserPermissionsResponse(permissions))
     }
   }
 
@@ -301,7 +302,7 @@ class DomainModelService(
     val message = DomainRestMessage(domain, GetModelUserPermissions(modelId, username))
     (domainRestActor ? message).mapTo[Option[ModelPermissions]] map {
       permissions =>
-        (StatusCodes.OK, GetPermissionsResponse(permissions))
+        okResponse(GetPermissionsResponse(permissions))
     }
   }
 

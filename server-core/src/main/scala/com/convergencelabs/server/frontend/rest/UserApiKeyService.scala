@@ -25,7 +25,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 
 object UserApiKeyService {
-  case class UserApiKeyResponse(apiKey: Option[String]) extends AbstractSuccessResponse
+  case class UserApiKeyResponse(apiKey: Option[String])
 }
 
 class UserApiKeyService(
@@ -55,12 +55,12 @@ class UserApiKeyService(
 
   def getApiKey(username: String): Future[RestResponse] = {
     val message = GetUserApiKeyRequest(username)
-    (convergenceUserActor ? message).mapTo[Option[String]].map { apiKey => (StatusCodes.OK, UserApiKeyResponse(apiKey)) }
+    (convergenceUserActor ? message).mapTo[Option[String]].map { apiKey => okResponse(UserApiKeyResponse(apiKey)) }
   }
 
   def regenerateApiKey(username: String): Future[RestResponse] = {
     val message = RegenerateUserApiKeyRequest(username)
-    (convergenceUserActor ? message).mapTo[String].map { apiKey => (StatusCodes.OK, UserApiKeyResponse(Some(apiKey))) }
+    (convergenceUserActor ? message).mapTo[String].map { apiKey => okResponse(UserApiKeyResponse(Some(apiKey))) }
   }
 
   def clearApiKey(username: String): Future[RestResponse] = {

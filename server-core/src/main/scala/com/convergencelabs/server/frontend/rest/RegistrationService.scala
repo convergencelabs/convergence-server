@@ -38,7 +38,7 @@ case class RegistrationRequest(fname: String, lname: String, email: String, comp
 case class RegistrationApproval(token: String)
 case class RegistrationRejection(token: String)
 case class TokenInfo(firstName: String, lastName: String, email: String)
-case class TokenInfoResponse(info: Option[TokenInfo]) extends AbstractSuccessResponse
+case class TokenInfoResponse(info: Option[TokenInfo])
 
 class RegistrationService(
   private[this] val executionContext: ExecutionContext,
@@ -76,7 +76,7 @@ class RegistrationService(
     logger.debug(s"Received a registration request for: ${email}")
     val message = RequestRegistration(fname, lname, email, company, title, reason)
 
-    (registrationActor ? message) map { _ => CreateRestResponse }
+    (registrationActor ? message) map { _ => CreatedResponse }
   }
 
   def registrationApprove(req: RegistrationApproval): Future[RestResponse] = {
@@ -97,7 +97,7 @@ class RegistrationService(
     val Registration(username, fname, lname, email, password, token) = req
     logger.debug(s"Received a registration for '${username}' with token: ${token}")
     val message = RegisterUser(username, fname, lname, email, password, token)
-    (registrationActor ? message) map { _ => CreateRestResponse }
+    (registrationActor ? message) map { _ => CreatedResponse }
   }
 
   def registrationInfo(token: String): Future[RestResponse] = {
@@ -106,9 +106,9 @@ class RegistrationService(
     (registrationActor ? message).mapTo[Option[RegistrationInfo]].map {
       case Some(RegistrationInfo(fname, lname, email)) =>
         val tokenInfo = TokenInfo(fname, lname, email)
-        (StatusCodes.OK, TokenInfoResponse(Some(tokenInfo)))
+        okResponse(TokenInfoResponse(Some(tokenInfo)))
       case None =>
-        (StatusCodes.OK, TokenInfoResponse(None))
+        okResponse(TokenInfoResponse(None))
     }
   }
 

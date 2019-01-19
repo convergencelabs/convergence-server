@@ -22,9 +22,8 @@ import akka.util.Timeout
 
 object DomainUserService {
   case class CreateUserRequest(username: String, firstName: Option[String], lastName: Option[String], displayName: Option[String], email: Option[String], password: Option[String])
-  case class CreateUserResponse() extends AbstractSuccessResponse
-  case class GetUsersRestResponse(users: List[DomainUserData]) extends AbstractSuccessResponse
-  case class GetUserRestResponse(user: DomainUserData) extends AbstractSuccessResponse
+  case class GetUsersRestResponse(users: List[DomainUserData])
+  case class GetUserRestResponse(user: DomainUserData)
   case class UpdateUserRequest(
     firstName: Option[String],
     lastName: Option[String],
@@ -119,20 +118,20 @@ class DomainUserService(
 
   def getAllUsersRequest(domain: DomainFqn, filter: Option[String], limit: Option[Int], offset: Option[Int]): Future[RestResponse] = {
     (domainRestActor ? DomainRestMessage(domain, GetUsers(filter, limit, offset))).mapTo[List[DomainUser]] map
-      (users => (StatusCodes.OK, GetUsersRestResponse(users.map(toUserData(_)))))
+      (users => okResponse(GetUsersRestResponse(users.map(toUserData(_)))))
   }
 
   def findUser(domain: DomainFqn, request: UserLookupRequest): Future[RestResponse] = {
     val UserLookupRequest(filter, excludes, offset, limit) = request
     val findUser = FindUser(filter, excludes, offset, limit)
     (domainRestActor ? DomainRestMessage(domain, findUser)).mapTo[List[DomainUser]] map
-      (users => (StatusCodes.OK, GetUsersRestResponse(users.map(toUserData(_)))))
+      (users => okResponse(GetUsersRestResponse(users.map(toUserData(_)))))
   }
 
   def createUserRequest(createRequest: CreateUserRequest, domain: DomainFqn): Future[RestResponse] = {
     val CreateUserRequest(username, firstName, lastName, displayName, email, password) = createRequest
     val message = DomainRestMessage(domain, CreateUser(username, firstName, lastName, displayName, email, password))
-    (domainRestActor ? message) map { _ => (StatusCodes.Created, CreateUserResponse()) }
+    (domainRestActor ? message) map { _ => CreatedResponse }
   }
 
   def updateUserRequest(username: String, updateRequest: UpdateUserRequest, domain: DomainFqn): Future[RestResponse] = {
@@ -149,7 +148,7 @@ class DomainUserService(
   def getUserByUsername(username: String, domain: DomainFqn): Future[RestResponse] = {
     (domainRestActor ? DomainRestMessage(domain, GetUserByUsername(username))).mapTo[Option[DomainUser]] map {
       case Some(user) =>
-        (StatusCodes.OK, GetUserRestResponse(toUserData(user)))
+        okResponse(GetUserRestResponse(toUserData(user)))
       case None =>
         notFoundResponse()
     }

@@ -43,8 +43,8 @@ import akka.pattern.ask
 import akka.util.Timeout
 
 object DomainService {
-  case class DomainsResponse(domains: List[DomainInfo]) extends AbstractSuccessResponse
-  case class DomainResponse(domain: DomainInfo) extends AbstractSuccessResponse
+  case class DomainsResponse(domains: List[DomainInfo])
+  case class DomainResponse(domain: DomainInfo)
 
   case class DomainInfo(
     displayName: String,
@@ -131,12 +131,12 @@ class DomainService(
   def createDomain(createRequest: CreateDomainRestRequest, username: String): Future[RestResponse] = {
     val CreateDomainRestRequest(namespace, domainId, displayName) = createRequest
     val message = CreateDomainRequest(namespace.getOrElse(username), domainId, displayName, username, false)
-    (domainStoreActor ? message) map { _ => CreateRestResponse }
+    (domainStoreActor ? message) map { _ => CreatedResponse }
   }
 
   def getDomains(username: String): Future[RestResponse] = {
     (domainStoreActor ? ListDomainsRequest(username)).mapTo[List[Domain]].map(domains =>
-      (StatusCodes.OK, DomainsResponse(
+      okResponse(DomainsResponse(
         (domains map (domain => DomainInfo(
           domain.displayName,
           domain.domainFqn.namespace,
@@ -148,7 +148,7 @@ class DomainService(
   def getDomain(namespace: String, domainId: String): Future[RestResponse] = {
     (domainStoreActor ? GetDomainRequest(namespace, domainId)).mapTo[Option[Domain]].map {
       case Some(domain) =>
-        (StatusCodes.OK, DomainResponse(DomainInfo(
+        okResponse(DomainResponse(DomainInfo(
           domain.displayName,
           domain.domainFqn.namespace,
           domain.domainFqn.domainId,

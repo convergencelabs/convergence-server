@@ -38,8 +38,8 @@ import akka.util.Timeout
 import akka.pattern.ask
 
 object DomainSessionService {
-  case class GetSessionsResponse(sessions: List[DomainSessionData]) extends AbstractSuccessResponse
-  case class GetSessionResponse(session: DomainSessionData) extends AbstractSuccessResponse
+  case class GetSessionsResponse(sessions: List[DomainSessionData])
+  case class GetSessionResponse(session: DomainSessionData)
   case class DomainSessionData(
     id: String,
     username: String,
@@ -126,13 +126,13 @@ class DomainSessionService(
       offset)
     val message = DomainRestMessage(domain, getMessage)
     (domainRestActor ? message).mapTo[List[DomainSession]] map (sessions =>
-      (StatusCodes.OK, GetSessionsResponse(sessions.map(sessionToSessionData(_)))))
+      okResponse(GetSessionsResponse(sessions.map(sessionToSessionData(_)))))
   }
 
   def getSession(domain: DomainFqn, sessionId: String): Future[RestResponse] = {
     val message = DomainRestMessage(domain, GetSession(sessionId))
     (domainRestActor ? message).mapTo[Option[DomainSession]] map {
-      case Some(sessions) => (StatusCodes.OK, GetSessionResponse(sessionToSessionData(sessions)))
+      case Some(sessions) => okResponse(GetSessionResponse(sessionToSessionData(sessions)))
       case None => notFoundResponse()
     }
   }

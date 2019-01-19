@@ -40,8 +40,8 @@ import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 
 object DomainKeyService {
-  case class GetKeysRestResponse(keys: List[JwtAuthKey]) extends AbstractSuccessResponse
-  case class GetKeyRestResponse(key: JwtAuthKey) extends AbstractSuccessResponse
+  case class GetKeysRestResponse(keys: List[JwtAuthKey])
+  case class GetKeyRestResponse(key: JwtAuthKey)
   case class UpdateInfo(description: String, key: String, enabled: Boolean)
 }
 
@@ -90,13 +90,13 @@ class DomainKeyService(
 
   def getKeys(domain: DomainFqn): Future[RestResponse] = {
     (domainRestActor ? DomainRestMessage(domain, GetDomainApiKeys(None, None))).mapTo[List[JwtAuthKey]] map {
-      case keys: List[JwtAuthKey] => (StatusCodes.OK, GetKeysRestResponse(keys))
+      case keys: List[JwtAuthKey] => okResponse(GetKeysRestResponse(keys))
     }
   }
 
   def getKey(domain: DomainFqn, keyId: String): Future[RestResponse] = {
     (domainRestActor ? DomainRestMessage(domain, GetDomainApiKey(keyId))).mapTo[Option[JwtAuthKey]] map {
-      case Some(key) => (StatusCodes.OK, GetKeyRestResponse(key))
+      case Some(key) => okResponse(GetKeyRestResponse(key))
       case None      => notFoundResponse()
     }
   }

@@ -18,7 +18,7 @@ import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 
 object KeyGenService {
-  case class CreateTokenResponse(publicKey: String, privateKey: String) extends AbstractSuccessResponse
+  case class CreateTokenResponse(publicKey: String, privateKey: String)
 }
 
 class KeyGenService(
@@ -44,7 +44,7 @@ class KeyGenService(
           publicKey <- JwtUtil.getPublicCertificatePEM(rsaJsonWebKey)
           privateKey <- JwtUtil.getPrivateKeyPEM(rsaJsonWebKey)
         } yield {
-          (StatusCodes.OK, CreateTokenResponse(publicKey, privateKey))
+          okResponse(CreateTokenResponse(publicKey, privateKey))
         }
       }
     }.flatMap {

@@ -47,12 +47,12 @@ import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 
 object DomainUserGroupService {
-  case class GetUserGroupsResponse(groups: List[UserGroupData]) extends AbstractSuccessResponse
-  case class GetUserGroupResponse(group: UserGroupData) extends AbstractSuccessResponse
-  case class GetUserGroupInfoResponse(group: UserGroupInfoData) extends AbstractSuccessResponse
-  case class GetUserGroupMembersResponse(members: Set[String]) extends AbstractSuccessResponse
-  case class GetUserGroupSummaryResponse(groups: List[UserGroupSummaryData]) extends AbstractSuccessResponse
-  case class GetUserGroupSummariesResponse(groups: Set[UserGroupSummaryData]) extends AbstractSuccessResponse
+  case class GetUserGroupsResponse(groups: List[UserGroupData])
+  case class GetUserGroupResponse(group: UserGroupData)
+  case class GetUserGroupInfoResponse(group: UserGroupInfoData)
+  case class GetUserGroupMembersResponse(members: Set[String])
+  case class GetUserGroupSummaryResponse(groups: List[UserGroupSummaryData])
+  case class GetUserGroupSummariesResponse(groups: Set[UserGroupSummaryData])
 
   case class UserGroupData(id: String, description: String, members: Set[String])
   case class UserGroupSummaryData(id: String, description: String, members: Int)
@@ -142,11 +142,11 @@ class DomainUserGroupService(
       case "all" =>
         val message = DomainRestMessage(domain, GetUserGroups(filter, offset, limit))
         (domainRestActor ? message).mapTo[List[UserGroup]] map (groups =>
-          (StatusCodes.OK, GetUserGroupsResponse(groups.map(groupToUserGroupData(_)))))
+          okResponse(GetUserGroupsResponse(groups.map(groupToUserGroupData(_)))))
       case "summary" =>
         val message = DomainRestMessage(domain, GetUserGroupSummaries(None, limit, offset))
         (domainRestActor ? message).mapTo[List[UserGroupSummary]] map (groups =>
-          (StatusCodes.OK, GetUserGroupSummaryResponse(groups.map { c =>
+          okResponse(GetUserGroupSummaryResponse(groups.map { c =>
             val UserGroupSummary(id, desc, count) = c
             UserGroupSummaryData(id, desc, count)
           })))
@@ -158,7 +158,7 @@ class DomainUserGroupService(
   def getUserGroup(domain: DomainFqn, groupId: String): Future[RestResponse] = {
     val message = DomainRestMessage(domain, GetUserGroup(groupId))
     (domainRestActor ? message).mapTo[Option[UserGroup]] map {
-      case Some(group) => (StatusCodes.OK, GetUserGroupResponse(groupToUserGroupData(group)))
+      case Some(group) => okResponse(GetUserGroupResponse(groupToUserGroupData(group)))
       case None => notFoundResponse()
     }
   }
@@ -166,7 +166,7 @@ class DomainUserGroupService(
   def getUserGroupMembers(domain: DomainFqn, groupId: String): Future[RestResponse] = {
     val message = DomainRestMessage(domain, GetUserGroup(groupId))
     (domainRestActor ? message).mapTo[Option[UserGroup]] map {
-      case Some(UserGroup(_, _, members)) => (StatusCodes.OK, GetUserGroupMembersResponse(members))
+      case Some(UserGroup(_, _, members)) => okResponse(GetUserGroupMembersResponse(members))
       case None => notFoundResponse()
     }
   }
@@ -175,7 +175,7 @@ class DomainUserGroupService(
     val message = DomainRestMessage(domain, GetUserGroupInfo(groupId))
     (domainRestActor ? message).mapTo[Option[UserGroupInfo]] map {
       case Some(UserGroupInfo(id, description)) =>
-        (StatusCodes.OK, GetUserGroupInfoResponse(UserGroupInfoData(id, description)))
+        okResponse(GetUserGroupInfoResponse(UserGroupInfoData(id, description)))
       case None => 
         notFoundResponse()
     }
@@ -201,7 +201,7 @@ class DomainUserGroupService(
   def createUserGroup(domain: DomainFqn, groupData: UserGroupData): Future[RestResponse] = {
     val group = this.groupDataToUserGroup(groupData)
     val message = DomainRestMessage(domain, CreateUserGroup(group))
-    (domainRestActor ? message) map { _ => CreateRestResponse }
+    (domainRestActor ? message) map { _ => CreatedResponse }
   }
 
   def updateUserGroup(domain: DomainFqn, groupId: String, groupData: UserGroupData): Future[RestResponse] = {

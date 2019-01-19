@@ -37,9 +37,9 @@ import akka.util.Timeout
 object DomainSecurityService {
   case class SetUserRolesRequest(roles: List[String])
 
-  case class GetAllUserRolesRestResponse(userRoles: Set[UserRoles]) extends AbstractSuccessResponse
-  case class GetUserRolesRestResponse(userRoles: UserRoles) extends AbstractSuccessResponse
-  case class GetUserPermissionsRestResponse(permissions: Set[Permission]) extends AbstractSuccessResponse
+  case class GetAllUserRolesRestResponse(userRoles: Set[UserRoles])
+  case class GetUserRolesRestResponse(userRoles: UserRoles)
+  case class GetUserPermissionsRestResponse(permissions: Set[Permission])
 }
 
 class DomainSecurityService(
@@ -82,18 +82,18 @@ class DomainSecurityService(
 
   def getAllUserRolesRequest(domain: DomainFqn): Future[RestResponse] = {
     (permissionStoreActor ? GetAllUserRolesRequest(domain)).mapTo[Set[UserRoles]] map
-      (userRoles => (StatusCodes.OK, GetAllUserRolesRestResponse(userRoles)))
+      (userRoles => okResponse(GetAllUserRolesRestResponse(userRoles)))
   }
 
   def getRolesByUsername(username: String, domain: DomainFqn): Future[RestResponse] = {
     (permissionStoreActor ? GetUserRolesRequest(username, domain)).mapTo[UserRoles] map {
-      userRoles => (StatusCodes.OK, GetUserRolesRestResponse(userRoles))
+      userRoles => okResponse(GetUserRolesRestResponse(userRoles))
     }
   }
 
   def getPermissionsByUsername(username: String, domain: DomainFqn): Future[RestResponse] = {
     (permissionStoreActor ? GetUserPermissionsRequest(username, domain)).mapTo[Set[Permission]] map {
-      permissions => (StatusCodes.OK, GetUserPermissionsRestResponse(permissions))
+      permissions => okResponse(GetUserPermissionsRestResponse(permissions))
     }
   }
 
