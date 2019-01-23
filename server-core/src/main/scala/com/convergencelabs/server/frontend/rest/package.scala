@@ -50,4 +50,6 @@ package object rest {
   def okResponse(data: Any): RestResponse = (StatusCodes.OK, SuccessRestResponse(data))
   def createdResponse(data: Any): RestResponse = (StatusCodes.Created, SuccessRestResponse(data))
   def response(code: StatusCode, data: Any): RestResponse = (code, SuccessRestResponse(data))
+  
+  case class PagedRestResponse(data: List[Any], startIndex: Int, totalResults: Int)
 }

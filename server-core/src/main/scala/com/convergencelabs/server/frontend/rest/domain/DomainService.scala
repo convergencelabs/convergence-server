@@ -43,9 +43,6 @@ import akka.pattern.ask
 import akka.util.Timeout
 
 object DomainService {
-  case class DomainsResponse(domains: List[DomainInfo])
-  case class DomainResponse(domain: DomainInfo)
-
   case class DomainInfo(
     displayName: String,
     namespace: String,
@@ -136,24 +133,24 @@ class DomainService(
 
   def getDomains(username: String): Future[RestResponse] = {
     (domainStoreActor ? ListDomainsRequest(username)).mapTo[List[Domain]].map(domains =>
-      okResponse(DomainsResponse(
-        (domains map (domain => DomainInfo(
+      okResponse(
+        domains map (domain => DomainInfo(
           domain.displayName,
           domain.domainFqn.namespace,
           domain.domainFqn.domainId,
           domain.owner,
-          domain.status.toString()))))))
+          domain.status.toString()))))
   }
 
   def getDomain(namespace: String, domainId: String): Future[RestResponse] = {
     (domainStoreActor ? GetDomainRequest(namespace, domainId)).mapTo[Option[Domain]].map {
       case Some(domain) =>
-        okResponse(DomainResponse(DomainInfo(
+        okResponse(DomainInfo(
           domain.displayName,
           domain.domainFqn.namespace,
           domain.domainFqn.domainId,
           domain.owner,
-          domain.status.toString())))
+          domain.status.toString()))
       case None =>
         notFoundResponse()
     }
