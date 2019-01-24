@@ -160,9 +160,9 @@ class RealTimeModel(
         idToValue.get(id) match {
           case Some(realTimeValue) =>
             event match {
-              case publish: PublishReference =>
-                realTimeValue.processReferenceEvent(publish, sk)
-                val PublishReference(domainFqn, _, id, key, refType, values, contextVersion) = publish
+              case share: ShareReference =>
+                realTimeValue.processReferenceEvent(share, sk)
+                val ShareReference(domainFqn, _, id, key, refType, values, contextVersion) = share
 
                 val refVal: ReferenceValue = ReferenceValue(id, key, refType, values, contextVersion)
                 this.cc.processRemoteReferenceSet(sk.serialize(), refVal) match {
@@ -174,9 +174,9 @@ class RealTimeModel(
                     None
                 }
 
-              case unpublish: UnpublishReference =>
-                realTimeValue.processReferenceEvent(unpublish, sk)
-                val UnpublishReference(domain, modelId, id, key) = unpublish
+              case unshare: UnshareReference =>
+                realTimeValue.processReferenceEvent(unshare, sk)
+                val UnshareReference(domain, modelId, id, key) = unshare
                 Some(RemoteReferenceUnshared(modelId, sk, id, key))
               case set: SetReference =>
                 //TODO: Added ReferenceValue to move ot packages into separate project and need to evaluate usage here
@@ -203,17 +203,17 @@ class RealTimeModel(
       case None =>
         // This handles element references which have no id.
         event match {
-          case publish: PublishReference =>
-            elementReferenceManager.handleReferenceEvent(publish, sk)
-            val PublishReference(_, _, id, key, refType, values, contextVersion) = publish
+          case share: ShareReference =>
+            elementReferenceManager.handleReferenceEvent(share, sk)
+            val ShareReference(_, _, id, key, refType, values, contextVersion) = share
             val xformedValue = values.asInstanceOf[List[String]] filter { idToValue.contains(_) }
             val xformedSet = SetReference(domainFqn, modelId, id, key, refType, xformedValue, contextVersion)
             elementReferenceManager.handleReferenceEvent(xformedSet, sk)
             Some(RemoteReferenceShared(modelId, sk, id, key, refType, xformedValue))
 
-          case unpublish: UnpublishReference =>
-            elementReferenceManager.handleReferenceEvent(unpublish, sk)
-            val UnpublishReference(_, _, id, key) = unpublish
+          case unshare: UnshareReference =>
+            elementReferenceManager.handleReferenceEvent(unshare, sk)
+            val UnshareReference(_, _, id, key) = unshare
             Some(RemoteReferenceUnshared(modelId, sk, id, key))
           case set: SetReference =>
             val SetReference(d, m, id, key, refType, values, version) = set

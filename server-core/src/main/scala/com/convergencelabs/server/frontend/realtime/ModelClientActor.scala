@@ -30,7 +30,7 @@ import com.convergencelabs.server.domain.model.OpenRealtimeModelRequest
 import com.convergencelabs.server.domain.model.OperationAcknowledgement
 import com.convergencelabs.server.domain.model.OperationSubmission
 import com.convergencelabs.server.domain.model.OutgoingOperation
-import com.convergencelabs.server.domain.model.PublishReference
+import com.convergencelabs.server.domain.model.ShareReference
 import com.convergencelabs.server.domain.model.QueryModelsRequest
 import com.convergencelabs.server.domain.model.QueryModelsResponse
 import com.convergencelabs.server.domain.model.RealtimeModelClientMessage
@@ -46,7 +46,7 @@ import com.convergencelabs.server.domain.model.RemoteReferenceUnshared
 import com.convergencelabs.server.domain.model.SessionKey
 import com.convergencelabs.server.domain.model.SetModelPermissionsRequest
 import com.convergencelabs.server.domain.model.SetReference
-import com.convergencelabs.server.domain.model.UnpublishReference
+import com.convergencelabs.server.domain.model.UnshareReference
 import com.convergencelabs.server.util.concurrent.AskFuture
 import com.convergencelabs.server.frontend.realtime.ImplicitMessageConversions._
 
@@ -170,8 +170,8 @@ class ModelClientActor(
       case remoteClosed: RemoteClientClosed => onRemoteClientClosed(remoteClosed)
       case foreceClosed: ModelForceClose => onModelForceClose(foreceClosed)
       case autoCreateRequest: ClientAutoCreateModelConfigRequest => onAutoCreateModelConfigRequest(autoCreateRequest)
-      case refPublished: RemoteReferenceShared => onRemoteReferencePublished(refPublished)
-      case refUnpublished: RemoteReferenceUnshared => onRemoteReferenceUnpublished(refUnpublished)
+      case refShared: RemoteReferenceShared => onRemoteReferenceShared(refShared)
+      case refUnshared: RemoteReferenceUnshared => onRemoteReferenceUnshared(refUnshared)
       case refSet: RemoteReferenceSet => onRemoteReferenceSet(refSet)
       case refCleared: RemoteReferenceCleared => onRemoteReferenceCleared(refCleared)
       case permsChanged: ModelPermissionsChanged => onModelPermissionsChanged(permsChanged)
@@ -259,16 +259,16 @@ class ModelClientActor(
     }
   }
 
-  private[this] def onRemoteReferencePublished(refPublished: RemoteReferenceShared): Unit = {
-    val RemoteReferenceShared(modelId, session, valueId, key, refType, values) = refPublished
+  private[this] def onRemoteReferenceShared(refShared: RemoteReferenceShared): Unit = {
+    val RemoteReferenceShared(modelId, session, valueId, key, refType, values) = refShared
     resourceId(modelId) foreach { resourceId =>
       val references = mapOutgoingReferenceValue(refType, values)
       context.parent ! RemoteReferenceSharedMessage(resourceId, valueId, key, Some(references), session.sid)
     }
   }
 
-  private[this] def onRemoteReferenceUnpublished(refUnpublished: RemoteReferenceUnshared): Unit = {
-    val RemoteReferenceUnshared(modelId, session, valueId, key) = refUnpublished
+  private[this] def onRemoteReferenceUnshared(refUnshared: RemoteReferenceUnshared): Unit = {
+    val RemoteReferenceUnshared(modelId, session, valueId, key) = refUnshared
     resourceId(modelId) foreach { resourceId =>
       context.parent ! RemoteReferenceUnsharedMessage(resourceId, valueId, key, session.sid)
     }
@@ -342,8 +342,8 @@ class ModelClientActor(
   private[this] def onMessageReceived(message: Normal with Model): Unit = {
     message match {
       case submission: OperationSubmissionMessage => onOperationSubmission(submission)
-      case publishReference: ShareReferenceMessage => onPublishReference(publishReference)
-      case unpublishReference: UnshareReferenceMessage => onUnpublishReference(unpublishReference)
+      case shareReference: ShareReferenceMessage => onShareReference(shareReference)
+      case shareReference: UnshareReferenceMessage => onUnshareReference(shareReference)
       case setReference: SetReferenceMessage => onSetReference(setReference)
       case clearReference: ClearReferenceMessage => onClearReference(clearReference)
     }
@@ -362,12 +362,13 @@ class ModelClientActor(
     }
   }
 
-  private[this] def onPublishReference(message: ShareReferenceMessage): Unit = {
-    val ShareReferenceMessage(resourceId, id, key, references, version) = message
+  private[this] def onShareReference(message: ShareReferenceMessage): Unit = {
+    val ShareReferenceMessage(resourceId, valueId, key, references, version) = message
+    val vId = valueId.filter(!_.isEmpty)
     val (refType, values) = mapIncomingReference(references.get)
     resourceIdToModelId.get(resourceId) match {
       case Some(modelId) =>
-        val publishReference = PublishReference(domainFqn, modelId, id, key, refType, values, version)
+        val publishReference = ShareReference(domainFqn, modelId, vId, key, refType, values, version)
         modelClusterRegion ! publishReference
       case None =>
         log.warning(s"${domainFqn}: Recieved a reference publish message for a resource id that does not exists.")
@@ -375,11 +376,12 @@ class ModelClientActor(
     }
   }
 
-  def onUnpublishReference(message: UnshareReferenceMessage): Unit = {
-    val UnshareReferenceMessage(resourceId, id, key) = message
+  def onUnshareReference(message: UnshareReferenceMessage): Unit = {
+    val UnshareReferenceMessage(resourceId, valueId, key) = message
+    val vId = valueId.filter(!_.isEmpty)
     resourceIdToModelId.get(resourceId) match {
       case Some(modelId) =>
-        val unpublishReference = UnpublishReference(domainFqn, modelId, id, key)
+        val unpublishReference = UnshareReference(domainFqn, modelId, vId, key)
         modelClusterRegion ! unpublishReference
       case None =>
         log.warning(s"${domainFqn}: Recieved a reference unpublish message for a resource id that does not exists.")
@@ -388,12 +390,13 @@ class ModelClientActor(
   }
 
   private[this] def onSetReference(message: SetReferenceMessage): Unit = {
-    val SetReferenceMessage(resourceId, id, key, references, version) = message
+    val SetReferenceMessage(resourceId, valueId, key, references, version) = message
+    val vId = valueId.filter(!_.isEmpty)
     // FIXME handle none
     val (referenceType, values) = mapIncomingReference(references.get)
     resourceIdToModelId.get(resourceId) match {
       case Some(modelId) =>
-        val setReference = SetReference(domainFqn, modelId, id, key, referenceType, values, version)
+        val setReference = SetReference(domainFqn, modelId, vId, key, referenceType, values, version)
         modelClusterRegion ! setReference
       case None =>
         log.warning(s"${domainFqn}: Recieved a reference set message for a resource id that does not exists.")
@@ -402,10 +405,11 @@ class ModelClientActor(
   }
 
   private[this] def onClearReference(message: ClearReferenceMessage): Unit = {
-    val ClearReferenceMessage(resourceId, id, key) = message
+    val ClearReferenceMessage(resourceId, valueId, key) = message
+    val vId = valueId.filter(!_.isEmpty)
     resourceIdToModelId.get(resourceId) match {
       case Some(modelId) =>
-        val clearReference = ClearReference(domainFqn, modelId, id, key)
+        val clearReference = ClearReference(domainFqn, modelId, vId, key)
         modelClusterRegion ! clearReference
       case None =>
         log.warning(s"${domainFqn}: Recieved a reference clear message for a resource id that does not exists.")
@@ -416,9 +420,7 @@ class ModelClientActor(
   private[this] def onOpenRealtimeModelRequest(request: OpenRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
     val OpenRealtimeModelRequestMessage(optionalModelId, autoCreateId) = request
 
-    val modelId = optionalModelId.getOrElse {
-      UUID.randomUUID().toString()
-    }
+    val modelId = optionalModelId.filter(!_.isEmpty).getOrElse(UUID.randomUUID().toString())
 
     val future = modelClusterRegion ? OpenRealtimeModelRequest(domainFqn, modelId, autoCreateId, sessionKey, self)
     future.mapResponse[OpenModelSuccess] onComplete {
@@ -496,8 +498,8 @@ class ModelClientActor(
     }
 
     // FIXME make a utility for this.
-    val modelId = optionalModelId.getOrElse(UUID.randomUUID().toString())
-
+    val modelId = optionalModelId.filter(!_.isEmpty).getOrElse(UUID.randomUUID().toString())
+    
     val future = modelClusterRegion ? CreateRealtimeModel(
       domainFqn,
       modelId,

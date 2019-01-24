@@ -2,11 +2,11 @@ package com.convergencelabs.server.domain.model.reference
 
 import com.convergencelabs.server.domain.model.ClearReference
 import com.convergencelabs.server.domain.model.ModelReferenceEvent
-import com.convergencelabs.server.domain.model.PublishReference
+import com.convergencelabs.server.domain.model.ShareReference
 import com.convergencelabs.server.domain.model.RealTimeValue
 import com.convergencelabs.server.domain.model.ReferenceType
 import com.convergencelabs.server.domain.model.SetReference
-import com.convergencelabs.server.domain.model.UnpublishReference
+import com.convergencelabs.server.domain.model.UnshareReference
 import ReferenceManager.ReferenceDoesNotExist
 import com.convergencelabs.server.domain.model.RealTimeValue
 import com.convergencelabs.server.domain.model.RealTimeValue
@@ -27,8 +27,8 @@ class ReferenceManager(
 
   def handleReferenceEvent(event: ModelReferenceEvent, session: SessionKey): Try[Unit] = {
     event match {
-      case publish: PublishReference => this.handleReferencePublished(publish, session)
-      case unpublish: UnpublishReference => this.handleReferenceUnpublished(unpublish, session)
+      case publish: ShareReference => this.handleReferencePublished(publish, session)
+      case unpublish: UnshareReference => this.handleReferenceUnpublished(unpublish, session)
       case set: SetReference => this.handleReferenceSet(set, session)
       case cleared: ClearReference => this.handleReferenceCleared(cleared, session)
     }
@@ -38,7 +38,7 @@ class ReferenceManager(
     this.rm.removeBySession(session)
   }
 
-  private[this] def handleReferencePublished(event: PublishReference, session: SessionKey): Try[Unit] = Try {
+  private[this] def handleReferencePublished(event: ShareReference, session: SessionKey): Try[Unit] = Try {
     if (!this.validTypes.contains(event.referenceType)) {
       throw new IllegalArgumentException(s"Invalid reference type: ${event.referenceType}")
     }
@@ -55,7 +55,7 @@ class ReferenceManager(
     this.referenceMap.put(reference)
   }
 
-  private[this] def handleReferenceUnpublished(event: UnpublishReference, session: SessionKey): Try[Unit] = Try {
+  private[this] def handleReferenceUnpublished(event: UnshareReference, session: SessionKey): Try[Unit] = Try {
     this.rm.remove(session, event.key) match {
       case Some(reference) =>
       case None =>

@@ -99,10 +99,9 @@ private[realtime] object ModelOperationMapper {
         AppliedDiscreteOperationData().withObjectRemovePropertyOperation(
           AppliedObjectRemovePropertyOperationData(id, noOp, prop, oldValue.map(dataValueToMessage(_))))
       case AppliedObjectSetOperation(id, noOp, objectData, oldValue) =>
-        AppliedDiscreteOperationData().withObjectSetOperation(AppliedObjectSetOperationData(id, noOp,
-          objectData.mapValues(dataValueToMessage(_)),
-          oldValue.getOrElse(Map()).mapValues(dataValueToMessage(_))))
-
+        val mappedData = objectData.map { case (k, v) => (k, dataValueToMessage(v)) }
+        val mappedOldValues = oldValue.getOrElse(Map()).map { case (k, v) => (k, dataValueToMessage(v)) }
+        AppliedDiscreteOperationData().withObjectSetOperation(AppliedObjectSetOperationData(id, noOp, mappedData, mappedOldValues))
       case AppliedNumberAddOperation(id, noOp, delta) =>
         AppliedDiscreteOperationData().withNumberDeltaOperation(AppliedNumberDeltaOperationData(id, noOp, delta))
       case AppliedNumberSetOperation(id, noOp, number, oldValue) =>
