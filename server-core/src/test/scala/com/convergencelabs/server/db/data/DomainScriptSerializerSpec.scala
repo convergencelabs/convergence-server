@@ -7,6 +7,9 @@ import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
 
+import com.convergencelabs.server.domain.DomainUserId
+import com.convergencelabs.server.domain.DomainUserType
+
 class DomainScriptSerializerSpec extends WordSpecLike with Matchers {
 
   "A CreateDomainScriptSerializer" when {
@@ -22,13 +25,14 @@ class DomainScriptSerializerSpec extends WordSpecLike with Matchers {
         jwtAuthKeys.value shouldBe List(CreateJwtAuthKey("test-key", Some("a test key"), Instant.parse("2016-11-16T17:49:15.233Z"), "Public Key", true))
 
         users.value shouldBe List(
-          CreateDomainUser("normal", "test1", Some("Test"), Some("One"), Some("Test One"), Some("test1@example.com"), Some(SetPassword("plaintext", "somePassword"))),
-          CreateDomainUser("normal", "test2", Some("Test"), Some("Two"), Some("Test Two"), Some("test2@example.com"), Some(SetPassword("hash", "someHash"))))
+          CreateDomainUser("normal", "test1", Some("Test"), Some("One"), Some("Test One"), Some("test1@example.com"), false, false, None, Some(SetPassword("plaintext", "somePassword"))),
+          CreateDomainUser("normal", "test2", Some("Test"), Some("Two"), Some("Test Two"), Some("test2@example.com"), false, false, None, Some(SetPassword("hash", "someHash"))))
 
         sessions.value shouldBe List(
           CreateDomainSession(
             "84hf",
             "test1",
+            DomainUserType.Normal.toString, 
             Instant.parse("2016-11-16T17:49:14.233Z"),
             Some(Instant.parse("2016-11-16T17:49:15.233Z")),
             "password",

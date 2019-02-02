@@ -19,6 +19,10 @@ import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
+import com.convergencelabs.server.domain.DomainUserType
+import com.convergencelabs.server.domain.DomainUserId
+import io.convergence.proto.identity.DomainUserIdData
+import com.convergencelabs.server.frontend.realtime.ImplicitMessageConversions
 
 object DomainUserService {
   case class CreateUserRequest(username: String, firstName: Option[String], lastName: Option[String], displayName: Option[String], email: Option[String], password: Option[String])
@@ -38,7 +42,10 @@ object DomainUserService {
     firstName: Option[String],
     lastName: Option[String],
     displayName: Option[String],
-    email: Option[String])
+    email: Option[String],
+    disabled: Boolean,
+    deleted: Boolean,
+    deletedUsername: Option[String])
 }
 
 class DomainUserService(
@@ -124,7 +131,7 @@ class DomainUserService(
 
   def findUser(domain: DomainFqn, request: UserLookupRequest): Future[RestResponse] = {
     val UserLookupRequest(filter, excludes, offset, limit) = request
-    val findUser = FindUser(filter, excludes, offset, limit)
+    val findUser = FindUser(filter, excludes.map(_.map(DomainUserId(DomainUserType.Normal, _))), offset, limit)
     (domainRestActor ? DomainRestMessage(domain, findUser)).mapTo[List[DomainUser]] map
       (users => (StatusCodes.OK, GetUsersRestResponse(users.map(toUserData(_)))))
   }
@@ -147,7 +154,8 @@ class DomainUserService(
   }
 
   def getUserByUsername(username: String, domain: DomainFqn): Future[RestResponse] = {
-    (domainRestActor ? DomainRestMessage(domain, GetUserByUsername(username))).mapTo[Option[DomainUser]] map {
+    val message = DomainRestMessage(domain, GetUserByUsername(DomainUserId(DomainUserType.Normal, username)))
+    (domainRestActor ? message).mapTo[Option[DomainUser]] map {
       case Some(user) =>
         (StatusCodes.OK, GetUserRestResponse(toUserData(user)))
       case None =>
@@ -160,7 +168,8 @@ class DomainUserService(
   }
 
   private[this] def toUserData(user: DomainUser): DomainUserData = {
-    val DomainUser(userType, username, firstName, lastName, displayName, email) = user
-    DomainUserData(username, firstName, lastName, displayName, email)
+    val DomainUser(userType, username, firstName, lastName, displayName, email, disabled, deleted, deletedUsername) = user
+    val userId = DomainUserId(userType, username)
+    DomainUserData(userId.username, firstName, lastName, displayName, email, disabled, deleted, deletedUsername)
   }
 }

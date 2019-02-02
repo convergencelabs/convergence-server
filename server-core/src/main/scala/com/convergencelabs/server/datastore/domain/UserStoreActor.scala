@@ -9,6 +9,7 @@ import com.convergencelabs.server.datastore.domain.DomainUserStore.UpdateDomainU
 
 import akka.actor.ActorLogging
 import akka.actor.Props
+import com.convergencelabs.server.domain.DomainUserId
 
 object UserStoreActor {
   def props(userStore: DomainUserStore): Props = Props(new UserStoreActor(userStore))
@@ -18,7 +19,7 @@ object UserStoreActor {
     filter: Option[String],
     limit: Option[Int],
     offset: Option[Int]) extends UserStoreRequest
-  case class GetUserByUsername(username: String) extends UserStoreRequest
+  case class GetUserByUsername(userId: DomainUserId) extends UserStoreRequest
   case class CreateUser(
     username: String,
     firstName: Option[String],
@@ -26,7 +27,7 @@ object UserStoreActor {
     displayName: Option[String],
     email: Option[String],
     password: Option[String]) extends UserStoreRequest
-  case class DeleteDomainUser(uid: String) extends UserStoreRequest
+  case class DeleteDomainUser(username: String) extends UserStoreRequest
   case class UpdateUser(
     username: String,
     firstName: Option[String],
@@ -37,7 +38,7 @@ object UserStoreActor {
     uid: String,
     password: String) extends UserStoreRequest
 
-  case class FindUser(filter: String, exclude: Option[List[String]], offset: Option[Int], limit: Option[Int]) extends UserStoreRequest
+  case class FindUser(filter: String, exclude: Option[List[DomainUserId]], offset: Option[Int], limit: Option[Int]) extends UserStoreRequest
 }
 
 class UserStoreActor private[datastore] (private[this] val userStore: DomainUserStore)
@@ -107,15 +108,15 @@ class UserStoreActor private[datastore] (private[this] val userStore: DomainUser
   }
 
   def setPassword(message: SetPassword): Unit = {
-    val SetPassword(uid, password) = message
-    reply(userStore.setDomainUserPassword(uid, password))
+    val SetPassword(username, password) = message
+    reply(userStore.setDomainUserPassword(username, password))
   }
 
   def deleteUser(message: DeleteDomainUser): Unit = {
-    reply(userStore.deleteDomainUser(message.uid))
+    reply(userStore.deleteNormalDomainUser(message.username))
   }
 
   def getUserByUsername(message: GetUserByUsername): Unit = {
-    reply(userStore.getDomainUserByUsername(message.username))
+    reply(userStore.getDomainUser(message.userId))
   }
 }

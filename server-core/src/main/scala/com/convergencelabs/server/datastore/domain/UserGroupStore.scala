@@ -22,8 +22,11 @@ import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.datastore.OrientDBUtil
+import com.convergencelabs.server.domain.DomainUserId
+import com.convergencelabs.server.domain.DomainUserType
+import com.convergencelabs.server.datastore.domain.schema.DomainSchema
 
-case class UserGroup(id: String, description: String, members: Set[String])
+case class UserGroup(id: String, description: String, members: Set[DomainUserId])
 case class UserGroupInfo(id: String, description: String)
 case class UserGroupSummary(id: String, description: String, memberCount: Int)
 
@@ -63,7 +66,11 @@ object UserGroupStore {
     UserGroup(
       doc.field(Fields.Id),
       doc.field(Fields.Description),
-      membersScala.map(m => m.field("username").asInstanceOf[String]))
+      membersScala.map { m =>
+        DomainUserId(
+          DomainUserType.withName(m.getProperty(DomainSchema.Classes.User.Fields.UserType)),
+          m.getProperty(DomainSchema.Classes.User.Fields.Username).asInstanceOf[String])
+      })
   }
 }
 
@@ -116,7 +123,7 @@ class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProv
     } recoverWith (handleDuplicateValue)
   }
 
-  def setGroupMembers(groupId: String, members: Set[String]): Try[Unit] = withDb { db =>
+  def setGroupMembers(groupId: String, members: Set[DomainUserId]): Try[Unit] = withDb { db =>
     OrientDBUtil
       .getDocumentFromSingleValueIndex(db, Indices.Id, groupId)
       .flatMap { doc =>
@@ -129,11 +136,11 @@ class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProv
       }
   }
 
-  def addUserToGroup(groupId: String, username: String): Try[Unit] = withDb { db =>
-    DomainUserStore.getUserRid(username, db)
+  def addUserToGroup(groupId: String, userId: DomainUserId): Try[Unit] = withDb { db =>
+    DomainUserStore.getUserRid(userId, db)
       .recoverWith {
         case cause: EntityNotFoundException =>
-          Failure(new EntityNotFoundException(s"Could not add user to group, because the user does not exists: ${username}"))
+          Failure(new EntityNotFoundException(s"Could not add user to group, because the user does not exists: ${userId}"))
       }.flatMap { userRid =>
         val command = "UPDATE UserGroup SET members = members || :user WHERE id = :id"
         val params = Map("user" -> userRid, "id" -> groupId)
@@ -144,12 +151,12 @@ class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProv
       }
   }
 
-  def setGroupsForUser(username: String, groups: Set[String]): Try[Unit] = withDb { db =>
+  def setGroupsForUser(userId: DomainUserId, groups: Set[String]): Try[Unit] = withDb { db =>
     // TODO this approach will ignore setting a group that doesn't exist. Is this ok?
-    DomainUserStore.getUserRid(username, db)
+    DomainUserStore.getUserRid(userId, db)
       .recoverWith {
         case cause: EntityNotFoundException =>
-          Failure(new EntityNotFoundException(s"Could not remove user from group, becase the user does not exists: ${username}"))
+          Failure(new EntityNotFoundException(s"Could not remove user from group, becase the user does not exists: ${userId}"))
       }.flatMap { userRid =>
         val params = Map("user" -> userRid, "groups" -> groups.asJava)
         val command = "UPDATE UserGroup REMOVE members = :user WHERE :user IN members AND id NOT IN :groups"
@@ -160,13 +167,13 @@ class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProv
       }
   }
 
-  def removeUserFromGroup(id: String, username: String): Try[Unit] = withDb { db =>
-    DomainUserStore.getUserRid(username, db)
+  def removeUserFromGroup(id: String, userId: DomainUserId): Try[Unit] = withDb { db =>
+    DomainUserStore.getUserRid(userId, db)
       .recoverWith {
         case cause: EntityNotFoundException =>
           Failure(EntityNotFoundException(
-            s"Could not remove user from group, becase the user does not exists: ${username}",
-            Some(username)))
+            s"Could not remove user from group, becase the user does not exists: ${userId}",
+            Some(userId)))
       }.flatMap { userRid =>
         val query = "UPDATE UserGroup REMOVE members = :user WHERE id = :id"
         val params = Map("user" -> userRid, "id" -> id)
@@ -197,14 +204,14 @@ class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProv
       }
   }
 
-  def getUserGroupIdsForUsers(usernames: List[String]): Try[Map[String, Set[String]]] = tryWithDb { db =>
-    val result: Map[String, Set[String]] = usernames
-      .map(username => username -> this.getUserGroupIdsForUser(username).get)(collection.breakOut)
+  def getUserGroupIdsForUsers(userIds: List[DomainUserId]): Try[Map[DomainUserId, Set[String]]] = tryWithDb { db =>
+    val result: Map[DomainUserId, Set[String]] = userIds
+      .map(userId => userId -> this.getUserGroupIdsForUser(userId).get)(collection.breakOut)
     result
   }
 
-  def getUserGroupIdsForUser(username: String): Try[Set[String]] = withDb { db =>
-    DomainUserStore.getUserRid(username, db).flatMap { userRid =>
+  def getUserGroupIdsForUser(userId: DomainUserId): Try[Set[String]] = withDb { db =>
+    DomainUserStore.getUserRid(userId, db).flatMap { userRid =>
       val query = "SELECT id FROM UserGroup WHERE :user IN members"
       val params = Map("user" -> userRid)
       OrientDBUtil
@@ -212,7 +219,7 @@ class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProv
         .map(_.toSet)
     }.recoverWith {
       case cause: EntityNotFoundException =>
-        Failure(EntityNotFoundException(entityId = Some(username)))
+        Failure(EntityNotFoundException(entityId = Some(userId)))
     }
   }
 

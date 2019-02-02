@@ -1,0 +1,29 @@
+version: 13
+description: Updates the User table to make names and types unique, removes the email unique index, and adds soft delete capabilities.
+changes:
+
+########## User Class Changes ##########
+
+  - action: DropIndex
+    name: User.username
+    
+  - action: DropIndex
+    name: User.email
+
+  - action: CreateIndex
+    className: User
+    name: User.username_userType
+    type: Unique
+    properties: [username, userType]
+    
+  - action: AddProperty
+    className: User
+    property: {name: disabled, type: Boolean, constraints: {mandatory: true, notNull: true}}
+    
+  - action: AddProperty
+    className: User
+    property: {name: deleted, type: Boolean, constraints: {mandatory: true, notNull: true}}
+    
+  - action: AddProperty
+    className: User
+    property: {name: deletedUsername, type: String, constraints: {notNull: true}}

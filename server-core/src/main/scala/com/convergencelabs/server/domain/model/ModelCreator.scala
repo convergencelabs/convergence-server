@@ -9,6 +9,7 @@ import com.convergencelabs.server.datastore.domain.ModelPermissions
 import com.convergencelabs.server.domain.UnauthorizedException
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import java.util.UUID
+import com.convergencelabs.server.domain.DomainUserId
 
 case class CollectionAutoCreateDisabled(message: String) extends Exception(message)
 case class NoCreatePermissions(message: String) extends Exception(message)
@@ -19,15 +20,15 @@ class ModelCreator {
 
   def createModel(
     persistenceProvider: DomainPersistenceProvider,
-    username: Option[String],
+    userId: Option[DomainUserId],
     collectionId: String,
     modelId: String,
     data: ObjectValue,
     overridePermissions: Option[Boolean],
     worldPermissions: Option[ModelPermissions],
-    userPermissions: Map[String, ModelPermissions]): Try[Model] = {
+    userPermissions: Map[DomainUserId, ModelPermissions]): Try[Model] = {
 
-    verifyCanCreate(collectionId, username, persistenceProvider) flatMap { _ =>
+    verifyCanCreate(collectionId, userId, persistenceProvider) flatMap { _ =>
       persistenceProvider.collectionStore.ensureCollectionExists(collectionId)
     } flatMap { _ =>
       val overrideWorld = overridePermissions.getOrElse(false)
@@ -38,13 +39,13 @@ class ModelCreator {
       val ModelMetaData(model.metaData.collectionId, model.metaData.modelId, version, created, modified, overworldPermissions, worldPermissions, model.metaData.valuePrefix) = model.metaData
       val snapshot = ModelSnapshot(ModelSnapshotMetaData(model.metaData.modelId, version, created), model.data)
       persistenceProvider.modelSnapshotStore.createSnapshot(snapshot) flatMap { _ =>
-        username match {
-          case Some(uname) =>
+        userId match {
+          case Some(uid) =>
             persistenceProvider
               .modelPermissionsStore
               .updateModelUserPermissions(
                 model.metaData.modelId,
-                uname,
+                uid,
                 ModelPermissions(true, true, true, true)) map (_ => model)
           case None =>
             Success(())
@@ -59,12 +60,12 @@ class ModelCreator {
     }
   }
 
-  def verifyCanCreate(collectionId: String, username: Option[String], persistenceProvider: DomainPersistenceProvider): Try[Unit] = {
+  def verifyCanCreate(collectionId: String, userId: Option[DomainUserId], persistenceProvider: DomainPersistenceProvider): Try[Unit] = {
     persistenceProvider.collectionStore.collectionExists(collectionId) flatMap { exists =>
       if (exists) {
-        username match {
-          case Some(user) =>
-            persistenceProvider.modelPermissionsStore.getCollectionUserPermissions(collectionId, user).flatMap { userPermissions =>
+        userId match {
+          case Some(uid) =>
+            persistenceProvider.modelPermissionsStore.getCollectionUserPermissions(collectionId, uid).flatMap { userPermissions =>
               userPermissions match {
                 case Some(p) =>
                   Success(p)

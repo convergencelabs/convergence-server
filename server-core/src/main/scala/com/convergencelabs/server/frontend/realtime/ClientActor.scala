@@ -26,7 +26,6 @@ import com.convergencelabs.server.domain.JwtAuthRequest
 import com.convergencelabs.server.domain.PasswordAuthRequest
 import com.convergencelabs.server.domain.ReconnectTokenAuthRequest
 import com.convergencelabs.server.domain.activity.ActivityActorSharding
-import com.convergencelabs.server.domain.model.SessionKey
 import com.convergencelabs.server.domain.presence.PresenceRequest
 import com.convergencelabs.server.domain.presence.UserPresence
 import com.convergencelabs.server.util.concurrent.AskFuture
@@ -68,6 +67,7 @@ import io.convergence.proto.connection.HandshakeResponseMessage.ErrorData
 import io.convergence.proto.message.ConvergenceMessage
 import io.convergence.proto.permissions.PermissionType
 import scalapb.GeneratedMessage
+import com.convergencelabs.server.domain.DomainUserSessionId
 
 object ClientActor {
   def props(
@@ -128,7 +128,7 @@ class ClientActor(
   private[this] var identityCacheManager: ActorRef = _
   private[this] var chatLookupActor: ActorRef = _
   private[this] var sessionId: String = _
-  private[this] var reconnectToken: String = _
+  private[this] var reconnectToken: Option[String] = None
 
   private[this] var protocolConnection: ProtocolConnection = _
   private[this] val domainRegion = DomainActorSharding.shardRegion(context.system)
@@ -314,8 +314,8 @@ class ClientActor(
         // FIXME if authentication fails we should probably stop the actor
         // and or shut down the connection?
         (this.domainRegion ? authRequest).mapResponse[AuthenticationResponse] onComplete {
-          case Success(AuthenticationSuccess(username, sk, reconnectToken)) =>
-            getPresenceAfterAuth(username, sk, reconnectToken, cb)
+          case Success(AuthenticationSuccess(session, reconnectToken)) =>
+            getPresenceAfterAuth(session, reconnectToken, cb)
           case Success(AuthenticationFailure) =>
             cb.reply(AuthenticationResponseMessage().withFailure(AuthFailure("")))
           case Failure(cause) =>
@@ -328,10 +328,10 @@ class ClientActor(
     }
   }
 
-  private[this] def getPresenceAfterAuth(username: String, sk: SessionKey, reconnectToken: String, cb: ReplyCallback) {
+  private[this] def getPresenceAfterAuth(session: DomainUserSessionId, reconnectToken: Option[String], cb: ReplyCallback) {
     (for {
-      // TODO imeplement a metnod that just gets one.
-      presence <- (this.presenceServiceActor ? PresenceRequest(List(username)))
+      // TODO implement a method that just gets one.
+      presence <- (this.presenceServiceActor ? PresenceRequest(List(session.userId)))
         .mapTo[List[UserPresence]]
         .flatMap { p =>
           p match {
@@ -339,9 +339,9 @@ class ClientActor(
             case _ => Future.failed(EntityNotFoundException())
           }
         }
-      user <- (this.identityServiceActor ? GetUserByUsername(username)).mapTo[DomainUser]
+      user <- (this.identityServiceActor ? GetUserByUsername(session.userId)).mapTo[DomainUser]
     } yield {
-      self ! InternalAuthSuccess(user, sk, reconnectToken, presence, cb)
+      self ! InternalAuthSuccess(user, session, reconnectToken, presence, cb)
     }).recover {
       case cause =>
         log.error(cause, "Error getting user data after successful authentication")
@@ -350,22 +350,25 @@ class ClientActor(
   }
 
   private[this] def handleAuthenticationSuccess(message: InternalAuthSuccess): Unit = {
-    val InternalAuthSuccess(user, sk, reconnectToken, presence, cb) = message
-    this.sessionId = sk.serialize();
+    val InternalAuthSuccess(user, session, reconnectToken, presence, cb) = message
+    this.sessionId = session.sessionId
     this.reconnectToken = reconnectToken;
-    this.modelClient = context.actorOf(ModelClientActor.props(domainFqn, sk, modelQueryActor, requestTimeout))
+    this.modelClient = context.actorOf(ModelClientActor.props(domainFqn, session, modelQueryActor, requestTimeout))
     this.userClient = context.actorOf(IdentityClientActor.props(identityServiceActor))
-    this.chatClient = context.actorOf(ChatClientActor.props(domainFqn, chatLookupActor, sk, requestTimeout))
+    this.chatClient = context.actorOf(ChatClientActor.props(domainFqn, chatLookupActor, session, requestTimeout))
     this.activityClient = context.actorOf(ActivityClientActor.props(
       ActivityActorSharding.shardRegion(this.context.system),
       domainFqn,
-      sk))
-    this.presenceClient = context.actorOf(PresenceClientActor.props(presenceServiceActor, sk))
-    this.historyClient = context.actorOf(HistoricModelClientActor.props(sk, domainFqn, modelStoreActor, operationStoreActor));
+      session))
+    this.presenceClient = context.actorOf(PresenceClientActor.props(presenceServiceActor, session))
+    this.historyClient = context.actorOf(HistoricModelClientActor.props(session, domainFqn, modelStoreActor, operationStoreActor));
     this.messageHandler = handleMessagesWhenAuthenticated
 
     val response = AuthenticationResponseMessage().withSuccess(AuthSuccess(
-      Some(ImplicitMessageConversions.mapDomainUser(user)), sk.sid, reconnectToken, JsonProtoConverter.jValueMapToValueMap(presence.state)))
+      Some(ImplicitMessageConversions.mapDomainUser(user)), 
+      session.sessionId, 
+      this.reconnectToken.getOrElse(""), 
+      JsonProtoConverter.jValueMapToValueMap(presence.state)))
     cb.reply(response)
 
     context.become(receiveWhileAuthenticated)
@@ -470,5 +473,5 @@ class ClientActor(
 
 case class SendUnprocessedMessage(message: ConvergenceMessage)
 case class SendProcessedMessage(message: ConvergenceMessage)
-case class InternalAuthSuccess(user: DomainUser, sk: SessionKey, reconnectToken: String, presence: UserPresence, cb: ReplyCallback)
+case class InternalAuthSuccess(user: DomainUser, session: DomainUserSessionId, reconnectToken: Option[String], presence: UserPresence, cb: ReplyCallback)
 case class InternalHandshakeSuccess(handshakeSuccess: HandshakeSuccess, cb: ReplyCallback)

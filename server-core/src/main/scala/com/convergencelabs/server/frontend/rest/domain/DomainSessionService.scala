@@ -36,6 +36,8 @@ import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import akka.pattern.ask
+import com.convergencelabs.server.domain.DomainUserType
+import com.convergencelabs.server.domain.DomainUserType.DomainUserType
 
 object DomainSessionService {
   case class GetSessionsResponse(sessions: List[DomainSessionData]) extends AbstractSuccessResponse
@@ -43,6 +45,7 @@ object DomainSessionService {
   case class DomainSessionData(
     id: String,
     username: String,
+    userType: String,
     connected: Instant,
     disconnected: Option[Instant],
     authMethod: String,
@@ -66,18 +69,20 @@ class DomainSessionService(
           parameters(
             "sessionId".as[String].?,
             "username".as[String].?,
+            "userType".as[String].?,
             "remoteHost".as[String].?,
             "authMethod".as[String].?,
             "connectedOnly".as[Boolean]?,
             "sessionType".as[String]?,
             "limit".as[Int].?,
-            "offset".as[Int].?) { (sessionId, sessionUsername, remoteHost, authMethod, connectedOnly, sessionType, limit, offset) =>
+            "offset".as[Int].?) { (sessionId, sessionUsername, userType, remoteHost, authMethod, connectedOnly, sessionType, limit, offset) =>
               {
                 authorizeAsync(canAccessDomain(domain, username)) {
                   complete(getSessions(
                     domain,
                     sessionId,
                     sessionUsername,
+                    userType,
                     remoteHost,
                     authMethod,
                     connectedOnly,
@@ -104,6 +109,7 @@ class DomainSessionService(
     domain: DomainFqn,
     sessionId: Option[String],
     username: Option[String],
+    userType: Option[String],
     remoteHost: Option[String],
     authMethod: Option[String],
     connectedOnly: Option[Boolean],
@@ -114,10 +120,11 @@ class DomainSessionService(
     val st = sessionType
       .flatMap(t => SessionQueryType.withNameOpt(t))
       .getOrElse(SessionQueryType.All)
-
+      
     val getMessage = GetSessions(
       sessionId,
       username,
+      userType.flatMap(DomainUserType.withNameOpt(_)),
       remoteHost,
       authMethod,
       connectedOnly.getOrElse(false),
@@ -140,7 +147,7 @@ class DomainSessionService(
   def sessionToSessionData(session: DomainSession): DomainSessionData = {
     val DomainSession(
       id,
-      username,
+      userId,
       connected,
       disconnected,
       authMethod,
@@ -151,7 +158,8 @@ class DomainSessionService(
 
     DomainSessionData(
       id,
-      username,
+      userId.username,
+      userId.userType.toString.toLowerCase,
       connected,
       disconnected,
       authMethod,

@@ -138,7 +138,7 @@ class DomainActor(
     // FIXME Remove this try
     try {
       authenticator.authenticate(message.credentials) map {
-        case AuthenticationSuccess(username, sk, recconectToken) =>
+        case authSuccess @ AuthenticationSuccess(DomainUserSessionId(sessionId, userId), recconectToken) =>
           log.debug(s"${identityString}: Authenticated user successfully, creating session")
 
           val method = message.credentials match {
@@ -149,8 +149,8 @@ class DomainActor(
           }
 
           val session = DomainSession(
-            sk.sid,
-            username,
+            sessionId,
+            userId,
             connected,
             None,
             method,
@@ -161,8 +161,8 @@ class DomainActor(
 
           persistenceProvider.sessionStore.createSession(session) map { _ =>
             log.debug(s"${identityString}: Session created replying to ClientActor")
-            authenticatedClients.put(message.clientActor, sk.sid)
-            asker ! AuthenticationSuccess(username, sk, recconectToken)
+            authenticatedClients.put(message.clientActor, sessionId)
+            asker ! authSuccess
           } recover {
             case cause: Throwable =>
               log.error(cause, s"${identityString} Unable to authenticate user because a session could not be created.")

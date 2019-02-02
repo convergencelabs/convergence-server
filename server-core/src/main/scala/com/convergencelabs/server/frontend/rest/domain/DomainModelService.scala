@@ -56,6 +56,7 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import com.convergencelabs.server.domain.model.ModelNotFoundException
+import com.convergencelabs.server.domain.DomainUserId
 
 object DomainModelService {
 
@@ -298,7 +299,7 @@ class DomainModelService(
   }
 
   def getModelUserPermissions(domain: DomainFqn, modelId: String, username: String): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, GetModelUserPermissions(modelId, username))
+    val message = DomainRestMessage(domain, GetModelUserPermissions(modelId, DomainUserId.normal(username)))
     (domainRestActor ? message).mapTo[Option[ModelPermissions]] map {
       permissions =>
         (StatusCodes.OK, GetPermissionsResponse(permissions))
@@ -306,12 +307,12 @@ class DomainModelService(
   }
 
   def setModelUserPermissions(domain: DomainFqn, modelId: String, username: String, permissions: ModelPermissions): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, SetModelUserPermissions(modelId, username, permissions))
+    val message = DomainRestMessage(domain, SetModelUserPermissions(modelId, DomainUserId.normal(username), permissions))
     (domainRestActor ? message) map { _ => OkResponse }
   }
 
   def removeModelUserPermissions(domain: DomainFqn, modelId: String, username: String): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, RemoveModelUserPermissions(modelId, username))
+    val message = DomainRestMessage(domain, RemoveModelUserPermissions(modelId, DomainUserId.normal(username)))
     (domainRestActor ? message) map { _ => OkResponse }
   }
   

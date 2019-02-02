@@ -19,7 +19,6 @@ import com.convergencelabs.server.domain.activity.ActivityRemoveState
 import com.convergencelabs.server.domain.activity.ActivitySessionJoined
 import com.convergencelabs.server.domain.activity.ActivitySessionLeft
 import com.convergencelabs.server.domain.activity.ActivitySetState
-import com.convergencelabs.server.domain.model.SessionKey
 import com.convergencelabs.server.util.concurrent.AskFuture
 import com.convergencelabs.server.domain.DomainFqn
 
@@ -46,13 +45,14 @@ import io.convergence.proto.activity.ActivityParticipantsRequestMessage
 import io.convergence.proto.activity.ActivityParticipantsResponseMessage
 import io.convergence.proto.activity.ActivityState
 import io.convergence.proto.activity.ActivityJoinResponseMessage
+import com.convergencelabs.server.domain.DomainUserSessionId
 
 object ActivityClientActor {
-  def props(activityServiceActor: ActorRef, domain: DomainFqn, sk: SessionKey): Props =
-    Props(new ActivityClientActor(activityServiceActor, domain, sk))
+  def props(activityServiceActor: ActorRef, domain: DomainFqn, session: DomainUserSessionId): Props =
+    Props(new ActivityClientActor(activityServiceActor, domain, session))
 }
 
-class ActivityClientActor(activityServiceActor: ActorRef, domain: DomainFqn, sk: SessionKey) extends Actor with ActorLogging {
+class ActivityClientActor(activityServiceActor: ActorRef, domain: DomainFqn, session: DomainUserSessionId) extends Actor with ActorLogging {
   import akka.pattern.ask
 
   implicit val timeout = Timeout(5 seconds)
@@ -93,17 +93,17 @@ class ActivityClientActor(activityServiceActor: ActorRef, domain: DomainFqn, sk:
 
   def onActivityStateSet(message: ActivitySetStateMessage): Unit = {
     val ActivitySetStateMessage(id, state) = message
-    this.activityServiceActor ! ActivitySetState(domain, id, sk.sid, JsonProtoConverter.valueMapToJValueMap(state))
+    this.activityServiceActor ! ActivitySetState(domain, id, session.sessionId, JsonProtoConverter.valueMapToJValueMap(state))
   }
 
   def onActivityStateRemoved(message: ActivityRemoveStateMessage): Unit = {
     val ActivityRemoveStateMessage(id, keys) = message
-    this.activityServiceActor ! ActivityRemoveState(domain, id, sk.sid, keys.toList)
+    this.activityServiceActor ! ActivityRemoveState(domain, id, session.sessionId, keys.toList)
   }
 
   def onActivityStateCleared(message: ActivityClearStateMessage): Unit = {
     val ActivityClearStateMessage(id) = message
-    this.activityServiceActor ! ActivityClearState(domain, id, sk.sid)
+    this.activityServiceActor ! ActivityClearState(domain, id, session.sessionId)
   }
 
   def onRequestReceived(message: Request with Activity, replyCallback: ReplyCallback): Unit = {
@@ -129,7 +129,7 @@ class ActivityClientActor(activityServiceActor: ActorRef, domain: DomainFqn, sk:
 
   def onActivityJoin(request: ActivityJoinRequestMessage, cb: ReplyCallback): Unit = {
     val ActivityJoinRequestMessage(activityId, state) = request
-    val message = ActivityJoinRequest(domain, activityId, sk.sid, JsonProtoConverter.valueMapToJValueMap(state), self)
+    val message = ActivityJoinRequest(domain, activityId, session.sessionId, JsonProtoConverter.valueMapToJValueMap(state), self)
     val future = this.activityServiceActor ? message
 
     future.mapResponse[ActivityJoinResponse] onComplete {
@@ -144,6 +144,6 @@ class ActivityClientActor(activityServiceActor: ActorRef, domain: DomainFqn, sk:
 
   def onActivityLeave(request: ActivityLeaveMessage): Unit = {
     val ActivityLeaveMessage(activityId) = request
-    this.activityServiceActor ! ActivityLeave(domain, activityId, sk.sid)
+    this.activityServiceActor ! ActivityLeave(domain, activityId, session.sessionId)
   }
 }

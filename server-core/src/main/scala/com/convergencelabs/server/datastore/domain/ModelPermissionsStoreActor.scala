@@ -4,6 +4,7 @@ package com.convergencelabs.server.datastore.domain
 import akka.actor.ActorLogging
 import akka.actor.Props
 import com.convergencelabs.server.datastore.StoreActor
+import com.convergencelabs.server.domain.DomainUserId
 
 object ModelPermissionsStoreActor {
   def props(modelPermissionsStore: ModelPermissionsStore): Props =
@@ -17,11 +18,11 @@ object ModelPermissionsStoreActor {
   case class GetModelWorldPermissions(modelId: String) extends ModelPermissionsStoreRequest
   case class SetModelWorldPermissions(modelId: String, permissions: ModelPermissions) extends ModelPermissionsStoreRequest
   case class GetAllModelUserPermissions(modelId: String) extends ModelPermissionsStoreRequest
-  case class GetModelUserPermissions(modelId: String, username: String) extends ModelPermissionsStoreRequest
-  case class SetModelUserPermissions(modelId: String, username: String, permissions: ModelPermissions) extends ModelPermissionsStoreRequest
-  case class RemoveModelUserPermissions(modelId: String, username: String) extends ModelPermissionsStoreRequest
+  case class GetModelUserPermissions(modelId: String, userId: DomainUserId) extends ModelPermissionsStoreRequest
+  case class SetModelUserPermissions(modelId: String, userId: DomainUserId, permissions: ModelPermissions) extends ModelPermissionsStoreRequest
+  case class RemoveModelUserPermissions(modelId: String, userId: DomainUserId) extends ModelPermissionsStoreRequest
 
-  case class ModelUserPermissions(username: String, permissions: ModelPermissions)
+  case class ModelUserPermissions(userId: DomainUserId, permissions: ModelPermissions)
   case class ModelPermissionsResponse(overrideWorld: Boolean, worldPermissions: ModelPermissions, userPermissions: List[ModelUserPermissions])
 }
 
@@ -44,12 +45,12 @@ class ModelPermissionsStoreActor private[datastore] (
       setModelWorldPermissions(modelId, permissions)
     case GetAllModelUserPermissions(modelId) =>
       getAllModelUserPermissions(modelId)
-    case GetModelUserPermissions(modelId, username: String) =>
-      getModelUserPermissions(modelId, username)
-    case SetModelUserPermissions(modelId, username: String, permissions: ModelPermissions) =>
-      setModelUserPermissions(modelId, username, permissions)
-    case RemoveModelUserPermissions(modelId, username: String) =>
-      removeModelUserPermissions(modelId, username)
+    case GetModelUserPermissions(modelId, userId) =>
+      getModelUserPermissions(modelId, userId)
+    case SetModelUserPermissions(modelId, userId, permissions: ModelPermissions) =>
+      setModelUserPermissions(modelId, userId, permissions)
+    case RemoveModelUserPermissions(modelId, userId) =>
+      removeModelUserPermissions(modelId, userId)
 
     case message: Any => unhandled(message)
   }
@@ -61,7 +62,7 @@ class ModelPermissionsStoreActor private[datastore] (
       userPermissions <- modelPermissionsStore.getAllModelUserPermissions(modelId)
     } yield {
       val userPermissionsList = userPermissions.toList.map {
-        case Tuple2(username, permissions) => ModelUserPermissions(username, permissions)
+        case Tuple2(userId, permissions) => ModelUserPermissions(userId, permissions)
       }
       ModelPermissionsResponse(overrideWorld, worldPermissions, userPermissionsList)
     }
@@ -90,15 +91,15 @@ class ModelPermissionsStoreActor private[datastore] (
     }))
   }
 
-  def getModelUserPermissions(modelId: String, username: String): Unit = {
-    reply(modelPermissionsStore.getModelUserPermissions(modelId, username))
+  def getModelUserPermissions(modelId: String, userId: DomainUserId): Unit = {
+    reply(modelPermissionsStore.getModelUserPermissions(modelId, userId))
   }
 
-  def setModelUserPermissions(modelId: String, username: String, permissions: ModelPermissions): Unit = {
-    reply(modelPermissionsStore.updateModelUserPermissions(modelId, username, permissions))
+  def setModelUserPermissions(modelId: String, userId: DomainUserId, permissions: ModelPermissions): Unit = {
+    reply(modelPermissionsStore.updateModelUserPermissions(modelId, userId, permissions))
   }
 
-  def removeModelUserPermissions(modelId: String, username: String): Unit = {
-    reply(modelPermissionsStore.removeModelUserPermissions(modelId, username))
+  def removeModelUserPermissions(modelId: String, userId: DomainUserId): Unit = {
+    reply(modelPermissionsStore.removeModelUserPermissions(modelId, userId))
   }
 }

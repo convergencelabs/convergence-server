@@ -21,11 +21,12 @@ import com.convergencelabs.server.datastore.domain.ChatChannelMember
 import com.convergencelabs.server.actor.ShardedActor
 import com.convergencelabs.server.actor.StartUpRequired
 import com.convergencelabs.server.actor.ShardedActorStatUpPlan
+import com.convergencelabs.server.domain.DomainUserId
 
 object ChatChannelActor {
 
-  def getChatUsernameTopicName(username: String): String = {
-    return s"chat-user-${username}"
+  def getChatUsernameTopicName(userId: DomainUserId): String = {
+    return s"chat-user-${userId.userType.toString.toLowerCase}-${userId.username}"
   }
 }
 
@@ -38,7 +39,7 @@ case class ChatChannelState(
   topic: String,
   lastEventTime: Instant,
   lastEventNumber: Long,
-  members: Map[String, ChatChannelMember])
+  members: Map[DomainUserId, ChatChannelMember])
 
 class ChatChannelActor private[domain] () extends ShardedActor(classOf[ExistingChannelMessage]) {
   import ChatChannelActor._

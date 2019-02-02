@@ -1,11 +1,15 @@
 package com.convergencelabs.server.domain.model
 
-import akka.actor.ActorRef
-import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.model.ot.Operation
-import com.convergencelabs.server.datastore.domain.ModelPermissions
-import com.convergencelabs.server.domain.model.data.ObjectValue
 import java.time.Instant
+
+import com.convergencelabs.server.datastore.domain.ModelPermissions
+import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainUserSessionId
+import com.convergencelabs.server.domain.model.data.ObjectValue
+import com.convergencelabs.server.domain.model.ot.Operation
+
+import akka.actor.ActorRef
+import com.convergencelabs.server.domain.DomainUserId
 
 sealed trait ModelMessage {
   val domainFqn: DomainFqn
@@ -18,7 +22,7 @@ sealed trait ModelMessage {
 sealed trait StatelessModelMessage extends ModelMessage
 
 // Basic Model CRUD
-case class GetRealtimeModel(domainFqn: DomainFqn, modelId: String, sk: Option[SessionKey]) extends StatelessModelMessage
+case class GetRealtimeModel(domainFqn: DomainFqn, modelId: String, session: Option[DomainUserSessionId]) extends StatelessModelMessage
 case class CreateOrUpdateRealtimeModel(
     domainFqn: DomainFqn,
     modelId: String, 
@@ -26,8 +30,8 @@ case class CreateOrUpdateRealtimeModel(
     data: ObjectValue, 
     overridePermissions: Option[Boolean], 
     worldPermissions: Option[ModelPermissions], 
-    userPermissions: Option[Map[String, ModelPermissions]],
-    sk: Option[SessionKey]) extends StatelessModelMessage
+    userPermissions: Option[Map[DomainUserId, ModelPermissions]],
+    session: Option[DomainUserSessionId]) extends StatelessModelMessage
     
 case class CreateRealtimeModel(
     domainFqn: DomainFqn,
@@ -36,29 +40,29 @@ case class CreateRealtimeModel(
     data: ObjectValue, 
     overridePermissions: Option[Boolean], 
     worldPermissions: Option[ModelPermissions], 
-    userPermissions: Map[String, ModelPermissions],
-    sk: Option[SessionKey]) extends StatelessModelMessage
+    userPermissions: Map[DomainUserId, ModelPermissions],
+    session: Option[DomainUserSessionId]) extends StatelessModelMessage
 
-case class DeleteRealtimeModel(domainFqn: DomainFqn, modelId: String, sk: Option[SessionKey]) extends StatelessModelMessage
+case class DeleteRealtimeModel(domainFqn: DomainFqn, modelId: String, session: Option[DomainUserSessionId]) extends StatelessModelMessage
 
 // Incoming Permissions Messages
-case class GetModelPermissionsRequest(domainFqn: DomainFqn, modelId: String, sk: SessionKey) extends StatelessModelMessage
+case class GetModelPermissionsRequest(domainFqn: DomainFqn, modelId: String, session: DomainUserSessionId) extends StatelessModelMessage
 case class SetModelPermissionsRequest(
   domainFqn: DomainFqn,
   modelId: String,
-  sk: SessionKey,
+  session: DomainUserSessionId,
   overrideCollection: Option[Boolean],
   worldPermissions: Option[ModelPermissions],
   setAllUsers: Boolean,
-  aadedUserPermissions: Map[String, ModelPermissions],
-  removedUserPermissions: List[String]) extends StatelessModelMessage
+  aadedUserPermissions: Map[DomainUserId, ModelPermissions],
+  removedUserPermissions: List[DomainUserId]) extends StatelessModelMessage
 
 //
 // Messages targeted specifically at "open" models.
 //
 sealed trait RealTimeModelMessage extends ModelMessage
-case class OpenRealtimeModelRequest(domainFqn: DomainFqn, modelId: String, autoCreateId: Option[Int], sk: SessionKey, clientActor: ActorRef) extends RealTimeModelMessage
-case class CloseRealtimeModelRequest(domainFqn: DomainFqn, modelId: String, sk: SessionKey) extends RealTimeModelMessage
+case class OpenRealtimeModelRequest(domainFqn: DomainFqn, modelId: String, autoCreateId: Option[Int], session: DomainUserSessionId, clientActor: ActorRef) extends RealTimeModelMessage
+case class CloseRealtimeModelRequest(domainFqn: DomainFqn, modelId: String, session: DomainUserSessionId) extends RealTimeModelMessage
 case class OperationSubmission(domainFqn: DomainFqn, modelId: String, seqNo: Long, contextVersion: Long, operation: Operation) extends RealTimeModelMessage
 
 sealed trait ModelReferenceEvent extends RealTimeModelMessage {
@@ -80,12 +84,12 @@ sealed trait InternalRealTimeModelMessage
 case class OpenModelSuccess(
     valuePrefix: Long,
     metaData: OpenModelMetaData,
-    connectedClients: Set[SessionKey],
+    connectedClients: Set[DomainUserSessionId],
     referencesBySession: Set[ReferenceState],
     modelData: ObjectValue,
     modelPermissions: ModelPermissions)
     
-case class GetModelPermissionsResponse(overridesCollection: Boolean, worlPermissions: ModelPermissions, userPermissions: Map[String, ModelPermissions])
+case class GetModelPermissionsResponse(overridesCollection: Boolean, worlPermissions: ModelPermissions, userPermissions: Map[DomainUserId, ModelPermissions])
 
 trait RealtimeModelClientMessage {
   val modelId: String
@@ -94,21 +98,21 @@ trait RealtimeModelClientMessage {
 case class OperationAcknowledgement(modelId: String, seqNo: Int, contextVersion: Int, timestamp: Instant) extends RealtimeModelClientMessage
 case class OutgoingOperation(
   modelId: String,
-  sessionKey: SessionKey,
+  session: DomainUserSessionId,
   contextVersion: Int,
   timestamp: Instant,
   operation: Operation) extends RealtimeModelClientMessage
-case class RemoteClientClosed(modelId: String, sk: SessionKey) extends RealtimeModelClientMessage
-case class RemoteClientOpened(modelId: String, sk: SessionKey) extends RealtimeModelClientMessage
+case class RemoteClientClosed(modelId: String, session: DomainUserSessionId) extends RealtimeModelClientMessage
+case class RemoteClientOpened(modelId: String, session: DomainUserSessionId) extends RealtimeModelClientMessage
 case class ModelForceClose(modelId: String, reason: String) extends RealtimeModelClientMessage
 case class ModelPermissionsChanged(modelId: String, permissions: ModelPermissions) extends RealtimeModelClientMessage
 case class ClientAutoCreateModelConfigRequest(modelId: String, autoConfigId: Integer) extends RealtimeModelClientMessage
 
 sealed trait RemoteReferenceEvent extends RealtimeModelClientMessage
 case class RemoteReferenceShared(
-  modelId: String, session: SessionKey, id: Option[String], key: String,
+  modelId: String, session: DomainUserSessionId, id: Option[String], key: String,
   referenceType: ReferenceType.Value, values: List[Any]) extends RemoteReferenceEvent
-case class RemoteReferenceSet(modelId: String, session: SessionKey, id: Option[String], key: String,
+case class RemoteReferenceSet(modelId: String, session: DomainUserSessionId, id: Option[String], key: String,
   referenceType: ReferenceType.Value, value: List[Any]) extends RemoteReferenceEvent
-case class RemoteReferenceCleared(modelId: String, session: SessionKey, id: Option[String], key: String) extends RemoteReferenceEvent
-case class RemoteReferenceUnshared(modelId: String, session: SessionKey, id: Option[String], key: String) extends RemoteReferenceEvent
+case class RemoteReferenceCleared(modelId: String, session: DomainUserSessionId, id: Option[String], key: String) extends RemoteReferenceEvent
+case class RemoteReferenceUnshared(modelId: String, session: DomainUserSessionId, id: Option[String], key: String) extends RemoteReferenceEvent

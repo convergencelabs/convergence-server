@@ -2,6 +2,7 @@ package com.convergencelabs.server.datastore.domain
 
 
 import com.convergencelabs.server.datastore.StoreActor
+import com.convergencelabs.server.domain.DomainUserId
 
 import akka.actor.ActorLogging
 import akka.actor.Props
@@ -10,8 +11,8 @@ object UserGroupStoreActor {
   def props(groupStore: UserGroupStore): Props = Props(new UserGroupStoreActor(groupStore))
 
   sealed trait UserGroupStoreRequest
-  case class AddUserToGroup(groupId: String, username: String) extends UserGroupStoreRequest
-  case class RemoveUserFromGroup(groupId: String, username: String) extends UserGroupStoreRequest
+  case class AddUserToGroup(groupId: String, userId: DomainUserId) extends UserGroupStoreRequest
+  case class RemoveUserFromGroup(groupId: String, userId: DomainUserId) extends UserGroupStoreRequest
   case class CreateUserGroup(group: UserGroup) extends UserGroupStoreRequest
   case class UpdateUserGroup(id: String, group: UserGroup) extends UserGroupStoreRequest
   case class UpdateUserGroupInfo(id: String, group: UserGroupInfo) extends UserGroupStoreRequest
@@ -56,10 +57,10 @@ class UserGroupStoreActor private[datastore] (private[this] val groupStore: User
       case UpdateUserGroupInfo(id, info) =>
         reply(groupStore.updateUserGroupInfo(id, info))
         
-      case AddUserToGroup(id, username) =>
-        reply(groupStore.addUserToGroup(id, username))
-      case RemoveUserFromGroup(id, username) =>
-        reply(groupStore.removeUserFromGroup(id, username))
+      case AddUserToGroup(id, userId) =>
+        reply(groupStore.addUserToGroup(id, userId))
+      case RemoveUserFromGroup(id, userId) =>
+        reply(groupStore.removeUserFromGroup(id, userId))
     }
   }
 }

@@ -26,6 +26,7 @@ import akka.actor.ReceiveTimeout
 import akka.actor.Status
 import akka.actor.Terminated
 import akka.util.Timeout
+import com.convergencelabs.server.domain.DomainUserId
 
 
 /**
@@ -123,10 +124,10 @@ class RealtimeModelActor(
   }
 
   private[this] def getModelPermissions(msg: GetModelPermissionsRequest): Unit = {
-    val GetModelPermissionsRequest(domainFqn, modelId, sk) = msg
+    val GetModelPermissionsRequest(domainFqn, modelId, session) = msg
     persistenceProvider.modelStore.modelExists(modelId).flatMap { exists =>
       if (exists) {
-        modelPermissionResolver.getModelUserPermissions(modelId, sk, persistenceProvider).map(p => p.read).flatMap { canRead =>
+        modelPermissionResolver.getModelUserPermissions(modelId, session.userId, persistenceProvider).map(p => p.read).flatMap { canRead =>
           if (canRead) {
             val permissionsStore = persistenceProvider.modelPermissionsStore
             modelPermissionResolver.getModelPermissions(modelId, persistenceProvider).map { p =>
@@ -151,13 +152,13 @@ class RealtimeModelActor(
   }
 
   private[this] def setModelPermissions(msg: SetModelPermissionsRequest): Unit = {
-    val SetModelPermissionsRequest(domainFqn, modelId, sk, overrideCollection, world, setAllUsers, addedUsers, removedUsers) = msg
-    val users = scala.collection.mutable.Map[String, Option[ModelPermissions]]()
+    val SetModelPermissionsRequest(domainFqn, modelId, session, overrideCollection, world, setAllUsers, addedUsers, removedUsers) = msg
+    val users = scala.collection.mutable.Map[DomainUserId, Option[ModelPermissions]]()
     users ++= addedUsers.mapValues(Some(_))
     removedUsers.foreach(username => users += (username -> None))
     persistenceProvider.modelStore.modelExists(modelId).flatMap { exists =>
       if (exists) {
-        modelPermissionResolver.getModelUserPermissions(modelId, sk, persistenceProvider).map(p => p.manage).flatMap { canSet =>
+        modelPermissionResolver.getModelUserPermissions(modelId, session.userId, persistenceProvider).map(p => p.manage).flatMap { canSet =>
           if (canSet) {
             (for {
               _ <- overrideCollection match {
@@ -297,10 +298,10 @@ class RealtimeModelActor(
   //
 
   private[this] def onGetModelPermissions(request: GetModelPermissionsRequest): Unit = {
-    val GetModelPermissionsRequest(domainFqn, modelId, sk) = request
+    val GetModelPermissionsRequest(domainFqn, modelId, session) = request
     persistenceProvider.modelStore.modelExists(modelId).flatMap { exists =>
       if (exists) {
-        modelPermissionResolver.getModelUserPermissions(modelId, sk, persistenceProvider).map(p => p.read).flatMap { canRead =>
+        modelPermissionResolver.getModelUserPermissions(modelId, session.userId, persistenceProvider).map(p => p.read).flatMap { canRead =>
           if (canRead) {
             val permissionsStore = persistenceProvider.modelPermissionsStore
             modelPermissionResolver.getModelPermissions(modelId, persistenceProvider).map { p =>
@@ -325,11 +326,11 @@ class RealtimeModelActor(
   }
 
   def getModel(msg: GetRealtimeModel): Unit = {
-    val GetRealtimeModel(domainFqn, getModelId, sk) = msg
+    val GetRealtimeModel(domainFqn, getModelId, session) = msg
     log.debug(s"${identityString}: Getting model")
-    (sk match {
-      case Some(sk) =>
-        modelPermissionResolver.getModelUserPermissions(getModelId, sk, persistenceProvider)
+    (session match {
+      case Some(s) =>
+        modelPermissionResolver.getModelUserPermissions(getModelId, s.userId, persistenceProvider)
           .map { p => p.read }
       case None =>
         Success(true)
@@ -351,7 +352,7 @@ class RealtimeModelActor(
   }
 
   private[this] def createOrUpdateModel(msg: CreateOrUpdateRealtimeModel): Unit = {
-    val CreateOrUpdateRealtimeModel(domainFqn, modelId, collectionId, data, overridePermissions, worldPermissions, userPermissions, sk) = msg
+    val CreateOrUpdateRealtimeModel(domainFqn, modelId, collectionId, data, overridePermissions, worldPermissions, userPermissions, session) = msg
     persistenceProvider.modelStore.modelExists(modelId) flatMap { exists =>
       if (exists) {
         this._modelManager match {
@@ -381,14 +382,14 @@ class RealtimeModelActor(
   }
 
   private[this] def createModel(msg: CreateRealtimeModel): Unit = {
-    val CreateRealtimeModel(domainFqn, modelId, collectionId, data, overridePermissions, worldPermissions, userPermissions, sk) = msg
+    val CreateRealtimeModel(domainFqn, modelId, collectionId, data, overridePermissions, worldPermissions, userPermissions, session) = msg
     log.debug(s"${identityString}: Creating model.")
     if (collectionId.length == 0) {
       sender ! Status.Failure(new IllegalArgumentException("The collecitonId can not be empty when creating a model"))
     } else {
       modelCreator.createModel(
         persistenceProvider,
-        sk.map(_.uid),
+        session.map(_.userId),
         collectionId,
         modelId,
         data,
@@ -412,12 +413,12 @@ class RealtimeModelActor(
 
   private[this] def deleteModel(deleteRequest: DeleteRealtimeModel): Unit = {
     // FIXME I don't think we need to check exists first.
-    val DeleteRealtimeModel(domainFqn, modelId, sk) = deleteRequest
+    val DeleteRealtimeModel(domainFqn, modelId, session) = deleteRequest
     persistenceProvider.modelStore.modelExists(modelId).flatMap { exists =>
       if (exists) {
-        (sk match {
-          case Some(sk) =>
-            modelPermissionResolver.getModelUserPermissions(modelId, sk, persistenceProvider)
+        (session match {
+          case Some(s) =>
+            modelPermissionResolver.getModelUserPermissions(modelId, s.userId, persistenceProvider)
               .map { p => p.remove }
           case None =>
             Success(true)
@@ -451,8 +452,4 @@ class RealtimeModelActor(
       persistenceManager.releasePersistenceProvider(self, context, domainFqn)
     }
   }
-}
-
-case class SessionKey(uid: String, sid: String, admin: Boolean = false) {
-  def serialize(): String = s"${uid}:${sid}"
 }

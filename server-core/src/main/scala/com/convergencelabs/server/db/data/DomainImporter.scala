@@ -52,6 +52,7 @@ import java.time.Duration
 import com.sun.media.sound.ModelPerformer
 import com.convergencelabs.server.datastore.domain.ModelPermissions
 import com.convergencelabs.server.datastore.domain.CollectionPermissions
+import com.convergencelabs.server.domain.DomainUserId
 
 object DomainImporter {
   // FIXME we actually need to import / export this.
@@ -137,7 +138,10 @@ class DomainImporter(
         userData.firstName,
         userData.lastName,
         userData.displayName,
-        userData.email)
+        userData.email,
+        userData.disabled,
+        userData.deleted,
+        userData.deletedUsername)
       persistence.userStore.createDomainUser(user)
 
       userData.password map { password =>
@@ -154,9 +158,9 @@ class DomainImporter(
   def createSessions(): Try[Unit] = Try {
     logger.debug("Importting domain sessions")
     data.sessions foreach (_.foreach { sessionData =>
-      val CreateDomainSession(id, username, connected, disconnected,
+      val CreateDomainSession(id, username, userType, connected, disconnected,
         authMethod, client, clientVersion, clientMetaData, remoteHost) = sessionData
-      val session = DomainSession(id, username, connected, disconnected,
+      val session = DomainSession(id, DomainUserId(userType, username), connected, disconnected,
         authMethod, client, clientVersion, clientMetaData, remoteHost)
       persistence.sessionStore.createSession(session)
     })

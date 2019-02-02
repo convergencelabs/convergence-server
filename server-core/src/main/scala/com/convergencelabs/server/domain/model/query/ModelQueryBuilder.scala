@@ -37,12 +37,14 @@ import com.convergencelabs.server.domain.model.query.Ast.StringTerm
 import com.convergencelabs.server.domain.model.query.Ast.Subtract
 import com.convergencelabs.server.domain.model.query.Ast.ValueTerm
 import com.convergencelabs.server.domain.model.query.Ast.WhereExpression
+import com.convergencelabs.server.domain.DomainUserId
 
 case class ModelQueryParameters(query: String, params: Map[String, Any], as: Map[String, String])
 
 object ModelQueryBuilder {
 
-  def queryModels(select: SelectStatement, username: Option[String]): ModelQueryParameters = {
+  def queryModels(select: SelectStatement, userId: Option[DomainUserId]): ModelQueryParameters = {
+    // TODO use a let to query for the user first.
     implicit val params = ScalaMutableMap[String, Any]()
     implicit val as = ScalaMutableMap[String, String]()
 
@@ -66,18 +68,20 @@ object ModelQueryBuilder {
         sb.toString()
       }
 
-    val selectString = s"SELECT ${projectionString}FROM Model WHERE ${DomainSchema.Classes.Model.Fields.Collection}.${DomainSchema.Classes.Model.Fields.Id} = ${addParam(select.collection)}"
+    val selectString = s"SELECT ${projectionString}FROM Model WHERE ${DomainSchema.Classes.Model.Fields.Collection}.${DomainSchema.Classes.Collection.Fields.Id} = ${addParam(select.collection)}"
 
     val whereString = (select.where map { where =>
-      s" and ${buildExpressionString(where)}"
+      s" AND ${buildExpressionString(where)}"
     }) getOrElse ("")
 
-    val permissionString = username.map { usr =>
-      val userParam = addParam(usr)
-      s""" and ((overridePermissions = true and ((userPermissions contains ((user.username = $userParam and permissions.read = true))) or
-                    (not(userPermissions contains (user.username = $userParam )) and worldPermissions.read = true))) or 
-	               (overridePermissions = false and ((collection.userPermissions contains ((user.username = $userParam and permissions.read = true))) or
-                    (not(collection.userPermissions contains (user.username = $userParam )) and collection.worldPermissions.read = true))))"""
+    val permissionString = userId.map { uid =>
+      val usernameParam = addParam(uid.username)
+      val userTypeParam = addParam(uid.userType.toString.toLowerCase)
+      s""" AND ((overridePermissions = true AND ((userPermissions CONTAINS ((user.username = $usernameParam AND user.userType = $userTypeParam AND permissions.read = true))) OR
+                    (not(userPermissions CONTAINS (user.username = $usernameParam AND user.userType = $userTypeParam )) AND worldPermissions.read = true))) OR 
+	               (overridePermissions = false AND ((collection.userPermissions CONTAINS ((user.username = $usernameParam AND user.userType = $userTypeParam AND permissions.read = true))) OR
+                    (NOT(collection.userPermissions CONTAINS (user.username = $usernameParam AND user.userType = $userTypeParam )) AND collection.worldPermissions.read = true))))"""
+
     }.getOrElse("")
 
     val orderString: String = if (select.orderBy.isEmpty) {

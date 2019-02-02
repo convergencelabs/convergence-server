@@ -50,6 +50,8 @@ import akka.actor.ActorRef
 import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.domain.UnauthorizedException
 import com.convergencelabs.server.actor.ShardedActorStop
+import com.convergencelabs.server.domain.DomainUserId
+import com.convergencelabs.server.domain.DomainUserSessionId
 
 // scalastyle:off magic.number
 class RealtimeModelActorSpec
@@ -94,7 +96,7 @@ class RealtimeModelActorSpec
         val dataRequest1 = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientAutoCreateModelConfigRequest])
         assert(dataRequest1.autoConfigId == 1)
 
-        realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), SessionKey(uid2, session2), client2.ref), client2.ref)
+        realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), DomainUserSessionId(session2, uid2), client2.ref), client2.ref)
         val dataRequest2 = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientAutoCreateModelConfigRequest])
         assert(dataRequest1.autoConfigId == 1)
       }
@@ -121,7 +123,7 @@ class RealtimeModelActorSpec
         realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), skU1S1, client1.ref), client1.ref)
         client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientAutoCreateModelConfigRequest])
 
-        realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), SessionKey(uid2, session2), client2.ref), client2.ref)
+        realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), DomainUserSessionId(session2, uid2), client2.ref), client2.ref)
         client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientAutoCreateModelConfigRequest])
 
         // Now mock that the data is there.
@@ -169,7 +171,7 @@ class RealtimeModelActorSpec
       }
 
       "respond with an error for an invalid cId" in new MockDatabaseWithModel with OneOpenClient {
-        realtimeModelActor.tell(CloseRealtimeModelRequest(domainFqn, modelId, SessionKey(uid1, "invalidCId")), client1.ref)
+        realtimeModelActor.tell(CloseRealtimeModelRequest(domainFqn, modelId, DomainUserSessionId("invalidCId", uid1)), client1.ref)
         val Status.Failure(cause) = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Status.Failure])
         cause shouldBe a[ModelNotOpenException]
       }
@@ -181,12 +183,12 @@ class RealtimeModelActorSpec
         realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), skU1S1, client1.ref), client1.ref)
         var client1Response = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
 
-        realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), SessionKey(uid2, session2), client2.ref), client2.ref)
+        realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), DomainUserSessionId(session2, uid2), client2.ref), client2.ref)
         var client2Response = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
 
         client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[RemoteClientOpened])
 
-        realtimeModelActor.tell(CloseRealtimeModelRequest(domainFqn, modelId, SessionKey(uid2, session2)), client2.ref)
+        realtimeModelActor.tell(CloseRealtimeModelRequest(domainFqn, modelId, DomainUserSessionId(session2, uid2)), client2.ref)
         val closeAck = client2.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ())
 
         client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[RemoteClientClosed])
@@ -353,15 +355,15 @@ class RealtimeModelActorSpec
   trait TestFixture {
     val domainFqn = DomainFqn("convergence", "default")
 
-    val uid1 = "u1"
-    val uid2 = "u2"
+    val uid1 = DomainUserId.normal("u1")
+    val uid2 = DomainUserId.normal("u2")
 
     val session1 = "s1"
     val session2 = "s2"
 
     val now = Instant.now()
 
-    val skU1S1 = SessionKey(uid1, session1)
+    val skU1S1 = DomainUserSessionId(session1, uid1)
 
     val modelPermissions = ModelPermissions(true, true, true, true)
 
@@ -388,13 +390,13 @@ class RealtimeModelActorSpec
     Mockito.when(persistenceProvider.collectionStore.collectionExists(collectionId)).thenReturn(Success(true))
 
     Mockito.when(persistenceProvider.modelPermissionsStore.getCollectionWorldPermissions(collectionId)).thenReturn(Success(CollectionPermissions(true, true, true, true, true)))
-    Mockito.when(persistenceProvider.modelPermissionsStore.getAllCollectionUserPermissions(collectionId)).thenReturn(Success(Map[String, CollectionPermissions]()))
+    Mockito.when(persistenceProvider.modelPermissionsStore.getAllCollectionUserPermissions(collectionId)).thenReturn(Success(Map[DomainUserId, CollectionPermissions]()))
     Mockito.when(persistenceProvider.modelPermissionsStore.getCollectionUserPermissions(Matchers.any(), Matchers.any())).thenReturn(Success(None))
     Mockito.when(persistenceProvider.modelPermissionsStore.updateModelUserPermissions(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(Success(()))
     Mockito.when(persistenceProvider.modelPermissionsStore.updateAllModelUserPermissions(Matchers.any(), Matchers.any())).thenReturn(Success(()))
     Mockito.when(persistenceProvider.modelPermissionsStore.modelOverridesCollectionPermissions(modelId)).thenReturn(Success(false))
     Mockito.when(persistenceProvider.modelPermissionsStore.getModelWorldPermissions(modelId)).thenReturn(Success(ModelPermissions(true, true, true, true)))
-    Mockito.when(persistenceProvider.modelPermissionsStore.getAllModelUserPermissions(modelId)).thenReturn(Success(Map[String, ModelPermissions]()))
+    Mockito.when(persistenceProvider.modelPermissionsStore.getAllModelUserPermissions(modelId)).thenReturn(Success(Map[DomainUserId, ModelPermissions]()))
 
     val modelPermissionsResolver = mock[ModelPermissionResolver]
     Mockito.when(modelPermissionsResolver.getModelAndCollectionPermissions(any(), any(), any()))
@@ -440,7 +442,7 @@ class RealtimeModelActorSpec
 
   trait TwoOpenClients extends OneOpenClient {
     val client2 = new TestProbe(system)
-    realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), SessionKey(uid2, session1), client2.ref), client2.ref)
+    realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), DomainUserSessionId(session2, uid2), client2.ref), client2.ref)
     val client2OpenResponse = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
     client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[RemoteClientOpened])
   }

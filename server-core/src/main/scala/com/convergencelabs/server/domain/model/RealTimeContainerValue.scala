@@ -1,6 +1,7 @@
 package com.convergencelabs.server.domain.model
 
 import scala.util.Try
+import com.convergencelabs.server.domain.DomainUserSessionId
 
 abstract class RealTimeContainerValue(
   private[this] val id: String,
@@ -22,7 +23,7 @@ abstract class RealTimeContainerValue(
 
   def children(): List[RealTimeValue]
 
-  override def sessionDisconnected(session: SessionKey): Unit = {
+  override def sessionDisconnected(session: DomainUserSessionId): Unit = {
     this.children.foreach { child => child.sessionDisconnected(session) }
     super.sessionDisconnected(session)
   }

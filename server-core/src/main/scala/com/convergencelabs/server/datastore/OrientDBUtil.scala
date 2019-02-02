@@ -51,9 +51,9 @@ object OrientDBUtil {
       } else {
         Failure(new DatabaseCommandException(command, params, "No ResultSet was returned from the command"))
       }
-      
+
       rs.close()
-      
+
       result
     }
   }
@@ -114,6 +114,19 @@ object OrientDBUtil {
         case None => Failure(EntityNotFoundException())
       })
   }
+  
+  def getIdentitiesFromSingleValueIndex(db: ODatabaseDocument, index: String, keys: List[Any]): Try[List[ORID]] = {
+    val processedKeys = keys.map(_ match {
+      case l: List[_] => new OCompositeKey(l.asJava)
+      case v: Any => v
+    })
+
+    Try(db.getMetadata.getIndexManager.getIndex(index).iterateEntries(processedKeys.asJava, false)).map { cursor =>
+      cursor.toEntries().asScala.toList.map { entry =>
+        entry.getValue.getIdentity
+      }
+    }
+  }
 
   def findIdentityFromSingleValueIndex(db: ODatabaseDocument, index: String, keys: List[_]): Try[Option[ORID]] = {
     findIdentityFromSingleValueIndex(db, index, new OCompositeKey(keys.asJava))
@@ -148,6 +161,19 @@ object OrientDBUtil {
       .map(_.map(_.getRecord.asInstanceOf[ODocument]))
   }
 
+  def getDocumentsFromSingleValueIndex(db: ODatabaseDocument, index: String, keys: List[Any]): Try[List[ODocument]] = {
+    val processedKeys = keys.map(_ match {
+      case l: List[_] => new OCompositeKey(l.asJava)
+      case v: Any => v
+    })
+
+    Try(db.getMetadata.getIndexManager.getIndex(index).iterateEntries(processedKeys.asJava, false)).map { cursor =>
+      cursor.toEntries().asScala.toList.map { entry =>
+        entry.getValue.getRecord.asInstanceOf[ODocument]
+      }
+    }
+  }
+
   def deleteFromSingleValueIndexIfExists(db: ODatabaseDocument, index: String, keys: List[_]): Try[Unit] = {
     deleteFromSingleValueIndexIfExists(db, index, new OCompositeKey(keys.asJava))
   }
@@ -167,7 +193,7 @@ object OrientDBUtil {
       }
     }
   }
-  
+
   /////////////////////////////////////////////////////////////////////////////
   // Sequence Methods
   ////////////////////////////////////////////////////////////////////////////
@@ -179,7 +205,7 @@ object OrientDBUtil {
       next
     }
   }
-  
+
   /////////////////////////////////////////////////////////////////////////////
   // Helpers Methods
   ////////////////////////////////////////////////////////////////////////////

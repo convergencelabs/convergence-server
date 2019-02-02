@@ -25,16 +25,16 @@ import com.convergencelabs.server.domain.chat.ChatChannelMessages.ChannelNotFoun
 import com.convergencelabs.server.domain.chat.ChatChannelStateManager.AllChatChannelPermissions
 import com.convergencelabs.server.domain.chat.ChatChannelStateManager.ChatPermissions
 import com.convergencelabs.server.domain.chat.ChatChannelStateManager.DefaultChatPermissions
-import com.convergencelabs.server.domain.model.SessionKey
 
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.datastore.domain.ChatChannelMember
+import com.convergencelabs.server.domain.DomainUserId
 
 object ChatChannelStateManager {
   def create(channelId: String, chatChannelStore: ChatChannelStore, permissionsStore: PermissionsStore): Try[ChatChannelStateManager] = {
     chatChannelStore.getChatChannelInfo(channelId) map { info =>
       val ChatChannelInfo(id, channelType, created, isPrivate, name, topic, lastEventNo, lastEventTime, members) = info
-      val memberMap = members.map(member => (member.username, member)).toMap
+      val memberMap = members.map(member => (member.userId, member)).toMap
       val state = ChatChannelState(id, channelType, created, isPrivate, name, topic, lastEventTime, lastEventNo, memberMap)
       new ChatChannelStateManager(channelId, state, chatChannelStore, permissionsStore)
     } recoverWith {
@@ -78,28 +78,28 @@ class ChatChannelStateManager(
     state
   }
 
-  def onRemoveChannel(channelId: String, sk: SessionKey): Try[Unit] = {
-    hasPermission(sk, ChatPermissions.RemoveChannel).map { _ =>
+  def onRemoveChannel(channelId: String, userId: DomainUserId): Try[Unit] = {
+    hasPermission(userId, ChatPermissions.RemoveChannel).map { _ =>
       channelStore.removeChatChannel(channelId)
     }
   }
 
-  def onJoinChannel(sk: SessionKey): Try[ChatUserJoinedEvent] = {
-    hasPermission(sk, ChatPermissions.JoinChannel).map { _ =>
+  def onJoinChannel(userId: DomainUserId): Try[ChatUserJoinedEvent] = {
+    hasPermission(userId, ChatPermissions.JoinChannel).map { _ =>
       val members = state.members
-      if (members contains sk.uid) {
+      if (members contains userId) {
         Failure(ChannelAlreadyJoinedException(channelId))
       } else {
-        val newMembers = members + (sk.uid -> ChatChannelMember(channelId, sk.uid, 0))
+        val newMembers = members + (userId -> ChatChannelMember(channelId, userId, 0))
 
         val eventNo = state.lastEventNumber + 1
         val timestamp = Instant.now()
 
-        val event = ChatUserJoinedEvent(eventNo, channelId, sk.uid, timestamp)
+        val event = ChatUserJoinedEvent(eventNo, channelId, userId, timestamp)
 
         for {
           _ <- channelStore.addChatUserJoinedEvent(event)
-          _ <- channelStore.addChatChannelMember(channelId, sk.uid, None)
+          _ <- channelStore.addChatChannelMember(channelId, userId, None)
         } yield {
           val newState = state.copy(lastEventNumber = eventNo, lastEventTime = timestamp, members = newMembers)
           this.state = newState
@@ -109,19 +109,19 @@ class ChatChannelStateManager(
     }.get
   }
 
-  def onLeaveChannel(sk: SessionKey): Try[ChatUserLeftEvent] = {
-    hasPermission(sk, ChatPermissions.LeaveChannel).map { _ =>
+  def onLeaveChannel(userId: DomainUserId): Try[ChatUserLeftEvent] = {
+    hasPermission(userId, ChatPermissions.LeaveChannel).map { _ =>
       val members = state.members
-      if (members contains sk.uid) {
-        val newMembers = members - sk.uid
+      if (members contains userId) {
+        val newMembers = members - userId
         val eventNo = state.lastEventNumber + 1
         val timestamp = Instant.now()
 
-        val event = ChatUserLeftEvent(eventNo, channelId, sk.uid, timestamp)
+        val event = ChatUserLeftEvent(eventNo, channelId, userId, timestamp)
 
         for {
           _ <- channelStore.addChatUserLeftEvent(event)
-          _ <- channelStore.removeChatChannelMember(channelId, sk.uid)
+          _ <- channelStore.removeChatChannelMember(channelId, userId)
         } yield {
           val newState = state.copy(lastEventNumber = eventNo, lastEventTime = timestamp, members = newMembers)
           this.state = newState
@@ -133,22 +133,22 @@ class ChatChannelStateManager(
     }.get
   }
 
-  def onAddUserToChannel(channelId: String, sk: SessionKey, username: String): Try[ChatUserAddedEvent] = {
-    hasPermission(sk, ChatPermissions.AddUser).map { _ =>
+  def onAddUserToChannel(channelId: String, userId: DomainUserId, userToAdd: DomainUserId): Try[ChatUserAddedEvent] = {
+    hasPermission(userId, ChatPermissions.AddUser).map { _ =>
       val members = state.members
-      if (members contains username) {
+      if (members contains userToAdd) {
         Failure(ChannelAlreadyJoinedException(channelId))
       } else {
-        val newMembers = members + (username -> ChatChannelMember(channelId, username, 0))
+        val newMembers = members + (userToAdd -> ChatChannelMember(channelId, userToAdd, 0))
         val eventNo = state.lastEventNumber + 1
         val timestamp = Instant.now()
 
-        val event = ChatUserAddedEvent(eventNo, channelId, sk.uid, timestamp, username)
+        val event = ChatUserAddedEvent(eventNo, channelId, userId, timestamp, userToAdd)
         for {
           _ <- channelStore.addChatUserAddedEvent(event)
-          _ <- channelStore.addChatChannelMember(channelId, username, None)
+          _ <- channelStore.addChatChannelMember(channelId, userToAdd, None)
           channel <- channelStore.getChatChannelRid(channelId)
-          _ <- permissionsStore.addUserPermissions(DefaultChatPermissions, username, Some(channel))
+          _ <- permissionsStore.addUserPermissions(DefaultChatPermissions, userToAdd, Some(channel))
         } yield {
           val newState = state.copy(lastEventNumber = eventNo, lastEventTime = timestamp, members = newMembers)
           this.state = newState
@@ -158,19 +158,19 @@ class ChatChannelStateManager(
     }.get
   }
 
-  def onRemoveUserFromChannel(channelId: String, sk: SessionKey, username: String): Try[ChatUserRemovedEvent] = {
-    hasPermission(sk, ChatPermissions.RemoveUser).map { _ =>
+  def onRemoveUserFromChannel(channelId: String, userId: DomainUserId, userToRemove: DomainUserId): Try[ChatUserRemovedEvent] = {
+    hasPermission(userId, ChatPermissions.RemoveUser).map { _ =>
       val members = state.members
-      if (members contains username) {
-        val newMembers = members - username
+      if (members contains userToRemove) {
+        val newMembers = members - userToRemove
         val eventNo = state.lastEventNumber + 1
         val timestamp = Instant.now()
 
-        val event = ChatUserRemovedEvent(eventNo, channelId, sk.uid, timestamp, username)
+        val event = ChatUserRemovedEvent(eventNo, channelId, userId, timestamp, userToRemove)
 
         for {
           _ <- channelStore.addChatUserRemovedEvent(event)
-          _ <- channelStore.addChatChannelMember(channelId, username, None)
+          _ <- channelStore.removeChatChannelMember(channelId, userToRemove)
         } yield {
           val newState = state.copy(lastEventNumber = eventNo, lastEventTime = timestamp, members = newMembers)
           this.state = newState
@@ -184,12 +184,12 @@ class ChatChannelStateManager(
     }.get
   }
 
-  def onSetChatChannelName(channelId: String, sk: SessionKey, name: String): Try[ChatNameChangedEvent] = {
-    hasPermission(sk, ChatPermissions.SetName).map { _ =>
+  def onSetChatChannelName(channelId: String, userId: DomainUserId, name: String): Try[ChatNameChangedEvent] = {
+    hasPermission(userId, ChatPermissions.SetName).map { _ =>
       val eventNo = state.lastEventNumber + 1
       val timestamp = Instant.now()
 
-      val event = ChatNameChangedEvent(eventNo, channelId, sk.uid, timestamp, name)
+      val event = ChatNameChangedEvent(eventNo, channelId, userId, timestamp, name)
 
       for {
         _ <- channelStore.addChatNameChangedEvent(event)
@@ -202,12 +202,12 @@ class ChatChannelStateManager(
     }.get
   }
 
-  def onSetChatChannelTopic(channelId: String, sk: SessionKey, topic: String): Try[ChatTopicChangedEvent] = {
-    hasPermission(sk, ChatPermissions.SetTopic).map { _ =>
+  def onSetChatChannelTopic(channelId: String, userId: DomainUserId, topic: String): Try[ChatTopicChangedEvent] = {
+    hasPermission(userId, ChatPermissions.SetTopic).map { _ =>
       val eventNo = state.lastEventNumber + 1
       val timestamp = Instant.now()
 
-      val event = ChatTopicChangedEvent(eventNo, channelId, sk.uid, timestamp, topic)
+      val event = ChatTopicChangedEvent(eventNo, channelId, userId, timestamp, topic)
 
       for {
         _ <- channelStore.addChatTopicChangedEvent(event)
@@ -220,28 +220,28 @@ class ChatChannelStateManager(
     }.get
   }
 
-  def onMarkEventsSeen(channelId: String, sk: SessionKey, eventNumber: Long): Try[Unit] = {
-    if (state.members contains sk.uid) {
-      val newMembers = state.members + (sk.uid -> ChatChannelMember(channelId, sk.uid, eventNumber))
+  def onMarkEventsSeen(channelId: String, userId: DomainUserId, eventNumber: Long): Try[Unit] = {
+    if (state.members contains userId) {
+      val newMembers = state.members + (userId -> ChatChannelMember(channelId, userId, eventNumber))
       val newState = state.copy(members = newMembers)
       this.state = newState
-      channelStore.markSeen(channelId, sk.uid, eventNumber)
+      channelStore.markSeen(channelId, userId, eventNumber)
     } else {
       Failure(UnauthorizedException("Not authorized"))
     }
   }
 
-  def onGetHistory(channelId: String, username: String, limit: Option[Int], startEvent: Option[Long],
+  def onGetHistory(channelId: String, userId: DomainUserId, limit: Option[Int], startEvent: Option[Long],
     forward: Option[Boolean], eventFilter: Option[List[String]]): Try[List[ChatChannelEvent]] = {
     channelStore.getChatChannelEvents(channelId, eventFilter, startEvent, limit, forward)
   }
 
-  def onPublishMessage(channelId: String, sk: SessionKey, message: String): Try[ChatMessageEvent] = {
-    if (state.members contains sk.uid) {
+  def onPublishMessage(channelId: String, userId: DomainUserId, message: String): Try[ChatMessageEvent] = {
+    if (state.members contains userId) {
       val eventNo = state.lastEventNumber + 1
       val timestamp = Instant.now()
 
-      val event = ChatMessageEvent(eventNo, channelId, sk.uid, timestamp, message)
+      val event = ChatMessageEvent(eventNo, channelId, userId, timestamp, message)
 
       channelStore.addChatMessageEvent(event).map { _ =>
         val newState = state.copy(lastEventNumber = eventNo, lastEventTime = timestamp)
@@ -253,8 +253,8 @@ class ChatChannelStateManager(
     }
   }
 
-  def onAddPermissions(channelId: String, sk: SessionKey, world: Option[Set[String]], user: Option[Set[UserPermissions]], group: Option[Set[GroupPermissions]]): Try[Unit] = {
-    hasPermission(sk, ChatPermissions.Manage).map { _ =>
+  def onAddPermissions(channelId: String, userId: DomainUserId, world: Option[Set[String]], user: Option[Set[UserPermissions]], group: Option[Set[GroupPermissions]]): Try[Unit] = {
+    hasPermission(userId, ChatPermissions.Manage).map { _ =>
       for {
         channel <- channelStore.getChatChannelRid(channelId)
       } yield {
@@ -262,8 +262,8 @@ class ChatChannelStateManager(
 
         user map {
           _ foreach {
-            case UserPermissions(username, permissions) =>
-              permissionsStore.addUserPermissions(permissions, username, Some(channel)).get
+            case UserPermissions(userId, permissions) =>
+              permissionsStore.addUserPermissions(permissions, userId, Some(channel)).get
           }
         }
 
@@ -277,8 +277,8 @@ class ChatChannelStateManager(
     }
   }
 
-  def onRemovePermissions(channelId: String, sk: SessionKey, world: Option[Set[String]], user: Option[Set[UserPermissions]], group: Option[Set[GroupPermissions]]): Try[Unit] = {
-    hasPermission(sk, ChatPermissions.Manage).map { _ =>
+  def onRemovePermissions(channelId: String, userId: DomainUserId, world: Option[Set[String]], user: Option[Set[UserPermissions]], group: Option[Set[GroupPermissions]]): Try[Unit] = {
+    hasPermission(userId, ChatPermissions.Manage).map { _ =>
       for {
         channel <- channelStore.getChatChannelRid(channelId)
       } yield {
@@ -286,8 +286,8 @@ class ChatChannelStateManager(
 
         user map {
           _ foreach {
-            case UserPermissions(username, permissions) =>
-              permissionsStore.removeUserPermissions(permissions, username, Some(channel)).get
+            case UserPermissions(userId, permissions) =>
+              permissionsStore.removeUserPermissions(permissions, userId, Some(channel)).get
           }
         }
 
@@ -301,8 +301,8 @@ class ChatChannelStateManager(
     }
   }
 
-  def onSetPermissions(channelId: String, sk: SessionKey, world: Option[Set[String]], user: Option[Set[UserPermissions]], group: Option[Set[GroupPermissions]]): Try[Unit] = {
-    hasPermission(sk, ChatPermissions.Manage).map { _ =>
+  def onSetPermissions(channelId: String, userId: DomainUserId, world: Option[Set[String]], user: Option[Set[UserPermissions]], group: Option[Set[GroupPermissions]]): Try[Unit] = {
+    hasPermission(userId, ChatPermissions.Manage).map { _ =>
       for {
         channel <- channelStore.getChatChannelRid(channelId)
       } yield {
@@ -310,8 +310,8 @@ class ChatChannelStateManager(
 
         user map {
           _ foreach {
-            case UserPermissions(username, permissions) =>
-              permissionsStore.setUserPermissions(permissions, username, Some(channel)).get
+            case UserPermissions(userId, permissions) =>
+              permissionsStore.setUserPermissions(permissions, userId, Some(channel)).get
           }
         }
 
@@ -325,34 +325,34 @@ class ChatChannelStateManager(
     }
   }
 
-  def onGetClientPermissions(channelId: String, sk: SessionKey): Try[Set[String]] = {
-    channelStore.getChatChannelRid(channelId) flatMap { permissionsStore.getAggregateUserPermissions(sk.uid, _, AllChatChannelPermissions) }
+  def onGetClientPermissions(channelId: String, userId: DomainUserId): Try[Set[String]] = {
+    channelStore.getChatChannelRid(channelId) flatMap { permissionsStore.getAggregateUserPermissions(userId, _, AllChatChannelPermissions) }
   }
 
-  def onGetWorldPermissions(channelId: String, sk: SessionKey): Try[Set[String]] = {
+  def onGetWorldPermissions(channelId: String): Try[Set[String]] = {
     val worldPermissions = channelStore.getChatChannelRid(channelId) flatMap { channel => permissionsStore.getWorldPermissions(Some(channel)) }
     worldPermissions map { permissions => permissions.map { _.permission } }
   }
 
-  def onGetAllUserPermissions(channelId: String, sk: SessionKey): Try[Set[UserPermission]] = {
+  def onGetAllUserPermissions(channelId: String): Try[Set[UserPermission]] = {
     channelStore.getChatChannelRid(channelId) flatMap { channel => permissionsStore.getAllUserPermissions(Some(channel)) }
   }
 
-  def onGetAllGroupPermissions(channelId: String, sk: SessionKey): Try[Set[GroupPermission]] = {
+  def onGetAllGroupPermissions(channelId: String): Try[Set[GroupPermission]] = {
     channelStore.getChatChannelRid(channelId) flatMap { channel => permissionsStore.getAllGroupPermissions(Some(channel)) }
   }
 
-  def onGetUserPermissions(channelId: String, username: String, sk: SessionKey): Try[Set[String]] = {
-    channelStore.getChatChannelRid(channelId) flatMap { channel => permissionsStore.getUserPermissions(username, Some(channel)) }
+  def onGetUserPermissions(channelId: String, userId: DomainUserId): Try[Set[String]] = {
+    channelStore.getChatChannelRid(channelId) flatMap { channel => permissionsStore.getUserPermissions(userId, Some(channel)) }
   }
 
-  def onGetGroupPermissions(channelId: String, groupId: String, sk: SessionKey): Try[Set[String]] = {
+  def onGetGroupPermissions(channelId: String, groupId: String): Try[Set[String]] = {
     channelStore.getChatChannelRid(channelId) flatMap { channel => permissionsStore.getGroupPermissions(groupId, Some(channel)) }
   }
 
   def removeAllMembers(): Unit = {
     this.state().members.values.foreach(member => {
-      this.channelStore.removeChatChannelMember(channelId, member.username) recover {
+      this.channelStore.removeChatChannelMember(channelId, member.userId) recover {
         case cause: Throwable =>
           error("Error removing chat channel member", cause)
       }
@@ -360,13 +360,13 @@ class ChatChannelStateManager(
     state = state.copy(members = Map())
   }
 
-  private[this] def hasPermission(sk: SessionKey, permission: String): Try[Unit] = {
-    if (sk.admin) {
+  private[this] def hasPermission(userId: DomainUserId, permission: String): Try[Unit] = {
+    if (userId.isConvergence) {
       Success(())
     } else {
       for {
         channelRid <- channelStore.getChatChannelRid(channelId)
-        hasPermission <- permissionsStore.hasPermission(sk.uid, channelRid, permission)
+        hasPermission <- permissionsStore.hasPermission(userId, channelRid, permission)
       } yield {
         if (!hasPermission) {
           Failure(UnauthorizedException("Not authorized"))

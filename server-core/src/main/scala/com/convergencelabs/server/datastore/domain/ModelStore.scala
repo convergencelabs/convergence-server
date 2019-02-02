@@ -30,6 +30,7 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.domain.DomainUserId
 
 
 object ModelStore {
@@ -265,13 +266,13 @@ class ModelStore private[domain] (
     OrientDBUtil.queryAndMap(db, query)(docToModelMetaData(_))
   }
 
-  def queryModels(query: String, username: Option[String]): Try[List[ModelQueryResult]] = withDb { db =>
+  def queryModels(query: String, userId: Option[DomainUserId]): Try[List[ModelQueryResult]] = withDb { db =>
     new QueryParser(query).InputLine.run().recoverWith {
       case ParseError(position, principalPosition, traces) =>
         val index = position.index
         Failure(QueryParsingException(s"Parse error at position ${index}", query, Some(index)))
     }.flatMap { select =>
-      val ModelQueryParameters(query, params, as) = ModelQueryBuilder.queryModels(select, username)
+      val ModelQueryParameters(query, params, as) = ModelQueryBuilder.queryModels(select, userId)
       OrientDBUtil.query(db, query, params).map { result =>
         if (select.fields.isEmpty) {
           result.map { modelDoc =>

@@ -4,8 +4,7 @@ object UserClass extends OrientDBClass {
   val ClassName = "User"
 
   object Indices {
-    val Username = "User.username"
-    val Email = "User.email"
+    val UsernameUserType = "User.username_userType"
   }
 
    object Fields {
@@ -16,5 +15,8 @@ object UserClass extends OrientDBClass {
     val DisplayName = "displayName"
     val Email = "email"
     val LastLogin = "lastLogin"
+    val Disabled = "disabled"
+    val Deleted = "deleted"
+    val DeletedUsername = "deletedUsername"
   }
 }

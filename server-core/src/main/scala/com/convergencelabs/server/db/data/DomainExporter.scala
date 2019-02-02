@@ -89,8 +89,8 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
         val pwHash = persistence.userStore.getDomainUserPasswordHash(domainUser.username).get map { hash =>
           SetPassword("hash", hash)
         }
-        val DomainUser(userType, username, firstName, lastName, displayName, email) = domainUser
-        CreateDomainUser(userType.toString.toLowerCase, username, firstName, lastName, displayName, email, pwHash)
+        val DomainUser(userType, username, firstName, lastName, displayName, email, disabled, deleted, deletedUsername) = domainUser
+        CreateDomainUser(userType.toString.toLowerCase, username, firstName, lastName, displayName, email, disabled, deleted, deletedUsername, pwHash)
       }
     }
   }
@@ -100,9 +100,9 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
     persistence.sessionStore.getAllSessions(None, None) map {
       _.map { domainSession =>
         // FIXME better error handling here
-        val DomainSession(id, username, connected, disconnected, 
+        val DomainSession(id, userId, connected, disconnected, 
             authMethod, client, clientVersion, clientMetaData, remoteHost) = domainSession
-        CreateDomainSession(id, username, connected, disconnected, 
+        CreateDomainSession(id, userId.username, userId.userType.toString.toLowerCase, connected, disconnected, 
             authMethod, client, clientVersion, clientMetaData, remoteHost)
       }
     }

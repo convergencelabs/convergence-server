@@ -12,6 +12,7 @@ import com.convergencelabs.server.domain.DomainUserType
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.datastore.domain.ChatChannelStore.ChannelType
 import java.time.Instant
+import com.convergencelabs.server.domain.DomainUserId
 
 class PermissionsStoreSpec
   extends PersistenceStoreSpec[DomainPersistenceProvider](DeltaCategory.Domain)
@@ -21,13 +22,13 @@ class PermissionsStoreSpec
   val channel1 = "channel1"
   val channel2 = "channel2"
 
-  val user1 = "user1"
-  val user2 = "user2"
-  val user3 = "user3"
+  val user1 = DomainUserId.normal("user1")
+  val user2 = DomainUserId.normal("user2")
+  val user3 = DomainUserId.normal("user3")
 
-  val domainUser1 = DomainUser(DomainUserType.Normal, user1, None, None, None, None)
-  val domainUser2 = DomainUser(DomainUserType.Normal, user2, None, None, None, None)
-  val domainUser3 = DomainUser(DomainUserType.Normal, user3, None, None, None, None)
+  val domainUser1 = DomainUser(user1, None, None, None, None)
+  val domainUser2 = DomainUser(user2, None, None, None, None)
+  val domainUser3 = DomainUser(user3, None, None, None, None)
 
   val group1 = "group1"
   val group2 = "group2"

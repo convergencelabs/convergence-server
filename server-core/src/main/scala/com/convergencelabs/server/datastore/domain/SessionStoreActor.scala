@@ -5,6 +5,8 @@ import com.convergencelabs.server.datastore.domain.SessionStore.SessionQueryType
 
 import akka.actor.ActorLogging
 import akka.actor.Props
+import com.convergencelabs.server.domain.DomainUserId
+import com.convergencelabs.server.domain.DomainUserType
 
 object SessionStoreActor {
   def props(sessionStore: SessionStore): Props = Props(new SessionStoreActor(sessionStore))
@@ -13,6 +15,7 @@ object SessionStoreActor {
   case class GetSessions(
     sessionId: Option[String],
     username: Option[String],
+    userType: Option[DomainUserType.Value],
     remoteHost: Option[String],
     authMethod: Option[String],
     connectedOnly: Boolean,
@@ -39,6 +42,7 @@ class SessionStoreActor private[datastore] (private[this] val sessionStore: Sess
     val GetSessions(
       sessionId,
       username,
+      userType,
       remoteHost,
       authMethod,
       connectedOnly,
@@ -47,6 +51,7 @@ class SessionStoreActor private[datastore] (private[this] val sessionStore: Sess
       offset) = message
     reply(sessionStore.getSessions(sessionId,
       username,
+      userType,
       remoteHost,
       authMethod,
       connectedOnly,
