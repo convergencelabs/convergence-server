@@ -14,7 +14,7 @@ package model {
   case class ModelFqn(domainFqn: DomainFqn, modelId: String)
   
   case class ClientAutoCreateModelConfigResponse(collectionId: String, modelData: Option[ObjectValue], overridePermissions: Option[Boolean],
-    worldPermissions: Option[ModelPermissions], userPermissions: Map[String, ModelPermissions], ephemeral: Option[Boolean])
+    worldPermissions: Option[ModelPermissions], userPermissions: Map[DomainUserId, ModelPermissions], ephemeral: Option[Boolean])
 
   case class ModelNotFoundException(modelId: String) extends Exception(s"A model with id '${modelId}' does not exist.")
   case class ModelAlreadyExistsException(modelId: String) extends Exception(s"A model with id '${modelId}' already exists.")
@@ -34,7 +34,7 @@ package model {
   case class ModelShutdownRequest(modelId: String, ephemeral: Boolean)
   
   case class ReferenceState(
-    session: SessionKey,
+    session: DomainUserSessionId,
     valueId: Option[String],
     key: String,
     referenceType: ReferenceType.Value,

@@ -17,7 +17,7 @@ public class OdbScriptTest2 {
   public static final String PARENT = "Parent";
 
   public static void main(String[] args) {
-    final OrientDB odb = new OrientDB("remote:localhost", "root", "root", OrientDBConfig.defaultConfig());
+    final OrientDB odb = new OrientDB("remote:localhost", "root", "password", OrientDBConfig.defaultConfig());
     if (!odb.exists(DB_NAME)) {
       odb.create(DB_NAME, ODatabaseType.PLOCAL);
     }

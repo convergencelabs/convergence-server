@@ -16,6 +16,8 @@ import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.index.OCompositeKey
 import com.orientechnologies.orient.core.command.script.OCommandScript
 import com.orientechnologies.orient.core.command.OCommandRequest
+import com.orientechnologies.orient.core.record.impl.ODocumentHelper
+import java.util.ArrayList
 
 object OrientDBUtil {
 
@@ -51,9 +53,9 @@ object OrientDBUtil {
       } else {
         Failure(new DatabaseCommandException(command, params, "No ResultSet was returned from the command"))
       }
-      
+
       rs.close()
-      
+
       result
     }
   }
@@ -115,6 +117,26 @@ object OrientDBUtil {
       })
   }
 
+  def getIdentitiesFromSingleValueIndex(db: ODatabaseDocument, index: String, keys: List[Any]): Try[List[ORID]] = {
+    if (keys.isEmpty) {
+      Success(List())
+    } else {
+      val processedKeys = keys.map(_ match {
+        // FIXME https://github.com/orientechnologies/orientdb/issues/8751
+        case oc: OCompositeKey => oc.getKeys
+        case l: List[_] => l.asJava
+        case v: Any => v
+      })
+
+      val oIndex = db.getMetadata.getIndexManager.getIndex(index)
+      Try(oIndex.iterateEntries(processedKeys.asJava, false)).map { cursor =>
+        cursor.toEntries().asScala.toList.map { entry =>
+          entry.getValue.getIdentity
+        }
+      }
+    }
+  }
+
   def findIdentityFromSingleValueIndex(db: ODatabaseDocument, index: String, keys: List[_]): Try[Option[ORID]] = {
     findIdentityFromSingleValueIndex(db, index, new OCompositeKey(keys.asJava))
   }
@@ -148,6 +170,27 @@ object OrientDBUtil {
       .map(_.map(_.getRecord.asInstanceOf[ODocument]))
   }
 
+  def getDocumentsFromSingleValueIndex(db: ODatabaseDocument, index: String, keys: List[Any]): Try[List[ODocument]] = {
+    if (keys.isEmpty) {
+      Success(List())
+    } else {
+
+      val processedKeys = keys.map(_ match {
+        // FIXME https://github.com/orientechnologies/orientdb/issues/8751
+        case oc: OCompositeKey => oc.getKeys
+        case l: List[_] => l.asJava
+        case v: Any => v
+      })
+
+      val oIndex = db.getMetadata.getIndexManager.getIndex(index)
+      Try(oIndex.iterateEntries(processedKeys.asJava, false)).map { cursor =>
+        cursor.toEntries().asScala.toList.map { entry =>
+          entry.getValue.getRecord.asInstanceOf[ODocument]
+        }
+      }
+    }
+  }
+
   def deleteFromSingleValueIndexIfExists(db: ODatabaseDocument, index: String, keys: List[_]): Try[Unit] = {
     deleteFromSingleValueIndexIfExists(db, index, new OCompositeKey(keys.asJava))
   }
@@ -167,7 +210,7 @@ object OrientDBUtil {
       }
     }
   }
-  
+
   /////////////////////////////////////////////////////////////////////////////
   // Sequence Methods
   ////////////////////////////////////////////////////////////////////////////
@@ -179,7 +222,7 @@ object OrientDBUtil {
       next
     }
   }
-  
+
   /////////////////////////////////////////////////////////////////////////////
   // Helpers Methods
   ////////////////////////////////////////////////////////////////////////////

@@ -1,16 +1,15 @@
 package com.convergencelabs.server.domain.model.reference
 
+import com.convergencelabs.server.domain.DomainUserSessionId
 import com.convergencelabs.server.domain.model.ClearReference
 import com.convergencelabs.server.domain.model.ModelReferenceEvent
-import com.convergencelabs.server.domain.model.ShareReference
-import com.convergencelabs.server.domain.model.RealTimeValue
+import com.convergencelabs.server.domain.model.RealTimeModel
 import com.convergencelabs.server.domain.model.ReferenceType
 import com.convergencelabs.server.domain.model.SetReference
+import com.convergencelabs.server.domain.model.ShareReference
 import com.convergencelabs.server.domain.model.UnshareReference
+
 import ReferenceManager.ReferenceDoesNotExist
-import com.convergencelabs.server.domain.model.RealTimeValue
-import com.convergencelabs.server.domain.model.RealTimeModel
-import com.convergencelabs.server.domain.model.SessionKey
 
 object ElementReferenceManager {
   val ReferenceDoesNotExist = "Reference does not exist"
@@ -24,7 +23,7 @@ class ElementReferenceManager(
   
   def referenceMap(): ReferenceMap = rm
 
-  def handleReferenceEvent(event: ModelReferenceEvent, session: SessionKey): Unit = {
+  def handleReferenceEvent(event: ModelReferenceEvent, session: DomainUserSessionId): Unit = {
     event match {
       case publish: ShareReference => this.handleReferencePublished(publish, session)
       case unpublish: UnshareReference => this.handleReferenceUnpublished(unpublish, session)
@@ -33,11 +32,11 @@ class ElementReferenceManager(
     }
   }
 
-  def sessionDisconnected(session: SessionKey): Unit = {
+  def sessionDisconnected(session: DomainUserSessionId): Unit = {
     this.rm.removeBySession(session)
   }
 
-  private[this] def handleReferencePublished(event: ShareReference, session: SessionKey): Unit = {
+  private[this] def handleReferencePublished(event: ShareReference, session: DomainUserSessionId): Unit = {
     if (!this.validTypes.contains(event.referenceType)) {
       throw new IllegalArgumentException(s"Invalid reference type: ${event.referenceType}")
     }
@@ -50,7 +49,7 @@ class ElementReferenceManager(
     this.referenceMap.put(reference)
   }
 
-  private[this] def handleReferenceUnpublished(event: UnshareReference, session: SessionKey): Unit = {
+  private[this] def handleReferenceUnpublished(event: UnshareReference, session: DomainUserSessionId): Unit = {
     this.rm.remove(session, event.key) match {
       case Some(reference) =>
       case None =>
@@ -58,7 +57,7 @@ class ElementReferenceManager(
     }
   }
 
-  private[this] def handleReferenceCleared(event: ClearReference, session: SessionKey): Unit = {
+  private[this] def handleReferenceCleared(event: ClearReference, session: DomainUserSessionId): Unit = {
     this.rm.get(session, event.key) match {
       case Some(reference) =>
         reference.clear()
@@ -67,7 +66,7 @@ class ElementReferenceManager(
     }
   }
 
-  private[this] def handleReferenceSet(event: SetReference, session: SessionKey): Unit = {
+  private[this] def handleReferenceSet(event: SetReference, session: DomainUserSessionId): Unit = {
     this.rm.get(session, event.key) match {
       case Some(reference: ElementReference) =>
         val vids = event.values.asInstanceOf[List[String]]

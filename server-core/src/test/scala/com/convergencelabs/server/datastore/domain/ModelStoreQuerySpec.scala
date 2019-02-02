@@ -29,6 +29,7 @@ import com.convergencelabs.server.domain.model.data.BooleanValue
 import com.convergencelabs.server.domain.model.data.DoubleValue
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.model.data.StringValue
+import com.convergencelabs.server.domain.DomainUserId
 
 case class ModelStoreQuerySpecStores(collection: CollectionStore, model: ModelStore, user: DomainUserStore, permissions: ModelPermissionsStore)
 
@@ -100,7 +101,7 @@ class ModelStoreQuerySpec extends PersistenceStoreSpec[ModelStoreQuerySpecStores
         stores.permissions.setOverrideCollectionPermissions("model2", true)
         stores.permissions.setModelWorldPermissions("model1", ModelPermissions(false, false, false, false)).get
 
-        val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY sField ASC", Some("test1")).get
+        val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY sField ASC", Some(DomainUserId.normal("test1"))).get
         list.map { _.meta.modelId } shouldEqual (List("model2"))
       }
 
@@ -111,9 +112,9 @@ class ModelStoreQuerySpec extends PersistenceStoreSpec[ModelStoreQuerySpecStores
         stores.permissions.setOverrideCollectionPermissions("model1", true)
         stores.permissions.setOverrideCollectionPermissions("model2", true)
         stores.permissions.setModelWorldPermissions("model1", ModelPermissions(false, false, false, false))
-        stores.permissions.updateModelUserPermissions("model1", "test1", ModelPermissions(true, true, true, true))
+        stores.permissions.updateModelUserPermissions("model1", DomainUserId.normal("test1"), ModelPermissions(true, true, true, true))
 
-        val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY sField ASC", Some("test1")).get
+        val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY sField ASC", Some(DomainUserId.normal("test1"))).get
         list.map { _.meta.modelId } shouldEqual (List("model1", "model2"))
       }
     }

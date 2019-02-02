@@ -11,6 +11,7 @@ import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.domain.DomainUser
 import com.convergencelabs.server.domain.DomainUserType
+import com.convergencelabs.server.domain.DomainUserId
 
 class UserGroupStoreSpec
     extends PersistenceStoreSpec[(UserGroupStore, DomainUserStore)](DeltaCategory.Domain)
@@ -21,10 +22,12 @@ class UserGroupStoreSpec
   val User2 = DomainUser(DomainUserType.Normal, "test2", Some("Test"), Some("Two"), Some("Test Two"), Some("test2@example.com"))
   val User3 = DomainUser(DomainUserType.Normal, "test3", Some("Test"), Some("Three"), Some("Test Two"), Some("test3@example.com"))
 
-  val group1 = UserGroup("id1", "group 1", Set(User1.username, User2.username))
-  val duplicateGroup = UserGroup(group1.id, "duplicate id", Set(User1.username, User2.username))
-  val group2 = UserGroup("id2", "group 2", Set(User2.username))
+  val group1 = UserGroup("id1", "group 1", Set(User1.toUserId, User2.toUserId))
+  val duplicateGroup = UserGroup(group1.id, "duplicate id", Set(User1.toUserId, User2.toUserId))
+  val group2 = UserGroup("id2", "group 2", Set(User2.toUserId))
   val group3 = UserGroup("id3", "group 3", Set())
+  
+  val noUserId = DomainUserId.normal("no-user")
 
   def createStore(dbProvider: DatabaseProvider): (UserGroupStore, DomainUserStore) = (new UserGroupStore(dbProvider), new DomainUserStore(dbProvider))
 
@@ -42,7 +45,7 @@ class UserGroupStoreSpec
       }
 
       "disallow creating a group with an unknown user" in withUsers { store =>
-        store.createUserGroup(UserGroup("id1", "group 1", Set("test1", "unknown"))).failure.exception shouldBe a[EntityNotFoundException]
+        store.createUserGroup(UserGroup("id1", "group 1", Set(User1.toUserId, noUserId))).failure.exception shouldBe a[EntityNotFoundException]
       }
     }
     
@@ -103,8 +106,8 @@ class UserGroupStoreSpec
         store.createUserGroup(group1).get
         store.createUserGroup(group2).get
         
-        val expected = group1.copy(members = (group1.members + User3.username) )
-        store.addUserToGroup(group1.id, User3.username).get
+        val expected = group1.copy(members = (group1.members + User3.toUserId) )
+        store.addUserToGroup(group1.id, User3.toUserId).get
         val updatedRead = store.getUserGroup(group1.id).get.value
         updatedRead shouldBe expected
 
@@ -115,18 +118,18 @@ class UserGroupStoreSpec
       "ingore adding a user that is not already" in withUsers { store =>
         store.createUserGroup(group1).get
         
-        store.addUserToGroup(group1.id, User1.username)
+        store.addUserToGroup(group1.id, User1.toUserId)
         val updatedRead = store.getUserGroup(group1.id).get.value
         updatedRead shouldBe group1
       }
       
       "fail with EntityNotFound for a user that does not exist" in withUsers { store =>
         store.createUserGroup(group1).get
-        store.addUserToGroup(group1.id, "no one").failure.exception shouldBe a[EntityNotFoundException]
+        store.addUserToGroup(group1.id, noUserId).failure.exception shouldBe a[EntityNotFoundException]
       }
       
       "fail with EntityNotFound for a group that does not exist" in withUsers { store =>
-        store.addUserToGroup("no group", User1.username).failure.exception shouldBe a[EntityNotFoundException]
+        store.addUserToGroup("no group", User1.toUserId).failure.exception shouldBe a[EntityNotFoundException]
       }
     }
     
@@ -135,8 +138,8 @@ class UserGroupStoreSpec
         store.createUserGroup(group1).get
         store.createUserGroup(group2).get
         
-        val expected = group1.copy(members = (group1.members - User2.username) )
-        store.removeUserFromGroup(group1.id, User2.username)
+        val expected = group1.copy(members = (group1.members - User2.toUserId) )
+        store.removeUserFromGroup(group1.id, User2.toUserId)
         val updatedRead = store.getUserGroup(group1.id).get.value
         updatedRead shouldBe expected
 
@@ -144,21 +147,21 @@ class UserGroupStoreSpec
         store.getUserGroup(group2.id).get.value shouldBe group2
       }
       
-      "ingore removing a user that is not already" in withUsers { store =>
+      "ingore removing a user that is not already a memeber" in withUsers { store =>
         store.createUserGroup(group1).get
         
-        store.removeUserFromGroup(group1.id, "")
+        store.removeUserFromGroup(group1.id, noUserId)
         val updatedRead = store.getUserGroup(group1.id).get.value
         updatedRead shouldBe group1
       }
       
       "fail with EntityNotFound for a user that does not exist" in withUsers { store =>
         store.createUserGroup(group1).get
-        store.removeUserFromGroup(group1.id, "no one").failure.exception shouldBe a[EntityNotFoundException]
+        store.removeUserFromGroup(group1.id, noUserId).failure.exception shouldBe a[EntityNotFoundException]
       }
       
       "fail with EntityNotFound for a group that does not exist" in withUsers { store =>
-        store.removeUserFromGroup("no group", User1.username).failure.exception shouldBe a[EntityNotFoundException]
+        store.removeUserFromGroup("no group", User1.toUserId).failure.exception shouldBe a[EntityNotFoundException]
       }
     }
     
@@ -182,13 +185,13 @@ class UserGroupStoreSpec
         store.createUserGroup(group1).get
         store.createUserGroup(group2).get
         
-        store.getUserGroupIdsForUser(User1.username).get shouldBe Set(group1.id)
-        store.getUserGroupIdsForUser(User2.username).get shouldBe Set(group1.id, group2.id)
-        store.getUserGroupIdsForUser(User3.username).get shouldBe Set()
+        store.getUserGroupIdsForUser(User1.toUserId).get shouldBe Set(group1.id)
+        store.getUserGroupIdsForUser(User2.toUserId).get shouldBe Set(group1.id, group2.id)
+        store.getUserGroupIdsForUser(User3.toUserId).get shouldBe Set()
       }
       
       "fail with EntityNotFound if a non-existant group id is in the list" in withUsers { store =>
-        store.getUserGroupIdsForUser("no user").failure.exception shouldBe a[EntityNotFoundException]
+        store.getUserGroupIdsForUser(noUserId).failure.exception shouldBe a[EntityNotFoundException]
       }
     }
     
@@ -197,15 +200,15 @@ class UserGroupStoreSpec
         store.createUserGroup(group1).get
         store.createUserGroup(group2).get
         
-        val map = store.getUserGroupIdsForUsers(List(User1.username, User2.username, User3.username)).get
+        val map = store.getUserGroupIdsForUsers(List(User1.toUserId, User2.toUserId, User3.toUserId)).get
         map.size shouldBe 3
-        map.get(User1.username).get shouldBe Set(group1.id)
-        map.get(User2.username).get shouldBe Set(group1.id, group2.id)
-        map.get(User3.username).get shouldBe Set()
+        map.get(User1.toUserId).get shouldBe Set(group1.id)
+        map.get(User2.toUserId).get shouldBe Set(group1.id, group2.id)
+        map.get(User3.toUserId).get shouldBe Set()
       }
       
       "fail with EntityNotFound if a non-existant group id is in the list" in withUsers { store =>
-        store.getUserGroupIdsForUsers(List(User1.username, "no user")).failure.exception shouldBe a[EntityNotFoundException]
+        store.getUserGroupIdsForUsers(List(User1.toUserId, noUserId)).failure.exception shouldBe a[EntityNotFoundException]
       }
     }
     
@@ -213,16 +216,16 @@ class UserGroupStoreSpec
       "correctly set groups for a user with no existing groups" in withUsers { store =>
         store.createUserGroup(group1).get
         store.createUserGroup(group2).get
-        store.setGroupsForUser(User3.username, Set(group1.id, group2.id)).get
-        store.getUserGroupIdsForUser(User3.username).get shouldBe Set(group1.id, group2.id)
+        store.setGroupsForUser(User3.toUserId, Set(group1.id, group2.id)).get
+        store.getUserGroupIdsForUser(User3.toUserId).get shouldBe Set(group1.id, group2.id)
       }
       
       "correctly set groups for a user with existing groups" in withUsers { store =>
         store.createUserGroup(group1).get
         store.createUserGroup(group2).get
         store.createUserGroup(group3).get
-        store.setGroupsForUser(User1.username, Set(group3.id)).get
-        store.getUserGroupIdsForUser(User1.username).get shouldBe Set(group3.id)
+        store.setGroupsForUser(User1.toUserId, Set(group3.id)).get
+        store.getUserGroupIdsForUser(User1.toUserId).get shouldBe Set(group3.id)
       }
     }
   }

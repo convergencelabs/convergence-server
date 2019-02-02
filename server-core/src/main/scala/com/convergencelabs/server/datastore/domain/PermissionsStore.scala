@@ -21,6 +21,7 @@ import com.orientechnologies.orient.core.sql.parser.ORid
 import com.orientechnologies.orient.core.index.OCompositeKey
 import com.convergencelabs.server.datastore.OrientDBUtil
 import scala.util.Success
+import com.convergencelabs.server.domain.DomainUserId
 
 sealed trait Permission {
   val permission: String
@@ -74,8 +75,8 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
 
   import schema.DomainSchema._
 
-  def hasPermission(username: String, permission: String): Try[Boolean] = withDb { db =>
-    DomainUserStore.getUserRid(username, db).flatMap { userRID =>
+  def hasPermission(userId: DomainUserId, permission: String): Try[Boolean] = withDb { db =>
+    DomainUserStore.getUserRid(userId, db).flatMap { userRID =>
       val query =
         """SELECT count(*) as count
         |  FROM Permission
@@ -97,8 +98,8 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
     }
   }
 
-  def hasPermission(username: String, forRecord: ORID, permission: String): Try[Boolean] = withDb { db =>
-    DomainUserStore.getUserRid(username, db).flatMap { userRID =>
+  def hasPermission(userId: DomainUserId, forRecord: ORID, permission: String): Try[Boolean] = withDb { db =>
+    DomainUserStore.getUserRid(userId, db).flatMap { userRID =>
       // There are three conditions that must be matched in order to find permissions
       // that allow this action to happen:
       //   1. We must match the permission exactly
@@ -152,8 +153,8 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
       }
   }
 
-  def getAggregateUserPermissions(username: String, forRecord: ORID, forPermissions: Set[String]): Try[Set[String]] = withDb { db =>
-    DomainUserStore.getUserRid(username, db).flatMap { userRID =>
+  def getAggregateUserPermissions(userId: DomainUserId, forRecord: ORID, forPermissions: Set[String]): Try[Set[String]] = withDb { db =>
+    DomainUserStore.getUserRid(userId, db).flatMap { userRID =>
       val query =
         """SELECT permission
         |  FROM Permission
@@ -184,8 +185,8 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
       })
   }
 
-  def addUserPermissions(permissions: Set[String], username: String, forRecord: Option[ORID]): Try[Unit] = withDb { db =>
-    DomainUserStore.getUserRid(username, db).flatMap { userRid =>
+  def addUserPermissions(permissions: Set[String], userId: DomainUserId, forRecord: Option[ORID]): Try[Unit] = withDb { db =>
+    DomainUserStore.getUserRid(userId, db).flatMap { userRid =>
       Try(permissions.map { permission =>
         val doc: ODocument = db.newInstance(Classes.Permission.ClassName)
         doc.field(Classes.Permission.Fields.Permission, permission)
@@ -219,8 +220,8 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
   def removeWorldPermissions(permissions: Set[String], forRecord: Option[ORID]): Try[Unit] =
     removePermissions(permissions, None, forRecord)
 
-  def removeUserPermissions(permissions: Set[String], username: String, forRecord: Option[ORID]): Try[Unit] = withDb { db =>
-    DomainUserStore.getUserRid(username, db).flatMap { userRid =>
+  def removeUserPermissions(permissions: Set[String], userId: DomainUserId, forRecord: Option[ORID]): Try[Unit] = withDb { db =>
+    DomainUserStore.getUserRid(userId, db).flatMap { userRid =>
       removePermissions(permissions, Some(userRid), forRecord)
     }
   }
@@ -255,10 +256,10 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
     removePermissions(permissions: Set[String], None, forRecord)
       .flatMap(_ => addWorldPermissions(permissions, forRecord))
 
-  def setUserPermissions(permissions: Set[String], username: String, forRecord: Option[ORID]): Try[Unit] = withDb { db =>
-    DomainUserStore.getUserRid(username, db)
+  def setUserPermissions(permissions: Set[String], userId: DomainUserId, forRecord: Option[ORID]): Try[Unit] = withDb { db =>
+    DomainUserStore.getUserRid(userId, db)
       .flatMap(userRid => removePermissions(permissions: Set[String], Some(userRid), forRecord))
-      .flatMap(_ => addUserPermissions(permissions, username, forRecord))
+      .flatMap(_ => addUserPermissions(permissions, userId, forRecord))
   }
 
   def setGroupPermissions(permissions: Set[String], groupId: String, forRecord: Option[ORID]): Try[Unit] = withDb { db =>
@@ -317,8 +318,8 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
       .map(_.toSet)
   }
 
-  def getUserPermissions(username: String, forRecord: Option[ORID]): Try[Set[String]] = withDb { db =>
-    val userRID = DomainUserStore.getUserRid(username, db).get
+  def getUserPermissions(userId: DomainUserId, forRecord: Option[ORID]): Try[Set[String]] = withDb { db =>
+    val userRID = DomainUserStore.getUserRid(userId, db).get
 
     var params = Map[String, Any]("user" -> userRID)
 

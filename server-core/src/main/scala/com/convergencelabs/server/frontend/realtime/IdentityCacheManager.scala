@@ -19,6 +19,10 @@ import io.convergence.proto.message.ConvergenceMessage.Body
 import akka.actor.Props
 import scala.collection.mutable.LinkedList
 import scala.collection.mutable.ListBuffer
+import com.convergencelabs.server.domain.DomainUserId
+import io.convergence.proto.identity.DomainUserIdData
+
+
 
 class MessageRecord(val message: ConvergenceMessage, var ready: Boolean)
 
@@ -37,9 +41,10 @@ class IdentityCacheManager(
   private[this] implicit val timeout: Timeout) extends Actor with ActorLogging {
 
   import akka.pattern.ask
+  import ImplicitMessageConversions._
 
   private[this] val sessions: Set[String] = Set()
-  private[this] val users: Set[String] = Set()
+  private[this] val users: Set[DomainUserId] = Set()
 
   private[this] val messages: Queue[MessageRecord] = Queue()
 
@@ -78,34 +83,37 @@ class IdentityCacheManager(
 
       // Presence
       case Body.PresenceResponse(body) =>
-        processMessage(message, Set(), body.userPresences.map(_.username).toSet)
+        processMessage(message, Set(), body.userPresences.map(p => dataToDomainUserId(p.user.get)).toSet)
       case Body.PresenceSubscribeResponse(body) =>
-        processMessage(message, Set(), body.userPresences.map(_.username).toSet)
+        processMessage(message, Set(), body.userPresences.map(p => dataToDomainUserId(p.user.get)).toSet)
 
       // Chat
       case Body.GetChatChannelsResponse(body) =>
-        processMessage(message, Set(), body.channelInfo.flatMap(_.members.map(_.username)).toSet)
+        val users = body.channelInfo.flatMap(_.members.map(m => dataToDomainUserId(m.user.get))).toSet
+        processMessage(message, Set(), users)
       case Body.GetDirectChatChannelsResponse(body) =>
-        processMessage(message, Set(), body.channelInfo.flatMap(_.members.map(_.username)).toSet)
+        val users = body.channelInfo.flatMap(_.members.map(m => dataToDomainUserId(m.user.get))).toSet
+        processMessage(message, Set(), users)
       case Body.GetJoinedChatChannelsResponse(body) =>
-        processMessage(message, Set(), body.channelInfo.flatMap(_.members.map(_.username)).toSet)
+        val users = body.channelInfo.flatMap(_.members.map(m => dataToDomainUserId(m.user.get))).toSet
+        processMessage(message, Set(), users)
       case Body.JoinChatChannelResponse(body) =>
-        val foo = body.channelInfo.map(_.members.map(_.username).toSet)
-        processMessage(message, Set(), foo.getOrElse(Set()))
+        val users = body.channelInfo.get.members.map(m => ImplicitMessageConversions.dataToDomainUserId(m.user.get)).toSet
+        processMessage(message, Set(), users)
       case Body.UserJoinedChatChannel(body) =>
-        processMessage(message, Set(), Set(body.username))
+        processMessage(message, Set(), Set(body.user.get))
       case Body.UserLeftChatChannel(body) =>
-        processMessage(message, Set(), Set(body.username))
+        processMessage(message, Set(), Set(body.user.get))
       case Body.UserAddedToChatChannel(body) =>
-        processMessage(message, Set(), Set(body.username, body.addedUser))
+        processMessage(message, Set(), Set(body.user.get, body.addedUser.get))
       case Body.UserRemovedFromChatChannel(body) =>
-        processMessage(message, Set(), Set(body.username, body.removedUser))
+        processMessage(message, Set(), Set(body.user.get, body.removedUser.get))
       case Body.ChatChannelNameChanged(body) =>
-        processMessage(message, Set(), Set(body.username))
+        processMessage(message, Set(), Set(body.user.get))
       case Body.ChatChannelTopicChanged(body) =>
-        processMessage(message, Set(), Set(body.username))
+        processMessage(message, Set(), Set(body.user.get))
       case Body.ChatChannelEventsMarkedSeen(body) =>
-        processMessage(message, Set(), Set(body.username))
+        processMessage(message, Set(), Set(body.user.get))
       case Body.RemoteChatMessage(body) =>
         processMessage(message, Set(body.sessionId), Set())
       case Body.GetChatChannelHistoryResponse(body) =>
@@ -113,7 +121,7 @@ class IdentityCacheManager(
 
       // permissions
       case Body.GetAllUserPermissionsResponse(body) =>
-        processMessage(message, Set(), body.users.map { case (username, permissions) => username }.toSet)
+        processMessage(message, Set(), body.users.map(u => dataToDomainUserId(u.user.get)).toSet)
       case body =>
         this.messages.enqueue(new MessageRecord(message, true))
         this.flushQueue()
@@ -121,50 +129,50 @@ class IdentityCacheManager(
   }
 
   private[this] def processChatEvent(message: ConvergenceMessage, chatData: Seq[ChatChannelEventData]): Unit = {
-    val usernames = scala.collection.mutable.HashSet[String]()
+    val usernames = scala.collection.mutable.HashSet[DomainUserIdData]()
     chatData.map {
       _.event match {
         case ChatChannelEventData.Event.Created(created) =>
          usernames ++= created.members
-         usernames += created.username
+         usernames += created.user.get
         case ChatChannelEventData.Event.Message(chatMessage) =>
-          usernames += chatMessage.username
+          usernames += chatMessage.user.get
         case ChatChannelEventData.Event.UserAdded(userAdded) =>
-          usernames += userAdded.username
-          usernames += userAdded.addedUser
+          usernames += userAdded.user.get
+          usernames += userAdded.addedUser.get
         case ChatChannelEventData.Event.UserRemoved(userRemoved) =>
-          usernames += userRemoved.username
-          usernames += userRemoved.removedUser
+          usernames += userRemoved.user.get
+          usernames += userRemoved.removedUser.get
         case ChatChannelEventData.Event.UserJoined(userJoined) =>
-          usernames += userJoined.username
+          usernames += userJoined.user.get
         case ChatChannelEventData.Event.UserLeft(userLeft) =>
-          usernames += userLeft.username
+          usernames += userLeft.user.get
         case ChatChannelEventData.Event.NameChanged(nameChanged) =>
-          usernames += nameChanged.username
+          usernames += nameChanged.user.get
         case ChatChannelEventData.Event.TopicChanged(topicChanged) =>
-          usernames += topicChanged.username
+          usernames += topicChanged.user.get
         case ChatChannelEventData.Event.Empty =>
           ???
       }
     }
-    processMessage(message, Set(), usernames.toSet)
+    processMessage(message, Set(), usernames.map(dataToDomainUserId(_)).toSet)
   }
 
   private[this] def processMessage(
     message: ConvergenceMessage,
     sessionIds: Set[String],
-    usernames: Set[String]): Unit = {
+    usernames: Set[DomainUserId]): Unit = {
     val requiredSessions = sessionIds.diff(this.sessions)
-    val requiredUsernames = usernames.diff(this.users)
+    val requiredUsers = usernames.diff(this.users)
 
-    if (requiredSessions.isEmpty && requiredUsernames.isEmpty) {
+    if (requiredSessions.isEmpty && requiredUsers.isEmpty) {
       val record = new MessageRecord(message, true)
       this.messages.enqueue(record)
       this.flushQueue()
     } else {
       val record = new MessageRecord(message, false)
       this.messages.enqueue(record)
-      val request = IdentityResolutionRequest(requiredSessions, requiredUsernames)
+      val request = IdentityResolutionRequest(requiredSessions, requiredUsers)
       (identityServiceActor ? request)
         .mapTo[IdentityResolutionResponse]
         .onComplete {
@@ -180,7 +188,7 @@ class IdentityCacheManager(
     val IdentityResolved(record, response) = message
     val users = response.users.map(ImplicitMessageConversions.mapDomainUser(_))
     val body = IdentityCacheUpdateMessage()
-      .withSessions(response.sessionMap)
+      .withSessions(response.sessionMap.map{case (sessionId, userId) => (sessionId, ImplicitMessageConversions.domainUserIdToData(userId))})
       .withUsers(users.toSeq)
     val updateMessage = ConvergenceMessage()
       .withIdentityCacheUpdate(body)

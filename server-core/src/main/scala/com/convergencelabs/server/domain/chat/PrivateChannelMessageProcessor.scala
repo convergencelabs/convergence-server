@@ -20,14 +20,14 @@ class PrivateChannelMessageProcessor(
     message match {
       case message: AddUserToChannelRequest =>
         val state = channelManager.state()
-        if (state.members.contains(message.sk.uid)) {
+        if (state.members.contains(message.requestor.userId)) {
           super.processChatMessage(message)
         } else {
           Failure(ChannelNotFoundException(state.id))
         }
       case message: RemoveUserFromChannelRequest =>
         val state = channelManager.state()
-        if (state.members.contains(message.sk.uid)) {
+        if (state.members.contains(message.requestor.userId)) {
           super.processChatMessage(message)
         } else {
           Failure(ChannelNotFoundException(state.id))

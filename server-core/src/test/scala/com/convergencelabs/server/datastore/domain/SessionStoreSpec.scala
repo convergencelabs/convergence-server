@@ -14,6 +14,7 @@ import com.convergencelabs.server.datastore.domain.SessionStore.SessionQueryType
 import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.domain.DomainUser
 import com.convergencelabs.server.domain.DomainUserType
+import com.convergencelabs.server.domain.DomainUserId
 
 // scalastyle:off magic.number multiple.string.literals
 class SessionStoreSpec
@@ -22,8 +23,8 @@ class SessionStoreSpec
     with OptionValues
     with Matchers {
 
-  val username = "test"
-  val user = DomainUser(DomainUserType.Normal, username, None, None, None, None)
+  val userId = DomainUserId.normal("test")
+  val user = DomainUser(userId, None, None, None, None)
 
   val sessionId = "u1-1"
   val authMethod = "jwt"
@@ -36,21 +37,21 @@ class SessionStoreSpec
   "A SessionStore" when {
     "creating a session" must {
       "succeed when creating a session with no disconnected time" in withTestData { provider =>
-        val session = DomainSession(sessionId, username, Instant.now(), None, authMethod, client, clientVersion, "", remoteHost)
+        val session = DomainSession(sessionId, userId, Instant.now(), None, authMethod, client, clientVersion, "", remoteHost)
         provider.sessionStore.createSession(session).get
         val queried = provider.sessionStore.getSession(sessionId).get.value
         queried shouldBe session
       }
 
       "succeed when creating a session with at disconnected time" in withTestData { provider =>
-        val session = DomainSession(sessionId, username, Instant.now(), Some(Instant.now()), authMethod, client, clientVersion, "", remoteHost)
+        val session = DomainSession(sessionId, userId, Instant.now(), Some(Instant.now()), authMethod, client, clientVersion, "", remoteHost)
         provider.sessionStore.createSession(session).get
         val queried = provider.sessionStore.getSession(sessionId).get.value
         queried shouldBe session
       }
 
       "disallow duplicate session Ids" in withTestData { provider =>
-        val session = DomainSession(sessionId, username, Instant.now(), Some(Instant.now()), authMethod, client, clientVersion, "", remoteHost)
+        val session = DomainSession(sessionId, userId, Instant.now(), Some(Instant.now()), authMethod, client, clientVersion, "", remoteHost)
         provider.sessionStore.createSession(session).get
         provider.sessionStore.createSession(session).failure.exception shouldBe a[DuplicateValueException]
       }
@@ -58,7 +59,7 @@ class SessionStoreSpec
 
     "marking a session as disconnected" must {
       "succeed when disconnecting a connected session" in withTestData { provider =>
-        val session = DomainSession(sessionId, username, Instant.now(), None, authMethod, client, clientVersion, "", remoteHost)
+        val session = DomainSession(sessionId, userId, Instant.now(), None, authMethod, client, clientVersion, "", remoteHost)
         provider.sessionStore.createSession(session).get
         val disconneced = Instant.now()
         provider.sessionStore.setSessionDisconneted(sessionId, disconneced).get
@@ -69,7 +70,7 @@ class SessionStoreSpec
       "fail when disconnecting an already disconnected session" in withTestData { provider =>
         val originalTime = Instant.now()
         val newTime = originalTime.plusSeconds(5)
-        val session = DomainSession(sessionId, username, Instant.now(), Some(originalTime), authMethod, client, clientVersion, "", remoteHost)
+        val session = DomainSession(sessionId, userId, Instant.now(), Some(originalTime), authMethod, client, clientVersion, "", remoteHost)
         provider.sessionStore.createSession(session).get
         provider.sessionStore.getSession(sessionId).get.value shouldBe session
         provider.sessionStore.setSessionDisconneted(sessionId, newTime).failure 
@@ -78,15 +79,16 @@ class SessionStoreSpec
 
     "getting connected sessions" must {
       "only return sessions that are connected" in withTestData { provider =>
-        val session1 = DomainSession("1", username, Instant.now(), None, authMethod, client, clientVersion, "", remoteHost)
-        val session2 = DomainSession("2", username, Instant.now(), Some(Instant.now()), authMethod, client, clientVersion, "", remoteHost)
-        val session3 = DomainSession("3", username, Instant.now(), None, authMethod, client, clientVersion, "", remoteHost)
+        val session1 = DomainSession("1", userId, Instant.now(), None, authMethod, client, clientVersion, "", remoteHost)
+        val session2 = DomainSession("2", userId, Instant.now(), Some(Instant.now()), authMethod, client, clientVersion, "", remoteHost)
+        val session3 = DomainSession("3", userId, Instant.now(), None, authMethod, client, clientVersion, "", remoteHost)
 
         provider.sessionStore.createSession(session1).get
         provider.sessionStore.createSession(session2).get
         provider.sessionStore.createSession(session3).get
 
         val conneted = provider.sessionStore.getSessions(
+          None,
           None,
           None,
           None,
@@ -102,9 +104,9 @@ class SessionStoreSpec
     
     "getting connected sessions count" must {
       "only count sessions that are connected" in withTestData { provider =>
-        val session1 = DomainSession("1", username, Instant.now(), None, authMethod, client, clientVersion, "", remoteHost)
-        val session2 = DomainSession("2", username, Instant.now(), Some(Instant.now()), authMethod, client, clientVersion, "", remoteHost)
-        val session3 = DomainSession("3", username, Instant.now(), None, authMethod, client, clientVersion, "", remoteHost)
+        val session1 = DomainSession("1", userId, Instant.now(), None, authMethod, client, clientVersion, "", remoteHost)
+        val session2 = DomainSession("2", userId, Instant.now(), Some(Instant.now()), authMethod, client, clientVersion, "", remoteHost)
+        val session3 = DomainSession("3", userId, Instant.now(), None, authMethod, client, clientVersion, "", remoteHost)
 
         provider.sessionStore.createSession(session1).get
         provider.sessionStore.createSession(session2).get
@@ -115,9 +117,9 @@ class SessionStoreSpec
       }
       
       "only count non admin sessions that are connected when SessionQueryType.NonAdmin is used" in withTestData { provider =>
-        val session1 = DomainSession("1", username, Instant.now(), None, authMethod, client, clientVersion, "", remoteHost)
-        val session2 = DomainSession("2", username, Instant.now(), Some(Instant.now()), authMethod, client, clientVersion, "", remoteHost)
-        val session3 = DomainSession("3", username, Instant.now(), None, authMethod, client, clientVersion, "", remoteHost)
+        val session1 = DomainSession("1", userId, Instant.now(), None, authMethod, client, clientVersion, "", remoteHost)
+        val session2 = DomainSession("2", userId, Instant.now(), Some(Instant.now()), authMethod, client, clientVersion, "", remoteHost)
+        val session3 = DomainSession("3", userId, Instant.now(), None, authMethod, client, clientVersion, "", remoteHost)
 
         provider.sessionStore.createSession(session1).get
         provider.sessionStore.createSession(session2).get

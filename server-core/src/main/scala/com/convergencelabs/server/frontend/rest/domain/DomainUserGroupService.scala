@@ -45,6 +45,8 @@ import akka.http.scaladsl.server.Directives.put
 import akka.http.scaladsl.server.PathMatchers.Segment
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
+import com.convergencelabs.server.domain.DomainUserId
+import com.convergencelabs.server.domain.DomainUserType
 
 object DomainUserGroupService {
   case class GetUserGroupsResponse(groups: List[UserGroupData])
@@ -166,7 +168,7 @@ class DomainUserGroupService(
   def getUserGroupMembers(domain: DomainFqn, groupId: String): Future[RestResponse] = {
     val message = DomainRestMessage(domain, GetUserGroup(groupId))
     (domainRestActor ? message).mapTo[Option[UserGroup]] map {
-      case Some(UserGroup(_, _, members)) => okResponse(GetUserGroupMembersResponse(members))
+      case Some(UserGroup(_, _, members)) => okResponse(GetUserGroupMembersResponse(members.map(_.username)))
       case None => notFoundResponse()
     }
   }
@@ -189,12 +191,12 @@ class DomainUserGroupService(
   }
 
   def addUserToGroup(domain: DomainFqn, groupId: String, username: String): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, AddUserToGroup(groupId, username))
+    val message = DomainRestMessage(domain, AddUserToGroup(groupId, DomainUserId.normal(username)))
     (domainRestActor ? message).mapTo[Unit] map (_ => OkResponse)
   }
 
   def removeUserFromGroup(domain: DomainFqn, groupId: String, username: String): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, RemoveUserFromGroup(groupId, username))
+    val message = DomainRestMessage(domain, RemoveUserFromGroup(groupId, DomainUserId.normal(username)))
     (domainRestActor ? message).mapTo[Unit] map (_ => OkResponse)
   }
 
@@ -216,12 +218,13 @@ class DomainUserGroupService(
   }
 
   def groupDataToUserGroup(groupData: UserGroupData): UserGroup = {
+    // FIXME is this what we want? Assume normal user?
     val UserGroupData(id, description, members) = groupData
-    UserGroup(id, description, members)
+    UserGroup(id, description, members.map(DomainUserId(DomainUserType.Normal, _)))
   }
 
   def groupToUserGroupData(group: UserGroup): UserGroupData = {
     val UserGroup(id, description, members) = group
-    UserGroupData(id, description, members)
+    UserGroupData(id, description, members.map(_.username))
   }
 }

@@ -5,14 +5,15 @@ import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 
-import com.convergencelabs.server.datastore.domain.ModelOperationStoreActor
 import com.convergencelabs.server.datastore.domain.ModelOperationStoreActor.GetOperations
 import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainUserSessionId
 import com.convergencelabs.server.domain.model.GetRealtimeModel
 import com.convergencelabs.server.domain.model.Model
 import com.convergencelabs.server.domain.model.ModelOperation
 import com.convergencelabs.server.domain.model.RealtimeModelSharding
-import com.convergencelabs.server.domain.model.SessionKey
+import com.convergencelabs.server.frontend.realtime.ImplicitMessageConversions.instanceToTimestamp
+import com.convergencelabs.server.frontend.realtime.ImplicitMessageConversions.objectValueToMessage
 import com.convergencelabs.server.util.concurrent.AskFuture
 
 import akka.actor.Actor
@@ -23,22 +24,21 @@ import akka.util.Timeout
 import io.convergence.proto.Historical
 import io.convergence.proto.Request
 import io.convergence.proto.model.HistoricalDataRequestMessage
+import io.convergence.proto.model.HistoricalDataResponseMessage
 import io.convergence.proto.model.HistoricalOperationRequestMessage
 import io.convergence.proto.model.HistoricalOperationsResponseMessage
-import io.convergence.proto.model.HistoricalDataResponseMessage
-import com.convergencelabs.server.frontend.realtime.ImplicitMessageConversions._
 
 object HistoricModelClientActor {
   def props(
-    sk: SessionKey,
+    session: DomainUserSessionId,
     domainFqn: DomainFqn,
     modelStoreActor: ActorRef,
     operationStoreActor: ActorRef): Props =
-    Props(new HistoricModelClientActor(sk, domainFqn, modelStoreActor, operationStoreActor))
+    Props(new HistoricModelClientActor(session, domainFqn, modelStoreActor, operationStoreActor))
 }
 
 class HistoricModelClientActor(
-  private[this] val sessionKey: SessionKey,
+  private[this] val session: DomainUserSessionId,
   private[this] val domainFqn: DomainFqn,
   private[this] val modelStoreActor: ActorRef,
   private[this] val operationStoreActor: ActorRef)

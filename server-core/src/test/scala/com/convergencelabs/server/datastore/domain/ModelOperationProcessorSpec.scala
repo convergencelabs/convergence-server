@@ -45,6 +45,7 @@ import com.convergencelabs.server.domain.model.ot.AppliedStringRemoveOperation
 import com.convergencelabs.server.domain.model.ot.AppliedStringSetOperation
 import com.convergencelabs.server.datastore.OrientDBUtil
 import scala.util.Success
+import com.convergencelabs.server.domain.DomainUserId
 
 // scalastyle:off magic.number multiple.string.literals
 class ModelOperationProcessorSpec
@@ -57,7 +58,7 @@ class ModelOperationProcessorSpec
   val user = DomainUser(DomainUserType.Normal, username, None, None, None, None)
 
   val sid = "u1-1"
-  val session = DomainSession(sid, username, Instant.now(), None, "jwt", "js", "1.0", "", "127.0.0.1")
+  val session = DomainSession(sid, DomainUserId.normal(username), Instant.now(), None, "jwt", "js", "1.0", "", "127.0.0.1")
 
   val modelPermissions = ModelPermissions(true, true, true, true)
 

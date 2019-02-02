@@ -59,6 +59,7 @@ import com.convergencelabs.server.domain.model.reference.ElementReferenceManager
 import com.convergencelabs.server.domain.model.reference.IndexReference
 import com.convergencelabs.server.domain.model.reference.ModelReference
 import com.convergencelabs.server.domain.model.reference.RangeReference
+import com.convergencelabs.server.domain.DomainUserSessionId
 
 class RealTimeModel(
   private[this] val domainFqn: DomainFqn,
@@ -75,14 +76,14 @@ class RealTimeModel(
     this.cc.contextVersion
   }
 
-  def clientConnected(sk: SessionKey, contextVersion: Long): Unit = {
-    this.cc.trackClient(sk.serialize(), contextVersion)
+  def clientConnected(session: DomainUserSessionId, contextVersion: Long): Unit = {
+    this.cc.trackClient(session.sessionId, contextVersion)
   }
 
-  def clientDisconnected(sk: SessionKey): Unit = {
-    this.cc.untrackClient(sk.serialize())
-    this.data.sessionDisconnected(sk)
-    this.elementReferenceManager.sessionDisconnected(sk)
+  def clientDisconnected(session: DomainUserSessionId): Unit = {
+    this.cc.untrackClient(session.sessionId)
+    this.data.sessionDisconnected(session)
+    this.elementReferenceManager.sessionDisconnected(session)
   }
 
   override def createValue(
@@ -154,45 +155,45 @@ class RealTimeModel(
   }
 
   // fixme: refactor this
-  def processReferenceEvent(event: ModelReferenceEvent, sk: SessionKey): Try[Option[RemoteReferenceEvent]] = Try {
+  def processReferenceEvent(event: ModelReferenceEvent, session: DomainUserSessionId): Try[Option[RemoteReferenceEvent]] = Try {
     event.id match {
       case Some(id) =>
         idToValue.get(id) match {
           case Some(realTimeValue) =>
             event match {
               case share: ShareReference =>
-                realTimeValue.processReferenceEvent(share, sk)
+                realTimeValue.processReferenceEvent(share, session)
                 val ShareReference(domainFqn, _, id, key, refType, values, contextVersion) = share
 
                 val refVal: ReferenceValue = ReferenceValue(id, key, refType, values, contextVersion)
-                this.cc.processRemoteReferenceSet(sk.serialize(), refVal) match {
+                this.cc.processRemoteReferenceSet(session.sessionId, refVal) match {
                   case Some(xformed) =>
                     val setRef: SetReference = SetReference(domainFqn, this.modelId, xformed.id, xformed.key, xformed.referenceType, xformed.values, xformed.contextVersion.toInt)
-                    realTimeValue.processReferenceEvent(setRef, sk)
-                    Some(RemoteReferenceShared(this.modelId, sk, setRef.id, setRef.key, setRef.referenceType, setRef.values))
+                    realTimeValue.processReferenceEvent(setRef, session)
+                    Some(RemoteReferenceShared(this.modelId, session, setRef.id, setRef.key, setRef.referenceType, setRef.values))
                   case None =>
                     None
                 }
 
               case unshare: UnshareReference =>
-                realTimeValue.processReferenceEvent(unshare, sk)
+                realTimeValue.processReferenceEvent(unshare, session)
                 val UnshareReference(domain, modelId, id, key) = unshare
-                Some(RemoteReferenceUnshared(modelId, sk, id, key))
+                Some(RemoteReferenceUnshared(modelId, session, id, key))
               case set: SetReference =>
                 //TODO: Added ReferenceValue to move ot packages into separate project and need to evaluate usage here
                 val refVal: ReferenceValue = ReferenceValue(set.id, set.key, set.referenceType, set.values, set.contextVersion)
-                this.cc.processRemoteReferenceSet(sk.serialize(), refVal) match {
+                this.cc.processRemoteReferenceSet(session.sessionId, refVal) match {
                   case Some(xformed) =>
                     val setRef: SetReference = SetReference(domainFqn, modelId, xformed.id, xformed.key, xformed.referenceType, xformed.values, xformed.contextVersion.toInt)
-                    realTimeValue.processReferenceEvent(setRef, sk)
-                    Some(RemoteReferenceSet(this.modelId, sk, setRef.id, setRef.key, setRef.referenceType, setRef.values))
+                    realTimeValue.processReferenceEvent(setRef, session)
+                    Some(RemoteReferenceSet(this.modelId, session, setRef.id, setRef.key, setRef.referenceType, setRef.values))
                   case None =>
                     None
                 }
               case cleared: ClearReference =>
-                realTimeValue.processReferenceEvent(cleared, sk)
+                realTimeValue.processReferenceEvent(cleared, session)
                 val ClearReference(_, _, id, key) = cleared
-                Some(RemoteReferenceCleared(this.modelId, sk, id, key))
+                Some(RemoteReferenceCleared(this.modelId, session, id, key))
             }
           case None =>
             // TODO we just drop the event because we don't have a RTV with this id.
@@ -204,27 +205,27 @@ class RealTimeModel(
         // This handles element references which have no id.
         event match {
           case share: ShareReference =>
-            elementReferenceManager.handleReferenceEvent(share, sk)
+            elementReferenceManager.handleReferenceEvent(share, session)
             val ShareReference(_, _, id, key, refType, values, contextVersion) = share
             val xformedValue = values.asInstanceOf[List[String]] filter { idToValue.contains(_) }
             val xformedSet = SetReference(domainFqn, modelId, id, key, refType, xformedValue, contextVersion)
-            elementReferenceManager.handleReferenceEvent(xformedSet, sk)
-            Some(RemoteReferenceShared(modelId, sk, id, key, refType, xformedValue))
+            elementReferenceManager.handleReferenceEvent(xformedSet, session)
+            Some(RemoteReferenceShared(modelId, session, id, key, refType, xformedValue))
 
           case unshare: UnshareReference =>
-            elementReferenceManager.handleReferenceEvent(unshare, sk)
+            elementReferenceManager.handleReferenceEvent(unshare, session)
             val UnshareReference(_, _, id, key) = unshare
-            Some(RemoteReferenceUnshared(modelId, sk, id, key))
+            Some(RemoteReferenceUnshared(modelId, session, id, key))
           case set: SetReference =>
             val SetReference(d, m, id, key, refType, values, version) = set
             val xformedValue = values.asInstanceOf[List[String]] filter { idToValue.contains(_) }
             val xformedSet = SetReference(d, m, id, key, refType, xformedValue, version)
-            elementReferenceManager.handleReferenceEvent(xformedSet, sk)
-            Some(RemoteReferenceSet(modelId, sk, id, key, refType, xformedValue))
+            elementReferenceManager.handleReferenceEvent(xformedSet, session)
+            Some(RemoteReferenceSet(modelId, session, id, key, refType, xformedValue))
           case cleared: ClearReference =>
-            elementReferenceManager.handleReferenceEvent(cleared, sk)
+            elementReferenceManager.handleReferenceEvent(cleared, session)
             val ClearReference(_, _, id, key) = cleared
-            Some(RemoteReferenceCleared(modelId, sk, id, key))
+            Some(RemoteReferenceCleared(modelId, session, id, key))
         }
     }
   }

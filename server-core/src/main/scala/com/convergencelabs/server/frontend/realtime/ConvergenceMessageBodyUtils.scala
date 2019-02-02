@@ -66,7 +66,7 @@ object ConvergenceMessageBodyUtils {
       case Body.SetModelPermissionsResponse(message) => message
       case Body.ModelPermissionsChanged(message) => message
       // Identity
-      case Body.UserLookUpRequest(message) => message
+      case Body.UsersGetRequest(message) => message
       case Body.UserSearchRequest(message) => message
       case Body.UserListResponse(message) => message
       case Body.UserGroupsRequest(message) => message
@@ -208,7 +208,7 @@ object ConvergenceMessageBodyUtils {
       case message: SetModelPermissionsResponseMessage => Body.SetModelPermissionsResponse(message)
       case message: ModelPermissionsChangedMessage => Body.ModelPermissionsChanged(message)
       // Identity
-      case message: UserLookUpMessage => Body.UserLookUpRequest(message)
+      case message: GetUsersMessage => Body.UsersGetRequest(message)
       case message: UserSearchMessage => Body.UserSearchRequest(message)
       case message: UserListMessage => Body.UserListResponse(message)
       case message: UserGroupsRequestMessage => Body.UserGroupsRequest(message)

@@ -9,6 +9,7 @@ import com.convergencelabs.server.domain.model.ot.AppliedDiscreteOperation
 import com.convergencelabs.server.domain.model.ot.DiscreteOperation
 import com.convergencelabs.server.domain.model.reference.ModelReference
 import com.convergencelabs.server.domain.model.reference.ReferenceManager
+import com.convergencelabs.server.domain.DomainUserSessionId
 
 abstract class RealTimeValue(
   private[model] val id: String,
@@ -56,15 +57,15 @@ abstract class RealTimeValue(
     this.referenceManager.referenceMap().getAll()
   }
 
-  def sessionDisconnected(sk: SessionKey): Unit = {
-    this.referenceManager.sessionDisconnected(sk)
+  def sessionDisconnected(session: DomainUserSessionId): Unit = {
+    this.referenceManager.sessionDisconnected(session)
   }
 
-  def processReferenceEvent(event: ModelReferenceEvent, sk: SessionKey): Try[Unit] = {
+  def processReferenceEvent(event: ModelReferenceEvent, session: DomainUserSessionId): Try[Unit] = {
     if (this.validReferenceTypes.isEmpty) {
       Failure(new IllegalArgumentException("This RealTimeValue does not allow references"))
     } else {
-      this.referenceManager.handleReferenceEvent(event, sk)
+      this.referenceManager.handleReferenceEvent(event, session)
     }
   }
   

@@ -1,7 +1,6 @@
 package com.convergencelabs.server.domain
 
 import akka.actor.ActorRef
-import com.convergencelabs.server.domain.model.SessionKey
 
 sealed trait DomainMessage {
   val domainFqn: DomainFqn
@@ -26,7 +25,7 @@ case class ReconnectTokenAuthRequest(token: String) extends AuthetncationCredent
 case class AnonymousAuthRequest(displayName: Option[String]) extends AuthetncationCredentials
 
 sealed trait AuthenticationResponse
-case class AuthenticationSuccess(username: String, sk: SessionKey, reconnectToken: String) extends AuthenticationResponse
+case class AuthenticationSuccess(session: DomainUserSessionId, reconnectToken: Option[String]) extends AuthenticationResponse
 case object AuthenticationFailure extends AuthenticationResponse
 
 case class AuthenticationError(message: String = "", cause: Throwable) extends Exception(message, cause)

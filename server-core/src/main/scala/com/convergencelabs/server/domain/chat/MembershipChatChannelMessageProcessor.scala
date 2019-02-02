@@ -13,7 +13,7 @@ abstract class MembershipChatChannelMessageProcessor(
   def boradcast(message: Any): Unit = {
     val members = stateManager.state().members
     members.values.foreach { member =>
-      val topic = ChatChannelActor.getChatUsernameTopicName(member.username)
+      val topic = ChatChannelActor.getChatUsernameTopicName(member.userId)
       mediator ! Publish(topic, message)
     }
   }

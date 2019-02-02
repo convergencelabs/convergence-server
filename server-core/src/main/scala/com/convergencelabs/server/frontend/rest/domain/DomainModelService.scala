@@ -5,7 +5,6 @@ import java.util.UUID
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
-import scala.util.Try
 
 import com.convergencelabs.server.datastore.domain.ModelDataGenerator
 import com.convergencelabs.server.datastore.domain.ModelPermissions
@@ -23,26 +22,26 @@ import com.convergencelabs.server.datastore.domain.ModelPermissionsStoreActor.Se
 import com.convergencelabs.server.datastore.domain.ModelStoreActor.GetModels
 import com.convergencelabs.server.datastore.domain.ModelStoreActor.GetModelsInCollection
 import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainUserId
 import com.convergencelabs.server.domain.model.CreateOrUpdateRealtimeModel
 import com.convergencelabs.server.domain.model.CreateRealtimeModel
 import com.convergencelabs.server.domain.model.DeleteRealtimeModel
 import com.convergencelabs.server.domain.model.GetRealtimeModel
 import com.convergencelabs.server.domain.model.Model
 import com.convergencelabs.server.domain.model.ModelMetaData
-import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.model.ModelNotFoundException
-import com.convergencelabs.server.domain.rest.AuthorizationActor.ConvergenceAuthorizedRequest
+import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
 import com.convergencelabs.server.frontend.rest.DomainModelService.ModelMetaDataResponse
 import com.convergencelabs.server.frontend.rest.DomainModelService.SetOverrideWorldRequest
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
-import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
 import akka.http.scaladsl.server.Directive.addDirectiveApply
 import akka.http.scaladsl.server.Directives.Segment
 import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
+import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
 import akka.http.scaladsl.server.Directives.as
 import akka.http.scaladsl.server.Directives.authorizeAsync
 import akka.http.scaladsl.server.Directives.complete
@@ -53,10 +52,8 @@ import akka.http.scaladsl.server.Directives.pathEnd
 import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.post
 import akka.http.scaladsl.server.Directives.put
-import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
-
 
 object DomainModelService {
 
@@ -103,7 +100,6 @@ class DomainModelService(
   extends DomainRestService(executionContext, timeout, authActor) {
 
   import DomainModelService._
-
   import akka.pattern.ask
 
   def route(username: String, domain: DomainFqn): Route = {
@@ -299,7 +295,7 @@ class DomainModelService(
   }
 
   def getModelUserPermissions(domain: DomainFqn, modelId: String, username: String): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, GetModelUserPermissions(modelId, username))
+    val message = DomainRestMessage(domain, GetModelUserPermissions(modelId, DomainUserId.normal(username)))
     (domainRestActor ? message).mapTo[Option[ModelPermissions]] map {
       permissions =>
         okResponse(GetPermissionsResponse(permissions))
@@ -307,12 +303,12 @@ class DomainModelService(
   }
 
   def setModelUserPermissions(domain: DomainFqn, modelId: String, username: String, permissions: ModelPermissions): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, SetModelUserPermissions(modelId, username, permissions))
+    val message = DomainRestMessage(domain, SetModelUserPermissions(modelId, DomainUserId.normal(username), permissions))
     (domainRestActor ? message) map { _ => OkResponse }
   }
 
   def removeModelUserPermissions(domain: DomainFqn, modelId: String, username: String): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, RemoveModelUserPermissions(modelId, username))
+    val message = DomainRestMessage(domain, RemoveModelUserPermissions(modelId, DomainUserId.normal(username)))
     (domainRestActor ? message) map { _ => OkResponse }
   }
   

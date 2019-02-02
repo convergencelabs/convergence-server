@@ -4,25 +4,26 @@ import java.time.Instant
 
 import com.convergencelabs.server.datastore.domain.ChatChannelEvent
 import com.convergencelabs.server.datastore.domain.ChatChannelInfo
-import com.convergencelabs.server.domain.model.SessionKey
 
 import akka.actor.ActorRef
 import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainUserSessionId
+import com.convergencelabs.server.domain.DomainUserId
 
 object ChatChannelMessages {
 
   trait ChatChannelMessage {
-    
+
   }
 
   case class CreateChannelRequest(
     channelId: Option[String],
-    sk: SessionKey,
+    createdBy: DomainUserSessionId,
     channelType: String,
     channelMembership: String,
     name: Option[String],
     topic: Option[String],
-    members: Set[String]) extends ChatChannelMessage
+    members: Set[DomainUserId]) extends ChatChannelMessage
 
   case class CreateChannelResponse(channelId: String)
 
@@ -33,62 +34,69 @@ object ChatChannelMessages {
 
   // Incoming Messages
 
-  case class RemoveChannelRequest(domainFqn: DomainFqn, channelId: String, sk: SessionKey) extends ExistingChannelMessage
+  case class RemoveChannelRequest(domainFqn: DomainFqn, channelId: String, requestor: DomainUserSessionId) extends ExistingChannelMessage
 
-  case class JoinChannelRequest(domainFqn: DomainFqn, channelId: String, sk: SessionKey, client: ActorRef) extends ExistingChannelMessage
+  case class JoinChannelRequest(domainFqn: DomainFqn, channelId: String, requestor: DomainUserSessionId, client: ActorRef) extends ExistingChannelMessage
   case class JoinChannelResponse(info: ChatChannelInfo)
 
-  case class LeaveChannelRequest(domainFqn: DomainFqn, channelId: String, sk: SessionKey, client: ActorRef) extends ExistingChannelMessage
-  case class AddUserToChannelRequest(domainFqn: DomainFqn, channelId: String, sk: SessionKey, username: String) extends ExistingChannelMessage
-  case class RemoveUserFromChannelRequest(domainFqn: DomainFqn, channelId: String, sk: SessionKey, username: String) extends ExistingChannelMessage
+  case class LeaveChannelRequest(domainFqn: DomainFqn, channelId: String, requestor: DomainUserSessionId, client: ActorRef) extends ExistingChannelMessage
+  case class AddUserToChannelRequest(domainFqn: DomainFqn, channelId: String, requestor: DomainUserSessionId, userToAdd: DomainUserId) extends ExistingChannelMessage
+  case class RemoveUserFromChannelRequest(domainFqn: DomainFqn, channelId: String, requestor: DomainUserSessionId, userToRemove: DomainUserId) extends ExistingChannelMessage
 
-  case class SetChannelNameRequest(domainFqn: DomainFqn, channelId: String, sk: SessionKey, name: String) extends ExistingChannelMessage
-  case class SetChannelTopicRequest(domainFqn: DomainFqn, channelId: String, sk: SessionKey, topic: String) extends ExistingChannelMessage
-  case class MarkChannelEventsSeenRequest(domainFqn: DomainFqn, channelId: String, sk: SessionKey, eventNumber: Long) extends ExistingChannelMessage
+  case class SetChannelNameRequest(domainFqn: DomainFqn, channelId: String, requestor: DomainUserSessionId, name: String) extends ExistingChannelMessage
+  case class SetChannelTopicRequest(domainFqn: DomainFqn, channelId: String, requestor: DomainUserSessionId, topic: String) extends ExistingChannelMessage
+  case class MarkChannelEventsSeenRequest(domainFqn: DomainFqn, channelId: String, requestor: DomainUserSessionId, eventNumber: Long) extends ExistingChannelMessage
 
-  case class PublishChatMessageRequest(domainFqn: DomainFqn, channelId: String, sk: SessionKey, message: String) extends ExistingChannelMessage
+  case class PublishChatMessageRequest(domainFqn: DomainFqn, channelId: String, requestor: DomainUserSessionId, message: String) extends ExistingChannelMessage
 
-  case class UserPermissions(username: String, p: Set[String])
-  case class GroupPermissions(groupId: String, p: Set[String])
+  case class UserPermissions(user: DomainUserId, permissions: Set[String])
+  case class GroupPermissions(groupId: String, permissions: Set[String])
 
-  case class AddChatPermissionsRequest(domainFqn: DomainFqn, channelId: String, sk: SessionKey, world: Option[Set[String]], user: Option[Set[UserPermissions]], group: Option[Set[GroupPermissions]]) extends ExistingChannelMessage
-  case class RemoveChatPermissionsRequest(domainFqn: DomainFqn, channelId: String, sk: SessionKey, world: Option[Set[String]], user: Option[Set[UserPermissions]], group: Option[Set[GroupPermissions]]) extends ExistingChannelMessage
-  case class SetChatPermissionsRequest(domainFqn: DomainFqn, channelId: String, sk: SessionKey, world: Option[Set[String]], user: Option[Set[UserPermissions]], group: Option[Set[GroupPermissions]]) extends ExistingChannelMessage
+  case class AddChatPermissionsRequest(domainFqn: DomainFqn, channelId: String, requestor: DomainUserSessionId, world: Option[Set[String]], user: Option[Set[UserPermissions]], group: Option[Set[GroupPermissions]]) extends ExistingChannelMessage
+  case class RemoveChatPermissionsRequest(domainFqn: DomainFqn, channelId: String, requestor: DomainUserSessionId, world: Option[Set[String]], user: Option[Set[UserPermissions]], group: Option[Set[GroupPermissions]]) extends ExistingChannelMessage
+  case class SetChatPermissionsRequest(domainFqn: DomainFqn, channelId: String, requestor: DomainUserSessionId, world: Option[Set[String]], user: Option[Set[UserPermissions]], group: Option[Set[GroupPermissions]]) extends ExistingChannelMessage
 
-  case class GetClientChatPermissionsRequest(domainFqn: DomainFqn, channelId: String, sk: SessionKey) extends ExistingChannelMessage
+  case class GetClientChatPermissionsRequest(domainFqn: DomainFqn, channelId: String, requestor: DomainUserSessionId) extends ExistingChannelMessage
   case class GetClientChatPermissionsResponse(permissions: Set[String])
 
-  case class GetWorldChatPermissionsRequest(domainFqn: DomainFqn, channelId: String, sk: SessionKey) extends ExistingChannelMessage
+  case class GetWorldChatPermissionsRequest(domainFqn: DomainFqn, channelId: String, requestor: DomainUserSessionId) extends ExistingChannelMessage
   case class GetWorldChatPermissionsResponse(permissions: Set[String])
 
-  case class GetAllUserChatPermissionsRequest(domainFqn: DomainFqn, channelId: String, sk: SessionKey) extends ExistingChannelMessage
-  case class GetAllUserChatPermissionsResponse(users: Map[String, Set[String]])
+  case class GetAllUserChatPermissionsRequest(domainFqn: DomainFqn, channelId: String, requestor: DomainUserSessionId) extends ExistingChannelMessage
+  case class GetAllUserChatPermissionsResponse(users: Map[DomainUserId, Set[String]])
 
-  case class GetAllGroupChatPermissionsRequest(domainFqn: DomainFqn, channelId: String, sk: SessionKey) extends ExistingChannelMessage
+  case class GetAllGroupChatPermissionsRequest(domainFqn: DomainFqn, channelId: String, requestor: DomainUserSessionId) extends ExistingChannelMessage
   case class GetAllGroupChatPermissionsResponse(groups: Map[String, Set[String]])
 
-  case class GetUserChatPermissionsRequest(domainFqn: DomainFqn, channelId: String, username: String, sk: SessionKey) extends ExistingChannelMessage
+  case class GetUserChatPermissionsRequest(domainFqn: DomainFqn, channelId: String, requestor: DomainUserSessionId, userId: DomainUserId) extends ExistingChannelMessage
   case class GetUserChatPermissionsResponse(permissions: Set[String])
 
-  case class GetGroupChatPermissionsRequest(domainFqn: DomainFqn, channelId: String, groupId: String, sk: SessionKey) extends ExistingChannelMessage
+  case class GetGroupChatPermissionsRequest(domainFqn: DomainFqn, channelId: String, requestor: DomainUserSessionId, groupId: String) extends ExistingChannelMessage
   case class GetGroupChatPermissionsResponse(permissions: Set[String])
 
-  case class GetChannelHistoryRequest(domainFqn: DomainFqn, channelId: String, sk: SessionKey, limit: Option[Int], startEvent: Option[Long],
-    forward: Option[Boolean], eventFilter: Option[List[String]]) extends ExistingChannelMessage
+  case class GetChannelHistoryRequest(
+    domainFqn: DomainFqn,
+    channelId: String,
+    requestor: DomainUserSessionId,
+    limit: Option[Int],
+    startEvent: Option[Long],
+    forward: Option[Boolean],
+    eventFilter: Option[List[String]]) extends ExistingChannelMessage
+
   case class GetChannelHistoryResponse(events: List[ChatChannelEvent])
 
-  // Outgoing Broadcast Messages 
+  // Outgoing Broadcast Messages
   sealed trait ChatChannelBroadcastMessage
-  case class UserJoinedChannel(channelId: String, eventNumber: Long, timestamp: Instant, username: String) extends ChatChannelBroadcastMessage
-  case class UserLeftChannel(channelId: String, eventNumber: Long, timestamp: Instant, username: String) extends ChatChannelBroadcastMessage
-  case class UserAddedToChannel(channelId: String, eventNumber: Long, timestamp: Instant, username: String, addedBy: String) extends ChatChannelBroadcastMessage
-  case class UserRemovedFromChannel(channelId: String, eventNumber: Int, timestamp: Instant, username: String, removedBy: String) extends ChatChannelBroadcastMessage
-  case class ChannelNameChanged(channelId: String, eventNumber: Long, timestamp: Instant, name: String, setBy: String) extends ChatChannelBroadcastMessage
-  case class ChannelTopicChanged(channelId: String, eventNumber: Long, timestamp: Instant, topic: String, setBy: String) extends ChatChannelBroadcastMessage
+  case class UserJoinedChannel(channelId: String, eventNumber: Long, timestamp: Instant, userId: DomainUserId) extends ChatChannelBroadcastMessage
+  case class UserLeftChannel(channelId: String, eventNumber: Long, timestamp: Instant, userId: DomainUserId) extends ChatChannelBroadcastMessage
+  case class UserAddedToChannel(channelId: String, eventNumber: Long, timestamp: Instant, userId: DomainUserId, addedUserId: DomainUserId) extends ChatChannelBroadcastMessage
+  case class UserRemovedFromChannel(channelId: String, eventNumber: Int, timestamp: Instant, userId: DomainUserId, removedUserId: DomainUserId) extends ChatChannelBroadcastMessage
+  case class ChannelNameChanged(channelId: String, eventNumber: Long, timestamp: Instant, userId: DomainUserId, name: String) extends ChatChannelBroadcastMessage
+  case class ChannelTopicChanged(channelId: String, eventNumber: Long, timestamp: Instant, userId: DomainUserId, topic: String) extends ChatChannelBroadcastMessage
 
   case class ChannelRemoved(channelId: String) extends ChatChannelBroadcastMessage
 
-  case class RemoteChatMessage(channelId: String, eventNumber: Long, timestamp: Instant, sk: SessionKey, message: String) extends ChatChannelBroadcastMessage
+  case class RemoteChatMessage(channelId: String, eventNumber: Long, timestamp: Instant, session: DomainUserSessionId, message: String) extends ChatChannelBroadcastMessage
 
   // Exceptions
   sealed abstract class ChatChannelException(message: String) extends Exception(message)

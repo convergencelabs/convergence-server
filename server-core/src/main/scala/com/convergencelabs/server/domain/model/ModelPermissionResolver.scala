@@ -6,21 +6,22 @@ import scala.util.Try
 import com.convergencelabs.server.datastore.domain.CollectionPermissions
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.datastore.domain.ModelPermissions
+import com.convergencelabs.server.domain.DomainUserId
 
 case class ModelPemrissionResult(
     overrideCollection: Boolean,
     modelWorld: ModelPermissions,
-    modelUsers: Map[String, ModelPermissions])
+    modelUsers: Map[DomainUserId, ModelPermissions])
 
 class ModelPermissionResolver() {
-  def getModelUserPermissions(id: String, sk: SessionKey, persistenceProvider: DomainPersistenceProvider): Try[ModelPermissions] = {
-    if (sk.admin) {
+  def getModelUserPermissions(id: String, userId: DomainUserId, persistenceProvider: DomainPersistenceProvider): Try[ModelPermissions] = {
+    if (userId.isConvergence) {
       Success(ModelPermissions(true, true, true, true))
     } else {
       val permissionsStore = persistenceProvider.modelPermissionsStore
       permissionsStore.modelOverridesCollectionPermissions(id).flatMap { overrides =>
         if (overrides) {
-          permissionsStore.getModelUserPermissions(id, sk.uid).flatMap { userPerms =>
+          permissionsStore.getModelUserPermissions(id, userId).flatMap { userPerms =>
             userPerms match {
               case Some(p) =>
                 Success(p)

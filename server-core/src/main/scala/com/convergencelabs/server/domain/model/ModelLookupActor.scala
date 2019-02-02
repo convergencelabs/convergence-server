@@ -11,8 +11,10 @@ import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.Props
 import akka.actor.Status
+import com.convergencelabs.server.domain.DomainUserId
+import com.convergencelabs.server.domain.DomainUserType
 
-case class QueryModelsRequest(sk: SessionKey, query: String)
+case class QueryModelsRequest(userId: DomainUserId, query: String)
 case class QueryOrderBy(field: String, ascending: Boolean)
 case class QueryModelsResponse(result: List[ModelQueryResult])
 
@@ -40,12 +42,13 @@ class ModelLookupActor(
   }
 
   private[this] def onQueryModelsRequest(request: QueryModelsRequest): Unit = {
-    val QueryModelsRequest(sk, query) = request
-    val username = request.sk.admin match {
-      case true => None
-      case false => Some(request.sk.uid)
-    }
-    persistenceProvider.modelStore.queryModels(query, username) map { result =>
+    val QueryModelsRequest(userId, query) = request
+    
+    val uid = Option(userId).flatMap( u => u match {
+      case DomainUserType.Convergence => None
+      case _ => Some(u)
+    })
+    persistenceProvider.modelStore.queryModels(query, uid) map { result =>
       sender ! QueryModelsResponse(result)
     } recover {
       case cause: Exception =>

@@ -43,7 +43,6 @@ import com.convergencelabs.server.domain.model.RemoteReferenceCleared
 import com.convergencelabs.server.domain.model.RemoteReferenceShared
 import com.convergencelabs.server.domain.model.RemoteReferenceSet
 import com.convergencelabs.server.domain.model.RemoteReferenceUnshared
-import com.convergencelabs.server.domain.model.SessionKey
 import com.convergencelabs.server.domain.model.SetModelPermissionsRequest
 import com.convergencelabs.server.domain.model.SetReference
 import com.convergencelabs.server.domain.model.UnshareReference
@@ -116,21 +115,23 @@ import io.convergence.proto.common.Int32List
 import io.convergence.proto.common.StringList
 import com.convergencelabs.server.frontend.realtime.ImplicitMessageConversions._
 import com.google.protobuf.timestamp.Timestamp
+import com.convergencelabs.server.domain.DomainUserSessionId
+import io.convergence.proto.model.UserModelPermissionsEntry
 
 object ModelClientActor {
   def props(
     domainFqn: DomainFqn,
-    sk: SessionKey,
+    session: DomainUserSessionId,
     modelQueryActor: ActorRef,
     requestTimeout: Timeout): Props =
-    Props(new ModelClientActor(domainFqn, sk, modelQueryActor, requestTimeout))
+    Props(new ModelClientActor(domainFqn, session, modelQueryActor, requestTimeout))
 
   val ModelNotFoundError = ErrorMessage("model_not_found", "A model with the specifieid collection and model id does not exist.", Map())
 }
 
 class ModelClientActor(
   private[this] val domainFqn: DomainFqn,
-  private[this] implicit val sessionKey: SessionKey,
+  private[this] implicit val session: DomainUserSessionId,
   private[this] val modelQueryActor: ActorRef,
   private[this] implicit val requestTimeout: Timeout)
   extends Actor
@@ -180,11 +181,11 @@ class ModelClientActor(
   // scalastyle:on cyclomatic.complexity
 
   private[this] def onOutgoingOperation(op: OutgoingOperation): Unit = {
-    val OutgoingOperation(modelId, sessionKey, contextVersion, timestamp, operation) = op
+    val OutgoingOperation(modelId, session, contextVersion, timestamp, operation) = op
     resourceId(modelId) foreach { resoruceId =>
       context.parent ! RemoteOperationMessage(
         resoruceId,
-        sessionKey.sid,
+        session.sessionId,
         contextVersion,
         Some(timestamp),
         Some(OperationMapper.mapOutgoing(operation)))
@@ -199,16 +200,16 @@ class ModelClientActor(
   }
 
   private[this] def onRemoteClientOpened(opened: RemoteClientOpened): Unit = {
-    val RemoteClientOpened(modelId, sk) = opened
+    val RemoteClientOpened(modelId, session) = opened
     resourceId(modelId) foreach { resourceId =>
-      context.parent ! RemoteClientOpenedMessage(resourceId, sk.sid)
+      context.parent ! RemoteClientOpenedMessage(resourceId, session.sessionId)
     }
   }
 
   private[this] def onRemoteClientClosed(closed: RemoteClientClosed): Unit = {
-    val RemoteClientClosed(modelId, sk) = closed
+    val RemoteClientClosed(modelId, session) = closed
     resourceId(modelId) foreach { resourceId =>
-      context.parent ! RemoteClientClosedMessage(resourceId, sk.sid)
+      context.parent ! RemoteClientClosedMessage(resourceId, session.sessionId)
     }
   }
 
@@ -240,11 +241,7 @@ class ModelClientActor(
             ModelPermissions(read, write, remove, manage)
         }
 
-        val userPermissions = userPermissionsData.map {
-          case (username, ModelPermissionsData(read, write, remove, manage)) =>
-            (username, ModelPermissions(read, write, remove, manage))
-        }
-
+        val userPermissions = modelUserPermissionSeqToMap(userPermissionsData)
         val response = ClientAutoCreateModelConfigResponse(
           collection,
           data.map(messageToObjectValue(_)),
@@ -263,14 +260,14 @@ class ModelClientActor(
     val RemoteReferenceShared(modelId, session, valueId, key, refType, values) = refShared
     resourceId(modelId) foreach { resourceId =>
       val references = mapOutgoingReferenceValue(refType, values)
-      context.parent ! RemoteReferenceSharedMessage(resourceId, valueId, key, Some(references), session.sid)
+      context.parent ! RemoteReferenceSharedMessage(resourceId, valueId, key, Some(references), session.sessionId)
     }
   }
 
   private[this] def onRemoteReferenceUnshared(refUnshared: RemoteReferenceUnshared): Unit = {
     val RemoteReferenceUnshared(modelId, session, valueId, key) = refUnshared
     resourceId(modelId) foreach { resourceId =>
-      context.parent ! RemoteReferenceUnsharedMessage(resourceId, valueId, key, session.sid)
+      context.parent ! RemoteReferenceUnsharedMessage(resourceId, valueId, key, session.sessionId)
     }
   }
 
@@ -278,7 +275,7 @@ class ModelClientActor(
     val RemoteReferenceSet(modelId, session, valueId, key, refType, values) = refSet
     resourceId(modelId) foreach { resourceId =>
       val references = mapOutgoingReferenceValue(refType, values)
-      context.parent ! RemoteReferenceSetMessage(resourceId, valueId, key, Some(references), session.sid)
+      context.parent ! RemoteReferenceSetMessage(resourceId, valueId, key, Some(references), session.sessionId)
     }
   }
 
@@ -319,7 +316,7 @@ class ModelClientActor(
   private[this] def onRemoteReferenceCleared(refCleared: RemoteReferenceCleared): Unit = {
     val RemoteReferenceCleared(modelId, session, valueId, key) = refCleared
     resourceId(modelId) foreach { resourceId =>
-      context.parent ! RemoteReferenceClearedMessage(resourceId, valueId, key, session.sid)
+      context.parent ! RemoteReferenceClearedMessage(resourceId, valueId, key, session.sessionId)
     }
   }
 
@@ -422,7 +419,7 @@ class ModelClientActor(
 
     val modelId = optionalModelId.filter(!_.isEmpty).getOrElse(UUID.randomUUID().toString())
 
-    val future = modelClusterRegion ? OpenRealtimeModelRequest(domainFqn, modelId, autoCreateId, sessionKey, self)
+    val future = modelClusterRegion ? OpenRealtimeModelRequest(domainFqn, modelId, autoCreateId, session, self)
     future.mapResponse[OpenModelSuccess] onComplete {
       case Success(OpenModelSuccess(valueIdPrefix, metaData, connectedClients, references, modelData, modelPermissions)) =>
         val resourceId = nextResourceId();
@@ -432,7 +429,7 @@ class ModelClientActor(
         val convertedReferences = references.map {
           case ReferenceState(session, valueId, key, refType, values) =>
             val referenceValues = mapOutgoingReferenceValue(refType, values)
-            ReferenceData(session.sid, valueId, key, Some(referenceValues))
+            ReferenceData(session.sessionId, valueId, key, Some(referenceValues))
         }
 
         cb.reply(
@@ -445,7 +442,7 @@ class ModelClientActor(
             Some(metaData.createdTime),
             Some(metaData.modifiedTime),
             Some(modelData),
-            connectedClients.map(s => s.sid).toSeq,
+            connectedClients.map(s => s.sessionId).toSeq,
             convertedReferences.toSeq,
             Some(ModelPermissionsData(
               modelPermissions.read,
@@ -472,7 +469,7 @@ class ModelClientActor(
     val CloseRealtimeModelRequestMessage(resourceId) = request
     resourceIdToModelId.get(resourceId) match {
       case Some(modelId) =>
-        val future = modelClusterRegion ? CloseRealtimeModelRequest(domainFqn, modelId, sessionKey)
+        val future = modelClusterRegion ? CloseRealtimeModelRequest(domainFqn, modelId, session)
         future.mapTo[Unit] onComplete {
           case Success(()) =>
             resourceIdToModelId -= resourceId
@@ -492,14 +489,11 @@ class ModelClientActor(
     val worldPermissions = worldPermissionsData.map(w =>
       ModelPermissions(w.read, w.write, w.remove, w.manage))
 
-    val userPermissions = userPermissionsData.map {
-      case (username, p) =>
-        (username, ModelPermissions(p.read, p.write, p.remove, p.manage))
-    }
-
+    val userPermissions = modelUserPermissionSeqToMap(userPermissionsData)
+    
     // FIXME make a utility for this.
     val modelId = optionalModelId.filter(!_.isEmpty).getOrElse(UUID.randomUUID().toString())
-    
+
     val future = modelClusterRegion ? CreateRealtimeModel(
       domainFqn,
       modelId,
@@ -508,7 +502,7 @@ class ModelClientActor(
       Some(overridePermissions),
       worldPermissions,
       userPermissions,
-      Some(sessionKey))
+      Some(session))
     future.mapResponse[String] onComplete {
       case Success(modelId) =>
         cb.reply(CreateRealtimeModelSuccessMessage(modelId))
@@ -524,7 +518,7 @@ class ModelClientActor(
 
   private[this] def onDeleteRealtimeModelRequest(request: DeleteRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
     val DeleteRealtimeModelRequestMessage(modelId) = request
-    val future = modelClusterRegion ? DeleteRealtimeModel(domainFqn, modelId, Some(sessionKey))
+    val future = modelClusterRegion ? DeleteRealtimeModel(domainFqn, modelId, Some(session))
     future.mapTo[Unit] onComplete {
       case Success(()) =>
         cb.reply(DeleteRealtimeModelSuccessMessage())
@@ -540,7 +534,7 @@ class ModelClientActor(
 
   private[this] def onModelQueryRequest(request: ModelsQueryRequestMessage, cb: ReplyCallback): Unit = {
     val ModelsQueryRequestMessage(query) = request
-    val future = modelQueryActor ? QueryModelsRequest(sessionKey, query)
+    val future = modelQueryActor ? QueryModelsRequest(session.userId, query)
     future.mapResponse[QueryModelsResponse] onComplete {
       case Success(QueryModelsResponse(result)) => cb.reply(
         ModelsQueryResponseMessage(result map {
@@ -563,14 +557,11 @@ class ModelClientActor(
 
   private[this] def onGetModelPermissionsRequest(request: GetModelPermissionsRequestMessage, cb: ReplyCallback): Unit = {
     val GetModelPermissionsRequestMessage(modelId) = request
-    val future = modelClusterRegion ? GetModelPermissionsRequest(domainFqn, modelId, sessionKey)
+    val future = modelClusterRegion ? GetModelPermissionsRequest(domainFqn, modelId, session)
     future.mapResponse[GetModelPermissionsResponse] onComplete {
       case Success(GetModelPermissionsResponse(overridesCollection, world, users)) =>
         val mappedWorld = ModelPermissionsData(world.read, world.write, world.remove, world.manage)
-        val mappedUsers = users map {
-          case (username, ModelPermissions(read, write, remove, manage)) =>
-            (username, ModelPermissionsData(read, write, remove, manage))
-        }
+        val mappedUsers = modelUserPermissionSeqToMap(users)
         cb.reply(GetModelPermissionsResponseMessage(overridesCollection, Some(mappedWorld), mappedUsers))
       case Failure(ModelNotFoundException(_)) =>
         cb.reply(ModelClientActor.ModelNotFoundError)
@@ -585,17 +576,17 @@ class ModelClientActor(
   private[this] def onSetModelPermissionsRequest(request: SetModelPermissionsRequestMessage, cb: ReplyCallback): Unit = {
     val SetModelPermissionsRequestMessage(modelId, overridePermissions, world, setAllUsers, addedUsers, removedUsers) = request
     val mappedWorld = world map (w => ModelPermissions(w.read, w.write, w.remove, w.manage))
-    val mappedAddedUsers = addedUsers.map { case (username, p) => (username, ModelPermissions(p.read, p.write, p.remove, p.manage)) }
+    val mappedAddedUsers = modelUserPermissionSeqToMap(addedUsers)
 
     val message = SetModelPermissionsRequest(
       domainFqn,
       modelId,
-      sessionKey,
+      session,
       Some(overridePermissions),
       mappedWorld,
       setAllUsers,
       mappedAddedUsers,
-      removedUsers.toList)
+      removedUsers.map(ImplicitMessageConversions.dataToDomainUserId(_)).toList)
     val future = modelClusterRegion ? message
     future onComplete {
       case Success(_) =>

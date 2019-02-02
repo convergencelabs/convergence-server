@@ -1,6 +1,7 @@
 package com.convergencelabs.server.db.data
 
 import java.time.Instant
+import com.convergencelabs.server.domain.DomainUserId
 
 case class DomainScript(
   config: SetDomainConfig,
@@ -25,11 +26,15 @@ case class CreateDomainUser(
   lastName: Option[String],
   displayName: Option[String],
   email: Option[String],
+  disabled: Boolean,
+  deleted: Boolean,
+  deletedUsername: Option[String],
   password: Option[SetPassword])
 
 case class CreateDomainSession(
   id: String,
   username: String,
+  userType: String,
   connected: Instant,
   disconnected: Option[Instant],
   authMethod: String,

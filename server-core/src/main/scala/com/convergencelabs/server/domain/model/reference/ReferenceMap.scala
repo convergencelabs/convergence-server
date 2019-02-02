@@ -1,16 +1,17 @@
 package com.convergencelabs.server.domain.model.reference
 
 import scala.collection.mutable.ListBuffer
-import com.convergencelabs.server.domain.model.SessionKey
+
+import com.convergencelabs.server.domain.DomainUserSessionId
 
 class ReferenceMap {
 
   // stored by sessionId first, then key.
   private[this] val references =
-    collection.mutable.Map[SessionKey, collection.mutable.Map[String, ModelReference[_]]]()
+    collection.mutable.Map[DomainUserSessionId, collection.mutable.Map[String, ModelReference[_]]]()
 
   def put(reference: ModelReference[_]): Unit = {
-    val session: SessionKey = reference.session
+    val session: DomainUserSessionId = reference.session
     val key: String = reference.key;
 
     val sessionRefs = this.references.get(session) match {
@@ -27,7 +28,7 @@ class ReferenceMap {
     sessionRefs(key) = reference
   }
 
-  def get(session: SessionKey, key: String): Option[ModelReference[_]] = {
+  def get(session: DomainUserSessionId, key: String): Option[ModelReference[_]] = {
     this.references.get(session).flatMap { sr => sr.get(key) }
   }
 
@@ -47,7 +48,7 @@ class ReferenceMap {
     this.references.clear()
   }
 
-  def remove(session: SessionKey, key: String): Option[ModelReference[_]] = {
+  def remove(session: DomainUserSessionId, key: String): Option[ModelReference[_]] = {
     val result = this.get(session, key)
     if (result.isDefined) {
       references(session) -= key
@@ -55,7 +56,7 @@ class ReferenceMap {
     result
   }
 
-  def removeBySession(session: SessionKey): Unit = {
+  def removeBySession(session: DomainUserSessionId): Unit = {
     references -= session
   }
 }

@@ -18,6 +18,7 @@ import com.convergencelabs.server.domain.model.ModelOperation
 import com.convergencelabs.server.domain.model.NewModelOperation
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.model.ot.AppliedStringInsertOperation
+import com.convergencelabs.server.domain.DomainUserId
 
 // scalastyle:off magic.number
 class ModelOperationStoreSpec
@@ -39,7 +40,7 @@ class ModelOperationStoreSpec
     ObjectValue("vid", Map()))
 
   val sessionId = "test:1"
-  val session = DomainSession(sessionId, testUsername, Instant.now(), None, "jwt", "js", "1.0", "", "127.0.0.1")
+  val session = DomainSession(sessionId, DomainUserId.normal(testUsername), Instant.now(), None, "jwt", "js", "1.0", "", "127.0.0.1")
 
   val notFoundId = "Exist"
 

@@ -1,50 +1,46 @@
 package com.convergencelabs.server.frontend.realtime
 
+import java.net.InetAddress
 import java.util.concurrent.TimeUnit
+
 import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
+
 import org.junit.runner.RunWith
-import org.mockito.Mockito
-import org.mockito.Mockito.times
+
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.Finders
-import org.scalatest.WordSpecLike
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.mockito.MockitoSugar
 import org.scalatest.Matchers
+import org.scalatest.WordSpecLike
+import org.scalatest.mockito.MockitoSugar
+import org.scalatest.junit.JUnitRunner
+
 import com.convergencelabs.server.HeartbeatConfiguration
 import com.convergencelabs.server.ProtocolConfiguration
 import com.convergencelabs.server.domain.AuthenticationSuccess
 import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainUserId
+import com.convergencelabs.server.domain.DomainUserSessionId
+import com.convergencelabs.server.domain.DomainUserType
 import com.convergencelabs.server.domain.HandshakeRequest
 import com.convergencelabs.server.domain.HandshakeSuccess
 import com.convergencelabs.server.domain.PasswordAuthRequest
-import com.convergencelabs.server.domain.model.OpenRealtimeModelRequest
+
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
-import akka.actor.Terminated
+import akka.http.scaladsl.model.RemoteAddress.IP
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
-import akka.actor.PoisonPill
-import com.convergencelabs.server.domain.model.SessionKey
-import akka.http.scaladsl.model.RemoteAddress
-import java.net.InetAddress
-import akka.http.scaladsl.model.RemoteAddress.IP
-import io.convergence.proto.connection.HandshakeRequestMessage
-import io.convergence.proto.authentication.PasswordAuthRequestMessage
-import io.convergence.proto.authentication.AuthenticationResponseMessage
-import io.convergence.proto.authentication.AuthenticationRequestMessage
-import io.convergence.proto.authentication.AuthSuccess
 import io.convergence.proto.Response
-
+import io.convergence.proto.authentication.AuthSuccess
+import io.convergence.proto.authentication.AuthenticationRequestMessage
+import io.convergence.proto.authentication.AuthenticationResponseMessage
+import io.convergence.proto.authentication.PasswordAuthRequestMessage
+import io.convergence.proto.connection.HandshakeRequestMessage
 import scalapb.GeneratedMessage
-
-
-
 
 // scalastyle:off magic.number
 @RunWith(classOf[JUnitRunner])
@@ -123,7 +119,7 @@ class ClientActorSpec
     clientActor.tell(authEvent, ActorRef.noSender)
 
     domainActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[PasswordAuthRequest])
-    domainActor.reply(AuthenticationSuccess("test", SessionKey("test", "0"), "123"))
+    domainActor.reply(AuthenticationSuccess(DomainUserSessionId("0", DomainUserId(DomainUserType.Normal, "test")), Some("123")))
 
     val authResponse = Await.result(authCallback.result, 250 millis).asInstanceOf[AuthenticationResponseMessage]
     authResponse.response.isSuccess shouldBe true

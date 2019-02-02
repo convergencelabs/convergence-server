@@ -41,11 +41,11 @@ class ChatRoomMessageProcessor(
   }
 
   override def onJoinChannel(message: JoinChannelRequest): Try[ChatMessageProcessingResult] = {
-    val JoinChannelRequest(domainFqn, channelId, sk, client) = message
-    logger.debug(s"Client(${sk}) joined chat room: ${channelId}")
+    val JoinChannelRequest(domainFqn, channelId, requestor, client) = message
+    logger.debug(s"Client(${requestor}) joined chat room: ${channelId}")
     watcher.tell(client, Actor.noSender)
 
-    chatRoomSessionManager.join(sk, client) match {
+    chatRoomSessionManager.join(requestor, client) match {
       case true =>
         // First session in, process the join request normally
         super.onJoinChannel(message)

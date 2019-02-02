@@ -10,6 +10,7 @@ import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.domain.DomainUser
 import com.convergencelabs.server.domain.DomainUserType
 import com.convergencelabs.server.domain.model.data.ObjectValue
+import com.convergencelabs.server.domain.DomainUserId
 
 class ModelPermissionsStoreSpec
     extends PersistenceStoreSpec[DomainPersistenceProvider](DeltaCategory.Domain)
@@ -21,8 +22,8 @@ class ModelPermissionsStoreSpec
   val collection1 = "collection1"
   val model1 = "model1"
   val model2 = "model2"
-  val user1 = "user1"
-  val user2 = "user2"
+  val user1 = DomainUserId.normal("user1")
+  val user2 = DomainUserId.normal("user2")
   val nonExistentCollectionId = "not_real"
   val nonRealId = "not_real"
 
@@ -147,8 +148,8 @@ class ModelPermissionsStoreSpec
       provider.collectionStore.ensureCollectionExists(collection1).get 
       provider.modelStore.createModel(model1, collection1, ObjectValue("vid", Map()), true, modelPermissions).get
       provider.modelStore.createModel(model2, collection1, ObjectValue("vid", Map()), true, modelPermissions).get
-      provider.userStore.createDomainUser(DomainUser(DomainUserType.Normal, user1, None, None, None, None)).get
-      provider.userStore.createDomainUser(DomainUser(DomainUserType.Normal, user2, None, None, None, None)).get
+      provider.userStore.createDomainUser(DomainUser(user1.userType, user1.username, None, None, None, None)).get
+      provider.userStore.createDomainUser(DomainUser(user2.userType, user2.username, None, None, None, None)).get
       testCode(provider)
     }
   }

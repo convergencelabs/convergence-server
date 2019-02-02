@@ -5,7 +5,7 @@ import java.time.Duration
 import java.time.Instant
 import java.util.Date
 
-import scala.collection.JavaConverters.seqAsJavaListConverter
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 import scala.util.Failure
 import scala.util.Try
@@ -30,11 +30,13 @@ import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
-
-
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.datastore.OrientDBUtil
 import com.convergencelabs.server.datastore.domain.schema.DomainSchema
+import com.orientechnologies.orient.core.db.ODatabaseSession
+import com.convergencelabs.server.domain.DomainUserId
+import com.orientechnologies.orient.core.index.OCompositeKey
+import com.orientechnologies.orient.core.index.OIndexCursor
 
 object DomainUserStore {
   import schema.UserClass._
@@ -58,17 +60,27 @@ object DomainUserStore {
     displayName: Option[String],
     email: Option[String])
 
+  private[this] val deletedUsernameGenerator = new RandomStringGenerator(36, RandomStringGenerator.Base64);
+  def generateDeletedUsername(): String = {
+    deletedUsernameGenerator.nextString();
+  }
+
   def adminUsername(convergenceUsername: String): String = {
     AdminUserPrefeix + convergenceUsername
   }
 
-  def anonymousUsername(username: String): String = {
-    AnonymousUserPrefeix + username
+  def getUserRid(userId: DomainUserId, db: ODatabaseDocument): Try[ORID] = {
+    this.getUserRid(userId.username, userId.userType, db)
   }
 
-  def getUserRid(username: String, db: ODatabaseDocument): Try[ORID] = {
+  def getUserRid(username: String, userType: DomainUserType.Value, db: ODatabaseDocument): Try[ORID] = {
     db.activateOnCurrentThread()
-    OrientDBUtil.getIdentityFromSingleValueIndex(db, Indices.Username, username)
+    OrientDBUtil.getIdentityFromSingleValueIndex(db, Indices.UsernameUserType, List(username, userType.toString.toLowerCase))
+  }
+
+  def getDomainUsersRids(userIds: List[DomainUserId], db: ODatabaseDocument): Try[List[ORID]] = {
+    val keys = userIds.map(userId => new OCompositeKey(List(userId.username, userId.userType.toString.toLowerCase).asJava))
+    OrientDBUtil.getIdentitiesFromSingleValueIndex(db, Indices.UsernameUserType, keys)
   }
 
   def domainUserToDoc(obj: DomainUser): ODocument = {
@@ -79,24 +91,37 @@ object DomainUserStore {
     obj.lastName.map(doc.setProperty(Fields.LastName, _))
     obj.displayName.map(doc.setProperty(Fields.DisplayName, _))
     obj.email.map(doc.setProperty(Fields.Email, _))
+    doc.setProperty(Fields.Disabled, obj.disabled)
+    doc.setProperty(Fields.Deleted, obj.deleted)
+    obj.deletedUsername.map(doc.setProperty(Fields.DeletedUsername, _))
     doc
   }
 
   def docToDomainUser(doc: ODocument): DomainUser = {
     DomainUser(
-      DomainUserType.withNameOpt(doc.getProperty(Fields.UserType)).get,
+      DomainUserType.withName(doc.getProperty(Fields.UserType)),
       doc.getProperty(Fields.Username),
       Option(doc.getProperty(Fields.FirstName)),
       Option(doc.getProperty(Fields.LastName)),
       Option(doc.getProperty(Fields.DisplayName)),
-      Option(doc.getProperty(Fields.Email)))
+      Option(doc.getProperty(Fields.Email)),
+      doc.getProperty(Fields.Disabled),
+      doc.getProperty(Fields.Deleted),
+      Option(doc.getProperty(Fields.DeletedUsername)))
   }
-}
 
-// FIXME there is some odd things in this class around how we search for things using
-// normal / non normal users. It's not consistent. For example could a non-normal
-// user have the same email as a normal one. Are we assuming user names are alway
-// unique because we prefix the ones that are not? etc/
+  private val DeleteDomainUserQuery = s"""
+    |UPDATE 
+    |  User 
+    |SET 
+    |  username = :newUsername, 
+    |  deleted = true, 
+    |  deletedUsername = username 
+    |WHERE 
+    |  username = :username AND 
+    |  userType = '${DomainUserType.Normal.toString.toLowerCase}'
+    """.stripMargin
+}
 
 /**
  * Manages the persistence of Domain Users.  This class manages both user profile records
@@ -110,9 +135,10 @@ object DomainUserStore {
 class DomainUserStore private[domain] (private[this] val dbProvider: DatabaseProvider)
   extends AbstractDatabasePersistence(dbProvider)
   with Logging {
-  
+
   import schema.UserClass._
   import schema.DomainSchema._
+  import DomainUserStore._
 
   val Password = "password"
 
@@ -131,27 +157,31 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
    * @return A String representing the created users uid.
    */
   def createNormalDomainUser(domainUser: CreateNormalDomainUser): Try[String] = {
-    // fixme disallow special chars, specifically : in the username
     val normalUser = DomainUser(
       DomainUserType.Normal,
       domainUser.username,
       domainUser.firstName,
       domainUser.lastName,
       domainUser.displayName,
-      domainUser.email)
+      domainUser.email,
+      false,
+      false,
+      None)
 
     this.createDomainUser(normalUser)
   }
 
   def createAnonymousDomainUser(displayName: Option[String]): Try[String] = {
-    this.nextAnonymousUsername flatMap { next =>
-      val username = "anonymous:" + next
+    this.nextAnonymousUsername flatMap { username =>
       val anonymousUser = DomainUser(
         DomainUserType.Anonymous,
         username,
         None,
         None,
         displayName,
+        None,
+        false,
+        false,
         None)
 
       this.createDomainUser(anonymousUser)
@@ -159,69 +189,82 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
   }
 
   def createAdminDomainUser(convergenceUsername: String): Try[String] = {
-    val username = "admin:" + convergenceUsername
     val adminUser = DomainUser(
-      DomainUserType.Admin,
-      username,
+      DomainUserType.Convergence,
+      convergenceUsername,
       None,
       None,
-      Some(convergenceUsername + "(Admin)"),
+      Some(convergenceUsername),
+      None,
+      false,
+      false,
       None)
 
     this.createDomainUser(adminUser)
   }
 
   def createDomainUser(domainUser: DomainUser): Try[String] = tryWithDb { db =>
-    val create = DomainUser(
-      domainUser.userType,
-      domainUser.username,
-      domainUser.firstName,
-      domainUser.lastName,
-      domainUser.displayName,
-      domainUser.email)
-
-    val userDoc = DomainUserStore.domainUserToDoc(create)
+    val userDoc = DomainUserStore.domainUserToDoc(domainUser)
     db.save(userDoc)
 
     domainUser.username
   } recoverWith (handleDuplicateValue)
 
   /**
-   * Deletes a single domain user by uid.
+   * Deletes a single domain user by username. This is a soft delete that will
+   * mark the user as deleted, rename them, and store the original username.
    *
-   * @param the uid of the user to delete.
+   * @param the username of the user to delete.
    */
-  def deleteDomainUser(username: String): Try[Unit] = withDb { db =>
-    // FIXME
-    // 1. Need to find any model permissions for this user.
-    // 2. need to find any model with permissions for this user.
-    // 3. need to delete the model permissions from those models.
-    // 4. need to delete the model permissions
-    // 5. need to delete the user.
-    val command = "DELETE FROM User WHERE username = :username AND userType = 'normal'"
-    val params = Map(Fields.Username -> username)
-    OrientDBUtil.mutateOneDocument(db, command, params)
+  def deleteNormalDomainUser(username: String): Try[Unit] = withDb { db =>
+    val newUsername = DomainUserStore.generateDeletedUsername()
+    val params = Map(Fields.Username -> username, "newUsername" -> newUsername)
+    OrientDBUtil.mutateOneDocument(db, DeleteDomainUserQuery, params)
   }
 
   /**
-   * Updates a DomainUser with new information.  The uid of the domain user argument must
+   * Updates a DomainUser with new information.  The username of the domain user argument must
    * correspond to an existing user in the database.
    *
    * @param domainUser The user to update.
    */
   def updateDomainUser(update: UpdateDomainUser): Try[Unit] = withDb { db =>
     val UpdateDomainUser(username, firstName, lastName, displayName, email) = update;
-    val domainUser = DomainUser(DomainUserType.Normal, username, firstName, lastName, displayName, email)
 
     val query = "SELECT FROM User WHERE username = :username AND userType = 'normal'"
-    val params = Map(Fields.Username -> domainUser.username)
+    val params = Map(Fields.Username -> username)
     OrientDBUtil.getDocument(db, query, params).map { doc =>
-      val updatedDoc = DomainUserStore.domainUserToDoc(domainUser)
-      doc.merge(updatedDoc, false, false)
+      firstName match {
+        case None => doc.removeField(Fields.FirstName)
+        case Some(value) => doc.setProperty(Fields.FirstName, value)
+      }
+
+      lastName match {
+        case None => doc.removeProperty(Fields.LastName)
+        case Some(value) => doc.setProperty(Fields.LastName, value)
+      }
+
+      displayName match {
+        case None => doc.removeProperty(Fields.DisplayName)
+        case Some(value) => doc.setProperty(Fields.DisplayName, value)
+      }
+
+      email match {
+        case None => doc.removeProperty(Fields.Email)
+        case Some(value) => doc.setProperty(Fields.Email, value)
+      }
       db.save(doc)
       ()
     }
   } recoverWith (handleDuplicateValue)
+
+  def getNormalDomainUser(username: String): Try[Option[DomainUser]] = {
+    return getDomainUser(DomainUserId(DomainUserType.Normal, username))
+  }
+
+  def getNormalDomainUsers(usernames: List[String]): Try[List[DomainUser]] = {
+    return getDomainUsers(usernames.map(username => DomainUserId.normal(username)))
+  }
 
   /**
    * Gets a single domain user by username.
@@ -230,56 +273,17 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
    *
    * @return Some(DomainUser) if a user with the specified username exists, or None if no such user exists.
    */
-  def getDomainUserByUsername(username: String): Try[Option[DomainUser]] = withDb { db =>
+  def getDomainUser(userId: DomainUserId): Try[Option[DomainUser]] = withDb { db =>
     OrientDBUtil
-      .findDocumentFromSingleValueIndex(db, Indices.Username, username)
+      .findDocumentFromSingleValueIndex(db, Indices.UsernameUserType, List(userId.username, userId.userType.toString.toLowerCase))
       .map(_.map(DomainUserStore.docToDomainUser(_)))
   }
 
-  /**
-   * Gets a list of domain users matching any of a list of usernames.
-   *
-   * @param uids The list of usernames of the users to retrieve.
-   *
-   * @return A list of users matching the list of supplied usernames.
-   */
-  def getDomainUsersByUsername(usernames: List[String]): Try[List[DomainUser]] = withDb { db =>
-    val query = "SELECT FROM User WHERE username in :usernames"
-    val params = Map("usernames" -> usernames.asJava)
+  def getDomainUsers(userIds: List[DomainUserId]): Try[List[DomainUser]] = withDb { db =>
+    val keys = userIds.map(userId => new OCompositeKey(userId.username, userId.userType.toString.toLowerCase))
     OrientDBUtil
-      .query(db, query, params)
-      .map(_.map(DomainUserStore.docToDomainUser(_)))
-  }
-
-  /**
-   * Gets a single domain user by email.
-   *
-   * @param email The email of the user to retrieve.
-   *
-   * @return Some(DomainUser) if a user with the specified email exists, or None if no such user exists.
-   */
-  def getDomainUserByEmail(email: String): Try[Option[DomainUser]] = withDb { db =>
-    // FIXME do we need to check for normal here?
-    val query = "SELECT FROM User WHERE email = :email AND userType = 'normal'"
-    val params = Map("email" -> email)
-    OrientDBUtil
-      .findDocument(db, query, params)
-      .map(_.map(DomainUserStore.docToDomainUser(_)))
-  }
-
-  /**
-   * Gets a list of domain users matching any of a list of emails.
-   *
-   * @param uids The list of emails of the users to retrieve.
-   *
-   * @return A list of users matching the list of supplied emails.
-   */
-  def getDomainUsersByEmail(emails: List[String]): Try[List[DomainUser]] = withDb { db =>
-    val query = "SELECT FROM User WHERE email in :emails AND userType = 'normal'"
-    val params = Map("emails" -> emails.asJava)
-    OrientDBUtil
-      .query(db, query, params)
-      .map(_.map(DomainUserStore.docToDomainUser(_)))
+      .getDocumentsFromSingleValueIndex(db, Indices.UsernameUserType, keys)
+      .map(_.map(docToDomainUser(_)))
   }
 
   /**
@@ -293,8 +297,8 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
     this.userExists(username, DomainUserType.Normal)
   }
 
-  def adminUserExists(username: String): Try[Boolean] = {
-    this.userExists(DomainUserStore.adminUsername(username), DomainUserType.Admin)
+  def convergenceUserExists(username: String): Try[Boolean] = {
+    this.userExists(DomainUserStore.adminUsername(username), DomainUserType.Convergence)
   }
 
   private[this] def userExists(username: String, userType: DomainUserType.Value): Try[Boolean] = withDb { db =>
@@ -357,7 +361,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
 
   def findUser(
     search: String,
-    exclude: List[String],
+    exclude: List[DomainUserId],
     offset: Int,
     limit: Int): Try[List[DomainUser]] = withDb { db =>
 
@@ -365,16 +369,10 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
     Try {
       var excplicitResults = List[DomainUser]()
 
-      if (!exclude.contains(search)) {
-        this.getDomainUserByUsername(search).get foreach { user =>
+      if (!exclude.map(_.username).contains(search)) {
+        this.getDomainUser(DomainUserId(DomainUserType.Normal, search)).get foreach { user =>
           excplicitResults = user :: excplicitResults
         }
-
-        this.getDomainUserByEmail(search).get
-          .filter(!excplicitResults.contains(_))
-          .foreach { user =>
-            excplicitResults = user :: excplicitResults
-          }
       }
 
       excplicitResults
@@ -472,9 +470,9 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
       }.getOrElse(false))
   }
 
-  def createReconnectToken(username: String): Try[String] = withDb { db =>
+  def createReconnectToken(userId: DomainUserId): Try[String] = withDb { db =>
     OrientDBUtil
-      .findIdentityFromSingleValueIndex(db, Indices.Username, username)
+      .findIdentityFromSingleValueIndex(db, Indices.UsernameUserType, List(userId.username, userId.userType.toString.toLowerCase))
       .flatMap {
         _ match {
           case Some(userORID) =>
@@ -486,9 +484,9 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
                 |  token = :token,
                 |  expireTime = :expireTime""".stripMargin
             val params = Map(
-                Classes.UserReconnectToken.Fields.User -> userORID, 
-                Classes.UserReconnectToken.Fields.Token -> token, 
-                Classes.UserReconnectToken.Fields.ExpireTime -> Date.from(expiration))
+              Classes.UserReconnectToken.Fields.User -> userORID,
+              Classes.UserReconnectToken.Fields.Token -> token,
+              Classes.UserReconnectToken.Fields.ExpireTime -> Date.from(expiration))
             OrientDBUtil
               .command(db, command, params)
               .map(_ => token)
@@ -500,11 +498,11 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
 
   def removeReconnectToken(token: String): Try[Unit] = withDb { db =>
     val command = "DELETE FROM UserReconnectToken WHERE token = :token"
-    val params = Map(Classes.UserReconnectToken.Fields.Token  -> token)
+    val params = Map(Classes.UserReconnectToken.Fields.Token -> token)
     OrientDBUtil.mutateOneDocument(db, command, params)
   }
 
-  def validateReconnectToken(token: String): Try[Option[String]] = withDb { db =>
+  def validateReconnectToken(token: String): Try[Option[DomainUserId]] = withDb { db =>
     OrientDBUtil
       .findDocumentFromSingleValueIndex(db, Classes.UserReconnectToken.Indices.Token, token)
       .map(_.flatMap { record =>
@@ -512,19 +510,21 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
         val expireInstant: Instant = expireTime.toInstant()
         if (Instant.now().isBefore(expireInstant)) {
           val username: String = record.eval("user.username").toString()
+          val userType: String = record.eval("user.userType").toString()
+          val userId = DomainUserId(DomainUserType.withName(userType), username)
           val newExpiration = Instant.now().plus(reconnectTokenDuration)
           record.setProperty(Classes.UserReconnectToken.Fields.ExpireTime, Date.from(newExpiration))
           record.save()
-          Some(username)
+          Some(userId)
         } else {
           None
         }
       })
   }
 
-  def setLastLogin(username: String, userType: DomainUserType.Value, instant: Instant): Try[Unit] = withDb { db =>
+  def setLastLogin(userId: DomainUserId, instant: Instant): Try[Unit] = withDb { db =>
     OrientDBUtil
-      .getDocumentFromSingleValueIndex(db, Indices.Username, username)
+      .getDocumentFromSingleValueIndex(db, Indices.UsernameUserType, List(userId.username, userId.userType.toString.toLowerCase))
       .flatMap { record =>
         Try {
           record.setProperty(Fields.LastLogin, Date.from(instant))
@@ -548,10 +548,8 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
   private[this] def handleDuplicateValue[T](): PartialFunction[Throwable, Try[T]] = {
     case e: ORecordDuplicatedException =>
       e.getIndexName match {
-        case Indices.Username =>
+        case Indices.UsernameUserType =>
           Failure(DuplicateValueException(Fields.Username))
-        case Indices.Email =>
-          Failure(DuplicateValueException(Fields.Email))
         case _ =>
           Failure(e)
       }
