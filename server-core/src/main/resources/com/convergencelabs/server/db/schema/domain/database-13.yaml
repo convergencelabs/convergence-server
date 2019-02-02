@@ -57,7 +57,7 @@ changes:
   - action: CreateClass
     name: User
     properties:
-      - {name: userType,            type: String,   constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: userType,        type: String,   constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: username,        type: String,   constraints: {mandatory: true, notNull: true}}
       - {name: email,           type: String,   constraints: {notNull: true}}
       - {name: firstName,       type: String,   constraints: {notNull: true}}

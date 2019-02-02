@@ -63,16 +63,24 @@ class IdentityServiceActor private[domain] (domainFqn: DomainFqn) extends Actor 
   }
 
   private[this] def resolveIdentities(message: IdentityResolutionRequest): Unit = {
-    (for {
-      sessions <- persistenceProvider.sessionStore.getSessions(message.sessionIds)
-      sesionMap <- Success(sessions.map(session => (session.id, session.userId)).toMap)
-      users <- persistenceProvider.userStore.getDomainUsers(
-        (message.userIds ++ (sessions.map(_.userId))).toList)
-    } yield {
-      IdentityResolutionResponse(sesionMap, users.toSet)
-    }) match {
-      case Success(message) => sender ! message
-      case Failure(e) => sender ! Status.Failure(e)
+    log.debug("Processing identity resolution: {}", message)
+    try {
+      (for {
+        sessions <- persistenceProvider.sessionStore.getSessions(message.sessionIds)
+        sesionMap <- Success(sessions.map(session => (session.id, session.userId)).toMap)
+        users <- persistenceProvider.userStore.getDomainUsers(
+          (message.userIds ++ (sessions.map(_.userId))).toList)
+      } yield {
+        log.debug("resolved")
+        IdentityResolutionResponse(sesionMap, users.toSet)
+      }) match {
+        case Success(response) => sender ! response
+        case Failure(e) =>
+          log.error(e, "failed")
+          sender ! Status.Failure(e)
+      }
+    } catch {
+      case e: Throwable => log.error(e, "oops")
     }
   }
 

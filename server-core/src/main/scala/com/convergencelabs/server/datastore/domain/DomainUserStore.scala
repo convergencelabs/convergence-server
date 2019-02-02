@@ -280,7 +280,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
   }
 
   def getDomainUsers(userIds: List[DomainUserId]): Try[List[DomainUser]] = withDb { db =>
-    val keys = userIds.map(userId => new OCompositeKey(List(userId.username, userId.userType.toString.toLowerCase).asJava))
+    val keys = userIds.map(userId => new OCompositeKey(userId.username, userId.userType.toString.toLowerCase))
     OrientDBUtil
       .getDocumentsFromSingleValueIndex(db, Indices.UsernameUserType, keys)
       .map(_.map(docToDomainUser(_)))

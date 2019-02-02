@@ -16,6 +16,8 @@ import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.index.OCompositeKey
 import com.orientechnologies.orient.core.command.script.OCommandScript
 import com.orientechnologies.orient.core.command.OCommandRequest
+import com.orientechnologies.orient.core.record.impl.ODocumentHelper
+import java.util.ArrayList
 
 object OrientDBUtil {
 
@@ -114,16 +116,23 @@ object OrientDBUtil {
         case None => Failure(EntityNotFoundException())
       })
   }
-  
-  def getIdentitiesFromSingleValueIndex(db: ODatabaseDocument, index: String, keys: List[Any]): Try[List[ORID]] = {
-    val processedKeys = keys.map(_ match {
-      case l: List[_] => new OCompositeKey(l.asJava)
-      case v: Any => v
-    })
 
-    Try(db.getMetadata.getIndexManager.getIndex(index).iterateEntries(processedKeys.asJava, false)).map { cursor =>
-      cursor.toEntries().asScala.toList.map { entry =>
-        entry.getValue.getIdentity
+  def getIdentitiesFromSingleValueIndex(db: ODatabaseDocument, index: String, keys: List[Any]): Try[List[ORID]] = {
+    if (keys.isEmpty) {
+      Success(List())
+    } else {
+      val processedKeys = keys.map(_ match {
+        // FIXME https://github.com/orientechnologies/orientdb/issues/8751
+        case oc: OCompositeKey => oc.getKeys
+        case l: List[_] => l.asJava
+        case v: Any => v
+      })
+
+      val oIndex = db.getMetadata.getIndexManager.getIndex(index)
+      Try(oIndex.iterateEntries(processedKeys.asJava, false)).map { cursor =>
+        cursor.toEntries().asScala.toList.map { entry =>
+          entry.getValue.getIdentity
+        }
       }
     }
   }
@@ -162,14 +171,22 @@ object OrientDBUtil {
   }
 
   def getDocumentsFromSingleValueIndex(db: ODatabaseDocument, index: String, keys: List[Any]): Try[List[ODocument]] = {
-    val processedKeys = keys.map(_ match {
-      case l: List[_] => new OCompositeKey(l.asJava)
-      case v: Any => v
-    })
+    if (keys.isEmpty) {
+      Success(List())
+    } else {
 
-    Try(db.getMetadata.getIndexManager.getIndex(index).iterateEntries(processedKeys.asJava, false)).map { cursor =>
-      cursor.toEntries().asScala.toList.map { entry =>
-        entry.getValue.getRecord.asInstanceOf[ODocument]
+      val processedKeys = keys.map(_ match {
+        // FIXME https://github.com/orientechnologies/orientdb/issues/8751
+        case oc: OCompositeKey => oc.getKeys
+        case l: List[_] => l.asJava
+        case v: Any => v
+      })
+
+      val oIndex = db.getMetadata.getIndexManager.getIndex(index)
+      Try(oIndex.iterateEntries(processedKeys.asJava, false)).map { cursor =>
+        cursor.toEntries().asScala.toList.map { entry =>
+          entry.getValue.getRecord.asInstanceOf[ODocument]
+        }
       }
     }
   }

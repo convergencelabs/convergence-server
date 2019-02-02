@@ -80,3 +80,12 @@ SELECT @this.toJson('fetchPlan:*:-1') FROM Model WHERE id = 'my-test-id';
 ```
 SELECT * FROM `ModelUserPermissions` WHERE user.username IS NULL;
 ```
+
+# Delete Models that are orphaned
+```
+DELETE FROM ModelUserPermissions WHERE user.username IS NULL;
+DELETE FROM DataValue WHERE model IN (SELECT * FROM Model WHERE userPermissions = [NULL]);
+DELETE FROM ModelSnapshot WHERE model IN (SELECT * FROM Model WHERE userPermissions = [NULL]);
+DELETE FROM ModelOperation WHERE model IN (SELECT * FROM Model WHERE userPermissions = [NULL]);
+DELETE FROM Model WHERE userPermissions = [NULL];
+```

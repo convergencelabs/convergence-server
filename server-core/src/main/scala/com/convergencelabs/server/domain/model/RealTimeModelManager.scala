@@ -57,7 +57,7 @@ object RealTimeModelManager {
     def reply(message: Any): Unit
   }
 
-  case class OpenRequestRecord(clientActor: ActorRef, asessioningActor: ActorRef)
+  case class OpenRequestRecord(clientActor: ActorRef, askingActor: ActorRef)
 }
 
 class RealTimeModelManager(
@@ -406,15 +406,15 @@ class RealTimeModelManager(
   /**
    * Handles a request to open the model, when the model is already initialized.
    */
-  private[this] def onOpenModelWhileInitialized(request: OpenRealtimeModelRequest, asessioner: ActorRef): Unit = {
+  private[this] def onOpenModelWhileInitialized(request: OpenRealtimeModelRequest, asker: ActorRef): Unit = {
     debug(s"${domainFqn}/${modelId}: Handling a request to open the model while it is initialized.")
 
     val session = request.session
     if (connectedClients.contains(session)) {
-      asessioner ! Status.Failure(new ModelAlreadyOpenException())
+      asker ! Status.Failure(new ModelAlreadyOpenException())
     } else {
       val model = Model(this.metaData, this.model.data.dataValue())
-      respondToClientOpenRequest(session, model, OpenRequestRecord(request.clientActor, asessioner))
+      respondToClientOpenRequest(session, model, OpenRequestRecord(request.clientActor, asker))
     }
   }
 
@@ -453,7 +453,7 @@ class RealTimeModelManager(
       valuePrefix = valuePrefix + 1
       modelStore.setNextPrefixValue(modelId, valuePrefix)
 
-      requestRecord.asessioningActor ! openModelResponse
+      requestRecord.askingActor ! openModelResponse
 
       // Let other client knows
       val msg = RemoteClientOpened(modelId, session)
@@ -462,15 +462,15 @@ class RealTimeModelManager(
           clientActor ! msg
       }
     } else {
-      requestRecord.asessioningActor ! Status.Failure(UnauthorizedException("Must have read privileges to open model."))
+      requestRecord.askingActor ! Status.Failure(UnauthorizedException("Must have read privileges to open model."))
     }
   }
 
   /**
    * Handles a request to close the model.
    */
-  def onCloseModelRequest(request: CloseRealtimeModelRequest, asessioningActor: ActorRef): Unit = {
-    clientClosed(request.session, asessioningActor)
+  def onCloseModelRequest(request: CloseRealtimeModelRequest, askingActor: ActorRef): Unit = {
+    clientClosed(request.session, askingActor)
   }
 
   def handleTerminated(terminated: Terminated): Unit = {
@@ -482,12 +482,12 @@ class RealTimeModelManager(
     }
   }
 
-  private[this] def clientClosed(session: DomainUserSessionId, asessioningActor: ActorRef): Unit = {
+  private[this] def clientClosed(session: DomainUserSessionId, askingActor: ActorRef): Unit = {
     if (!connectedClients.contains(session)) {
-      asessioningActor ! Status.Failure(new ModelNotOpenException())
+      askingActor ! Status.Failure(new ModelNotOpenException())
     } else {
       val closedActor = closeModel(session, true)
-      asessioningActor ! (())
+      askingActor ! (())
       checkForConnectionsAndClose()
     }
   }
@@ -728,7 +728,7 @@ class RealTimeModelManager(
   def handleInitializationFailure(response: AnyRef): Unit = {
     setState(State.InitializationError)
     queuedOpeningClients.values foreach { openRequest =>
-      openRequest.asessioningActor ! response
+      openRequest.askingActor ! response
     }
     queuedOpeningClients = HashMap[DomainUserSessionId, OpenRequestRecord]()
     checkForConnectionsAndClose()
@@ -739,7 +739,7 @@ class RealTimeModelManager(
    * Informs all clients that the model could not be initialized.
    */
   def handleQueuedClientOpenFailureFailure(session: DomainUserSessionId, response: AnyRef): Unit = {
-    queuedOpeningClients.get(session) foreach (openRequest => openRequest.asessioningActor ! response)
+    queuedOpeningClients.get(session) foreach (openRequest => openRequest.askingActor ! response)
     queuedOpeningClients -= session
     checkForConnectionsAndClose()
   }
