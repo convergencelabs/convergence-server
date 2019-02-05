@@ -1,7 +1,7 @@
 version: 1
 description: Initial Convergence schema creation
-changes:
 
+actions:
 
 ########## DomainDelta Class ##########
 
@@ -107,6 +107,23 @@ changes:
     properties: [user]
 
 
+ ########## UserIntegrationTokens Class ##########
+
+  - action: CreateClass
+    name: UserIntegrationToken
+    properties:
+      - {name: user,    type: Link,   linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: name,    type: Link,   linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: token,   type: String,                    constraints: {mandatory: true, notNull: true}}
+      - {name: enabled, type: Boolean,                   constraints: {mandatory: true, notNull: true}}
+
+  - action: CreateIndex
+    className: UserIntegrationToken
+    name: UserIntegrationToken.token
+    type: Unique
+    properties: [token]
+
+
 ########## UserAuthToken Class ##########
 
   - action: CreateClass
@@ -117,17 +134,36 @@ changes:
       - {name: expireTime, type: DateTime,                    constraints: {mandatory: true, notNull: true}}
 
 
+########## Namespace Class ##########
+
+  - action: CreateClass
+    name: Namespace
+    properties:
+      - {name: id,            type: String,                    constraints: {mandatory: true, notNull: true}}
+      - {name: displayName,   type: String,                    constraints: {mandatory: true, notNull: true}}
+
+  - action: CreateIndex
+    className: Namespace
+    name: Namespace.id
+    type: UniqueHashIndex
+    properties: [id]
+
+
 ########## Domain Class ##########
 
   - action: CreateClass
     name: Domain
     properties:
-      - {name: id,            type: String,                    constraints: {mandatory: true, notNull: true}}
-      - {name: namespace,     type: String,                    constraints: {mandatory: true, notNull: true}}
-      - {name: displayName,   type: String,                    constraints: {mandatory: true, notNull: true}}
-      - {name: owner,         type: Link,   linkedClass: User, constraints: {mandatory: true, notNull: true}}
-      - {name: status,        type: String,                    constraints: {mandatory: true, notNull: true}}
-      - {name: statusMessage, type: String,                    constraints: {mandatory: true, notNull: true}}
+      - {name: id,              type: String,                         constraints: {mandatory: true, notNull: true}}
+      - {name: namespace,       type: Link,   linkedClass: Namespace, constraints: {mandatory: true, notNull: true}}
+      - {name: displayName,     type: String,                         constraints: {mandatory: true, notNull: true}}
+      - {name: status,          type: String,                         constraints: {mandatory: true, notNull: true}}
+      - {name: statusMessage,   type: String,                         constraints: {mandatory: true, notNull: true}}
+      - {name: dbName,          type: String,                      constraints: {mandatory: true, notNull: true}}
+      - {name: dbUsername,      type: String,                      constraints: {mandatory: true, notNull: true}}
+      - {name: dbPassword,      type: String,                      constraints: {mandatory: true, notNull: true}}
+      - {name: dbAdminUsername, type: String,                      constraints: {mandatory: true, notNull: true}}
+      - {name: dbAdminPassword, type: String,                      constraints: {mandatory: true, notNull: true}}
 
   - action: CreateIndex
     className: Domain
@@ -136,51 +172,55 @@ changes:
     properties: [namespace, id]
 
 
-########## Domain Database ##########
+########## Permission Class ##########
 
   - action: CreateClass
-    name: DomainDatabase
+    name: Permission
     properties:
-      - {name: domain,        type: Link,   linkedClass: Domain, constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: database,      type: String,                      constraints: {mandatory: true, notNull: true}}
-      - {name: username,      type: String,                      constraints: {mandatory: true, notNull: true}}
-      - {name: password,      type: String,                      constraints: {mandatory: true, notNull: true}}
-      - {name: adminUsername, type: String,                      constraints: {mandatory: true, notNull: true}}
-      - {name: adminPassword, type: String,                      constraints: {mandatory: true, notNull: true}}
+      - {name: id,          type: String, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: name,        type: String, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: description, type: String, constraints: {mandatory: true, notNull: true, readOnly: true}}
 
   - action: CreateIndex
-    className: DomainDatabase
-    name: DomainDatabase.database
+    className: Permission
+    name: Permission.id
     type: Unique
-    properties: [database]
+    properties: [id]
 
   - action: CreateIndex
-    className: DomainDatabase
-    name: DomainDatabase.domain
-    type: UniqueHashIndex
-    properties: [domain]
+    className: Permission
+    name: Permission.name
+    type: Unique
+    properties: [name]
 
 
-########## Registration Class ##########
+########## Role Class ##########
 
   - action: CreateClass
-    name: Registration
+    name: Role
     properties:
-      - {name: email,    type: String,  constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: fname,    type: String,  constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: lname,    type: String,  constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: reason,   type: String,  constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: token,    type: String,  constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: approved, type: Boolean, constraints: {mandatory: true, notNull: true}}
+      - {name: name,        type: String,                            constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: permissions, type: LinkList, linkedClass: Permission, constraints: {mandatory: true, notNull: true}}
+      - {name: description, type: String,                            constraints: {mandatory: true, notNull: true, readOnly: true}}
 
   - action: CreateIndex
-    className: Registration
-    name: Registration.email
+    className: Role
+    name: Role.id
     type: Unique
-    properties: [email]
+    properties: [name]
+
+
+########## UserRole Class ##########
+
+  - action: CreateClass
+    name: UserRole
+    properties:
+      - {name: user,   type: Link, linkedClass: User,   constraints: {mandatory: true,  notNull: true, readOnly: true}}
+      - {name: role,   type: Link, linkedClass: Role,   constraints: {mandatory: true,  notNull: true, readOnly: true}}
+      - {name: target, type: Link,                      constraints: {mandatory: false, notNull: true, readOnly: true}}
 
   - action: CreateIndex
-    className: Registration
-    name: Registration.email_token
+    className: UserRole
+    name: UserDomainRole.user_role_target
     type: Unique
-    properties: [email, token]
+    properties: [user, role, target]

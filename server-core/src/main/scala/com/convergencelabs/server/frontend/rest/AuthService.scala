@@ -10,10 +10,6 @@ import com.convergencelabs.server.datastore.convergence.AuthStoreActor.GetSessio
 import com.convergencelabs.server.datastore.convergence.AuthStoreActor.InvalidateTokenRequest
 import com.convergencelabs.server.datastore.convergence.AuthStoreActor.LoginRequest
 import com.convergencelabs.server.datastore.convergence.AuthStoreActor.SessionTokenExpiration
-import com.convergencelabs.server.datastore.convergence.UserStore.InvalidCredentials
-import com.convergencelabs.server.datastore.convergence.UserStore.LoginResult
-import com.convergencelabs.server.datastore.convergence.UserStore.LoginSuccessful
-import com.convergencelabs.server.datastore.convergence.UserStore.NoApiKeyForUser
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.model.StatusCodes
@@ -22,9 +18,7 @@ import akka.util.Timeout
 object AuthService {
   case class SessionTokenResponse(token: String, expiration: Long)
   case class ExpirationResponse(valid: Boolean, username: Option[String], delta: Option[Long])
-  case class UserApiKeyResponse(apiKey: String)
-  val NoApiKeyResponse: RestResponse = (StatusCodes.Unauthorized,
-    ErrorResponse("no_api_key_for_user", Some("Can not login beause the user does not have an API key configured.")))
+  case class BearerTokenResponse(token: String)
 }
 
 class AuthService(
@@ -65,13 +59,11 @@ class AuthService(
   }
 
   def login(req: LoginRequest): Future[RestResponse] = {
-    (authActor ? req).mapTo[LoginResult].map {
-      case LoginSuccessful(apiKey) =>
-        okResponse(UserApiKeyResponse(apiKey))
-      case InvalidCredentials =>
+    (authActor ? req).mapTo[Option[String]].map {
+      case Some(token) =>
+        okResponse(BearerTokenResponse(token))
+      case None =>
         AuthFailureError
-      case NoApiKeyForUser =>
-        NoApiKeyResponse
     }
   }
 

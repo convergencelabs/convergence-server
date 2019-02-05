@@ -22,7 +22,7 @@ class ConvergenceScriptSerializerSpec extends WordSpecLike with Matchers {
         val ConvergenceScript(users, domains) = value
 
         users.value shouldBe List(
-          CreateConvergenceUser("test", SetPassword("plaintext", "password"), "test@example.com", Some("Test"), Some("User"), Some("Test User")))
+          CreateConvergenceUser("test", SetPassword("plaintext", "password"), "token", "test@example.com", Some("Test"), Some("User"), Some("Test User")))
 
         val CreateDomain(
           domainId,
@@ -30,7 +30,6 @@ class ConvergenceScriptSerializerSpec extends WordSpecLike with Matchers {
           displayName,
           status,
           statusMessage,
-          owner,
           dataImport) = domains.value(0)
 
         namespace shouldBe "test"
@@ -38,7 +37,6 @@ class ConvergenceScriptSerializerSpec extends WordSpecLike with Matchers {
         displayName shouldBe "Example"
         status shouldBe "online"
         statusMessage shouldBe ""
-        owner shouldBe "test"
 
         val DomainScript(config, jwtAuthKeys, domainUsers, sessions, collections, models) = dataImport.value
         config shouldBe SetDomainConfig(true, CreateJwtKeyPair("Public Key", "Private Key"))

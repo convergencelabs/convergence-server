@@ -36,18 +36,18 @@ class ConvergenceExporter(
 
   private[this] def exportUser(username: String): Try[CreateConvergenceUser] = {
     logger.debug("Importing convergence user")
-    val userStore = new UserStore(dbProvider, Duration.ofMillis(0L))
+    val userStore = new UserStore(dbProvider)
 
-    val user = for {
+    (for {
       user <- userStore.getUserByUsername(username)
       pwHash <- userStore.getUserPasswordHash(username)
-    } yield (user, pwHash)
-
-    user flatMap {
-      case (Some(user), Some(hash)) =>
+      bearerToken <- userStore.getBearerToken(username)
+    } yield (user, pwHash, bearerToken)).flatMap(_ match {
+      case (Some(user), Some(hash), Some(bearerToken)) =>
         val createUser = CreateConvergenceUser(
           user.username,
           SetPassword("hash", hash),
+          bearerToken,
           user.email,
           Some(user.firstName),
           Some(user.lastName),
@@ -56,13 +56,13 @@ class ConvergenceExporter(
         Success(createUser)
       case _ =>
         Failure(throw new IllegalArgumentException("Could not find username or password"))
-    }
+    })
   }
 
-  private[this] def exportDomains(username: String): Try[List[CreateDomain]] = {
-    logger.debug(s"Exporting domains for user: ${username}")
+  private[this] def exportDomains(namespace: String): Try[List[CreateDomain]] = {
+    logger.debug(s"Exporting domains for namespace: ${namespace}")
     val domainStore = new DomainStore(dbProvider)
-    domainStore.getDomainsByOwner(username) map {
+    domainStore.getDomainsInNamespace(namespace) map {
       _.map { case domain =>
         // FIXME error handling
         val dbProvider = dbFactory.getDomainDatabasePool(domain.domainFqn).get
@@ -76,7 +76,6 @@ class ConvergenceExporter(
             domain.displayName,
             domain.status.toString().toLowerCase(),
             domain.statusMessage,
-            domain.owner,
             Some(domainScript)
             )
         result

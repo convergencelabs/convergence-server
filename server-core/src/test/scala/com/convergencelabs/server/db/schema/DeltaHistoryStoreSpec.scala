@@ -18,6 +18,7 @@ import com.convergencelabs.server.datastore.convergence.UserStore.User
 import com.convergencelabs.server.datastore.domain.PersistenceStoreSpec
 import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainDatabase
 
 object DeltaHistoryStoreSpec {
   case class SpecStores(user: UserStore, delta: DeltaHistoryStore, domain: DomainStore)
@@ -30,7 +31,7 @@ class DeltaHistoryStoreSpec
 
   def createStore(dbProvider: DatabaseProvider): DeltaHistoryStoreSpec.SpecStores = {
     DeltaHistoryStoreSpec.SpecStores(
-      new UserStore(dbProvider, Duration.ofSeconds(1)),
+      new UserStore(dbProvider),
       new DeltaHistoryStore(dbProvider),
       new DomainStore(dbProvider))
   }
@@ -88,17 +89,20 @@ class DeltaHistoryStoreSpec
   val Username = "test"
   val Owner = User(Username, "email", "first", "last", "display")
   val Password = "password"
+  val BearerToken = "token"
   
   val ns1d1 = DomainFqn("ns1", "d1")
   val ns1d2 = DomainFqn("ns1", "d2")
   val ns2d1 = DomainFqn("ns2", "d1")
-
+  
+  val DummyDomainDatabase = DomainDatabase("", "", "", "", "")
+  
   def withDomainTestData(testCode: DeltaHistoryStoreSpec.SpecStores => Any): Unit = {
     this.withPersistenceStore { stores =>
-      stores.user.createUser(Owner, Password).get
-      stores.domain.createDomain(ns1d1, "ns1d1", Username).get
-      stores.domain.createDomain(ns1d2, "ns1d2", Username).get
-      stores.domain.createDomain(ns2d1, "ns2d1", Username).get
+      stores.user.createUser(Owner, Password, BearerToken).get
+      stores.domain.createDomain(ns1d1, "ns1d1", DummyDomainDatabase).get
+      stores.domain.createDomain(ns1d2, "ns1d2", DummyDomainDatabase).get
+      stores.domain.createDomain(ns2d1, "ns2d1", DummyDomainDatabase).get
       testCode(stores)
     }
   }

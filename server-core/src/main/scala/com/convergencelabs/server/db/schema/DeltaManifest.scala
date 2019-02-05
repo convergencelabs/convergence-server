@@ -16,7 +16,7 @@ import scala.io.Source
 
 object DeltaManifest {
   val Formats = DefaultFormats +
-    SimpleNamePolymorphicSerializer[Change]("action", List(
+    SimpleNamePolymorphicSerializer[DeltaAction]("action", List(
       classOf[CreateClass],
       classOf[AlterClass],
       classOf[DropClass],

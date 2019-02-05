@@ -1,9 +1,0 @@
-version: 4
-description: Adds the API Key to the user class.
-changes:
-
-########## User Changes ##########
-
-  - action: AddProperty
-    className: User
-    property: {name: apiKey,      type: String,   constraints: {mandatory: false, notNull: true}}

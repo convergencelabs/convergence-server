@@ -1,5 +1,5 @@
 package com.convergencelabs.server.datastore.domain.schema
 
-object ChatUserRemovedEventClass extends OrientDBClass {
+object ChatUserRemovedEventClass extends OrientDbClass {
   val ClassName = "ChatUserRemovedEvent"
 }

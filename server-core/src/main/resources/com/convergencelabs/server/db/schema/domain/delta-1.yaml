@@ -1,7 +1,7 @@
 version: 1
-description: Initial Domain schema creation
-changes:
+description: Initial domain schema creation
 
+actions:
 
 ########## DateTimeFormat ##########
 
@@ -59,26 +59,22 @@ changes:
   - action: CreateClass
     name: User
     properties:
-      - {name: userType,     type: String, constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: username,     type: String, constraints: {mandatory: true, notNull: true}}
-      - {name: email,        type: String, constraints: {notNull: true}}
-      - {name: firstName,    type: String, constraints: {notNull: true}}
-      - {name: lastName,     type: String, constraints: {notNull: true}}
-      - {name: displayName,  type: String, constraints: {notNull: true}}
+      - {name: userType,        type: String,   constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: username,        type: String,   constraints: {mandatory: true, notNull: true}}
+      - {name: email,           type: String,   constraints: {notNull: true}}
+      - {name: firstName,       type: String,   constraints: {notNull: true}}
+      - {name: lastName,        type: String,   constraints: {notNull: true}}
+      - {name: displayName,     type: String,   constraints: {notNull: true}}
+      - {name: lastLogin,       type: DateTime, constraints: {notNull: true}}
+      - {name: disabled,        type: Boolean,  constraints: {mandatory: true, notNull: true}}
+      - {name: deleted,         type: Boolean,  constraints: {mandatory: true, notNull: true}}
+      - {name: deletedUsername, type: String,   constraints: {notNull: true}}
 
   - action: CreateIndex
     className: User
-    name: User.username
+    name: User.username_userType
     type: Unique
-    properties: [username]
-
-  - action: CreateIndex
-    className: User
-    name: User.email
-    type: Unique
-    properties: [email]
-    metaData:
-      ignoreNullValues: true
+    properties: [username, userType]
 
 
 ########## UserCredential Class ##########
@@ -124,15 +120,32 @@ changes:
     properties: [id]
 
 
+########## UserReconnectToken Class ##########
+
+  - action: CreateClass
+    name: UserReconnectToken
+    properties:
+      - {name: user,       type: Link,     linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: token,      type: String,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: expireTime, type: DateTime,                    constraints: {mandatory: true, notNull: true}}
+
+  - action: CreateIndex
+    className: UserReconnectToken
+    name: UserReconnectToken.token
+    type: UniqueHashIndex
+    properties: [token]
+
 ########## Collection Class ##########
 
   - action: CreateClass
     name: Collection
     properties:
-      - {name: id,                     type: String,                                     constraints: {mandatory: true, notNull: true}}
-      - {name: name,                   type: String,                                     constraints: {mandatory: true, notNull: true}}
-      - {name: overrideSnapshotConfig, type: Boolean,                                    constraints: {mandatory: true, notNull: true, default: false}}
-      - {name: snapshotConfig,         type: Embedded, linkedClass: ModelSnapshotConfig, constraints: {notNull: true}}
+      - {name: id,                     type: String,                                       constraints: {mandatory: true, notNull: true}}
+      - {name: name,                   type: String,                                       constraints: {mandatory: true, notNull: true}}
+      - {name: overrideSnapshotConfig, type: Boolean,                                      constraints: {mandatory: true, notNull: true, default: false}}
+      - {name: snapshotConfig,         type: Embedded, linkedClass: ModelSnapshotConfig,   constraints: {notNull: true}}
+      - {name: worldPermissions,       type: Embedded, linkedClass: CollectionPermissions, constraints: {mandatory: true, notNull: true, readOnly: false}}
+      - {name: userPermissions,        type: LinkList, linkedClass: CollectionUserPermissions}
 
   - action: CreateIndex
     className: Collection
@@ -146,18 +159,28 @@ changes:
   - action: CreateClass
     name: Model
     properties:
-      - {name: collection,   type: Link,     linkedClass: Collection,  constraints: {mandatory: true, notNull: true}}
-      - {name: id,           type: String,                             constraints: {mandatory: true, notNull: true}}
-      - {name: version,      type: Long,                               constraints: {mandatory: true, notNull: true, min: 1}}
-      - {name: createdTime,  type: DateTime,                           constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: modifiedTime, type: DateTime,                           constraints: {mandatory: true, notNull: true}}
-      - {name: data,         type: Link,     linkedClass: ObjectValue, constraints: {mandatory: true, notNull: true}}
+      - {name: collection,          type: Link,     linkedClass: Collection,       constraints: {mandatory: true, notNull: true}}
+      - {name: id,                  type: String,                                  constraints: {mandatory: true, notNull: true}}
+      - {name: version,             type: Long,                                    constraints: {mandatory: true, notNull: true, min: 1}}
+      - {name: createdTime,         type: DateTime,                                constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: modifiedTime,        type: DateTime,                                constraints: {mandatory: true, notNull: true}}
+      - {name: data,                type: Link,     linkedClass: ObjectValue,      constraints: {mandatory: true, notNull: true}}
+      - {name: overridePermissions, type: Boolean,                                 constraints: {notNull: true, readOnly: false, default: false}}
+      - {name: worldPermissions,    type: Embedded, linkedClass: ModelPermissions, constraints: {mandatory: true, notNull: true, readOnly: false}}
+      - {name: userPermissions,     type: LinkList, linkedClass: ModelUserPermissions}
+      - {name: valuePrefix,         type: Long,                                    constraints: {mandatory: true, notNull: true, readOnly: false}}
 
   - action: CreateIndex
     className: Model
     name: Model.collection_id
     type: UniqueHashIndex
     properties: [collection, id]
+
+  - action: CreateIndex
+    className: Model
+    name: Model.id
+    type: UniqueHashIndex
+    properties: [id]
 
 
 ########## ModelSnapshot Class ##########
@@ -191,6 +214,12 @@ changes:
     properties:
       - {name: id,    type: String,                   constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: model, type: Link, linkedClass: Model, constraints: {mandatory: true, notNull: true, readOnly: true}}
+
+  - action: CreateIndex
+    className: DataValue
+    name: DataValue.id_model
+    type: UniqueHashIndex
+    properties: [id, model]
 
 
 ########## ObjectValue Class ##########
@@ -243,6 +272,14 @@ changes:
   - action: CreateClass
     name: NullValue
     superclass: DataValue
+
+########## DateValue Class ##########
+
+  - action: CreateClass
+    name: DateValue
+    superclass: DataValue
+    properties:
+      - {name: value, type: DateTime, constraints: {mandatory: true, notNull: true}}
 
 
 ########## OpValue Class ##########
@@ -305,6 +342,13 @@ changes:
     name: NullOpValue
     superclass: OpValue
 
+########## DateOpValue Class ##########
+
+  - action: CreateClass
+    name: DateOpValue
+    superclass: OpValue
+    properties:
+      - {name: value, type: DateTime, constraints: {mandatory: true, notNull: true, readOnly: true}}
 
 ########## Operation Class ##########
 
@@ -484,6 +528,14 @@ changes:
       - {name: val,    type: EmbeddedList, linkedClass: OpValue, constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: oldVal, type: EmbeddedList, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}
 
+########## DateSetOperation Class ##########
+
+  - action: CreateClass
+    name: DateSetOperation
+    superclass: DiscreteOperation
+    properties:
+      - {name: val,    type: DateTime, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: oldVal, type: DateTime, constraints: {mandatory: true, notNull: true, readOnly: true}}
 
 ########## ModelOperation Class ##########
 
@@ -508,6 +560,237 @@ changes:
     type: NotUniqueHashIndex
     properties: [model]
 
+########## CollectionPermissions ##########
+
+  - action: CreateClass
+    name: CollectionPermissions
+    properties:
+      - {name: read,       type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
+      - {name: write,      type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
+      - {name: create,     type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
+      - {name: remove,     type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
+      - {name: manage,     type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
+
+########## CollectionUserPermissions ##########
+
+  - action: CreateClass
+    name: CollectionUserPermissions
+    properties:
+      - {name: collection, type: Link,   linkedClass: Collection, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: user, type: Link, linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: permissions, type: Embedded, linkedClass: CollectionPermissions, constraints: {mandatory: true, notNull: true}}
+
+  - action: CreateIndex
+    className: CollectionUserPermissions
+    name: CollectionUserPermissions.user_collection
+    type: Unique
+    properties: [user, collection]
+
+  - action: CreateIndex
+    className: CollectionUserPermissions
+    name: CollectionUserPermissions.user
+    type: NotUniqueHashIndex
+    properties: [user]
+
+  - action: CreateIndex
+    className: CollectionUserPermissions
+    name: CollectionUserPermissions.collection
+    type: NotUniqueHashIndex
+    properties: [collection]
+
+########## ModelPermissions ##########
+
+  - action: CreateClass
+    name: ModelPermissions
+    properties:
+      - {name: read,   type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
+      - {name: write,  type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
+      - {name: remove, type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
+      - {name: manage, type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
+
+########## ModelUserPermissions ##########
+
+  - action: CreateClass
+    name: ModelUserPermissions
+    properties:
+      - {name: model,  type: Link,   linkedClass: Model, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: user, type: Link, linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: permissions, type: Embedded, linkedClass: ModelPermissions, constraints: {mandatory: true, notNull: true}}
+
+  - action: CreateIndex
+    className: ModelUserPermissions
+    name: ModelUserPermissions.user_model
+    type: Unique
+    properties: [user, model]
+
+  - action: CreateIndex
+    className: ModelUserPermissions
+    name: ModelUserPermissions.user
+    type: NotUniqueHashIndex
+    properties: [user]
+
+  - action: CreateIndex
+    className: ModelUserPermissions
+    name: ModelUserPermissions.model
+    type: NotUniqueHashIndex
+    properties: [model]
+
+########## ChatChannel Class ##########
+
+  - action: CreateClass
+    name: ChatChannel
+    properties:
+      - {name: id,          type: String,                                  constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: type,        type: String,                                  constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: created,     type: DateTime,                                constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: private,     type: Boolean,                                 constraints: {mandatory: true, notNull: true}}
+      - {name: name,        type: String,                                  constraints: {mandatory: true, notNull: true}}
+      - {name: topic,       type: String,                                  constraints: {mandatory: true, notNull: true}}
+      - {name: members,     type: LinkSet, linkedClass: ChatChannelMember, constraints: {mandatory: true, notNull: true}}
+      - {name: permissions, type: LinkSet, linkedClass: Permission,        constraints: {mandatory: false, notNull: true}}
+
+  - action: CreateIndex
+    className: ChatChannel
+    name: ChatChannel.id
+    type: UniqueHashIndex
+    properties: [id]
+
+########## ChatChannelEvent Class ##########
+
+  - action: CreateClass
+    name: ChatChannelEvent
+    abstract: true
+    properties:
+      - {name: eventNo,   type: Long,                           constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: channel,   type: Link, linkedClass: ChatChannel, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: user,      type: Link, linkedClass: User,        constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: timestamp, type: DateTime,                       constraints: {mandatory: true, notNull: true, readOnly: true}}
+
+  - action: CreateIndex
+    className: ChatChannelEvent
+    name: ChatChannel.channel_eventNo
+    type: UniqueHashIndex
+    properties: [channel, eventNo]
+
+  - action: CreateIndex
+    className: ChatChannelEvent
+    name: ChatChannelEvent.channel
+    type: NotUniqueHashIndex
+    properties: [channel]
+
+########## ChatCreatedEvent Class ##########
+
+  - action: CreateClass
+    name: ChatCreatedEvent
+    superclass: ChatChannelEvent
+    properties:
+      - {name: name,    type: String,                     constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: topic,   type: String,                     constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: members, type: LinkSet, linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
+
+########## ChatMessageEvent Class ##########
+
+  - action: CreateClass
+    name: ChatMessageEvent
+    superclass: ChatChannelEvent
+    properties:
+      - {name: message, type: String, constraints: {mandatory: true, notNull: true}}
+
+########## ChatUserJoinedEvent Class ##########
+
+  - action: CreateClass
+    name: ChatUserJoinedEvent
+    superclass: ChatChannelEvent
+
+########## ChatUserLeftEvent Class ##########
+
+  - action: CreateClass
+    name: ChatUserLeftEvent
+    superclass: ChatChannelEvent
+
+########## ChatUserAddedEvent Class ##########
+
+  - action: CreateClass
+    name: ChatUserAddedEvent
+    superclass: ChatChannelEvent
+    properties:
+      - {name: userAdded, type: Link, linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
+
+########## ChatUserRemovedEvent Class ##########
+
+  - action: CreateClass
+    name: ChatUserRemovedEvent
+    superclass: ChatChannelEvent
+    properties:
+      - {name: userRemoved, type: Link, linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
+
+########## ChatNameChangedEvent Class ##########
+
+  - action: CreateClass
+    name: ChatNameChangedEvent
+    superclass: ChatChannelEvent
+    properties:
+      - {name: name, type: String, constraints: {mandatory: true, notNull: true, readOnly: true}}
+
+########## ChatTopicChangedEvent Class ##########
+
+  - action: CreateClass
+    name: ChatTopicChangedEvent
+    superclass: ChatChannelEvent
+    properties:
+      - {name: topic, type: String, constraints: {mandatory: true, notNull: true, readOnly: true}}
+
+########## ChatChannelMember Class ##########
+
+  - action: CreateClass
+    name: ChatChannelMember
+
+    properties:
+      - {name: channel, type: Link, linkedClass: ChatChannel, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: user,    type: Link, linkedClass: User,        constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: seen,    type: Long,                           constraints: {mandatory: true, notNull: true}}
+
+  - action: CreateIndex
+    className: ChatChannelMember
+    name: ChatChannelMember.channel_user
+    type: UniqueHashIndex
+    properties: [channel, user]
+
+  - action: CreateIndex
+    className: ChatChannelMember
+    name: ChatChannelMember.channel
+    type: NotUniqueHashIndex
+    properties: [channel]
+
+########## UserGroup Class ##########
+
+  - action: CreateClass
+    name: UserGroup
+    properties:
+      - {name: id,          type: String,                     constraints: {mandatory: true, notNull: true}}
+      - {name: description, type: String,                     constraints: {mandatory: true, notNull: true}}
+      - {name: members,     type: LinkSet, linkedClass: User, constraints: {mandatory: true, notNull: true}}
+
+  - action: CreateIndex
+    className: UserGroup
+    name: UserGroup.id
+    type: UniqueHashIndex
+    properties: [id]
+
+########## Permission Class ##########
+
+  - action: CreateClass
+    name: Permission
+    properties:
+      - {name: assignedTo, type: Link,   constraints: {notNull: true, readOnly: true}}
+      - {name: forRecord,  type: Link,   constraints: {notNull: true, readOnly: true}}
+      - {name: permission, type: String, constraints: {mandatory: true, notNull: true, readOnly: true}}
+
+  - action: CreateIndex
+    className: Permission
+    name: Permission.assignedTo_forRecord_permission
+    type: UniqueHashIndex
+    properties: [assignedTo, forRecord, permission]
 
 ########## Sequences ##########
 
@@ -519,6 +802,9 @@ changes:
     name: anonymousUsernameSeq
     sequenceType: Ordered
 
+  - action: CreateSequence
+    name: chatChannelIdSeq
+    sequenceType: Ordered
 
 ########## Functions ##########
 

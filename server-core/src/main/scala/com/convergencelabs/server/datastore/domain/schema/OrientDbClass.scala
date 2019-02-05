@@ -1,5 +1,5 @@
 package com.convergencelabs.server.datastore.domain.schema
 
-trait OrientDBClass {
+trait OrientDbClass {
   def ClassName: String
 }

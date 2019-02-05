@@ -7,6 +7,7 @@ case class ConvergenceScript(
 case class CreateConvergenceUser(
   username: String,
   password: SetPassword,
+  bearerToken: String,
   email: String,
   firstName: Option[String],
   lastName: Option[String],
@@ -18,5 +19,4 @@ case class CreateDomain(
   displayName: String,
   status: String,
   statusMessage: String,
-  owner: String,
   dataImport: Option[DomainScript])

@@ -1,6 +1,6 @@
 version: 1
 description: Initial Schema Creation
-changes:
+actions:
 
 ########## User Class ##########
 

@@ -4,7 +4,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
 import com.convergencelabs.server.datastore.convergence.AuthStoreActor.ValidateSessionTokenRequest
-import com.convergencelabs.server.datastore.convergence.AuthStoreActor.ValidateUserApiKeyRequest
+import com.convergencelabs.server.datastore.convergence.AuthStoreActor.ValidateUserBearerTokenRequest
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
@@ -83,7 +83,7 @@ class Authenticator(
   }
 
   private[this] def validateUserApiKey(token: String): Future[Option[String]] = {
-    (authActor ? ValidateUserApiKeyRequest(token)).mapTo[Option[String]]
+    (authActor ? ValidateUserBearerTokenRequest(token)).mapTo[Option[String]]
   }
 
   def requireAuthenticatedAdmin(request: HttpRequest): Directive1[String] = {

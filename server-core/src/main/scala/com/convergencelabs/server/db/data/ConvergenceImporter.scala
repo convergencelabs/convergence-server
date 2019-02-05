@@ -40,7 +40,7 @@ class ConvergenceImporter(
 
   def importUsers(): Try[Unit] = Try {
     logger.debug("Importing convergence users")
-    val userStore = new UserStore(convergenceDbProvider, Duration.ofMillis(0L))
+    val userStore = new UserStore(convergenceDbProvider)
     data.users foreach {
       _.map { userData =>
         logger.debug(s"Importing user: ${userData.username}")
@@ -52,9 +52,9 @@ class ConvergenceImporter(
           userData.displayName.getOrElse(""))
         userData.password.passwordType match {
           case "plaintext" =>
-            userStore.createUser(user, userData.password.value).get
+            userStore.createUser(user, userData.password.value, userData.bearerToken).get
           case "hash" =>
-            userStore.createUserWithPasswordHash(user, userData.password.value).get
+            userStore.createUserWithPasswordHash(user, userData.password.value, userData.bearerToken).get
         }
       }
     }
@@ -68,8 +68,9 @@ class ConvergenceImporter(
       _.map { domainData =>
         logger.debug(s"Importing domaing: ${domainData.namespace}/${domainData.id}")
 
+        // FIXME Anonynous Auth
         val domainCreateRequest = CreateDomainRequest(
-          domainData.namespace, domainData.id, domainData.displayName, domainData.owner, false)
+          domainData.namespace, domainData.id, domainData.displayName, false)
 
         // FXIME hardcoded timeout
         implicit val requstTimeout = Timeout(4 minutes)

@@ -5,15 +5,14 @@ import scala.util.Success
 import scala.util.Try
 
 import com.convergencelabs.server.datastore.OrientDBUtil
-import com.convergencelabs.server.datastore.convergence.DomainDatabaseStore
 import com.convergencelabs.server.datastore.convergence.DomainStore
+import com.convergencelabs.server.datastore.convergence.schema.DomainClass
 import com.convergencelabs.server.domain.DomainDatabase
 import com.convergencelabs.server.domain.DomainFqn
-import com.orientechnologies.orient.core.metadata.schema.OType
 
 class DomainDatabaseFactory(orientDbUrl: String, convergenceDbProvider: DatabaseProvider) {
 
-  val domainDatabaseStore = new DomainDatabaseStore(convergenceDbProvider)
+  val domainStore = new DomainStore(convergenceDbProvider)
 
   def getDomainAdminDatabase(fqn: DomainFqn): Try[DatabaseProvider] = {
     for {
@@ -51,13 +50,13 @@ class DomainDatabaseFactory(orientDbUrl: String, convergenceDbProvider: Database
     convergenceDbProvider.withDatabase { db =>
       val query = "SELECT namespace, id FROM Domain"
       OrientDBUtil.query(db, query).map { oDocs =>
-        oDocs.map { oDoc => DomainFqn(oDoc.getProperty(DomainStore.Fields.Namespace), oDoc.getProperty(DomainStore.Fields.Id)) }
+        oDocs.map { oDoc => DomainFqn(oDoc.getProperty(DomainClass.Fields.Namespace), oDoc.getProperty(DomainClass.Fields.Id)) }
       }
     }
   }
 
   private[this] def getDomainInfo(fqn: DomainFqn): Try[DomainDatabase] = {
-    domainDatabaseStore.getDomainDatabase(fqn) flatMap {
+    domainStore.getDomainDatabase(fqn) flatMap {
       _ match {
         case Some(domainInfo) =>
           Success(domainInfo)

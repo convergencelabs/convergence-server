@@ -8,8 +8,11 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
+import com.convergencelabs.server.datastore.convergence.DomainStore
+import com.convergencelabs.server.db.PooledDatabaseProvider
+import com.convergencelabs.server.db.provision.DomainProvisionerActor.DomainDeleted
+import com.convergencelabs.server.db.provision.DomainProvisionerActor.DomainLifecycleTopic
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.db.provision.DomainProvisionerActor._
 
 import akka.actor.Actor
 import akka.actor.ActorContext
@@ -17,17 +20,14 @@ import akka.actor.ActorLogging
 import akka.actor.ActorPath
 import akka.actor.ActorRef
 import akka.actor.Props
+import akka.actor.Status
 import akka.actor.Terminated
 import akka.actor.actorRef2Scala
-import akka.pattern.Patterns
-import akka.util.Timeout
-import com.convergencelabs.server.db.DatabaseProvider
-import grizzled.slf4j.Logging
-import com.convergencelabs.server.datastore.convergence.DomainDatabaseStore
-import com.convergencelabs.server.db.PooledDatabaseProvider
-import akka.actor.Status
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator.Subscribe
+import akka.pattern.Patterns
+import akka.util.Timeout
+import grizzled.slf4j.Logging
 
 trait DomainPersistenceManager {
   def acquirePersistenceProvider(requestor: ActorRef, context: ActorContext, domainFqn: DomainFqn): Try[DomainPersistenceProvider]
@@ -40,8 +40,8 @@ object DomainPersistenceManagerActor extends DomainPersistenceManager with Loggi
 
   def props(
     baseDbUri: String,
-    domainDatabaseStore: DomainDatabaseStore): Props = Props(
-    new DomainPersistenceManagerActor(baseDbUri, domainDatabaseStore))
+    domainStore: DomainStore): Props = Props(
+    new DomainPersistenceManagerActor(baseDbUri, domainStore))
 
   def getLocalInstancePath(requestor: ActorPath): ActorPath = {
     requestor.root / "user" / RelativePath
@@ -69,7 +69,7 @@ object DomainPersistenceManagerActor extends DomainPersistenceManager with Loggi
 
 class DomainPersistenceManagerActor(
   baseDbUri: String,
-  domainDatabaseStore: DomainDatabaseStore) extends Actor with ActorLogging {
+  domainStore: DomainStore) extends Actor with ActorLogging {
 
   private[this] var refernceCounts = Map[DomainFqn, Int]()
   private[this] var providers = Map[DomainFqn, DomainPersistenceProviderImpl]()
@@ -162,7 +162,7 @@ class DomainPersistenceManagerActor(
 
   private[this] def createProvider(domainFqn: DomainFqn): Try[DomainPersistenceProvider] = {
     log.debug(s"${domainFqn}: Creating new persistence provider")
-    domainDatabaseStore.getDomainDatabase(domainFqn) flatMap {
+    domainStore.getDomainDatabase(domainFqn) flatMap {
       case Some(domainInfo) =>
 
         log.debug(s"${domainFqn}: Creating new connection pool: ${baseDbUri}/${domainInfo.database}")

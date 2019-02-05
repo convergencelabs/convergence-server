@@ -1,6 +1,6 @@
 version: 2
 description: Modifies the Domain class to split up admin and normal database credentials
-changes:
+actions:
  
 ########## Domain Class ##########
 

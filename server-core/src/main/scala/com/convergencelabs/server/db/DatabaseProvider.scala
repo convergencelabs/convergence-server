@@ -9,8 +9,6 @@ import com.orientechnologies.orient.core.db.ODatabasePool
 import com.orientechnologies.orient.core.db.OrientDB
 import com.orientechnologies.orient.core.db.OrientDBConfig
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
-import com.orientechnologies.orient.core.db.ODatabaseThreadLocalFactory
-import com.orientechnologies.orient.core.db.ODatabaseRecordThreadLocal
 
 trait DatabaseProvider {
   def connect(): Try[Unit]

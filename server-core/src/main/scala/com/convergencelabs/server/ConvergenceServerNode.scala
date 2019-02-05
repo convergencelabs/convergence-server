@@ -17,7 +17,6 @@ import org.apache.logging.log4j.LogManager
 import com.convergencelabs.server.db.PooledDatabaseProvider
 import com.convergencelabs.server.db.SingleDatabaseProvider
 import com.convergencelabs.server.datastore.convergence.DeltaHistoryStore
-import com.convergencelabs.server.datastore.convergence.DomainDatabaseStore
 import com.convergencelabs.server.datastore.convergence.PermissionsStore
 import com.convergencelabs.server.datastore.convergence.PermissionsStore.Permission
 import com.convergencelabs.server.datastore.convergence.PermissionsStore.Role
@@ -52,6 +51,7 @@ import akka.cluster.ClusterEvent.UnreachableMember
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.db.ConnectedSingleDatabaseProvider
 import com.convergencelabs.server.domain.activity.ActivityActorSharding
+import com.convergencelabs.server.datastore.convergence.DomainStore
 
 object ConvergenceServerNode extends Logging {
 
@@ -256,9 +256,9 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
       val dbProvider = new PooledDatabaseProvider(baseUri, convergenceDatabase, username, password)
       dbProvider.connect().get
 
-      val domainDatabaseStore = new DomainDatabaseStore(dbProvider)
+      val domainStore = new DomainStore(dbProvider)
       system.actorOf(
-        DomainPersistenceManagerActor.props(baseUri, domainDatabaseStore),
+        DomainPersistenceManagerActor.props(baseUri, domainStore),
         DomainPersistenceManagerActor.RelativePath)
 
       if (roles.contains("backend")) {

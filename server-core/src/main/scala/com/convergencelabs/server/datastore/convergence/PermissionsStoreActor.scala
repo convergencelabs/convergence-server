@@ -20,12 +20,12 @@ object PermissionsStoreActor {
   
   case class CreatePermissionRequest(permission: Permission)
   case class CreateRoleRequest(role: Role)
-  case class SetRolesRequest(username: String, domainFqn: DomainFqn, roles: List[String])
+  case class SetRolesRequest(username: String, target: PermissionTarget, roles: List[String])
 
-  case class GetPermissionsProfileRequest(domainFqn: DomainFqn, username: String)
-  case class GetAllUserRolesRequest(domainFqn: DomainFqn)
-  case class GetUserRolesRequest(username: String, domainFqn: DomainFqn)
-  case class GetUserPermissionsRequest(username: String, domainFqn: DomainFqn)
+  case class GetPermissionsProfileRequest(target: PermissionTarget, username: String)
+  case class GetAllUserRolesRequest(target: PermissionTarget)
+  case class GetUserRolesRequest(username: String, target: PermissionTarget)
+  case class GetUserPermissionsRequest(username: String, target: PermissionTarget)
 }
 
 class PermissionsStoreActor private[datastore] (private[this] val dbProvider: DatabaseProvider) extends StoreActor
@@ -62,28 +62,27 @@ class PermissionsStoreActor private[datastore] (private[this] val dbProvider: Da
   }
 
   def setRolesRequest(message: SetRolesRequest): Unit = {
-    val SetRolesRequest(username, domainFqn, roles) = message
-    val currentRoles = permissionsStore.getAllUserRoles(domainFqn).get
-    reply(permissionsStore.setUserRoles(username, domainFqn, roles))
+    val SetRolesRequest(username, target, roles) = message
+    reply(permissionsStore.setUserRolesForTarget(username, target, roles))
   }
 
   def getPermissionsProfile(message: GetPermissionsProfileRequest): Unit = {
-    val GetPermissionsProfileRequest(domainFqn, username) = message
-    reply(permissionsStore.getUserRolePermissions(username, domainFqn).map { roles => new PermissionsProfile(roles) })
+    val GetPermissionsProfileRequest(target, username) = message
+    reply(permissionsStore.getUserRolesForTarget(username, target).map { roles => new PermissionsProfile(roles) })
   }
 
   def getAllUserRoles(message: GetAllUserRolesRequest): Unit = {
-    val GetAllUserRolesRequest(domainFqn) = message
-    reply(permissionsStore.getAllUserRoles(domainFqn))
+    val GetAllUserRolesRequest(target) = message
+    reply(permissionsStore.getAllUserRolesForTarget(target))
   }
 
   def getUserRoles(message: GetUserRolesRequest): Unit = {
-    val GetUserRolesRequest(username: String, domainFqn) = message
-    reply(permissionsStore.getUserRoles(username, domainFqn))
+    val GetUserRolesRequest(username, target) = message
+    reply(permissionsStore.getUserRolesForTarget(username, target))
   }
 
   def getUserPermissions(message: GetUserPermissionsRequest): Unit = {
-    val GetUserPermissionsRequest(username: String, domainFqn) = message
-    reply(permissionsStore.getAllUserPermissions(username, domainFqn))
+    val GetUserPermissionsRequest(username, target) = message
+    reply(permissionsStore.getUserPermissionsForTarget(username, target))
   }
 }

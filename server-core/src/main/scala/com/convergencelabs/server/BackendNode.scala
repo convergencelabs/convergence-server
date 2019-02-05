@@ -10,7 +10,6 @@ import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerAc
 import com.convergencelabs.server.datastore.convergence.DeltaHistoryStore
 import com.convergencelabs.server.datastore.convergence.DomainStoreActor
 import com.convergencelabs.server.datastore.convergence.PermissionsStoreActor
-import com.convergencelabs.server.datastore.convergence.RegistrationActor
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.db.data.ConvergenceImporterActor
@@ -32,6 +31,7 @@ import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.cluster.sharding.ShardRegion
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.datastore.convergence.NamespaceStoreActor
 
 class BackendNode(system: ActorSystem, convergenceDbProvider: DatabaseProvider) extends Logging {
 
@@ -102,8 +102,8 @@ class BackendNode(system: ActorSystem, convergenceDbProvider: DatabaseProvider) 
 
     // Administrative actors
     val userManagerActor = system.actorOf(ConvergenceUserManagerActor.props(convergenceDbProvider, domainStoreActor))
+    val namespaceStoreActor = system.actorOf(NamespaceStoreActor.props(convergenceDbProvider))
     val authStoreActor = system.actorOf(AuthStoreActor.props(convergenceDbProvider), AuthStoreActor.RelativePath)
-    val registrationActor = system.actorOf(RegistrationActor.props(convergenceDbProvider, userManagerActor), RegistrationActor.RelativePath)
     val convergenceUserActor = system.actorOf(ConvergenceUserManagerActor.props(convergenceDbProvider, domainStoreActor), ConvergenceUserManagerActor.RelativePath)
 
     val authorizationActor = system.actorOf(AuthorizationActor.props(convergenceDbProvider), AuthorizationActor.RelativePath)

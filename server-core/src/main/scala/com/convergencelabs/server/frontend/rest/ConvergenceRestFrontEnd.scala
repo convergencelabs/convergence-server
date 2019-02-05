@@ -16,7 +16,6 @@ import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.datastore.InvalidValueExcpetion
 import com.convergencelabs.server.datastore.convergence.PermissionsStoreActor
-import com.convergencelabs.server.datastore.convergence.RegistrationActor
 import com.convergencelabs.server.db.data.ConvergenceImportService
 import com.convergencelabs.server.db.data.ConvergenceImporterActor
 import com.convergencelabs.server.db.schema.DatabaseManagerActor
@@ -54,6 +53,7 @@ import grizzled.slf4j.Logging
 import akka.http.scaladsl.server.RejectionHandler
 import akka.http.scaladsl.server.MalformedRequestContentRejection
 import akka.http.scaladsl.server.AuthorizationFailedRejection
+import com.convergencelabs.server.datastore.convergence.NamespaceStoreActor
 
 object ConvergenceRestFrontEnd {
   val ConvergenceCorsSettings = CorsSettings.defaultSettings.copy(
@@ -70,7 +70,7 @@ class ConvergenceRestFrontEnd(
   val system: ActorSystem,
   val interface: String,
   val port: Int)
-    extends Logging with JsonSupport {
+  extends Logging with JsonSupport {
 
   implicit val s = system
   implicit val materializer = ActorMaterializer()
@@ -105,7 +105,7 @@ class ConvergenceRestFrontEnd(
 
     val authStoreActor = createRouter("/user/" + AuthStoreActor.RelativePath, "authStoreActor")
     val convergenceUserActor = createRouter("/user/" + ConvergenceUserManagerActor.RelativePath, "convergenceUserActor")
-    val registrationActor = createRouter("/user/" + RegistrationActor.RelativePath, "registrationActor")
+    val namespaceActor = createRouter("/user/" + NamespaceStoreActor.RelativePath, "namespaceActor")
     val databaseManagerActor = createRouter("/user/" + DatabaseManagerActor.RelativePath, "databaseManagerActor")
     val importerActor = createRouter("/user/" + ConvergenceImporterActor.RelativePath, "importerActor")
     val authorizationActor = createRouter("/user/" + AuthorizationActor.RelativePath, "authorizationActor")
@@ -116,21 +116,24 @@ class ConvergenceRestFrontEnd(
     // All of these services are global to the system and outside of the domain.
     val authService = new AuthService(ec, authStoreActor, defaultRequestTimeout)
     val authenticator = new Authenticator(authStoreActor, masterAdminToken, defaultRequestTimeout, ec)
-    val registrationService = new RegistrationService(ec, registrationActor, defaultRequestTimeout, registrationBaseUrl)
-    val profileService = new ProfileService(ec, convergenceUserActor, defaultRequestTimeout)
-    val apiKeyService = new UserApiKeyService(ec, convergenceUserActor, defaultRequestTimeout)
-    val passwordService = new PasswordService(ec, convergenceUserActor, defaultRequestTimeout)
-    val keyGenService = new KeyGenService(ec)
 
-    val convergenceUserAdminService = new ConvergenceUserAdminService(ec, convergenceUserActor, defaultRequestTimeout)
+    // Available to all users
+    val currentUserService = new CurrentUserService(ec, convergenceUserActor, defaultRequestTimeout)
+    val namespaceService = new NamespaceService(ec, namespaceActor, defaultRequestTimeout)
+    val keyGenService = new KeyGenService(ec)
     val convergenceUserService = new ConvergenceUserService(ec, convergenceUserActor, defaultRequestTimeout)
+
+    // Only Accessible to Admin Users
+    val convergenceUserAdminService = new ConvergenceUserAdminService(ec, convergenceUserActor, defaultRequestTimeout)
     val convergenceImportService = new ConvergenceImportService(ec, importerActor, defaultRequestTimeout)
     val databaseManagerService = new DatabaseManagerRestService(ec, databaseManagerActor, defaultRequestTimeout)
 
-    // This handles all of the domains specific stuff
+    // This handles all of the domain specific stuff, we create a router here because each back end node
+    // has an instance, we route to them as a group.
     val domainStoreActor = createRouter("/user/" + DomainStoreActor.RelativePath, "domainStoreActor")
 
-    val domainService = new DomainService(ec,
+    val domainService = new DomainService(
+      ec,
       authorizationActor,
       domainStoreActor,
       restDomainActorRegion,
@@ -156,8 +159,6 @@ class ConvergenceRestFrontEnd(
         pathPrefix("v1") {
           // Authentication services can be called without being authenticated
           authService.route ~
-            // User registration services can be called without being authenticated
-            registrationService.route ~
             // These URLs must be authenticated as an admin user.
             pathPrefix("admin") {
               extractRequest { request =>
@@ -171,16 +172,13 @@ class ConvergenceRestFrontEnd(
             // Everything else must be authenticated as a convergence user.
             extractRequest { request =>
               authenticator.requireAuthenticatedUser(request) { username =>
-                domainService.route(username) ~
+                namespaceService.route(username) ~
+                  domainService.route(username) ~
                   convergenceUserService.route(username) ~
                   pathPrefix("util") {
                     keyGenService.route()
                   } ~
-                  pathPrefix("user") {
-                    profileService.route(username) ~
-                      apiKeyService.route(username) ~
-                      passwordService.route(username)
-                  }
+                  currentUserService.route(username)
               }
             }
         }

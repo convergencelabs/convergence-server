@@ -1,6 +1,6 @@
 package com.convergencelabs.server.datastore.domain.schema
 
-object CollectionClass extends OrientDBClass {
+object CollectionClass extends OrientDbClass {
   val ClassName = "Collection"
 
   object Indices {

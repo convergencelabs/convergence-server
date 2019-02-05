@@ -1,6 +1,6 @@
 package com.convergencelabs.server.datastore.domain.schema
 
-object CollectionUserPermissionsClass extends OrientDBClass {
+object CollectionUserPermissionsClass extends OrientDbClass {
   val ClassName = "CollectionUserPermissions"
 
   object Fields {

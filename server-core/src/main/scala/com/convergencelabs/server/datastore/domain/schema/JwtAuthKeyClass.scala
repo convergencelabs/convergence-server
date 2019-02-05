@@ -1,6 +1,6 @@
 package com.convergencelabs.server.datastore.domain.schema
 
-object JwtAuthKeyClass extends OrientDBClass {
+object JwtAuthKeyClass extends OrientDbClass {
   val ClassName = "JwtAuthKey"
   
   object Indices {

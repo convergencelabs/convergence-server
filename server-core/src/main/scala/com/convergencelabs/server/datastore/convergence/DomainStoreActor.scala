@@ -6,7 +6,11 @@ import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
+import scala.util.Try
 
+import com.convergencelabs.server.datastore.EntityNotFoundException
+import com.convergencelabs.server.datastore.StoreActor
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.db.provision.DomainProvisionerActor.DestroyDomain
 import com.convergencelabs.server.db.provision.DomainProvisionerActor.DomainProvisioned
 import com.convergencelabs.server.db.provision.DomainProvisionerActor.ProvisionDomain
@@ -19,22 +23,17 @@ import akka.actor.ActorLogging
 import akka.actor.ActorRef
 import akka.actor.Props
 import akka.actor.actorRef2Scala
-import akka.pattern.ask
 import akka.util.Timeout
-import scala.util.Try
-import com.convergencelabs.server.db.DatabaseProvider
-import com.convergencelabs.server.datastore.StoreActor
-import com.convergencelabs.server.datastore.EntityNotFoundException
-
 
 object DomainStoreActor {
   val RelativePath = "DomainStoreActor"
-  
-  def props(dbProvider: DatabaseProvider,
+
+  def props(
+    dbProvider: DatabaseProvider,
     provisionerActor: ActorRef): Props =
     Props(new DomainStoreActor(dbProvider, provisionerActor))
 
-  case class CreateDomainRequest(namespace: String, domainId: String, displayName: String, owner: String, anonymousAuth: Boolean)
+  case class CreateDomainRequest(namespace: String, domainId: String, displayName: String, anonymousAuth: Boolean)
   case class UpdateDomainRequest(namespace: String, domainId: String, displayName: String)
   case class DeleteDomainRequest(namespace: String, domainId: String)
   case class GetDomainRequest(namespace: String, domainId: String)
@@ -45,14 +44,14 @@ object DomainStoreActor {
 class DomainStoreActor private[datastore] (
   private[this] val dbProvider: DatabaseProvider,
   private[this] val domainProvisioner: ActorRef)
-    extends StoreActor with ActorLogging {
+  extends StoreActor with ActorLogging {
 
   import DomainStoreActor._
-  
+  import akka.pattern.ask
+
   private[this] val RandomizeCredentials = context.system.settings.config.getBoolean("convergence.domain-databases.randomize-credentials")
 
   private[this] val domainStore: DomainStore = new DomainStore(dbProvider)
-  private[this] val domainDatabaseStore: DomainDatabaseStore = new DomainDatabaseStore(dbProvider)
   private[this] val deltaHistoryStore: DeltaHistoryStore = new DeltaHistoryStore(dbProvider)
   private[this] implicit val ec = context.system.dispatcher
 
@@ -67,7 +66,7 @@ class DomainStoreActor private[datastore] (
   }
 
   def createDomain(createRequest: CreateDomainRequest): Unit = {
-    val CreateDomainRequest(namespace, domainId, displayName, ownerUsername, anonymousAuth) = createRequest
+    val CreateDomainRequest(namespace, domainId, displayName, anonymousAuth) = createRequest
     log.debug(s"Receved request to create domain: ${namespace}/${domainId}")
 
     val dbName = Math.abs(UUID.randomUUID().getLeastSignificantBits).toString
@@ -80,13 +79,11 @@ class DomainStoreActor private[datastore] (
     }
 
     val domainFqn = DomainFqn(namespace, domainId)
-    val domainDbInfo = DomainDatabase(domainFqn, dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword)
+    val domainDbInfo = DomainDatabase(dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword)
 
     val currentSender = sender
 
-    domainStore.createDomain(domainFqn, displayName, ownerUsername) flatMap { _ =>
-      domainDatabaseStore.createDomainDatabase(domainDbInfo)
-    } map { _ =>
+    domainStore.createDomain(domainFqn, displayName, domainDbInfo) map { _ =>
       // Reply now and do the rest asynchronously, the status of the domain will
       // be updated after the future responds.
       reply(Success(domainDbInfo), currentSender)
@@ -133,12 +130,8 @@ class DomainStoreActor private[datastore] (
   }
 
   def deleteDomain(domainFqn: DomainFqn): Try[Unit] = {
-    (for {
-      domain <- domainStore.getDomainByFqn(domainFqn)
-      domainDatabase <- domainDatabaseStore.getDomainDatabase(domainFqn)
-    } yield {
-      reply((domain, domainDatabase) match {
-        case (Some(domain), Some(domainDatabase)) =>
+    val result = domainStore.getDomainDatabase(domainFqn).flatMap ( _ match {
+        case Some(domainDatabase) =>
           log.debug(s"Deleting domain database for ${domainFqn}: ${domainDatabase.database}")
 
           implicit val requstTimeout = Timeout(4 minutes) // FXIME hard-coded timeout
@@ -151,12 +144,7 @@ class DomainStoreActor private[datastore] (
                 .map(_ => log.debug(s"Domain database delta history removed: ${domainFqn}"))
                 .failed.map(cause => log.error(cause, s"Error deleting domain history history: ${domainFqn}"))
 
-              log.debug(s"Removing domain database record: ${domainFqn}")
-              domainDatabaseStore.removeDomainDatabase(domainFqn)
-                .map(_ => log.debug(s"Domain database record removed: ${domainFqn}"))
-                .failed.map(cause => log.error(cause, s"Error deleting domain database record: ${domainFqn}"))
-
-              log.debug(s"Removing domain record: ${domainFqn}")
+              log.debug(s"Removing domain: ${domainFqn}")
               domainStore.removeDomain(domainFqn)
                 .map(_ => log.debug(s"Domain record removed: ${domainFqn}"))
                 .failed.map(cause => log.error(cause, s"Error deleting domain record: ${domainFqn}"))
@@ -165,29 +153,31 @@ class DomainStoreActor private[datastore] (
               log.error(f, s"Could not desstroy domain database: ${domainFqn}")
           }
           Success(())
-        case _ =>
+        case None =>
           Failure(new EntityNotFoundException(s"Could not find domain information to delete the domain: ${domainFqn}"))
-      })
-    }) recover {
-      case _ => Failure(new EntityNotFoundException(s"Error looking up domain information to delete the domain: ${domainFqn}"))
-    }
+      }
+    )
+
+    reply(result)
+
+    result
   }
 
   def deleteDomainsForUser(request: DeleteDomainsForUserRequest): Unit = {
     val DeleteDomainsForUserRequest(username) = request
     log.debug(s"Deleting domains for user: ${username}")
 
-    domainDatabaseStore.getAllDomainDatabasesForUser(username) map { domainDatabases =>
+    domainStore.getDomainsInNamespace("~" + username) map { domains =>
       // FIXME we need to review what happens when something fails.
       // we will eventually delete the user and then we won't be
       // able to look up the domains again.
       sender ! (())
 
-      domainDatabases.foreach {
-        case domainDatabase =>
-          deleteDomain(domainDatabase.domainFqn) recover {
+      domains.foreach {
+        case domain =>
+          deleteDomain(domain.domainFqn) recover {
             case cause: Exception =>
-              log.error(cause, s"Unable to delete domain '${domainDatabase.domainFqn}' while deleting user '${username}'")
+              log.error(cause, s"Unable to delete domain '${domain.domainFqn}' while deleting user '${username}'")
           }
       }
     } recover {

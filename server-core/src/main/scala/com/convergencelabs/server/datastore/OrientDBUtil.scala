@@ -190,6 +190,17 @@ object OrientDBUtil {
       }
     }
   }
+  
+  def deleteFromSingleValueIndex(db: ODatabaseDocument, index: String, keys: List[_]): Try[Unit] = {
+    deleteFromSingleValueIndex(db, index, new OCompositeKey(keys.asJava))
+  }
+
+  def deleteFromSingleValueIndex(db: ODatabaseDocument, index: String, key: Any): Try[Unit] = {
+    Try (db.getMetadata.getIndexManager.getIndex(index).remove(key)).flatMap(_ match {
+      case true => Success(())
+      case false => Failure(EntityNotFoundException())
+    })
+  }
 
   def deleteFromSingleValueIndexIfExists(db: ODatabaseDocument, index: String, keys: List[_]): Try[Unit] = {
     deleteFromSingleValueIndexIfExists(db, index, new OCompositeKey(keys.asJava))
@@ -197,12 +208,7 @@ object OrientDBUtil {
 
   def deleteFromSingleValueIndexIfExists(db: ODatabaseDocument, index: String, key: Any): Try[Unit] = {
     Try {
-      Option(db
-        .getMetadata
-        .getIndexManager
-        .getIndex(index)
-        .get(key).asInstanceOf[OIdentifiable])
-        .map(_.getIdentity)
+      Option(db.getMetadata.getIndexManager.getIndex(index).get(key).asInstanceOf[OIdentifiable]).map(_.getIdentity)
     }.flatMap {
       _ match {
         case Some(rid) => Try(db.delete(rid)).map(_ => ())

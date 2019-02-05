@@ -1,6 +1,6 @@
 version: 1
 description: Initial schema creation
-changes:
+actions:
 
   - action: CreateClass
     name: TestClass1

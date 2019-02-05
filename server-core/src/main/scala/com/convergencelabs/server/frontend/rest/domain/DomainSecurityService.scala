@@ -33,6 +33,7 @@ import akka.http.scaladsl.server.Directives.put
 import akka.http.scaladsl.server.Directives.Segment
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
+import com.convergencelabs.server.datastore.convergence.DomainPermissionTarget
 
 object DomainSecurityService {
   case class SetUserRolesRequest(roles: List[String])
@@ -81,25 +82,25 @@ class DomainSecurityService(
   }
 
   def getAllUserRolesRequest(domain: DomainFqn): Future[RestResponse] = {
-    (permissionStoreActor ? GetAllUserRolesRequest(domain)).mapTo[Set[UserRoles]] map
+    (permissionStoreActor ? GetAllUserRolesRequest(DomainPermissionTarget(domain))).mapTo[Set[UserRoles]] map
       (userRoles => okResponse(GetAllUserRolesRestResponse(userRoles)))
   }
 
   def getRolesByUsername(username: String, domain: DomainFqn): Future[RestResponse] = {
-    (permissionStoreActor ? GetUserRolesRequest(username, domain)).mapTo[UserRoles] map {
+    (permissionStoreActor ? GetUserRolesRequest(username, DomainPermissionTarget(domain))).mapTo[UserRoles] map {
       userRoles => okResponse(GetUserRolesRestResponse(userRoles))
     }
   }
 
   def getPermissionsByUsername(username: String, domain: DomainFqn): Future[RestResponse] = {
-    (permissionStoreActor ? GetUserPermissionsRequest(username, domain)).mapTo[Set[Permission]] map {
+    (permissionStoreActor ? GetUserPermissionsRequest(username, DomainPermissionTarget(domain))).mapTo[Set[Permission]] map {
       permissions => okResponse(GetUserPermissionsRestResponse(permissions))
     }
   }
 
   def setUserRolesRequest(username: String, updateRequest: SetUserRolesRequest, domain: DomainFqn): Future[RestResponse] = {
     val SetUserRolesRequest(roles) = updateRequest
-    val message = SetRolesRequest(username, domain, roles)
+    val message = SetRolesRequest(username, DomainPermissionTarget(domain), roles)
     (permissionStoreActor ? message) map { _ => OkResponse } recover {
       case _: EntityNotFoundException => notFoundResponse()
     }

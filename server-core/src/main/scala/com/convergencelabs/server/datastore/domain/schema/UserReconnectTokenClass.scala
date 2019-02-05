@@ -1,6 +1,6 @@
 package com.convergencelabs.server.datastore.domain.schema
 
-object UserReconnectTokenClass extends OrientDBClass {
+object UserReconnectTokenClass extends OrientDbClass {
   val ClassName = "UserReconnectToken"
 
   object Indices {

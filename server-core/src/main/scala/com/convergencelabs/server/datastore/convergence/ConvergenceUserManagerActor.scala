@@ -23,10 +23,9 @@ import akka.util.Timeout
 import com.convergencelabs.server.datastore.convergence.DomainStoreActor.DeleteDomainsForUserRequest
 import com.convergencelabs.server.datastore.convergence.DomainStoreActor.CreateDomainRequest
 
-
 object ConvergenceUserManagerActor {
   val RelativePath = "ConvergenceUserManagerActor"
-  
+
   def props(dbProvider: DatabaseProvider, domainStoreActor: ActorRef): Props =
     Props(new ConvergenceUserManagerActor(dbProvider, domainStoreActor))
 
@@ -36,19 +35,17 @@ object ConvergenceUserManagerActor {
   case class DeleteConvergenceUserRequest(username: String)
   case class GetConvergenceUser(username: String)
   case class GetConvergenceUsers(filter: Option[String], limit: Option[Int], offset: Option[Int])
-  
-  case class GetUserApiKeyRequest(username: String)
-  case class RegenerateUserApiKeyRequest(username: String)
-  case class ClearUserApiKeyRequest(username: String)
-  case class UserApiKeyResponse(apiKey: String)
+
+  case class GetUserBearerTokenRequest(username: String)
+  case class RegenerateUserBearerTokenRequest(username: String)
 }
 
 class ConvergenceUserManagerActor private[datastore] (
   private[this] val dbProvider: DatabaseProvider,
   private[this] val domainStoreActor: ActorRef)
-    extends StoreActor
-    with ActorLogging {
-  
+  extends StoreActor
+  with ActorLogging {
+
   import ConvergenceUserManagerActor._
   import akka.pattern.ask
 
@@ -59,9 +56,10 @@ class ConvergenceUserManagerActor private[datastore] (
   private[this] val domainConfig: Config = context.system.settings.config.getConfig("convergence.domain-databases")
   private[this] val autoCreateConfigs: List[Config] = context.system.settings.config.getConfigList("convergence.auto-create-domains").asScala.toList
   private[this] val tokenDuration = context.system.settings.config.getDuration("convergence.rest.session-token-expiration")
-  private[this] val userStore: UserStore = new UserStore(dbProvider, tokenDuration)
-  
-  private[this] val apiKeyGen = new RandomStringGenerator(32)
+  private[this] val userStore: UserStore = new UserStore(dbProvider)
+  private[this] val namespaceStore: NamespaceStore = new NamespaceStore(dbProvider)
+
+  private[this] val bearerTokenGen = new RandomStringGenerator(32)
 
   def receive: Receive = {
     case message: CreateConvergenceUserRequest =>
@@ -76,29 +74,35 @@ class ConvergenceUserManagerActor private[datastore] (
       updateConvergenceUser(message)
     case message: SetPasswordRequest =>
       setUserPassword(message)
-    case message: GetUserApiKeyRequest =>
-      getUserApiKey(message)
-    case message: RegenerateUserApiKeyRequest =>
-      regenerateUserApiKey(message)
-      case message: ClearUserApiKeyRequest =>
-      clearUserApiKey(message)
+    case message: GetUserBearerTokenRequest =>
+      getUserBearerToken(message)
+    case message: RegenerateUserBearerTokenRequest =>
+      regenerateUserBearerToken(message)
     case message: Any =>
       unhandled(message)
-
   }
 
   def createConvergenceUser(message: CreateConvergenceUserRequest): Unit = {
     val CreateConvergenceUserRequest(username, email, firstName, lastName, displayName, password) = message
     val origSender = sender
-    userStore.createUser(User(username, email, firstName, lastName, displayName), password) map { _ =>
+    val bearerToken = bearerTokenGen.nextString()
+    userStore.createUser(User(username, email, firstName, lastName, displayName), password, bearerToken) flatMap { _ =>
       origSender ! (())
 
-      log.debug("User created.  Creating domains")
-      FutureUtils.seqFutures(autoCreateConfigs) { config =>
-        createDomain(
-          username, config.getString("id"),
-          config.getString("displayName"),
-          config.getBoolean("anonymousAuth"))
+      log.debug("User created.  Creating user namespace")
+
+      // FIXME give permissions if configured...
+      namespaceStore.createUserNamespace(username)
+    } map { namespace =>
+      if (autoCreateConfigs.size > 0) {
+        log.debug("User namespace created.  Creating domains ")
+        FutureUtils.seqFutures(autoCreateConfigs) { config =>
+          createDomain(
+            namespace,
+            config.getString("id"),
+            config.getString("displayName"),
+            config.getBoolean("anonymousAuth"))
+        }
       }
     } recover {
       case e: Throwable =>
@@ -137,23 +141,18 @@ class ConvergenceUserManagerActor private[datastore] (
     log.debug(s"Setting the password for user: ${username}")
     reply(userStore.setUserPassword(username, password))
   }
-  
-  def getUserApiKey(message: GetUserApiKeyRequest): Unit = {
-    val GetUserApiKeyRequest(username) = message;
-    val result = userStore.getUserApiKey(username);
+
+  def getUserBearerToken(message: GetUserBearerTokenRequest): Unit = {
+    val GetUserBearerTokenRequest(username) = message;
+    val result = userStore.getBearerToken(username);
     reply(result)
   }
-  
-  def regenerateUserApiKey(message: RegenerateUserApiKeyRequest): Unit = {
-    val RegenerateUserApiKeyRequest(username) = message;
+
+  def regenerateUserBearerToken(message: RegenerateUserBearerTokenRequest): Unit = {
+    val RegenerateUserBearerTokenRequest(username) = message;
     log.debug(s"Regenerating the api key for user: ${username}")
-    val key = apiKeyGen.nextString()
-    reply(userStore.setUserApiKey(username, key).map(_ => key))
-  }
-  
-  def clearUserApiKey(message: ClearUserApiKeyRequest): Unit = {
-    val ClearUserApiKeyRequest(username) = message;
-    reply(userStore.clearUserApiKey(username))
+    val bearerToken = bearerTokenGen.nextString()
+    reply(userStore.setBearerToken(username, bearerToken).map(_ => bearerToken))
   }
 
   private[this] def createDomain(username: String, id: String, displayName: String, anonymousAuth: Boolean): Future[Any] = {
@@ -161,7 +160,7 @@ class ConvergenceUserManagerActor private[datastore] (
 
     // FIXME hard coded
     implicit val requstTimeout = Timeout(240 seconds)
-    val message = CreateDomainRequest(username, id, displayName, username, anonymousAuth)
+    val message = CreateDomainRequest(username, id, displayName, anonymousAuth)
     (domainStoreActor ? message).andThen {
       case Success(_) =>
         log.debug(s"Domain '${id}' created for '${username}'");

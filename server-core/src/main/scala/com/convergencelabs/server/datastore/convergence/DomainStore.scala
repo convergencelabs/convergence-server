@@ -4,9 +4,10 @@ import scala.util.Failure
 import scala.util.Try
 
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.OrientDBUtil
+import com.convergencelabs.server.datastore.convergence.schema.DomainClass
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.domain.Domain
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.DomainStatus
@@ -16,54 +17,67 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.domain.DomainDatabase
 
 object DomainStore {
-  
-  object Fields {
+
+  object Params {
     val Namespace = "namespace"
     val Id = "id"
     val DisplayName = "displayName"
-    val Owner = "owner"
     val Status = "status"
     val StatusMessage = "statusMessage"
   }
 
   def domainToDoc(domain: Domain, db: ODatabaseDocument): Try[ODocument] = {
-    val Domain(DomainFqn(namespace, domainId), displayName, ownerUsername, status, statusMessage) = domain
-
-    UserStore.getUserRid(ownerUsername, db).recoverWith {
-      case cause: Exception =>
-        Failure(new IllegalArgumentException(
-          s"Could not create/update domain because the owner could not be found: ${ownerUsername}"))
-    }.map { ownerLink =>
-      val doc = db.newInstance(Schema.Domain.Class).asInstanceOf[ODocument]
-      doc.setProperty(Fields.Id, domainId)
-      doc.setProperty(Fields.Namespace, namespace)
-      doc.setProperty(Fields.Owner, ownerLink)
-      doc.setProperty(Fields.DisplayName, displayName)
-      doc.setProperty(Fields.Status, status.toString())
-      doc.setProperty(Fields.StatusMessage, statusMessage)
+    val Domain(DomainFqn(namespace, domainId), displayName, status, statusMessage) = domain
+    NamespaceStore.getNamespaceRid(namespace, db).map { nsRid =>
+      val doc = db.newInstance(DomainClass.ClassName).asInstanceOf[ODocument]
+      doc.setProperty(DomainClass.Fields.Id, domainId)
+      doc.setProperty(DomainClass.Fields.Namespace, nsRid)
+      doc.setProperty(DomainClass.Fields.DisplayName, displayName)
+      doc.setProperty(DomainClass.Fields.Status, status.toString())
+      doc.setProperty(DomainClass.Fields.StatusMessage, statusMessage)
       doc
     }
   }
 
   def docToDomain(doc: ODocument): Domain = {
-    val status: DomainStatus.Value = DomainStatus.withName(doc.field(Fields.Status))
-    val username: String = doc.field("owner.username")
-    Domain(
-      DomainFqn(doc.field(Fields.Namespace), doc.field(Fields.Id)),
-      doc.getProperty(Fields.DisplayName),
-      username,
-      status,
-      doc.field(Fields.StatusMessage))
+    val status: DomainStatus.Value = DomainStatus.withName(doc.field(DomainClass.Fields.Status))
+    val namespace = doc.eval("namespace.id").asInstanceOf[String]
+    val fqn = DomainFqn(namespace, doc.getProperty(DomainClass.Fields.Id))
+    val displayName = doc.getProperty(DomainClass.Fields.DisplayName).asInstanceOf[String]
+    val statusMessage = doc.field(DomainClass.Fields.StatusMessage).asInstanceOf[String]
+    Domain(fqn, displayName, status, statusMessage)
   }
 
   def getDomainRid(domainFqn: DomainFqn, db: ODatabaseDocument): Try[ORID] = {
     getDomainRid(domainFqn.namespace, domainFqn.domainId, db)
   }
 
+  private[this] val DomainRidQuery = "SELECT @rid FROM Domain WHERE id = :id AND namespace.id = :namespace"
   def getDomainRid(namespace: String, domainId: String, db: ODatabaseDocument): Try[ORID] = {
-    OrientDBUtil.getIdentityFromSingleValueIndex(db, Schema.Domain.Indices.NamespaceId, List(namespace, domainId))
+    val params = Map(Params.Id -> domainId, Params.Namespace -> namespace)
+    OrientDBUtil.getDocument(db, DomainRidQuery, params).map(_.getProperty("@rid").asInstanceOf[ORID])
+  }
+
+  def addDomainDatabaseFields(doc: ODocument, domainDatabase: DomainDatabase): Unit = {
+    val DomainDatabase(database, username, password, adminUsername, adminPassword) = domainDatabase
+    doc.field(DomainClass.Fields.DatabaseName, database)
+    doc.field(DomainClass.Fields.DatabaseUsername, username)
+    doc.field(DomainClass.Fields.DatabasePassword, password)
+    doc.field(DomainClass.Fields.DatabaseAdminUsername, adminUsername)
+    doc.field(DomainClass.Fields.DatabaseAdminPassword, adminPassword)
+    ()
+  }
+
+  def docToDomainDatabase(doc: ODocument): DomainDatabase = {
+    DomainDatabase(
+      doc.field(DomainClass.Fields.DatabaseName),
+      doc.field(DomainClass.Fields.DatabaseUsername),
+      doc.field(DomainClass.Fields.DatabasePassword),
+      doc.field(DomainClass.Fields.DatabaseAdminUsername),
+      doc.field(DomainClass.Fields.DatabaseAdminPassword))
   }
 }
 
@@ -73,85 +87,80 @@ class DomainStore(dbProvider: DatabaseProvider)
 
   import DomainStore._
 
-  def createDomain(domainFqn: DomainFqn, displayName: String, ownerUsername: String): Try[Unit] = tryWithDb { db =>
-    val domain = Domain(domainFqn, displayName, ownerUsername, DomainStatus.Initializing, "")
-    DomainStore.domainToDoc(domain, db).map { doc =>
+  def createDomain(domainFqn: DomainFqn, displayName: String, domainDatabase: DomainDatabase): Try[Unit] = withDb { db =>
+    val domain = Domain(domainFqn, displayName, DomainStatus.Initializing, "")
+    domainToDoc(domain, db).map { doc =>
+      addDomainDatabaseFields(doc, domainDatabase)
       db.save(doc)
       ()
-    }.get
+    }
   } recoverWith (handleDuplicateValue)
 
+  private[this] val DomainExistsQuery = "SELECT count(@rid) as count FROM Domain WHERE id = :id AND namespace.id = :namespace"
   def domainExists(domainFqn: DomainFqn): Try[Boolean] = withDb { db =>
-    OrientDBUtil.indexContains(db, Schema.Domain.Indices.NamespaceId, List(domainFqn.namespace, domainFqn.domainId))
+    val DomainFqn(namespace, domainId) = domainFqn
+    val params = Map(Params.Id -> domainId, Params.Namespace -> namespace)
+    OrientDBUtil.getDocument(db, DomainExistsQuery, params).map(_.getProperty("count").asInstanceOf[Long] > 0)
   }
 
+  private[this] val GetDomainQuery = "SELECT FROM Domain WHERE namespace.id = :namespace AND id = :id"
   def getDomainByFqn(domainFqn: DomainFqn): Try[Option[Domain]] = withDb { db =>
-    OrientDBUtil
-      .findDocument(
-        db,
-        "SELECT * FROM Domain WHERE namespace = :namespace AND id = :id",
-        Map(Fields.Namespace -> domainFqn.namespace, Fields.Id -> domainFqn.domainId))
-      .map(_.map(DomainStore.docToDomain(_)))
+    val DomainFqn(namespace, domainId) = domainFqn
+    val params = Map(Params.Id -> domainId, Params.Namespace -> namespace)
+    OrientDBUtil.findDocument(db, GetDomainQuery, params).map(_.map(docToDomain(_)))
   }
 
-  def getDomainsByOwner(username: String): Try[List[Domain]] = withDb { db =>
-    OrientDBUtil
-      .query(
-        db,
-        "SELECT * FROM Domain WHERE owner.username = :username",
-        Map("username" -> username))
-      .map(_.map(DomainStore.docToDomain(_)))
+  private[this] val GetDomainsByNamesapceQuery = "SELECT FROM Domain WHERE namespace.id = :namespace"
+  def getDomainsInNamespace(namespace: String): Try[List[Domain]] = withDb { db =>
+    val params = Map(Params.Namespace -> namespace)
+    OrientDBUtil.query(db, GetDomainsByNamesapceQuery, params).map(_.map(docToDomain(_)))
   }
 
   def getDomainsByAccess(username: String): Try[List[Domain]] = withDb { db =>
     // TODO: Merge these queries together
-    val accessQuery =
-      """SELECT expand(set(domain))
-        |  FROM UserDomainRole
-        |  WHERE user.username = :username AND
-        |    role.permissions CONTAINS (id = 'domain-access')""".stripMargin
-    val ownershipQuery = "SELECT * FROM Domain WHERE owner.username = :username"
-    for {
-      access <- OrientDBUtil.query(db, accessQuery, Map("username" -> username)).map(_.map(DomainStore.docToDomain(_)))
-      ownership <- OrientDBUtil.query(db, ownershipQuery, Map("username" -> username)).map(_.map(DomainStore.docToDomain(_)))
-    } yield {
-      access.union(ownership)
-    }
+    val accessQuery = """
+        |SELECT
+        |  expand(set(domain))
+        |FROM 
+        |  UserDomainRole
+        |WHERE 
+        |  user.username = :username AND
+        |  role.permissions CONTAINS (id = 'domain-access') AND
+        |  target.@class = 'Domain'""".stripMargin
+    OrientDBUtil.query(db, accessQuery, Map("username" -> username)).map(_.map(DomainStore.docToDomain(_)))
   }
 
-  def getDomainsInNamespace(namespace: String): Try[List[Domain]] = withDb { db =>
-    OrientDBUtil
-      .query(db, "SELECT * FROM Domain WHERE namespace = :namespace", Map(Fields.Namespace -> namespace))
-      .map(_.map(DomainStore.docToDomain(_)))
-  }
-
+  private[this] val DeleteDomainCommand = "DELETE FROM Domain WHERE namespace.id = :namespace AND id = :id"
   def removeDomain(domainFqn: DomainFqn): Try[Unit] = withDb { db =>
-    OrientDBUtil.mutateOneDocument(
-      db,
-      "DELETE FROM Domain WHERE namespace = :namespace AND id = :id",
-      Map(Fields.Namespace -> domainFqn.namespace, Fields.Id -> domainFqn.domainId))
+    val DomainFqn(namespace, domainId) = domainFqn
+    val params = Map(Params.Id -> domainId, Params.Namespace -> namespace)
+    OrientDBUtil.mutateOneDocument(db, DeleteDomainCommand, params)
   }
 
   def updateDomain(domain: Domain): Try[Unit] = withDb { db =>
-    OrientDBUtil
-      .getDocument(
-        db,
-        "SELECT * FROM Domain WHERE namespace = :namespace AND id = :id",
-        Map(Fields.Namespace -> domain.domainFqn.namespace, Fields.Id -> domain.domainFqn.domainId))
-      .flatMap { existing =>
-        DomainStore.domainToDoc(domain, db).map { updated =>
-          existing.merge(updated, true, false)
-          db.save(existing)
-          ()
-        }
-      } recoverWith (handleDuplicateValue)
+    val params = Map(Params.Namespace -> domain.domainFqn.namespace, Params.Id -> domain.domainFqn.domainId)
+    OrientDBUtil.getDocument(db, GetDomainQuery, params).flatMap { existing =>
+      DomainStore.domainToDoc(domain, db).map { updated =>
+        existing.merge(updated, true, false)
+        db.save(existing)
+        ()
+      }
+    }
+  } recoverWith (handleDuplicateValue)
+
+  def getDomainDatabase(domainFqn: DomainFqn): Try[Option[DomainDatabase]] = withDb { db =>
+    val DomainFqn(namespace, domainId) = domainFqn
+    val params = Map(Params.Id -> domainId, Params.Namespace -> namespace)
+    OrientDBUtil.findDocument(db, GetDomainQuery, params).map(_.map(docToDomainDatabase(_)))
   }
 
   private[this] def handleDuplicateValue[T](): PartialFunction[Throwable, Try[T]] = {
     case e: ORecordDuplicatedException =>
       e.getIndexName match {
-        case Schema.Domain.Indices.NamespaceId =>
-          Failure(DuplicateValueException("namespace_id"))
+        case DomainClass.Indices.NamespaceId =>
+          Failure(DuplicateValueException(DomainClass.Indices.NamespaceId))
+        case DomainClass.Indices.DatabaseName =>
+          Failure(DuplicateValueException(DomainClass.Indices.DatabaseName))
         case _ =>
           Failure(e)
       }

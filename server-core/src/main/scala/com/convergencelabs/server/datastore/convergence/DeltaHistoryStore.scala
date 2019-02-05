@@ -6,8 +6,12 @@ import scala.util.Success
 import scala.util.Try
 
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.datastore.OrientDBUtil
+import com.convergencelabs.server.datastore.convergence.schema.ConvergenceDeltaClass
+import com.convergencelabs.server.datastore.convergence.schema.ConvergenceDeltaHistoryClass
+import com.convergencelabs.server.datastore.convergence.schema.DomainDeltaClass
+import com.convergencelabs.server.datastore.convergence.schema.DomainDeltaHistoryClass
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.domain.DomainFqn
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.record.impl.ODocument
@@ -16,7 +20,7 @@ import grizzled.slf4j.Logging
 
 object DeltaHistoryStore {
 
-  object Fields {
+  object Params {
     val DeltaNo = "deltaNo"
     val Value = "value"
 
@@ -27,7 +31,6 @@ object DeltaHistoryStore {
     val Date = "date"
   }
 
-  // TODO: Determine what statuses we need
   object Status {
     val Error = "error"
     val Success = "success"
@@ -42,13 +45,13 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
 
     for {
       _ <- ensureConvergenceDeltaExists(delta, db)
-      deltaORID <- OrientDBUtil.getIdentityFromSingleValueIndex(db, Schema.ConvergenceDelta.Indices.DeltaNo, delta.deltaNo)
+      deltaORID <- OrientDBUtil.getIdentityFromSingleValueIndex(db, ConvergenceDeltaClass.Indices.DeltaNo, delta.deltaNo)
     } yield {
-      val doc = db.newInstance(Schema.ConvergenceDeltaHistory.Class).asInstanceOf[ODocument]
-      doc.setProperty(Fields.Delta, deltaORID)
-      doc.setProperty(Fields.Status, status)
-      message.foreach { doc.setProperty(Fields.Message, _) }
-      doc.setProperty(Fields.Date, Date.from(date))
+      val doc = db.newInstance(ConvergenceDeltaHistoryClass.ClassName).asInstanceOf[ODocument]
+      doc.setProperty(ConvergenceDeltaHistoryClass.Fields.Delta, deltaORID)
+      doc.setProperty(ConvergenceDeltaHistoryClass.Fields.Status, status)
+      message.foreach { doc.setProperty(ConvergenceDeltaHistoryClass.Fields.Message, _) }
+      doc.setProperty(ConvergenceDeltaHistoryClass.Fields.Date, Date.from(date))
       doc.save()
       ()
     }
@@ -56,24 +59,24 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
 
   def getConvergenceDeltaHistory(deltaNo: Int): Try[Option[ConvergenceDeltaHistory]] = withDb { db =>
     OrientDBUtil
-      .findIdentityFromSingleValueIndex(db, Schema.ConvergenceDelta.Indices.DeltaNo, deltaNo)
+      .findIdentityFromSingleValueIndex(db, ConvergenceDeltaClass.Indices.DeltaNo, deltaNo)
       .flatMap(_ match {
         case Some(deltaORID) =>
-          OrientDBUtil.findDocumentFromSingleValueIndex(db, Schema.ConvergenceDeltaHistory.Indices.Delta, deltaORID)
+          OrientDBUtil.findDocumentFromSingleValueIndex(db, ConvergenceDeltaHistoryClass.Indices.Delta, deltaORID)
         case None =>
           Success(None)
       })
       .map(_.map { doc =>
-        val deltaDoc: ODocument = doc.getProperty(Fields.Delta)
+        val deltaDoc: ODocument = doc.getProperty(ConvergenceDeltaHistoryClass.Fields.Delta)
 
-        val deltaNo: Int = deltaDoc.getProperty(Fields.DeltaNo)
-        val value: String = deltaDoc.getProperty(Fields.Value)
+        val deltaNo: Int = deltaDoc.getProperty(ConvergenceDeltaClass.Fields.DeltaNo)
+        val script: String = deltaDoc.getProperty(ConvergenceDeltaClass.Fields.Script)
 
-        val status: String = doc.getProperty(Fields.Status)
-        val message: Option[String] = Option(doc.getProperty(Fields.Message))
-        val date: Date = doc.getProperty(Fields.Date)
+        val status: String = doc.getProperty(ConvergenceDeltaHistoryClass.Fields.Status)
+        val message: Option[String] = Option(doc.getProperty(ConvergenceDeltaHistoryClass.Fields.Message))
+        val date: Date = doc.getProperty(ConvergenceDeltaHistoryClass.Fields.Date)
 
-        val delta = ConvergenceDelta(deltaNo, value)
+        val delta = ConvergenceDelta(deltaNo, script)
         ConvergenceDeltaHistory(delta, status, message, date.toInstant())
       })
   }
@@ -103,16 +106,16 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
       domainORID <- DomainStore.getDomainRid(domain, db)
       _ <- ensureDomainDeltaExists(db, delta)
       deltaORID <- OrientDBUtil
-        .getIdentityFromSingleValueIndex(db, Schema.DomainDelta.Indices.DeltaNo, delta.deltaNo)
+        .getIdentityFromSingleValueIndex(db, DomainDeltaClass.Indices.DeltaNo, delta.deltaNo)
       _ <- OrientDBUtil
-        .deleteFromSingleValueIndexIfExists(db, Schema.DomainDeltaHistory.Indices.DomainDelta, List(deltaORID, domainORID))
+        .deleteFromSingleValueIndexIfExists(db, DomainDeltaHistoryClass.Indices.DomainDelta, List(deltaORID, domainORID))
     } yield {
-      val doc = db.newInstance(Schema.DomainDeltaHistory.Class).asInstanceOf[ODocument]
-      doc.setProperty(Fields.Domain, domainORID)
-      doc.setProperty(Fields.Delta, deltaORID)
-      doc.setProperty(Fields.Status, status)
-      message.foreach { doc.setProperty(Fields.Message, _) }
-      doc.setProperty(Fields.Date, Date.from(date))
+      val doc = db.newInstance(DomainDeltaHistoryClass.ClassName).asInstanceOf[ODocument]
+      doc.setProperty(DomainDeltaHistoryClass.Fields.Domain, domainORID)
+      doc.setProperty(DomainDeltaHistoryClass.Fields.Delta, deltaORID)
+      doc.setProperty(DomainDeltaHistoryClass.Fields.Status, status)
+      message.foreach { doc.setProperty(DomainDeltaHistoryClass.Fields.Message, _) }
+      doc.setProperty(DomainDeltaHistoryClass.Fields.Date, Date.from(date))
       doc.save()
       ()
     }
@@ -128,28 +131,28 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
     val DomainFqn(namespace, domainId) = domainFqn
 
     for {
-      deltaORID <- OrientDBUtil.findIdentityFromSingleValueIndex(db, Schema.DomainDelta.Indices.DeltaNo, deltaNo)
+      deltaORID <- OrientDBUtil.findIdentityFromSingleValueIndex(db, DomainDeltaClass.Indices.DeltaNo, deltaNo)
       domainORID <- DomainStore.getDomainRid(domainFqn, db)
       doc <- {
         deltaORID match {
           case Some(deltaORID) =>
-            OrientDBUtil.findDocumentFromSingleValueIndex(db, Schema.DomainDeltaHistory.Indices.DomainDelta, List(domainORID, deltaORID))
+            OrientDBUtil.findDocumentFromSingleValueIndex(db, DomainDeltaHistoryClass.Indices.DomainDelta, List(domainORID, deltaORID))
           case None =>
             Success(None)
         }
       }
     } yield {
       doc.map { doc =>
-        val deltaDoc: ODocument = doc.field(Fields.Delta)
+        val deltaDoc: ODocument = doc.getProperty(DomainDeltaHistoryClass.Fields.Delta)
 
-        val deltaNo: Int = deltaDoc.field(Fields.DeltaNo)
-        val value: String = deltaDoc.field(Fields.Value)
+        val deltaNo: Int = deltaDoc.getProperty(DomainDeltaClass.Fields.DeltaNo)
+        val script: String = deltaDoc.getProperty(DomainDeltaClass.Fields.Script)
 
-        val status: String = doc.field(Fields.Status)
-        val message: Option[String] = Option(doc.field(Fields.Message))
-        val date: Date = doc.field(Fields.Date)
+        val status: String = doc.field(DomainDeltaHistoryClass.Fields.Status)
+        val message: Option[String] = Option(doc.field(DomainDeltaHistoryClass.Fields.Message))
+        val date: Date = doc.field(DomainDeltaHistoryClass.Fields.Date)
 
-        val delta = DomainDelta(deltaNo, value)
+        val delta = DomainDelta(deltaNo, script)
         DomainDeltaHistory(domainFqn, delta, status, message, date.toInstant())
       }
     }
@@ -159,7 +162,7 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
     val DomainFqn(namespace, domainId) = domainFqn
     val query =
       s"""SELECT max(delta.deltaNo) as version
-        |FROM ${Schema.DomainDeltaHistory.Class}
+        |FROM ${DomainDeltaHistoryClass.ClassName}
         |WHERE
         |  domain.namespace = :namespace AND
         |  domain.id = :id AND
@@ -174,7 +177,7 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
     val DomainFqn(namespace, domainId) = domainFqn
     val query =
       s"""SELECT if(count(*) > 0, false, true) as healthy
-        |FROM ${Schema.DomainDeltaHistory.Class}
+        |FROM ${DomainDeltaHistoryClass.ClassName}
         |WHERE
         |  domain.namespace = :namespace AND
         |  domain.id = :id AND
@@ -187,14 +190,14 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
 
   private[this] def ensureConvergenceDeltaExists(delta: ConvergenceDelta, db: ODatabaseDocument): Try[Unit] = {
     OrientDBUtil
-      .indexContains(db, Schema.ConvergenceDelta.Indices.DeltaNo, delta.deltaNo)
+      .indexContains(db, ConvergenceDeltaClass.Indices.DeltaNo, delta.deltaNo)
       .flatMap { contains =>
         if (!contains) {
           Try {
             val ConvergenceDelta(deltaNo, value) = delta
-            val doc = db.newInstance(Schema.ConvergenceDelta.Class).asInstanceOf[ODocument]
-            doc.setProperty(Fields.DeltaNo, deltaNo)
-            doc.setProperty(Fields.Value, value)
+            val doc = db.newInstance(ConvergenceDeltaClass.ClassName).asInstanceOf[ODocument]
+            doc.setProperty(ConvergenceDeltaClass.Fields.DeltaNo, deltaNo)
+            doc.setProperty(ConvergenceDeltaClass.Fields.Script, value)
             doc.save()
             ()
           }
@@ -206,14 +209,14 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
 
   private[this] def ensureDomainDeltaExists(db: ODatabaseDocument, delta: DomainDelta): Try[Unit] = {
     OrientDBUtil
-      .indexContains(db, Schema.DomainDelta.Indices.DeltaNo, delta.deltaNo)
+      .indexContains(db, DomainDeltaClass.Indices.DeltaNo, delta.deltaNo)
       .flatMap { contains =>
         if (!contains)
           Try {
             val DomainDelta(deltaNo, value) = delta
-            val doc = db.newInstance(Schema.DomainDelta.Class).asInstanceOf[ODocument]
-            doc.setProperty(Fields.DeltaNo, deltaNo)
-            doc.setProperty(Fields.Value, value)
+            val doc = db.newInstance(DomainDeltaClass.ClassName).asInstanceOf[ODocument]
+            doc.setProperty(DomainDeltaClass.Fields.DeltaNo, deltaNo)
+            doc.setProperty(DomainDeltaClass.Fields.Script, value)
             doc.save()
             ()
           }

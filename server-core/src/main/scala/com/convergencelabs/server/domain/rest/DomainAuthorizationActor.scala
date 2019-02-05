@@ -11,6 +11,7 @@ import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.Props
 import akka.actor.Status
+import com.convergencelabs.server.datastore.convergence.DomainPermissionTarget
 
 object AuthorizationActor {
   def props(dbProvider: DatabaseProvider): Props = Props(new AuthorizationActor(dbProvider))
@@ -22,7 +23,7 @@ object AuthorizationActor {
 }
 
 class AuthorizationActor(private[this] val dbProvider: DatabaseProvider)
-    extends Actor with ActorLogging {
+  extends Actor with ActorLogging {
 
   import AuthorizationActor._
 
@@ -38,19 +39,10 @@ class AuthorizationActor(private[this] val dbProvider: DatabaseProvider)
 
   private[this] def onConvergenceAuthorizedRequest(message: ConvergenceAuthorizedRequest): Unit = {
     val ConvergenceAuthorizedRequest(username, domain, permissions) = message
-    (for {
-      owner <- domainStore.getDomainByFqn(domain) map { domain =>
-        domain match {
-          case Some(domain) if domain.owner == username => true
-          case _ => false
-        }
-      }
-
-      hasPermission <- permissionsStore.getAllUserPermissions(username, domain).map(_.map(_.id)).map { permissions.subsetOf(_) }
-    } yield {
-      val authorized = owner || hasPermission
-      sender ! authorized
-    }) recover {
+    val target = DomainPermissionTarget(domain)
+    permissionsStore.getUserPermissionsForTarget(username, target).map(_.map(_.id)).map {
+      sender ! permissions.subsetOf(_)
+    } recover {
       case cause: Exception =>
         sender ! Status.Failure(cause)
     }

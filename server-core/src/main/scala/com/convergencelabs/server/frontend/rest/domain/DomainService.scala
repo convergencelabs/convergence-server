@@ -47,7 +47,6 @@ object DomainService {
     displayName: String,
     namespace: String,
     domainId: String,
-    owner: String,
     status: String)
 
   case class CreateDomainRestRequest(namespace: Option[String], domainId: String, displayName: String)
@@ -127,7 +126,7 @@ class DomainService(
 
   def createDomain(createRequest: CreateDomainRestRequest, username: String): Future[RestResponse] = {
     val CreateDomainRestRequest(namespace, domainId, displayName) = createRequest
-    val message = CreateDomainRequest(namespace.getOrElse(username), domainId, displayName, username, false)
+    val message = CreateDomainRequest(namespace.getOrElse(username), domainId, displayName, false)
     (domainStoreActor ? message) map { _ => CreatedResponse }
   }
 
@@ -138,7 +137,6 @@ class DomainService(
           domain.displayName,
           domain.domainFqn.namespace,
           domain.domainFqn.domainId,
-          domain.owner,
           domain.status.toString()))))
   }
 
@@ -149,7 +147,6 @@ class DomainService(
           domain.displayName,
           domain.domainFqn.namespace,
           domain.domainFqn.domainId,
-          domain.owner,
           domain.status.toString()))
       case None =>
         notFoundResponse()

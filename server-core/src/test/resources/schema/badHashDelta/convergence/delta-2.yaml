@@ -1,6 +1,6 @@
 version: 2
 description: Adds TestClass3
-changes:
+actions:
  
   - action: CreateClass
     name: TestClass3

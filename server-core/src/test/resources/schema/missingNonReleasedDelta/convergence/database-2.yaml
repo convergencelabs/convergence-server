@@ -1,5 +1,5 @@
 version: 2
-changes:
+actions:
 
   - action: CreateClass
     name: TestClass1

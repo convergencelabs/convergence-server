@@ -11,55 +11,50 @@ import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.datastore.OrientDBUtil
+import com.convergencelabs.server.datastore.convergence.schema.UserClass
 import com.convergencelabs.server.datastore.domain.PasswordUtil
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.util.RandomStringGenerator
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.id.ORID
-import com.orientechnologies.orient.core.metadata.schema.OType
-import com.orientechnologies.orient.core.record.OElement
 import com.orientechnologies.orient.core.record.impl.ODocument
-import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.db.DatabaseProvider
 
 object UserStore {
 
-  object Fields {
+  object Params {
     val Username = "username"
     val Password = "password"
-    val Email = "email"
-    val FirstName = "firstName"
-    val LastName = "lastName"
-    val DisplayName = "displayName"
-    val ApiKey = "apiKey"
-    val Token = "token"
-    val ExpireTime = "expireTime"
+    val BearerToken = "bearerToken"
+    val PasswordHash = "passwordHash"
     val LastLogin = "lastLogin"
   }
 
   def docToUser(doc: ODocument): User = {
     User(
-      doc.getProperty(Fields.Username),
-      doc.getProperty(Fields.Email),
-      doc.getProperty(Fields.FirstName),
-      doc.getProperty(Fields.LastName),
-      doc.getProperty(Fields.DisplayName))
+      doc.getProperty(UserClass.Fields.Username),
+      doc.getProperty(UserClass.Fields.Email),
+      doc.getProperty(UserClass.Fields.FirstName),
+      doc.getProperty(UserClass.Fields.LastName),
+      doc.getProperty(UserClass.Fields.DisplayName))
   }
 
-  def userToDoc(user: User): ODocument = {
-    val doc = new ODocument(Schema.User.Class)
-    doc.setProperty(Fields.Username, user.username)
-    doc.setProperty(Fields.Email, user.email)
-    doc.setProperty(Fields.FirstName, user.firstName)
-    doc.setProperty(Fields.LastName, user.lastName)
-    doc.setProperty(Fields.DisplayName, user.displayName)
+  def userToDoc(user: User, bearerToken: Option[String] = None, passwordHash: Option[String] = None): ODocument = {
+    val doc = new ODocument(UserClass.ClassName)
+    doc.setProperty(UserClass.Fields.Username, user.username)
+    doc.setProperty(UserClass.Fields.Email, user.email)
+    doc.setProperty(UserClass.Fields.FirstName, user.firstName)
+    doc.setProperty(UserClass.Fields.LastName, user.lastName)
+    doc.setProperty(UserClass.Fields.DisplayName, user.displayName)
+    bearerToken.foreach(doc.setProperty(UserClass.Fields.BearerToken, _))
+    passwordHash.foreach(doc.setProperty(UserClass.Fields.PasswordHash, _))
     doc
   }
 
   def getUserRid(username: String, db: ODatabaseDocument): Try[ORID] = {
-    OrientDBUtil.getIdentityFromSingleValueIndex(db, Schema.User.Indices.Username, username)
+    OrientDBUtil.getIdentityFromSingleValueIndex(db, UserClass.Indices.Username, username)
   }
 
   case class User(
@@ -68,15 +63,10 @@ object UserStore {
     firstName: String,
     lastName: String,
     displayName: String)
-
-  sealed trait LoginResult
-  case class LoginSuccessful(apiKey: String) extends LoginResult
-  case object InvalidCredentials extends LoginResult
-  case object NoApiKeyForUser extends LoginResult
 }
 
 /**
- * Manages the persistence of Users.  This class manages both user profile records
+ * Manages the persistence of Users.  This class manages both user records
  * as well as user credentials for users authenticated by Convergence itself.
  *
  * @constructor Creates a new UserStore using the provided connection pool to
@@ -84,37 +74,26 @@ object UserStore {
  *
  * @param dbPool The database pool to use.
  */
-class UserStore(
-  private[this] val dbProvider: DatabaseProvider,
-  private[this] val tokenValidityDuration: Duration)
+class UserStore(dbProvider: DatabaseProvider)
   extends AbstractDatabasePersistence(dbProvider)
   with Logging {
 
   import UserStore._
 
-  val sessionTokeGenerator = new RandomStringGenerator(32)
-
-  def createUser(user: User, password: String): Try[Unit] = {
-    createUserWithPasswordHash(user, PasswordUtil.hashPassword(password))
+  def createUser(user: User, password: String, bearerToken: String): Try[Unit] = {
+    createUserWithPasswordHash(user, PasswordUtil.hashPassword(password), bearerToken)
   }
 
-  def createUserWithPasswordHash(user: User, passwordHash: String): Try[Unit] = tryWithDb { db =>
-    val userDoc = UserStore.userToDoc(user)
+  def createUserWithPasswordHash(user: User, passwordHash: String, bearerToken: String): Try[Unit] = tryWithDb { db =>
+    val userDoc = UserStore.userToDoc(user, Some(bearerToken), Some(passwordHash))
     db.save(userDoc)
-    userDoc.reload()
-
-    val pwDoc: OElement = db.newInstance(Schema.UserCredential.Class)
-    pwDoc.setProperty("user", userDoc, OType.LINK)
-    pwDoc.setProperty(Fields.Password, passwordHash)
-
-    db.save(pwDoc)
     ()
   } recoverWith (handleDuplicateValue)
 
   def updateUser(user: User): Try[Unit] = withDb { db =>
     val updatedDoc = UserStore.userToDoc(user)
     OrientDBUtil
-      .findDocumentFromSingleValueIndex(db, Schema.User.Indices.Username, user.username)
+      .findDocumentFromSingleValueIndex(db, UserClass.Indices.Username, user.username)
       .map(_ match {
         case Some(doc) =>
           doc.merge(updatedDoc, false, false)
@@ -122,14 +101,11 @@ class UserStore(
           ()
         case None =>
           throw EntityNotFoundException()
-      }) recoverWith(handleDuplicateValue)
+      }) recoverWith (handleDuplicateValue)
   }
 
   def deleteUser(username: String): Try[Unit] = tryWithDb { db =>
-    OrientDBUtil.mutateOneDocument(
-      db,
-      "DELETE FROM User WHERE username = :username",
-      Map(Fields.Username -> username))
+    OrientDBUtil.deleteFromSingleValueIndex(db, UserClass.Indices.Username, username)
   }
 
   /**
@@ -140,11 +116,7 @@ class UserStore(
    * @return Some(User) if a user with the specified username exists, or None if no such user exists.
    */
   def getUserByUsername(username: String): Try[Option[User]] = withDb { db =>
-    OrientDBUtil.findDocument(
-      db,
-      "SELECT FROM User WHERE username = :username",
-      Map(Fields.Username -> username))
-      .map(doc => doc.map(UserStore.docToUser(_)))
+    OrientDBUtil.findDocumentFromSingleValueIndex(db, UserClass.Indices.Username, username).map(_.map(UserStore.docToUser(_)))
   }
 
   // TODO add an ordering ability.
@@ -171,8 +143,10 @@ class UserStore(
    * @return true if the user exists, false otherwise.
    */
   def userExists(username: String): Try[Boolean] = withDb { db =>
-    OrientDBUtil.indexContains(db, Schema.User.Indices.Username, username)
+    OrientDBUtil.indexContains(db, UserClass.Indices.Username, username)
   }
+
+  private[this] val SetUserPasswordQuery = "UPDATE User SET password = :password WHERE username = :username"
 
   /**
    * Set the password for an existing user by username.
@@ -181,25 +155,23 @@ class UserStore(
    * @param password The new password to use for internal authentication
    */
   def setUserPassword(username: String, password: String): Try[Unit] = withDb { db =>
-    OrientDBUtil.mutateOneDocument(
-      db,
-      "UPDATE UserCredential SET password = :password WHERE user.username = :username",
-      Map(
-        Fields.Username -> username,
-        "password" -> PasswordUtil.hashPassword(password)))
+    val passwordHash = PasswordUtil.hashPassword(password)
+    val params = Map(Params.Username -> username, Params.Password -> passwordHash)
+    OrientDBUtil.mutateOneDocument(db, SetUserPasswordQuery, params)
       .recoverWith {
         case cause: EntityNotFoundException =>
-          Failure(new EntityNotFoundException("User not found when setting password."))
+          Failure(new EntityNotFoundException("Can't set the password for a user that does not exist."))
       }
   }
 
+  private[this] val GetPasswordHashQuery = "SELECT passwordHash FROM User WHERE username = :username"
   def getUserPasswordHash(username: String): Try[Option[String]] = withDb { db =>
-    val query = "SELECT * FROM UserCredential WHERE user.username = :username"
-    val params = Map(Fields.Username -> username)
-    OrientDBUtil
-      .findDocument(db, query, params)
-      .map(_.flatMap(doc => Option(doc.getProperty(Fields.Password).asInstanceOf[String])))
+    val params = Map(Params.Username -> username)
+    OrientDBUtil.findDocument(db, GetPasswordHashQuery, params)
+      .map(_.flatMap(doc => Option(doc.getProperty(UserClass.Fields.PasswordHash).asInstanceOf[String])))
   }
+
+  private[this] val ValidateCredentialsQuery = "SELECT passwordHash, username FROM User WHERE username = :username"
 
   /**
    * Validated that the username and password combination are valid.
@@ -209,177 +181,76 @@ class UserStore(
    *
    * @return true if the username and passowrd match, false otherwise.
    */
-  def validateCredentials(username: String, password: String): Try[Option[(String, Instant)]] = withDb { db =>
-    val query = new OSQLSynchQuery[ODocument]()
-    val params = Map(Fields.Username -> username)
-
-    OrientDBUtil
-      .findDocument(
-        db,
-        "SELECT password, user.username AS username FROM UserCredential WHERE user.username = :username",
-        params)
+  def validateCredentials(username: String, password: String): Try[Boolean] = withDb { db =>
+    val params = Map(Params.Username -> username)
+    OrientDBUtil.findDocument(db, ValidateCredentialsQuery, params)
       .map(_ match {
         case Some(doc) =>
-          val pwhash: String = doc.getProperty(Fields.Password)
+          val pwhash: String = doc.getProperty(UserClass.Fields.PasswordHash)
           PasswordUtil.checkPassword(password, pwhash) match {
             case true => {
-              val username: String = doc.getProperty(Fields.Username)
-              val token = sessionTokeGenerator.nextString()
-              val expiration = Instant.now().plus(tokenValidityDuration)
-              createToken(username, token, expiration)
+              val username: String = doc.getProperty(UserClass.Fields.Username)
               setLastLogin(username, Instant.now())
-              Some((token, expiration))
+              true
             }
             case false =>
-              None
+              false
           }
         case None =>
+          false
+      })
+  }
+
+  private[this] val LoginQuery = "SELECT passwordHash, bearerToken FROM User WHERE username = :username"
+  def login(username: String, password: String): Try[Option[String]] = withDb { db =>
+    val params = Map(Params.Username -> username)
+    OrientDBUtil.findDocument(db, LoginQuery).map(_.flatMap { doc =>
+      val pwhash: String = doc.getProperty(UserClass.Fields.PasswordHash)
+      PasswordUtil.checkPassword(password, pwhash) match {
+        case true =>
+          val token = doc.getProperty(UserClass.Fields.BearerToken).asInstanceOf[String]
+          Some(token)
+        case false =>
           None
-      })
-  }
-
-  def login(username: String, password: String): Try[LoginResult] = withDb { db =>
-    OrientDBUtil
-      .findDocument(
-        db,
-        "SELECT password, user.apiKey AS apiKey FROM UserCredential WHERE user.username = :username",
-        Map(Fields.Username -> username))
-      .map {
-        _.map { doc =>
-          val pwhash: String = doc.getProperty(Fields.Password)
-          PasswordUtil.checkPassword(password, pwhash) match {
-            case true =>
-              Option(doc.getProperty("apiKey").asInstanceOf[String]) map { token =>
-                LoginSuccessful(token)
-              } getOrElse {
-                NoApiKeyForUser
-              }
-            case false =>
-              InvalidCredentials
-          }
-        } getOrElse (InvalidCredentials)
       }
+    })
   }
 
-  def getUserApiKey(username: String): Try[Option[String]] = withDb { db =>
-    OrientDBUtil
-      .getDocument(
-        db,
-        "SELECT apiKey FROM User WHERE username = :username",
-        Map(Fields.Username -> username))
-      .map(doc => Option(doc.field(Fields.ApiKey).asInstanceOf[String]))
+  private[this] val ValidateBearerTokenQuery = "SELECT username FROM User WHERE bearerToken = :bearerToken"
+
+  def validateBearerToken(bearerToken: String): Try[Option[String]] = withDb { db =>
+    val params = Map(Params.BearerToken -> bearerToken)
+    OrientDBUtil.findDocument(db, ValidateBearerTokenQuery, params)
+      .map(_.map(doc => doc.getProperty(UserClass.Fields.Username).asInstanceOf[String]))
+  }
+  
+  private[this] val SetBearerTokenCommand = "UPDATE User SET bearerToken = :bearerToken WHERE username = :username"
+  def setBearerToken(username: String, bearerToken: String): Try[Unit] = withDb { db =>
+    val params = Map(Params.BearerToken -> bearerToken, Params.Username -> username)
+    OrientDBUtil.mutateOneDocument(db, SetBearerTokenCommand, params)
+  }
+  
+  private[this] val GetBearerTokenCommand = "SELECT bearerToken User FROM WHERE username = :username"
+  def getBearerToken(username: String): Try[Option[String]] = withDb { db =>
+    val params = Map(Params.Username -> username)
+    OrientDBUtil.findDocument(db, SetBearerTokenCommand, params).map(_.map(_.getProperty("bearerToken").asInstanceOf[String]))
   }
 
-  def setUserApiKey(username: String, apiKey: String) = withDb { db =>
-    OrientDBUtil.mutateOneDocument(
-      db,
-      "UPDATE User SET apiKey = :apiKey WHERE username = :username",
-      Map(Fields.ApiKey -> apiKey, Fields.Username -> username))
-  }
-
-  def clearUserApiKey(username: String) = tryWithDb { db =>
-    this.setUserApiKey(username, null).get
-  }
-
-  def createToken(username: String, token: String, expiration: Instant): Try[Unit] = withDb { db =>
-    val queryStirng =
-      """INSERT INTO UserAuthToken SET
-        |  user = (SELECT FROM User WHERE username = :username),
-        |  token = :token,
-        |  expireTime = :expireTime""".stripMargin
-    OrientDBUtil
-      .mutateOneDocument(
-        db,
-        queryStirng,
-        Map(Fields.Username -> username, Fields.Token -> token, Fields.ExpireTime -> Date.from(expiration)))
-      .map(_ => ())
-  }
-
-  def removeToken(token: String): Try[Unit] = tryWithDb { db =>
-    OrientDBUtil
-      .mutateOneDocument(
-        db,
-        "DELETE FROM UserAuthToken WHERE token = :token",
-        Map(Fields.Token -> token))
-      .map(_ => ())
-  }
-
-  def validateUserSessionToken(token: String): Try[Option[String]] = withDb { db =>
-    OrientDBUtil
-      .findDocument(
-        db,
-        "SELECT user.username AS username, expireTime FROM UserAuthToken WHERE token = :token",
-        Map(Fields.Token -> token))
-      .map(_ match {
-        case Some(doc) =>
-          val expireTime: Date = doc.getProperty(Fields.ExpireTime)
-          val expireInstant: Instant = expireTime.toInstant()
-          if (Instant.now().isBefore(expireInstant)) {
-            val username: String = doc.getProperty(Fields.Username)
-            val newExpiration = Instant.now().plus(tokenValidityDuration)
-            updateToken(token, newExpiration)
-            Some(username)
-          } else {
-            None
-          }
-        case None => None
-      })
-  }
-
-  def validateUserApiKey(apiKey: String): Try[Option[String]] = withDb { db =>
-    OrientDBUtil
-      .findDocument(
-        db,
-        "SELECT username FROM User WHERE apiKey = :apiKey",
-        Map(Fields.ApiKey -> apiKey))
-      .map(_.map(doc => doc.getProperty(Fields.Username).asInstanceOf[String]))
-  }
-
-  def expirationCheck(token: String): Try[Option[(String, Instant)]] = withDb { db =>
-    OrientDBUtil
-      .findDocument(
-        db,
-        "SELECT user.username AS username, expireTime FROM UserAuthToken WHERE token = :token",
-        Map(Fields.Token -> token))
-      .map(_ match {
-        case Some(doc) =>
-          val expireTime: Date = doc.field(Fields.ExpireTime, OType.DATETIME)
-          val expireInstant: Instant = expireTime.toInstant()
-          if (Instant.now().isBefore(expireInstant)) {
-            val username: String = doc.field(Fields.Username)
-            Some((username, expireInstant))
-          } else {
-            None
-          }
-        case None => None
-      })
-  }
-
-  def updateToken(token: String, expiration: Instant): Try[Unit] = withDb { db =>
-    OrientDBUtil
-      .mutateOneDocument(
-        db,
-        "UPDATE UserAuthToken SET expireTime = :expireTime WHERE token = :token",
-        Map(Fields.Token -> token, Fields.ExpireTime -> Date.from(expiration)))
-      .map(_ => ())
-  }
-
-  def setLastLogin(username: String, instant: Instant): Try[Unit] = withDb { db =>
-    OrientDBUtil
-      .findDocumentFromSingleValueIndex(db, Schema.User.Indices.Username, username)
-      .map(_.foreach(_.field(Fields.LastLogin, instant.toEpochMilli()).save()))
+  private[this] val SetLastLoginCommand = "UPDATE User SET lastLogin = :lastLogin WHERE username = :username"
+  def setLastLogin(username: String, lastLogin: Instant): Try[Unit] = withDb { db =>
+    val params = Map(Params.LastLogin -> Date.from(lastLogin), Params.Username -> username)
+    OrientDBUtil.mutateOneDocument(db, SetLastLoginCommand, params)
   }
 
   private[this] def handleDuplicateValue[T](): PartialFunction[Throwable, Try[T]] = {
     case e: ORecordDuplicatedException =>
       e.getIndexName match {
-        case Schema.User.Indices.Username =>
-          Failure(DuplicateValueException(Fields.Username))
-        case Schema.User.Indices.Email =>
-          Failure(DuplicateValueException(UserStore.Fields.Email))
+        case UserClass.Indices.Username =>
+          Failure(DuplicateValueException(UserClass.Fields.Username))
+        case UserClass.Indices.Email =>
+          Failure(DuplicateValueException(UserClass.Fields.Email))
         case _ =>
           Failure(e)
       }
   }
-
 }

@@ -32,8 +32,8 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocument) extends Loggin
 
     db.activateOnCurrentThread()
 
-    debug(s"Applying ${delta.changes.size} changes for delta ${delta.version}")
-    delta.changes foreach (change => applyChange(change))
+    debug(s"Applying ${delta.actions.size} actions for delta ${delta.version}")
+    delta.actions foreach (change => applyChange(change))
 
     debug(s"Processing linked classes")
     processDeferedLinkedClasses()
@@ -49,7 +49,7 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocument) extends Loggin
       Failure(cause)
   }
 
-  private[this] def applyChange(change: Change): Unit = {
+  private[this] def applyChange(change: DeltaAction): Unit = {
     change match {
       case createClass: CreateClass => applyCreateClass(createClass)
       case alterClass: AlterClass => applyAlterClass(alterClass)
