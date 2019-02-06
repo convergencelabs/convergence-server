@@ -35,16 +35,16 @@ class PermissionsStoreSpec extends PersistenceStoreSpec[PermissionStoreSpecStore
 
   val TestDomainTarget = DomainPermissionTarget(TestDomainFQN)
 
-  val TestPermission1 = Permission("testId1", "test1", "test1 description")
-  val TestPermission2 = Permission("testId2", "test2", "test2 description")
+  val TestPermission1 = Permission("testId1")
+  val TestPermission2 = Permission("testId2")
 
   val Role1Id = "role1"
   val Role2Id = "role2"
   val Role3Id = "role3"
 
-  val Role1 = Role(Role1Id, List(TestPermission1.id, TestPermission2.id), "role1 description")
-  val Role2 = Role(Role2Id, List(TestPermission1.id), "role2 description")
-  val Role3 = Role(Role3Id, List(TestPermission1.id), "role3 description")
+  val Role1 = Role(Role1Id, Some("Target"),  List(TestPermission1.id, TestPermission2.id))
+  val Role2 = Role(Role2Id, None, List(TestPermission1.id))
+  val Role3 = Role(Role3Id, None, List(TestPermission1.id))
 
   "A PermissionsStore" when {
     "saving a permission" must {
@@ -59,26 +59,13 @@ class PermissionsStoreSpec extends PersistenceStoreSpec[PermissionStoreSpecStore
       }
     }
 
-    "calling hasBeenSetup()" must {
-      "return true when permissions exist" in withTestData { stores =>
-        val permissionStore = stores.permissionStore
-        permissionStore.createPermission(TestPermission1).get
-
-        permissionStore.hasBeenSetup().get shouldEqual true
-      }
-      "return false when no permissions exist" in withTestData { stores =>
-        val permissionStore = stores.permissionStore
-        permissionStore.hasBeenSetup().get shouldEqual false
-      }
-    }
-
     "saving a role" must {
       "return success" in withTestData { stores =>
         val permissionStore = stores.permissionStore
         permissionStore.createPermission(TestPermission1).get
         permissionStore.createPermission(TestPermission2).get
 
-        permissionStore.createRole(Role(Role1Id, List(TestPermission1.id), "role1 description")).get
+        permissionStore.createRole(Role(Role1Id, None, List(TestPermission1.id))).get
       }
       "return failure if it already exists" in withTestData { stores =>
         val permissionStore = stores.permissionStore
@@ -95,7 +82,7 @@ class PermissionsStoreSpec extends PersistenceStoreSpec[PermissionStoreSpecStore
         val PermissionStoreSpecStores(permissionStore, userStore, namespaceStore, domainStore) = stores
         permissionStore.createPermission(TestPermission1).get
         permissionStore.createPermission(TestPermission2).get
-        permissionStore.createRole(Role(Role1Id, List(TestPermission1.id), "role1 description")).get
+        permissionStore.createRole(Role(Role1Id, None, List(TestPermission1.id))).get
         permissionStore.setUserRolesForTarget(TestUser.username, TestDomainTarget, List("role1")).get
       }
     }

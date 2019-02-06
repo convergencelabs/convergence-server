@@ -10,6 +10,7 @@ import akka.actor.ActorLogging
 import akka.actor.Props
 import com.convergencelabs.server.util.RandomStringGenerator
 import scala.util.Success
+import scala.util.Failure
 
 object AuthStoreActor {
   val RelativePath = "AuthStoreActor"
@@ -66,7 +67,13 @@ class AuthStoreActor private[datastore] (private[this] val dbProvider: DatabaseP
       case true =>
         val expiresAt = Instant.now().plus(tokenDuration)
         val token = sessionTokenGenerator.nextString()
-        userSessionTokenStore.createToken(authRequest.username, token, expiresAt).map(_ => AuthSuccess(token, tokenDuration))
+        userSessionTokenStore.createToken(authRequest.username, token, expiresAt)
+          .map(_ => AuthSuccess(token, tokenDuration))
+          .recover {
+            case cause: Throwable =>
+              log.error(cause, "Unable to create User Session Token")
+              AuthFailure
+          }
       case false =>
         Success(AuthFailure)
     }))

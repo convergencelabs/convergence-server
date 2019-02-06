@@ -28,8 +28,6 @@ object NamespaceStoreActor {
   case class UpdateNamespace(requestor: String, namespaceId: String, displayName: String)
   case class DeleteNamespace(requestor: String, namespaceId: String)
   case class GetAccessibleNamespaces(requestor: String)
-  case class GetNamespacesWithCreatePerimssion(requestor: String)
-  
 }
 
 class NamespaceStoreActor private[datastore] (
@@ -46,7 +44,6 @@ class NamespaceStoreActor private[datastore] (
     case deleteRequest: DeleteNamespace => deleteNamespace(deleteRequest)
     case updateRequest: UpdateNamespace => updateNamespace(updateRequest)
     case accessibleRequest: GetAccessibleNamespaces => getAccessibleNamespaces(accessibleRequest)
-    case manageableRequest: GetNamespacesWithCreatePerimssion => getNamespaceWithCreate(manageableRequest)
     case message: Any => unhandled(message)
   }
 
@@ -69,10 +66,7 @@ class NamespaceStoreActor private[datastore] (
 
   def getAccessibleNamespaces(getRequest: GetAccessibleNamespaces): Unit = {
     val GetAccessibleNamespaces(requestor) = getRequest
-
-  }
-  
-  def getNamespaceWithCreate(getRequest: GetNamespacesWithCreatePerimssion): Unit = {
-    val GetNamespacesWithCreatePerimssion(requestor) = getRequest
+    log.debug(s"Receved request to get Namespaces: ${requestor}")
+    reply(namespaceStore.getAccessibleNamespaces(requestor))
   }
 }

@@ -189,7 +189,6 @@ class UserStore(dbProvider: DatabaseProvider)
           val pwhash: String = doc.getProperty(UserClass.Fields.PasswordHash)
           PasswordUtil.checkPassword(password, pwhash) match {
             case true => {
-              val username: String = doc.getProperty(UserClass.Fields.Username)
               setLastLogin(username, Instant.now())
               true
             }

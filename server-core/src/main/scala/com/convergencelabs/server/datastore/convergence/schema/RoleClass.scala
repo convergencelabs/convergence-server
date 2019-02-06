@@ -7,7 +7,7 @@ object RoleClass extends OrientDbClass {
   
   object Fields {
     val Name = "name"
-    val Description = "description"
+    val TargetClass = "targetClass"
     val Permissions = "permissions"
   }
   

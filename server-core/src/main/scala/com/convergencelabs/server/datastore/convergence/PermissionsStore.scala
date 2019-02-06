@@ -33,8 +33,8 @@ case object GlobalPermissionTarget extends PermissionTarget
 
 object PermissionsStore {
 
-  case class Permission(id: String, name: String, description: String)
-  case class Role(name: String, permissions: List[String], description: String)
+  case class Permission(id: String)
+  case class Role(name: String, targetClass: Option[String], permissions: List[String])
   case class UserRoles(username: String, roles: Set[String])
 
   object Params {
@@ -52,10 +52,7 @@ object PermissionsStore {
   }
 
   def docToPermission(doc: ODocument): Permission = {
-    Permission(
-      doc.getProperty(PermissionClass.Fields.Id),
-      doc.getProperty(PermissionClass.Fields.Name),
-      doc.getProperty(PermissionClass.Fields.Description))
+    Permission(doc.getProperty(PermissionClass.Fields.Id))
   }
 
   def docToRole(doc: ODocument): Role = {
@@ -67,8 +64,8 @@ object PermissionsStore {
 
     Role(
       doc.getProperty(RoleClass.Fields.Name),
-      permissions,
-      doc.getProperty(RoleClass.Fields.Description))
+      Option(doc.getProperty(RoleClass.Fields.TargetClass)),
+      permissions)
   }
 
   def buildTargetWhere(target: PermissionTarget): (String, Map[String, Any]) = {
@@ -110,28 +107,22 @@ object PermissionsStore {
 class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
   import PermissionsStore._
 
-  def hasBeenSetup() = tryWithDb { db =>
-    db.getMetadata.getIndexManager.getIndex(PermissionClass.Indices.Id).getSize > 0
-  }
-
   def createPermission(permission: Permission): Try[Unit] = tryWithDb { db =>
-    val Permission(id, name, description) = permission
+    val Permission(id) = permission
 
     val permissionDoc: ODocument = db.newInstance(PermissionClass.ClassName)
     permissionDoc.setProperty(PermissionClass.Fields.Id, id)
-    permissionDoc.setProperty(PermissionClass.Fields.Name, name)
-    permissionDoc.setProperty(PermissionClass.Fields.Description, description)
     permissionDoc.save()
     ()
   }.recoverWith(handleDuplicateValue)
 
   def createRole(role: Role): Try[Unit] = withDb { db =>
-    val Role(name, permissions, description) = role
+    val Role(name, targetClass, permissions) = role
     Try(permissions.map { id => getPermissionRid(id, db) }.map { _.get }).map { orids =>
       val roleDoc: ODocument = db.newInstance(RoleClass.ClassName)
       roleDoc.setProperty(RoleClass.Fields.Name, name)
+      targetClass.foreach(t => roleDoc.setProperty(RoleClass.Fields.TargetClass, t))
       roleDoc.setProperty(RoleClass.Fields.Permissions, orids.asJava)
-      roleDoc.setProperty(RoleClass.Fields.Description, description)
       roleDoc.save()
       ()
     }
@@ -228,8 +219,6 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
           Failure(DuplicateValueException(RoleClass.Fields.Name))
         case PermissionClass.Indices.Id =>
           Failure(DuplicateValueException(PermissionClass.Fields.Id))
-        case PermissionClass.Indices.Name =>
-          Failure(DuplicateValueException(PermissionClass.Fields.Name))
         case UserRoleClass.Indices.UserRoleTarget =>
           Failure(DuplicateValueException(s"${UserRoleClass.Fields.User}_${UserRoleClass.Fields.Role}_${UserRoleClass.Fields.Target}"))
         case _ =>

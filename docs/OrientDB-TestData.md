@@ -14,17 +14,31 @@ LET d1 = INSERT INTO Domain SET namespace = $n1[0], id = "domain1", displayName 
 LET p1 = INSERT INTO Permission SET id = 'permission1', name = 'Permission 1', description = 'The first permission';
 LET p2 = INSERT INTO Permission SET id = 'permission2', name = 'Permission 2', description = 'The second permission';
 LET p3 = INSERT INTO Permission SET id = 'permission3', name = 'Permission 3', description = 'The third permission';
+LET namespaceAccessPermission = INSERT INTO Permission SET id = 'namespace-access', name = 'Permission 3', description = 'The third permission';
 
 LET r1 = INSERT INTO Role SET name = 'Role 1', description = 'The first role', permissions = [$p1[0], $p2[0]];
 LET r2 = INSERT INTO Role SET name = 'Role 2', description = 'The second role', permissions = [$p3[0]];
+LET nsDev = INSERT INTO Role SET name = 'Namespace Developer', description = 'The second role', permissions = [$namespaceAccessPermission[0]];
 
 LET u1 = INSERT INTO User SET username = 'test1', displayName = 'Test One', firstName = 'Test', lastName = 'One', email='test1@example.com', password='fake', bearerToken='token';
 
 INSERT INTO UserRole SET user = $u1[0], role = $r1[0], target = $d1[0];
 INSERT INTO UserRole SET user = $u1[0], role = $r2[0];
+INSERT INTO UserRole SET user = $u1[0], role = $nsDev[0], target = $n1[0];
+
 COMMIT;
 
 
 SELECT expand(set(role.permissions)) FROM UserRole WHERE user.username = 'test1' AND target IN (SELECT FROM Domain WHERE namespace.id = 'namespace1' AND id = 'domain1');
 
 SELECT expand(set(role.permissions)) FROM UserRole WHERE user.username = 'test1' AND target IS NULL;
+
+
+SELECT
+  expand(set(target))
+FROM 
+  UserRole
+WHERE
+  user IN (SELECT FROM User WHERE username = 'test1') AND
+  role.permissions CONTAINS (id = 'namespace-access') AND
+  target.@class = 'Namespace';

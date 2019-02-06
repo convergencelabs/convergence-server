@@ -102,7 +102,7 @@ class BackendNode(system: ActorSystem, convergenceDbProvider: DatabaseProvider) 
 
     // Administrative actors
     val userManagerActor = system.actorOf(ConvergenceUserManagerActor.props(convergenceDbProvider, domainStoreActor))
-    val namespaceStoreActor = system.actorOf(NamespaceStoreActor.props(convergenceDbProvider))
+    val namespaceStoreActor = system.actorOf(NamespaceStoreActor.props(convergenceDbProvider), NamespaceStoreActor.RelativePath)
     val authStoreActor = system.actorOf(AuthStoreActor.props(convergenceDbProvider), AuthStoreActor.RelativePath)
     val convergenceUserActor = system.actorOf(ConvergenceUserManagerActor.props(convergenceDbProvider, domainStoreActor), ConvergenceUserManagerActor.RelativePath)
 

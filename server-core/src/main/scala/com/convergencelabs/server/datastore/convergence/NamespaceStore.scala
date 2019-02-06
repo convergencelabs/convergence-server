@@ -19,8 +19,12 @@ import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import grizzled.slf4j.Logging
 
 object NamespaceStore {
-  
+
   val UserNamespacePrefix = "~"
+
+  object Params {
+    val Username = "username"
+  }
 
   def namespaceToDoc(namespace: Namespace, db: ODatabaseDocument): Try[ODocument] = Try {
     val Namespace(id, displayName) = namespace
@@ -39,7 +43,7 @@ object NamespaceStore {
   def getNamespaceRid(id: String, db: ODatabaseDocument): Try[ORID] = {
     OrientDBUtil.getIdentityFromSingleValueIndex(db, Indices.Id, id)
   }
-  
+
   def userNamespace(username: String): String = {
     UserNamespacePrefix + username
   }
@@ -50,23 +54,22 @@ class NamespaceStore(dbProvider: DatabaseProvider)
   with Logging {
 
   import NamespaceStore._
-  
+
   def createNamespace(id: String, displayName: String): Try[Unit] = {
     createNamespace(Namespace(id, displayName))
   }
-  
+
   def createUserNamespace(username: String): Try[String] = {
     val namespace = userNamespace(username)
     this.createNamespace(namespace, s"Private namespace for ${username}").map(_ => namespace)
   }
-  
+
   def createNamespace(namespace: Namespace): Try[Unit] = withDb { db =>
     NamespaceStore.namespaceToDoc(namespace, db).map { doc =>
       db.save(doc)
       ()
     }
   } recoverWith (handleDuplicateValue)
-  
 
   def namespaceExists(id: String): Try[Boolean] = withDb { db =>
     OrientDBUtil.indexContains(db, Indices.Id, id)
@@ -82,18 +85,17 @@ class NamespaceStore(dbProvider: DatabaseProvider)
         |  expand(set(target))
         |FROM 
         |  UserRole
-        |  LET $user = (SELECT @rid FROM (username = :username)
         |WHERE
-        |  user = $user AND
+        |  user IN (SELECT FROM User WHERE username = :username) AND
         |  role.permissions CONTAINS (id = 'namespace-access') AND
         |  target.@class = 'Namespace'""".stripMargin
-    OrientDBUtil.query(db, accessQuery, Map("username" -> username)).map(_.map(docToNamespace(_)))
+    OrientDBUtil.query(db, accessQuery, Map(Params.Username -> username)).map(_.map(docToNamespace(_)))
   }
 
   def deleteNamespace(id: String): Try[Unit] = withDb { db =>
     OrientDBUtil.deleteFromSingleValueIndex(db, Indices.Id, id)
   }
-  
+
   def deleteUserNamespace(username: String): Try[Unit] = {
     val namespace = userNamespace(username)
     this.deleteNamespace(namespace)
