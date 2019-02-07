@@ -241,3 +241,20 @@ actions:
     name: UserRole.user_role_target
     type: Unique
     properties: [user, role, target]
+
+    
+########## Role Data ##########
+
+  - action: RunSqlCommand
+    command: |-
+      INSERT INTO Role SET name = "Developer", permissions = ["access"];
+      INSERT INTO Role SET name = "Domain Admin", permissions = ["access", "manage-domains"];
+      INSERT INTO Role SET name = "Server Admin", permissions = ["access", "manage-domains", "manage-settings", "manage-users"];
+      
+      INSERT INTO Role SET name = "Developer", targetClass = "Namespace", permissions = ["namespace-access"];
+      INSERT INTO Role SET name = "Domain Admin", targetClass = "Namespace", permissions = ["namespace-access", "namespace-manage-domains"];
+      INSERT INTO Role SET name = "Owner", targetClass = "Namespace", permissions = ["namespace-access", "namespace-manage-domains", "namespace-manage-users"];
+    
+      INSERT INTO Role SET name = "Developer", targetClass = "Domain", permissions = ["domain-access"];
+      INSERT INTO Role SET name = "Domain Admin", targetClass = "Domain", permissions = ["domain-access", "domain-manage-settings"];
+      INSERT INTO Role SET name = "Owner", targetClass = "Domain", permissions = ["domain-access", "domain-manage-settings", "domain-manage-users"];

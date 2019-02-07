@@ -4,7 +4,7 @@ import java.util.HashSet
 import java.util.{ List => JavaList }
 
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
-import scala.collection.JavaConverters.seqAsJavaListConverter
+import scala.collection.JavaConverters._
 import scala.util.Try
 
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
@@ -26,19 +26,29 @@ import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import scala.util.Failure
 import com.convergencelabs.server.datastore.DuplicateValueException
 
-sealed trait PermissionTarget
-case class DomainPermissionTarget(domainFqn: DomainFqn) extends PermissionTarget
-case class NamespacePermissionTarget(id: String) extends PermissionTarget
-case object GlobalPermissionTarget extends PermissionTarget
+object RoleTargetType extends Enumeration {
+  val Namespace, Domain = Value
+}
 
-object PermissionsStore {
+sealed trait RoleTarget {
+  def targetClass: Option[RoleTargetType.Value]
+}
+case class DomainRoleTarget(domainFqn: DomainFqn) extends RoleTarget {
+  val targetClass = Some(RoleTargetType.Domain)
+}
+case class NamespaceRoleTarget(id: String) extends RoleTarget {
+  val targetClass = Some(RoleTargetType.Namespace)
+}
+case object GlobalRoleTarget extends RoleTarget {
+  val targetClass = None
+}
 
-  case class Permission(id: String)
-  case class Role(name: String, targetClass: Option[String], permissions: List[String])
+object RoleStore {
+
+  case class Role(name: String, targetClass: Option[RoleTargetType.Value], permissions: Set[String])
   case class UserRoles(username: String, roles: Set[String])
 
   object Params {
-    val Id = "id"
     val Name = "name"
     val Description = "description"
 
@@ -51,45 +61,36 @@ object PermissionsStore {
     val Role = "role"
   }
 
-  def docToPermission(doc: ODocument): Permission = {
-    Permission(doc.getProperty(PermissionClass.Fields.Id))
-  }
-
   def docToRole(doc: ODocument): Role = {
-    val permissionDocs: JavaList[ODocument] = doc.getProperty(RoleClass.Fields.Permissions)
-    val permissions = permissionDocs.asScala.map { permisionDoc =>
-      val permission: String = permisionDoc.getProperty(PermissionClass.Fields.Id)
-      permission
-    }.toList
-
+    val permissions = doc.getProperty(RoleClass.Fields.Permissions).asInstanceOf[JavaList[String]].asScala.toSet
     Role(
       doc.getProperty(RoleClass.Fields.Name),
-      Option(doc.getProperty(RoleClass.Fields.TargetClass)),
+      Option(doc.getProperty(RoleClass.Fields.TargetClass)).map(RoleTargetType.withName(_)),
       permissions)
   }
 
-  def buildTargetWhere(target: PermissionTarget): (String, Map[String, Any]) = {
+  def buildTargetWhere(target: RoleTarget): (String, Map[String, Any]) = {
     target match {
-      case DomainPermissionTarget(fqn) =>
+      case DomainRoleTarget(fqn) =>
         val whereClause = "target IN (SELECT FROM Domain WHERE namespace.id = :target_namespace AND id = :target_id)"
         val params = Map("target_namespace" -> fqn.namespace, "target_id" -> fqn.domainId)
         (whereClause, params)
-      case NamespacePermissionTarget(id) =>
+      case NamespaceRoleTarget(id) =>
         val whereClause = "target IN (SELECT FROM Namespace WHERE id = :target_id)"
         val params = Map("target_id" -> id)
         (whereClause, params)
-      case GlobalPermissionTarget =>
+      case GlobalRoleTarget =>
         ("target IS NULL", Map.empty)
     }
   }
 
-  def selectTarget(target: PermissionTarget, db: ODatabaseDocument): Try[Option[ORID]] = {
+  def selectTarget(target: RoleTarget, db: ODatabaseDocument): Try[Option[ORID]] = {
     target match {
-      case DomainPermissionTarget(domainFqn) =>
+      case DomainRoleTarget(domainFqn) =>
         DomainStore.getDomainRid(domainFqn, db).map(Some(_))
-      case NamespacePermissionTarget(id) =>
+      case NamespaceRoleTarget(id) =>
         NamespaceStore.getNamespaceRid(id, db).map(Some(_))
-      case GlobalPermissionTarget =>
+      case GlobalRoleTarget =>
         Success(None)
     }
   }
@@ -104,33 +105,22 @@ object PermissionsStore {
  *
  * @param dbPool The database pool to use.
  */
-class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
-  import PermissionsStore._
+class RoleStore(private[this] val dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
+  import RoleStore._
 
-  def createPermission(permission: Permission): Try[Unit] = tryWithDb { db =>
-    val Permission(id) = permission
-
-    val permissionDoc: ODocument = db.newInstance(PermissionClass.ClassName)
-    permissionDoc.setProperty(PermissionClass.Fields.Id, id)
-    permissionDoc.save()
+  def createRole(role: Role): Try[Unit] = tryWithDb { db =>
+    val Role(name, targetClass, permissions) = role
+    val roleDoc: ODocument = db.newInstance(RoleClass.ClassName)
+    roleDoc.setProperty(RoleClass.Fields.Name, name)
+    targetClass.foreach(t => roleDoc.setProperty(RoleClass.Fields.TargetClass, t.toString))
+    roleDoc.setProperty(RoleClass.Fields.Permissions, permissions.asJava)
+    roleDoc.save()
     ()
   }.recoverWith(handleDuplicateValue)
 
-  def createRole(role: Role): Try[Unit] = withDb { db =>
-    val Role(name, targetClass, permissions) = role
-    Try(permissions.map { id => getPermissionRid(id, db) }.map { _.get }).map { orids =>
-      val roleDoc: ODocument = db.newInstance(RoleClass.ClassName)
-      roleDoc.setProperty(RoleClass.Fields.Name, name)
-      targetClass.foreach(t => roleDoc.setProperty(RoleClass.Fields.TargetClass, t))
-      roleDoc.setProperty(RoleClass.Fields.Permissions, orids.asJava)
-      roleDoc.save()
-      ()
-    }
-  }.recoverWith(handleDuplicateValue)
-
-  def setUserRolesForTarget(username: String, target: PermissionTarget, roles: List[String]): Try[Unit] = withDb { db =>
+  def setUserRolesForTarget(username: String, target: RoleTarget, roles: Set[String]): Try[Unit] = withDb { db =>
     val userOrid = UserStore.getUserRid(username, db).get
-    val roleOrids = roles.map { getRolesRid(_, db).get }
+    val roleOrids = roles.map { getRolesRid(_, target.targetClass, db).get }
 
     // FIXME: Do these two steps in a transaction
 
@@ -158,21 +148,21 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
     } yield (())
   }
 
-  def getUserPermissionsForTarget(username: String, target: PermissionTarget): Try[Set[Permission]] = withDb { db =>
+  def getUserPermissionsForTarget(username: String, target: RoleTarget): Try[Set[String]] = withDb { db =>
     val (targetWhere, targetParams) = buildTargetWhere(target)
     val query = s"""
         |SELECT 
-        |  expand(set(role.permissions))
+        |  set(role.permissions) AS permissions
         |FROM
         |  UserRole
         |WHERE
         |  user.username = :username AND
         |  ${targetWhere}""".stripMargin
     val params = Map("username" -> username) ++ targetParams
-    OrientDBUtil.query(db, query, params).map(_.map(docToPermission(_)).toSet)
+    OrientDBUtil.query(db, query, params).map(_.map(_.getProperty(RoleClass.Fields.Permissions)).toSet)
   }
 
-  def getUserRolesForTarget(username: String, target: PermissionTarget): Try[Set[Role]] = withDb { db =>
+  def getUserRolesForTarget(username: String, target: RoleTarget): Try[Set[Role]] = withDb { db =>
     val (targetWhere, targetParams) = buildTargetWhere(target)
     val query = s"""
         |SELECT
@@ -186,7 +176,7 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
     OrientDBUtil.query(db, query, params).map(_.map(docToRole(_)).toSet)
   }
 
-  def getAllUserRolesForTarget(target: PermissionTarget): Try[Set[UserRoles]] = withDb { db =>
+  def getAllUserRolesForTarget(target: RoleTarget): Try[Set[UserRoles]] = withDb { db =>
     val (targetWhere, targetParams) = buildTargetWhere(target)
     val query = s"""
         |SELECT 
@@ -204,19 +194,15 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
     }).toSet)
   }
 
-  private[this] def getPermissionRid(id: String, db: ODatabaseDocument): Try[ORID] = {
-    OrientDBUtil.getIdentityFromSingleValueIndex(db, PermissionClass.Indices.Id, id)
-  }
-
-  private[this] def getRolesRid(name: String, db: ODatabaseDocument): Try[ORID] = {
-    OrientDBUtil.getIdentityFromSingleValueIndex(db, RoleClass.Indices.Name, name)
+  private[this] def getRolesRid(name: String, target: Option[RoleTargetType.Value], db: ODatabaseDocument): Try[ORID] = {
+    OrientDBUtil.getIdentityFromSingleValueIndex(db, RoleClass.Indices.NameTargetClass, List(name, target.map(_.toString).getOrElse(null)))
   }
 
   private[this] def handleDuplicateValue[T](): PartialFunction[Throwable, Try[T]] = {
     case e: ORecordDuplicatedException =>
       e.getIndexName match {
-        case RoleClass.Indices.Name =>
-          Failure(DuplicateValueException(RoleClass.Fields.Name))
+        case RoleClass.Indices.NameTargetClass =>
+          Failure(DuplicateValueException(s"${RoleClass.Fields.Name}_${RoleClass.Fields.TargetClass}"))
         case PermissionClass.Indices.Id =>
           Failure(DuplicateValueException(PermissionClass.Fields.Id))
         case UserRoleClass.Indices.UserRoleTarget =>

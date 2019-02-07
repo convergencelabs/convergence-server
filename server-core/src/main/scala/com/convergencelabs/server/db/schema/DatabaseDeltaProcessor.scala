@@ -61,7 +61,7 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocument) extends Loggin
       case dropIndex: DropIndex => applyDropIndex(dropIndex)
       case createSequence: CreateSequence => applyCreateSequence(createSequence)
       case dropSequence: DropSequence => applyDropSequence(dropSequence)
-      case runSQLCommand: RunSQLCommand => applyRunSQLCommand(runSQLCommand)
+      case runSQLCommand: RunSqlCommand => applyRunSQLCommand(runSQLCommand)
       case createFunction: CreateFunction => applyCreateFunction(createFunction)
       case alterFunction: AlterFunction => applyAlterFunction(alterFunction)
       case dropFunction: DropFunction => applyDropFunction(dropFunction)
@@ -206,8 +206,8 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocument) extends Loggin
     db.getMetadata.getSequenceLibrary.dropSequence(name)
   }
 
-  private[this] def applyRunSQLCommand(runSQLCommand: RunSQLCommand): Unit = {
-    val RunSQLCommand(command) = runSQLCommand
+  private[this] def applyRunSQLCommand(runSQLCommand: RunSqlCommand): Unit = {
+    val RunSqlCommand(command) = runSQLCommand
     db.execute("sql", command, new java.util.HashMap())
   }
 

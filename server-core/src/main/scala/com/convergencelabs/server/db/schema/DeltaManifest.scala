@@ -27,7 +27,7 @@ object DeltaManifest {
       classOf[DropIndex],
       classOf[CreateSequence],
       classOf[DropSequence],
-      classOf[RunSQLCommand],
+      classOf[RunSqlCommand],
       classOf[CreateFunction],
       classOf[AlterFunction],
       classOf[DropFunction])) +

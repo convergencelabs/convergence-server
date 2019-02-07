@@ -9,7 +9,7 @@ import com.convergencelabs.server.datastore.convergence.AuthStoreActor
 import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor
 import com.convergencelabs.server.datastore.convergence.DeltaHistoryStore
 import com.convergencelabs.server.datastore.convergence.DomainStoreActor
-import com.convergencelabs.server.datastore.convergence.PermissionsStoreActor
+import com.convergencelabs.server.datastore.convergence.RoleStoreActor
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.db.data.ConvergenceImporterActor
@@ -107,7 +107,7 @@ class BackendNode(system: ActorSystem, convergenceDbProvider: DatabaseProvider) 
     val convergenceUserActor = system.actorOf(ConvergenceUserManagerActor.props(convergenceDbProvider, domainStoreActor), ConvergenceUserManagerActor.RelativePath)
 
     val authorizationActor = system.actorOf(AuthorizationActor.props(convergenceDbProvider), AuthorizationActor.RelativePath)
-    val permissionStoreActor = system.actorOf(PermissionsStoreActor.props(convergenceDbProvider), PermissionsStoreActor.RelativePath)
+    val roleStoreActor = system.actorOf(RoleStoreActor.props(convergenceDbProvider), RoleStoreActor.RelativePath)
 
     val domainRestSharding =
       Some(RestDomainActorSharding.start(system, shardCount, RestDomainActor.props(DomainPersistenceManagerActor, receiveTimeout)))

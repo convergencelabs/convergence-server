@@ -1,8 +1,8 @@
 package com.convergencelabs.server.datastore.convergence
 
-import com.convergencelabs.server.datastore.convergence.PermissionsStore.Role
+import com.convergencelabs.server.datastore.convergence.RoleStore.Role
 
-class PermissionsProfile(private[this] val roles: Set[Role]) {
+class RoleProfile(private[this] val roles: Set[Role]) {
   
   private[this] val permissions: Set[String] = roles.map { _.permissions }.flatten
   

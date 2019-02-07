@@ -38,7 +38,7 @@ case class DropIndex(name: String) extends DeltaAction
 case class CreateSequence(name: String, sequenceType: SequenceType.Value, start: Option[Int], increment: Option[Int], cacheSize: Option[Int]) extends DeltaAction
 case class DropSequence(name: String) extends DeltaAction
 
-case class RunSQLCommand(command: String) extends DeltaAction
+case class RunSqlCommand(command: String) extends DeltaAction
 
 case class CreateFunction(name: String, code: String, parameters: List[String], language: Option[String], idempotent: Option[Boolean]) extends DeltaAction
 case class AlterFunction(name: String, newName: Option[String], code: Option[String], parameters: Option[List[String]], language: Option[String], idempotent: Option[Boolean]) extends DeltaAction

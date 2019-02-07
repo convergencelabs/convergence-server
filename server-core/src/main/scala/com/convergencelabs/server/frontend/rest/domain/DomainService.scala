@@ -11,8 +11,6 @@ import com.convergencelabs.server.datastore.convergence.DomainStoreActor.DeleteD
 import com.convergencelabs.server.datastore.convergence.DomainStoreActor.GetDomainRequest
 import com.convergencelabs.server.datastore.convergence.DomainStoreActor.ListDomainsRequest
 import com.convergencelabs.server.datastore.convergence.DomainStoreActor.UpdateDomainRequest
-import com.convergencelabs.server.datastore.convergence.PermissionsProfile
-import com.convergencelabs.server.datastore.convergence.PermissionsStoreActor.GetPermissionsProfileRequest
 import com.convergencelabs.server.domain.Domain
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.rest.AuthorizationActor.ConvergenceAuthorizedRequest
@@ -41,6 +39,7 @@ import akka.http.scaladsl.server.directives.FutureDirectives.onSuccess
 import akka.http.scaladsl.server.directives.OnSuccessMagnet.apply
 import akka.pattern.ask
 import akka.util.Timeout
+import com.convergencelabs.server.security.Permissions
 
 object DomainService {
   case class DomainInfo(
@@ -137,7 +136,7 @@ class DomainService(
           domain.displayName,
           domain.domainFqn.namespace,
           domain.domainFqn.domainId,
-          domain.status.toString()))))
+          domain.status.toString))))
   }
 
   def getDomain(namespace: String, domainId: String): Future[RestResponse] = {
@@ -165,7 +164,7 @@ class DomainService(
 
   // Permission Checks
   def canAccessDomain(domainFqn: DomainFqn, username: String): Future[Boolean] = {
-    val message = ConvergenceAuthorizedRequest(username, domainFqn, Set("domain-access"))
+    val message = ConvergenceAuthorizedRequest(username, domainFqn, Set(Permissions.Domain.Access))
     (authorizationActor ? message).mapTo[Boolean]
   }
 }

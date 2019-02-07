@@ -12,6 +12,6 @@ object RoleClass extends OrientDbClass {
   }
   
   object Indices {
-    val Name = "Role.name"
+    val NameTargetClass = "Role.name_targetClass"
   }
 }

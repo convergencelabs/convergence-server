@@ -18,6 +18,7 @@ import akka.actor.ActorRef
 import akka.actor.Props
 import akka.actor.actorRef2Scala
 import akka.util.Timeout
+import com.convergencelabs.server.domain.Namespace
 
 object NamespaceStoreActor {
   val RelativePath = "NamespaceStoreActor"
@@ -50,18 +51,19 @@ class NamespaceStoreActor private[datastore] (
   def createNamespace(createRequest: CreateNamespace): Unit = {
     val CreateNamespace(requestor, namespaceId, displayName) = createRequest
     log.debug(s"Receved request to create Namespace: ${namespaceId}")
-
+    reply(namespaceStore.createNamespace(namespaceId, displayName))
   }
 
   def updateNamespace(request: UpdateNamespace): Unit = {
     val UpdateNamespace(requestor, namespaceId, displayName) = request
     log.debug(s"Receved request to update Namespace: ${namespaceId}")
+    reply(namespaceStore.updateNamespace(Namespace(namespaceId, displayName)))
   }
-  
+
   def deleteNamespace(deleteRequest: DeleteNamespace): Unit = {
     val DeleteNamespace(requestor, namespaceId) = deleteRequest
     log.debug(s"Receved request to delete Namespace: ${namespaceId}")
-
+    reply(namespaceStore.deleteNamespace(namespaceId))
   }
 
   def getAccessibleNamespaces(getRequest: GetAccessibleNamespaces): Unit = {

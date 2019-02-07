@@ -14,22 +14,20 @@ import scala.util.Try
 
 import org.apache.logging.log4j.LogManager
 
-import com.convergencelabs.server.db.PooledDatabaseProvider
-import com.convergencelabs.server.db.SingleDatabaseProvider
 import com.convergencelabs.server.datastore.convergence.DeltaHistoryStore
-import com.convergencelabs.server.datastore.convergence.PermissionsStore
-import com.convergencelabs.server.datastore.convergence.PermissionsStore.Permission
-import com.convergencelabs.server.datastore.convergence.PermissionsStore.Role
+import com.convergencelabs.server.datastore.convergence.DomainStore
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
+import com.convergencelabs.server.db.ConnectedSingleDatabaseProvider
+import com.convergencelabs.server.db.PooledDatabaseProvider
 import com.convergencelabs.server.db.schema.ConvergenceSchemaManager
 import com.convergencelabs.server.domain.DomainActorSharding
+import com.convergencelabs.server.domain.activity.ActivityActorSharding
 import com.convergencelabs.server.domain.chat.ChatChannelSharding
 import com.convergencelabs.server.domain.model.RealtimeModelSharding
 import com.convergencelabs.server.domain.rest.RestDomainActorSharding
 import com.convergencelabs.server.frontend.realtime.ConvergenceRealTimeFrontend
 import com.convergencelabs.server.frontend.rest.ConvergenceRestFrontEnd
 import com.convergencelabs.server.util.SystemOutRedirector
-import com.orientechnologies.orient.core.db.ODatabasePool
 import com.orientechnologies.orient.core.db.ODatabaseType
 import com.orientechnologies.orient.core.db.OrientDB
 import com.orientechnologies.orient.core.db.OrientDBConfig
@@ -49,9 +47,13 @@ import akka.cluster.ClusterEvent.MemberRemoved
 import akka.cluster.ClusterEvent.MemberUp
 import akka.cluster.ClusterEvent.UnreachableMember
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.db.ConnectedSingleDatabaseProvider
-import com.convergencelabs.server.domain.activity.ActivityActorSharding
-import com.convergencelabs.server.datastore.convergence.DomainStore
+import com.convergencelabs.server.db.DatabaseProvider
+import com.convergencelabs.server.datastore.convergence.UserStore
+import com.convergencelabs.server.util.RandomStringGenerator
+import com.convergencelabs.server.datastore.convergence.UserStore.User
+import com.convergencelabs.server.datastore.convergence.RoleStore
+import com.convergencelabs.server.datastore.convergence.GlobalRoleTarget
+import com.convergencelabs.server.security.Roles
 
 object ConvergenceServerNode extends Logging {
 
@@ -256,17 +258,19 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
       val dbProvider = new PooledDatabaseProvider(baseUri, convergenceDatabase, username, password)
       dbProvider.connect().get
 
+      if (config.hasPath("convergence.auto-configure-server-admin")) {
+        autoConfigureServerAdmin(dbProvider, config.getConfig("convergence.auto-configure-server-admin"))
+      }
+
       val domainStore = new DomainStore(dbProvider)
       system.actorOf(
         DomainPersistenceManagerActor.props(baseUri, domainStore),
         DomainPersistenceManagerActor.RelativePath)
 
-      if (roles.contains("backend")) {
-        info("Role 'backend' configured on node, starting up backend.")
-        val backend = new BackendNode(system, dbProvider)
-        backend.start()
-        this.backend = Some(backend)
-      }
+      info("Role 'backend' configured on node, starting up backend.")
+      val backend = new BackendNode(system, dbProvider)
+      backend.start()
+      this.backend = Some(backend)
     } else if (roles.contains(RestFrontend) || roles.contains(RealtimeFrontend)) {
       // TODO Re-factor This to some setting in the config
       val shards = 100
@@ -370,6 +374,42 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
         logger.error(s"Unable to connect to OrientDB, retrying in ${retryDelay.toMillis()}ms", e)
         Thread.sleep(retryDelay.toMillis())
         None
+    }
+  }
+
+  private[this] def autoConfigureServerAdmin(dbProvider: DatabaseProvider, config: Config): Unit = {
+    if (config.getBoolean("enabled")) {
+      logger.debug("Auto configuring admin user")
+      val userStore = new UserStore(dbProvider)
+
+      val username = config.getString("username")
+      val password = config.getString("password")
+      userStore.userExists(username).flatMap { exists =>
+        if (!exists) {
+          logger.debug("Admin user does not exist, creating.")
+          val firstName = config.getString("firstName")
+          val lastName = config.getString("lastName")
+          val displayName = config.hasPath("displayName") match {
+            case true => config.getString("displayName")
+            case false => "Server Admin"
+          }
+          val email = config.getString("email")
+
+          // FIXME move this into a common util between the ConvergenceUserManagerActor and here
+          val bearerTokenGen = new RandomStringGenerator(32)
+
+          val roleStore = new RoleStore(dbProvider)
+
+          val user = User(username, email, firstName, lastName, displayName)
+          for {
+            _ <- userStore.createUser(user, password, bearerTokenGen.nextString)
+            _ <- roleStore.setUserRolesForTarget(username, GlobalRoleTarget, Set(Roles.Global.ServerAdmin))
+          } yield ()
+        } else {
+          logger.debug("Admin user exists, updating password.")
+          userStore.setUserPassword(username, password)
+        }
+      }
     }
   }
 

@@ -15,7 +15,7 @@ import com.convergencelabs.server.datastore.convergence.DomainStoreActor
 import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.datastore.InvalidValueExcpetion
-import com.convergencelabs.server.datastore.convergence.PermissionsStoreActor
+import com.convergencelabs.server.datastore.convergence.RoleStoreActor
 import com.convergencelabs.server.db.data.ConvergenceImportService
 import com.convergencelabs.server.db.data.ConvergenceImporterActor
 import com.convergencelabs.server.db.schema.DatabaseManagerActor
@@ -101,7 +101,6 @@ class ConvergenceRestFrontEnd(
 
   def start(): Unit = {
     val masterAdminToken = system.settings.config.getString("convergence.rest.master-admin-api-key")
-    val registrationBaseUrl = system.settings.config.getString("convergence.registration.registration-rest-base-url")
 
     val authStoreActor = createRouter("/user/" + AuthStoreActor.RelativePath, "authStoreActor")
     val convergenceUserActor = createRouter("/user/" + ConvergenceUserManagerActor.RelativePath, "convergenceUserActor")
@@ -109,7 +108,7 @@ class ConvergenceRestFrontEnd(
     val databaseManagerActor = createRouter("/user/" + DatabaseManagerActor.RelativePath, "databaseManagerActor")
     val importerActor = createRouter("/user/" + ConvergenceImporterActor.RelativePath, "importerActor")
     val authorizationActor = createRouter("/user/" + AuthorizationActor.RelativePath, "authorizationActor")
-    val permissionStoreActor = createRouter("/user/" + PermissionsStoreActor.RelativePath, "permissionStoreActor")
+    val permissionStoreActor = createRouter("/user/" + RoleStoreActor.RelativePath, "permissionStoreActor")
 
     // The Rest Services
 

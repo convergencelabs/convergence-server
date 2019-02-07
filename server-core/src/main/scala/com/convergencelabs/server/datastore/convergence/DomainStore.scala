@@ -122,7 +122,7 @@ class DomainStore(dbProvider: DatabaseProvider)
         |SELECT
         |  expand(set(domain))
         |FROM 
-        |  UserDomainRole
+        |  UserRole
         |WHERE 
         |  user.username = :username AND
         |  role.permissions CONTAINS (id = 'domain-access') AND
