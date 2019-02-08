@@ -1,5 +1,5 @@
 package com.convergencelabs.server.datastore.convergence
-
+import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.util.Failure
 import scala.util.Try
 
@@ -11,6 +11,7 @@ import com.convergencelabs.server.datastore.convergence.schema.NamespaceClass.Fi
 import com.convergencelabs.server.datastore.convergence.schema.NamespaceClass.Indices
 import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.domain.Namespace
+import com.convergencelabs.server.domain.NamespaceAndDomains
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.record.impl.ODocument
@@ -83,7 +84,7 @@ class NamespaceStore(dbProvider: DatabaseProvider)
   def getNamespaces(): Try[List[Namespace]] = withDb { db =>
     OrientDBUtil.queryAndMap(db, GetNamespacesQuery)(docToNamespace(_))
   }
-  
+
   def getAccessibleNamespaces(username: String): Try[List[Namespace]] = withDb { db =>
     val accessQuery = """
         |SELECT
@@ -95,6 +96,32 @@ class NamespaceStore(dbProvider: DatabaseProvider)
         |  role.permissions CONTAINS (id = 'namespace-access') AND
         |  target.@class = 'Namespace'""".stripMargin
     OrientDBUtil.query(db, accessQuery, Map(Params.Username -> username)).map(_.map(docToNamespace(_)))
+  }
+
+  def getNamespaceAndDomains(namespaces: Set[String]): Try[Set[NamespaceAndDomains]] = withDb { db =>
+    val query = "SELECT FROM Namespace WHERE id IN :ids"
+    val params = Map("ids" -> namespaces)
+    OrientDBUtil.query(db, query, params).flatMap(getNamespaceAndDomainsFromDocs(_, db))
+  }
+
+  def getAllNamespacesAndDomains(): Try[Set[NamespaceAndDomains]] = withDb { db =>
+    val query = "SELECT FROM Namespace"
+    OrientDBUtil.query(db, query).flatMap(getNamespaceAndDomainsFromDocs(_, db))
+  }
+
+  private[this] def getNamespaceAndDomainsFromDocs(docs: List[ODocument], db: ODatabaseDocument): Try[Set[NamespaceAndDomains]] = {
+    val namespaces = docs.map(docToNamespace(_))
+    val namespaceRids = docs.map(_.getIdentity)
+    val query = "SELECT FROM Domain WHERE namespace IN :namespaces"
+    val params = Map("namespaces" -> namespaceRids.asJava)
+    val domains = OrientDBUtil.queryAndMap(db, query, params)(DomainStore.docToDomain(_))
+    domains.map(_.groupBy(_.domainFqn.namespace)).map { domainsByNamespace =>
+      val namespaceAndDomains = namespaces.map { namespace =>
+        val domains = domainsByNamespace.get(namespace.id).map(_.toSet).getOrElse(Set())
+        NamespaceAndDomains(namespace.id, namespace.displayName, domains)
+      }
+      namespaceAndDomains.toSet
+    }
   }
 
   def deleteNamespace(id: String): Try[Unit] = withDb { db =>

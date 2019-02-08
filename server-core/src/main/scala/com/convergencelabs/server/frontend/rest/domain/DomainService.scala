@@ -44,7 +44,7 @@ import com.convergencelabs.server.security.AuthorizationProfile
 import com.convergencelabs.server.security.AuthorizationProfile
 
 object DomainService {
-  case class DomainInfo(
+  case class DomainRestData(
     displayName: String,
     namespace: String,
     domainId: String,
@@ -136,7 +136,7 @@ class DomainService(
   def getDomains(username: String): Future[RestResponse] = {
     (domainStoreActor ? ListDomainsRequest(username)).mapTo[List[Domain]].map(domains =>
       okResponse(
-        domains map (domain => DomainInfo(
+        domains map (domain => DomainRestData(
           domain.displayName,
           domain.domainFqn.namespace,
           domain.domainFqn.domainId,
@@ -146,7 +146,7 @@ class DomainService(
   def getDomain(namespace: String, domainId: String): Future[RestResponse] = {
     (domainStoreActor ? GetDomainRequest(namespace, domainId)).mapTo[Option[Domain]].map {
       case Some(domain) =>
-        okResponse(DomainInfo(
+        okResponse(DomainRestData(
           domain.displayName,
           domain.domainFqn.namespace,
           domain.domainFqn.domainId,

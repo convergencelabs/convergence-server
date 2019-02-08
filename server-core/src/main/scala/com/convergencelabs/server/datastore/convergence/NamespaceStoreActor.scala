@@ -71,9 +71,11 @@ class NamespaceStoreActor private[datastore] (
   def getAccessibleNamespaces(getRequest: GetAccessibleNamespaces): Unit = {
     val GetAccessibleNamespaces(authProfile) = getRequest
     if (authProfile.hasGlobalPermission(Permissions.Global.ManageDomains)) {
-      reply(namespaceStore.getNamespaces())
+      reply(namespaceStore.getAllNamespacesAndDomains())
     } else {
-      reply(namespaceStore.getAccessibleNamespaces(authProfile.username))
+      reply(namespaceStore
+          .getAccessibleNamespaces(authProfile.username)
+          .flatMap(namespaces => namespaceStore.getNamespaceAndDomains(namespaces.map(_.id).toSet)))
     }
   }
 }

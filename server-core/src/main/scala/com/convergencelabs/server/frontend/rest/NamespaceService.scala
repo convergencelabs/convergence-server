@@ -22,6 +22,7 @@ import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
 import akka.http.scaladsl.server.Directives._string2NR
 import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Directives.delete
+import akka.http.scaladsl.server.Directives.authorize
 import akka.http.scaladsl.server.Directives.parameters
 import akka.http.scaladsl.server.Directives.get
 import akka.http.scaladsl.server.Directives.handleWith
@@ -41,11 +42,15 @@ import com.convergencelabs.server.datastore.convergence.NamespaceStoreActor.Crea
 import com.convergencelabs.server.datastore.convergence.NamespaceStoreActor.DeleteNamespace
 import com.convergencelabs.server.datastore.convergence.NamespaceStoreActor.UpdateNamespace
 import com.convergencelabs.server.security.AuthorizationProfile
+import com.convergencelabs.server.security.Permissions
+import com.convergencelabs.server.domain.NamespaceAndDomains
+import com.convergencelabs.server.frontend.rest.DomainService.DomainRestData
 
 object NamespaceService {
   case class CreateNamespacePost(id: String, displayName: String)
   case class UpdateNamespacePut(displayName: String)
   case class NamespaceRestData(id: String, displayName: String)
+  case class NamespaceAndDomainsRestData(id: String, displayName: String, domains: Set[DomainRestData])
 }
 
 class NamespaceService(
@@ -65,18 +70,24 @@ class NamespaceService(
         get {
           complete(getNamespaces(authProfile))
         } ~ post {
-          entity(as[CreateNamespacePost]) { request =>
-            complete(createNamespace(authProfile, request))
+          authorize(canManageNamespaces(authProfile)) {
+            entity(as[CreateNamespacePost]) { request =>
+              complete(createNamespace(authProfile, request))
+            }
           }
         }
       } ~ pathPrefix(Segment) { namespace =>
         pathEnd {
           put {
-            entity(as[UpdateNamespacePut]) { request =>
-              complete(updateNamespace(authProfile, namespace, request))
+            authorize(canManageNamespaces(authProfile)) {
+              entity(as[UpdateNamespacePut]) { request =>
+                complete(updateNamespace(authProfile, namespace, request))
+              }
             }
           } ~ delete {
-            complete(deleteNamespace(authProfile, namespace))
+            authorize(canManageNamespaces(authProfile)) {
+              complete(deleteNamespace(authProfile, namespace))
+            }
           }
         }
       }
@@ -85,8 +96,11 @@ class NamespaceService(
 
   def getNamespaces(authProfile: AuthorizationProfile): Future[RestResponse] = {
     val request = GetAccessibleNamespaces(authProfile)
-    (namespaceActor ? request).mapTo[List[Namespace]] map { namespaces =>
-      val response = namespaces.map(n => NamespaceRestData(n.id, n.displayName))
+    (namespaceActor ? request).mapTo[Set[NamespaceAndDomains]] map { namespaces =>
+      val response = namespaces.map { n =>
+        val domainData = n.domains.map(d => DomainRestData(d.displayName, d.domainFqn.namespace, d.domainFqn.domainId, d.status.toString))
+        NamespaceAndDomainsRestData(n.id, n.displayName, domainData)
+      }
       okResponse(response)
     }
   }
@@ -106,5 +120,9 @@ class NamespaceService(
   def deleteNamespace(authProfile: AuthorizationProfile, namespaceId: String): Future[RestResponse] = {
     val request = DeleteNamespace(authProfile.username, namespaceId)
     (namespaceActor ? request).mapTo[Unit] map (_ => OkResponse)
+  }
+
+  def canManageNamespaces(authProfile: AuthorizationProfile): Boolean = {
+    authProfile.hasGlobalPermission(Permissions.Global.ManageDomains)
   }
 }
