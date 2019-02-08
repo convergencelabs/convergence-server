@@ -13,6 +13,7 @@ import com.convergencelabs.server.domain.DomainDatabase
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.Namespace
 import com.convergencelabs.server.datastore.DuplicateValueException
+import com.convergencelabs.server.datastore.convergence.RoleStore.UserRole
 
 case class RoleStoreSpecStores(
   roleStore: RoleStore,
@@ -120,7 +121,9 @@ class RoleStoreSpec extends PersistenceStoreSpec[RoleStoreSpecStores](DeltaCateg
         roleStore.setUserRolesForTarget(TestUser.username, TestDomainTarget, Set(Role1Id)).get
         roleStore.setUserRolesForTarget(TestUser2.username, TestDomainTarget, Set(Role2Id, Role3Id)).get
 
-        roleStore.getAllUserRolesForTarget(TestDomainTarget).get shouldBe Set(UserRoles(TestUser.username, Set(Role1Id)), UserRoles(TestUser2.username, Set(Role2Id, Role3Id)))
+        roleStore.getAllUserRolesForTarget(TestDomainTarget).get shouldBe Set(
+            UserRoles(TestUser.username, Set(UserRole(Role1, TestDomainTarget))), 
+            UserRoles(TestUser2.username, Set(UserRole(Role2, TestDomainTarget), UserRole(Role3, TestDomainTarget))))
       }
     }
   }

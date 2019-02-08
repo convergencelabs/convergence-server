@@ -19,6 +19,8 @@ import akka.actor.Props
 import akka.actor.actorRef2Scala
 import akka.util.Timeout
 import com.convergencelabs.server.domain.Namespace
+import com.convergencelabs.server.security.AuthorizationProfile
+import com.convergencelabs.server.security.Permissions
 
 object NamespaceStoreActor {
   val RelativePath = "NamespaceStoreActor"
@@ -28,7 +30,7 @@ object NamespaceStoreActor {
   case class CreateNamespace(requestor: String, namespaceId: String, displayName: String)
   case class UpdateNamespace(requestor: String, namespaceId: String, displayName: String)
   case class DeleteNamespace(requestor: String, namespaceId: String)
-  case class GetAccessibleNamespaces(requestor: String)
+  case class GetAccessibleNamespaces(requestor: AuthorizationProfile)
 }
 
 class NamespaceStoreActor private[datastore] (
@@ -67,8 +69,11 @@ class NamespaceStoreActor private[datastore] (
   }
 
   def getAccessibleNamespaces(getRequest: GetAccessibleNamespaces): Unit = {
-    val GetAccessibleNamespaces(requestor) = getRequest
-    log.debug(s"Receved request to get Namespaces: ${requestor}")
-    reply(namespaceStore.getAccessibleNamespaces(requestor))
+    val GetAccessibleNamespaces(authProfile) = getRequest
+    if (authProfile.hasGlobalPermission(Permissions.Global.ManageDomains)) {
+      reply(namespaceStore.getNamespaces())
+    } else {
+      reply(namespaceStore.getAccessibleNamespaces(authProfile.username))
+    }
   }
 }

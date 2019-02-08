@@ -14,7 +14,6 @@ import com.convergencelabs.server.frontend.rest.DomainSessionService.DomainSessi
 import com.convergencelabs.server.frontend.rest.DomainSessionService.GetSessionResponse
 import com.convergencelabs.server.frontend.rest.DomainSessionService.GetSessionsResponse
 import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
-import com.convergencelabs.server.domain.rest.AuthorizationActor.ConvergenceAuthorizedRequest
 import com.convergencelabs.server.datastore.domain.SessionStoreActor.GetSession
 import com.convergencelabs.server.datastore.domain.SessionStoreActor.GetSessions
 
@@ -27,7 +26,7 @@ import akka.http.scaladsl.server.Directives.Segment
 import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
 import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
 import akka.http.scaladsl.server.Directives._string2NR
-import akka.http.scaladsl.server.Directives.authorizeAsync
+import akka.http.scaladsl.server.Directives.authorize
 import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Directives.get
 import akka.http.scaladsl.server.Directives.parameters
@@ -38,6 +37,7 @@ import akka.util.Timeout
 import akka.pattern.ask
 import com.convergencelabs.server.domain.DomainUserType
 import com.convergencelabs.server.domain.DomainUserType.DomainUserType
+import com.convergencelabs.server.security.AuthorizationProfile
 
 object DomainSessionService {
   case class GetSessionsResponse(sessions: List[DomainSessionData])
@@ -58,11 +58,10 @@ object DomainSessionService {
 class DomainSessionService(
   private[this] val executionContext: ExecutionContext,
   private[this] val timeout: Timeout,
-  private[this] val authActor: ActorRef,
   private[this] val domainRestActor: ActorRef)
-    extends DomainRestService(executionContext, timeout, authActor) {
+    extends DomainRestService(executionContext, timeout) {
 
-  def route(username: String, domain: DomainFqn): Route = {
+  def route(authProfile: AuthorizationProfile, domain: DomainFqn): Route = {
     pathPrefix("sessions") {
       pathEnd {
         get {
@@ -77,7 +76,7 @@ class DomainSessionService(
             "limit".as[Int].?,
             "offset".as[Int].?) { (sessionId, sessionUsername, userType, remoteHost, authMethod, connectedOnly, sessionType, limit, offset) =>
               {
-                authorizeAsync(canAccessDomain(domain, username)) {
+                authorize(canAccessDomain(domain, authProfile)) {
                   complete(getSessions(
                     domain,
                     sessionId,
@@ -96,7 +95,7 @@ class DomainSessionService(
       } ~ pathPrefix(Segment) { sessionId =>
         pathEnd {
           get {
-            authorizeAsync(canAccessDomain(domain, username)) {
+            authorize(canAccessDomain(domain, authProfile)) {
               complete(getSession(domain, sessionId))
             }
           }

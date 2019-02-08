@@ -25,6 +25,7 @@ import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.put
 import akka.util.Timeout
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.security.AuthorizationProfile
 
 object CurrentUserService {
   case class BearerTokenResponse(token: String)
@@ -47,26 +48,26 @@ class CurrentUserService(
   implicit val ec = executionContext
   implicit val t = defaultTimeout
 
-  val route = { username: String =>
+  val route = { authProfile: AuthorizationProfile =>
     pathPrefix("user") {
       path("profile") {
         get {
-          complete(getProfile(username))
+          complete(getProfile(authProfile))
         } ~
           put {
             entity(as[UpdateProfileRequest]) { profile =>
-              complete(updateProfile(username, profile))
+              complete(updateProfile(authProfile, profile))
             }
           }
       } ~ path("bearerToken") {
         get {
-          complete(getBearerToken(username))
+          complete(getBearerToken(authProfile))
         } ~ put {
-          complete(regenerateBearerToken(username))
+          complete(regenerateBearerToken(authProfile))
         }
       } ~ (path("password") & put) {
         entity(as[PasswordSetRequest]) { password =>
-          complete(setPassword(username, password))
+          complete(setPassword(authProfile, password))
         }
       } ~ path("apiKeys") {
         get {
@@ -76,25 +77,25 @@ class CurrentUserService(
     }
   }
 
-  def getBearerToken(username: String): Future[RestResponse] = {
-    val message = GetUserBearerTokenRequest(username)
+  def getBearerToken(authProfile: AuthorizationProfile): Future[RestResponse] = {
+    val message = GetUserBearerTokenRequest(authProfile.username)
     (convergenceUserActor ? message).mapTo[Option[String]].map(okResponse(_))
   }
 
-  def regenerateBearerToken(username: String): Future[RestResponse] = {
-    val message = RegenerateUserBearerTokenRequest(username)
+  def regenerateBearerToken(authProfile: AuthorizationProfile): Future[RestResponse] = {
+    val message = RegenerateUserBearerTokenRequest(authProfile.username)
     (convergenceUserActor ? message).mapTo[String].map(okResponse(_))
   }
 
-  def setPassword(username: String, request: PasswordSetRequest): Future[RestResponse] = {
-    logger.debug(s"Received request to set the password for user: ${username}")
+  def setPassword(authProfile: AuthorizationProfile, request: PasswordSetRequest): Future[RestResponse] = {
+    logger.debug(s"Received request to set the password for user: ${authProfile.username}")
     val PasswordSetRequest(password) = request
-    val message = SetPasswordRequest(username, password)
+    val message = SetPasswordRequest(authProfile.username, password)
     (convergenceUserActor ? message) map { _ => OkResponse }
   }
 
-  def getProfile(username: String): Future[RestResponse] = {
-    val message = GetConvergenceUser(username)
+  def getProfile(authProfile: AuthorizationProfile): Future[RestResponse] = {
+    val message = GetConvergenceUser(authProfile.username)
     (convergenceUserActor ? message).mapTo[Option[User]].map {
       case Some(User(username, email, firstName, lastName, displayName)) =>
         okResponse(UserProfileResponse(CovergenceUserProfile(username, email, firstName, lastName, displayName)))
@@ -103,9 +104,9 @@ class CurrentUserService(
     }
   }
 
-  def updateProfile(username: String, profile: UpdateProfileRequest): Future[RestResponse] = {
+  def updateProfile(authProfile: AuthorizationProfile, profile: UpdateProfileRequest): Future[RestResponse] = {
     val UpdateProfileRequest(email, firstName, lastName, displayName) = profile
-    val message = UpdateConvergenceUserRequest(username, email, firstName, lastName, displayName)
+    val message = UpdateConvergenceUserRequest(authProfile.username, email, firstName, lastName, displayName)
     (convergenceUserActor ? message) map { _ => OkResponse }
   }
 }

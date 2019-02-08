@@ -43,7 +43,7 @@ import akka.http.scaladsl.server.Directives.Segment
 import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
 import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
 import akka.http.scaladsl.server.Directives.as
-import akka.http.scaladsl.server.Directives.authorizeAsync
+import akka.http.scaladsl.server.Directives.authorize
 import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Directives.delete
 import akka.http.scaladsl.server.Directives.entity
@@ -54,6 +54,7 @@ import akka.http.scaladsl.server.Directives.post
 import akka.http.scaladsl.server.Directives.put
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
+import com.convergencelabs.server.security.AuthorizationProfile
 
 object DomainModelService {
 
@@ -94,17 +95,16 @@ object DomainModelService {
 class DomainModelService(
   private[this] val executionContext: ExecutionContext,
   private[this] val timeout: Timeout,
-  private[this] val authActor: ActorRef,
   private[this] val domainRestActor: ActorRef,
   private[this] val modelClusterRegion: ActorRef)
-  extends DomainRestService(executionContext, timeout, authActor) {
+  extends DomainRestService(executionContext, timeout) {
 
   import DomainModelService._
   import akka.pattern.ask
 
-  def route(username: String, domain: DomainFqn): Route = {
+  def route(authProfile: AuthorizationProfile, domain: DomainFqn): Route = {
     pathPrefix("models") {
-      authorizeAsync(canAccessDomain(domain, username)) {
+      authorize(canAccessDomain(domain, authProfile)) {
         pathEnd {
           get {
             complete(getModels(domain))

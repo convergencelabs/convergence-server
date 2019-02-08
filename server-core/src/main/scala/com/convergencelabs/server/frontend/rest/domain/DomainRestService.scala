@@ -4,34 +4,34 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.rest.AuthorizationActor.ConvergenceAuthorizedRequest
 
 import akka.actor.ActorRef
 import akka.util.Timeout
+import com.convergencelabs.server.security.AuthorizationProfile
+import com.convergencelabs.server.security.Permissions
 
-class DomainRestService(
-  executionContext: ExecutionContext,
-  defaultTimeout: Timeout,
-  val authorizationActor: ActorRef)
-    extends JsonSupport {
+class DomainRestService(executionContext: ExecutionContext, defaultTimeout: Timeout) extends JsonSupport {
 
   import akka.pattern.ask
-  
+
   implicit val ec = executionContext
   implicit val t = defaultTimeout
 
   // Permission Checks
 
-  def canAccessDomain(domainFqn: DomainFqn, username: String): Future[Boolean] = {
-    checkPermission(domainFqn, username, Set("domain-access"))
+  def canAccessDomain(domainFqn: DomainFqn, authProfile: AuthorizationProfile): Boolean = {
+    checkPermission(domainFqn, authProfile, Set(Permissions.Domain.Access))
   }
-  
-  def canAdministerDomain(domainFqn: DomainFqn, username: String): Future[Boolean] = {
-    checkPermission(domainFqn, username, Set("manage-permissions"))
+
+  def canManageSettings(domainFqn: DomainFqn, authProfile: AuthorizationProfile): Boolean = {
+    checkPermission(domainFqn, authProfile, Set(Permissions.Domain.ManageSettings))
   }
-  
-  def checkPermission(domainFqn: DomainFqn, username: String, permissions: Set[String]): Future[Boolean] = {
-    val message = ConvergenceAuthorizedRequest(username, domainFqn, permissions)
-    (authorizationActor ? message).mapTo[Boolean]
+
+  def canManageUsers(domainFqn: DomainFqn, authProfile: AuthorizationProfile): Boolean = {
+    checkPermission(domainFqn, authProfile, Set(Permissions.Domain.ManageUsers))
+  }
+
+  def checkPermission(domainFqn: DomainFqn, authProfile: AuthorizationProfile, permission: Set[String]): Boolean = {
+    permission.forall(p => authProfile.hasDomainPermission(p, domainFqn))
   }
 }

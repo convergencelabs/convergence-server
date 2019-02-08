@@ -23,6 +23,7 @@ import com.convergencelabs.server.domain.DomainUserType
 import com.convergencelabs.server.domain.DomainUserId
 import io.convergence.proto.identity.DomainUserIdData
 import com.convergencelabs.server.frontend.realtime.ImplicitMessageConversions
+import com.convergencelabs.server.security.AuthorizationProfile
 
 object DomainUserService {
   case class CreateUserRequest(username: String, firstName: Option[String], lastName: Option[String], displayName: Option[String], email: Option[String], password: Option[String])
@@ -50,27 +51,26 @@ object DomainUserService {
 class DomainUserService(
   private[this] val executionContext: ExecutionContext,
   private[this] val timeout: Timeout,
-  private[this] val authActor: ActorRef,
   private[this] val domainRestActor: ActorRef)
-    extends DomainRestService(executionContext, timeout, authActor) {
+    extends DomainRestService(executionContext, timeout) {
 
   import DomainUserService._
   import akka.http.scaladsl.server.Directive._
   import akka.http.scaladsl.server.Directives._
   import akka.pattern.ask
 
-  def route(convergenceUsername: String, domain: DomainFqn): Route = {
+  def route(authProfile: AuthorizationProfile, domain: DomainFqn): Route = {
     pathPrefix("users") {
       pathEnd {
         get {
           parameters("filter".?, "limit".as[Int].?, "offset".as[Int].?) { (filter, limit, offset) =>
-            authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
+            authorize(canAccessDomain(domain, authProfile)) {
               complete(getAllUsersRequest(domain, filter, limit, offset))
             }
           }
         } ~ post {
           entity(as[CreateUserRequest]) { request =>
-            authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
+            authorize(canAccessDomain(domain, authProfile)) {
               complete(createUserRequest(request, domain))
             }
           }
@@ -78,16 +78,16 @@ class DomainUserService(
       } ~ pathPrefix(Segment) { domainUsername =>
         pathEnd {
           get {
-            authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
+            authorize(canAccessDomain(domain, authProfile)) {
               complete(getUserByUsername(domainUsername, domain))
             }
           } ~ delete {
-            authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
+            authorize(canAccessDomain(domain, authProfile)) {
               complete(deleteUser(domainUsername, domain))
             }
           } ~ put {
             entity(as[UpdateUserRequest]) { request =>
-              authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
+              authorize(canAccessDomain(domain, authProfile)) {
                 complete(updateUserRequest(domainUsername, request, domain))
               }
             }
@@ -96,7 +96,7 @@ class DomainUserService(
           pathEnd {
             put {
               entity(as[SetPasswordRequest]) { request =>
-                authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
+                authorize(canAccessDomain(domain, authProfile)) {
                   complete(setPasswordRequest(domainUsername, request, domain))
                 }
               }
@@ -108,13 +108,13 @@ class DomainUserService(
       pathEnd {
         post {
           entity(as[UserLookupRequest]) { request =>
-            authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
+            authorize(canAccessDomain(domain, authProfile)) {
               complete(findUser(domain, request))
             }
           }
         } ~ post {
           entity(as[CreateUserRequest]) { request =>
-            authorizeAsync(canAccessDomain(domain, convergenceUsername)) {
+            authorize(canAccessDomain(domain, authProfile)) {
               complete(createUserRequest(request, domain))
             }
           }

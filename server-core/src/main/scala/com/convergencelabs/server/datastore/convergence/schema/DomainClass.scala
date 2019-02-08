@@ -19,6 +19,10 @@ object DomainClass extends OrientDbClass {
     val DatabaseAdminPassword = "databaseAdminPassword"
   }
   
+  object Eval {
+    val NamespaceId = "namespace.id"
+  }
+  
   object Indices {
     val NamespaceId = "Domain.namespace_id"
     val DatabaseName = "Domain.databaseName"

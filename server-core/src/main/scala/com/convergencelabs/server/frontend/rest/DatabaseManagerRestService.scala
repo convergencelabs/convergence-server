@@ -35,6 +35,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.security.AuthorizationProfile
 
 object DatabaseManagerRestService {
   case class UpgradeRequest(version: Option[Int], preRelease: Option[Boolean])
@@ -54,7 +55,7 @@ class DatabaseManagerRestService(
   implicit val ec = executionContext
   implicit val t = defaultTimeout
 
-  val route = { adminUser: String =>
+  val route = { authProfile: AuthorizationProfile =>
     pathPrefix("schema") {
       (post & pathPrefix("upgrade")) {
         path("convergence") {

@@ -32,6 +32,7 @@ import akka.http.scaladsl.server.Directives.post
 import akka.pattern.ask
 import akka.util.Timeout
 import akka.http.scaladsl.server.ExceptionHandler
+import com.convergencelabs.server.security.AuthorizationProfile
 
 object ConvergenceUserService {
   case class GetUsersResponse(users: List[UserPublicData])
@@ -50,7 +51,7 @@ class ConvergenceUserService(
   implicit val ec = executionContext
   implicit val t = defaultTimeout
 
-  val route = { adminUser: String =>
+  val route = { authProfile: AuthorizationProfile =>
     pathPrefix("users") {
       pathEnd {
         get {

@@ -25,6 +25,7 @@ import com.convergencelabs.server.datastore.convergence.schema.DomainClass
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import scala.util.Failure
 import com.convergencelabs.server.datastore.DuplicateValueException
+import com.convergencelabs.server.datastore.convergence.schema.NamespaceClass
 
 object RoleTargetType extends Enumeration {
   val Namespace, Domain = Value
@@ -46,7 +47,8 @@ case object GlobalRoleTarget extends RoleTarget {
 object RoleStore {
 
   case class Role(name: String, targetClass: Option[RoleTargetType.Value], permissions: Set[String])
-  case class UserRoles(username: String, roles: Set[String])
+  case class UserRole(role: Role, target: RoleTarget)
+  case class UserRoles(username: String, roles: Set[UserRole])
 
   object Params {
     val Name = "name"
@@ -62,11 +64,32 @@ object RoleStore {
   }
 
   def docToRole(doc: ODocument): Role = {
-    val permissions = doc.getProperty(RoleClass.Fields.Permissions).asInstanceOf[JavaList[String]].asScala.toSet
+    val permissions = doc.getProperty(RoleClass.Fields.Permissions).asInstanceOf[java.util.Set[String]].asScala.toSet
     Role(
       doc.getProperty(RoleClass.Fields.Name),
       Option(doc.getProperty(RoleClass.Fields.TargetClass)).map(RoleTargetType.withName(_)),
       permissions)
+  }
+
+  def docToUserRole(doc: ODocument): UserRole = {
+    val roleDoc = doc.getProperty(UserRoleClass.Fields.Role).asInstanceOf[ODocument]
+    val role = docToRole(roleDoc)
+    val targetClass = Option(doc.getProperty(UserRoleClass.Fields.Target).asInstanceOf[ODocument])
+    UserRole(role, docToRoleTarget(targetClass))
+  }
+
+  def docToRoleTarget(doc: Option[ODocument]): RoleTarget = {
+    doc.map { d =>
+      d.getClassName match {
+        case DomainClass.ClassName =>
+          val namespace = d.eval(DomainClass.Eval.NamespaceId).asInstanceOf[String]
+          val id = d.getProperty(DomainClass.Fields.Id).asInstanceOf[String]
+          DomainRoleTarget(DomainFqn(namespace, id))
+        case NamespaceClass.ClassName =>
+          val id = d.getProperty(NamespaceClass.Fields.Id).asInstanceOf[String]
+          NamespaceRoleTarget(id)
+      }
+    }.getOrElse(GlobalRoleTarget)
   }
 
   def buildTargetWhere(target: RoleTarget): (String, Map[String, Any]) = {
@@ -119,12 +142,11 @@ class RoleStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
   }.recoverWith(handleDuplicateValue)
 
   def setUserRolesForTarget(username: String, target: RoleTarget, roles: Set[String]): Try[Unit] = withDb { db =>
-    val userOrid = UserStore.getUserRid(username, db).get
-    val roleOrids = roles.map { getRolesRid(_, target.targetClass, db).get }
-
     // FIXME: Do these two steps in a transaction
 
     for {
+      userOrid <- UserStore.getUserRid(username, db)
+      roleOrids <- Try(roles.map { getRolesRid(_, target.targetClass, db).get })
       targetRid <- selectTarget(target, db)
       _ <- targetRid match {
         case Some(rid) =>
@@ -162,6 +184,15 @@ class RoleStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
     OrientDBUtil.query(db, query, params).map(_.map(_.getProperty(RoleClass.Fields.Permissions)).toSet)
   }
 
+  private[this] val GetAllRolesForUserQuery = "SELECT FROM UserRole WHERE user.username = :username"
+  def getAllRolesForUser(username: String): Try[UserRoles] = withDb { db =>
+    val params = Map(Params.Username -> username)
+    OrientDBUtil.query(db, GetAllRolesForUserQuery, params).map { docs =>
+      val roles = docs.map(docToUserRole(_)).toSet
+      UserRoles(username, roles)
+    }
+  }
+
   def getUserRolesForTarget(username: String, target: RoleTarget): Try[Set[Role]] = withDb { db =>
     val (targetWhere, targetParams) = buildTargetWhere(target)
     val query = s"""
@@ -180,17 +211,20 @@ class RoleStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
     val (targetWhere, targetParams) = buildTargetWhere(target)
     val query = s"""
         |SELECT 
-        |  user.username as username, set(role.name) AS roles
+        |  user.username AS username, target, set(role) AS roles
         |FROM
         |  UserRole
         |WHERE 
         |  ${targetWhere}
         |GROUP BY
-        |  user.username""".stripMargin
+        |  user.username, target""".stripMargin
     OrientDBUtil.query(db, query, targetParams).map(_.map(result => {
       val user: String = result.getProperty("username")
-      val roles: HashSet[String] = result.getProperty("roles")
-      UserRoles(user, roles.asScala.toSet)
+      val targetDoc: ODocument = result.getProperty("target")
+      val target = docToRoleTarget(Option(targetDoc))
+      val roleDocs = result.getProperty("roles").asInstanceOf[java.util.Set[ODocument]].asScala.toSet
+      val roles = roleDocs.map(docToRole(_))
+      UserRoles(user, roles.map(r => UserRole(r, target)))
     }).toSet)
   }
 

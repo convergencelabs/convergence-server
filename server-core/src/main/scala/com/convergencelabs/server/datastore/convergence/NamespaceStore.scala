@@ -79,6 +79,11 @@ class NamespaceStore(dbProvider: DatabaseProvider)
     OrientDBUtil.findDocumentFromSingleValueIndex(db, Indices.Id, id).map(_.map(docToNamespace(_)))
   }
 
+  private[this] val GetNamespacesQuery = "SELECT FROM Namespace"
+  def getNamespaces(): Try[List[Namespace]] = withDb { db =>
+    OrientDBUtil.queryAndMap(db, GetNamespacesQuery)(docToNamespace(_))
+  }
+  
   def getAccessibleNamespaces(username: String): Try[List[Namespace]] = withDb { db =>
     val accessQuery = """
         |SELECT

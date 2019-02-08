@@ -20,7 +20,7 @@ import akka.http.scaladsl.server.Directive.addDirectiveApply
 import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
 import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
 import akka.http.scaladsl.server.Directives.as
-import akka.http.scaladsl.server.Directives.authorizeAsync
+import akka.http.scaladsl.server.Directives.authorize
 import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Directives.entity
 import akka.http.scaladsl.server.Directives.get
@@ -29,6 +29,7 @@ import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.put
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
+import com.convergencelabs.server.security.AuthorizationProfile
 
 object DomainConfigService {
   case class AnonymousAuthPut(enabled: Boolean)
@@ -48,23 +49,22 @@ object DomainConfigService {
 class DomainConfigService(
   private[this] val executionContext: ExecutionContext,
   private[this] val timeout: Timeout,
-  private[this] val authActor: ActorRef,
   private[this] val domainRestActor: ActorRef)
-    extends DomainRestService(executionContext, timeout, authActor) {
+    extends DomainRestService(executionContext, timeout) {
 
   import DomainConfigService._
   import akka.pattern.ask
 
-  def route(username: String, domain: DomainFqn): Route = {
+  def route(authProfile: AuthorizationProfile, domain: DomainFqn): Route = {
     pathPrefix("config") {
       path("anonymousAuth") {
         get {
-          authorizeAsync(canAccessDomain(domain, username)) {
+          authorize(canManageSettings(domain, authProfile)) {
             complete(getAnonymousAuthEnabled(domain))
           }
         } ~ put {
           entity(as[AnonymousAuthPut]) { request =>
-            authorizeAsync(canAccessDomain(domain, username)) {
+            authorize(canAccessDomain(domain, authProfile)) {
               complete(setAnonymousAuthEnabled(domain, request))
             }
           }
@@ -72,12 +72,12 @@ class DomainConfigService(
       } ~
         path("modelSnapshotPolicy") {
           get {
-            authorizeAsync(canAccessDomain(domain, username)) {
+            authorize(canAccessDomain(domain, authProfile)) {
               complete(getModelSnapshotPolicy(domain))
             }
           } ~ put {
             entity(as[ModelSnapshotPolicyData]) { policyData =>
-              authorizeAsync(canAccessDomain(domain, username)) {
+              authorize(canAccessDomain(domain, authProfile)) {
                 complete(setModelSnapshotPolicy(domain, policyData))
               }
             }

@@ -4,7 +4,6 @@ import java.time.Duration
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
-import scala.util.Try
 
 import com.convergencelabs.server.datastore.domain.CollectionPermissions
 import com.convergencelabs.server.datastore.domain.CollectionStore.CollectionSummary
@@ -17,19 +16,18 @@ import com.convergencelabs.server.datastore.domain.CollectionStoreActor.UpdateCo
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.ModelSnapshotConfig
 import com.convergencelabs.server.domain.model.Collection
-import com.convergencelabs.server.domain.rest.AuthorizationActor.ConvergenceAuthorizedRequest
 import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
 import com.convergencelabs.server.frontend.rest.DomainConfigService.ModelSnapshotPolicyData
+import com.convergencelabs.server.security.AuthorizationProfile
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
-import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
 import akka.http.scaladsl.server.Directive.addDirectiveApply
 import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
 import akka.http.scaladsl.server.Directives._string2NR
 import akka.http.scaladsl.server.Directives.as
-import akka.http.scaladsl.server.Directives.authorizeAsync
+import akka.http.scaladsl.server.Directives.authorize
 import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Directives.delete
 import akka.http.scaladsl.server.Directives.entity
@@ -42,6 +40,7 @@ import akka.http.scaladsl.server.Directives.put
 import akka.http.scaladsl.server.Directives.Segment
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
+
 
 object DomainCollectionService {
   case class GetCollectionsResponse(collections: List[CollectionData])
@@ -64,23 +63,22 @@ object DomainCollectionService {
 class DomainCollectionService(
   private[this] val executionContext: ExecutionContext,
   private[this] val timeout: Timeout,
-  private[this] val authActor: ActorRef,
   private[this] val domainRestActor: ActorRef)
-    extends DomainRestService(executionContext, timeout, authActor) {
+    extends DomainRestService(executionContext, timeout) {
 
   import DomainCollectionService._
   import akka.pattern.ask
 
-  def route(username: String, domain: DomainFqn): Route = {
+  def route(authProfile: AuthorizationProfile, domain: DomainFqn): Route = {
     pathPrefix("collections") {
       pathEnd {
         get {
-          authorizeAsync(canAccessDomain(domain, username)) {
+          authorize(canAccessDomain(domain, authProfile)) {
             complete(getCollections(domain))
           }
         } ~ post {
           entity(as[CollectionData]) { collection =>
-            authorizeAsync(canAccessDomain(domain, username)) {
+            authorize(canAccessDomain(domain, authProfile)) {
               complete(createCollection(domain, collection))
             }
           }
@@ -88,16 +86,16 @@ class DomainCollectionService(
       } ~ pathPrefix(Segment) { collectionId =>
         pathEnd {
           get {
-            authorizeAsync(canAccessDomain(domain, username)) {
+            authorize(canAccessDomain(domain, authProfile)) {
               complete(getCollection(domain, collectionId))
             }
           } ~ delete {
-            authorizeAsync(canAccessDomain(domain, username)) {
+            authorize(canAccessDomain(domain, authProfile)) {
               complete(deleteCollection(domain, collectionId))
             }
           } ~ put {
             entity(as[CollectionData]) { updateData =>
-              authorizeAsync(canAccessDomain(domain, username)) {
+              authorize(canAccessDomain(domain, authProfile)) {
                 complete(updateCollection(domain, collectionId, updateData))
               }
             }
@@ -109,7 +107,7 @@ class DomainCollectionService(
     pathEnd {
       get {
         parameters("limit".as[Int].?, "offset".as[Int].?) { (limit, offset) =>
-          authorizeAsync(canAccessDomain(domain, username)) {
+          authorize(canAccessDomain(domain, authProfile)) {
             complete(getCollectionSummaries(domain, limit, offset))
           }
         }

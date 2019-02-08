@@ -13,7 +13,6 @@ import com.convergencelabs.server.datastore.convergence.DomainStoreActor.ListDom
 import com.convergencelabs.server.datastore.convergence.DomainStoreActor.UpdateDomainRequest
 import com.convergencelabs.server.domain.Domain
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.rest.AuthorizationActor.ConvergenceAuthorizedRequest
 import com.convergencelabs.server.frontend.rest.domain.DomainAdminTokenService
 import com.convergencelabs.server.frontend.rest.domain.DomainStatsService
 
@@ -34,12 +33,15 @@ import akka.http.scaladsl.server.Directives.pathEnd
 import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.post
 import akka.http.scaladsl.server.Directives.put
-import akka.http.scaladsl.server.Directives.authorizeAsync
+import akka.http.scaladsl.server.Directives.authorize
 import akka.http.scaladsl.server.directives.FutureDirectives.onSuccess
 import akka.http.scaladsl.server.directives.OnSuccessMagnet.apply
 import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.server.security.Permissions
+import com.convergencelabs.server.security.AuthorizationProfile
+import com.convergencelabs.server.security.AuthorizationProfile
+import com.convergencelabs.server.security.AuthorizationProfile
 
 object DomainService {
   case class DomainInfo(
@@ -54,7 +56,6 @@ object DomainService {
 
 class DomainService(
   private[this] val executionContext: ExecutionContext,
-  private[this] val authorizationActor: ActorRef,
   private[this] val domainStoreActor: ActorRef,
   private[this] val domainManagerActor: ActorRef, // RestDomainActor
   private[this] val permissionStoreActor: ActorRef,
@@ -67,25 +68,25 @@ class DomainService(
   implicit val ec = executionContext
   implicit val t = defaultTimeout
 
-  val domainConfigService = new DomainConfigService(ec, t, authorizationActor, domainManagerActor)
-  val domainUserService = new DomainUserService(ec, t, authorizationActor, domainManagerActor)
-  val domainUserGroupService = new DomainUserGroupService(ec, t, authorizationActor, domainManagerActor)
-  val domainStatsService = new DomainStatsService(ec, t, authorizationActor, domainManagerActor)
-  val domainCollectionService = new DomainCollectionService(ec, t, authorizationActor, domainManagerActor)
-  val domainSessionService = new DomainSessionService(ec, t, authorizationActor, domainManagerActor)
-  val domainModelService = new DomainModelService(ec, t, authorizationActor, domainManagerActor, modelClusterRegion)
-  val domainKeyService = new DomainKeyService(ec, t, authorizationActor, domainManagerActor)
-  val domainAdminTokenService = new DomainAdminTokenService(ec, t, authorizationActor, domainManagerActor)
-  val domainSecurityService = new DomainSecurityService(ec, t, authorizationActor, permissionStoreActor)
+  val domainConfigService = new DomainConfigService(ec, t, domainManagerActor)
+  val domainUserService = new DomainUserService(ec, t, domainManagerActor)
+  val domainUserGroupService = new DomainUserGroupService(ec, t, domainManagerActor)
+  val domainStatsService = new DomainStatsService(ec, t, domainManagerActor)
+  val domainCollectionService = new DomainCollectionService(ec, t, domainManagerActor)
+  val domainSessionService = new DomainSessionService(ec, t, domainManagerActor)
+  val domainModelService = new DomainModelService(ec, t, domainManagerActor, modelClusterRegion)
+  val domainKeyService = new DomainKeyService(ec, t, domainManagerActor)
+  val domainAdminTokenService = new DomainAdminTokenService(ec, t, domainManagerActor)
+  val domainSecurityService = new DomainSecurityService(ec, t, permissionStoreActor)
 
-  val route = { username: String =>
+  val route = { authProfile: AuthorizationProfile =>
     pathPrefix("domains") {
       pathEnd {
         get {
-          complete(getDomains(username))
+          complete(getDomains(authProfile.username))
         } ~ post {
           entity(as[CreateDomainRestRequest]) { request =>
-            complete(createDomain(request, username))
+            complete(createDomain(request, authProfile))
           }
         }
       } ~ pathPrefix(Segment / Segment) { (namespace, domainId) =>
@@ -93,39 +94,42 @@ class DomainService(
           val domain = DomainFqn(namespace, domainId)
           pathEnd {
             get {
-              authorizeAsync(canAccessDomain(domain, username)) {
+              authorize(canAccessDomain(domain, authProfile)) {
                 complete(getDomain(namespace, domainId))
               }
             } ~ delete {
-              authorizeAsync(canAccessDomain(domain, username)) {
+              authorize(canAccessDomain(domain, authProfile)) {
                 complete(deleteDomain(namespace, domainId))
               }
             } ~ put {
               entity(as[UpdateDomainRestRequest]) { request =>
-                authorizeAsync(canAccessDomain(domain, username)) {
+                authorize(canAccessDomain(domain, authProfile)) {
                   complete(updateDomain(namespace, domainId, request))
                 }
               }
             }
           } ~
-            domainUserService.route(username, domain) ~
-            domainCollectionService.route(username, domain) ~
-            domainModelService.route(username, domain) ~
-            domainKeyService.route(username, domain) ~
-            domainAdminTokenService.route(username, domain) ~
-            domainConfigService.route(username, domain) ~
-            domainStatsService.route(username, domain) ~
-            domainSecurityService.route(username, domain) ~
-            domainSessionService.route(username, domain) ~
-            domainUserGroupService.route(username, domain)
+            domainUserService.route(authProfile, domain) ~
+            domainCollectionService.route(authProfile, domain) ~
+            domainModelService.route(authProfile, domain) ~
+            domainKeyService.route(authProfile, domain) ~
+            domainAdminTokenService.route(authProfile, domain) ~
+            domainConfigService.route(authProfile, domain) ~
+            domainStatsService.route(authProfile, domain) ~
+            domainSecurityService.route(authProfile, domain) ~
+            domainSessionService.route(authProfile, domain) ~
+            domainUserGroupService.route(authProfile, domain)
         }
       }
     }
   }
 
-  def createDomain(createRequest: CreateDomainRestRequest, username: String): Future[RestResponse] = {
+  def createDomain(createRequest: CreateDomainRestRequest, authProfile: AuthorizationProfile): Future[RestResponse] = {
     val CreateDomainRestRequest(namespace, domainId, displayName) = createRequest
-    val message = CreateDomainRequest(namespace.getOrElse(username), domainId, displayName, false)
+    
+    // FIXME require permissions
+    // FIXME check config
+    val message = CreateDomainRequest(namespace.getOrElse(authProfile.username), domainId, displayName, false)
     (domainStoreActor ? message) map { _ => CreatedResponse }
   }
 
@@ -163,8 +167,8 @@ class DomainService(
   }
 
   // Permission Checks
-  def canAccessDomain(domainFqn: DomainFqn, username: String): Future[Boolean] = {
-    val message = ConvergenceAuthorizedRequest(username, domainFqn, Set(Permissions.Domain.Access))
-    (authorizationActor ? message).mapTo[Boolean]
+  def canAccessDomain(domainFqn: DomainFqn, authProfile: AuthorizationProfile): Boolean = {
+    // FIXME clearly not correct
+    true
   }
 }

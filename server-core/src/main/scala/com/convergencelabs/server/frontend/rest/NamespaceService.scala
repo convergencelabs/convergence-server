@@ -40,6 +40,7 @@ import com.convergencelabs.server.domain.Namespace
 import com.convergencelabs.server.datastore.convergence.NamespaceStoreActor.CreateNamespace
 import com.convergencelabs.server.datastore.convergence.NamespaceStoreActor.DeleteNamespace
 import com.convergencelabs.server.datastore.convergence.NamespaceStoreActor.UpdateNamespace
+import com.convergencelabs.server.security.AuthorizationProfile
 
 object NamespaceService {
   case class CreateNamespacePost(id: String, displayName: String)
@@ -58,52 +59,52 @@ class NamespaceService(
   implicit val ec = executionContext
   implicit val t = defaultTimeout
 
-  val route = { username: String =>
+  val route = { authProfile: AuthorizationProfile =>
     pathPrefix("namespaces") {
       pathEnd {
         get {
-          complete(getNamespaces(username))
+          complete(getNamespaces(authProfile))
         } ~ post {
           entity(as[CreateNamespacePost]) { request =>
-            complete(createNamespace(username, request))
+            complete(createNamespace(authProfile, request))
           }
         }
       } ~ pathPrefix(Segment) { namespace =>
         pathEnd {
           put {
             entity(as[UpdateNamespacePut]) { request =>
-              complete(updateNamespace(username, namespace, request))
+              complete(updateNamespace(authProfile, namespace, request))
             }
           } ~ delete {
-            complete(deleteNamespace(username, namespace))
+            complete(deleteNamespace(authProfile, namespace))
           }
         }
       }
     }
   }
 
-  def getNamespaces(username: String): Future[RestResponse] = {
-    val request = GetAccessibleNamespaces(username)
+  def getNamespaces(authProfile: AuthorizationProfile): Future[RestResponse] = {
+    val request = GetAccessibleNamespaces(authProfile)
     (namespaceActor ? request).mapTo[List[Namespace]] map { namespaces =>
       val response = namespaces.map(n => NamespaceRestData(n.id, n.displayName))
       okResponse(response)
     }
   }
 
-  def createNamespace(requestor: String, create: CreateNamespacePost): Future[RestResponse] = {
+  def createNamespace(authProfile: AuthorizationProfile, create: CreateNamespacePost): Future[RestResponse] = {
     val CreateNamespacePost(id, displayName) = create
-    val request = CreateNamespace(requestor, id, displayName)
+    val request = CreateNamespace(authProfile.username, id, displayName)
     (namespaceActor ? request).mapTo[Unit] map (_ => OkResponse)
   }
 
-  def updateNamespace(requestor: String, namespaceId: String, create: UpdateNamespacePut): Future[RestResponse] = {
+  def updateNamespace(authProfile: AuthorizationProfile, namespaceId: String, create: UpdateNamespacePut): Future[RestResponse] = {
     val UpdateNamespacePut(displayName) = create
-    val request = UpdateNamespace(requestor, namespaceId, displayName)
+    val request = UpdateNamespace(authProfile.username, namespaceId, displayName)
     (namespaceActor ? request).mapTo[Unit] map (_ => OkResponse)
   }
 
-  def deleteNamespace(requestor: String, namespaceId: String): Future[RestResponse] = {
-    val request = DeleteNamespace(requestor, namespaceId)
+  def deleteNamespace(authProfile: AuthorizationProfile, namespaceId: String): Future[RestResponse] = {
+    val request = DeleteNamespace(authProfile.username, namespaceId)
     (namespaceActor ? request).mapTo[Unit] map (_ => OkResponse)
   }
 }

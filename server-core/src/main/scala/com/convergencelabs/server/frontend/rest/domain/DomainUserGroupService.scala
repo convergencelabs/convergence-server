@@ -18,7 +18,6 @@ import com.convergencelabs.server.datastore.domain.UserGroupStoreActor.UpdateUse
 import com.convergencelabs.server.datastore.domain.UserGroupStoreActor.UpdateUserGroupInfo
 import com.convergencelabs.server.datastore.domain.UserGroupSummary
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.rest.AuthorizationActor.ConvergenceAuthorizedRequest
 import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
 import com.convergencelabs.server.frontend.rest.DomainUserGroupService.UserGroupData
 
@@ -31,7 +30,7 @@ import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
 import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
 import akka.http.scaladsl.server.Directives._string2NR
 import akka.http.scaladsl.server.Directives.as
-import akka.http.scaladsl.server.Directives.authorizeAsync
+import akka.http.scaladsl.server.Directives.authorize
 import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Directives.delete
 import akka.http.scaladsl.server.Directives.entity
@@ -47,6 +46,7 @@ import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import com.convergencelabs.server.domain.DomainUserId
 import com.convergencelabs.server.domain.DomainUserType
+import com.convergencelabs.server.security.AuthorizationProfile
 
 object DomainUserGroupService {
   case class GetUserGroupsResponse(groups: List[UserGroupData])
@@ -64,25 +64,24 @@ object DomainUserGroupService {
 class DomainUserGroupService(
   private[this] val executionContext: ExecutionContext,
   private[this] val timeout: Timeout,
-  private[this] val authActor: ActorRef,
   private[this] val domainRestActor: ActorRef)
-    extends DomainRestService(executionContext, timeout, authActor) {
+    extends DomainRestService(executionContext, timeout) {
 
   import DomainUserGroupService._
   import akka.pattern.ask
 
-  def route(username: String, domain: DomainFqn): Route = {
+  def route(authProfile: AuthorizationProfile, domain: DomainFqn): Route = {
     pathPrefix("groups") {
       pathEnd {
         get {
           parameters("type".?, "filter".?, "offset".as[Int].?, "limit".as[Int].?) { (responseType, filter, offset, limit) =>
-            authorizeAsync(canAccessDomain(domain, username)) {
+            authorize(canAccessDomain(domain, authProfile)) {
               complete(getUserGroups(domain, responseType, filter, offset, limit))
             }
           }
         } ~ post {
           entity(as[UserGroupData]) { group =>
-            authorizeAsync(canAccessDomain(domain, username)) {
+            authorize(canAccessDomain(domain, authProfile)) {
               complete(createUserGroup(domain, group))
             }
           }
@@ -90,28 +89,28 @@ class DomainUserGroupService(
       } ~ pathPrefix(Segment) { groupId =>
         pathEnd {
           get {
-            authorizeAsync(canAccessDomain(domain, username)) {
+            authorize(canAccessDomain(domain, authProfile)) {
               complete(getUserGroup(domain, groupId))
             }
           } ~ delete {
-            authorizeAsync(canAccessDomain(domain, username)) {
+            authorize(canAccessDomain(domain, authProfile)) {
               complete(deleteUserGroup(domain, groupId))
             }
           } ~ put {
             entity(as[UserGroupData]) { updateData =>
-              authorizeAsync(canAccessDomain(domain, username)) {
+              authorize(canAccessDomain(domain, authProfile)) {
                 complete(updateUserGroup(domain, groupId, updateData))
               }
             }
           }
         } ~ path("info") {
           get {
-            authorizeAsync(canAccessDomain(domain, username)) {
+            authorize(canAccessDomain(domain, authProfile)) {
               complete(getUserGroupInfo(domain, groupId))
             }
           } ~ put {
             entity(as[UserGroupInfoData]) { updateData =>
-              authorizeAsync(canAccessDomain(domain, username)) {
+              authorize(canAccessDomain(domain, authProfile)) {
                 complete(updateUserGroupInfo(domain, groupId, updateData))
               }
             }
@@ -119,17 +118,17 @@ class DomainUserGroupService(
         } ~ pathPrefix("members") {
           pathEnd {
             get {
-              authorizeAsync(canAccessDomain(domain, username)) {
+              authorize(canAccessDomain(domain, authProfile)) {
                 complete(getUserGroupMembers(domain, groupId))
               }
             }
           } ~ path(Segment) { groupUser =>
             put {
-              authorizeAsync(canAccessDomain(domain, username)) {
+              authorize(canAccessDomain(domain, authProfile)) {
                 complete(addUserToGroup(domain, groupId, groupUser))
               }
             } ~ delete {
-              authorizeAsync(canAccessDomain(domain, username)) {
+              authorize(canAccessDomain(domain, authProfile)) {
                 complete(removeUserFromGroup(domain, groupId, groupUser))
               }
             }

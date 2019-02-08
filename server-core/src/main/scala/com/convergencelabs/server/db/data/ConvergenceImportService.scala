@@ -22,6 +22,7 @@ import akka.http.scaladsl.server.Directive.addDirectiveApply
 import akka.util.Timeout
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.security.AuthorizationProfile
 
 class ConvergenceImportService(
   private[this] val executionContext: ExecutionContext,
@@ -39,7 +40,7 @@ class ConvergenceImportService(
   implicit val ec = executionContext
   implicit val t = defaultTimeout
 
-  val route = { adminUser: String =>
+  val route = { authProfile: AuthorizationProfile =>
     pathPrefix("data") {
       (post & pathPrefix("import")) {
         path("convergence") {

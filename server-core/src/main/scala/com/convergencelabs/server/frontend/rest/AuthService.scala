@@ -3,13 +3,13 @@ package com.convergencelabs.server.frontend.rest
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
-import com.convergencelabs.server.datastore.convergence.AuthStoreActor.AuthRequest
-import com.convergencelabs.server.datastore.convergence.AuthStoreActor.AuthResponse
-import com.convergencelabs.server.datastore.convergence.AuthStoreActor.AuthSuccess
-import com.convergencelabs.server.datastore.convergence.AuthStoreActor.GetSessionTokenExpirationRequest
-import com.convergencelabs.server.datastore.convergence.AuthStoreActor.InvalidateTokenRequest
-import com.convergencelabs.server.datastore.convergence.AuthStoreActor.LoginRequest
-import com.convergencelabs.server.datastore.convergence.AuthStoreActor.SessionTokenExpiration
+import com.convergencelabs.server.datastore.convergence.AuthenticationActor.AuthRequest
+import com.convergencelabs.server.datastore.convergence.AuthenticationActor.AuthResponse
+import com.convergencelabs.server.datastore.convergence.AuthenticationActor.AuthSuccess
+import com.convergencelabs.server.datastore.convergence.AuthenticationActor.GetSessionTokenExpirationRequest
+import com.convergencelabs.server.datastore.convergence.AuthenticationActor.InvalidateTokenRequest
+import com.convergencelabs.server.datastore.convergence.AuthenticationActor.LoginRequest
+import com.convergencelabs.server.datastore.convergence.AuthenticationActor.SessionTokenExpiration
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.model.StatusCodes

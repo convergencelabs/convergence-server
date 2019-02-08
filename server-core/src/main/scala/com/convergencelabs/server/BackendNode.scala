@@ -5,10 +5,11 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
 
-import com.convergencelabs.server.datastore.convergence.AuthStoreActor
+import com.convergencelabs.server.datastore.convergence.AuthenticationActor
 import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor
 import com.convergencelabs.server.datastore.convergence.DeltaHistoryStore
 import com.convergencelabs.server.datastore.convergence.DomainStoreActor
+import com.convergencelabs.server.datastore.convergence.NamespaceStoreActor
 import com.convergencelabs.server.datastore.convergence.RoleStoreActor
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 import com.convergencelabs.server.db.DatabaseProvider
@@ -23,7 +24,6 @@ import com.convergencelabs.server.domain.chat.ChatChannelSharding
 import com.convergencelabs.server.domain.model.ModelCreator
 import com.convergencelabs.server.domain.model.ModelPermissionResolver
 import com.convergencelabs.server.domain.model.RealtimeModelSharding
-import com.convergencelabs.server.domain.rest.AuthorizationActor
 import com.convergencelabs.server.domain.rest.RestDomainActor
 import com.convergencelabs.server.domain.rest.RestDomainActorSharding
 
@@ -31,7 +31,6 @@ import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.cluster.sharding.ShardRegion
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.datastore.convergence.NamespaceStoreActor
 
 class BackendNode(system: ActorSystem, convergenceDbProvider: DatabaseProvider) extends Logging {
 
@@ -103,10 +102,8 @@ class BackendNode(system: ActorSystem, convergenceDbProvider: DatabaseProvider) 
     // Administrative actors
     val userManagerActor = system.actorOf(ConvergenceUserManagerActor.props(convergenceDbProvider, domainStoreActor))
     val namespaceStoreActor = system.actorOf(NamespaceStoreActor.props(convergenceDbProvider), NamespaceStoreActor.RelativePath)
-    val authStoreActor = system.actorOf(AuthStoreActor.props(convergenceDbProvider), AuthStoreActor.RelativePath)
+    val authStoreActor = system.actorOf(AuthenticationActor.props(convergenceDbProvider), AuthenticationActor.RelativePath)
     val convergenceUserActor = system.actorOf(ConvergenceUserManagerActor.props(convergenceDbProvider, domainStoreActor), ConvergenceUserManagerActor.RelativePath)
-
-    val authorizationActor = system.actorOf(AuthorizationActor.props(convergenceDbProvider), AuthorizationActor.RelativePath)
     val roleStoreActor = system.actorOf(RoleStoreActor.props(convergenceDbProvider), RoleStoreActor.RelativePath)
 
     val domainRestSharding =

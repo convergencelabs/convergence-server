@@ -14,13 +14,14 @@ import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
 import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
-import akka.http.scaladsl.server.Directives.authorizeAsync
+import akka.http.scaladsl.server.Directives.authorize
 import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Directives.get
 import akka.http.scaladsl.server.Directives.pathEnd
 import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
+import com.convergencelabs.server.security.AuthorizationProfile
 
 object DomainAdminTokenService {
   case class AdminTokenRestResponse(token: String)
@@ -29,19 +30,18 @@ object DomainAdminTokenService {
 class DomainAdminTokenService(
   executionContext: ExecutionContext,
   timeout: Timeout,
-  authActor: ActorRef,
   private[this] val domainRestActor: ActorRef)
-    extends DomainRestService(executionContext, timeout, authActor) {
+    extends DomainRestService(executionContext, timeout) {
 
   import DomainAdminTokenService._
   import akka.pattern.ask
   
-  def route(username: String, domain: DomainFqn): Route = {
+  def route(authProfile: AuthorizationProfile, domain: DomainFqn): Route = {
     pathPrefix("adminToken") {
       pathEnd {
         get {
-          authorizeAsync(canAccessDomain(domain, username)) {
-            complete(getAdminToken(domain, username))
+          authorize(canAccessDomain(domain, authProfile)) {
+            complete(getAdminToken(domain, authProfile.username))
           }
         }
       }

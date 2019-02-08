@@ -34,6 +34,7 @@ import akka.util.Timeout
 import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.InvalidValueExcpetion
 import akka.http.scaladsl.server.ExceptionHandler
+import com.convergencelabs.server.security.AuthorizationProfile
 
 
 object ConvergenceUserAdminService {
@@ -55,7 +56,7 @@ class ConvergenceUserAdminService(
   implicit val ec = executionContext
   implicit val t = defaultTimeout
 
-  val route = { adminUser: String =>
+  val route = { authProfile: AuthorizationProfile =>
     pathPrefix("users") {
       pathEnd {
         get {

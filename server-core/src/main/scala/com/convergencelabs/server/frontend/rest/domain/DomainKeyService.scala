@@ -12,7 +12,6 @@ import com.convergencelabs.server.datastore.domain.JwtAuthKeyStoreActor.GetDomai
 import com.convergencelabs.server.datastore.domain.JwtAuthKeyStoreActor.UpdateDomainApiKey
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.JwtAuthKey
-import com.convergencelabs.server.domain.rest.AuthorizationActor.ConvergenceAuthorizedRequest
 import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
 import com.convergencelabs.server.frontend.rest.DomainKeyService.UpdateInfo
 
@@ -27,6 +26,7 @@ import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
 import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
 import akka.http.scaladsl.server.Directives.as
 import akka.http.scaladsl.server.Directives.authorizeAsync
+import akka.http.scaladsl.server.Directives.authorize
 import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Directives.delete
 import akka.http.scaladsl.server.Directives.entity
@@ -38,6 +38,7 @@ import akka.http.scaladsl.server.Directives.put
 import akka.http.scaladsl.server.Directives.Segment
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
+import com.convergencelabs.server.security.AuthorizationProfile
 
 object DomainKeyService {
   case class GetKeysRestResponse(keys: List[JwtAuthKey])
@@ -48,39 +49,38 @@ object DomainKeyService {
 class DomainKeyService(
   private[this] val executionContext: ExecutionContext,
   private[this] val timeout: Timeout,
-  private[this] val authActor: ActorRef,
   private[this] val domainRestActor: ActorRef)
-    extends DomainRestService(executionContext, timeout, authActor) {
+    extends DomainRestService(executionContext, timeout) {
 
   import akka.pattern.ask
   
-  def route(username: String, domain: DomainFqn): Route = {
+  def route(authProfile: AuthorizationProfile, domain: DomainFqn): Route = {
     pathPrefix("jwtAuthKeys") {
       pathEnd {
         get {
-          authorizeAsync(canAccessDomain(domain, username)) {
+          authorize(canAccessDomain(domain, authProfile)) {
             complete(getKeys(domain))
           }
         } ~ post {
           entity(as[KeyInfo]) { key =>
-            authorizeAsync(canAccessDomain(domain, username)) {
+            authorize(canManageSettings(domain, authProfile)) {
               complete(createKey(domain, key))
             }
           }
         }
       } ~ pathPrefix(Segment) { keyId =>
         get {
-          authorizeAsync(canAccessDomain(domain, username)) {
+          authorize(canAccessDomain(domain, authProfile)) {
             complete(getKey(domain, keyId))
           }
         } ~ put {
           entity(as[UpdateInfo]) { key =>
-            authorizeAsync(canAccessDomain(domain, username)) {
+            authorize(canManageSettings(domain, authProfile)) {
               complete(updateKey(domain, keyId, key))
             }
           }
         } ~ delete {
-          authorizeAsync(canAccessDomain(domain, username)) {
+          authorize(canManageSettings(domain, authProfile)) {
             complete(deleteKey(domain, keyId))
           }
         }

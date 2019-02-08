@@ -11,11 +11,13 @@ import akka.actor.Props
 import com.convergencelabs.server.util.RandomStringGenerator
 import scala.util.Success
 import scala.util.Failure
+import scala.util.Try
+import com.convergencelabs.server.security.AuthorizationProfile
 
-object AuthStoreActor {
-  val RelativePath = "AuthStoreActor"
+object AuthenticationActor {
+  val RelativePath = "AuthActor"
 
-  def props(dbProvider: DatabaseProvider): Props = Props(new AuthStoreActor(dbProvider))
+  def props(dbProvider: DatabaseProvider): Props = Props(new AuthenticationActor(dbProvider))
 
   case class AuthRequest(username: String, password: String)
 
@@ -34,14 +36,15 @@ object AuthStoreActor {
   case class InvalidateTokenRequest(token: String)
 }
 
-class AuthStoreActor private[datastore] (private[this] val dbProvider: DatabaseProvider)
+class AuthenticationActor private[datastore] (private[this] val dbProvider: DatabaseProvider)
   extends StoreActor with ActorLogging {
 
-  import AuthStoreActor._
+  import AuthenticationActor._
 
   val tokenDuration = context.system.settings.config.getDuration("convergence.rest.session-token-expiration")
 
   private[this] val userStore = new UserStore(dbProvider)
+  private[this] val roleStore = new RoleStore(dbProvider)
   private[this] val userSessionTokenStore = new UserSessionTokenStore(dbProvider)
   private[this] val sessionTokenGenerator = new RandomStringGenerator(32)
 
@@ -84,11 +87,17 @@ class AuthStoreActor private[datastore] (private[this] val dbProvider: DatabaseP
   }
 
   private[this] def validateSessionToken(validateRequest: ValidateSessionTokenRequest): Unit = {
-    reply(userSessionTokenStore.validateUserSessionToken(validateRequest.token, () => Instant.now().plus(tokenDuration)))
+    reply(for {
+      username <- userSessionTokenStore.validateUserSessionToken(validateRequest.token, () => Instant.now().plus(tokenDuration))
+      authProfile <- getAuthorizationProfile(username)
+    } yield (authProfile))
   }
 
   private[this] def validateBearerToken(validateRequest: ValidateUserBearerTokenRequest): Unit = {
-    reply(userStore.validateBearerToken(validateRequest.bearerToken))
+     reply(for {
+      username <- userStore.validateBearerToken(validateRequest.bearerToken)
+      authProfile <- getAuthorizationProfile(username)
+    } yield (authProfile))
   }
 
   private[this] def getSessionTokenExpiration(tokenExpirationRequest: GetSessionTokenExpirationRequest): Unit = {
@@ -102,5 +111,16 @@ class AuthStoreActor private[datastore] (private[this] val dbProvider: DatabaseP
 
   private[this] def invalidateToken(invalidateTokenRequest: InvalidateTokenRequest): Unit = {
     reply(userSessionTokenStore.removeToken(invalidateTokenRequest.token))
+  }
+
+  private[this] def getAuthorizationProfile(username: Option[String]): Try[Option[AuthorizationProfile]] = {
+    username match {
+      case Some(u) =>
+        val userRoles = roleStore.getAllRolesForUser(u)
+        val profile = userRoles.map(r => Some(new AuthorizationProfile(u, r)))
+        profile
+      case None =>
+        Success(None)
+    }
   }
 }

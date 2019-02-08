@@ -409,6 +409,9 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
           logger.debug("Admin user exists, updating password.")
           userStore.setUserPassword(username, password)
         }
+      }.recover {
+        case cause: Throwable =>
+          logger.error("Error creating server admin user", cause)
       }
     }
   }
