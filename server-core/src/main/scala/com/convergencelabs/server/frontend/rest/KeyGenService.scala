@@ -28,7 +28,7 @@ class KeyGenService(
   implicit val ec = executionContext
 
   def route(): Route = {
-    pathPrefix("keygen") {
+    pathPrefix("util" / "keygen") {
       pathEnd {
         get {
           complete(createKey())

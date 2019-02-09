@@ -39,8 +39,8 @@ class DomainStoreSpec
   val domain2 = "domain2"
   val domain3 = "domain3"
 
-  val Namespace1 = Namespace(namespace1, "Namespace 1")
-  val Namespace2 = Namespace(namespace2, "Namespace 2")
+  val Namespace1 = Namespace(namespace1, "Namespace 1", false)
+  val Namespace2 = Namespace(namespace2, "Namespace 2", false)
 
   val ns1d1 = DomainFqn(namespace1, domain1)
   val ns1d1Database = DomainDatabase("ns1d1", "username", "password", "adminUsername", "adminPassword")
@@ -55,7 +55,7 @@ class DomainStoreSpec
   val ns2d1Database = DomainDatabase("ns2d1", "username", "password", "adminUsername", "adminPassword")
 
   val Username = "test"
-  val NotOwner = User("other", "otherEmail", "first", "last", "display")
+  val NotOwner = User("other", "otherEmail", "first", "last", "display", None)
   val Password = "password"
   val Token = "token"
 

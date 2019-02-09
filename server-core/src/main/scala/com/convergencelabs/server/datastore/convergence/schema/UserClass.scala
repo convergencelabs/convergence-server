@@ -13,6 +13,7 @@ object UserClass extends OrientDbClass {
     val Email = "email"
     val PasswordHash = "passwordHash"
     val BearerToken = "bearerToken"
+    val LastLogin = "lastLogin"
   }
   
   object Indices {

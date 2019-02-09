@@ -52,7 +52,7 @@ import com.convergencelabs.server.datastore.convergence.UserStore
 import com.convergencelabs.server.util.RandomStringGenerator
 import com.convergencelabs.server.datastore.convergence.UserStore.User
 import com.convergencelabs.server.datastore.convergence.RoleStore
-import com.convergencelabs.server.datastore.convergence.GlobalRoleTarget
+import com.convergencelabs.server.datastore.convergence.ServerRoleTarget
 import com.convergencelabs.server.security.Roles
 
 object ConvergenceServerNode extends Logging {
@@ -400,10 +400,10 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
 
           val roleStore = new RoleStore(dbProvider)
 
-          val user = User(username, email, firstName, lastName, displayName)
+          val user = User(username, email, firstName, lastName, displayName, None)
           for {
             _ <- userStore.createUser(user, password, bearerTokenGen.nextString)
-            _ <- roleStore.setUserRolesForTarget(username, GlobalRoleTarget, Set(Roles.Global.ServerAdmin))
+            _ <- roleStore.setUserRolesForTarget(username, ServerRoleTarget, Set(Roles.Global.ServerAdmin))
           } yield ()
         } else {
           logger.debug("Admin user exists, updating password.")

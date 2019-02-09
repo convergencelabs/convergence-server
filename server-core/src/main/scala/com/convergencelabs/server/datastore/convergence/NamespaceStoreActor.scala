@@ -21,6 +21,7 @@ import akka.util.Timeout
 import com.convergencelabs.server.domain.Namespace
 import com.convergencelabs.server.security.AuthorizationProfile
 import com.convergencelabs.server.security.Permissions
+import com.convergencelabs.server.domain.NamespaceUpdates
 
 object NamespaceStoreActor {
   val RelativePath = "NamespaceStoreActor"
@@ -53,13 +54,13 @@ class NamespaceStoreActor private[datastore] (
   def createNamespace(createRequest: CreateNamespace): Unit = {
     val CreateNamespace(requestor, namespaceId, displayName) = createRequest
     log.debug(s"Receved request to create Namespace: ${namespaceId}")
-    reply(namespaceStore.createNamespace(namespaceId, displayName))
+    reply(namespaceStore.createNamespace(namespaceId, displayName, false))
   }
 
   def updateNamespace(request: UpdateNamespace): Unit = {
     val UpdateNamespace(requestor, namespaceId, displayName) = request
     log.debug(s"Receved request to update Namespace: ${namespaceId}")
-    reply(namespaceStore.updateNamespace(Namespace(namespaceId, displayName)))
+    reply(namespaceStore.updateNamespace(NamespaceUpdates(namespaceId, displayName)))
   }
 
   def deleteNamespace(deleteRequest: DeleteNamespace): Unit = {

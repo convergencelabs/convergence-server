@@ -8,6 +8,7 @@ object NamespaceClass extends OrientDbClass {
   object Fields {
     val Id = "id"
     val DisplayName = "displayName"
+    val UserNamespace = "userNamespace"
   }
   
   object Indices {

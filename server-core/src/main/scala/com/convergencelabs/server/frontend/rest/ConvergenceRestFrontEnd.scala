@@ -35,6 +35,7 @@ import akka.http.scaladsl.server.Directive.addDirectiveApply
 import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
 import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
 import akka.http.scaladsl.server.Directives.complete
+import akka.http.scaladsl.server.Directives.concat
 import akka.http.scaladsl.server.Directives.extractRequest
 import akka.http.scaladsl.server.Directives.extractUri
 import akka.http.scaladsl.server.Directives.handleExceptions
@@ -119,9 +120,6 @@ class ConvergenceRestFrontEnd(
     val namespaceService = new NamespaceService(ec, namespaceActor, defaultRequestTimeout)
     val keyGenService = new KeyGenService(ec)
     val convergenceUserService = new ConvergenceUserService(ec, convergenceUserActor, defaultRequestTimeout)
-
-    // Only Accessible to Admin Users
-    val convergenceUserAdminService = new ConvergenceUserAdminService(ec, convergenceUserActor, defaultRequestTimeout)
     val convergenceImportService = new ConvergenceImportService(ec, importerActor, defaultRequestTimeout)
     val databaseManagerService = new DatabaseManagerRestService(ec, databaseManagerActor, defaultRequestTimeout)
 
@@ -158,16 +156,14 @@ class ConvergenceRestFrontEnd(
             // Everything else must be authenticated as a convergence user.
             extractRequest { request =>
               authenticator.requireAuthenticatedUser(request) { authProfile =>
-                convergenceUserAdminService.route(authProfile) ~
-                  convergenceImportService.route(authProfile) ~
-                  databaseManagerService.route(authProfile)
-                namespaceService.route(authProfile) ~
-                  domainService.route(authProfile) ~
-                  convergenceUserService.route(authProfile) ~
-                  pathPrefix("util") {
-                    keyGenService.route()
-                  } ~
-                  currentUserService.route(authProfile)
+                concat(
+                  currentUserService.route(authProfile),
+                  convergenceUserService.route(authProfile),
+                  namespaceService.route(authProfile),
+                  domainService.route(authProfile),
+                  keyGenService.route(),
+                  convergenceImportService.route(authProfile),
+                  databaseManagerService.route(authProfile))
               }
             }
         }

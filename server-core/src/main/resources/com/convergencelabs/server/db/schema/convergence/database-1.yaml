@@ -73,13 +73,14 @@ actions:
   - action: CreateClass
     name: User
     properties:
-      - {name: username,     type: String,   constraints: {mandatory: true,  notNull: true}}
-      - {name: email,        type: String,   constraints: {mandatory: true,  notNull: true}}
-      - {name: firstName,    type: String,   constraints: {mandatory: true,  notNull: true}}
-      - {name: lastName,     type: String,   constraints: {mandatory: true,  notNull: true}}
-      - {name: displayName,  type: String,   constraints: {mandatory: true,  notNull: true}}
-      - {name: bearerToken,  type: String,   constraints: {mandatory: true,  notNull: true}}
-      - {name: passwordHash, type: String,   constraints: {mandatory: false, notNull: true}}
+      - {name: username,     type: String,   constraints: {mandatory: true,   notNull: true}}
+      - {name: email,        type: String,   constraints: {mandatory: true,   notNull: true}}
+      - {name: firstName,    type: String,   constraints: {mandatory: true,   notNull: true}}
+      - {name: lastName,     type: String,   constraints: {mandatory: true,   notNull: true}}
+      - {name: displayName,  type: String,   constraints: {mandatory: true,   notNull: true}}
+      - {name: lastLogin,    type: DateTime, constraints: {mandatory: false,  notNull: true}}
+      - {name: bearerToken,  type: String,   constraints: {mandatory: true,   notNull: true}}
+      - {name: passwordHash, type: String,   constraints: {mandatory: false,  notNull: true}}
 
   - action: CreateIndex
     className: User
@@ -144,8 +145,9 @@ actions:
   - action: CreateClass
     name: Namespace
     properties:
-      - {name: id,            type: String, constraints: {mandatory: true, notNull: true}}
-      - {name: displayName,   type: String, constraints: {mandatory: true, notNull: true}}
+      - {name: id,            type: String,  constraints: {mandatory: true, notNull: true}}
+      - {name: displayName,   type: String,  constraints: {mandatory: true, notNull: true}}
+      - {name: userNamespace, type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: true}}
 
   - action: CreateIndex
     className: Namespace

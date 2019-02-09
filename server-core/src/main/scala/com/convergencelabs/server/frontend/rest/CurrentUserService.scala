@@ -97,7 +97,7 @@ class CurrentUserService(
   def getProfile(authProfile: AuthorizationProfile): Future[RestResponse] = {
     val message = GetConvergenceUser(authProfile.username)
     (convergenceUserActor ? message).mapTo[Option[User]].map {
-      case Some(User(username, email, firstName, lastName, displayName)) =>
+      case Some(User(username, email, firstName, lastName, displayName, lastLogin)) =>
         okResponse(UserProfileResponse(CovergenceUserProfile(username, email, firstName, lastName, displayName)))
       case None =>
         notFoundResponse()

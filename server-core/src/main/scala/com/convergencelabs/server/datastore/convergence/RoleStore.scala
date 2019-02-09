@@ -40,7 +40,7 @@ case class DomainRoleTarget(domainFqn: DomainFqn) extends RoleTarget {
 case class NamespaceRoleTarget(id: String) extends RoleTarget {
   val targetClass = Some(RoleTargetType.Namespace)
 }
-case object GlobalRoleTarget extends RoleTarget {
+case object ServerRoleTarget extends RoleTarget {
   val targetClass = None
 }
 
@@ -89,7 +89,7 @@ object RoleStore {
           val id = d.getProperty(NamespaceClass.Fields.Id).asInstanceOf[String]
           NamespaceRoleTarget(id)
       }
-    }.getOrElse(GlobalRoleTarget)
+    }.getOrElse(ServerRoleTarget)
   }
 
   def buildTargetWhere(target: RoleTarget): (String, Map[String, Any]) = {
@@ -102,7 +102,7 @@ object RoleStore {
         val whereClause = "target IN (SELECT FROM Namespace WHERE id = :target_id)"
         val params = Map("target_id" -> id)
         (whereClause, params)
-      case GlobalRoleTarget =>
+      case ServerRoleTarget =>
         ("target IS NULL", Map.empty)
     }
   }
@@ -113,7 +113,7 @@ object RoleStore {
         DomainStore.getDomainRid(domainFqn, db).map(Some(_))
       case NamespaceRoleTarget(id) =>
         NamespaceStore.getNamespaceRid(id, db).map(Some(_))
-      case GlobalRoleTarget =>
+      case ServerRoleTarget =>
         Success(None)
     }
   }
@@ -191,6 +191,28 @@ class RoleStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       val roles = docs.map(docToUserRole(_)).toSet
       UserRoles(username, roles)
     }
+  }
+
+  def getRolesForUsersAndTarget(usernames: Set[String], target: RoleTarget): Try[Map[String, Set[String]]] = withDb { db =>
+    val (targetWhere, targetParams) = buildTargetWhere(target)
+    val query = s"""
+        |SELECT
+        |   user.username AS username, target, set(role.name) AS roles
+        |FROM 
+        |  UserRole
+        |WHERE 
+        |  user.username IN :usernames AND
+        |  ${targetWhere}
+        |GROUP BY
+        |  user.username, target""".stripMargin
+    val params = Map("usernames" -> usernames.asJava) ++ targetParams
+    OrientDBUtil.queryAndMap(db, query, params) { doc =>
+      val username: String = doc.getProperty("username")
+      val targetDoc: ODocument = doc.getProperty("target")
+      val target = docToRoleTarget(Option(targetDoc))
+      val roles = doc.getProperty("roles").asInstanceOf[java.util.Set[String]]
+      (username -> roles.asScala.toSet)
+    }.map(_.toMap)
   }
 
   def getUserRolesForTarget(username: String, target: RoleTarget): Try[Set[Role]] = withDb { db =>

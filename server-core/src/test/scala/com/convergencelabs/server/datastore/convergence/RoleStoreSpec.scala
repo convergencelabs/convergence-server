@@ -27,10 +27,10 @@ class RoleStoreSpec extends PersistenceStoreSpec[RoleStoreSpecStores](DeltaCateg
     RoleStoreSpecStores(new RoleStore(dbProvider), new UserStore(dbProvider), new NamespaceStore(dbProvider), new DomainStore(dbProvider))
   }
 
-  val TestUser = User("username1", "test@convergence.com", "username1", "username1", "displayName")
-  val TestUser2 = User("username2", "test2@convergence.com", "username2", "username2", "displayName2")
+  val TestUser = User("username1", "test@convergence.com", "username1", "username1", "displayName", None)
+  val TestUser2 = User("username2", "test2@convergence.com", "username2", "username2", "displayName2", None)
 
-  val TestNamesapce = Namespace("namespace1", "Namespace 1")
+  val TestNamesapce = Namespace("namespace1", "Namespace 1", false)
   val TestDomainFQN = DomainFqn(TestNamesapce.id, "domain1")
 
   val TestDomainTarget = DomainRoleTarget(TestDomainFQN)

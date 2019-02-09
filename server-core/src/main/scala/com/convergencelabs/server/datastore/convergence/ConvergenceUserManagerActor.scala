@@ -22,6 +22,8 @@ import akka.actor.actorRef2Scala
 import akka.util.Timeout
 import com.convergencelabs.server.datastore.convergence.DomainStoreActor.DeleteDomainsForUserRequest
 import com.convergencelabs.server.datastore.convergence.DomainStoreActor.CreateDomainRequest
+import java.time.Instant
+import com.convergencelabs.server.security.Roles
 
 object ConvergenceUserManagerActor {
   val RelativePath = "ConvergenceUserManagerActor"
@@ -29,12 +31,15 @@ object ConvergenceUserManagerActor {
   def props(dbProvider: DatabaseProvider, domainStoreActor: ActorRef): Props =
     Props(new ConvergenceUserManagerActor(dbProvider, domainStoreActor))
 
-  case class CreateConvergenceUserRequest(username: String, email: String, firstName: String, lastName: String, displayName: String, password: String)
+  case class CreateConvergenceUserRequest(username: String, email: String, firstName: String, lastName: String, displayName: String, password: String, globalRole: String)
   case class UpdateConvergenceUserRequest(username: String, email: String, firstName: String, lastName: String, displayName: String)
   case class SetPasswordRequest(username: String, password: String)
   case class DeleteConvergenceUserRequest(username: String)
   case class GetConvergenceUser(username: String)
   case class GetConvergenceUsers(filter: Option[String], limit: Option[Int], offset: Option[Int])
+
+  case class GetConvergenceUserOverviews(filter: Option[String], limit: Option[Int], offset: Option[Int])
+  case class ConvergenceUserOverview(user: User, globalRole: String)
 
   case class GetUserBearerTokenRequest(username: String)
   case class RegenerateUserBearerTokenRequest(username: String)
@@ -57,6 +62,7 @@ class ConvergenceUserManagerActor private[datastore] (
   private[this] val autoCreateConfigs: List[Config] = context.system.settings.config.getConfigList("convergence.auto-create-domains").asScala.toList
   private[this] val tokenDuration = context.system.settings.config.getDuration("convergence.rest.session-token-expiration")
   private[this] val userStore: UserStore = new UserStore(dbProvider)
+  private[this] val roleStore: RoleStore = new RoleStore(dbProvider)
   private[this] val namespaceStore: NamespaceStore = new NamespaceStore(dbProvider)
 
   private[this] val bearerTokenGen = new RandomStringGenerator(32)
@@ -70,6 +76,8 @@ class ConvergenceUserManagerActor private[datastore] (
       getConvergenceUser(message)
     case message: GetConvergenceUsers =>
       getConvergenceUsers(message)
+    case message: GetConvergenceUserOverviews =>
+      getConvergenceUserOverviews(message)
     case message: UpdateConvergenceUserRequest =>
       updateConvergenceUser(message)
     case message: SetPasswordRequest =>
@@ -83,17 +91,18 @@ class ConvergenceUserManagerActor private[datastore] (
   }
 
   def createConvergenceUser(message: CreateConvergenceUserRequest): Unit = {
-    val CreateConvergenceUserRequest(username, email, firstName, lastName, displayName, password) = message
+    val CreateConvergenceUserRequest(username, email, firstName, lastName, displayName, password, globalRole) = message
     val origSender = sender
     val bearerToken = bearerTokenGen.nextString()
-    userStore.createUser(User(username, email, firstName, lastName, displayName), password, bearerToken) flatMap { _ =>
+
+    (for {
+      _ <- userStore.createUser(User(username, email, firstName, lastName, displayName, None), password, bearerToken)
+      _ <- roleStore.setUserRolesForTarget(username, ServerRoleTarget, Set(globalRole))
+      namespace <- namespaceStore.createUserNamespace(username)
+      _ <- roleStore.setUserRolesForTarget(username, NamespaceRoleTarget(namespace), Set(Roles.Namespace.Owner))
+    } yield {
       origSender ! (())
-
-      log.debug("User created.  Creating user namespace")
-
-      // FIXME give permissions if configured...
-      namespaceStore.createUserNamespace(username)
-    } map { namespace =>
+      
       if (autoCreateConfigs.size > 0) {
         log.debug("User namespace created.  Creating domains ")
         FutureUtils.seqFutures(autoCreateConfigs) { config =>
@@ -104,7 +113,7 @@ class ConvergenceUserManagerActor private[datastore] (
             config.getBoolean("anonymousAuth"))
         }
       }
-    } recover {
+    }) recover {
       case e: Throwable =>
         origSender ! Status.Failure(e)
     }
@@ -120,6 +129,21 @@ class ConvergenceUserManagerActor private[datastore] (
     reply(userStore.getUsers(filter, limit, offset))
   }
 
+  def getConvergenceUserOverviews(message: GetConvergenceUserOverviews): Unit = {
+    val GetConvergenceUserOverviews(filter, limit, offset) = message
+    val overviews = (for {
+      users <- userStore.getUsers(filter, limit, offset)
+      roles <- roleStore.getRolesForUsersAndTarget(users.map(_.username).toSet, ServerRoleTarget)
+    } yield {
+      users.map { user =>
+        val globalRole = roles.get(user.username).flatMap(_.headOption).getOrElse("")
+        ConvergenceUserOverview(user, globalRole)
+      }.toSet
+    })
+
+    reply(overviews)
+  }
+
   def deleteConvergenceUser(message: DeleteConvergenceUserRequest): Unit = {
     val DeleteConvergenceUserRequest(username) = message;
 
@@ -132,7 +156,7 @@ class ConvergenceUserManagerActor private[datastore] (
   def updateConvergenceUser(message: UpdateConvergenceUserRequest): Unit = {
     val UpdateConvergenceUserRequest(username, email, firstName, lastName, displayName) = message;
     log.debug(s"Updating user: ${username}")
-    val update = User(username, email, firstName, lastName, displayName)
+    val update = User(username, email, firstName, lastName, displayName, None)
     reply(userStore.updateUser(update))
   }
 

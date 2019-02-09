@@ -26,8 +26,8 @@ class UserStoreSpec
   val Password = "password"
   val BearerToken = "bearerToken"
 
-  val TestUser = User(username, "test1@example.com", username, username, DisplayName)
-  val TestUser2 = User("testUser2", "test2@example.com", "test", "two", "test two")
+  val TestUser = User(username, "test1@example.com", username, username, DisplayName, None)
+  val TestUser2 = User("testUser2", "test2@example.com", "test", "two", "test two", None)
 
   def createStore(dbProvider: DatabaseProvider): UserStore = new UserStore(dbProvider)
 
@@ -54,7 +54,7 @@ class UserStoreSpec
     "updating a user" must {
       "update an existing user" in withPersistenceStore { store =>
         store.createUser(TestUser, Password, BearerToken).get
-        val update = User(TestUser.username, "first", "last", "display", "email")
+        val update = User(TestUser.username, "first", "last", "display", "email", None)
         store.updateUser(update).get
         val queried = store.getUserByUsername(TestUser.username).get.value
         
@@ -62,7 +62,7 @@ class UserStoreSpec
       }
 
       "fail with a EntityNotFoundExcpetion if the user does not exist" in withPersistenceStore { store =>
-        val update = User(TestUser.username, "first", "last", "display", "email")
+        val update = User(TestUser.username, "first", "last", "display", "email", None)
         store.updateUser(update).failure.exception shouldBe a[EntityNotFoundException]
       }
       

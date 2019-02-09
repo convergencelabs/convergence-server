@@ -19,6 +19,7 @@ import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.domain.DomainDatabase
 import com.convergencelabs.server.domain.Namespace
 import com.sun.jna.platform.unix.X11.Display
+import com.convergencelabs.server.domain.NamespaceUpdates
 
 object NamespaceStoreSpec {
   case class SpecStores(namespace: NamespaceStore)
@@ -33,8 +34,8 @@ class NamespaceStoreSpec
     NamespaceStoreSpec.SpecStores(new NamespaceStore(dbProvider))
   }
 
-  val Namespace1 = Namespace("namespace1", "Namespace 1")
-  val Namespace2 = Namespace("namespace2", "Namespace 2")
+  val Namespace1 = Namespace("namespace1", "Namespace 1", false)
+  val Namespace2 = Namespace("namespace2", "Namespace 2", false)
 
   "A NamespaceStore" when {
 
@@ -76,12 +77,12 @@ class NamespaceStoreSpec
 
       "return a DuplicateValueExcpetion if a namesspace exists with the same id" in withPersistenceStore { stores =>
         stores.namespace.createNamespace(Namespace1).get
-        stores.namespace.createNamespace(Namespace(Namespace1.id, "other display name")).failure.exception shouldBe a[DuplicateValueException]
+        stores.namespace.createNamespace(Namespace(Namespace1.id, "other display name", false)).failure.exception shouldBe a[DuplicateValueException]
       }
 
       "return a DuplicateValueExcpetion if a namesspace exists with the same display name" in withPersistenceStore { stores =>
         stores.namespace.createNamespace(Namespace1).get
-        stores.namespace.createNamespace(Namespace("Other Id", Namespace1.displayName)).failure.exception shouldBe a[DuplicateValueException]
+        stores.namespace.createNamespace(Namespace("Other Id", Namespace1.displayName, false)).failure.exception shouldBe a[DuplicateValueException]
       }
     }
 
@@ -105,7 +106,7 @@ class NamespaceStoreSpec
         stores.namespace.createNamespace(Namespace2).get
 
         val updated = Namespace1.copy(displayName = "updated")
-        stores.namespace.updateNamespace(updated).get
+        stores.namespace.updateNamespace(NamespaceUpdates(updated.id, updated.displayName)).get
 
         stores.namespace.getNamespace(Namespace1.id).get shouldBe Some(updated)
         stores.namespace.getNamespace(Namespace2.id).get shouldBe Some(Namespace2)
@@ -113,7 +114,7 @@ class NamespaceStoreSpec
 
       "fail to update an non-existing namespace" in withPersistenceStore { stores =>
         val updated = Namespace1.copy(displayName = "updated")
-        stores.namespace.updateNamespace(updated).failure.exception shouldBe a[EntityNotFoundException]
+        stores.namespace.updateNamespace(NamespaceUpdates(updated.id, updated.displayName)).failure.exception shouldBe a[EntityNotFoundException]
       }
     }
   }

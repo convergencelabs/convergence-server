@@ -43,8 +43,8 @@ package object rest {
   val ForbiddenError: RestResponse = (StatusCodes.Forbidden, ErrorResponse("forbidden"))
   val MalformedRequestContent: RestResponse = (StatusCodes.BadRequest, ErrorResponse("malformed_request_content"))
 
-  def duplicateResponse(field: String): RestResponse = (StatusCodes.Conflict, ErrorResponse("duplicate_error", None, Some(Map("field" -> field))))
-  def invalidValueResponse(field: String): RestResponse = (StatusCodes.BadRequest, ErrorResponse("invalid_value_error", None, Some(Map("field" -> field))))
+  def duplicateResponse(field: String): RestResponse = (StatusCodes.Conflict, ErrorResponse("duplicate", None, Some(Map("field" -> field))))
+  def invalidValueResponse(field: String): RestResponse = (StatusCodes.BadRequest, ErrorResponse("invalid_value", None, Some(Map("field" -> field))))
   def notFoundResponse(message: Option[String] = None): RestResponse = (StatusCodes.NotFound, ErrorResponse("not_found", message))
   
   def okResponse(data: Any): RestResponse = (StatusCodes.OK, SuccessRestResponse(data))

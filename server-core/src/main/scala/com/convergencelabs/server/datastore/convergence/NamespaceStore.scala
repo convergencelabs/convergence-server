@@ -18,6 +18,7 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.domain.NamespaceUpdates
 
 object NamespaceStore {
 
@@ -25,20 +26,24 @@ object NamespaceStore {
 
   object Params {
     val Username = "username"
+    val Id = "id"
+    val DisplayName = "displayName"
   }
 
   def namespaceToDoc(namespace: Namespace, db: ODatabaseDocument): Try[ODocument] = Try {
-    val Namespace(id, displayName) = namespace
+    val Namespace(id, displayName, userNamespace) = namespace
     val doc = db.newInstance(NamespaceClass.ClassName).asInstanceOf[ODocument]
     doc.setProperty(Fields.Id, id)
     doc.setProperty(Fields.DisplayName, displayName)
+    doc.setProperty(Fields.UserNamespace, userNamespace)
     doc
   }
 
   def docToNamespace(doc: ODocument): Namespace = {
     Namespace(
       doc.getProperty(Fields.Id),
-      doc.getProperty(Fields.DisplayName))
+      doc.getProperty(Fields.DisplayName),
+      doc.getProperty(Fields.UserNamespace))
   }
 
   def getNamespaceRid(id: String, db: ODatabaseDocument): Try[ORID] = {
@@ -56,13 +61,13 @@ class NamespaceStore(dbProvider: DatabaseProvider)
 
   import NamespaceStore._
 
-  def createNamespace(id: String, displayName: String): Try[Unit] = {
-    createNamespace(Namespace(id, displayName))
+  def createNamespace(id: String, displayName: String, userNamespace: Boolean): Try[Unit] = {
+    createNamespace(Namespace(id, displayName, userNamespace))
   }
 
   def createUserNamespace(username: String): Try[String] = {
     val namespace = userNamespace(username)
-    this.createNamespace(namespace, s"Private namespace for ${username}").map(_ => namespace)
+    this.createNamespace(namespace, namespace, true).map(_ => namespace)
   }
 
   def createNamespace(namespace: Namespace): Try[Unit] = withDb { db =>
@@ -99,13 +104,13 @@ class NamespaceStore(dbProvider: DatabaseProvider)
   }
 
   def getNamespaceAndDomains(namespaces: Set[String]): Try[Set[NamespaceAndDomains]] = withDb { db =>
-    val query = "SELECT FROM Namespace WHERE id IN :ids"
+    val query = "SELECT FROM Namespace WHERE id IN :ids AND userNamespace = false"
     val params = Map("ids" -> namespaces)
     OrientDBUtil.query(db, query, params).flatMap(getNamespaceAndDomainsFromDocs(_, db))
   }
 
   def getAllNamespacesAndDomains(): Try[Set[NamespaceAndDomains]] = withDb { db =>
-    val query = "SELECT FROM Namespace"
+    val query = "SELECT FROM Namespace WHERE userNamespace = false"
     OrientDBUtil.query(db, query).flatMap(getNamespaceAndDomainsFromDocs(_, db))
   }
 
@@ -133,15 +138,10 @@ class NamespaceStore(dbProvider: DatabaseProvider)
     this.deleteNamespace(namespace)
   }
 
-  def updateNamespace(namespace: Namespace): Try[Unit] = withDb { db =>
-    OrientDBUtil.getDocumentFromSingleValueIndex(db, Indices.Id, namespace.id)
-      .flatMap { existing =>
-        namespaceToDoc(namespace, db).map { updated =>
-          existing.merge(updated, true, false)
-          db.save(existing)
-          ()
-        }
-      }
+  def updateNamespace(namespace: NamespaceUpdates): Try[Unit] = withDb { db =>
+    val command = "UPDATE Namespace SET displayName = :displayName WHERE id = :id"
+    val params = Map(Params.Id -> namespace.id, Params.DisplayName -> namespace.displayName)
+    OrientDBUtil.command(db, command, params).map(_ => ())
   } recoverWith (handleDuplicateValue)
 
   private[this] def handleDuplicateValue[T](): PartialFunction[Throwable, Try[T]] = {

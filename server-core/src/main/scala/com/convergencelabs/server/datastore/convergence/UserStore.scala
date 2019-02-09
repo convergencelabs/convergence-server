@@ -38,7 +38,8 @@ object UserStore {
       doc.getProperty(UserClass.Fields.Email),
       doc.getProperty(UserClass.Fields.FirstName),
       doc.getProperty(UserClass.Fields.LastName),
-      doc.getProperty(UserClass.Fields.DisplayName))
+      doc.getProperty(UserClass.Fields.DisplayName),
+      Option(doc.getProperty(UserClass.Fields.LastLogin).asInstanceOf[Date]).map(_.toInstant()))
   }
 
   def userToDoc(user: User, bearerToken: Option[String] = None, passwordHash: Option[String] = None): ODocument = {
@@ -62,7 +63,8 @@ object UserStore {
     email: String,
     firstName: String,
     lastName: String,
-    displayName: String)
+    displayName: String,
+    lastLogin: Option[Instant])
 }
 
 /**

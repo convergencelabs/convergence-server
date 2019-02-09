@@ -1,7 +1,7 @@
 package com.convergencelabs.server.security
 
 import com.convergencelabs.server.datastore.convergence.DomainRoleTarget
-import com.convergencelabs.server.datastore.convergence.GlobalRoleTarget
+import com.convergencelabs.server.datastore.convergence.ServerRoleTarget
 import com.convergencelabs.server.datastore.convergence.NamespaceRoleTarget
 import com.convergencelabs.server.datastore.convergence.RoleStore.UserRoles
 import com.convergencelabs.server.datastore.convergence.RoleTarget
@@ -26,7 +26,7 @@ class AuthorizationProfile(val username: String, userRoles: UserRoles) extends S
   }
   
   def hasGlobalPermission(permission: String): Boolean = {
-    hasPermissionForTarget(permission, GlobalRoleTarget)
+    hasPermissionForTarget(permission, ServerRoleTarget)
   }
   
   def hasNamespacePermission(permission: String, namespaceId: String): Boolean = {

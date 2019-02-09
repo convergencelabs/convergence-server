@@ -87,7 +87,7 @@ class DeltaHistoryStoreSpec
   }
 
   val Username = "test"
-  val Owner = User(Username, "email", "first", "last", "display")
+  val Owner = User(Username, "email", "first", "last", "display", None)
   val Password = "password"
   val BearerToken = "token"
   
