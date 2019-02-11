@@ -30,7 +30,6 @@ import com.convergencelabs.server.security.AuthorizationProfile
 object CurrentUserService {
   case class BearerTokenResponse(token: String)
   case class CovergenceUserProfile(username: String, email: String, firstName: String, lastName: String, displayName: String)
-  case class UserProfileResponse(profile: CovergenceUserProfile)
   case class UpdateProfileRequest(email: String, firstName: String, lastName: String, displayName: String)
   case class PasswordSetRequest(password: String)
 }
@@ -98,7 +97,7 @@ class CurrentUserService(
     val message = GetConvergenceUser(authProfile.username)
     (convergenceUserActor ? message).mapTo[Option[User]].map {
       case Some(User(username, email, firstName, lastName, displayName, lastLogin)) =>
-        okResponse(UserProfileResponse(CovergenceUserProfile(username, email, firstName, lastName, displayName)))
+        okResponse(CovergenceUserProfile(username, email, firstName, lastName, displayName))
       case None =>
         notFoundResponse()
     }

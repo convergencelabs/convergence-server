@@ -38,7 +38,7 @@ object ConvergenceUserManagerActor {
   case class GetConvergenceUser(username: String)
   case class GetConvergenceUsers(filter: Option[String], limit: Option[Int], offset: Option[Int])
 
-  case class GetConvergenceUserOverviews(filter: Option[String], limit: Option[Int], offset: Option[Int])
+  case class GetConvergenceUserInfo(filter: Option[String], limit: Option[Int], offset: Option[Int])
   case class ConvergenceUserOverview(user: User, globalRole: String)
 
   case class GetUserBearerTokenRequest(username: String)
@@ -76,7 +76,7 @@ class ConvergenceUserManagerActor private[datastore] (
       getConvergenceUser(message)
     case message: GetConvergenceUsers =>
       getConvergenceUsers(message)
-    case message: GetConvergenceUserOverviews =>
+    case message: GetConvergenceUserInfo =>
       getConvergenceUserOverviews(message)
     case message: UpdateConvergenceUserRequest =>
       updateConvergenceUser(message)
@@ -102,7 +102,7 @@ class ConvergenceUserManagerActor private[datastore] (
       _ <- roleStore.setUserRolesForTarget(username, NamespaceRoleTarget(namespace), Set(Roles.Namespace.Owner))
     } yield {
       origSender ! (())
-      
+
       if (autoCreateConfigs.size > 0) {
         log.debug("User namespace created.  Creating domains ")
         FutureUtils.seqFutures(autoCreateConfigs) { config =>
@@ -129,8 +129,8 @@ class ConvergenceUserManagerActor private[datastore] (
     reply(userStore.getUsers(filter, limit, offset))
   }
 
-  def getConvergenceUserOverviews(message: GetConvergenceUserOverviews): Unit = {
-    val GetConvergenceUserOverviews(filter, limit, offset) = message
+  def getConvergenceUserOverviews(message: GetConvergenceUserInfo): Unit = {
+    val GetConvergenceUserInfo(filter, limit, offset) = message
     val overviews = (for {
       users <- userStore.getUsers(filter, limit, offset)
       roles <- roleStore.getRolesForUsersAndTarget(users.map(_.username).toSet, ServerRoleTarget)
@@ -146,10 +146,9 @@ class ConvergenceUserManagerActor private[datastore] (
 
   def deleteConvergenceUser(message: DeleteConvergenceUserRequest): Unit = {
     val DeleteConvergenceUserRequest(username) = message;
-
-    val result = (domainStoreActor ? DeleteDomainsForUserRequest(username)).mapTo[Unit] flatMap (_ =>
-      FutureUtils.tryToFuture(userStore.deleteUser(username)))
-
+    val result = (domainStoreActor ? DeleteDomainsForUserRequest(username))
+      .mapTo[Unit]
+      .flatMap(_ => FutureUtils.tryToFuture(userStore.deleteUser(username)))
     reply(result)
   }
 

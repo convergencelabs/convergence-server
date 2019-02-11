@@ -37,7 +37,7 @@ import akka.util.Timeout
 import akka.http.scaladsl.server.ExceptionHandler
 import com.convergencelabs.server.security.AuthorizationProfile
 import java.time.Instant
-import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.GetConvergenceUserOverviews
+import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.GetConvergenceUserInfo
 import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.SetPasswordRequest
 import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.ConvergenceUserOverview
 
@@ -92,7 +92,7 @@ class ConvergenceUserService(
     } ~ path("userInfo") {
       get {
         parameters("filter".?, "limit".as[Int].?, "offset".as[Int].?) { (filter, limit, offset) =>
-          complete(getUserOvweviews(filter, limit, offset))
+          complete(getUserInfo(filter, limit, offset))
         }
       }
     }
@@ -112,8 +112,8 @@ class ConvergenceUserService(
     }
   }
 
-  def getUserOvweviews(filter: Option[String], limit: Option[Int], offset: Option[Int]): Future[RestResponse] = {
-    (userManagerActor ? GetConvergenceUserOverviews(filter, limit, offset)).mapTo[Set[ConvergenceUserOverview]] map { users =>
+  def getUserInfo(filter: Option[String], limit: Option[Int], offset: Option[Int]): Future[RestResponse] = {
+    (userManagerActor ? GetConvergenceUserInfo(filter, limit, offset)).mapTo[Set[ConvergenceUserOverview]] map { users =>
       val publicData = users.map {
         case ConvergenceUserOverview(User(username, email, firstName, lastName, displayName, lastLogin), globalRole) =>
           UserInfoData(UserData(username, firstName, lastName, displayName, email), lastLogin, globalRole)
