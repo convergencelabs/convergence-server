@@ -129,8 +129,8 @@ actions:
   - action: CreateClass
     name: UserSessionToken
     properties:
-      - {name: user,      type: Link,     linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: token,     type: String,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: user,      type: Link,     linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: expiresAt, type: DateTime,                    constraints: {mandatory: true, notNull: true}}
   
   - action: CreateIndex

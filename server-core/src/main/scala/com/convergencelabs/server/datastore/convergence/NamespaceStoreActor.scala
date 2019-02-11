@@ -32,6 +32,7 @@ object NamespaceStoreActor {
   case class UpdateNamespace(requestor: String, namespaceId: String, displayName: String)
   case class DeleteNamespace(requestor: String, namespaceId: String)
   case class GetAccessibleNamespaces(requestor: AuthorizationProfile)
+  case class GetNamespace(namespaceId: String)
 }
 
 class NamespaceStoreActor private[datastore] (
@@ -47,25 +48,28 @@ class NamespaceStoreActor private[datastore] (
     case createRequest: CreateNamespace => createNamespace(createRequest)
     case deleteRequest: DeleteNamespace => deleteNamespace(deleteRequest)
     case updateRequest: UpdateNamespace => updateNamespace(updateRequest)
+    case getRequest: GetNamespace => getNamespace(getRequest)
     case accessibleRequest: GetAccessibleNamespaces => getAccessibleNamespaces(accessibleRequest)
     case message: Any => unhandled(message)
   }
 
   def createNamespace(createRequest: CreateNamespace): Unit = {
     val CreateNamespace(requestor, namespaceId, displayName) = createRequest
-    log.debug(s"Receved request to create Namespace: ${namespaceId}")
     reply(namespaceStore.createNamespace(namespaceId, displayName, false))
+  }
+
+  def getNamespace(getRequest: GetNamespace): Unit = {
+    val GetNamespace(namespaceId) = getRequest
+    reply(namespaceStore.getNamespace(namespaceId))
   }
 
   def updateNamespace(request: UpdateNamespace): Unit = {
     val UpdateNamespace(requestor, namespaceId, displayName) = request
-    log.debug(s"Receved request to update Namespace: ${namespaceId}")
     reply(namespaceStore.updateNamespace(NamespaceUpdates(namespaceId, displayName)))
   }
 
   def deleteNamespace(deleteRequest: DeleteNamespace): Unit = {
     val DeleteNamespace(requestor, namespaceId) = deleteRequest
-    log.debug(s"Receved request to delete Namespace: ${namespaceId}")
     reply(namespaceStore.deleteNamespace(namespaceId))
   }
 
@@ -75,8 +79,8 @@ class NamespaceStoreActor private[datastore] (
       reply(namespaceStore.getAllNamespacesAndDomains())
     } else {
       reply(namespaceStore
-          .getAccessibleNamespaces(authProfile.username)
-          .flatMap(namespaces => namespaceStore.getNamespaceAndDomains(namespaces.map(_.id).toSet)))
+        .getAccessibleNamespaces(authProfile.username)
+        .flatMap(namespaces => namespaceStore.getNamespaceAndDomains(namespaces.map(_.id).toSet)))
     }
   }
 }

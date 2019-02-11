@@ -107,17 +107,16 @@ class ConvergenceRestFrontEnd(
     val namespaceActor = createRouter("/user/" + NamespaceStoreActor.RelativePath, "namespaceActor")
     val databaseManagerActor = createRouter("/user/" + DatabaseManagerActor.RelativePath, "databaseManagerActor")
     val importerActor = createRouter("/user/" + ConvergenceImporterActor.RelativePath, "importerActor")
-    val permissionStoreActor = createRouter("/user/" + RoleStoreActor.RelativePath, "permissionsActor")
+    val roleActor = createRouter("/user/" + RoleStoreActor.RelativePath, "permissionsActor")
 
-    // The Rest Services
-
-    // All of these services are global to the system and outside of the domain.
-    val authService = new AuthService(ec, authStoreActor, defaultRequestTimeout)
+    
     val authenticator = new Authenticator(authStoreActor, masterAdminToken, defaultRequestTimeout, ec)
-
-    // Available to all users
+    
+    // The Rest Services
+    val authService = new AuthService(ec, authStoreActor, defaultRequestTimeout)
     val currentUserService = new CurrentUserService(ec, convergenceUserActor, defaultRequestTimeout)
     val namespaceService = new NamespaceService(ec, namespaceActor, defaultRequestTimeout)
+    val roleService = new RoleService(ec, roleActor, defaultRequestTimeout)
     val keyGenService = new KeyGenService(ec)
     val convergenceUserService = new ConvergenceUserService(ec, convergenceUserActor, defaultRequestTimeout)
     val convergenceImportService = new ConvergenceImportService(ec, importerActor, defaultRequestTimeout)
@@ -131,7 +130,7 @@ class ConvergenceRestFrontEnd(
       ec,
       domainStoreActor,
       restDomainActorRegion,
-      permissionStoreActor,
+      roleActor,
       modelClusterRegion,
       defaultRequestTimeout)
 
@@ -161,6 +160,7 @@ class ConvergenceRestFrontEnd(
                   convergenceUserService.route(authProfile),
                   namespaceService.route(authProfile),
                   domainService.route(authProfile),
+                  roleService.route(authProfile),
                   keyGenService.route(),
                   convergenceImportService.route(authProfile),
                   databaseManagerService.route(authProfile))

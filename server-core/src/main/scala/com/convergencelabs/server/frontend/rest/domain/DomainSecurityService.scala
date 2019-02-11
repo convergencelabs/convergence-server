@@ -7,7 +7,7 @@ import scala.util.Try
 import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.datastore.convergence.RoleStoreActor.GetAllUserRolesRequest
 import com.convergencelabs.server.datastore.convergence.RoleStoreActor.GetUserPermissionsRequest
-import com.convergencelabs.server.datastore.convergence.RoleStoreActor.GetUserRolesRequest
+import com.convergencelabs.server.datastore.convergence.RoleStoreActor.GetUserRolesForTargetRequest
 import com.convergencelabs.server.datastore.convergence.RoleStoreActor.SetRolesRequest
 import com.convergencelabs.server.datastore.convergence.RoleStore.UserRoles
 import com.convergencelabs.server.domain.DomainFqn
@@ -86,7 +86,7 @@ class DomainSecurityService(
   }
 
   def getRolesByUsername(username: String, domain: DomainFqn): Future[RestResponse] = {
-    (permissionStoreActor ? GetUserRolesRequest(username, DomainRoleTarget(domain))).mapTo[UserRoles] map {
+    (permissionStoreActor ? GetUserRolesForTargetRequest(username, DomainRoleTarget(domain))).mapTo[UserRoles] map {
       userRoles => okResponse(GetUserRolesRestResponse(userRoles))
     }
   }

@@ -26,7 +26,6 @@ object UserStore {
 
   object Params {
     val Username = "username"
-    val Password = "password"
     val BearerToken = "bearerToken"
     val PasswordHash = "passwordHash"
     val LastLogin = "lastLogin"
@@ -129,7 +128,7 @@ class UserStore(dbProvider: DatabaseProvider)
     val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
     val params = filter match {
       case Some(searchFilter) =>
-        Map("searchString" -> s"%${searchFilter}%")
+        Map("searchString" -> s"%${searchFilter.toLowerCase}%")
       case None =>
         Map().asInstanceOf[Map[String, Any]]
     }
@@ -148,7 +147,7 @@ class UserStore(dbProvider: DatabaseProvider)
     OrientDBUtil.indexContains(db, UserClass.Indices.Username, username)
   }
 
-  private[this] val SetUserPasswordQuery = "UPDATE User SET password = :password WHERE username = :username"
+  private[this] val SetUserPasswordQuery = "UPDATE User SET passwordHash = :passwordHash WHERE username = :username"
 
   /**
    * Set the password for an existing user by username.
@@ -158,7 +157,7 @@ class UserStore(dbProvider: DatabaseProvider)
    */
   def setUserPassword(username: String, password: String): Try[Unit] = withDb { db =>
     val passwordHash = PasswordUtil.hashPassword(password)
-    val params = Map(Params.Username -> username, Params.Password -> passwordHash)
+    val params = Map(Params.Username -> username, Params.PasswordHash -> passwordHash)
     OrientDBUtil.mutateOneDocument(db, SetUserPasswordQuery, params)
       .recoverWith {
         case cause: EntityNotFoundException =>

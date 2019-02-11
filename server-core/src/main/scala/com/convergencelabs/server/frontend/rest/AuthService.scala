@@ -16,8 +16,8 @@ import akka.http.scaladsl.model.StatusCodes
 import akka.util.Timeout
 
 object AuthService {
-  case class SessionTokenResponse(token: String, expiration: Long)
-  case class ExpirationResponse(valid: Boolean, username: Option[String], delta: Option[Long])
+  case class SessionTokenResponse(token: String, expiresIn: Long)
+  case class ExpirationResponse(valid: Boolean, username: Option[String], expiresIn: Option[Long])
   case class BearerTokenResponse(token: String)
 }
 

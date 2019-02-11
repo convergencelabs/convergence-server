@@ -11,6 +11,8 @@ import com.convergencelabs.server.datastore.convergence.RoleStore.Role
 import akka.actor.ActorLogging
 import akka.actor.Props
 import akka.util.Timeout
+import com.convergencelabs.server.datastore.convergence.RoleStore.UserRole
+import scala.util.Try
 
 object RoleStoreActor {
   val RelativePath = "RoleStoreActor"
@@ -22,7 +24,12 @@ object RoleStoreActor {
 
   case class GetRoleProfileRequest(target: RoleTarget, username: String)
   case class GetAllUserRolesRequest(target: RoleTarget)
-  case class GetUserRolesRequest(username: String, target: RoleTarget)
+
+  case class GetUserRolesForTargetRequest(username: String, target: RoleTarget)
+  case class UpdateRolesForTargetRequest(target: RoleTarget, userRoles: Map[String, Set[String]])
+
+  case class RemoveUserFromTarget(target: RoleTarget, username: String)
+
   case class GetUserPermissionsRequest(username: String, target: RoleTarget)
 }
 
@@ -42,8 +49,10 @@ class RoleStoreActor private[datastore] (private[this] val dbProvider: DatabaseP
     case message: SetRolesRequest => setRolesRequest(message)
     case message: GetRoleProfileRequest => getPermissionsProfile(message)
     case message: GetAllUserRolesRequest => getAllUserRoles(message)
-    case message: GetUserRolesRequest => getUserRoles(message)
+    case message: GetUserRolesForTargetRequest => getUserRoles(message)
     case message: GetUserPermissionsRequest => getUserPermissions(message)
+    case message: UpdateRolesForTargetRequest => updateRolesForTarget(message)
+    case message: RemoveUserFromTarget => removeUserRoleFromTarget(message)
     case message: Any => unhandled(message)
   }
 
@@ -56,6 +65,11 @@ class RoleStoreActor private[datastore] (private[this] val dbProvider: DatabaseP
     val SetRolesRequest(username, target, roles) = message
     reply(permissionsStore.setUserRolesForTarget(username, target, roles))
   }
+  
+  def updateRolesForTarget(message: UpdateRolesForTargetRequest): Unit = {
+    val UpdateRolesForTargetRequest(target, userRoles) = message
+    reply(permissionsStore.setUserRolesForTarget(target, userRoles))
+  }
 
   def getPermissionsProfile(message: GetRoleProfileRequest): Unit = {
     val GetRoleProfileRequest(target, username) = message
@@ -67,13 +81,18 @@ class RoleStoreActor private[datastore] (private[this] val dbProvider: DatabaseP
     reply(permissionsStore.getAllUserRolesForTarget(target))
   }
 
-  def getUserRoles(message: GetUserRolesRequest): Unit = {
-    val GetUserRolesRequest(username, target) = message
+  def getUserRoles(message: GetUserRolesForTargetRequest): Unit = {
+    val GetUserRolesForTargetRequest(username, target) = message
     reply(permissionsStore.getUserRolesForTarget(username, target))
   }
 
   def getUserPermissions(message: GetUserPermissionsRequest): Unit = {
     val GetUserPermissionsRequest(username, target) = message
     reply(permissionsStore.getUserPermissionsForTarget(username, target))
+  }
+  
+  def removeUserRoleFromTarget(message: RemoveUserFromTarget): Unit = {
+    val RemoveUserFromTarget(target, username) = message
+    reply(permissionsStore.removeUserRoleFromTarget(target, username))
   }
 }

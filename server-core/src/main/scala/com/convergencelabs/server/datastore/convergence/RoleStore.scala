@@ -67,7 +67,7 @@ object RoleStore {
     val permissions = doc.getProperty(RoleClass.Fields.Permissions).asInstanceOf[java.util.Set[String]].asScala.toSet
     Role(
       doc.getProperty(RoleClass.Fields.Name),
-      Option(doc.getProperty(RoleClass.Fields.TargetClass)).map(RoleTargetType.withName(_)),
+      Option(doc.getProperty(RoleClass.Fields.TargetClass).asInstanceOf[String]).map(RoleTargetType.withName(_)),
       permissions)
   }
 
@@ -141,6 +141,15 @@ class RoleStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
     ()
   }.recoverWith(handleDuplicateValue)
 
+  def setUserRolesForTarget(target: RoleTarget, userRoles: Map[String, Set[String]]): Try[Unit] = withDb { db =>
+    // FIXME do in transaction
+    Try {
+      userRoles.foreach {
+        case (username, roles) => setUserRolesForTarget(username, target, roles).get
+      }
+    }
+  }
+  
   def setUserRolesForTarget(username: String, target: RoleTarget, roles: Set[String]): Try[Unit] = withDb { db =>
     // FIXME: Do these two steps in a transaction
 
@@ -244,10 +253,23 @@ class RoleStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       val user: String = result.getProperty("username")
       val targetDoc: ODocument = result.getProperty("target")
       val target = docToRoleTarget(Option(targetDoc))
-      val roleDocs = result.getProperty("roles").asInstanceOf[java.util.Set[ODocument]].asScala.toSet
-      val roles = roleDocs.map(docToRole(_))
+      val roleDocs = result.getProperty("roles").asInstanceOf[java.util.Set[ORID]].asScala.toSet
+      val roles = roleDocs.map(r => docToRole(r.getRecord.asInstanceOf[ODocument]))
       UserRoles(user, roles.map(r => UserRole(r, target)))
     }).toSet)
+  }
+
+  def removeUserRoleFromTarget(target: RoleTarget, username: String): Try[Unit] = withDb { db =>
+    val (targetWhere, targetParams) = buildTargetWhere(target)
+    val query = s"""
+        |DELETE 
+        |FROM
+        |  UserRole
+        |WHERE 
+        |  user.username = :username AND
+        |  ${targetWhere}""".stripMargin
+    val params = Map(Params.Username -> username) ++ targetParams
+    OrientDBUtil.command(db, query, params).map(_ => ())
   }
 
   private[this] def getRolesRid(name: String, target: Option[RoleTargetType.Value], db: ODatabaseDocument): Try[ORID] = {

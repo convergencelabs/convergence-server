@@ -39,8 +39,13 @@ class UserSessionTokenStore(private[this] val dbProvider: DatabaseProvider)
     OrientDBUtil.command(db, CreateTokenCommand, params).map(_ => ())
   }
 
-  def removeToken(token: String): Try[Unit] = tryWithDb { db =>
+  def removeToken(token: String): Try[Unit] = withDb { db =>
     OrientDBUtil.deleteFromSingleValueIndexIfExists(db, UserSessionTokenClass.Indices.Token, token)
+  }
+  
+  private[this] val CleanExpiredTokensCommand = "DELETE FROM UserSessionToken WHERE expiresAt < sysdate()"
+  def cleanExpiredTokens(): Try[Unit] = withDb { db =>
+    OrientDBUtil.command(db, CleanExpiredTokensCommand).map(_ => ())
   }
 
   private[this] val ValidateUserSessionToken = "SELECT user.username AS username, expiresAt FROM UserSessionToken WHERE token = :token"
@@ -63,7 +68,7 @@ class UserSessionTokenStore(private[this] val dbProvider: DatabaseProvider)
   private[this] val ExpirationCheckQuery = "SELECT user.username AS username, expiresAt FROM UserSessionToken WHERE token = :token"
   def expirationCheck(token: String): Try[Option[(String, Instant)]] = withDb { db =>
     val params = Map(Params.Token -> token)
-    OrientDBUtil.findDocument(db, ExpirationCheckQuery).map(_ match {
+    OrientDBUtil.findDocument(db, ExpirationCheckQuery, params).map(_ match {
       case Some(doc) =>
         val expireTime: Date = doc.getProperty(UserSessionTokenClass.Fields.ExpiresAt)
         val expireInstant: Instant = expireTime.toInstant()

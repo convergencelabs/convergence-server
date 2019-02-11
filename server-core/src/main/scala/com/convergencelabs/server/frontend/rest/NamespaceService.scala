@@ -45,6 +45,7 @@ import com.convergencelabs.server.security.AuthorizationProfile
 import com.convergencelabs.server.security.Permissions
 import com.convergencelabs.server.domain.NamespaceAndDomains
 import com.convergencelabs.server.frontend.rest.DomainService.DomainRestData
+import com.convergencelabs.server.datastore.convergence.NamespaceStoreActor.GetNamespace
 
 object NamespaceService {
   case class CreateNamespacePost(id: String, displayName: String)
@@ -78,7 +79,9 @@ class NamespaceService(
         }
       } ~ pathPrefix(Segment) { namespace =>
         pathEnd {
-          put {
+          get {
+            complete(getNamespace(namespace))
+          } ~ put {
             authorize(canManageNamespaces(authProfile)) {
               entity(as[UpdateNamespacePut]) { request =>
                 complete(updateNamespace(authProfile, namespace, request))
@@ -102,6 +105,15 @@ class NamespaceService(
         NamespaceAndDomainsRestData(n.id, n.displayName, domainData)
       }
       okResponse(response)
+    }
+  }
+  
+  def getNamespace(namespaceId: String): Future[RestResponse] = {
+    val request = GetNamespace(namespaceId)
+    (namespaceActor ? request).mapTo[Option[Namespace]] map { _ match {
+      case Some(namespace) => okResponse(namespace)
+      case None => notFoundResponse(Some(s"A namespaec with the id '${namespaceId}' does not exist"))
+      }
     }
   }
 
