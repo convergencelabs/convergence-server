@@ -32,14 +32,14 @@ object ConvergenceUserManagerActor {
     Props(new ConvergenceUserManagerActor(dbProvider, domainStoreActor))
 
   case class CreateConvergenceUserRequest(username: String, email: String, firstName: String, lastName: String, displayName: String, password: String, globalRole: String)
-  case class UpdateConvergenceUserRequest(username: String, email: String, firstName: String, lastName: String, displayName: String)
+  case class UpdateConvergenceUserRequest(username: String, email: String, firstName: String, lastName: String, displayName: String, globalRole: String)
+  case class UpdateConvergenceUserProfileRequest(username: String, email: String, firstName: String, lastName: String, displayName: String)
   case class SetPasswordRequest(username: String, password: String)
   case class DeleteConvergenceUserRequest(username: String)
-  case class GetConvergenceUser(username: String)
-  case class GetConvergenceUsers(filter: Option[String], limit: Option[Int], offset: Option[Int])
 
-  case class GetConvergenceUserInfo(filter: Option[String], limit: Option[Int], offset: Option[Int])
-  case class ConvergenceUserOverview(user: User, globalRole: String)
+  case class GetConvergenceUsers(filter: Option[String], limit: Option[Int], offset: Option[Int])
+  case class GetConvergenceUser(username: String)
+  case class ConvergenceUserInfo(user: User, globalRole: String)
 
   case class GetUserBearerTokenRequest(username: String)
   case class RegenerateUserBearerTokenRequest(username: String)
@@ -76,8 +76,8 @@ class ConvergenceUserManagerActor private[datastore] (
       getConvergenceUser(message)
     case message: GetConvergenceUsers =>
       getConvergenceUsers(message)
-    case message: GetConvergenceUserInfo =>
-      getConvergenceUserOverviews(message)
+    case message: UpdateConvergenceUserProfileRequest =>
+      updateConvergenceUserProfile(message)
     case message: UpdateConvergenceUserRequest =>
       updateConvergenceUser(message)
     case message: SetPasswordRequest =>
@@ -121,23 +121,28 @@ class ConvergenceUserManagerActor private[datastore] (
 
   def getConvergenceUser(message: GetConvergenceUser): Unit = {
     val GetConvergenceUser(username) = message
-    reply(userStore.getUserByUsername(username))
+    val overviews = (for {
+      user <- userStore.getUserByUsername(username)
+      roles <- roleStore.getRolesForUsersAndTarget(Set(username), ServerRoleTarget)
+    } yield {
+      user.map { u =>
+        val globalRole = roles.get(u.username).flatMap(_.headOption).getOrElse("")
+        ConvergenceUserInfo(u, globalRole)
+      }
+    })
+
+    reply(overviews)
   }
 
   def getConvergenceUsers(message: GetConvergenceUsers): Unit = {
     val GetConvergenceUsers(filter, limit, offset) = message
-    reply(userStore.getUsers(filter, limit, offset))
-  }
-
-  def getConvergenceUserOverviews(message: GetConvergenceUserInfo): Unit = {
-    val GetConvergenceUserInfo(filter, limit, offset) = message
     val overviews = (for {
       users <- userStore.getUsers(filter, limit, offset)
       roles <- roleStore.getRolesForUsersAndTarget(users.map(_.username).toSet, ServerRoleTarget)
     } yield {
       users.map { user =>
         val globalRole = roles.get(user.username).flatMap(_.headOption).getOrElse("")
-        ConvergenceUserOverview(user, globalRole)
+        ConvergenceUserInfo(user, globalRole)
       }.toSet
     })
 
@@ -152,8 +157,15 @@ class ConvergenceUserManagerActor private[datastore] (
     reply(result)
   }
 
+  def updateConvergenceUserProfile(message: UpdateConvergenceUserProfileRequest): Unit = {
+    val UpdateConvergenceUserProfileRequest(username, email, firstName, lastName, displayName) = message;
+    log.debug(s"Updating user: ${username}")
+    val update = User(username, email, firstName, lastName, displayName, None)
+    reply(userStore.updateUser(update))
+  }
+  
   def updateConvergenceUser(message: UpdateConvergenceUserRequest): Unit = {
-    val UpdateConvergenceUserRequest(username, email, firstName, lastName, displayName) = message;
+    val UpdateConvergenceUserRequest(username, email, firstName, lastName, displayName, globalRole) = message;
     log.debug(s"Updating user: ${username}")
     val update = User(username, email, firstName, lastName, displayName, None)
     reply(userStore.updateUser(update))

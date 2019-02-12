@@ -26,6 +26,8 @@ import akka.http.scaladsl.server.Directives.put
 import akka.util.Timeout
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.security.AuthorizationProfile
+import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.UpdateConvergenceUserProfileRequest
+import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.ConvergenceUserInfo
 
 object CurrentUserService {
   case class BearerTokenResponse(token: String)
@@ -95,8 +97,8 @@ class CurrentUserService(
 
   def getProfile(authProfile: AuthorizationProfile): Future[RestResponse] = {
     val message = GetConvergenceUser(authProfile.username)
-    (convergenceUserActor ? message).mapTo[Option[User]].map {
-      case Some(User(username, email, firstName, lastName, displayName, lastLogin)) =>
+    (convergenceUserActor ? message).mapTo[Option[ConvergenceUserInfo]].map {
+      case Some(ConvergenceUserInfo(User(username, email, firstName, lastName, displayName, lastLogin), globalRole)) =>
         okResponse(CovergenceUserProfile(username, email, firstName, lastName, displayName))
       case None =>
         notFoundResponse()
@@ -105,7 +107,7 @@ class CurrentUserService(
 
   def updateProfile(authProfile: AuthorizationProfile, profile: UpdateProfileRequest): Future[RestResponse] = {
     val UpdateProfileRequest(email, firstName, lastName, displayName) = profile
-    val message = UpdateConvergenceUserRequest(authProfile.username, email, firstName, lastName, displayName)
+    val message = UpdateConvergenceUserProfileRequest(authProfile.username, email, firstName, lastName, displayName)
     (convergenceUserActor ? message) map { _ => OkResponse }
   }
 }

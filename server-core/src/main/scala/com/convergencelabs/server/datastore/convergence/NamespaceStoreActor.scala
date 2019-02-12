@@ -45,12 +45,18 @@ class NamespaceStoreActor private[datastore] (
   private[this] val namespaceStore = new NamespaceStore(dbProvider)
 
   def receive: Receive = {
-    case createRequest: CreateNamespace => createNamespace(createRequest)
-    case deleteRequest: DeleteNamespace => deleteNamespace(deleteRequest)
-    case updateRequest: UpdateNamespace => updateNamespace(updateRequest)
-    case getRequest: GetNamespace => getNamespace(getRequest)
-    case accessibleRequest: GetAccessibleNamespaces => getAccessibleNamespaces(accessibleRequest)
-    case message: Any => unhandled(message)
+    case createRequest: CreateNamespace =>
+      createNamespace(createRequest)
+    case deleteRequest: DeleteNamespace =>
+      deleteNamespace(deleteRequest)
+    case updateRequest: UpdateNamespace =>
+      updateNamespace(updateRequest)
+    case getRequest: GetNamespace =>
+      getNamespace(getRequest)
+    case accessibleRequest: GetAccessibleNamespaces =>
+      getAccessibleNamespaces(accessibleRequest)
+    case message: Any =>
+      unhandled(message)
   }
 
   def createNamespace(createRequest: CreateNamespace): Unit = {
@@ -70,6 +76,7 @@ class NamespaceStoreActor private[datastore] (
 
   def deleteNamespace(deleteRequest: DeleteNamespace): Unit = {
     val DeleteNamespace(requestor, namespaceId) = deleteRequest
+    log.debug("Delete Namespace: " + namespaceId)
     reply(namespaceStore.deleteNamespace(namespaceId))
   }
 

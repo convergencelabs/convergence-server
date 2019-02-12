@@ -122,7 +122,7 @@ class UserStore(dbProvider: DatabaseProvider)
 
   // TODO add an ordering ability.
   def getUsers(filter: Option[String], limit: Option[Int], offset: Option[Int]): Try[List[User]] = withDb { db =>
-    val where = " WHERE username LIKE :searchString OR displayName LIKE :searchString OR email LIKE :searchString"
+    val where = " WHERE username.toLowerCase() LIKE :searchString OR displayName.toLowerCase() LIKE :searchString OR email.toLowerCase() LIKE :searchString"
     val baseQuery = "SELECT FROM User" + filter.map(_ => where).getOrElse("") + " ORDER BY username"
     val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
     val params = filter match {

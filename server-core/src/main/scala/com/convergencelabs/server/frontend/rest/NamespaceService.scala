@@ -46,6 +46,7 @@ import com.convergencelabs.server.security.Permissions
 import com.convergencelabs.server.domain.NamespaceAndDomains
 import com.convergencelabs.server.frontend.rest.DomainService.DomainRestData
 import com.convergencelabs.server.datastore.convergence.NamespaceStoreActor.GetNamespace
+import grizzled.slf4j.Logging
 
 object NamespaceService {
   case class CreateNamespacePost(id: String, displayName: String)
@@ -57,7 +58,9 @@ object NamespaceService {
 class NamespaceService(
   private[this] val executionContext: ExecutionContext,
   private[this] val namespaceActor: ActorRef,
-  private[this] val defaultTimeout: Timeout) extends JsonSupport {
+  private[this] val defaultTimeout: Timeout)
+  extends JsonSupport
+  with Logging {
 
   import NamespaceService._
   import akka.pattern.ask
@@ -107,12 +110,13 @@ class NamespaceService(
       okResponse(response)
     }
   }
-  
+
   def getNamespace(namespaceId: String): Future[RestResponse] = {
     val request = GetNamespace(namespaceId)
-    (namespaceActor ? request).mapTo[Option[Namespace]] map { _ match {
-      case Some(namespace) => okResponse(namespace)
-      case None => notFoundResponse(Some(s"A namespaec with the id '${namespaceId}' does not exist"))
+    (namespaceActor ? request).mapTo[Option[Namespace]] map {
+      _ match {
+        case Some(namespace) => okResponse(namespace)
+        case None => notFoundResponse(Some(s"A namespaec with the id '${namespaceId}' does not exist"))
       }
     }
   }
@@ -130,6 +134,7 @@ class NamespaceService(
   }
 
   def deleteNamespace(authProfile: AuthorizationProfile, namespaceId: String): Future[RestResponse] = {
+    debug(s"Got request to delete namespace ${namespaceId}")
     val request = DeleteNamespace(authProfile.username, namespaceId)
     (namespaceActor ? request).mapTo[Unit] map (_ => OkResponse)
   }

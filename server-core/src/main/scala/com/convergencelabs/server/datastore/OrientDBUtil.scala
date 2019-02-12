@@ -18,6 +18,7 @@ import com.orientechnologies.orient.core.command.script.OCommandScript
 import com.orientechnologies.orient.core.command.OCommandRequest
 import com.orientechnologies.orient.core.record.impl.ODocumentHelper
 import java.util.ArrayList
+import com.orientechnologies.orient.core.index.OIndex
 
 object OrientDBUtil {
 
@@ -190,16 +191,37 @@ object OrientDBUtil {
       }
     }
   }
-  
+
   def deleteFromSingleValueIndex(db: ODatabaseDocument, index: String, keys: List[_]): Try[Unit] = {
     deleteFromSingleValueIndex(db, index, new OCompositeKey(keys.asJava))
   }
 
   def deleteFromSingleValueIndex(db: ODatabaseDocument, index: String, key: Any): Try[Unit] = {
-    Try (db.getMetadata.getIndexManager.getIndex(index).remove(key)).flatMap(_ match {
-      case true => Success(())
-      case false => Failure(EntityNotFoundException())
-    })
+    // FIXME this should work, but for some reason does not seem to work.
+    //    for {
+    //      oIndex <- getIndex(db, index)
+    //      deleted <- Try(oIndex.remove(key))
+    //    } yield {
+    //      deleted match {
+    //        case true =>
+    //          Success(())
+    //        case false =>
+    //          Failure(EntityNotFoundException())
+    //      }
+    //    }
+
+    for {
+      oIndex <- getIndex(db, index)
+      rid <- Try(Option(oIndex.get(key).asInstanceOf[ORID]))
+      _ <- (rid match {
+        case Some(rid) =>
+          Try(db.delete(rid)).map(_ => ())
+        case None =>
+          Failure(EntityNotFoundException())
+      })
+    } yield {
+      ()
+    }
   }
 
   def deleteFromSingleValueIndexIfExists(db: ODatabaseDocument, index: String, keys: List[_]): Try[Unit] = {
@@ -214,6 +236,15 @@ object OrientDBUtil {
         case Some(rid) => Try(db.delete(rid)).map(_ => ())
         case None => Success(())
       }
+    }
+  }
+
+  def getIndex(db: ODatabaseDocument, index: String): Try[OIndex[_]] = {
+    Option(db.getMetadata.getIndexManager.getIndex(index)) match {
+      case Some(oIndex) =>
+        Success(oIndex)
+      case None =>
+        Failure(new IllegalArgumentException("Index not found: " + index))
     }
   }
 
