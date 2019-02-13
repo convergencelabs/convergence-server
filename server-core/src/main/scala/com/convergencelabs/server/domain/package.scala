@@ -18,6 +18,9 @@ case class AuthenticationRequest(
 
 case class ClientDisconnected(domainFqn: DomainFqn, clientActor: ActorRef) extends DomainMessage
 
+case class DomainStatusRequest(domainFqn: DomainFqn) extends DomainMessage
+case class DomainStatusResponse(connectedClients: Int)
+
 sealed trait AuthetncationCredentials
 case class PasswordAuthRequest(username: String, password: String) extends AuthetncationCredentials
 case class JwtAuthRequest(jwt: String) extends AuthetncationCredentials
@@ -29,7 +32,6 @@ case class AuthenticationSuccess(session: DomainUserSessionId, reconnectToken: O
 case object AuthenticationFailure extends AuthenticationResponse
 
 case class AuthenticationError(message: String = "", cause: Throwable) extends Exception(message, cause)
-
 case class UnauthorizedException(message: String = "") extends Exception(message)
 
 case class HandshakeSuccess(

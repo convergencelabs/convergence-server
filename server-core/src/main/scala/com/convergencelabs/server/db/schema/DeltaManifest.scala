@@ -148,7 +148,7 @@ class DeltaManifest(
           DeltaScript(rawText, parsed)
         } recover {
           case cause: Exception =>
-            throw new IOException(s"Could not parse delta: ${path}")
+            throw new IOException(s"Could not parse delta: ${path}", cause)
         }
     }
   }

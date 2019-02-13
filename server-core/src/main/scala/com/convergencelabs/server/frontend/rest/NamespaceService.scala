@@ -72,7 +72,9 @@ class NamespaceService(
     pathPrefix("namespaces") {
       pathEnd {
         get {
-          complete(getNamespaces(authProfile))
+          parameters("filter".?, "limit".as[Int].?, "offset".as[Int].?) { (filter, limit, offset) =>
+            complete(getNamespaces(authProfile, filter, offset, limit))
+          }
         } ~ post {
           authorize(canManageNamespaces(authProfile)) {
             entity(as[CreateNamespacePost]) { request =>
@@ -100,8 +102,8 @@ class NamespaceService(
     }
   }
 
-  def getNamespaces(authProfile: AuthorizationProfile): Future[RestResponse] = {
-    val request = GetAccessibleNamespaces(authProfile)
+  def getNamespaces(authProfile: AuthorizationProfile, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
+    val request = GetAccessibleNamespaces(authProfile, filter, offset, limit)
     (namespaceActor ? request).mapTo[Set[NamespaceAndDomains]] map { namespaces =>
       val response = namespaces.map { n =>
         val domainData = n.domains.map(d => DomainRestData(d.displayName, d.domainFqn.namespace, d.domainFqn.domainId, d.status.toString))

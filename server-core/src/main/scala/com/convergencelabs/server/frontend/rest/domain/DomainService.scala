@@ -2,9 +2,6 @@ package com.convergencelabs.server.frontend.rest
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
-import scala.util.Try
-import scala.util.Success
-import scala.util.Failure
 
 import com.convergencelabs.server.datastore.convergence.DomainStoreActor.CreateDomainRequest
 import com.convergencelabs.server.datastore.convergence.DomainStoreActor.DeleteDomainRequest
@@ -15,33 +12,27 @@ import com.convergencelabs.server.domain.Domain
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.frontend.rest.domain.DomainAdminTokenService
 import com.convergencelabs.server.frontend.rest.domain.DomainStatsService
+import com.convergencelabs.server.security.AuthorizationProfile
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
-import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
 import akka.http.scaladsl.server.Directive.addDirectiveApply
-import akka.http.scaladsl.server.Directives.Segment
 import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
 import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
+import akka.http.scaladsl.server.Directives._string2NR
 import akka.http.scaladsl.server.Directives.as
+import akka.http.scaladsl.server.Directives.authorize
 import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Directives.delete
 import akka.http.scaladsl.server.Directives.entity
 import akka.http.scaladsl.server.Directives.get
+import akka.http.scaladsl.server.Directives.parameters
 import akka.http.scaladsl.server.Directives.pathEnd
 import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.post
 import akka.http.scaladsl.server.Directives.put
-import akka.http.scaladsl.server.Directives.authorize
-import akka.http.scaladsl.server.directives.FutureDirectives.onSuccess
-import akka.http.scaladsl.server.directives.OnSuccessMagnet.apply
-import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.server.security.Permissions
-import com.convergencelabs.server.security.AuthorizationProfile
-import com.convergencelabs.server.security.AuthorizationProfile
-import com.convergencelabs.server.security.AuthorizationProfile
 
 object DomainService {
   case class DomainRestData(
@@ -50,7 +41,7 @@ object DomainService {
     domainId: String,
     status: String)
 
-  case class CreateDomainRestRequest(namespace: Option[String], domainId: String, displayName: String)
+  case class CreateDomainRestRequest(namespace: String, id: String, displayName: String)
   case class UpdateDomainRestRequest(displayName: String)
 }
 
@@ -61,9 +52,11 @@ class DomainService(
   private[this] val permissionStoreActor: ActorRef,
   private[this] val modelClusterRegion: ActorRef,
   private[this] val defaultTimeout: Timeout)
-    extends JsonSupport {
+  extends JsonSupport {
 
   import DomainService._
+  import akka.http.scaladsl.server.Directives.Segment
+  import akka.pattern.ask
 
   implicit val ec = executionContext
   implicit val t = defaultTimeout
@@ -83,7 +76,9 @@ class DomainService(
     pathPrefix("domains") {
       pathEnd {
         get {
-          complete(getDomains(authProfile.username))
+          parameters("filter".?, "offset".as[Int].?, "limit".as[Int].?) { (filter, offset, limit) =>
+            complete(getDomains(authProfile, filter, offset, limit))
+          }
         } ~ post {
           entity(as[CreateDomainRestRequest]) { request =>
             complete(createDomain(request, authProfile))
@@ -125,16 +120,15 @@ class DomainService(
   }
 
   def createDomain(createRequest: CreateDomainRestRequest, authProfile: AuthorizationProfile): Future[RestResponse] = {
-    val CreateDomainRestRequest(namespace, domainId, displayName) = createRequest
-    
+    val CreateDomainRestRequest(namespace, id, displayName) = createRequest
     // FIXME require permissions
-    // FIXME check config
-    val message = CreateDomainRequest(namespace.getOrElse(authProfile.username), domainId, displayName, false)
+    // FIXME check config to see if user namespaces are enabled
+    val message = CreateDomainRequest(namespace, id, displayName, false)
     (domainStoreActor ? message) map { _ => CreatedResponse }
   }
 
-  def getDomains(username: String): Future[RestResponse] = {
-    (domainStoreActor ? ListDomainsRequest(username)).mapTo[List[Domain]].map(domains =>
+  def getDomains(authProfile: AuthorizationProfile, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
+    (domainStoreActor ? ListDomainsRequest(authProfile, filter, offset, limit)).mapTo[List[Domain]].map(domains =>
       okResponse(
         domains map (domain => DomainRestData(
           domain.displayName,

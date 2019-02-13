@@ -21,14 +21,9 @@ import grizzled.slf4j.Logging
 object DeltaHistoryStore {
 
   object Params {
-    val DeltaNo = "deltaNo"
-    val Value = "value"
-
-    val Domain = "domain"
-    val Delta = "delta"
+    val Namespace = "namespace"
+    val Id = "id"
     val Status = "status"
-    val Message = "message"
-    val Date = "date"
   }
 
   object Status {
@@ -86,7 +81,7 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
       .findDocument(
         db,
         "SELECT max(delta.deltaNo) as version FROM ConvergenceDeltaHistory WHERE status = :status",
-        Map("status" -> Status.Success))
+        Map(Params.Status -> Status.Success))
       .map(_.map(_.getProperty("version").asInstanceOf[Int]).getOrElse(0))
   }
 
@@ -95,7 +90,7 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
       .findDocument(
         db,
         "SELECT if(count(*) > 0, false, true) as healthy FROM ConvergenceDeltaHistory WHERE status = :status",
-        Map("status" -> Status.Error))
+        Map(Params.Status -> Status.Error))
       .map(_.map(_.field("healthy").asInstanceOf[Boolean]).getOrElse(true))
   }
 
@@ -122,8 +117,8 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
   }
 
   def removeDeltaHistoryForDomain(domainFqn: DomainFqn): Try[Unit] = withDb { db =>
-    val query = "DELETE FROM DomainDeltaHistory WHERE domain IN (SELECT rid FROM INDEX:Domain.namespace_id WHERE KEY = [:namespace, :id])";
-    val params = Map("namespace" -> domainFqn.namespace, "id" -> domainFqn.domainId)
+    val query = "DELETE FROM DomainDeltaHistory WHERE domain IN (SELECT FROM Domain WHERE namespace.id = :namespace AND id =:id)";
+    val params = Map(Params.Namespace -> domainFqn.namespace, Params.Id -> domainFqn.domainId)
     OrientDBUtil.command(db, query, params).map(_ => ())
   }
 

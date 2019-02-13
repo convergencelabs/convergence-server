@@ -97,7 +97,7 @@ class UserStore(dbProvider: DatabaseProvider)
       .findDocumentFromSingleValueIndex(db, UserClass.Indices.Username, user.username)
       .map(_ match {
         case Some(doc) =>
-          doc.merge(updatedDoc, false, false)
+          doc.merge(updatedDoc, true, false)
           db.save(doc)
           ()
         case None =>

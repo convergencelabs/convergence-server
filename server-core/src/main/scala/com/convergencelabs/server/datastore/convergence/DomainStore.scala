@@ -27,6 +27,8 @@ object DomainStore {
     val DisplayName = "displayName"
     val Status = "status"
     val StatusMessage = "statusMessage"
+    val Filter = "filter"
+    val Username = "Username"
   }
 
   def domainToDoc(domain: Domain, db: ODatabaseDocument): Try[ODocument] = {
@@ -115,9 +117,19 @@ class DomainStore(dbProvider: DatabaseProvider)
     val params = Map(Params.Namespace -> namespace)
     OrientDBUtil.query(db, GetDomainsByNamesapceQuery, params).map(_.map(docToDomain(_)))
   }
+  
+  def getDomains(filter: Option[String], offset: Option[Int], limit: Option[Int]): Try[List[Domain]] = withDb { db =>
+    val baseQuery = "SELECT FROM Domain"
+    val (whereClause, whereParams) = filter.map(filter => {
+      val where = " WHERE id.toLowerCase() LIKE :filter OR displayName.toLowerCase() LIKE :filter"
+      val params = Map[String, String](Params.Filter -> s"%${filter}%")
+      (where, params)
+    }).getOrElse("", Map[String, String]())
+    val query = OrientDBUtil.buildPagedQuery(baseQuery + whereClause, limit, offset)
+    OrientDBUtil.query(db, query, whereParams).map(_.map(DomainStore.docToDomain(_)))
+  }
 
-  def getDomainsByAccess(username: String): Try[List[Domain]] = withDb { db =>
-    // TODO: Merge these queries together
+  def getDomainsByAccess(username: String, filter: Option[String], offset: Option[Int], limit: Option[Int]): Try[List[Domain]] = withDb { db =>
     val accessQuery = """
         |SELECT
         |  expand(set(domain))
@@ -125,9 +137,21 @@ class DomainStore(dbProvider: DatabaseProvider)
         |  UserRole
         |WHERE 
         |  user.username = :username AND
-        |  role.permissions CONTAINS (id = 'domain-access') AND
-        |  target.@class = 'Domain'""".stripMargin
-    OrientDBUtil.query(db, accessQuery, Map("username" -> username)).map(_.map(DomainStore.docToDomain(_)))
+        |  (
+        |    (role.permissions CONTAINS ('domain-access') AND target.@class = 'Domain') OR
+        |    (role.permissions CONTAINS ('namespace-access') AND target.@class = 'Namespace') OR
+        |    (role.permissions CONTAINS ('manage-domains') AND target IS NULL)
+        |  )""".stripMargin
+
+    val (whereClause, whereParams) = filter.map(filter => {
+      val where = " WHERE id.toLowerCase() LIKE :filter OR displayName.toLowerCase() LIKE :filter"
+      val params = Map[String, String](Params.Filter -> s"%${filter}%")
+      (where, params)
+    }).getOrElse("", Map[String, String]())
+
+    val query = OrientDBUtil.buildPagedQuery(accessQuery + whereClause, limit, offset)
+    val params = Map(Params.Username -> username) ++ whereParams
+    OrientDBUtil.query(db, query, params).map(_.map(DomainStore.docToDomain(_)))
   }
 
   private[this] val DeleteDomainCommand = "DELETE FROM Domain WHERE namespace.id = :namespace AND id = :id"

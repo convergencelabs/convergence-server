@@ -47,7 +47,7 @@ class ConvergenceRealTimeFrontend(
         val localAddress = b.localAddress
         logger.info(s"Realtime Front End started up on port $websocketPort.")
       case Failure(e) ⇒
-        logger.info(s"Binding failed with ${e.getMessage}")
+        logger.error("Realtime Front End startup failed", e)
         system.terminate()
     }
   }

@@ -167,16 +167,16 @@ actions:
   - action: CreateClass
     name: Domain
     properties:
-      - {name: id,              type: String,                         constraints: {mandatory: true, notNull: true}}
-      - {name: namespace,       type: Link,   linkedClass: Namespace, constraints: {mandatory: true, notNull: true}}
-      - {name: displayName,     type: String,                         constraints: {mandatory: true, notNull: true}}
-      - {name: status,          type: String,                         constraints: {mandatory: true, notNull: true}}
-      - {name: statusMessage,   type: String,                         constraints: {mandatory: true, notNull: true}}
-      - {name: databaseName,          type: String,                      constraints: {mandatory: true, notNull: true}}
-      - {name: databaseUsername,      type: String,                      constraints: {mandatory: true, notNull: true}}
-      - {name: databasePassword,      type: String,                      constraints: {mandatory: true, notNull: true}}
-      - {name: databaseAdminUsername, type: String,                      constraints: {mandatory: true, notNull: true}}
-      - {name: databaseAdminPassword, type: String,                      constraints: {mandatory: true, notNull: true}}
+      - {name: id,                    type: String,                         constraints: {mandatory: true, notNull: true}}
+      - {name: namespace,             type: Link,   linkedClass: Namespace, constraints: {mandatory: true, notNull: true}}
+      - {name: displayName,           type: String,                         constraints: {mandatory: true, notNull: true}}
+      - {name: status,                type: String,                         constraints: {mandatory: true, notNull: true}}
+      - {name: statusMessage,         type: String,                         constraints: {mandatory: true, notNull: true}}
+      - {name: databaseName,          type: String,                         constraints: {mandatory: true, notNull: true}}
+      - {name: databaseUsername,      type: String,                         constraints: {mandatory: true, notNull: true}}
+      - {name: databasePassword,      type: String,                         constraints: {mandatory: true, notNull: true}}
+      - {name: databaseAdminUsername, type: String,                         constraints: {mandatory: true, notNull: true}}
+      - {name: databaseAdminPassword, type: String,                         constraints: {mandatory: true, notNull: true}}
 
   - action: CreateIndex
     className: Domain
@@ -218,8 +218,8 @@ actions:
   - action: CreateClass
     name: Role
     properties:
-      - {name: name,        type: String,                      constraints: {mandatory: true,  notNull: true, readOnly: true}}
-      - {name: targetClass, type: String,                      constraints: {mandatory: false, notNull: true, readOnly: true}}
+      - {name: name,        type: String,                          constraints: {mandatory: true,  notNull: true, readOnly: true}}
+      - {name: targetClass, type: String,                          constraints: {mandatory: false, notNull: true, readOnly: true}}
       - {name: permissions, type: EmbeddedSet, linkedType: String, constraints: {mandatory: true,  notNull: true}}
 
   - action: CreateIndex

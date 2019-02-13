@@ -31,7 +31,7 @@ object NamespaceStoreActor {
   case class CreateNamespace(requestor: String, namespaceId: String, displayName: String)
   case class UpdateNamespace(requestor: String, namespaceId: String, displayName: String)
   case class DeleteNamespace(requestor: String, namespaceId: String)
-  case class GetAccessibleNamespaces(requestor: AuthorizationProfile)
+  case class GetAccessibleNamespaces(requestor: AuthorizationProfile, filter: Option[String], offset: Option[Int], limit: Option[Int])
   case class GetNamespace(namespaceId: String)
 }
 
@@ -81,7 +81,7 @@ class NamespaceStoreActor private[datastore] (
   }
 
   def getAccessibleNamespaces(getRequest: GetAccessibleNamespaces): Unit = {
-    val GetAccessibleNamespaces(authProfile) = getRequest
+    val GetAccessibleNamespaces(authProfile, filter, offset, limit) = getRequest
     if (authProfile.hasGlobalPermission(Permissions.Global.ManageDomains)) {
       reply(namespaceStore.getAllNamespacesAndDomains())
     } else {

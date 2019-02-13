@@ -24,6 +24,8 @@ import akka.actor.ActorRef
 import akka.actor.Props
 import akka.actor.actorRef2Scala
 import akka.util.Timeout
+import com.convergencelabs.server.security.AuthorizationProfile
+import com.convergencelabs.server.security.Permissions
 
 object DomainStoreActor {
   val RelativePath = "DomainStoreActor"
@@ -37,7 +39,7 @@ object DomainStoreActor {
   case class UpdateDomainRequest(namespace: String, domainId: String, displayName: String)
   case class DeleteDomainRequest(namespace: String, domainId: String)
   case class GetDomainRequest(namespace: String, domainId: String)
-  case class ListDomainsRequest(username: String)
+  case class ListDomainsRequest(authProfile: AuthorizationProfile, filter: Option[String], offset: Option[Int], limit: Option[Int])
   case class DeleteDomainsForUserRequest(username: String)
 }
 
@@ -56,12 +58,18 @@ class DomainStoreActor private[datastore] (
   private[this] implicit val ec = context.system.dispatcher
 
   def receive: Receive = {
-    case createRequest: CreateDomainRequest => createDomain(createRequest)
-    case deleteRequest: DeleteDomainRequest => deleteDomain(deleteRequest)
-    case updateRequest: UpdateDomainRequest => updateDomain(updateRequest)
-    case getRequest: GetDomainRequest => getDomain(getRequest)
-    case listRequest: ListDomainsRequest => listDomains(listRequest)
-    case deleteForUser: DeleteDomainsForUserRequest => deleteDomainsForUser(deleteForUser)
+    case createRequest: CreateDomainRequest =>
+      createDomain(createRequest)
+    case deleteRequest: DeleteDomainRequest =>
+      deleteDomain(deleteRequest)
+    case updateRequest: UpdateDomainRequest =>
+      updateDomain(updateRequest)
+    case getRequest: GetDomainRequest =>
+      getDomain(getRequest)
+    case listRequest: ListDomainsRequest =>
+      listDomains(listRequest)
+    case deleteForUser: DeleteDomainsForUserRequest =>
+      deleteDomainsForUser(deleteForUser)
     case message: Any => unhandled(message)
   }
 
@@ -130,33 +138,32 @@ class DomainStoreActor private[datastore] (
   }
 
   def deleteDomain(domainFqn: DomainFqn): Try[Unit] = {
-    val result = domainStore.getDomainDatabase(domainFqn).flatMap ( _ match {
-        case Some(domainDatabase) =>
-          log.debug(s"Deleting domain database for ${domainFqn}: ${domainDatabase.database}")
+    val result = domainStore.getDomainDatabase(domainFqn).flatMap(_ match {
+      case Some(domainDatabase) =>
+        log.debug(s"Deleting domain database for ${domainFqn}: ${domainDatabase.database}")
 
-          implicit val requstTimeout = Timeout(4 minutes) // FXIME hard-coded timeout
-          (domainProvisioner ? DestroyDomain(domainFqn, domainDatabase.database)) onComplete {
-            case Success(_) =>
-              log.debug(s"Domain database deleted: ${domainDatabase.database}")
+        implicit val requstTimeout = Timeout(4 minutes) // FXIME hard-coded timeout
+        (domainProvisioner ? DestroyDomain(domainFqn, domainDatabase.database)) onComplete {
+          case Success(_) =>
+            log.debug(s"Domain database deleted: ${domainDatabase.database}")
 
-              log.debug(s"Removing domain delta history: ${domainFqn}")
-              deltaHistoryStore.removeDeltaHistoryForDomain(domainFqn)
-                .map(_ => log.debug(s"Domain database delta history removed: ${domainFqn}"))
-                .failed.map(cause => log.error(cause, s"Error deleting domain history history: ${domainFqn}"))
+            log.debug(s"Removing domain delta history: ${domainFqn}")
+            deltaHistoryStore.removeDeltaHistoryForDomain(domainFqn)
+              .map(_ => log.debug(s"Domain database delta history removed: ${domainFqn}"))
+              .failed.map(cause => log.error(cause, s"Error deleting domain history history: ${domainFqn}"))
 
-              log.debug(s"Removing domain: ${domainFqn}")
-              domainStore.removeDomain(domainFqn)
-                .map(_ => log.debug(s"Domain record removed: ${domainFqn}"))
-                .failed.map(cause => log.error(cause, s"Error deleting domain record: ${domainFqn}"))
+            log.debug(s"Removing domain: ${domainFqn}")
+            domainStore.removeDomain(domainFqn)
+              .map(_ => log.debug(s"Domain record removed: ${domainFqn}"))
+              .failed.map(cause => log.error(cause, s"Error deleting domain record: ${domainFqn}"))
 
-            case Failure(f) =>
-              log.error(f, s"Could not desstroy domain database: ${domainFqn}")
-          }
-          Success(())
-        case None =>
-          Failure(new EntityNotFoundException(s"Could not find domain information to delete the domain: ${domainFqn}"))
-      }
-    )
+          case Failure(f) =>
+            log.error(f, s"Could not desstroy domain database: ${domainFqn}")
+        }
+        Success(())
+      case None =>
+        Failure(new EntityNotFoundException(s"Could not find domain information to delete the domain: ${domainFqn}"))
+    })
 
     reply(result)
 
@@ -192,6 +199,13 @@ class DomainStoreActor private[datastore] (
   }
 
   def listDomains(listRequest: ListDomainsRequest): Unit = {
-    reply(domainStore.getDomainsByAccess(listRequest.username))
+    val ListDomainsRequest(authProfile, filter, offset, limit) = listRequest
+    if (authProfile.hasGlobalPermission(Permissions.Global.ManageDomains)) {
+      reply(domainStore.getDomains(filter, offset, limit))
+    } else {
+      // FIXME this doesn't work for namespace access
+      reply(domainStore.getDomainsByAccess(authProfile.username, filter, offset, limit))
+    }
+    
   }
 }

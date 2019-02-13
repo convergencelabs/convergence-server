@@ -104,6 +104,8 @@ class DomainActor(
     // no-op
     case DomainDeleted(domainFqn) =>
       domainDeleted()
+    case message: DomainStatusRequest =>
+      onStatusRequest()
     case message: Any =>
       unhandled(message)
   }
@@ -185,6 +187,10 @@ class DomainActor(
     }
     
     log.debug(s"${identityString}: Done processing authentication request: ${message.credentials.getClass.getSimpleName}")
+  }
+  
+  private[this] def onStatusRequest(): Unit = {
+      sender ! DomainStatusResponse(this.connectedClients.size)
   }
 
   //
