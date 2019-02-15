@@ -33,6 +33,7 @@ import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.post
 import akka.http.scaladsl.server.Directives.put
 import akka.util.Timeout
+import com.convergencelabs.server.datastore.convergence.NamespaceNotFoundException
 
 object DomainService {
   case class DomainRestData(
@@ -124,7 +125,12 @@ class DomainService(
     // FIXME require permissions
     // FIXME check config to see if user namespaces are enabled
     val message = CreateDomainRequest(namespace, id, displayName, false)
-    (domainStoreActor ? message) map { _ => CreatedResponse }
+    (domainStoreActor ? message)
+      .map { _ => CreatedResponse }
+      .recover {
+        case NamespaceNotFoundException(namespace) =>
+          namespaceNotFoundResponse(namespace)
+      }
   }
 
   def getDomains(authProfile: AuthorizationProfile, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {

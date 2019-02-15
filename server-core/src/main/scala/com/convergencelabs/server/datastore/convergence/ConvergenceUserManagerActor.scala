@@ -59,13 +59,11 @@ class ConvergenceUserManagerActor private[datastore] (
   private[this] implicit val exectionContext = context.dispatcher
 
   private[this] val domainConfig: Config = context.system.settings.config.getConfig("convergence.domain-databases")
-  private[this] val autoCreateConfigs: List[Config] = context.system.settings.config.getConfigList("convergence.auto-create-domains").asScala.toList
   private[this] val tokenDuration = context.system.settings.config.getDuration("convergence.rest.session-token-expiration")
   private[this] val userStore: UserStore = new UserStore(dbProvider)
   private[this] val roleStore: RoleStore = new RoleStore(dbProvider)
-  private[this] val namespaceStore: NamespaceStore = new NamespaceStore(dbProvider)
 
-  private[this] val bearerTokenGen = new RandomStringGenerator(32)
+  private[this] val userCreator = new UserCreator(dbProvider)
 
   def receive: Receive = {
     case message: CreateConvergenceUserRequest =>
@@ -91,32 +89,15 @@ class ConvergenceUserManagerActor private[datastore] (
   }
 
   def createConvergenceUser(message: CreateConvergenceUserRequest): Unit = {
-    val CreateConvergenceUserRequest(username, email, firstName, lastName, displayName, password, globalRole) = message
+    val CreateConvergenceUserRequest(username, email, firstName, lastName, displayName, password, serverRole) = message
     val origSender = sender
-    val bearerToken = bearerTokenGen.nextString()
-
-    (for {
-      _ <- userStore.createUser(User(username, email, firstName, lastName, displayName, None), password, bearerToken)
-      _ <- roleStore.setUserRolesForTarget(username, ServerRoleTarget, Set(globalRole))
-      namespace <- namespaceStore.createUserNamespace(username)
-      _ <- roleStore.setUserRolesForTarget(username, NamespaceRoleTarget(namespace), Set(Roles.Namespace.Owner))
-    } yield {
-      origSender ! (())
-
-      if (autoCreateConfigs.size > 0) {
-        log.debug("User namespace created.  Creating domains ")
-        FutureUtils.seqFutures(autoCreateConfigs) { config =>
-          createDomain(
-            namespace,
-            config.getString("id"),
-            config.getString("displayName"),
-            config.getBoolean("anonymousAuth"))
-        }
+    val user = User(username, email, firstName, lastName, displayName, None)
+    userCreator.createUser(user, password, serverRole)
+      .map(_ => origSender ! (()))
+      .recover {
+        case e: Throwable =>
+          origSender ! Status.Failure(e)
       }
-    }) recover {
-      case e: Throwable =>
-        origSender ! Status.Failure(e)
-    }
   }
 
   def getConvergenceUser(message: GetConvergenceUser): Unit = {
@@ -163,7 +144,7 @@ class ConvergenceUserManagerActor private[datastore] (
     val update = User(username, email, firstName, lastName, displayName, None)
     reply(userStore.updateUser(update))
   }
-  
+
   def updateConvergenceUser(message: UpdateConvergenceUserRequest): Unit = {
     val UpdateConvergenceUserRequest(username, email, firstName, lastName, displayName, globalRole) = message;
     log.debug(s"Updating user: ${username}")
@@ -186,7 +167,7 @@ class ConvergenceUserManagerActor private[datastore] (
   def regenerateUserBearerToken(message: RegenerateUserBearerTokenRequest): Unit = {
     val RegenerateUserBearerTokenRequest(username) = message;
     log.debug(s"Regenerating the api key for user: ${username}")
-    val bearerToken = bearerTokenGen.nextString()
+    val bearerToken = userCreator.bearerTokenGen.nextString()
     reply(userStore.setBearerToken(username, bearerToken).map(_ => bearerToken))
   }
 

@@ -54,6 +54,7 @@ import com.convergencelabs.server.datastore.convergence.UserStore.User
 import com.convergencelabs.server.datastore.convergence.RoleStore
 import com.convergencelabs.server.datastore.convergence.ServerRoleTarget
 import com.convergencelabs.server.security.Roles
+import com.convergencelabs.server.datastore.convergence.UserCreator
 
 object ConvergenceServerNode extends Logging {
 
@@ -387,6 +388,8 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
       userStore.userExists(username).flatMap { exists =>
         if (!exists) {
           logger.debug("Admin user does not exist, creating.")
+          val userCreator = new UserCreator(dbProvider)
+
           val firstName = config.getString("firstName")
           val lastName = config.getString("lastName")
           val displayName = config.hasPath("displayName") match {
@@ -395,16 +398,8 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
           }
           val email = config.getString("email")
 
-          // FIXME move this into a common util between the ConvergenceUserManagerActor and here
-          val bearerTokenGen = new RandomStringGenerator(32)
-
-          val roleStore = new RoleStore(dbProvider)
-
           val user = User(username, email, firstName, lastName, displayName, None)
-          for {
-            _ <- userStore.createUser(user, password, bearerTokenGen.nextString)
-            _ <- roleStore.setUserRolesForTarget(username, ServerRoleTarget, Set(Roles.Global.ServerAdmin))
-          } yield ()
+          userCreator.createUser(user, password, Roles.Server.ServerAdmin)
         } else {
           logger.debug("Admin user exists, updating password.")
           userStore.setUserPassword(username, password)

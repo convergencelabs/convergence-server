@@ -47,6 +47,8 @@ package object rest {
   def invalidValueResponse(field: String): RestResponse = (StatusCodes.BadRequest, ErrorResponse("invalid_value", None, Some(Map("field" -> field))))
   def notFoundResponse(message: Option[String] = None): RestResponse = (StatusCodes.NotFound, ErrorResponse("not_found", message))
   
+  def namespaceNotFoundResponse(namespace: String): RestResponse = (StatusCodes.BadRequest, ErrorResponse("namespace_not_found", None, Some(Map("namespace" -> namespace))))
+  
   def okResponse(data: Any): RestResponse = (StatusCodes.OK, SuccessRestResponse(data))
   def createdResponse(data: Any): RestResponse = (StatusCodes.Created, SuccessRestResponse(data))
   def response(code: StatusCode, data: Any): RestResponse = (code, SuccessRestResponse(data))

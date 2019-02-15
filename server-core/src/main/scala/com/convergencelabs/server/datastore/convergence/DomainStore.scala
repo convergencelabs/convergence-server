@@ -18,6 +18,7 @@ import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.domain.DomainDatabase
+import com.convergencelabs.server.datastore.EntityNotFoundException
 
 object DomainStore {
 
@@ -41,6 +42,9 @@ object DomainStore {
       doc.setProperty(DomainClass.Fields.Status, status.toString())
       doc.setProperty(DomainClass.Fields.StatusMessage, statusMessage)
       doc
+    }.recoverWith {
+      case cause: EntityNotFoundException =>
+        Failure(NamespaceNotFoundException(namespace))
     }
   }
 
