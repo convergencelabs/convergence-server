@@ -3,12 +3,14 @@ package com.convergencelabs.server.frontend.rest
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
+import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.ConvergenceUserInfo
 import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.GetConvergenceUser
 import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.GetUserBearerTokenRequest
 import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.RegenerateUserBearerTokenRequest
 import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.SetPasswordRequest
-import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.UpdateConvergenceUserRequest
+import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.UpdateConvergenceUserProfileRequest
 import com.convergencelabs.server.datastore.convergence.UserStore.User
+import com.convergencelabs.server.security.AuthorizationProfile
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
@@ -25,9 +27,6 @@ import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.put
 import akka.util.Timeout
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.security.AuthorizationProfile
-import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.UpdateConvergenceUserProfileRequest
-import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.ConvergenceUserInfo
 
 object CurrentUserService {
   case class BearerTokenResponse(token: String)

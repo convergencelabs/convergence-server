@@ -54,6 +54,7 @@ import akka.http.scaladsl.server.RejectionHandler
 import akka.http.scaladsl.server.MalformedRequestContentRejection
 import akka.http.scaladsl.server.AuthorizationFailedRejection
 import com.convergencelabs.server.datastore.convergence.NamespaceStoreActor
+import com.convergencelabs.server.datastore.convergence.ConfigStoreActor
 
 object ConvergenceRestFrontEnd {
   val ConvergenceCorsSettings = CorsSettings.defaultSettings.copy(
@@ -107,7 +108,8 @@ class ConvergenceRestFrontEnd(
     val namespaceActor = createRouter("/user/" + NamespaceStoreActor.RelativePath, "namespaceActor")
     val databaseManagerActor = createRouter("/user/" + DatabaseManagerActor.RelativePath, "databaseManagerActor")
     val importerActor = createRouter("/user/" + ConvergenceImporterActor.RelativePath, "importerActor")
-    val roleActor = createRouter("/user/" + RoleStoreActor.RelativePath, "permissionsActor")
+    val roleActor = createRouter("/user/" + RoleStoreActor.RelativePath, "roleActor")
+    val configActor = createRouter("/user/" + ConfigStoreActor.RelativePath, "configActor")
 
     
     val authenticator = new Authenticator(authStoreActor, masterAdminToken, defaultRequestTimeout, ec)
@@ -117,6 +119,7 @@ class ConvergenceRestFrontEnd(
     val currentUserService = new CurrentUserService(ec, convergenceUserActor, defaultRequestTimeout)
     val namespaceService = new NamespaceService(ec, namespaceActor, defaultRequestTimeout)
     val roleService = new RoleService(ec, roleActor, defaultRequestTimeout)
+    val configService = new ConfigService(ec, configActor, defaultRequestTimeout)
     val keyGenService = new KeyGenService(ec)
     val convergenceUserService = new ConvergenceUserService(ec, convergenceUserActor, defaultRequestTimeout)
     val convergenceImportService = new ConvergenceImportService(ec, importerActor, defaultRequestTimeout)
@@ -161,6 +164,7 @@ class ConvergenceRestFrontEnd(
                   namespaceService.route(authProfile),
                   domainService.route(authProfile),
                   roleService.route(authProfile),
+                  configService.route(authProfile),
                   keyGenService.route(),
                   convergenceImportService.route(authProfile),
                   databaseManagerService.route(authProfile))

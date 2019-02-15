@@ -3,6 +3,21 @@ version: 1
 actions:
 
 
+########## Config Class ##########
+
+  - action: CreateClass
+    name: Config
+    properties:
+      - {name: key,   type: String, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: value, type: Any,    constraints: {mandatory: true, notNull: true, readOnly: false}}
+
+  - action: CreateIndex
+    className: Config
+    name: Config.key
+    type: UniqueHashIndex
+    properties: [key]
+
+
 ########## ConvergenceDelta Class ##########
 
   - action: CreateClass
@@ -73,14 +88,15 @@ actions:
   - action: CreateClass
     name: User
     properties:
-      - {name: username,     type: String,   constraints: {mandatory: true,   notNull: true}}
-      - {name: email,        type: String,   constraints: {mandatory: true,   notNull: true}}
-      - {name: firstName,    type: String,   constraints: {mandatory: true,   notNull: true}}
-      - {name: lastName,     type: String,   constraints: {mandatory: true,   notNull: true}}
-      - {name: displayName,  type: String,   constraints: {mandatory: true,   notNull: true}}
-      - {name: lastLogin,    type: DateTime, constraints: {mandatory: false,  notNull: true}}
-      - {name: bearerToken,  type: String,   constraints: {mandatory: true,   notNull: true}}
-      - {name: passwordHash, type: String,   constraints: {mandatory: false,  notNull: true}}
+      - {name: username,       type: String,   constraints: {mandatory: true,   notNull: true}}
+      - {name: email,           type: String,   constraints: {mandatory: true,   notNull: true}}
+      - {name: firstName,       type: String,   constraints: {mandatory: true,   notNull: true}}
+      - {name: lastName,        type: String,   constraints: {mandatory: true,   notNull: true}}
+      - {name: displayName,     type: String,   constraints: {mandatory: true,   notNull: true}}
+      - {name: lastLogin,       type: DateTime, constraints: {mandatory: false,  notNull: true}}
+      - {name: bearerToken,     type: String,   constraints: {mandatory: true,   notNull: true}}
+      - {name: passwordHash,    type: String,   constraints: {mandatory: false,  notNull: true}}
+      - {name: passwordLastSet, type: DateTime, constraints: {mandatory: false,  notNull: true}}
 
   - action: CreateIndex
     className: User
@@ -260,3 +276,22 @@ actions:
       INSERT INTO Role SET name = "Developer", targetClass = "Domain", permissions = ["domain-access"];
       INSERT INTO Role SET name = "Domain Admin", targetClass = "Domain", permissions = ["domain-access", "domain-manage-settings"];
       INSERT INTO Role SET name = "Owner", targetClass = "Domain", permissions = ["domain-access", "domain-manage-settings", "domain-manage-users"];
+      
+  
+  - action: RunSqlCommand
+    command: |-
+      INSERT INTO Config SET key = "namespaces.enabled", value = true;
+      INSERT INTO Config SET key = "namespaces.user-namespaces-enabled", value = true;
+      INSERT INTO Config SET key = "namespaces.default-namespace", value = "default-namespace";
+      
+      INSERT INTO Config SET key = "domains.mode", value = "multi-domain";
+      INSERT INTO Config SET key = "domains.default-domain-id", value = "default-domain";
+      
+      INSERT INTO Config SET key = "passwords.minimum-length", value = 6;
+      INSERT INTO Config SET key = "passwords.require-numeric", value = true;
+      INSERT INTO Config SET key = "passwords.require-lower-case", value = true;
+      INSERT INTO Config SET key = "passwords.require-upper-case", value = true;
+      INSERT INTO Config SET key = "passwords.require-special-characters", value = true;
+      
+      
+      

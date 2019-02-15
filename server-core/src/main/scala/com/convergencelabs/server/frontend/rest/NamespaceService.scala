@@ -25,8 +25,6 @@ import akka.http.scaladsl.server.Directives.delete
 import akka.http.scaladsl.server.Directives.authorize
 import akka.http.scaladsl.server.Directives.parameters
 import akka.http.scaladsl.server.Directives.get
-import akka.http.scaladsl.server.Directives.handleWith
-import akka.http.scaladsl.server.Directives.handleExceptions
 import akka.http.scaladsl.server.Directives.pathEnd
 import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.put

@@ -2,6 +2,7 @@ package com.convergencelabs.server.datastore.convergence.schema
 
 object ConvergenceSchema {
   object Classes {
+    val Config = ConfigClass
     val ConvergenceDelta = ConvergenceDeltaClass
     val ConvergenceDeltaHistory = ConvergenceDeltaHistoryClass
     val Domain = DomainClass
