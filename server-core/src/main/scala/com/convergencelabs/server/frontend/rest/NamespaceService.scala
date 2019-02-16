@@ -3,47 +3,35 @@ package com.convergencelabs.server.frontend.rest
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
-import com.convergencelabs.server.datastore.convergence.UserStore.User
-import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.CreateConvergenceUserRequest
-import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.DeleteConvergenceUserRequest
-import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.GetConvergenceUser
-import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.GetConvergenceUsers
-import com.convergencelabs.server.datastore.DuplicateValueException
-import com.convergencelabs.server.datastore.InvalidValueExcpetion
+import com.convergencelabs.server.datastore.convergence.NamespaceStoreActor.CreateNamespace
+import com.convergencelabs.server.datastore.convergence.NamespaceStoreActor.DeleteNamespace
+import com.convergencelabs.server.datastore.convergence.NamespaceStoreActor.GetAccessibleNamespaces
+import com.convergencelabs.server.datastore.convergence.NamespaceStoreActor.GetNamespace
+import com.convergencelabs.server.datastore.convergence.NamespaceStoreActor.UpdateNamespace
+import com.convergencelabs.server.domain.Namespace
+import com.convergencelabs.server.domain.NamespaceAndDomains
+import com.convergencelabs.server.security.AuthorizationProfile
+import com.convergencelabs.server.security.Permissions
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
-import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
 import akka.http.scaladsl.server.Directive.addDirectiveApply
-import akka.http.scaladsl.server.Directives.Segment
 import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
 import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
 import akka.http.scaladsl.server.Directives._string2NR
+import akka.http.scaladsl.server.Directives.as
+import akka.http.scaladsl.server.Directives.authorize
 import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Directives.delete
-import akka.http.scaladsl.server.Directives.authorize
-import akka.http.scaladsl.server.Directives.parameters
+import akka.http.scaladsl.server.Directives.entity
 import akka.http.scaladsl.server.Directives.get
+import akka.http.scaladsl.server.Directives.parameters
 import akka.http.scaladsl.server.Directives.pathEnd
 import akka.http.scaladsl.server.Directives.pathPrefix
-import akka.http.scaladsl.server.Directives.put
 import akka.http.scaladsl.server.Directives.post
-import akka.http.scaladsl.server.Directives.delete
-import akka.http.scaladsl.server.Directives.entity
-import akka.http.scaladsl.server.Directives.as
+import akka.http.scaladsl.server.Directives.put
 import akka.util.Timeout
-import akka.http.scaladsl.server.ExceptionHandler
-import com.convergencelabs.server.datastore.convergence.NamespaceStoreActor.GetAccessibleNamespaces
-import com.convergencelabs.server.domain.Namespace
-import com.convergencelabs.server.datastore.convergence.NamespaceStoreActor.CreateNamespace
-import com.convergencelabs.server.datastore.convergence.NamespaceStoreActor.DeleteNamespace
-import com.convergencelabs.server.datastore.convergence.NamespaceStoreActor.UpdateNamespace
-import com.convergencelabs.server.security.AuthorizationProfile
-import com.convergencelabs.server.security.Permissions
-import com.convergencelabs.server.domain.NamespaceAndDomains
-import com.convergencelabs.server.frontend.rest.DomainService.DomainRestData
-import com.convergencelabs.server.datastore.convergence.NamespaceStoreActor.GetNamespace
 import grizzled.slf4j.Logging
 
 object NamespaceService {
@@ -62,6 +50,7 @@ class NamespaceService(
 
   import NamespaceService._
   import akka.pattern.ask
+  import akka.http.scaladsl.server.Directives.Segment
 
   implicit val ec = executionContext
   implicit val t = defaultTimeout

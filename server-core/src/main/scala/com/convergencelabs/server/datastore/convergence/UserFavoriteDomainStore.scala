@@ -10,6 +10,7 @@ import com.convergencelabs.server.domain.DomainFqn
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.domain.Domain
 
 object UserFavoriteDomainStore {
   object Params {
@@ -40,13 +41,11 @@ class UserFavoriteDomainStore(private[this] val dbProvider: DatabaseProvider)
   }
 
   private[this] val GetFavoritesForUser =
-    "SELECT domain.id as id, domain.namespace.id as namespace FROM UserFavoriteDomain WHERE user.username = :username"
-  def getFavoritesForUser(username: String): Try[List[DomainFqn]] = withDb { db =>
+    "SELECT expand(domain) FROM UserFavoriteDomain WHERE user.username = :username"
+  def getFavoritesForUser(username: String): Try[List[Domain]] = withDb { db =>
     val params = Map(Params.Username -> username)
     OrientDBUtil.queryAndMap(db, GetFavoritesForUser, params) { doc =>
-      val domain: String = doc.getProperty("id")
-      val namespace: String = doc.getProperty("namespace")
-      DomainFqn(namespace, domain)
+      DomainStore.docToDomain(doc)
     }
   }
 
@@ -59,14 +58,14 @@ class UserFavoriteDomainStore(private[this] val dbProvider: DatabaseProvider)
 
   private[this] val DeleteFavoritesForUserCommand =
     "DELETE FROM UserFavoriteDomain WHERE user.username = :username"
-  def removeFavorite(username: String): Try[Unit] = withDb { db =>
+  def removeFavoritesForUser(username: String): Try[Unit] = withDb { db =>
     val params = Map(Params.Username -> username)
     OrientDBUtil.command(db, DeleteFavoriteCommand, params).map(_ => ())
   }
 
   private[this] val DeleteFavoritesForDomainCommand =
     "DELETE FROM UserFavoriteDomain WHERE domain.id = :domainId AND domain.namespace.id = :namespaceId"
-  def removeFavorite(domain: DomainFqn): Try[Unit] = withDb { db =>
+  def removeFavoritesForDomain(domain: DomainFqn): Try[Unit] = withDb { db =>
     val params = Map(Params.DomainId -> domain.domainId, Params.NamespaceId -> domain.namespace)
     OrientDBUtil.command(db, DeleteFavoriteCommand, params).map(_ => ())
   }

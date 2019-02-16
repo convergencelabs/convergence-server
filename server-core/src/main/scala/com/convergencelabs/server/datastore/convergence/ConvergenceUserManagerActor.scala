@@ -131,6 +131,7 @@ class ConvergenceUserManagerActor private[datastore] (
   }
 
   def deleteConvergenceUser(message: DeleteConvergenceUserRequest): Unit = {
+    // FIXME remove favorites
     val DeleteConvergenceUserRequest(username) = message;
     val result = (domainStoreActor ? DeleteDomainsForUserRequest(username))
       .mapTo[Unit]

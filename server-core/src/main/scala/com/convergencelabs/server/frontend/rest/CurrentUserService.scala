@@ -33,6 +33,7 @@ import akka.util.Timeout
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.datastore.convergence.UserFavoriteDomainStoreActor.AddFavoriteDomain
 import com.convergencelabs.server.datastore.convergence.UserFavoriteDomainStoreActor.RemoveFavoriteDomain
+import com.convergencelabs.server.domain.Domain
 
 object CurrentUserService {
   case class BearerTokenResponse(token: String)
@@ -130,7 +131,13 @@ class CurrentUserService(
   
   def getFavoriteDomains(authProfile: AuthorizationProfile): Future[RestResponse] = {
     val message = GetFavoritesForUser(authProfile.username)
-    (favoriteDomainsActor ? message).mapTo[List[DomainFqn]] map { okResponse(_) }
+    (favoriteDomainsActor ? message).mapTo[List[Domain]] map { domains =>
+      okResponse(domains.map(domain => DomainRestData(
+          domain.displayName,
+          domain.domainFqn.namespace,
+          domain.domainFqn.domainId,
+          domain.status.toString)))
+    }
   }
   
   def addFavoriteDomain(authProfile: AuthorizationProfile, namespace: String, domain: String): Future[RestResponse] = {

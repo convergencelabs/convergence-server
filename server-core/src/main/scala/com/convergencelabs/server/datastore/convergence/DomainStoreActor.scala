@@ -53,7 +53,8 @@ class DomainStoreActor private[datastore] (
 
   private[this] val RandomizeCredentials = context.system.settings.config.getBoolean("convergence.domain-databases.randomize-credentials")
 
-  private[this] val domainStore: DomainStore = new DomainStore(dbProvider)
+  private[this] val domainStore = new DomainStore(dbProvider)
+  private[this] val favoriteDomainStore = new UserFavoriteDomainStore(dbProvider)
   private[this] val deltaHistoryStore: DeltaHistoryStore = new DeltaHistoryStore(dbProvider)
   private[this] implicit val ec = context.system.dispatcher
 
@@ -137,6 +138,7 @@ class DomainStoreActor private[datastore] (
     deleteDomain(domainFqn)
   }
 
+  // FIXME handle the error flow here a little better, think about transactions.
   def deleteDomain(domainFqn: DomainFqn): Try[Unit] = {
     val result = domainStore.getDomainDatabase(domainFqn).flatMap(_ match {
       case Some(domainDatabase) =>
@@ -156,7 +158,7 @@ class DomainStoreActor private[datastore] (
             domainStore.removeDomain(domainFqn)
               .map(_ => log.debug(s"Domain record removed: ${domainFqn}"))
               .failed.map(cause => log.error(cause, s"Error deleting domain record: ${domainFqn}"))
-
+            favoriteDomainStore.removeFavoritesForDomain(domainFqn)
           case Failure(f) =>
             log.error(f, s"Could not desstroy domain database: ${domainFqn}")
         }

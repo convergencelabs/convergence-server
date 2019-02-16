@@ -36,12 +36,6 @@ import akka.util.Timeout
 import com.convergencelabs.server.datastore.convergence.NamespaceNotFoundException
 
 object DomainService {
-  case class DomainRestData(
-    displayName: String,
-    namespace: String,
-    domainId: String,
-    status: String)
-
   case class CreateDomainRestRequest(namespace: String, id: String, displayName: String)
   case class UpdateDomainRestRequest(displayName: String)
 }

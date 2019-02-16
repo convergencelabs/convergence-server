@@ -54,4 +54,10 @@ package object rest {
   def response(code: StatusCode, data: Any): RestResponse = (code, SuccessRestResponse(data))
   
   case class PagedRestResponse(data: List[Any], startIndex: Int, totalResults: Int)
+  
+  case class DomainRestData(
+    displayName: String,
+    namespace: String,
+    domainId: String,
+    status: String)
 }

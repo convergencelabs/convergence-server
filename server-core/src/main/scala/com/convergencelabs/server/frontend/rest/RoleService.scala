@@ -5,11 +5,13 @@ import scala.concurrent.Future
 
 import com.convergencelabs.server.datastore.convergence.DomainRoleTarget
 import com.convergencelabs.server.datastore.convergence.NamespaceRoleTarget
+import com.convergencelabs.server.datastore.convergence.RoleStore.UserRoles
 import com.convergencelabs.server.datastore.convergence.RoleStoreActor.GetAllUserRolesRequest
+import com.convergencelabs.server.datastore.convergence.RoleStoreActor.RemoveUserFromTarget
+import com.convergencelabs.server.datastore.convergence.RoleStoreActor.UpdateRolesForTargetRequest
 import com.convergencelabs.server.datastore.convergence.RoleTarget
 import com.convergencelabs.server.datastore.convergence.ServerRoleTarget
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.frontend.rest.DomainService.DomainRestData
 import com.convergencelabs.server.security.AuthorizationProfile
 
 import akka.actor.ActorRef
@@ -18,20 +20,17 @@ import akka.http.scaladsl.server.Directive.addByNameNullaryApply
 import akka.http.scaladsl.server.Directive.addDirectiveApply
 import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
 import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
+import akka.http.scaladsl.server.Directives.as
 import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Directives.concat
-import akka.http.scaladsl.server.Directives.get
 import akka.http.scaladsl.server.Directives.delete
-import akka.http.scaladsl.server.Directives.post
 import akka.http.scaladsl.server.Directives.entity
-import akka.http.scaladsl.server.Directives.as
+import akka.http.scaladsl.server.Directives.get
 import akka.http.scaladsl.server.Directives.path
 import akka.http.scaladsl.server.Directives.pathEnd
 import akka.http.scaladsl.server.Directives.pathPrefix
+import akka.http.scaladsl.server.Directives.post
 import akka.util.Timeout
-import com.convergencelabs.server.datastore.convergence.RoleStore.UserRoles
-import com.convergencelabs.server.datastore.convergence.RoleStoreActor.UpdateRolesForTargetRequest
-import com.convergencelabs.server.datastore.convergence.RoleStoreActor.RemoveUserFromTarget
 
 object RoleService {
   case class CreateNamespacePost(id: String, displayName: String)
