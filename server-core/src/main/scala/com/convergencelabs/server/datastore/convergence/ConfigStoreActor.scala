@@ -13,7 +13,7 @@ object ConfigStoreActor {
 
   def props(dbProvider: DatabaseProvider): Props = Props(new ConfigStoreActor(dbProvider))
 
-  case class SetConfig(configs: Map[String, Any])
+  case class SetConfigs(configs: Map[String, Any])
   case class GetConfigs(keys: Option[List[String]])
   case class GetConfigsByFilter(filters: List[String])
 }
@@ -27,7 +27,7 @@ class ConfigStoreActor private[datastore] (
   private[this] val configStore = new ConfigStore(dbProvider)
 
   def receive: Receive = {
-    case msg: SetConfig =>
+    case msg: SetConfigs =>
       setConfigs(msg)
     case msg: GetConfigs =>
       getConfigs(msg)
@@ -37,8 +37,8 @@ class ConfigStoreActor private[datastore] (
       unhandled(message)
   }
 
-  def setConfigs(setConfigs: SetConfig): Unit = {
-    val SetConfig(configs) = setConfigs
+  def setConfigs(setConfigs: SetConfigs): Unit = {
+    val SetConfigs(configs) = setConfigs
     reply(configStore.setConfigs(configs))
   }
 

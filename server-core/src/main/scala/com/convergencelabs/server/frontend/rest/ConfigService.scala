@@ -29,6 +29,7 @@ import akka.util.Timeout
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.security.AuthorizationProfile
 import com.convergencelabs.server.datastore.convergence.ConfigStoreActor.GetConfigs
+import com.convergencelabs.server.datastore.convergence.ConfigStoreActor.SetConfigs
 
 object ConfigService {
   case class BearerTokenResponse(token: String)
@@ -84,7 +85,7 @@ class ConfigService(
   }
 
   def setConfigs(authProfile: AuthorizationProfile, configs: Map[String, Any]): Future[RestResponse] = {
-    val message = setConfigs(authProfile, configs)
+    val message = SetConfigs(configs)
     (configActor ? message).mapTo[Unit].map(_ => OkResponse)
   }
 }
