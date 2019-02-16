@@ -39,7 +39,7 @@ object DomainStoreActor {
   case class UpdateDomainRequest(namespace: String, domainId: String, displayName: String)
   case class DeleteDomainRequest(namespace: String, domainId: String)
   case class GetDomainRequest(namespace: String, domainId: String)
-  case class ListDomainsRequest(authProfile: AuthorizationProfile, filter: Option[String], offset: Option[Int], limit: Option[Int])
+  case class ListDomainsRequest(authProfile: AuthorizationProfile, namespace: Option[String], filter: Option[String], offset: Option[Int], limit: Option[Int])
   case class DeleteDomainsForUserRequest(username: String)
 }
 
@@ -199,12 +199,12 @@ class DomainStoreActor private[datastore] (
   }
 
   def listDomains(listRequest: ListDomainsRequest): Unit = {
-    val ListDomainsRequest(authProfile, filter, offset, limit) = listRequest
+    val ListDomainsRequest(authProfile, namespace, filter, offset, limit) = listRequest
     if (authProfile.hasGlobalPermission(Permissions.Global.ManageDomains)) {
-      reply(domainStore.getDomains(filter, offset, limit))
+      reply(domainStore.getDomains(namespace, filter, offset, limit))
     } else {
       // FIXME this doesn't work for namespace access
-      reply(domainStore.getDomainsByAccess(authProfile.username, filter, offset, limit))
+      reply(domainStore.getDomainsByAccess(authProfile.username, namespace, filter, offset, limit))
     }
     
   }

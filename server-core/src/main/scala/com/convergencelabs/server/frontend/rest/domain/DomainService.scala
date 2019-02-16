@@ -77,8 +77,8 @@ class DomainService(
     pathPrefix("domains") {
       pathEnd {
         get {
-          parameters("filter".?, "offset".as[Int].?, "limit".as[Int].?) { (filter, offset, limit) =>
-            complete(getDomains(authProfile, filter, offset, limit))
+          parameters("namespace".?, "filter".?, "offset".as[Int].?, "limit".as[Int].?) { (namespace, filter, offset, limit) =>
+            complete(getDomains(authProfile, namespace, filter, offset, limit))
           }
         } ~ post {
           entity(as[CreateDomainRestRequest]) { request =>
@@ -133,8 +133,8 @@ class DomainService(
       }
   }
 
-  def getDomains(authProfile: AuthorizationProfile, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
-    (domainStoreActor ? ListDomainsRequest(authProfile, filter, offset, limit)).mapTo[List[Domain]].map(domains =>
+  def getDomains(authProfile: AuthorizationProfile, namespace: Option[String], filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
+    (domainStoreActor ? ListDomainsRequest(authProfile, namespace, filter, offset, limit)).mapTo[List[Domain]].map(domains =>
       okResponse(
         domains map (domain => DomainRestData(
           domain.displayName,

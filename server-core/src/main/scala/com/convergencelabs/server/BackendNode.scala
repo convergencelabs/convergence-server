@@ -11,6 +11,7 @@ import com.convergencelabs.server.datastore.convergence.DeltaHistoryStore
 import com.convergencelabs.server.datastore.convergence.DomainStoreActor
 import com.convergencelabs.server.datastore.convergence.NamespaceStoreActor
 import com.convergencelabs.server.datastore.convergence.RoleStoreActor
+import com.convergencelabs.server.datastore.convergence.UserFavoriteDomainStoreActor
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.db.data.ConvergenceImporterActor
@@ -32,6 +33,7 @@ import akka.actor.ActorSystem
 import akka.cluster.sharding.ShardRegion
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.datastore.convergence.ConfigStoreActor
+import com.convergencelabs.server.datastore.convergence.UserFavoriteDomainStore
 
 class BackendNode(system: ActorSystem, convergenceDbProvider: DatabaseProvider) extends Logging {
 
@@ -107,6 +109,7 @@ class BackendNode(system: ActorSystem, convergenceDbProvider: DatabaseProvider) 
     val convergenceUserActor = system.actorOf(ConvergenceUserManagerActor.props(convergenceDbProvider, domainStoreActor), ConvergenceUserManagerActor.RelativePath)
     val roleStoreActor = system.actorOf(RoleStoreActor.props(convergenceDbProvider), RoleStoreActor.RelativePath)
     val configStoreActor = system.actorOf(ConfigStoreActor.props(convergenceDbProvider), ConfigStoreActor.RelativePath)
+    val favoriteDomainStoreActor = system.actorOf(UserFavoriteDomainStoreActor.props(convergenceDbProvider), UserFavoriteDomainStoreActor.RelativePath)
 
     val domainRestSharding =
       Some(RestDomainActorSharding.start(system, shardCount, RestDomainActor.props(DomainPersistenceManagerActor, receiveTimeout)))

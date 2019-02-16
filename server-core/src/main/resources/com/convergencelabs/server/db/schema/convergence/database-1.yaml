@@ -205,6 +205,33 @@ actions:
     name: Domain.databaseName
     type: UniqueHashIndex
     properties: [databaseName]
+    
+    
+########## Domain Class ##########
+
+  - action: CreateClass
+    name: UserFavoriteDomain
+    properties:
+      - {name: user,   type: Link, linkedClass: User,   constraints: {mandatory: true, notNull: true}}
+      - {name: domain, type: Link, linkedClass: Domain, constraints: {mandatory: true, notNull: true}}
+  
+  - action: CreateIndex
+    className: UserFavoriteDomain
+    name: UserFavoriteDomain.user
+    type: NotUniqueHashIndex
+    properties: [domain]
+    
+  - action: CreateIndex
+    className: UserFavoriteDomain
+    name: UserFavoriteDomain.domain
+    type: NotUniqueHashIndex
+    properties: [user]
+    
+  - action: CreateIndex
+    className: UserFavoriteDomain
+    name: UserFavoriteDomain.user_domain
+    type: UniqueHashIndex
+    properties: [user, domain]
 
 
 ########## Permission Class ##########

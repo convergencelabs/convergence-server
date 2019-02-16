@@ -103,7 +103,12 @@ object OrientDBUtil {
   }
 
   def indexContains(db: ODatabaseDocument, index: String, key: Any): Try[Boolean] = {
-    Try(db.getMetadata.getIndexManager.getIndex(index).contains(key))
+    for {
+      oIndex <- getIndex(db, index)
+      contains <- Try(oIndex.contains(key))
+    } yield {
+      contains
+    }
   }
 
   def getIdentityFromSingleValueIndex(db: ODatabaseDocument, index: String, keys: List[_]): Try[ORID] = {
@@ -111,11 +116,16 @@ object OrientDBUtil {
   }
 
   def getIdentityFromSingleValueIndex(db: ODatabaseDocument, index: String, key: Any): Try[ORID] = {
-    Try(Option(db.getMetadata.getIndexManager.getIndex(index).get(key).asInstanceOf[OIdentifiable]))
+    for {
+      oIndex <- getIndex(db, index)
+      identity <- Try(Option(oIndex.get(key).asInstanceOf[OIdentifiable]))
       .flatMap(_ match {
         case Some(doc) => Success(doc.getIdentity)
         case None => Failure(EntityNotFoundException())
       })
+    } yield {
+      identity
+    }
   }
 
   def getIdentitiesFromSingleValueIndex(db: ODatabaseDocument, index: String, keys: List[Any]): Try[List[ORID]] = {

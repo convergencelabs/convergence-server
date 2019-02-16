@@ -121,19 +121,38 @@ class DomainStore(dbProvider: DatabaseProvider)
     val params = Map(Params.Namespace -> namespace)
     OrientDBUtil.query(db, GetDomainsByNamesapceQuery, params).map(_.map(docToDomain(_)))
   }
-  
-  def getDomains(filter: Option[String], offset: Option[Int], limit: Option[Int]): Try[List[Domain]] = withDb { db =>
+
+  def getDomains(namespace: Option[String], filter: Option[String], offset: Option[Int], limit: Option[Int]): Try[List[Domain]] = withDb { db =>
     val baseQuery = "SELECT FROM Domain"
-    val (whereClause, whereParams) = filter.map(filter => {
-      val where = " WHERE id.toLowerCase() LIKE :filter OR displayName.toLowerCase() LIKE :filter"
-      val params = Map[String, String](Params.Filter -> s"%${filter}%")
+    val (filterWhere, filterParams) = filter.map(filter => {
+      val where = " (id.toLowerCase() LIKE :filter OR displayName.toLowerCase() LIKE :filter)"
+      val params = Map[String, Any](Params.Filter -> s"%${filter}%")
       (where, params)
-    }).getOrElse("", Map[String, String]())
+    }).getOrElse("", Map[String, Any]())
+
+    val (namespaceWhere, namespaceParams) = namespace.map(ns => {
+      val where = " namespace.id = :namespace"
+      val params = Map[String, Any](Params.Namespace -> ns)
+      (where, params)
+    }).getOrElse("", Map[String, Any]())
+
+    val whereClause = (namespace, filter) match {
+      case (Some(n), Some(f)) =>
+        " WHERE" + namespaceWhere + " AND" + filterWhere
+      case (Some(n), None) =>
+        " WHERE" + namespaceWhere
+      case (None, Some(f)) =>
+        " WHERE" + filterWhere
+      case _ =>
+        ""
+    }
+
+    val params = filterParams ++ namespaceParams
     val query = OrientDBUtil.buildPagedQuery(baseQuery + whereClause, limit, offset)
-    OrientDBUtil.query(db, query, whereParams).map(_.map(DomainStore.docToDomain(_)))
+    OrientDBUtil.query(db, query, params).map(_.map(DomainStore.docToDomain(_)))
   }
 
-  def getDomainsByAccess(username: String, filter: Option[String], offset: Option[Int], limit: Option[Int]): Try[List[Domain]] = withDb { db =>
+  def getDomainsByAccess(username: String, namespace: Option[String], filter: Option[String], offset: Option[Int], limit: Option[Int]): Try[List[Domain]] = withDb { db =>
     val accessQuery = """
         |SELECT
         |  expand(set(domain))
@@ -147,14 +166,22 @@ class DomainStore(dbProvider: DatabaseProvider)
         |    (role.permissions CONTAINS ('manage-domains') AND target IS NULL)
         |  )""".stripMargin
 
-    val (whereClause, whereParams) = filter.map(filter => {
-      val where = " WHERE id.toLowerCase() LIKE :filter OR displayName.toLowerCase() LIKE :filter"
+    val (filterWhere, filterParams) = filter.map(filter => {
+      val where = " AND (id.toLowerCase() LIKE :filter OR displayName.toLowerCase() LIKE :filter)"
       val params = Map[String, String](Params.Filter -> s"%${filter}%")
       (where, params)
-    }).getOrElse("", Map[String, String]())
+    }).getOrElse("", Map[String, Any]())
 
-    val query = OrientDBUtil.buildPagedQuery(accessQuery + whereClause, limit, offset)
-    val params = Map(Params.Username -> username) ++ whereParams
+    val (namespaceWhere, namespaceParams) = namespace.map(ns => {
+      val where = " AND namespace.id = :namespace"
+      val params = Map[String, String](Params.Namespace -> ns)
+      (where, params)
+    }).getOrElse("", Map[String, Any]())
+
+    val baseQuery = accessQuery + filterWhere + namespaceWhere
+
+    val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
+    val params = Map(Params.Username -> username) ++ filterParams ++ namespaceParams
     OrientDBUtil.query(db, query, params).map(_.map(DomainStore.docToDomain(_)))
   }
 

@@ -350,9 +350,10 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
       logger.info("Installing schema.")
       val dbProvider = new ConnectedSingleDatabaseProvider(db)
       val deltaHistoryStore = new DeltaHistoryStore(dbProvider)
-      dbProvider.tryWithDatabase { db =>
+      dbProvider.withDatabase { db =>
         val schemaManager = new ConvergenceSchemaManager(db, deltaHistoryStore, preRelease)
         schemaManager.install()
+      }.map { _ =>
         logger.info("Schema installation complete")
       }.get
 

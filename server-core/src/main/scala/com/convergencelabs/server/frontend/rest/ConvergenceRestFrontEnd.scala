@@ -55,6 +55,7 @@ import akka.http.scaladsl.server.MalformedRequestContentRejection
 import akka.http.scaladsl.server.AuthorizationFailedRejection
 import com.convergencelabs.server.datastore.convergence.NamespaceStoreActor
 import com.convergencelabs.server.datastore.convergence.ConfigStoreActor
+import com.convergencelabs.server.datastore.convergence.UserFavoriteDomainStoreActor
 
 object ConvergenceRestFrontEnd {
   val ConvergenceCorsSettings = CorsSettings.defaultSettings.copy(
@@ -110,13 +111,14 @@ class ConvergenceRestFrontEnd(
     val importerActor = createRouter("/user/" + ConvergenceImporterActor.RelativePath, "importerActor")
     val roleActor = createRouter("/user/" + RoleStoreActor.RelativePath, "roleActor")
     val configActor = createRouter("/user/" + ConfigStoreActor.RelativePath, "configActor")
+    val favoriteDomainsActor = createRouter("/user/" + UserFavoriteDomainStoreActor.RelativePath, "favoriteDomainsActor")
 
     
     val authenticator = new Authenticator(authStoreActor, masterAdminToken, defaultRequestTimeout, ec)
     
     // The Rest Services
     val authService = new AuthService(ec, authStoreActor, defaultRequestTimeout)
-    val currentUserService = new CurrentUserService(ec, convergenceUserActor, defaultRequestTimeout)
+    val currentUserService = new CurrentUserService(ec, convergenceUserActor, favoriteDomainsActor, defaultRequestTimeout)
     val namespaceService = new NamespaceService(ec, namespaceActor, defaultRequestTimeout)
     val roleService = new RoleService(ec, roleActor, defaultRequestTimeout)
     val configService = new ConfigService(ec, configActor, defaultRequestTimeout)
@@ -125,6 +127,7 @@ class ConvergenceRestFrontEnd(
     val convergenceImportService = new ConvergenceImportService(ec, importerActor, defaultRequestTimeout)
     val databaseManagerService = new DatabaseManagerRestService(ec, databaseManagerActor, defaultRequestTimeout)
 
+    
     // This handles all of the domain specific stuff, we create a router here because each back end node
     // has an instance, we route to them as a group.
     val domainStoreActor = createRouter("/user/" + DomainStoreActor.RelativePath, "domainStoreActor")

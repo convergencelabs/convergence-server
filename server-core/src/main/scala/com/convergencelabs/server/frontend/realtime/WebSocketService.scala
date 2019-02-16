@@ -47,7 +47,7 @@ class WebSocketService(
 
   val route: Route =
     get {
-      path("domain" / Segment / Segment) { (namespace, domain) =>
+      path(Segment / Segment) { (namespace, domain) =>
         extractClientIP { ip =>
           optionalHeaderValueByName("User-Agent") { ua =>
             handleWebSocketMessages(realTimeDomainFlow(namespace, domain, ip, ua.getOrElse("")))

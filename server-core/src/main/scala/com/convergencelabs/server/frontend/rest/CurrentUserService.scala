@@ -9,7 +9,9 @@ import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerAc
 import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.RegenerateUserBearerTokenRequest
 import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.SetPasswordRequest
 import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.UpdateConvergenceUserProfileRequest
+import com.convergencelabs.server.datastore.convergence.UserFavoriteDomainStoreActor.GetFavoritesForUser
 import com.convergencelabs.server.datastore.convergence.UserStore.User
+import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.security.AuthorizationProfile
 
 import akka.actor.ActorRef
@@ -20,13 +22,17 @@ import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
 import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
 import akka.http.scaladsl.server.Directives.as
 import akka.http.scaladsl.server.Directives.complete
+import akka.http.scaladsl.server.Directives.delete
 import akka.http.scaladsl.server.Directives.entity
 import akka.http.scaladsl.server.Directives.get
 import akka.http.scaladsl.server.Directives.path
+import akka.http.scaladsl.server.Directives.pathEnd
 import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.put
 import akka.util.Timeout
 import grizzled.slf4j.Logging
+import com.convergencelabs.server.datastore.convergence.UserFavoriteDomainStoreActor.AddFavoriteDomain
+import com.convergencelabs.server.datastore.convergence.UserFavoriteDomainStoreActor.RemoveFavoriteDomain
 
 object CurrentUserService {
   case class BearerTokenResponse(token: String)
@@ -38,11 +44,13 @@ object CurrentUserService {
 class CurrentUserService(
   private[this] val executionContext: ExecutionContext,
   private[this] val convergenceUserActor: ActorRef,
+  private[this] val favoriteDomainsActor: ActorRef,
   private[this] val defaultTimeout: Timeout)
   extends JsonSupport
   with Logging {
 
   import CurrentUserService._
+  import akka.http.scaladsl.server.Directives.Segment
   import akka.pattern.ask
 
   implicit val ec = executionContext
@@ -72,6 +80,16 @@ class CurrentUserService(
       } ~ path("apiKeys") {
         get {
           complete(okResponse("apiKey"))
+        }
+      }  ~ pathPrefix("favoriteDomains") {
+        (pathEnd & get) {
+          complete(getFavoriteDomains(authProfile))
+        } ~ path (Segment / Segment) { (namespace, domain) =>
+          put {
+            complete(addFavoriteDomain(authProfile, namespace, domain))
+          } ~ delete {
+            complete(removeFavoriteDomain(authProfile, namespace, domain))
+          }
         }
       }
     }
@@ -108,5 +126,20 @@ class CurrentUserService(
     val UpdateProfileRequest(email, firstName, lastName, displayName) = profile
     val message = UpdateConvergenceUserProfileRequest(authProfile.username, email, firstName, lastName, displayName)
     (convergenceUserActor ? message) map { _ => OkResponse }
+  }
+  
+  def getFavoriteDomains(authProfile: AuthorizationProfile): Future[RestResponse] = {
+    val message = GetFavoritesForUser(authProfile.username)
+    (favoriteDomainsActor ? message).mapTo[List[DomainFqn]] map { okResponse(_) }
+  }
+  
+  def addFavoriteDomain(authProfile: AuthorizationProfile, namespace: String, domain: String): Future[RestResponse] = {
+    val message = AddFavoriteDomain(authProfile.username, DomainFqn(namespace, domain))
+    (favoriteDomainsActor ? message).mapTo[Unit] map { okResponse(_) }
+  }
+  
+  def removeFavoriteDomain(authProfile: AuthorizationProfile, namespace: String, domain: String): Future[RestResponse] = {
+    val message = RemoveFavoriteDomain(authProfile.username,  DomainFqn(namespace, domain))
+    (favoriteDomainsActor ? message).mapTo[Unit] map { okResponse(_) }
   }
 }
