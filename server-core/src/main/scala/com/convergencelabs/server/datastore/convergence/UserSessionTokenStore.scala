@@ -48,7 +48,7 @@ class UserSessionTokenStore(private[this] val dbProvider: DatabaseProvider)
     OrientDBUtil.command(db, CleanExpiredTokensCommand).map(_ => ())
   }
 
-  private[this] val ValidateUserSessionToken = "SELECT user.username AS username, expiresAt FROM UserSessionToken WHERE token = :token"
+  private[this] val ValidateUserSessionToken = "SELECT FROM UserSessionToken WHERE token = :token"
   def validateUserSessionToken(token: String, expiresAt: () => Instant): Try[Option[String]] = withDb { db =>
     val params = Map(Params.Token -> token)
     OrientDBUtil.findDocument(db, ValidateUserSessionToken, params).map(_ match {
@@ -56,7 +56,9 @@ class UserSessionTokenStore(private[this] val dbProvider: DatabaseProvider)
         val expireTime: Date = doc.getProperty(UserSessionTokenClass.Fields.ExpiresAt)
         val expireInstant: Instant = expireTime.toInstant()
         if (Instant.now().isBefore(expireInstant)) {
-          val username: String = doc.getProperty("username")
+          val username: String = doc.eval("user.username").asInstanceOf[String]
+          doc.setProperty(UserSessionTokenClass.Fields.ExpiresAt, Date.from(expiresAt()))
+          doc.save()
           Some(username)
         } else {
           None

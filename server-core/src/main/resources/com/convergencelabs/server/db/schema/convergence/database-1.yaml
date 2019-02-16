@@ -95,8 +95,8 @@ actions:
       - {name: displayName,     type: String,   constraints: {mandatory: true,   notNull: true}}
       - {name: lastLogin,       type: DateTime, constraints: {mandatory: false,  notNull: true}}
       - {name: bearerToken,     type: String,   constraints: {mandatory: true,   notNull: true}}
-      - {name: passwordHash,    type: String,   constraints: {mandatory: false,  notNull: true}}
-      - {name: passwordLastSet, type: DateTime, constraints: {mandatory: false,  notNull: true}}
+      - {name: passwordHash,    type: String,   constraints: {mandatory: true,  notNull: true}}
+      - {name: passwordLastSet, type: DateTime, constraints: {mandatory: true,  notNull: true}}
 
   - action: CreateIndex
     className: User

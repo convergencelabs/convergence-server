@@ -28,6 +28,7 @@ object UserStore {
     val Username = "username"
     val BearerToken = "bearerToken"
     val PasswordHash = "passwordHash"
+    val PasswordLastSet = "passwordLastSet"
     val LastLogin = "lastLogin"
   }
 
@@ -41,7 +42,7 @@ object UserStore {
       Option(doc.getProperty(UserClass.Fields.LastLogin).asInstanceOf[Date]).map(_.toInstant()))
   }
 
-  def userToDoc(user: User, bearerToken: Option[String] = None, passwordHash: Option[String] = None): ODocument = {
+  def userToDoc(user: User, bearerToken: Option[String] = None, passwordHash: Option[String] = None, passwordLastSet: Option[Date] = None): ODocument = {
     val doc = new ODocument(UserClass.ClassName)
     doc.setProperty(UserClass.Fields.Username, user.username)
     doc.setProperty(UserClass.Fields.Email, user.email)
@@ -50,6 +51,7 @@ object UserStore {
     doc.setProperty(UserClass.Fields.DisplayName, user.displayName)
     bearerToken.foreach(doc.setProperty(UserClass.Fields.BearerToken, _))
     passwordHash.foreach(doc.setProperty(UserClass.Fields.PasswordHash, _))
+    passwordLastSet.foreach(doc.setProperty(UserClass.Fields.PasswordLastSet, _))
     doc
   }
 
@@ -86,7 +88,7 @@ class UserStore(dbProvider: DatabaseProvider)
   }
 
   def createUserWithPasswordHash(user: User, passwordHash: String, bearerToken: String): Try[Unit] = tryWithDb { db =>
-    val userDoc = UserStore.userToDoc(user, Some(bearerToken), Some(passwordHash))
+    val userDoc = UserStore.userToDoc(user, Some(bearerToken), Some(passwordHash), Some(new Date()))
     db.save(userDoc)
     ()
   } recoverWith (handleDuplicateValue)
@@ -146,7 +148,7 @@ class UserStore(dbProvider: DatabaseProvider)
     OrientDBUtil.indexContains(db, UserClass.Indices.Username, username)
   }
 
-  private[this] val SetUserPasswordQuery = "UPDATE User SET passwordHash = :passwordHash WHERE username = :username"
+  private[this] val SetUserPasswordQuery = "UPDATE User SET passwordHash = :passwordHash, passwordLastSet = :passwordLastSet WHERE username = :username"
 
   /**
    * Set the password for an existing user by username.
@@ -156,7 +158,7 @@ class UserStore(dbProvider: DatabaseProvider)
    */
   def setUserPassword(username: String, password: String): Try[Unit] = withDb { db =>
     val passwordHash = PasswordUtil.hashPassword(password)
-    val params = Map(Params.Username -> username, Params.PasswordHash -> passwordHash)
+    val params = Map(Params.Username -> username, Params.PasswordHash -> passwordHash, Params.PasswordLastSet -> new Date())
     OrientDBUtil.mutateOneDocument(db, SetUserPasswordQuery, params)
       .recoverWith {
         case cause: EntityNotFoundException =>
