@@ -9,7 +9,7 @@ object CollectionClass extends OrientDbClass {
 
   object Fields {
     val Id = "id"
-    val Name = "name"
+    val Description = "description"
     val OverrideSnapshotConfig = "overrideSnapshotConfig"
     val SnapshotConfig = "snapshotConfig"
     val WorldPermissions = "worldPermissions"

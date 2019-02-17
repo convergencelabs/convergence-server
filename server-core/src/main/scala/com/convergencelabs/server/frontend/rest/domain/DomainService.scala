@@ -80,22 +80,16 @@ class DomainService(
           }
         }
       } ~ pathPrefix(Segment / Segment) { (namespace, domainId) =>
-        {
-          val domain = DomainFqn(namespace, domainId)
+        val domain = DomainFqn(namespace, domainId)
+        authorize(canAccessDomain(domain, authProfile)) {
           pathEnd {
             get {
-              authorize(canAccessDomain(domain, authProfile)) {
-                complete(getDomain(namespace, domainId))
-              }
+              complete(getDomain(namespace, domainId))
             } ~ delete {
-              authorize(canAccessDomain(domain, authProfile)) {
-                complete(deleteDomain(namespace, domainId))
-              }
+              complete(deleteDomain(namespace, domainId))
             } ~ put {
               entity(as[UpdateDomainRestRequest]) { request =>
-                authorize(canAccessDomain(domain, authProfile)) {
-                  complete(updateDomain(namespace, domainId, request))
-                }
+                complete(updateDomain(namespace, domainId, request))
               }
             }
           } ~
@@ -160,7 +154,6 @@ class DomainService(
     (domainStoreActor ? message) map { _ => OkResponse }
   }
 
-  // Permission Checks
   def canAccessDomain(domainFqn: DomainFqn, authProfile: AuthorizationProfile): Boolean = {
     // FIXME clearly not correct
     true

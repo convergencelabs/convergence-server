@@ -95,7 +95,7 @@ class CollectionStoreSpec
       "getfully update an existing collection" in withPersistenceStore { store =>
         store.createCollection(peopleCollection).get
         val existing = store.getCollection(peopleCollectionId).get.value
-        val updated = existing.copy(name = "updatedPeople", overrideSnapshotConfig = false, snapshotConfig = snapshotConfig)
+        val updated = existing.copy(description = "updatedPeople", overrideSnapshotConfig = false, snapshotConfig = snapshotConfig)
         store.updateCollection(existing.id, updated).get
         store.getCollection(peopleCollectionId).get.value shouldBe updated
       }
@@ -106,7 +106,7 @@ class CollectionStoreSpec
         val newId = "newId"
         val updated = existing.copy(
             id = newId, 
-            name = "updatedPeople", 
+            description = "updatedPeople", 
             overrideSnapshotConfig = false,
             snapshotConfig = snapshotConfig)
         store.updateCollection(existing.id, updated).get

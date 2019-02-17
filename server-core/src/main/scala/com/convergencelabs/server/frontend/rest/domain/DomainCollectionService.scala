@@ -41,19 +41,21 @@ import akka.http.scaladsl.server.Directives.Segment
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 
-
 object DomainCollectionService {
-  case class GetCollectionsResponse(collections: List[CollectionData])
-  case class GetCollectionResponse(collection: CollectionData)
   case class CollectionPermissionsData(read: Boolean, write: Boolean, remove: Boolean, manage: Boolean, create: Boolean)
   case class CollectionData(
     id: String,
     description: String,
     worldPermissions: CollectionPermissionsData,
-    overrideSnapshotConfig: Boolean,
-    snapshotConfig: ModelSnapshotPolicyData)
+    overrideSnapshotPolicy: Boolean,
+    snapshotPolicy: ModelSnapshotPolicyData)
 
-  case class GetCollectionSummaryResponse(collections: List[CollectionSummaryData])
+  case class CollectionUpdateData(
+    description: String,
+    worldPermissions: CollectionPermissionsData,
+    overrideSnapshotPolicy: Boolean,
+    snapshotPolicy: ModelSnapshotPolicyData)
+
   case class CollectionSummaryData(
     id: String,
     description: String,
@@ -64,7 +66,7 @@ class DomainCollectionService(
   private[this] val executionContext: ExecutionContext,
   private[this] val timeout: Timeout,
   private[this] val domainRestActor: ActorRef)
-    extends DomainRestService(executionContext, timeout) {
+  extends DomainRestService(executionContext, timeout) {
 
   import DomainCollectionService._
   import akka.pattern.ask
@@ -73,31 +75,21 @@ class DomainCollectionService(
     pathPrefix("collections") {
       pathEnd {
         get {
-          authorize(canAccessDomain(domain, authProfile)) {
-            complete(getCollections(domain))
-          }
+          complete(getCollections(domain))
         } ~ post {
           entity(as[CollectionData]) { collection =>
-            authorize(canAccessDomain(domain, authProfile)) {
-              complete(createCollection(domain, collection))
-            }
+            complete(createCollection(domain, collection))
           }
         }
       } ~ pathPrefix(Segment) { collectionId =>
         pathEnd {
           get {
-            authorize(canAccessDomain(domain, authProfile)) {
-              complete(getCollection(domain, collectionId))
-            }
+            complete(getCollection(domain, collectionId))
           } ~ delete {
-            authorize(canAccessDomain(domain, authProfile)) {
-              complete(deleteCollection(domain, collectionId))
-            }
+            complete(deleteCollection(domain, collectionId))
           } ~ put {
-            entity(as[CollectionData]) { updateData =>
-              authorize(canAccessDomain(domain, authProfile)) {
-                complete(updateCollection(domain, collectionId, updateData))
-              }
+            entity(as[CollectionUpdateData]) { updateData =>
+              complete(updateCollection(domain, collectionId, updateData))
             }
           }
         }
@@ -106,10 +98,8 @@ class DomainCollectionService(
   } ~ pathPrefix("collectionSummary") {
     pathEnd {
       get {
-        parameters("limit".as[Int].?, "offset".as[Int].?) { (limit, offset) =>
-          authorize(canAccessDomain(domain, authProfile)) {
-            complete(getCollectionSummaries(domain, limit, offset))
-          }
+        parameters("filter".?, "offset".as[Int].?, "limit".as[Int].?) { (filter, offset, limit) =>
+          complete(getCollectionSummaries(domain, filter, offset, limit))
         }
       }
     }
@@ -118,13 +108,13 @@ class DomainCollectionService(
   def getCollections(domain: DomainFqn): Future[RestResponse] = {
     val message = DomainRestMessage(domain, GetCollections(None, None))
     (domainRestActor ? message).mapTo[List[Collection]] map (collections =>
-      okResponse(GetCollectionsResponse(collections.map(collectionToCollectionData(_)))))
+      okResponse(collections.map(collectionToCollectionData(_))))
   }
 
   def getCollection(domain: DomainFqn, collectionId: String): Future[RestResponse] = {
     val message = DomainRestMessage(domain, GetCollection(collectionId))
     (domainRestActor ? message).mapTo[Option[Collection]] map {
-      case Some(collection) => okResponse(GetCollectionResponse(collectionToCollectionData(collection)))
+      case Some(collection) => okResponse(collectionToCollectionData(collection))
       case None => notFoundResponse()
     }
   }
@@ -135,7 +125,9 @@ class DomainCollectionService(
     (domainRestActor ? message) map { _ => CreatedResponse }
   }
 
-  def updateCollection(domain: DomainFqn, collectionId: String, collectionData: CollectionData): Future[RestResponse] = {
+  def updateCollection(domain: DomainFqn, collectionId: String, collectionUpdateData: CollectionUpdateData): Future[RestResponse] = {
+    val CollectionUpdateData(description, worldPermissions, overrideSnapshotConfig, snapshotConfig) = collectionUpdateData;
+    val collectionData = CollectionData(collectionId, description, worldPermissions, overrideSnapshotConfig, snapshotConfig)
     val collection = this.collectionDataToCollection(collectionData)
     val message = DomainRestMessage(domain, UpdateCollection(collectionId, collection))
     (domainRestActor ? message) map { _ => OkResponse }
@@ -146,13 +138,13 @@ class DomainCollectionService(
     (domainRestActor ? message) map { _ => OkResponse }
   }
 
-  def getCollectionSummaries(domain: DomainFqn, limit: Option[Int], offset: Option[Int]): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, GetCollectionSummaries(limit, offset))
+  def getCollectionSummaries(domain: DomainFqn, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
+    val message = DomainRestMessage(domain, GetCollectionSummaries(filter, offset, limit))
     (domainRestActor ? message).mapTo[List[CollectionSummary]] map (collections =>
-      okResponse(GetCollectionSummaryResponse(collections.map { c =>
+      okResponse(collections.map { c =>
         val CollectionSummary(id, desc, count) = c
         CollectionSummaryData(id, desc, count)
-      })))
+      }))
   }
 
   def collectionDataToCollection(collectionData: CollectionData): Collection = {

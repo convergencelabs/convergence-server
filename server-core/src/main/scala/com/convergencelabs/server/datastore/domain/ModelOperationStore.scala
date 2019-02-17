@@ -60,6 +60,12 @@ object ModelOperationStore {
       doc.eval("session.id").toString(),
       op)
   }
+  
+  def deleteAllOperationsForCollection(collectionId: String, db: ODatabaseDocument): Try[Unit] = {
+    val command = "DELETE FROM ModelOperation WHERE model.collection.id = :collectionId"
+    val params = Map(Constants.CollectionId -> collectionId)
+    OrientDBUtil.command(db, command, params).map(_ => ())
+  }
 }
 
 class ModelOperationStore private[domain] (dbProvider: DatabaseProvider)
@@ -149,13 +155,6 @@ class ModelOperationStore private[domain] (dbProvider: DatabaseProvider)
     OrientDBUtil.command(db, command, params).map(_ => ())
   }
 
-  def deleteAllOperationsForCollection(collectionId: String): Try[Unit] = withDb { db =>
-    val command = "DELETE FROM ModelOperation WHERE model.collection.id = :collectionId"
-    val params = Map(Constants.CollectionId -> collectionId)
-    OrientDBUtil.command(db, command, params).map(_ => ())
-  }
-
-  
   def createModelOperation(modelOperation: NewModelOperation, db: Option[ODatabaseDocument] = None): Try[Unit] = withDb(db) { db => 
     ModelOperationStore.modelOperationToDoc(modelOperation, db).flatMap(doc => Try(doc.save()))
   }

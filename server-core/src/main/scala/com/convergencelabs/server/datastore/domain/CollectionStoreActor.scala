@@ -13,7 +13,7 @@ object CollectionStoreActor {
 
   trait CollectionStoreRequest
   case class GetCollections(offset: Option[Int], limit: Option[Int]) extends CollectionStoreRequest
-  case class GetCollectionSummaries(offset: Option[Int], limit: Option[Int]) extends CollectionStoreRequest
+  case class GetCollectionSummaries(filter: Option[String], offset: Option[Int], limit: Option[Int]) extends CollectionStoreRequest
   case class GetCollection(id: String) extends CollectionStoreRequest
   case class DeleteCollection(collectionId: String) extends CollectionStoreRequest
   case class CreateCollection(collection: Collection) extends CollectionStoreRequest
@@ -22,26 +22,26 @@ object CollectionStoreActor {
 
 class CollectionStoreActor private[datastore] (
   private[this] val collectionStore: CollectionStore)
-    extends StoreActor with ActorLogging {
+  extends StoreActor with ActorLogging {
 
   import CollectionStoreActor._
-  
+
   def receive: Receive = {
-    case GetCollections(offset, limit)  => getCollections(offset, limit)
-    case GetCollectionSummaries(offset, limit)  => getCollectionSummaries(offset, limit)
-    case GetCollection(collectionId)    => getCollectionConfig(collectionId)
-    case CreateCollection(collection)   => createCollection(collection)
+    case GetCollections(offset, limit) => getCollections(offset, limit)
+    case GetCollectionSummaries(filter, offset, limit) => getCollectionSummaries(filter, offset, limit)
+    case GetCollection(collectionId) => getCollectionConfig(collectionId)
+    case CreateCollection(collection) => createCollection(collection)
     case DeleteCollection(collectionId) => deleteCollection(collectionId)
     case UpdateCollection(collectionId, collection) => updateCollection(collectionId, collection)
-    case message: Any                   => unhandled(message)
+    case message: Any => unhandled(message)
   }
 
   def getCollections(offset: Option[Int], limit: Option[Int]): Unit = {
     reply(collectionStore.getAllCollections(offset, limit))
   }
-  
-  def getCollectionSummaries(offset: Option[Int], limit: Option[Int]): Unit = {
-    reply(collectionStore.getCollectionSummaries(offset, limit))
+
+  def getCollectionSummaries(filter: Option[String], offset: Option[Int], limit: Option[Int]): Unit = {
+    reply(collectionStore.getCollectionSummaries(filter, offset, limit))
   }
 
   def getCollectionConfig(id: String): Unit = {
@@ -51,7 +51,7 @@ class CollectionStoreActor private[datastore] (
   def createCollection(collection: Collection): Unit = {
     reply(collectionStore.createCollection(collection))
   }
-  
+
   def updateCollection(collectionId: String, collection: Collection): Unit = {
     reply(collectionStore.updateCollection(collectionId, collection))
   }

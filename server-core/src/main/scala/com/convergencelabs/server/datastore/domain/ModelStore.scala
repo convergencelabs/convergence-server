@@ -37,7 +37,7 @@ object ModelStore {
 
   import com.convergencelabs.server.datastore.domain.schema.ModelClass._
 
-  object Constants {
+  object Params {
     val CollectionId = "collectionId"
   }
 
@@ -76,6 +76,25 @@ object ModelStore {
 
   def getModelRid(id: String, db: ODatabaseDocument): Try[ORID] = {
     OrientDBUtil.getIdentityFromSingleValueIndex(db, Indices.Id, id)
+  }
+  
+  def deleteAllModelsInCollection(collectionId: String, db: ODatabaseDocument): Try[Unit] = { 
+    for {
+      _ <- ModelOperationStore.deleteAllOperationsForCollection(collectionId, db)
+      _ <- ModelSnapshotStore.removeAllSnapshotsForCollection(collectionId, db)
+      _ <- deleteDataValuesForCollection(collectionId, db)
+      _ <- {
+        val command = "DELETE FROM Model WHERE collection.id = :collectionId"
+      val params = Map(Params.CollectionId -> collectionId)
+      OrientDBUtil.command(db, command, params)
+      }
+    } yield(())
+  }
+
+  def deleteDataValuesForCollection(collectionId: String, db: ODatabaseDocument): Try[Unit] = {
+    val command = "DELETE FROM DataValue WHERE model.collection.id = :collectionId"
+    val params = Map(Params.CollectionId -> collectionId)
+    OrientDBUtil.command(db, command, params).map(_ => ())
   }
 }
 
@@ -215,24 +234,6 @@ class ModelStore private[domain] (
     OrientDBUtil.command(db, command, params).map(_ => ())
   }
 
-  def deleteAllModelsInCollection(collectionId: String): Try[Unit] = withDb { db =>
-    operationStore.deleteAllOperationsForCollection(collectionId).flatMap { _ =>
-      snapshotStore.removeAllSnapshotsForCollection(collectionId)
-    }.flatMap { _ =>
-      deleteDataValuesForCollection(collectionId, db)
-    }.flatMap { _ =>
-      val command = "DELETE FROM Model WHERE collection.id = :collectionId"
-      val params = Map(Constants.CollectionId -> collectionId)
-      OrientDBUtil.command(db, command, params).map(_ => ())
-    }
-  }
-
-  def deleteDataValuesForCollection(collectionId: String, db: ODatabaseDocument): Try[Unit] = {
-    val command = "DELETE FROM DataValue WHERE model.collection.id = :collectionId"
-    val params = Map(Constants.CollectionId -> collectionId)
-    OrientDBUtil.command(db, command, params).map(_ => ())
-  }
-
   def getModel(id: String): Try[Option[Model]] = withDb { db =>
     ModelStore
       .findModelDocument(id, db)
@@ -252,7 +253,7 @@ class ModelStore private[domain] (
 
     val baseQuery = "SELECT FROM Model WHERE collection.id = :collectionId ORDER BY id ASC"
     val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
-    val params = Map(Constants.CollectionId -> collectionId)
+    val params = Map(Params.CollectionId -> collectionId)
     OrientDBUtil.queryAndMap(db, query, params)(docToModelMetaData(_))
   }
 

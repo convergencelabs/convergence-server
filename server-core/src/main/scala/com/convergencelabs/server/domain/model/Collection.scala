@@ -5,7 +5,7 @@ import com.convergencelabs.server.datastore.domain.CollectionPermissions
 
 case class Collection(
   id: String,
-  name: String,
+  description: String,
   overrideSnapshotConfig: Boolean,
   snapshotConfig: ModelSnapshotConfig,
   worldPermissions: CollectionPermissions
