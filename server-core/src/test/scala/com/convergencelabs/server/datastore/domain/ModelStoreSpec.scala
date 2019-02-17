@@ -122,7 +122,7 @@ class ModelStoreSpec
         stores.collection.ensureCollectionExists(peopleCollectionId)
         stores.model.createModel(modelId, peopleCollectionId, data, true, modelPermissions).get
         val model = stores.model.getModel(modelId).get.value
-        model.metaData.modelId shouldBe modelId
+        model.metaData.id shouldBe modelId
         model.metaData.version shouldBe 1
         model.data shouldBe data
       }
@@ -263,7 +263,7 @@ class ModelStoreSpec
 
         val modelAfter = stores.model.getModel(person1Id).get.get
         modelAfter.metaData.createdTime shouldBe person1Model.metaData.createdTime
-        modelAfter.metaData.modelId shouldBe person1Id
+        modelAfter.metaData.id shouldBe person1Id
         modelAfter.data shouldBe person1Model.data
       }
     }
@@ -356,7 +356,7 @@ class ModelStoreSpec
         stores.model.getModel(person3Id).get shouldBe defined
         stores.model.getModel(company1Id).get shouldBe defined
 
-        stores.model.deleteAllModelsInCollection(peopleCollectionId).success
+        //stores.model.deleteAllModelsInCollection(peopleCollectionId).success
 
         stores.model.getModel(person1Id).get shouldBe None
         stores.model.getModel(person2Id).get shouldBe None

@@ -59,6 +59,7 @@ class RestDomainActor(domainPersistenceManager: DomainPersistenceManager, receiv
   private[this] var statsActor: ActorRef = _
   private[this] var collectionStoreActor: ActorRef = _
   private[this] var modelStoreActor: ActorRef = _
+  private[this] var modelLookupActor: ActorRef = _
   private[this] var modelPermissionsStoreActor: ActorRef = _
   private[this] var keyStoreActor: ActorRef = _
   private[this] var sessionStoreActor: ActorRef = _

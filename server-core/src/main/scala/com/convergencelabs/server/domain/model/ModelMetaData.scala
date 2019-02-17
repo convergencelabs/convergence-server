@@ -4,8 +4,8 @@ import java.time.Instant
 import com.convergencelabs.server.datastore.domain.ModelPermissions
 
 case class ModelMetaData(
-  collectionId: String,
-  modelId: String,
+  id: String,
+  collection: String,
   version: Long,
   createdTime: Instant,
   modifiedTime: Instant,

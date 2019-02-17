@@ -36,15 +36,15 @@ class ModelCreator {
       val model = persistenceProvider.modelStore.createModel(modelId, collectionId, data, overrideWorld, worldPerms)
       model
     } flatMap { model =>
-      val ModelMetaData(model.metaData.collectionId, model.metaData.modelId, version, created, modified, overworldPermissions, worldPermissions, model.metaData.valuePrefix) = model.metaData
-      val snapshot = ModelSnapshot(ModelSnapshotMetaData(model.metaData.modelId, version, created), model.data)
+      val ModelMetaData(model.metaData.id, model.metaData.collection, version, created, modified, overworldPermissions, worldPermissions, model.metaData.valuePrefix) = model.metaData
+      val snapshot = ModelSnapshot(ModelSnapshotMetaData(model.metaData.id, version, created), model.data)
       persistenceProvider.modelSnapshotStore.createSnapshot(snapshot) flatMap { _ =>
         userId match {
           case Some(uid) =>
             persistenceProvider
               .modelPermissionsStore
               .updateModelUserPermissions(
-                model.metaData.modelId,
+                model.metaData.id,
                 uid,
                 ModelPermissions(true, true, true, true)) map (_ => model)
           case None =>
@@ -54,7 +54,7 @@ class ModelCreator {
         val userPerms = userPermissions.mapValues(Some(_))
         persistenceProvider
           .modelPermissionsStore
-          .updateAllModelUserPermissions(model.metaData.modelId, userPerms)
+          .updateAllModelUserPermissions(model.metaData.id, userPerms)
           .map(_ => model)
       }
     }

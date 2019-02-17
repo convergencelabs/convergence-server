@@ -12,6 +12,7 @@ object DomainUserType extends Enumeration {
 object DomainUserId {
   def apply(userType: String, username: String): DomainUserId = DomainUserId(DomainUserType.withName(userType), username)
   def normal(username: String) = DomainUserId(DomainUserType.Normal, username)
+  def convergence(username: String) = DomainUserId(DomainUserType.Convergence, username)
 }
 
 case class DomainUserId(

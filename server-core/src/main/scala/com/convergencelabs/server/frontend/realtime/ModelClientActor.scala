@@ -7,8 +7,10 @@ import scala.util.Failure
 import scala.util.Success
 
 import com.convergencelabs.server.datastore.domain.ModelPermissions
+import com.convergencelabs.server.datastore.domain.ModelStoreActor.QueryModelsRequest
 import com.convergencelabs.server.datastore.domain.QueryParsingException
 import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainUserSessionId
 import com.convergencelabs.server.domain.UnauthorizedException
 import com.convergencelabs.server.domain.model.ClearReference
 import com.convergencelabs.server.domain.model.ClientAutoCreateModelConfigRequest
@@ -30,9 +32,6 @@ import com.convergencelabs.server.domain.model.OpenRealtimeModelRequest
 import com.convergencelabs.server.domain.model.OperationAcknowledgement
 import com.convergencelabs.server.domain.model.OperationSubmission
 import com.convergencelabs.server.domain.model.OutgoingOperation
-import com.convergencelabs.server.domain.model.ShareReference
-import com.convergencelabs.server.domain.model.QueryModelsRequest
-import com.convergencelabs.server.domain.model.QueryModelsResponse
 import com.convergencelabs.server.domain.model.RealtimeModelClientMessage
 import com.convergencelabs.server.domain.model.RealtimeModelSharding
 import com.convergencelabs.server.domain.model.ReferenceState
@@ -40,14 +39,19 @@ import com.convergencelabs.server.domain.model.ReferenceType
 import com.convergencelabs.server.domain.model.RemoteClientClosed
 import com.convergencelabs.server.domain.model.RemoteClientOpened
 import com.convergencelabs.server.domain.model.RemoteReferenceCleared
-import com.convergencelabs.server.domain.model.RemoteReferenceShared
 import com.convergencelabs.server.domain.model.RemoteReferenceSet
+import com.convergencelabs.server.domain.model.RemoteReferenceShared
 import com.convergencelabs.server.domain.model.RemoteReferenceUnshared
 import com.convergencelabs.server.domain.model.SetModelPermissionsRequest
 import com.convergencelabs.server.domain.model.SetReference
+import com.convergencelabs.server.domain.model.ShareReference
 import com.convergencelabs.server.domain.model.UnshareReference
+import com.convergencelabs.server.frontend.realtime.ImplicitMessageConversions.instanceToTimestamp
+import com.convergencelabs.server.frontend.realtime.ImplicitMessageConversions.messageToObjectValue
+import com.convergencelabs.server.frontend.realtime.ImplicitMessageConversions.modelPermissionsToMessage
+import com.convergencelabs.server.frontend.realtime.ImplicitMessageConversions.modelUserPermissionSeqToMap
+import com.convergencelabs.server.frontend.realtime.ImplicitMessageConversions.objectValueToMessage
 import com.convergencelabs.server.util.concurrent.AskFuture
-import com.convergencelabs.server.frontend.realtime.ImplicitMessageConversions._
 
 import akka.actor.Actor
 import akka.actor.ActorLogging
@@ -55,76 +59,58 @@ import akka.actor.ActorRef
 import akka.actor.Props
 import akka.actor.actorRef2Scala
 import akka.util.Timeout
-
-import com.convergencelabs.server.domain.model.ModelAlreadyExistsException
-import com.convergencelabs.server.frontend.rest.DataValueToJValue
-import com.convergencelabs.server.datastore.domain.QueryParsingException
-import com.convergencelabs.server.domain.DomainFqn
-import akka.cluster.sharding.ClusterSharding
-import java.util.UUID
-import com.convergencelabs.server.datastore.domain.QueryParsingException
-import com.convergencelabs.server.domain.model.ModelDeletedWhileOpeningException
-import com.convergencelabs.server.domain.model.ModelAlreadyOpenException
-import com.convergencelabs.server.domain.model.CreateRealtimeModel
-import com.convergencelabs.server.domain.model.DeleteRealtimeModel
-import com.convergencelabs.server.util.BiMap
-import com.convergencelabs.server.domain.model.RealtimeModelSharding
-
-import io.convergence.proto.Normal
 import io.convergence.proto.Model
+import io.convergence.proto.Normal
 import io.convergence.proto.Request
 import io.convergence.proto.common.ErrorMessage
-import io.convergence.proto.model.GetModelPermissionsRequestMessage
-import io.convergence.proto.model.OpenRealtimeModelResponseMessage
-import io.convergence.proto.references.RemoteReferenceSetMessage
-import io.convergence.proto.references.SetReferenceMessage
-import io.convergence.proto.model.RemoteClientOpenedMessage
-import io.convergence.proto.model.SetModelPermissionsResponseMessage
-import io.convergence.proto.references.ShareReferenceMessage
-import io.convergence.proto.operations.OperationAcknowledgementMessage
-import io.convergence.proto.model.CloseRealTimeModelSuccessMessage
-import io.convergence.proto.references.UnshareReferenceMessage
-import io.convergence.proto.model.ModelForceCloseMessage
-import io.convergence.proto.model.SetModelPermissionsRequestMessage
-import io.convergence.proto.references.ClearReferenceMessage
+import io.convergence.proto.common.Int32List
+import io.convergence.proto.common.StringList
+import io.convergence.proto.model.AutoCreateModelConfigRequestMessage
 import io.convergence.proto.model.AutoCreateModelConfigResponseMessage
-import io.convergence.proto.model.ModelPermissionsData
-import io.convergence.proto.model.GetModelPermissionsResponseMessage
-import io.convergence.proto.model.ModelsQueryRequestMessage
-import io.convergence.proto.model.RemoteClientClosedMessage
-import io.convergence.proto.references.RemoteReferenceUnsharedMessage
-import io.convergence.proto.model.ModelResult
-import io.convergence.proto.model.ModelPermissionsChangedMessage
+import io.convergence.proto.model.CloseRealTimeModelSuccessMessage
+import io.convergence.proto.model.CloseRealtimeModelRequestMessage
 import io.convergence.proto.model.CreateRealtimeModelRequestMessage
-import io.convergence.proto.model.ModelsQueryResponseMessage
-import io.convergence.proto.operations.RemoteOperationMessage
-import io.convergence.proto.references.RemoteReferenceSharedMessage
-import io.convergence.proto.model.OpenRealtimeModelRequestMessage
-import io.convergence.proto.model.OpenRealtimeModelResponseMessage.ReferenceData
-import io.convergence.proto.operations.OperationSubmissionMessage
 import io.convergence.proto.model.CreateRealtimeModelSuccessMessage
 import io.convergence.proto.model.DeleteRealtimeModelRequestMessage
 import io.convergence.proto.model.DeleteRealtimeModelSuccessMessage
-import io.convergence.proto.model.CloseRealtimeModelRequestMessage
-import io.convergence.proto.model.AutoCreateModelConfigRequestMessage
-import io.convergence.proto.references.RemoteReferenceClearedMessage
-import io.convergence.proto.references.ReferenceValues
-import io.convergence.proto.references.IndexRangeList
+import io.convergence.proto.model.GetModelPermissionsRequestMessage
+import io.convergence.proto.model.GetModelPermissionsResponseMessage
+import io.convergence.proto.model.ModelForceCloseMessage
+import io.convergence.proto.model.ModelPermissionsChangedMessage
+import io.convergence.proto.model.ModelPermissionsData
+import io.convergence.proto.model.ModelResult
+import io.convergence.proto.model.ModelsQueryRequestMessage
+import io.convergence.proto.model.ModelsQueryResponseMessage
+import io.convergence.proto.model.OpenRealtimeModelRequestMessage
+import io.convergence.proto.model.OpenRealtimeModelResponseMessage
+import io.convergence.proto.model.OpenRealtimeModelResponseMessage.ReferenceData
+import io.convergence.proto.model.RemoteClientClosedMessage
+import io.convergence.proto.model.RemoteClientOpenedMessage
+import io.convergence.proto.model.SetModelPermissionsRequestMessage
+import io.convergence.proto.model.SetModelPermissionsResponseMessage
+import io.convergence.proto.operations.OperationAcknowledgementMessage
+import io.convergence.proto.operations.OperationSubmissionMessage
+import io.convergence.proto.operations.RemoteOperationMessage
+import io.convergence.proto.references.ClearReferenceMessage
 import io.convergence.proto.references.IndexRange
-import io.convergence.proto.common.Int32List
-import io.convergence.proto.common.StringList
-import com.convergencelabs.server.frontend.realtime.ImplicitMessageConversions._
-import com.google.protobuf.timestamp.Timestamp
-import com.convergencelabs.server.domain.DomainUserSessionId
-import io.convergence.proto.model.UserModelPermissionsEntry
+import io.convergence.proto.references.IndexRangeList
+import io.convergence.proto.references.ReferenceValues
+import io.convergence.proto.references.RemoteReferenceClearedMessage
+import io.convergence.proto.references.RemoteReferenceSetMessage
+import io.convergence.proto.references.RemoteReferenceSharedMessage
+import io.convergence.proto.references.RemoteReferenceUnsharedMessage
+import io.convergence.proto.references.SetReferenceMessage
+import io.convergence.proto.references.ShareReferenceMessage
+import io.convergence.proto.references.UnshareReferenceMessage
+import com.convergencelabs.server.domain.model.ModelQueryResult
 
 object ModelClientActor {
   def props(
     domainFqn: DomainFqn,
     session: DomainUserSessionId,
-    modelQueryActor: ActorRef,
+    modelStoreActor: ActorRef,
     requestTimeout: Timeout): Props =
-    Props(new ModelClientActor(domainFqn, session, modelQueryActor, requestTimeout))
+    Props(new ModelClientActor(domainFqn, session, modelStoreActor, requestTimeout))
 
   val ModelNotFoundError = ErrorMessage("model_not_found", "A model with the specifieid collection and model id does not exist.", Map())
 }
@@ -132,13 +118,12 @@ object ModelClientActor {
 class ModelClientActor(
   private[this] val domainFqn: DomainFqn,
   private[this] implicit val session: DomainUserSessionId,
-  private[this] val modelQueryActor: ActorRef,
+  private[this] val modelStoreActor: ActorRef,
   private[this] implicit val requestTimeout: Timeout)
   extends Actor
   with ActorLogging {
 
   import ModelClientActor._
-  import akka.pattern.ask
   import akka.pattern.ask
 
   private[this] var nextResourceId = 0;
@@ -490,7 +475,7 @@ class ModelClientActor(
       ModelPermissions(w.read, w.write, w.remove, w.manage))
 
     val userPermissions = modelUserPermissionSeqToMap(userPermissionsData)
-    
+
     // FIXME make a utility for this.
     val modelId = optionalModelId.filter(!_.isEmpty).getOrElse(UUID.randomUUID().toString())
 
@@ -534,17 +519,17 @@ class ModelClientActor(
 
   private[this] def onModelQueryRequest(request: ModelsQueryRequestMessage, cb: ReplyCallback): Unit = {
     val ModelsQueryRequestMessage(query) = request
-    val future = modelQueryActor ? QueryModelsRequest(session.userId, query)
-    future.mapResponse[QueryModelsResponse] onComplete {
-      case Success(QueryModelsResponse(result)) => cb.reply(
+    val future = modelStoreActor ? QueryModelsRequest(session.userId, query)
+    future.mapResponse[List[ModelQueryResult]] onComplete {
+      case Success(result) => cb.reply(
         ModelsQueryResponseMessage(result map {
           r =>
             ModelResult(
-              r.meta.collectionId,
-              r.meta.modelId,
-              Some(r.meta.createdTime),
-              Some(r.meta.modifiedTime),
-              r.meta.version,
+              r.metaData.collection,
+              r.metaData.id,
+              Some(r.metaData.createdTime),
+              Some(r.metaData.modifiedTime),
+              r.metaData.version,
               Some(JsonProtoConverter.toStruct(r.data)))
         }))
       case Failure(QueryParsingException(message, query, index)) =>

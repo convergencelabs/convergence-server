@@ -21,6 +21,7 @@ import com.convergencelabs.server.datastore.domain.ModelPermissionsStoreActor.Se
 import com.convergencelabs.server.datastore.domain.ModelPermissionsStoreActor.SetModelWorldPermissions
 import com.convergencelabs.server.datastore.domain.ModelStoreActor.GetModels
 import com.convergencelabs.server.datastore.domain.ModelStoreActor.GetModelsInCollection
+import com.convergencelabs.server.datastore.domain.ModelStoreActor.QueryModelsRequest
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.DomainUserId
 import com.convergencelabs.server.domain.model.CreateOrUpdateRealtimeModel
@@ -34,27 +35,27 @@ import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
 import com.convergencelabs.server.frontend.rest.DomainModelService.ModelMetaDataResponse
 import com.convergencelabs.server.frontend.rest.DomainModelService.SetOverrideWorldRequest
+import com.convergencelabs.server.security.AuthorizationProfile
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
 import akka.http.scaladsl.server.Directive.addDirectiveApply
-import akka.http.scaladsl.server.Directives.Segment
 import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
 import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
 import akka.http.scaladsl.server.Directives.as
-import akka.http.scaladsl.server.Directives.authorize
 import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Directives.delete
 import akka.http.scaladsl.server.Directives.entity
 import akka.http.scaladsl.server.Directives.get
+import akka.http.scaladsl.server.Directives.path
 import akka.http.scaladsl.server.Directives.pathEnd
 import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.post
 import akka.http.scaladsl.server.Directives.put
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
-import com.convergencelabs.server.security.AuthorizationProfile
+import com.convergencelabs.server.domain.model.ModelQueryResult
 
 object DomainModelService {
 
@@ -63,33 +64,33 @@ object DomainModelService {
     data: Map[String, Any])
 
   case class ModelPut(
-    collection: String,
-    data: Map[String, Any])
+      collection: String,
+      data: Map[String, Any])
 
   case class ModelMetaDataResponse(
-    collectionId: String,
-    modelId: String,
+    id: String,
+    collection: String,
     version: Long,
     createdTime: Instant,
     modifiedTime: Instant)
 
-  case class ModelResponse(
-    collectionId: String,
-    modelId: String,
+  case class ModelData(
+    id: String,
+    collection: String,
     version: Long,
     createdTime: Instant,
     modifiedTime: Instant,
     data: ObjectValue)
 
-  case class GetModelsResponse(models: List[ModelMetaDataResponse])
-  case class GetModelResponse(model: ModelResponse)
-  case class CreateModelResponse(modelId: String)
+  case class CreateModelResponse(id: String)
   case class GetModelPermissionsResponse(permissions: ModelPermissionsSummary)
   case class ModelPermissionsSummary(overrideWorld: Boolean, worldPermissions: ModelPermissions, userPermissions: List[ModelUserPermissions])
   case class GetPermissionsResponse(permissions: Option[ModelPermissions])
   case class GetAllUserPermissionsResponse(userPermissions: List[ModelUserPermissions])
   case class GetModelOverridesPermissionsResponse(overrideWorld: Boolean)
   case class SetOverrideWorldRequest(overrideWorld: Boolean)
+
+  case class ModelQueryPost(query: String)
 }
 
 class DomainModelService(
@@ -100,75 +101,80 @@ class DomainModelService(
   extends DomainRestService(executionContext, timeout) {
 
   import DomainModelService._
+  import akka.http.scaladsl.server.Directives.Segment
   import akka.pattern.ask
 
   def route(authProfile: AuthorizationProfile, domain: DomainFqn): Route = {
     pathPrefix("models") {
-      authorize(canAccessDomain(domain, authProfile)) {
+      pathEnd {
+        get {
+          complete(getModels(domain))
+        } ~ post {
+          entity(as[ModelPost]) { modelPost =>
+            complete(postModel(domain, modelPost))
+          }
+        }
+      } ~ pathPrefix(Segment) { modelId: String =>
         pathEnd {
           get {
-            complete(getModels(domain))
-          } ~ post {
-            entity(as[ModelPost]) { modelPost =>
-              complete(postModel(domain, modelPost))
+            complete(getModel(domain, modelId))
+          } ~ put {
+            entity(as[ModelPut]) { modelPut =>
+              complete(putModel(domain, modelId, modelPut))
             }
+          } ~ delete {
+            complete(deleteModel(domain, modelId))
           }
-        } ~ pathPrefix(Segment) { modelId: String =>
+        } ~ pathPrefix("permissions") {
           pathEnd {
             get {
-              complete(getModel(domain, modelId))
-            } ~ put {
-              entity(as[ModelPut]) { modelPut =>
-                complete(putModel(domain, modelId, modelPut))
-              }
-            } ~ delete {
-              complete(deleteModel(domain, modelId))
+              complete(getModelPermissions(domain, modelId))
             }
-          } ~ pathPrefix("permissions") {
+          } ~ pathPrefix("override") {
             pathEnd {
               get {
-                complete(getModelPermissions(domain, modelId))
-              }
-            } ~ pathPrefix("override") {
-              pathEnd {
-                get {
-                  complete(getModelOverridesPermissions(domain, modelId))
-                } ~ put {
-                  entity(as[SetOverrideWorldRequest]) { overridesPermissions =>
-                    complete(setModelOverridesPermissions(domain, modelId, overridesPermissions))
-                  }
+                complete(getModelOverridesPermissions(domain, modelId))
+              } ~ put {
+                entity(as[SetOverrideWorldRequest]) { overridesPermissions =>
+                  complete(setModelOverridesPermissions(domain, modelId, overridesPermissions))
                 }
               }
-            } ~ pathPrefix("world") {
+            }
+          } ~ pathPrefix("world") {
+            pathEnd {
+              get {
+                complete(getModelWorldPermissions(domain, modelId))
+              } ~ put {
+                entity(as[ModelPermissions]) { permissions =>
+                  complete(setModelWorldPermissions(domain, modelId, permissions))
+                }
+              }
+            }
+          } ~ pathPrefix("user") {
+            pathEnd {
+              get {
+                complete(getAllModelUserPermissions(domain, modelId))
+              }
+            } ~ pathPrefix(Segment) { user: String =>
               pathEnd {
                 get {
-                  complete(getModelWorldPermissions(domain, modelId))
+                  complete(getModelUserPermissions(domain, modelId, user))
                 } ~ put {
                   entity(as[ModelPermissions]) { permissions =>
-                    complete(setModelWorldPermissions(domain, modelId, permissions))
+                    complete(setModelUserPermissions(domain, modelId, user, permissions))
                   }
-                }
-              }
-            } ~ pathPrefix("user") {
-              pathEnd {
-                get {
-                  complete(getAllModelUserPermissions(domain, modelId))
-                }
-              } ~ pathPrefix(Segment) { user: String =>
-                pathEnd {
-                  get {
-                    complete(getModelUserPermissions(domain, modelId, user))
-                  } ~ put {
-                    entity(as[ModelPermissions]) { permissions =>
-                      complete(setModelUserPermissions(domain, modelId, user, permissions))
-                    }
-                  } ~ delete {
-                    complete(removeModelUserPermissions(domain, modelId, user))
-                  }
+                } ~ delete {
+                  complete(removeModelUserPermissions(domain, modelId, user))
                 }
               }
             }
           }
+        }
+      }
+    } ~ path("model-query") {
+      post {
+        entity(as[ModelQueryPost]) { query =>
+          complete(queryModels(authProfile, domain, query))
         }
       }
     }
@@ -179,23 +185,23 @@ class DomainModelService(
     (domainRestActor ? message).mapTo[List[ModelMetaData]] map {
       _.map(mapMetaData(_))
     } map {
-      models => okResponse(GetModelsResponse(models))
+      models => okResponse(models)
     }
   }
 
-  def getModelInCollection(domain: DomainFqn, collectionId: String): Future[RestResponse] = {
+  def getModelsInCollection(domain: DomainFqn, collectionId: String): Future[RestResponse] = {
     val message = DomainRestMessage(domain, GetModelsInCollection(collectionId, None, None))
     (domainRestActor ? message).mapTo[List[ModelMetaData]] map {
       _.map(mapMetaData(_))
     } map {
-      models => okResponse(GetModelsResponse(models))
+      models => okResponse(models)
     }
   }
 
   def mapMetaData(metaData: ModelMetaData): ModelMetaDataResponse = {
     ModelMetaDataResponse(
-      metaData.collectionId,
-      metaData.modelId,
+      metaData.id,
+      metaData.collection,
       metaData.version,
       metaData.createdTime,
       metaData.modifiedTime)
@@ -205,14 +211,14 @@ class DomainModelService(
     val message = GetRealtimeModel(domain, modelId, None)
     (modelClusterRegion ? message).mapTo[Option[Model]] map {
       case Some(model) =>
-        val mr = ModelResponse(
-          model.metaData.collectionId,
-          model.metaData.modelId,
+        val mr = ModelData(
+          model.metaData.id,
+          model.metaData.collection,
           model.metaData.version,
           model.metaData.createdTime,
           model.metaData.modifiedTime,
           model.data)
-        okResponse(GetModelResponse(mr))
+        okResponse(mr)
       case None =>
         notFound(modelId)
     }
@@ -238,6 +244,13 @@ class DomainModelService(
     // FIXME need to pass id model permissions options.
     val message = CreateOrUpdateRealtimeModel(domain, modelId, colleciontId, objectValue, None, None, None, None)
     (modelClusterRegion ? message) map { _ => OkResponse }
+  }
+  
+  def queryModels(authProfile: AuthorizationProfile, domain: DomainFqn, queryPost: ModelQueryPost): Future[RestResponse] = {
+    val ModelQueryPost(query) = queryPost
+    val userId = DomainUserId.convergence(authProfile.username)
+    val message = DomainRestMessage(domain, QueryModelsRequest(userId, query))
+    (domainRestActor ? message).mapTo[List[ModelQueryResult]].map(okResponse(_))
   }
 
   def deleteModel(domain: DomainFqn, modelId: String): Future[RestResponse] = {
@@ -311,7 +324,7 @@ class DomainModelService(
     val message = DomainRestMessage(domain, RemoveModelUserPermissions(modelId, DomainUserId.normal(username)))
     (domainRestActor ? message) map { _ => OkResponse }
   }
-  
+
   private[this] def notFound(modelId: String): RestResponse = {
     notFoundResponse(Some(s"A model with id '${modelId}' does not exist."))
   }

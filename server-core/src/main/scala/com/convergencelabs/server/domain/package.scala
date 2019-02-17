@@ -35,7 +35,6 @@ case class AuthenticationError(message: String = "", cause: Throwable) extends E
 case class UnauthorizedException(message: String = "") extends Exception(message)
 
 case class HandshakeSuccess(
-  modelQueryActor:     ActorRef,
   modelStoreActor:     ActorRef,
   operationStoreActor: ActorRef,
   userService:         ActorRef,

@@ -397,7 +397,7 @@ class RealtimeModelActor(
         worldPermissions,
         userPermissions) map { model =>
           log.debug(s"${identityString}: Model created.")
-          sender ! model.metaData.modelId
+          sender ! model.metaData.id
           ()
         } recover {
           case e: DuplicateValueException =>

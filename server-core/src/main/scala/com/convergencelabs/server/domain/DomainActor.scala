@@ -17,7 +17,6 @@ import com.convergencelabs.server.actor.StartUpNotRequired
 import com.convergencelabs.server.actor.StartUpRequired
 import com.convergencelabs.server.datastore.domain.DomainNotFoundException
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManager
-import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.datastore.domain.DomainSession
 import com.convergencelabs.server.datastore.domain.ModelOperationStoreActor
@@ -25,7 +24,7 @@ import com.convergencelabs.server.datastore.domain.ModelStoreActor
 import com.convergencelabs.server.db.provision.DomainProvisionerActor.DomainDeleted
 import com.convergencelabs.server.db.provision.DomainProvisionerActor.domainTopic
 import com.convergencelabs.server.domain.chat.ChatChannelLookupActor
-import com.convergencelabs.server.domain.model.ModelLookupActor
+import com.convergencelabs.server.domain.presence.PresenceServiceActor
 
 import akka.actor.ActorRef
 import akka.actor.OneForOneStrategy
@@ -37,11 +36,9 @@ import akka.actor.Terminated
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator.Subscribe
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
-import com.convergencelabs.server.domain.presence.PresenceServiceActor
 
 object DomainActor {
   case class DomainActorChildren(
-    modelQueryManagerActor: ActorRef,
     modelStoreActor: ActorRef,
     operationStoreActor: ActorRef,
     identityServiceActor: ActorRef,
@@ -118,7 +115,6 @@ class DomainActor(
       context.watch(message.clientActor)
 
       sender ! HandshakeSuccess(
-        this.children.modelQueryManagerActor,
         this.children.modelStoreActor,
         this.children.operationStoreActor,
         this.children.identityServiceActor,
@@ -272,33 +268,13 @@ class DomainActor(
         provider.sessionStore,
         context.dispatcher)
 
-      val modelQueryManagerActor = context.actorOf(
-        ModelLookupActor.props(
-          domainFqn,
-          DomainPersistenceManagerActor),
-        ModelLookupActor.RelativePath)
-
-      val identityServiceActor = context.actorOf(
-        IdentityServiceActor.props(
-          domainFqn),
-        IdentityServiceActor.RelativePath)
-
-      val presenceServiceActor = context.actorOf(
-        PresenceServiceActor.props(
-          domainFqn),
-        PresenceServiceActor.RelativePath)
-
-      val chatChannelLookupActor = context.actorOf(
-        ChatChannelLookupActor.props(
-          domainFqn),
-        ChatChannelLookupActor.RelativePath)
-
+      val identityServiceActor = context.actorOf(IdentityServiceActor.props(domainFqn), IdentityServiceActor.RelativePath)
+      val presenceServiceActor = context.actorOf(PresenceServiceActor.props(domainFqn),PresenceServiceActor.RelativePath)
+      val chatChannelLookupActor = context.actorOf(ChatChannelLookupActor.props(domainFqn),ChatChannelLookupActor.RelativePath)
       val modelStoreActor = context.actorOf(ModelStoreActor.props(provider), ModelStoreActor.RelativePath)
-
       val operationStoreActor = context.actorOf(ModelOperationStoreActor.props(provider.modelOperationStore), ModelOperationStoreActor.RelativePath)
 
       this.children = DomainActorChildren(
-        modelQueryManagerActor,
         modelStoreActor,
         operationStoreActor,
         identityServiceActor,

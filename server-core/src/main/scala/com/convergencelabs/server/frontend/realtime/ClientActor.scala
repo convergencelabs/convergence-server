@@ -120,7 +120,6 @@ class ClientActor(
   private[this] var chatClient: ActorRef = _
   private[this] var historyClient: ActorRef = _
 
-  private[this] var modelQueryActor: ActorRef = _
   private[this] var modelStoreActor: ActorRef = _
   private[this] var operationStoreActor: ActorRef = _
   private[this] var identityServiceActor: ActorRef = _
@@ -265,11 +264,10 @@ class ClientActor(
 
   private[this] def handleHandshakeSuccess(success: InternalHandshakeSuccess): Unit = {
     val InternalHandshakeSuccess(HandshakeSuccess(
-      modelQueryActor, modelStoreActor, operationStoreActor, identityActor, presenceActor, chatLookupActor),
+      modelStoreActor, operationStoreActor, identityActor, presenceActor, chatLookupActor),
       cb) = success
     this.modelStoreActor = modelStoreActor
     this.operationStoreActor = operationStoreActor
-    this.modelQueryActor = modelQueryActor
     this.identityServiceActor = identityActor
     this.presenceServiceActor = presenceActor
     this.chatLookupActor = chatLookupActor
@@ -353,7 +351,7 @@ class ClientActor(
     val InternalAuthSuccess(user, session, reconnectToken, presence, cb) = message
     this.sessionId = session.sessionId
     this.reconnectToken = reconnectToken;
-    this.modelClient = context.actorOf(ModelClientActor.props(domainFqn, session, modelQueryActor, requestTimeout))
+    this.modelClient = context.actorOf(ModelClientActor.props(domainFqn, session, modelStoreActor, requestTimeout))
     this.userClient = context.actorOf(IdentityClientActor.props(identityServiceActor))
     this.chatClient = context.actorOf(ChatClientActor.props(domainFqn, chatLookupActor, session, requestTimeout))
     this.activityClient = context.actorOf(ActivityClientActor.props(

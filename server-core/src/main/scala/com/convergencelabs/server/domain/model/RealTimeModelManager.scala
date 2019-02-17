@@ -219,7 +219,7 @@ class RealTimeModelManager(
     } yield {
       (model, snapshotMetaData) match {
         case (Some(m), Some(s)) =>
-          val collectionId = m.metaData.collectionId
+          val collectionId = m.metaData.collection
           (for {
             permissions <- this.permissionsResolver.getModelAndCollectionPermissions(modelId, collectionId, persistenceProvider)
             snapshotConfig <- getSnapshotConfigForModel(collectionId)
@@ -255,7 +255,7 @@ class RealTimeModelManager(
     }
 
     this.permissionsResolver
-      .getModelAndCollectionPermissions(modelId, this.metaData.collectionId, persistenceProvider)
+      .getModelAndCollectionPermissions(modelId, this.metaData.collection, persistenceProvider)
       .map { p =>
         this.permissions = p
         this.metaData = this.metaData.copy(overridePermissions = p.overrideCollection, worldPermissions = p.modelWorld)
@@ -434,8 +434,8 @@ class RealTimeModelManager(
 
       // Send a message to the client informing them of the successful model open.
       val metaData = OpenModelMetaData(
-        modelData.metaData.modelId,
-        modelData.metaData.collectionId,
+        modelData.metaData.id,
+        modelData.metaData.collection,
         modelData.metaData.version,
         modelData.metaData.createdTime,
         modelData.metaData.modifiedTime)

@@ -32,7 +32,6 @@ import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.domain.DomainUserId
 
-
 object ModelStore {
 
   import com.convergencelabs.server.datastore.domain.schema.ModelClass._
@@ -56,8 +55,8 @@ object ModelStore {
     val modifiedTime: Date = doc.getProperty(Fields.ModifiedTime)
     val worldPermissions = ModelPermissionsStore.docToModelPermissions(doc.getProperty(Fields.WorldPermissions))
     ModelMetaData(
-      doc.eval("collection.id").asInstanceOf[String],
       doc.getProperty(Fields.Id),
+      doc.eval("collection.id").asInstanceOf[String],
       doc.getProperty(Fields.Version),
       createdTime.toInstant(),
       modifiedTime.toInstant(),
@@ -77,18 +76,18 @@ object ModelStore {
   def getModelRid(id: String, db: ODatabaseDocument): Try[ORID] = {
     OrientDBUtil.getIdentityFromSingleValueIndex(db, Indices.Id, id)
   }
-  
-  def deleteAllModelsInCollection(collectionId: String, db: ODatabaseDocument): Try[Unit] = { 
+
+  def deleteAllModelsInCollection(collectionId: String, db: ODatabaseDocument): Try[Unit] = {
     for {
       _ <- ModelOperationStore.deleteAllOperationsForCollection(collectionId, db)
       _ <- ModelSnapshotStore.removeAllSnapshotsForCollection(collectionId, db)
       _ <- deleteDataValuesForCollection(collectionId, db)
       _ <- {
         val command = "DELETE FROM Model WHERE collection.id = :collectionId"
-      val params = Map(Params.CollectionId -> collectionId)
-      OrientDBUtil.command(db, command, params)
+        val params = Map(Params.CollectionId -> collectionId)
+        OrientDBUtil.command(db, command, params)
       }
-    } yield(())
+    } yield (())
   }
 
   def deleteDataValuesForCollection(collectionId: String, db: ODatabaseDocument): Try[Unit] = {
@@ -130,8 +129,8 @@ class ModelStore private[domain] (
 
     val model = Model(
       ModelMetaData(
-        collectionId,
         modelId,
+        collectionId,
         version,
         createdTime,
         modifiedTime,
@@ -144,8 +143,8 @@ class ModelStore private[domain] (
   }
 
   def createModel(model: Model): Try[Unit] = tryWithDb { db =>
-    val collectionId = model.metaData.collectionId
-    val modelId = model.metaData.modelId
+    val collectionId = model.metaData.collection
+    val modelId = model.metaData.id
     val createdTime = model.metaData.createdTime
     val modifiedTime = model.metaData.modifiedTime
     val version = model.metaData.version
@@ -287,8 +286,8 @@ class ModelStore private[domain] (
             val createdTime = results.remove(Fields.CreatedTime).asInstanceOf[Date]
             val modifiedTime = results.remove(Fields.ModifiedTime).asInstanceOf[Date]
             val meta = ModelMetaData(
-              results.remove("collectionId").asInstanceOf[String],
               results.remove(Fields.Id).asInstanceOf[String],
+              results.remove("collectionId").asInstanceOf[String],
               results.remove(Fields.Version).asInstanceOf[Long],
               createdTime.toInstant(),
               modifiedTime.toInstant(),

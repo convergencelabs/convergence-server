@@ -123,7 +123,7 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
     logger.debug("exporting models")
     persistence.modelStore.getAllModelMetaData(None, None).map {
       modelList =>
-        modelList.map(metaData => exportModel(metaData.modelId).get)
+        modelList.map(metaData => exportModel(metaData.id).get)
     }.get
   }
 
@@ -139,8 +139,8 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
     } yield {
       val model = modelOpt.get
       CreateModel(
-        model.metaData.modelId,
-        model.metaData.collectionId,
+        model.metaData.id,
+        model.metaData.collection,
         model.metaData.version,
         model.metaData.createdTime,
         model.metaData.modifiedTime,

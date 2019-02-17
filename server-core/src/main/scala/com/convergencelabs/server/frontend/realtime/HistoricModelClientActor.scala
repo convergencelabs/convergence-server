@@ -69,7 +69,7 @@ class HistoricModelClientActor(
       case (Success(Some(model))) => {
         cb.reply(
           HistoricalDataResponseMessage(
-            model.metaData.collectionId,
+            model.metaData.collection,
             Some(model.data),
             model.metaData.version,
             Some(model.metaData.createdTime),

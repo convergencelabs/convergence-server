@@ -243,7 +243,7 @@ class ModelSnapshotStoreSpec
         provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, None, None).get.length shouldBe 3
         provider.modelSnapshotStore.getSnapshotMetaDataForModel(person2Id, None, None).get.length shouldBe 1
 
-        provider.modelSnapshotStore.removeAllSnapshotsForCollection(CollectionId).success
+        //provider.modelSnapshotStore.removeAllSnapshotsForCollection(CollectionId).success
 
         provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, None, None).get.length shouldBe 0
         provider.modelSnapshotStore.getSnapshotMetaDataForModel(person2Id, None, None).get.length shouldBe 0
