@@ -83,7 +83,6 @@ object DomainModelService {
     data: ObjectValue)
 
   case class CreateModelResponse(id: String)
-  case class GetModelPermissionsResponse(permissions: ModelPermissionsSummary)
   case class ModelPermissionsSummary(overrideWorld: Boolean, worldPermissions: ModelPermissions, userPermissions: List[ModelUserPermissions])
   case class GetPermissionsResponse(permissions: Option[ModelPermissions])
   case class GetAllUserPermissionsResponse(userPermissions: List[ModelUserPermissions])
@@ -282,7 +281,7 @@ class DomainModelService(
     (domainRestActor ? message).mapTo[ModelPermissionsResponse] map {
       response =>
         val ModelPermissionsResponse(overridePermissions, world, users) = response
-        okResponse(GetModelPermissionsResponse(ModelPermissionsSummary(overridePermissions, world, users)))
+        okResponse(ModelPermissionsSummary(overridePermissions, world, users))
     }
   }
 
