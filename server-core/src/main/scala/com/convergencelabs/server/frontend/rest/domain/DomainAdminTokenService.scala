@@ -31,24 +31,22 @@ class DomainAdminTokenService(
   executionContext: ExecutionContext,
   timeout: Timeout,
   private[this] val domainRestActor: ActorRef)
-    extends DomainRestService(executionContext, timeout) {
+  extends DomainRestService(executionContext, timeout) {
 
   import DomainAdminTokenService._
   import akka.pattern.ask
-  
+
   def route(authProfile: AuthorizationProfile, domain: DomainFqn): Route = {
-    pathPrefix("adminToken") {
+    pathPrefix("convergenceUserToken") {
       pathEnd {
         get {
-          authorize(canAccessDomain(domain, authProfile)) {
-            complete(getAdminToken(domain, authProfile.username))
-          }
+          complete(getConvergenceUserToken(domain, authProfile.username))
         }
       }
     }
   }
 
-  def getAdminToken(domain: DomainFqn, username: String): Future[RestResponse] = {
+  def getConvergenceUserToken(domain: DomainFqn, username: String): Future[RestResponse] = {
     val message = DomainRestMessage(domain, AdminTokenRequest(username))
     (domainRestActor ? message).mapTo[String] map {
       case token: String => okResponse(AdminTokenRestResponse(token))
