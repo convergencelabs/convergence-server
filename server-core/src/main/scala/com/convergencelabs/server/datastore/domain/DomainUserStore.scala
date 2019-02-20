@@ -337,8 +337,8 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
     searchString: String,
     orderBy: Option[DomainUserField.Field],
     sortOrder: Option[SortOrder.Value],
-    limit: Option[Int],
-    offset: Option[Int]): Try[List[DomainUser]] = withDb { db =>
+    offset: Option[Int],
+    limit: Option[Int]): Try[List[DomainUser]] = withDb { db =>
 
     val baseQuery = "SELECT * FROM User"
     val whereTerms = ListBuffer[String]()

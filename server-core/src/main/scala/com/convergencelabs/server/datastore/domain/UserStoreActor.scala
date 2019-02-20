@@ -17,8 +17,8 @@ object UserStoreActor {
   trait UserStoreRequest
   case class GetUsers(
     filter: Option[String],
-    limit: Option[Int],
-    offset: Option[Int]) extends UserStoreRequest
+    offset: Option[Int],
+    limit: Option[Int]) extends UserStoreRequest
   case class GetUserByUsername(userId: DomainUserId) extends UserStoreRequest
   case class CreateUser(
     username: String,
@@ -64,7 +64,7 @@ class UserStoreActor private[datastore] (private[this] val userStore: DomainUser
   }
 
   def getAllUsers(message: GetUsers): Unit = {
-    val GetUsers(filter, limit, offset) = message
+    val GetUsers(filter, offset, limit) = message
     filter match {
       case Some(filterString) =>
         reply(userStore.searchUsersByFields(
@@ -72,8 +72,8 @@ class UserStoreActor private[datastore] (private[this] val userStore: DomainUser
           filterString,
           Some(DomainUserField.Username),
           Some(SortOrder.Ascending),
-          limit,
-          offset))
+          offset,
+          limit))
       case None =>
         reply(userStore.getAllDomainUsers(Some(DomainUserField.Username), Some(SortOrder.Ascending), limit, offset))
     }

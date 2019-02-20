@@ -27,8 +27,6 @@ import com.convergencelabs.server.security.AuthorizationProfile
 
 object DomainUserService {
   case class CreateUserRequest(username: String, firstName: Option[String], lastName: Option[String], displayName: Option[String], email: Option[String], password: Option[String])
-  case class GetUsersRestResponse(users: List[DomainUserData])
-  case class GetUserRestResponse(user: DomainUserData)
   case class UpdateUserRequest(
     firstName: Option[String],
     lastName: Option[String],
@@ -52,7 +50,7 @@ class DomainUserService(
   private[this] val executionContext: ExecutionContext,
   private[this] val timeout: Timeout,
   private[this] val domainRestActor: ActorRef)
-    extends DomainRestService(executionContext, timeout) {
+  extends DomainRestService(executionContext, timeout) {
 
   import DomainUserService._
   import akka.http.scaladsl.server.Directive._
@@ -63,42 +61,30 @@ class DomainUserService(
     pathPrefix("users") {
       pathEnd {
         get {
-          parameters("filter".?, "limit".as[Int].?, "offset".as[Int].?) { (filter, limit, offset) =>
-            authorize(canAccessDomain(domain, authProfile)) {
-              complete(getAllUsersRequest(domain, filter, limit, offset))
-            }
+          parameters("filter".?, "offset".as[Int].?, "limit".as[Int].?) { (filter, offset, limit) =>
+            complete(getAllUsersRequest(domain, filter, offset, limit))
           }
         } ~ post {
           entity(as[CreateUserRequest]) { request =>
-            authorize(canAccessDomain(domain, authProfile)) {
-              complete(createUserRequest(request, domain))
-            }
+            complete(createUserRequest(request, domain))
           }
         }
       } ~ pathPrefix(Segment) { domainUsername =>
         pathEnd {
           get {
-            authorize(canAccessDomain(domain, authProfile)) {
-              complete(getUserByUsername(domainUsername, domain))
-            }
+            complete(getUserByUsername(domainUsername, domain))
           } ~ delete {
-            authorize(canAccessDomain(domain, authProfile)) {
-              complete(deleteUser(domainUsername, domain))
-            }
+            complete(deleteUser(domainUsername, domain))
           } ~ put {
             entity(as[UpdateUserRequest]) { request =>
-              authorize(canAccessDomain(domain, authProfile)) {
-                complete(updateUserRequest(domainUsername, request, domain))
-              }
+              complete(updateUserRequest(domainUsername, request, domain))
             }
           }
         } ~ pathPrefix("password") {
           pathEnd {
             put {
               entity(as[SetPasswordRequest]) { request =>
-                authorize(canAccessDomain(domain, authProfile)) {
-                  complete(setPasswordRequest(domainUsername, request, domain))
-                }
+                complete(setPasswordRequest(domainUsername, request, domain))
               }
             }
           }
@@ -108,31 +94,27 @@ class DomainUserService(
       pathEnd {
         post {
           entity(as[UserLookupRequest]) { request =>
-            authorize(canAccessDomain(domain, authProfile)) {
-              complete(findUser(domain, request))
-            }
+            complete(findUser(domain, request))
           }
         } ~ post {
           entity(as[CreateUserRequest]) { request =>
-            authorize(canAccessDomain(domain, authProfile)) {
-              complete(createUserRequest(request, domain))
-            }
+            complete(createUserRequest(request, domain))
           }
         }
       }
     }
   }
 
-  def getAllUsersRequest(domain: DomainFqn, filter: Option[String], limit: Option[Int], offset: Option[Int]): Future[RestResponse] = {
-    (domainRestActor ? DomainRestMessage(domain, GetUsers(filter, limit, offset))).mapTo[List[DomainUser]] map
-      (users => okResponse(GetUsersRestResponse(users.map(toUserData(_)))))
+  def getAllUsersRequest(domain: DomainFqn, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
+    (domainRestActor ? DomainRestMessage(domain, GetUsers(filter, offset, limit))).mapTo[List[DomainUser]] map
+      (users => okResponse(users.map(toUserData(_))))
   }
 
   def findUser(domain: DomainFqn, request: UserLookupRequest): Future[RestResponse] = {
     val UserLookupRequest(filter, excludes, offset, limit) = request
     val findUser = FindUser(filter, excludes.map(_.map(DomainUserId(DomainUserType.Normal, _))), offset, limit)
     (domainRestActor ? DomainRestMessage(domain, findUser)).mapTo[List[DomainUser]] map
-      (users => okResponse(GetUsersRestResponse(users.map(toUserData(_)))))
+      (users => okResponse(users.map(toUserData(_))))
   }
 
   def createUserRequest(createRequest: CreateUserRequest, domain: DomainFqn): Future[RestResponse] = {
@@ -156,7 +138,7 @@ class DomainUserService(
     val message = DomainRestMessage(domain, GetUserByUsername(DomainUserId(DomainUserType.Normal, username)))
     (domainRestActor ? message).mapTo[Option[DomainUser]] map {
       case Some(user) =>
-        okResponse(GetUserRestResponse(toUserData(user)))
+        okResponse(toUserData(user))
       case None =>
         notFoundResponse()
     }

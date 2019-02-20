@@ -2,7 +2,6 @@ package com.convergencelabs.server.frontend.rest
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
-import scala.util.Try
 
 import com.convergencelabs.server.datastore.domain.JwtAuthKeyStore.KeyInfo
 import com.convergencelabs.server.datastore.domain.JwtAuthKeyStoreActor.CreateDomainApiKey
@@ -14,35 +13,28 @@ import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.JwtAuthKey
 import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
 import com.convergencelabs.server.frontend.rest.DomainKeyService.UpdateInfo
+import com.convergencelabs.server.security.AuthorizationProfile
 
-import DomainKeyService.GetKeyRestResponse
-import DomainKeyService.GetKeysRestResponse
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
-import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
 import akka.http.scaladsl.server.Directive.addDirectiveApply
 import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
 import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
 import akka.http.scaladsl.server.Directives.as
-import akka.http.scaladsl.server.Directives.authorizeAsync
-import akka.http.scaladsl.server.Directives.authorize
 import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Directives.delete
 import akka.http.scaladsl.server.Directives.entity
 import akka.http.scaladsl.server.Directives.get
+import akka.http.scaladsl.server.Directives.path
 import akka.http.scaladsl.server.Directives.pathEnd
 import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.post
 import akka.http.scaladsl.server.Directives.put
-import akka.http.scaladsl.server.Directives.Segment
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
-import com.convergencelabs.server.security.AuthorizationProfile
 
 object DomainKeyService {
-  case class GetKeysRestResponse(keys: List[JwtAuthKey])
-  case class GetKeyRestResponse(key: JwtAuthKey)
   case class UpdateInfo(description: String, key: String, enabled: Boolean)
 }
 
@@ -50,39 +42,31 @@ class DomainKeyService(
   private[this] val executionContext: ExecutionContext,
   private[this] val timeout: Timeout,
   private[this] val domainRestActor: ActorRef)
-    extends DomainRestService(executionContext, timeout) {
+  extends DomainRestService(executionContext, timeout) {
 
+  import DomainKeyService._
+  import akka.http.scaladsl.server.Directives.Segment
   import akka.pattern.ask
-  
+
   def route(authProfile: AuthorizationProfile, domain: DomainFqn): Route = {
-    pathPrefix("jwtAuthKeys") {
+    pathPrefix("jwtKeys") {
       pathEnd {
         get {
-          authorize(canAccessDomain(domain, authProfile)) {
-            complete(getKeys(domain))
-          }
+          complete(getKeys(domain))
         } ~ post {
           entity(as[KeyInfo]) { key =>
-            authorize(canManageSettings(domain, authProfile)) {
-              complete(createKey(domain, key))
-            }
+            complete(createKey(domain, key))
           }
         }
-      } ~ pathPrefix(Segment) { keyId =>
+      } ~ path(Segment) { keyId =>
         get {
-          authorize(canAccessDomain(domain, authProfile)) {
-            complete(getKey(domain, keyId))
-          }
+          complete(getKey(domain, keyId))
         } ~ put {
           entity(as[UpdateInfo]) { key =>
-            authorize(canManageSettings(domain, authProfile)) {
-              complete(updateKey(domain, keyId, key))
-            }
+            complete(updateKey(domain, keyId, key))
           }
         } ~ delete {
-          authorize(canManageSettings(domain, authProfile)) {
-            complete(deleteKey(domain, keyId))
-          }
+          complete(deleteKey(domain, keyId))
         }
       }
     }
@@ -90,14 +74,14 @@ class DomainKeyService(
 
   def getKeys(domain: DomainFqn): Future[RestResponse] = {
     (domainRestActor ? DomainRestMessage(domain, GetDomainApiKeys(None, None))).mapTo[List[JwtAuthKey]] map {
-      case keys: List[JwtAuthKey] => okResponse(GetKeysRestResponse(keys))
+      case keys: List[JwtAuthKey] => okResponse(keys)
     }
   }
 
   def getKey(domain: DomainFqn, keyId: String): Future[RestResponse] = {
     (domainRestActor ? DomainRestMessage(domain, GetDomainApiKey(keyId))).mapTo[Option[JwtAuthKey]] map {
-      case Some(key) => okResponse(GetKeyRestResponse(key))
-      case None      => notFoundResponse()
+      case Some(key) => okResponse(key)
+      case None => notFoundResponse()
     }
   }
 
