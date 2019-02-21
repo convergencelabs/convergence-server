@@ -7,7 +7,7 @@ object DomainStatus extends Enumeration {
   val Online = Value("online");
   val Offline = Value("offline");
   val Maintenance = Value("maintenance");
-  val Terminiating = Value("terminating");
+  val Deleting = Value("deleting");
 }
 
 case class Domain(

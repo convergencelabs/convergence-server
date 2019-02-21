@@ -271,6 +271,12 @@ class RoleStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
     val params = Map(Params.Username -> username) ++ targetParams
     OrientDBUtil.command(db, query, params).map(_ => ())
   }
+  
+  def removeAllRolesFromTarget(target: RoleTarget): Try[Unit] = withDb { db =>
+    val (targetWhere, targetParams) = buildTargetWhere(target)
+    val query = s"DELETE FROM UserRole WHERE ${targetWhere}"
+    OrientDBUtil.command(db, query, targetParams).map(_ => ())
+  }
 
   private[this] def getRolesRid(name: String, target: Option[RoleTargetType.Value], db: ODatabaseDocument): Try[ORID] = {
     OrientDBUtil.getIdentityFromSingleValueIndex(db, RoleClass.Indices.NameTargetClass, List(name, target.map(_.toString).getOrElse(null)))

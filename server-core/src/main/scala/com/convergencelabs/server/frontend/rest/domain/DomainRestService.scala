@@ -32,6 +32,8 @@ class DomainRestService(executionContext: ExecutionContext, defaultTimeout: Time
   }
 
   def checkPermission(domainFqn: DomainFqn, authProfile: AuthorizationProfile, permission: Set[String]): Boolean = {
-    permission.forall(p => authProfile.hasDomainPermission(p, domainFqn))
+    authProfile.hasGlobalPermission(Permissions.Global.ManageDomains) ||
+      authProfile.hasNamespacePermission(Permissions.Namespace.ManageDomains, domainFqn.namespace) ||
+      permission.forall(p => authProfile.hasDomainPermission(p, domainFqn))
   }
 }

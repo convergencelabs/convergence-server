@@ -81,7 +81,7 @@ object SessionStore {
   }
 
   object SessionQueryType extends Enumeration {
-    val Normal, Anonymous, Admin, All, NonAdmin = Value
+    val Normal, Anonymous, Convergence, All, ExcludeConvergence = Value
     def withNameOpt(s: String): Option[Value] = values.find(_.toString.toLowerCase() == s.toLowerCase())
   }
 }
@@ -127,10 +127,9 @@ class SessionStore(dbProvider: DatabaseProvider)
   def getSessions(
     sessionId: Option[String],
     username: Option[String],
-    userType: Option[DomainUserType.Value],
     remoteHost: Option[String],
     authMethod: Option[String],
-    connectedOnly: Boolean,
+    excludeDisconnected: Boolean,
     sessionType: SessionQueryType.Value,
     limit: Option[Int],
     offset: Option[Int]): Try[List[DomainSession]] = withDb { db =>
@@ -142,11 +141,6 @@ class SessionStore(dbProvider: DatabaseProvider)
       terms = "id LIKE :id" :: terms
     })
 
-    userType.foreach(un => {
-      params = params + ("userType" -> userType.toString.toLowerCase)
-      terms = "user.userType = :userType" :: terms
-    })
-    
     username.foreach(un => {
       params = params + ("username" -> s"%${un}%")
       terms = "user.username LIKE :username" :: terms
@@ -162,7 +156,7 @@ class SessionStore(dbProvider: DatabaseProvider)
       terms = "authMethod LIKE :authMethod" :: terms
     })
 
-    if (connectedOnly) {
+    if (excludeDisconnected) {
       terms = "disconnected IS NOT DEFINED" :: terms
     }
 
@@ -201,14 +195,14 @@ class SessionStore(dbProvider: DatabaseProvider)
     sessionType match {
       case SessionQueryType.All =>
         None
-      case SessionQueryType.NonAdmin =>
-        Some(s"not(user.userType = 'admin')")
+      case SessionQueryType.ExcludeConvergence =>
+        Some(s"not(user.userType = 'convergence')")
       case SessionQueryType.Normal =>
         Some("user.userType = 'normal'")
       case SessionQueryType.Anonymous =>
         Some("user.userType = 'anonymous'")
-      case SessionQueryType.Admin =>
-        Some("user.userType = 'admin'")
+      case SessionQueryType.Convergence =>
+        Some("user.userType = 'convergence'")
     }
   }
 

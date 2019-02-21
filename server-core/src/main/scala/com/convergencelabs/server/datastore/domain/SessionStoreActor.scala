@@ -15,10 +15,9 @@ object SessionStoreActor {
   case class GetSessions(
     sessionId: Option[String],
     username: Option[String],
-    userType: Option[DomainUserType.Value],
     remoteHost: Option[String],
     authMethod: Option[String],
-    connectedOnly: Boolean,
+    excludeDisconnected: Boolean,
     sessionType: SessionQueryType.Value,
     limit: Option[Int],
     offset: Option[Int]) extends SessionStoreRequest
@@ -42,19 +41,17 @@ class SessionStoreActor private[datastore] (private[this] val sessionStore: Sess
     val GetSessions(
       sessionId,
       username,
-      userType,
       remoteHost,
       authMethod,
-      connectedOnly,
+      excludeDisconnected,
       st,
       limit,
       offset) = message
     reply(sessionStore.getSessions(sessionId,
       username,
-      userType,
       remoteHost,
       authMethod,
-      connectedOnly,
+      excludeDisconnected,
       st,
       limit,
       offset))

@@ -32,7 +32,7 @@ class DomainStatsActor(
 
   def getStats(): Unit = {
     (for {
-      sessionCount <- persistence.sessionStore.getConnectedSessionsCount(SessionQueryType.NonAdmin)
+      sessionCount <- persistence.sessionStore.getConnectedSessionsCount(SessionQueryType.ExcludeConvergence)
       userCount <- persistence.userStore.getNormalUserCount()
       dbSize <- getDatabaseSize()
     } yield {

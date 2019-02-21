@@ -128,7 +128,7 @@ class DomainService(
           domain.displayName,
           domain.domainFqn.namespace,
           domain.domainFqn.domainId,
-          domain.status.toString))))
+          domain.status.toString.toLowerCase))))
   }
 
   def getDomain(namespace: String, domainId: String): Future[RestResponse] = {

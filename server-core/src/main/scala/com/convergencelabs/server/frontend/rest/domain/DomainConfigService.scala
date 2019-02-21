@@ -50,7 +50,7 @@ class DomainConfigService(
   private[this] val executionContext: ExecutionContext,
   private[this] val timeout: Timeout,
   private[this] val domainRestActor: ActorRef)
-    extends DomainRestService(executionContext, timeout) {
+  extends DomainRestService(executionContext, timeout) {
 
   import DomainConfigService._
   import akka.pattern.ask
@@ -64,20 +64,16 @@ class DomainConfigService(
           }
         } ~ put {
           entity(as[AnonymousAuthPut]) { request =>
-            authorize(canAccessDomain(domain, authProfile)) {
-              complete(setAnonymousAuthEnabled(domain, request))
-            }
+            complete(setAnonymousAuthEnabled(domain, request))
           }
         }
       } ~
         path("modelSnapshotPolicy") {
           get {
-            authorize(canAccessDomain(domain, authProfile)) {
-              complete(getModelSnapshotPolicy(domain))
-            }
+            complete(getModelSnapshotPolicy(domain))
           } ~ put {
             entity(as[ModelSnapshotPolicyData]) { policyData =>
-              authorize(canAccessDomain(domain, authProfile)) {
+              authorize(canManageSettings(domain, authProfile)) {
                 complete(setModelSnapshotPolicy(domain, policyData))
               }
             }
@@ -111,15 +107,15 @@ class DomainConfigService(
         minimumTimeInterval,
         maximumTimeInterval) = config;
       okResponse(ModelSnapshotPolicyData(
-          snapshotsEnabled,
-          triggerByVersion,
-          maximumVersionInterval,
-          limitByVersion,
-          minimumVersionInterval,
-          triggerByTime,
-          maximumTimeInterval.toMillis,
-          limitByTime,
-          minimumTimeInterval.toMillis))
+        snapshotsEnabled,
+        triggerByVersion,
+        maximumVersionInterval,
+        limitByVersion,
+        minimumVersionInterval,
+        triggerByTime,
+        maximumTimeInterval.toMillis,
+        limitByTime,
+        minimumTimeInterval.toMillis))
     }
   }
 

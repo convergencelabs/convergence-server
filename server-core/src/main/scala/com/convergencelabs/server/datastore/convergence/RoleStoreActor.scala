@@ -20,13 +20,14 @@ object RoleStoreActor {
   def props(dbProvider: DatabaseProvider): Props = Props(new RoleStoreActor(dbProvider))
 
   case class CreateRoleRequest(role: Role)
-  case class SetRolesRequest(username: String, target: RoleTarget, roles: Set[String])
+  case class SeUsersRolesForTargetRequest(username: String, target: RoleTarget, roles: Set[String])
 
   case class GetRoleProfileRequest(target: RoleTarget, username: String)
   case class GetAllUserRolesRequest(target: RoleTarget)
 
   case class GetUserRolesForTargetRequest(username: String, target: RoleTarget)
   case class UpdateRolesForTargetRequest(target: RoleTarget, userRoles: Map[String, Set[String]])
+  case class SetAllUserRolesForTargetRequest(target: RoleTarget, userRoles: Map[String, Set[String]])
 
   case class RemoveUserFromTarget(target: RoleTarget, username: String)
 
@@ -46,12 +47,13 @@ class RoleStoreActor private[datastore] (private[this] val dbProvider: DatabaseP
 
   def receive: Receive = {
     case message: CreateRoleRequest => createRole(message)
-    case message: SetRolesRequest => setRolesRequest(message)
+    case message: SeUsersRolesForTargetRequest => setRolesRequest(message)
     case message: GetRoleProfileRequest => getPermissionsProfile(message)
     case message: GetAllUserRolesRequest => getAllUserRoles(message)
     case message: GetUserRolesForTargetRequest => getUserRoles(message)
     case message: GetUserPermissionsRequest => getUserPermissions(message)
     case message: UpdateRolesForTargetRequest => updateRolesForTarget(message)
+    case message: SetAllUserRolesForTargetRequest => setRolesForTarget(message)
     case message: RemoveUserFromTarget => removeUserRoleFromTarget(message)
     case message: Any => unhandled(message)
   }
@@ -61,8 +63,8 @@ class RoleStoreActor private[datastore] (private[this] val dbProvider: DatabaseP
     reply(permissionsStore.createRole(role))
   }
 
-  def setRolesRequest(message: SetRolesRequest): Unit = {
-    val SetRolesRequest(username, target, roles) = message
+  def setRolesRequest(message: SeUsersRolesForTargetRequest): Unit = {
+    val SeUsersRolesForTargetRequest(username, target, roles) = message
     reply(permissionsStore.setUserRolesForTarget(username, target, roles))
   }
   
@@ -70,6 +72,16 @@ class RoleStoreActor private[datastore] (private[this] val dbProvider: DatabaseP
     val UpdateRolesForTargetRequest(target, userRoles) = message
     reply(permissionsStore.setUserRolesForTarget(target, userRoles))
   }
+  
+  def setRolesForTarget(message: SetAllUserRolesForTargetRequest): Unit = {
+    val SetAllUserRolesForTargetRequest(target, userRoles) = message
+    reply(for {
+      _ <- permissionsStore.removeAllRolesFromTarget(target)
+      _ <- permissionsStore.setUserRolesForTarget(target, userRoles)
+    } yield (()))
+  }
+  
+  
 
   def getPermissionsProfile(message: GetRoleProfileRequest): Unit = {
     val GetRoleProfileRequest(target, username) = message

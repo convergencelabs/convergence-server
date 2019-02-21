@@ -32,13 +32,13 @@ class DomainStatusSpec
       }
       
       "return Terminiating when the string is 'terminating'" in {
-        DomainStatus.withName("terminating") shouldBe DomainStatus.Terminiating
+        DomainStatus.withName("terminating") shouldBe DomainStatus.Deleting
       }
     }
     
     "calling toString" must {
       "return terminiating when the string is 'Terminating'" in {
-        DomainStatus.Terminiating.toString() shouldBe "terminating"
+        DomainStatus.Deleting.toString() shouldBe "terminating"
       }
     }
   }
