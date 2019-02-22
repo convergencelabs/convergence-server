@@ -1,7 +1,5 @@
 version: 1
-
 actions:
-
 
 ########## Config Class ##########
 
@@ -319,6 +317,3 @@ actions:
       INSERT INTO Config SET key = "passwords.require-lower-case", value = true;
       INSERT INTO Config SET key = "passwords.require-upper-case", value = true;
       INSERT INTO Config SET key = "passwords.require-special-characters", value = true;
-      
-      
-      

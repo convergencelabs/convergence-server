@@ -251,4 +251,13 @@ class ModelSnapshotStore private[domain] (
     val params = Map(Constants.ModelId -> id)
     OrientDBUtil.command(db, command, params).map(_ => ())
   }
+  
+  /**
+   * Removes all snapshots for a model.
+   *
+   * @param id The id of the model to delete all snapshots for.
+   */
+  def removeAllSnapshotsForCollection(collectionId: String): Try[Unit] = withDb { db =>
+    ModelSnapshotStore.removeAllSnapshotsForCollection(collectionId, db)
+  }
 }

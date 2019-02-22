@@ -1,5 +1,5 @@
 users:
-  - {username: test, firstName: Test, lastName: User, displayName: "Test User", email: "test@example.com", password: {passwordType: "plaintext", value: "password"}}
+  - {username: test, firstName: Test, lastName: User, displayName: "Test User", email: "test@example.com", password: {passwordType: "plaintext", value: "password"}, bearerToken: "token"}
   
 domains:
   - id: "example"

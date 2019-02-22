@@ -141,6 +141,13 @@ class RoleStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
     ()
   }.recoverWith(handleDuplicateValue)
 
+  def getRole(name: String, targetClass: Option[RoleTargetType.Value]): Try[Role] = withDb { db =>
+    val target = targetClass.map(_.toString).getOrElse(null)
+    OrientDBUtil
+      .getDocumentFromSingleValueIndex(db, RoleClass.Indices.NameTargetClass, List(name, target))
+      .map(docToRole(_))
+  }
+
   def setUserRolesForTarget(target: RoleTarget, userRoles: Map[String, Set[String]]): Try[Unit] = withDb { db =>
     // FIXME do in transaction
     Try {
@@ -149,7 +156,7 @@ class RoleStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       }
     }
   }
-  
+
   def setUserRolesForTarget(username: String, target: RoleTarget, roles: Set[String]): Try[Unit] = withDb { db =>
     // FIXME: Do these two steps in a transaction
 
@@ -189,8 +196,10 @@ class RoleStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
         |WHERE
         |  user.username = :username AND
         |  ${targetWhere}""".stripMargin
-    val params = Map("username" -> username) ++ targetParams
-    OrientDBUtil.query(db, query, params).map(_.map(_.getProperty(RoleClass.Fields.Permissions)).toSet)
+    val params = Map(Params.Username -> username) ++ targetParams
+    OrientDBUtil.findDocumentAndMap(db, query, params) { doc =>
+      doc.getProperty(RoleClass.Fields.Permissions).asInstanceOf[java.util.Set[String]].asScala.toSet
+    }.map(_.getOrElse(Set[String]()))
   }
 
   private[this] val GetAllRolesForUserQuery = "SELECT FROM UserRole WHERE user.username = :username"
@@ -217,7 +226,7 @@ class RoleStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
     val params = Map("usernames" -> usernames.asJava) ++ targetParams
     OrientDBUtil.queryAndMap(db, query, params) { doc =>
       val username: String = doc.getProperty("username")
-      val targetDoc: ODocument = doc.getProperty("target")
+      val targetDoc: ODocument = doc.getProperty(UserRoleClass.Fields.Target)
       val target = docToRoleTarget(Option(targetDoc))
       val roles = doc.getProperty("roles").asInstanceOf[java.util.Set[String]]
       (username -> roles.asScala.toSet)
@@ -271,7 +280,7 @@ class RoleStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
     val params = Map(Params.Username -> username) ++ targetParams
     OrientDBUtil.command(db, query, params).map(_ => ())
   }
-  
+
   def removeAllRolesFromTarget(target: RoleTarget): Try[Unit] = withDb { db =>
     val (targetWhere, targetParams) = buildTargetWhere(target)
     val query = s"DELETE FROM UserRole WHERE ${targetWhere}"

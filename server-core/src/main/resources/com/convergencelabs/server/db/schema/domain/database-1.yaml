@@ -71,7 +71,7 @@ actions:
   - action: CreateIndex
     className: User
     name: User.username_userType
-    type: Unique
+    type: UniqueHashIndex
     properties: [username, userType]
 
 

@@ -24,9 +24,9 @@ case class ModelStoreSpecStores(collection: CollectionStore, model: ModelStore, 
 
 // scalastyle:off magic.number
 class ModelStoreSpec
-    extends PersistenceStoreSpec[ModelStoreSpecStores](DeltaCategory.Domain)
-    with WordSpecLike
-    with Matchers {
+  extends PersistenceStoreSpec[ModelStoreSpecStores](DeltaCategory.Domain)
+  with WordSpecLike
+  with Matchers {
 
   val df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSz")
 
@@ -43,8 +43,8 @@ class ModelStoreSpec
 
   val person1Id = "person1"
   val person1MetaData = ModelMetaData(
-    peopleCollectionId,
     person1Id,
+    peopleCollectionId,
     20,
     Instant.ofEpochMilli(df.parse("2015-10-20T01:00:00.000+0000").getTime),
     Instant.ofEpochMilli(df.parse("2015-10-20T12:00:00.000+0000").getTime),
@@ -56,8 +56,8 @@ class ModelStoreSpec
 
   val person2Id = "person2"
   val person2MetaData = ModelMetaData(
-    peopleCollectionId,
     person2Id,
+    peopleCollectionId,
     1,
     Instant.ofEpochMilli(df.parse("2015-10-20T02:00:00.000+0000").getTime),
     Instant.ofEpochMilli(df.parse("2015-10-20T02:00:00.000+0000").getTime),
@@ -69,8 +69,8 @@ class ModelStoreSpec
 
   val person3Id = "person3"
   val person3MetaData = ModelMetaData(
-    peopleCollectionId,
     person3Id,
+    peopleCollectionId,
     1,
     Instant.ofEpochMilli(df.parse("2015-10-20T03:00:00.000+0000").getTime),
     Instant.ofEpochMilli(df.parse("2015-10-20T03:00:00.000+0000").getTime),
@@ -83,8 +83,8 @@ class ModelStoreSpec
   val companyCollectionId = "company"
   val company1Id = "company1"
   val company1MetaData = ModelMetaData(
-    companyCollectionId,
     company1Id,
+    companyCollectionId,
     1,
     Instant.ofEpochMilli(df.parse("2015-10-20T04:00:00.000+0000").getTime),
     Instant.ofEpochMilli(df.parse("2015-10-20T04:00:00.000+0000").getTime),
@@ -129,7 +129,8 @@ class ModelStoreSpec
 
       "not create a model that is a duplicate model fqn" in withPersistenceStore { stores =>
         stores.collection.ensureCollectionExists(peopleCollectionId)
-        val data = ObjectValue("t2-data",
+        val data = ObjectValue(
+          "t2-data",
           Map(("foo" -> StringValue("t2-foo", "bar"))))
         stores.model.createModel(person1Id, peopleCollectionId, data, true, modelPermissions).get
         stores.model.createModel(person1Id, peopleCollectionId, data, true, modelPermissions).failure.exception shouldBe a[DuplicateValueException]
@@ -274,9 +275,9 @@ class ModelStoreSpec
 
         val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId", None).get
         list.toSet shouldBe Set(
-            ModelQueryResult(person1MetaData, DataValueToJValue.toJOject(person1Data)), 
-            ModelQueryResult(person2MetaData, DataValueToJValue.toJOject(person2Data)), 
-            ModelQueryResult(person3MetaData, DataValueToJValue.toJOject(person3Data)))
+          ModelQueryResult(person1MetaData, DataValueToJValue.toJOject(person1Data)),
+          ModelQueryResult(person2MetaData, DataValueToJValue.toJOject(person2Data)),
+          ModelQueryResult(person3MetaData, DataValueToJValue.toJOject(person3Data)))
       }
 
       "return correct models if a limit is provided" in withPersistenceStore { stores =>
@@ -284,8 +285,8 @@ class ModelStoreSpec
 
         val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId ORDER BY name ASC LIMIT 2", None).get
         list.toSet shouldBe Set(
-            ModelQueryResult(person1MetaData, DataValueToJValue.toJOject(person1Data)), 
-            ModelQueryResult(person2MetaData, DataValueToJValue.toJOject(person2Data)))
+          ModelQueryResult(person1MetaData, DataValueToJValue.toJOject(person1Data)),
+          ModelQueryResult(person2MetaData, DataValueToJValue.toJOject(person2Data)))
       }
 
       "return correct models if an offset is provided" in withPersistenceStore { stores =>
@@ -293,8 +294,8 @@ class ModelStoreSpec
 
         val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId ORDER BY name ASC OFFSET 1", None).get
         list.toSet shouldBe Set(
-            ModelQueryResult(person2MetaData, DataValueToJValue.toJOject(person2Data)), 
-            ModelQueryResult(person3MetaData, DataValueToJValue.toJOject(person3Data)))
+          ModelQueryResult(person2MetaData, DataValueToJValue.toJOject(person2Data)),
+          ModelQueryResult(person3MetaData, DataValueToJValue.toJOject(person3Data)))
       }
 
       "return correct models if an offset and limit is provided" in withPersistenceStore { stores =>
@@ -309,9 +310,9 @@ class ModelStoreSpec
 
         val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId ORDER BY name ASC", None).get
         list shouldBe List(
-            ModelQueryResult(person1MetaData, DataValueToJValue.toJOject(person1Data)), 
-            ModelQueryResult(person2MetaData, DataValueToJValue.toJOject(person2Data)), 
-            ModelQueryResult(person3MetaData, DataValueToJValue.toJOject(person3Data)))
+          ModelQueryResult(person1MetaData, DataValueToJValue.toJOject(person1Data)),
+          ModelQueryResult(person2MetaData, DataValueToJValue.toJOject(person2Data)),
+          ModelQueryResult(person3MetaData, DataValueToJValue.toJOject(person3Data)))
       }
 
       "return models in correct order if orderBy DESC is provided" in withPersistenceStore { stores =>
@@ -319,9 +320,9 @@ class ModelStoreSpec
 
         val list = stores.model.queryModels(s"SELECT FROM $peopleCollectionId ORDER BY name DESC", None).get
         list shouldBe List(
-            ModelQueryResult(person3MetaData, DataValueToJValue.toJOject(person3Data)), 
-            ModelQueryResult(person2MetaData, DataValueToJValue.toJOject(person2Data)), 
-            ModelQueryResult(person1MetaData, DataValueToJValue.toJOject(person1Data)))
+          ModelQueryResult(person3MetaData, DataValueToJValue.toJOject(person3Data)),
+          ModelQueryResult(person2MetaData, DataValueToJValue.toJOject(person2Data)),
+          ModelQueryResult(person1MetaData, DataValueToJValue.toJOject(person1Data)))
       }
     }
 
@@ -356,7 +357,7 @@ class ModelStoreSpec
         stores.model.getModel(person3Id).get shouldBe defined
         stores.model.getModel(company1Id).get shouldBe defined
 
-        //stores.model.deleteAllModelsInCollection(peopleCollectionId).success
+        stores.model.deleteAllModelsInCollection(peopleCollectionId).success
 
         stores.model.getModel(person1Id).get shouldBe None
         stores.model.getModel(person2Id).get shouldBe None

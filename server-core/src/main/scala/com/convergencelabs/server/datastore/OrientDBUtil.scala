@@ -119,10 +119,10 @@ object OrientDBUtil {
     for {
       oIndex <- getIndex(db, index)
       identity <- Try(Option(oIndex.get(key).asInstanceOf[OIdentifiable]))
-      .flatMap(_ match {
-        case Some(doc) => Success(doc.getIdentity)
-        case None => Failure(EntityNotFoundException())
-      })
+        .flatMap(_ match {
+          case Some(doc) => Success(doc.getIdentity)
+          case None => Failure(EntityNotFoundException())
+        })
     } yield {
       identity
     }
@@ -137,14 +137,21 @@ object OrientDBUtil {
         case oc: OCompositeKey => oc.getKeys
         case l: List[_] => l.asJava
         case v: Any => v
-      })
+      }).asJava
 
-      val oIndex = db.getMetadata.getIndexManager.getIndex(index)
-      Try(oIndex.iterateEntries(processedKeys.asJava, false)).map { cursor =>
-        cursor.toEntries().asScala.toList.map { entry =>
-          entry.getValue.getIdentity
-        }
+      val params = Map("keys" -> processedKeys)
+      val query = s"SELECT FROM INDEX:${index} WHERE key IN :keys"
+      OrientDBUtil.queryAndMap(db, query, params) { doc =>
+        val rid = doc.eval("rid").asInstanceOf[ORID]
+        rid
       }
+
+      //      val oIndex = db.getMetadata.getIndexManager.getIndex(index)
+      //      Try(oIndex.iterateEntries(processedKeys.asJava, false)).map { cursor =>
+      //        cursor.toEntries().asScala.toList.map { entry =>
+      //          entry.getValue.getIdentity
+      //        }
+      //      }
     }
   }
 
@@ -185,20 +192,15 @@ object OrientDBUtil {
     if (keys.isEmpty) {
       Success(List())
     } else {
-
       val processedKeys = keys.map(_ match {
         // FIXME https://github.com/orientechnologies/orientdb/issues/8751
-        case oc: OCompositeKey => oc.getKeys
+        case oc: OCompositeKey => new java.util.ArrayList(oc.getKeys)
         case l: List[_] => l.asJava
         case v: Any => v
-      })
-
-      val oIndex = db.getMetadata.getIndexManager.getIndex(index)
-      Try(oIndex.iterateEntries(processedKeys.asJava, false)).map { cursor =>
-        cursor.toEntries().asScala.toList.map { entry =>
-          entry.getValue.getRecord.asInstanceOf[ODocument]
-        }
-      }
+      }).asJava
+      val params = Map("keys" -> processedKeys)
+      val query = s"SELECT FROM INDEX:${index} WHERE key IN :keys"
+      OrientDBUtil.query(db, query, params).map(_.map(_.getProperty("rid").asInstanceOf[OIdentifiable].getRecord.asInstanceOf[ODocument]))
     }
   }
 

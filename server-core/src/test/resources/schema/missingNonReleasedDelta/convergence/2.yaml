@@ -4,7 +4,7 @@ actions:
  
 ########## Domain Class ##########
 
-  - action: RunSQLCommand
+  - action: RunSqlCommand
     command: "UPDATE Domain SET dbAdminUsername = dbUsername, dbAdminPassword = dbPassword;"
 
   - action: AddProperty

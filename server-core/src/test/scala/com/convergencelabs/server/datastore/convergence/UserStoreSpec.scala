@@ -68,7 +68,7 @@ class UserStoreSpec
       
       "fail with a DuplicateValue when updating to a username that is taken" in withPersistenceStore { store =>
         store.createUser(TestUser, Password, BearerToken).get
-        store.createUser(TestUser2, Password, BearerToken).get
+        store.createUser(TestUser2, Password, "other token").get
         val update = TestUser2.copy(email = TestUser.email)
         val exception = store.updateUser(update).failure.exception
         exception shouldBe a[DuplicateValueException]

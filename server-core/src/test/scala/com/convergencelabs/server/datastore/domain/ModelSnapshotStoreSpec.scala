@@ -33,7 +33,7 @@ class ModelSnapshotStoreSpec
 
   val person1Id = "person1"
   val person1ModelData = ObjectValue("vid", Map("value" -> DoubleValue("0:1", 1)))
-  val person1ModelMetaData = ModelMetaData(CollectionId, person1Id, 10, Instant.now(), Instant.now(), true, modelPermissions, 1)
+  val person1ModelMetaData = ModelMetaData(person1Id, CollectionId, 10, Instant.now(), Instant.now(), true, modelPermissions, 1)
   val person1Model = Model(person1ModelMetaData, person1ModelData)
 
   val p1Snapshot1Version = 1L
@@ -58,7 +58,7 @@ class ModelSnapshotStoreSpec
   
   val person2Id = "person2"
   val person2ModelData = ObjectValue("vid", Map("value" -> DoubleValue("0:1", 1)))
-  val person2ModelMetaData = ModelMetaData(CollectionId, person2Id, 10, Instant.now(), Instant.now(), true, modelPermissions, 1)
+  val person2ModelMetaData = ModelMetaData(person2Id, CollectionId, 10, Instant.now(), Instant.now(), true, modelPermissions, 1)
   val person2Model = Model(person2ModelMetaData, person2ModelData)
   
   val p2Snapshot1Version = 20L
@@ -243,7 +243,7 @@ class ModelSnapshotStoreSpec
         provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, None, None).get.length shouldBe 3
         provider.modelSnapshotStore.getSnapshotMetaDataForModel(person2Id, None, None).get.length shouldBe 1
 
-        //provider.modelSnapshotStore.removeAllSnapshotsForCollection(CollectionId).success
+        provider.modelSnapshotStore.removeAllSnapshotsForCollection(CollectionId).success
 
         provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, None, None).get.length shouldBe 0
         provider.modelSnapshotStore.getSnapshotMetaDataForModel(person2Id, None, None).get.length shouldBe 0

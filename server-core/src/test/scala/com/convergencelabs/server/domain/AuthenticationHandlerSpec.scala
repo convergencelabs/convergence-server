@@ -112,16 +112,6 @@ class AuthenticationHandlerSpec()
         val result = authHandler.authenticate(authRequest).failure.exception
         result shouldBe an[AuthenticationError]
       }
-
-      "return an authentication failure when a new user has a duplicate email." in new TestFixture {
-        val jwt = JwtGenerator.generate(
-          duplicateEmailJwtUser.username,
-          enabledKey.id,
-          Map(JwtClaimConstants.Email -> duplicateEmailJwtUser.email.get))
-        val authRequest = JwtAuthRequest(jwt)
-        val result = authHandler.authenticate(authRequest).failure.exception
-        result shouldBe an[AuthenticationError]
-      }
     }
   }
 

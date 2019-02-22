@@ -67,8 +67,8 @@ class ModelOperationProcessorSpec
   val peopleCollectionId = "people"
   val person1Id = "person1"
   val person1MetaData = ModelMetaData(
-    peopleCollectionId,
     person1Id,
+    peopleCollectionId,
     startingVersion,
     Instant.now(),
     Instant.now(),

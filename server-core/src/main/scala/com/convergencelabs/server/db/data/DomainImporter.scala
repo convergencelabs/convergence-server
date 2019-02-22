@@ -58,21 +58,21 @@ object DomainImporter {
   // FIXME we actually need to import / export this.
   // right now we are not exporting it, and hard coding this on the way in.
   val DefaultSnapshotConfig = ModelSnapshotConfig(
-      false,
-      false,
-      false,
-      1000,
-      1000,
-      false,
-      false,
-      Duration.ofMillis(600000),
-      Duration.ofMillis(600000))
+    false,
+    false,
+    false,
+    1000,
+    1000,
+    false,
+    false,
+    Duration.ofMillis(600000),
+    Duration.ofMillis(600000))
 }
 
 class DomainImporter(
-    private[this] val persistence: DomainPersistenceProvider,
-    private[this] val data: DomainScript) extends Logging {
-  
+  private[this] val persistence: DomainPersistenceProvider,
+  private[this] val data: DomainScript) extends Logging {
+
   def importDomain(): Try[Unit] = {
     logger.debug("Importing domain data")
     setConfig() flatMap { _ =>
@@ -191,8 +191,8 @@ class DomainImporter(
     val data = createDataValue(modelData.data).asInstanceOf[ObjectValue]
     val model = Model(
       ModelMetaData(
-        modelData.collection, 
         modelData.id,
+        modelData.collection,
         modelData.version,
         modelData.created,
         modelData.modified,
@@ -299,7 +299,7 @@ class DomainImporter(
 
       case CreateArraySetOperation(vId, noOp, value, oldValue) =>
         AppliedArraySetOperation(vId, noOp, value map (createDataValue(_)), oldValue map (_.map(createDataValue(_))))
-        
+
       case CreateDateSetOperation(vId, noOp, value, oldValue) =>
         AppliedDateSetOperation(vId, noOp, value, oldValue)
     }

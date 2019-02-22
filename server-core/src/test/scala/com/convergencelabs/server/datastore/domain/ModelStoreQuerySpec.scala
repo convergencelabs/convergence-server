@@ -140,7 +140,7 @@ class ModelStoreQuerySpec extends PersistenceStoreSpec[ModelStoreQuerySpecStores
 
     val modelPermissions = ModelPermissions(true, true, true, true)
 
-    val metaData = ModelMetaData(collectionId, modelId, version, Instant.ofEpochMilli(created), Instant.ofEpochMilli(modified), true, modelPermissions, 1)
+    val metaData = ModelMetaData(modelId, collectionId, version, Instant.ofEpochMilli(created), Instant.ofEpochMilli(modified), true, modelPermissions, 1)
 
     Model(metaData, jObjectToObjectValue((json \ "data").asInstanceOf[JObject]))
   }

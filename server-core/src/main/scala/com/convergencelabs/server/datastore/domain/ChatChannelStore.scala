@@ -347,11 +347,11 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
     // a group by / count WHERE'd on the Channel Link?
 
     DomainUserStore.getDomainUsersRids(userIds.toList, db).flatMap { userRids =>
-      val query =
-        """
+      val query ="""
        |SELECT 
        |  id 
-       |FROM ChatChannel 
+       |FROM 
+       |  ChatChannel 
        |WHERE 
        |  members CONTAINSALL (user IN :users) AND
        |  members.size() = :size AND 

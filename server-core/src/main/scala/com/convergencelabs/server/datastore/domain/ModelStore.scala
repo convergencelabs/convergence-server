@@ -322,6 +322,10 @@ class ModelStore private[domain] (
           Failure(e)
       }
   }
+
+  def deleteAllModelsInCollection(collectionId: String): Try[Unit] = withDb { db =>
+    ModelStore.deleteAllModelsInCollection(collectionId, db)
+  }
 }
 
 case class QueryParsingException(message: String, query: String, index: Option[Int]) extends Exception(message)

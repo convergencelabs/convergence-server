@@ -141,7 +141,7 @@ class NamespaceStore(dbProvider: DatabaseProvider)
   def updateNamespace(namespace: NamespaceUpdates): Try[Unit] = withDb { db =>
     val command = "UPDATE Namespace SET displayName = :displayName WHERE id = :id"
     val params = Map(Params.Id -> namespace.id, Params.DisplayName -> namespace.displayName)
-    OrientDBUtil.command(db, command, params).map(_ => ())
+    OrientDBUtil.mutateOneDocument(db, command, params).map(_ => ())
   } recoverWith (handleDuplicateValue)
 
   private[this] def handleDuplicateValue[T](): PartialFunction[Throwable, Try[T]] = {

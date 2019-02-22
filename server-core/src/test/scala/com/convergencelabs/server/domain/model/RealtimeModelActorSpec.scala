@@ -266,7 +266,7 @@ class RealtimeModelActorSpec
           any(),
           any(),
           any()))
-          .thenReturn(Success(Model(ModelMetaData(collectionId, noModelId, 0, now, now, true, modelPermissions, 1), data)))
+          .thenReturn(Success(Model(ModelMetaData(noModelId, collectionId, 0, now, now, true, modelPermissions, 1), data)))
 
         Mockito.when(persistenceProvider.modelSnapshotStore.createSnapshot(any())).thenReturn(Success(()))
         realtimeModelActor.tell(CreateRealtimeModel(domainFqn, noModelId, collectionId, data, Some(true), Some(modelPermissions), Map(), Some(skU1S1)), client.ref)
@@ -372,7 +372,7 @@ class RealtimeModelActorSpec
     val modelJsonData = ObjectValue("vid1", Map("key" -> StringValue("vid2", "value")))
     val modelCreateTime = Instant.ofEpochMilli(2L)
     val modelModifiedTime = Instant.ofEpochMilli(3L)
-    val modelData = Model(ModelMetaData(collectionId, modelId, 1, modelCreateTime, modelModifiedTime, true, modelPermissions, 1), modelJsonData)
+    val modelData = Model(ModelMetaData(modelId, collectionId, 1, modelCreateTime, modelModifiedTime, true, modelPermissions, 1), modelJsonData)
     val modelSnapshotTime = Instant.ofEpochMilli(2L)
     val modelSnapshotMetaData = ModelSnapshotMetaData(modelId, 1L, modelSnapshotTime)
 

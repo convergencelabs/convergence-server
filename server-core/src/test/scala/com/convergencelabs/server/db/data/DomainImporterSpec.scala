@@ -52,7 +52,7 @@ class DomainImporterSpec extends WordSpecLike with Matchers {
 
         val provider = new DomainPersistenceProviderImpl(dbPool)
         provider.validateConnection().success
-        
+
         val serializer = new DomainScriptSerializer()
         val in = getClass.getResourceAsStream("/com/convergencelabs/server/db/data/import-domain-test.yaml")
         val script = serializer.deserialize(in).get
@@ -84,7 +84,7 @@ class DomainImporterSpec extends WordSpecLike with Matchers {
 
         provider.userStore.validateCredentials("test1", "somePassword").get shouldBe true
         provider.userStore.getDomainUserPasswordHash("test2").get.value shouldBe "someHash"
-        
+
         val collections = provider.collectionStore.getAllCollections(None, None).get
         collections.size shouldBe 1
         collections(0) shouldBe Collection("collection1", "Collection 1", false, DomainImporter.DefaultSnapshotConfig, CollectionPermissions(true, true, true, true, true))
@@ -95,8 +95,8 @@ class DomainImporterSpec extends WordSpecLike with Matchers {
         val model = provider.modelStore.getModel(modelId).get.value
         model shouldBe Model(
           ModelMetaData(
-            collectionId,
             modelId,
+            collectionId,
             2L,
             Instant.parse("2016-11-16T17:49:15.233Z"),
             Instant.parse("2016-11-16T17:49:15.233Z"),
@@ -133,7 +133,7 @@ class DomainImporterSpec extends WordSpecLike with Matchers {
           ObjectValue(
             "vid1",
             Map("myString" -> StringValue("vid2", "my string"))))
-        
+
         dbPool.shutdown()
         orientDB.drop(dbName)
         orientDB.close()
