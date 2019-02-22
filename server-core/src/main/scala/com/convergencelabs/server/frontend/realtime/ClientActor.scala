@@ -276,7 +276,7 @@ class ClientActor(
     this.identityCacheManager = context.actorOf(IdentityCacheManager.props(self, identityActor, requestTimeout))
 
     // FIXME Protocol Config??
-    cb.reply(HandshakeResponseMessage(true, None, true))
+    cb.reply(HandshakeResponseMessage(true, None, true, this.domainFqn.namespace, this.domainFqn.domainId, None))
 
     this.messageHandler = handleAuthentationMessage
     context.become(receiveWhileAuthenticating)

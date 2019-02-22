@@ -86,9 +86,8 @@ class SessionStoreSpec
         provider.sessionStore.createSession(session1).get
         provider.sessionStore.createSession(session2).get
         provider.sessionStore.createSession(session3).get
-
+        
         val conneted = provider.sessionStore.getSessions(
-          None,
           None,
           None,
           None,
@@ -125,7 +124,7 @@ class SessionStoreSpec
         provider.sessionStore.createSession(session2).get
         provider.sessionStore.createSession(session3).get
 
-        val connetedCount = provider.sessionStore.getConnectedSessionsCount(SessionQueryType.NonAdmin).get
+        val connetedCount = provider.sessionStore.getConnectedSessionsCount(SessionQueryType.ExcludeConvergence).get
         connetedCount.shouldBe(2)
       }
     }

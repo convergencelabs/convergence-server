@@ -89,7 +89,6 @@ class ClientActorSpec
 
   class HandshookClient(system: ActorSystem) extends TestFixture(system: ActorSystem) {
     val domainActor = new TestProbe(system)
-    val modelManagerActor = new TestProbe(system)
     val modelStoreActor = new TestProbe(system)
     val operationStoreActor = new TestProbe(system)
     val userServiceActor = new TestProbe(system)
@@ -105,7 +104,7 @@ class ClientActorSpec
 
     domainManagerActor.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeRequest])
     domainManagerActor.reply(
-      HandshakeSuccess(modelManagerActor.ref, modelStoreActor.ref, operationStoreActor.ref, userServiceActor.ref, presenceServiceActor.ref, chatLookupActor.ref))
+      HandshakeSuccess(modelStoreActor.ref, operationStoreActor.ref, userServiceActor.ref, presenceServiceActor.ref, chatLookupActor.ref))
     Await.result(handshakeCallback.result, 250 millis)
   }
 
