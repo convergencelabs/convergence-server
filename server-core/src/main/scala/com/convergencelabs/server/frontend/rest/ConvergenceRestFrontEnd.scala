@@ -56,6 +56,7 @@ import akka.http.scaladsl.server.AuthorizationFailedRejection
 import com.convergencelabs.server.datastore.convergence.NamespaceStoreActor
 import com.convergencelabs.server.datastore.convergence.ConfigStoreActor
 import com.convergencelabs.server.datastore.convergence.UserFavoriteDomainStoreActor
+import akka.http.scaladsl.server.MethodRejection
 
 object ConvergenceRestFrontEnd {
   val ConvergenceCorsSettings = CorsSettings.defaultSettings.copy(
@@ -145,9 +146,13 @@ class ConvergenceRestFrontEnd(
           complete(ErrorResponse("malformed_request_content", Some(message)))
         case AuthorizationFailedRejection =>
           complete(ForbiddenError)
-        //        case e: Any =>
-        //          logger.error("An unexpected rejection occured: " + e)
-        //          complete(InternalServerError)
+      }
+      .handleAll[MethodRejection] { methodRejections =>
+        val names = methodRejections.map(_.supported.name)
+        complete(methodNotAllowed(names))
+      }
+      .handleNotFound {
+        complete(notFoundResponse(Some("The requested resoruce could not be found.")))
       }
       .result()
 

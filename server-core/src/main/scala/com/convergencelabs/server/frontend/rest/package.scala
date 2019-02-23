@@ -46,6 +46,9 @@ package object rest {
   def duplicateResponse(field: String): RestResponse = (StatusCodes.Conflict, ErrorResponse("duplicate", None, Some(Map("field" -> field))))
   def invalidValueResponse(field: String): RestResponse = (StatusCodes.BadRequest, ErrorResponse("invalid_value", None, Some(Map("field" -> field))))
   def notFoundResponse(message: Option[String] = None): RestResponse = (StatusCodes.NotFound, ErrorResponse("not_found", message))
+  def methodNotAllowed(methods: Seq[String]): RestResponse = (
+      StatusCodes.NotFound, 
+      ErrorResponse("method_not_allowed", Some(s"The only supported methods at this url are: ${methods mkString ", "}")))
   
   def namespaceNotFoundResponse(namespace: String): RestResponse = (StatusCodes.BadRequest, ErrorResponse("namespace_not_found", None, Some(Map("namespace" -> namespace))))
   
