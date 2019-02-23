@@ -17,6 +17,10 @@ sbtPod { label ->
       stage('Package') {
         sh 'sbt serverNode/stage'
       }
+      
+      stage('Publish Universal') {
+        sh 'sbt serverNode/universal:publish'
+      }
     }
     
     stage('Docker Prep') { 
