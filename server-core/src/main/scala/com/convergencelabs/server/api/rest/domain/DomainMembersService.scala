@@ -1,8 +1,12 @@
-package com.convergencelabs.server.frontend.rest
+package com.convergencelabs.server.api.rest.domain
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
+import com.convergencelabs.server.api.rest.OkResponse
+import com.convergencelabs.server.api.rest.RestResponse
+import com.convergencelabs.server.api.rest.notFoundResponse
+import com.convergencelabs.server.api.rest.okResponse
 import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.datastore.convergence.DomainRoleTarget
 import com.convergencelabs.server.datastore.convergence.RoleStore.Role

@@ -5,15 +5,16 @@ import scala.concurrent.Future
 
 import org.json4s.jackson.Serialization
 
+import com.convergencelabs.server.api.rest.OkResponse
+import com.convergencelabs.server.api.rest.RestResponse
+import com.convergencelabs.server.api.rest.okResponse
 import com.convergencelabs.server.db.data.ConvergenceImporterActor.ConvergenceExport
 import com.convergencelabs.server.db.data.ConvergenceImporterActor.ConvergenceExportResponse
 import com.convergencelabs.server.db.data.ConvergenceImporterActor.ConvergenceImport
 import com.convergencelabs.server.db.data.ConvergenceImporterActor.DomainExport
 import com.convergencelabs.server.db.data.ConvergenceImporterActor.DomainExportResponse
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.frontend.rest.OkResponse
-import com.convergencelabs.server.frontend.rest.RestResponse
-import com.convergencelabs.server.frontend.rest.okResponse
+import com.convergencelabs.server.security.AuthorizationProfile
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
@@ -22,7 +23,6 @@ import akka.http.scaladsl.server.Directive.addDirectiveApply
 import akka.util.Timeout
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.security.AuthorizationProfile
 
 class ConvergenceImportService(
   private[this] val executionContext: ExecutionContext,

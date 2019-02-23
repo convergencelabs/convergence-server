@@ -1,17 +1,24 @@
-package com.convergencelabs.server.frontend.rest
+package com.convergencelabs.server.api.rest.domain
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
+import com.convergencelabs.server.api.rest.CreatedResponse
+import com.convergencelabs.server.api.rest.DomainRestData
+import com.convergencelabs.server.api.rest.JsonSupport
+import com.convergencelabs.server.api.rest.OkResponse
+import com.convergencelabs.server.api.rest.RestResponse
+import com.convergencelabs.server.api.rest.namespaceNotFoundResponse
+import com.convergencelabs.server.api.rest.notFoundResponse
+import com.convergencelabs.server.api.rest.okResponse
 import com.convergencelabs.server.datastore.convergence.DomainStoreActor.CreateDomainRequest
 import com.convergencelabs.server.datastore.convergence.DomainStoreActor.DeleteDomainRequest
 import com.convergencelabs.server.datastore.convergence.DomainStoreActor.GetDomainRequest
 import com.convergencelabs.server.datastore.convergence.DomainStoreActor.ListDomainsRequest
 import com.convergencelabs.server.datastore.convergence.DomainStoreActor.UpdateDomainRequest
+import com.convergencelabs.server.datastore.convergence.NamespaceNotFoundException
 import com.convergencelabs.server.domain.Domain
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.frontend.rest.domain.DomainAdminTokenService
-import com.convergencelabs.server.frontend.rest.domain.DomainStatsService
 import com.convergencelabs.server.security.AuthorizationProfile
 
 import akka.actor.ActorRef
@@ -33,7 +40,6 @@ import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.post
 import akka.http.scaladsl.server.Directives.put
 import akka.util.Timeout
-import com.convergencelabs.server.datastore.convergence.NamespaceNotFoundException
 
 object DomainService {
   case class CreateDomainRestRequest(namespace: String, id: String, displayName: String)

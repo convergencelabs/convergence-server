@@ -1,4 +1,4 @@
-package com.convergencelabs.server.frontend.rest
+package com.convergencelabs.server.api.rest.domain
 
 import java.time.Instant
 import java.util.UUID
@@ -6,6 +6,11 @@ import java.util.UUID
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
+import com.convergencelabs.server.api.rest.OkResponse
+import com.convergencelabs.server.api.rest.RestResponse
+import com.convergencelabs.server.api.rest.createdResponse
+import com.convergencelabs.server.api.rest.notFoundResponse
+import com.convergencelabs.server.api.rest.okResponse
 import com.convergencelabs.server.datastore.domain.ModelDataGenerator
 import com.convergencelabs.server.datastore.domain.ModelPermissions
 import com.convergencelabs.server.datastore.domain.ModelPermissionsStoreActor.GetAllModelUserPermissions
@@ -31,10 +36,9 @@ import com.convergencelabs.server.domain.model.GetRealtimeModel
 import com.convergencelabs.server.domain.model.Model
 import com.convergencelabs.server.domain.model.ModelMetaData
 import com.convergencelabs.server.domain.model.ModelNotFoundException
+import com.convergencelabs.server.domain.model.ModelQueryResult
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
-import com.convergencelabs.server.frontend.rest.DomainModelService.ModelMetaDataResponse
-import com.convergencelabs.server.frontend.rest.DomainModelService.SetOverrideWorldRequest
 import com.convergencelabs.server.security.AuthorizationProfile
 
 import akka.actor.ActorRef
@@ -55,7 +59,6 @@ import akka.http.scaladsl.server.Directives.post
 import akka.http.scaladsl.server.Directives.put
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
-import com.convergencelabs.server.domain.model.ModelQueryResult
 
 object DomainModelService {
 

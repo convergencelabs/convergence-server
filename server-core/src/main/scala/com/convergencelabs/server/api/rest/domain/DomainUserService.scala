@@ -1,8 +1,13 @@
-package com.convergencelabs.server.frontend.rest
+package com.convergencelabs.server.api.rest.domain
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
+import com.convergencelabs.server.api.rest.CreatedResponse
+import com.convergencelabs.server.api.rest.OkResponse
+import com.convergencelabs.server.api.rest.RestResponse
+import com.convergencelabs.server.api.rest.notFoundResponse
+import com.convergencelabs.server.api.rest.okResponse
 import com.convergencelabs.server.datastore.domain.UserStoreActor.CreateUser
 import com.convergencelabs.server.datastore.domain.UserStoreActor.DeleteDomainUser
 import com.convergencelabs.server.datastore.domain.UserStoreActor.FindUser
@@ -12,18 +17,15 @@ import com.convergencelabs.server.datastore.domain.UserStoreActor.SetPassword
 import com.convergencelabs.server.datastore.domain.UserStoreActor.UpdateUser
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.DomainUser
+import com.convergencelabs.server.domain.DomainUserId
+import com.convergencelabs.server.domain.DomainUserType
 import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
+import com.convergencelabs.server.security.AuthorizationProfile
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
-import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
-import com.convergencelabs.server.domain.DomainUserType
-import com.convergencelabs.server.domain.DomainUserId
-import io.convergence.proto.identity.DomainUserIdData
-import com.convergencelabs.server.frontend.realtime.ImplicitMessageConversions
-import com.convergencelabs.server.security.AuthorizationProfile
 
 object DomainUserService {
   case class CreateUserRequest(username: String, firstName: Option[String], lastName: Option[String], displayName: Option[String], email: Option[String], password: Option[String])

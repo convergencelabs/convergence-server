@@ -1,8 +1,12 @@
-package com.convergencelabs.server.frontend.rest
+package com.convergencelabs.server.api.rest.domain
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
+import com.convergencelabs.server.api.rest.OkResponse
+import com.convergencelabs.server.api.rest.RestResponse
+import com.convergencelabs.server.api.rest.notFoundResponse
+import com.convergencelabs.server.api.rest.okResponse
 import com.convergencelabs.server.datastore.domain.JwtAuthKeyStore.KeyInfo
 import com.convergencelabs.server.datastore.domain.JwtAuthKeyStoreActor.CreateDomainApiKey
 import com.convergencelabs.server.datastore.domain.JwtAuthKeyStoreActor.DeleteDomainApiKey
@@ -12,7 +16,6 @@ import com.convergencelabs.server.datastore.domain.JwtAuthKeyStoreActor.UpdateDo
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.JwtAuthKey
 import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
-import com.convergencelabs.server.frontend.rest.DomainKeyService.UpdateInfo
 import com.convergencelabs.server.security.AuthorizationProfile
 
 import akka.actor.ActorRef

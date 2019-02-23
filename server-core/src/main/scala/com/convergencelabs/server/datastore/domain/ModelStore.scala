@@ -21,7 +21,6 @@ import com.convergencelabs.server.domain.model.ModelMetaData
 import com.convergencelabs.server.domain.model.ModelQueryResult
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.model.query.QueryParser
-import com.convergencelabs.server.frontend.rest.DataValueToJValue
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.id.ORID
@@ -31,6 +30,7 @@ import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.domain.DomainUserId
+import com.convergencelabs.server.api.rest.DataValueToJValue
 
 object ModelStore {
 

@@ -1,4 +1,4 @@
-package com.convergencelabs.server.frontend
+package com.convergencelabs.server.api
 
 import akka.http.scaladsl.model.StatusCode
 import akka.http.scaladsl.model.StatusCodes

@@ -1,20 +1,19 @@
 package com.convergencelabs.server.db.data
 
-import com.convergencelabs.server.util.PolymorphicSerializer
-import java.util.TimeZone
 import java.text.SimpleDateFormat
-import org.json4s.JsonAST.JString
-import org.json4s.CustomSerializer
 import java.time.Instant
 import java.util.Date
+import java.util.TimeZone
+
+import org.json4s.CustomSerializer
 import org.json4s.DefaultFormats
+import org.json4s.JsonAST.JDecimal
+import org.json4s.JsonAST.JDouble
 import org.json4s.JsonAST.JInt
 import org.json4s.JsonAST.JLong
-import org.json4s.JsonAST.JDouble
-import org.json4s.JsonAST.JDecimal
-import com.convergencelabs.server.frontend.realtime.MappedTypeHits
-import com.convergencelabs.server.frontend.rest.ResponseMessage
-import org.json4s.FieldSerializer
+import org.json4s.JsonAST.JString
+
+import com.convergencelabs.server.util.MappedTypeHits
 
 object JsonFormats {
   val jsonTypeHints = new MappedTypeHits(
@@ -75,6 +74,5 @@ object JsonFormats {
 
   val format = DefaultFormats.withTypeHintFieldName("type") + 
     jsonTypeHints  + 
-    instantSerializer + 
-    FieldSerializer[ResponseMessage]()
+    instantSerializer 
 }

@@ -1,4 +1,4 @@
-package com.convergencelabs.server.frontend.rest
+package com.convergencelabs.server.api.rest.domain
 
 import java.time.Duration
 
@@ -17,8 +17,8 @@ import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.ModelSnapshotConfig
 import com.convergencelabs.server.domain.model.Collection
 import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
-import com.convergencelabs.server.frontend.rest.DomainConfigService.ModelSnapshotPolicyData
 import com.convergencelabs.server.security.AuthorizationProfile
+import com.convergencelabs.server.api.rest._
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
@@ -40,6 +40,7 @@ import akka.http.scaladsl.server.Directives.put
 import akka.http.scaladsl.server.Directives.Segment
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
+import com.convergencelabs.server.api.rest.domain.DomainConfigService.ModelSnapshotPolicyData
 
 object DomainCollectionService {
   case class CollectionPermissionsData(read: Boolean, write: Boolean, remove: Boolean, manage: Boolean, create: Boolean)

@@ -1,4 +1,4 @@
-package com.convergencelabs.server.frontend.rest
+package com.convergencelabs.server.api.rest
 
 import akka.http.scaladsl.server.directives.Credentials
 import com.typesafe.config.Config

@@ -1,18 +1,15 @@
-package com.convergencelabs.server.frontend.rest
+package com.convergencelabs.server.api.rest.domain
 
 import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
 
+import com.convergencelabs.server.api.rest.JsonSupport
 import com.convergencelabs.server.domain.DomainFqn
-
-import akka.actor.ActorRef
-import akka.util.Timeout
 import com.convergencelabs.server.security.AuthorizationProfile
 import com.convergencelabs.server.security.Permissions
 
-class DomainRestService(executionContext: ExecutionContext, defaultTimeout: Timeout) extends JsonSupport {
+import akka.util.Timeout
 
-  import akka.pattern.ask
+class DomainRestService(executionContext: ExecutionContext, defaultTimeout: Timeout) extends JsonSupport {
 
   implicit val ec = executionContext
   implicit val t = defaultTimeout

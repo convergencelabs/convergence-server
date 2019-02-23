@@ -1,10 +1,13 @@
-package com.convergencelabs.server.frontend.rest
+package com.convergencelabs.server.api.rest.domain
 
 import java.time.Duration
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
+import com.convergencelabs.server.api.rest.OkResponse
+import com.convergencelabs.server.api.rest.RestResponse
+import com.convergencelabs.server.api.rest.okResponse
 import com.convergencelabs.server.datastore.domain.ConfigStoreActor.GetAnonymousAuth
 import com.convergencelabs.server.datastore.domain.ConfigStoreActor.GetModelSnapshotPolicy
 import com.convergencelabs.server.datastore.domain.ConfigStoreActor.SetAnonymousAuth
@@ -12,6 +15,7 @@ import com.convergencelabs.server.datastore.domain.ConfigStoreActor.SetModelSnap
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.ModelSnapshotConfig
 import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
+import com.convergencelabs.server.security.AuthorizationProfile
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
@@ -29,7 +33,6 @@ import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.put
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
-import com.convergencelabs.server.security.AuthorizationProfile
 
 object DomainConfigService {
   case class AnonymousAuthPut(enabled: Boolean)

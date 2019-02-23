@@ -1,10 +1,11 @@
-package com.convergencelabs.server.frontend.rest
+package com.convergencelabs.server.api.rest
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
 import com.convergencelabs.server.datastore.convergence.AuthenticationActor.ValidateSessionTokenRequest
 import com.convergencelabs.server.datastore.convergence.AuthenticationActor.ValidateUserBearerTokenRequest
+import com.convergencelabs.server.security.AuthorizationProfile
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
@@ -19,7 +20,6 @@ import akka.http.scaladsl.server.directives.FutureDirectives.onSuccess
 import akka.http.scaladsl.server.directives.OnSuccessMagnet.apply
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
 import akka.util.Timeout
-import com.convergencelabs.server.security.AuthorizationProfile
 
 /**
  * This class provides a helper directive to authenticate users and validate
@@ -27,7 +27,6 @@ import com.convergencelabs.server.security.AuthorizationProfile
  */
 class Authenticator(
   private[this] val authActor: ActorRef,
-  private[this] val masterAdminToken: String,
   private[this] val timeout: Timeout,
   private[this] val executionContext: ExecutionContext)
   extends JsonSupport {

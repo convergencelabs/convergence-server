@@ -14,10 +14,15 @@ import scala.util.Try
 
 import org.apache.logging.log4j.LogManager
 
+import com.convergencelabs.server.api.rest.ConvergenceRestApi
 import com.convergencelabs.server.datastore.convergence.DeltaHistoryStore
 import com.convergencelabs.server.datastore.convergence.DomainStore
+import com.convergencelabs.server.datastore.convergence.UserCreator
+import com.convergencelabs.server.datastore.convergence.UserStore
+import com.convergencelabs.server.datastore.convergence.UserStore.User
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 import com.convergencelabs.server.db.ConnectedSingleDatabaseProvider
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.db.PooledDatabaseProvider
 import com.convergencelabs.server.db.schema.ConvergenceSchemaManager
 import com.convergencelabs.server.domain.DomainActorSharding
@@ -26,7 +31,7 @@ import com.convergencelabs.server.domain.chat.ChatChannelSharding
 import com.convergencelabs.server.domain.model.RealtimeModelSharding
 import com.convergencelabs.server.domain.rest.RestDomainActorSharding
 import com.convergencelabs.server.frontend.realtime.ConvergenceRealTimeFrontend
-import com.convergencelabs.server.frontend.rest.ConvergenceRestFrontEnd
+import com.convergencelabs.server.security.Roles
 import com.convergencelabs.server.util.SystemOutRedirector
 import com.orientechnologies.orient.core.db.ODatabaseType
 import com.orientechnologies.orient.core.db.OrientDB
@@ -47,21 +52,13 @@ import akka.cluster.ClusterEvent.MemberRemoved
 import akka.cluster.ClusterEvent.MemberUp
 import akka.cluster.ClusterEvent.UnreachableMember
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.db.DatabaseProvider
-import com.convergencelabs.server.datastore.convergence.UserStore
-import com.convergencelabs.server.util.RandomStringGenerator
-import com.convergencelabs.server.datastore.convergence.UserStore.User
-import com.convergencelabs.server.datastore.convergence.RoleStore
-import com.convergencelabs.server.datastore.convergence.ServerRoleTarget
-import com.convergencelabs.server.security.Roles
-import com.convergencelabs.server.datastore.convergence.UserCreator
 
 object ConvergenceServerNode extends Logging {
 
   object Roles {
     val Backend = "backend"
-    val RestFrontend = "restFrontend"
-    val RealtimeFrontend = "realtimeFrontend"
+    val RestApi = "restApi"
+    val RealtimeApi = "realtimeApi"
   }
 
   object Environment {
@@ -214,7 +211,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
   private[this] var system: Option[ActorSystem] = None
   private[this] var cluster: Option[Cluster] = None
   private[this] var backend: Option[BackendNode] = None
-  private[this] var rest: Option[ConvergenceRestFrontEnd] = None
+  private[this] var rest: Option[ConvergenceRestApi] = None
   private[this] var realtime: Option[ConvergenceRealTimeFrontend] = None
 
   def start(): ConvergenceServerNode = {
@@ -272,7 +269,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
       val backend = new BackendNode(system, dbProvider)
       backend.start()
       this.backend = Some(backend)
-    } else if (roles.contains(RestFrontend) || roles.contains(RealtimeFrontend)) {
+    } else if (roles.contains(RestApi) || roles.contains(RealtimeApi)) {
       // TODO Re-factor This to some setting in the config
       val shards = 100
       DomainActorSharding.startProxy(system, shards)
@@ -282,17 +279,17 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
       ActivityActorSharding.startProxy(system, shards)
     }
 
-    if (roles.contains(RestFrontend)) {
-      info("Role 'restFronend' configured on node, starting up rest front end.")
+    if (roles.contains(RestApi)) {
+      info("Role 'restApi' configured on node, activating rest api.")
       val host = config.getString("convergence.rest.host")
       val port = config.getInt("convergence.rest.port")
-      val restFrontEnd = new ConvergenceRestFrontEnd(system, host, port)
+      val restFrontEnd = new ConvergenceRestApi(system, host, port)
       restFrontEnd.start()
       this.rest = Some(restFrontEnd)
     }
 
-    if (roles.contains(RealtimeFrontend)) {
-      info("Role 'realtimeFrontend' configured on node, starting up realtime front end.")
+    if (roles.contains(RealtimeApi)) {
+      info("Role 'realtimeApi' configured on node, activating up realtime api.")
       val host = config.getString("convergence.realtime.host")
       val port = config.getInt("convergence.realtime.port")
       val realTimeFrontEnd = new ConvergenceRealTimeFrontend(system, host, port)

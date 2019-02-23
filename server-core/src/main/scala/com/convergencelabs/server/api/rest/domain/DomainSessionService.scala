@@ -1,4 +1,4 @@
-package com.convergencelabs.server.frontend.rest
+package com.convergencelabs.server.api.rest.domain
 
 import java.time.Instant
 
@@ -6,12 +6,14 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.language.postfixOps
 
+import com.convergencelabs.server.api.rest.RestResponse
+import com.convergencelabs.server.api.rest.notFoundResponse
+import com.convergencelabs.server.api.rest.okResponse
 import com.convergencelabs.server.datastore.domain.DomainSession
 import com.convergencelabs.server.datastore.domain.SessionStore.SessionQueryType
 import com.convergencelabs.server.datastore.domain.SessionStoreActor.GetSession
 import com.convergencelabs.server.datastore.domain.SessionStoreActor.GetSessions
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.DomainUserType
 import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
 import com.convergencelabs.server.security.AuthorizationProfile
 
@@ -22,7 +24,6 @@ import akka.http.scaladsl.server.Directive.addDirectiveApply
 import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
 import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
 import akka.http.scaladsl.server.Directives._string2NR
-import akka.http.scaladsl.server.Directives.authorize
 import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Directives.get
 import akka.http.scaladsl.server.Directives.parameters

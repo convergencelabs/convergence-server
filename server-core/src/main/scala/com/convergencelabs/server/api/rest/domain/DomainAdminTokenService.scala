@@ -1,27 +1,25 @@
-package com.convergencelabs.server.frontend.rest.domain
+package com.convergencelabs.server.api.rest.domain
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
+import com.convergencelabs.server.api.rest.RestResponse
+import com.convergencelabs.server.api.rest.okResponse
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.rest.RestDomainActor.AdminTokenRequest
 import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
-import com.convergencelabs.server.frontend.rest.DomainRestService
-import com.convergencelabs.server.frontend.rest.RestResponse
-import com.convergencelabs.server.frontend.rest.okResponse
+import com.convergencelabs.server.security.AuthorizationProfile
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
 import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
-import akka.http.scaladsl.server.Directives.authorize
 import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Directives.get
 import akka.http.scaladsl.server.Directives.pathEnd
 import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
-import com.convergencelabs.server.security.AuthorizationProfile
 
 object DomainAdminTokenService {
   case class AdminTokenRestResponse(token: String)

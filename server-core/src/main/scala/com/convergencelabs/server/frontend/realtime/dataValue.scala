@@ -11,6 +11,7 @@ import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.model.data.StringValue
 import org.json4s.DefaultFormats
 import com.convergencelabs.server.domain.model.data.DateValue
+import com.convergencelabs.server.util.MappedTypeHits
 
 package object data {
 

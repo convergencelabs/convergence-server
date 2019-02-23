@@ -1,4 +1,4 @@
-package com.convergencelabs.server.frontend.rest
+package com.convergencelabs.server.api.rest
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
@@ -12,8 +12,8 @@ import com.convergencelabs.server.db.schema.DatabaseManagerActor.UpgradeConverge
 import com.convergencelabs.server.db.schema.DatabaseManagerActor.UpgradeDomain
 import com.convergencelabs.server.db.schema.DatabaseManagerActor.UpgradeDomains
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.frontend.rest.DatabaseManagerRestService.UpgradeRequest
-import com.convergencelabs.server.frontend.rest.DatabaseManagerRestService.VersionResponse
+import com.convergencelabs.server.api.rest.DatabaseManagerRestService.UpgradeRequest
+import com.convergencelabs.server.api.rest.DatabaseManagerRestService.VersionResponse
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply

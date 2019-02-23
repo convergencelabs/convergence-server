@@ -1,4 +1,4 @@
-package com.convergencelabs.server.frontend.rest
+package com.convergencelabs.server.api.rest
 
 import java.util.concurrent.TimeUnit
 
@@ -9,13 +9,16 @@ import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 
-import com.convergencelabs.server.datastore.convergence.AuthenticationActor
-import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor
-import com.convergencelabs.server.datastore.convergence.DomainStoreActor
 import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.datastore.InvalidValueExcpetion
+import com.convergencelabs.server.datastore.convergence.AuthenticationActor
+import com.convergencelabs.server.datastore.convergence.ConfigStoreActor
+import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor
+import com.convergencelabs.server.datastore.convergence.DomainStoreActor
+import com.convergencelabs.server.datastore.convergence.NamespaceStoreActor
 import com.convergencelabs.server.datastore.convergence.RoleStoreActor
+import com.convergencelabs.server.datastore.convergence.UserFavoriteDomainStoreActor
 import com.convergencelabs.server.db.data.ConvergenceImportService
 import com.convergencelabs.server.db.data.ConvergenceImporterActor
 import com.convergencelabs.server.db.schema.DatabaseManagerActor
@@ -28,37 +31,29 @@ import akka.cluster.routing.ClusterRouterGroup
 import akka.cluster.routing.ClusterRouterGroupSettings
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.HttpMethods
-import akka.http.scaladsl.model.HttpResponse
-import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.server.AuthorizationFailedRejection
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
 import akka.http.scaladsl.server.Directive.addDirectiveApply
 import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
-import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
 import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Directives.concat
 import akka.http.scaladsl.server.Directives.extractRequest
 import akka.http.scaladsl.server.Directives.extractUri
 import akka.http.scaladsl.server.Directives.handleExceptions
-import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.ExceptionHandler
+import akka.http.scaladsl.server.MalformedRequestContentRejection
+import akka.http.scaladsl.server.MethodRejection
+import akka.http.scaladsl.server.RejectionHandler
 import akka.http.scaladsl.server.RouteResult.route2HandlerFlow
-import akka.http.scaladsl.server.directives.SecurityDirectives.authenticateBasic
-import akka.http.scaladsl.server.directives.SecurityDirectives.authorize
 import akka.routing.RoundRobinGroup
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import grizzled.slf4j.Logging
-import akka.http.scaladsl.server.RejectionHandler
-import akka.http.scaladsl.server.MalformedRequestContentRejection
-import akka.http.scaladsl.server.AuthorizationFailedRejection
-import com.convergencelabs.server.datastore.convergence.NamespaceStoreActor
-import com.convergencelabs.server.datastore.convergence.ConfigStoreActor
-import com.convergencelabs.server.datastore.convergence.UserFavoriteDomainStoreActor
-import akka.http.scaladsl.server.MethodRejection
+import com.convergencelabs.server.api.rest.domain.DomainService
 
-object ConvergenceRestFrontEnd {
+object ConvergenceRestApi {
   val ConvergenceCorsSettings = CorsSettings.defaultSettings.copy(
     allowedMethods = List(
       HttpMethods.GET,
@@ -69,7 +64,7 @@ object ConvergenceRestFrontEnd {
       HttpMethods.OPTIONS))
 }
 
-class ConvergenceRestFrontEnd(
+class ConvergenceRestApi(
   val system: ActorSystem,
   val interface: String,
   val port: Int)
@@ -103,18 +98,17 @@ class ConvergenceRestFrontEnd(
   }
 
   def start(): Unit = {
-    val masterAdminToken = system.settings.config.getString("convergence.rest.master-admin-api-key")
+    val authStoreActor = createBackendRouter(AuthenticationActor.RelativePath, "authActor")
+    val convergenceUserActor = createBackendRouter(ConvergenceUserManagerActor.RelativePath, "convergenceUserActor")
+    val namespaceActor = createBackendRouter(NamespaceStoreActor.RelativePath, "namespaceActor")
+    val databaseManagerActor = createBackendRouter(DatabaseManagerActor.RelativePath, "databaseManagerActor")
+    val importerActor = createBackendRouter(ConvergenceImporterActor.RelativePath, "importerActor")
+    val roleActor = createBackendRouter(RoleStoreActor.RelativePath, "roleActor")
+    val configActor = createBackendRouter(ConfigStoreActor.RelativePath, "configActor")
+    val favoriteDomainsActor = createBackendRouter(UserFavoriteDomainStoreActor.RelativePath, "favoriteDomainsActor")
+    val domainStoreActor = createBackendRouter(DomainStoreActor.RelativePath, "domainStoreActor")
 
-    val authStoreActor = createRouter("/user/" + AuthenticationActor.RelativePath, "authActor")
-    val convergenceUserActor = createRouter("/user/" + ConvergenceUserManagerActor.RelativePath, "convergenceUserActor")
-    val namespaceActor = createRouter("/user/" + NamespaceStoreActor.RelativePath, "namespaceActor")
-    val databaseManagerActor = createRouter("/user/" + DatabaseManagerActor.RelativePath, "databaseManagerActor")
-    val importerActor = createRouter("/user/" + ConvergenceImporterActor.RelativePath, "importerActor")
-    val roleActor = createRouter("/user/" + RoleStoreActor.RelativePath, "roleActor")
-    val configActor = createRouter("/user/" + ConfigStoreActor.RelativePath, "configActor")
-    val favoriteDomainsActor = createRouter("/user/" + UserFavoriteDomainStoreActor.RelativePath, "favoriteDomainsActor")
-
-    val authenticator = new Authenticator(authStoreActor, masterAdminToken, defaultRequestTimeout, ec)
+    val authenticator = new Authenticator(authStoreActor, defaultRequestTimeout, ec)
 
     // The Rest Services
     val authService = new AuthService(ec, authStoreActor, defaultRequestTimeout)
@@ -126,10 +120,6 @@ class ConvergenceRestFrontEnd(
     val convergenceUserService = new ConvergenceUserService(ec, convergenceUserActor, defaultRequestTimeout)
     val convergenceImportService = new ConvergenceImportService(ec, importerActor, defaultRequestTimeout)
     val databaseManagerService = new DatabaseManagerRestService(ec, databaseManagerActor, defaultRequestTimeout)
-
-    // This handles all of the domain specific stuff, we create a router here because each back end node
-    // has an instance, we route to them as a group.
-    val domainStoreActor = createRouter("/user/" + DomainStoreActor.RelativePath, "domainStoreActor")
 
     val domainService = new DomainService(
       ec,
@@ -156,7 +146,7 @@ class ConvergenceRestFrontEnd(
       }
       .result()
 
-    val route = cors(ConvergenceRestFrontEnd.ConvergenceCorsSettings) {
+    val route = cors(ConvergenceRestApi.ConvergenceCorsSettings) {
       handleExceptions(exceptionHandler) {
         // Authentication services can be called without being authenticated
         authService.route ~
@@ -183,29 +173,29 @@ class ConvergenceRestFrontEnd(
       case Success(b) ⇒
         this.binding = Some(b)
         val localAddress = b.localAddress
-        logger.info(s"Rest Front End started up on port http://${interface}:${port}.")
+        logger.info(s"Rest API started at: http://${interface}:${port}")
       case Failure(e) ⇒
-        logger.info(s"Rest Front End Binding failed with ${e.getMessage}")
+        logger.info(s"Rest API binding failed with ${e.getMessage}")
         system.terminate()
     }
   }
 
-  def createRouter(path: String, name: String): ActorRef = {
+  def createBackendRouter(relativePath: String, localName: String): ActorRef = {
     system.actorOf(
       ClusterRouterGroup(
         RoundRobinGroup(Nil),
         ClusterRouterGroupSettings(
-          totalInstances = 100, routeesPaths = List(path),
+          totalInstances = 100, routeesPaths = List("/user/" + relativePath),
           allowLocalRoutees = true, useRoles = Set("backend"))).props(),
-      name = name)
+      name = localName)
   }
 
   def stop(): Unit = {
-    logger.info("Convergence Rest Frontend shutting down.")
+    logger.info("Convergence Rest API shutting down.")
     this.binding foreach { b =>
       val f = b.unbind()
       Await.result(f, FiniteDuration(10, TimeUnit.SECONDS))
-      logger.info("Convergence Rest Frontend shut down.")
+      logger.info("Convergence Rest API shut down.")
     }
   }
 }

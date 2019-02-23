@@ -1,9 +1,14 @@
-package com.convergencelabs.server.frontend.rest
+package com.convergencelabs.server.api.rest.domain
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
-import scala.util.Try
 
+import com.convergencelabs.server.api.rest.CreatedResponse
+import com.convergencelabs.server.api.rest.ErrorResponse
+import com.convergencelabs.server.api.rest.OkResponse
+import com.convergencelabs.server.api.rest.RestResponse
+import com.convergencelabs.server.api.rest.notFoundResponse
+import com.convergencelabs.server.api.rest.okResponse
 import com.convergencelabs.server.datastore.domain.UserGroup
 import com.convergencelabs.server.datastore.domain.UserGroupInfo
 import com.convergencelabs.server.datastore.domain.UserGroupStoreActor.AddUserToGroup
@@ -18,8 +23,10 @@ import com.convergencelabs.server.datastore.domain.UserGroupStoreActor.UpdateUse
 import com.convergencelabs.server.datastore.domain.UserGroupStoreActor.UpdateUserGroupInfo
 import com.convergencelabs.server.datastore.domain.UserGroupSummary
 import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainUserId
+import com.convergencelabs.server.domain.DomainUserType
 import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
-import com.convergencelabs.server.frontend.rest.DomainUserGroupService.UserGroupData
+import com.convergencelabs.server.security.AuthorizationProfile
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
@@ -30,7 +37,6 @@ import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
 import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
 import akka.http.scaladsl.server.Directives._string2NR
 import akka.http.scaladsl.server.Directives.as
-import akka.http.scaladsl.server.Directives.authorize
 import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Directives.delete
 import akka.http.scaladsl.server.Directives.entity
@@ -44,9 +50,6 @@ import akka.http.scaladsl.server.Directives.put
 import akka.http.scaladsl.server.PathMatchers.Segment
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
-import com.convergencelabs.server.domain.DomainUserId
-import com.convergencelabs.server.domain.DomainUserType
-import com.convergencelabs.server.security.AuthorizationProfile
 
 object DomainUserGroupService {
   case class UserGroupData(id: String, description: String, members: Set[String])

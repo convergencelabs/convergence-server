@@ -3,22 +3,21 @@ package com.convergencelabs.server.datastore.domain
 import java.text.SimpleDateFormat
 import java.time.Instant
 
-import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpecLike
 
-import com.convergencelabs.server.db.DatabaseProvider
+import com.convergencelabs.server.api.rest.DataValueToJValue
 import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.EntityNotFoundException
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.domain.model.Model
 import com.convergencelabs.server.domain.model.ModelMetaData
+import com.convergencelabs.server.domain.model.ModelQueryResult
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.model.data.StringValue
-import com.convergencelabs.server.domain.model.ModelQueryResult
-import com.convergencelabs.server.frontend.rest.DataValueToJValue
 
 case class ModelStoreSpecStores(collection: CollectionStore, model: ModelStore, permissions: ModelPermissionsStore)
 

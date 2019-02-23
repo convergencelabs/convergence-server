@@ -1,4 +1,4 @@
-package com.convergencelabs.server.frontend.rest
+package com.convergencelabs.server.api.rest
 
 import org.json4s.JsonAST.JBool
 import org.json4s.JsonAST.JDouble

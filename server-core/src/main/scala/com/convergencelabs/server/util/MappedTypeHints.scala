@@ -1,4 +1,4 @@
-package com.convergencelabs.server.frontend.realtime
+package com.convergencelabs.server.util
 
 import org.json4s.TypeHints
 
