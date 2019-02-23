@@ -113,9 +113,8 @@ class ConvergenceRestFrontEnd(
     val configActor = createRouter("/user/" + ConfigStoreActor.RelativePath, "configActor")
     val favoriteDomainsActor = createRouter("/user/" + UserFavoriteDomainStoreActor.RelativePath, "favoriteDomainsActor")
 
-    
     val authenticator = new Authenticator(authStoreActor, masterAdminToken, defaultRequestTimeout, ec)
-    
+
     // The Rest Services
     val authService = new AuthService(ec, authStoreActor, defaultRequestTimeout)
     val currentUserService = new CurrentUserService(ec, convergenceUserActor, favoriteDomainsActor, defaultRequestTimeout)
@@ -127,7 +126,6 @@ class ConvergenceRestFrontEnd(
     val convergenceImportService = new ConvergenceImportService(ec, importerActor, defaultRequestTimeout)
     val databaseManagerService = new DatabaseManagerRestService(ec, databaseManagerActor, defaultRequestTimeout)
 
-    
     // This handles all of the domain specific stuff, we create a router here because each back end node
     // has an instance, we route to them as a group.
     val domainStoreActor = createRouter("/user/" + DomainStoreActor.RelativePath, "domainStoreActor")
@@ -155,25 +153,23 @@ class ConvergenceRestFrontEnd(
 
     val route = cors(ConvergenceRestFrontEnd.ConvergenceCorsSettings) {
       handleExceptions(exceptionHandler) {
-        pathPrefix("v1") {
-          // Authentication services can be called without being authenticated
-          authService.route ~
-            // Everything else must be authenticated as a convergence user.
-            extractRequest { request =>
-              authenticator.requireAuthenticatedUser(request) { authProfile =>
-                concat(
-                  currentUserService.route(authProfile),
-                  convergenceUserService.route(authProfile),
-                  namespaceService.route(authProfile),
-                  domainService.route(authProfile),
-                  roleService.route(authProfile),
-                  configService.route(authProfile),
-                  keyGenService.route(),
-                  convergenceImportService.route(authProfile),
-                  databaseManagerService.route(authProfile))
-              }
+        // Authentication services can be called without being authenticated
+        authService.route ~
+          // Everything else must be authenticated as a convergence user.
+          extractRequest { request =>
+            authenticator.requireAuthenticatedUser(request) { authProfile =>
+              concat(
+                currentUserService.route(authProfile),
+                convergenceUserService.route(authProfile),
+                namespaceService.route(authProfile),
+                domainService.route(authProfile),
+                roleService.route(authProfile),
+                configService.route(authProfile),
+                keyGenService.route(),
+                convergenceImportService.route(authProfile),
+                databaseManagerService.route(authProfile))
             }
-        }
+          }
       }
     }
 
