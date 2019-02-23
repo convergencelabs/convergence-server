@@ -1,27 +1,26 @@
 package com.convergencelabs.server.testkit
 
 import java.net.URI
+import java.nio.ByteBuffer
 import java.util.concurrent.LinkedBlockingDeque
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
-import scala.util.Failure
-import scala.util.Success
 
 import org.java_websocket.client.WebSocketClient
 import org.java_websocket.drafts.Draft_17
 import org.java_websocket.handshake.ServerHandshake
 
+import com.convergencelabs.server.api.realtime.ConvergenceMessageBodyUtils
+
 import grizzled.slf4j.Logging
-import scalapb.GeneratedMessage
 import io.convergence.proto.Normal
 import io.convergence.proto.Request
 import io.convergence.proto.Response
-import java.nio.ByteBuffer
-import com.convergencelabs.server.frontend.realtime.ConvergenceMessageBodyUtils
-import io.convergence.proto.message.ConvergenceMessage
 import io.convergence.proto.connection.PongMessage
+import io.convergence.proto.message.ConvergenceMessage
+import scalapb.GeneratedMessage
 
 class MockConvergenceClient(serverUri: String)
   extends WebSocketClient(new URI(serverUri), new Draft_17())

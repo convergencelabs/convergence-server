@@ -14,6 +14,7 @@ import scala.util.Try
 
 import org.apache.logging.log4j.LogManager
 
+import com.convergencelabs.server.api.realtime.ConvergenceRealtimeApi
 import com.convergencelabs.server.api.rest.ConvergenceRestApi
 import com.convergencelabs.server.datastore.convergence.DeltaHistoryStore
 import com.convergencelabs.server.datastore.convergence.DomainStore
@@ -30,7 +31,6 @@ import com.convergencelabs.server.domain.activity.ActivityActorSharding
 import com.convergencelabs.server.domain.chat.ChatChannelSharding
 import com.convergencelabs.server.domain.model.RealtimeModelSharding
 import com.convergencelabs.server.domain.rest.RestDomainActorSharding
-import com.convergencelabs.server.frontend.realtime.ConvergenceRealTimeFrontend
 import com.convergencelabs.server.security.Roles
 import com.convergencelabs.server.util.SystemOutRedirector
 import com.orientechnologies.orient.core.db.ODatabaseType
@@ -212,7 +212,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
   private[this] var cluster: Option[Cluster] = None
   private[this] var backend: Option[BackendNode] = None
   private[this] var rest: Option[ConvergenceRestApi] = None
-  private[this] var realtime: Option[ConvergenceRealTimeFrontend] = None
+  private[this] var realtime: Option[ConvergenceRealtimeApi] = None
 
   def start(): ConvergenceServerNode = {
     info("Convergence Server Node starting up...")
@@ -292,7 +292,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
       info("Role 'realtimeApi' configured on node, activating up realtime api.")
       val host = config.getString("convergence.realtime.host")
       val port = config.getInt("convergence.realtime.port")
-      val realTimeFrontEnd = new ConvergenceRealTimeFrontend(system, host, port)
+      val realTimeFrontEnd = new ConvergenceRealtimeApi(system, host, port)
       realTimeFrontEnd.start()
       this.realtime = Some(realTimeFrontEnd)
     }
