@@ -12,6 +12,36 @@ import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.record.impl.ODocument
 
 import grizzled.slf4j.Logging
+import scala.util.Success
+import scala.util.Failure
+import java.time.Duration
+
+object ConfigKeys {
+  object Namespaces {
+    val Enabled = "namespaces.enabled"
+    val UserNamespacesEnabled = "namespaces.user-namespaces-enabled"
+    val DefaultNamespace = "namespaces.default-namespace"
+  }
+
+  object Domains {
+    val Mode = "domains.mode"
+    val DefaultDomainId = "domains.default-domain-id"
+  }
+
+  object Passwords {
+    val MinimumLength = "passwords.minimum-length"
+    val RequireNumeric = "passwords.require-numeric"
+    val RequireLowerCase = "passwords.require-lower-case"
+    val RequireUpperCase = "passwords.require-upper-case"
+    val RequireSpecialCharacters = "passwords.require-special-characters"
+  }
+
+  object Sessions {
+    val Timeout = "sessions.timeout"
+  }
+}
+
+case class ConfigNotFound(key: String) extends Exception(s"The requried config '${key}' does not exist")
 
 object ConfigStore {
 
@@ -30,7 +60,26 @@ object ConfigStore {
   }
 
   def docToConfig(doc: ODocument): (String, Any) = {
-    (doc.getProperty(Fields.Key), doc.getProperty(Fields.Value).asInstanceOf[Any])
+    val key: String = doc.getProperty(Fields.Key)
+    val value: Any = processValue(key, doc.getProperty(Fields.Value))
+    (key, value)
+  }
+  
+  def toInteger(value: Any): Integer = {
+    value match {
+      case v: Integer => v
+      case v: BigInt => v.intValue()
+      case v: Long => v.intValue()
+      case v: String => Integer.parseInt(v)
+    }
+  }
+  
+  def processValue(key: String, value: Any): Any = {
+    key match {
+      case ConfigKeys.Passwords.MinimumLength => toInteger(value)
+      case ConfigKeys.Sessions.Timeout => toInteger(value)
+      case _ => value
+    }
   }
 }
 
@@ -41,8 +90,9 @@ class ConfigStore(dbProvider: DatabaseProvider)
   import ConfigStore._
 
   def setConfig(key: String, value: Any): Try[Unit] = withDb { db =>
+    val processedValue = processValue(key, value)
     val command = "UPDATE Config SET value = :value UPSERT WHERE key = :key"
-    val params = Map(Params.Key -> key, Params.Value -> value)
+    val params = Map(Params.Key -> key, Params.Value -> processedValue)
     OrientDBUtil.command(db, command, params).map(_ => ())
   }
 
@@ -52,6 +102,25 @@ class ConfigStore(dbProvider: DatabaseProvider)
         case (key, value) => setConfig(key, value).get
       }
     }
+  }
+  
+  def getSessionTimeout(): Try[Duration] = {
+    getInteger(ConfigKeys.Sessions.Timeout).map { minutes =>
+      Duration.ofMinutes(minutes.toLong)
+    }
+  }
+
+  def getInteger(key: String): Try[Integer] = {
+    getRequiredConfig(key).map(_.asInstanceOf[Integer])
+  }
+
+  def getRequiredConfig(key: String): Try[Any] = {
+    getConfig(key).flatMap(_ match {
+      case Some(config) =>
+        Success(config)
+      case None =>
+        Failure(ConfigNotFound(key))
+    })
   }
 
   def getConfig(key: String): Try[Option[Any]] = {
@@ -64,11 +133,11 @@ class ConfigStore(dbProvider: DatabaseProvider)
       .map(_.map(ConfigStore.docToConfig(_)))
       .map(_.toMap)
   }
-  
+
   def getConfigsByFilter(filters: List[String]): Try[Map[String, Any]] = withDb { db =>
     val params = scala.collection.mutable.Map[String, Any]()
     var paramNo = 0;
-    val where = "WHERE " + filters.map { filter => 
+    val where = "WHERE " + filters.map { filter =>
       params += (paramNo.toString -> filter.replace("*", "%").toLowerCase)
       val like = s" LIKE :p${paramNo}"
       paramNo = paramNo + 1

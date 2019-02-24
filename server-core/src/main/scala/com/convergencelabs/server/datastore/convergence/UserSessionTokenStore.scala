@@ -1,6 +1,5 @@
 package com.convergencelabs.server.datastore.convergence
 
-import java.time.Duration
 import java.time.Instant
 import java.util.Date
 
@@ -10,7 +9,6 @@ import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.server.datastore.OrientDBUtil
 import com.convergencelabs.server.datastore.convergence.schema.UserSessionTokenClass
 import com.convergencelabs.server.db.DatabaseProvider
-import com.convergencelabs.server.util.RandomStringGenerator
 
 import grizzled.slf4j.Logging
 
