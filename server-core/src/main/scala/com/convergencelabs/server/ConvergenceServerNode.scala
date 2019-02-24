@@ -246,6 +246,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
           bootstrapConvergenceDB(baseUri, convergenceDatabase, convergenceDbConfig, orientDbConfig) recover {
             case cause: Exception =>
               logger.error("Could not bootstrap database", cause)
+              System.exit(0)
           }
         }
       }

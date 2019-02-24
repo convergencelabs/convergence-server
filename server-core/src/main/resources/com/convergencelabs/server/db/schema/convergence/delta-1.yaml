@@ -313,10 +313,10 @@ actions:
       INSERT INTO Config SET key = "domains.mode", value = "multi-domain";
       INSERT INTO Config SET key = "domains.default-domain-id", value = "default-domain";
       
-      INSERT INTO Config SET key = "passwords.minimum-length", value = 6.asInteger();
+      INSERT INTO Config SET key = "passwords.minimum-length", value = 6;
       INSERT INTO Config SET key = "passwords.require-numeric", value = true;
       INSERT INTO Config SET key = "passwords.require-lower-case", value = true;
       INSERT INTO Config SET key = "passwords.require-upper-case", value = true;
       INSERT INTO Config SET key = "passwords.require-special-characters", value = true;
       
-      INSERT INTO Config SET key = "sessions.timeout", value = 60.asInteger();
+      INSERT INTO Config SET key = "sessions.timeout", value = 60;
