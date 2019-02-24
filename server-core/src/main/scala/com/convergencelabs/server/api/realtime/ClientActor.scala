@@ -18,6 +18,7 @@ import com.convergencelabs.server.domain.ClientDisconnected
 import com.convergencelabs.server.domain.DomainActorSharding
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.DomainUser
+import com.convergencelabs.server.domain.DomainUserSessionId
 import com.convergencelabs.server.domain.GetUserByUsername
 import com.convergencelabs.server.domain.HandshakeFailureException
 import com.convergencelabs.server.domain.HandshakeRequest
@@ -67,7 +68,6 @@ import io.convergence.proto.connection.HandshakeResponseMessage.ErrorData
 import io.convergence.proto.message.ConvergenceMessage
 import io.convergence.proto.permissions.PermissionType
 import scalapb.GeneratedMessage
-import com.convergencelabs.server.domain.DomainUserSessionId
 
 object ClientActor {
   def props(
@@ -131,6 +131,9 @@ class ClientActor(
 
   private[this] var protocolConnection: ProtocolConnection = _
   private[this] val domainRegion = DomainActorSharding.shardRegion(context.system)
+
+  private[this] var client: String = _
+  private[this] var clientVersion: String = _
 
   //
   // Receive methods
@@ -241,7 +244,7 @@ class ClientActor(
       future.mapResponse[HandshakeSuccess] onComplete {
         case Success(success) => {
           log.debug(s"${domainFqn}: Handhsake success")
-          self ! InternalHandshakeSuccess(success, cb)
+          self ! InternalHandshakeSuccess(request.client, request.clientVersion, success, cb)
         }
         case Failure(HandshakeFailureException(code, details)) => {
           log.debug(s"${domainFqn}: Handshake failure: {code: '${code}', details: '${details}'}")
@@ -263,9 +266,14 @@ class ClientActor(
   }
 
   private[this] def handleHandshakeSuccess(success: InternalHandshakeSuccess): Unit = {
-    val InternalHandshakeSuccess(HandshakeSuccess(
-      modelStoreActor, operationStoreActor, identityActor, presenceActor, chatLookupActor),
+    val InternalHandshakeSuccess(
+      client,
+      clientVersion,
+      HandshakeSuccess(modelStoreActor, operationStoreActor, identityActor, presenceActor, chatLookupActor),
       cb) = success
+
+    this.client = client
+    this.clientVersion = clientVersion
     this.modelStoreActor = modelStoreActor
     this.operationStoreActor = operationStoreActor
     this.identityServiceActor = identityActor
@@ -304,8 +312,8 @@ class ClientActor(
           domainFqn,
           self,
           remoteHost.toString,
-          "javascript",
-          "unknown",
+          this.client,
+          this.clientVersion,
           userAgent,
           authCredentials)
 
@@ -363,9 +371,9 @@ class ClientActor(
     this.messageHandler = handleMessagesWhenAuthenticated
 
     val response = AuthenticationResponseMessage().withSuccess(AuthSuccess(
-      Some(ImplicitMessageConversions.mapDomainUser(user)), 
-      session.sessionId, 
-      this.reconnectToken.getOrElse(""), 
+      Some(ImplicitMessageConversions.mapDomainUser(user)),
+      session.sessionId,
+      this.reconnectToken.getOrElse(""),
       JsonProtoConverter.jValueMapToValueMap(presence.state)))
     cb.reply(response)
 
@@ -472,4 +480,4 @@ class ClientActor(
 case class SendUnprocessedMessage(message: ConvergenceMessage)
 case class SendProcessedMessage(message: ConvergenceMessage)
 case class InternalAuthSuccess(user: DomainUser, session: DomainUserSessionId, reconnectToken: Option[String], presence: UserPresence, cb: ReplyCallback)
-case class InternalHandshakeSuccess(handshakeSuccess: HandshakeSuccess, cb: ReplyCallback)
+case class InternalHandshakeSuccess(client: String, clientVersion: String, handshakeSuccess: HandshakeSuccess, cb: ReplyCallback)
