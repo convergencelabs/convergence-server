@@ -310,6 +310,11 @@ class ModelStore private[domain] (
       .findModelDocument(id, db)
       .map(_.map(doc => doc.getProperty(Fields.Data).asInstanceOf[ODocument].asObjectValue))
   }
+  
+  private[this] val GetModelCountQuery = "SELECT count(*) as count FROM Model"
+  def getModelCount(): Try[Long] = withDb { db =>
+    OrientDBUtil.getDocument(db, GetModelCountQuery).map(_.getProperty("count").asInstanceOf[Long])
+  }
 
   private[this] def handleDuplicateValue[T](): PartialFunction[Throwable, Try[T]] = {
     case e: ORecordDuplicatedException =>

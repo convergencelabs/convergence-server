@@ -17,7 +17,7 @@ object DomainStatsActor {
   trait DomainStatsRequest
   case object GetStats extends DomainStatsRequest
 
-  case class DomainStats(connectedSessions: Long, users: Long, dbSize: Long)
+  case class DomainStats(connectedSessions: Long, users: Long, models: Long, dbSize: Long)
 }
 
 class DomainStatsActor(
@@ -34,9 +34,10 @@ class DomainStatsActor(
     (for {
       sessionCount <- persistence.sessionStore.getConnectedSessionsCount(SessionQueryType.ExcludeConvergence)
       userCount <- persistence.userStore.getNormalUserCount()
+      modelCount <- persistence.modelStore.getModelCount()
       dbSize <- getDatabaseSize()
     } yield {
-      sender ! DomainStats(sessionCount, userCount, dbSize)
+      sender ! DomainStats(sessionCount, userCount, modelCount, dbSize)
     }) recover {
       case cause: Exception =>
         sender ! Status.Failure(new UnexpectedErrorException("Unexpected error getting domain stats"))

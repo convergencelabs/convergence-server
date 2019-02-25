@@ -4,7 +4,6 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
 import com.convergencelabs.server.api.rest.RestResponse
-import com.convergencelabs.server.api.rest.domain.DomainStatsService.GetStatsResponse
 import com.convergencelabs.server.api.rest.okResponse
 import com.convergencelabs.server.datastore.domain.DomainStatsActor.DomainStats
 import com.convergencelabs.server.datastore.domain.DomainStatsActor.GetStats
@@ -23,7 +22,7 @@ import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 
 object DomainStatsService {
-  case class GetStatsResponse(stats: DomainStats)
+  case class DomainStatsRestData(activeSessionCount: Long, userCount: Long, modelCount: Long, dbSize: Long)
 }
 
 class DomainStatsService(
@@ -33,14 +32,20 @@ class DomainStatsService(
   extends DomainRestService(executionContext, timeout) {
 
   import akka.pattern.ask
-
+  import DomainStatsService._
+  
   def route(authProfile: AuthorizationProfile, domain: DomainFqn): Route =
     (path("stats") & get) {
       complete(getStats(domain))
     }
 
   def getStats(domain: DomainFqn): Future[RestResponse] = {
-    (domainRestActor ? DomainRestMessage(domain, GetStats)).mapTo[DomainStats] map
-      (stats => okResponse(GetStatsResponse(stats)))
+    (domainRestActor ? DomainRestMessage(domain, GetStats))
+    .mapTo[DomainStats]
+    .map { stats => 
+      val DomainStats(activeSessionCount, userCount, modelCount, dbSize) = stats
+      okResponse(DomainStatsRestData(activeSessionCount, userCount, modelCount, dbSize)) 
+    
+    }
   }
 }
