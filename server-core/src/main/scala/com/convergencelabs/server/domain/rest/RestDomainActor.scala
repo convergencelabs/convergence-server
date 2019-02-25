@@ -39,6 +39,8 @@ import akka.actor.ActorRef
 import akka.actor.Props
 import akka.actor.ReceiveTimeout
 import akka.actor.actorRef2Scala
+import com.convergencelabs.server.domain.chat.ChatChannelLookupActor
+import com.convergencelabs.server.domain.chat.ChatChannelLookupActor.ChatStoreRequest
 
 object RestDomainActor {
   def props(
@@ -65,8 +67,9 @@ class RestDomainActor(domainPersistenceManager: DomainPersistenceManager, receiv
   private[this] var sessionStoreActor: ActorRef = _
   private[this] var configStoreActor: ActorRef = _
   private[this] var groupStoreActor: ActorRef = _
+  private[this] var chatActor: ActorRef = _
   private[this] var domainConfigStore: DomainConfigStore = _
-
+  
   this.context.setReceiveTimeout(this.receiveTimeout)
 
   val MaxShutdownWaitTime = Duration.fromNanos(
@@ -103,6 +106,8 @@ class RestDomainActor(domainPersistenceManager: DomainPersistenceManager, receiv
         statsActor forward message
       case message: SessionStoreRequest =>
         sessionStoreActor forward message
+      case message: ChatStoreRequest =>
+        chatActor forward message
       case message: Any =>
         unhandled(message)
     }
@@ -132,6 +137,7 @@ class RestDomainActor(domainPersistenceManager: DomainPersistenceManager, receiv
       keyStoreActor = context.actorOf(JwtAuthKeyStoreActor.props(provider.jwtAuthKeyStore))
       sessionStoreActor = context.actorOf(SessionStoreActor.props(provider.sessionStore))
       groupStoreActor = context.actorOf(UserGroupStoreActor.props(provider.userGroupStore))
+      chatActor = context.actorOf(ChatChannelLookupActor.props(provider))
 
       log.debug(s"RestDomainActor initialized: {}", domainFqn)
       StartUpRequired

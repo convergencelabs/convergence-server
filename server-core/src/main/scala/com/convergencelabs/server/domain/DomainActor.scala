@@ -270,7 +270,7 @@ class DomainActor(
 
       val identityServiceActor = context.actorOf(IdentityServiceActor.props(domainFqn), IdentityServiceActor.RelativePath)
       val presenceServiceActor = context.actorOf(PresenceServiceActor.props(domainFqn),PresenceServiceActor.RelativePath)
-      val chatChannelLookupActor = context.actorOf(ChatChannelLookupActor.props(domainFqn),ChatChannelLookupActor.RelativePath)
+      val chatChannelLookupActor = context.actorOf(ChatChannelLookupActor.props(provider),ChatChannelLookupActor.RelativePath)
       val modelStoreActor = context.actorOf(ModelStoreActor.props(provider), ModelStoreActor.RelativePath)
       val operationStoreActor = context.actorOf(ModelOperationStoreActor.props(provider.modelOperationStore), ModelOperationStoreActor.RelativePath)
 

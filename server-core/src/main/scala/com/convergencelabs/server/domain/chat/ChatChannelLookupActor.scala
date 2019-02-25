@@ -27,15 +27,18 @@ import akka.actor.ActorLogging
 import akka.actor.Props
 import akka.actor.Status
 import akka.actor.actorRef2Scala
+import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 
 object ChatChannelLookupActor {
 
   val RelativePath = "chatChannelLookupActor"
 
-  def props(domainFqn: DomainFqn): Props = Props(
-    new ChatChannelLookupActor(domainFqn))
+  def props(provider: DomainPersistenceProvider): Props = Props(new ChatChannelLookupActor(provider))
 
-  case class GetChannelsRequest(userId:DomainUserId, ids: List[String])
+  trait ChatStoreRequest
+  case class GetChats(offset: Option[Int], limit: Option[Int]) extends ChatStoreRequest
+
+  case class GetChannelsRequest(userId: DomainUserId, ids: List[String])
   case class GetChannelsResponse(channels: List[ChatChannelInfo])
 
   case class ChannelsExistsRequest(userId: DomainUserId, ids: List[String])
@@ -50,12 +53,12 @@ object ChatChannelLookupActor {
   val DefaultPermissions = List()
 }
 
-class ChatChannelLookupActor private[domain] (domainFqn: DomainFqn) extends Actor with ActorLogging {
+class ChatChannelLookupActor private[domain] (provider: DomainPersistenceProvider) extends Actor with ActorLogging {
 
   import ChatChannelLookupActor._
 
-  var chatChannelStore: ChatChannelStore = _
-  var permissionsStore: PermissionsStore = _
+  var chatChannelStore: ChatChannelStore = provider.chatChannelStore
+  var permissionsStore: PermissionsStore = provider.permissionsStore
 
   def receive: Receive = {
     case message: CreateChannelRequest =>
@@ -68,6 +71,8 @@ class ChatChannelLookupActor private[domain] (domainFqn: DomainFqn) extends Acto
       onGetDirect(message)
     case message: ChannelsExistsRequest =>
       onExists(message)
+    case message: GetChats =>
+      onGetChats(message)
   }
 
   def onCreateChannel(message: CreateChannelRequest): Unit = {
@@ -99,6 +104,16 @@ class ChatChannelLookupActor private[domain] (domainFqn: DomainFqn) extends Acto
           sender ! Status.Failure(new IllegalArgumentException(s"Invalid channel type: ${channelType}"))
       }
       //TODO: Add recover
+    }
+  }
+  
+  def onGetChats(message: GetChats): Unit = {
+    val GetChats(offset, limit) = message
+    chatChannelStore.getChatChannels(None, offset, limit).map { info =>
+       sender ! info 
+    } recover {
+      case cause: Exception =>
+        sender ! Status.Failure(cause)
     }
   }
 
@@ -216,17 +231,6 @@ class ChatChannelLookupActor private[domain] (domainFqn: DomainFqn) extends Acto
       channelId, ct, Instant.now(), isPrivate, name.getOrElse(""), topic.getOrElse(""), Some(members), createdBy)
   }
 
-  override def preStart(): Unit = {
-    DomainPersistenceManagerActor.acquirePersistenceProvider(self, context, domainFqn) map { provider =>
-      chatChannelStore = provider.chatChannelStore
-      permissionsStore = provider.permissionsStore
-      ()
-    } recover {
-      case NonFatal(cause) =>
-        throw cause
-    }
-  }
-
   private[this] def hasPermission(userId: DomainUserId, permission: String): Try[Unit] = {
     Success(())
     if (userId.isConvergence) {
@@ -255,10 +259,5 @@ class ChatChannelLookupActor private[domain] (domainFqn: DomainFqn) extends Acto
         }
       }
     }
-  }
-
-  override def postStop(): Unit = {
-    log.debug("ChatChannelLookupActor({}) shut down.", this.domainFqn)
-    DomainPersistenceManagerActor.releasePersistenceProvider(self, context, this.domainFqn)
   }
 }

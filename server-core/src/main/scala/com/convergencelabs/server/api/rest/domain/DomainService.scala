@@ -71,6 +71,7 @@ class DomainService(
   val domainModelService = new DomainModelService(ec, t, domainManagerActor, modelClusterRegion)
   val domainKeyService = new DomainKeyService(ec, t, domainManagerActor)
   val domainAdminTokenService = new DomainAdminTokenService(ec, t, domainManagerActor)
+  val domainChatService = new DomainChatService(ec, t, domainManagerActor)
   val domainSecurityService = new DomainSecurityService(ec, t, permissionStoreActor)
 
   val route = { authProfile: AuthorizationProfile =>
@@ -108,7 +109,8 @@ class DomainService(
             domainStatsService.route(authProfile, domain) ~
             domainSecurityService.route(authProfile, domain) ~
             domainSessionService.route(authProfile, domain) ~
-            domainUserGroupService.route(authProfile, domain)
+            domainUserGroupService.route(authProfile, domain) ~
+            domainChatService.route(authProfile, domain)
         }
       }
     }

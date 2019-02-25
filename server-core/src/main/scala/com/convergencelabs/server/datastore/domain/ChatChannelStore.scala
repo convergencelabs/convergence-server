@@ -229,10 +229,41 @@ object ChatChannelStore {
         throw new IllegalArgumentException(s"Unknown Chat Channel Event class name: ${className}")
     }
   }
+
+  def toChatChannelInfo(doc: ODocument): ChatChannelInfo = {
+    val id: String = doc.getProperty("id")
+    val channelType: String = doc.getProperty("type")
+    val created: Instant = doc.getProperty("created").asInstanceOf[Date].toInstant()
+    val isPrivate: Boolean = doc.getProperty("private")
+    val name: String = doc.getProperty("name")
+    val topic: String = doc.getProperty("topic")
+    val members: JavaSet[OIdentifiable] = doc.getProperty("members")
+    val chatChannelMemebers: Set[ChatChannelMember] = members.asScala.map(member => {
+      val doc = member.getRecord.asInstanceOf[ODocument]
+      val username = doc.eval("user.username").asInstanceOf[String]
+      val userType = doc.eval("user.userType").asInstanceOf[String]
+      val userId = DomainUserId(DomainUserType.withName(userType), username)
+      val seen = doc.getProperty("seen").asInstanceOf[Long]
+      ChatChannelMember(id, userId, seen)
+    }).toSet
+    val lastEventNo: Long = doc.getProperty("eventNo")
+    val lastEventTime: Instant = doc.getProperty("timestamp").asInstanceOf[Date].toInstant()
+    ChatChannelInfo(
+      id,
+      channelType,
+      created,
+      isPrivate,
+      name,
+      topic,
+      lastEventNo,
+      lastEventTime,
+      chatChannelMemebers)
+  }
 }
 
 class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
   import com.convergencelabs.server.datastore.domain.schema.DomainSchema._
+  import ChatChannelStore._
 
   def getChatChannelInfo(channelId: String): Try[ChatChannelInfo] = {
     getChatChannelInfo(List(channelId)).flatMap {
@@ -244,6 +275,31 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
     }
   }
 
+  private[this] val GetChatChannelsQuery =
+    """|SELECT 
+       |  max(eventNo) as eventNo, 
+       |  max(timestamp) as timestamp,
+       |  channel.id as id, 
+       |  channel.type as type, 
+       |  channel.created as created,
+       |  channel.private as private,
+       |  channel.name as name, 
+       |  channel.topic as topic,
+       |  channel.members as members
+       |FROM
+       |  ChatChannelEvent 
+       |WHERE
+       |  channel.type IN :channelTypes
+       |GROUP BY (channel)""".stripMargin
+
+  def getChatChannels(types: Option[Set[String]], offset: Option[Int], limit: Option[Int]): Try[List[ChatChannelInfo]] = withDb { db =>
+    val channelTypes = types.getOrElse(Set("channel", "room"))
+    val params = Map("channelTypes" -> channelTypes.asJava)
+    OrientDBUtil.queryAndMap(db, GetChatChannelsQuery, params) { doc =>
+      toChatChannelInfo(doc)
+    }
+  }
+  
   private[this] val GetChatChannelInfoQuery =
     """|SELECT 
        |  max(eventNo) as eventNo, 
@@ -263,35 +319,8 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
 
   def getChatChannelInfo(channelId: List[String]): Try[List[ChatChannelInfo]] = withDb { db =>
     val params = Map("channelIds" -> channelId.asJava)
-
     OrientDBUtil.queryAndMap(db, GetChatChannelInfoQuery, params) { doc =>
-      val id: String = doc.getProperty("id")
-      val channelType: String = doc.getProperty("type")
-      val created: Instant = doc.getProperty("created").asInstanceOf[Date].toInstant()
-      val isPrivate: Boolean = doc.getProperty("private")
-      val name: String = doc.getProperty("name")
-      val topic: String = doc.getProperty("topic")
-      val members: JavaSet[OIdentifiable] = doc.getProperty("members")
-      val chatChannelMemebers: Set[ChatChannelMember] = members.asScala.map(member => {
-        val doc = member.getRecord.asInstanceOf[ODocument]
-        val username = doc.eval("user.username").asInstanceOf[String]
-        val userType = doc.eval("user.userType").asInstanceOf[String]
-        val userId = DomainUserId(DomainUserType.withName(userType), username)
-        val seen = doc.getProperty("seen").asInstanceOf[Long]
-        ChatChannelMember(id, userId, seen)
-      }).toSet
-      val lastEventNo: Long = doc.getProperty("eventNo")
-      val lastEventTime: Instant = doc.getProperty("timestamp").asInstanceOf[Date].toInstant()
-      ChatChannelInfo(
-        id,
-        channelType,
-        created,
-        isPrivate,
-        name,
-        topic,
-        lastEventNo,
-        lastEventTime,
-        chatChannelMemebers)
+      toChatChannelInfo(doc)
     }
   }
 
@@ -347,7 +376,7 @@ class ChatChannelStore(private[this] val dbProvider: DatabaseProvider) extends A
     // a group by / count WHERE'd on the Channel Link?
 
     DomainUserStore.getDomainUsersRids(userIds.toList, db).flatMap { userRids =>
-      val query ="""
+      val query = """
        |SELECT 
        |  id 
        |FROM 
