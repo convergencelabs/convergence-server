@@ -633,10 +633,10 @@ actions:
     type: NotUniqueHashIndex
     properties: [model]
 
-########## ChatChannel Class ##########
+########## Chat Class ##########
 
   - action: CreateClass
-    name: ChatChannel
+    name: Chat
     properties:
       - {name: id,          type: String,                                  constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: type,        type: String,                                  constraints: {mandatory: true, notNull: true, readOnly: true}}
@@ -644,43 +644,43 @@ actions:
       - {name: private,     type: Boolean,                                 constraints: {mandatory: true, notNull: true}}
       - {name: name,        type: String,                                  constraints: {mandatory: true, notNull: true}}
       - {name: topic,       type: String,                                  constraints: {mandatory: true, notNull: true}}
-      - {name: members,     type: LinkSet, linkedClass: ChatChannelMember, constraints: {mandatory: true, notNull: true}}
+      - {name: members,     type: LinkSet, linkedClass: ChatMember, constraints: {mandatory: true, notNull: true}}
       - {name: permissions, type: LinkSet, linkedClass: Permission,        constraints: {mandatory: false, notNull: true}}
 
   - action: CreateIndex
-    className: ChatChannel
-    name: ChatChannel.id
+    className: Chat
+    name: Chat.id
     type: UniqueHashIndex
     properties: [id]
 
-########## ChatChannelEvent Class ##########
+########## ChatEvent Class ##########
 
   - action: CreateClass
-    name: ChatChannelEvent
+    name: ChatEvent
     abstract: true
     properties:
-      - {name: eventNo,   type: Long,                           constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: channel,   type: Link, linkedClass: ChatChannel, constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: user,      type: Link, linkedClass: User,        constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: timestamp, type: DateTime,                       constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: chat,      type: Link, linkedClass: Chat, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: eventNo,   type: Long,                    constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: user,      type: Link, linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: timestamp, type: DateTime,                constraints: {mandatory: true, notNull: true, readOnly: true}}
 
   - action: CreateIndex
-    className: ChatChannelEvent
-    name: ChatChannel.channel_eventNo
+    className: ChatEvent
+    name: ChatEvent.chatl_eventNo
     type: UniqueHashIndex
-    properties: [channel, eventNo]
+    properties: [chat, eventNo]
 
   - action: CreateIndex
-    className: ChatChannelEvent
-    name: ChatChannelEvent.channel
+    className: ChatEvent
+    name: ChatEvent.chat
     type: NotUniqueHashIndex
-    properties: [channel]
+    properties: [chat]
 
 ########## ChatCreatedEvent Class ##########
 
   - action: CreateClass
     name: ChatCreatedEvent
-    superclass: ChatChannelEvent
+    superclass: ChatEvent
     properties:
       - {name: name,    type: String,                     constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: topic,   type: String,                     constraints: {mandatory: true, notNull: true, readOnly: true}}
@@ -690,7 +690,7 @@ actions:
 
   - action: CreateClass
     name: ChatMessageEvent
-    superclass: ChatChannelEvent
+    superclass: ChatEvent
     properties:
       - {name: message, type: String, constraints: {mandatory: true, notNull: true}}
 
@@ -698,19 +698,19 @@ actions:
 
   - action: CreateClass
     name: ChatUserJoinedEvent
-    superclass: ChatChannelEvent
+    superclass: ChatEvent
 
 ########## ChatUserLeftEvent Class ##########
 
   - action: CreateClass
     name: ChatUserLeftEvent
-    superclass: ChatChannelEvent
+    superclass: ChatEvent
 
 ########## ChatUserAddedEvent Class ##########
 
   - action: CreateClass
     name: ChatUserAddedEvent
-    superclass: ChatChannelEvent
+    superclass: ChatEvent
     properties:
       - {name: userAdded, type: Link, linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
 
@@ -718,7 +718,7 @@ actions:
 
   - action: CreateClass
     name: ChatUserRemovedEvent
-    superclass: ChatChannelEvent
+    superclass: ChatEvent
     properties:
       - {name: userRemoved, type: Link, linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
 
@@ -726,7 +726,7 @@ actions:
 
   - action: CreateClass
     name: ChatNameChangedEvent
-    superclass: ChatChannelEvent
+    superclass: ChatEvent
     properties:
       - {name: name, type: String, constraints: {mandatory: true, notNull: true, readOnly: true}}
 
@@ -734,31 +734,31 @@ actions:
 
   - action: CreateClass
     name: ChatTopicChangedEvent
-    superclass: ChatChannelEvent
+    superclass: ChatEvent
     properties:
       - {name: topic, type: String, constraints: {mandatory: true, notNull: true, readOnly: true}}
 
-########## ChatChannelMember Class ##########
+########## ChatMember Class ##########
 
   - action: CreateClass
-    name: ChatChannelMember
+    name: ChatMember
 
     properties:
-      - {name: channel, type: Link, linkedClass: ChatChannel, constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: user,    type: Link, linkedClass: User,        constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: seen,    type: Long,                           constraints: {mandatory: true, notNull: true}}
+      - {name: chat, type: Link, linkedClass: Chat, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: user, type: Link, linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: seen, type: Long,                    constraints: {mandatory: true, notNull: true}}
 
   - action: CreateIndex
-    className: ChatChannelMember
-    name: ChatChannelMember.channel_user
+    className: ChatMember
+    name: ChatMember.chat_user
     type: UniqueHashIndex
-    properties: [channel, user]
+    properties: [chat, user]
 
   - action: CreateIndex
-    className: ChatChannelMember
-    name: ChatChannelMember.channel
+    className: ChatMember
+    name: ChatMember.chat
     type: NotUniqueHashIndex
-    properties: [channel]
+    properties: [chat]
 
 ########## UserGroup Class ##########
 
@@ -801,7 +801,7 @@ actions:
     sequenceType: Ordered
 
   - action: CreateSequence
-    name: chatChannelIdSeq
+    name: chatIdSeq
     sequenceType: Ordered
 
 ########## Functions ##########

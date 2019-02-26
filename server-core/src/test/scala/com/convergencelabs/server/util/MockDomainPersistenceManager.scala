@@ -15,7 +15,7 @@ import com.convergencelabs.server.datastore.domain.CollectionStore
 import org.scalatest.mockito.MockitoSugar
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.datastore.domain.DomainConfigStore
-import com.convergencelabs.server.datastore.domain.ChatChannelStore
+import com.convergencelabs.server.datastore.domain.ChatStore
 import com.convergencelabs.server.datastore.domain.DomainUserStore
 import com.convergencelabs.server.datastore.domain.ModelOperationStore
 import com.convergencelabs.server.datastore.domain.JwtAuthKeyStore
@@ -68,7 +68,7 @@ class MockDomainPersistenceProvider extends DomainPersistenceProvider with Mocki
 
   val modelPermissionsStore: ModelPermissionsStore = mock[ModelPermissionsStore]
 
-  val chatChannelStore: ChatChannelStore = mock[ChatChannelStore]
+  val chatStore: ChatStore = mock[ChatStore]
 
   val permissionsStore: PermissionsStore = mock[PermissionsStore]
   

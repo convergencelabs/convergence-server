@@ -23,7 +23,7 @@ import com.convergencelabs.server.datastore.domain.ModelOperationStoreActor
 import com.convergencelabs.server.datastore.domain.ModelStoreActor
 import com.convergencelabs.server.db.provision.DomainProvisionerActor.DomainDeleted
 import com.convergencelabs.server.db.provision.DomainProvisionerActor.domainTopic
-import com.convergencelabs.server.domain.chat.ChatChannelLookupActor
+import com.convergencelabs.server.domain.chat.ChatLookupActor
 import com.convergencelabs.server.domain.presence.PresenceServiceActor
 
 import akka.actor.ActorRef
@@ -270,7 +270,7 @@ class DomainActor(
 
       val identityServiceActor = context.actorOf(IdentityServiceActor.props(domainFqn), IdentityServiceActor.RelativePath)
       val presenceServiceActor = context.actorOf(PresenceServiceActor.props(domainFqn),PresenceServiceActor.RelativePath)
-      val chatChannelLookupActor = context.actorOf(ChatChannelLookupActor.props(provider),ChatChannelLookupActor.RelativePath)
+      val chatChannelLookupActor = context.actorOf(ChatLookupActor.props(provider),ChatLookupActor.RelativePath)
       val modelStoreActor = context.actorOf(ModelStoreActor.props(provider), ModelStoreActor.RelativePath)
       val operationStoreActor = context.actorOf(ModelOperationStoreActor.props(provider.modelOperationStore), ModelOperationStoreActor.RelativePath)
 

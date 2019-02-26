@@ -5,11 +5,11 @@ import scala.util.Success
 import scala.util.Try
 
 import com.convergencelabs.server.domain.DomainFqn
-import com.convergencelabs.server.domain.chat.ChatChannelMessages.AddUserToChannelRequest
-import com.convergencelabs.server.domain.chat.ChatChannelMessages.ExistingChannelMessage
-import com.convergencelabs.server.domain.chat.ChatChannelMessages.InvalidChannelMessageExcpetion
-import com.convergencelabs.server.domain.chat.ChatChannelMessages.JoinChannelRequest
-import com.convergencelabs.server.domain.chat.ChatChannelMessages.LeaveChannelRequest
+import com.convergencelabs.server.domain.chat.ChatMessages.AddUserToChannelRequest
+import com.convergencelabs.server.domain.chat.ChatMessages.ExistingChatMessage
+import com.convergencelabs.server.domain.chat.ChatMessages.InvalidChatMessageExcpetion
+import com.convergencelabs.server.domain.chat.ChatMessages.JoinChannelRequest
+import com.convergencelabs.server.domain.chat.ChatMessages.LeaveChannelRequest
 
 import akka.actor.Actor
 import akka.actor.ActorContext
@@ -22,20 +22,20 @@ import grizzled.slf4j.Logging
 class ChatRoomMessageProcessor(
   domainFqn: DomainFqn,
   channelId: String,
-  stateManager: ChatChannelStateManager,
+  stateManager: ChatStateManager,
   private[this] val onEmpty: () => Unit,
   context: ActorContext)
-    extends ChatChannelMessageProcessor(stateManager)
+    extends ChatMessageProcessor(stateManager)
     with Logging {
 
   private[this] val chatRoomSessionManager = new ChatRoomSessionManager()
   private[this] val watcher = context.system.actorOf(Props(new Watcher()))
 
-  override def processChatMessage(message: ExistingChannelMessage): Try[ChatMessageProcessingResult] = {
+  override def processChatMessage(message: ExistingChatMessage): Try[ChatMessageProcessingResult] = {
     message match {
       case _: AddUserToChannelRequest =>
-        Failure(new InvalidChannelMessageExcpetion("Can not add user to a chat room"))
-      case _: ExistingChannelMessage =>
+        Failure(new InvalidChatMessageExcpetion("Can not add user to a chat room"))
+      case _: ExistingChatMessage =>
         super.processChatMessage(message)
     }
   }

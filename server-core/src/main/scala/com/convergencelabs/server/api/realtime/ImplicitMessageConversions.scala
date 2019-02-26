@@ -4,8 +4,8 @@ import java.time.Instant
 
 import scala.language.implicitConversions
 
-import com.convergencelabs.server.datastore.domain.ChatChannelEvent
-import com.convergencelabs.server.datastore.domain.ChatChannelInfo
+import com.convergencelabs.server.datastore.domain.ChatEvent
+import com.convergencelabs.server.datastore.domain.ChatInfo
 import com.convergencelabs.server.datastore.domain.ChatCreatedEvent
 import com.convergencelabs.server.datastore.domain.ChatMessageEvent
 import com.convergencelabs.server.datastore.domain.ChatNameChangedEvent
@@ -27,8 +27,8 @@ import com.convergencelabs.server.domain.model.data.StringValue
 import com.convergencelabs.server.domain.presence.UserPresence
 import com.google.protobuf.timestamp.Timestamp
 
-import io.convergence.proto.chat.ChatChannelEventData
-import io.convergence.proto.chat.ChatChannelMemberData
+import io.convergence.proto.chat.ChatEventData
+import io.convergence.proto.chat.ChatMemberData
 import io.convergence.proto.chat.ChatCreatedEventData
 import io.convergence.proto.chat.ChatMessageEventData
 import io.convergence.proto.chat.ChatNameChangedEventData
@@ -100,44 +100,42 @@ object ImplicitMessageConversions {
   implicit def messageToStringValue(stringValue: io.convergence.proto.operations.StringValue) = StringValue(stringValue.id, stringValue.value)
   implicit def messageToDateValue(dateValue: io.convergence.proto.operations.DateValue) = DateValue(dateValue.id, timestampToInstant(dateValue.value.get))
 
-  implicit def channelInfoToMessage(info: ChatChannelInfo) =
-    io.convergence.proto.chat.ChatChannelInfoData(
-      info.id, info.channelType,
-      info.isPrivate match {
-        case true => "private"
-        case false => "public"
-      },
+  implicit def channelInfoToMessage(info: ChatInfo) =
+    io.convergence.proto.chat.ChatInfoData(
+      info.id, 
+      info.chatType.toString().toLowerCase(),
+      info.membership.toString().toLowerCase(),
       info.name,
       info.topic,
       Some(info.created),
       Some(info.lastEventTime),
       info.lastEventNumber,
-      info.members.map(member => ChatChannelMemberData(Some(member.userId), member.seen)).toSeq)
+      info.members.map(member => ChatMemberData(Some(member.userId), member.seen)).toSeq)
 
-  implicit def channelEventToMessage(event: ChatChannelEvent): ChatChannelEventData = event match {
+  implicit def channelEventToMessage(event: ChatEvent): ChatEventData = event match {
     case ChatCreatedEvent(eventNumber, channel, user, timestamp, name, topic, members) =>
-      ChatChannelEventData().withCreated(
+      ChatEventData().withCreated(
         ChatCreatedEventData(channel, eventNumber, Some(timestamp), Some(user), name, topic, members.map(ImplicitMessageConversions.domainUserIdToData(_)).toSeq));
     case ChatMessageEvent(eventNumber, channel, user, timestamp, message) =>
-      ChatChannelEventData().withMessage(
+      ChatEventData().withMessage(
         ChatMessageEventData(channel, eventNumber, Some(timestamp), Some(user), message))
     case ChatUserJoinedEvent(eventNumber, channel, user, timestamp) =>
-      ChatChannelEventData().withUserJoined(
+      ChatEventData().withUserJoined(
         ChatUserJoinedEventData(channel, eventNumber, Some(timestamp), Some(user)))
     case ChatUserLeftEvent(eventNumber, channel, user, timestamp) =>
-      ChatChannelEventData().withUserLeft(
+      ChatEventData().withUserLeft(
         ChatUserLeftEventData(channel, eventNumber, Some(timestamp), Some(user)))
     case ChatUserAddedEvent(eventNumber, channel, user, timestamp, addedUser) =>
-      ChatChannelEventData().withUserAdded(
+      ChatEventData().withUserAdded(
         ChatUserAddedEventData(channel, eventNumber, Some(timestamp), Some(user), Some(addedUser)))
     case ChatUserRemovedEvent(eventNumber, channel, user, timestamp, removedUser) =>
-      ChatChannelEventData().withUserRemoved(
+      ChatEventData().withUserRemoved(
         ChatUserRemovedEventData(channel, eventNumber, Some(timestamp), Some(removedUser)))
     case ChatNameChangedEvent(eventNumber, channel, user, timestamp, name) =>
-      ChatChannelEventData().withNameChanged(
+      ChatEventData().withNameChanged(
         ChatNameChangedEventData(channel, eventNumber, Some(timestamp), Some(user), name))
     case ChatTopicChangedEvent(eventNumber, channel, user, timestamp, topic) =>
-      ChatChannelEventData().withTopicChanged(
+      ChatEventData().withTopicChanged(
         ChatTopicChangedEventData(channel, eventNumber, Some(timestamp), Some(user), topic))
   }
 

@@ -29,7 +29,7 @@ trait DomainPersistenceProvider {
 
   val modelPermissionsStore: ModelPermissionsStore
 
-  val chatChannelStore: ChatChannelStore
+  val chatStore: ChatStore
 
   val permissionsStore: PermissionsStore
   
@@ -64,7 +64,7 @@ class DomainPersistenceProviderImpl(val dbProvider: DatabaseProvider)
 
   val modelPermissionsStore = new ModelPermissionsStore(dbProvider)
 
-  val chatChannelStore = new ChatChannelStore(dbProvider)
+  val chatStore = new ChatStore(dbProvider)
 
   val permissionsStore = new PermissionsStore(dbProvider)
 }

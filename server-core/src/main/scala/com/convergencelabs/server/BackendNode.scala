@@ -21,7 +21,7 @@ import com.convergencelabs.server.db.schema.DatabaseManager
 import com.convergencelabs.server.db.schema.DatabaseManagerActor
 import com.convergencelabs.server.domain.DomainActorSharding
 import com.convergencelabs.server.domain.activity.ActivityActorSharding
-import com.convergencelabs.server.domain.chat.ChatChannelSharding
+import com.convergencelabs.server.domain.chat.ChatSharding
 import com.convergencelabs.server.domain.model.ModelCreator
 import com.convergencelabs.server.domain.model.ModelPermissionResolver
 import com.convergencelabs.server.domain.model.RealtimeModelSharding
@@ -59,7 +59,7 @@ class BackendNode(system: ActorSystem, convergenceDbProvider: DatabaseProvider) 
       Some(ActivityActorSharding.start(system, shardCount))
 
     chatChannelRegion =
-      Some(ChatChannelSharding.start(system, shardCount))
+      Some(ChatSharding.start(system, shardCount))
 
     domainReqion =
       Some(DomainActorSharding.start(

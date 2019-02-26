@@ -3,7 +3,7 @@ package com.convergencelabs.server.domain.chat
 import akka.actor.ActorContext
 
 class PublicChannelMessageProcessor(
-  channelManager: ChatChannelStateManager,
+  channelManager: ChatStateManager,
   context: ActorContext)
-    extends MembershipChatChannelMessageProcessor(channelManager, context) {
+    extends MembershipChatMessageProcessor(channelManager, context) {
 }

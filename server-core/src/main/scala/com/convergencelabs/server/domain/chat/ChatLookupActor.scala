@@ -9,18 +9,17 @@ import scala.util.control.NonFatal
 
 import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.EntityNotFoundException
-import com.convergencelabs.server.datastore.domain.ChatChannelInfo
-import com.convergencelabs.server.datastore.domain.ChatChannelStore
-import com.convergencelabs.server.datastore.domain.ChatChannelStore.ChannelType
+import com.convergencelabs.server.datastore.domain.ChatInfo
+import com.convergencelabs.server.datastore.domain.ChatStore
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 import com.convergencelabs.server.datastore.domain.PermissionsStore
 import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.DomainUserId
 import com.convergencelabs.server.domain.UnauthorizedException
-import com.convergencelabs.server.domain.chat.ChatChannelMessages.ChannelAlreadyExistsException
-import com.convergencelabs.server.domain.chat.ChatChannelMessages.CreateChannelRequest
-import com.convergencelabs.server.domain.chat.ChatChannelMessages.CreateChannelResponse
-import com.convergencelabs.server.domain.chat.ChatChannelStateManager.ChatPermissions
+import com.convergencelabs.server.domain.chat.ChatMessages.ChatAlreadyExistsException
+import com.convergencelabs.server.domain.chat.ChatMessages.CreateChatRequest
+import com.convergencelabs.server.domain.chat.ChatMessages.CreateChannelResponse
+import com.convergencelabs.server.domain.chat.ChatStateManager.ChatPermissions
 
 import akka.actor.Actor
 import akka.actor.ActorLogging
@@ -28,40 +27,43 @@ import akka.actor.Props
 import akka.actor.Status
 import akka.actor.actorRef2Scala
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
+import com.convergencelabs.server.datastore.domain.ChatMembership
+import com.convergencelabs.server.datastore.domain.ChatType
+import com.convergencelabs.server.datastore.domain.schema.ChatClass
 
-object ChatChannelLookupActor {
+object ChatLookupActor {
 
   val RelativePath = "chatChannelLookupActor"
 
-  def props(provider: DomainPersistenceProvider): Props = Props(new ChatChannelLookupActor(provider))
+  def props(provider: DomainPersistenceProvider): Props = Props(new ChatLookupActor(provider))
 
   trait ChatStoreRequest
   case class GetChats(offset: Option[Int], limit: Option[Int]) extends ChatStoreRequest
 
   case class GetChannelsRequest(userId: DomainUserId, ids: List[String])
-  case class GetChannelsResponse(channels: List[ChatChannelInfo])
+  case class GetChannelsResponse(channels: List[ChatInfo])
 
   case class ChannelsExistsRequest(userId: DomainUserId, ids: List[String])
   case class ChannelsExistsResponse(channels: List[Boolean])
 
   case class GetJoinedChannelsRequest(userId: DomainUserId)
-  case class GetJoinedChannelsResponse(channels: List[ChatChannelInfo])
+  case class GetJoinedChannelsResponse(channels: List[ChatInfo])
 
   case class GetDirectChannelsRequest(userId: DomainUserId, userLists: List[Set[DomainUserId]])
-  case class GetDirectChannelsResponse(channels: List[ChatChannelInfo])
+  case class GetDirectChannelsResponse(channels: List[ChatInfo])
 
   val DefaultPermissions = List()
 }
 
-class ChatChannelLookupActor private[domain] (provider: DomainPersistenceProvider) extends Actor with ActorLogging {
+class ChatLookupActor private[domain] (provider: DomainPersistenceProvider) extends Actor with ActorLogging {
 
-  import ChatChannelLookupActor._
+  import ChatLookupActor._
 
-  var chatChannelStore: ChatChannelStore = provider.chatChannelStore
+  var chatStore: ChatStore = provider.chatStore
   var permissionsStore: PermissionsStore = provider.permissionsStore
 
   def receive: Receive = {
-    case message: CreateChannelRequest =>
+    case message: CreateChatRequest =>
       onCreateChannel(message)
     case message: GetChannelsRequest =>
       onGetChannels(message)
@@ -75,42 +77,31 @@ class ChatChannelLookupActor private[domain] (provider: DomainPersistenceProvide
       onGetChats(message)
   }
 
-  def onCreateChannel(message: CreateChannelRequest): Unit = {
-    val CreateChannelRequest(channelId, createdBy, channelType, channelMembership, name, topic, members) = message
+  def onCreateChannel(message: CreateChatRequest): Unit = {
+    val CreateChatRequest(channelId, createdBy, chatType, membership, name, topic, members) = message
     hasPermission(createdBy.userId, ChatPermissions.CreateChannel).map { _ =>
-      ChannelType.withNameOpt(channelType) match {
-        case Some(ct) =>
-          val isPrivate = channelMembership.toLowerCase match {
-            case "private" => true
-            case _ => false
-          }
-
-          (for {
-            id <- createChannel(channelId, ct, isPrivate, name, topic, members, createdBy.userId)
-            forRecord <- chatChannelStore.getChatChannelRid(id)
-            _ <- permissionsStore.addUserPermissions(ChatChannelStateManager.AllChatPermissions, createdBy.userId, Some(forRecord))
-          } yield {
-            sender ! CreateChannelResponse(id)
-          }) recover {
-            case e: DuplicateValueException =>
-              // FIXME how to deal with this? The channel id should only conflict if it was
-              // defined by the user.
-              val cId = channelId.get
-              sender ! Status.Failure(ChannelAlreadyExistsException(cId))
-            case NonFatal(cause) =>
-              sender ! Status.Failure(cause)
-          }
-        case None =>
-          sender ! Status.Failure(new IllegalArgumentException(s"Invalid channel type: ${channelType}"))
+      (for {
+        id <- createChannel(channelId, chatType, membership, name, topic, members, createdBy.userId)
+        forRecord <- chatStore.getChatRid(id)
+        _ <- permissionsStore.addUserPermissions(ChatStateManager.AllChatPermissions, createdBy.userId, Some(forRecord))
+      } yield {
+        sender ! CreateChannelResponse(id)
+      }) recover {
+        case e: DuplicateValueException =>
+          // FIXME how to deal with this? The channel id should only conflict if it was
+          // defined by the user.
+          val cId = channelId.get
+          sender ! Status.Failure(ChatAlreadyExistsException(cId))
+        case NonFatal(cause) =>
+          sender ! Status.Failure(cause)
       }
-      //TODO: Add recover
     }
   }
-  
+
   def onGetChats(message: GetChats): Unit = {
     val GetChats(offset, limit) = message
-    chatChannelStore.getChatChannels(None, offset, limit).map { info =>
-       sender ! info 
+    chatStore.getChats(None, offset, limit).map { info =>
+      sender ! info
     } recover {
       case cause: Exception =>
         sender ! Status.Failure(cause)
@@ -121,8 +112,8 @@ class ChatChannelLookupActor private[domain] (provider: DomainPersistenceProvide
     val GetChannelsRequest(sk, ids) = message
     // TODO support multiple.
     val id = ids(0)
-    chatChannelStore.getChatChannelInfo(id).map { info =>
-      if (info.isPrivate) {
+    chatStore.getChatInfo(id).map { info =>
+      if (info.membership == ChatMembership.Private) {
         sender ! GetChannelsResponse(List(info))
       } else {
         hasPermission(sk, ChatPermissions.JoinChannel).map { _ =>
@@ -145,8 +136,8 @@ class ChatChannelLookupActor private[domain] (provider: DomainPersistenceProvide
     // TODO support multiple.
     // FIXME this should be an option or something.
     val id = ids(0)
-    chatChannelStore.getChatChannelInfo(id).map { info =>
-      if (info.isPrivate) {
+    chatStore.getChatInfo(id).map { info =>
+      if (info.membership == ChatMembership.Private) {
         sender ! ChannelsExistsResponse(List(true))
       } else {
         hasPermission(sk, ChatPermissions.JoinChannel).map { _ =>
@@ -173,21 +164,21 @@ class ChatChannelLookupActor private[domain] (provider: DomainPersistenceProvide
     // The channel must contain the user who is looking it up and any other users
     val userIds = (userIdList(0) + userId)
 
-    chatChannelStore.getDirectChatChannelInfoByUsers(userIds) flatMap {
+    chatStore.getDirectChatInfoByUsers(userIds) flatMap {
       _ match {
         case Some(c) =>
           // The channel exists, just return it.
           Success(c)
         case None =>
           // Does not exists, so create it.
-          createChannel(None, ChannelType.Direct, true, None, None, userIds.toSet, userId) flatMap { channelId =>
+          createChannel(None, ChatType.Direct, ChatMembership.Private, None, None, userIds.toSet, userId) flatMap { channelId =>
             // Create was successful, now let's just get the channel.
-            chatChannelStore.getChatChannelInfo(channelId)
+            chatStore.getChatInfo(channelId)
           } recoverWith {
-            case DuplicateValueException(ChatChannelStore.Fields.Members, _, _) =>
+            case DuplicateValueException(ChatClass.Fields.Members, _, _) =>
               // The channel already exists based on the members, this must have been a race condition.
               // So just try to get it again
-              chatChannelStore.getDirectChatChannelInfoByUsers(userIds) flatMap {
+              chatStore.getDirectChatInfoByUsers(userIds) flatMap {
                 _ match {
                   case Some(c) =>
                     // Yup it's there.
@@ -210,7 +201,7 @@ class ChatChannelLookupActor private[domain] (provider: DomainPersistenceProvide
 
   def onGetJoinedChannels(message: GetJoinedChannelsRequest): Unit = {
     val GetJoinedChannelsRequest(userId) = message
-    this.chatChannelStore.getJoinedChannels(userId) map { channels =>
+    this.chatStore.getJoinedChats(userId) map { channels =>
       sender ! GetJoinedChannelsResponse(channels)
     } recover {
       case cause: Exception =>
@@ -219,16 +210,16 @@ class ChatChannelLookupActor private[domain] (provider: DomainPersistenceProvide
   }
 
   private[this] def createChannel(
-    channelId: Option[String],
-    ct: ChannelType.Value,
-    isPrivate: Boolean,
+    chatId: Option[String],
+    ct: ChatType.Value,
+    membership: ChatMembership.Value,
     name: Option[String],
     topic: Option[String],
     members: Set[DomainUserId],
     createdBy: DomainUserId): Try[String] = {
 
-    this.chatChannelStore.createChatChannel(
-      channelId, ct, Instant.now(), isPrivate, name.getOrElse(""), topic.getOrElse(""), Some(members), createdBy)
+    this.chatStore.createChat(
+      chatId, ct, Instant.now(), membership, name.getOrElse(""), topic.getOrElse(""), Some(members), createdBy)
   }
 
   private[this] def hasPermission(userId: DomainUserId, permission: String): Try[Unit] = {
@@ -251,7 +242,7 @@ class ChatChannelLookupActor private[domain] (provider: DomainPersistenceProvide
       Success(())
     } else {
       for {
-        channelRid <- chatChannelStore.getChatChannelRid(channelId)
+        channelRid <- chatStore.getChatRid(channelId)
         hasPermission <- permissionsStore.hasPermission(userId, channelRid, permission)
       } yield {
         if (!hasPermission) {

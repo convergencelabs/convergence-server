@@ -28,7 +28,7 @@ import com.convergencelabs.server.db.PooledDatabaseProvider
 import com.convergencelabs.server.db.schema.ConvergenceSchemaManager
 import com.convergencelabs.server.domain.DomainActorSharding
 import com.convergencelabs.server.domain.activity.ActivityActorSharding
-import com.convergencelabs.server.domain.chat.ChatChannelSharding
+import com.convergencelabs.server.domain.chat.ChatSharding
 import com.convergencelabs.server.domain.model.RealtimeModelSharding
 import com.convergencelabs.server.domain.rest.RestDomainActorSharding
 import com.convergencelabs.server.security.Roles
@@ -275,7 +275,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
       val shards = 100
       DomainActorSharding.startProxy(system, shards)
       RealtimeModelSharding.startProxy(system, shards)
-      ChatChannelSharding.startProxy(system, shards)
+      ChatSharding.startProxy(system, shards)
       RestDomainActorSharding.startProxy(system, shards)
       ActivityActorSharding.startProxy(system, shards)
     }
@@ -306,7 +306,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
     convergenceDatabase: String,
     convergenceDbConfig: Config,
     orientDbConfig: Config): Try[Unit] = Try {
-    logger.info("auto-install is configured, attempting to connect to OrientDB to determin if the convergence database is installed.")
+    logger.info("auto-install is configured, attempting to connect to the database to determin if the convergence database is installed.")
 
     val username = convergenceDbConfig.getString("username")
     val password = convergenceDbConfig.getString("password")
@@ -364,14 +364,14 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
   }
 
   private[this] def attemptConnect(uri: String, adminUser: String, adminPassword: String, retryDelay: Duration): Option[OrientDB] = {
-    info(s"Attempting to connect to OrientDB at uri: ${uri}")
+    info(s"Attempting to connect to the datatbase at uri: ${uri}")
 
     Try(new OrientDB(uri, adminUser, adminPassword, OrientDBConfig.defaultConfig())) match {
       case Success(orientDb) =>
-        logger.info("Connected to OrientDB with Server Admin")
+        logger.info("Connected to datatbase with Server Admin")
         Some(orientDb)
       case Failure(e) =>
-        logger.error(s"Unable to connect to OrientDB, retrying in ${retryDelay.toMillis()}ms", e)
+        logger.error(s"Unable to connect to datatbase, retrying in ${retryDelay.toMillis()}ms", e)
         Thread.sleep(retryDelay.toMillis())
         None
     }

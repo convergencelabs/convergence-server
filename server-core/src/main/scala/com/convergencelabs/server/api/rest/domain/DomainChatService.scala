@@ -41,8 +41,8 @@ import akka.http.scaladsl.server.Directives.Segment
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import com.convergencelabs.server.api.rest.domain.DomainConfigService.ModelSnapshotPolicyData
-import com.convergencelabs.server.domain.chat.ChatChannelLookupActor.GetChats
-import com.convergencelabs.server.datastore.domain.ChatChannelInfo
+import com.convergencelabs.server.domain.chat.ChatLookupActor.GetChats
+import com.convergencelabs.server.datastore.domain.ChatInfo
 
 object DomainChatService {
 }
@@ -71,7 +71,7 @@ class DomainChatService(
   def getChats(domain: DomainFqn, offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
     val message = DomainRestMessage(domain, GetChats(offset, limit))
     println(message)
-    (domainRestActor ? message).mapTo[List[ChatChannelInfo]] map { chats =>
+    (domainRestActor ? message).mapTo[List[ChatInfo]] map { chats =>
       okResponse(chats)
     }
   }

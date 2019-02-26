@@ -16,9 +16,9 @@ object DomainSchema {
     val CollectionPermissions = CollectionPermissionsClass
     val CollectionUserPermissions = CollectionUserPermissionsClass
     
-    val ChatChannel = ChatChannelClass
-    val ChatChannelMember = ChatChannelMemberClass
-    val ChatChannelEvent = ChatChannelEventClass
+    val Chat = ChatClass
+    val ChatMember = ChatMemberClass
+    val ChatEvent = ChatEventClass
     val ChatCreatedEvent = ChatCreatedEventClass
     val ChatNameChangedEvent = ChatNameChangedEventClass
     val ChatTopicChangedEvent = ChatTopicChangedEventClass
@@ -31,7 +31,7 @@ object DomainSchema {
 
   object Sequences {
     val AnonymousUsername = "anonymousUsernameSeq"
-    val ChatChannelId = "chatChannelIdSeq"
+    val ChatId = "chatIdSeq"
     val SessionSeq = "SESSIONSEQ"
   }
 }
