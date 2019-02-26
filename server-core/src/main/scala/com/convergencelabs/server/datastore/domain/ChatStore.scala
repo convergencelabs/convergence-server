@@ -170,9 +170,12 @@ object ChatStore {
     val created: Date = doc.getProperty(Classes.Chat.Fields.Created)
     Chat(
       doc.getProperty(Classes.Chat.Fields.Id),
-      doc.getProperty(Classes.Chat.Fields.Type),
+      ChatType.parse(doc.getProperty(Classes.Chat.Fields.Type)),
       created.toInstant(),
-      doc.getProperty(Classes.Chat.Fields.Private),
+      doc.getProperty(Classes.Chat.Fields.Private).asInstanceOf[Boolean] match {
+        case true => ChatMembership.Private
+        case false => ChatMembership.Public
+      },
       doc.getProperty(Classes.Chat.Fields.Name),
       doc.getProperty(Classes.Chat.Fields.Topic))
   }
@@ -180,7 +183,7 @@ object ChatStore {
   def chatToDoc(chat: Chat): ODocument = {
     val doc = new ODocument(Classes.Chat.ClassName)
     doc.setProperty(Classes.Chat.Fields.Id, chat.id)
-    doc.setProperty(Classes.Chat.Fields.Type, chat.chatType)
+    doc.setProperty(Classes.Chat.Fields.Type, chat.chatType.toString.toLowerCase)
     doc.setProperty(Classes.Chat.Fields.Created, Date.from(chat.created))
     doc.setProperty(Classes.Chat.Fields.Private, chat.membership == ChatMembership.Private)
     doc.setProperty(Classes.Chat.Fields.Name, chat.name)
@@ -246,8 +249,8 @@ object ChatStore {
     val members: JavaSet[OIdentifiable] = doc.getProperty(Classes.Chat.Fields.Members)
     val chatMemebers: Set[ChatMember] = members.asScala.map(member => {
       val doc = member.getRecord.asInstanceOf[ODocument]
-      val username = doc.eval(Classes.User.Fields.Username).asInstanceOf[String]
-      val userType = doc.eval(Classes.User.Fields.UserType).asInstanceOf[String]
+      val username = doc.eval("user.username").asInstanceOf[String]
+      val userType = doc.eval("user.userType").asInstanceOf[String]
       val userId = DomainUserId(DomainUserType.withName(userType), username)
       val seen = doc.getProperty("seen").asInstanceOf[Long]
       ChatMember(id, userId, seen)
@@ -256,7 +259,7 @@ object ChatStore {
     val lastEventTime: Instant = doc.getProperty(Classes.ChatEvent.Fields.Timestamp).asInstanceOf[Date].toInstant()
     ChatInfo(
       id,
-      ChatType.withNameOpt(chatType).get,
+      ChatType.parse(chatType),
       created,
       isPrivate match {
         case true => ChatMembership.Private

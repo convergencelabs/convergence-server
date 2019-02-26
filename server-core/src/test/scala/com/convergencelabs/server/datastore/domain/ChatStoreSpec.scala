@@ -149,7 +149,7 @@ class ChatStoreSpec
       "return the correct chat channel" in withTestData { provider =>
         val members = Set(user1Id, user2Id)
         val id = provider.chatStore.createChat(
-          Some(channel1Id), ChatType.Direct, Instant.now(), ChatMembership.Public, "testName", "testTopic", Some(members), user1Id).get
+          Some(channel1Id), ChatType.Direct, Instant.now(), ChatMembership.Private, "testName", "testTopic", Some(members), user1Id).get
         val info = provider.chatStore.getDirectChatInfoByUsers(members).get.value
         info.id shouldBe id
       }

@@ -7,6 +7,6 @@ object ChatUserRemovedEventClass extends OrientDbClass {
     val Chat = "chat"
     val EventNo = "eventNo"
     val User = "user"
-    val Timestamp = "Timestamp"
+    val Timestamp = "timestamp"
   }
 }

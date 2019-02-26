@@ -86,16 +86,16 @@ class IdentityCacheManager(
 
       // Chat
       case Body.GetChatsResponse(body) =>
-        val users = body.channelInfo.flatMap(_.members.map(m => dataToDomainUserId(m.user.get))).toSet
+        val users = body.chatInfo.flatMap(_.members.map(m => dataToDomainUserId(m.user.get))).toSet
         processMessage(message, Set(), users)
       case Body.GetDirectChatsResponse(body) =>
-        val users = body.channelInfo.flatMap(_.members.map(m => dataToDomainUserId(m.user.get))).toSet
+        val users = body.chatInfo.flatMap(_.members.map(m => dataToDomainUserId(m.user.get))).toSet
         processMessage(message, Set(), users)
       case Body.GetJoinedChatsResponse(body) =>
-        val users = body.channelInfo.flatMap(_.members.map(m => dataToDomainUserId(m.user.get))).toSet
+        val users = body.chatInfo.flatMap(_.members.map(m => dataToDomainUserId(m.user.get))).toSet
         processMessage(message, Set(), users)
       case Body.JoinChatResponse(body) =>
-        val users = body.channelInfo.get.members.map(m => ImplicitMessageConversions.dataToDomainUserId(m.user.get)).toSet
+        val users = body.chatInfo.get.members.map(m => ImplicitMessageConversions.dataToDomainUserId(m.user.get)).toSet
         processMessage(message, Set(), users)
       case Body.UserJoinedChat(body) =>
         processMessage(message, Set(), Set(body.user.get))
