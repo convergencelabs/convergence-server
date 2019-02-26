@@ -531,33 +531,33 @@ class ChatClientActor(
     cause match {
       case ChatNotFoundException(chatId) =>
         cb.expectedError(
-          "channel_not_found",
-          s"Could not complete the request because a channel with id '${chatId}' does not exist.",
+          "chat_not_found",
+          s"Could not complete the request because a chat with id '${chatId}' does not exist.",
           Map("chatId" -> chatId))
       case ChatNotJoinedException(chatId) =>
         cb.expectedError(
-          "channel_not_joined",
-          s"Could not complete the request the user is not joined to the channel: '${chatId}'",
+          "chat_not_joined",
+          s"Could not complete the request the user is not joined to the chat: '${chatId}'",
           Map("chatId" -> chatId))
       case ChatAlreadyExistsException(chatId) =>
         cb.expectedError(
-          "channel_already_exists",
-          s"Could not complete the request because a channel with id '${chatId}' aready exists.",
+          "chatl_already_exists",
+          s"Could not complete the request because a chat with id '${chatId}' aready exists.",
           Map("chatId" -> chatId))
       case ChatAlreadyJoinedException(chatId) =>
         cb.expectedError(
-          "channel_already_joined",
-          s"Could not complete the request the user is already joined to the channel: '${chatId}'",
+          "chat_already_joined",
+          s"Could not complete the request the user is already joined to the chat: '${chatId}'",
           Map("chatId" -> chatId))
       case InvalidChatMessageExcpetion(message) =>
         cb.expectedError(
-          "invalid_channel_message",
-          s"The message that was sent was not valid for this type of channel: '${message}'",
+          "invalid_chat_message",
+          s"The message that was sent was not valid for this type of chat: '${message}'",
           Map())
     }
   }
 
-  private[this] def toChannelEventCode: PartialFunction[Int, String] = {
+  private[this] def toChatEventCode: PartialFunction[Int, String] = {
     case 0 => "created"
     case 1 => "message"
     case 2 => "user_joined"
