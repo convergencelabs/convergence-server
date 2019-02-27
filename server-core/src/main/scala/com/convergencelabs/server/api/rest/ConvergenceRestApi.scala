@@ -53,6 +53,7 @@ import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.api.rest.domain.DomainService
 import com.convergencelabs.server.domain.chat.ChatSharding
+import com.convergencelabs.server.datastore.convergence.ServerStatusActor
 
 object ConvergenceRestApi {
   val ConvergenceCorsSettings = CorsSettings.defaultSettings.copy(
@@ -109,6 +110,7 @@ class ConvergenceRestApi(
     val configActor = createBackendRouter(ConfigStoreActor.RelativePath, "configActor")
     val favoriteDomainsActor = createBackendRouter(UserFavoriteDomainStoreActor.RelativePath, "favoriteDomainsActor")
     val domainStoreActor = createBackendRouter(DomainStoreActor.RelativePath, "domainStoreActor")
+    val statuseActor = createBackendRouter(ServerStatusActor.RelativePath, "serverStatusActor")
 
     val authenticator = new Authenticator(authStoreActor, defaultRequestTimeout, ec)
 
@@ -118,6 +120,7 @@ class ConvergenceRestApi(
     val namespaceService = new NamespaceService(ec, namespaceActor, defaultRequestTimeout)
     val roleService = new RoleService(ec, roleActor, defaultRequestTimeout)
     val configService = new ConfigService(ec, configActor, defaultRequestTimeout)
+    val statusService = new ServerStatusService(ec, statuseActor, defaultRequestTimeout)
     val keyGenService = new KeyGenService(ec)
     val convergenceUserService = new ConvergenceUserService(ec, convergenceUserActor, defaultRequestTimeout)
     val convergenceImportService = new ConvergenceImportService(ec, importerActor, defaultRequestTimeout)
@@ -158,6 +161,7 @@ class ConvergenceRestApi(
             authenticator.requireAuthenticatedUser(request) { authProfile =>
               concat(
                 currentUserService.route(authProfile),
+                statusService.route(authProfile),
                 convergenceUserService.route(authProfile),
                 namespaceService.route(authProfile),
                 domainService.route(authProfile),

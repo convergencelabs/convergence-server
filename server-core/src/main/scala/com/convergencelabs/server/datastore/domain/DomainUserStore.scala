@@ -58,7 +58,8 @@ object DomainUserStore {
     firstName: Option[String],
     lastName: Option[String],
     displayName: Option[String],
-    email: Option[String])
+    email: Option[String],
+    disabled: Option[Boolean])
 
   private[this] val deletedUsernameGenerator = new RandomStringGenerator(36, RandomStringGenerator.Base64);
   def generateDeletedUsername(): String = {
@@ -116,7 +117,7 @@ object DomainUserStore {
     |SET 
     |  username = :newUsername, 
     |  deleted = true, 
-    |  deletedUsername = username 
+    |  deletedUsername = :username 
     |WHERE 
     |  username = :username AND 
     |  userType = '${DomainUserType.Normal.toString.toLowerCase}'
@@ -229,7 +230,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
    * @param domainUser The user to update.
    */
   def updateDomainUser(update: UpdateDomainUser): Try[Unit] = withDb { db =>
-    val UpdateDomainUser(username, firstName, lastName, displayName, email) = update;
+    val UpdateDomainUser(username, firstName, lastName, displayName, email, disabled) = update;
 
     val query = "SELECT FROM User WHERE username = :username AND userType = 'normal'"
     val params = Map(Fields.Username -> username)
@@ -253,6 +254,9 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
         case None => doc.removeProperty(Fields.Email)
         case Some(value) => doc.setProperty(Fields.Email, value)
       }
+      
+      disabled.foreach(d => doc.setProperty(Fields.Disabled, d))
+      
       db.save(doc)
       ()
     }
@@ -325,7 +329,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
 
     val order = orderBy.getOrElse(DomainUserField.Username)
     val sort = sortOrder.getOrElse(SortOrder.Descending)
-    val baseQuery = s"SELECT * FROM User WHERE userType = 'normal' ORDER BY $order $sort"
+    val baseQuery = s"SELECT * FROM User WHERE deleted != true AND userType = 'normal' ORDER BY $order $sort"
     val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
     OrientDBUtil
       .query(db, query)
@@ -347,7 +351,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
       whereTerms += s"$field LIKE :searchString"
     }
 
-    val whereClause = " WHERE userType = 'normal' AND (" + whereTerms.mkString(" OR ") + ")"
+    val whereClause = " WHERE deleted != true AND userType = 'normal' AND (" + whereTerms.mkString(" OR ") + ")"
 
     val order = orderBy.getOrElse(DomainUserField.Username)
     val sort = sortOrder.getOrElse(SortOrder.Descending)
@@ -386,6 +390,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
       |SELECT *, username.length() as size
       |FROM User
       |WHERE
+      |  deleted != true AND
       |  userType = 'normal' AND
       |  username NOT IN :exclude AND
       |  (username LIKE :search OR 
@@ -459,7 +464,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
    * @return true if the username and password match, false otherwise.
    */
   def validateCredentials(username: String, password: String): Try[Boolean] = withDb { db =>
-    val query = "SELECT password FROM UserCredential WHERE user.username = :username AND user.userType = 'normal'"
+    val query = "SELECT password FROM UserCredential WHERE user.username = :username AND user.userType = 'normal' AND user.disabled = false"
     val params = Map(Fields.Username -> username)
     OrientDBUtil
       .findDocument(db, query, params)

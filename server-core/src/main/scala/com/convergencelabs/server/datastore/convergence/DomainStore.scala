@@ -109,6 +109,11 @@ class DomainStore(dbProvider: DatabaseProvider)
     OrientDBUtil.getDocument(db, DomainExistsQuery, params).map(_.getProperty("count").asInstanceOf[Long] > 0)
   }
 
+  private[this] val DomainCountQuery = "SELECT count(@rid) as count FROM Domain"
+  def domainCount(): Try[Long] = withDb { db =>
+    OrientDBUtil.getDocument(db, DomainCountQuery).map(_.getProperty("count").asInstanceOf[Long])
+  }
+
   private[this] val GetDomainQuery = "SELECT FROM Domain WHERE namespace.id = :namespace AND id = :id"
   def getDomainByFqn(domainFqn: DomainFqn): Try[Option[Domain]] = withDb { db =>
     val DomainFqn(namespace, domainId) = domainFqn

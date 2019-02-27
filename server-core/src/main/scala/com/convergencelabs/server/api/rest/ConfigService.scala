@@ -32,10 +32,6 @@ import com.convergencelabs.server.datastore.convergence.ConfigStoreActor.GetConf
 import com.convergencelabs.server.datastore.convergence.ConfigStoreActor.SetConfigs
 
 object ConfigService {
-  case class BearerTokenResponse(token: String)
-  case class CovergenceUserProfile(username: String, email: String, firstName: String, lastName: String, displayName: String)
-  case class UpdateProfileRequest(email: String, firstName: String, lastName: String, displayName: String)
-  case class PasswordSetRequest(password: String)
 }
 
 class ConfigService(

@@ -80,6 +80,11 @@ class NamespaceStore(dbProvider: DatabaseProvider)
   def namespaceExists(id: String): Try[Boolean] = withDb { db =>
     OrientDBUtil.indexContains(db, Indices.Id, id)
   }
+  
+  private[this] val NamespaceCountQuery = "SELECT count(@rid) as count FROM Namespace"
+  def namespaceCount(): Try[Long] = withDb { db =>
+    OrientDBUtil.getDocument(db, NamespaceCountQuery).map(_.getProperty("count").asInstanceOf[Long])
+  }
 
   def getNamespace(id: String): Try[Option[Namespace]] = withDb { db =>
     OrientDBUtil.findDocumentFromSingleValueIndex(db, Indices.Id, id).map(_.map(docToNamespace(_)))

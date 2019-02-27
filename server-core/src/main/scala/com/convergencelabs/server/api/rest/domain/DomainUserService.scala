@@ -33,7 +33,8 @@ object DomainUserService {
     firstName: Option[String],
     lastName: Option[String],
     displayName: Option[String],
-    email: Option[String])
+    email: Option[String],
+    disabled: Option[Boolean])
   case class SetPasswordRequest(password: String)
   case class UserLookupRequest(filter: String, exclude: Option[List[String]], offset: Option[Int], limit: Option[Int])
 
@@ -126,8 +127,8 @@ class DomainUserService(
   }
 
   def updateUserRequest(username: String, updateRequest: UpdateUserRequest, domain: DomainFqn): Future[RestResponse] = {
-    val UpdateUserRequest(firstName, lastName, displayName, email) = updateRequest
-    val message = DomainRestMessage(domain, UpdateUser(username, firstName, lastName, displayName, email))
+    val UpdateUserRequest(firstName, lastName, displayName, email, disabled) = updateRequest
+    val message = DomainRestMessage(domain, UpdateUser(username, firstName, lastName, displayName, email, disabled))
     (domainRestActor ? message) map { _ => OkResponse }
   }
 

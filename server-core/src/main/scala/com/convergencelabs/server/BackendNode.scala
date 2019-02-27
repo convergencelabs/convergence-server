@@ -34,6 +34,7 @@ import akka.cluster.sharding.ShardRegion
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.datastore.convergence.ConfigStoreActor
 import com.convergencelabs.server.datastore.convergence.UserFavoriteDomainStore
+import com.convergencelabs.server.datastore.convergence.ServerStatusActor
 
 class BackendNode(system: ActorSystem, convergenceDbProvider: DatabaseProvider) extends Logging {
 
@@ -109,6 +110,7 @@ class BackendNode(system: ActorSystem, convergenceDbProvider: DatabaseProvider) 
     val convergenceUserActor = system.actorOf(ConvergenceUserManagerActor.props(convergenceDbProvider, domainStoreActor), ConvergenceUserManagerActor.RelativePath)
     val roleStoreActor = system.actorOf(RoleStoreActor.props(convergenceDbProvider), RoleStoreActor.RelativePath)
     val configStoreActor = system.actorOf(ConfigStoreActor.props(convergenceDbProvider), ConfigStoreActor.RelativePath)
+    val serverStatusActor = system.actorOf(ServerStatusActor.props(convergenceDbProvider), ServerStatusActor.RelativePath)
     val favoriteDomainStoreActor = system.actorOf(UserFavoriteDomainStoreActor.props(convergenceDbProvider), UserFavoriteDomainStoreActor.RelativePath)
 
     val domainRestSharding =

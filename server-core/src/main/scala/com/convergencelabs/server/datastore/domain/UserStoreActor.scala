@@ -33,7 +33,8 @@ object UserStoreActor {
     firstName: Option[String],
     lastName: Option[String],
     displayName: Option[String],
-    email: Option[String]) extends UserStoreRequest
+    email: Option[String],
+    disabled: Option[Boolean]) extends UserStoreRequest
   case class SetPassword(
     uid: String,
     password: String) extends UserStoreRequest
@@ -102,8 +103,8 @@ class UserStoreActor private[datastore] (private[this] val userStore: DomainUser
   }
 
   def updateUser(message: UpdateUser): Unit = {
-    val UpdateUser(username, firstName, lastName, displayName, email) = message
-    val domainuser = UpdateDomainUser(username, firstName, lastName, displayName, email);
+    val UpdateUser(username, firstName, lastName, displayName, email, disabled) = message
+    val domainuser = UpdateDomainUser(username, firstName, lastName, displayName, email, disabled);
     reply(userStore.updateDomainUser(domainuser))
   }
 
