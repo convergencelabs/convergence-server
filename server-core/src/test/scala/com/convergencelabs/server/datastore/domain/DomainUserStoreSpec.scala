@@ -102,7 +102,7 @@ class DomainUserStoreSpec
       "currectly update an existing user, if unique properties are not violated" in withPersistenceStore { store =>
         initUsers(store)
         val update = UpdateDomainUser(User1.username, Some("f"), Some("l"), Some("d"), Some("e"), Some(true))
-        val updated = DomainUser(DomainUserType.Normal, User1.username, Some("f"), Some("l"), Some("d"), Some("e"))
+        val updated = DomainUser(DomainUserType.Normal, User1.username, Some("f"), Some("l"), Some("d"), Some("e"), true, false, None)
         store.updateDomainUser(update).get
         val queried = store.getNormalDomainUser(User1.username).get.get
         queried shouldBe updated

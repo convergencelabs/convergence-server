@@ -81,7 +81,7 @@ class NamespaceStore(dbProvider: DatabaseProvider)
     OrientDBUtil.indexContains(db, Indices.Id, id)
   }
   
-  private[this] val NamespaceCountQuery = "SELECT count(@rid) as count FROM Namespace"
+  private[this] val NamespaceCountQuery = "SELECT count(@rid) as count FROM Namespace WHERE NOT(id LIKE '~%')"
   def namespaceCount(): Try[Long] = withDb { db =>
     OrientDBUtil.getDocument(db, NamespaceCountQuery).map(_.getProperty("count").asInstanceOf[Long])
   }
