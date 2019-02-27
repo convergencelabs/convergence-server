@@ -52,6 +52,7 @@ class DomainService(
   private[this] val domainManagerActor: ActorRef, // RestDomainActor
   private[this] val permissionStoreActor: ActorRef,
   private[this] val modelClusterRegion: ActorRef,
+  private[this] val chatClusterRegion: ActorRef,
   private[this] val defaultTimeout: Timeout)
   extends JsonSupport {
 
@@ -71,7 +72,7 @@ class DomainService(
   val domainModelService = new DomainModelService(ec, t, domainManagerActor, modelClusterRegion)
   val domainKeyService = new DomainKeyService(ec, t, domainManagerActor)
   val domainAdminTokenService = new DomainAdminTokenService(ec, t, domainManagerActor)
-  val domainChatService = new DomainChatService(ec, t, domainManagerActor)
+  val domainChatService = new DomainChatService(ec, t, domainManagerActor, chatClusterRegion)
   val domainSecurityService = new DomainSecurityService(ec, t, permissionStoreActor)
 
   val route = { authProfile: AuthorizationProfile =>

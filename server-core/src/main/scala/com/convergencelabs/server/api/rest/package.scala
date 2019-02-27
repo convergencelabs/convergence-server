@@ -49,7 +49,7 @@ package object rest {
   def methodNotAllowed(methods: Seq[String]): RestResponse = (
       StatusCodes.NotFound, 
       ErrorResponse("method_not_allowed", Some(s"The only supported methods at this url are: ${methods mkString ", "}")))
-  
+  def unknownErrorResponse(message: Option[String] = None): RestResponse = (StatusCodes.NotFound, ErrorResponse("unknown", message))
   def namespaceNotFoundResponse(namespace: String): RestResponse = (StatusCodes.BadRequest, ErrorResponse("namespace_not_found", None, Some(Map("namespace" -> namespace))))
   
   def okResponse(data: Any): RestResponse = (StatusCodes.OK, SuccessRestResponse(data))

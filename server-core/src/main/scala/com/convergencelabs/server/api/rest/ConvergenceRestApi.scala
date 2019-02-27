@@ -52,6 +52,7 @@ import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.api.rest.domain.DomainService
+import com.convergencelabs.server.domain.chat.ChatSharding
 
 object ConvergenceRestApi {
   val ConvergenceCorsSettings = CorsSettings.defaultSettings.copy(
@@ -79,6 +80,7 @@ class ConvergenceRestApi(
 
   private[this] val modelClusterRegion: ActorRef = RealtimeModelSharding.shardRegion(system)
   private[this] val restDomainActorRegion: ActorRef = RestDomainActorSharding.shardRegion(system)
+  private[this] val chatActorRegion: ActorRef = ChatSharding.shardRegion(system)
 
   val exceptionHandler: ExceptionHandler = ExceptionHandler {
     case e: DuplicateValueException =>
@@ -127,6 +129,7 @@ class ConvergenceRestApi(
       restDomainActorRegion,
       roleActor,
       modelClusterRegion,
+      chatActorRegion,
       defaultRequestTimeout)
 
     implicit def rejectionHandler = RejectionHandler

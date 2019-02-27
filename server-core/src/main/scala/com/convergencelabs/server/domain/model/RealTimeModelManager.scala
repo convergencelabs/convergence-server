@@ -393,7 +393,7 @@ class RealTimeModelManager(
               requestModelDataFromDatastore()
             } recover {
               case cause: Exception =>
-                handleQueuedClientOpenFailureFailure(session, cause)
+                handleQueuedClientOpenFailureFailure(session, Status.Failure(cause))
             }
         case None =>
           // Here we could not find the opening record, so we don't know who to respond to.

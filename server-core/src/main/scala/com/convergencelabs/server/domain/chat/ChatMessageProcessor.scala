@@ -22,10 +22,10 @@ import com.convergencelabs.server.domain.chat.ChatMessages.LeaveChannelRequest
 import com.convergencelabs.server.domain.chat.ChatMessages.MarkChannelEventsSeenRequest
 import com.convergencelabs.server.domain.chat.ChatMessages.PublishChatMessageRequest
 import com.convergencelabs.server.domain.chat.ChatMessages.RemoteChatMessage
-import com.convergencelabs.server.domain.chat.ChatMessages.RemoveChannelRequest
+import com.convergencelabs.server.domain.chat.ChatMessages.RemoveChatlRequest
 import com.convergencelabs.server.domain.chat.ChatMessages.RemoveUserFromChannelRequest
-import com.convergencelabs.server.domain.chat.ChatMessages.SetChannelNameRequest
-import com.convergencelabs.server.domain.chat.ChatMessages.SetChannelTopicRequest
+import com.convergencelabs.server.domain.chat.ChatMessages.SetChatNameRequest
+import com.convergencelabs.server.domain.chat.ChatMessages.SetChatTopicRequest
 import com.convergencelabs.server.domain.chat.ChatMessages.UserAddedToChannel
 import com.convergencelabs.server.domain.chat.ChatMessages.UserJoinedChat
 import com.convergencelabs.server.domain.chat.ChatMessages.AddChatPermissionsRequest
@@ -53,7 +53,7 @@ abstract class ChatMessageProcessor(stateManager: ChatStateManager) {
 
   def processChatMessage(message: ExistingChatMessage): Try[ChatMessageProcessingResult] = {
     message match {
-      case message: RemoveChannelRequest =>
+      case message: RemoveChatlRequest =>
         onRemoveChannel(message)
       case message: JoinChannelRequest =>
         onJoinChannel(message)
@@ -63,9 +63,9 @@ abstract class ChatMessageProcessor(stateManager: ChatStateManager) {
         onAddUserToChannel(message)
       case message: RemoveUserFromChannelRequest =>
         onRemoveUserFromChannel(message)
-      case message: SetChannelNameRequest =>
+      case message: SetChatNameRequest =>
         onSetChatChannelName(message)
-      case message: SetChannelTopicRequest =>
+      case message: SetChatTopicRequest =>
         onSetChatChannelTopic(message)
       case message: MarkChannelEventsSeenRequest =>
         onMarkEventsSeen(message)
@@ -130,17 +130,17 @@ abstract class ChatMessageProcessor(stateManager: ChatStateManager) {
     }
   }
 
-  def onSetChatChannelName(message: SetChannelNameRequest): Try[ChatMessageProcessingResult] = {
-    val SetChannelNameRequest(domainFqn, chatId, requestor, name) = message;
-    stateManager.onSetChatChannelName(chatId, requestor.userId, name) map {
+  def onSetChatChannelName(message: SetChatNameRequest): Try[ChatMessageProcessingResult] = {
+    val SetChatNameRequest(domainFqn, chatId, requestor, name) = message;
+    stateManager.onSetChatChannelName(chatId, requestor, name) map {
       case ChatNameChangedEvent(eventNo, chatId, user, timestamp, name) =>
         ChatMessageProcessingResult(Some(()), List(ChatNameChanged(chatId, eventNo, timestamp, user, name)))
     }
   }
 
-  def onSetChatChannelTopic(message: SetChannelTopicRequest): Try[ChatMessageProcessingResult] = {
-    val SetChannelTopicRequest(domainFqn, chatId, requestor, topic) = message;
-    stateManager.onSetChatChannelTopic(chatId, requestor.userId, topic) map {
+  def onSetChatChannelTopic(message: SetChatTopicRequest): Try[ChatMessageProcessingResult] = {
+    val SetChatTopicRequest(domainFqn, chatId, requestor, topic) = message;
+    stateManager.onSetChatChannelTopic(chatId, requestor, topic) map {
       case ChatTopicChangedEvent(eventNo, chatId, user, timestamp, topic) =>
         ChatMessageProcessingResult(Some(()), List(ChatTopicChanged(chatId, eventNo, timestamp, user, topic)))
     }
@@ -168,9 +168,9 @@ abstract class ChatMessageProcessor(stateManager: ChatStateManager) {
     }
   }
 
-  def onRemoveChannel(message: RemoveChannelRequest): Try[ChatMessageProcessingResult] = {
-    val RemoveChannelRequest(domainFqn, chatId, requestor) = message;
-    stateManager.onRemoveChannel(chatId, requestor.userId) map { _ =>
+  def onRemoveChannel(message: RemoveChatlRequest): Try[ChatMessageProcessingResult] = {
+    val RemoveChatlRequest(domainFqn, chatId, requestor) = message;
+    stateManager.onRemoveChannel(chatId, requestor) map { _ =>
       ChatMessageProcessingResult(Some(()), List(ChannelRemoved(chatId)))
     }
   }

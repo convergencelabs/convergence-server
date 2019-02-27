@@ -1,5 +1,0 @@
-@(firstName: String)
-
-@firstName, thank you for requesting a Convergence account. We have received your request and will be reviewing it soon. 
-
-When the request is approved, you will receive an email at this address with instructions to create an account.

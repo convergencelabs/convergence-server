@@ -14,18 +14,18 @@ import com.typesafe.config.ConfigValueFactory
 
 import grizzled.slf4j.Logging
 
-object TestServer {
+object ConvergenceDevServer {
   def main(args: Array[String]): Unit = {
-    val server = new TestServer()
+    val server = new ConvergenceDevServer()
     server.start()
   }
 }
 
-class TestServer() extends Logging {
+class ConvergenceDevServer() extends Logging {
 
   ConvergenceServerNode.configureLogging()
 
-  val persistent = java.lang.Boolean.getBoolean("convergence.test-server.persistent")
+  val persistent = java.lang.Boolean.getBoolean("convergence.dev-server.persistent")
   val odbTarget = new File("target/orientdb/databases")
 
   val seed = new ConvergenceServerNode(

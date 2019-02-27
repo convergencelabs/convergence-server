@@ -14,29 +14,14 @@ import akka.actor.ActorRef
 
 object ChatMessages {
 
-  trait ChatMessage {
-
-  }
-
-  case class CreateChatRequest(
-    chatId: Option[String],
-    createdBy: DomainUserSessionId,
-    chatType: ChatType.Value,
-    membership: ChatMembership.Value,
-    name: Option[String],
-    topic: Option[String],
-    members: Set[DomainUserId]) extends ChatMessage
-
-  case class CreateChannelResponse(channelId: String)
-
-  sealed trait ExistingChatMessage extends ChatMessage {
+  sealed trait ExistingChatMessage {
     val domainFqn: DomainFqn
     val chatId: String
   }
 
   // Incoming Messages
 
-  case class RemoveChannelRequest(domainFqn: DomainFqn, chatId: String, requestor: DomainUserSessionId) extends ExistingChatMessage
+  case class RemoveChatlRequest(domainFqn: DomainFqn, chatId: String, requestor: DomainUserId) extends ExistingChatMessage
 
   case class JoinChannelRequest(domainFqn: DomainFqn, chatId: String, requestor: DomainUserSessionId, client: ActorRef) extends ExistingChatMessage
   case class JoinChannelResponse(info: ChatInfo)
@@ -45,8 +30,8 @@ object ChatMessages {
   case class AddUserToChannelRequest(domainFqn: DomainFqn, chatId: String, requestor: DomainUserSessionId, userToAdd: DomainUserId) extends ExistingChatMessage
   case class RemoveUserFromChannelRequest(domainFqn: DomainFqn, chatId: String, requestor: DomainUserSessionId, userToRemove: DomainUserId) extends ExistingChatMessage
 
-  case class SetChannelNameRequest(domainFqn: DomainFqn, chatId: String, requestor: DomainUserSessionId, name: String) extends ExistingChatMessage
-  case class SetChannelTopicRequest(domainFqn: DomainFqn, chatId: String, requestor: DomainUserSessionId, topic: String) extends ExistingChatMessage
+  case class SetChatNameRequest(domainFqn: DomainFqn, chatId: String, requestor: DomainUserId, name: String) extends ExistingChatMessage
+  case class SetChatTopicRequest(domainFqn: DomainFqn, chatId: String, requestor: DomainUserId, topic: String) extends ExistingChatMessage
   case class MarkChannelEventsSeenRequest(domainFqn: DomainFqn, chatId: String, requestor: DomainUserSessionId, eventNumber: Long) extends ExistingChatMessage
 
   case class PublishChatMessageRequest(domainFqn: DomainFqn, chatId: String, requestor: DomainUserSessionId, message: String) extends ExistingChatMessage

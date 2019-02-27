@@ -17,8 +17,6 @@ import com.convergencelabs.server.domain.DomainFqn
 import com.convergencelabs.server.domain.DomainUserId
 import com.convergencelabs.server.domain.UnauthorizedException
 import com.convergencelabs.server.domain.chat.ChatMessages.ChatAlreadyExistsException
-import com.convergencelabs.server.domain.chat.ChatMessages.CreateChatRequest
-import com.convergencelabs.server.domain.chat.ChatMessages.CreateChannelResponse
 import com.convergencelabs.server.domain.chat.ChatStateManager.ChatPermissions
 
 import akka.actor.Actor
@@ -38,8 +36,20 @@ object ChatLookupActor {
   def props(provider: DomainPersistenceProvider): Props = Props(new ChatLookupActor(provider))
 
   trait ChatStoreRequest
-  case class GetChats(offset: Option[Int], limit: Option[Int]) extends ChatStoreRequest
+  case class FindChatInfo(filter: Option[String], offset: Option[Int], limit: Option[Int]) extends ChatStoreRequest
+  case class GetChatInfo(chatId: String) extends ChatStoreRequest
 
+  case class CreateChatRequest(
+    chatId: Option[String],
+    createdBy: DomainUserId,
+    chatType: ChatType.Value,
+    membership: ChatMembership.Value,
+    name: Option[String],
+    topic: Option[String],
+    members: Set[DomainUserId]) extends ChatStoreRequest
+
+  case class CreateChatResponse(channelId: String)
+  
   case class GetChannelsRequest(userId: DomainUserId, ids: List[String])
   case class GetChannelsResponse(channels: List[ChatInfo])
 
@@ -73,19 +83,21 @@ class ChatLookupActor private[domain] (provider: DomainPersistenceProvider) exte
       onGetDirect(message)
     case message: ChannelsExistsRequest =>
       onExists(message)
-    case message: GetChats =>
+    case message: FindChatInfo =>
       onGetChats(message)
+      case message: GetChatInfo =>
+      onGetChat(message)
   }
 
   def onCreateChannel(message: CreateChatRequest): Unit = {
     val CreateChatRequest(channelId, createdBy, chatType, membership, name, topic, members) = message
-    hasPermission(createdBy.userId, ChatPermissions.CreateChannel).map { _ =>
+    hasPermission(createdBy, ChatPermissions.CreateChannel).map { _ =>
       (for {
-        id <- createChannel(channelId, chatType, membership, name, topic, members, createdBy.userId)
+        id <- createChannel(channelId, chatType, membership, name, topic, members, createdBy)
         forRecord <- chatStore.getChatRid(id)
-        _ <- permissionsStore.addUserPermissions(ChatStateManager.AllChatPermissions, createdBy.userId, Some(forRecord))
+        _ <- permissionsStore.addUserPermissions(ChatStateManager.AllChatPermissions, createdBy, Some(forRecord))
       } yield {
-        sender ! CreateChannelResponse(id)
+        sender ! CreateChatResponse(id)
       }) recover {
         case e: DuplicateValueException =>
           // FIXME how to deal with this? The channel id should only conflict if it was
@@ -98,9 +110,19 @@ class ChatLookupActor private[domain] (provider: DomainPersistenceProvider) exte
     }
   }
 
-  def onGetChats(message: GetChats): Unit = {
-    val GetChats(offset, limit) = message
-    chatStore.getChats(None, offset, limit).map { info =>
+  def onGetChats(message: FindChatInfo): Unit = {
+    val FindChatInfo(filter, offset, limit) = message
+    chatStore.findChats(None, filter, offset, limit).map { info =>
+      sender ! info
+    } recover {
+      case cause: Exception =>
+        sender ! Status.Failure(cause)
+    }
+  }
+  
+  def onGetChat(message: GetChatInfo): Unit = {
+    val GetChatInfo(chatId) = message
+    chatStore.getChatInfo(chatId).map { info =>
       sender ! info
     } recover {
       case cause: Exception =>

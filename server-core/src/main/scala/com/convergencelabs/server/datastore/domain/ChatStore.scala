@@ -31,23 +31,23 @@ import com.convergencelabs.server.domain.DomainUserId
 import com.convergencelabs.server.domain.DomainUserId
 
 case class Chat(
-  id: String,
-  chatType: ChatType.Value,
-  created: Instant,
+  id:         String,
+  chatType:   ChatType.Value,
+  created:    Instant,
   membership: ChatMembership.Value,
-  name: String,
-  topic: String)
+  name:       String,
+  topic:      String)
 
 case class ChatInfo(
-  id: String,
-  chatType: ChatType.Value,
-  created: Instant,
-  membership: ChatMembership.Value,
-  name: String,
-  topic: String,
+  id:              String,
+  chatType:        ChatType.Value,
+  created:         Instant,
+  membership:      ChatMembership.Value,
+  name:            String,
+  topic:           String,
   lastEventNumber: Long,
-  lastEventTime: Instant,
-  members: Set[ChatMember])
+  lastEventTime:   Instant,
+  members:         Set[ChatMember])
 
 sealed trait ChatEvent {
   val eventNumber: Long
@@ -58,59 +58,59 @@ sealed trait ChatEvent {
 
 case class ChatCreatedEvent(
   eventNumber: Long,
-  id: String,
-  user: DomainUserId,
-  timestamp: Instant,
-  name: String,
-  topic: String,
-  members: Set[DomainUserId]) extends ChatEvent
+  id:          String,
+  user:        DomainUserId,
+  timestamp:   Instant,
+  name:        String,
+  topic:       String,
+  members:     Set[DomainUserId]) extends ChatEvent
 
 case class ChatMessageEvent(
   eventNumber: Long,
-  id: String,
-  user: DomainUserId,
-  timestamp: Instant,
-  message: String) extends ChatEvent
+  id:          String,
+  user:        DomainUserId,
+  timestamp:   Instant,
+  message:     String) extends ChatEvent
 
 case class ChatUserJoinedEvent(
   eventNumber: Long,
-  id: String,
-  user: DomainUserId,
-  timestamp: Instant) extends ChatEvent
+  id:          String,
+  user:        DomainUserId,
+  timestamp:   Instant) extends ChatEvent
 
 case class ChatUserLeftEvent(
   eventNumber: Long,
-  id: String,
-  user: DomainUserId,
-  timestamp: Instant) extends ChatEvent
+  id:          String,
+  user:        DomainUserId,
+  timestamp:   Instant) extends ChatEvent
 
 case class ChatUserAddedEvent(
   eventNumber: Long,
-  id: String,
-  user: DomainUserId,
-  timestamp: Instant,
-  userAdded: DomainUserId) extends ChatEvent
+  id:          String,
+  user:        DomainUserId,
+  timestamp:   Instant,
+  userAdded:   DomainUserId) extends ChatEvent
 
 case class ChatUserRemovedEvent(
   eventNumber: Long,
-  id: String,
-  user: DomainUserId,
-  timestamp: Instant,
+  id:          String,
+  user:        DomainUserId,
+  timestamp:   Instant,
   userRemoved: DomainUserId) extends ChatEvent
 
 case class ChatNameChangedEvent(
   eventNumber: Long,
-  id: String,
-  user: DomainUserId,
-  timestamp: Instant,
-  name: String) extends ChatEvent
+  id:          String,
+  user:        DomainUserId,
+  timestamp:   Instant,
+  name:        String) extends ChatEvent
 
 case class ChatTopicChangedEvent(
   eventNumber: Long,
-  id: String,
-  user: DomainUserId,
-  timestamp: Instant,
-  topic: String) extends ChatEvent
+  id:          String,
+  user:        DomainUserId,
+  timestamp:   Instant,
+  topic:       String) extends ChatEvent
 
 case class ChatMember(chatId: String, userId: DomainUserId, seen: Long)
 
@@ -119,7 +119,7 @@ object ChatMembership extends Enumeration {
 
   def parse(s: String): ChatMembership.Value = values.find(_.toString.toLowerCase() == s.toLowerCase()) match {
     case Some(v) => v
-    case None => throw new IllegalArgumentException("Invalid ChatMembership string: " + s)
+    case None    => throw new IllegalArgumentException("Invalid ChatMembership string: " + s)
   }
 }
 
@@ -130,7 +130,7 @@ object ChatType extends Enumeration {
 
   def parse(s: String): ChatType.Value = values.find(_.toString.toLowerCase() == s.toLowerCase()) match {
     case Some(v) => v
-    case None => throw new IllegalArgumentException("Invalid ChatType string: " + s)
+    case None    => throw new IllegalArgumentException("Invalid ChatType string: " + s)
   }
 }
 
@@ -140,8 +140,8 @@ object ChatStore {
 
   def chatTypeString(chatType: ChatType.Value): String = chatType match {
     case ChatType.Channel => "channel"
-    case ChatType.Room => "room"
-    case ChatType.Direct => "direct"
+    case ChatType.Room    => "room"
+    case ChatType.Direct  => "direct"
   }
 
   object Params {
@@ -173,7 +173,7 @@ object ChatStore {
       ChatType.parse(doc.getProperty(Classes.Chat.Fields.Type)),
       created.toInstant(),
       doc.getProperty(Classes.Chat.Fields.Private).asInstanceOf[Boolean] match {
-        case true => ChatMembership.Private
+        case true  => ChatMembership.Private
         case false => ChatMembership.Public
       },
       doc.getProperty(Classes.Chat.Fields.Name),
@@ -262,7 +262,7 @@ object ChatStore {
       ChatType.parse(chatType),
       created,
       isPrivate match {
-        case true => ChatMembership.Private
+        case true  => ChatMembership.Private
         case false => ChatMembership.Public
       },
       name,
@@ -281,17 +281,44 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
   import com.convergencelabs.server.datastore.domain.schema.DomainSchema._
   import ChatStore._
 
-  def getChatInfo(chatId: String): Try[ChatInfo] = {
-    getChatInfo(List(chatId)).flatMap {
-      _ match {
-        case first :: Nil => Success(first)
-        case Nil => Failure(EntityNotFoundException())
-        case _ => Failure(MultipleValuesException())
-      }
+  def findChats(types: Option[Set[String]], filter: Option[String], offset: Option[Int], limit: Option[Int]): Try[List[ChatInfo]] = withDb { db =>
+    val chatTypes = types.getOrElse(Set(ChatType.Channel.toString().toLowerCase(), ChatType.Room.toString().toLowerCase()))
+
+    val (whereClause, whereParams) = filter match {
+      case Some(filter) =>
+        val where = "chat.type IN :chatTypes AND (chat.topic.toLowerCase() LIKE :term OR chat.name.toLowerCase() LIKE :term OR chat.id.toLowerCase() LIKE :term)"
+        val params = Map("chatTypes" -> chatTypes.asJava, "term" -> s"%${filter.toLowerCase}%")
+        (where, params)
+      case None =>
+        val where = "chat.type IN :chatTypes"
+        val params = Map("chatTypes" -> chatTypes.asJava)
+        (where, params)
+    }
+
+    val baseQuery = s"""|SELECT 
+       |  max(eventNo) as eventNo, 
+       |  max(timestamp) as timestamp,
+       |  chat.id as id, 
+       |  chat.type as type, 
+       |  chat.created as created,
+       |  chat.private as private,
+       |  chat.name as name, 
+       |  chat.topic as topic,
+       |  chat.members as members
+       |FROM
+       |  ChatEvent 
+       |WHERE
+       |  ${whereClause}
+       |GROUP BY (chat)""".stripMargin
+
+    val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
+
+    OrientDBUtil.queryAndMap(db, query, whereParams) { doc =>
+      toChatInfo(doc)
     }
   }
 
-  private[this] val GetChatsQuery =
+  private[this] val GetChatInfosQuery =
     """|SELECT 
        |  max(eventNo) as eventNo, 
        |  max(timestamp) as timestamp,
@@ -305,13 +332,12 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
        |FROM
        |  ChatEvent 
        |WHERE
-       |  chat.type IN :chatTypes
+       |  chat.id IN :chatIds
        |GROUP BY (chat)""".stripMargin
 
-  def getChats(types: Option[Set[String]], offset: Option[Int], limit: Option[Int]): Try[List[ChatInfo]] = withDb { db =>
-    val chatTypes = types.getOrElse(Set(ChatType.Channel.toString().toLowerCase(), ChatType.Room.toString().toLowerCase()))
-    val params = Map("chatTypes" -> chatTypes.asJava)
-    OrientDBUtil.queryAndMap(db, GetChatsQuery, params) { doc =>
+  def getChatInfo(chatIds: List[String]): Try[List[ChatInfo]] = withDb { db =>
+    val params = Map("chatIds" -> chatIds.asJava)
+    OrientDBUtil.queryAndMap(db, GetChatInfosQuery, params) { doc =>
       toChatInfo(doc)
     }
   }
@@ -330,14 +356,10 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
        |FROM
        |  ChatEvent 
        |WHERE
-       |  chat.id IN :chatIds
-       |GROUP BY (chat)""".stripMargin
-
-  def getChatInfo(chatId: List[String]): Try[List[ChatInfo]] = withDb { db =>
-    val params = Map("chatIds" -> chatId.asJava)
-    OrientDBUtil.queryAndMap(db, GetChatInfoQuery, params) { doc =>
-      toChatInfo(doc)
-    }
+       |  chat.id == :chatId""".stripMargin
+  def getChatInfo(chatId: String): Try[ChatInfo] = withDb { db =>
+    val params = Map("chatId" -> chatId)
+    OrientDBUtil.getDocument(db, GetChatInfoQuery, params).map(toChatInfo(_))
   }
 
   def getChat(chatId: String): Try[Chat] = withDb { db =>
@@ -347,14 +369,14 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
   }
 
   def createChat(
-    id: Option[String],
-    chatType: ChatType.Value,
+    id:           Option[String],
+    chatType:     ChatType.Value,
     creationTime: Instant,
-    membership: ChatMembership.Value,
-    name: String,
-    topic: String,
-    members: Option[Set[DomainUserId]],
-    createdBy: DomainUserId): Try[String] = tryWithDb { db =>
+    membership:   ChatMembership.Value,
+    name:         String,
+    topic:        String,
+    members:      Option[Set[DomainUserId]],
+    createdBy:    DomainUserId): Try[String] = tryWithDb { db =>
     // FIXME: return failure if addAllChatMembers fails
     db.begin()
     val chatId = id.getOrElse {
@@ -712,11 +734,11 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
   }
 
   def getChatEvents(
-    chatId: String,
+    chatId:     String,
     eventTypes: Option[List[String]],
     startEvent: Option[Long],
-    limit: Option[Int],
-    forward: Option[Boolean]): Try[List[ChatEvent]] = withDb { db =>
+    limit:      Option[Int],
+    forward:    Option[Boolean]): Try[List[ChatEvent]] = withDb { db =>
     val params = scala.collection.mutable.Map[String, Any]("chatId" -> chatId)
 
     val eventTypesClause = eventTypes.getOrElse(List()) match {
@@ -730,7 +752,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
     val fwd = forward.getOrElse(false)
     val eventNoClaue = startEvent map { eventNo =>
       val operator = fwd match {
-        case true => ">="
+        case true  => ">="
         case false => "<="
       }
       params("startEventNo") = eventNo
@@ -738,7 +760,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
     } getOrElse ("")
 
     val orderBy = fwd match {
-      case true => "ASC"
+      case true  => "ASC"
       case false => "DESC"
     }
 
@@ -762,14 +784,14 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
   }
 
   def getClassName: PartialFunction[String, Option[String]] = {
-    case "message" => Some(Classes.ChatMessageEvent.ClassName)
-    case "created" => Some(Classes.ChatCreatedEvent.ClassName)
-    case "user_joined" => Some(Classes.ChatUserJoinedEvent.ClassName)
-    case "user_left" => Some(Classes.ChatUserLeftEvent.ClassName)
-    case "user_added" => Some(Classes.ChatUserAddedEvent.ClassName)
-    case "user_removed" => Some(Classes.ChatUserRemovedEvent.ClassName)
-    case "name_changed" => Some(Classes.ChatNameChangedEvent.ClassName)
+    case "message"       => Some(Classes.ChatMessageEvent.ClassName)
+    case "created"       => Some(Classes.ChatCreatedEvent.ClassName)
+    case "user_joined"   => Some(Classes.ChatUserJoinedEvent.ClassName)
+    case "user_left"     => Some(Classes.ChatUserLeftEvent.ClassName)
+    case "user_added"    => Some(Classes.ChatUserAddedEvent.ClassName)
+    case "user_removed"  => Some(Classes.ChatUserRemovedEvent.ClassName)
+    case "name_changed"  => Some(Classes.ChatNameChangedEvent.ClassName)
     case "topic_changed" => Some(Classes.ChatTopicChangedEvent.ClassName)
-    case _ => None
+    case _               => None
   }
 }

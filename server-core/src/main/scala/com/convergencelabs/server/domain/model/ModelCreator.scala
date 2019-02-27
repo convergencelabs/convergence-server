@@ -76,7 +76,7 @@ class ModelCreator {
               if (permissions.create) {
                 Success(())
               } else {
-                val message = s"Can not auto create model because the user does not have permissions to create models in the specified collection: ${collectionId}";
+                val message = s"Cannot create the model because the user does not have permissions to create models in the specified collection: ${collectionId}";
                 Failure(UnauthorizedException(message))
               }
             }
@@ -84,12 +84,12 @@ class ModelCreator {
             Success(())
         }
       } else {
-        // Eventually we need some sort of domain wide configuration to allow / disallow auto creation of
+        // todo Eventually we need some sort of domain wide configuration to allow / disallow auto creation of
         // collections.
         if (true) {
           Success(())
         } else {
-          Failure(CollectionAutoCreateDisabled(s"Can not create model, because the collection %{collectionId} does not exist and auto creation of collections is disabled."))
+          Failure(CollectionAutoCreateDisabled(s"Can not create model, because the collection ${collectionId} does not exist and auto creation of collections is disabled."))
         }
       }
     }

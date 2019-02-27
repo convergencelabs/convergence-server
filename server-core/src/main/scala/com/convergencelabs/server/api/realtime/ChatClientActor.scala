@@ -134,7 +134,7 @@ class ChatClientActor(
 
   def receive: Receive = {
     case SubscribeAck(Subscribe(chatTopicName, _, _)) ⇒
-      log.debug("Subscribe to chat channel for user")
+      log.debug("Subscribe to direct chat for user")
 
     case MessageReceived(message: Normal with Chat) =>
       onMessageReceived(message)
@@ -260,21 +260,21 @@ class ChatClientActor(
   def onCreateChannel(message: CreateChatRequestMessage, cb: ReplyCallback): Unit = {
     val CreateChatRequestMessage(chatId, chatType, membership, name, topic, memberData) = message;
     val members = memberData.toSet.map(ImplicitMessageConversions.dataToDomainUserId(_))
-    val request = CreateChatRequest(chatId, session, ChatType.parse(chatType), ChatMembership.parse(membership), Some(name), Some(topic), members)
-    chatLookupActor.ask(request).mapTo[CreateChannelResponse] onComplete {
-      case Success(CreateChannelResponse(chatId)) =>
+    val request = CreateChatRequest(chatId, session.userId, ChatType.parse(chatType), ChatMembership.parse(membership), Some(name), Some(topic), members)
+    chatLookupActor.ask(request).mapTo[CreateChatResponse] onComplete {
+      case Success(CreateChatResponse(chatId)) =>
         cb.reply(CreateChatResponseMessage(chatId))
       case Failure(cause: ChatException) =>
         this.handleChatChannelException(cause, cb)
       case Failure(cause) =>
-        log.error(cause, "could not create channel: " + message)
-        cb.unexpectedError("An unexcpeected error occurred creating the chat channel")
+        log.error(cause, "could not create chat: " + message)
+        cb.unexpectedError("An unexcpeected error occurred creating the chat")
     }
   }
 
   def onRemoveChannel(message: RemoveChatRequestMessage, cb: ReplyCallback): Unit = {
     val RemoveChatRequestMessage(chatId) = message;
-    val request = RemoveChannelRequest(domainFqn, chatId, session)
+    val request = RemoveChatlRequest(domainFqn, chatId, session.userId)
     handleSimpleChannelRequest(request, { () => RemoveChatResponseMessage() }, cb)
   }
 
@@ -311,13 +311,13 @@ class ChatClientActor(
 
   def onSetChatChannelName(message: SetChatNameRequestMessage, cb: ReplyCallback): Unit = {
     val SetChatNameRequestMessage(chatId, name) = message;
-    val request = SetChannelNameRequest(domainFqn, chatId, session, name)
+    val request = SetChatNameRequest(domainFqn, chatId, session.userId, name)
     handleSimpleChannelRequest(request, { () => SetChatNameResponseMessage() }, cb)
   }
 
   def onSetChatChannelTopic(message: SetChatTopicRequestMessage, cb: ReplyCallback): Unit = {
     val SetChatTopicRequestMessage(chatId, topic) = message;
-    val request = SetChannelTopicRequest(domainFqn, chatId, session, topic)
+    val request = SetChatTopicRequest(domainFqn, chatId, session.userId, topic)
     handleSimpleChannelRequest(request, { () => SetChatTopicResponseMessage() }, cb)
   }
 

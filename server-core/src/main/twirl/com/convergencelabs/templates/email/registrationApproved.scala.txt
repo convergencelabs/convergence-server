@@ -1,7 +1,0 @@
-@(signupUrl: String, introText: String)
-
-@introText  Your account request has been approved.
-
-Go to this URL to create an account: @signupUrl  
-
-If you have any problems, please let us know at contact@@convergencelabs.com.
