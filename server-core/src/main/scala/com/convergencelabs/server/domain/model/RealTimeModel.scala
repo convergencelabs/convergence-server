@@ -4,7 +4,7 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.domain.model.data.ArrayValue
 import com.convergencelabs.server.domain.model.data.BooleanValue
 import com.convergencelabs.server.domain.model.data.DataValue
@@ -62,7 +62,7 @@ import com.convergencelabs.server.domain.model.reference.RangeReference
 import com.convergencelabs.server.domain.DomainUserSessionId
 
 class RealTimeModel(
-  private[this] val domainFqn: DomainFqn,
+  private[this] val domainFqn: DomainId,
   private[this] val modelId: String,
   private[this] val cc: ServerConcurrencyControl,
   private val obj: ObjectValue) extends RealTimeValueFactory {

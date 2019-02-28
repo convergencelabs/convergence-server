@@ -10,7 +10,7 @@ import com.convergencelabs.server.datastore.domain.PersistenceStoreSpec
 import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.domain.DomainDatabase
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.domain.Namespace
 import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.convergence.RoleStore.UserRole
@@ -31,7 +31,7 @@ class RoleStoreSpec extends PersistenceStoreSpec[RoleStoreSpecStores](DeltaCateg
   val TestUser2 = User("username2", "test2@convergence.com", "username2", "username2", "displayName2", None)
 
   val TestNamesapce = Namespace("namespace1", "Namespace 1", false)
-  val TestDomainFQN = DomainFqn(TestNamesapce.id, "domain1")
+  val TestDomainFQN = DomainId(TestNamesapce.id, "domain1")
 
   val TestDomainTarget = DomainRoleTarget(TestDomainFQN)
 

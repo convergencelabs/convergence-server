@@ -23,7 +23,7 @@ import com.convergencelabs.server.UnknownErrorResponse
 import com.convergencelabs.server.datastore.domain.ModelOperationProcessor
 import com.convergencelabs.server.datastore.domain.ModelSnapshotStore
 import com.convergencelabs.server.datastore.domain.ModelStore
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.domain.ModelSnapshotConfig
 import com.convergencelabs.server.domain.model.data.NullValue
 import com.convergencelabs.server.domain.model.data.ObjectValue
@@ -353,7 +353,7 @@ class RealtimeModelActorSpec
   }
 
   trait TestFixture {
-    val domainFqn = DomainFqn("convergence", "default")
+    val domainFqn = DomainId("convergence", "default")
 
     val uid1 = DomainUserId.normal("u1")
     val uid2 = DomainUserId.normal("u2")

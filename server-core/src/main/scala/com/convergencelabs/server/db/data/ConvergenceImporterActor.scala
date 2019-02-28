@@ -8,7 +8,7 @@ import com.convergencelabs.server.db.DomainDatabaseFactory
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.db.data.ConvergenceImporterActor.ConvergenceExport
 import com.convergencelabs.server.db.data.ConvergenceImporterActor.ConvergenceExportResponse
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 
 import ConvergenceImporterActor.ConvergenceImport
 import ConvergenceImporterActor.DomainExport
@@ -68,7 +68,7 @@ class ConvergenceImporterActor(
     }
   }
 
-  private[this] def importDomain(fqn: DomainFqn, script: DomainScript): Unit = {
+  private[this] def importDomain(fqn: DomainId, script: DomainScript): Unit = {
     // FIXME should this be a flatMap or something?
     domainDbProvider.getDomainDatabasePool(fqn) foreach {
       domainPool =>
@@ -80,7 +80,7 @@ class ConvergenceImporterActor(
     }
   }
 
-  private[this] def exportDomain(fqn: DomainFqn): Unit = {
+  private[this] def exportDomain(fqn: DomainId): Unit = {
     log.debug(s"Exporting domain: ${fqn.namespace}/${fqn.domainId}")
     domainDbProvider.getDomainDatabasePool(fqn) foreach {
       domainPool =>
@@ -109,11 +109,11 @@ object ConvergenceImporterActor {
     Props(new ConvergenceImporterActor(dbBaseUri, dbProvider, domainProvisioner))
 
   case class ConvergenceImport(script: ConvergenceScript)
-  case class DomainImport(domainFqn: DomainFqn, script: DomainScript)
+  case class DomainImport(domainFqn: DomainId, script: DomainScript)
 
   case class ConvergenceExport(username: Option[String])
   case class ConvergenceExportResponse(script: ConvergenceScript)
 
-  case class DomainExport(domainFqn: DomainFqn)
+  case class DomainExport(domainFqn: DomainId)
   case class DomainExportResponse(script: DomainScript)
 }

@@ -8,13 +8,13 @@ import com.convergencelabs.server.datastore.OrientDBUtil
 import com.convergencelabs.server.datastore.convergence.DomainStore
 import com.convergencelabs.server.datastore.convergence.schema.DomainClass
 import com.convergencelabs.server.domain.DomainDatabase
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 
 class DomainDatabaseFactory(orientDbUrl: String, convergenceDbProvider: DatabaseProvider) {
 
   val domainStore = new DomainStore(convergenceDbProvider)
 
-  def getDomainAdminDatabase(fqn: DomainFqn): Try[DatabaseProvider] = {
+  def getDomainAdminDatabase(fqn: DomainId): Try[DatabaseProvider] = {
     for {
       domainInfo <- getDomainInfo(fqn)
       dbProvider <- Success(new SingleDatabaseProvider(orientDbUrl, domainInfo.database, domainInfo.adminUsername, domainInfo.adminPassword))
@@ -22,7 +22,7 @@ class DomainDatabaseFactory(orientDbUrl: String, convergenceDbProvider: Database
     } yield(dbProvider)
   }
 
-  def getDomainAdminDatabasePool(fqn: DomainFqn): Try[DatabaseProvider] = {
+  def getDomainAdminDatabasePool(fqn: DomainId): Try[DatabaseProvider] = {
     for {
       domainInfo <- getDomainInfo(fqn)
       dbProvider <- Success(new PooledDatabaseProvider(orientDbUrl, domainInfo.database, domainInfo.adminUsername, domainInfo.adminPassword))
@@ -30,7 +30,7 @@ class DomainDatabaseFactory(orientDbUrl: String, convergenceDbProvider: Database
     } yield(dbProvider)
   }
 
-  def getDomainDatabase(fqn: DomainFqn): Try[DatabaseProvider] = {
+  def getDomainDatabase(fqn: DomainId): Try[DatabaseProvider] = {
     for {
       domainInfo <- getDomainInfo(fqn)
       dbProvider <- Success(new SingleDatabaseProvider(orientDbUrl, domainInfo.database, domainInfo.username, domainInfo.password))
@@ -38,7 +38,7 @@ class DomainDatabaseFactory(orientDbUrl: String, convergenceDbProvider: Database
     } yield(dbProvider)
   }
 
-  def getDomainDatabasePool(fqn: DomainFqn): Try[DatabaseProvider] = {
+  def getDomainDatabasePool(fqn: DomainId): Try[DatabaseProvider] = {
     for {
       domainInfo <- getDomainInfo(fqn)
       dbProvider <- Success(new PooledDatabaseProvider(orientDbUrl, domainInfo.database, domainInfo.username, domainInfo.password))
@@ -46,16 +46,16 @@ class DomainDatabaseFactory(orientDbUrl: String, convergenceDbProvider: Database
     } yield(dbProvider)
   }
 
-  def getDomains(): Try[List[DomainFqn]] = {
+  def getDomains(): Try[List[DomainId]] = {
     convergenceDbProvider.withDatabase { db =>
       val query = "SELECT namespace, id FROM Domain"
       OrientDBUtil.query(db, query).map { oDocs =>
-        oDocs.map { oDoc => DomainFqn(oDoc.getProperty(DomainClass.Fields.Namespace), oDoc.getProperty(DomainClass.Fields.Id)) }
+        oDocs.map { oDoc => DomainId(oDoc.getProperty(DomainClass.Fields.Namespace), oDoc.getProperty(DomainClass.Fields.Id)) }
       }
     }
   }
 
-  private[this] def getDomainInfo(fqn: DomainFqn): Try[DomainDatabase] = {
+  private[this] def getDomainInfo(fqn: DomainId): Try[DomainDatabase] = {
     domainStore.getDomainDatabase(fqn) flatMap {
       _ match {
         case Some(domainInfo) =>

@@ -4,7 +4,7 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.domain.chat.ChatMessages.AddUserToChannelRequest
 import com.convergencelabs.server.domain.chat.ChatMessages.ExistingChatMessage
 import com.convergencelabs.server.domain.chat.ChatMessages.InvalidChatMessageExcpetion
@@ -20,7 +20,7 @@ import akka.actor.Terminated
 import grizzled.slf4j.Logging
 
 class ChatRoomMessageProcessor(
-  domainFqn: DomainFqn,
+  domainFqn: DomainId,
   channelId: String,
   stateManager: ChatStateManager,
   private[this] val onEmpty: () => Unit,

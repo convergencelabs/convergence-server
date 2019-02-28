@@ -9,7 +9,7 @@ import scala.util.Success
 import com.convergencelabs.server.datastore.domain.ModelPermissions
 import com.convergencelabs.server.datastore.domain.ModelStoreActor.QueryModelsRequest
 import com.convergencelabs.server.datastore.domain.QueryParsingException
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.domain.DomainUserSessionId
 import com.convergencelabs.server.domain.UnauthorizedException
 import com.convergencelabs.server.domain.model.ClearReference
@@ -106,7 +106,7 @@ import com.convergencelabs.server.domain.model.ModelQueryResult
 
 object ModelClientActor {
   def props(
-    domainFqn: DomainFqn,
+    domainFqn: DomainId,
     session: DomainUserSessionId,
     modelStoreActor: ActorRef,
     requestTimeout: Timeout): Props =
@@ -116,7 +116,7 @@ object ModelClientActor {
 }
 
 class ModelClientActor(
-  private[this] val domainFqn: DomainFqn,
+  private[this] val domainFqn: DomainId,
   private[this] implicit val session: DomainUserSessionId,
   private[this] val modelStoreActor: ActorRef,
   private[this] implicit val requestTimeout: Timeout)

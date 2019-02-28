@@ -6,7 +6,7 @@ import scala.util.Try
 import com.convergencelabs.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.server.datastore.OrientDBUtil
 import com.convergencelabs.server.db.DatabaseProvider
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
 import grizzled.slf4j.Logging
@@ -30,7 +30,7 @@ class UserFavoriteDomainStore(private[this] val dbProvider: DatabaseProvider)
     """INSERT INTO UserFavoriteDomain SET
       |  user = (SELECT FROM User WHERE username = :username),
       |  domain = (SELECT FROM Domain WHERE id = :domainId AND namespace.id = :namespaceId)""".stripMargin
-  def addFavorite(username: String, domain: DomainFqn): Try[Unit] = withDb { db =>
+  def addFavorite(username: String, domain: DomainId): Try[Unit] = withDb { db =>
     val params = Map(Params.Username -> username, Params.DomainId -> domain.domainId, Params.NamespaceId -> domain.namespace)
     OrientDBUtil.command(db, CreateFavoriteCommand, params)
       .map(_ => ())
@@ -51,7 +51,7 @@ class UserFavoriteDomainStore(private[this] val dbProvider: DatabaseProvider)
 
   private[this] val DeleteFavoriteCommand =
     "DELETE FROM UserFavoriteDomain WHERE user.username = :username AND domain.id = :domainId AND domain.namespace.id = :namespaceId"
-  def removeFavorite(username: String, domain: DomainFqn): Try[Unit] = withDb { db =>
+  def removeFavorite(username: String, domain: DomainId): Try[Unit] = withDb { db =>
     val params = Map(Params.Username -> username, Params.DomainId -> domain.domainId, Params.NamespaceId -> domain.namespace)
     OrientDBUtil.command(db, DeleteFavoriteCommand, params).map(_ => ())
   }
@@ -65,7 +65,7 @@ class UserFavoriteDomainStore(private[this] val dbProvider: DatabaseProvider)
 
   private[this] val DeleteFavoritesForDomainCommand =
     "DELETE FROM UserFavoriteDomain WHERE domain.id = :domainId AND domain.namespace.id = :namespaceId"
-  def removeFavoritesForDomain(domain: DomainFqn): Try[Unit] = withDb { db =>
+  def removeFavoritesForDomain(domain: DomainId): Try[Unit] = withDb { db =>
     val params = Map(Params.DomainId -> domain.domainId, Params.NamespaceId -> domain.namespace)
     OrientDBUtil.command(db, DeleteFavoriteCommand, params).map(_ => ())
   }

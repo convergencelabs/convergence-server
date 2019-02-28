@@ -2,7 +2,7 @@ package com.convergencelabs.server.domain.presence
 
 import org.json4s.JsonAST.JValue
 
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.domain.DomainUserId
 import com.convergencelabs.server.util.SubscriptionMap
 
@@ -21,12 +21,12 @@ object PresenceServiceActor {
 
   val RelativePath = "presenceService"
 
-  def props(domainFqn: DomainFqn): Props = Props(
+  def props(domainFqn: DomainId): Props = Props(
     new PresenceServiceActor(domainFqn))
   
 }
 
-class PresenceServiceActor private[domain] (domainFqn: DomainFqn) extends Actor with ActorLogging {
+class PresenceServiceActor private[domain] (domainFqn: DomainId) extends Actor with ActorLogging {
 
   private var presences = Map[DomainUserId, UserPresence]()
   

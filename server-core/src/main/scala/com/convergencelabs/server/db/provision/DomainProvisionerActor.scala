@@ -2,7 +2,7 @@ package com.convergencelabs.server.db.provision
 
 import com.convergencelabs.server.db.provision.DomainProvisionerActor.DestroyDomain
 import com.convergencelabs.server.db.provision.DomainProvisionerActor.ProvisionDomain
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 
 import akka.actor.Actor
 import akka.actor.ActorLogging
@@ -63,7 +63,7 @@ object DomainProvisionerActor {
   def props(provisioner: DomainProvisioner): Props = Props(new DomainProvisionerActor(provisioner))
 
   case class ProvisionDomain(
-    domainFqn: DomainFqn,
+    domainFqn: DomainId,
     databaseName: String,
     dbUsername: String,
     dbPassword: String,
@@ -73,11 +73,11 @@ object DomainProvisionerActor {
 
   case class DomainProvisioned()
 
-  case class DestroyDomain(domainFqn: DomainFqn, databaseUri: String)
+  case class DestroyDomain(domainFqn: DomainId, databaseUri: String)
 
-  case class DomainDeleted(domainFqn: DomainFqn)
+  case class DomainDeleted(domainFqn: DomainId)
   
-  def domainTopic(domainFqn: DomainFqn) = {
+  def domainTopic(domainFqn: DomainId) = {
      s"${domainFqn.namespace}/${domainFqn.domainId}"
   }
   

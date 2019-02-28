@@ -7,7 +7,7 @@ import scala.util.Try
 import com.convergencelabs.server.datastore.domain.ModelOperationProcessor
 import com.convergencelabs.server.datastore.domain.ModelSnapshotStore
 import com.convergencelabs.server.datastore.domain.ModelStore
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.domain.model.RealtimeModelPersistence.PersistenceEventHanlder
 
 import akka.actor.ActorRef
@@ -48,7 +48,7 @@ object RealtimeModelPersistenceStream {
 
 class RealtimeModelPersistenceStream(
   private[this] val handler: PersistenceEventHanlder,
-  private[this] val domainFqn: DomainFqn,
+  private[this] val domainFqn: DomainId,
   private[this] val modelId: String,
   private[this] implicit val system: ActorSystem,
   private[this] val modelStore: ModelStore,
@@ -127,7 +127,7 @@ class RealtimeModelPersistenceStream(
 }
 
 class RealtimeModelPersistenceStreamFactory(
-  private[this] val domainFqn: DomainFqn,
+  private[this] val domainFqn: DomainId,
   private[this] val modelId: String,
   private[this] implicit val system: ActorSystem,
   private[this] val modelStore: ModelStore,

@@ -13,7 +13,7 @@ import com.convergencelabs.server.datastore.domain.CollectionStoreActor.GetColle
 import com.convergencelabs.server.datastore.domain.CollectionStoreActor.GetCollectionSummaries
 import com.convergencelabs.server.datastore.domain.CollectionStoreActor.GetCollections
 import com.convergencelabs.server.datastore.domain.CollectionStoreActor.UpdateCollection
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.domain.ModelSnapshotConfig
 import com.convergencelabs.server.domain.model.Collection
 import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
@@ -72,7 +72,7 @@ class DomainCollectionService(
   import DomainCollectionService._
   import akka.pattern.ask
 
-  def route(authProfile: AuthorizationProfile, domain: DomainFqn): Route = {
+  def route(authProfile: AuthorizationProfile, domain: DomainId): Route = {
     pathPrefix("collections") {
       pathEnd {
         get {
@@ -106,13 +106,13 @@ class DomainCollectionService(
     }
   }
 
-  def getCollections(domain: DomainFqn): Future[RestResponse] = {
+  def getCollections(domain: DomainId): Future[RestResponse] = {
     val message = DomainRestMessage(domain, GetCollections(None, None))
     (domainRestActor ? message).mapTo[List[Collection]] map (collections =>
       okResponse(collections.map(collectionToCollectionData(_))))
   }
 
-  def getCollection(domain: DomainFqn, collectionId: String): Future[RestResponse] = {
+  def getCollection(domain: DomainId, collectionId: String): Future[RestResponse] = {
     val message = DomainRestMessage(domain, GetCollection(collectionId))
     (domainRestActor ? message).mapTo[Option[Collection]] map {
       case Some(collection) => okResponse(collectionToCollectionData(collection))
@@ -120,13 +120,13 @@ class DomainCollectionService(
     }
   }
 
-  def createCollection(domain: DomainFqn, collectionData: CollectionData): Future[RestResponse] = {
+  def createCollection(domain: DomainId, collectionData: CollectionData): Future[RestResponse] = {
     val collection = this.collectionDataToCollection(collectionData)
     val message = DomainRestMessage(domain, CreateCollection(collection))
     (domainRestActor ? message) map { _ => CreatedResponse }
   }
 
-  def updateCollection(domain: DomainFqn, collectionId: String, collectionUpdateData: CollectionUpdateData): Future[RestResponse] = {
+  def updateCollection(domain: DomainId, collectionId: String, collectionUpdateData: CollectionUpdateData): Future[RestResponse] = {
     val CollectionUpdateData(description, worldPermissions, overrideSnapshotConfig, snapshotConfig) = collectionUpdateData;
     val collectionData = CollectionData(collectionId, description, worldPermissions, overrideSnapshotConfig, snapshotConfig)
     val collection = this.collectionDataToCollection(collectionData)
@@ -134,12 +134,12 @@ class DomainCollectionService(
     (domainRestActor ? message) map { _ => OkResponse }
   }
 
-  def deleteCollection(domain: DomainFqn, collectionId: String): Future[RestResponse] = {
+  def deleteCollection(domain: DomainId, collectionId: String): Future[RestResponse] = {
     val message = DomainRestMessage(domain, DeleteCollection(collectionId))
     (domainRestActor ? message) map { _ => OkResponse }
   }
 
-  def getCollectionSummaries(domain: DomainFqn, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
+  def getCollectionSummaries(domain: DomainId, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
     val message = DomainRestMessage(domain, GetCollectionSummaries(filter, offset, limit))
     (domainRestActor ? message).mapTo[List[CollectionSummary]] map (collections =>
       okResponse(collections.map { c =>

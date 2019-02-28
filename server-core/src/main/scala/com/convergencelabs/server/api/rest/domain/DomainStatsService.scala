@@ -7,7 +7,7 @@ import com.convergencelabs.server.api.rest.RestResponse
 import com.convergencelabs.server.api.rest.okResponse
 import com.convergencelabs.server.datastore.domain.DomainStatsActor.DomainStats
 import com.convergencelabs.server.datastore.domain.DomainStatsActor.GetStats
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
 import com.convergencelabs.server.security.AuthorizationProfile
 
@@ -34,12 +34,12 @@ class DomainStatsService(
   import akka.pattern.ask
   import DomainStatsService._
   
-  def route(authProfile: AuthorizationProfile, domain: DomainFqn): Route =
+  def route(authProfile: AuthorizationProfile, domain: DomainId): Route =
     (path("stats") & get) {
       complete(getStats(domain))
     }
 
-  def getStats(domain: DomainFqn): Future[RestResponse] = {
+  def getStats(domain: DomainId): Future[RestResponse] = {
     (domainRestActor ? DomainRestMessage(domain, GetStats))
     .mapTo[DomainStats]
     .map { stats => 

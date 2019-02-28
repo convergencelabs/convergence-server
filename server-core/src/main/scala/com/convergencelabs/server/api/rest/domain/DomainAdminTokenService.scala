@@ -5,7 +5,7 @@ import scala.concurrent.Future
 
 import com.convergencelabs.server.api.rest.RestResponse
 import com.convergencelabs.server.api.rest.okResponse
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.domain.rest.RestDomainActor.AdminTokenRequest
 import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
 import com.convergencelabs.server.security.AuthorizationProfile
@@ -34,7 +34,7 @@ class DomainAdminTokenService(
   import DomainAdminTokenService._
   import akka.pattern.ask
 
-  def route(authProfile: AuthorizationProfile, domain: DomainFqn): Route = {
+  def route(authProfile: AuthorizationProfile, domain: DomainId): Route = {
     pathPrefix("convergenceUserToken") {
       pathEnd {
         get {
@@ -44,7 +44,7 @@ class DomainAdminTokenService(
     }
   }
 
-  def getConvergenceUserToken(domain: DomainFqn, username: String): Future[RestResponse] = {
+  def getConvergenceUserToken(domain: DomainId, username: String): Future[RestResponse] = {
     val message = DomainRestMessage(domain, AdminTokenRequest(username))
     (domainRestActor ? message).mapTo[String] map {
       case token: String => okResponse(AdminTokenRestResponse(token))

@@ -12,7 +12,7 @@ import com.convergencelabs.server.datastore.domain.ConfigStoreActor.GetAnonymous
 import com.convergencelabs.server.datastore.domain.ConfigStoreActor.GetModelSnapshotPolicy
 import com.convergencelabs.server.datastore.domain.ConfigStoreActor.SetAnonymousAuth
 import com.convergencelabs.server.datastore.domain.ConfigStoreActor.SetModelSnapshotPolicy
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.domain.ModelSnapshotConfig
 import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
 import com.convergencelabs.server.security.AuthorizationProfile
@@ -58,7 +58,7 @@ class DomainConfigService(
   import DomainConfigService._
   import akka.pattern.ask
 
-  def route(authProfile: AuthorizationProfile, domain: DomainFqn): Route = {
+  def route(authProfile: AuthorizationProfile, domain: DomainId): Route = {
     pathPrefix("config") {
       path("anonymousAuth") {
         get {
@@ -85,18 +85,18 @@ class DomainConfigService(
     }
   }
 
-  def getAnonymousAuthEnabled(domain: DomainFqn): Future[RestResponse] = {
+  def getAnonymousAuthEnabled(domain: DomainId): Future[RestResponse] = {
     val message = DomainRestMessage(domain, GetAnonymousAuth)
     (domainRestActor ? message).mapTo[Boolean] map
       (enabled => okResponse(AnonymousAuthResponse(enabled)))
   }
 
-  def setAnonymousAuthEnabled(domain: DomainFqn, request: AnonymousAuthPut): Future[RestResponse] = {
+  def setAnonymousAuthEnabled(domain: DomainId, request: AnonymousAuthPut): Future[RestResponse] = {
     val message = DomainRestMessage(domain, SetAnonymousAuth(request.enabled))
     (domainRestActor ? message) map (_ => OkResponse)
   }
 
-  def getModelSnapshotPolicy(domain: DomainFqn): Future[RestResponse] = {
+  def getModelSnapshotPolicy(domain: DomainId): Future[RestResponse] = {
     val message = DomainRestMessage(domain, GetModelSnapshotPolicy)
     (domainRestActor ? message).mapTo[ModelSnapshotConfig] map { config =>
       val ModelSnapshotConfig(
@@ -122,7 +122,7 @@ class DomainConfigService(
     }
   }
 
-  def setModelSnapshotPolicy(domain: DomainFqn, policyData: ModelSnapshotPolicyData): Future[RestResponse] = {
+  def setModelSnapshotPolicy(domain: DomainId, policyData: ModelSnapshotPolicyData): Future[RestResponse] = {
     val ModelSnapshotPolicyData(
       snapshotsEnabled,
       triggerByVersion,

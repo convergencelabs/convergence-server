@@ -13,7 +13,7 @@ import com.convergencelabs.server.datastore.convergence.schema.PermissionClass
 import com.convergencelabs.server.datastore.convergence.schema.RoleClass
 import com.convergencelabs.server.datastore.convergence.schema.UserRoleClass
 import com.convergencelabs.server.db.DatabaseProvider
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.record.impl.ODocument
@@ -34,7 +34,7 @@ object RoleTargetType extends Enumeration {
 sealed trait RoleTarget {
   def targetClass: Option[RoleTargetType.Value]
 }
-case class DomainRoleTarget(domainFqn: DomainFqn) extends RoleTarget {
+case class DomainRoleTarget(domainFqn: DomainId) extends RoleTarget {
   val targetClass = Some(RoleTargetType.Domain)
 }
 case class NamespaceRoleTarget(id: String) extends RoleTarget {
@@ -84,7 +84,7 @@ object RoleStore {
         case DomainClass.ClassName =>
           val namespace = d.eval(DomainClass.Eval.NamespaceId).asInstanceOf[String]
           val id = d.getProperty(DomainClass.Fields.Id).asInstanceOf[String]
-          DomainRoleTarget(DomainFqn(namespace, id))
+          DomainRoleTarget(DomainId(namespace, id))
         case NamespaceClass.ClassName =>
           val id = d.getProperty(NamespaceClass.Fields.Id).asInstanceOf[String]
           NamespaceRoleTarget(id)

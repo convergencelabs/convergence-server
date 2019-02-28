@@ -11,7 +11,7 @@ import com.convergencelabs.server.db.schema.DatabaseManagerActor.GetDomainVersio
 import com.convergencelabs.server.db.schema.DatabaseManagerActor.UpgradeConvergence
 import com.convergencelabs.server.db.schema.DatabaseManagerActor.UpgradeDomain
 import com.convergencelabs.server.db.schema.DatabaseManagerActor.UpgradeDomains
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.api.rest.DatabaseManagerRestService.UpgradeRequest
 import com.convergencelabs.server.api.rest.DatabaseManagerRestService.VersionResponse
 
@@ -90,7 +90,7 @@ class DatabaseManagerRestService(
     val UpgradeRequest(version, preRelease) = request
     val to = toVersion(version, preRelease)
     logger.debug(s"Received an request to upgrade domain database to version: ${to}")
-    val message = UpgradeDomain(DomainFqn(namespace, domainId), version, preRelease.getOrElse(false))
+    val message = UpgradeDomain(DomainId(namespace, domainId), version, preRelease.getOrElse(false))
     (databaseManager ? message).mapTo[Unit].map {
       case _ => OkResponse
     }
@@ -114,7 +114,7 @@ class DatabaseManagerRestService(
   }
 
   def getDomainVersion(namespace: String, domainId: String): Future[RestResponse] = {
-    val message = GetDomainVersion(DomainFqn(namespace, domainId))
+    val message = GetDomainVersion(DomainId(namespace, domainId))
     (databaseManager ? message).mapTo[Int].map { version =>
       okResponse(VersionResponse(version))
     }

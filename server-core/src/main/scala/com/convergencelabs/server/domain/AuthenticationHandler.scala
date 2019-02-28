@@ -36,7 +36,7 @@ object AuthenticationHandler {
 }
 
 class AuthenticationHandler(
-  private[this] val domainFqn: DomainFqn,
+  private[this] val domainFqn: DomainId,
   private[this] val domainConfigStore: DomainConfigStore,
   private[this] val keyStore: JwtAuthKeyStore,
   private[this] val userStore: DomainUserStore,

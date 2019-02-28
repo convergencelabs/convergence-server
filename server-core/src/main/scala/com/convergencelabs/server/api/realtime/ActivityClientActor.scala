@@ -20,7 +20,7 @@ import com.convergencelabs.server.domain.activity.ActivitySessionJoined
 import com.convergencelabs.server.domain.activity.ActivitySessionLeft
 import com.convergencelabs.server.domain.activity.ActivitySetState
 import com.convergencelabs.server.util.concurrent.AskFuture
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 
 import akka.actor.Actor
 import akka.actor.ActorLogging
@@ -48,11 +48,11 @@ import io.convergence.proto.activity.ActivityJoinResponseMessage
 import com.convergencelabs.server.domain.DomainUserSessionId
 
 object ActivityClientActor {
-  def props(activityServiceActor: ActorRef, domain: DomainFqn, session: DomainUserSessionId): Props =
+  def props(activityServiceActor: ActorRef, domain: DomainId, session: DomainUserSessionId): Props =
     Props(new ActivityClientActor(activityServiceActor, domain, session))
 }
 
-class ActivityClientActor(activityServiceActor: ActorRef, domain: DomainFqn, session: DomainUserSessionId) extends Actor with ActorLogging {
+class ActivityClientActor(activityServiceActor: ActorRef, domain: DomainId, session: DomainUserSessionId) extends Actor with ActorLogging {
   import akka.pattern.ask
 
   implicit val timeout = Timeout(5 seconds)

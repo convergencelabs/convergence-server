@@ -13,7 +13,7 @@ import com.convergencelabs.server.db.data.ConvergenceImporterActor.ConvergenceEx
 import com.convergencelabs.server.db.data.ConvergenceImporterActor.ConvergenceImport
 import com.convergencelabs.server.db.data.ConvergenceImporterActor.DomainExport
 import com.convergencelabs.server.db.data.ConvergenceImporterActor.DomainExportResponse
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.security.AuthorizationProfile
 
 import akka.actor.ActorRef
@@ -65,7 +65,7 @@ class ConvergenceImportService(
 
   def exportDomain(namespace: String, domainId: String): Future[RestResponse] = {
     logger.debug(s"Received a domain export request: ${namespace}/${domainId}")
-    (importerActor ? DomainExport(DomainFqn(namespace, domainId))).mapTo[DomainExportResponse].map {
+    (importerActor ? DomainExport(DomainId(namespace, domainId))).mapTo[DomainExportResponse].map {
       case DomainExportResponse(script) => okResponse(script)
     }
   }

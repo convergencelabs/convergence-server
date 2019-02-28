@@ -6,7 +6,7 @@ import scala.util.Failure
 import scala.util.Success
 
 import com.convergencelabs.server.datastore.domain.ModelOperationStoreActor.GetOperations
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.domain.DomainUserSessionId
 import com.convergencelabs.server.domain.model.GetRealtimeModel
 import com.convergencelabs.server.domain.model.Model
@@ -31,7 +31,7 @@ import io.convergence.proto.model.HistoricalOperationsResponseMessage
 object HistoricModelClientActor {
   def props(
     session: DomainUserSessionId,
-    domainFqn: DomainFqn,
+    domainFqn: DomainId,
     modelStoreActor: ActorRef,
     operationStoreActor: ActorRef): Props =
     Props(new HistoricModelClientActor(session, domainFqn, modelStoreActor, operationStoreActor))
@@ -39,7 +39,7 @@ object HistoricModelClientActor {
 
 class HistoricModelClientActor(
   private[this] val session: DomainUserSessionId,
-  private[this] val domainFqn: DomainFqn,
+  private[this] val domainFqn: DomainId,
   private[this] val modelStoreActor: ActorRef,
   private[this] val operationStoreActor: ActorRef)
     extends Actor with ActorLogging {

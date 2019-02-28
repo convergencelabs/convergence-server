@@ -6,7 +6,7 @@ import scala.util.Try
 import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.datastore.convergence.DeltaHistoryStore
 import com.convergencelabs.server.db.DomainDatabaseFactory
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 
 import grizzled.slf4j.Logging
@@ -27,7 +27,7 @@ class DatabaseManager(
     deltaHistoryStore.getConvergenceDBVersion()
   }
 
-  def getDomainVersion(fqn: DomainFqn): Try[Int] = {
+  def getDomainVersion(fqn: DomainId): Try[Int] = {
     deltaHistoryStore.getDomainDBVersion(fqn)
   }
 
@@ -51,12 +51,12 @@ class DatabaseManager(
     schemaManager.upgrade()
   }
 
-  def upgradeDomain(fqn: DomainFqn, version: Int, preRelease: Boolean): Try[Unit] = withDomainDatabase(fqn) { db =>
+  def upgradeDomain(fqn: DomainId, version: Int, preRelease: Boolean): Try[Unit] = withDomainDatabase(fqn) { db =>
     val schemaManger = new DomainSchemaManager(fqn, db, deltaHistoryStore, preRelease)
     schemaManger.upgrade(version)
   }
 
-  def upgradeDomainToLatest(fqn: DomainFqn, preRelease: Boolean): Try[Unit] = withDomainDatabase(fqn) { db =>
+  def upgradeDomainToLatest(fqn: DomainId, preRelease: Boolean): Try[Unit] = withDomainDatabase(fqn) { db =>
     val schemaManger = new DomainSchemaManager(fqn, db, deltaHistoryStore, preRelease)
     schemaManger.upgrade()
   }
@@ -83,14 +83,14 @@ class DatabaseManager(
     }
   }
 
-  def upgradeDomainToNextVersion(db: ODatabaseDocument, fqn: DomainFqn, preRelease: Boolean): Try[Unit] = {
+  def upgradeDomainToNextVersion(db: ODatabaseDocument, fqn: DomainId, preRelease: Boolean): Try[Unit] = {
     deltaHistoryStore.getDomainDBVersion(fqn) flatMap { version =>
       val schemaManger = new DomainSchemaManager(fqn, db, deltaHistoryStore, preRelease)
       schemaManger.upgrade(version + 1)
     }
   }
 
-  private[this] def withDomainDatabase[T](fqn: DomainFqn)(f: (ODatabaseDocument) => Try[T]): Try[T] = {
+  private[this] def withDomainDatabase[T](fqn: DomainId)(f: (ODatabaseDocument) => Try[T]): Try[T] = {
     domainProvider.getDomainAdminDatabase(fqn) flatMap { dbProvider =>
       val result = dbProvider.withDatabase(f(_))
       dbProvider.shutdown()

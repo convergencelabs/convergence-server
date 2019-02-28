@@ -49,7 +49,7 @@ class DomainActorSpec
   }
 
   trait TestFixture {
-    val domainFqn = DomainFqn("convergence", "default")
+    val domainFqn = DomainId("convergence", "default")
 
     val provider = new MockDomainPersistenceProvider()
     val persistenceManager = new MockDomainPersistenceManager(Map(domainFqn -> provider))

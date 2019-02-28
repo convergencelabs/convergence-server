@@ -16,7 +16,7 @@ import com.convergencelabs.server.datastore.convergence.RoleStoreActor.GetUserRo
 import com.convergencelabs.server.datastore.convergence.RoleStoreActor.RemoveUserFromTarget
 import com.convergencelabs.server.datastore.convergence.RoleStoreActor.SeUsersRolesForTargetRequest
 import com.convergencelabs.server.datastore.convergence.RoleStoreActor.SetAllUserRolesForTargetRequest
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.security.AuthorizationProfile
 
 import akka.actor.ActorRef
@@ -53,7 +53,7 @@ class DomainSecurityService(
   import akka.http.scaladsl.server.Directives.Segment
   import akka.pattern.ask
 
-  def route(authProfile: AuthorizationProfile, domain: DomainFqn): Route = {
+  def route(authProfile: AuthorizationProfile, domain: DomainId): Route = {
     pathPrefix("members") {
       pathEnd {
         get {
@@ -77,7 +77,7 @@ class DomainSecurityService(
     }
   }
 
-  def getAllMembers(domain: DomainFqn): Future[RestResponse] = {
+  def getAllMembers(domain: DomainId): Future[RestResponse] = {
     val message = GetAllUserRolesRequest(DomainRoleTarget(domain))
     (roleStoreActor ? message)
       .mapTo[Set[UserRoles]]
@@ -87,13 +87,13 @@ class DomainSecurityService(
       }
   }
 
-  def setAllMembers(domain: DomainFqn, userRoles: Map[String, String]): Future[RestResponse] = {
+  def setAllMembers(domain: DomainId, userRoles: Map[String, String]): Future[RestResponse] = {
     val mapped = userRoles.map { case (username, role) => (username, Set(role)) }
     val message = SetAllUserRolesForTargetRequest(DomainRoleTarget(domain), mapped)
     (roleStoreActor ? message).mapTo[Unit] map (_ => OkResponse)
   }
 
-  def getRoleForUser(domain: DomainFqn, username: String): Future[RestResponse] = {
+  def getRoleForUser(domain: DomainId, username: String): Future[RestResponse] = {
     (roleStoreActor ? GetUserRolesForTargetRequest(username, DomainRoleTarget(domain))).mapTo[Set[Role]] map { roles =>
       val role = roles.toList match {
         case Nil =>
@@ -106,14 +106,14 @@ class DomainSecurityService(
     }
   }
 
-  def setRoleForUesr(domain: DomainFqn, username: String, role: String): Future[RestResponse] = {
+  def setRoleForUesr(domain: DomainId, username: String, role: String): Future[RestResponse] = {
     val message = SeUsersRolesForTargetRequest(username, DomainRoleTarget(domain), Set(role))
     (roleStoreActor ? message) map { _ => OkResponse } recover {
       case _: EntityNotFoundException => notFoundResponse()
     }
   }
 
-  def removeUserRole(domain: DomainFqn, username: String): Future[RestResponse] = {
+  def removeUserRole(domain: DomainId, username: String): Future[RestResponse] = {
     val message = RemoveUserFromTarget(DomainRoleTarget(domain), username)
     (roleStoreActor ? message).mapTo[Unit] map (_ => OkResponse)
   }

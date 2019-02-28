@@ -11,7 +11,7 @@ import com.convergencelabs.server.actor.ShardedActor
 import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManager
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.domain.UnauthorizedException
 import com.convergencelabs.server.domain.model.RealTimeModelManager.EventHandler
 import com.convergencelabs.server.util.ActorBackedEventLoop
@@ -67,7 +67,7 @@ class RealtimeModelActor(
   import RealtimeModelActor._
 
   private[this] var _persistenceProvider: Option[DomainPersistenceProvider] = None
-  private[this] var _domainFqn: Option[DomainFqn] = None
+  private[this] var _domainFqn: Option[DomainId] = None
   private[this] var _modelId: Option[String] = None
   private[this] var _modelManager: Option[RealTimeModelManager] = None
 

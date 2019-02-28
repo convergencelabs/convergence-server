@@ -12,7 +12,7 @@ import com.convergencelabs.server.datastore.convergence.schema.ConvergenceDeltaH
 import com.convergencelabs.server.datastore.convergence.schema.DomainDeltaClass
 import com.convergencelabs.server.datastore.convergence.schema.DomainDeltaHistoryClass
 import com.convergencelabs.server.db.DatabaseProvider
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.record.impl.ODocument
 
@@ -116,14 +116,14 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
     }
   }
 
-  def removeDeltaHistoryForDomain(domainFqn: DomainFqn): Try[Unit] = withDb { db =>
+  def removeDeltaHistoryForDomain(domainFqn: DomainId): Try[Unit] = withDb { db =>
     val query = "DELETE FROM DomainDeltaHistory WHERE domain IN (SELECT FROM Domain WHERE namespace.id = :namespace AND id =:id)";
     val params = Map(Params.Namespace -> domainFqn.namespace, Params.Id -> domainFqn.domainId)
     OrientDBUtil.command(db, query, params).map(_ => ())
   }
 
-  def getDomainDeltaHistory(domainFqn: DomainFqn, deltaNo: Int): Try[Option[DomainDeltaHistory]] = withDb { db =>
-    val DomainFqn(namespace, domainId) = domainFqn
+  def getDomainDeltaHistory(domainFqn: DomainId, deltaNo: Int): Try[Option[DomainDeltaHistory]] = withDb { db =>
+    val DomainId(namespace, domainId) = domainFqn
 
     for {
       deltaORID <- OrientDBUtil.findIdentityFromSingleValueIndex(db, DomainDeltaClass.Indices.DeltaNo, deltaNo)
@@ -153,8 +153,8 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
     }
   }
 
-  def getDomainDBVersion(domainFqn: DomainFqn): Try[Int] = withDb { db =>
-    val DomainFqn(namespace, domainId) = domainFqn
+  def getDomainDBVersion(domainFqn: DomainId): Try[Int] = withDb { db =>
+    val DomainId(namespace, domainId) = domainFqn
     val query =
       s"""SELECT max(delta.deltaNo) as version
         |FROM ${DomainDeltaHistoryClass.ClassName}
@@ -168,8 +168,8 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
       .map(_.map(_.field("version").asInstanceOf[Int]).getOrElse(0))
   }
 
-  def isDomainDBHealthy(domainFqn: DomainFqn): Try[Boolean] = withDb { db =>
-    val DomainFqn(namespace, domainId) = domainFqn
+  def isDomainDBHealthy(domainFqn: DomainId): Try[Boolean] = withDb { db =>
+    val DomainId(namespace, domainId) = domainFqn
     val query =
       s"""SELECT if(count(*) > 0, false, true) as healthy
         |FROM ${DomainDeltaHistoryClass.ClassName}

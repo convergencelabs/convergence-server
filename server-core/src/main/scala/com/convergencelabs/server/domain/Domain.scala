@@ -11,7 +11,7 @@ object DomainStatus extends Enumeration {
 }
 
 case class Domain(
-  domainFqn: DomainFqn,
+  domainFqn: DomainId,
   displayName: String,
   status: DomainStatus.Value,
   statusMessage: String)

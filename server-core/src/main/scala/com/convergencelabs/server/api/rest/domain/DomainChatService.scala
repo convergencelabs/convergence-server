@@ -13,7 +13,7 @@ import com.convergencelabs.server.api.rest.unknownErrorResponse
 import com.convergencelabs.server.datastore.domain.ChatInfo
 import com.convergencelabs.server.datastore.domain.ChatMembership
 import com.convergencelabs.server.datastore.domain.ChatType
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.domain.DomainUserId
 import com.convergencelabs.server.domain.chat.ChatLookupActor.CreateChatRequest
 import com.convergencelabs.server.domain.chat.ChatLookupActor.CreateChatResponse
@@ -65,7 +65,7 @@ class DomainChatService(
   import akka.http.scaladsl.server.Directives.Segment
   import akka.pattern.ask
 
-  def route(authProfile: AuthorizationProfile, domain: DomainFqn): Route = {
+  def route(authProfile: AuthorizationProfile, domain: DomainId): Route = {
     pathPrefix("chats") {
       pathEnd {
         get {
@@ -97,7 +97,7 @@ class DomainChatService(
     }
   }
 
-  def getChats(domain: DomainFqn, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
+  def getChats(domain: DomainId, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
     val message = DomainRestMessage(domain, FindChatInfo(filter, offset, limit))
     (domainRestActor ? message).mapTo[List[ChatInfo]] map { chats =>
       okResponse(chats.map { chat =>
@@ -113,7 +113,7 @@ class DomainChatService(
     }
   }
 
-  def getChat(domain: DomainFqn, chatId: String): Future[RestResponse] = {
+  def getChat(domain: DomainId, chatId: String): Future[RestResponse] = {
     val message = DomainRestMessage(domain, GetChatInfo(chatId))
     (domainRestActor ? message).mapTo[ChatInfo] map { chat =>
       val ChatInfo(id, chatType, created, membership, name, topic, lastEventNumber, lastEventTime, members) = chat
@@ -127,7 +127,7 @@ class DomainChatService(
     }
   }
 
-  def createChat(authProfile: AuthorizationProfile, domain: DomainFqn, chatData: CreateChatData): Future[RestResponse] = {
+  def createChat(authProfile: AuthorizationProfile, domain: DomainId, chatData: CreateChatData): Future[RestResponse] = {
     val CreateChatData(chatId, chatType, membership, name, topic, members) = chatData
     val request = CreateChatRequest(
       Some(chatId),
@@ -152,21 +152,21 @@ class DomainChatService(
       }
   }
 
-  def deleteChat(authProfile: AuthorizationProfile, domain: DomainFqn, chatId: String): Future[RestResponse] = {
+  def deleteChat(authProfile: AuthorizationProfile, domain: DomainId, chatId: String): Future[RestResponse] = {
     val message = RemoveChatlRequest(domain, chatId, DomainUserId.convergence(authProfile.username))
     (chatSharding ? message).mapTo[Unit] map { chats =>
       okResponse(chats)
     }
   }
 
-  def setName(authProfile: AuthorizationProfile, domain: DomainFqn, chatId: String, data: SetNameData): Future[RestResponse] = {
+  def setName(authProfile: AuthorizationProfile, domain: DomainId, chatId: String, data: SetNameData): Future[RestResponse] = {
     val SetNameData(name) = data
     val userId = DomainUserId.convergence(authProfile.username)
     val message = SetChatNameRequest(domain, chatId, userId, name)
     (chatSharding ? message).mapTo[Unit] map (_ => OkResponse)
   }
 
-  def setTopic(authProfile: AuthorizationProfile, domain: DomainFqn, chatId: String, data: SetTopicData): Future[RestResponse] = {
+  def setTopic(authProfile: AuthorizationProfile, domain: DomainId, chatId: String, data: SetTopicData): Future[RestResponse] = {
     val SetTopicData(topic) = data
     val userId = DomainUserId.convergence(authProfile.username)
     val message = SetChatTopicRequest(domain, chatId, userId, topic)

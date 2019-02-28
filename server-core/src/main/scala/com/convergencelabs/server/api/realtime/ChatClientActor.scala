@@ -14,7 +14,7 @@ import com.convergencelabs.server.datastore.domain.ChatUserAddedEvent
 import com.convergencelabs.server.datastore.domain.ChatUserJoinedEvent
 import com.convergencelabs.server.datastore.domain.ChatUserLeftEvent
 import com.convergencelabs.server.datastore.domain.ChatUserRemovedEvent
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.domain.chat.ChatActor
 import com.convergencelabs.server.domain.chat.ChatLookupActor._
 import com.convergencelabs.server.domain.chat.ChatMessages._
@@ -110,7 +110,7 @@ import com.convergencelabs.server.datastore.domain.ChatMembership
 
 object ChatClientActor {
   def props(
-    domainFqn: DomainFqn,
+    domainFqn: DomainId,
     chatLookupActor: ActorRef,
     session: DomainUserSessionId,
     requestTimeout: Timeout): Props =
@@ -118,7 +118,7 @@ object ChatClientActor {
 }
 
 class ChatClientActor(
-  domainFqn: DomainFqn,
+  domainFqn: DomainId,
   chatLookupActor: ActorRef,
   session: DomainUserSessionId,
   implicit val requestTimeout: Timeout) extends Actor with ActorLogging {

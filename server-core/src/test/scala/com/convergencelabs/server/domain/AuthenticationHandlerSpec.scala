@@ -127,7 +127,7 @@ class AuthenticationHandlerSpec()
 
     val nonExistingUser = "non-existing"
 
-    val domainFqn = DomainFqn("convergence", "default")
+    val domainFqn = DomainId("convergence", "default")
 
     def nextSessionId(): String = {
       val nextSessionId = sessionId + 1

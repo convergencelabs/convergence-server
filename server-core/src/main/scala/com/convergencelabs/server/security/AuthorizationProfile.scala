@@ -5,7 +5,7 @@ import com.convergencelabs.server.datastore.convergence.ServerRoleTarget
 import com.convergencelabs.server.datastore.convergence.NamespaceRoleTarget
 import com.convergencelabs.server.datastore.convergence.RoleStore.UserRoles
 import com.convergencelabs.server.datastore.convergence.RoleTarget
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 
 class AuthorizationProfile(val username: String, userRoles: UserRoles) extends Serializable {
 
@@ -34,10 +34,10 @@ class AuthorizationProfile(val username: String, userRoles: UserRoles) extends S
   }
   
   def hasDomainPermission(permission: String, namespaceId: String, domainId: String): Boolean = {
-    hasPermissionForTarget(permission, DomainRoleTarget(DomainFqn(namespaceId, domainId)))
+    hasPermissionForTarget(permission, DomainRoleTarget(DomainId(namespaceId, domainId)))
   }
   
-  def hasDomainPermission(permission: String, domainFqn: DomainFqn): Boolean = {
+  def hasDomainPermission(permission: String, domainFqn: DomainId): Boolean = {
     hasPermissionForTarget(permission, DomainRoleTarget(domainFqn))
   }
 }

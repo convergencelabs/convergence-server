@@ -11,7 +11,7 @@ import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerAc
 import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.UpdateConvergenceUserProfileRequest
 import com.convergencelabs.server.datastore.convergence.UserFavoriteDomainStoreActor.GetFavoritesForUser
 import com.convergencelabs.server.datastore.convergence.UserStore.User
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.security.AuthorizationProfile
 
 import akka.actor.ActorRef
@@ -141,12 +141,12 @@ class CurrentUserService(
   }
   
   def addFavoriteDomain(authProfile: AuthorizationProfile, namespace: String, domain: String): Future[RestResponse] = {
-    val message = AddFavoriteDomain(authProfile.username, DomainFqn(namespace, domain))
+    val message = AddFavoriteDomain(authProfile.username, DomainId(namespace, domain))
     (favoriteDomainsActor ? message).mapTo[Unit] map { okResponse(_) }
   }
   
   def removeFavoriteDomain(authProfile: AuthorizationProfile, namespace: String, domain: String): Future[RestResponse] = {
-    val message = RemoveFavoriteDomain(authProfile.username,  DomainFqn(namespace, domain))
+    val message = RemoveFavoriteDomain(authProfile.username,  DomainId(namespace, domain))
     (favoriteDomainsActor ? message).mapTo[Unit] map { okResponse(_) }
   }
 }

@@ -15,7 +15,7 @@ import com.convergencelabs.server.datastore.domain.UserStoreActor.GetUserByUsern
 import com.convergencelabs.server.datastore.domain.UserStoreActor.GetUsers
 import com.convergencelabs.server.datastore.domain.UserStoreActor.SetPassword
 import com.convergencelabs.server.datastore.domain.UserStoreActor.UpdateUser
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.domain.DomainUser
 import com.convergencelabs.server.domain.DomainUserId
 import com.convergencelabs.server.domain.DomainUserType
@@ -60,7 +60,7 @@ class DomainUserService(
   import akka.http.scaladsl.server.Directives._
   import akka.pattern.ask
 
-  def route(authProfile: AuthorizationProfile, domain: DomainFqn): Route = {
+  def route(authProfile: AuthorizationProfile, domain: DomainId): Route = {
     pathPrefix("users") {
       pathEnd {
         get {
@@ -108,36 +108,36 @@ class DomainUserService(
     }
   }
 
-  def getAllUsersRequest(domain: DomainFqn, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
+  def getAllUsersRequest(domain: DomainId, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
     (domainRestActor ? DomainRestMessage(domain, GetUsers(filter, offset, limit))).mapTo[List[DomainUser]] map
       (users => okResponse(users.map(toUserData(_))))
   }
 
-  def findUser(domain: DomainFqn, request: UserLookupRequest): Future[RestResponse] = {
+  def findUser(domain: DomainId, request: UserLookupRequest): Future[RestResponse] = {
     val UserLookupRequest(filter, excludes, offset, limit) = request
     val findUser = FindUser(filter, excludes.map(_.map(DomainUserId(DomainUserType.Normal, _))), offset, limit)
     (domainRestActor ? DomainRestMessage(domain, findUser)).mapTo[List[DomainUser]] map
       (users => okResponse(users.map(toUserData(_))))
   }
 
-  def createUserRequest(createRequest: CreateUserRequest, domain: DomainFqn): Future[RestResponse] = {
+  def createUserRequest(createRequest: CreateUserRequest, domain: DomainId): Future[RestResponse] = {
     val CreateUserRequest(username, firstName, lastName, displayName, email, password) = createRequest
     val message = DomainRestMessage(domain, CreateUser(username, firstName, lastName, displayName, email, password))
     (domainRestActor ? message) map { _ => CreatedResponse }
   }
 
-  def updateUserRequest(username: String, updateRequest: UpdateUserRequest, domain: DomainFqn): Future[RestResponse] = {
+  def updateUserRequest(username: String, updateRequest: UpdateUserRequest, domain: DomainId): Future[RestResponse] = {
     val UpdateUserRequest(firstName, lastName, displayName, email, disabled) = updateRequest
     val message = DomainRestMessage(domain, UpdateUser(username, firstName, lastName, displayName, email, disabled))
     (domainRestActor ? message) map { _ => OkResponse }
   }
 
-  def setPasswordRequest(uid: String, setPasswordRequest: SetPasswordRequest, domain: DomainFqn): Future[RestResponse] = {
+  def setPasswordRequest(uid: String, setPasswordRequest: SetPasswordRequest, domain: DomainId): Future[RestResponse] = {
     val message = DomainRestMessage(domain, SetPassword(uid, setPasswordRequest.password))
     (domainRestActor ? message) map { _ => OkResponse }
   }
 
-  def getUserByUsername(username: String, domain: DomainFqn): Future[RestResponse] = {
+  def getUserByUsername(username: String, domain: DomainId): Future[RestResponse] = {
     val message = DomainRestMessage(domain, GetUserByUsername(DomainUserId(DomainUserType.Normal, username)))
     (domainRestActor ? message).mapTo[Option[DomainUser]] map {
       case Some(user) =>
@@ -147,7 +147,7 @@ class DomainUserService(
     }
   }
 
-  def deleteUser(uid: String, domain: DomainFqn): Future[RestResponse] = {
+  def deleteUser(uid: String, domain: DomainId): Future[RestResponse] = {
     (domainRestActor ? DomainRestMessage(domain, DeleteDomainUser(uid))) map { _ => OkResponse }
   }
 

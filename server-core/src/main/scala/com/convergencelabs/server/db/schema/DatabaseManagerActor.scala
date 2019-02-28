@@ -7,7 +7,7 @@ import com.convergencelabs.server.db.schema.DatabaseManagerActor.GetDomainVersio
 import com.convergencelabs.server.db.schema.DatabaseManagerActor.UpgradeConvergence
 import com.convergencelabs.server.db.schema.DatabaseManagerActor.UpgradeDomain
 import com.convergencelabs.server.db.schema.DatabaseManagerActor.UpgradeDomains
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.util.ReplyUtil
 
 import akka.actor.Actor
@@ -65,9 +65,9 @@ object DatabaseManagerActor {
   def props(schemaManager: DatabaseManager): Props = Props(new DatabaseManagerActor(schemaManager))
 
   case object GetConvergenceVersion
-  case class GetDomainVersion(fqn: DomainFqn)
+  case class GetDomainVersion(fqn: DomainId)
 
   case class UpgradeConvergence(version: Option[Int], preRelease: Boolean)
-  case class UpgradeDomain(fqn: DomainFqn, version: Option[Int], preRelease: Boolean)
+  case class UpgradeDomain(fqn: DomainId, version: Option[Int], preRelease: Boolean)
   case class UpgradeDomains(version: Option[Int], preRelease: Boolean)
 }

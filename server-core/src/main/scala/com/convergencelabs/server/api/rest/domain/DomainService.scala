@@ -18,7 +18,7 @@ import com.convergencelabs.server.datastore.convergence.DomainStoreActor.ListDom
 import com.convergencelabs.server.datastore.convergence.DomainStoreActor.UpdateDomainRequest
 import com.convergencelabs.server.datastore.convergence.NamespaceNotFoundException
 import com.convergencelabs.server.domain.Domain
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.security.AuthorizationProfile
 
 import akka.actor.ActorRef
@@ -88,7 +88,7 @@ class DomainService(
           }
         }
       } ~ pathPrefix(Segment / Segment) { (namespace, domainId) =>
-        val domain = DomainFqn(namespace, domainId)
+        val domain = DomainId(namespace, domainId)
         authorize(canAccessDomain(domain, authProfile)) {
           pathEnd {
             get {
@@ -163,7 +163,7 @@ class DomainService(
     (domainStoreActor ? message) map { _ => OkResponse }
   }
 
-  def canAccessDomain(domainFqn: DomainFqn, authProfile: AuthorizationProfile): Boolean = {
+  def canAccessDomain(domainFqn: DomainId, authProfile: AuthorizationProfile): Boolean = {
     // FIXME clearly not correct
     true
   }

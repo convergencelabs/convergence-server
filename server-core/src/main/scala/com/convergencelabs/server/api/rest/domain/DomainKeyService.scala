@@ -13,7 +13,7 @@ import com.convergencelabs.server.datastore.domain.JwtAuthKeyStoreActor.DeleteDo
 import com.convergencelabs.server.datastore.domain.JwtAuthKeyStoreActor.GetDomainApiKey
 import com.convergencelabs.server.datastore.domain.JwtAuthKeyStoreActor.GetDomainApiKeys
 import com.convergencelabs.server.datastore.domain.JwtAuthKeyStoreActor.UpdateDomainApiKey
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.domain.JwtAuthKey
 import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
 import com.convergencelabs.server.security.AuthorizationProfile
@@ -51,7 +51,7 @@ class DomainKeyService(
   import akka.http.scaladsl.server.Directives.Segment
   import akka.pattern.ask
 
-  def route(authProfile: AuthorizationProfile, domain: DomainFqn): Route = {
+  def route(authProfile: AuthorizationProfile, domain: DomainId): Route = {
     pathPrefix("jwtKeys") {
       pathEnd {
         get {
@@ -75,26 +75,26 @@ class DomainKeyService(
     }
   }
 
-  def getKeys(domain: DomainFqn): Future[RestResponse] = {
+  def getKeys(domain: DomainId): Future[RestResponse] = {
     (domainRestActor ? DomainRestMessage(domain, GetDomainApiKeys(None, None))).mapTo[List[JwtAuthKey]] map {
       case keys: List[JwtAuthKey] => okResponse(keys)
     }
   }
 
-  def getKey(domain: DomainFqn, keyId: String): Future[RestResponse] = {
+  def getKey(domain: DomainId, keyId: String): Future[RestResponse] = {
     (domainRestActor ? DomainRestMessage(domain, GetDomainApiKey(keyId))).mapTo[Option[JwtAuthKey]] map {
       case Some(key) => okResponse(key)
       case None => notFoundResponse()
     }
   }
 
-  def createKey(domain: DomainFqn, key: KeyInfo): Future[RestResponse] = {
+  def createKey(domain: DomainId, key: KeyInfo): Future[RestResponse] = {
     (domainRestActor ? DomainRestMessage(domain, CreateDomainApiKey(key))) map { _ =>
       OkResponse
     }
   }
 
-  def updateKey(domain: DomainFqn, keyId: String, update: UpdateInfo): Future[RestResponse] = {
+  def updateKey(domain: DomainId, keyId: String, update: UpdateInfo): Future[RestResponse] = {
     val UpdateInfo(description, key, enabled) = update
     val info = KeyInfo(keyId, description, key, enabled)
     (domainRestActor ? DomainRestMessage(domain, UpdateDomainApiKey(info))) map { _ =>
@@ -102,7 +102,7 @@ class DomainKeyService(
     }
   }
 
-  def deleteKey(domain: DomainFqn, keyId: String): Future[RestResponse] = {
+  def deleteKey(domain: DomainId, keyId: String): Future[RestResponse] = {
     (domainRestActor ? DomainRestMessage(domain, DeleteDomainApiKey(keyId))) map { _ =>
       OkResponse
     }

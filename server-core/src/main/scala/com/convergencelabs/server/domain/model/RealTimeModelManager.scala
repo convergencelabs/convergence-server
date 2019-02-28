@@ -12,7 +12,7 @@ import com.convergencelabs.server.UnknownErrorResponse
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.server.datastore.domain.ModelDataGenerator
 import com.convergencelabs.server.datastore.domain.ModelPermissions
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.domain.DomainUserSessionId
 import com.convergencelabs.server.domain.ModelSnapshotConfig
 import com.convergencelabs.server.domain.UnauthorizedException
@@ -63,7 +63,7 @@ object RealTimeModelManager {
 class RealTimeModelManager(
   private[this] val persistenceFactory: RealtimeModelPersistenceFactory,
   private[this] val workQueue: EventLoop,
-  private[this] val domainFqn: DomainFqn,
+  private[this] val domainFqn: DomainId,
   private[this] val modelId: String,
   private[this] val persistenceProvider: DomainPersistenceProvider,
   private[this] val permissionsResolver: ModelPermissionResolver,

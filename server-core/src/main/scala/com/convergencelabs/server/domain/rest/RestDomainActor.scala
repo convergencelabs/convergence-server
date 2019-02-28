@@ -32,7 +32,7 @@ import com.convergencelabs.server.datastore.domain.UserGroupStoreActor.UserGroup
 import com.convergencelabs.server.datastore.domain.UserStoreActor
 import com.convergencelabs.server.datastore.domain.UserStoreActor.UserStoreRequest
 import com.convergencelabs.server.domain.AuthenticationHandler
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
 
 import akka.actor.ActorRef
@@ -48,7 +48,7 @@ object RestDomainActor {
     receiveTimeout: FiniteDuration): Props = Props(new RestDomainActor(domainPersistenceManager, receiveTimeout))
 
   case class AdminTokenRequest(convergenceUsername: String)
-  case class DomainRestMessage(domainFqn: DomainFqn, message: Any)
+  case class DomainRestMessage(domainFqn: DomainId, message: Any)
 }
 
 class RestDomainActor(domainPersistenceManager: DomainPersistenceManager, receiveTimeout: FiniteDuration)
@@ -56,7 +56,7 @@ class RestDomainActor(domainPersistenceManager: DomainPersistenceManager, receiv
 
   import RestDomainActor._
 
-  private[this] var domainFqn: DomainFqn = _
+  private[this] var domainFqn: DomainId = _
   private[this] var userStoreActor: ActorRef = _
   private[this] var statsActor: ActorRef = _
   private[this] var collectionStoreActor: ActorRef = _

@@ -13,7 +13,7 @@ import com.convergencelabs.server.datastore.domain.DomainSession
 import com.convergencelabs.server.datastore.domain.SessionStore.SessionQueryType
 import com.convergencelabs.server.datastore.domain.SessionStoreActor.GetSession
 import com.convergencelabs.server.datastore.domain.SessionStoreActor.GetSessions
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
 import com.convergencelabs.server.security.AuthorizationProfile
 
@@ -56,7 +56,7 @@ class DomainSessionService(
   import akka.http.scaladsl.server.Directives.Segment
   import akka.pattern.ask
 
-  def route(authProfile: AuthorizationProfile, domain: DomainFqn): Route = {
+  def route(authProfile: AuthorizationProfile, domain: DomainId): Route = {
     pathPrefix("sessions") {
       pathEnd {
         get {
@@ -94,7 +94,7 @@ class DomainSessionService(
   }
 
   def getSessions(
-    domain: DomainFqn,
+    domain: DomainId,
     sessionId: Option[String],
     username: Option[String],
     remoteHost: Option[String],
@@ -122,7 +122,7 @@ class DomainSessionService(
       okResponse(sessions.map(sessionToSessionData(_))))
   }
 
-  def getSession(domain: DomainFqn, sessionId: String): Future[RestResponse] = {
+  def getSession(domain: DomainId, sessionId: String): Future[RestResponse] = {
     val message = DomainRestMessage(domain, GetSession(sessionId))
     (domainRestActor ? message).mapTo[Option[DomainSession]] map {
       case Some(sessions) => okResponse(sessionToSessionData(sessions))

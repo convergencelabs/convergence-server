@@ -3,7 +3,7 @@ package com.convergencelabs.server.domain.model
 import java.time.Instant
 
 import com.convergencelabs.server.datastore.domain.ModelPermissions
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.domain.DomainUserSessionId
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.model.ot.Operation
@@ -12,7 +12,7 @@ import akka.actor.ActorRef
 import com.convergencelabs.server.domain.DomainUserId
 
 sealed trait ModelMessage {
-  val domainFqn: DomainFqn
+  val domainFqn: DomainId
   val modelId: String
 }
 
@@ -22,9 +22,9 @@ sealed trait ModelMessage {
 sealed trait StatelessModelMessage extends ModelMessage
 
 // Basic Model CRUD
-case class GetRealtimeModel(domainFqn: DomainFqn, modelId: String, session: Option[DomainUserSessionId]) extends StatelessModelMessage
+case class GetRealtimeModel(domainFqn: DomainId, modelId: String, session: Option[DomainUserSessionId]) extends StatelessModelMessage
 case class CreateOrUpdateRealtimeModel(
-    domainFqn: DomainFqn,
+    domainFqn: DomainId,
     modelId: String, 
     collectionId: String,
     data: ObjectValue, 
@@ -34,7 +34,7 @@ case class CreateOrUpdateRealtimeModel(
     session: Option[DomainUserSessionId]) extends StatelessModelMessage
     
 case class CreateRealtimeModel(
-    domainFqn: DomainFqn,
+    domainFqn: DomainId,
     modelId: String,
     collectionId: String, 
     data: ObjectValue, 
@@ -43,12 +43,12 @@ case class CreateRealtimeModel(
     userPermissions: Map[DomainUserId, ModelPermissions],
     session: Option[DomainUserSessionId]) extends StatelessModelMessage
 
-case class DeleteRealtimeModel(domainFqn: DomainFqn, modelId: String, session: Option[DomainUserSessionId]) extends StatelessModelMessage
+case class DeleteRealtimeModel(domainFqn: DomainId, modelId: String, session: Option[DomainUserSessionId]) extends StatelessModelMessage
 
 // Incoming Permissions Messages
-case class GetModelPermissionsRequest(domainFqn: DomainFqn, modelId: String, session: DomainUserSessionId) extends StatelessModelMessage
+case class GetModelPermissionsRequest(domainFqn: DomainId, modelId: String, session: DomainUserSessionId) extends StatelessModelMessage
 case class SetModelPermissionsRequest(
-  domainFqn: DomainFqn,
+  domainFqn: DomainId,
   modelId: String,
   session: DomainUserSessionId,
   overrideCollection: Option[Boolean],
@@ -61,18 +61,18 @@ case class SetModelPermissionsRequest(
 // Messages targeted specifically at "open" models.
 //
 sealed trait RealTimeModelMessage extends ModelMessage
-case class OpenRealtimeModelRequest(domainFqn: DomainFqn, modelId: String, autoCreateId: Option[Int], session: DomainUserSessionId, clientActor: ActorRef) extends RealTimeModelMessage
-case class CloseRealtimeModelRequest(domainFqn: DomainFqn, modelId: String, session: DomainUserSessionId) extends RealTimeModelMessage
-case class OperationSubmission(domainFqn: DomainFqn, modelId: String, seqNo: Long, contextVersion: Long, operation: Operation) extends RealTimeModelMessage
+case class OpenRealtimeModelRequest(domainFqn: DomainId, modelId: String, autoCreateId: Option[Int], session: DomainUserSessionId, clientActor: ActorRef) extends RealTimeModelMessage
+case class CloseRealtimeModelRequest(domainFqn: DomainId, modelId: String, session: DomainUserSessionId) extends RealTimeModelMessage
+case class OperationSubmission(domainFqn: DomainId, modelId: String, seqNo: Long, contextVersion: Long, operation: Operation) extends RealTimeModelMessage
 
 sealed trait ModelReferenceEvent extends RealTimeModelMessage {
   val id: Option[String]
 }
 
-case class ShareReference(domainFqn: DomainFqn, modelId: String, id: Option[String], key: String, referenceType: ReferenceType.Value, values: List[Any], contextVersion: Long) extends ModelReferenceEvent
-case class SetReference(domainFqn: DomainFqn, modelId: String, id: Option[String], key: String, referenceType: ReferenceType.Value, values: List[Any], contextVersion: Long) extends ModelReferenceEvent
-case class ClearReference(domainFqn: DomainFqn, modelId: String, id: Option[String], key: String) extends ModelReferenceEvent
-case class UnshareReference(domainFqn: DomainFqn, modelId: String, id: Option[String], key: String) extends ModelReferenceEvent
+case class ShareReference(domainFqn: DomainId, modelId: String, id: Option[String], key: String, referenceType: ReferenceType.Value, values: List[Any], contextVersion: Long) extends ModelReferenceEvent
+case class SetReference(domainFqn: DomainId, modelId: String, id: Option[String], key: String, referenceType: ReferenceType.Value, values: List[Any], contextVersion: Long) extends ModelReferenceEvent
+case class ClearReference(domainFqn: DomainId, modelId: String, id: Option[String], key: String) extends ModelReferenceEvent
+case class UnshareReference(domainFqn: DomainId, modelId: String, id: Option[String], key: String) extends ModelReferenceEvent
 
 sealed trait InternalRealTimeModelMessage
 

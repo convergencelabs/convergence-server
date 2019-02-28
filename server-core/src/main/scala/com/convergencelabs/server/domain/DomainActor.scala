@@ -79,7 +79,7 @@ class DomainActor(
   private[this] val authenticatedClients = mutable.Map[ActorRef, String]()
 
   // This is the state that will be set during the initialize method
-  private[this] var domainFqn: DomainFqn = _
+  private[this] var domainFqn: DomainId = _
   private[this] var persistenceProvider: DomainPersistenceProvider = _
   private[this] var authenticator: AuthenticationHandler = _
   private[this] var children: DomainActorChildren = _

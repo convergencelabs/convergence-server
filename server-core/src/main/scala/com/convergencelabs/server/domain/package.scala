@@ -3,12 +3,12 @@ package com.convergencelabs.server.domain
 import akka.actor.ActorRef
 
 sealed trait DomainMessage {
-  val domainFqn: DomainFqn
+  val domainFqn: DomainId
 }
 
-case class HandshakeRequest(domainFqn: DomainFqn, clientActor: ActorRef, reconnect: Boolean, reconnectToken: Option[String]) extends DomainMessage
+case class HandshakeRequest(domainFqn: DomainId, clientActor: ActorRef, reconnect: Boolean, reconnectToken: Option[String]) extends DomainMessage
 case class AuthenticationRequest(
-  domainFqn:      DomainFqn,
+  domainFqn:      DomainId,
   clientActor:    ActorRef,
   remoteAddress:  String,
   client:         String,
@@ -16,9 +16,9 @@ case class AuthenticationRequest(
   clientMetaData: String,
   credentials:    AuthetncationCredentials) extends DomainMessage
 
-case class ClientDisconnected(domainFqn: DomainFqn, clientActor: ActorRef) extends DomainMessage
+case class ClientDisconnected(domainFqn: DomainId, clientActor: ActorRef) extends DomainMessage
 
-case class DomainStatusRequest(domainFqn: DomainFqn) extends DomainMessage
+case class DomainStatusRequest(domainFqn: DomainId) extends DomainMessage
 case class DomainStatusResponse(connectedClients: Int)
 
 sealed trait AuthetncationCredentials

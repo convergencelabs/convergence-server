@@ -12,7 +12,7 @@ import com.convergencelabs.server.datastore.convergence.DomainStore
 import com.convergencelabs.server.db.PooledDatabaseProvider
 import com.convergencelabs.server.db.provision.DomainProvisionerActor.DomainDeleted
 import com.convergencelabs.server.db.provision.DomainProvisionerActor.DomainLifecycleTopic
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 
 import akka.actor.Actor
 import akka.actor.ActorContext
@@ -30,8 +30,8 @@ import akka.util.Timeout
 import grizzled.slf4j.Logging
 
 trait DomainPersistenceManager {
-  def acquirePersistenceProvider(requestor: ActorRef, context: ActorContext, domainFqn: DomainFqn): Try[DomainPersistenceProvider]
-  def releasePersistenceProvider(requestor: ActorRef, context: ActorContext, domainFqn: DomainFqn): Unit
+  def acquirePersistenceProvider(requestor: ActorRef, context: ActorContext, domainFqn: DomainId): Try[DomainPersistenceProvider]
+  def releasePersistenceProvider(requestor: ActorRef, context: ActorContext, domainFqn: DomainId): Unit
 }
 
 object DomainPersistenceManagerActor extends DomainPersistenceManager with Logging {
@@ -47,7 +47,7 @@ object DomainPersistenceManagerActor extends DomainPersistenceManager with Loggi
     requestor.root / "user" / RelativePath
   }
 
-  def acquirePersistenceProvider(requestor: ActorRef, context: ActorContext, domainFqn: DomainFqn): Try[DomainPersistenceProvider] = {
+  def acquirePersistenceProvider(requestor: ActorRef, context: ActorContext, domainFqn: DomainId): Try[DomainPersistenceProvider] = {
     val path = DomainPersistenceManagerActor.getLocalInstancePath(requestor.path)
     val selection = context.actorSelection(path)
 
@@ -60,7 +60,7 @@ object DomainPersistenceManagerActor extends DomainPersistenceManager with Loggi
     }
   }
 
-  def releasePersistenceProvider(requestor: ActorRef, context: ActorContext, domainFqn: DomainFqn): Unit = {
+  def releasePersistenceProvider(requestor: ActorRef, context: ActorContext, domainFqn: DomainId): Unit = {
     val path = DomainPersistenceManagerActor.getLocalInstancePath(requestor.path)
     val selection = context.actorSelection(path)
     selection.tell(ReleaseDomainPersistence(domainFqn), requestor)
@@ -71,9 +71,9 @@ class DomainPersistenceManagerActor(
   baseDbUri: String,
   domainStore: DomainStore) extends Actor with ActorLogging {
 
-  private[this] var refernceCounts = Map[DomainFqn, Int]()
-  private[this] var providers = Map[DomainFqn, DomainPersistenceProviderImpl]()
-  private[this] var providersByActor = Map[ActorRef, List[DomainFqn]]()
+  private[this] var refernceCounts = Map[DomainId, Int]()
+  private[this] var providers = Map[DomainId, DomainPersistenceProviderImpl]()
+  private[this] var providersByActor = Map[ActorRef, List[DomainId]]()
 
   val mediator = DistributedPubSub(context.system).mediator
 
@@ -92,7 +92,7 @@ class DomainPersistenceManagerActor(
       onActorDeath(actor)
   }
 
-  private[this] def onAcquire(domainFqn: DomainFqn, requestor: ActorRef): Unit = {
+  private[this] def onAcquire(domainFqn: DomainId, requestor: ActorRef): Unit = {
     log.debug(s"${domainFqn}: Acquiring domain persistence for ${requestor.path}")
     providers.get(domainFqn)
       .map(Success(_))
@@ -120,7 +120,7 @@ class DomainPersistenceManagerActor(
       }
   }
 
-  private[this] def onRelease(domainFqn: DomainFqn): Unit = {
+  private[this] def onRelease(domainFqn: DomainId): Unit = {
     log.debug(s"${domainFqn}: Releasing domain persistence for ${sender.path}")
     decrementCount(domainFqn)
 
@@ -148,7 +148,7 @@ class DomainPersistenceManagerActor(
     })
   }
 
-  private[this] def decrementCount(domainFqn: DomainFqn): Unit = {
+  private[this] def decrementCount(domainFqn: DomainId): Unit = {
     refernceCounts.get(domainFqn) foreach (currentCount => {
       val newCount = currentCount - 1
       if (newCount == 0) {
@@ -160,7 +160,7 @@ class DomainPersistenceManagerActor(
     })
   }
 
-  private[this] def createProvider(domainFqn: DomainFqn): Try[DomainPersistenceProvider] = {
+  private[this] def createProvider(domainFqn: DomainId): Try[DomainPersistenceProvider] = {
     log.debug(s"${domainFqn}: Creating new persistence provider")
     domainStore.getDomainDatabase(domainFqn) flatMap {
       case Some(domainInfo) =>
@@ -183,14 +183,14 @@ class DomainPersistenceManagerActor(
     }
   }
 
-  private[this] def onDomainDeleted(domainFqn: DomainFqn): Unit = {
+  private[this] def onDomainDeleted(domainFqn: DomainId): Unit = {
     if (providers.contains(domainFqn)) {
       log.debug(s"${domainFqn}: Domain deleted, shutting down connection pool")
       shutdownPool(domainFqn)
     }
   }
 
-  private[this] def shutdownPool(domainFqn: DomainFqn): Unit = {
+  private[this] def shutdownPool(domainFqn: DomainId): Unit = {
     providers.get(domainFqn) match {
       case Some(provider) => {
         log.debug(s"${domainFqn}: Shutting down persistence provider")
@@ -205,7 +205,7 @@ class DomainPersistenceManagerActor(
   }
 }
 
-case class DomainNotFoundException(domainFqn: DomainFqn) extends Exception(s"The requested domain does not exist: ${domainFqn}")
+case class DomainNotFoundException(domainFqn: DomainId) extends Exception(s"The requested domain does not exist: ${domainFqn}")
 
-case class AcquireDomainPersistence(domainFqn: DomainFqn, requestor: ActorRef)
-case class ReleaseDomainPersistence(domainFqn: DomainFqn)
+case class AcquireDomainPersistence(domainFqn: DomainId, requestor: ActorRef)
+case class ReleaseDomainPersistence(domainFqn: DomainId)

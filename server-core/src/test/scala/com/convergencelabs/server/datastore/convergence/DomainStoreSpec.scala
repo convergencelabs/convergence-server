@@ -11,7 +11,7 @@ import com.convergencelabs.server.datastore.convergence.UserStore.User
 import com.convergencelabs.server.datastore.domain.PersistenceStoreSpec
 import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.domain.Domain
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.domain.DomainStatus
 import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.datastore.DuplicateValueException
@@ -42,16 +42,16 @@ class DomainStoreSpec
   val Namespace1 = Namespace(namespace1, "Namespace 1", false)
   val Namespace2 = Namespace(namespace2, "Namespace 2", false)
 
-  val ns1d1 = DomainFqn(namespace1, domain1)
+  val ns1d1 = DomainId(namespace1, domain1)
   val ns1d1Database = DomainDatabase("ns1d1", "username", "password", "adminUsername", "adminPassword")
 
-  val ns1d2 = DomainFqn(namespace1, domain2)
+  val ns1d2 = DomainId(namespace1, domain2)
   val ns1d2Database = DomainDatabase("ns1d2", "username", "password", "adminUsername", "adminPassword")
 
-  val ns1d3 = DomainFqn(namespace1, domain3)
+  val ns1d3 = DomainId(namespace1, domain3)
   val ns1d3Database = DomainDatabase("ns1d3", "username", "password", "adminUsername", "adminPassword")
 
-  val ns2d1 = DomainFqn("namespace2", "domain1")
+  val ns2d1 = DomainId("namespace2", "domain1")
   val ns2d1Database = DomainDatabase("ns2d1", "username", "password", "adminUsername", "adminPassword")
 
   val Username = "test"
@@ -63,7 +63,7 @@ class DomainStoreSpec
 
     "asked whether a domain exists" must {
       "return false if it doesn't exist" in withTestData { stores =>
-        stores.domain.domainExists(DomainFqn("notRealNs", "notRealId")).get shouldBe false
+        stores.domain.domainExists(DomainId("notRealNs", "notRealId")).get shouldBe false
       }
 
       "return true if it does exist" in withTestData { stores =>
@@ -75,7 +75,7 @@ class DomainStoreSpec
     "retrieving a domain by fqn" must {
       "return None if the domain doesn't exist" in withTestData { stores =>
         stores.domain.createDomain(ns1d1, "", ns1d1Database).get
-        stores.domain.getDomainByFqn(DomainFqn("notReal", "notReal")).get shouldBe None
+        stores.domain.getDomainByFqn(DomainId("notReal", "notReal")).get shouldBe None
       }
 
       "return Some if the domain exist" in withTestData { stores =>
@@ -87,7 +87,7 @@ class DomainStoreSpec
     "creating a domain" must {
       "insert the domain correct record into the database" in withTestData { stores =>
         val dbName = "t4"
-        val fqn = DomainFqn(Namespace1.id, "test4")
+        val fqn = DomainId(Namespace1.id, "test4")
         val domain = Domain(fqn, "Test Domain 4", DomainStatus.Initializing, "")
         stores.domain.createDomain(fqn, "Test Domain 4", DomainDatabase("db", "", "", "", "")).get
         stores.domain.getDomainByFqn(fqn).get.value shouldBe domain
@@ -127,14 +127,14 @@ class DomainStoreSpec
     "updating a domain" must {
       "sucessfully update an existing domain" in withTestData { stores =>
         stores.domain.createDomain(ns1d1, "", ns1d1Database).get
-        val toUpdate = Domain(DomainFqn(namespace1, domain1), "Updated", DomainStatus.Offline, "offline")
+        val toUpdate = Domain(DomainId(namespace1, domain1), "Updated", DomainStatus.Offline, "offline")
         stores.domain.updateDomain(toUpdate).get
         val queried = stores.domain.getDomainByFqn(ns1d1).get.value
         queried shouldBe toUpdate
       }
 
       "fail to update an non-existing domain" in withTestData { stores =>
-        val toUpdate = Domain(DomainFqn(namespace1, domain3), "Updated", DomainStatus.Online, "")
+        val toUpdate = Domain(DomainId(namespace1, domain3), "Updated", DomainStatus.Online, "")
         stores.domain.updateDomain(toUpdate).failure.exception shouldBe a[EntityNotFoundException]
       }
     }

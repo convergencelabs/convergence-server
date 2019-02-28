@@ -15,7 +15,7 @@ import com.convergencelabs.server.datastore.domain.ChatMember
 import com.convergencelabs.server.datastore.domain.ChatMembership
 import com.convergencelabs.server.datastore.domain.ChatType
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.domain.DomainUserId
 import com.convergencelabs.server.domain.chat.ChatMessages.ChatNotFoundException
 import com.convergencelabs.server.domain.chat.ChatMessages.ExistingChatMessage
@@ -45,7 +45,7 @@ class ChatActor private[domain] () extends ShardedActor(classOf[ExistingChatMess
   import ChatActor._
   import ChatMessages._
 
-  var domainFqn: DomainFqn = _
+  var domainFqn: DomainId = _
   var channelId: String = _
 
   // Here None signifies that the channel does not exist.

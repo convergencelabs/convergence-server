@@ -16,7 +16,7 @@ import com.convergencelabs.server.domain.AuthenticationResponse
 import com.convergencelabs.server.domain.AuthenticationSuccess
 import com.convergencelabs.server.domain.ClientDisconnected
 import com.convergencelabs.server.domain.DomainActorSharding
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.domain.DomainUser
 import com.convergencelabs.server.domain.DomainUserSessionId
 import com.convergencelabs.server.domain.GetUserByUsername
@@ -71,7 +71,7 @@ import scalapb.GeneratedMessage
 
 object ClientActor {
   def props(
-    domainFqn: DomainFqn,
+    domainFqn: DomainId,
     protocolConfig: ProtocolConfiguration,
     remoteHost: RemoteAddress,
     userAgent: String): Props = Props(
@@ -83,7 +83,7 @@ object ClientActor {
 }
 
 class ClientActor(
-  private[this] val domainFqn: DomainFqn,
+  private[this] val domainFqn: DomainId,
   private[this] val protocolConfig: ProtocolConfiguration,
   private[this] val remoteHost: RemoteAddress,
   private[this] val userAgent: String)

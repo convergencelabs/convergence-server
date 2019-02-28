@@ -4,7 +4,7 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.WordSpec
 import com.convergencelabs.server.util.EmbeddedTestingOrientDB
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import org.scalatest.mockito.MockitoSugar
 import com.convergencelabs.server.datastore.convergence.DeltaHistoryStore
@@ -36,7 +36,7 @@ class DomainProvisionerSpec()
         Mockito.when(store.saveDomainDeltaHistory(Matchers.any())).thenReturn(Success(()))
         
         val provisioner = new DomainProvisioner(store, "remote:localhost", "root", "password", true)
-        provisioner.provisionDomain(DomainFqn("some", "domain"), database, "writer", "wpassword", "admin", "apassword", false).get
+        provisioner.provisionDomain(DomainId("some", "domain"), database, "writer", "wpassword", "admin", "apassword", false).get
         
         oriendDb.server.dropDatabase(database)
       }

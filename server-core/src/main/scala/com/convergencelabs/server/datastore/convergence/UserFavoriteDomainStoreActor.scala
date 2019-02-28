@@ -5,7 +5,7 @@ import scala.language.postfixOps
 
 import com.convergencelabs.server.datastore.StoreActor
 import com.convergencelabs.server.db.DatabaseProvider
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 
 import akka.actor.ActorLogging
 import akka.actor.Props
@@ -16,8 +16,8 @@ object UserFavoriteDomainStoreActor {
 
   def props(dbProvider: DatabaseProvider): Props = Props(new UserFavoriteDomainStoreActor(dbProvider))
 
-  case class AddFavoriteDomain(username: String, domain: DomainFqn)
-  case class RemoveFavoriteDomain(username: String, domain: DomainFqn)
+  case class AddFavoriteDomain(username: String, domain: DomainId)
+  case class RemoveFavoriteDomain(username: String, domain: DomainId)
   case class GetFavoritesForUser(username: String)
 }
 

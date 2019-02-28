@@ -15,7 +15,7 @@ import com.convergencelabs.server.db.provision.DomainProvisionerActor.DestroyDom
 import com.convergencelabs.server.db.provision.DomainProvisionerActor.DomainProvisioned
 import com.convergencelabs.server.db.provision.DomainProvisionerActor.ProvisionDomain
 import com.convergencelabs.server.domain.DomainDatabase
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.domain.DomainStatus
 import com.convergencelabs.server.util.ExceptionUtils
 
@@ -31,7 +31,7 @@ object DomainStoreActor {
   val RelativePath = "DomainStoreActor"
 
   def props(
-    dbProvider: DatabaseProvider,
+    dbProvider:       DatabaseProvider,
     provisionerActor: ActorRef): Props =
     Props(new DomainStoreActor(dbProvider, provisionerActor))
 
@@ -44,7 +44,7 @@ object DomainStoreActor {
 }
 
 class DomainStoreActor private[datastore] (
-  private[this] val dbProvider: DatabaseProvider,
+  private[this] val dbProvider:        DatabaseProvider,
   private[this] val domainProvisioner: ActorRef)
   extends StoreActor with ActorLogging {
 
@@ -87,7 +87,7 @@ class DomainStoreActor private[datastore] (
           UUID.randomUUID().toString(), UUID.randomUUID().toString())
     }
 
-    val domainFqn = DomainFqn(namespace, domainId)
+    val domainFqn = DomainId(namespace, domainId)
     val domainDbInfo = DomainDatabase(dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword)
 
     val currentSender = sender
@@ -123,7 +123,7 @@ class DomainStoreActor private[datastore] (
   def updateDomain(request: UpdateDomainRequest): Unit = {
     val UpdateDomainRequest(namespace, domainId, displayName) = request
     reply(
-      domainStore.getDomainByFqn(DomainFqn(namespace, domainId)).flatMap {
+      domainStore.getDomainByFqn(DomainId(namespace, domainId)).flatMap {
         case Some(domain) =>
           val updated = domain.copy(displayName = displayName)
           domainStore.updateDomain(updated)
@@ -132,44 +132,52 @@ class DomainStoreActor private[datastore] (
       })
   }
 
-  def deleteDomain(deleteRequest: DeleteDomainRequest): Try[Unit] = {
+  def deleteDomain(deleteRequest: DeleteDomainRequest): Unit = {
     val DeleteDomainRequest(namespace, domainId) = deleteRequest
-    val domainFqn = DomainFqn(namespace, domainId)
-    deleteDomain(domainFqn)
+    val domainFqn = DomainId(namespace, domainId)
+    reply(deleteDomain(domainFqn))
   }
 
-  // FIXME handle the error flow here a little better, think about transactions.
-  def deleteDomain(domainFqn: DomainFqn): Try[Unit] = {
-    val result = domainStore.getDomainDatabase(domainFqn).flatMap(_ match {
-      case Some(domainDatabase) =>
-        log.debug(s"Deleting domain database for ${domainFqn}: ${domainDatabase.database}")
-
-        implicit val requstTimeout = Timeout(4 minutes) // FXIME hard-coded timeout
-        (domainProvisioner ? DestroyDomain(domainFqn, domainDatabase.database)) onComplete {
-          case Success(_) =>
-            log.debug(s"Domain database deleted: ${domainDatabase.database}")
-
-            log.debug(s"Removing domain delta history: ${domainFqn}")
-            deltaHistoryStore.removeDeltaHistoryForDomain(domainFqn)
-              .map(_ => log.debug(s"Domain database delta history removed: ${domainFqn}"))
-              .failed.map(cause => log.error(cause, s"Error deleting domain history history: ${domainFqn}"))
-
-            log.debug(s"Removing domain: ${domainFqn}")
-            domainStore.removeDomain(domainFqn)
-              .map(_ => log.debug(s"Domain record removed: ${domainFqn}"))
-              .failed.map(cause => log.error(cause, s"Error deleting domain record: ${domainFqn}"))
-            favoriteDomainStore.removeFavoritesForDomain(domainFqn)
-          case Failure(f) =>
-            log.error(f, s"Could not desstroy domain database: ${domainFqn}")
-        }
-        Success(())
-      case None =>
-        Failure(new EntityNotFoundException(s"Could not find domain information to delete the domain: ${domainFqn}"))
-    })
-
-    reply(result)
-
-    result
+  def deleteDomain(domainId: DomainId): Try[Unit] = {
+    (for {
+      _ <- domainStore.setDomainStatus(domainId, DomainStatus.Deleting, "")
+      domainDatabase <- domainStore.getDomainDatabase(domainId)
+      result <- domainDatabase match {
+        case Some(domainDatabase) =>
+          log.debug(s"Deleting domain database for ${domainId}: ${domainDatabase.database}")
+          implicit val requstTimeout = Timeout(4 minutes) // FXIME hard-coded timeout
+          (domainProvisioner ? DestroyDomain(domainId, domainDatabase.database)) onComplete {
+            case Success(_) =>
+              log.debug(s"Domain database deleted, deleting domain related records in convergence database: ${domainDatabase.database}")
+              (for {
+                _ <- deltaHistoryStore.removeDeltaHistoryForDomain(domainId)
+                  .map(_ => log.debug(s"Domain database delta history removed: ${domainId}"))
+                _ <- favoriteDomainStore.removeFavoritesForDomain(domainId)
+                  .map(_ => log.debug(s"Favorites for Domain removed: ${domainId}"))
+                _ <- domainStore.removeDomain(domainId)
+                  .map(_ => log.debug(s"Domain record removed: ${domainId}"))
+              } yield {
+                ()
+              }).recoverWith {
+                case cause: Throwable =>
+                  log.error(cause, s"Could not delete domain: ${domainId}")
+                  domainStore.setDomainStatus(domainId, DomainStatus.Error, "There was an unexpceted error deleting the domain")
+              }
+            case Failure(cause) =>
+              log.error(cause, s"Could not desstroy domain: ${domainId}")
+              domainStore.setDomainStatus(domainId, DomainStatus.Error, "There was an unexpceted error deleting the domain")
+          }
+          Success(())
+        case None =>
+          Failure(new EntityNotFoundException(s"Could not find domain information to delete the domain: ${domainId}"))
+      }
+    } yield {
+      result
+    }).recoverWith {
+      case cause: Throwable =>
+        domainStore.setDomainStatus(domainId, DomainStatus.Error, "There was an unexpceted error deleting the domain")
+        Failure(cause)
+    }
   }
 
   def deleteDomainsForUser(request: DeleteDomainsForUserRequest): Unit = {
@@ -197,7 +205,7 @@ class DomainStoreActor private[datastore] (
 
   def getDomain(getRequest: GetDomainRequest): Unit = {
     val GetDomainRequest(namespace, domainId) = getRequest
-    reply(domainStore.getDomainByFqn(DomainFqn(namespace, domainId)))
+    reply(domainStore.getDomainByFqn(DomainId(namespace, domainId)))
   }
 
   def listDomains(listRequest: ListDomainsRequest): Unit = {
@@ -208,6 +216,6 @@ class DomainStoreActor private[datastore] (
       // FIXME this doesn't work for namespace access
       reply(domainStore.getDomainsByAccess(authProfile.username, namespace, filter, offset, limit))
     }
-    
+
   }
 }

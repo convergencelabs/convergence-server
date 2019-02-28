@@ -11,7 +11,7 @@ import akka.actor.ActorRef
 
 package model {
 
-  case class ModelFqn(domainFqn: DomainFqn, modelId: String)
+  case class ModelFqn(domainFqn: DomainId, modelId: String)
   
   case class ClientAutoCreateModelConfigResponse(collectionId: String, modelData: Option[ObjectValue], overridePermissions: Option[Boolean],
     worldPermissions: Option[ModelPermissions], userPermissions: Map[DomainUserId, ModelPermissions], ephemeral: Option[Boolean])

@@ -21,7 +21,7 @@ import akka.actor.Status
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
 import scala.util.Failure
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 
 
 
@@ -67,6 +67,6 @@ class DomainProvisionerActorSpec
     val provisioner = mock[DomainProvisioner]
     val props = DomainProvisionerActor.props(provisioner)
     val domainProvisionerActor = system.actorOf(props)
-    val domainFqn = DomainFqn("some", "domain")
+    val domainFqn = DomainId("some", "domain")
   }
 }

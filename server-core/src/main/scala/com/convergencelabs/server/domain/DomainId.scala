@@ -1,5 +1,5 @@
 package com.convergencelabs.server.domain
 
-case class DomainFqn(
+case class DomainId(
   namespace: String,
   domainId: String)

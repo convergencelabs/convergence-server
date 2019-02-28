@@ -18,7 +18,7 @@ import org.scalatest.mockito.MockitoSugar
 import com.convergencelabs.server.HeartbeatConfiguration
 import com.convergencelabs.server.ProtocolConfiguration
 import com.convergencelabs.server.domain.AuthenticationSuccess
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.domain.DomainUserId
 import com.convergencelabs.server.domain.DomainUserSessionId
 import com.convergencelabs.server.domain.DomainUserType
@@ -64,7 +64,7 @@ class ClientActorSpec
 
     val connectionActor = new TestProbe(system)
 
-    val domainFqn = DomainFqn("namespace", "domainId")
+    val domainFqn = DomainId("namespace", "domainId")
     val protoConfig = ProtocolConfiguration(
       2 seconds,
       250 millis,

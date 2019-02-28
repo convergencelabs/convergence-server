@@ -5,7 +5,7 @@ import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
 import com.convergencelabs.server.ProtocolConfiguration
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
@@ -79,7 +79,7 @@ class WebSocketService(
 
   private[this] def createFlowForConnection(namespace: String, domain: String, remoteAddress: RemoteAddress, ua: String): Flow[IncomingBinaryMessage, OutgoingBinaryMessage, Any] = {
     val clientActor = system.actorOf(ClientActor.props(
-      DomainFqn(namespace, domain),
+      DomainId(namespace, domain),
       protocolConfig,
       remoteAddress,
       ua))

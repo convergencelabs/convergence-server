@@ -10,13 +10,13 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import com.convergencelabs.server.datastore.convergence.DeltaHistoryStore
 import com.convergencelabs.server.datastore.convergence.DomainDelta
 import com.convergencelabs.server.datastore.convergence.DomainDeltaHistory
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 
 import grizzled.slf4j.Logging
 
 class DomainSchemaManager(
-  domainFqn: DomainFqn,
+  domainFqn: DomainId,
   db: ODatabaseDocument,
   historyStore: DeltaHistoryStore,
   preRelease: Boolean)

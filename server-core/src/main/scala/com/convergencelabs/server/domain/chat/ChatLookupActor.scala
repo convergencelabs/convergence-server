@@ -13,7 +13,7 @@ import com.convergencelabs.server.datastore.domain.ChatInfo
 import com.convergencelabs.server.datastore.domain.ChatStore
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
 import com.convergencelabs.server.datastore.domain.PermissionsStore
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.domain.DomainUserId
 import com.convergencelabs.server.domain.UnauthorizedException
 import com.convergencelabs.server.domain.chat.ChatMessages.ChatAlreadyExistsException

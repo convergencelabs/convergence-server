@@ -5,7 +5,7 @@ import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
 
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.domain.JwtUtil
 
 import KeyGenService.CreateTokenResponse

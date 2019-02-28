@@ -11,7 +11,7 @@ import com.convergencelabs.server.datastore.convergence.RoleStoreActor.RemoveUse
 import com.convergencelabs.server.datastore.convergence.RoleStoreActor.UpdateRolesForTargetRequest
 import com.convergencelabs.server.datastore.convergence.RoleTarget
 import com.convergencelabs.server.datastore.convergence.ServerRoleTarget
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.security.AuthorizationProfile
 
 import akka.actor.ActorRef
@@ -85,14 +85,14 @@ class RoleService(
         path("domain" / Segment / Segment) { (namespace, domain) =>
           pathEnd {
             get {
-              complete(getUserRolesForTarget(authProfile, DomainRoleTarget(new DomainFqn(namespace, domain))))
+              complete(getUserRolesForTarget(authProfile, DomainRoleTarget(new DomainId(namespace, domain))))
             } ~ post {
               entity(as[Map[String, String]]) { userRoles =>
-                complete(updateUserRolesForTarget(authProfile, DomainRoleTarget(new DomainFqn(namespace, domain)), userRoles))
+                complete(updateUserRolesForTarget(authProfile, DomainRoleTarget(new DomainId(namespace, domain)), userRoles))
               }
             }
           } ~ path(Segment) { username =>
-            complete(deleteUserRoleForTarget(authProfile, DomainRoleTarget(new DomainFqn(namespace, domain)), username))
+            complete(deleteUserRoleForTarget(authProfile, DomainRoleTarget(new DomainId(namespace, domain)), username))
           }
         })
     }

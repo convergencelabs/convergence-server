@@ -8,7 +8,7 @@ import org.json4s.JsonAST.JValue
 import com.convergencelabs.server.actor.ShardedActor
 import com.convergencelabs.server.actor.ShardedActorStatUpPlan
 import com.convergencelabs.server.actor.StartUpRequired
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
@@ -30,7 +30,7 @@ class ActivityActor()
    * Will be initialized on the first message inside the initialize method.
    */
   private[this] var activityId: String = _
-  private[this] var domain: DomainFqn = _
+  private[this] var domain: DomainId = _
 
   private[this] var joinedClients = Map[ActorRef, String]()
   private[this] var joinedSessions = Map[String, ActorRef]()

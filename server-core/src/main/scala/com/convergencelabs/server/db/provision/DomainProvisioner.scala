@@ -11,7 +11,7 @@ import com.convergencelabs.server.datastore.domain.DomainPersistenceProviderImpl
 import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.db.SingleDatabaseProvider
 import com.convergencelabs.server.db.schema.DomainSchemaManager
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.domain.JwtKeyPair
 import com.convergencelabs.server.domain.JwtUtil
 import com.convergencelabs.server.domain.ModelSnapshotConfig
@@ -57,7 +57,7 @@ class DomainProvisioner(
   extends Logging {
 
   def provisionDomain(
-    domainFqn: DomainFqn,
+    domainFqn: DomainId,
     dbName: String,
     dbUsername: String,
     dbPassword: String,
@@ -137,7 +137,7 @@ class DomainProvisioner(
     }
   }
 
-  private[this] def installSchema(domainFqn: DomainFqn, dbProvider: DatabaseProvider, preRelease: Boolean): Try[Unit] = {
+  private[this] def installSchema(domainFqn: DomainId, dbProvider: DatabaseProvider, preRelease: Boolean): Try[Unit] = {
     dbProvider.withDatabase { db =>
       // FIXME should be use the other actor
       val schemaManager = new DomainSchemaManager(domainFqn, db, historyStore, preRelease)

@@ -7,7 +7,7 @@ import scala.util.Try
 
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManager
 import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 
 import akka.actor.ActorContext
 import akka.actor.ActorRef
@@ -28,16 +28,16 @@ import com.convergencelabs.server.datastore.domain.ModelOperationProcessor
 import com.convergencelabs.server.datastore.domain.PermissionsStore
 import com.convergencelabs.server.db.DatabaseProvider
 
-class MockDomainPersistenceManager(val mockProviders: Map[DomainFqn, MockDomainPersistenceProvider]) extends DomainPersistenceManager {
+class MockDomainPersistenceManager(val mockProviders: Map[DomainId, MockDomainPersistenceProvider]) extends DomainPersistenceManager {
 
-  def acquirePersistenceProvider(requestor: ActorRef, context: ActorContext, domainFqn: DomainFqn): Try[MockDomainPersistenceProvider] = {
+  def acquirePersistenceProvider(requestor: ActorRef, context: ActorContext, domainFqn: DomainId): Try[MockDomainPersistenceProvider] = {
     mockProviders.get(domainFqn) match {
       case Some(provider) => Success(provider)
       case None => Failure(new IllegalArgumentException(s"Don't have provider for domain ${domainFqn}"))
     }
   }
 
-  def releasePersistenceProvider(requestor: ActorRef, context: ActorContext, domainFqn: DomainFqn): Unit = {
+  def releasePersistenceProvider(requestor: ActorRef, context: ActorContext, domainFqn: DomainId): Unit = {
 
   }
 }

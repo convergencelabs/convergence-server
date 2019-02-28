@@ -20,11 +20,11 @@ object IdentityServiceActor {
 
   val RelativePath = "userService"
 
-  def props(domainFqn: DomainFqn): Props = Props(
+  def props(domainFqn: DomainId): Props = Props(
     new IdentityServiceActor(domainFqn))
 }
 
-class IdentityServiceActor private[domain] (domainFqn: DomainFqn) extends Actor with ActorLogging {
+class IdentityServiceActor private[domain] (domainFqn: DomainId) extends Actor with ActorLogging {
 
   var persistenceProvider: DomainPersistenceProvider = _
 

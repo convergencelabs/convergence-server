@@ -17,7 +17,7 @@ import com.convergencelabs.server.datastore.convergence.UserStore
 import com.convergencelabs.server.datastore.convergence.UserStore.User
 import com.convergencelabs.server.datastore.domain.PersistenceStoreSpec
 import com.convergencelabs.server.db.DatabaseProvider
-import com.convergencelabs.server.domain.DomainFqn
+import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.domain.DomainDatabase
 import com.convergencelabs.server.datastore.convergence.NamespaceStore
 
@@ -93,9 +93,9 @@ class DeltaHistoryStoreSpec
   val Password = "password"
   val BearerToken = "token"
 
-  val ns1d1 = DomainFqn("ns1", "d1")
-  val ns1d2 = DomainFqn("ns1", "d2")
-  val ns2d1 = DomainFqn("ns2", "d1")
+  val ns1d1 = DomainId("ns1", "d1")
+  val ns1d2 = DomainId("ns1", "d2")
+  val ns2d1 = DomainId("ns2", "d1")
 
   val DummyDomainDatabase = DomainDatabase("11", "", "", "", "")
   val DummyDomainDatabase12 = DomainDatabase("12", "", "", "", "")
