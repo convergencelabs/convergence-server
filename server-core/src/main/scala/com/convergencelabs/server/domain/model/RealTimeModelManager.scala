@@ -61,16 +61,16 @@ object RealTimeModelManager {
 }
 
 class RealTimeModelManager(
-  private[this] val persistenceFactory: RealtimeModelPersistenceFactory,
-  private[this] val workQueue: EventLoop,
-  private[this] val domainFqn: DomainId,
-  private[this] val modelId: String,
-  private[this] val persistenceProvider: DomainPersistenceProvider,
-  private[this] val permissionsResolver: ModelPermissionResolver,
-  private[this] val modelCreator: ModelCreator,
+  private[this] val persistenceFactory:        RealtimeModelPersistenceFactory,
+  private[this] val workQueue:                 EventLoop,
+  private[this] val domainFqn:                 DomainId,
+  private[this] val modelId:                   String,
+  private[this] val persistenceProvider:       DomainPersistenceProvider,
+  private[this] val permissionsResolver:       ModelPermissionResolver,
+  private[this] val modelCreator:              ModelCreator,
   private[this] val clientDataResponseTimeout: Timeout,
-  private[this] val context: ActorContext,
-  private[this] val eventHandler: RealTimeModelManager.EventHandler) extends Logging {
+  private[this] val context:                   ActorContext,
+  private[this] val eventHandler:              RealTimeModelManager.EventHandler) extends Logging {
 
   import RealTimeModelManager._
 
@@ -138,7 +138,7 @@ class RealTimeModelManager(
         onOpenModelWhileInitialized(request, replyTo)
       case State.Error | State.InitializationError =>
         replyTo ! Status.Failure(new UnexpectedErrorException(
-            "The model can't be open, because it is currently shutting down after an error. You may be able to reopen the model."))
+          "The model can't be open, because it is currently shutting down after an error. You may be able to reopen the model."))
     }
   }
 
@@ -283,10 +283,10 @@ class RealTimeModelManager(
    * complete the initialization process.
    */
   private[this] def onDatabaseModelResponse(
-    modelData: Model,
+    modelData:        Model,
     snapshotMetaData: ModelSnapshotMetaData,
-    snapshotConfig: ModelSnapshotConfig,
-    permissions: RealTimeModelPermissions): Unit = {
+    snapshotConfig:   ModelSnapshotConfig,
+    permissions:      RealTimeModelPermissions): Unit = {
 
     debug(s"${domainFqn}/${modelId}: Model loaded from database.")
 
@@ -499,29 +499,34 @@ class RealTimeModelManager(
     state match {
       case State.Uninitialized =>
         // We just close immediately.
-        persistence.close()
-        eventHandler.closeModel()
+        executeClose()
       case State.Initializing | State.InitializationError =>
         if (queuedOpeningClients.isEmpty) {
           // We will disconnect after all queued clients have been told that we
           // we can't initialize and have been disconnected.
-          persistence.close()
-          eventHandler.closeModel()
+          executeClose()
         }
       case State.Initialized =>
         val committed = Option(this.model).map { m => m.contextVersion() == this.committedVersion }.getOrElse(true)
         if (connectedClients.isEmpty && committed) {
-           // We will disconnect after all clients are disconnected and the model is committed.
-          persistence.close()
-          eventHandler.closeModel()
+          // We will disconnect after all clients are disconnected and the model is committed.
+          executeClose()
         }
       case State.Error =>
         if (connectedClients.isEmpty) {
           // We will disconnect after all clients are disconnected.
-          persistence.close()
-          eventHandler.closeModel()
+          executeClose()
         }
     }
+  }
+
+  private[this] def executeClose(): Unit = {
+    persistence.close()
+    if (this.ephemeral) {
+      debug(s"${this.modelId} closing and is ephemeral. Deleting." )
+      this.modelStore.deleteModel(this.modelId)
+    }
+    eventHandler.closeModel()
   }
 
   /**
