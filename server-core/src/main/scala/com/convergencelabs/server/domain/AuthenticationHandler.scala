@@ -29,6 +29,7 @@ import com.convergencelabs.server.datastore.domain.schema.DomainSchema
 import com.convergencelabs.server.util.TryWithResource
 
 import grizzled.slf4j.Logging
+import org.jose4j.jwt.consumer.InvalidJwtException
 
 object AuthenticationHandler {
   val AdminKeyId = "ConvergenceAdminKey"
@@ -36,13 +37,13 @@ object AuthenticationHandler {
 }
 
 class AuthenticationHandler(
-  private[this] val domainFqn: DomainId,
+  private[this] val domainFqn:         DomainId,
   private[this] val domainConfigStore: DomainConfigStore,
-  private[this] val keyStore: JwtAuthKeyStore,
-  private[this] val userStore: DomainUserStore,
-  private[this] val userGroupStore: UserGroupStore,
-  private[this] val sessionStore: SessionStore,
-  private[this] implicit val ec: ExecutionContext)
+  private[this] val keyStore:          JwtAuthKeyStore,
+  private[this] val userStore:         DomainUserStore,
+  private[this] val userGroupStore:    UserGroupStore,
+  private[this] val sessionStore:      SessionStore,
+  private[this] implicit val ec:       ExecutionContext)
   extends Logging {
 
   def authenticate(request: AuthetncationCredentials): Try[AuthenticationResponse] = {
@@ -57,11 +58,11 @@ class AuthenticationHandler(
         authenticateAnonymous(message)
     }
   }
-  
+
   //
   // Reconnect Auth
   //
-  
+
   private[this] def authenticateReconnectToken(reconnectRequest: ReconnectTokenAuthRequest): Try[AuthenticationResponse] = {
     userStore.validateReconnectToken(reconnectRequest.token) flatMap {
       case Some(userId) =>
@@ -77,7 +78,7 @@ class AuthenticationHandler(
   //
   // Anonymous Auth
   //
-  
+
   private[this] def authenticateAnonymous(authRequest: AnonymousAuthRequest): Try[AuthenticationResponse] = {
     val AnonymousAuthRequest(displayName) = authRequest;
     debug(s"${domainFqn}: Processing anonymous authentication request with display name: ${displayName}")
@@ -141,7 +142,7 @@ class AuthenticationHandler(
         Success(AuthenticationFailure)
     }
   }
-  
+
   private[this] def getJWTPublicKey(keyId: String): Option[(PublicKey, Boolean)] = {
     val (keyPem, admin) = if (AuthenticationHandler.AdminKeyId.equals(keyId)) {
       domainConfigStore.getAdminKeyPair() match {
@@ -153,7 +154,7 @@ class AuthenticationHandler(
     } else {
       keyStore.getKey(keyId) match {
         case Success(Some(key)) if key.enabled => (Some(key.key), false)
-        case _ => (None, false)
+        case _                                 => (None, false)
       }
     }
 
@@ -186,7 +187,7 @@ class AuthenticationHandler(
       // sure a replay attack is not possible
 
       val (exists, userType) = admin match {
-        case true => (userStore.convergenceUserExists(username), DomainUserType.Convergence)
+        case true  => (userStore.convergenceUserExists(username), DomainUserType.Convergence)
         case false => (userStore.domainUserExists(username), DomainUserType.Normal)
       }
 
@@ -204,10 +205,13 @@ class AuthenticationHandler(
           updateLastLogin(userId)
           response
         }
-      } recoverWith {
-        case cause: Exception =>
-          Failure(AuthenticationError(s"${domainFqn}: Unable to authenticate a user via token.", cause))
       }
+    } recoverWith {
+      case cause: InvalidJwtException =>
+        logger.debug(s"Invalid JWT: ${cause.getMessage}")
+        Success(AuthenticationFailure)
+      case cause: Exception =>
+        Failure(AuthenticationError(s"${domainFqn}: Unable to authenticate a user via jwt.", cause))
     }
   }
 
@@ -218,7 +222,7 @@ class AuthenticationHandler(
       _ <- userStore.updateDomainUser(update)
       _ <- groups match {
         case Some(g) => userGroupStore.setGroupsForUser(userId, g)
-        case None => Success(())
+        case None    => Success(())
       }
     } yield (())
   }
@@ -234,7 +238,7 @@ class AuthenticationHandler(
           username <- userStore.createNormalDomainUser(newUser)
           _ <- groups match {
             case Some(g) => userGroupStore.setGroupsForUser(userId, g)
-            case None => Success(())
+            case None    => Success(())
           }
         } yield (username)
       case DomainUserType.Anonymous =>
@@ -251,7 +255,7 @@ class AuthenticationHandler(
   //
   // Common Auth Success handling
   //
-  
+
   private[this] def authSuccess(userId: DomainUserId, reconnectToken: Option[String]): Try[AuthenticationSuccess] = {
     logger.debug(s"${domainFqn}: Creating session after authenication success.")
     sessionStore.nextSessionId flatMap { sessionId =>

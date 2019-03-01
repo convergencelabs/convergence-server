@@ -370,7 +370,7 @@ class RealtimeModelActor(
           data,
           overridePermissions,
           worldPermissions,
-          userPermissions.get)
+          userPermissions.getOrElse(Map()))
       }
     } map { _ =>
       sender ! (())

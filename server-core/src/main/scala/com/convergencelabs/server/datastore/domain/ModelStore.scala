@@ -156,7 +156,7 @@ class ModelStore private[domain] (
     CollectionStore.getCollectionRid(collectionId, db)
       .recoverWith {
         case cause: Exception =>
-          val message = s"Could not create model because collection ${collectionId} could not be found."
+          val message = s"Could not create model because collection '${collectionId}' could not be found."
           logger.error(message, cause)
           Failure(new IllegalArgumentException(message))
       }.map { collectionRid =>

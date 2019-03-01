@@ -54,36 +54,39 @@ import akka.http.scaladsl.server.Directives.entity
 import akka.http.scaladsl.server.Directives.get
 import akka.http.scaladsl.server.Directives.path
 import akka.http.scaladsl.server.Directives.pathEnd
+import akka.http.scaladsl.server.Directives.parameters
 import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.post
 import akka.http.scaladsl.server.Directives.put
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
+import org.json4s.JsonAST.JObject
+import com.convergencelabs.server.api.rest.DataValueToJValue
 
 object DomainModelService {
 
   case class ModelPost(
     collection: String,
-    data: Map[String, Any])
+    data:       Map[String, Any])
 
   case class ModelPut(
-      collection: String,
-      data: Map[String, Any])
+    collection: String,
+    data:       Map[String, Any])
 
   case class ModelMetaDataResponse(
-    id: String,
-    collection: String,
-    version: Long,
-    createdTime: Instant,
+    id:           String,
+    collection:   String,
+    version:      Long,
+    createdTime:  Instant,
     modifiedTime: Instant)
 
   case class ModelData(
-    id: String,
-    collection: String,
-    version: Long,
-    createdTime: Instant,
+    id:           String,
+    collection:   String,
+    version:      Long,
+    createdTime:  Instant,
     modifiedTime: Instant,
-    data: ObjectValue)
+    data:         JObject)
 
   case class CreateModelResponse(id: String)
   case class ModelPermissionsSummary(overrideWorld: Boolean, worldPermissions: ModelPermissions, userPermissions: List[ModelUserPermissions])
@@ -96,15 +99,17 @@ object DomainModelService {
 }
 
 class DomainModelService(
-  private[this] val executionContext: ExecutionContext,
-  private[this] val timeout: Timeout,
-  private[this] val domainRestActor: ActorRef,
+  private[this] val executionContext:   ExecutionContext,
+  private[this] val timeout:            Timeout,
+  private[this] val domainRestActor:    ActorRef,
   private[this] val modelClusterRegion: ActorRef)
   extends DomainRestService(executionContext, timeout) {
 
   import DomainModelService._
   import akka.http.scaladsl.server.Directives.Segment
   import akka.pattern.ask
+  import akka.http.scaladsl.server.Directive._
+  import akka.http.scaladsl.server.Directives._
 
   def route(authProfile: AuthorizationProfile, domain: DomainId): Route = {
     pathPrefix("models") {
@@ -119,7 +124,9 @@ class DomainModelService(
       } ~ pathPrefix(Segment) { modelId: String =>
         pathEnd {
           get {
-            complete(getModel(domain, modelId))
+            parameters("data".as[Boolean].?) { (data) =>
+              complete(getModel(domain, modelId, data.getOrElse(true)))
+            }
           } ~ put {
             entity(as[ModelPut]) { modelPut =>
               complete(putModel(domain, modelId, modelPut))
@@ -209,18 +216,28 @@ class DomainModelService(
       metaData.modifiedTime)
   }
 
-  def getModel(domain: DomainId, modelId: String): Future[RestResponse] = {
+  def getModel(domain: DomainId, modelId: String, data: Boolean): Future[RestResponse] = {
     val message = GetRealtimeModel(domain, modelId, None)
     (modelClusterRegion ? message).mapTo[Option[Model]] map {
       case Some(model) =>
-        val mr = ModelData(
-          model.metaData.id,
-          model.metaData.collection,
-          model.metaData.version,
-          model.metaData.createdTime,
-          model.metaData.modifiedTime,
-          model.data)
-        okResponse(mr)
+        val result = data match {
+          case true =>
+            ModelData(
+              model.metaData.id,
+              model.metaData.collection,
+              model.metaData.version,
+              model.metaData.createdTime,
+              model.metaData.modifiedTime,
+              DataValueToJValue.toJson(model.data).asInstanceOf[JObject])
+          case false =>
+            ModelMetaDataResponse(
+              model.metaData.id,
+              model.metaData.collection,
+              model.metaData.version,
+              model.metaData.createdTime,
+              model.metaData.modifiedTime)
+        }
+        okResponse(result)
       case None =>
         notFound(modelId)
     }
@@ -247,12 +264,23 @@ class DomainModelService(
     val message = CreateOrUpdateRealtimeModel(domain, modelId, colleciontId, objectValue, None, None, None, None)
     (modelClusterRegion ? message) map { _ => OkResponse }
   }
-  
+
   def queryModels(authProfile: AuthorizationProfile, domain: DomainId, queryPost: ModelQueryPost): Future[RestResponse] = {
     val ModelQueryPost(query) = queryPost
     val userId = DomainUserId.convergence(authProfile.username)
     val message = DomainRestMessage(domain, QueryModelsRequest(userId, query))
-    (domainRestActor ? message).mapTo[List[ModelQueryResult]].map(okResponse(_))
+    (domainRestActor ? message)
+      .mapTo[List[ModelQueryResult]]
+      .map { results =>
+        val response = results.map(model => ModelData(
+          model.metaData.id,
+          model.metaData.collection,
+          model.metaData.version,
+          model.metaData.createdTime,
+          model.metaData.modifiedTime,
+          model.data))
+        okResponse(response)
+      }
   }
 
   def deleteModel(domain: DomainId, modelId: String): Future[RestResponse] = {
