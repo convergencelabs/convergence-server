@@ -541,7 +541,7 @@ class ChatClientActor(
           Map("chatId" -> chatId))
       case ChatAlreadyExistsException(chatId) =>
         cb.expectedError(
-          "chatl_already_exists",
+          "chat_already_exists",
           s"Could not complete the request because a chat with id '${chatId}' aready exists.",
           Map("chatId" -> chatId))
       case ChatAlreadyJoinedException(chatId) =>
