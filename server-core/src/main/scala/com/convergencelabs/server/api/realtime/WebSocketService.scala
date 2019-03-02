@@ -1,42 +1,50 @@
 package com.convergencelabs.server.api.realtime
 
-import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.duration.DurationInt
+import java.util.concurrent.TimeUnit
+
+import scala.concurrent.Future
+import scala.concurrent.duration.Duration
 import scala.language.postfixOps
+import scala.util.Failure
+import scala.util.Success
 
 import com.convergencelabs.server.ProtocolConfiguration
+import com.convergencelabs.server.datastore.convergence.ConfigKeys
+import com.convergencelabs.server.datastore.convergence.ConfigStoreActor.GetConfigs
 import com.convergencelabs.server.domain.DomainId
 
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
-import akka.http.scaladsl.model.ws.Message
+import akka.http.scaladsl.model.RemoteAddress
+import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.model.ws.BinaryMessage
+import akka.http.scaladsl.model.ws.Message
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
 import akka.http.scaladsl.server.Directive.addDirectiveApply
 import akka.http.scaladsl.server.Directives
-import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.server.Route
 import akka.stream.Materializer
 import akka.stream.OverflowStrategy
 import akka.stream.scaladsl.Flow
 import akka.stream.scaladsl.Sink
 import akka.stream.scaladsl.Source
-import akka.http.scaladsl.server.Route
-import scala.concurrent.Future
-import scala.concurrent.duration.Duration
-import grizzled.slf4j.Logging
-import akka.http.scaladsl.model.RemoteAddress
 import akka.util.ByteString
 import akka.util.ByteStringBuilder
+import akka.util.Timeout
+import grizzled.slf4j.Logging
 
 case class IncomingBinaryMessage(message: Array[Byte])
 case class OutgoingBinaryMessage(message: Array[Byte])
 
 class WebSocketService(
-  private[this] val protocolConfig: ProtocolConfiguration,
-  private[this] implicit val fm: Materializer,
+  private[this] val protocolConfig:  ProtocolConfiguration,
+  private[this] val configActor:       ActorRef,
+  private[this] implicit val fm:     Materializer,
   private[this] implicit val system: ActorSystem)
   extends Directives
   with Logging {
+  
+  import akka.pattern.ask
 
   private[this] val config = system.settings.config
   private[this] val maxFrames = config.getInt("convergence.realtime.websocket.max-frames")
@@ -46,15 +54,43 @@ class WebSocketService(
   private[this] implicit val ec = system.dispatcher
 
   val route: Route =
-    get {
-      path(Segment / Segment) { (namespace, domain) =>
-        extractClientIP { ip =>
-          optionalHeaderValueByName("User-Agent") { ua =>
-            handleWebSocketMessages(realTimeDomainFlow(namespace, domain, ip, ua.getOrElse("")))
-          }
+    onComplete(getConfig()) {
+      case Success((namespacesEnabled, defaultNamespace)) =>
+        namespacesEnabled match {
+          case false =>
+            get {
+              path(Segment) { (domain) =>
+                extractClientIP { remoteAddress =>
+                  optionalHeaderValueByName("User-Agent") { ua =>
+                    handleWebSocketMessages(realTimeDomainFlow(defaultNamespace, domain, remoteAddress, ua.getOrElse("")))
+                  }
+                }
+              }
+            }
+          case true =>
+            path(Segment / Segment) { (namespace, domain) =>
+              extractClientIP { remoteAddress =>
+                optionalHeaderValueByName("User-Agent") { ua =>
+                  handleWebSocketMessages(realTimeDomainFlow(namespace, domain, remoteAddress, ua.getOrElse("")))
+                }
+              }
+            }
         }
-      }
+      case Failure(cause) =>
+        complete((StatusCodes.InternalServerError, s"An error occurred: ${cause.getMessage}"))
     }
+
+  private[this] def getConfig(): Future[(Boolean, String)] = {
+    val request = GetConfigs(Some(List(ConfigKeys.Namespaces.Enabled, ConfigKeys.Namespaces.DefaultNamespace)))
+    implicit val timeout = Timeout(10, TimeUnit.SECONDS)
+    configActor.ask(request)
+    .mapTo[Map[String, Any]]
+    .map{ configs => 
+      val enabled =  configs(ConfigKeys.Namespaces.Enabled).asInstanceOf[Boolean]
+      val defaultNamespace =  configs(ConfigKeys.Namespaces.DefaultNamespace).asInstanceOf[String]
+      (enabled, defaultNamespace)
+    }
+  }
 
   private[this] def realTimeDomainFlow(namespace: String, domain: String, remoteAddress: RemoteAddress, ua: String): Flow[Message, Message, Any] = {
     logger.info(s"New web socket connection for $namespace/$domain")
