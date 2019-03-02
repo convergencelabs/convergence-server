@@ -33,7 +33,7 @@ class DomainProvisionerActor(private[this] val provisioner: DomainProvisioner)
     val currentSender = sender
     // make this asynchronous in the future
     provisioner.provisionDomain(fqn, databaseName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword, anonymousAuth) map { _ =>
-      currentSender ! DomainProvisioned()
+      currentSender ! (())
     } recover {
       case cause: Exception =>
         log.error(cause, s"Error provisioning domain: ${fqn}")
@@ -70,8 +70,6 @@ object DomainProvisionerActor {
     dbAdminUsername: String,
     dbAdminPassword: String,
     anonymousAuth: Boolean)
-
-  case class DomainProvisioned()
 
   case class DestroyDomain(domainFqn: DomainId, databaseUri: String)
 

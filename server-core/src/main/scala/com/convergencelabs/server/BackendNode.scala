@@ -46,9 +46,9 @@ class BackendNode(system: ActorSystem, convergenceDbProvider: DatabaseProvider) 
   def start(): Unit = {
     logger.info("Backend Node starting up.")
 
-    val convergenceDbConfig = system.settings.config.getConfig("convergence.convergence-database")
-    val orientDbConfig = system.settings.config.getConfig("convergence.orient-db")
-    val domainPreRelease = system.settings.config.getBoolean("convergence.domain-databases.pre-release")
+    val dbServerConfig = system.settings.config.getConfig("convergence.persistence.server")
+    val convergenceDbConfig = system.settings.config.getConfig("convergence.persistence.convergence-database")
+    val domainPreRelease = system.settings.config.getBoolean("convergence.persistence.domain-databases.pre-release")
 
     val protocolConfig = ProtocolConfigUtil.loadConfig(system.settings.config)
 
@@ -84,22 +84,15 @@ class BackendNode(system: ActorSystem, convergenceDbProvider: DatabaseProvider) 
     // Rest Subsystem
 
     // Import, export, and domain / database provisioning
-    val historyStore = new DeltaHistoryStore(convergenceDbProvider)
-    val domainProvisioner = new DomainProvisioner(
-      historyStore,
-      orientDbConfig.getString("db-uri"),
-      orientDbConfig.getString("admin-username"),
-      orientDbConfig.getString("admin-password"),
-      domainPreRelease)
-
+    val domainProvisioner = new DomainProvisioner(convergenceDbProvider, system.settings.config)
     val provisionerActor = system.actorOf(DomainProvisionerActor.props(domainProvisioner), DomainProvisionerActor.RelativePath)
 
-    val databaseManager = new DatabaseManager(orientDbConfig.getString("db-uri"), convergenceDbProvider, convergenceDbConfig)
+    val databaseManager = new DatabaseManager(dbServerConfig.getString("uri"), convergenceDbProvider, convergenceDbConfig)
     val databaseManagerActor = system.actorOf(DatabaseManagerActor.props(databaseManager), DatabaseManagerActor.RelativePath)
 
     val domainStoreActor = system.actorOf(DomainStoreActor.props(convergenceDbProvider, provisionerActor), DomainStoreActor.RelativePath)
     val importerActor = system.actorOf(ConvergenceImporterActor.props(
-      orientDbConfig.getString("db-uri"),
+      dbServerConfig.getString("uri"),
       convergenceDbProvider,
       domainStoreActor), ConvergenceImporterActor.RelativePath)
 

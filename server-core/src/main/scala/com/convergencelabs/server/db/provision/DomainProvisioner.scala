@@ -28,6 +28,7 @@ import grizzled.slf4j.Logging
 import com.orientechnologies.orient.core.metadata.security.ORule
 import com.orientechnologies.orient.core.metadata.sequence.OSequence
 import com.orientechnologies.orient.core.metadata.security.ORole
+import com.typesafe.config.Config
 
 object DomainProvisioner {
   val DefaultSnapshotConfig = ModelSnapshotConfig(
@@ -48,22 +49,22 @@ object DomainProvisioner {
   val StorageMode = ODatabaseType.PLOCAL
 }
 
-class DomainProvisioner(
-  historyStore: DeltaHistoryStore,
-  dbBaseUri: String,
-  dbRootUsername: String,
-  dbRootPasword: String,
-  preRelease: Boolean)
-  extends Logging {
+class DomainProvisioner(dbProvider: DatabaseProvider, config: Config) extends Logging {
+
+  val historyStore = new DeltaHistoryStore(dbProvider)
+  val dbBaseUri = config.getString("convergence.persistence.server.uri")
+  val dbRootUsername = config.getString("convergence.persistence.server.admin-username")
+  val dbRootPassword = config.getString("convergence.persistence.server.admin-password")
+  val preRelease = config.getBoolean("convergence.persistence.domain-databases.pre-release")
 
   def provisionDomain(
-    domainFqn: DomainId,
-    dbName: String,
-    dbUsername: String,
-    dbPassword: String,
+    domainFqn:       DomainId,
+    dbName:          String,
+    dbUsername:      String,
+    dbPassword:      String,
     dbAdminUsername: String,
     dbAdminPassword: String,
-    anonymousAuth: Boolean): Try[Unit] = {
+    anonymousAuth:   Boolean): Try[Unit] = {
     logger.debug(s"Provisioning domain: ${dbBaseUri}/${dbName}")
     createDatabase(dbName) flatMap { _ =>
       setAdminCredentials(dbName, dbAdminUsername, dbAdminPassword)
@@ -87,7 +88,7 @@ class DomainProvisioner(
 
   private[this] def createDatabase(dbName: String): Try[Unit] = Try {
     logger.debug(s"Creating domain database: ${dbBaseUri}/${dbName}")
-    val orientDb = new OrientDB(dbBaseUri, dbRootUsername, dbRootPasword, OrientDBConfig.defaultConfig())
+    val orientDb = new OrientDB(dbBaseUri, dbRootUsername, dbRootPassword, OrientDBConfig.defaultConfig())
     orientDb.create(dbName, StorageMode)
     orientDb.close()
     logger.debug(s"Domain database created at: ${dbBaseUri}/${dbName}")
@@ -98,8 +99,8 @@ class DomainProvisioner(
     // Orient DB has three default users. admin, reader and writer. They all
     // get created with their passwords equal to their usernames. We want
     // to change the admin and writer and delete the reader.
-    val orientDb = new OrientDB(dbBaseUri, dbRootUsername, dbRootPasword, OrientDBConfig.defaultConfig())
-    val db = orientDb.open(dbName, dbRootUsername, dbRootPasword)
+    val orientDb = new OrientDB(dbBaseUri, dbRootUsername, dbRootPassword, OrientDBConfig.defaultConfig())
+    val db = orientDb.open(dbName, dbRootUsername, dbRootPassword)
 
     // Change the admin username / password and then reconnect
     val adminUser = db.getMetadata().getSecurity().getUser(OrientDefaultAdmin)
@@ -124,7 +125,7 @@ class DomainProvisioner(
       normalUser.setName(dbUsername)
       normalUser.setPassword(dbPassword)
       normalUser.save()
-      
+
       // FIXME work around for this: https://github.com/orientechnologies/orientdb/issues/8535
       val writer = db.getMetadata().getSecurity().getRole("writer");
       writer.addRule(ORule.ResourceGeneric.CLASS, OSequence.CLASS_NAME, ORole.PERMISSION_READ + ORole.PERMISSION_UPDATE);
@@ -189,7 +190,7 @@ class DomainProvisioner(
 
   def destroyDomain(dbName: String): Try[Unit] = Try {
     logger.debug(s"Deleting database at: ${dbBaseUri}/${dbName}")
-    val orientDb = new OrientDB(dbBaseUri, dbRootUsername, dbRootPasword, OrientDBConfig.defaultConfig())
+    val orientDb = new OrientDB(dbBaseUri, dbRootUsername, dbRootPassword, OrientDBConfig.defaultConfig())
     orientDb.drop(dbName)
     orientDb.close()
   }

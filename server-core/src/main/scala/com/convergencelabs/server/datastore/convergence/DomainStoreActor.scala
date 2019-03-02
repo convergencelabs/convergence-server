@@ -12,7 +12,6 @@ import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.datastore.StoreActor
 import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.db.provision.DomainProvisionerActor.DestroyDomain
-import com.convergencelabs.server.db.provision.DomainProvisionerActor.DomainProvisioned
 import com.convergencelabs.server.db.provision.DomainProvisionerActor.ProvisionDomain
 import com.convergencelabs.server.domain.DomainDatabase
 import com.convergencelabs.server.domain.DomainId
@@ -26,6 +25,9 @@ import akka.actor.actorRef2Scala
 import akka.util.Timeout
 import com.convergencelabs.server.security.AuthorizationProfile
 import com.convergencelabs.server.security.Permissions
+import scala.concurrent.Future
+import com.typesafe.config.Config
+import scala.concurrent.ExecutionContext
 
 object DomainStoreActor {
   val RelativePath = "DomainStoreActor"
@@ -51,12 +53,17 @@ class DomainStoreActor private[datastore] (
   import DomainStoreActor._
   import akka.pattern.ask
 
-  private[this] val RandomizeCredentials = context.system.settings.config.getBoolean("convergence.domain-databases.randomize-credentials")
+  private[this] val RandomizeCredentials = context.system.settings.config.getBoolean("convergence.persistence.domain-databases.randomize-credentials")
 
   private[this] val domainStore = new DomainStore(dbProvider)
   private[this] val favoriteDomainStore = new UserFavoriteDomainStore(dbProvider)
   private[this] val deltaHistoryStore: DeltaHistoryStore = new DeltaHistoryStore(dbProvider)
   private[this] implicit val ec = context.system.dispatcher
+  private[this] val domainCreator: DomainCreator = new ActorBasedDomainCreator(
+    dbProvider,
+    this.context.system.settings.config,
+    domainProvisioner,
+    ec)
 
   def receive: Receive = {
     case createRequest: CreateDomainRequest =>
@@ -76,48 +83,7 @@ class DomainStoreActor private[datastore] (
 
   def createDomain(createRequest: CreateDomainRequest): Unit = {
     val CreateDomainRequest(namespace, domainId, displayName, anonymousAuth) = createRequest
-    log.debug(s"Receved request to create domain: ${namespace}/${domainId}")
-
-    val dbName = Math.abs(UUID.randomUUID().getLeastSignificantBits).toString
-    val (dbUsername, dbPassword, dbAdminUsername, dbAdminPassword) = RandomizeCredentials match {
-      case false =>
-        ("writer", "writer", "admin", "admin")
-      case true =>
-        (UUID.randomUUID().toString(), UUID.randomUUID().toString(),
-          UUID.randomUUID().toString(), UUID.randomUUID().toString())
-    }
-
-    val domainFqn = DomainId(namespace, domainId)
-    val domainDbInfo = DomainDatabase(dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword)
-
-    val currentSender = sender
-
-    domainStore.createDomain(domainFqn, displayName, domainDbInfo) map { _ =>
-      // Reply now and do the rest asynchronously, the status of the domain will
-      // be updated after the future responds.
-      reply(Success(domainDbInfo), currentSender)
-
-      implicit val requstTimeout = Timeout(4 minutes) // FXIME hardcoded timeout
-      val message = ProvisionDomain(domainFqn, dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword, anonymousAuth)
-      (domainProvisioner ? message).mapTo[DomainProvisioned] onComplete {
-        case Success(DomainProvisioned()) =>
-          log.debug(s"Domain created, setting status to online: $dbName")
-          domainStore.getDomainByFqn(domainFqn) map (_.map { domain =>
-            val updated = domain.copy(status = DomainStatus.Online)
-            domainStore.updateDomain(updated)
-          })
-
-        case Failure(cause) =>
-          log.error(cause, s"Domain was not created successfully: $dbName")
-          val statusMessage = ExceptionUtils.stackTraceToString(cause)
-          domainStore.getDomainByFqn(domainFqn) map (_.map { domain =>
-            val updated = domain.copy(status = DomainStatus.Error, statusMessage = statusMessage)
-            domainStore.updateDomain(updated)
-          })
-      }
-    } recover {
-      case cause: Exception => reply(Failure(cause), currentSender)
-    }
+    reply(domainCreator.createDomain(namespace, domainId, displayName, anonymousAuth).map(_ => ()))
   }
 
   def updateDomain(request: UpdateDomainRequest): Unit = {
@@ -217,5 +183,14 @@ class DomainStoreActor private[datastore] (
       reply(domainStore.getDomainsByAccess(authProfile.username, namespace, filter, offset, limit))
     }
 
+  }
+}
+
+class ActorBasedDomainCreator(databaseProvider: DatabaseProvider, config: Config, domainProvisioner: ActorRef, executionContext: ExecutionContext)
+  extends DomainCreator(databaseProvider, config, executionContext) {
+  import akka.pattern.ask
+  def provisionDomain(request: ProvisionDomain): Future[Unit] = {
+    implicit val t = Timeout(4 minutes)
+    domainProvisioner.ask(request).mapTo[Unit]
   }
 }

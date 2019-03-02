@@ -52,6 +52,19 @@ import akka.cluster.ClusterEvent.MemberRemoved
 import akka.cluster.ClusterEvent.MemberUp
 import akka.cluster.ClusterEvent.UnreachableMember
 import grizzled.slf4j.Logging
+import scala.collection.JavaConverters
+import com.convergencelabs.server.datastore.convergence.ConfigKeys
+import com.convergencelabs.server.datastore.convergence.ConfigStore
+import com.convergencelabs.server.db.provision.DomainProvisioner
+import com.convergencelabs.server.datastore.convergence.DomainCreator
+import scala.concurrent.Future
+import com.convergencelabs.server.db.provision.DomainProvisionerActor.ProvisionDomain
+import com.convergencelabs.server.util.concurrent.FutureUtils
+import com.typesafe.config.ConfigObject
+import scala.concurrent.ExecutionContext
+import com.convergencelabs.server.datastore.convergence.NamespaceStore
+import com.convergencelabs.server.datastore.convergence.UserFavoriteDomainStore
+import com.convergencelabs.server.domain.DomainId
 
 object ConvergenceServerNode extends Logging {
 
@@ -229,21 +242,16 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
     info(s"Convergnece Server Roles: ${roles.mkString(", ")}")
 
     if (roles.contains(Backend)) {
-      val orientDbConfig = config.getConfig("convergence.orient-db")
-      val baseUri = orientDbConfig.getString("db-uri")
-
-      val convergenceDbConfig = config.getConfig("convergence.convergence-database")
-      val convergenceDatabase = convergenceDbConfig.getString("database")
-
-      val username = convergenceDbConfig.getString("username")
-      val password = convergenceDbConfig.getString("password")
+      val persistenceConfig = config.getConfig("convergence.persistence")
+      val dbServerConfig = persistenceConfig.getConfig("server")
+      val convergenceDbConfig = persistenceConfig.getConfig("convergence-database")
 
       // TODO this only works is there is one ConvergenceServerNode with
       // backend. This is fine for development, which is the only place this
       // should exist, but it would be nice to do this elsewhere.
       if (convergenceDbConfig.hasPath("auto-install")) {
         if (convergenceDbConfig.getBoolean("auto-install.enabled")) {
-          bootstrapConvergenceDB(baseUri, convergenceDatabase, convergenceDbConfig, orientDbConfig) recover {
+          bootstrapConvergenceDB(config) recover {
             case cause: Exception =>
               logger.error("Could not bootstrap database", cause)
               System.exit(0)
@@ -251,14 +259,19 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
         }
       }
 
+      val baseUri = dbServerConfig.getString("uri")
       val orientDb = new OrientDB(baseUri, OrientDBConfig.defaultConfig())
 
       // FIXME figure out how to set the pool size
+      val convergenceDatabase = convergenceDbConfig.getString("database")
+      val username = convergenceDbConfig.getString("username")
+      val password = convergenceDbConfig.getString("password")
+
       val dbProvider = new PooledDatabaseProvider(baseUri, convergenceDatabase, username, password)
       dbProvider.connect().get
 
-      if (config.hasPath("convergence.auto-configure-server-admin")) {
-        autoConfigureServerAdmin(dbProvider, config.getConfig("convergence.auto-configure-server-admin"))
+      if (config.hasPath("convergence.default-server-admin")) {
+        autoConfigureServerAdmin(dbProvider, config.getConfig("convergence.default-server-admin"))
       }
 
       val domainStore = new DomainStore(dbProvider)
@@ -301,13 +314,14 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
     this
   }
 
-  private[this] def bootstrapConvergenceDB(
-    uri: String,
-    convergenceDatabase: String,
-    convergenceDbConfig: Config,
-    orientDbConfig: Config): Try[Unit] = Try {
+  private[this] def bootstrapConvergenceDB(config: Config): Try[Unit] = Try {
+    val persistenceConfig = config.getConfig("convergence.persistence")
+    val dbServerConfig = persistenceConfig.getConfig("server")
+    val convergenceDbConfig = persistenceConfig.getConfig("convergence-database")
+
     logger.info("auto-install is configured, attempting to connect to the database to determin if the convergence database is installed.")
 
+    val convergenceDatabase = convergenceDbConfig.getString("database")
     val username = convergenceDbConfig.getString("username")
     val password = convergenceDbConfig.getString("password")
     val adminUsername = convergenceDbConfig.getString("admin-username")
@@ -315,8 +329,9 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
     val preRelease = convergenceDbConfig.getBoolean("auto-install.pre-release")
     val retryDelay = convergenceDbConfig.getDuration("retry-delay")
 
-    val serverAdminUsername = orientDbConfig.getString("admin-username")
-    val serverAdminPassword = orientDbConfig.getString("admin-password")
+    val uri = dbServerConfig.getString("uri")
+    val serverAdminUsername = dbServerConfig.getString("admin-username")
+    val serverAdminPassword = dbServerConfig.getString("admin-password")
 
     val connectTries = Iterator.continually(attemptConnect(uri, serverAdminUsername, serverAdminPassword, retryDelay))
     val orientDb = connectTries.dropWhile(_.isEmpty).next().get
@@ -355,12 +370,84 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
         logger.info("Schema installation complete")
       }.get
 
+      
+      // We may wind up doing this twice, consider refactoring.
+      if (config.hasPath("convergence.default-server-admin")) {
+        autoConfigureServerAdmin(dbProvider, config.getConfig("convergence.default-server-admin"))
+      }
+      
+      bootstrapData(dbProvider, config)
+
       dbProvider.shutdown()
     } else {
       logger.info("Convergence database already exists.")
       orientDb.close()
     }
     ()
+  }
+
+  private[this] def bootstrapData(dbProvider: DatabaseProvider, config: Config): Try[Unit] = {
+    val bootstrapConfig = config.getConfig("convergence.bootstrap")
+    val defaultConfigs = bootstrapConfig.getConfig("default-configs")
+    implicit val ec = this.system.get.dispatcher
+
+    val configs = JavaConverters
+      .asScalaSet(defaultConfigs.entrySet())
+      .map(e => (e.getKey, e.getValue.unwrapped))
+      .toMap
+
+    val configStore = new ConfigStore(dbProvider)
+    val favoriteStore = new UserFavoriteDomainStore(dbProvider)
+    val domainCreator = new InlineDomainCreator(dbProvider, config, ec)
+    val namespaceStore = new NamespaceStore(dbProvider)
+    configStore.setConfigs(configs)
+    
+    val namespaces = bootstrapConfig.getList("namespaces")
+    namespaces.forEach { namespaceConfig =>
+      namespaceConfig match {
+        case obj: ConfigObject =>
+          val c = obj.toConfig()
+          val id = c.getString("id")
+          val displayName = c.getString("displayName")
+          logger.info(s"bootstrapping namespace ${id}")
+          namespaceStore.createNamespace(id, displayName, false).get
+      }
+    }
+    
+    val domains = bootstrapConfig.getList("domains")
+    JavaConverters.asScalaBuffer(domains).toList.foreach { domainConfig =>
+      domainConfig match {
+        case obj: ConfigObject =>
+          val c = obj.toConfig()
+          val namespace = c.getString("namespace")
+          val id = c.getString("id")
+          val displayName = c.getString("displayName")
+          val favorite = c.getBoolean("favorite")
+          val anonymousAuth = c.getBoolean("config.anonymousAuthEnabled")
+
+          logger.info(s"bootstrapping domain ${namespace}/${id}")
+          (for {
+            exists <- namespaceStore.namespaceExists(namespace)
+            created <- if (!exists) {
+              Failure(new IllegalArgumentException("The namespace for a bootstraped domain, must also be bootstraped"))
+            } else {
+              Success(())
+            }
+          } yield {
+            val f = domainCreator.createDomain(namespace, id, displayName, anonymousAuth).get.map { _ =>
+              logger.info(s"bootstrapped domain ${namespace}/${id}")
+            }
+            
+            Await.ready(f, FiniteDuration.apply(2, TimeUnit.MINUTES))
+            
+            if (favorite) {
+              val username = config.getString("convergence.default-server-admin.username")
+              favoriteStore.addFavorite(username, DomainId(namespace, id)).get
+            }
+          }).get
+      }
+    }
+    Success(())
   }
 
   private[this] def attemptConnect(uri: String, adminUser: String, adminPassword: String, retryDelay: Duration): Option[OrientDB] = {
@@ -378,35 +465,33 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
   }
 
   private[this] def autoConfigureServerAdmin(dbProvider: DatabaseProvider, config: Config): Unit = {
-    if (config.getBoolean("enabled")) {
-      logger.debug("Auto configuring admin user")
-      val userStore = new UserStore(dbProvider)
+    logger.debug("Configuring default server admin user")
+    val userStore = new UserStore(dbProvider)
 
-      val username = config.getString("username")
-      val password = config.getString("password")
-      userStore.userExists(username).flatMap { exists =>
-        if (!exists) {
-          logger.debug("Admin user does not exist, creating.")
-          val userCreator = new UserCreator(dbProvider)
+    val username = config.getString("username")
+    val password = config.getString("password")
+    userStore.userExists(username).flatMap { exists =>
+      if (!exists) {
+        logger.debug("Admin user does not exist, creating.")
+        val userCreator = new UserCreator(dbProvider)
 
-          val firstName = config.getString("firstName")
-          val lastName = config.getString("lastName")
-          val displayName = config.hasPath("displayName") match {
-            case true => config.getString("displayName")
-            case false => "Server Admin"
-          }
-          val email = config.getString("email")
-
-          val user = User(username, email, firstName, lastName, displayName, None)
-          userCreator.createUser(user, password, Roles.Server.ServerAdmin)
-        } else {
-          logger.debug("Admin user exists, updating password.")
-          userStore.setUserPassword(username, password)
+        val firstName = config.getString("firstName")
+        val lastName = config.getString("lastName")
+        val displayName = config.hasPath("displayName") match {
+          case true  => config.getString("displayName")
+          case false => "Server Admin"
         }
-      }.recover {
-        case cause: Throwable =>
-          logger.error("Error creating server admin user", cause)
+        val email = config.getString("email")
+
+        val user = User(username, email, firstName, lastName, displayName, None)
+        userCreator.createUser(user, password, Roles.Server.ServerAdmin)
+      } else {
+        logger.debug("Admin user exists, updating password.")
+        userStore.setUserPassword(username, password)
       }
+    }.recover {
+      case cause: Throwable =>
+        logger.error("Error creating server admin user", cause)
     }
   }
 
@@ -449,5 +534,17 @@ private class ClusterListener(cluster: Cluster) extends Actor with ActorLogging 
       log.debug("Member is Removed: {} after {}", member.address, previousStatus)
     case msg: MemberEvent =>
       log.debug(msg.toString)
+  }
+}
+
+class InlineDomainCreator(
+  provider: DatabaseProvider,
+  config:   Config,
+  ec:       ExecutionContext) extends DomainCreator(provider, config, ec) {
+  val provisioner = new DomainProvisioner(provider, config)
+
+  def provisionDomain(request: ProvisionDomain): Future[Unit] = {
+    val ProvisionDomain(domainId, databaseName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword, anonymousAuth) = request
+    FutureUtils.tryToFuture(provisioner.provisionDomain(domainId, databaseName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword, anonymousAuth))
   }
 }

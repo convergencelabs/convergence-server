@@ -58,7 +58,6 @@ class ConvergenceUserManagerActor private[datastore] (
   private[this] implicit val requstTimeout = Timeout(2 seconds)
   private[this] implicit val exectionContext = context.dispatcher
 
-  private[this] val domainConfig: Config = context.system.settings.config.getConfig("convergence.domain-databases")
   private[this] val tokenDuration = context.system.settings.config.getDuration("convergence.rest.session-token-expiration")
   private[this] val userStore: UserStore = new UserStore(dbProvider)
   private[this] val roleStore: RoleStore = new RoleStore(dbProvider)

@@ -9,20 +9,16 @@ import scala.util.Success
 
 import org.mockito.Mockito
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.Finders
 import org.scalatest.WordSpecLike
 import org.scalatest.mockito.MockitoSugar
 
-import com.convergencelabs.server.db.provision.DomainProvisionerActor.DomainProvisioned
 import com.convergencelabs.server.db.provision.DomainProvisionerActor.ProvisionDomain
-
-import akka.actor.ActorSystem
-import akka.actor.Status
-import akka.testkit.TestKit
-import akka.testkit.TestProbe
-import scala.util.Failure
 import com.convergencelabs.server.domain.DomainId
 
+import akka.actor.ActorSystem
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
+import akka.actor.Status
 
 
 class DomainProvisionerActorSpec
@@ -46,7 +42,7 @@ class DomainProvisionerActorSpec
         val message = ProvisionDomain(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword", false)
         domainProvisionerActor.tell(message, client.ref)
 
-        client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[DomainProvisioned])
+        client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Unit])
       }
       
       "respond with a failure if the provisioing is not successful" in new TestFixture {

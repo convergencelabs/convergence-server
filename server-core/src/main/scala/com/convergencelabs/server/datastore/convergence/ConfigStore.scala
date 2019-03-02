@@ -23,11 +23,6 @@ object ConfigKeys {
     val DefaultNamespace = "namespaces.default-namespace"
   }
 
-  object Domains {
-    val Mode = "domains.mode"
-    val DefaultDomainId = "domains.default-domain-id"
-  }
-
   object Passwords {
     val MinimumLength = "passwords.minimum-length"
     val RequireNumeric = "passwords.require-numeric"
@@ -38,6 +33,31 @@ object ConfigKeys {
 
   object Sessions {
     val Timeout = "sessions.timeout"
+  }
+
+  private[this] val typeMaps: Map[String, Set[Class[_]]] = Map(
+    Namespaces.Enabled -> Set(classOf[Boolean], classOf[java.lang.Boolean]),
+    Namespaces.UserNamespacesEnabled -> Set(classOf[Boolean], classOf[java.lang.Boolean]),
+    Namespaces.DefaultNamespace -> Set(classOf[String]),
+
+    Passwords.MinimumLength -> Set(classOf[Int], classOf[java.lang.Integer]),
+    Passwords.RequireNumeric -> Set(classOf[Boolean], classOf[java.lang.Boolean]),
+    Passwords.RequireLowerCase -> Set(classOf[Boolean], classOf[java.lang.Boolean]),
+    Passwords.RequireUpperCase -> Set(classOf[Boolean], classOf[java.lang.Boolean]),
+    Passwords.RequireSpecialCharacters -> Set(classOf[Boolean], classOf[java.lang.Boolean]),
+
+    Sessions.Timeout ->  Set(classOf[Int], classOf[java.lang.Integer]))
+
+  def validateConfig(key: String, value: Any): Try[Unit] = {
+    typeMaps.get(key) match {
+      case Some(classes) => 
+        classes.contains(value.getClass) match {
+          case true => Success(())
+          case failure => Failure(new IllegalArgumentException(s"'${key}' must be of type ${classes.mkString(", ")} but was of type: ${value.getClass.getName}"))
+        }
+      case None =>
+        Failure(new IllegalArgumentException(s"'${key}' is not a valid configuration key."))
+    }
   }
 }
 
@@ -64,21 +84,21 @@ object ConfigStore {
     val value: Any = processValue(key, doc.getProperty(Fields.Value))
     (key, value)
   }
-  
+
   def toInteger(value: Any): Integer = {
     value match {
       case v: Integer => v
-      case v: BigInt => v.intValue()
-      case v: Long => v.intValue()
-      case v: String => Integer.parseInt(v)
+      case v: BigInt  => v.intValue()
+      case v: Long    => v.intValue()
+      case v: String  => Integer.parseInt(v)
     }
   }
-  
+
   def processValue(key: String, value: Any): Any = {
     key match {
       case ConfigKeys.Passwords.MinimumLength => toInteger(value)
-      case ConfigKeys.Sessions.Timeout => toInteger(value)
-      case _ => value
+      case ConfigKeys.Sessions.Timeout        => toInteger(value)
+      case _                                  => value
     }
   }
 }
@@ -98,12 +118,15 @@ class ConfigStore(dbProvider: DatabaseProvider)
 
   def setConfigs(configs: Map[String, Any]): Try[Unit] = {
     Try {
+      // todo do this in two steps so we know that all the configs are good before processing them
+      // later if we get this in a transaction then we can do tham as we go.
+      configs.foreach { case (k, v) => ConfigKeys.validateConfig(k, v).get }
       configs.foreach {
         case (key, value) => setConfig(key, value).get
       }
     }
   }
-  
+
   def getSessionTimeout(): Try[Duration] = {
     getInteger(ConfigKeys.Sessions.Timeout).map { minutes =>
       Duration.ofMinutes(minutes.toLong)
