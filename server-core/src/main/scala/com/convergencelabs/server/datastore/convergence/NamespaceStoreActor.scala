@@ -22,6 +22,7 @@ import com.convergencelabs.server.domain.Namespace
 import com.convergencelabs.server.security.AuthorizationProfile
 import com.convergencelabs.server.security.Permissions
 import com.convergencelabs.server.domain.NamespaceUpdates
+import com.convergencelabs.server.datastore.InvalidValueExcpetion
 
 object NamespaceStoreActor {
   val RelativePath = "NamespaceStoreActor"
@@ -43,6 +44,7 @@ class NamespaceStoreActor private[datastore] (
   import akka.pattern.ask
 
   private[this] val namespaceStore = new NamespaceStore(dbProvider)
+  private[this] val configStore = new ConfigStore(dbProvider)
 
   def receive: Receive = {
     case createRequest: CreateNamespace =>
@@ -61,7 +63,9 @@ class NamespaceStoreActor private[datastore] (
 
   def createNamespace(createRequest: CreateNamespace): Unit = {
     val CreateNamespace(requestor, namespaceId, displayName) = createRequest
-    reply(namespaceStore.createNamespace(namespaceId, displayName, false))
+    
+    reply(this.validate(namespaceId, displayName)
+    .flatMap( _ => namespaceStore.createNamespace(namespaceId, displayName, false)))
   }
 
   def getNamespace(getRequest: GetNamespace): Unit = {
@@ -88,6 +92,23 @@ class NamespaceStoreActor private[datastore] (
       reply(namespaceStore
         .getAccessibleNamespaces(authProfile.username)
         .flatMap(namespaces => namespaceStore.getNamespaceAndDomains(namespaces.map(_.id).toSet)))
+    }
+  }
+  
+  private[this] def validate(namespace: String, displayName: String): Try[Unit] = {
+    if (namespace.isEmpty) {
+      Failure(InvalidValueExcpetion("namespace", "The namespace can not be empty"))
+    } else if (displayName.isEmpty) {
+      Failure(InvalidValueExcpetion("displayName","The display name can not be empty."))
+    } else {
+      configStore.getConfig(ConfigKeys.Namespaces.Enabled).flatMap { config =>
+        val namespacesEnabled = config.get.asInstanceOf[Boolean]
+        if (!namespacesEnabled) {
+          Failure(InvalidValueExcpetion("namespace", "Can not create the namespace because namespaces are disabled"))
+        } else {
+          Success(())
+        }
+      }
     }
   }
 }

@@ -8,6 +8,7 @@ import com.convergencelabs.server.api.rest.DomainRestData
 import com.convergencelabs.server.api.rest.JsonSupport
 import com.convergencelabs.server.api.rest.OkResponse
 import com.convergencelabs.server.api.rest.RestResponse
+import com.convergencelabs.server.api.rest.invalidValueResponse
 import com.convergencelabs.server.api.rest.namespaceNotFoundResponse
 import com.convergencelabs.server.api.rest.notFoundResponse
 import com.convergencelabs.server.api.rest.okResponse
@@ -40,6 +41,7 @@ import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Directives.post
 import akka.http.scaladsl.server.Directives.put
 import akka.util.Timeout
+import com.convergencelabs.server.datastore.InvalidValueExcpetion
 
 object DomainService {
   case class CreateDomainRestRequest(namespace: String, id: String, displayName: String)
@@ -47,13 +49,13 @@ object DomainService {
 }
 
 class DomainService(
-  private[this] val executionContext: ExecutionContext,
-  private[this] val domainStoreActor: ActorRef,
-  private[this] val domainManagerActor: ActorRef, // RestDomainActor
+  private[this] val executionContext:     ExecutionContext,
+  private[this] val domainStoreActor:     ActorRef,
+  private[this] val domainManagerActor:   ActorRef, // RestDomainActor
   private[this] val permissionStoreActor: ActorRef,
-  private[this] val modelClusterRegion: ActorRef,
-  private[this] val chatClusterRegion: ActorRef,
-  private[this] val defaultTimeout: Timeout)
+  private[this] val modelClusterRegion:   ActorRef,
+  private[this] val chatClusterRegion:    ActorRef,
+  private[this] val defaultTimeout:       Timeout)
   extends JsonSupport {
 
   import DomainService._

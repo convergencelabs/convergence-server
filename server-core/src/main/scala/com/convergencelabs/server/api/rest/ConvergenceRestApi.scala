@@ -88,7 +88,7 @@ class ConvergenceRestApi(
       complete(duplicateResponse(e.field))
 
     case e: InvalidValueExcpetion =>
-      complete(invalidValueResponse(e.field))
+      complete(invalidValueResponse(e.message, Some(e.field)))
 
     case e: EntityNotFoundException =>
       complete(notFoundResponse())

@@ -20,6 +20,7 @@ import grizzled.slf4j.Logging
 import com.convergencelabs.server.domain.DomainDatabase
 import com.convergencelabs.server.datastore.EntityNotFoundException
 
+
 object DomainStore {
 
   object Params {
@@ -33,10 +34,10 @@ object DomainStore {
   }
 
   def domainToDoc(domain: Domain, db: ODatabaseDocument): Try[ODocument] = {
-    val Domain(DomainId(namespace, domainId), displayName, status, statusMessage) = domain
+    val Domain(DomainId(namespace, id), displayName, status, statusMessage) = domain
     NamespaceStore.getNamespaceRid(namespace, db).map { nsRid =>
       val doc = db.newInstance(DomainClass.ClassName).asInstanceOf[ODocument]
-      doc.setProperty(DomainClass.Fields.Id, domainId)
+      doc.setProperty(DomainClass.Fields.Id, id)
       doc.setProperty(DomainClass.Fields.Namespace, nsRid)
       doc.setProperty(DomainClass.Fields.DisplayName, displayName)
       doc.setProperty(DomainClass.Fields.Status, status.toString())
@@ -57,8 +58,8 @@ object DomainStore {
     Domain(fqn, displayName, status, statusMessage)
   }
 
-  def getDomainRid(domainFqn: DomainId, db: ODatabaseDocument): Try[ORID] = {
-    getDomainRid(domainFqn.namespace, domainFqn.domainId, db)
+  def getDomainRid(domainId: DomainId, db: ODatabaseDocument): Try[ORID] = {
+    getDomainRid(domainId.namespace, domainId.domainId, db)
   }
 
   private[this] val DomainRidQuery = "SELECT @rid FROM Domain WHERE id = :id AND namespace.id = :namespace"
@@ -93,8 +94,8 @@ class DomainStore(dbProvider: DatabaseProvider)
 
   import DomainStore._
 
-  def createDomain(domainFqn: DomainId, displayName: String, domainDatabase: DomainDatabase): Try[Unit] = withDb { db =>
-    val domain = Domain(domainFqn, displayName, DomainStatus.Initializing, "")
+  def createDomain(domainId: DomainId, displayName: String, domainDatabase: DomainDatabase): Try[Unit] = withDb { db =>
+    val domain = Domain(domainId, displayName, DomainStatus.Initializing, "")
     domainToDoc(domain, db).map { doc =>
       addDomainDatabaseFields(doc, domainDatabase)
       db.save(doc)
@@ -103,9 +104,9 @@ class DomainStore(dbProvider: DatabaseProvider)
   } recoverWith (handleDuplicateValue)
 
   private[this] val DomainExistsQuery = "SELECT count(@rid) as count FROM Domain WHERE id = :id AND namespace.id = :namespace"
-  def domainExists(domainFqn: DomainId): Try[Boolean] = withDb { db =>
-    val DomainId(namespace, domainId) = domainFqn
-    val params = Map(Params.Id -> domainId, Params.Namespace -> namespace)
+  def domainExists(domainId: DomainId): Try[Boolean] = withDb { db =>
+    val DomainId(namespace, id) = domainId
+    val params = Map(Params.Id -> id, Params.Namespace -> namespace)
     OrientDBUtil.getDocument(db, DomainExistsQuery, params).map(_.getProperty("count").asInstanceOf[Long] > 0)
   }
 
@@ -115,9 +116,9 @@ class DomainStore(dbProvider: DatabaseProvider)
   }
 
   private[this] val GetDomainQuery = "SELECT FROM Domain WHERE namespace.id = :namespace AND id = :id"
-  def getDomainByFqn(domainFqn: DomainId): Try[Option[Domain]] = withDb { db =>
-    val DomainId(namespace, domainId) = domainFqn
-    val params = Map(Params.Id -> domainId, Params.Namespace -> namespace)
+  def getDomainByFqn(domainId: DomainId): Try[Option[Domain]] = withDb { db =>
+    val DomainId(namespace, id) = domainId
+    val params = Map(Params.Id -> id, Params.Namespace -> namespace)
     OrientDBUtil.findDocument(db, GetDomainQuery, params).map(_.map(docToDomain(_)))
   }
 
@@ -191,9 +192,9 @@ class DomainStore(dbProvider: DatabaseProvider)
   }
 
   private[this] val DeleteDomainCommand = "DELETE FROM Domain WHERE namespace.id = :namespace AND id = :id"
-  def removeDomain(domainFqn: DomainId): Try[Unit] = withDb { db =>
-    val DomainId(namespace, domainId) = domainFqn
-    val params = Map(Params.Id -> domainId, Params.Namespace -> namespace)
+  def removeDomain(domainId: DomainId): Try[Unit] = withDb { db =>
+    val DomainId(namespace, id) = domainId
+    val params = Map(Params.Id -> id, Params.Namespace -> namespace)
     OrientDBUtil.mutateOneDocument(db, DeleteDomainCommand, params)
   }
 
@@ -218,9 +219,9 @@ class DomainStore(dbProvider: DatabaseProvider)
     OrientDBUtil.mutateOneDocument(db, SetDomainStatusCommand, params)
   }
 
-  def getDomainDatabase(domainFqn: DomainId): Try[Option[DomainDatabase]] = withDb { db =>
-    val DomainId(namespace, domainId) = domainFqn
-    val params = Map(Params.Id -> domainId, Params.Namespace -> namespace)
+  def getDomainDatabase(domainId: DomainId): Try[Option[DomainDatabase]] = withDb { db =>
+    val DomainId(namespace, id) = domainId
+    val params = Map(Params.Id -> id, Params.Namespace -> namespace)
     OrientDBUtil.findDocument(db, GetDomainQuery, params).map(_.map(docToDomainDatabase(_)))
   }
 

@@ -28,6 +28,7 @@ import com.convergencelabs.server.security.Permissions
 import scala.concurrent.Future
 import com.typesafe.config.Config
 import scala.concurrent.ExecutionContext
+import com.convergencelabs.server.datastore.InvalidValueExcpetion
 
 object DomainStoreActor {
   val RelativePath = "DomainStoreActor"
@@ -56,6 +57,7 @@ class DomainStoreActor private[datastore] (
   private[this] val RandomizeCredentials = context.system.settings.config.getBoolean("convergence.persistence.domain-databases.randomize-credentials")
 
   private[this] val domainStore = new DomainStore(dbProvider)
+  private[this] val configStore = new ConfigStore(dbProvider)
   private[this] val favoriteDomainStore = new UserFavoriteDomainStore(dbProvider)
   private[this] val deltaHistoryStore: DeltaHistoryStore = new DeltaHistoryStore(dbProvider)
   private[this] implicit val ec = context.system.dispatcher
@@ -83,7 +85,12 @@ class DomainStoreActor private[datastore] (
 
   def createDomain(createRequest: CreateDomainRequest): Unit = {
     val CreateDomainRequest(namespace, domainId, displayName, anonymousAuth) = createRequest
-    reply(domainCreator.createDomain(namespace, domainId, displayName, anonymousAuth).map(_ => ()))
+    if (namespace.startsWith("~")) {
+      reply(Failure(InvalidValueExcpetion("namespace" ,"Normal namespaces can not being with a '~', as these are reserved for user namespaces")))
+    } else {
+      configStore.getConfigs(List(ConfigKeys.Namespaces.Enabled, ConfigKeys.Namespaces.DefaultNamespace))
+      reply(domainCreator.createDomain(namespace, domainId, displayName, anonymousAuth).map(_ => ()))
+    }
   }
 
   def updateDomain(request: UpdateDomainRequest): Unit = {

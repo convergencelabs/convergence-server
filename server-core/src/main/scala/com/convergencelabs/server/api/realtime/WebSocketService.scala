@@ -38,12 +38,12 @@ case class OutgoingBinaryMessage(message: Array[Byte])
 
 class WebSocketService(
   private[this] val protocolConfig:  ProtocolConfiguration,
-  private[this] val configActor:       ActorRef,
+  private[this] val configActor:     ActorRef,
   private[this] implicit val fm:     Materializer,
   private[this] implicit val system: ActorSystem)
   extends Directives
   with Logging {
-  
+
   import akka.pattern.ask
 
   private[this] val config = system.settings.config
@@ -53,42 +53,13 @@ class WebSocketService(
 
   private[this] implicit val ec = system.dispatcher
 
-  val route: Route =
-    onComplete(getConfig()) {
-      case Success((namespacesEnabled, defaultNamespace)) =>
-        namespacesEnabled match {
-          case false =>
-            get {
-              path(Segment) { (domain) =>
-                extractClientIP { remoteAddress =>
-                  optionalHeaderValueByName("User-Agent") { ua =>
-                    handleWebSocketMessages(realTimeDomainFlow(defaultNamespace, domain, remoteAddress, ua.getOrElse("")))
-                  }
-                }
-              }
-            }
-          case true =>
-            path(Segment / Segment) { (namespace, domain) =>
-              extractClientIP { remoteAddress =>
-                optionalHeaderValueByName("User-Agent") { ua =>
-                  handleWebSocketMessages(realTimeDomainFlow(namespace, domain, remoteAddress, ua.getOrElse("")))
-                }
-              }
-            }
+  val route: Route = {
+    path(Segment / Segment) { (namespace, domain) =>
+      extractClientIP { remoteAddress =>
+        optionalHeaderValueByName("User-Agent") { ua =>
+          handleWebSocketMessages(realTimeDomainFlow(namespace, domain, remoteAddress, ua.getOrElse("")))
         }
-      case Failure(cause) =>
-        complete((StatusCodes.InternalServerError, s"An error occurred: ${cause.getMessage}"))
-    }
-
-  private[this] def getConfig(): Future[(Boolean, String)] = {
-    val request = GetConfigs(Some(List(ConfigKeys.Namespaces.Enabled, ConfigKeys.Namespaces.DefaultNamespace)))
-    implicit val timeout = Timeout(10, TimeUnit.SECONDS)
-    configActor.ask(request)
-    .mapTo[Map[String, Any]]
-    .map{ configs => 
-      val enabled =  configs(ConfigKeys.Namespaces.Enabled).asInstanceOf[Boolean]
-      val defaultNamespace =  configs(ConfigKeys.Namespaces.DefaultNamespace).asInstanceOf[String]
-      (enabled, defaultNamespace)
+      }
     }
   }
 
