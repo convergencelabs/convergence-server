@@ -98,6 +98,8 @@ class NamespaceStoreActor private[datastore] (
   private[this] def validate(namespace: String, displayName: String): Try[Unit] = {
     if (namespace.isEmpty) {
       Failure(InvalidValueExcpetion("namespace", "The namespace can not be empty"))
+    } else if (namespace.startsWith("~")) {
+      Failure(InvalidValueExcpetion("namespace" ,"Normal namespaces can not being with a '~', as these are reserved for user namespaces"))
     } else if (displayName.isEmpty) {
       Failure(InvalidValueExcpetion("displayName","The display name can not be empty."))
     } else {

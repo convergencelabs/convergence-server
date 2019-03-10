@@ -256,7 +256,15 @@ object OrientDBUtil {
       case Some(oIndex) =>
         Success(oIndex)
       case None =>
-        Failure(new IllegalArgumentException("Index not found: " + index))
+        // TODO Workaround for https://github.com/orientechnologies/orientdb/issues/8397
+        db.getMetadata.reload()
+        Option(db.getMetadata.getIndexManager.getIndex(index)) match {
+          case Some(oIndex) =>
+            Success(oIndex)
+          case None =>
+            Failure(new IllegalArgumentException("Index not found: " + index))
+        }
+
     }
   }
 

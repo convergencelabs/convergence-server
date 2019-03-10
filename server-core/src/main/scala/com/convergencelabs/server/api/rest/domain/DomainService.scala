@@ -121,8 +121,7 @@ class DomainService(
 
   def createDomain(createRequest: CreateDomainRestRequest, authProfile: AuthorizationProfile): Future[RestResponse] = {
     val CreateDomainRestRequest(namespace, id, displayName) = createRequest
-    // FIXME require permissions
-    // FIXME check config to see if user namespaces are enabled
+    // FIXME check to make sure use has permissions to create domain in this namespace
     val message = CreateDomainRequest(namespace, id, displayName, false)
     (domainStoreActor ? message)
       .map { _ => CreatedResponse }

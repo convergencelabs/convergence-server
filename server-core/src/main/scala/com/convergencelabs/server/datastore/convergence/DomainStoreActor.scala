@@ -85,12 +85,8 @@ class DomainStoreActor private[datastore] (
 
   def createDomain(createRequest: CreateDomainRequest): Unit = {
     val CreateDomainRequest(namespace, domainId, displayName, anonymousAuth) = createRequest
-    if (namespace.startsWith("~")) {
-      reply(Failure(InvalidValueExcpetion("namespace" ,"Normal namespaces can not being with a '~', as these are reserved for user namespaces")))
-    } else {
-      configStore.getConfigs(List(ConfigKeys.Namespaces.Enabled, ConfigKeys.Namespaces.DefaultNamespace))
-      reply(domainCreator.createDomain(namespace, domainId, displayName, anonymousAuth).map(_ => ()))
-    }
+    configStore.getConfigs(List(ConfigKeys.Namespaces.Enabled, ConfigKeys.Namespaces.DefaultNamespace))
+    reply(domainCreator.createDomain(namespace, domainId, displayName, anonymousAuth).map(_ => ()))
   }
 
   def updateDomain(request: UpdateDomainRequest): Unit = {
